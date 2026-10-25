@@ -16,6 +16,7 @@ import GenerationProposalCard from './GenerationProposalCard.jsx';
 import { PROPOSAL_REFUSED_EVENT, approvesJob, generateProposal, proposalActive, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
 import { fetchProposal, problemOf, saveProposal } from './generation-review-client.js';
 import { withPrompt } from './card-prompt.js';
+import { reportClientError } from './client-telemetry.js';
 import { retryImageSave, runImageJob } from './generate-image.js';
 
 // UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its
@@ -24,7 +25,7 @@ import { retryImageSave, runImageJob } from './generate-image.js';
 function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   const p = m.meta.proposal;
   const chat = useChatWorkspace(); // a reference pill opens its source beside the Chat, as an attached chip does
-  const [busy, setBusy] = useState(false), [error, setError] = useState(null), [pressed, setPressed] = useState(false);
+  const [busy, setBusy] = useState(false), [error, setError] = useState(null), [pressed, setPressed] = useState(false), [released, setReleased] = useState(0);
   const made = pressed || !!ops?.proposalMade?.(p.proposal_id);
   const saved = /^\d+$/.test(String(m.messageId ?? ''));
   // Generate is enabled by the command's own start adapter: an output card (Motion) or an existing job (Explain).
@@ -62,7 +63,7 @@ function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   useEffect(() => {
     const refused = event => {
       if (event.detail?.proposalId !== p.proposal_id) return;
-      setPressed(false); setError(event.detail.message);
+      setPressed(false); setReleased(n => n + 1); setError(event.detail.message);
       // A stale price: the same settings are signed again with the server's updated quote, which the card then shows for explicit confirmation.
       if (event.detail.code === 'motion_quote_stale') onSave({ settings: p.settings }).catch(() => {});
     };
@@ -102,7 +103,7 @@ function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   };
   return (
     <div className="mt-2">
-      <GenerationProposalCard proposal={p} active={active} made={made} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
+      <GenerationProposalCard proposal={p} active={active} made={made} released={released} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
         onGenerate={onGenerate} onSave={onSave} onOpenReference={ref => chat?.openSource?.({ sourceId: ref.sourceId, kind: ref.kind, name: ref.label, version: ref.revision, range: ref.range })} />
       {error && <p role="alert" className="mt-1 text-xs text-danger">{error}</p>}
       {image && (
@@ -238,7 +239,7 @@ function OutputRow({ runId, name, size }) {
 export class AnswerBoundary extends Component {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(error) { console.error('[chat answer]', error); }
+  componentDidCatch(error) { console.error('[chat answer]', error); reportClientError('render_failed', error, { artifact: 'chat_answer' }); }
   render() { return this.state.failed ? <div data-answer className="min-w-0 whitespace-pre-wrap text-sm">{String(this.props.text ?? '')}</div> : this.props.children; }
 }
 

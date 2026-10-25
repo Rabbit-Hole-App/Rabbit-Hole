@@ -13,10 +13,10 @@ const platform = env => withSystemUsage(env);
 const migration = readFileSync(new URL('../learn-migrations/0016-usage-operations.sql', import.meta.url), 'utf8');
 const db = () => { const sqlite = new DatabaseSync(':memory:'); sqlite.exec(migration); return sqlite; };
 
-test('paid admission refuses when the platform dollar cap is unset', async () => {
+test('paid admission refuses when the platform spending cap is unset', async () => {
   const result = await admitSpend(null, {}, { opId: 'x', userId: 'u', org: 'o', category: 'tutor_plan', reservedUsd: 0.01 });
   assert.deepEqual(result, { refused: true, reason: 'cap_unset' });
-  assert.match(spendMessage(result.reason), /paused until.*configured/);
+  assert.match(spendMessage(result.reason), /paused until.*spending limit/);
 });
 
 test('paid admission refuses once settled daily dollars reach the cap', async () => {

@@ -10,6 +10,14 @@ const NOW = "strftime('%Y-%m-%d %H:%M:%f', 'now')";
 // Not in Trash: every list, share link and Explore read filters with this. `org` and `name` are qualified columns.
 export const NOT_TRASHED = (org, name) => `NOT EXISTS (SELECT 1 FROM library_trash t WHERE t.org = ${org} AND t.name = ${name})`;
 
+// A nested Rabbit Hole goes to Trash with its canvas (canvases.js): it has no library_trash row of its own, so it counts as
+// trashed while it or any canvas above it is. A hole started from a shared canvas (parent 'share:...') is its own root.
+// `org` and `name` are qualified columns of the outer row.
+export const IN_TRASH_TREE = (org, name) => `(NOT ${NOT_TRASHED(org, name)} OR EXISTS (WITH RECURSIVE up(name) AS (
+    SELECT d.parent_app FROM canvas_dives d WHERE d.org = ${org} AND d.child = ${name} AND d.parent_app NOT LIKE 'share:%'
+    UNION SELECT d.parent_app FROM canvas_dives d JOIN up ON d.child = up.name WHERE d.org = ${org} AND d.parent_app NOT LIKE 'share:%')
+  SELECT 1 FROM library_trash a JOIN up ON a.name = up.name WHERE a.org = ${org}))`;
+
 // The one write for both kinds; the caller has already checked ownership. A canvas's publication goes with it.
 export function trashStatements(db, org, name, trash) {
   if (!trash) return [db.prepare('DELETE FROM library_trash WHERE org = ? AND name = ?').bind(org, name)];

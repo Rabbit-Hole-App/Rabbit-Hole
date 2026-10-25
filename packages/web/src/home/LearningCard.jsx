@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowDownUp, ArrowRight, ArrowUpRight, Check, FolderGit2, Globe, HardDrive, Layers, Link2, Lock, MonitorSmartphone, MoreHorizontal, Shapes } from 'lucide-react';
 import { ago } from '../api.js';
 import { ACCESS } from '../canvas-visibility.js';
-import { Button, IconBtn, KindIcon, Menu, MenuItem } from '../ui.jsx';
+import { Button, IconBtn, KindIcon, Menu, MenuItem, useMenuButton } from '../ui.jsx';
 import { Creator, ForkedFrom, Forks, OwnerCheck } from './Provenance.jsx';
 
 // The one learning card (card redesign, owner 2026-10-06 §11-14, docs/features/card-redesign.md). Library, Home and
@@ -130,6 +130,7 @@ const plain = (e) => e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey &
 // overflow-wrap:anywhere alone: Tailwind emits break-words after it, so both classes would leave break-word, whose min-content is the whole word (card-size.test.mjs).
 const TITLE = 'text-left text-base font-semibold leading-snug [overflow-wrap:anywhere]';
 
+// `star`: the Star control (CardStar.jsx), first in the actions row, on every canvas card that has a count.
 // `attrs`: the surface's data attributes (data-library-card, data-recent-card, data-continue-card, data-explore-card).
 // `onOpen`: what the title and Open open (null: not openable, as a canvas whose content is in another browser);
 // `href`: the title's link, so it opens in a new tab too. `mine`: the viewer owns it. `onMore`: the Card options button (the three dots). `onVaries`: a project's Varies by canvas badge opens its Share window. `note`: this
@@ -137,7 +138,7 @@ const TITLE = 'text-left text-base font-semibold leading-snug [overflow-wrap:any
 // (Home's Continue →). `onForkedFromOpen`: a review fixture's original. `creatorHref`: the creator's public profile
 // (/@handle; docs/features/creator-profile.md), else the card's own @handle's (cardModel), on every surface. `thumbnail`:
 // the picture's address (card-thumbnail.js); a canvas or project without one shows the placeholder.
-export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, mine = false, access = null, onVaries = null, onMore, note, actions, cta, onForkedFromOpen, creatorHref: given, thumbnail = null }) {
+export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, mine = false, access = null, onVaries = null, onMore, note, actions, cta, onForkedFromOpen, creatorHref: given, thumbnail = null, star = null }) {
   const learning = kind === 'repository' || kind === 'canvas';
   const creatorHref = given || m.creator?.url; // every surface's @handle opens the profile (owner, 2026-10-08)
   const repo = kind === 'repository' && m.sourceUrl;
@@ -187,9 +188,11 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
           </div>
         )}
         {note && <div data-card-note className="flex min-w-0 flex-col gap-0.5 pt-2 text-xs text-(color:--browse-meta)">{note}</div>}
-        {actions && <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">{actions}</div>}
+        {actions && <div data-card-actions className="mt-auto flex flex-wrap items-center gap-2 pt-3">{star}{actions}</div>}
+        {/* a card with a Star and no other action (the owner's own canvas) */}
+        {!actions && star && <div data-card-actions className="mt-auto flex flex-wrap items-center gap-2 pt-3">{star}</div>}
         {learning && (
-          <div data-card-footer className={`flex min-w-0 items-center gap-3 text-xs text-(color:--browse-meta) ${actions ? 'pt-2' : 'mt-auto pt-3'}`}>
+          <div data-card-footer className={`flex min-w-0 items-center gap-3 text-xs text-(color:--browse-meta) ${actions || star ? 'pt-2' : 'mt-auto pt-3'}`}>
             {/* m.forks is null at 0, so no "0 forks"; a project row carries no fork count, so it shows none */}
             <Forks m={m} />
             {/* a project's canvases, Main canvas included (docs/features/project-canvases.md) */}
@@ -209,19 +212,25 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
 
 // The sort control (§17-18): one neutral button and a menu with the current choice checked, the Filters pattern. `size`:
 // the Library's sits beside Filters at its height (md); Explore's stays sm.
-export function SortMenu({ options, value, onChange, size = 'sm', menuClass = 'top-9 right-0 w-52' }) {
+// portal: the menu opens in the page body, so a horizontally scrolling toolbar cannot clip it (Explore's, ui.jsx useMenuButton).
+export function SortMenu({ options, value, onChange, size = 'sm', menuClass = 'top-9 right-0 w-52', portal = false }) {
   const [open, setOpen] = useState(false);
+  const pm = useMenuButton();
+  const shown = portal ? pm.open : open;
+  const hide = () => (portal ? pm.close() : setOpen(false));
   const current = options.find((o) => o.id === value) || options[0];
   return (
     <div className="relative">
-      <Button variant="secondary" size={size} data-sort-control={current.id} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}><ArrowDownUp size={13} /> Sort: {current.label}</Button>
-      <Menu open={open} onClose={() => setOpen(false)} className={menuClass}>
-        <div className="px-2 pb-1 pt-2 text-xs text-ink-3">Sort by</div>
-        {options.map((o) => (
-          <MenuItem key={o.id} role="menuitemradio" aria-checked={o.id === current.id} data-sort-option={o.id} onClick={() => { setOpen(false); onChange(o.id); }}>
-            <span className="flex w-full items-center justify-between">{o.label}{o.id === current.id && <Check size={14} strokeWidth={2} />}</span>
-          </MenuItem>
-        ))}
+      <Button variant="secondary" size={size} data-sort-control={current.id} aria-haspopup="menu" aria-expanded={shown} {...(portal ? pm.buttonProps : { onClick: () => setOpen(!open) })}><ArrowDownUp size={13} /> Sort: {current.label}</Button>
+      <Menu portal={portal} anchor={portal ? pm.button.current : null} open={shown} onClose={portal ? pm.onClose : () => setOpen(false)} style={portal ? pm.style : undefined} className={portal ? 'w-52' : menuClass}>
+        <div {...(portal && { 'data-menu-button-open': '' })}>
+          <div className="px-2 pb-1 pt-2 text-xs text-ink-3">Sort by</div>
+          {options.map((o) => (
+            <MenuItem key={o.id} role="menuitemradio" aria-checked={o.id === current.id} data-sort-option={o.id} onClick={() => { hide(); onChange(o.id); }}>
+              <span className="flex w-full items-center justify-between">{o.label}{o.id === current.id && <Check size={14} strokeWidth={2} />}</span>
+            </MenuItem>
+          ))}
+        </div>
       </Menu>
     </div>
   );

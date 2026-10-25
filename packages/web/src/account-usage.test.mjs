@@ -23,8 +23,8 @@ test('positive: allowance left is green, says how much, and says it is not enfor
   assert.deepEqual(state.usage, { allowance: 50_000_000, used: 17_400_000, reserved: 0, remaining: 32_600_000, resetsAt: '2026-11-01T00:00:00.000Z', period: '2026-10', enforced: false, unknownAttempts: 0 });
   const view = usageView(state);
   assert.equal(view.tone, 'ok');
-  assert.equal(view.label, 'AI allowance: 3,260 credits remaining');
-  assert.equal(view.title, `AI allowance: 3,260 credits remaining. ${TRACKING_NOTE}`);
+  assert.equal(view.label, 'AI credits: 3,260 credits remaining');
+  assert.equal(view.title, `AI credits: 3,260 credits remaining. ${TRACKING_NOTE}`);
   assert.equal(TRACKING_NOTE, 'Tracking only - limits are not enforced yet.');
 });
 
@@ -32,12 +32,12 @@ test('exhausted: red only when the server reports remaining 0', async () => {
   const { store } = storeWith(reply(200, body({ usedMicros: 50_000_000, remainingMicros: 0 })));
   const view = usageView(await settle(store));
   assert.equal(view.tone, 'empty');
-  assert.equal(view.label, 'No AI allowance remaining');
+  assert.equal(view.label, 'No AI credits remaining');
   assert.match(view.title, /not enforced yet/);
   // A tiny balance is still a balance: green, and never shown as 0 credits.
   const tiny = usageView(readUsage(200, body({ remainingMicros: 3_000 })));
   assert.equal(tiny.tone, 'ok');
-  assert.equal(tiny.label, 'AI allowance: less than 1 credit remaining');
+  assert.equal(tiny.label, 'AI credits: less than 1 credit remaining');
 });
 
 test('reserved: running work is held apart from what is used, and the remaining figure is the server\'s', async () => {
@@ -45,7 +45,7 @@ test('reserved: running work is held apart from what is used, and the remaining 
   const state = await settle(store);
   assert.equal(state.usage.reserved, 500_000);
   assert.equal(state.usage.used, 17_400_000, 'a reservation is never reported as spend');
-  assert.equal(usageView(state).label, 'AI allowance: 3,210 credits remaining');
+  assert.equal(usageView(state).label, 'AI credits: 3,210 credits remaining');
 });
 
 test('unavailable and errors are neutral, never red or a zero balance', async () => {
@@ -77,7 +77,7 @@ test('signed out (401): no personal allowance, and no redirect to sign-in from a
   assert.deepEqual(state, { status: 'signed_out' });
   const view = usageView(state);
   assert.equal(view.tone, 'neutral');
-  assert.equal(view.label, 'Sign in to see your AI allowance');
+  assert.equal(view.label, 'Sign in to see your AI credits');
   assert.equal(view.usage, null);
   // The store reads with fetch, not api(): api() sends any 401 to /login, which would yank a signed-out link viewer away.
   const source = readFileSync(new URL('./account-usage.js', import.meta.url), 'utf8');
@@ -151,9 +151,13 @@ test('credits from integer micros (owner messages 32-33): 1 credit = $0.01, near
   assert.equal(formatCredits(1_234_567_890), '123,457 credits');
 });
 
-test('the reset date is the UTC start of the month, whatever the local zone', () => {
-  assert.equal(formatReset('2026-11-01T00:00:00.000Z'), 'November 1, 2026');
-  assert.equal(formatReset('2027-01-01T00:00:00Z', { year: false }), 'January 1');
+test('the reset instant is one wording everywhere, in the viewer zone with the zone named, pinned at the Nov 1 cutover and at a month and year boundary', () => {
+  const LA = { timeZone: 'America/Los_Angeles' };
+  assert.equal(formatReset('2026-11-01T00:00:00.000Z', LA), 'October 31, 5:00 PM PDT', 'the cutover');
+  assert.equal(formatReset('2026-12-01T00:00:00.000Z', LA), 'November 30, 4:00 PM PST', 'the next month, after daylight time ends');
+  assert.equal(formatReset('2027-01-01T00:00:00Z', LA), 'December 31, 4:00 PM PST', 'the year boundary');
+  assert.equal(formatReset('2026-11-01T00:00:00.000Z', { timeZone: 'UTC' }), 'November 1, 12:00 AM UTC');
+  assert.equal(formatReset('2026-11-01T00:00:00.000Z', { timeZone: 'Europe/London' }), 'November 1, 12:00 AM GMT');
 });
 
 test('the usage bar: used then reserved, in whole percents of the allowance, never past 100', () => {
@@ -165,7 +169,7 @@ test('the usage bar: used then reserved, in whole percents of the allowance, nev
 
 test('the allowance comes only from the server: no dollar amount is written into the client', () => {
   const changed = usageView(readUsage(200, body({ allowanceMicros: 75_000_000, usedMicros: 0, remainingMicros: 75_000_000 })));
-  assert.equal(changed.label, 'AI allowance: 7,500 credits remaining');
+  assert.equal(changed.label, 'AI credits: 7,500 credits remaining');
   for (const file of ['./account-usage.js', './UsageGauge.jsx']) {
     const source = readFileSync(new URL(file, import.meta.url), 'utf8');
     // A bare 50 (not a class like z-50), $50, or 50 dollars in micros.

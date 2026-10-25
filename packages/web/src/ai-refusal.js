@@ -1,6 +1,6 @@
 // The one answer to a refused AI request (owner D4 section 4; enforcement L12 2026-10-20). The server refuses before any
 // provider call and says why in one body (learn-spend-ledger.js refusalBody): code 'allowance_limited' is the person's
-// monthly allowance (reason exhausted / insufficient / reserved / unavailable, with resetsAt), 'spend_limited' the platform's
+// monthly credits (reason exhausted / insufficient / reserved / unavailable, with resetsAt), 'spend_limited' the platform's
 // temporary limit. This only explains it, once per attempt; the caller keeps the prompt, attachments, selection and canvas.
 import { formatReset, refreshAccountUsage } from './account-usage.js';
 
@@ -12,12 +12,12 @@ export const isAiRefusal = body => !!body && (body.code === 'allowance_limited' 
 // The person's sentence for a refusal: the allowance's four states each read differently, and never like the platform's.
 export function refusalMessage(body) {
   if (body?.code !== 'allowance_limited') return body?.error || 'AI is paused for now. Try again later.';
-  const resets = body.resetsAt && !Number.isNaN(Date.parse(body.resetsAt)) ? ` It resets on ${formatReset(body.resetsAt)}.` : '';
+  const renews = body.resetsAt && !Number.isNaN(Date.parse(body.resetsAt)) ? ` Renews on ${formatReset(body.resetsAt)}.` : '';
   switch (body.reason) {
-    case 'exhausted': return `You've used your monthly AI allowance.${resets}`;
-    case 'insufficient': return `This action needs more than your remaining AI allowance.${resets}`;
-    case 'reserved': return 'Your remaining AI allowance is reserved by AI work that is still running. Try again when it finishes.';
-    default: return 'AI is temporarily unavailable: your AI allowance cannot be checked right now. Your work is saved; try again shortly.';
+    case 'exhausted': return `Not enough AI credits.${renews}`;
+    case 'insufficient': return `This needs more AI credits than you have left.${renews}`;
+    case 'reserved': return 'Your remaining AI credits are temporarily reserved by AI work that is still running. Try again when it finishes.';
+    default: return 'AI is temporarily unavailable: your AI credits cannot be checked right now. Your work is saved; try again shortly.';
   }
 }
 

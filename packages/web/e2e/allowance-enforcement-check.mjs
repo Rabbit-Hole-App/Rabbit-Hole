@@ -40,10 +40,12 @@ const ALLOWANCE = usage.allowanceMicros;
 assert.ok(Number.isSafeInteger(ALLOWANCE) && ALLOWANCE > 0, 'the configured allowance is read from the server');
 assert.deepEqual(await tripwire(), [], 'the tripwire answers and has counted nothing yet');
 
+// The month's grant is pinned to the allowance read above: seeded history must not turn it into the legacy-transition grant.
 // One past action holding `micros` in this user's month, in the given state (settled spend, or a running reservation).
 const period = usage.period, run = Date.now().toString(36);
 const seed = (micros, state) => d1(`DELETE FROM usage_attempts WHERE action_id IN (SELECT action_id FROM usage_actions WHERE user_id = '${payer}');
   DELETE FROM usage_actions WHERE user_id = '${payer}';
+  INSERT OR REPLACE INTO usage_grants (user_id, period, allowance_micros, source, granted_at) VALUES ('${payer}', '${period}', ${ALLOWANCE}, 'default', 0);
   INSERT INTO usage_actions (action_id, user_id, payer, payer_reason, feature, charge_class, period, status, started_at) VALUES ('seed-${run}-${state}', '${payer}', 'user', 'signed_in', 'ask', 'would_charge', '${period}', 'completed', 0);
   INSERT INTO usage_attempts (attempt_id, action_id, kind, reserved_micros, cost_micros, cost_state, status, started_at) VALUES ('seed-${run}-${state}-a', 'seed-${run}-${state}', 'generation', ${micros}, ${state === 'settled' ? micros : 'NULL'}, '${state}', '${state === 'reserved' ? 'running' : 'settled'}', 0);`);
 
@@ -63,7 +65,8 @@ page.on('pageerror', error => errors.push(error.message));
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
 const shot = async name => { await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/${name}.png` }); console.log('shot', name); };
-const resets = new Date(usage.resetsAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+// formatReset (account-usage.js): the reset instant in the browser's own zone, zone named; this check runs on the machine whose zone the browser uses.
+const resets = new Date(usage.resetsAt).toLocaleString('en-US', { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).replace(' at ', ', ');
 
 const open = async () => {
   await page.goto(`${BASE}/apps/${canvas.name}`);
@@ -78,7 +81,7 @@ const send = async prompt => {
   const listen = request => { if (/\/api\/learn\/(ask|tutor\/plan)$/.test(new URL(request.url()).pathname)) asks.push(request.url()); };
   page.on('request', listen);
   await page.locator('[data-chat-pane] [data-chat-composer] button[aria-label="Send"]').click();
-  const toast = page.locator('[data-toast-error]').filter({ hasText: /AI allowance|temporarily unavailable/ });
+  const toast = page.locator('[data-toast-error]').filter({ hasText: /AI credits|temporarily unavailable/ });
   await toast.first().waitFor({ timeout: 30000 });
   await page.waitForTimeout(800); // a second toast for the same attempt would land by now
   page.off('request', listen);
@@ -98,7 +101,7 @@ await check('exhausted: Send is refused before any provider call, one toast name
   const prompt = 'Why are there two tides a day? (exhausted)';
   const told = await send(prompt);
   assert.equal(told.count, 1, 'one toast for one attempt');
-  assert.match(told.text, new RegExp(`You've used your monthly AI allowance\\. It resets on ${resets}\\.`));
+  assert.match(told.text, new RegExp(`Not enough AI credits\\. Renews on ${resets}\\.`));
   assert.equal(await field().inputValue(), prompt, 'the learner\'s prompt is back in the composer');
   assert.ok(told.asks.length >= 1, 'the Send reached the server, which refused it');
   assert.deepEqual(await tripwire(), [], 'no provider request left the stack');
@@ -110,8 +113,8 @@ await check('View usage opens Settings at AI usage, which agrees: nothing remain
   await page.locator('[data-toast-error] [data-toast-action]').filter({ hasText: 'View usage' }).first().click();
   const settings = page.locator('[data-usage-settings]');
   await settings.waitFor({ timeout: 15000 });
-  await settings.getByText('No AI allowance remaining.').waitFor({ timeout: 15000 });
-  assert.match(await settings.innerText(), /Used\s*5,000 credits[\s\S]*Remaining\s*No AI allowance remaining\.\s*0 credits/);
+  await settings.getByText('No AI credits remaining.').waitFor({ timeout: 15000 });
+  assert.match(await settings.innerText(), new RegExp(`Used\\s*${(ALLOWANCE / 10_000).toLocaleString('en-US')} credits[\\s\\S]*Remaining\\s*No AI credits remaining\\.\\s*0 credits`));
   assert.equal(await page.locator('[data-usage-note]').count(), 0);
   await shot('view-usage');
   await page.keyboard.press('Escape');
@@ -123,7 +126,7 @@ await check('reserved: running work holding the balance reads as reserved, not s
   const prompt = 'Explain neap tides (reserved)';
   const told = await send(prompt);
   assert.equal(told.count, 1);
-  assert.match(told.text, /reserved by AI work that is still running/);
+  assert.match(told.text, /temporarily reserved by AI work that is still running/);
   assert.doesNotMatch(told.text, /used your monthly/);
   assert.equal(await field().inputValue(), prompt);
   assert.deepEqual(await tripwire(), []);
@@ -136,7 +139,7 @@ await check('insufficient: some allowance left but less than this request can co
   const prompt = 'Compare spring and neap tides (insufficient)';
   const told = await send(prompt);
   assert.equal(told.count, 1);
-  assert.match(told.text, new RegExp(`This action needs more than your remaining AI allowance\\. It resets on ${resets}\\.`));
+  assert.match(told.text, new RegExp(`This needs more AI credits than you have left\\. Renews on ${resets}\\.`));
   assert.equal(await field().inputValue(), prompt);
   assert.deepEqual(await tripwire(), [], 'admission refused before the (placeholder-key) provider request');
   await shot('insufficient');
@@ -150,7 +153,7 @@ await check('unavailable: an accounting outage refuses AI with a temporary reaso
     const told = await send(prompt);
     assert.equal(told.count, 1);
     assert.match(told.text, /AI is temporarily unavailable.*Your work is saved/);
-    assert.doesNotMatch(told.text, /used your monthly|needs more than/);
+    assert.doesNotMatch(told.text, /Not enough AI credits|needs more AI credits/);
     assert.equal(await field().inputValue(), prompt);
     assert.deepEqual(await tripwire(), []);
     // Non-AI work carries on: the composer still edits and the card still reads.

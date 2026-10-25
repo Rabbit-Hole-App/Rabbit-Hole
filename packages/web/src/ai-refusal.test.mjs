@@ -2,6 +2,7 @@
 // platform limit, one toast per attempt, and a hook that reads refusals without touching the caller's response.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+process.env.TZ = 'America/Los_Angeles'; // the viewer's zone: 2026-11-01 00:00 UTC reads October 31, 5:00 PM PDT
 
 globalThis.window ??= new EventTarget();
 const { handleAiRefusal, installAiRefusalHook, isAiRefusal, refusalMessage, viewUsage } = await import('./ai-refusal.js');
@@ -10,11 +11,11 @@ const resetsAt = '2026-11-01T00:00:00.000Z';
 const refusal = reason => ({ code: 'allowance_limited', reason, resetsAt, error: 'server text' });
 
 test('each allowance state reads differently, names the reset where it applies, and never reads like the platform limit', () => {
-  assert.equal(refusalMessage(refusal('exhausted')), "You've used your monthly AI allowance. It resets on November 1, 2026.");
-  assert.equal(refusalMessage(refusal('insufficient')), 'This action needs more than your remaining AI allowance. It resets on November 1, 2026.');
-  assert.match(refusalMessage(refusal('reserved')), /reserved by AI work that is still running/);
+  assert.equal(refusalMessage(refusal('exhausted')), "Not enough AI credits. Renews on October 31, 5:00 PM PDT.");
+  assert.equal(refusalMessage(refusal('insufficient')), 'This needs more AI credits than you have left. Renews on October 31, 5:00 PM PDT.');
+  assert.match(refusalMessage(refusal('reserved')), /temporarily reserved by AI work that is still running/);
   assert.match(refusalMessage(refusal('unavailable')), /temporarily unavailable.*Your work is saved/);
-  const platform = { code: 'spend_limited', reason: 'daily_cap_reached', error: 'Paid Learn calls are paused because the platform daily dollar cap has been reached.' };
+  const platform = { code: 'spend_limited', reason: 'daily_cap_reached', error: 'AI is paused for now because the platform daily limit has been reached.' };
   assert.equal(refusalMessage(platform), platform.error);
   assert.ok(isAiRefusal(platform) && isAiRefusal(refusal('exhausted')));
   assert.equal(isAiRefusal({ error: 'Generation failed.', code: 'error' }), false);
@@ -66,5 +67,5 @@ test('the fetch hook reads a refused /api/ reply from a clone, leaves the caller
     await new Promise(resolve => setTimeout(resolve, 10));
   } finally { window.removeEventListener('small:toast', listener); }
   assert.equal(toasts.length, 1);
-  assert.match(toasts[0], /reserved by AI work/);
+  assert.match(toasts[0], /temporarily reserved by AI work/);
 });

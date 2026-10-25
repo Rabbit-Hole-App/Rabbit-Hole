@@ -16,15 +16,15 @@ import { searchYouTube } from '../src/learn-youtube.js';
 import { searchCanvasSource } from '../src/learn-search.js';
 import { LearnScenes } from '../src/learn-scene.js';
 import sceneExample from '../../lesson-renderer/example-scene.json' with { type: 'json' };
-import { monthlyAllowanceMicros } from '../src/learn-usage-config.js';
+import { monthlyAllowanceMicros, legacyAllowanceMicros, allowanceCutoverPeriod } from '../src/learn-usage-config.js';
 import { usageFetch } from '../src/learn-usage-route.js';
 import { devWorker } from './worker-import.js';
 import { liveDb, liveRuns, memoryBucket } from './live-storage-spy.js';
 
 const sql = name => readFileSync(new URL(`../learn-migrations/${name}`, import.meta.url), 'utf8');
-const LEDGER = sql('0016-usage-operations.sql'), ACCOUNTING = sql('0022-usage-accounting.sql');
+const LEDGER = sql('0016-usage-operations.sql'), ACCOUNTING = sql('0022-usage-accounting.sql'), GRANTS = sql('0027-usage-grants.sql');
 
-function database(t, files = [LEDGER, ACCOUNTING], { fail = null } = {}) {
+function database(t, files = [LEDGER, ACCOUNTING, GRANTS], { fail = null } = {}) {
   const sqlite = new DatabaseSync(':memory:');
   t.after(() => sqlite.close());
   for (const file of files) sqlite.exec(file);
@@ -85,7 +85,7 @@ test('an accounting outage refuses chargeable work before the provider, with a t
   const env = signedIn({ SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1', AI_MONTHLY_ALLOWANCE_USD: '50' }, 'ask');
   const response = await spendTransport(env, body, MODEL, null, counted);
   assert.equal(response.status, 503);
-  assert.deepEqual(await response.json(), { error: 'AI is temporarily unavailable: your AI allowance cannot be checked right now. Your work is saved; try again shortly.',
+  assert.deepEqual(await response.json(), { error: 'AI is temporarily unavailable: your AI credits cannot be checked right now. Your work is saved; try again shortly.',
     code: 'allowance_limited', reason: 'unavailable', period: periodOf(Math.floor(Date.now() / 1000)), resetsAt: periodReset(periodOf(Math.floor(Date.now() / 1000))) });
   assert.equal(calls, 0, 'no provider call');
   assert.deepEqual(rows(sqlite, 'usage_operations'), [], 'nothing reserved on the platform either');
@@ -472,7 +472,9 @@ test('the dev/preview, stack and production app configs carry a valid allowance;
   const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
   for (const path of ['../../web/wrangler.dev.jsonc', '../../../scripts/ci/config/integ-local.jsonc', '../../web/wrangler.rabbit-hole-prod.jsonc']) {
     const value = read(path).match(/"AI_MONTHLY_ALLOWANCE_USD":\s*"([^"]*)"/)?.[1];
-    assert.equal(monthlyAllowanceMicros({ AI_MONTHLY_ALLOWANCE_USD: value }), 50_000_000, path);
+    assert.equal(monthlyAllowanceMicros({ AI_MONTHLY_ALLOWANCE_USD: value }), 25_000_000, path); // 2,500 credits a month
+    assert.equal(legacyAllowanceMicros({ AI_LEGACY_ALLOWANCE_USD: read(path).match(/"AI_LEGACY_ALLOWANCE_USD":\s*"([^"]*)"/)?.[1] }), 50_000_000, path);
+    assert.equal(allowanceCutoverPeriod({ AI_ALLOWANCE_CUTOVER_PERIOD: read(path).match(/"AI_ALLOWANCE_CUTOVER_PERIOD":\s*"([^"]*)"/)?.[1] }), '2026-11', path);
   }
   assert.doesNotMatch(read('../wrangler.rabbit-hole-prod.jsonc'), /AI_MONTHLY_ALLOWANCE_USD/);
 });
@@ -485,7 +487,7 @@ test('ledger-bypass media: reported cost is settled, a documented estimate is es
   await recordMedia(env, { provider: 'elevenlabs' });
   await recordMedia(env, { provider: 'exa', costMicros: 5000, estimateMicros: 7000 });
   assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.kind, a.status, a.cost_state, a.cost_micros, a.reserved_micros]), [
-    ['media', 'settled', 'estimated', 272 * 40 + 5 * 5, null], ['media', 'failed', 'unknown', null, null], ['media', 'settled', 'unknown', null, null], ['media', 'settled', 'settled', 5000, null]]);
+    ['media', 'settled', 'unknown', null, null], ['media', 'failed', 'unknown', null, null], ['media', 'settled', 'unknown', null, null], ['media', 'settled', 'settled', 5000, null]]);
   assert.equal(TRANSCRIBE_ESTIMATE, 6000);
   // A legacy call with no request context (review.js on the control plane) is its own system action, platform-funded.
   await recordMedia({ LEARN_DB }, { kind: 'generation', provider: 'anthropic', ok: true });
@@ -544,7 +546,7 @@ test('the dev worker records an image generation as an estimated media attempt o
     body: JSON.stringify({ app: 'canvas-0a1b2c3d', prompt: 'a cat', confirmed: true }) }), env, { waitUntil() {} });
   assert.equal(response.status, 200);
   assert.deepEqual(rows(sqlite, 'usage_actions').map(a => [a.user_id, a.feature, a.status, a.result]), [['u-owner-3c9f', 'image', 'completed', 'full']]);
-  assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.provider, a.model, a.cost_state, a.cost_micros]), [['openai', 'gpt-image-1', 'estimated', imageEstimate('a cat')]]);
+  assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.provider, a.model, a.cost_state, a.cost_micros]), [['openai', 'gpt-image-1', 'unknown', null]]);
 });
 
 // Owner 2026-10-23: legacy image generation is off unless LEGACY_IMAGE_GENERATION is the exact string 'true' (gpt-image-1 is shut down).

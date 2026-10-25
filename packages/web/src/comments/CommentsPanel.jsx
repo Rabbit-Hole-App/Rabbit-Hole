@@ -2,9 +2,12 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { ChevronLeft, Globe, Link2, MoreHorizontal, Users } from 'lucide-react';
 import ChatComposer from '../ChatComposer.jsx';
 import { Button } from '../ui.jsx';
-import { anchorText } from './anchors.js';
+import { STATE_NOTE, anchorText } from './anchors.js';
+import { EditedMark, Reactions } from './Reactions.jsx';
+import { AttachButton, AttachmentChips, MessageFiles, useAttachments } from './Attachments.jsx';
+import { PublicCopy } from './PublicCopy.jsx';
 import { SYNC_MS, applySync, mergeMessages, newFromOthers } from './comment-sync.js';
-import { BODY_MAX, COMMENT_RESUME, COUNTER_FROM, commentsApi, displayName, failureText, freshDraft, loadDraft, mentionsIn, saveDraft, sendDraft, when } from './comments-api.js';
+import { BODY_MAX, COMMENT_RESUME, COUNTER_FROM, commentsApi, displayName, failureText, filesOf, freshDraft, loadDraft, mentionsIn, saveDraft, sendDraft, when } from './comments-api.js';
 
 // The right panel's Comments view (docs/features/canvas-comments.md section 5): the thread list, one thread, or a
 // new-thread draft from Add comment. `base` picks the route family; the panel is the same on both. Every message shows
@@ -34,6 +37,8 @@ export default function CommentsPanel({ base, hidden, draftAnchor = null, onDraf
   const [about, setAbout] = useState(null);
   const [status, setStatus] = useState('open');
   const [audience, setAudience] = useState('all');
+  // A full thread's draft carried to a new thread on the same anchor ("Continue in a new thread"): { anchor, audience }.
+  const [seed, setSeed] = useState(null);
   const [list, setList] = useState(null);
   const [failed, setFailed] = useState(null);
   // Only the newest request's answer lands (owner decision 2026-10-23: a late answer never undoes a newer one); when it was
@@ -70,9 +75,11 @@ export default function CommentsPanel({ base, hidden, draftAnchor = null, onDraf
 
   const body = failed ? <p className="text-sm text-ink-2">{failed}</p>
     : !about || !list ? <p className="text-sm text-ink-2">Loading comments</p>
+    : seed ? <NewThread client={client} about={about} anchor={seed.anchor} seed={seed} live={objectLive(seed.anchor)} beforePost={null} onCancel={() => setSeed(null)}
+        onPosted={thread => { setSeed(null); onSelect?.(thread.id); refresh(); }} />
     : draftAnchor ? <NewThread client={client} about={about} anchor={draftAnchor} live={objectLive(draftAnchor)} beforePost={beforePost} onCancel={() => onDraftDone?.(null)}
         onPosted={thread => { onDraftDone?.(thread.id); refresh(); }} />
-    : selected ? <ThreadView key={selected} client={client} about={about} id={selected} hidden={hidden} objectLive={objectLive} onFocusAnchor={onFocusAnchor} onBack={() => onSelect?.(null)} onChange={refresh} threadLink={threadLink} />
+    : selected ? <ThreadView key={selected} client={client} about={about} id={selected} hidden={hidden} objectLive={objectLive} onFocusAnchor={onFocusAnchor} onBack={() => onSelect?.(null)} onChange={refresh} onOpen={id => onSelect?.(id)} onContinue={setSeed} threadLink={threadLink} />
     : <ThreadList list={{ ...list, threads: visible(list.threads, list.shape) }} about={about} status={status} setStatus={setStatus} audience={audience} setAudience={setAudience} objectLive={objectLive} onOpen={id => onSelect?.(id)} onMore={more} />;
   return <div role="tabpanel" aria-label="Comments" data-comments-panel className={`${hidden ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col`}>{body}</div>;
 }
@@ -109,7 +116,7 @@ function ThreadList({ list, about, status, setStatus, audience, setAudience, obj
                   {thread.unread && <span data-comment-unread aria-label="Unread" className="ml-auto h-2 w-2 shrink-0 rounded-full bg-accent" />}
                 </span>
                 <span className="flex items-center gap-1.5"><Audience audience={thread.audience} />{thread.hidden_from_public && <span className="text-[11px] text-ink-3">· Hidden from the published page</span>}</span>
-                <span className="block truncate text-[11px] text-ink-3">{anchorText(thread.anchor, objectLive(thread.anchor))}</span>
+                <span className="block truncate text-[11px] text-ink-3">{anchorText(thread.anchor, objectLive(thread.anchor))}{STATE_NOTE[thread.anchor_state] ? ` · ${thread.anchor_state === 'detached' ? 'Text gone' : 'Card changed'}` : ''}</span>
                 <span className="block truncate text-sm text-ink">{thread.preview ?? 'This comment was deleted'}</span>
                 {thread.replies > 0 && <span className="text-xs text-ink-2">{thread.replies} {thread.replies === 1 ? 'reply' : 'replies'}</span>}
               </span>
@@ -123,6 +130,8 @@ function ThreadList({ list, about, status, setStatus, audience, setAudience, obj
 }
 
 // Who may post here, else the one line saying why not (section 11). Signed out, it is the way in, back to this page.
+// A new thread's draft is kept under its anchor; one carried over from a full thread is kept apart from a draft already there.
+const newKey = (base, anchor, carried) => `${base}:new:${JSON.stringify(anchor)}${carried ? ':carried' : ''}`;
 const SIGN_IN = 'Sign in to comment.';
 // A draft whose object was deleted (owner decision 2026-10-23): no new comment on it; its words stay for an Undo.
 const DELETED = 'Deleted. Undo to comment on it.';
@@ -135,9 +144,9 @@ function blockedLine(about, can) {
   return "You can't comment here.";
 }
 
-function NewThread({ client, about, anchor, live, beforePost, onCancel, onPosted }) {
+function NewThread({ client, about, anchor, live, beforePost, onCancel, onPosted, seed = null }) {
   const fixed = about.role === 'viewer' ? 'public' : null;
-  const [audience, setAudience] = useState(fixed || 'members');
+  const [audience, setAudience] = useState(fixed || seed?.audience || 'members');
   const canPost = audience === 'public' ? about.can.post_public : about.can.post;
   // Esc anywhere in the draft is Cancel (owner, 2026-10-13), typed words or not, and never sends: a menu open in it (the @
   // suggestions) takes the first Esc and stops it; the canvas stands down for this one (AdaptiveCanvas); the focus falls
@@ -165,11 +174,11 @@ function NewThread({ client, about, anchor, live, beforePost, onCancel, onPosted
           </div>
         )}
       </div>
-      <CommentComposer people={q => client.people(q, { audience })} storeKey={`${client.base}:new:${JSON.stringify(anchor)}`} autoFocus placeholder="Add a comment" blocked={live ? blockedLine(about, canPost) : DELETED}
+      <CommentComposer upload={file => client.upload(file, audience)} limits={about.attachments} people={q => client.people(q, { audience })} storeKey={newKey(client.base, anchor, !!seed)} autoFocus placeholder="Add a comment" blocked={live ? blockedLine(about, canPost) : DELETED}
         resume={`?${COMMENT_RESUME}=${encodeURIComponent(JSON.stringify(anchor))}`}
         onSend={async draft => {
           if (anchor.kind === 'object') await beforePost?.();
-          return sendDraft(id => client.start({ id, anchor, audience, body: draft.body, mentions: mentionsIn(draft.body) }), draft).then(made => onPosted(made.thread));
+          return sendDraft(id => client.start({ id, anchor, audience, body: draft.body, mentions: mentionsIn(draft.body), ...filesOf(draft) }), draft).then(made => onPosted(made.thread));
         }} />
     </div>
   );
@@ -179,7 +188,7 @@ function NewThread({ client, about, anchor, live, beforePost, onCancel, onPosted
 // its cursor, every SYNC_MS while shown and visible, on focus, on online and after the reader's own actions. Merged by id, so
 // nothing shows twice; drafts, loaded Earlier replies and the scroll position stay. Lost access drops what was shown.
 const NEAR_BOTTOM = 48;
-function ThreadView({ client, about, id, hidden, objectLive, onFocusAnchor, onBack, onChange, threadLink }) {
+function ThreadView({ client, about, id, hidden, objectLive, onFocusAnchor, onBack, onChange, onOpen, onContinue, threadLink }) {
   const [data, setData] = useState(null);
   const [failed, setFailed] = useState(null);
   const [lost, setLost] = useState(null);
@@ -257,6 +266,12 @@ function ThreadView({ client, about, id, hidden, objectLive, onFocusAnchor, onBa
       <div className="mb-2 flex items-center justify-between gap-2">
         <BackButton onBack={onBack} />
         <span className="flex-1" />
+        {about.signed_in && (
+          <select aria-label="Notifications for this thread" data-thread-follow value={data.follow || 'default'} onChange={event => act(() => client.follow(id, event.target.value))}
+            className="h-7 rounded-md border border-line bg-white px-1.5 text-xs text-ink-2">
+            <option value="default">Notifications: default</option><option value="follow">Follow</option><option value="mute">Mute</option>
+          </select>
+        )}
         {threadLink && <Button size="sm" data-copy-thread-link onClick={copy}><Link2 size={13} aria-hidden />{copied ? 'Copied' : 'Copy link'}</Button>}
         {thread.can.resolve && (
           <Button size="sm" variant="secondary" onClick={() => act(() => client.resolve(thread.id, thread.status === 'resolved'))}>{thread.status === 'resolved' ? 'Reopen' : 'Resolve'}</Button>
@@ -267,15 +282,18 @@ function ThreadView({ client, about, id, hidden, objectLive, onFocusAnchor, onBa
         {thread.status === 'resolved' && <span className="text-[11px] text-ink-3">· Resolved</span>}
         <button type="button" disabled={!live} onClick={() => onFocusAnchor?.(thread.anchor)} className="min-w-0 truncate text-left text-xs text-ink-2 hover:text-ink disabled:cursor-default disabled:hover:text-ink-2">{anchorText(thread.anchor, live)}</button>
       </div>
+      {STATE_NOTE[thread.anchor_state] && <p data-anchor-state={thread.anchor_state} className="mb-2 text-xs text-ink-3">{STATE_NOTE[thread.anchor_state]}</p>}
       {failed && <p role="alert" className="mb-2 text-xs text-red-700">{failed}</p>}
       <ol ref={scroller} onScroll={scrolled} data-comment-messages className="-mx-2 mb-2 min-h-0 flex-1 space-y-1 overflow-y-auto">
         {data.before && <li><button type="button" data-earlier-replies onClick={earlier} className="w-full rounded-lg px-2 py-1 text-left text-xs text-ink-2 hover:bg-hover hover:text-ink">Earlier replies</button></li>}
-        {messages.map(message => <Message key={message.id} message={message} audience={thread.audience} owner={about.role === 'owner'} client={client} act={act} />)}
+        {messages.map(message => <Message key={message.id} message={message} audience={thread.audience} owner={about.role === 'owner'} client={client} act={act}
+          publish={thread.audience === 'members' && about.can.post_public ? { threadId: thread.id, onDone: made => { onChange(); onOpen?.(made); } } : null} />)}
       </ol>
       {fresh > 0 && <button type="button" data-new-replies onClick={showNew} className="mb-1 self-center rounded-full bg-accent px-3 py-1 text-xs font-medium text-white shadow-pop hover:opacity-90">New replies</button>}
       <p className="mb-1 text-[11px] text-ink-3">Replying in {thread.audience === 'public' ? 'Public' : 'Members only'}</p>
-      <CommentComposer people={q => client.people(q, { thread: thread.id })} storeKey={`${id}`} placeholder="Reply" blocked={blockedLine(about, thread.can.reply)} resume={`?thread=${id}`}
-        onSend={draft => sendDraft(cid => client.reply(thread.id, { id: cid, body: draft.body, mentions: mentionsIn(draft.body) }), draft).then(() => { stick.current = true; sync(); onChange(); })} />
+      <CommentComposer onContinue={thread.can.reply ? body => { saveDraft(storage, newKey(client.base, thread.anchor, true), { id: crypto.randomUUID(), body, failed: null }); onContinue?.({ anchor: thread.anchor, audience: thread.audience }); } : null}
+        upload={file => client.upload(file, thread.audience)} limits={about.attachments} people={q => client.people(q, { thread: thread.id })} storeKey={`${id}`} placeholder="Reply" blocked={blockedLine(about, thread.can.reply)} resume={`?thread=${id}`}
+        onSend={draft => sendDraft(cid => client.reply(thread.id, { id: cid, body: draft.body, mentions: mentionsIn(draft.body), ...filesOf(draft) }), draft).then(() => { stick.current = true; sync(); onChange(); })} />
     </div>
   );
 }
@@ -284,12 +302,14 @@ const BackButton = ({ onBack }) => (
   <button type="button" onClick={onBack} className="flex items-center gap-0.5 text-xs text-ink-2 hover:text-ink"><ChevronLeft size={14} aria-hidden />All comments</button>
 );
 
-function Message({ message, audience, owner, client, act }) {
+function Message({ message, audience, owner, client, act, publish = null }) {
   const [menu, setMenu] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [editing, setEditing] = useState(null);
   const [confirm, setConfirm] = useState(false);
   const canBlock = owner && audience === 'public' && !message.mine && !message.deleted;
   const rows = [
+    publish && message.mine && !message.deleted && ['Share in a new public thread', () => setSharing(true)],
     message.can.edit && ['Edit', () => setEditing(message.segments.map(s => s.text ?? `@${s.mention.handle}`).join(''))],
     message.can.delete && [confirm ? 'Confirm delete' : message.mine ? 'Delete' : 'Remove comment', () => (confirm ? act(() => client.remove(message.id)) : setConfirm(true)), true],
     canBlock && [`Block ${message.author.handle ? `@${message.author.handle}` : displayName(message.author)}`, () => act(() => client.block(message.id))],
@@ -302,7 +322,7 @@ function Message({ message, audience, owner, client, act }) {
         <div className="flex items-center gap-1.5 text-xs">
           <span className="truncate font-medium text-ink">{displayName(message.author)}</span>
           {message.author.name && message.author.handle && <span className="truncate text-ink-3">@{message.author.handle}</span>}
-          <span className="shrink-0 text-ink-3">{when(message.created_at)}{message.edited ? ' · edited' : ''}</span>
+          <span className="shrink-0 text-ink-3">{when(message.created_at)}</span>{message.edited && <EditedMark message={message} client={client} />}
           {rows.length > 0 && (
             <span className="relative ml-auto">
               <button type="button" aria-label="Comment actions" aria-expanded={menu} onClick={() => { setMenu(open => !open); setConfirm(false); }}
@@ -328,6 +348,9 @@ function Message({ message, audience, owner, client, act }) {
               </div>
             </div>
           ) : <p className="text-sm break-words whitespace-pre-wrap text-ink">{message.segments.map((segment, index) => (segment.mention ? <span key={index} data-mention title={segment.mention.name || undefined} className="rounded bg-accent/10 px-0.5 font-medium text-accent">@{segment.mention.handle}</span> : <span key={index}>{segment.text}</span>))}</p>}
+        {sharing && publish && <PublicCopy message={message} threadId={publish.threadId} client={client} onDone={publish.onDone} onClose={() => setSharing(false)} />}
+        {!message.deleted && editing === null && <MessageFiles files={message.attachments} client={client} />}
+        {!message.deleted && editing === null && <Reactions message={message} client={client} act={act} />}
       </div>
     </li>
   );
@@ -385,31 +408,35 @@ function useMentionMenu(people, input, body, setBody) {
 // with Discard and Retry; while it has failed, Retry is the one send control (section 5).
 // Signed out (SHARE-02), the draft is typed here as usual and kept in this tab; posting goes through sign-in and comes back
 // to this page with `resume` (the thread, or the new comment's anchor), where the same draft waits, never sent by itself.
-function CommentComposer({ storeKey, placeholder, blocked, onSend, people, autoFocus = false, resume = '' }) {
+function CommentComposer({ storeKey, placeholder, blocked, onSend, people, autoFocus = false, resume = '', upload = null, limits = null, onContinue = null }) {
   const [draft, setDraft] = useState(() => loadDraft(storage, storeKey) || freshDraft());
   const [busy, setBusy] = useState(false);
   const key = useRef(storeKey);
   const input = useRef(null);
   const mention = useMentionMenu(people, input, draft.body, body => setDraft(current => ({ ...current, body })));
+  const attachments = useAttachments({ upload: upload || (() => Promise.reject(new Error('Attachments are not available here.'))), limits });
   useEffect(() => { if (key.current !== storeKey) { key.current = storeKey; setDraft(loadDraft(storage, storeKey) || freshDraft()); } }, [storeKey]);
   useEffect(() => { saveDraft(storage, storeKey, draft); }, [storeKey, draft]);
   const signIn = blocked === SIGN_IN && `/login?next=${encodeURIComponent(window.location.pathname + resume)}`;
   if (blocked && !signIn) return <p data-comment-blocked className="rounded-md bg-hover px-2 py-1.5 text-xs text-ink-2">{blocked}</p>;
   const send = signIn ? () => { window.location.href = signIn; } : async () => {
     setBusy(true);
-    try { await onSend(draft); setDraft(freshDraft()); } catch (error) { setDraft(current => ({ ...current, failed: failureText(error, navigator.onLine) })); } finally { setBusy(false); }
+    try { await onSend({ ...draft, attachments: attachments.ids }); setDraft(freshDraft()); attachments.clear(); } catch (error) { setDraft(current => ({ ...current, failed: failureText(error, navigator.onLine), full: error?.data?.code === 'thread_full' })); } finally { setBusy(false); }
   };
   const over = draft.body.length > BODY_MAX;
   return (
     <div data-comment-composer className="relative">
       {mention.menu}
       <ChatComposer multiline autoFocus={autoFocus} inputRef={input} value={draft.body} placeholder={placeholder} busy={busy} disabled={!!draft.failed || over}
-        onKeyDown={mention.onKeyDown} onChange={body => { setDraft(current => ({ ...current, body })); mention.update(); }} onSubmit={send} />
+        leading={upload && !signIn ? <AttachButton attachments={attachments} full={attachments.files.length >= (limits?.per_comment ?? 5)} /> : undefined}
+        onKeyDown={mention.onKeyDown} onChange={body => { setDraft(current => ({ ...current, body })); mention.update(); }} onSubmit={() => (attachments.busy ? undefined : send())} />
+      <AttachmentChips attachments={attachments} />
       {signIn && <a data-comment-sign-in href={signIn} className="mt-1 block rounded-md bg-hover px-2 py-1.5 text-xs text-ink hover:underline">Sign in to post</a>}
       {draft.body.length >= COUNTER_FROM && <p className={`mt-0.5 text-right text-[11px] tabular-nums ${over ? 'text-red-700' : 'text-ink-3'}`}>{draft.body.length.toLocaleString('en-US')} / {BODY_MAX.toLocaleString('en-US')}</p>}
       {draft.failed && (
         <div role="alert" data-comment-failed className="mt-1 flex items-center gap-2 text-xs text-red-700">
           <span className="min-w-0 flex-1">{draft.failed}</span>
+          {draft.full && onContinue && <Button size="sm" variant="secondary" data-continue-thread onClick={() => onContinue(draft.body)}>Continue in a new thread</Button>}
           <Button size="sm" onClick={() => setDraft(freshDraft())}>Discard</Button>
           <Button size="sm" variant="secondary" disabled={busy} onClick={() => { setDraft(current => ({ ...current, failed: null })); send(); }}>Retry</Button>
         </div>

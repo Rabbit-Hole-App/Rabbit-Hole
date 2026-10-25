@@ -1888,7 +1888,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await panel.getByRole('radio', { name: 'Suggest a feature' }).click();
       await panel.locator('textarea').fill('wp7 check: feedback from the sidebar');
       await panel.getByRole('button', { name: 'Submit' }).click();
-      await page.locator('aside [data-feedback][title="Sent, thank you"]').waitFor({ timeout: 5000 });
+      await page.locator('aside [data-feedback][title^="Sent, thank you"]').waitFor({ timeout: 5000 });
       must(sent.length === 1 && sent[0].app === null && sent[0].kind === 'idea' && sent[0].text === 'wp7 check: feedback from the sidebar', `${label}: reports sent: ${JSON.stringify(sent)}`);
       await page.context().close();
     }

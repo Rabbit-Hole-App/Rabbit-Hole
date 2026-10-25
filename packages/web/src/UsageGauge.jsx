@@ -31,8 +31,8 @@ const TONE = { ok: 'text-pass', empty: 'text-fail', neutral: 'text-ink-2' };
 export function UsageBar({ usage }) {
   const { usedPct, reservedPct } = barParts(usage);
   return (
-    <div data-usage-bar role="meter" aria-label="AI allowance used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={usedPct}
-      aria-valuetext={`${formatCredits(usage.used)} of ${formatCredits(usage.allowance)} used${usage.reserved > 0 ? `, ${formatCredits(usage.reserved)} reserved for processing` : ''}`}
+    <div data-usage-bar role="meter" aria-label="AI credits used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={usedPct}
+      aria-valuetext={`${formatCredits(usage.used)} of ${formatCredits(usage.allowance)} used${usage.reserved > 0 ? `, ${formatCredits(usage.reserved)} temporarily reserved` : ''}`}
       className="flex h-1.5 w-full overflow-hidden rounded-full bg-hover">
       <span className="h-full bg-ink-2" style={{ width: `${usedPct}%` }} />
       {reservedPct > 0 && <span data-usage-bar-reserved className="h-full bg-ink-3" style={{ width: `${reservedPct}%` }} />}
@@ -47,18 +47,19 @@ export function UsageDetails({ state, onViewUsage }) {
   const view = usageView(state), usage = view.usage;
   return (
     <>
-      <p className="text-sm font-semibold text-ink">Monthly AI allowance</p>
+      <p className="text-sm font-semibold text-ink">AI credits</p>
       {usage ? (
         <>
           <p data-usage-remaining className={`mt-2 text-2xl font-semibold tabular-nums ${view.tone === 'empty' ? 'text-fail' : 'text-ink'}`}>
             {formatCredits(usage.remaining)} <span className="text-sm font-normal text-ink-2">remaining</span>
           </p>
-          {view.tone === 'empty' && <p className="text-xs text-ink-2">No AI allowance remaining.</p>}
-          <p data-usage-used className="text-xs text-ink-2 tabular-nums">{formatCredits(usage.used)} used of {creditCount(usage.allowance)}</p>
-          {usage.reserved > 0 && <p data-usage-reserved className="text-xs text-ink-2 tabular-nums">Reserved for processing: {formatCredits(usage.reserved)}</p>}
+          {view.tone === 'empty' && <p className="text-xs text-ink-2">No AI credits remaining.</p>}
+          <p data-usage-every className="text-xs text-ink-2 tabular-nums">{creditCount(usage.allowance)} AI credits every month</p>
+          <p data-usage-used className="text-xs text-ink-2 tabular-nums">{formatCredits(usage.used)} used</p>
+          {usage.reserved > 0 && <p data-usage-reserved className="text-xs text-ink-2 tabular-nums">Temporarily reserved: {formatCredits(usage.reserved)}</p>}
           {unknownLine(usage.unknownAttempts) && <p data-usage-unknown className="text-xs text-ink-2">{unknownLine(usage.unknownAttempts)}</p>}
           <div className="mt-2"><UsageBar usage={usage} /></div>
-          <p data-usage-reset className="mt-2 text-xs text-ink-2">Resets {formatReset(usage.resetsAt, { year: false })} (00:00 UTC)</p>
+          <p data-usage-reset className="mt-2 text-xs text-ink-2">Renews on {formatReset(usage.resetsAt)}</p>
           {view.note && <div className="mt-2"><Note>{view.note}</Note></div>}
         </>
       ) : <p role="status" className="mt-1 text-sm text-ink-2">{view.label}</p>}
@@ -103,7 +104,7 @@ export default function UsageGauge({ signedIn = true, onViewUsage = openUsageSet
         <Gauge size={15} strokeWidth={1.8} aria-hidden className={TONE[view.tone]} />
       </button>
       {open && (
-        <div ref={panel} id={id} role="dialog" aria-label="Monthly AI allowance" tabIndex={-1} data-usage-popover style={shift ? { right: -shift } : undefined}
+        <div ref={panel} id={id} role="dialog" aria-label="AI credits" tabIndex={-1} data-usage-popover style={shift ? { right: -shift } : undefined}
           className="absolute top-full right-0 z-50 mt-2 w-72 max-w-[calc(100vw-1.5rem)] rounded-xl border border-line bg-white p-3 shadow-pop outline-none">
           <UsageDetails state={state} onViewUsage={() => { close(false); onViewUsage(); }} />
         </div>
@@ -123,25 +124,25 @@ export function UsageSettings({ Heading, store = usageStore }) {
   return (
     <div data-usage-settings>
       <div className="text-2xl font-semibold">AI usage</div>
-      <div className="pt-2 text-base text-ink-2">Your monthly AI allowance, shared across all your canvases and devices.</div>
+      <div className="pt-2 text-base text-ink-2">Your AI credits, shared across all your canvases and devices. Different AI features use different amounts.</div>
       {view.note && <div className="pt-4"><Note>{view.note}</Note></div>}
       <Heading>This month</Heading>
       {usage ? (
         <>
           <div className="pt-4"><UsageBar usage={usage} /></div>
-          <SettingsRow title="Monthly allowance"><Amount>{formatCredits(usage.allowance)}</Amount></SettingsRow>
+          <SettingsRow title="Monthly credits"><Amount>{creditCount(usage.allowance)} AI credits every month</Amount></SettingsRow>
           <SettingsRow title="Used"><Amount>{formatCredits(usage.used)}</Amount></SettingsRow>
           {usage.reserved > 0 && (
-            <SettingsRow title="Reserved for processing" desc="Held for AI work still running, until its cost is known.">
+            <SettingsRow title="Temporarily reserved" desc="Held for AI work still running, until its final amount is known.">
               <Amount>{formatCredits(usage.reserved)}</Amount>
             </SettingsRow>
           )}
           {unknownLine(usage.unknownAttempts) && <p data-usage-unknown className="pb-1 text-xs text-ink-2">{unknownLine(usage.unknownAttempts)}</p>}
-          <SettingsRow title="Remaining" desc={view.tone === 'empty' ? 'No AI allowance remaining.' : null}>
+          <SettingsRow title="Remaining" desc={view.tone === 'empty' ? 'No AI credits remaining.' : null}>
             <Amount className={view.tone === 'empty' ? 'text-fail' : ''}>{formatCredits(usage.remaining)}</Amount>
           </SettingsRow>
-          <SettingsRow title="Next reset" desc="At the start of each calendar month, 00:00 UTC. Unused allowance does not carry over.">
-            <Amount>{formatReset(usage.resetsAt)}</Amount>
+          <SettingsRow title="Renewal" desc="At the start of each calendar month in UTC, shown in your time. Unused credits do not carry over.">
+            <Amount>Renews on {formatReset(usage.resetsAt)}</Amount>
           </SettingsRow>
           {/* Recorded per feature by the same accounting (GET /api/learn/usage byFeature); absent from an older server. */}
           {usage.byFeature?.length > 0 && <>

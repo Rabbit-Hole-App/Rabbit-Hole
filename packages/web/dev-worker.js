@@ -62,6 +62,7 @@ import { progressRoute } from '../control-plane/src/learn-progress.js';
 import { canvasCommentsRoute } from '../control-plane/src/canvas-comments.js';
 import { canvasRefsFetch, canvasRefsRoute } from '../control-plane/src/canvas-refs.js';
 import { creatorsRoute } from '../control-plane/src/creators.js';
+import { starsRoute } from '../control-plane/src/canvas-stars.js';
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { chatRouteFetch } from '../control-plane/src/chat-capability-route.js';
 import { inlineDecideFetch, inlineEvidenceFetch, inlineGenerateFetch, inlineRouteFetch, inlineTelemetryFetch } from '../control-plane/src/learn-inline.js';
@@ -70,8 +71,12 @@ import { feedbackFetch } from '../control-plane/src/learn-feedback.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
 import { forwardToProduction, guardControlPlane, devIdentity } from '../control-plane/src/dev-forwarding.js';
 import { usageFeature, withUsage, finishAction, finishWithResponse, recordMedia } from '../control-plane/src/learn-usage.js';
-import { imageEstimate, TRANSCRIBE_ESTIMATE } from '../control-plane/src/learn-usage-estimates.js';
+import { imageEstimate, TRANSCRIBE_ESTIMATE, ESTIMATE_PRICE } from '../control-plane/src/learn-usage-estimates.js';
 import { usageFetch } from '../control-plane/src/learn-usage-route.js';
+import { ownerTelemetryRoute } from '../control-plane/src/owner-telemetry-routes.js';
+import { clientTelemetryRoute } from '../control-plane/src/telemetry-client-route.js';
+import { tutorTelemetryRoute } from '../control-plane/src/telemetry-tutor-route.js';
+import { withTrace } from '../control-plane/src/telemetry-delivery.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from '../control-plane/src/subscription-transport.js';
 import { isEmbed } from '../control-plane/src/learn-shared-ask.js';
@@ -94,7 +99,7 @@ export default {
 };
 
 async function respond(req, env, ctx) {
-  env = guardControlPlane(env);
+  env = withTrace(req, guardControlPlane(env));
   // Usage (learn-usage.js): a route that makes provider calls gets its own per-request context, so its attempts share one
   // action whose payer is this request's session user. Admission (learn-spend-ledger.js admitSpend) enforces that user's
   // monthly allowance and the platform guard; a stream passes through byte for byte.
@@ -165,7 +170,7 @@ const routes = {
       const { userId, ...catalog } = user; // users.id stays server-side (journeys key on it, adaptive-learning-path-v1-architecture.md §10.2)
       // Dev apps only: listing live apps is production GET /api/apps, whose sweepStaleRuns writes
       // (docs/features/dev-prod-write-barrier.md). A live app still opens by name (GET /api/apps/<name>).
-      return Response.json({ ...catalog, folders: [], apps: [...(await ownerRepositories(env, catalog)), ...(await ownerCanvases(env, catalog))] }, { headers: { 'Cache-Control': 'no-store' } });
+      return Response.json({ ...catalog, folders: [], apps: [...(await ownerRepositories(env, catalog)), ...(await ownerCanvases(env, user))] }, { headers: { 'Cache-Control': 'no-store' } });
     }
     // Library trash (docs/features/library-trash.md): the Trash list, and a project's Move to Trash / Restore.
     if (libraryTrashRoute(path)) return libraryTrashFetch(req, env);
@@ -176,6 +181,12 @@ const routes = {
       const target = new URL(req.url); target.pathname = `/api/repositories/${repositoryRoute[1]}${repositoryRoute[2] || ''}`;
       return repositoriesFetch(new Request(target, req), env, ctx);
     }
+    // Browser error batches (docs/features/telemetry.md "Browser errors"): same-origin, bounded, 204 where telemetry is not provisioned.
+    if (path === '/api/telemetry/client') { const accepted = await clientTelemetryRoute(path, req, env); if (accepted) return accepted; }
+    // The signed-in learner's Tutor evidence events (docs/features/telemetry.md "Tutor evidence"): ids, enums and counts, never their words.
+    if (path === '/api/telemetry/tutor') { const accepted = await tutorTelemetryRoute(path, req, env); if (accepted) return accepted; }
+    // The owner's telemetry API (docs/features/telemetry.md): 404 to anyone but SUBSCRIPTION_OWNER_EMAIL's session, whatever the mode.
+    if (path.startsWith('/api/owner/telemetry')) { const owned = await ownerTelemetryRoute(path, req, env); if (owned) return owned; }
     // The signed-in user's AI usage this month (credits Phase 1: accounting, not enforcement).
     if (path === '/api/learn/usage') return usageFetch(req, env);
     if (path === '/api/learn/graph-config' && req.method === 'GET') {
@@ -210,7 +221,7 @@ const routes = {
         signal: AbortSignal.timeout(120000),
       });
       // Usage accounting (ledger bypass): a documented estimate, never settled spend (learn-usage-estimates.js).
-      await recordMedia(env, { provider: 'openai', model: 'gpt-image-1', ok: upstream.ok, estimateMicros: imageEstimate(prompt) });
+      await recordMedia(env, { provider: 'openai', model: 'gpt-image-1', ok: upstream.ok, estimateMicros: imageEstimate(prompt), price: ESTIMATE_PRICE });
       if (!upstream.ok) return Response.json({ error: `Image generation unavailable (${upstream.status})` }, { status: 502 });
       const result = await upstream.json();
       const encoded = result.data?.[0]?.b64_json;
@@ -286,7 +297,7 @@ const routes = {
       const upstream = await fetch('https://api.openai.com/v1/audio/transcriptions', {
         method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` }, body: upload,
       });
-      await recordMedia(env, { provider: 'openai', model: 'gpt-4o-transcribe', ok: upstream.ok, estimateMicros: TRANSCRIBE_ESTIMATE });
+      await recordMedia(env, { provider: 'openai', model: 'gpt-4o-transcribe', ok: upstream.ok, estimateMicros: TRANSCRIBE_ESTIMATE, price: ESTIMATE_PRICE });
       if (!upstream.ok) return Response.json({ error: 'Could not transcribe that recording.' }, { status: 502 });
       const heard = await upstream.json();
       return Response.json({ text: (heard.text || '').trim() });
@@ -317,7 +328,7 @@ const routes = {
     // Jev side-by-side grading (docs/features/jev-grading.md).
     if (path.startsWith('/api/learn/grade')) { const graded = await learnGradeRoute(path, req, env); if (graded) return graded; }
     // Canvas comments (docs/features/canvas-comments.md): the member family and a publication's public family.
-    if (path.startsWith('/api/learn/c/') || path === '/api/learn/comments/unread' || /^\/api\/learn\/boards\/shared\/[^/]+\/comments(\/|$)/.test(path)) { const comments = await canvasCommentsRoute(path, req, env); if (comments) return comments; }
+    if (path.startsWith('/api/learn/c/') || path.startsWith('/api/learn/comments/') || /^\/api\/learn\/boards\/shared\/[^/]+\/comments(\/|$)/.test(path)) { const comments = await canvasCommentsRoute(path, req, env); if (comments) return comments; }
     // Saved and shared canvas boards (docs/features/canvas-sharing.md). Before
     // the exact /api/learn/board route, which generates explanations.
     // The canvas header's repository and fork history for this viewer (learn-provenance.js).
@@ -341,6 +352,8 @@ const routes = {
     if (canvasRefsRoute(path)) return canvasRefsFetch(req, env);
     // Public creator profiles, Explore's creator row and creator search (docs/features/creator-profile.md).
     if (path.startsWith('/api/learn/creators')) { const creators = await creatorsRoute(path, req, env); if (creators) return creators; }
+    // Canvas Stars (docs/features/stars.md): remove my own star by canonical reference. Starring itself rides the link routes above.
+    if (path === '/api/learn/stars' || path.startsWith('/api/learn/stars/')) { const stars = await starsRoute(path, req, env); if (stars) return stars; }
     if (path === '/api/learn/search') return canvasSearch(req, env);
     // The Learn canvas's bug / idea button (docs/features/learn-feedback.md).
     if (path === '/api/learn/feedback') return feedbackFetch(req, env);
@@ -366,7 +379,7 @@ const routes = {
     }
     // /b/<token> is a shared board, /e/<token> a canvas published to Explore (docs/features/explore-publish.md): served to
     // anyone, the page decides what they may see. /@<handle> is a creator's public profile (docs/features/creator-profile.md).
-    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path === '/library' || path === '/explore' || path.startsWith('/apps/') || /^\/[be]\/[A-Za-z0-9_-]{20,64}$/.test(path) || EMBED_SHELL.test(path) || /^\/@[A-Za-z0-9_]{1,40}$/.test(path)) {
+    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path === '/library' || path === '/explore' || path === '/owner/telemetry' || path.startsWith('/apps/') || /^\/[be]\/[A-Za-z0-9_-]{20,64}$/.test(path) || EMBED_SHELL.test(path) || /^\/@[A-Za-z0-9_]{1,40}$/.test(path)) {
       return new Response(SHELL, {
         headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
       });

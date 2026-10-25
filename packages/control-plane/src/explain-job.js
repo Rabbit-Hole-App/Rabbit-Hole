@@ -22,7 +22,7 @@ import { costUsd, MESSAGE_LIMIT } from './learn-models.js';
 import { spendTransport, spendEnforced, platformCaps } from './learn-spend.js';
 import { refusalBody } from './learn-spend-ledger.js';
 import { withUsage, noteUsageIdentity, usagePayer, usageTotals, recordMedia, finishAction, toMicros } from './learn-usage.js';
-import { monthlyAllowanceMicros } from './learn-usage-config.js';
+import { allowanceFor } from './learn-entitlement.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { consumeProposal, envelopeFor, proposalRecord, proposalState, publishRevision, signProposal, verifyProposal } from './generation-proposal.js';
 import { blockedBody, referencesKey, resolveReferences } from './generation-review-refs.js';
@@ -299,7 +299,7 @@ export class ExplainJobs {
     if (!platformCaps(this.env).usd) throw Object.assign(fail('AI is paused.', 429), { refusal: { reason: 'cap_unset' } });
     const payer = await usagePayer(this.usageEnv(job, job.actionKey));
     if (payer?.chargeClass !== 'would_charge') return; // platform-funded work: the per-call platform guard still applies
-    const allowance = monthlyAllowanceMicros(this.env);
+    const allowance = await allowanceFor(this.env.LEARN_DB, this.env, payer.userId, payer.period);
     let reason = null;
     try {
       const { used, reserved } = await usageTotals(this.env.LEARN_DB, payer.userId, payer.period);
@@ -308,7 +308,7 @@ export class ExplainJobs {
       else if (left <= 0) reason = 'allowance_exhausted';
       else if (left - reserved < job.reservation.generationMicros) reason = reserved > 0 && left >= job.reservation.generationMicros ? 'allowance_reserved' : 'allowance_insufficient';
     } catch { reason = 'allowance_unavailable'; }
-    if (reason) throw Object.assign(fail('Not enough AI allowance.', reason === 'allowance_unavailable' ? 503 : 429), { refusal: { reason, period: payer.period } });
+    if (reason) throw Object.assign(fail('Not enough AI credits.', reason === 'allowance_unavailable' ? 503 : 429), { refusal: { reason, period: payer.period } });
   }
 
   // Stop: durable at once. A call already sent finishes and settles (spendTransport); its result is dropped. No paid step

@@ -171,5 +171,5 @@ test('a refused brief call (allowance spent) stops the job as budget, with nothi
   spent(s.sqlite, 50e6);
   const stopped = await s.run(job.id);
   assert.deepEqual([stopped.stage, stopped.failure.category, model.calls.length], ['failed', 'budget', 0]);
-  assert.match(stopped.failure.message, /monthly AI allowance/);
+  assert.match(stopped.failure.message, /Not enough AI credits/);
 });

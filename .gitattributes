@@ -3,3 +3,5 @@
 packages/learn-render/motion/fixtures/** text eol=lf
 # File-import fixtures are real files whose exact bytes are the test (CRLF, BOMs, UTF-16, binary): never convert them.
 packages/web/test/fixtures/file-imports/** -text
+# The telemetry feature registry: adapters each add one import line and one list entry; keep both sides' additions.
+packages/control-plane/src/telemetry-events/index.js merge=union

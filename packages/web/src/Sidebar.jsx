@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BadgeCheck, Bell, Braces, Check, Compass, ChevronDown, ChevronUp, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MessageSquare, MessageSquarePlus, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
+import { Activity, AlertTriangle, BadgeCheck, Bell, Braces, Check, Compass, ChevronDown, ChevronUp, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MessageSquare, MessageSquarePlus, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName, workspaceLabel } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
 import ByocDevBadge from './ByocDevBadge.jsx';
@@ -12,7 +12,7 @@ import { readRecent } from './home/continue.js';
 import { isLearnResource } from './library-filter.js';
 import { recentLaunch } from './sidebar-nav.js';
 import { pageFor, sectionActive, sectionHref } from './routes.js';
-import FeedbackButton from './FeedbackButton.jsx';
+import FeedbackButton, { sentTitle } from './FeedbackButton.jsx';
 import RabbitHoleSettings from './RabbitHoleSettings.jsx';
 import { Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 import { isInternalPrincipal, personLabel, useShownIdentity } from './session-display.js';
@@ -492,6 +492,13 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
   ]).then(([people, teams]) => setPool({ people, teams }));
   const [wsMenu, setWsMenu] = useState(false);
   const [wsList, setWsList] = useState(null); // workspaces the user belongs to, loaded when the menu opens
+  // The owner's Telemetry entry (docs/features/telemetry.md): shown only when the owner-only API answers 200 for this session.
+  // A convenience: the server guards the page's data, not this item. Checked once, when the menu first opens.
+  const [ownerTelemetry, setOwnerTelemetry] = useState(null);
+  useEffect(() => {
+    if (!wsMenu || !learnPreview || ownerTelemetry !== null) return;
+    fetch('/api/owner/telemetry/access', { credentials: 'same-origin' }).then((r) => setOwnerTelemetry(r.ok)).catch(() => setOwnerTelemetry(false));
+  }, [wsMenu]);
   const [newWs, setNewWs] = useState(null); // string while the create dialog is up
   const [newApp, setNewApp] = useState(false); // the how-to-ship dialog
   useEffect(() => {
@@ -993,6 +1000,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           <div className="my-1 border-t border-line" />
           </>}
           <MenuItem icon={Settings} onClick={() => { setWsMenu(false); setShowSettings(true); }}>Settings</MenuItem>
+          {ownerTelemetry && <MenuItem icon={Activity} onClick={() => { setWsMenu(false); navigate('/owner/telemetry'); }}>Telemetry</MenuItem>}
           {!learnPreview && <MenuItem className="text-accent hover:text-accent" onClick={() => { setWsMenu(false); setNewWs(''); }}>
             <span className="flex items-center gap-2 text-accent"><Plus size={16} strokeWidth={1.5} /> New workspace</span>
           </MenuItem>}
@@ -1149,9 +1157,9 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           )}
           <div className="sticky bottom-0 z-30 mt-auto flex shrink-0 flex-col gap-0.5 border-t border-line bg-side pt-2">
             {navRow({ label: 'Trash', icon: Trash2, open: trashOpen, onClick: openTrash })}
-            <FeedbackSlot width={rail ? RAIL_W : width} className={cn(!resizing && SLIDE)} row={({ open, sent, icon, toggle }) => navRow({
+            <FeedbackSlot width={rail ? RAIL_W : width} className={cn(!resizing && SLIDE)} row={({ open, sent, ref, icon, toggle }) => navRow({
               label: 'Feedback', icon, open, onClick: toggle, 'data-feedback': true, 'aria-expanded': open,
-              title: sent ? 'Sent, thank you' : undefined, className: sent ? 'text-green-700!' : undefined,
+              title: sent ? sentTitle(ref) : undefined, className: sent ? 'text-green-700!' : undefined,
             })} />
           </div>
         </>

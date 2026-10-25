@@ -167,7 +167,8 @@ test('seams: the canvas menu offers Add comment on an object only (owner, 2026-1
   assert.match(canvas, /\{commentPins && presenting === null && <CommentPins /, 'no pins while presenting');
   assert.match(page, /<AdaptiveCanvas key=\{canvasEpoch\} \{\.\.\.comments\.canvasProps\} /);
   assert.match(page, /\{comments\.active && <CommentsPanel hidden=\{panelTab !== 'comments'\} \{\.\.\.comments\.panelProps\} \/>\}/);
-  assert.match(page, /enabled: isCanvas && !hole && boardName === 'main'/, 'top-level canvases\' main board only (Q5)');
+  assert.match(page, /enabled: \(isCanvas \|\| isRepository\) && !hole && boardName === 'main'/, 'a canvas (top-level, project or nested Rabbit Hole) or a project\'s Main canvas, never a pending hole or a review board (D2, 2026-10-23)');
+  assert.match(read('./PeopleWithAccess.jsx'), /list\?\.nested && <p data-nested-note[^>]*>Only people invited here can see this Rabbit Hole's comments\. Members of the canvas it is in are not included\./, 'a hole says its people are its own');
   assert.doesNotMatch(panel + read('./comments-api.js'), /\.email\b|user_id|author_id/, 'the browser never handles an email or an account id');
   assert.doesNotMatch(panel, /dangerouslySetInnerHTML/, 'text renders as React text');
 });
@@ -468,3 +469,121 @@ test('the open thread syncs itself (Comments v2 item 1): its own timer, focus an
   assert.match(panel, /data-new-replies onClick=\{showNew\}[^>]*>New replies<\/button>/);
 });
 
+
+test('reactions and edit history (Comments v2 item 3): one shared set, a toggle per chip, history only where the server allows it', async () => {
+  const { REACTIONS, REACTION_NAMES } = await import('./comment-reactions.js');
+  assert.equal(new Set(REACTIONS).size, REACTIONS.length);
+  assert.equal(REACTION_NAMES.length, REACTIONS.length, 'every reaction has an accessible name');
+  const view = read('./Reactions.jsx'), panel = read('./CommentsPanel.jsx'), api = read('./comments-api.js');
+  assert.match(api, /react: \(id, emoji, on\) => send\(`\$\{base\}\/comments\/\$\{id\}\/reactions`, \{ emoji, on \}, 'PUT'\)/);
+  assert.match(api, /history: id => api\(`\$\{base\}\/comments\/\$\{id\}\/history`\)/);
+  assert.match(view, /aria-pressed=\{chip\.mine\}/, 'a chip is a toggle of the reader\'s own');
+  assert.match(view, /message\.can\.react/, 'the server decides who reacts');
+  assert.match(view, /if \(!message\.can\.history\) return <span className="shrink-0 text-ink-3">· edited<\/span>/, 'history only for the author and the owner');
+  assert.match(panel, /<Reactions message=\{message\} client=\{client\} act=\{act\} \/>/);
+  assert.doesNotMatch(view, /\.\.\.|…/, 'no ellipsis in labels');
+  assert.doesNotMatch(view, /user_id|\.email\b/);
+});
+
+test('attachments (Comments v2 item 3, D3): the picker offers what the server accepts, the post carries ids only, a posted file is served by the checked route', async () => {
+  const { ATTACHMENT_TYPES } = await import('../../../control-plane/src/comment-attachments.js');
+  const ACCEPT = read('./Attachments.jsx').match(/ACCEPT = '([^']+)'/)[1];
+  assert.deepEqual(ACCEPT.split(',').sort(), Object.keys(ATTACHMENT_TYPES).sort(), 'the file picker and the server accept the same types');
+  const view = read('./Attachments.jsx'), panel = read('./CommentsPanel.jsx'), api = read('./comments-api.js');
+  assert.match(api, /upload: \(file, audience = 'members'\) => api\(`\$\{base\}\/attachments\$\{audience === 'public' \? '\?audience=public' : ''\}`, \{ method: 'POST', body: file, headers: \{ 'Content-Type': file\.type, 'X-File-Name': encodeURIComponent\(file\.name\) \} \}\)/);
+  assert.match(api, /export const filesOf = draft => \(draft\.attachments\?\.length \? \{ attachments: draft\.attachments \} : \{\}\);/, 'a post without files is unchanged');
+  assert.match(panel, /\.\.\.filesOf\(draft\) \}\), draft\)\.then\(made => onPosted\(made\.thread\)\)/, 'a new thread carries its files');
+  assert.match(panel, /client\.reply\(thread\.id, \{ id: cid, body: draft\.body, mentions: mentionsIn\(draft\.body\), \.\.\.filesOf\(draft\) \}\)/, 'a reply carries its files');
+  assert.match(panel, /onSubmit=\{\(\) => \(attachments\.busy \? undefined : send\(\)\)\}/, 'nothing is sent while a file is still uploading');
+  assert.match(panel, /<MessageFiles files=\{message\.attachments\} client=\{client\} \/>/);
+  assert.match(view, /`\$\{client\.base\}\/attachments\/\$\{file\.id\}`/, 'a file is read from its comment route, never from storage');
+  assert.match(view, /rel="noopener noreferrer"/);
+  assert.doesNotMatch(view, /object_key|\.\.\.'|…/, 'no storage key, no ellipsis in labels');
+  assert.doesNotMatch(view, /dangerouslySetInnerHTML/);
+});
+
+test('anchor targets (Comments v2 item 5): what in a card a comment is about, how it reads, and where the canvas takes it from', async () => {
+  const { anchorAt, anchorText, selectedIn, STATE_NOTE, targetFor, targetText } = await import('./anchors.js');
+  // targetFor: a selection is a text quote (a code quote on a code card), a PDF card gives its page, other cards give nothing.
+  assert.deepEqual(targetFor({ type: 'explanation' }, '  sqrt(d)\n scaling '), { kind: 'text', quote: 'sqrt(d) scaling' });
+  assert.deepEqual(targetFor({ type: 'code' }, 'return x'), { kind: 'code', quote: 'return x' });
+  assert.deepEqual(targetFor({ type: 'snippet' }, 'x'), { kind: 'code', quote: 'x' });
+  assert.deepEqual(targetFor({ type: 'paper', paper: { id: 'p', page: 4 } }), { kind: 'pdf', page: 4 });
+  assert.deepEqual(targetFor({ type: 'paper', paper: { id: 'p', page: 4 } }, 'softmax'), { kind: 'pdf', page: 4, quote: 'softmax' });
+  assert.equal(targetFor({ type: 'explanation' }, ''), null, 'nothing selected: the comment is on the card, as before');
+  assert.equal(targetFor({ type: 'video', start: 10 }, ''), null, 'a video card takes no target until its player reports a time');
+  assert.equal(targetFor(null, 'x'), null);
+  assert.equal(targetFor({ type: 'explanation' }, 'x'.repeat(500)).quote.length, 300);
+  // anchorAt carries a target; an anchor without one is byte for byte what it was.
+  const board = { bounds: { b1: { x: 100, y: 50 } } };
+  assert.deepEqual(anchorAt({ x: 110, y: 60 }, { id: 'b1', kind: 'block', label: 'Card' }, board), { kind: 'object', object_id: 'b1', object_kind: 'block', dx: 10, dy: 10, label: 'Card' });
+  assert.deepEqual(anchorAt({ x: 110, y: 60 }, { id: 'b1', kind: 'block', label: 'Card' }, board, { kind: 'text', quote: 'q' }).target, { kind: 'text', quote: 'q' });
+  assert.equal(anchorAt({ x: 1, y: 2 }, null, board, { kind: 'text', quote: 'q' }).target, undefined, 'a canvas point has no target');
+  // How a targeted thread reads (no ellipsis): the quote, the lines, the page, the time.
+  const at = target => anchorText({ kind: 'object', object_id: 'b1', object_kind: 'block', label: 'Card', target }, true);
+  assert.equal(at({ kind: 'text', quote: 'hello world' }), 'on Card, “hello world”');
+  assert.equal(at({ kind: 'code', quote: 'x', line_from: 2, line_to: 2 }), 'on Card, line 2');
+  assert.equal(at({ kind: 'code', quote: 'x', line_from: 2, line_to: 4 }), 'on Card, lines 2 to 4');
+  assert.equal(at({ kind: 'code', quote: 'x' }), 'on Card, “x”');
+  assert.equal(at({ kind: 'pdf', page: 3 }), 'on Card, page 3');
+  assert.equal(at({ kind: 'video', t: 83 }), 'on Card, at 1:23');
+  assert.equal(targetText(undefined), '');
+  assert.equal(anchorText({ kind: 'object', object_id: 'b1', object_kind: 'block', label: 'Card', target: { kind: 'pdf', page: 3 } }, false), 'Card deleted · Card', 'a deleted card shows no target');
+  assert.deepEqual(Object.keys(STATE_NOTE), ['outdated', 'detached']);
+  // selectedIn: only a selection that starts and ends inside the card.
+  const inside = {}, outside = {};
+  const root = { contains: node => node === inside };
+  assert.equal(selectedIn(root, { isCollapsed: false, rangeCount: 1, anchorNode: inside, focusNode: inside, toString: () => 'picked' }), 'picked');
+  assert.equal(selectedIn(root, { isCollapsed: false, rangeCount: 1, anchorNode: inside, focusNode: outside, toString: () => 'picked' }), '');
+  assert.equal(selectedIn(root, { isCollapsed: true, rangeCount: 1, anchorNode: inside, focusNode: inside, toString: () => '' }), '');
+  assert.equal(selectedIn(null, null), '');
+  // The canvas asks both (a block's DOM root and its entry), and the panel says a moved-on card once.
+  const canvas = read('../AdaptiveCanvas.jsx'), panel = read('./CommentsPanel.jsx');
+  assert.match(canvas, /const target = kind === 'block' \? targetFor\(entry, selectedIn\(document\.querySelector\(`\[data-block-id="\$\{CSS\.escape\(id\)\}"\]`\)\)\) : null;/);
+  assert.match(canvas, /onAddComment\?\.\(anchorAt\(world, \(group \|\| entry\) && \{ id, kind, label \}, commentBoard, target\)\);/);
+  assert.match(panel, /\{STATE_NOTE\[thread\.anchor_state\] && <p data-anchor-state=\{thread\.anchor_state\}/);
+});
+
+test('D6 public copy: offered on the author\'s own comment in a members thread, the chosen words only, no link back', async () => {
+  const view = read('./PublicCopy.jsx'), panel = read('./CommentsPanel.jsx'), api = read('./comments-api.js');
+  assert.match(api, /publicCopy: \(threadId, body\) => send\(`\$\{base\}\/threads\/\$\{threadId\}\/public-copy`, body\)/);
+  assert.match(view, /readOnly/, 'the words are selected, not edited: the server takes only a verbatim piece of the author\'s own comment');
+  assert.match(view, /\.\.\.\(chosen\.trim\(\) \? \{ text: chosen \} : \{\}\)/, 'nothing selected offers the whole comment');
+  assert.match(view, /Nothing else from this thread is copied: no replies, files, people or history\./);
+  assert.match(panel, /publish && message\.mine && !message\.deleted && \['Share in a new public thread'/, 'only the author, on their own live comment');
+  assert.match(panel, /publish=\{thread\.audience === 'members' && about\.can\.post_public \? \{/, 'only in a members thread, and only where the public rules let this person post');
+  assert.doesNotMatch(view, /thread_id|from_thread|backlink|\.\.\.'|…/, 'no link back, no ellipsis');
+});
+
+test('limits (Comments v2 item 9): one config, a wait the person can read, and a full thread continues in a new one with the person\'s own words', async () => {
+  const limits = await import('./comment-limits.js'), api = await import('./comments-api.js');
+  assert.deepEqual([api.BODY_MAX, api.COUNTER_FROM], [limits.BODY_MAX, limits.COUNTER_FROM], 'the panel\'s counter is the server\'s limit');
+  assert.ok(limits.COUNTER_FROM < limits.BODY_MAX);
+  assert.deepEqual([5, 59, 60, 61, 300, 3599, 3600, 7300].map(api.waitText), ['5 seconds', '59 seconds', 'a minute', '2 minutes', '5 minutes', 'an hour', 'an hour', '3 hours']);
+  assert.equal(api.failureText({ data: { error: 'x', retry_after: 240 } }), "You've posted a lot in a short time. Try again in 4 minutes.");
+  assert.equal(api.failureText({ data: { error: 'Comments are turned off.' } }), 'Comments are turned off.', 'other refusals say what the server said');
+  const panel = read('./CommentsPanel.jsx');
+  assert.match(panel, /full: error\?\.data\?\.code === 'thread_full'/);
+  assert.match(panel, /\{draft\.full && onContinue && <Button size="sm" variant="secondary" data-continue-thread onClick=\{\(\) => onContinue\(draft\.body\)\}>Continue in a new thread<\/Button>\}/);
+  assert.match(panel, /saveDraft\(storage, newKey\(client\.base, thread\.anchor, true\), \{ id: crypto\.randomUUID\(\), body, failed: null \}\)/, 'the person\'s own draft text is carried, nothing of the thread');
+  assert.match(panel, /const newKey = \(base, anchor, carried\) => `\$\{base\}:new:\$\{JSON\.stringify\(anchor\)\}\$\{carried \? ':carried' : ''\}`;/, 'a carried draft never overwrites one already there');
+});
+
+test('inbox and follow (Comments v2 item 6, D4): the Library lists news with its reason, a thread has its own follow control, sync keeps the choice', async () => {
+  const { applySync } = await import('./comment-sync.js');
+  const inbox = read('./CommentInbox.jsx'), panel = read('./CommentsPanel.jsx'), api = read('./comments-api.js'), library = read('../LibraryViews.jsx');
+  assert.match(api, /follow: \(id, state\) => api\(`\$\{base\}\/threads\/\$\{id\}\/follow`, \{ method: 'PUT', body: JSON\.stringify\(\{ state \}\) \}\)/);
+  assert.match(inbox, /fetch\('\/api\/learn\/comments\/inbox'/);
+  assert.match(inbox, /REASONS = \{ mention: 'Mentioned you', reply: 'Replies to you', follow: 'Following', canvas: 'On your canvas' \}/, 'one label per reason the server gives');
+  assert.match(inbox, /if \(!items\?\.length\) return null;/, 'no news, no section');
+  assert.doesNotMatch(inbox, /user_id|owner_email|\.email|\.\.\.'/);
+  assert.match(library, /\{!type && <CommentInbox \/>\}\n?\r?\n?\s*\{!type && <SharedWithYou/, 'the Library lists it above Shared with you');
+  assert.match(panel, /about\.signed_in && \(\s*<select aria-label="Notifications for this thread" data-thread-follow value=\{data\.follow \|\| 'default'\}/);
+  assert.match(panel, /<option value="default">Notifications: default<\/option><option value="follow">Follow<\/option><option value="mute">Mute<\/option>/);
+  // The choice rides every read: a full read sets it, a since-read keeps what the server last said, and none says default.
+  const thread = { id: 't' }, full = applySync(null, { thread, messages: [], cursor: 'c1', follow: 'mute' });
+  assert.equal(full.follow, 'mute');
+  assert.equal(applySync(full, { since: true, thread, messages: [], cursor: 'c2', follow: 'follow' }).follow, 'follow');
+  assert.equal(applySync(full, { since: true, thread, messages: [], cursor: 'c2' }).follow, null);
+  assert.equal(applySync(null, { thread, messages: [], cursor: 'c1' }).follow, null);
+});

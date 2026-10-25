@@ -56,7 +56,12 @@ one, in dives and canvases), the phone bottom sheet check, and Home's cards.**
 - Comments are stored apart from board state, with no canvas-version change and no owner-save conflicts.
 - Private discussions cannot leak through publication or forks.
 - **Q1:** recipient-only invitations, with stable account ids and account lookup and linking unchanged.
-- **Q5:** top-level canvases only in V1.
+- **Q5 (replaced by D2, 2026-10-23):** V1 was top-level canvases only. Owner decision D2 widens it: every canvas's `main` board
+  (top-level, project canvas or nested Rabbit Hole) and a project's Main canvas have comments, each as its own board. A nested
+  Rabbit Hole's comments need access to THAT hole: the parent's members get nothing there, and the hole's members get nothing
+  of the parent. The owner invites to a hole in its own Share dialog, which says so. A project's Main canvas has no members or
+  publication, so only its owner comments there. A hole is in Trash with the canvas above it, and deleting a hole deletes its
+  comments. One server resolver, `boardOf` in `canvas-comments.js`; no migration.
 - **Allow comments (owner, 2026-10-07):** when sharing a canvas, the owner chooses whether others may comment at all (section 4).
 - **Full scope (owner, 2026-10-07):** the whole feature is built as designed. The one-day "published canvases only" MVP
   relayed by Home is not adopted.
@@ -185,7 +190,7 @@ otherwise.
 - A thread belongs to one board row: `board_id` = `learn_boards.id` of the canvas's main board, plus `org` and `canvas`.
 - The public route family is keyed by the publication token and never accepts or returns a board id.
 - The member family is keyed by the board id and needs owner or member identity.
-- Top-level `canvas-*` canvases and their `main` board only (Q5).
+- Every `canvas-*` canvas's `main` board, nested Rabbit Holes included (D2, replacing Q5), and a project's (`repo-*`) Main canvas for its owner.
 
 **Audience**
 - `members` threads: readable only by the owner and active members.
@@ -1408,3 +1413,117 @@ Recorded for when the owner gives S1 its GO. They are not authorization to start
 - Home reviews the actual migration file before any remote application. Remote migrations and deploy need a separate GO (H6).
 - Public-comment UI decisions (Q2-Q4, Q7, Q19-Q21, Q23) stay with their stages (S2-S5) and do not block an
   invitations/membership checkpoint.
+
+
+## 15. Comments v2 additions (owner decisions D2 to D6, 2026-10-23)
+
+Stage 1 (freshness, section 10 Sync protocol) and Stage 2 (board types, Q5 replaced above) are built. This section records
+the later stages as they land. The migrations here take the next free learn numbers (0027 Credits, 0028 Stars and 0029 Weekly
+Top 5 are taken) and are applied by the owner in production; a lane never applies one.
+
+### Reactions and edit history (migration 0030)
+
+- **Reactions.** One emoji of a fixed set (`web/src/comments/comment-reactions.js`, shared by the server and the panel) per
+  account per comment. `PUT /comments/:id/reactions` with `{ emoji, on }` sets or clears the caller's own, idempotently.
+  Whoever may post in the thread may react (so Allow comments off leaves reactions to the owner, a blocked account cannot
+  react publicly, a removed member gets 404). A message carries `reactions: [{ emoji, count, mine }]` in the set's order and
+  never who reacted, plus `can.react`.
+- **Sync.** A reaction leaves no timestamp on `canvas_comments`, so it touches `canvas_comment_touches`; the since-read
+  (section 10) returns a comment whose touch row is newer than the cursor less the overlap.
+- **Edit history.** Each edit keeps the text and mention ranges it replaced in `canvas_comment_edits` (the newest 20 per
+  comment). `GET /comments/:id/history` answers `{ edits: [{ body, replaced_at }] }` newest first, to the comment's author and
+  the canvas owner only; a message carries `can.history` for them. The "edited" mark in the panel opens the list.
+- **Purge.** Deleting a comment (its author, the owner, Block and remove their comments), a thread, a hole or a canvas deletes
+  its reactions, history and touch rows. A deleted comment's history answers `comment_gone`.
+
+### Attachments (migration 0031, owner decision D3)
+
+- **What.** Images (PNG, JPEG, GIF, WebP) and PDFs only, checked by their first bytes as well as their declared type; never SVG or a
+  page. At most 10 MB a file, 5 files a comment and 200 MB a canvas (a hole is its own canvas). The limits are in
+  `COMMENT_LIMITS` (`COMMENT_ATTACH_FILE_BYTES`, `COMMENT_ATTACH_COMMENT_MAX`, `COMMENT_ATTACH_CANVAS_BYTES`, overridable by worker
+  variables like the others) and `GET about` reports the ones the panel needs.
+- **Upload.** `POST …/attachments` (both families; `?audience=public` for a new public thread's file): the raw file is the body,
+  its type is Content-Type, its name is `X-File-Name`. Whoever may post may upload. The file is first RESERVED by one conditional
+  INSERT that holds the canvas total and the uploader's waiting uploads to their caps in the same statement, so parallel uploads
+  cannot both pass a check; only then is it written to LEARN_MEDIA under `comment-attachments/<board id>/<id>`, and a failed write
+  drops the reservation. It waits unattached until a post names it (`attachments: [id]` on a new thread, a reply or an edit); an
+  hour later it is swept and stops counting. A post attaches only the caller's own waiting uploads, and the attaching statements
+  re-check the 5-a-comment cap inside the batch, so two parallel edits cannot pass it either.
+- **Download.** `GET …/attachments/:id` re-runs the thread's read check on every request (a removed member, a turned-off link or
+  publication, a deleted comment or thread all end access on the next request). Images are served inline, PDFs as a download, both
+  with `nosniff`, a sandbox CSP and `private, no-store`. A waiting file is its uploader's alone. A message carries
+  `attachments: [{ id, name, mime, bytes }]`, never the object key or the uploader.
+- **Deletion.** Deleting a comment, dropping a file in an edit, deleting a thread, Block and remove their comments, deleting a hole
+  or a canvas for good sets `purged_at` in the same batch (access is gone at once); the object then leaves the bucket unless another
+  live row still names the same object, and the row goes. A bucket failure leaves the purged row for the next upload's sweep.
+  Deleting a canvas or hole purges its files before the canvas rows go (`comment-attachments.js purgeCanvasAttachments`).
+- **Not built.** No image preview before posting beyond the chip, no rename, no per-person upload rate beyond the waiting limit,
+  and no attachment on an edit through the panel (the route accepts it).
+
+### Anchor targets (no migration)
+
+- **What.** A thread on a card may name what in the card it is about. The anchor stays the object anchor of section 8 (so a
+  deleted card still hides its threads and Ungroup, pins and counts are untouched) and gains `v: 2` and `target`, one of:
+  `{ kind: 'text', quote }`, `{ kind: 'code', quote }` (the server adds `line_from` and `line_to` of the field that holds the
+  quote), `{ kind: 'pdf', page, quote?, region?: { x, y, w, h } }` (region in 0 to 1 of the page) and `{ kind: 'video', t }`
+  (seconds). A quote is at most 300 characters, whitespace folded. Only a card (a block) takes a target; anything invalid is
+  `bad_anchor`; a text or code quote the card does not hold is `quote_not_on_card`. `anchor_json` is JSON, so there is no schema
+  change and a thread without a target (every thread made before this) reads exactly as before.
+- **Baseline and state.** When the thread starts the server stores `target.hash`, a fingerprint of the card's own words and the
+  places it points to (`page`, `start`, `end`, `from`, `to`, `line`, `time`), never its identifiers or layout
+  (`comment-anchors.js`). Every read of the thread answers `anchor_state`: `ok` (the card is as it was), `outdated` (the card
+  changed and the quoted text, if any, is still there) or `detached` (the quoted text is gone). A card put back as it was reads
+  `ok` again. A retry of the same post is recognised by the anchor as sent, not by the fingerprint.
+- **Panel.** The list row and the thread read "on Card, “quote”", "on Card, lines 2 to 4", "on Card, page 3" or "on Card, at 1:23",
+  and a moved-on card says "The card changed after this comment was made." or "The text this comment is about is no longer on
+  the card." once.
+- **Capture.** Add comment on a card (menu or C) takes the text selected inside the card as a text quote (a code card's selection
+  as a code quote), and a PDF card's shown page. Not built, for the card owners to review: a PDF region drawn on the page, the
+  video player's time, and a code card's line range picked in the editor. The server and the panel already accept and show all of
+  them.
+
+### Inbox, follow and mute (migration 0032, owner decision D4: in-app first, no email)
+
+- **Inbox.** `GET /api/learn/comments/inbox` answers `{ items, count }`, at most 50 threads, newest first, each `{ thread_id,
+  reason, canvas, audience, news, status, preview, last_activity_at, link }`. News is a live comment by someone else after my last
+  read of the thread. A thread reaches the inbox when I was mentioned in it (`mention`), I started it or posted in it (`reply`), I
+  follow it (`follow`), or it is on a canvas I own (`canvas`), in that order of strength; never when I muted it. It is computed
+  from threads, mentions (by account id, or by the mentioned address for an account the lane could not resolve to an id) and read
+  marks, and read only as far as the reader's access goes NOW: my own canvases; canvases I am an active member of and that are not
+  in Trash (a hole is in Trash with the canvas above it); and public threads elsewhere that I took part in or was mentioned in,
+  while the canvas is published with public comments on and I am not blocked. A deleted comment, a deleted card's threads and a
+  deleted thread are gone from it. A public thread's link is the published page; any other is `/c/<board id>?thread=`. The app worker (`dev-worker.js`) hands every `/api/learn/comments/` path to the comments route; a route unit test calls the handler directly and cannot see a missing gate, so `canvas-comment-inbox.test.js` checks the gate against the routes the handler has (fast-e2e comments-delete step 14 found the inbox unrouted).
+- **Follow and mute.** `PUT …/threads/:id/follow` with `{ state: 'follow' | 'mute' | 'default' }` for whoever may read and is signed
+  in; a thread read carries my `follow`. Stored in `canvas_comment_follows` (one row per thread and person, deleted with the
+  thread). The Library lists the inbox above Shared with you; a thread has a Notifications control (default, follow, mute).
+- **Not built (D4).** No email, no batching, no preferences, no mark-all-read. Opening a thread marks it read, as before.
+
+### Public mention lookup (owner decision D5, no migration)
+
+- A mention is kept only when its handle names someone in the thread's audience set (a members thread: the owner and members; a
+  public thread: the owner and public participants) - and, in a PUBLIC thread only, an account that made itself public: a handle
+  with a profile description (the line its /@handle page shows) or a live Explore publication, not blocked on this canvas. Anyone
+  else stays plain text. A mention notifies at most, and NEVER grants access: a members thread cannot mention an outsider at all,
+  and a public thread was already readable by any signed-in person while public comments are on.
+- Suggestions follow the same rule: a public thread also offers those accounts from two typed characters, at most 8 in all; a
+  members thread offers only its own people. A comment keeps at most `COMMENT_MENTIONS_MAX` (10) mentions.
+- **To confirm with the owner:** "explicitly public profile" is read as a profile description (a handle exists for everyone who
+  comments, so a handle alone is not an explicit act). Widening it later is one function (`DISCOVERABLE`).
+
+### A public thread from my own words (owner decision D6, no migration)
+
+- `POST …/threads/:id/public-copy` (member family) with `{ id, comment_id, text? }`: the author of a live comment in a MEMBERS
+  thread offers a verbatim piece of their own comment (all of it when `text` is omitted) as a new PUBLIC thread of theirs, on the
+  same anchor, under the usual public rules (the public setting, Allow comments, blocks, the rate limits). Nothing else is copied:
+  no other reply, file, mention, reaction, participant or history, and no row or field links the two threads, so the public thread
+  says nothing of the private one. The panel offers it in a comment's menu ("Share in a new public thread"): the author selects the
+  words (or shares all of it) and the new thread opens.
+
+### Limits (one config)
+
+- `web/src/comments/comment-limits.js` holds every comment number and its default (body length, posts per window, thread size,
+  mentions, attachments); the server enforces each and a worker variable of the same name overrides it; the panel reads the body
+  length from the same file. The member cap and the invitation caps stay in `canvas-members.js` (with `retry_after`).
+- A rate-limit refusal now carries `retry_after` (seconds until the oldest post in the full window leaves it) and a `Retry-After`
+  header; the panel says how long to wait. A full thread offers "Continue in a new thread": a new thread on the same anchor and
+  audience whose draft holds the person's own unsent words, never the old thread's content.

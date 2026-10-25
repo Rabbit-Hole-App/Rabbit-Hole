@@ -205,7 +205,8 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   // A proposed capability (its declaration's flow, proposal-capabilities.js; /motion first, MOT-20/UI-15): a chat turn. The chat proposes it on the shared card
   // (generation-proposal-chat.js), the learner refines it in chat, and the card's Generate makes it. Nothing starts here.
   if (reviewRequired(name)) {
-    if (!args) return { notice: { tone: 'info', text: `Add what you want after /${name}.` } };
+    // Missing information is asked for inside the command's own flow, and the line is kept (owner, 2026-10-24: the Tutor never answers it).
+    if (!args) return { notice: { tone: 'question', text: 'What should the video explain? Add a topic after /motion.' }, keep: `/${name} ` };
     return { prompt: args };
   }
   // /image finds a real picture: the card searches and the learner chooses. It never generates (/generate-image does).

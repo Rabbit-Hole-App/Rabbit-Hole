@@ -1,5 +1,6 @@
 import { admitSpend, settleSpend, operationId, spendEnforced, platformCaps } from './learn-spend-ledger.js';
 import { settleAttempt, toMicros } from './learn-usage.js';
+import { priceUsage } from './pricing-registry.js';
 
 // Jev side-by-side grading for Learn challenges (docs/features/jev-grading.md).
 // The grader protocol - everything that turns an answer into Jev
@@ -141,7 +142,7 @@ export async function askJev(env, request, { transport = 'gateway', timeoutMs = 
   // https://docs.typesafe.ai/models: pinned Jev 1.13, 64K total input, .042/M, free output.
   // Gateway passes provider list prices through without markup:
   // https://vercel.com/docs/ai-gateway/pricing (no optional add-ons are requested here).
-  const reservedUsd = Math.ceil(65536 * 0.042) / 1e6;
+  const reservedUsd = priceUsage({ provider: 'jev', model: 'jev-1.13.0', quantities: { input: 65536 } }).micros / 1e6;
   // called: false on a refusal before any request reached Jev (a caller's telemetry says whether Jev was asked).
   if (enforced && !platformCaps(env).usd) throw Object.assign(new JevError('cap_unset', 'Daily model spend cap is not configured.'), { called: false });
   if (enforced && request?.model !== JEV_TRANSPORTS[transport]?.model) throw Object.assign(new JevError('spend_bound_unavailable', 'Jev request has no verified spend bound.'), { called: false });
@@ -180,14 +181,14 @@ export async function askJev(env, request, { transport = 'gateway', timeoutMs = 
     if (enforced) {
       const tokens = body?.usage?.input_tokens;
       const reported = body?.provider_metadata?.gateway?.cost;
-      const directCost = body?.model === 'jev-1.13.0' && Number.isSafeInteger(tokens) && tokens >= 0 ? tokens * 0.042 / 1e6 : null;
+      const directCost = body?.model === 'jev-1.13.0' && Number.isSafeInteger(tokens) && tokens >= 0 ? priceUsage({ provider: 'jev', model: 'jev-1.13.0', quantities: { input: tokens } }).micros / 1e6 : null;
       const gatewayCost = (typeof reported === 'number' || (typeof reported === 'string' && reported.trim())) && Number.isFinite(Number(reported)) && Number(reported) >= 0 ? Number(reported) : null;
       // Unpriced/absent usage and unsuccessful attempts retain the admitted liability.
       await settleSpend(env.LEARN_DB, opId, { calls: 1, status: response.ok ? 'settled' : 'failed',
         costUsd: response.ok ? (transport === 'direct' ? directCost : gatewayCost) : null,
         provider: `jev:${transport}`, model: body?.model || request.model, error: response.ok ? null : `http_${response.status}` });
       await settleAttempt(env, begun, { status: response.ok ? 'settled' : 'failed', costMicros: toMicros(response.ok ? (transport === 'direct' ? directCost : gatewayCost) : null),
-        model: body?.model || request.model, inputTokens: tokens });
+        model: body?.model || request.model, inputTokens: tokens, price: response.ok && transport === 'direct' && directCost != null ? priceUsage({ provider: 'jev', model: 'jev-1.13.0', quantities: { input: tokens } }) : null });
     }
     if ((response.status === 429 || response.status === 529) && attempt === 0) {
       const seconds = Number(response.headers.get('retry-after'));

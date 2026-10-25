@@ -20,6 +20,7 @@
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { weeklyTopFixture } from '../src/home/weekly-top-fixture.js';
 
 const BASE = process.env.BASE || process.env.PRACTICE_BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
@@ -500,6 +501,10 @@ const EXPLORE = {
     { label: 'karpathy/nanoGPT', repo: 'karpathy/nanoGPT', boards: 1, url: '/explore?project=y', updated_at: '2026-10-20 09:00:00' },
   ],
 };
+// A seeded page's /api/apps route awaits route.fetch() and the body: closing the context with one in flight made the handler throw
+// 'Response has been disposed' as an unhandled rejection that ended the process (CI run 40139206502, card-size-check.mjs line 511). Let
+// the handlers finish, then close.
+const finish = async (page) => { const context = page.context(); await context.unrouteAll({ behavior: 'wait' }); await context.close(); };
 const seeded = async (viewport = { width: 1440, height: 900 }, { mobile = false } = {}) => {
   const context = await browser.newContext({ viewport, ...(mobile ? { hasTouch: true } : {}) });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
@@ -589,7 +594,12 @@ const measure = (page, selector, index = -1) => page.evaluate(({ selector, index
 const settled = (page, selector, where, index = -1) => expect.poll(async () => (await measure(page, selector, index)).problems, { message: where, timeout: 20000 }).toEqual([]);
 const drift = (a, b) => Object.entries(a).flatMap(([card, parts]) => Object.entries(parts).filter(([k, v]) => !b[card]?.[k] || v.some((x, i) => Math.abs(x - b[card][k][i]) > 1.5)).map(([k]) => `${card}: ${k} moved ${JSON.stringify(parts[k])} to ${JSON.stringify(b[card]?.[k])}`));
 // The resting cards, then each of the first five hovered and then focused: the same guarantees, and nothing moves inside the card.
+// The cards' text is set in Inter Variable (font-display: swap): until the woff2 arrives it is drawn in the wider system fallback, and a
+// snapshot taken then differs from every later one by the same amounts (CI runs 40140491015 and 40141472356: title 74.8 -> 65 and 313.5 -> 273,
+// updated 96.3 -> 90 in both, about 13% on the bold title). Wait for the face to be loaded, then snapshot.
+const fontsLoaded = (page) => page.waitForFunction(() => document.fonts.check('16px "Inter Variable"'), null, { timeout: 30000 });
 const stable = async (page, selector, where) => {
+  await fontsLoaded(page);
   await settled(page, selector, `${where} at rest`);
   const count = Math.min(await page.locator(selector).count(), 5);
   for (let i = 0; i < count; i += 1) {
@@ -621,7 +631,9 @@ const sweep = async (page, selector, where, { long = null, narrow = [0, 1], larg
 };
 const visibilities = (page, selector) => page.locator(selector).locator('[data-card-visibility]').evaluateAll((els) => [...new Set(els.map((e) => e.getAttribute('data-card-visibility') + (e.tagName === 'BUTTON' ? ':button' : '')))].sort());
 const onProjects = async (page) => { await page.goto(`${BASE}/library?type=projects`); await slider(page).waitFor({ timeout: 60000 }); await page.locator('[data-library-card="project"]').nth(4).waitFor({ timeout: 30000 }); };
-const onExplore = async (page, query = '') => { await page.goto(`${BASE}/explore${query}`); await slider(page).waitFor({ timeout: 60000 }); };
+// Weekly Top 5 loads after the first paint and pushes the cards down when it arrives; wait for it so no card is measured or hovered while the page still moves
+// (run ba6ed201 shard 6: card 0 changed between the resting and the hovered measurement).
+const onExplore = async (page, query = '') => { await page.goto(`${BASE}/explore${query}`); await slider(page).waitFor({ timeout: 60000 }); await page.locator('[data-weekly-top]').waitFor({ timeout: 60000 }); };
 
 await check('Library canvases at 1440, all four sizes: Private, Unlisted and Public pills, a long title, a 30-character handle with a long name, one unbroken word; nothing overlaps, every control is hit at its centre, nothing is cut short without a way to read it, hovered and focused cards keep every part where it was', async () => {
   const page = await seeded();
@@ -630,7 +642,7 @@ await check('Library canvases at 1440, all four sizes: Private, Unlisted and Pub
   await sweep(page, '[data-library-card="canvas"]', 'Library canvases', { long: LONG_START });
   await slider(page).fill('0');
   await page.screenshot({ path: `${SHOTS}/small-card-library-canvases.png` });
-  await page.context().close();
+  await finish(page);
 });
 
 await check('Library projects at 1440, all four sizes: Private, Unlisted, Public, and Varies by canvas as a button (editable) and as plain text (read only), whole and readable on its own row at Small', async () => {
@@ -644,7 +656,7 @@ await check('Library projects at 1440, all four sizes: Private, Unlisted, Public
   assert.equal((await pill.innerText()).trim(), 'Varies by canvas');
   assert.equal(await pill.evaluate((n) => n.scrollWidth <= n.clientWidth + 1 && parseFloat(getComputedStyle(n).fontSize) >= 12), true, 'Varies by canvas is whole and 12px or larger at Small');
   await page.screenshot({ path: `${SHOTS}/small-card-library-projects.png` });
-  await page.context().close();
+  await finish(page);
 });
 
 await check('Explore at 1440, all four sizes: public canvases (a long name and handle, a long project label, Start Rabbit Hole and Fork beside it, one of your own) and project cards', async () => {
@@ -657,6 +669,32 @@ await check('Explore at 1440, all four sizes: public canvases (a long name and h
   await onExplore(page, '?type=projects');
   await page.locator('[data-explore-project]').nth(1).waitFor({ timeout: 30000 });
   await sweep(page, '[data-explore-project]', 'Explore projects');
+  await finish(page);
+});
+
+// Weekly Top 5 brief section 3 (owner, 2026-10-23): Size is the fourth control of Explore's one-row Canvases toolbar, right after Sort,
+// 12px apart; moving it changes the cards (this file's job), never the weekly list, and the setting is kept across a reload.
+await check('Explore Canvases toolbar at 1440: Search, Filters, Sort, Size adjacent on one row; Size keeps its step across a reload and leaves the weekly list alone', async () => {
+  const page = await seeded();
+  const weeklyHits = [];
+  await page.route('**/api/learn/boards/published/weekly-top', (route) => { weeklyHits.push(1); return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(weeklyTopFixture) }); });
+  await onExplore(page);
+  await page.locator('[data-explore-card]').nth(3).waitFor({ timeout: 30000 });
+  const [search, filters, sort, size] = await Promise.all([boxOf(page.locator('[data-explore-search]')), boxOf(page.getByRole('button', { name: /^Filters/ })), boxOf(page.locator('[data-sort-control]')), boxOf(page.locator('[data-card-size-control]'))]);
+  const parts = [search, filters, sort, size];
+  assert.ok(parts.every((b, k) => k === 0 || (b.x - parts[k - 1].right >= 9.5 && b.x - parts[k - 1].right <= 12.5)), `adjacent, 10-12px apart: ${JSON.stringify(parts.map((b) => [b.x, b.right]))}`);
+  assert.ok(parts.every((b) => Math.abs(b.cy - search.cy) <= 1.5), 'one row, centres aligned');
+  await page.locator('[data-weekly-list]').waitFor({ timeout: 30000 });
+  const ranking = () => page.locator('[data-weekly-list] [data-weekly-title]').allInnerTexts();
+  const before = await ranking();
+  await slider(page).fill('1');
+  await page.locator('[data-sort-control]').click();
+  await page.locator('[data-sort-option="forks"]').click();
+  assert.deepEqual(await ranking(), before, 'Sort and Size never reorder the weekly list');
+  assert.equal(weeklyHits.length, 1, 'one weekly request, not one per control');
+  await page.reload();
+  await slider(page).waitFor({ timeout: 60000 });
+  assert.equal(await value(page), 1, 'the Size step survives the reload');
   await page.context().close();
 });
 
@@ -667,7 +705,7 @@ await check('Home (Recent) at 1440, all four sizes: the same cards, the same gua
   await slider(page).waitFor({ timeout: 60000 });
   await sweep(page, '[data-recent-card]', 'Home Recent', { long: LONG_START });
   await page.screenshot({ path: `${SHOTS}/small-card-home.png` });
-  await page.context().close();
+  await finish(page);
 });
 
 await check('a phone (390) and a tablet (800): Library canvases, Library projects and Explore at all four sizes, with no sideways scroll', async () => {
@@ -684,7 +722,7 @@ await check('a phone (390) and a tablet (800): Library canvases, Library project
     await sweep(page, '[data-explore-card]', `${label} Explore`, options);
     await slider(page).fill('0');
     await page.screenshot({ path: `${SHOTS}/small-card-${label}.png` });
-    await page.context().close();
+    await finish(page);
   }
 });
 
@@ -697,7 +735,7 @@ await check('dark theme: the same cards at all four sizes keep every guarantee',
   await sweep(page, '[data-library-card="project"]', 'dark Library projects', { long: LONG_START });
   await slider(page).fill('0');
   await page.screenshot({ path: `${SHOTS}/small-card-dark.png` });
-  await page.context().close();
+  await finish(page);
 });
 
 const DESCRIPTION = '[data-card-description]';
@@ -753,7 +791,7 @@ await check('All four sizes show the whole description: 340 characters, an unbro
       await settled(page, '[data-recent-card]', `${label} Home, size ${n}`);
     }
     await page.screenshot({ path: `${SHOTS}/card-description-${label}-home.png` });
-    await page.context().close();
+    await finish(page);
   }
 });
 
@@ -772,7 +810,7 @@ await check('sizes 2 and 3 keep the picture where it was while the whole descrip
     }
     await whole(descriptionOf(page, '[data-library-card="canvas"]', LONG_START), DESC340, `Library, size ${n}`);
   }
-  await page.context().close();
+  await finish(page);
 });
 
 await browser.close();

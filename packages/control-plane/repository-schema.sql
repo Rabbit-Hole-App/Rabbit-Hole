@@ -962,3 +962,164 @@ CREATE TABLE IF NOT EXISTS learn_observations (
   UNIQUE (assessment_id, criterion_id, criterion_version)
 );
 CREATE INDEX IF NOT EXISTS learn_observations_goal ON learn_observations (org, owner_user_id, goal_id);
+-- learn-migrations/0027-usage-grants.sql
+-- Monthly AI allowance grants, and what each charge was priced with and refunded (owner credits brief 2026-10-23: 2,500 AI credits every month).
+-- usage_grants: the allowance a person was granted for one UTC month ('YYYY-MM'), written once, on the first admission or
+-- balance read of that month, and never lowered afterwards. It is how an account keeps the allowance it already had through the
+-- month the default changes. Boundary (learn-entitlement.js firstGrant): a month BEFORE AI_ALLOWANCE_CUTOVER_PERIOD is granted
+-- AI_LEGACY_ALLOWANCE_USD to a person with earlier usage, so with the cutover 2026-11 the last legacy month is 2026-10; every month
+-- FROM the cutover on (2026-11, starting 2026-11-01 00:00 UTC) is granted the default AI_MONTHLY_ALLOWANCE_USD. A person with no
+-- recorded usage, and every new account, gets the default in every month. Admission and the usage screen read it through the same
+-- function (learn-entitlement.js). source: 'default' | 'legacy_transition'. Amounts are integer micro-USD.
+CREATE TABLE IF NOT EXISTS usage_grants (
+  user_id TEXT NOT NULL,
+  period TEXT NOT NULL,
+  allowance_micros INTEGER NOT NULL CHECK (allowance_micros > 0),
+  source TEXT NOT NULL CHECK (source IN ('default', 'legacy_transition')),
+  granted_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, period)
+);
+-- usage_attempt_detail: beside usage_attempts, which is left unchanged (SQLite has no ADD COLUMN IF NOT EXISTS, so a column would
+-- not re-run). One row per priced or refunded attempt. price_version is the registry version (pricing-registry.js PRICE_VERSION)
+-- the charge used, tier the service tier, quantities the billable amounts by category (JSON: input, output, cache_read,
+-- cache_write_5m, cache_write_1h, output_image, ... each counted once; absent means not reported, never 0), unverified the
+-- categories whose rate the owner has not confirmed. refunded_micros is the part of a settled cost given back (a refund or a
+-- platform failure, at most the cost, at most once); the balance counts cost_micros - refunded_micros as used, and the original
+-- cost stays on the attempt. Additive and re-runnable; LEARN_DB only. Old code ignores both tables, so migrating first is safe.
+CREATE TABLE IF NOT EXISTS usage_attempt_detail (
+  attempt_id TEXT PRIMARY KEY,
+  price_version TEXT,
+  tier TEXT,
+  quantities TEXT,
+  unverified TEXT,
+  refunded_micros INTEGER NOT NULL DEFAULT 0 CHECK (refunded_micros >= 0),
+  refunded_at INTEGER,
+  refund_reason TEXT
+);
+
+-- learn-migrations/0028-canvas-stars.sql
+-- Canvas Stars (docs/features/stars.md; owner brief 2026-10-23): a signed-in user saves a reference to a canvas. A row copies
+-- no content, grants no access and freezes no version; what a star opens is decided by the access rules at that moment.
+-- 0027 is taken by feat/credits-2500 (usage grants) and 0020 is held, so this is 0028. Additive and re-runnable; LEARN_DB only.
+--
+-- canvas_stars: one active relationship per person per canvas. (org, canvas) is the canonical canvas identity every canvas
+-- table uses (canvases.org, canvases.name; canvas_publications, canvas_forks): never a share token, a publication token,
+-- a board id or an alias of them. user_id is users.id, the stable internal account id (never a handle or display name).
+-- user_email is that account's principal, kept for one join only - the public profile's user_handles.email, which is how
+-- a handle reaches a person here - and never leaves the server. users.email is immutable (no email change exists, a provider
+-- email never becomes a principal: migrations/0026-users.sql), so the pair cannot drift.
+-- id is the star's own opaque handle (random, never derived from a canvas): the only thing a list sends the client to remove
+-- a star, so a list never has to name a workspace. via_token is the share link (learn_boards.view_token) the person starred
+-- through, kept only as proof they held that link: a personal Stars list opens the star at /b/<via_token> while that exact
+-- link is live, and never looks up another one. It is not the canvas identity and is null for a star made through Explore or
+-- the owner's own canvas. created_at is the star time with milliseconds (the form canvas_metadata.updated_at uses): "recently
+-- starred" order, with id as the tie-breaker.
+-- No counter column: a canvas's star count is count(*) over the (org, canvas) key prefix, which the primary key indexes.
+CREATE TABLE IF NOT EXISTS canvas_stars (
+  org TEXT NOT NULL,
+  canvas TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  user_email TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
+  id TEXT NOT NULL UNIQUE DEFAULT (lower(hex(randomblob(16)))),
+  via_token TEXT,
+  PRIMARY KEY (org, canvas, user_id)
+);
+CREATE INDEX IF NOT EXISTS canvas_stars_mine ON canvas_stars (user_id, created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS canvas_stars_person ON canvas_stars (user_email, created_at DESC, id DESC);
+
+-- canvas_star_events: one row per real transition, written in the same batch as the change it records, so a retried request
+-- (which changes nothing) writes none. It is the durable source for the telemetry and creator-analytics adapters (a later
+-- increment): they read rows with delivered_at NULL and mark them, so a telemetry outage loses nothing and a retry sends
+-- nothing twice. reason: 'voluntary' (the person starred or unstarred) or 'lifecycle' (the system removed the star because
+-- its canvas was deleted). owner_star: the person is the canvas's owner. surface: where the person pressed (a fixed list in
+-- canvas-star-events.js, null for a lifecycle removal). Ids and times only: no title, token or content.
+CREATE TABLE IF NOT EXISTS canvas_star_events (
+  event_id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL CHECK (kind IN ('added', 'removed')),
+  reason TEXT NOT NULL CHECK (reason IN ('voluntary', 'lifecycle')),
+  org TEXT NOT NULL,
+  canvas TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  owner_star INTEGER NOT NULL DEFAULT 0 CHECK (owner_star IN (0, 1)),
+  surface TEXT,
+  at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
+  delivered_at TEXT
+);
+CREATE INDEX IF NOT EXISTS canvas_star_events_canvas ON canvas_star_events (org, canvas, at);
+CREATE INDEX IF NOT EXISTS canvas_star_events_pending ON canvas_star_events (at) WHERE delivered_at IS NULL;
+
+-- learn-migrations/0030-canvas-comment-reactions-history.sql
+-- Comments v2 Stage 3 (docs/features/canvas-comments.md section 15): reactions, edit history and the touch row that lets a
+-- thread's since-read find a change that leaves no timestamp on canvas_comments (a reaction added or removed). A reaction is
+-- one emoji from the server's fixed set by one account; an edit keeps the text it replaced (the newest 20 per comment) for the
+-- author and the canvas owner. All three are deleted with their comment, thread or canvas. Additive and re-runnable; LEARN_DB
+-- only. Production: an owner command; never applied by a lane.
+CREATE TABLE IF NOT EXISTS canvas_comment_reactions (
+  comment_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  emoji TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (comment_id, user_id, emoji)
+);
+CREATE TABLE IF NOT EXISTS canvas_comment_edits (
+  id TEXT PRIMARY KEY,
+  comment_id TEXT NOT NULL,
+  body TEXT NOT NULL,
+  mentions_json TEXT NOT NULL DEFAULT '[]',
+  replaced_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS canvas_comment_edits_comment ON canvas_comment_edits (comment_id, replaced_at);
+CREATE TABLE IF NOT EXISTS canvas_comment_touches (
+  comment_id TEXT PRIMARY KEY,
+  thread_id TEXT NOT NULL,
+  touched_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS canvas_comment_touches_thread ON canvas_comment_touches (thread_id, touched_at);
+
+-- learn-migrations/0031-canvas-comment-attachments.sql
+-- Comments v2 Stage 3 (docs/features/canvas-comments.md section 15, owner decision D3): the files attached to comments. One row
+-- per file in the LEARN_MEDIA bucket (object_key); thread_id and comment_id are NULL while an upload waits to be attached.
+-- The per-file, per-comment and per-canvas caps are enforced by the reserving INSERT, not by this schema. purged_at marks a row
+-- whose access is gone and whose object is still to leave the bucket. Additive and re-runnable; LEARN_DB only. Production: an
+-- owner command; never applied by a lane.
+CREATE TABLE IF NOT EXISTS canvas_comment_attachments (
+  id TEXT PRIMARY KEY,
+  org TEXT NOT NULL,
+  canvas TEXT NOT NULL,
+  thread_id TEXT,
+  comment_id TEXT,
+  uploader_id TEXT NOT NULL,
+  object_key TEXT NOT NULL,
+  name TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  bytes INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  purged_at TEXT
+);
+CREATE INDEX IF NOT EXISTS canvas_comment_attachments_comment ON canvas_comment_attachments (comment_id);
+CREATE INDEX IF NOT EXISTS canvas_comment_attachments_canvas ON canvas_comment_attachments (org, canvas, purged_at);
+CREATE INDEX IF NOT EXISTS canvas_comment_attachments_uploader ON canvas_comment_attachments (uploader_id, created_at);
+CREATE INDEX IF NOT EXISTS canvas_comment_attachments_object ON canvas_comment_attachments (object_key);
+
+-- learn-migrations/0032-canvas-comment-follows.sql
+-- Comments v2 Stage 4 (docs/features/canvas-comments.md section 15, owner decision D4: in-app notifications first, no email now):
+-- a person's explicit choice about one thread - follow it (news appears in their inbox even if they have not posted or been
+-- mentioned) or mute it (no inbox entry, whatever happens). No row is the default: news reaches the inbox when they own the
+-- canvas, posted in the thread, or were mentioned in it. The inbox itself is computed from threads, mentions and read marks, not
+-- stored. Deleted with its thread. Additive and re-runnable; LEARN_DB only. Production: an owner command; never applied by a lane.
+CREATE TABLE IF NOT EXISTS canvas_comment_follows (
+  thread_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('follow', 'mute')),
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (thread_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS canvas_comment_follows_user ON canvas_comment_follows (user_id, state);
+-- learn-migrations/0029-weekly-top.sql
+-- Weekly Top 5 (docs/features/explore-weekly-top.md): two indexes so a week's stars and forks are range scans. Additive,
+-- re-runnable, LEARN_DB only; no table, column or data changes. 0027 is Credits, 0028 is Stars.
+-- canvas_star_events: the first 'added' event of a person on a canvas is their weekly star; the partial index covers the week scan.
+CREATE INDEX IF NOT EXISTS canvas_star_events_added_at ON canvas_star_events (at, org, canvas, user_id) WHERE kind = 'added';
+-- canvas_forks: forked_at is a JavaScript ISO string written by the fork route; covers the week scan.
+CREATE INDEX IF NOT EXISTS canvas_forks_at ON canvas_forks (forked_at, forked_from_org, forked_from_canvas_id, owner_email);

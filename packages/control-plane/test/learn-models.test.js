@@ -190,7 +190,7 @@ test('the hook planner roles and the model price map', () => {
   assert.deepEqual(LEARN_TASKS.tutor_next_steps, { provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 1500 });
   assert.deepEqual(LEARN_TASKS.tutor_next_steps_escalation, { provider: 'anthropic', model: 'claude-opus-5-5', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 });
   assert.ok(Object.isFrozen(LEARN_TASKS.tutor_next_steps) && Object.isFrozen(LEARN_TASKS.tutor_next_steps_escalation));
-  assert.deepEqual(MODEL_PRICES, { 'claude-opus-5-5': [4, 20, 0.2], 'claude-sonnet-5-5': [2, 10, 0.2], 'claude-haiku-4-5-20251001': [1, 5, 0.1] });
+  assert.deepEqual(MODEL_PRICES, { 'claude-opus-5-5': [4, 20, 0.2], 'claude-sonnet-5-5': [2, 10, 0.1], 'claude-haiku-4-5-20251001': [1, 5, 0.1] }); // Sonnet 5.5 cached input is $0.10 (owner 2026-10-23, confirmed by Anthropic)
   assert.equal(costUsd({ model: 'claude-opus-5-5', input_tokens: 1000, output_tokens: 100, cache_creation_input_tokens: 400, cache_read_input_tokens: 2000 }), (1000 * 4 + 100 * 20 + 400 * 4 * 1.25 + 2000 * 0.2) / 1e6);
   assert.equal(costUsd({ model: 'claude-opus-5-5', input_tokens: 1000, speed: 'fast' }), 2 * 1000 * 4 / 1e6);
   assert.equal(costUsd({ model: 'fixture', input_tokens: 10 }), null);
@@ -225,7 +225,8 @@ test('each Learn model call logs one sanitized learn_model line with the served 
   await chat({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'secret-anthropic-key' }, null);
   const [line] = logged();
   assert.equal(logged().length, 1);
-  assert.deepEqual({ ...line, prompt: typeof line.prompt }, { event: 'learn_model', task: 'chat', provider: 'anthropic', requested: 'auto', source: 'auto', fallback: 'default', served: 'claude-opus-4-8', fellBack: true, prompt: 'string', status: 200, stopReason: 'end_turn' });
+  // The terminal outcome and the call's duration (telemetry brief Task 5) ride on the same line.
+  assert.deepEqual({ ...line, prompt: typeof line.prompt, durationMs: typeof line.durationMs }, { event: 'learn_model', task: 'chat', provider: 'anthropic', requested: 'auto', source: 'auto', fallback: 'default', served: 'claude-opus-4-8', fellBack: true, prompt: 'string', status: 200, stopReason: 'end_turn', outcome: 'completed', error: null, durationMs: 'number' });
   assert.equal(line.prompt.length, 12);
   const text = JSON.stringify(logged());
   for (const secret of ['What is a sigmoid?', 'context', 'secret-anthropic-key']) assert.equal(text.includes(secret), false, secret);

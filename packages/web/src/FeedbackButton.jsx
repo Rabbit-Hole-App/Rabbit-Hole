@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Bug, Check, Lightbulb, Loader2, MessageSquareWarning, X } from 'lucide-react';
 import { api } from './api.js';
+import { supportDiagnostics } from './client-telemetry.js';
 
 // Report a bug or suggest a feature (docs/features/learn-feedback.md): from
 // the Learn canvas's lower left (app set, panel opens up) or a left sidebar
@@ -9,12 +10,15 @@ import { api } from './api.js';
 // sent from; the confirmation stays on the button, never a corner toast.
 // trigger: the sidebar draws its own row in place of the square button (docs/features/sidebar-polish.md),
 // given the open state, the icon (a check once sent) and the toggle.
+// The confirmation, with the reference to quote to support when the server gave one.
+export const sentTitle = ref => (ref ? `Sent, thank you. Your reference is ${ref}` : 'Sent, thank you');
 export default function FeedbackButton({ app = null, board = null, placement = 'up', trigger = null }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState('bug');
   const [text, setText] = useState('');
   const [state, setState] = useState('idle'); // idle | sending | sent | error
   const [error, setError] = useState('');
+  const [ref, setRef] = useState(''); // the support reference of the last report sent (telemetry.md "Browser errors")
   const box = useRef(null);
   // Close on a press outside or Esc, like the canvas's other popovers.
   useEffect(() => {
@@ -32,14 +36,14 @@ export default function FeedbackButton({ app = null, board = null, placement = '
     if (!text.trim() || state === 'sending') return;
     setState('sending'); setError('');
     try {
-      await api('/api/learn/feedback', { method: 'POST', body: JSON.stringify({ app, kind, text: text.trim(), context: { board: app ? board || 'main' : null, path: window.location.pathname + window.location.search, viewport: `${window.innerWidth}x${window.innerHeight}`, userAgent: navigator.userAgent } }) });
-      setText(''); setOpen(false); setState('sent');
+      const sent = await api('/api/learn/feedback', { method: 'POST', body: JSON.stringify({ app, kind, text: text.trim(), diagnostics: supportDiagnostics(), context: { board: app ? board || 'main' : null, path: window.location.pathname + window.location.search, viewport: `${window.innerWidth}x${window.innerHeight}`, userAgent: navigator.userAgent } }) });
+      setText(''); setOpen(false); setRef(typeof sent?.ref === 'string' ? sent.ref : ''); setState('sent');
     } catch (problem) { setState('error'); setError(problem.message || 'Could not send. Try again.'); }
   };
   const Icon = state === 'sent' ? Check : MessageSquareWarning;
   return (
     <div ref={box} className="relative shrink-0">
-      {trigger ? trigger({ open, sent: state === 'sent', icon: Icon, toggle: () => setOpen(value => !value) }) : <button type="button" data-feedback aria-label="Report a bug or suggest a feature" title={state === 'sent' ? 'Sent, thank you' : 'Report a bug or suggest a feature'}
+      {trigger ? trigger({ open, sent: state === 'sent', ref, icon: Icon, toggle: () => setOpen(value => !value) }) : <button type="button" data-feedback aria-label="Report a bug or suggest a feature" title={state === 'sent' ? sentTitle(ref) : 'Report a bug or suggest a feature'}
         aria-expanded={open} onClick={() => setOpen(value => !value)}
         className={`flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-white shadow-sm hover:bg-hover ${state === 'sent' ? 'text-green-700' : 'text-ink-2 hover:text-ink'}`}>
         <Icon size={15} />

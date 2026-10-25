@@ -6,6 +6,7 @@
 // only these reads.
 import { FORK_COUNT, NAME_OF } from './canvases.js';
 import { EXPLORE_LIMIT, PUBLISHED, PUBLISHED_CARDS, exploreCard, likeOf, searchTerm } from './learn-boards.js';
+import { PAGE, MAX_PAGE } from './canvas-stars-list.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 // A handle as a URL may carry it, any case (handles compare case-insensitively: user_handles is COLLATE NOCASE).
@@ -15,7 +16,7 @@ const SORTS = { newest: 'p.published_at DESC', forks: 'fork_count DESC, p.publis
 const DISCOVER = 8;
 // The avatar is served by its own URL, never inlined in a list: a picture is up to 200k characters (profile.js).
 // `v` changes when the profile does, so a new picture shows at once.
-const avatarUrl = r => (r.has_avatar ? `/api/learn/creators/${r.handle}/avatar?v=${encodeURIComponent(r.since || '')}` : null);
+export const avatarUrl = r => (r.has_avatar ? `/api/learn/creators/${r.handle}/avatar?v=${encodeURIComponent(r.since || '')}` : null);
 const IDENTITY = `h.handle, ${NAME_OF('h.email')} AS name, (SELECT up.avatar IS NOT NULL FROM user_profiles up WHERE up.email = h.email) AS has_avatar,
   (SELECT up.updated_at FROM user_profiles up WHERE up.email = h.email) AS since,
   (SELECT d.description FROM user_profile_descriptions d WHERE d.email = h.email) AS description`;
@@ -40,7 +41,39 @@ async function profile(env, handle, sort, q) {
   const match = term ? `AND (c.title LIKE ? ESCAPE '\\' OR r.repo LIKE ? ESCAPE '\\')` : '';
   const { results } = await env.LEARN_DB.prepare(`${PUBLISHED_CARDS} ${PUBLISHED} AND h.handle = ? ${match} ORDER BY ${SORTS[sort]}, p.rowid DESC LIMIT ${EXPLORE_LIMIT}`)
     .bind(who.handle, ...(term ? [likeOf(term), likeOf(term)] : [])).all();
-  return json({ handle: who.handle, name: who.name ?? null, avatar: avatarUrl(who), description: who.description ?? null, explainer_count: totals.n, fork_count: totals.forks, explainers: results.map(exploreCard) });
+  return json({ handle: who.handle, name: who.name ?? null, avatar: avatarUrl(who), description: who.description ?? null, explainer_count: totals.n, fork_count: totals.forks, starred_count: await starredCount(env, who.handle), explainers: results.map(exploreCard) });
+}
+
+// The Stars tab (docs/features/stars.md, brief Task 8): the canvases this person has starred that are public right now - the same
+// PUBLISHED set Explore lists, so a private, unlisted, archived, nested or trashed canvas is filtered out BEFORE the count and the
+// page, and a canvas that turns private drops out of both at once (the star is kept and returns with it). It includes their own
+// public canvases, each card with its actual creator. A handle with no publication still has one; nothing is published by
+// starring. Public data and the same for every viewer: no viewer state, signed out or in. The count is "public canvases this
+// person has starred" - not a canvas's star_count, and not the owner's private total.
+// `s` below is the stars of the profile's person only, by their principal (user_handles.email), never a request value.
+const starredBy = (extra = '') => `EXISTS (SELECT 1 FROM canvas_stars s WHERE s.org = c.org AND s.canvas = c.name AND s.user_email = (SELECT uh.email FROM user_handles uh WHERE uh.handle = ?1) ${extra})`;
+async function starredCount(env, handle) {
+  return (await env.LEARN_DB.prepare(`SELECT count(*) AS n ${PUBLISHED} AND ${starredBy()}`).bind(handle).first()).n;
+}
+const STAR_CURSOR = /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\|([0-9a-f]{32})$/;
+async function profileStars(env, handle, params) {
+  const who = await env.LEARN_DB.prepare('SELECT h.handle FROM user_handles h WHERE h.handle = ?').bind(handle).first();
+  if (!who) return json({ error: `No creator @${handle.toLowerCase()}` }, 404);
+  const limit = params.get('limit') === null ? PAGE : Number(params.get('limit'));
+  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_PAGE) return json({ error: `Use a limit from 1 to ${MAX_PAGE}` }, 400);
+  const cursor = params.get('cursor') === null ? null : params.get('cursor').match(STAR_CURSOR);
+  if (params.get('cursor') !== null && !cursor) return json({ error: 'Use the cursor a previous page returned' }, 400);
+  const term = searchTerm(params.get('q')), binds = [who.handle];
+  if (term) binds.push(likeOf(term));
+  const match = term ? `AND (c.title LIKE ?${binds.length} ESCAPE '\\' OR m.description LIKE ?${binds.length} ESCAPE '\\' OR h.handle LIKE ?${binds.length} ESCAPE '\\')` : '';
+  if (cursor) binds.push(cursor[1], cursor[2]);
+  const before = cursor ? `AND (s.created_at, s.id) < (?${binds.length - 1}, ?${binds.length})` : '';
+  const mine = 'FROM canvas_stars s WHERE s.org = c.org AND s.canvas = c.name AND s.user_email = (SELECT uh.email FROM user_handles uh WHERE uh.handle = ?1)';
+  const { results } = await env.LEARN_DB.prepare(`${PUBLISHED_CARDS}, (SELECT s.created_at ${mine}) AS starred_at, (SELECT s.id ${mine}) AS star_id ${PUBLISHED} AND ${starredBy(before)} ${match}
+    ORDER BY starred_at DESC, star_id DESC LIMIT ${limit + 1}`).bind(...binds).all();
+  const page = results.slice(0, limit);
+  return json({ handle: who.handle, starred_count: await starredCount(env, who.handle), starred: page.map(exploreCard),
+    next_cursor: results.length > limit ? `${page.at(-1).starred_at}|${page.at(-1).star_id}` : null });
 }
 
 // Explore's "Creators to explore" (no q) and creator search (q): only people with at least one live publication, so a
@@ -80,7 +113,8 @@ export async function creatorsRoute(path, req, env) {
   if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
   const url = new URL(req.url);
   if (path === '/api/learn/creators') return creators(env, url.searchParams.get('q'));
-  const one = path.match(/^\/api\/learn\/creators\/([^/]+)(\/avatar)?$/);
+  const one = path.match(/^\/api\/learn\/creators\/([^/]+)(\/avatar|\/stars)?$/);
   if (!one || !HANDLE.test(one[1])) return json({ error: 'No such creator' }, 404);
+  if (one[2] === '/stars') return profileStars(env, one[1], url.searchParams);
   return one[2] ? avatar(env, one[1]) : profile(env, one[1], url.searchParams.get('sort') || 'newest', url.searchParams.get('q'));
 }

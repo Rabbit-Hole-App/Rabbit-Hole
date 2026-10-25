@@ -191,7 +191,7 @@ function PrivacyPane({ session }) {
   const provider = PROVIDER_LABELS[session?.provider];
   return (
     <>
-      <PaneTitle title="Privacy & security" intro="How you sign in, and signing out" />
+      <PaneTitle title="Privacy & security" intro="How you sign in, signing out, and what learning analytics record" />
       <Heading>Sign-in</Heading>
       {provider && <SettingsRow title="Signed in with" desc={session.provider === 'email' ? 'A one-time link or code sent to your email. No password is stored.' : `Your ${provider} account. ${PRODUCT} stores no password.`}>
         <span data-signin-provider className="text-sm text-ink-2">{provider}</span>
@@ -199,6 +199,13 @@ function PrivacyPane({ session }) {
       <SettingsRow title="Log out" desc={`Ends your ${PRODUCT} sessions on every device, including this one`}>
         <Button variant="secondary" size="sm" onClick={() => { window.location.href = '/logout'; }}>Log out</Button>
       </SettingsRow>
+      <Heading>Learning analytics</Heading>
+      <div data-learning-analytics-notice className="space-y-2 pt-3 text-sm text-ink-2">
+        <p>To improve the Tutor and find problems, {PRODUCT} records analytics events about how learning activity goes. They use internal account and canvas identifiers and contain: the kind of Tutor action taken and its reason code, the type of help it offered, which suggestions were shown and which one you chose, how many of the topic&apos;s claims were in each state, whether an assessed answer was met, partly met or not met and whether help was involved, how it was assessed (a rubric match, or an AI evaluator and its version), the AI model and prompt version, timings, error types and AI credit usage.</p>
+        <p>Browser error reports hold the kind of error and the page area, never the error message or page content. The support reference you receive after sending feedback links your report to those technical records.</p>
+        <p>These analytics events do not include the text of your messages, questions or answers, your goal or suggestion wording, your files or what you draw. That statement is about analytics only: your canvases, chats and submitted answers are still stored in your account so {PRODUCT} works.</p>
+        <p>Only the {PRODUCT} owner can view analytics. People who made a canvas you open never see your individual records.</p>
+      </div>
       <p className="pt-6 text-xs text-ink-3">Canvas visibility, sharing and comments are set in each canvas&apos;s Share panel.</p>
     </>
   );

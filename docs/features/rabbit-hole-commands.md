@@ -83,8 +83,26 @@ local Motion stack's build (`VITE_MOTION_DEV`) (`MOTION_DEV` in agent/slash.js).
 (`scripts/prod-release.mjs` strips both), so production and preview have no /motion; typed there it says "Motion (animated
 explainer videos) is not available here." and runs nothing. Generate also needs `MOTION_ORCHESTRATOR_URL` and
 `MOTION_ORCHESTRATOR_TOKEN` on the worker; only the local Motion stack sets them. Elsewhere the worker refuses the start
-before any provider call: the card says "Motion is not available in this environment yet. Nothing was started." and stays
-retryable, and nothing is recorded or stored.
+before any provider call: the card says "Motion is not available in this environment yet. Nothing was started.", with
+"Used 0 credits · reservation released", and offers no start action: the server offers none, not even Generate again, while
+Motion cannot start (control-plane `learn-video.js` `motionRecovery`: every recovery action and `regenerate` need Motion to be
+startable; owner message 38, "only the actions that can run now"). With an orchestrator configured a failed card offers
+Generate again. This is a refused Generate, not a refused proposal. A refused PROPOSAL (MOT-22: the server refused the start
+for its proposal, for example because a newer version exists) is different: the card is marked "Not generated" with the
+reason, is never the card the proposal made, and releases the proposal card's one-press guard, so its Generate works again
+after the settings change. Browser checks: `motion-command-check.mjs` step "MOCKED refusal for its proposal (MOT-22)" and step
+"REAL refusal".
+
+**Routing in Auto mode (owner, 2026-10-24, ledger 69b00255).** An explicit `/motion` command (typed, picked, Ctrl+K, a
+retry) requests the Motion review and confirmation flow in every Chat mode, Auto included: the command's words go to
+`/api/learn/ask` with `command: 'motion'` and the chat route proposes it on the shared card (`chat-route.js` `tutorTurn`
+`explicit`, set in `ask.jsx` from `reviewRequired(commandName)`); the Tutor's plan route never answers it. Ordinary prose that
+merely mentions motion has no command and stays under normal Tutor routing; the Tutor may still offer Motion through its own
+paths (create_material, suggestions), each of which ends on the same proposal card. A bare `/motion` asks "What should the video
+explain?" inside the command (the line is kept) instead of starting anything. Recognising the command is not permission to
+generate: Generate on the card still needs the existing confirmation, readiness and credit checks. Before 2026-10-24 a typed
+`/motion` in Auto went to the Tutor and showed no card (from the 2026-10-14 mode-aware routing); regression tests:
+`packages/web/src/motion-auto-route.test.mjs`; browser check: `motion-command-check.mjs`.
 
 **/animate** is removed from every user surface (`REMOVED_COMMANDS`: picker, window, examples, typed lines) and from new
 chat-answer suggestions (`chat-answer-meta.js` no longer offers `animate`). It stays a Tutor material tool

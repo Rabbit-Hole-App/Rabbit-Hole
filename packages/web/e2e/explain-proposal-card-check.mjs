@@ -186,7 +186,7 @@ await step('a brief that waits for approval: title, request, Presentation, assum
   assert.match(await card.locator('[data-proposal-request]').innerText(), /how a heap keeps its order/);
   assert.equal(await card.locator('[data-proposal-select="presentation"]').inputValue(), 'steps');
   assert.deepEqual(await card.locator('[data-proposal-section="assumptions"] li').allInnerTexts(), ASSUMPTIONS);
-  assert.match(await card.locator('[data-proposal-usage]').innerText(), /40 credits/);
+  assert.match(await card.locator('[data-proposal-usage]').innerText(), /Estimated cost: 40 AI credits/);
   assert.doesNotMatch(await card.innerText(), /\$\d/);
   assert.equal(await card.locator('[data-proposal-duration], [data-proposal-audio="on"], [data-proposal-audio="off"], [data-proposal-cancel]').count(), 0, 'no Duration, Audio or Cancel');
   assert.equal(await card.locator('[data-proposal-edit]').count(), 1, 'Edit details');

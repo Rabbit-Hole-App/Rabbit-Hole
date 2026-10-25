@@ -23,7 +23,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 function d1(t) {
   const sqlite = new DatabaseSync(':memory:');
   t.after(() => sqlite.close());
-  for (const file of [sql('0016-usage-operations.sql'), sql('0022-usage-accounting.sql')]) sqlite.exec(file);
+  for (const file of [sql('0016-usage-operations.sql'), sql('0022-usage-accounting.sql'), sql('0027-usage-grants.sql')]) sqlite.exec(file);
   const LEARN_DB = {
     prepare(text) {
       let args = [];

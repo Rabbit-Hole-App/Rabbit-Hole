@@ -114,11 +114,11 @@ test('Escape: an unclaimed press while focused exits and restores; typing in a f
   assert.deepEqual(calls, [['enter', 'a', 900, 0.5], ['exit', 'a']]);
 });
 
-// WP4 findings (focus-study.md section 7): the CAD seam code is in place (3D tools in the Focus header) but its adapter is not imported,
+// WP4 findings (focus-study.md section 7): a CAD card is focusable through the index and keeps its 3D tools in the Focus header,
 // its viewer stays selected (Interact works) while focused, a focused card takes its own wheel (Full layout too), and the
 // selection pill never comes back over the header.
 test('CAD, wheel and pill: the seam keeps a focused card usable', async () => {
-  assert.equal(isFocusEligible({ id: 'c1', type: 'cad' }), false, 'CAD Focus stays unavailable (focus-adapter-cad.js not imported) until a check with a real 3D asset covers its tools');
+  assert.equal(isFocusEligible({ id: 'c1', type: 'cad' }), true, 'focus-adapter-cad.js is imported');
   const { readFileSync } = await import('node:fs');
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   assert.match(canvas, /viewSelected=\{selection\.includes\(block\.id\) \|\| focus\?\.id === block\.id\}/, 'the focused CAD viewer counts as selected');

@@ -15,7 +15,7 @@ export const BOARD_B = { id: 'board-2', app: 'canvas-b', board: 'main' };
 export function d1(t) {
   const sqlite = new DatabaseSync(':memory:');
   t.after(() => sqlite.close());
-  for (const file of ['0016-usage-operations.sql', '0022-usage-accounting.sql']) sqlite.exec(sql(file));
+  for (const file of ['0016-usage-operations.sql', '0022-usage-accounting.sql', '0027-usage-grants.sql']) sqlite.exec(sql(file));
   sqlite.exec("CREATE TABLE learn_boards (id TEXT PRIMARY KEY, app TEXT, board TEXT, org TEXT, owner_email TEXT, state_json TEXT NOT NULL DEFAULT '{}')");
   // The canvas the jobs run on, and a second canvas the same learner owns.
   for (const b of [BOARD, BOARD_B]) sqlite.prepare('INSERT INTO learn_boards (id, app, board, org, owner_email) VALUES (?, ?, ?, ?, ?)').run(b.id, b.app, b.board, OWNER.org, OWNER.email);

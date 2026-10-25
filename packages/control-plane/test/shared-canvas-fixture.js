@@ -44,7 +44,7 @@ export function setup(t, { visibility = 'public', vars = {} } = {}) {
   const snapshots = new Map([['snap-key', SNAPSHOT]]);
   const REPOSITORY_SNAPSHOTS = { get: async key => (snapshots.has(key) ? { json: async () => structuredClone(snapshots.get(key)) } : null), put: async () => { throw new Error('snapshot write'); } };
   const mediaWrites = [];
-  const LEARN_MEDIA = { put: async key => { mediaWrites.push(key); }, get: async () => null, list: async () => ({ objects: [], truncated: false }) };
+  const LEARN_MEDIA = { put: async key => { mediaWrites.push(key); }, get: async () => null, delete: async () => {}, list: async () => ({ objects: [], truncated: false }) };
   const DB = liveDb(), RUNS = liveRuns();
   const env = { SMALL_ENV: 'test', LEARN_DB: recorded, CONTROL_PLANE, LEARN_MEDIA, REPOSITORY_SNAPSHOTS, DB, RUNS, ANTHROPIC_API_KEY: 'test-key', ...vars };
   t.after(() => assert.deepEqual([DB.calls, RUNS.calls, liveWrites], [[], [], []], 'touched production storage'));

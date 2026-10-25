@@ -10,7 +10,10 @@ import { useCardMenu } from './home/CardMenu.jsx';
 import { useLibraryFolders } from './LibraryFolders.jsx';
 import CardSize from './home/CardSize.jsx';
 import { EXPLORE_SORTS, EXPLORE_TABS, exploreTab } from './home/card-sort.js';
+import WeeklyTop, { useWeeklyTop } from './home/WeeklyTop.jsx';
+import { weeklyVisible } from './home/weekly-top.js';
 import { cardModel } from './home/provenance.js';
+import { ownerStar, StarsLink } from './CardStar.jsx';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
 import { EXPLORE_TYPES, exploreType, isMine } from './library-filter.js';
 import { ActiveFilters, LibraryFilters } from './LibraryViews.jsx';
@@ -62,7 +65,7 @@ function HomeContent({ data, load }) {
         {ready && (
           <div className="flex items-center justify-between gap-4 max-md:flex-wrap">
             {!cont && !items.length ? <p className="text-sm text-ink-2">Start from a repository or a blank canvas.</p> : <span />}
-            <div className="flex flex-wrap items-center gap-3 max-md:w-full">{(cont || items.length > 0) && <CardSize />}{startButton}</div>
+            <div className="flex flex-wrap items-center gap-3 max-md:w-full">{(cont || items.length > 0) && <CardSize />}<StarsLink />{startButton}</div>
           </div>
         )}
         {fixtures && <div role="note" className="rounded-md bg-code px-3 py-2 text-xs text-ink-2">Review fixtures are on: made-up cards, mixed in for design review. They open nothing and are stored nowhere. <a className="text-accent hover:underline" href="?fixtures=0">Turn off</a></div>}
@@ -94,7 +97,7 @@ function Continue({ item, app, email }) {
     <section aria-label="Continue">
       <h2 className={HEADING}>Continue learning</h2>
       <ul className={CARD_ROWS}>
-        <LearningCard kind={a.kind} schedule={a.schedule} m={cardModel(a)} attrs={{ 'data-continue-card': '' }} href={openHref(item)} onOpen={go} thumbnail={cardThumbnail(a)}
+        <LearningCard kind={a.kind} schedule={a.schedule} m={cardModel(a)} attrs={{ 'data-continue-card': '' }} href={openHref(item)} onOpen={go} thumbnail={cardThumbnail(a)} star={ownerStar(a, 'card_home')}
           mine={isMine(a, email)} access={a.kind === 'canvas' || a.kind === 'repository' ? a.access || null : null}
           note={(
             <>
@@ -122,7 +125,7 @@ function RecentCard({ app, card, email, onMore, onVaries }) {
     : meta.join(' · ');
   const link = 'inline-flex items-center gap-1 rounded-sm text-[13px] font-medium text-accent hover:underline';
   return (
-    <LearningCard kind={app.kind} schedule={app.schedule} m={cardModel(app)} attrs={{ 'data-recent-card': '' }} thumbnail={cardThumbnail(app)}
+    <LearningCard kind={app.kind} schedule={app.schedule} m={cardModel(app)} attrs={{ 'data-recent-card': '' }} thumbnail={cardThumbnail(app)} star={ownerStar(app, 'card_home')}
       href={action?.to && !app.fixture ? action.to : null} onOpen={action?.to ? () => go(action.to) : null}
       mine={!app.fixture && isMine(app, email)} access={(app.kind === 'canvas' || app.kind === 'repository') && !app.fixture ? app.access || null : null} onVaries={onVaries} note={note} onMore={onMore}
       onForkedFromOpen={(id) => go(`/apps/${id}`)}
@@ -170,6 +173,7 @@ function Explore() {
   // A sentence-length search also gets AI picks, Recommended above the tab's keyword results (explore-publish.md "AI find");
   // not while a project filter narrows the list.
   const found = useExploreFind(term, !!me);
+  const weekly = useWeeklyTop(); // Weekly Top 5: one request, both tabs, no AI call (home/WeeklyTop.jsx)
   useEffect(() => { let live = true; loadProfile().then((p) => { if (live) setMe(p?.handle || null); }); return () => { live = false; }; }, []);
   useEffect(() => {
     if (tab !== 'explainers') return;
@@ -195,15 +199,21 @@ function Explore() {
         <Tabs value={tab} onValueChange={choose}>
           <TabsList data-explore-tabs className="mb-4">{EXPLORE_TABS.map(([id, name]) => <TabsTrigger key={id} value={id} className={EXPLORE_TAB}>{name}</TabsTrigger>)}</TabsList>
         </Tabs>
-        <div className={`flex items-center gap-3 pb-6 max-md:flex-wrap ${tab === 'creators' ? 'max-w-[760px]' : ''}`}>
-          <label className="relative block min-w-0 flex-1 max-md:basis-full">
-            <Search size={15} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
-            <Input type="search" data-explore-search aria-label={searchLabel} placeholder={searchLabel} value={typed} onChange={(e) => setTyped(e.target.value)} className="h-9 w-full pl-9" />
-          </label>
-          {tab === 'explainers' && <LibraryFilters type={type} path="/explore" types={EXPLORE_TYPES} />}
-          {tab === 'explainers' && cards?.length !== 0 && <SortMenu options={EXPLORE_SORTS} value={order} onChange={setOrder} />}
-          {tab === 'explainers' && <CardSize />}
+        {/* Canvases: Search, Filters, Sort, Size on one row (owner brief 2026-10-23 §3); the row scrolls inside itself when the
+            window is too narrow, so their menus open portaled. Creators: the compact search alone. */}
+        <div className={`pb-6 ${tab === 'creators' ? 'max-w-[760px]' : ''}`}>
+          <div data-explore-toolbar className={`flex items-center gap-3 ${tab === 'creators' ? 'max-md:flex-wrap' : '-mx-1 -my-1 flex-nowrap overflow-x-auto px-1 py-1 [&_[data-card-size-control]]:h-9 [&_button]:h-9 [&>*:not(label)]:shrink-0'}`}>
+            <label className={`relative block min-w-0 ${tab === 'creators' ? 'flex-1 max-md:basis-full' : 'max-w-[360px] min-w-[180px] flex-[0_1_280px]'}`}>
+              <Search size={15} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
+              <Input type="search" data-explore-search aria-label={searchLabel} placeholder={searchLabel} value={typed} onChange={(e) => setTyped(e.target.value)} className="h-9 w-full pl-9" />
+            </label>
+            {tab === 'explainers' && <LibraryFilters portal type={type} path="/explore" types={EXPLORE_TYPES} />}
+            {tab === 'explainers' && cards?.length !== 0 && <SortMenu portal options={EXPLORE_SORTS} value={order} onChange={setOrder} />}
+            {tab === 'explainers' && <CardSize />}
+          </div>
         </div>
+        {/* Weekly Top 5 sits between the controls and the regular discovery; a typed search hides it at once and clearing restores it. */}
+        {weeklyVisible(typed) && <WeeklyTop weekly={weekly} tab={tab} />}
         {tab === 'creators' ? (
           <section data-explore-creators aria-label="Creators" className="max-w-[760px]">
             <Recommended found={found} me={me} kind="creators" />

@@ -24,7 +24,7 @@ import { devWorker } from './worker-import.js';
 import { liveDb, liveRuns, memoryBucket } from './live-storage-spy.js';
 
 const sql = name => readFileSync(new URL(`../learn-migrations/${name}`, import.meta.url), 'utf8');
-const MIGRATIONS = [sql('0016-usage-operations.sql'), sql('0022-usage-accounting.sql')];
+const MIGRATIONS = [sql('0016-usage-operations.sql'), sql('0022-usage-accounting.sql'), sql('0027-usage-grants.sql')];
 const body = { max_tokens: 200, messages: [{ role: 'user', content: 'Synthetic question.' }] };
 const MODEL = 'claude-opus-5-5';
 const NEED = toMicros(requestSpendBound(body, MODEL)); // one request's reservation, micros
@@ -92,7 +92,7 @@ test('zero remaining allowance: zero provider calls, the exhausted reason and it
   const { calls, reply } = provider();
   const response = await spendTransport(as(env), body, MODEL, null, reply());
   assert.equal(response.status, 429);
-  assert.deepEqual(await response.json(), { error: `You've used your monthly AI allowance. It resets on ${new Date(periodReset(PERIOD)).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}.`,
+  assert.deepEqual(await response.json(), { error: `Not enough AI credits. Renews on ${new Date(periodReset(PERIOD)).toLocaleString('en-US', { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short', timeZone: 'UTC' }).replace(' at ', ', ')}.`,
     code: 'allowance_limited', reason: 'exhausted', period: PERIOD, resetsAt: periodReset(PERIOD) });
   assert.equal(calls.length, 0);
   assert.deepEqual(rows(sqlite, 'usage_operations'), [], 'nothing reserved on the platform ledger');
@@ -296,8 +296,8 @@ test('Fish narration, Jev and Exa search go through the same admission: refused 
   assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.kind, a.reserved_micros, a.cost_state, a.cost_micros]), [['tool', exaSearchBound(10), 'settled', 7000]]);
   spent(sqlite, 'u-alice', 13_000);
   const exhausted = as(env);
-  await assert.rejects(searchYouTube('relu', exhausted, async () => { fetches++; }), /used your monthly AI allowance/);
-  await assert.rejects(searchCanvasSource('arxiv', 'attention', as(env), { fetcher: async () => { fetches++; }, direct: async () => null }), /used your monthly AI allowance/);
+  await assert.rejects(searchYouTube('relu', exhausted, async () => { fetches++; }), /Not enough AI credits/);
+  await assert.rejects(searchCanvasSource('arxiv', 'attention', as(env), { fetcher: async () => { fetches++; }, direct: async () => null }), /Not enough AI credits/);
   await assert.rejects(askJev(as(env, 'u-alice', 'inline_route'), { model: JEV_TRANSPORTS.direct.model, state: 'x', questions: {} }, { transport: 'direct', fetchImpl: async () => { fetches++; } }), error => error.code === 'allowance_exhausted');
   const fish = await fishSpendTransport(as({ ...env, FISH_AUDIO_API_KEY: 'fixture' }, 'u-alice', 'tts'), 'Narrate this.', async () => { fetches++; return new Response('mp3'); });
   assert.ok(isPaidSpendReply(fish));

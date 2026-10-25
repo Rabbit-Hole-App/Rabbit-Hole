@@ -418,7 +418,9 @@ await check('15 Explore, as the owner: own card badged, no Start/Fork, its read-
   assert.equal(new URL(ex.url()).pathname, '/explore');
   assert.equal((await api(owner, '/api/canvases')).canvases.length, before, 'Cancel forks nothing');
   // The actions row sits above the footer: Updated is the card's last line, never mid-card.
-  const [start] = await boxes(theirs.locator('[data-card-start-rabbit-hole]')), [foot] = await boxes(theirs.locator('[data-card-footer]'));
+  // Unrounded rects: Weekly Top 5 sits above the cards at a fractional height, and rounding each edge on its own can put the two within a pixel the wrong way.
+  const edges = loc => loc.evaluate(n => { const r = n.getBoundingClientRect(); return { y: r.y, h: r.height }; });
+  const start = await edges(theirs.locator('[data-card-start-rabbit-hole]')), foot = await edges(theirs.locator('[data-card-footer]'));
   assert.ok(foot.y > start.y + start.h - 1, `footer ${JSON.stringify(foot)} under the actions ${JSON.stringify(start)}`);
   assert.deepEqual(await typeWords(ex.locator('[data-explore-card]')), []);
   // An Explore card with its actions row is the same fixed size as every other card since r30 (card-thumbnails.md).
