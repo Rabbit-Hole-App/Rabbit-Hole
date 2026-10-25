@@ -73,9 +73,9 @@ test('a v3 proposal needs a valid review: prompt tokens and references must agre
 
 test('the executor reads the approved prompt: Motion\'s brief is the signed description of the prompt, and each revision is its own video', async () => {
   const p = await v3();
-  assert.deepEqual(approvedProposal(p), { title: 'Water cycle', duration_seconds: 10, description: DESCRIPTION });
+  assert.deepEqual(approvedProposal(p), { title: 'Water cycle', duration_seconds: 10, aspect_ratio: '16:9', description: DESCRIPTION });
   const edited = (await reviseProposal(env, p, { description: 'A slow pour of milk into tea, from above.', settings: { duration_seconds: 15, audio: false } }, ALICE, DEST)).proposal;
-  assert.deepEqual(approvedProposal(edited), { title: 'Water cycle', duration_seconds: 15, description: 'A slow pour of milk into tea, from above.' });
+  assert.deepEqual(approvedProposal(edited), { title: 'Water cycle', duration_seconds: 15, aspect_ratio: '16:9', description: 'A slow pour of milk into tea, from above.' });
   const op = proposal => ({ op: 'motion_request', request: '/motion water cycle', location: { concept: 'Weather' }, proposal });
   assert.equal(validateMotionRequest(op(edited)).proposal, edited, 'a v3 proposal rides motion_request');
   assert.notEqual(await motionRequestCacheKey(validateMotionRequest(op(p))), await motionRequestCacheKey(validateMotionRequest(op(edited))));
@@ -118,7 +118,7 @@ test('an edit is refused in words with paths, and the stored revision is untouch
   await refuse({ settings: { duration_seconds: 10, audio: true } }, 400, /narration audio is not available yet/);
   await refuse({ settings: { duration_seconds: 12, audio: false } }, 400, /in steps of 5/);
   await refuse({ settings: { duration_seconds: 10, audio: false, voice: 'x' } }, 400, /settings.voice is not a Motion setting/);
-  await refuse({ settings: { duration_seconds: 10, aspect_ratio: '9:16' } }, 400, /aspect_ratio is not available yet/);
+  await refuse({ settings: { duration_seconds: 10, aspect_ratio: '7:3' } }, 400, /aspect_ratio must be 9:16, 1:1, 16:9/); // owner 2026-10-23: the nine Motion ratios are offered
   const unknown = await refuse({ description: 'Show {{ref:r9}}.' }, 400, /names a reference/);
   assert.equal(unknown.errors[0].path, 'prompt');
   await refuse({ description: 'Show {{ref:r1}}.', references: [] }, 400, /names a reference/);
@@ -211,7 +211,7 @@ test('Generate consumes the current revision once: a repeat of the same press is
 });
 
 test('settings validation is the schema\'s: one definition for the proposal tool, the card save and the route', () => {
-  assert.deepEqual(validateSettings('motion', { duration_seconds: 60, audio: false }).value, { duration_seconds: 60, audio: false });
+  assert.deepEqual(validateSettings('motion', { duration_seconds: 60, audio: false }).value, { duration_seconds: 60, aspect_ratio: '16:9', audio: false });
   assert.match(validateSettings('motion', { duration_seconds: 65 }).error, /5 to 60/);
   assert.deepEqual(validateSettings('explain', undefined).value, {});
   assert.equal(validateSettings('cad', { units: 'mm' }).value.units, 'mm');

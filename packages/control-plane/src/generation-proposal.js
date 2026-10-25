@@ -19,10 +19,10 @@ import { CHAT_CAPABILITIES, chatCapability } from '../../web/src/inline-ai-route
 import { hmacHex } from './token.js';
 import { explainReservation } from './explain-policy.js';
 import { SCHEMA_VERSION, commandDefinition, firstReadOnly, settingsOf, validateSettings as validateCommandSettings } from '../../web/src/generation-confirmation-schema.js';
+import { MOTION_DEFAULT_RATIO, MOTION_RATIOS, motionBinding, motionQuote, motionQuoteInputs, motionReadiness } from './motion-settings.js';
 import { REVIEW_LISTS, escapeText, plainPrompt, reviewHash, reviewOf, validateReview } from '../../web/src/generation-review.js';
 import { imageQuote } from './image-providers.js';
 import { imageReadiness } from './image-settings.js';
-import { motionInputs, motionReadiness } from './motion-readiness.js';
 
 export const PROPOSAL_TTL_S = 24 * 60 * 60;
 const TITLE_MAX = 120, DESCRIPTION_MAX = 1500, REQUEST_MAX = 500, REFS_MAX = 8;
@@ -42,6 +42,7 @@ export const SIGNABLE = Object.freeze([...new Set([...WIRED, 'explain', 'generat
 // The bounds are the declaration's Duration field: one definition with the card.
 const MOTION_SECONDS = settingsOf('motion').find(f => f.key === 'duration_seconds').options.map(o => o.value);
 export const MOTION_DURATION = Object.freeze({ min: MOTION_SECONDS[0], max: MOTION_SECONDS.at(-1) });
+export { MOTION_DEFAULT_RATIO, MOTION_RATIOS };
 // Every command's settings are the schema's declarations (no validator of their own here): Motion's duration, audio and aspect ratio,
 // /explain's presentation. -> { value } | { error, path }
 export const validateSettings = (command, value, options) => validateCommandSettings(command, value, options);
@@ -61,7 +62,7 @@ export const PROPOSAL_TOOL = {
       command: { type: 'string', enum: WIRED, description: 'motion: a short animated explainer video.' },
       title: { type: 'string', description: 'A short, specific title, at most 80 characters.' },
       description: { type: 'string', description: 'What the result will contain, in order: 3 to 10 complete sentences, normally 3 or 4. For a video it is the brief of what it shows, not its narration. No labels, lists, ids or code names.' },
-      settings: { type: 'object', description: `motion: {duration_seconds: what the learner asked for, else 10 to 20 (${MOTION_DURATION.min} to ${MOTION_DURATION.max}), audio: false}.` },
+      settings: { type: 'object', description: `motion: {duration_seconds: the closest of ${MOTION_SECONDS.join(', ')} to what the learner asked for, else 10 to 20; aspect_ratio: one of ${MOTION_RATIOS.join(', ')}, as the learner asked for, else ${MOTION_DEFAULT_RATIO}; audio: false}.` },
       source_ref_ids: { type: 'array', items: { type: 'string' }, description: 'The sourceIds of attached materials it is about; empty when none.' },
     },
   },
@@ -145,7 +146,7 @@ export const reviewAvailable = env => !!v2Secret(env);
 // What generating it uses, from the server's own settings (owner messages 30-33: credits only, 1 credit = $0.01): the estimate
 // (MOTION_ESTIMATE_USD) and the temporary reservation while it runs (MOTION_JOB_RESERVATION_USD). Unsigned: display only.
 const credits = usd => (Number.isFinite(usd) && usd > 0 ? Math.ceil(Number((usd * 100).toFixed(6))) : null);
-export function proposalUsage(env, command) {
+export function proposalUsage(env, command, settings) {
   // /explain: its estimate when configured (EXPLAIN_ESTIMATE_USD, from measured runs), and the policy's generation worst case
   // as what the job checks the allowance for. Never Motion's estimate or hold.
   if (command === 'explain') {
@@ -153,9 +154,14 @@ export function proposalUsage(env, command) {
     return { estimate_credits: credits(estimate), reserve_credits: credits(explainReservation().generationMicros / 1e6) };
   }
   if (command !== 'motion') return { estimate_credits: null, reserve_credits: null };
-  const estimate = Number(String(env.MOTION_ESTIMATE_USD ?? '').trim() || NaN), hold = motionReservationMicros(env);
-  return { estimate_credits: credits(estimate), reserve_credits: hold == null ? null : credits(hold / 1e6) };
+  const hold = motionReservationMicros(env);
+  // inputs: what this quote was made for (motionQuoteInputs, the pricing seam), and price_version: the version of the price table (or "flat").
+  // Both are signed with the proposal (motionBinding); Generate answers a stale one with the updated quote (motionGenerationCheck).
+  const quote = motionQuote(env, motionQuoteInputs(settings));
+  return { estimate_credits: quote.estimate_credits, reserve_credits: hold == null ? null : credits(hold / 1e6), ...(settings ? { inputs: motionQuoteInputs(settings), price_version: quote.price_version } : {}) };
 }
+// The server's readiness answer for the card, unsigned like usage and decided again at Generate: Motion only.
+const readinessOf = (env, p) => (p.command === 'generate-image' ? { readiness: imageReadiness(p.settings, p.references?.length ?? 0) } : p.command === 'motion' ? { readiness: motionReadiness(env, motionQuoteInputs(p.settings)) } : {});
 
 // IMG-01: the signed quote of a generate-image proposal (what image-jobs.js compares with its own at create), the display usage from it,
 // and the readiness answer for the card (image-settings.js; unsigned like usage and decided again at create).
@@ -166,8 +172,6 @@ export function imageProposalQuote(env, r) {
   return quote.state === 'priced' ? { estimate_credits: quote.estimate_credits, reserve_credits: quote.reserve_credits } : null;
 }
 const quoteUsage = quote => ({ estimate_credits: quote?.estimate_credits ?? null, reserve_credits: quote?.reserve_credits ?? null });
-// Motion likewise (motion-readiness.js): a duration the deployed orchestrator does not accept is shown as not ready, never clamped.
-const readinessOf = (p, env) => (p.command === 'generate-image' ? { readiness: imageReadiness(p.settings, p.references?.length ?? 0) } : p.command === 'motion' ? { readiness: motionReadiness(env, motionInputs(p.settings)) } : {});
 // The default verifier of image-jobs.js: only the v3 envelope carries the references and the quote an image is approved with.
 export async function verifyImageProposal(env, p, user) {
   if (p?.command === 'generate-image' && !v3sig(p.sig)) return 'This image proposal is out of date. Ask for it again.';
@@ -181,6 +185,9 @@ export async function verifyImageProposal(env, p, user) {
 export async function signProposal(env, fields, user, { id = null, version = 1, now = Math.floor(Date.now() / 1000), envelope = null } = {}) {
   const p = { proposal_id: id || `gp-${hex(crypto.getRandomValues(new Uint8Array(8)))}`, version, command: fields.command, title: fields.title, description: fields.description,
     settings: fields.settings, source_refs: fields.source_refs || [], input: fields.input, expires_at: now + PROPOSAL_TTL_S };
+  // Motion: the quote the card shows, the price and readiness-policy versions and the renderer configuration are SIGNED with the settings
+  // (input.binding), so a price or configuration that has moved since is stale at Generate (motion-settings.js motionGenerationCheck).
+  if (p.command === 'motion' && p.settings) p.input = { ...p.input, binding: motionBinding(env, p.settings) };
   const destination = fields.destination ?? (fields.input?.org && fields.input?.app ? { org: fields.input.org, app: fields.input.app } : null);
   if (envelope === 'v3' && !destination) throw new Error('A reviewed proposal needs its canvas.');
   if (p.command === 'generate-image' && envelope !== 'v3') throw new Error('An image proposal needs the reviewed envelope.');
@@ -194,9 +201,9 @@ export async function signProposal(env, fields, user, { id = null, version = 1, 
     if (p.command === 'generate-image') r.quote = imageProposalQuote(env, r);
     Object.assign(p, { description: plainPrompt(r.prompt, r.references), schema_version: SCHEMA_VERSION, mode: r.mode, original_request: r.original_request, prompt: r.prompt, visual_constraints: r.visual_constraints,
       references: r.references, ...Object.fromEntries(REVIEW_LISTS.map(k => [k, r[k]])), destination: r.destination, quote: r.quote, review_hash: await reviewHash(r) });
-    return { ...p, sig: await signature(env, p, user, 'v3'), usage: p.command === 'generate-image' ? quoteUsage(r.quote) : proposalUsage(env, p.command), ...readinessOf(p, env) };
+    return { ...p, sig: await signature(env, p, user, 'v3'), usage: p.command === 'generate-image' ? quoteUsage(r.quote) : proposalUsage(env, p.command, p.settings), ...readinessOf(env, p) };
   }
-  return { ...p, sig: await signature(env, p, user, signingVersion(env)), usage: proposalUsage(env, p.command) };
+  return { ...p, sig: await signature(env, p, user, signingVersion(env)), usage: proposalUsage(env, p.command, p.settings), ...readinessOf(env, p) };
 }
 
 // The shape only (synchronous, for motion_request validation); verifyProposal checks the signature.
@@ -343,4 +350,6 @@ export async function currentRevision(db, user, app, p) {
 }
 
 // What the orchestrator's Director takes as binding input (orchestrator.mjs approved_proposal).
-export const approvedProposal = p => ({ title: p.title, duration_seconds: p.settings.duration_seconds, description: p.description });
+// aspect_ratio: a proposal saved before the setting existed has none, which is the original 16:9.
+// terms: the live renderer configuration and the complexity classes the readiness policy covers (motion-settings.js motionExecutionTerms).
+export const approvedProposal = (p, terms = {}) => ({ title: p.title, duration_seconds: p.settings.duration_seconds, aspect_ratio: p.settings.aspect_ratio ?? MOTION_DEFAULT_RATIO, description: p.description, ...terms });

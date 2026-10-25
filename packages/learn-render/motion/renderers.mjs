@@ -7,8 +7,8 @@ import { checkHyperFramesComposition, checkHyperFramesSource } from './hf-static
 import { checkComposition } from './static-check.js';
 
 export const RENDERER_GATES = Object.freeze({
-  remotion: { label: 'Remotion', staticErrors: (source, { durationSeconds }) => checkComposition(source, { durationSeconds }), contract: checkAuthorSource },
-  hyperframes: { label: 'HyperFrames', staticErrors: (source, { durationSeconds, compositionId }) => checkHyperFramesComposition(source, { compositionId, durationSeconds }), contract: checkHyperFramesSource },
+  remotion: { label: 'Remotion', staticErrors: (source, { durationSeconds, stage }) => checkComposition(source, { durationSeconds, stage }), contract: checkAuthorSource },
+  hyperframes: { label: 'HyperFrames', staticErrors: (source, { durationSeconds, compositionId, stage }) => checkHyperFramesComposition(source, { compositionId, durationSeconds, stage }), contract: checkHyperFramesSource },
 });
 
 export function rendererGate(name = DEFAULT_RENDERER) {

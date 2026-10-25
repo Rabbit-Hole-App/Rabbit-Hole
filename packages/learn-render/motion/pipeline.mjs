@@ -28,6 +28,7 @@ import { groundTarget } from '../../control-plane/src/source-grounding.js';
 import { runAuthor } from './author.js';
 import { runDirector } from './director.js';
 import { fixtureSource } from './fixture-source.js';
+import { checkCompositionLimits } from './composition-limits.js';
 import { DEFAULT_RENDERER, validateBrief, validateStoryboard } from './contracts.js';
 import { renderComposition } from './render-job.mjs';
 import { MotionCancelled, abortableSleep, checkpoint, runMotionJob } from './review-job.mjs';
@@ -42,10 +43,12 @@ const secs = ms => +(ms / 1000).toFixed(1);
 // with its review state (unreviewed | blocking | accepted), that review's verbatim findings and its preview's keyframes.
 export const CAUSES = Object.freeze(['renderer', 'content', 'missing_context', 'model', 'limit', 'stopped']);
 
-// What a brief must keep of the approved proposal (MOT-20): its exact title and its duration.
+// What a brief must keep of the approved proposal (MOT-20): its exact title, its duration and its aspect ratio.
 export const approvedErrors = (brief, approved) => (!approved ? [] : [
   ...(brief.title === approved.title ? [] : [`title ${JSON.stringify(brief.title)} is not the approved ${JSON.stringify(approved.title)}`]),
   ...(brief.duration?.seconds === approved.duration_seconds ? [] : [`duration ${brief.duration?.seconds}s is not the approved ${approved.duration_seconds}s`]),
+  // An approval without a ratio (made before the setting existed) is the original 16:9.
+  ...(brief.aspect_ratio === (approved.aspect_ratio ?? '16:9') ? [] : [`aspect ratio ${brief.aspect_ratio} is not the approved ${approved.aspect_ratio ?? '16:9'}`]),
 ]);
 
 // context: motion_request.context (control-plane motion-context.js), the learner's selected card.
@@ -82,6 +85,14 @@ export async function runMotionRequest({
     return out;
   };
   const fail = (reason, cause = 'model') => end('failed', { failure_reason: reason, cause });
+  // Before anything renders: the generated composition against the stable limit table and the complexity classes the readiness policy covers.
+  const overLimits = (source, brief) => {
+    if (typeof source !== 'string') return null;
+    const checked = checkCompositionLimits(source, { durationSeconds: brief.duration.seconds, allowed: approved?.allowed_complexity ?? null });
+    if (checked.ok) { out.complexity = { class: checked.class, metrics: checked.metrics }; return null; }
+    out.complexity = { class: checked.class, metrics: checked.metrics };
+    return fail(`composition limits: ${checked.reason}`, 'content');
+  };
   const save = part => { out.checkpoint = { ...out.checkpoint, ...part }; }; // replaced, never mutated: the orchestrator notices it on the next stage or job log line
   // Diagnostics stay with the job: every stage's artifact, whatever happens next.
   const keep = (name, value) => { if (!dir) return; mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, name), typeof value === 'string' ? value : JSON.stringify(value, null, 2)); };
@@ -165,6 +176,8 @@ export async function runMotionRequest({
     const given = cp.composition && { status: 'composition', output: cp.composition.output };
     if (recover.mode === 'render') {
       if (cp.composition?.state !== 'accepted') return fail('recover: only an accepted composition is rendered again', 'content');
+      const limited = overLimits(cp.composition.output?.source, cp.brief);
+      if (limited) return limited;
       const r = await enter('rendering_final', () => renderFinal({ brief: cp.brief, storyboard: cp.storyboard, author: given, service, dir: join(dir, 'final'), origin: { storyboard: 'model_generated', composition: 'model_generated' }, renderer, ...(signal ? { sleep: abortableSleep(signal) } : {}) }));
       checkpoint(signal);
       if (!r.submitted) return fail(`final render refused: ${r.reason}`, 'renderer');
@@ -183,6 +196,8 @@ export async function runMotionRequest({
     if (!given && a.output?.source) keep(renderer === 'hyperframes' ? 'composition.html' : 'composition.jsx', a.output.source);
     if (a.output?.status === 'needs_revision') keep('author.needs_revision.json', a.output);
     if (a.status === 'failed') return fail(`author: ${a.error}: ${a.detail}`);
+    const limited = overLimits(a.output?.source, brief);
+    if (limited) return limited;
 
     const job = await enter('review_and_render', () => reviewJob({
       brief, storyboard, author: a, origin: { storyboard: 'model_generated', composition: 'model_generated' },

@@ -4,9 +4,9 @@ import { videoProvider } from './video-provider.js';
 import { ManimProvider, cacheKey as mathCacheKey } from './math-provider.js';
 import { MotionProvider, MotionRequestProvider, motionCacheKey, motionGrant, motionRequestCacheKey, motionReservationMicros, validateMotionRender, validateMotionRequest } from './motion-provider.js';
 import { MOTION_PAUSED, consumeProposal, motionPaused, verifyProposal } from './generation-proposal.js';
+import { liveRendererConfig, motionExecutionCheck, motionGenerationCheck } from './motion-settings.js';
 import { blockedBody, resolveReferences } from './generation-review-refs.js';
 import { isReviewProposal } from '../../web/src/generation-review.js';
-import { MOTION_NOT_READY, motionInputs, motionReadiness } from './motion-readiness.js';
 import { paidRefusal } from './learn-paid.js';
 import { validateMathAnimation } from './learn-math-schema.js';
 import { byteRange, learnMedia } from './learn-storage.js';
@@ -34,6 +34,10 @@ const motionOutcome = (job, view, known) => (known == null ? { status: 'interrup
 // stopped job settling, or a cost that could not be read: reconciliation pending); released once settled at a known cost.
 const motionHold = j => (j?.provider === 'motion_request' && j.spend?.admitted ? { usd: j.spend.micros / 1e6,
   state: !j.spend.settled ? (j.status === 'generating' ? 'reserved' : 'pending') : j.spend.costMicros == null ? 'pending' : 'released' } : null);
+// Zero-credit failures (owner 2026-10-23): a renderer failure or timeout (cause renderer), our own infrastructure failing (the
+// orchestrator crashed, cause infra, or lost the job: no view) charge the learner nothing and release the whole reservation. The
+// provider cost is still recorded (usage_operations.cost_usd, job.providerCost) and still counts toward the video's ceiling.
+const zeroCredit = view => !view || (view.status === 'failed' && ['renderer', 'infra'].includes(view.cause));
 // An attempt is reconciled until it settles, held or free (MOT-21): a free render recovery holds nothing, yet a Stop of it is
 // followed until the orchestrator confirms it ended, its renders are recorded once, and nothing new starts over it.
 const needsSettling = job => job.provider === 'motion_request' && (job.spend?.admitted || job.spend?.free) && !job.spend.settled;
@@ -52,6 +56,7 @@ const SLOW = 'The Motion service was too slow to answer. Nothing was started; ge
 // is reserved; jobs already started keep polling, stopping, settling and playing, and their reservations stay.
 export { MOTION_PAUSED };
 // What the orchestrator reports for a job that never started: nothing spent, the whole hold released.
+const STORAGE_FAILED = 'Our video service could not save the finished video. You were not charged. Try again in a few minutes.';
 const NOTHING = { status: 'refused', spend: { cost_usd: 0, bound_usd: 0, calls: 0, in_flight: 0 }, renders: 0 };
 // Recovery (owner message 38). Each attempt's artifacts (the orchestrator's sealed checkpoint, cause, actions, verbatim findings
 // and keyframes) are copied to LEARN_MEDIA as they appear and when the attempt ends; the job keeps a pointer (job.recovery). A
@@ -255,9 +260,6 @@ export class LearnVideos {
         if (input.proposal && !provider.unavailable()) {
           const proposalRefused = await verifyProposal(this.env, input.proposal, proposer);
           if (proposalRefused) return json({ error: proposalRefused, code: 'proposal_refused' }, 409);
-          // Motion readiness (motion-readiness.js): a setting with no evidence is refused with its reason before anything is consumed or held.
-          const ready = input.proposal.command === 'motion' ? motionReadiness(this.env, motionInputs(input.proposal.settings)) : null;
-          if (ready && !ready.ready) return json({ error: ready.message, code: MOTION_NOT_READY, readiness: ready }, 409);
           // UI-15.1: Motion reads no reference's content yet, so a reference on its proposal is named unsupported before anything is consumed or held.
           if (isReviewProposal(input.proposal) && input.proposal.references.length) {
             const found = await resolveReferences(this.env, input.proposal, { req, user: null, app: null });
@@ -266,6 +268,9 @@ export class LearnVideos {
         }
         let job = await this.state.storage.get(`job:${key}`);
         if (!job || (body.retry === true && job.status === 'failed' && !job.uncertain)) {
+          // Owner decision 2026-10-23: a setting combination not yet validated is never started. Refused here, before the proposal is
+          // consumed, any credit is held or the orchestrator is called (motion-settings.js); Retry comes through here too.
+          if (motionRequest && !provider.unavailable()) { const notReady = motionGenerationCheck(this.env, input); if (notReady) return json(notReady, 409); }
           const all = await this.state.storage.list({ prefix: 'job:' });
           if ([...all.values()].some(j => j.status === 'generating')) return json({ error: 'One video is already generating. Wait for it before requesting another.' }, 409);
           if (all.size >= 100 && !job) throw new Error('This preview has reached its saved video limit');
@@ -348,6 +353,11 @@ export class LearnVideos {
   async startMotion(req, job, provider, entered = Date.now(), recover = null) {
     const refused = provider.unavailable() || (recover?.mode === 'render' ? this.freeMotion(req, job) : await this.admitMotion(req, job, recover?.holdMicros));
     if (refused) { Object.assign(job, { status: 'failed', error: refused, uncertain: false }); return; }
+    // Immediately before paid work (owner correction 2026-10-23): readiness, the signed price and the renderer configuration are asked again
+    // now that the hold exists; a refusal releases it with nothing sent. The job records the configuration it was bound to.
+    job.renderer_config = job.input.proposal?.input?.binding?.renderer_config ?? liveRendererConfig(this.env);
+    const again = recover ? null : motionExecutionCheck(this.env, job.input);
+    if (again) { await this.settleMotion(job, NOTHING); Object.assign(job, { status: 'failed', error: again.error, code: again.code, uncertain: false }); return; }
     await this.state.storage.put(`job:${job.key}`, job);
     const left = () => entered + MOTION_ADMISSION_MS - Date.now();
     try {
@@ -400,19 +410,25 @@ export class LearnVideos {
       await this.state.storage.put(`job:${job.key}`, job);
       return this.recordRenders(job, view);
     }
-    if (!spend?.admitted || spend.settled) return;
+    // Exactly once: a second call while the first awaits the ledger, or after it, does nothing.
+    if (!spend?.admitted || spend.settled || spend.settling) return;
+    spend.settling = true;
     const cost = view?.spend?.cost_usd, known = Number.isFinite(cost) && cost >= 0 ? Math.ceil(Number((cost * 1e6).toFixed(6))) : null;
     const bound = Number.isFinite(view?.spend?.bound_usd) ? Math.ceil(Number((view.spend.bound_usd * 1e6).toFixed(6))) : spend.micros;
-    const calls = view?.spend?.calls || 0, status = calls === 0 && known === 0 ? 'cancelled' : view?.status === 'ready' ? 'settled' : 'failed';
-    if (spendEnforced(this.env)) {
+    const free = zeroCredit(view), calls = view?.spend?.calls || 0, status = calls === 0 && known === 0 ? 'cancelled' : view?.status === 'ready' ? 'settled' : 'failed';
+    if (spendEnforced(this.env)) try {
+      // The platform ledger keeps the provider's actual cost; the learner's attempt is charged only outside the zero-credit class.
       await settleSpend(this.env.LEARN_DB, spend.opId, { status, calls, costUsd: known == null ? null : known / 1e6, provider: 'anthropic', error: status === 'failed' ? `motion_${view?.status || 'lost'}` : null });
-      await settleAttempt(this.env, spend.attemptId, { costMicros: known, status });
+      const tokens = key => (view?.spend?.provider_calls || []).reduce((n, c) => n + (c.usage?.[key] || 0), 0);
+      await settleAttempt(this.env, spend.attemptId, { costMicros: free ? 0 : known, status, inputTokens: tokens('input_tokens'), outputTokens: tokens('output_tokens') });
       await finishActionOf(this.env, spend.attemptId, motionOutcome(job, view, known));
-    }
-    job.consumedMicros = (job.consumedMicros || 0) + Math.min(known ?? bound, spend.micros);
-    job.usedMicros = (job.usedMicros || 0) + (known ?? 0);
-    if (known == null) job.usageUnknown = true;
-    Object.assign(spend, { settled: true, costMicros: known });
+    } catch (error) { spend.settling = false; throw error; } // a failed ledger write is asked again, as before
+    // The video's ceiling counts what the provider may bill, the real cost even above the hold, never less.
+    job.consumedMicros = (job.consumedMicros || 0) + (known ?? Math.min(bound, spend.micros));
+    job.usedMicros = (job.usedMicros || 0) + (free ? 0 : known ?? 0);
+    if (known == null && !free) job.usageUnknown = true;
+    (job.providerCost ||= []).push({ opId: spend.opId, micros: known, charged: free ? 0 : known, free, cause: view?.cause ?? (view ? null : 'lost'), calls: view?.spend?.provider_calls ?? null });
+    Object.assign(spend, { settled: true, settling: false, costMicros: known });
     await this.stopLanded(job);
     await this.state.storage.put(`job:${job.key}`, job);
     await this.recordRenders(job, view);
@@ -473,7 +489,24 @@ export class LearnVideos {
     if (job.stopped && view?.status === 'running') await provider.cancel(job.ticket).catch(() => {});
     if (view?.status === 'running' && !late) return;
     if (view && view.status !== 'running' && view.spend?.in_flight > 0 && !late) return; // a stopped call still lands and is priced
-    await this.settleMotion(job, view && view.status !== 'running' ? view : null);
+    const ended = view && view.status !== 'running' ? view : null;
+    // A finished video is stored BEFORE it is settled (owner correction 2026-10-23, C): if our own storage cannot take it, the learner is
+    // charged nothing and the whole reservation is released; a transient failure asks again at the next poll with nothing settled yet.
+    let result = null;
+    if (ended?.status === 'ready' && job.status === 'generating' && !job.stopped && !job.spend?.settled) {
+      try {
+        result = await provider.poll(job.ticket, view);
+        job.storageKey = `learn-video-dev/${this.state.id}/${job.key}.mp4`;
+        await learnMedia(this.env).put(job.storageKey, result.bytes, { httpMetadata: { contentType: 'video/mp4' } });
+      } catch (error) {
+        if (error.final) { await this.settleMotion(job, ended); throw error; } // the clip itself is unusable: not our infrastructure, settled as before
+        if (!late) throw error;
+        await this.settleMotion(job, { ...ended, status: 'failed', cause: 'infra' }); // our storage failed: the zero-credit class
+        Object.assign(job, { status: 'failed', error: STORAGE_FAILED, uncertain: false });
+        return;
+      }
+    }
+    await this.settleMotion(job, ended);
     if (job.status !== 'generating') return;
     if (!view || view.status === 'running') {
       Object.assign(job, view ? { status: 'failed', uncertain: true, error: `Generation has not completed within ${maxWait(job) / 60000} minutes. Check provider history before generating again.` }
@@ -481,9 +514,11 @@ export class LearnVideos {
       if (!view && job.recovery) Object.assign(job.recovery, { cause: 'lost', actions: lostActions(job.recovery), final: true });
       return;
     }
-    const result = await provider.poll(job.ticket, view);
-    job.storageKey = `learn-video-dev/${this.state.id}/${job.key}.mp4`;
-    await learnMedia(this.env).put(job.storageKey, result.bytes, { httpMetadata: { contentType: 'video/mp4' } });
+    result ??= await provider.poll(job.ticket, view);
+    if (!job.storageKey) {
+      job.storageKey = `learn-video-dev/${this.state.id}/${job.key}.mp4`;
+      await learnMedia(this.env).put(job.storageKey, result.bytes, { httpMetadata: { contentType: 'video/mp4' } });
+    }
     job.result = { provider: result.provider, generationId: result.generationId, motion: result.motion };
     job.status = 'ready';
   }

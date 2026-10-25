@@ -47,8 +47,11 @@ RUN chown -R root:root /app && chmod -R a+rX,go-w /app \
  && install -d -m 0750 -o motion-svc -g motion /var/motion \
  && install -d -m 2770 -o motion-svc -g motion /var/motion/jobs \
  && command -v unshare setpriv prlimit timeout ip sudo
+RUN install -m 0755 -o root -g root /app/packages/learn-render/motion/service/entrypoint.sh /usr/local/sbin/motion-entrypoint
 ENV NODE_ENV=production MOTION_SANDBOX=linux PORT=8080 MOTION_RENDERER_BUILD=$MOTION_RENDERER_BUILD
 WORKDIR /app/packages/learn-render
-USER motion-svc
+# The entrypoint starts as root ONLY to make a mounted job-store volume (root-owned when Fly mounts it) writable for
+# motion-svc, then becomes motion-svc with its primary group alone, exactly as the image used to start (entrypoint.sh).
 EXPOSE 8080
+ENTRYPOINT ["/usr/local/sbin/motion-entrypoint"]
 CMD ["node", "motion/service/server.mjs"]

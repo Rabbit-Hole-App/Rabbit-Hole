@@ -53,8 +53,10 @@ export function budgetLedger(file, limitUsd) {
           state.calls.push({ at: new Date().toISOString(), ...tag, model, worst_case_usd: worst, cost_usd: cost });
           save();
         };
-        return Promise.resolve(call(env, body, model)).then(response => {
-          if (response?.ok && typeof response.clone === 'function') responseCost(response.clone(), model).then(cost => settle(cost ?? worst), () => settle(worst));
+        // Settled BEFORE the response is handed back: the caller's next call (a repair, a re-ask) is judged against the real spend, not against
+        // a finished call still counted in flight (M2 2026-10-24 was refused with its pedagogical review settled only afterwards).
+        return Promise.resolve(call(env, body, model)).then(async response => {
+          if (response?.ok && typeof response.clone === 'function') settle(await responseCost(response.clone(), model).then(cost => cost ?? worst, () => worst));
           else settle(response?.ok ? worst : 0);
           return response;
         }, error => { settle(0); throw error; });

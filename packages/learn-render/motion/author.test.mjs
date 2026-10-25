@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { leakErrors } from './contracts.js';
-import { AUTHOR_SYSTEM, AUTHOR_TOOL, authorContext, checkAuthorOutput, runAuthor, validateAuthorToolOutput } from './author.js';
+import { AUTHOR_OUTPUT_CAP, AUTHOR_SYSTEM, AUTHOR_TOOL, authorContext, authorEffort, authorRequest, checkAuthorOutput, runAuthor, storyboardOccurrences, validateAuthorToolOutput } from './author.js';
 import { checkAuthorSource, timelineFrames } from './author-check.js';
 import { probeErrors, probeFrames } from './author-proof.mjs';
 import { readMessage } from './stream-message.js';
@@ -239,4 +239,19 @@ test('the Author contract: every text inside a code panel is JetBrains Mono; Int
   const system = [AUTHOR_SYSTEM].flat().join(' ');
   assert.ok(system.includes("every text node physically inside a code panel (the element carrying a code object's data-object, and every element nested in it) renders in 'JetBrains Mono'"));
   assert.ok(system.includes("in 'Inter' sits in its own element outside the code panel's element"));
+});
+
+// M1 to M3 (2026-10-23/24): the Author's output tokens followed the storyboard, about 1300 per object-beat occurrence, mostly thinking.
+// Measured: 23 occurrences -> 29058 tokens (completed), 31 -> 40304 (completed), 57 -> 64000 = the cap, no composition (.31 spent, no resend fits the per-job ceiling).
+test('the Author effort is chosen before the call from the storyboard size: the measured completed sizes stay high, the size that hit the cap does not', () => {
+  const sized = n => { const beats = Array.from({ length: 7 }, (_, i) => ({ id: 'B' + (i + 1), visible_objects: [] })); for (let k = 0; k < n; k++) beats[k % 7].visible_objects.push({ id: 'o' + k }); return { beats }; };
+  assert.equal(storyboardOccurrences(sized(57)), 57);
+  assert.deepEqual([23, 31, 36].map(n => authorEffort(sized(n))), ['high', 'high', 'high'], 'sizes that completed at high keep high (36 x 1300 is exactly 75 percent of the cap)');
+  assert.deepEqual([37, 57].map(n => authorEffort(sized(n))), ['medium', 'medium']);
+  assert.equal(authorEffort(sized(57), 'low'), 'low', 'only the default is stepped down');
+  const brief = A.brief(), real = A.storyboard();
+  assert.equal(authorRequest(brief, real).output_config.effort, 'high', 'the reference storyboard (' + storyboardOccurrences(real) + ' occurrences)');
+  const big = { ...real, beats: Array.from({ length: 5 }, () => real.beats).flat() };
+  const request = authorRequest(brief, big);
+  assert.deepEqual([request.output_config.effort, request.max_tokens], ['medium', AUTHOR_OUTPUT_CAP], 'the cap is not raised or lowered');
 });

@@ -60,10 +60,15 @@ function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   const onSettingsChange = (settings, base = p) => onSave({ settings }, base).catch(() => {});
   // MOT-22: the server refused this proposal's Generate (its card is marked, not counted as made): live again, with the reason.
   useEffect(() => {
-    const refused = event => { if (event.detail?.proposalId === p.proposal_id) { setPressed(false); setError(event.detail.message); } };
+    const refused = event => {
+      if (event.detail?.proposalId !== p.proposal_id) return;
+      setPressed(false); setError(event.detail.message);
+      // A stale price: the same settings are signed again with the server's updated quote, which the card then shows for explicit confirmation.
+      if (event.detail.code === 'motion_quote_stale') onSave({ settings: p.settings }).catch(() => {});
+    };
     window.addEventListener(PROPOSAL_REFUSED_EVENT, refused);
     return () => window.removeEventListener(PROPOSAL_REFUSED_EVENT, refused);
-  }, [p.proposal_id]);
+  }, [p.proposal_id, p.version]); // eslint-disable-line react-hooks/exhaustive-deps
   // IMG-01: Generate on an image proposal starts the job and follows it here (generate-image.js); a failed or unknown outcome is said in
   // words and is never sent again. The same press after a reload reaches the same job.
   const [image, setImage] = useState(null);

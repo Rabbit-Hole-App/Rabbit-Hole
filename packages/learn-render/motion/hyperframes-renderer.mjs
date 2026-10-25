@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { STAGE, validateBrief, validateStoryboard } from './contracts.js';
+import { STAGE, stageOf, validateBrief, validateStoryboard } from './contracts.js';
 import { checkHyperFramesComposition } from './hf-static-check.js';
 import { CSP, FONT_FACES, FONT_PINS, MotionRendererBase, checkFontPins, chromeVersion, ffmpeg, pixelHash } from './renderer-common.mjs';
 import { probeDom } from '../src/motion/probe-dom.js';
@@ -85,9 +85,9 @@ export async function settleAnimations(page) {
   });
 }
 
-export function inspectionErrors(page, durationSeconds) {
+export function inspectionErrors(page, durationSeconds, stage = STAGE) {
   const e = [];
-  if (page.root.width !== STAGE.width || page.root.height !== STAGE.height) e.push(`the root is ${page.root.width}x${page.root.height}; it must be ${STAGE.width}x${STAGE.height}`);
+  if (page.root.width !== stage.width || page.root.height !== stage.height) e.push(`the root is ${page.root.width}x${page.root.height}; it must be ${stage.width}x${stage.height}`);
   for (const a of page.animations) {
     if (a.iterations === null || a.iterations === Infinity || !Number.isFinite(a.end)) e.push(`animation ${a.name || '(unnamed)'} on ${a.target} never ends`);
     else if (a.end > durationSeconds * 1000 + 1e-6) e.push(`animation ${a.name || '(unnamed)'} on ${a.target} ends at ${(a.end / 1000).toFixed(2)} s, after the ${durationSeconds} s duration`);
@@ -109,7 +109,7 @@ export class HyperFramesRenderer extends MotionRendererBase {
   validateSource(brief, storyboard, source, { compositionId } = {}) {
     const briefErrors = validateBrief(brief);
     if (briefErrors.length) return briefErrors;
-    return [...validateStoryboard(storyboard, brief), ...checkHyperFramesComposition(source, { compositionId, durationSeconds: brief.duration.seconds })];
+    return [...validateStoryboard(storyboard, brief), ...checkHyperFramesComposition(source, { compositionId, durationSeconds: brief.duration.seconds, stage: stageOf(brief) })];
   }
 
   key(job) {
@@ -158,7 +158,7 @@ export class HyperFramesRenderer extends MotionRendererBase {
     if (this.sessions.has(scale)) return this.sessions.get(scale);
     const { createCaptureSession, initializeSession } = await import('@hyperframes/producer');
     const out = mkdtempSync(join(tmpdir(), 'motion-hf-capture-'));
-    const s = await this.time(`session@${scale}`, () => createCaptureSession(this.server.url, out, { width: STAGE.width, height: STAGE.height, fps: FPS, format: 'png', deviceScaleFactor: scale }, null, this.config()));
+    const s = await this.time(`session@${scale}`, () => createCaptureSession(this.server.url, out, { width: stageOf(job.brief).width, height: stageOf(job.brief).height, fps: FPS, format: 'png', deviceScaleFactor: scale }, null, this.config()));
     s.page.on('console', m => { this.browserLogs.push(`${m.type()}: ${m.text()}`.slice(0, 2000)); if (this.browserLogs.length > 200) this.browserLogs.shift(); });
     // In screenshot capture (Windows, macOS, a Linux run without BeginFrame) Chrome animates transform
     // and opacity on the compositor thread, and the runtime's seek pauses each animation with a
@@ -174,7 +174,7 @@ export class HyperFramesRenderer extends MotionRendererBase {
       page.usedFamilies = await s.page.evaluate(() => [...new Set([...document.querySelectorAll('body *')].map(el => getComputedStyle(el).fontFamily.split(',')[0].trim().replace(/^['"]|['"]$/g, '')))]);
       this.inspection = page;
       this.browserLogs.push(`MOTION_FONTS ${JSON.stringify({ faces: page.faces.filter(f => f.status === 'loaded'), check: page.check })}`);
-      const errors = inspectionErrors(page, job.brief.duration.seconds);
+      const errors = inspectionErrors(page, job.brief.duration.seconds, stageOf(job.brief));
       this.inspected = true;
       if (errors.length) throw new Error(`the composition breaks the HyperFrames contract at run time: ${errors.join('; ')}`);
     }
@@ -207,7 +207,7 @@ export class HyperFramesRenderer extends MotionRendererBase {
     await this.time(`probe@${scale}`, async () => {
       for (const frame of frames) {
         await captureFrame(session, frame, frame / STAGE.fps);
-        observations.push(await session.page.evaluate(probeDom, frame, null));
+        observations.push(await session.page.evaluate(probeDom, frame, null, stageOf(job.brief)));
       }
     });
     return { observations, timings: { [`probe@${scale}`]: this.timings[`probe@${scale}`] } };
@@ -233,7 +233,7 @@ export class HyperFramesRenderer extends MotionRendererBase {
     const full = await this.renderVideo(job, 'preview-full', 'draft');
     const scale = job.brief.output_requirements.preview_scale;
     const file = join(job.dir, 'preview.mp4');
-    await this.time('preview_scale', () => ffmpeg('ffmpeg', ['-v', 'error', '-i', full.file, '-vf', `scale=${Math.round(STAGE.width * scale)}:${Math.round(STAGE.height * scale)}:flags=area`,
+    await this.time('preview_scale', () => ffmpeg('ffmpeg', ['-v', 'error', '-i', full.file, '-vf', `scale=${Math.round(stageOf(job.brief).width * scale)}:${Math.round(stageOf(job.brief).height * scale)}:flags=area`,
       '-fps_mode', 'passthrough', '-c:v', 'libx264', '-crf', '18', '-pix_fmt', 'yuv420p', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-an', '-y', file]));
     return { file, cached: full.cached };
   }

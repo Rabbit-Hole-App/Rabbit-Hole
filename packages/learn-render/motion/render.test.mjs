@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RENDER_ARTIFACTS, validateRenderRequest, validateRenderResult } from './contracts.js';
 import { finalChecks } from './remotion-renderer.mjs';
-import { coverageErrors, coverageFrames, determinismFrames, probeErrors } from './render-coverage.js';
+import { coverageErrors, coverageFrames, determinismFrames, differingFrames, probeErrors } from './render-coverage.js';
 import { canonical, judgeDeterminism, localService, previewChecks, renderComposition, renderProvenance, renderRequest, serviceClient, validateArtifacts } from './render-job.mjs';
 import { motionRenderService } from './service/server.mjs';
 
@@ -207,6 +207,25 @@ test('determinism: the M1 frames at every contact-sheet timestamp, two fresh con
   assert.deepEqual(judgeDeterminism(differ, brief, storyboard).errors, ['#224: the two fresh contexts differ']);
   const fewer = { determinism: { frames: record.determinism.frames.filter(f => f.frame !== 255) } };
   assert.match(judgeDeterminism(fewer, brief, storyboard).errors[0], /want \[0,60,120,165,210,224,255,300,338,375,413,420,449\]/);
+});
+
+test('differingFrames names the frames whose hashes differ between two contexts', () => {
+  const still = h => ({ pixels_sha256: h });
+  assert.deepEqual(differingFrames([0, 60, 120], [still('a'), still('b'), still('c')], [still('a'), still('x'), still('c')]), [60]);
+  assert.deepEqual(differingFrames([0, 60], [still('a'), still('b')], [still('a'), still('b')]), []);
+});
+
+// Validation D01/D10/D13 (2026-10-23): the medium fixture (translucent layers under text) was nondeterministic between pages on Linux while the
+// layer-free scene was not. The stage painted its content in a fallback font and repainted after the font swap; the repaint's timing
+// changed the pixels. No browser here: this pins the structure that removes the repaint (a real render confirms the pixels).
+test('the Remotion stage mounts the composition only after its fonts are in, and releases the render after that commit', () => {
+  const src = f => readFileSync(join(HERE, '..', 'src', 'motion', f), 'utf8');
+  const index = src('index.jsx'), fonts = src('fonts.jsx');
+  assert.match(index, /useMotionFonts\(\) \? <><Clip><Motion \/><\/Clip>/, 'content is rendered only when the fonts are ready, clipped to the stage');
+  assert.match(index, /overflow: 'hidden'/, 'the stage clips what a composition draws past its edges');
+  assert.equal(index.split('<Motion />').length, 2, 'the composition has no other, ungated mount');
+  assert.match(fonts, /if \(!ready\) return undefined;[\s\S]*requestAnimationFrame\([\s\S]*requestAnimationFrame\(\(\) => continueRender\(handle\)\)/, 'the render continues from an effect, two animation frames after the ready commit');
+  assert.equal(fonts.split('continueRender(').length, 2, 'continueRender is called once, not from the font promise');
 });
 
 test('provenance: canonical hashes of brief, storyboard and source; origins; fonts; no learner words', () => {

@@ -253,3 +253,24 @@ test('an approved proposal reaches the Director, and a brief that does not keep 
     assert.deepEqual(dd.log.map(([stage]) => stage), ['director'], 'no storyboard, Author or render after it');
   }
 });
+
+// Owner correction 2026-10-23: a composition beyond the supported limits, or in a complexity class the readiness policy does not
+// cover, stops BEFORE any review or render.
+test('pre-render validation: a composition over the limit table, or in an uncovered class, never reaches the review job', async () => {
+  const big = '<AbsoluteFill>' + '<Sequence><div>x</div></Sequence>'.repeat(60) + '</AbsoluteFill>';
+  const d = doubles();
+  const author = d.stages.author;
+  d.stages.author = async a => { const r = await author(a); r.output.source = big; return r; };
+  const r = await run(d);
+  assert.deepEqual([r.status, r.cause], ['failed', 'content']);
+  assert.match(r.failure_reason, /^composition limits: the composition is beyond the supported limits \(layers 61 over 40/);
+  assert.deepEqual(d.log.map(([stage]) => stage), ['director', 'storyboard', 'author'], 'no review job, no render');
+  assert.equal(r.complexity.class, null);
+  const keep = { title: BRIEF.title, duration_seconds: BRIEF.duration.seconds, description: 'Scores become weights. The weights sum to one. Masked positions get none.' };
+  const covered = doubles();
+  assert.equal((await run(covered, { approved: { ...keep, allowed_complexity: ['simple'] } })).status, 'ready', 'a small composition in a covered class renders');
+  const uncovered = doubles();
+  const refused = await run(uncovered, { approved: { ...keep, allowed_complexity: ['standard', 'heavy'] } });
+  assert.match(refused.failure_reason, /^composition limits: the composition is simple, which is not covered for these settings/);
+  assert.ok(!uncovered.log.some(([stage]) => stage === 'job'));
+});

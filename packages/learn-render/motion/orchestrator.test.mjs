@@ -85,6 +85,25 @@ test('auth, one job at a time, the render service must be idle, and only final.m
   assert.equal((await busy.req('/jobs', { method: 'POST', body: job() })).status, 429, 'a render still finishing blocks a new job');
 });
 
+test('a renderer that requires its durable job store but reports it unmounted or unwritable starts no job, before any model call', async t => {
+  let runs = 0;
+  const run = async () => { runs++; return { status: 'ready' }; };
+  const store = over => ({ dir: '/data/motion-jobs', mounted: true, writable: true, records: 0, required: true, accepting: true, ...over });
+  for (const [job_store, code] of [[store({ mounted: false }), 'job_store_not_mounted'], [store({ writable: false }), 'job_store_unwritable']]) {
+    const { req } = await start(t, { run, health: async () => ({ ...LINUX, job_store }) });
+    const r = await req('/jobs', { method: 'POST', body: job() });
+    const body = await r.json();
+    assert.deepEqual([r.status, body.error], [503, code]);
+    assert.match(body.detail, /nothing was started/);
+  }
+  assert.equal(runs, 0);
+  // Mounted and writable, or not required at all (production, today's volume-less dev): admitted as before.
+  for (const job_store of [store(), store({ required: false, mounted: false })]) {
+    const { req } = await start(t, { run, health: async () => ({ ...LINUX, job_store }) });
+    assert.equal((await req('/jobs', { method: 'POST', body: job() })).status, 202);
+  }
+});
+
 test('the sandboxed renderer is required: unreachable, unsandboxed or degraded refuses the job and runs nothing (F3)', async t => {
   let runs = 0;
   const run = async () => { runs++; return { status: 'ready' }; };
@@ -478,9 +497,106 @@ test('MOT-08 cold start: a grant bound to the run that just booted starts exactl
 });
 
 // MOT-20: POST /jobs accepts the approved proposal as binding Director input, and only in its shape.
-test('approved_proposal: {title, duration_seconds 5-30, description} is a job field; anything else is refused', () => {
+test('approved_proposal: {title, duration_seconds 5-60, aspect_ratio, description} is a job field; anything else is refused', () => {
   const body = { request: '/motion explain softmax', idempotency_key: 'motion-abcdefgh', grant: { micros: 1, issued_at: 1, boot: 'a'.repeat(32), sig: 'x' } };
   const ok = { title: 'Softmax', duration_seconds: 10, description: 'Scores become weights. They sum to one. Masked ones get none.' };
   assert.deepEqual(validateJobRequest({ ...body, approved_proposal: ok }), []);
-  for (const bad of [{ ...ok, duration_seconds: 40 }, { ...ok, title: '' }, { ...ok, audio: true }, 'x', null]) assert.match(validateJobRequest({ ...body, approved_proposal: bad }).join(' '), /approved_proposal/);
+  // owner brief 2026-10-23: up to 60 seconds, and any of the nine ratios; none is the original 16:9
+  for (const extra of [{ duration_seconds: 60 }, { duration_seconds: 35, aspect_ratio: '9:16' }, { aspect_ratio: '5:4' }]) assert.deepEqual(validateJobRequest({ ...body, approved_proposal: { ...ok, ...extra } }), [], JSON.stringify(extra));
+  for (const bad of [{ ...ok, duration_seconds: 61 }, { ...ok, duration_seconds: 4 }, { ...ok, aspect_ratio: '2:1' }, { ...ok, aspect_ratio: 16 }, { ...ok, title: '' }, { ...ok, audio: true }, 'x', null]) assert.match(validateJobRequest({ ...body, approved_proposal: bad }).join(' '), /approved_proposal/);
+});
+
+// Owner correction 2026-10-23: the job is bound to the renderer configuration the readiness evidence was gathered on; another is refused
+// before anything starts, and the terms the worker adds (config, covered complexity) have a fixed shape.
+test('approved_proposal terms: renderer_config and allowed_complexity have their shape; a different live config is refused before a job exists', async t => {
+  const body = { request: '/motion explain softmax', idempotency_key: 'motion-abcdefgh', grant: { micros: 1, issued_at: 1, boot: 'a'.repeat(32), sig: 'x' } };
+  const ok = { title: 'Softmax', duration_seconds: 10, description: 'Scores become weights. They sum to one. Masked ones get none.' };
+  assert.deepEqual(validateJobRequest({ ...body, approved_proposal: { ...ok, renderer_config: 'r1', allowed_complexity: ['simple', 'standard'] } }), []);
+  for (const bad of [{ renderer_config: 5 }, { renderer_config: 'x'.repeat(65) }, { allowed_complexity: 'simple' }, { allowed_complexity: ['simple', 'huge'] }]) assert.notDeepEqual(validateJobRequest({ ...body, approved_proposal: { ...ok, ...bad } }), [], JSON.stringify(bad));
+  const unconfigured = await start(t, { run: async () => ({}) });
+  assert.equal((await unconfigured.req('/jobs', { method: 'POST', body: job({ approved_proposal: { ...ok, renderer_config: 'r1' } }) })).status, 409, 'an orchestrator with no configuration id does not accept a bound job');
+  const starts = [];
+  const { req } = await start(t, { run: async () => { starts.push(1); return { status: 'ready', brief: { title: 'S' }, block: { motion: {} }, render: {}, job: {}, timings: {} }; }, env: { MOTION_RENDERER_CONFIG: 'r1' } });
+  const mismatch = await req('/jobs', { method: 'POST', body: job({ approved_proposal: { ...ok, renderer_config: 'r0' } }) });
+  assert.deepEqual([mismatch.status, (await mismatch.json()).error, starts.length], [409, 'renderer_config_mismatch', 0], 'refused: nothing started');
+  const accepted = await req('/jobs', { method: 'POST', body: job({ approved_proposal: { ...ok, renderer_config: 'r1' } }) });
+  assert.equal(accepted.status, 202);
+});
+
+// Owner correction 2026-10-23 (motion/harness, gaps in the orchestrator): stable Idempotency-Keys, Stop that stops the compute, and a submit
+// of unknown outcome that is reconciled by its key and never sent again.
+const renderService = (over = {}) => {
+  const f = { posts: [], keys: [], cancels: [], byKeyAsked: [], statuses: new Map(), n: 0,
+    health: async () => LINUX,
+    submit: async (request, key) => { f.posts.push(request); f.keys.push(key); const render_id = (++f.n).toString(16).padStart(32, '0'); return Response.json({ render_id, status: 'rendering' }, { status: 202 }); },
+    status: async id => ({ render_id: id, status: f.statuses.get(id) ?? 'rendering' }),
+    cancel: async id => { f.cancels.push(id); return new Response('{}', { status: 202 }); },
+    byKey: async key => { f.byKeyAsked.push(key); return null; }, ...over };
+  return f;
+};
+const finishedJob = { status: 'failed', failure_reason: 'x', cause: 'content' };
+
+test('render keys are stable: the Motion job id, the stage and an attempt that only a different request for the stage advances; never random', async t => {
+  const svc = renderService();
+  let jobId;
+  const { req, view } = await start(t, { service: svc, run: async ({ service }) => {
+    await service.submit({ stage: 'preview', v: 1 });
+    await service.submit({ stage: 'preview', v: 1 }, 'a-random-key-from-the-caller'); // a resend of the same request: the same key
+    await service.submit({ stage: 'preview', v: 2 }); // the Author's recorded repair: the next attempt
+    await service.submit({ stage: 'final', v: 2 });
+    return finishedJob;
+  } });
+  jobId = (await (await req('/jobs', { method: 'POST', body: job() })).json()).job_id;
+  await until(async () => (await view(jobId)).status === 'failed', 'the job ended');
+  assert.deepEqual(svc.keys, [`${jobId}-preview-0`, `${jobId}-preview-0`, `${jobId}-preview-1`, `${jobId}-final-0`]);
+  assert.ok(svc.keys.every(k => /^[0-9a-f]{32}-(preview|final)-\d$/.test(k)), 'derived from the job id, never random');
+});
+
+test('Stop and the job timeout call DELETE /render/<id> for every render still running, and for none that finished', async t => {
+  const svc = renderService();
+  let release;
+  const { req, view } = await start(t, { service: svc, run: async ({ service, signal }) => {
+    const done = await (await service.submit({ stage: 'preview' })).json();
+    const running = await (await service.submit({ stage: 'final' })).json();
+    svc.statuses.set(done.render_id, 'ready');
+    await service.status(done.render_id); // the orchestrator learns the preview finished
+    await new Promise(r => { release = r; signal.addEventListener('abort', r, { once: true }); });
+    return { status: 'cancelled', failure_reason: 'stopped', cause: 'stopped', _running: running.render_id };
+  } });
+  const { job_id } = await (await req('/jobs', { method: 'POST', body: job() })).json();
+  await until(async () => svc.posts.length === 2, 'both renders submitted');
+  assert.equal((await req(`/jobs/${job_id}/cancel`, { method: 'POST' })).status, 202);
+  await until(async () => (await view(job_id)).status !== 'running', 'the job stopped');
+  assert.deepEqual(svc.cancels, [(2).toString(16).padStart(32, '0')], 'only the render still running is stopped on the service');
+  release?.();
+});
+
+test('a Stop that lands while a render POST is in flight stops that render as soon as its id is known', async t => {
+  let answer;
+  const svc = renderService({ submit: async () => { await new Promise(r => { answer = r; }); return Response.json({ render_id: 'c'.repeat(32), status: 'rendering' }, { status: 202 }); } });
+  const { req, view } = await start(t, { service: svc, run: async ({ service, signal }) => { await service.submit({ stage: 'final' }).catch(() => {}); return { status: 'cancelled', failure_reason: 'stopped', cause: 'stopped' }; } });
+  const { job_id } = await (await req('/jobs', { method: 'POST', body: job() })).json();
+  await until(async () => !!answer, 'the POST is in flight');
+  await req(`/jobs/${job_id}/cancel`, { method: 'POST' });
+  answer();
+  await until(async () => svc.cancels.length === 1, 'the late render is stopped');
+  assert.deepEqual(svc.cancels, ['c'.repeat(32)]);
+  await until(async () => (await view(job_id)).status !== 'running', 'the job ended');
+});
+
+test('a submit of unknown outcome is reconciled by GET /render/by-key and never resubmitted; unknown to the service it fails as unreachable, not resent', async t => {
+  const known = renderService({ submit: async (request, key) => { known.posts.push(request); known.keys.push(key); throw new Error('socket hang up'); }, byKey: async key => { known.byKeyAsked.push(key); return { render_id: 'd'.repeat(32), status: 'rendering' }; } });
+  let seen;
+  const first = await start(t, { service: known, run: async ({ service }) => { seen = await (await service.submit({ stage: 'final' })).json(); return finishedJob; } });
+  const a = await (await first.req('/jobs', { method: 'POST', body: job() })).json();
+  await until(async () => (await first.view(a.job_id)).status === 'failed', 'the job ended');
+  assert.deepEqual([known.posts.length, known.byKeyAsked, seen.render_id, seen.reconciled], [1, [`${a.job_id}-final-0`], 'd'.repeat(32), true], 'one POST; the key was asked; the service\'s render is carried on with');
+  const lost = renderService({ submit: async (request, key) => { lost.posts.push(request); lost.keys.push(key); throw new Error('socket hang up'); } });
+  let error;
+  const second = await start(t, { service: lost, run: async ({ service }) => { error = await service.submit({ stage: 'final' }).catch(e => e); return finishedJob; } });
+  const b = await (await second.req('/jobs', { method: 'POST', body: job() })).json();
+  await until(async () => (await second.view(b.job_id)).status === 'failed', 'the second job ended');
+  assert.match(error.message, /socket hang up/);
+  assert.deepEqual([lost.posts.length, lost.byKeyAsked], [1, [`${b.job_id}-final-0`]], 'never sent again, under any key');
+  assert.deepEqual((await second.view(b.job_id)).render_states, ['unknown'], 'the render is recorded as outcome unknown');
 });

@@ -9,7 +9,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdir
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { STAGE, validateBrief, validateStoryboard } from './contracts.js';
+import { STAGE, stageOf, validateBrief, validateStoryboard } from './contracts.js';
 import { PROBE_PREFIX } from './render-coverage.js';
 import { CSP, FONT_PINS, MotionRendererBase, checkFontPins, chromeVersion, pixelHash } from './renderer-common.mjs';
 import { IMPORTS, checkComposition } from './static-check.js';
@@ -44,7 +44,7 @@ export class RemotionRenderer extends MotionRendererBase {
   validateSource(brief, storyboard, source) {
     const briefErrors = validateBrief(brief);
     if (briefErrors.length) return briefErrors;
-    return [...validateStoryboard(storyboard, brief), ...checkComposition(source, { durationSeconds: brief.duration.seconds })];
+    return [...validateStoryboard(storyboard, brief), ...checkComposition(source, { durationSeconds: brief.duration.seconds, stage: stageOf(brief) })];
   }
 
   key(job) {
@@ -81,7 +81,7 @@ export class RemotionRenderer extends MotionRendererBase {
     this.browser = await this.time('browser', () => openBrowser('chrome', { logLevel: 'error' }));
     const composition = await selectComposition({ serveUrl: outDir, id: 'motion', puppeteerInstance: this.browser, logLevel: 'error', onBrowserLog: l => this.onLog(l), ...(this.inputProps ? { inputProps: this.inputProps } : {}) });
     // The runtime stage must match the brief, whatever the source claimed statically.
-    const want = { ...STAGE, durationInFrames: job.brief.duration.seconds * STAGE.fps };
+    const want = { ...stageOf(job.brief), durationInFrames: job.brief.duration.seconds * STAGE.fps };
     for (const k of Object.keys(want)) if (composition[k] !== want[k]) throw new Error(`stage.${k} is ${composition[k]}, the brief needs ${want[k]}`);
     this.composition = composition;
   }
