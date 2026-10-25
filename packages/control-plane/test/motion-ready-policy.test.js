@@ -15,11 +15,11 @@ const key = (r, s) => `${r}|${s}`;
 const grid = env => { const ready = [], refused = []; for (const r of MOTION_RATIOS) for (const s of SECONDS) (at(env, s, r).ready ? ready : refused).push(key(r, s)); return { ready: ready.sort(), refused }; };
 
 // The activated pairs, written out so a change to the evidence has to change this list too. 45 and 60 s are withheld in the first expanded
-// release; 9:16 at 30 s is enabled by a model-built video (mmr-M2-r2), 16:9 at 15 s is also one (mmr-M1-2).
+// release; 9:16 at 30 s is also backed by a model-built video (mmr-M2-r2), 16:9 at 15 s by another (mmr-M1-2).
 const EXPECTED = [
   ...[5, 10, 15, 20, 25, 30].map(s => key('16:9', s)),
   ...['9:16', '1:1', '3:4', '4:3', '2:3', '3:2', '4:5', '5:4'].map(r => key(r, 15)),
-  key('9:16', 30),
+  ...['9:16', '1:1', '3:4', '4:3', '2:3', '3:2', '4:5', '5:4'].map(r => key(r, 30)),
 ].sort();
 
 test('LEGACY (nothing configured, production today): 16:9 and 5 to 30 seconds, nothing else, and the request body is the one the deployed orchestrator accepts', () => {
@@ -42,13 +42,12 @@ test('LEGACY (nothing configured, production today): 16:9 and 5 to 30 seconds, n
 test('ACTIVATED (MOTION_RENDERER_CONFIG = the measured id): exactly the receipt-backed pairs are ready, none interpolated, 45 and 60 s stay refused', () => {
   const { ready, refused } = grid(live);
   assert.deepEqual(ready, EXPECTED);
-  assert.equal(EXPECTED.length, 15);
+  assert.equal(EXPECTED.length, 22);
   for (const k of ready) { const [r, s] = k.split('|'), x = at(live, Number(s), r); assert.deepEqual([x.complexity, x.policy_version], [['simple'], MEASURED_POLICY_VERSION]); }
   for (const k of refused) { const [r, s] = k.split('|'), x = at(live, Number(s), r); assert.equal(x.code, MOTION_NOT_READY); assert.doesNotMatch(x.message, /\.\.\.|…|\$/, 'one plain line, credits only'); }
   // Neighbours stay refused: the 16:9 steps of 5 are each measured, so 35 and above are not enabled by 30 passing, and an off-step second is not covered.
   assert.equal(at(live, 12, '16:9').ready, false, 'a saved 12 s proposal passed in legacy mode but has no receipt');
   for (const s of [35, 40, 45, 50, 55, 60]) assert.equal(at(live, s, '16:9').ready, false, `16:9 ${s}`);
-  for (const r of ['4:3', '2:3', '3:2', '4:5', '5:4', '1:1', '3:4']) assert.equal(at(live, 30, r).ready, false, `${r} 30`);
   for (const s of [10, 20, 25]) assert.equal(at(live, s, '9:16').ready, false, `9:16 ${s}`);
   // 45 and 60 s pass in fixtures but are withheld, visibly: every one of them has a receipt and a reason.
   const withheld = PASSED.filter(c => c.withheld);
@@ -57,7 +56,7 @@ test('ACTIVATED (MOTION_RENDERER_CONFIG = the measured id): exactly the receipt-
 });
 
 test('each enabled pair names a passing receipt on the measured renderer; fixture passes are inside the 420 s limit; timeouts and unfinished 60 s model runs enable nothing', () => {
-  for (const c of PASSED) { assert.match(c.receipt, /^mv-(D\d\d-c4|E\d\d-c5)$/, 'the 03f2a1ef matrix only'); assert.ok(c.service_total_s > 0 && c.service_total_s < 420, c.receipt); }
+  for (const c of PASSED) { assert.match(c.receipt, /^mv-(D\d\d-c4|[EF][\d-]+-c5)$/, 'the 03f2a1ef matrix only'); assert.ok(c.service_total_s > 0 && c.service_total_s < 420, c.receipt); }
   assert.deepEqual(MODEL_RUNS.map(c => [c.ratio, c.seconds, c.receipt]), [['16:9', 15, 'mmr-M1-2'], ['9:16', 30, 'mmr-M2-r2']]);
   for (const e of MEASURED_READY_POLICY.entries) {
     assert.equal(e.min_seconds, e.max_seconds, 'one measured duration per entry');
@@ -66,7 +65,7 @@ test('each enabled pair names a passing receipt on the measured renderer; fixtur
   assert.deepEqual(TIMED_OUT.map(c => c.receipt), ['mv-D18-c4', 'mv-D20-c4', 'mv-D21-c4']);
   assert.deepEqual(MODEL_RUNS_NOT_COMPLETED, ['mmr-M3', 'mmr-M3-r2', 'mmr-M3-r3']);
   assert.equal(PASSED.filter(c => /-c4$/.test(c.receipt)).length + TIMED_OUT.length, 21, 'the 21 runs of the c4 matrix');
-  assert.equal(PASSED.filter(c => /-c5$/.test(c.receipt)).length, 3, 'the three c5 steps');
+  assert.equal(PASSED.filter(c => /-c5$/.test(c.receipt)).length, 10, 'the ten c5 runs');
   assert.deepEqual(LEGACY_READY_POLICY.entries.map(e => [e.aspect_ratio, e.min_seconds, e.max_seconds]), [['16:9', 5, 30]]);
 });
 
@@ -75,7 +74,7 @@ test('fails closed: another renderer configuration, an explicit empty or malform
   assert.equal(at({ ...live, MOTION_READY_POLICY: '' }, 15, '16:9').ready, false, 'an explicit empty variable overrides the policy');
   assert.equal(at({ MOTION_READY_POLICY: '' }, 15, '16:9').ready, false);
   assert.equal(at({ ...live, MOTION_READY_POLICY: 'not json' }, 15, '16:9').ready, false);
-  assert.equal(readyPolicy(live).entries.length, 15);
+  assert.equal(readyPolicy(live).entries.length, 22);
   assert.equal(readyPolicy({}).version, LEGACY_POLICY_VERSION);
 });
 

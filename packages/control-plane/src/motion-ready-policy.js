@@ -34,7 +34,8 @@ export const LEGACY_POLICY_VERSION = 'legacy-5-30';
 const cell = (ratio, seconds, scene, receipt, service_total_s, extra = {}) => Object.freeze({ ratio, seconds, scene, receipt, service_total_s, ...extra });
 
 // Passing deterministic runs (matrix "c4", dev renderer at the revision above, 18 of 21 passed; "c5" 2026-10-25, the same renderer, adds the
-// 10, 20 and 25 s steps at 16:9 so that activating the policy does not narrow the durations production offers today, 3 of 3 passed). service_total_s is the service's total
+// 10, 20 and 25 s steps at 16:9 so that activating the policy does not narrow the durations production offers today, and 30 s at the seven
+// other ratios that had no 30 s receipt; 10 of 10 passed). service_total_s is the service's total
 // against the 420 s limit. `withheld` keeps a passing pair OUT of the first expanded release (owner 2026-10-25: 45 and 60 s stay visible with
 // their readiness explanation but unavailable until a model-built 60 s video has completed); the receipt stays as evidence.
 const LONG = 'withheld from the first expanded release: 45 and 60 s wait for a model-built 60 s video to complete';
@@ -45,6 +46,13 @@ export const PASSED = Object.freeze([
   cell('16:9', 20, 'medium', 'mv-E20-c5', 144.25),
   cell('16:9', 25, 'medium', 'mv-E25-c5', 166.83),
   cell('16:9', 30, 'medium', 'mv-D11-c4', 197.17),
+  cell('1:1', 30, 'medium', 'mv-F30-11-c5', 160.98),
+  cell('3:4', 30, 'medium', 'mv-F30-34-c5', 181.11),
+  cell('4:3', 30, 'medium', 'mv-F30-43-c5', 178.38),
+  cell('2:3', 30, 'medium', 'mv-F30-23-c5', 180.21),
+  cell('3:2', 30, 'medium', 'mv-F30-32-c5', 178.88),
+  cell('4:5', 30, 'medium', 'mv-F30-45-c5', 178.96),
+  cell('5:4', 30, 'medium', 'mv-F30-54-c5', 177.75),
   cell('16:9', 45, 'medium', 'mv-D12-c4', 271.3, { withheld: LONG }),
   cell('16:9', 60, 'medium', 'mv-D13-c4', 347.68, { withheld: LONG }),
   cell('9:16', 15, 'medium', 'mv-D02-c4', 121.47),
