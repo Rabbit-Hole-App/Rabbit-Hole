@@ -30,7 +30,15 @@ async function open(name, board, { readonly = false, localcopy = false, viewport
   await page.goto(`${BASE}?board=${name}${readonly ? '&readonly=1' : ''}${localcopy ? '&localcopy=1' : ''}`);
   await page.locator('[data-canvas-surface]').waitFor();
   await page.waitForTimeout(300);
-  const saved = async () => { await page.waitForTimeout(550); return page.evaluate(key => JSON.parse(localStorage.getItem(key) || '{}'), key); };
+  // The board as this browser's copy holds it. Without `ready` a fixed 550 ms after the change, the 400 ms debounce of AdaptiveCanvas's save
+  // plus a render; with `ready` (a predicate on the board) the copy is polled until the save that carries the change has landed, so a slow
+  // render cannot make the read come first (CI run 40142434476: the board read after Open in notebook still had no notebook).
+  const saved = async (ready = null) => {
+    const read = () => page.evaluate(key => JSON.parse(localStorage.getItem(key) || '{}'), key);
+    if (!ready) { await page.waitForTimeout(550); return read(); }
+    const end = Date.now() + 15000;
+    for (;;) { const board = await read(); if (ready(board) || Date.now() > end) return board; await page.waitForTimeout(100); }
+  };
   const reload = async () => { await page.waitForTimeout(550); await page.reload(); await page.locator('[data-canvas-surface]').waitFor(); await page.waitForTimeout(300); };
   // World point -> screen point, through the camera transform.
   const screen = async (x, y) => page.evaluate(([x, y]) => {
@@ -398,9 +406,9 @@ await run('open in notebook: code sample icon', async () => {
   check('a Code sample shows a small Open in notebook icon button, named Open in notebook, with a tooltip', !!iconBox && (await icon.isVisible()) && (await icon.getAttribute('title')) === 'Open in notebook' && (await icon.innerText()).trim() === '' && (await icon.locator('svg').count()) === 1 && iconBox.y >= 0 && iconBox.width <= 40 && iconBox.height <= 40, JSON.stringify(iconBox));
   check('and it sits right beside the selection actions (Add to chat), on the same row', !!iconBox && !!askBox && askBox.x >= iconBox.x + iconBox.width - 1 && askBox.x - (iconBox.x + iconBox.width) <= 16 && Math.abs((iconBox.y + iconBox.height / 2) - (askBox.y + askBox.height / 2)) <= 4, JSON.stringify({ iconBox, askBox }));
   await icon.click();
-  const board = await saved();
+  const board = await saved(b => (b.blocks || []).some(block => block.type === 'notebook'));
   const made = board.blocks.filter(block => block.type === 'notebook');
-  check('clicking it makes one notebook, holding the sample code verbatim in one cell', made.length === 1 && JSON.stringify(made[0].ipynb.cells.map(cell => cell.source)) === JSON.stringify([sample.code]), JSON.stringify(made.map(block => block.ipynb.cells.map(cell => cell.source))));
+  check('clicking it makes one notebook, holding the sample code verbatim in one cell', made.length === 1 && JSON.stringify(made[0].ipynb.cells.map(cell => cell.source)) === JSON.stringify([sample.code]), `${JSON.stringify(made.map(block => block.ipynb.cells.map(cell => cell.source)))} cards on the page: ${await page.locator('[data-block-id]').count()} (3 when the notebook was made), saved blocks: ${board.blocks.map(block => block.type)}`);
   const kept = board.blocks.find(block => block.id === 'cs');
   check('the Code sample is still there, unchanged', kept && ['title', 'brief', 'code', 'output'].every(key => kept[key] === sample[key]), JSON.stringify(kept));
   await context.close();
