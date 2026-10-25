@@ -334,18 +334,47 @@ name, any control-plane binding and a mismatched environment label, so the confi
 
 **Conventions.** Git Bash, `packages/web` as the working directory, the rabbit-hole `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
 loaded for the session (from `small-deploy/.env`, by name; never printed, never sourced into the transcript). The owner runs each
-command as a `!` command. `--config` makes wrangler use the config's pinned `account_id`.
+command as a `!` command. The commands that create or read a resource are given WITHOUT `--config`: the account comes from
+`CLOUDFLARE_ACCOUNT_ID`, and a create command that is given a JSONC `--config` asks "Would you like Wrangler to add it on your behalf?"
+with the default yes.
 
 **Dark deploy and order (tested).** The Worker runs without `TELEMETRY_DB`, `TELEMETRY_ARCHIVE` and `TELEMETRY_ENVIRONMENT`;
 `test/telemetry-dark-deploy.test.js` calls every handler with those absent: browser and Tutor ingestion answer 204 to a signed-in
 caller (Tutor still 401 to a signed-out one), server events and `loggedModel` are no-ops that return the provider response
 untouched, the owner API stays 404 to everyone but the owner and answers the owner `configured: false` on every storage route,
 and no source reads `env.TELEMETRY_ARCHIVE` (the bucket is not yet a runtime dependency; nothing here archives). So the
-candidate may deploy before provisioning. Provisioning has an order, because wrangler does not apply migrations on deploy:
-create D1 and R2, apply the migrations (`telemetry-migrations/0001`, `0002`, a directory and database separate from the learn
-D1's `learn-migrations`, so no clash with 0027-0032), set the production owner secret, then deploy the commit that adds the
-bindings. A binding deployed before its migration degrades (writes fail and are counted as losses, ingestion answers 503; no
-user request fails), but the dashboard would show errors, so migrate first.
+candidate may deploy before provisioning. Provisioning has an order, because wrangler does not apply migrations on deploy.
+
+**What wrangler 4.150.0 does, which fixes the order** (read from the pinned wrangler's `--help` and source):
+
+- `d1 migrations apply <db> --remote` needs the database as an entry of a config file, matched by `database_name` or `binding`. It
+  does not need `database_id` there: with none, wrangler looks the id up by name through the API. `migrations_dir` comes from the entry
+  (relative to the config file's folder; an absolute path works). So the migration runs BEFORE the repo config has any binding, with
+  a scratch config outside the repo, and the repo config edit needs no migration to exist first.
+- `d1 execute <name> --remote --command ...` needs no config entry at all: an unknown name is resolved through the API. Every
+  read-only check below works from the database name alone.
+- `d1 create` and `r2 bucket create` with no `--config` just print the result. Never pass them `--config` or `--update-config`.
+  `packages/web` has no default `wrangler.jsonc`, so nothing is auto-discovered there.
+- `secret put` and `secret list` accept `--name <worker>`; no config is loaded.
+- Both migration files are `CREATE TABLE IF NOT EXISTS`, so they are re-runnable.
+- Checked locally: a scratch config with only `{binding, database_name, migrations_dir}` (no id) was accepted by
+  `d1 migrations apply --local` and resolved as `rabbit-hole-telemetry-dev (TELEMETRY_DB)`. The local workerd D1 then fails with
+  "internal error" on the development machine (the known environment limit, even `SELECT 1`), so the apply itself is proven only by
+  the node:sqlite tests of the SQL; the remote apply is unproven until it runs. The config edit below was dry-run with a fake uuid:
+  both config tests pass and `wrangler deploy --dry-run` lists the three telemetry entries for each config.
+
+**Sequence.**
+
+1. Owner: create the D1 database and the R2 bucket (no config), then run `migrations apply` against a scratch config (below).
+2. Integrator: read the new uuid read-only (`d1 list --json`), then make ONE config-edit candidate that adds the bindings (edit
+   below). Dev and production ride the same candidate when the owner ran both blocks in the same sitting; otherwise one candidate
+   each. The candidate takes CI and the full gate (a config change keeps the gate), then dev deploy; production follows the normal
+   `RELEASE <sha> <build>` path.
+3. Production only: the owner secret is independent of the candidate and can be set at any time before the dashboard is wanted.
+
+A binding deployed before its migration degrades (writes fail and are counted as losses, ingestion answers 503; no user request
+fails), but the dashboard would show errors, so migrate first. `d1 execute --file` would also work from the name, but it bypasses
+wrangler's `d1_migrations` table, so it is not used.
 
 ### 0. Check the account first (read-only)
 
@@ -353,28 +382,40 @@ user request fails), but the dashboard would show errors, so migrate first.
 npx wrangler whoami
 ```
 
-Expected: the account listed is `c08d3dbdc53a3afd3cb09a536ac42318` (rabbit-hole). Stop if it is any other account.
+Expected: the account listed is `c08d3dbdc53a3afd3cb09a536ac42318` (rabbit-hole), and the token's permissions include D1 and R2 edit.
+Stop if it is any other account.
 
-### Dev
+### Shared setup (once per Git Bash window; reads two values by name and prints nothing)
+
+`RH` is any checkout of the candidate whose `packages/control-plane/telemetry-migrations` holds the two migration files.
+
+```bash
+export RH=C:/Users/cyudhist/Desktop/workspace/telemetry-r2
+export CLOUDFLARE_API_TOKEN="$(grep -m1 '^CLOUDFLARE_API_TOKEN=' C:/Users/cyudhist/Desktop/workspace/small-deploy/.env | cut -d= -f2-)"
+export CLOUDFLARE_ACCOUNT_ID="$(grep -m1 '^CLOUDFLARE_ACCOUNT_ID=' C:/Users/cyudhist/Desktop/workspace/small-deploy/.env | cut -d= -f2-)"
+cd "$RH/packages/web" && ls ../control-plane/telemetry-migrations      # expected: 0001-telemetry.sql  0002-learning-evidence.sql
+```
+
+### Dev (owner block)
 
 **D1. Create the dev database**
 
 ```bash
-npx wrangler d1 create rabbit-hole-telemetry-dev --config wrangler.dev.jsonc
+npx wrangler d1 create rabbit-hole-telemetry-dev
 ```
 
-Effect: one empty D1 database in the rabbit-hole account; the output prints its `database_id` (a UUID). Copy it. If wrangler offers to
-add a binding to a config, answer no (the edit is step D3). Verify: `npx wrangler d1 list | grep rabbit-hole-telemetry-dev` shows
-one row whose id equals the printed one.
+Effect: one empty D1 database in the rabbit-hole account. Expected output: `Successfully created DB 'rabbit-hole-telemetry-dev'`, then a
+snippet whose `"database_id"` is a UUID. Send that UUID to the integrator. No prompt appears; if one offers to add it to a config,
+answer no. `A database with that name already exists` means this step is already done. Verify: `npx wrangler d1 list` shows the name.
 
 **D2. Create the dev archive bucket**
 
 ```bash
-npx wrangler r2 bucket create rabbit-hole-telemetry-archive-dev --config wrangler.dev.jsonc
+npx wrangler r2 bucket create rabbit-hole-telemetry-archive-dev
 ```
 
-Effect: one empty private R2 bucket (R2 buckets are private unless a public URL or a custom domain is added; neither is added).
-Nothing writes to it yet: archive writes arrive with the retention work. Verify:
+Effect: one empty private R2 bucket (private unless a public URL or custom domain is added; neither is). Nothing writes to it yet.
+Expected output: `Created bucket 'rabbit-hole-telemetry-archive-dev' with default storage class of Standard.` Verify:
 
 ```bash
 npx wrangler r2 bucket list | grep rabbit-hole-telemetry-archive-dev          # the bucket exists
@@ -382,9 +423,49 @@ npx wrangler r2 bucket dev-url get rabbit-hole-telemetry-archive-dev           #
 npx wrangler r2 bucket domain list rabbit-hole-telemetry-archive-dev           # expected: no custom domain
 ```
 
-**D3. Edit `packages/web/wrangler.dev.jsonc` (three places)**
+**D3. Write the scratch migration config** (outside the repo; it only points `migrations apply` at the database by name, is never
+committed and deploys nothing; delete it afterwards with `rm -r ~/rh-telemetry-migrate`)
 
-In `d1_databases`, after the `LEARN_DB` entry (add a comma after its closing brace):
+```bash
+mkdir -p ~/rh-telemetry-migrate && cat > ~/rh-telemetry-migrate/wrangler.jsonc <<EOF
+{
+  "name": "telemetry-migrate-only",
+  "account_id": "c08d3dbdc53a3afd3cb09a536ac42318",
+  "d1_databases": [
+    { "binding": "TELEMETRY_DB", "database_name": "rabbit-hole-telemetry-dev", "migrations_dir": "$RH/packages/control-plane/telemetry-migrations" }
+  ]
+}
+EOF
+```
+
+**D4. Apply the schema to the dev database**
+
+```bash
+npx wrangler d1 migrations apply rabbit-hole-telemetry-dev --remote --config ~/rh-telemetry-migrate/wrangler.jsonc
+```
+
+Effect: wrangler lists `0001-telemetry.sql` and `0002-learning-evidence.sql` and asks to confirm (answer `y`); it creates the
+telemetry tables in the dev telemetry database only (plus wrangler's `d1_migrations` table). No other database is touched. Verify:
+
+```bash
+npx wrangler d1 migrations list rabbit-hole-telemetry-dev --remote --config ~/rh-telemetry-migrate/wrangler.jsonc    # expected: No migrations to apply!
+npx wrangler d1 execute rabbit-hole-telemetry-dev --remote --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+# expected, at least: accounting_actions, accounting_attempts, accounting_grants, d1_migrations, learning_assessments, learning_attempts, learning_criteria, learning_observations, owner_access_log, projection_cursors, telemetry_delivery_health, telemetry_events
+```
+
+The owner stops here and tells the integrator the dev uuid. Nothing collects yet.
+
+### Dev (integrator)
+
+**D5. Config-edit candidate, `packages/web/wrangler.dev.jsonc` (three places).** Mechanical form, from the root of a checkout rebased
+on current main (the script is at `C:/s/spec/telemetry/apply-telemetry-bindings.mjs`; it edits only the two worker configs, keeps CRLF,
+refuses to run twice and calls no wrangler command):
+
+```bash
+node C:/s/spec/telemetry/apply-telemetry-bindings.mjs dev <dev uuid from d1 list --json>
+```
+
+The edit it makes: in `d1_databases`, after the `LEARN_DB` entry,
 
 ```jsonc
     {
@@ -395,100 +476,60 @@ In `d1_databases`, after the `LEARN_DB` entry (add a comma after its closing bra
     }
 ```
 
-In `r2_buckets`, after the `LEARN_MEDIA` entry:
-
-```jsonc
-    {
-      "binding": "TELEMETRY_ARCHIVE",
-      "bucket_name": "rabbit-hole-telemetry-archive-dev"
-    }
-```
-
-In `vars`, after `SUBSCRIPTION_OWNER_EMAIL`:
-
-```jsonc
-    "TELEMETRY_ENVIRONMENT": "dev",
-```
-
-Verify (both local, nothing uploaded):
+in `r2_buckets`, after the `LEARN_MEDIA` entry, `{ "binding": "TELEMETRY_ARCHIVE", "bucket_name": "rabbit-hole-telemetry-archive-dev" }`,
+and in `vars`, `"TELEMETRY_ENVIRONMENT": "dev",`. Verify (both local, nothing uploaded):
 
 ```bash
-(cd ../control-plane && node --test test/rabbit-hole-dev-config.test.js test/rabbit-hole-prod-config.test.js)   # expected: all pass
+(cd ../control-plane && node --test test/rabbit-hole-dev-config.test.js test/rabbit-hole-prod-config.test.js)   # expected: 14 pass
 npx wrangler deploy --dry-run --config wrangler.dev.jsonc | grep TELEMETRY
 # expected lines: env.TELEMETRY_DB (rabbit-hole-telemetry-dev) D1 Database; env.TELEMETRY_ARCHIVE (rabbit-hole-telemetry-archive-dev) R2 Bucket;
 #                 env.TELEMETRY_ENVIRONMENT ("dev") Environment Variable
 ```
 
-**D4. Apply the schema to the dev database**
-
-```bash
-npx wrangler d1 migrations apply rabbit-hole-telemetry-dev --remote --config wrangler.dev.jsonc
-```
-
-Effect: wrangler lists `0001-telemetry.sql` and `0002-learning-evidence.sql` and asks to confirm; on yes it creates the telemetry tables in the dev telemetry database only
-(plus wrangler's `d1_migrations` table). No other database is touched. Verify:
-
-```bash
-npx wrangler d1 execute rabbit-hole-telemetry-dev --remote --config wrangler.dev.jsonc --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-# expected, at least: accounting_actions, accounting_attempts, accounting_grants, learning_assessments, learning_attempts, learning_criteria, learning_observations, owner_access_log, projection_cursors, telemetry_delivery_health, telemetry_events
-```
-
-**D5. Deploy a dev clone** (the repo's own path; never a bare `wrangler deploy`):
+**D6. Deploy** by the repo's own path (the dev auto-deploy pipeline, or a clone; never a bare `wrangler deploy`):
 
 ```bash
 npm run build -- --outDir dist-dev      # with the env flags of docs/features/parallel-dev-deploys.md
 npx wrangler deploy --config wrangler.dev.jsonc --name rabbit-hole-web-dev-telemetry
 ```
 
-**D6. Dev owner check.** No dev secret is needed: `wrangler.dev.jsonc` already sets the owner var.
+**D7. Dev owner check.** No dev secret is needed: `wrangler.dev.jsonc` already sets the owner var.
 `grep -n SUBSCRIPTION_OWNER_EMAIL wrangler.dev.jsonc` should show `yudhisteer.chin@gmail.com`. Signed in as
 `Yudhisteer.chin@gmail.com`, `https://rabbit-hole-web-dev-telemetry.tryrabbithole.workers.dev/owner/telemetry` loads and
 `GET /api/owner/telemetry/access` answers `200 {"owner":true,"configured":true,"environment":"dev"}`. Signed out, as
 `yudhisteer.chin01@gmail.com`, or as any other account, the same URL answers `404 Not found`.
 
-### Production (each step needs its own GO; D1 and the migration are production changes)
+### Production (owner block; each step needs its own GO; D1 and the migration are production changes)
+
+Repeat the shared setup. P3 is the same heredoc as D3, written to `~/rh-telemetry-migrate/prod.jsonc` with
+`"database_name": "rabbit-hole-telemetry"` (check with `cat` that it does not say `-dev`).
 
 **P1. Create the production database**
 
 ```bash
-npx wrangler d1 create rabbit-hole-telemetry --config wrangler.rabbit-hole-prod.jsonc
+npx wrangler d1 create rabbit-hole-telemetry
 ```
 
-Effect and verification as D1, with `grep rabbit-hole-telemetry` matching the name `rabbit-hole-telemetry` exactly (the dev database
-`rabbit-hole-telemetry-dev` also matches the prefix: check the name column, not the substring).
+Effect and verification as D1, with the name column exactly `rabbit-hole-telemetry` (the dev database `rabbit-hole-telemetry-dev`
+also matches the prefix). Send the uuid to the integrator.
 
 **P2. Create the production archive bucket**
 
 ```bash
-npx wrangler r2 bucket create rabbit-hole-telemetry-archive --config wrangler.rabbit-hole-prod.jsonc
+npx wrangler r2 bucket create rabbit-hole-telemetry-archive
 ```
 
 Verify as D2 with the bucket name `rabbit-hole-telemetry-archive` (`bucket info`, `dev-url get` disabled, `domain list` empty).
 
-**P3. Edit `packages/web/wrangler.rabbit-hole-prod.jsonc` (three places)**
-
-In `d1_databases` (after `LEARN_DB`):
-
-```jsonc
-    { "binding": "TELEMETRY_DB", "database_name": "rabbit-hole-telemetry", "database_id": "<DATABASE_ID PRINTED IN P1>", "migrations_dir": "../control-plane/telemetry-migrations" }
-```
-
-In `r2_buckets` (after `REPOSITORY_SNAPSHOTS`):
-
-```jsonc
-    { "binding": "TELEMETRY_ARCHIVE", "bucket_name": "rabbit-hole-telemetry-archive" }
-```
-
-In `vars` (after `PUBLIC_ORIGIN`): `"TELEMETRY_ENVIRONMENT": "production",`. Do **not** put `SUBSCRIPTION_OWNER_EMAIL` in `vars`:
-the production config test refuses any var containing `SUBSCRIPTION`, which is why the owner is a secret here. Verify as D3
-(`wrangler deploy --dry-run --config wrangler.rabbit-hole-prod.jsonc | grep TELEMETRY` should show `rabbit-hole-telemetry`,
-`rabbit-hole-telemetry-archive` and `"production"`). This edit is a config change: it rides a normal candidate and needs the full gate.
+**P3. Scratch config for production.** As D3, written to `~/rh-telemetry-migrate/prod.jsonc` with
+`"database_name": "rabbit-hole-telemetry"`.
 
 **P4. Apply the schema to the production telemetry database** (a production migration: the owner's explicit approval)
 
 ```bash
-npx wrangler d1 migrations apply rabbit-hole-telemetry --remote --config wrangler.rabbit-hole-prod.jsonc
-npx wrangler d1 execute rabbit-hole-telemetry --remote --config wrangler.rabbit-hole-prod.jsonc --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+npx wrangler d1 migrations apply rabbit-hole-telemetry --remote --config ~/rh-telemetry-migrate/prod.jsonc
+npx wrangler d1 migrations list rabbit-hole-telemetry --remote --config ~/rh-telemetry-migrate/prod.jsonc     # expected: No migrations to apply!
+npx wrangler d1 execute rabbit-hole-telemetry --remote --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
 ```
 
 Effect and expected tables as D4. It touches only `rabbit-hole-telemetry`; `rabbit-hole-prod` and `rabbit-hole-learn-prod` are not named.
@@ -496,22 +537,39 @@ Effect and expected tables as D4. It touches only `rabbit-hole-telemetry`; `rabb
 **P5. Set the owner identity as a secret on `rabbit-hole-app`**
 
 ```bash
-read -r -p 'Owner sign-in email: ' OWNER_EMAIL && printf '%s' "$OWNER_EMAIL" | npx wrangler secret put SUBSCRIPTION_OWNER_EMAIL --config wrangler.rabbit-hole-prod.jsonc; unset OWNER_EMAIL
+read -r -p 'Owner sign-in email: ' OWNER_EMAIL && printf '%s' "$OWNER_EMAIL" | npx wrangler secret put SUBSCRIPTION_OWNER_EMAIL --name rabbit-hole-app; unset OWNER_EMAIL
 ```
 
 The owner types `Yudhisteer.chin@gmail.com` at the prompt (any case works; the value never appears in a file, the transcript or
-shell history, and is not `yudhisteer.chin01@gmail.com`). Effect: the secret exists on `rabbit-hole-app` (the config's `name`),
-wrangler applies it to the deployed Worker as a settings change; it deploys no new code. It does not enable subscription mode: `SUBSCRIPTION_ONLY` is unset in production and
-the owner guard never reads it. Verify (names only, values are never shown):
+shell history, and is not `yudhisteer.chin01@gmail.com`). Effect: the secret exists on `rabbit-hole-app`; wrangler deploys the
+Worker's current code again with the secret added, so no new code ships. It does not enable subscription mode: `SUBSCRIPTION_ONLY` is
+unset in production and the owner guard never reads it. Verify (names only, values are never shown):
 
 ```bash
-npx wrangler secret list --config wrangler.rabbit-hole-prod.jsonc      # expected: SUBSCRIPTION_OWNER_EMAIL is listed
+npx wrangler secret list --name rabbit-hole-app      # expected: SUBSCRIPTION_OWNER_EMAIL is listed
 ```
 
-**P6. Release** through the normal path (`RELEASE <sha> <build>`, after the candidate with P3 has passed its checks). Telemetry code
-paths do nothing until P3 is deployed, so ordering P1 to P5 before the release is safe.
+Until it exists the production dashboard answers 404 to everyone, including the owner (the intended dark state).
 
-**P7. Production owner check, after the release.** Signed in as `Yudhisteer.chin@gmail.com`:
+### Production (integrator)
+
+**P6. Config-edit candidate, `packages/web/wrangler.rabbit-hole-prod.jsonc`.** The same candidate as D5 when both blocks were run:
+
+```bash
+node C:/s/spec/telemetry/apply-telemetry-bindings.mjs prod <prod uuid from d1 list --json>
+```
+
+It adds, in `d1_databases` after `LEARN_DB`, `{ "binding": "TELEMETRY_DB", "database_name": "rabbit-hole-telemetry", "database_id": "<DATABASE_ID PRINTED IN P1>", "migrations_dir": "../control-plane/telemetry-migrations" }`;
+in `r2_buckets` after `REPOSITORY_SNAPSHOTS`, `{ "binding": "TELEMETRY_ARCHIVE", "bucket_name": "rabbit-hole-telemetry-archive" }`; and in `vars`,
+`"TELEMETRY_ENVIRONMENT": "production",`. Do **not** put `SUBSCRIPTION_OWNER_EMAIL` in `vars`: the production config test refuses any
+var containing `SUBSCRIPTION`, which is why the owner is a secret here. Verify as D5
+(`wrangler deploy --dry-run --config wrangler.rabbit-hole-prod.jsonc | grep TELEMETRY` should show `rabbit-hole-telemetry`,
+`rabbit-hole-telemetry-archive` and `"production"`). This is a config change: it rides a normal candidate and needs the full gate.
+
+**P7. Release** through the normal path (`RELEASE <sha> <build>`, the owner's command, after the candidate has passed its checks).
+Telemetry code paths do nothing until the bindings are deployed, so P1 to P5 before the release is safe.
+
+**P8. Production owner check, after the release.** Signed in as `Yudhisteer.chin@gmail.com`:
 `https://digrabbithole.com/owner/telemetry` loads; `GET /api/owner/telemetry/access` answers
 `200 {"owner":true,"configured":true,"environment":"production"}`. Signed out, as `yudhisteer.chin01@gmail.com` and as any other
 account: `404 Not found` on that URL and on `/api/owner/telemetry/overview`. Ingestion is reachable and bounded:
@@ -525,13 +583,15 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST https://digrabbithole.com/api/t
 Zone `digrabbithole.com`, Security, WAF, Rate limiting rules: match `POST` on path `/api/telemetry/client`, for example 60 requests a
 minute per IP, action Block. Without it the only bound is the per-isolate bucket. Verify: 70 quick requests from one address end in `429`.
 
-### Read-only checks for the coordinator (change nothing)
+### Read-only checks for the integrator (change nothing)
 
 ```bash
-npx wrangler d1 list                                                                # both telemetry databases exist, ids match the configs
-npx wrangler r2 bucket list                                                         # both archive buckets exist
-npx wrangler r2 bucket dev-url get rabbit-hole-telemetry-archive                    # disabled (also the -dev bucket)
-npx wrangler secret list --config wrangler.rabbit-hole-prod.jsonc                   # SUBSCRIPTION_OWNER_EMAIL listed
+npx wrangler whoami --json                                         # the rabbit-hole account; permissions include D1 and R2 edit
+npx wrangler d1 list --json                                        # both telemetry databases exist; the uuids to use in the candidate
+npx wrangler d1 execute rabbit-hole-telemetry-dev --remote --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"   # SELECT only; works from the name
+npx wrangler r2 bucket list                                        # both archive buckets exist
+npx wrangler r2 bucket dev-url get rabbit-hole-telemetry-archive   # disabled (also the -dev bucket)
+npx wrangler secret list --name rabbit-hole-app                    # SUBSCRIPTION_OWNER_EMAIL listed
 grep -n "TELEMETRY\|SUBSCRIPTION_OWNER_EMAIL" wrangler.dev.jsonc wrangler.rabbit-hole-prod.jsonc
 ```
 
