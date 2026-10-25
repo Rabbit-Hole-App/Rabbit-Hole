@@ -500,6 +500,10 @@ const EXPLORE = {
     { label: 'karpathy/nanoGPT', repo: 'karpathy/nanoGPT', boards: 1, url: '/explore?project=y', updated_at: '2026-10-20 09:00:00' },
   ],
 };
+// A seeded page's /api/apps route awaits route.fetch() and the body: closing the context with one in flight made the handler throw
+// 'Response has been disposed' as an unhandled rejection that ended the process (CI run 40139206502, card-size-check.mjs line 511). Let
+// the handlers finish, then close.
+const finish = async (page) => { const context = page.context(); await context.unrouteAll({ behavior: 'wait' }); await context.close(); };
 const seeded = async (viewport = { width: 1440, height: 900 }, { mobile = false } = {}) => {
   const context = await browser.newContext({ viewport, ...(mobile ? { hasTouch: true } : {}) });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
@@ -589,7 +593,12 @@ const measure = (page, selector, index = -1) => page.evaluate(({ selector, index
 const settled = (page, selector, where, index = -1) => expect.poll(async () => (await measure(page, selector, index)).problems, { message: where, timeout: 20000 }).toEqual([]);
 const drift = (a, b) => Object.entries(a).flatMap(([card, parts]) => Object.entries(parts).filter(([k, v]) => !b[card]?.[k] || v.some((x, i) => Math.abs(x - b[card][k][i]) > 1.5)).map(([k]) => `${card}: ${k} moved ${JSON.stringify(parts[k])} to ${JSON.stringify(b[card]?.[k])}`));
 // The resting cards, then each of the first five hovered and then focused: the same guarantees, and nothing moves inside the card.
+// The cards' text is set in Inter Variable (font-display: swap): until the woff2 arrives it is drawn in the wider system fallback, and a
+// snapshot taken then differs from every later one by the same amounts (CI runs 40140491015 and 40141472356: title 74.8 -> 65 and 313.5 -> 273,
+// updated 96.3 -> 90 in both, about 13% on the bold title). Wait for the face to be loaded, then snapshot.
+const fontsLoaded = (page) => page.waitForFunction(() => document.fonts.check('16px "Inter Variable"'), null, { timeout: 30000 });
 const stable = async (page, selector, where) => {
+  await fontsLoaded(page);
   await settled(page, selector, `${where} at rest`);
   const count = Math.min(await page.locator(selector).count(), 5);
   for (let i = 0; i < count; i += 1) {
@@ -630,7 +639,7 @@ await check('Library canvases at 1440, all four sizes: Private, Unlisted and Pub
   await sweep(page, '[data-library-card="canvas"]', 'Library canvases', { long: LONG_START });
   await slider(page).fill('0');
   await page.screenshot({ path: `${SHOTS}/small-card-library-canvases.png` });
-  await page.context().close();
+  await finish(page);
 });
 
 await check('Library projects at 1440, all four sizes: Private, Unlisted, Public, and Varies by canvas as a button (editable) and as plain text (read only), whole and readable on its own row at Small', async () => {
@@ -644,7 +653,7 @@ await check('Library projects at 1440, all four sizes: Private, Unlisted, Public
   assert.equal((await pill.innerText()).trim(), 'Varies by canvas');
   assert.equal(await pill.evaluate((n) => n.scrollWidth <= n.clientWidth + 1 && parseFloat(getComputedStyle(n).fontSize) >= 12), true, 'Varies by canvas is whole and 12px or larger at Small');
   await page.screenshot({ path: `${SHOTS}/small-card-library-projects.png` });
-  await page.context().close();
+  await finish(page);
 });
 
 await check('Explore at 1440, all four sizes: public canvases (a long name and handle, a long project label, Start Rabbit Hole and Fork beside it, one of your own) and project cards', async () => {
@@ -657,7 +666,7 @@ await check('Explore at 1440, all four sizes: public canvases (a long name and h
   await onExplore(page, '?type=projects');
   await page.locator('[data-explore-project]').nth(1).waitFor({ timeout: 30000 });
   await sweep(page, '[data-explore-project]', 'Explore projects');
-  await page.context().close();
+  await finish(page);
 });
 
 await check('Home (Recent) at 1440, all four sizes: the same cards, the same guarantees', async () => {
@@ -667,7 +676,7 @@ await check('Home (Recent) at 1440, all four sizes: the same cards, the same gua
   await slider(page).waitFor({ timeout: 60000 });
   await sweep(page, '[data-recent-card]', 'Home Recent', { long: LONG_START });
   await page.screenshot({ path: `${SHOTS}/small-card-home.png` });
-  await page.context().close();
+  await finish(page);
 });
 
 await check('a phone (390) and a tablet (800): Library canvases, Library projects and Explore at all four sizes, with no sideways scroll', async () => {
@@ -684,7 +693,7 @@ await check('a phone (390) and a tablet (800): Library canvases, Library project
     await sweep(page, '[data-explore-card]', `${label} Explore`, options);
     await slider(page).fill('0');
     await page.screenshot({ path: `${SHOTS}/small-card-${label}.png` });
-    await page.context().close();
+    await finish(page);
   }
 });
 
@@ -697,7 +706,7 @@ await check('dark theme: the same cards at all four sizes keep every guarantee',
   await sweep(page, '[data-library-card="project"]', 'dark Library projects', { long: LONG_START });
   await slider(page).fill('0');
   await page.screenshot({ path: `${SHOTS}/small-card-dark.png` });
-  await page.context().close();
+  await finish(page);
 });
 
 const DESCRIPTION = '[data-card-description]';
@@ -753,7 +762,7 @@ await check('All four sizes show the whole description: 340 characters, an unbro
       await settled(page, '[data-recent-card]', `${label} Home, size ${n}`);
     }
     await page.screenshot({ path: `${SHOTS}/card-description-${label}-home.png` });
-    await page.context().close();
+    await finish(page);
   }
 });
 
@@ -772,7 +781,7 @@ await check('sizes 2 and 3 keep the picture where it was while the whole descrip
     }
     await whole(descriptionOf(page, '[data-library-card="canvas"]', LONG_START), DESC340, `Library, size ${n}`);
   }
-  await page.context().close();
+  await finish(page);
 });
 
 await browser.close();
