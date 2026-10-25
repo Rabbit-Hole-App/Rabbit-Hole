@@ -36,6 +36,13 @@ export const RUNS = Object.freeze({
     approved: { title: 'The MLP block in nanoGPT', duration_seconds: 30, aspect_ratio: '9:16', description: 'What the two linear layers and the GELU between them do to each token, read from model.py lines 78 to 92.' },
     note: 'a portrait ratio and a non-attention shape, approved proposal as the product sends it',
   },
+  // 2026-10-25: the 15 s pair with the smallest fixture margin to the 420 s limit that has no model-built video: 9:16 at 15 s (D02-c4 service total 121.47 s,
+  // the largest of the nine 15 s ratios; 16:9 has M1). The same request as M1 so the two ratios compare; the ratio travels in an approved proposal as the product sends it.
+  M4: {
+    ratio: '9:16', seconds: 15, message: '/motion 15s explain me softmax func', location: { concept: 'Attention' },
+    approved: { title: 'Softmax in attention', duration_seconds: 15, aspect_ratio: '9:16', description: 'How softmax turns a row of attention scores into weights that sum to one, read from model.py line 69.' },
+    note: 'the 15 s pair with the least margin to the render limit and no model-built video; the M1 request in a portrait stage',
+  },
   M3: { ratio: '16:9', seconds: 60, message: '/motion 60s explain this', repository_context: PREP, note: 'the longest duration on a non-model system flow: the capacity ceiling of the fixture evidence (medium and simple pass to 60 s)' },
 });
 
