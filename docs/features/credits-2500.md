@@ -86,6 +86,27 @@ Missing usage or cost stays missing: `cost_micros` NULL / absent `quantities` ke
 - `refundAttempt` is the mechanism; no failure path calls it yet. Platform-funded work (practice grading, tutor evaluation,
   renderer compute, webpage screening) stays recorded apart and never in the user's balance.
 
+## Browser checks (run by CI fast-e2e on the exact SHA)
+
+Two Linux checks drive the real app on the keyless CI stack. That stack runs `SMALL_ENV=test`, which never meters, so both send the
+header `x-e2e-enforce-spend: 1` on every `/api/` call; `e2e/tripwire-dev-worker.js` turns it into the environment of a deployment
+(`SMALL_ENV=dev`, a platform daily limit, a placeholder provider key) for that request only. Every provider request is blocked and
+counted by the tripwire, and both checks require zero.
+
+- `credits-meter-check.mjs`: a new account is granted 2,500 credits (API before any canvas, gauge popover and Settings > AI usage);
+  the renewal line in Los Angeles time, then pinned at the cutover (`2026-11-01T00:00:00Z` reads "Renews on October 31, 5:00 PM PDT",
+  and "November 1, 9:00 AM GMT+9" in Tokyo); an account with a granted 5,000 month and recorded usage is shown 5,000, its usage and
+  what is left; the transition rule on the live clock (before 2026-11 chargeable usage is 5,000, from 2026-11 everyone 2,500) and a
+  free action not counting as usage; no dollar amount, "USD" or "cents" on those surfaces.
+- `allowance-enforcement-check.mjs`: exhausted, insufficient, reserved and accounting-unavailable each refuse a chat Send before any
+  provider call, with one toast ("Not enough AI credits. Renews on <Los Angeles time>."), View usage opening Settings, the prompt
+  given back and the canvas still editable. The exhausted refusal charges and reserves nothing (used stays at the
+  seeded allowance, reserved 0), and every refusal and the accounting outage leave the tripwire at zero requests.
+
+Not covered by a browser check: `settings-check.mjs` stays windows-only (it is the general Settings check, not the credits meter); a
+provider failure after admission (HTTP 599 from the tripwire) is an unknown-cost attempt that keeps its reservation, and the
+provider-unavailable refund to zero (`providerUnavailable`) is unit-tested only.
+
 ## What fixtures cannot prove (verify on the dev D1, read-only)
 
 Every test is deterministic and runs on in-memory SQLite behind a D1-shaped wrapper (`credits-2500.test.js`): concurrent first
