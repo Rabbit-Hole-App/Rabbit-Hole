@@ -113,6 +113,10 @@
     {
       "binding": "LEARN_MEDIA",
       "bucket_name": "rabbit-hole-dev-learn-media"
+    },
+    {
+      "binding": "TELEMETRY_ARCHIVE",
+      "bucket_name": "rabbit-hole-telemetry-archive-dev"
     }
   ],
   "d1_databases": [
@@ -130,9 +134,17 @@
       "binding": "LEARN_DB",
       "database_name": "rabbit-hole-learn-dev",
       "database_id": "028f800f-ce8e-4461-adb2-827f417492eb"
+    },
+    {
+      "binding": "TELEMETRY_DB",
+      "database_name": "rabbit-hole-telemetry-dev",
+      "database_id": "de3b1b69-31b7-41f0-b221-bcddc5ec85eb",
+      "migrations_dir": "../control-plane/telemetry-migrations"
     }
   ],
   "vars": {
+    // Telemetry (docs/features/telemetry.md): labels this deployment's events; the bindings above are what switch collection on.
+    "TELEMETRY_ENVIRONMENT": "dev",
     // /explain v2 (EXP-T12): switched on at R1 (EXP-T23, owner production GO 2026-10-22; live runs C:/s/spec/explain/renders/r2-live).
     "EXPLAIN_V2_ENABLED": "true",
     // IMG-01 image generation (docs/features/image-jobs.md): off, as in production. Only "true" accepts new jobs.
