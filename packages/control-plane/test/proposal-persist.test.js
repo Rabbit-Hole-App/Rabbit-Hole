@@ -136,7 +136,7 @@ test('case a: a proposal saved on its chat message, revised by PUT, comes back f
   const started = await generate(s, press(proposal));
   assert.equal(started.status, 202);
   assert.equal(s.orchestrator.jobs.length, 1);
-  assert.deepEqual(s.orchestrator.jobs[0].body.approved_proposal, { title: 'Water cycle: evaporation to rain', duration_seconds: 25, aspect_ratio: '16:9', description: WATER, renderer_config: 'r-test', allowed_complexity: ['simple', 'standard', 'heavy'] });
+  assert.deepEqual(s.orchestrator.jobs[0].body.approved_proposal, { title: 'Water cycle: evaporation to rain', duration_seconds: 25, description: WATER, renderer_config: 'r-test' });
   assert.deepEqual(s.reservations(), [{ reserved_micros: 2_000_000, cost_state: 'reserved', status: 'running' }], 'one hold, admitted before the job');
   assert.equal((await untilReady(s, started.body.placementId)).status, 'ready');
   assert.deepEqual(s.model.calls.length, 2, 'the proposal and its reply: the revisions and Generate made no model call');
@@ -159,7 +159,7 @@ test('duration and aspect ratio: proposed, revised on the card, restored after a
   assert.deepEqual([proposal.version, proposal.settings], [2, { duration_seconds: 45, aspect_ratio: '4:3', audio: false }], 'the reload shows what was saved');
   const started = await generate(s, press(proposal));
   assert.equal(started.status, 202);
-  assert.deepEqual(s.orchestrator.jobs[0].body.approved_proposal, { title: 'Water cycle: evaporation to rain', duration_seconds: 45, aspect_ratio: '4:3', description: WATER, renderer_config: 'r-test', allowed_complexity: ['simple', 'standard', 'heavy'] }, 'the orchestrator is told the saved selection, the renderer configuration and the covered complexity');
+  assert.deepEqual(s.orchestrator.jobs[0].body.approved_proposal, { title: 'Water cycle: evaporation to rain', duration_seconds: 45, aspect_ratio: '4:3', description: WATER, renderer_config: 'r-test' }, 'the orchestrator is told the saved selection, the renderer configuration and the covered complexity');
 });
 
 test('an old proposal without an aspect ratio still generates, as 16:9', async t => {
@@ -167,7 +167,7 @@ test('an old proposal without an aspect ratio still generates, as 16:9', async t
   const { proposal: v1 } = await propose(s);
   const old = await signProposal(s.env, { ...v1, settings: { duration_seconds: 10, audio: false }, input: v1.input }, OWNER, { id: v1.proposal_id, version: 1 });
   assert.equal(await verifyProposal(s.env, old, OWNER), null, 'a proposal signed before the setting existed is still valid');
-  assert.equal(approvedProposal(old).aspect_ratio, '16:9');
+  assert.equal(approvedProposal(old).aspect_ratio, undefined, 'an old proposal is the original 16:9, which is not sent');
 });
 
 test('case b: a generated proposal and its canvas card restored after a reload: every further Generate is refused or reused server-side, no second job or reservation', async t => {

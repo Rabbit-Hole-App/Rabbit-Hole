@@ -13,7 +13,7 @@ import { settingsOf, validateSettings } from '../../web/src/generation-confirmat
 import { DURATION, durationDecision } from '../../learn-render/motion/duration.js';
 import { COMPLEXITY_CLASSES } from '../../learn-render/motion/composition-limits.js';
 import { MOTION_DEFAULT_RATIO, MOTION_RATIOS, MOTION_STAGE_SIZES } from '../../learn-render/motion/stage-sizes.js';
-import { MEASURED_READY_POLICY } from './motion-ready-policy.js';
+import { LEGACY_READY_POLICY, MEASURED_READY_POLICY } from './motion-ready-policy.js';
 
 export { MOTION_DEFAULT_RATIO, MOTION_RATIOS, MOTION_STAGE_SIZES };
 export const MOTION_NOT_READY = 'motion_not_ready';
@@ -33,18 +33,24 @@ const inBucket = (r, inputs) => [r.aspect_ratio].flat().includes(inputs.aspect_r
 // The live renderer configuration id (MOTION_RENDERER_CONFIG, set with each renderer deploy): what the readiness policy was measured on.
 export const liveRendererConfig = env => String(env?.MOTION_RENDERER_CONFIG ?? '').trim() || null;
 
-// MOTION_READY_POLICY (a worker variable; unset = the measured policy for its own renderer configuration, otherwise nothing is ready):
-//   {"version": "p1", "renderer_config": "r1", "entries": [{"aspect_ratio": "16:9" | ["1:1"], "min_seconds": 5, "max_seconds": 30, "complexity": ["simple", "standard"]}]}
-// An entry is a measured combination: its ratios, its inclusive duration bucket and the scene-complexity classes the evidence covers.
-// Malformed entries are ignored; a policy with no version, or measured on another renderer configuration than the live one, is empty.
-export function readyPolicy(env) {
-  const live = liveRendererConfig(env);
-  // Unset: the measured policy (motion-ready-policy.js), only on the renderer configuration it was measured on; any other: nothing.
-  const p = env?.MOTION_READY_POLICY === undefined ? (live === MEASURED_READY_POLICY.renderer_config ? MEASURED_READY_POLICY : null) : parse(env.MOTION_READY_POLICY);
-  if (!p || typeof p !== 'object' || typeof p.version !== 'string' || !p.version || typeof p.renderer_config !== 'string' || !Array.isArray(p.entries)) return { version: null, renderer_config: live, entries: [] };
+// Which policy applies (motion-ready-policy.js has the data and what "ready" does and does not mean):
+//   MOTION_READY_POLICY set (tests, an operator override):
+//     {"version": "p1", "renderer_config": "r1", "entries": [{"aspect_ratio": "16:9" | ["1:1"], "min_seconds": 5, "max_seconds": 30, "complexity": ["simple", "standard"]}]}
+//     An entry is a measured combination: its ratios, its inclusive duration bucket and the static classes the evidence covers. Malformed entries
+//     are ignored; a policy with no version, or one for another renderer configuration than the live one, is empty.
+//   unset and MOTION_RENDERER_CONFIG unset: the LEGACY policy, i.e. production's behavior before the expansion (16:9, 5 to 30 s).
+//   unset and MOTION_RENDERER_CONFIG = the measured id: the measured allowlist. Unset and any other id: nothing is ready.
+const compile = (p, live) => {
+  if (!p || typeof p !== 'object' || typeof p.version !== 'string' || !p.version || !Array.isArray(p.entries) || (p.renderer_config !== null && typeof p.renderer_config !== 'string')) return { version: null, renderer_config: live, entries: [] };
   const entries = p.entries.flatMap(r => (spanOk(r) && Array.isArray(r.complexity) && r.complexity.length && r.complexity.every(c => COMPLEXITY_CLASSES.includes(c))
     ? [{ ratios: [r.aspect_ratio].flat(), min: r.min_seconds, max: r.max_seconds, complexity: [...new Set(r.complexity)] }] : []));
-  return { version: p.version, renderer_config: p.renderer_config, entries: live && p.renderer_config === live ? entries : [] };
+  return { version: p.version, renderer_config: p.renderer_config, entries: p.renderer_config === live ? entries : [] };
+};
+export function readyPolicy(env) {
+  const live = liveRendererConfig(env);
+  if (env?.MOTION_READY_POLICY !== undefined) { const p = parse(env.MOTION_READY_POLICY); return compile(p && typeof p.renderer_config === 'string' ? p : null, live); }
+  if (!live) return compile(LEGACY_READY_POLICY, null);
+  return live === MEASURED_READY_POLICY.renderer_config ? compile(MEASURED_READY_POLICY, live) : { version: null, renderer_config: live, entries: [] };
 }
 // -> { ready: true, complexity: [classes], policy_version } or { ready: false, code, message, policy_version }. The message is the one
 // line the card shows before confirmation; it promises nothing about the outcome.
@@ -111,7 +117,7 @@ export const motionExecutionCheck = motionGenerationCheck;
 // any model call) and the complexity classes the evidence covers for this combination (the composition is checked against them before it renders).
 export function motionExecutionTerms(env, settings) {
   const ready = motionReadiness(env, motionQuoteInputs(settings));
-  return { ...(liveRendererConfig(env) ? { renderer_config: liveRendererConfig(env) } : {}), ...(ready.ready ? { allowed_complexity: ready.complexity } : {}) };
+  return { ...(liveRendererConfig(env) ? { renderer_config: liveRendererConfig(env) } : {}), ...(ready.ready && ready.complexity.length < COMPLEXITY_CLASSES.length ? { allowed_complexity: ready.complexity } : {}) };
 }
 // The seconds the schema offers, for the model-facing tool text.
 export const motionSeconds = () => settingsOf('motion').find(f => f.key === 'duration_seconds').options.map(o => o.value);

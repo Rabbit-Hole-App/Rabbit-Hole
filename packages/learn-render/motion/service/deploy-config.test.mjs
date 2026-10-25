@@ -200,3 +200,21 @@ test('the orchestrator Docker context boots the hostable entry: every file it im
   assert.deepEqual({ ...health, boot: /^[0-9a-f]{32}$/.test(health?.boot) ? 'id' : health?.boot },{ ok: true, active: false, boot: 'id', ready: false, missing: ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID'] }, `the orchestrator did not boot from the image tree: ${stderr.split('\n').find(l => /Error/.test(l)) || stderr.slice(0, 300)}`);
   relativeImports(join(cwd, 'motion', 'orchestrator-main.mjs'));
 });
+
+// Durable job storage in production (owner decision pending; the file is prepared, never the default): the store the dev renderer has had since
+// 2026-10-23, on one machine, so a restart cannot lose an accepted key and a second machine cannot appear with an empty store.
+test('the durable production renderer config is the dev store on the production app, prepared beside fly.prod.toml which stays volume-less', () => {
+  const durable = read('./fly.prod-durable.toml'), plain = read('./fly.prod.toml'), dev = read('./fly.dev.toml');
+  const strip = s => s.split('\n').filter(l => !l.startsWith('#') && !l.startsWith('app =')).join('\n').replace(/\n{2,}/g, '\n');
+  assert.match(durable, /^app = "rabbit-hole-motion-renderer"$/m);
+  assert.equal(strip(durable), strip(dev), 'the same store, mount, limits and machine as the dev service that was restart-tested');
+  assert.doesNotMatch(plain, /MOTION_JOB_STORE|\[mounts\]/, 'today\'s production config is unchanged: no store, no volume');
+  // The store cannot be bypassed by the topology: it is required (not optional), it is the mount's destination, one volume, one machine.
+  assert.match(durable, /MOTION_JOB_STORE_REQUIRE_MOUNT = "1"/);
+  const dir = /MOTION_JOB_STORE_DIR = "([^"]+)"/.exec(durable)[1];
+  assert.equal(dir, /destination = "([^"]+)"/.exec(durable)[1]);
+  assert.equal((durable.match(/^\[mounts\]/gm) || []).length, 1, 'one volume');
+  assert.equal((durable.match(/^\[\[vm\]\]/gm) || []).length, 1, 'one machine size');
+  assert.match(durable, /--ha=false/, 'the file says why a second machine must not exist');
+  assert.match(durable, /snapshot_retention = 1/);
+});

@@ -255,3 +255,47 @@ test('the Author effort is chosen before the call from the storyboard size: the 
   const request = authorRequest(brief, big);
   assert.deepEqual([request.output_config.effort, request.max_tokens], ['medium', AUTHOR_OUTPUT_CAP], 'the cap is not raised or lowered');
 });
+
+// 2026-10-25, M3-r3: the repair of a 60 s composition was refused because a full resend is priced at its 64000-token ceiling. The repair now
+// answers with a patch under a 24000-token cap (same tool name, so the production policy is unchanged), re-checked as a whole composition.
+test('the repair round: a patch under a 24000-token cap, the same tool name, one message; a Director revision or HyperFrames keeps the whole-source repair', async () => {
+  const brief = A.brief(), storyboard = A.storyboard(), source = A.source();
+  const repair = { source, composition_id: 'softmax-reference', findings: [{ reviewer: 'visual', category: 'overlapping_text', description: 'a label sits on a tile' }] };
+  const first = authorRequest(brief, storyboard), patchReq = authorRequest(brief, storyboard, { repair }), revised = authorRequest(brief, storyboard, { repair: { ...repair, revision: { added: [], removed: [], kept: [] } } });
+  assert.deepEqual([first.max_tokens, first.tools[0].input_schema.properties.status.enum], [64000, ['composition', 'needs_revision']], 'the first pass is unchanged');
+  assert.deepEqual([patchReq.max_tokens, patchReq.tools.map(t => t.name), patchReq.messages.length], [24000, ['motion_composition'], 1]);
+  assert.deepEqual(patchReq.tools[0].input_schema.properties.status.enum, ['patch', 'composition', 'needs_revision']);
+  assert.match(patchReq.messages[0].content, /Answer with a PATCH: call motion_composition with status patch and edits/);
+  assert.match(patchReq.messages[0].content, /previous_source =\n/);
+  assert.deepEqual([revised.max_tokens, revised.tools[0].input_schema.properties.status.enum], [64000, ['composition', 'needs_revision']], 'after a storyboard revision the repair is a whole composition');
+  assert.doesNotMatch(revised.messages[0].content, /Answer with a PATCH/);
+  assert.equal(authorRequest(brief, storyboard, { repair, renderer: 'hyperframes' }).max_tokens, 64000);
+  // The worst case the guard reserves for a repair drops from about US$1.38 to under US$0.7.
+  const { worstCase } = await import('./benchmark.mjs');
+  assert.ok(worstCase(patchReq, 'claude-opus-5-5') < 0.7 && worstCase(first, 'claude-opus-5-5') > 1.2);
+});
+
+test('a patch is applied to the previous source and the whole is checked like any composition; a find that is missing, ambiguous or empty is refused with its index', async () => {
+  const brief = A.brief(), storyboard = A.storyboard(), source = A.source();
+  const marker = 'export default function';
+  assert.equal(source.split(marker).length, 2, 'the marker occurs once');
+  const repair = { source, composition_id: 'softmax-reference', findings: [] };
+  const ok = await runAuthor({ brief, storyboard, call: fake(msg({ status: 'patch', edits: [{ find: marker, replace: `// patched\n${marker}` }], notes: 'comment' })).call, repair, round: 1, clock });
+  assert.equal(ok.status, 'composition', ok.check?.errors.join('\n'));
+  assert.equal(ok.output.source, source.replace(marker, `// patched\n${marker}`));
+  assert.deepEqual([ok.output.composition_id, ok.output.notes], ['softmax-reference', 'patched (1 edits): comment']);
+  // A patch that breaks the contract is caught by the same checks (author_invalid), not trusted.
+  const broken = await runAuthor({ brief, storyboard, call: fake(msg({ status: 'patch', edits: [{ find: 'durationInFrames: 450', replace: 'durationInFrames: 451' }] })).call, repair, round: 1, clock });
+  assert.equal(broken.status, 'author_invalid');
+  assert.match(broken.check.errors.join('\n'), /durationInFrames/);
+  // Refusals: nothing is guessed. The schema re-ask path answers them (the production policy then fails the job with the reason).
+  for (const [edits, re] of [[[{ find: 'no such text anywhere 7f3a', replace: 'x' }], /edits\[0\]\.find: not in the source/], [[{ find: 'const', replace: 'let' }], /occurs more than once/], [[{ find: '', replace: 'x' }], /edits\[0\]/], [[], /1 to 40 edits/]]) {
+    const m = fake(msg({ status: 'patch', edits }), msg({ status: 'patch', edits }));
+    const r = await runAuthor({ brief, storyboard, call: m.call, repair, round: 1, clock });
+    assert.equal(r.status, 'failed', JSON.stringify(edits));
+    assert.match(r.errors.join('\n'), re);
+    assert.equal(m.requests.length, 2, 'one schema-only re-ask, as for any malformed answer');
+  }
+  // A patch is only a repair-round answer: the first pass has no such status.
+  assert.match(validateAuthorToolOutput({ status: 'patch', edits: [{ find: 'a', replace: 'b' }] }).join('\n'), /status/);
+});

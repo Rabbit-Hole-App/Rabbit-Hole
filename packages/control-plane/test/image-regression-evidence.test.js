@@ -46,7 +46,7 @@ for (const [label, sign] of [['v2', () => signProposal(env, base({ settings: { d
     const got = await s.get();
     assert.equal(got.status, 200);
     assert.equal((await got.json()).proposal.settings.duration_seconds, 12);
-    assert.deepEqual(approvedProposal(old), { title: 'Water cycle', duration_seconds: 12, aspect_ratio: '16:9', description: DESCRIPTION });
+    assert.deepEqual(approvedProposal(old), { title: 'Water cycle', duration_seconds: 12, description: DESCRIPTION });
     assert.equal(await consumeProposal(s.LEARN_DB, old, ALICE, DEST, 'press-1'), null);
     assert.equal((await consumeProposal(s.LEARN_DB, old, ALICE, DEST, 'press-2')).code, 'proposal_used');
   });

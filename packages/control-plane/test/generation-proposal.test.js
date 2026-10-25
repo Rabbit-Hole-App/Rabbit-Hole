@@ -49,7 +49,7 @@ test('the review rules: Motion proposes; search, /dive, notebook, whiteboard and
 test('signed for one learner: a forged, edited, other-learner or expired proposal is refused; usage is the server\'s, in credits', async () => {
   const p = await sign();
   assert.match(p.proposal_id, /^gp-[0-9a-f]{16}$/);
-  assert.deepEqual([p.version, p.settings, p.input, p.usage], [1, { duration_seconds: 10, aspect_ratio: '16:9', audio: false }, { ...input, binding: { inputs: { duration_seconds: 10, aspect_ratio: '16:9' }, price_version: 'flat', estimate_credits: 100, policy_version: null, renderer_config: null } }, { estimate_credits: 100, reserve_credits: 896, inputs: { duration_seconds: 10, aspect_ratio: '16:9' }, price_version: 'flat' }]);
+  assert.deepEqual([p.version, p.settings, p.input, p.usage], [1, { duration_seconds: 10, aspect_ratio: '16:9', audio: false }, { ...input, binding: { inputs: { duration_seconds: 10, aspect_ratio: '16:9' }, price_version: 'flat', estimate_credits: 100, policy_version: 'legacy-5-30', renderer_config: null } }, { estimate_credits: 100, reserve_credits: 896, inputs: { duration_seconds: 10, aspect_ratio: '16:9' }, price_version: 'flat' }]);
   assert.equal(await verifyProposal(env, p, 'alice@example.test'), null);
   assert.equal(await verifyProposal(env, p, 'ALICE@example.test'), null, 'the email is compared without case');
   assert.match(await verifyProposal(env, p, 'bob@example.test'), /not made for you/);
@@ -61,9 +61,9 @@ test('signed for one learner: a forged, edited, other-learner or expired proposa
   assert.match(await verifyProposal(env, p, null), /Sign in/);
   assert.match(await verifyProposal({ ...env, MOTION_ORCHESTRATOR_TOKEN: 'z'.repeat(48) }, p, 'alice@example.test'), /changed/, 'another environment\'s secret');
   assert.deepEqual(proposalUsage({}, 'motion'), { estimate_credits: null, reserve_credits: null }, 'no settings: no figure of its own');
-  assert.deepEqual(approvedProposal(p), { title: p.title, duration_seconds: 10, aspect_ratio: '16:9', description: DESCRIPTION });
+  assert.deepEqual(approvedProposal(p), { title: p.title, duration_seconds: 10, description: DESCRIPTION }, 'the original 16:9 is not sent: the body the deployed orchestrator accepts');
   // A proposal signed before the ratio existed has none: the orchestrator is told the original 16:9.
-  assert.equal(approvedProposal({ ...p, settings: { duration_seconds: 10, audio: false } }).aspect_ratio, '16:9');
+  assert.equal(approvedProposal({ ...p, settings: { duration_seconds: 10, audio: false } }).aspect_ratio, undefined);
 });
 
 test('a settings change is the next version of the same proposal, re-signed; audio on and out-of-range durations are refused', async () => {
@@ -153,7 +153,8 @@ test('readiness: default none ready; an allowlist of measured combinations with 
   const { motionReadiness, readyPolicy, motionQuoteInputs, MOTION_NOT_READY } = await import('../src/motion-settings.js');
   const { proposalView } = await import('../../web/src/generation-confirmation-schema.js');
   const at = (e, seconds, aspect_ratio) => motionReadiness(e, motionQuoteInputs({ duration_seconds: seconds, aspect_ratio }));
-  assert.deepEqual([at({}, 10, '16:9').ready, at({ MOTION_READY_POLICY: '' }, 10, '16:9').ready], [false, false], 'default: nothing validated, nothing ready');
+  // Owner 2026-10-25: with nothing configured the LEGACY policy applies (production today: 16:9, 5 to 30 s); an explicit empty variable is nothing.
+  assert.deepEqual([at({}, 10, '16:9').ready, at({}, 10, '9:16').ready, at({}, 35, '16:9').ready, at({ MOTION_READY_POLICY: '' }, 10, '16:9').ready], [true, false, false, false]);
   const one = { ...env, MOTION_RENDERER_CONFIG: 'r1', MOTION_READY_POLICY: policy([{ aspect_ratio: '16:9', min_seconds: 5, max_seconds: 30, complexity: ['simple', 'standard'] }, { aspect_ratio: ['1:1', '9:16'], min_seconds: 5, max_seconds: 10, complexity: ['simple'] }]) };
   assert.deepEqual([at(one, 5, '16:9').ready, at(one, 30, '16:9').ready, at(one, 35, '16:9').ready, at(one, 10, '9:16').ready, at(one, 15, '9:16').ready, at(one, 10, '4:3').ready], [true, true, false, true, false, false]);
   assert.deepEqual(at(one, 10, '16:9'), { ready: true, complexity: ['simple', 'standard'], policy_version: 'p1' });
@@ -170,7 +171,7 @@ test('readiness: default none ready; an allowlist of measured combinations with 
   assert.deepEqual(readyPolicy({ MOTION_READY_POLICY: policy([entry]) }).entries, [], 'no live configuration id: nothing is ready');
   // The signed proposal carries the answer for its own settings; the view blocks Generate and says why, options untouched.
   const p = await sign({ settings: { duration_seconds: 60, aspect_ratio: '9:16', audio: false } });
-  assert.deepEqual(p.readiness, { ready: false, code: MOTION_NOT_READY, message: no.message, policy_version: null });
+  assert.deepEqual(p.readiness, { ready: false, code: MOTION_NOT_READY, message: no.message, policy_version: 'legacy-5-30' });
   assert.equal(await verifyProposal(env, p, 'alice@example.test'), null, 'not ready is not a forgery: the card is still a valid, signed proposal');
   const view = proposalView(p);
   assert.deepEqual(view.validation_errors.filter(e => e.path === 'readiness').map(e => e.message), [p.readiness.message]);
@@ -213,7 +214,7 @@ test('generate check: the compatibility path for a saved off-step duration is va
   const open = { ...env, MOTION_RENDERER_CONFIG: 'r1', MOTION_READY_POLICY: policy([{ aspect_ratio: '16:9', min_seconds: 5, max_seconds: 30, complexity: ['simple'] }]) };
   const saved = settings => ({ request: '/motion x', proposal: { settings } });
   assert.equal(motionGenerationCheck(open, saved({ duration_seconds: 12, audio: false })), null, 'a 12 second proposal made before the 5-second steps: executable, as 12 seconds');
-  assert.equal(motionGenerationCheck(env, saved({ duration_seconds: 12, audio: false })).code, MOTION_NOT_READY, 'not ready is refused whatever the duration');
+  assert.equal(motionGenerationCheck({ ...env, MOTION_READY_POLICY: '' }, saved({ duration_seconds: 12, audio: false })).code, MOTION_NOT_READY, 'not ready is refused whatever the duration');
   assert.equal(motionGenerationCheck(open, saved({ duration_seconds: 40, audio: false })).code, MOTION_NOT_READY, 'outside the validated bucket: refused, not clamped to 30');
   assert.equal(motionGenerationCheck(open, saved({ duration_seconds: 60, audio: false })).code, MOTION_NOT_READY, '60 is refused, never clamped');
   for (const bad of [{ duration_seconds: 3, audio: false }, { duration_seconds: 12.5 }, { duration_seconds: 70 }, { duration_seconds: 12, aspect_ratio: '7:3' }, { duration_seconds: 12, audio: true }, { duration_seconds: 12, voice: 'x' }, {}, null]) {
@@ -222,7 +223,7 @@ test('generate check: the compatibility path for a saved off-step duration is va
   }
   assert.equal(motionGenerationCheck(open, { request: '/motion explain gravity in 20 seconds' }), null, 'no proposal: the seconds its words ask for');
   assert.equal(motionGenerationCheck(open, { request: '/motion explain gravity in 50 seconds' }).code, MOTION_NOT_READY);
-  assert.equal(motionGenerationCheck(env, { request: '/motion explain gravity' }).code, MOTION_NOT_READY, 'the default length is not exempt');
+  assert.equal(motionGenerationCheck({ ...env, MOTION_READY_POLICY: '' }, { request: '/motion explain gravity' }).code, MOTION_NOT_READY, 'the default length is not exempt');
 });
 
 test('execution terms: the orchestrator is told the live renderer configuration and the complexity classes the evidence covers', async () => {
@@ -232,5 +233,5 @@ test('execution terms: the orchestrator is told the live renderer configuration 
   assert.deepEqual(motionExecutionTerms(live, { duration_seconds: 60 }), { renderer_config: 'r1' }, 'no cover: the start is refused before this is sent');
   assert.deepEqual(motionExecutionTerms({}, { duration_seconds: 10 }), {});
   const p = await sign();
-  assert.deepEqual(approvedProposal(p, motionExecutionTerms(live, p.settings)), { title: p.title, duration_seconds: 10, aspect_ratio: '16:9', description: DESCRIPTION, renderer_config: 'r1', allowed_complexity: ['simple', 'standard'] });
+  assert.deepEqual(approvedProposal(p, motionExecutionTerms(live, p.settings)), { title: p.title, duration_seconds: 10, description: DESCRIPTION, renderer_config: 'r1', allowed_complexity: ['simple', 'standard'] });
 });

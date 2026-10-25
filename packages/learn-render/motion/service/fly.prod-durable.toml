@@ -1,0 +1,55 @@
+# rabbit-hole-motion-renderer WITH the durable job store. PREPARED, not deployed. Owner decision pending: one 1 GB Fly volume, US$0.15
+# per month (docs.fly.io/about/pricing: "$0.15/GB/month", billed on provisioned capacity including while the machine is stopped; snapshots
+# "$0.08/GB/month" with the first 10 GB free each month, so a 1 GB volume with 1 day of retention costs no snapshot charge).
+# fly.dev.toml has had the same store since 2026-10-23. fly.prod.toml (no volume) stays what production runs today.
+# Do NOT deploy this file before the volume exists: with [mounts] and no volume, the deploy creates one itself.
+# Order: create the volume (package step E1), then `context.sh --target renderer-durable` and the deploy it prints. --ha=false is
+# required: the volume is machine-local, so a second machine would have an empty store and could run a key the first one saw.
+app = "rabbit-hole-motion-renderer"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  MOTION_SANDBOX = "linux"
+# Job records survive restart, auto-stop and redeploy on the volume below, and the service refuses every new job (503 job_store_not_mounted)
+# unless that directory really is a separate, writable mount; the orchestrator also refuses before any model call when /health says so.
+  MOTION_JOB_STORE_DIR = "/data/motion-jobs"
+  MOTION_JOB_STORE_REQUIRE_MOUNT = "1"
+
+[mounts]
+  source = "motion_jobs"
+  destination = "/data/motion-jobs"
+  initial_size = "1gb"
+  snapshot_retention = 1
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Idle machines stop; a request starts one. Callers poll GET /render/<id> while a render runs
+  # and fetch the artifacts promptly: finished renders live in memory for 30 minutes at most.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  # Status polls and artifact downloads are cheap; the service itself admits one render at a
+  # time (a second POST /render gets 429).
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 10
+    hard_limit = 20
+
+[[http_service.checks]]
+  grace_period = "30s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health"
+
+# One machine (deploy with --ha=false). Dedicated CPUs: a 1080p render is minutes of sustained
+# Chromium + encoder work, which shared CPUs throttle toward the 420 s limit.
+[[vm]]
+  memory = "4gb"
+  cpu_kind = "performance"
+  cpus = 2

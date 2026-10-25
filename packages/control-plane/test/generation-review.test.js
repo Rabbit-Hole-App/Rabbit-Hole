@@ -73,9 +73,9 @@ test('a v3 proposal needs a valid review: prompt tokens and references must agre
 
 test('the executor reads the approved prompt: Motion\'s brief is the signed description of the prompt, and each revision is its own video', async () => {
   const p = await v3();
-  assert.deepEqual(approvedProposal(p), { title: 'Water cycle', duration_seconds: 10, aspect_ratio: '16:9', description: DESCRIPTION });
+  assert.deepEqual(approvedProposal(p), { title: 'Water cycle', duration_seconds: 10, description: DESCRIPTION });
   const edited = (await reviseProposal(env, p, { description: 'A slow pour of milk into tea, from above.', settings: { duration_seconds: 15, audio: false } }, ALICE, DEST)).proposal;
-  assert.deepEqual(approvedProposal(edited), { title: 'Water cycle', duration_seconds: 15, aspect_ratio: '16:9', description: 'A slow pour of milk into tea, from above.' });
+  assert.deepEqual(approvedProposal(edited), { title: 'Water cycle', duration_seconds: 15, description: 'A slow pour of milk into tea, from above.' });
   const op = proposal => ({ op: 'motion_request', request: '/motion water cycle', location: { concept: 'Weather' }, proposal });
   assert.equal(validateMotionRequest(op(edited)).proposal, edited, 'a v3 proposal rides motion_request');
   assert.notEqual(await motionRequestCacheKey(validateMotionRequest(op(p))), await motionRequestCacheKey(validateMotionRequest(op(edited))));

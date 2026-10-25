@@ -203,7 +203,7 @@ export async function runMotionJob({
     // After a Director revision the Author reconciles to the revised storyboard's object inventory.
     const revised = toStoryboard ? inventoryChange(current.storyboard, sb) : null;
     if (revised) out.repair.storyboard.inventory = revised;
-    const fixed = await repairAuthor({ brief, storyboard: sb, call, env, effort, round: 1, renderer, repair: source ? { source, findings: blocking, ...(revised ? { revision: revised } : {}) } : null });
+    const fixed = await repairAuthor({ brief, storyboard: sb, call, env, effort, round: 1, renderer, repair: source ? { source, composition_id: a?.output?.composition_id, findings: blocking, ...(revised ? { revision: revised } : {}) } : null });
     record(fixed);
     if (fixed.output?.source && dir) { mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, `composition.repaired.${renderer === 'hyperframes' ? 'html' : 'jsx'}`), fixed.output.source); } // diagnostics (a recovery's job directory may not exist yet: nothing rendered before its repair)
     out.repair.author = { status: fixed.status, ...(fixed.check?.errors?.length ? { errors: fixed.check.errors } : {}), ...(fixed.error ? { error: fixed.error, detail: fixed.detail } : {}) };

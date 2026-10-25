@@ -41,10 +41,12 @@ const approvedFor = (duration_seconds, aspect_ratio) => {
 test('the saved selection reaches the render inputs: approved proposal -> brief -> stage, frames, composition literal, checks', () => {
   for (const ratio of MOTION_RATIOS) for (const seconds of DURATIONS) {
     const approved = approvedFor(seconds, ratio);
-    assert.deepEqual([approved.duration_seconds, approved.aspect_ratio], [seconds, ratio]);
+    // 16:9 is the original and is not sent (the deployed orchestrator accepts no aspect_ratio field); every other ratio is.
+    assert.deepEqual([approved.duration_seconds, approved.aspect_ratio ?? '16:9'], [seconds, ratio]);
+    assert.equal(approved.aspect_ratio === undefined, ratio === '16:9');
     const orchestratorSide = validateJobRequest({ request: '/motion x', idempotency_key: 'motion-abcdefgh', grant: { micros: 1, issued_at: 1, boot: 'a'.repeat(32), sig: 'x' }, approved_proposal: { ...approved, title: 'T', description: 'D' } });
     assert.deepEqual(orchestratorSide, [], `${ratio} ${seconds}s`);
-    const brief = briefFor(approved.aspect_ratio, approved.duration_seconds);
+    const brief = briefFor(approved.aspect_ratio ?? '16:9', approved.duration_seconds);
     assert.deepEqual(approvedErrors(brief, { ...approved, title: brief.title }), [], 'the brief keeps the approved duration and ratio');
     const size = MOTION_STAGE_SIZES[ratio];
     // The Author is told exactly this stage, in frames.

@@ -52,6 +52,37 @@ export const HF_AUTHOR_TOOL = Object.freeze({
   input_schema: { ...AUTHOR_TOOL.input_schema, properties: { ...AUTHOR_TOOL.input_schema.properties, source: str('composition: the whole HTML document (index.html).') } },
 });
 
+// The repair round answers with a PATCH, not the whole source (2026-10-25). M3 (60 s) showed why: a full resend is priced at its 64000-token
+// ceiling (US$1.38 worst case) and no longer fits the per-job ceiling after a first pass of 50k tokens, while the findings usually ask for a few
+// lines (a label moved, a tile resized). Same tool name, so the production policy (one tool kind, 64000 cap) is unchanged and only allows more
+// than this asks; the patched whole is checked by exactly the same static, contract and review steps as any composition. A repair that cannot
+// be a patch may still return the whole source (status composition) within the smaller cap, or needs_revision.
+export const AUTHOR_REPAIR_CAP = 24000;
+export const AUTHOR_REPAIR_TOOL = Object.freeze({
+  name: AUTHOR_TOOL.name,
+  description: 'Submit the corrected Remotion composition as a PATCH to previous_source (status patch, preferred), as the whole corrected source (status composition) only when a patch cannot express the fix, or needs_revision. Call exactly once.',
+  input_schema: {
+    type: 'object', additionalProperties: false, required: ['status'],
+    properties: {
+      ...AUTHOR_TOOL.input_schema.properties,
+      status: str('patch, composition or needs_revision.', { enum: ['patch', 'composition', 'needs_revision'] }),
+      edits: { type: 'array', description: 'patch: replacements applied in order to previous_source. Each find is an exact substring of the source as it stands after the earlier edits and occurs exactly once; replace is its new text.', items: { type: 'object', additionalProperties: false, required: ['find', 'replace'], properties: { find: str('Exact text to replace; include enough surrounding text to occur exactly once.'), replace: str('The new text.') } } },
+    },
+  },
+});
+export const MAX_PATCH_EDITS = 40;
+// -> { source } or { errors }: every find must occur exactly once at its turn. Nothing is guessed or fuzzy-matched.
+export function applyEdits(source, edits) {
+  let text = String(source ?? '');
+  for (const [i, e] of edits.entries()) {
+    const at = text.indexOf(e.find);
+    if (at < 0) return { errors: [`motion_composition.edits[${i}].find: not in the source`] };
+    if (text.indexOf(e.find, at + 1) >= 0) return { errors: [`motion_composition.edits[${i}].find: occurs more than once (add surrounding text)`] };
+    text = text.slice(0, at) + e.replace + text.slice(at + e.find.length);
+  }
+  return { source: text };
+}
+
 // stage: the brief's stage (contracts.js stageOf); AUTHOR_SYSTEM below is the original 1920x1080 prompt, byte for byte.
 export const authorSystem = (stage = STAGE) => [
   'You are the Motion Author for Rabbit Hole, a learning product. You implement ONE validated storyboard for ONE validated MotionBrief as a Remotion composition: a single React (JSX) module. The brief and storyboard are authoritative. You do not reinterpret anything, regrade the teaching, or add content: you choose layout, geometry, typography sizes, colours and interpolation, and nothing else.',
@@ -101,9 +132,12 @@ export const authorEffort = (storyboard, requested = 'high') => (requested === '
 
 // 64000: at effort high the first real softmax call spent 32000 tokens (mostly thinking) before
 // finishing its tool call (2026-10-04); streaming keeps a long generation safe.
-export function authorRequest(brief, storyboard, { effort = 'high', maxTokens = AUTHOR_OUTPUT_CAP, repair = null, renderer = DEFAULT_RENDERER } = {}) {
+// A repair after a Director revision rebuilds toward a changed inventory: that stays a whole composition. HyperFrames keeps its own loop.
+export const patchable = (repair, renderer = DEFAULT_RENDERER) => !!repair?.source && !repair.revision && renderer !== 'hyperframes';
+export function authorRequest(brief, storyboard, { effort = 'high', maxTokens, repair = null, renderer = DEFAULT_RENDERER } = {}) {
   const base = authorContext(brief, storyboard);
-  const hf = renderer === 'hyperframes';
+  const hf = renderer === 'hyperframes', patch = patchable(repair, renderer);
+  maxTokens ??= patch ? AUTHOR_REPAIR_CAP : AUTHOR_OUTPUT_CAP;
   const ask = `Implement this storyboard${hf ? ' as a HyperFrames composition' : ''}.\n\ninput = ${JSON.stringify(hf ? { ...base, renderer: hfRendererFacts(base) } : base)}`;
   return {
     max_tokens: maxTokens,
@@ -113,9 +147,9 @@ export function authorRequest(brief, storyboard, { effort = 'high', maxTokens = 
     fallbacks: 'default',
     betas: ['server-side-fallback-2026-07-01'],
     system: [{ type: 'text', text: hf ? hfAuthorSystem(stageOf(brief)) : authorSystem(stageOf(brief)), cache_control: { type: 'ephemeral' } }],
-    tools: [hf ? HF_AUTHOR_TOOL : AUTHOR_TOOL],
+    tools: [hf ? HF_AUTHOR_TOOL : patch ? AUTHOR_REPAIR_TOOL : AUTHOR_TOOL],
     tool_choice: { type: 'auto' },
-    messages: [{ role: 'user', content: repair ? `${ask}\n\n${repairSection({ ...repair, storyboard })}` : ask }],
+    messages: [{ role: 'user', content: repair ? `${ask}\n\n${repairSection({ ...repair, storyboard, patch })}` : ask }],
   };
 }
 
@@ -141,7 +175,7 @@ export function inventoryChange(before, after) {
 // reconciles the composition to the revised storyboard: added objects are built, removed ones
 // deleted (never kept because the previous composition had them), kept ones stay on their ids, and
 // nothing outside the inventory is invented. The contract checks enforce the same inventory.
-export function repairSection({ source, findings, storyboard, revision = null }) {
+export function repairSection({ source, findings, storyboard, revision = null, patch = false }) {
   return [
     'REPAIR ROUND',
     revision
@@ -154,6 +188,7 @@ export function repairSection({ source, findings, storyboard, revision = null })
       : 'Keep everything the findings do not implicate: the same timeline, text, objects and layout where they are fine. The findings come from the rendered frames; fix the cause in the source.',
     `blocking_findings = ${JSON.stringify(repairFindings(findings))}`,
     `Repair requirements (always):\n${REPAIR_RULES.map(r => `- ${r}`).join('\n')}`,
+    ...(patch ? ['Answer with a PATCH: call motion_composition with status patch and edits, a list of {find, replace}. Each find is an exact substring of previous_source (as it stands after the earlier edits) that occurs exactly once; keep each edit as small as the fix allows and change nothing the findings do not implicate. The patched whole is checked by the same contract as any composition. Only if a patch cannot express the fix, return status composition with the whole corrected source.'] : []),
     `previous_source =\n${source}`,
   ].join('\n\n');
 }
@@ -168,6 +203,17 @@ export function validateAuthorToolOutput(o) {
   if (o.status === 'composition' && requested_changes !== undefined) e.push('motion_composition.requested_changes: not part of a composition result');
   if (o.status === 'needs_revision' && (!Array.isArray(requested_changes) || !requested_changes.length || requested_changes.some(x => typeof x !== 'string' || !x.trim()))) e.push('motion_composition.requested_changes: non-empty list of strings');
   return [...e, ...validateAuthorOutput(canonical).map(x => x.replace(/^author\./, 'motion_composition.'))];
+}
+
+// The repair round's answer: a patch is checked here, the others as always.
+export function validateRepairToolOutput(o) {
+  if (!o || typeof o !== 'object' || Array.isArray(o) || o.status !== 'patch') return validateAuthorToolOutput(o);
+  const e = [];
+  for (const k of Object.keys(o)) if (!['status', 'edits', 'notes'].includes(k)) e.push(`motion_composition.${k}: not a field of a patch`);
+  if (!Array.isArray(o.edits) || !o.edits.length || o.edits.length > MAX_PATCH_EDITS) e.push(`motion_composition.edits: 1 to ${MAX_PATCH_EDITS} edits`);
+  else o.edits.forEach((x, i) => { if (!x || typeof x !== 'object' || Object.keys(x).some(k => !['find', 'replace'].includes(k)) || typeof x.find !== 'string' || !x.find || typeof x.replace !== 'string') e.push(`motion_composition.edits[${i}]: {find: non-empty string, replace: string}`); });
+  if (o.notes !== undefined && typeof o.notes !== 'string') e.push('motion_composition.notes: string');
+  return e;
 }
 
 // Source and contract errors for a composition; ref errors for a needs_revision.
@@ -223,9 +269,12 @@ export async function runAuthor({ brief, storyboard, call, env = {}, effort = 'h
     if (end.kind === 'refusal') return fail('refused', end.detail);
     const use = (message.content || []).find(b => b.type === 'tool_use' && b.name === AUTHOR_TOOL.name);
     const errors = message.stop_reason === 'max_tokens' ? [`the response hit max_tokens before the ${AUTHOR_TOOL.name} call was complete`]
-      : use ? validateAuthorToolOutput(use.input) : [`no ${AUTHOR_TOOL.name} call (stop_reason ${message.stop_reason})`];
+      : use ? (patchable(repair, renderer) ? validateRepairToolOutput : validateAuthorToolOutput)(use.input) : [`no ${AUTHOR_TOOL.name} call (stop_reason ${message.stop_reason})`];
+    const patched = !errors.length && use.input.status === 'patch' ? applyEdits(repair.source, use.input.edits) : null;
+    if (patched?.errors) errors.push(...patched.errors);
     if (!errors.length) {
-      const output = use.input;
+      // A patch becomes the whole composition here, so everything after this point treats it like any other.
+      const output = patched ? { status: 'composition', composition_id: repair.composition_id || 'composition', source: patched.source, notes: `patched (${use.input.edits.length} edits)${use.input.notes ? `: ${use.input.notes}` : ''}` } : use.input;
       const check = checkAuthorOutput(output, brief, storyboard, renderer);
       // Source, contract and ref failures are surfaced, never re-asked or repaired here.
       const status = check.errors.length ? 'author_invalid' : output.status;

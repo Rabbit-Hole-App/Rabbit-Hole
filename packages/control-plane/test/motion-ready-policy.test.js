@@ -1,80 +1,114 @@
-// The measured readiness policy (src/motion-ready-policy.js): enabled strictly where a receipt on the measured renderer shows a pass.
+// The Motion readiness policies (src/motion-ready-policy.js): the legacy policy that reproduces production today, and the measured policy that
+// is enabled strictly where a receipt on the measured renderer shows a pass and is switched on by one config line.
 import test from 'node:test';
-import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
-import { MEASURED_POLICY_VERSION, MEASURED_READY_POLICY, MEASURED_RENDERER_CONFIG, MEASURED_RENDERER_REVISION, PASSED, TIMED_OUT } from '../src/motion-ready-policy.js';
-import { MOTION_NOT_READY, MOTION_RATIOS, motionExecutionTerms, motionGenerationCheck, motionReadiness, readyPolicy } from '../src/motion-settings.js';
+import { readFileSync } from 'node:fs';
+import { LEGACY_POLICY_VERSION, LEGACY_READY_POLICY, MEASURED_POLICY_VERSION, MEASURED_READY_POLICY, MEASURED_RENDERER_CODE_HASH, MEASURED_RENDERER_CONFIG, MEASURED_RENDERER_REVISION, MODEL_RUNS, MODEL_RUNS_NOT_COMPLETED, PASSED, TIMED_OUT } from '../src/motion-ready-policy.js';
+import { MOTION_NOT_READY, MOTION_RATIOS, motionBinding, motionExecutionTerms, motionGenerationCheck, motionReadiness, readyPolicy } from '../src/motion-settings.js';
+import { approvedProposal } from '../src/generation-proposal.js';
+import { rendererCodeHashes } from '../../learn-render/motion/orchestrator.mjs';
 
 const live = { MOTION_RENDERER_CONFIG: MEASURED_RENDERER_CONFIG };
 const SECONDS = Array.from({ length: 12 }, (_, i) => 5 + 5 * i);
 const at = (env, seconds, aspect_ratio) => motionReadiness(env, { duration_seconds: seconds, aspect_ratio });
 const key = (r, s) => `${r}|${s}`;
+const grid = env => { const ready = [], refused = []; for (const r of MOTION_RATIOS) for (const s of SECONDS) (at(env, s, r).ready ? ready : refused).push(key(r, s)); return { ready: ready.sort(), refused }; };
 
-// The validated pairs, written out so a change to the evidence has to change this list too.
+// The activated pairs, written out so a change to the evidence has to change this list too. 45 and 60 s are withheld in the first expanded
+// release; 9:16 at 30 s is enabled by a model-built video (mmr-M2-r2), 16:9 at 15 s is also one (mmr-M1-2).
 const EXPECTED = [
-  ...[5, 15, 30, 45, 60].map(s => key('16:9', s)),
+  ...[5, 15, 30].map(s => key('16:9', s)),
   ...['9:16', '1:1', '3:4', '4:3', '2:3', '3:2', '4:5', '5:4'].map(r => key(r, 15)),
-  ...['9:16', '1:1', '3:4'].map(r => key(r, 60)),
+  key('9:16', 30),
 ].sort();
 
-test('every one of the 9 ratios x 12 durations is judged; exactly the 16 receipt-backed pairs are ready, none interpolated', () => {
-  assert.equal(MOTION_RATIOS.length, 9);
-  const ready = [], refused = [];
-  for (const r of MOTION_RATIOS) for (const s of SECONDS) {
-    const x = at(live, s, r);
-    if (x.ready) { assert.deepEqual([x.complexity, x.policy_version], [['simple'], MEASURED_POLICY_VERSION]); ready.push(key(r, s)); }
-    else { assert.equal(x.code, MOTION_NOT_READY); assert.doesNotMatch(x.message, /\.\.\.|…|\$/, 'one plain line, credits only'); refused.push(key(r, s)); }
-  }
-  assert.deepEqual(ready.sort(), EXPECTED);
-  assert.equal(refused.length, 108 - 16);
-  // The neighbours of a validated pair stay refused: 30 and 45 passing do not enable 35 or 40; 15 and 60 do not enable 20 to 55.
-  for (const s of [10, 20, 25, 35, 40, 50, 55]) assert.equal(at(live, s, '16:9').ready, false, `16:9 ${s}`);
-  assert.equal(at(live, 30, '9:16').ready, false);
-  assert.equal(at(live, 60, '4:3').ready, false);
+test('LEGACY (nothing configured, production today): 16:9 and 5 to 30 seconds, nothing else, and the request body is the one the deployed orchestrator accepts', () => {
+  const { ready, refused } = grid({});
+  assert.deepEqual(ready, [5, 10, 15, 20, 25, 30].map(s => key('16:9', s)).sort());
+  assert.equal(refused.length, 108 - 6);
+  assert.deepEqual(at({}, 10, '16:9'), { ready: true, complexity: ['simple', 'standard', 'heavy'], policy_version: LEGACY_POLICY_VERSION });
+  for (const [s, r] of [[35, '16:9'], [45, '16:9'], [60, '16:9'], [10, '9:16'], [15, '1:1']]) assert.equal(at({}, s, r).ready, false, `${s} ${r}`);
+  // The worker's request to the orchestrator has no field the deployed one (main) rejects: no aspect_ratio for 16:9, no renderer_config, no allowed_complexity.
+  const p = { title: 'T', description: 'D', settings: { duration_seconds: 15, audio: false } };
+  assert.deepEqual(motionExecutionTerms({}, p.settings), {});
+  assert.deepEqual(approvedProposal(p, motionExecutionTerms({}, p.settings)), { title: 'T', duration_seconds: 15, description: 'D' });
+  assert.deepEqual(approvedProposal({ ...p, settings: { ...p.settings, aspect_ratio: '16:9' } }), { title: 'T', duration_seconds: 15, description: 'D' });
+  assert.equal(motionBinding({}, p.settings).renderer_config, null);
+  assert.equal(motionGenerationCheck({}, { request: '/motion x', proposal: p }), null, 'a 15 s 16:9 proposal still generates');
+  assert.equal(motionGenerationCheck({}, { request: '/motion x', proposal: { ...p, settings: { duration_seconds: 15, aspect_ratio: '9:16', audio: false } } }).code, MOTION_NOT_READY, 'the ratio stays visible but is refused');
+  assert.equal(motionGenerationCheck({}, { request: '/motion x', proposal: { ...p, settings: { duration_seconds: 45, audio: false } } }).code, MOTION_NOT_READY);
 });
 
-test('each enabled pair names a passing receipt on the measured revision; the pass is inside the 420 s limit; timeouts are not enabled by themselves', () => {
-  for (const c of PASSED) {
-    assert.match(c.receipt, /^mv-D\d\d-c4$/, 'the 03f2a1ef matrix only');
-    assert.ok(c.service_total_s > 0 && c.service_total_s < 420, c.receipt);
-  }
+test('ACTIVATED (MOTION_RENDERER_CONFIG = the measured id): exactly the receipt-backed pairs are ready, none interpolated, 45 and 60 s stay refused', () => {
+  const { ready, refused } = grid(live);
+  assert.deepEqual(ready, EXPECTED);
+  assert.equal(EXPECTED.length, 12);
+  for (const k of ready) { const [r, s] = k.split('|'), x = at(live, Number(s), r); assert.deepEqual([x.complexity, x.policy_version], [['simple'], MEASURED_POLICY_VERSION]); }
+  for (const k of refused) { const [r, s] = k.split('|'), x = at(live, Number(s), r); assert.equal(x.code, MOTION_NOT_READY); assert.doesNotMatch(x.message, /\.\.\.|…|\$/, 'one plain line, credits only'); }
+  // Neighbours stay refused: passing at 15 s and 30 s does not enable 20 s; 10 s, which production allows today, is not measured.
+  for (const s of [10, 20, 25, 35, 40, 45, 50, 55, 60]) assert.equal(at(live, s, '16:9').ready, false, `16:9 ${s}`);
+  for (const r of ['4:3', '2:3', '3:2', '4:5', '5:4', '1:1', '3:4']) assert.equal(at(live, 30, r).ready, false, `${r} 30`);
+  // 45 and 60 s pass in fixtures but are withheld, visibly: every one of them has a receipt and a reason.
+  const withheld = PASSED.filter(c => c.withheld);
+  assert.deepEqual(withheld.map(c => c.seconds).sort((a, b) => a - b), [45, 60, 60, 60, 60, 60]);
+  for (const c of withheld) { assert.ok(c.receipt && c.withheld); assert.equal(at(live, c.seconds, c.ratio).ready, false, `${c.ratio} ${c.seconds} withheld`); }
+});
+
+test('each enabled pair names a passing receipt on the measured renderer; fixture passes are inside the 420 s limit; timeouts and unfinished 60 s model runs enable nothing', () => {
+  for (const c of PASSED) { assert.match(c.receipt, /^mv-D\d\d-c4$/, 'the 03f2a1ef matrix only'); assert.ok(c.service_total_s > 0 && c.service_total_s < 420, c.receipt); }
+  assert.deepEqual(MODEL_RUNS.map(c => [c.ratio, c.seconds, c.receipt]), [['16:9', 15, 'mmr-M1-2'], ['9:16', 30, 'mmr-M2-r2']]);
   for (const e of MEASURED_READY_POLICY.entries) {
     assert.equal(e.min_seconds, e.max_seconds, 'one measured duration per entry');
     assert.ok(e.receipts.length >= 1);
-    assert.deepEqual(e.receipts, PASSED.filter(c => c.ratio === e.aspect_ratio && c.seconds === e.min_seconds).map(c => c.receipt));
   }
   assert.deepEqual(TIMED_OUT.map(c => c.receipt), ['mv-D18-c4', 'mv-D20-c4', 'mv-D21-c4']);
+  assert.deepEqual(MODEL_RUNS_NOT_COMPLETED, ['mmr-M3', 'mmr-M3-r2', 'mmr-M3-r3']);
   assert.equal(PASSED.length + TIMED_OUT.length, 21, 'the 21 runs of the matrix');
+  assert.deepEqual(LEGACY_READY_POLICY.entries.map(e => [e.aspect_ratio, e.min_seconds, e.max_seconds]), [['16:9', 5, 30]]);
 });
 
-test('fails closed: another renderer configuration, no configuration, an explicit empty or malformed variable', () => {
-  assert.equal(at({ MOTION_RENDERER_CONFIG: 'something-else' }, 15, '16:9').ready, false, 'measured on another renderer: nothing');
-  assert.equal(at({}, 15, '16:9').ready, false, 'no live configuration id: nothing');
-  assert.equal(at({ ...live, MOTION_READY_POLICY: '' }, 15, '16:9').ready, false, 'an explicit empty variable overrides the measured policy');
+test('fails closed: another renderer configuration, an explicit empty or malformed variable', () => {
+  assert.equal(at({ MOTION_RENDERER_CONFIG: 'something-else' }, 15, '16:9').ready, false, 'another configuration than the measured one: nothing');
+  assert.equal(at({ ...live, MOTION_READY_POLICY: '' }, 15, '16:9').ready, false, 'an explicit empty variable overrides the policy');
+  assert.equal(at({ MOTION_READY_POLICY: '' }, 15, '16:9').ready, false);
   assert.equal(at({ ...live, MOTION_READY_POLICY: 'not json' }, 15, '16:9').ready, false);
-  assert.equal(readyPolicy({}).entries.length, 0);
-  assert.equal(readyPolicy(live).entries.length, 16);
+  assert.equal(readyPolicy(live).entries.length, 12);
+  assert.equal(readyPolicy({}).version, LEGACY_POLICY_VERSION);
 });
 
-test('the variable still overrides the measured policy, and the checks and execution terms follow it', () => {
+test('the variable still overrides the policies, and the checks and execution terms follow the activated policy', () => {
   const one = { ...live, MOTION_READY_POLICY: JSON.stringify({ version: 'x', renderer_config: MEASURED_RENDERER_CONFIG, entries: [{ aspect_ratio: '1:1', min_seconds: 10, max_seconds: 10, complexity: ['simple'] }] }) };
   assert.deepEqual([at(one, 10, '1:1').ready, at(one, 15, '16:9').ready], [true, false]);
   const proposal = settings => ({ request: '/motion x', proposal: { settings } });
   assert.equal(motionGenerationCheck(live, proposal({ duration_seconds: 15, aspect_ratio: '2:3', audio: false })), null);
   assert.equal(motionGenerationCheck(live, proposal({ duration_seconds: 20, aspect_ratio: '2:3', audio: false })).code, MOTION_NOT_READY);
-  assert.deepEqual(motionExecutionTerms(live, { duration_seconds: 60, aspect_ratio: '3:4' }), { renderer_config: MEASURED_RENDERER_CONFIG, allowed_complexity: ['simple'] });
-  assert.deepEqual(motionExecutionTerms(live, { duration_seconds: 60, aspect_ratio: '5:4' }), { renderer_config: MEASURED_RENDERER_CONFIG }, 'not validated: no cover, the start is refused first');
+  assert.deepEqual(motionExecutionTerms(live, { duration_seconds: 30, aspect_ratio: '9:16' }), { renderer_config: MEASURED_RENDERER_CONFIG, allowed_complexity: ['simple'] });
+  assert.deepEqual(motionExecutionTerms(live, { duration_seconds: 60, aspect_ratio: '3:4' }), { renderer_config: MEASURED_RENDERER_CONFIG }, 'withheld: no cover, the start is refused first');
 });
 
-// Owner ruling 2026-10-24 (option A): the configuration id is committed in both places that must agree with the policy, never set by hand.
-test('MOTION_RENDERER_CONFIG in the production worker vars and in the orchestrator env is the measured configuration id', () => {
+// The activation is ONE line in each of two files and is OFF in the committed config.
+test('the committed config does not activate: MOTION_RENDERER_CONFIG is absent from the production Worker vars and the orchestrator env, and the commented activation line carries the measured id', () => {
   const read = p => readFileSync(new URL(p, import.meta.url), 'utf8');
-  const worker = read('../../web/wrangler.rabbit-hole-prod.jsonc').replace(/^\s*\/\/.*$/gm, '');
-  const orchestrator = read('../../learn-render/motion/service/fly.orchestrator.toml').replace(/^\s*#.*$/gm, '');
-  assert.equal(JSON.parse(worker).vars.MOTION_RENDERER_CONFIG, MEASURED_RENDERER_CONFIG);
-  assert.match(orchestrator, new RegExp(`^\\s*MOTION_RENDERER_CONFIG = "${MEASURED_RENDERER_CONFIG.replaceAll('.', '\\.')}"$`, 'm'));
-  // The id names the revision the receipts were taken on.
+  const worker = read('../../web/wrangler.rabbit-hole-prod.jsonc'), orchestrator = read('../../learn-render/motion/service/fly.orchestrator.toml');
+  const noComments = (s, mark) => s.replace(new RegExp(`^\\s*${mark}.*$`, 'gm'), '');
+  assert.equal(JSON.parse(noComments(worker, '//')).vars.MOTION_RENDERER_CONFIG, undefined, 'off in the Worker');
+  assert.doesNotMatch(noComments(orchestrator, '#'), /MOTION_RENDERER_CONFIG/, 'off in the orchestrator');
+  assert.ok(worker.includes(`// "MOTION_RENDERER_CONFIG": "${MEASURED_RENDERER_CONFIG}",`), 'the one-line activation in the Worker');
+  assert.ok(orchestrator.includes(`# MOTION_RENDERER_CONFIG = "${MEASURED_RENDERER_CONFIG}"`), 'the one-line activation in the orchestrator');
+  assert.equal(JSON.parse(noComments(worker, '//')).vars.MOTION_GENERATION_PAUSED, '0', 'working Motion is not paused');
   assert.ok(MEASURED_RENDERER_REVISION.startsWith(MEASURED_RENDERER_CONFIG.split('-')[0]));
-  // ...and the policy built on it stays closed for any other value, e.g. a renderer deploy that has not been measured.
-  assert.equal(motionReadiness({ MOTION_RENDERER_CONFIG: MEASURED_RENDERER_CONFIG.replace('03f2a1efc08e', 'ffffffffffff') }, { duration_seconds: 15, aspect_ratio: '16:9' }).ready, false);
+});
+
+// The renderer code the receipts were taken on is the renderer code in this checkout: edit a renderer file and this fails until it is measured again.
+test('this checkout renders with the code that was measured (the hash the service reports and the orchestrator checks)', () => {
+  assert.ok(rendererCodeHashes().includes(MEASURED_RENDERER_CODE_HASH), `renderer code changed since the measurement: ${rendererCodeHashes()} vs ${MEASURED_RENDERER_CODE_HASH}`);
+});
+
+// The card and the policy never claim more than a receipt shows: no word of promise in any message, and a ready answer carries no capacity field.
+test('no refusal or ready answer promises an outcome or names a capacity', () => {
+  for (const env of [{}, live]) for (const r of MOTION_RATIOS) for (const s of SECONDS) {
+    const x = at(env, s, r);
+    if (x.ready) assert.deepEqual(Object.keys(x).sort(), ['complexity', 'policy_version', 'ready']);
+    else assert.doesNotMatch(x.message, /succeed|guarantee|validated|supported|will (render|work|finish)|capacity|seconds? limit|\$|\.\.\.|…/i, x.message);
+  }
 });

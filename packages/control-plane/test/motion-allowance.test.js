@@ -908,7 +908,7 @@ test('MOT-20 Generate with the approved proposal: one job, and the orchestrator 
   assert.equal(x.placementId, y.placementId, 'a double click is one press: one card');
   await settle(actor, async () => (await video(actor)).status === 'ready');
   assert.deepEqual([w.orchestrator.posts, w.orchestrator.o.jobs.size, motionAttempts(sqlite).length], [1, 1, 1], 'one job, one hold');
-  assert.deepEqual(bodies[0].approved_proposal, { title: 'Water cycle: evaporation to rain', duration_seconds: 10, aspect_ratio: '16:9', description: WATER, renderer_config: 'r-test', allowed_complexity: ['simple', 'standard', 'heavy'] });
+  assert.deepEqual(bodies[0].approved_proposal, { title: 'Water cycle: evaporation to rain', duration_seconds: 10, description: WATER, renderer_config: 'r-test' });
   assert.equal(bodies[0].request, motionOp.request);
 });
 

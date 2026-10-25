@@ -350,6 +350,7 @@ export async function currentRevision(db, user, app, p) {
 }
 
 // What the orchestrator's Director takes as binding input (orchestrator.mjs approved_proposal).
-// aspect_ratio: a proposal saved before the setting existed has none, which is the original 16:9.
+// aspect_ratio: sent only when it is not the original 16:9 (a proposal saved before the setting existed has none), so a 16:9 request is the
+// exact body the deployed orchestrator accepts and a new worker can run against it.
 // terms: the live renderer configuration and the complexity classes the readiness policy covers (motion-settings.js motionExecutionTerms).
-export const approvedProposal = (p, terms = {}) => ({ title: p.title, duration_seconds: p.settings.duration_seconds, aspect_ratio: p.settings.aspect_ratio ?? MOTION_DEFAULT_RATIO, description: p.description, ...terms });
+export const approvedProposal = (p, terms = {}) => ({ title: p.title, duration_seconds: p.settings.duration_seconds, ...((p.settings.aspect_ratio ?? MOTION_DEFAULT_RATIO) === MOTION_DEFAULT_RATIO ? {} : { aspect_ratio: p.settings.aspect_ratio }), description: p.description, ...terms });
