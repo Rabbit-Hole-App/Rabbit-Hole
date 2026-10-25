@@ -1,13 +1,15 @@
 // Monthly AI allowance enforcement in the browser (owner L12 2026-10-20; D4 section 4), against the LOCAL stack only, with the
 // allowance really enforced by the server: exhausted, insufficient, reserved and unavailable each refuse a chat Send before any
 // provider call, explain themselves once with View usage, and give the learner's prompt back; the canvas stays readable and
-// editable. Isolation: the stack has no provider key (a placeholder only) and runs behind the provider tripwire
-// (e2e/provider-tripwire.js), which blocks and counts any provider request; this check requires zero.
-// The stack: bash C:/s/spec/toc-up.sh <lane> start with TRIPWIRE=1 and an extra.sh that sets, in the lane's .dev.vars,
-// SMALL_ENV=dev (spend enforced, test sign-in still on), USAGE_PLATFORM_DAY_USD and ANTHROPIC_API_KEY=<placeholder>.
-// The allowance states are rows written into the stack's local LEARN_DB with wrangler --local (D1_CONFIG, D1_PERSIST).
-// Usage: BASE=http://127.0.0.1:9341 SMALL_CP=http://127.0.0.1:9343 VARS=<lane .dev.vars> D1_CONFIG=<lane fu-integ-local-cp.jsonc>
-//   D1_PERSIST=<lane local dir> node e2e/allowance-enforcement-check.mjs [shotsDir]
+// editable. Isolation: the stack has no real provider key and runs behind the provider tripwire (e2e/provider-tripwire.js),
+// which blocks and counts any provider request; this check requires zero.
+// Enforcement: the keyless CI stack runs SMALL_ENV=test, which never meters. Every request this check makes (the browser's
+// /api/ calls and its own) carries x-e2e-enforce-spend: 1, which e2e/tripwire-dev-worker.js turns into the environment of a real
+// deployment for that request only (SMALL_ENV=dev, a platform limit, a placeholder key). A by-hand stack that already runs
+// SMALL_ENV=dev needs nothing more. The renewal text is read in America/Los_Angeles, the zone the owner reads it in.
+// The allowance states are rows written into the stack's local LEARN_DB with wrangler --local (D1_CONFIG, PERSIST).
+// Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 D1_CONFIG=<stack>/integ-local-cp.jsonc PERSIST=<stack>/local
+//   [VARS=<.dev.vars with TEST_BYPASS_SECRET>] node e2e/allowance-enforcement-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -17,18 +19,19 @@ import assert from 'node:assert/strict';
 const BASE = process.env.BASE || 'http://127.0.0.1:9341';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:9343';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('allowance-enforcement-check runs against the local stack only');
-const { D1_CONFIG, D1_PERSIST } = process.env;
-if (!D1_CONFIG || !D1_PERSIST) throw Error('D1_CONFIG and D1_PERSIST name the local stack\'s config and persist directory');
+const D1_CONFIG = process.env.D1_CONFIG, D1_PERSIST = process.env.D1_PERSIST || process.env.PERSIST;
+if (!D1_CONFIG || !D1_PERSIST) throw Error('D1_CONFIG and PERSIST name the local stack config and persist directory');
 const SHOTS = process.argv[2] || 'allowance-enforcement-shots';
 mkdirSync(SHOTS, { recursive: true });
-const secret = readFileSync(process.env.VARS, 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+const secret = process.env.TEST_BYPASS_SECRET || readFileSync(process.env.VARS || fileURLToPath(new URL('../../control-plane/.dev.vars', import.meta.url)), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+const ENFORCE = { 'x-e2e-enforce-spend': '1' };
 const WRANGLER = fileURLToPath(new URL('../../../node_modules/wrangler/bin/wrangler.js', import.meta.url));
 const d1 = command => execFileSync(process.execPath, [WRANGLER, 'd1', 'execute', 'rabbit-hole-learn-dev', '--local',
   '--config', D1_CONFIG, '--persist-to', D1_PERSIST, '--command', command], { stdio: 'pipe', env: { ...process.env, CI: '1' } });
 
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `allowance-${Date.now().toString(36)}@example.com`, secret }) })).json();
 const cookie = { cookie: `small_session=${session}` };
-const api = async (path, init = {}) => (await fetch(`${BASE}${path}`, { ...init, headers: { ...cookie, 'content-type': 'application/json' } })).json();
+const api = async (path, init = {}) => (await fetch(`${BASE}${path}`, { ...init, headers: { ...cookie, ...ENFORCE, 'content-type': 'application/json' } })).json();
 const tripwire = async () => (await (await fetch(`${BASE}/__provider-tripwire`)).json()).hits;
 const me = await (await fetch(`${CP}/api/me`, { headers: cookie })).json();
 const payer = me.user_id || me.email;
@@ -56,7 +59,9 @@ const STATE = { strokes: [], shapes: [], items: [], links: [], groups: [], areas
 const SEEDS = { [`small.adaptive-canvas:${catalog.org}:${catalog.email}:${canvas.name}:ink`]: STATE };
 
 const browser = await chromium.launch();
-const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
+const context = await browser.newContext({ viewport: { width: 1600, height: 900 }, locale: 'en-US', timezoneId: 'America/Los_Angeles' });
+// Only the app's own /api/ calls carry the enforcement header (a header on a cross-origin request would force a preflight).
+await context.route(url => url.origin === new URL(BASE).origin && url.pathname.startsWith('/api/'), route => route.continue({ headers: { ...route.request().headers(), ...ENFORCE } }));
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
 await context.addInitScript(seeds => { for (const [key, value] of Object.entries(seeds)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, SEEDS);
 const page = await context.newPage();
@@ -65,8 +70,8 @@ page.on('pageerror', error => errors.push(error.message));
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
 const shot = async name => { await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/${name}.png` }); console.log('shot', name); };
-// formatReset (account-usage.js): the reset instant in the browser's own zone, zone named; this check runs on the machine whose zone the browser uses.
-const resets = new Date(usage.resetsAt).toLocaleString('en-US', { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).replace(' at ', ', ');
+// formatReset (account-usage.js): the reset instant in the browser zone (set above), zone named, e.g. "October 31, 5:00 PM PDT".
+const resets = new Date(usage.resetsAt).toLocaleString('en-US', { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short', timeZone: 'America/Los_Angeles' }).replace(' at ', ', ');
 
 const open = async () => {
   await page.goto(`${BASE}/apps/${canvas.name}`);
