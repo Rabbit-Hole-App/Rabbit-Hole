@@ -28,7 +28,8 @@ const api = (path, cookie, init = {}) => fetch(`${BASE}/api/owner/telemetry${pat
 await check('the owner is let in to the API and told storage is not configured; the other address and a signed-out caller get 404', async () => {
   const access = await api('/access', owner);
   assert.equal(access.status, 200, 'owner access');
-  assert.deepEqual(await access.json(), { owner: true, configured: false, environment: null });
+  // The local stack's SMALL_ENV is "test", which the environment label falls back to; with no TELEMETRY_DB it is still not configured.
+  assert.deepEqual(await access.json(), { owner: true, configured: false, environment: 'test' });
   for (const path of ['/overview', '/health', '/client-errors', '/learning']) {
     const answered = await api(path, owner);
     assert.equal(answered.status, 200, path);
