@@ -2,21 +2,29 @@
 
 Owner brief: `C:/s/spec/stars/brief.md` (Tasks 1-10, 2026-10-23). Branch `feat/stars`, base `rabbit-hole/main` 73d184a8.
 
+**Live on production** (verified 2026-10-25): migration 0028 is applied on the dev and production Learn D1s (production had 196 objects
+after it; later migrations have since raised that, 215 at the last count), and Stars shipped to production in release C6 `59bb544c`
+(release production run 40235092667, 2026-10-25 2:23 PM PT). Stars needs no flag. Weekly Top 5 depends on these tables (its 0029 follows this).
+
 Status by increment (delivery order, brief Task 10):
 
 1. **Done:** this contract, migration 0028, idempotent mutations, authorization and visibility, integration-point discovery, and
    one end-to-end surface: the shared canvas viewing page (`SharedBoardPage.jsx`) with the shared Star control.
-2. **Done (branch feat/stars-ui-r2):** the Star control on cards: the owner's Library and Home cards (by canvas name), Explore, Recommended and
+2. **Done, live:** the Star control on cards: the owner's Library and Home cards (by canvas name), Explore, Recommended and
    profile cards (by publication token, with the viewer's starred state from one batched `POST /api/learn/stars/state`). `CardStar.jsx`,
    `canvas-star.js`; `LearningCard` takes a `star` slot, first in the card's actions row. Both fix/card-size-description and fix/creators-ui are
    already in main (dfab2e55), so nothing waits on them.
-3. **Done (branch feat/stars-ui-r2):** my personal Stars (`StarsPage.jsx`, a Library view at `/library?view=stars`, reached by the Stars button on Home
+3. **Done, live:** my personal Stars (`StarsPage.jsx`, a Library view at `/library?view=stars`, reached by the Stars button on Home
    and on the Library header) and the public profile Stars tab (`CreatorProfile.jsx`, `?tab=stars`).
-4. **Server side done, wiring pending:** creator star analytics and the event delivery adapter. Folding the analytics fields into
-   the analytics lane's endpoint, the owner dashboard and the telemetry sink wait for those lanes.
+4. **Server routes live, dashboard wiring pending:** `GET /api/learn/stars/analytics?range=7d|30d|all` is routed (`starsRoute` in `canvas-stars.js`,
+   answering from `canvas-star-analytics.js`) and live on production. Nothing in the web app calls it: `CreatorAnalytics.jsx` and `creator-analytics.js`
+   have no Stars fields, so the creator dashboard shows no Stars numbers yet. `deliverStarEvents` is defined but called from nowhere (no cron, no sink),
+   so no star event has reached the telemetry sink; the durable rows in `canvas_star_events` accumulate meanwhile. Re-read in the code on main 41aaaf43.
 
 Browser checks: `packages/web/e2e/stars-check.mjs` (the shared page) and `packages/web/e2e/stars-surfaces-check.mjs` (cards, profile tab, personal
-Stars; both tier `fork`, executed by fast-e2e), written and registered; not run by the lane that wrote them (CI reads them). Nothing here is applied to any database or deployed. Other evidence is unit/fixture only.
+Stars; both tier `fork`, executed by fast-e2e). Neither is run by the lane that writes it: CI reads them. On the released SHA `8bda70a2` (fast-e2e run
+40145029992) `stars-check` passed 24/24 and `stars-surfaces-check` 33/33. That is browser wiring and persistence against the local CI stack with fixtures,
+not a check of production. Other evidence is unit/fixture only.
 
 ## Product contract (Task 1)
 
@@ -184,7 +192,7 @@ during a request collapse to the last wish; an older answer cannot overwrite a n
 state and toasts the error; it re-reads on focus and visibility. Signed out, a press goes to `/login?next=<page>?star=1`, and
 the page, reading `?star=1` once and removing it, stars once on return; the server re-checks access. In the shared header it sits
 left of the creator @handle, so the handle stays immediately left of Fork (owner decision 2026-10-23); keyboard order is logo,
-menus, Star, Fork, panel toggle (`e2e/shared-header-check.mjs` updated to assert it; written, not run by this lane). In the shared header, below the
+menus, Star, Fork, panel toggle (`e2e/shared-header-check.mjs` updated to assert it; it passes in CI, 39/39 on the Stars candidate runs). In the shared header, below the
 `@6xl` container width (1152px) the control is `tight`: the label is screen-reader-only, the count loses its divider and the padding drops to 8px, so the icon, state and count remain in about 50px. At a 1024px header the full control left the @handle about 48px, then 83px with only the label gone, a cut "@hdr_..." that overlapped Fork (fast-e2e runs 40135548596 and 40136801962, shared-header 36/39). The shared-header and stars checks assert the result. Unverified in a browser until CI reads it. The embed header does not show it (an embed is a public guest, with no account).
 
 ## Surfaces: cards, profile tab, personal Stars (Tasks 6-8, UI)
@@ -206,8 +214,8 @@ menus, Star, Fork, panel toggle (`e2e/shared-header-check.mjs` updated to assert
   total "N stars, M unavailable", cards with Star and (others' canvases) Fork but no card options, an unavailable star as one generic row
   "Canvas unavailable" with Remove, Show more by the server's cursor, loading, empty and retry states.
 - **Not built.** `star.opened` (a canvas opened from personal Stars or a profile Stars list) is defined but nothing emits it yet; the Stars analytics
-  fields are not folded into the creator dashboard; the Home Continue card has no Star when its canvas row is not in the catalog.
-- **Unverified in a browser** until `stars-surfaces-check.mjs` has been read from CI on the candidate SHA: layout at small card sizes and widths,
+  fields are not folded into the creator dashboard (the server route is live, increment 4); the Home Continue card has no Star when its canvas row is not in the catalog.
+- **Not covered by a browser check:** `stars-surfaces-check.mjs` passed 33/33 in CI on the released SHA (above). Still not asserted: layout at every small card size and width,
   light and dark appearance (the control is the shared `Button` with theme tokens; no dark-specific assertion), and the touch target on a real device.
 
 ## Telemetry events (Task 9; the telemetry lane owns the envelope)
@@ -240,13 +248,14 @@ bounded catch-up, as the telemetry lane does for its accounting projection, once
 
 ## Rollback and operations
 
-Dropping the feature is a code revert: the tables are additive and nothing else reads them. The migration is not applied
-anywhere. Dev (announce first; the dev LEARN_DB is shared by all clones):
+The migration is applied on dev and production (see the top of this page). Dropping the feature is a Worker rollback, not a table drop: the Library and
+Home list, Explore and profile cards, and the shared page now read `canvas_stars`, so the tables stay in place and the previous Worker version (which never
+reads them) is the way back; stars already made stay valid for a redeploy. The commands that applied it, kept for a new environment. Dev (announce first; the dev LEARN_DB is shared by all clones):
 
 `cd packages/control-plane && npx wrangler d1 execute rabbit-hole-learn-dev --remote --config wrangler.rabbit-hole-dev.jsonc --file learn-migrations/0028-canvas-stars.sql -y`
 
 Production (owner only; same file against `rabbit-hole-learn-prod` with `wrangler.rabbit-hole-prod.jsonc`, before the server
-release that reads the tables):
+release that reads the tables; applied that way here):
 
 `cd packages/control-plane && npx wrangler d1 execute rabbit-hole-learn-prod --remote --config wrangler.rabbit-hole-prod.jsonc --file learn-migrations/0028-canvas-stars.sql -y`
 
@@ -262,5 +271,5 @@ the whole collection; the public profile filtered before count and page and iden
 unique and not-collected against zero; delivery order, outage and replay. Existing tests updated for the new card fields:
 `canvas-publications.test.js`, `creator-profile.test.js`.
 `packages/web/src/canvas-star.test.mjs`: the client action's ordering, collapse, failure and refresh rules.
-`packages/web/e2e/stars-check.mjs` (fork tier) and the updated `shared-header-check.mjs`: browser coverage, written but not run by the
-lane. Fixture limits: the fixture serializes batches on one connection as D1 does but cannot show real D1 contention.
+`packages/web/e2e/stars-check.mjs` and `stars-surfaces-check.mjs` (fork tier) and the updated `shared-header-check.mjs`: browser coverage, read from CI,
+not run by the lane. Fixture limits: the fixture serializes batches on one connection as D1 does but cannot show real D1 contention.
