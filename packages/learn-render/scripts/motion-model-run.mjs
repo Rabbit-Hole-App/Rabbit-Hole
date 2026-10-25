@@ -43,6 +43,19 @@ export const RUNS = Object.freeze({
     approved: { title: 'Softmax in attention', duration_seconds: 15, aspect_ratio: '9:16', description: 'How softmax turns a row of attention scores into weights that sum to one, read from model.py line 69.' },
     note: 'the 15 s pair with the least margin to the render limit and no model-built video; the M1 request in a portrait stage',
   },
+  // 2026-10-25: pairs that the initial activation enables, most used first (the product default is 10 s at 16:9), all the M1 request so the pairs compare.
+  M5: { ratio: '16:9', seconds: 10, message: '/motion 10s explain me softmax func', location: { concept: 'Attention' }, note: 'the product default duration at the default ratio' },
+  M6: { ratio: '16:9', seconds: 30, message: '/motion 30s explain me softmax func', location: { concept: 'Attention' }, note: 'the longest duration of the first expanded release at the default ratio' },
+  M7: {
+    ratio: '1:1', seconds: 15, message: '/motion 15s explain me softmax func', location: { concept: 'Attention' },
+    approved: { title: 'Softmax in attention', duration_seconds: 15, aspect_ratio: '1:1', description: 'How softmax turns a row of attention scores into weights that sum to one, read from model.py line 69.' },
+    note: 'the square stage at 15 s',
+  },
+  M8: {
+    ratio: '4:5', seconds: 15, message: '/motion 15s explain me softmax func', location: { concept: 'Attention' },
+    approved: { title: 'Softmax in attention', duration_seconds: 15, aspect_ratio: '4:5', description: 'How softmax turns a row of attention scores into weights that sum to one, read from model.py line 69.' },
+    note: 'a portrait stage other than 9:16 at 15 s',
+  },
   M3: { ratio: '16:9', seconds: 60, message: '/motion 60s explain this', repository_context: PREP, note: 'the longest duration on a non-model system flow: the capacity ceiling of the fixture evidence (medium and simple pass to 60 s)' },
 });
 
