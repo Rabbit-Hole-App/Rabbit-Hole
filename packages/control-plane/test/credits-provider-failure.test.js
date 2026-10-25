@@ -16,7 +16,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { spendTransport, requestSpendBound, admitSpend } from '../src/learn-spend.js';
 import { allowanceFor } from '../src/learn-entitlement.js';
-import { noteUsageIdentity, periodOf, refundAttempt, settleAttempt, toMicros, usageTotals, withUsage } from '../src/learn-usage.js';
+import { beginAttempt, noteUsageIdentity, periodOf, refundAttempt, settleAttempt, toMicros, usageTotals, withUsage } from '../src/learn-usage.js';
 
 const MODEL = 'claude-opus-5-5';
 const body = { max_tokens: 200, messages: [{ role: 'user', content: 'Synthetic question.' }] };
@@ -189,4 +189,29 @@ test('the October 5,000 grant and the 2,500 default: a hold or a refund belongs 
   assert.deepEqual([november.reserved, november.unknownAttempts], [0, 0]);
   assert.ok(november.used > 0, 'the answered November call is charged in November');
   assert.deepEqual((await state(LEARN_DB, 'u-old', '2026-10')).used, 0, 'and nothing moved into October');
+});
+
+test('duplicate settlement and refund in parallel (replay, retry, two workers) charge once and refund once, in the October 5,000 month and in November', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const env = config(LEARN_DB, TRANSITION);
+  sqlite.prepare("INSERT INTO usage_actions (action_id, user_id, payer, payer_reason, feature, charge_class, period, status, started_at) VALUES ('seed', 'u-dup', 'user', 'signed_in', 'ask', 'would_charge', '2026-09', 'completed', 1)").run();
+  for (const [month, now, period, allowance] of [['October', OCT, '2026-10', 50_000_000], ['November', NOV, '2026-11', 25_000_000]]) {
+    const scoped = as(env, 'u-dup', now);
+    const id = await beginAttempt(scoped, { attemptId: `att-${month}`, kind: 'generation', reservedMicros: 900_000 });
+    // Five completions at once, two of them reporting a different cost: exactly one write lands, and it is the recorded cost.
+    await Promise.all([300_000, 300_000, 500_000, 300_000, 500_000].map(costMicros => settleAttempt(scoped, id, { costMicros })));
+    const [attempt] = rows(sqlite, 'usage_attempts').filter(a => a.attempt_id === id);
+    assert.equal(attempt.cost_state, 'settled', month);
+    assert.equal((await state(LEARN_DB, 'u-dup', period)).used, attempt.cost_micros, `${month}: charged once, at the recorded cost`);
+    assert.ok([300_000, 500_000].includes(attempt.cost_micros), month);
+    // Five refunds at once: one lands, the others return 0; one audit line; a replayed settlement afterwards changes nothing.
+    const refunded = await Promise.all([1, 2, 3, 4, 5].map(n => refundAttempt(LEARN_DB, id, { reason: 'platform_failure_refund', now: now + n })));
+    assert.equal(refunded.reduce((a, b) => a + b, 0), attempt.cost_micros, `${month}: refunded exactly once`);
+    assert.equal(rows(sqlite, 'usage_adjustments').filter(r => r.created_at > now && r.created_at <= now + 5 && r.micros === -attempt.cost_micros).length, 1, month);
+    await settleAttempt(scoped, id, { costMicros: 900_000 });
+    const totals = await state(LEARN_DB, 'u-dup', period);
+    assert.deepEqual([totals.used, totals.reserved], [0, 0], `${month}: refunded to zero and not charged again`);
+    assert.equal(await allowanceFor(LEARN_DB, env, 'u-dup', period), allowance, `${month}: the grant is untouched`);
+  }
+  assert.equal(rows(sqlite, 'usage_adjustments').length, 2, 'one refund per month, none doubled');
 });
