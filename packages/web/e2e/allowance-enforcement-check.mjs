@@ -110,6 +110,8 @@ await check('exhausted: Send is refused before any provider call, one toast name
   assert.equal(await field().inputValue(), prompt, 'the learner\'s prompt is back in the composer');
   assert.ok(told.asks.length >= 1, 'the Send reached the server, which refused it');
   assert.deepEqual(await tripwire(), [], 'no provider request left the stack');
+  const after = await api('/api/learn/usage');
+  assert.deepEqual([after.usedMicros, after.reservedMicros], [ALLOWANCE, 0], 'the refusal charged nothing and reserved nothing');
   await page.locator('[data-block-id="c-tides"]').getByText('The moon pulls').waitFor();
   await shot('exhausted');
 });

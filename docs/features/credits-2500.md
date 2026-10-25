@@ -100,8 +100,8 @@ counted by the tripwire, and both checks require zero.
   free action not counting as usage; no dollar amount, "USD" or "cents" on those surfaces.
 - `allowance-enforcement-check.mjs`: exhausted, insufficient, reserved and accounting-unavailable each refuse a chat Send before any
   provider call, with one toast ("Not enough AI credits. Renews on <Los Angeles time>."), View usage opening Settings, the prompt
-  given back and the canvas still editable. A refusal and an accounting outage leave nothing spent: the seeded balance is unchanged and
-  the tripwire counts zero.
+  given back and the canvas still editable. The exhausted refusal charges and reserves nothing (used stays at the
+  seeded allowance, reserved 0), and every refusal and the accounting outage leave the tripwire at zero requests.
 
 Not covered by a browser check: `settings-check.mjs` stays windows-only (it is the general Settings check, not the credits meter); a
 provider failure after admission (HTTP 599 from the tripwire) is an unknown-cost attempt that keeps its reservation, and the
