@@ -107,6 +107,26 @@ Not covered by a browser check: `settings-check.mjs` stays windows-only (it is t
 provider failure after admission (HTTP 599 from the tripwire) is an unknown-cost attempt that keeps its reservation, and the
 provider-unavailable refund to zero (`providerUnavailable`) is unit-tested only.
 
+## A provider failure after admission (unit-tested, `test/credits-provider-failure.test.js`; no browser check)
+
+What the learner's balance does when a paid call fails after its reservation was made. `used` is what is charged; a hold is a
+reservation the balance sets aside (available = allowance - used - held).
+
+| Failure | Attempt | Used | Held |
+| --- | --- | --- | --- |
+| Provider capacity refusal: HTTP 429, 529, or 400 "usage limits" (`providerUnavailable`) | `settled`, cost 0 | 0 | released |
+| Other HTTP error (400 invalid request, 401, 500, 502, 504, 599) | `unknown`, cost NULL | 0 | the whole reservation |
+| Transport throws (network error, timeout, abort) | `unknown` | 0 | the whole reservation |
+| 200 with no usable usage | `unknown` | 0 | the whole reservation |
+| Stream ends before `message_stop`, errors mid-read, or is cancelled | `unknown` | 0 | the whole reservation |
+| Complete stream or JSON answer with usage | `settled`, measured | the measure | the rest released |
+
+Open gap (owner decision needed): an unknown-cost hold is never released. `settleAttempt` only settles a running attempt and
+`refundAttempt` only a settled one, and nothing sweeps or expires them, so the hold lasts until the month renews. It is not a
+charge, but it lowers what the learner can spend: a PDF request reserves the model's whole context window (408 credits), so six
+502s hold 2,449 of 2,500 credits, and the next request is refused as "reserved by AI work that is still running" with no work
+running. The Image Jobs path also keeps a 429 as unknown, unlike the capacity refusal above.
+
 ## What fixtures cannot prove (verify on the dev D1, read-only)
 
 Every test is deterministic and runs on in-memory SQLite behind a D1-shaped wrapper (`credits-2500.test.js`): concurrent first
