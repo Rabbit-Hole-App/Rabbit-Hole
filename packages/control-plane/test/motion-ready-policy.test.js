@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { LEGACY_POLICY_VERSION, LEGACY_READY_POLICY, MEASURED_POLICY_VERSION, MEASURED_READY_POLICY, MEASURED_RENDERER_CODE_HASH, MEASURED_RENDERER_CONFIG, MEASURED_RENDERER_REVISION, MODEL_RUNS, MODEL_RUNS_NOT_COMPLETED, PASSED, TIMED_OUT } from '../src/motion-ready-policy.js';
+import { EVIDENCE_LIMITATIONS, LEGACY_POLICY_VERSION, LEGACY_READY_POLICY, MEASURED_POLICY_VERSION, MEASURED_READY_POLICY, MEASURED_RENDERER_CODE_HASH, MEASURED_RENDERER_CONFIG, MEASURED_RENDERER_REVISION, MODEL_RUNS, MODEL_RUNS_NOT_COMPLETED, PASSED, TIMED_OUT, evidenceGroups } from '../src/motion-ready-policy.js';
 import { MOTION_NOT_READY, MOTION_RATIOS, motionBinding, motionExecutionTerms, motionGenerationCheck, motionReadiness, readyPolicy } from '../src/motion-settings.js';
 import { approvedProposal } from '../src/generation-proposal.js';
 import { rendererCodeHashes } from '../../learn-render/motion/orchestrator.mjs';
@@ -57,7 +57,7 @@ test('ACTIVATED (MOTION_RENDERER_CONFIG = the measured id): exactly the receipt-
 
 test('each enabled pair names a passing receipt on the measured renderer; fixture passes are inside the 420 s limit; timeouts and unfinished 60 s model runs enable nothing', () => {
   for (const c of PASSED) { assert.match(c.receipt, /^mv-(D\d\d-c4|[EF][\d-]+-c5)$/, 'the 03f2a1ef matrix only'); assert.ok(c.service_total_s > 0 && c.service_total_s < 420, c.receipt); }
-  assert.deepEqual(MODEL_RUNS.map(c => [c.ratio, c.seconds, c.receipt]), [['16:9', 15, 'mmr-M1-2'], ['9:16', 30, 'mmr-M2-r2']]);
+  assert.deepEqual(MODEL_RUNS.map(c => [c.ratio, c.seconds, c.receipt]), [['16:9', 15, 'mmr-M1-2'], ['9:16', 30, 'mmr-M2-r2'], ['9:16', 15, 'mmr-M4'], ['16:9', 10, 'mmr-M5']]);
   for (const e of MEASURED_READY_POLICY.entries) {
     assert.equal(e.min_seconds, e.max_seconds, 'one measured duration per entry');
     assert.ok(e.receipts.length >= 1);
@@ -113,4 +113,16 @@ test('no refusal or ready answer promises an outcome or names a capacity', () =>
     if (x.ready) assert.deepEqual(Object.keys(x).sort(), ['complexity', 'policy_version', 'ready']);
     else assert.doesNotMatch(x.message, /succeed|guarantee|validated|supported|will (render|work|finish)|capacity|seconds? limit|\$|\.\.\.|…/i, x.message);
   }
+});
+
+// The evidence statement: every enabled pair is in exactly one group, A (a model-built video made at the pair) or B (fixture receipts only).
+test('evidence groups: A = pairs with a model-driven run, B = fixture-only; together exactly the enabled pairs; the limitations name what is not established', () => {
+  const { A, B } = evidenceGroups();
+  const keys = g => g.map(x => key(x.aspect_ratio, x.seconds));
+  assert.deepEqual([...keys(A), ...keys(B)].sort(), EXPECTED);
+  assert.deepEqual(keys(A).sort(), [key('16:9', 15), key('9:16', 30), ...[["9:16",15],["16:9",10]].map(([r, s]) => key(r, s))].sort());
+  assert.ok(B.every(x => x.receipts.every(rc => /-c[45]$/.test(rc))), 'group B rests on fixture receipts only');
+  assert.match(EVIDENCE_LIMITATIONS.join(' '), /No canary has run on the production renderer/);
+  assert.match(EVIDENCE_LIMITATIONS.join(' '), /not a capacity check/);
+  assert.match(EVIDENCE_LIMITATIONS.join(' '), /zero credits/);
 });

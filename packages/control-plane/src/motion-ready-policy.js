@@ -75,6 +75,8 @@ export const PASSED = Object.freeze([
 export const MODEL_RUNS = Object.freeze([
   cell('16:9', 15, 'model: /motion 15s softmax', 'mmr-M1-2', null, { model_run: true }),
   cell('9:16', 30, 'model: MLP block (approved proposal)', 'mmr-M2-r2', null, { model_run: true }),
+  cell('9:16', 15, 'model: /motion 15s softmax, portrait', 'mmr-M4', null, { model_run: true }),
+  cell('16:9', 10, 'model: /motion 10s softmax (patch repair used)', 'mmr-M5', null, { model_run: true }),
 ]);
 
 // Runs that hit the 420 s limit (recorded once, not repeated). They do not disable a pair a lighter scene passed; they bound what the
@@ -84,6 +86,25 @@ export const TIMED_OUT = Object.freeze([
   cell('16:9', 60, 'heavy', 'mv-D20-c4', null),
   cell('16:9', 60, 'heavy (preview job alone)', 'mv-D21-c4', null),
 ]);
+
+// THE EVIDENCE STATEMENT OF THE INITIAL RELEASE (owner 2026-10-25). Every enabled pair is in exactly one group.
+//   GROUP A: a model-built video went through the whole path on the measured renderer (Director, storyboard, Author, reviews, final render) AND the
+//            pair has a fixture receipt or is itself that run. Basis for enabling: that real run. One sample per pair: not a success rate.
+//   GROUP B: fixture receipts only (a deterministic fixture scene rendered inside 420 s with identical determinism hashes). Basis: that receipt. No model-built
+//            video has been made at this pair.
+// Limitations that apply to BOTH groups (and are the only things the product may say about them):
+export const EVIDENCE_LIMITATIONS = Object.freeze([
+  'No canary has run on the production renderer yet; every receipt is from the dev renderer at the same code.',
+  'The static composition gate is not a capacity check: it measures the heavy fixtures that timed out as class simple.',
+  'A model-built video can still fail (content review, renderer limits); a renderer or platform failure charges the learner zero credits.',
+  '45 and 60 s are not enabled.',
+]);
+export const evidenceGroups = () => {
+  const modelPairs = new Set(MODEL_RUNS.map(c => `${c.ratio}|${c.seconds}`));
+  const A = [], B = [];
+  for (const e of MEASURED_READY_POLICY.entries) (modelPairs.has(`${e.aspect_ratio}|${e.min_seconds}`) ? A : B).push({ aspect_ratio: e.aspect_ratio, seconds: e.min_seconds, receipts: e.receipts });
+  return { A, B };
+};
 
 // Model-built 60 s attempts: none has reached a final render (mmr-M3: output cap; mmr-M3-r2: blocking overlap after the repair; mmr-M3-r3: the
 // repair did not fit the validation-only US$2.95 ceiling). Recorded so the withheld long pairs are not mistaken for untested ones.

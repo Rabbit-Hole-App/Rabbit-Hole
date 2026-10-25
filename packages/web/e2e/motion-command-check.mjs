@@ -46,6 +46,8 @@
 //      inactive, nothing sent;
 //   16. readiness (motion-settings.js, test-configured policy): a MOCKED 45 s proposal keeps its value, says it is not ready and cannot Generate; choosing
 //      30 saves version 2 (MOCKED PUT) and Generate is enabled; Generate is never pressed and nothing reaches the video route;
+//      The policy in this step is the check's own test-configured one (5 to 30 s at 16:9); it asserts nothing about the 22 measured pairs, which control-plane
+//      motion-ready-policy.test.js pins. The step count per theme is 24 with Motion on (48 in all) and 3 with it off (6 in all).
 // MOTION=off (a production-like build: VITE_RABBIT_HOLE=true only). Per theme: no /motion or /animate in the picker or the
 //   window, and a typed /motion says Motion is not available here and runs nothing.
 // Usage: BASE=http://127.0.0.1:9261 SMALL_CP=http://127.0.0.1:9263 VARS=C:/s/toc-uimotion/.dev.vars [MOTION=off] node e2e/motion-command-check.mjs [shotsDir]
