@@ -445,7 +445,7 @@ for (const theme of ['light', 'dark']) {
     assert.deepEqual([body.operation.proposal?.command, body.operation.proposal?.version, body.operation.proposal?.settings], ['motion', 1, { duration_seconds: 15, audio: false }], 'the exact approved proposal');
     assert.equal(await proposal.getAttribute('data-proposal-active'), 'false', 'a generated proposal is inactive');
     // Chat generation UX (owner brief, bug 2): the proposal reports its job, Ready once the video is ready; a placeholder card is never "Added to the canvas".
-    await until(async () => /Ready/.test(await proposal.locator('[data-proposal-generate]').innerText()), 'the proposal reports its job Ready');
+    await until(async () => /Ready/.test(await proposal.locator('[data-proposal-generate]').innerText()), 'the proposal reports its job Ready');
     assert.doesNotMatch(await proposal.innerText(), /Added to the canvas/);
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-05-ready-card.png` });
