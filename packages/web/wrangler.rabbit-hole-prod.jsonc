@@ -51,6 +51,8 @@
   // No RUNS: hosted small apps are not part of Rabbit Hole. No BYOC_DB until the owner decides BYOC ships.
   // Browser Run for webpage card captures (control-plane/src/webpage-capture.js).
   "browser": { "binding": "BROWSER" },
+  // Dynamic Workers: the sandbox Ctrl+K JavaScript execution runs user code in (inline-code-runtime.js reads env.INLINE_CODE_LOADER).
+  "worker_loaders": [{ "binding": "INLINE_CODE_LOADER" }],
   "r2_buckets": [
     { "binding": "LEARN_MEDIA", "bucket_name": "rabbit-hole-prod-learn-media" },
     { "binding": "REPOSITORY_SNAPSHOTS", "bucket_name": "rabbit-hole-prod-repositories" },
@@ -75,6 +77,13 @@
     // 3 credits (US$0.03, about 3x the measured edit); the person is charged the priced usage, never more than this.
     "INLINE_IMAGE_EDIT_ENABLED": "true",
     "INLINE_IMAGE_EDIT_RESERVED_USD": "0.03",
+    // Ctrl+K JavaScript execution (docs/features/ctrlk-code-loader-retest.md): ON at the owner's activation release, ONLY after scripts/ctrlk-loader-probe.mjs passed
+    // (the worker_loaders binding below is refused with error 10195 on an account without Workers Paid and would block the whole release). The budget is a
+    // GLOBAL LIFETIME ceiling frozen into the Durable Object on first use: 200 runs of 10,000 micros (1 credit) each, 2,000,000 micros (200 credits) in all.
+    "INLINE_CODE_ENABLED": "true",
+    "INLINE_CODE_MAX_RUNS": "200",
+    "INLINE_CODE_RESERVE_MICROS": "10000",
+    "INLINE_CODE_MAX_MICROS": "2000000",
     // The per-image hold, derived (docs/features/image-jobs.md 6c): the largest priced estimate among the enabled combinations is Nano
     // Banana Pro 1K, US$0.134 + a 4,000-byte prompt bound US$0.008 = US$0.142; the worst real settlement seen for it was US$0.1462
     // (run D). US$0.20 covers both and is a hold, released at settlement; the learner is charged the measured cost or the upper bound.
