@@ -1,6 +1,6 @@
 # Deployment handoff
 
-Last updated: Sunday 2026-10-25, 11:50 PM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
+Last updated: Sunday 2026-10-25, 11:48 PM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
 
 Authoritative inputs (repository-relative): the 60-row [feature inventory](evidence/feature-inventory.md), the [discrepancy table](evidence/completion-audit-discrepancies.md), the [validation budget ledger](evidence/validation-budget-ledger.md), the [flake list](evidence/flakes.md), the [FILE_JOBS contract](evidence/file-jobs-contract.md), feature docs under [`docs/features/`](../features/). The working task ledger and local receipts live on the integrator machine (`C:/s/spec/...`); important receipts are summarised under `docs/operations/evidence/`.
 
@@ -94,7 +94,7 @@ Dependency order. Status is current as of the stamp above; the executable comman
 
 ## 10. Change log (PT)
 
-- 2026-10-25 11:50 PM: batch C14 (b0f5a6ad) FAILED its fast-e2e on two unfinished stale fixes (chat-outputs 15/16, study-resize-persist 2/4); both old branches were never green. C15 (stack/c15-batch) is being integrated WITHOUT them (adds credits-finish 1058a8dd, motion-failure-handling f8ed2f93, tutor-session-order 423fe035; two text conflicts being resolved; junk file packages/control-plane/test/.wrangler/cache/cf.json removed). Motion failure-handling delivered (f8ed2f93): needs MOTION_JOB_CEILING_USD >= 2.56 (proposal 3.50) before it deploys; refund script prepared for action act-c0f759ed-5ce7-4b65-bce0-028745e2c5c1.
+- 2026-10-25 11:48 PM: batch C14 (b0f5a6ad) FAILED its fast-e2e on two unfinished stale fixes (chat-outputs 15/16, study-resize-persist 2/4); both old branches were never green. C15 (stack/c15-batch) is being integrated WITHOUT them (adds credits-finish 1058a8dd, motion-failure-handling f8ed2f93, tutor-session-order 423fe035; two text conflicts being resolved; junk file packages/control-plane/test/.wrangler/cache/cf.json removed). Motion failure-handling delivered (f8ed2f93): needs MOTION_JOB_CEILING_USD >= 2.56 (proposal 3.50) before it deploys; refund script prepared for action act-c0f759ed-5ce7-4b65-bce0-028745e2c5c1.
 
 - 2026-10-25 10:55 PM: `fix/credits-finish` 1058a8dd delivered (credits-only usage API, sealing, Jev 429, refund path, labels); queued as successor C15 after the C14 gate.
 
