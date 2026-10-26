@@ -16,17 +16,17 @@ primary_region = "iad"
   MOTION_JOB_TIMEOUT_S = "3300"
   # POLICY CANDIDATE, HELD FOR OWNER APPROVAL (docs/features/motion-admission-policy.md; this block is the whole policy change): ceiling 3.50 to 5.00 and the route budget check on.
   # ACCEPTANCE WINDOW (owner 2026-10-25, R1; ceiling 2.00 to 3.50 after the first acceptance job refused on 2.00, 3.50 to 5.00 after the second, job 3c46c4d2, refused a storyboard revision): one job may spend at most US$5.00 of model money. The Worker still holds
-  # US$8.96 against the learner's allowance and releases the unused part. REMOVE this line in the activation release (R2): public jobs need the full hold.
+  # US$8.96 against the learner's allowance and releases the unused part. KEEP this line through the public flip (R2b): it bounds one job to US$5.00, the maximum charge the card discloses (owner 2026-10-26).
   # The orchestrator preflight (orchestrator.mjs) refuses every job before any paid work when this is below US$2.56, the least the mandatory calls can cost;
   # the measured need (3.05 to 3.13 with one repair) is in docs/features/rabbit-hole-motion-v1-harness-spec.md "Failure codes, the preflight and what a limit charges".
   MOTION_JOB_CEILING_USD = "5.00"
   # With this on, a NEW job is refused before any spend unless min(grant, ceiling) carries the route budget (US$4.8111: first pass, Author patch, Director revision before or
   # after the Author, up to 30 s and 8 beats), and this process refuses to start when the ceiling is below it. Not a promise that a job succeeds.
   MOTION_ROUTE_BUDGET_CHECK = "1"
-  # ACTIVATION (off): the renderer configuration the measured readiness policy applies to. Uncomment this line, with the Worker's
-  # MOTION_RENDERER_CONFIG of the same value, only after the matching renderer and its job store are deployed and accepted. While it is absent
-  # the orchestrator takes jobs exactly as it does today. A job whose approved proposal names another configuration is refused before any model call.
-  # MOTION_RENDERER_CONFIG = "03f2a1efc08e-1.5cpu-3gib-420s"
+  # R2a (owner 2026-10-26, owner-only measured policy): the renderer configuration the measured readiness policy applies to; the same value as the
+  # Worker's MOTION_RENDERER_CONFIG. A job whose approved proposal names another configuration is refused before any model call. The per-job
+  # ceiling above (US$5.00) and the route budget check STAY through R2b (the public flip only unpauses the Worker).
+  MOTION_RENDERER_CONFIG = "03f2a1efc08e-1.5cpu-3gib-420s"
 
 # No [mounts]: the durable job record is the worker's (LearnVideos Durable Object + the D1 reservation). A restart loses the
 # running job; the worker keeps its hold as unknown cost and this process refuses that job's grant.
