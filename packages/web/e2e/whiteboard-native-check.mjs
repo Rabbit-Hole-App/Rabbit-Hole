@@ -185,7 +185,9 @@ await check('5 text and a sticky note', async () => {
 await shot('02-drawn');
 await check('6 select and move a shape, resize it, delete it, undo and redo', async () => {
   const first = (await saved(empty, block => block.sketch.shapes.some(shape => shape.kind === 'rect'))).sketch.shapes.find(shape => shape.kind === 'rect');
-  const edge = at(f, 0.49, 0.1);
+  // the card may have moved a little since the drawing started (a typed text scrolls the canvas): press the shape where it is now
+  const found = await bounds(frame(empty).locator(`[data-shape-id="${first.id}"]`));
+  const edge = { x: found.x + found.width / 2, y: found.y + found.height / 2 };
   await tool('Select and move').click();
   await page.mouse.click(edge.x, edge.y);
   await drag(edge, { x: edge.x, y: edge.y + 30 });
@@ -276,8 +278,10 @@ await check('11 a large board opens fitted, 100% and Fit move the view, nothing 
   const area = await bounds(frame(id));
   assert.ok(farCorner.x + farCorner.width <= area.x + area.width + 1 && farCorner.y + farCorner.height <= area.y + area.height + 1, 'the far corner is inside the frame');
   await card(id).locator('[data-board-reset]').evaluate(button => button.click());
+  await page.waitForTimeout(300);
   assert.ok(!/scale/.test(await style()), '100% is the identity');
   await card(id).locator('[data-board-fit]').evaluate(button => button.click());
+  await page.waitForTimeout(300);
   assert.match(await style(), /scale\(0\.\d+\)/);
   assert.equal(JSON.stringify(await storedBlock(id)), before, 'the view is not saved');
 });
