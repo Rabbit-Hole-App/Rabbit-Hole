@@ -318,7 +318,7 @@ async function reactionsFor(env, ctx, ids) {
 // A comment's files as {id, name, mime, bytes}: never the object key. They download through GET /attachments/:id.
 async function attachmentsFor(env, ids) {
   if (!ids.length) return new Map();
-  const { results } = await env.LEARN_DB.prepare(`SELECT id, comment_id, name, mime, bytes FROM canvas_comment_attachments WHERE purged_at IS NULL AND comment_id IN (${ids.map(() => '?').join(', ')}) ORDER BY created_at, id`).bind(...ids).all();
+  const { results } = await env.LEARN_DB.prepare(`SELECT id, comment_id, name, mime, bytes FROM canvas_comment_attachments WHERE purged_at IS NULL AND comment_id IN (${ids.map(() => '?').join(', ')}) ORDER BY created_at, rowid`).bind(...ids).all();
   const by = new Map();
   for (const row of results) by.set(row.comment_id, [...(by.get(row.comment_id) || []), { id: row.id, name: row.name, mime: row.mime, bytes: row.bytes }]);
   return by;
@@ -659,9 +659,10 @@ async function editComment(req, env, ctx, id) {
   const db = env.LEARN_DB, now = new Date().toISOString();
   await db.batch([
     // The text this edit replaces, with its mention ranges, for the author and the owner (migration 0030); the newest 20 stay.
+    // Edits in one millisecond share replaced_at and their ids are random, so order and trim by rowid (insertion order) after it.
     db.prepare(`INSERT INTO canvas_comment_edits (id, comment_id, body, mentions_json, replaced_at)
       SELECT ?, c.id, c.body, COALESCE((SELECT json_group_array(json_object('pos', mm.pos, 'len', mm.len)) FROM canvas_comment_mentions mm WHERE mm.comment_id = c.id), '[]'), ? FROM canvas_comments c WHERE c.id = ?`).bind(crypto.randomUUID(), now, id),
-    db.prepare('DELETE FROM canvas_comment_edits WHERE comment_id = ?1 AND id NOT IN (SELECT e.id FROM canvas_comment_edits e WHERE e.comment_id = ?1 ORDER BY e.replaced_at DESC, e.id DESC LIMIT 20)').bind(id),
+    db.prepare('DELETE FROM canvas_comment_edits WHERE comment_id = ?1 AND id NOT IN (SELECT e.id FROM canvas_comment_edits e WHERE e.comment_id = ?1 ORDER BY e.replaced_at DESC, e.rowid DESC LIMIT 20)').bind(id),
     db.prepare('UPDATE canvas_comments SET body = ?, edited_at = ? WHERE id = ?').bind(body, now, id),
     db.prepare('DELETE FROM canvas_comment_mentions WHERE comment_id = ?').bind(id),
     ...mentionRows(db, id, kept),
@@ -709,7 +710,7 @@ async function editHistory(env, ctx, id) {
   const found = await commentIn(env, ctx, id);
   if (!found || found.row.deleted_at) return refuse('This comment was deleted.', 'comment_gone', 404);
   if (found.row.author_id !== ctx.actor.uid && !ctx.actor.owner) return refuse("You can't see this comment's history.", 'forbidden', 403);
-  const { results } = await env.LEARN_DB.prepare('SELECT body, replaced_at FROM canvas_comment_edits WHERE comment_id = ? ORDER BY replaced_at DESC, id DESC').bind(id).all();
+  const { results } = await env.LEARN_DB.prepare('SELECT body, replaced_at FROM canvas_comment_edits WHERE comment_id = ? ORDER BY replaced_at DESC, rowid DESC').bind(id).all();
   return json({ edits: results.map(row => ({ body: row.body, replaced_at: row.replaced_at })) });
 }
 
