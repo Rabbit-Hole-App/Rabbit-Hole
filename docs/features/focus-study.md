@@ -126,13 +126,24 @@ Focus the learner started on another card is left alone. Locate's `focusObject` 
 immediate, so Locate's camera stays (P6). Kernel coverage: `pinned-study-kernel-check.mjs` steps 5a to 5c and 6b.
 
 Kernel check reliability (2026-10-26). `pinned-study-kernel-check.mjs` failed intermittently for two check-side reasons, neither
-a product or notebook-site defect. (1) It pressed Shift+Enter on the first cell as soon as the card's Run all enabled; JupyterLab's
-`CodeCell.execute` returns without running when `session.kernel` does not exist yet, and Run-and-advance still moves on, so cell a
-never ran and steps 1, 4, 5, 5c and 6 failed. The first run now waits for the kernel indicator to be idle (as cross-device-check
-does). (2) It read cells by their position among rendered `.jp-CodeCell` nodes; JupyterLab's default windowing ('full') detaches cells
-scrolled out of view, so after a Shift+Enter scrolled the list `nth(0)` was cell b ("cell a was not rerun", steps 5 and 5c). Cells are
-now read and addressed through the notebook widget. Step 0 reproduces both on a fake notebook deterministically. Residual product
-note, not changed: a learner who presses Shift+Enter before the kernel exists gets no run and no message (JupyterLab behaviour).
+a product or notebook-site defect.
+
+1. Readiness. The check pressed Shift+Enter on the first cell as soon as the card's Run all enabled, which the bridge signals before
+   any kernel exists. JupyterLab's `CodeCell.execute` returns without running when `session.kernel` is null, and Run-and-advance
+   still advances, so cell a never ran and steps 1, 4, 5, 5c and 6 failed. The check now waits until the notebook session's kernel
+   exists AND `sessionContext.kernelDisplayStatus` is `idle` (`kernelIdle`), and a failure names the last state. The toolbar's
+   `.jp-Notebook-ExecutionIndicator[data-status="idle"]` is not enough: JupyterLab initialises that indicator's status to `idle`
+   before any kernel exists (executionindicator.tsx), and a first fix that waited on it still dropped a run (fast-e2e 40392512154).
+2. Cell addressing. Cells were read by their position among rendered `.jp-CodeCell` nodes. JupyterLab's default windowing ('full')
+   detaches cells scrolled out of view, so after a Shift+Enter scrolled the list `nth(0)` was cell b ("cell a was not rerun", steps 5
+   and 5c). Cells are now read (`cellState`: prompt, output, source, count) and addressed (`cellEditor` scrolls the cell into the
+   window first) through the notebook widget, `window.jupyterapp.shell.currentWidget.content.widgets`.
+
+Step 0 reproduces both on a fake notebook (windowed cells, a kernel released on demand, an indicator that says idle from the start),
+so a regression of either helper fails deterministically. Negative control: the same check with the old DOM-position reads, branch
+`test/pinned-kernel-neg` at `64ac43ac1b6c1fe69e44bf06e1c02523075399c7` (since deleted from the remote), failed step 0 (6/12) in
+fast-e2e run 40392417618. Residual product note, not changed: a learner who presses Shift+Enter before the kernel exists gets no run
+and no message (JupyterLab behaviour).
 
 
 ## 5. Inventory (WP4)
