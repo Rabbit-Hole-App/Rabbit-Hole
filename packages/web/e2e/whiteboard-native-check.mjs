@@ -62,9 +62,10 @@ const errors = [], requested = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('request', request => { if (/tldraw/i.test(request.url())) requested.push(request.url()); });
 
-const results = [];
+const results = [], failures = [];
+// A failing step is reported and the rest still run (a later step may stand on its own), so one run shows every defect.
 const check = async (label, fn) => {
-  try { await fn(); } catch (error) { await page.screenshot({ path: `${OUT}/FAIL-${label.split(' ')[0]}.png` }); throw error; }
+  try { await fn(); } catch (error) { failures.push(label); console.log(`FAIL ${label}: ${String(error.message).split('\n')[0].slice(0, 600)}`); await page.screenshot({ path: `${OUT}/FAIL-${label.split(' ')[0]}.png` }).catch(() => {}); return; }
   results.push(label); console.log(`ok ${label}`);
 };
 const shot = async name => { await page.waitForTimeout(400); await page.screenshot({ path: `${OUT}/${name}.png` }); console.log('shot', name); };
@@ -194,6 +195,8 @@ await check('6 select and move a shape, resize it, delete it, undo and redo', as
   const moved = (await saved(empty, block => block.sketch.shapes.find(shape => shape.id === first.id).y1 > first.y1 + 20)).sketch.shapes.find(shape => shape.id === first.id);
   assert.ok(moved.y1 > first.y1 + 20, `moved down (${first.y1} to ${moved.y1})`);
   const grip = await bounds(frame(empty).locator(`[data-shape-id="${first.id}"] [data-handle="11"]`));
+  const topmost = await page.evaluate(([x, y]) => { const el = document.elementFromPoint(x, y); return el ? `${el.tagName} ${el.getAttribute('data-handle') || ''} ${(el.closest('[data-shape-id],[data-item-id]')?.getAttribute('data-shape-id') || el.closest('[data-item-id]')?.getAttribute('data-item-id') || '')}`.trim() : 'nothing'; }, [grip.x + grip.width / 2, grip.y + grip.height / 2]);
+  assert.match(topmost, /^circle 11/, `the resize handle is not on top: ${topmost}`);
   await drag({ x: grip.x + grip.width / 2, y: grip.y + grip.height / 2 }, { x: grip.x + grip.width / 2 + 40, y: grip.y + grip.height / 2 + 20 });
   const resized = (await saved(empty, block => { const r = block.sketch.shapes.find(shape => shape.id === first.id); return r.x2 - r.x1 > first.x2 - first.x1 + 20; })).sketch.shapes.find(shape => shape.id === first.id);
   assert.ok(resized.x2 - resized.x1 > first.x2 - first.x1 + 20, 'wider after the resize');
@@ -380,5 +383,6 @@ await check('14 no request to tldraw and no page error', async () => {
   assert.deepEqual(errors, []);
   assert.deepEqual(asked, [], 'no model request');
 });
-console.log(`${results.length}/${results.length} checks passed`);
+console.log(`${results.length}/${results.length + failures.length} checks passed`);
 await browser.close();
+if (failures.length) { console.log(`FAILED: ${failures.join('; ')}`); process.exit(1); }
