@@ -32,7 +32,7 @@ const motionOutcome = (job, view, known) => (known == null ? { status: 'interrup
       : { status: 'failed', result: 'none' });
 // A Motion job's reservation as the card shows it: reserved while it runs; pending while its final cost is not confirmed (a
 // stopped job settling, or a cost that could not be read: reconciliation pending); released once settled at a known cost.
-const motionHold = j => (j?.provider === 'motion_request' && j.spend?.admitted ? { usd: j.spend.micros / 1e6,
+const motionHold = j => (j?.provider === 'motion_request' && j.spend?.admitted ? {
   state: !j.spend.settled ? (j.status === 'generating' ? 'reserved' : 'pending') : j.spend.costMicros == null ? 'pending' : 'released' } : null);
 // Zero-credit failures (owner 2026-10-23): a renderer failure or timeout (cause renderer), our own infrastructure failing (the
 // orchestrator crashed, cause infra, or lost the job: no view) charge the learner nothing and release the whole reservation. The
@@ -328,16 +328,15 @@ export class LearnVideos {
   async list(email = null) {
     const placements = await this.state.storage.list({ prefix: 'placement:' });
     const jobs = await this.state.storage.list({ prefix: 'job:' });
-    // motionHoldUsd: the per-job reservation the server admits (MOTION_JOB_RESERVATION_USD), only where Motion can start, so the
-    // confirmation states the amount the server will hold (owner message 25), never a figure of the browser's own.
+    // The per-job reservation (MOTION_JOB_RESERVATION_USD) decides only whether Motion can start; its amount is never sent to the browser.
     const paused = motionPaused(this.env, email);
     const holdMicros = !paused && !new MotionRequestProvider(this.env).unavailable() && motionReservationMicros(this.env);
     // The confirmation's estimate (owner message 32: 1 credit = $0.01), only where Motion can start; the hold stays internal.
     const estimate = holdMicros && motionEstimateCredits(this.env);
-    return { ...(holdMicros ? { motionHoldUsd: holdMicros / 1e6 } : {}), ...(estimate ? { motionEstimateCredits: estimate } : {}), ...(paused ? { motionPaused: true } : {}), videos: [...placements.values()].map(p => {
+    return { ...(estimate ? { motionEstimateCredits: estimate } : {}), ...(paused ? { motionPaused: true } : {}), videos: [...placements.values()].map(p => {
       const j = jobs.get(`job:${p.key}`);
       return { ...p, status: j?.status || 'idle', error: j?.error, retryable: !j?.uncertain, duration: j?.input.duration, provider: j?.result?.provider, generationId: j?.result?.generationId, ...(j?.result?.motion ? { motion: j.result.motion } : {}), ...(motionHold(j) ? { hold: motionHold(j) } : {}),
-        ...(j?.provider === 'motion_request' ? { usage: { usedMicros: j.usedMicros || 0, unknown: !!j.usageUnknown } } : {}), ...(j?.provider === 'motion_request' && j.status === 'failed' ? { recovery: this.motionRecovery(j, !!holdMicros) } : {}) };
+        ...(j?.provider === 'motion_request' ? { usage: { usedCredits: (j.usedMicros || 0) / 10_000, unknown: !!j.usageUnknown } } : {}), ...(j?.provider === 'motion_request' && j.status === 'failed' ? { recovery: this.motionRecovery(j, !!holdMicros) } : {}) };
     }) };
   }
   // What the card offers a failed /motion job: the explanation for its cause and only the actions that can run now (none for an

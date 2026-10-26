@@ -82,7 +82,7 @@ export const canonicalJson = value => JSON.stringify(value, (key, v) => v && typ
 export const cadBriefHash = job => cadHash(canonicalJson({ prompt: job.prompt, context: job.context ?? null, baseRevisionId: job.baseRevisionId ?? null, brief: job.brief, checks: job.checkSpecs }));
 // Job routes are owner-only; the board block (cadBlock) is what viewers see and carries none of the private fields.
 export function publicCadJob(job) {
-  const keys = ['id', 'state', 'stage', 'attempt', 'cardId', 'modelId', 'revisionId', 'baseRevisionId', 'brief', 'question', 'error', 'manifest', 'createdAt', 'updatedAt', 'limitations', 'awaitingAccept', 'hidden', 'exportState', 'exportError', 'failureCode', 'failureStage', 'failurePhase', 'failureAttempt', 'rebuild', 'briefHash', 'approval', 'phaseUsd'];
+  const keys = ['id', 'state', 'stage', 'attempt', 'cardId', 'modelId', 'revisionId', 'baseRevisionId', 'brief', 'question', 'error', 'manifest', 'createdAt', 'updatedAt', 'limitations', 'awaitingAccept', 'hidden', 'exportState', 'exportError', 'failureCode', 'failureStage', 'failurePhase', 'failureAttempt', 'rebuild', 'briefHash', 'approval'];
   const result=Object.fromEntries(keys.filter(k => job[k] !== undefined).map(k => [k, job[k]]));
   // Reference provenance is retained privately with the job. A shared card's
   // status must not disclose private drawings, paths, or source URLs.

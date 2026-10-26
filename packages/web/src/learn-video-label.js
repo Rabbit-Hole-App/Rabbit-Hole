@@ -14,7 +14,7 @@ const notGrounded = block => (block.motion?.grounding?.status === 'not_in_source
   : block.motion?.grounding ? 'Not grounded in a source' : null);
 
 // Owner message 30 (replacing message 25's wording): the learner never sees the reservation amount or how it is held. The server
-// still holds it and returns it (LearnVideos list motionHoldUsd) for internal tools only.
+// holds it and no longer sends the amount at all (owner 2026-10-25: no dollar field in a user-facing response).
 // Owner message 28: while the server pauses new Motion generation (LearnVideos list motionPaused) the confirmation says so; the
 // server refuses the start itself with the same text.
 export const MOTION_PAUSED = 'Motion generation is temporarily unavailable while we fix a reliability issue.';
@@ -46,11 +46,11 @@ export function recoveryButtons(recovery, { composer = false } = {}) {
   const actions = (recovery.actions || []).filter(a => a in RECOVERY_BUTTONS && (a !== 'edit' || composer));
   return [...new Set([...['fix', 'render', 'edit'].filter(a => actions.includes(a)), ...(recovery.regenerate ? ['regenerate'] : [])])];
 }
-// Usage in credits (1 credit = $0.01), short, and the reservation's state; never a dollar amount or the hold's size.
+// Usage in credits, short, and the reservation's state; never a dollar amount or the hold's size.
 export function motionUsageLine(usage, hold) {
   if (!usage) return null;
-  const micros = usage.usedMicros || 0, credits = Math.round(micros / 10_000);
-  const used = credits === 0 && micros > 0 ? 'less than 1 credit' : `${credits.toLocaleString('en-US')} credit${credits === 1 ? '' : 's'}`;
+  const exact = usage.usedCredits || 0, credits = Math.round(exact);
+  const used = credits === 0 && exact > 0 ? 'less than 1 credit' : `${credits.toLocaleString('en-US')} credit${credits === 1 ? '' : 's'}`;
   const state = hold?.state === 'reserved' ? 'reservation held' : hold?.state === 'pending' ? 'reservation pending' : 'reservation released';
   return `Used ${used}${usage.unknown ? ' so far' : ''} · ${state}`;
 }

@@ -141,10 +141,14 @@ const publicJob = job => ({
   cost: job.cost?.state || (job.stage === 'unknown' || job.settlement?.costUsd === null ? 'unknown' : null),
   saveRetryable: SAVING.has(job.stage) || pending(job), createdAt: job.createdAt, updatedAt: job.updatedAt,
 });
-// Everything the job knows except bytes, which it never keeps, and the requester's identity beyond its org.
+// Everything the job knows except bytes, which it never keeps, the requester's identity beyond its org, and any dollar amount: the
+// requester sees credits and cost states only (owner 2026-10-25); the dollar accounting stays in the job's storage, the ledger and
+// the owner telemetry routes.
+const creditQuote = q => ({ estimate_credits: q.estimate_credits, reserve_credits: q.reserve_credits, basis: q.basis, excludes: q.excludes });
+const creditSettlement = s => (s ? { status: s.status, calls: s.calls, done: !!s.done, costKnown: s.costUsd != null } : null);
 const inspectJob = job => ({ ...publicJob(job), opId: job.opId, settings: job.request.settings, prompt: job.request.prompt, references: job.request.references.map(r => ({ id: r.id, sha256: r.sha256, bytes: r.bytes, mimeType: r.mimeType })),
-  quote: job.request.quote, proposal: job.request.proposal, output: job.output || null, providerModel: job.providerModel || null, usage: job.usage || null, providerMs: job.providerMs ?? null, providerStatus: job.providerStatus ?? null, providerCode: job.providerCode ?? null, costs: job.cost || null,
-  settlement: job.settlement || null, retries: job.retries || 0, lastError: job.lastError || null, recoveredFrom: job.recoveredFrom || null, submittedAt: job.submittedAt || null, endedAt: job.endedAt || null });
+  quote: creditQuote(job.request.quote), proposal: job.request.proposal, output: job.output || null, providerModel: job.providerModel || null, usage: job.usage || null, providerMs: job.providerMs ?? null, providerStatus: job.providerStatus ?? null, providerCode: job.providerCode ?? null, costs: job.cost ? { state: job.cost.state, overrun: !!job.cost.overrun?.exceeded } : null,
+  settlement: creditSettlement(job.settlement), retries: job.retries || 0, lastError: job.lastError || null, recoveredFrom: job.recoveredFrom || null, submittedAt: job.submittedAt || null, endedAt: job.endedAt || null });
 
 const payerEnv = (env, requester) => {
   const scoped = withUsage(env, { feature: 'image_generate' });

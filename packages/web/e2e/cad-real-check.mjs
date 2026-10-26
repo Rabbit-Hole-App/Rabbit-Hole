@@ -28,8 +28,8 @@ if(resumeId){
  assert.equal(priorReceipt.results[0].name,'simple dimensioned part');assert.equal(priorReceipt.results[0].status,'failed');
  if(resumeReady){assert.equal(priorReceipt.results[0].error,'step download 404');assert.equal(priorReceipt.resume.jobId,resumeId);assert.equal(priorReceipt.resume.retryIssued,true);assert.equal(priorReceipt.cumulativeJobsCreated,1);}
  else assert.ok(priorReceipt.results[0].error.includes(expectedResumeId));
- assert.equal(priorReceipt.usageAfter.usedMicros,resumeReady?22130:14210);
- assert.equal(priorReceipt.usageAfter.reservedMicros,0);assert.equal(priorReceipt.usageAfter.unknownAttempts,0);
+ assert.equal(priorReceipt.usageAfter.usedCredits,resumeReady?2.213:1.421);
+ assert.equal(priorReceipt.usageAfter.reservedCredits,0);assert.equal(priorReceipt.usageAfter.unknownAttempts,0);
  assert.equal(env.CAD_PRIOR_PROVIDER_REQUESTS,resumeReady?'2':'1','Confirm reconciled provider request count');
 }
 const results=[],started=Date.now(),scope=`?app=${encodeURIComponent(app)}&board=${encodeURIComponent(board)}`;
@@ -42,7 +42,7 @@ const api=async(path,method='GET',body)=>{
  assert.ok(response.ok,`${method} ${path.split('?')[0]} returned ${response.status}`);return response.json();
 };
 const jobPath=id=>`/api/learn/cad/jobs/${encodeURIComponent(id)}`;
-const usage=async()=>{try{const value=await api('/api/learn/usage');return Object.fromEntries(['usedMicros','reservedMicros','estimatedMicros','unknownAttempts','unknownReservedMicros','unavailable'].filter(k=>k in value).map(k=>[k,value[k]]));}catch{return {unavailable:'access'};}};
+const usage=async()=>{try{const value=await api('/api/learn/usage');return Object.fromEntries(['usedCredits','reservedCredits','estimatedCredits','unknownAttempts','unavailable'].filter(k=>k in value).map(k=>[k,value[k]]));}catch{return {unavailable:'access'};}};
 const poll=async id=>{const end=Date.now()+16*60*1000;while(Date.now()<end){const result=await api(jobPath(id)+scope);if(['ready','failed','cancelled','waiting_for_answer'].includes(result.job.state))return result;await new Promise(r=>setTimeout(r,3000));}throw Error('Bounded wait expired; existing job retained; no retry issued');};
 let created=0;
 const create=async(prompt,extra={})=>{assert.ok(++created<=(resumeId?3:4));return api('/api/learn/cad/jobs','POST',{app,board,cardId:randomUUID(),requestId:randomUUID(),prompt,context:null,confirmed:true,...extra});};

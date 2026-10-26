@@ -87,10 +87,10 @@ test('a failed /motion card offers only its recovery actions, named as the rulin
   assert.deepEqual(recoveryButtons({ actions: ['source', 'other'] }), [], 'an action the card cannot run is never offered');
   assert.equal(recoveryButtons(null), null);
   assert.ok(!Object.values(RECOVERY_BUTTONS).includes('Retry render'), 'paid regeneration is never Retry render');
-  assert.equal(motionUsageLine({ usedMicros: 770_000 }, { usd: 8.96, state: 'released' }), 'Used 77 credits · reservation released');
-  assert.equal(motionUsageLine({ usedMicros: 4_000 }, null), 'Used less than 1 credit · reservation released');
-  assert.equal(motionUsageLine({ usedMicros: 10_000, unknown: true }, { usd: 8.96, state: 'pending' }), 'Used 1 credit so far · reservation pending');
-  assert.doesNotMatch(motionUsageLine({ usedMicros: 770_000 }, { usd: 8.96, state: 'reserved' }), /\$|8\.96/);
+  assert.equal(motionUsageLine({ usedCredits: 77 }, { state: 'released' }), 'Used 77 credits · reservation released');
+  assert.equal(motionUsageLine({ usedCredits: 0.4 }, null), 'Used less than 1 credit · reservation released');
+  assert.equal(motionUsageLine({ usedCredits: 1, unknown: true }, { state: 'pending' }), 'Used 1 credit so far · reservation pending');
+  assert.doesNotMatch(motionUsageLine({ usedCredits: 77 }, { state: 'reserved' }), /\$|8\.96/);
   assert.equal(motionUsageLine(null, null), null);
 });
 

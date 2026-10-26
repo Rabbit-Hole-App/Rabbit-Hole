@@ -21,7 +21,7 @@ async function open(){
  await page.locator('[data-inline-code-input]').fill(JSON.stringify(input));await page.locator('[data-inline-code-review]').click();await panel().waitFor();return panel();
 }
 const close=async()=>panel().getByRole('button',{name:'Close',exact:true}).click();
-const job=phase=>({id:submitted.id,scope:{app:canvas.name,board:'main'},phase:phase||(ready?'succeeded':'started'),sourceSha256:digest(code),inputSha256:digest(JSON.stringify(input)),reservedMicros:5000,actualCostUsd:null,createdAt:started,result:ready?{status:'ok',stdout:[{level:'log',text:'answer 21'}],result:42,error:null,sourceSha256:digest(code),inputSha256:digest(JSON.stringify(input)),executionStarted:true,terminationConfirmed:false,elapsedMs:1}:null,reason:null});
+const job=phase=>({id:submitted.id,scope:{app:canvas.name,board:'main'},phase:phase||(ready?'succeeded':'started'),sourceSha256:digest(code),inputSha256:digest(JSON.stringify(input)),reservedCredits:0.5,createdAt:started,result:ready?{status:'ok',stdout:[{level:'log',text:'answer 21'}],result:42,error:null,sourceSha256:digest(code),inputSha256:digest(JSON.stringify(input)),executionStarted:true,terminationConfirmed:false,elapsedMs:1}:null,reason:null});
 const checks=[
  ...(process.env.HANDOFF_ONLY==='yes'?[{name:'Natural execution handoff opens input review without quote or execution',fn:async()=>{
   await page.locator('[data-item-id="code-run"]').click({position:{x:20,y:20}});await page.keyboard.press('Control+k');await page.locator('[data-inline-ai]').waitFor();
@@ -47,10 +47,10 @@ try {
   if(process.env.HANDOFF_ONLY==='yes'&&path==='/api/learn/inline/decide')return route.fulfill({json:{decision:'proceed',route:{capability:'note',outcome:'text'},paid:false,token:'tool-action-fixture'}});
   if(process.env.HANDOFF_ONLY==='yes'&&path==='/api/learn/inline/generate'){const body=request.postDataJSON();return route.fulfill({contentType:'text/event-stream',body:`event: done\ndata: ${JSON.stringify({result:{kind:'tool_action',action:'run_code',targetIds:['code-run'],requestId:body.request_id,summary:'Review your input'}})}\n\n`});}
   if(path==='/api/learn/inline/telemetry')return route.continue();
-  if(path==='/api/learn/code-runs'&&request.method()==='GET'){quotes++;return fixtureQuote?route.fulfill({json:{available:true,language:'javascript',maximumReservedMicros:5000,limits:{maxRuns:20,maxMicros:100000}}}):route.continue();}
+  if(path==='/api/learn/code-runs'&&request.method()==='GET'){quotes++;return fixtureQuote?route.fulfill({json:{available:true,language:'javascript',maximumReservedCredits:0.5,limits:{maxRuns:20,maxCredits:10}}}):route.continue();}
   if(path==='/api/learn/code-runs'&&request.method()==='POST'){
    if(!fixtureQuote){unexpected.push('unapproved-execution');return route.abort();}
-   submitted=request.postDataJSON();assert.equal(submitted.executionConfirmed,true);assert.equal(submitted.code,code);assert.deepEqual(submitted.input,input);assert.equal(submitted.maxReservedMicros,5000);assert.equal(submitted.app,canvas.name);assert.equal(submitted.board,'main');
+   submitted=request.postDataJSON();assert.equal(submitted.executionConfirmed,true);assert.equal(submitted.code,code);assert.deepEqual(submitted.input,input);assert.equal(submitted.maxReservedCredits,0.5);assert.equal(submitted.app,canvas.name);assert.equal(submitted.board,'main');
    const stored=await page.evaluate(id=>Object.keys(localStorage).filter(key=>key.startsWith('small.code-run:')).map(key=>JSON.parse(localStorage.getItem(key))).find(ticket=>ticket.id===id),submitted.id);assert.ok(stored,'Ticket must persist before POST');assert.equal(stored.sourceSha256,digest(code));assert.equal(stored.inputSha256,digest(JSON.stringify(input)));assert.equal(stored.code,undefined);assert.equal(stored.input,undefined);submits++;return route.fulfill({status:201,json:{job:job('queued')}});
   }
   if(submitted&&path===`/api/learn/code-runs/${submitted.id}`){polls++;return route.fulfill({json:{job:job()}});}

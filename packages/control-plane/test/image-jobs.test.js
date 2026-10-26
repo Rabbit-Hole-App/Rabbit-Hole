@@ -1,6 +1,7 @@
 // IMG-01 ImageJobs (docs/features/image-jobs.md): one Durable Object per generation, driven only by its alarm. The ledger is the
 // real admitSpend/settleSpend on SQLite with the 0016/0022/0023 migrations; Durable Object storage, alarms and R2 are faithful
 // in-memory fakes; every provider is the real HTTP adapter on a fixture transport that counts requests. Nothing is paid.
+import { moneyLeaks } from './no-money.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
@@ -196,7 +197,8 @@ test('status, inspect and retry-save answer only the requester', async t => {
   assert.equal(res.status, 404);
   const inspect = await (await h.get(generationId, '/inspect')).json();
   assert.equal(inspect.job.prompt, 'A red fox standing in fresh snow at dawn.');
-  assert.equal(inspect.job.quote.reserveUsd, RESERVE);
+  assert.equal(inspect.job.quote.reserve_credits, Math.round(RESERVE * 100));
+  assert.deepEqual(moneyLeaks(inspect), [], 'the requester inspect view carries credits and cost states only, no dollars');
 });
 
 test('the approval is enforced before anything is consumed or reserved', async t => {
@@ -625,7 +627,7 @@ test('three cost values stay apart: an unreconciled Gemini usage settles at the 
   assert.equal(attempts(c)[0].input_tokens, 14); assert.equal(attempts(c)[0].output_tokens, 1439);
   assert.equal((await (await c.get(a.generationId)).json()).job.cost, 'estimated_upper_bound');
   const inspected = (await (await c.get(a.generationId, '/inspect')).json()).job;
-  assert.equal(inspected.costs.measuredUsd, null); assert.equal(inspected.costs.estimatedUpperBoundUsd, 0.063621); assert.equal(inspected.costs.reservedMaxUsd, 0.06); assert.equal(inspected.costs.overrun.exceeded, true);
+  assert.deepEqual(inspected.costs, { state: 'estimated_upper_bound', overrun: true }); assert.deepEqual(moneyLeaks(inspected), []); // dollars stay in the log line below and the ledger
   const closed = c.logs.map(line => JSON.parse(line)).find(line => line.step === 'closed');
   assert.deepEqual([closed.costState, closed.measuredUsd, closed.estimatedUpperBoundUsd, closed.reservedMaxUsd, closed.overrun.exceeded], ['estimated_upper_bound', null, 0.063621, 0.06, true]);
   // D (Pro): bound = 14 x $2/M + max(1218, 1120 + 80) x $120/M = $0.146188, inside its $0.27 reservation: no overrun, marked as an upper bound.

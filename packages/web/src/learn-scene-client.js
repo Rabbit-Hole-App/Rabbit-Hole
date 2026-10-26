@@ -20,7 +20,7 @@ const videoEndpoint = app => `/api/learn/video?app=${encodeURIComponent(app)}&wo
 export const videoList = app => api(videoEndpoint(app));
 // What the confirmation may say about a new /motion video (LearnVideos list): 'paused' while new generation is paused (owner message
 // 28), else the server's estimate in credits (motionEstimateCredits, owner message 32), or null. Never derived here; the reservation
-// (motionHoldUsd) is internal and never read for display (owner message 30).
+// is internal, is no longer sent, and was never read for display (owner message 30).
 export const motionHold = async app => { const list = await videoList(app); return list?.motionPaused ? 'paused' : Number.isInteger(list?.motionEstimateCredits) && list.motionEstimateCredits > 0 ? list.motionEstimateCredits : null; };
 
 export const startVideo = (app, operation, { confirmed = false, retry = false } = {}) =>

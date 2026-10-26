@@ -7,14 +7,14 @@ const PHASES = new Set(['queued', 'admitting', 'started', 'publishing', 'ready',
 const TERMINAL = new Set(['ready', 'cancelled', 'refused', 'unknown']);
 const fault = (code, message, extra = {}) => Object.assign(new Error(message), { code, ...extra });
 function bindingOf(input) {
-  if (!input || typeof input.maxReservedUsd !== 'number' || !Number.isFinite(input.maxReservedUsd) || input.maxReservedUsd <= 0 || !matches(SOURCE, input.sourceId) || !matches(HASH, input.sourceSha256) ||
+  if (!input || typeof input.maxReservedCredits !== 'number' || !Number.isFinite(input.maxReservedCredits) || input.maxReservedCredits <= 0 || !matches(SOURCE, input.sourceId) || !matches(HASH, input.sourceSha256) ||
       ['app', 'board', 'cardId'].some(key => typeof input[key] !== 'string' || !input[key] || input[key].length > 200) ||
       !['remove_background', 'edit_image'].includes(input.operation) || !matches(/^[A-Za-z0-9_.:-]{8,128}$/, input.idempotencyKey)) {
     throw fault('invalid_binding', 'A saved source and exact canvas scope are required.');
   }
   if (input.operation === 'edit_image' && (!matches(SOURCE, input.maskSourceId) || !matches(HASH, input.maskSha256) || typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 2000)) throw fault('invalid_input', 'Regional editing requires an immutable mask and prompt.');
   const regional = input.operation === 'edit_image' ? ['maskSourceId', 'maskSha256', 'prompt'] : [];
-  return Object.freeze(Object.fromEntries(['sourceId', 'sourceSha256', 'app', 'board', 'cardId', 'operation', 'idempotencyKey', 'maxReservedUsd', ...regional].map(key => [key, input[key]])));
+  return Object.freeze(Object.fromEntries(['sourceId', 'sourceSha256', 'app', 'board', 'cardId', 'operation', 'idempotencyKey', 'maxReservedCredits', ...regional].map(key => [key, input[key]])));
 }
 function ticketOf(raw) {
   if (raw?.version !== 1 || !matches(ID, raw.id)) throw fault('invalid_ticket', 'Invalid image job ticket.');
@@ -58,8 +58,8 @@ export function createImageJobClient({ fetchImpl = globalThis.fetch, headers = {
       const response = await fetchImpl(ROOT, { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers, signal });
       if (!response.ok) throw fault('http_error', 'Image availability request failed.', { status: response.status });
       const value = await response.json();
-      if (typeof value.available !== 'boolean' || value.available && (typeof value.maximumReservedUsd !== 'number' || !Number.isFinite(value.maximumReservedUsd) || value.maximumReservedUsd <= 0 || typeof value.model !== 'string')) throw fault('invalid_response', 'Invalid image reservation quote.');
-      return Object.freeze({ available: value.available, maximumReservedUsd: value.available ? value.maximumReservedUsd : null, model: value.available ? value.model : null });
+      if (typeof value.available !== 'boolean' || value.available && (typeof value.maximumReservedCredits !== 'number' || !Number.isFinite(value.maximumReservedCredits) || value.maximumReservedCredits <= 0 || typeof value.model !== 'string')) throw fault('invalid_response', 'Invalid image reservation quote.');
+      return Object.freeze({ available: value.available, maximumReservedCredits: value.available ? value.maximumReservedCredits : null, model: value.available ? value.model : null });
     },
     async submit(input, { signal } = {}) {
       const binding = bindingOf(input);

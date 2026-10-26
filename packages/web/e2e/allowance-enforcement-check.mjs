@@ -39,7 +39,7 @@ assert.ok(payer, 'the session has a payer');
 
 const usage = await api('/api/learn/usage');
 assert.equal(usage.enforced, true, `this stack must enforce the allowance (SMALL_ENV=dev): ${JSON.stringify(usage)}`);
-const ALLOWANCE = usage.allowanceMicros;
+const ALLOWANCE = Math.round(usage.allowanceCredits * 10_000); // the page answers in credits; the ledger rows seeded below are in micros
 assert.ok(Number.isSafeInteger(ALLOWANCE) && ALLOWANCE > 0, 'the configured allowance is read from the server');
 assert.deepEqual(await tripwire(), [], 'the tripwire answers and has counted nothing yet');
 
@@ -112,7 +112,8 @@ await check('exhausted: Send is refused before any provider call, one toast name
   assert.ok(told.asks.length >= 1, 'the Send reached the server, which refused it');
   assert.deepEqual(await tripwire(), [], 'no provider request left the stack');
   const after = await api('/api/learn/usage');
-  assert.deepEqual([after.usedMicros, after.reservedMicros], [ALLOWANCE, 0], 'the refusal charged nothing and reserved nothing');
+  assert.deepEqual([Math.round(after.usedCredits * 10_000), after.reservedCredits], [ALLOWANCE, 0], 'the refusal charged nothing and reserved nothing');
+  assert.doesNotMatch(JSON.stringify(after), /usd|micros|currency/i, 'the usage answer carries no dollars');
   await page.locator('[data-block-id="c-tides"]').getByText('The moon pulls').waitFor();
   await shot('exhausted');
 });

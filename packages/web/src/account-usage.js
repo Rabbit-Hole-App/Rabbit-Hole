@@ -7,10 +7,14 @@
 // enforcement in stage 2; it reads this store and calls refreshAccountUsage() after a refusal.
 export const USAGE_PATH = '/api/learn/usage';
 export const TRACKING_NOTE = 'Tracking only - limits are not enforced yet.';
-const AMOUNTS = ['allowanceMicros', 'usedMicros', 'reservedMicros', 'remainingMicros'];
+// The server answers in AI credits only (control-plane learn-usage-route.js: no dollars, micros or currency on the wire). Inside this
+// module an amount is kept in credit hundredths-of-a-hundredth (1 credit = 10,000 units), so a fraction of a credit survives and the
+// rounding rules below stay exact. The units never leave the module; the screen shows credits.
+const AMOUNTS = ['allowanceCredits', 'usedCredits', 'reservedCredits', 'remainingCredits'];
+const UNITS_PER_CREDIT = 10_000;
+const units = credits => Math.round(credits * UNITS_PER_CREDIT);
 
-// Credits from integer micros (owner messages 32-33, 2026-10-21): people see credits, never dollars; 1 credit = $0.01, so
-// 10,000 micros. Rounded to the nearest credit with thousands separators. Nonzero usage never reads "0 credits": a balance
+// Credits from units (owner messages 32-33, 2026-10-21): people see credits, never dollars; 1 credit = 10,000 units. Rounded to the nearest credit with thousands separators. Nonzero usage never reads "0 credits": a balance
 // or a charge below half a credit reads "less than 1 credit".
 export const creditCount = micros => Math.round(micros / 10_000).toLocaleString('en-US');
 export function formatCredits(micros) {
@@ -33,19 +37,20 @@ export function readUsage(status, body) {
   if (status === 401) return { status: 'signed_out' };
   if (status !== 200 || !body || typeof body !== 'object') return { status: 'unavailable', reason: body?.unavailable || 'error' };
   if (body.unavailable) return { status: 'unavailable', reason: String(body.unavailable) };
-  // unknownAttempts: provider calls whose cost is not known yet (their bound, if any, is already inside reservedMicros). A missing
-  // count is 0, as from a server before the field; a present one must be a whole number like every other field.
+  // unknownAttempts: calls that ended without a confirmed cost (charged nothing, holding nothing). A missing count is 0, as from a
+  // server before the field; a present one must be a whole number.
   const unknown = body.unknownAttempts ?? 0;
-  const valid = AMOUNTS.every(key => Number.isSafeInteger(body[key]) && body[key] >= 0) && body.allowanceMicros > 0
+  const amount = value => typeof value === 'number' && Number.isFinite(value) && value >= 0;
+  const valid = AMOUNTS.every(key => amount(body[key])) && body.allowanceCredits > 0
     && Number.isSafeInteger(unknown) && unknown >= 0
     && typeof body.resetsAt === 'string' && !Number.isNaN(Date.parse(body.resetsAt));
   if (!valid) return { status: 'unavailable', reason: 'malformed' };
   // byFeature (Settings' "This month by feature"): kept only when every row is well formed; a server without it shows no split.
   const whole = value => Number.isSafeInteger(value) && value >= 0;
-  const split = Array.isArray(body.byFeature) && body.byFeature.every(row => typeof row?.feature === 'string' && whole(row.usedMicros) && whole(row.reservedMicros) && whole(row.unknownAttempts ?? 0))
-    ? { byFeature: body.byFeature.map(row => ({ feature: row.feature, used: row.usedMicros, reserved: row.reservedMicros, unknownAttempts: row.unknownAttempts ?? 0 })) } : {};
+  const split = Array.isArray(body.byFeature) && body.byFeature.every(row => typeof row?.feature === 'string' && amount(row.usedCredits) && amount(row.reservedCredits) && whole(row.unknownAttempts ?? 0))
+    ? { byFeature: body.byFeature.map(row => ({ feature: row.feature, used: units(row.usedCredits), reserved: units(row.reservedCredits), unknownAttempts: row.unknownAttempts ?? 0 })) } : {};
   return { status: 'ready', usage: {
-    allowance: body.allowanceMicros, used: body.usedMicros, reserved: body.reservedMicros, remaining: body.remainingMicros,
+    allowance: units(body.allowanceCredits), used: units(body.usedCredits), reserved: units(body.reservedCredits), remaining: units(body.remainingCredits),
     resetsAt: body.resetsAt, period: body.period ?? null, enforced: body.enforced === true, unknownAttempts: unknown, ...split,
   } };
 }

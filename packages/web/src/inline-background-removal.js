@@ -70,10 +70,10 @@ function createImageController({ block, scope, ownerKey, current, jobClient, edi
     async start({ consent, idempotencyKey, onProgress }) {
       check();
       if (attempted) throw fail('already_started', 'Resume the existing job instead of starting another.');
-      if (consent?.approved !== true || typeof consent.maxReservedUsd !== 'number' || !Number.isFinite(consent.maxReservedUsd) || consent.maxReservedUsd <= 0) throw fail('consent_required', 'Approve the displayed maximum reservation before starting.');
+      if (consent?.approved !== true || typeof consent.maxReservedCredits !== 'number' || !Number.isFinite(consent.maxReservedCredits) || consent.maxReservedCredits <= 0) throw fail('consent_required', 'Approve the displayed maximum reservation before starting.');
       if (edit && typeof prepareMask !== 'function') throw fail('unavailable', 'Mask preparation is unavailable. Resume a saved job instead.');
       attempted = true;
-      await remember({ version: 1, ownerKey, scope: at, before, state: 'submission_pending', ticket: null, idempotencyKey, maxReservedUsd: consent.maxReservedUsd, ...(edit ? { edit } : {}) });
+      await remember({ version: 1, ownerKey, scope: at, before, state: 'submission_pending', ticket: null, idempotencyKey, maxReservedCredits: consent.maxReservedCredits, ...(edit ? { edit } : {}) });
       check();
       let mask = null;
       if (edit) {
@@ -85,7 +85,7 @@ function createImageController({ block, scope, ownerKey, current, jobClient, edi
         check();
       }
       const ticket = await jobClient.submit({ operation, ...(edit ? { ...mask, prompt: edit.prompt } : {}), app: at.app, board: at.board, cardId: before.id,
-        sourceId: source.id, sourceSha256: source.rev, idempotencyKey, paidConfirmation: true, maxReservedUsd: consent.maxReservedUsd }, { signal: lifetime.signal });
+        sourceId: source.id, sourceSha256: source.rev, idempotencyKey, paidConfirmation: true, maxReservedCredits: consent.maxReservedCredits }, { signal: lifetime.signal });
       await remember({ ...saved, state: 'queued', ticket });
       return resume(saved, { onProgress });
     },

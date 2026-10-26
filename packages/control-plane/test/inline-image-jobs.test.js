@@ -17,7 +17,7 @@ function fixture() {
   const env = { INLINE_IMAGE_EDIT_ENABLED:'true',OPENAI_API_KEY:'fixture-not-a-key',INLINE_IMAGE_EDIT_RESERVED_USD:'0.2', LEARN_MEDIA:{get:async()=>({size:3,arrayBuffer:async()=>image.buffer})}, LEARN_DB:{prepare(sql){return {bind(){return {first:async()=>sql.includes('learn_boards')?board:sql.includes('file_source_refs')?{ok:1}:source};}}}} };
   env.FILE_JOBS={idFromName:name=>name,get:()=>({fetch:req=>imageJobFetch(state,env,req,deps)})};
   const access={board:async()=>({owner:{org:'org',email:'owner'},row:board}),source:async()=>({source}),identity:async()=>({org:'org',email:'owner'})};
-  const body={operation:'remove_background',sourceId,app:'canvas',cardId:'card',idempotencyKey:'unique-key',paidConfirmation:true,maxReservedUsd:0.2};
+  const body={operation:'remove_background',sourceId,app:'canvas',cardId:'card',idempotencyKey:'unique-key',paidConfirmation:true,maxReservedCredits:20};
   const submit=async(patch={},dependencies=access)=>inlineImageJobsRoute('/api/learn/files/image-edits',new Request('https://app/api/learn/files/image-edits',{method:'POST',body:JSON.stringify({...body,...patch})}),env,dependencies);
   const status=async(id,who='owner',action='status')=>imageJobFetch(state,env,new Request('https://internal/image-edit/'+action,{method:'POST',body:JSON.stringify({id,identity:{org:'org',email:who}})}),deps);
   return {records,alarms,calls,state,source,board,deps,env,access,submit,status};
@@ -107,12 +107,12 @@ test('real migration schema accepts immutable publication and retains original s
 test('quote exposes only authenticated availability and maximum; consent bounds fail before scheduling',async()=>{
  const h=fixture(),url='/api/learn/files/image-edits';
  const quoted=await inlineImageJobsRoute(url,new Request('https://app'+url),h.env,h.access);
- assert.deepEqual(await quoted.json(),{available:true,maximumReservedUsd:.2,model:'gpt-image-2.5-sunburst-2026-09-08'});
+ assert.deepEqual(await quoted.json(),{available:true,maximumReservedCredits:20,model:'gpt-image-2.5-sunburst-2026-09-08'});
  assert.equal((await inlineImageJobsRoute(url,new Request('https://app'+url),h.env,{...h.access,identity:async()=>new Response(null,{status:401})})).status,401);
- for(const maxReservedUsd of [undefined,'0.2',0,-1,.19])assert.equal((await h.submit({maxReservedUsd})).status,409);
+ for(const maxReservedCredits of [undefined,'20',0,-1,19])assert.equal((await h.submit({maxReservedCredits})).status,409);
  assert.equal(h.records.size,0);assert.equal(h.calls.admit,0);
  h.env.INLINE_IMAGE_EDIT_ENABLED='false';
- assert.deepEqual(await(await inlineImageJobsRoute(url,new Request('https://app'+url),h.env,h.access)).json(),{available:false,maximumReservedUsd:null,model:null});
+ assert.deepEqual(await(await inlineImageJobsRoute(url,new Request('https://app'+url),h.env,h.access)).json(),{available:false,maximumReservedCredits:null,model:null});
 });
 
 test('cross-origin submit and cancel refuse before DO access; same-origin and trusted absent Origin remain allowed',async()=>{
@@ -121,7 +121,7 @@ test('cross-origin submit and cancel refuse before DO access; same-origin and tr
   const response=await inlineImageJobsRoute(path,new Request('https://app'+path,{method:'POST',headers:{Origin:'https://foreign.invalid'},body:'{}'}),h.env,h.access);assert.equal(response.status,403);
  }
  assert.equal(accesses,0);assert.equal(h.calls.admit,0);
- const body={operation:'remove_background',sourceId,app:'canvas',cardId:'card',idempotencyKey:'unique-key',paidConfirmation:true,maxReservedUsd:.2};
+ const body={operation:'remove_background',sourceId,app:'canvas',cardId:'card',idempotencyKey:'unique-key',paidConfirmation:true,maxReservedCredits:20};
  assert.equal((await inlineImageJobsRoute('/api/learn/files/image-edits',new Request('https://app/api/learn/files/image-edits',{method:'POST',headers:{Origin:'https://app'},body:JSON.stringify(body)}),h.env,h.access)).status,201);
  assert.equal((await h.submit()).status,201);
 });
