@@ -364,3 +364,17 @@ test('CAD single-shot Retry after a failed review: refused at CAD_MAX_CALLS 2, o
   assert.equal(three.status, 202); assert.equal(three.job.state, 'ready'); assert.equal(three.job.calls, 3);
   assert.ok(three.job.reservedUsd <= 0.20, String(three.job.reservedUsd));
 });
+
+// Acceptance item "one job for a double click on Generate": the second approval of the same brief is refused, so one source call and one build.
+test('CAD brief-first: a double click on Generate approves once, makes one source call and one executor dispatch', async t => {
+  const s = await setup(t, { briefFirst: true });
+  const created = await (await s.post('/api/learn/cad/jobs', request())).json();
+  const job = await s.advance(created.job.id);
+  const press = () => s.post(`${s.api(created.job.id)}/approve`, { briefHash: job.briefHash, confirmed: true });
+  const statuses = (await Promise.all([press(), press()])).map(r => r.status).sort();
+  assert.deepEqual(statuses, [202, 409], 'one approval accepted, the duplicate refused');
+  await s.advance(created.job.id); await s.advance(created.job.id);
+  assert.deepEqual(s.calls.map(c => c.phase), ['brief', 'source']);
+  assert.equal(s.sent.filter(x => x.operation === 'build' || x.requirements).length, 1, 'one executor dispatch');
+  assert.equal((await s.job(created.job.id)).calls, 2);
+});
