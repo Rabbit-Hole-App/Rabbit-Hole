@@ -116,12 +116,14 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
 // FILE_JOBS is plumbing for file conversion, Ctrl+K image edits and Ctrl+K JavaScript runs. Binding it enables none of them: each
 // feature's own vars, secrets and (for JavaScript) the Dynamic Workers loader stay absent until that feature's own release.
 // The loader is also absent on purpose: on an account without Workers Paid its deploy is refused (error 10195) and would block the release.
-test('production binds FILE_JOBS but enables none of the features that use it', () => {
+test('production binds FILE_JOBS and enables only Ctrl+K image edit of the features that use it', () => {
   const app = config(APP);
   assert.deepEqual(app.durable_objects.bindings.filter(b => b.name === 'FILE_JOBS'), [{ name: 'FILE_JOBS', class_name: 'FileJobs' }]);
   assert.deepEqual(app.migrations.at(-1), { tag: 'file-jobs-1', new_sqlite_classes: ['FileJobs'] }, 'a new tag goes after every applied one');
-  for (const name of ['CONVERT_URL', 'FILE_JOB_ORIGIN', 'FILE_JOB_CONCURRENCY', 'INLINE_IMAGE_EDIT_ENABLED', 'INLINE_IMAGE_EDIT_RESERVED_USD',
+  for (const name of ['CONVERT_URL', 'FILE_JOB_ORIGIN', 'FILE_JOB_CONCURRENCY',
     'INLINE_CODE_ENABLED', 'INLINE_CODE_MAX_RUNS', 'INLINE_CODE_MAX_MICROS', 'INLINE_CODE_RESERVE_MICROS']) assert.equal(app.vars[name], undefined, name);
+  // Ctrl+K image edit is the one feature activated here (ctrlk-completion.md): its flag and hold are set; its OPENAI_API_KEY secret is never in the config.
+  assert.deepEqual([app.vars.INLINE_IMAGE_EDIT_ENABLED, app.vars.INLINE_IMAGE_EDIT_RESERVED_USD], ['true', '0.03']);
   assert.equal(app.worker_loaders, undefined);
   for (const name of ['CONVERT_TOKEN', 'FILE_JOB_SECRET', 'INLINE_CODE_LOADER']) assert.ok(!JSON.stringify(app).includes(name), `${name} is a secret or a loader, never in the config`);
 });

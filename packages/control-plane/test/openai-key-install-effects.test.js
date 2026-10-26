@@ -28,7 +28,9 @@ const callRoute = (route, path, body) => route(new Request(`https://app${path}`,
 test('the committed production configuration has every OPENAI_API_KEY consumer off', () => {
   assert.equal(prodVars.TRANSCRIBE_ENABLED, 'false');
   assert.equal(prodVars.IMAGE_GENERATE_ENABLED, 'false');
-  for (const name of ['INLINE_IMAGE_EDIT_ENABLED', 'INLINE_IMAGE_EDIT_RESERVED_USD', 'LEGACY_IMAGE_GENERATION', 'LEARN_PLAN_MODEL']) assert.equal(name in prodVars, false, `${name} must stay absent until its own activation`);
+  // The one authorized consumer (owner activation, ctrlk-completion.md): Ctrl+K image edit, with its 3-credit hold.
+  assert.deepEqual([prodVars.INLINE_IMAGE_EDIT_ENABLED, prodVars.INLINE_IMAGE_EDIT_RESERVED_USD], ['true', '0.03']);
+  for (const name of ['LEGACY_IMAGE_GENERATION', 'LEARN_PLAN_MODEL']) assert.equal(name in prodVars, false, `${name} must stay absent until its own activation`);
 });
 
 test('spoken-answer transcription stays 503 with the key present (dev-worker.js /api/learn/transcribe, gate TRANSCRIBE_ENABLED)', async () => {
@@ -45,14 +47,16 @@ test('legacy image generation stays off with the key present (dev-worker.js /api
   assert.equal((await response.json()).code, 'image_generation_unavailable');
 });
 
-test('Ctrl+K image edit stays unavailable with the key present (inline-image-jobs.js enabled(), gates INLINE_IMAGE_EDIT_ENABLED and INLINE_IMAGE_EDIT_RESERVED_USD)', async () => {
+test('Ctrl+K image edit is the authorized consumer: available with the key and a 3-credit hold, unavailable without the key (inline-image-jobs.js enabled())', async () => {
   let addressed = 0;
-  const bound = { ...env, LEARN_DB: {}, LEARN_MEDIA: {}, FILE_JOBS: { idFromName: () => { addressed++; }, get: () => { addressed++; } } };
+  const bind = e => ({ ...e, LEARN_DB: {}, LEARN_MEDIA: {}, FILE_JOBS: { idFromName: () => { addressed++; }, get: () => { addressed++; } } });
   const access = { identity: async () => ({ org: 'o', email: 'someone@example.test' }), board: untouched('board'), source: untouched('source') };
   const url = '/api/learn/files/image-edits';
-  const quote = await inlineImageJobsRoute(url, new Request(`https://app${url}`), bound, access);
-  assert.deepEqual(await quote.json(), { available: false, maximumReservedCredits: null, model: null });
-  const submit = await inlineImageJobsRoute(url, new Request(`https://app${url}`, { method: 'POST', body: '{}' }), bound, access);
+  const quote = await inlineImageJobsRoute(url, new Request(`https://app${url}`), bind(env), access);
+  assert.deepEqual(await quote.json(), { available: true, maximumReservedCredits: 3, model: 'gpt-image-2.5-sunburst-2026-09-08' });
+  const { OPENAI_API_KEY: _key, ...keyless } = env;
+  assert.deepEqual(await (await inlineImageJobsRoute(url, new Request(`https://app${url}`), bind(keyless), access)).json(), { available: false, maximumReservedCredits: null, model: null });
+  const submit = await inlineImageJobsRoute(url, new Request(`https://app${url}`, { method: 'POST', body: '{}' }), bind(keyless), access);
   assert.equal(submit.status, 503);
   assert.equal(addressed, 0);
 });
