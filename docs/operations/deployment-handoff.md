@@ -1,6 +1,6 @@
 # Deployment handoff
 
-Last updated: Monday, 10/26/2026, 10:39 AM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
+Last updated: Monday, 10/26/2026, 11:25 AM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
 
 Authoritative inputs (repository-relative): the 60-row [feature inventory](evidence/feature-inventory.md), the [discrepancy table](evidence/completion-audit-discrepancies.md), the [validation budget ledger](evidence/validation-budget-ledger.md), the [flake list](evidence/flakes.md), the [FILE_JOBS contract](evidence/file-jobs-contract.md), feature docs under [`docs/features/`](../features/). The working task ledger and local receipts live on the integrator machine (`C:/s/spec/...`); important receipts are summarised under `docs/operations/evidence/`.
 
@@ -52,10 +52,50 @@ Newly completed overnight (implemented after 6 PM Sunday): tutor-timing and tuto
 | /video availability preflight, Stars and Weekly telemetry wiring | `c015534a`, `ffe30d90`, `2f92d101` | `a9c6756f` | `feat/audit-availability-telemetry` | preflight so no unrunnable paid proposal is shown; no-op sink calls |
 | Study resize and Chat restore | `5b60a856`, `7959cd39` | integrator | `stack/c17-batch` `0bd390ed` | **release now (section 9, step 1); no Motion dependency** |
 | Motion ceiling and R2 re-cuts on C17 | `733e996d` | integrator | `stack/c18-motion-ceiling`, `stack/c19-motion-r2` | gates running; then the Motion commands |
+| Motion credit disclosure and signed quote | `733e996d` (child) | `a23a16ef` | `fix/motion-credit-disclosure` | estimate / maximum / reservation in credits, signed binding carries the maximum |
+| Motion activation re-sequencing (R2a owner-only, then public) | `733e996d` | `ae211623` | `stack/c22-motion-r2a`, `stack/c23-motion-r2b` | both aspect-ratio owner-only jobs before public activation |
+| Image activation switch and deployed acceptance | `71597956`, `125bbcae` | `a0f357d6` | `feat/image-activation-switch` | held public-flip commit and paid acceptance script |
+| Telemetry production procedure and acceptance | `4966b9ba` | `a49fab83` | (docs and scripts under `C:/s/spec/telemetry-accept`) | owner command sequence and deployed acceptance package |
+| Task board reconciliation | `b2d961d6` | `a75d4ee3` | (read-only) | five-state table for every ledger task |
+
+### 0.5 Completion estimates (PT, Monday 2026-10-26; derived, not guessed)
+
+Derivation. Measured today: verify and fast-e2e take about 10 to 12 minutes after a push; a sharded gate about 11 minutes and runs one at a time; a release (`train` script) about 6 minutes after the gate note; a lane's first pushed branch came 25 to 50 minutes after it started (audit A 40 min, audit B 33 min, converter 35 min, rename 55 min). Every estimate below assumes no fix rounds unless stated; one failed CI or acceptance round adds roughly 45 to 90 minutes. "Owner" means waiting for a command or browser action only you can do. Confidence is stated per row.
+
+| Feature (ledger UUID) | State and latest milestone | Remaining | Owner (agent) | Blocker or owner command | Ready to release (PT) | Usable in production (PT) | Confidence and assumptions |
+|---|---|---|---|---|---|---|---|
+| C17 Study resize and Chat restore (`5b60a856`, `7959cd39`) | LIVE 10:58 AM (`0bd390ed`, run 40373219295) | your production walk (reload after resize; chat chip and Auto after reload) | integrator | browser check by you | done | now; production-accepted when you confirm | high |
+| Motion ceiling, refund, second job (`733e996d`) | ceiling `0b5a8dae` gated (run 40372495316); post dry run OK 11:16 AM | owner runs `post`; refund dry run then apply; one 15 s 16:9 job in your browser | integrator (checks); you (commands, click) | command 1 below (needs your D1a, already approved) | ready now | ceiling live about 11:45 AM; job 2 result about 12:15 PM | medium: assumes no job in flight and the orchestrator deploy passes its own verification |
+| Motion corrected credit disclosure and signed quote (`733e996d` child) | lane started 10:52 AM, no push yet | estimate, maximum (350) and reservation shown separately in credits; signed binding includes the maximum; tests and CI | `a23a16ef` (branch `fix/motion-credit-disclosure`) | none | about 12:30 PM (push about 11:45, CI 12:00, gate 12:15) | released about 12:40 PM if you run the train promptly | low to medium: the lane has not pushed; UI changes may need e2e edits (+45 to 90 min) |
+| Motion public activation (`733e996d`) | R2 re-cut gated earlier; being re-sequenced | R2a (owner-only measured policy), 9:16 owner-only job, then R2b (public flip) behind acceptance and the disclosure fix | `ae211623` (branches `stack/c22-motion-r2a`, `stack/c23-motion-r2b`) | your commands: activate-owner, 9:16 job, activate-public | R2a about 12:30 PM, R2b about 12:45 PM | **public about 2:00 to 3:00 PM** | low to medium: both jobs must pass on the first try (each failure adds about 1 to 1.5 h and spend); 9:16 on the owner-only path is not yet confirmed supported (lane checking) |
+| Image generation and editing (`125bbcae`, `64fb7852`, `9453f5f0`) | owner-only path live in C16, public off, no keys; activation switch lane started 11:25 AM | HELD public-flip commit, deployed acceptance script, secrets install, one paid run per model | `a0f357d6` (`feat/image-activation-switch`); `a6696ba7` for Ctrl+K edit | your decision on installing keys (the flag must be released first); secrets command; paid acceptance (budget now US$100 total) | switch candidate about 1:00 PM | owner-only paid acceptance about 2:30 to 3:30 PM; public on your explicit GO after that | low to medium |
+| Command rename `/image`, `/photos` (`d5488d25`) | pushed 11:20 AM (`6ab6229b`), CI running | CI result, gate, release | `a3676257` | none | about 12:15 PM | about 12:30 PM | medium |
+| Transcription (`62c6f327`) | separate default-off flag committed 10:45 AM (branch `feat/ctrlk-activation-prep`); preparation continues | release the flag before any key install; migration to `gpt-transcribe`; one real recording acceptance | `a6696ba7` | owner decision O-8 later; flag release | flag about 12:15 PM | stays OFF by your decision; activation is a separate later decision | medium for the flag; not scheduled for activation |
+| Telemetry production dashboard (`6c3f8d59`, `4966b9ba`) | safeguards review YES; candidate `29e70faa` (`stack/c21-telemetry`) gated (run 40374629017 verify; gate running 11:25 AM) | your dry run, preflight and phase A; then release the candidate (after the ceiling release); then phase B; then the acceptance package | `a49fab83` (acceptance package); you (terminal) | commands 2 to 4 below, then release, then phase B | gate about 11:40 AM | **about 1:00 to 2:00 PM** | medium: needs you at a terminal and the ceiling release first (the candidate stacks on it) |
+| FILE_JOBS converter (`6570266e`, `9df97503`) | implemented and unit-tested (`40fa735f` CI green); prod package written; nothing deployed | merge and release the prep branch; create the Fly app (3 owner commands); activation commit; real conversion acceptance | `ad16510a` done; integrator releases | **your approval of the production Fly app (about US$1.5 to 9.8 a month)** and the formats scope | prep branch about 12:45 PM | about 2:30 to 4:00 PM if you approve by noon; otherwise blocked | medium: real LibreOffice and FFmpeg paths have never run, so the first real conversion is the first evidence |
+| Ctrl+K image edit and background removal (`9453f5f0`) | activation checklist and tests in progress | needs the OpenAI key, a reserve variable, FILE_JOBS (bound), one paid real removal | `a6696ba7` | key install (after flag release); paid acceptance | about 1:00 PM | about 3:00 to 4:00 PM owner-only | low |
+| Ctrl+K JavaScript (`ba6304f0`) | probe package in progress | owner OK to run the disposable loader probe on a dev clone; limits config; deployed termination test | `a6696ba7` | your OK for the probe | about 1:00 PM | tomorrow morning at the earliest | low |
+| CAD review-first (`f9f35fb7`, `d3a0e047`) | inert 3-call candidate `de3c9185` and held flip `b2189e21` pushed; CI running | release inert candidate; the Nov 1 constraint: the lane reports whether it is our own policy and gives a priced option | `a757f8e4` | the paid job needs the executor budget (our own ledger, rolls over Oct 31 5:00 PM PDT) or your approval of a priced adjustment | about 12:30 PM | Nov 1 evening by policy; sooner only if you approve the priced adjustment | high for the date, medium for the adjustment |
+| Credits sealing and accounting (`bf3b1551`) | fixed on `fix/audit-credits-sealing` (`db4ed119`), CI green | release in the next batch; remaining: operator unknown-cost report | `a82048ea` done | none | next batch about 12:45 PM | about 1:00 PM | high |
+| /video availability preflight (`c015534a`) | pushed (`1e76ae58`), CI green | release in the next batch; provision or retire is a separate decision | `a9c6756f` done | your decision on /video and maths (provision, retire, keep preflight) | next batch about 12:45 PM | about 1:00 PM (preflight only) | high |
+| Stars and Weekly telemetry (`ffe30d90`, `2f92d101`) | wiring pushed (same branch); inert without a sink | release; real analytics only after Telemetry is bound and the owner projection runs; Stars creator dashboard fields still unassigned | `a9c6756f` done | Telemetry production (above); decision: approve the `weekly_top` namespace | next batch about 12:45 PM | no-op until Telemetry; real rows about 2:00 PM or later | high for release, medium for real data |
+| tldraw removal (`19e561b2`) | inventory done (13 import sites, 2 live surfaces); slice 1 pushed (`d066a636`) | spec, remaining slices, snapshot migration, build-guard removal | `a80b26c3` | none | slice 1 about 12:15 PM | **not derivable**: the lane has not yet listed the remaining slices; I will give a derived date when its spec lands (expected by about 12:30 PM) | low |
+| Security headers (`12669016`) | candidate patch and tests written | owner chooses A, B or C; one read-only curl | `a82048ea` done | your decision (recommend B after the curl) | after your choice | about 15 minutes after the release | medium |
+| Other completion-audit items | see the reconciliation (agent `a75d4ee3` running) | tutor rubric (O-6), narration (O-13), shared review card (O-9), voice, coding exercises and others are held on your scope decisions or paused by you | none until you decide | your decisions O-6, O-9, O-13 | n/a | n/a | n/a |
+
+Overall estimates.
+- **Motion, Image and Telemetry usable and production-accepted:** best case about 3:00 PM, likely about 5:00 PM today. The longest pole is Motion public activation (two owner-only jobs plus the disclosure fix), then Image paid acceptance. A failed job or CI round adds 1 to 1.5 hours each. Not promised: it assumes your commands run within about 10 minutes of being sent.
+- **Full currently authorized backlog (excluding tldraw and items held on your scope decisions):** Tuesday 10/27 around noon if you approve the converter and the CAD priced adjustment today; otherwise the CAD paid job holds it to Nov 1 evening. tldraw has no derivable date yet.
+
+Critical path today, separated.
+- *Active agent work:* Motion disclosure fix; R2a/R2b split; image switch and acceptance script; Ctrl+K and transcription; CAD candidate CI; tldraw spec; telemetry acceptance package; ledger reconciliation.
+- *CI and runtime waiting:* telemetry gate (running); rename, CAD, converter, tldraw and Ctrl+K verify and fast-e2e; later gates for the disclosure fix, R2a, R2b, batch release (about 11 minutes each, one at a time).
+- *Waiting for your commands:* Motion `post`; refund; the 16:9 job; telemetry dry run, preflight, phase A; later the telemetry release and phase B; the 9:16 job; activate-public; image secrets and paid runs; converter app creation.
+- Independent work does not wait for release sequencing: every lane above continues in parallel; only the chain Motion ceiling, then Telemetry, then Motion R2 depends on main moving by fast-forward.
 
 ## 1. Where production is
 
-- `main`: **7b105a4b** (batch C16), live since 10:20 AM PT today: release run 40367315136, build `11bedef1fad78bbd`, rabbit-hole-cp `3be9615c-8e49-430f-bdd6-fcbbc0b16213`, rabbit-hole-app `b3647bd8-c095-4fb2-9b18-ff45cc173267`, smoke passed, probes `200 200 401 401 405` (details in section 0.3). Previous production revision: `629251d4` (Motion R1b, 8:50 PM Sunday).
+- `main`: **0bd390ed** (batch C17: C16 + Study resize persistence + Chat restore), live since 10:58 AM PT: release run 40373219295, build `622a36f361bce43e`, rabbit-hole-cp `c415190c-110f-4702-ada1-44d6d356ab3b`, rabbit-hole-app `470e810e-1388-4e75-92c8-07677388033e`, probes `200 200 401 401 405`. Before it: C16 `7b105a4b` (10:20 AM, run 40367315136, details in section 0.3) and `629251d4` (Motion R1b, Sunday 8:50 PM).
 - Motion renderer and orchestrator (Fly) run **32d86ee7** (renderer hash `02d5069eeb4d`), with a 1 GB durable job-store volume (`motion_jobs`, iad). Public Motion generation is **paused**; only the owner's account can start a job (owner-only path).
 - Production Learn D1 has migrations 0027-0032 applied (215 objects, 0 differences against `main`). Production telemetry D1 `rabbit-hole-telemetry` (`e4c585cf-6078-43dd-b5c0-d30e0f80e778`) and R2 bucket `rabbit-hole-telemetry-archive` exist and are **adopted, empty and unbound**.
 - Release order today (all live): Comments Stage 1 + Focus (889ed230), Credits (29070833), Telemetry dark (eac03b74), Stars inside Comments 2-4 (59bb544c), Weekly Top 5 (8bda70a2), CAD Focus (d31bab82), checks/docs (41aaaf43), Telemetry dev bindings (dc350796), Credits/Comments/Telemetry-acceptance batch C13 (29622d8e), Motion R1 (32d86ee7), Motion R1b (629251d4).
@@ -81,8 +121,8 @@ Explicitly deferred or paused (not reactivated): 3D assemblies (brief not handed
 
 ## 4. Budget
 
-- Approved shared validation cap: **US$20.00** (unchanged). Live ledger (2026-10-25 9:55 PM PT): spent 17.9994, reserved 0.25 (dev volume), **remaining 1.7506**. The owner's willingness to go to **US$100** (Motion 40, Image 30, other acceptance 20, reserve 10) is a PROPOSAL; it is NOT approved and the ledger cap has not changed. The consolidated priced package is ready: [infra-package](evidence/infra-package.md) (expected new recurring about US$2.6-4.6/month, ceiling about US$15, within the US$30 target; one-time test budget required tests about US$22 maximum / US$9 expected; proposed per-job acceptance ceiling US$3.00 instead of US$2.00; cap proposal US$100). Image lane needs only about US$0.70 more to run its acceptance plan.
-- Per-job Motion protection: validation bound US$3.00 (separate from the cap); the production acceptance window used a US$2.00 per-job ceiling, which caused the failed job below.
+- Approved shared validation cap: **US$100 TOTAL**, approved by the owner 2026-10-26 about 11:00 AM PT, inclusive of everything already spent or reserved (it replaces the US$20 cap; it is not an additional US$100). Ledger now: spent 17.9994, reserved 0.25 (dev volume), **remaining 81.7506**. Reserve in `budget.mjs` and read `status` before every paid run; missing deployed-flow acceptance comes before repeated adapter tests. The approval does NOT cover new recurring infrastructure or provider account limit changes. See the [budget approval package](evidence/budget-approval-package.md) and the [infrastructure package](evidence/infra-package.md).
+- Per-job Motion protection: **US$3.50** per job, approved 2026-10-26 (replaces the earlier US$3.00 validation bound); the production acceptance window used US$2.00, which caused the failed job below. The pre-call spend guard and the shared-budget reservations stay. Owner-only acceptance accepts a charge of up to 350 AI credits per job; the estimate (about 100), the maximum (350) and the temporary 896-credit reservation are recorded separately, and public activation waits for the corrected disclosure.
 - New recurring costs ALREADY approved: Motion 1 GB volume US$0.15/month. PROPOSED, not approved: converter production app (about US$9/month estimated, to be verified), math renderer, others (infra-package pending).
 
 ## 5. Failed production Motion job (investigated, no new generation submitted)
@@ -130,68 +170,94 @@ Legend: To Do / Doing / Blocked / Done (a task is Done only with production evid
 
 Production mutations are owner commands; one gate and one release at a time; no paid call outside the shared ledger; script tests for production-affecting scripts run in an isolated harness (`CLAUDE.md`); users see AI credits only (no dollars) and no ellipsis in UI labels; no 3D assemblies, Explain Back or Voice Mode work without authorization.
 
-## 9. Owner queue (revised Monday 2026-10-26, 10:40 AM PT; updated 10:46 AM PT)
+## 9. Owner queue (rewritten Monday 2026-10-26 after the owner's approvals)
 
-Nothing in this document authorises any action. Each line says who acts: **DECISION** (yours), **YOU RUN** (a command or browser action only you can do, because it changes production or spends money), **ME** (implementation, verification, coordination I own and am doing now). Only the lines marked DECISION or YOU RUN need you.
+Nothing here authorises an action beyond what is listed as approved. Who acts: **YOU RUN** (command or browser action only you can do), **ME** (implementation, verification, coordination I own and am doing now).
 
-### 9.1 Done and verified
+### 9.1 Approvals received (owner typed messages, 2026-10-26 about 11:00 AM PT) versus proposals not yet approved
 
-- C16 is live: see section 0.3.
-
-### 9.2 Ready now, no dependency on Motion
-
-| # | Who | Action | Details |
-|---|---|---|---|
-| 1 | YOU RUN | Release C17 (Study resize persistence and Chat restore fixes): `cd /c/s/spec/day-1021 && bash train7.sh` | Fast-forwards main from `7b105a4b` to `0bd390ed` (C16 is its ancestor). Gate 40296414242 passed 2:12 AM, dry run ok 10:36 AM. No migration, no config, no cost. About 6 to 8 minutes. Success: a LIVE line and probes `200 200 401 401 405`. Resumable: rerun the same command; a rollback is a new release of `7b105a4b`. Not released earlier because of my release order, not because of any dependency on Motion (see 9.5). |
-| 2 | YOU RUN | Publish this handoff to main after step 1: `bash /c/s/spec/day-1021/release-docs.sh` | Docs-only gate-reuse release (pushes `docs/operations/**` to dev, then main). I merge main into the docs branch and run its `--dry-run` first; I will put the result here. |
-| 3 | YOU RUN, browser | Walk the production checklist for C16 (and C17 after step 1) | [owner observations](evidence/owner-observations.md): Credits usage panel, a Chat command response, Study resize reload, Chat restore. Do NOT click Generate again on the failed Motion job. |
-
-### 9.3 Decisions that gate paid work (package: [budget approval package](evidence/budget-approval-package.md))
-
-| # | Who | Decision | My recommendation |
-|---|---|---|---|
-| D1a | DECISION | Motion per-job ceiling **US$3.50** (current 2.00; supersedes the older US$3.00 per-job bound for Motion) | approve: at 2.00 any job whose Director, storyboard and Author spend exceeds about 0.54 cannot hold both reviews; measured peaks are 2.28 to 3.05 (up to about 3.13 with a repair); 3.00 fails the 30 s repair case by 0.05 |
-| D1b | DECISION | Maximum learner charge for a completed Motion job rises from about 200 to about 310 credits (hard stop 350) while the card says about 100 | accept for the owner-only acceptance window; decide a quote change before public activation |
-| D2 | DECISION | Shared validation cap **US$100** (spent and reserved 18.2494 included; 81.7506 would remain). The cap stays US$20 until you approve | approve: the second Motion job reserves up to US$3.50 and does not fit in the US$1.7506 left today |
-| D3 | DECISION | OpenAI key, which is a prerequisite for image generation (four models) and Ctrl+K image edit. **Why transcription is involved (evidence, not scheduling):** the `/api/learn/transcribe` route returns 503 only when `OPENAI_API_KEY` is absent (`packages/web/dev-worker.js:292`); there is no separate flag in the code I read, so installing the key switches transcription on for signed-in canvas members at about US$0.006 a minute, metered only by the platform cap. | I have asked the Ctrl+K lane to add a default-off flag for the route first, which makes this a non-issue (the key then enables only image work). If you prefer to accept transcription going live, say so and I tell the lane to skip the flag. |
-| D4 | DECISION | Telemetry production GO. The independent safeguards re-review **has passed** (round 3 final verdict YES, script `09fe1c93`, 283 scenarios, 1110 checks, 0 failed, 1 skipped; static review only, so the `/dev/tty` branch and real wrangler flags are untested). The candidate `8d476050` was older than main; it is now re-cut as `stack/c20-telemetry` `1ad942e0` (the same one-file config change, same changed lines, on top of the Motion R2 re-cut), pushed, gate queued behind the R2 gate. It must be the LAST release in the chain: C17, ceiling, R2, then telemetry | GO when you are ready to run `--dry-run` then `--preflight` yourself in your terminal |
-
-### 9.4 Motion sequence: only these items need you
-
-The Motion branches are re-cut on C17 so that nothing else waits on them: ceiling `stack/c18-motion-ceiling` `0b5a8dae`, R2 `stack/c19-motion-r2` `db8cd547`. Both change only configuration and tests (patch-ids equal to the earlier gated commits). Their gates run now, sequentially: **ceiling gate: running; R2 gate: queued** (run ids are filled here when they pass, about 11:15 AM and 11:30 AM PT). The commands are then the ones in the prepared sequence with the new SHAs; I will replace this paragraph with copyable lines once both gates have passed, after step 1 has landed and after D1a, D1b and D2.
-
-| Step | Who | What |
+| Item | Status | Exact terms |
 |---|---|---|
-| M1 | YOU RUN | `motion-deploy.sh post` for the ceiling candidate: releases the ceiling, waits until no job is in flight, redeploys ONLY the orchestrator, verifies with no paid call |
-| M2 | ME | read the post result and the orchestrator machine image back; confirm the ceiling in the running config |
-| M3 | YOU RUN | refund dry run (read-only, prints the command), then the same with `MOTION_REFUND_CONFIRM=yes` (applies the 127.8157-credit refund; idempotent, one audit row) |
-| M4 | YOU RUN, browser | one confirmed 15 s, 16:9 job from the Motion command (a paid action: requires D2) |
-| M5 | ME | read the accounting row read-only (`MOTION_ACCEPT2_DONE=yes`) and check cost, credits and the failure path |
-| M6 | YOU RUN | `motion-deploy.sh activate` for the R2 candidate (unpauses generation) |
-| M7 | YOU RUN, browser | one 9:16 job, then `activate` with `MOTION_ACCEPT_JOB_DONE=yes` |
+| D1a Motion per-job validation ceiling | **APPROVED** | US$3.50 per job, replacing the previous US$3.00 bound. Keep the pre-call spend guard and the shared-budget reservations. Does not prove every composition or repair fits. Zero-credit treatment for our configuration, capacity and infrastructure failures stays. The effective ceiling on the deployed orchestrator must be verified before another paid attempt (the `post` step does this: machine env ceiling, startup policy line, health). |
+| D1b Motion credit disclosure | **APPROVED for owner-only acceptance only** | Up to 350 AI credits per job. Estimate (about 100), maximum possible charge (350) and temporary reservation (896, not the expected charge) are recorded separately. Motion is NOT publicly activated with "about 100 credits" as the only explanation; the signed/versioned quote contract is corrected first (lane `a23a16ef`); consent-affecting settings or pricing changes force reconfirmation. Users see AI credits only. |
+| D2 Shared validation budget | **APPROVED** | US$100 TOTAL including everything spent or reserved (17.9994 + 0.25 at the time; 81.7506 remaining). Single ledger `C:/s/spec/budget/` now has cap 100 and an approval record; check `status` before every reservation. Priority: missing deployed-flow acceptance. It does NOT approve new recurring infrastructure or provider account limit changes. |
+| D3 OpenAI key and transcription | **APPROVED** | Transcription stays separately gated OFF (default-off flag, lane `a6696ba7`, released before the key is installed). Tests prove the key enables only the authorised image path. Transcription preparation continues; it is neither activated nor dropped. |
+| D4 Telemetry production | **APPROVED (GO)** | Through the reviewed procedure, subject to a successful dry run and preflight; preserve the existing `SUBSCRIPTION_OWNER_EMAIL` secret; verified identity only, no allowlist widening; on a failed preflight stop that mutation and diagnose. Owner access, non-owner refusal, ingestion, dashboard queries, health and separate cost states are verified after deployment (lane `a49fab83`). |
+| Converter Fly app (about US$1.5 to 9.8 a month), formats scope | **PROPOSED, not approved** | needed before any production converter is created |
+| Security headers option (A merge as is, B staged HSTS, C zone only) | **PROPOSED, not approved** | recommendation B |
+| /video and maths: provision, retire or keep the preflight only | **PROPOSED, not approved** | recommendation: keep the preflight only for now |
+| `weekly_top` as a second browser-ingest namespace; Stars delivery only through the owner projection (no cron) | **PROPOSED, not approved** | recommendation: approve both |
+| CAD Nov 1: a priced adjustment | **PROPOSED, being priced** (lane `a757f8e4`) | not yet presented |
+| Anthropic workspace monthly limit for the Motion tests (a provider account limit) | **PROPOSED, not approved** | required maximum US$18.35 for the Motion tests; no fixed cost; raise only if a job is refused for the limit |
+| Production Workers/Fly/other recurring costs | **PROPOSED, not approved** | [infrastructure package](evidence/infra-package.md) section 9.1 |
 
-Rollback of the orchestrator deploy is unverified for how `fly deploy --image --config` treats the config; the script reads the machine back and refuses to call it done if the image differs.
+### 9.2 Commands already completed (do not repeat)
 
-### 9.5 Dependency handling (why nothing else waits on Motion)
+`train6.sh` (C16 live 10:20 AM, run 40367315136) and `train7.sh` (C17 live 10:58 AM, run 40373219295).
 
-- **C17 needed to wait for R2 only because of my release order**: main moves by fast-forward only and the Motion script pins exact SHAs, so releasing C17 between them would have invalidated their gates. I fixed it by releasing C17 first and re-cutting the two Motion commits (one config commit each) on top of it. That costs two extra gates (about 70 runner-minutes each on Windows); a slow Motion acceptance no longer holds the fixes.
-- Image: the candidate is already live (owner-only, public off). Paid acceptance waits on D2; the secrets command waits on D3; the code, tests and the transcription flag proceed.
-- Telemetry: re-cut and gate proceed now; the release waits on D4.
-- CAD: everything except one paid job proceeds; that job waits for the October executor budget to roll over (Oct 31, 5:00 PM PDT) and your command.
-- FILE_JOBS features: code, fixtures and deployment packages proceed; Fly spend (about US$1.5 to 9.8 a month for the converter) needs your approval before a production app is created.
-- Ctrl+K JavaScript: the disposable loader probe needs your OK to run on a dev clone; everything else proceeds.
+### 9.3 Ready owner commands, in execution order
 
-### 9.6 What I am running now (with PT estimates, derived from the gate durations of about 11 minutes and the lane steps)
+Run each in Git Bash, one at a time. Commands 1, 2, 3 and 4 are independent (Telemetry steps do not need the Motion steps) except where noted.
 
-| Item | Estimate (PT) |
-|---|---|
-| Ceiling and R2 re-cut gates | ceiling about 11:15 AM, R2 about 11:30 AM |
-| Docs-branch release dry run | after step 1 above |
-| Telemetry candidate gate (`stack/c20-telemetry`) | after the R2 gate, about 11:45 AM |
-| Lane hand-backs | not derivable yet; each lane writes `C:/s/spec/<lane>/state.md`; I will report derived estimates from their first hand-backs |
+**1. Motion: release the ceiling and redeploy the orchestrator only.** YOU RUN.
+```
+MOTION_BASE=0bd390ed76e46149d964231504cc6c2a2d6b615d MOTION_BRANCH=stack/c18-motion-ceiling MOTION_REL=0b5a8daedeb652cd03bda36f329712ef29164dab MOTION_JOB_CEILING_USD_APPROVED=3.50 MOTION_WORKER_RELEASE=yes MOTION_GATE_RUN=40372495316 bash /c/s/spec/motion-validation/motion-deploy.sh post
+```
+Effect: pushes the config-only ceiling commit to main (gate 40372495316 passed; main fast-forwards from `0bd390ed`), releases it, waits until no Motion job is in flight, redeploys ONLY the orchestrator with `MOTION_JOB_CEILING_USD=3.50`, and verifies without a paid call (machine env ceiling, policy line, health, renderer untouched). Public stays paused; owner path unchanged. Expected: `POST-FIX INFRASTRUCTURE DONE`, probes `200 200 401 401 405`. Dry run passed 11:16 AM. About 10 to 20 minutes. Rollback: `MOTION_ROLLBACK_CONFIRM=yes bash /c/s/spec/motion-validation/motion-deploy.sh rollback-orchestrator` (the rollback is unverified for how `fly deploy --image --config` treats the config; the script reads the machine back). I (ME) read the verification output and confirm the effective ceiling before any paid attempt.
+
+**2. Telemetry: dry run (offline, no credentials).** YOU RUN, in a terminal.
+```
+bash /c/s/spec/telemetry/prod-telemetry.sh --dry-run
+```
+Effect: prints the plan; no network, no wrangler. Expected: the ordered plan and no error.
+
+**3. Telemetry: preflight (reads production, changes nothing).** YOU RUN, in the same terminal.
+```
+bash /c/s/spec/telemetry/prod-telemetry.sh --preflight
+```
+Effect: loads the credential by name and makes read-only calls (account, D1 `rabbit-hole-telemetry` `e4c585cf-6078-43dd-b5c0-d30e0f80e778`, bucket, schema). If anything fails, stop and tell me the line; I diagnose and continue other work.
+
+**4. Telemetry phase A: verify and ADOPT the existing resources, then pause.** YOU RUN, in the terminal; you type `ADOPT e4c585cf-6078-43dd-b5c0-d30e0f80e778` when asked.
+```
+bash /c/s/spec/telemetry/prod-telemetry.sh
+```
+Effect: verifies the resources, records ADOPTED, creates and migrates nothing, prints the next command and pauses.
+
+**5. Motion refund of failed job 61f701710ba30bfa591a992844509c0d.** YOU RUN, after command 1 succeeded. Dry run first (read-only):
+```
+MOTION_BASE=0bd390ed76e46149d964231504cc6c2a2d6b615d MOTION_BRANCH=stack/c18-motion-ceiling MOTION_REL=0b5a8daedeb652cd03bda36f329712ef29164dab MOTION_JOB_CEILING_USD_APPROVED=3.50 bash /c/s/spec/motion-validation/motion-deploy.sh refund
+```
+then the same with `MOTION_REFUND_CONFIRM=yes` added to apply. Effect: refunds the 127.8157 credits charged by mistake; idempotent, one audit row. Do not retry that job.
+
+**6. Motion second acceptance job, 15 s, 16:9 (owner-only).** YOU RUN, browser, after commands 1 and 5. First `... MOTION_JOB_CEILING_USD_APPROVED=3.50 bash /c/s/spec/motion-validation/motion-deploy.sh accept2` (same environment words as in 5) prints the instructions; run the job once with the confirmation card (it can consume up to 350 credits and about US$0.7 to 1.3 of model money, hard stop at 3.50); then add `MOTION_ACCEPT2_DONE=yes` and run it again so the accounting row is read and checked. I record the reservation first in `budget.mjs` (reserve 3.50, settle to actual).
+
+### 9.4 Prepared, not yet ready (I tell you the moment each is ready; the command text lands here)
+
+| Step | Who | What and why it waits |
+|---|---|---|
+| Telemetry release and phase B | YOU RUN | after command 1 lands (the candidate `29e70faa` stacks on the ceiling commit) and its gate passes (running): `train8.sh` releases it (collection goes live), then `prod-telemetry.sh resume --candidate 29e70faab9d6e6ed5e8126ef0b48c04b941d249e --gate-run <gate id>` (the gate id is filled here when the gate passes) |
+| Docs release (this handoff to main) | YOU RUN | I merge main into the docs branch, wait for its CI and dry-run `release-docs.sh`; READY only after that dry run passes |
+| Batch release (rename, CAD inert candidate, Credits sealing, /video preflight, Stars and Weekly wiring, transcription flag) | YOU RUN | each branch needs green verify and fast-e2e, then one stacked candidate and one gate; I build it |
+| Image secrets command | YOU RUN | after the transcription flag is released; the dry run and prerequisite check come with it |
+| Motion R2a (owner-only measured policy), 9:16 owner-only job, then public activation | YOU RUN | after the 16:9 job passes, the disclosure fix is released and both owner-only jobs pass; the new commands come from lane `ae211623` |
+| Converter production app | YOU RUN | after your approval of the Fly app and cost |
+
+### 9.5 Decisions I need from you (only these; none blocks another lane)
+
+1. Converter: approve the production Fly app and cost, and the formats scope (recommend A: ship what is reachable now). Needed by about noon for a same-day activation.
+2. Security headers option (recommend B).
+3. /video and maths: provision, retire or keep the preflight only (recommend keep the preflight).
+4. `weekly_top` namespace and Stars delivery through the owner projection (recommend approve both).
+5. CAD: a priced adjustment may follow from the lane; nothing to decide yet.
+6. Scope decisions still held: tutor rubric (O-6), shared review card (O-9), Motion narration (O-13).
+
+### 9.6 Dependency handling
+
+Nothing independent waits on Motion. The only sequencing is main's fast-forward chain: Motion ceiling, then Telemetry, then Motion R2a and the public flip. Everything else (rename, CAD, Credits, Stars, /video, converter, Ctrl+K, tldraw, image switch) proceeds in parallel and is batched into releases on its own clock.
 
 ## 10. Change log (PT)
 
+- 2026-10-26 11:25 AM: owner approvals recorded (D1a US$3.50 ceiling, D1b up to 350 credits for owner-only acceptance, D2 US$100 total cap, D3 transcription separately gated, D4 Telemetry GO subject to dry run and preflight); shared ledger cap set to 100 with an approval record. C17 LIVE 10:58 AM (`0bd390ed`). Motion ceiling re-cut `0b5a8dae` gated (40372495316), post dry run OK. Telemetry candidate re-cut `29e70faa` (on the ceiling commit, without R2). New lanes: Motion disclosure, Motion R2a/R2b re-sequencing, image activation switch, telemetry acceptance, task reconciliation. Audit A (`db4ed119`), audit B (`1e76ae58`) and converter (`40fa735f`) hand-backs integrated. Section 0.5 (estimates) and section 9 (owner queue) rewritten.
 - 2026-10-26 10:39 AM: recovery. Owner corrected the overnight gap; eight lanes started (FILE_JOBS converter, Ctrl+K, CAD, command rename, tldraw, audit A, audit B, Motion evidence analyst). C16 confirmed live (10:20 AM, run 40367315136). C17 re-ordered to release first (train7.sh dry run ok); Motion ceiling and R2 re-cut on C17 (`0b5a8dae`, `db8cd547`) with gates running. Budget approval package and Motion ceiling evidence added. Correction: the refused step of failed job 61f70171 was the first reviewer, not the Author call. Section 0 (accountability) and section 9 (owner queue) rewritten.
 - 2026-10-26 2:13 AM: three sharded gates PASSED: ceiling c3acc21d run 40293195411, R2 21570887 run 40294556351, C17 0bd390ed run 40296414242 (each preceded by green verify and fast-e2e). The two gate ids are now filled into the Motion commands. TOPOLOGY NOTE: C17 (C16 + Study resize + Chat restore) is a sibling of the Motion ceiling and R2 branches, not a descendant, so main cannot fast-forward through both. Release order stays C16, ceiling, (job tests), R2; C17 is then re-cut on the new main (merge, union check-map, verify, fast-e2e, gate) or released first only if the Motion sequence is postponed. C17 gate result stays valid as evidence for its content.
 - 2026-10-26 1:44 AM: stale-fixes lane done: Study resize (6f51946a) and Chat restore (e0560256) green in fast-e2e with negative controls; both merged on top of C16 into candidate C17 stack/c17-batch 0bd390ed (verify and fast-e2e running); its gate is queued behind the Motion ceiling and R5 gates. Not released; C16 stays the release candidate.
