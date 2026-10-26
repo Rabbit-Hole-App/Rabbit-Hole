@@ -2,7 +2,7 @@
 // board's server copy, awaited. Fake storage and a fake onSave: no browser, no network.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { boardFromText, boardHasContent, boardPending, boardText, conflictBaseKey, conflictDoc, lightBlocks, pendingWork, persistBoard, serial, sharingOf, withPendingWork } from './canvas-persist.js';
+import { flushBoard, boardFromText, boardHasContent, boardPending, boardText, conflictBaseKey, conflictDoc, lightBlocks, pendingWork, persistBoard, serial, sharingOf, withPendingWork } from './canvas-persist.js';
 
 const big = `data:image/png;base64,${'A'.repeat(120001)}`, small = 'data:image/png;base64,AAAA';
 const state = { strokes: [{ id: 's' }], shapes: [], items: [], links: [], blocks: [{ id: 'a', src: big }, { id: 'b', src: small }, { id: 'c' }], groups: [], areas: [] };
@@ -252,4 +252,26 @@ test('toc: a 409 merge keeps this browser\'s contents edits on the server\'s new
   // The first edit on a board that read its headings: the whole copied list is this browser's work.
   const first = withPendingWork({ ...state, blocks }, pendingWork({ ...state, blocks }, mine), id => `${id}-mine`);
   assert.deepEqual(first.state.toc, mine.toc);
+});
+
+// Resize persistence (task 5b60a856): the debounced save is 400 ms, and a reload or closed tab runs no unmount.
+test('flushBoard: a resize still waiting out the 400 ms is written to this browser and pushed at once', () => {
+  const { store, storage } = memory(), pushes = [];
+  const mounted = { ...state, blocks: [{ id: 'nb', type: 'notebook' }] }, resized = { ...mounted, blocks: [{ id: 'nb', type: 'notebook', w: 720, h: 480 }] };
+  const result = flushBoard({ state: resized, lastWritten: JSON.stringify(mounted), storageKey: 'k', storage, onSave: (saved, options) => pushes.push([saved, options]) });
+  assert.deepEqual(JSON.parse(store.get('k')).blocks, [{ id: 'nb', type: 'notebook', w: 720, h: 480 }]);
+  assert.deepEqual(pushes, [[resized, { now: true }]]);
+  assert.equal(result.wrote, true);
+  assert.equal(result.text, store.get('k'));
+});
+test('flushBoard: nothing is written or pushed when the board is what was last written', () => {
+  const { store, storage } = memory(), pushes = [];
+  assert.equal(flushBoard({ state, lastWritten: JSON.stringify(state), storageKey: 'k', storage, onSave: () => pushes.push(1) }), null);
+  assert.equal(store.size, 0); assert.deepEqual(pushes, []);
+});
+test('flushBoard: full or blocked storage is not reported as written and the push still carries the board', () => {
+  const pushes = [];
+  const result = flushBoard({ state, lastWritten: 'older', storageKey: 'k', storage: () => ({ setItem() { throw new Error('quota'); } }), onSave: saved => pushes.push(saved) });
+  assert.equal(result.wrote, false); assert.deepEqual(pushes, [state]);
+  assert.equal(flushBoard({ state, lastWritten: 'older', storageKey: null, storage: () => { throw new Error('unused'); }, onSave: null }).wrote, false);
 });
