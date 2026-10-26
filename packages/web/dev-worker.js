@@ -71,7 +71,7 @@ import { feedbackFetch } from '../control-plane/src/learn-feedback.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
 import { forwardToProduction, guardControlPlane, devIdentity } from '../control-plane/src/dev-forwarding.js';
 import { usageFeature, withUsage, finishAction, finishWithResponse, recordMedia } from '../control-plane/src/learn-usage.js';
-import { imageEstimate, TRANSCRIBE_ESTIMATE, ESTIMATE_PRICE } from '../control-plane/src/learn-usage-estimates.js';
+import { imageEstimate, TRANSCRIBE_ESTIMATE, TRANSCRIBE_NEXT_ESTIMATE, ESTIMATE_PRICE } from '../control-plane/src/learn-usage-estimates.js';
 import { usageFetch } from '../control-plane/src/learn-usage-route.js';
 import { ownerTelemetryRoute } from '../control-plane/src/owner-telemetry-routes.js';
 import { clientTelemetryRoute } from '../control-plane/src/telemetry-client-route.js';
@@ -289,15 +289,18 @@ const routes = {
       if (clip.size > 20 * 1024 * 1024) return Response.json({ error: 'That recording is too long; keep it under a minute.' }, { status: 400 });
       const access = await authorizedBoardApp(req, env, form.get('app'));
       if (access instanceof Response) return access;
-      if (!env.OPENAI_API_KEY) return Response.json({ error: 'Speech to text is not configured on this environment.' }, { status: 503 });
+      // Off unless TRANSCRIBE_ENABLED is exactly 'true', so installing OPENAI_API_KEY for image editing never switches transcription on (O-8 stays open).
+      if (!env.OPENAI_API_KEY || env.TRANSCRIBE_ENABLED !== 'true') return Response.json({ error: 'Speech to text is not configured on this environment.' }, { status: 503 });
+      // gpt-4o-transcribe shuts down 2027-02-26; TRANSCRIBE_MODEL=gpt-transcribe moves to its replacement once one real recording has been accepted. Anything else is the current model.
+      const model = env.TRANSCRIBE_MODEL === 'gpt-transcribe' ? 'gpt-transcribe' : 'gpt-4o-transcribe';
       const upload = new FormData();
       upload.set('file', clip, 'answer.webm');
-      upload.set('model', 'gpt-4o-transcribe');
+      upload.set('model', model);
       const spendRefused = await paidSubmissionRefusal(env); if (spendRefused) return spendRefused;
       const upstream = await fetch('https://api.openai.com/v1/audio/transcriptions', {
         method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` }, body: upload,
       });
-      await recordMedia(env, { provider: 'openai', model: 'gpt-4o-transcribe', ok: upstream.ok, estimateMicros: TRANSCRIBE_ESTIMATE, price: ESTIMATE_PRICE });
+      await recordMedia(env, { provider: 'openai', model, ok: upstream.ok, estimateMicros: model === 'gpt-transcribe' ? TRANSCRIBE_NEXT_ESTIMATE : TRANSCRIBE_ESTIMATE, price: ESTIMATE_PRICE });
       if (!upstream.ok) return Response.json({ error: 'Could not transcribe that recording.' }, { status: 502 });
       const heard = await upstream.json();
       return Response.json({ text: (heard.text || '').trim() });

@@ -21,6 +21,8 @@ export const imageEstimate = prompt => priceUsage({ provider: 'openai', model: '
 // (https://developers.openai.com/api/docs/pricing, read 2026-10-16). The server does not know the clip's length; one
 // minute is assumed because the route asks for a recording under a minute. ponytail: not measured.
 export const TRANSCRIBE_ESTIMATE = priceUsage({ provider: 'openai', model: 'gpt-4o-transcribe', quantities: { audio_minute: 60 } }).micros; // 60 seconds; approximate
+// Its replacement gpt-transcribe: "$0.0045 / minute" (same page, read 2026-10-26), billed per minute of audio duration; the same one-minute assumption. Used only when TRANSCRIBE_MODEL=gpt-transcribe.
+export const TRANSCRIBE_NEXT_ESTIMATE = priceUsage({ provider: 'openai', model: 'gpt-transcribe', quantities: { audio_minute: 60 } }).micros;
 
 // Exa search, type auto, up to 10 results: "$7 / 1k requests" (https://exa.ai/pricing, read 2026-10-16). Used only when
 // the response carries no costDollars and the call asks for no contents (searchYouTube); summaries are not priced here.

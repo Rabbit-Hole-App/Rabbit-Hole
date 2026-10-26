@@ -11,7 +11,7 @@ import { fishSpendTransport } from '../src/learn-paid-transport.js';
 import { devIdentity } from '../src/dev-forwarding.js';
 import { withUsage, noteUsageIdentity, beginAttempt, settleAttempt, finishAction, finishWithResponse, usageTotals, usageByFeature, usageFeature, toMicros,
   periodOf, periodReset, recordAdjustment, payerOf, usageContext, FEATURES, recordMedia, forwardUsagePayer, usageFromForwarded, withSystemUsage } from '../src/learn-usage.js';
-import { imageEstimate, EXA_SEARCH_ESTIMATE, TRANSCRIBE_ESTIMATE } from '../src/learn-usage-estimates.js';
+import { imageEstimate, EXA_SEARCH_ESTIMATE, TRANSCRIBE_ESTIMATE, TRANSCRIBE_NEXT_ESTIMATE } from '../src/learn-usage-estimates.js';
 import { searchYouTube } from '../src/learn-youtube.js';
 import { searchCanvasSource } from '../src/learn-search.js';
 import { LearnScenes } from '../src/learn-scene.js';
@@ -494,6 +494,7 @@ test('ledger-bypass media: reported cost is settled, a documented estimate is es
   assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.kind, a.status, a.cost_state, a.cost_micros, a.reserved_micros]), [
     ['media', 'settled', 'unknown', null, null], ['media', 'failed', 'unknown', null, null], ['media', 'settled', 'unknown', null, null], ['media', 'settled', 'settled', 5000, null]]);
   assert.equal(TRANSCRIBE_ESTIMATE, 6000);
+  assert.equal(TRANSCRIBE_NEXT_ESTIMATE, 4500, 'gpt-transcribe: $0.0045 a minute x one minute');
   // A legacy call with no request context (review.js on the control plane) is its own system action, platform-funded.
   await recordMedia({ LEARN_DB }, { kind: 'generation', provider: 'anthropic', ok: true });
   assert.deepEqual(rows(sqlite, 'usage_actions').slice(1).map(a => [a.user_id, a.payer, a.payer_reason, a.charge_class, a.feature]), [[null, 'platform', 'system', 'platform', 'legacy']]);

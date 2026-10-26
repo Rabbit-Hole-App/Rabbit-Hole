@@ -84,6 +84,10 @@ row('google', 'gemini-3-pro-image', 'standard', 'output_image', 120, PER.mtok, V
 row('openai', 'gpt-4o-transcribe', 'standard', 'audio_minute', 0.006, PER.minute, ESTIMATE, 'OpenAI estimated cost per minute of audio; the bill is per token', OPENAI_PRICING);
 row('openai', 'gpt-4o-transcribe', 'standard', 'input', 2.5, PER.mtok, VERIFIED, 'audio and text input tokens', OPENAI_PRICING);
 row('openai', 'gpt-4o-transcribe', 'standard', 'output', 10, PER.mtok, VERIFIED, null, OPENAI_PRICING);
+// gpt-transcribe replaces it: billed per minute of audio duration at the listed $0.0045 (official pricing page and model page, read 2026-10-26),
+// so the rate is verified; a call is still priced at the one minute the route assumes. No token rows are listed for it. PRICE_VERSION is deliberately not bumped
+// here: nothing prices with this row until TRANSCRIBE_MODEL=gpt-transcribe is set at activation (decide the bump then).
+row('openai', 'gpt-transcribe', 'standard', 'audio_minute', 0.0045, PER.minute, VERIFIED, 'billed per minute of audio duration; replaces gpt-4o-transcribe (shutdown 2027-02-26)', OPENAI_PRICING);
 // Other billing units. Fish S1 bills UTF-8 input bytes; Scribe v2 Realtime bills audio time; Exa bills per request.
 row('fish', 's1', 'standard', 'input_bytes', 15, PER.mbyte, VERIFIED);
 row('elevenlabs', 'scribe_v2_realtime', 'standard', 'audio_hour', 0.39, PER.hour, VERIFIED, 'seconds of audio observed server side');

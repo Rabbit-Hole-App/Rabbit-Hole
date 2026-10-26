@@ -35,6 +35,17 @@ Audit basis: Desktop/ctrl_k_tools.txt; current integrated ctrlk-tools working tr
 - Earlier failed source/derivative and replacement runs remain attributed individually in the expanded receipt. Source run4 passed5/5; recognized-plot run2 passed6/6; all six distinct replacement cases passed across runs2/4/5.
 - Remaining enablement proof: production notebook static-site qualification, deployed runtime execution once10195 is legitimately resolved, and separately authorized real-model routing/extraction/image-quality checks. Current local gates passed as recorded in the expanded receipt. No paid/model calls were made for this matrix.
 
+## Deployed versus fixtures, 2026-10-26 (supersedes the 2026-10-19 wording above where they differ)
+
+| Capability | Fixture / unit evidence | Real deployment | Enabled in production | Activation and what is unproven |
+|---|---|---|---|---|
+| remove_background, edit_image | Unit and ledger tests with a fake provider; browser 5/5 with provider fixtures | None. No real provider call, no real segmentation or quality | No (flag, key and reservation absent; FILE_JOBS binding not yet released) | [ctrlk-image-activation.md](ctrlk-image-activation.md): exact variable names, what `OPENAI_API_KEY` also switches on, the unverified reservation and price |
+| run_code | Unit tests; local Miniflare 5/5; UI with intercepted jobs 6/6 | None. The loader was last tried 2026-10-19 and rejected with 10195; the plan may have changed since and is unproven | No | [ctrlk-code-loader-retest.md](ctrlk-code-loader-retest.md): disposable probe (prepared, not run), proposed limits, lifetime-budget and credit-wording findings |
+
+- When either feature is unavailable the Ctrl+K panels say so ("Execution is not configured." / "Background removal is not configured. No request will be started.") and offer no start control. A 503 from the read-only availability check is now treated as unavailable rather than as a failed request.
+- Installing `OPENAI_API_KEY` no longer switches on spoken-answer transcription by itself: `/api/learn/transcribe` also needs `TRANSCRIBE_ENABLED=true` (off everywhere by default).
+- Nothing in this section was verified in a browser by this lane; browser checks run in CI only.
+
 ## Reused evidence locations
 
 - docs/features/ctrlk-tools.md (core/native/annotation/notebook)

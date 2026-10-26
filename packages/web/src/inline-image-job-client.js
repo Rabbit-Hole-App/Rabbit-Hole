@@ -56,6 +56,8 @@ export function createImageJobClient({ fetchImpl = globalThis.fetch, headers = {
   return {
     async quote({ signal } = {}) {
       const response = await fetchImpl(ROOT, { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers, signal });
+      // 503 is the route's "not configured": unavailable, not a failed lookup.
+      if (response.status === 503) return Object.freeze({ available: false, maximumReservedCredits: null, model: null });
       if (!response.ok) throw fault('http_error', 'Image availability request failed.', { status: response.status });
       const value = await response.json();
       if (typeof value.available !== 'boolean' || value.available && (typeof value.maximumReservedCredits !== 'number' || !Number.isFinite(value.maximumReservedCredits) || value.maximumReservedCredits <= 0 || typeof value.model !== 'string')) throw fault('invalid_response', 'Invalid image reservation quote.');

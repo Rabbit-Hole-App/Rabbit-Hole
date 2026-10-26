@@ -257,8 +257,9 @@ The production acceptance and its receipt: `C:/s/spec/image-activation/activatio
 - No D1 or learn migration: `file_sources` (0023), `usage_operations` (0016), `usage_actions`/`usage_attempts` (0022) exist.
 - Vars: `IMAGE_GENERATE_ENABLED: "false"` in all three. Production also sets `IMAGE_GENERATE_RESERVED_USD` ("0.20", 6c) and `IMAGE_ACCEPTANCE_EMAILS` (6d);
   dev and parallel set neither. Secrets `OPENAI_API_KEY` and `GEMINI_API_KEY` are installed on `rabbit-hole-app` by the owner command
-  `C:/s/spec/image-activation/prod-image-secrets.mjs` (never in a config). `OPENAI_API_KEY` also enables `/api/learn/transcribe` (dev-worker.js),
-  which has its own metering and acceptance (activation-package.md).
+  `C:/s/spec/image-activation/prod-image-secrets.mjs` (never in a config). `/api/learn/transcribe` (dev-worker.js) is NO LONGER enabled by the key alone: it also needs
+  `TRANSCRIBE_ENABLED` exactly `"true"` (default `"false"` in the dev, parallel and production configs, 2026-10-26), so installing the key for image work
+  does not switch on spoken-answer transcription. Whether to enable it (key plus flag) or remove the mic is owner decision O-8 and stays open.
 - The tag is applied by the normal `wrangler deploy` of each worker (the release flow); it is the only irreversible step, and with
   the flag off nothing calls the class.
 

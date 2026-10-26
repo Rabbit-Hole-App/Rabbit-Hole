@@ -67,7 +67,8 @@ no config sets it), and never in `SUBSCRIPTION_ONLY` mode (`planModel` in `ask.j
   kept separate on purpose.
 - Both accept a spoken answer: the mic records, `/api/learn/transcribe` returns the text into the
   same input, and the learner can correct a misheard word before submitting. The graded answer is
-  tinted green (good) or amber (partial) with a retry.
+  tinted green (good) or amber (partial) with a retry. The route answers 503 "Speech to text is not configured on this environment." (the mic shows that
+  message) unless `OPENAI_API_KEY` is set AND `TRANSCRIBE_ENABLED` is exactly `"true"` (off by default everywhere; owner decision O-8 open).
 
 ## Everything else
 
