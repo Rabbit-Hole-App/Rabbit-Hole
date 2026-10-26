@@ -39,7 +39,9 @@ function stack(t, vars) {
   return { env, addressed, outbound, count };
 }
 
-for (const path of CONFIGS) {
+// Public activation (owner GO): production is the one config with the public flag on; every other committed config keeps it off and is refused.
+test('only the production config has public image generation on', () => assert.deepEqual(CONFIGS.filter(path => config(path).vars.IMAGE_GENERATE_ENABLED === 'true'), [CONFIGS[0]]));
+for (const path of CONFIGS.filter(path => config(path).vars.IMAGE_GENERATE_ENABLED === 'false')) {
   test(`${path.split('/').pop()}: both image routes answer 503 image_generation_disabled through its own Worker; no provider, no ImageJobs, no row`, async t => {
     const c = config(path);
     assert.equal(c.vars.IMAGE_GENERATE_ENABLED, 'false', 'the committed config keeps image generation off');

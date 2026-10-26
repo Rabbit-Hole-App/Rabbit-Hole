@@ -207,7 +207,9 @@ export const PRIMITIVES = {
   '3d_model': { ready: false, unavailable: "3D model generation isn't available yet." },
   // Direct tools: found or inserted, never generated here.
   image: { ready: false, direct: true, unavailable: 'Images come from search: use /image with what to look for.' },
-  image_generate: { ready: false, unavailable: "Image generation from a command isn't available yet. Use an Image card's Generate." },
+  // Ready, but not a model-written card (direct): the server signs the plan from the learner's own request (chat-proposal-route.js) and the plan card's
+  // Generate runs the job (image-jobs.js). artifactPlan keeps it out of the planning model's tools, so /api/learn/artifact never calls a model for it.
+  image_generate: { ready: true, direct: true, unavailable: "Image generation is made from its plan card's Generate, not as a card the Tutor writes." },
   video: { ready: false, direct: true, unavailable: 'Existing clips are added from search or a link, not generated.' },
   notebook: { ready: false, direct: true },
   whiteboard: { ready: false, direct: true },

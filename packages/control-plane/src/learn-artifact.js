@@ -52,7 +52,7 @@ export function artifactPlan(command, { args = '', selection = null } = {}) {
   const request = learnRequest(command, { args, selection });
   if (request.deterministic) return { result: 'direct', action: request.action };
   if (!request.allowedPrimitives) return { result: 'not_artifact', error: `/${command} is answered in chat, not as an artifact.` };
-  const ready = request.allowedPrimitives.filter(isReady);
+  const ready = request.allowedPrimitives.filter(id => isReady(id) && !PRIMITIVES[id].direct); // a direct primitive is never a model-written card
   if (!ready.length) {
     const reason = request.allowedPrimitives.map(id => PRIMITIVES[id]?.unavailable).find(Boolean);
     return { result: 'unsupported', message: reason || `/${command} isn't available yet.` };

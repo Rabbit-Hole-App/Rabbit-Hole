@@ -91,8 +91,9 @@ test('media: /image only searches, /generate-image and /video only generate, /yo
 });
 
 // /generate-image needs image generation, which is off: hidden from every list and refused when typed, never turned on here.
-test('/generate-image is hidden and refused while image generation is off; the flag follows the primitive', () => {
-  assert.equal(IMAGE_GENERATION, isReady('image_generate'));
+test('/generate-image is hidden and refused until the server offers it: the web constant stays off', () => {
+  // Public activation: the primitive is ready but the web constant stays off, so the server's per-caller answer lists the command (image-public-gates.test.js).
+  assert.equal(isReady('image_generate'), true);
   assert.equal(IMAGE_GENERATION, false);
   for (const surface of ['chat', 'learn', 'ctrlk', 'insert']) {
     assert.ok(!names(commandsFor(surface, { motionDev: true })).includes('generate-image'), surface);
