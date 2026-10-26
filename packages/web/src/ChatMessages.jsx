@@ -319,7 +319,7 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
           <CornerDownRight size={14} className="mt-0.5 shrink-0 text-[#b42318]/70" /><span className="min-w-0">{m.content}</span>
         </div>
       ) : m.role === 'user' ? (<>
-        <div className="max-w-[85%] rounded-lg bg-hover px-3 py-1.5 text-sm">
+        <div data-user-turn className="max-w-[85%] rounded-lg bg-hover px-3 py-1.5 text-sm">
           {m.canvasImage && <img src={m.canvasImage} alt="Canvas with the question’s target marked" className="mb-2 max-h-32 w-44 rounded border border-line bg-white object-contain" />}
           {m.passage && <blockquote className="mb-2 max-h-24 overflow-auto border-l-2 border-accent/40 pl-2 text-xs text-ink-2">{m.passage}</blockquote>}
           <SentText m={m} />

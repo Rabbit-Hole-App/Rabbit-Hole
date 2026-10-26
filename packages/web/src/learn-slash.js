@@ -93,13 +93,17 @@ export const materialCommands = () => commandsFor('learn', { internal: true }).f
 // Whether a word names a Learn command (the composer's command pill takes only these): never a removed one or a material tool.
 export const isLearnCommand = name => commandsFor('learn').some(command => command.name === name);
 
-// Whether runLearnCommand answers this line with { prompt }: a chat-only command whose words go on to the chat route, which saves
-// them as the turn's user message. Every other line is saved by the Chat itself when it runs (ask.jsx recordCommand), so a
-// typed command is one user message either way (UI changes brief 1). learn-slash.test.mjs holds this to runLearnCommand.
-const RUN_ACTIONS = new Set(['cad', 'open_source', 'insert_notebook', 'insert_whiteboard', 'dive', 'motion', 'goal']);
+// Whether runLearnCommand answers this line with { prompt }: a command whose words go on to the chat route, which saves them as the
+// turn's user message. Every other line is saved by the Chat itself when it runs (ask.jsx recordCommand), so a typed command is one
+// user message either way (UI changes brief 1; bug lane 3aba249a: /motion and /image were recorded by both paths). The commands that
+// prompt the chat are /image where the server offers it and every proposal capability (the declaration's flow, reviewRequired), each
+// with words: the same two tests runLearnCommand makes. chat-turn-owner.test.mjs holds this to runLearnCommand.
+const RUN_ACTIONS = new Set(['cad', 'open_source', 'insert_notebook', 'insert_whiteboard', 'dive', 'goal']);
+const promptsChat = name => (name === 'generate-image' && imageGenerationLive()) || reviewRequired(name);
 export function answersInChat(text, { motionDev } = {}) {
   const resolved = resolveCommand(text, 'learn', { motionDev });
   if (!resolved?.command || resolved.command.name === 'image') return false;
+  if (promptsChat(resolved.command.name)) return !!resolved.arg;
   let request;
   try { request = learnRequest(resolved.command.name, { args: resolved.arg }); } catch { return false; }
   return !RUN_ACTIONS.has(request.action) && !request.allowedPrimitives && !!request.prompt;
