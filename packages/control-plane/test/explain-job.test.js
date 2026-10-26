@@ -57,6 +57,21 @@ test('exhausted or insufficient allowance refuses before any external call; noth
   }
 });
 
+test('a call refused at its own admission ran nothing: known zero, not counted against the job ceiling, and Retry stays offered', async t => {
+  const s = setup(t);
+  const { body } = await s.create();
+  spent(s.sqlite, 50e6); // the learner's credits are used up elsewhere after Generate was accepted
+  const failed = await s.run(body.job.id);
+  assert.deepEqual([failed.stage, failed.stopReason, failed.failure.category], ['failed', 'budget', 'budget']);
+  assert.equal(s.model.calls.length, 0);
+  assert.deepEqual([rows(s.sqlite, 'usage_operations').length, rows(s.sqlite, 'usage_attempts').length], [0, 1], 'only the seeded charge');
+  assert.deepEqual([failed.calls[0].status, failed.calls[0].costMicros], ['refused', 0], 'old code: failed with an unknown cost');
+  assert.equal(failed.counts.author, 0, 'old code: the refusal used the one author call');
+  assert.deepEqual([failed.reservedMicros], [0]);
+  assert.deepEqual((await s.job(body.job.id)).job.recovery, ['new_attempt', 'edit_request']);
+  assert.equal(rows(s.sqlite, 'usage_actions').some(a => a.status === 'running'), false);
+});
+
 test('concurrent duplicate submits make one job; a reused id with other words, or a second job on the card, is refused', async t => {
   const s = setup(t);
   const [a, b] = await Promise.all([s.create(), s.create()]);

@@ -428,6 +428,17 @@ test('two generations for one account near its limit: the shared ledger admits e
   assert.ok(refusedStatus.job.message.length > 0);
 });
 
+test('a refused admission ends the job and its usage action: nothing held, nothing charged, no action left running', async t => {
+  const h = harness(t, { AI_MONTHLY_ALLOWANCE_USD: String(RESERVE * 0.5) });
+  const a = await h.create();
+  await h.alarm(a.generationId);
+  assert.equal(h.job(a.generationId).stage, 'refused');
+  assert.equal(h.calls.length, 0);
+  assert.deepEqual([ops(h).length, attempts(h).length], [0, 0]);
+  const actions = rows(h.sqlite, 'usage_actions');
+  assert.deepEqual(actions.map(x => [x.status, x.result, x.ended_at != null]), [['failed', 'none', true]], 'old code: the action stayed running forever');
+});
+
 test('switching off after a job was queued or admitted contacts no provider and releases any hold', async t => {
   const h = harness(t);
   const queued = await h.create();

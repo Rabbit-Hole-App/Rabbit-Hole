@@ -83,7 +83,7 @@ Missing usage or cost stays missing: `cost_micros` NULL / absent `quantities` ke
 
 - Voice Scribe: the browser streams the microphone straight to the provider; the server sees only the token mint (15 minute
   token), so session duration is not observed and its cost is recorded `unknown`. Metering needs a server-observed duration.
-- `refundAttempt` is the mechanism; no failure path calls it yet. Platform-funded work (practice grading, tutor evaluation,
+- `refundAttempt` is the mechanism; `refundFailedAction` (see Failed work refunds) and the owner script `scripts/motion-refund-failed-job.mjs` call it; no other failure path does. Platform-funded work (practice grading, tutor evaluation,
   renderer compute, webpage screening) stays recorded apart and never in the user's balance.
 
 ## Browser checks (run by CI fast-e2e on the exact SHA)
@@ -152,8 +152,12 @@ when the job fails later (Explain charges answered calls; Retry resumes).
 no artifact and charges nothing, even if the provider answers late. ExplainJobs already ends an interrupted call as failed on reconcile and its
 calls (2 minutes) and job (10 minutes) are far inside the 1 hour bound; Motion waits at most 60 minutes inside its 2 hour bound. The Jev
 direct path reads a 429 or 529 as a known zero, like spendTransport and ImageJobs.
-Remaining work: an operator-visible report of unknown provider cost, and sealing the job object itself (ExplainJobs, ImageJobs,
-Motion) when its reservation is sealed.
+A refused admission also closes its own record: the usage action a refused ImageJobs admission opened is ended `failed`, result `none` (it stayed
+`running` forever before; Motion and Explain already did this). An Explain call refused at its own admission (the learner's allowance or the platform
+cap, `spend_refused`) ran nothing: it is recorded `refused` with a known zero cost and does not use the job's call ceiling, like a provider capacity
+refusal, so Retry stays offered once credits are available. Verified not to need a change: Motion closes the action on refusal and settles inside its
+bounds (waits at most 60 minutes of its 2 hour bound); Explain ends an interrupted call on reconcile.
+Remaining work: an operator-visible report of unknown provider cost.
 
 ## What fixtures cannot prove (verify on the dev D1, read-only)
 

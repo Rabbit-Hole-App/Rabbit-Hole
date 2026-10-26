@@ -13,7 +13,7 @@
 // database and settlement steps are retried.
 import { admitSpend, settleSpend, spendMessage } from './learn-spend-ledger.js';
 import { learnMedia } from './learn-storage.js';
-import { withUsage, noteUsageIdentity, settleAttempt, finishActionOf, holdLapsed, toMicros } from './learn-usage.js';
+import { withUsage, noteUsageIdentity, settleAttempt, finishAction, finishActionOf, holdLapsed, toMicros } from './learn-usage.js';
 import { verifyImageProposal, consumeProposal } from './generation-proposal.js';
 import { imageReadiness, imageAllowed, imageOperatorAllowed, imageOperatorEmails } from './image-settings.js';
 import { IMAGE_MODELS, imageSettings, imageQuote, imageAdapter, providerConfigured, imageCost } from './image-providers.js';
@@ -269,10 +269,13 @@ export class ImageJobs {
     if (row?.status === 'admitted') return admitted();
     if (row) return this.close(job, 'failed', 'ledger_state_unexpected', null);
     const c = job.context, now = Math.floor(Date.now() / 1000);
-    const result = await admitSpend(this.env.LEARN_DB, payerEnv(this.env, c.requester), { opId: job.opId, userId: c.requester.email, org: c.requester.org, category: 'image_generate', reservedUsd: job.request.quote.reserveUsd, kind: 'media', provider: job.request.provider, model: job.request.model, now, deadlineAt: now + 300 });
+    const scoped = payerEnv(this.env, c.requester);
+    const result = await admitSpend(this.env.LEARN_DB, scoped, { opId: job.opId, userId: c.requester.email, org: c.requester.org, category: 'image_generate', reservedUsd: job.request.quote.reserveUsd, kind: 'media', provider: job.request.provider, model: job.request.model, now, deadlineAt: now + 300 });
     if (result?.refused === false) return admitted();
     // admitSpend turns an uncertain database outcome into a refusal; the ledger row is the evidence either way.
     if ((await this.ledgerRow(job))?.status === 'admitted') return admitted();
+    // Refused: the action admission opened is closed here (no route boundary runs inside the object); nothing was reserved.
+    await finishAction(scoped, { status: 'failed', result: 'none' });
     return this.close(job, 'refused', result?.reason || 'admission_refused', null);
   }
 
