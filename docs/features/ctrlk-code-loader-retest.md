@@ -82,6 +82,16 @@ Reasoning:
 2. **The reservation is not charged to the person.** The job reserves from one global platform budget in micros; the AI-credit ledger is not involved. The panel says "Maximum reservation: N credits ... Execution can incur cost", which a person can read as their own credits being held. Decision: reword the panel (platform-funded, no credits spent), or move the reservation onto the person's allowance. Not changed here.
 3. **Memory is unlimited by this code.** Only the platform default applies; the probe records it.
 
+## Deployed acceptance and activation (prepared, NOT run)
+
+`scripts/ctrlk-code-acceptance.mjs` (tests: `ctrlk-code-acceptance.test.mjs`) is the instrument for the deployed path; run it only after the probe above passed and the JavaScript activation commit on `feat/ctrlk-activate` is live. `--dry-run` first.
+Runs, stopping at the first failure: `refusals` (other language, no confirmation, over-size source and input, consent below the reservation, unknown field, a canvas that is not yours: all refused, no credits moved), `jobs` (nine programs:
+finite with a duplicate submit and a clashing id, **isolation** probes for the Internet, this app, dynamic import, environment, process, document, storage and bindings, a thrown error, output over the limit, stdout over the limit, a **CPU loop that must end
+with an error naming the platform limit** and not a bare timeout, memory exhaustion recorded only, the 3 s wall deadline reported as termination-not-confirmed, and a finite run afterwards to show the loader recovered), `cancel` (a cancel wins over a late result and never claims termination),
+and the opt-in `disabled-check` for the OFF state ("Execution is not configured." and nothing created). One US$0.05 booking in the shared budget covers it; the command uses 10 of the lifetime runs (200 in the production window, 25 on a dev window).
+The activation commit sets `INLINE_CODE_ENABLED` `true`, the `worker_loaders` binding `INLINE_CODE_LOADER` and the proposal's limits (`200` / `10000` / `2000000`). If the probe returns **10195, Workers Paid is not active on the account: JavaScript execution is blocked on that account decision**, the activation commit stays held, and the Run panel keeps saying it is not configured.
+Supported and unsupported scope, the owner command order and what stays unproven: [ctrlk-completion.md](ctrlk-completion.md).
+
 ## Run affordance (checked)
 
 The UI never shows a "Run" button for an unavailable feature. The Ctrl+K code panel shows "Review execution"; opening it asks `GET /api/learn/code-runs` and, when `available` is false, shows only "Execution is not configured." with no start control.

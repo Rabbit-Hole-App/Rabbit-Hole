@@ -44,6 +44,7 @@ Audit basis: Desktop/ctrl_k_tools.txt; current integrated ctrlk-tools working tr
 
 - When either feature is unavailable the Ctrl+K panels say so ("Execution is not configured." / "Background removal is not configured. No request will be started.") and offer no start control. A 503 from the read-only availability check is now treated as unavailable rather than as a failed request.
 - Installing `OPENAI_API_KEY` no longer switches on spoken-answer transcription by itself: `/api/learn/transcribe` also needs `TRANSCRIBE_ENABLED=true` (off everywhere by default).
+- 2026-10-26 (`feat/ctrlk-complete`): image edit now settles at min(priced provider usage, reservation); deployed acceptance commands and the held activation branch exist; supported scope, unsupported list and the owner command order are in [ctrlk-completion.md](ctrlk-completion.md). Still nothing deployed enabled and no acceptance run.
 - Nothing in this section was verified in a browser by this lane; browser checks run in CI only.
 
 ## Reused evidence locations
