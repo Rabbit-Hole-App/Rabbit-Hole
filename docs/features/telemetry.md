@@ -271,7 +271,8 @@ No response content is ever logged.
 
 - Page: `/owner/telemetry` (production `https://digrabbithole.com/owner/telemetry`). API: `/api/owner/telemetry/*`.
 - The owner is `Yudhisteer.chin@gmail.com` (owner clarification, 2026-10-23). `yudhisteer.chin01@gmail.com` is a different
-  identity and never matches.
+  identity and never matches. **What the guard compares differs by environment** (see "Owner identity: production versus dev" below):
+  on production `/api/me` returns the application principal, not the Gmail address.
 - Guard (`owner-guard.js`, owner decision 4): a valid session from the trusted auth path (`devIdentity`, the control plane's
   `/api/me`), a configured `SUBSCRIPTION_OWNER_EMAIL` that is a valid address, and a match after the application's own
   normalization (`loginEmail` in `auth.js`: trimmed, lowercased; only strings are accepted). The secret may therefore be typed in
@@ -310,15 +311,34 @@ A compact copy is `C:/s/spec/telemetry/provisioning-commands.md`.
 | R2 bucket (private) | `rabbit-hole-telemetry-archive-dev` | `rabbit-hole-telemetry-archive` |
 | R2 binding | `TELEMETRY_ARCHIVE` | `TELEMETRY_ARCHIVE` |
 | Environment label (var) | `TELEMETRY_ENVIRONMENT = "dev"` | `TELEMETRY_ENVIRONMENT = "production"` |
-| Owner identity | var `SUBSCRIPTION_OWNER_EMAIL` already in `wrangler.dev.jsonc` (`yudhisteer.chin@gmail.com`) | **secret** `SUBSCRIPTION_OWNER_EMAIL` on `rabbit-hole-app`, value typed by the owner |
+| Owner identity | var `SUBSCRIPTION_OWNER_EMAIL` already in `wrangler.dev.jsonc` (`yudhisteer.chin@gmail.com`) | **secret** `SUBSCRIPTION_OWNER_EMAIL` on `rabbit-hole-app` (the owner's application PRINCIPAL, not the Gmail address; see below). Production already has one of unknown value: it is skipped, never overwritten by the script |
 | Cloudflare account | `c08d3dbdc53a3afd3cb09a536ac42318` (both configs pin it) | same account |
 
 Dev and production live in the same Cloudflare account, so isolation is by separate databases, buckets and bindings: each
 deployment binds only its own pair and labels its own events, and the production config test refuses any `-dev` name.
 
-**Owner identity.** The owner is `Yudhisteer.chin@gmail.com`. `yudhisteer.chin01@gmail.com` is a different account and never matches.
-The guard compares both the configured value and the signed-in account through `loginEmail` (`auth.js`: trimmed, lowercased,
-validated), so the secret may be typed in any case. Nothing else is folded: no dot, plus-tag or domain-alias folding.
+**Owner identity: production versus dev.** `ownerOnly()` (`owner-guard.js`) is unchanged: it compares the signed-in user's `/api/me` email
+with `SUBSCRIPTION_OWNER_EMAIL` through `loginEmail` (`auth.js`: trimmed, lowercased, validated). Nothing else is folded: no dot, plus-tag or
+domain-alias folding. `yudhisteer.chin01@gmail.com` is a different account and never matches. What `/api/me` returns differs:
+
+- **Production.** The owner signs in with Google, and `/api/me` returns the application PRINCIPAL, not the provider address: for Google and
+  GitHub sign-ins the principal is `user@<userid>.rabbithole.invalid` (`auth.js`, `principal`; migration 0026: a provider-reported email never
+  becomes a principal). The owner's production principal is `user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid` (provider google,
+  provider_email `yudhisteer.chin@gmail.com`). So the production `SUBSCRIPTION_OWNER_EMAIL` must be that principal (an identifier, not a secret).
+  If it is the Gmail address, the dashboard and `/api/owner/telemetry/*` answer 404 to the real owner. `prod-telemetry.sh` P6 accepts only that
+  exact principal, refuses the Gmail address and `yudhisteer.chin01`, and says so in its prompt.
+- **Existing production secret.** Production already has a `SUBSCRIPTION_OWNER_EMAIL` secret of unknown value (a secret cannot be read back).
+  Its other consumers are `owner-guard.js`, `subscription-transport.js` and `learn-next-steps-routes.js`. Owner rule: this deployment is not an
+  owner-secret replacement. `prod-telemetry.sh` P6 lists secret names only and, if the name exists, SKIPS it; the script has no path that overwrites it.
+  Owner access is verified by behaviour in P9: the owner, signed in with Google, opens `/owner/telemetry` and pastes the access body. If that
+  shows a mismatch (the owner gets 404), the script stops and says a SEPARATE corrective action is needed: inspect the consumers of the secret first;
+  the likely fix is the principal above. The script does not fix it itself. Only when the secret does NOT exist does P6 offer the hidden-prompt put,
+  and the typed value must then be the principal form.
+- **Dev preview.** It signs in through the Access bridge with a real email principal, so the dev var stays `yudhisteer.chin@gmail.com`.
+- **Expected answers on production.** `GET /api/owner/telemetry/access` is `200 {"owner":true,"configured":true,"environment":"production"}`
+  only when signed in with Google as the principal account; signed out, `yudhisteer.chin01` and every other account get 404.
+- **Test coverage gap.** The telemetry acceptance fixtures used the Gmail address as the owner and did not cover this production identity shape;
+  a fixture with a principal-form owner (`user@<32 hex>.rabbithole.invalid`) is the missing case.
 
 **Files that change, and the ones that do not.** Only these two worker configs get bindings, because only the app worker serves
 `/api/learn/*`, `/api/telemetry/client`, `/api/owner/telemetry/*` and the Durable Object jobs:
@@ -534,14 +554,18 @@ npx wrangler d1 execute rabbit-hole-telemetry --remote --command "SELECT name FR
 
 Effect and expected tables as D4. It touches only `rabbit-hole-telemetry`; `rabbit-hole-prod` and `rabbit-hole-learn-prod` are not named.
 
-**P5. Set the owner identity as a secret on `rabbit-hole-app`**
+**P5. Set the owner identity as a secret on `rabbit-hole-app`** (superseded by `prod-telemetry.sh` P6, which does this safely; the manual form is
+kept for reference). First check whether the name already exists (names only); if it does, DO NOT run the put: production already has one
+of unknown value and the rule is to preserve it (see "Owner identity: production versus dev").
 
 ```bash
-read -r -p 'Owner sign-in email: ' OWNER_EMAIL && printf '%s' "$OWNER_EMAIL" | npx wrangler secret put SUBSCRIPTION_OWNER_EMAIL --name rabbit-hole-app; unset OWNER_EMAIL
+npx wrangler secret list --name rabbit-hole-app      # if SUBSCRIPTION_OWNER_EMAIL is listed, stop here; replacing it needs its own decision
+read -r -p 'Owner principal: ' OWNER_ID && printf '%s' "$OWNER_ID" | npx wrangler secret put SUBSCRIPTION_OWNER_EMAIL --name rabbit-hole-app; unset OWNER_ID
 ```
 
-The owner types `Yudhisteer.chin@gmail.com` at the prompt (any case works; the value never appears in a file, the transcript or
-shell history, and is not `yudhisteer.chin01@gmail.com`). Effect: the secret exists on `rabbit-hole-app`; wrangler deploys the
+The value on PRODUCTION is the owner's application principal `user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid`, not
+`Yudhisteer.chin@gmail.com` (production sign-ins return the principal in `/api/me`; the Gmail address would make the dashboard answer 404 to the
+owner) and not `yudhisteer.chin01@gmail.com`. Effect: the secret exists on `rabbit-hole-app`; wrangler deploys the
 Worker's current code again with the secret added, so no new code ships. It does not enable subscription mode: `SUBSCRIPTION_ONLY` is
 unset in production and the owner guard never reads it. Verify (names only, values are never shown):
 
