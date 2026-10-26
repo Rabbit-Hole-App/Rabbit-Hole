@@ -2,13 +2,26 @@
 // testable with a fake api. One press posts the signed proposal under a generation id that is a function of the proposal, so a reload
 // or a second press reaches the same job (the server consumes the proposal once); the job is then polled, and when it is ready the
 // stored image is placed as the existing file image card. Nothing here resubmits: a failed or unknown job is said in words, and a new
-// attempt is a new proposal. Behind the web flag (IMAGE_GENERATION in agent/slash.js, off; VITE_IMAGE_GENERATION for a review build).
-import { IMAGE_GENERATION } from './agent/slash.js';
+// attempt is a new proposal. On only where the server offers it to this person (imageGenerationLive in agent/slash.js, set from
+// GET /api/learn/image-jobs; VITE_IMAGE_GENERATION is for a review build and grants nothing the server refuses).
+import { imageGenerationLive } from './agent/slash.js';
 import { canvasFamilyOf, fileCardFromSource, sameFileCard } from './file-to-canvas.js';
 import { withPrompt } from './card-prompt.js';
 
-export const imageGenerationOn = (env = import.meta.env) => IMAGE_GENERATION || env?.VITE_IMAGE_GENERATION === 'true';
+export const imageGenerationOn = (env = import.meta.env) => imageGenerationLive() || env?.VITE_IMAGE_GENERATION === 'true';
 export const imageGenerationId = proposal => `img-${proposal.proposal_id}`;
+
+// The settings a new image plan opens with (the person changes them on the card): a combination a live provider run covered
+// (control-plane image-settings.js IMAGE_VALIDATED), so the plan is startable as it opens.
+export const IMAGE_DEFAULTS = Object.freeze({ model: 'gemini-nano-banana-2.1', aspect_ratio: '1:1', resolution: '1K' });
+export const imagePromptOf = text => String(text ?? '').replace(/^\s*\/generate-image(?![\w-])\s*/i, '').trim();
+// /generate-image <words>: the server signs the plan with its own quote (no model call) and saves it in the chat, so the card, its
+// edits, Generate and a reload all find it (control-plane chat-proposal-route.js). -> { thread_id, message_id, proposal, references }.
+export function requestImagePlan(api, { app, threadId, text }) {
+  const prompt = imagePromptOf(text);
+  if (!prompt) throw new Error('Describe the image after /generate-image.');
+  return api('/api/learn/chat/image-proposals', { method: 'POST', body: JSON.stringify({ app, thread_id: threadId, prompt, settings: IMAGE_DEFAULTS }) });
+}
 
 const POLL_MS = 2000, STUCK_MS = 30000, GIVE_UP_MS = 10 * 60 * 1000, LOST_POLLS = 5;
 const WORKING = new Set(['queued', 'admitting', 'admitted', 'submitting']), SAVING = new Set(['stored', 'recorded']);
@@ -38,13 +51,16 @@ export function imageCard(job, proposal) {
   return card && withPrompt(card, proposal.input?.request);
 }
 
+// Production acceptance only (owner-only window): the owner sets localStorage 'rh-image-fault' to a fault name and the next Generate asks the
+// server to answer from a stub instead of the provider (nothing is billed). The server honours it for a listed operator only; for anyone else it is a 400.
+export const injectedFault = () => { try { return globalThis.localStorage?.getItem('rh-image-fault') || null; } catch { return null; } };
 export const retryImageSave = (api, jobId) => api(`/api/learn/image-jobs/${jobId}/retry-save`, { method: 'POST' });
 
 // Generate. api: web api.js. ops: the canvas ops (insertCard). onStatus(status) is called with each imageStatus. wait(ms) is injectable.
 // -> the final job (a ready one carries cardId, the card placed or revealed). Throws the server's refusal from the POST (api's Error with status and data: generation-review-client problemOf).
-export async function runImageJob({ api, proposal, app, ops, onStatus = () => {}, wait = ms => new Promise(resolve => setTimeout(resolve, ms)), now = Date.now }) {
+export async function runImageJob({ api, proposal, app, ops, onStatus = () => {}, wait = ms => new Promise(resolve => setTimeout(resolve, ms)), now = Date.now, fault = injectedFault() }) {
   const generationId = imageGenerationId(proposal);
-  let { job } = await api('/api/learn/image-jobs', { method: 'POST', body: JSON.stringify({ generationId, proposal, app }) });
+  let { job } = await api('/api/learn/image-jobs', { method: 'POST', body: JSON.stringify({ generationId, proposal, app, ...(fault ? { fault } : {}) }) });
   let stage = null, since = now(), lost = 0;
   const started = now();
   for (;;) {

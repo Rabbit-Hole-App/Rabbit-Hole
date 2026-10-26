@@ -17,7 +17,7 @@ import { PROPOSAL_REFUSED_EVENT, approvesJob, generateProposal, proposalActive, 
 import { fetchProposal, problemOf, saveProposal } from './generation-review-client.js';
 import { withPrompt } from './card-prompt.js';
 import { reportClientError } from './client-telemetry.js';
-import { retryImageSave, runImageJob } from './generate-image.js';
+import { imageGenerationId, retryImageSave, runImageJob } from './generate-image.js';
 
 // UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its
 // proposal that has not made its card yet. A settings change saves the next version over this message (chat-proposal-route.js);
@@ -73,15 +73,23 @@ function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   // IMG-01: Generate on an image proposal starts the job and follows it here (generate-image.js); a failed or unknown outcome is said in
   // words and is never sent again. The same press after a reload reaches the same job.
   const [image, setImage] = useState(null);
-  const generateImage = () => {
+  const generateImage = (follow = false) => {
     if (pressed) return;
-    setPressed(true); setError(null); setImage({ tone: 'working', text: 'Making your image.', retry: false });
-    runImageJob({ api, proposal: p, app: p.input.app, ops, onStatus: setImage }).then(job => { if (job.cardId) ops.locate?.(job.cardId); }).catch(failure => {
+    setPressed(true); setError(null); setImage({ tone: 'working', text: follow ? 'Checking your image.' : 'Making your image.', retry: false });
+    runImageJob({ api, proposal: p, app: p.input.app, ops, onStatus: setImage }).then(job => { if (job.cardId && !follow) ops.locate?.(job.cardId); }).catch(failure => {
       const why = problemOf(failure);
       if (why.kind !== 'used') setPressed(false);
       setProblem(why); setImage(null); setError(why.kind === 'references' ? null : why.message);
     });
   };
+  // Reload recovery: this plan already has a job (the id is a function of the plan), so the card follows it again instead of inviting a
+  // second press. The same POST answers with the existing job (never a second one); a ready image is found on the canvas, not added twice.
+  useEffect(() => {
+    if (p.command !== 'generate-image' || !saved || pressed || !ops?.insertCard) return undefined;
+    let live = true;
+    api(`/api/learn/image-jobs/${imageGenerationId(p)}`).then(() => { if (live) generateImage(true); }, () => {});
+    return () => { live = false; };
+  }, [p.proposal_id, saved]); // eslint-disable-line react-hooks/exhaustive-deps
   const onGenerate = () => {
     if (p.command === 'generate-image') { generateImage(); return; }
     // /explain (EXP-T20): its card already waits on the canvas for this job; Generate approves the job's reviewed brief there.

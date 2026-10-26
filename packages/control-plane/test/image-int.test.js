@@ -5,8 +5,6 @@
 // injected (as image-jobs.test.js does); the provider is the real HTTP adapter on a counted fixture transport. Nothing is paid.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
 import { chatProposalFetch } from '../src/chat-proposal-route.js';
 import { imageJobsRoute, ImageJobs } from '../src/image-jobs.js';
 import { imageAdapter, imageQuote } from '../src/image-providers.js';
@@ -15,57 +13,7 @@ import { proposalRecord, signProposal, verifyImageProposal } from '../src/genera
 import { resolveReferences } from '../src/generation-review-refs.js';
 import { proposalView } from '../../web/src/generation-confirmation-schema.js';
 
-const OWNER = { org: 'org-1', email: 'owner@example.test', userId: 'u-owner' };
-const APP = 'canvas-abcdef12', THREAD = 'canvaschat-11111111-2222-3333-4444-555555555555';
-const JPG = btoa(String.fromCharCode(0xff, 0xd8, 0xff, 0xdb, 0, 4, 0, 0, 0xff, 0xd9));
-const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
-const hex = async bytes => Buffer.from(await crypto.subtle.digest('SHA-256', bytes)).toString('hex');
-const FOX = 'A red fox standing in fresh snow at dawn.';
-
-function stack(t, envPatch = {}) {
-  const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
-  sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
-  const turn = () => new Promise(resolve => setImmediate(resolve));
-  const db = { prepare(text) {
-    let args = []; const statement = () => sqlite.prepare(text);
-    return { bind(...v) { args = v; return this; }, first: async () => { await turn(); return statement().get(...args) || null; }, all: async () => { await turn(); return { results: statement().all(...args) }; },
-      run: async () => { await turn(); return { meta: { changes: statement().run(...args).changes } }; }, now: () => ({ meta: { changes: statement().run(...args).changes } }) };
-  }, async batch(statements) { await turn(); sqlite.exec('BEGIN'); try { const out = statements.map(s => s.now()); sqlite.exec('COMMIT'); return out; } catch (error) { sqlite.exec('ROLLBACK'); throw error; } } };
-  const objects = new Map(), bucket = { objects,
-    async put(key, bytes, options = {}) { objects.set(key, { bytes: new Uint8Array(bytes), ...options }); },
-    async get(key) { const o = objects.get(key); return o ? { size: o.bytes.length, arrayBuffer: async () => o.bytes.slice().buffer } : null; },
-    async list({ prefix }) { return { objects: [...objects].filter(([key]) => key.startsWith(prefix)).map(([key, o]) => ({ key, size: o.bytes.length, httpMetadata: o.httpMetadata, customMetadata: o.customMetadata })) }; } };
-  const calls = [], transport = async (url, init) => { calls.push({ url, init }); return Response.json({ model: 'gemini-3-pro-image', steps: [{ type: 'model_output', content: [{ type: 'image', mime_type: 'image/jpeg', data: JPG }] }] }); };
-  const env = { SMALL_ENV: 'dev', LEARN_DB: db, LEARN_MEDIA: bucket, USAGE_PLATFORM_DAY_USD: '100', AI_MONTHLY_ALLOWANCE_USD: '50', IMAGE_GENERATE_ENABLED: 'true', IMAGE_GENERATE_RESERVED_USD: '0.5',
-    INLINE_DECISION_KEY: 'fixture-signing-key', GEMINI_API_KEY: 'fixture-gemini', OPENAI_API_KEY: 'fixture-openai', ...envPatch };
-  const states = new Map(), instances = new Map(), alarms = [];
-  const state = () => { const records = new Map(); return { storage: { records, get: async k => structuredClone(records.get(k)), put: async (k, v) => { records.set(k, structuredClone(v)); }, setAlarm: async at => { alarms.push(at); }, getAlarm: async () => null } }; };
-  const object = name => {
-    if (!states.has(name)) states.set(name, state());
-    if (!instances.has(name)) instances.set(name, new ImageJobs(states.get(name), env, { adapter: (e, model) => imageAdapter(e, model, transport), log: () => {} }));
-    return instances.get(name);
-  };
-  env.IMAGE_JOBS = { idFromName: name => name, get: name => ({ fetch: req => object(name).fetch(req) }) };
-  const reader = { source: async (req, e, id) => { const s = sqlite.prepare("SELECT * FROM file_sources WHERE id = ? AND status = 'stored'").get(id); return s ? { source: { ...s } } : new Response(null, { status: 404 }); } };
-  // Identity, the canvas lookup and the file reader are the only injected seams. verify and consume are the real ones.
-  const routeDeps = { identity: async () => ({ ...OWNER }), board: async () => ({ owner: { org: OWNER.org, email: OWNER.email }, row: { id: 'board-1' } }), ...reader };
-  const proposalDeps = { identity: async () => ({ ...OWNER }), owner: async () => ({ org: OWNER.org, email: OWNER.email }), authorize: reader.source };
-  const asJson = res => res.json();
-  const propose = async (body, deps = proposalDeps, e = env, method = 'POST') => {
-    const res = await chatProposalFetch(new Request('https://app/api/learn/chat/image-proposals', { method, body: method === 'POST' ? JSON.stringify({ app: APP, thread_id: THREAD, prompt: FOX, ...body }) : undefined }), e, deps);
-    return { res, body: await res.json() };
-  };
-  const generate = async (proposal, generationId = `img-${proposal.proposal_id}`, deps = routeDeps, e = env) => {
-    const res = await imageJobsRoute('/api/learn/image-jobs', new Request('https://app/api/learn/image-jobs', { method: 'POST', body: JSON.stringify({ generationId, proposal, app: APP }) }), e, deps);
-    return { res, body: await res.json(), generationId };
-  };
-  const nameOf = id => `image-job:${OWNER.org}|${OWNER.email}|${id}`;
-  const job = id => states.get(nameOf(id))?.storage.records.get('job');
-  const state_ = async proposal => (await proposalRecord(db, OWNER.email, APP, proposal.proposal_id)).state;
-  const model = { model: 'gemini-nano-banana-2.1', aspect_ratio: '1:1', resolution: '1K' };
-  return { sqlite, db, bucket, env, calls, propose, generate, job, state: state_, routeDeps, proposalDeps, asJson, nameOf, object, model };
-}
-const quiet = h => assert.equal(h.calls.length, 0, 'no provider request');
+import { APP, FOX, JPG, OWNER, PNG, hex, quiet, stack } from './image-int-stack.mjs';
 
 test('the whole signed route: propose, read back, Generate, one image, one consume; a repeat is the same job and a second press is refused', async t => {
   const h = stack(t);
@@ -134,15 +82,16 @@ test('refusals on the signed route: each stable code, with nothing consumed, res
   cases.push(['image_not_ready', fourK, fourK]);
   const wide = await made({ model: 'gemini-3-pro-image', aspect_ratio: '16:9', resolution: '1K' });
   cases.push(['image_not_ready', wide, wide]);
-  // Unknown quote: OpenAI has no price row. The proposal exists, signs no quote, and the card says so.
-  const openai = await made({ model: 'gpt-image-2.5-flare', quality: 'low', aspect_ratio: '1:1', resolution: '1K' });
+  // Unknown quote: a ready combination whose spending bound is not configured. The proposal exists, signs no quote, and the card says so.
+  const noBound = { ...h.env, IMAGE_GENERATE_RESERVED_USD: '' };
+  const openai = (await h.propose({ settings: h.model }, h.proposalDeps, noBound)).body.proposal;
   assert.equal(openai.readiness.ready, true);
   assert.equal(openai.quote, null);
   assert.deepEqual(openai.usage, { estimate_credits: null, reserve_credits: null });
   const unknown = proposalView(openai);
   assert.deepEqual(unknown.usage, { estimate_credits: null, unknown: true });
   assert.ok(!unknown.allowed_actions.includes('generate'));
-  cases.push(['quote_unknown', openai, openai]);
+  cases.push(['quote_unknown', openai, openai, { IMAGE_GENERATE_RESERVED_USD: '' }]);
   // Quote mismatch: the server's price moved after approval.
   const priced = await made(h.model);
   cases.push(['quote_changed', priced, priced, { IMAGE_GENERATE_RESERVED_USD: '0.6' }]);
@@ -221,7 +170,7 @@ test('editing a setting on the card re-quotes and re-checks readiness; the optio
     const res = await chatProposalFetch(new Request(`https://app/api/learn/chat/messages/${body.message_id}/proposal`, { method: 'PUT', body: JSON.stringify({ expected_version: version, settings }) }), h.env, h.proposalDeps);
     return { res, body: await res.json() };
   };
-  const wide = await put({ ...h.model, aspect_ratio: '16:9' }, 1);
+  const wide = await put({ ...h.model, aspect_ratio: '3:2' }, 1);
   assert.equal(wide.res.status, 200, JSON.stringify(wide.body));
   assert.equal(wide.body.proposal.version, 2);
   assert.equal(wide.body.proposal.readiness.ready, false);
@@ -238,18 +187,18 @@ test('editing a setting on the card re-quotes and re-checks readiness; the optio
   assert.equal(ok.res.status, 201);
 });
 
-test('the validated list is exactly acceptance runs A to E; every other option is not ready and says what was tested', () => {
+test('the validated list is exactly the live provider runs (A to E, then imgact-*); every other option is not ready and says what was tested', () => {
   assert.deepEqual(IMAGE_VALIDATED.map(r => `${r.model}/${r.operation}/${r.quality}/${r.aspect_ratio}/${r.resolution}/${r.max_references}`).sort(), [
-    'gemini-3-pro-image/generate/null/1:1/1K/0', 'gemini-nano-banana-2.1/edit/null/1:1/1K/1', 'gemini-nano-banana-2.1/generate/null/1:1/1K/0',
-    'gpt-image-2.5-flare/generate/low/1:1/1K/0', 'gpt-image-2.5-sunburst/edit/low/1:1/1K/2']);
-  for (const r of IMAGE_VALIDATED) assert.ok(r.evidence && /^run [A-E]/.test(r.evidence), r.model);
+    'gemini-3-pro-image/generate/null/1:1/1K/0', 'gemini-nano-banana-2.1/edit/null/1:1/1K/1', 'gemini-nano-banana-2.1/generate/null/1:1/1K/0', 'gemini-nano-banana-2.1/generate/null/16:9/1K/0',
+    'gpt-image-2.5-flare/generate/low/1:1/1K/0', 'gpt-image-2.5-flare/generate/low/16:9/2K/0', 'gpt-image-2.5-sunburst/edit/low/1:1/1K/2', 'gpt-image-2.5-sunburst/generate/low/1:1/1K/0'].sort());
+  for (const r of IMAGE_VALIDATED) assert.ok(r.evidence && /^(run [A-E]|imgact-)/.test(r.evidence), r.model);
   const ready = (s, n = 0) => imageReadiness({ quality: null, aspect_ratio: '1:1', resolution: '1K', ...s }, n);
   assert.equal(ready({ model: 'gpt-image-2.5-flare', quality: 'low' }).ready, true);
   assert.equal(ready({ model: 'gpt-image-2.5-sunburst', quality: 'low' }, 2).ready, true);
   assert.equal(ready({ model: 'gemini-nano-banana-2.1' }, 1).ready, true);
   for (const [s, n] of [
     [{ model: 'gpt-image-2.5-flare', quality: 'medium' }, 0], [{ model: 'gpt-image-2.5-flare', quality: 'low', resolution: '2K' }, 0], [{ model: 'gpt-image-2.5-flare' }, 0],
-    [{ model: 'gpt-image-2.5-flare', quality: 'low' }, 1], [{ model: 'gpt-image-2.5-sunburst', quality: 'low' }, 0], [{ model: 'gpt-image-2.5-sunburst', quality: 'low' }, 3],
+    [{ model: 'gpt-image-2.5-flare', quality: 'low' }, 1], [{ model: 'gpt-image-2.5-sunburst', quality: 'medium' }, 0], [{ model: 'gpt-image-2.5-sunburst', quality: 'low' }, 3],
     [{ model: 'gemini-nano-banana-2.1', resolution: '2K' }, 0], [{ model: 'gemini-nano-banana-2.1', aspect_ratio: '3:2' }, 0], [{ model: 'gemini-nano-banana-2.1' }, 2],
     [{ model: 'gemini-3-pro-image' }, 1], [{ model: 'gemini-3-pro-image', resolution: '4K' }, 0], [{ model: 'nope' }, 0], [{}, 0],
   ]) {
@@ -258,5 +207,5 @@ test('the validated list is exactly acceptance runs A to E; every other option i
     assert.equal(out.code, 'image_not_ready');
     assert.ok(out.message.length > 10 && !/\.\.\.|…/.test(out.message));
   }
-  assert.match(ready({ model: 'gpt-image-2.5-sunburst', quality: 'low' }, 0).message, /GPT Image 2\.5 Sunburst has only been tested for editing with up to 2 reference images at 1:1, 1K, low quality\./);
+  assert.match(ready({ model: 'gpt-image-2.5-sunburst', quality: 'medium' }, 0).message, /GPT Image 2\.5 Sunburst has only been tested for creating without references at 1:1, 1K, low quality and editing with up to 2 reference images at 1:1, 1K, low quality\./);
 });

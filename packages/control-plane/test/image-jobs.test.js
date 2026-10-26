@@ -99,7 +99,7 @@ function harness(t, envPatch = {}) {
   };
   const post = (body, deps_ = routeDeps, path = '/api/learn/image-jobs') => imageJobsRoute(path, new Request(`https://app${path}`, { method: 'POST', body: JSON.stringify(body) }), env, deps_);
   const create = async (generationId = `gen-${crypto.randomUUID()}`, p = proposal()) => { const res = await post({ generationId, proposal: p, app: 'canvas-abcdef12' }); return { res, body: await res.json(), generationId, p }; };
-  const get = (id, suffix = '') => imageJobsRoute(`/api/learn/image-jobs/${id}${suffix}`, new Request(`https://app/api/learn/image-jobs/${id}${suffix}`, { method: suffix === '/retry-save' ? 'POST' : 'GET' }), env, routeDeps);
+  const get = (id, suffix = '') => imageJobsRoute(`/api/learn/image-jobs/${id}${suffix}`, new Request(`https://app/api/learn/image-jobs/${id}${suffix}`, { method: suffix === '/retry-save' ? 'POST' : 'GET' }), suffix === '/inspect' ? { ...env, IMAGE_ACCEPTANCE_EMAILS: OWNER.email } : env, routeDeps); // inspect shows dollars: operators only
   const nameOf = id => `image-job:${OWNER.org}|${OWNER.email}|${id}`;
   const job = id => states.get(nameOf(id))?.storage.records.get('job');
   // The platform's alarm delivery: no browser request is involved.
@@ -212,9 +212,9 @@ test('the approval is enforced before anything is consumed or reserved', async t
     [h.proposal({ description: '' }), 'proposal_invalid'],
     [h.proposal({ settings: { model: 'gpt-image-1' } }), 'settings_invalid'],
     [h.proposal({ settings: { aspect_ratio: '7:3' } }), 'settings_invalid'],
-    // OpenAI output tokens per quality and size are unverified: no OpenAI option has a price, so it cannot start.
-    [h.proposal({ settings: { model: 'gpt-image-2.5-flare', aspect_ratio: '1:1', resolution: '1K', quality: 'low' } }), 'quote_unknown'],
-    [h.proposal({ settings: { resolution: '4K' } }), 'quote_unknown'],
+    // OpenAI publishes no tokens per image: only the measured low-quality sizes have a price (image-providers.js PRICES); the rest cannot start.
+    [h.proposal({ settings: { model: 'gpt-image-2.5-flare', aspect_ratio: '1:1', resolution: '1K', quality: 'medium' } }), 'quote_unknown'],
+    [h.proposal({ settings: { model: 'gpt-image-2.5-flare', aspect_ratio: '1:1', resolution: '2K', quality: 'low' } }), 'quote_unknown'],
     [{ ...h.proposal(), quote: { estimate_credits: 1, reserve_credits: 1 } }, 'quote_changed'],
     [{ ...h.proposal(), quote: null }, 'quote_changed'],
     [h.proposal({ settings: { model: 'gemini-3-pro-image' }, references: [{ id: 'r1', kind: 'card', sourceId: 'card-1', revision: 'x' }] }), 'reference_blocked'],

@@ -39,13 +39,19 @@ export function imageSettings(settings, referenceCount = 0) {
   return { value: { model: s.model, quality: m.qualities ? s.quality ?? 'auto' : null, aspect_ratio: s.aspect_ratio, resolution: s.resolution } };
 }
 
-// Published per-image output prices (USD) and input rates. null = not verified: that option cannot be quoted.
-// Nano Banana 2.1 4K: the page's $0.113 disagrees with its own 2,520 tokens x $30/M = $0.0756, so it is unverified.
-// Nano Banana 2.1 per input image: not stated. Pro: "about $0.0011" per input image. OpenAI: output tokens per quality and
-// size are not on the pages read, so no OpenAI option has a price.
+// Per-image prices (USD) and input rates; null = not verified, so that option cannot be quoted. Sources read 2026-10-25
+// (C:/s/spec/image-activation/price-verification.md): Google pricing page (Nano Banana 2.1: 1K 1,120 tokens = $0.0336, 2K 1,680 =
+// $0.0504, 4K 3,780 = $0.113; Pro: 1K and 2K 1,120 tokens = $0.134, 4K 2,000 = $0.24, an input image about $0.0011), Google media
+// resolution page (a Gemini 3 input image is at most 1,120 tokens at the default setting, which this adapter never raises: 1,120 x
+// $1.5/M = $0.00168 for Nano Banana 2.1 references). OpenAI publishes token RATES only (no tokens per image), so the OpenAI rows are
+// the largest output token count MEASURED in real runs at quality low (196 tokens at 1024x1024, 157 at 2048x1152; img-A-1, img-B-1,
+// imgact-sunburst1k-1, imgact-flare169-1), rounded up to 200 tokens x $30/M = $0.006. Other qualities and sizes have no row and
+// are never quoted. OpenAI reference-image tokens are not published either: editing with references has no OpenAI price.
 const PRICES = {
-  'gemini-nano-banana-2.1': { output: { '1K': 0.0336, '2K': 0.0504, '4K': null }, referenceImage: null, textPerMillion: 1.5 },
+  'gemini-nano-banana-2.1': { output: { '1K': 0.0336, '2K': 0.0504, '4K': 0.113 }, referenceImage: 0.00168, textPerMillion: 1.5 },
   'gemini-3-pro-image': { output: { '1K': 0.134, '2K': 0.134, '4K': 0.24 }, referenceImage: 0.0011, textPerMillion: 2.0 },
+  'gpt-image-2.5-sunburst': { outputBySize: { low: { '1024x1024': 0.006, '2048x1152': 0.006 } }, referenceImage: null, textPerMillion: 5 },
+  'gpt-image-2.5-flare': { outputBySize: { low: { '1024x1024': 0.006, '2048x1152': 0.006 } }, referenceImage: null, textPerMillion: 5 },
 };
 const credits = usd => Math.ceil(Number((usd * 100).toFixed(6)));
 // One generation's quote: the estimate from the published table and the reservation the job holds while it runs
@@ -60,8 +66,10 @@ export function imageQuote(env, settings, referenceCount = 0, promptBytes = 0) {
   const [w, h] = (OPENAI_SIZES[checked.value.aspect_ratio]?.[resolution] || '').split('x').map(Number);
   if (IMAGE_MODELS[model].provider === 'openai' && w * h > 2560 * 1440) return { state: 'unknown', reason: 'experimental_size', message: 'OpenAI marks this size experimental, so it cannot be generated yet.' };
   if (!price) return { state: 'unknown', reason: 'pricing_unverified', message: 'The price for this model is not known yet, so it cannot be generated.' };
-  const output = price.output[resolution];
-  if (output == null || (referenceCount > 0 && price.referenceImage == null)) return { state: 'unknown', reason: 'pricing_unverified', message: 'The price for these settings is not known yet, so it cannot be generated.' };
+  const size = OPENAI_SIZES[checked.value.aspect_ratio]?.[resolution];
+  const output = price.output ? price.output[resolution] : price.outputBySize?.[checked.value.quality]?.[size];
+  if (referenceCount > 0 && price.referenceImage == null) return { state: 'unknown', reason: 'reference_pricing_unpublished', message: 'The provider does not publish what reference images cost, so this model cannot be priced with references yet.' };
+  if (output == null) return { state: 'unknown', reason: 'pricing_unverified', message: 'The price for these settings is not known yet, so it cannot be generated.' };
   // A token is at least one UTF-8 byte, so prompt bytes bound the prompt's text tokens from above.
   const estimateUsd = Number((output + referenceCount * (price.referenceImage || 0) + promptBytes * price.textPerMillion / 1e6).toFixed(6));
   const reserveUsd = Number(String(env?.IMAGE_GENERATE_RESERVED_USD ?? '').trim() || NaN);

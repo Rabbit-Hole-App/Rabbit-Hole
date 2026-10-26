@@ -21,6 +21,7 @@
 import { repositoryIdentity } from './repositories.js';
 import { PROPOSAL_STALE, proposalRecord, proposalState, proposalUsedText, reviewAvailable, reviseProposal, saveRevision, signProposal } from './generation-proposal.js';
 import { resolveReferences } from './generation-review-refs.js';
+import { imageAllowed, imageOperatorEmails } from './image-settings.js';
 import { validateSettings } from '../../web/src/generation-confirmation-schema.js';
 import { plainPrompt } from '../../web/src/generation-review.js';
 
@@ -29,12 +30,15 @@ const PATH = /^\/api\/learn\/chat\/messages\/(\d{1,15})\/proposal$/;
 const IMAGE_PATH = '/api/learn/chat/image-proposals', THREAD = /^canvaschat-[0-9a-f-]{36}$/;
 
 async function createImageProposal(req, env, deps) {
-  if (env.IMAGE_GENERATE_ENABLED !== 'true') return json({ error: 'Image generation is not available.', code: 'image_generation_disabled' }, 503);
-  if (!env.LEARN_DB || !reviewAvailable(env)) return json({ error: 'Image generation is not available.', code: 'not_configured' }, 503);
+  const disabled = () => json({ error: 'Image generation is not available.', code: 'image_generation_disabled' }, 503);
+  if (env.IMAGE_GENERATE_ENABLED !== 'true' && !imageOperatorEmails(env).length) return disabled(); // off, nobody listed: before anything else
   if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
   if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
   const user = await (deps.identity || repositoryIdentity)(req, env);
   if (user instanceof Response) return user;
+  // Not public and not a listed operator (VERIFIED identity only): the same answer as off for everyone. No proposal is signed or stored.
+  if (!imageAllowed(env, user.email)) return disabled();
+  if (!env.LEARN_DB || !reviewAvailable(env)) return json({ error: 'Image generation is not available.', code: 'not_configured' }, 503);
   let body;
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
   const plainBody = v => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -60,6 +64,8 @@ async function createImageProposal(req, env, deps) {
   // One batch, so a message never lands without the meta row the proposal is found by (canvases.js saveChatMessage).
   await db.batch([
     db.prepare("INSERT OR IGNORE INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,'',?)").bind(body.thread_id, user.org, user.email, body.app, (p.title || 'Image').slice(0, 120)),
+    db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(body.thread_id, 'user', `/generate-image ${words}`.slice(0, 4000)),
+    db.prepare('INSERT INTO chat_message_meta(message_id,thread_id,role,meta_json) SELECT max(id),?,?,? FROM messages WHERE thread_id=?').bind(body.thread_id, 'user', JSON.stringify({ mode: 'auto', command: 'generate-image', contextRefs: [] }), body.thread_id),
     db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(body.thread_id, 'assistant', 'Here is the plan for your image. Generate makes it.'),
     db.prepare('INSERT INTO chat_message_meta(message_id,thread_id,role,meta_json) SELECT max(id),?,?,? FROM messages WHERE thread_id=?').bind(body.thread_id, 'assistant', JSON.stringify(meta), body.thread_id),
     db.prepare('INSERT INTO chat_thread_state(thread_id,last_activity_at,updated_at) VALUES(?,?,?) ON CONFLICT(thread_id) DO UPDATE SET last_activity_at=excluded.last_activity_at, updated_at=excluded.updated_at').bind(body.thread_id, at, at),

@@ -40,6 +40,8 @@ import { CadReview } from './CadReview.jsx';
 import { openOnce } from './learn-opening.js';
 import { lateEvent, settle, withAnswerMeta, withDone, withSavedReply } from './chat-threads.js';
 import { approvesJob, currentProposal, routeChat, routeOutcome } from './generation-proposal-chat.js';
+import { imageGenerationOn, requestImagePlan } from './generate-image.js';
+import { loadImageCapability } from './image-capability.js';
 import { EXPLAIN_BRIEF_EVENT } from './explain-client.js';
 import RouteDecision from './RouteDecision.jsx';
 import { reviewRequired } from './proposal-capabilities.js';
@@ -347,6 +349,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     return () => document.removeEventListener('pointerdown', away, true);
   }, [paletteOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const [busy, setBusy] = useState(false);
+  // IMG-01: /generate-image is listed only where the server offers it to this person (image-capability.js); the answer re-renders the menu.
+  const [, setImageOffered] = useState(false);
+  useEffect(() => { if (conversation === 'learn') loadImageCapability((url, init) => fetch(url, init), wsHeaders()).then(setImageOffered); }, [conversation]);
   // A guided Rabbit Hole opening that coaching may not send here (owner 4a): shown above the composer, sent only on the learner's press.
   const [waitingOpening, setWaitingOpening] = useState(null);
   const [choices, setChoices] = useState(null); // { message, candidates }
@@ -692,6 +697,18 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     });
     const mirror = (t) => { exchange?.({ id: replyId, delta: t }); append(t); };
     let responseGraph = null;
+    // IMG-01: /generate-image. The server signs the plan with its own quote (no model call) and saves it in this chat; the answer
+    // is the plan's card (Generate, edits, reload and the job all start from it). Offered only where the server lists this person.
+    const imagePlan = async words => {
+      if (attached) throw new Error('Add reference images on the plan card after it appears, not as an attachment.');
+      const made = await requestImagePlan(api, { app: chat.canvas, threadId: threadId.current || chatThread.id || newThreadId(), text: words });
+      if (late()) return;
+      mirror('Here is the plan for your image. Generate makes it.');
+      setMsgs(messages => withDone(withAnswerMeta(messages, replyId, { kind: 'answer', proposal: made.proposal }), replyId, { messageId: made.message_id }));
+      threadId.current = made.thread_id;
+      chatThread.adopt(made.thread_id, message.slice(0, 120));
+      setThreads(ts => ts.some(t => t.id === made.thread_id) ? ts : [{ id: made.thread_id, title: message.slice(0, 120) }, ...ts]);
+    };
     // The cards this answer committed to opening (a progress event's card): each holds its place on the canvas
     // until its card lands; whatever is still held when the answer ends goes (docs/features/canvas-skeleton-cards.md).
     const slots = {};
@@ -702,6 +719,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         await demo.run(text => setMsgs(m => m.map(item => item.id === replyId ? { ...item, content: text } : item)));
         return;
       }
+      if (chat && chatThread && !regenerate && !viaTutor && commandName === 'generate-image' && imageGenerationOn()) { await imagePlan(message); return; }
       // Tutor v1 (LearnTutor.jsx): on the NanoGPT Attention slice the Tutor answers instead of the
       // Learn chat - the learner's own words, and the card they armed or selected. On a journey canvas a turn the
       // journey takes comes back handled, with nothing drawn; a failed one gives the words back.
@@ -802,6 +820,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       if (chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && payload.mode !== 'tutor' && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {
         const outcome = routeOutcome(await routeChat((url, init) => fetch(url, { ...init, headers: { ...init.headers, ...wsHeaders() }, signal: flight.signal }), payload, { capability: routeAs ?? commandName ?? null }));
         if (late()) return;
+        // Plain words the router read as an image request take the same plan route as the typed command.
+        if (!outcome.send && outcome.direct?.command === 'generate-image' && chatThread && imageGenerationOn()) { await imagePlan(outcome.direct.args || message); return; }
         if (!outcome.send) {
           setMsgs(m => m.slice(0, -2)); // no turn happened: the decision replaces it
           if (outcome.direct && slashRef.current?.intercept(`/${outcome.direct.command} ${outcome.direct.args}`.trim())) return;
