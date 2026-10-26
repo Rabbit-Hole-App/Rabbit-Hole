@@ -31,15 +31,15 @@ test('the approved numbers, and only these: stop 5.00, maximum 500 credits, rese
   assert.deepEqual([orchestrator('MOTION_MAX_CALLS'), orchestrator('MOTION_JOB_TIMEOUT_S')], ['9', '3300']);
 });
 
-test('the public flip and the expanded settings are NOT in the policy candidate: public Motion stays paused, no renderer configuration is active in either file', () => {
-  assert.equal(PROD.MOTION_GENERATION_PAUSED, '1');
-  assert.equal(PROD.MOTION_RENDERER_CONFIG, undefined, 'the Worker does not activate the measured policy (R2a)');
-  assert.doesNotMatch(ORCH, /^\s*MOTION_RENDERER_CONFIG\s*=/m, 'the orchestrator does not activate it either');
+test('R2a (owner-only activation) is NOT the public flip: public Motion stays paused; the measured renderer configuration is active in BOTH files with the same id', () => {
+  assert.equal(PROD.MOTION_GENERATION_PAUSED, '1', 'R2b (the public flip, a later HELD commit) is the only thing that sets "0"');
+  assert.equal(PROD.MOTION_RENDERER_CONFIG, '03f2a1efc08e-1.5cpu-3gib-420s', 'the Worker activates the measured policy (R2a)');
+  assert.equal(orchestrator('MOTION_RENDERER_CONFIG'), PROD.MOTION_RENDERER_CONFIG, 'the orchestrator carries the same id');
   assert.match(PROD.MOTION_ACCEPTANCE_EMAILS, /^user@dda2350771a4066e3080c605ba092e0a\.rabbithole\.invalid/, 'the owner-only list is unchanged');
 });
 
 test('a card confirmed at the old maximum (350 credits) is a STALE quote under the policy (500), answered with the updated quote before any hold; a card made at 500 is accepted', async () => {
-  const base = { ...READY, ...PROD, MOTION_GENERATION_PAUSED: '0', MOTION_ORCHESTRATOR_TOKEN: 'm'.repeat(48) }; // R2-shaped, only to exercise the check
+  const base = { ...READY, ...PROD, MOTION_RENDERER_CONFIG: READY.MOTION_RENDERER_CONFIG, MOTION_GENERATION_PAUSED: '0', MOTION_ORCHESTRATOR_TOKEN: 'm'.repeat(48) }; // R2-shaped, only to exercise the check
   const input = { request: '/motion explain the water cycle', concept: 'Weather' };
   const water = { command: 'motion', title: 'Water cycle: evaporation to rain', description: 'Sunlight warms a body of water, causing evaporation. Moist air rises and cools, forming droplets that gather into clouds. The droplets grow and fall as rain. Water collects again, completing the cycle.', settings: { duration_seconds: 10, audio: false } };
   const sign = env => signProposal(env, { ...validateProposalInput(water), input }, 'alice@example.test');

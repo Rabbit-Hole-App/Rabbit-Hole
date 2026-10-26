@@ -156,13 +156,14 @@ test('production binds FILE_JOBS and enables file conversion and Ctrl+K image ed
 
 // Batch B6 shipped Image, File Converter and Ctrl+K without Motion (Motion is blocked on owner acceptance). A Motion release replaces this pin in the same change that flips one of these:
 // the credit disclosure adds the signed maximum charge on the app Worker; the policy values commit (owner-approved 2026-10-27 for the owner-only validation window; public activation not approved) sets it to 500 credits (US$5.00);
-// production Motion is still paused and has no renderer config.
-test('production Motion: public generation paused, no renderer config, the disclosed maximum on the app Worker only', () => {
+// R2a (HELD, owner-only activation) turns the measured renderer config on the app Worker; production Motion is still paused. R2b is the public flip and restates this pin with paused "0".
+test('production Motion (R2a): public generation paused, the measured renderer config on the app Worker only, the disclosed maximum on the app Worker only', () => {
   const app = config(APP), cp = config(CP);
   assert.equal(app.vars.MOTION_GENERATION_PAUSED, '1');
   assert.deepEqual([app.vars.MOTION_ORCHESTRATOR_URL, app.vars.MOTION_JOB_RESERVATION_USD, app.vars.MOTION_ESTIMATE_USD],
     ['https://rabbit-hole-motion-orchestrator.fly.dev', '8.96', '1.00']);
-  for (const c of [app, cp]) assert.equal(c.vars?.MOTION_RENDERER_CONFIG, undefined, 'MOTION_RENDERER_CONFIG');
+  assert.equal(app.vars.MOTION_RENDERER_CONFIG, '03f2a1efc08e-1.5cpu-3gib-420s', 'MOTION_RENDERER_CONFIG on the app Worker');
+  assert.equal(cp.vars?.MOTION_RENDERER_CONFIG, undefined, 'MOTION_RENDERER_CONFIG on the control plane Worker');
   assert.equal(app.vars.MOTION_MAX_CHARGE_USD, '5.00');
   assert.equal(cp.vars?.MOTION_MAX_CHARGE_USD, undefined, 'the control plane Worker has no maximum');
 });

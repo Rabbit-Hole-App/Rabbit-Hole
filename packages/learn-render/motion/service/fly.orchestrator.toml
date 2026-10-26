@@ -25,10 +25,10 @@ primary_region = "iad"
   # after the Author, up to 30 s and 8 beats). That figure is a FIXTURE-BASED PLANNING ESTIMATE (declared envelope, assumed per-call costs), not a proven worst-case bound; this process refuses
   # to start when the ceiling is below it. The guard can still refuse or stop a job at the ceiling, and admission does not promise a video.
   MOTION_ROUTE_BUDGET_CHECK = "1"
-  # ACTIVATION (off): the renderer configuration the measured readiness policy applies to. Uncomment this line, with the Worker's
-  # MOTION_RENDERER_CONFIG of the same value, only after the matching renderer and its job store are deployed and accepted. While it is absent
-  # the orchestrator takes jobs exactly as it does today. A job whose approved proposal names another configuration is refused before any model call.
-  # MOTION_RENDERER_CONFIG = "03f2a1efc08e-1.5cpu-3gib-420s"
+  # R2a (owner 2026-10-26, owner-only measured policy): the renderer configuration the measured readiness policy applies to; the same value as the
+  # Worker's MOTION_RENDERER_CONFIG. A job whose approved proposal names another configuration is refused before any model call. The per-job
+  # ceiling above (US$5.00) and the route budget check STAY through R2b (the public flip only unpauses the Worker).
+  MOTION_RENDERER_CONFIG = "03f2a1efc08e-1.5cpu-3gib-420s"
 
 # No [mounts]: the durable job record is the worker's (LearnVideos Durable Object + the D1 reservation). A restart loses the
 # running job; the worker keeps its hold as unknown cost and this process refuses that job's grant.

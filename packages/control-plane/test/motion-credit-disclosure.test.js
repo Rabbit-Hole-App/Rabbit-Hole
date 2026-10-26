@@ -25,8 +25,8 @@ const DESCRIPTION = 'Sunlight warms a body of water, causing evaporation. Moist 
 const input = { request: '/motion explain the water cycle', concept: 'Weather' };
 const water = { command: 'motion', title: 'Water cycle: evaporation to rain', description: DESCRIPTION, settings: { duration_seconds: 10, audio: false } };
 const sign = (env, over = {}) => signProposal(env, { ...validateProposalInput({ ...water, ...over }), input }, 'alice@example.test');
-// Production's variables as they would be at R2 (generation not paused), with the secret and the renderer configuration R2 adds.
-const R2 = { ...READY, ...PROD, MOTION_GENERATION_PAUSED: '0', MOTION_ORCHESTRATOR_TOKEN: 'm'.repeat(48) };
+// Production's variables as they would be at R2 (generation not paused), with the secret; the test fixture's renderer configuration stands in for the live id so the fixture ready policy applies.
+const R2 = { ...READY, ...PROD, MOTION_RENDERER_CONFIG: READY.MOTION_RENDERER_CONFIG, MOTION_GENERATION_PAUSED: '0', MOTION_ORCHESTRATOR_TOKEN: 'm'.repeat(48) };
 const { MOTION_MAX_CHARGE_USD: _removed, ...R2_WITHOUT_MAX } = R2; // eslint-disable-line no-unused-vars
 
 test('the three numbers are separate and ordered: estimate 100, maximum 500, temporary reservation 896 credits', () => {

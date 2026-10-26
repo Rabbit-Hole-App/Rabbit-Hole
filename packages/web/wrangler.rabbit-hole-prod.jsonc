@@ -137,16 +137,17 @@
     // to be at least the orchestrator's per-job ceiling (fly.orchestrator.toml MOTION_JOB_CEILING_USD; with that line removed the ceiling is the
     // hold) and at most the hold. Raising it needs the owner (docs/features/motion-credit-disclosure.md).
     "MOTION_MAX_CHARGE_USD": "5.00",
-    // EXPANDED MOTION SETTINGS ARE OFF. With the next line absent this Worker's settings are today's exactly: 16:9, 5 to 30 seconds (control-plane
-    // motion-ready-policy.js LEGACY_READY_POLICY); the other ratios and 35 to 60 seconds stay visible and are refused with the not-ready line.
-    // ACTIVATION is this one line, added ONLY after the renderer, the orchestrator and the job store are deployed and accepted
-    // (docs/features/rabbit-hole-motion-v1-harness-spec.md "Deploying Motion without activating it"). The orchestrator carries the same id.
-    // "MOTION_RENDERER_CONFIG": "03f2a1efc08e-1.5cpu-3gib-420s",
-    // R1 (owner 2026-10-25): PUBLIC Motion is PAUSED on purpose while the new renderer, orchestrator and durable job store are deployed and
-    // accepted. "1" refuses every new start; jobs already started still poll, stop, settle and play. The ONLY exception is the controlled
-    // owner-only path: a caller whose verified full sign-in email is in MOTION_ACCEPTANCE_EMAILS (below) may still start, under the ordinary
-    // admission, hold and settlement rules, so the acceptance job exercises the real renderer, orchestrator, storage and accounting.
-    // R2 (activation, a separate release): set this back to "0" and uncomment MOTION_RENDERER_CONFIG above, only after the acceptance job passed.
+    // R2a, OWNER-ONLY MEASURED POLICY (owner 2026-10-26): the measured policy applies (control-plane motion-ready-policy.js MEASURED_READY_POLICY): 22
+    // (ratio, duration) pairs, each with a receipt; 45 and 60 s and every other pair stay visible and are refused with the not-ready line. The
+    // orchestrator carries the same id (fly.orchestrator.toml) and is deployed first. This is the owner's path to the 9:16 acceptance job BEFORE
+    // public activation: public generation stays paused (next line), so only the owner list below can start. To go back to today's settings
+    // (16:9, 5 to 30 s) comment this line again.
+    "MOTION_RENDERER_CONFIG": "03f2a1efc08e-1.5cpu-3gib-420s",
+    // PUBLIC Motion is still PAUSED on purpose (R1, owner 2026-10-25): "1" refuses every new start; jobs already started still poll, stop, settle and
+    // play. The ONLY exception is the controlled owner-only path: a caller whose verified full sign-in email is in MOTION_ACCEPTANCE_EMAILS (below)
+    // may still start, under the ordinary admission, hold and settlement rules, so the acceptance jobs exercise the real renderer, orchestrator,
+    // storage and accounting. R2b (the public flip, a separate release) sets this to "0" and nothing else (the orchestrator's US$5.00 per-job ceiling and the 500-credit maximum stay), only after
+    // the 16:9 and 9:16 owner-only jobs passed and the credit disclosure fix is on main.
     "MOTION_GENERATION_PAUSED": "1",
     // The owner path (R1b, owner 2026-10-26): TWO full addresses, space separated, each compared whole and lower-cased against the account's application
     // principal (auth.js: a provider-reported email never becomes a principal). The first is the principal of the owner's Google sign-in (user_id
