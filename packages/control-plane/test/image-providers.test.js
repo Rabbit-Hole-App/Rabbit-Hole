@@ -66,7 +66,7 @@ test('the quote is unknown, never zero, wherever pricing is unverified or no bou
     [{ model: 'gpt-image-2.5-sunburst', aspect_ratio: '1:1', resolution: '1K', quality: 'medium' }, 0],
     [{ model: 'gpt-image-2.5-flare', aspect_ratio: '1:1', resolution: '1K' }, 0],
     [{ model: 'gpt-image-2.5-flare', aspect_ratio: '1:1', resolution: '2K', quality: 'low' }, 0],
-    [{ model: 'gpt-image-2.5-sunburst', aspect_ratio: '1:1', resolution: '1K', quality: 'low' }, 1],
+    [{ model: 'gpt-image-2.5-flare', aspect_ratio: '1:1', resolution: '1K', quality: 'low' }, 1],
   ]) {
     const q = imageQuote(env, settings, refs);
     assert.equal(q.state, 'unknown', JSON.stringify(settings));
@@ -76,7 +76,9 @@ test('the quote is unknown, never zero, wherever pricing is unverified or no bou
   const at = (settings, refs = 0) => imageQuote(env, settings, refs);
   assert.equal(at({ model: 'gpt-image-2.5-flare', aspect_ratio: '1:1', resolution: '1K', quality: 'low' }).estimateUsd, 0.006);
   assert.equal(at({ model: 'gpt-image-2.5-sunburst', aspect_ratio: '16:9', resolution: '2K', quality: 'low' }).estimateUsd, 0.006);
-  assert.equal(at({ model: 'gpt-image-2.5-sunburst', aspect_ratio: '1:1', resolution: '1K', quality: 'low' }, 1).reason, 'reference_pricing_unpublished');
+  // Sunburst's reference price is a measured row (run B: 256 image input tokens x $8/M, rounded up); Flare has none, so Flare cannot be quoted with a reference.
+  assert.equal(at({ model: 'gpt-image-2.5-sunburst', aspect_ratio: '1:1', resolution: '1K', quality: 'low' }, 2).estimateUsd, Number((0.006 + 2 * 0.0021).toFixed(6)));
+  assert.equal(at({ model: 'gpt-image-2.5-flare', aspect_ratio: '1:1', resolution: '1K', quality: 'low' }, 1).reason, 'reference_pricing_unpublished');
   assert.equal(at({ model: 'gemini-nano-banana-2.1', aspect_ratio: '1:1', resolution: '4K' }).estimateUsd, 0.113);
   assert.equal(at({ model: 'gemini-nano-banana-2.1', aspect_ratio: '1:1', resolution: '1K' }, 1).estimateUsd, Number((0.0336 + 0.00168).toFixed(6)));
   assert.equal(at({ model: 'gemini-3-pro-image', aspect_ratio: '1:1', resolution: '1K' }).estimateUsd, 0.134);

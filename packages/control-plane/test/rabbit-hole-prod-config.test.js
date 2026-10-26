@@ -120,12 +120,12 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   let pricedRows = 0;
   for (const r of IMAGE_VALIDATED) {
     const q = imageQuote(app.vars, { model: r.model, quality: r.quality ?? undefined, aspect_ratio: r.aspect_ratio, resolution: r.resolution }, r.max_references, promptBytes);
-    if (q.state !== 'priced') { assert.deepEqual([r.model, r.operation, q.reason], ['gpt-image-2.5-sunburst', 'edit', 'reference_pricing_unpublished'], 'only OpenAI editing may be unquoted'); continue; }
+    assert.equal(q.state, 'priced', `${r.model} ${r.operation} is ready, so it must be priced (${q.reason})`);
     pricedRows += 1;
     assert.ok(q.estimateUsd <= q.maxUsd && q.maxUsd <= q.reserveUsd && q.maxUsd === maxes[r.model], `${r.model} ${r.operation}: ${q.estimateUsd} <= ${q.maxUsd} <= ${q.reserveUsd}`);
     assert.ok(q.estimate_credits <= q.max_credits && q.max_credits <= q.reserve_credits);
   }
-  assert.equal(pricedRows, 7, 'seven enabled and priced combinations');
+  assert.equal(pricedRows, 8, 'every ready combination is priced: eight, Sunburst editing included');
   assert.equal(app.vars.EXPLAIN_V2_ENABLED, 'true'); // R1 switch-on (owner production GO, 2026-10-22)
   assert.deepEqual(JSON.parse(app.vars.EXPLAIN_BRIEF_THRESHOLDS), { components: 12, credits: 400 });
   // dev-worker.js bundles its HTML from ./dist-dev, so the directory keeps that name.

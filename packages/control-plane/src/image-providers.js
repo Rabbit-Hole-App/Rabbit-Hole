@@ -46,11 +46,13 @@ export function imageSettings(settings, referenceCount = 0) {
 // $1.5/M = $0.00168 for Nano Banana 2.1 references). OpenAI publishes token RATES only (no tokens per image), so the OpenAI rows are
 // the largest output token count MEASURED in real runs at quality low (196 tokens at 1024x1024, 157 at 2048x1152; img-A-1, img-B-1,
 // imgact-sunburst1k-1, imgact-flare169-1), rounded up to 200 tokens x $30/M = $0.006. Other qualities and sizes have no row and
-// are never quoted. OpenAI reference-image tokens are not published either: editing with references has no OpenAI price.
+// are never quoted. OpenAI reference-image tokens are not published: Sunburst's reference row is MEASURED (run B, img-B-1: 2 small references billed 512 image
+// input tokens, 256 each x $8/M = $0.002048, rounded up to $0.0021). It is a measured estimate, not a bound (bigger references bill more); what protects the learner
+// is the signed maximum charge. Flare has no reference row, so Flare cannot be quoted with references.
 const PRICES = {
   'gemini-nano-banana-2.1': { output: { '1K': 0.0336, '2K': 0.0504, '4K': 0.113 }, referenceImage: 0.00168, textPerMillion: 1.5 },
   'gemini-3-pro-image': { output: { '1K': 0.134, '2K': 0.134, '4K': 0.24 }, referenceImage: 0.0011, textPerMillion: 2.0 },
-  'gpt-image-2.5-sunburst': { outputBySize: { low: { '1024x1024': 0.006, '2048x1152': 0.006 } }, referenceImage: null, textPerMillion: 5 },
+  'gpt-image-2.5-sunburst': { outputBySize: { low: { '1024x1024': 0.006, '2048x1152': 0.006 } }, referenceImage: 0.0021, textPerMillion: 5 },
   'gpt-image-2.5-flare': { outputBySize: { low: { '1024x1024': 0.006, '2048x1152': 0.006 } }, referenceImage: null, textPerMillion: 5 },
 };
 const credits = usd => Math.ceil(Number((usd * 100).toFixed(6)));

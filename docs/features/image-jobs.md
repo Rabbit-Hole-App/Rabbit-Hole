@@ -53,16 +53,16 @@ id IS the generation id and another person's lookup reaches an empty object (404
   - `generationId`: `^[A-Za-z0-9_-]{16,64}$`, made by the browser once per deliberate Generate press and resent on reload or retry.
   - `proposal`: the signed, approved generate-image proposal. Read from it ONLY: `command` (must be `generate-image`),
     `description` (the pill-free prompt, 1 to 4,000 characters), `settings {model, quality?, aspect_ratio, resolution}`,
-    `references [{id, kind:'file', sourceId: fs_<24 hex>, revision: sha256}]`, `quote {estimate_credits, reserve_credits}`.
+    `references [{id, kind:'file', sourceId: fs_<24 hex>, revision: sha256}]`, `quote {estimate_credits, max_credits, reserve_credits}` (6f).
   - Order: flag (503 `image_generation_disabled`, nothing else read) -> bindings (503 `not_configured`) -> identity and canvas ->
     an existing job under this generation id is returned as is (200; reconnect) -> `verify` (409 `proposal_refused`) ->
     settings (409 `settings_invalid`) -> server quote (409 `quote_unknown` with `reason`) -> the signed quote must equal the server's
-    (409 `quote_changed`) -> every reference re-resolved with `authorizeFileSource` under the canvas row (409 `reference_blocked`
+    (409 `quote_changed`, with the live quote in credits; a changed maximum charge counts) -> every reference re-resolved with `authorizeFileSource` under the canvas row (409 `reference_blocked`
     with `references: [{id, state: ok|changed|inaccessible|unsupported}]`) -> `consumeProposal` keyed by the generation id
     (409 `proposal_used` / `proposal_stale` / `proposal_canvas`) -> job created (201 `{ job }`).
   - Nothing is reserved in this request and no provider is contacted in it; the object's alarm does both.
 - `GET /api/learn/image-jobs/:id` -> `{ job }`: `id, stage, reason, message (refused: the allowance text), provider, model,
-  estimate_credits, artifact {sourceId, sha256, mimeType, bytes} (ready only), cost (measured|estimated_upper_bound|unknown|null),
+  estimate_credits, max_credits, charged_credits (once settled; null while unsettled or unknown), artifact {sourceId, sha256, mimeType, bytes} (ready only), cost (measured|estimated_upper_bound|unknown|null),
   saveRetryable, createdAt, updatedAt`.
 - `GET /api/learn/image-jobs/:id/inspect` -> the full record without bytes: settings, prompt, reference ids and hashes, quote,
   proposal id and version, output, provider model, usage, provider timing and status, settlement, retries, last error.
@@ -153,8 +153,9 @@ settlement; the public status shows only the state, `measured` | `estimated_uppe
   reconcile: `total_output_tokens` is not image + thought and thought tokens can exceed what it leaves over (runs C, D, E). The same
   `total_tokens` = input + output + thought held on all three, so a tighter estimate is possible, but it is not used.
 - `reservedMaxUsd`: what the job held (the quote's reserve).
-Settlement charges the ledger (`usage_operations.cost_usd`, `usage_attempts.cost_micros`, state `settled`, so the learner's balance) the
-measured cost, else the upper bound, never clipped to the reservation; no usable usage keeps the reservation as unknown cost. The ledger
+Settlement records the REAL cost on the platform ledger (`usage_operations.cost_usd`) as the measured cost, else the upper bound, never clipped to
+the reservation, and charges the learner's attempt (`usage_attempts.cost_micros`, state `settled`, so the learner's balance) `min(that, the maximum
+charge signed into the quote)` (6f); no usable usage keeps the reservation as unknown cost. The ledger
 has no basis column: an upper-bound settlement is marked `usage_operations.error = cost_estimated_upper_bound`, and an amount above the
 reservation is flagged `spend_bound_exceeded` by `settleSpend` and recorded on the job as `overrun { exceeded, amountUsd }`. Note the
 existing platform guard (`admitSpend`) refuses further platform admissions for a day while a `spend_bound_exceeded` row exists.
@@ -182,8 +183,9 @@ consume. The list is data (`IMAGE_VALIDATED`, with its evidence, policy `accepta
 | gemini-nano-banana-2.1 | edit | none | 1:1, 1K | up to 1 | E |
 | gemini-3-pro-image | generate | none | 1:1, 1K | 0 | D |
 
-Ready is not the same as startable (6c): OpenAI editing with references has no published price (the reference-image token count is not
-published), so sunburst edit stays visible, greyed, with the reason; every other row above is priced and startable. Everything not listed
+Ready is not the same as startable (6c). Every row above is priced and startable since the maximum charge (6f): Sunburst editing carries a MEASURED
+reference row (run B: 256 image input tokens per reference, US$0.0021), which is an estimate and not a bound, because OpenAI publishes no tokens per
+reference image; what protects the learner is the signed maximum. Flare has no reference row and no editing row. Everything not listed
 (OpenAI medium and above, 2K at 1:1, 4K, other ratios, Pro at 2K or 4K or with references, Nano Banana at 2K or 4K or with more than one
 reference) stays visible and greyed with what was tested; none is substituted or removed.
 
@@ -196,6 +198,8 @@ image is at most 1,120 tokens at the default media resolution, observed 1,120 in
 MEASURED: at quality low 196 output tokens at 1024x1024 (three runs) and 157 at 2048x1152 (one run), rounded up to 200 tokens, US$0.006. No other
 OpenAI quality or size has a row. The prompt is added at its UTF-8 byte count x the text rate (a token is at least one byte).
 
+(The reference row for Sunburst is the one MEASURED reference price: `referenceImage` 0.0021 = 256 image input tokens x US$8/M rounded up, run B; Flare has none.)
+
 `IMAGE_GENERATE_RESERVED_USD` is the hold admitted before a job and released at settlement. Derivation: the largest priced estimate among the enabled
 rows is Pro 1K, 0.134 + 4,000 prompt bytes x US$2/M = 0.142; the largest real settlement seen for it is 0.1462 (run D); US$0.20 covers both. A test in
 `rabbit-hole-prod-config.test.js` recomputes the maximum from `IMAGE_VALIDATED` and fails if the configured hold ever falls below it.
@@ -205,8 +209,9 @@ on an unreadable map or a non-positive value): Flare and Sunburst 0.05 (5 credit
 name. It removes the 20-credit floor for a 1-credit OpenAI image and gives Pro room for about 1,300 thinking tokens instead of about 480. The signed quote carries the model's `reserve_credits`, and the job
 already admits, settles and judges an overrun against its own quote, so no other code changes.
 
-The learner is charged the measured cost, else the estimated upper bound (section 6, Cost). Known gap, not changed here: for Nano Banana 2.1 the upper
-bound prices thinking tokens at the image rate, so a charge can be up to about twice the shown estimate (run C: estimate 0.0336, charged 0.0636). Users
+The learner is charged the measured cost, else the estimated upper bound (section 6, Cost), and never more than the signed maximum charge (6f). The gap
+between the shown estimate and that charge is now disclosed before Generate (for Nano Banana 2.1 the upper bound prices thinking tokens at the image rate,
+so the real charge can be up to about twice the estimate: run C, estimate 0.0336, bound 0.0636; the card shows "Most it can cost: 8 AI credits"). Users
 see AI credits only (1 credit = US$0.01); dollar amounts, usage and costs are in `inspect`, which only an operator may read.
 
 ## 6d. The owner-only acceptance window (owner 2026-10-25)
@@ -228,12 +233,15 @@ id is a function of the plan).
 `node scripts/image-acceptance.mjs --dry-run` prints the plan and writes nothing; the real run (owner, interactive terminal, the `small_session` cookie at a
 hidden prompt, never printed or written) drives the deployed owner-only path: five free-path runs first (`refuse-unready`: a combination no live run covered is
 refused 409 `image_not_ready` and shows no price; the four injected faults end `failed/provider_rejected` (400 and 429), `unknown/outcome_unknown` (network) and
-`failed/invalid_output`, each charging nothing), then one paid run per model (`flare`, `sunburst`, `nb21`, `nb21-edit` with a reference uploaded through the file
-API, `pro`). Every run that can reach a provider is booked in the shared budget BEFORE its job request (`C:/s/spec/budget/budget.mjs reserve`, US$0.20 for a paid
-run, the job's own hold; US$0.02 for a free-path run) and settled from the cost the job recorded (`imageCost` over the inspect `usage`); an unclear answer keeps the
-booking at its maximum. A paid run checks the plan's signed quote in credits and its survival across a read, one edit saved and a stale one refused (409), a
-second press reaching the same job, operator `inspect` (settled, one call, no retry), the stored image (hash, type, size), credits charged versus credits quoted
-(OpenAI: equal; Nano Banana: above the quote within the 20-credit hold, the known gap above), the hold released, and, in UI mode (`flare` and `nb21`, where the
+`failed/invalid_output`, each charging nothing; plus `refuse-tampered-max`, a plan whose signed maximum was raised by one credit, refused 409 `proposal_refused`), then one
+paid run per model and per path: GENERATION (`flare`, `sunburst`, `nb21`, `pro`) and EDITING with one reference uploaded through the file API (`sunburst-edit`, `nb21-edit`). Every run that can reach a provider is booked in the shared budget BEFORE its job request (`C:/s/spec/budget/budget.mjs reserve`, US$0.20 for a paid
+run, US$0.40 for Pro; US$0.02 for a free-path run; total US$1.52) and settled from the cost the job recorded (`imageCost` over the inspect `usage`); an unclear answer keeps the
+booking at its maximum. A paid run checks the plan's signed quote in credits as three numbers (estimate <= the most it can cost <= the hold, and the maximum and hold equal to THIS
+checkout's configuration), its survival across a read, one edit saved and a stale one refused (409), a second press reaching the same job and a different press of
+the spent plan refused (409 `proposal_used`, no job), operator `inspect` (settled, one call, no retry), the stored image (hash, type, size, PNG/JPEG signature), for an
+editing run that the reference reached the job and the provider billed it as image input, credits charged equal to `min(real cost, signed maximum)` and never above
+the maximum, the platform's absorbed difference (a FINDING when real cost passes the maximum), the hold released, the same estimate, maximum and charge after a reload
+and a repeated Generate charging nothing more, and, in UI mode (`flare` and `nb21`, where the
 owner presses Generate in the browser), that the image card is placed by the browser, persisted on the board and still there after a reload. A card is placed only
 by the browser (a job that ended before a reload is only shown), so `--api-only` reports the card as not verified. Receipts (no secrets): `C:/s/spec/image-activate/receipts`.
 The command stops at the first failure, skips runs with a PASS receipt on a re-run (`--force` repeats), and refuses a private ledger (`BUDGET_FILE`).
@@ -255,18 +263,65 @@ the card says so first) and `quote_unknown` (no verified price, 409). Estimates 
 | Model, combinations | Verified price (price-verification.md) | Estimate at max prompt | Bounded by 0.20? | What the code does |
 |---|---|---|---|---|
 | Flare low 1:1 1K, low 16:9 2K; Sunburst low 1:1 1K (3 enabled) | measured 196 / 157 output tokens x US$30/M, rounded to 0.006 | 0.026 | Yes, 7x over the largest measured settlement (0.0060) | enabled |
-| Sunburst edit, 1 or 2 references (ready) | reference input tokens NOT published | none | n/a | refused before the call: `quote_unknown` (`reference_pricing_unpublished`); stays greyed |
+| Sunburst edit, 1 or 2 references (ready) | reference input tokens NOT published; MEASURED 256 per reference (run B), US$0.0021 | 0.0302 at 2 references | Estimate yes. A larger reference bills more (unpublished); the signed maximum caps the learner | enabled (6f) |
 | Nano Banana 2.1 generate 1:1 1K, 16:9 1K; edit 1:1 1K, 1 reference (3 enabled) | published 0.0336 per 1K image + 0.00168 per reference; thinking billed, count not published | 0.0396 to 0.0413 | Estimate yes. Settlement: the charged upper bound reaches 0.20 only at about 5,300 thinking tokens (observed 728 to 1,000, bound 0.055 to 0.064) | enabled; above 0.20 it settles as an explicit overrun, never clipped |
 | Nano Banana Pro generate 1:1 1K (1 enabled) | published 0.134 per 1K image; thinking billed at the image rate (US$120/M), count not published | 0.142 | Estimate yes. Settlement: NOT provable. The charged upper bound reaches 0.20 at about 480 thinking tokens (observed 80, bound 0.1462) | enabled; above 0.20 it settles as an explicit overrun (the learner is charged the full amount, which may pass their allowance by the difference) |
 | Pro 2K (priced 0.134) and every other Google combination with no live run (627 NB 2.1, 299 Pro below 4K) | published | up to 0.143 (NB) and 0.157 (Pro) | Yes | refused before the call: `image_not_ready` |
 | Pro 4K, any ratio or reference count (150 combinations) | published 0.24 per 4K image | 0.263 at 14 references | NO, above the hold | refused twice before any call: `image_not_ready`, and the quote is unknown (`reserve_below_estimate`, "paused: its spending bound is below this estimate") |
 | Flare and Sunburst, every quality above low, every size with no row, 4K sizes | NOT published (no tokens per image); sizes above 2560x1440 are OpenAI-experimental | none | n/a | refused before the call: `quote_unknown` (`pricing_unverified`, `experimental_size`) |
-| Flare and Sunburst with any reference (edit), all other sizes | reference input tokens NOT published | none | n/a | refused before the call: `quote_unknown` (`reference_pricing_unpublished`) |
+| Flare with any reference; Sunburst with a reference at any size but 1:1 1K low (no live run) | reference input tokens NOT published | none | n/a | refused before the call: `image_not_ready` (Sunburst) or `quote_unknown` (`reference_pricing_unpublished`, Flare) |
 
 Result: every ENABLED combination's quoted estimate is bounded by the 0.20 hold; every combination above it or without a verified price is refused before a provider is
 contacted. What 0.20 does not prove is the Google thinking tokens (the adapter sets no thinking or output limit and the count is unpublished): Pro settles above 0.20 from about
 480 thinking tokens. The branch `feat/image-per-model-reserve` (held) makes the hold per model so Pro holds more than 0.20 and the OpenAI rows hold less. The acceptance Pro run
 sends the longest prompt the quote bounds and is booked at US$0.40, so the worst enabled price is the one measured.
+
+## 6f. Estimate, maximum charge and hold: three numbers (owner 2026-10-26)
+
+Same decision and the same shape as Motion (`docs/features/motion-credit-disclosure.md`). Users see AI credits only. The three numbers are recorded, signed,
+sent and shown separately; none is derived from another at the card.
+
+| Number | Meaning | Source | Flare, Sunburst | Nano Banana 2.1 | Nano Banana Pro |
+|---|---|---|---|---|---|
+| Estimate | The published (or measured) price for these settings and this prompt, thinking tokens excluded. Not a promise. | `PRICES` in `image-providers.js`; registry rows `packages/control-plane/src/pricing-registry.js` (OpenAI image text 5 / image 8 / image out 30 per M, Google 2.1 text 1.5, thinking 7.5, image out 30, Pro text 2, thinking 12, image out 120: all `verified`, retrieved 2026-10-23) | 1 credit (3 at a 4,000-byte prompt; Sunburst editing up to 4) | 4 (5 with a reference at the longest prompt) | 14 (15 at the longest prompt) |
+| Maximum charge | The most one image can ever charge this learner, explicitly authorized when they press Generate. Signed into the quote. | `IMAGE_MAX_CHARGE_USD_BY_MODEL` (Worker variable, no default) | 4 | 8 | 20 |
+| Temporary hold | Held from the allowance while the job runs, released at settlement. Not the expected charge and not the maximum. | `IMAGE_RESERVED_USD_BY_MODEL` (per model) | 5 | 10 | 30 |
+
+Rule: `estimate <= maximum <= hold` for every combination or the quote is paused and Generate is blocked: `max_unset` (no value, no default),
+`max_below_estimate`, `max_above_reserve`, beside the existing `reserve_unset` / `reserve_below_estimate`. A test (`rabbit-hole-prod-config.test.js`) recomputes every ready
+combination from the checked-in production configuration at the longest prompt (4,000 bytes) and fails if any breaks the order. Settings priced above their model's maximum
+are paused for the same reason (Nano Banana 4K estimate 0.113 > 0.08, Pro 4K 0.263 > 0.20): they are not validated either, so nothing changes for the learner.
+Derivation of the values: the maximum sits above the model's largest ENABLED estimate (0.0302, 0.0413, 0.142) and above every charge seen (OpenAI measured 0.006 to 0.010;
+Nano Banana upper bound 0.0555 to 0.0636, 6 to 7 credits; Pro 0.1462, 15 credits), and below the hold, which keeps room for Google's unpublished thinking tokens.
+
+**Signing and staleness.** The quote `{ estimate_credits, max_credits, reserve_credits }` is part of the signed proposal (v3; a raised maximum fails the signature). Generate
+recomputes it from the live configuration; any difference, or a proposal signed before the maximum existed, answers 409 `quote_changed` with the live quote in credits
+and a sentence ("The price changed to 4 AI credits, and it can cost up to 8 AI credits. Review it and press Generate again to confirm."), before any hold, consume or provider
+call. The card (`ChatMessages.jsx`) signs the same settings again, shows the new three numbers and the sentence, and Generate works only on the next press. A missing maximum
+is `quote_unknown` with reason `max_unset`; the card then says "Price not available yet" and Generate stays disabled (`requires_max` in `generation-confirmation-schema.js`).
+
+**Settlement.** The job's cost has three parts: `settledUsd` (the real cost, measured else the upper bound), `chargedUsd = min(settledUsd, maxChargeUsd)` and `absorbedUsd = settledUsd -
+chargedUsd`. The platform ledger (`usage_operations.cost_usd`) records `settledUsd`; the learner's attempt (`usage_attempts.cost_micros`) is `chargedUsd`; a charge-capped
+settlement is marked `usage_operations.error = charge_capped` (or `spend_bound_exceeded` when the real cost also passes the hold, as before, which still pauses further platform
+admissions for a day). The overrun metric is explicit: `cost.absorbedUsd` on the job, `absorbed` in the operator inspect, `absorbedUsd` in the `closed` log line, `absorbedUsd` in the
+acceptance receipt. The learner is never charged above the maximum; the platform absorbs the difference. Zero-credit failures are unchanged and never pass through the cap: nothing
+left the Worker (released, 0 credits), a provider 429 (known 0), our own storage or configuration failure (cost unknown, charged nothing). `job.charged_credits` tells the requester what
+was charged (0 for refused and cancelled jobs, null while unsettled or unknown) and the card says it once the image is ready.
+
+**What the person sees** (existing plan card, no new page): "Estimated cost: N AI credits", "Most it can cost: M AI credits. You are never charged more.", "H AI credits are held while it
+runs; whatever is not used is released." in three separate lines; "Price not available yet" with Generate disabled when any of the numbers is missing; the stale-quote sentence above;
+for unsupported settings the readiness line below; after settlement "The image is ready on the canvas. Charged C AI credits.".
+
+**Supported and unsupported.** Supported (ready AND priced, nothing else can be generated): Flare low 1:1 1K and 16:9 2K; Sunburst low 1:1 1K, and Sunburst editing at low 1:1 1K with 1 or 2
+references; Nano Banana 2.1 1:1 1K and 16:9 1K, and editing at 1:1 1K with 1 reference; Nano Banana Pro 1:1 1K. Every other combination stays visible on the card, greyed by the readiness
+line, with what was tested: "<Model> has only been tested for <the rows above for that model>. Other settings cannot be generated yet." Specifically unsupported, refused with 409
+`image_not_ready` before any quote or hold: OpenAI quality medium, high, xhigh, max or auto; any OpenAI size but those two; 4K (OpenAI marks it experimental; Google 4K is unvalidated and
+priced above the maximum); 2K for Google; Pro at any ratio but 1:1 or with references; Nano Banana with more than one reference or another ratio; Flare with any reference. Unpriced
+reference combinations (Flare editing, OpenAI references beyond the measured small image) are `quote_unknown` (`reference_pricing_unpublished`).
+
+**Not proven by tests.** The real cost of a Sunburst edit with a large reference (the measured row is one run with two small references), the Google thinking-token count (unpublished; the
+learner is protected, the platform absorbs), the browser rendering of the three lines (SSR tests only; no browser check covers the image card), and everything through the deployed Worker
+until the owner-only acceptance (6d) runs.
 
 ## 6e. Evidence record: what exists, and what it does and does not prove
 
@@ -305,7 +360,7 @@ The production acceptance and its receipt: `C:/s/spec/image-activation/activatio
   config and in no commit on any ref (`git log --all -S image-jobs-1`, 2026-10-23). The other web configs (notebook sites) bind no
   Durable Objects. `rabbit-hole-cp` is unchanged.
 - No D1 or learn migration: `file_sources` (0023), `usage_operations` (0016), `usage_actions`/`usage_attempts` (0022) exist.
-- Vars: `IMAGE_GENERATE_ENABLED: "false"` in all three. Production also sets `IMAGE_GENERATE_RESERVED_USD` ("0.20", 6c) and `IMAGE_ACCEPTANCE_EMAILS` (6d);
+- Vars: `IMAGE_GENERATE_ENABLED: "false"` in all three. Production also sets `IMAGE_GENERATE_RESERVED_USD` ("0.20", 6c), `IMAGE_RESERVED_USD_BY_MODEL` (6c), `IMAGE_MAX_CHARGE_USD_BY_MODEL` (6f) and `IMAGE_ACCEPTANCE_EMAILS` (6d);
   dev and parallel set neither. Secrets `OPENAI_API_KEY` and `GEMINI_API_KEY` are installed on `rabbit-hole-app` by the owner command
   `C:/s/spec/image-activation/prod-image-secrets.mjs` (never in a config). `/api/learn/transcribe` (dev-worker.js) is NO LONGER enabled by the key alone: it also needs
   `TRANSCRIBE_ENABLED` exactly `"true"` (default `"false"` in the dev, parallel and production configs, 2026-10-26), so installing the key for image work
@@ -326,8 +381,8 @@ The production acceptance and its receipt: `C:/s/spec/image-activation/activatio
 ## 9. Open items
 
 - DECIDED 2026-10-25 (derivation in 6c): the reservation bound `IMAGE_GENERATE_RESERVED_USD` is US$0.20 and the estimate table is the one in
-  6c. STILL OPEN: OpenAI reference-image pricing and OpenAI qualities above low (not published), Nano Banana thinking-token charge versus the shown
-  estimate, 2K and 4K validation runs.
+  6c. STILL OPEN: OpenAI qualities above low and OpenAI reference tokens beyond the measured small image (not published), 2K and 4K validation runs. CLOSED 2026-10-26 (6f): the Nano
+  Banana thinking-token charge versus the shown estimate is disclosed as "Most it can cost" and capped at the signed maximum.
 - NEEDS DECISION: per-person or per-canvas in-flight limit (none here; the allowance bounds money, not concurrency).
 - The legacy `POST /api/learn/image` (`gpt-image-1`, no reservation) is untouched here; retiring it is a separate change
   (shutdown-and-storage.md Part 1 option 2).

@@ -149,6 +149,10 @@ test('imageProposalStatus: Starting until the job answers, then its own words; R
   const working = imageProposalStatus({ pressed: true, image: { tone: 'working', text: 'Making your image.', retry: false } });
   assert.deepEqual([working.label, working.spinner, working.detail], ['Generating', true, 'Making your image.']);
   assert.deepEqual([imageProposalStatus({ image: { tone: 'ready', text: 'Added to the canvas.' }, cardId: 'c9' }).label, imageProposalStatus({ image: { tone: 'ready', text: 'x' }, cardId: 'c9' }).cardId], ['Ready', 'c9']);
+  // Once settled, the card says what was charged, in credits (never more than the most it could cost, shown before Generate).
+  assert.equal(imageProposalStatus({ image: { tone: 'ready', text: 'x', charged: 7 }, cardId: 'c9' }).detail, 'The image is ready on the canvas. Charged 7 AI credits.');
+  assert.equal(imageProposalStatus({ image: { tone: 'ready', text: 'x', charged: 1 }, cardId: 'c9' }).detail, 'The image is ready on the canvas. Charged 1 AI credit.');
+  assert.equal(imageProposalStatus({ image: { tone: 'ready', text: 'x' }, cardId: 'c9' }).detail, 'The image is ready on the canvas.', 'no charge known: nothing invented');
   const failed = imageProposalStatus({ pressed: true, image: { tone: 'failed', text: 'The image could not be made.' } });
   assert.deepEqual([failed.spinner, failed.label, failed.detail], [false, null, 'The image could not be made.']);
 });
