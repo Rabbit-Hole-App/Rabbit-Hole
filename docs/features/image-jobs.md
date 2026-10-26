@@ -234,11 +234,34 @@ by the browser (a job that ended before a reload is only shown), so `--api-only`
 The command stops at the first failure, skips runs with a PASS receipt on a re-run (`--force` repeats), and refuses a private ledger (`BUDGET_FILE`).
 Tests: `scripts/image-acceptance.test.mjs` (a simulated deployed Rabbit Hole and a fake ledger, plus the real entry's `--dry-run` under Node's permission model).
 
-Public activation is three code gates that must agree, one reviewed switch and one commit, held on branch `feat/image-activation-public-flip` for the owner's GO:
-the web constant `IMAGE_GENERATION` (`agent/slash.js`), the primitive `image_generate.ready` (`learn-primitives.js`, kept off the planning model's path) and
-`IMAGE_GENERATE_ENABLED` "true" in `wrangler.rabbit-hole-prod.jsonc`. `image-public-gates.test.js` fails when any one disagrees (with a negative control on the real
-files), and pins that the owner path works, `inspect` and fault injection stay operator-only, and a look-alike address is a learner. The flip changes no secret,
-no hold, no owner list and no dev config.
+Public activation is one reviewed commit, held on branch `feat/image-activation-public-flip` for the owner's GO: the primitive `image_generate.ready`
+(`learn-primitives.js`; `direct`, so `artifactPlan` keeps it off the planning model's path) and `IMAGE_GENERATE_ENABLED` "true" in `wrangler.rabbit-hole-prod.jsonc`,
+with `PUBLIC` in `image-public-gates.test.js` set to match. The web constant `IMAGE_GENERATION` (`agent/slash.js`) is deliberately NOT flipped: once the server flag is
+public, `GET /api/learn/image-jobs` answers available for everyone and the build lists the command from that answer; a true constant would list it whatever the server
+says (no UI-side rollback) and rewrites 20 web tests written for the per-caller design. `image-public-gates.test.js` fails when the primitive and the server flag
+disagree or the web constant moves (negative control on the real files), and pins that the owner path works, `inspect` and fault injection stay operator-only, and a
+look-alike address is a learner. The flip changes no secret, no hold, no owner list and no dev config.
+
+### Cost bound per combination (what US$0.20 does and does not bound; enumerated through the real code, 1,500 settings the UI can submit)
+
+`IMAGE_GENERATE_RESERVED_USD` is a hold, not a cap on what a provider bills. Where a combination is refused: `image_not_ready` (no live run covered it, 409 at Generate and
+the card says so first) and `quote_unknown` (no verified price, 409). Estimates are at the longest prompt the quote bounds (4,000 bytes) and the most references the row allows.
+
+| Model, combinations | Verified price (price-verification.md) | Estimate at max prompt | Bounded by 0.20? | What the code does |
+|---|---|---|---|---|
+| Flare low 1:1 1K, low 16:9 2K; Sunburst low 1:1 1K (3 enabled) | measured 196 / 157 output tokens x US$30/M, rounded to 0.006 | 0.026 | Yes, 7x over the largest measured settlement (0.0060) | enabled |
+| Sunburst edit, 1 or 2 references (ready) | reference input tokens NOT published | none | n/a | refused before the call: `quote_unknown` (`reference_pricing_unpublished`); stays greyed |
+| Nano Banana 2.1 generate 1:1 1K, 16:9 1K; edit 1:1 1K, 1 reference (3 enabled) | published 0.0336 per 1K image + 0.00168 per reference; thinking billed, count not published | 0.0396 to 0.0413 | Estimate yes. Settlement: the charged upper bound reaches 0.20 only at about 5,300 thinking tokens (observed 728 to 1,000, bound 0.055 to 0.064) | enabled; above 0.20 it settles as an explicit overrun, never clipped |
+| Nano Banana Pro generate 1:1 1K (1 enabled) | published 0.134 per 1K image; thinking billed at the image rate (US$120/M), count not published | 0.142 | Estimate yes. Settlement: NOT provable. The charged upper bound reaches 0.20 at about 480 thinking tokens (observed 80, bound 0.1462) | enabled; above 0.20 it settles as an explicit overrun (the learner is charged the full amount, which may pass their allowance by the difference) |
+| Pro 2K (priced 0.134) and every other Google combination with no live run (627 NB 2.1, 299 Pro below 4K) | published | up to 0.143 (NB) and 0.157 (Pro) | Yes | refused before the call: `image_not_ready` |
+| Pro 4K, any ratio or reference count (150 combinations) | published 0.24 per 4K image | 0.263 at 14 references | NO, above the hold | refused twice before any call: `image_not_ready`, and the quote is unknown (`reserve_below_estimate`, "paused: its spending bound is below this estimate") |
+| Flare and Sunburst, every quality above low, every size with no row, 4K sizes | NOT published (no tokens per image); sizes above 2560x1440 are OpenAI-experimental | none | n/a | refused before the call: `quote_unknown` (`pricing_unverified`, `experimental_size`) |
+| Flare and Sunburst with any reference (edit), all other sizes | reference input tokens NOT published | none | n/a | refused before the call: `quote_unknown` (`reference_pricing_unpublished`) |
+
+Result: every ENABLED combination's quoted estimate is bounded by the 0.20 hold; every combination above it or without a verified price is refused before a provider is
+contacted. What 0.20 does not prove is the Google thinking tokens (the adapter sets no thinking or output limit and the count is unpublished): Pro settles above 0.20 from about
+480 thinking tokens. The branch `feat/image-per-model-reserve` (held) makes the hold per model so Pro holds more than 0.20 and the OpenAI rows hold less. The acceptance Pro run
+sends the longest prompt the quote bounds and is booked at US$0.40, so the worst enabled price is the one measured.
 
 ## 6e. Evidence record: what exists, and what it does and does not prove
 
