@@ -472,8 +472,9 @@ export class ExplainJobs {
     await this.locked(async () => {
       const current = await this.get(job.id), call = current.calls.find(c => c.key === key);
       const usage = out?.usage, cost = usage ? costUsd({ model: out.identity.served || out.identity.requested, ...usage }) : null;
-      // A provider refusal (cap, limit, overload) ran nothing and cost nothing: it does not use the job's call ceiling.
-      const refused = error?.code === 'provider_unavailable';
+      // A provider refusal (cap, limit, overload) or our own spend admission refusing (allowance, platform cap) ran nothing and cost
+      // nothing: it does not use the job's call ceiling.
+      const refused = ['provider_unavailable', 'spend_refused'].includes(error?.code);
       if (refused) { current.counts[role]--; current.reservedMicros -= call.boundMicros; }
       Object.assign(call, { requested: out?.identity.requested ?? null, served: out?.identity.served ?? error?.served ?? null, status: refused ? 'refused' : error ? 'failed' : 'settled',
         costMicros: refused ? 0 : toMicros(cost), inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: error?.code || (error ? 'failed' : null) });
