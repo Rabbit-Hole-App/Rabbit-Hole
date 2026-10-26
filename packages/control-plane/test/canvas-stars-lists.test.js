@@ -5,6 +5,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setup } from './shared-canvas-fixture.js';
 import { starsFor } from '../src/canvas-stars.js';
+import { validateEvent } from '../src/telemetry-contract.js';
+import defineStars from '../src/telemetry-events/stars.js';
+import { telemetryDb } from './telemetry-fixture.js';
 import { STAR_EVENTS, SURFACES, deliverStarEvents, starEnvelope } from '../src/canvas-star-events.js';
 import { BEN, CARA, ANA, api, canvasOf, events, handle, published, rows, star } from './stars-helpers.js';
 
@@ -290,10 +293,17 @@ test('star events are delivered to the telemetry sink in order, once each, and a
   assert.deepEqual(sent.map(e => e.event_name), ['star.added', 'star.added', 'star.removed', 'star.added', 'star.removed']);
   assert.deepEqual(sent.at(-1).payload.reason, 'lifecycle');
   assert.ok(sent.every(e => Object.keys(e.payload).every(key => Object.hasOwn(STAR_EVENTS[e.event_name], key))), 'only allowlisted payload fields');
-  assert.ok(sent.every(e => e.user_ref.startsWith('u-') && e.feature === 'stars' && e.outcome === 'success' && e.occurred_at > 0));
+  assert.ok(sent.every(e => e.user_ref.startsWith('u-') && e.feature === 'stars' && e.outcome === 'completed' &&e.occurred_at > 0));
   assert.doesNotMatch(JSON.stringify(sent), /@|ana-ws|canvas-[0-9a-f]{8}|\/e\//, 'no email, workspace, canvas name or token');
   assert.equal(new Set(sent.map(e => e.payload.canvas_ref)).size, 2, 'the same canvas groups under one reference');
   assert.ok(SURFACES.includes('personal_stars') && !SURFACES.includes('not-a-surface'));
+  // Every envelope passes the real telemetry contract (the old 'success' outcome and a missing service failed it), and the
+  // registered surface list is the one this file owns.
+  assert.deepEqual(defineStars.events['star.added'].surface.enum, SURFACES);
+  for (const e of sent) {
+    const checked = validateEvent({ ...e, environment: 'test', service: 'control_plane' });
+    assert.equal(checked.ok, true, `${e.event_name}: ${JSON.stringify(checked.errors)}`);
+  }
   assert.equal((await starEnvelope({ ...f.sqlite.prepare('SELECT * FROM canvas_star_events').get() })).payload.canvas_ref.length, 32);
 });
 
@@ -333,4 +343,42 @@ test('the Library and Home list (GET /api/apps) reads the owner stars as that ac
   assert.ok(worker.includes('ownerCanvases(env, user)'), 'the canvases are listed with the identity that has users.id');
   assert.ok(!worker.includes('ownerCanvases(env, catalog)'), 'catalog has users.id stripped, so every canvas would read as not starred');
   assert.ok(worker.includes('const { userId, ...catalog } = user;'), 'the catalog answer still drops users.id');
+});
+
+// star.opened (docs/features/stars.md): the opening surface reports it; it is analytics only and inert without a telemetry sink.
+const openedEvents = tel => tel.sqlite.prepare("SELECT user_ref, feature, outcome, body FROM telemetry_events WHERE event_name = 'star.opened' ORDER BY rowid").all().map(r => ({ ...r, payload: JSON.parse(r.body).payload }));
+const openedCount = tel => tel.sqlite.prepare("SELECT count(*) AS n FROM telemetry_events WHERE event_name = 'star.opened'").get().n;
+
+test('star.opened is recorded from my Stars and a profile Stars tab, never from a guess, and is a no-op without a sink', async t => {
+  const { f, pub, own } = await mixed(t);
+  const ids = (await list(f, 'ben')).body.stars.map(s => [s.access, s.id]);
+  const idOf = access => ids.find(([a]) => a === access)[1];
+  const opened = (body, as = 'ben') => api(f, 'POST', '/api/learn/stars/opened', as, body);
+  // No TELEMETRY_DB on this worker: the same answer, and nothing was queried for it.
+  const before = f.statements.length;
+  const quiet = await opened({ surface: 'personal_stars', id: idOf('public') });
+  assert.deepEqual([quiet.status, quiet.body], [200, { ok: true }]);
+  assert.equal(f.statements.length, before, 'inert: no query without a sink');
+  // A bound sink.
+  const tel = telemetryDb(t);
+  f.env.TELEMETRY_DB = tel.db;
+  await opened({ surface: 'personal_stars', id: idOf('public') });
+  await opened({ surface: 'personal_stars', id: idOf('owner') });
+  await opened({ surface: 'profile_stars', token: pub.token });
+  const got = openedEvents(tel);
+  assert.deepEqual(got.map(e => [e.payload.surface, e.payload.owner_star]), [['personal_stars', false], ['personal_stars', true], ['profile_stars', false]]);
+  assert.ok(got.every(e => e.user_ref === BEN && e.feature === 'stars' && e.outcome === 'completed' && /^[0-9a-f]{32}$/.test(e.payload.canvas_ref)));
+  assert.equal(got[0].payload.canvas_ref, got[2].payload.canvas_ref, 'the same canvas groups under one reference');
+  assert.doesNotMatch(JSON.stringify(got), new RegExp(`${pub.token}|${own.canvas.name}|ana-ws|ben@test`), 'no token, canvas name, workspace or email');
+  // Not recorded: an unknown surface, somebody else's star id, a guessed token, a malformed body, a signed-out viewer, the wrong method.
+  await opened({ surface: 'card_explore', id: idOf('public') });
+  await opened({ surface: 'personal_stars', id: idOf('public') }, 'cara');
+  await opened({ surface: 'profile_stars', token: 'x'.repeat(24) });
+  await opened(null);
+  assert.equal((await opened({ surface: 'profile_stars', token: pub.token }, null)).status, 401);
+  assert.equal((await api(f, 'GET', '/api/learn/stars/opened', 'ben')).status, 405);
+  assert.equal(openedCount(tel), 3);
+  // A sink that is down never fails opening.
+  f.env.TELEMETRY_DB = telemetryDb(t, { fail: () => true }).db;
+  assert.deepEqual((await opened({ surface: 'personal_stars', id: idOf('public') })).body, { ok: true });
 });

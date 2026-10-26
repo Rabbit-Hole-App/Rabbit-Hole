@@ -2,7 +2,7 @@
 // typed or picked command submits, and how the mode and a command go together. Pure, so typed and picked commands are
 // tested to submit the same thing. The list is the shared registry's (agent/slash.js commandsFor('ctrlk')); nothing here
 // keeps a command list of its own.
-import { SLASH, commandsFor, descFor, resolveCommand, unavailableCommand } from './agent/slash.js';
+import { SLASH, commandsFor, descFor, resolveCommand, typedOf, unavailableCommand } from './agent/slash.js';
 
 // The commands this canvas's Ctrl+K offers now: the registry's ctrlk entries, generation ones only where this canvas can
 // run them (enabled: its inline routes; null: all), source searches only where a source finder can open.
@@ -14,12 +14,13 @@ export function ctrlkCommands({ enabled = null, sources = true, motionDev } = {}
 // The picker's search: what follows a leading / while the line is only that one word, else null (the list is closed).
 export const pickerQuery = text => { const match = /^\/([\w-]*)$/.exec(String(text ?? '')); return match ? match[1].toLowerCase() : null; };
 
-// The list for a search: names that start with it first, then names or descriptions that contain it.
+// The list for a search: typed names (and aliases) that start with it first, then names or descriptions that contain it.
 export function filterCommands(commands, query) {
   const typed = String(query || '').toLowerCase();
   if (!typed) return commands;
-  const line = command => `${command.name} ${descFor(command, 'ctrlk') || ''}`.toLowerCase();
-  return [...commands.filter(command => command.name.startsWith(typed)), ...commands.filter(command => !command.name.startsWith(typed) && line(command).includes(typed))];
+  const words = command => [typedOf(command.name), ...(command.aliases || [])]; // typed names only: /image is not the photo search (id image)
+  const line = command => `${words(command).join(' ')} ${descFor(command, 'ctrlk') || ''}`.toLowerCase();
+  return [...commands.filter(command => words(command).some(word => word.startsWith(typed))), ...commands.filter(command => !words(command).some(word => word.startsWith(typed)) && line(command).includes(typed))];
 }
 
 // Whether a command shows its pill: /explain is the Explain mode itself, so it has none (owner 2A); a generation or source
@@ -53,10 +54,10 @@ export function submission({ mode, command = null, text = '' }, options = { moti
   }
   words = name ? words.trim() : words;
   const entry = name && commandsFor('ctrlk', options).find(candidate => candidate.name === name);
-  if (name && !entry) return { unsupported: name };
+  if (name && !entry) return { unsupported: typedOf(name) };
   if (entry?.kind === 'source') return { source: { source: entry.source, query: words } };
-  return { mode: entry?.kind === 'generate' ? 'explain' : mode, command: name || null, text: words, prompt: name ? `/${name}${words ? ` ${words}` : ''}` : words };
+  return { mode: entry?.kind === 'generate' ? 'explain' : mode, command: name || null, text: words, prompt: name ? `/${typedOf(name)}${words ? ` ${words}` : ''}` : words };
 }
 
-// The one line said for a typed command Ctrl+K does not offer: a removed one says so (owner, 2026-10-20).
+// The one line said for a typed command Ctrl+K does not offer: a removed one says so (owner, 2026-10-20). name is what was TYPED.
 export const unsupportedText = name => unavailableCommand(name) || `/${name} isn't available in Ctrl+K.`;

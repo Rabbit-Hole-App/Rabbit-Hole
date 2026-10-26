@@ -128,6 +128,8 @@ function test:unit {
     (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/explain-review/*.test.mjs")
     (cd "$THIS_DIR" && nonzero-tests node --test --test-timeout=180000 "packages/learn-render/motion/*.test.mjs" "packages/learn-render/motion/service/*.test.mjs")
     (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/tutor-session/*.test.mjs")
+    # The file converter and its production activation commands (stub tools, no network, no production credential).
+    (cd "$THIS_DIR" && nonzero-tests node --test "packages/file-convert/*.test.mjs" "packages/file-convert/activation/*.test.mjs")
     # Every script test: dev-deploy and prod-release.
     (cd "$THIS_DIR" && nonzero-tests node --test "scripts/*.test.mjs")
 }

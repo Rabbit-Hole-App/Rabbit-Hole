@@ -2,6 +2,8 @@
 
 Approved scope: a provider-neutral `generate_video` operation for concepts that benefit from motion. The existing Learn canvas and chat remain the interface. Live and private AWS installations are outside this change.
 
+**Availability (audit c015534a).** Production has no `LEARN_VIDEO_PROVIDER` and no `FAL_API_KEY`, so `/video` cannot run there. The owner has not yet chosen to provision or retire it; until then the `/api/learn/artifact` route answers `unsupported` ("Video generation is not set up here yet, so nothing was proposed or charged.") before any model call, proposal or hold. Setting both values makes the same command propose again.
+
 ## Design
 
 - Lesson blocks can contain `kind: "video"` with `operation: {op: "generate_video", id, prompt, purpose, duration?, aspectRatio?, style?, referenceImages?, caption?}`. The schema contains no provider parameters. Video prompts describe public concepts; equations, code, precise graphs and technical diagrams use structured primitives.

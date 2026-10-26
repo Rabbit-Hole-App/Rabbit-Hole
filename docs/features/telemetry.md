@@ -25,7 +25,9 @@ A leaf module with no imports: the browser (`packages/web/src`), the Workers, Du
   `turn_id`, `user_ref` (users.id, never an email), `feature`, `operation`, `stage`, `outcome`, `error_code`, `versions`
   (settings, model, prompt, rubric, pricing, renderer), `sample_rate` (only on a sampled event), `payload`.
 - **Payloads** are per event, each an allowlist (`EVENTS`). Registered now: `model_call.started`, `model_call.finished`,
-  `stage.finished`, `client.error`, `telemetry.delivery`.
+  `stage.finished`, `client.error`, `telemetry.delivery`, `star.added`, `star.removed`, `star.opened` (Stars, `telemetry-events/stars.js`), `weekly_top.viewed`,
+  `weekly_top.opened`, `weekly_top.request_failed` (Weekly Top 5 in Explore, `telemetry-events/weekly.js`, a browser-ingest namespace beside `client`).
+  Stars delivers from `canvas_star_events` inside the owner `POST /project` pass; both are inert where no sink is bound.
 - **No free text.** Field types are id, token, hex, route template, integers, booleans and a sampling rate. None accepts a
   space, `@`, `?` or `#`, so prompts, emails, comments, sources and URLs cannot be carried. `routeTemplate()` keeps only the
   app's static path words (a share token, board id, repository slug or handle becomes a placeholder).
@@ -273,7 +275,7 @@ No response content is ever logged.
 - The owner is `Yudhisteer.chin@gmail.com` (owner clarification, 2026-10-23). `yudhisteer.chin01@gmail.com` is a different
   identity and never matches.
 - Guard (`owner-guard.js`, owner decision 4): a valid session from the trusted auth path (`devIdentity`, the control plane's
-  `/api/me`), a configured `SUBSCRIPTION_OWNER_EMAIL` that is a valid address, and a match after the application's own
+  `/api/me`), a configured `SUBSCRIPTION_OWNER_EMAIL` that is a valid address or, on production, the exact application principal of the owner's Google sign-in (`user@<32 hex>.rabbithole.invalid`, the `/api/me` email of a Google or GitHub session; the match is whole-string and no other `.invalid` shape is accepted), and a match after the application's own
   normalization (`loginEmail` in `auth.js`: trimmed, lowercased; only strings are accepted). The secret may therefore be typed in
   any case. No dot, plus-tag or domain-alias folding is applied. Anything else is a plain 404, so the route's existence is not
   disclosed. Independent of `SUBSCRIPTION_ONLY` and never uses `subscriptionOwnerRefusal`; no body, query, header or cookie

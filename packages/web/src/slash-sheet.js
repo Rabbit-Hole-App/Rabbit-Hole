@@ -25,7 +25,7 @@ const FINDS = { youtube: 'YouTube videos', arxiv: 'arXiv papers: a topic, or an 
 export const FINDER_NOTES = Object.fromEntries(Object.entries(FINDS).map(([name, what]) => [name, `Opens Search on ${what}, with what you type after the command, and searches at once. Preview the results there: nothing is added until you add one to the canvas.`]));
 
 // The cards the sheet shows for a command: what it makes (learn-slash.js cardsFor). /motion (development and review builds)
-// makes a video card through its own action, so it names that card here; /generate-image (listed only while image
+// makes a video card through its own action, so it names that card here; /image (id `generate-image`, listed only while image
 // generation is on) makes the Image generate card.
 const SHEET_CARDS = { motion: [{ primitive: 'motion', card: 'videoGenerate' }], 'generate-image': [{ primitive: 'image_generate', card: 'imageGenerate' }] };
 // /explain shows its interactive visual first (L10, owner 2026-10-21: the window carries real interactive examples); the

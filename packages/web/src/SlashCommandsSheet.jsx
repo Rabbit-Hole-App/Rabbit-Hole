@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { EXAMPLES, mayConfirmPaid, parseSlash, pickerSections } from './learn-slash.js';
-import { descFor, learnRequest, toolOf } from './agent/slash.js';
+import { descFor, learnRequest, toolOf, typedOf } from './agent/slash.js';
 import { BLOCK_TYPES, LearningBlockBody } from './LearningBlocks.jsx';
 import NotebookBody from './NotebookCard.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
@@ -55,7 +55,7 @@ export default function SlashCommandsSheet({ appName, onClose, onUseExample = nu
         <p className="mb-3 text-xs text-ink-2">Type <kbd className="rounded border border-line bg-hover px-1.5 py-0.5 font-sans text-[11px]">/</kbd> in the Learn composer, pick a command, then add what you want after it. Search or choose one here to see what it does. To ask, compare or simplify, just write it in your own words.</p>
         <div className="flex min-h-0 flex-1 gap-4 max-md:flex-col">
           <CommandList sections={sections} current={name} onChoose={choose} onClose={onClose} row="data-slash-help" className="w-60 max-md:max-h-56 max-md:w-full" />
-          <section aria-label={`/${name} preview`} className="flex min-h-0 min-w-0 flex-1 flex-col rounded-xl border border-line bg-hover/40 p-4">
+          <section aria-label={`/${typedOf(name)} preview`} className="flex min-h-0 min-w-0 flex-1 flex-col rounded-xl border border-line bg-hover/40 p-4">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <CommandMark name={name} className="text-base font-semibold text-ink" />
               <span data-slash-label className="text-sm font-medium text-ink">{command && descFor(command, 'learn')}</span>
@@ -67,7 +67,7 @@ export default function SlashCommandsSheet({ appName, onClose, onUseExample = nu
             {example && <div className="mt-1.5 flex flex-wrap items-center gap-2">
               <code className="font-mono text-xs text-ink-3">e.g. {EXAMPLES[name]}</code>
               {onUseExample && <button type="button" data-slash-use-example={name} title="Put this example in the composer to edit; it is not sent"
-                onClick={() => onUseExample({ command: example.name, text: example.args })}
+                onClick={() => onUseExample({ command: name, text: example.args })}
                 className="rounded-lg border border-line bg-white px-2 py-0.5 text-xs text-ink hover:bg-hover">Use example</button>}
             </div>}
             {cards.length > 1 && (

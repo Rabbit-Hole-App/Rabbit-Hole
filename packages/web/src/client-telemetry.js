@@ -113,6 +113,16 @@ export function createReporter({ send, now = () => Date.now(), schedule = (fn, m
         else if (!(status >= 200 && status < 300)) dropped += events.length;
       } catch { dropped += events.length; }
     },
+    // One event of another browser-ingest namespace (weekly_top.*): checked against the contract here, queued with the errors under the
+    // same page cap, batch and route (so a worker with no telemetry binding answers 204 and keeps nothing). Never folded: the server's
+    // 10-minute id dedup absorbs an identical repeat. Returns whether it was queued.
+    emit(name, payload) {
+      const checked = validateEvent(makeEvent(name, { payload }, { environment: 'production', service: 'web', release }));
+      if (!checked.ok || sent + queue.length >= PAGE_MAX || queue.length >= LIMITS.batchEvents) { dropped++; return false; }
+      queue.push(checked.event);
+      if (!timer) timer = schedule(() => { timer = null; api.flush(); }, FLUSH_MS);
+      return true;
+    },
     // What a support report carries: the page's latest fingerprints and failed-request trace ids.
     diagnostics: () => ({ fingerprints: [...recent.fingerprints], traces: [...recent.traces] }),
     stats: () => ({ sent, queued: queue.length, dropped }),
@@ -203,5 +213,7 @@ export function reportClientError(kind, error, { artifact = null, source = 'reac
   if (!installed) return false;
   return installed.report({ kind, fingerprint: errorFingerprint(error), source, error_name: errorName(error), ...(artifact && /^[a-z0-9][a-z0-9_.:-]{0,63}$/i.test(artifact) ? { artifact } : {}) });
 }
+// For a feature's own browser events (weekly_top.*): false, and nothing kept, when telemetry is not installed on this page.
+export const reportClientEvent = (name, payload) => !!installed && installed.emit(name, payload);
 export const supportDiagnostics = () => installed?.diagnostics() || { fingerprints: [], traces: [] };
 export const resetClientTelemetryForTests = () => { installed = null; };

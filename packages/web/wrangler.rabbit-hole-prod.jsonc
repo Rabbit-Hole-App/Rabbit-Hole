@@ -45,18 +45,22 @@
   // Created 2026-10-03 at the owner's production GO (rabbit-hole account).
   "d1_databases": [
     { "binding": "DB", "database_name": "rabbit-hole-prod", "database_id": "ecb90fe5-07f5-4824-b070-38ae76916e37" },
-    { "binding": "LEARN_DB", "database_name": "rabbit-hole-learn-prod", "database_id": "f28417c4-d8ce-448e-8687-cc7bc2edf3a8" }
+    { "binding": "LEARN_DB", "database_name": "rabbit-hole-learn-prod", "database_id": "f28417c4-d8ce-448e-8687-cc7bc2edf3a8" },
+    { "binding": "TELEMETRY_DB", "database_name": "rabbit-hole-telemetry", "database_id": "e4c585cf-6078-43dd-b5c0-d30e0f80e778", "migrations_dir": "../control-plane/telemetry-migrations" }
   ],
   // No RUNS: hosted small apps are not part of Rabbit Hole. No BYOC_DB until the owner decides BYOC ships.
   // Browser Run for webpage card captures (control-plane/src/webpage-capture.js).
   "browser": { "binding": "BROWSER" },
   "r2_buckets": [
     { "binding": "LEARN_MEDIA", "bucket_name": "rabbit-hole-prod-learn-media" },
-    { "binding": "REPOSITORY_SNAPSHOTS", "bucket_name": "rabbit-hole-prod-repositories" }
+    { "binding": "REPOSITORY_SNAPSHOTS", "bucket_name": "rabbit-hole-prod-repositories" },
+    { "binding": "TELEMETRY_ARCHIVE", "bucket_name": "rabbit-hole-telemetry-archive" }
   ],
   "services": [{ "binding": "CONTROL_PLANE", "service": "rabbit-hole-cp" }],
   // The one public origin; the control plane sets the same value.
   "vars": {
+    // Telemetry (docs/features/telemetry.md): labels this deployment's events; the bindings above are what switch collection on.
+    "TELEMETRY_ENVIRONMENT": "production",
     // /explain v2 (EXP-T12): switched on at R1 (EXP-T23, owner production GO 2026-10-22; live runs C:/s/spec/explain/renders/r2-live).
     "EXPLAIN_V2_ENABLED": "true",
     // IMG-01 image generation (docs/features/image-jobs.md): PUBLIC generation is off. Only "true" accepts new jobs from everyone.
@@ -64,6 +68,8 @@
     // is listed in IMAGE_ACCEPTANCE_EMAILS may use it under the ordinary admission, hold, settlement and readiness rules, so the
     // production acceptance runs through the real Worker, storage and accounting. It needs OPENAI_API_KEY / GEMINI_API_KEY (secrets).
     "IMAGE_GENERATE_ENABLED": "false",
+    // Speech to text for spoken answers (/api/learn/transcribe): off even when OPENAI_API_KEY exists; only "true" enables it (owner decision O-8 is open).
+    "TRANSCRIBE_ENABLED": "false",
     // The per-image hold, derived (docs/features/image-jobs.md 6c): the largest priced estimate among the enabled combinations is Nano
     // Banana Pro 1K, US$0.134 + a 4,000-byte prompt bound US$0.008 = US$0.142; the worst real settlement seen for it was US$0.1462
     // (run D). US$0.20 covers both and is a hold, released at settlement; the learner is charged the measured cost or the upper bound.
@@ -79,7 +85,7 @@
     "CAD_PRODUCTION_MONTHLY_MODEL_USD": "10",
     "CAD_EXECUTOR_URL": "https://rabbit-hole-cad-prod.fly.dev",
     "CAD_JOB_ORIGIN": "https://digrabbithole.com",
-    "CAD_MAX_CALLS": "2",
+    "CAD_MAX_CALLS": "3",
     "CAD_MAX_USD": "0.20",
     "CAD_MAX_REPAIRS": "0",
     "CAD_MAX_ARTIFACT_BYTES": "10485760",

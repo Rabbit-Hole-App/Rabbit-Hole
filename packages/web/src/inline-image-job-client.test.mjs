@@ -103,3 +103,8 @@ test('quote is readonly and validates configured maximum without submitting',asy
  const calls=[];const client=createImageJobClient({fetchImpl:async(path,init)=>{calls.push(init.method);return Response.json({available:true,maximumReservedCredits:20,model:'fixture'});}});
  assert.equal((await client.quote()).maximumReservedCredits,20);assert.deepEqual(calls,['GET']);
 });
+test('a 503 availability check means not available, with no maximum or model; other failures still throw',async()=>{
+ const reply=status=>createImageJobClient({fetchImpl:async()=>Response.json({error:'Image editing is not available.',code:'not_configured'},{status})});
+ assert.deepEqual({...await reply(503).quote()},{available:false,maximumReservedCredits:null,model:null});
+ await assert.rejects(reply(500).quote(),{code:'http_error',status:500});
+});

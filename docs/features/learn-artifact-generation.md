@@ -67,7 +67,7 @@ The response takes one of these forms:
 | `artifact` | `{primitive, block, repaired}`: validated; the client inserts it |
 | `paid_proposal` | `{primitive, block, message: 'This uses paid generation.', estimatedCost: null}`: nothing started |
 | `clarification` | `{question}`: the request was too underspecified to answer correctly |
-| `unsupported` | `{message}`: the family has nothing ready, for example "/practice coding" |
+| `unsupported` | `{message}`: the family has nothing ready, for example "/practice coding"; also a paid renderer this deployment has not provisioned (`/video` without `LEARN_VIDEO_PROVIDER` and `FAL_API_KEY`, `/animate` without `MATH_WORKER_URL` and `MATH_WORKER_TOKEN`): it says so before any model call, proposal or hold (`PROVISIONED` in `learn-artifact.js`; audit c015534a). Nothing is retired: once the values are set the same command proposes as before |
 | `validation_error` | `{error}` in two cases: the model returned a primitive outside the family (rejected, no repair), or a spec still failed after its single repair |
 | `direct`, `not_artifact` | Deterministic and chat commands never run here |
 
@@ -190,7 +190,7 @@ Execution:
 - `/paper <arXiv id or link>` opens that paper. `/paper <topic>` opens the
   arXiv search with the topic and the learner picks a real paper; a paper is
   never invented.
-- `/image <terms>` inserts an Image card that runs a photo search.
+- `/photos <terms>` (id `image`; typed `/image` until 2026-10-26, now the paid generation) inserts an Image card that runs a photo search.
 - Commands with no family (`/deeper`, `/ask` and so on) go through the
   existing Learn ask as their prompt.
 - Family commands call the endpoint above.
@@ -276,13 +276,13 @@ serve as examples of a schema, but none of them becomes a tool of its own.
 | video_generate | ✅ paid proposal | /video | FAL | works; the sample clip misteaches refraction, owner's call |
 | blender_scene | ✅ paid proposal | /3d | Blender worker | verified by a real render |
 | notebook, whiteboard, paper | ✅ direct (no model) | /notebook, /whiteboard, /paper | their cards | done |
-| image (search), video (existing clip) | ✅ direct | /image, and a found clip | their cards | done |
+| image (search), video (existing clip) | ✅ direct | /photos, and a found clip | their cards | done |
 | code_exercise | ⬜ missing | /code, /practice | CodeBody (setup, starter, checks, hint) | highest priority after the freeze; needs its grading contract (below) |
 | knowledge_graph | ⬜ missing | /graph | KnowledgeBody | candidate after the freeze: the learning concept graph only, never the Project Map |
 | animation (generic) | ✅ generated (L10, 2026-10-21) | /explain only, and the Tutor's create_material explain | AnimatedScene (the frozen scene JSON) | see Interactive explanations below |
 | narration | ⬜ missing | /explain | AudioBody (text, then paid TTS on Generate) | candidate after the freeze: generating the text is free; the audio is a separate paid action |
 | vector_explorer | ⬜ not in any family | none | vector card | goes under an existing family (/graph, or /diagram) chosen from its contract at handoff; never a new /vector |
-| image_generate | ⬜ missing | /image | ImageBody generate mode | later, an explicit subtype: /image searches by default; "/image generate …" makes one behind the paid confirmation. Not permanently dev-only; no change now |
+| image_generate | owner-only (IMG-01) | /image (alias /generate-image) | the proposal card, then the Image card | /image is the paid generation behind the plan card's Generate (docs/features/image-jobs.md); /photos is the search |
 | 3d_model | ⬜ not generatable | /3d | ThreeDBody (an existing glTF URL) | direct only: an existing model is inserted, a generated scene is blender_scene; no generic 3d_model generation |
 | reference_attention | ⬜ not a tool | /animate | a fixed benchmark scene | reference content: out of /animate's generatable options; the card itself stays |
 

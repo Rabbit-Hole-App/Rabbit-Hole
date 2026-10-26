@@ -1,7 +1,7 @@
 // The client star action (canvas-star.js): desired state, one request at a time per canvas, the confirmed state after a failure.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ownerStarApi, sharedStarApi, starLabel, starNumber, starSignInUrl, starStore, starredTokens, takeStarReturn } from './canvas-star.js';
+import { ownerStarApi, sharedStarApi, starLabel, starsApi, starNumber, starSignInUrl, starStore, starredTokens, takeStarReturn } from './canvas-star.js';
 
 // A server that answers when told to, so a test controls the order in which answers arrive.
 function fakeApi(start = { starred: false, count: 0 }) {
@@ -133,4 +133,16 @@ test('the card APIs speak the stars routes: desired state with the surface, the 
   assert.deepEqual([...await starredTokens([])], [], 'no tokens, no request');
   globalThis.fetch = async () => { throw new Error('offline'); };
   assert.deepEqual([...await starredTokens(['AbCdEfGhIjKlMnOp'])], [], 'a failed read shows nothing starred');
+});
+
+test('opening a canvas from a Stars list reports star.opened without waiting, and a failed report changes nothing', async () => {
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => { calls.push([init.method, url, init.body, init.keepalive]); return Response.json({ ok: true }); };
+  starsApi.opened({ surface: 'personal_stars', id: 'a'.repeat(32) });
+  assert.deepEqual(calls, [['POST', '/api/learn/stars/opened', `{"surface":"personal_stars","id":"${'a'.repeat(32)}"}`, true]]);
+  globalThis.fetch = async () => { throw new Error('offline'); };
+  assert.doesNotThrow(() => starsApi.opened({ surface: 'profile_stars', token: 't'.repeat(20) }));
+  globalThis.fetch = () => { throw new Error('sync failure'); };
+  assert.doesNotThrow(() => starsApi.opened({ surface: 'profile_stars', token: 't'.repeat(20) }));
+  await new Promise(resolve => setImmediate(resolve)); // the rejected promise is handled, so nothing is left unhandled
 });

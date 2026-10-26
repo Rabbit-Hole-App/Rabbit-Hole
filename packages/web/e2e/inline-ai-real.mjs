@@ -374,7 +374,7 @@ for (const [name, args] of DIRECT) {
     const before = await savedBoard();
     const composer = page.locator('[data-chat-pane] [data-chat-composer] :is(textarea, input[type="text"], input:not([type])):visible').first();
     await composer.click();
-    await composer.fill(`/${name} ${args}`);
+    await composer.fill(`/${name === 'image' ? 'photos' : name} ${args}`); // the photo search (id image) is typed /photos (owner, 2026-10-26)
     await page.waitForTimeout(150);
     await composer.press('Enter');
     const t0 = Date.now();
@@ -509,7 +509,7 @@ const acceptAndSearch = async () => {
 await step('review-image-bare', () => paid(`${RUN}-review-image-bare`, 'inline-image-bare', 0.01, async () => {
   fixture = 'review-image-bare';
   await select(['dash']);
-  const out = await ask('explain', '/image');
+  const out = await ask('explain', '/photos');
   const prompt = await page.locator('[data-inline-preview]').first().innerText().catch(() => '');
   const card = out.status === 'preview' ? await acceptAndSearch() : null;
   await shot('real-review-01-image-bare');

@@ -15,6 +15,12 @@
 // 3D scene); label is the short pill label, the selected-command pill's text and its "Remove <label>" (/3d: 3D). A command
 // with no short label shows its menu label in the pill. about: what the command does in one or two sentences - whether it
 // creates a card, opens something or searches, and what it needs selected - for the Slash commands window.
+// Two names (owner, 2026-10-26: /image generates, /photos searches). name is the STABLE id: what a saved message, draft or
+// proposal, the Tutor, the chat router and Ctrl+K's routes carry, and it never changes meaning (id `image` is still the photo
+// search, `generate-image` the paid generation). typed is what a learner TYPES when it differs, and aliases are further typed
+// names that still work: /image types as id `generate-image`, /photos as id `image`, /generate-image stays an alias of
+// /image. Every typed line goes through resolveCommand/idOfTyped; every line built from an id goes through typedOf. Saved
+// ids are never remapped: an old `image` message keeps reading as the photo search it was.
 // needs: 'image_generation' is offered only where image generation is on (IMAGE_GENERATION, below); 'motion_dev' only in a
 // development or review build (MOTION_DEV, below), never in production.
 
@@ -54,8 +60,8 @@ export const SLASH = [
   { name: 'whiteboard', kind: 'dialog', group: 'create', places: ['learn'], label: 'Whiteboard', desc: 'Add a whiteboard', about: 'Adds a whiteboard card to the canvas, titled with what you type.', family: ['whiteboard'], action: 'insert_whiteboard', deterministic: true },
   // Media: search and generation are separate commands (owner, 2026-10-20). A search never turns into generation and a
   // generation never into a search, so neither family holds the other's primitive.
-  { name: 'image', kind: 'generate', group: 'create', places: CTRLK, desc: 'Search images', about: 'Searches for real photos and adds an image card that shows the photo and its credit. It never generates an image.', family: ['image'] },
-  { name: 'generate-image', kind: 'generate', group: 'create', places: CTRLK, desc: 'Generate image', about: 'Creates an AI-generated image card. Generating it is paid, so it asks first. It never searches for photos. With a card selected, it uses that card as context.', family: ['image_generate'], needs: 'image_generation' },
+  { name: 'image', typed: 'photos', kind: 'generate', group: 'create', places: CTRLK, desc: 'Search photos', about: 'Searches for real photos and adds an image card that shows the photo and its credit. It never generates an image: /image does.', family: ['image'] },
+  { name: 'generate-image', typed: 'image', aliases: ['generate-image'], kind: 'generate', group: 'create', places: CTRLK, desc: 'Generate image', about: 'Creates an AI-generated image card. Generating it is paid, so it asks first. It never searches for photos: /photos does. With a card selected, it uses that card as context.', family: ['image_generate'], needs: 'image_generation' },
   { name: 'video', kind: 'generate', group: 'create', places: CTRLK, label: 'Generate video', desc: 'Generate video', about: 'Creates an AI-generated video card. Generating it is paid, so it asks first. It never searches for videos: /youtube does. With a card selected, it uses that card as context.', family: ['video_generate'] },
   { name: 'cad', kind: 'generate', group: 'create', places: CTRLK, label: 'CAD', desc: 'Create a parametric CAD model', about: 'Creates a parametric CAD model card with checked downloads. It asks about missing dimensions and before generating.', action: 'cad', deterministic: true },
   { name: '3d', kind: 'generate', group: 'create', places: CTRLK, label: '3D', desc: 'Add 3D scene', about: 'Creates a 3D scene card on the canvas. Generating it is paid, so it asks first. With a card selected, it uses that card as context.', family: ['3d_model', 'blender_scene'] },
@@ -86,6 +92,11 @@ export const MATERIAL_TOOLS = [
 ];
 // A registry entry by name, user command or material tool: what a saved message, a validator or a generator looks up.
 export const toolOf = (name) => SLASH.find((c) => c.name === name) || MATERIAL_TOOLS.find((c) => c.name === name);
+// The typed name <-> stable id (see typed above). A name no entry types or aliases (a removed command, an unknown word) is its own.
+// /imagine is not one: nothing types or aliases it.
+const entryOfTyped = (typed) => SLASH.find((c) => (c.typed || c.name) === typed) || SLASH.find((c) => c.aliases?.includes(typed));
+export const typedOf = (name) => toolOf(name)?.typed || name;
+export const idOfTyped = (typed) => entryOfTyped(typed)?.name ?? typed;
 
 // Removed slash commands (owner, 2026-10-20). Typed on any surface, each says it is unavailable and runs nothing; ordinary
 // words still ask, compare, simplify or explore, and the Tutor keeps its material tools (MATERIAL_TOOLS).
@@ -100,11 +111,12 @@ export const IMAGE_GENERATION = false;
 let imageOffered = false;
 export const setImageGeneration = on => { imageOffered = on === true; };
 export const imageGenerationLive = () => IMAGE_GENERATION || imageOffered;
-// What a typed command that is not offered says: a removed one, or /generate-image while image generation is off. null for
-// any other name (each surface words its own line). listed: false where / lists nothing (the Home, Library and Project bar).
+// What a typed command that is not offered says: a removed one, or /image (or its alias /generate-image) while image generation
+// is off. name is what the learner TYPED, never an id: the string `image` means the generation here. null for any other name
+// (each surface words its own line). listed: false where / lists nothing (the Home, Library and Project bar).
 export function unavailableCommand(name, { listed = true, imageGeneration = imageGenerationLive() } = {}) {
   if (REMOVED_COMMANDS.includes(name)) return `/${name} is no longer available. ${listed ? 'Type / to see the commands, or ask' : 'Ask'} in your own words.`;
-  if (name === 'generate-image' && !imageGeneration) return 'Image generation is not available here. /image searches for real photos.';
+  if (entryOfTyped(name)?.needs === 'image_generation' && !imageGeneration) return 'Image generation is not available here. /photos searches for real photos.';
   return null;
 }
 
@@ -159,7 +171,7 @@ export const labelOf = (command) => command.label || (typeof command.desc === 's
 // A saved message's command that was since removed still reads as its capitalised name (/simplify: Simplify).
 export const commandLabel = (name) => labelOf(toolOf(name) || { name });
 
-// A typed line on a surface, resolved to the registry entry a picker would have chosen (the same object), so typed and
+// A typed line on a surface (its /name is a typed name, typed above), resolved to the registry entry a picker would have chosen (the same object), so typed and
 // picked commands run alike. { command, arg }: a command this surface offers now; { unsupported: name }: a leading /name this
 // surface does not offer (a removed one included), to be said so rather than run as anything else; null: not a command (no
 // leading /name). Options as commandsFor: only the Tutor's own create_material passes internal.
@@ -167,7 +179,7 @@ export function resolveCommand(text, surface, options = {}) {
   const match = String(text ?? '').trim().match(/^\/([\w-]+)(?:\s+([\s\S]*))?$/);
   if (!match) return null;
   const name = match[1].toLowerCase();
-  const command = commandsFor(surface, options).find((c) => c.name === name);
+  const command = commandsFor(surface, options).find((c) => c.name === idOfTyped(name));
   return command ? { command, arg: (match[2] || '').trim() } : { unsupported: name };
 }
 

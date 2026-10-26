@@ -4,11 +4,18 @@ import { openZip } from './zip.mjs';
 const OLE = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
 
 // OLE2 compound files: Word and PowerPoint both use them; the root directory's stream names tell
-// them apart ("WordDocument" vs "PowerPoint Document"), stored UTF-16LE.
+// them apart ("WordDocument" vs "PowerPoint Document"). A directory entry starts with its 64-byte
+// UTF-16LE name field and the name's length in bytes. The directory can sit anywhere in the file
+// (large documents keep it after the content), so the whole source is searched, not a prefix.
+function hasStream(b, name) {
+  const entry = Buffer.alloc(66);
+  entry.write(name, 'utf16le');
+  entry.writeUInt16LE((name.length + 1) * 2, 64);
+  return b.indexOf(entry) >= 0;
+}
 function oleKind(b) {
-  const head = b.subarray(0, Math.min(b.length, 4 * 1024 * 1024));
-  if (head.indexOf(Buffer.from('WordDocument', 'utf16le')) >= 0) return { kind: 'doc', ext: 'doc' };
-  if (head.indexOf(Buffer.from('PowerPoint Document', 'utf16le')) >= 0) return { kind: 'ppt', ext: 'ppt' };
+  if (hasStream(b, 'WordDocument')) return { kind: 'doc', ext: 'doc' };
+  if (hasStream(b, 'PowerPoint Document')) return { kind: 'ppt', ext: 'ppt' };
   return null;
 }
 

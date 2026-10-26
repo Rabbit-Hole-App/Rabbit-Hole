@@ -36,7 +36,8 @@ export function createInlineCodeClient({ownerKey,scope,language,code,input=null,
     if(raw?.version!==1||typeof raw.id!=='string'||!/^cj_[a-f0-9]{32}$/.test(raw.id)||raw.ownerKey!==ownerKey||!exact(raw.scope,boundScope)||raw.language!==language||raw.sourceSha256!==sourceSha256||raw.inputSha256!==inputSha256||!Number.isFinite(raw.maxReservedCredits)||raw.maxReservedCredits<=0)throw fault('This execution ticket does not match the current owner and source snapshot.');
     return {version:1,id:raw.id,ownerKey,scope:{...boundScope},language,sourceSha256,inputSha256,maxReservedCredits:raw.maxReservedCredits};
   }
-  async function request(path,method,body,signal){signal?.throwIfAborted();return readResponse(await fetchImpl(path,{method,credentials:'same-origin',cache:'no-store',redirect:'error',headers:{...headers,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal}));}
+  // unavailable503: a read-only availability check treats 503 (not configured) as "not available", never as an unconfirmed submission.
+  async function request(path,method,body,signal,unavailable503=false){signal?.throwIfAborted();const response=await fetchImpl(path,{method,credentials:'same-origin',cache:'no-store',redirect:'error',headers:{...headers,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal});if(unavailable503&&response.status===503)return {available:false};return readResponse(response);}
   function jobOf(job,ticket){
     if(!job||job.id!==ticket.id||!phases.has(job.phase)||job.sourceSha256!==ticket.sourceSha256||job.inputSha256!==ticket.inputSha256||job.scope?.app!==boundScope.app||job.scope?.board!==boundScope.board)throw fault('Execution result does not match this source snapshot.');
     if(job.result&&(!['ok','error','timeout','cancelled','unavailable'].includes(job.result.status)||!Array.isArray(job.result.stdout)||job.result.stdout.some(line=>!line||typeof line.text!=='string'||typeof line.level!=='string')))throw fault('Invalid execution output.');
@@ -54,7 +55,7 @@ export function createInlineCodeClient({ownerKey,scope,language,code,input=null,
   return {
     validateCurrent,
     getTicket:()=>persisted?structuredClone(persisted):null,
-    async quote({signal}={}){checkIdentity();const value=await request(ROOT,'GET',null,signal);if(typeof value.available!=='boolean'||value.available&&(!Number.isFinite(value.maximumReservedCredits)||value.maximumReservedCredits<=0))throw fault('Invalid execution reservation quote.');return {available:value.available,maximumReservedCredits:value.available?value.maximumReservedCredits:null};},
+    async quote({signal}={}){checkIdentity();const value=await request(ROOT,'GET',null,signal,true);if(typeof value.available!=='boolean'||value.available&&(!Number.isFinite(value.maximumReservedCredits)||value.maximumReservedCredits<=0))throw fault('Invalid execution reservation quote.');return {available:value.available,maximumReservedCredits:value.available?value.maximumReservedCredits:null};},
     async run({confirmed,maxReservedCredits,signal,onProgress,onTicket}={}){
       if(submitted)throw fault('An execution was already submitted; resume its ticket instead.');
       if(confirmed!==true||!Number.isFinite(maxReservedCredits)||maxReservedCredits<=0)throw fault('Confirm the execution reservation before running.');

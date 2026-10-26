@@ -31,21 +31,49 @@ and explore; saved conversations and cards made by a removed command still open.
 
 | Surface | Commands |
 |---|---|
-| Chat (`learn`, `chat`) | /dive /practice /quiz /explain /flashcards /code /graph /diagram /whiteboard /image /video /cad /3d /notebook /youtube /arxiv /wikipedia; /motion in a development or review build (below); /generate-image only while image generation is on |
-| Ctrl+K (`ctrlk`) | /explain /flashcards /code /graph /diagram /image /video /cad /3d /youtube /arxiv /wikipedia; /motion in a development or review build; /generate-image only while image generation is on |
+| Chat (`learn`, `chat`) | /dive /practice /quiz /explain /flashcards /code /graph /diagram /whiteboard /photos /video /cad /3d /notebook /youtube /arxiv /wikipedia; /motion in a development or review build (below); /image only while image generation is on |
+| Ctrl+K (`ctrlk`) | /explain /flashcards /code /graph /diagram /photos /video /cad /3d /youtube /arxiv /wikipedia; /motion in a development or review build; /image only while image generation is on |
 | Insert menu (`insert`) | /youtube /arxiv /wikipedia |
 | Home, Library, Project bar (`home`, `project`) | none: the bar takes plain words (`router.js`), and has no Auto picker, mode pill or / commands sheet |
 
+**Typed names and stable ids (owner, 2026-10-26: `/image` generates, `/photos` searches).** Each registry entry has a stable
+`name` (its id) and may have `typed` (what a learner types) and `aliases` (more typed names that still work):
+
+| Typed | Id | Menu label | Notes |
+|---|---|---|---|
+| /photos | `image` | Search photos | The photo search (what /image was until 2026-10-26). Always available; no model |
+| /image | `generate-image` | Generate image | The paid generation (four models, asks first). Offered only where the server lists this person (owner-only today) |
+| /generate-image | `generate-image` | Generate image | Alias of /image; resolves to the same entry and runs the same flow |
+| /imagine | none | none | Not a command: typed, it is "not a Learn command" |
+
+Migration rule (what an old saved chat, link or bookmark does):
+- Everything SAVED or sent between parts names an id, and ids never change meaning: a message's `command` metadata, a composer
+  draft's pill, a signed proposal's `command`, the chat router's capability ids, Ctrl+K's routes, the Tutor's `create_material`
+  commands, journey `make.command` and suggestion chips (`capabilityId`). An old message saved by the old /image has `command: image`
+  and still reads as the photo search (pill "Search photos"); `generate-image` messages and proposals still read "Generate image".
+  Nothing is rewritten or remapped. The server keeps saving `/generate-image <words>` with `command: generate-image`.
+- Only a TYPED line goes through the typed layer (`resolveCommand`, `idOfTyped` in `agent/slash.js`; `explicitCommand` for
+  Ctrl+K and the chat route; `lineCommand` in `learn-slash.js`). Every line BUILT from an id goes through `typedOf`
+  (`commandLine`, the picker's choose, Use example, `materialLine`, Ctrl+K's request line, the router's `intercept`).
+- A saved line with no `command` metadata names an id (`sentCommand`): an old `/image Mount Fuji` is the photo search.
+- The one behaviour change is a person typing `/image` (or pasting an old `/image <terms>` into the composer): it is now the
+  paid generation, which asks before anything is spent and is owner-only; where image generation is off it says "Image
+  generation is not available here. /photos searches for real photos." and runs nothing. Nothing paid ever starts from a typed
+  line without the plan card's Generate.
+- `unavailableCommand` takes what was TYPED (the string `image` means the generation there); a caller holding an id passes
+  `typedOf(id)` (`chat-capability-route.js`, Ctrl+K's route and decide). `slash.test.mjs` and `chat-capability-route.test.js` hold this.
+
 **Two labels, never a `/name`:** `desc` is the menu label (the picker row), `label` the short pill label; a command with no
 short label shows its menu label in the pill (`labelOf`). /explain: menu and pill "Add explanation"; /dive: "Open Rabbit
-Hole"; /3d: menu "Add 3D scene", pill "3D"; /image "Search images"; /generate-image "Generate image"; /video "Generate
+Hole"; /3d: menu "Add 3D scene", pill "3D"; /photos "Search photos"; /image "Generate image"; /video "Generate
 video"; /youtube "Search YouTube". `about` is the Slash commands window's sentence: whether the command creates a card,
 opens a Rabbit Hole or searches, and what it needs selected.
 
-**Media:** search and generation are separate commands. /image only searches photos (family `image`) and its card says
-"Sourced · Photo by … on Pexels"; /generate-image only generates (family `image_generate`, paid, confirms first) and is
+**Media:** search and generation are separate commands. /photos only searches photos (family `image`) and its card says
+"Sourced · Photo by … on Pexels"; /image only generates (family `image_generate`, paid, confirms first) and is
 hidden and refused while `IMAGE_GENERATION` is off, which follows `isReady('image_generate')` (false: this cleanup does
-not enable paid images); /video only generates (family `video_generate`, paid, confirms first) and its card says
+not enable paid images); typed while it is off, /image (or its alias /generate-image) says "Image generation is not
+available here. /photos searches for real photos." and runs nothing; /video only generates (family `video_generate`, paid, confirms first) and its card says
 "AI-generated video, not real footage."; /youtube only searches, and its moment card says "Sourced · YouTube".
 
 **The Tutor's material tools** (`MATERIAL_TOOLS`: compare, walkthrough) are no longer typed commands but stay internal: the
@@ -120,7 +148,7 @@ a blob URL, which seeks; opening the window fetches only that file.
 - `project`: the Project hub and its Map.
 - `learn`: the Learn composer (the canvas Chat; `commandsFor('chat')` is the same list).
 - `ctrlk`: the canvas's inline Ctrl+K editor (Release B, owner 2026-10-16; /walkthrough removed 2026-10-20): exactly
-  /explain /code /graph /diagram /flashcards /image /video /cad /3d /motion /youtube /arxiv /wikipedia (/animate removed the same day,
+  /explain /code /graph /diagram /flashcards /photos /video /cad /3d /motion /youtube /arxiv /wikipedia (/animate removed the same day,
   /motion in development and review builds). Anything
   else typed there is reported as unavailable in Ctrl+K and sends nothing.
 - `insert`: the canvas Insert menu's source searches (/youtube /arxiv /wikipedia).
@@ -148,7 +176,7 @@ one-line description; modes read differently per place.
 | /deeper /simplify /example /practice /quiz /compare | learn | learn | A prompt through the existing Learn ask, about the selection or the current concept |
 | /dive | learn | learn | `action: 'dive'`: open a nested Rabbit Hole from the selected card; with no card it makes a topic anchor card from the request and dives from that; bare /dive with no card and no referent asks what to go deeper into (docs/features/dive-v1.md). No model call |
 | /source | learn | learn | `action: 'open_sources'` (open the Source inspector or attach evidence; never dump citations into a card) |
-| /explain /flashcards /code /graph /diagram /walkthrough /animate /image /video /3d | create | learn | A tool override: the tutor returns a validated block from the command's family, or asks a clarifying question |
+| /explain /flashcards /code /graph /diagram /walkthrough /animate /photos /image /video /3d | create | learn | A tool override: the tutor returns a validated block from the command's family, or asks a clarifying question |
 | /notebook /whiteboard /paper | create | learn | Deterministic inserts, no model: `insert_notebook`, `insert_whiteboard`, `insert_paper` (a known paper id opens directly; a topic opens the arXiv search). /paper is typed only since Release B (owner, 2026-10-16): /arxiv is the listed paper search |
 | /youtube /arxiv /wikipedia | source | learn, ctrlk, insert | `action: 'open_source'`: the shared source finder opens on that source with the query and searches at once (an empty query waits); results are previewed and nothing is added until the learner adds one. No model call. /arxiv takes a topic or an arXiv ID or link; /youtube finds existing videos, /video generates a new clip. One opener for Chat, Ctrl+K and Insert: `openSourceFinder` (packages/web/src/source-finder.js); a result is previewed on click and added by Add to canvas. The top-bar Search control is gone (owner 5A): `/` outside editable fields focuses the right panel's canvas Find |
 | /more | create | learn | `action: 'open_tool_catalog'`: the full tool catalog |
@@ -172,7 +200,8 @@ canonical here; the Learn branch maps them to block types.
 | /animate | animation, reference_attention, maths_animation (paid); a Tutor material tool since 2026-10-20, no longer typed |
 | /whiteboard | whiteboard (deterministic) |
 | /paper | paper (deterministic) |
-| /image | image, image_generate (paid) |
+| /photos | image |
+| /image | image_generate (paid) |
 | /video | video, video_generate (paid) |
 | /3d | 3d_model, blender_scene (paid) |
 | /notebook | notebook (deterministic) |

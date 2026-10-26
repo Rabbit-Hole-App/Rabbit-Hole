@@ -49,7 +49,8 @@ test('the same command looks the same everywhere: the / picker, the composer pil
   const source = read('./CommandTone.jsx');
   // No command carries an icon (owner, 2026-10-08): the mark is its coloured /name, nothing else.
   assert.doesNotMatch(source, /COMMAND_ICONS|CommandIcon|lucide-react|<Icon/);
-  assert.match(source, /return <span data-command-tone=\{name\} className=\{`inline-flex shrink-0 items-center rounded-md border px-1\.5 font-medium \$\{className\}`\}>\/\{name\}<\/span>;/);
+  // The tone is keyed by the stable id (name); the text is what is typed (typedOf: id image shows /photos, generate-image shows /image).
+  assert.match(source, /return <span data-command-tone=\{name\} className=\{`inline-flex shrink-0 items-center rounded-md border px-1\.5 font-medium \$\{className\}`\}>\/\{typedOf\(name\)\}<\/span>;/);
   assert.match(source, /export const COMMAND_TONES = SLASH\.map\(\(command\) => command\.name\);/, 'every command in the registry is toned');
   if (commandTone) { assert.equal(commandTone('explain'), 'explain'); assert.equal(commandTone('quiz'), 'quiz'); assert.equal(commandTone('auto'), null); assert.equal(commandTone('simplify'), null); }
   assert.match(read('./LearnSlash.jsx'), /<CommandMark name=\{item\.name\} className="text-ink" \/>/);

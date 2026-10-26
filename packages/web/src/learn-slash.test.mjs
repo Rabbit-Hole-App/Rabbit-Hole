@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cardsFor, commandLine, holdsLine, materialCommands, MOTION_OFF, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
+import { cardsFor, commandLine, holdsLine, lineCommand, materialCommands, MOTION_OFF, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
 import { generationField } from './generation-proposal-chat.js';
-import { commandsFor, learnRequest } from './agent/slash.js';
+import { commandsFor, idOfTyped, learnRequest, typedOf } from './agent/slash.js';
 import { readFileSync } from 'node:fs';
 import { PRIMITIVES } from '../../control-plane/src/learn-primitives.js';
 import { blockModality, modalityOf } from './learn-tutor-actions.js';
@@ -25,8 +25,8 @@ test('/ opens the grouped picker: LEARN, CREATE, SEARCH, then every other comman
   // /motion takes /animate's place in a development or review build (owner, 2026-10-20), with the owner's words.
   assert.deepEqual(pickerSections('/', { motionDev: true })[1].items.slice(3, 6), [{ name: 'diagram', desc: 'Add a diagram' }, { name: 'motion', desc: 'Create an animated explainer video' }, { name: 'flashcards', desc: 'Add flashcards' }]);
   assert.deepEqual(pickerSections('/anim', { motionDev: true }), [], '/animate is not offered');
-  // Owner, 2026-10-20: /image searches, so it leads the searches; /arxiv is the one paper search.
-  assert.deepEqual(sections[2].items, [{ name: 'image', desc: 'Search images' }, { name: 'youtube', desc: 'Search YouTube' }, { name: 'arxiv', desc: 'Search arXiv' }, { name: 'wikipedia', desc: 'Search Wikipedia' }]);
+  // Owner, 2026-10-20: the photo search leads the searches (owner, 2026-10-26: it is typed /photos, id image); /arxiv is the one paper search.
+  assert.deepEqual(sections[2].items, [{ name: 'image', desc: 'Search photos' }, { name: 'youtube', desc: 'Search YouTube' }, { name: 'arxiv', desc: 'Search arXiv' }, { name: 'wikipedia', desc: 'Search Wikipedia' }]);
   // With /more gone, the rest stay one list away (owner, 2026-10-20).
   assert.equal(sections[3].collapsible, true);
   assert.deepEqual(sections[3].items.map(item => item.name), ['whiteboard', 'video', 'cad', '3d']);
@@ -63,11 +63,34 @@ test('a removed command typed in Chat says it is unavailable and runs nothing', 
     assert.deepEqual(out, { notice: { tone: 'error', text: `/${name} is no longer available. Type / to see the commands, or ask in your own words.` } }, name);
     assert.deepEqual(did, [], name);
   }
-  // /generate-image while image generation is off: refused the same way, never turned into a photo search.
-  const did = [];
-  const out = await runLearnCommand('/generate-image a watercolor mountain landscape', { app: 'demo', canvas: { insertBlock: () => did.push('block') }, post: async () => did.push('post'), openSearch: () => did.push('search') });
-  assert.match(out.notice.text, /Image generation is not available here/);
-  assert.deepEqual(did, []);
+  // /image (and its alias /generate-image) while image generation is off: refused the same way, never turned into a photo search.
+  for (const line of ['/image a watercolor mountain landscape', '/generate-image a watercolor mountain landscape']) {
+    const did = [];
+    const out = await runLearnCommand(line, { app: 'demo', canvas: { insertBlock: () => did.push('block') }, post: async () => did.push('post'), openSearch: () => did.push('search') });
+    assert.equal(out.notice.text, 'Image generation is not available here. /photos searches for real photos.', line);
+    assert.deepEqual(did, [], line);
+  }
+});
+
+// Owner, 2026-10-26: /photos is the photo search (what /image was): it inserts the searching card and calls no model, whether or not
+// image generation is on.
+test('/photos runs the photo search: an image card that searches, no post, no model', async () => {
+  const { did, run } = harness({ result: 'unused' });
+  const out = await run('/photos Mount Fuji');
+  assert.deepEqual(did, [['block', { type: 'image', mode: 'search', title: 'Mount Fuji', src: '', alt: '', caption: '', prompt: 'Mount Fuji', autoSearch: true }]]);
+  assert.equal(out.notice.text, 'Searching photos for "Mount Fuji".');
+});
+
+// Saved ids never change meaning: a line is built from an id by typedOf and typed back to that id by idOfTyped.
+test('command lines: a pill id becomes the typed line and the typed line names the same id', () => {
+  assert.equal(commandLine('Mount Fuji', { command: 'image' }), '/photos Mount Fuji');
+  assert.equal(commandLine('a fox', { command: 'generate-image' }), '/image a fox');
+  assert.equal(commandLine('/image a fox', { command: 'image' }), '/image a fox', 'a typed line replaces the pill');
+  assert.equal(lineCommand('/photos Mount Fuji'), 'image');
+  assert.equal(lineCommand('/image a fox'), 'generate-image');
+  assert.equal(lineCommand('/generate-image a fox'), 'generate-image');
+  assert.equal(lineCommand('/simplify'), 'simplify');
+  assert.equal(lineCommand('plain words'), null);
 });
 
 test('family commands go to the artifact endpoint with the command only, never a primitive list', async () => {
@@ -127,7 +150,7 @@ test('an unknown command says so', async () => {
 
 test('View > Slash commands shows every picker command with an example', async () => {
   const { EXAMPLES, mayConfirmPaid } = await import('./learn-slash.js');
-  for (const item of pickerSections('/').flatMap(section => section.items)) assert.ok(EXAMPLES[item.name]?.startsWith(`/${item.name}`), `example for /${item.name}`);
+  for (const item of pickerSections('/').flatMap(section => section.items)) assert.ok(EXAMPLES[item.name]?.startsWith(`/${typedOf(item.name)}`), `example for /${typedOf(item.name)}`);
   assert.equal(mayConfirmPaid('video'), true);
   assert.equal(mayConfirmPaid('graph'), false);
 });
@@ -142,7 +165,7 @@ test('the sheet previews the cards each command can make; chat commands make non
   // The Tutor's material tools still make their cards (owner, 2026-10-20).
   assert.deepEqual(cardsFor('compare').map(entry => entry.card), ['table', 'graph', 'plot', 'flow', 'mermaid']);
   assert.deepEqual(cardsFor('walkthrough').map(entry => entry.card), ['walkthrough']);
-  // /video only proposes a generated clip; /image inserts a searched photo.
+  // /video only proposes a generated clip; /photos (id image) inserts a searched photo.
   assert.deepEqual(cardsFor('video').map(entry => entry.card), ['videoGenerate']);
   assert.deepEqual(cardsFor('image').map(entry => entry.card), ['image']);
 });
@@ -153,10 +176,11 @@ test('every example runs as typed: it names its own command and never hits an un
   const { IMAGE_GENERATION } = await import('./agent/slash.js');
   for (const [name, text] of Object.entries(EXAMPLES)) {
     const parsed = parseSlash(text);
-    assert.equal(parsed.name, name, text);
-    // /generate-image is advertised only while image generation is on (it is off: agent/slash.js IMAGE_GENERATION).
+    assert.equal(idOfTyped(parsed.name), name, text);
+    assert.equal(parsed.name, typedOf(name), text);
+    // /image (id generate-image) is advertised only while image generation is on (it is off: agent/slash.js IMAGE_GENERATION).
     if (name === 'generate-image' && !IMAGE_GENERATION) continue;
-    // /image never reaches the planner: runLearnCommand runs it as a photo search.
+    // /photos (id image) never reaches the planner: runLearnCommand runs it as a photo search.
     if (name === 'cad') {
       let request;
       const result=await runLearnCommand(text,{ app:'canvas-test',canvas:{startCad: async prompt => {request=prompt;}},post:()=>{throw Error('CAD must use its durable job flow');} });
@@ -213,7 +237,7 @@ test('a question, a proposal, an unsupported or invalid result, a failure or a t
 });
 
 test('commands that make no card, or make one at once, reserve nothing', async () => {
-  for (const text of ['/notebook', '/whiteboard', '/image a prism', '/dive', '/deeper', '/source', '/paper 1706.03762', '/ask what is wte?']) {
+  for (const text of ['/notebook', '/whiteboard', '/photos a prism', '/dive', '/deeper', '/source', '/paper 1706.03762', '/ask what is wte?']) {
     const did = [];
     const canvas = { reserve: () => did.push('reserve'), insertNotebook: () => {}, insertBlock: () => {}, insertPaper: () => {}, dive: () => ({}) };
     await runLearnCommand(text, { app: 'demo', canvas, post: async () => ({}), openSearch: () => {} });
@@ -329,7 +353,7 @@ test('every card a material command can make: its modality is the block type run
     const inserted = [];
     const canvas = { insertNotebook: () => inserted.push(newNotebookBlock()), insertBlock: block => { inserted.push(block); return 'id'; }, reserve: () => 'slot', release: () => {} };
     const post = async () => ({ result: m.paid ? 'paid_proposal' : 'artifact', primitive, message: 'Uses paid generation.', block: PRIMITIVES[primitive].block(ANY) });
-    (await runLearnCommand(`/${m.command} the topic`, { app: 'demo', canvas, post, openSearch: () => {}, internal: true })).proposal?.generate();
+    (await runLearnCommand(`/${typedOf(m.command)} the topic`, { app: 'demo', canvas, post, openSearch: () => {}, internal: true })).proposal?.generate();
     assert.equal(inserted.length, 1, `${m.command} ${card}`);
     assert.equal(modalityOf({ type: 'create_material', command: m.command }, { materials: [{ ...m, cards: [card] }] }), blockModality(inserted[0]), `${m.command} ${card}`);
   }

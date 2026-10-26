@@ -3,9 +3,9 @@
 // search answers one fixed photo, the paper's PDF is a fixture, and every other model or Ctrl+K route is aborted and counted.
 //   1. Chat: the picker lists the retained commands (no removed one), /explain and /dive read "Add explanation" and "Open
 //      Rabbit Hole" as menu labels and as pills (no /), picked and typed alike;
-//   2. typed /explain makes an explanation card; /image searches real photos and the card says Sourced;
-//   3. each of the 17 removed commands typed in Chat says it is unavailable and runs nothing; /generate-image too (off);
-//   4. Ctrl+K: its list has no removed command, pills read their labels with no /, /image is Search images, and each removed
+//   2. typed /explain makes an explanation card; /photos searches real photos and the card says Sourced;
+//   3. each of the 17 removed commands typed in Chat says it is unavailable and runs nothing; /image and /generate-image too (off);
+//   4. Ctrl+K: its list has no removed command, pills read their labels with no /, /photos is Search photos, and each removed
 //      command typed there says it is unavailable and sends nothing;
 //   5. the Slash commands window lists every retained command, says what each does, and Use example prepares an editable
 //      draft without sending;
@@ -37,6 +37,9 @@ const api = async (path, init = {}) => {
 };
 
 // /animate is removed too (L8, owner 2026-10-20): /motion, offered by this development build, is the animation command.
+// Owner, 2026-10-26: /photos is the photo search (id image, what /image was), /image the paid generation (id generate-image, off here).
+// Ids stay the data-* attributes; TYPED is what a person types for an id that differs.
+const TYPED = { image: 'photos' };
 const RETAINED = ['dive', 'practice', 'quiz', 'goal', 'explain', 'code', 'graph', 'diagram', 'motion', 'flashcards', 'notebook', 'image', 'youtube', 'arxiv', 'wikipedia', 'whiteboard', 'video', 'cad', '3d'];
 const REMOVED = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper', 'animate'];
 const CTRLK = ['explain', 'flashcards', 'code', 'graph', 'diagram', 'motion', 'image', 'video', 'cad', '3d', 'youtube', 'arxiv', 'wikipedia'];
@@ -123,9 +126,9 @@ async function pass(theme) {
   }
   const rows = await picker.locator('[data-slash-command]').evaluateAll(nodes => nodes.map(node => node.dataset.slashCommand));
   ok(`${theme}: the Chat picker lists every retained command and no removed one`, RETAINED.every(name => rows.includes(name)) && REMOVED.every(name => !rows.includes(name)) && !rows.includes('generate-image'), rows.join(' '));
-  ok(`${theme}: menu labels read Add explanation, Open Rabbit Hole, Search images, Generate video, Add 3D scene`,
+  ok(`${theme}: menu labels read Add explanation, Open Rabbit Hole, Search photos, Generate video, Add 3D scene`,
     (await picker.locator('[data-slash-command="explain"]').innerText()).includes('Add explanation') && (await picker.locator('[data-slash-command="dive"]').innerText()).includes('Open Rabbit Hole')
-    && (await picker.locator('[data-slash-command="image"]').innerText()).includes('Search images') && (await picker.locator('[data-slash-command="video"]').innerText()).includes('Generate video')
+    && (await picker.locator('[data-slash-command="image"]').innerText()).includes('Search photos') && (await picker.locator('[data-slash-command="video"]').innerText()).includes('Generate video')
     && (await picker.locator('[data-slash-command="3d"]').innerText()).includes('Add 3D scene'));
   await shot('01-chat-picker');
   // Picked: the pill is the label, never a /name.
@@ -141,22 +144,22 @@ async function pass(theme) {
   await shot('03-pill-dive');
   await dock.getByRole('button', { name: 'Remove Open Rabbit Hole', exact: true }).click();
   // Typed: the same pills.
-  for (const [name, label] of [['explain', 'Add explanation'], ['dive', 'Open Rabbit Hole'], ['image', 'Search images'], ['video', 'Generate video'], ['3d', '3D']]) {
-    await composer().fill(`/${name} `);
+  for (const [name, label] of [['explain', 'Add explanation'], ['dive', 'Open Rabbit Hole'], ['image', 'Search photos'], ['video', 'Generate video'], ['3d', '3D']]) {
+    await composer().fill(`/${TYPED[name] || name} `);
     await pill.waitFor();
-    ok(`${theme}: typed /${name} is the ${label} pill, no slash`, await pill.getAttribute('data-command-pill') === name && (await pill.innerText()).trim() === label);
+    ok(`${theme}: typed /${TYPED[name] || name} is the ${label} pill, no slash`, await pill.getAttribute('data-command-pill') === name && (await pill.innerText()).trim() === label);
     await dock.getByRole('button', { name: `Remove ${label}`, exact: true }).click();
   }
   await composer().fill('');
 
-  // 2. Typed /explain makes an explanation card; /image searches photos and its card says Sourced.
+  // 2. Typed /explain makes an explanation card; /photos searches photos and its card says Sourced.
   const before = await blocks();
   await composer().fill('/explain how binary search works');
   await composer().press('Enter');
   await notice.getByText('Added an explanation.').waitFor({ timeout: 15000 });
   ok(`${theme}: typed /explain creates an explanation card`, await blocks() === before + 1 && artifacts.at(-1) === 'explain' && await page.getByText('How binary search works').count() > 0);
   await shot('04-explain-card');
-  await composer().fill('/image Mount Fuji');
+  await composer().fill('/photos Mount Fuji');
   await composer().press('Enter');
   await notice.getByText('Searching photos for "Mount Fuji".').waitFor({ timeout: 10000 });
   const photo = page.locator('[data-photo-result]').first();
@@ -164,7 +167,7 @@ async function pass(theme) {
   await photo.click();
   // The light pass's card stays on the board, so the dark pass reads the newest one.
   const sourced = page.locator('[data-media-provenance="sourced"]').filter({ hasText: 'Fixture Photographer' }).last();
-  ok(`${theme}: /image searches real photos (no generation) and the card says Sourced with its credit`, await sourced.waitFor({ timeout: 10000 }).then(() => true).catch(() => false)
+  ok(`${theme}: /photos searches real photos (no generation) and the card says Sourced with its credit`, await sourced.waitFor({ timeout: 10000 }).then(() => true).catch(() => false)
     && (await sourced.innerText()).startsWith('Sourced · Photo by') && !model.some(path => /image|video/.test(path)), model.join(' '));
   await sourced.scrollIntoViewIfNeeded();
   await shot('05-image-sourced');
@@ -181,10 +184,13 @@ async function pass(theme) {
   }
   ok(`${theme}: each removed command typed in Chat says it is unavailable`, said.length === 0, said.join(' '));
   ok(`${theme}: and runs nothing: no request, no card, no navigation`, model.length + artifacts.length === calls && await blocks() === count && page.url() === url, model.slice(-3).join(' '));
-  await composer().fill('/generate-image a watercolor mountain landscape');
-  await composer().press('Enter');
-  ok(`${theme}: /generate-image is refused while image generation is off`, await notice.getByText('Image generation is not available here. /image searches for real photos.').waitFor({ timeout: 8000 }).then(() => true).catch(() => false)
-    && model.length + artifacts.length === calls && await blocks() === count);
+  // /image is the paid generation now (owner, 2026-10-26) and /generate-image its alias: both refused while it is off, never a photo search.
+  for (const line of ['/generate-image a watercolor mountain landscape', '/image a watercolor mountain landscape']) {
+    await composer().fill(line);
+    await composer().press('Enter');
+    ok(`${theme}: ${line.split(' ')[0]} is refused while image generation is off`, await notice.getByText('Image generation is not available here. /photos searches for real photos.').waitFor({ timeout: 8000 }).then(() => true).catch(() => false)
+      && model.length + artifacts.length === calls && await blocks() === count);
+  }
   await shot('07-generate-image-off');
   await dock.getByRole('button', { name: 'Dismiss' }).click().catch(() => {});
 
@@ -202,8 +208,8 @@ async function pass(theme) {
   const options = await page.locator('[data-inline-command-option]').evaluateAll(nodes => nodes.map(node => node.dataset.inlineCommandOption));
   ok(`${theme}: Ctrl+K lists its retained commands, no removed one`, CTRLK.every(name => options.includes(name)) && options.every(name => CTRLK.includes(name) || name === 'motion'), options.join(' '));
   await shot('08-ctrlk-list');
-  for (const [name, label] of [['code', 'Code'], ['image', 'Search images'], ['video', 'Generate video'], ['3d', '3D']]) {
-    await field.fill(`/${name}`);
+  for (const [name, label] of [['code', 'Code'], ['image', 'Search photos'], ['video', 'Generate video'], ['3d', '3D']]) {
+    await field.fill(`/${TYPED[name] || name}`);
     await page.locator(`[data-inline-command-option="${name}"]`).click();
     const chosen = editor.locator(`[data-command-pill="${name}"]`);
     ok(`${theme}: Ctrl+K /${name} pill reads ${label}, no slash`, await chosen.waitFor({ timeout: 5000 }).then(() => true).catch(() => false) && (await chosen.innerText()).trim() === label);
@@ -212,15 +218,15 @@ async function pass(theme) {
   }
   const refused = [];
   const sent = model.length;
-  for (const name of [...REMOVED, 'generate-image']) {
+  for (const name of [...REMOVED, 'generate-image', 'image']) {
     await field.fill(`/${name} x`);
     await field.press('Enter');
     const said = editor.locator(`[data-inline-unsupported="${name}"]`);
     const text = await said.waitFor({ timeout: 5000 }).then(() => said.innerText()).catch(() => '');
-    if (text !== (name === 'generate-image' ? 'Image generation is not available here. /image searches for real photos.' : removedText(name))) refused.push(`${name}: ${text}`);
+    if (text !== (name === 'generate-image' || name === 'image' ? 'Image generation is not available here. /photos searches for real photos.' : removedText(name))) refused.push(`${name}: ${text}`);
     if (name === 'compare') await shot('10-ctrlk-removed-compare');
   }
-  ok(`${theme}: each removed command (and /generate-image) typed in Ctrl+K says it is unavailable`, refused.length === 0, refused.join(' | '));
+  ok(`${theme}: each removed command (and /generate-image and /image) typed in Ctrl+K says it is unavailable`, refused.length === 0, refused.join(' | '));
   ok(`${theme}: and Ctrl+K sends nothing for them`, model.length === sent, model.slice(sent).join(' '));
   await page.keyboard.press('Escape');
 
@@ -235,7 +241,7 @@ async function pass(theme) {
     && /selected card/.test(await sheet.locator('[data-slash-about]').innerText()));
   await shot('11-window-dive');
   await sheet.locator('[data-slash-help="image"]').click();
-  ok(`${theme}: /image says Search images, Searches, Sourced`, (await sheet.locator('[data-slash-label]').innerText()) === 'Search images' && (await sheet.locator('[data-slash-effect]').innerText()) === 'Searches' && (await sheet.locator('[data-slash-media]').innerText()) === 'Sourced');
+  ok(`${theme}: /photos says Search photos, Searches, Sourced`, (await sheet.locator('[data-slash-label]').innerText()) === 'Search photos' && (await sheet.locator('[data-slash-effect]').innerText()) === 'Searches' && (await sheet.locator('[data-slash-media]').innerText()) === 'Sourced');
   await shot('12-window-image');
   await sheet.locator('[data-slash-help="video"]').click();
   ok(`${theme}: /video says Generate video, AI-generated, with its example`, (await sheet.locator('[data-slash-media]').innerText()) === 'AI-generated' && await sheet.getByText('e.g. /video raindrops falling into a pond').count() === 1);

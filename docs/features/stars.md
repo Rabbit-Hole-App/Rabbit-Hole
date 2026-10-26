@@ -18,8 +18,12 @@ Status by increment (delivery order, brief Task 10):
    and on the Library header) and the public profile Stars tab (`CreatorProfile.jsx`, `?tab=stars`).
 4. **Server routes live, dashboard wiring pending:** `GET /api/learn/stars/analytics?range=7d|30d|all` is routed (`starsRoute` in `canvas-stars.js`,
    answering from `canvas-star-analytics.js`) and live on production. Nothing in the web app calls it: `CreatorAnalytics.jsx` and `creator-analytics.js`
-   have no Stars fields, so the creator dashboard shows no Stars numbers yet. `deliverStarEvents` is defined but called from nowhere (no cron, no sink),
-   so no star event has reached the telemetry sink; the durable rows in `canvas_star_events` accumulate meanwhile. Re-read in the code on main 41aaaf43.
+   have no Stars fields, so the creator dashboard shows no Stars numbers yet.
+5. **Telemetry wiring (branch `feat/audit-availability-telemetry`, audit ffe30d90; not released):** `star.added`, `star.removed` and `star.opened` are registered
+   in the telemetry contract (`telemetry-events/stars.js`), `deliverStarEvents` runs inside the owner's `POST /api/owner/telemetry/project` pass, and the opening surfaces
+   report `star.opened` through `POST /api/learn/stars/opened`. Everything is a no-op where no telemetry sink is bound (production today: Telemetry is adopted but not
+   bound): the projection route answers `configured: false` before delivering, so `canvas_star_events` rows stay pending and nothing is lost, and `opened` checks for the
+   sink before any query. Verified by unit and fixture tests only (see "Telemetry events"); no browser or deployed check.
 
 Browser checks: `packages/web/e2e/stars-check.mjs` (the shared page) and `packages/web/e2e/stars-surfaces-check.mjs` (cards, profile tab, personal
 Stars; both tier `fork`, executed by fast-e2e). Neither is run by the lane that writes it: CI reads them. On the released SHA `8bda70a2` (fast-e2e run
@@ -213,7 +217,7 @@ menus, Star, Fork, panel toggle (`e2e/shared-header-check.mjs` updated to assert
 - **Personal Stars.** `/library?view=stars` (the sidebar keeps Library lit; no new route or navigation row). Search over the whole collection, the
   total "N stars, M unavailable", cards with Star and (others' canvases) Fork but no card options, an unavailable star as one generic row
   "Canvas unavailable" with Remove, Show more by the server's cursor, loading, empty and retry states.
-- **Not built.** `star.opened` (a canvas opened from personal Stars or a profile Stars list) is defined but nothing emits it yet; the Stars analytics
+- **Not built.** The Stars analytics
   fields are not folded into the creator dashboard (the server route is live, increment 4); the Home Continue card has no Star when its canvas row is not in the catalog.
 - **Not covered by a browser check:** `stars-surfaces-check.mjs` passed 33/33 in CI on the released SHA (above). Still not asserted: layout at every small card size and width,
   light and dark appearance (the control is the shared `Button` with theme tokens; no dark-specific assertion), and the touch target on a real device.
@@ -227,15 +231,25 @@ token); `occurred_at` is the transition's time.
 
 - `star.added`: `canvas_ref` (hex), `owner_star` (boolean), `surface` (optional token).
 - `star.removed`: the same plus `reason` `voluntary` | `lifecycle`.
-- `star.opened`: `canvas_ref`, `owner_star`, `surface` (`personal_stars` | `profile_stars`). Defined, not produced yet: the opening
-  surface emits it (increment 3 UI).
+- `star.opened`: `canvas_ref`, `owner_star`, `surface` (`personal_stars` | `profile_stars`). The opening surface reports it:
+  `StarsPage.jsx` (a card's open, with the star's own id) and `PublicCards.jsx` on a profile's Stars tab (the card's publication token) call
+  `starsApi.opened` (`canvas-star.js`, fire and forget with `keepalive`), which posts to `POST /api/learn/stars/opened { surface, id | token }`.
+  The server finds the canvas itself (the account's own star by id, or a live publication by token; never a client-sent workspace or name),
+  sets `owner_star` from the opener, and emits through `emitTelemetry`. It answers `{ ok: true }` whatever happened and never throws. A signed-out
+  viewer of a public profile and a new-tab open (middle click) record nothing. A refused or failed write is dropped (best effort).
+- Every envelope validates against the real contract (`telemetry-events/stars.js`: namespace `star`, `service` `control_plane`, `outcome`
+  `completed`). Before this wiring `starEnvelope` carried `outcome: 'success'`, which the contract does not allow, and no `service`; a test now
+  validates each envelope.
 - `surface` values: `shared_page`, `card_home`, `card_library`, `card_explore`, `card_profile`, `canvas_header`, `personal_stars`,
   `profile_stars`.
 - Not defined by Stars: mutation latency and failure events - measured at the route by the telemetry lane's request instrumentation.
   There is no counter, so there is no reconciliation event.
 
-Nothing runs the delivery yet (there is no cron on any Rabbit Hole worker): call `deliverStarEvents` from the owner dashboard's
-bounded catch-up, as the telemetry lane does for its accounting projection, once its sink lands.
+Delivery: there is no cron on any Rabbit Hole worker, so `deliverStarEvents` runs in the owner dashboard's bounded catch-up, the same
+`POST /api/owner/telemetry/project` pass as the accounting projection (`owner-telemetry-routes.js`, up to 500 events a pass, reported as
+`copied.stars`; `null` when the Learn database has no Stars table). It writes through `emitTelemetry`, which throws nothing and stores
+nothing where `TELEMETRY_DB` or `TELEMETRY_ENVIRONMENT` is missing; the pass then does not run at all (`configured: false`), and a sink that
+refuses leaves rows pending and the pass `done: false`. It never touches the star request path, so a telemetry failure cannot fail a star.
 
 ## Material conflicts and decisions
 

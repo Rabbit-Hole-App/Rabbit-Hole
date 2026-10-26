@@ -206,7 +206,7 @@ export const PRIMITIVES = {
   reference_attention: { ready: false, unavailable: "Animation generation isn't available yet." },
   '3d_model': { ready: false, unavailable: "3D model generation isn't available yet." },
   // Direct tools: found or inserted, never generated here.
-  image: { ready: false, direct: true, unavailable: 'Images come from search: use /image with what to look for.' },
+  image: { ready: false, direct: true, unavailable: 'Images come from search: use /photos with what to look for.' },
   image_generate: { ready: false, unavailable: "Image generation from a command isn't available yet. Use an Image card's Generate." },
   video: { ready: false, direct: true, unavailable: 'Existing clips are added from search or a link, not generated.' },
   notebook: { ready: false, direct: true },

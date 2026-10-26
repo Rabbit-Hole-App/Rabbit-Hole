@@ -8,10 +8,11 @@
 //   GET  /client-errors?days=    browser failures grouped by fingerprint, route and release, with occurrences and affected accounts
 //   GET  /support/<ref>          a support reference: its report, the client errors it saw, and the server events and actions they link to
 //   GET  /learning?days=         the Tutor and learning view: evidence metrics, milestones, hook funnel and decision sequences, each with its definition
-//   POST /project                one bounded projection pass: accounting, then the Tutor's learning evidence
+//   POST /project                one bounded projection pass: accounting, the Tutor's learning evidence, then the Stars events
 import { ownerOnly, ownerNotFound } from './owner-guard.js';
 import { telemetryEnvironment } from './telemetry-contract.js';
-import { deliveryCounts } from './telemetry-delivery.js';
+import { deliveryCounts, emitTelemetry } from './telemetry-delivery.js';
+import { deliverStarEvents } from './canvas-star-events.js';
 import { projectAccounting } from './telemetry-projection.js';
 import { projectLearning } from './telemetry-learning-projection.js';
 import { learningMetrics } from './telemetry-learning-metrics.js';
@@ -77,7 +78,13 @@ export async function ownerTelemetryRoute(path, req, env, deps = {}) {
   return route.run({ req, env, db, id, owner, configured, environment });
 }
 
-// One bounded projection pass (accounting, then the Tutor's learning evidence); each pass is also a delivery-health row (source 'projection').
+// Star events (canvas_star_events, stars.md) go to the sink oldest first, each marked delivered only after emitTelemetry stored it. A
+// LEARN_DB without the table, or a sink that refuses, leaves the rows pending and reports null: Stars never fails the pass.
+const deliverStars = env => deliverStarEvents(env.LEARN_DB, async envelope => {
+  if (!(await emitTelemetry(env, { ...envelope, service: 'control_plane' }))) throw new Error('The event was not stored');
+}, { limit: 500 }).catch(() => null);
+
+// One bounded projection pass (accounting, the Tutor's learning evidence, Stars events); each pass is also a delivery-health row (source 'projection').
 async function projection(env, db) {
   if (!env.LEARN_DB) return json({ error: 'LEARN_DB is not bound on this deployment.' }, 503);
   const record = (delivered, failed, pending) => db.prepare('INSERT OR IGNORE INTO telemetry_delivery_health (source, observed_at, delivered, failed, pending) VALUES (?, ?, ?, ?, ?)')
@@ -85,7 +92,8 @@ async function projection(env, db) {
   try {
     const accounting = await projectAccounting(env.LEARN_DB, db, { limit: 500 });
     const learning = await projectLearning(env.LEARN_DB, db, { limit: 500 });
-    const pass = { copied: { ...accounting.copied, ...learning.copied }, done: accounting.done && learning.done };
+    const stars = await deliverStars(env);
+    const pass = { copied: { ...accounting.copied, ...learning.copied, stars: stars ? stars.sent : null }, done: accounting.done && learning.done && !stars?.pending };
     await record(Object.values(pass.copied).reduce((sum, n) => sum + (n || 0), 0), 0, pass.done ? 0 : 1);
     return json(pass);
   } catch (error) {

@@ -7,8 +7,11 @@ codes against; `packages/web/src/home/weekly-top-fixture.js` is its machine-read
 
 Status (branch `feat/weekly-top5-r2`): contract, queries (`packages/control-plane/src/weekly-top.js`), route, migration 0029, the Explore toolbar
 and the weekly section (`home/WeeklyTop.jsx`, `home/weekly-top.js`) are integrated and read the real route. Nothing here is applied to a database or
-deployed. Analytics events still leave through the marked `sendWeeklyEvent` seam (a `weekly-top:event` DOM event) because no telemetry client is on
-main; swap that one function when it lands.
+deployed. Analytics events leave through `sendWeeklyEvent`: the `weekly-top:event` DOM event the browser check observes, and the client telemetry channel
+(`client-telemetry.js` `reportClientEvent` -> `POST /api/telemetry/client`, registered in `telemetry-events/weekly.js`, namespace `weekly_top`, audit 2f92d101).
+Where no telemetry is bound the route answers 204 and keeps nothing, and where the client reporter is not installed nothing is sent. While the one request is
+in flight the section shows a skeleton (`data-weekly-skeleton`, not `data-weekly-top`) of the same measures, so what is below it does not jump; a failure still
+shows no section. Unit-tested only (`home/weekly-top.test.mjs`, `telemetry-contract.test.js`); the skeleton and the delivered rows are not browser- or deploy-verified.
 
 ## Endpoint
 
@@ -140,6 +143,10 @@ Definitions owned here. No search text, tokens, handles or personal data in any 
 | `weekly_top.request_failed` | The request failed or answered non-200. | `status` (HTTP status, `0` for a network failure), `code` (the error `code` or `network`), `duration_ms` |
 
 Latency is `duration_ms` on the two request-bearing events; there is no separate latency event.
+
+Delivery limits: a signed-out visitor is counted without an account (the section is public); the route keeps one row per identical payload, account or
+address and 10 minutes, so a reload inside that window does not add a second `viewed`. `weekly_top` is therefore a second browser-ingest namespace
+beside `client`: the contract owner reviews that addition.
 
 ## Operations and tests
 

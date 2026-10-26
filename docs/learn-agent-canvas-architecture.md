@@ -248,7 +248,7 @@ Learner presses Enter
 ├─ Starts with "/"? (code) ........................ K2: slash command, never sent as chat text
 │   ├─ /deeper /simplify /example /research /ask /teach /do
 │   │     → turned into a chat prompt, then back into send() below
-│   ├─ /notebook /whiteboard /paper /image /source → local action, no model
+│   ├─ /notebook /whiteboard /paper /photos /source → local action, no model
 │   ├─ /practice /quiz /compare /explain /code /graph /diagram /flashcards /walkthrough
 │   │     → POST /api/learn/artifact (the card maker, section 10.2)
 │   └─ /animate /video /3d → /api/learn/artifact → paid proposal → Generate → paid job
@@ -444,7 +444,7 @@ Tool results also carry short notes, such as "The learner now sees this page. Sa
 | Video moment embeddings | Workers AI `@cf/baai/bge-m3` into Vectorize `MOMENTS` | `learn-moment-index.js` | `AI`, `MOMENTS`, `INDEX_QUEUE` bindings |
 | YouTube search | Exa | `learn-youtube.js` | `EXA_API_KEY` |
 | Image generation (paid) | OpenAI `gpt-image-1`, 1024², low quality | `dev-worker.js` `/api/learn/image` | `OPENAI_API_KEY` |
-| Speech to text | OpenAI `gpt-4o-transcribe` | `dev-worker.js` `/api/learn/transcribe` | `OPENAI_API_KEY` |
+| Speech to text | OpenAI `gpt-4o-transcribe` | `dev-worker.js` `/api/learn/transcribe` | `OPENAI_API_KEY` and `TRANSCRIBE_ENABLED=true` (off by default) |
 | Video generation (paid) | FAL `fal-ai/bytedance/seedance/v1/lite` | `video-provider.js` | `FAL_API_KEY`, `LEARN_VIDEO_PROVIDER` |
 | Maths animation (paid) | private Manim worker | `math-provider.js` | `MATH_WORKER_URL`, `MATH_WORKER_TOKEN` |
 | Blender scene (paid) | private Blender worker | `learn-scene.js` | `SCENE_WORKER_URL`, `SCENE_WORKER_TOKEN` |
@@ -634,7 +634,7 @@ text (`LearnSlash.jsx` `intercept`). The picker has three sections:
 | `/walkthrough` | walkthrough | artifact | interactive scene | no |
 | `/whiteboard` | inserts a whiteboard | local | whiteboard | no |
 | `/paper` | an arXiv id or URL inserts the paper; anything else opens search | local / `/api/learn/search` | paper | no |
-| `/image` | inserts an Image card that searches Pexels | local / `/api/learn/photos` | image | only the card's own Generate |
+| `/photos` (typed `/image` before 2026-10-26) | inserts an Image card that searches Pexels | local / `/api/learn/photos` | image | only the card's own Generate |
 | `/video` | generated video | artifact → paid proposal | video (FAL) | **yes** |
 | `/3d` | Blender scene | artifact → paid proposal | 3D scene | **yes** |
 | `/ask`, `/teach`, `/do` | send the args as a chat question | Learn chat | answer in chat | no |

@@ -42,7 +42,8 @@ export async function startCadAcceptanceStack({ cadRoute, CadJobs, extraEnv = {}
       deleteAlarm: async () => { alarm = null; },
       transaction: async fn => fn(storage),
     };
-    const state = { storage, blockConcurrencyWhile(fn) { const result = queue.then(fn); queue = result.catch(() => {}); return result; } };
+    // Only the global production-budget object carries an id (CadJobs refuses it as a board; boards keep none, as before).
+    const state = { ...(id === 'cad:production-budget' ? { id } : {}), storage, blockConcurrencyWhile(fn) { const result = queue.then(fn); queue = result.catch(() => {}); return result; } };
     const instance = new CadJobs(state, env);
     const value = { data, storage, instance, restart() { this.instance = new CadJobs(state, env); } };
     objects.set(id, value); return value;

@@ -1,7 +1,7 @@
 // The Ctrl+K editor's / commands (inline-ai-command.js; Release B contract B4, owner decisions 1A, 2A, 4A).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SLASH, commandsFor } from './agent/slash.js';
+import { SLASH, commandsFor, typedOf } from './agent/slash.js';
 import { ctrlkCommands, filterCommands, pick, pickerQuery, showsPill, submission, switchMode, unsupportedText } from './inline-ai-command.js';
 import { EXPLICIT_ROUTES, ROUTES, routeRequest } from './inline-ai-route.js';
 import { CAPABILITIES, fixedRoute, settle } from './inline-ai-decide.js';
@@ -27,17 +27,33 @@ test('the list opens on a leading /word and filters as it is typed; names that s
   assert.deepEqual(filterCommands(all, 'co').map(command => command.name)[0], 'code');
   assert.deepEqual(filterCommands(all, 'gr').map(command => command.name), ['graph', 'diagram']);
   assert.deepEqual(filterCommands(all, 'zzz'), []);
+  // Owner, 2026-10-26: the search follows what is typed: /ph finds the photo search (id image), never the generation.
+  assert.deepEqual(filterCommands(all, 'ph').map(command => command.name)[0], 'image');
+  assert.equal(typedOf('image'), 'photos');
+});
+
+// Owner, 2026-10-26: Ctrl+K takes the same typed names as the Chat. /photos is the photo search (id image) and its line says so;
+// /image is the paid generation, unavailable here while image generation is off, and says so rather than searching.
+test('Ctrl+K: /photos searches (command image, line /photos); /image and /generate-image are unavailable while generation is off', () => {
+  assert.deepEqual(submission({ mode: 'explain', text: '/photos an oak tree' }), { mode: 'explain', command: 'image', text: 'an oak tree', prompt: '/photos an oak tree' });
+  assert.deepEqual(submission({ mode: 'explain', command: 'image', text: 'an oak tree' }), submission({ mode: 'explain', text: '/photos an oak tree' }), 'picked equals typed');
+  for (const line of ['/image an oak tree', '/generate-image an oak tree']) {
+    const out = submission({ mode: 'explain', text: line });
+    assert.equal(out.command, undefined, line);
+    assert.equal(unsupportedText(out.unsupported), 'Image generation is not available here. /photos searches for real photos.', line);
+  }
+  assert.equal(submission({ mode: 'explain', text: '/imagine an oak tree' }).unsupported, 'imagine');
 });
 
 test('typed "/code foo" and picked /code + "foo" submit the same request, for every Ctrl+K generation command', () => {
   for (const name of CTRLK.filter(name => entry(name).kind === 'generate')) {
     for (const mode of ['explain', 'edit']) {
       const picked = pick({ mode, text: '' }, entry(name));
-      const typed = submission({ mode, command: null, text: `/${name}  foo bar ` });
+      const typed = submission({ mode, command: null, text: `/${typedOf(name)}  foo bar ` });
       assert.deepEqual(submission({ ...picked, text: 'foo bar' }), typed, name);
-      assert.deepEqual(typed, { mode: 'explain', command: name, text: 'foo bar', prompt: `/${name} foo bar` }, name);
+      assert.deepEqual(typed, { mode: 'explain', command: name, text: 'foo bar', prompt: `/${typedOf(name)} foo bar` }, name);
     }
-    assert.deepEqual(submission({ mode: 'explain', command: name, text: '' }), submission({ mode: 'explain', text: `/${name}` }), `bare /${name}`);
+    assert.deepEqual(submission({ mode: 'explain', command: name, text: '' }), submission({ mode: 'explain', text: `/${typedOf(name)}` }), `bare /${typedOf(name)}`);
   }
   // A typed name is case-insensitive, as the registry resolves it.
   assert.equal(submission({ mode: 'explain', text: '/CODE x' }).prompt, '/code x');

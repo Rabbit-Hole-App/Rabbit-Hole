@@ -213,7 +213,7 @@ else every route answers what it answers when generation is off (503 `image_gene
 tells the web build who may use it: `GET /api/learn/image-jobs` answers `available` (and `operatorOnly`) for THIS caller, and the web build holds no
 switch (`image-capability.js` sets `agent/slash.js imageGenerationLive`). The chat router decides per caller as well (`chat-capability-route.js`).
 Operators may also send `fault` on a job (`provider_400`, `provider_429`, `network`, `invalid_output`): the real adapter builds the real request and
-the real job settles it, but a stub transport answers, so nothing leaves the Worker and nothing is billed (the owner sets `localStorage['rh-image-fault']` in the browser; the next Generate sends it; anyone else gets a 400). `/generate-image <words>` in the chat
+the real job settles it, but a stub transport answers, so nothing leaves the Worker and nothing is billed (the owner sets `localStorage['rh-image-fault']` in the browser; the next Generate sends it; anyone else gets a 400). `/image <words>` (alias `/generate-image`; owner, 2026-10-26: `/image` generates and `/photos` is the photo search) in the chat
 composer asks the server for the plan (`POST /api/learn/chat/image-proposals`, no model call), which saves it in the chat as the plan card; Generate,
 edits, reload and the job all start from that card, and after a reload the card follows the existing job instead of inviting a second press (the job
 id is a function of the plan).
@@ -257,8 +257,9 @@ The production acceptance and its receipt: `C:/s/spec/image-activation/activatio
 - No D1 or learn migration: `file_sources` (0023), `usage_operations` (0016), `usage_actions`/`usage_attempts` (0022) exist.
 - Vars: `IMAGE_GENERATE_ENABLED: "false"` in all three. Production also sets `IMAGE_GENERATE_RESERVED_USD` ("0.20", 6c) and `IMAGE_ACCEPTANCE_EMAILS` (6d);
   dev and parallel set neither. Secrets `OPENAI_API_KEY` and `GEMINI_API_KEY` are installed on `rabbit-hole-app` by the owner command
-  `C:/s/spec/image-activation/prod-image-secrets.mjs` (never in a config). `OPENAI_API_KEY` also enables `/api/learn/transcribe` (dev-worker.js),
-  which has its own metering and acceptance (activation-package.md).
+  `C:/s/spec/image-activation/prod-image-secrets.mjs` (never in a config). `/api/learn/transcribe` (dev-worker.js) is NO LONGER enabled by the key alone: it also needs
+  `TRANSCRIBE_ENABLED` exactly `"true"` (default `"false"` in the dev, parallel and production configs, 2026-10-26), so installing the key for image work
+  does not switch on spoken-answer transcription. Whether to enable it (key plus flag) or remove the mic is owner decision O-8 and stays open.
 - The tag is applied by the normal `wrangler deploy` of each worker (the release flow); it is the only irreversible step, and with
   the flag off nothing calls the class.
 

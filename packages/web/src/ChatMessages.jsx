@@ -3,6 +3,7 @@ import { Component, useEffect, useRef, useState } from 'react';
 import { ArrowDown, Copy, CornerDownRight, Loader2, Network } from 'lucide-react';
 import CommandPill from './CommandPill.jsx';
 import { sentCommand } from './command-token.js';
+import { typedOf } from './agent/slash.js';
 import { api, navigate } from './api.js';
 import { EvidencePill, Md } from './Md.jsx';
 import { waitingText } from './waiting-text.js';
@@ -371,7 +372,7 @@ export function ChatMessages({ follow = null, ...given }) {
   const chat = useChatWorkspace();
   const ops = chat?.canvasOps;
   const typeIn = given.setInput && (({ text = '', command = null }) => {
-    const line = command ? `/${command} ${text}`.trim() : text;
+    const line = command ? `/${typedOf(command)} ${text}`.trim() : text;
     given.setInput(current => (current.trim() ? `${current}
 
 ${line}` : line));

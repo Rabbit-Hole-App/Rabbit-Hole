@@ -1,4 +1,4 @@
-import { SLASH } from './agent/slash.js';
+import { SLASH, typedOf } from './agent/slash.js';
 
 // UI-16 (owner, 2026-10-21): the chosen / command is one inline token at the start of the composer's text, and a sent
 // message shows the same pill read-only. The command stays structured state beside the text (chat-draft.js); these are
@@ -32,11 +32,15 @@ export function travel(steps, direction, { scope = null, text, command }) {
 // A sent user message's pill: the saved command (the message's command metadata) or, for an older message without it, a
 // registered command at the very start of the text. A matching leading /name is shown as the pill, never twice; the rest
 // is the text exactly as typed. A /command inside prose or code is never at the very start, so it stays plain text.
+// Saved ids never change meaning (agent/slash.js typed): a message's command is a stable id, so an old `image` message still
+// reads as the photo search; a saved line with no command metadata names an id too (`/image` there is the old photo search),
+// while a /photos line (typed names that are no id) is also read. The leading word is hidden when it is the id or what that id types.
 const NAMES = new Set(SLASH.map(command => command.name));
+const IDS_BY_TYPED = new Map(SLASH.filter(command => command.typed).map(command => [command.typed, command.name]));
 export function sentCommand({ content, command } = {}) {
   const text = String(content ?? '');
   const lead = text.match(/^\/([\w-]+)(?:\s+|$)/), leadName = lead?.[1].toLowerCase();
-  const name = command || (NAMES.has(leadName) ? leadName : null);
+  const name = command || (NAMES.has(leadName) ? leadName : IDS_BY_TYPED.get(leadName) || null);
   if (!name) return { command: null, text };
-  return { command: name, text: leadName === name ? text.slice(lead[0].length) : text };
+  return { command: name, text: leadName === name || leadName === typedOf(name) ? text.slice(lead[0].length) : text };
 }
