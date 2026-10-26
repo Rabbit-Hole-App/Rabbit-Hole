@@ -130,7 +130,7 @@ Legend: To Do / Doing / Blocked / Done (a task is Done only with production evid
 
 Production mutations are owner commands; one gate and one release at a time; no paid call outside the shared ledger; script tests for production-affecting scripts run in an isolated harness (`CLAUDE.md`); users see AI credits only (no dollars) and no ellipsis in UI labels; no 3D assemblies, Explain Back or Voice Mode work without authorization.
 
-## 9. Owner queue (revised Monday 2026-10-26, 10:45 AM PT)
+## 9. Owner queue (revised Monday 2026-10-26, 10:40 AM PT; updated 11:00 AM PT)
 
 Nothing in this document authorises any action. Each line says who acts: **DECISION** (yours), **YOU RUN** (a command or browser action only you can do, because it changes production or spends money), **ME** (implementation, verification, coordination I own and am doing now). Only the lines marked DECISION or YOU RUN need you.
 
@@ -154,7 +154,7 @@ Nothing in this document authorises any action. Each line says who acts: **DECIS
 | D1b | DECISION | Maximum learner charge for a completed Motion job rises from about 200 to about 310 credits (hard stop 350) while the card says about 100 | accept for the owner-only acceptance window; decide a quote change before public activation |
 | D2 | DECISION | Shared validation cap **US$100** (spent and reserved 18.2494 included; 81.7506 would remain). The cap stays US$20 until you approve | approve: the second Motion job reserves up to US$3.50 and does not fit in the US$1.7506 left today |
 | D3 | DECISION | OpenAI key, which is a prerequisite for image generation (four models) and Ctrl+K image edit. **Why transcription is involved (evidence, not scheduling):** the `/api/learn/transcribe` route returns 503 only when `OPENAI_API_KEY` is absent (`packages/web/dev-worker.js:292`); there is no separate flag in the code I read, so installing the key switches transcription on for signed-in canvas members at about US$0.006 a minute, metered only by the platform cap. | I have asked the Ctrl+K lane to add a default-off flag for the route first, which makes this a non-issue (the key then enables only image work). If you prefer to accept transcription going live, say so and I tell the lane to skip the flag. |
-| D4 | DECISION | Telemetry production GO. The independent safeguards re-review **has passed** (round 3 final verdict YES, script `09fe1c93`, 283 scenarios, 1110 checks, 0 failed, 1 skipped; static review only, so the `/dev/tty` branch and real wrangler flags are untested). The candidate (`8d476050`) is older than main and must be re-cut on the current main and re-gated before any release (me, about 25 minutes of CI once Motion's gates finish) | GO when you are ready to run `--dry-run` then `--preflight` yourself in your terminal |
+| D4 | DECISION | Telemetry production GO. The independent safeguards re-review **has passed** (round 3 final verdict YES, script `09fe1c93`, 283 scenarios, 1110 checks, 0 failed, 1 skipped; static review only, so the `/dev/tty` branch and real wrangler flags are untested). The candidate `8d476050` was older than main; it is now re-cut as `stack/c20-telemetry` `1ad942e0` (the same one-file config change, same changed lines, on top of the Motion R2 re-cut), pushed, gate queued behind the R2 gate. It must be the LAST release in the chain: C17, ceiling, R2, then telemetry | GO when you are ready to run `--dry-run` then `--preflight` yourself in your terminal |
 
 ### 9.4 Motion sequence: only these items need you
 
@@ -187,7 +187,7 @@ Rollback of the orchestrator deploy is unverified for how `fly deploy --image --
 |---|---|
 | Ceiling and R2 re-cut gates | ceiling about 11:15 AM, R2 about 11:30 AM |
 | Docs-branch release dry run | after step 1 above |
-| Telemetry candidate re-cut and gate | about 11:45 AM to 12:05 PM if started after the Motion gates |
+| Telemetry candidate gate (`stack/c20-telemetry`) | after the R2 gate, about 11:45 AM |
 | Lane hand-backs | not derivable yet; each lane writes `C:/s/spec/<lane>/state.md`; I will report derived estimates from their first hand-backs |
 
 ## 10. Change log (PT)
