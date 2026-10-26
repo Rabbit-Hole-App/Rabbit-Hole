@@ -70,6 +70,11 @@
     "IMAGE_GENERATE_ENABLED": "false",
     // Speech to text for spoken answers (/api/learn/transcribe): off even when OPENAI_API_KEY exists; only "true" enables it (owner decision O-8 is open).
     "TRANSCRIBE_ENABLED": "false",
+    // Ctrl+K background removal and regional image edit (docs/features/ctrlk-image-activation.md, ctrlk-completion.md): ON at the owner's activation release.
+    // It also needs the OPENAI_API_KEY secret and the FILE_JOBS binding above; without either the route answers "not available". The per-edit hold is
+    // 3 credits (US$0.03, about 3x the measured edit); the person is charged the priced usage, never more than this.
+    "INLINE_IMAGE_EDIT_ENABLED": "true",
+    "INLINE_IMAGE_EDIT_RESERVED_USD": "0.03",
     // The per-image hold, derived (docs/features/image-jobs.md 6c): the largest priced estimate among the enabled combinations is Nano
     // Banana Pro 1K, US$0.134 + a 4,000-byte prompt bound US$0.008 = US$0.142; the worst real settlement seen for it was US$0.1462
     // (run D). US$0.20 covers both and is a hold, released at settlement; the learner is charged the measured cost or the upper bound.
