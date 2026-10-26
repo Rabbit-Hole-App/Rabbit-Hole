@@ -47,8 +47,8 @@ const ROUTES = {
     const { days, sinceMs } = span(req);
     return json({ configured, environment, days,
       events: await rows(db.prepare('SELECT event_name, outcome, COUNT(*) AS n FROM telemetry_events WHERE environment = ? AND occurred_at >= ? GROUP BY event_name, outcome ORDER BY n DESC').bind(environment, sinceMs)),
-      // Each cost state on its own row: measured (settled), estimated, unknown exposure (its held reservation) and outstanding
-      // reservations (running). The dashboard shows them side by side and never adds them together.
+      // Each cost state on its own row: measured (settled), estimated, unknown provider cost (an ended call: the learner is charged nothing and holds nothing; the platform guard keeps its bound) and
+      // running calls (the learner's credits are reserved while they run). The dashboard shows them side by side and never adds them together.
       attempts: await rows(db.prepare(`SELECT t.cost_state, a.charge_class, COUNT(*) AS attempts, SUM(t.cost_micros) AS cost_micros, SUM(t.reserved_micros) AS reserved_micros
         FROM accounting_attempts t LEFT JOIN accounting_actions a ON a.action_id = t.action_id WHERE t.started_at >= ? GROUP BY t.cost_state, a.charge_class`).bind(Math.floor(sinceMs / 1000))),
       projectedAt: (await db.prepare('SELECT MAX(updated_at) AS at FROM projection_cursors').first())?.at ?? null });

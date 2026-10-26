@@ -506,7 +506,7 @@ export class ExplainJobs {
     job.inFlight = null;
     if (!TERMINAL.has(job.stage)) {
       endStage(job.timing, 'interrupted');
-      Object.assign(job, { stage: 'failed', stopReason: 'error', failure: { stage: call?.role === 'review' ? 'reviewing' : job.stage, category: 'transport', message: 'An AI step was interrupted. Its cost stays held until it is confirmed.', retryable: true } });
+      Object.assign(job, { stage: 'failed', stopReason: 'error', failure: { stage: call?.role === 'review' ? 'reviewing' : job.stage, category: 'transport', message: 'An AI step was interrupted. You are not charged for it.', retryable: true } });
       await this.finishUsage(job, 'interrupted');
     }
     await this.save(job);

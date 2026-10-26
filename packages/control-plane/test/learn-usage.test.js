@@ -140,7 +140,7 @@ test('retries: one action per client key, each provider attempt recorded once wi
   const fetchImpl = async () => { calls++; return calls === 1 ? Response.json({}, { status: 429 }) : Response.json({ model: 'jev-1.13.0', usage: { input_tokens: 1000 } }); };
   await askJev(jevEnv, { model: JEV_TRANSPORTS.direct.model, state: 'x', questions: {} }, { transport: 'direct', fetchImpl, sleep: async () => {} });
   const jev = rows(sqlite, 'usage_attempts').slice(4);
-  assert.deepEqual(jev.map(a => [a.kind, a.status, a.cost_state, a.cost_micros]), [['evaluation', 'failed', 'unknown', null], ['retry', 'settled', 'settled', 42]]);
+  assert.deepEqual(jev.map(a => [a.kind, a.status, a.cost_state, a.cost_micros]), [['evaluation', 'failed', 'settled', 0], ['retry', 'settled', 'settled', 42]]); // the 429 is a known zero (owner 2026-10-25), the retry is measured
   assert.equal(new Set(jev.map(a => a.action_id)).size, 1);
   const [grade] = rows(sqlite, 'usage_actions').slice(3);
   assert.deepEqual([grade.payer, grade.payer_reason, grade.charge_class], ['user', 'free_action', 'free'], 'practice grading: free to the user, cost recorded');

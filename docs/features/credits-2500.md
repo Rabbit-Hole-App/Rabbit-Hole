@@ -132,6 +132,26 @@ provider's cost are separate.
 | Running past its bound | unknown (sealed) | 0 | nothing, from the bound |
 
 An HTTP status alone does not prove the provider did no billable work, so only the provider's own capacity refusals are a known zero.
+
+**What the browser is told (owner 2026-10-25: credits only, never dollars, micros or a currency).** `GET /api/learn/usage` answers
+`{ enforced, period, resetsAt, allowanceCredits, usedCredits, reservedCredits, estimatedCredits, remainingCredits, unknownAttempts,
+byFeature: [{ feature, usedCredits, reservedCredits, unknownAttempts }] }` (the conversion, 1 credit = 10,000 micros, is on the server). The web store
+(`account-usage.js` `readUsage`) turns it into its own units at the boundary. The same rule holds for the Motion list (`usage.usedCredits`,
+`hold.state` only; the reservation amount is no longer sent), the requester's image-job inspect view, the inline code quote, consent and
+job view (`maximumReservedCredits`, `maxReservedCredits`, `reservedCredits`), the inline image quote and consent (`maximumReservedCredits`,
+`maxReservedCredits`) and the CAD job view (no `phaseUsd`). The dollar accounting stays in the ledger and behind the owner telemetry
+routes (`/api/owner/telemetry`, `ownerOnly`). `test/no-money.js` (`moneyLeaks`) is the scanner the tests use. Not yet converted: the model
+`telemetry.cost_usd` that Tutor and Next Steps responses carry for the web's Tutor trace.
+
+**Failed work refunds.** A route that answers with an error delivered nothing usable: `finishWithResponse` refunds every already settled
+attempt of that action in full, once each (`refundFailedAction`, reason `route_failed_no_result`). The attempt keeps its recorded provider cost.
+Not refunded: a still-streaming answer (its error arrives inside a 200), free or platform work, and an Explain job's earlier answered calls
+when the job fails later (Explain charges answered calls; Retry resumes).
+
+**Sealing.** ImageJobs ends a job whose reservation was sealed (stage `failed`, reason `expired`): it sends nothing, stores nothing, shows
+no artifact and charges nothing, even if the provider answers late. ExplainJobs already ends an interrupted call as failed on reconcile and its
+calls (2 minutes) and job (10 minutes) are far inside the 1 hour bound; Motion waits at most 60 minutes inside its 2 hour bound. The Jev
+direct path reads a 429 or 529 as a known zero, like spendTransport and ImageJobs.
 Remaining work: an operator-visible report of unknown provider cost, and sealing the job object itself (ExplainJobs, ImageJobs,
 Motion) when its reservation is sealed.
 

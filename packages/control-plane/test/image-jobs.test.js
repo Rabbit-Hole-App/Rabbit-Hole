@@ -695,3 +695,51 @@ test('a file_sources row that exists with another hash is never overwritten or a
   assert.equal(h.calls.length, 1);
   assert.equal(ops(h)[0].status, 'admitted', 'not settled until the image is recorded');
 });
+
+// ---- Sealing (fix/credits-finish): the learner's reservation for an image job lapses at its bound (HOLD_SECONDS.image_generate, 4 hours).
+// The attempt is aged here by moving its start back; nothing waits.
+const age = h => h.sqlite.prepare('UPDATE usage_attempts SET started_at = started_at - 20000').run();
+const OK_IMAGE = () => Response.json({ model: 'gemini-nano-banana-2.1', steps: [{ type: 'model_output', content: [{ type: 'image', mime_type: 'image/jpeg', data: JPG }] }] });
+const learnerTotals = async h => { const { usageTotals } = await import('../src/learn-usage.js'); return usageTotals(h.db, 'u-owner', new Date().toISOString().slice(0, 7)); };
+
+test('REGRESSION a provider result that arrives after the reservation was sealed is not stored, shown or charged; duplicate alarms change nothing', async t => {
+  const h = harness(t);
+  h.setReply(async () => { age(h); return OK_IMAGE(); }); // the provider answers late: the reservation is sealed meanwhile
+  const { generationId } = await h.create();
+  await Promise.all([h.alarm(generationId), h.alarm(generationId), h.alarm(generationId)]);
+  await h.alarm(generationId);
+  const job = h.job(generationId);
+  assert.deepEqual([job.stage, job.reason, job.output ?? null], ['failed', 'expired', null], 'old code: stored the late image and delivered it as a success');
+  assert.equal(h.bucket.objects.size, 0, 'nothing was written to R2');
+  assert.equal(h.sqlite.prepare('SELECT COUNT(*) AS n FROM file_sources').get().n, 0, 'no file source was recorded');
+  assert.equal(h.calls.length, 1, 'one provider request, never another');
+  assert.deepEqual(attempts(h).map(a => [a.status, a.cost_state, a.cost_micros]), [['failed', 'unknown', null]], 'provider cost unknown, never zero, never a charge');
+  assert.deepEqual(ops(h).map(o => [o.status, o.cost_usd]), [['failed', RESERVE]], 'the platform ledger keeps the unresolved call at its bound');
+  const totals = await learnerTotals(h);
+  assert.deepEqual([totals.used, totals.reserved], [0, 0], 'the learner is charged nothing and holds nothing');
+  const shown = (await (await h.get(generationId)).json()).job;
+  assert.deepEqual([shown.stage, shown.artifact], ['failed', null]);
+});
+
+test('a job whose reservation was sealed before it sent anything ends without a provider request and releases the platform reservation too', async t => {
+  const h = harness(t);
+  const { generationId } = await h.create();
+  const storage = h.states.get(h.nameOf(generationId)).storage;
+  storage.failPut = value => { if (value?.stage === 'admitted') age(h); return false; };
+  await Promise.all([h.alarm(generationId), h.alarm(generationId)]);
+  const job = h.job(generationId);
+  assert.deepEqual([job.stage, job.reason], ['failed', 'expired']);
+  assert.equal(h.calls.length, 0, 'no paid generation was started');
+  assert.deepEqual(ops(h).map(o => [o.status, o.cost_usd]), [['cancelled', 0]], 'nothing was sent, so the platform reservation is released');
+  assert.deepEqual(attempts(h).map(a => [a.status, a.cost_state]), [['failed', 'unknown']]);
+});
+
+test('a job inside its bound is unaffected: the same late-answering provider delivers a normal success', async t => {
+  const h = harness(t);
+  h.setReply(async () => OK_IMAGE());
+  const { generationId } = await h.create();
+  await h.alarm(generationId); await h.alarm(generationId);
+  assert.equal(h.job(generationId).stage, 'ready');
+  assert.equal(attempts(h)[0].status, 'settled');
+  assert.equal(h.bucket.objects.size, 1);
+});

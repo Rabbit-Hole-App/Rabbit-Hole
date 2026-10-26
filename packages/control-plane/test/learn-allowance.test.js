@@ -153,12 +153,12 @@ test('retries and fallbacks: each provider attempt is admitted again, so a retry
   const env = base(LEARN_DB, jevMicros + Math.floor(jevMicros / 2), { JEV_DIRECT_KEY: 'fixture' });
   let fetches = 0;
   const busy = async () => { fetches++; return Response.json({}, { status: 429 }); };
-  // The 429 is an unknown provider cost (it may have been billed) but holds nothing of the learner's (owner 2026-10-25), so the
-  // automatic retry is admitted again and sent; each attempt is its own admission against the same allowance.
+  // A 429 is a provider capacity refusal: a known zero that holds nothing (owner 2026-10-25), the same reading as spendTransport and
+  // ImageJobs, so the automatic retry is admitted again and sent; each attempt is its own admission against the same allowance.
   await assert.rejects(askJev(as(env, 'u-alice', 'inline_route'), { model: JEV_TRANSPORTS.direct.model, state: 'x', questions: {} }, { transport: 'direct', fetchImpl: busy, sleep: async () => {} }),
     error => error instanceof JevError && error.code !== 'allowance_reserved');
   assert.ok(fetches >= 2, 'the retry reached the provider: the first failed attempt holds nothing');
-  assert.ok(rows(sqlite, 'usage_attempts').length >= 2 && rows(sqlite, 'usage_attempts').every(a => a.status === 'failed' && a.cost_state === 'unknown' && a.reserved_micros === jevMicros), 'one unknown-cost attempt per try, none held');
+  assert.ok(rows(sqlite, 'usage_attempts').length >= 2 && rows(sqlite, 'usage_attempts').every(a => a.status === 'failed' && a.cost_state === 'settled' && a.cost_micros === 0 && a.reserved_micros === jevMicros), 'one known-zero attempt per try, none held');
   assert.equal((await balance(env)).reservedMicros, 0);
   // A server-side fallback with no price bound is never sent; a reply billed across fallback iterations keeps its hold.
   const { calls, reply } = provider();

@@ -8,7 +8,7 @@ import Shell from './Shell.jsx';
 import { Button, ExpandedPageFrame, Input } from './ui.jsx';
 
 const API = '/api/owner/telemetry';
-const STATES = { settled: 'Measured', estimated: 'Estimated', unknown: 'Unknown, reservation held', reserved: 'Outstanding reservation' };
+const STATES = { settled: 'Measured', estimated: 'Estimated', unknown: 'Unknown provider cost, learner not charged', reserved: 'Running, learner credits reserved' };
 const usd = micros => (micros == null ? 'none' : `$${(micros / 1e6).toFixed(4)}`);
 const time = value => (value == null ? 'never' : new Date(value > 1e12 ? value : value * 1000).toLocaleString());
 async function get(path, init) {
