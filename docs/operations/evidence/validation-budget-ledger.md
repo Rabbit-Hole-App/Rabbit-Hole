@@ -1,0 +1,40 @@
+# Shared validation budget ledger (owner approval 2026-10-23 ~14:45 PT)
+
+CAP: US$20.00 total for Motion validation + ImageJobs acceptance testing combined (model/provider calls + incremental render infrastructure).
+Budget owner: integrator session only. Lanes do NOT start paid runs; they request a run id and a conservative max cost from the integrator.
+Rules: record conservative max BEFORE each run; count completed + in-flight + uncertain charges; never start a run whose max exceeds remaining;
+no automatic paid retries; failed/timed-out requests count at max until the provider usage proves lower; stop when remaining cannot cover the next test.
+Public feature flags stay OFF (IMAGE_GENERATE_ENABLED false in all deployed configs; Motion readiness policy default empty).
+
+| run id | what | status | conservative max USD | actual USD | notes |
+|---|---|---|---|---|---|
+| PLAN-IMG | ImageJobs acceptance runs A-E (plan C:/s/spec/img-01/acceptance-plan.md) | planned, not started | 0.56 (A-E 0.425 + one re-run per provider), 1.00 with optional probe F | 0.00 | allocation 1.00 reserved; Gemini store:false and usage parsing fixed first (lane a8a59896cd7fd8d6e) |
+| PLAN-MOT-INFRA | Motion dev-renderer infra + deterministic renders (plan C:/s/spec/motion-validation/plan.md): 21 fixed runs + 6 size-comparison + up to 4 reruns | planned, not started | 2.00 cap (known prices ~0.31) | 0.00 | needs motion/int combined commit, dev renderer redeploy from settings branch (non-16:9), harness lane |
+| PLAN-MOT-MODEL | Motion model-driven runs, at most 3, only at durations that finished under 330 s deterministically | planned, blocked until deterministic results | 9.00 cap (3 x 3.00 hold) | 0.00 | Anthropic workspace usage limit seen 2026-10-21; first attempt shows at $0 |
+Allocation total planned max: Motion 11.00 + ImageJobs 1.00 = 12.00; unallocated reserve 8.00. Spent 0.00.
+| img-A-1 | ImageJobs run A: gpt-image-2.5-flare generate low 1024 via production adapter, local harness (feat/image-jobs 319c0f4e) | started 15:00 PT | 0.03 | pending | reserved in budget.mjs by the harness |
+| img-A-1 settled | run A result | PASS 8/8 | 0.03 | 0.005975 | measured from OpenAI usage; 9866 ms |
+| img-B-1 | run B gpt-image-2.5-sunburst edit 2 refs | started | 0.07 | pending | |
+| img-B-1 settled | run B result | PASS 8/8 | 0.07 | 0.010171 | measured; 14235 ms |
+| img-C-1 | run C gemini-nano-banana-2.1 generate 1K store:false | started | 0.06 | pending | |
+| img-C-1 settled | run C: Gemini 400 invalid_request in 199 ms, no usage, no output | FAIL (provider_rejected) | 0.06 | 0.00 | reconciled at 0: definite 400 rejection before generation; cause under diagnosis (store:false vs response_format) |
+| img-C-2 | run C repeat, identical declared call, harness now records the 300-char provider error message for diagnosis (benign fixed test prompt) | started | 0.06 | pending | one diagnostic repeat of a 400, not a retry loop |
+| img-C-2 settled | run C repeat: Gemini 400 'image/png not supported for response_format.mime_type; supported: image/jpeg' | FAIL (adapter request bug found) | 0.06 | 0.00 | reconciled at 0 (definite 400, 215 ms, no usage) |
+| img-C-3 | run C: gemini-nano-banana-2.1 generate 1K, now image/jpeg (feat/image-jobs 89459f02) | started | 0.06 | pending | |
+| img-C-3 settled | run C: Gemini 429 'limit: 0 requests per day on Free Tier' for gemini-nano-banana-2.1 (the key's Google project is on the free tier) | BLOCKED (owner action: billing tier) | 0.06 | 0.00 | reconciled at 0: definite 429 before processing, 290 ms, no usage. Runs C, D, E stay blocked; no other key or provider tried |
+| img-C-4 | run C: gemini-nano-banana-2.1 generate 1K jpeg, after owner added $5 Gemini billing (prepaid funds are not test consumption; cap stays $20) | started | 0.06 | pending | single bounded request to verify paid quota; stop on any 429 |
+| img-C-4 settled | run C: Gemini 200, 8/8 PASS (JPEG 1024x1024, 12162 ms); usage image 1120 + thought 1000 + text in 14 tokens | PASS | 0.06 | 0.046 | ESTIMATED upper bound (1120 img tok x $30/M = 0.0336 + 1000 thought x ~$12/M); harness left it uncertain because output_tokens_by_modality (1120) != total_output_tokens (1439); reconciled by integrator |
+| img-D-1 | run D: gemini-3-pro-image generate 1K jpeg | started | 0.27 | pending | |
+| img-D-1 settled | run D: gemini-3-pro-image 200, 8/8 PASS (JPEG 1024x1024, 12318 ms); image 1120 tok + thought 80 | PASS | 0.27 | 0.14 | ESTIMATED upper bound (1120 x $120/M = 0.1344 + 80 thought tok); harness left uncertain (modality sum != total); reconciled by integrator |
+| img-E-1 | run E: gemini-nano-banana-2.1 edit, 1 reference, 1K jpeg | started | 0.065 | pending | |
+| img-E-1 settled | run E: gemini-nano-banana-2.1 edit with 1 reference 200, 8/8 PASS (JPEG 1024x1024, 10647 ms); input 14 text + 1120 image tok, output image 1120, thought 497 | PASS | 0.065 | 0.05 | ESTIMATED upper bound; usage shape does not satisfy the adapter's measured-cost rule (total_output_tokens != image + thought), job stays 'estimated' |
+| infra-motion-volume | Fly 1 GB volume on rabbit-hole-motion-renderer-dev (verified $0.15/GB-month, hourly pro-rata, billed while stopped; snapshots $0.08/GB-month, 10 GB free) held for at most ~1 month, destroyed after validation | planned | 0.25 | pending | cleanup = fly volumes destroy after validation; settle at actual hours x 0.0002 |
+| img-adj-1 | adjustment: Gemini runs C and D were settled below a defensible upper bound. Upper bound = max(total_output_tokens, image+thought tokens) x highest output rate: C 2120 x $30/M = 0.0636 (settled 0.046, +0.0176); D 1218 x $120/M = 0.1462 (settled 0.14, +0.0062); E 1617 x $30/M + input = 0.0491 (settled 0.05, ok) | settled | 0.024 | 0.024 | ledger now holds C 0.0636, D 0.1462, E 0.05 as upper bounds. These are ESTIMATES (upper bounds), not measured spend; Google's billing page is the truth |
+
+- 2026-10-23 16:40 PT mv-D17: harness stopped by integrator (TaskStop) while rendering; service render cancelled with DELETE; settled at 0.002 as a defensible upper bound (under 60 s of machine time at 0.0904/h = 0.0015). Estimated upper bound, not measured.
+
+- 2026-10-23 17:36 PT mv-D14-c3: matrix stopped by integrator (TaskStop) because the stage fix 03f2a1ef supersedes the c88ea73e build under test; render cancelled with DELETE after under 60 s of machine time; settled at 0.002 as an upper bound (0.0904 USD/h x 60 s = 0.0015).
+- 2026-10-24 2:45 PM PT mmr-M1-3: validation lane relaunched M1 under run id mmr-M1, which was already settled (budget.mjs reserve returned ok/reused, so NO new reservation existed). Two Director/storyboard calls were made (0.061529 + 0.142289 = 0.2038 measured by the guard ledger), then the process was killed by the lane. Booked after the fact as mmr-M1-3 (reserve 3.00, settled 0.2038, no render). Lesson: the driver must be given MOTION_MODEL_RUN_SUFFIX for a fresh id; reserved.reused must be refused.
+
+- 2026-10-25 4:28 PM PT mmr-M5 (16:9, 10 s) and mmr-M6 (16:9, 30 s): started by DEPLOYMENT with the validation driver (reserve 3.00 each), settled by the driver: M5 1.1184, M6 1.7634 (model 1.7368 + render bound 0.0266). Both ready. VALIDATION reconciled them against pipeline.json/summary.json; no unsettled entry remains. Ledger after M6: spent 16.5879, reserved 0.25 (dev volume). Pre-production room = 17.75 - 16.5879 = 1.1621: no further run fits (the Author call alone can cost 1.32 in the guard), so VALIDATION started none. The 2.00 production-acceptance reserve was not touched.
+- 2026-10-25 9:50 PM PT motion-prod-accept-1: the owner-only production acceptance job (15 s 16:9 photosynthesis, job 61f701710ba30bfa591a992844509c0d, 3 model calls, 1 render) FAILED at the orchestrator per-job ceiling (US$2.00 acceptance window) and settled the real Anthropic spend of US$1.278157 (production key, accounted retroactively here; the owner's user credits were also charged 128 credits for the failed attempt, see the diagnosis). Ledger remaining after this entry is below the US$2.00 acceptance reserve: further paid Motion acceptance needs the cap increase approval.

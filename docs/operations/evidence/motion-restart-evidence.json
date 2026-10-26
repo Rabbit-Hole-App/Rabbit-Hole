@@ -1,0 +1,13 @@
+{
+  "recorded_at": "2026-10-26T02:18:30.376Z",
+  "rel": "32d86ee7fc73a5322d84c87a4ce82f2f5b9687df",
+  "key": "acc-store-32d86ee7-final",
+  "input_sha256": "7af067317264210b75b5a34e61d3dbf72cbcfdd814976a35299fd8e82a4904ad",
+  "boot_id_before": "c1eebb01a6b4b6ae",
+  "boot_id_after": "09439e668dda7eee",
+  "records_before": 3,
+  "records_after": 3,
+  "mounted": true,
+  "writable": true,
+  "accepting": true
+}
