@@ -93,6 +93,11 @@
     // Review-first CAD (docs/features/cad.md): "true" prepares a brief to approve before any source is generated. Off until
     // the owner-approved dev verification passes; it needs CAD_MAX_CALLS of at least 3 (brief, source, review).
     "CAD_BRIEF_FIRST": "true",
+    // File conversion (docs/features/canvas-file-converter.md section 7): Word, slides, audio and STEP through the production converter.
+    // It needs the Worker secrets CONVERT_TOKEN and FILE_JOB_SECRET (activation/prod-convert.mjs); without CONVERT_TOKEN conversion is off.
+    // MERGE ONLY after rabbit-hole-convert-prod is deployed and healthy. Rollback: prod-convert.mjs rollback L1 (no deploy).
+    "CONVERT_URL": "https://rabbit-hole-convert-prod.fly.dev",
+    "FILE_JOB_ORIGIN": "https://digrabbithole.com",
     // Repository import: the Rabbit Hole-owned production renderer (Fly org rabbit-hole), never a dev one.
     // Its bearer SCENE_WORKER_TOKEN is a fresh production-only secret set on both sides at the production GO.
     "SCENE_WORKER_URL": "https://rabbit-hole-lesson-renderer-prod.fly.dev",
