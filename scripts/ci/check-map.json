@@ -616,6 +616,7 @@
     "packages/web/src/mascot/*.css": ["landing-auth-check.mjs","landing-art-check.mjs","landing-guided-check.mjs","mascot-check.mjs"],
     "packages/web/public/landing/**": ["landing-auth-check.mjs","landing-art-check.mjs","landing-guided-check.mjs","mascot-check.mjs"],
     "packages/web/public/mascot/**": ["landing-auth-check.mjs","landing-art-check.mjs","landing-guided-check.mjs","mascot-check.mjs"],
+    "packages/web/index.html": ["brand-title-check.mjs"],
     "packages/web/design/rabbit-hole-*.html": ["landing-auth-check.mjs","landing-art-check.mjs","landing-guided-check.mjs","mascot-check.mjs"],
     "packages/web/design/rabbit-hole.css": ["landing-auth-check.mjs","landing-art-check.mjs","landing-guided-check.mjs","mascot-check.mjs"],
     "packages/web/design/rabbit-character/**": ["landing-auth-check.mjs","landing-art-check.mjs","landing-guided-check.mjs","mascot-check.mjs"],
@@ -809,6 +810,7 @@
   ],
   "secondsSource": "Linux checks: their own run time in fast-e2e run 38501772960 (Task B4), rounded up to 5 s, at least 10; windows-only: placeholder",
   "checks": {
+    "brand-title-check.mjs": {"runner":"fork","seconds":30},
     "client-telemetry-check.mjs": {"runner": "fork", "seconds": 60},
     "tutor-telemetry-check.mjs": {"runner": "fork", "seconds": 40},
     "owner-telemetry-check.mjs": {"runner": "fork", "seconds": 60},

@@ -32,5 +32,14 @@ if (!existsSync(renderEntry)) failures.push('missing the /explain render entry r
 else for (const [, ref] of readFileSync(renderEntry, 'utf8').matchAll(/(?:src|href)="([^"]+)"/g)) {
   if (!/^\/static\/[A-Za-z0-9._-]+\.(js|css|woff2?|ttf)$/.test(ref)) failures.push(`render/scene.html references ${ref}, which the render interception would block`);
 }
+// The tab names Rabbit Hole in the BUILT HTML, so the brand never waits for JavaScript (main.jsx also sets it, too late for a cold load or a
+// failed bundle): the app shell is exactly "Rabbit Hole" and every landing, auth, support and docs page names it, none the legacy "small deploy".
+const built = new URL(`../${process.env.DIST || 'dist-dev'}/`, import.meta.url);
+const titleOf = file => existsSync(new URL(file, built)) ? readFileSync(new URL(file, built), 'utf8').match(/<title[^>]*>([^<]*)<\/title>/)?.[1] : undefined;
+if (titleOf('index.html') !== 'Rabbit Hole') failures.push(`index.html is titled ${JSON.stringify(titleOf('index.html'))}, not "Rabbit Hole"`);
+for (const page of ['hero', 'blog', 'features', 'pricing', 'manifesto', 'auth', 'team', 'support', 'docs']) {
+  const title = titleOf(`design/rabbit-hole-${page}.html`);
+  if (!/^(.+ \| )?Rabbit Hole$/.test(title || '')) failures.push(`design/rabbit-hole-${page}.html is titled ${JSON.stringify(title)}`);
+}
 if (failures.length) { console.log(failures.join('\n')); process.exit(1); }
 console.log('ok: the production build ships the Learn app and no dev-only tools');
