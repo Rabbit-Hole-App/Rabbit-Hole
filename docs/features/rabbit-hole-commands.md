@@ -101,8 +101,8 @@ internal: true })` reach them; nothing a learner types does.
 ## /motion replaces /animate (owner, 2026-10-20, lane L8)
 
 **/motion** is the command for the Motion explainer-video pipeline: the existing `motion_request` operation, which the Motion
-orchestrator plans, reviews and renders (rabbit-hole-motion-v1-harness-spec.md). Menu line "Create an animated explainer
-video", pill "Motion", Create menu in /animate's place, Slash commands window "AI-generated", e.g. `/motion 15s explain me
+orchestrator plans, reviews and renders (rabbit-hole-motion-v1-harness-spec.md). Menu line and pill "Animated explainer"
+(owner, 2026-10-26; they were "Create an animated explainer video" and "Motion"; the id stays `motion`), Create menu in /animate's place, Slash commands window "AI-generated", e.g. `/motion 15s explain me
 softmax func`. The proposal makes no request; Generate inserts the video card already confirmed; LearnVideos keeps the paid
 gate (`confirmed`), one generating job at a time and the saved-video limit; the orchestrator keeps its call cap and budget.
 

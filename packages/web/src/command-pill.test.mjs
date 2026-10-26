@@ -33,8 +33,8 @@ test('the pill is the command\'s label in its tint, with a remove button named b
   // A saved draft or message naming a removed command still renders as words, never a /name and never a crash.
   assert.match(html({ name: 'simplify' }), /font-medium">Simplify<\/span>.*aria-label="Remove Simplify"/);
   assert.match(html({ name: 'cad' }), /font-medium">CAD<\/span>/);
-  // /motion's pill says Motion, never /motion (owner, 2026-10-20).
-  assert.match(html({ name: 'motion' }), /data-command-pill="motion"[^>]*>.*font-medium">Motion<\/span>.*aria-label="Remove Motion"/);
+  // /motion's pill says Animated explainer (owner, 2026-10-26; Motion until then), never /motion.
+  assert.match(html({ name: 'motion' }), /data-command-pill="motion"[^>]*>.*font-medium">Animated explainer<\/span>.*aria-label="Remove Animated explainer"/);
   assert.doesNotMatch(html({ name: 'motion', onOpen: () => {} }), />\/motion</);
   assert.match(html({ name: 'video' }), /aria-label="Remove Generate video"/);
   assert.match(html({ name: 'youtube' }), /aria-label="Remove Search YouTube"/);

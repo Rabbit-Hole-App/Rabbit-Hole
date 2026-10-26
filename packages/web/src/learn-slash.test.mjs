@@ -23,7 +23,7 @@ test('/ opens the grouped picker: LEARN, CREATE, SEARCH, then every other comman
   assert.deepEqual(sections[0].items.map(item => item.name), ['dive', 'practice', 'quiz', 'goal']);
   assert.deepEqual(sections[1].items.map(item => item.name), ['explain', 'code', 'graph', 'diagram', 'flashcards', 'notebook']);
   // /motion takes /animate's place in a development or review build (owner, 2026-10-20), with the owner's words.
-  assert.deepEqual(pickerSections('/', { motionDev: true })[1].items.slice(3, 6), [{ name: 'diagram', desc: 'Add a diagram' }, { name: 'motion', desc: 'Create an animated explainer video' }, { name: 'flashcards', desc: 'Add flashcards' }]);
+  assert.deepEqual(pickerSections('/', { motionDev: true })[1].items.slice(3, 6), [{ name: 'diagram', desc: 'Add a diagram' }, { name: 'motion', desc: 'Animated explainer' }, { name: 'flashcards', desc: 'Add flashcards' }]);
   assert.deepEqual(pickerSections('/anim', { motionDev: true }), [], '/animate is not offered');
   // Owner, 2026-10-20: the photo search leads the searches (owner, 2026-10-26: it is typed /photos, id image); /arxiv is the one paper search.
   assert.deepEqual(sections[2].items, [{ name: 'image', desc: 'Search photos' }, { name: 'youtube', desc: 'Search YouTube' }, { name: 'arxiv', desc: 'Search arXiv' }, { name: 'wikipedia', desc: 'Search Wikipedia' }]);

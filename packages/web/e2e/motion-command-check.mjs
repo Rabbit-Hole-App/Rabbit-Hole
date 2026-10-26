@@ -4,8 +4,8 @@
 // MOTION=on (default; the stack's development build, VITE_COACHING_DEV, offers /motion). Per theme:
 //   0. saved /animate work still renders, first on a fresh page: a maths-animation video card made by /animate and an animation
 //      scene card, nothing regenerated;
-//   1. discovery: the Chat picker lists /motion under Create, "Create an animated explainer video", and no /animate;
-//   2. the selected pill reads Motion (no /) with Remove Motion, picked or typed;
+//   1. discovery: the Chat picker lists /motion under Create, "Animated explainer", and no /animate;
+//   2. the selected pill reads Animated explainer (no /) with Remove Animated explainer, picked or typed;
 //   3. typed /motion (MOT-20/UI-15, owner messages 39 and 40) is a chat turn: the chat answer (MOCKED /api/learn/ask, a proposal
 //      in answer_meta) draws the generation proposal card: title, Duration, Audio Off with On disabled, the server's credits line
 //      and one Generate, no Cancel; a duration change saves version 2 (MOCKED PUT .../proposal); Duration offers exactly 5 to 60 in
@@ -318,11 +318,11 @@ for (const theme of ['light', 'dark']) {
   await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 });
   await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 30000 });
 
-  await step(`${theme}: discovery: /motion is under Create with "Create an animated explainer video"; no /animate`, async () => {
+  await step(`${theme}: discovery: /motion is under Create with "Animated explainer"; no /animate`, async () => {
     const rows = await pickerRows();
     assert.ok(rows.includes('motion') && !rows.includes('animate'), rows.join(' '));
     assert.ok(rows.indexOf('diagram') < rows.indexOf('motion') && rows.indexOf('motion') < rows.indexOf('flashcards'), `Create order: ${rows.join(' ')}`);
-    assert.equal((await picker.locator('[data-slash-command="motion"]').innerText()).replace(/\s+/g, ' ').trim(), '/motion Create an animated explainer video');
+    assert.equal((await picker.locator('[data-slash-command="motion"]').innerText()).replace(/\s+/g, ' ').trim(), '/motion Animated explainer');
     await picker.locator('[data-slash-command="motion"]').scrollIntoViewIfNeeded();
     await shot('01-picker');
     await composer().fill('/anim');
@@ -332,18 +332,18 @@ for (const theme of ['light', 'dark']) {
     await composer().fill('');
   });
 
-  await step(`${theme}: the selected pill reads Motion, never /motion, picked or typed`, async () => {
+  await step(`${theme}: the selected pill reads Animated explainer, never /motion, picked or typed`, async () => {
     await composer().fill('/');
     await picker.locator('[data-slash-command="motion"]').click();
     await pill.waitFor();
-    assert.deepEqual([await pill.getAttribute('data-command-pill'), (await pill.innerText()).trim()], ['motion', 'Motion']);
-    assert.equal(await dock.getByRole('button', { name: 'Remove Motion', exact: true }).count(), 1);
+    assert.deepEqual([await pill.getAttribute('data-command-pill'), (await pill.innerText()).trim()], ['motion', 'Animated explainer']);
+    assert.equal(await dock.getByRole('button', { name: 'Remove Animated explainer', exact: true }).count(), 1);
     await shot('02-pill-picked');
-    await dock.getByRole('button', { name: 'Remove Motion', exact: true }).click();
+    await dock.getByRole('button', { name: 'Remove Animated explainer', exact: true }).click();
     await composer().fill('/motion ');
     await pill.waitFor();
-    assert.deepEqual([await pill.getAttribute('data-command-pill'), (await pill.innerText()).trim()], ['motion', 'Motion']);
-    await dock.getByRole('button', { name: 'Remove Motion', exact: true }).click();
+    assert.deepEqual([await pill.getAttribute('data-command-pill'), (await pill.innerText()).trim()], ['motion', 'Animated explainer']);
+    await dock.getByRole('button', { name: 'Remove Animated explainer', exact: true }).click();
     await composer().fill('');
   });
 
@@ -657,7 +657,7 @@ for (const theme of ['light', 'dark']) {
     // The committed clip, fetched once as a plain GET and played from memory.
     assert.ok((await video.getAttribute('src')).startsWith('blob:'), await video.getAttribute('src'));
     assert.deepEqual(seen.slice(before).filter(r => r.path === CLIP).map(r => r.method), ['GET']);
-    assert.equal((await sheet.locator('[data-slash-label]').innerText()).trim(), 'Create an animated explainer video');
+    assert.equal((await sheet.locator('[data-slash-label]').innerText()).trim(), 'Animated explainer');
     assert.equal((await sheet.locator('[data-slash-media]').innerText()).trim(), 'AI-generated');
     assert.match(await sheet.locator('[data-slash-about]').innerText(), /^Creates an animated explainer video card/);
     assert.match(await sheet.innerText(), new RegExp(`e\\.g\\. ${LINE}`));
