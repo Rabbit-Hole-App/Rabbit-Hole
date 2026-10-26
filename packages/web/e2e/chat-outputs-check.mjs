@@ -498,17 +498,30 @@ await step('a chip attached and a mode switched while the saved chat is still re
       throw Error(`${error.message}: the server's thread ${now?.id === saved.id ? 'is the one seeded' : `is ${now?.id}, not the seeded ${saved.id}`} and holds refs ${JSON.stringify(now?.contextRefs?.map(ref => ref.sourceId))}; the chip is ${sourceId}`);
     });
     await until(async () => (await tutorMode()) === 'auto', 'the mode was not saved to the canvas Tutor controls').catch(async error => { throw Error(`${error.message}: they hold ${await tutorMode()}`); });
-    const before = asks.length;
-    await send(page, 'why is a token id only an index');
-    await until(async () => asks.length > before, 'the next message was not sent to /api/learn/ask');
-    assert.equal(asks.at(-1).mode, 'auto', 'the message names the mode chosen meanwhile');
-    assert.ok(asks.at(-1).context_refs?.some(ref => ref.sourceId === sourceId), 'and carries the chip attached meanwhile');
+    // Auto on a canvas with an active Tutor is the Tutor workflow (chat-route.js tutorTurn): a plan, no /api/learn/ask, and the saved
+    // question names the turn's mode. Only an Ask turn posts /api/learn/ask, which is where the chip rides (below).
+    const turns = [], QUESTION = 'why is a token id only an index', before = { asks: asks.length, plans: plans.length };
+    page.on('request', request => { const path = new URL(request.url()).pathname; if (request.method() === 'POST' && path.startsWith('/api/learn/chat/threads/') && path.endsWith('/messages')) turns.push(request.postDataJSON()); });
+    await send(page, QUESTION);
+    await until(async () => turns.some(turn => turn.role === 'user' && turn.content === QUESTION), 'the question was not saved as a message').catch(error => { throw Error(`${error.message}: saved ${JSON.stringify(turns.map(turn => [turn.role, turn.mode]))}, plans ${plans.length - before.plans}, asks ${asks.length - before.asks}`); });
+    assert.equal(turns.find(turn => turn.role === 'user' && turn.content === QUESTION).mode, 'auto', 'the question names the mode chosen meanwhile');
+    assert.deepEqual([asks.length, plans.length > before.plans], [before.asks, true], 'and, in Auto on this canvas, is a Tutor turn: a plan and no /api/learn/ask');
+    await until(async () => turns.some(turn => turn.role === 'assistant'), 'the Tutor reply was not saved');
     await page.screenshot({ path: `${OUT}/16-chip-and-mode-while-restoring-${THEME}.png` });
     await page.reload();
     await page.locator(`[data-block-id="${OLD.id}"]`).waitFor({ timeout: 60000 });
     await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor();
     await pane(page).locator(`[data-context-chip][data-ref-key="${refKey}"]`).waitFor();
     assert.equal(await modeIs('auto').count(), 1, 'after a reload the thread opens in the same mode');
+    // The chip rides the next message that goes to /api/learn/ask: an Ask turn.
+    await pane(page).getByRole('button', { name: 'Mode', exact: true }).click();
+    await page.getByRole('menuitemradio', { name: /^Ask/ }).click();
+    await modeIs('ask').waitFor();
+    const asked = asks.length;
+    await send(page, 'and why not a one hot vector');
+    await until(async () => asks.length > asked, 'the Ask message was not sent to /api/learn/ask');
+    assert.equal(asks.at(-1).mode, 'ask', 'the Ask message names its mode');
+    assert.ok(asks.at(-1).context_refs?.some(ref => ref.sourceId === sourceId), 'and carries the chip attached while the chat was restoring');
   } finally { release(); threadHold = null; }
   await context.close();
 });
