@@ -38,8 +38,8 @@ test('the seed is a valid sketch of lesson marks that opens whole in a card fram
   assert.equal(new Set(marks.map(mark => mark.id)).size, marks.length);
   assert.ok(marks.every(mark => mark.author === 'lesson' && mark.meta.semanticId && mark.meta.label));
   for (const [id, label] of Object.entries(SEED_LABELS)) assert.equal(label, sigmoidObjects[id].label, id);
-  const open = viewStep(VIEW_START, { type: 'frame', sketch: seed, frame: { w: 560, h: 300 } });
-  assert.deepEqual(open.view, IDENTITY_VIEW, 'nothing is clipped at 100 percent');
+  const open = viewStep(VIEW_START, { type: 'frame', sketch: seed, frame: { w: 500, h: 216 } });
+  assert.deepEqual(open.view, IDENTITY_VIEW, 'nothing is clipped at 100 percent in a frame this small');
 });
 
 test('an edit saves through the contract: the sketch is replaced, the snapshot is carried over untouched, sketchFrom is written once', () => {

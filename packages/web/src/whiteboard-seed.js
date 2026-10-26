@@ -4,8 +4,8 @@ import { roundPoint } from './explain-sketch.js';
 // chat and Ask about selection have something real to point at. It replaces sigmoid-board.js (tldraw shapes) at cutover.
 // Marks are the lesson's (`author: 'lesson'`) and carry the semantic ids the Tutor already knows from sigmoidObjects.
 // The labels repeat sigmoid-context.js sigmoidObjects (a test keeps them equal) so the canvas bundle does not import that module.
-// Sized for the card's frame (about 520 x 300) so it opens whole at 100 percent.
-const LEFT = 60, RIGHT = 470, BOTTOM = 255, TOP = 75;
+// Sized for the card's frame (the 480 px card leaves it about 500 x 230) so it opens whole at 100 percent.
+const LEFT = 60, RIGHT = 440, BOTTOM = 180, TOP = 60;
 const px = x => LEFT + ((x + 6) / 12) * (RIGHT - LEFT);
 const py = y => BOTTOM - y * (BOTTOM - TOP);
 const sigmoid = x => 1 / (1 + Math.exp(-x));
@@ -33,7 +33,7 @@ export function sigmoidSketch() {
     ],
     items: [
       text('title', 'title', 20, 10, 'The sigmoid squashes any score into a probability'),
-      text('equation', 'equation', RIGHT - 150, TOP - 40, 'σ(x) = 1 / (1 + e⁻ˣ)', { color: BLUE }),
+      text('equation', 'equation', RIGHT - 150, TOP - 26, 'σ(x) = 1 / (1 + e⁻ˣ)', { color: BLUE }),
       text('limit-right', 'one', px(0) - 24, py(1) - 24, '1'),
       text('midpoint', 'half', px(0) - 40, py(0.5) - 24, '0.5'),
       text('limit-left', 'zero', px(0) - 24, py(0) + 4, '0'),
