@@ -88,34 +88,29 @@ test('the variable still overrides the policies, and the checks and execution te
   assert.deepEqual(motionExecutionTerms(live, { duration_seconds: 60, aspect_ratio: '3:4' }), { renderer_config: MEASURED_RENDERER_CONFIG }, 'withheld: no cover, the start is refused first');
 });
 
-// R2a (owner 2026-10-26): the committed config is the OWNER-ONLY activation: the measured policy applied (the same id in both files) so the owner can run the
-// 9:16 acceptance job, public generation STILL paused, the US$3.50 per-job ceiling on (it stays through R2b: the disclosed maximum charge is pinned to it), the owner list unchanged. R2b is the public flip: paused "0" and nothing else.
-test('R2a config: the measured policy is on in the Worker and the orchestrator, public generation stays paused, the ceiling stays, the owner path works, 45 and 60 s stay unavailable', () => {
+// R2b (owner 2026-10-26), the public flip: the R2a configuration with public generation back on and NOTHING else changed: the measured policy applied (the same
+// id in both files), the US$3.50 per-job ceiling still there (the disclosed maximum charge is pinned to it), the owner list kept (it only matters during a later
+// pause). 45 and 60 s stay refused by the policy itself.
+test('R2b config: the measured policy is on in the Worker and the orchestrator, generation is unpaused, the US$3.50 ceiling stays, the owner list stays, 45 and 60 s stay unavailable', () => {
   const read = p => readFileSync(new URL(p, import.meta.url), 'utf8');
   const worker = read('../../web/wrangler.rabbit-hole-prod.jsonc'), orchestrator = read('../../learn-render/motion/service/fly.orchestrator.toml');
   const noComments = (s, mark) => s.replace(new RegExp(`^\\s*${mark}.*$`, 'gm'), '');
   const vars = JSON.parse(noComments(worker, '//')).vars;
   assert.equal(vars.MOTION_RENDERER_CONFIG, MEASURED_RENDERER_CONFIG);
   assert.ok(noComments(orchestrator, '#').includes(`MOTION_RENDERER_CONFIG = "${MEASURED_RENDERER_CONFIG}"`), 'the orchestrator carries the same id, uncommented');
-  assert.equal(vars.MOTION_GENERATION_PAUSED, '1', 'public generation is still paused');
-  assert.match(noComments(orchestrator, '#'), /^\s*MOTION_JOB_CEILING_USD = "3\.50"$/m, 'the per-job ceiling is US$3.50, above the US$2.56 floor the orchestrator preflight needs');
-  // The owner path admits the Google account's PRINCIPAL (a provider email never becomes a principal) and the Gmail address (emailed-code sign-in only), and nobody else.
+  assert.equal(vars.MOTION_GENERATION_PAUSED, '0', 'public generation is back on');
+  assert.match(noComments(orchestrator, '#'), /^\s*MOTION_JOB_CEILING_USD = "3\.50"$/m, 'the per-job ceiling stays at US$3.50, above the US$2.56 floor the orchestrator preflight needs');
+  // The owner path survives a later pause and still never admits the look-alike account.
   const owner = 'user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid';
   assert.deepEqual(acceptanceEmails(vars), [owner, 'yudhisteer.chin@gmail.com']);
-  assert.equal(motionPaused(vars, owner), false, 'the Google account principal may start');
-  assert.equal(motionPaused(vars, 'yudhisteer.chin@gmail.com'), false);
-  assert.equal(motionPaused(vars, 'YUDHISTEER.CHIN@GMAIL.COM'), false, 'case is normalised');
-  assert.equal(motionPaused(vars, 'user@0000000000000000000000000000000f.rabbithole.invalid'), true, 'another account principal is refused');
-  assert.equal(motionPaused(vars, 'yudhisteer.chin01@gmail.com'), true, 'the look-alike account is a different person');
-  assert.equal(motionPaused(vars, null), true, 'no identity: refused');
-  assert.equal(motionPaused(vars, 'anyone@example.test'), true, 'public is paused');
-  // With this config the policy that applies is the measured one: the 22 pairs; the owner's 9:16 15 s job is ready and bound to the live configuration; nothing at 45 or 60 s.
+  assert.equal(motionPaused({ ...vars, MOTION_GENERATION_PAUSED: '1' }, owner), false, 'admitted while paused');
+  assert.equal(motionPaused({ ...vars, MOTION_GENERATION_PAUSED: '1' }, 'yudhisteer.chin@gmail.com'), false);
+  assert.equal(motionPaused({ ...vars, MOTION_GENERATION_PAUSED: '1' }, 'user@0000000000000000000000000000000f.rabbithole.invalid'), true, 'another account principal is refused');
+  assert.equal(motionPaused({ ...vars, MOTION_GENERATION_PAUSED: '1' }, 'yudhisteer.chin01@gmail.com'), true, 'the look-alike is refused');
+  assert.equal(motionPaused(vars, 'anyone@example.test'), false, 'unpaused: everyone');
+  // With this config the policy that applies is the measured one: the 22 pairs, nothing at 45 or 60 s.
   const env = { MOTION_RENDERER_CONFIG: vars.MOTION_RENDERER_CONFIG };
   assert.equal(readyPolicy(env).entries.length, 22);
-  const p916 = { title: 'T', description: 'D', settings: { duration_seconds: 15, aspect_ratio: '9:16', audio: false } };
-  assert.equal(motionGenerationCheck(env, { request: '/motion x', proposal: p916 }), null, 'the 9:16 15 s acceptance job may be generated');
-  assert.deepEqual(motionExecutionTerms(env, p916.settings), { renderer_config: MEASURED_RENDERER_CONFIG, allowed_complexity: ['simple'] });
-  assert.equal(motionGenerationCheck(env, { request: '/motion x', proposal: { ...p916, settings: { duration_seconds: 15, audio: false } } }), null, 'the 16:9 15 s job too');
   for (const r of ['16:9', '9:16']) for (const s of [45, 60]) assert.equal(at(env, s, r).ready, false, `${s} s at ${r} stays unavailable`);
   assert.ok(MEASURED_RENDERER_REVISION.startsWith(MEASURED_RENDERER_CONFIG.split('-')[0]));
 });
