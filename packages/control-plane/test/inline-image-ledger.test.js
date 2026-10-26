@@ -143,3 +143,41 @@ test('a provider failure after admission keeps the reservation held (unknown), w
   assert.equal(h.calls.edit, 1);
   assert.equal(h.rows('usage_operations').length, 1);
 });
+
+// Settlement from the provider-reported usage (owner decision 2026-10-26): min(priced usage, reservation), never a flat reservation when usage prices.
+const USAGE = { input_tokens: 1300, output_tokens: 196, total_tokens: 1496, input_tokens_details: { text_tokens: 100, image_tokens: 1200 } }; // 100 x 5 + 1200 x 8 + 196 x 30 = 15,980 micros
+async function deliver(t, { usage, reserve = RESERVE_USD }) {
+  const h = harness(t, { INLINE_IMAGE_EDIT_RESERVED_USD: String(reserve) });
+  h.deps.edit = async () => { h.calls.edit++; return { bytes: new Uint8Array([4]), mimeType: 'image/png', validation: 'png-pixels', ...(usage === undefined ? {} : { usage }) }; };
+  const { job } = await (await h.submit({ maxReservedCredits: reserve * 100 })).json();
+  await imageJobAlarm(h.state, h.env, h.deps);
+  return { h, job: (await (await h.call(job.id, 'status')).json()).job, operation: h.rows('usage_operations')[0], attempt: h.rows('usage_attempts')[0] };
+}
+
+test('reconciled provider usage settles at its priced cost, not the reservation', async t => {
+  const { job, operation, attempt } = await deliver(t, { usage: USAGE });
+  assert.equal(job.phase, 'ready');
+  assert.equal(job.reservation, 'settled_at_usage_cost');
+  assert.equal(operation.cost_usd, 0.01598);
+  assert.equal(attempt.cost_micros, 15980);
+  assert.equal(attempt.cost_state, 'settled');
+  assert.equal(attempt.reserved_micros, RESERVE_USD * 1e6, 'the hold was the reservation; only the charge shrank');
+  assert.deepEqual([attempt.input_tokens, attempt.output_tokens], [1300, 196]);
+});
+
+test('usage that costs more than the approved reservation is clipped to it, never charged above it', async t => {
+  const { h, job, operation, attempt } = await deliver(t, { usage: USAGE, reserve: 0.01 });
+  assert.equal(job.reservation, 'settled_at_usage_cost');
+  assert.equal(h.records.get(`image-edit:${job.id}`).costClippedToReservation, true);
+  assert.equal(operation.cost_usd, 0.01);
+  assert.equal(attempt.cost_micros, 10000);
+});
+
+test('missing, malformed or unpriceable usage keeps the hold at the reservation as unknown cost: never zero', async t => {
+  for (const usage of [undefined, null, {}, { input_tokens: -1, output_tokens: 5 }, { input_tokens: 'x', output_tokens: 5 }, { output_tokens: 196 }]) {
+    const { job, operation, attempt } = await deliver(t, { usage });
+    assert.equal(job.reservation, 'settled_at_reserved_bound', JSON.stringify(usage));
+    assert.equal(operation.cost_usd, RESERVE_USD, JSON.stringify(usage));
+    assert.equal(attempt.cost_state, 'unknown', JSON.stringify(usage));
+  }
+});
