@@ -1,0 +1,573 @@
+{
+ "document": {
+  "store": {
+   "shape:locked": {
+    "id": "shape:locked",
+    "typeName": "shape",
+    "type": "geo",
+    "x": 40,
+    "y": 300,
+    "rotation": 0,
+    "index": "a6",
+    "parentId": "page:page",
+    "isLocked": true,
+    "opacity": 1,
+    "props": {
+     "geo": "cloud",
+     "dash": "draw",
+     "url": "",
+     "w": 120,
+     "h": 80,
+     "growY": 0,
+     "scale": 1,
+     "flipX": false,
+     "flipY": false,
+     "labelColor": "black",
+     "color": "light-blue",
+     "fill": "solid",
+     "size": "m",
+     "font": "draw",
+     "align": "middle",
+     "verticalAlign": "middle",
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "locked cloud"
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {}
+   },
+   "shape:chart": {
+    "id": "shape:chart",
+    "typeName": "shape",
+    "type": "interactive-graph",
+    "x": 400,
+    "y": 420,
+    "rotation": 0,
+    "index": "a9",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "w": 300,
+     "h": 200,
+     "spec": {
+      "renderer": "desmos",
+      "title": "Loss surface"
+     },
+     "state": {},
+     "app": "learn"
+    },
+    "meta": {
+     "author": "assistant",
+     "explanationId": "f3a1c2d4-0000-4000-8000-000000000001",
+     "objectId": "explanation-f3a1c2d4-0",
+     "label": "Gradient descent",
+     "originalText": "Step downhill along the slope.",
+     "kind": "graph",
+     "renderStatus": "complete",
+     "runId": "run-1",
+     "lessonId": "lesson-1",
+     "relatedObjectIds": [
+      "explanation-f3a1c2d4-1"
+     ],
+     "graphOperation": true
+    }
+   },
+   "shape:t-title": {
+    "id": "shape:t-title",
+    "typeName": "shape",
+    "type": "text",
+    "x": 0,
+    "y": 0,
+    "rotation": 0,
+    "index": "a0",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "black",
+     "size": "m",
+     "font": "draw",
+     "textAlign": "start",
+     "w": 200,
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "Gradient descent"
+         }
+        ]
+       }
+      ]
+     },
+     "scale": 1,
+     "autoSize": true
+    },
+    "meta": {
+     "author": "assistant",
+     "explanationId": "f3a1c2d4-0000-4000-8000-000000000001",
+     "objectId": "explanation-f3a1c2d4-0",
+     "label": "Gradient descent",
+     "originalText": "Step downhill along the slope.",
+     "kind": "diagram",
+     "renderStatus": "complete",
+     "runId": "run-1",
+     "lessonId": "lesson-1",
+     "relatedObjectIds": [
+      "explanation-f3a1c2d4-1"
+     ]
+    }
+   },
+   "shape:learner-note": {
+    "id": "shape:learner-note",
+    "typeName": "shape",
+    "type": "text",
+    "x": 400,
+    "y": 300,
+    "rotation": 0,
+    "index": "a5",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "black",
+     "size": "m",
+     "font": "draw",
+     "textAlign": "start",
+     "w": 200,
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "mine"
+         }
+        ]
+       }
+      ]
+     },
+     "scale": 1,
+     "autoSize": true
+    },
+    "meta": {
+     "author": "learner"
+    }
+   },
+   "shape:legacy-tutor": {
+    "id": "shape:legacy-tutor",
+    "typeName": "shape",
+    "type": "note",
+    "x": 400,
+    "y": 0,
+    "rotation": 0,
+    "index": "a4",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "yellow",
+     "labelColor": "black",
+     "size": "m",
+     "font": "draw",
+     "fontSizeAdjustment": 0,
+     "align": "middle",
+     "verticalAlign": "middle",
+     "growY": 0,
+     "url": "",
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "older author name"
+         }
+        ]
+       }
+      ]
+     },
+     "scale": 1,
+     "textLastEditedBy": null
+    },
+    "meta": {
+     "author": "tutor"
+    }
+   },
+   "shape:t-node": {
+    "id": "shape:t-node",
+    "typeName": "shape",
+    "type": "geo",
+    "x": 0,
+    "y": 70,
+    "rotation": 0,
+    "index": "a1",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "geo": "rectangle",
+     "dash": "draw",
+     "url": "",
+     "w": 170,
+     "h": 160,
+     "growY": 0,
+     "scale": 1,
+     "flipX": false,
+     "flipY": false,
+     "labelColor": "black",
+     "color": "blue",
+     "fill": "semi",
+     "size": "s",
+     "font": "sans",
+     "align": "middle",
+     "verticalAlign": "middle",
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "step"
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {
+     "author": "assistant",
+     "explanationId": "f3a1c2d4-0000-4000-8000-000000000001",
+     "objectId": "explanation-f3a1c2d4-0",
+     "label": "Gradient descent",
+     "originalText": "Step downhill along the slope.",
+     "kind": "diagram",
+     "renderStatus": "complete",
+     "runId": "run-1",
+     "lessonId": "lesson-1",
+     "relatedObjectIds": [
+      "explanation-f3a1c2d4-1"
+     ]
+    }
+   },
+   "shape:t-draw": {
+    "id": "shape:t-draw",
+    "typeName": "shape",
+    "type": "draw",
+    "x": 300,
+    "y": 0,
+    "rotation": 0,
+    "index": "a3",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "red",
+     "size": "m",
+     "dash": "draw",
+     "fill": "none",
+     "segments": [
+      {
+       "type": "free",
+       "path": "AAAAAAAAAAAAAAA/AFEAUQAA"
+      }
+     ],
+     "isComplete": true,
+     "isClosed": false,
+     "isPen": false,
+     "scale": 1,
+     "scaleX": 1,
+     "scaleY": 1
+    },
+    "meta": {
+     "author": "assistant",
+     "explanationId": "f3a1c2d4-0000-4000-8000-000000000001",
+     "objectId": "explanation-f3a1c2d4-0",
+     "label": "Gradient descent",
+     "originalText": "Step downhill along the slope.",
+     "kind": "image",
+     "renderStatus": "complete",
+     "runId": "run-1",
+     "lessonId": "lesson-1",
+     "relatedObjectIds": [
+      "explanation-f3a1c2d4-1"
+     ]
+    }
+   },
+   "shape:pattern": {
+    "id": "shape:pattern",
+    "typeName": "shape",
+    "type": "geo",
+    "x": 40,
+    "y": 420,
+    "rotation": 0,
+    "index": "a8",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "geo": "rectangle",
+     "dash": "draw",
+     "url": "",
+     "w": 100,
+     "h": 60,
+     "growY": 0,
+     "scale": 1,
+     "flipX": false,
+     "flipY": false,
+     "labelColor": "black",
+     "color": "green",
+     "fill": "pattern",
+     "size": "m",
+     "font": "draw",
+     "align": "middle",
+     "verticalAlign": "middle",
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph"
+       }
+      ]
+     }
+    },
+    "meta": {}
+   },
+   "shape:t-arrow": {
+    "id": "shape:t-arrow",
+    "typeName": "shape",
+    "type": "arrow",
+    "x": 178,
+    "y": 150,
+    "rotation": 0,
+    "index": "a2",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "kind": "arc",
+     "labelColor": "black",
+     "color": "blue",
+     "fill": "none",
+     "dash": "draw",
+     "size": "s",
+     "arrowheadStart": "none",
+     "arrowheadEnd": "arrow",
+     "font": "draw",
+     "start": {
+      "x": 0,
+      "y": 0
+     },
+     "end": {
+      "x": 60,
+      "y": 0
+     },
+     "bend": 0,
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph"
+       }
+      ]
+     },
+     "labelPosition": 0.5,
+     "scale": 1,
+     "elbowMidPoint": 0.5
+    },
+    "meta": {
+     "author": "assistant",
+     "explanationId": "f3a1c2d4-0000-4000-8000-000000000001",
+     "objectId": "explanation-f3a1c2d4-0",
+     "label": "Gradient descent",
+     "originalText": "Step downhill along the slope.",
+     "kind": "diagram",
+     "renderStatus": "complete",
+     "runId": "run-1",
+     "lessonId": "lesson-1",
+     "relatedObjectIds": [
+      "explanation-f3a1c2d4-1"
+     ]
+    }
+   },
+   "page:page": {
+    "meta": {},
+    "id": "page:page",
+    "name": "Page 1",
+    "index": "a1",
+    "typeName": "page"
+   },
+   "document:document": {
+    "gridSize": 10,
+    "name": "",
+    "meta": {},
+    "id": "document:document",
+    "typeName": "document"
+   },
+   "shape:faint": {
+    "id": "shape:faint",
+    "typeName": "shape",
+    "type": "geo",
+    "x": 200,
+    "y": 300,
+    "rotation": 0,
+    "index": "a7",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 0.5,
+    "props": {
+     "geo": "heart",
+     "dash": "draw",
+     "url": "",
+     "w": 80,
+     "h": 80,
+     "growY": 0,
+     "scale": 1,
+     "flipX": false,
+     "flipY": false,
+     "labelColor": "black",
+     "color": "light-red",
+     "fill": "fill",
+     "size": "m",
+     "font": "draw",
+     "align": "middle",
+     "verticalAlign": "middle",
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph"
+       }
+      ]
+     }
+    },
+    "meta": {
+     "custom": {
+      "nested": [
+       1,
+       2,
+       {
+        "deep": true
+       }
+      ]
+     },
+     "note": "<b>raw</b> & \"quoted\""
+    }
+   },
+   "shape:from-the-future": {
+    "id": "shape:from-the-future",
+    "typeName": "shape",
+    "type": "hologram",
+    "x": 0,
+    "y": 70,
+    "rotation": 0,
+    "index": "aZ",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "w": 10,
+     "h": 10
+    },
+    "meta": {
+     "author": "assistant",
+     "explanationId": "f3a1c2d4-0000-4000-8000-000000000001",
+     "objectId": "explanation-f3a1c2d4-0",
+     "label": "Gradient descent",
+     "originalText": "Step downhill along the slope.",
+     "kind": "diagram",
+     "renderStatus": "complete",
+     "runId": "run-1",
+     "lessonId": "lesson-1",
+     "relatedObjectIds": [
+      "explanation-f3a1c2d4-1"
+     ]
+    }
+   },
+   "mystery:record": {
+    "id": "mystery:record",
+    "typeName": "mystery",
+    "payload": {
+     "anything": true
+    }
+   }
+  },
+  "schema": {
+   "schemaVersion": 2,
+   "sequences": {
+    "com.tldraw.store": 5,
+    "com.tldraw.asset": 1,
+    "com.tldraw.camera": 1,
+    "com.tldraw.document": 2,
+    "com.tldraw.instance": 26,
+    "com.tldraw.instance_page_state": 5,
+    "com.tldraw.page": 1,
+    "com.tldraw.instance_presence": 6,
+    "com.tldraw.pointer": 1,
+    "com.tldraw.shape": 4,
+    "com.tldraw.user": 1,
+    "com.tldraw.asset.image": 6,
+    "com.tldraw.asset.video": 5,
+    "com.tldraw.asset.bookmark": 2,
+    "com.tldraw.shape.arrow": 8,
+    "com.tldraw.shape.bookmark": 2,
+    "com.tldraw.shape.draw": 5,
+    "com.tldraw.shape.embed": 4,
+    "com.tldraw.shape.frame": 1,
+    "com.tldraw.shape.geo": 12,
+    "com.tldraw.shape.group": 0,
+    "com.tldraw.shape.highlight": 4,
+    "com.tldraw.shape.image": 5,
+    "com.tldraw.shape.line": 5,
+    "com.tldraw.shape.note": 13,
+    "com.tldraw.shape.text": 4,
+    "com.tldraw.shape.video": 4,
+    "com.tldraw.shape.three-d-viewer": 0,
+    "com.tldraw.shape.interactive-graph": 0,
+    "com.tldraw.shape.learn-video-pending": 0,
+    "com.tldraw.binding.arrow": 1
+   }
+  }
+ },
+ "session": {
+  "version": 1,
+  "currentPageId": "page:page",
+  "exportBackground": true,
+  "isFocusMode": false,
+  "isDebugMode": false,
+  "isToolLocked": false,
+  "isGridMode": false,
+  "pageStates": [
+   {
+    "pageId": "page:page",
+    "camera": {
+     "x": 0,
+     "y": 0,
+     "z": 1
+    },
+    "selectedShapeIds": [],
+    "focusedGroupId": null
+   }
+  ]
+ }
+}

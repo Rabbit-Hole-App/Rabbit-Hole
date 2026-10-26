@@ -1,0 +1,492 @@
+{
+ "document": {
+  "store": {
+   "shape:midpoint": {
+    "id": "shape:midpoint",
+    "typeName": "shape",
+    "type": "draw",
+    "x": 0,
+    "y": 0,
+    "rotation": 0,
+    "index": "a4",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "grey",
+     "size": "s",
+     "dash": "dashed",
+     "fill": "none",
+     "segments": [
+      {
+       "type": "free",
+       "path": "AADwQgAAUkMAAAA/EGAAAAAA"
+      }
+     ],
+     "isComplete": true,
+     "isClosed": false,
+     "isPen": false,
+     "scale": 1,
+     "scaleX": 1,
+     "scaleY": 1
+    },
+    "meta": {
+     "author": "lesson",
+     "semanticId": "midpoint",
+     "label": "midpoint"
+    }
+   },
+   "shape:zero": {
+    "id": "shape:zero",
+    "typeName": "shape",
+    "type": "text",
+    "x": 354,
+    "y": 318,
+    "rotation": 0,
+    "index": "a9",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "black",
+     "size": "s",
+     "font": "draw",
+     "textAlign": "start",
+     "w": 200,
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "0"
+         }
+        ]
+       }
+      ]
+     },
+     "scale": 1,
+     "autoSize": true
+    },
+    "meta": {
+     "author": "lesson",
+     "semanticId": "limit-left",
+     "label": "limit-left"
+    }
+   },
+   "shape:equation": {
+    "id": "shape:equation",
+    "typeName": "shape",
+    "type": "text",
+    "x": 490,
+    "y": 30,
+    "rotation": 0,
+    "index": "a6",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "blue",
+     "size": "m",
+     "font": "draw",
+     "textAlign": "start",
+     "w": 200,
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "σ(x) = 1 / (1 + e⁻ˣ)"
+         }
+        ]
+       }
+      ]
+     },
+     "scale": 1,
+     "autoSize": true
+    },
+    "meta": {
+     "author": "lesson",
+     "semanticId": "equation",
+     "label": "equation"
+    }
+   },
+   "shape:axes-x": {
+    "id": "shape:axes-x",
+    "typeName": "shape",
+    "type": "draw",
+    "x": 0,
+    "y": 0,
+    "rotation": 0,
+    "index": "a1",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "grey",
+     "size": "s",
+     "dash": "draw",
+     "fill": "none",
+     "segments": [
+      {
+       "type": "free",
+       "path": "AADwQgAApUMAAAA/EGAAAAAA"
+      }
+     ],
+     "isComplete": true,
+     "isClosed": false,
+     "isPen": false,
+     "scale": 1,
+     "scaleX": 1,
+     "scaleY": 1
+    },
+    "meta": {
+     "author": "lesson",
+     "semanticId": "axes-x",
+     "label": "axes-x"
+    }
+   },
+   "shape:axes-y": {
+    "id": "shape:axes-y",
+    "typeName": "shape",
+    "type": "draw",
+    "x": 0,
+    "y": 0,
+    "rotation": 0,
+    "index": "a2",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "grey",
+     "size": "s",
+     "dash": "draw",
+     "fill": "none",
+     "segments": [
+      {
+       "type": "free",
+       "path": "AAC+QwAAjEIAAAA/AABgXAAA"
+      }
+     ],
+     "isComplete": true,
+     "isClosed": false,
+     "isPen": false,
+     "scale": 1,
+     "scaleX": 1,
+     "scaleY": 1
+    },
+    "meta": {
+     "author": "lesson",
+     "semanticId": "axes-y",
+     "label": "axes-y"
+    }
+   },
+   "shape:half": {
+    "id": "shape:half",
+    "typeName": "shape",
+    "type": "text",
+    "x": 338,
+    "y": 198,
+    "rotation": 0,
+    "index": "a8",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "black",
+     "size": "s",
+     "font": "draw",
+     "textAlign": "start",
+     "w": 200,
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "0.5"
+         }
+        ]
+       }
+      ]
+     },
+     "scale": 1,
+     "autoSize": true
+    },
+    "meta": {
+     "author": "lesson",
+     "semanticId": "midpoint",
+     "label": "midpoint"
+    }
+   },
+   "shape:one": {
+    "id": "shape:one",
+    "typeName": "shape",
+    "type": "text",
+    "x": 354,
+    "y": 78,
+    "rotation": 0,
+    "index": "a7",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "black",
+     "size": "s",
+     "font": "draw",
+     "textAlign": "start",
+     "w": 200,
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "1"
+         }
+        ]
+       }
+      ]
+     },
+     "scale": 1,
+     "autoSize": true
+    },
+    "meta": {
+     "author": "lesson",
+     "semanticId": "limit-right",
+     "label": "limit-right"
+    }
+   },
+   "shape:limit-right": {
+    "id": "shape:limit-right",
+    "typeName": "shape",
+    "type": "draw",
+    "x": 0,
+    "y": 0,
+    "rotation": 0,
+    "index": "a3",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "grey",
+     "size": "s",
+     "dash": "dotted",
+     "fill": "none",
+     "segments": [
+      {
+       "type": "free",
+       "path": "AADwQgAAtEIAAAA/EGAAAAAA"
+      }
+     ],
+     "isComplete": true,
+     "isClosed": false,
+     "isPen": false,
+     "scale": 1,
+     "scaleX": 1,
+     "scaleY": 1
+    },
+    "meta": {
+     "author": "lesson",
+     "semanticId": "limit-right",
+     "label": "limit-right"
+    }
+   },
+   "shape:curve": {
+    "id": "shape:curve",
+    "typeName": "shape",
+    "type": "draw",
+    "x": 0,
+    "y": 0,
+    "rotation": 0,
+    "index": "a5",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "blue",
+     "size": "m",
+     "dash": "draw",
+     "fill": "none",
+     "segments": [
+      {
+       "type": "free",
+       "path": "AAAMQwu0pEMAAAA/AEgxsAAAAEgdsQAAAEg9sgAAAEiaswAAAEiitAAAAEiltQAAAEjftgAAAEguuAAAAEgUuQAAAEgrugAAAEh7uwAAAEiHvAAAAEh4vQAAAEiYvgAAAEjuvwAAAEjAwAAAAEiswQAAAEi9wgAAAEj1wwAAAEirxAAAAEhwxQAAAEhFxgAAAEgpxwAAAEgKyAAAAEh/yAAAAEjuyAAAAEhRyQAAAEijyQAAAEjdyQAAAEj7yQAAAEj7yQAAAEjdyQAAAEijyQAAAEhRyQAAAEjuyAAAAEh/yAAAAEgKyAAAAEgpxwAAAEhFxgAAAEhwxQAAAEirxAAAAEj1wwAAAEi9wgAAAEiswQAAAEjAwAAAAEjuvwAAAEiYvgAAAEh4vQAAAEiHvAAAAEh7uwAAAEgrugAAAEgUuQAAAEguuAAAAEjftgAAAEiltQAAAEiitAAAAEiaswAAAEg9sgAAAEgdsQAAAEgxsAAA"
+      }
+     ],
+     "isComplete": true,
+     "isClosed": false,
+     "isPen": false,
+     "scale": 1,
+     "scaleX": 1,
+     "scaleY": 1
+    },
+    "meta": {
+     "author": "lesson",
+     "semanticId": "curve",
+     "label": "curve"
+    }
+   },
+   "page:page": {
+    "meta": {},
+    "id": "page:page",
+    "name": "Page 1",
+    "index": "a1",
+    "typeName": "page"
+   },
+   "document:document": {
+    "gridSize": 10,
+    "name": "",
+    "meta": {},
+    "id": "document:document",
+    "typeName": "document"
+   },
+   "shape:title": {
+    "id": "shape:title",
+    "typeName": "shape",
+    "type": "text",
+    "x": 120,
+    "y": 34,
+    "rotation": 0,
+    "index": "a0",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "black",
+     "size": "m",
+     "font": "draw",
+     "textAlign": "start",
+     "w": 200,
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "The sigmoid squashes any score into a probability"
+         }
+        ]
+       }
+      ]
+     },
+     "scale": 1,
+     "autoSize": true
+    },
+    "meta": {
+     "author": "lesson",
+     "semanticId": "title",
+     "label": "title"
+    }
+   },
+   "shape:x": {
+    "id": "shape:x",
+    "typeName": "shape",
+    "type": "text",
+    "x": 644,
+    "y": 318,
+    "rotation": 0,
+    "index": "aA",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "grey",
+     "size": "s",
+     "font": "draw",
+     "textAlign": "start",
+     "w": 200,
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ]
+     },
+     "scale": 1,
+     "autoSize": true
+    },
+    "meta": {
+     "author": "lesson",
+     "semanticId": "axes-x",
+     "label": "axes-x"
+    }
+   }
+  },
+  "schema": {
+   "schemaVersion": 2,
+   "sequences": {
+    "com.tldraw.store": 5,
+    "com.tldraw.asset": 1,
+    "com.tldraw.camera": 1,
+    "com.tldraw.document": 2,
+    "com.tldraw.instance": 26,
+    "com.tldraw.instance_page_state": 5,
+    "com.tldraw.page": 1,
+    "com.tldraw.instance_presence": 6,
+    "com.tldraw.pointer": 1,
+    "com.tldraw.shape": 4,
+    "com.tldraw.user": 1,
+    "com.tldraw.asset.image": 6,
+    "com.tldraw.asset.video": 5,
+    "com.tldraw.asset.bookmark": 2,
+    "com.tldraw.shape.arrow": 8,
+    "com.tldraw.shape.bookmark": 2,
+    "com.tldraw.shape.draw": 5,
+    "com.tldraw.shape.embed": 4,
+    "com.tldraw.shape.frame": 1,
+    "com.tldraw.shape.geo": 12,
+    "com.tldraw.shape.group": 0,
+    "com.tldraw.shape.highlight": 4,
+    "com.tldraw.shape.image": 5,
+    "com.tldraw.shape.line": 5,
+    "com.tldraw.shape.note": 13,
+    "com.tldraw.shape.text": 4,
+    "com.tldraw.shape.video": 4,
+    "com.tldraw.shape.three-d-viewer": 0,
+    "com.tldraw.shape.interactive-graph": 0,
+    "com.tldraw.shape.learn-video-pending": 0,
+    "com.tldraw.binding.arrow": 1
+   }
+  }
+ },
+ "session": {
+  "version": 1,
+  "currentPageId": "page:page",
+  "exportBackground": true,
+  "isFocusMode": false,
+  "isDebugMode": false,
+  "isToolLocked": false,
+  "isGridMode": false,
+  "pageStates": [
+   {
+    "pageId": "page:page",
+    "camera": {
+     "x": 0,
+     "y": 0,
+     "z": 1
+    },
+    "selectedShapeIds": [],
+    "focusedGroupId": null
+   }
+  ]
+ }
+}
