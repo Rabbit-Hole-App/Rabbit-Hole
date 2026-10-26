@@ -2,7 +2,7 @@
 
 Prepared 2026-10-26 (lane `cad-review-first`, ledger f9f35fb7, d3a0e047). Nothing here was run in production. Status of the
 feature: code and flag exist; production has `CAD_BRIEF_FIRST="false"`; the inert candidate raises `CAD_MAX_CALLS` to 3; the
-flip is a separate HELD commit. See [cad.md](cad.md) and [cad-production.md](cad-production.md).
+flip is a separate one-line commit (`stack/c31-cad-flip`). **Owner decision O-5, 2026-10-26 about 5:00 PM PT: APPROVED. Enable review-first for signed-in users after the required checks and the production acceptance below; keep the paid-consent confirmation and the credit checks.** See [cad.md](cad.md) and [cad-production.md](cad-production.md).
 
 ## 1. The "96% reserved" executor budget, exactly
 
@@ -72,25 +72,27 @@ Prices come from the registry `packages/control-plane/src/pricing-registry.js` (
 - **Inertness, proven how**: with the flag false `cad-jobs.js` line 183 never sets `modelPhase:'brief'`, and `CAD_MAX_CALLS` is read only by `cadLimits()` as an upper bound. The test runs a whole single-shot job under production enforcement at calls 2 and at calls 3 and asserts the results deep-equal: model phases `['single','review']`, calls, repairs, reserved USD, phase USD, executor limits, the global model reservation and retained bytes.
 - **The one reachable difference** (so "inert" is exact, not absolute): a single-shot job that spent both calls and then FAILED its review used to be refused by Retry ("reached its accepted budget"); at 3 calls Retry is accepted once and makes one more review call, still inside the same job's `CAD_MAX_USD` and the same monthly reservation. It is pinned by a test. It needs a provider or review failure to happen first.
 - Negative control: with the committed value put back to "2" the config test fails (`actual ['2','0.20','0']`). The existing test `CAD brief-first needs three calls` (explicit `CAD_MAX_CALLS: '2'`) still shows the old behaviour fails before review.
-- The HELD commit (separate, not in the candidate branch tip; current branch `feat/cad-review-first-held-flip-2` on top of batch B2) changes only `"CAD_BRIEF_FIRST": "false"` to `"true"`.
+- The flip commit (separate, never in the candidate; current branch `stack/c31-cad-flip` 6247d1c9 on main 8244c327) changes only `"CAD_BRIEF_FIRST": "false"` to `"true"`.
 
 ## 4. Production acceptance of review-first (first real job). NOT RUN.
 
-Status vocabulary: the inert candidate (`CAD_MAX_CALLS` 3) is live on main (B1 d0e8b2b0, 2026-10-26 1:46 PM PT); `CAD_BRIEF_FIRST` is still `"false"`. Review-first is NOT enabled and NOT accepted until the order below has run and its receipt passes. Deployed but disabled is incomplete.
+Status vocabulary: the inert candidate (`CAD_MAX_CALLS` 3) is live on main (B1 d0e8b2b0, 2026-10-26 1:46 PM PT); `CAD_BRIEF_FIRST` is still `"false"`. The owner approved enabling it (O-5, 2026-10-26 about 5:00 PM PT), but it is NOT enabled and NOT accepted until the order below has run and its receipt passes. Approval does not waive the acceptance job. Deployed but disabled is incomplete.
 
 ### 4.1 Owner order (one command per step; each needs the owner's go)
 
-Held change: branch `feat/cad-review-first-held-flip-2`, one line `CAD_BRIEF_FIRST` "true" on top of the current batch.
+Release order: main (inert candidate, `CAD_MAX_CALLS` 3, live) -> `stack/c31-cad-flip` (the one line `CAD_BRIEF_FIRST` "true", 6247d1c9 on main 8244c327; the integrator's gate and release train) -> converter activation `stack/c32-converter-activate` (stacked on c31, so it releases after it; it does not touch CAD) -> later batches. The acceptance job runs after the flip is live; until its receipt passes, review-first is enabled but not accepted, and a later batch should not touch CAD files in between.
 
-1. Release the held flip (normal release of that one line; the owner's main push). From this moment the flag is open to everyone who can reach CAD (4.2).
+1. Release the flip (c31: the integrator's train, then the owner's normal release of that one line). From this moment the flag is open to every signed-in user on a board they own (4.2). The confirmation and credit checks stay.
 2. `node C:/s/spec/cad-review-first/cad-acceptance.mjs pre --go "RUN CAD ACCEPTANCE"`: reads the executor `/health` ledger, REFUSES (exit 2, "Do not click Generate") with fewer than 2 attempts of capacity, checks image 3134c69a, the `parameters` capability and `busy`, writes the baseline, reserves US$0.50 in the shared validation budget (US$100 total), and prints the exact browser steps. Without `--go` it is a dry run that writes nothing.
 3. Browser, one job (printed by `pre`): `/cad` the plate prompt, confirm consent, the Review design appears; double-click Generate once; wait for ready; reload; an out-of-range Quick edit (refused), then a valid one (Preview, Accept); read the amounts shown.
 4. `node C:/s/spec/cad-review-first/cad-acceptance.mjs post --go "RUN CAD ACCEPTANCE" --actual-usd <total> --observed <what you saw>`: reads `/health` again and writes the receipt.
 Run `pre` again if more than 30 minutes pass before the click (`post` warns when the baseline is over an hour old).
 
-### 4.2 Who else can reach CAD while the flag is open
+### 4.2 Exposure: who can reach CAD once the flag is on (approved scope: signed-in users)
 
-Verified from code (read 2026-10-26 at `rabbit-hole/main` d0e8b2b0): `cadRoute` serves any signed-in user for a board they own (`SELECT ... WHERE id AND org AND owner_email`); `/cad` is an ordinary Learn slash command offered on a canvas that provides `startCad`; there is no user allowlist, no per-account flag and no per-board scope in the route or in the production config (no `CAD_*ALLOW*` var). Nothing else gates a job except: the paid-consent body, `SUBSCRIPTION_ONLY` refusal, `CAD_MODEL_ENABLED` and `CAD_PRODUCTION_ENABLED` being "true" (secrets), the executor being configured, the global US$10 model line (50 jobs a month) and the US$35 infrastructure projection, the single executor slot (a second job gets 429 `busy`), and the executor transfer ledger (6 attempts left in October, 186 from Oct 31 5:00 PM PDT). Sharing: shared and forked cards expose saved artifacts only, never live job state.
+Approved exposure: any signed-in user on a board they own. It is bounded by (a) the paid-consent body and credit checks, (b) the `CAD_MODEL_ENABLED` and `CAD_PRODUCTION_ENABLED` secrets, (c) the global US$10 monthly model line (50 jobs a month at the 0.20 reservation), (d) one executor slot (a second job gets 429 `busy`), and (e) the executor transfer ledger: 6 attempts left in October (read 2026-10-26 4:44 PM PT), 186 from Sat Oct 31 5:00 PM PDT. Real users share those 6 attempts with the acceptance job (it needs 2); exhaustion returns 429 `budget_exhausted`, pauses new CAD work for the month and emails the owner, a fail-closed stop and not a spend overrun.
+
+Verified from code (read 2026-10-26 at `rabbit-hole/main` d0e8b2b0; no CAD source file changed through 8244c327): `cadRoute` serves any signed-in user for a board they own (`SELECT ... WHERE id AND org AND owner_email`); `/cad` is an ordinary Learn slash command offered on a canvas that provides `startCad`; there is no user allowlist, no per-account flag and no per-board scope in the route or in the production config (no `CAD_*ALLOW*` var). Nothing else gates a job except: the paid-consent body, `SUBSCRIPTION_ONLY` refusal, `CAD_MODEL_ENABLED` and `CAD_PRODUCTION_ENABLED` being "true" (secrets), the executor being configured, the global US$10 model line (50 jobs a month) and the US$35 infrastructure projection, the single executor slot (a second job gets 429 `busy`), and the executor transfer ledger (6 attempts left in October, 186 from Oct 31 5:00 PM PDT). Sharing: shared and forked cards expose saved artifacts only, never live job state.
 Could not verify: who can currently sign in to digrabbithole.com (sign-up pages exist; I found no sign-in allowlist in the production config or auth source, but I did not read production data), how many people other than the owner are signed in, and whether the two CAD secrets are "true". If the owner wants only themselves, the only existing mechanism is `CAD_VERIFICATION_BOARD_ID` (one canvas; blocks CAD for everyone else, needs a var deploy, tested for 2-call jobs, not 3).
 
 ### 4.3 What the receipt proves, and what it cannot
@@ -123,7 +125,7 @@ Anything not passed in `--observed` is written to the receipt as NOT VERIFIED.
 - During a job: Cancel on the card (spends nothing more; unit-tested).
 - Fastest, no release needed: `cd packages/web` then `npx wrangler secret put CAD_MODEL_ENABLED --config wrangler.rabbit-hole-prod.jsonc` and enter `false` (the documented failure step, `cad-production.md` item 7). New jobs then answer "unavailable"; saved cards and in-flight `awaiting_approval` jobs stay.
 - Executor: `fly machine stop 8e2570a74ed058 -a rabbit-hole-cad-prod`, and if spend or health requires, `fly machine update 8e2570a74ed058 -a rabbit-hole-cad-prod --autostart=false`. Retain the volume, Durable Objects and R2 artifacts.
-- Flip back: revert the held commit and release (the one-line inverse); this is the permanent way to turn review-first off, and `CAD_MODEL_ENABLED` false also turns off single-shot CAD until it is set back to "true".
+- Flip back: revert the flip commit and release (the one-line inverse); this is the permanent way to turn review-first off, and `CAD_MODEL_ENABLED` false also turns off single-shot CAD until it is set back to "true".
 `node C:/s/spec/cad-review-first/cad-acceptance.mjs stop` prints these.
 
 Not covered by any of this: Windows/Linux browser visuals of the Review design in production, the Linux executor sandbox paths not exercised by the 10-21 smoke, real-model quality beyond the three C2 shapes, Focus on a real model, shared-card behaviour for other users.
