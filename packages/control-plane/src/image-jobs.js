@@ -13,7 +13,7 @@
 // database and settlement steps are retried.
 import { admitSpend, settleSpend, spendMessage } from './learn-spend-ledger.js';
 import { learnMedia } from './learn-storage.js';
-import { withUsage, noteUsageIdentity, settleAttempt, finishActionOf, toMicros } from './learn-usage.js';
+import { withUsage, noteUsageIdentity, settleAttempt, finishActionOf, holdLapsed, toMicros } from './learn-usage.js';
 import { verifyImageProposal, consumeProposal } from './generation-proposal.js';
 import { imageReadiness, imageAllowed, imageOperatorAllowed, imageOperatorEmails } from './image-settings.js';
 import { IMAGE_MODELS, imageSettings, imageQuote, imageAdapter, providerConfigured, imageCost } from './image-providers.js';
@@ -23,6 +23,7 @@ const LEASE_MS = 180000, RETRY_MS = 30000, MAX_RETRIES = 20, MAX_OUTPUT = 20 * 1
 const MAX_REFERENCE = 5 * 1024 * 1024, MAX_REFERENCES = 15 * 1024 * 1024, PROMPT_MAX = 4000;
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const TERMINAL = new Set(['ready', 'refused', 'cancelled', 'failed', 'unknown']);
+const LIVE = new Set(['admitted', 'submitting', 'stored', 'recorded']); // a reservation exists and the job is not yet closed
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const denied = () => json({ error: 'Not found' }, 404);
 const plain = v => v != null && typeof v === 'object' && !Array.isArray(v);
@@ -160,10 +161,14 @@ const publicJob = job => ({
   cost: job.cost?.state || (job.stage === 'unknown' || job.settlement?.costUsd === null ? 'unknown' : null),
   saveRetryable: SAVING.has(job.stage) || pending(job), createdAt: job.createdAt, updatedAt: job.updatedAt,
 });
-// Everything the job knows except bytes, which it never keeps, and the requester's identity beyond its org.
+// Everything the job knows except bytes, which it never keeps, the requester's identity beyond its org, and any dollar amount: the
+// requester sees credits and cost states only (owner 2026-10-25); the dollar accounting stays in the job's storage, the ledger and
+// the owner telemetry routes.
+const creditQuote = q => ({ estimate_credits: q.estimate_credits, reserve_credits: q.reserve_credits, basis: q.basis, excludes: q.excludes });
+const creditSettlement = s => (s ? { status: s.status, calls: s.calls, done: !!s.done, costKnown: s.costUsd != null } : null);
 const inspectJob = job => ({ ...publicJob(job), opId: job.opId, settings: job.request.settings, prompt: job.request.prompt, references: job.request.references.map(r => ({ id: r.id, sha256: r.sha256, bytes: r.bytes, mimeType: r.mimeType })),
-  quote: job.request.quote, proposal: job.request.proposal, output: job.output || null, providerModel: job.providerModel || null, usage: job.usage || null, providerMs: job.providerMs ?? null, providerStatus: job.providerStatus ?? null, providerCode: job.providerCode ?? null, costs: job.cost || null,
-  settlement: job.settlement || null, retries: job.retries || 0, lastError: job.lastError || null, recoveredFrom: job.recoveredFrom || null, submittedAt: job.submittedAt || null, endedAt: job.endedAt || null });
+  quote: creditQuote(job.request.quote), proposal: job.request.proposal, output: job.output || null, providerModel: job.providerModel || null, usage: job.usage || null, providerMs: job.providerMs ?? null, providerStatus: job.providerStatus ?? null, providerCode: job.providerCode ?? null, costs: job.cost ? { state: job.cost.state, overrun: !!job.cost.overrun?.exceeded } : null,
+  settlement: creditSettlement(job.settlement), retries: job.retries || 0, lastError: job.lastError || null, recoveredFrom: job.recoveredFrom || null, submittedAt: job.submittedAt || null, endedAt: job.endedAt || null });
 
 const payerEnv = (env, requester) => {
   const scoped = withUsage(env, { feature: 'image_generate' });
@@ -234,6 +239,9 @@ export class ImageJobs {
   // -> a truthy value when the loop should look at the job again.
   async step(job) {
     if (pending(job)) return this.settleLedger(job);
+    // The learner's reservation for this job was sealed at its bound (learn-usage.js HOLD_SECONDS image_generate): the job ends here,
+    // sends nothing and delivers nothing, so a late provider result can never be stored, shown or charged as a success.
+    if (LIVE.has(job.stage) && await holdLapsed(this.env.LEARN_DB, job.opId)) return this.expire(job);
     switch (job.stage) {
       case 'queued':
         if (!imageJobsAllowed(this.env, job.context.requester.email) || !providerConfigured(this.env, job.request.model)) return this.close(job, 'cancelled', 'disabled', null);
@@ -308,6 +316,7 @@ export class ImageJobs {
       return this.close(failed, 'unknown', 'outcome_unknown', unknownCost);
     }
     const ms = Date.now() - startedAt;
+    if (await holdLapsed(this.env.LEARN_DB, job.opId)) return this.expire({ ...sent, providerMs: ms }); // answered after its reservation was sealed: not stored
     if (!(result?.bytes instanceof Uint8Array) || !result.bytes.length || result.bytes.length > MAX_OUTPUT || !IMAGE_TYPES.includes(result.mimeType)) return this.close({ ...sent, providerMs: ms }, 'failed', 'invalid_output', { status: 'failed', calls: 1, costUsd: null });
     // Boundary 3: the provider answered and the bytes exist only in memory until this write lands.
     const sha256 = await sha(result.bytes), r2Key = `${outputPrefix(job)}${sha256}`;
@@ -316,6 +325,13 @@ export class ImageJobs {
     const stored = await this.save({ ...sent, stage: 'stored', output: { sourceId: job.sourceId, r2Key, sha256, bytes: result.bytes.length, mimeType: result.mimeType }, providerModel: result.providerModel || job.request.model, usage: result.usage || null, providerMs: ms });
     this.log(stored, 'stored', { ms, usage: stored.usage });
     return true;
+  }
+
+  // The job outlived its bound. Nothing was sent when it was only admitted (the platform reservation is released too); once the
+  // provider was contacted its cost is unknown and stays so. The learner is charged nothing either way.
+  expire(job) {
+    const sent = job.stage !== 'admitted';
+    return this.close(job, 'failed', 'expired', sent ? { status: 'failed', calls: 1, costUsd: null } : { status: 'cancelled', calls: 0, costUsd: 0 });
   }
 
   // Boundary 2: 'submitting' found by a later run (restart, eviction). Whether the provider made, billed or lost the image is

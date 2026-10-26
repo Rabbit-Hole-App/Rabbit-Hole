@@ -93,10 +93,10 @@ const PERIOD = first.period; // the server's current UTC month
 const run = Date.now().toString(36);
 
 await check('a new account: the server grants 2,500 credits, nothing used, before any canvas is opened', async () => {
-  assert.equal(first.allowanceMicros, 25_000_000, 'the allowance is 25,000,000 micros');
-  assert.equal(first.allowanceMicros / 10_000, 2500);
-  assert.equal(first.usedMicros, 0);
-  assert.equal(first.remainingMicros, 25_000_000);
+  assert.equal(first.allowanceCredits, 2500, 'the allowance is 2,500 credits');
+  assert.equal(first.usedCredits, 0);
+  assert.equal(first.remainingCredits, 2500);
+  assert.doesNotMatch(JSON.stringify(first), /usd|micros|currency/i, 'the usage answer carries no dollars, micros or currency');
 });
 
 await check('a new account: the canvas gauge and Settings both read 2,500 AI credits every month, with the renewal in Los Angeles time', async () => {
@@ -130,7 +130,7 @@ await check('a new account: the canvas gauge and Settings both read 2,500 AI cre
 });
 
 await check('the renewal line is pinned at the cutover: 2026-11-01 00:00 UTC reads October 31, 5:00 PM PDT in Los Angeles and November 1, 9:00 AM GMT+9 in Tokyo', async () => {
-  const mock = { enforced: true, currency: 'USD', period: '2026-10', resetsAt: CUTOVER, allowanceMicros: 25_000_000, usedMicros: 0, reservedMicros: 0, remainingMicros: 25_000_000, unknownAttempts: 0, byFeature: [] };
+  const mock = { enforced: true, period: '2026-10', resetsAt: CUTOVER, allowanceCredits: 2500, usedCredits: 0, reservedCredits: 0, estimatedCredits: 0, remainingCredits: 2500, unknownAttempts: 0, byFeature: [] };
   const la = await settingsText(fresh, { mock });
   assert.match(la, /Renewal[\s\S]*?Renews on October 31, 5:00 PM PDT/, la);
   const tokyo = await settingsText(fresh, { mock, timeZone: TOKYO });
@@ -142,8 +142,8 @@ await check('an account with recorded usage and a 5,000 grant for the month is s
   seedGrant(old, PERIOD, 50_000_000, 'legacy_transition');
   seedAction(old, `credits-old-${run}`, 'would_charge', PERIOD, 1_234_000); // 123 credits spent
   const usage = await old.usage();
-  assert.equal(usage.allowanceMicros, 50_000_000);
-  assert.equal(usage.usedMicros, 1_234_000);
+  assert.equal(usage.allowanceCredits, 5000);
+  assert.equal(usage.usedCredits, 123.4);
   const text = await settingsText(old);
   assert.match(text, /Monthly credits\s*5,000 AI credits every month/);
   assert.match(text, /Used\s*123 credits/);
@@ -157,8 +157,8 @@ await check('the transition rule: before 2026-11 chargeable usage keeps 5,000, f
   seedAction(used, `credits-used-${run}`, 'would_charge', PERIOD, 500_000);
   seedAction(free, `credits-free-${run}`, 'free', PERIOD, 0);
   const usedApi = await used.usage(), freeApi = await free.usage();
-  assert.equal(usedApi.allowanceMicros, before ? 50_000_000 : 25_000_000, `${PERIOD}: an account with chargeable usage`);
-  assert.equal(freeApi.allowanceMicros, 25_000_000, `${PERIOD}: practice grading alone is not usage, so the account is a new account`);
+  assert.equal(usedApi.allowanceCredits, before ? 5000 : 2500, `${PERIOD}: an account with chargeable usage`);
+  assert.equal(freeApi.allowanceCredits, 2500, `${PERIOD}: practice grading alone is not usage, so the account is a new account`);
   assert.match(await settingsText(used), before ? /Monthly credits\s*5,000 AI credits every month/ : /Monthly credits\s*2,500 AI credits every month/);
   assert.match(await settingsText(free), /Monthly credits\s*2,500 AI credits every month/);
 });

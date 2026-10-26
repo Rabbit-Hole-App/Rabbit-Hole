@@ -374,14 +374,16 @@ for (const transport of ['direct', 'gateway']) {
   });
 }
 
-test('Jev unknown usage and failed retry retain separate attempt liability', async t => {
+test('Jev: a 429 is a known zero like every other path; an unpriced reply and a 500 retain their own bound; the platform guard then refuses', async t => {
   const { LEARN_DB, sqlite } = ledger(t);
   const env = platform({ LEARN_DB, USAGE_PLATFORM_DAY_USD: String(jevBound * 2) });
   let calls = 0;
   const fetchImpl = async () => { calls++; return Response.json(calls === 1 ? {} : { model: 'unpriced-future-jev', usage: { input_tokens: 1 } }, { status: calls === 1 ? 429 : 200 }); };
   await askJev(env, jevRequestFixture('direct'), { transport: 'direct', fetchImpl, sleep: async () => {} });
   assert.equal(calls, 2);
-  assert.equal(sqlite.prepare('SELECT SUM(cost_usd) AS cost FROM usage_operations').get().cost, jevBound * 2);
+  assert.deepEqual(sqlite.prepare('SELECT status, cost_usd, error FROM usage_operations ORDER BY rowid').all().map(r => [r.status, r.cost_usd, r.error]), [['failed', 0, 'http_429'], ['settled', jevBound, null]], 'the 429 is zero with its status kept; the unpriced reply keeps its bound');
+  await assert.rejects(askJev(env, jevRequestFixture('direct'), { transport: 'direct', fetchImpl: async () => Response.json({}, { status: 500 }) }), { code: 'http' });
+  assert.equal(sqlite.prepare('SELECT SUM(cost_usd) AS cost FROM usage_operations').get().cost, jevBound * 2, 'a 500 may have run: it keeps its bound');
   await assert.rejects(askJev(env, jevRequestFixture('direct'), { transport: 'direct', fetchImpl }), { code: 'daily_cap_reached' });
   assert.equal(calls, 2);
 });

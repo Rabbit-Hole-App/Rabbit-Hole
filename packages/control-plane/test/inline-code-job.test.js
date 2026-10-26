@@ -1,3 +1,4 @@
+import { moneyLeaks } from './no-money.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createInlineCodeCoordinator } from '../src/inline-code-job.js';
@@ -53,7 +54,7 @@ test('duplicate running requests execute once and expose no source or owner', as
   assert.equal(first, second); gate.resolve();
   const result = await first;
   assert.equal(result.phase, 'succeeded'); assert.equal(calls, 1);
-  assert.equal(result.actualCostUsd, null);
+  assert.deepEqual(moneyLeaks(result), [], 'the job view carries credits only'); assert.equal(result.reservedCredits, 0.5);
   for (const field of ['owner', 'code', 'input']) assert.equal(Object.hasOwn(result, field), false);
   assert.equal((await coordinator.run(id(1), owner)).phase, 'succeeded'); assert.equal(calls, 1);
 });

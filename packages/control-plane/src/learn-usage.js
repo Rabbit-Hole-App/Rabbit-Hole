@@ -295,6 +295,17 @@ export async function releaseStaleHolds(db, { attemptId = null, userId = null, n
   } catch { return 0; }
 }
 
+// True when this call's reservation has been sealed (releaseStaleHolds) or otherwise ended while its job still thinks it is running:
+// the job must then stop, deliver nothing and send nothing. Seals the attempt first if it is past its bound, so the answer is current.
+export async function holdLapsed(db, attemptId, now = nowSeconds()) {
+  if (!db || !attemptId) return false;
+  try {
+    await releaseStaleHolds(db, { attemptId, now });
+    const row = await db.prepare('SELECT status FROM usage_attempts WHERE attempt_id = ?').bind(attemptId).first();
+    return !!row && row.status !== 'running';
+  } catch { return false; }
+}
+
 // Settles a running attempt once: a known cost is 'settled', else 'unknown' (cost NULL, nothing held). A duplicate
 // completion finds the row no longer running and changes nothing. Never throws.
 export async function settleAttempt(env, attemptId, { costMicros = null, status = 'settled', model = null, inputTokens = null, outputTokens = null, price = null, now = nowSeconds() } = {}) {
@@ -353,6 +364,7 @@ export async function finishWithResponse(env, response) {
   const streamed = (response.headers.get('content-type') || '').includes('text/event-stream');
   if (!response.ok || !response.body || !streamed) {
     await finishAction(env, response.ok ? { status: 'completed', result: usageContext(env).result || 'full' } : { status: 'failed', result: 'none' });
+    if (!response.ok) await refundFailedAction(env);
     return response;
   }
   const reader = response.body.getReader();
@@ -369,6 +381,24 @@ export async function finishWithResponse(env, response) {
     async cancel(reason) { try { await reader.cancel(reason); } finally { await end({ status: 'cancelled', result: delivered ? 'partial' : 'none' }); } },
   });
   return new Response(stream, { status: response.status, statusText: response.statusText, headers: response.headers });
+}
+
+// A route that answered with an error delivered nothing usable, so the learner is charged nothing for it (owner 2026-10-25): every
+// attempt of that action already settled at a measured cost is refunded in full, once each (refundAttempt is one guarded UPDATE, so a
+// repeated or racing boundary refunds nothing twice and a late settlement of a settled attempt changes nothing). The attempt keeps its
+// recorded provider cost; only the learner's balance changes. Payer-funded actions only; never throws.
+export const FAILED_ROUTE_REFUND = 'route_failed_no_result';
+export async function refundFailedAction(env) {
+  const ctx = usageContext(env), db = env?.LEARN_DB;
+  if (!ctx || !db || payerOf(ctx).chargeClass !== 'would_charge' || !ctx.action) return 0;
+  try {
+    const actionId = await ctx.action;
+    if (!actionId) return 0;
+    const { results } = await db.prepare("SELECT attempt_id FROM usage_attempts WHERE action_id = ? AND cost_state = 'settled' AND cost_micros > 0").bind(actionId).all();
+    let refunded = 0;
+    for (const { attempt_id: attemptId } of results || []) refunded += await refundAttempt(db, attemptId, { reason: FAILED_ROUTE_REFUND });
+    return refunded;
+  } catch (error) { warn(`failed route not refunded: ${error?.message}`); return 0; }
 }
 
 // Gives a settled charge back to the person's balance (a platform failure, a duplicate charge), once: the attempt's cost stays

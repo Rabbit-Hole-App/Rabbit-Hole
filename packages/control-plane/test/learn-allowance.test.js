@@ -1,6 +1,7 @@
 // Monthly AI allowance enforcement (owner L12 2026-10-20): admitSpend (learn-spend-ledger.js) checks and reserves the session
 // payer's allowance and the platform daily guard in one D1 transaction, before any provider call. Every provider here is a
 // mocked transport that counts its calls; nothing is paid.
+import { ledgerMicros } from './no-money.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
@@ -82,7 +83,7 @@ function provider() {
 }
 const balance = async (env, userId = 'u-alice') => {
   const reply = await usageFetch(new Request('https://synthetic.test/api/learn/usage'), env, { identity: async () => ({ userId, email: `${userId}@example.test` }), now: NOW });
-  return reply.json();
+  return ledgerMicros(await reply.json());
 };
 
 test('zero remaining allowance: zero provider calls, the exhausted reason and its reset date', async t => {
@@ -152,12 +153,12 @@ test('retries and fallbacks: each provider attempt is admitted again, so a retry
   const env = base(LEARN_DB, jevMicros + Math.floor(jevMicros / 2), { JEV_DIRECT_KEY: 'fixture' });
   let fetches = 0;
   const busy = async () => { fetches++; return Response.json({}, { status: 429 }); };
-  // The 429 is an unknown provider cost (it may have been billed) but holds nothing of the learner's (owner 2026-10-25), so the
-  // automatic retry is admitted again and sent; each attempt is its own admission against the same allowance.
+  // A 429 is a provider capacity refusal: a known zero that holds nothing (owner 2026-10-25), the same reading as spendTransport and
+  // ImageJobs, so the automatic retry is admitted again and sent; each attempt is its own admission against the same allowance.
   await assert.rejects(askJev(as(env, 'u-alice', 'inline_route'), { model: JEV_TRANSPORTS.direct.model, state: 'x', questions: {} }, { transport: 'direct', fetchImpl: busy, sleep: async () => {} }),
     error => error instanceof JevError && error.code !== 'allowance_reserved');
   assert.ok(fetches >= 2, 'the retry reached the provider: the first failed attempt holds nothing');
-  assert.ok(rows(sqlite, 'usage_attempts').length >= 2 && rows(sqlite, 'usage_attempts').every(a => a.status === 'failed' && a.cost_state === 'unknown' && a.reserved_micros === jevMicros), 'one unknown-cost attempt per try, none held');
+  assert.ok(rows(sqlite, 'usage_attempts').length >= 2 && rows(sqlite, 'usage_attempts').every(a => a.status === 'failed' && a.cost_state === 'settled' && a.cost_micros === 0 && a.reserved_micros === jevMicros), 'one known-zero attempt per try, none held');
   assert.equal((await balance(env)).reservedMicros, 0);
   // A server-side fallback with no price bound is never sent; a reply billed across fallback iterations keeps its hold.
   const { calls, reply } = provider();
@@ -342,7 +343,7 @@ test('through the real dev worker: an exhausted Ask is refused before streaming,
   assert.equal(response.headers.get('content-type'), 'application/json');
   assert.deepEqual([(await response.json()).reason, calls], ['exhausted', 0]);
   const usage = await (await worker.fetch(new Request('https://dev.example/api/learn/usage', { headers: { cookie: 'small_session=s' } }), env, { waitUntil() {} })).json();
-  assert.deepEqual([usage.enforced, usage.remainingMicros], [true, 0]);
+  assert.deepEqual([usage.enforced, usage.remainingCredits], [true, 0]);
 });
 
 test('the control plane charges its signed-in POSTs to the session user, and with no allowance configured refuses them', async t => {
@@ -425,7 +426,7 @@ test('through the real dev worker: an exhausted learner\'s /3d and /animate auth
   const actor = new LearnScenes(scenes, env);
   const { calls } = renderer(t);
   const post = (path, body) => worker.fetch(new Request(`https://dev.example${path}`, { method: 'POST', headers: { cookie: 'small_session=s', 'content-type': 'application/json' }, body: JSON.stringify(body) }), env, { waitUntil() {} });
-  const usage = async () => (await worker.fetch(new Request('https://dev.example/api/learn/usage', { headers: { cookie: 'small_session=s' } }), env, { waitUntil() {} })).json();
+  const usage = async () => ledgerMicros(await (await worker.fetch(new Request('https://dev.example/api/learn/usage', { headers: { cookie: 'small_session=s' } }), env, { waitUntil() {} })).json());
   for (const [command, args] of [['3d', 'a camera frustum'], ['animate', 'how softmax shares the whole by score']]) {
     const refused = await post('/api/learn/artifact', { app: 'canvas-0a1b2c3d', command, args });
     assert.deepEqual([refused.status, (await refused.json()).reason], [429, 'exhausted'], `/${command} authoring`);
@@ -537,7 +538,7 @@ test('render fairness through the real dev worker: one learner\'s canvases share
   const send = (who, path, payload) => worker.fetch(new Request(`https://dev.example${path}`, { method: payload ? 'POST' : 'GET',
     headers: { cookie: `small_session=${who}`, ...(payload ? { 'content-type': 'application/json' } : {}) }, ...(payload ? { body: JSON.stringify(payload) } : {}) }), env, { waitUntil() {} });
   const scene = (who, app, extra = {}) => send(who, `/api/learn/scene?app=${app}`, { operation: sceneExample, lessonId: 'lesson', page: 'freeform', confirmed: true, ...extra });
-  const usage = async who => { const u = await (await send(who, '/api/learn/usage')).json(); return [u.usedMicros, u.reservedMicros, u.unknownAttempts, u.remainingMicros]; };
+  const usage = async who => { const u = ledgerMicros(await (await send(who, '/api/learn/usage')).json()); return [u.usedMicros, u.reservedMicros, u.unknownAttempts, u.remainingMicros]; };
   const actor = app => [...actors].find(([name]) => name.includes(app))[1];
   const before = { alice: await usage('alice'), bob: await usage('bob') };
 

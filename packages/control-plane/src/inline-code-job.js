@@ -7,7 +7,7 @@ const sameOwner = (a, b) => a?.org === b?.org && a?.email === b?.email;
 const jobKey = id => `code:job:${id}`;
 const hash = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))].map(n => n.toString(16).padStart(2, '0')).join('');
 const publicJob = job => ({ id: job.id, scope: { ...job.scope }, phase: job.phase, sourceSha256: job.sourceSha256, inputSha256: job.inputSha256,
-  reservedMicros: job.reservedMicros, actualCostUsd: null, createdAt: job.createdAt, result: job.result || null, reason: job.reason || null });
+  reservedCredits: job.reservedMicros / 10000, createdAt: job.createdAt, result: job.result || null, reason: job.reason || null });
 
 export function createInlineCodeCoordinator({ storage, execute, policy, now = Date.now }) {
   if (!policy || !['maxRuns', 'maxMicros', 'reserveMicros'].every(key => Number.isSafeInteger(policy[key]) && policy[key] > 0)

@@ -140,7 +140,7 @@ test('the first end-to-end stub run: hold admitted before any call, the job runs
   const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
   await actor.fetch(ask());
   assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'reserved', null, 'running']], 'the $2 hold is reserved before the job starts');
-  assert.deepEqual((await actor.list()).videos[0].hold, { usd: 2, state: 'reserved' }, 'the card shows the reservation while it runs');
+  assert.deepEqual((await actor.list()).videos[0].hold, { state: 'reserved' }, 'the card shows the reservation state while it runs, never its amount');
   assert.equal((await balance(LEARN_DB)).reserved, 2_000_000);
   await settle(actor, async () => (await video(actor)).status === 'ready');
   const v = await video(actor);
@@ -152,8 +152,8 @@ test('the first end-to-end stub run: hold admitted before any call, the job runs
   assert.deepEqual(renderRows(sqlite), [['u-alice', 'free'], ['u-alice', 'free']], 'each render is platform-funded, attributed, never in the allowance');
   assert.deepEqual(actions(sqlite), [['video', 'completed', 'full', true], ['render', 'completed', 'full', true], ['render', 'completed', 'full', true]], 'the job and its renders are closed exactly once');
   const list = await actor.list();
-  assert.equal(list.motionHoldUsd, 2, 'the amount the server reserves, for the confirmation');
-  assert.deepEqual(list.videos[0].hold, { usd: 2, state: 'released' });
+  assert.equal(list.motionHoldUsd, undefined, 'the amount the server reserves is not sent to the browser');
+  assert.deepEqual(list.videos[0].hold, { state: 'released' });
   // Duplicate completion events: another alarm and a second settlement of the same view close nothing twice.
   const [[, job]] = [...await actor.state.storage.list({ prefix: 'job:' })];
   await actor.alarm();
@@ -254,7 +254,7 @@ test('an orchestrator restart mid-job: the job fails clearly, the learner pays n
   assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [0, 0]);
   assert.deepEqual(rows(sqlite, 'usage_operations').map(o => [o.status, o.cost_usd]), [['failed', 2]], 'the platform ledger keeps the unknown cost at its reservation');
   assert.deepEqual(actions(sqlite), [['video', 'interrupted', null, true]], 'cost unknown: interrupted, never completed because the hold settled');
-  assert.deepEqual(v.hold, { usd: 2, state: 'pending' }, 'the card says reconciliation is pending');
+  assert.deepEqual(v.hold, { state: 'pending' }, 'the card says reconciliation is pending');
   // Retry: the whole $2 ceiling counts as used by the interrupted attempt, so nothing more can start for this video.
   const retried = (await (await actor.fetch(ask({ retry: true }))).json()).videos[0];
   assert.match(retried.error, /used its 200 AI credits limit across its attempts/);
@@ -609,7 +609,7 @@ test('paused: Generate, Retry and every other start are refused before admission
   assert.deepEqual([w.orchestrator.posts, motionAttempts(sqlite).length, w.model.calls.length], before, 'no admission, hold or orchestrator call');
   const list = await actor.list();
   assert.equal(list.motionPaused, true, 'the confirmation can say so');
-  assert.equal(list.motionHoldUsd, undefined, 'no reservation is offered while paused');
+  assert.equal(list.motionEstimateCredits, undefined, 'no reservation is offered while paused');
   // Unpaused ("0" or unset) behaves as before.
   env.MOTION_GENERATION_PAUSED = '0';
   assert.equal((await actor.fetch(ask({}, { ...motionOp, request: '/motion 10s explain layer norm' }))).status, 202);
@@ -639,7 +639,7 @@ test('paused with MOTION_ACCEPTANCE_EMAILS: the listed account starts and settle
   assert.equal((await actor.list()).motionPaused, true);
   assert.equal((await actor.list('alice@example.test')).motionPaused, true);
   const mine = await actor.list('Owner@Example.Test');
-  assert.deepEqual([mine.motionPaused, mine.motionHoldUsd], [undefined, 2], 'the listed account sees the normal confirmation');
+  assert.deepEqual([mine.motionPaused, mine.motionHoldUsd], [undefined, undefined], 'the listed account sees the normal confirmation (not paused; no reservation amount is sent)');
   // The listed account is admitted (normalised) and the job runs the public rules.
   const ok = await actor.fetch(asUser(' Owner@Example.Test ', 'u-owner'));
   assert.equal(ok.status, 202);
@@ -883,7 +883,7 @@ test('the list returns the Motion estimate in credits: 100 for MOTION_ESTIMATE_U
   const { LEARN_DB } = d1(t);
   const list = extra => new LearnVideos(durable('video-a'), env0(LEARN_DB, '50', extra)).list();
   const shown = await list({ MOTION_ESTIMATE_USD: '1.00' });
-  assert.deepEqual([shown.motionEstimateCredits, shown.motionHoldUsd], [100, 2]);
+  assert.deepEqual([shown.motionEstimateCredits, shown.motionHoldUsd], [100, undefined]);
   assert.equal((await list({ MOTION_ESTIMATE_USD: '1.10' })).motionEstimateCredits, 110, 'rounded up, without a float error');
   for (const extra of [{}, { MOTION_ESTIMATE_USD: '' }, { MOTION_ESTIMATE_USD: 'about 1' }, { MOTION_ESTIMATE_USD: '0' },
     { MOTION_ESTIMATE_USD: '1.00', MOTION_GENERATION_PAUSED: '1' }, { MOTION_ESTIMATE_USD: '1.00', MOTION_ORCHESTRATOR_URL: undefined }]) {

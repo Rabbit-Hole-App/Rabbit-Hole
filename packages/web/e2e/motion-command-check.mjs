@@ -408,9 +408,9 @@ for (const theme of ['light', 'dark']) {
     // A stop request (MOCKED): the job ends as the server ends it, failed with Stopped.
     if (request.method() === 'POST' && (request.postData() || '').includes('"action":"cancel"')) { stub.stopped = true; stub.error = 'Stopped.'; return route.fulfill({ json: { videos: [video('failed')] } }); }
     if (stub.stopped) return route.fulfill({ json: { videos: [video('failed')] } });
-    if (request.method() === 'POST') return route.fulfill({ status: 202, json: { motionHoldUsd: 8.96, motionEstimateCredits: 100, videos: [video('generating')], placementId: stub.id } });
+    if (request.method() === 'POST') return route.fulfill({ status: 202, json: { motionEstimateCredits: 100, videos: [video('generating')], placementId: stub.id } });
     stub.polls += 1;
-    return route.fulfill({ json: { motionHoldUsd: 8.96, motionEstimateCredits: 100, videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
+    return route.fulfill({ json: { motionEstimateCredits: 100, videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
   });
 
   await step(`${theme}: MOCKED generation: the proposal's Generate adds one card and starts one confirmed motion_request with the approved proposal; the ready video plays in it`, async () => {

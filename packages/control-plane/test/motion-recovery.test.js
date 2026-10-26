@@ -136,7 +136,7 @@ test('content findings: saved to LEARN_MEDIA with a pointer; Continue fixing sen
   const failed = await video(actor);
   assert.deepEqual([failed.recovery.cause, failed.recovery.actions], ['content', ['fix', 'edit']]);
   assert.equal(failed.recovery.explanation, `Review found a problem: ${FINDING.description}`);
-  assert.deepEqual(failed.usage, { usedMicros: 160000, unknown: false }, '8000 output tokens at $20/M: 16 credits');
+  assert.deepEqual(failed.usage, { usedCredits: 16, unknown: false }, '8000 output tokens: 16 credits'); // credits only, never dollar micros
   const job = [...actor.state.data.values()].find(v => v.provider === 'motion_request');
   const saved = await (await env.LEARN_MEDIA.get(job.recovery.key)).json();
   assert.deepEqual(saved.checkpoint, cp('blocking'), 'the brief, storyboard, composition and verbatim findings survive in LEARN_MEDIA');
@@ -155,7 +155,7 @@ test('content findings: saved to LEARN_MEDIA with a pointer; Continue fixing sen
   assert.deepEqual(attempts(sqlite), [[25_000_000, 'settled', 160000, 'failed'], [FIX_HOLD, 'settled', 80000, 'settled']], 'one settlement per attempt, at its actual cost');
   assert.deepEqual(rows(sqlite, 'usage_operations').map(r => [r.category, r.calls]), [['motion', 2], ['motion', 1]]);
   assert.equal(w.model.calls, 3, 'no duplicate paid work: 2 calls, then 1 for the repair');
-  assert.deepEqual((await video(actor)).usage, { usedMicros: 240000, unknown: false });
+  assert.deepEqual((await video(actor)).usage, { usedCredits: 24, unknown: false });
   assert.ok(env.LEARN_MEDIA.objects.has(job.storageKey ?? [...actor.state.data.values()].find(v => v.provider === 'motion_request').storageKey), 'the video is stored');
 });
 

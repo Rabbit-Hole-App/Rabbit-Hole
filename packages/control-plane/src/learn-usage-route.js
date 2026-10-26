@@ -1,5 +1,5 @@
 // GET /api/learn/usage (contract with the UI in C:/s/spec/credits-phase1-design.md "Summary endpoint"; enforcement owner L12
-// 2026-10-20). The signed-in user's own month, from the session only: no user id parameter is read. remainingMicros is
+// 2026-10-20). The signed-in user's own month, from the session only: no user id parameter is read. remainingCredits is
 // exactly what admission (learn-spend-ledger.js admitSpend) lets the next request reserve: the same sums, the same period.
 // enforced is true wherever admission enforces the allowance. Indexed sums (in total and by feature), no AI call.
 import { devIdentity } from './dev-forwarding.js';
@@ -7,6 +7,7 @@ import { spendEnforced } from './learn-spend-ledger.js';
 import { allowanceFor } from './learn-entitlement.js';
 import { monthlyAllowanceMicros } from './learn-usage-config.js';
 import { periodOf, periodReset, usageByFeature, usageTotals } from './learn-usage.js';
+import { creditsOf } from './pricing-registry.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 
@@ -26,10 +27,15 @@ export async function usageFetch(req, env, { identity = devIdentity, now = Math.
   let totals, byFeature;
   try { [totals, byFeature] = await Promise.all([usageTotals(env.LEARN_DB, userId, period, now), usageByFeature(env.LEARN_DB, userId, period, now)]); }
   catch { return json({ enforced, unavailable: 'accounting' }, 503); }
-  return json({ enforced, currency: 'USD', period, resetsAt: periodReset(period), allowanceMicros: allowance,
-    usedMicros: totals.used, reservedMicros: totals.reserved, estimatedMicros: totals.estimated,
-    remainingMicros: Math.max(0, allowance - totals.used - totals.reserved),
-    // Unknown cost is never silently 0: how many finished attempts have no known cost, and the largest they could have cost. They are
-    // charged nothing and hold nothing: reservedMicros is only what is still running.
-    unknownAttempts: totals.unknownAttempts, unknownReservedMicros: totals.unknownReserved, byFeature });
+  // People see AI credits only (owner 2026-10-25; CLAUDE.md): never dollars, dollar micros or a currency. The ledger counts in micros
+  // internally (1 credit = 10,000 micros); the conversion is here, on the server, and the financial accounting stays in the ledger
+  // and behind the owner telemetry routes (owner-telemetry-routes.js, ownerOnly). unknownReserved is internal and not returned.
+  const credits = micros => creditsOf(Number(micros || 0));
+  return json({ enforced, period, resetsAt: periodReset(period), allowanceCredits: credits(allowance),
+    usedCredits: credits(totals.used), reservedCredits: credits(totals.reserved), estimatedCredits: credits(totals.estimated),
+    remainingCredits: credits(Math.max(0, allowance - totals.used - totals.reserved)),
+    // Unknown cost is never silently 0: how many finished attempts have no confirmed cost. They are charged nothing and hold nothing:
+    // reservedCredits is only what is still running.
+    unknownAttempts: totals.unknownAttempts,
+    byFeature: byFeature.map(row => ({ feature: row.feature, usedCredits: credits(row.usedMicros), reservedCredits: credits(row.reservedMicros), unknownAttempts: row.unknownAttempts })) });
 }
