@@ -218,6 +218,28 @@ composer asks the server for the plan (`POST /api/learn/chat/image-proposals`, n
 edits, reload and the job all start from that card, and after a reload the card follows the existing job instead of inviting a second press (the job
 id is a function of the plan).
 
+### Deployed acceptance command and the held public flip (2026-10-26)
+
+`node scripts/image-acceptance.mjs --dry-run` prints the plan and writes nothing; the real run (owner, interactive terminal, the `small_session` cookie at a
+hidden prompt, never printed or written) drives the deployed owner-only path: five free-path runs first (`refuse-unready`: a combination no live run covered is
+refused 409 `image_not_ready` and shows no price; the four injected faults end `failed/provider_rejected` (400 and 429), `unknown/outcome_unknown` (network) and
+`failed/invalid_output`, each charging nothing), then one paid run per model (`flare`, `sunburst`, `nb21`, `nb21-edit` with a reference uploaded through the file
+API, `pro`). Every run that can reach a provider is booked in the shared budget BEFORE its job request (`C:/s/spec/budget/budget.mjs reserve`, US$0.20 for a paid
+run, the job's own hold; US$0.02 for a free-path run) and settled from the cost the job recorded (`imageCost` over the inspect `usage`); an unclear answer keeps the
+booking at its maximum. A paid run checks the plan's signed quote in credits and its survival across a read, one edit saved and a stale one refused (409), a
+second press reaching the same job, operator `inspect` (settled, one call, no retry), the stored image (hash, type, size), credits charged versus credits quoted
+(OpenAI: equal; Nano Banana: above the quote within the 20-credit hold, the known gap above), the hold released, and, in UI mode (`flare` and `nb21`, where the
+owner presses Generate in the browser), that the image card is placed by the browser, persisted on the board and still there after a reload. A card is placed only
+by the browser (a job that ended before a reload is only shown), so `--api-only` reports the card as not verified. Receipts (no secrets): `C:/s/spec/image-activate/receipts`.
+The command stops at the first failure, skips runs with a PASS receipt on a re-run (`--force` repeats), and refuses a private ledger (`BUDGET_FILE`).
+Tests: `scripts/image-acceptance.test.mjs` (a simulated deployed Rabbit Hole and a fake ledger, plus the real entry's `--dry-run` under Node's permission model).
+
+Public activation is three code gates that must agree, one reviewed switch and one commit, held on branch `feat/image-activation-public-flip` for the owner's GO:
+the web constant `IMAGE_GENERATION` (`agent/slash.js`), the primitive `image_generate.ready` (`learn-primitives.js`, kept off the planning model's path) and
+`IMAGE_GENERATE_ENABLED` "true" in `wrangler.rabbit-hole-prod.jsonc`. `image-public-gates.test.js` fails when any one disagrees (with a negative control on the real
+files), and pins that the owner path works, `inspect` and fault injection stay operator-only, and a look-alike address is a learner. The flip changes no secret,
+no hold, no owner list and no dev config.
+
 ## 6e. Evidence record: what exists, and what it does and does not prove
 
 Kinds: (A) fixture tests; (B) provider-adapter validation, the REAL provider called from a LOCAL harness; (C) deployed full-flow acceptance, never done.
