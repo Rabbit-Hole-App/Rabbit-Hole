@@ -1,6 +1,6 @@
 # Deployment handoff
 
-Last updated: Monday, 10/26/2026, 1:43 PM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
+Last updated: Monday, 10/26/2026, 1:56 PM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
 
 Authoritative inputs (repository-relative): the 60-row [feature inventory](evidence/feature-inventory.md), the [discrepancy table](evidence/completion-audit-discrepancies.md), the [validation budget ledger](evidence/validation-budget-ledger.md), the [flake list](evidence/flakes.md), the [FILE_JOBS contract](evidence/file-jobs-contract.md), feature docs under [`docs/features/`](../features/). The working task ledger and local receipts live on the integrator machine (`C:/s/spec/...`); important receipts are summarised under `docs/operations/evidence/`.
 
@@ -93,6 +93,24 @@ Critical path today, separated.
 - *Waiting for your commands:* Motion `post`; refund; the 16:9 job; telemetry dry run, preflight, phase A; later the telemetry release and phase B; the 9:16 job; activate-public; image secrets and paid runs; converter app creation.
 - Independent work does not wait for release sequencing: every lane above continues in parallel; only the chain Motion ceiling, then Telemetry, then Motion R2 depends on main moving by fast-forward.
 
+### 0.6 Priority completion (owner reprioritisation, Monday 2:00 PM PT): Motion, Image, File Converter, Ctrl+K, CAD
+
+These five are parallel completion lanes with one integration owner (the integrator, me). **Complete means** all of: implemented and tested on the final candidate; required infrastructure, secrets and configuration deployed; real production acceptance passed; enabled for the agreed users and supported settings; credits, persistence, reload recovery, duplicate submissions and failure handling verified where applicable; unsupported settings listed. A deployed but disabled feature is not complete.
+
+| Priority (UUID) | Owner | Phase | Enabled in production now | Production-accepted | Exact remaining work | Blocker | Next deliverable | Ready for your GO (PT) |
+|---|---|---|---|---|---|---|---|---|
+| **Motion** (`733e996d`) | integrator; R2 lane `ae211623` done; disclosure lane `a23a16ef` done | owner-only acceptance | ceiling 3.50 on the orchestrator (verified 12:13 PM); Worker still paused, owner path only | no (the first job failed) | refund apply; 16:9 job; Telemetry binding on main (R2a stacks on it); R2a `activate-owner`; 9:16 job; B2 (disclosure, label) released; R2b `activate-public` | your commands and two browser jobs; B2 and R2b gates in the queue | B2 gate result (about 2:10 PM), then R2b gate (about 2:25 PM) | about 4:00 PM if every owner step answers within 10 minutes; later if a job fails (each failed job adds 1 to 1.5 h) |
+| **Image generation and editing** (`125bbcae`, `64fb7852`, `71597956`) | lane `a5e3d591` (new), earlier lane `a0f357d6` done | build the charge disclosure; owner-only acceptance | owner-only path live in B1; public off; no keys installed | no | charging-overrun fix (estimate, reservation, signed maximum), per-model hold, acceptance covering generation AND editing, keys, ten-run acceptance, public flip on your GO | your keys step and acceptance run; the new code is not written yet | `feat/image-charge-disclosure` pushed with green CI (about 3:15 PM) | owner-only acceptance about 3:45 PM; public-ready about 5:30 PM |
+| **File Converter** (`9df97503`, `6570266e`) | lane `ad16510a` (resumed) | package ready; activation being re-cut | FILE_JOBS binding live, converter not provisioned | no | production Fly app and secrets (your 3 commands), activation commit released, acceptance of DOCX, PPTX, audio and STEP paths on the real deployed path, real-tool proof for LibreOffice and FFmpeg, exact formats published | **your approval of the Fly app and its recurring cost (about US$1.5 to 9.8 a month, proposed, NOT approved by the reprioritisation)** | `feat/file-converter-activate-2` green; extended acceptance script | about 7:00 PM if you approve by 2:30 PM; real-tool failures add 1 to 2 h |
+| **Ctrl+K image edit, background removal, JavaScript** (`9453f5f0`, `ba6304f0`) | lane `a6696ba7` (resumed) | build activation candidates and deployed acceptance | prepared, fail-closed, OFF | no | settle edits from provider usage, activation commits, acceptance scripts (edit, removal, JS isolation, limits, cancellation, termination), key (shared with Image), loader probe (US$0 expected), paid runs | your OK for the loader probe; OpenAI key; Workers Paid state unknown (if the probe answers 10195, JS is blocked on that account decision) | `feat/ctrlk-complete` and `feat/ctrlk-activate` pushed green (about 3:30 PM) | image edit and removal about 6:00 PM; JavaScript tomorrow morning at the earliest |
+| **CAD review-first** (`f9f35fb7`, `d3a0e047`) | lane `a757f8e4` (resumed) | held flip being re-cut; acceptance ready | `CAD_MAX_CALLS` 3 live (inert); `CAD_BRIEF_FIRST` false | no | held flip released, one paid job (about US$0.04 to 0.08), Quick edit, credits and reload checks | **your O-5 decision (enable review-first)**; the limit that looked like November 1 is our own ledger and 6 attempts fit | `feat/cad-review-first-held-flip-2` green; acceptance script with the capacity guard | about 3:30 PM, accepted about 4:00 PM, if you answer O-5 now |
+
+**Critical path.** The chain Telemetry binding, R2a, B2, R2b is serial on main (fast-forward only) and each step needs its gate (about 11 minutes, one at a time) and your command; the two Motion jobs are about 12 minutes each. Parallel to it, the four new code candidates each need a push, verify and fast-e2e (about 12 minutes) and a gate. Gate time is the shared constraint (about 9 gates queued or coming, about 100 minutes), so optional polish is paused. The longest owner-dependent path is converter provisioning and real-tool proof, then Image public readiness.
+
+**Overall ETA (assumptions: your commands are answered within about 10 minutes; no job or acceptance fails; the converter Fly approval arrives by 2:30 PM; LibreOffice and FFmpeg work on first real use).** Motion, Image and CAD production-accepted: about 5:30 PM today. Converter and Ctrl+K image edit and removal: about 7:00 PM today. Ctrl+K JavaScript: tomorrow morning at the earliest, and only if the loader probe passes. All five accepted: best case tomorrow (Tuesday) around noon; honest range tonight 9:00 PM to Tuesday evening, because several first-ever real runs (a model-built 9:16 Motion job, LibreOffice, FFmpeg, the dynamic loader) can fail.
+
+**Paused (preserved in the ledger with owner and reason; not blocking the five):** tldraw removal (`19e561b2`, editor lane `a3298fb1`, continues at low CI priority; cutover X waits); security headers (`12669016`, awaiting your option); `/video` and maths provisioning (`c015534a`, decision pending, preflight live); Stars/Weekly analytics wiring (`ffe30d90`, `2f92d101`, inert until Telemetry is bound); Telemetry beyond what the priorities need (`6c3f8d59`, binding ready, phase A open); production acceptance of unrelated live features (`b2d961d6`, checklist ready, your browser time); tutor rubric, shared review card, Motion narration, voice mode (owner scope decisions O-6, O-9, O-13). Docs release of this handoff stays on its own path (a docs-only gate reuse).
+
 ## 1. Where production is
 
 - `main`: **0bd390ed** (batch C17: C16 + Study resize persistence + Chat restore), live since 10:58 AM PT: release run 40373219295, build `622a36f361bce43e`, rabbit-hole-cp `c415190c-110f-4702-ada1-44d6d356ab3b`, rabbit-hole-app `470e810e-1388-4e75-92c8-07677388033e`, probes `200 200 401 401 405`. Before it: C16 `7b105a4b` (10:20 AM, run 40367315136, details in section 0.3) and `629251d4` (Motion R1b, Sunday 8:50 PM).
@@ -173,6 +191,54 @@ Production mutations are owner commands; one gate and one release at a time; no 
 ## 9. Owner queue (rewritten Monday 2026-10-26 after the owner's approvals)
 
 Nothing here authorises an action beyond what is listed as approved. Who acts: **YOU RUN** (command or browser action only you can do), **ME** (implementation, verification, coordination I own and am doing now).
+
+### 9.0 Consolidated action package for the five priorities (Monday 2:05 PM PT)
+
+Already approved and recorded (not repeated): ceiling US$3.50; owner-only acceptance up to 350 credits per Motion job; shared validation budget US$100 total (81.7506 remaining before the next bookings); transcription separately gated off; Telemetry GO; G1; tldraw complete removal. **Prioritisation does not approve new recurring costs or provider-account changes; they are listed separately in C.**
+
+**A. Ready now (every command begins with `!`; a command that needs a real interactive terminal says so and is not run through `!`)**
+
+1. Refund the failed Motion job (idempotent; 127.8157 credits):
+```
+! MOTION_BASE=0bd390ed76e46149d964231504cc6c2a2d6b615d MOTION_BRANCH=stack/c18-motion-ceiling MOTION_REL=0b5a8daedeb652cd03bda36f329712ef29164dab MOTION_JOB_CEILING_USD_APPROVED=3.50 MOTION_REFUND_CONFIRM=yes bash /c/s/spec/motion-validation/motion-deploy.sh refund
+```
+2. Release the Telemetry binding (needed because Motion R2a is stacked on it; collection goes live; config only; about 6 minutes; main is `d0e8b2b0` now, dry run ok):
+```
+! bash /c/s/spec/day-1021/train10.sh
+```
+3. Motion second acceptance job (browser): print the instructions with `! MOTION_BASE=0bd390ed76e46149d964231504cc6c2a2d6b615d MOTION_BRANCH=stack/c18-motion-ceiling MOTION_REL=0b5a8daedeb652cd03bda36f329712ef29164dab MOTION_JOB_CEILING_USD_APPROVED=3.50 bash /c/s/spec/motion-validation/motion-deploy.sh accept2`, run ONE 15 s, 16:9 job (up to 350 credits), and tell me. I reserve US$3.50 in the budget ledger first.
+4. Image keys and ten-run acceptance (B1 is live, so the transcription gate is in production). In order: open `https://digrabbithole.com/api/learn/image-jobs` as the owner (expect `operatorOnly:true`, four models `configured:false`); then `! node C:/s/spec/image-activate/prod-image-secrets.mjs --dry-run`; then the real run in a terminal that supports typing (it asks for `PUT IMAGE SECRETS`; it installs `OPENAI_API_KEY` and `GEMINI_API_KEY` by name; rollback: `wrangler secret delete` for both on `rabbit-hole-app`); then `! cd C:/Users/cyudhist/Desktop/workspace/image-activate && git checkout feat/image-activation-switch && node scripts/image-acceptance.mjs --dry-run` (expect total booked US$1.30) and `node scripts/image-acceptance.mjs --other-session` in an interactive terminal. **I am extending this acceptance to cover the charge-disclosure fix, so run the real ten-run acceptance after my next message if you can wait about an hour; the keys can be installed now.**
+5. Telemetry phase A, in a real terminal (needs `/dev/tty`; you type `ADOPT e4c585cf-6078-43dd-b5c0-d30e0f80e778` by hand): `bash /c/s/spec/telemetry/prod-telemetry.sh`. Not a priority blocker; it is required before the dashboard works.
+6. Ctrl+K JavaScript loader probe (US$0 expected, throwaway Worker deleted afterwards; needs your OK, which this command is): `! node C:/s/spec/day-1021/with-cf.mjs C:/Users/cyudhist/Desktop/workspace/fj-ctrlk node scripts/ctrlk-loader-probe.mjs --run --wrangler C:/Users/cyudhist/Desktop/workspace/credits-2500/node_modules/wrangler/bin/wrangler.js`. An answer of 10195 means Workers Paid is not active on the account and JavaScript execution is blocked on that decision.
+
+**B. Decisions needed now (recommendation first)**
+
+1. **CAD O-5, enable review-first.** The flag is global, so every CAD user gets review-first the moment the held flip is released; acceptance then runs once. Yes (recommend) / No / enable but scope to a board id first (untested for 3 calls).
+2. **File Converter:** approve the production Fly app `rabbit-hole-convert-prod` (see C) and the scope "ship exactly the formats reachable today" (DOCX, PPTX, WAV/MP3/Ogg/M4A/FLAC, STEP/STP). Opening .doc, PPT, ODT/ODP, RTF, AIFF or WebM is NOT proposed. Approve / hold. Needed by 2:30 PM for a same-evening activation.
+3. **Image:** keep the web constant `IMAGE_GENERATION` off and use the server's per-caller answer as the live switch (recommend); adopt per-model holds 0.05 / 0.10 / 0.30 (recommend); confirm the US$1.30 maximum booking of the acceptance (inside your US$100).
+4. **Ctrl+K:** `INLINE_IMAGE_EDIT_RESERVED_USD` 0.03 for the first paid run (recommend); settle edits from provider usage (recommend, in the new candidate); JavaScript lifetime window of 200 runs with platform-funded wording (recommend).
+5. **Motion disclosure:** show the 896-credit hold (recommend yes); keep the 3.50 ceiling in R2 (recommend yes); old Motion cards are blocked and must be asked for again (recommend accept).
+
+**C. Recurring costs, provider-account changes and secrets (PROPOSED, not approved)**
+
+| Item | Cost | What it needs from you |
+|---|---|---|
+| Fly app `rabbit-hole-convert-prod` (shared-cpu-2x 4 GB, one machine, auto-stop) | about US$1.5 to 9.8 a month (planning figure US$2.6; under US$0.20 stopped), starts when you run the create command | explicit approval phrase `CREATE rabbit-hole-convert-prod AND ACCEPT THE FLY COST` typed in the production script |
+| Anthropic workspace monthly limit for the Motion tests | no fixed cost; required maximum US$18.35 for the October tests | raise it only if a job is refused for the limit; your Console action |
+| Workers Paid (for Dynamic Workers) | none new if already active since 10-22 (unproven; the account API returned 403) | the loader probe tells us; if 10195, a plan decision |
+| OpenAI and Gemini usage | usage only, inside the US$100 validation budget | install the two keys (A4) |
+| Secrets created for the converter | none you type: `CONVERT_TOKEN` (Fly and Worker) and `FILE_JOB_SECRET` are generated by the script and never printed | the typed phrases `SET CONVERT SECRETS` and `DEPLOY CONVERTER` |
+
+**D. Still being prepared (I put the exact `!` command here the moment each is ready)**
+
+| Item | Owner | Waiting on |
+|---|---|---|
+| Motion R2a `activate-owner`, `accept916`, B2 release (`train11.sh`), R2b `activate-public` | integrator and Motion lane | Telemetry binding on main; B2 and R2b gates (queued); your refund and 16:9 job |
+| Image charge-disclosure candidate and the extended acceptance | lane `a5e3d591` | code, CI, gate (about 3:15 PM to 4:00 PM) |
+| Converter activation (`feat/file-converter-activate-2`), prod-convert.mjs run (3 commands), extended acceptance | lane `ad16510a` | your approval B2 |
+| Ctrl+K activation commits and acceptance scripts | lane `a6696ba7` | code and CI (about 3:30 PM) |
+| CAD held flip release and `cad-acceptance.mjs` run | lane `a757f8e4` | your O-5 |
+| Browser actions you will be asked for: two Motion jobs (16:9 and 9:16), Generate presses in the image acceptance, one CAD prompt and one Quick edit, Ctrl+K edit runs, deleting the acceptance canvases afterwards | you | the commands above |
 
 ### 9.1 Approvals received (owner typed messages, 2026-10-26 about 11:00 AM PT) versus proposals not yet approved
 
@@ -256,6 +322,7 @@ Nothing independent waits on Motion. The only sequencing is main's fast-forward 
 
 ## 10. Change log (PT)
 
+- 2026-10-26 1:56 PM: OWNER REPRIORITISATION: Motion, Image, File Converter, Ctrl+K and CAD are the priority completion lanes (parallel, one integration owner). New/resumed lanes: image charge disclosure and editing verification (`a5e3d591`), converter completion (`ad16510a`), Ctrl+K completion (`a6696ba7`), CAD held flip and acceptance (`a757f8e4`). tldraw, Telemetry beyond its dependencies, headers, /video, Stars/Weekly and unrelated acceptance are paused with owner and reason (section 0.6). Section 0.6 (per-priority table, overall ETA, critical path) and section 9.0 (consolidated action package) added.
 - 2026-10-26 1:48 PM: flake batch B3 cut: `fix/flake-fixes-b3` `bd451444` (pinned-study-kernel fix with its step-0 negative control, dive stack diagnostics with page errors still failing the check, focus-study.md describing the real kernel-session readiness check, dive-v1.md recording the source as unidentified). On that exact SHA fast-e2e 40398218607 and verify 40398218667 are green and the checks really ran: pinned-study-kernel 12/12 (64 s, job 121836989248) and dive 8/8 (160 s, job 121836989220). Negative-control receipt: `test/pinned-kernel-neg` `64ac43ac`, run 40392417618 (6/12). Base was main 0b5a8dae; it is merged onto the chain tip (after R2b) before its own gate. The dive source stays open.
 - 2026-10-26 1:47 PM: B1 LIVE (`d0e8b2b0`, run 40398325078, 1:46 PM). Telemetry binding re-gate passed (run 40396444052); `train10.sh` dry run ok and READY.
 - 2026-10-26 1:43 PM: owner approved G1 (exact-principal owner-guard fix ships in B1) and ordered the pinned-study-kernel fix, the open dive diagnostics and the focus-study.md correction into B3; `train9.sh` (B1) started 1:41 PM. Owner queue (section 9.2 to 9.6) reconciled: Motion `post` moved to completed, train8 and the old Telemetry resume text removed, refund-apply command and Telemetry phase-A prerequisites stated, tldraw complete removal recorded as approved.
