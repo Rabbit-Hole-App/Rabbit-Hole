@@ -156,7 +156,11 @@ test('tracing on or off: the same provider requests byte for byte and the same p
   assert.ok(on.traces.every(Boolean) && on.hookTrace, 'tracing on built every event');
   assert.ok(off.traces.every(trace => trace === null) && off.hookTrace === null, 'tracing off built none');
   assert.equal(on.requests.length, off.requests.length);
-  on.requests.forEach((body, i) => assert.equal(body, off.requests[i], `provider request ${i + 1}`));
+  // As a set: a typed turn's evaluate request (JEV, then the larger evaluator) and its plan request are sent concurrently by design
+  // (learn-tutor.js runTurn, Stage C: off the critical path the evaluation runs beside the planner), and which reaches fetch first
+  // follows the async digest in loggedModel, so arrival order is not what tracing must preserve; every body still must be identical.
+  const offSorted = [...off.requests].sort();
+  [...on.requests].sort().forEach((body, i) => assert.equal(body, offSorted[i], `provider request ${i + 1} (sorted)`));
   assert.deepEqual(on.product, off.product);
   // The hooks match too, ids included: the trace draws its own ids from its own stream.
   assert.deepEqual(on.hooks, off.hooks);
@@ -175,7 +179,9 @@ const TIME = /\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?\b/g;
 function normalized(run) {
   const names = new Map();
   const rename = text => text.replace(OPAQUE, id => { if (!names.has(id)) names.set(id, `<id${names.size + 1}>`); return names.get(id); }).replace(TIME, '<time>');
-  return { requests: run.requests.map(rename), product: run.product.map(rename), hooks: rename(JSON.stringify(run.hooks)), names };
+  // Requests are renamed in a canonical order (by body with ids blanked), not arrival order, for the concurrency reason above.
+  const canonical = [...run.requests].sort((x, y) => { const kx = x.replace(OPAQUE, '<id>'), ky = y.replace(OPAQUE, '<id>'); return kx < ky ? -1 : kx > ky ? 1 : 0; });
+  return { requests: canonical.map(rename), product: run.product.map(rename), hooks: rename(JSON.stringify(run.hooks)), names };
 }
 
 test('tracing on or off under the product\'s normal randomness: requests, references and behaviour equivalent after consistent id renaming', async () => {
