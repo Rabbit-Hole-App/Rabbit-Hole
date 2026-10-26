@@ -920,3 +920,17 @@ test('deleting a thread purges its reactions, history and touches', async t => {
   assert.equal((await comments(f, 'DELETE', `${base}/threads/${made.body.thread.id}`, { as: 'ana' })).status, 200);
   assert.deepEqual(counts(), [0, 0, 0]);
 });
+
+// Edits made in one millisecond share replaced_at, and their ids are random: the history and the 20-edit trim follow insertion order,
+// not the ids. A frozen clock puts all 22 edits in the same millisecond; on id order the wrong ones were kept (verify run 40247071983).
+test('edit history keeps and lists edits in the order they were made when replaced_at is identical', async t => {
+  const f = setup(t);
+  const { base } = await canvas(f);
+  const made = await start(f, base, 'ana', 'Thread');
+  const reply = (await comments(f, 'POST', `${base}/threads/${made.body.thread.id}/comments`, { as: 'ben', body: { id: crypto.randomUUID(), body: 'version 0', mentions: [] } })).body.comment;
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() });
+  for (let i = 1; i <= 22; i += 1) assert.equal((await comments(f, 'PATCH', `${base}/comments/${reply.id}`, { as: 'ben', body: { body: `version ${i}`, mentions: [] } })).status, 200);
+  assert.equal(f.sqlite.prepare('SELECT count(DISTINCT replaced_at) AS n FROM canvas_comment_edits WHERE comment_id = ?').get(reply.id).n, 1, 'every edit has the same replaced_at');
+  const bodies = (await comments(f, 'GET', `${base}/comments/${reply.id}/history`, { as: 'ben' })).body.edits.map(edit => edit.body);
+  assert.deepEqual(bodies, Array.from({ length: 20 }, (_, i) => `version ${21 - i}`), 'the newest 20, newest first');
+});
