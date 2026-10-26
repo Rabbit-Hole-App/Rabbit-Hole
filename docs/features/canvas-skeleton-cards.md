@@ -22,7 +22,7 @@ on `ui/canvas-skeleton-cards`.
 
 | Path | Trigger | Label |
 |---|---|---|
-| Slash (`learn-slash.js`) | On send, for every command that asks `/api/learn/artifact` and cannot end in a paid proposal: `/explain`, `/graph`, `/diagram`, `/quiz`, `/flashcards`, `/code`, `/walkthrough`, `/practice`, `/compare`. Paid commands are in the next section. Commands that insert at once (`/notebook`, `/whiteboard`, `/paper <id>`, `/image`) or answer in chat get none. | `Creating /<command>…` |
+| Slash (`learn-slash.js`) | On send, for every command that asks `/api/learn/artifact` and cannot end in a paid proposal: `/explain`, `/graph`, `/diagram`, `/quiz`, `/flashcards`, `/code`, `/walkthrough`, `/practice`, `/compare`. Paid commands are in the next section. Commands that insert at once (`/notebook`, `/whiteboard`, `/paper <id>`, `/photos`) or answer in chat get none. | `Creating /<command>…` |
 | Tutor (`learn-tutor.js` `wantsCard`) | Before any model call, when the learner clearly asks to see a card (rule below). | `Creating a card…` |
 | Research (Learn chat, `ask.jsx`) | When a show tool has validated: the `progress` event carries `card: 'paper' \| 'wiki' \| 'video'` (`learn-research.js`). Searching and reading reserve nothing. | `Opening the paper…` / `article…` / `video…` |
 

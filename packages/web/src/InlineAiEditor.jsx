@@ -32,7 +32,7 @@ import { layoutDiagram, toCanvasObjects, validateDiagram } from './inline-diagra
 import { placeResult, regionStyle } from './inline-placement.js';
 import { PROMPT_MAX, routeLabel, selectionSummary } from './inline-ai-route.js';
 import { ctrlkCommands, filterCommands, pick, pickerQuery, showsPill, submission, switchMode, unsupportedText } from './inline-ai-command.js';
-import { descFor } from './agent/slash.js';
+import { descFor, typedOf } from './agent/slash.js';
 import CommandPill from './CommandPill.jsx';
 import { CommandMark } from './CommandTone.jsx';
 import { FILE_EDIT_LOCKED, fileEditLocked } from './file-chat-ref.js';
@@ -380,7 +380,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     finally{cadSubmitting.current=false;if(cadLive.current)setCadPending(false);}
   };
   // What Send would send, for the limit and the Send button.
-  const outgoing = command ? `/${command}${prompt.trim() ? ` ${prompt.trim()}` : ''}` : prompt;
+  const outgoing = command ? `/${typedOf(command)}${prompt.trim() ? ` ${prompt.trim()}` : ''}` : prompt;
   // A connector has no box of its own: it stands at the midpoint between the two objects it joins.
   const boxOfTarget = id => {
     const own = canvas.boxOf(id);

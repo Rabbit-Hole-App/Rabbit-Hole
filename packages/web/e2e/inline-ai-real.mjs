@@ -509,7 +509,7 @@ const acceptAndSearch = async () => {
 await step('review-image-bare', () => paid(`${RUN}-review-image-bare`, 'inline-image-bare', 0.01, async () => {
   fixture = 'review-image-bare';
   await select(['dash']);
-  const out = await ask('explain', '/image');
+  const out = await ask('explain', '/photos');
   const prompt = await page.locator('[data-inline-preview]').first().innerText().catch(() => '');
   const card = out.status === 'preview' ? await acceptAndSearch() : null;
   await shot('real-review-01-image-bare');

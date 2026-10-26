@@ -29,12 +29,13 @@ Owner rule, 2026-10-06. This is UI only: Tutor routing and Learning behaviour do
 selected. This applies to every command"):
 - The pill shows `commandLabel(name)` from `agent/slash.js`: the command's short pill `label`, else its menu label
   (`desc`), as of 2026-10-20 (owner): `/explain`: Add explanation, `/dive`: Open Rabbit Hole, `/3d`: 3D, `/cad`: CAD,
-  `/youtube`: Search YouTube, `/video`: Generate video, `/image`: Search images. A name the registry no longer has (a saved
+  `/youtube`: Search YouTube, `/video`: Generate video, `/photos`: Search photos, `/image`: Generate image. A name the registry no longer has (a saved
   draft or message naming a removed command) reads as its capitalised name (`/simplify`: Simplify). The label is never
   written in a pill component.
 - This holds for every pill a chosen command becomes: the Chat composer and Ctrl+K (`CommandPill.jsx`). Its x is named
   `Remove <label>`. The Home, Library and Project bar has no slash commands since 2026-10-20, so no pill.
-- Removed commands (rabbit-hole-commands.md, Slash-command cleanup) have no tone; `/generate-image` has its own.
+- Removed commands (rabbit-hole-commands.md, Slash-command cleanup) have no tone; the generation (id `generate-image`, typed `/image`) has its own. Tones and `data-command-tone` are keyed by the stable id
+  (`image` is the photo search, typed `/photos`); the mark shows what is typed (`CommandMark`, `typedOf`).
 - Typing syntax keeps its slash: the / picker rows, the Slash commands sheets, the typed line in the box, and the
   learner's submitted text (a sent command keeps its `/name` line). Routing reads the name, never the label.
 - Status lines that name a running command (`Working on /cad…`, a reserved card's `Creating /cad…`) are not pills and

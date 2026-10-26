@@ -8,6 +8,7 @@
 // Sonnet/Opus tiering, Opus re-plan and spend admission: no new tier here) and `makeMaterial` (the existing create_material
 // -> /api/learn/artifact path). Opening, restoring or reading Progress passes no plan, so it never generates.
 import { mayRun, validateCoachingRecord } from './learn-coaching-contract.js';
+import { typedOf } from './agent/slash.js';
 
 // Formats a learner can ask for, and the Tutor material tool that makes each. Text explanations are the artifact explain
 // path that the learner's /explain shares (owner 2026-10-20, lane L10: it picks a plain card or an interactive scene by
@@ -269,7 +270,7 @@ async function apply(action, current, deps) {
 // The one seam where an explanation or other material is made (owner 2026-10-20, lane L10): the Tutor's own material tool
 // line, run by the existing Learn command path with internal: true (lane L7: Tutor material tools are not typed commands).
 // The server's artifact explain path chooses a plain card or an interactive scene by learning need; nothing here does.
-export const materialLine = material => `/${material.command} ${material.request}`.trim();
+export const materialLine = material => `/${typedOf(material.command)} ${material.request}`.trim();
 export const explainMaterial = (runLearnCommand, base) => (material, { canvas }) => runLearnCommand(materialLine(material), { ...base, canvas, internal: true });
 
 // ---- what the learner reads about a submitted answer ------------------------------------------------------------------

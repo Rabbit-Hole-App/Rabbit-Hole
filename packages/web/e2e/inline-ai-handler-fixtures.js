@@ -18,7 +18,7 @@ export const HANDLERS = {
   animate: () => paid('maths_animation', { title: 'Counting the leaves', caption: 'Each level doubles.', operation: { op: 'generate_math_animation', id: 'leaves', concept: 'tree leaves', purpose: 'intuition', scene: { steps: [{ kind: 'equation', expressions: ['L = 2^d'] }] } } }),
   video: () => paid('video_generate', { title: 'A tree growing', caption: 'Branches split into leaves.', operation: { op: 'generate_video', id: 'tree', prompt: 'A tree diagram growing from a root node into leaves', purpose: 'physical_process' } }),
   '3d': () => paid('blender_scene', { title: 'A tree in 3D', brief: 'Spheres for nodes.', operation: { op: 'generate_3d_animation', id: 'tree3d', concept: 'tree', purpose: 'spatial_intuition', output: 'glb', scene: { objects: [{ id: 'root', type: 'sphere' }] } } }),
-  // /image inserts a photo-search card with no model (runLearnCommand's own branch): the same block, staged.
+  // /photos (id image) inserts a photo-search card with no model (runLearnCommand's own branch): the same block, staged.
   image: args => ({ result: 'artifact', primitive: 'image', block: imageSearchBlock(args) }),
 };
 export const ERRORS = {

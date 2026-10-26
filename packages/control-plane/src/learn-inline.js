@@ -192,7 +192,7 @@ export function checkDiagram(input) {
   return checked.ok ? { result: { kind: 'diagram', spec: checked.spec } } : { error: `The diagram didn't check out: ${checked.errors.slice(0, 3).join(' ')}` };
 }
 
-// A card or media capability decided to proceed: its /command's own handler (learn-artifact.js), with no insert. /image
+// A card or media capability decided to proceed: its /command's own handler (learn-artifact.js), with no insert. /photos (route `image`)
 // and /motion make nothing here (a photo search and a paid proposal the editor stages without a model).
 async function inlineCard({ env, allowed, decided, route, context, revise, requestId, started, artifact, documents, pictures = [], imageSource = null }) {
   if (route === 'image' || route === 'motion') return json({ error: 'This output is staged in the editor, not generated here.', code: 'invalid' }, 400);

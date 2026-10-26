@@ -1,4 +1,4 @@
-import { SLASH } from './agent/slash.js';
+import { SLASH, typedOf } from './agent/slash.js';
 
 // One fixed identity per slash command (owner, 2026-10-06 and 2026-10-08; docs/features/slash-command-tones.md): a light
 // tint, the command's text colour and a subtle border of the same hue - every command in the registry its own, never two
@@ -12,6 +12,6 @@ export const commandTone = name => (TONED.has(name) ? name : null);
 
 // The command as text, with its tint: the / picker rows and the Slash commands sheets.
 export function CommandMark({ name, className = '' }) {
-  if (!commandTone(name)) return <span className={`shrink-0 font-medium ${className}`}>/{name}</span>;
-  return <span data-command-tone={name} className={`inline-flex shrink-0 items-center rounded-md border px-1.5 font-medium ${className}`}>/{name}</span>;
+  if (!commandTone(name)) return <span className={`shrink-0 font-medium ${className}`}>/{typedOf(name)}</span>;
+  return <span data-command-tone={name} className={`inline-flex shrink-0 items-center rounded-md border px-1.5 font-medium ${className}`}>/{typedOf(name)}</span>;
 }

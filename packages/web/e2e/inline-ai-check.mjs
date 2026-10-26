@@ -933,13 +933,13 @@ await run('prompt limit: the count shows the supported limit; over it nothing is
 });
 
 // ---- Inline command input (review of cf9216b2..5b3552a5): failed on 5b3552a5 ----
-await run('command input: bare /image, /diagram and /motion use the selection; a routed photo searches it; no subject asks', async () => {
+await run('command input: bare /photos, /diagram and /motion use the selection; a routed photo searches it; no subject asks', async () => {
   const { page, context, saved } = await open('command-input');
   await page.evaluate(() => { window.__inlineMock.routeAnswers = { 'Show me a real photo of this': { choice: 'image', confidence: 0.95, probabilities: { image: 0.95, note: 0.05 } } }; });
   // A bare /name: Enter picks it from the open list (its pill), Enter again sends it - the same request the typed line was.
   const send = async words => { await clickShape(page, 'n23'); await ctrlK(page); await submitPrompt(page, words); if (words.startsWith('/')) await page.keyboard.press('Enter'); await waitStatus(page, ['preview', 'proposal', 'clarify']); };
-  await send('/image');
-  check('a bare /image searches the node\'s words, never "/image"', (await calls(page, 'artifact')).at(-1).args === '23', JSON.stringify((await calls(page, 'artifact')).at(-1).args));
+  await send('/photos');
+  check('a bare /photos searches the node\'s words, never "/photos"', (await calls(page, 'artifact')).at(-1).args === '23', JSON.stringify((await calls(page, 'artifact')).at(-1).args));
   await page.locator('[data-inline-reject]').click();
   await send('Show me a real photo of this');
   check('a routed photo request searches the node\'s words, not the sentence', (await calls(page, 'artifact')).at(-1).args === '23', JSON.stringify((await calls(page, 'artifact')).at(-1).args));
@@ -955,7 +955,7 @@ await run('command input: bare /image, /diagram and /motion use the selection; a
     && handed.about?.selection?.id === 'n23' && handed.about.selection.text === '23', JSON.stringify(handed));
   await context.close();
   const blank = await open('command-input-blank', { shapes: [{ id: 'blank1', kind: 'rect', x1: 600, y1: 300, x2: 760, y2: 380, color: '#2383e2', width: 2, dash: 'solid', fill: null, opacity: 1, round: true, text: '' }] });
-  for (const [command, asks] of [['/image', /What should the photo show\?/], ['/diagram', /What should the diagram show\?/], ['/motion', /What should the video explain\?/]]) {
+  for (const [command, asks] of [['/photos', /What should the photo show\?/], ['/diagram', /What should the diagram show\?/], ['/motion', /What should the video explain\?/]]) {
     await clickShape(blank.page, 'blank1');
     await ctrlK(blank.page);
     await submitPrompt(blank.page, command);

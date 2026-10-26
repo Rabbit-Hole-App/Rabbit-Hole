@@ -9,7 +9,7 @@ import { buildSlash3dGlb } from '../scripts/make-slash-3d-glb.mjs';
 import { Box3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { filterSections } from './command-search.js';
-import { REMOVED_COMMANDS, SLASH, toolOf } from './agent/slash.js';
+import { REMOVED_COMMANDS, SLASH, descFor, toolOf, typedOf } from './agent/slash.js';
 
 const commands = pickerSections('/').flatMap(section => section.items);
 // A development or review build also offers /motion (agent/slash.js MOTION_DEV).
@@ -26,7 +26,7 @@ test('every command in the sheet has a demo, an example, what it does and what i
   for (const { name } of devCommands) {
     const demo = demoOf(name);
     assert.ok(demo, `/${name} has a demo`);
-    assert.ok(EXAMPLES[name]?.startsWith(`/${name}`), `/${name} has an e.g. line`);
+    assert.ok(EXAMPLES[name]?.startsWith(`/${typedOf(name)} `) || EXAMPLES[name] === `/${typedOf(name)}`, `/${typedOf(name)} has an e.g. line`);
     assert.ok(toolOf(name).about, `/${name} says what it does`);
     assert.ok(['Creates a card', 'Opens a Rabbit Hole', 'Opens goals', 'Searches'].includes(effectOf(name)), `/${name}`);
     if (demo === 'chat') assert.ok(CHAT_EXAMPLES[name].about && CHAT_EXAMPLES[name].answer, `/${name} exchange`);
@@ -48,15 +48,16 @@ test('every command in the sheet has a demo, an example, what it does and what i
 });
 
 // Owner, 2026-10-20: separate media search from generation; sourced media and AI-generated media say which they are.
-test('media: /image and /youtube search (sourced), /video and /generate-image generate (AI-generated)', () => {
+test('media: /photos and /youtube search (sourced), /video and /image generate (AI-generated)', () => {
   assert.deepEqual(MEDIA, { image: 'Sourced', youtube: 'Sourced', video: 'AI-generated', 'generate-image': 'AI-generated', motion: 'AI-generated' });
-  assert.equal(EXAMPLES.image, '/image Mount Fuji');
-  assert.equal(EXAMPLES['generate-image'], '/generate-image a watercolor mountain landscape');
+  assert.equal(EXAMPLES.image, '/photos Mount Fuji');
+  assert.equal(EXAMPLES['generate-image'], '/image a watercolor mountain landscape');
   assert.equal(EXAMPLES.youtube, '/youtube binary search tutorial');
   assert.equal(EXAMPLES.video, '/video raindrops falling into a pond');
   assert.match(toolOf('image').about, /never generates/);
+  assert.equal(descFor(toolOf('image'), 'learn'), 'Search photos');
   assert.match(toolOf('video').about, /never searches/);
-  // /generate-image is advertised only where image generation is on: not in this build's sheet.
+  // /image (id generate-image) is advertised only where image generation is on: not in this build's sheet.
   assert.ok(!devCommands.some(({ name }) => name === 'generate-image'));
   assert.deepEqual(sheetCards('generate-image').map(entry => entry.card), ['imageGenerate']);
   assert.equal(mayConfirmPaid('image'), false, 'a search never confirms a paid generation');
@@ -136,12 +137,13 @@ test('the examples cover different topics, never one thread; a card beside one i
 // Owner, 2026-10-20: a selectable example prepares an editable draft (its command pill and words) and never sends.
 test('Use example puts the example in the composer as an editable draft: its pill and words, never sent', () => {
   const sheet = read('./SlashCommandsSheet.jsx');
-  assert.match(sheet, /onClick=\{\(\) => onUseExample\(\{ command: example\.name, text: example\.args \}\)\}/);
+  // The draft's pill is the command's stable id (name), never the typed word of its example (/photos is id image).
+  assert.match(sheet, /onClick=\{\(\) => onUseExample\(\{ command: name, text: example\.args \}\)\}/);
   assert.match(sheet, /data-slash-use-example=\{name\}/);
   // The page closes the sheet and prepares the Chat composer's draft (contract A6: prepare never sends).
   assert.match(read('./LearnPage.jsx'), /onUseExample=\{draft => \{ setSlashHelpOpen\(false\); chat\.composer\.prepare\(draft\); \}\}/);
   assert.match(read('./chat-draft.js'), /prepare: \(\{ text, command \} = \{\}\) => \{ apply\(\{ type: 'prepare', text, command \}\); focus\(\); \}/);
-  for (const [name, line] of Object.entries(EXAMPLES)) assert.equal(parseSlash(line).name, name, line);
+  for (const [name, line] of Object.entries(EXAMPLES)) assert.equal(parseSlash(line).name, typedOf(name), line);
 });
 
 test('the removed commands appear nowhere in the window: not listed, no example, no demo', () => {

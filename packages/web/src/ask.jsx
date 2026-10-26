@@ -33,7 +33,8 @@ import { NO_STEPS, historyKey, recordStep, removesToken, travel } from './comman
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { composerKey } from './composer-keys.js';
 import { chatSendKey, sendKeyLabel } from './ui-prefs.js';
-import { answersInChat, commandLine, holdsLine, parseSlash, releaseLine } from './learn-slash.js';
+import { answersInChat, commandLine, holdsLine, lineCommand, releaseLine } from './learn-slash.js';
+import { typedOf } from './agent/slash.js';
 import { mergeOutputs, outputSink } from './chat-output-refs.js';
 import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
 import { CadReview } from './CadReview.jsx';
@@ -349,7 +350,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     return () => document.removeEventListener('pointerdown', away, true);
   }, [paletteOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const [busy, setBusy] = useState(false);
-  // IMG-01: /generate-image is listed only where the server offers it to this person (image-capability.js); the answer re-renders the menu.
+  // IMG-01: /image (id `generate-image`) is listed only where the server offers it to this person (image-capability.js); the answer re-renders the menu.
   const [, setImageOffered] = useState(false);
   useEffect(() => { if (conversation === 'learn') loadImageCapability((url, init) => fetch(url, init), wsHeaders()).then(setImageOffered); }, [conversation]);
   // A guided Rabbit Hole opening that coaching may not send here (owner 4a): shown above the composer, sent only on the learner's press.
@@ -478,8 +479,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     const saver = turnSaver({ app: chat.canvas, threadId: chatThread.id || newThreadId(), turnId, mode: askMode(chatThread.mode, tocView), title: chatThread.id ? null : title,
       onAsked: () => { if (!lateEvent(sentKey, chatThread.liveKey())) chatThread.adopt(saver.threadId, title); } });
     chatThread.adopt(saver.threadId, title, { remember: false });
-    setMsgs(m => [...m, { role: 'user', content, command: parseSlash(content)?.name || null, messageId: `local-q-${turnId}`, status: 'done', outputsKey: turnId, outputs: [] }]);
-    const saved = savedId(turnId, saver.user(content, { command: parseSlash(content)?.name || null }));
+    setMsgs(m => [...m, { role: 'user', content, command: lineCommand(content), messageId: `local-q-${turnId}`, status: 'done', outputsKey: turnId, outputs: [] }]);
+    const saved = savedId(turnId, saver.user(content, { command: lineCommand(content) }));
     saved.catch(error => console.info('[chat] command not saved:', error.message));
     // thread and refs (EXP-T20 slice 3): an /explain job posts a reviewed brief in the thread this line is saved in, and gets this
     // chat's pinned and temporary refs (resolved by the server, as for a question).
@@ -530,7 +531,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     // LearnSlash runs it and the slot goes back to "/". The composer shows the line until it runs, so a line LearnSlash holds
     // while another command runs is still there to release (releaseLine).
     const line = !regenerate && slash ? commandLine(raw, { command, prompted }) : null;
-    if (line) { promptCommand.current = parseSlash(line)?.name || null; sentDraft.current = { command: raw.trim().startsWith('/') ? null : command, text: raw }; commandSteps.current = NO_STEPS; setCommand(null); setInput(line); if (slashRef.current?.intercept(line)) return; }
+    if (line) { promptCommand.current = lineCommand(line); sentDraft.current = { command: raw.trim().startsWith('/') ? null : command, text: raw }; commandSteps.current = NO_STEPS; setCommand(null); setInput(line); if (slashRef.current?.intercept(line)) return; }
     // TOC refinements and explicit Ask never go to the journey resolver or start a journey: a course or journey
     // on this canvas must not turn an Ask turn into syllabus work.
     if (tocView || chat?.thread.mode === 'ask') skipJourney = true;
@@ -697,7 +698,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     });
     const mirror = (t) => { exchange?.({ id: replyId, delta: t }); append(t); };
     let responseGraph = null;
-    // IMG-01: /generate-image. The server signs the plan with its own quote (no model call) and saves it in this chat; the answer
+    // IMG-01: /image (id `generate-image`). The server signs the plan with its own quote (no model call) and saves it in this chat; the answer
     // is the plan's card (Generate, edits, reload and the job all start from it). Offered only where the server lists this person.
     const imagePlan = async words => {
       if (attached) throw new Error('Add reference images on the plan card after it appears, not as an attachment.');
@@ -824,8 +825,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         if (!outcome.send && outcome.direct?.command === 'generate-image' && chatThread && imageGenerationOn()) { await imagePlan(outcome.direct.args || message); return; }
         if (!outcome.send) {
           setMsgs(m => m.slice(0, -2)); // no turn happened: the decision replaces it
-          if (outcome.direct && slashRef.current?.intercept(`/${outcome.direct.command} ${outcome.direct.args}`.trim())) return;
-          if (!keepDraft) setInput(current => current || (commandName ? `/${commandName} ${raw}` : raw));
+          if (outcome.direct && slashRef.current?.intercept(`/${typedOf(outcome.direct.command)} ${outcome.direct.args}`.trim())) return;
+          if (!keepDraft) setInput(current => current || (commandName ? `/${typedOf(commandName)} ${raw}` : raw));
           setRouteShown({ ...(outcome.show || { kind: 'unsupported', message: 'That isn\'t available here.' }), raw, command: commandName });
           return;
         }

@@ -3,6 +3,7 @@ import { ArrowUpRight, ChevronRight, CircleHelp, Loader2, SquareSlash, X } from 
 import { parseSlash, pickerSections, releaseLine, searchSections } from './learn-slash.js';
 import PaidConfirm from './PaidConfirm.jsx';
 import { CommandMark } from './CommandTone.jsx';
+import { typedOf } from './agent/slash.js';
 import { CommandSearch } from './CommandList.jsx';
 
 // The Learn composer's / picker and its results (docs/features/
@@ -37,7 +38,7 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
   const choose = name => {
     // Opening by click or Enter brings the new tools into view.
     if (name === '__more') { if (!moreOpen) requestAnimationFrame(() => moreHeader.current?.scrollIntoView({ block: 'start' })); setMoreOpen(open => !open); return; }
-    setInput(`/${name} `);
+    setInput(`/${typedOf(name)} `);
     if (query !== null) composerRef?.current?.focus(); // the search field goes; the command's details are typed in the composer
   };
   const exec = async raw => {

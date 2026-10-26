@@ -7,7 +7,7 @@
 //   { kind: 'selection', mode: 'edit'|'explain', targetIds: [id...] | textRange: { id, from, to }, prompt, slash?, context }
 //   { kind: 'creation', mode: 'explain', anchor: { x, y } (world), region: '<compact subject+style summary>', prompt, slash?, context }
 // Response: { decision, message?, route?: { capability, outcome }, missing?: [...], paid, token? }
-import { SLASH, primitive, toolOf, unavailableCommand } from './agent/slash.js';
+import { SLASH, primitive, toolOf, typedOf, unavailableCommand } from './agent/slash.js';
 import { INLINE_TOOLS } from './inline-tool-capabilities.js';
 import { EXPLICIT_ROUTES, NOT_INLINE, PROMPT_MAX, ROUTES, commandInput, explicitCommand, isPlainExplain, promptTooLong, selectionSummary, unavailableText } from './inline-ai-route.js';
 
@@ -102,15 +102,15 @@ export function fixedRoute(request, enabled = DEFAULT_ENABLED) {
   if (request.output === 'equation' && request.mode === 'explain' && !command) return enabled.includes('equation') ? { capability: 'equation' } : stop('unsupported', 'Equation generation is unavailable here.');
   // A refine keeps its output: the check validates the new words for it ("make it shorter" means the result shown).
   if (request.revising && request.mode === 'explain' && !command) return enabled.includes(request.revising) || request.revising === 'note' ? { capability: request.revising, revising: true } : stop('unsupported', unavailableText(request.revising).text);
-  if (request.mode === 'edit') return command ? stop('unsupported', `/${command.name} adds something new. Switch to Explain to use it, or describe the change you want.`) : { capability: 'edit' };
+  if (request.mode === 'edit') return command ? stop('unsupported', `/${typedOf(command.name)} adds something new. Switch to Explain to use it, or describe the change you want.`) : { capability: 'edit' };
   if (command) {
     // A removed command runs nothing, even where plain words still reach its route (owner, 2026-10-20).
-    const removed = unavailableCommand(command.name);
+    const removed = unavailableCommand(typedOf(command.name));
     if (removed) return stop('unsupported', removed);
     const capability = INLINE_SLASH[command.name] || command.name;
     if (!knownCapability(capability) || capability === 'note') {
       const known = SLASH.some(entry => entry.name === command.name && entry.places.includes('learn'));
-      return stop('unsupported', known ? `/${command.name} isn't part of inline Explain (${NOT_INLINE[command.name] || 'not an explanation'}). Use it from the chat composer.` : `/${command.name} is not a Learn command.`);
+      return stop('unsupported', known ? `/${typedOf(command.name)} isn't part of inline Explain (${NOT_INLINE[command.name] || 'not an explanation'}). Use it from the chat composer.` : `/${command.name} is not a Learn command.`);
     }
     if (!enabled.includes(capability)) return stop('unsupported', unavailableText(capability).text);
     // A bare command needs a subject: the selection's words, or the command's own.

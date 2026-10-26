@@ -861,7 +861,7 @@ The worker side is docs/features/inline-ai-validation.md (lane R). In the editor
   deterministically in the region's style, placed in free space near the selection (nothing moves), shown as a pale
   ghost, and added in one Accept, groups included, which one Undo removes. A spot taken before Accept is placed again.
   Off-screen, the camera goes to where it will land.
-- Cards come from /generate. /image stays a photo search staged in the editor, and /motion stays a paid proposal with
+- Cards come from /generate. /photos (id `image`) stays a photo search staged in the editor, and /motion stays a paid proposal with
   Generate, both after a proceed.
 
 ## A11. Ctrl/Cmd+K with nothing selected: creation (owner brief, 2026-10-13, sections 1-4 and 8-9)
