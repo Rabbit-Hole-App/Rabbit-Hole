@@ -82,7 +82,9 @@ test('validateReview: prompt and references must agree both ways, and nothing hi
     [review({ quote: { estimate_credits: -1 } }), 'review_invalid'], [review({ quote: { estimate_credits: 1, other: 2 } }), 'review_invalid'], [review({ visual_constraints: ['a', 5] }), 'review_invalid'],
   ];
   for (const [fields, code] of cases) assert.equal(validateReview(fields).code, code, `${code}: ${JSON.stringify(fields).slice(0, 90)}`);
-  assert.deepEqual(validateReview(review({ quote: { estimate_credits: 12 } })).value.quote, { estimate_credits: 12, reserve_credits: null });
+  assert.deepEqual(validateReview(review({ quote: { estimate_credits: 12 } })).value.quote, { estimate_credits: 12, max_credits: null, reserve_credits: null });
+  assert.deepEqual(validateReview(review({ quote: { estimate_credits: 12, max_credits: 20, reserve_credits: 30 } })).value.quote, { estimate_credits: 12, max_credits: 20, reserve_credits: 30 }, 'the maximum is part of the signed quote');
+  assert.equal(validateReview(review({ quote: { estimate_credits: 12, max_credits: -1 } })).code, 'review_invalid'); assert.equal(validateReview(review({ quote: { estimate_credits: 12, max_credits: 1.5 } })).code, 'review_invalid');
   assert.equal(validateReview(review({ mode: undefined })).value.mode, 'generate');
 });
 

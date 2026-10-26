@@ -226,9 +226,13 @@ test('generate-image: references are limited and typed per model, never truncate
   assert.ok(unpriced.validation_errors.some(e => e.path === 'usage'));
   assert.ok(!unpriced.allowed_actions.includes('generate'), 'no quote, no Generate');
   assert.ok(unpriced.allowed_actions.includes('save') && unpriced.allowed_actions.includes('cancel'));
-  const priced = proposalView({ ...base, usage: { estimate_credits: 14 } }, { quote_id: 'q1', quote_expires_at: '2026-10-23T22:00:00Z' });
-  assert.deepEqual(priced.usage, { estimate_credits: 14, quote_id: 'q1', expires_at: '2026-10-23T22:00:00Z' });
+  // An image states its estimate with the most it can cost and the temporary hold (requires_max): an estimate without a maximum is as blocked as no quote.
+  const unmaxed = proposalView({ ...base, usage: { estimate_credits: 14 } });
+  assert.deepEqual(unmaxed.usage, { estimate_credits: null, unknown: true });
+  assert.ok(!unmaxed.allowed_actions.includes('generate'), 'no maximum, no Generate');
+  const priced = proposalView({ ...base, usage: { estimate_credits: 14, max_credits: 20, reserve_credits: 30 } }, { quote_id: 'q1', quote_expires_at: '2026-10-23T22:00:00Z' });
+  assert.deepEqual(priced.usage, { estimate_credits: 14, max_credits: 20, reserve_credits: 30, quote_id: 'q1', expires_at: '2026-10-23T22:00:00Z' });
   assert.deepEqual(priced.allowed_actions, ['edit', 'save', 'generate', 'cancel']);
-  assert.ok(!proposalView({ ...base, usage: { estimate_credits: 14 }, settings: { model: 'gemini-3-pro-image', quality: 'high' } }).allowed_actions.includes('generate'), 'a conflict blocks Generate');
-  assert.equal(proposalView({ ...base, usage: { estimate_credits: 0 } }).allowed_actions.includes('generate'), true, 'a quoted zero is a quote; only a missing one blocks');
+  assert.ok(!proposalView({ ...base, usage: { estimate_credits: 14, max_credits: 20, reserve_credits: 30 }, settings: { model: 'gemini-3-pro-image', quality: 'high' } }).allowed_actions.includes('generate'), 'a conflict blocks Generate');
+  assert.equal(proposalView({ ...base, usage: { estimate_credits: 0, max_credits: 0, reserve_credits: 0 } }).allowed_actions.includes('generate'), true, 'a quoted zero is a quote; only a missing one blocks');
 });
