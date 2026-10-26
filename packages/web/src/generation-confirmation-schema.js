@@ -88,7 +88,7 @@ export const GENERATION_COMMANDS = Object.freeze({
   // combination may be GENERATED is the server's readiness decision (control-plane motion-settings.js), not an option's availability.
   // Audio stays disabled until narration works.
   motion: define({
-    label: 'Motion video', noun: 'video', review_policy: 'always', settings_noun: 'a Motion setting', cancel: false,
+    label: 'Motion video', noun: 'video', review_policy: 'always', settings_noun: 'a Motion setting', cancel: false, requires_max: true,
     settings: [
       field('aspect_ratio', 'Aspect ratio', 'select', { control: 'aspect_ratio', options: motionRatios, default: MOTION_DEFAULT_RATIO }),
       field('duration_seconds', 'Duration', 'select', { required: true, unit: 'seconds', options: seconds, default: 10 }),

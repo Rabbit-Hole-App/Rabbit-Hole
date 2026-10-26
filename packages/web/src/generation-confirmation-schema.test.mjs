@@ -129,16 +129,16 @@ test('fieldProblem covers each field type', () => {
 
 test('a proposal view: logical fields, hidden empty sections, actions follow validity and missing information', () => {
   const p = { proposal_id: 'gp-0123456789abcdef', version: 3, command: 'motion', title: 'Water', description: 'plain', prompt: 'See {{ref:r1}}.', settings: { duration_seconds: 10, audio: false },
-    input: { request: '/motion water' }, references: [{ id: 'r1', label: 'Card · A', kind: 'card', sourceId: 'card:a', revision: 'v1', range: null }], usage: { estimate_credits: 40 } };
+    input: { request: '/motion water' }, references: [{ id: 'r1', label: 'Card · A', kind: 'card', sourceId: 'card:a', revision: 'v1', range: null }], usage: { estimate_credits: 40, max_credits: 350, reserve_credits: 896 } };
   const view = proposalView(p);
   assert.deepEqual([view.schema_version, view.revision, view.original_request, view.description, view.status], [1, 3, '/motion water', 'See {{ref:r1}}.', 'awaiting_review']);
   assert.deepEqual([view.requirements, view.assumptions, view.missing_information, view.limitations, view.validation_errors], [[], [], [], [], []]);
   assert.deepEqual(view.review, { required: true, reasons: ['policy'] });
-  assert.deepEqual(view.usage, { estimate_credits: 40 });
+  assert.deepEqual(view.usage, { estimate_credits: 40, max_credits: 350, reserve_credits: 896 });
   assert.deepEqual(visibleSections(view), ['references', 'usage'], 'empty optional sections are hidden');
   assert.deepEqual(view.allowed_actions, ['edit', 'save', 'generate'], 'Motion has no Cancel');
   const noUsage = proposalView({ ...p, usage: { estimate_credits: null }, references: [] });
-  assert.deepEqual(visibleSections(noUsage), []);
+  assert.deepEqual(visibleSections(noUsage), ['usage'], 'owner 2026-10-26: a Motion proposal with no price says so (Price not available yet) and is blocked; it is never silent');
   const cad = commandDefinition('cad');
   assert.deepEqual(allowedActions(cad, { missing_information: ['Width?'] }), ['edit', 'save', 'cancel'], 'missing information disables Generate');
   assert.deepEqual(allowedActions(cad, { validation_errors: [{ path: 'settings.parameters', message: 'x' }] }), ['edit', 'save', 'cancel']);
@@ -235,4 +235,17 @@ test('generate-image: references are limited and typed per model, never truncate
   assert.deepEqual(priced.allowed_actions, ['edit', 'save', 'generate', 'cancel']);
   assert.ok(!proposalView({ ...base, usage: { estimate_credits: 14, max_credits: 20, reserve_credits: 30 }, settings: { model: 'gemini-3-pro-image', quality: 'high' } }).allowed_actions.includes('generate'), 'a conflict blocks Generate');
   assert.equal(proposalView({ ...base, usage: { estimate_credits: 0, max_credits: 0, reserve_credits: 0 } }).allowed_actions.includes('generate'), true, 'a quoted zero is a quote; only a missing one blocks');
+});
+
+// Owner 2026-10-26 (D1b): a Motion proposal without the server's maximum possible charge is blocked like an unquoted one, and shows no estimate alone.
+test('a Motion proposal view needs the maximum: with the estimate alone it is blocked and states no price', () => {
+  const p = { proposal_id: 'gp-0123456789abcdef', version: 1, command: 'motion', title: 'Water', description: 'plain', settings: { duration_seconds: 10, audio: false }, input: { request: '/motion water' }, references: [] };
+  const full = proposalView({ ...p, usage: { estimate_credits: 100, max_credits: 350, reserve_credits: 896 } });
+  assert.deepEqual([full.usage, full.allowed_actions.includes('generate'), full.validation_errors], [{ estimate_credits: 100, max_credits: 350, reserve_credits: 896 }, true, []]);
+  for (const usage of [{ estimate_credits: 100, reserve_credits: 896 }, { estimate_credits: 100, max_credits: null, reserve_credits: 896 }, { estimate_credits: null, max_credits: 350 }, undefined]) {
+    const view = proposalView({ ...p, ...(usage ? { usage } : {}) });
+    assert.deepEqual([view.usage, view.allowed_actions.includes('generate'), view.validation_errors.map(e => e.path)], [{ estimate_credits: null, unknown: true }, false, ['usage']], JSON.stringify(usage));
+  }
+  // Explain is unchanged: its estimate is shown without a maximum.
+  assert.deepEqual(proposalView({ ...p, command: 'explain', settings: { presentation: 'auto' }, usage: { estimate_credits: 40, reserve_credits: 120 } }).usage, { estimate_credits: 40 });
 });

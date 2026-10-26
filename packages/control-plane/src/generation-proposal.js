@@ -19,7 +19,7 @@ import { CHAT_CAPABILITIES, chatCapability } from '../../web/src/inline-ai-route
 import { hmacHex } from './token.js';
 import { explainReservation } from './explain-policy.js';
 import { SCHEMA_VERSION, commandDefinition, firstReadOnly, settingsOf, validateSettings as validateCommandSettings } from '../../web/src/generation-confirmation-schema.js';
-import { MOTION_DEFAULT_RATIO, MOTION_RATIOS, motionBinding, motionQuote, motionQuoteInputs, motionReadiness } from './motion-settings.js';
+import { MOTION_DEFAULT_RATIO, MOTION_RATIOS, motionBinding, motionMaxCredits, motionQuote, motionQuoteInputs, motionReadiness } from './motion-settings.js';
 import { REVIEW_LISTS, escapeText, plainPrompt, reviewHash, reviewOf, validateReview } from '../../web/src/generation-review.js';
 import { imageQuote } from './image-providers.js';
 import { imageReadiness } from './image-settings.js';
@@ -152,7 +152,8 @@ export const envelopeFor = (env, bind) => (v2Secret(env) && bind?.org && bind?.a
 export const reviewAvailable = env => !!v2Secret(env);
 
 // What generating it uses, from the server's own settings (owner messages 30-33: credits only, 1 credit = $0.01): the estimate
-// (MOTION_ESTIMATE_USD) and the temporary reservation while it runs (MOTION_JOB_RESERVATION_USD). Unsigned: display only.
+// (MOTION_ESTIMATE_USD), Motion's maximum charge (MOTION_MAX_CHARGE_USD) and the temporary reservation while it runs
+// (MOTION_JOB_RESERVATION_USD). Unsigned: display only (the binding signs the same estimate and maximum).
 const credits = usd => (Number.isFinite(usd) && usd > 0 ? Math.ceil(Number((usd * 100).toFixed(6))) : null);
 export function proposalUsage(env, command, settings) {
   // /explain: its estimate when configured (EXPLAIN_ESTIMATE_USD, from measured runs), and the policy's generation worst case
@@ -166,7 +167,9 @@ export function proposalUsage(env, command, settings) {
   // inputs: what this quote was made for (motionQuoteInputs, the pricing seam), and price_version: the version of the price table (or "flat").
   // Both are signed with the proposal (motionBinding); Generate answers a stale one with the updated quote (motionGenerationCheck).
   const quote = motionQuote(env, motionQuoteInputs(settings));
-  return { estimate_credits: quote.estimate_credits, reserve_credits: hold == null ? null : credits(hold / 1e6), ...(settings ? { inputs: motionQuoteInputs(settings), price_version: quote.price_version } : {}) };
+  // Three separate numbers (owner 2026-10-26, docs/features/motion-credit-disclosure.md): the estimate, the MAXIMUM POSSIBLE CHARGE (max_credits,
+  // the figure signed into the binding) and the temporary reservation (reserve_credits: held while it runs, released unused). Credits only.
+  return { estimate_credits: quote.estimate_credits, max_credits: motionMaxCredits(env), reserve_credits: hold == null ? null : credits(hold / 1e6), ...(settings ? { inputs: motionQuoteInputs(settings), price_version: quote.price_version } : {}) };
 }
 // The server's readiness answer for the card, unsigned like usage and decided again at Generate: Motion only.
 const readinessOf = (env, p) => (p.command === 'generate-image' ? { readiness: imageReadiness(p.settings, p.references?.length ?? 0) } : p.command === 'motion' ? { readiness: motionReadiness(env, motionQuoteInputs(p.settings)) } : {});

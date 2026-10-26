@@ -320,7 +320,9 @@ test('only the production app config points at the Motion orchestrator, with a c
       assert.ok(text.includes('"MOTION_ACCEPTANCE_EMAILS": "user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid yudhisteer.chin@gmail.com"'));
       // Owner message 32: the confirmation's estimate, a typical job's actual cost (about 100 credits).
       assert.match(text, /"MOTION_ESTIMATE_USD": "1\.00"/);
-    } else assert.doesNotMatch(text, /MOTION_ORCHESTRATOR|MOTION_JOB_RESERVATION|MOTION_GENERATION_PAUSED|MOTION_ESTIMATE/, name);
+      // Owner 2026-10-26 (D1a/D1b): the maximum possible charge, apart from the estimate and the hold (motion-credit-disclosure.test.js pins it to the orchestrator ceiling).
+      assert.match(text, /"MOTION_MAX_CHARGE_USD": "3\.50"/);
+    } else assert.doesNotMatch(text, /MOTION_ORCHESTRATOR|MOTION_JOB_RESERVATION|MOTION_GENERATION_PAUSED|MOTION_ESTIMATE|MOTION_MAX_CHARGE/, name);
   }
 });
 

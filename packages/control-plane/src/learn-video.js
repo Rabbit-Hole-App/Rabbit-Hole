@@ -4,7 +4,7 @@ import { videoProvider } from './video-provider.js';
 import { ManimProvider, cacheKey as mathCacheKey } from './math-provider.js';
 import { MotionProvider, MotionRequestProvider, motionCacheKey, motionGrant, motionRequestCacheKey, motionReservationMicros, validateMotionRender, validateMotionRequest } from './motion-provider.js';
 import { MOTION_PAUSED, consumeProposal, motionPaused, verifyProposal } from './generation-proposal.js';
-import { liveRendererConfig, motionExecutionCheck, motionGenerationCheck } from './motion-settings.js';
+import { liveRendererConfig, motionExecutionCheck, motionGenerationCheck, motionMaxCredits } from './motion-settings.js';
 import { blockedBody, resolveReferences } from './generation-review-refs.js';
 import { isReviewProposal } from '../../web/src/generation-review.js';
 import { paidRefusal } from './learn-paid.js';
@@ -331,15 +331,16 @@ export class LearnVideos {
   async list(email = null) {
     const placements = await this.state.storage.list({ prefix: 'placement:' });
     const jobs = await this.state.storage.list({ prefix: 'job:' });
-    // The per-job reservation (MOTION_JOB_RESERVATION_USD) decides only whether Motion can start; its amount is never sent to the browser.
+    // The per-job reservation (MOTION_JOB_RESERVATION_USD) decides whether Motion can start; the browser gets it in credits only (motionHoldCredits).
     const paused = motionPaused(this.env, email);
     const holdMicros = !paused && !new MotionRequestProvider(this.env).unavailable() && motionReservationMicros(this.env);
-    // The confirmation's estimate (owner message 32: 1 credit = $0.01), only where Motion can start; the hold stays internal.
-    const estimate = holdMicros && motionEstimateCredits(this.env);
+    // The confirmation's estimate (owner message 32: 1 credit = $0.01), only where Motion can start, with the maximum possible charge and the temporary
+    // hold as separate numbers (owner 2026-10-26): a card never states the estimate alone, so the hold and maximum travel together.
+    const estimate = holdMicros && motionEstimateCredits(this.env), max = estimate && motionMaxCredits(this.env);
     // Credits given back (refundAttempt) for a failed Motion job's charged attempts, read once per list; the card shows them apart from the charge.
     const refunded = new Map();
     for (const [key, j] of jobs) if (j.provider === 'motion_request' && j.status === 'failed') refunded.set(key, await this.refundedMicros(j));
-    return { ...(estimate ? { motionEstimateCredits: estimate } : {}), ...(paused ? { motionPaused: true } : {}), videos: [...placements.values()].map(p => {
+    return { ...(estimate ? { motionEstimateCredits: estimate } : {}), ...(max ? { motionMaxCredits: max, motionHoldCredits: Math.ceil(holdMicros / 10_000) } : {}), ...(paused ? { motionPaused: true } : {}), videos: [...placements.values()].map(p => {
       const j = jobs.get(`job:${p.key}`);
       return { ...p, status: j?.status || 'idle', error: userSafeError(j?.error, j?.failureCode), retryable: !j?.uncertain, duration: j?.input.duration, provider: j?.result?.provider, generationId: j?.result?.generationId, ...(j?.result?.motion ? { motion: j.result.motion } : {}), ...(motionHold(j) ? { hold: motionHold(j) } : {}),
         ...(j?.provider === 'motion_request' ? { usage: { usedCredits: (j.usedMicros || 0) / 10_000, unknown: !!j.usageUnknown } } : {}), ...(j?.provider === 'motion_request' && j.status === 'failed' ? { recovery: this.motionRecovery(j, !!holdMicros, refunded.get(`job:${p.key}`)) } : {}) };
@@ -448,22 +449,26 @@ export class LearnVideos {
     const cost = view?.spend?.cost_usd, known = Number.isFinite(cost) && cost >= 0 ? Math.ceil(Number((cost * 1e6).toFixed(6))) : null;
     const bound = Number.isFinite(view?.spend?.bound_usd) ? Math.ceil(Number((view.spend.bound_usd * 1e6).toFixed(6))) : spend.micros;
     const free = zeroCredit(view), code = failureCodeOf(view), calls = view?.spend?.calls || 0, status = calls === 0 && known === 0 ? 'cancelled' : view?.status === 'ready' ? 'settled' : 'failed';
+    // The settle-time guard (owner 2026-10-26): the learner is never charged more than the maximum signed into the quote they confirmed (the live
+    // maximum for a request with no card). The provider's real cost is still recorded and counted toward the video's ceiling; a zero-credit failure stays 0.
+    const maxCredits = job.input?.proposal?.input?.binding?.max_credits ?? motionMaxCredits(this.env), cap = Number.isFinite(maxCredits) ? maxCredits * 10_000 : Infinity;
+    const charge = free ? 0 : known == null ? null : Math.min(known, cap);
     if (spendEnforced(this.env)) try {
       // The platform ledger keeps the provider's actual cost; the learner's attempt is charged only outside the zero-credit class.
       await settleSpend(this.env.LEARN_DB, spend.opId, { status, calls, costUsd: known == null ? null : known / 1e6, provider: 'anthropic', error: status === 'failed' ? (LIMIT_CODES.includes(code) ? `motion_${code}` : `motion_${view?.status || 'lost'}`) : null });
       const tokens = key => (view?.spend?.provider_calls || []).reduce((n, c) => n + (c.usage?.[key] || 0), 0);
-      await settleAttempt(this.env, spend.attemptId, { costMicros: free ? 0 : known, status, inputTokens: tokens('input_tokens'), outputTokens: tokens('output_tokens') });
+      await settleAttempt(this.env, spend.attemptId, { costMicros: charge, status, inputTokens: tokens('input_tokens'), outputTokens: tokens('output_tokens') });
       await finishActionOf(this.env, spend.attemptId, motionOutcome(job, view, known));
     } catch (error) { spend.settling = false; throw error; } // a failed ledger write is asked again, as before
     // The video's ceiling counts what the provider may bill, the real cost even above the hold, never less.
     job.consumedMicros = (job.consumedMicros || 0) + (known ?? Math.min(bound, spend.micros));
-    job.usedMicros = (job.usedMicros || 0) + (free ? 0 : known ?? 0);
+    job.usedMicros = (job.usedMicros || 0) + (charge ?? 0);
     if (known == null && !free) job.usageUnknown = true;
-    (job.providerCost ||= []).push({ opId: spend.opId, micros: known, charged: free ? 0 : known, free, cause: view?.cause ?? (view ? null : 'lost'), code: code ?? null, calls: view?.spend?.provider_calls ?? null });
+    (job.providerCost ||= []).push({ opId: spend.opId, micros: known, charged: charge, ...(known != null && charge < known && !free ? { capped: true } : {}), free, cause: view?.cause ?? (view ? null : 'lost'), code: code ?? null, calls: view?.spend?.provider_calls ?? null });
     // Why it failed, for operators and recovery: kept in the job record, never in what list() sends to a browser. A charged attempt's id is kept
     // too, so the card can tell credits charged from credits refunded (refundAttempt) and from a released hold.
     if (view?.status === 'failed') Object.assign(job, { failureCode: code, failure: { code, cause: view.cause ?? null, ...(view.failure ?? {}) } });
-    if (spend.attemptId && !free && known > 0) (job.attemptIds ||= []).push(spend.attemptId);
+    if (spend.attemptId && !free && charge > 0) (job.attemptIds ||= []).push(spend.attemptId);
     Object.assign(spend, { settled: true, settling: false, costMicros: known });
     await this.stopLanded(job);
     await this.state.storage.put(`job:${job.key}`, job);
