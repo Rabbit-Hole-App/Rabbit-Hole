@@ -78,6 +78,7 @@ test('conversion and pricing: $1 = 100 credits = 1,000,000 micros; the worked ex
   assert.equal(priceUsage({ provider: 'fish', model: 's1', quantities: { input_bytes: 1_000_000 } }).micros / CREDIT, 1500); // 1,500 credits per million bytes
   assert.equal(priceUsage({ provider: 'elevenlabs', model: 'scribe_v2_realtime', quantities: { audio_hour: 3600 } }).micros / CREDIT, 39);
   assert.equal(rateOf('openai', 'gpt-4o-transcribe', 'audio_minute').status, 'estimate');
+  assert.deepEqual([rateOf('openai', 'gpt-transcribe', 'audio_minute').usd, rateOf('openai', 'gpt-transcribe', 'audio_minute').status], [0.0045, 'verified']); // the replacement, shutdown of the old model 2027-02-26
 });
 
 test('image models are priced per modality, never one price per image', () => {

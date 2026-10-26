@@ -34,6 +34,18 @@ Not needed: any new DO class, D1 migration (tables exist), `worker_loaders`, or 
 | Legacy `/api/learn/image` | `LEGACY_IMAGE_GENERATION` exactly `true`; set in no config | None |
 | Ctrl+K image edit | rows 1 to 7 above | Still off until the flag and reservation exist |
 
+Proof: `test/openai-key-install-effects.test.js` runs each path with the production config's own vars plus the key (owner decision D3, 2026-10-26): transcription 503, legacy image 503, Ctrl+K edit unavailable,
+public image generation off with only `IMAGE_ACCEPTANCE_EMAILS` allowed, planning model unchanged, and a tripwire that fails if any other server file starts reading the key. Every file that reads it, with a key present:
+
+| File | What it does with the key |
+|---|---|
+| `control-plane/src/inline-image-jobs.js` | One ingredient of `enabled()` for Ctrl+K image edit, plus the provider call. Nothing happens without `INLINE_IMAGE_EDIT_ENABLED` and the reservation |
+| `control-plane/src/image-providers.js` | Names it as the secret of the OpenAI image models (`providerConfigured`). IMG-01 shows those models as configured; only `IMAGE_ACCEPTANCE_EMAILS` identities may start a job while `IMAGE_GENERATE_ENABLED` is `false` (paid) |
+| `control-plane/src/learn-models.js` (`planUsesOpenAI`) and `ask.js` (`planModel`) | OpenAI planning only when `LEARN_PLAN_MODEL` is also set (absent in production). Otherwise unchanged (Anthropic) |
+| `web/dev-worker.js` `/api/learn/image` | Legacy `gpt-image-1`: only when `LEGACY_IMAGE_GENERATION` is exactly `true` (set in no config); off |
+| `web/dev-worker.js` `/api/learn/transcribe` | Only when `TRANSCRIBE_ENABLED` is exactly `true` (default `false`); see [transcription-migration.md](transcription-migration.md) |
+| `control-plane/src/pricing-registry.js`, `learn-usage-estimates.js` | A comment and price rows only; neither reads the key |
+
 ## Price and reservation: what is and is not verified
 
 - Verified (`pricing-registry.js`, official page read 2026-10-23/25): `gpt-image-2.5-sunburst-2026-09-08` input text 5, input image 8, output image 30 USD per million tokens.
