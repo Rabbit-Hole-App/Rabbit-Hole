@@ -1,0 +1,181 @@
+{
+  "title": "Rabbit Hole production acceptance: owner checklist",
+  "target": "https://digrabbithole.com",
+  "expected_sha": "0b5a8dae",
+  "expected_build": "622a36f361bce43e",
+  "rules": [
+    "Sign in as yourself in a normal browser. Use ONE throwaway canvas named \"acceptance 1026\" for every step that writes data; delete it at the end (O15).",
+    "Do NOT press Generate on any Motion or image card, and do not confirm /video. Nothing here needs paid generation.",
+    "Stop at the first FAIL of an item, write what you saw, take one screenshot, go to the next item. A FAIL does not end the sitting.",
+    "Write PASS only for what you saw. If you could not reach the step (no notebook card, no second login) write SKIP and why. A blank item is NOT accepted."
+  ],
+  "items": [
+    {
+      "id": "O01", "feature": "Credits meter and usage panel", "who": "OWNER BROWSER", "second_account": false, "spend": "none",
+      "steps": [
+        "Open any canvas you own and click the AI credits gauge in the top bar.",
+        "Read the popover, then open Settings and AI usage and read the same numbers there."
+      ],
+      "expect": "Gauge and Settings both show remaining, \"N AI credits every month\", used, a bar and exactly \"Renews on October 31, 5:00 PM PDT\". N is 2,500 (account that never used AI) or 5,000 (account that used AI in October). No dollar sign or dollar amount anywhere.",
+      "fail": "Any dollar amount, NaN, empty meter, a different renewal date, or a zero/red balance while credits remain.",
+      "record": "N seen, remaining, used, exact renewal text, which login (gmail or amazon)."
+    },
+    {
+      "id": "O02", "feature": "Study resize persists (C17 fix)", "who": "OWNER BROWSER", "second_account": false, "spend": "none",
+      "steps": [
+        "Open a canvas that already has a notebook card, keep the right panel open, View menu > Study, pick the reference card, leave the working view on Canvas.",
+        "Drag the notebook card's bottom-right corner to make it clearly bigger, then reload the page at once.",
+        "Repeat after waiting 3 seconds, then sign out and in again and look at the notebook."
+      ],
+      "expect": "The bigger size is kept after the immediate reload, the waited reload and after sign out and in. Study is still on.",
+      "fail": "The notebook returns to its old size, or another card changes size.",
+      "record": "Which canvas, which of the three reloads (if any) lost the size, browser."
+    },
+    {
+      "id": "O03", "feature": "Chat restore keeps what you typed (C17 and G4)", "who": "OWNER BROWSER", "second_account": false, "spend": "none (do not press Send)",
+      "steps": [
+        "Open a canvas that already has a saved Chat thread, reload, and as soon as the composer shows type: draft 1026 (do not press Send).",
+        "Wait 10 seconds while the old thread loads."
+      ],
+      "expect": "The typed text is still in the composer, not blanked or replaced when the old thread appears. A new chat starts in Auto with no leftover attached cards.",
+      "fail": "The typed text disappears or is replaced when the thread loads.",
+      "record": "Canvas, how fast you typed after reload, what the composer held at 10 seconds."
+    },
+    {
+      "id": "O04", "feature": "Stars persist", "who": "OWNER BROWSER", "second_account": false, "spend": "none",
+      "steps": [
+        "Open Explore and press Star on one published canvas (yours, \"prod-check 9f178ce5 composer\", is fine): Starred fills, the count goes up by 1, you stay on the page.",
+        "Reload: still starred, same count. Library > Stars lists it.",
+        "Press Star again to unstar, reload: gone from Stars, count back."
+      ],
+      "expect": "Star and count survive reload; Library > Stars lists it; unstar removes it.",
+      "fail": "Count differs after reload, the star vanishes, or a private canvas shows in anyone's Stars.",
+      "record": "Canvas, counts before/during/after. Tell the integrator the time: a public re-probe must then show star_history_since not null (it stays set after unstar, by design).",
+      "followup": "INTEGRATOR re-probes P20, P21, P18 and records star_count and star_history_since."
+    },
+    {
+      "id": "O05", "feature": "Focus on a card and Escape", "who": "OWNER BROWSER", "second_account": false, "spend": "none",
+      "steps": [
+        "In the throwaway canvas (or any canvas) select a notebook, PDF or image card and click Focus (or right-click the card > Focus).",
+        "Press Escape (or Back to canvas)."
+      ],
+      "expect": "The card fills the working area; after Escape the card, zoom and selection are exactly as before and there is no unsaved-change notice.",
+      "fail": "Layout or zoom not restored, or an unsaved-change notice appears.",
+      "record": "Card type tried (list each), result per type."
+    },
+    {
+      "id": "O06", "feature": "Comments: your own comment", "who": "OWNER BROWSER", "second_account": false, "spend": "none",
+      "steps": [
+        "In \"acceptance 1026\" right-click a card > Add comment, type text, Send: a pin appears on the card.",
+        "Reply in the thread, then Resolve it: thread and pin hide."
+      ],
+      "expect": "Pin appears, reply lands, Resolve hides thread and pin. No email address is shown on any message.",
+      "fail": "No pin, reply missing, or any email shown.",
+      "record": "What you saw at each of the three points."
+    },
+    {
+      "id": "O07", "feature": "Comments with a second account (reply, reaction, edit history, attachment, mute, removal)", "who": "OWNER BROWSER", "second_account": true, "spend": "none",
+      "steps": [
+        "Share > invite your other login by email; accept it there (open the /i link, enter the emailed code). In the second account @mention yourself in a reply: your account shows an unread dot WITHOUT reload.",
+        "React with an emoji (both sides see the chip without reload); edit your comment and click \"edited\" (earlier text listed); attach a small PNG (both see it), then delete that comment (picture gone for both).",
+        "Thread Notifications > Mute: the thread leaves the Library inbox. Share > People with access > Remove the second account: it can no longer open the canvas or the picture link."
+      ],
+      "expect": "Every update arrives without a reload, the PNG loads for both and disappears on delete, the removed account reads nothing, no email address appears on any message.",
+      "fail": "Anything needs a reload to appear, a removed member still reads anything, or any message shows an email.",
+      "record": "Which sub-step failed first, which login is which."
+    },
+    {
+      "id": "O08", "feature": "Weekly Top 5", "who": "OWNER BROWSER", "second_account": true, "spend": "none",
+      "steps": [
+        "As the second account star your PUBLISHED canvas (your own star does not count), wait 1 minute.",
+        "Open Explore > Canvases: \"Top canvases this week\"; then the Creators tab; then type any word in search and clear it."
+      ],
+      "expect": "Your canvas at rank 1 with its weekly star count; Creators shows you with 1 supporter; the section hides while searching and returns when cleared; no private canvas, email or id; the week is Oct 26 to Nov 1 (Pacific).",
+      "fail": "A private or unpublished canvas appears, an email or id is shown, the week label is wrong, or it stays empty after 2 minutes.",
+      "record": "Rank, counts, week label as shown, time you starred and time you looked.",
+      "followup": "INTEGRATOR re-probes P21 and records canvases.entries and star_history_since."
+    },
+    {
+      "id": "O09", "feature": "/motion routing and Motion failure wording (no Generate)", "who": "OWNER BROWSER", "second_account": false, "spend": "none (never press Generate)",
+      "steps": [
+        "In the Chat composer type /motion and send: read what appears.",
+        "Open the canvas that holds your failed Motion job of 10-25 (job 61f70171) and read the card."
+      ],
+      "expect": "/motion shows either the Motion proposal asking what to explain (acceptance account) or \"Motion generation is temporarily unavailable while ...\" (other account); no credits change. The failed card says it failed and shows its charge line. The refund has not been run yet, so a charge line (about 127.8 credits) is EXPECTED today; record exactly what it says.",
+      "fail": "A video starts, credits drop, or the failed card says \"No credits charged\" while the usage ledger still charged 127.8.",
+      "record": "Exact text of the notice and of the failed card's charge line."
+    },
+    {
+      "id": "O10", "feature": "Webpage card", "who": "OWNER BROWSER", "second_account": false, "spend": "none (Cloudflare browser time only)",
+      "steps": [
+        "In \"acceptance 1026\" paste one https link (for example https://example.com) onto the canvas.",
+        "Choose Add webpage card in the \"Paste a link\" dialog and wait about 10 seconds.",
+        "Press Lock scrolling, scroll the card, then Refresh."
+      ],
+      "expect": "A card with the page's title and a screenshot appears; scrolling is locked/unlocked by the toggle; Refresh recaptures. Pasting as text still works.",
+      "fail": "Capture stays stuck, shows \"The capture failed\", or the card is blank.",
+      "record": "URL used, seconds to capture, the state text if it failed."
+    },
+    {
+      "id": "O11", "feature": "Start a rabbit hole dialog", "who": "OWNER BROWSER", "second_account": false, "spend": "none expected for Add to canvas; watch the gauge if you pick Use as context",
+      "steps": [
+        "Open the Start a rabbit hole dialog, add one small .md or .pdf file and one link.",
+        "Pick Add to canvas only and start.",
+        "Open the dialog again and use Start with a blank canvas."
+      ],
+      "expect": "The summary counts the sources; the file lands as a card; the blank start opens an empty canvas and imports nothing from the list.",
+      "fail": "The dialog loses the draft, the file does not land, or the blank start imports the sources.",
+      "record": "Files used, cards created, gauge before and after."
+    },
+    {
+      "id": "O12", "feature": "Settings", "who": "OWNER BROWSER", "second_account": false, "spend": "none",
+      "steps": [
+        "Open Settings and visit each page once.",
+        "Change one preference (for example the theme), reload, and confirm it stuck."
+      ],
+      "expect": "Every Settings page opens without error; the changed preference persists; AI usage matches O01.",
+      "fail": "A page errors or is blank, or the preference reverts.",
+      "record": "Pages visited, preference changed."
+    },
+    {
+      "id": "O13", "feature": "Explore, creators and card visuals (G4 batch)", "who": "OWNER BROWSER", "second_account": false, "spend": "none",
+      "steps": [
+        "Open Explore: look for the dot grid, card Sizes 0 and 1, descriptions cut at about 340 characters.",
+        "Open Creators and a creator profile (/@yudhisteer): header, avatar and badge beside the @handle."
+      ],
+      "expect": "Dot grid shows like Home and Library; cards are consistent at Size 0 and 1; the creators list is wide with the badge beside the handle.",
+      "fail": "No dot grid, cards squeezed or overlapping, badge below the handle.",
+      "record": "Anything that looks wrong, one screenshot."
+    },
+    {
+      "id": "O14", "feature": "Disabled features stay disabled and say so", "who": "OWNER BROWSER", "second_account": false, "spend": "none (do not confirm /video)",
+      "steps": [
+        "In the Chat composer type /generate-image and read the answer; open the slash picker and look for it.",
+        "Click the microphone on a Tutor answer and read what it says."
+      ],
+      "expect": "/generate-image is not offered and a typed line answers that image generation is not available (and /image searches for real photos). The microphone says \"Voice mode is paused\".",
+      "fail": "/generate-image offers a Generate button or a credits quote, or the microphone starts recording.",
+      "record": "Exact texts seen."
+    },
+    {
+      "id": "O15", "feature": "Clean up", "who": "OWNER BROWSER", "second_account": false, "spend": "none",
+      "steps": [
+        "Delete \"acceptance 1026\" (Trash, then delete for good) and confirm Library > Stars no longer lists it.",
+        "If you starred a public canvas in O04, confirm it is unstarred."
+      ],
+      "expect": "The throwaway canvas and its comments, stars and attachment are gone.",
+      "fail": "It remains in Trash or in Stars.",
+      "record": "Done or not."
+    },
+    {
+      "id": "O16", "feature": "CAD Focus (only if you already have a CAD card)", "who": "OWNER BROWSER", "second_account": false, "spend": "none (do NOT create a CAD model: executor budget is 96.3% reserved until Nov 1)",
+      "steps": [
+        "Open a canvas that already holds a CAD card, select it, click Focus.",
+        "Look at the Focus header, then press Escape."
+      ],
+      "expect": "The model fills the working area with Interact and Fit view in the header (Show dimensions appears only for models with brief controls); Escape restores everything.",
+      "fail": "Blank viewer, a missing header, or the layout not restored.",
+      "record": "Which tools showed. SKIP if you have no CAD card."
+    }
+  ]
+}
