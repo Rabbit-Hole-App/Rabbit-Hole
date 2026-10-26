@@ -20,7 +20,7 @@
     "CAD_MODEL_REQUIRE_DEDICATED": "true",
     "CAD_EXECUTOR_URL": "https://rabbit-hole-cad-prod.fly.dev",
     "CAD_JOB_ORIGIN": "https://digrabbithole.com",
-    "CAD_MAX_CALLS": "2",
+    "CAD_MAX_CALLS": "3",
     "CAD_MAX_USD": "0.20",
     "CAD_MAX_REPAIRS": "0",
     "CAD_MAX_ARTIFACT_BYTES": "10485760",

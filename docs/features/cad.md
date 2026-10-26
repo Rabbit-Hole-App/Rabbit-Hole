@@ -92,8 +92,11 @@ Design: `C:/s/spec/cad-controls/design.md` (owner brief and decisions 2026-10-20
   ends it. It is the job's own state, so it survives a reload.
 - **Flag per environment**: `CAD_BRIEF_FIRST` in `vars` of `packages/web/wrangler.rabbit-hole-prod.jsonc` (production)
   and `packages/web/wrangler.dev.jsonc` (dev clones; that config binds no `CAD_JOBS` today). Both are `"false"`.
-  Review-first takes at least three calls (brief, source, review); production's `CAD_MAX_CALLS` is 2, which fails such a
-  job before its review (control-plane test `CAD brief-first needs three calls`).
+  Review-first takes at least three calls (brief, source, review). Production's `CAD_MAX_CALLS` is now 3 (inert while the
+  flag is off; a pinned config test keeps calls >= 3 whenever the flag is `"true"`; control-plane test `CAD brief-first
+  needs three calls` still shows the 2-call failure). Pricing, the executor budget and the first production job:
+  [cad-review-first-acceptance.md](cad-review-first-acceptance.md). Review-first is NOT active in production and no real
+  production review-first job has run.
 - Browser check: `packages/web/e2e/cad-controls-check.mjs` (local stack, scripted CAD routes, real local-kernel facts in
   `cad-controls-facts.json`).
 

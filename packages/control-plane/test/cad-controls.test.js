@@ -306,3 +306,61 @@ test('CAD brief-first needs three calls: with the production CAD_MAX_CALLS=2 the
   assert.equal(failed.state, 'failed'); assert.match(failed.error, /model-call or spend limit/);
   assert.deepEqual(s.calls.map(c => c.phase), ['brief', 'source'], 'the review call is never made');
 });
+
+// Production limits as committed in wrangler.rabbit-hole-prod.jsonc, with production model admission enforced (global ledger).
+const PRODUCTION = { CAD_MAX_CALLS: '3', CAD_MAX_USD: '0.20', CAD_MAX_REPAIRS: '0', CAD_PRODUCTION_REQUIRED: 'true', CAD_PRODUCTION_ENABLED: 'true', CAD_PRODUCTION_MONTHLY_MODEL_USD: '10',
+  CAD_PRODUCTION_FIXED_INFRA_USD: '10', CAD_PRODUCTION_STORAGE_USD_PER_GB_MONTH: '1', CAD_PRODUCTION_SETUP_INFRA_USD: '0', CAD_PRODUCTION_SETUP_INFRA_MONTH: '2020-01' };
+const globalLedger = async s => s.f.objects.get('cad:production-budget').storage.get('production:model-budget');
+
+test('CAD brief-first at the production limits (3 calls, US$0.20, no repairs) completes and reserves the global ledger once per job', async t => {
+  const s = await setup(t, { briefFirst: true, env: PRODUCTION });
+  const created = await (await s.post('/api/learn/cad/jobs', request())).json();
+  const job = await s.advance(created.job.id);
+  assert.equal((await s.post(`${s.api(created.job.id)}/approve`, { briefHash: job.briefHash, confirmed: true })).status, 202);
+  await s.advance(created.job.id); await s.advance(created.job.id); await s.deliver(created.job.id, { controls: s.allRead });
+  const ready = await s.advance(created.job.id);
+  assert.equal(ready.state, 'ready'); assert.deepEqual(s.calls.map(c => c.phase), ['brief', 'source', 'review']);
+  assert.equal(ready.calls, 3); assert.equal(ready.repairs, 0); assert.deepEqual([ready.limits.calls, ready.limits.usd, ready.limits.repairs], [3, 0.20, 0]);
+  const perCall = s.calls.map(c => c.prepared.reservedUsd);
+  assert.ok(perCall.every(usd => usd > 0 && usd <= 0.10), `each call is inside the per-call cap: ${perCall}`);
+  assert.ok(Math.abs(ready.reservedUsd - perCall.reduce((a, b) => a + b, 0)) < 1e-9, 'the job reserves the sum of its three calls');
+  // Headroom under CAD_MAX_USD: a prompt, context or review-payload growth that eats it must be re-priced on purpose (docs/features/cad.md).
+  assert.ok(ready.reservedUsd <= 0.20 - 0.02, `three calls reserved ${ready.reservedUsd} of 0.20`);
+  // The monthly US$10 line reserves the job's whole limit once, not per call: three calls do not charge it three times.
+  const month = new Date().toISOString().slice(0, 7), ledger = await globalLedger(s);
+  assert.equal(ledger.months[month].reservedMicros, 200000); assert.deepEqual(Object.keys(ledger.months[month].jobs), [created.job.id]);
+  console.log('three-call reservation', JSON.stringify({ perCall, total: ready.reservedUsd, phaseUsd: ready.phaseUsd }));
+});
+
+// What proves CAD_MAX_CALLS 2 -> 3 inert while CAD_BRIEF_FIRST is false: a whole single-shot job is identical at both values.
+test('CAD single-shot job (CAD_BRIEF_FIRST off) is identical at CAD_MAX_CALLS 2 and 3', async t => {
+  const run = async calls => {
+    const s = await setup(t, { env: { ...PRODUCTION, CAD_MAX_CALLS: calls } });
+    const { id } = await s.acceptedModel(), j = await s.job(id), ledger = await globalLedger(s);
+    const { calls: n, repairs, reservedUsd, phaseUsd, state, attempt, modelPhase, limits } = j, { calls: _ignored, ...otherLimits } = limits;
+    const month = new Date().toISOString().slice(0, 7);
+    return { phases: s.calls.map(c => c.phase), n, repairs, reservedUsd, phaseUsd, state, attempt, modelPhase, otherLimits, executorJobs: s.sent.length,
+      executorLimits: s.sent.map(x => x.limits), monthMicros: ledger.months[month].reservedMicros, infra: ledger.infrastructure.retainedBytes };
+  };
+  const two = await run('2'), three = await run('3');
+  assert.deepEqual(three, two); assert.deepEqual(two.phases, ['single', 'review']);
+});
+
+// The one reachable difference at 3 calls: a single-shot job whose review failed may be retried once; at 2 calls its counter was spent.
+test('CAD single-shot Retry after a failed review: refused at CAD_MAX_CALLS 2, one more review at 3, inside CAD_MAX_USD', async t => {
+  const retry = async calls => {
+    let failReview = true;
+    const model = async job => job.modelPhase === 'review' ? (failReview ? Promise.reject(Error('invalid review JSON')) : { accepted: true, problems: [] }) : { ...plate(), source: '# synthetic source; never executed\n' };
+    const s = await setup(t, { env: { ...PRODUCTION, CAD_MAX_CALLS: calls, CAD_TEST_MODEL: model } });
+    const { job: { id } } = await (await s.post('/api/learn/cad/jobs', request())).json();
+    await s.advance(id); await s.advance(id); await s.deliver(id, { controls: s.allRead }); await s.actor().instance.alarm();
+    const failed = await s.job(id); assert.equal(failed.state, 'failed'); assert.equal(failed.modelPhase, 'review'); assert.equal(failed.calls, 2);
+    const response = await s.post(`${s.api(id)}/retry`, { confirmed: true });
+    if (response.status === 202) { failReview = false; await s.advance(id); }
+    return { status: response.status, job: await s.job(id) };
+  };
+  const two = await retry('2'), three = await retry('3');
+  assert.equal(two.status, 429);
+  assert.equal(three.status, 202); assert.equal(three.job.state, 'ready'); assert.equal(three.job.calls, 3);
+  assert.ok(three.job.reservedUsd <= 0.20, String(three.job.reservedUsd));
+});
