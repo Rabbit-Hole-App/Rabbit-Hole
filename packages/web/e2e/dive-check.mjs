@@ -38,8 +38,10 @@ await context.route('**/api/learn/tutor/plan', route => { plans.push(route.reque
 await context.route('**/main/thumbnail', route => (route.request().method() === 'PUT' ? route.fulfill({ status: 204 }) : route.continue()));
 const page = await context.newPage();
 const errors = [];
-page.on('pageerror', error => errors.push(error.message));
-const shot = async name => { await page.waitForTimeout(500); await page.screenshot({ path: `${OUT}/${name}.png` }); console.log('shot', name); };
+// A page error fails the run after every flow has passed (gate 40392709758: "Cannot read properties of undefined (reading 'schema')", 8/8 flows ok, no stack kept), so keep where it came from: the stack, the last shot taken and the URL.
+let lastShot = 'before the first shot';
+page.on('pageerror', error => errors.push(`${error.message} | after shot ${lastShot} | ${page.url()} | ${String(error.stack).split(String.fromCharCode(10)).slice(1, 7).map(line => line.trim()).join(' <- ')}`));
+const shot = async name => { lastShot = name; await page.waitForTimeout(500); await page.screenshot({ path: `${OUT}/${name}.png` }); console.log('shot', name); };
 const open = async url => { await page.goto(`${BASE}${url}`); await page.waitForSelector('[data-tool-gutter]', { timeout: 30000 }); await page.waitForTimeout(1500); };
 const url = () => new URL(page.url());
 const blocks = () => page.$$eval('[data-block-id]:not([data-chat-block])', nodes => nodes.map(node => node.dataset.blockId));
