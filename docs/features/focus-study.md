@@ -125,6 +125,15 @@ working view (coordinator ruling P7): Study > Canvas, Unpin, View > Canvas and L
 Focus the learner started on another card is left alone. Locate's `focusObject` comes after the exit, whose restore is
 immediate, so Locate's camera stays (P6). Kernel coverage: `pinned-study-kernel-check.mjs` steps 5a to 5c and 6b.
 
+Kernel check reliability (2026-10-26). `pinned-study-kernel-check.mjs` failed intermittently for two check-side reasons, neither
+a product or notebook-site defect. (1) It pressed Shift+Enter on the first cell as soon as the card's Run all enabled; JupyterLab's
+`CodeCell.execute` returns without running when `session.kernel` does not exist yet, and Run-and-advance still moves on, so cell a
+never ran and steps 1, 4, 5, 5c and 6 failed. The first run now waits for the kernel indicator to be idle (as cross-device-check
+does). (2) It read cells by their position among rendered `.jp-CodeCell` nodes; JupyterLab's default windowing ('full') detaches cells
+scrolled out of view, so after a Shift+Enter scrolled the list `nth(0)` was cell b ("cell a was not rerun", steps 5 and 5c). Cells are
+now read and addressed through the notebook widget. Step 0 reproduces both on a fake notebook deterministically. Residual product
+note, not changed: a learner who presses Shift+Enter before the kernel exists gets no run and no message (JupyterLab behaviour).
+
 
 ## 5. Inventory (WP4)
 
