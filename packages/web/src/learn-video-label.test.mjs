@@ -94,6 +94,21 @@ test('a failed /motion card offers only its recovery actions, named as the rulin
   assert.equal(motionUsageLine(null, null), null);
 });
 
+// Failed job 61f70171 (2026-10-25): "Used 128 credits · reservation released" read as a charge returned with the hold. The server's accounting
+// keeps credits charged, credits refunded and the reservation apart.
+test('a failed /motion card tells credits charged, credits refunded and the released reservation apart, in credits only', () => {
+  const line = (accounting, hold = { state: 'released' }) => motionUsageLine({ usedMicros: 1_278_157 }, hold, accounting);
+  assert.equal(line({ chargedCredits: 0, refundedCredits: 0 }), 'No credits charged · reservation released');
+  assert.equal(line({ chargedCredits: 127.8157, refundedCredits: 0 }), 'Charged 128 credits · reservation released');
+  assert.equal(line({ chargedCredits: 127.8157, refundedCredits: 127.8157 }), 'Charged 128 credits · 128 credits refunded · reservation released');
+  assert.equal(line({ chargedCredits: 1, refundedCredits: 1 }), 'Charged 1 credit · 1 credit refunded · reservation released');
+  assert.equal(line({ chargedCredits: 0.4, refundedCredits: 0 }), 'Charged less than 1 credit · reservation released');
+  assert.equal(line({ chargedCredits: 10, refundedCredits: 99 }), 'Charged 10 credits · 10 credits refunded · reservation released', 'never more refunded than charged');
+  assert.equal(line({ chargedCredits: 0, refundedCredits: 0, unknown: true }, { state: 'pending' }), 'Charge not confirmed yet · reservation pending');
+  assert.equal(line({ chargedCredits: 5, refundedCredits: 0, unknown: true }, { state: 'reserved' }), 'Charged 5 credits so far · reservation held');
+  for (const accounting of [{ chargedCredits: 127.8157, refundedCredits: 127.8157 }, { chargedCredits: 0, refundedCredits: 0 }]) assert.doesNotMatch(line(accounting), /\$|\.\.\.|…/);
+});
+
 // The reload race (owner priority 2, 2026-10-21): a confirmed /motion card is saved with confirmedStart before the save that
 // carries its started job; a reload then mounts it confirmed again and its Generate runs once more. Without a request id on the
 // saved card each mount made its own (two jobs, two holds); the card now lands with its press's id, so both mounts send one job.

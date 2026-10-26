@@ -44,6 +44,55 @@ export function jobWorstCase(policy, models = 'claude-opus-5-5', prices = MODEL_
   return { micros: unpriced.length ? null : lines.reduce((s, l) => s + l.micros, 0), lines, unpriced };
 }
 
+// The least any bound of this call can be: its output cap alone, priced (the input only adds to it). A strict lower bound, so a
+// check built on it refuses only what cannot possibly fit (failed production job 61f70171, 2026-10-25).
+export const floorMicros = (rule, [, output]) => Math.ceil(rule.max_tokens * output);
+
+// The calls a job cannot reach a video without, in pipeline order: the Director's brief, the storyboard, the Author's composition and
+// the two fresh reviewers. Repairs are not here: they are the bounded extra allowance the per-call guard checks one call at a time.
+export const MANDATORY_PATH = Object.freeze([['motion_brief', 1], ['motion_storyboard', 1], ['motion_composition', 1], ['motion_review', 2]]);
+// What follows a call of this kind, for the reserve-ahead check: the required calls still to come after it.
+export const AHEAD = Object.freeze({
+  motion_brief: Object.freeze([['motion_storyboard', 1], ['motion_composition', 1], ['motion_review', 2]]),
+  motion_storyboard: Object.freeze([['motion_composition', 1], ['motion_review', 2]]),
+  motion_composition: Object.freeze([['motion_review', 2]]),
+  motion_review: Object.freeze([]),
+});
+
+// The conservative least a list of required [kind, count] calls can add up to under `policy`, and what stops it being known:
+// a kind the policy does not allow (or allows fewer times), a kind whose model has no price. -> {micros|null, calls, lines, missing, unpriced}
+export function pathFloor(path, policy, models = 'claude-opus-5-5', prices = MODEL_PRICES, rules = {}) {
+  const lines = [], missing = [], unpriced = [];
+  let calls = 0;
+  for (const [kind, count] of path) {
+    calls += count;
+    const rule = rules[kind] ?? policy?.[kind];
+    if (!rule || !((policy?.[kind]?.calls ?? 0) >= count)) { missing.push(kind); continue; }
+    const ids = [].concat(typeof models === 'string' ? models : models[kind] ?? []);
+    const floors = ids.map(id => (prices[id] ? floorMicros(rule, prices[id]) : null));
+    if (!floors.length || floors.includes(null)) { unpriced.push(kind); continue; }
+    lines.push({ kind, calls: count, per_call_micros: Math.max(...floors), micros: count * Math.max(...floors) });
+  }
+  return { micros: missing.length || unpriced.length ? null : lines.reduce((s, l) => s + l.micros, 0), calls, lines, missing, unpriced };
+}
+
+// The conservative worst case of a list of required [kind, count] calls: each at the policy rule's caps (callBoundMicros), so it is
+// never below what the guard will bound the real call at. `rules` replaces a kind's rule (the Author's repair is a patch, capped lower).
+export function pathBound(path, policy, models = 'claude-opus-5-5', prices = MODEL_PRICES, rules = {}) {
+  const lines = [], missing = [], unpriced = [];
+  let calls = 0;
+  for (const [kind, count] of path) {
+    calls += count;
+    const rule = rules[kind] ?? policy?.[kind];
+    if (!rule || !((policy?.[kind]?.calls ?? 0) >= count)) { missing.push(kind); continue; }
+    const ids = [].concat(typeof models === 'string' ? models : models[kind] ?? []);
+    const costs = ids.map(id => (prices[id] ? callBoundMicros(rule, prices[id]) : null));
+    if (!costs.length || costs.includes(null)) { unpriced.push(kind); continue; }
+    lines.push({ kind, calls: count, per_call_micros: Math.max(...costs), micros: count * Math.max(...costs) });
+  }
+  return { micros: missing.length || unpriced.length ? null : lines.reduce((s, l) => s + l.micros, 0), calls, lines, missing, unpriced };
+}
+
 // The sum against a hold: whether every call the policy allows could be paid for, and what the guard can still reach when it
 // cannot (calls run in `order`, each spending its full bound, and one that does not fit what is left is refused).
 export function holdCoverage(policy, hold, models, prices, order = ['motion_brief', 'motion_storyboard', 'motion_composition', 'motion_review', 'motion_storyboard', 'motion_composition', 'motion_review']) {

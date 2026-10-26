@@ -57,20 +57,22 @@ test('worst case: the production policy is $8.9586 per job, per call and per rol
   assert.equal(holdCoverage(PRODUCTION_POLICY, 8_958_600, MODEL).fits, true);
 });
 
-test('guard path: brief, storyboard and Author fit $3.00; the reviews are refused before sending; the total stays under the ceiling', async t => {
+test('guard path: brief and storyboard fit $3.00; the Author is refused before sending because the reviews after it could not fit; nothing is wasted on it', async t => {
+  // Owner brief 2026-10-25 (failed production job 61f70171): before, the Author was sent (US$1.845 at its caps) and the reviews were refused afterwards, so a
+  // job that could not finish still paid for its Author. The guard now holds a place for the least the required calls after this one can cost.
   const sent = [], statuses = [];
   const path = [body('motion_brief'), body('motion_storyboard'), body('motion_composition'), body('motion_review', 'review one'), body('motion_review', 'review two')];
-  const run = async ({ call }) => { for (const b of path) { const r = await call({}, b, MODEL); statuses.push(r.status); await r.text(); } return { status: 'failed', failure_reason: 'end of path' }; };
+  const run = async ({ call }) => { for (const b of path) { const r = await call({}, b, MODEL); statuses.push(r.status); await r.text(); if (r.status === 429) break; } return { status: 'failed', failure_reason: 'end of path' }; };
   const { begin, view } = await start(t, { run, policy: PRODUCTION_POLICY, ceilingMicros: 3_000_000, call: async (_, b) => { sent.push(b.tools[0].name); return new Response('not json'); } });
   const id = await begin();
   await until(async () => (await view(id)).status === 'failed', 'failed');
   const v = await view(id);
-  assert.deepEqual(statuses, [200, 200, 200, 429, 429]);
-  assert.deepEqual(sent, ['motion_brief', 'motion_storyboard', 'motion_composition'], 'a refused call is never sent');
-  assert.match(v.failure_reason, /stopped before spending more: the next step .* more than the \$0\.\d\d left of this job's \$3\.00 hold/);
-  assert.equal(v.spend.bound_usd, (bound(path[0]) + bound(path[1]) + bound(path[2])) / 1e6);
+  assert.deepEqual(statuses, [200, 200, 429]);
+  assert.deepEqual(sent, ['motion_brief', 'motion_storyboard'], 'a refused call is never sent');
+  assert.match(v.failure_reason, /stopped before spending more: this motion_composition call \(up to \$\d\.\d\d\) and the least the required steps after it can cost \(\$0\.64\) are more than the \$\d\.\d\d left of this job's \$3\.00 ceiling/);
+  assert.equal(v.spend.bound_usd, (bound(path[0]) + bound(path[1])) / 1e6);
   assert.ok(v.spend.bound_usd <= 3 && v.spend.hold_usd === 8.9586 && v.spend.ceiling_usd === 3);
-  assert.equal(v.cause, 'limit');
+  assert.deepEqual([v.cause, v.failure_code], ['limit', 'job_ceiling_insufficient']);
 });
 
 test('in-flight calls count at their bound: a second call that fits alone is refused while the first is unanswered', async t => {

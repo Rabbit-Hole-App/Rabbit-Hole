@@ -626,6 +626,8 @@ for (const theme of ['light', 'dark']) {
     // again, while Motion cannot start (control-plane learn-video.js motionRecovery: every action and regenerate need startable;
     // owner message 38 item 4, "only the actions that can run now"). With an orchestrator the card offers Generate again (step 5).
     await mine.locator('[data-motion-usage]').waitFor({ timeout: 15000 });
+    // Credits charged, credits refunded and the reservation are separate facts (failed job 61f70171, 2026-10-25): nothing was started, so nothing was charged.
+    assert.equal((await mine.locator('[data-motion-usage]').innerText()).trim(), 'No credits charged · reservation released');
     assert.equal(await mine.locator('[data-generate-video], [data-recovery-action]').count(), 0, 'nothing that starts work is offered while Motion cannot start');
     assert.equal(videoPosts().length - posts, 1, 'one request, answered by the real worker');
     await mine.scrollIntoViewIfNeeded();
