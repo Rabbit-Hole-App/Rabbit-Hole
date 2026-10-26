@@ -144,7 +144,7 @@ try {
   browser = await chromium.launch();
   await check('0 the cell helpers on a fake notebook: a run before the kernel exists is dropped and a scrolled-out cell is not its neighbour (the old reads fail here deterministically), the helpers get both right', async () => {
     const fake = await browser.newPage();
-    const open = async () => { await fake.setContent('<iframe data-notebook-frame style="width:400px;height:200px"></iframe>'); await (await fake.locator('iframe').elementHandle()).contentFrame().setContent(FAKE_NOTEBOOK); return fake.frameLocator('[data-notebook-frame]'); };
+    const open = async () => { await fake.setContent('<iframe data-notebook-frame style="width:400px;height:200px"></iframe>'); await (await (await fake.locator('iframe').elementHandle()).contentFrame()).setContent(FAKE_NOTEBOOK); return fake.frameLocator('[data-notebook-frame]'); };
     try {
       let f = await open();
       await pressCell(fake, f, 0); // before the kernel exists (the fake releases it on demand): dropped, as in JupyterLab
