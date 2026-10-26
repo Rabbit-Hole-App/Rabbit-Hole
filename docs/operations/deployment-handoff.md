@@ -1,6 +1,6 @@
 # Deployment handoff
 
-Last updated: Monday 2026-10-26, 1:40 AM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
+Last updated: Monday 2026-10-26, 1:34 AM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
 
 Authoritative inputs (repository-relative): the 60-row [feature inventory](evidence/feature-inventory.md), the [discrepancy table](evidence/completion-audit-discrepancies.md), the [validation budget ledger](evidence/validation-budget-ledger.md), the [flake list](evidence/flakes.md), the [FILE_JOBS contract](evidence/file-jobs-contract.md), feature docs under [`docs/features/`](../features/). The working task ledger and local receipts live on the integrator machine (`C:/s/spec/...`); important receipts are summarised under `docs/operations/evidence/`.
 
@@ -99,7 +99,7 @@ Not met for the three headline releases. Motion is deployed, but public generati
 
 ## 10. Change log (PT)
 
-- 2026-10-26 1:40 AM: C16 stack/c16-batch 7b105a4b gate PASSED (run 40287871324); train6.sh dry-run verified; Telemetry round-3 fixes done (script 09fe1c93, harness 283 scenarios, 1110 checks, 0 failed, 1 skipped), reviewer confirming; the 12-hour target ended without the three headline releases usable (section 9).
+- 2026-10-26 1:34 AM: C16 stack/c16-batch 7b105a4b gate PASSED (run 40287871324); train6.sh dry-run verified; Telemetry round-3 fixes done (script 09fe1c93, harness 283 scenarios, 1110 checks, 0 failed, 1 skipped), reviewer confirming; the 12-hour target ended without the three headline releases usable (section 9).
 
 - 2026-10-26 12:12 AM: Telemetry safeguards harness clean (271 scenarios, 1070 checks, 0 failed, 1 skipped), independent diff re-review started. C15 `stack/c15-batch` 675d3792 pushed (main 629251d4 + tutor timing, card-size teardown, file-drop check, FILE_JOBS plumbing, Image activation owner-only, credits-finish, motion-failure-handling, tutor-session ordering; chat-restore and resize-persist merges reverted); CI and gate chain started. weekly-top.test.js clock time bomb (fails every verify after the Monday rollover) fixed inside C15; main itself carries the failing test until C15 releases.
 
