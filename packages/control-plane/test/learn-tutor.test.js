@@ -216,7 +216,7 @@ test('evaluate: the larger evaluator timing out is telemetry outcome timeout; JE
   const ask = async () => ({ body: answersOf({ ...settledAnswers, c0_mis0: 0.55 }) });
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const pending = w.post('/api/learn/tutor/evaluate', { app: 'canvas-0a1b2c3d', message: 'x', spec: SPEC }, { ask, timeoutMs: 5 });
-  await called;
+  await Promise.race([called, pending]); // an evaluator that settles before fetch fails the assertions below instead of hanging here
   t.mock.timers.tick(5);
   const result = await (await pending).json();
   assert.equal(result.evaluator, 'jev');
