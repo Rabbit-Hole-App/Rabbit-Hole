@@ -464,10 +464,18 @@ default: the tldraw card stays the live card until X, which replaces the body wi
 - **A7** `e2e/whiteboard-native-check.mjs` (fork, runs in fast-e2e) and the rewritten whiteboard steps of `chat-block-check.mjs`
   (windows-only: the release gate, against the deployed dev worker; its explain-back step needs workstream T).
 
-Seams for the other workstreams: `whiteboard-derive.js` (B3: `deriveSketch(block) -> { sketch, pending? }`, a stub until B lands) and
-`whiteboard-explain.js` (T: `explainOnBoard({ block, appName, question, answer, onStage, addMarks, focus })`, a stub until T lands).
-The card registers `shapesIn` itself (`marksIn` through the card's frame and view) and applies Tutor marks through
-`sketchHost.edit` (one undo step, ids already there are skipped, `mergeMarks`).
+Wired with B and T: `whiteboard-derive.js` re-exports B's `deriveSketch` (a board with a tldraw snapshot and no saved sketch is
+shown derived in memory; the first authorized edit saves the derived marks plus the edit and `sketchFrom`; the original's warnings,
+a diverged one always, show under the title; a drawing that does not fit shows `saveNotice` and both downloads stay). The card
+registers `boardShapesIn` (Ask about selection) and `explainBoard` (T); `AdaptiveCanvas applyBoardDrawBack` applies the Tutor's
+marks and linked cards in one update after `snapshot()` (one undo step), with the layout read at that moment. Remove explanation and
+the "N marks drawn by the tutor" label are the card's. The drawing area keeps 200 px; the card scrolls when notices, the kept list
+and the narration need the room.
+
+How the windows-only `chat-block-check.mjs` should be run: it needs the deployed dev worker and `RABBIT_HOLE_DEV_TEST_BYPASS` in the
+root `.env`; it turns the native card on itself (`rh.nativeWhiteboard`). Run it once on the combined candidate's dev clone (or in
+the release gate) before cutover: its Tutor step makes real model calls, so it needs the owner's spend approval. The fork check
+`whiteboard-native-check.mjs` covers the same flows keylessly in fast-e2e with the board plan stubbed.
 
 ## Workstreams and slices
 
