@@ -8,6 +8,7 @@ import { openOutput, saveOutputs, watchOutputs, withOutputUpdates } from './chat
 import { SETTLED_TEXT } from './generation-state.js';
 import CommandPill from './CommandPill.jsx';
 import { PromptControl } from './CardPrompt.jsx';
+import { useSeconds } from './use-seconds.js';
 import { CAD_LINE } from './card-prompt.js';
 
 const KIND = { cad: 'CAD model', video: 'Video', image: 'Image', notebook: 'Notebook', whiteboard: 'Whiteboard', paper: 'Paper', wiki: 'Article', explanation: 'Explanation', quiz: 'Quiz', flashcards: 'Flashcards', table: 'Table', flow: 'Diagram', mermaid: 'Diagram', graph: 'Graph', plot: 'Plot', snippet: 'Code', walkthrough: 'Walkthrough', scene: '3D scene' };
@@ -57,14 +58,6 @@ export function ChatOutputs({ outputs, ops }) {
       {problem && <p role="alert" data-chat-output-problem={problem.id} className="max-w-full text-right text-xs text-ink-2">{problem.text}</p>}
     </div>
   );
-}
-
-// Seconds since an ISO time, ticking while active.
-function useSeconds(startedAt, active) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => { if (!active) return undefined; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [active]);
-  const start = Date.parse(startedAt || '');
-  return Number.isFinite(start) ? Math.max(0, Math.floor((now - start) / 1000)) : null;
 }
 
 // One generation above the composer: the prompt it came from, its job's status words, elapsed time while it runs, and a way to
@@ -119,6 +112,7 @@ export function useGenerationWatch(msgs, setMsgs, ops) {
   latest.current = msgs;
   const tracked = useRef(new Set()), dismissed = useRef(new Set());
   const [entries, setEntries] = useState([]);
+  const [, setWatched] = useState('');
   const outputs = msgs.reduce((count, m) => count + (m.role === 'user' ? m.outputs?.length || 0 : 0), 0);
   const look = useRef(() => {});
   look.current = () => {
@@ -126,8 +120,14 @@ export function useGenerationWatch(msgs, setMsgs, ops) {
     for (const { messageId, output } of updates) saveOutputs(messageId, [output]).catch(error => console.info('[chat] output not saved:', error.message));
     if (updates.length) setMsgs(current => withOutputUpdates(current, updates));
     for (const entry of all) if (entry.gen.active) tracked.current.add(entry.key);
-    const shown = all.filter(entry => tracked.current.has(entry.key) && (entry.gen.active || !dismissed.current.has(entry.key)));
+    // A card a generation proposal made reports on the proposal's own card in the transcript (GenerationProposalCard status line, from
+    // this same look): no second banner for the same job.
+    const shown = all.filter(entry => tracked.current.has(entry.key) && (entry.gen.active || !dismissed.current.has(entry.key)) && !entry.output.jobId?.startsWith('proposal:'));
     setEntries(previous => (entryKey(previous) === entryKey(shown) ? previous : shown));
+    // Every output's phase, not only the banner's: a proposal card reads its job from the canvas on render (ChatMessages ProposalSlot),
+    // so the transcript draws again whenever any card a prompt made changes state, with no poll of its own.
+    const phases = JSON.stringify(all.map(({ key, gen }) => [key, gen.phase, gen.label]));
+    setWatched(previous => (previous === phases ? previous : phases));
   };
   useEffect(() => {
     if (!ops || !outputs) { setEntries(previous => (previous.length ? [] : previous)); return undefined; }
