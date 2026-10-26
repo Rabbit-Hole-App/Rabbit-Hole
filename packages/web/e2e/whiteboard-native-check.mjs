@@ -80,7 +80,7 @@ const reveal = async id => {
   const surface = await chromeFloor();
   for (let tries = 0; tries < 12; tries += 1) {
     const b = await bounds(frame(id));
-    if (b && b.y > surface.y + 90 && b.y + b.height < surface.y + surface.height - 220 && b.x > surface.x + 60 && b.x + b.width < surface.x + surface.width - 60) return b;
+    if (b && b.y > surface.y + 90 && b.y + b.height < surface.y + surface.height - 220 && b.x > surface.x + 60 && b.x + b.width < surface.x + surface.width - 60) { await page.waitForTimeout(500); return bounds(frame(id)); } // the camera glides: measure once it has settled
     const dy = b ? b.y + b.height / 2 - (surface.y + surface.height * 0.4) : 200;
     await page.mouse.move(surface.x + surface.width - 40, surface.y + surface.height / 2);
     await page.mouse.wheel(0, Math.max(-600, Math.min(600, dy)));
@@ -310,7 +310,7 @@ await check('10b editing a tldraw board saves the converted drawing beside the u
   await tool('Rectangle').click();
   const press = at(g, 0.1, 0.1), top = await page.evaluate(([x, y]) => { const el = document.elementFromPoint(x, y); return el ? `${el.tagName}.${String(el.className?.baseVal ?? el.className).slice(0, 40)}` : 'nothing'; }, [press.x, press.y]);
   await drag(press, at(g, 0.3, 0.3));
-  const block = await saved(id, entry => entry.sketch && entry.sketch.shapes.length >= marksBefore + 1).catch(async error => { throw Error(`${error.message} (pressed on ${top}; frame ${JSON.stringify(g)}; draw target ${await target()})`); });
+  const block = await saved(id, entry => entry.sketch && entry.sketch.shapes.length >= marksBefore + 1).catch(async error => { throw Error(`${error.message} (pressed on ${top}; frame ${JSON.stringify(g)} then ${JSON.stringify(await bounds(frame(id)))}; draw target ${await target()})`); });
   assert.equal(JSON.stringify(block.snapshot), SNAPSHOT_TEXT, 'the original is byte-identical');
   assert.equal(block.sketchFrom.digest, digestOf(SNAPSHOT));
   assert.ok(block.sketch.strokes.length > 0 && block.sketch.items.length > 0, 'the converted drawing was saved with the edit');
