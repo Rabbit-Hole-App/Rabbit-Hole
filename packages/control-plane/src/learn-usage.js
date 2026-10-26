@@ -277,13 +277,33 @@ export function recordMedia(env, { kind = 'media', provider, model = null, ok = 
     price: reported == null && estimate != null ? price : null });
 }
 
-// Settles a running attempt once: a known cost is 'settled', else 'unknown' with its reservation kept. A duplicate
+// Seals the running attempts that outlived their bound (HOLD_SECONDS): failed, cost unknown (NULL), the reservation released.
+// One atomic UPDATE guarded by status 'running', so however many callers race it (admission, a late settlement, the
+// reconciliation script) each attempt is sealed once and nothing else changes. Scope: one attempt, one user, or everyone.
+// -> the number sealed. Never throws.
+// The condition for "running past its bound at `now`" on usage_attempts, shared with scripts/credits-stranded-holds.mjs so the
+// report and the reconciliation select exactly what the code seals.
+export const staleHoldWhere = now => `cost_state = 'reserved' AND status = 'running' AND ${atTime(now)} - started_at >= (SELECT ${holdCase} FROM usage_actions a WHERE a.action_id = usage_attempts.action_id)`;
+export async function releaseStaleHolds(db, { attemptId = null, userId = null, now = nowSeconds() } = {}) {
+  if (!db) return 0;
+  try {
+    const result = await db.prepare(`UPDATE usage_attempts SET status = 'failed', cost_state = 'unknown', cost_micros = NULL, settled_at = ?
+      WHERE ${staleHoldWhere(now)}
+        ${attemptId ? 'AND attempt_id = ?' : ''} ${userId ? 'AND action_id IN (SELECT action_id FROM usage_actions WHERE user_id = ?)' : ''}`)
+      .bind(now, ...(attemptId ? [attemptId] : []), ...(userId ? [userId] : [])).run();
+    return Number(result?.meta?.changes || 0);
+  } catch { return 0; }
+}
+
+// Settles a running attempt once: a known cost is 'settled', else 'unknown' (cost NULL, nothing held). A duplicate
 // completion finds the row no longer running and changes nothing. Never throws.
 export async function settleAttempt(env, attemptId, { costMicros = null, status = 'settled', model = null, inputTokens = null, outputTokens = null, price = null, now = nowSeconds() } = {}) {
   const db = env?.LEARN_DB;
   if (!db || !attemptId) return;
   const known = Number.isSafeInteger(costMicros) && costMicros >= 0 ? costMicros : null;
   const tokens = value => Number.isSafeInteger(value) && value >= 0 ? value : null;
+  // A call that outlived its bound was sealed and released: a late result must not turn into a charge the learner never saw held.
+  if (await releaseStaleHolds(db, { attemptId, now }) > 0) return;
   try {
     await db.prepare(`UPDATE usage_attempts SET status = ?, cost_micros = ?, cost_state = ?, model = COALESCE(?, model), input_tokens = ?, output_tokens = ?, settled_at = ?
       WHERE attempt_id = ? AND status = 'running'`)
@@ -378,22 +398,36 @@ export async function recordAdjustment(db, { actionId = null, userId = null, mic
 }
 
 // The one balance (owner L12 2026-10-20): over a user's would_charge actions in a period, the settled cost (used) and every
-// outstanding hold (running reservations, and finished attempts whose cost is unknown). Available = allowance - used - held.
+// outstanding hold (reservations of calls still running within their bound; an attempt that ended holds nothing, known cost or
+// not). Available = allowance - used - held.
 // GET /api/learn/usage (usageTotals) and admission (learn-spend-ledger.js) read exactly these, so the screen and the gate agree.
 export const BALANCE_SCOPE = `FROM usage_actions a JOIN usage_attempts t ON t.action_id = a.action_id
     LEFT JOIN usage_attempt_detail d ON d.attempt_id = t.attempt_id
     WHERE a.user_id = ? AND a.period = ? AND a.charge_class = 'would_charge'`;
 // A refund (refundAttempt) gives back part of a settled cost: it counts as used only for what was not refunded.
 export const USED_SUM = "COALESCE(SUM(CASE WHEN t.cost_state = 'settled' THEN t.cost_micros - COALESCE(d.refunded_micros, 0) END), 0)";
-export const HELD_SUM = "COALESCE(SUM(CASE WHEN t.cost_state IN ('reserved', 'unknown') THEN t.reserved_micros END), 0)";
+
+// THE LEARNER'S RESERVATION AND THE PROVIDER'S COST ARE TWO LEDGERS (owner 2026-10-25). The learner's balance sets credits aside
+// only for a call that is still running (cost_state 'reserved'), and only for as long as that kind of operation can run. A call
+// that ended without a confirmed cost (cost_state 'unknown': a timeout, a 5xx, a dropped connection, a stream that never finished)
+// holds nothing: the learner is charged zero and the credits come back at once, while the provider cost stays recorded as unknown
+// (cost NULL, never 0) on the attempt and, as its bound, on the platform's daily guard (usage_operations), which this never touches.
+// Seconds a running call may hold credits, by feature: its longest execution plus a reconciliation window. A call still running
+// past it is sealed (releaseStaleHolds): failed, cost unknown, released once. HOLD_BACKSTOP_SECONDS caps every bound.
+export const HOLD_BACKSTOP_SECONDS = 24 * 3600;
+export const HOLD_SECONDS = { default: 30 * 60, artifact: 3600, board: 3600, course: 3600, journey: 3600, scene: 3600, video: 2 * 3600, image_generate: 4 * 3600 };
+export const holdCase = `CASE a.feature ${Object.entries(HOLD_SECONDS).filter(([feature]) => feature !== 'default').map(([feature, seconds]) => `WHEN '${feature}' THEN ${Math.min(seconds, HOLD_BACKSTOP_SECONDS)}`).join(' ')} ELSE ${HOLD_SECONDS.default} END`;
+const atTime = now => { if (!Number.isSafeInteger(now)) throw new Error('a balance is read at an integer time'); return now; };
+// -> the SQL for what is held at `now`. `now` is inlined as an integer, so it cannot change a statement's bind order.
+export const heldSum = now => `COALESCE(SUM(CASE WHEN t.cost_state = 'reserved' AND t.started_at > ${atTime(now)} - (${holdCase}) THEN t.reserved_micros END), 0)`;
 
 // GET /api/learn/usage's sums for one user and period. Settled cost is used; reservations (running) and unknown attempts are
 // reserved, never used; estimates are reported apart and are not in the balance. Throws on a read failure.
 // The same sums split by feature (Settings > AI usage, "This month by feature"), largest first; the parts add up to usageTotals.
 // Only features with a settled, reserved or unknown amount are listed. Throws on a read failure.
-export async function usageByFeature(db, userId, period) {
+export async function usageByFeature(db, userId, period, now = nowSeconds()) {
   const { results } = await db.prepare(`SELECT a.feature,
-      ${USED_SUM} AS used, ${HELD_SUM} AS reserved,
+      ${USED_SUM} AS used, ${heldSum(now)} AS reserved,
       COUNT(CASE WHEN t.cost_state = 'unknown' THEN 1 END) AS unknown_attempts
     ${BALANCE_SCOPE}
     GROUP BY a.feature`).bind(userId, period).all();
@@ -402,8 +436,8 @@ export async function usageByFeature(db, userId, period) {
     .sort((a, b) => b.usedMicros - a.usedMicros || b.reservedMicros - a.reservedMicros || a.feature.localeCompare(b.feature));
 }
 
-export async function usageTotals(db, userId, period) {
-  const row = await db.prepare(`SELECT ${USED_SUM} AS used, ${HELD_SUM} AS reserved,
+export async function usageTotals(db, userId, period, now = nowSeconds()) {
+  const row = await db.prepare(`SELECT ${USED_SUM} AS used, ${heldSum(now)} AS reserved,
       COALESCE(SUM(CASE WHEN t.cost_state = 'estimated' THEN t.cost_micros END), 0) AS estimated,
       COUNT(CASE WHEN t.cost_state = 'unknown' THEN 1 END) AS unknown_attempts,
       COALESCE(SUM(CASE WHEN t.cost_state = 'unknown' THEN t.reserved_micros END), 0) AS unknown_reserved

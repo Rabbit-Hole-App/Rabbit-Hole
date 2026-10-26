@@ -202,7 +202,7 @@ test('concurrent spending: requests that each need most of the balance cannot al
   const results = await Promise.all([admit(env, 'u-race', 'op-1', 0.6), admit(env, 'u-race', 'op-2', 0.6), admit(env, 'u-race', 'op-3', 0.6)]);
   assert.equal(results.filter(r => !r.refused).length, 1);
   assert.ok(results.filter(r => r.refused).every(r => /^allowance_/.test(r.reason)));
-  const totals = await usageTotals(LEARN_DB, 'u-race', periodOf(OCT));
+  const totals = await usageTotals(LEARN_DB, 'u-race', periodOf(OCT), OCT);
   assert.deepEqual([totals.used, totals.reserved], [0, 600_000], 'a reservation is held, never counted as used');
   assert.equal(rows(sqlite, 'usage_grants').length, 1, 'one grant however many requests raced');
 });
@@ -262,7 +262,7 @@ test('refunds give the cost back once; the attempt keeps its recorded cost; a du
   assert.equal((await usageTotals(LEARN_DB, 'u-ref3', period)).used, 70_000);
 });
 
-test('duplicate settlement charges once; an unknown cost stays unknown and held, never zero', async t => {
+test('duplicate settlement charges once; an unknown cost stays unknown (NULL, never zero) and holds nothing', async t => {
   const { sqlite, LEARN_DB } = d1(t);
   const env = as(config(LEARN_DB), 'u-dup');
   const id = await beginAttempt(env, { attemptId: 'att-dup', kind: 'generation', reservedMicros: 90_000 });
@@ -273,8 +273,8 @@ test('duplicate settlement charges once; an unknown cost stays unknown and held,
   const lost = await beginAttempt(env, { attemptId: 'att-lost', kind: 'generation', reservedMicros: 90_000 });
   await settleAttempt(env, lost, { status: 'failed' });
   assert.deepEqual({ ...sqlite.prepare('SELECT cost_micros, cost_state FROM usage_attempts WHERE attempt_id = ?').get('att-lost') }, { cost_micros: null, cost_state: 'unknown' });
-  const totals = await usageTotals(LEARN_DB, 'u-dup', periodOf(OCT));
-  assert.deepEqual([totals.used, totals.reserved], [25_000, 90_000]);
+  const totals = await usageTotals(LEARN_DB, 'u-dup', periodOf(OCT), OCT);
+  assert.deepEqual([totals.used, totals.reserved, totals.unknownAttempts], [25_000, 0, 1], 'charged only what was measured; the unknown call holds nothing (owner 2026-10-25)');
 });
 
 test('the cutover each environment ships: 2026-10 is the last 5,000-credit month, 2026-11 is the first 2,500 grant', async t => {
@@ -322,8 +322,11 @@ test('what each account is granted either side of the cutover: six cases, each t
   assert.deepEqual(grant('u-new-nov'), [NOV_2500]);
   assert.deepEqual(grant('u-used'), [OCT_5000, NOV_2500]);
   assert.deepEqual(grant('u-idle').slice(1), [OCT_2500, NOV_2500]);
-  for (const [name, before] of Object.entries(history)) {
-    const now = rows(sqlite, `usage_${name}`).filter(row => before.some(old => old.rowid === undefined && JSON.stringify(old) === JSON.stringify(row)));
-    assert.equal(now.length, before.length, `${name} made before the cutover are unchanged`);
-  }
+  const unchanged = (before, now) => before.every(old => now.some(row => JSON.stringify(row) === JSON.stringify(old)));
+  assert.ok(unchanged(history.grants, rows(sqlite, 'usage_grants')), 'grants made before the cutover are unchanged');
+  assert.ok(unchanged(history.actions, rows(sqlite, 'usage_actions')), 'actions made before the cutover are unchanged');
+  // A call still marked running from October is past its bound by November and is sealed (failed, cost unknown, released); what it
+  // was admitted for and what it cost (nothing was ever settled) do not move.
+  const usage = list => list.map(a => [a.attempt_id, a.reserved_micros, a.cost_micros]);
+  assert.deepEqual(usage(rows(sqlite, 'usage_attempts')).slice(0, history.attempts.length), usage(history.attempts), 'attempts made before the cutover keep their reservation and cost');
 });

@@ -152,11 +152,13 @@ test('retries and fallbacks: each provider attempt is admitted again, so a retry
   const env = base(LEARN_DB, jevMicros + Math.floor(jevMicros / 2), { JEV_DIRECT_KEY: 'fixture' });
   let fetches = 0;
   const busy = async () => { fetches++; return Response.json({}, { status: 429 }); };
-  // The 429 keeps its reservation (it may have been billed); the automatic retry is refused before it is sent.
+  // The 429 is an unknown provider cost (it may have been billed) but holds nothing of the learner's (owner 2026-10-25), so the
+  // automatic retry is admitted again and sent; each attempt is its own admission against the same allowance.
   await assert.rejects(askJev(as(env, 'u-alice', 'inline_route'), { model: JEV_TRANSPORTS.direct.model, state: 'x', questions: {} }, { transport: 'direct', fetchImpl: busy, sleep: async () => {} }),
-    error => error instanceof JevError && error.code === 'allowance_reserved');
-  assert.equal(fetches, 1, 'the retry never reached the provider');
-  assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.status, a.cost_state, a.reserved_micros]), [['failed', 'unknown', jevMicros]]);
+    error => error instanceof JevError && error.code !== 'allowance_reserved');
+  assert.ok(fetches >= 2, 'the retry reached the provider: the first failed attempt holds nothing');
+  assert.ok(rows(sqlite, 'usage_attempts').length >= 2 && rows(sqlite, 'usage_attempts').every(a => a.status === 'failed' && a.cost_state === 'unknown' && a.reserved_micros === jevMicros), 'one unknown-cost attempt per try, none held');
+  assert.equal((await balance(env)).reservedMicros, 0);
   // A server-side fallback with no price bound is never sent; a reply billed across fallback iterations keeps its hold.
   const { calls, reply } = provider();
   const unbounded = await spendTransport(as(base(LEARN_DB, NEED * 10), 'u-bob'), { ...body, fallbacks: 'default' }, MODEL, null, reply());
@@ -167,7 +169,7 @@ test('retries and fallbacks: each provider attempt is admitted again, so a retry
   assert.deepEqual([fallback.cost_state, fallback.reserved_micros], ['unknown', NEED]);
 });
 
-test('settlement: a known cost releases the rest once; cancellation and unknown cost keep the hold; duplicates change nothing', async t => {
+test('settlement: a known cost releases the rest once; cancellation and unknown cost charge nothing and hold nothing; duplicates change nothing', async t => {
   const { sqlite, LEARN_DB } = d1(t);
   const env = base(LEARN_DB, NEED * 10);
   const { reply } = provider();
@@ -184,7 +186,7 @@ test('settlement: a known cost releases the rest once; cancellation and unknown 
   assert.deepEqual(attempts.map(a => [a.status, a.cost_state, a.cost_micros, a.reserved_micros]),
     [['settled', 'settled', known, NEED], ['settled', 'unknown', null, NEED], ['cancelled', 'unknown', null, NEED]]);
   const summary = await balance(env);
-  assert.deepEqual([summary.usedMicros, summary.reservedMicros, summary.remainingMicros, summary.unknownAttempts], [known, NEED * 2, NEED * 10 - known - NEED * 2, 2]);
+  assert.deepEqual([summary.usedMicros, summary.reservedMicros, summary.remainingMicros, summary.unknownAttempts], [known, 0, NEED * 10 - known, 2]); // an ended call with an unknown cost is charged zero and holds nothing (owner 2026-10-25); the provider cost stays unknown
   // A duplicate completion (a second callback, a different cost) and a second ledger settle change nothing: no double refund.
   const before = [rows(sqlite, 'usage_attempts'), rows(sqlite, 'usage_operations')];
   await settleAttempt(env, attempts[0].attempt_id, { costMicros: 0, status: 'settled' });
@@ -272,7 +274,7 @@ test('the settings balance is the admission balance: exactly remainingMicros is 
     spent(sqlite, 'u-alice', 765_433, { state: 'reserved' });
     spent(sqlite, 'u-alice', 250_000, { state: 'unknown' });
     const { remainingMicros, usedMicros, reservedMicros } = await balance(env);
-    assert.deepEqual([usedMicros, reservedMicros, remainingMicros], [1_234_567, 1_015_433, 2_750_000]);
+    assert.deepEqual([usedMicros, reservedMicros, remainingMicros], [1_234_567, 765_433, 3_000_000]); // the unknown-cost 250,000 holds nothing now (owner 2026-10-25)
     const result = await admitSpend(LEARN_DB, as(env), { opId: `edge-${extra}`, userId: 'u-alice', org: 'platform', category: 'provider', reservedUsd: (remainingMicros + extra) / 1e6 });
     assert.deepEqual(result.refused ? result : 'admitted', extra ? { refused: true, reason: 'allowance_reserved' } : 'admitted');
     assert.equal((await balance(env)).remainingMicros, extra ? remainingMicros : 0);

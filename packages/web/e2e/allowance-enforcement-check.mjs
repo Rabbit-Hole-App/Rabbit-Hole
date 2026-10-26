@@ -44,13 +44,14 @@ assert.ok(Number.isSafeInteger(ALLOWANCE) && ALLOWANCE > 0, 'the configured allo
 assert.deepEqual(await tripwire(), [], 'the tripwire answers and has counted nothing yet');
 
 // The month's grant is pinned to the allowance read above: seeded history must not turn it into the legacy-transition grant.
-// One past action holding `micros` in this user's month, in the given state (settled spend, or a running reservation).
+// One past action holding `micros` in this user's month, in the given state (settled spend, or a reservation running right now:
+// a reservation holds credits only within its operation's bound, so it is started now).
 const period = usage.period, run = Date.now().toString(36);
 const seed = (micros, state) => d1(`DELETE FROM usage_attempts WHERE action_id IN (SELECT action_id FROM usage_actions WHERE user_id = '${payer}');
   DELETE FROM usage_actions WHERE user_id = '${payer}';
   INSERT OR REPLACE INTO usage_grants (user_id, period, allowance_micros, source, granted_at) VALUES ('${payer}', '${period}', ${ALLOWANCE}, 'default', 0);
   INSERT INTO usage_actions (action_id, user_id, payer, payer_reason, feature, charge_class, period, status, started_at) VALUES ('seed-${run}-${state}', '${payer}', 'user', 'signed_in', 'ask', 'would_charge', '${period}', 'completed', 0);
-  INSERT INTO usage_attempts (attempt_id, action_id, kind, reserved_micros, cost_micros, cost_state, status, started_at) VALUES ('seed-${run}-${state}-a', 'seed-${run}-${state}', 'generation', ${micros}, ${state === 'settled' ? micros : 'NULL'}, '${state}', '${state === 'reserved' ? 'running' : 'settled'}', 0);`);
+  INSERT INTO usage_attempts (attempt_id, action_id, kind, reserved_micros, cost_micros, cost_state, status, started_at) VALUES ('seed-${run}-${state}-a', 'seed-${run}-${state}', 'generation', ${micros}, ${state === 'settled' ? micros : 'NULL'}, '${state}', '${state === 'reserved' ? 'running' : 'settled'}', ${state === 'reserved' ? Math.floor(Date.now() / 1000) : 0});`);
 
 const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Allowance ${Date.now().toString(36)}` }) });
 const catalog = await api('/api/apps');

@@ -74,7 +74,7 @@ are priced per modality; there is no per-image price. `learn-models.js` `MODEL_P
 | settlement status | `usage_attempts.status`, `usage_actions.status`, `result` |
 | price version, tier, billable quantities, unverified rates | `usage_attempt_detail.price_version`, `tier`, `quantities` (JSON by category), `unverified` (JSON) |
 | refunded | `usage_attempt_detail.refunded_micros`, `refunded_at`, `refund_reason`; audit line in `usage_adjustments` (negative micros) |
-| released | a reservation is released when its attempt leaves `reserved`/`unknown` (`reserved_micros` stays as the recorded maximum) |
+| released | a reservation is released when its attempt leaves `reserved` (settled, failed, cancelled, or sealed at its bound); `reserved_micros` stays as the recorded maximum |
 | grants | `usage_grants (user_id, period, allowance_micros, source, granted_at)` |
 
 Missing usage or cost stays missing: `cost_micros` NULL / absent `quantities` keys are never 0.
@@ -104,8 +104,36 @@ counted by the tripwire, and both checks require zero.
   seeded allowance, reserved 0), and every refusal and the accounting outage leave the tripwire at zero requests.
 
 Not covered by a browser check: `settings-check.mjs` stays windows-only (it is the general Settings check, not the credits meter); a
-provider failure after admission (HTTP 599 from the tripwire) is an unknown-cost attempt that keeps its reservation, and the
-provider-unavailable refund to zero (`providerUnavailable`) is unit-tested only.
+provider failure after admission is unit-tested only (next section).
+
+## A provider failure after admission (unit-tested, `test/credits-provider-failure.test.js`; no browser check)
+
+**Two ledgers (owner decision 2026-10-25, replacing "an unknown cost stays held, never zero").** The learner's reservation and the
+provider's cost are separate.
+
+- The learner's balance sets credits aside only for a call that is still running (`cost_state = 'reserved'`), and only within that
+  operation's bound (`HOLD_SECONDS` in `learn-usage.js`: 30 minutes for a chat-style call, 1 hour for Explain, board and course
+  work, 2 hours for video, 4 hours for an image job; never more than `HOLD_BACKSTOP_SECONDS`, 24 hours). A call that ended, however
+  it ended, holds nothing, and a failed call with no usable result is charged zero.
+- A call that outlives its bound is sealed once (`releaseStaleHolds`, one guarded UPDATE run at admission and before any settle):
+  failed, cost unknown, released. A late result is then ignored by `settleAttempt`, so it can neither charge the learner nor settle
+  twice; its provider cost stays unknown.
+- The provider cost keeps its three states in `usage_attempts`: measured (`settled` with `cost_micros`), a known zero (`settled`,
+  cost 0, status `failed`), and unknown (`cost_micros` NULL, `cost_state = 'unknown'`; never recorded as 0). The platform's daily
+  guard (`usage_operations`, `USAGE_PLATFORM_DAY_USD`) is a third, separate ledger: it keeps an unresolved call at its bound for 24
+  hours whatever the learner's balance says.
+
+| Outcome | Provider cost | Learner charged | Learner holds |
+| --- | --- | --- | --- |
+| Complete answer or stream with usage | measured | the measure | nothing (the rest is released) |
+| Capacity refusal: HTTP 429, 529, or 400 "usage limits" (`providerUnavailable`; ImageJobs reads a 429 the same way) | known zero | 0 | nothing |
+| Any other HTTP error (400, 401, 5xx including 502, 503, 504), a thrown timeout or abort, a 200 without usable usage, a stream that ends early or errors | unknown | 0 | nothing |
+| Still running | not yet known | 0 | its reservation, until the bound |
+| Running past its bound | unknown (sealed) | 0 | nothing, from the bound |
+
+An HTTP status alone does not prove the provider did no billable work, so only the provider's own capacity refusals are a known zero.
+Remaining work: an operator-visible report of unknown provider cost, and sealing the job object itself (ExplainJobs, ImageJobs,
+Motion) when its reservation is sealed.
 
 ## What fixtures cannot prove (verify on the dev D1, read-only)
 

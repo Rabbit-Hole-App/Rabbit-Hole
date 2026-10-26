@@ -133,7 +133,7 @@ export function UsageSettings({ Heading, store = usageStore }) {
           <SettingsRow title="Monthly credits"><Amount>{creditCount(usage.allowance)} AI credits every month</Amount></SettingsRow>
           <SettingsRow title="Used"><Amount>{formatCredits(usage.used)}</Amount></SettingsRow>
           {usage.reserved > 0 && (
-            <SettingsRow title="Temporarily reserved" desc="Held for AI work still running, until its final amount is known.">
+            <SettingsRow title="Temporarily reserved" desc="Held for AI work still running, until it finishes.">
               <Amount>{formatCredits(usage.reserved)}</Amount>
             </SettingsRow>
           )}

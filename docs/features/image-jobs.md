@@ -37,7 +37,7 @@ confirmed.
 | submitting | before the request leaves, with `leaseUntil` and a recovery alarm at +180 s | held |
 | stored | after the output is in R2 at `file-sources/<sourceId>/original/<sha256>` (customMetadata `imageJob`) | held |
 | recorded | after the `file_sources` row is inserted and read back (owner = canvas owner, family image, status stored) | held |
-| ready | then settled at the measured cost, else at the estimated upper bound (labelled so), else cost NULL (reservation kept as unknown cost); see section 6, Cost | settled |
+| ready | then settled at the measured cost, else at the estimated upper bound (labelled so), else cost NULL (provider cost unknown; the learner is charged zero and holds nothing); see section 6, Cost | settled |
 
 ## 3. Job API (what the shared confirmation flow calls)
 
@@ -80,7 +80,7 @@ chat proposals use. Off with the same 503 `image_generation_disabled`. `readines
 | Boundary | What is durable | What a later alarm does | Provider calls | Test |
 |---|---|---|---|---|
 | (1) before submission | `queued`/`admitting`/`admitted`; maybe a reservation | `admitting` reads the ledger row by op id: admitted -> continue, absent -> admit again (nothing was reserved), anything else -> failed. `admitted` submits. Flag off or key missing -> released (cost 0). | exactly 1 | `boundary 1, before submission: a restart resumes safely and submits exactly once`; `switching off after a job was queued or admitted contacts no provider and releases any hold` |
-| (2) after submission, outcome unknown | `submitting` | not running in this isolate: look for this job's own R2 output; none -> `unknown`, ledger failed with cost NULL (reservation kept as unknown cost). An expired lease changes nothing. Never resent. | 1, never 2 | `boundary 2, submitted with the outcome unknown: unknown, cost held, never resubmitted, an expired lease included`; `provider failures: not sent is released, an answered error is failed at unknown cost, a timeout is unknown` |
+| (2) after submission, outcome unknown | `submitting` | not running in this isolate: look for this job's own R2 output; none -> `unknown`, ledger failed with cost NULL (provider cost unknown, kept as the platform ledger's bound; the learner is charged zero and holds nothing). An expired lease changes nothing. Never resent. | 1, never 2 | `boundary 2, submitted with the outcome unknown: unknown, cost held, never resubmitted, an expired lease included`; `provider failures: not sent is released, an answered error is failed at unknown cost, a timeout is unknown` |
 | (3) provider answered, before durable storage | `submitting`; bytes in memory only | R2 write failed -> `unknown` (`result_not_stored`): the provider may have billed, the image is lost. Not called recoverable. | 1 | `boundary 3, provider answered but the result could not be stored: unknown, never regenerated` |
 | (3->4) in R2, state not yet saved | R2 object, `submitting` | adopts the object found under the job's deterministic prefix with its `imageJob` metadata -> `stored` | 1 | `boundary 3 to 4: output in R2 but the object died before saving it: adopted from R2, not regenerated` |
 | (4) in R2, before the database record | `stored` | retries only the `file_sources` insert (ON CONFLICT DO NOTHING, read back); backoff 30 s x n, up to 20, then `retry-save` | 1 | `boundary 4, stored in R2 before the database record: only the record is retried, also by retry-save with the flag off` |
