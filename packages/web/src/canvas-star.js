@@ -46,6 +46,9 @@ export async function starredTokens(tokens) {
 export const starsApi = {
   list: ({ q = '', cursor = '' } = {}) => call(`/api/learn/stars?${new URLSearchParams({ ...(q ? { q } : {}), ...(cursor ? { cursor } : {}) })}`, 'GET'),
   remove: id => call(`/api/learn/stars/${encodeURIComponent(id)}`, 'DELETE', 'personal_stars'),
+  // star.opened (analytics only): a canvas opened from my Stars (the star's id) or a profile's Stars tab (its publication token). Fire
+  // and forget with keepalive, because the page navigates away at once; a failure, or no telemetry on the server, changes nothing.
+  opened: body => { try { fetch('/api/learn/stars/opened', { method: 'POST', credentials: 'same-origin', keepalive: true, headers: { ...wsHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {}); } catch { /* analytics only */ } },
 };
 
 // State: { starred, count, saving, desired, error }. `starred` and `count` are the last confirmed answer; `desired` is what

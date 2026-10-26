@@ -5,7 +5,7 @@ import { openedFields, readWeekly, sendWeeklyEvent, starsSinceLabel, viewedField
 
 // Weekly Top 5 (docs/features/explore-weekly-top.md; owner brief 2026-10-23 sections 3-6): "Top canvases this week" on the Canvases tab,
 // "Top creators this week" on Creators - always open with nothing to fold, up to five rows, site-wide (Filters, Sort and Size never change it).
-// One request per page load answers both tabs; a failure hides the section and never touches Recommended or the results.
+// One request per page load answers both tabs, a skeleton holds the place until it lands; a failure hides the section and never touches Recommended or the results.
 
 // { data, ms, failed, once }: data is null while loading and after a failure. ms is the request time, kept for weekly_top.viewed;
 // once is the viewed-once rule, kept here because a search unmounts the section and restoring it must not count a second view.
@@ -92,6 +92,26 @@ function CreatorRow({ e }) {
   );
 }
 
+// Holds the section's place while the one request is in flight, so Recommended and the results below do not jump when it lands
+// (audit 2f92d101). Same measures as the real section: heading 20px, note 26px, five rows of 64px in the same bordered box. It is not
+// [data-weekly-top]: a failed request still shows no section. ponytail: a week with fewer than five rows is shorter than this.
+function WeeklySkeleton() {
+  return (
+    <div data-weekly-skeleton aria-hidden="true" className="max-w-[760px] pb-6">
+      <i className="block h-5 w-44 rounded-xs bg-hover" />
+      <div className="pb-2 pt-0.5"><i className="block h-4 w-72 max-w-full rounded-xs bg-hover" /></div>
+      <div className="divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-white">
+        {Array.from({ length: 5 }, (_, i) => (
+          <div key={i} className="flex h-16 items-center gap-3 px-4">
+            <i className="block h-3 w-4 shrink-0 rounded-xs bg-hover" /><i className="block h-10 w-10 shrink-0 rounded-md bg-hover" />
+            <i className="block h-3 w-[30%] rounded-xs bg-hover" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // `weekly` is useWeeklyTop()'s state, `tab` the Explore tab id. Renders nothing while loading and after a failure; the caller hides it while searching.
 export default function WeeklyTop({ weekly, tab }) {
   const { data, ms, failed, once } = weekly;
@@ -99,7 +119,7 @@ export default function WeeklyTop({ weekly, tab }) {
   useEffect(() => {
     if (list && once(tab, data)) sendWeeklyEvent('weekly_top.viewed', viewedFields(tab, data, list, ms));
   }, [tab, data, !!list]);
-  if (!list) return null;
+  if (!list) return !failed && !data ? <WeeklySkeleton /> : null;
   const creators = tab === 'creators';
   const week = weekLabel(data), since = starsSinceLabel(data);
   // weekly_top.opened: a click or middle click on a link inside a row. The row itself is not a link and reports nothing.

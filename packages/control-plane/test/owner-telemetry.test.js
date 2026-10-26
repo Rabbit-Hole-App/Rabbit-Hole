@@ -23,7 +23,7 @@ function setup(t, extra = {}) {
   learn.prepare(`INSERT INTO usage_actions (action_id, user_id, payer, payer_reason, feature, charge_class, period, status, started_at) VALUES ('act-1', 'user-2', 'user', 'signed_in', 'ask', 'would_charge', '2026-10', 'completed', ?)`).run(Math.floor(Date.now() / 1000));
   learn.prepare(`INSERT INTO usage_attempts (attempt_id, action_id, kind, provider, model, reserved_micros, cost_micros, cost_state, status, started_at) VALUES ('att-1', 'act-1', 'generation', 'anthropic', 'claude-opus-5', 50000, 1234, 'settled', 'settled', ?)`).run(Math.floor(Date.now() / 1000));
   const env = { CONTROL_PLANE, SUBSCRIPTION_OWNER_EMAIL: OWNER, TELEMETRY_DB: telemetry.db, TELEMETRY_ENVIRONMENT: 'dev', LEARN_DB: d1(learn), ...extra };
-  return { env, telemetry };
+  return { env, telemetry, learn };
 }
 const request = (path, { session, method = 'GET', headers = {}, body } = {}) => new Request(`https://rabbit.test${path}`, { method,
   headers: { ...(session ? { cookie: `rh_session=${session}` } : {}), ...headers }, ...(body ? { body: JSON.stringify(body) } : {}) });
@@ -86,7 +86,7 @@ test('the owner: overview keeps cost states apart, projection is POST only, each
   const { env, telemetry } = setup(t);
   assert.equal((await call(env, '/api/owner/telemetry/project', { session: 'owner-session' })).status, 405);
   const projected = await (await call(env, '/api/owner/telemetry/project', { session: 'owner-session', method: 'POST' })).json();
-  assert.deepEqual(projected.copied, { usage_actions: 1, usage_attempts: 1, usage_grants: null, learning_attempts: null, learning_assessments: null, learning_observations: null, learning_criteria: null }, 'main has no usage_grants yet, and this LEARN_DB has no coaching tables');
+  assert.deepEqual(projected.copied, { usage_actions: 1, usage_attempts: 1, usage_grants: null, learning_attempts: null, learning_assessments: null, learning_observations: null, learning_criteria: null, stars: null }, 'main has no usage_grants yet, and this LEARN_DB has no coaching tables');
   const health = await (await call(env, '/api/owner/telemetry/health', { session: 'owner-session' })).json();
   assert.deepEqual(health.delivery.map(({ source, delivered, failed, pending }) => ({ source, delivered, failed, pending })), [{ source: 'projection', delivered: 2, failed: 0, pending: 0 }]);
   const overview = await (await call(env, '/api/owner/telemetry/overview?days=7', { session: 'owner-session' })).json();
@@ -113,4 +113,33 @@ test('the owner\'s learning view answers with its definitions and its declared g
   assert.equal(view.environment, 'dev');
   assert.deepEqual(view.unavailable.map(u => u.id), ['difficulty', 'human_reviewed_grading_quality', 'hook_completion', 'displayed_assistance']);
   assert.equal(view.stalls.denominator, 0);
+});
+
+test('the projection pass delivers Stars events to the sink once each, and a sink outage or a missing table never fails the pass', async t => {
+  const { env, telemetry, learn } = setup(t);
+  const project = async e => (await call(e, '/api/owner/telemetry/project', { session: 'owner-session', method: 'POST' })).json();
+  assert.equal((await project(env)).copied.stars, null, 'a LEARN_DB without the Stars table: reported null, the pass still answers');
+  learn.exec(migration('learn-migrations/0028-canvas-stars.sql'));
+  const add = (id, kind) => learn.prepare("INSERT INTO canvas_star_events (event_id, kind, reason, org, canvas, user_id, owner_star, surface) VALUES (?, ?, 'voluntary', 'ws', 'canvas-0123abcd', 'u-ben', 0, 'card_explore')").run(id, kind);
+  const stored = () => telemetry.sqlite.prepare("SELECT event_id, event_name, feature, outcome FROM telemetry_events WHERE event_name LIKE 'star.%' ORDER BY event_id").all().map(r => ({ ...r }));
+  const pending = () => learn.prepare('SELECT count(*) AS n FROM canvas_star_events WHERE delivered_at IS NULL').get().n;
+  add('e1', 'added'); add('e2', 'removed');
+  const first = await project(env);
+  assert.equal(first.copied.stars, 2);
+  assert.deepEqual(stored(), [{ event_id: 'e1', event_name: 'star.added', feature: 'stars', outcome: 'completed' }, { event_id: 'e2', event_name: 'star.removed', feature: 'stars', outcome: 'completed' }]);
+  assert.equal(pending(), 0);
+  assert.equal((await project(env)).copied.stars, 0, 'delivered rows are not sent again');
+  // A sink that refuses: the row stays pending, the pass is not done, and it still answers.
+  let down = true;
+  const outage = { ...env, TELEMETRY_DB: d1(telemetry.sqlite, { fail: sql => down && /INTO telemetry_events/.test(sql) }) };
+  add('e3', 'added');
+  const failed = await project(outage);
+  assert.deepEqual([failed.copied.stars, failed.done, pending(), stored().length], [0, false, 1, 2]);
+  down = false;
+  assert.deepEqual([(await project(outage)).copied.stars, pending(), stored().length], [1, 0, 3]);
+  // No sink bound: the pass does not run, nothing is marked delivered.
+  add('e4', 'added');
+  const bare = await (await call({ ...env, TELEMETRY_DB: undefined }, '/api/owner/telemetry/project', { session: 'owner-session', method: 'POST' })).json();
+  assert.equal(bare.configured, false);
+  assert.equal(pending(), 1);
 });

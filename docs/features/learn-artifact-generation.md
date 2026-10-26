@@ -67,7 +67,7 @@ The response takes one of these forms:
 | `artifact` | `{primitive, block, repaired}`: validated; the client inserts it |
 | `paid_proposal` | `{primitive, block, message: 'This uses paid generation.', estimatedCost: null}`: nothing started |
 | `clarification` | `{question}`: the request was too underspecified to answer correctly |
-| `unsupported` | `{message}`: the family has nothing ready, for example "/practice coding" |
+| `unsupported` | `{message}`: the family has nothing ready, for example "/practice coding"; also a paid renderer this deployment has not provisioned (`/video` without `LEARN_VIDEO_PROVIDER` and `FAL_API_KEY`, `/animate` without `MATH_WORKER_URL` and `MATH_WORKER_TOKEN`): it says so before any model call, proposal or hold (`PROVISIONED` in `learn-artifact.js`; audit c015534a). Nothing is retired: once the values are set the same command proposes as before |
 | `validation_error` | `{error}` in two cases: the model returned a primitive outside the family (rejected, no repair), or a spec still failed after its single repair |
 | `direct`, `not_artifact` | Deterministic and chat commands never run here |
 

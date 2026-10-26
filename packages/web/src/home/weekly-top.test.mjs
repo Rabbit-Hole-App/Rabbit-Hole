@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { EXPLORE_SORTS, EXPLORE_TABS } from './card-sort.js';
 import { weeklyTopEmptyFixture, weeklyTopErrorFixture, weeklyTopFixture, weeklyTopPartialFixture } from './weekly-top-fixture.js';
+import { createReporter, reportClientEvent } from '../client-telemetry.js';
 import { analyticsTab, openedFields, readWeekly, starsSinceLabel, viewedFields, viewedOnce, weekLabel, weeklyList, weeklyVisible } from './weekly-top.js';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
@@ -99,4 +100,32 @@ test('Canvases toolbar: Search, Filters, Sort, Size in one nowrap row, the searc
   assert.match(explore, /max-w-\[360px\] min-w-\[180px\] flex-\[0_1_280px\]/);
   assert.doesNotMatch(explore, /justify-between/);
   assert.match(explore, /gap-3/);
+});
+
+test('the three weekly events reach the client telemetry channel as valid contract events, and nothing is kept where telemetry is not installed', async () => {
+  const bodies = [];
+  const reporter = createReporter({ send: async body => { bodies.push(JSON.parse(body)); return 202; } });
+  const list = weeklyList(weeklyTopFixture, 'explainers');
+  assert.equal(reporter.emit('weekly_top.viewed', viewedFields('explainers', weeklyTopFixture, list, 120)), true);
+  assert.equal(reporter.emit('weekly_top.opened', openedFields('creators', weeklyTopFixture, 2, 'profile')), true);
+  assert.equal(reporter.emit('weekly_top.request_failed', { status: 0, code: 'network', duration_ms: 31 }), true);
+  await reporter.flush();
+  assert.deepEqual(bodies[0].events.map(e => e.event_name), ['weekly_top.viewed', 'weekly_top.opened', 'weekly_top.request_failed']);
+  assert.deepEqual(bodies[0].events[0].payload, { tab: 'canvases', week_start_local: weeklyTopFixture.week_start_local, ranking_version: 'weekly-top-v1', entry_count: 5, duration_ms: 120 });
+  assert.ok(bodies[0].events.every(e => e.service === 'web' && !('user_ref' in e)), 'the server stamps the account, never the page');
+  // Anything outside the contract is dropped, never sent: free text, an unknown event, a bad enum.
+  assert.equal(reporter.emit('weekly_top.viewed', { tab: 'canvases', week_start_local: '2026-10-19', query: 'ice floats' }), false);
+  assert.equal(reporter.emit('weekly_top.opened', { tab: 'sideways', rank: 1, target: 'canvas' }), false);
+  assert.equal(reporter.emit('weekly_top.nothing', {}), false);
+  assert.equal(reporter.stats().dropped, 3);
+  // Not installed on this page (the usual test and embed case): nothing is kept and nothing throws.
+  assert.equal(reportClientEvent('weekly_top.viewed', viewedFields('explainers', weeklyTopFixture, list, 1)), false);
+});
+
+test('the section holds its place with a skeleton while the one request is in flight, and the failure path still shows no section', () => {
+  const section = read('./WeeklyTop.jsx');
+  assert.match(section, /function WeeklySkeleton/);
+  assert.match(section, /if \(!list\) return !failed && !data \? <WeeklySkeleton \/> : null;/);
+  assert.match(section, /data-weekly-skeleton/);
+  assert.doesNotMatch(section.slice(section.indexOf('function WeeklySkeleton'), section.indexOf('export default function WeeklyTop')), /data-weekly-top/, 'a skeleton is not the section: the failure check counts [data-weekly-top]');
 });

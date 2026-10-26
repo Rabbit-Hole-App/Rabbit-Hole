@@ -3,11 +3,15 @@
 // and touches nothing else in the contract. This file is merged with git's union driver (.gitattributes), so two adapters that
 // each add a line here do not conflict; keep one entry per line. The contract owner reviews each addition.
 import client from './client.js';
+import stars from './stars.js';
 import support from './support.js';
 import tutor from './tutor.js';
+import weekly from './weekly.js';
 
 export const FEATURE_EVENTS = [
   client,
+  stars,
   support,
   tutor,
+  weekly,
 ];

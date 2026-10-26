@@ -46,22 +46,33 @@ const GATES = {
 import { withAttemptKind, noteUsageResult } from './learn-usage.js';
 export { ARTIFACT_SYSTEM };
 
+// A paid renderer this deployment has not provisioned is unavailable BEFORE it is proposed, so no proposal, hold or charge
+// follows (audit c015534a; owner has not chosen provision vs retire, so nothing is retired). Each test mirrors the provider's
+// own not-configured check (videoProvider, ManimProvider); the unit test pins them together.
+const PROVISIONED = {
+  video_generate: [env => env.LEARN_VIDEO_PROVIDER === 'fal-seedance-lite' && !!env.FAL_API_KEY, 'Video generation is not set up here yet, so nothing was proposed or charged.'],
+  maths_animation: [env => !!env.MATH_WORKER_URL && !!env.MATH_WORKER_TOKEN, 'Maths animation is not set up here yet, so nothing was proposed or charged.'],
+};
+const notProvisioned = (env, id) => !!env && !!PROVISIONED[id] && !PROVISIONED[id][0](env);
+
 // What a command resolves to before any model runs. `ready` is the command's
 // family (after /practice narrowing) intersected with what can be generated.
-export function artifactPlan(command, { args = '', selection = null } = {}) {
+// env is optional: the pre-auth shape check passes none and skips the provisioning test.
+export function artifactPlan(command, { args = '', selection = null } = {}, env = null) {
   const request = learnRequest(command, { args, selection });
   if (request.deterministic) return { result: 'direct', action: request.action };
   if (!request.allowedPrimitives) return { result: 'not_artifact', error: `/${command} is answered in chat, not as an artifact.` };
-  const ready = request.allowedPrimitives.filter(isReady);
+  const ready = request.allowedPrimitives.filter(id => isReady(id) && !notProvisioned(env, id));
   if (!ready.length) {
-    const reason = request.allowedPrimitives.map(id => PRIMITIVES[id]?.unavailable).find(Boolean);
+    const blocked = request.allowedPrimitives.find(id => isReady(id) && notProvisioned(env, id));
+    const reason = blocked ? PROVISIONED[blocked][1] : request.allowedPrimitives.map(id => PRIMITIVES[id]?.unavailable).find(Boolean);
     return { result: 'unsupported', message: reason || `/${command} isn't available yet.` };
   }
   return { request, ready };
 }
 
 export async function generateArtifact(env, input, { callModel = loggedModel('artifact', planModel) } = {}) {
-  const plan = artifactPlan(input.command, input);
+  const plan = artifactPlan(input.command, input, env);
   if (plan.result) return plan;
   const { request, ready } = plan;
   const tools = [...ready.map(id => ({
