@@ -25,7 +25,9 @@ A leaf module with no imports: the browser (`packages/web/src`), the Workers, Du
   `turn_id`, `user_ref` (users.id, never an email), `feature`, `operation`, `stage`, `outcome`, `error_code`, `versions`
   (settings, model, prompt, rubric, pricing, renderer), `sample_rate` (only on a sampled event), `payload`.
 - **Payloads** are per event, each an allowlist (`EVENTS`). Registered now: `model_call.started`, `model_call.finished`,
-  `stage.finished`, `client.error`, `telemetry.delivery`.
+  `stage.finished`, `client.error`, `telemetry.delivery`, `star.added`, `star.removed`, `star.opened` (Stars, `telemetry-events/stars.js`), `weekly_top.viewed`,
+  `weekly_top.opened`, `weekly_top.request_failed` (Weekly Top 5 in Explore, `telemetry-events/weekly.js`, a browser-ingest namespace beside `client`).
+  Stars delivers from `canvas_star_events` inside the owner `POST /project` pass; both are inert where no sink is bound.
 - **No free text.** Field types are id, token, hex, route template, integers, booleans and a sampling rate. None accepts a
   space, `@`, `?` or `#`, so prompts, emails, comments, sources and URLs cannot be carried. `routeTemplate()` keeps only the
   app's static path words (a share token, board id, repository slug or handle becomes a placeholder).

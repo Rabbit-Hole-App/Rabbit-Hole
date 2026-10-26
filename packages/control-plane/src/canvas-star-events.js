@@ -32,7 +32,7 @@ export async function starEnvelope(row) {
   if (row.kind === 'removed') payload.reason = row.reason;
   return {
     event_id: row.event_id, event_name: row.kind === 'added' ? 'star.added' : 'star.removed', schema_version: 1,
-    occurred_at: Date.parse(`${row.at.replace(' ', 'T')}Z`), user_ref: row.user_id, feature: 'stars', operation: row.kind === 'added' ? 'add' : 'remove', outcome: 'success', payload,
+    occurred_at: Date.parse(`${row.at.replace(' ', 'T')}Z`), user_ref: row.user_id, feature: 'stars', operation: row.kind === 'added' ? 'add' : 'remove', outcome: 'completed', payload,
   };
 }
 

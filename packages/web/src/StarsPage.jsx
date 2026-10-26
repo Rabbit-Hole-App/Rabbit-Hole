@@ -72,7 +72,7 @@ function StarCard({ entry }) {
   const owner = entry.access === 'owner', key = entry.url.split('/').pop();
   const m = cardModel({ kind: 'canvas', name: entry.url, title: entry.title, description: entry.description, fork_count: owner ? entry.fork_count : null, updated_at: entry.updated_at, owner_handle: entry.creator?.handle, owner_name: entry.creator?.name });
   return (
-    <LearningCard kind="canvas" m={m} attrs={{ 'data-star-card': entry.access }} href={entry.url} onOpen={() => go(entry.url)} mine={owner}
+    <LearningCard kind="canvas" m={m} attrs={{ 'data-star-card': entry.access }} href={entry.url} onOpen={() => { starsApi.opened({ surface: 'personal_stars', id: entry.id }); go(entry.url); }} mine={owner}
       thumbnail={owner ? ownThumbnail(key) : entry.access === 'public' ? publishedThumbnail(entry.url) : null}
       creatorHref={entry.creator?.handle ? `/@${entry.creator.handle}` : null}
       star={<StarButton token={key} api={owner ? ownerStarApi(key, 'personal_stars') : sharedStarApi('personal_stars')} initial={{ starred: true, count: entry.star_count }} size="sm" className={TOUCH} />}

@@ -1,5 +1,6 @@
 // Weekly Top 5 in Explore (docs/features/explore-weekly-top.md, owner brief 2026-10-23): the pure side - the request, the
 // rows each tab shows, the week label and the analytics events with their once-per-tab rule. No React here, so it is tested.
+import { reportClientEvent } from '../client-telemetry.js';
 export const WEEKLY_TOP_URL = '/api/learn/boards/published/weekly-top';
 // The Explore tab ids (card-sort.js EXPLORE_TABS) and the contract's list names. The Canvases tab keeps the internal id `explainers`.
 const LISTS = { explainers: 'canvases', creators: 'creators' };
@@ -38,10 +39,12 @@ export async function readWeekly(response) {
   return { failure: { status: response.status, code: body?.code || 'unreadable' } };
 }
 
-// ponytail: the telemetry lane owns the envelope and sink (explore-weekly-top.md "Analytics"). Until its client lands, events leave as one
-// DOM event so the browser check can observe them; swap this body for the telemetry client's call and keep the three names and fields.
+// Events leave twice: as the DOM event the browser check observes, and through the client telemetry channel (client-telemetry.js
+// reportClientEvent -> POST /api/telemetry/client), which keeps nothing where no telemetry is bound. Neither can break the page.
+// ponytail: signed-out visitors are counted without an account, and an identical repeat inside 10 minutes is one stored row (the route's dedup).
 export function sendWeeklyEvent(name, fields) {
   try { window.dispatchEvent(new CustomEvent('weekly-top:event', { detail: { name, ...fields } })); } catch { /* telemetry never breaks the page */ }
+  try { reportClientEvent(name, fields); } catch { /* nor does the sink */ }
 }
 
 // weekly_top.viewed: once per tab, per week, per page load (a rerender, a search that hides and restores the section, a refetch never repeats it).

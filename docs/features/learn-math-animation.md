@@ -4,6 +4,9 @@
 private worker, and stores the MP4 through the existing generated-video job. The tutor supplies the
 steps; it never writes Python.
 
+Availability (audit c015534a): production has no `MATH_WORKER_URL` and `MATH_WORKER_TOKEN` and no production renderer, so the Tutor and `/animate` answer
+`unsupported` ("Maths animation is not set up here yet, ...") before any model call, proposal or hold (`learn-artifact.js`). Provisioning versus retiring is an open owner decision.
+
 Not included: arbitrary manim scripts, 3D scenes, custom mobjects, sound, or a manim editor.
 
 Cost (owner 5A decision C, 2026-10-21): the platform pays for Manim rendering. It is recorded as platform-funded

@@ -3,7 +3,7 @@
 // nothing here calls touchCanvas. The only static import is canvas-star-events.js, itself a leaf: canvases.js and dives.js
 // import this module for deletion cleanup, so everything heavier (repositories.js, the list and analytics modules) loads lazily,
 // as canvases.js loads learn-boards.js.
-import { surfaceOf } from './canvas-star-events.js';
+import { canvasRef, surfaceOf } from './canvas-star-events.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 
@@ -89,6 +89,8 @@ export async function canonicalCanvas(db, row) {
 //   GET    /api/learn/stars                  my personal Stars list (canvas-stars-list.js)
 //   DELETE /api/learn/stars/<id>             remove my star by its opaque id, with no access check: the way out of a star whose
 //                                            canvas stopped being reachable. Only my own row; the same answer for any other id.
+//   POST   /api/learn/stars/opened {surface, id|token}   a canvas opened from my Stars (id) or a profile's Stars (token): star.opened
+//                                            telemetry only, best effort, a no-op where no telemetry sink is bound
 //   POST   /api/learn/stars/state {tokens}   which of these publication tokens I have starred (cards in public lists)
 //   GET    /api/learn/stars/analytics        star analytics for my published canvases (canvas-star-analytics.js)
 export async function starsRoute(path, req, env) {
@@ -121,10 +123,37 @@ export async function starsRoute(path, req, env) {
     const { starAnalytics } = await import('./canvas-star-analytics.js');
     return starAnalytics(db, viewer, url.searchParams.get('range') || '30d');
   }
+  if (path === '/api/learn/stars/opened') {
+    if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+    await recordOpened(env, actor, await req.json().catch(() => null));
+    return json({ ok: true }); // the same answer whatever happened: this is analytics, never part of opening a canvas
+  }
   const one = path.match(/^\/api\/learn\/stars\/([^/]+)$/);
   if (!one || !STAR_ID.test(one[1])) return json({ error: 'No such star' }, 404);
   if (req.method !== 'DELETE') return json({ error: 'Method not allowed' }, 405);
   const mine = await db.prepare('SELECT org, canvas FROM canvas_stars WHERE id = ? AND user_id = ?').bind(one[1], actor.userId).first();
   if (mine) await setStar(db, mine, actor, false, { surface: await surfaceFrom(req) });
   return json({ starred_by_me: false });
+}
+
+// star.opened: where the opening surface (my Stars page, a profile's Stars tab) says a canvas was opened from. Never throws and
+// writes nothing where no telemetry sink is bound (checked first, before any query), so no telemetry failure can reach the star
+// flow. The canvas is found from the account's own star (id) or a live publication (token), never from a client-supplied
+// workspace or name; owner_star says whether the opener owns it.
+// ponytail: a signed-out viewer of a public profile records nothing, and a new-tab open (middle click) is not seen.
+async function recordOpened(env, actor, body) {
+  try {
+    const surface = body?.surface;
+    if (!['personal_stars', 'profile_stars'].includes(surface)) return;
+    const { telemetryEnvironment, makeEvent } = await import('./telemetry-contract.js');
+    if (!env.TELEMETRY_DB || !telemetryEnvironment(env)) return;
+    const found = surface === 'personal_stars'
+      ? (STAR_ID.test(body.id) ? await env.LEARN_DB.prepare('SELECT org, canvas FROM canvas_stars WHERE id = ? AND user_id = ?').bind(body.id, actor.userId).first() : null)
+      : (/^[A-Za-z0-9_-]{16,64}$/.test(body.token) ? await env.LEARN_DB.prepare('SELECT org, canvas FROM canvas_publications WHERE token = ?').bind(body.token).first() : null);
+    if (!found) return;
+    const owned = await env.LEARN_DB.prepare(`SELECT 1 AS yes FROM canvases WHERE org = ? AND name = ? AND owner_email = ?`).bind(found.org, found.canvas, actor.email).first();
+    const { emitTelemetry } = await import('./telemetry-delivery.js');
+    await emitTelemetry(env, makeEvent('star.opened', { user_ref: actor.userId, feature: 'stars', operation: 'open', outcome: 'completed',
+      payload: { canvas_ref: await canvasRef(found.org, found.canvas), owner_star: !!owned, surface } }, { service: 'control_plane' }));
+  } catch { /* analytics only */ }
 }

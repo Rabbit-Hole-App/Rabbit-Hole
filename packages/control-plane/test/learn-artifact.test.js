@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { SLASH, primitive } from '../../web/src/agent/slash.js';
 import { PRIMITIVES, artifactBlock } from '../src/learn-primitives.js';
 import { artifactPlan, generateArtifact, artifactFetch } from '../src/learn-artifact.js';
+import { videoProvider } from '../src/video-provider.js';
+import { ManimProvider } from '../src/math-provider.js';
 
 // A model stub: answers each call with the next scripted tool call and
 // records the tools it was offered.
@@ -22,6 +24,8 @@ const quiz = { question: 'What does softmax output sum to?', options: [{ text: '
 const sigmoid = { title: 'Sigmoid', brief: 'Drag k.', spec: { op: 'interactive_plot', id: 'sigmoid', renderer: 'desmos', concept: 'sigmoid', parameters: { k: { value: 1, min: 0.2, max: 5 } }, expressions: [{ id: 'curve', expression: 'y=\\frac{1}{1+e^{-kx}}' }] } };
 const loss = { title: 'Loss', brief: 'Loss falls.', illustrative: true, spec: { op: 'interactive_plot', id: 'loss', renderer: 'plotly', concept: 'training loss', traces: [{ id: 'train', type: 'line', x: [0, 1, 2], y: [3, 2, 1.5] }] } };
 const flow = { title: 'A transformer block', direction: 'DOWN', nodes: [{ id: 'x', label: 'input' }, { id: 'attn', label: 'attention' }, { id: 'mlp', label: 'MLP' }], edges: [{ source: 'x', target: 'attn' }, { source: 'attn', target: 'mlp' }] };
+const VIDEO_ENV = { LEARN_VIDEO_PROVIDER: 'fal-seedance-lite', FAL_API_KEY: 'test-key' };
+const MATHS_ENV = { MATH_WORKER_URL: 'https://math.example.test', MATH_WORKER_TOKEN: 'test-token' };
 const video = { title: 'Prism', caption: 'Light splitting.', operation: { op: 'generate_video', id: 'prism', prompt: 'White light through a prism', purpose: 'physical_process' } };
 
 test('every primitive a command family names is in the registry, and each ready one builds a block', () => {
@@ -116,7 +120,7 @@ test('an underspecified request comes back as a clarifying question, not a card'
 
 test('a paid primitive comes back as a proposal and starts nothing', async () => {
   assert.equal(primitive('video_generate').needsConfirm, true);
-  const out = await generateArtifact({}, { command: 'video', args: 'light through a prism' }, scripted(['make_video_generate', video]));
+  const out = await generateArtifact(VIDEO_ENV, { command: 'video', args: 'light through a prism' }, scripted(['make_video_generate', video]));
   assert.equal(out.result, 'paid_proposal');
   assert.equal(out.message, 'This uses paid generation.');
   assert.equal(out.estimatedCost, null);
@@ -201,4 +205,29 @@ test('/explain resolves an attached image on the server, with its layout-referen
   }
   assert.equal(seen.length, 1);
   assert.equal(asked.length, 3);
+});
+
+test('an unprovisioned /video or /animate says so before any model call, proposal or hold (audit c015534a)', async () => {
+  for (const [command, env, words] of [['video', {}, /Video generation is not set up/], ['video', { LEARN_VIDEO_PROVIDER: 'fal-seedance-lite' }, /Video generation is not set up/], ['animate', {}, /Maths animation is not set up/]]) {
+    const { callModel, seen } = scripted(['make_video_generate', video]);
+    const out = await generateArtifact(env, { command, args: 'light through a prism' }, { callModel });
+    assert.equal(out.result, 'unsupported', command);
+    assert.match(out.message, words);
+    assert.equal(seen.length, 0, 'no model call, so no proposal and no charge');
+  }
+  // Provisioned: the same commands propose exactly as before.
+  assert.deepEqual(artifactPlan('video', {}, VIDEO_ENV).ready, ['video_generate']);
+  assert.deepEqual(artifactPlan('animate', {}, MATHS_ENV).ready, ['maths_animation']);
+  assert.deepEqual(artifactPlan('video').ready, ['video_generate'], 'no env: the pre-auth shape check is unchanged');
+});
+
+test('the availability preflight agrees with the providers own not-configured checks', () => {
+  for (const env of [{}, { LEARN_VIDEO_PROVIDER: 'fal-seedance-lite' }, { FAL_API_KEY: 'k' }, VIDEO_ENV]) {
+    let configured = true; try { videoProvider(env); } catch { configured = false; }
+    assert.equal(artifactPlan('video', {}, env).result === undefined, configured, JSON.stringify(Object.keys(env)));
+  }
+  for (const env of [{}, { MATH_WORKER_URL: 'https://m.test' }, { MATH_WORKER_TOKEN: 't' }, MATHS_ENV]) {
+    const manim = new ManimProvider(env);
+    assert.equal(artifactPlan('animate', {}, env).result === undefined, !!(manim.url && manim.token), JSON.stringify(Object.keys(env)));
+  }
 });

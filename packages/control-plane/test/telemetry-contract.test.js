@@ -133,8 +133,8 @@ test('a malformed or colliding registration throws at load, naming the problem',
   bad([feature({ errorCodes: ['Bad Code'] })], /invalid error code/);
 });
 
-test('the shipped registry: client and support events, error codes in one list, only the client namespace from the browser', () => {
-  assert.deepEqual(BROWSER_NAMESPACES, ['client']);
+test('the shipped registry: client and support events, error codes in one list, only the client and weekly_top namespaces from the browser', () => {
+  assert.deepEqual(BROWSER_NAMESPACES, ['client', 'weekly_top']);
   assert.ok(EVENTS['client.error'] && EVENTS['support.report'] && EVENTS['model_call.finished']);
   assert.equal(new Set(ERROR_CODES).size, ERROR_CODES.length);
   const event = makeEvent('client.error', { payload: { kind: 'slow_interaction', fingerprint: 'ab12cd34', route: '/apps/:id', source: 'observer', error_name: 'TypeError', count: 3, dropped: 2, online: true } }, { environment: 'dev', service: 'web' });
