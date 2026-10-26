@@ -108,7 +108,7 @@ const saved = async (id, until = () => true) => {
     await page.waitForTimeout(200);
   }
   const last = await storedBlock(id).catch(() => null);
-  const summary = last?.sketch ? { strokes: last.sketch.strokes.length, shapes: last.sketch.shapes.map(shape => [shape.id.slice(0, 6), shape.kind, ...['x1', 'y1', 'x2', 'y2'].map(key => Math.round(shape[key]))]), items: last.sketch.items.length, tooLarge: last.tooLarge } : last;
+  const summary = !last?.sketch ? { hasSketch: false, keys: Object.keys(last || {}), tooLarge: last?.tooLarge, target: await target().catch(() => '?'), domMarks: await counts(id).catch(() => '?') } : { strokes: last.sketch.strokes.length, shapes: last.sketch.shapes.map(shape => [shape.id.slice(0, 6), shape.kind, ...['x1', 'y1', 'x2', 'y2'].map(key => Math.round(shape[key]))]), items: last.sketch.items.length, tooLarge: last.tooLarge };
   throw Error(`the stored ${id} never reached the expected state: ${JSON.stringify(summary)}`);
 };
 const storedBlock = id => page.evaluate(([key, blockId]) => JSON.parse(localStorage.getItem(key)).blocks.find(entry => entry.id === blockId), [KEY, id]);
@@ -164,7 +164,7 @@ await check('4 highlighter, rectangle, ellipse, arrow and line', async () => {
   await tool('Ellipse').click();
   await drag(at(f, 0.62, 0.1), at(f, 0.78, 0.38));
   await tool('Arrow').click();
-  await drag(at(f, 0.4, 0.5), at(f, 0.6, 0.5));
+  await drag(at(f, 0.4, 0.62), at(f, 0.6, 0.62));
   await tool('Line').click();
   await drag(at(f, 0.64, 0.5), at(f, 0.82, 0.62));
   assert.deepEqual(await counts(empty), { strokes: 2, shapes: 4, items: 0 });
@@ -308,8 +308,9 @@ await check('10b editing a tldraw board saves the converted drawing beside the u
   const g = await reveal(id);
   const marksBefore = (await counts(id)).shapes;
   await tool('Rectangle').click();
-  await drag(at(g, 0.1, 0.1), at(g, 0.3, 0.3));
-  const block = await saved(id, entry => entry.sketch && entry.sketch.shapes.length >= marksBefore + 1);
+  const press = at(g, 0.1, 0.1), top = await page.evaluate(([x, y]) => { const el = document.elementFromPoint(x, y); return el ? `${el.tagName}.${String(el.className?.baseVal ?? el.className).slice(0, 40)}` : 'nothing'; }, [press.x, press.y]);
+  await drag(press, at(g, 0.3, 0.3));
+  const block = await saved(id, entry => entry.sketch && entry.sketch.shapes.length >= marksBefore + 1).catch(async error => { throw Error(`${error.message} (pressed on ${top}; frame ${JSON.stringify(g)}; draw target ${await target()})`); });
   assert.equal(JSON.stringify(block.snapshot), SNAPSHOT_TEXT, 'the original is byte-identical');
   assert.equal(block.sketchFrom.digest, digestOf(SNAPSHOT));
   assert.ok(block.sketch.strokes.length > 0 && block.sketch.items.length > 0, 'the converted drawing was saved with the edit');
@@ -321,6 +322,8 @@ await check('10b editing a tldraw board saves the converted drawing beside the u
 await check('13b the Tutor draws the answer on the board in one undo step, and replaying adds nothing', async () => {
   const g = await reveal(empty);
   const before = await storedBlock(empty);
+  await page.keyboard.press('Escape');
+  await tool('Select and move').click();
   const exchange = page.locator('[data-chat-block]').first();
   await exchange.locator('[data-drag-zone]').first().click({ force: true });
   const button = page.locator('[data-explain-canvas]');
