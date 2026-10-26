@@ -93,7 +93,7 @@ Critical path today, separated.
 - *Waiting for your commands:* Motion `post`; refund; the 16:9 job; telemetry dry run, preflight, phase A; later the telemetry release and phase B; the 9:16 job; activate-public; image secrets and paid runs; converter app creation.
 - Independent work does not wait for release sequencing: every lane above continues in parallel; only the chain Motion ceiling, then Telemetry, then Motion R2 depends on main moving by fast-forward.
 
-### 0.6 Priority completion (owner reprioritisation, Monday 2:00 PM PT): Motion, Image, File Converter, Ctrl+K, CAD
+### 0.6 Priority completion (owner reprioritisation, Monday 1:55 PM PT): Motion, Image, File Converter, Ctrl+K, CAD
 
 These five are parallel completion lanes with one integration owner (the integrator, me). **Complete means** all of: implemented and tested on the final candidate; required infrastructure, secrets and configuration deployed; real production acceptance passed; enabled for the agreed users and supported settings; credits, persistence, reload recovery, duplicate submissions and failure handling verified where applicable; unsupported settings listed. A deployed but disabled feature is not complete.
 
@@ -192,7 +192,7 @@ Production mutations are owner commands; one gate and one release at a time; no 
 
 Nothing here authorises an action beyond what is listed as approved. Who acts: **YOU RUN** (command or browser action only you can do), **ME** (implementation, verification, coordination I own and am doing now).
 
-### 9.0 Consolidated action package for the five priorities (Monday 2:05 PM PT)
+### 9.0 Consolidated action package for the five priorities (Monday 1:56 PM PT)
 
 Already approved and recorded (not repeated): ceiling US$3.50; owner-only acceptance up to 350 credits per Motion job; shared validation budget US$100 total (81.7506 remaining before the next bookings); transcription separately gated off; Telemetry GO; G1; tldraw complete removal. **Prioritisation does not approve new recurring costs or provider-account changes; they are listed separately in C.**
 
