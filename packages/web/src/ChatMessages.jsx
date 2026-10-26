@@ -13,21 +13,35 @@ import AnswerSuggestions from './AnswerSuggestions.jsx';
 import SyllabusMessage from './SyllabusMessage.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
 import GenerationProposalCard from './GenerationProposalCard.jsx';
-import { PROPOSAL_REFUSED_EVENT, approvesJob, generateProposal, proposalActive, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
+import { PROPOSAL_REFUSED_EVENT, approvesJob, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
 import { fetchProposal, problemOf, saveProposal } from './generation-review-client.js';
 import { withPrompt } from './card-prompt.js';
 import { reportClientError } from './client-telemetry.js';
-import { imageGenerationId, retryImageSave, runImageJob } from './generate-image.js';
+import { imageGenerationId, imageGenerationOn, imageStatus, retryImageSave, runImageJob } from './generate-image.js';
+import { sameFileCard } from './file-to-canvas.js';
+import { mergeOutputs, openOutput, outputSink } from './chat-output-refs.js';
+import { cardStatus, imageProposalStatus, madeFromVersion, outputForProposal } from './generation-proposal-status.js';
+import { responseKind, turnIndex } from './chat-response-kind.js';
 
 // UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its
 // proposal that has not made its card yet. A settings change saves the next version over this message (chat-proposal-route.js);
 // Generate adds its capability's card (proposalBlock, an adapter per capability) with the exact approved proposal, once (insertCard finds one it already made).
-function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
+export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   const p = m.meta.proposal;
   const chat = useChatWorkspace(); // a reference pill opens its source beside the Chat, as an attached chip does
   const [busy, setBusy] = useState(false), [error, setError] = useState(null), [pressed, setPressed] = useState(false), [released, setReleased] = useState(0);
-  const made = pressed || !!ops?.proposalMade?.(p.proposal_id);
   const saved = /^\d+$/.test(String(m.messageId ?? ''));
+  // Bug 2 (chat generation UX): the proposal's visual state is its REAL job's, read from the card it made on the canvas (the same block
+  // the canvas card and the Chat's watch read), or from the output this turn saved for it after a reload; the local pressed flag only
+  // covers the moment between the press and the card landing. A motion proposal's card is on the canvas; an image proposal reports
+  // the job's own status and has no card until it is made.
+  const turnAt = turnIndex(msgs, i), turn = turnAt >= 0 ? msgs[turnAt] : null;
+  const cardKind = proposalBlock(p) ? 'card' : p.command === 'generate-image' ? 'image' : null;
+  const output = outputForProposal(turn, p);
+  const card = ops?.proposalCard?.(p.proposal_id) ?? (output ? ops?.block?.(output.cardId) ?? null : null);
+  const refusedCard = !!card?.proposalRefused;
+  const [pressedAt, setPressedAt] = useState(null);
+  const made = pressed || !!ops?.proposalMade?.(p.proposal_id) || (!!output && !refusedCard);
   // Generate is enabled by the command's own start adapter: an output card (Motion) or an existing job (Explain).
   const active = !made && !!startAdapter(p, ops) && proposalActive(p, msgs);
   // UI-15.1: each reference's state from the server (changed, deleted, inaccessible, unsupported), read now; a blocked one is said before Generate.
@@ -72,24 +86,34 @@ function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   }, [p.proposal_id, p.version]); // eslint-disable-line react-hooks/exhaustive-deps
   // IMG-01: Generate on an image proposal starts the job and follows it here (generate-image.js); a failed or unknown outcome is said in
   // words and is never sent again. The same press after a reload reaches the same job.
-  const [image, setImage] = useState(null);
-  const generateImage = (follow = false) => {
+  const [image, setImage] = useState(null), [imageCard, setImageCard] = useState(null);
+  const generateImage = () => {
     if (pressed) return;
-    setPressed(true); setError(null); setImage({ tone: 'working', text: follow ? 'Checking your image.' : 'Making your image.', retry: false });
-    runImageJob({ api, proposal: p, app: p.input.app, ops, onStatus: setImage }).then(job => { if (job.cardId && !follow) ops.locate?.(job.cardId); }).catch(failure => {
+    setPressed(true); setPressedAt(new Date().toISOString()); setError(null); setImage(null);
+    runImageJob({ api, proposal: p, app: p.input.app, ops, onStatus: setImage }).then(job => { if (job.cardId) { setImageCard(job.cardId); ops.locate?.(job.cardId); } }).catch(failure => {
       const why = problemOf(failure);
       if (why.kind !== 'used') setPressed(false);
-      setProblem(why); setImage(null); setError(why.kind === 'references' ? null : why.message);
+      // Already made (a reload, another tab): said on the card's status line, not as a job still starting.
+      setProblem(why); setImage(why.kind === 'used' ? { tone: 'failed', text: why.message, retry: false } : null); setError(why.kind === 'used' || why.kind === 'references' ? null : why.message);
     });
   };
-  // Reload recovery: this plan already has a job (the id is a function of the plan), so the card follows it again instead of inviting a
-  // second press. The same POST answers with the existing job (never a second one); a ready image is found on the canvas, not added twice.
+  // A reload (or switching back to this thread) finds the image job this proposal already started and shows it again, without a new
+  // request: a status read first. A job still working is followed through the job API's reconnect (the same generation id answers
+  // with its own job, whatever happened to the proposal since); one that ended is only shown, so a reload never places a card again.
+  const resumable = cardKind === 'image' && saved && !pressed && proposalActive(p, msgs) && imageGenerationOn();
   useEffect(() => {
-    if (p.command !== 'generate-image' || !saved || pressed || !ops?.insertCard) return undefined;
+    if (!resumable) return undefined;
     let live = true;
-    api(`/api/learn/image-jobs/${imageGenerationId(p)}`).then(() => { if (live) generateImage(true); }, () => {});
+    api(`/api/learn/image-jobs/${imageGenerationId(p)}`).then(({ job }) => {
+      if (!live || !job) return;
+      setPressed(true); setPressedAt(Number.isFinite(job.createdAt) ? new Date(job.createdAt).toISOString() : null);
+      const now = imageStatus(job), ended = ['ready', 'refused', 'cancelled', 'failed', 'unknown'].includes(job.stage);
+      setImage(now);
+      if (job.stage === 'ready') setImageCard(job.artifact ? ops?.findCard?.(sameFileCard(job.artifact.sourceId, job.artifact.sha256))?.id ?? null : null);
+      if (!ended) runImageJob({ api, proposal: p, app: p.input.app, ops, onStatus: setImage }).then(done => { if (done.cardId) setImageCard(done.cardId); }).catch(() => {});
+    }, () => {});
     return () => { live = false; };
-  }, [p.proposal_id, saved]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [resumable, p.proposal_id]); // eslint-disable-line react-hooks/exhaustive-deps
   const onGenerate = () => {
     if (p.command === 'generate-image') { generateImage(); return; }
     // /explain (EXP-T20): its card already waits on the canvas for this job; Generate approves the job's reviewed brief there.
@@ -106,20 +130,36 @@ function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
     }
     const id = generateProposal(p, { inFlight: pressed, insertCard: ops.insertCard, wrap: block => withPrompt(block, p.input.request) });
     if (pressed) return; // one press in flight
-    setPressed(true); setError(null);
-    if (id) ops.locate?.(id);
+    setPressed(true); setPressedAt(new Date().toISOString()); setError(null);
+    if (id) { ops.locate?.(id); keepOutput(id); }
   };
+  // The card this press made becomes an output of the turn that asked for it (chat-output-refs.js outputSink, as a command's cards do):
+  // shown under that prompt, saved on its message so a reload finds the job again, and watched with the others (ChatOutputs
+  // useGenerationWatch). A turn not saved yet keeps it until its card settles.
+  const keepOutput = id => {
+    if (turnAt < 0 || !ops) return;
+    const here = turnAt;
+    outputSink({ messageId: Promise.resolve(/^\d+$/.test(String(turn.messageId ?? '')) ? turn.messageId : null), ops,
+      onOutput: kept => setMsgs(ms => ms.map((x, j) => (j === here && x.role === 'user' ? { ...x, outputs: mergeOutputs(x.outputs, [kept]) } : x))) })(id);
+  };
+  // The status the card draws (bug 2): the job's, never the press's. A superseded version of the proposal draws none.
+  const own = madeFromVersion(card || output, p);
+  const status = cardKind === 'card' ? (own ? cardStatus({ card, output: refusedCard ? null : output, pressed, loaded: ops?.workspace?.().loaded !== false, noun: 'video' }) : null)
+    : cardKind === 'image' ? imageProposalStatus({ image, pressed, cardId: imageCard }) : null;
+  const goToCard = status?.cardId ? async () => {
+    setError(null);
+    const result = await openOutput(output && output.cardId === status.cardId ? output : { cardId: status.cardId }, ops);
+    if (result.problem) setError(result.problem);
+  } : null;
   return (
     <div className="mt-2">
-      <GenerationProposalCard proposal={p} active={active} made={made} released={released} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
+      {/* A motion or image proposal draws its job's status on the card itself (status), so it no longer reads Added to the canvas. */}
+      <GenerationProposalCard proposal={p} active={active} made={cardKind ? false : made} released={released} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
+        status={status} startedAt={output?.startedAt || pressedAt} noun={cardKind === 'image' ? 'image' : 'video'} onGoToCard={goToCard}
+        onStop={status?.canStop && ops?.stopGeneration ? () => ops.stopGeneration(status.cardId) : null} onStopFailed={setError}
         onGenerate={onGenerate} onSave={onSave} onOpenReference={ref => chat?.openSource?.({ sourceId: ref.sourceId, kind: ref.kind, name: ref.label, version: ref.revision, range: ref.range })} />
       {error && <p role="alert" className="mt-1 text-xs text-danger">{error}</p>}
-      {image && (
-        <p role="status" data-image-job-status={image.tone} className={cn('mt-1 text-xs', image.tone === 'failed' ? 'text-danger' : 'text-ink-2')}>
-          {image.text}
-          {image.retry && <button type="button" data-image-retry-save onClick={() => retryImageSave(api, `img-${p.proposal_id}`).catch(() => {})} className="ml-2 rounded border border-line px-2 py-0.5 text-ink hover:bg-hover">Try saving again</button>}
-        </p>
-      )}
+      {image?.retry && <p data-image-job-status={image.tone} className="mt-1 text-xs text-ink-2"><button type="button" data-image-retry-save onClick={() => retryImageSave(api, `img-${p.proposal_id}`).catch(() => {})} className="rounded border border-line px-2 py-0.5 text-ink hover:bg-hover">Try saving again</button></p>}
       {problem?.kind === 'invalid' && problem.errors?.length > 0 && <ul role="alert" data-proposal-save-errors className="mt-1 text-xs text-danger">{problem.errors.map((e, k) => <li key={k}>{e.message}</li>)}</ul>}
       {conflict && (
         <div role="alert" data-proposal-settings-conflict className="mt-1 flex flex-wrap items-center gap-2 text-xs text-danger">
@@ -263,6 +303,10 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
     onAddToCanvas({ ...card, question: [...msgs.slice(0, i)].reverse().find(item => item.role === 'user')?.content || '' });
     setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, added: true } : x)));
   };
+  // Bugs 1 and 3: a slash command's response, and one that makes something on the canvas, uses the generation and card workflow - it gets no
+  // Explore next, no Add as card (the generated output is reached by its own card, Go to card) and no generic Regenerate (a command
+  // turn re-sent as plain words would answer in prose, skipping the command's own confirmation). Ordinary answers keep all three.
+  const kind = responseKind(m, msgs[turnIndex(msgs, i)] ?? null);
   return (
     <div key={i} className={cn('py-1.5', m.role === 'step' && 'flex justify-end', m.role === 'user' && 'flex flex-col items-end')}>
       {m.role === 'step' ? (
@@ -303,9 +347,9 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
             {m.meta?.proposal?.proposal_id && <ProposalSlot m={m} i={i} msgs={msgs} setMsgs={setMsgs} ops={outputOps} />}
             {m.kind === 'syllabus' && Array.isArray(m.meta?.syllabus?.topics) && <SyllabusMessage syllabus={m.meta.syllabus} toContents={toContents} saveSyllabus={/^\d+$/.test(String(m.messageId ?? '')) ? async topics => (await api(`/api/learn/chat/messages/${m.messageId}/syllabus`, { method: 'PUT', body: JSON.stringify({ topics }) })).syllabus : null} />}
             <AnswerFooter key={m.messageId ?? i} message={{ ...m, status: answerStatus(m, busy && i === msgs.length - 1) }} latest={!msgs.slice(i + 1).some(x => x.role === 'assistant')}
-              onAddAsCard={onAddToCanvas && addAsCard} onLocateCard={onAddToCanvas && (id => addAsCard({ id, answer: m.content, sources: m.meta?.contextRefs ?? null }))} cardExists={() => !!m.added || !!hasCard?.(cardIdFor(m))}
-              onRegenerate={onRegenerate} onSelectAlternative={async id => { const alt = await getAnswerAlternative(id); setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, ...alt, status: 'done', added: false } : x))); }} />
-            {prepare && <AnswerSuggestions message={m} latest={i === msgs.length - 1} threadId={threadId} prepare={prepare} insertNotebook={insertNotebook} />}
+              onAddAsCard={kind.ordinary && onAddToCanvas && addAsCard} onLocateCard={kind.ordinary && onAddToCanvas && (id => addAsCard({ id, answer: m.content, sources: m.meta?.contextRefs ?? null }))} cardExists={() => !!m.added || !!hasCard?.(cardIdFor(m))}
+              onRegenerate={kind.ordinary ? onRegenerate : null} onSelectAlternative={async id => { const alt = await getAnswerAlternative(id); setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, ...alt, status: 'done', added: false } : x))); }} />
+            {prepare && kind.ordinary && <AnswerSuggestions message={m} latest={i === msgs.length - 1} threadId={threadId} prepare={prepare} insertNotebook={insertNotebook} />}
           </div>
           </AnswerBoundary>
         ) : <Md text={m.content} onRun={id => { if (privateChat) navigate(`/apps/${encodeURIComponent(appName)}/runs/${encodeURIComponent(id)}`); else { setFilePeek(null); setRunPeek(id); } }} onFile={!privateChat && fileApp ? (path, ln, lnEnd) => { setRunPeek(null); setFilePeek({ path, line: ln, lineEnd: lnEnd }); } : null} />}

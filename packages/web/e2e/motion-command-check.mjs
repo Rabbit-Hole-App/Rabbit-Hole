@@ -444,7 +444,9 @@ for (const theme of ['light', 'dark']) {
     assert.deepEqual([body.confirmed, body.operation.op, body.operation.request], [true, 'motion_request', LINE]);
     assert.deepEqual([body.operation.proposal?.command, body.operation.proposal?.version, body.operation.proposal?.settings], ['motion', 1, { duration_seconds: 15, audio: false }], 'the exact approved proposal');
     assert.equal(await proposal.getAttribute('data-proposal-active'), 'false', 'a generated proposal is inactive');
-    assert.match(await proposal.innerText(), /Added to the canvas/);
+    // Chat generation UX (owner brief, bug 2): the proposal reports its job, Ready once the video is ready; a placeholder card is never "Added to the canvas".
+    await until(async () => /Ready/.test(await proposal.locator('[data-proposal-generate]').innerText()), 'the proposal reports its job Ready');
+    assert.doesNotMatch(await proposal.innerText(), /Added to the canvas/);
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-05-ready-card.png` });
     await dismiss();
@@ -490,12 +492,12 @@ for (const theme of ['light', 'dark']) {
     assert.match(await card.innerText(), /Not generated\. This proposal changed; use the latest version\./);
     assert.equal(await card.locator('video, [data-generate-video], [data-stop-video], [data-media-provenance], [data-recovery-action]').count(), 0, 'nothing playable, generating or offered on the refused card');
     await proposal.locator('[data-proposal-generate]:not([disabled])').waitFor({ timeout: 10000 });
-    assert.doesNotMatch(await proposal.innerText(), /Added to the canvas/, 'the refused start made nothing');
+    assert.equal(await proposal.locator('[data-proposal-job-status]').count(), 0, 'the refused start made nothing: no job status');
     await dock.getByRole('alert').filter({ hasText: 'This proposal changed; use the latest version.' }).first().waitFor({ timeout: 5000 });
     assert.equal(videoPosts().length - posts, 1, 'one refused start');
     await proposal.locator('[data-proposal-generate]').click();
     await until(() => videoPosts().length - posts === 2, 'the next press starts');
-    await until(async () => /Added to the canvas/.test(await proposal.innerText()), 'Added to the canvas once a start was accepted');
+    await until(async () => (await proposal.locator('[data-proposal-job-status]').count()) === 1, 'the proposal reports its job once a start was accepted');
     assert.equal(videoPosts().length - posts, 2, 'one refused start and one real one');
     await card.scrollIntoViewIfNeeded();
     await card.screenshot({ path: `${OUT}/${theme}-06c-refused-card.png` });
@@ -850,7 +852,7 @@ for (const theme of ['light', 'dark']) {
       const made = proposalCards.filter({ has: page.locator('h3', { hasText: /^Motion: explain this$/ }) });
       if (await made.count()) {
         assert.equal(await made.last().getAttribute('data-proposal-active'), 'false', 'the generated proposal cannot Generate again');
-        assert.match(await made.last().innerText(), /Added to the canvas/);
+        assert.doesNotMatch(await made.last().innerText(), /Added to the canvas/, 'a generated proposal reports its job (or is superseded), never Added to the canvas');
       }
       await page.waitForTimeout(800);
       assert.deepEqual([asks.length - a0, routes.length - r0, videoPosts().length - posts], [0, 0, 0], 'a reload sends no turn, route or start');

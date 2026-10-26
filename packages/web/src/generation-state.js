@@ -3,7 +3,8 @@
 // status is its job's state (cad-contract.js cadBlock, kept current by CadCard's poll); a paid video, maths animation or Blender
 // scene card's status is its job's (LearningBlocks.jsx VideoBody, SceneBody). A card with no job is done when it lands.
 // No percentage is invented: progress is null unless a card reports a real one (none does today), so the indicator spins.
-//   phase: 'running' | 'waiting' (a CAD question) | 'idle' (a paid card not started) | 'done' | 'failed' | 'cancelled' | 'missing'
+//   phase: 'running' | 'waiting' (a CAD question) | 'idle' (a paid card not started) | 'done' | 'failed' | 'cancelled' (stopped by the
+//   learner) | 'unknown' (the outcome could not be confirmed: not shown as success, never started again) | 'missing'
 import { cadRunning, cadStage } from './cad-client.js';
 
 const RUNNING = { queued: 'Queued', generating: 'Generating', rendering: 'Rendering' };
@@ -17,13 +18,16 @@ export function generationState(block) {
   }
   // A paid card inserted already confirmed (learn-slash.js) starts on mount: it is running from the moment it lands.
   if (RUNNING[block.status] || (block.confirmedStart && block.status === 'idle')) return { phase: 'running', active: true, label: RUNNING[block.status] || 'Starting', progress: null };
+  // A video card the learner stopped, or whose start could not be confirmed (LearningBlocks.jsx VideoBody sets the flags).
+  if (block.status === 'failed' && block.stopped) return { phase: 'cancelled', active: false, label: 'Stopped', progress: null };
+  if (block.status === 'failed' && block.outcomeUnknown) return { phase: 'unknown', active: false, label: 'Unknown', progress: null };
   if (block.status === 'failed') return { phase: 'failed', active: false, label: 'Failed', progress: null };
   if (block.status === 'idle') return { phase: 'idle', active: false, label: 'Not started', progress: null };
   return { phase: 'done', active: false, label: 'Done', progress: null };
 }
 
 // The stable line a settled job shows (the indicator's words); active jobs say "Generating on the canvas".
-export const SETTLED_TEXT = { done: 'Generated on the canvas', failed: 'Generation failed', cancelled: 'Generation cancelled', waiting: 'Waiting for your answer on the card', idle: 'Not started', missing: 'The card was removed' };
+export const SETTLED_TEXT = { done: 'Generated on the canvas', failed: 'Generation failed', cancelled: 'Generation cancelled', unknown: 'Generation status not confirmed', waiting: 'Waiting for your answer on the card', idle: 'Not started', missing: 'The card was removed' };
 
 // The job a paid video or scene card starts, as the server keys it (control-plane learn-video.js, learn-scene.js: the card's
 // operation). A /motion request is its own job per Generate press (request_id, owner message 37) or per approved proposal (one
@@ -35,6 +39,9 @@ const jobOf = block => {
   if (op.op === 'motion_request') return op.proposal?.proposal_id ? `proposal:${op.proposal.proposal_id}` : op.request_id ? `press:${op.request_id}` : null;
   return `${block.type}:${JSON.stringify(op)}`;
 };
+// The job key a chat proposal's card carries, as a saved output's jobId (chat-output-refs.js outputOf): after a reload the Chat
+// finds the card its proposal made from this alone, whatever happened to the output's snapshot. null for any other card.
+export const proposalJobId = block => (block?.operation?.op === 'motion_request' && block.operation.proposal?.proposal_id ? `proposal:${block.operation.proposal.proposal_id}` : null);
 // The card already on the canvas for the job `block` would start, once that card has started it (an unstarted sample with the
 // same operation is not one): the server would answer with that card's job, so its card is reused, never a second card.
 export function existingGeneration(blocks, block) {

@@ -6,7 +6,7 @@
 import { api } from './api.js';
 import { retried } from './chat-persist.js';
 import { cadArtifact } from './cad-client.js';
-import { generationState } from './generation-state.js';
+import { generationState, proposalJobId } from './generation-state.js';
 import { checkOutput, mergeOutputs, THUMB } from '../../control-plane/src/chat-outputs.js';
 
 export { mergeOutputs };
@@ -21,7 +21,7 @@ const thumbOf = block => {
 export function outputOf(block, { startedAt = null } = {}) {
   if (!block?.id || !block.type) return null;
   const title = typeof block.title === 'string' ? block.title : '';
-  return checkOutput({ v: 1, cardId: block.id, kind: block.type, title, jobId: typeof block.jobId === 'string' ? block.jobId : null, thumb: thumbOf(block), startedAt, snapshot: { v: 1, block: snapshotBlock(block) } }).value ?? null;
+  return checkOutput({ v: 1, cardId: block.id, kind: block.type, title, jobId: typeof block.jobId === 'string' ? block.jobId : proposalJobId(block), thumb: thumbOf(block), startedAt, snapshot: { v: 1, block: snapshotBlock(block) } }).value ?? null;
 }
 export const sameOutput = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 

@@ -211,6 +211,19 @@ test('a Chat turn: stripped chunk, then answer_meta, then done with string ids; 
   assert.match(JSON.stringify(call.messages.at(-1)), /title is a weak hint and may be outdated/);
 });
 
+const NL = String.fromCharCode(10);
+test('a slash command turn stores and sends no actions or follow-ups; a plain question in the same thread still does', async t => {
+  const f = fixture(t);
+  f.replies.push('Here is a practice task.' + NL + '<answer_meta>{"followUps":[{"text":"x"}]}</answer_meta>', 'Recursion calls itself.' + NL + '<answer_meta>{"followUps":[{"text":"x"}]}</answer_meta>');
+  const command = await f.ask({ message: 'Recursion', mode: 'ask', command: 'practice', context_refs: [] });
+  assert.deepEqual(command.events.find(e => e.event === 'answer_meta').data.followUps, []);
+  const plain = await f.ask({ message: 'What is recursion?', mode: 'ask', command: null, context_refs: [] });
+  assert.equal(plain.events.find(e => e.event === 'answer_meta').data.followUps.length, 1, 'an ordinary answer keeps its follow-ups');
+  const stored = f.rows("SELECT meta_json FROM chat_message_meta WHERE role = 'assistant' ORDER BY message_id").map(r => JSON.parse(r.meta_json));
+  assert.deepEqual([stored[0].actions, stored[0].followUps], [[], []]);
+  assert.equal(stored[1].followUps.length, 1);
+});
+
 test('an old client is unchanged: no side-table rows, no trailer prompt, done carries the thread only', async t => {
   const f = fixture(t);
   f.replies.push('Old answer <answer_meta>{}</answer_meta>');

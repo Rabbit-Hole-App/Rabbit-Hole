@@ -33,6 +33,8 @@ export const pressOperation = (block, retry = false, id = () => crypto.randomUUI
 // A /motion card inserted already confirmed (its Generate press) carries that press's request id from the moment it lands, so a
 // board saved before its start was written back still restarts the same job after a reload, never a second paid one.
 export const withPressId = block => (block?.confirmedStart && block.operation?.op === 'motion_request' ? { ...block, operation: pressOperation(block) } : block);
+// A card about to start (or start again) forgets how its last attempt ended: stopped, or an outcome that could not be confirmed.
+export const withoutEnd = block => { const { stopped, outcomeUnknown, ...rest } = block; return rest; }; // eslint-disable-line no-unused-vars
 // A failed or stopped job is read again while its hold is not confirmed settled (state pending), at most this many times per page
 // load (10 minutes at 5 s): an unknown cost stays pending until it is reconciled outside the app.
 export const SETTLE_READS = 120;

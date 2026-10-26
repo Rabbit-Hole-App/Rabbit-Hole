@@ -35,7 +35,7 @@ import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
 import { PROPOSAL_REFUSED_EVENT, failedStart, refusedReason } from './generation-proposal-chat.js';
 import { motionHold, recoverVideo, sceneAssetUrl, sceneList, startScene, startVideo, stopVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
 import PaidConfirm from './PaidConfirm.jsx';
-import { RECOVERY_BUTTONS, motionConfirm, motionUsageLine, pressOperation, readsAgain, recoveryButtons, resumesJob, videoLabel } from './learn-video-label.js';
+import { RECOVERY_BUTTONS, motionConfirm, motionUsageLine, pressOperation, readsAgain, recoveryButtons, resumesJob, videoLabel, withoutEnd } from './learn-video-label.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { describeNotebook } from './learn-notebook.js';
 import { describeYouTube } from './learn-ask-target.js';
@@ -1571,7 +1571,10 @@ function VideoBody({ block, appName, onChange, onFile }) {
       if (mine.status === 'failed') {
         setFailure(mine.recovery ? mine : null);
         setError(mine.recovery?.explanation || mine.error || 'The provider could not generate this clip.');
-        if (current.status !== 'failed') onChange({ ...current, status: 'failed' });
+        // The card records HOW it ended, for the Chat's proposal card and the generation indicator (generation-state.js): stopped by the
+        // learner, or an outcome the server could not confirm (retryable false). Written only when it differs from what the card holds.
+        const stopped = /^Stopped\./.test(mine.error || ''), unknown = mine.retryable === false;
+        if (current.status !== 'failed' || !!current.stopped !== stopped || !!current.outcomeUnknown !== unknown) onChange({ ...withoutEnd(current), status: 'failed', ...(stopped ? { stopped: true } : {}), ...(unknown ? { outcomeUnknown: true } : {}) });
         // Its final cost is not confirmed yet (a stopped job settling, or reconciliation pending): keep reading until it is (bounded).
         if (readsAgain(mine, settleReads.current)) { settleReads.current += 1; polling.current = setTimeout(() => follow(placementId), 5000); }
         return;
@@ -1588,7 +1591,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
   // Stop: only an operation whose provider can stop (label.stoppable, a /motion request).
   const stop = async () => {
     clearTimeout(polling.current);
-    try { await stopVideo(appName, placement); setError('Stopped.'); onChange({ ...latest.current, status: 'failed' }); follow(placement); }
+    try { await stopVideo(appName, placement); setError('Stopped.'); onChange({ ...latest.current, status: 'failed', stopped: true }); follow(placement); }
     catch (problem) { setError(problem.message); polling.current = setTimeout(() => follow(placement), 5000); }
   };
   const [confirming, setConfirming] = useState(false); // false, true (Generate) or 'fix' (Continue fixing)
@@ -1596,7 +1599,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
   const recover = async mode => {
     clearTimeout(polling.current); settleReads.current = 0;
     setError(''); setConfirming(false); setFailure(null);
-    onChange({ ...latest.current, status: 'generating' });
+    onChange({ ...withoutEnd(latest.current), status: 'generating' });
     try { await recoverVideo(appName, placement || block.placementId, mode, { confirmed: mode === 'fix' }); follow(placement || block.placementId); }
     catch (problem) { setError(problem.message); onChange({ ...latest.current, status: 'failed' }); follow(placement || block.placementId); }
   };
@@ -1608,14 +1611,15 @@ function VideoBody({ block, appName, onChange, onFile }) {
     // kept on the card, so a resend or reload of that press reuses it; Retry of a failed card keeps the key it has (old cards none).
     const retry = current.status === 'failed';
     const operation = pressOperation(current, retry);
-    current = { ...current, operation };
+    current = { ...withoutEnd(current), operation };
     onChange({ ...current, status: 'generating' });
     try { const { placementId } = await startVideo(appName, operation, { confirmed: true, retry }); follow(placementId); }
     catch (problem) {
       // MOT-22: refused for its proposal: the card says why and stops counting as the card the proposal made.
       const { block: failed, reason: refused } = failedStart(current, problem);
       setError(refused ? '' : problem.message);
-      onChange(failed);
+      // No answer at all (the connection dropped): the server may have started the job, so the card does not call it plainly failed.
+      onChange(refused || problem?.status ? failed : { ...failed, outcomeUnknown: true });
       if (refused) window.dispatchEvent(new CustomEvent(PROPOSAL_REFUSED_EVENT, { detail: { proposalId: operation.proposal?.proposal_id, message: refused, code: problem?.data?.code } }));
     }
   };

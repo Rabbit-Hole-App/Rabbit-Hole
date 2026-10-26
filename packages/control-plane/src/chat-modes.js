@@ -344,7 +344,10 @@ export async function recordAnswer(db, { threadId, userMessageId, content, raw, 
   let meta;
   if (stopped) meta = { version: 1, status: 'stopped', mode: resolved.mode, contextRefs: refs };
   else {
-    const { actions, followUps } = validate(raw, { messageId: String(messageId), contextRefs: refs });
+    // A slash command's answer, and one that carries a generation proposal, belongs to the generation workflow: Explore next and suggested
+    // actions are not kept for it (the Chat hides them too, web chat-response-kind.js), so nothing unused is stored or sent.
+    const workflow = !!chat.command || !!proposal || !!proposalMeta?.proposalConflict;
+    const { actions, followUps } = workflow ? { actions: [], followUps: [] } : validate(raw, { messageId: String(messageId), contextRefs: refs });
     const syllabus = resolved.mode === 'tutor' ? modelSyllabus(trailer.syllabus, refs) : null;
     const kind = resolved.mode === 'tutor' ? (syllabus ? 'syllabus' : 'clarify') : 'answer';
     meta = { version: 1, mode: resolved.mode, kind, contextRefs: refs, actions, followUps, syllabus, ...(proposal ? { proposal } : {}), ...proposalMeta };

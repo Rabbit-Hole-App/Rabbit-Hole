@@ -15,14 +15,20 @@
 // onSave(edit) -> Promise (settings: { settings }, details: { title, description, ... }); onSettingsChange(settings) (older callers);
 // onCancel; onOpenReference(reference); states (server reference states); problem ({ message, errors }); groups ({ key: { defs, legend,
 // parse } }) and groupProblem(key, id, value) for parameter groups; Editor (the pill editor lane's component for the description).
+// status (generation-proposal-status.js, from the REAL job): once Generate was pressed the button shows the job's state (Starting, Queued,
+// Generating, Ready) with a spinner while it runs, a status line under the actions (announced politely, elapsed time shown but never
+// announced), Go to card (onGoToCard) and, where the job can be stopped, Stop (onStop: the canvas card's own stop request). Without a
+// status the card is as before (made reads Added to the canvas). startedAt: when the job was pressed, for the elapsed time.
 // An adapter may add: settingsMode, eyebrow, requestLabel, note, extraSections, compact (the review strip above the composer), isolate, and attrs(slot, arg) -> data
 // attributes for its own element names (the CAD review keeps its data-cad-review-* names this way).
 import { useEffect, useId, useRef, useState } from 'react';
-import { ChartColumnIncreasing, CircleAlert, FileCheck2, FileCode2, FileText, Film, Globe, Group, Image as ImageIcon, Shapes, StickyNote } from 'lucide-react';
+import { Ban, ChartColumnIncreasing, Check, CircleAlert, FileCheck2, FileCode2, FileText, Film, Globe, Group, Image as ImageIcon, Loader2, Shapes, StickyNote } from 'lucide-react';
 import AspectRatioSelect from './AspectRatioSelect.jsx';
 import CommandPill from './CommandPill.jsx';
 import { SECTIONS, changedKeys, commandDefinition, fieldsFor, isEditable, proposalView, visibleSections } from './generation-confirmation-schema.js';
 import { escapeText, isReviewProposal, promptSegments, removeReference } from './generation-review.js';
+import { announcement, elapsedText } from './generation-proposal-status.js';
+import { useSeconds } from './use-seconds.js';
 import { Button, Tip, cn } from './ui.jsx';
 
 const ICONS = { doc: FileText, card: StickyNote, group: Group, code: FileCode2, image: ImageIcon, media: Film, web: Globe, progress: ChartColumnIncreasing, canvas: Shapes, file: FileText, excerpt: FileText, graph: ChartColumnIncreasing };
@@ -233,9 +239,46 @@ export function buildEdit(view, draft, tokenized) {
   return edit;
 }
 
+// The status line under the actions: what the job is doing in words (never a percentage), the elapsed time beside it for the eye
+// only, and the one polite announcement. A job that ended without a result says so with no spinner.
+function JobStatus({ status, startedAt }) {
+  const seconds = useSeconds(startedAt, status.active);
+  const Icon = status.phase === 'failed' ? CircleAlert : status.phase === 'stopped' ? Ban : status.phase === 'done' ? Check : CircleAlert;
+  return (
+    <div data-proposal-job-status={status.phase} className="flex flex-col gap-1">
+      <p role="status" aria-live="polite" data-proposal-announcement className="sr-only">{announcement(status)}</p>
+      <p aria-hidden="true" className={cn('flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs', status.phase === 'failed' || status.phase === 'unknown' ? 'text-fail' : 'text-ink-2')}>
+        {status.spinner ? <Loader2 size={13} className="shrink-0 animate-spin motion-reduce:animate-none" /> : <Icon size={13} className="shrink-0" />}
+        <span data-proposal-job-detail className={cn(status.active && 'shimmer')}>{status.detail}</span>
+        {status.active && seconds != null && <span data-proposal-elapsed className="text-ink-3 tabular-nums">{elapsedText(seconds)}</span>}
+      </p>
+    </div>
+  );
+}
+
+// Stop asks first, as the canvas card's does (credits already used are not refunded): Cancel is focused, Escape keeps the job going.
+function StopControl({ noun, onStop, onFailed }) {
+  const [ask, setAsk] = useState(false), [stopping, setStopping] = useState(false);
+  const ref = useRef(null);
+  const keep = () => { setAsk(false); ref.current?.focus(); };
+  const stop = async () => { setAsk(false); setStopping(true); try { await onStop(); } catch (error) { onFailed?.(error?.message || 'Could not stop it.'); } finally { setStopping(false); } };
+  return (
+    <>
+      <Button ref={ref} type="button" variant="secondary" data-proposal-stop aria-expanded={ask} disabled={stopping} className="h-9! [@media(pointer:coarse)]:min-h-11!" onClick={() => setAsk(true)}>Stop</Button>
+      {ask && (
+        <div data-proposal-stop-confirm role="group" aria-label={`Stop this ${noun}`} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); keep(); } }} className="flex w-full flex-wrap items-center gap-2 text-xs text-ink-2">
+          <span>Stop this {noun}? Credits already used won&apos;t be refunded.</span>
+          <Button type="button" variant="secondary" size="sm" data-proposal-stop-cancel autoFocus onClick={keep}>Cancel</Button>
+          <Button type="button" variant="inverse" size="sm" data-proposal-stop-confirmed onClick={stop}>Stop</Button>
+        </div>
+      )}
+    </>
+  );
+}
+
 // made: this proposal already added its card (inactive, but not superseded).
 export default function GenerationProposalCard({ proposal = null, view: given = null, defaultEditing = false, settingsMode = 'live', active = true, onGenerate, onSave, onSettingsChange, onCancel, onOpenReference, busy = false, made = false, states = null, problem = null, groups = null,
-  groupProblem = null, released = 0, Editor = DefaultEditor, eyebrow = null, requestLabel = null, note = null, extraSections = [], compact = false, isolate = false, attrs: attrsFn = none }) {
+  groupProblem = null, released = 0, status = null, startedAt = null, noun = 'video', onStop = null, onGoToCard = null, onStopFailed = null, Editor = DefaultEditor, eyebrow = null, requestLabel = null, note = null, extraSections = [], compact = false, isolate = false, attrs: attrsFn = none }) {
   const view = given ?? proposalView(proposal, states ? { validation_errors: states.filter(s => s.state !== 'ok').map(s => ({ path: `references.${s.id}`, message: s.message })) } : {});
   const def = commandDefinition(view.command);
   const tokenized = proposal ? isReviewProposal(proposal) : false;
@@ -285,7 +328,7 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
   return (
     <section data-generation-proposal={view.command} data-proposal-version={view.revision} data-proposal-active={active ? 'true' : 'false'} data-proposal-status={view.status} {...attrs('root')}
       aria-label={eyebrow || view.title} {...(isolate ? { role: 'group', onPointerDown: event => event.stopPropagation() } : {})}
-      className={cn('flex w-full', !compact && 'max-w-xl', 'min-w-0 flex-col rounded-lg border bg-surface', compact ? 'mb-1.5 max-h-[55vh] gap-1.5 overflow-y-auto border-accent/30 bg-accent/[0.07] px-3 py-2' : 'gap-3 border-line p-4', !active && 'opacity-70')}>
+      className={cn('flex w-full', !compact && 'max-w-xl', 'min-w-0 flex-col rounded-lg border bg-surface', compact ? 'mb-1.5 max-h-[55vh] gap-1.5 overflow-y-auto border-accent/30 bg-accent/[0.07] px-3 py-2' : 'gap-3 border-line p-4', !active && !status && 'opacity-70')}>
       {eyebrow && <p className="flex items-center gap-1.5 text-sm font-semibold text-ink"><FileCheck2 size={15} aria-hidden className="shrink-0 text-accent" />{eyebrow}</p>}
       {editing && isEditable(view.command, 'title')
         ? <input data-proposal-title aria-label="Title" value={draft.title} onChange={event => set('title', event.target.value)} className={cn(control, 'w-full text-[15px] font-semibold')} />
@@ -355,10 +398,17 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
             <Button type="button" variant="secondary" size="sm" data-proposal-save {...attrs('save')} disabled={saving || !dirty || bad} onClick={save}>Save</Button>
           </>
           : detailKeys.length > 0 && active && view.allowed_actions.includes('edit') && <Button type="button" variant="secondary" size="sm" data-proposal-edit {...attrs('edit')} disabled={working} onClick={open}>Edit details</Button>}
-        <Button type="button" variant="action" data-proposal-generate {...attrs('generate')} disabled={!active || working || !canGenerate || sentKey === key} onClick={generate}>Generate</Button>
-        {made ? <span data-proposal-made className="text-xs text-ink-2">Added to the canvas</span>
+        <Button type="button" variant="action" data-proposal-generate {...attrs('generate')} disabled={!active || working || !canGenerate || sentKey === key || !!status}
+          {...(status ? { 'data-proposal-phase': status.phase, 'aria-busy': status.spinner || undefined } : {})}
+          className={cn(!compact && 'h-9! [@media(pointer:coarse)]:min-h-11!', status?.label && 'disabled:opacity-100!', status?.spinner && 'disabled:cursor-progress')} onClick={generate}>
+          {status?.label ? <span className="inline-flex items-center gap-2">{status.spinner ? <Loader2 size={16} aria-hidden="true" className="shrink-0 animate-spin motion-reduce:animate-none" /> : <Check size={16} aria-hidden="true" className="shrink-0" />}<span>{status.label}</span></span> : 'Generate'}
+        </Button>
+        {status?.cardId && onGoToCard && <Button type="button" variant="secondary" data-proposal-go-to-card className={cn(!compact && 'h-9! [@media(pointer:coarse)]:min-h-11!')} onClick={onGoToCard}>Go to card</Button>}
+        {status?.canStop && onStop && <StopControl noun={noun} onStop={onStop} onFailed={onStopFailed} />}
+        {status ? null : made ? <span data-proposal-made className="text-xs text-ink-2">Added to the canvas</span>
           : !active && <span data-proposal-superseded className="text-xs text-ink-2">Updated below</span>}
       </div>
+      {status && <JobStatus status={status} startedAt={startedAt} />}
     </section>
   );
 }
