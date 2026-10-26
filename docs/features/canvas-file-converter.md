@@ -306,7 +306,7 @@ Run or ECS. The production plan is a second Fly app (section 7); moving to Cloud
   part). Not yet verified with the real tools: PPT, ODT, ODP, RTF; MP3, OGG Vorbis/Opus, M4A (AAC/ALAC), FLAC, AIFF and
   WebM audio (the decoders and demuxers are in the build: section 2), and large assemblies. Lane 3 and Lane 4 fixtures
   should be run through `proof/run-proofs.mjs`-style jobs before those formats are marked supported. What the local
-  fixture run (`fixtures.test.mjs`, 2026-10-26) adds, and what it does not, is section 7.4.
+  fixture run (`fixtures.test.mjs`, 2026-10-26) adds, and what it does not, is section 7.6.
 - Those formats are also not reachable by a user: the upload families accept only `.docx`, `.pptx`, `.mp3 .wav .ogg
   .m4a .flac` and `.step .stp` (`packages/web/src/file-capabilities.js`; `.doc` is a `planned` family that is refused on
   drop). Making PPT, ODT, ODP, RTF, DOC, AIFF or WebM usable is a product decision, not part of the converter.
@@ -326,71 +326,144 @@ Run or ECS. The production plan is a second Fly app (section 7); moving to Cloud
 - Tests: `node --test "packages/file-convert/*.test.mjs" "packages/file-convert/activation/*.test.mjs"` (in `make test-unit`
   since 2026-10-26; before that this line was wrong: `run.sh` never ran them).
 
-## 7. Production activation (runbook; nothing here has been run)
+## 7. Production: what is supported, activation, acceptance, status
 
-Status 2026-10-26: **implemented and unit-tested, not deployed, not enabled, not production-accepted.** The FILE_JOBS
-plumbing (Durable Object binding, `file-jobs-1`, the `FileJobs` export) is in main and enables nothing
-(`docs/features/file-jobs-production.md`). Production still lacks: the converter app, its secrets, the two vars. Without
-them a submitted conversion is accepted and then fails with "File conversion is not configured on this server."
+Status 2026-10-26: **implemented and unit-tested; not deployed, not enabled, not production-accepted.** The FILE_JOBS plumbing
+(Durable Object binding, `file-jobs-1`, the `FileJobs` export) is live in main and enables nothing
+(`docs/features/file-jobs-production.md`); the converter code, `fly.prod.toml` and the owner commands are in main (batch B1,
+`d0e8b2b0`). Production still lacks the converter app, its two secrets and the two config vars. Until all of them exist a
+submitted conversion is accepted and then fails with "File conversion is not configured on this server."
 
-### 7.1 What exists, and what each piece does
+### 7.1 Supported formats and limits (the published list)
+
+What a user can convert today, once activated. "Verified" says how far each row is proven; nothing here is proven on production yet.
+
+| Input (upload extensions) | Result | Verified so far |
+|---|---|---|
+| Word `.docx` | PDF preview, page text (`text.json`, one unit per page), page-1 poster (800 px) | real LibreOffice + poppler in the dev image (2026-10-16); acceptance `docx` is the production proof |
+| PowerPoint `.pptx` | PDF (hidden slides included), one 1280 px PNG per slide, slide text with speaker notes and hidden-slide marks | dev image (2026-10-16); acceptance `pptx` |
+| Audio `.mp3 .wav .ogg .m4a .flac` (PCM and IMA/MS ADPCM WAV; MP3; Vorbis and Opus in Ogg; AAC and ALAC in M4A; FLAC) | a browser playback copy: AAC-LC 128 kb/s in MP4, index first, at most stereo, 44.1 or 48 kHz, and a `probe.json` of source and copy | WAV in the dev image; the other codecs only through stub tools until the real-tool proof (7.5) and the acceptance run |
+| STEP `.step .stp` (AP203, AP214, AP242 geometry) | `model.glb` (glTF 2.0, metres, assembly tree as nodes) and `structure.json` (units, parts, tree) | real OpenCascade in the dev image and locally (AP214 assembly, inch part, an AP242-labelled part); acceptance `step`, `stp` |
+
+Limits that apply (all read from the code: `file-capabilities.js`, `contract.mjs`, `file-jobs.js`):
+
+| Limit | Value |
+|---|---|
+| Upload size | 25 MiB for each family above (the converter itself accepts up to 64 MiB) |
+| Audio length | 4 hours (longer fails `too_complex`) |
+| Slides | 500 per deck accepted; images for at most 300 slides (the PDF holds all; the card says "Slide images 1-300 of N") |
+| Extracted text | 4 MiB per document (more is cut and marked partial) |
+| Outputs | 50 MiB each, 100 MiB per job, at most 400 per job |
+| 3D | `model.glb` at most 20 MiB and 5,000,000 accessor elements (the viewer's bounds); more fails `too_complex` |
+| Time | 300 s per attempt (then `timeout`, not retried); up to 3 automatic attempts per submit or Retry; an attempt that stops heartbeating is presumed dead after 90 s |
+| Concurrency | 2 conversions at once in the whole product (2 converter slots, one machine); others wait in the queue, up to about an hour, then fail |
+| Per conversion | 1.5 GiB memory, 1 CPU, 512 tasks, no network, 256 MiB file size, private 1 GiB `/tmp` |
+| Credits | none: conversions are free to the user and touch no credit figure (the acceptance checks this) |
+
+**Not supported** (the converter or the browser alone may handle some of these; the product does not offer them through the converter):
+
+| Format | Today |
+|---|---|
+| `.doc` (Word 97-2003) | the converter converts it, but the upload family `word-legacy` is `planned`: dropping a `.doc` is refused |
+| `.ppt`, `.odp`, `.odt`, `.rtf` | the converter accepts them; **no upload family exists**, so a user cannot send them |
+| AIFF, WebM/Matroska audio | the converter accepts them; the audio family lists neither extension |
+| AC-3 (Dolby Digital) audio in M4A, WMA, raw AAC | no decoder in the image (`Dockerfile`): the job fails; the note in `file-capabilities.js` that promises AC-3 conversion is wrong until a decoder is added |
+| Scanned documents (OCR), password-protected or macro documents, animations/transitions/video inside slides, CJK fonts | not converted / not rendered faithfully (no OCR, no CJK fonts in the image) |
+| STEP PMI, parametric history, B-rep | dropped: the mesh is a tessellated preview, not for measurement |
+| Files over 25 MiB, video files | out of scope of this converter |
+
+Opening any "no upload family" format is a product decision (new families, caps, cards, tests and real-tool fixtures), not part of
+the converter's activation; it is out of scope here by the owner's instruction to publish the exact supported list.
+
+### 7.2 What exists
 
 | Piece | File | Notes |
 |---|---|---|
 | Fly app config | `packages/file-convert/fly.prod.toml` | app `rabbit-hole-convert-prod`, the dev runtime/VM unchanged (a test equates them), `CONVERT_ALLOWED_ORIGINS = "https://digrabbithole.com"` in `[env]` (an origin is not a secret) |
-| Owner command | `packages/file-convert/activation/prod-convert.mjs` | `--dry-run` (offline), `--preflight` (reads names and listings), `run --sha <commit>`, `rotate`, `rollback L1\|L2\|L3`. Resumable (state file `C:/s/spec/fj-converter/prod-convert-state.txt`), stops at the first error, every mutation behind a typed phrase read from the terminal only |
-| Acceptance | `packages/file-convert/activation/acceptance.mjs` | one real conversion per path on digrabbithole.com, cancel, another account refused; `--dry-run` offline |
-| Harnesses | `activation/prod-convert.test.mjs`, `activation/acceptance.test.mjs` | simulated Fly, Cloudflare and Rabbit Hole; the real entries run as children with a stripped environment, stub-only PATH and Node's permission model denying every child process |
+| Owner command | `packages/file-convert/activation/prod-convert.mjs` | `--dry-run` (offline), `--preflight` (reads names and listings), `run --sha <commit>`, `rotate`, `rollback L1\|L2\|L3`. Resumable (state `C:/s/spec/fj-converter/prod-convert-state.txt`), stops at the first error, every mutation behind a typed phrase read from the terminal only |
+| Acceptance | `packages/file-convert/activation/acceptance.mjs` | 12 conversions plus usage, duplicate, reload, failure, cancel, another account and kill-and-retry (7.4); each with a stated criterion; `--dry-run` prints them; the last line is `COMPLETE` only when every criterion passed |
+| Harnesses | `activation/*.test.mjs`, `fixtures.test.mjs`, `real-tools.test.mjs` | simulated Fly, Cloudflare and Rabbit Hole; the real entries also run as children with a stripped environment, stub-only PATH and Node's permission model denying every child process |
+| Real-tool proof | `packages/file-convert/proof/real-tools.mjs` | a separate package (7.5); not run |
 
-### 7.2 Owner steps, in order
+### 7.3 Owner steps, in order
 
-Prerequisite (owner decision): approve the Fly spend. **Cost** (estimates from section 3.2, not a bill): about US$0.035 per
-running hour; about US$1.5 to US$9.8 a month at 10 to 100 conversion bursts a day (one `shared-cpu-2x` 4 GB machine that
-stops itself after 300 s idle); under US$0.20 a month stopped. Creating the app and deploying start the bill.
+**PROPOSED recurring cost, not approved.** The production converter is new infrastructure with a recurring Fly bill. Estimates from
+section 3.2 (Fly's published iad prices, not a measured bill): about US$0.035 per running hour; about **US$1.5 to US$9.8 a month**
+at 10 to 100 conversion bursts a day (one `shared-cpu-2x` 4 GB machine that stops itself after 300 s idle); under US$0.20 a month
+stopped. The first deploy also costs a remote image build (a few cents of builder time, not measured). Reprioritising the converter
+does not approve this spend: the owner approves it explicitly, in the phrase the command asks for at step 3.
 
-1. `node packages/file-convert/activation/prod-convert.mjs --dry-run run --sha <sha>`: the plan, offline.
-2. `node packages/file-convert/activation/prod-convert.mjs --preflight --sha <sha>`: reads production (names only).
-   `<sha>` must be a commit of `rabbit-hole/main` that contains `fly.prod.toml` (this branch, once merged).
-3. `node packages/file-convert/activation/prod-convert.mjs run --sha <sha>`: creates `rabbit-hole-convert-prod`
-   (`CREATE rabbit-hole-convert-prod AND ACCEPT THE FLY COST`), generates `CONVERT_TOKEN` and `FILE_JOB_SECRET` (48 random
-   bytes each; stdin only, never shown) and puts them on the Worker `rabbit-hole-app` and, for `CONVERT_TOKEN`, on the Fly
-   app (`SET CONVERT SECRETS`), deploys that commit with one machine (`DEPLOY CONVERTER`), then checks `/health` (four
-   converters, the deployed commit) and that `POST /jobs` answers 401 to no token and to a wrong one. Conversion is still OFF.
-4. Release the activation commit (branch `feat/file-converter-activate`: `CONVERT_URL` and `FILE_JOB_ORIGIN` in
-   `wrangler.rabbit-hole-prod.jsonc`, and the production config test updated): the owner's `!` push. This is the moment the
-   feature turns on.
-5. `node packages/file-convert/activation/acceptance.mjs --other-session --out receipt.json`: asks for your `small_session`
-   cookie (and a second account's) at a hidden prompt; converts DOCX, PPTX, WAV and STEP, cancels a 40-slide job, checks the
-   second account is refused (404). It leaves one canvas "File converter acceptance <time>" to delete.
-6. Kill-and-retry drill (manual, once): submit `deck-40.pptx` from the canvas, then
-   `flyctl machine stop <id> --signal SIGKILL -a rabbit-hole-convert-prod` while the card says Converting; the runner should
-   settle the job `ready` on attempt 2 within a few minutes (the same drill passed on dev).
+Environment for every step: Git Bash or PowerShell in a checkout that contains `rabbit-hole/main` at or after `d0e8b2b0`
+(`git fetch rabbit-hole main`); `flyctl` on PATH; wrangler 4.150.0 in the checkout's `node_modules`; `small-deploy/.env` supplies
+`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` and `FLY_ORG_TOKEN` by name. Do not export `FLY_*`, `WRANGLER_*`, `CLOUDFLARE_*`,
+`CONVERT_*` or proxy variables: the command refuses to start with them. `<sha>` is a commit of `rabbit-hole/main` that holds
+`packages/file-convert/fly.prod.toml` (`d0e8b2b029cf7de168a009404ea8b5e2da080ed1` or later).
 
-Environment: Git Bash or PowerShell in a worktree that contains the branch; `small-deploy/.env` supplies
-`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` and `FLY_ORG_TOKEN` by name; `flyctl` on PATH; wrangler 4.150.0 (the checkout's
-`node_modules`). The command refuses to start with `FLY_*`, `WRANGLER_*`, `CLOUDFLARE_*`, `CONVERT_*`, proxy or answer-like
-variables in the environment.
+| Step | Command | Expected output | Cost |
+|---|---|---|---|
+| 1. Plan | `node packages/file-convert/activation/prod-convert.mjs --dry-run run --sha <sha>` | the plan and `Nothing was run, called or changed.` | none |
+| 2. Preflight | `node packages/file-convert/activation/prod-convert.mjs --preflight --sha <sha>` | `Fly app rabbit-hole-convert-prod does not exist`, `commit ... is in rabbit-hole/main`, `preflight finished` | none (reads names only) |
+| 3. Create, secrets, deploy, health | `node packages/file-convert/activation/prod-convert.mjs run --sha <sha>` asks for `CREATE rabbit-hole-convert-prod AND ACCEPT THE FLY COST`, then `SET CONVERT SECRETS`, then `DEPLOY CONVERTER` | `rabbit-hole-convert-prod created`, `verified: CONVERT_TOKEN and FILE_JOB_SECRET on rabbit-hole-app ...`, `deployed <sha12>`, `health: ... converters audio-playback, office-pdf, slides, step-glb`, `POST /jobs with no token: 401`, `... a wrong token: 401`, `converter healthy at https://rabbit-hole-convert-prod.fly.dev`. State file: APP, SECRETS, DEPLOY, HEALTH. After any failure run the same command again: finished steps are skipped | **starts the recurring Fly bill (above)** |
+| 4. Activate | merge `feat/file-converter-activate-2` (adds `CONVERT_URL`, `FILE_JOB_ORIGIN` to `wrangler.rabbit-hole-prod.jsonc`; config change = full gate; the owner's `!` push). HELD until step 3 succeeded | the production release run succeeds; conversion is now on | none |
+| 5. Acceptance | `node packages/file-convert/activation/acceptance.mjs --full --out C:/s/spec/fj-converter/acceptance-receipt.json` asks for your `small_session` cookie for digrabbithole.com, a second account's cookie, and `KILL CONVERTER MACHINE` | every line `<criterion>: PASS`, then `COMPLETE: 19 criteria passed`. It leaves one canvas "File converter acceptance ..." in your account to delete. The kill drill takes about two minutes (the lease must expire) | none (a few seconds of converter time per file) |
 
-### 7.3 Rollback
+**Rollback**, at any point:
 
 | Level | Command | Effect |
 |---|---|---|
-| L1 | `prod-convert.mjs rollback L1` (`DISABLE CONVERSION`) | deletes only `CONVERT_TOKEN` from `rabbit-hole-app`: conversion is off at once, no deploy; new jobs fail with the not-configured message. `rotate` or putting the secret again turns it back on |
+| L1 | `node packages/file-convert/activation/prod-convert.mjs rollback L1` (`DISABLE CONVERSION`) | deletes only `CONVERT_TOKEN` from `rabbit-hole-app`: conversion is off at once, no deploy; new jobs fail with the not-configured message. `rotate` turns it back on |
 | L2 | `rollback L2` (`STOP CONVERTER`) | stops every machine of the app (a dispatch would start one: do L1 first) |
-| L3 | `rollback L3` (`DESTROY CONVERTER APP`) | destroys the Fly app (irreversible); also release the removal of the two vars |
+| L3 | `rollback L3` (`DESTROY CONVERTER APP`) | destroys the Fly app (irreversible; stops the recurring cost); also release the removal of the two vars |
 
-### 7.4 Verification status (honest)
+### 7.4 Acceptance: what each criterion is
+
+`acceptance.mjs --dry-run` prints this table from the code. Common to every conversion: the job reaches `ready` or `ready_with_limitations`;
+its derivatives are exactly the listed outputs; each downloads with the sha256 the server recorded and the right magic bytes. The
+requests use the options the product's own code sends (a unit test pins them to `file-job.js`, `media-playback.js` and `model-cad.js`).
+
+| Id | File | Extra pass criterion |
+|---|---|---|
+| docx | `sample.docx` | text.json has page 1 (heading) and page 2 ("Second page text"); poster is 800 px wide |
+| pptx | `sample.pptx` | 3 slide PNGs of 1280x720; deck title, slide 2's speaker notes and slide 3's `[Hidden slide]` in text.json |
+| wav, adpcm, mp3, ogg, opus, m4a, alac, flac | a short tone in each codec | `playback.m4a` is AAC with `moov` before `mdat`; `probe.json` names the expected source codec; copy length within 10% of the source |
+| step, stp | `as1-oc-214.stp` (18 parts, mm), `cube-in.step` (1 part, inch) | valid GLB 2.0 whose length matches; `structure.json` has the parts and the declared unit |
+| usage | all of the above | `usedCredits`, `reservedCredits`, `unknownAttempts` equal before and after (not checked, and not counted, if the summary is unavailable) |
+| duplicate | the DOCX again | the same file and key give the same source and job (200, not created); a second card adds no derivative |
+| reload | the DOCX card | from the saved board alone a fresh read finds the finished job and byte-identical derivatives |
+| failure | a truncated PPTX | ends `failed` with a plain reason (no dollar text), no derivative, no credit change; or is refused at upload with a plain error |
+| cancel | `deck-40.pptx` | ends `cancelled` (a job that finished first is reported and not counted) |
+| other | a second account | 404 for the job and every derivative |
+| retry | `deck-40.pptx` | after `SIGKILL` of the converter machine while Converting, the job settles ready on attempt 2 or later with the same outputs |
+
+Not covered by any run: `.doc`, PPT, ODT/ODP, RTF, AIFF, WebM (no upload family), AC-3, files near 25 MiB, many users at once.
+
+### 7.5 Proving the real tools before activation (a separate package; not run)
+
+Why: LibreOffice and FFmpeg have run for real only in the dev image, for DOC, DOCX, PPTX and WAV. MP3, Ogg, M4A, FLAC, ALAC and
+ADPCM, which are in the supported list, have only run through stub tools. This host has no LibreOffice, FFmpeg, Docker or WSL.
+
+| Option | Steps | Cost | Fidelity |
+|---|---|---|---|
+| **A (recommended): the dev Fly app** | 1. `sh packages/file-convert/context.sh <dir>` on the commit under test, then the printed `fly deploy ... --ha=false --remote-only` (rebuilds the dev image so it holds the new fixtures). 2. `node C:/s/spec/budget/budget.mjs reserve <runId> file-convert-real-tools 2` (the integrator's say-so). 3. `node packages/file-convert/proof/real-tools.mjs --reserved <runId>` starts the dev machine, runs 15 rows over `fly ssh` through the real sandboxed child, stops the machine. 4. `node C:/s/spec/budget/budget.mjs settle <runId> <actual>` from the Fly bill | estimate under US$0.50 (about 20 minutes of a US$0.035/hour machine plus one remote build); **reserve US$2** (shared cap US$100; about US$81.75 remained on 2026-10-26) | the exact production image bits and sandbox |
+| B: a Linux GitHub runner with Docker | build the Dockerfile and run the same rows in the container; needs a workflow file, so an owner `!` push | about 30 to 35 minutes of Linux runner (about US$0.3 at list price) | same Dockerfile, different host kernel (cgroup behaviour can differ) |
+| C: LibreOffice and FFmpeg apt packages on a runner | install and run the converter child on them | about 5 minutes | different versions from the image: weak evidence, not recommended |
+
+Pass condition: all 15 rows `PASS` (status ready, sandbox network `ENETUNREACH` and not root, sniffed kind, exact output names, AAC
+playback copies, the 40-slide deck producing 40 images, the wrong-converter row failing cleanly). It proves the tools; it does not replace
+the production acceptance.
+
+### 7.6 Verification status (honest)
 
 | Claim | State | Evidence |
 |---|---|---|
-| FILE_JOBS binding, tag and export in production config | in main, not yet released to production by this work | wrangler.rabbit-hole-prod.jsonc:30,40; app-worker.js:9; prod-config test |
+| FILE_JOBS binding, tag and export in production config | in main (B1 live) | wrangler.rabbit-hole-prod.jsonc, app-worker.js, prod-config test |
 | Converter service, API, sandbox, DOC/DOCX/PPTX/WAV/STEP in the real image | verified on the DEV app 2026-10-16/17 (section 3) | not repeated here |
-| Local fixtures: sniff of DOC, DOCX, PPT, PPTX, ODT, ODP, RTF, STEP; the whole child for every path | unit-tested 2026-10-26 (`fixtures.test.mjs`) | stub LibreOffice/poppler/FFmpeg: proves our wiring and error mapping, NOT the real tools' output |
-| STEP -> GLB with the real OpenCascade (occt-import-js 0.0.23): `cube-in.step`, `as1-oc-214.stp`, an AP214 cube relabelled AP242 | passes locally; numbers equal the dev measurements (GLB 169,436 bytes, 18 parts, millimetre) | needs `CONVERT_OCCT_DIR`; skipped in CI. The AP242 fixture is the AP214 body with the AP242 schema id, not a file authored by a CAD tool: PMI and tessellated AP242 entities are unproven |
-| PPT, ODT, ODP, RTF, MP3/OGG/M4A/FLAC/AIFF/WebM with the real LibreOffice and FFmpeg | NOT verified (no LibreOffice, FFmpeg, Docker or WSL on the lane host); also not reachable by users (section 5) | |
-| Sniff fix: an OLE directory past 4 MiB (large DOC/PPT) | fixed with a failing-on-old-code test; not shown with a real large .doc | |
-| `fly.prod.toml` = dev config except app and origin; command harnesses | unit-tested (`activation/*.test.mjs`) | simulated Fly/Cloudflare; the commands have never touched a real service |
-| Production converter, secrets, vars, callback reachability, per-path acceptance, kill-and-retry | NOT done | needs the owner steps above |
+| Every path through the real child with stub tools (sniff, command lines, output names, error mapping) | unit-tested, in `make test-unit` | `fixtures.test.mjs`: proves our wiring, NOT the real tools' output |
+| STEP with the real OpenCascade: `cube-in.step`, `as1-oc-214.stp`, an AP214 part relabelled AP242 | passes locally; equals the dev measurements | needs `CONVERT_OCCT_DIR`; skipped in CI. The AP242 fixture is not CAD-tool-authored: PMI and tessellated AP242 are unproven |
+| MP3, Ogg Vorbis/Opus, M4A AAC/ALAC, FLAC, ADPCM WAV with the real FFmpeg | NOT verified (fixtures added: `proof/fixtures/tone*`) | 7.5 |
+| Sniff fix: an OLE directory past 4 MiB | fixed with a failing-on-old-code test | not shown with a real large .doc |
+| Command and acceptance harnesses; real-tool proof package | unit-tested against simulations | the commands have never touched a real service |
+| Production converter, secrets, vars, callback reachability, the acceptance, kill-and-retry | NOT done | needs the owner steps in 7.3 |
 
-Do not call the converter "available in production" before step 5 passes (CLAUDE.md: deployed but disabled is incomplete,
-and enabled but unverified is incomplete).
+Do not call the converter "available in production" before step 5 of 7.3 prints `COMPLETE` (CLAUDE.md: deployed but disabled is
+incomplete, and enabled but unverified is incomplete).
