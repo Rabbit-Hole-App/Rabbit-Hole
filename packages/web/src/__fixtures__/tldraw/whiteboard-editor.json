@@ -1,0 +1,774 @@
+{
+ "document": {
+  "store": {
+   "shape:pen": {
+    "id": "shape:pen",
+    "typeName": "shape",
+    "type": "draw",
+    "x": 40,
+    "y": 60,
+    "rotation": 0,
+    "index": "a1",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "blue",
+     "size": "m",
+     "dash": "draw",
+     "fill": "none",
+     "segments": [
+      {
+       "type": "free",
+       "path": "AAAAAAAAAAAAAAA/AEaLRgAAAEbTRQAAAEZ2RAAAAEY4QQAAAEaDNwAAAEbkvgAAAEZzwwAAAEZRxQAAAEZTxgAAAEaixgAAAEY3xgAAAEYcxQAAAEbjwgAAAEaYvQAAAEZoOgAAAEbTQQAAAEa0RAAAAEb6RQAAAEaXRgAAAEZ7RgAAAEaoRQAAAEY2RAAAAEaaQAAA"
+      }
+     ],
+     "isComplete": true,
+     "isClosed": false,
+     "isPen": false,
+     "scale": 1,
+     "scaleX": 1,
+     "scaleY": 1
+    },
+    "meta": {
+     "author": "learner"
+    }
+   },
+   "shape:bound-arrow": {
+    "id": "shape:bound-arrow",
+    "typeName": "shape",
+    "type": "arrow",
+    "x": 0,
+    "y": 0,
+    "rotation": 0,
+    "index": "a9",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "kind": "arc",
+     "labelColor": "black",
+     "color": "black",
+     "fill": "none",
+     "dash": "draw",
+     "size": "m",
+     "arrowheadStart": "none",
+     "arrowheadEnd": "arrow",
+     "font": "draw",
+     "start": {
+      "x": 380,
+      "y": 85
+     },
+     "end": {
+      "x": 380,
+      "y": 265
+     },
+     "bend": 0,
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "squash"
+         }
+        ]
+       }
+      ]
+     },
+     "labelPosition": 0.5,
+     "scale": 1,
+     "elbowMidPoint": 0.5
+    },
+    "meta": {}
+   },
+   "shape:sticky": {
+    "id": "shape:sticky",
+    "typeName": "shape",
+    "type": "note",
+    "x": 40,
+    "y": 260,
+    "rotation": 0,
+    "index": "a8",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "light-blue",
+     "labelColor": "black",
+     "size": "m",
+     "font": "draw",
+     "fontSizeAdjustment": 0,
+     "align": "middle",
+     "verticalAlign": "middle",
+     "growY": 0,
+     "url": "",
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "Remember: output is between 0 and 1"
+         }
+        ]
+       }
+      ]
+     },
+     "scale": 1,
+     "textLastEditedBy": null
+    },
+    "meta": {}
+   },
+   "shape:picture": {
+    "id": "shape:picture",
+    "typeName": "shape",
+    "type": "image",
+    "x": 340,
+    "y": 480,
+    "rotation": 0.2,
+    "index": "aD",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "w": 64,
+     "h": 48,
+     "playing": true,
+     "url": "",
+     "assetId": "asset:dot",
+     "crop": null,
+     "flipX": false,
+     "flipY": false,
+     "altText": "a dot"
+    },
+    "meta": {}
+   },
+   "binding:end": {
+    "id": "binding:end",
+    "typeName": "binding",
+    "type": "arrow",
+    "fromId": "shape:bound-arrow",
+    "toId": "shape:output",
+    "meta": {},
+    "props": {
+     "terminal": "end",
+     "normalizedAnchor": {
+      "x": 0.5,
+      "y": 0
+     },
+     "isExact": false,
+     "isPrecise": false,
+     "snap": "none"
+    }
+   },
+   "shape:clip": {
+    "id": "shape:clip",
+    "typeName": "shape",
+    "type": "learn-video-pending",
+    "x": 700,
+    "y": 520,
+    "rotation": 0,
+    "index": "aG",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "w": 300,
+     "h": 170,
+     "status": "proposed",
+     "caption": "How the curve flattens",
+     "error": "",
+     "retryable": true
+    },
+    "meta": {}
+   },
+   "shape:star": {
+    "id": "shape:star",
+    "typeName": "shape",
+    "type": "geo",
+    "x": 520,
+    "y": 40,
+    "rotation": 0,
+    "index": "a5",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "geo": "star",
+     "dash": "solid",
+     "url": "",
+     "w": 100,
+     "h": 100,
+     "growY": 0,
+     "scale": 1,
+     "flipX": false,
+     "flipY": false,
+     "labelColor": "black",
+     "color": "orange",
+     "fill": "solid",
+     "size": "l",
+     "font": "sans",
+     "align": "middle",
+     "verticalAlign": "middle",
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph"
+       }
+      ]
+     }
+    },
+    "meta": {}
+   },
+   "binding:start": {
+    "id": "binding:start",
+    "typeName": "binding",
+    "type": "arrow",
+    "fromId": "shape:bound-arrow",
+    "toId": "shape:box",
+    "meta": {},
+    "props": {
+     "terminal": "start",
+     "normalizedAnchor": {
+      "x": 0.5,
+      "y": 1
+     },
+     "isExact": false,
+     "isPrecise": false,
+     "snap": "none"
+    }
+   },
+   "shape:model": {
+    "id": "shape:model",
+    "typeName": "shape",
+    "type": "three-d-viewer",
+    "x": 700,
+    "y": 40,
+    "rotation": 0,
+    "index": "aE",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "w": 300,
+     "h": 210,
+     "modelUrl": "https://example.test/model.glb",
+     "camera": {},
+     "autoRotate": false,
+     "animation": {
+      "autoplay": false
+     },
+     "animationTime": 0
+    },
+    "meta": {
+     "concept": "Gradient descent surface",
+     "author": "assistant"
+    }
+   },
+   "shape:pen2d": {
+    "id": "shape:pen2d",
+    "typeName": "shape",
+    "type": "draw",
+    "x": 40,
+    "y": 140,
+    "rotation": 0,
+    "index": "a2",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "red",
+     "size": "m",
+     "dash": "dashed",
+     "fill": "none",
+     "segments": [
+      {
+       "type": "free",
+       "path": "AAAAAAAAAAAARotGAEbTRQBGdkQARjhBAEaDNwBG5L4ARnPD",
+       "dim": 2
+      }
+     ],
+     "isComplete": true,
+     "isClosed": false,
+     "isPen": false,
+     "scale": 1,
+     "scaleX": 1,
+     "scaleY": 1
+    },
+    "meta": {}
+   },
+   "shape:box": {
+    "id": "shape:box",
+    "typeName": "shape",
+    "type": "geo",
+    "x": 300,
+    "y": 40,
+    "rotation": 0,
+    "index": "a4",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "geo": "rectangle",
+     "dash": "draw",
+     "url": "",
+     "w": 160,
+     "h": 90,
+     "growY": 0,
+     "scale": 1,
+     "flipX": false,
+     "flipY": false,
+     "labelColor": "black",
+     "color": "green",
+     "fill": "semi",
+     "size": "m",
+     "font": "draw",
+     "align": "middle",
+     "verticalAlign": "middle",
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "Input"
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {
+     "author": "lesson"
+    }
+   },
+   "shape:curve-arrow": {
+    "id": "shape:curve-arrow",
+    "typeName": "shape",
+    "type": "arrow",
+    "x": 40,
+    "y": 400,
+    "rotation": 0,
+    "index": "aA",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "kind": "arc",
+     "labelColor": "black",
+     "color": "red",
+     "fill": "none",
+     "dash": "draw",
+     "size": "m",
+     "arrowheadStart": "dot",
+     "arrowheadEnd": "triangle",
+     "font": "draw",
+     "start": {
+      "x": 0,
+      "y": 0
+     },
+     "end": {
+      "x": 200,
+      "y": 0
+     },
+     "bend": 40,
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph"
+       }
+      ]
+     },
+     "labelPosition": 0.5,
+     "scale": 1,
+     "elbowMidPoint": 0.5
+    },
+    "meta": {}
+   },
+   "shape:marker": {
+    "id": "shape:marker",
+    "typeName": "shape",
+    "type": "highlight",
+    "x": 200,
+    "y": 60,
+    "rotation": 0,
+    "index": "a3",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "yellow",
+     "size": "m",
+     "segments": [
+      {
+       "type": "free",
+       "path": "AAAAAAAAAAAAAAA/gFcARAAA"
+      }
+     ],
+     "isComplete": true,
+     "isPen": false,
+     "scale": 1,
+     "scaleX": 1,
+     "scaleY": 1
+    },
+    "meta": {}
+   },
+   "shape:frame": {
+    "id": "shape:frame",
+    "typeName": "shape",
+    "type": "frame",
+    "x": 40,
+    "y": 480,
+    "rotation": 0,
+    "index": "aC",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "w": 260,
+     "h": 160,
+     "name": "Worked example",
+     "color": "black"
+    },
+    "meta": {}
+   },
+   "shape:graph": {
+    "id": "shape:graph",
+    "typeName": "shape",
+    "type": "interactive-graph",
+    "x": 700,
+    "y": 280,
+    "rotation": 0,
+    "index": "aF",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "w": 300,
+     "h": 210,
+     "spec": {
+      "renderer": "desmos",
+      "title": "Logistic curve",
+      "concept": "sigmoid"
+     },
+     "state": {},
+     "app": "learn"
+    },
+    "meta": {}
+   },
+   "shape:inside": {
+    "id": "shape:inside",
+    "typeName": "shape",
+    "type": "geo",
+    "x": 20,
+    "y": 30,
+    "rotation": 0,
+    "index": "a1",
+    "parentId": "shape:frame",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "geo": "diamond",
+     "dash": "draw",
+     "url": "",
+     "w": 80,
+     "h": 80,
+     "growY": 0,
+     "scale": 1,
+     "flipX": false,
+     "flipY": false,
+     "labelColor": "black",
+     "color": "light-red",
+     "fill": "none",
+     "size": "s",
+     "font": "draw",
+     "align": "middle",
+     "verticalAlign": "middle",
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph"
+       }
+      ]
+     }
+    },
+    "meta": {}
+   },
+   "shape:elsewhere": {
+    "id": "shape:elsewhere",
+    "typeName": "shape",
+    "type": "geo",
+    "x": 10,
+    "y": 10,
+    "rotation": 0,
+    "index": "a1",
+    "parentId": "page:second",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "geo": "rectangle",
+     "dash": "draw",
+     "url": "",
+     "w": 50,
+     "h": 50,
+     "growY": 0,
+     "scale": 1,
+     "flipX": false,
+     "flipY": false,
+     "labelColor": "black",
+     "color": "black",
+     "fill": "none",
+     "size": "m",
+     "font": "draw",
+     "align": "middle",
+     "verticalAlign": "middle",
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "page two"
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {}
+   },
+   "page:page": {
+    "meta": {},
+    "id": "page:page",
+    "name": "Page 1",
+    "index": "a1",
+    "typeName": "page"
+   },
+   "document:document": {
+    "gridSize": 10,
+    "name": "",
+    "meta": {},
+    "id": "document:document",
+    "typeName": "document"
+   },
+   "shape:output": {
+    "id": "shape:output",
+    "typeName": "shape",
+    "type": "geo",
+    "x": 300,
+    "y": 220,
+    "rotation": 0,
+    "index": "a6",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "geo": "ellipse",
+     "dash": "draw",
+     "url": "",
+     "w": 160,
+     "h": 90,
+     "growY": 0,
+     "scale": 1,
+     "flipX": false,
+     "flipY": false,
+     "labelColor": "black",
+     "color": "violet",
+     "fill": "none",
+     "size": "m",
+     "font": "draw",
+     "align": "middle",
+     "verticalAlign": "middle",
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "Output"
+         }
+        ]
+       },
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "probability"
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {}
+   },
+   "shape:ruler": {
+    "id": "shape:ruler",
+    "typeName": "shape",
+    "type": "line",
+    "x": 300,
+    "y": 400,
+    "rotation": 0,
+    "index": "aB",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "grey",
+     "dash": "dashed",
+     "size": "s",
+     "spline": "line",
+     "points": {
+      "b": {
+       "id": "b",
+       "index": "a2",
+       "x": 150,
+       "y": 20
+      },
+      "a": {
+       "id": "a",
+       "index": "a1",
+       "x": 0,
+       "y": 0
+      }
+     },
+     "scale": 1
+    },
+    "meta": {}
+   },
+   "shape:title": {
+    "id": "shape:title",
+    "typeName": "shape",
+    "type": "text",
+    "x": 40,
+    "y": 0,
+    "rotation": 0,
+    "index": "a7",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "black",
+     "size": "m",
+     "font": "draw",
+     "textAlign": "start",
+     "w": 200,
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "The sigmoid squashes a score"
+         }
+        ]
+       }
+      ]
+     },
+     "scale": 1,
+     "autoSize": true
+    },
+    "meta": {
+     "author": "assistant",
+     "semanticId": "title"
+    }
+   },
+   "asset:dot": {
+    "id": "asset:dot",
+    "typeName": "asset",
+    "type": "image",
+    "meta": {},
+    "props": {
+     "w": 1,
+     "h": 1,
+     "name": "dot.png",
+     "isAnimated": false,
+     "mimeType": "image/png",
+     "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAH3WRdwAAAABJRU5ErkJggg==",
+     "fileSize": 70
+    }
+   },
+   "page:second": {
+    "meta": {},
+    "id": "page:second",
+    "name": "Page 2",
+    "index": "a2",
+    "typeName": "page"
+   }
+  },
+  "schema": {
+   "schemaVersion": 2,
+   "sequences": {
+    "com.tldraw.store": 5,
+    "com.tldraw.asset": 1,
+    "com.tldraw.camera": 1,
+    "com.tldraw.document": 2,
+    "com.tldraw.instance": 26,
+    "com.tldraw.instance_page_state": 5,
+    "com.tldraw.page": 1,
+    "com.tldraw.instance_presence": 6,
+    "com.tldraw.pointer": 1,
+    "com.tldraw.shape": 4,
+    "com.tldraw.user": 1,
+    "com.tldraw.asset.image": 6,
+    "com.tldraw.asset.video": 5,
+    "com.tldraw.asset.bookmark": 2,
+    "com.tldraw.shape.arrow": 8,
+    "com.tldraw.shape.bookmark": 2,
+    "com.tldraw.shape.draw": 5,
+    "com.tldraw.shape.embed": 4,
+    "com.tldraw.shape.frame": 1,
+    "com.tldraw.shape.geo": 12,
+    "com.tldraw.shape.group": 0,
+    "com.tldraw.shape.highlight": 4,
+    "com.tldraw.shape.image": 5,
+    "com.tldraw.shape.line": 5,
+    "com.tldraw.shape.note": 13,
+    "com.tldraw.shape.text": 4,
+    "com.tldraw.shape.video": 4,
+    "com.tldraw.shape.three-d-viewer": 0,
+    "com.tldraw.shape.interactive-graph": 0,
+    "com.tldraw.shape.learn-video-pending": 0,
+    "com.tldraw.binding.arrow": 1
+   }
+  }
+ },
+ "session": {
+  "version": 1,
+  "currentPageId": "page:page",
+  "exportBackground": true,
+  "isFocusMode": false,
+  "isDebugMode": false,
+  "isToolLocked": false,
+  "isGridMode": false,
+  "pageStates": [
+   {
+    "pageId": "page:page",
+    "camera": {
+     "x": 0,
+     "y": 0,
+     "z": 1
+    },
+    "selectedShapeIds": [],
+    "focusedGroupId": null
+   }
+  ]
+ }
+}
