@@ -72,7 +72,7 @@ Prices come from the registry `packages/control-plane/src/pricing-registry.js` (
 - **Inertness, proven how**: with the flag false `cad-jobs.js` line 183 never sets `modelPhase:'brief'`, and `CAD_MAX_CALLS` is read only by `cadLimits()` as an upper bound. The test runs a whole single-shot job under production enforcement at calls 2 and at calls 3 and asserts the results deep-equal: model phases `['single','review']`, calls, repairs, reserved USD, phase USD, executor limits, the global model reservation and retained bytes.
 - **The one reachable difference** (so "inert" is exact, not absolute): a single-shot job that spent both calls and then FAILED its review used to be refused by Retry ("reached its accepted budget"); at 3 calls Retry is accepted once and makes one more review call, still inside the same job's `CAD_MAX_USD` and the same monthly reservation. It is pinned by a test. It needs a provider or review failure to happen first.
 - Negative control: with the committed value put back to "2" the config test fails (`actual ['2','0.20','0']`). The existing test `CAD brief-first needs three calls` (explicit `CAD_MAX_CALLS: '2'`) still shows the old behaviour fails before review.
-- The HELD commit (separate, not in the candidate branch tip; current branch `feat/cad-review-first-held-flip-2` on top of batch B2) changes only `"CAD_BRIEF_FIRST": "false"` to `"true"`.
+- The HELD commit (separate, not in the candidate branch tip; current branch `feat/cad-review-first-held-flip-2` cut from batch B2, which is not released; rebase it onto the current main before use) changes only `"CAD_BRIEF_FIRST": "false"` to `"true"`.
 
 ## 4. Production acceptance of review-first (first real job). NOT RUN.
 

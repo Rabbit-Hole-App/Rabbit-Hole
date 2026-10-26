@@ -278,7 +278,7 @@ sends the longest prompt the quote bounds and is booked at US$0.40, so the worst
 
 ## 6f. Estimate, maximum charge and hold: three numbers (owner 2026-10-26)
 
-Same decision and the same shape as Motion (`docs/features/motion-credit-disclosure.md`). Users see AI credits only. The three numbers are recorded, signed,
+The same owner decision as Motion's credit disclosure (Motion's own change is not in this release). Users see AI credits only. The three numbers are recorded, signed,
 sent and shown separately; none is derived from another at the card.
 
 | Number | Meaning | Source | Flare, Sunburst | Nano Banana 2.1 | Nano Banana Pro |
