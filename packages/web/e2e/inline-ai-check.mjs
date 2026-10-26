@@ -448,12 +448,12 @@ await run('every artifact handler (mocked, real schemas): the preview is that ha
   for (const [command, type] of Object.entries(expect)) {
     await clickShape(page, 'n4');
     await ctrlK(page);
-    await submitPrompt(page, `/${command} about this`);
+    await submitPrompt(page, `/${command === 'image' ? 'photos' : command} about this`); // the photo search (id image) is typed /photos (owner, 2026-10-26)
     await waitStatus(page, ['preview', 'proposal']);
     const kind = await status(page);
     const got = await page.locator('[data-inline-preview]').first().evaluate(node => node.dataset.cardType || node.dataset.inlinePreview);
     const paid = ['video', '3d'].includes(command);
-    check(`/${command} inline: ${type === 'diagram' ? 'a native diagram' : `a ${type} card`} ${paid ? 'proposal (paid)' : 'preview'}`, got === type && kind === (paid ? 'proposal' : 'preview'), `${kind} ${got}`);
+    check(`/${command === 'image' ? 'photos' : command} inline: ${type === 'diagram' ? 'a native diagram' : `a ${type} card`} ${paid ? 'proposal (paid)' : 'preview'}`, got === type && kind === (paid ? 'proposal' : 'preview'), `${kind} ${got}`);
     await page.locator(paid ? '[data-paid-cancel]' : '[data-inline-reject]').click();
   }
   const sent = (await calls(page, 'artifact')).filter(call => call.command !== 'image');

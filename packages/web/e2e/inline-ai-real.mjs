@@ -374,7 +374,7 @@ for (const [name, args] of DIRECT) {
     const before = await savedBoard();
     const composer = page.locator('[data-chat-pane] [data-chat-composer] :is(textarea, input[type="text"], input:not([type])):visible').first();
     await composer.click();
-    await composer.fill(`/${name} ${args}`);
+    await composer.fill(`/${name === 'image' ? 'photos' : name} ${args}`); // the photo search (id image) is typed /photos (owner, 2026-10-26)
     await page.waitForTimeout(150);
     await composer.press('Enter');
     const t0 = Date.now();
