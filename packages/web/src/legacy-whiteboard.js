@@ -23,6 +23,9 @@ const TEXT_PX = { s: 18, m: 24, l: 36, xl: 44 };
 const LABEL_PX = { s: 18, m: 22, l: 26, xl: 32 };
 const FONTS = { draw: 'Caveat, "Comic Sans MS", cursive', sans: 'Inter, Arial, sans-serif', serif: 'Georgia, serif', mono: 'ui-monospace, Consolas, monospace' };
 const NOTE_SIZE = 200;
+// Read by the converter (legacy-to-sketch.js) so the two never disagree on tldraw's metrics.
+export { STROKE as LEGACY_STROKE, TEXT_PX, LABEL_PX };
+export const legacyColor = name => tone(name, 0);
 // The app's own shape types (learn-shape-utils.js): a card in the picture, named by what it held.
 const CARDS = { 'three-d-viewer': '3D model', 'interactive-graph': 'Interactive graph', 'learn-video-pending': 'Generated video' };
 
@@ -76,6 +79,7 @@ const times = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m
 const placed = (x, y, rotation) => [Math.cos(rotation), Math.sin(rotation), -Math.sin(rotation), Math.cos(rotation), x, y];
 const apply = (m, p) => ({ x: m[0] * p.x + m[2] * p.y + m[4], y: m[1] * p.x + m[3] * p.y + m[5] });
 const invert = m => { const d = m[0] * m[3] - m[1] * m[2] || 1; return [m[3] / d, -m[1] / d, -m[2] / d, m[0] / d, (m[2] * m[5] - m[3] * m[4]) / d, (m[1] * m[4] - m[0] * m[5]) / d]; };
+export { apply as applyMatrix, invert as invertMatrix };
 const num = (value, fallback = 0) => (Number.isFinite(value) ? value : fallback);
 const byIndex = (a, b) => (a.index < b.index ? -1 : a.index > b.index ? 1 : 0);
 
@@ -84,12 +88,12 @@ function describe(shape, store) {
   const p = shape.props || {}, text = plainText(p.richText, p.text), scale = num(p.scale, 1);
   switch (shape.type) {
     case 'draw': case 'highlight':
-      return { kind: 'stroke', highlight: shape.type === 'highlight', points: pointsOf(p.segments).map(point => ({ x: point.x * num(p.scaleX, 1) * scale, y: point.y * num(p.scaleY, 1) * scale })), color: p.color, size: p.size, dash: p.dash, fill: p.fill, closed: !!p.isClosed };
+      return { kind: 'stroke', highlight: shape.type === 'highlight', points: pointsOf(p.segments).map(point => ({ x: point.x * num(p.scaleX, 1) * scale, y: point.y * num(p.scaleY, 1) * scale })), color: p.color, size: p.size, dash: p.dash, fill: p.fill, closed: !!p.isClosed, scale };
     case 'geo': return { kind: 'geo', geo: p.geo, w: num(p.w) * scale, h: (num(p.h) + num(p.growY)) * scale, color: p.color, labelColor: p.labelColor, fill: p.fill, dash: p.dash, size: p.size, font: p.font, align: p.align, verticalAlign: p.verticalAlign, text, scale };
     case 'text': return { kind: 'text', text, w: num(p.w), color: p.color, size: p.size, font: p.font, textAlign: p.textAlign, autoSize: p.autoSize !== false, scale };
     case 'note': return { kind: 'note', text, color: p.color, size: p.size, font: p.font, w: NOTE_SIZE * scale, h: (NOTE_SIZE + num(p.growY)) * scale, scale };
     case 'frame': return { kind: 'frame', name: p.name || '', w: num(p.w), h: num(p.h) };
-    case 'arrow': return { kind: 'arrow', start: p.start || { x: 0, y: 0 }, end: p.end || { x: 0, y: 0 }, bend: num(p.bend), headStart: p.arrowheadStart, headEnd: p.arrowheadEnd, color: p.color, size: p.size, dash: p.dash, text, labelColor: p.labelColor, font: p.font, scale };
+    case 'arrow': return { kind: 'arrow', route: p.kind, start: p.start || { x: 0, y: 0 }, end: p.end || { x: 0, y: 0 }, bend: num(p.bend), headStart: p.arrowheadStart, headEnd: p.arrowheadEnd, color: p.color, size: p.size, dash: p.dash, text, labelColor: p.labelColor, font: p.font, scale };
     case 'line': return { kind: 'line', points: Object.values(p.points || {}).sort(byIndex).map(point => ({ x: num(point.x), y: num(point.y) })), color: p.color, size: p.size, dash: p.dash, spline: p.spline, scale };
     case 'image': case 'video': case 'embed': case 'bookmark': {
       const asset = p.assetId && store[p.assetId]?.props;
@@ -134,6 +138,8 @@ export function readLegacySnapshot(value, { pageId } = {}) {
     if (arrow?.kind !== 'arrow' || !to?.w || !to?.h || !['start', 'end'].includes(terminal)) continue;
     const anchor = binding.props.normalizedAnchor || { x: 0.5, y: 0.5 };
     arrow[terminal] = apply(invert(arrow.matrix), apply(to.matrix, { x: to.w * anchor.x, y: to.h * anchor.y }));
+    // Kept for the converter: which shape the end was glued to, and whether tldraw drew it to a precise point on that shape.
+    arrow.bound = { ...arrow.bound, [terminal]: { id: binding.toId, anchor, precise: !!binding.props.isPrecise } };
   }
   const assets = Object.fromEntries(records.filter(record => record.typeName === 'asset').map(asset => [asset.id, { type: asset.type, name: asset.props?.name || '', src: asset.props?.src || '', w: num(asset.props?.w), h: num(asset.props?.h) }]));
   return { ...empty, shapes, assets, unsupported };

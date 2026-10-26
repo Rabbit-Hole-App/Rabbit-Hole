@@ -1,0 +1,455 @@
+{
+ "document": {
+  "store": {
+   "shape:embed": {
+    "id": "shape:embed",
+    "typeName": "shape",
+    "type": "embed",
+    "x": 40,
+    "y": 320,
+    "rotation": 0,
+    "index": "a5",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "w": 400,
+     "h": 225,
+     "url": "https://www.youtube.com/embed/abc"
+    },
+    "meta": {}
+   },
+   "shape:mark-arrow": {
+    "id": "shape:mark-arrow",
+    "typeName": "shape",
+    "type": "arrow",
+    "x": 200,
+    "y": 120,
+    "rotation": 0,
+    "index": "a2",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "kind": "arc",
+     "labelColor": "black",
+     "color": "red",
+     "fill": "none",
+     "dash": "draw",
+     "size": "m",
+     "arrowheadStart": "none",
+     "arrowheadEnd": "arrow",
+     "font": "draw",
+     "start": {
+      "x": 0,
+      "y": 0
+     },
+     "end": {
+      "x": 80,
+      "y": 60
+     },
+     "bend": 0,
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph"
+       }
+      ]
+     },
+     "labelPosition": 0.5,
+     "scale": 1,
+     "elbowMidPoint": 0.5
+    },
+    "meta": {
+     "author": "assistant",
+     "explanationId": "exp-1",
+     "objectId": "obj-1",
+     "kind": "image"
+    }
+   },
+   "shape:video": {
+    "id": "shape:video",
+    "typeName": "shape",
+    "type": "video",
+    "x": 560,
+    "y": 40,
+    "rotation": 0,
+    "index": "a4",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "w": 320,
+     "h": 180,
+     "time": 0,
+     "playing": false,
+     "autoplay": false,
+     "url": "",
+     "assetId": "asset:clip",
+     "altText": "a clip"
+    },
+    "meta": {}
+   },
+   "shape:mark-box": {
+    "id": "shape:mark-box",
+    "typeName": "shape",
+    "type": "geo",
+    "x": 60,
+    "y": 60,
+    "rotation": 0,
+    "index": "a1",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "geo": "rectangle",
+     "dash": "draw",
+     "url": "",
+     "w": 100,
+     "h": 60,
+     "growY": 0,
+     "scale": 1,
+     "flipX": false,
+     "flipY": false,
+     "labelColor": "black",
+     "color": "red",
+     "fill": "none",
+     "size": "m",
+     "font": "draw",
+     "align": "middle",
+     "verticalAlign": "middle",
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph"
+       }
+      ]
+     }
+    },
+    "meta": {
+     "author": "assistant",
+     "explanationId": "exp-1",
+     "objectId": "obj-1",
+     "kind": "image"
+    }
+   },
+   "shape:cropped": {
+    "id": "shape:cropped",
+    "typeName": "shape",
+    "type": "image",
+    "x": 400,
+    "y": 40,
+    "rotation": 0,
+    "index": "a3",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "w": 120,
+     "h": 90,
+     "playing": true,
+     "url": "",
+     "assetId": "asset:tiny",
+     "crop": {
+      "topLeft": {
+       "x": 0,
+       "y": 0
+      },
+      "bottomRight": {
+       "x": 0.5,
+       "y": 0.5
+      }
+     },
+     "flipX": false,
+     "flipY": false,
+     "altText": ""
+    },
+    "meta": {}
+   },
+   "asset:photo": {
+    "id": "asset:photo",
+    "typeName": "asset",
+    "type": "image",
+    "meta": {},
+    "props": {
+     "w": 640,
+     "h": 480,
+     "name": "photo.jpg",
+     "isAnimated": false,
+     "mimeType": "image/jpeg",
+     "src": "https://images.example.test/photo.jpg",
+     "fileSize": 1234
+    }
+   },
+   "asset:tiny": {
+    "id": "asset:tiny",
+    "typeName": "asset",
+    "type": "image",
+    "meta": {},
+    "props": {
+     "w": 1,
+     "h": 1,
+     "name": "tiny.png",
+     "isAnimated": false,
+     "mimeType": "image/png",
+     "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAH3WRdwAAAABJRU5ErkJggg==",
+     "fileSize": 70
+    }
+   },
+   "shape:caption": {
+    "id": "shape:caption",
+    "typeName": "shape",
+    "type": "text",
+    "x": 40,
+    "y": 820,
+    "rotation": 0,
+    "index": "a9",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "color": "black",
+     "size": "s",
+     "font": "draw",
+     "textAlign": "start",
+     "w": 200,
+     "richText": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "A caption written by the learner"
+         }
+        ]
+       }
+      ]
+     },
+     "scale": 1,
+     "autoSize": true
+    },
+    "meta": {}
+   },
+   "shape:bookmark": {
+    "id": "shape:bookmark",
+    "typeName": "shape",
+    "type": "bookmark",
+    "x": 480,
+    "y": 320,
+    "rotation": 0,
+    "index": "a6",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "w": 300,
+     "h": 320,
+     "assetId": null,
+     "url": "https://example.test/article"
+    },
+    "meta": {}
+   },
+   "asset:orphan": {
+    "id": "asset:orphan",
+    "typeName": "asset",
+    "type": "image",
+    "meta": {},
+    "props": {
+     "w": 10,
+     "h": 10,
+     "name": "unused.png",
+     "isAnimated": false,
+     "mimeType": "image/png",
+     "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAH3WRdwAAAABJRU5ErkJggg==",
+     "fileSize": 70
+    }
+   },
+   "shape:box": {
+    "id": "shape:box",
+    "typeName": "shape",
+    "type": "frame",
+    "x": 40,
+    "y": 600,
+    "rotation": 0,
+    "index": "a7",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "w": 300,
+     "h": 200,
+     "name": "Figure 1",
+     "color": "black"
+    },
+    "meta": {}
+   },
+   "shape:photo": {
+    "id": "shape:photo",
+    "typeName": "shape",
+    "type": "image",
+    "x": 40,
+    "y": 40,
+    "rotation": 0,
+    "index": "a0",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "w": 320,
+     "h": 240,
+     "playing": true,
+     "url": "https://example.test/source",
+     "assetId": "asset:photo",
+     "crop": null,
+     "flipX": false,
+     "flipY": false,
+     "altText": "a landscape"
+    },
+    "meta": {
+     "author": "assistant",
+     "explanationId": "exp-1",
+     "objectId": "obj-1",
+     "kind": "image"
+    }
+   },
+   "page:page": {
+    "meta": {},
+    "id": "page:page",
+    "name": "Page 1",
+    "index": "a1",
+    "typeName": "page"
+   },
+   "document:document": {
+    "gridSize": 10,
+    "name": "",
+    "meta": {},
+    "id": "document:document",
+    "typeName": "document"
+   },
+   "asset:clip": {
+    "id": "asset:clip",
+    "typeName": "asset",
+    "type": "video",
+    "meta": {},
+    "props": {
+     "w": 320,
+     "h": 180,
+     "name": "clip.mp4",
+     "isAnimated": true,
+     "mimeType": "video/mp4",
+     "src": "https://videos.example.test/clip.mp4",
+     "fileSize": 99
+    }
+   },
+   "shape:lost": {
+    "id": "shape:lost",
+    "typeName": "shape",
+    "type": "image",
+    "x": 400,
+    "y": 600,
+    "rotation": 0,
+    "index": "aA",
+    "parentId": "page:page",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "w": 90,
+     "h": 60,
+     "playing": true,
+     "url": "",
+     "assetId": null,
+     "crop": null,
+     "flipX": false,
+     "flipY": false,
+     "altText": "asset missing"
+    },
+    "meta": {}
+   },
+   "shape:in-frame": {
+    "id": "shape:in-frame",
+    "typeName": "shape",
+    "type": "image",
+    "x": 20,
+    "y": 20,
+    "rotation": 0,
+    "index": "a8",
+    "parentId": "shape:box",
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+     "w": 100,
+     "h": 80,
+     "playing": true,
+     "url": "",
+     "assetId": "asset:tiny",
+     "crop": null,
+     "flipX": false,
+     "flipY": false,
+     "altText": "inside"
+    },
+    "meta": {}
+   }
+  },
+  "schema": {
+   "schemaVersion": 2,
+   "sequences": {
+    "com.tldraw.store": 5,
+    "com.tldraw.asset": 1,
+    "com.tldraw.camera": 1,
+    "com.tldraw.document": 2,
+    "com.tldraw.instance": 26,
+    "com.tldraw.instance_page_state": 5,
+    "com.tldraw.page": 1,
+    "com.tldraw.instance_presence": 6,
+    "com.tldraw.pointer": 1,
+    "com.tldraw.shape": 4,
+    "com.tldraw.user": 1,
+    "com.tldraw.asset.image": 6,
+    "com.tldraw.asset.video": 5,
+    "com.tldraw.asset.bookmark": 2,
+    "com.tldraw.shape.arrow": 8,
+    "com.tldraw.shape.bookmark": 2,
+    "com.tldraw.shape.draw": 5,
+    "com.tldraw.shape.embed": 4,
+    "com.tldraw.shape.frame": 1,
+    "com.tldraw.shape.geo": 12,
+    "com.tldraw.shape.group": 0,
+    "com.tldraw.shape.highlight": 4,
+    "com.tldraw.shape.image": 5,
+    "com.tldraw.shape.line": 5,
+    "com.tldraw.shape.note": 13,
+    "com.tldraw.shape.text": 4,
+    "com.tldraw.shape.video": 4,
+    "com.tldraw.shape.three-d-viewer": 0,
+    "com.tldraw.shape.interactive-graph": 0,
+    "com.tldraw.shape.learn-video-pending": 0,
+    "com.tldraw.binding.arrow": 1
+   }
+  }
+ },
+ "session": {
+  "version": 1,
+  "currentPageId": "page:page",
+  "exportBackground": true,
+  "isFocusMode": false,
+  "isDebugMode": false,
+  "isToolLocked": false,
+  "isGridMode": false,
+  "pageStates": [
+   {
+    "pageId": "page:page",
+    "camera": {
+     "x": 0,
+     "y": 0,
+     "z": 1
+    },
+    "selectedShapeIds": [],
+    "focusedGroupId": null
+   }
+  ]
+ }
+}

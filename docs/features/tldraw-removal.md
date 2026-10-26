@@ -178,6 +178,78 @@ Owner rules 2026-10-26, as built into the contract below:
 6. **Edits made in the new editor stay recoverable after a rollback to a tldraw build**, see "Rollback".
 7. **Notes (P2) and graphs (P3)** stay in IndexedDB untouched; the unreachable Notes view and its dead code are removed.
 
+### Workstream B: the converter, as built
+
+Code: `src/legacy-to-sketch.js` (`convertLegacy`, `deriveSketch`, `saveNotice`), tests `legacy-to-sketch.test.mjs` (22), fixtures
+`src/__fixtures__/tldraw/` (`generate-more.mjs` wrote `arrows-groups`, `assets-images`, `sigmoid-board`, `metadata-unknown`,
+`near-cap` with tldraw 5.4.2's own schema and store; the unknown shape and record in `metadata-unknown` were added after
+validation on purpose). The S1 reader gained four small things the converter needs: `route` on arrows, `bound` (which shape an
+end is glued to and whether the anchor is precise), `scale` on strokes, and exports of its metrics and matrix helpers.
+
+`deriveSketch(block)` returns `{ sketch, status, derived, kept, approx, warnings, report }` and never mutates or writes. A saved
+`block.sketch` always wins (an emptied sketch stays empty); only a block with no saved sketch is derived. It reads the editor
+snapshot, a document-only snapshot (a saved note) and a bare store snapshot; anything else gives an empty sketch, a warning and
+the snapshot untouched. P3 (the graph record list) is not converted: its shapes are the app's graph and 3D shapes, which stay in
+the snapshot anyway (`ponytail:`).
+
+Ids: a converted mark's `id` is its tldraw shape id (`shape:xyz`); a frame's title item is `shape:xyz#name`. Ids come from the
+snapshot alone, so every open, reload, share and fork yields the same ids. Mark fields added beyond the contract list, all
+optional: `approx` (a comma-separated reason, set only when the mark departs from the original), `legacyRotation` (radians, only
+when a rotation could not be kept), and the canvas's own style fields (`fill`, `fillOpacity`, `dash`, `fontSize`, `font`, `align`,
+`valign`, `textColor`, `startHead`, `endHead`, `opacity`).
+
+Approximation rules (also in the module header; each one is a test):
+
+| Original | Becomes | `approx` |
+|---|---|---|
+| stroke, line, arrow ends under any rotation or group transform | exact points | none |
+| rect, ellipse, diamond turned a quarter turn; hexagon a half turn | exact (width and height swap) | none |
+| any other rotated box, note or text | upright, same size, at the rotated centre; `legacyRotation` kept | `rotation` |
+| frame | a rect plus a title item; children keep page positions, nothing clipped | `frame`, `frame title` |
+| group | no mark; members carry `legacyGroup` (innermost group; deeper nesting stays in the snapshot) | none |
+| arrow glued to a shape, imprecise anchor | free arrow ending on the shape's outline on the line toward the other end, as tldraw drew it | `glued end freed` |
+| arrow glued with a precise anchor | free arrow at that point | `glued end freed` |
+| arrow with a bend | `curve` (ends and heads swap when needed so it bows to the same side); the canvas curve has one fixed bend | `curve bend` when the bend differs by more than 20 percent |
+| elbow route | `elbow` between the ends | `elbow route` |
+| diamond, square, inverted heads | dot, dot, triangle | `arrowhead` |
+| line of more than two points | a pen stroke | `line drawn as a stroke`; a spline adds `spline` |
+| highlighter not yellow | the canvas highlighter (always yellow) | `highlighter colour` |
+| closed pen shape with a fill | an outlined path, no fill | `fill` |
+| geo kinds beyond the ten | the nearest kind | `<geo> drawn as <kind>` |
+| pattern or lined fill | a 20 percent tint | `pattern fill` |
+| locked shape | editable mark | `lock not kept` |
+| semi fill (the page colour) | no fill (the box becomes see-through) | none (a style difference, listed here) |
+| rich text formatting, the hand-drawn font, pressure | plain text, the canvas default font, uniform width | none (listed under "Capabilities lost") |
+
+Stays only in the snapshot and is listed in `kept` with a page box: image, video, embed, bookmark, the three app shapes,
+every unknown shape type. Reported but not listed: shapes on other pages (`report.otherPages`), records of unknown types
+(`report.unknownRecords`), shapes with nothing to draw (`report.skipped`). z-order is kept within strokes, shapes and items
+but not across them.
+
+**Size.** tldraw stores a point in 8 base64 characters; the sketch stores it as JSON, about 23. The exact conversion of the
+`near-cap` fixture (snapshot 393,906 characters, the most the tldraw block would save) is 955,097 characters, 2.4 times the
+snapshot and over the 400,000 cap, so a faithful copy of a dense board could never be saved. `convertLegacy` therefore thins
+strokes (Ramer-Douglas-Peucker at 0.25, 0.5, 1, then 2 px, first rung that fits) until the sketch is at most 300,000
+characters, three quarters of the cap, leaving room to edit. The same snapshot always thins the same way; the fixture
+converts to 201,705 characters at 0.25 px. Thinning under 1 px is not visible and is not flagged; 1 px and up is flagged
+`simplified` on each stroke. The snapshot keeps every original point either way. Both representations count: the block then
+holds up to 394k (snapshot) plus 201k (sketch), and the whole board is still checked against 1,900,000.
+
+**Decision table** (`saveVerdict` plus `saveNotice`; every row is a test; no row deletes the snapshot):
+
+| Situation | Verdict | Learner sees | Saved |
+|---|---|---|---|
+| sketch and board fit | `ok` | nothing | sketch, `sketchFrom`, snapshot untouched |
+| board at 85 percent or more | `ok`, `warn` | "This canvas is close to its size limit." | as above |
+| sketch alone over 400,000 | `sketch-too-large` | "This drawing is too large to save beside the original board. Nothing was deleted: the original board is still saved as it was. Your changes stay on screen until you leave this page. Use Download my drawing to keep them." | nothing; sketch in memory, `tooLarge` |
+| sketch fits, board over 1,900,000 with both retained | `board-too-large` | "This canvas is full, so this change cannot be saved." plus the same two sentences about the original and the download | nothing |
+| both do not fit | `sketch-too-large` (reported first) | the first message | nothing |
+
+The cost of the last three rows is real and is the owner's to weigh: the learner can keep looking at and editing the board in
+that page, but cannot save new edits until something else on the canvas shrinks, and a reload shows the derived (unedited)
+drawing. The only ways out that keep the original are removing other cards, or Download my drawing. Making room by dropping
+the snapshot is a separate, explicit owner decision (rule 5) and no code does it.
+
 ## Data contract (shared by every workstream)
 
 Code: `packages/web/src/whiteboard-sketch.js` (pure, no imports) with `whiteboard-sketch.test.mjs`. Workstreams build on
@@ -332,7 +404,7 @@ it is empty and the replacement checks pass. A step is one independently testabl
 | Contract (built) | the section above and `whiteboard-sketch.js` | done | | |
 | S3 Notes | delete `LearnNotes.jsx`, the notes state in `LearnPage.jsx`, `captureNotePage`; keep IndexedDB data, never clear it (D4) | 4 | S2 merged (same file) | A, B, T |
 | A Editor | (A1) `renderSketch` takes the card's frame and a view, store coordinates go through `toSketch`; (A2) the whiteboard card uses it, draw target and toolbar as Explain Back; (A3) saves through `mayPersist`, `withSketch`, `saveVerdict`, read-only never writes; (A4) Fit, focus and reset controls; (A5) the kept-from-original layer: list, S1 SVG, downloads; (A6) native seed for `demo: 'sigmoid'` replacing `sigmoid-board.js`; (A7) rewrite the `chat-block-check.mjs` whiteboard checks, add legacy-open, edit, reload, share and fork checks, check-map entries | 7 | Contract | B, T |
-| B Migration | (B1) `legacy-to-sketch.js` for strokes, shapes, arrows, lines, text, notes with deterministic ids, `legacyId`, `meta`; (B2) frames, groups, bound arrows, rotation, colours and sizes; (B3) `deriveSketch(block)` that A calls on open (no write); (B4) more fixtures: rotated and nested, near the 400,000 limit, 2D and 3D paths, rich text, assets; (B5) tests: repeated opens, reload, share and fork (`forkState`, `shared-privacy`), arrows and groups, assets, metadata, size with both representations | 5 | Contract (B3 before A3) | A, T |
+| B Migration (built, see "Workstream B") | (B1) `legacy-to-sketch.js` for strokes, shapes, arrows, lines, text, notes with deterministic ids, `legacyId`, `meta`; (B2) frames, groups, bound arrows, rotation, colours and sizes; (B3) `deriveSketch(block)` that A calls on open (no write); (B4) more fixtures: rotated and nested, near the 400,000 limit, 2D and 3D paths, rich text, assets; (B5) tests: repeated opens, reload, share and fork (`forkState`, `shared-privacy`), arrows and groups, assets, metadata, size with both representations | 5 | Contract (B3 before A3) | A, T |
 | T Tutor | (T1) `shapesIn` and `registerBoardAsk` over `marksIn`; (T2) a planner that turns a board plan (text, equation, code, diagram, image annotations) into marks, replacing the drawing half of `learn-board-renderer.js`; (T3) rich-media plan objects to `insertLinkedCards`, placed beside the board, no duplicates on retry or reload; (T4) Remove explanation and the explanation count; (T5) the `area-crop.js` binding and the unit tests that pin it; (T6) tests and the `chat-block-check` explain step | 6 | Contract | A, B |
 | X Cutover | (X1) delete `WhiteboardBlock.jsx`, `learn-board-renderer.js`, `sigmoid-board.js`, `learn-shape-utils.js`, the three shapes, the `learn-warmup.js` entry; (X2) remove `tldraw` from `packages/web/package.json` and the lockfile, keeping dependencies other features use; (X3) remove the key reads and guards (`scripts/prod-release.mjs:227-229`, `scripts/dev-deploy.mjs:459-460`, their tests) and prepare the exact workflow diff (`deploy-dev.yml:56`, `deploy-prod.yml:48`, `verify.yml:58`) as an owner `!` command; (X4) docs and obsolete styles (the CLAUDE.md dev snippet is an owner edit); (X5) a removal audit: source, `npm ls`, production bundles for tldraw code, CSS, assets and network requests; (X6) browser checks on the final combined SHA, dev deployment, deployed verification | 6 | A, B, T merged | |
 
@@ -371,10 +443,16 @@ Per slice `git revert` of the slice's commits. The retained `snapshot` makes A t
 reads `snapshot` exactly as before. **Edits made in the new editor live in `block.sketch`, which an older tldraw build
 ignores, so after a rollback they are invisible but intact**, and they come back when the new build is deployed again;
 `legacyState` reports `diverged` if the older build changed the snapshot in between, and then both are shown and nothing is
-discarded. To keep those edits recoverable while a tldraw build still exists, before cutover (X) the card must offer
+discarded. Verified in the old code: `WhiteboardBlock.jsx` saves `{ ...latest.current, snapshot }`, so an older build keeps
+`sketch` and `sketchFrom` when it saves. A board created after cutover has no snapshot, so an older build shows it empty with
+the sketch intact in the block. To keep those edits recoverable while a tldraw build still exists, before cutover (X) the card must offer
 **Download my drawing** (the sketch as JSON and the SVG) and **Download original** (the snapshot), and the rollback note names
 the one-off converter that would write a sketch back into a tldraw snapshot. That converter is not built unless a rollback of
-the cutover is scheduled, and it would write a copy beside the original, never over it. X is reverted by restoring the
+the cutover is scheduled, and it would write a copy beside the original, never over it. Workstream B judged it not cheap: it
+needs a Float16 path encoder, fractional index keys, a nearest-colour map back to tldraw's names, the 5.4.2 schema block
+copied from a fixture, and a validation run against the real tldraw store that only works while the packages are installed;
+roughly a day with tests, and no consumer until a rollback is scheduled. Until then recovery is Download my drawing (the sketch
+JSON, our own format) and the sketch kept in the block. The integrator decides whether to build it before cutover. X is reverted by restoring the
 dependency, the lockfile and the guards; the licence key stays in the secret store until the owner deletes it after the
 cutover is live and verified.
 
