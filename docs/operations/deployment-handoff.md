@@ -1,6 +1,6 @@
 # Deployment handoff
 
-Last updated: Sunday 2026-10-25, 10:05 PM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
+Last updated: Sunday 2026-10-25, 10:20 PM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
 
 Authoritative inputs (repository-relative): the 60-row [feature inventory](evidence/feature-inventory.md), the [discrepancy table](evidence/completion-audit-discrepancies.md), the [validation budget ledger](evidence/validation-budget-ledger.md), the [flake list](evidence/flakes.md), the [FILE_JOBS contract](evidence/file-jobs-contract.md), feature docs under [`docs/features/`](../features/). The working task ledger and local receipts live on the integrator machine (`C:/s/spec/...`); important receipts are summarised under `docs/operations/evidence/`.
 
@@ -56,7 +56,7 @@ Legend: To Do / Doing / Blocked / Done (a task is Done only with production evid
 | Credits (`dd97625a-c3df-43af-a042-85ac0dc4310a`) | agent ad75b135; `fix/credits-finish` | Doing | usage endpoint dollar removal, job-object sealing, Jev 429, refund paths, telemetry labels | previous fixes live (C13) | partly | meter/refusals CI-verified | implement | none | -; |
 | FILE_JOBS contract (`6570266e-f94c-4d55-9ee8-f3197f1339b4`) | agent a98015e5 (done); `infra/file-jobs-plumbing` 4735839f | Doing | binding + `file-jobs-1` migration + `FileJobs` export, features disabled | verify 40266606040, fast-e2e 40266606045 green; 165/165 + 52/52 local | no | disabled | gate (full gate needed) and owner release | none | ready: gate ~40 min |
 | File converter, Ctrl+K image edit, Ctrl+K JavaScript | unassigned feature owners | To Do | adapters/config/acceptance against the FILE_JOBS contract | - | - | disabled | assign owners | FILE_JOBS release; infra approvals (converter prod app) | - |
-| CAD review-first (executor budget) | agent a64d0580 (diagnosis) | Doing | find what "96.3% reserved" measures | - | - | disabled | diagnosis report | - | provisional |
+| CAD review-first (executor budget) | diagnosis done (agent a64d0580); candidate not started | To Do | "96% reserved" is OUR monthly egress ledger (2 GiB policy cap, not a provider limit, not disk): 97% of it is one 10-18 image-build setup charge; 5 real attempts = 55 MiB; nothing is stale and no release path exists in code. October has room for 6 attempts; the UTC rollover (Oct 31 5:00 PM PDT) frees it; a manual October reconcile (set months[2026-10] to 57,671,680 bytes, 5 reservations, server stopped) needs owner sign-off. Candidate step: CAD_MAX_CALLS 2->3 (inert) then CAD_BRIEF_FIRST (held for owner GO) | diagnosis only; see [report](evidence/cad-constraint.md) | no | disabled | build commit A + config pins + docs | owner GO (D1), reconcile or wait (D3) | ready ~12:15 AM Mon if started; live after GO |
 | Infra + provider package | agent a294f2e4 | Doing | priced package (converter, math, JS loader, Motion, Telemetry), provider access table | - | - | - | package | - | provisional |
 | learn-tutor timing flake | `fix/learn-tutor-timing` c0bde839 | Done (fix), ships with next batch | deterministic timers | 20/20 idle, 20/20 under load; verify 40265441780 | no | - | batch | - | with successor |
 | card-size teardown | `fix/card-size-teardown2` 397ef351 | Done (fix), ships with next batch | | fast-e2e card-size 24/24 | no | - | batch | - | with successor |
@@ -91,6 +91,8 @@ Dependency order. Status is current as of the stamp above; the executable comman
 6. Walk the production checklist in [owner observations](evidence/owner-observations.md) (credits meter, stars persist, weekly top 5, comments, focus).
 
 ## 10. Change log (PT)
+
+- 2026-10-25 10:20 PM: CAD constraint diagnosed (our egress ledger, not stale, not a provider limit); handoff docs release script prepared (docs-only, gate-reuse path, dry-run verified).
 
 - 2026-10-25 10:05 PM: document created from the integrator state; evidence copied under `docs/operations/evidence/`.
 - 2026-10-25 9:55 PM: failed Motion job diagnosed; real model spend recorded in the shared ledger (remaining 1.7506).
