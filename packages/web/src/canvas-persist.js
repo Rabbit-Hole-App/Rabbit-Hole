@@ -3,10 +3,12 @@
 // passed in.
 
 import { docIsEmpty } from './canvas-doc.js';
+import { persistable } from './whiteboard-editor.js';
 
 // ponytail: generated images are large data URLs; keep the prompt, drop the bytes so one illustration cannot fill the
 // browser's storage quota.
-export const lightBlocks = blocks => blocks.map(block => block.src?.startsWith('data:') && block.src.length > 120000 ? { ...block, src: '' } : block);
+// A Whiteboard whose drawing did not fit the block stays on screen only: it saves its last fitting sketch (whiteboard-editor.js persistable).
+export const lightBlocks = blocks => blocks.map(block => persistable(block.src?.startsWith('data:') && block.src.length > 120000 ? { ...block, src: '' } : block));
 
 // canvasApi.persist() (architecture §6.5.5, LP1 Task 15): the board saved now, not in 400 ms, with the debounced save's
 // key, shape and stripping, then onSave(saved, { now: true }) awaited. local: the write succeeded (full or blocked

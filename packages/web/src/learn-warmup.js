@@ -6,6 +6,7 @@
 // creates a calculator or boots Python. Skipped on Save-Data and 2G.
 import { loadDesmos } from './graph-renderers.js';
 import { warmNotebookSite } from './learn-notebook.js';
+import { nativeWhiteboard } from './whiteboard-flag.js';
 
 const QUIET_MS = 1200;
 let lastActivity = 0, started = false;
@@ -34,7 +35,7 @@ const TIERS = app => [
   () => import('plotly.js-basic-dist-min'),
   // Starts the shared ELK layout worker (flow-layout.js); it parses off the main thread.
   () => import('./flow-layout.js').then(module => module.layoutEngine()),
-  () => import('./WhiteboardBlock.jsx'),
+  () => (nativeWhiteboard() ? import('./WhiteboardNative.jsx') : import('./WhiteboardBlock.jsx')),
   () => import('mermaid'),
   // The notebook site's code into its own cache partition; Python is not started.
   () => warmNotebookSite(),

@@ -14,6 +14,8 @@ import { effectiveWidgets, widgetToggle } from './widget-visibility.js';
 import { notebookEditor } from './notebook-inline-client.js';
 import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
+import { editList, editWhiteboard, sketchOf } from './whiteboard-editor.js';
+import { IDENTITY_VIEW, toSketch } from './whiteboard-sketch.js';
 import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
 import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock } from './LearningBlocks.jsx';
@@ -4459,7 +4461,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     } else if (tool === 'eraser') {
       event.preventDefault();
       snapshot();
-      const radius = 12 / view.z;
+      const radius = 12 / (view.z * (store.scale || 1));
       const erase = e => {
         const point = store.local(e);
         store.setStrokes(previous => previous.filter(stroke => !stroke.points.some(q => Math.hypot(q.x - point.x, q.y - point.y) < radius)));
@@ -4501,17 +4503,24 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // ---------- Explain Back sketch (docs/features/explain-back-sketch.md) ----------
   // A sketch's marks live on its block (block.sketch) in the card's own pixels, so they save, move, fork and undo
   // with the card and are never canvas objects.
-  const editSketch = (id, key, change) => setBlocks(previous => previous.map(block => (block.id === id
-    ? { ...block, sketch: { strokes: [], shapes: [], items: [], ...block.sketch, [key]: change(block.sketch?.[key] || []) } } : block)));
-  const sketchStore = (id, element) => ({
-    local: event => { const box = element.getBoundingClientRect(); return roundPoint({ x: (event.clientX - box.left) / view.z, y: (event.clientY - box.top) / view.z }); },
+  // A Whiteboard card's marks are the same lists, saved through the contract (whiteboard-editor.js editList): a viewer who may not edit
+  // writes nothing, the tldraw snapshot is never touched, a sketch too large for the block stays on screen only.
+  const whiteboardEdits = id => ({ readOnly: readOnlyRef.current || localCopyRef.current || lockedRef.current.has(id), boardChars: () => JSON.stringify(boardRef.current).length });
+  const editSketch = (id, key, change) => setBlocks(previous => previous.map(block => (block.id !== id ? block
+    : block.type === 'whiteboard' ? editList(block, key, change, whiteboardEdits(id))
+      : { ...block, sketch: { strokes: [], shapes: [], items: [], ...block.sketch, [key]: change(block.sketch?.[key] || []) } })));
+  // A sketch is drawn through a view { s, tx, ty } (a Whiteboard card's Fit and focus; Explain Back's is the identity): a press
+  // lands in sketch space through toSketch, so a drawing made in a fitted view is saved where it appears.
+  const sketchStore = (id, element, sv = IDENTITY_VIEW) => ({
+    local: event => { const box = element.getBoundingClientRect(); return roundPoint(toSketch({ x: (event.clientX - box.left) / view.z, y: (event.clientY - box.top) / view.z }, sv)); },
+    scale: sv.s,
     setStrokes: change => editSketch(id, 'strokes', change),
     setShapes: change => editSketch(id, 'shapes', change),
     setItems: change => editSketch(id, 'items', change),
     setLive: stroke => setSketchLive(stroke && { id, stroke }),
     setLiveShape: shape => setSketchLive(shape && { id, shape }),
     // A text box opens to the sketch's right edge, never past it.
-    textWidth: point => Math.max(96, Math.min(420, element.clientWidth - point.x - 8)),
+    textWidth: point => Math.max(96, Math.min(420, toSketch({ x: element.clientWidth, y: 0 }, sv).x - point.x - 8)),
     select: markId => setSketchSel([markId]),
   });
   // Where the style panel, the order buttons and Delete write: the active sketch, else the canvas.
@@ -4527,11 +4536,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setDrawTarget(id); setSketchSel([]); setSketchEdit(null); setSelection([]); setMenuAt(null);
   };
   const releaseSketch = () => { drawTargetRef.current = null; setDrawTarget(null); setSketchSel([]); setSketchEdit(null); };
-  const pressSketch = (event, id) => {
+  const pressSketch = (event, id, sv) => {
     // Hand pans the canvas under the card, as it does over any card.
     if (event.button !== 0 || tool === 'hand') return;
     event.stopPropagation();
-    if (drawGesture(event, sketchStore(id, event.currentTarget))) return;
+    if (drawGesture(event, sketchStore(id, event.currentTarget, sv))) return;
     setSketchSel([]);
   };
   const selectInSketch = (markId, event = null) => setSketchSel(previous => (event && (event.ctrlKey || event.metaKey || event.shiftKey)
@@ -4548,60 +4557,69 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const releaseSketchRef = useRef(releaseSketch);
   releaseSketchRef.current = releaseSketch;
   // ponytail: a press drags only the shape under it; a multi-mark drag inside a sketch can come later.
-  const moveSketchShape = (event, id, shape) => {
+  const moveSketchShape = (event, id, shape, zoom) => {
     snapshot();
     startDrag(event, { x: shape.x1, y: shape.y1 }, (x, y) => {
       const dx = x - shape.x1, dy = y - shape.y1;
       editSketch(id, 'shapes', marks => marks.map(mark => (mark.id === shape.id ? { ...mark, x1: shape.x1 + dx, y1: shape.y1 + dy, x2: shape.x2 + dx, y2: shape.y2 + dy } : mark)));
-    }, view.z);
+    }, zoom);
   };
   const patchSketch = (id, key, markId, patch) => editSketch(id, key, marks => marks.map(mark => (mark.id === markId ? { ...mark, ...patch } : mark)));
   // The drawing area an Explain Back card shows (ChallengeBody, through SketchHost): no tools of its own. A press
   // in the capture phase makes it the target before any mark or gesture handles the press. `still` renders a
   // submitted sketch read-only.
-  const renderSketch = (block, { still = false } = {}) => {
-    const { strokes = [], shapes = [], items = [] } = block.sketch || {};
+  // Options for a Whiteboard card: fill (the frame is the card's, not a fixed 240 px), sv (the card's view, see sketchStore) and
+  // under (what is drawn beneath the marks, in sketch space: the kept-from-original picture).
+  const renderSketch = (block, { still = false, fill = false, sv = IDENTITY_VIEW, under = null } = {}) => {
+    const wb = block.type === 'whiteboard';
+    const { strokes = [], shapes = [], items = [] } = wb ? sketchOf(block) : block.sketch || {};
     const id = block.id, mine = sketchLive?.id === id ? sketchLive : null;
-    const fixed = still || readOnly;
+    const fixed = still || readOnly || (wb && (localCopy || lockedRef.current.has(id)));
     const active = !fixed && drawTarget === id;
     const markTool = fixed ? 'none' : tool;
     const marked = markId => active && sketchSel.includes(markId);
+    const zoom = view.z * sv.s;
     return (
       <div data-sketch={id} data-sketch-active={active ? '' : undefined}
-        style={{ height: SKETCH_HEIGHT, pointerEvents: fixed || tool === 'hand' ? 'none' : 'auto' }}
+        style={{ height: fill ? '100%' : SKETCH_HEIGHT, pointerEvents: fixed || tool === 'hand' ? 'none' : 'auto' }}
         className={`relative w-full overflow-hidden rounded-lg border bg-white ${active ? 'border-[#2383e2] ring-2 ring-[#2383e2]/25' : 'border-line'} ${!fixed && (tool === 'pen' || tool === 'highlighter' || tool === 'eraser' || shapeTool) ? 'cursor-crosshair' : ''}`}
         onPointerDownCapture={fixed ? undefined : event => { if (event.button === 0 && tool !== 'hand') holdSketch(id); }}
-        onPointerDown={fixed ? undefined : event => pressSketch(event, id)}
+        onPointerDown={fixed ? undefined : event => pressSketch(event, id, sv)}
         // A double-click edits a mark here; it must not open the card's Rabbit Hole.
         onDoubleClick={event => event.stopPropagation()}>
-        <svg aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
-          {[...shapes, ...(mine?.shape ? [mine.shape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={markTool} zoom={view.z} selected={marked(shape.id)}
-            editing={sketchEdit?.kind === 'text' && sketchEdit.id === shape.id} editPoint={sketchEdit?.point || null} labelEditing={sketchEdit?.kind === 'label' && sketchEdit.id === shape.id}
-            onSelect={selectInSketch} onMoveStart={(event, pressed) => moveSketchShape(event, id, pressed)} onGesture={snapshot} onGestureCancel={cancelGesture}
-            onResize={(markId, patch) => patchSketch(id, 'shapes', markId, patch)} onDelete={markId => dropFromSketch(id, [markId])}
-            onEdit={(markId, point) => setSketchEdit({ id: markId, kind: 'text', point })} onEditorApi={onEditorApi}
-            onGrow={(markId, height) => editSketch(id, 'shapes', marks => marks.map(mark => { if (mark.id !== markId || Math.abs(mark.y2 - mark.y1) >= height) return mark; const top = Math.min(mark.y1, mark.y2); return mark.y2 >= mark.y1 ? { ...mark, y2: top + height } : { ...mark, y1: top + height }; }))}
-            onText={(markId, runs) => { setSketchEdit(null); snapshot(); patchSketch(id, 'shapes', markId, textPatch(runs)); }}
-            onLabel={markId => setSketchEdit({ id: markId, kind: 'label' })}
-            onLabelDone={(markId, runs) => { setSketchEdit(null); snapshot(); const { text, runs: kept } = textPatch(runs); patchSketch(id, 'shapes', markId, { label: text, runs: kept }); }} />)}
-          {[...strokes, ...(mine?.stroke ? [mine.stroke] : [])].map(inkPath)}
-        </svg>
-        {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={markTool} selected={marked(item.id)} onSelect={selectInSketch} onGesture={snapshot} onEditorApi={onEditorApi}
-          onCommit={(markId, runs) => { const before = items.find(mark => mark.id === markId); const patch = textPatch(runs); if (before && !before.fresh && (before.text || '') !== patch.text) snapshot(); patchSketch(id, 'items', markId, { ...patch, fresh: false }); }}
-          onMove={(markId, x, y) => patchSketch(id, 'items', markId, { x, y })}
-          onResize={(markId, w, h) => patchSketch(id, 'items', markId, { w, h })}
-          onDelete={markId => dropFromSketch(id, [markId])}
-          onLevel={(markId, value) => { snapshot(); patchSketch(id, 'items', markId, presetPatch(items.find(mark => mark.id === markId) || {}, value)); }} />)}
+        <div data-sketch-content style={{ position: 'absolute', inset: 0, transformOrigin: '0 0', transform: sv === IDENTITY_VIEW ? undefined : `translate(${sv.tx}px, ${sv.ty}px) scale(${sv.s})` }}>
+          {under}
+          <svg aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
+            {[...shapes, ...(mine?.shape ? [mine.shape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={markTool} zoom={zoom} selected={marked(shape.id)}
+              editing={sketchEdit?.kind === 'text' && sketchEdit.id === shape.id} editPoint={sketchEdit?.point || null} labelEditing={sketchEdit?.kind === 'label' && sketchEdit.id === shape.id}
+              onSelect={selectInSketch} onMoveStart={(event, pressed) => moveSketchShape(event, id, pressed, zoom)} onGesture={snapshot} onGestureCancel={cancelGesture}
+              onResize={(markId, patch) => patchSketch(id, 'shapes', markId, patch)} onDelete={markId => dropFromSketch(id, [markId])}
+              onEdit={(markId, point) => setSketchEdit({ id: markId, kind: 'text', point })} onEditorApi={onEditorApi}
+              onGrow={(markId, height) => editSketch(id, 'shapes', marks => marks.map(mark => { if (mark.id !== markId || Math.abs(mark.y2 - mark.y1) >= height) return mark; const top = Math.min(mark.y1, mark.y2); return mark.y2 >= mark.y1 ? { ...mark, y2: top + height } : { ...mark, y1: top + height }; }))}
+              onText={(markId, runs) => { setSketchEdit(null); snapshot(); patchSketch(id, 'shapes', markId, textPatch(runs)); }}
+              onLabel={markId => setSketchEdit({ id: markId, kind: 'label' })}
+              onLabelDone={(markId, runs) => { setSketchEdit(null); snapshot(); const { text, runs: kept } = textPatch(runs); patchSketch(id, 'shapes', markId, { label: text, runs: kept }); }} />)}
+            {[...strokes, ...(mine?.stroke ? [mine.stroke] : [])].map(inkPath)}
+          </svg>
+          {items.map(item => <CanvasItem key={item.id} item={item} zoom={zoom} tool={markTool} selected={marked(item.id)} onSelect={selectInSketch} onGesture={snapshot} onEditorApi={onEditorApi}
+            onCommit={(markId, runs) => { const before = items.find(mark => mark.id === markId); const patch = textPatch(runs); if (before && !before.fresh && (before.text || '') !== patch.text) snapshot(); patchSketch(id, 'items', markId, { ...patch, fresh: false }); }}
+            onMove={(markId, x, y) => patchSketch(id, 'items', markId, { x, y })}
+            onResize={(markId, w, h) => patchSketch(id, 'items', markId, { w, h })}
+            onDelete={markId => dropFromSketch(id, [markId])}
+            onLevel={(markId, value) => { snapshot(); patchSketch(id, 'items', markId, presetPatch(items.find(mark => mark.id === markId) || {}, value)); }} />)}
+        </div>
         {!fixed && <span data-sketch-chrome className={`pointer-events-none absolute top-1.5 right-2 text-[10px] ${active ? 'font-medium text-[#2383e2]' : 'text-ink-2'}`}>{active ? 'Toolbar draws here' : 'Click here, then draw with the toolbar'}</span>}
       </div>
     );
   };
   // The sketch as the learner sees it, for the grader: a PNG at most 900 px on its long side and 600 KB, or null
   // (the sketch's words still go with the attempt).
-  const captureSketch = async id => {
+  // format 'svg' is a Whiteboard card's Download my drawing: the view as shown, as a vector picture.
+  const captureSketch = async (id, format = 'png') => {
     const node = surface.current?.querySelector(`[data-sketch="${CSS.escape(id)}"]`);
     if (!node) return null;
     try {
+      if (format === 'svg') { const { toSvg } = await import('html-to-image'); return await toSvg(node, { cacheBust: false, filter: el => !(el.nodeType === 1 && el.hasAttribute?.('data-sketch-chrome')) }); }
       const { toPng } = await import('html-to-image');
       for (const ratio of [2, 1]) {
         const png = await toPng(node, { pixelRatio: Math.min(ratio, 900 / Math.max(node.offsetWidth, node.offsetHeight)), cacheBust: false, filter: el => !(el.nodeType === 1 && el.hasAttribute?.('data-sketch-chrome')) });
@@ -4610,10 +4628,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     } catch { /* no picture: the words still go */ }
     return null;
   };
-  const sketchHost = { render: renderSketch, hold: holdSketch, release: id => { if (drawTargetRef.current === id) releaseSketch(); }, capture: captureSketch, readOnly };
-  // A target whose sketch is gone - hidden, submitted, its card deleted or undone away - hands the toolbar back.
+  // edit: one change to a Whiteboard card's whole sketch as one undo step (a Tutor answer's marks, Remove explanation).
+  // writable: this viewer may change the card (a shared read-only view, a copy and a locked card may not).
+  const editWhole = (id, change) => { snapshot(); setBlocks(previous => previous.map(block => (block.id === id && block.type === 'whiteboard' ? editWhiteboard(block, change, whiteboardEdits(id)) : block))); };
+  const sketchHost = { render: renderSketch, hold: holdSketch, release: id => { if (drawTargetRef.current === id) releaseSketch(); }, capture: captureSketch, readOnly, edit: editWhole, writable: id => !(readOnly || localCopy || lockedIds.has(id)) };
+  // A target whose sketch is gone - hidden, submitted, its card deleted or undone away - hands the toolbar back. A Whiteboard
+  // card's sketch is always there.
   useEffect(() => {
-    if (drawTarget && !blocks.some(block => block.id === drawTarget && block.sketchOpen && !block.answer && !block.sketchSubmitted)) releaseSketch();
+    if (drawTarget && !blocks.some(block => block.id === drawTarget && (block.type === 'whiteboard' || (block.sketchOpen && !block.answer && !block.sketchSubmitted)))) releaseSketch();
   }, [blocks, drawTarget]);
   const down = event => {
     // A press on the canvas makes it the drawing target again (an Explain Back sketch stops its own presses).
@@ -5126,7 +5148,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // live; over the cards themselves it would only be in the way. Held by index
   // rather than by value so the line keeps following the cards as they move.
   // With a sketch as the target, the style panel follows the sketch's selection and restyles its marks.
-  const sketchMarks = drawTarget ? blocks.find(block => block.id === drawTarget)?.sketch : null;
+  const targetBlock = drawTarget ? blocks.find(block => block.id === drawTarget) : null;
+  const sketchMarks = targetBlock?.type === 'whiteboard' ? sketchOf(targetBlock) : targetBlock?.sketch || null;
   const editingId = editStep.current?.id || editingShape || editingLabel || null;
   const panel = drawTarget
     ? panelFor({ tool, selection: sketchSel, shapes: sketchMarks?.shapes || [], links: [], items: sketchMarks?.items || [], editing: sketchEdit?.id || null })

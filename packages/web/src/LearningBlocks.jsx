@@ -23,6 +23,7 @@ import RepositoryGraph from './RepositoryGraph.jsx';
 import FlowDiagram from './FlowDiagram.jsx';
 import AnimatedScene from './AnimatedScene.jsx';
 const WhiteboardBlock = lazyFeature(() => import('./WhiteboardBlock.jsx'), 'The whiteboard');
+const WhiteboardNative = lazyFeature(() => import('./WhiteboardNative.jsx'), 'The whiteboard');
 import { fromTemplate, presentationMode } from './animation-scene.js';
 import { describeAnimation } from './scene-describe.js';
 import { sceneLegibility } from './scene-layout.js';
@@ -42,6 +43,7 @@ import { describeYouTube } from './learn-ask-target.js';
 import { afterPaint, usePerf } from './learn-perf.js';
 import { canSubmit, hasMarks, sketchText } from './explain-sketch.js';
 import { lazyFeature } from './lazy-feature.jsx';
+import { nativeWhiteboard } from './whiteboard-flag.js';
 import { describeExcerpt, isExcerpt } from './pdf-excerpt.js';
 import { ExcerptNote, ExcerptSource } from './ExcerptCard.jsx';
 import { CitableLines } from './TutorCitations.jsx';
@@ -1169,13 +1171,16 @@ function SceneActivityBody({ block, onChange, onAskScene }) {
 // A tldraw board in a block: the learner draws with tldraw's own tools and a
 // selection can be sent to the tutor with a picture of what was selected.
 function WhiteboardBody({ block, appName, onChange }) {
+  const sketchHost = useContext(SketchHost);
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
       <Kicker author="learner">Whiteboard</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       <div className="mt-2 flex min-h-0 flex-1 flex-col">
         <Suspense fallback={<p className="p-4 text-xs text-ink-2">Loading the board</p>}>
-          <WhiteboardBlock block={block} appName={appName} onChange={onChange} />
+          {nativeWhiteboard()
+            ? <WhiteboardNative block={block} appName={appName} onChange={onChange} host={sketchHost} />
+            : <WhiteboardBlock block={block} appName={appName} onChange={onChange} />}
         </Suspense>
       </div>
     </div>

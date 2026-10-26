@@ -212,13 +212,22 @@ function extent(shape) {
   return shape.w ? { x: 0, y: 0, x2: shape.w, y2: shape.h } : null;
 }
 
-// A static SVG of one page: { svg, width, height, shapes (drawn), unsupported }. What a read-only view or a thumbnail can
+// Page-space rectangle { x, y, x2, y2 } of a shape read above (its extent through its matrix), or null when it has none.
+export function shapeBounds(shape) {
+  const local = extent(shape);
+  if (!local) return null;
+  const corners = [[local.x, local.y], [local.x2, local.y], [local.x2, local.y2], [local.x, local.y2]].map(([x, y]) => apply(shape.matrix, { x, y }));
+  return { x: Math.min(...corners.map(p => p.x)), y: Math.min(...corners.map(p => p.y)), x2: Math.max(...corners.map(p => p.x)), y2: Math.max(...corners.map(p => p.y)) };
+}
+
+// A static SVG of one page: { svg, x, y (the picture's top left in page space), width, height, shapes (drawn), unsupported }. `only(shape)` limits it to some shapes. What a read-only view or a thumbnail can
 // show while the stored snapshot stays untouched. An empty page gives an empty 1x1 svg.
-export function legacySnapshotToSvg(value, { pageId, padding = 20, maxSize = 4000 } = {}) {
+export function legacySnapshotToSvg(value, { pageId, padding = 20, maxSize = 4000, only = null } = {}) {
   const read = readLegacySnapshot(value, { pageId });
   if (!read.ok) return { ...read, svg: '', width: 0, height: 0, shapes: 0, unsupported: {} };
   const corners = [], body = [];
   for (const shape of read.shapes) {
+    if (only && !only(shape)) continue;
     const inner = shape.kind === 'group' ? '' : draw(shape), local = extent(shape);
     if (!inner) continue;
     if (local) for (const [x, y] of [[local.x, local.y], [local.x2, local.y], [local.x2, local.y2], [local.x, local.y2]]) corners.push(apply(shape.matrix, { x, y }));
@@ -227,6 +236,6 @@ export function legacySnapshotToSvg(value, { pageId, padding = 20, maxSize = 400
   if (!body.length || !corners.length) return { ok: true, svg: '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>', width: 1, height: 1, shapes: 0, unsupported: read.unsupported };
   const left = Math.min(...corners.map(p => p.x)) - padding, top = Math.min(...corners.map(p => p.y)) - padding;
   const width = Math.min(maxSize, Math.ceil(Math.max(...corners.map(p => p.x)) + padding - left)), height = Math.min(maxSize, Math.ceil(Math.max(...corners.map(p => p.y)) + padding - top));
-  return { ok: true, width, height, shapes: body.length, unsupported: read.unsupported,
+  return { ok: true, x: round(left), y: round(top), width, height, shapes: body.length, unsupported: read.unsupported,
     svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${round(left)} ${round(top)} ${width} ${height}" width="${width}" height="${height}">${body.join('')}</svg>` };
 }

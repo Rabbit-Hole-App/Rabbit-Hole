@@ -17,6 +17,7 @@ const { session } = await login.json();
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1500, height: 950 } });
 await context.addCookies([{ name: 'small_session', value: session, domain, path: '/' }]);
+await context.addInitScript(() => { try { localStorage.setItem('rh.nativeWhiteboard', '1'); } catch { /* storage blocked */ } }); // ponytail: the native Whiteboard is opt-in until cutover (whiteboard-flag.js); X deletes this line
 const page = await context.newPage();
 page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
 const failures = [];
@@ -755,41 +756,42 @@ await check('an answer can be spoken', async () => {
   if (wired.status !== 400) throw new Error(`empty recording should be refused, got HTTP ${wired.status}: ${wired.error}`);
 });
 
-// the whiteboard block: tldraw's own tools, saved with the block
+// the whiteboard block: the canvas's own drawing tools in the card, saved with the block (tldraw removal, workstream A)
+const boardMarks = node => node.locator('[data-sketch]').evaluate(el => el.querySelectorAll('svg > path, [data-shape-id], [data-item-id]').length);
 await check('the sigmoid board asks, draws and saves', async () => {
   await page.locator('[aria-label="Insert lesson block"]').click();
   await page.getByRole('menuitem', { name: 'Whiteboard' }).click();
   const node = canvas.locator('[data-block-id]').last();
-  await node.locator('.tl-canvas').waitFor({ timeout: 30000 });
+  await node.locator('[data-sketch]').waitFor({ timeout: 30000 });
   await page.waitForTimeout(1200);
-  const drawn = await node.locator('.tl-shape').count();
-  if (drawn < 8) throw new Error(`the sigmoid was not drawn on the board (${drawn} shapes)`);
+  if (await node.locator('.tl-canvas').count()) throw new Error('the card is still the tldraw editor');
+  const drawn = await boardMarks(node);
+  if (drawn < 8) throw new Error(`the sigmoid was not drawn on the board (${drawn} marks)`);
   // EXP-T28: a selected board has no Ask selection of its own; the canvas toolbar's Ask about selection is the one path.
   await node.locator('[data-drag-zone]').first().click({ force: true });
   await page.waitForTimeout(300);
   if (await page.getByRole('button', { name: 'Ask selection', exact: true }).count()) throw new Error('the board still has its own Ask selection');
-  const board = await node.locator('.tl-canvas').boundingBox();
-  await page.mouse.move(board.x + 120, board.y + 100);
-  await page.keyboard.press('d'); // draw tool
+  const board = await node.locator('[data-sketch]').boundingBox();
+  await page.getByRole('toolbar', { name: 'Canvas tools' }).getByRole('button', { name: 'Pen', exact: true }).click(); // the canvas's pen draws in the card
   await page.mouse.move(board.x + 80, board.y + 80);
   await page.mouse.down();
   await page.mouse.move(board.x + 200, board.y + 160, { steps: 10 });
   await page.mouse.up();
   await page.waitForTimeout(1200);
-  if (await node.locator('.tl-shape').count() <= drawn) throw new Error('the learner stroke was not added');
+  if (await boardMarks(node) <= drawn) throw new Error('the learner stroke was not added');
   await page.reload();
   const reloaded = canvas.locator('[data-block-id]').last();
-  await reloaded.locator('.tl-canvas').waitFor({ timeout: 30000 });
+  await reloaded.locator('[data-sketch]').waitFor({ timeout: 30000 });
   await page.waitForTimeout(1500);
-  if (await reloaded.locator('.tl-shape').count() <= drawn) throw new Error('the drawing did not survive a reload');
+  if (await boardMarks(reloaded) <= drawn) throw new Error('the drawing did not survive a reload');
 });
 
-// EXP-T28: the toolbar crop over the board arms one pill naming the board; the drawing tools fold away without
-// losing it, and the answer to that question can be drawn back onto that same board
+// EXP-T28: the toolbar crop over the board arms one pill naming the board; the board's Fit and 100% controls replace the
+// per-card tool toggle (the canvas toolbar is the one set of tools), and the answer to that question can be drawn back onto it
 await check('the toolbar crop over the board arms one pill naming it', async () => {
   const node = canvas.locator('[data-block-id]').last();
   await page.getByRole('button', { name: 'Ask about selection — drag over any part of the canvas' }).click();
-  const area = await node.locator('.tl-canvas').boundingBox();
+  const area = await node.locator('[data-sketch]').boundingBox();
   await page.mouse.move(area.x + area.width * 0.3, area.y + area.height * 0.3);
   await page.mouse.down();
   await page.mouse.move(area.x + area.width * 0.7, area.y + area.height * 0.65, { steps: 10 });
@@ -801,18 +803,17 @@ await check('the toolbar crop over the board arms one pill naming it', async () 
   await canvas.locator('[data-area-mark] rect').first().waitFor({ timeout: 5000 });
 });
 
-await check('the drawing tools fold away', async () => {
+await check('the board has Fit and 100%, and no tool toggle of its own', async () => {
   const node = canvas.locator('[data-block-id]').last();
-  await node.locator('[data-board-tools]').click();
-  await page.waitForTimeout(400);
-  if (await node.locator('.tlui-toolbar').count()) throw new Error('the toolbar is still there');
-  await node.locator('[data-board-tools]').click();
-  await node.locator('.tlui-toolbar').first().waitFor({ timeout: 5000 });
+  await node.locator('[data-board-fit]').waitFor({ timeout: 5000 });
+  await node.locator('[data-board-reset]').waitFor({ timeout: 5000 });
+  if (await node.locator('[data-board-tools], .tlui-toolbar').count()) throw new Error('the per-card tool toggle is still there');
 });
 
+// ponytail: drawing the answer onto the board is workstream T's planner; this step passes once it is merged.
 await check('a board answer can be explained back on the board', async () => {
   const board = canvas.locator('[data-block-id]').last();
-  const shapesBefore = await board.locator('.tl-shape').count();
+  const marksBefore = await boardMarks(board);
   const dock = page.locator('input[placeholder^="Ask about"], textarea[placeholder^="Ask about"]').first();
   await dock.fill('What does the flat part of this curve mean?');
   await dock.press('Enter');
@@ -826,7 +827,7 @@ await check('a board answer can be explained back on the board', async () => {
   // the plan is drawn onto the same board, never a copy of it
   const failure = page.locator('[data-toast-error]');
   for (let waited = 0; waited < 240000; waited += 4000) {
-    if (await board.locator('.tl-shape').count() > shapesBefore) return;
+    if (await boardMarks(board) > marksBefore) return;
     // a failure is reported in a toast the learner can copy, not swallowed
     if (await failure.count()) throw new Error(`explaining failed: ${await failure.first().innerText()}`);
     await page.waitForTimeout(4000);

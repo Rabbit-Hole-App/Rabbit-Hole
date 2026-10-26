@@ -304,20 +304,65 @@ Lost or changed:
 6. **Arrows glued to shapes** (bound arrows follow a moved shape): converted to free arrows at the resolved ends. To confirm.
 7. **Copy, cut, paste, duplicate inside a card.** The sketch doc lists copy, cut, duplicate and group as standing down while a
    sketch is the target. Verified; the editor workstream may add duplicate.
-8. **Align, distribute, stack, reorder (z-order) and lock** inside a card. To confirm.
+8. **Align, distribute and lock** inside a card. Verified in the editor: the sketch has none. **Reorder (z-order) is kept**: the
+   canvas style panel's order buttons act on the card's marks.
 9. **Images, video, embeds, bookmarks and the 3D, graph and video-proposal shapes drawn inside the board.** Existing ones
    are kept read-only from the retained snapshot; new ones become cards beside the board (D2). Verified.
 10. **Pressure-shaped strokes.** Converted strokes are uniform-width paths. Verified (the stroke model has no pressure).
 11. **Pattern and lined fills, and the four tldraw fonts.** Fills are the canvas's tints; text uses the canvas's text
-    levels. To confirm.
-12. **Rich text formatting** (bold, italic, lists) inside tldraw text and labels: flattened to plain lines on conversion. To confirm.
-13. **Laser pointer, snapping guides and grid.** To confirm.
+    levels and its own font choices. Verified.
+12. **Lists inside tldraw text and labels** are flattened to plain lines on conversion. **Bold, italic, underline, size, colour and
+    alignment are kept** for new text: the card uses the canvas's own text editor. Verified.
+13. **Laser pointer, snapping guides and grid.** Verified: the canvas tools have none inside a card.
 14. **The card's own toolbar and its Hide-tools button** (`toolsHidden`): the canvas toolbar replaces both. Verified.
-15. **tldraw keyboard shortcuts** are replaced by the canvas's (`docs/features/canvas-editing.md`). To confirm.
+15. **tldraw keyboard shortcuts** are replaced by the canvas's (`docs/features/canvas-editing.md`). Verified.
 16. **The CDN fetch of tldraw's icons, fonts and translations and the usage reporting to tldraw** go away (a gain).
+
+Found while building the editor (workstream A), not on the first list:
+
+17. **A drawn stroke cannot be selected, moved or restyled**; the eraser removes it. The canvas's pen and highlighter strokes
+    are not selectable objects anywhere on the canvas. Verified.
+18. **Marquee select and moving several marks at once** inside a card: marks are selected by click (Shift or Ctrl adds), and a
+    press drags the shape under it only (`ponytail:` in `AdaptiveCanvas.jsx moveSketchShape`). Verified.
+19. **Dropping or pasting an image, a file or an embed into the board.** New media are cards beside the board (D2). Verified.
+20. **Undo and redo are the canvas's** (Ctrl+Z), one history shared with the other cards, not a history of the card alone.
+    Verified.
+21. **The red "marked" rectangle** the old board could draw over an Ask-about-selection area: nothing sets it today (only the
+    canvas's own area mark appears). Verified in the code, not removed from the block.
 
 Already unavailable today because `WhiteboardBlock.jsx` hides them (`HIDDEN`): the page menu and multiple pages, the main menu
 and its export, the debug panel, the help menu and the shortcuts dialog, the minimap. Nothing is lost there.
+
+## Workstream A as built (the editor)
+
+Switch: `whiteboard-flag.js` (`VITE_NATIVE_WHITEBOARD=true`, or `localStorage['rh.nativeWhiteboard'] = '1'` in one browser). Off by
+default: the tldraw card stays the live card until X, which replaces the body with `true` and deletes `WhiteboardBlock.jsx`.
+
+- **A1** `AdaptiveCanvas.jsx renderSketch(block, { fill, sv, under })` draws a sketch through a view `{ s, tx, ty }` (the card's
+  frame), and every press goes through `toSketch`, so marks drawn in a fitted view are saved in sketch space. Explain Back passes
+  nothing and is unchanged (identity view, 240 px).
+- **A2** `WhiteboardNative.jsx` (lazy, chosen in `LearningBlocks.jsx WhiteboardBody`): the frame is the canvas's own sketch surface;
+  pressing it makes the one canvas toolbar draw there (pen, highlighter, eraser, text, sticky, rectangle, ellipse, triangle,
+  diamond, hexagon, star, line, arrow, curved and elbow arrow, select, move, resize, restyle, Delete, z-order). Narration and Read it
+  aloud are a copy of the old card's.
+- **A3** `whiteboard-editor.js`: `editWhiteboard`/`editList` save through the contract (`mayPersist`, `withSketch`, `saveVerdict`);
+  a read-only viewer, a copy or a locked card writes nothing; a board with a tldraw `snapshot` and no converter yet (`conversionPending`,
+  the seam below) is not editable and never saved over; a sketch that does not fit stays on screen (`tooLarge`) and `lightBlocks`
+  (`canvas-persist.js`) saves its last fitting sketch; the snapshot is never touched. One undo step per gesture is the canvas's
+  history (it restores block objects).
+- **A4** Fit, 100% and Focus on a kept object; `viewStep` chooses the view on open and on resize until the learner chooses; the view is
+  never saved or shared.
+- **A5** `whiteboard-kept.js` (reads the S1 reader): "Kept from the original board (n)" with positions, a read-only picture drawn
+  from the S1 SVG (an `<img>`, inert), Focus per object, Download my drawing (JSON), Download picture (SVG of the current view) and
+  Download original (the snapshot, byte for byte). `legacy-whiteboard.js` gained `only`, `x`/`y` and `shapeBounds` (additive).
+- **A6** `whiteboard-seed.js sigmoidSketch()`: the native sigmoid for `demo: 'sigmoid'` (lesson marks with the Tutor's semantic ids).
+- **A7** `e2e/whiteboard-native-check.mjs` (fork, runs in fast-e2e) and the rewritten whiteboard steps of `chat-block-check.mjs`
+  (windows-only: the release gate, against the deployed dev worker; its explain-back step needs workstream T).
+
+Seams for the other workstreams: `whiteboard-derive.js` (B3: `deriveSketch(block) -> { sketch, pending? }`, a stub until B lands) and
+`whiteboard-explain.js` (T: `explainOnBoard({ block, appName, question, answer, onStage, addMarks, focus })`, a stub until T lands).
+The card registers `shapesIn` itself (`marksIn` through the card's frame and view) and applies Tutor marks through
+`sketchHost.edit` (one undo step, ids already there are skipped, `mergeMarks`).
 
 ## Workstreams and slices
 
