@@ -25,9 +25,9 @@ function inlineRoute(path, end) {
 const callRoute = (route, path, body) => route(new Request(`https://app${path}`, { method: 'POST', body }), env, path, async () => ({ email: 'fixture' }), // authorization runs before the gate
    untouched('paidRefusal'), untouched('paidSubmissionRefusal'), untouched('fishSpendTransport'), untouched('isPaidSpendReply'), untouched('fetch'), untouched('recordMedia'), 6000, 4500, {});
 
-test('the committed production configuration has every OPENAI_API_KEY consumer off', () => {
+test('the committed production configuration has every OPENAI_API_KEY consumer off except public image generation (held flip, owner GO)', () => {
   assert.equal(prodVars.TRANSCRIBE_ENABLED, 'false');
-  assert.equal(prodVars.IMAGE_GENERATE_ENABLED, 'false');
+  assert.equal(prodVars.IMAGE_GENERATE_ENABLED, 'true'); // the one consumer this branch turns on; its own gate and acceptance are docs/features/image-jobs.md 6d
   for (const name of ['INLINE_IMAGE_EDIT_ENABLED', 'INLINE_IMAGE_EDIT_RESERVED_USD', 'LEGACY_IMAGE_GENERATION', 'LEARN_PLAN_MODEL']) assert.equal(name in prodVars, false, `${name} must stay absent until its own activation`);
 });
 
@@ -57,13 +57,13 @@ test('Ctrl+K image edit stays unavailable with the key present (inline-image-job
   assert.equal(addressed, 0);
 });
 
-test('public image generation stays off with the key present; only IMAGE_ACCEPTANCE_EMAILS may use it (image-jobs.js, gates IMAGE_GENERATE_ENABLED and IMAGE_ACCEPTANCE_EMAILS)', async () => {
-  assert.equal(imageJobsAllowed(env, 'someone@example.test'), false);
+test('public image generation is ON with the key present (held flip): everyone is offered it, the owner list stays for the operator surfaces (image-jobs.js, gates IMAGE_GENERATE_ENABLED and IMAGE_ACCEPTANCE_EMAILS)', async () => {
+  assert.equal(imageJobsAllowed(env, 'someone@example.test'), true);
   const [operator] = String(prodVars.IMAGE_ACCEPTANCE_EMAILS).split(/\s+/);
-  assert.equal(imageJobsAllowed(env, operator), true, 'the owner acceptance path is the one authorized consumer');
+  assert.equal(imageJobsAllowed(env, operator), true);
   const quote = async email => (await imageJobsRoute('/api/learn/image-jobs', new Request('https://app/api/learn/image-jobs'), { ...env, IMAGE_JOBS: {}, LEARN_DB: {}, LEARN_MEDIA: {} }, { identity: async () => ({ org: 'o', email }) })).json();
-  assert.equal((await quote('someone@example.test')).available, false);
-  assert.deepEqual([(await quote(operator)).available, (await quote(operator)).operatorOnly], [true, true]);
+  assert.deepEqual([(await quote('someone@example.test')).available, (await quote('someone@example.test')).operatorOnly], [true, undefined], 'a learner is offered it and is not an operator');
+  assert.deepEqual([(await quote(operator)).available, (await quote(operator)).operatorOnly], [true, undefined], 'public is not an operator-only window');
 });
 
 test('the planning model does not move to OpenAI with the key alone (learn-models.js planUsesOpenAI needs LEARN_PLAN_MODEL)', () => {
