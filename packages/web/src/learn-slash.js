@@ -4,7 +4,7 @@
 // here, and what running one does. Pure apart from the injected post/canvas,
 // so it is tested without a browser.
 import { reviewRequired } from './proposal-capabilities.js';
-import { LEARN_MENU, commandsFor, descFor, learnRequest, resolveCommand, unavailableCommand } from './agent/slash.js';
+import { LEARN_MENU, commandsFor, descFor, imageGenerationLive, learnRequest, resolveCommand, unavailableCommand } from './agent/slash.js';
 import { PRIMITIVES, isReady } from '../../control-plane/src/learn-primitives.js';
 import { filterSections } from './command-search.js';
 import { withPrompt } from './card-prompt.js';
@@ -204,6 +204,12 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   if (request.action === 'dive') return canvas.dive ? canvas.dive(args) : { notice: { tone: 'info', text: 'Rabbit Holes are not available here yet.' } };
   // A proposed capability (its declaration's flow, proposal-capabilities.js; /motion first, MOT-20/UI-15): a chat turn. The chat proposes it on the shared card
   // (generation-proposal-chat.js), the learner refines it in chat, and the card's Generate makes it. Nothing starts here.
+  // /generate-image, where the server offers it to this person: the line is a chat turn whose plan the server signs (ask.jsx,
+  // generate-image.js requestImagePlan). Where it is not offered the command is not listed and resolveCommand never gets here.
+  if (name === 'generate-image' && imageGenerationLive()) {
+    if (!args) return { notice: { tone: 'question', text: 'What should the image show? Describe it after /generate-image.' }, keep: '/generate-image ' };
+    return { prompt: args };
+  }
   if (reviewRequired(name)) {
     // Missing information is asked for inside the command's own flow, and the line is kept (owner, 2026-10-24: the Tutor never answers it).
     if (!args) return { notice: { tone: 'question', text: 'What should the video explain? Add a topic after /motion.' }, keep: `/${name} ` };

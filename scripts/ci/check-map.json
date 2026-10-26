@@ -503,6 +503,7 @@
     "packages/web/src/cad-review-view.js": ["cad-controls-check.mjs"],
     "packages/web/src/generation-proposal-chat.js": ["motion-command-check.mjs","explain-proposal-card-check.mjs"],
     "packages/web/src/generate-image.js": ["motion-command-check.mjs"],
+    "packages/web/src/image-capability.js": ["slash-cleanup-check.mjs", "slash-sheet-check.mjs"],
     "packages/web/src/RouteDecision.jsx": ["motion-command-check.mjs"],
     "packages/web/src/proposal-capabilities.js": ["motion-command-check.mjs"],
     "packages/web/src/generation-confirmation-schema.js": ["motion-command-check.mjs","explain-entry-check.mjs","explain-proposal-card-check.mjs"],
