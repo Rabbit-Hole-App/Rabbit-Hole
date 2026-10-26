@@ -125,6 +125,11 @@ const trace = (page, n) => page.on('response', response => {
   const method = response.request().method(), path = new URL(response.url()).pathname;
   const hit = TRACED.find(([m, re]) => m === method && re.test(path));
   if (hit) diag(`page ${n} ${method} ${hit[2]} ${response.status()}`);
+  // The saved state of a thread (step 16): what the page sent, as keys and counts only, never a chip's text.
+  if (method === 'PUT' && path.startsWith('/api/learn/chat/threads/') && path.endsWith('/state')) {
+    const body = response.request().postDataJSON() || {};
+    diag(`page ${n} PUT /api/learn/chat/threads/:id/state ${response.status()} sends ${Object.keys(body).join('+') || 'nothing'} mode=${body.mode ?? '-'} refs=${body.contextRefs ? body.contextRefs.length : '-'}`);
+  }
 });
 const step = async (name, fn) => {
   const n = results.length + 1, began = Date.now() - T0;
@@ -480,7 +485,10 @@ await step('a chip attached and a mode switched while the saved chat is still re
     await bubble(page, CAD_LINE).waitFor();
     assert.equal(await pane(page).locator(`[data-context-chip][data-ref-key="${refKey}"]`).count(), 1, 'the restore kept the chip attached meanwhile');
     assert.equal(await modeIs('auto').count(), 1, 'and the mode chosen meanwhile, not the saved Tutor');
-    await until(async () => { const now = await thread(); return now?.mode === 'auto' && now.contextRefs?.some(ref => ref.sourceId === sourceId); }, 'the chip and the mode were not saved to the restored thread');
+    await until(async () => { const now = await thread(); return now?.mode === 'auto' && now.contextRefs?.some(ref => ref.sourceId === sourceId); }, 'the chip and the mode were not saved to the restored thread').catch(async error => {
+      const now = await thread(); // what the server holds, to tell no save from a refused one from another thread (ids and mode only)
+      throw Error(`${error.message}: the server's thread ${now?.id === saved.id ? 'is the one seeded' : `is ${now?.id}, not the seeded ${saved.id}`} and holds mode ${now?.mode}, refs ${JSON.stringify(now?.contextRefs?.map(ref => ref.sourceId))}; the chip is ${sourceId}`);
+    });
     const before = asks.length;
     await send(page, 'why is a token id only an index');
     await until(async () => asks.length > before, 'the next message was not sent to /api/learn/ask');
