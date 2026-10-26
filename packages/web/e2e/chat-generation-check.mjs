@@ -98,7 +98,7 @@ for (const theme of ['light', 'dark']) {
     if (proposed) {
       proposal = { proposal_id: `gp-${(run + k.toString(16).padStart(6, '0')).replace(/[^0-9a-f]/g, '0').padStart(16, '0').slice(-16)}`, version: 1, command: 'motion', title: `Motion: ${words}`.slice(0, 120),
         description: 'A row of scores appears. Softmax turns it into weights. The weights add up to one.', settings: { duration_seconds: 15, audio: false }, source_refs: [],
-        input: { request: `/motion ${words}`.slice(0, 500), concept: body.generation?.motion?.concept ?? null }, expires_at: Math.floor(Date.now() / 1000) + 3600, sig: 'a'.repeat(64), usage: { estimate_credits: 100, reserve_credits: 896 } };
+        input: { request: `/motion ${words}`.slice(0, 500), concept: body.generation?.motion?.concept ?? null }, expires_at: Math.floor(Date.now() / 1000) + 3600, sig: 'a'.repeat(64), usage: { estimate_credits: 100, max_credits: 350, reserve_credits: 896 } };
       proposals.set(id, proposal);
     }
     turns.push({ threadId, user: { role: 'user', content: body.command ? `/${body.command} ${words}` : words, ...(body.command ? { command: body.command } : {}), messageId: userId }, answer: { role: 'assistant', content, messageId: id, kind: 'answer', status: 'done', meta } });
@@ -144,9 +144,9 @@ for (const theme of ['light', 'dark']) {
       serial += 1;
       const id = `job-${theme}-${serial}`;
       jobs.set(id, { status: 'generating' });
-      return route.fulfill({ status: 202, json: { motionEstimateCredits: 100, videos: listed(), placementId: id } });
+      return route.fulfill({ status: 202, json: { motionEstimateCredits: 100, motionMaxCredits: 350, motionHoldCredits: 896, videos: listed(), placementId: id } });
     }
-    return route.fulfill({ json: { motionEstimateCredits: 100, videos: listed() } });
+    return route.fulfill({ json: { motionEstimateCredits: 100, motionMaxCredits: 350, motionHoldCredits: 896, videos: listed() } });
   });
 
   const page = await context.newPage();

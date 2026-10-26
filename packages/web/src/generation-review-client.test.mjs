@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { canGenerate, confirmProposal, fetchProposal, forgetPress, problemOf, saveProposal } from './generation-review-client.js';
 
 const proposal = (over = {}) => ({ proposal_id: 'gp-0123456789abcdef', version: 2, schema_version: 1, command: 'motion', title: 'Water', description: 'Water rises.', prompt: 'Water rises.', settings: { duration_seconds: 10, audio: false },
-  input: { request: '/motion water' }, references: [], usage: { estimate_credits: 40 }, ...over });
+  input: { request: '/motion water' }, references: [], usage: { estimate_credits: 40, max_credits: 350, reserve_credits: 896 }, ...over });
 const fail = (status, data) => Object.assign(new Error(data.error || 'x'), { status, data });
 
 test('fetchProposal and saveProposal call the proposal route and return a view the card draws', async () => {

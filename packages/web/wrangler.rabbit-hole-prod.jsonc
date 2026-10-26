@@ -110,8 +110,14 @@
     "MOTION_ORCHESTRATOR_URL": "https://rabbit-hole-motion-orchestrator.fly.dev",
     "MOTION_JOB_RESERVATION_USD": "8.96",
     // The confirmation's estimate (owner message 32: 1 credit = $0.01, shown as "about 100 credits"): the measured actual cost of
-    // 6 real jobs on 2026-10-21 was $0.77 to $1.25. The hold above stays internal (owner message 30).
+    // 6 real jobs on 2026-10-21 was $0.77 to $1.25.
     "MOTION_ESTIMATE_USD": "1.00",
+    // The MAXIMUM POSSIBLE CHARGE of one job (owner 2026-10-26, D1a/D1b: US$3.50 = 350 credits). Three numbers, never merged: the estimate above
+    // (about 100 credits), this maximum, and the temporary reservation (MOTION_JOB_RESERVATION_USD, 896 credits, held while a job runs and released
+    // unused). Signed into every quote; changing it makes a card stale and the person reconfirms. A test (motion-credit-disclosure.test.js) pins it
+    // to be at least the orchestrator's per-job ceiling (fly.orchestrator.toml MOTION_JOB_CEILING_USD; with that line removed the ceiling is the
+    // hold) and at most the hold. Raising it needs the owner (docs/features/motion-credit-disclosure.md).
+    "MOTION_MAX_CHARGE_USD": "3.50",
     // R2a, OWNER-ONLY MEASURED POLICY (owner 2026-10-26): the measured policy applies (control-plane motion-ready-policy.js MEASURED_READY_POLICY): 22
     // (ratio, duration) pairs, each with a receipt; 45 and 60 s and every other pair stay visible and are refused with the not-ready line. The
     // orchestrator carries the same id (fly.orchestrator.toml) and is deployed first. This is the owner's path to the 9:16 acceptance job BEFORE

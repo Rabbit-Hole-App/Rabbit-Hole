@@ -64,9 +64,9 @@ export const refinementConflictText = c => `Not applied: the proposal changed me
 // refresh, or it already made its video) marks its card proposalRefused: never the card this proposal made, so the latest
 // version stays live with Generate. The card and the proposal say why; ProposalSlot hears it by PROPOSAL_REFUSED_EVENT.
 const REFUSED = { proposal_stale: 'This proposal changed; use the latest version.', proposal_canvas: 'Refresh this proposal.', proposal_refused: 'Refresh this proposal.', proposal_used: 'This proposal already made a video.',
-  motion_quote_stale: 'The price changed. Review the card and generate again.', motion_not_ready: 'These settings are not ready to generate yet.', motion_renderer_changed: 'The video renderer was updated. Ask for the proposal again.', motion_settings_invalid: 'These video settings are not valid. Change them on the card.' };
+  motion_quote_stale: 'The price changed. Review the card and generate again.', motion_not_ready: 'These settings are not ready to generate yet.', motion_renderer_changed: 'The video renderer was updated. Ask for the proposal again.', motion_settings_invalid: 'These video settings are not valid. Change them on the card.', motion_max_unknown: 'The most this video can cost is not available yet, so it cannot be generated.' };
 // The Motion codes the server words itself (the updated price is in the sentence); the card shows that sentence.
-const SERVER_WORDED = new Set(['motion_quote_stale', 'motion_not_ready', 'motion_renderer_changed', 'motion_settings_invalid']);
+const SERVER_WORDED = new Set(['motion_quote_stale', 'motion_not_ready', 'motion_renderer_changed', 'motion_settings_invalid', 'motion_max_unknown']);
 export const proposalRefusal = problem => (SERVER_WORDED.has(problem?.data?.code) && typeof problem.data.error === 'string' ? problem.data.error : REFUSED[problem?.data?.code] ?? null);
 export const PROPOSAL_REFUSED_EVENT = 'rh-proposal-refused';
 export const refusedReason = block => (block?.proposalRefused ? REFUSED[block.proposalRefused] || REFUSED.proposal_canvas : null);

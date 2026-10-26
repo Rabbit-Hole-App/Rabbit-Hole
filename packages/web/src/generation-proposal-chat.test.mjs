@@ -125,6 +125,9 @@ test('a card whose Generate was refused for its proposal is not the card it made
   assert.equal(proposalRefusal(worded('motion_not_ready', 'A 60 second 9:16 video is not ready to generate yet. Pick other settings or try again later.')), 'A 60 second 9:16 video is not ready to generate yet. Pick other settings or try again later.');
   assert.equal(proposalRefusal(problem('motion_renderer_changed')), 'The video renderer was updated. Ask for the proposal again.', 'without a sentence, the fixed one');
   assert.equal(refusedReason({ proposalRefused: 'motion_quote_stale' }), 'The price changed. Review the card and generate again.');
+  // Owner 2026-10-26: a Generate refused because the maximum possible charge is not available says so (the server's sentence, else the fixed one).
+  assert.equal(proposalRefusal(worded('motion_max_unknown', 'The most this video can cost is not available yet, so it cannot be generated.')), 'The most this video can cost is not available yet, so it cannot be generated.');
+  assert.equal(refusedReason({ proposalRefused: 'motion_max_unknown' }), 'The most this video can cost is not available yet, so it cannot be generated.');
 });
 
 // MOT-22 owner acceptance: through the Chat's own helpers (the Generate handler's generateProposal and its in-flight guard, the
