@@ -32,6 +32,23 @@ Read-only commands the owner can run (both verified; no write):
 
 There is no CLI or endpoint for the control-plane model ledger (the US$10 line); it lives in the `cad:production-budget` Durable Object and `cadProductionBudgetStatus` is reachable only by the object's own GET. Its current month total could not be read.
 
+### 1a. Internal policy or provider restriction? (owner question 2026-10-26)
+
+**Internal policy.** Evidence: the cap is a constant we wrote (`MAXIMUM = 2 * 1024 ** 3`, `production-budget.mjs` line 6; `CAD_PRODUCTION_MAX_BYTES` in `fly.prod.toml`; the ledger's own `maximum` field), the reservation is made by our executor before each attempt, and `cad-production.md` says "These are operating limits, not a Fly billing hard cap". The Fly pricing page (https://docs.fly.io/about/pricing, read 2026-10-26; `fly.io/docs/about/pricing` redirects to it) lists outbound data to the internet at **$0.02 per GB in North America and Europe** (inbound is free) and states no transfer quota or cap. The executor runs in `iad` (North America).
+Unknown: whether the Fly organization has an account-level spend limit or quota that the pricing page does not mention; whether Fly bills image pushes to its registry as egress (the page is silent; so whether the 2.01 GB setup reservation of 10-18 was ever a real charge). The separate US$10 per month model line is also OUR ledger (`cad-production-budget.js`, UTC month, max 10 enforced in code); the provider-side workspace spend limit that `cad-production.md` asks for ($10) was not verified here.
+
+**The first review-first job does not need an adjustment.** October has 75.1 MiB = 6 attempts left; the job needs 1 build attempt plus 1 per Quick edit rebuild (2 attempts, 22 MiB). `cad-acceptance.mjs pre` refuses to start with fewer than 3 attempts of room. The only reasons to wait for Oct 31 5:00 PM PDT are a clean receipt and not letting real users share the last 6 attempts (exhaustion returns 429 `budget_exhausted`, pauses new CAD work for the month and emails the owner).
+
+**Priced options if the owner still wants headroom before the rollover** (none applied; the first one is the only one this lane would suggest):
+
+| Option | New cap | Capacity after | Max extra provider cost | How made | Rollback |
+|---|---|---|---|---|---|
+| A. Reconcile October: remove the 10-18 setup line | 2 GiB (unchanged, 2,147,483,648) | ledger `{reservedBytes: 57,671,680, reservations: 5}`; room 2,089,811,968 B = 181 attempts | removed line 2,011,048,576 B = 2.011 GB x $0.02 = **$0.040** if all of it had really been transferred; expected about $0 (a job sends about 0.15 MB). Already inside the authorized $35 infrastructure line, which budgets $0.04 transfer. | Manual, owner sign-off: stop machine 8e2570a74ed058, start it with the temporary `/bin/sleep` command (the `cad-production.md` setup pattern), `fly ssh` as `cad-svc`, back up the file and record its sha256, write the edited JSON atomically, verify, restore `/app/entrypoint`, check `/health`. No code change, no image. Not scripted: it is a production mutation and needs Fly credentials. | Put the backed-up file back (same steps). Capacity returns to 6 attempts. A corrupt file fails closed: the executor refuses to start. |
+| B. Raise the cap by 1 GiB | 3 GiB (3,221,225,472) | +93 attempts on top of today's 6 | +1.074 GB x $0.02 = **$0.0215** per month at most | A reviewed commit changing `MAXIMUM` and `fly.prod.toml`, a new executor image (build $0.07 - $0.19, C2 estimate, unverified billing), `fly machine update`, AND the same manual edit of the ledger's `maximum` field as in A | Revert commit, rebuild, update, edit `maximum` back. Strictly more work and risk than A for less capacity. |
+| C. One-time allowance | none | none | none | No such concept exists in the code; it would be new code | n/a. Not offered. |
+
+Recommendation: do not adjust anything for the first job (it fits; run it after the release, preflight enforces room). If the owner wants the flag open to real users before Oct 31 5:00 PM PDT with comfortable headroom, take **A** (max extra $0.04, no code, reversible). Never B or a permanent raise (also the earlier finding). Failed-job charges: an attempt reserves 11 MiB at admission and never gets it back, whether the job then succeeds, fails or is cancelled; an executor 401 (token mismatch) or busy 429 charges nothing there, but a token mismatch is only discovered at dispatch, after the brief and source calls were paid (about $0.02 - $0.05 actual, $0.140 reserved) and the job's $0.20 monthly model reservation was taken (never refunded).
+
 ## 2. Pricing a 3-call review-first job
 
 Prices come from the registry `packages/control-plane/src/pricing-registry.js` (`anthropic('claude-sonnet-5-5', 2, 10, 0.05)`: input $2 and output $10 per million tokens, status verified, official page retrieved 2026-10-23, `PRICE_VERSION 2026-10-23.1`). A call's admission reservation is `requestSpendBound` (input bytes + 1000 framing tokens at $2/M, plus the whole `max_tokens` at $10/M); `CAD_MODEL = claude-sonnet-5-5`. Measured with the real functions on the `plate-holes` fixture (test `CAD brief-first at the production limits`):
@@ -61,11 +78,13 @@ Prices come from the registry `packages/control-plane/src/pricing-registry.js` (
 
 Owner decisions first: O-5 (enable review-first), GO for the paid job, and the exposure choice below.
 
+**One command, one click.** The lane's helper is `C:/s/spec/cad-review-first/cad-acceptance.mjs` (read-only toward production: its only request is `GET /health`; local writes are its baseline/receipt files and the shared validation budget; `selftest` proves a dry run writes nothing). Owner steps: (1) run `node C:/s/spec/cad-review-first/cad-acceptance.mjs pre --go "RUN CAD ACCEPTANCE"` (preflight, baseline, budget reserve of US$0.50 as run `cad-review-first-acceptance-1`; without `--go` it is a dry run), (2) click Generate in the browser as in the steps below, (3) run `node C:/s/spec/cad-review-first/cad-acceptance.mjs post --go "RUN CAD ACCEPTANCE" --actual-usd <total>` (deltas, token-match verdict, receipt, budget settle). `stop` prints the stop commands. The shared validation budget is US$100 total (owner 2026-10-26; status when checked: remaining 81.75): this job's reserve of US$0.50 is two jobs at the US$0.20 ceiling plus machine and transfer. The typed owner command is still required before any production CAD job.
+
 **Preconditions**
 1. Inert candidate released to production (normal release; owner's `main` push).
 2. Time is after Sat 2026-10-31 5:00 PM PDT (clean November ledger), or the owner accepts October's 6-attempt room.
 3. HELD flip released. The flag is global: every CAD user gets review-first from that release. Exposure options: (a) run the job immediately after the release and keep the flag if it passes (recommended while CAD has no public users beyond the owner, which this lane did not verify); (b) scope admission to one canvas with `CAD_VERIFICATION_BOARD_ID` plus `CAD_VERIFICATION_MAX_CALLS=3` / `_MAX_USD=0.20` (the code path exists; it blocks CAD on every other canvas, needs another deploy and was not tested for 3 calls here).
-4. The integrator reserves the spend in `C:/s/spec/budget/budget.mjs` if CAD model spend counts against the shared validation cap (unknown; CAD has its own US$10 per month authorization).
+4. Budget: `pre --go` reserves US$0.50 in `C:/s/spec/budget/budget.mjs`; CAD also has its own US$10 per month authorization (both apply).
 5. `CAD_PRODUCTION_ENABLED` and `CAD_MODEL_ENABLED` are secrets whose values nobody can read; if either is not "true" the card says so and nothing is spent.
 
 **Steps** (owner, browser, signed in as the org that owns CAD)
