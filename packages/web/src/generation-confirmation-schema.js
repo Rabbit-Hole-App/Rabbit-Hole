@@ -121,7 +121,7 @@ export const GENERATION_COMMANDS = Object.freeze({
   // from the server's quote; a request with no quote is blocked (requires_quote), never priced at zero. Reference images are
   // `references`, limited per model (referenceRules).
   'generate-image': define({
-    label: 'Image', noun: 'image', review_policy: 'always', flag: 'IMAGE_GENERATION', settings_noun: 'an image setting', cancel: true, requires_quote: true,
+    label: 'Image', noun: 'image', review_policy: 'always', flag: 'IMAGE_GENERATION', settings_noun: 'an image setting', cancel: true, requires_quote: true, requires_max: true,
     settings: [
       field('model', 'Model', 'select', { required: true, options: Object.entries(IMAGE_MODELS).map(([value, m]) => ({ value, label: m.label })) }),
       field('quality', 'Quality', 'select', { by_model: byModel('qualities') }),

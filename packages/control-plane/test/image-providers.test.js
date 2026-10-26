@@ -27,9 +27,12 @@ test('settings are refused, never adjusted, when a model cannot make them', () =
   assert.equal(imageSettings({ model: 'gemini-nano-banana-2.1', aspect_ratio: '1:1', resolution: '1K' }, 14).value.model, 'gemini-nano-banana-2.1');
 });
 
+// The maximum charge for every model (IMAGE_MAX_CHARGE_USD_BY_MODEL): what a test that is not about the cap needs so a quote is priced.
+const MAXES = (usd = 0.2) => JSON.stringify({ 'gpt-image-2.5-flare': usd, 'gpt-image-2.5-sunburst': usd, 'gemini-nano-banana-2.1': usd, 'gemini-3-pro-image': usd });
+
 test('the hold is per model: IMAGE_RESERVED_USD_BY_MODEL overrides the default for the model it names and fails closed when unreadable', () => {
   const pro = { model: 'gemini-3-pro-image', aspect_ratio: '1:1', resolution: '1K' }, flare = { model: 'gpt-image-2.5-flare', quality: 'low', aspect_ratio: '1:1', resolution: '1K' };
-  const env = { IMAGE_GENERATE_RESERVED_USD: '0.20', IMAGE_RESERVED_USD_BY_MODEL: JSON.stringify({ 'gemini-3-pro-image': 0.3, 'gpt-image-2.5-flare': '0.05' }) };
+  const env = { IMAGE_GENERATE_RESERVED_USD: '0.20', IMAGE_MAX_CHARGE_USD_BY_MODEL: JSON.stringify({ 'gemini-3-pro-image': 0.2, 'gpt-image-2.5-flare': 0.03, 'gemini-nano-banana-2.1': 0.2 }), IMAGE_RESERVED_USD_BY_MODEL: JSON.stringify({ 'gemini-3-pro-image': 0.3, 'gpt-image-2.5-flare': '0.05' }) };
   assert.deepEqual([imageQuote(env, pro).reserve_credits, imageQuote(env, flare).reserve_credits], [30, 5]);
   assert.equal(imageQuote(env, { model: 'gemini-nano-banana-2.1', aspect_ratio: '1:1', resolution: '1K' }).reserve_credits, 20, 'a model the map does not name keeps the default');
   assert.equal(imageQuote({ ...env, IMAGE_RESERVED_USD_BY_MODEL: '{not json' }, pro).reason, 'reserve_unset');
@@ -38,8 +41,27 @@ test('the hold is per model: IMAGE_RESERVED_USD_BY_MODEL overrides the default f
   assert.equal(imageQuote({}, pro).reason, 'reserve_unset');
 });
 
+test('the quote carries three separate numbers: estimate <= maximum charge <= reservation, each paused (never defaulted) when the configuration breaks that', () => {
+  const pro = { model: 'gemini-3-pro-image', aspect_ratio: '1:1', resolution: '1K' }, flare = { model: 'gpt-image-2.5-flare', quality: 'low', aspect_ratio: '1:1', resolution: '1K' };
+  const env = { IMAGE_RESERVED_USD_BY_MODEL: JSON.stringify({ 'gemini-3-pro-image': 0.3, 'gpt-image-2.5-flare': 0.05 }), IMAGE_MAX_CHARGE_USD_BY_MODEL: JSON.stringify({ 'gemini-3-pro-image': 0.2, 'gpt-image-2.5-flare': 0.03 }) };
+  const q = imageQuote(env, pro, 0, 4000);
+  assert.deepEqual([q.state, q.estimate_credits, q.max_credits, q.reserve_credits], ['priced', 15, 20, 30]);
+  const f = imageQuote(env, flare);
+  assert.deepEqual([f.estimate_credits, f.max_credits, f.reserve_credits], [1, 3, 5]);
+  assert.deepEqual([q.estimateUsd <= q.maxUsd, q.maxUsd <= q.reserveUsd], [true, true]);
+  // No default for the maximum: no map, an unreadable map, a model it does not name, or a value that is not a positive number cannot be quoted.
+  for (const bad of [undefined, '{not json', '{}', JSON.stringify({ 'gemini-3-pro-image': 'x' }), JSON.stringify({ 'gemini-3-pro-image': 0 }), JSON.stringify({ 'gemini-3-pro-image': -1 })]) {
+    assert.equal(imageQuote({ ...env, IMAGE_MAX_CHARGE_USD_BY_MODEL: bad }, pro).reason, 'max_unset', String(bad));
+  }
+  const low = imageQuote({ ...env, IMAGE_MAX_CHARGE_USD_BY_MODEL: JSON.stringify({ 'gemini-3-pro-image': 0.1 }) }, pro), high = imageQuote({ ...env, IMAGE_MAX_CHARGE_USD_BY_MODEL: JSON.stringify({ 'gemini-3-pro-image': 0.31 }) }, pro);
+  assert.equal(low.reason, 'max_below_estimate', 'a maximum under the estimate pauses that model');
+  assert.equal(high.reason, 'max_above_reserve', 'a maximum over the hold pauses that model');
+  // Every refusal is plain words: no dollars (the person reads credits only).
+  for (const refusal of [imageQuote({ ...env, IMAGE_MAX_CHARGE_USD_BY_MODEL: '{}' }, pro), low, high]) assert.doesNotMatch(refusal.message, /[$]|usd|dollar/i);
+});
+
 test('the quote is unknown, never zero, wherever pricing is unverified or no bound is configured', () => {
-  const env = { IMAGE_GENERATE_RESERVED_USD: '0.5' };
+  const env = { IMAGE_GENERATE_RESERVED_USD: '0.5', IMAGE_MAX_CHARGE_USD_BY_MODEL: MAXES(0.5) };
   for (const [settings, refs] of [
     [{ model: 'gpt-image-2.5-sunburst', aspect_ratio: '1:1', resolution: '1K', quality: 'medium' }, 0],
     [{ model: 'gpt-image-2.5-flare', aspect_ratio: '1:1', resolution: '1K' }, 0],
@@ -61,12 +83,12 @@ test('the quote is unknown, never zero, wherever pricing is unverified or no bou
   const priced = imageQuote(env, { model: 'gemini-nano-banana-2.1', aspect_ratio: '16:9', resolution: '2K' }, 0, 1000);
   assert.equal(priced.state, 'priced');
   assert.equal(priced.estimateUsd, 0.0504 + 1000 * 1.5 / 1e6);
-  assert.equal(priced.estimate_credits, 6); assert.equal(priced.reserve_credits, 50);
+  assert.equal(priced.estimate_credits, 6); assert.equal(priced.max_credits, 50); assert.equal(priced.reserve_credits, 50);
   assert.deepEqual(priced.excludes, ['thinking_tokens']);
   assert.equal(imageQuote(env, { model: 'gemini-3-pro-image', aspect_ratio: '1:1', resolution: '4K' }, 3).estimateUsd, Number((0.24 + 3 * 0.0011).toFixed(6)));
   assert.equal(imageQuote({}, { model: 'gemini-3-pro-image', aspect_ratio: '1:1', resolution: '1K' }).reason, 'reserve_unset');
-  assert.equal(imageQuote({ IMAGE_GENERATE_RESERVED_USD: '0' }, { model: 'gemini-3-pro-image', aspect_ratio: '1:1', resolution: '1K' }).reason, 'reserve_unset');
-  assert.equal(imageQuote({ IMAGE_GENERATE_RESERVED_USD: '0.1' }, { model: 'gemini-3-pro-image', aspect_ratio: '1:1', resolution: '4K' }).reason, 'reserve_below_estimate');
+  assert.equal(imageQuote({ IMAGE_GENERATE_RESERVED_USD: '0', IMAGE_MAX_CHARGE_USD_BY_MODEL: MAXES() }, { model: 'gemini-3-pro-image', aspect_ratio: '1:1', resolution: '1K' }).reason, 'reserve_unset');
+  assert.equal(imageQuote({ IMAGE_GENERATE_RESERVED_USD: '0.1', IMAGE_MAX_CHARGE_USD_BY_MODEL: MAXES() }, { model: 'gemini-3-pro-image', aspect_ratio: '1:1', resolution: '4K' }).reason, 'reserve_below_estimate');
 });
 
 test('measured cost only from OpenAI-reported tokens at the verified rates; otherwise unknown', () => {
@@ -163,14 +185,19 @@ test('the three cost values on the real payloads: OpenAI is measured; Gemini doe
 });
 
 test('imageCost keeps measured, estimated upper bound and reserved apart; an amount over the reservation is an explicit overrun; no usage is unknown', () => {
-  assert.deepEqual(imageCost('gemini-nano-banana-2.1', REAL.C, 0.06), { state: 'estimated_upper_bound', measuredUsd: null, estimatedUpperBoundUsd: 0.063621, reservedMaxUsd: 0.06, settledUsd: 0.063621, overrun: { exceeded: true, amountUsd: 0.003621 } });
+  assert.deepEqual(imageCost('gemini-nano-banana-2.1', REAL.C, 0.06), { state: 'estimated_upper_bound', measuredUsd: null, estimatedUpperBoundUsd: 0.063621, reservedMaxUsd: 0.06, maxChargeUsd: null, settledUsd: 0.063621, chargedUsd: 0.063621, absorbedUsd: 0, overrun: { exceeded: true, amountUsd: 0.003621 } });
   assert.equal(imageCost('gemini-nano-banana-2.1', REAL.E, 0.065).overrun.exceeded, false);
+  // The learner is charged min(real cost, the signed maximum); the platform records the real cost and what it absorbs above the maximum.
+  const over = imageCost('gemini-nano-banana-2.1', REAL.C, 0.1, 0.05), under = imageCost('gemini-nano-banana-2.1', REAL.C, 0.1, 0.08);
+  assert.deepEqual([over.settledUsd, over.chargedUsd, over.absorbedUsd, over.maxChargeUsd], [0.063621, 0.05, 0.013621, 0.05]);
+  assert.deepEqual([under.settledUsd, under.chargedUsd, under.absorbedUsd], [0.063621, 0.063621, 0]);
+  assert.equal(imageCost('gemini-nano-banana-2.1', REAL.C, 0.1, 0.063621).absorbedUsd, 0, 'equal to the maximum is not above it');
   assert.equal(imageCost('gpt-image-2.5-flare', REAL.A, 0.03).state, 'measured');
   assert.equal(imageCost('gpt-image-2.5-flare', { ...REAL.A, output_tokens_details: { image_tokens: 100, text_tokens: 96 } }, 0.03).state, 'estimated_upper_bound', 'text output has no published rate: not measured');
   assert.equal(imageCost('gpt-image-2.5-flare', { ...REAL.A, input_tokens: 40 }, 0.03).state, 'estimated_upper_bound', 'input not accounted for by its details: the rest at the highest input rate');
   assert.equal(usageCost('gpt-image-2.5-flare', { ...REAL.A, input_tokens: 40 }).estimatedUpperBoundUsd, Number(((19 * 5 + 21 * 8 + 196 * 30) / 1e6).toFixed(6)));
   for (const usage of [null, undefined, {}, { total_tokens: 5 }, { total_input_tokens: 5 }, { input_tokens: 5 }]) {
-    for (const model of ['gpt-image-2.5-flare', 'gemini-3-pro-image']) assert.deepEqual(imageCost(model, usage, 0.1), { state: 'unknown', measuredUsd: null, estimatedUpperBoundUsd: null, reservedMaxUsd: 0.1, settledUsd: null, overrun: { exceeded: false, amountUsd: 0 } });
+    for (const model of ['gpt-image-2.5-flare', 'gemini-3-pro-image']) assert.deepEqual(imageCost(model, usage, 0.1, 0.08), { state: 'unknown', measuredUsd: null, estimatedUpperBoundUsd: null, reservedMaxUsd: 0.1, maxChargeUsd: 0.08, settledUsd: null, chargedUsd: null, absorbedUsd: 0, overrun: { exceeded: false, amountUsd: 0 } });
   }
   // Unknown modalities and tool-use tokens are bounded, not ignored: highest input rate, highest output rate.
   const odd = usageCost('gemini-3-pro-image', { total_input_tokens: 10, input_tokens_by_modality: [{ modality: 'video', tokens: 4 }], total_output_tokens: 5, total_thought_tokens: 2, total_tool_use_tokens: 3 });
@@ -191,9 +218,9 @@ test('OpenAI 4xx: the stable reason code is kept, the message (which can echo th
 test('OpenAI sizes above 2560x1440 are experimental: never quoted; the options themselves stay', () => {
   for (const settings of [{ aspect_ratio: '1:1', resolution: '2K' }, { aspect_ratio: '16:9', resolution: '4K' }, { aspect_ratio: '9:16', resolution: '4K' }]) {
     assert.ok(imageSettings({ model: 'gpt-image-2.5-flare', ...settings }).value);
-    assert.equal(imageQuote({ IMAGE_GENERATE_RESERVED_USD: '5' }, { model: 'gpt-image-2.5-flare', ...settings }).reason, 'experimental_size');
+    assert.equal(imageQuote({ IMAGE_GENERATE_RESERVED_USD: '5', IMAGE_MAX_CHARGE_USD_BY_MODEL: MAXES(5) }, { model: 'gpt-image-2.5-flare', ...settings }).reason, 'experimental_size');
   }
-  assert.equal(imageQuote({ IMAGE_GENERATE_RESERVED_USD: '5' }, { model: 'gpt-image-2.5-flare', aspect_ratio: '1:1', resolution: '1K' }).reason, 'pricing_unverified');
+  assert.equal(imageQuote({ IMAGE_GENERATE_RESERVED_USD: '5', IMAGE_MAX_CHARGE_USD_BY_MODEL: MAXES(5) }, { model: 'gpt-image-2.5-flare', aspect_ratio: '1:1', resolution: '1K' }).reason, 'pricing_unverified');
 });
 
 test('every failure says whether a request left and whether the provider answered; the key is never in an error', async () => {

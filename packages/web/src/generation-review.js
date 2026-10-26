@@ -87,7 +87,7 @@ export function referenceFromContextRef(ref, id, typeLabel = '') {
 // Fields: { command, mode, original_request, title, prompt, visual_constraints, references, requirements, assumptions, missing_information,
 // limitations, settings, quote, destination } (the four lists are the schema's string lists, [] when a command shows none).
 // Settings are command-specific and validated by their command (generation-proposal.js validateSettings); here they are opaque.
-// quote: null, or { estimate_credits, reserve_credits } (integers or null) once a generator prices the request before approval.
+// quote: null, or { estimate_credits, max_credits, reserve_credits } (integers or null; max_credits is the maximum charge the person authorizes, an image's) once a generator prices the request before approval.
 // -> { value } | { error, code, field } with every check a learner or a tamperer can fail.
 export function validateReview(input) {
   if (!plain(input)) return bad('review_invalid', 'The review must be an object.');
@@ -131,8 +131,8 @@ export function validateReview(input) {
   if (!plain(dest) || typeof dest.org !== 'string' || !dest.org || typeof dest.app !== 'string' || !dest.app || Object.keys(dest).length !== 2) return bad('review_invalid', 'The destination is {org, app}.', 'destination');
   const quote = input.quote ?? null;
   const credits = v => v === null || (Number.isSafeInteger(v) && v >= 0);
-  if (quote !== null && (!plain(quote) || Object.keys(quote).some(k => !['estimate_credits', 'reserve_credits'].includes(k)) || !credits(quote.estimate_credits ?? null) || !credits(quote.reserve_credits ?? null))) return bad('review_invalid', 'The quote is {estimate_credits, reserve_credits}.', 'quote');
-  return { value: { command, mode, original_request, title, prompt: input.prompt, visual_constraints: constraints.map(squash), references, ...lists, settings: sortKeys(input.settings), quote: quote === null ? null : { estimate_credits: quote.estimate_credits ?? null, reserve_credits: quote.reserve_credits ?? null }, destination: { org: dest.org, app: dest.app } } };
+  if (quote !== null && (!plain(quote) || Object.keys(quote).some(k => !['estimate_credits', 'max_credits', 'reserve_credits'].includes(k)) || !credits(quote.estimate_credits ?? null) || !credits(quote.max_credits ?? null) || !credits(quote.reserve_credits ?? null))) return bad('review_invalid', 'The quote is {estimate_credits, max_credits, reserve_credits}.', 'quote');
+  return { value: { command, mode, original_request, title, prompt: input.prompt, visual_constraints: constraints.map(squash), references, ...lists, settings: sortKeys(input.settings), quote: quote === null ? null : { estimate_credits: quote.estimate_credits ?? null, max_credits: quote.max_credits ?? null, reserve_credits: quote.reserve_credits ?? null }, destination: { org: dest.org, app: dest.app } } };
 }
 
 // The prompt with each pill as its label: what a model or an older card reads as plain text.

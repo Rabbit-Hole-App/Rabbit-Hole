@@ -29,7 +29,7 @@ export function stack(t, envPatch = {}) {
     async get(key) { const o = objects.get(key); return o ? { size: o.bytes.length, arrayBuffer: async () => o.bytes.slice().buffer } : null; },
     async list({ prefix }) { return { objects: [...objects].filter(([key]) => key.startsWith(prefix)).map(([key, o]) => ({ key, size: o.bytes.length, httpMetadata: o.httpMetadata, customMetadata: o.customMetadata })) }; } };
   const calls = [], transport = async (url, init) => { calls.push({ url, init }); return Response.json({ model: 'gemini-3-pro-image', steps: [{ type: 'model_output', content: [{ type: 'image', mime_type: 'image/jpeg', data: JPG }] }] }); };
-  const env = { SMALL_ENV: 'dev', LEARN_DB: db, LEARN_MEDIA: bucket, USAGE_PLATFORM_DAY_USD: '100', AI_MONTHLY_ALLOWANCE_USD: '50', IMAGE_GENERATE_ENABLED: 'true', IMAGE_GENERATE_RESERVED_USD: '0.5',
+  const env = { SMALL_ENV: 'dev', LEARN_DB: db, LEARN_MEDIA: bucket, USAGE_PLATFORM_DAY_USD: '100', AI_MONTHLY_ALLOWANCE_USD: '50', IMAGE_GENERATE_ENABLED: 'true', IMAGE_GENERATE_RESERVED_USD: '0.5', IMAGE_MAX_CHARGE_USD_BY_MODEL: JSON.stringify({ 'gpt-image-2.5-flare': 0.4, 'gpt-image-2.5-sunburst': 0.4, 'gemini-nano-banana-2.1': 0.4, 'gemini-3-pro-image': 0.4 }),
     INLINE_DECISION_KEY: 'fixture-signing-key', GEMINI_API_KEY: 'fixture-gemini', OPENAI_API_KEY: 'fixture-openai', ...envPatch };
   const states = new Map(), instances = new Map(), alarms = [];
   const state = () => { const records = new Map(); return { storage: { records, get: async k => structuredClone(records.get(k)), put: async (k, v) => { records.set(k, structuredClone(v)); }, setAlarm: async at => { alarms.push(at); }, getAlarm: async () => null } }; };

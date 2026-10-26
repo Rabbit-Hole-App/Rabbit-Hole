@@ -180,9 +180,9 @@ const readinessOf = (env, p) => (p.command === 'generate-image' ? { readiness: i
 export function imageProposalQuote(env, r) {
   const description = (plainPrompt(r.prompt, r.references) || '').trim();
   const quote = imageQuote(env, r.settings, r.references.length, new TextEncoder().encode(description).length);
-  return quote.state === 'priced' ? { estimate_credits: quote.estimate_credits, reserve_credits: quote.reserve_credits } : null;
+  return quote.state === 'priced' ? { estimate_credits: quote.estimate_credits, max_credits: quote.max_credits, reserve_credits: quote.reserve_credits } : null;
 }
-const quoteUsage = quote => ({ estimate_credits: quote?.estimate_credits ?? null, reserve_credits: quote?.reserve_credits ?? null });
+const quoteUsage = quote => ({ estimate_credits: quote?.estimate_credits ?? null, max_credits: quote?.max_credits ?? null, reserve_credits: quote?.reserve_credits ?? null });
 // The default verifier of image-jobs.js: only the v3 envelope carries the references and the quote an image is approved with.
 export async function verifyImageProposal(env, p, user) {
   if (p?.command === 'generate-image' && !v3sig(p.sig)) return 'This image proposal is out of date. Ask for it again.';

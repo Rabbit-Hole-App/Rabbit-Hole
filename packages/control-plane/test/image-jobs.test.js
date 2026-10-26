@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { imageJobsRoute, ImageJobs } from '../src/image-jobs.js';
-import { imageQuote, imageAdapter } from '../src/image-providers.js';
+import { IMAGE_MODELS, imageQuote, imageAdapter } from '../src/image-providers.js';
 import { settleSpend } from '../src/learn-spend-ledger.js';
 import { settleAttempt } from '../src/learn-usage.js';
 
@@ -74,6 +74,8 @@ function harness(t, envPatch = {}) {
   const logs = [];
   const deps = { adapter: (env, model) => imageAdapter(env, model, transport), log: line => logs.push(line) };
   const env = { SMALL_ENV: 'dev', LEARN_DB: db, LEARN_MEDIA: bucket, USAGE_PLATFORM_DAY_USD: '100', AI_MONTHLY_ALLOWANCE_USD: '50', IMAGE_GENERATE_ENABLED: 'true', IMAGE_GENERATE_RESERVED_USD: String(RESERVE), GEMINI_API_KEY: 'fixture-gemini-not-a-key', OPENAI_API_KEY: 'fixture-openai-not-a-key', ...envPatch };
+  // The maximum charge (docs/features/image-jobs.md 6f): by default each model's maximum equals its hold, so a test that does not care about the cap sees the old behaviour up to the hold.
+  env.IMAGE_MAX_CHARGE_USD_BY_MODEL ??= JSON.stringify(Object.fromEntries(Object.keys(IMAGE_MODELS).map(m => [m, Number(env.IMAGE_GENERATE_RESERVED_USD)])));
   const object = name => {
     if (!states.has(name)) states.set(name, doState());
     if (!objects.has(name)) objects.set(name, new ImageJobs(states.get(name), env, deps));
@@ -96,7 +98,7 @@ function harness(t, envPatch = {}) {
     const settings = { model: 'gemini-nano-banana-2.1', aspect_ratio: '1:1', resolution: '1K', ...patch.settings };
     const description = patch.description ?? 'A red fox standing in fresh snow at dawn.';
     const q = imageQuote(env, settings, (patch.references || []).length, new TextEncoder().encode(description).length);
-    return { proposal_id: `gp-${crypto.randomUUID().slice(0, 16)}`, version: 1, command: 'generate-image', title: 'Fox', description, settings, references: [], sig: 'fixture-signed', quote: q.state === 'priced' ? { estimate_credits: q.estimate_credits, reserve_credits: q.reserve_credits } : null, ...patch, settings };
+    return { proposal_id: `gp-${crypto.randomUUID().slice(0, 16)}`, version: 1, command: 'generate-image', title: 'Fox', description, settings, references: [], sig: 'fixture-signed', quote: q.state === 'priced' ? { estimate_credits: q.estimate_credits, max_credits: q.max_credits, reserve_credits: q.reserve_credits } : null, ...patch, settings };
   };
   const post = (body, deps_ = routeDeps, path = '/api/learn/image-jobs') => imageJobsRoute(path, new Request(`https://app${path}`, { method: 'POST', body: JSON.stringify(body) }), env, deps_);
   const create = async (generationId = `gen-${crypto.randomUUID()}`, p = proposal()) => { const res = await post({ generationId, proposal: p, app: 'canvas-abcdef12' }); return { res, body: await res.json(), generationId, p }; };
@@ -218,6 +220,9 @@ test('the approval is enforced before anything is consumed or reserved', async t
     [h.proposal({ settings: { model: 'gpt-image-2.5-flare', aspect_ratio: '1:1', resolution: '1K', quality: 'medium' } }), 'quote_unknown'],
     [h.proposal({ settings: { model: 'gpt-image-2.5-flare', aspect_ratio: '1:1', resolution: '2K', quality: 'low' } }), 'quote_unknown'],
     [{ ...h.proposal(), quote: { estimate_credits: 1, reserve_credits: 1 } }, 'quote_changed'],
+    // Signed before the maximum charge existed (no max_credits), or with a maximum other than the live one: stale, the person reconfirms.
+    [(() => { const p = h.proposal(); delete p.quote.max_credits; return p; })(), 'quote_changed'],
+    [(() => { const p = h.proposal(); p.quote.max_credits += 1; return p; })(), 'quote_changed'],
     [{ ...h.proposal(), quote: null }, 'quote_changed'],
     [h.proposal({ settings: { model: 'gemini-3-pro-image' }, references: [{ id: 'r1', kind: 'card', sourceId: 'card-1', revision: 'x' }] }), 'reference_blocked'],
   ]) {
@@ -631,22 +636,24 @@ test('three cost values stay apart: an unreconciled Gemini usage settles at the 
   c.setReply(async () => Response.json({ status: 'completed', steps: IMAGE_STEPS, usage: USAGE_C }));
   const a = await c.create();
   await c.alarm(a.generationId);
-  assert.deepEqual(c.job(a.generationId).cost, { state: 'estimated_upper_bound', measuredUsd: null, estimatedUpperBoundUsd: 0.063621, reservedMaxUsd: 0.06, settledUsd: 0.063621, overrun: { exceeded: true, amountUsd: 0.003621 } });
-  assert.equal(ops(c)[0].cost_usd, 0.063621, 'settled at the bound, not clipped to the reservation');
+  // The harness signs a maximum equal to the hold (0.06): the platform ledger keeps the real cost, the learner is charged the signed maximum, the difference is absorbed.
+  assert.deepEqual(c.job(a.generationId).cost, { state: 'estimated_upper_bound', measuredUsd: null, estimatedUpperBoundUsd: 0.063621, reservedMaxUsd: 0.06, maxChargeUsd: 0.06, settledUsd: 0.063621, chargedUsd: 0.06, absorbedUsd: 0.003621, overrun: { exceeded: true, amountUsd: 0.003621 } });
+  assert.equal(ops(c)[0].cost_usd, 0.063621, 'the platform ledger records the real cost, not clipped to the reservation');
   assert.equal(ops(c)[0].error, 'spend_bound_exceeded', 'the ledger flags the overrun');
-  assert.equal(attempts(c)[0].cost_micros, 63621); assert.equal(attempts(c)[0].reserved_micros, 60000);
+  assert.equal(attempts(c)[0].cost_micros, 60000, 'the learner is charged the signed maximum, not the real cost'); assert.equal(attempts(c)[0].reserved_micros, 60000);
   assert.equal(attempts(c)[0].input_tokens, 14); assert.equal(attempts(c)[0].output_tokens, 1439);
   assert.equal((await (await c.get(a.generationId)).json()).job.cost, 'estimated_upper_bound');
   const inspected = (await (await c.get(a.generationId, '/inspect')).json()).job;
-  assert.deepEqual(inspected.costs, { state: 'estimated_upper_bound', overrun: true }); assert.deepEqual(moneyLeaks(inspected), []); // dollars stay in the log line below and the ledger
+  assert.deepEqual(inspected.costs, { state: 'estimated_upper_bound', overrun: true, absorbed: true }); assert.deepEqual(moneyLeaks(inspected), []); // dollars stay in the log line below and the ledger
   const closed = c.logs.map(line => JSON.parse(line)).find(line => line.step === 'closed');
   assert.deepEqual([closed.costState, closed.measuredUsd, closed.estimatedUpperBoundUsd, closed.reservedMaxUsd, closed.overrun.exceeded], ['estimated_upper_bound', null, 0.063621, 0.06, true]);
+  assert.deepEqual([closed.maxChargeUsd, closed.chargedUsd, closed.absorbedUsd], [0.06, 0.06, 0.003621], 'the absorbed amount is its own logged metric');
   // D (Pro): bound = 14 x $2/M + max(1218, 1120 + 80) x $120/M = $0.146188, inside its $0.27 reservation: no overrun, marked as an upper bound.
   const d = harness(t, { IMAGE_GENERATE_RESERVED_USD: '0.27' });
   d.setReply(async () => Response.json({ status: 'completed', steps: IMAGE_STEPS, usage: USAGE_D }));
   const b = await d.create(undefined, d.proposal({ settings: { model: 'gemini-3-pro-image' } }));
   await d.alarm(b.generationId);
-  assert.deepEqual(d.job(b.generationId).cost, { state: 'estimated_upper_bound', measuredUsd: null, estimatedUpperBoundUsd: 0.146188, reservedMaxUsd: 0.27, settledUsd: 0.146188, overrun: { exceeded: false, amountUsd: 0 } });
+  assert.deepEqual(d.job(b.generationId).cost, { state: 'estimated_upper_bound', measuredUsd: null, estimatedUpperBoundUsd: 0.146188, reservedMaxUsd: 0.27, maxChargeUsd: 0.27, settledUsd: 0.146188, chargedUsd: 0.146188, absorbedUsd: 0, overrun: { exceeded: false, amountUsd: 0 } });
   assert.equal(ops(d)[0].cost_usd, 0.146188); assert.equal(ops(d)[0].error, 'cost_estimated_upper_bound');
   assert.equal(attempts(d)[0].cost_micros, 146188);
 });
@@ -753,4 +760,121 @@ test('a job inside its bound is unaffected: the same late-answering provider del
   assert.equal(h.job(generationId).stage, 'ready');
   assert.equal(attempts(h)[0].status, 'settled');
   assert.equal(h.bucket.objects.size, 1);
+});
+
+
+// ---- The maximum charge (owner 2026-10-26; docs/features/image-jobs.md 6f): estimate, signed maximum and hold are three numbers ----
+const capped = (t, max, reserve = '0.2') => harness(t, { IMAGE_GENERATE_RESERVED_USD: reserve, IMAGE_MAX_CHARGE_USD_BY_MODEL: JSON.stringify({ 'gemini-nano-banana-2.1': max, 'gemini-3-pro-image': 0.2, 'gpt-image-2.5-flare': 0.03, 'gpt-image-2.5-sunburst': 0.03 }) });
+
+test('settlement charges min(real cost, signed maximum): above it the learner pays the maximum, the platform ledger keeps the real cost and the difference is an explicit metric', async t => {
+  // Real upper bound for USAGE_C is 0.063621. Maximum 0.05 (5 credits): the learner is charged 5 credits, never 7.
+  const h = capped(t, 0.05);
+  h.setReply(async () => Response.json({ status: 'completed', steps: IMAGE_STEPS, usage: USAGE_C }));
+  const made = await h.create();
+  assert.deepEqual([made.p.quote.estimate_credits, made.p.quote.max_credits, made.p.quote.reserve_credits], [4, 5, 20], 'three separate numbers on the signed quote');
+  await h.alarm(made.generationId);
+  const job = h.job(made.generationId);
+  assert.equal(job.stage, 'ready');
+  assert.deepEqual([job.request.quote.max_credits, job.cost.maxChargeUsd, job.cost.settledUsd, job.cost.chargedUsd, job.cost.absorbedUsd], [5, 0.05, 0.063621, 0.05, 0.013621]);
+  assert.equal(ops(h)[0].cost_usd, 0.063621, 'the platform ledger records the real provider cost');
+  assert.equal(ops(h)[0].error, 'charge_capped', 'and says the learner charge was capped (inside the hold, so not a spend_bound_exceeded)');
+  assert.equal(attempts(h)[0].cost_micros, 50000, 'the learner attempt is the signed maximum');
+  assert.equal(attempts(h)[0].reserved_micros, 200000);
+  assert.equal(attempts(h)[0].status, 'settled');
+  const pub = (await (await h.get(made.generationId)).json()).job;
+  assert.deepEqual([pub.estimate_credits, pub.max_credits, pub.charged_credits], [4, 5, 5]);
+  const closed = h.logs.map(line => JSON.parse(line)).find(line => line.step === 'closed');
+  assert.deepEqual([closed.chargedUsd, closed.absorbedUsd], [0.05, 0.013621]);
+  const inspected = (await (await h.get(made.generationId, '/inspect')).json()).job;
+  assert.deepEqual(inspected.costs, { state: 'estimated_upper_bound', overrun: false, absorbed: true });
+  assert.deepEqual([inspected.quote.estimate_credits, inspected.quote.max_credits, inspected.quote.reserve_credits], [4, 5, 20]);
+  assert.deepEqual(moneyLeaks(inspected), []);
+  // Under the maximum (0.08, 8 credits) the learner pays the real cost exactly (micros, not rounded to a credit): nothing is absorbed.
+  const u = capped(t, 0.08);
+  u.setReply(async () => Response.json({ status: 'completed', steps: IMAGE_STEPS, usage: USAGE_C }));
+  const m2 = await u.create();
+  await u.alarm(m2.generationId);
+  assert.equal(u.job(m2.generationId).cost.absorbedUsd, 0);
+  assert.equal(attempts(u)[0].cost_micros, 63621); assert.equal(ops(u)[0].error, 'cost_estimated_upper_bound');
+  assert.equal((await (await u.get(m2.generationId)).json()).job.charged_credits, 7);
+});
+
+test('a charge is never above the signed maximum even when the real cost is several times larger (the platform absorbs it)', async t => {
+  // Pro with thinking far past what the hold could cover: 6,000 thought tokens x $120/M = 0.72 on top of the image.
+  const usage = { ...USAGE_D, total_thought_tokens: 6000, total_output_tokens: 1218 };
+  const h = capped(t, 0.08, '0.3');
+  h.setReply(async () => Response.json({ status: 'completed', steps: IMAGE_STEPS, usage }));
+  const made = await h.create(undefined, h.proposal({ settings: { model: 'gemini-3-pro-image' } }));
+  assert.equal(made.p.quote.max_credits, 20);
+  await h.alarm(made.generationId);
+  const job = h.job(made.generationId);
+  assert.ok(job.cost.settledUsd > 0.7, 'the real cost is far above the maximum');
+  assert.equal(attempts(h)[0].cost_micros, 200000, 'the learner is charged exactly the signed maximum, 20 credits');
+  assert.ok(ops(h)[0].cost_usd > 0.7);
+  assert.equal(ops(h)[0].error, 'spend_bound_exceeded', 'above the hold as well: the platform guard sees it (existing behaviour)');
+  assert.equal(job.cost.overrun.exceeded, true);
+  assert.ok(job.cost.absorbedUsd > 0.5);
+  assert.equal((await (await h.get(made.generationId)).json()).job.charged_credits, 20);
+});
+
+test('zero-credit failures stay zero with a maximum configured: the cap never turns a failure into a charge, and nothing reads as charged', async t => {
+  const h = capped(t, 0.08);
+  h.setReply(async () => Response.json({ error: { code: 'rate_limit_exceeded' } }, { status: 429 }));
+  const a = await h.create();
+  await h.alarm(a.generationId);
+  assert.equal(h.job(a.generationId).stage, 'failed');
+  assert.equal(attempts(h)[0].cost_micros, 0);
+  assert.equal((await (await h.get(a.generationId)).json()).job.charged_credits, 0);
+  // A request that never left (provider not configured): released, zero credits.
+  const n = capped(t, 0.08);
+  n.env.GEMINI_API_KEY = '';
+  const b = await n.create();
+  await n.alarm(b.generationId);
+  assert.equal(n.job(b.generationId).stage, 'cancelled');
+  assert.equal((await (await n.get(b.generationId)).json()).job.charged_credits, 0);
+  // Unknown outcome: the charge stays unknown (null), never invented.
+  const x = capped(t, 0.08);
+  x.setReply(async () => { throw new TypeError('network'); });
+  const c = await x.create();
+  await x.alarm(c.generationId);
+  assert.equal(x.job(c.generationId).stage, 'unknown');
+  assert.equal((await (await x.get(c.generationId)).json()).job.charged_credits, null);
+});
+
+test('stale quote at Generate: a changed maximum, estimate or hold answers 409 quote_changed with the live quote in credits and consumes nothing', async t => {
+  const h = capped(t, 0.08);
+  const p = h.proposal();
+  assert.equal(p.quote.max_credits, 8);
+  // The maximum is changed in the Worker configuration after the person confirmed.
+  h.env.IMAGE_MAX_CHARGE_USD_BY_MODEL = JSON.stringify({ 'gemini-nano-banana-2.1': 0.07, 'gemini-3-pro-image': 0.2, 'gpt-image-2.5-flare': 0.03, 'gpt-image-2.5-sunburst': 0.03 });
+  const res = await h.post({ generationId: 'gen-stale-max-0001', proposal: p, app: 'canvas-abcdef12' });
+  const body = await res.json();
+  assert.equal(res.status, 409); assert.equal(body.code, 'quote_changed');
+  assert.deepEqual(body.quote, { estimate_credits: 4, max_credits: 7, reserve_credits: 20 });
+  assert.match(body.error, /can cost up to 7 AI credits/); assert.match(body.error, /press Generate again/);
+  assert.deepEqual(moneyLeaks(body), []);
+  assert.equal([...h.states.values()].filter(s => s.storage.records.size).length, 0, 'no job'); assert.equal(h.calls.length, 0); assert.equal(ops(h).length, 0);
+  // Signed again with the live quote, the same Generate goes through.
+  const again = await h.create(undefined, h.proposal());
+  assert.equal(again.res.status, 201);
+  // A maximum removed from the configuration pauses the quote (never a default): quote_unknown, nothing starts.
+  h.env.IMAGE_MAX_CHARGE_USD_BY_MODEL = '{}';
+  const gone = await h.post({ generationId: 'gen-no-max-0000001', proposal: p, app: 'canvas-abcdef12' });
+  assert.equal(gone.status, 409); assert.deepEqual([(await gone.json()).reason], ['max_unset']);
+});
+
+test('every user-facing image response is credits only: create, status, the stale-quote answer and a refusal carry no dollar key or amount', async t => {
+  const h = capped(t, 0.05);
+  h.setReply(async () => Response.json({ status: 'completed', steps: IMAGE_STEPS, usage: USAGE_C }));
+  const made = await h.create();
+  const bodies = [made.body, made.p.quote];
+  await h.alarm(made.generationId);
+  bodies.push((await (await h.get(made.generationId)).json()));
+  const stale = h.proposal(); stale.quote.max_credits += 1;
+  bodies.push(await (await h.post({ generationId: 'gen-leak-scan-00001', proposal: stale, app: 'canvas-abcdef12' })).json());
+  bodies.push(await (await h.post({ generationId: 'gen-leak-scan-00002', proposal: h.proposal({ settings: { model: 'gpt-image-2.5-flare', aspect_ratio: '1:1', resolution: '1K', quality: 'medium' } }), app: 'canvas-abcdef12' })).json());
+  bodies.push(await (await imageJobsRoute('/api/learn/image-jobs', new Request('https://app/api/learn/image-jobs'), h.env, h.routeDeps)).json());
+  for (const body of bodies) assert.deepEqual(moneyLeaks(body), [], JSON.stringify(body).slice(0, 120));
+  // The scan itself detects a leak (it is not vacuous).
+  assert.ok(moneyLeaks({ max_usd: 1 }).length && moneyLeaks({ note: 'costs $0.05' }).length);
 });
