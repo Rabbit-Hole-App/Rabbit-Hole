@@ -520,6 +520,7 @@
     "packages/web/src/aspect-ratios.js": ["motion-command-check.mjs"],
     "packages/web/src/AspectRatioSelect.jsx": ["motion-command-check.mjs"],
     "packages/web/src/explain-examples.js": ["explain-scene-check.mjs","slash-sheet-check.mjs"],
+    "packages/web/src/board-draw-back.js": ["chat-block-check.mjs"],
     "packages/web/src/area-crop.js": ["chat-block-check.mjs","paper-selection-check.mjs","paper-highlight-check.mjs","search-files-check.mjs","tutor-image-context-check.mjs"],
     "packages/web/src/explain-client.js": ["explain-entry-check.mjs","explain-scene-check.mjs","slash-sheet-check.mjs","inline-ai-check.mjs","card-edit-check.mjs","explain-proposal-card-check.mjs"],
     "packages/web/src/ExplainPending.jsx": ["explain-entry-check.mjs","explain-scene-check.mjs","chat-block-check.mjs","explain-proposal-card-check.mjs"],

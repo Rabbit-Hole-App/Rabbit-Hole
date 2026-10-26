@@ -1,6 +1,6 @@
 // Ask about selection (EXP-T28): the canvas toolbar's one region path. A crop is bound to what it shows at the moment
 // it was taken: each card it touches by id and content revision, the crop's bounds inside that card, and the card's
-// moment (an Explanation's time, inputs and the objects under the crop; a whiteboard's shapes by tldraw id; a paper's
+// moment (an Explanation's time, inputs and the objects under the crop; a whiteboard's sketch marks by mark id; a paper's
 // page and the region of that page).
 
 const NEWLINE = String.fromCharCode(10);
@@ -29,7 +29,7 @@ export function within(frame, inner) {
 }
 
 // One card under the crop. measured: { card, page?, objects? } client rects read the moment the crop was drawn
-// (objects: [{ id, rect }] for an Explanation's drawn objects); shapes: a whiteboard's [{ id, type, text, author }].
+// (objects: [{ id, rect }] for an Explanation's drawn objects); shapes: a whiteboard's marks [{ id, type, text, author }] (whiteboard-sketch.js marksIn).
 export function cropBinding(block, crop, measured) {
   const bounds = within(measured.card, crop);
   if (!bounds) return null;

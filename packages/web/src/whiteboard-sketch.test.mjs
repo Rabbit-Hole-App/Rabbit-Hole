@@ -161,6 +161,10 @@ test('linked cards: the id is a function of the link, a second insert is one car
   assert.notEqual(cardIdFor(link), cardIdFor({ ...link, objectId: 'o3' }));
   assert.throws(() => insertLinkedCards([], [{ kind: 'graph', block: {} }]), /whiteboardLink/);
   assert.throws(() => insertLinkedCards([], [{ kind: 'unknown', whiteboardLink: link, block: {} }]), /card kind/);
+  // the palette entry 'videoGenerate' saves a block of type 'video' (mode 'generate'); a card typed 'videoGenerate' renders nothing
+  const clip = insertLinkedCards([], [{ kind: 'video', whiteboardLink: link, block: { mode: 'generate' } }]);
+  assert.deepEqual(clip.blocks.map(b => b.type), ['video']);
+  assert.deepEqual(insertLinkedCards([], ['graph', 'three_d', 'scene', 'image', 'paper_figure'].map(kind => ({ kind, whiteboardLink: { ...link, objectId: kind }, block: {} }))).blocks.map(b => b.type), ['graph', 'model3d', 'scene', 'image', 'image']);
   assert.deepEqual(RICH_CARD, { graph: 'graph', three_d: 'model3d', video: 'videoGenerate', scene: 'scene', image: 'image', paper_figure: 'image' });
 });
 

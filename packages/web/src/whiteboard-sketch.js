@@ -17,6 +17,9 @@ export const LIMITS = {
 // A Tutor plan kind that becomes an ordinary canvas card (learn-board-renderer PLAN_KINDS) and the block type it becomes
 // (BLOCK_TYPES in LearningBlocks.jsx: graph, model3d, videoGenerate, scene, image).
 export const RICH_CARD = { graph: 'graph', three_d: 'model3d', video: 'videoGenerate', scene: 'scene', image: 'image', paper_figure: 'image' };
+// RICH_CARD names the BLOCK_TYPES palette entry; the saved block's own `type` differs for video (the 'videoGenerate' entry
+// makes { type: 'video', mode: 'generate' }), so a linked card is saved with the type the card renderer switches on.
+export const RICH_TYPE = { graph: 'graph', three_d: 'model3d', video: 'video', scene: 'scene', image: 'image', paper_figure: 'image' };
 
 const finite = value => typeof value === 'number' && Number.isFinite(value);
 const plain = value => !!value && typeof value === 'object' && !Array.isArray(value);
@@ -234,7 +237,7 @@ export function insertLinkedCards(blocks, cards) {
     const id = cardIdFor(card.whiteboardLink);
     if (have.has(id)) continue;
     have.add(id); added.push(id);
-    next.push({ ...card.block, id, type: RICH_CARD[card.kind], whiteboardLink: card.whiteboardLink });
+    next.push({ ...card.block, id, type: RICH_TYPE[card.kind], whiteboardLink: card.whiteboardLink });
   }
   return { blocks: next, added };
 }

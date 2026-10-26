@@ -810,10 +810,11 @@ await check('the board has Fit and 100%, and no tool toggle of its own', async (
   if (await node.locator('[data-board-tools], .tlui-toolbar').count()) throw new Error('the per-card tool toggle is still there');
 });
 
-// ponytail: drawing the answer onto the board is workstream T's planner; this step passes once it is merged.
 await check('a board answer can be explained back on the board', async () => {
   const board = canvas.locator('[data-block-id]').last();
-  const marksBefore = await boardMarks(board);
+  // T6: the board counts what the Tutor drew by its own marks (author assistant); none yet, and nothing offered to remove
+  const drawn = board.locator('[data-board-clear-explanation]');
+  if (await drawn.count()) throw new Error('the board already claims Tutor drawing before any explanation');
   const dock = page.locator('input[placeholder^="Ask about"], textarea[placeholder^="Ask about"]').first();
   await dock.fill('What does the flat part of this curve mean?');
   await dock.press('Enter');
@@ -827,7 +828,11 @@ await check('a board answer can be explained back on the board', async () => {
   // the plan is drawn onto the same board, never a copy of it
   const failure = page.locator('[data-toast-error]');
   for (let waited = 0; waited < 240000; waited += 4000) {
-    if (await boardMarks(board) > marksBefore) return;
+    if (await drawn.count()) {
+      const counted = await board.getByText(/\d+ (shapes|marks) drawn by the tutor/).first().innerText();
+      if (!/^[1-9]\d* /.test(counted)) throw new Error(`the Tutor's drawing is not counted: "${counted}"`);
+      return;
+    }
     // a failure is reported in a toast the learner can copy, not swallowed
     if (await failure.count()) throw new Error(`explaining failed: ${await failure.first().innerText()}`);
     await page.waitForTimeout(4000);
