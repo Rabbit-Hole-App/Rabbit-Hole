@@ -32,11 +32,28 @@ const STATE = { strokes: [], shapes: [], items: [], links: [], groups: [], areas
 const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Native whiteboard ${Date.now().toString(36)}` }) });
 const catalog = await api('/api/apps');
 const KEY = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${canvas.name}:ink`;
+const CHAT_KEY = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${canvas.name}:chat`;
+// A saved chat answer that came from the empty board: the Tutor draws it back on that board ("Explain in canvas").
+const EXCHANGES = [{ id: 'ex-1', question: 'What does the flat part of this curve mean?', answer: 'The flat part is where the output saturates near 0 or 1.', status: 'done', dx: 0, dy: 0, linkFrom: 'wb-empty' }];
+// The board plan the Tutor would return: prose, an equation, a diagram, and a picture that becomes a card beside the board.
+const PIXEL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+const PLAN = { blocks: [
+  { kind: 'text', text: 'The flat parts are where the sigmoid saturates, so a big change in the score barely moves the probability.', fromObjectId: null },
+  { kind: 'equation', text: 'σ(x) = 1 / (1 + e^-x)', fromObjectId: null },
+  { kind: 'diagram', text: 'Score to probability', nodes: [{ id: 'a', label: 'Score' }, { id: 'b', label: 'Sigmoid' }, { id: 'c', label: 'Probability' }], edges: [{ from: 'a', to: 'b' }, { from: 'b', to: 'c' }], fromObjectId: null },
+  { kind: 'image', text: 'A single pixel stands in for the picture.', photo: { src: PIXEL, url: 'https://www.pexels.com/photo/1', alt: 'A pixel', width: 1, height: 1, photographer: 'Ada' }, annotations: [{ kind: 'box', x: 0.1, y: 0.1, w: 0.3, h: 0.2 }], fromObjectId: null },
+] };
 
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, acceptDownloads: true });
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
-await context.addInitScript(([key, state]) => { localStorage.setItem('rh.nativeWhiteboard', '1'); if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(state)); }, [KEY, STATE]);
+await context.addInitScript(([key, state, chatKey, exchanges]) => {
+  localStorage.setItem('rh.nativeWhiteboard', '1');
+  if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(state));
+  if (!localStorage.getItem(chatKey)) localStorage.setItem(chatKey, JSON.stringify(exchanges));
+}, [KEY, STATE, CHAT_KEY, EXCHANGES]);
+const boardRequests = [];
+await context.route('**/api/learn/board', route => { boardRequests.push(route.request().postDataJSON()); return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ plan: PLAN }) }); });
 // Nothing here asks a model: any model-capable request is refused and counted.
 const asked = [];
 for (const route of ['**/api/learn/ask', '**/api/learn/tutor/plan', '**/api/learn/artifact', '**/api/learn/home-ask']) await context.route(route, handler => { asked.push(handler.request().url()); return handler.abort(); });
@@ -118,7 +135,7 @@ await check('2 a new Whiteboard opens with the native sigmoid, whole at 100 perc
   assert.deepEqual(await counts(seededId), { strokes: 1, shapes: 4, items: 6 });
   assert.match(await frame(seededId).innerText(), /sigmoid squashes any score/);
   const content = await frame(seededId).locator('[data-sketch-content]').getAttribute('style');
-  assert.ok(!/scale/.test(content || ''), 'nothing is clipped, so the view is the identity');
+  assert.ok(!/scale/.test(content || ''), `nothing is clipped, so the view is the identity (style ${content}, frame ${JSON.stringify(await bounds(frame(seededId)))})`);
   assert.equal((await saved(seededId)).sketch, undefined, 'opening saves nothing');
 });
 await shot('01-seeded-sigmoid');
@@ -276,6 +293,66 @@ await check('12 a mark drawn in a fitted view lands where it appears', async () 
   assert.ok(Math.abs(drawn.x - from.x) < 10 && Math.abs(drawn.y - from.y) < 10, `drawn at ${drawn.x},${drawn.y}, pressed at ${from.x},${from.y}`);
 });
 await shot('04-fitted');
+
+await check('10b editing a tldraw board saves the converted drawing beside the untouched original', async () => {
+  const id = 'wb-legacy';
+  const g = await reveal(id);
+  const marksBefore = (await counts(id)).shapes;
+  await tool('Rectangle').click();
+  await drag(at(g, 0.1, 0.1), at(g, 0.3, 0.3));
+  const block = await saved(id, entry => entry.sketch && entry.sketch.shapes.length >= marksBefore + 1);
+  assert.equal(JSON.stringify(block.snapshot), SNAPSHOT_TEXT, 'the original is byte-identical');
+  assert.equal(block.sketchFrom.digest, digestOf(SNAPSHOT));
+  assert.ok(block.sketch.strokes.length > 0 && block.sketch.items.length > 0, 'the converted drawing was saved with the edit');
+  assert.ok(block.sketch.strokes.every(stroke => stroke.id), 'converted strokes have ids');
+  await page.keyboard.press('Escape');
+});
+
+// ---- the Tutor draws its answer back on the board: one update, one undo step, cards beside it ----
+await check('13b the Tutor draws the answer on the board in one undo step, and replaying adds nothing', async () => {
+  const g = await reveal(empty);
+  const before = await storedBlock(empty);
+  const exchange = page.locator('[data-chat-block]').first();
+  await exchange.locator('[data-drag-zone]').first().click({ force: true });
+  const button = page.locator('[data-explain-canvas]');
+  await button.waitFor({ timeout: 15000 });
+  await button.click();
+  const after = await saved(empty, entry => entry.sketch.items.some(item => item.author === 'assistant'));
+  assert.equal(boardRequests.length, 1, 'one planning request');
+  const assistant = [...after.sketch.strokes, ...after.sketch.shapes, ...after.sketch.items].filter(mark => mark.author === 'assistant');
+  assert.ok(assistant.length >= 5, `${assistant.length} Tutor marks`);
+  assert.equal(new Set(assistant.map(mark => mark.explanationId)).size, 1);
+  assert.equal(after.sketch.shapes.filter(shape => shape.author !== 'assistant').length, before.sketch.shapes.length, 'the learner\'s own marks are untouched');
+  const linked = async () => (await page.evaluate(key => JSON.parse(localStorage.getItem(key)).blocks.filter(block => block.whiteboardLink), KEY));
+  await page.waitForFunction(key => JSON.parse(localStorage.getItem(key)).blocks.some(block => block.whiteboardLink), KEY, { timeout: 8000 });
+  const cards = await linked();
+  assert.equal(cards.length, 1, 'the picture became one card');
+  assert.equal(cards[0].whiteboardLink.whiteboard, empty);
+  assert.equal(cards[0].type, 'image');
+  await frame(empty).waitFor();
+  const label = await card(empty).getByText(/\d+ (shapes|marks) drawn by the tutor/).first().innerText();
+  assert.match(label, /^[1-9]\d* /);
+  // replaying the same answer (a retry or a second press) is already drawn: no new request, nothing added
+  await exchange.locator('[data-drag-zone]').first().click({ force: true });
+  await button.click();
+  await page.waitForTimeout(1200);
+  assert.equal(boardRequests.length, 1, 'no paid request for an answer that is already drawn');
+  assert.equal((await linked()).length, 1);
+  // one undo step takes marks and card away together; redo brings both back
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(500);
+  assert.equal((await linked()).length, 0, 'undo removed the card');
+  assert.equal(await card(empty).getByText(/drawn by the tutor/).count(), 0, 'and the marks');
+  await page.keyboard.press('Control+y');
+  await page.waitForTimeout(500);
+  assert.equal((await linked()).length, 1, 'redo brought the card back');
+  // Remove explanation takes the Tutor's marks out, keeps the learner's and the card
+  await card(empty).locator('[data-board-clear-explanation]').evaluate(el => el.click());
+  const cleared = await saved(empty, entry => ![...entry.sketch.strokes, ...entry.sketch.shapes, ...entry.sketch.items].some(mark => mark.author === 'assistant'));
+  assert.equal(cleared.sketch.shapes.length, before.sketch.shapes.length);
+  assert.equal((await linked()).length, 1, 'the card stays');
+});
+await shot('05-tutor-answer');
 
 // ---- Ask about selection names the card ----
 await check('13 the toolbar crop over the card arms one pill', async () => {

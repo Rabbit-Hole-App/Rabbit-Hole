@@ -15,6 +15,7 @@ import { notebookEditor } from './notebook-inline-client.js';
 import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
 import { editList, editWhiteboard, sketchOf } from './whiteboard-editor.js';
+import { applyDrawBack } from './board-draw-back.js';
 import { IDENTITY_VIEW, toSketch } from './whiteboard-sketch.js';
 import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
@@ -459,7 +460,7 @@ function SlotCard({ slot }) {
 // One conversation node: the learner's message, a separator, then the agent's
 // reply. Starts at a compact width, grows with content up to a max height
 // (longer replies scroll inside), and resizes from the corner handle.
-function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMove, onSize, onReply, renderComposer, onLayout, onConnect, onFile }) {
+function ChatCard({ exchange, zoom, selected, connected, boardId, onDrawBack = null, onSelect, onMove, onSize, onReply, renderComposer, onLayout, onConnect, onFile }) {
   const [replyOpen, setReplyOpen] = useState(false);
   const [started, setStarted] = useState(false);
   const [drawing, setDrawing] = useState('');
@@ -477,7 +478,9 @@ function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMo
       const board = boardAsk(boardId);
       // Without this the button would quietly reset and look like nothing happened.
       if (!board) throw new Error('That board is no longer on the canvas.');
-      await board.explain({ question: exchange.question, answer: exchange.answer, onStage: setDrawing });
+      // A native Whiteboard plans the answer and hands it back; the canvas applies it in one undo step. (The tldraw card draws itself.)
+      const back = await board.explain({ question: exchange.question, answer: exchange.answer, key: exchange.id, onStage: setDrawing });
+      if (back?.marks) onDrawBack?.(boardId, back);
     }
     catch (problem) { toast(problem.message, { tone: 'error' }); }
     finally { setDrawing(''); }
@@ -4631,6 +4634,22 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // edit: one change to a Whiteboard card's whole sketch as one undo step (a Tutor answer's marks, Remove explanation).
   // writable: this viewer may change the card (a shared read-only view, a copy and a locked card may not).
   const editWhole = (id, change) => { snapshot(); setBlocks(previous => previous.map(block => (block.id === id && block.type === 'whiteboard' ? editWhiteboard(block, change, whiteboardEdits(id)) : block))); };
+  // The Tutor's answer on a native Whiteboard (board-draw-back.js): its marks and its rich cards in ONE update, one undo step, the
+  // cards placed beside the board from the layout as it is now. A drawing that does not fit stays on screen only (tooLarge) and
+  // its cards are not made; a viewer who may not edit writes nothing.
+  const applyBoardDrawBack = (whiteboardId, back) => {
+    const board = blocksRef.current.find(block => block.id === whiteboardId && block.type === 'whiteboard');
+    if (!board) return;
+    const items = columnItems(), box = boundsRef.current[whiteboardId];
+    const layout = box && { box, taken: items.filter(item => item.id !== whiteboardId && item.w > 0).map(({ x, y, w, h }) => ({ x, y, w, h })), nextFlowTop: items.length ? Math.max(...items.map(item => item.flowBottom)) + 20 : 0, column: COLUMN };
+    const permit = { readOnly: !sketchHost.writable(whiteboardId) };
+    const apply = previous => applyDrawBack({ blocks: previous, whiteboardId, drawBack: back, sketch: sketchOf(previous.find(block => block.id === whiteboardId)), permit, layout, boardChars: JSON.stringify(boardRef.current).length });
+    const result = apply(blocksRef.current);
+    if (result.reason === 'read-only') throw new Error('This board is read-only for you, so the tutor cannot draw on it.');
+    if (result.reason === 'sketch-too-large' || result.reason === 'board-too-large') { editWhole(whiteboardId, () => result.sketch); toast('This drawing is too large to save, so the tutor\'s cards were not added. It stays on screen until you leave the page.', { tone: 'error' }); return; }
+    snapshot();
+    setBlocks(previous => apply(previous).blocks);
+  };
   const sketchHost = { render: renderSketch, hold: holdSketch, release: id => { if (drawTargetRef.current === id) releaseSketch(); }, capture: captureSketch, readOnly, edit: editWhole, writable: id => !(readOnly || localCopy || lockedIds.has(id)) };
   // A target whose sketch is gone - hidden, submitted, its card deleted or undone away - hands the toolbar back. A Whiteboard
   // card's sketch is always there.
@@ -5693,8 +5712,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
           {/* An answer to a red box, or to a card asked about (float, LearnPage), lives beside it: out of the column flow (no height, no gap), so asking never pushes the slides, the cards or the box down. */}
           {exchanges.map(exchange => (String(exchange.linkFrom).startsWith('area:') || (exchange.linkFrom && exchange.float)
-            ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
-            : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
+            ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onDrawBack={applyBoardDrawBack} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
+            : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onDrawBack={applyBoardDrawBack} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; } }}>
             {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />)}
           </CanvasRefs.Provider></CardOpen.Provider></SketchHost.Provider>

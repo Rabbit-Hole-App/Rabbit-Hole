@@ -5,10 +5,11 @@ import { registerBoardAsk } from './board-ask.js';
 import { wsHeaders } from './api.js';
 import PaidConfirm from './PaidConfirm.jsx';
 import { afterPaint, usePerf } from './learn-perf.js';
-import { boardNotice, mergeMarks, sketchOf, VIEW_START, viewStep } from './whiteboard-editor.js';
+import { boardNotices, sketchOf, VIEW_START, viewStep } from './whiteboard-editor.js';
 import { keptOf } from './whiteboard-kept.js';
-import { explainOnBoard } from './whiteboard-explain.js';
-import { countAssistant, listsOf, marksIn, removeExplanation, toSketch } from './whiteboard-sketch.js';
+import { boardShapesIn, explainBoard, hasExplanation } from './board-draw-back.js';
+import { requestBoardExplanation } from './learn-board-request.js';
+import { contentBounds, countAssistant, listsOf, removeExplanation } from './whiteboard-sketch.js';
 
 // The Whiteboard card without tldraw (docs/features/tldraw-removal.md, workstream A). The drawing area is the canvas's own
 // sketch surface (AdaptiveCanvas renderSketch, through SketchHost): the one canvas toolbar draws here when the card is pressed,
@@ -84,24 +85,23 @@ export default function WhiteboardNative({ block, appName, onChange, host }) {
     finally { setSpeaking(false); }
   };
 
-  // Ask about selection (board-ask.js): a client rectangle becomes sketch space through the card's frame and view.
+  // Ask about selection and the Tutor's answer (board-ask.js). The card finds the marks under a crop (boardShapesIn: the client
+  // rectangle through the card's frame and view) and plans the answer (explainBoard); the canvas applies the result in one
+  // update with its undo step (AdaptiveCanvas applyBoardDrawBack). The card then shows what the Tutor drew.
   useEffect(() => registerBoardAsk(block.id, {
-    shapesIn: screen => {
-      const element = frameEl.current;
-      if (!element) return [];
-      const box = element.getBoundingClientRect(), ratio = box.width / (element.clientWidth || 1) || 1;
-      const at = (x, y) => toSketch({ x: (x - box.left) / ratio, y: (y - box.top) / ratio }, stateRef.current.view);
-      const a = at(screen.left, screen.top), b = at(screen.left + screen.width, screen.top + screen.height);
-      return marksIn(sketchRef.current, { x: a.x, y: a.y, x2: b.x, y2: b.y });
+    shapesIn: boardShapesIn(() => (frameEl.current ? { sketch: sketchRef.current, frame: { rect: frameEl.current.getBoundingClientRect(), w: frameEl.current.offsetWidth }, view: stateRef.current.view } : null)),
+    explain: async ({ question, answer, key, onStage }) => {
+      const back = await explainBoard({
+        whiteboardId: block.id, title: latest.current.title, appName, question, answer, key, onStage, getSketch: () => sketchRef.current,
+        exists: id => hasExplanation(sketchRef.current, id), permit: () => ({ readOnly: !host.writable(block.id) }), request: requestBoardExplanation,
+      });
+      if (back.marks) { setOffer(back.spoken || null); const rect = contentBounds(back.marks); if (rect) focus(rect); }
+      return back;
     },
-    explain: async ({ question, answer, onStage }) => {
-      const result = await explainOnBoard({ block: latest.current, appName, question, answer, onStage, focus, addMarks: marks => host.edit(block.id, current => mergeMarks(current, marks)) });
-      setOffer(result?.spoken || null);
-    },
-  }), [block.id, block.title, host]);
+  }), [block.id, host]);
 
   const assistant = countAssistant(sketch);
-  const notice = boardNotice(block);
+  const notices = boardNotices(block);
   const picture = kept.picture && (
     <img data-board-kept-picture src={kept.picture.src} alt="" draggable={false}
       style={{ position: 'absolute', left: kept.picture.x, top: kept.picture.y, width: kept.picture.width, height: kept.picture.height, maxWidth: 'none', pointerEvents: 'none' }} />
@@ -123,7 +123,7 @@ export default function WhiteboardNative({ block, appName, onChange, host }) {
             : <p className="p-4 text-xs text-ink-2">Drawing is not available here.</p>}
         </div>
       </div>
-      {notice && <span data-board-notice className="shrink-0 text-xs text-amber-700">{notice}</span>}
+      {notices.map(note => <span key={note.message} data-board-notice={note.level} className={`shrink-0 text-xs ${note.level === 'error' ? 'text-red-700' : 'text-amber-700'}`}>{note.message}</span>)}
       {kept.items.length > 0 && (
         <details data-board-kept className="shrink-0 text-xs text-ink-2">
           <summary className="cursor-pointer">Kept from the original board ({kept.items.length})</summary>

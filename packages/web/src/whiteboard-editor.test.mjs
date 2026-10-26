@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { addMarks, boardNotice, conversionPending, editList, editWhiteboard, mergeMarks, persistable, pruneSelection, sketchOf, VIEW_START, viewStep } from './whiteboard-editor.js';
+import { addMarks, boardNotices, editList, editWhiteboard, mergeMarks, persistable, pruneSelection, sketchOf, VIEW_START, viewStep } from './whiteboard-editor.js';
 import { keptOf } from './whiteboard-kept.js';
 import { lightBlocks } from './canvas-persist.js';
 import { SEED_LABELS, sigmoidSketch } from './whiteboard-seed.js';
@@ -44,7 +44,6 @@ test('the seed is a valid sketch of lesson marks that opens whole in a card fram
 
 test('an edit saves through the contract: the sketch is replaced, the snapshot is carried over untouched, sketchFrom is written once', () => {
   const snapshot = fixture('whiteboard-editor.json'), before = JSON.stringify(snapshot);
-  // The migration seam is a stub here, so a board with a snapshot is not editable yet (see the next test); a converted one is.
   const converted = { id: 'w1', type: 'whiteboard', snapshot, sketch: { strokes: [], shapes: [rect('a')], items: [] }, sketchFrom: { digest: digestOf(snapshot), v: 1 } };
   const next = edit(converted, 'shapes', marks => [...marks, rect('b')]);
   assert.equal(next.snapshot, snapshot, 'by reference');
@@ -59,12 +58,36 @@ test('an edit saves through the contract: the sketch is replaced, the snapshot i
   assert.equal(plain.snapshot, null);
 });
 
-test('a board that is not converted yet, a read-only viewer and a locked or copied card never write', () => {
-  const snapshot = fixture('whiteboard-editor.json');
+test('an unconverted tldraw board opens derived in memory, writes nothing until an authorized edit, then saves sketch and sketchFrom beside the untouched snapshot', () => {
+  const snapshot = fixture('whiteboard-editor.json'), before = JSON.stringify(snapshot);
   const unconverted = { id: 'w1', type: 'whiteboard', snapshot };
-  assert.equal(conversionPending(unconverted), true);
-  assert.equal(edit(unconverted, 'shapes', marks => [...marks, rect('x')]), unconverted, 'the original is never saved over an empty derivation');
-  assert.match(boardNotice(unconverted), /not been converted/);
+  assert.ok(sketchOf(unconverted).shapes.length > 3, 'the converter drew the board');
+  assert.equal(unconverted.sketch, undefined, 'opening saved nothing');
+  assert.equal(edit(unconverted, 'shapes', marks => [...marks, rect('x')], { readOnly: true }), unconverted, 'a read-only viewer never writes');
+  const first = edit(unconverted, 'shapes', marks => [...marks, rect('x')]);
+  assert.equal(first.snapshot, snapshot);
+  assert.equal(JSON.stringify(snapshot), before);
+  assert.equal(first.sketchFrom.digest, digestOf(snapshot));
+  assert.equal(legacyState(first), 'converted');
+  assert.equal(sketchOf(first).shapes.length, sketchOf(unconverted).shapes.length + 1, 'the derived marks were kept with the edit');
+  assert.ok(sketchOf(first).shapes.some(shape => shape.id === 'x'));
+});
+
+test('a diverged original is always announced, and the notices name the size problem with both downloads kept', () => {
+  const snapshot = fixture('whiteboard-editor.json');
+  const edited = structuredClone(snapshot);
+  edited.document.store['shape:box'].x += 1;
+  const diverged = { id: 'w1', type: 'whiteboard', snapshot: edited, sketch: { strokes: [], shapes: [rect('a')], items: [] }, sketchFrom: { digest: digestOf(snapshot), v: 1 } };
+  assert.equal(legacyState(diverged), 'diverged');
+  assert.ok(boardNotices(diverged).some(note => /changed by an older version/.test(note.message) && /Both are kept/.test(note.message)));
+  assert.deepEqual(boardNotices(fresh()), []);
+  const full = boardNotices({ ...fresh(), tooLarge: 'board-too-large' });
+  assert.equal(full[0].level, 'error');
+  assert.match(full[0].message, /Nothing was deleted/);
+  assert.deepEqual(full[0].downloads, ['Download my drawing', 'Download original']);
+});
+
+test('a read-only viewer, a copy and a locked card never write', () => {
   const mine = { ...fresh(), sketch: { strokes: [], shapes: [rect('a')], items: [] } };
   assert.notEqual(edit(mine, 'shapes', () => []), mine, 'an editor writes');
   assert.equal(edit(mine, 'shapes', () => [], { readOnly: true }), mine, 'a shared read-only viewer');
@@ -99,17 +122,17 @@ test('a drawing too large for the block stays on screen, saves its last fitting 
   assert.ok(JSON.stringify({ strokes: big }).length > LIMITS.sketchChars);
   const converted = { id: 'w1', type: 'whiteboard', snapshot, sketch: { strokes: [stroke(1)], shapes: [], items: [] }, sketchFrom: { digest: digestOf(snapshot), v: 1 } };
   const over = edit(converted, 'strokes', () => big);
-  assert.equal(over.tooLarge, true);
+  assert.equal(over.tooLarge, 'sketch-too-large');
   assert.equal(sketchOf(over).strokes.length, 12000, 'still drawn');
   assert.equal(over.snapshot, snapshot);
-  assert.match(boardNotice(over), /too large to save/);
+  assert.ok(boardNotices(over).some(note => /too large to save/.test(note.message)));
   const saved = persistable(over);
   assert.equal(saved.tooLarge, undefined);
   assert.equal(saved.sketch.strokes.length, 1, 'the last sketch that fit is what is saved');
   assert.equal(saved.snapshot, snapshot);
   // further edits while over keep the same last-fitting copy; getting back under the limit clears the flag
   const again = edit(over, 'items', items => [...items, { id: 'n', kind: 'text', x: 0, y: 0, text: 'x' }]);
-  assert.equal(again.tooLarge, true);
+  assert.equal(again.tooLarge, 'sketch-too-large');
   assert.equal(persistable(again).sketch.strokes.length, 1);
   const back = edit(again, 'strokes', () => [stroke(2)]);
   assert.equal(back.tooLarge, undefined);
@@ -131,7 +154,7 @@ test('the whole board is measured only for a large sketch, and a board that woul
   assert.ok(chars > 100_000 && chars < LIMITS.sketchChars, `${chars} is large but fits the block`);
   const over = editWhiteboard(block, () => large, { boardChars: () => { measured += 1; return LIMITS.boardChars; } });
   assert.equal(measured, 1, 'a large sketch measures the board once');
-  assert.equal(over.tooLarge, true, 'the whole board would pass 1.9 MB');
+  assert.equal(over.tooLarge, 'board-too-large', 'the whole board would pass 1.9 MB');
   assert.equal(over.savedSketch.strokes.length, 1);
   assert.equal(editWhiteboard(block, () => large, { boardChars: () => 200_000 }).tooLarge, undefined, 'on a small board it saves');
 });

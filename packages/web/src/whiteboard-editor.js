@@ -3,6 +3,7 @@
 // The marks themselves are drawn and edited by the canvas's own tools (AdaptiveCanvas drawGesture); undo and redo are the
 // canvas's block-level history, which restores the block objects this module returns, so every edit is one step.
 import { deriveSketch } from './whiteboard-derive.js';
+import { saveNotice } from './legacy-to-sketch.js';
 import { sigmoidSketch } from './whiteboard-seed.js';
 import {
   IDENTITY_VIEW, emptySketch, fitView, focusView, initialView, legacyState, mayPersist, normalizeSketch, saveVerdict, withSketch, withStrokeIds,
@@ -15,33 +16,36 @@ const MEASURE_BOARD_AT = 100_000;
 
 // ---------- what the card shows ----------
 const shown = new WeakMap();
+// Derived once per block object: deriveSketch reads the whole snapshot.
+const derivedOf = block => { let hit = shown.get(block); if (!hit) { hit = block.snapshot != null ? deriveSketch(block) : null; shown.set(block, hit || false); } return hit || null; };
+const sketches = new WeakMap();
 // The effective sketch of a whiteboard block: the saved one, else (a block with a tldraw snapshot) the one derived in memory,
 // else the seeded demo, else empty. Strokes carry ids (withStrokeIds). Cached per block object; deriving never writes.
 export function sketchOf(block) {
   if (!block) return emptySketch();
-  let sketch = shown.get(block);
+  let sketch = sketches.get(block);
   if (!sketch) {
-    sketch = withStrokeIds(block.sketch != null ? block.sketch : block.snapshot != null ? deriveSketch(block).sketch : block.demo === 'sigmoid' ? sigmoidSketch() : emptySketch());
-    shown.set(block, sketch);
+    sketch = withStrokeIds(block.sketch != null ? block.sketch : block.snapshot != null ? derivedOf(block).sketch : block.demo === 'sigmoid' ? sigmoidSketch() : emptySketch());
+    sketches.set(block, sketch);
   }
   return sketch;
 }
-// A snapshot that cannot be converted yet (the migration seam): the card shows the original's kept layer, saves nothing.
-export const conversionPending = block => block?.snapshot != null && block.sketch == null && deriveSketch(block).pending === true;
+// Plain sentences about the original board the card must show (migration: a diverged original, unreadable or foreign objects).
+export const warningsOf = block => (block?.snapshot != null ? derivedOf(block).warnings : []);
 
 // ---------- an edit becomes a saved block ----------
-// `change` maps the sketch to the next one. A viewer who may not edit, or a board that is not converted yet, gets the block back
-// unchanged (no write). A sketch that does not fit stays on screen with `tooLarge`; the last fitting sketch rides along as
+// `change` maps the sketch to the next one. A viewer who may not edit gets the block back unchanged (no write). A sketch that does
+// not fit stays on screen with `tooLarge` (the verdict's reason); the last fitting sketch rides along as
 // `savedSketch` so persistable() can save that instead. The snapshot is never touched.
 export function editWhiteboard(block, change, { readOnly = false, canEdit = true, boardChars = null } = {}) {
-  if (!mayPersist({ readOnly, canEdit }) || conversionPending(block)) return block;
+  if (!mayPersist({ readOnly, canEdit })) return block;
   const sketch = withStrokeIds(change(sketchOf(block)));
   const next = withSketch(block, sketch);
   const small = JSON.stringify(normalizeSketch(sketch)).length <= MEASURE_BOARD_AT;
   const verdict = saveVerdict({ block, sketch, boardChars: small ? 0 : boardChars?.() ?? 0 });
   delete next.savedSketch;
   if (verdict.ok) return next;
-  return { ...next, tooLarge: true, savedSketch: block.tooLarge ? block.savedSketch ?? null : block.sketch ?? null };
+  return { ...next, tooLarge: verdict.reason, savedSketch: block.tooLarge ? block.savedSketch ?? null : block.sketch ?? null };
 }
 // One list of the sketch (the canvas's gesture code edits one list at a time).
 export const editList = (block, key, change, options) => editWhiteboard(block, sketch => ({ ...sketch, [key]: change(sketch[key] || []) }), options);
@@ -63,12 +67,12 @@ export function mergeMarks(sketch, marks) {
 }
 export const addMarks = (block, marks, options) => editWhiteboard(block, sketch => mergeMarks(sketch, marks), options);
 
-// The note the card shows under its title, or ''.
-export function boardNotice(block) {
-  if (conversionPending(block)) return 'This board has not been converted yet, so it cannot be edited here. Your original drawing is kept.';
-  if (block.tooLarge) return 'This drawing is too large to save; it stays until you reload.';
-  if (legacyState(block) === 'diverged') return 'The original board was changed in an older version. Your drawing is shown and the original is kept.';
-  return '';
+// The notes the card shows under its title: the original's warnings (a diverged original is always one), and the size notice when
+// the drawing does not fit (saveNotice: nothing is deleted, both downloads stay).
+export function boardNotices(block) {
+  const notes = warningsOf(block).map(message => ({ level: 'warn', message }));
+  if (block.tooLarge) notes.push(saveNotice({ ok: false, reason: block.tooLarge === 'board-too-large' ? 'board-too-large' : 'sketch-too-large' }));
+  return notes;
 }
 
 // ---------- the card's view: Fit, focus, reset (never saved, never shared, never a write) ----------
