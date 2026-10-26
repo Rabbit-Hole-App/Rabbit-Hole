@@ -30,7 +30,7 @@ const video = { title: 'Prism', caption: 'Light splitting.', operation: { op: 'g
 
 test('every primitive a command family names is in the registry, and each ready one builds a block', () => {
   for (const command of SLASH) for (const id of command.family || []) assert.ok(PRIMITIVES[id], `${command.name} names ${id}`);
-  for (const [id, entry] of Object.entries(PRIMITIVES)) if (entry.ready) assert.ok(entry.schema && entry.block && entry.about, id);
+  for (const [id, entry] of Object.entries(PRIMITIVES)) if (entry.ready && !entry.direct) assert.ok(entry.schema && entry.block && entry.about, id); // a direct primitive is made by its own route, never by the model
   assert.equal(artifactBlock('quiz', quiz).options.filter(option => option.correct).length, 1);
 });
 

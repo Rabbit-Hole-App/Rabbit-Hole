@@ -92,8 +92,8 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   assert.deepEqual(app.migrations, [...dev.migrations.filter(m => !['file-jobs-1','cad-jobs-1','explain-jobs-1','image-jobs-1'].includes(m.tag)), {tag:'cad-jobs-1',new_sqlite_classes:['CadJobs']}, {tag:'explain-jobs-1',new_sqlite_classes:['ExplainJobs']}, {tag:'image-jobs-1',new_sqlite_classes:['ImageJobs']}, {tag:'file-jobs-1',new_sqlite_classes:['FileJobs']}]);
   // A migration tag is applied once per worker: every config's tags are unique, and image-jobs-1 adds only ImageJobs.
   for (const c of [app, dev]) assert.equal(new Set(c.migrations.map(m => m.tag)).size, c.migrations.length);
-  // IMG-01 stays off in every committed config; only the string 'true' accepts new jobs (image-jobs.js imageJobsEnabled).
-  assert.equal(app.vars.IMAGE_GENERATE_ENABLED, 'false');
+  // IMG-01 is public in production only (owner GO); the dev configs stay off; only the string 'true' accepts new jobs (image-jobs.js imageJobsEnabled).
+  assert.equal(app.vars.IMAGE_GENERATE_ENABLED, 'true');
   assert.equal(dev.vars.IMAGE_GENERATE_ENABLED, 'false');
   // Owner-only acceptance window (owner 2026-10-25): the public flag is off; the hold is derived from the enabled combinations' priced estimates.
   assert.equal(app.vars.IMAGE_ACCEPTANCE_EMAILS, 'user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid yudhisteer.chin@gmail.com');
