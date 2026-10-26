@@ -88,28 +88,35 @@ test('the variable still overrides the policies, and the checks and execution te
   assert.deepEqual(motionExecutionTerms(live, { duration_seconds: 60, aspect_ratio: '3:4' }), { renderer_config: MEASURED_RENDERER_CONFIG }, 'withheld: no cover, the start is refused first');
 });
 
-// The activation is ONE line in each of two files and is OFF in the committed config.
-test('the committed config does not activate: MOTION_RENDERER_CONFIG is absent from the production Worker vars and the orchestrator env, and the commented activation line carries the measured id', () => {
+// R2a (owner 2026-10-26): the committed config is the OWNER-ONLY activation: the measured policy applied (the same id in both files) so the owner can run the
+// 9:16 acceptance job, public generation STILL paused, the US$3.50 per-job ceiling on (it stays through R2b: the disclosed maximum charge is pinned to it), the owner list unchanged. R2b is the public flip: paused "0" and nothing else.
+test('R2a config: the measured policy is on in the Worker and the orchestrator, public generation stays paused, the ceiling stays, the owner path works, 45 and 60 s stay unavailable', () => {
   const read = p => readFileSync(new URL(p, import.meta.url), 'utf8');
   const worker = read('../../web/wrangler.rabbit-hole-prod.jsonc'), orchestrator = read('../../learn-render/motion/service/fly.orchestrator.toml');
   const noComments = (s, mark) => s.replace(new RegExp(`^\\s*${mark}.*$`, 'gm'), '');
-  assert.equal(JSON.parse(noComments(worker, '//')).vars.MOTION_RENDERER_CONFIG, undefined, 'off in the Worker');
-  assert.doesNotMatch(noComments(orchestrator, '#'), /MOTION_RENDERER_CONFIG/, 'off in the orchestrator');
-  assert.ok(worker.includes(`// "MOTION_RENDERER_CONFIG": "${MEASURED_RENDERER_CONFIG}",`), 'the one-line activation in the Worker');
-  assert.ok(orchestrator.includes(`# MOTION_RENDERER_CONFIG = "${MEASURED_RENDERER_CONFIG}"`), 'the one-line activation in the orchestrator');
-  // R1: public Motion is paused ON PURPOSE (owner 2026-10-25) with exactly one account on the owner-only path; R2 flips the pause and uncomments the activation.
   const vars = JSON.parse(noComments(worker, '//')).vars;
-  assert.equal(vars.MOTION_GENERATION_PAUSED, '1');
-  // The owner path admits the Google account's PRINCIPAL (a provider email never becomes a principal) and the Gmail address (emailed-code sign-in only).
-  assert.deepEqual(acceptanceEmails(vars), ['user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid', 'yudhisteer.chin@gmail.com']);
-  assert.equal(motionPaused(vars, 'user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid'), false, 'the Google account principal');
-  assert.equal(motionPaused({ ...vars, MOTION_GENERATION_PAUSED: '1' }, 'user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid'), false, 'admitted while paused');
-  assert.equal(motionPaused({ ...vars, MOTION_GENERATION_PAUSED: '1' }, 'user@0000000000000000000000000000000f.rabbithole.invalid'), true, 'another account principal is refused');
-  assert.equal(motionPaused({ ...vars, MOTION_GENERATION_PAUSED: '1' }, 'yudhisteer.chin01@gmail.com'), true, 'the look-alike is refused');
+  assert.equal(vars.MOTION_RENDERER_CONFIG, MEASURED_RENDERER_CONFIG);
+  assert.ok(noComments(orchestrator, '#').includes(`MOTION_RENDERER_CONFIG = "${MEASURED_RENDERER_CONFIG}"`), 'the orchestrator carries the same id, uncommented');
+  assert.equal(vars.MOTION_GENERATION_PAUSED, '1', 'public generation is still paused');
+  assert.match(noComments(orchestrator, '#'), /^\s*MOTION_JOB_CEILING_USD = "3\.50"$/m, 'the per-job ceiling is US$3.50, above the US$2.56 floor the orchestrator preflight needs');
+  // The owner path admits the Google account's PRINCIPAL (a provider email never becomes a principal) and the Gmail address (emailed-code sign-in only), and nobody else.
+  const owner = 'user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid';
+  assert.deepEqual(acceptanceEmails(vars), [owner, 'yudhisteer.chin@gmail.com']);
+  assert.equal(motionPaused(vars, owner), false, 'the Google account principal may start');
   assert.equal(motionPaused(vars, 'yudhisteer.chin@gmail.com'), false);
-  assert.equal(motionPaused(vars, 'yudhisteer.chin01@gmail.com'), true, 'the look-alike account is a different person');
   assert.equal(motionPaused(vars, 'YUDHISTEER.CHIN@GMAIL.COM'), false, 'case is normalised');
-  assert.match(noComments(orchestrator, '#'), /^\s*MOTION_JOB_CEILING_USD = "3\.50"$/m, 'the acceptance window bounds one job to US$3.50, above the US$2.56 floor the orchestrator preflight needs');
+  assert.equal(motionPaused(vars, 'user@0000000000000000000000000000000f.rabbithole.invalid'), true, 'another account principal is refused');
+  assert.equal(motionPaused(vars, 'yudhisteer.chin01@gmail.com'), true, 'the look-alike account is a different person');
+  assert.equal(motionPaused(vars, null), true, 'no identity: refused');
+  assert.equal(motionPaused(vars, 'anyone@example.test'), true, 'public is paused');
+  // With this config the policy that applies is the measured one: the 22 pairs; the owner's 9:16 15 s job is ready and bound to the live configuration; nothing at 45 or 60 s.
+  const env = { MOTION_RENDERER_CONFIG: vars.MOTION_RENDERER_CONFIG };
+  assert.equal(readyPolicy(env).entries.length, 22);
+  const p916 = { title: 'T', description: 'D', settings: { duration_seconds: 15, aspect_ratio: '9:16', audio: false } };
+  assert.equal(motionGenerationCheck(env, { request: '/motion x', proposal: p916 }), null, 'the 9:16 15 s acceptance job may be generated');
+  assert.deepEqual(motionExecutionTerms(env, p916.settings), { renderer_config: MEASURED_RENDERER_CONFIG, allowed_complexity: ['simple'] });
+  assert.equal(motionGenerationCheck(env, { request: '/motion x', proposal: { ...p916, settings: { duration_seconds: 15, audio: false } } }), null, 'the 16:9 15 s job too');
+  for (const r of ['16:9', '9:16']) for (const s of [45, 60]) assert.equal(at(env, s, r).ready, false, `${s} s at ${r} stays unavailable`);
   assert.ok(MEASURED_RENDERER_REVISION.startsWith(MEASURED_RENDERER_CONFIG.split('-')[0]));
 });
 
