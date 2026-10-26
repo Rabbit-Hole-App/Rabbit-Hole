@@ -46,12 +46,19 @@ export function recoveryButtons(recovery, { composer = false } = {}) {
   const actions = (recovery.actions || []).filter(a => a in RECOVERY_BUTTONS && (a !== 'edit' || composer));
   return [...new Set([...['fix', 'render', 'edit'].filter(a => actions.includes(a)), ...(recovery.regenerate ? ['regenerate'] : [])])];
 }
-// Usage in credits, short, and the reservation's state; never a dollar amount or the hold's size.
-export function motionUsageLine(usage, hold) {
+// Usage in credits, short, and the reservation's state; never a dollar amount or the hold's size. A failed job's server
+// accounting (LearnVideos motionRecovery: chargedCredits, refundedCredits) keeps three things apart that "Used N credits" blurred (failed job
+// 61f70171, 2026-10-25): credits charged, credits refunded, and the reservation (a hold, released when the job ends, is not a refund).
+const creditsText = credits => (credits > 0 && credits < 1 ? 'less than 1 credit' : `${Math.round(credits).toLocaleString('en-US')} credit${Math.round(credits) === 1 ? '' : 's'}`);
+export function motionUsageLine(usage, hold, accounting = null) {
+  const state = hold?.state === 'reserved' ? 'reservation held' : hold?.state === 'pending' ? 'reservation pending' : 'reservation released';
+  if (accounting) {
+    const charged = accounting.chargedCredits || 0, refunded = Math.min(accounting.refundedCredits || 0, charged);
+    return [charged > 0 ? `Charged ${creditsText(charged)}${accounting.unknown ? ' so far' : ''}` : accounting.unknown ? 'Charge not confirmed yet' : 'No credits charged', refunded > 0 ? `${creditsText(refunded)} refunded` : null, state].filter(Boolean).join(' · ');
+  }
   if (!usage) return null;
   const exact = usage.usedCredits || 0, credits = Math.round(exact);
   const used = credits === 0 && exact > 0 ? 'less than 1 credit' : `${credits.toLocaleString('en-US')} credit${credits === 1 ? '' : 's'}`;
-  const state = hold?.state === 'reserved' ? 'reservation held' : hold?.state === 'pending' ? 'reservation pending' : 'reservation released';
   return `Used ${used}${usage.unknown ? ' so far' : ''} · ${state}`;
 }
 

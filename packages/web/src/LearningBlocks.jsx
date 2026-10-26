@@ -1690,7 +1690,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
                   </div>
               : <button type="button" data-generate-video onClick={() => setConfirming(true)} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? (motionRequest ? 'Generate again' : 'Retry render') : label.button}</button>}
             {error && <p data-video-error className={`max-w-sm text-xs ${failure ? 'text-ink-2' : 'text-red-700'}`}>{error}</p>}
-            {!pending && failure && motionUsageLine(failure.usage, failure.hold) && <p data-motion-usage className="text-[11px] text-ink-2">{motionUsageLine(failure.usage, failure.hold)}</p>}
+            {!pending && failure && motionUsageLine(failure.usage, failure.hold, failure.recovery?.accounting) && <p data-motion-usage className="text-[11px] text-ink-2">{motionUsageLine(failure.usage, failure.hold, failure.recovery?.accounting)}</p>}
           </div>}
       {block.caption && <div className="mt-1.5 text-xs text-ink-2"><Md text={block.caption} onFile={onFile} /></div>}
     </div>

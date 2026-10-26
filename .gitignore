@@ -158,6 +158,7 @@ examples/counter/counter.db
 packages/cli/assets/
 packages/control-plane/.dev.vars
 packages/control-plane/.wrangler/
+packages/control-plane/test/.wrangler/
 packages/web/.wrangler/
 packages/control-plane/secrets.json
 # impeccable design hook: local only, never in the repository (owner, 2026-10-08)

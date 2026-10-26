@@ -364,7 +364,7 @@ test('outside the production policy, refused before sending: a re-ask, a resend,
       for (const body of bodies) { const r = await call({}, body, MODEL); await r.text(); if (!r.ok) break; }
       return { status: 'failed', failure_reason: 'x' };
     } });
-    const { job_id } = await (await req('/jobs', { method: 'POST', body: job() })).json();
+    const { job_id } = await (await req('/jobs', { method: 'POST', body: job({ micros: 8_958_600 }) })).json(); // the policy's own hold: its preflight needs a ceiling that holds the required calls
     await until(async () => (await view(job_id)).status === 'failed', name);
     assert.equal(sentCount, bodies.length - 1, `${name}: the refused call was never sent`);
     assert.match((await view(job_id)).failure_reason, want, name);

@@ -45,7 +45,9 @@ import { runMotionRequest } from './pipeline.mjs';
 import { MotionCancelled } from './review-job.mjs';
 import { COMPLEXITY_CLASSES } from './composition-limits.js';
 import { DURATION, MOTION_RATIOS, classifyFindings } from './contracts.js';
-import { jobWorstCase } from './spend-bound.mjs';
+import { AHEAD, MANDATORY_PATH, jobWorstCase, modelsFor, pathBound, pathFloor } from './spend-bound.mjs';
+import { AUTHOR_REPAIR_CAP } from './author.js';
+import { codeOfCause } from '../../control-plane/src/motion-failure.js';
 
 const ID = /^[0-9a-f]{32}$/;
 const KEY = /^[A-Za-z0-9_-]{8,128}$/;
@@ -100,12 +102,54 @@ export const sealCheckpoint = (token, checkpoint) => createHmac('sha256', token)
 // composition; fix (paid) from a saved storyboard: a repair with the findings, the review of an unreviewed composition, or the
 // Author; edit the request after findings or a clarification; add a source when the request needs one. A job that hit its
 // call or spend limit offers nothing more. The worker applies the same rule to a job lost in a restart (learn-video.js).
-export function recoveryActions(cause, cp) {
+// A job that hit one of our limits (cause 'limit') is recovered only from a checkpoint, only when `limits` says what a fresh attempt may
+// spend, and only for the next stage it still has to run (nextStage): rendering an accepted composition calls no model, so it is always
+// possible; a repair or a review needs that stage's worst case to fit a fresh attempt's ceiling, never merely "some budget is left".
+// A code that is a configuration blocker (policy_rejected, unknown_cost_bound) offers nothing: the same attempt is refused the same way.
+export function recoveryActions(cause, cp, code = null, limits = null) {
   if (cause === 'missing_context') return ['edit']; // ponytail: no Add source: /motion grounds only on a selected card or the pinned repository, and no source picker reaches either
+  if (cause === 'limit' && limits && cp?.brief && cp.storyboard && !CONFIG_BLOCKED.has(code)) {
+    if (cp.composition?.state === 'accepted') return ['render'];
+    return nextStage(cp, limits).fits ? ['fix'] : [];
+  }
   if (cause === 'limit' || !cp?.brief || !cp.storyboard) return cause === 'content' ? ['edit'] : [];
   if (cp.composition?.state === 'accepted' && cause !== 'content') return ['render'];
   return cause === 'content' ? ['fix', 'edit'] : ['fix'];
 }
+// The calls a recovery from this checkpoint still has to make, and the rule that caps each (a repair is a patch, capped lower than the whole Author).
+const stageOf = (cp, policy) => {
+  const state = cp?.composition?.state ?? null;
+  return { path: state === 'unreviewed' || state === 'accepted' ? [['motion_review', 2]] : [['motion_composition', 1], ['motion_review', 2]],
+    rules: state === 'blocking' ? { motion_composition: { ...policy.motion_composition, max_tokens: AUTHOR_REPAIR_CAP } } : {} };
+};
+const CONFIG_BLOCKED = new Set(['policy_rejected', 'unknown_cost_bound']);
+// The calls a 'fix' recovery from this checkpoint has to make, and their conservative worst case against a fresh attempt: a saved review
+// needs only the two reviewers; a blocking review needs the Author's repair (a patch) first; a storyboard alone needs the Author.
+// limits {ceilingMicros, maxCalls, env}: the same ceiling and call cap the guard and the preflight apply. -> {path, micros, calls, fits, reason}
+export function nextStage(cp, { ceilingMicros = Infinity, maxCalls = Infinity, env = {}, policy = RECOVERY_POLICY.fix } = {}) {
+  const { path, rules } = stageOf(cp, policy);
+  const need = pathBound(path, policy, modelsFor(env), undefined, rules);
+  const fits = need.micros != null && need.calls <= maxCalls && need.micros <= ceilingMicros;
+  return { path, micros: need.micros, calls: need.calls, fits, reason: need.micros == null ? 'unpriced_or_not_allowed' : need.calls > maxCalls ? 'call_limit' : need.micros > ceilingMicros ? 'job_ceiling_insufficient' : null };
+}
+// What a job must be able to do BEFORE any paid work (owner brief 2026-10-25, after job 61f70171 spent US$1.28 and then could not run its
+// reviews): the policy allows every required stage, the call cap holds the required calls, every required model is priced, and the
+// ceiling (the grant or the configured per-job ceiling, whichever is lower) holds the LEAST the required calls can cost (their output caps
+// priced: a strict lower bound, so only a job that cannot possibly finish is refused). null policy (tests of other behaviour) checks nothing.
+// -> {ok: true} | {ok: false, code, reason, floor_micros, ceiling_micros, calls}; `reason` is internal, never shown to a learner.
+export function preflight({ policy, maxCalls, ceilingMicros, path = MANDATORY_PATH, rules = {}, env = {} }) {
+  if (!policy || !path.length) return { ok: true, floor_micros: 0 };
+  const floor = pathFloor(path, policy, modelsFor(env), undefined, rules);
+  const refuse = (code, reason) => ({ ok: false, code, reason, floor_micros: floor.micros, ceiling_micros: ceilingMicros, calls: floor.calls });
+  if (floor.missing.length) return refuse('policy_rejected', `the production policy does not allow the required stage${floor.missing.length === 1 ? '' : 's'} ${floor.missing.join(', ')}`);
+  if (floor.calls > maxCalls) return refuse('call_limit', `the ${maxCalls}-call limit is below the ${floor.calls} calls this job requires`);
+  if (floor.unpriced.length) return refuse('unknown_cost_bound', `no price for the model of ${floor.unpriced.join(', ')}`);
+  if (floor.micros > ceilingMicros) return refuse('job_ceiling_insufficient', `the least the ${floor.calls} required calls can cost ($${usd(floor.micros).toFixed(4)}) is more than the $${usd(ceilingMicros).toFixed(4)} job ceiling`);
+  return { ok: true, floor_micros: floor.micros, calls: floor.calls };
+}
+// The calls a job must make, by its entry: a new job the whole mandatory path; render calls no model; fix only what its checkpoint still needs.
+export const requiredStages = body => (!body.mode ? { path: MANDATORY_PATH, rules: {} } : body.mode === 'render' ? { path: [], rules: {} } : stageOf(body.checkpoint, RECOVERY_POLICY.fix));
+export const requiredPath = body => requiredStages(body).path;
 export function validateRecoverRequest(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return ['body: an object is required'];
   const e = [];
@@ -203,6 +247,10 @@ const sent = job => job.calls.filter(c => c.state !== 'refused');
 const committedMicros = job => sent(job).reduce((s, c) => s + (c.cost_micros ?? c.bound_micros), 0);
 const realMicros = job => (sent(job).some(c => c.cost_micros == null) ? null : sent(job).reduce((s, c) => s + c.cost_micros, 0));
 
+// The internal detail of a failed job, for the Worker's records and operators only (the Worker never forwards it to a browser): where it
+// stopped and, for a refused call, what was needed and what was left.
+const failureView = j => (j.failure ? { code: j.failure.code ?? null, stage: j.failure.stage ?? null, kind: j.failure.kind ?? null, reason: j.failure.reason ?? null,
+  ...(j.failure.need_micros == null ? {} : { need_usd: usd(j.failure.need_micros), left_usd: usd(Math.max(0, j.failure.left_micros)), ahead_usd: usd(j.failure.ahead_micros ?? 0) }), ceiling_usd: usd(j.ceiling_micros) } : null);
 // The job as the provider polls it: no prompt, no key, no request text, no source text beyond the block provenance.
 export const jobView = j => ({
   job_id: j.id, status: j.status, stage: j.stage, created_at: j.created_at, finished_at: j.finished_at ?? null,
@@ -215,6 +263,7 @@ export const jobView = j => ({
   artifacts_rev: j.rev,
   ...(j.result ? {
     failure_reason: j.result.failure_reason ?? null, clarification: j.result.clarification ?? null, cause: j.result.cause ?? null,
+    failure_code: j.result.failure_code ?? codeOfCause(j.result.cause), failure: failureView(j),
     title: j.result.brief?.title ?? null, motion: j.result.block?.motion ?? null, render_id: j.result.render?.render_id ?? null,
     repair_count: j.result.job?.repair_count ?? null, repairs: j.result.repairs ?? null, transport_retries: j.result.transport_retries ?? [], model_latency_s: j.result.model_latency_s ?? null, timings: j.result.timings ?? null,
   } : {}),
@@ -281,9 +330,12 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
   function artifacts(job) {
     const cp = job.checkpoint ?? null, cause = job.status === 'running' ? null : (job.result?.cause ?? null);
     return {
-      job_id: job.id, rev: job.rev, status: job.status, cause, failure_reason: job.result?.failure_reason ?? null, clarification: job.result?.clarification ?? null,
+      job_id: job.id, rev: job.rev, status: job.status, cause, failure_code: job.result?.failure_code ?? codeOfCause(cause), failure_reason: job.result?.failure_reason ?? null, clarification: job.result?.clarification ?? null,
       findings: job.result?.job?.findings ?? cp?.findings ?? [], blocking: classifyFindings(cp?.findings ?? []).blocking.map(({ category, beat_id, description }) => ({ category, beat_id, description })), checkpoint: cp, seal: cp ? sealCheckpoint(token, cp) : null,
-      actions: ['running', 'ready'].includes(job.status) ? [] : recoveryActions(cause, cp), hold_usd: { fix: usd(policyHoldMicros(RECOVERY_POLICY.fix)), render: 0 },
+      actions: ['running', 'ready'].includes(job.status) ? [] : recoveryActions(cause, cp, job.result?.failure_code ?? null, { ceilingMicros, maxCalls, env }), hold_usd: { fix: usd(policyHoldMicros(RECOVERY_POLICY.fix)), render: 0 },
+      // What a 'fix' recovery from this checkpoint still has to run, at the policy's worst case: the Worker offers it only when that fits
+      // what is left of the video (never merely "some budget is left").
+      next_need_usd: cp?.brief && cp.storyboard ? (m => (m == null ? null : usd(m)))(nextStage(cp, { env }).micros) : null,
       frames: job.frames ?? keyframes(job),
     };
   }
@@ -292,7 +344,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     const id = randomBytes(16).toString('hex');
     const controller = new AbortController();
     const recover = body.mode ? { mode: body.mode, checkpoint: body.checkpoint } : null;
-    const job = { id, key: body.idempotency_key, status: 'running', stage: 'queued', created_at: new Date(now()).toISOString(), controller, calls: [], renders: [], grant_micros: body.grant.micros, ceiling_micros: Math.min(body.grant.micros, ceilingMicros), refusal: null, kinds: {}, digests: new Map(), rev: 0, checkpoint: null,
+    const job = { id, key: body.idempotency_key, status: 'running', stage: 'queued', created_at: new Date(now()).toISOString(), controller, calls: [], renders: [], grant_micros: body.grant.micros, ceiling_micros: Math.min(body.grant.micros, ceilingMicros), refusal: null, refusalInfo: null, failure: null, kinds: {}, digests: new Map(), rev: 0, checkpoint: null,
       policy: recover && policy ? RECOVERY_POLICY[recover.mode] : policy };
     jobs.set(id, job); keys.set(job.key, id);
     active = job;
@@ -300,33 +352,48 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     const guarded = (env2, asked, model) => {
       const request = pricedRequest(asked);
       if (controller.signal.aborted) return Promise.reject(new MotionCancelled());
-      // Refused before sending: the stage sees a failed call and the job stops with this reason.
-      const refuse = reason => { job.refusal ||= reason; job.calls.push({ state: 'refused' }); return Promise.resolve(new Response(`refused before sending: ${reason}`, { status: 429 })); };
-      if (sent(job).length >= maxCalls) return refuse(`the ${maxCalls}-call limit for this job is spent`);
       const kind = request.tools?.[0]?.name || 'untooled', rule = job.policy?.[kind], digest = createHash('sha256').update(JSON.stringify(request)).digest('hex');
+      // Refused before sending: the stage sees a failed call and the job stops with this reason. EVERY refusal is logged with its job,
+      // stage and (when it is about money) what was needed and what was left: job 61f70171's reason was in memory only and was lost.
+      const refuse = (code, reason, info = {}) => {
+        job.refusal ||= reason; job.refusalInfo ||= { code, stage: job.stage, kind, reason, ...info };
+        job.calls.push({ state: 'refused' });
+        const money = info.need_micros == null ? '' : `; need $${usd(info.need_micros)}${info.ahead_micros ? ` + least-ahead $${usd(info.ahead_micros)}` : ''}, left $${usd(Math.max(0, info.left_micros))} of $${usd(job.ceiling_micros)} (grant $${usd(job.grant_micros)})`;
+        log(`job ${id}: refused ${code} during ${job.stage} (${kind}, call ${sent(job).length + 1}): ${reason}${money}`);
+        return Promise.resolve(new Response(`refused before sending: ${reason}`, { status: 429 }));
+      };
+      if (sent(job).length >= maxCalls) return refuse('call_limit', `the ${maxCalls}-call limit for this job is spent`);
       if (job.policy) {
         const { bytes, images } = requestSize(request);
-        if (!rule) return refuse(`a ${kind} call is outside the production policy`);
-        if ((request.messages?.length || 0) > 1) return refuse(`a schema re-ask (${kind}) is outside the production policy`);
-        if (job.digests.has(digest)) return refuse(`resending the same ${kind} call is outside the production policy`);
-        if ((job.kinds[kind] || 0) >= rule.calls) return refuse(`the production policy allows ${rule.calls} ${kind} call${rule.calls === 1 ? '' : 's'} per job`);
-        if (!(request.max_tokens <= rule.max_tokens) || bytes > rule.bytes || images > rule.images) return refuse(`this ${kind} call (${request.max_tokens} max_tokens, ${bytes} bytes, ${images} images) is larger than the production policy allows (${rule.max_tokens}, ${rule.bytes}, ${rule.images})`);
+        if (!rule) return refuse('policy_rejected', `a ${kind} call is outside the production policy`);
+        if ((request.messages?.length || 0) > 1) return refuse('policy_rejected', `a schema re-ask (${kind}) is outside the production policy`);
+        if (job.digests.has(digest)) return refuse('policy_rejected', `resending the same ${kind} call is outside the production policy`);
+        if ((job.kinds[kind] || 0) >= rule.calls) return refuse('call_limit', `the production policy allows ${rule.calls} ${kind} call${rule.calls === 1 ? '' : 's'} per job`);
+        if (!(request.max_tokens <= rule.max_tokens) || bytes > rule.bytes || images > rule.images) return refuse('policy_rejected', `this ${kind} call (${request.max_tokens} max_tokens, ${bytes} bytes, ${images} images) is larger than the production policy allows (${rule.max_tokens}, ${rule.bytes}, ${rule.images})`);
       }
       // No automatic paid retry after an unknown outcome (a timeout, a dropped connection, an unreadable answer, a call still in
       // flight), policy or not: the same call is never sent again while the first may have been billed.
       const earlier = job.digests.get(digest);
-      if (earlier && earlier.cost_micros == null) return refuse(`resending the same ${kind} call while the first one's outcome is unknown`);
+      if (earlier && earlier.cost_micros == null) return refuse('policy_rejected', `resending the same ${kind} call while the first one's outcome is unknown`);
       const bound = requestSpendBound(request, model);
-      if (bound == null) return refuse(`the next model call's maximum cost cannot be bounded (${model})`);
+      if (bound == null) return refuse('unknown_cost_bound', `the next model call's maximum cost cannot be bounded (${model})`);
       const need = toMicros(bound), left = job.ceiling_micros - committedMicros(job);
-      if (need > left) return refuse(`the next step (${job.stage}) could cost up to $${usd(need).toFixed(2)}, more than the $${usd(Math.max(0, left)).toFixed(2)} left of this job's $${usd(job.ceiling_micros).toFixed(2)} hold`);
+      if (need > left) return refuse('job_ceiling_insufficient', `the next step (${job.stage}) could cost up to $${usd(need).toFixed(2)}, more than the $${usd(Math.max(0, left)).toFixed(2)} left of this job's $${usd(job.ceiling_micros).toFixed(2)} hold`, { need_micros: need, left_micros: left });
+      // Reserve ahead: this call is sent only if the LEAST the required calls after it can cost (their output caps priced) also fits what
+      // is left, so a job that cannot reach its reviews never pays for its Author first. A strict lower bound: it refuses nothing that could finish.
+      // The two reviewers of a pass run together, so the first holds a place for the second.
+      if (job.policy) {
+        const path = kind === 'motion_review' ? ((job.kinds[kind] || 0) % 2 === 0 ? [['motion_review', 1]] : []) : (AHEAD[kind] ?? []);
+        const ahead = pathFloor(path, job.policy, modelsFor(env)).micros ?? 0;
+        if (need + ahead > left) return refuse('job_ceiling_insufficient', `this ${kind} call (up to $${usd(need).toFixed(2)}) and the least the required steps after it can cost ($${usd(ahead).toFixed(2)}) are more than the $${usd(Math.max(0, left)).toFixed(2)} left of this job's $${usd(job.ceiling_micros).toFixed(2)} ceiling`, { need_micros: need, left_micros: left, ahead_micros: ahead });
+      }
       // The shared validation budget (acceptance harness only, off by default; C:/s/spec/budget/budget.mjs): this call's conservative
       // maximum is reserved atomically across jobs and processes before it is sent; a refusal or a failure of the ledger sends nothing.
       const ledgerId = `${job.id}:${job.calls.length}`;
       if (budget) {
         let got;
         try { got = budget.reserve(ledgerId, 'motion-model', usd(need)); } catch (error) { got = { ok: false, reason: error.message }; }
-        if (!got.ok) return refuse(`the shared validation budget refused the next ${kind} call (${got.reason})`);
+        if (!got.ok) return refuse('job_ceiling_insufficient', `the shared validation budget refused the next ${kind} call (${got.reason})`, { need_micros: need, left_micros: left });
       }
       const record = { state: 'running', stage: job.stage, kind, model, bound_micros: need, cost_micros: null, usage: null };
       job.calls.push(record);
@@ -409,8 +476,16 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
       .catch(error => { job.result = { status: 'failed', failure_reason: `the pipeline crashed: ${String(error?.message || error).split('\n')[0]}`, cause: 'infra' }; job.status = 'failed'; })
       .finally(() => {
         clearTimeout(timer);
-        if (job.timedOut) { job.status = 'failed'; job.result = { ...job.result, failure_reason: `the job ran past ${Math.round(jobTimeoutMs / 60000)} minutes and was stopped`, cause: 'limit' }; }
-        else if (job.refusal && job.status !== 'ready') { job.status = 'failed'; job.result = { ...job.result, failure_reason: `stopped before spending more: ${job.refusal}`, cause: 'limit' }; }
+        // The overall timeout and any refused call both end the job as cause 'limit' (what the Worker's older code knows); failure_code says which
+        // limit, and failure keeps the internal detail (stage, amounts) for operators. Neither is the learner's allowance.
+        if (job.timedOut) {
+          job.failure = { code: 'job_timeout', stage: job.stage, reason: `the job ran past ${Math.round(jobTimeoutMs / 60000)} minutes` };
+          job.status = 'failed'; job.result = { ...job.result, failure_reason: `the job ran past ${Math.round(jobTimeoutMs / 60000)} minutes and was stopped`, cause: 'limit', failure_code: 'job_timeout' };
+          log(`job ${id}: timeout during ${job.stage} after ${Math.round(jobTimeoutMs / 1000)} s (${sent(job).length} calls sent)`);
+        } else if (job.refusal && job.status !== 'ready') {
+          job.failure = job.refusalInfo ?? { code: 'job_ceiling_insufficient', stage: job.stage, reason: job.refusal };
+          job.status = 'failed'; job.result = { ...job.result, failure_reason: `stopped before spending more: ${job.refusal}`, cause: 'limit', failure_code: job.failure.code };
+        } else if (job.status === 'failed' && !job.result?.failure_code) job.failure = { code: codeOfCause(job.result?.cause), stage: job.stage, reason: String(job.result?.failure_reason ?? '').slice(0, 300) };
         if (job.result?.checkpoint && job.result.checkpoint !== job.checkpoint) { job.checkpoint = job.result.checkpoint; job.rev++; }
         job.finished_at = new Date(now()).toISOString();
         job.frames = keyframes(job); // before the job directory is deleted
@@ -418,13 +493,21 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
         cleanup(job);
         sweep();
         const { spend } = jobView(job);
-        log(`job ${id}: ${job.status} (calls ${spend.calls}, cost ${spend.cost_usd ?? 'unknown'}, bound ${spend.bound_usd}, renders ${job.renders.length})`);
+        log(`job ${id}: ${job.status}${job.failure?.code ? ` [${job.failure.code}]` : ''} (calls ${spend.calls}, cost ${spend.cost_usd ?? 'unknown'}, bound ${spend.bound_usd}, renders ${job.renders.length})`);
       });
     return job;
   }
 
   // The renderer checks, after the slot is taken: -> [status, answer].
   async function admit(body) {
+    // Before the renderer, a hold or any paid work: a job whose required stages the policy forbids, whose call cap or prices are missing, or
+    // whose ceiling cannot hold even the least the required calls cost is refused here, with nothing spent and a code the Worker explains.
+    // Answered as the 503 not_configured the Worker already knows is a definite no-start; the amounts stay in the log, not the answer.
+    const checked = preflight({ policy: body.mode && policy ? RECOVERY_POLICY[body.mode] : policy, maxCalls, ceilingMicros: Math.min(body.grant.micros, ceilingMicros), ...requiredStages(body), env });
+    if (!checked.ok) {
+      log(`job ${body.idempotency_key}: refused ${checked.code} before starting: ${checked.reason}; least needed $${checked.floor_micros == null ? 'unknown' : usd(checked.floor_micros)}, ceiling $${usd(Math.min(body.grant.micros, ceilingMicros))} (grant $${usd(body.grant.micros)}); nothing was spent`);
+      return [503, { error: 'not_configured', code: checked.code, detail: `Motion cannot run this video within its configured limits (${checked.code}); nothing was started` }];
+    }
     const health = await service.health().catch(() => null);
     if (!health) return [503, { error: 'renderer_unavailable', detail: 'the Motion renderer is unavailable; nothing was started' }];
     if (health.sandbox !== 'linux' || health.ok === false) return [503, { error: 'renderer_unavailable', detail: `the Motion renderer is not the sandboxed Linux service (sandbox ${health.sandbox ?? 'unknown'}${health.ok === false ? ', degraded' : ''}); nothing was started` }];

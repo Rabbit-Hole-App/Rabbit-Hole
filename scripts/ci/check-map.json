@@ -443,7 +443,7 @@
     "packages/web/src/SourceReader.jsx": ["pdf-long-check.mjs","pdf-excerpt-check.mjs","pdf-excerpt-chat-state-check.mjs", "pinned-study-check.mjs", "study-compact-header-check.mjs"],
     "packages/web/src/learn-paper-figures.js": ["paper-highlight-check.mjs","paper-selection-check.mjs","search-files-check.mjs","learn-handoff-check.mjs","canvas-skeleton-check.mjs","library-folders-check.mjs"],
     "packages/web/src/LearnVideoShape.jsx": ["video-check.mjs","learn-handoff-check.mjs","search-files-check.mjs","slash-sheet-check.mjs","inline-ai-check.mjs","canvas-skeleton-check.mjs","manim-render-check.mjs"],
-    "packages/web/src/learn-video-*.js": ["video-check.mjs","learn-handoff-check.mjs","search-files-check.mjs","slash-sheet-check.mjs","inline-ai-check.mjs"],
+    "packages/web/src/learn-video-*.js": ["video-check.mjs","learn-handoff-check.mjs","search-files-check.mjs","slash-sheet-check.mjs","inline-ai-check.mjs","motion-command-check.mjs"],
     "packages/web/src/VoiceMode.jsx": ["voice-check.mjs","voice-tts-stream-check.mjs","tutor-entry-check.mjs","production-bundle-check.mjs"],
     "packages/web/src/SpeakAnswer.jsx": ["voice-check.mjs","voice-tts-stream-check.mjs","tutor-entry-check.mjs","production-bundle-check.mjs","chat-block-check.mjs"],
     "packages/web/src/LearnVoice.jsx": ["voice-check.mjs","voice-tts-stream-check.mjs","tutor-entry-check.mjs","production-bundle-check.mjs"],

@@ -328,10 +328,16 @@ test('a repair whose worst case exceeds what is left of the hold is refused befo
   const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
   await actor.fetch(ask());
   await settle(actor, async () => (await video(actor)).status === 'failed');
-  assert.match((await video(actor)).error, /stopped before spending more: the next step \(author_repair\) could cost up to \$1\.2\d, more than the \$0\.87 left of this job's \$2\.00 hold/);
+  // Owner brief 2026-10-25 (failed production job 61f70171): this is OUR per-job ceiling, not the learner's allowance. The card says so without an amount,
+  // the learner is charged nothing and the whole hold is released, and the provider's real cost stays on the platform ledger with the code.
+  const v = await video(actor);
+  assert.equal(v.error, 'This video needed more processing than Motion allows for a single video, so it stopped before finishing. This is a limit on our side, not your AI credits.');
+  assert.doesNotMatch(JSON.stringify(v), /\$\d|AI spending limit/);
+  assert.equal(v.recovery.code, 'job_ceiling_insufficient');
   assert.deepEqual([w.model.calls, w.renders.length], [[16000, 16000, 64000], 0], 'the repair was never sent');
-  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 1_130_000, 'failed']]);
-  assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [1_130_000, 0], '$0.87 released');
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 0, 'failed']], 'charged zero');
+  assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [0, 0], 'the whole hold is released');
+  assert.deepEqual(rows(sqlite, 'usage_operations').map(o => [o.status, o.cost_usd, o.error]), [['failed', 1.13, 'motion_job_ceiling_insufficient']], 'the provider cost is kept, with the code');
   assert.deepEqual(actions(sqlite), [['video', 'failed', 'none', true]]);
 });
 

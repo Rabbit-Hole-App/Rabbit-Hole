@@ -400,8 +400,8 @@ for (const theme of ['light', 'dark']) {
     // MOT-22 (MOCKED): the server refuses this start for its proposal (a newer version exists), once; nothing starts.
     if (stub.refuse && request.method() === 'POST') { const code = stub.refuse; stub.refuse = null; return route.fulfill({ status: 409, json: { error: 'A newer version of this proposal exists. Use the latest card in the chat.', code } }); }
     if (stub.paused) return request.method() === 'POST' ? route.fulfill({ status: 503, json: { error: PAUSED, code: 'motion_paused' } }) : route.fulfill({ json: { motionPaused: true, videos: [] } });
-    // The server's reservation (MOCKED): still in the API (internal only, owner message 30); the card must never show it.
-    const hold = status => ({ usd: 8.96, state: status === 'generating' ? 'reserved' : status === 'failed' && !stub.settled ? 'pending' : 'released' });
+    // The server's reservation state (MOCKED); the amount is no longer sent at all (owner 2026-10-25), and the card never shows the reservation.
+    const hold = status => ({ state: status === 'generating' ? 'reserved' : status === 'failed' && !stub.settled ? 'pending' : 'released' });
     const video = status => ({ id: stub.id, key: KEY, status, retryable: true, hold: hold(status),
       ...(status === 'failed' ? { error: stub.error || 'The Motion job failed: still blocking after the repair round: blank_frame' } : {}),
       ...(status === 'ready' ? { provider: 'motion', motion: { title: TITLE, duration_seconds: 15, renderer: 'remotion', source_refs: [{ id: 'S1', kind: 'code', path: 'model.py', start_line: 62, end_line: 64 }] } } : {}) });
@@ -626,6 +626,8 @@ for (const theme of ['light', 'dark']) {
     // again, while Motion cannot start (control-plane learn-video.js motionRecovery: every action and regenerate need startable;
     // owner message 38 item 4, "only the actions that can run now"). With an orchestrator the card offers Generate again (step 5).
     await mine.locator('[data-motion-usage]').waitFor({ timeout: 15000 });
+    // Credits charged, credits refunded and the reservation are separate facts (failed job 61f70171, 2026-10-25): nothing was started, so nothing was charged.
+    assert.equal((await mine.locator('[data-motion-usage]').innerText()).trim(), 'No credits charged · reservation released');
     assert.equal(await mine.locator('[data-generate-video], [data-recovery-action]').count(), 0, 'nothing that starts work is offered while Motion cannot start');
     assert.equal(videoPosts().length - posts, 1, 'one request, answered by the real worker');
     await mine.scrollIntoViewIfNeeded();
