@@ -93,17 +93,13 @@
     // The confirmation's estimate (owner message 32: 1 credit = $0.01, shown as "about 100 credits"): the measured actual cost of
     // 6 real jobs on 2026-10-21 was $0.77 to $1.25. The hold above stays internal (owner message 30).
     "MOTION_ESTIMATE_USD": "1.00",
-    // EXPANDED MOTION SETTINGS ARE OFF. With the next line absent this Worker's settings are today's exactly: 16:9, 5 to 30 seconds (control-plane
-    // motion-ready-policy.js LEGACY_READY_POLICY); the other ratios and 35 to 60 seconds stay visible and are refused with the not-ready line.
-    // ACTIVATION is this one line, added ONLY after the renderer, the orchestrator and the job store are deployed and accepted
-    // (docs/features/rabbit-hole-motion-v1-harness-spec.md "Deploying Motion without activating it"). The orchestrator carries the same id.
-    // "MOTION_RENDERER_CONFIG": "03f2a1efc08e-1.5cpu-3gib-420s",
-    // R1 (owner 2026-10-25): PUBLIC Motion is PAUSED on purpose while the new renderer, orchestrator and durable job store are deployed and
-    // accepted. "1" refuses every new start; jobs already started still poll, stop, settle and play. The ONLY exception is the controlled
-    // owner-only path: a caller whose verified full sign-in email is in MOTION_ACCEPTANCE_EMAILS (below) may still start, under the ordinary
-    // admission, hold and settlement rules, so the acceptance job exercises the real renderer, orchestrator, storage and accounting.
-    // R2 (activation, a separate release): set this back to "0" and uncomment MOTION_RENDERER_CONFIG above, only after the acceptance job passed.
-    "MOTION_GENERATION_PAUSED": "1",
+    // R2 ACTIVATION (owner 2026-10-25), released only after the owner-only acceptance job (R1-6) passed with its accounting row. The measured policy
+    // applies (control-plane motion-ready-policy.js MEASURED_READY_POLICY): 22 (ratio, duration) pairs, each with a receipt; 45 and 60 s and every other
+    // pair stay visible and are refused with the not-ready line. The orchestrator carries the same id (fly.orchestrator.toml) and is deployed first.
+    // To go back to today's settings (16:9, 5 to 30 s) comment this line again.
+    "MOTION_RENDERER_CONFIG": "03f2a1efc08e-1.5cpu-3gib-420s",
+    // Public generation is back ON ("0"). The owner-only list below stays: it only matters while this is "1" (a later pause), so the owner path survives it.
+    "MOTION_GENERATION_PAUSED": "0",
     // The owner's sign-in email (SUBSCRIPTION_OWNER_EMAIL, owner clarification 2026-10-23): exactly one full address, compared whole and lower-cased.
     // yudhisteer.chin01@gmail.com is a DIFFERENT account and does not match. Empty = nobody.
     "MOTION_ACCEPTANCE_EMAILS": "yudhisteer.chin@gmail.com"

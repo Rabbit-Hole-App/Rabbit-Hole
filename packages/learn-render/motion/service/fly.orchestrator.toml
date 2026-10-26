@@ -14,13 +14,10 @@ primary_region = "iad"
   MOTION_RENDERER_URL = "https://rabbit-hole-motion-renderer.fly.dev"
   MOTION_MAX_CALLS = "9"
   MOTION_JOB_TIMEOUT_S = "3300"
-  # ACCEPTANCE WINDOW (owner 2026-10-25, R1): one job may spend at most US$2.00 of model money, the production-acceptance reserve. The Worker still holds
-  # US$8.96 against the learner's allowance and releases the unused part. REMOVE this line in the activation release (R2): public jobs need the full hold.
-  MOTION_JOB_CEILING_USD = "2.00"
-  # ACTIVATION (off): the renderer configuration the measured readiness policy applies to. Uncomment this line, with the Worker's
-  # MOTION_RENDERER_CONFIG of the same value, only after the matching renderer and its job store are deployed and accepted. While it is absent
-  # the orchestrator takes jobs exactly as it does today. A job whose approved proposal names another configuration is refused before any model call.
-  # MOTION_RENDERER_CONFIG = "03f2a1efc08e-1.5cpu-3gib-420s"
+  # R2 ACTIVATION (owner 2026-10-25): the renderer configuration the measured readiness policy applies to; the same value as the Worker's
+  # MOTION_RENDERER_CONFIG. A job whose approved proposal names another configuration is refused before any model call. The R1 acceptance ceiling
+  # (MOTION_JOB_CEILING_USD) is gone: public jobs run under the Worker's full hold.
+  MOTION_RENDERER_CONFIG = "03f2a1efc08e-1.5cpu-3gib-420s"
 
 # No [mounts]: the durable job record is the worker's (LearnVideos Durable Object + the D1 reservation). A restart loses the
 # running job; the worker keeps its hold as unknown cost and this process refuses that job's grant.
