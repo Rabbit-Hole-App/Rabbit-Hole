@@ -130,7 +130,7 @@ Legend: To Do / Doing / Blocked / Done (a task is Done only with production evid
 
 Production mutations are owner commands; one gate and one release at a time; no paid call outside the shared ledger; script tests for production-affecting scripts run in an isolated harness (`CLAUDE.md`); users see AI credits only (no dollars) and no ellipsis in UI labels; no 3D assemblies, Explain Back or Voice Mode work without authorization.
 
-## 9. Owner queue (revised Monday 2026-10-26, 10:40 AM PT; updated 11:00 AM PT)
+## 9. Owner queue (revised Monday 2026-10-26, 10:40 AM PT; updated 10:46 AM PT)
 
 Nothing in this document authorises any action. Each line says who acts: **DECISION** (yours), **YOU RUN** (a command or browser action only you can do, because it changes production or spends money), **ME** (implementation, verification, coordination I own and am doing now). Only the lines marked DECISION or YOU RUN need you.
 
