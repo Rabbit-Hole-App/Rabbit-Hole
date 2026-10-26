@@ -1,8 +1,12 @@
 # tldraw removal
 
-Ledger task `19e561b2-04b6-46bf-bc3b-2e6bb3f834ec`. Owner direction 2026-10-26: ship Rabbit Hole without the `tldraw`
-dependency and its license key. Branch `feat/tldraw-removal`, from main 7b105a4b. This document is the inventory, the
-replacement approach, the data-migration rule, the slices and the validation plan. Slices S1 and S2 are built; the rest is not.
+Ledger task `19e561b2-04b6-46bf-bc3b-2e6bb3f834ec`. **Owner decision 2026-10-26 (typed twice): remove tldraw completely.**
+Done means the replacement works in production and tldraw is gone from source, manifests, lockfile, bundles, CSS, assets,
+network requests, environment and build guards; dead-code cleanup alone is not done. The owner approved D1 to D4 (option A
+each, see "Owner decisions"); the licence expiry no longer blocks implementation. Branches: `feat/tldraw-removal` (S1),
+`feat/tldraw-removal-s2` (S2), `feat/tldraw-removal-contract` (the data contract below). This document is the inventory, the
+data contract, the migration rule, the workstreams and the validation plan. S1 and S2 are built; the contract is committed
+by `feat/tldraw-removal-contract`; the editor, migration, Tutor and cutover work is not started.
 
 ## Why (the license, read from the package)
 
@@ -16,8 +20,16 @@ replacement approach, the data-migration rule, the slices and the validation pla
 - `@tldraw/tlschema`, `store`, `state`, `state-react`, `utils`, `validate` are MIT (`package.json` of each); `tldraw`,
   `@tldraw/editor` and `@tldraw/driver` are not.
 
-No tldraw release is open-licensed: v2.4.6 is non-commercial only; v3.15.6 allows commercial use but forbids removing the
-watermark or the key check; v4.0.0 and later need a key in production. A downgrade is therefore not an exit.
+Versions read: v2.4.6 is non-commercial only; v3.15.6 allows commercial use but forbids removing the watermark or the key
+check; v4.0.0 and later need a key in production. `@tldraw/tldraw` v1 (1.29.2) is MIT on the npm registry. Whether a
+downgrade to v1 could read or write today's v5 snapshots, and the cost of maintaining an old engine, is a separate
+engineering question that this task does not pursue: the owner's direction is to remove tldraw, not to swap its version,
+and not to buy a licence.
+
+**Licence expiry (D0): not established.** No record exists in the repository, the docs or the notes. Only the owner can
+retrieve it: the tldraw account or the licence page `https://tldraw.dev/community/license`, or the purchase email. The key
+lives as `TLDRAW_LICENSE_KEY` in the root `.env` (mapped to `VITE_TLDRAW_LICENSE_KEY` at build) and as a GitHub secret
+named `VITE_TLDRAW_LICENSE_KEY`. Nobody should read or decode the value; the date is on the vendor side.
 
 Today the key is `VITE_TLDRAW_LICENSE_KEY` (names only here): required by `scripts/prod-release.mjs:227-229` and
 `scripts/dev-deploy.mjs:459-460`, read from GitHub secret `VITE_TLDRAW_LICENSE_KEY` by `.github/workflows/deploy-dev.yml:56`
@@ -138,48 +150,194 @@ How many whiteboards exist in production is unknown. The owner can count them wi
 `perfect-freehand` (MIT) and `roughjs` (MIT) are in `node_modules` only as transitive dependencies of Excalidraw and Mermaid;
 nothing in `src` imports them.
 
-**Recommendation: A**, in slices, with the S1 reader as the safety net for every existing snapshot. It reuses code that
+**Approved: A** (owner, 2026-10-26), in slices, with the S1 reader as the safety net for every existing snapshot. It reuses code that
 already ships and is tested, adds no dependency, and is the only option that removes the license, the CDN fetch and the
 usage reporting together.
 
 ## Migration rule (existing whiteboards and sketches keep working)
 
-1. **Never destroy.** `block.snapshot` (P1) and the IndexedDB records (P2, P3) are never rewritten, trimmed or deleted by
-   any slice. Nothing runs against production data; conversion happens in the learner's browser when they open a card.
-2. **Read without tldraw.** `src/legacy-whiteboard.js` (S1) reads P1, P2 and a bare store snapshot into a plain structure and
-   a static SVG. It never mutates its input (tested on a deep-frozen snapshot) and counts every record it cannot read as
-   `unsupported` instead of dropping it.
-3. **Derived copy, first open.** A whiteboard block that has `snapshot` and no `sketch` is converted in memory with the S2
-   converter (stroke to `strokes`, `geo`, `arrow`, `line`, `frame` to `shapes`, `text` and `note` to `items`, `meta.author`
-   kept) and shown at once. The converted copy is written to `block.sketch` only on the learner's first edit; until then
-   the card is byte-identical to what was stored.
-4. **What has no counterpart is not lost.** Images, embeds, bookmarks, video, the three app shapes and any `unsupported`
-   record stay in the retained `snapshot`, and the card shows them from the S1 SVG as a read-only layer behind the new
-   marks, labelled as before. Decision D2 sets what the Tutor does for new ones.
-5. **Both fields count toward the 1.9 MB board limit** (`BOARD_LIMIT`, warning at 85%). Dropping the legacy `snapshot` is a
-   separate owner decision after a retention period; no slice does it.
-6. **Notes (P2) and graphs (P3)** are left untouched in IndexedDB. Their view is unreachable today; D4 decides what happens.
+Owner rules 2026-10-26, as built into the contract below:
 
-## Slices
+1. **Keep the original.** `block.snapshot` (P1) and the IndexedDB records (P2, P3) are never rewritten, trimmed or deleted by
+   any slice, and no database is cleared. Nothing runs against production data.
+2. **Derive in memory on open.** A block with a `snapshot` and no saved `sketch` is converted when it is opened, in the
+   browser, by a pure converter built on `src/legacy-whiteboard.js`; the result is shown at once. Deriving calls no save.
+3. **Persist only on an authorized edit.** The converted representation is written to `block.sketch` (with `sketchFrom`, see
+   below) by the first edit made by someone who may edit (`mayPersist`). A shared read-only viewer, a guest without a copy
+   and a fork preview never trigger a write; reopening an unedited board is byte-identical to what was stored, and repeated
+   opens derive the same ids, so nothing duplicates.
+4. **Unsupported objects stay visible and recoverable.** Images, embeds, bookmarks, video, the three app shapes, groups'
+   relationships and any record the converter has no counterpart for stay in the retained `snapshot`. The editor lists them
+   as "kept from the original board" with their positions, shows them in a read-only layer drawn from the S1 SVG, and says
+   plainly that they cannot be edited in the new editor and that the picture is approximate: the SVG is a preview, not a
+   proof of fidelity. The original JSON stays downloadable from the card.
+5. **Both representations count toward the limits, and the original is never deleted to fit a save.** `saveVerdict`
+   (contract) counts the sketch against the 400,000-character block cap and the whole board against 1.9 MB. A sketch that
+   does not fit stays in memory with `tooLarge`, as an over-size tldraw board did, and the editor says so; there is no code
+   path that removes `snapshot`. Dropping originals after a retention period is a separate owner decision, not in scope.
+6. **Edits made in the new editor stay recoverable after a rollback to a tldraw build**, see "Rollback".
+7. **Notes (P2) and graphs (P3)** stay in IndexedDB untouched; the unreachable Notes view and its dead code are removed.
 
-Each slice ships on its own, passes `verify` and `fast-e2e` on its SHA, and is revertible by `git revert`. The license-key
-guards come out only in S6, when `tldraw-imports.test.mjs` (the ratchet) has an empty list.
+## Data contract (shared by every workstream)
 
-| Slice | Content | Needs owner decision | Imports removed |
-|---|---|---|---|
-| **S1 (built)** | `legacy-whiteboard.js` reader and SVG exporter; fixtures written by tldraw's own schema; the ratchet test; check-map entry | No | 0 |
-| **S2 (built)** | Remove the dead player: delete `LearnCanvas.jsx`, `learn-graph-storage.js`, `learn-video-canvas.js`, `sigmoid-demo.js`, `canvas-preview.js`; cut the editor blocks out of `LearnPage.jsx` (lines listed above); update `learn-notes-view.test.mjs`, `index.css:728`, check-map. As built, `LearnPage.jsx` keeps `const [editor, setEditor] = useState(null)` and its other guarded uses (none import tldraw); only the code that called the deleted modules went, and `demo.run` and `previewLesson` became empty functions (`previewLesson` already returned at once without an editor; `demo.run` would have thrown) | No | 4 of 11 (the fifth deleted file, `canvas-preview.js`, used the editor but did not import tldraw) |
-| S3 | Notes: per D4 (recommended: delete `LearnNotes.jsx`, the notes state in `LearnPage.jsx:313-345,1930-1970,2227,2397` and `captureNotePage`; leave IndexedDB data) | D4 | 1 |
-| S4 | New whiteboard card on our primitives, plus the converter and on-open migration (sub-steps below) | D1, D2, D3 | 0 until S5 |
-| S5 | Cut `WhiteboardBlock.jsx`, `learn-board-renderer.js`, `sigmoid-board.js` over to the new card; delete `learn-shape-utils.js`, the three shapes | after S4 | the last 6 |
-| S6 | Remove `tldraw` from `packages/web/package.json` and the lockfile, the two script guards, docs; owner pushes the workflow edits and deletes the secret | none beyond D0 | dependency |
+Code: `packages/web/src/whiteboard-sketch.js` (pure, no imports) with `whiteboard-sketch.test.mjs`. Workstreams build on
+these types and rules and do not invent variants. The contract owner is the removal lane lead; a change to it is a change
+to this section in the same commit.
 
-S4 sub-steps: (1) a whiteboard card body that renders and edits `block.sketch` with the canvas's gesture code at the card's
-size; (2) `legacy-to-sketch.js`, pure, tested on the S1 fixtures; (3) on-open conversion and first-edit write (rule 3); (4) Ask
-about selection: `shapesIn` over the sketch marks with the same `{ id, type, text, author }` contract; (5) the Tutor
-answer drawn as sketch items and shapes (text, equation, code, diagram, image annotations) and, per D2, graph, 3D, video and
-scene as ordinary canvas cards beside the board; (6) `chat-block-check.mjs` whiteboard checks rewritten for the new
-selectors and a new check that seeds a legacy snapshot into `:ink` and opens it; check-map entries.
+### The block
+
+A whiteboard block stays `{ id, type: 'whiteboard', title, narration, ... }` and gains:
+
+| Field | Meaning |
+|---|---|
+| `snapshot` | The tldraw snapshot it was saved with (P1), kept **verbatim and never modified** by any code path. `null` for a board created after cutover |
+| `sketch` | `{ strokes, shapes, items }`, the same lists the Explain Back sketch and the canvas use (`explain-sketch.js`), in sketch coordinates. A missing list reads as empty |
+| `sketchFrom` | `{ digest, v }`: the digest (`digestOf`, canonical JSON, key order ignored) of the `snapshot` the sketch was converted from and the converter version. Written once, with the first saved sketch over a snapshot; absent on a new board |
+| `tooLarge` | The sketch did not fit and lives in memory only (below) |
+| `marked`, `narration`, `title`, `demo` | Unchanged. `toolsHidden` is retired (the tools are the canvas toolbar) |
+
+`legacyState(block)` is one of `none` (no snapshot), `unconverted` (snapshot, no saved sketch: derive in memory),
+`converted` (the saved sketch was made from exactly this snapshot) and `diverged` (the snapshot changed after the sketch
+was made, which only an older tldraw build can do): the sketch is shown, the original is kept, and the editor says that the
+original changed in an older version. `whiteboard` is not in `shared-privacy.js` `LEARNER`, so both fields are shared
+content: a share link shows them and a fork copies them whole, exactly as today.
+
+### Marks
+
+- **Lists and kinds** (`validateSketch`): strokes `tool` `pen` or `highlighter` with `points: [{ x, y }]`; shapes `kind` in
+  `rect ellipse triangle diamond hexagon star line arrow curve elbow` with `x1 y1 x2 y2`; items `kind` `text` or `sticky`
+  with `x y`. All other fields the canvas already writes (`color`, `width`, `dash`, `fill`, `opacity`, `round`, `startHead`,
+  `endHead`, `text`, `label`, `runs`, `w`, `h`) are carried unchanged.
+- **Ids**: every shape and item has a unique string `id`; ids are unique across the three lists. A stroke may lack one (the
+  shared gesture code makes none), but a **whiteboard's strokes carry one**, because Ask about selection and Remove
+  explanation name marks: `withStrokeIds` gives an id-less stroke an id derived from its content, so every open gives the
+  same id and no two strokes share one.
+- **Provenance** (all optional): `author` is `learner`, `lesson` or `assistant` (`tutor` is read as `assistant`); a mark with no
+  author is the learner's. `explanationId` and `objectId` tie a Tutor mark to the explanation and plan block that made it.
+  A converted mark also carries `legacyId` (the tldraw shape id), `legacyGroup` (the id of the tldraw group it was in, so the
+  relationship is not lost), and `meta` (the tldraw `meta` object, kept whole).
+- **Coordinates**: converted marks keep tldraw's page coordinates (shapes inside frames are placed in page space by the S1
+  reader). Nothing is clipped: see "Fit and focus".
+
+### Where each legacy record goes (`legacyTarget`)
+
+| tldraw record | Becomes | Note |
+|---|---|---|
+| `draw` | stroke `pen` | points decoded by the S1 reader; width from `size`; pressure is dropped |
+| `highlight` | stroke `highlighter` | |
+| `geo` rectangle, ellipse, triangle, diamond, hexagon, star | shape of that kind | label becomes `text` |
+| `geo` oval, cloud, heart, rhombus, pentagon, octagon, trapezoid, x-box, check-box, block arrows | the nearest kind | `approx`: the editor tells the learner it was approximated |
+| `arrow` | shape `arrow`, or `curve` when it bends | bound ends are resolved to the bound shape's edge and stay free ends; the label becomes `label` |
+| `line` | shape `line` | a spline line is `approx` |
+| `frame` | a `rect` shape (`approx`) plus its name as a text item | children keep their page positions |
+| `text` | item `text` | rich text flattened to plain lines |
+| `note` | item `sticky` | |
+| `group` | nothing of its own | members keep `legacyGroup` |
+| `image`, `video`, `embed`, `bookmark`, `three-d-viewer`, `interactive-graph`, `learn-video-pending`, anything unknown | **nothing: stays in `snapshot`** | listed by the editor as kept from the original board, drawn read-only from the S1 SVG, downloadable |
+
+### Persistence
+
+`mayPersist({ readOnly, canEdit })` gates every write; deriving a sketch never writes. `withSketch(block, sketch)` is the
+only way a block gets a saved sketch: it carries `snapshot` over by reference and records `sketchFrom` once.
+`saveVerdict({ block, sketch, boardChars })` answers `ok`, `sketch-too-large` (over 400,000 characters for the sketch alone,
+the cap the tldraw block had) or `board-too-large` (the whole board, after replacing the old sketch with the new one, over
+1,900,000), and `warn` from 85 percent. It has no outcome that removes the snapshot; a sketch that does not save stays in
+memory with `tooLarge` and a message, and the original stays whole.
+
+### Fit and focus (no pan or zoom inside the card)
+
+The card draws sketch space through a view `{ s, tx, ty }` (`screen = sketch * s + t`). `initialView` is the identity when
+everything lies inside the frame and `fitView` otherwise, so a large legacy drawing opens whole, never clipped; `focusView`
+shows a chosen rectangle (a kept object, a Tutor explanation, the current selection); `toSketch` and `toFrame` convert
+points so drawing in a fitted view lands in sketch space. A fitted view never magnifies past 1. The view is presentation
+state: not saved, not shared, never a write. The editor offers Fit, a way to focus a kept object or an explanation, and
+reset to 100 percent.
+
+### Selection interface (Ask about selection)
+
+`marksIn(sketch, rect)` returns the marks wholly inside a crop, else the ones it touches, as `{ id, type, text, author }`:
+the shape `area-crop.js` `cropBinding` already stores in `binding.shapes`. `registerBoardAsk(id, { shapesIn, explain })`
+(`board-ask.js`) keeps its signature; `shapesIn(clientRect)` converts the rectangle through the card's frame and view and
+calls `marksIn`.
+
+### Tutor draw-back interface
+
+`explain({ question, answer, onStage })` no longer draws by itself. It resolves to a **draw-back**
+`{ explanationId, marks: { strokes?, shapes?, items? }, cards: [{ kind, objectId, text, operation }] }` (`validateDrawBack`):
+every mark has `author: 'assistant'`, the one `explanationId` and its `objectId`; `cards` are the plan's graph, 3D, video,
+scene and image objects (`RICH_CARD` maps them to the block types `graph`, `model3d`, `videoGenerate`, `scene`, `image`).
+The host applies marks and cards in **one** state update (one undo step). `explanationIdFor(whiteboardId, requestKey)` is
+the same for the same request, so a retry or a reload finds its marks and cards already there. **Remove explanation**
+is `removeExplanation(sketch, explanationId?)`: the Tutor's marks go, the learner's and the lesson's stay; cards beside
+the board are ordinary cards and are not touched.
+
+### Rich-media cards beside a board
+
+A card made from a draw-back is an ordinary canvas card (all its normal behaviour, share, fork, delete) with
+`whiteboardLink: { whiteboard, explanationId, objectId }`. Its id is `cardIdFor(link)`, a function of the link, so
+`insertLinkedCards(blocks, cards)` inserting it twice is one card and an existing card is never replaced. Placement is
+beside the originating whiteboard, not over it, in the card's own position fields. `cardsOf(blocks, whiteboardId)` lists
+a board's cards. Deleting a whiteboard leaves its cards; the link then points at nothing and is harmless. Objects that are
+already inside an existing snapshot are never converted into cards, dropped or flattened (migration rule 4).
+
+## Capabilities lost at cutover
+
+The owner must see this list before cutover. "Verified" means read in the current code or docs; "to confirm" means the
+editor workstream must check it against the dev build before the cutover is approved. The native tools are the canvas
+toolbar acting on the card (the Explain Back pattern, `docs/features/explain-back-sketch.md`).
+
+Kept (the owner's list): drawing (pen, highlighter, eraser), text and sticky notes, shapes, lines and arrows, selection,
+move, resize and restyle, Delete, undo and redo (block-level, per gesture), save and reload, share and fork, Ask about
+selection, Tutor draw-back, Remove explanation, narration and Read it aloud.
+
+Lost or changed:
+
+1. **Infinite pan and zoom inside the card** becomes Fit, focus and reset (owner direction). Verified.
+2. **Shapes beyond ten kinds.** tldraw's cloud, heart, oval, rhombus, pentagon, octagon, trapezoid, block arrows, x-box and
+   check-box cannot be drawn new; existing ones are converted to the nearest kind and flagged. Verified.
+3. **Frames** as containers: converted to a rectangle plus a title; nothing is clipped to it. Verified.
+4. **Rotation** of shapes and text: the sketch model has no rotation (shapes are `x1 y1 x2 y2`), so a rotated box converts to
+   an upright one; the editor has no rotate handle. Verified from the model; the converter workstream decides how a rotated
+   box is approximated.
+5. **Groups** inside a board: the relationship is kept as `legacyGroup`, not editable; the Explain Back doc says group
+   stands down while a sketch is the target. Verified.
+6. **Arrows glued to shapes** (bound arrows follow a moved shape): converted to free arrows at the resolved ends. To confirm.
+7. **Copy, cut, paste, duplicate inside a card.** The sketch doc lists copy, cut, duplicate and group as standing down while a
+   sketch is the target. Verified; the editor workstream may add duplicate.
+8. **Align, distribute, stack, reorder (z-order) and lock** inside a card. To confirm.
+9. **Images, video, embeds, bookmarks and the 3D, graph and video-proposal shapes drawn inside the board.** Existing ones
+   are kept read-only from the retained snapshot; new ones become cards beside the board (D2). Verified.
+10. **Pressure-shaped strokes.** Converted strokes are uniform-width paths. Verified (the stroke model has no pressure).
+11. **Pattern and lined fills, and the four tldraw fonts.** Fills are the canvas's tints; text uses the canvas's text
+    levels. To confirm.
+12. **Rich text formatting** (bold, italic, lists) inside tldraw text and labels: flattened to plain lines on conversion. To confirm.
+13. **Laser pointer, snapping guides and grid.** To confirm.
+14. **The card's own toolbar and its Hide-tools button** (`toolsHidden`): the canvas toolbar replaces both. Verified.
+15. **tldraw keyboard shortcuts** are replaced by the canvas's (`docs/features/canvas-editing.md`). To confirm.
+16. **The CDN fetch of tldraw's icons, fonts and translations and the usage reporting to tldraw** go away (a gain).
+
+Already unavailable today because `WhiteboardBlock.jsx` hides them (`HIDDEN`): the page menu and multiple pages, the main menu
+and its export, the debug panel, the help menu and the shortcuts dialog, the minimap. Nothing is lost there.
+
+## Workstreams and slices
+
+Each slice ships on its own, passes `verify` and `fast-e2e` on its SHA and is revertible by `git revert`. The ratchet
+`tldraw-imports.test.mjs` lists the files that still import tldraw; the build guards and the dependency come out only when
+it is empty and the replacement checks pass. A step is one independently testable change.
+
+| Workstream | Content | Steps | Starts after | Runs in parallel with |
+|---|---|---|---|---|
+| S1 (built) | reader, SVG exporter, fixtures, ratchet | done | | |
+| S2 (built) | dead player removed (5 files, `LearnPage.jsx` call sites) | done | | |
+| Contract (built) | the section above and `whiteboard-sketch.js` | done | | |
+| S3 Notes | delete `LearnNotes.jsx`, the notes state in `LearnPage.jsx`, `captureNotePage`; keep IndexedDB data, never clear it (D4) | 4 | S2 merged (same file) | A, B, T |
+| A Editor | (A1) `renderSketch` takes the card's frame and a view, store coordinates go through `toSketch`; (A2) the whiteboard card uses it, draw target and toolbar as Explain Back; (A3) saves through `mayPersist`, `withSketch`, `saveVerdict`, read-only never writes; (A4) Fit, focus and reset controls; (A5) the kept-from-original layer: list, S1 SVG, downloads; (A6) native seed for `demo: 'sigmoid'` replacing `sigmoid-board.js`; (A7) rewrite the `chat-block-check.mjs` whiteboard checks, add legacy-open, edit, reload, share and fork checks, check-map entries | 7 | Contract | B, T |
+| B Migration | (B1) `legacy-to-sketch.js` for strokes, shapes, arrows, lines, text, notes with deterministic ids, `legacyId`, `meta`; (B2) frames, groups, bound arrows, rotation, colours and sizes; (B3) `deriveSketch(block)` that A calls on open (no write); (B4) more fixtures: rotated and nested, near the 400,000 limit, 2D and 3D paths, rich text, assets; (B5) tests: repeated opens, reload, share and fork (`forkState`, `shared-privacy`), arrows and groups, assets, metadata, size with both representations | 5 | Contract (B3 before A3) | A, T |
+| T Tutor | (T1) `shapesIn` and `registerBoardAsk` over `marksIn`; (T2) a planner that turns a board plan (text, equation, code, diagram, image annotations) into marks, replacing the drawing half of `learn-board-renderer.js`; (T3) rich-media plan objects to `insertLinkedCards`, placed beside the board, no duplicates on retry or reload; (T4) Remove explanation and the explanation count; (T5) the `area-crop.js` binding and the unit tests that pin it; (T6) tests and the `chat-block-check` explain step | 6 | Contract | A, B |
+| X Cutover | (X1) delete `WhiteboardBlock.jsx`, `learn-board-renderer.js`, `sigmoid-board.js`, `learn-shape-utils.js`, the three shapes, the `learn-warmup.js` entry; (X2) remove `tldraw` from `packages/web/package.json` and the lockfile, keeping dependencies other features use; (X3) remove the key reads and guards (`scripts/prod-release.mjs:227-229`, `scripts/dev-deploy.mjs:459-460`, their tests) and prepare the exact workflow diff (`deploy-dev.yml:56`, `deploy-prod.yml:48`, `verify.yml:58`) as an owner `!` command; (X4) docs and obsolete styles (the CLAUDE.md dev snippet is an owner edit); (X5) a removal audit: source, `npm ls`, production bundles for tldraw code, CSS, assets and network requests; (X6) browser checks on the final combined SHA, dev deployment, deployed verification | 6 | A, B, T merged | |
+
+Critical path: Contract, then A (A1 to A3) with B3 and T1 to T3 beside it, then X: three sequential stages after the contract,
+with A, B and T side by side. After deployment and verification, deleting the obsolete licence secret is a queued owner command.
 
 ## Validation plan
 
@@ -188,37 +346,57 @@ selectors and a new check that seeds a legacy snapshot into `:ink` and opens it;
   base64 stroke decode against known coordinates, bound arrows, frame children, images, the three app shapes, a note with
   locked shapes, hostile text escaped in the SVG, an unknown record counted, a non-snapshot refused, and no mutation of a
   frozen input. `tldraw-imports.test.mjs` is the ratchet; negative control run: dropping one name from its list fails it.
-  S4 adds converter tests over the same fixtures (counts per kind, `meta.author` kept, idempotent, input untouched).
+  B5 adds converter tests over the same fixtures (counts per kind, `meta.author` kept, idempotent, input untouched).
 - **Snapshot round-trip fixtures**: the committed JSON is the tldraw-written side of the round trip; a real whiteboard
   exported from a dev clone by the owner would add a second source and is optional.
 - **CI browser** (`fast-e2e`, read from CI, never run by Claude): `chat-block-check.mjs` is the only check on the editor and
-  is rewritten in S4 step 6; confirm it was selected and executed (CLAUDE.md "Green CI can mean zero relevant checks").
-  A legacy-open check seeds `:ink` with the fixture. S6 changes `package-lock.json`, which selects all checks.
-- **Bundle** (S6): the production bundle contains no `tldraw` module and no `cdn.tldraw.com` string; extend
+  is rewritten in A7 and T6; confirm it was selected and executed (CLAUDE.md "Green CI can mean zero relevant checks").
+  A legacy-open check seeds `:ink` with the fixture. X2 changes `package-lock.json`, which selects all checks.
+- **Bundle** (X5): the production bundle contains no `tldraw` module and no `cdn.tldraw.com` string; extend
   `e2e/production-bundle-check.mjs` or add a unit assertion over the build output.
+- **Final verification of complete removal (X5, X6):** an audit that fails on any `tldraw` or `@tldraw` in `src`, the manifests,
+  the lockfile and `npm ls`, on any tldraw module, CSS or asset in the production bundles (extend
+  `e2e/production-bundle-check.mjs`), and on any request to `cdn.tldraw.com`; browser checks on the final combined SHA for new
+  drawing, a legacy board open, edit, save and reload, sharing, forks and Tutor interaction; a deployed Whiteboard working
+  without the package, the key or the CDN. Claude reads these from CI and the dev clone; the owner tests in the browser.
+- **Required unit coverage (B5, T6):** repeated opens give the same marks and ids, reload, share and fork, arrows, groups,
+  assets, metadata, the size verdict with both representations, a read-only viewer never writing, retry never duplicating
+  cards.
 - **Not covered by any of this**: pixel fidelity of the SVG against tldraw's own rendering (geometry is a faithful preview;
   fonts, text wrapping, arrow arcs and pattern fills are approximate), real-learner drawing feel, and a deployed user flow.
 
 ## Rollback
 
-Per slice `git revert` of the slice's commits. The retained `snapshot` makes S4/S5 safe to revert: an old bundle reads
-`snapshot` exactly as before. Edits made in the new editor live in `block.sketch`, which an old bundle ignores, so they
-are invisible (not deleted) after a revert; the rollback note for S5 says so. S6 is reverted by restoring the dependency,
-the lockfile and the guards; the license key stays in the secret store until the owner deletes it after S6 is live.
+Per slice `git revert` of the slice's commits. The retained `snapshot` makes A to X safe to revert: an older tldraw build
+reads `snapshot` exactly as before. **Edits made in the new editor live in `block.sketch`, which an older tldraw build
+ignores, so after a rollback they are invisible but intact**, and they come back when the new build is deployed again;
+`legacyState` reports `diverged` if the older build changed the snapshot in between, and then both are shown and nothing is
+discarded. To keep those edits recoverable while a tldraw build still exists, before cutover (X) the card must offer
+**Download my drawing** (the sketch as JSON and the SVG) and **Download original** (the snapshot), and the rollback note names
+the one-off converter that would write a sketch back into a tldraw snapshot. That converter is not built unless a rollback of
+the cutover is scheduled, and it would write a copy beside the original, never over it. X is reverted by restoring the
+dependency, the lockfile and the guards; the licence key stays in the secret store until the owner deletes it after the
+cutover is live and verified.
 
 ## Owner decisions
 
-| # | Decision | Options | Recommendation |
-|---|---|---|---|
-| D0 | Deadline: does the current license key or trial expire, and when? It sets how fast S4 must ship | A) a date; B) none, the key is paid | State the date; if soon, run S2 and S3 now (no decision needed), S4 next |
-| D1 | What replaces the whiteboard editor | A) our own primitives (reuse the canvas tools, no infinite pan or zoom inside a card); B) Excalidraw; C) retire the card; D) buy a tldraw license | A |
-| D2 | Images, 3D, graph, video and scene objects the Tutor used to draw inside the board | A) they become normal canvas cards next to the board; B) the Tutor draws text, diagrams and annotations only; C) keep them inside, read-only | A |
-| D3 | Existing whiteboards | A) convert in the browser on first open, keep the old snapshot; B) read-only picture forever; C) an offline batch migration (needs a production data job and approval) | A |
-| D4 | Personal notes (view unreachable; data in IndexedDB) | A) remove the dead view, leave the data; B) rebuild a read-only "My notes" from the S1 SVG; C) rebuild editing | A, B later if anyone asks |
+Approved 2026-10-26 (typed, twice): remove tldraw completely, and option A for each of D1 to D4. Constraints from the same
+message: no new general-purpose drawing engine, reuse the existing UI components and styling, no tldraw version swap, no
+licence purchase.
+
+| # | Decision | Approved |
+|---|---|---|
+| D0 | Licence expiry | Not established and no longer blocking. Only the owner can read it, at the tldraw account, `https://tldraw.dev/community/license` or the purchase email; the key is `TLDRAW_LICENSE_KEY` in the root `.env` and a GitHub secret named `VITE_TLDRAW_LICENSE_KEY` (values never read here) |
+| D1 | Replacement for the whiteboard editor | A: the existing native drawing primitives and sketch tools; no separate infinite pan or zoom inside the card, large drawings stay reachable by fit and focus |
+| D2 | Images, 3D, graphs, videos and scenes the Tutor adds | A: ordinary canvas cards beside the originating whiteboard with a stored link, no duplicates on reload or retry; existing embedded objects never dropped or flattened |
+| D3 | Existing boards | A: original snapshot intact, representation derived in memory on open, persisted only on an authorized edit, read-only viewers never write |
+| D4 | Notes | A: remove the unreachable view and dead code, keep the IndexedDB data, never clear databases |
+
+Open for the owner: the list under "Capabilities lost at cutover", before the cutover is approved.
 
 ## Owner commands (read-only, optional)
 
-Count the production boards that hold a whiteboard, so S4's blast radius is known. Read-only `SELECT`, database from
+Count the production boards that hold a whiteboard, so the migration's blast radius is known. Read-only `SELECT`, database from
 `packages/web/wrangler.rabbit-hole-prod.jsonc` (`LEARN_DB`, `rabbit-hole-learn-prod`); needs `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID` in the environment (by name); no rollback needed:
 
