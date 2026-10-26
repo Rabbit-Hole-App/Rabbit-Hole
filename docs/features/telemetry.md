@@ -273,7 +273,7 @@ No response content is ever logged.
 - The owner is `Yudhisteer.chin@gmail.com` (owner clarification, 2026-10-23). `yudhisteer.chin01@gmail.com` is a different
   identity and never matches.
 - Guard (`owner-guard.js`, owner decision 4): a valid session from the trusted auth path (`devIdentity`, the control plane's
-  `/api/me`), a configured `SUBSCRIPTION_OWNER_EMAIL` that is a valid address, and a match after the application's own
+  `/api/me`), a configured `SUBSCRIPTION_OWNER_EMAIL` that is a valid address or, on production, the exact application principal of the owner's Google sign-in (`user@<32 hex>.rabbithole.invalid`, the `/api/me` email of a Google or GitHub session; the match is whole-string and no other `.invalid` shape is accepted), and a match after the application's own
   normalization (`loginEmail` in `auth.js`: trimmed, lowercased; only strings are accepted). The secret may therefore be typed in
   any case. No dot, plus-tag or domain-alias folding is applied. Anything else is a plain 404, so the route's existence is not
   disclosed. Independent of `SUBSCRIPTION_ONLY` and never uses `subscriptionOwnerRefusal`; no body, query, header or cookie

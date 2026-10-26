@@ -10,8 +10,16 @@
 import { devIdentity } from './dev-forwarding.js';
 import { loginEmail } from './auth.js';
 
+// A Google or GitHub sign-in's /api/me email is the application principal user@<32 hex>.rabbithole.invalid (auth.js userFor), which
+// loginEmail refuses (.invalid), so on production no session could ever match. That exact shape is the only addition: the match stays
+// whole-string, a provider email never becomes a principal and email sign-in refuses .invalid, so no caller can choose one.
+const PRINCIPAL = /^user@[0-9a-f]{32}\.rabbithole\.invalid$/;
 // Strings only: loginEmail coerces anything with String(), which would let [email] or an object with a toString match.
-const normal = value => (typeof value === 'string' ? loginEmail(value) : null);
+const normal = value => {
+  if (typeof value !== 'string') return null;
+  const principal = value.trim().toLowerCase();
+  return PRINCIPAL.test(principal) ? principal : loginEmail(value);
+};
 export const ownerEmail = env => normal(env?.SUBSCRIPTION_OWNER_EMAIL); // null when unset, empty or not an address
 
 export async function ownerOnly(req, env, { identity = devIdentity } = {}) {
