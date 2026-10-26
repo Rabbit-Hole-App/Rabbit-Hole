@@ -11,7 +11,7 @@ import { motionRequestCacheKey, validateMotionRequest } from '../src/motion-prov
 import { REFERENCE_KINDS, plainPrompt, removeReference, reviewHash, reviewOf, validateReview } from '../../web/src/generation-review.js';
 
 const ALICE = 'alice@example.test', BOB = 'bob@example.test';
-const env = { ANTHROPIC_API_KEY: 'a'.repeat(40), MOTION_ORCHESTRATOR_URL: 'https://orchestrator.test/', MOTION_ORCHESTRATOR_TOKEN: 'm'.repeat(48), MOTION_ESTIMATE_USD: '1.00', MOTION_JOB_RESERVATION_USD: '8.96' };
+const env = { ANTHROPIC_API_KEY: 'a'.repeat(40), MOTION_ORCHESTRATOR_URL: 'https://orchestrator.test/', MOTION_ORCHESTRATOR_TOKEN: 'm'.repeat(48), MOTION_ESTIMATE_USD: '1.00', MOTION_MAX_CHARGE_USD: '3.50', MOTION_JOB_RESERVATION_USD: '8.96' };
 const DEST = { org: 'w', app: 'canvas-1' };
 const CAD = { id: 'r1', label: 'CAD · Roller assembly', kind: 'card', sourceId: 'card:cad-1', revision: 'rev-1', range: null };
 const IMG = { id: 'r2', label: 'Image · Concept sketch', kind: 'image', sourceId: 'image:img-1', revision: 'rev-7', range: null };

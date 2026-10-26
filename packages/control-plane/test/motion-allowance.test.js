@@ -16,6 +16,7 @@ import { motionOrchestrator } from '../../learn-render/motion/orchestrator.mjs';
 import { memoryBucket } from './live-storage-spy.js';
 import { READY } from './motion-ready-env.js';
 import { reviseSettings, signProposal } from '../src/generation-proposal.js';
+import { moneyLeaks } from './no-money.js';
 
 const sql = name => readFileSync(new URL(`../learn-migrations/${name}`, import.meta.url), 'utf8');
 const NOW = Math.floor(Date.now() / 1000), PERIOD = periodOf(NOW);
@@ -1056,4 +1057,63 @@ test('not ready: refused with a stable code before any hold, model call, orchest
   const refused = await closed.fetch(ask({}, { ...motionOp, request: '/motion 55s explain me softmax func' }));
   assert.deepEqual([refused.status, (await refused.json()).code, w.orchestrator.posts - before], [409, 'motion_not_ready', 0], '55 seconds is outside the measured bucket: refused, not clamped to 30');
   assert.equal(rows(sqlite, 'usage_operations').filter(o => o.category === 'motion').length, 1, 'only the ready combination reserved anything');
+});
+
+// ---------- Credit disclosure (owner 2026-10-26, docs/features/motion-credit-disclosure.md) ----------
+
+test('the list sends the estimate, the maximum and the temporary hold as separate credit numbers, together; no maximum, no hold, and no dollars', async t => {
+  const { LEARN_DB } = d1(t);
+  const list = extra => new LearnVideos(durable('video-a'), env0(LEARN_DB, '50', extra)).list();
+  const shown = await list({ MOTION_ESTIMATE_USD: '1.00' });
+  assert.deepEqual([shown.motionEstimateCredits, shown.motionMaxCredits, shown.motionHoldCredits], [100, 350, 200], 'the hold here is the fixture\'s US$2 hold, not the estimate and not the maximum');
+  assert.deepEqual(moneyLeaks(shown), []);
+  const without = await list({ MOTION_ESTIMATE_USD: '1.00', MOTION_MAX_CHARGE_USD: undefined });
+  assert.deepEqual([without.motionEstimateCredits, 'motionMaxCredits' in without, 'motionHoldCredits' in without], [100, false, false], 'with no maximum the hold is not sent either: the client shows no number alone');
+});
+
+test('settle-time guard: a completed job whose real cost is above its signed maximum is charged the maximum; the provider cost is recorded and the rest is released', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start(); w.script(FIRST_PASS); // costs US$0.80
+  const env = env0(LEARN_DB, '50', { MOTION_MAX_CHARGE_USD: '0.50' });
+  const actor = new LearnVideos(durable('video-a'), env);
+  const p = chatted(sqlite, await approved(env));
+  assert.equal(p.input.binding.max_credits, 50);
+  await actor.fetch(withProposal(p));
+  await settle(actor, async () => (await video(actor)).status === 'ready' && (await video(actor)).hold?.state === 'released');
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 500_000, 'settled']], 'charged the signed maximum, not the real cost');
+  assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [500_000, 0]);
+  assert.deepEqual(rows(sqlite, 'usage_operations').map(o => [o.status, o.cost_usd]), [['settled', 0.8]], 'the platform ledger keeps the provider\'s real cost');
+  const [[, stored]] = [...await actor.state.storage.list({ prefix: 'job:' })];
+  assert.deepEqual([stored.usedMicros, stored.consumedMicros, stored.providerCost[0].charged, stored.providerCost[0].capped], [500_000, 800_000, 500_000, true], 'the video\'s ceiling still counts what the provider billed');
+});
+
+test('settle-time guard: a job at or under its signed maximum is charged its real cost, and zero-credit failures stay zero even above the maximum', async t => {
+  for (const [name, script, charged] of [['under the maximum', FIRST_PASS, 800_000], ['renderer failure above the maximum', [{ stage: 'directing', max_tokens: 16000, out: 14000 }, { stage: 'storyboarding', max_tokens: 16000, out: 14000 }, { stage: 'authoring', max_tokens: 16000, out: 14000 }, { stage: 'rendering', fail: 'render_timeout', cause: 'renderer' }], 0], ['orchestrator crash above the maximum', [{ stage: 'directing', max_tokens: 16000, out: 14000 }, { stage: 'storyboarding', max_tokens: 16000, out: 14000 }, { stage: 'authoring', max_tokens: 16000, out: 14000 }, { stage: 'rendering', crash: true }], 0]]) {
+    const { sqlite, LEARN_DB } = d1(t);
+    const w = world(t); await w.orchestrator.start(); w.script(script);
+    const env = env0(LEARN_DB, '50', { MOTION_MAX_CHARGE_USD: name === 'under the maximum' ? '3.50' : '0.50' });
+    const actor = new LearnVideos(durable('video-a'), env);
+    await actor.fetch(withProposal(chatted(sqlite, await approved(env))));
+    await settle(actor, async () => ['ready', 'failed'].includes((await video(actor)).status) && (await video(actor)).hold?.state === 'released');
+    assert.deepEqual(motionAttempts(sqlite).map(a => a[2]), [charged], name);
+    assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [charged, 0], name);
+    const [[, stored]] = [...await actor.state.storage.list({ prefix: 'job:' })];
+    assert.equal(stored.providerCost[0].capped, undefined, `${name}: nothing was capped`);
+    if (charged === 0) assert.ok(stored.providerCost[0].micros > 500_000, `${name}: the provider cost above the maximum is still recorded`);
+  }
+});
+
+test('a maximum that changed since the card was confirmed is a stale quote: refused before any hold, proposal consumed or orchestrator call, with the updated quote in credits', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start(); w.script(FIRST_PASS);
+  const signed = env0(LEARN_DB), p = chatted(sqlite, await approved(signed));
+  for (const [extra, code] of [[{ MOTION_MAX_CHARGE_USD: '4.00' }, 'motion_quote_stale'], [{ MOTION_MAX_CHARGE_USD: undefined }, 'motion_max_unknown']]) {
+    const actor = new LearnVideos(durable(`video-${code}`), env0(LEARN_DB, '50', extra));
+    const r = await actor.fetch(withProposal(p));
+    const body = await r.json();
+    assert.deepEqual([r.status, body.code], [409, code]);
+    if (code === 'motion_quote_stale') assert.equal(body.quote.max_credits, 400, 'the updated quote');
+    assert.deepEqual(moneyLeaks(body), []);
+  }
+  assert.deepEqual([w.orchestrator.posts, motionAttempts(sqlite).length], [0, 0], 'nothing held or started');
 });
