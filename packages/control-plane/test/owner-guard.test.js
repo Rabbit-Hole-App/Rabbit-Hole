@@ -139,3 +139,29 @@ test('there is one entry: nothing but ownerTelemetryRoute is exported, it calls 
   assert.match(readFileSync(new URL('owner-guard.js', src), 'utf8'), /^import .*loginEmail.*auth\.js/m);
   assert.equal(/subscriptionOwnerRefusal|SUBSCRIPTION_ONLY/.test(readFileSync(new URL('owner-guard.js', src), 'utf8').replace(/^\/\/.*$/gm, '')), false, 'the guard never consults subscription mode');
 });
+
+// Production: the owner signs in with Google and /api/me returns the application principal, not the Gmail address.
+const PRINCIPAL = 'user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid';
+test('the owner principal (a Google sign-in on production) is the owner when the secret is that exact principal, and nothing near it is', async () => {
+  const req = request('/x');
+  const as = (configured, email) => ownerOnly(req, { SUBSCRIPTION_OWNER_EMAIL: configured }, { identity: async () => ({ email, userId: 'u' }) });
+  assert.equal(ownerEmail({ SUBSCRIPTION_OWNER_EMAIL: PRINCIPAL }), PRINCIPAL);
+  for (const allowed of [PRINCIPAL, PRINCIPAL.toUpperCase(), `  ${PRINCIPAL}  `]) assert.deepEqual(await as(PRINCIPAL, allowed), { email: PRINCIPAL, userId: 'u' }, allowed);
+  const denied = ['user@dda2350771a4066e3080c605ba092e0b.rabbithole.invalid', 'user@dda2350771a4066e3080c605ba092e0.rabbithole.invalid', 'user@dda2350771a4066e3080c605ba092e0a1.rabbithole.invalid',
+    'xuser@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid', PRINCIPAL + '.evil.example', `${PRINCIPAL},${OTHER}`, OWNER, OTHER, 'user@dda2350771a4066e3080c605ba092e0a.example.invalid', '', null, undefined, [PRINCIPAL]];
+  for (const email of denied) assert.equal(await as(PRINCIPAL, email), null, JSON.stringify(email));
+  // The Gmail secret does not make the Google principal the owner, and a principal secret does not make the Gmail account the owner.
+  assert.equal(await as(OWNER_CONFIG, PRINCIPAL), null);
+  assert.equal(await as(PRINCIPAL, OWNER), null);
+  // Malformed principal-like configuration still fails closed for everyone, as before.
+  for (const configured of ['user@abc.rabbithole.invalid', 'owner@example.invalid', `${PRINCIPAL} ${PRINCIPAL}`, `${PRINCIPAL},${OWNER}`, PRINCIPAL.replace('user@', '')]) assert.equal(await as(configured, PRINCIPAL), null, configured);
+});
+
+test('through the real route: the principal session gets 200 {owner:true}, every other session 404, with the principal as the secret', async t => {
+  const table = { ...SESSIONS, google: { email: PRINCIPAL, org: 'x', user_id: 'dda2350771a4066e3080c605ba092e0a' }, other: { email: 'user@00000000000000000000000000000000.rabbithole.invalid', org: 'x', user_id: 'o' } };
+  const { env } = envFor(t, { SUBSCRIPTION_OWNER_EMAIL: PRINCIPAL, CONTROL_PLANE: controlPlane(table) });
+  const ok = await call(env, pathOf('access'), { session: 'google' });
+  assert.equal(ok.status, 200);
+  assert.deepEqual(await ok.json(), { owner: true, configured: true, environment: 'dev' });
+  for (const session of ['owner', 'chin01', 'learner', 'other', undefined]) await hidden(await call({ ...env, TELEMETRY_DB: trap('TELEMETRY_DB'), LEARN_DB: trap('LEARN_DB') }, pathOf('access'), { session }), String(session));
+});
