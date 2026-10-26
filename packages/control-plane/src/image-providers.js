@@ -54,6 +54,13 @@ const PRICES = {
   'gpt-image-2.5-flare': { outputBySize: { low: { '1024x1024': 0.006, '2048x1152': 0.006 } }, referenceImage: null, textPerMillion: 5 },
 };
 const credits = usd => Math.ceil(Number((usd * 100).toFixed(6)));
+// The hold for one model: IMAGE_RESERVED_USD_BY_MODEL (JSON, { model: usd }) when it names the model, else IMAGE_GENERATE_RESERVED_USD. A map that cannot be read, or a value
+// that is not a positive number, leaves the model with no hold, so it cannot be quoted (fail closed).
+function reserveFor(env, model) {
+  let own;
+  try { own = JSON.parse(env?.IMAGE_RESERVED_USD_BY_MODEL || '{}')?.[model]; } catch { return NaN; }
+  return Number(String(own ?? env?.IMAGE_GENERATE_RESERVED_USD ?? '').trim() || NaN);
+}
 // One generation's quote: the estimate from the published table and the reservation the job holds while it runs
 // (IMAGE_GENERATE_RESERVED_USD, the owner's bound). -> { state: 'priced', ... } or { state: 'unknown', reason }. Unknown blocks
 // Generate. The estimate excludes thinking tokens (billed by Google, count not published), so it is shown as an estimate only;
@@ -72,7 +79,7 @@ export function imageQuote(env, settings, referenceCount = 0, promptBytes = 0) {
   if (output == null) return { state: 'unknown', reason: 'pricing_unverified', message: 'The price for these settings is not known yet, so it cannot be generated.' };
   // A token is at least one UTF-8 byte, so prompt bytes bound the prompt's text tokens from above.
   const estimateUsd = Number((output + referenceCount * (price.referenceImage || 0) + promptBytes * price.textPerMillion / 1e6).toFixed(6));
-  const reserveUsd = Number(String(env?.IMAGE_GENERATE_RESERVED_USD ?? '').trim() || NaN);
+  const reserveUsd = reserveFor(env, model);
   if (!Number.isFinite(reserveUsd) || reserveUsd <= 0) return { state: 'unknown', reason: 'reserve_unset', message: 'Image generation has no spending bound configured.' };
   if (reserveUsd < estimateUsd) return { state: 'unknown', reason: 'reserve_below_estimate', message: 'Image generation is paused: its spending bound is below this estimate.' };
   return { state: 'priced', model, estimateUsd, reserveUsd, estimate_credits: credits(estimateUsd), reserve_credits: credits(reserveUsd), basis: 'published_per_image', excludes: ['thinking_tokens'] };
