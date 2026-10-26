@@ -256,6 +256,15 @@ This rule changes how a GO is carried out; it does not itself authorize any prod
 - A push to `main` runs the production release (`.github/workflows/deploy-prod.yml`). Each `main` push and each
   production D1 migration needs the owner's explicit approval, normally as a `!` command the owner runs; prepare the
   exact command only when it is ready to run. Paid calls and new infrastructure keep their own approvals.
+- Testing any script that can mutate production (an owner script, migration, deploy, secret or resource-creating
+  command) requires ENFORCED isolation: run it in a harness with no production credentials in its environment and no
+  route to production services (an offline process whose PATH holds only stubs of the real executables), with mocks and
+  test run configured and executed in the same process environment; shell state does not persist between tool calls.
+  The production entry point must reject test-only confirmation overrides: simulated confirmations exist only inside
+  the harness, and a prompt answerable by an environment variable, file or flag is not a safeguard. A dry-run mode
+  must be shown unable to mutate. Shell-local mocks, stub variables and typed confirmations are not sufficient
+  protection (incident 2026-10-25: a test run of a production telemetry script created production resources).
+  Anything such a script touches in production is reported to the owner at once, with evidence.
 - Merge to `main` often: once a candidate has passed its gate and dev deployment, propose its release. Base new work on
   current `main`. An owner-approved batch release is fine; what to avoid is unrelated work accumulating on integration
   branches without a decision.
