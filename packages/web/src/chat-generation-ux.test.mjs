@@ -31,7 +31,7 @@ const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8')
 
 const soon = Math.floor(Date.now() / 1000) + 3600;
 const proposal = (over = {}) => ({ proposal_id: 'gp-0123456789abcdef', version: 1, command: 'motion', title: 'Water cycle', description: 'Sunlight warms the water.', input: { request: '/motion the water cycle', concept: 'Weather' },
-  settings: { duration_seconds: 10, audio: false }, usage: { estimate_credits: 100, reserve_credits: 896 }, expires_at: soon, ...over });
+  settings: { duration_seconds: 10, audio: false }, usage: { estimate_credits: 100, max_credits: 350, reserve_credits: 896 }, expires_at: soon, ...over });
 const meta = (extra = {}) => ({ alternatives: ['812'], feedback: null, contextRefs: [], actions: [{ id: 'a1', capabilityId: 'diagram', label: 'Draw the flow', sourceMessageId: '812', contextRefs: [], args: { subject: 'the flow' }, generationRequired: true, paid: false }],
   followUps: [{ id: 'f1', text: 'Why does it rise?', kind: 'clarify' }], ...extra });
 const answer = (over = {}) => ({ role: 'assistant', messageId: '812', status: 'done', content: 'Here is the plan.', meta: meta(), ...over });

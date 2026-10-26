@@ -33,12 +33,16 @@ import { Button, Tip, cn } from './ui.jsx';
 
 const ICONS = { doc: FileText, card: StickyNote, group: Group, code: FileCode2, image: ImageIcon, media: Film, web: Globe, progress: ChartColumnIncreasing, canvas: Shapes, file: FileText, excerpt: FileText, graph: ChartColumnIncreasing };
 const fmt = n => Number(n).toLocaleString('en-US');
-// Server-provided credits only (owner messages 30-33: never dollars). The reservation stays internal: the line is the estimate
-// alone (owner, 2026-10-23: "Estimated cost: 12 AI credits"). -> '' without an estimate.
+// Server-provided credits only (owner messages 30-33: never dollars). The estimate line is "Estimated cost: 12 AI credits" (owner, 2026-10-23).
+// Motion also states its other two numbers, apart (owner 2026-10-26, docs/features/motion-credit-disclosure.md): the most it can cost, and the
+// temporary hold that is released unused. They exist only where the server sent a maximum (schema requires_max), so the estimate is never alone there.
+// -> '' without the number.
 export function usageLine(usage) {
   const e = usage?.estimate_credits;
   return e != null ? `Estimated cost: ${fmt(e)} AI credits` : '';
 }
+export const maxLine = usage => (usage?.max_credits != null ? `Most it can cost: ${fmt(usage.max_credits)} AI credits. You are never charged more.` : '');
+export const holdLine = usage => (usage?.max_credits != null && usage.reserve_credits != null ? `${fmt(usage.reserve_credits)} AI credits are held while it runs; whatever is not used is released.` : '');
 // A price the server cannot quote is said, never shown as zero (the command blocks Generate until it can).
 export const UNKNOWN_PRICE = 'Price not available yet';
 // A select field's choices from the schema, plus the proposal's own value when it is not one of them (a proposal made before the
@@ -388,6 +392,8 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
       {view.missing_information?.length > 0 && <p data-proposal-blocked {...attrs('blocked')} className="flex items-center gap-1 text-xs text-fail"><CircleAlert size={13} aria-hidden />Answer or remove the missing information before generating.</p>}
       {usage ? <p data-proposal-usage className="text-xs text-ink-2">{usage}</p>
         : view.usage?.unknown && <p data-proposal-usage data-proposal-usage-unknown className="text-xs text-ink-2">{UNKNOWN_PRICE}</p>}
+      {maxLine(view.usage) && <p data-proposal-max className="text-xs text-ink-2">{maxLine(view.usage)}</p>}
+      {holdLine(view.usage) && <p data-proposal-hold className="text-xs text-ink-2">{holdLine(view.usage)}</p>}
       {note && <p data-proposal-note {...attrs('cost')} className="text-[11px] text-ink-2">{note}</p>}
       {message && <p role="alert" data-proposal-problem {...attrs('problem')} className="text-xs text-fail">{message}</p>}
       <div className={cn('flex flex-wrap items-center gap-3', isolate && 'justify-end gap-2')}>

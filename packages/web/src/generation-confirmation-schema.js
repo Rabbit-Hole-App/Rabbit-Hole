@@ -88,7 +88,7 @@ export const GENERATION_COMMANDS = Object.freeze({
   // combination may be GENERATED is the server's readiness decision (control-plane motion-settings.js), not an option's availability.
   // Audio stays disabled until narration works.
   motion: define({
-    label: 'Motion video', noun: 'video', review_policy: 'always', settings_noun: 'a Motion setting', cancel: false,
+    label: 'Motion video', noun: 'video', review_policy: 'always', settings_noun: 'a Motion setting', cancel: false, requires_max: true,
     settings: [
       field('aspect_ratio', 'Aspect ratio', 'select', { control: 'aspect_ratio', options: motionRatios, default: MOTION_DEFAULT_RATIO }),
       field('duration_seconds', 'Duration', 'select', { required: true, unit: 'seconds', options: seconds, default: 10 }),
@@ -266,14 +266,17 @@ export function proposalView(p, resolved = {}) {
   // dropped). A proposal saved before the schema existed keeps the values it was made with. A command that needs a server quote
   // (requires_quote) is blocked, with the reason, while the server has none: the price is never taken as zero.
   const priced = p.usage?.estimate_credits != null;
+  // Motion (requires_max, owner 2026-10-26): the estimate is never stated without the maximum possible charge, so a Motion proposal the server
+  // did not give both numbers is blocked like an unquoted one. Its temporary reservation travels with them for the card to say it is released unused.
+  const unmaxed = !!def?.requires_max && (!priced || p.usage?.max_credits == null);
   // The server's readiness answer (control-plane motion-settings.js) is shown before confirmation and blocks Generate; the options stay selectable.
   const unready = p.readiness?.ready === false ? [{ path: 'readiness', message: p.readiness.message }] : [];
-  const validation_errors = [...(p.schema_version ? settingsProblems(p.command, p.settings, { references: p.references ?? [] }) : []), ...(def?.requires_quote && !priced ? [{ path: 'usage', message: 'The price for these settings is not known yet, so it cannot be generated.' }] : []), ...unready, ...(resolved.validation_errors ?? [])];
+  const validation_errors = [...(p.schema_version ? settingsProblems(p.command, p.settings, { references: p.references ?? [] }) : []), ...((def?.requires_quote && !priced) || unmaxed ? [{ path: 'usage', message: 'The price for these settings is not known yet, so it cannot be generated.' }] : []), ...unready, ...(resolved.validation_errors ?? [])];
   return {
     schema_version: p.schema_version ?? SCHEMA_VERSION, proposal_id: p.proposal_id, revision: p.version, command: p.command, original_request: p.original_request ?? p.input?.request ?? '',
     title: p.title, description: typeof p.prompt === 'string' ? p.prompt : p.description, settings: p.settings ?? {}, references: p.references ?? [],
     requirements: p.requirements ?? [], assumptions: p.assumptions ?? [], missing_information, limitations: p.limitations ?? [],
-    review: resolved.review ?? reviewFor(p.command), ...(def?.requires_quote && !priced ? { usage: { estimate_credits: null, unknown: true } } : priced ? { usage: { estimate_credits: p.usage.estimate_credits, ...(resolved.quote_id ? { quote_id: resolved.quote_id } : {}), ...(resolved.quote_expires_at ? { expires_at: resolved.quote_expires_at } : {}) } } : {}),
+    review: resolved.review ?? reviewFor(p.command), ...((def?.requires_quote && !priced) || unmaxed ? { usage: { estimate_credits: null, unknown: true } } : priced ? { usage: { estimate_credits: p.usage.estimate_credits, ...(def?.requires_max ? { max_credits: p.usage.max_credits, reserve_credits: p.usage.reserve_credits ?? null } : {}), ...(resolved.quote_id ? { quote_id: resolved.quote_id } : {}), ...(resolved.quote_expires_at ? { expires_at: resolved.quote_expires_at } : {}) } } : {}),
     notices: legacyNotices(p.command, p.settings ?? {}),
     status, validation_errors, allowed_actions: allowedActions(def, { status, validation_errors, missing_information, review: resolved.review }),
   };

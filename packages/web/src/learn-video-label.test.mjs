@@ -53,12 +53,14 @@ test('an ungrounded Motion video is labelled on its card, never shown as sourced
   assert.deepEqual(motionVideoBlock({ brief, renderId: 'd'.repeat(32), jobId: 'motion-job-u' }).motion.grounding, { status: 'no_source_supplied' });
 });
 
-// Owner messages 30 and 32: the learner never sees the reservation amount or how it is held. The confirmation is the paid-generation
-// line with the server's estimate in credits (1 credit = $0.01), or PaidConfirm's default when the server sent none.
-test('the Motion confirmation: the server estimate in credits, else the plain paid-generation line; never a reservation (owner messages 30 and 32)', () => {
-  assert.equal(motionConfirm(100), 'This uses paid generation · about 100 credits');
-  assert.equal(motionConfirm(1), 'This uses paid generation · about 1 credit');
-  for (const none of [null, undefined, NaN, 0, -5, 8.96]) assert.equal(motionConfirm(none), 'This uses paid generation.', String(none));
+// Owner message 32 and owner 2026-10-26 (D1b, replacing message 30's "the reservation is never shown"): the confirmation is the paid-generation line
+// with the server's three credit numbers apart (the estimate, the most it can cost, the temporary hold released unused), or PaidConfirm's default
+// when the server did not send both the estimate and the maximum: the estimate is never shown alone.
+test('the Motion confirmation: estimate, maximum and temporary hold in credits; else the plain paid-generation line', () => {
+  assert.equal(motionConfirm({ estimate: 100, max: 350, hold: 896 }), 'This uses paid generation · estimated 100 credits, at most 350. 896 credits are held while it runs; whatever is not used is released.');
+  assert.equal(motionConfirm({ estimate: 100, max: 350, hold: null }), 'This uses paid generation · estimated 100 credits, at most 350.');
+  for (const none of [null, undefined, NaN, 0, -5, 8.96, 100, {}, { estimate: 100 }, { estimate: 100, hold: 896 }, { max: 350 }, { estimate: 0, max: 350 }]) assert.equal(motionConfirm(none), 'This uses paid generation.', JSON.stringify(none));
+  assert.doesNotMatch(motionConfirm({ estimate: 100, max: 350, hold: 896 }), /\$|\.\.\.|…|about/);
 });
 
 test('while the server pauses new Motion generation, the confirmation says so (owner message 28)', () => {

@@ -22,7 +22,7 @@ rmSync(dir, { recursive: true, force: true });
 const CAD = { id: 'r1', label: 'CAD · Roller assembly', kind: 'card', sourceId: 'card:cad-1', revision: 'rev-1', range: null };
 const CAD2 = { id: 'r2', label: 'CAD · Roller assembly', kind: 'card', sourceId: 'card:cad-2', revision: 'rev-4', range: null };
 const v3 = (over = {}) => ({ proposal_id: 'gp-0123456789abcdef', version: 2, schema_version: 1, command: 'motion', title: 'Roller turning', description: 'Plain.', prompt: 'Show {{ref:r1}} turning and compare it with {{ref:r2}}.',
-  settings: { duration_seconds: 10, audio: false }, input: { request: '/motion roller', org: 'w', app: 'a' }, original_request: '/motion roller', references: [CAD, CAD2], sig: `v3.${'0'.repeat(64)}`, usage: { estimate_credits: 50 }, ...over });
+  settings: { duration_seconds: 10, audio: false }, input: { request: '/motion roller', org: 'w', app: 'a' }, original_request: '/motion roller', references: [CAD, CAD2], sig: `v3.${'0'.repeat(64)}`, usage: { estimate_credits: 50, max_credits: 350, reserve_credits: 896 }, ...over });
 const html = props => B.renderToStaticMarkup(B.createElement(B.Card, { proposal: v3(), onGenerate: () => {}, onSave: async () => {}, ...props }));
 const text = out => out.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 const find = (node, pred) => {

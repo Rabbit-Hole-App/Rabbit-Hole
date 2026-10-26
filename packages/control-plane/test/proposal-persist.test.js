@@ -48,7 +48,7 @@ function stack(t) {
   // canvasRepository), which this canvas has none of. Any other DB statement fails the test.
   const live = liveDb(), DB = { calls: live.calls, prepare: sql => (/^SELECT source_version FROM learn_courses /.test(sql) ? { bind: () => ({ first: async () => null }) } : live.prepare(sql)), batch: live.batch };
   const env = { LEARN_DB, LEARN_MEDIA: memoryBucket(), DB, RUNS: liveRuns(), ANTHROPIC_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: '100', AI_MONTHLY_ALLOWANCE_USD: '50',
-    MOTION_ORCHESTRATOR_URL: 'https://orchestrator.test/', MOTION_ORCHESTRATOR_TOKEN: TOKEN, MOTION_ESTIMATE_USD: '1.00', MOTION_JOB_RESERVATION_USD: '2', ...READY,
+    MOTION_ORCHESTRATOR_URL: 'https://orchestrator.test/', MOTION_ORCHESTRATOR_TOKEN: TOKEN, MOTION_ESTIMATE_USD: '1.00', MOTION_MAX_CHARGE_USD: '3.50', MOTION_JOB_RESERVATION_USD: '2', ...READY,
     LEARN_VIDEOS: { idFromName: name => name, get: name => actor(name) },
     CONTROL_PLANE: { fetch: async req => Response.json({ org: req.headers.get('x-small-workspace') || 'team', email: OWNER, orgName: 'Team', user_id: 'u-owner' }) } };
   t.after(() => assert.deepEqual([env.DB.calls, env.RUNS.calls], [[], []], 'touched the control-plane database or the runs bucket'));
