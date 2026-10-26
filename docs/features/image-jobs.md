@@ -200,6 +200,11 @@ OpenAI quality or size has a row. The prompt is added at its UTF-8 byte count x 
 rows is Pro 1K, 0.134 + 4,000 prompt bytes x US$2/M = 0.142; the largest real settlement seen for it is 0.1462 (run D); US$0.20 covers both. A test in
 `rabbit-hole-prod-config.test.js` recomputes the maximum from `IMAGE_VALIDATED` and fails if the configured hold ever falls below it.
 
+HELD per-model hold (branch `feat/image-per-model-reserve`, owner decision): `IMAGE_RESERVED_USD_BY_MODEL` (JSON) gives each model its own hold, read by `imageQuote` (`reserveFor`, fail closed
+on an unreadable map or a non-positive value): Flare and Sunburst 0.05 (5 credits), Nano Banana 2.1 0.10 (10), Pro 0.30 (30); `IMAGE_GENERATE_RESERVED_USD` stays the default for a model the map does not
+name. It removes the 20-credit floor for a 1-credit OpenAI image and gives Pro room for about 1,300 thinking tokens instead of about 480. The signed quote carries the model's `reserve_credits`, and the job
+already admits, settles and judges an overrun against its own quote, so no other code changes.
+
 The learner is charged the measured cost, else the estimated upper bound (section 6, Cost). Known gap, not changed here: for Nano Banana 2.1 the upper
 bound prices thinking tokens at the image rate, so a charge can be up to about twice the shown estimate (run C: estimate 0.0336, charged 0.0636). Users
 see AI credits only (1 credit = US$0.01); dollar amounts, usage and costs are in `inspect`, which only an operator may read.

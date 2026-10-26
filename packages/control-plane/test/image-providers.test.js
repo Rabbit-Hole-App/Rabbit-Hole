@@ -27,6 +27,17 @@ test('settings are refused, never adjusted, when a model cannot make them', () =
   assert.equal(imageSettings({ model: 'gemini-nano-banana-2.1', aspect_ratio: '1:1', resolution: '1K' }, 14).value.model, 'gemini-nano-banana-2.1');
 });
 
+test('the hold is per model: IMAGE_RESERVED_USD_BY_MODEL overrides the default for the model it names and fails closed when unreadable', () => {
+  const pro = { model: 'gemini-3-pro-image', aspect_ratio: '1:1', resolution: '1K' }, flare = { model: 'gpt-image-2.5-flare', quality: 'low', aspect_ratio: '1:1', resolution: '1K' };
+  const env = { IMAGE_GENERATE_RESERVED_USD: '0.20', IMAGE_RESERVED_USD_BY_MODEL: JSON.stringify({ 'gemini-3-pro-image': 0.3, 'gpt-image-2.5-flare': '0.05' }) };
+  assert.deepEqual([imageQuote(env, pro).reserve_credits, imageQuote(env, flare).reserve_credits], [30, 5]);
+  assert.equal(imageQuote(env, { model: 'gemini-nano-banana-2.1', aspect_ratio: '1:1', resolution: '1K' }).reserve_credits, 20, 'a model the map does not name keeps the default');
+  assert.equal(imageQuote({ ...env, IMAGE_RESERVED_USD_BY_MODEL: '{not json' }, pro).reason, 'reserve_unset');
+  assert.equal(imageQuote({ ...env, IMAGE_RESERVED_USD_BY_MODEL: JSON.stringify({ 'gemini-3-pro-image': 'x' }) }, pro).reason, 'reserve_unset');
+  assert.equal(imageQuote({ ...env, IMAGE_RESERVED_USD_BY_MODEL: JSON.stringify({ 'gemini-3-pro-image': 0.1 }) }, pro).reason, 'reserve_below_estimate', 'a per-model hold below the estimate pauses that model only');
+  assert.equal(imageQuote({}, pro).reason, 'reserve_unset');
+});
+
 test('the quote is unknown, never zero, wherever pricing is unverified or no bound is configured', () => {
   const env = { IMAGE_GENERATE_RESERVED_USD: '0.5' };
   for (const [settings, refs] of [

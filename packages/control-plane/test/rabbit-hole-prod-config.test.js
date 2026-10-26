@@ -1,4 +1,4 @@
-import { imageQuote } from '../src/image-providers.js';
+import { IMAGE_MODELS, imageQuote } from '../src/image-providers.js';
 import { IMAGE_VALIDATED } from '../src/image-settings.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -100,6 +100,14 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   assert.ok(estimates.length >= 6, 'the enabled combinations are priced');
   assert.ok(Math.max(...estimates) <= Number(app.vars.IMAGE_GENERATE_RESERVED_USD), `the hold ${app.vars.IMAGE_GENERATE_RESERVED_USD} covers the largest estimate ${Math.max(...estimates)}`);
   assert.ok(Math.max(...estimates) >= 0.14, 'the derivation in the config comment (Pro 1K US$0.134 + prompt bound) is the maximum');
+  // The hold is per model (image-providers.js reserveFor): every enabled row is quoted under its own model's hold, and no hold is below that model's largest estimate.
+  const byModel = JSON.parse(app.vars.IMAGE_RESERVED_USD_BY_MODEL);
+  assert.deepEqual(Object.keys(byModel).sort(), Object.keys(IMAGE_MODELS).sort(), 'every model has its own hold');
+  for (const r of IMAGE_VALIDATED) {
+    const q = imageQuote(app.vars, { model: r.model, quality: r.quality ?? undefined, aspect_ratio: r.aspect_ratio, resolution: r.resolution }, r.max_references, promptBytes);
+    if (q.state === 'priced') assert.ok(q.estimateUsd <= byModel[r.model] && q.reserveUsd === byModel[r.model], `${r.model} ${r.operation}: hold ${byModel[r.model]} covers ${q.estimateUsd}`);
+  }
+  assert.ok(byModel['gemini-3-pro-image'] >= 0.3, 'Pro holds room for its unpublished thinking tokens: the shared 0.20 broke at about 480 of them');
   assert.equal(app.vars.EXPLAIN_V2_ENABLED, 'true'); // R1 switch-on (owner production GO, 2026-10-22)
   assert.deepEqual(JSON.parse(app.vars.EXPLAIN_BRIEF_THRESHOLDS), { components: 12, credits: 400 });
   // dev-worker.js bundles its HTML from ./dist-dev, so the directory keeps that name.
