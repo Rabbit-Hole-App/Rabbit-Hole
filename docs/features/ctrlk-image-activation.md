@@ -18,7 +18,7 @@ Tests: `test/inline-image-ledger.test.js` (every row removed in turn), `test/inl
 | 2 | Database and storage | `LEARN_DB`, `LEARN_MEDIA` | both bound | Exist in production |
 | 3 | Enable flag | `INLINE_IMAGE_EDIT_ENABLED` | exactly the string `true` (not `TRUE`, `1`) | Absent in production |
 | 4 | Provider key | `OPENAI_API_KEY` (secret) | non-empty string | Optional secret, not installed |
-| 5 | Reservation | `INLINE_IMAGE_EDIT_RESERVED_USD` (var, dollars) | finite number greater than zero; shown to people as credits (x100) | Absent; value not decided (below) |
+| 5 | Reservation | `INLINE_IMAGE_EDIT_RESERVED_USD` (var, dollars) | finite number greater than zero; shown to people as credits (x100) | Absent; `0.03` on `feat/ctrlk-activate` |
 | 6 | Platform spending limit | `USAGE_PLATFORM_DAY_USD` | must be set, or admission refuses `cap_unset` and the job ends `refused` with nothing held | Required by `scripts/prod-release.mjs` on the app Worker, so present; the check is a release guard, not read by this lane |
 | 7 | Person's allowance | `AI_MONTHLY_ALLOWANCE_USD` and grants | the payer is the signed-in requester; too little credit refuses before any provider call | In the production config |
 
@@ -46,39 +46,47 @@ public image generation off with only `IMAGE_ACCEPTANCE_EMAILS` allowed, plannin
 | `web/dev-worker.js` `/api/learn/transcribe` | Only when `TRANSCRIBE_ENABLED` is exactly `true` (default `false`); see [transcription-migration.md](transcription-migration.md) |
 | `control-plane/src/pricing-registry.js`, `learn-usage-estimates.js` | A comment and price rows only; neither reads the key |
 
-## Price and reservation: what is and is not verified
+## Price, reservation and what the person is charged (updated 2026-10-26: settlement from provider usage)
 
-- Verified (`pricing-registry.js`, official page read 2026-10-23/25): `gpt-image-2.5-sunburst-2026-09-08` input text 5, input image 8, output image 30 USD per million tokens.
+- Verified rates (`pricing-registry.js`, official page read 2026-10-23/25): `gpt-image-2.5-sunburst-2026-09-08` input text 5, input image 8, output image 30 USD per million tokens.
 - Measured once (image-jobs.md run img-B-1): an OpenAI **edit**, low quality, 1024x1024, two references: US$0.010171. Generation, same size: US$0.005975.
-- **Unverified:** the cost of the exact Ctrl+K request (one PNG plus an alpha mask plus a prompt, `quality: low`, `size: 1024x1024`). The reference-image token count is not published,
-  and image-jobs.md keeps sunburst-edit greyed for that reason. `result.usage` is stored on the job but is never priced: settlement passes `costUsd: null`
-  (`inline-image-edit-job.js`), so the hold is **kept at the reservation as unknown cost** (`usage_attempts.cost_state = 'unknown'`, `usage_operations.cost_usd` = the reserve;
-  asserted in `inline-image-ledger.test.js`). Consequence: **the person is held the full reservation for every delivered edit**, not the real cost.
-- No value for `INLINE_IMAGE_EDIT_RESERVED_USD` is derived in the repo. Options and recommendation are in the owner decisions below.
-- Dollars never reach the person: the quote and job payloads carry credits and phase names only (`inline-image-jobs.js` `reservedCredits`, `publicJob`); the UI formats credits.
+- **Settlement (branch `feat/ctrlk-complete`):** the provider-reported usage is priced with those rates (`imageCost`, the function IMG-01 settles with) and the person is charged
+  **min(priced usage, reservation)**: the whole reservation is never a flat charge, and a charge never exceeds what they approved. Usage that cannot be priced (absent, malformed, no rate) is not turned into zero:
+  the attempt is recorded with cost unknown. Correction of an earlier note in this file: an unknown-cost attempt **charges the person nothing and holds nothing** (learn-usage.js: only a running call holds
+  credits; the platform's daily guard keeps the reservation as the provider-cost bound). So before this change a delivered edit would have been free to the person; after it, the person pays the priced usage.
+  Tests: `inline-image-ledger.test.js` (real ledger; negative control: without the cost function the usage tests fail) and `inline-image-edit-job.test.js`.
+- **Still unverified:** the exact billed cost of the Ctrl+K request (one PNG, an alpha mask, a prompt, `quality: low`, `1024x1024`): the reference-image token count is not published. The first deployed acceptance
+  records the real figure; expect about 1 credit (US$0.01) per edit. Output over the reservation is clipped to it (flagged on the job as `costClippedToReservation`), so the platform, not the person, absorbs any excess.
+- `INLINE_IMAGE_EDIT_RESERVED_USD`: **0.03** (3 credits) on the activation branch, about 3x the measured two-reference edit. Nothing in the repo derives a better number until the acceptance run reports a real one.
+- Dollars never reach the person: the quote and job payloads carry credits and phase names only (`reservedCredits`, `publicJob`); the UI formats credits. The acceptance command fails if a dollar figure appears.
 
-## Fixture evidence (what exists) versus what does not
+## Fixture evidence versus deployed
 
 | Evidence | What it proves |
 |---|---|
 | `test/inline-image-jobs.test.js`, `inline-image-edit-job.test.js`, `inline-image-edit-provider.test.js` | Route, one-attempt coordinator, provider adapter with a fake transport |
-| `test/inline-image-ledger.test.js` (new) | Missing configuration says unavailable and never reaches the Durable Object, ledger or provider; refusal at an unset platform cap or short allowance holds nothing and never calls the provider; disabling after queueing cancels without a hold; a delivered edit reserves then seals at the bound as unknown cost; a provider failure keeps the hold, no retry. Real `admitSpend`/`settleSpend`/`settleAttempt` on SQLite |
+| `test/inline-image-ledger.test.js` | Missing configuration says unavailable and never reaches the Durable Object, ledger or provider; refusal at an unset platform cap or short allowance holds nothing; disabling after queueing cancels without a hold; a delivered edit reserves, then settles at min(priced usage, reservation); unpriceable usage is recorded unknown; a provider failure keeps the hold, no retry. Real `admitSpend`/`settleSpend`/`settleAttempt` on SQLite |
+| `scripts/ctrlk-image-acceptance.test.mjs` | The deployed acceptance command against a simulated deployment (no network) |
 | Browser receipts `ctrlk-background-removal-receipt.md`, `ctrlk-regional-image-receipt.md`, `ctrlk-image-action-receipt.md` | UI wiring with intercepted or fixture jobs |
-| **Nothing** | A real provider run, real segmentation quality, the deployed route on production, the settled amount for a real edit |
+| **Nothing yet** | A real provider run, real segmentation quality, the deployed route on production, the settled amount for a real edit. `scripts/ctrlk-image-acceptance.mjs` is the instrument; it has not been run |
+
+## Deployed acceptance (prepared, NOT run)
+
+`node scripts/ctrlk-image-acceptance.mjs --dry-run`, then without `--dry-run` in a terminal. Production origin only; your `small_session` cookie at a hidden prompt (memory only); every paid run is booked in
+`C:/s/spec/budget/budget.mjs` before its request (US$0.05 each, five paid runs, US$0.25 booked, about US$0.05 expected to settle) and settled at the credits actually charged; a clipped or unclear run stays booked at its maximum.
+Runs, in order, stopping at the first failure: `free-refusals` (no confirmation, consent below the reservation, stale revision, unknown card, mask on a removal: all refused and nothing charged), `bg-api` and `region-api` (the route directly:
+duplicate submit reaches one job, a conflicting reuse of the key is refused, status re-read, stored result downloads with a PNG signature, 1024x1024, alpha for removal, the original untouched, credits charged within the reservation and not the flat reservation,
+hold released, cost not unknown), `cancel`, then `bg-ui` and `region-ui` where you press Ctrl+K, approve, reload mid-run, press Apply and reload again. Receipts hold no secret (`C:/s/spec/ctrlk-image-accept/receipts`).
 
 ## Owner-only steps, in order (none run by this lane)
 
-1. Release the `TRANSCRIBE_ENABLED` commit (13147839) and the FILE_JOBS plumbing. Success: `/api/learn/transcribe` still answers 503 with a key present.
-2. Decide the reservation (O-8b below) and add `INLINE_IMAGE_EDIT_RESERVED_USD` (a config var) in a release.
-3. Install `OPENAI_API_KEY` on `rabbit-hole-app` only (hidden prompt, never printed; coordinate with IMG-01 so it is set once).
-4. Paid acceptance on a dev clone first, with the integrator's `budget.mjs reserve`: one real background removal and one regional edit through the app; read the ledger rows; the shared validation cap has about US$1.75 left and the owner has not approved more.
-5. Only after step 4 passes, set `INLINE_IMAGE_EDIT_ENABLED` to `true` on production and verify the real flow. Rollback: remove the flag (queued jobs cancel without a hold; started jobs keep their hold as unknown).
+The complete ordered list, including the loader probe, is in [ctrlk-completion.md](ctrlk-completion.md).
 
 ## Owner decisions
 
 | Decision | Options | Recommendation |
 |---|---|---|
-| O-3 activate image edit | A activate behind the key and a paid real run; B defer | A only after step 4 shows acceptable quality; until then B |
-| Reservation `INLINE_IMAGE_EDIT_RESERVED_USD` | A `0.03` (3 credits, about 3x the measured two-reference edit); B `0.05`; C `0.20` (the IMG-01 hold; about 20x the measured edit) | A for the first paid run, then set from the measured settled cost. C would hold 20 credits per edit |
-| Price the settlement from `result.usage` instead of holding the reserve | A leave as is; B small code change: price tokens at the registry rates and settle the real cost | B before any wide release (the person is otherwise held the full reserve); not done here because it widens scope |
-| O-8 recorded-answer transcription | A install the key and set `TRANSCRIBE_ENABLED=true`; B remove the mic | Open. This lane only decoupled it from the image key |
+| Settle from provider usage | decided 2026-10-26: yes, min(priced usage, reservation) | built on `feat/ctrlk-complete` |
+| Reservation `INLINE_IMAGE_EDIT_RESERVED_USD` | A `0.03` (3 credits); B `0.05`; C `0.20` (the IMG-01 hold) | A (on the activation branch); raise only if the acceptance run shows real cost near it |
+| Who may use it | A every signed-in user with credits (what the code does: there is no allow-list for this route); B add an owner-only window first (code change) | A, because the reservation and the clip cap the exposure; B only if the owner wants a private soak |
+| O-8 recorded-answer transcription | A install the key and set `TRANSCRIBE_ENABLED=true`; B remove the mic | Open; independent of this feature |
