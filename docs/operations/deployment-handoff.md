@@ -103,20 +103,21 @@ Candidates: ceiling candidate `fix/motion-ceiling-3.50` c3acc21d (C16 + one conf
 
 Owner decisions: A. ceiling value (3.50 recommended: floor 2.56; guard peak 2.74-2.80 without a repair, 3.05-3.13 with one, so 3.00 would refuse a job that needs a repair, the failure of job 61f70171; the script refuses anything above 5.00); B. refund of 127.8157 credits (idempotent, one audit row); C. one second job within the approved budget.
 
-Commands, in order (copy as is; only the two gate run ids are supplied by the integrator after the gates pass):
+Commands, in order (copy as is; the two gate run ids are filled in below: ceiling 40293195411, R2 40294556351, both passed):
 
 1. `bash C:/s/spec/day-1021/train6.sh` (C16 release)
-2. `MOTION_REL=c3acc21dcd9b83300235f97bbf36645d98d6e8ed MOTION_JOB_CEILING_USD_APPROVED=3.50 MOTION_WORKER_RELEASE=yes MOTION_GATE_RUN=<ceiling gate run id> bash C:/s/spec/motion-validation/motion-deploy.sh post` (releases the ceiling candidate, waits until no job is in flight, redeploys ONLY the orchestrator at that SHA, verifies without a paid call; the renderer stays untouched)
+2. `MOTION_REL=c3acc21dcd9b83300235f97bbf36645d98d6e8ed MOTION_JOB_CEILING_USD_APPROVED=3.50 MOTION_WORKER_RELEASE=yes MOTION_GATE_RUN=40293195411 bash C:/s/spec/motion-validation/motion-deploy.sh post` (releases the ceiling candidate, waits until no job is in flight, redeploys ONLY the orchestrator at that SHA, verifies without a paid call; the renderer stays untouched)
 3. `MOTION_REL=c3acc21dcd9b83300235f97bbf36645d98d6e8ed MOTION_JOB_CEILING_USD_APPROVED=3.50 bash C:/s/spec/motion-validation/motion-deploy.sh refund` (dry run: prints the refund command)
 4. the same with `MOTION_REFUND_CONFIRM=yes` added (applies the refund)
 5. `MOTION_REL=c3acc21dcd9b83300235f97bbf36645d98d6e8ed MOTION_JOB_CEILING_USD_APPROVED=3.50 bash C:/s/spec/motion-validation/motion-deploy.sh accept2` (prints the second-job instructions: 15 s, 16:9, explicit confirmation, expected spend US$0.7-1.3, up to about 1.8, about 3 with one repair, hard stop at the ceiling)
 6. run the job in the browser, then the same command with `MOTION_ACCEPT2_DONE=yes` (reads the accounting row read-only and checks it)
-7. `MOTION_REL=21570887d82c6c2bd25763ba92e8a0a2869317ec MOTION_WORKER_RELEASE=yes MOTION_GATE_RUN=<R2 gate run id> bash C:/s/spec/motion-validation/motion-deploy.sh activate`, then a 9:16 job and `MOTION_REL=21570887d82c6c2bd25763ba92e8a0a2869317ec MOTION_ACCEPT_JOB_DONE=yes bash C:/s/spec/motion-validation/motion-deploy.sh activate`
+7. `MOTION_REL=21570887d82c6c2bd25763ba92e8a0a2869317ec MOTION_WORKER_RELEASE=yes MOTION_GATE_RUN=40294556351 bash C:/s/spec/motion-validation/motion-deploy.sh activate`, then a 9:16 job and `MOTION_REL=21570887d82c6c2bd25763ba92e8a0a2869317ec MOTION_ACCEPT_JOB_DONE=yes bash C:/s/spec/motion-validation/motion-deploy.sh activate`
 
 Rollback: `MOTION_ROLLBACK_CONFIRM=yes bash C:/s/spec/motion-validation/motion-deploy.sh rollback-orchestrator` (rollback of the orchestrator deploy is unverified for how `fly deploy --image --config` treats the config; the script reads the machine back and refuses to call it done if the image differs). Not exercised because no mutation is allowed: the orchestrator deploy and its verification, the refund apply, the rollback. ETA from the start of step 2, with gates green and step 1 done: about 1 h 10 min to 1 h 45 min including both jobs.
 
 ## 10. Change log (PT)
 
+- 2026-10-26 2:13 AM: three sharded gates PASSED: ceiling c3acc21d run 40293195411, R2 21570887 run 40294556351, C17 0bd390ed run 40296414242 (each preceded by green verify and fast-e2e). The two gate ids are now filled into the Motion commands. TOPOLOGY NOTE: C17 (C16 + Study resize + Chat restore) is a sibling of the Motion ceiling and R2 branches, not a descendant, so main cannot fast-forward through both. Release order stays C16, ceiling, (job tests), R2; C17 is then re-cut on the new main (merge, union check-map, verify, fast-e2e, gate) or released first only if the Motion sequence is postponed. C17 gate result stays valid as evidence for its content.
 - 2026-10-26 1:44 AM: stale-fixes lane done: Study resize (6f51946a) and Chat restore (e0560256) green in fast-e2e with negative controls; both merged on top of C16 into candidate C17 stack/c17-batch 0bd390ed (verify and fast-e2e running); its gate is queued behind the Motion ceiling and R5 gates. Not released; C16 stays the release candidate.
 - 2026-10-26 1:40 AM: Telemetry safeguards final review (round 3) done: verdict YES, safe to authorise production mutations; script 09fe1c93 unchanged; optional notes (GATE_REF is a mutable branch name; L3 passes on any earlier P6 set) recorded in the review. Production Telemetry still needs the owner GO.
 - 2026-10-26 1:34 AM: Motion post-fix deployment sequence prepared (ceiling candidate c3acc21d, R2 re-cut 21570887, verify/fast-e2e green); gates queued overnight; commands added to section 9.
