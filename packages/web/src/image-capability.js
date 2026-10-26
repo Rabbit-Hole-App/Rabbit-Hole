@@ -1,5 +1,5 @@
 // IMG-01: whether the SERVER offers image generation to this signed-in person (GET /api/learn/image-jobs: the public flag, else the
-// listed owner-only operator). The answer switches the /generate-image command on (agent/slash.js setImageGeneration); the web build
+// listed owner-only operator). The answer switches the /image command (id `generate-image`) on (agent/slash.js setImageGeneration); the web build
 // holds no such switch, and the server refuses a direct call from anyone it does not list.
 import { setImageGeneration } from './agent/slash.js';
 

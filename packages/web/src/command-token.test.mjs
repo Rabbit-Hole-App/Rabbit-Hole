@@ -115,6 +115,14 @@ test('a sent message shows the command as a read-only pill, from its saved comma
   assert.deepEqual(sentCommand({ content: '/3d a cube inside a frustum' }), { command: '3d', text: 'a cube inside a frustum' });
   assert.deepEqual(sentCommand({ content: '/MOTION', command: null }), { command: 'motion', text: '' });
   assert.deepEqual(sentCommand({ content: '/motion\nline two\n  indented' }), { command: 'motion', text: 'line two\n  indented' });
+  // Owner, 2026-10-26: saved ids keep their meaning. A message saved by the old /image (command image) is still the photo search,
+  // labelled by its id; a saved /generate-image line still reads as the generation; /photos and the new /image line read too.
+  assert.deepEqual(sentCommand({ content: '/image Mount Fuji', command: 'image' }), { command: 'image', text: 'Mount Fuji' });
+  assert.deepEqual(sentCommand({ content: '/image Mount Fuji' }), { command: 'image', text: 'Mount Fuji' }, 'no metadata: an old /image line is the photo search');
+  assert.deepEqual(sentCommand({ content: '/generate-image a fox', command: 'generate-image' }), { command: 'generate-image', text: 'a fox' });
+  assert.deepEqual(sentCommand({ content: '/image a fox', command: 'generate-image' }), { command: 'generate-image', text: 'a fox' });
+  assert.deepEqual(sentCommand({ content: '/photos Mount Fuji' }), { command: 'image', text: 'Mount Fuji' });
+  assert.deepEqual(sentCommand({ content: '/photos Mount Fuji', command: 'image' }), { command: 'image', text: 'Mount Fuji' });
   // Prose, code, a path and an unknown /word stay plain text.
   for (const content of ['make a /motion of this', '```\n/motion 15s\n```', '  /motion indented', '/usr/bin/env', '/motions are fun', '/nope hello', 'plain'])
     assert.deepEqual(sentCommand({ content }), { command: null, text: content }, content);

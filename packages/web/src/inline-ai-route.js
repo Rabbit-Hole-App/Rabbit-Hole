@@ -9,7 +9,7 @@
 // 4. Low confidence, several outputs at once, nothing that fits, a timeout or a malformed answer each have a defined
 //    outcome: the direct note (the approved fallback, never an expensive generator, and said so) or one focused question.
 // No keyword matching: "video" in a request decides nothing here; only JEV reads the request.
-import { SLASH, unavailableCommand } from './agent/slash.js';
+import { SLASH, idOfTyped, typedOf, unavailableCommand } from './agent/slash.js';
 import { settingsOf } from './generation-confirmation-schema.js';
 
 export const ROUTE_PROTOCOL_VERSION = 'inline-route-r2';
@@ -39,7 +39,7 @@ export const NOT_INLINE = Object.freeze({
   goal: 'goal management: opens your learning goals in Progress, unrelated to the selection',
   notebook: 'adds an empty notebook, unrelated to the selection', whiteboard: 'adds an empty whiteboard, unrelated to the selection',
   practice: 'assessment, not explanation: it waits for the learner\'s answer in the chat',
-  // Paid image generation has no inline route yet; it is off everywhere today (agent/slash.js IMAGE_GENERATION).
+  // Paid image generation (/image, id `generate-image`) has no inline route yet; it is off everywhere today (agent/slash.js IMAGE_GENERATION).
   'generate-image': 'paid image generation: use it from the chat composer',
   quiz: 'assessment, not explanation: it waits for the learner\'s answer',
   // Source search opens the shared source finder, never a generator (Release B; Ctrl+K's own handling is lane B2's).
@@ -73,10 +73,11 @@ const PLAIN = /^(please\s+)?(explain|describe|what\s+is|what's)(\s+(this|it|that
 export const isPlainExplain = prompt => !String(prompt).trim() || PLAIN.test(String(prompt).trim());
 
 // The learner's prompt only - selected content never reaches this. A leading /name is a command; one quoted or later in
-// the sentence is just words.
+// the sentence is just words. The line is typed language (/photos, /image, /generate-image); name is the stable id the routes use
+// (agent/slash.js typed: /photos is route `image`, /image is `generate-image`).
 export function explicitCommand(prompt) {
   const match = String(prompt).trim().match(/^\/([\w-]+)(?:\s+([\s\S]*))?$/);
-  return match ? { name: match[1].toLowerCase(), args: (match[2] || '').trim() } : null;
+  return match ? { name: idOfTyped(match[1].toLowerCase()), args: (match[2] || '').trim() } : null;
 }
 
 // enabled: the inline routes this canvas can run now (the page reads the registry's availability and Motion's gate).
@@ -88,16 +89,16 @@ export function explicitCommand(prompt) {
 export function planRoute({ mode, prompt, enabled = ['note'] }) {
   const command = explicitCommand(prompt);
   if (mode === 'edit') {
-    if (command) return { clarify: { question: `/${command.name} adds something new. Switch to Explain to use it, or describe the change you want.`, options: [] } };
+    if (command) return { clarify: { question: `/${typedOf(command.name)} adds something new. Switch to Explain to use it, or describe the change you want.`, options: [] } };
     return { route: 'edit', via: 'mode', args: String(prompt).trim() };
   }
   if (command) {
     // A removed command is unavailable even where its route still runs from plain words (/compare, /walkthrough).
-    const removed = unavailableCommand(command.name);
+    const removed = unavailableCommand(typedOf(command.name));
     if (removed) return { clarify: { question: removed, options: [] } };
     if (!(ROUTES[command.name] || EXPLICIT_ROUTES[command.name]) || command.name === 'note') {
       const known = SLASH.some(entry => entry.name === command.name && entry.places.includes('learn'));
-      return { clarify: { question: known ? `/${command.name} isn't part of inline Explain (${NOT_INLINE[command.name] || 'not an explanation'}). Use it from the chat composer.` : `/${command.name} is not a Learn command.`, options: ['note'] } };
+      return { clarify: { question: known ? `/${typedOf(command.name)} isn't part of inline Explain (${NOT_INLINE[command.name] || 'not an explanation'}). Use it from the chat composer.` : `/${command.name} is not a Learn command.`, options: ['note'] } };
     }
     if (!enabled.includes(command.name)) return { unavailable: unavailableText(command.name) };
     return { route: command.name, via: 'command', args: command.args };
@@ -208,7 +209,7 @@ export function decideRoute(read, { enabled = ['note'], thresholds = ROUTE_THRES
 // search is about. Never the canvas title. '' when the selection has no words (a bare shape, an untitled image).
 export const selectionSubject = context => (context?.target?.objects || [])
   .map(entry => String(entry.range?.text ?? entry.text ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean).join('; ').slice(0, 200);
-const askFor = route => (route === 'image' ? 'What should the photo show? Type it after /image, for example /image an oak tree.'
+const askFor = route => (route === 'image' ? 'What should the photo show? Type it after /photos, for example /photos an oak tree.'
   : route === 'motion' ? 'What should the video explain? Type it after /motion, for example /motion 15s explain this tree.'
   : `What should the ${routeLabel(route).toLowerCase()} show? Type it after /${route}, for example /${route} how this connects to the rest.`);
 // What an inline request hands its handler (§7), resolved before the call: an explicit command's own words; for a bare

@@ -73,7 +73,7 @@ export function httpTransport({ app, pending = null, board = 'main', fetchRaw })
       if (!response.ok) throw Object.assign(new Error(body.error || `HTTP ${response.status}`), { code: body.code || 'http', status: response.status });
       return body;
     },
-    // /image runs no model and no request: its card searches real photos once accepted, as the direct command's does.
+    // /photos (route `image`) runs no model and no request: its card searches real photos once accepted, as the direct command's does.
     artifact({ args }) { return Promise.resolve({ result: 'artifact', primitive: 'image', block: imageSearchBlock(args) }); },
   };
 }

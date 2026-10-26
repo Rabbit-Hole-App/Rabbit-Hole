@@ -75,10 +75,10 @@ const dive = await about('dive');
 ok('/dive: Open Rabbit Hole, opens, says what it needs selected', dive.label === 'Open Rabbit Hole' && dive.effect === 'Opens a Rabbit Hole' && /selected card/.test(dive.text), JSON.stringify(dive));
 await sheet.screenshot({ path: `${SHOTS}/sheet-dive.png` });
 const image = await about('image'), video = await about('video'), youtube = await about('youtube'), three = await about('3d');
-ok('/image searches and is Sourced; /video generates and is AI-generated; /youtube searches and is Sourced', image.label === 'Search images' && image.effect === 'Searches' && image.media === 'Sourced'
+ok('/photos searches and is Sourced; /video generates and is AI-generated; /youtube searches and is Sourced', image.label === 'Search photos' && image.effect === 'Searches' && image.media === 'Sourced'
   && video.label === 'Generate video' && video.effect === 'Creates a card' && video.media === 'AI-generated' && youtube.media === 'Sourced', JSON.stringify([image, video, youtube]));
 ok('/3d reads Add 3D scene', three.label === 'Add 3D scene', three.label);
-ok('/generate-image is not advertised while image generation is off', !listed.includes('generate-image'));
+ok('/image (id generate-image) is not advertised while image generation is off', !listed.includes('generate-image'));
 // Every command shows a demo: a card, what a source search does (Release B), or what /dive does.
 const missing = [];
 for (const command of await rows.evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp))) {

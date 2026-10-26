@@ -51,7 +51,7 @@ Request (the same object goes to `/decide` and then `/generate`):
   - 503: `{ error, code: 'timeout'|'malformed'|'unavailable', retryable }`; 400 malformed; 401/403 auth.
 - `POST /api/learn/inline/generate` `{ app, pending?, request_id, board, request, token, revise? }`: the note
   (creation or selection), the edit or the diagram as SSE, as before; a card capability as the `/api/learn/artifact`
-  JSON (`artifact`, `paid_proposal` or `clarification`). `/image` and `/motion` are staged in the editor (no model).
+  JSON (`artifact`, `paid_proposal` or `clarification`). `/photos` (route `image`) and `/motion` are staged in the editor (no model).
 - Capabilities: `note`, `shapes` (native diagram), `explain`, `code`, `graph`, `walkthrough`, `compare`, `animate`,
   `image`, `video`, `3d`, `motion`, and `edit`. Outcomes: `text`, `diagram`, `card`, `media`, `edit`. `paid` is true when
   the capability can start paid generation (Motion, or a paid primitive in its family); the router only marks it.

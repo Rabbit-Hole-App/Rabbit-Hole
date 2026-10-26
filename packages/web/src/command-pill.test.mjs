@@ -28,7 +28,8 @@ test('the pill is the command\'s label in its tint, with a remove button named b
   assert.match(explain, /aria-label="Remove Add explanation" title="Remove Add explanation"/);
   assert.match(html({ name: 'dive' }), /font-medium">Open Rabbit Hole<\/span>.*aria-label="Remove Open Rabbit Hole"/);
   assert.match(html({ name: '3d' }), /font-medium">3D<\/span>/);
-  assert.match(html({ name: 'image' }), /aria-label="Remove Search images"/);
+  assert.match(html({ name: 'image' }), /aria-label="Remove Search photos"/); // owner, 2026-10-26: the photo search reads Search photos
+  assert.match(html({ name: 'generate-image' }), /aria-label="Remove Generate image"/);
   // A saved draft or message naming a removed command still renders as words, never a /name and never a crash.
   assert.match(html({ name: 'simplify' }), /font-medium">Simplify<\/span>.*aria-label="Remove Simplify"/);
   assert.match(html({ name: 'cad' }), /font-medium">CAD<\/span>/);

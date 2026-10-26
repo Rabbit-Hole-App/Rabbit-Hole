@@ -14,12 +14,13 @@ export const imageGenerationId = proposal => `img-${proposal.proposal_id}`;
 // The settings a new image plan opens with (the person changes them on the card): a combination a live provider run covered
 // (control-plane image-settings.js IMAGE_VALIDATED), so the plan is startable as it opens.
 export const IMAGE_DEFAULTS = Object.freeze({ model: 'gemini-nano-banana-2.1', aspect_ratio: '1:1', resolution: '1K' });
-export const imagePromptOf = text => String(text ?? '').replace(/^\s*\/generate-image(?![\w-])\s*/i, '').trim();
-// /generate-image <words>: the server signs the plan with its own quote (no model call) and saves it in the chat, so the card, its
+// /image <words> (typed; /generate-image is its alias, agent/slash.js) or the bare words.
+export const imagePromptOf = text => String(text ?? '').replace(/^\s*\/(?:generate-image|image)(?![\w-])\s*/i, '').trim();
+// /image <words>: the server signs the plan with its own quote (no model call) and saves it in the chat, so the card, its
 // edits, Generate and a reload all find it (control-plane chat-proposal-route.js). -> { thread_id, message_id, proposal, references }.
 export function requestImagePlan(api, { app, threadId, text }) {
   const prompt = imagePromptOf(text);
-  if (!prompt) throw new Error('Describe the image after /generate-image.');
+  if (!prompt) throw new Error('Describe the image after /image.');
   return api('/api/learn/chat/image-proposals', { method: 'POST', body: JSON.stringify({ app, thread_id: threadId, prompt, settings: IMAGE_DEFAULTS }) });
 }
 

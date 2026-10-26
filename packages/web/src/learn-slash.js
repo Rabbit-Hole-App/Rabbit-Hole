@@ -4,7 +4,7 @@
 // here, and what running one does. Pure apart from the injected post/canvas,
 // so it is tested without a browser.
 import { reviewRequired } from './proposal-capabilities.js';
-import { LEARN_MENU, commandsFor, descFor, imageGenerationLive, learnRequest, resolveCommand, unavailableCommand } from './agent/slash.js';
+import { LEARN_MENU, commandsFor, descFor, imageGenerationLive, learnRequest, resolveCommand, idOfTyped, typedOf, unavailableCommand } from './agent/slash.js';
 import { PRIMITIVES, isReady } from '../../control-plane/src/learn-primitives.js';
 import { filterSections } from './command-search.js';
 import { withPrompt } from './card-prompt.js';
@@ -27,7 +27,8 @@ export function pickerSections(text, { motionDev } = {}) {
   if (typed === undefined) return null;
   const learn = commandsFor('learn', { motionDev }).filter(available);
   if (typed) {
-    const items = learn.filter(command => command.name.startsWith(typed.toLowerCase())).map(row);
+    // By what a learner types: /ima lists /image (Generate image), /pho lists /photos, and /gen still finds it by its alias.
+    const items = learn.filter(command => [typedOf(command.name), ...(command.aliases || [])].some(word => word.startsWith(typed.toLowerCase()))).map(row);
     return items.length ? [{ title: null, items }] : [];
   }
   const pick = names => names.map(name => learn.find(command => command.name === name)).filter(Boolean).map(row);
@@ -52,7 +53,7 @@ export const EXAMPLES = {
   explain: '/explain how binary search works', code: '/code a function that reverses a linked list', graph: '/graph y = sin(x) and y = cos(x)',
   diagram: '/diagram how a bill becomes law', flashcards: '/flashcards Spanish verbs for travel', goal: '/goal read a balance sheet with confidence',
   notebook: '/notebook', whiteboard: '/whiteboard the water cycle',
-  image: '/image Mount Fuji', 'generate-image': '/generate-image a watercolor mountain landscape', video: '/video raindrops falling into a pond',
+  image: '/photos Mount Fuji', 'generate-image': '/image a watercolor mountain landscape', video: '/video raindrops falling into a pond',
   cad: '/cad an educational 40 mm by 20 mm by 5 mm rectangular plate', '3d': '/3d perspective projection: a camera frustum with a cube inside it and a ray',
   youtube: '/youtube binary search tutorial', arxiv: '/arxiv graph neural networks', wikipedia: '/wikipedia Photosynthesis',
   // The exact request that made the window's real Motion clip (job 8a2015a4, slash-sheet.js MOTION_CLIP).
@@ -68,13 +69,13 @@ export const CARD_OF = {
 };
 // The cards a command or material tool can put on the canvas today. Chat-only commands have none.
 // A direct primitive counts only for a command that inserts it without the
-// model (the deterministic ones, and /image's photo search): /video, say,
+// model (the deterministic ones, and /photos' photo search, id `image`): /video, say,
 // can only propose a generated clip, never an existing one.
 export const cardsFor = name => {
   const command = commandsFor('learn', { internal: true }).find(entry => entry.name === name);
   return (command?.family || []).filter(id => CARD_OF[id] && (isReady(id) || (insertsWithoutModel(name) && PRIMITIVES[id]?.direct))).map(id => ({ primitive: id, card: CARD_OF[id] }));
 };
-// A command that inserts its card without the model: the deterministic ones, and /image's photo search (Task 11b fix B3: the
+// A command that inserts its card without the model: the deterministic ones, and /photos' photo search (id `image`; Task 11b fix B3: the
 // Tutor's cost_tier for such a create_material is none).
 export const insertsWithoutModel = name => !!commandsFor('learn', { internal: true }).find(entry => entry.name === name)?.deterministic || name === 'image';
 
@@ -104,10 +105,13 @@ export function answersInChat(text, { motionDev } = {}) {
   return !RUN_ACTIONS.has(request.action) && !request.allowedPrimitives && !!request.prompt;
 }
 
+// name is what was TYPED (agent/slash.js typed): /image is the generation, /photos the search.
 export const parseSlash = text => {
   const match = text.trim().match(/^\/([\w-]+)(?:\s+([\s\S]*))?$/);
   return match ? { name: match[1].toLowerCase(), args: (match[2] || '').trim() } : null;
 };
+// The stable command id a typed line names (what a saved message, a draft or the chat route carries), or null.
+export const lineCommand = text => { const name = parseSlash(String(text))?.name; return name ? idOfTyped(name) : null; };
 
 // A /command sent while the dock is busy (a Tutor turn, a hole's opening turn) or while another command runs is held,
 // not dropped, and runs once that ends if the composer still shows it: a cleared or edited line is a change of mind.
@@ -123,7 +127,7 @@ export const commandLine = (raw, { command = null, prompted = false } = {}) => {
   const text = String(raw ?? '').trim();
   if (prompted) return null;
   if (text.startsWith('/')) return text;
-  return command ? `/${command} ${text}`.trim() : null;
+  return command ? `/${typedOf(command)} ${text}`.trim() : null;
 };
 
 // One or two model calls (learn-artifact.js); a request that never answers ends as an error, not a skeleton
@@ -148,7 +152,7 @@ export function motionContext(selection) {
   return { selection: { cardId, kind: String(selection.kind || 'Card').slice(0, 200), ...(selection.title ? { title: String(selection.title).slice(0, 300) } : {}), text } };
 }
 
-// /image's card: a real photo search the card runs itself once placed, with no model (the inline editor stages the same card).
+// /photos' card (id `image`): a real photo search the card runs itself once placed, with no model (the inline editor stages the same card).
 export const imageSearchBlock = args => ({ type: 'image', mode: 'search', title: args || 'Image', src: '', alt: '', caption: '', prompt: args, autoSearch: !!args });
 
 // One artifact command's generation, with no side effect: the /api/learn/artifact answer ({ result: 'artifact' |
@@ -204,10 +208,10 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   if (request.action === 'dive') return canvas.dive ? canvas.dive(args) : { notice: { tone: 'info', text: 'Rabbit Holes are not available here yet.' } };
   // A proposed capability (its declaration's flow, proposal-capabilities.js; /motion first, MOT-20/UI-15): a chat turn. The chat proposes it on the shared card
   // (generation-proposal-chat.js), the learner refines it in chat, and the card's Generate makes it. Nothing starts here.
-  // /generate-image, where the server offers it to this person: the line is a chat turn whose plan the server signs (ask.jsx,
+  // /image (id `generate-image`), where the server offers it to this person: the line is a chat turn whose plan the server signs (ask.jsx,
   // generate-image.js requestImagePlan). Where it is not offered the command is not listed and resolveCommand never gets here.
   if (name === 'generate-image' && imageGenerationLive()) {
-    if (!args) return { notice: { tone: 'question', text: 'What should the image show? Describe it after /generate-image.' }, keep: '/generate-image ' };
+    if (!args) return { notice: { tone: 'question', text: 'What should the image show? Describe it after /image.' }, keep: '/image ' };
     return { prompt: args };
   }
   if (reviewRequired(name)) {
@@ -215,7 +219,7 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
     if (!args) return { notice: { tone: 'question', text: 'What should the video explain? Add a topic after /motion.' }, keep: `/${name} ` };
     return { prompt: args };
   }
-  // /image finds a real picture: the card searches and the learner chooses. It never generates (/generate-image does).
+  // /photos (id `image`) finds a real picture: the card searches and the learner chooses. It never generates (/image does).
   if (name === 'image') {
     canvas.insertBlock(imageSearchBlock(args));
     return { notice: { tone: 'done', text: args ? `Searching photos for "${args}".` : 'Added an image card; search for a picture.' } };
@@ -290,7 +294,7 @@ export async function runMaterials(actions, { offer, onNotice = () => {}, prompt
   const results = [];
   let asked = Promise.resolve();
   for (const action of actions.filter(entry => entry.type === 'create_material')) {
-    const result = await runLearnCommand(`/${action.command} ${action.request}`, { target: null, ...deps, promptUsed, internal: true })
+    const result = await runLearnCommand(`/${typedOf(action.command)} ${action.request}`, { target: null, ...deps, promptUsed, internal: true })
       .catch(error => ({ notice: { tone: 'error', text: `/${action.command} could not be made${error?.message ? `: ${error.message}` : '.'} Try again.` } }));
     results.push(result);
     if (result.notice) onNotice(result.notice);

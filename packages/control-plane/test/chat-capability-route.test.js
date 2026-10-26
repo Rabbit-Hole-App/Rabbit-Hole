@@ -68,6 +68,31 @@ test('explicit commands, picker and suggestion ids, Tutor mode and plain explain
   assert.deepEqual(fetches, []);
 });
 
+// Owner, 2026-10-26: /image is the paid generation (capability generate-image), /photos the photo search (capability image),
+// /generate-image an alias of /image. The capability ids the route signs never change; only what a person types does.
+test('typed /image, /photos and /generate-image: ids stay stable; the photo search is never taken for the generation', async t => {
+  noFetch(t);
+  const ask = counted(jev('motion', 0.99));
+  const off = ENV, on = { ...ENV, IMAGE_GENERATE_ENABLED: 'true' };
+  // Generation off: /image and its alias refuse with the photo-search pointer and sign nothing.
+  for (const line of ['/image a cat', '/generate-image a cat']) {
+    const refused = await decideWith(ask, line, { env: off });
+    assert.deepEqual([refused.route, refused.token, refused.message], ['unsupported', null, 'Image generation is not available here. /photos searches for real photos.'], line);
+  }
+  // The photo search (id image) stays available with generation off, whether typed, picked or named by id.
+  const typed = await decideWith(ask, '/photos a cat', { env: off });
+  assert.deepEqual([typed.route, typed.capability, typed.via, typed.flow, typed.args, typed.paid], ['capability:image', 'image', 'command', 'direct', 'a cat', false]);
+  const picked = await decideWith(ask, 'a cat', { env: off, capability: 'image' });
+  assert.deepEqual([picked.route, picked.flow, picked.paid], ['capability:image', 'direct', false], 'the id image is the photo search');
+  // Generation on: /image and /generate-image are the generation (id generate-image).
+  for (const line of ['/image a cat', '/generate-image a cat']) {
+    const made = await decideWith(ask, line, { env: on });
+    assert.deepEqual([made.route, made.capability, made.args, made.paid], ['capability:generate-image', 'generate-image', 'a cat', true], line);
+  }
+  assert.equal((await decideWith(ask, '/imagine a cat', { env: on })).route, 'unsupported');
+  assert.equal(ask.calls.length, 0, 'no router call');
+});
+
 test('plain words: one JEV call and nothing else; Motion gets a proposal route, never a job, render or reservation', async t => {
   const fetches = noFetch(t);
   const ask = counted(jev('motion', 0.93, 0.8, { motion: 0.93, answer: 0.05 }));

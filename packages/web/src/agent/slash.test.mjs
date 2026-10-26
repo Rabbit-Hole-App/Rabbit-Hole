@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { commandsFor, descFor, IMAGE_GENERATION, labelOf, LEARN_MENU, learnRequest, MATERIAL_TOOLS, primitive, REMOVED_COMMANDS, resolveCommand, reviewOff, SELECTIONS, SLASH, toolOf, unavailableCommand } from './slash.js';
+import { commandsFor, descFor, IMAGE_GENERATION, labelOf, LEARN_MENU, learnRequest, MATERIAL_TOOLS, primitive, REMOVED_COMMANDS, resolveCommand, reviewOff, SELECTIONS, SLASH, toolOf, typedOf, idOfTyped, unavailableCommand } from './slash.js';
 import { isReady } from '../../../control-plane/src/learn-primitives.js';
 
 const names = (list) => list.map((c) => c.name);
@@ -79,7 +79,8 @@ test('each tool or narrowed intent names exactly its allowed primitives', () => 
 });
 
 // Owner, 2026-10-20: search and generation are separate commands; neither family holds the other's primitive.
-test('media: /image only searches, /generate-image and /video only generate, /youtube only searches', () => {
+// Owner, 2026-10-26: /image generates (id generate-image), /photos searches (id image); the ids never change meaning.
+test('media: /photos (id image) only searches, /image (id generate-image) and /video only generate, /youtube only searches', () => {
   assert.deepEqual(learnRequest('image').paid, []);
   assert.ok(!learnRequest('image').allowedPrimitives.includes('image_generate'));
   assert.deepEqual(learnRequest('generate-image').allowedPrimitives, ['image_generate']);
@@ -87,20 +88,64 @@ test('media: /image only searches, /generate-image and /video only generate, /yo
   assert.ok(!learnRequest('video').allowedPrimitives.includes('video'));
   assert.deepEqual([learnRequest('youtube').action, learnRequest('youtube').allowedPrimitives], ['open_source', null]);
   assert.deepEqual(['image', 'generate-image', 'youtube', 'video', '3d', 'explain', 'dive'].map((n) => descFor(toolOf(n), 'learn')),
-    ['Search images', 'Generate image', 'Search YouTube', 'Generate video', 'Add 3D scene', 'Add explanation', 'Open Rabbit Hole']);
+    ['Search photos', 'Generate image', 'Search YouTube', 'Generate video', 'Add 3D scene', 'Add explanation', 'Open Rabbit Hole']);
 });
 
-// /generate-image needs image generation, which is off: hidden from every list and refused when typed, never turned on here.
-test('/generate-image is hidden and refused while image generation is off; the flag follows the primitive', () => {
+// Owner, 2026-10-26: the typed names. /image is the paid generation, /photos the photo search, /generate-image still works as
+// an alias of /image, and /imagine is not a command. Typed names resolve to the stable ids; the ids resolve to themselves.
+test('typed names: /image resolves to generate-image, /photos to the photo search, /generate-image still resolves, /imagine does not exist', () => {
+  const on = { imageGeneration: true };
+  for (const surface of ['chat', 'ctrlk']) {
+    assert.equal(resolveCommand('/image a lake', surface, on).command.name, 'generate-image', surface);
+    assert.equal(resolveCommand('/IMAGE a lake', surface, on).command, toolOf('generate-image'), surface);
+    assert.equal(resolveCommand('/photos a lake', surface, on).command.name, 'image', surface);
+    assert.equal(resolveCommand('/generate-image a lake', surface, on).command, toolOf('generate-image'), `${surface}: the alias is the same entry`);
+    assert.deepEqual(resolveCommand('/imagine a lake', surface, on), { unsupported: 'imagine' }, surface);
+  }
+  // The photo search needs no switch; /photos works while image generation is off.
+  assert.equal(resolveCommand('/photos Mount Fuji', 'learn').command, toolOf('image'));
+  assert.equal(resolveCommand('/photos Mount Fuji', 'learn').arg, 'Mount Fuji');
+  assert.ok(!SLASH.some((c) => c.name === 'imagine' || c.typed === 'imagine' || c.aliases?.includes('imagine')));
+  // ids <-> typed names, and a name nothing types is its own.
+  assert.deepEqual(['image', 'generate-image', 'explain', 'simplify'].map(typedOf), ['photos', 'image', 'explain', 'simplify']);
+  assert.deepEqual(['photos', 'image', 'generate-image', 'explain', 'simplify', 'imagine'].map(idOfTyped), ['image', 'generate-image', 'generate-image', 'explain', 'simplify', 'imagine']);
+  // Every typed name and alias of an entry resolves to it and to no other entry.
+  for (const entry of SLASH) for (const word of [typedOf(entry.name), ...(entry.aliases || [])]) assert.equal(idOfTyped(word), entry.name, `${entry.name}: ${word}`);
+  // The menu and the pill read the new labels, not the typed names.
+  assert.equal(labelOf(toolOf('generate-image')), 'Generate image');
+  assert.equal(labelOf(toolOf('image')), 'Search photos');
+  assert.match(toolOf('generate-image').about, /\/photos does/);
+  assert.match(toolOf('image').about, /\/image does/);
+});
+
+// Saved data names ids, never typed names: id `image` is still the photo search and `generate-image` still the generation.
+test('saved ids keep their meaning: toolOf(image) is the photo search, toolOf(generate-image) the generation', () => {
+  assert.deepEqual(toolOf('image').family, ['image']);
+  assert.deepEqual(toolOf('generate-image').family, ['image_generate']);
+  assert.equal(commandsFor('learn').find((c) => c.name === 'image')?.desc, 'Search photos');
+});
+
+// /image needs image generation, which is off: hidden from every list and refused when typed (as /image or its alias
+// /generate-image), never turned on here.
+test('/image (id generate-image) is hidden and refused while image generation is off; the flag follows the primitive', () => {
   assert.equal(IMAGE_GENERATION, isReady('image_generate'));
   assert.equal(IMAGE_GENERATION, false);
   for (const surface of ['chat', 'learn', 'ctrlk', 'insert']) {
     assert.ok(!names(commandsFor(surface, { motionDev: true })).includes('generate-image'), surface);
     assert.deepEqual(resolveCommand('/generate-image a watercolor mountain landscape', surface), { unsupported: 'generate-image' }, surface);
+    assert.deepEqual(resolveCommand('/image a watercolor mountain landscape', surface), { unsupported: 'image' }, surface);
   }
   assert.match(unavailableCommand('generate-image'), /Image generation is not available here/);
+  // An unavailable command still says why, and points at the photo search.
+  assert.equal(unavailableCommand('image'), 'Image generation is not available here. /photos searches for real photos.');
+  assert.equal(unavailableCommand('generate-image'), unavailableCommand('image'));
+  assert.equal(unavailableCommand('photos'), null, 'the photo search is never unavailable');
+  // unavailableCommand takes what was TYPED: a caller holding the id `image` (the photo search) goes through typedOf.
+  assert.equal(unavailableCommand(typedOf('image')), null);
+  assert.equal(unavailableCommand('image', { imageGeneration: true }), null);
   assert.ok(names(commandsFor('chat', { imageGeneration: true })).includes('generate-image'));
   assert.equal(resolveCommand('/generate-image a lake', 'ctrlk', { imageGeneration: true }).command.name, 'generate-image');
+  assert.equal(resolveCommand('/image a lake', 'ctrlk', { imageGeneration: true }).command.name, 'generate-image');
 });
 
 test('paid primitives always confirm and carry no guessed cost', () => {
@@ -169,7 +214,7 @@ test('every command has a kind; the generate ones are what Ctrl+K picks Explain 
 });
 
 test('labels: a short pill label where there is one, else the menu label; never a /name', () => {
-  assert.deepEqual(['video', 'youtube', 'arxiv', 'wikipedia', 'image'].map((n) => labelOf(toolOf(n))), ['Generate video', 'Search YouTube', 'Search arXiv', 'Search Wikipedia', 'Search images']);
+  assert.deepEqual(['video', 'youtube', 'arxiv', 'wikipedia', 'image'].map((n) => labelOf(toolOf(n))), ['Generate video', 'Search YouTube', 'Search arXiv', 'Search Wikipedia', 'Search photos']);
   assert.deepEqual(['explain', 'dive', '3d', 'cad', 'practice', 'quiz', 'graph'].map((n) => labelOf(toolOf(n))), ['Add explanation', 'Open Rabbit Hole', '3D', 'CAD', 'Practice', 'Quiz', 'Graph']);
   // A saved message's removed command still reads as words.
   assert.equal(labelOf({ name: 'simplify' }), 'Simplify');
@@ -190,8 +235,8 @@ test('/motion: its pill reads Motion, its menu line is the owner wording, and on
 test('resolveCommand: a typed command is the very entry the picker lists; an unoffered one is reported, never swapped', () => {
   for (const surface of ['chat', 'ctrlk', 'insert']) {
     for (const picked of commandsFor(surface, { motionDev: true })) {
-      const typed = resolveCommand(`/${picked.name} some words`, surface, { motionDev: true });
-      assert.equal(typed.command, picked, `${surface} /${picked.name}`);
+      const typed = resolveCommand(`/${typedOf(picked.name)} some words`, surface, { motionDev: true });
+      assert.equal(typed.command, picked, `${surface} /${typedOf(picked.name)}`);
       assert.equal(typed.arg, 'some words');
     }
   }

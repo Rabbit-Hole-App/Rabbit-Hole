@@ -135,14 +135,14 @@ test('command input: a bare /motion builds its request from the selection, never
   assert.equal(none.seen.motion.length, 0);
 });
 
-test('command input: a bare /image searches the selection\'s words; with none it asks', async () => {
+test('command input: a bare /photos searches the selection\'s words; with none it asks', async () => {
   const { session, seen } = recorder();
-  await session.submit({ mode: 'explain', prompt: '/image', prepare: snapshot() });
-  await session.submit({ mode: 'explain', prompt: '/image an oak tree', prepare: snapshot('t2') });
+  await session.submit({ mode: 'explain', prompt: '/photos', prepare: snapshot() });
+  await session.submit({ mode: 'explain', prompt: '/photos an oak tree', prepare: snapshot('t2') });
   assert.deepEqual(seen.artifact, ['23', 'an oak tree']);
   const none = recorder();
-  assert.equal(await none.session.submit({ mode: 'explain', prompt: '/image', prepare: snapshot('e', empty) }), 'clarify');
-  assert.match(none.session.state.clarify.question, /What should the photo show\?/);
+  assert.equal(await none.session.submit({ mode: 'explain', prompt: '/photos', prepare: snapshot('e', empty) }), 'clarify');
+  assert.match(none.session.state.clarify.question, /What should the photo show\? Type it after \/photos, for example \/photos an oak tree\./);
   assert.equal(none.seen.artifact.length, 0);
 });
 

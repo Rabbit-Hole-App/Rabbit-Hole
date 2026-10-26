@@ -137,7 +137,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
     set({ status: 'generating', stage: STAGES.artifact.replace('{label}', routeLabel(route).toLowerCase()), stream: null });
     mark(id, 'providerStart');
     count(id, 'modelCalls');
-    // /image runs no model (a photo search once accepted): staged here after the proceed. Every other card comes from
+    // /photos (route `image`) runs no model (a photo search once accepted): staged here after the proceed. Every other card comes from
     // /generate, as the handler's own answer.
     const answer = route === 'image' ? await transport.artifact({ requestId: id, command: route, args: input.args, context: request.context }, { signal }) : await transport.card(decided, { signal });
     if (!live(mine)) return null;

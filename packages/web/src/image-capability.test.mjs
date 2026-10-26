@@ -1,4 +1,4 @@
-// IMG-01: the web build holds no image switch; the SERVER's answer for this person turns /generate-image on (image-capability.js).
+// IMG-01: the web build holds no image switch; the SERVER's answer for this person turns /image (id generate-image) on (image-capability.js).
 // Nothing is paid and no server is reached: a fake fetch stands in for GET /api/learn/image-jobs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -64,20 +64,26 @@ test('the build flag for a review build grants nothing the server refuses: the c
   assert.ok(!names(commandsFor('learn')).includes('generate-image'));
 });
 
-test('a typed /generate-image becomes a chat turn when offered; with no words it asks; when not offered it is not a command', async () => {
+test('a typed /image (or its alias /generate-image) becomes a chat turn when offered; with no words it asks; when not offered it is not a command', async () => {
   resetImageCapability();
   const canvas = {}, post = async () => { throw new Error('the legacy generator must not be called'); };
-  const off = await runLearnCommand('/generate-image a fox', { app: 'demo', canvas, post });
-  assert.equal(off.notice.tone, 'error');
+  for (const line of ['/image a fox', '/generate-image a fox']) {
+    const off = await runLearnCommand(line, { app: 'demo', canvas, post });
+    assert.equal(off.notice.tone, 'error');
+    assert.equal(off.notice.text, 'Image generation is not available here. /photos searches for real photos.');
+  }
   await loadImageCapability(answer(200, { available: true }));
-  assert.deepEqual(await runLearnCommand('/generate-image a fox in snow', { app: 'demo', canvas, post }), { prompt: 'a fox in snow' });
-  const ask = await runLearnCommand('/generate-image', { app: 'demo', canvas, post });
-  assert.equal(ask.notice.tone, 'question'); assert.equal(ask.keep, '/generate-image ');
+  for (const line of ['/image a fox in snow', '/generate-image a fox in snow']) assert.deepEqual(await runLearnCommand(line, { app: 'demo', canvas, post }), { prompt: 'a fox in snow' }, line);
+  for (const line of ['/image', '/generate-image']) {
+    const ask = await runLearnCommand(line, { app: 'demo', canvas, post });
+    assert.equal(ask.notice.tone, 'question'); assert.equal(ask.keep, '/image ');
+  }
   resetImageCapability();
 });
 
 test('the plan request: the words without the command, the opening settings are a validated combination, an empty prompt is refused before any call', async () => {
   assert.equal(imagePromptOf('/generate-image   a fox'), 'a fox'); assert.equal(imagePromptOf('/generate-imagex y'), '/generate-imagex y'); assert.equal(imagePromptOf('a fox'), 'a fox');
+  assert.equal(imagePromptOf('/image   a fox'), 'a fox'); assert.equal(imagePromptOf('/imagex y'), '/imagex y'); assert.equal(imagePromptOf('/photos a fox'), '/photos a fox');
   assert.deepEqual(IMAGE_DEFAULTS, { model: 'gemini-nano-banana-2.1', aspect_ratio: '1:1', resolution: '1K' });
   const sent = [];
   const api = async (path, options) => { sent.push({ path, options, body: JSON.parse(options.body) }); return { thread_id: 'canvaschat-x', message_id: '7', proposal: { proposal_id: 'p' } }; };
