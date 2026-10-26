@@ -74,12 +74,11 @@ export function useChatDraft(canvas, thread) {
   // A new restore key (open, New chat, canvas change) loads that thread's draft. The same restore key with a new id is the
   // first done naming a new chat (adopt): the draft moves to the thread's key, so text typed during that send stays.
   // The exception is the canvas's initial restore (restore.after names the key it started from): what the learner changed
-  // meanwhile (slot.edited, set by an edit, never by a restore) happened after the restore began, so it beats the saved draft by
-  // that order, not by savedAt (a saved draft stamped ahead of this clock must not win), and goes to the resolved thread.
+  // meanwhile (slot.edited, set by an edit, never by a restore) is newer than the saved draft and goes to the resolved thread.
   let current = slot;
   if (slot.restoreKey !== thread.restore?.key) {
     const fresh = restored(canvas, thread);
-    current = slot.edited && thread.restore?.after === slot.restoreKey ? { ...fresh, draft: slot.draft, edited: true, carried: true } : fresh;
+    current = slot.edited && thread.restore?.after === slot.restoreKey ? { ...fresh, draft: pickDraft(slot.draft, fresh.draft), edited: true, carried: true } : fresh;
   } else if (slot.key !== key) current = { ...slot, key };
   if (current !== slot) setSlot(current);
   // Only a touched draft is stored (savedAt), so opening a thread writes nothing. Clearing stores the empty draft with its

@@ -101,21 +101,10 @@ export function useChatContext(canvas, thread) {
   const key = useRef(restore?.key);
   key.current = restore?.key;
   const offered = useRef(new Set()), known = useRef(JSON.stringify(attached));
-  // What the learner attached or detached themselves (never the canvas's auto-loaded documents) under the restore key now shown, in
-  // order. The canvas's INITIAL restore (restore.after names the key it started from) applies them to the saved chips instead of
-  // dropping them, the way chat-draft.js keeps an edited draft. heir: that restore's two keys, so a late upload or removal that
-  // began under the first still belongs to the conversation it became.
-  const edits = useRef({ key: restore?.key, list: [] }), heir = useRef(null);
-  const edit = useCallback(action => { edits.current.list.push(action); dispatch(action); }, []);
-  const sameChat = useCallback(startedIn => key.current === startedIn || (heir.current?.from === startedIn && heir.current.to === key.current), []);
   useEffect(() => {
     offered.current = new Set();
     known.current = JSON.stringify(validRefs(restore?.contextRefs)); // what the thread already holds: restoring never saves
-    const kept = restore?.after && edits.current.key === restore.after ? edits.current.list : [];
-    edits.current = { key: restore?.key, list: [] };
-    heir.current = restore?.after ? { from: restore.after, to: restore.key } : null;
     dispatch({ type: 'restore', refs: restore?.contextRefs });
-    kept.forEach(dispatch); // the reducer still de-duplicates and stops at MAX_REFS
   }, [restore?.key]); // eslint-disable-line react-hooks/exhaustive-deps
   // A change the user made saves to the open thread (A2's debounced state PUT; a no-op before the thread has an id).
   useEffect(() => {
@@ -135,8 +124,8 @@ export function useChatContext(canvas, thread) {
     for (const ref of attached) if (staleRef(ref, removed)) dispatch({ type: 'detach', ref });
   }, [removed, attached]);
   const [uploads, setUploads] = useState([]);
-  const attach = useCallback(ref => edit({ type: 'attach', ref }), [edit]);
-  const detach = useCallback(ref => edit({ type: 'detach', ref }), [edit]);
+  const attach = useCallback(ref => dispatch({ type: 'attach', ref }), []);
+  const detach = useCallback(ref => dispatch({ type: 'detach', ref }), []);
   // Remove from context (UI-26): the row reads pending until the DELETE answers; a second press waits on the same request.
   // The answer lands on every list of this canvas at once (context-docs.js); the whole-document chip leaves this chat only if
   // the learner is still on the canvas and conversation that asked (the removed ids drop it from any other, staleRef).
@@ -146,9 +135,9 @@ export function useChatContext(canvas, thread) {
     setRemoving(ids => (ids.includes(doc.id) ? ids : [...ids, doc.id]));
     try {
       await removeContextDoc(canvas, doc.id);
-      if (sameChat(startedIn)) edit({ type: 'detach', ref });
+      if (key.current === startedIn) dispatch({ type: 'detach', ref });
     } finally { setRemoving(ids => ids.filter(id => id !== doc.id)); }
-  }, [canvas, edit, sameChat]);
+  }, [canvas]);
   // The canvas-level switch never reaches this chat (pdf-materials-refinement.md section 1): marked offered first, a document
   // switched on from its row does not join a new conversation that follows the canvas's switched-on documents.
   const canvasContext = useCallback(async (doc, on) => { offered.current.add(`doc:${doc.id}`); await toggleContextDoc(canvas, doc.id, on); }, [canvas]);
@@ -160,9 +149,9 @@ export function useChatContext(canvas, thread) {
       const doc = await uploadContextDoc(canvas, file);
       setUploads(previous => previous.filter(item => item.id !== id));
       // Uploaded from this chat, so it rides this chat - unless the user has moved to another conversation meanwhile.
-      if (doc && sameChat(startedIn)) { offered.current.add(`doc:${doc.id}`); edit({ type: 'attach', ref: docRef(doc) }); }
+      if (doc && key.current === startedIn) { offered.current.add(`doc:${doc.id}`); dispatch({ type: 'attach', ref: docRef(doc) }); }
     } catch (error) { patch({ state: 'failed', error: error.message }); }
-  }, [canvas, edit, sameChat]);
+  }, [canvas]);
   const upload = useCallback(async file => {
     if (!file) return;
     const id = `upload:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
