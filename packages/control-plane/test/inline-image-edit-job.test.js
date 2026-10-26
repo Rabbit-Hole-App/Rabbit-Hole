@@ -67,3 +67,10 @@ test('crash after immutable publication before ready marker does not republish o
 test('caller mutation during admission cannot change the hash-bound upload',async()=>{
  const mutable=image.slice();const h=harness({admitSpend:async()=>{mutable[0]=99;return{refused:false};}});await create(h.job);await h.job.run('job1',{image:mutable});assert.deepEqual(h.calls.edit[0].image,image);
 });
+
+test('with a cost function the settlement is min(priced usage, reservation); a throwing or non-finite price keeps the reserved bound',async()=>{
+ for(const [cost,expected,reservation]of [[()=>0.01,0.01,'settled_at_usage_cost'],[()=>9,0.15,'settled_at_usage_cost'],[()=>0,0,'settled_at_usage_cost'],[()=>null,null,'settled_at_reserved_bound'],[()=>NaN,null,'settled_at_reserved_bound'],[()=>-1,null,'settled_at_reserved_bound'],[()=>{throw Error('x');},null,'settled_at_reserved_bound']]){
+  const h=harness({cost});await create(h.job);const done=await run(h.job);
+  assert.equal(done.phase,'ready');assert.equal(h.calls.settle[0][1].costUsd,expected);assert.equal(done.reservation,reservation);
+ }
+});
