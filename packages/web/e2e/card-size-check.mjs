@@ -510,10 +510,15 @@ const seeded = async (viewport = { width: 1440, height: 900 }, { mobile = false 
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.addInitScript((recent) => localStorage.setItem('small.recent', JSON.stringify(recent)), [...made.map((c) => c.name), ...PROJECTS.map((p) => p.name)]);
   await context.route(/\/api\/(learn\/)?ask(\?|$)/, (route) => { asks.push(route.request().url()); return route.abort(); });
+  // finish() lets this handler end before the context closes. A step that closes some other way (run 40247072005: the Explore Canvases
+  // toolbar step, a reload's /api/apps still in flight) must not end the process with an unhandled rejection either, so a request the
+  // context can no longer answer is dropped here; a live page whose fetch failed still shows it, as a request that never came back.
   await context.route((url) => new URL(url).pathname === '/api/apps', async (route) => {
-    const response = await route.fetch();
-    const body = await response.json();
-    route.fulfill({ response, json: { ...body, apps: [...body.apps.map((a) => ({ ...a, ...(canvasPatch[a.name] || {}) })), ...PROJECTS] } });
+    try {
+      const response = await route.fetch();
+      const body = await response.json();
+      await route.fulfill({ response, json: { ...body, apps: [...body.apps.map((a) => ({ ...a, ...(canvasPatch[a.name] || {}) })), ...PROJECTS] } });
+    } catch { await route.abort().catch(() => {}); }
   });
   await context.route((url) => new URL(url).pathname === '/api/learn/boards/published', (route) => route.fulfill({ json: EXPLORE }));
   const page = await context.newPage();
@@ -695,7 +700,7 @@ await check('Explore Canvases toolbar at 1440: Search, Filters, Sort, Size adjac
   await page.reload();
   await slider(page).waitFor({ timeout: 60000 });
   assert.equal(await value(page), 1, 'the Size step survives the reload');
-  await page.context().close();
+  await finish(page);
 });
 
 await check('Home (Recent) at 1440, all four sizes: the same cards, the same guarantees', async () => {

@@ -20,8 +20,8 @@ await esbuild.build({
 const B = createRequire(import.meta.url)(outfile);
 rmSync(dir, { recursive: true, force: true });
 
-const body = (over = {}) => ({ enforced: false, currency: 'USD', period: '2026-10', resetsAt: '2026-11-01T00:00:00.000Z',
-  allowanceMicros: 50_000_000, usedMicros: 17_400_000, reservedMicros: 0, estimatedMicros: 0, remainingMicros: 32_600_000, ...over });
+const body = (over = {}) => ({ enforced: false, period: '2026-10', resetsAt: '2026-11-01T00:00:00.000Z',
+  allowanceCredits: 5000, usedCredits: 1740, reservedCredits: 0, estimatedCredits: 0, remainingCredits: 3260, ...over });
 const storeOf = async (status, json) => {
   const store = B.createUsageStore({ load: async () => ({ status, json: async () => json }), target: null });
   if (status) await store.refresh();
@@ -41,7 +41,7 @@ test('the gauge: green with a balance, its words in the tooltip and the accessib
 });
 
 test('the gauge: red only for remaining 0 from the server', async () => {
-  const html = gauge(await storeOf(200, body({ usedMicros: 50_000_000, remainingMicros: 0 })));
+  const html = gauge(await storeOf(200, body({ usedCredits: 5000, remainingCredits: 0 })));
   assert.match(html, /data-state="empty" title="No AI credits remaining\. Tracking only - limits are not enforced yet\."/);
   assert.match(html, /lucide-gauge[^"]*text-fail/);
 });
@@ -95,7 +95,7 @@ test('requests that ended without a confirmed cost: one quiet line in the popove
   assert.match(two, /<p data-usage-unknown="true" class="text-xs text-ink-2">2 AI requests ended without a confirmed cost and were not charged<\/p>/);
   assert.equal(details(ready({ unknownAttempts: 1 })).match(/data-usage-unknown[^>]*>([^<]*)</)[1], '1 AI request ended without a confirmed cost and was not charged');
   for (const html of [details(ready({ unknownAttempts: 0 })), details(ready())]) assert.doesNotMatch(html, /data-usage-unknown|not yet known/);
-  const withUnknown = settings(await storeOf(200, body({ unknownAttempts: 1, unknownReservedMicros: 0 })));
+  const withUnknown = settings(await storeOf(200, body({ unknownAttempts: 1 })));
   assert.match(withUnknown, /data-usage-unknown[^>]*>1 AI request ended without a confirmed cost and was not charged</);
   assert.doesNotMatch(withUnknown.match(/data-usage-unknown[^>]*>[^<]*</)[0], /\$/);
   assert.doesNotMatch(settings(await storeOf(200, body())), /data-usage-unknown|not yet known/, 'a server without the field');
@@ -122,7 +122,7 @@ test('Settings > AI usage: allowance, used, remaining, next reset and the bar; r
     assert.match(html, new RegExp(`>${row}</div>[\\s\\S]*?>${value}</span>`), row);
   assert.match(html, /role="meter"/);
   assert.doesNotMatch(html, /Temporarily reserved/);
-  assert.match(settings(await storeOf(200, body({ reservedMicros: 1_250_000, remainingMicros: 31_350_000 }))), />Temporarily reserved<\/div>[\s\S]*?>125 credits<\/span>/);
+  assert.match(settings(await storeOf(200, body({ reservedCredits: 125, remainingCredits: 3135 }))), />Temporarily reserved<\/div>[\s\S]*?>125 credits<\/span>/);
   assert.doesNotMatch(html, /\$/, 'credits only, never dollars (owner messages 32-33)');
   const down = settings(await storeOf(503, { unavailable: 'accounting' }));
   assert.match(down, /role="status"[^>]*>AI usage unavailable</);

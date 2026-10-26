@@ -18,6 +18,7 @@ import { LearnScenes } from '../src/learn-scene.js';
 import sceneExample from '../../lesson-renderer/example-scene.json' with { type: 'json' };
 import { monthlyAllowanceMicros, legacyAllowanceMicros, allowanceCutoverPeriod } from '../src/learn-usage-config.js';
 import { usageFetch } from '../src/learn-usage-route.js';
+import { ledgerMicros, moneyLeaks } from './no-money.js';
 import { devWorker } from './worker-import.js';
 import { liveDb, liveRuns, memoryBucket } from './live-storage-spy.js';
 
@@ -139,7 +140,7 @@ test('retries: one action per client key, each provider attempt recorded once wi
   const fetchImpl = async () => { calls++; return calls === 1 ? Response.json({}, { status: 429 }) : Response.json({ model: 'jev-1.13.0', usage: { input_tokens: 1000 } }); };
   await askJev(jevEnv, { model: JEV_TRANSPORTS.direct.model, state: 'x', questions: {} }, { transport: 'direct', fetchImpl, sleep: async () => {} });
   const jev = rows(sqlite, 'usage_attempts').slice(4);
-  assert.deepEqual(jev.map(a => [a.kind, a.status, a.cost_state, a.cost_micros]), [['evaluation', 'failed', 'unknown', null], ['retry', 'settled', 'settled', 42]]);
+  assert.deepEqual(jev.map(a => [a.kind, a.status, a.cost_state, a.cost_micros]), [['evaluation', 'failed', 'settled', 0], ['retry', 'settled', 'settled', 42]]); // the 429 is a known zero (owner 2026-10-25), the retry is measured
   assert.equal(new Set(jev.map(a => a.action_id)).size, 1);
   const [grade] = rows(sqlite, 'usage_actions').slice(3);
   assert.deepEqual([grade.payer, grade.payer_reason, grade.charge_class], ['user', 'free_action', 'free'], 'practice grading: free to the user, cost recorded');
@@ -220,7 +221,7 @@ test('the payer comes from the session through the real dev worker: a body or he
   const attempts = rows(sqlite, 'usage_attempts');
   assert.ok(attempts.length >= 1 && attempts.every(a => a.action_id === actions[0].action_id && a.cost_state === 'settled' && a.cost_micros > 0));
   // The summary reads the same session's month; a user id in the query is not read.
-  const usage = await (await send('GET', '/api/learn/usage?user=u-victim&userId=u-victim')).json();
+  const usage = ledgerMicros(await (await send('GET', '/api/learn/usage?user=u-victim&userId=u-victim')).json());
   assert.equal(usage.usedMicros, attempts.reduce((sum, a) => sum + a.cost_micros, 0));
   assert.equal(usage.allowanceMicros, 50_000_000);
   assert.ok(sent.every(path => path === '/api/me'), sent.join());
@@ -367,10 +368,13 @@ test('GET /api/learn/usage: signed-in only, the session user\'s month, config an
   const env = { LEARN_DB, AI_MONTHLY_ALLOWANCE_USD: '50' };
   const reply = await usageFetch(req, env, as('u-alice'));
   assert.equal(reply.headers.get('cache-control'), 'no-store');
-  assert.deepEqual(await reply.json(), { enforced: true, currency: 'USD', period: '2026-10', resetsAt: '2026-11-01T00:00:00.000Z', allowanceMicros: 50_000_000,
-    usedMicros: 3000, reservedMicros: 6000, estimatedMicros: 20000, remainingMicros: 50_000_000 - 9000, unknownAttempts: 2, unknownReservedMicros: 4000,
-    byFeature: [{ feature: 'ask', usedMicros: 3000, reservedMicros: 6000, unknownAttempts: 2 }] });
-  assert.equal((await (await usageFetch(req, env, as('u-bob'))).json()).usedMicros, 0, 'the query parameter is not read');
+  const body = await reply.json();
+  // AI credits only (1 credit = 10,000 micros of the ledger): no dollar field, no micros, no currency.
+  assert.deepEqual(body, { enforced: true, period: '2026-10', resetsAt: '2026-11-01T00:00:00.000Z', allowanceCredits: 5000,
+    usedCredits: 0.3, reservedCredits: 0.6, estimatedCredits: 2, remainingCredits: (50_000_000 - 9000) / 10_000, unknownAttempts: 2,
+    byFeature: [{ feature: 'ask', usedCredits: 0.3, reservedCredits: 0.6, unknownAttempts: 2 }] });
+  assert.deepEqual(moneyLeaks(body), []);
+  assert.equal((await (await usageFetch(req, env, as('u-bob'))).json()).usedCredits, 0, 'the query parameter is not read');
   assert.equal((await usageFetch(req, env, as(null))).status, 401);
   assert.equal((await usageFetch(new Request(req, { method: 'POST' }), env, as('u-alice'))).status, 405);
   for (const value of [undefined, '0', '-1', 'abc', '1000000']) assert.deepEqual(await (await usageFetch(req, { LEARN_DB, AI_MONTHLY_ALLOWANCE_USD: value }, as('u-alice'))).json(), { enforced: true, unavailable: 'config' });
@@ -378,7 +382,7 @@ test('GET /api/learn/usage: signed-in only, the session user\'s month, config an
   assert.equal((await (await usageFetch(req, { ...env, SMALL_ENV: 'test' }, as('u-alice'))).json()).enforced, false);
   // Lowering the allowance clamps remaining at zero and keeps recorded usage (owner D3).
   const low = await (await usageFetch(req, { LEARN_DB, AI_MONTHLY_ALLOWANCE_USD: '0.005' }, as('u-alice'))).json();
-  assert.deepEqual([low.allowanceMicros, low.usedMicros, low.remainingMicros], [5000, 3000, 0]);
+  assert.deepEqual([low.allowanceCredits, low.usedCredits, low.remainingCredits], [0.5, 0.3, 0]);
   const bare = database(t, [LEDGER]);
   const down = await usageFetch(req, { LEARN_DB: bare.LEARN_DB, AI_MONTHLY_ALLOWANCE_USD: '50' }, as('u-alice'));
   assert.equal(down.status, 503);

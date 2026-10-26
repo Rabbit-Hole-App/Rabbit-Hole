@@ -14,7 +14,7 @@ const notGrounded = block => (block.motion?.grounding?.status === 'not_in_source
   : block.motion?.grounding ? 'Not grounded in a source' : null);
 
 // Owner message 30 (replacing message 25's wording): the learner never sees the reservation amount or how it is held. The server
-// still holds it and returns it (LearnVideos list motionHoldUsd) for internal tools only.
+// holds it and no longer sends the amount at all (owner 2026-10-25: no dollar field in a user-facing response).
 // Owner message 28: while the server pauses new Motion generation (LearnVideos list motionPaused) the confirmation says so; the
 // server refuses the start itself with the same text.
 export const MOTION_PAUSED = 'Motion generation is temporarily unavailable while we fix a reliability issue.';
@@ -33,6 +33,8 @@ export const pressOperation = (block, retry = false, id = () => crypto.randomUUI
 // A /motion card inserted already confirmed (its Generate press) carries that press's request id from the moment it lands, so a
 // board saved before its start was written back still restarts the same job after a reload, never a second paid one.
 export const withPressId = block => (block?.confirmedStart && block.operation?.op === 'motion_request' ? { ...block, operation: pressOperation(block) } : block);
+// A card about to start (or start again) forgets how its last attempt ended: stopped, or an outcome that could not be confirmed.
+export const withoutEnd = block => { const { stopped, outcomeUnknown, ...rest } = block; return rest; }; // eslint-disable-line no-unused-vars
 // A failed or stopped job is read again while its hold is not confirmed settled (state pending), at most this many times per page
 // load (10 minutes at 5 s): an unknown cost stays pending until it is reconciled outside the app.
 export const SETTLE_READS = 120;
@@ -46,12 +48,19 @@ export function recoveryButtons(recovery, { composer = false } = {}) {
   const actions = (recovery.actions || []).filter(a => a in RECOVERY_BUTTONS && (a !== 'edit' || composer));
   return [...new Set([...['fix', 'render', 'edit'].filter(a => actions.includes(a)), ...(recovery.regenerate ? ['regenerate'] : [])])];
 }
-// Usage in credits (1 credit = $0.01), short, and the reservation's state; never a dollar amount or the hold's size.
-export function motionUsageLine(usage, hold) {
-  if (!usage) return null;
-  const micros = usage.usedMicros || 0, credits = Math.round(micros / 10_000);
-  const used = credits === 0 && micros > 0 ? 'less than 1 credit' : `${credits.toLocaleString('en-US')} credit${credits === 1 ? '' : 's'}`;
+// Usage in credits, short, and the reservation's state; never a dollar amount or the hold's size. A failed job's server
+// accounting (LearnVideos motionRecovery: chargedCredits, refundedCredits) keeps three things apart that "Used N credits" blurred (failed job
+// 61f70171, 2026-10-25): credits charged, credits refunded, and the reservation (a hold, released when the job ends, is not a refund).
+const creditsText = credits => (credits > 0 && credits < 1 ? 'less than 1 credit' : `${Math.round(credits).toLocaleString('en-US')} credit${Math.round(credits) === 1 ? '' : 's'}`);
+export function motionUsageLine(usage, hold, accounting = null) {
   const state = hold?.state === 'reserved' ? 'reservation held' : hold?.state === 'pending' ? 'reservation pending' : 'reservation released';
+  if (accounting) {
+    const charged = accounting.chargedCredits || 0, refunded = Math.min(accounting.refundedCredits || 0, charged);
+    return [charged > 0 ? `Charged ${creditsText(charged)}${accounting.unknown ? ' so far' : ''}` : accounting.unknown ? 'Charge not confirmed yet' : 'No credits charged', refunded > 0 ? `${creditsText(refunded)} refunded` : null, state].filter(Boolean).join(' · ');
+  }
+  if (!usage) return null;
+  const exact = usage.usedCredits || 0, credits = Math.round(exact);
+  const used = credits === 0 && exact > 0 ? 'less than 1 credit' : `${credits.toLocaleString('en-US')} credit${credits === 1 ? '' : 's'}`;
   return `Used ${used}${usage.unknown ? ' so far' : ''} · ${state}`;
 }
 

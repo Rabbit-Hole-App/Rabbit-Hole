@@ -1,6 +1,7 @@
 // The 2,500-credit monthly allowance (owner brief 2026-10-23): conversion, pricing registry, the entitlement function, the
 // transition of existing accounts, rollover, concurrency, refunds and duplicate settlement. No provider is called: these are
 // ledger and registry tests, nothing is paid.
+import { ledgerMicros } from './no-money.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
@@ -57,7 +58,7 @@ const seedUsage = (sqlite, userId, period, micros) => {
   return `${id}-a`;
 };
 const rows = (sqlite, table) => sqlite.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all().map(row => ({ ...row }));
-const screen = async (env, userId, now) => (await usageFetch(new Request('https://t.test/api/learn/usage'), env, { identity: async () => ({ userId, email: `${userId}@t` }), now })).json();
+const screen = async (env, userId, now) => (await usageFetch(new Request('https://t.test/api/learn/usage'), env, { identity: async () => ({ userId, email: `${userId}@t` }), now })).json().then(ledgerMicros);
 
 test('conversion and pricing: $1 = 100 credits = 1,000,000 micros; the worked example is 2.8 credits; no call rounds up to a credit', () => {
   const priced = priceUsage({ model: 'claude-opus-5-5', quantities: { input: 2000, output: 1000 } });

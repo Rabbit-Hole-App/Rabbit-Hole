@@ -94,11 +94,17 @@ export const REMOVED_COMMANDS = ['walkthrough', 'do', 'find', 'open', 'connect',
 // Image generation from a command: off while the image_generate primitive is not ready (learn-primitives.js; slash.test.mjs
 // holds the two equal). /generate-image is hidden and refused while it is off; this cleanup does not turn it on.
 export const IMAGE_GENERATION = false;
+// The live switch (owner 2026-10-25): whether the SERVER offers image generation to THIS signed-in person (the public flag, else the
+// listed owner-only operator; GET /api/learn/image-jobs, image-capability.js). It is not a build constant: a production build carries
+// IMAGE_GENERATION false and a person the server does not list never sees the command, and a direct API call is refused by the server anyway.
+let imageOffered = false;
+export const setImageGeneration = on => { imageOffered = on === true; };
+export const imageGenerationLive = () => IMAGE_GENERATION || imageOffered;
 // What a typed command that is not offered says: a removed one, or /generate-image while image generation is off. null for
 // any other name (each surface words its own line). listed: false where / lists nothing (the Home, Library and Project bar).
-export function unavailableCommand(name, { listed = true } = {}) {
+export function unavailableCommand(name, { listed = true, imageGeneration = imageGenerationLive() } = {}) {
   if (REMOVED_COMMANDS.includes(name)) return `/${name} is no longer available. ${listed ? 'Type / to see the commands, or ask' : 'Ask'} in your own words.`;
-  if (name === 'generate-image') return 'Image generation is not available here. /image searches for real photos.';
+  if (name === 'generate-image' && !imageGeneration) return 'Image generation is not available here. /image searches for real photos.';
   return null;
 }
 
@@ -143,7 +149,7 @@ const MOTION_DEV = import.meta.env?.VITE_MOTION === 'true' || import.meta.env?.V
 // internal: true adds the Tutor's material tools (MATERIAL_TOOLS), for its create_material, a journey's steps and Ctrl+K's
 // automatic routing; never for a picker, the Slash commands window or a typed line.
 const placeFor = (surface) => (surface === 'chat' ? 'learn' : surface);
-export const commandsFor = (place, { motionDev = MOTION_DEV, imageGeneration = IMAGE_GENERATION, internal = false } = {}) =>
+export const commandsFor = (place, { motionDev = MOTION_DEV, imageGeneration = imageGenerationLive(), internal = false } = {}) =>
   (internal ? [...SLASH, ...MATERIAL_TOOLS] : SLASH).filter((c) => c.places.includes(placeFor(place)) && !(c.needs === 'motion_dev' && !motionDev) && !(c.needs === 'image_generation' && !imageGeneration));
 
 // The selected-command pill's text: the short pill label, else the menu label (/explain: Add explanation; /3d: 3D). A name the

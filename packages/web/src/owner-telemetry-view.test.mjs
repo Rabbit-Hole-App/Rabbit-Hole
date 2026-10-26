@@ -43,8 +43,8 @@ const state = { access: ACCESS, overview: OVERVIEW, health: HEALTH, clientErrors
 
 test('four cost states are four labelled rows; an amount is shown only on a row that has one, and nothing is totalled', () => {
   const html = render(state);
-  const costRows = rows(html).filter(r => ['Measured', 'Estimated', 'Unknown, reservation held', 'Outstanding reservation'].includes(r[0]));
-  assert.deepEqual(costRows.map(r => r[0]), ['Measured', 'Estimated', 'Unknown, reservation held', 'Outstanding reservation']);
+  const costRows = rows(html).filter(r => ['Measured', 'Estimated', 'Unknown provider cost, learner not charged', 'Running, learner credits reserved'].includes(r[0]));
+  assert.deepEqual(costRows.map(r => r[0]), ['Measured', 'Estimated', 'Unknown provider cost, learner not charged', 'Running, learner credits reserved']);
   assert.deepEqual(costRows.map(r => r[3]), ['$0.0012', '$0.0007', 'none', 'none'], 'amounts: measured and estimated only; unknown and reserved say none');
   assert.deepEqual(costRows.map(r => r[4]), ['$0.1000', '$0.0500', '$0.0200', '$0.0300'], 'reservations are shown in their own column');
   assert.equal(/\btotal\b/i.test(text(html)), false, 'no total on the page');

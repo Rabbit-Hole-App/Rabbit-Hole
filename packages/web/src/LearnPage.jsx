@@ -36,6 +36,7 @@ import TableOfContents from './TableOfContents.jsx';
 import UsageGauge from './UsageGauge.jsx';
 import { available, isLearnCommand, runLearnCommand } from './learn-slash.js';
 import { generationField, madeFrom } from './generation-proposal-chat.js';
+import { stopVideo } from './learn-scene-client.js';
 import { commandsFor } from './agent/slash.js';
 import { openSourceFinder, returnFocus, setSourceFinderHost, slashOpensFind } from './source-finder.js';
 import { httpTransport } from './inline-ai-transport.js';
@@ -454,6 +455,16 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // is the learner's location: its title names the concept), and whether a proposal already made its card here.
     generation: (target, current, concept = app.title) => generationField({ offered: isLearnCommand('motion'), concept, target, current }),
     proposalMade: proposalId => !!canvasApi.current?.blocks?.().some(madeFrom(proposalId)),
+    // The card a proposal made, read live (the Chat's proposal card reports its job from this block), and the canvas card's own Stop for
+    // it: the same stop request VideoBody sends (learn-scene-client.js stopVideo), then the block says it was stopped, as the card does.
+    proposalCard: proposalId => canvasApi.current?.blocks?.().find(madeFrom(proposalId)) || null,
+    findCard: match => canvasApi.current?.blocks?.().find(match) || null,
+    stopGeneration: async id => {
+      const block = canvasApi.current?.blocks?.().find(entry => entry.id === id);
+      if (!block?.placementId) throw new Error('This video cannot be stopped yet.');
+      await stopVideo(app.name, block.placementId);
+      canvasApi.current?.updateBlock?.(id, current => ({ ...current, status: 'failed', stopped: true }));
+    },
     hasBlock: id => !!canvasApi.current?.blocks?.().some(block => block.id === id) || !!canvasApi.current?.exchanges?.().some?.(entry => entry.id === id),
     // A chat card added under its answer's local id takes the saved message's id (ask.jsx), unless that id is already here.
     rekeyCard: (from, to) => setExchanges(previous => rekeyed(previous, from, to)),

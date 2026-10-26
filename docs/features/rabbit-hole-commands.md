@@ -84,7 +84,7 @@ local Motion stack's build (`VITE_MOTION_DEV`) (`MOTION_DEV` in agent/slash.js).
 explainer videos) is not available here." and runs nothing. Generate also needs `MOTION_ORCHESTRATOR_URL` and
 `MOTION_ORCHESTRATOR_TOKEN` on the worker; only the local Motion stack sets them. Elsewhere the worker refuses the start
 before any provider call: the card says "Motion is not available in this environment yet. Nothing was started.", with
-"Used 0 credits · reservation released", and offers no start action: the server offers none, not even Generate again, while
+"No credits charged · reservation released", and offers no start action: the server offers none, not even Generate again, while
 Motion cannot start (control-plane `learn-video.js` `motionRecovery`: every recovery action and `regenerate` need Motion to be
 startable; owner message 38, "only the actions that can run now"). With an orchestrator configured a failed card offers
 Generate again. This is a refused Generate, not a refused proposal. A refused PROPOSAL (MOT-22: the server refused the start

@@ -16,10 +16,10 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { spendTransport, requestSpendBound, admitSpend, spendMessage } from '../src/learn-spend.js';
 import { allowanceFor } from '../src/learn-entitlement.js';
-import { beginAttempt, noteUsageIdentity, periodOf, refundAttempt, settleAttempt, toMicros, usageTotals, withUsage } from '../src/learn-usage.js';
+import { beginAttempt, finishWithResponse, noteUsageIdentity, periodOf, refundAttempt, settleAttempt, toMicros, usageTotals, withUsage } from '../src/learn-usage.js';
 
 import * as usageModule from '../src/learn-usage.js';
-const { HOLD_SECONDS, HOLD_BACKSTOP_SECONDS, releaseStaleHolds } = usageModule; // undefined before the fix, so the old code fails these tests instead of failing to load
+const { HOLD_SECONDS, HOLD_BACKSTOP_SECONDS, releaseStaleHolds, refundFailedAction } = usageModule; // undefined before the fix, so the old code fails these tests instead of failing to load
 const MODEL = 'claude-opus-5-5';
 const body = { max_tokens: 200, messages: [{ role: 'user', content: 'Synthetic question.' }] };
 const BOUND = toMicros(requestSpendBound(body, MODEL)); // what one such call reserves
@@ -312,4 +312,42 @@ test('the bound works the same under the October 5,000 grant and the 2,500 defau
     assert.deepEqual([after.used, after.reserved], [0, 0], `${period}: released at the bound, nothing charged`);
     assert.equal(await allowanceFor(LEARN_DB, env, 'u-grant', period), allowance, `${period}: the grant is the same before and after`);
   }
+});
+
+// ---- Item 4 (fix/credits-finish): a route that answers with an error delivered nothing usable, so the learner is refunded.
+const failedRoute = status => Response.json({ error: 'It could not finish.' }, { status });
+
+test('REGRESSION a route that charged a measured call and then answered with an error refunds the learner in full, once; the provider cost stays recorded', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const env = as(config(LEARN_DB), 'u-route', OCT, 'artifact');
+  const first = await beginAttempt(env, { attemptId: 'att-a', kind: 'generation', reservedMicros: 900_000, now: OCT });
+  const second = await beginAttempt(env, { attemptId: 'att-b', kind: 'repair', reservedMicros: 900_000, now: OCT });
+  await settleAttempt(env, first, { costMicros: 120_000, now: OCT + 5 });
+  await settleAttempt(env, second, { costMicros: 80_000, now: OCT + 9 });
+  assert.equal((await usageTotals(LEARN_DB, 'u-route', '2026-10', OCT + 10)).used, 200_000, 'charged while the route is still working');
+  // The boundary sees the failure: raced and repeated, it refunds each attempt once.
+  await Promise.all([1, 2, 3].map(() => finishWithResponse(env, failedRoute(502))));
+  const totals = await usageTotals(LEARN_DB, 'u-route', '2026-10', OCT + 10);
+  assert.deepEqual([totals.used, totals.reserved], [0, 0], 'old code: the learner kept the 200,000 micros charge for a failed route');
+  assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.attempt_id, a.cost_state, a.cost_micros]), [['att-a', 'settled', 120_000], ['att-b', 'settled', 80_000]], 'the provider cost is untouched');
+  assert.deepEqual(rows(sqlite, 'usage_attempt_detail').map(d => [d.attempt_id, d.refunded_micros, d.refund_reason]), [['att-a', 120_000, 'route_failed_no_result'], ['att-b', 80_000, 'route_failed_no_result']]);
+  assert.equal(rows(sqlite, 'usage_adjustments').length, 2, 'one audit line per attempt, none doubled');
+  // A late duplicate completion of a refunded attempt cannot charge it again.
+  await settleAttempt(env, first, { costMicros: 120_000, now: OCT + 30 });
+  assert.equal((await usageTotals(LEARN_DB, 'u-route', '2026-10', OCT + 31)).used, 0);
+});
+
+test('a route that answered normally keeps its charge; a failed route with nothing settled refunds nothing; free work is never refunded', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const ok = as(config(LEARN_DB), 'u-ok', OCT, 'artifact');
+  await settleAttempt(ok, await beginAttempt(ok, { attemptId: 'att-ok', kind: 'generation', reservedMicros: 900_000, now: OCT }), { costMicros: 50_000, now: OCT + 1 });
+  await finishWithResponse(ok, Response.json({ ok: true }));
+  assert.equal((await usageTotals(LEARN_DB, 'u-ok', '2026-10', OCT + 2)).used, 50_000);
+  const empty = as(config(LEARN_DB), 'u-empty', OCT, 'artifact');
+  assert.equal(await refundFailedAction(empty), 0);
+  await finishWithResponse(empty, failedRoute(500));
+  const free = as(config(LEARN_DB), 'u-free', OCT, 'grade');
+  await settleAttempt(free, await beginAttempt(free, { attemptId: 'att-free', kind: 'evaluation', reservedMicros: 900_000, now: OCT }), { costMicros: 70_000, now: OCT + 1 });
+  await finishWithResponse(free, failedRoute(500));
+  assert.deepEqual(rows(sqlite, 'usage_adjustments'), [], 'nothing was refunded');
 });

@@ -1,3 +1,5 @@
+import { imageQuote } from '../src/image-providers.js';
+import { IMAGE_VALIDATED } from '../src/image-settings.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -67,8 +69,8 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   assert.equal(app.workers_dev, false);
   assert.deepEqual(app.routes, [{ pattern: 'digrabbithole.com', custom_domain: true }]);
   assert.deepEqual(app.services, [{ binding: 'CONTROL_PLANE', service: 'rabbit-hole-cp' }]);
-  // Same classes and migration tags as dev, so the Durable Object model is the one tested there. FileJobs (file imports)
-  // is dev and parallel only until its release adds it here (lead ruling 2026-10-16, docs/features/canvas-file-imports.md).
+  // Same classes and migration tags as dev, so the Durable Object model is the one tested there. FileJobs (file imports) is bound here
+  // too (file-jobs-1, last) as shared plumbing only; docs/features/file-jobs-production.md lists what each feature still needs.
   // Owner authorized ongoing production CAD on 2026-10-17; binding is required,
   // while actual admission remains disabled until bounded production verification.
   assert.ok(app.durable_objects.bindings.some(b => b.name === 'CAD_JOBS' && b.class_name === 'CadJobs'));
@@ -80,21 +82,43 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   // ExplainJobs (EXP-T12) is bound everywhere; in prod its tag follows the already-applied cad-jobs-1, since a migration tag
   // placed before an applied one would never run.
   // ImageJobs (IMG-01) likewise: bound everywhere, its image-jobs-1 tag last in prod, after the applied explain-jobs-1.
-  const devOnly = { bindings: [...dev.durable_objects.bindings.filter(b => !['FileJobs','CadJobs','ExplainJobs','ImageJobs'].includes(b.class_name)), {name:'CAD_JOBS',class_name:'CadJobs'}, {name:'EXPLAIN_JOBS',class_name:'ExplainJobs'}, {name:'IMAGE_JOBS',class_name:'ImageJobs'}] };
+  const devOnly = { bindings: [...dev.durable_objects.bindings.filter(b => !['FileJobs','CadJobs','ExplainJobs','ImageJobs'].includes(b.class_name)), {name:'CAD_JOBS',class_name:'CadJobs'}, {name:'EXPLAIN_JOBS',class_name:'ExplainJobs'}, {name:'IMAGE_JOBS',class_name:'ImageJobs'}, {name:'FILE_JOBS',class_name:'FileJobs'}] };
   assert.deepEqual(app.durable_objects, devOnly);
-  assert.deepEqual(app.migrations, [...dev.migrations.filter(m => !['file-jobs-1','cad-jobs-1','explain-jobs-1','image-jobs-1'].includes(m.tag)), {tag:'cad-jobs-1',new_sqlite_classes:['CadJobs']}, {tag:'explain-jobs-1',new_sqlite_classes:['ExplainJobs']}, {tag:'image-jobs-1',new_sqlite_classes:['ImageJobs']}]);
+  assert.deepEqual(app.migrations, [...dev.migrations.filter(m => !['file-jobs-1','cad-jobs-1','explain-jobs-1','image-jobs-1'].includes(m.tag)), {tag:'cad-jobs-1',new_sqlite_classes:['CadJobs']}, {tag:'explain-jobs-1',new_sqlite_classes:['ExplainJobs']}, {tag:'image-jobs-1',new_sqlite_classes:['ImageJobs']}, {tag:'file-jobs-1',new_sqlite_classes:['FileJobs']}]);
   // A migration tag is applied once per worker: every config's tags are unique, and image-jobs-1 adds only ImageJobs.
   for (const c of [app, dev]) assert.equal(new Set(c.migrations.map(m => m.tag)).size, c.migrations.length);
   // IMG-01 stays off in every committed config; only the string 'true' accepts new jobs (image-jobs.js imageJobsEnabled).
   assert.equal(app.vars.IMAGE_GENERATE_ENABLED, 'false');
   assert.equal(dev.vars.IMAGE_GENERATE_ENABLED, 'false');
-  assert.equal(app.vars.IMAGE_GENERATE_RESERVED_USD, undefined);
+  // Owner-only acceptance window (owner 2026-10-25): the public flag is off; the hold is derived from the enabled combinations' priced estimates.
+  assert.equal(app.vars.IMAGE_ACCEPTANCE_EMAILS, 'user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid yudhisteer.chin@gmail.com');
+  assert.equal(dev.vars.IMAGE_ACCEPTANCE_EMAILS, undefined);
+  assert.equal(dev.vars.IMAGE_GENERATE_RESERVED_USD, undefined);
+  assert.equal(app.vars.IMAGE_GENERATE_RESERVED_USD, '0.20');
+  const promptBytes = 4000; // the longest prompt the job accepts
+  const estimates = IMAGE_VALIDATED.map(r => imageQuote({ IMAGE_GENERATE_RESERVED_USD: '9' }, { model: r.model, quality: r.quality ?? undefined, aspect_ratio: r.aspect_ratio, resolution: r.resolution }, r.max_references, promptBytes)).filter(q => q.state === 'priced').map(q => q.estimateUsd);
+  assert.ok(estimates.length >= 6, 'the enabled combinations are priced');
+  assert.ok(Math.max(...estimates) <= Number(app.vars.IMAGE_GENERATE_RESERVED_USD), `the hold ${app.vars.IMAGE_GENERATE_RESERVED_USD} covers the largest estimate ${Math.max(...estimates)}`);
+  assert.ok(Math.max(...estimates) >= 0.14, 'the derivation in the config comment (Pro 1K US$0.134 + prompt bound) is the maximum');
   assert.equal(app.vars.EXPLAIN_V2_ENABLED, 'true'); // R1 switch-on (owner production GO, 2026-10-22)
   assert.deepEqual(JSON.parse(app.vars.EXPLAIN_BRIEF_THRESHOLDS), { components: 12, credits: 400 });
   // dev-worker.js bundles its HTML from ./dist-dev, so the directory keeps that name.
   assert.equal(app.assets.directory, './dist-dev');
   // The one public origin (auth.js on feature/rabbit-hole-production-auth sends sign-in there).
   assert.equal(app.vars.PUBLIC_ORIGIN, 'https://digrabbithole.com');
+});
+
+// FILE_JOBS is plumbing for file conversion, Ctrl+K image edits and Ctrl+K JavaScript runs. Binding it enables none of them: each
+// feature's own vars, secrets and (for JavaScript) the Dynamic Workers loader stay absent until that feature's own release.
+// The loader is also absent on purpose: on an account without Workers Paid its deploy is refused (error 10195) and would block the release.
+test('production binds FILE_JOBS but enables none of the features that use it', () => {
+  const app = config(APP);
+  assert.deepEqual(app.durable_objects.bindings.filter(b => b.name === 'FILE_JOBS'), [{ name: 'FILE_JOBS', class_name: 'FileJobs' }]);
+  assert.deepEqual(app.migrations.at(-1), { tag: 'file-jobs-1', new_sqlite_classes: ['FileJobs'] }, 'a new tag goes after every applied one');
+  for (const name of ['CONVERT_URL', 'FILE_JOB_ORIGIN', 'FILE_JOB_CONCURRENCY', 'INLINE_IMAGE_EDIT_ENABLED', 'INLINE_IMAGE_EDIT_RESERVED_USD',
+    'INLINE_CODE_ENABLED', 'INLINE_CODE_MAX_RUNS', 'INLINE_CODE_MAX_MICROS', 'INLINE_CODE_RESERVE_MICROS']) assert.equal(app.vars[name], undefined, name);
+  assert.equal(app.worker_loaders, undefined);
+  for (const name of ['CONVERT_TOKEN', 'FILE_JOB_SECRET', 'INLINE_CODE_LOADER']) assert.ok(!JSON.stringify(app).includes(name), `${name} is a secret or a loader, never in the config`);
 });
 
 test('the control plane is private: no route, no workers.dev, SMALL_ENV production, BASE_URL and PUBLIC_ORIGIN the public origin', () => {

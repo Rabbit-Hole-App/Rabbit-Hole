@@ -148,6 +148,31 @@ test('a call interrupted by a restart is reconciled as unknown, never resent, an
   assert.equal(s.state.data.get(`job:${body.job.id}`).stage, 'failed', 'a late answer does not revive the job');
 });
 
+
+test('REGRESSION an interrupted call: the learner holds credits only inside the artifact bound (1 hour), then nothing; its late answer cannot charge, settle or revive the failed job', async t => {
+  const { usageTotals } = await import('../src/learn-usage.js');
+  const s = setup(t);
+  const { body } = await s.create();
+  const release = s.model.hold();
+  await s.actor.alarm();
+  const lost = s.actor.alarm();
+  await new Promise(r => setTimeout(r, 20));
+  const restarted = s.object();
+  await restarted.alarm();
+  const period = new Date().toISOString().slice(0, 7);
+  const [attempt] = rows(s.sqlite, 'usage_attempts');
+  assert.equal(attempt.cost_state, 'reserved');
+  assert.ok((await usageTotals(s.env.LEARN_DB, OWNER.userId, period)).reserved > 0, 'held while the call can still be running');
+  s.sqlite.prepare('UPDATE usage_attempts SET started_at = started_at - 4000').run(); // past the 1 hour bound
+  const lapsed = await usageTotals(s.env.LEARN_DB, OWNER.userId, period);
+  assert.deepEqual([lapsed.used, lapsed.reserved], [0, 0], 'old code: held until the month ended');
+  release(); await lost; // the provider finally answers
+  const after = s.state.data.get(`job:${body.job.id}`);
+  assert.equal(after.stage, 'failed', 'a late answer does not revive the job');
+  const totals = await usageTotals(s.env.LEARN_DB, OWNER.userId, period);
+  assert.deepEqual([totals.used, totals.reserved], [0, 0], 'and is not charged to the learner');
+  assert.deepEqual(rows(s.sqlite, 'usage_attempts').map(a => [a.status, a.cost_state, a.cost_micros]), [['failed', 'unknown', null]], 'provider cost unknown, never zero');
+});
 test('a render failure keeps the compiled result; Retry re-renders without reauthoring, and a duplicate Retry changes nothing', async t => {
   let renders = 0;
   const s = setup(t, { pipeline: PIPELINE({ render: async () => { if (renders++ === 0) throw Object.assign(new Error('The renderer is busy.'), { status: 503, category: 'renderer' }); return { captures: ['a'], renders: [{ ok: true }] }; } }) });

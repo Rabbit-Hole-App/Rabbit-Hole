@@ -5,6 +5,7 @@
 import { validateMotionContext } from './motion-context.js';
 import { approvedProposal, proposalShape } from './generation-proposal.js';
 import { motionExecutionTerms } from './motion-settings.js';
+import { FAILURE_CODES, failureCodeOf, failureMessage, hasUserMessage, userSafeError } from './motion-failure.js';
 
 const MAX_ASSET = 25 * 1024 * 1024;
 const RENDER_ID = /^[0-9a-f]{32}$/;
@@ -168,7 +169,8 @@ export class MotionRequestProvider {
       : { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), ...(repository ? { repository } : {}), ...(input.proposal ? { approved_proposal: approvedProposal(input.proposal, motionExecutionTerms(this.env, input.proposal.settings)) } : {}), idempotency_key: spend.opId, grant: spend.grant } });
     const body = await response.json().catch(() => ({}));
     if (response.status === 202 && /^[0-9a-f]{32}$/.test(body.job_id || '')) return { id: body.job_id };
-    if (NO_START[response.status]?.includes(body.error)) throw definite(`The Motion harness did not start the job${body.detail ? `: ${body.detail}` : ` (${body.error})`}`, body.error);
+    // A preflight refusal names its code (orchestrator.mjs preflight): the learner reads that code's sentence, never the orchestrator's detail.
+    if (NO_START[response.status]?.includes(body.error)) throw Object.assign(definite(hasUserMessage(body.code) ? failureMessage(body.code) : `The Motion harness did not start the job${body.detail ? `: ${body.detail}` : ` (${body.error})`}`, body.error), { failureCode: body.code in FAILURE_CODES ? body.code : null });
     throw new Error(`The Motion harness did not confirm the start (HTTP ${response.status})`);
   }
   // The orchestrator process that answers now, read before a grant is signed for it (MOT-08). An idle one boots for this read.
@@ -208,7 +210,11 @@ export class MotionRequestProvider {
     if (job.status === 'running') return null;
     if (job.status === 'needs_clarification') throw final(`Motion needs one clarification: ${job.clarification?.question || 'name what to explain'}`);
     if (job.status === 'cancelled') throw final('Stopped.');
-    if (job.status !== 'ready') throw final(`The Motion job failed: ${job.failure_reason || 'unknown reason'}`);
+    if (job.status !== 'ready') {
+      // Our own limits are explained by their code; the orchestrator's failure_reason carries internal amounts and stays with the operators.
+      const code = failureCodeOf(job);
+      throw Object.assign(final(hasUserMessage(code) ? failureMessage(code) : userSafeError(`The Motion job failed: ${job.failure_reason || 'unknown reason'}`, code)), { failureCode: code });
+    }
     const asset = await this.request(`/jobs/${ticket.id}/final.mp4`);
     if (!asset.ok || !asset.headers.get('content-type')?.startsWith('video/mp4')) throw new Error('The Motion render was unavailable');
     const bytes = new Uint8Array(await asset.arrayBuffer());

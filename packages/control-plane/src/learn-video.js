@@ -13,6 +13,7 @@ import { byteRange, learnMedia } from './learn-storage.js';
 import { admitSpend, operationId, settleSpend, spendEnforced, spendMessage } from './learn-spend-ledger.js';
 import { forwardUsagePayer, usageFromForwarded, recordMedia, usageContext, usageRefusal, settleAttempt, withUsage, noteUsageIdentity, finishAction, finishActionOf } from './learn-usage.js';
 import { admitRender, releaseRender } from './learn-render-admission.js';
+import { FAILURE_CODES, LIMIT_CODES, failureCodeOf, failureMessage, isDeterministic, isZeroCredit, userSafeError } from './motion-failure.js';
 
 const json = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
 const POLL_MS = 10000; // Clips take minutes; background polling does not depend on an open browser.
@@ -32,12 +33,14 @@ const motionOutcome = (job, view, known) => (known == null ? { status: 'interrup
       : { status: 'failed', result: 'none' });
 // A Motion job's reservation as the card shows it: reserved while it runs; pending while its final cost is not confirmed (a
 // stopped job settling, or a cost that could not be read: reconciliation pending); released once settled at a known cost.
-const motionHold = j => (j?.provider === 'motion_request' && j.spend?.admitted ? { usd: j.spend.micros / 1e6,
+const motionHold = j => (j?.provider === 'motion_request' && j.spend?.admitted ? {
   state: !j.spend.settled ? (j.status === 'generating' ? 'reserved' : 'pending') : j.spend.costMicros == null ? 'pending' : 'released' } : null);
-// Zero-credit failures (owner 2026-10-23): a renderer failure or timeout (cause renderer), our own infrastructure failing (the
-// orchestrator crashed, cause infra, or lost the job: no view) charge the learner nothing and release the whole reservation. The
-// provider cost is still recorded (usage_operations.cost_usd, job.providerCost) and still counts toward the video's ceiling.
-const zeroCredit = view => !view || (view.status === 'failed' && ['renderer', 'infra'].includes(view.cause));
+// Zero-credit failures (owner 2026-10-23, extended 2026-10-25 after failed job 61f70171): a renderer failure or timeout, our own infrastructure
+// failing (the orchestrator crashed, or lost the job: no view) and now every limit WE set (the per-job ceiling, the production policy, the call
+// cap, an unbounded cost, the overall timeout: motion-failure.js) charge the learner nothing and release the whole reservation. The provider
+// cost is still recorded (usage_operations.cost_usd, job.providerCost) and still counts toward the video's ceiling. Charged as before: content
+// and model failures, and a Stop. A learner's own allowance running out never starts a job (admitMotion), so it charges nothing either.
+const zeroCredit = isZeroCredit;
 // An attempt is reconciled until it settles, held or free (MOT-21): a free render recovery holds nothing, yet a Stop of it is
 // followed until the orchestrator confirms it ended, its renders are recorded once, and nothing new starts over it.
 const needsSettling = job => job.provider === 'motion_request' && (job.spend?.admitted || job.spend?.free) && !job.spend.settled;
@@ -71,7 +74,7 @@ const EXPLAIN = {
   content: r => (r.finding ? `Review found a problem: ${r.finding.description}` : 'The plan did not pass its checks.'),
   model: () => 'A model step failed partway. The work so far is saved; Continue fixing resumes from it.',
   missing_context: r => r.question || 'Motion needs to know what to explain.',
-  limit: () => 'This video reached its AI spending limit.',
+  limit: () => FAILURE_CODES.limit_unspecified.message, // a limit that named no code: ours, never the learner's allowance
   stopped: () => 'Stopped. The work so far is saved.',
   lost: () => 'The Motion service restarted during this attempt. The work saved before it is kept.',
 };
@@ -236,7 +239,7 @@ export class LearnVideos {
           const saved = await learnMedia(this.env).get(job.recovery.key);
           const artifacts = saved ? await saved.json().catch(() => null) : null;
           if (!artifacts?.checkpoint || !artifacts.seal) return json({ error: 'The saved work for this video is no longer available. Generate it again.' }, 409);
-          Object.assign(job, { status: 'generating', startedAt: Date.now(), ticket: null, error: undefined, stopped: false, uncertain: false, spend: undefined });
+          Object.assign(job, { status: 'generating', startedAt: Date.now(), ticket: null, error: undefined, stopped: false, uncertain: false, spend: undefined, failureCode: undefined, failure: undefined });
           await this.state.storage.put(`job:${p.key}`, job);
           await this.state.storage.setAlarm(Date.now() + POLL_MS);
           await this.startMotion(req, job, new MotionRequestProvider(this.env), entered, { mode: body.mode, checkpoint: artifacts.checkpoint, seal: artifacts.seal, holdMicros: job.recovery.holdFixMicros });
@@ -328,25 +331,42 @@ export class LearnVideos {
   async list(email = null) {
     const placements = await this.state.storage.list({ prefix: 'placement:' });
     const jobs = await this.state.storage.list({ prefix: 'job:' });
-    // motionHoldUsd: the per-job reservation the server admits (MOTION_JOB_RESERVATION_USD), only where Motion can start, so the
-    // confirmation states the amount the server will hold (owner message 25), never a figure of the browser's own.
+    // The per-job reservation (MOTION_JOB_RESERVATION_USD) decides only whether Motion can start; its amount is never sent to the browser.
     const paused = motionPaused(this.env, email);
     const holdMicros = !paused && !new MotionRequestProvider(this.env).unavailable() && motionReservationMicros(this.env);
     // The confirmation's estimate (owner message 32: 1 credit = $0.01), only where Motion can start; the hold stays internal.
     const estimate = holdMicros && motionEstimateCredits(this.env);
-    return { ...(holdMicros ? { motionHoldUsd: holdMicros / 1e6 } : {}), ...(estimate ? { motionEstimateCredits: estimate } : {}), ...(paused ? { motionPaused: true } : {}), videos: [...placements.values()].map(p => {
+    // Credits given back (refundAttempt) for a failed Motion job's charged attempts, read once per list; the card shows them apart from the charge.
+    const refunded = new Map();
+    for (const [key, j] of jobs) if (j.provider === 'motion_request' && j.status === 'failed') refunded.set(key, await this.refundedMicros(j));
+    return { ...(estimate ? { motionEstimateCredits: estimate } : {}), ...(paused ? { motionPaused: true } : {}), videos: [...placements.values()].map(p => {
       const j = jobs.get(`job:${p.key}`);
-      return { ...p, status: j?.status || 'idle', error: j?.error, retryable: !j?.uncertain, duration: j?.input.duration, provider: j?.result?.provider, generationId: j?.result?.generationId, ...(j?.result?.motion ? { motion: j.result.motion } : {}), ...(motionHold(j) ? { hold: motionHold(j) } : {}),
-        ...(j?.provider === 'motion_request' ? { usage: { usedMicros: j.usedMicros || 0, unknown: !!j.usageUnknown } } : {}), ...(j?.provider === 'motion_request' && j.status === 'failed' ? { recovery: this.motionRecovery(j, !!holdMicros) } : {}) };
+      return { ...p, status: j?.status || 'idle', error: userSafeError(j?.error, j?.failureCode), retryable: !j?.uncertain, duration: j?.input.duration, provider: j?.result?.provider, generationId: j?.result?.generationId, ...(j?.result?.motion ? { motion: j.result.motion } : {}), ...(motionHold(j) ? { hold: motionHold(j) } : {}),
+        ...(j?.provider === 'motion_request' ? { usage: { usedCredits: (j.usedMicros || 0) / 10_000, unknown: !!j.usageUnknown } } : {}), ...(j?.provider === 'motion_request' && j.status === 'failed' ? { recovery: this.motionRecovery(j, !!holdMicros, refunded.get(`job:${p.key}`)) } : {}) };
     }) };
   }
-  // What the card offers a failed /motion job: the explanation for its cause and only the actions that can run now (none for an
-  // unconfirmed outcome; nothing that starts work while Motion cannot start; fix only with spending limit left). regenerate: a
-  // paid "Generate again" of the whole request.
-  motionRecovery(j, startable) {
+  // What the card offers a failed /motion job: the explanation for its failure code and only the actions that can run now (none for an
+  // unconfirmed outcome; nothing that starts work while Motion cannot start). fix: only when what is left of the video holds the NEXT stage
+  // it still has to run (the orchestrator's worst case for it, nextNeedMicros), never merely "some budget is left". regenerate: a paid
+  // "Generate again" of the whole request, withheld when the same blocker would predictably stop it again (motion-failure.js deterministic:
+  // a ceiling, policy or unbounded-cost refusal, or a limit that named no code). accounting: credits charged, credits refunded, apart from
+  // the reservation (hold) state the card also shows.
+  motionRecovery(j, startable, refundedMicros = 0) {
     const r = j.recovery, left = (motionReservationMicros(this.env) ?? 0) - (j.consumedMicros || 0);
-    const actions = (j.uncertain || !r ? [] : r.actions).filter(a => (a === 'render' || a === 'fix' ? startable && !!r.key && (a === 'render' || left > 0) : true));
-    return { cause: j.uncertain ? 'unconfirmed' : r?.cause ?? null, actions, explanation: r?.cause && EXPLAIN[r.cause] ? EXPLAIN[r.cause]({ ...r, actions }) : null, regenerate: startable && !j.uncertain && left > 0 };
+    const code = j.failureCode ?? r?.code ?? (r?.cause === 'limit' ? 'limit_unspecified' : null), need = r?.nextNeedMicros ?? 1;
+    const actions = (j.uncertain || !r ? [] : r.actions).filter(a => (a === 'render' || a === 'fix' ? startable && !!r.key && (a === 'render' || left >= need) : true));
+    const explanation = j.uncertain ? null : failureMessage(code) ?? (r?.cause && EXPLAIN[r.cause] ? EXPLAIN[r.cause]({ ...r, actions }) : null);
+    return { cause: j.uncertain ? 'unconfirmed' : r?.cause ?? null, code: j.uncertain ? null : code, actions, explanation, regenerate: startable && !j.uncertain && left > 0 && !isDeterministic(code),
+      accounting: { chargedCredits: (j.usedMicros || 0) / 10_000, refundedCredits: (refundedMicros || 0) / 10_000, unknown: !!j.usageUnknown } };
+  }
+  // The part of a job's charged attempts that was given back, from the ledger. 0 when none, nothing was charged or the ledger cannot be read.
+  async refundedMicros(j) {
+    const ids = [...new Set([...(j.attemptIds || []), j.spend?.attemptId].filter(Boolean))];
+    if (!ids.length || !(j.usedMicros > 0) || !this.env.LEARN_DB) return 0;
+    try {
+      const row = await this.env.LEARN_DB.prepare(`SELECT COALESCE(SUM(refunded_micros), 0) AS refunded FROM usage_attempt_detail WHERE attempt_id IN (${ids.map(() => '?').join(', ')})`).bind(...ids).first();
+      return Number(row?.refunded || 0);
+    } catch { return 0; }
   }
   // Admission, then submission. A refusal or a definite orchestrator refusal starts nothing and releases the hold. An
   // unconfirmed submission (MOT-07: no answer, a 500, a 502, a malformed success) keeps the job generating with its hold
@@ -372,7 +392,7 @@ export class LearnVideos {
     } catch (error) {
       if (!error.definite) return; // unconfirmed: the alarm reconciles the key, never resubmits
       await this.settleMotion(job, NOTHING);
-      Object.assign(job, { status: 'failed', error: error.message, uncertain: false });
+      Object.assign(job, { status: 'failed', error: error.message, uncertain: false, ...(error.failureCode ? { failureCode: error.failureCode } : {}) });
     }
   }
 
@@ -388,13 +408,22 @@ export class LearnVideos {
     if (ceiling == null) return 'Motion is not available here yet: its per-video spending limit is not configured. Nothing was started.';
     const left = Math.min(ceiling - (job.consumedMicros || 0), cap > 0 ? cap : Infinity);
     if (left <= 0) return `This video has used its ${aiCredits(ceiling)} limit across its attempts (an interrupted attempt's unknown cost stays counted). Nothing was started; ask for it in different words to make a new one.`;
+    // The signed quote, the reservation and the execution limits agree (owner brief 2026-10-25): a price the learner confirmed that is above
+    // what this video may hold could never be honoured, so it is refused before any hold. (A recovery attempt has no quote: its cap is its own.)
+    const quoted = cap > 0 ? null : job.input.proposal?.input?.binding?.estimate_credits;
+    if (Number.isFinite(quoted) && quoted * 10_000 > left) { job.failureCode = 'job_ceiling_insufficient'; return `${FAILURE_CODES.job_ceiling_insufficient.message} Nothing was started.`; }
     const scoped = usageFromForwarded(this.env, req, 'video');
     job.payer = usageContext(scoped)?.identity || null;
     const now = Math.floor(Date.now() / 1000), opId = operationId('motion');
     if (spendEnforced(this.env)) {
       const gate = await admitSpend(this.env.LEARN_DB, scoped, { opId, userId: 'provider:motion', org: 'platform', category: 'motion', reservedUsd: left / 1e6, kind: 'generation', provider: 'anthropic', now, deadlineAt: now + maxWait(job) / 1000 });
       // Refused: the action admission opened for this request is closed here (no route boundary runs inside the object).
-      if (gate.refused) { await finishAction(scoped, { status: 'failed', result: 'none' }); return `${spendMessage(gate.reason, usageRefusal(scoped)?.period)} Nothing was started.`; }
+      if (gate.refused) {
+        await finishAction(scoped, { status: 'failed', result: 'none' });
+        // The learner's own allowance is the one reason that may say so (spendMessage); the platform's limits and an unreadable balance are not it.
+        if (['allowance_exhausted', 'allowance_insufficient'].includes(gate.reason)) job.failureCode = 'allowance_exhausted';
+        return `${spendMessage(gate.reason, usageRefusal(scoped)?.period)} Nothing was started.`;
+      }
       job.spend = { opId, attemptId: gate.attemptId, micros: left };
     } else job.spend = { opId, attemptId: null, micros: left };
     Object.assign(job.spend, { admitted: true, settled: false });
@@ -418,10 +447,10 @@ export class LearnVideos {
     spend.settling = true;
     const cost = view?.spend?.cost_usd, known = Number.isFinite(cost) && cost >= 0 ? Math.ceil(Number((cost * 1e6).toFixed(6))) : null;
     const bound = Number.isFinite(view?.spend?.bound_usd) ? Math.ceil(Number((view.spend.bound_usd * 1e6).toFixed(6))) : spend.micros;
-    const free = zeroCredit(view), calls = view?.spend?.calls || 0, status = calls === 0 && known === 0 ? 'cancelled' : view?.status === 'ready' ? 'settled' : 'failed';
+    const free = zeroCredit(view), code = failureCodeOf(view), calls = view?.spend?.calls || 0, status = calls === 0 && known === 0 ? 'cancelled' : view?.status === 'ready' ? 'settled' : 'failed';
     if (spendEnforced(this.env)) try {
       // The platform ledger keeps the provider's actual cost; the learner's attempt is charged only outside the zero-credit class.
-      await settleSpend(this.env.LEARN_DB, spend.opId, { status, calls, costUsd: known == null ? null : known / 1e6, provider: 'anthropic', error: status === 'failed' ? `motion_${view?.status || 'lost'}` : null });
+      await settleSpend(this.env.LEARN_DB, spend.opId, { status, calls, costUsd: known == null ? null : known / 1e6, provider: 'anthropic', error: status === 'failed' ? (LIMIT_CODES.includes(code) ? `motion_${code}` : `motion_${view?.status || 'lost'}`) : null });
       const tokens = key => (view?.spend?.provider_calls || []).reduce((n, c) => n + (c.usage?.[key] || 0), 0);
       await settleAttempt(this.env, spend.attemptId, { costMicros: free ? 0 : known, status, inputTokens: tokens('input_tokens'), outputTokens: tokens('output_tokens') });
       await finishActionOf(this.env, spend.attemptId, motionOutcome(job, view, known));
@@ -430,7 +459,11 @@ export class LearnVideos {
     job.consumedMicros = (job.consumedMicros || 0) + (known ?? Math.min(bound, spend.micros));
     job.usedMicros = (job.usedMicros || 0) + (free ? 0 : known ?? 0);
     if (known == null && !free) job.usageUnknown = true;
-    (job.providerCost ||= []).push({ opId: spend.opId, micros: known, charged: free ? 0 : known, free, cause: view?.cause ?? (view ? null : 'lost'), calls: view?.spend?.provider_calls ?? null });
+    (job.providerCost ||= []).push({ opId: spend.opId, micros: known, charged: free ? 0 : known, free, cause: view?.cause ?? (view ? null : 'lost'), code: code ?? null, calls: view?.spend?.provider_calls ?? null });
+    // Why it failed, for operators and recovery: kept in the job record, never in what list() sends to a browser. A charged attempt's id is kept
+    // too, so the card can tell credits charged from credits refunded (refundAttempt) and from a released hold.
+    if (view?.status === 'failed') Object.assign(job, { failureCode: code, failure: { code, cause: view.cause ?? null, ...(view.failure ?? {}) } });
+    if (spend.attemptId && !free && known > 0) (job.attemptIds ||= []).push(spend.attemptId);
     Object.assign(spend, { settled: true, settling: false, costMicros: known });
     await this.stopLanded(job);
     await this.state.storage.put(`job:${job.key}`, job);
@@ -514,7 +547,7 @@ export class LearnVideos {
     if (!view || view.status === 'running') {
       Object.assign(job, view ? { status: 'failed', uncertain: true, error: `Generation has not completed within ${maxWait(job) / 60000} minutes. Check provider history before generating again.` }
         : { status: 'failed', error: 'The Motion service restarted while this video was being made. Generate it again; the interrupted attempt\'s cost stays counted.' });
-      if (!view && job.recovery) Object.assign(job.recovery, { cause: 'lost', actions: lostActions(job.recovery), final: true });
+      if (!view && job.recovery) Object.assign(job.recovery, { cause: 'lost', code: null, actions: lostActions(job.recovery), final: true });
       return;
     }
     result ??= await provider.poll(job.ticket, view);
@@ -532,7 +565,7 @@ export class LearnVideos {
     const key = a.checkpoint ? `learn-video-dev/${this.state.id}/${job.key}.motion/${job.ticket.id}.json` : job.recovery?.key ?? null;
     if (a.checkpoint) await learnMedia(this.env).put(key, JSON.stringify(a), { httpMetadata: { contentType: 'application/json' } });
     const f = a.blocking?.[0];
-    job.recovery = { key, jobId: job.ticket.id, rev: a.rev, final: a.status !== 'running', cause: a.cause ?? null, actions: Array.isArray(a.actions) ? a.actions : [],
+    job.recovery = { key, jobId: job.ticket.id, rev: a.rev, final: a.status !== 'running', cause: a.cause ?? null, code: a.failure_code ?? null, nextNeedMicros: Number.isFinite(a.next_need_usd) ? Math.ceil(a.next_need_usd * 1e6) : null, actions: Array.isArray(a.actions) ? a.actions : [],
       state: a.checkpoint?.composition?.state ?? null, storyboard: !!a.checkpoint?.storyboard, holdFixMicros: Math.ceil((a.hold_usd?.fix ?? 0) * 1e6) || null,
       question: a.clarification?.question ?? null, finding: f ? { category: f.category, description: String(f.description).slice(0, 240) } : null };
   }
@@ -544,7 +577,7 @@ export class LearnVideos {
     for (const [key, job] of jobs) {
       if (job.provider === 'motion_request' && (job.status === 'generating' || needsSettling(job))) {
         try { await this.pollMotion(job); }
-        catch (error) { if (error.final) { job.status = 'failed'; job.error = error.message; } } // transient: the next poll
+        catch (error) { if (error.final) { job.status = 'failed'; job.error = error.message; if (error.failureCode) job.failureCode ||= error.failureCode; } } // transient: the next poll
         // A Stop that landed after pollMotion's last look: kept, and its job told to stop now that it has a ticket.
         if (await this.stopLanded(job) && job.ticket) await new MotionRequestProvider(this.env).cancel(job.ticket).catch(() => {});
         await this.state.storage.put(key, job);

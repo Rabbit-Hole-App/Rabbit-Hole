@@ -337,7 +337,7 @@ await check('12 AI usage still shows the server allowance, used, remaining, rese
   await closeEsc(page);
   // The split, from a route answer shaped as the server sends it (learn-usage-route.js byFeature).
   const real = (await api('/api/learn/usage')).body;
-  await page.route('**/api/learn/usage', (route) => route.fulfill({ json: { ...real, byFeature: [{ feature: 'tutor', usedMicros: 1_230_000, reservedMicros: 0, unknownAttempts: 0 }, { feature: 'inline_generate', usedMicros: 400_000, reservedMicros: 50_000, unknownAttempts: 1 }] } }));
+  await page.route('**/api/learn/usage', (route) => route.fulfill({ json: { ...real, byFeature: [{ feature: 'tutor', usedCredits: 123, reservedCredits: 0, unknownAttempts: 0 }, { feature: 'inline_generate', usedCredits: 40, reservedCredits: 5, unknownAttempts: 1 }] } }));
   await viaEvent(page, { tab: 'usage' });
   const split = pane(page, 'usage').locator('[data-usage-by-feature]');
   await split.waitFor({ timeout: 10000 });

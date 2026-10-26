@@ -9,6 +9,9 @@ const ID = /^ij_[a-f0-9]{32}$/, SOURCE = /^fs_[a-f0-9]{24}$/;
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const denied = () => json({ error: 'Not available' }, 404);
 const sha = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', typeof value === 'string' ? new TextEncoder().encode(value) : value))].map(n => n.toString(16).padStart(2, '0')).join('');
+// The reservation as the person sees and approves it: AI credits (1 credit = $0.01), never dollars (owner 2026-10-25). The environment
+// variable stays in dollars; the conversion is here.
+const reservedCredits = env => Number((Number(env.INLINE_IMAGE_EDIT_RESERVED_USD) * 100).toFixed(4));
 const enabled = env => env.INLINE_IMAGE_EDIT_ENABLED === 'true' && typeof env.OPENAI_API_KEY === 'string' && env.OPENAI_API_KEY.length > 0 && Number.isFinite(Number(env.INLINE_IMAGE_EDIT_RESERVED_USD)) && Number(env.INLINE_IMAGE_EDIT_RESERVED_USD) > 0;
 async function boundedJson(req) {
   const reader = req.body?.getReader();
@@ -48,14 +51,14 @@ export async function inlineImageJobsRoute(path, req, env, dependencies = defaul
       const user = await dependencies.identity(req, env);
       if (user instanceof Response) return user;
       const available = enabled(env);
-      return json({ available, maximumReservedUsd: available ? Number(env.INLINE_IMAGE_EDIT_RESERVED_USD) : null, model: available ? 'gpt-image-2.5-sunburst-2026-09-08' : null });
+      return json({ available, maximumReservedCredits: available ? reservedCredits(env) : null, model: available ? 'gpt-image-2.5-sunburst-2026-09-08' : null });
     }
     if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
     if (!enabled(env)) return unavailable();
     let body; try { body = await boundedJson(req); } catch { return json({ error: 'Invalid JSON' }, 400); }
     if (!body || !['remove_background', 'edit_image'].includes(body.operation) || !SOURCE.test(body.sourceId || '') || typeof body.app !== 'string' || !body.app || body.app.length > 200 || (body.board != null && (typeof body.board !== 'string' || body.board.length > 200)) || typeof body.cardId !== 'string' || body.cardId.length > 200 || !/^[A-Za-z0-9_.:-]{8,128}$/.test(body.idempotencyKey || '') || body.paidConfirmation !== true) return json({ error: 'A confirmed, bounded image request is required.' }, 400);
     if (body.operation === 'edit_image' ? !SOURCE.test(body.maskSourceId || '') || typeof body.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > 2000 : body.maskSourceId != null || body.prompt != null) return json({ error: 'Invalid image operation inputs.' }, 400);
-    if (typeof body.maxReservedUsd !== 'number' || !Number.isFinite(body.maxReservedUsd) || body.maxReservedUsd <= 0 || Number(env.INLINE_IMAGE_EDIT_RESERVED_USD) > body.maxReservedUsd) return json({ error: 'The configured reservation exceeds the approved amount.', code: 'consent_bound' }, 409);
+    if (typeof body.maxReservedCredits !== 'number' || !Number.isFinite(body.maxReservedCredits) || body.maxReservedCredits <= 0 || reservedCredits(env) > body.maxReservedCredits) return json({ error: 'The configured reservation exceeds the approved amount.', code: 'consent_bound' }, 409);
     const scope = await dependencies.board(req, env, body);
     if (scope instanceof Response) return scope;
     // The payer is the signed-in requester (owner L12 2026-10-20), never the canvas owner: a member editing a shared

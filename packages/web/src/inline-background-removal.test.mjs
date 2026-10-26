@@ -8,14 +8,14 @@ const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)
 function fixture({phase='ready',submitError=false,persistError=false}={}) {
  const calls={submit:0,poll:0,cancel:0,fetch:[],prepare:0,accept:0,dispose:0,persist:[]};
  const now={ownerKey:'org:owner',scope:structuredClone(scope),block:structuredClone(block),readOnly:false,locked:false};let ticket;
- const client={quote:async()=>({available:true,maximumReservedUsd:.2}),submit:async input=>{calls.submit++;if(submitError)throw Error('unknown');ticket={version:1,id:jobId,binding:{...input}};return ticket;},resume:async saved=>{calls.poll++;return{job:{phase},proposal:phase==='ready'?{artifactId,jobId,binding:saved.binding}:null};},cancel:async()=>{calls.cancel++;return{phase:'unknown',reservation:'held'};}};
+ const client={quote:async()=>({available:true,maximumReservedCredits:20}),submit:async input=>{calls.submit++;if(submitError)throw Error('unknown');ticket={version:1,id:jobId,binding:{...input}};return ticket;},resume:async saved=>{calls.poll++;return{job:{phase},proposal:phase==='ready'?{artifactId,jobId,binding:saved.binding}:null};},cancel:async()=>{calls.cancel++;return{phase:'unknown',reservation:'held'};}};
  const options={block,scope,ownerKey:'org:owner',current:()=>now,jobClient:client,persistTicket:async value=>{if(persistError)throw Error('storage');calls.persist.push(structuredClone(value));},fetchImpl:async path=>{calls.fetch.push(path);return new Response(bytes,{headers:{'Content-Type':'image/png','X-Source-Rev':hash}});},prepareRevision:async args=>{calls.prepare++;const transformed=await args.transform();const saved=await args.upload();assert.equal(transformed.width,1024);assert.equal(saved.source.id,artifactId);let accepted=false;return{previewURL:'blob:fixture',before:args.block,after:{...args.block,fileRef:{source:saved.source}},retainedSource:{id:sourceId},accept:async()=>{if(accepted)throw Error('accepted');accepted=true;calls.accept++;return{before:args.block,after:{...args.block,fileRef:{source:saved.source}},retainedSource:{id:sourceId}};},dispose:()=>calls.dispose++};}};
  return {calls,now,options,controller:createBackgroundRemovalController(options)};
 }
-const start=h=>h.controller.start({consent:{approved:true,maxReservedUsd:.2},idempotencyKey:'fixture-key'});
+const start=h=>h.controller.start({consent:{approved:true,maxReservedCredits:20},idempotencyKey:'fixture-key'});
 test('constructor and quote do not submit; consent required before any job',async()=>{
  const h=fixture();assert.equal(h.calls.submit,0);await h.controller.quote();assert.equal(h.calls.submit,0);
- await assert.rejects(h.controller.start({consent:{approved:false,maxReservedUsd:.2}}),{code:'consent_required'});assert.equal(h.calls.persist.length,0);
+ await assert.rejects(h.controller.start({consent:{approved:false,maxReservedCredits:20}}),{code:'consent_required'});assert.equal(h.calls.persist.length,0);
 });
 test('explicit start saves pending then ticket, reads owned artifact and reuses existing revision contract',async()=>{
  const h=fixture(),result=await start(h);assert.equal(h.calls.submit,1);assert.equal(h.calls.prepare,1);assert.equal(h.calls.accept,0);

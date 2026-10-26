@@ -33,8 +33,8 @@ export function createInlineCodeClient({ownerKey,scope,language,code,input=null,
   async function validateCurrent(){const live=checkIdentity();if(live.language!==language||live.code!==code||JSON.stringify(live.input??null)!==serialized)throw fault('The source or input changed. This execution belongs to an earlier snapshot.');return true;}
   async function ticketOf(raw){
     const [sourceSha256,inputSha256]=await hashes;
-    if(raw?.version!==1||typeof raw.id!=='string'||!/^cj_[a-f0-9]{32}$/.test(raw.id)||raw.ownerKey!==ownerKey||!exact(raw.scope,boundScope)||raw.language!==language||raw.sourceSha256!==sourceSha256||raw.inputSha256!==inputSha256||!Number.isSafeInteger(raw.maxReservedMicros)||raw.maxReservedMicros<=0)throw fault('This execution ticket does not match the current owner and source snapshot.');
-    return {version:1,id:raw.id,ownerKey,scope:{...boundScope},language,sourceSha256,inputSha256,maxReservedMicros:raw.maxReservedMicros};
+    if(raw?.version!==1||typeof raw.id!=='string'||!/^cj_[a-f0-9]{32}$/.test(raw.id)||raw.ownerKey!==ownerKey||!exact(raw.scope,boundScope)||raw.language!==language||raw.sourceSha256!==sourceSha256||raw.inputSha256!==inputSha256||!Number.isFinite(raw.maxReservedCredits)||raw.maxReservedCredits<=0)throw fault('This execution ticket does not match the current owner and source snapshot.');
+    return {version:1,id:raw.id,ownerKey,scope:{...boundScope},language,sourceSha256,inputSha256,maxReservedCredits:raw.maxReservedCredits};
   }
   async function request(path,method,body,signal){signal?.throwIfAborted();return readResponse(await fetchImpl(path,{method,credentials:'same-origin',cache:'no-store',redirect:'error',headers:{...headers,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal}));}
   function jobOf(job,ticket){
@@ -54,18 +54,18 @@ export function createInlineCodeClient({ownerKey,scope,language,code,input=null,
   return {
     validateCurrent,
     getTicket:()=>persisted?structuredClone(persisted):null,
-    async quote({signal}={}){checkIdentity();const value=await request(ROOT,'GET',null,signal);if(typeof value.available!=='boolean'||value.available&&(!Number.isSafeInteger(value.maximumReservedMicros)||value.maximumReservedMicros<=0))throw fault('Invalid execution reservation quote.');return {available:value.available,maximumReservedMicros:value.available?value.maximumReservedMicros:null};},
-    async run({confirmed,maxReservedMicros,signal,onProgress,onTicket}={}){
+    async quote({signal}={}){checkIdentity();const value=await request(ROOT,'GET',null,signal);if(typeof value.available!=='boolean'||value.available&&(!Number.isFinite(value.maximumReservedCredits)||value.maximumReservedCredits<=0))throw fault('Invalid execution reservation quote.');return {available:value.available,maximumReservedCredits:value.available?value.maximumReservedCredits:null};},
+    async run({confirmed,maxReservedCredits,signal,onProgress,onTicket}={}){
       if(submitted)throw fault('An execution was already submitted; resume its ticket instead.');
-      if(confirmed!==true||!Number.isSafeInteger(maxReservedMicros)||maxReservedMicros<=0)throw fault('Confirm the execution reservation before running.');
+      if(confirmed!==true||!Number.isFinite(maxReservedCredits)||maxReservedCredits<=0)throw fault('Confirm the execution reservation before running.');
       signal?.throwIfAborted();await validateCurrent();const [sourceSha256,inputSha256]=await hashes;
       const id='cj_'+crypto.randomUUID().replaceAll('-','');
-      const ticket=await ticketOf({version:1,id,ownerKey,scope:boundScope,language,sourceSha256,inputSha256,maxReservedMicros});
+      const ticket=await ticketOf({version:1,id,ownerKey,scope:boundScope,language,sourceSha256,inputSha256,maxReservedCredits});
       await persistTicket(structuredClone(ticket));
       persisted=ticket;
       onTicket?.(structuredClone(ticket));
       signal?.throwIfAborted();await validateCurrent();submitted=true;
-      const value=await request(ROOT,'POST',{id,app:boundScope.app,board:boundScope.board,language,code,input:boundInput,executionConfirmed:true,maxReservedMicros},signal);
+      const value=await request(ROOT,'POST',{id,app:boundScope.app,board:boundScope.board,language,code,input:boundInput,executionConfirmed:true,maxReservedCredits},signal);
       jobOf(value.job,ticket);return resume(ticket,{signal,onProgress});
     },
     resume,

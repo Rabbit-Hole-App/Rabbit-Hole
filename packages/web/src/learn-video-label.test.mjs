@@ -71,11 +71,11 @@ test('while the server pauses new Motion generation, the confirmation says so (o
 test('a reloaded failed or stopped card resumes its job, and reads again only while its hold is pending, bounded', () => {
   for (const status of ['generating', 'queued', 'failed']) assert.equal(resumesJob({ status, placementId: 'p1' }), true, status);
   for (const block of [{ status: 'failed' }, { status: 'ready', placementId: 'p1' }, { status: 'idle', placementId: 'p1' }, null]) assert.equal(resumesJob(block), false, JSON.stringify(block));
-  const pending = { status: 'failed', hold: { usd: 8.96, state: 'pending' } };
+  const pending = { status: 'failed', hold: { state: 'pending' } };
   assert.equal(readsAgain(pending, 0), true);
   assert.equal(readsAgain(pending, SETTLE_READS - 1), true);
   assert.equal(readsAgain(pending, SETTLE_READS), false, 'bounded');
-  for (const done of [{ status: 'failed', hold: { usd: 8.96, state: 'released' } }, { status: 'failed' }, { status: 'ready', hold: { state: 'pending' } }, undefined]) assert.equal(readsAgain(done, 0), false, JSON.stringify(done));
+  for (const done of [{ status: 'failed', hold: { state: 'released' } }, { status: 'failed' }, { status: 'ready', hold: { state: 'pending' } }, undefined]) assert.equal(readsAgain(done, 0), false, JSON.stringify(done));
   assert.ok(SETTLE_READS > 0 && SETTLE_READS <= 120);
 });
 
@@ -87,11 +87,26 @@ test('a failed /motion card offers only its recovery actions, named as the rulin
   assert.deepEqual(recoveryButtons({ actions: ['source', 'other'] }), [], 'an action the card cannot run is never offered');
   assert.equal(recoveryButtons(null), null);
   assert.ok(!Object.values(RECOVERY_BUTTONS).includes('Retry render'), 'paid regeneration is never Retry render');
-  assert.equal(motionUsageLine({ usedMicros: 770_000 }, { usd: 8.96, state: 'released' }), 'Used 77 credits · reservation released');
-  assert.equal(motionUsageLine({ usedMicros: 4_000 }, null), 'Used less than 1 credit · reservation released');
-  assert.equal(motionUsageLine({ usedMicros: 10_000, unknown: true }, { usd: 8.96, state: 'pending' }), 'Used 1 credit so far · reservation pending');
-  assert.doesNotMatch(motionUsageLine({ usedMicros: 770_000 }, { usd: 8.96, state: 'reserved' }), /\$|8\.96/);
+  assert.equal(motionUsageLine({ usedCredits: 77 }, { state: 'released' }), 'Used 77 credits · reservation released');
+  assert.equal(motionUsageLine({ usedCredits: 0.4 }, null), 'Used less than 1 credit · reservation released');
+  assert.equal(motionUsageLine({ usedCredits: 1, unknown: true }, { state: 'pending' }), 'Used 1 credit so far · reservation pending');
+  assert.doesNotMatch(motionUsageLine({ usedCredits: 77 }, { state: 'reserved' }), /\$|8\.96/);
   assert.equal(motionUsageLine(null, null), null);
+});
+
+// Failed job 61f70171 (2026-10-25): "Used 128 credits · reservation released" read as a charge returned with the hold. The server's accounting
+// keeps credits charged, credits refunded and the reservation apart.
+test('a failed /motion card tells credits charged, credits refunded and the released reservation apart, in credits only', () => {
+  const line = (accounting, hold = { state: 'released' }) => motionUsageLine({ usedCredits: 127.8157 }, hold, accounting);
+  assert.equal(line({ chargedCredits: 0, refundedCredits: 0 }), 'No credits charged · reservation released');
+  assert.equal(line({ chargedCredits: 127.8157, refundedCredits: 0 }), 'Charged 128 credits · reservation released');
+  assert.equal(line({ chargedCredits: 127.8157, refundedCredits: 127.8157 }), 'Charged 128 credits · 128 credits refunded · reservation released');
+  assert.equal(line({ chargedCredits: 1, refundedCredits: 1 }), 'Charged 1 credit · 1 credit refunded · reservation released');
+  assert.equal(line({ chargedCredits: 0.4, refundedCredits: 0 }), 'Charged less than 1 credit · reservation released');
+  assert.equal(line({ chargedCredits: 10, refundedCredits: 99 }), 'Charged 10 credits · 10 credits refunded · reservation released', 'never more refunded than charged');
+  assert.equal(line({ chargedCredits: 0, refundedCredits: 0, unknown: true }, { state: 'pending' }), 'Charge not confirmed yet · reservation pending');
+  assert.equal(line({ chargedCredits: 5, refundedCredits: 0, unknown: true }, { state: 'reserved' }), 'Charged 5 credits so far · reservation held');
+  for (const accounting of [{ chargedCredits: 127.8157, refundedCredits: 127.8157 }, { chargedCredits: 0, refundedCredits: 0 }]) assert.doesNotMatch(line(accounting), /\$|\.\.\.|…/);
 });
 
 // The reload race (owner priority 2, 2026-10-21): a confirmed /motion card is saved with confirmedStart before the save that

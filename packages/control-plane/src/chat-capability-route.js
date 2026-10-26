@@ -12,7 +12,8 @@ import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { MOTION_PAUSED, motionOffered, motionPaused, reviewRequired } from './generation-proposal.js';
 import { sha256, sign, verify } from './token.js';
 import { CHAT_ROUTE_PROTOCOL_VERSION, ROUTE_THRESHOLDS, ROUTE_TIMEOUT_MS, chatCapability, chatRouteRequest, chatRoutesWith, explicitCommand, isPlainExplain, readChatRoute } from '../../web/src/inline-ai-route.js';
-import { IMAGE_GENERATION, SLASH, commandLabel, unavailableCommand } from '../../web/src/agent/slash.js';
+import { SLASH, commandLabel, unavailableCommand } from '../../web/src/agent/slash.js';
+import { imageAllowed } from './image-settings.js';
 import { paidOf } from '../../web/src/inline-ai-decide.js';
 
 const TOKEN_TTL_S = 300, TEXT_MAX = 20000;
@@ -32,7 +33,7 @@ const bindingOf = (email, f) => sha256(canon([String(email).toLowerCase(), f.app
 function availability(env, cap, enabled, email = null) {
   if (Array.isArray(enabled) && !enabled.includes(cap.name)) return false;
   if (cap.name === 'motion') return motionOffered(env, email);
-  if (cap.needs === 'image_generation') return IMAGE_GENERATION;
+  if (cap.needs === 'image_generation') return imageAllowed(env, email); // the server decides per caller (public flag, else the listed operator)
   if (cap.needs) return Array.isArray(enabled);
   return true;
 }
@@ -50,7 +51,7 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
   // A named capability: its declaration (or, for an undeclared Learn command, its registry entry run directly), checked
   // for availability, and a token bound to this turn.
   const pick = async (name, via, args, extra = {}) => {
-    const removed = unavailableCommand(name);
+    const removed = unavailableCommand(name, { imageGeneration: imageAllowed(env, email) });
     if (removed) return refuse(via, removed);
     const declared = chatCapability(name);
     const entry = SLASH.find(command => command.name === name && command.places.includes('learn'));

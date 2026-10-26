@@ -13,9 +13,9 @@
 // database and settlement steps are retried.
 import { admitSpend, settleSpend, spendMessage } from './learn-spend-ledger.js';
 import { learnMedia } from './learn-storage.js';
-import { withUsage, noteUsageIdentity, settleAttempt, finishActionOf, toMicros } from './learn-usage.js';
+import { withUsage, noteUsageIdentity, settleAttempt, finishActionOf, holdLapsed, toMicros } from './learn-usage.js';
 import { verifyImageProposal, consumeProposal } from './generation-proposal.js';
-import { imageReadiness } from './image-settings.js';
+import { imageReadiness, imageAllowed, imageOperatorAllowed, imageOperatorEmails } from './image-settings.js';
 import { IMAGE_MODELS, imageSettings, imageQuote, imageAdapter, providerConfigured, imageCost } from './image-providers.js';
 
 const GEN = /^[A-Za-z0-9_-]{16,64}$/, SOURCE = /^fs_[a-f0-9]{24}$/, HEX = /^[a-f0-9]{64}$/;
@@ -23,11 +23,24 @@ const LEASE_MS = 180000, RETRY_MS = 30000, MAX_RETRIES = 20, MAX_OUTPUT = 20 * 1
 const MAX_REFERENCE = 5 * 1024 * 1024, MAX_REFERENCES = 15 * 1024 * 1024, PROMPT_MAX = 4000;
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const TERMINAL = new Set(['ready', 'refused', 'cancelled', 'failed', 'unknown']);
+const LIVE = new Set(['admitted', 'submitting', 'stored', 'recorded']); // a reservation exists and the job is not yet closed
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const denied = () => json({ error: 'Not found' }, 404);
 const plain = v => v != null && typeof v === 'object' && !Array.isArray(v);
 const sha = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', typeof value === 'string' ? new TextEncoder().encode(value) : value))].map(n => n.toString(16).padStart(2, '0')).join('');
 export const imageJobsEnabled = env => env?.IMAGE_GENERATE_ENABLED === 'true';
+// Public ('true') or the listed owner-only operator (image-settings.js imageAllowed). A job is always judged by its requester.
+export const imageJobsAllowed = imageAllowed;
+// Deterministic failure injection for the production acceptance (operators only): the real adapter builds the real request, but this
+// transport answers instead of the provider, so nothing leaves the Worker and nothing is billed. Everything else (admission, hold,
+// settlement, storage, the card) runs for real.
+export const IMAGE_FAULTS = Object.freeze(['provider_400', 'provider_429', 'network', 'invalid_output']);
+const faultTransport = fault => async () => {
+  if (fault === 'network') throw new TypeError('injected network failure');
+  if (fault === 'provider_429') return Response.json({ error: { code: 'rate_limit_exceeded' } }, { status: 429 });
+  if (fault === 'provider_400') return Response.json({ error: { code: 'injected_bad_request' } }, { status: 400 });
+  return Response.json({});
+};
 const off = () => json({ error: 'Image generation is not available.', code: 'image_generation_disabled' }, 503);
 
 async function boundedJson(req, limit) {
@@ -69,13 +82,16 @@ export async function imageJobsRoute(path, req, env, deps = defaults) {
   const [, id, action] = match;
   const origin = req.headers.get('origin');
   if (req.method !== 'GET' && origin && origin !== new URL(req.url).origin) return json({ error: 'Origin not allowed' }, 403);
-  if (!id && req.method === 'POST' && !imageJobsEnabled(env)) return off(); // before anything else: off creates nothing
+  if (!id && req.method === 'POST' && !imageJobsEnabled(env) && !imageOperatorEmails(env).length) return off(); // before anything else: off, with nobody listed, creates nothing
   if (!env.IMAGE_JOBS || !env.LEARN_DB || !learnMedia(env)) return json({ error: 'Image generation is not available.', code: 'not_configured' }, 503);
   if (!id && req.method === 'POST') return createJob(req, env, { ...defaults, ...deps });
   if (req.method !== (action === 'retry-save' ? 'POST' : 'GET')) return json({ error: 'Method not allowed' }, 405);
   const user = await (deps.identity || defaults.identity)(req, env);
   if (user instanceof Response) return user;
-  if (!id) return json({ available: imageJobsEnabled(env), models: Object.entries(IMAGE_MODELS).map(([model, m]) => ({ id: model, label: m.label, provider: m.provider, configured: providerConfigured(env, model) })) });
+  // The capability for THIS caller (the web build holds no switch): public when the flag is 'true', else only a listed operator.
+  if (!id) return json({ available: imageJobsAllowed(env, user.email), ...(!imageJobsEnabled(env) && imageJobsAllowed(env, user.email) ? { operatorOnly: true } : {}), models: Object.entries(IMAGE_MODELS).map(([model, m]) => ({ id: model, label: m.label, provider: m.provider, configured: providerConfigured(env, model) })) });
+  // Dollar amounts, provider usage and costs are for operators only (users see AI credits only).
+  if (action === 'inspect' && !imageOperatorAllowed(env, user.email)) return denied();
   return call(env, user, id, action || 'status');
 }
 
@@ -84,6 +100,9 @@ async function createJob(req, env, deps) {
   if (!plain(body) || !GEN.test(body.generationId || '') || typeof body.app !== 'string' || !body.app || body.app.length > 200 || (body.board != null && (typeof body.board !== 'string' || body.board.length > 200)) || (body.cardId != null && (typeof body.cardId !== 'string' || body.cardId.length > 200)) || !plain(body.proposal)) return json({ error: 'An approved image proposal and a generation id are required.' }, 400);
   const requester = await deps.identity(req, env);
   if (requester instanceof Response) return requester;
+  // Off for this caller (not public and not a listed operator): the same answer as off for everyone, whatever else is wrong.
+  if (!imageJobsAllowed(env, requester.email)) return off();
+  if (body.fault != null && (!IMAGE_FAULTS.includes(body.fault) || !imageOperatorAllowed(env, requester.email))) return json({ error: 'Invalid image request.', code: 'fault_not_allowed' }, 400);
   const scope = await deps.board(req, env, body);
   if (scope instanceof Response) return scope;
   if (!scope?.row || !scope.owner?.org || !scope.owner?.email) return denied();
@@ -128,7 +147,8 @@ async function createJob(req, env, deps) {
   return call(env, requester, body.generationId, 'create', {
     context: { requester: { org: requester.org, email: requester.email, userId: requester.userId ?? null }, owner: { org: scope.owner.org, email: scope.owner.email }, boardId: scope.row.id, app: body.app, board: body.board || 'main', cardId: body.cardId ?? null },
     request: { provider: m.provider, model: settings.value.model, settings: settings.value, prompt, references, proposal: { id: p.proposal_id, version: p.version },
-      quote: { estimateUsd: quote.estimateUsd, reserveUsd: quote.reserveUsd, estimate_credits: quote.estimate_credits, reserve_credits: quote.reserve_credits, basis: quote.basis, excludes: quote.excludes } },
+      quote: { estimateUsd: quote.estimateUsd, reserveUsd: quote.reserveUsd, estimate_credits: quote.estimate_credits, reserve_credits: quote.reserve_credits, basis: quote.basis, excludes: quote.excludes },
+      ...(body.fault ? { fault: body.fault } : {}) },
   });
 }
 
@@ -141,10 +161,14 @@ const publicJob = job => ({
   cost: job.cost?.state || (job.stage === 'unknown' || job.settlement?.costUsd === null ? 'unknown' : null),
   saveRetryable: SAVING.has(job.stage) || pending(job), createdAt: job.createdAt, updatedAt: job.updatedAt,
 });
-// Everything the job knows except bytes, which it never keeps, and the requester's identity beyond its org.
+// Everything the job knows except bytes, which it never keeps, the requester's identity beyond its org, and any dollar amount: the
+// requester sees credits and cost states only (owner 2026-10-25); the dollar accounting stays in the job's storage, the ledger and
+// the owner telemetry routes.
+const creditQuote = q => ({ estimate_credits: q.estimate_credits, reserve_credits: q.reserve_credits, basis: q.basis, excludes: q.excludes });
+const creditSettlement = s => (s ? { status: s.status, calls: s.calls, done: !!s.done, costKnown: s.costUsd != null } : null);
 const inspectJob = job => ({ ...publicJob(job), opId: job.opId, settings: job.request.settings, prompt: job.request.prompt, references: job.request.references.map(r => ({ id: r.id, sha256: r.sha256, bytes: r.bytes, mimeType: r.mimeType })),
-  quote: job.request.quote, proposal: job.request.proposal, output: job.output || null, providerModel: job.providerModel || null, usage: job.usage || null, providerMs: job.providerMs ?? null, providerStatus: job.providerStatus ?? null, providerCode: job.providerCode ?? null, costs: job.cost || null,
-  settlement: job.settlement || null, retries: job.retries || 0, lastError: job.lastError || null, recoveredFrom: job.recoveredFrom || null, submittedAt: job.submittedAt || null, endedAt: job.endedAt || null });
+  quote: creditQuote(job.request.quote), proposal: job.request.proposal, output: job.output || null, providerModel: job.providerModel || null, usage: job.usage || null, providerMs: job.providerMs ?? null, providerStatus: job.providerStatus ?? null, providerCode: job.providerCode ?? null, costs: job.cost ? { state: job.cost.state, overrun: !!job.cost.overrun?.exceeded } : null,
+  settlement: creditSettlement(job.settlement), retries: job.retries || 0, lastError: job.lastError || null, recoveredFrom: job.recoveredFrom || null, submittedAt: job.submittedAt || null, endedAt: job.endedAt || null });
 
 const payerEnv = (env, requester) => {
   const scoped = withUsage(env, { feature: 'image_generate' });
@@ -165,7 +189,7 @@ export class ImageJobs {
     const job = await this.state.storage.get('job');
     if (action === 'create') {
       if (job) return job.id === body.id ? json({ job: publicJob(job) }) : json({ error: 'Job binding conflict' }, 409);
-      if (!imageJobsEnabled(this.env)) return off();
+      if (!imageJobsAllowed(this.env, body.identity.email)) return off();
       const { context: c, request: r } = body;
       if (!plain(c) || c.requester?.email !== body.identity.email || c.requester?.org !== body.identity.org || !c.owner?.org || !c.owner?.email || !c.boardId || !plain(r) || !IMAGE_MODELS[r.model] || typeof r.prompt !== 'string' || !Array.isArray(r.references) || !(r.quote?.reserveUsd > 0)) return json({ error: 'Invalid image job' }, 400);
       const opId = `image_generate:${(await sha(`${c.requester.org}|${c.requester.email.toLowerCase()}|${body.id}`)).slice(0, 32)}`;
@@ -215,9 +239,12 @@ export class ImageJobs {
   // -> a truthy value when the loop should look at the job again.
   async step(job) {
     if (pending(job)) return this.settleLedger(job);
+    // The learner's reservation for this job was sealed at its bound (learn-usage.js HOLD_SECONDS image_generate): the job ends here,
+    // sends nothing and delivers nothing, so a late provider result can never be stored, shown or charged as a success.
+    if (LIVE.has(job.stage) && await holdLapsed(this.env.LEARN_DB, job.opId)) return this.expire(job);
     switch (job.stage) {
       case 'queued':
-        if (!imageJobsEnabled(this.env) || !providerConfigured(this.env, job.request.model)) return this.close(job, 'cancelled', 'disabled', null);
+        if (!imageJobsAllowed(this.env, job.context.requester.email) || !providerConfigured(this.env, job.request.model)) return this.close(job, 'cancelled', 'disabled', null);
         return this.save({ ...job, stage: 'admitting' });
       case 'admitting': return this.admit(job);
       case 'admitted': return this.submit(job);
@@ -264,11 +291,11 @@ export class ImageJobs {
   // Boundary 1: admitted, nothing sent. Safe to submit, or to release when submission is no longer allowed.
   async submit(job) {
     const release = reason => this.close(job, reason === 'disabled' ? 'cancelled' : 'failed', reason, { status: 'cancelled', calls: 0, costUsd: 0 });
-    if (!imageJobsEnabled(this.env) || !providerConfigured(this.env, job.request.model)) return release('disabled');
+    if (!imageJobsAllowed(this.env, job.context.requester.email) || !providerConfigured(this.env, job.request.model)) return release('disabled');
     let references;
     try { references = await Promise.all(job.request.references.map(ref => this.loadReference(job, ref))); }
     catch { return release('reference_changed'); }
-    const adapter = (this.deps.adapter || imageAdapter)(this.env, job.request.model);
+    const adapter = (this.deps.adapter || imageAdapter)(this.env, job.request.model, job.request.fault ? faultTransport(job.request.fault) : undefined);
     const startedAt = Date.now();
     // Persisted, with its recovery alarm, before the request leaves: a restart during the call finds 'submitting'.
     const sent = await this.save({ ...job, stage: 'submitting', submittedAt: startedAt, leaseUntil: startedAt + LEASE_MS });
@@ -289,6 +316,7 @@ export class ImageJobs {
       return this.close(failed, 'unknown', 'outcome_unknown', unknownCost);
     }
     const ms = Date.now() - startedAt;
+    if (await holdLapsed(this.env.LEARN_DB, job.opId)) return this.expire({ ...sent, providerMs: ms }); // answered after its reservation was sealed: not stored
     if (!(result?.bytes instanceof Uint8Array) || !result.bytes.length || result.bytes.length > MAX_OUTPUT || !IMAGE_TYPES.includes(result.mimeType)) return this.close({ ...sent, providerMs: ms }, 'failed', 'invalid_output', { status: 'failed', calls: 1, costUsd: null });
     // Boundary 3: the provider answered and the bytes exist only in memory until this write lands.
     const sha256 = await sha(result.bytes), r2Key = `${outputPrefix(job)}${sha256}`;
@@ -297,6 +325,13 @@ export class ImageJobs {
     const stored = await this.save({ ...sent, stage: 'stored', output: { sourceId: job.sourceId, r2Key, sha256, bytes: result.bytes.length, mimeType: result.mimeType }, providerModel: result.providerModel || job.request.model, usage: result.usage || null, providerMs: ms });
     this.log(stored, 'stored', { ms, usage: stored.usage });
     return true;
+  }
+
+  // The job outlived its bound. Nothing was sent when it was only admitted (the platform reservation is released too); once the
+  // provider was contacted its cost is unknown and stays so. The learner is charged nothing either way.
+  expire(job) {
+    const sent = job.stage !== 'admitted';
+    return this.close(job, 'failed', 'expired', sent ? { status: 'failed', calls: 1, costUsd: null } : { status: 'cancelled', calls: 0, costUsd: 0 });
   }
 
   // Boundary 2: 'submitting' found by a later run (restart, eviction). Whether the provider made, billed or lost the image is

@@ -28,7 +28,7 @@ function world(t) {
   learn.exec(migration('learn-migrations/0022-usage-accounting.sql'));
   const action = learn.prepare(`INSERT INTO usage_actions (action_id, user_id, payer, payer_reason, feature, charge_class, period, status, started_at) VALUES (?, 'user-9', 'user', 'signed_in', 'ask', ?, '2026-10', ?, ?)`);
   const attempt = learn.prepare(`INSERT INTO usage_attempts (attempt_id, action_id, kind, provider, model, reserved_micros, cost_micros, cost_state, status, started_at) VALUES (?, ?, 'generation', 'anthropic', 'claude-opus-5-5', ?, ?, ?, ?, ?)`);
-  // One attempt per cost state, each on its own action: measured 1234, estimated 700, unknown (no cost, its reservation held), outstanding reservation.
+  // One attempt per cost state, each on its own action: measured 1234, estimated 700, unknown (no cost; the learner holds nothing), outstanding reservation.
   action.run('act-measured', 'would_charge', 'completed', NOW); attempt.run('att-measured', 'act-measured', 50000, 1234, 'settled', 'settled', NOW);
   action.run('act-estimated', 'would_charge', 'completed', NOW); attempt.run('att-estimated', 'act-estimated', 50000, 700, 'estimated', 'settled', NOW);
   action.run('act-unknown', 'free', 'completed', NOW); attempt.run('att-unknown', 'act-unknown', 20000, null, 'unknown', 'settled', NOW);
@@ -81,7 +81,7 @@ test('dashboard queries over seeded rows: the ingested error appears in events a
   assert.ok((await learning.json()).hookFunnel, 'the learning view carries its funnel');
 });
 
-test('costs: measured, estimated, unknown (reservation held) and outstanding reservation are four separate rows; no field sums them', async t => {
+test('costs: measured, estimated, unknown provider cost and running reservations are four separate rows; no field sums them', async t => {
   const { env } = world(t);
   assert.equal((await (await owner(env, '/project', { method: 'POST' })).json()).copied.usage_attempts, 4);
   const overview = await (await owner(env, '/overview?days=7')).json();

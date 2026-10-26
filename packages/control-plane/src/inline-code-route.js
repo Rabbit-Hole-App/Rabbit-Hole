@@ -37,15 +37,18 @@ async function readJson(req) {
   for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
   return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
 }
+// People see and approve AI credits (1 credit = 10,000 micros of the ledger), never dollars or micros (owner 2026-10-25): the wire speaks
+// credits and this route converts; the job and its budget keep counting in micros internally.
+const MICROS_PER_CREDIT=10000;
 function validCreate(body) {
-  const allowed=new Set(['id','app','board','language','code','input','executionConfirmed','maxReservedMicros']);
+  const allowed=new Set(['id','app','board','language','code','input','executionConfirmed','maxReservedCredits']);
   return body && typeof body==='object' && !Array.isArray(body) && Object.keys(body).every(key=>allowed.has(key)) &&
     typeof body.id==='string' && ID.test(body.id) &&
     typeof body.app==='string' && /^[a-z0-9-]{1,100}$/.test(body.app) &&
     typeof body.board==='string' && /^[A-Za-z0-9_.:-]{1,200}$/.test(body.board) &&
     body.language==='javascript' && typeof body.code==='string' && !!body.code.trim() && encoder.encode(body.code).byteLength<=32768 &&
     Object.hasOwn(body,'input') && encoder.encode(JSON.stringify(body.input)).byteLength<=16384 &&
-    body.executionConfirmed===true && Number.isSafeInteger(body.maxReservedMicros) && body.maxReservedMicros>0;
+    body.executionConfirmed===true && typeof body.maxReservedCredits==='number' && Number.isFinite(body.maxReservedCredits) && body.maxReservedCredits>0;
 }
 function trustedOwner(user) {
   return user && typeof user.org==='string' && user.org && typeof user.email==='string' && user.email ? {org:user.org,email:user.email} : null;
@@ -69,16 +72,17 @@ export async function inlineCodeRoute(path,req,env,dependencies=defaults) {
   if(!root)return call(env,match[2]?'cancel':'status',{id:match[1],owner});
   const policy=inlineCodePolicy(env);
   const available=env.INLINE_CODE_ENABLED==='true' && !!policy && typeof env.INLINE_CODE_LOADER?.load==='function';
-  if(req.method==='GET')return json({available,language:'javascript',maximumReservedMicros:available?policy.reserveMicros:null,limits:available?{maxRuns:policy.maxRuns,maxMicros:policy.maxMicros}:null});
+  if(req.method==='GET')return json({available,language:'javascript',maximumReservedCredits:available?policy.reserveMicros/MICROS_PER_CREDIT:null,limits:available?{maxRuns:policy.maxRuns,maxCredits:policy.maxMicros/MICROS_PER_CREDIT}:null});
   if(!available)return unavailable();
   let body;try{body=await readJson(req);}catch{return json({error:'A bounded JSON request is required'},400);}
   if(!validCreate(body))return json({error:'An explicit, bounded JavaScript execution request is required'},400);
-  if(body.maxReservedMicros<policy.reserveMicros)return json({error:'The reservation exceeds the approved maximum',code:'consent_bound'},409);
+  const approvedMicros=Math.round(body.maxReservedCredits*MICROS_PER_CREDIT);
+  if(approvedMicros<policy.reserveMicros)return json({error:'The reservation exceeds the approved maximum',code:'consent_bound'},409);
   const access=await dependencies.access(req,env,body.app);
   if(access instanceof Response)return access;
   if(!access||access.org!==owner.org||(access.owner_email||access.email)!==owner.email||access.canEdit===false)return json({error:'Owner access required'},403);
   const scope=await dependencies.board(req,env,body.app,body.board);
   if(scope instanceof Response)return scope;
   if(!scope?.row||scope.owner?.org!==owner.org||scope.owner?.email!==owner.email)return json({error:'Owned board required'},404);
-  return call(env,'create',{id:body.id,owner,scope:{app:body.app,board:body.board},language:body.language,code:body.code,input:body.input,executionConfirmed:true,maxReservedMicros:body.maxReservedMicros});
+  return call(env,'create',{id:body.id,owner,scope:{app:body.app,board:body.board},language:body.language,code:body.code,input:body.input,executionConfirmed:true,maxReservedMicros:approvedMicros});
 }

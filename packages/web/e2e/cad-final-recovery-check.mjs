@@ -31,7 +31,7 @@ const api=async(path,method='GET',body)=>{
  assert.ok(response.ok,`${method} ${path.split('?')[0]} returned ${response.status}`);return response.json();
 };
 const jobPath=id=>`/api/learn/cad/jobs/${encodeURIComponent(id)}`;
-const usage=async()=>{try{const value=await api('/api/learn/usage');return Object.fromEntries(['usedMicros','reservedMicros','estimatedMicros','unknownAttempts','unknownReservedMicros','unavailable'].filter(k=>k in value).map(k=>[k,value[k]]));}catch{return {unavailable:'access'};}};
+const usage=async()=>{try{const value=await api('/api/learn/usage');return Object.fromEntries(['usedCredits','reservedCredits','estimatedCredits','unknownAttempts','unavailable'].filter(k=>k in value).map(k=>[k,value[k]]));}catch{return {unavailable:'access'};}};
 const poll=async id=>{const end=Date.now()+16*60*1000;while(Date.now()<end){const result=await api(jobPath(id)+scope);if(['ready','failed','cancelled','waiting_for_answer'].includes(result.job.state))return result;await new Promise(r=>setTimeout(r,3000));}throw Error('Bounded wait expired; existing job retained; no retry issued');};
 let created=0;
 const create=async(prompt,extra={})=>{assert.ok(++created<=2);return api('/api/learn/cad/jobs','POST',{app,board,cardId:randomUUID(),requestId:randomUUID(),prompt,context:null,confirmed:true,...extra});};

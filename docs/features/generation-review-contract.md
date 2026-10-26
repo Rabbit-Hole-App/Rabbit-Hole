@@ -227,3 +227,27 @@ tests are deleted only then, in the cleanup commit, with the matrix in the hand-
 Open items: Motion duration above 30 seconds and the aspect ratio options need `feat/motion-settings`; OpenAI and Gemini pricing, the OpenAI
 reference maximum and the other limits listed in section 3 are unresolved; Explain's Cancel needs the job cancel wired to the card's
 `onCancel`; the pill editor replaces the default description editor.
+
+## 13. What the Chat shows around and after Generate (chat generation UX, owner brief 2026-10-25)
+
+A slash command's response, and a response that makes something on the canvas, uses this workflow and not the generic answer extras.
+
+- **One classification** (`chat-response-kind.js`, `responseKind(message, turn)`): `artifact` when the answer carries a proposal (pending, refined or generated) or its turn
+  saved outputs (an active job or a completed output); `command` when the turn is a slash command (the saved `command`, else a registered `/name` at the very start of an older
+  turn, through `sentCommand`); otherwise `ordinary`. The answer's prose is never read and a selected card is not an input, so an explanation that mentions /motion, or a
+  question asked with a card selected, stays ordinary. Only an ordinary answer gets Explore next (and its spacing and older-message toggle), Add as card or Added, and
+  Regenerate. Copy and the feedback buttons stay on every answer. The server stores no actions or follow-ups for a command or proposal turn (`chat-modes.js recordAnswer`).
+  Regenerate is hidden for these answers: it re-sends the turn's words through the chat route, which for a command turn answers in prose and skips the command's own
+  confirmation. A new paid job always needs the proposal's own Generate.
+- **Status from the real job** (`generation-proposal-status.js`). The proposal's button and one status line read the card the proposal made (found by proposal id and version,
+  `canvasOps.proposalCard`) through `generationState`, the mapping the canvas card and the generation indicator share, or the output the turn saved for it
+  (`jobId: proposal:<id>`, `chat-output-refs.js outputOf`) after a reload; the local press only covers the moment before the card lands. Nothing polls: the Chat's existing
+  watch (`ChatOutputs.jsx useGenerationWatch`) draws the transcript again when any output's phase changes.
+  Starting (spinner, disabled) → Queued → Generating (spinner, the card's own stage words, elapsed time shown but never announced, Go to card, Stop) → Ready (check, Go to card);
+  or failed (reason, no spinner), Stopped, or unknown (the connection dropped on the start: "could not confirm ... not started again"; never shown as success). A card inserted
+  is not a job completed. Labels carry no ellipsis. A proposal's card has no second banner above the composer.
+- **Stop** in Chat asks first, as the canvas card does, then sends the card's own request (`stopVideo`, `canvasOps.stopGeneration`) and marks the card stopped.
+- **Image** proposals report the job's own status (Starting, Generating, Ready, or its failure in words); a reload reads the job once and follows it through the job API's
+  reconnect. Queued is not distinguished: the image job's status text does not carry its stage.
+- Checks: `chat-generation-ux.test.mjs` (unit, with server-side rendering), `e2e/chat-generation-check.mjs` (browser, deterministic transports), and the updated
+  `e2e/motion-command-check.mjs` (a generated proposal reports its job; it no longer reads "Added to the canvas").

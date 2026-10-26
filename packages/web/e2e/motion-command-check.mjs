@@ -400,17 +400,17 @@ for (const theme of ['light', 'dark']) {
     // MOT-22 (MOCKED): the server refuses this start for its proposal (a newer version exists), once; nothing starts.
     if (stub.refuse && request.method() === 'POST') { const code = stub.refuse; stub.refuse = null; return route.fulfill({ status: 409, json: { error: 'A newer version of this proposal exists. Use the latest card in the chat.', code } }); }
     if (stub.paused) return request.method() === 'POST' ? route.fulfill({ status: 503, json: { error: PAUSED, code: 'motion_paused' } }) : route.fulfill({ json: { motionPaused: true, videos: [] } });
-    // The server's reservation (MOCKED): still in the API (internal only, owner message 30); the card must never show it.
-    const hold = status => ({ usd: 8.96, state: status === 'generating' ? 'reserved' : status === 'failed' && !stub.settled ? 'pending' : 'released' });
+    // The server's reservation state (MOCKED); the amount is no longer sent at all (owner 2026-10-25), and the card never shows the reservation.
+    const hold = status => ({ state: status === 'generating' ? 'reserved' : status === 'failed' && !stub.settled ? 'pending' : 'released' });
     const video = status => ({ id: stub.id, key: KEY, status, retryable: true, hold: hold(status),
       ...(status === 'failed' ? { error: stub.error || 'The Motion job failed: still blocking after the repair round: blank_frame' } : {}),
       ...(status === 'ready' ? { provider: 'motion', motion: { title: TITLE, duration_seconds: 15, renderer: 'remotion', source_refs: [{ id: 'S1', kind: 'code', path: 'model.py', start_line: 62, end_line: 64 }] } } : {}) });
     // A stop request (MOCKED): the job ends as the server ends it, failed with Stopped.
     if (request.method() === 'POST' && (request.postData() || '').includes('"action":"cancel"')) { stub.stopped = true; stub.error = 'Stopped.'; return route.fulfill({ json: { videos: [video('failed')] } }); }
     if (stub.stopped) return route.fulfill({ json: { videos: [video('failed')] } });
-    if (request.method() === 'POST') return route.fulfill({ status: 202, json: { motionHoldUsd: 8.96, motionEstimateCredits: 100, videos: [video('generating')], placementId: stub.id } });
+    if (request.method() === 'POST') return route.fulfill({ status: 202, json: { motionEstimateCredits: 100, videos: [video('generating')], placementId: stub.id } });
     stub.polls += 1;
-    return route.fulfill({ json: { motionHoldUsd: 8.96, motionEstimateCredits: 100, videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
+    return route.fulfill({ json: { motionEstimateCredits: 100, videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
   });
 
   await step(`${theme}: MOCKED generation: the proposal's Generate adds one card and starts one confirmed motion_request with the approved proposal; the ready video plays in it`, async () => {
@@ -444,7 +444,9 @@ for (const theme of ['light', 'dark']) {
     assert.deepEqual([body.confirmed, body.operation.op, body.operation.request], [true, 'motion_request', LINE]);
     assert.deepEqual([body.operation.proposal?.command, body.operation.proposal?.version, body.operation.proposal?.settings], ['motion', 1, { duration_seconds: 15, audio: false }], 'the exact approved proposal');
     assert.equal(await proposal.getAttribute('data-proposal-active'), 'false', 'a generated proposal is inactive');
-    assert.match(await proposal.innerText(), /Added to the canvas/);
+    // Chat generation UX (owner brief, bug 2): the proposal reports its job, Ready once the video is ready; a placeholder card is never "Added to the canvas".
+    await until(async () => /Ready/.test(await proposal.locator('[data-proposal-generate]').innerText()), 'the proposal reports its job Ready');
+    assert.doesNotMatch(await proposal.innerText(), /Added to the canvas/);
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-05-ready-card.png` });
     await dismiss();
@@ -490,12 +492,12 @@ for (const theme of ['light', 'dark']) {
     assert.match(await card.innerText(), /Not generated\. This proposal changed; use the latest version\./);
     assert.equal(await card.locator('video, [data-generate-video], [data-stop-video], [data-media-provenance], [data-recovery-action]').count(), 0, 'nothing playable, generating or offered on the refused card');
     await proposal.locator('[data-proposal-generate]:not([disabled])').waitFor({ timeout: 10000 });
-    assert.doesNotMatch(await proposal.innerText(), /Added to the canvas/, 'the refused start made nothing');
+    assert.equal(await proposal.locator('[data-proposal-job-status]').count(), 0, 'the refused start made nothing: no job status');
     await dock.getByRole('alert').filter({ hasText: 'This proposal changed; use the latest version.' }).first().waitFor({ timeout: 5000 });
     assert.equal(videoPosts().length - posts, 1, 'one refused start');
     await proposal.locator('[data-proposal-generate]').click();
     await until(() => videoPosts().length - posts === 2, 'the next press starts');
-    await until(async () => /Added to the canvas/.test(await proposal.innerText()), 'Added to the canvas once a start was accepted');
+    await until(async () => (await proposal.locator('[data-proposal-job-status]').count()) === 1, 'the proposal reports its job once a start was accepted');
     assert.equal(videoPosts().length - posts, 2, 'one refused start and one real one');
     await card.scrollIntoViewIfNeeded();
     await card.screenshot({ path: `${OUT}/${theme}-06c-refused-card.png` });
@@ -626,6 +628,8 @@ for (const theme of ['light', 'dark']) {
     // again, while Motion cannot start (control-plane learn-video.js motionRecovery: every action and regenerate need startable;
     // owner message 38 item 4, "only the actions that can run now"). With an orchestrator the card offers Generate again (step 5).
     await mine.locator('[data-motion-usage]').waitFor({ timeout: 15000 });
+    // Credits charged, credits refunded and the reservation are separate facts (failed job 61f70171, 2026-10-25): nothing was started, so nothing was charged.
+    assert.equal((await mine.locator('[data-motion-usage]').innerText()).trim(), 'No credits charged · reservation released');
     assert.equal(await mine.locator('[data-generate-video], [data-recovery-action]').count(), 0, 'nothing that starts work is offered while Motion cannot start');
     assert.equal(videoPosts().length - posts, 1, 'one request, answered by the real worker');
     await mine.scrollIntoViewIfNeeded();
@@ -848,7 +852,7 @@ for (const theme of ['light', 'dark']) {
       const made = proposalCards.filter({ has: page.locator('h3', { hasText: /^Motion: explain this$/ }) });
       if (await made.count()) {
         assert.equal(await made.last().getAttribute('data-proposal-active'), 'false', 'the generated proposal cannot Generate again');
-        assert.match(await made.last().innerText(), /Added to the canvas/);
+        assert.doesNotMatch(await made.last().innerText(), /Added to the canvas/, 'a generated proposal reports its job (or is superseded), never Added to the canvas');
       }
       await page.waitForTimeout(800);
       assert.deepEqual([asks.length - a0, routes.length - r0, videoPosts().length - posts], [0, 0, 0], 'a reload sends no turn, route or start');

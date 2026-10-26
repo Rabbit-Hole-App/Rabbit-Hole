@@ -24,7 +24,10 @@
       { "name": "EXPLAIN_JOBS", "class_name": "ExplainJobs" },
       // IMG-01 image generation jobs, one object per generation (control-plane/src/image-jobs.js, docs/features/image-jobs.md).
       // Bound even while IMAGE_GENERATE_ENABLED is off, so existing jobs can still be inspected and settled.
-      { "name": "IMAGE_JOBS", "class_name": "ImageJobs" }
+      { "name": "IMAGE_JOBS", "class_name": "ImageJobs" },
+      // Shared plumbing for file conversion, Ctrl+K image edits and Ctrl+K JavaScript runs (control-plane/src/file-jobs.js,
+      // docs/features/file-jobs-production.md). Binding it enables NOTHING: each feature stays off until its own vars and secrets exist.
+      { "name": "FILE_JOBS", "class_name": "FileJobs" }
     ]
   },
   "migrations": [
@@ -33,7 +36,8 @@
     { "tag": "repository-imports-1", "new_sqlite_classes": ["RepositoryImports"] },
     { "tag": "cad-jobs-1", "new_sqlite_classes": ["CadJobs"] },
     { "tag": "explain-jobs-1", "new_sqlite_classes": ["ExplainJobs"] },
-    { "tag": "image-jobs-1", "new_sqlite_classes": ["ImageJobs"] }
+    { "tag": "image-jobs-1", "new_sqlite_classes": ["ImageJobs"] },
+    { "tag": "file-jobs-1", "new_sqlite_classes": ["FileJobs"] }
   ],
   // dev-worker.js bundles its pages from ./dist-dev; build with the production VITE_* env into that directory.
   "assets": { "directory": "./dist-dev", "binding": "ASSETS", "run_worker_first": true },
@@ -55,9 +59,18 @@
   "vars": {
     // /explain v2 (EXP-T12): switched on at R1 (EXP-T23, owner production GO 2026-10-22; live runs C:/s/spec/explain/renders/r2-live).
     "EXPLAIN_V2_ENABLED": "true",
-    // IMG-01 image generation (docs/features/image-jobs.md): off. Only "true" accepts new jobs; IMAGE_GENERATE_RESERVED_USD
-    // (the per-image hold) is unset, so no image could be quoted or started even if this were switched on.
+    // IMG-01 image generation (docs/features/image-jobs.md): PUBLIC generation is off. Only "true" accepts new jobs from everyone.
+    // The ONLY exception is the controlled owner-only acceptance path below (owner 2026-10-25): a caller whose verified sign-in identity
+    // is listed in IMAGE_ACCEPTANCE_EMAILS may use it under the ordinary admission, hold, settlement and readiness rules, so the
+    // production acceptance runs through the real Worker, storage and accounting. It needs OPENAI_API_KEY / GEMINI_API_KEY (secrets).
     "IMAGE_GENERATE_ENABLED": "false",
+    // The per-image hold, derived (docs/features/image-jobs.md 6c): the largest priced estimate among the enabled combinations is Nano
+    // Banana Pro 1K, US$0.134 + a 4,000-byte prompt bound US$0.008 = US$0.142; the worst real settlement seen for it was US$0.1462
+    // (run D). US$0.20 covers both and is a hold, released at settlement; the learner is charged the measured cost or the upper bound.
+    "IMAGE_GENERATE_RESERVED_USD": "0.20",
+    // Exactly the Motion owner list: the owner's Google application principal (a provider email never becomes a principal) and the Gmail
+    // address, compared whole and lower-cased. yudhisteer.chin01@gmail.com is a DIFFERENT account and does not match. Empty = nobody.
+    "IMAGE_ACCEPTANCE_EMAILS": "user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid yudhisteer.chin@gmail.com",
     // A simple request within these goes straight to authoring; missing thresholds would review every request (explain-brief.js).
     "EXPLAIN_BRIEF_THRESHOLDS": "{\"components\":12,\"credits\":400}",
     "PUBLIC_ORIGIN": "https://digrabbithole.com",

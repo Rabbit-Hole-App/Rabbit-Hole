@@ -1,8 +1,11 @@
 # Image generation jobs (IMG-01)
 
-Status: server substrate built 2026-10-23 on branch `feat/image-jobs` (lane feat-image-jobs). **Disabled**:
-`IMAGE_GENERATE_ENABLED` is `"false"` in every committed config and `IMAGE_GENERATE_RESERVED_USD` is unset, so no image can be
-quoted or started. No provider was called while building it; every provider test uses a fixture transport.
+Status: server substrate built 2026-10-23 on branch `feat/image-jobs` (lane feat-image-jobs), live in production since r3 (35c9555b) with
+public generation **off**: `IMAGE_GENERATE_ENABLED` is `"false"` in every committed config. The production config adds the controlled
+owner-only acceptance path (section 6d: `IMAGE_ACCEPTANCE_EMAILS`, `IMAGE_GENERATE_RESERVED_USD`). Evidence kinds are kept apart (section 6e):
+the unit and integration tests use fixture transports only; five provider-adapter validation runs (2026-10-23) and four more (2026-10-25)
+called the REAL providers from a LOCAL harness (the production adapter code, not the deployed Worker); **no run has gone through the
+deployed Worker, the signed route and the browser**: that is the owner-only production acceptance, still to do.
 
 Code: `packages/control-plane/src/image-jobs.js` (route + `ImageJobs` Durable Object), `packages/control-plane/src/image-providers.js`
 (model allowlist, quote, adapters). Tests: `packages/control-plane/test/image-jobs.test.js`, `image-providers.test.js`.
@@ -119,7 +122,7 @@ Cloudflare limits, verified 2026-10-23 on developers.cloudflare.com:
 Not verified: whether a second alarm can start while a first handler is still running in the same isolate (handled either way by
 `drive()`); placement and latency.
 
-## 6. Providers (no call made)
+## 6. Providers
 
 Adapter interface: `{ provider, capabilities: { generate, edit, retrieve, idempotency }, generate(input), edit(input) }`, input
 `{ model, prompt, settings, references: [{bytes, mimeType}], signal }`, result `{ bytes, mimeType, providerModel, usage }`, errors
@@ -130,13 +133,12 @@ logs carry job id, step, stage, provider, model, error code, timing and usage, n
 
 | Model | Endpoint | Unverified |
 |---|---|---|
-| `gpt-image-2.5-sunburst`, `gpt-image-2.5-flare` | `POST /v1/images/generations` (JSON) and `/v1/images/edits` (multipart, `image[]`), `output_format png`, size from (aspect ratio, resolution) on OpenAI's common-size list | multi-image field name (the guide's curl uses `image[]`); maximum references (4 enforced, the guide says 16); output tokens per quality/size, so NO OpenAI option has a price and none can start; sizes above 2560x1440 are marked experimental by OpenAI and are never quoted (`experimental_size`); whether the 2.5 models return `usage`. A 4xx keeps its stable reason code (OpenAI `error.code`, e.g. `moderation_blocked`; Google `error.status`) as `providerCode` on the failed job (never the message, which can echo the prompt); the job stays failed at unknown cost |
+| `gpt-image-2.5-sunburst`, `gpt-image-2.5-flare` | `POST /v1/images/generations` (JSON) and `/v1/images/edits` (multipart, `image[]`), `output_format png`, size from (aspect ratio, resolution) on OpenAI's common-size list | multi-image field name (the guide's curl uses `image[]`); maximum references (4 enforced, the guide says 16); output tokens per quality/size are not published, so only the MEASURED low-quality sizes have a price (6c) and the rest cannot start; sizes above 2560x1440 are marked experimental by OpenAI and are never quoted (`experimental_size`); whether the 2.5 models return `usage`. A 4xx keeps its stable reason code (OpenAI `error.code`, e.g. `moderation_blocked`; Google `error.status`) as `providerCode` on the failed job (never the message, which can echo the prompt); the job stays failed at unknown cost |
 | `gemini-nano-banana-2.1`, `gemini-3-pro-image` | `POST https://generativelanguage.googleapis.com/v1beta/interactions`, `x-goog-api-key`, `input` text + inline images, `response_format {type:'image', mime_type:'image/jpeg', aspect_ratio, image_size}`: a live request for `image/png` was refused (400, supported `image/jpeg`, 2026-10-23), so Google images are JPEG while OpenAI stays PNG; the stored type (R2 content type, `file_sources.media_type`/`declared_type`, `.jpg` name, artifact) is the one the file signature shows, never the requested one; whether `gemini-3-pro-image` accepts `image/jpeg` is first shown by run D | the live response (shapes are from the API reference, not yet seen); input image limits; background/retrieval support for image models. Read as documented: the LAST image block of the `model_output` steps (what the SDK's `output_image` returns; that property is SDK-only); `status` honoured (absent or `completed` is read, `failed`/`cancelled` are definite failures, `incomplete`/`in_progress`/`requires_action` are an unknown outcome and are never resubmitted); `usage` kept on the job and priced as measured only when it reconciles exactly, otherwise as an estimated upper bound (see Cost below). `store:false` is sent: the API otherwise retains interactions (prompts and reference images) 55 days on the paid tier; the docs list only background execution and `previous_interaction_id` as incompatible, and whether image output works with it is first shown by a live call (acceptance run C) |
 
 Quote (`imageQuote`): published per-image output price + references + prompt bytes x text rate (bytes bound tokens from above);
-`unknown` (blocks Generate) when the price is unverified (all OpenAI; Nano Banana 2.1 at 4K, whose published $0.113 contradicts its
-own token math; Nano Banana 2.1 with references, whose per-image input cost is not stated), when `IMAGE_GENERATE_RESERVED_USD` is
-unset, or when the bound is below the estimate. The estimate excludes thinking tokens (billed, count not published), so it is shown
+`unknown` (blocks Generate) when the price is unverified (OpenAI beyond its measured low-quality sizes, and OpenAI with references, whose
+token count is not published; see 6c), when `IMAGE_GENERATE_RESERVED_USD` is unset, or when the bound is below the estimate. The estimate excludes thinking tokens (billed, count not published), so it is shown
 as an estimate (it is the quote shown before approval, not a cost).
 
 Cost (owner 2026-10-23): three values are kept apart on the job (`job.cost`, shown by inspect as `costs`), in the closed log line, and in the
@@ -165,21 +167,83 @@ quote table (`PRICES`) is separate and unchanged. Real-payload bounds: C (Nano B
 
 ## 6b. Validated combinations (image-settings.js)
 
-Every option stays visible. Only combinations a live acceptance run covered (runs A to E, 2026-10-23; receipts `C:/s/img-01-accept/receipts`) may
-be generated; any other shows its reason on the card before confirmation (`readiness`, Generate disabled) and is refused by the route with 409
-`image_not_ready`, before the quote, the references and the consume. The list is data (`IMAGE_VALIDATED`, with its evidence); extending it needs a
-new run.
+Every option stays visible. Only combinations a live provider run covered may be generated; any other shows its reason on the card before
+confirmation (`readiness`, Generate disabled) and is refused by the route with 409 `image_not_ready`, before the quote, the references and the
+consume. The list is data (`IMAGE_VALIDATED`, with its evidence, policy `acceptance-2026-10-25`); extending it needs a new run.
 
-| Model | Operation | Quality | Ratio, resolution | References | Run |
+| Model | Operation | Quality | Ratio, resolution | References | Run (section 6e) |
 |---|---|---|---|---|---|
 | gpt-image-2.5-flare | generate | low | 1:1, 1K (1024x1024) | 0 | A |
+| gpt-image-2.5-flare | generate | low | 16:9, 2K (2048x1152) | 0 | imgact-flare169-1 |
+| gpt-image-2.5-sunburst | generate | low | 1:1, 1K (1024x1024) | 0 | imgact-sunburst1k-1 |
 | gpt-image-2.5-sunburst | edit | low | 1:1, 1K (1024x1024) | up to 2 | B |
-| gemini-nano-banana-2.1 | generate | none | 1:1, 1K | 0 | C |
-| gemini-3-pro-image | generate | none | 1:1, 1K | 0 | D |
+| gemini-nano-banana-2.1 | generate | none | 1:1, 1K | 0 | C, imgact-nb21-1k-1 |
+| gemini-nano-banana-2.1 | generate | none | 16:9, 1K | 0 | imgact-nb21-169-1 |
 | gemini-nano-banana-2.1 | edit | none | 1:1, 1K | up to 1 | E |
+| gemini-3-pro-image | generate | none | 1:1, 1K | 0 | D |
 
-Ready is not startable: OpenAI has no price row and Nano Banana 2.1 with references has no per-image input price, so those stay `quote_unknown`
-(card: Price not available yet) until the owner approves a price row. Today the startable set is Nano Banana 2.1 generate and Pro generate.
+Ready is not the same as startable (6c): OpenAI editing with references has no published price (the reference-image token count is not
+published), so sunburst edit stays visible, greyed, with the reason; every other row above is priced and startable. Everything not listed
+(OpenAI medium and above, 2K at 1:1, 4K, other ratios, Pro at 2K or 4K or with references, Nano Banana at 2K or 4K or with more than one
+reference) stays visible and greyed with what was tested; none is substituted or removed.
+
+## 6c. Prices, the hold and what the learner is charged (official pages read 2026-10-25)
+
+Sources and the arithmetic: `C:/s/spec/image-activation/price-verification.md`. Per-image prices (`PRICES`): Nano Banana 2.1 1K US$0.0336, 2K 0.0504,
+4K 0.113 (3,780 tokens x US$30/M; the earlier "contradiction" came from another page's 2,520 figure) plus US$0.00168 per reference (a Gemini 3 input
+image is at most 1,120 tokens at the default media resolution, observed 1,120 in run E, x US$1.5/M); Pro 1K and 2K 0.134, 4K 0.24, a reference about
+0.0011 (published). OpenAI publishes token rates only (image out US$30/M, image in US$8/M, text in US$5/M) and no tokens per image, so the OpenAI rows are
+MEASURED: at quality low 196 output tokens at 1024x1024 (three runs) and 157 at 2048x1152 (one run), rounded up to 200 tokens, US$0.006. No other
+OpenAI quality or size has a row. The prompt is added at its UTF-8 byte count x the text rate (a token is at least one byte).
+
+`IMAGE_GENERATE_RESERVED_USD` is the hold admitted before a job and released at settlement. Derivation: the largest priced estimate among the enabled
+rows is Pro 1K, 0.134 + 4,000 prompt bytes x US$2/M = 0.142; the largest real settlement seen for it is 0.1462 (run D); US$0.20 covers both. A test in
+`rabbit-hole-prod-config.test.js` recomputes the maximum from `IMAGE_VALIDATED` and fails if the configured hold ever falls below it.
+
+The learner is charged the measured cost, else the estimated upper bound (section 6, Cost). Known gap, not changed here: for Nano Banana 2.1 the upper
+bound prices thinking tokens at the image rate, so a charge can be up to about twice the shown estimate (run C: estimate 0.0336, charged 0.0636). Users
+see AI credits only (1 credit = US$0.01); dollar amounts, usage and costs are in `inspect`, which only an operator may read.
+
+## 6d. The owner-only acceptance window (owner 2026-10-25)
+
+Public generation stays off (`IMAGE_GENERATE_ENABLED` "false"). `IMAGE_ACCEPTANCE_EMAILS` (production config) lists exactly two entries, the owner's
+Google application principal and the Gmail address, compared whole and lower-cased, as Motion's `MOTION_ACCEPTANCE_EMAILS` is. The identity is the
+verified session (`repositoryIdentity`, the control plane's `/api/me` by cookie); a header, body field or query never names the caller. For anyone
+else every route answers what it answers when generation is off (503 `image_generation_disabled`, `inspect` 404) and nothing is stored. The server
+tells the web build who may use it: `GET /api/learn/image-jobs` answers `available` (and `operatorOnly`) for THIS caller, and the web build holds no
+switch (`image-capability.js` sets `agent/slash.js imageGenerationLive`). The chat router decides per caller as well (`chat-capability-route.js`).
+Operators may also send `fault` on a job (`provider_400`, `provider_429`, `network`, `invalid_output`): the real adapter builds the real request and
+the real job settles it, but a stub transport answers, so nothing leaves the Worker and nothing is billed (the owner sets `localStorage['rh-image-fault']` in the browser; the next Generate sends it; anyone else gets a 400). `/generate-image <words>` in the chat
+composer asks the server for the plan (`POST /api/learn/chat/image-proposals`, no model call), which saves it in the chat as the plan card; Generate,
+edits, reload and the job all start from that card, and after a reload the card follows the existing job instead of inviting a second press (the job
+id is a function of the plan).
+
+## 6e. Evidence record: what exists, and what it does and does not prove
+
+Kinds: (A) fixture tests; (B) provider-adapter validation, the REAL provider called from a LOCAL harness; (C) deployed full-flow acceptance, never done.
+Harness 1 (runs A to E): `C:/s/img-01-accept`, a local `wrangler dev` with the real `ImageJobs` object and the production adapter, local D1 and R2, the
+provider reached through a metered proxy (receipts `C:/s/img-01-accept/receipts/<run>.jsonl`; the per-check PASS lines were not saved, only the
+integrator's note "8/8" in the budget ledger). Harness 2 (imgact-*): the current main adapter (`image-providers.js` at 29622d8e) called directly
+(`C:/s/spec/image-activation/validate.mjs`, receipts `C:/s/spec/image-activation/receipts/<run>.json`; no job, storage or ledger).
+
+| Run | Model | Endpoint and settings | Adapter revision | Result | Cost |
+|---|---|---|---|---|---|
+| img-A-1 | gpt-image-2.5-flare | images/generations, low, 1024x1024 | 319c0f4e | 200, 8/8 | measured 0.005975 |
+| img-B-1 | gpt-image-2.5-sunburst | images/edits, low, 1024x1024, 2 references | 319c0f4e | 200, ledger note 8/8 (no saved check list) | measured 0.010171 |
+| img-C-1, C-2, C-3 | gemini-nano-banana-2.1 | interactions, 1K | 319c0f4e (C-3: 89459f02) | 400, 400 (image/png not supported), 429 (free tier) | 0 each |
+| img-C-4 | gemini-nano-banana-2.1 | interactions, 1:1 1K, JPEG, store false | 89459f02 | 200, 8/8 | upper bound 0.0636 |
+| img-D-1 | gemini-3-pro-image | interactions, 1:1 1K | 89459f02 | 200, 8/8 | upper bound 0.1462 |
+| img-E-1 | gemini-nano-banana-2.1 | interactions, 1:1 1K, 1 reference | 89459f02 | 200, 8/8 | upper bound 0.05 |
+| imgact-sunburst1k-1 | gpt-image-2.5-sunburst | generations, low, 1024x1024 | 29622d8e | 200, PNG 1024x1024 | measured 0.005975 |
+| imgact-flare169-1 | gpt-image-2.5-flare | generations, low, 2048x1152 | 29622d8e | 200, PNG 2048x1152 | measured 0.004805 |
+| imgact-nb21-1k-1 | gemini-nano-banana-2.1 | interactions, 1:1 1K | 29622d8e | 200, JPEG | upper bound 0.055461 |
+| imgact-nb21-169-1 | gemini-nano-banana-2.1 | interactions, 16:9 1K | 29622d8e | 200, JPEG | upper bound 0.056901 |
+
+From 89459f02 to 29622d8e the request building (`openaiImageAdapter`, `geminiImageAdapter`, `post`, the size map) is unchanged; what changed is the cost
+functions, settlement, readiness and the signed route. So A to E still prove the request and response shapes, `store:false`, JPEG, the `image[]`
+multi-image field and the usage fields; they do not exercise the current cost and settlement code (the imgact runs do, on real usage), the signed
+route, the production Durable Object, secrets, R2 and D1 on Cloudflare, or the browser. They were not repeated: the request code did not change.
+The production acceptance and its receipt: `C:/s/spec/image-activation/activation-package.md`.
 
 ## 7. Configuration and migration
 
@@ -191,13 +255,17 @@ Ready is not startable: OpenAI has no price row and Nano Banana 2.1 with referen
   config and in no commit on any ref (`git log --all -S image-jobs-1`, 2026-10-23). The other web configs (notebook sites) bind no
   Durable Objects. `rabbit-hole-cp` is unchanged.
 - No D1 or learn migration: `file_sources` (0023), `usage_operations` (0016), `usage_actions`/`usage_attempts` (0022) exist.
-- Vars: `IMAGE_GENERATE_ENABLED: "false"` in all three. Set in no config: `IMAGE_GENERATE_RESERVED_USD`; the `GEMINI_API_KEY` secret is on no worker (H2 in the audit).
+- Vars: `IMAGE_GENERATE_ENABLED: "false"` in all three. Production also sets `IMAGE_GENERATE_RESERVED_USD` ("0.20", 6c) and `IMAGE_ACCEPTANCE_EMAILS` (6d);
+  dev and parallel set neither. Secrets `OPENAI_API_KEY` and `GEMINI_API_KEY` are installed on `rabbit-hole-app` by the owner command
+  `C:/s/spec/image-activation/prod-image-secrets.mjs` (never in a config). `OPENAI_API_KEY` also enables `/api/learn/transcribe` (dev-worker.js),
+  which has its own metering and acceptance (activation-package.md).
 - The tag is applied by the normal `wrangler deploy` of each worker (the release flow); it is the only irreversible step, and with
   the flag off nothing calls the class.
 
 ## 8. Rollback
 
-1. Set `IMAGE_GENERATE_ENABLED` to `"false"` (or remove it) and redeploy. New submissions answer 503; queued or admitted jobs are
+0. Owner-only window: empty `IMAGE_ACCEPTANCE_EMAILS` and redeploy; the owner then gets the same refusals as everyone.
+1. Public: set `IMAGE_GENERATE_ENABLED` to `"false"` (or remove it) and redeploy. New submissions answer 503; queued or admitted jobs are
    cancelled and released by their next alarm without a provider call; jobs past submission finish their storage and settlement.
 2. Leave the class, binding and tag in place, so existing jobs can be inspected, saved (`retry-save`) and settled.
 3. Fix forward. Do not plan on a version rollback across the migration (not verified for the legacy `migrations` array). Removing
@@ -206,9 +274,10 @@ Ready is not startable: OpenAI has no price row and Nano Banana 2.1 with referen
 
 ## 9. Open items
 
-- NEEDS DECISION: the reservation bound `IMAGE_GENERATE_RESERVED_USD` (one value per image job) and the per-model estimate table
-  values; OpenAI pricing for the quote (output tokens by quality and size).
+- DECIDED 2026-10-25 (derivation in 6c): the reservation bound `IMAGE_GENERATE_RESERVED_USD` is US$0.20 and the estimate table is the one in
+  6c. STILL OPEN: OpenAI reference-image pricing and OpenAI qualities above low (not published), Nano Banana thinking-token charge versus the shown
+  estimate, 2K and 4K validation runs.
 - NEEDS DECISION: per-person or per-canvas in-flight limit (none here; the allowance bounds money, not concurrency).
 - The legacy `POST /api/learn/image` (`gpt-image-1`, no reservation) is untouched here; retiring it is a separate change
   (shutdown-and-storage.md Part 1 option 2).
-- First owner-authorized call per provider verifies the response shapes above before the flag is switched on anywhere.
+- Response shapes are verified (6e). Still unverified: the whole flow through the deployed Worker, the signed route and the browser (the owner-only production acceptance, 6d).

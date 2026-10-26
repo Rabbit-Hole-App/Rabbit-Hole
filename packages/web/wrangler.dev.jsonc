@@ -26,7 +26,7 @@
         "name": "REPOSITORY_IMPORTS",
         "class_name": "RepositoryImports"
       },
-      // Durable file-conversion jobs (control-plane/src/file-jobs.js), dev and parallel only until a release adds prod.
+      // Durable file-conversion jobs (control-plane/src/file-jobs.js); production binds the same class (docs/features/file-jobs-production.md).
       {
         "name": "FILE_JOBS",
         "class_name": "FileJobs"

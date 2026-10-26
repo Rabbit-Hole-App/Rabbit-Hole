@@ -192,6 +192,7 @@ test('no leakage: no email, user id, private title or private token in any answe
 });
 
 test('the route: anonymous GET, committed fixture shape, 405 for other methods, 503 without the database, 500 on failure', async t => {
+  t.mock.method(Date, 'now', () => NOW); // the route reads the real clock; the fixture's week is fixed
   const { f, c } = await ranked(t);
   const call = (method, env = f.env) => weeklyTopFetch(new Request('https://app.test/api/learn/boards/published/weekly-top', { method }), env);
   const ok = await call('GET'), body = await ok.json();

@@ -5,8 +5,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { TRACKING_NOTE, USAGE_PATH, barParts, createUsageStore, creditCount, formatCredits, formatReset, readUsage, unknownLine, usageView } from './account-usage.js';
 
-const body = (over = {}) => ({ enforced: false, currency: 'USD', period: '2026-10', resetsAt: '2026-11-01T00:00:00.000Z',
-  allowanceMicros: 50_000_000, usedMicros: 17_400_000, reservedMicros: 0, estimatedMicros: 0, remainingMicros: 32_600_000, ...over });
+// The server's answer: AI credits only (no dollars, micros or currency on the wire).
+const body = (over = {}) => ({ enforced: false, period: '2026-10', resetsAt: '2026-11-01T00:00:00.000Z',
+  allowanceCredits: 5000, usedCredits: 1740, reservedCredits: 0, estimatedCredits: 0, remainingCredits: 3260, ...over });
 const reply = (status, json) => ({ status, json: async () => (json instanceof Error ? Promise.reject(json) : json) });
 // A store whose fetch answers from a queue and counts its calls.
 const storeWith = (...answers) => {
@@ -29,19 +30,19 @@ test('positive: allowance left is green, says how much, and says it is not enfor
 });
 
 test('exhausted: red only when the server reports remaining 0', async () => {
-  const { store } = storeWith(reply(200, body({ usedMicros: 50_000_000, remainingMicros: 0 })));
+  const { store } = storeWith(reply(200, body({ usedCredits: 5000, remainingCredits: 0 })));
   const view = usageView(await settle(store));
   assert.equal(view.tone, 'empty');
   assert.equal(view.label, 'No AI credits remaining');
   assert.match(view.title, /not enforced yet/);
   // A tiny balance is still a balance: green, and never shown as 0 credits.
-  const tiny = usageView(readUsage(200, body({ remainingMicros: 3_000 })));
+  const tiny = usageView(readUsage(200, body({ remainingCredits: 0.3 })));
   assert.equal(tiny.tone, 'ok');
   assert.equal(tiny.label, 'AI credits: less than 1 credit remaining');
 });
 
 test('reserved: running work is held apart from what is used, and the remaining figure is the server\'s', async () => {
-  const { store } = storeWith(reply(200, body({ reservedMicros: 500_000, remainingMicros: 32_100_000 })));
+  const { store } = storeWith(reply(200, body({ reservedCredits: 50, remainingCredits: 3210 })));
   const state = await settle(store);
   assert.equal(state.usage.reserved, 500_000);
   assert.equal(state.usage.used, 17_400_000, 'a reservation is never reported as spend');
@@ -56,10 +57,11 @@ test('unavailable and errors are neutral, never red or a zero balance', async ()
     ['not found (endpoint not deployed)', reply(404, null)],
     ['unreadable body', reply(200, new Error('bad json'))],
     ['network failure', new Error('offline')],
-    ['negative amount', reply(200, body({ remainingMicros: -1 }))],
-    ['float amount', reply(200, body({ usedMicros: 0.1 + 0.2 }))],
-    ['missing amount', reply(200, body({ remainingMicros: undefined }))],
-    ['zero allowance', reply(200, body({ allowanceMicros: 0, remainingMicros: 0 }))],
+    ['negative amount', reply(200, body({ remainingCredits: -1 }))],
+    ['text amount', reply(200, body({ usedCredits: 'ten' }))],
+    ['missing amount', reply(200, body({ remainingCredits: undefined }))],
+    ['zero allowance', reply(200, body({ allowanceCredits: 0, remainingCredits: 0 }))],
+    ['an old dollar-micros body', reply(200, { enforced: true, currency: 'USD', allowanceMicros: 50_000_000, usedMicros: 0, reservedMicros: 0, remainingMicros: 50_000_000, resetsAt: '2026-11-01T00:00:00.000Z' })],
     ['bad reset date', reply(200, body({ resetsAt: 'soon' }))],
   ];
   for (const [name, answer] of cases) {
@@ -97,7 +99,7 @@ test('loading is neutral; a refresh keeps the last numbers until it answers; a f
 });
 
 test('one request at a time; a refresh asked for mid-request runs once more after it, so a change is never missed', async () => {
-  const { store, calls } = storeWith(reply(200, body()), reply(200, body({ usedMicros: 20_000_000, remainingMicros: 30_000_000 })));
+  const { store, calls } = storeWith(reply(200, body()), reply(200, body({ usedCredits: 2000, remainingCredits: 3000 })));
   const first = store.refresh(), second = store.refresh(), third = store.refresh();
   await Promise.all([first, second, third]);
   assert.equal(calls.length, 2);
@@ -124,7 +126,7 @@ test('the window regaining focus refreshes while a display is mounted, and not a
 test('requests that ended without a confirmed cost: a count, never an amount; a missing count is 0; a bad one is unavailable', () => {
   assert.equal(readUsage(200, body()).usage.unknownAttempts, 0, 'a server without the field');
   assert.equal(readUsage(200, body({ unknownAttempts: null })).usage.unknownAttempts, 0);
-  const some = readUsage(200, body({ unknownAttempts: 3, unknownReservedMicros: 400_000, reservedMicros: 400_000, remainingMicros: 32_200_000 }));
+  const some = readUsage(200, body({ unknownAttempts: 3, reservedCredits: 40, remainingCredits: 3220 }));
   assert.equal(some.usage.unknownAttempts, 3);
   assert.equal(some.usage.reserved, 400_000, 'their bound is already inside reservedMicros: not added twice');
   for (const bad of [-1, 1.5, '2']) assert.equal(readUsage(200, body({ unknownAttempts: bad })).status, 'unavailable', String(bad));
@@ -168,7 +170,7 @@ test('the usage bar: used then reserved, in whole percents of the allowance, nev
 });
 
 test('the allowance comes only from the server: no dollar amount is written into the client', () => {
-  const changed = usageView(readUsage(200, body({ allowanceMicros: 75_000_000, usedMicros: 0, remainingMicros: 75_000_000 })));
+  const changed = usageView(readUsage(200, body({ allowanceCredits: 7500, usedCredits: 0, remainingCredits: 7500 })));
   assert.equal(changed.label, 'AI credits: 7,500 credits remaining');
   for (const file of ['./account-usage.js', './UsageGauge.jsx']) {
     const source = readFileSync(new URL(file, import.meta.url), 'utf8');
@@ -179,8 +181,8 @@ test('the allowance comes only from the server: no dollar amount is written into
 
 test('by feature: well-formed rows pass through with learner names, same names add up, odd rows drop the split only', async () => {
   const { featureLabel, featureRows } = await import('./account-usage.js');
-  const rows = [{ feature: 'tutor', usedMicros: 4000, reservedMicros: 0, unknownAttempts: 0 }, { feature: 'inline_route', usedMicros: 100, reservedMicros: 0, unknownAttempts: 0 },
-    { feature: 'inline_generate', usedMicros: 900, reservedMicros: 300, unknownAttempts: 1 }, { feature: 'mystery', usedMicros: 5, reservedMicros: 0, unknownAttempts: 0 }];
+  const rows = [{ feature: 'tutor', usedCredits: 0.4, reservedCredits: 0, unknownAttempts: 0 }, { feature: 'inline_route', usedCredits: 0.01, reservedCredits: 0, unknownAttempts: 0 },
+    { feature: 'inline_generate', usedCredits: 0.09, reservedCredits: 0.03, unknownAttempts: 1 }, { feature: 'mystery', usedCredits: 0.0005, reservedCredits: 0, unknownAttempts: 0 }];
   const ready = readUsage(200, body({ byFeature: rows }));
   assert.equal(ready.status, 'ready');
   assert.deepEqual(featureRows(ready.usage.byFeature), [
@@ -190,7 +192,7 @@ test('by feature: well-formed rows pass through with learner names, same names a
   ]);
   assert.equal(featureLabel('ask'), 'Chat');
   // A malformed split never hides the totals: the usage stays ready, just without byFeature.
-  for (const bad of [[{ feature: 'ask', usedMicros: -1, reservedMicros: 0 }], [{ usedMicros: 1, reservedMicros: 0 }], 'x']) {
+  for (const bad of [[{ feature: 'ask', usedCredits: -1, reservedCredits: 0 }], [{ usedCredits: 1, reservedCredits: 0 }], 'x']) {
     const state = readUsage(200, body({ byFeature: bad }));
     assert.equal(state.status, 'ready');
     assert.equal('byFeature' in state.usage, false, JSON.stringify(bad));

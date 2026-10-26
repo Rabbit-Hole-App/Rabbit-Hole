@@ -62,5 +62,5 @@ test('a refused Generate gives the press back: the slot releases the card on the
   const slot = readFileSync(new URL('./ChatMessages.jsx', import.meta.url), 'utf8');
   assert.ok(card.includes('useEffect(() => { sent.current = null; setSentKey(null); }, [released]);'), 'the card clears its press guard when released changes');
   assert.ok(slot.includes('setPressed(false); setReleased(n => n + 1);'), 'the refusal event releases the card');
-  assert.ok(slot.includes('<GenerationProposalCard proposal={p} active={active} made={made} released={released}'), 'the slot hands it down');
+  assert.ok(slot.includes('<GenerationProposalCard proposal={p} active={active} made={cardKind ? false : made} released={released}'), 'the slot hands it down');
 });

@@ -183,11 +183,14 @@ export async function askJev(env, request, { transport = 'gateway', timeoutMs = 
       const reported = body?.provider_metadata?.gateway?.cost;
       const directCost = body?.model === 'jev-1.13.0' && Number.isSafeInteger(tokens) && tokens >= 0 ? priceUsage({ provider: 'jev', model: 'jev-1.13.0', quantities: { input: tokens } }).micros / 1e6 : null;
       const gatewayCost = (typeof reported === 'number' || (typeof reported === 'string' && reported.trim())) && Number.isFinite(Number(reported)) && Number(reported) >= 0 ? Number(reported) : null;
-      // Unpriced/absent usage and unsuccessful attempts retain the admitted liability.
+      // A capacity refusal (429, 529: the provider declined to start the request) is a known zero, the same reading spendTransport and
+      // ImageJobs give it; its status stays on the ledger row. Unpriced/absent usage and every other unsuccessful attempt keep the
+      // admitted bound as an unknown cost (never zero).
+      const declined = !response.ok && (response.status === 429 || response.status === 529);
       await settleSpend(env.LEARN_DB, opId, { calls: 1, status: response.ok ? 'settled' : 'failed',
-        costUsd: response.ok ? (transport === 'direct' ? directCost : gatewayCost) : null,
+        costUsd: response.ok ? (transport === 'direct' ? directCost : gatewayCost) : declined ? 0 : null,
         provider: `jev:${transport}`, model: body?.model || request.model, error: response.ok ? null : `http_${response.status}` });
-      await settleAttempt(env, begun, { status: response.ok ? 'settled' : 'failed', costMicros: toMicros(response.ok ? (transport === 'direct' ? directCost : gatewayCost) : null),
+      await settleAttempt(env, begun, { status: response.ok ? 'settled' : 'failed', costMicros: toMicros(response.ok ? (transport === 'direct' ? directCost : gatewayCost) : declined ? 0 : null),
         model: body?.model || request.model, inputTokens: tokens, price: response.ok && transport === 'direct' && directCost != null ? priceUsage({ provider: 'jev', model: 'jev-1.13.0', quantities: { input: tokens } }) : null });
     }
     if ((response.status === 429 || response.status === 529) && attempt === 0) {

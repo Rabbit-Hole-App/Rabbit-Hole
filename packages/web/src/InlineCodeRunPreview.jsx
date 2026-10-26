@@ -23,7 +23,7 @@ export default function InlineCodeRunPreview({client,savedTicket=null,onClose}) 
     const controller=new AbortController();active.current=controller;setBusy(true);setError('');
     const onProgress=value=>{if(mounted.current&&active.current===controller&&!controller.signal.aborted){setJob(value);setTicket(client.getTicket()||ticket);}};
     try{
-      const result=kind==='run'?await client.run({confirmed:true,maxReservedMicros:quote.maximumReservedMicros,signal:controller.signal,onProgress,onTicket:value=>{if(mounted.current&&active.current===controller)setTicket(value);}}):await client.resume(ticket,{signal:controller.signal,onProgress});
+      const result=kind==='run'?await client.run({confirmed:true,maxReservedCredits:quote.maximumReservedCredits,signal:controller.signal,onProgress,onTicket:value=>{if(mounted.current&&active.current===controller)setTicket(value);}}):await client.resume(ticket,{signal:controller.signal,onProgress});
       if(mounted.current&&active.current===controller&&!controller.signal.aborted){setTicket(result.ticket);setJob(result.job);}
     }catch(cause){if(mounted.current&&active.current===controller){setTicket(client.getTicket()||ticket);setJob(null);setError(cause.message||'Waiting stopped. Resume explicitly; do not submit again.');}}
     finally{if(mounted.current&&active.current===controller)setBusy(false);}
@@ -44,7 +44,7 @@ export default function InlineCodeRunPreview({client,savedTicket=null,onClose}) 
     <p>No network or app credentials are supplied. Execution results are separate from model suggestions and do not change the card.</p>
     {!quote&&!error&&<p role="status">Checking execution availability</p>}
     {quote&&!quote.available&&!ticket&&<p>Execution is not configured.</p>}
-    {quote?.available&&!ticket&&<div className="space-y-2"><p>Maximum reservation: {formatCredits(quote.maximumReservedMicros)}. Actual cost is unknown. Execution can incur cost before results are viewed; cancellation does not promise a refund.</p><button type="button" data-inline-code-run-start disabled={busy} className="h-7 rounded-lg bg-ink px-2.5 font-medium text-white disabled:opacity-50" onClick={()=>act('run')}>Run with this reservation</button></div>}
+    {quote?.available&&!ticket&&<div className="space-y-2"><p>Maximum reservation: {formatCredits(quote.maximumReservedCredits * 10_000)}. Actual cost is unknown. Execution can incur cost before results are viewed; cancellation does not promise a refund.</p><button type="button" data-inline-code-run-start disabled={busy} className="h-7 rounded-lg bg-ink px-2.5 font-medium text-white disabled:opacity-50" onClick={()=>act('run')}>Run with this reservation</button></div>}
     {ticket&&<div className="flex flex-wrap gap-2"><span>Saved execution ticket</span><button type="button" disabled={busy} onClick={()=>act('resume')}>Resume execution status</button><button type="button" onClick={cancel}>Request cancellation</button></div>}
     {busy&&<p role="status">{job?.phase||'Waiting for execution status'}</p>}
     {job&&<div data-inline-code-output className="space-y-1"><p>Execution: {job.phase}. Source snapshot: {job.sourceSha256.slice(0,12)}.</p>{job.reason&&<p>{job.reason}</p>}
