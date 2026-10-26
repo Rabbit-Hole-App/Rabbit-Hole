@@ -40,7 +40,6 @@ The canvas becomes canonical on the server. The browser keeps only transient sta
 2. **Version.** Every PUT carries the version it was based on, through the existing serial `pushQueue`. On success the new version is stored in localStorage (`versionKey`), as today.
 3. **Size.** `MAX_STATE` (1.9 MB) stays. An over-cap board is refused with a visible error saying it was not saved to your account and lives only in this browser. That board keeps its local copy and its truthful per-canvas warning.
 4. **updated_at.** The 0009 rule as built: a changed `state_json` is a meaningful change. A board's first server copy, and a save of the same content, are not.
-5. **Sizes and the last 400 ms** (resize persistence, task 5b60a856). A card keeps its size in its own block (`w`, `h`), committed as a patch on the block as the canvas holds it then (`card-layout.js` `patchBlock`), so a size and a notebook's own save never put each other back. The canvas's 400 ms browser save is also written at once on `pagehide` (`canvas-persist.js` `flushBoard`, as on unmount), so a reload right after a resize or a move keeps it.
 
 ## Load (hydration)
 

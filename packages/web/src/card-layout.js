@@ -52,11 +52,3 @@ export function preserveCardEditLayout(block, box) {
  if (!supportsCardLayout(block) || block.cardLayout || !positive(box?.w) || !positive(box?.h)) return block;
  return { ...block, cardLayout: { mode: 'scrollable', scrollableSize: { w: box.w, h: box.h }, fullWidth: box.w, slot: { w: box.w, h: box.h } } };
 }
-
-// The corner handle's limits for a card that keeps its own w and h (CanvasNode), in one place so a committed size is clamped
-// the way the drag was.
-export const clampBox = (w, h) => ({ w: Math.min(1200, Math.max(280, w)), h: Math.min(1000, Math.max(140, h)) });
-// A committed size or a report from inside a card patches the block as the canvas holds it now, never the copy a drag or a
-// frame message started from: that copy replaced the whole block and put back whatever changed since (a resize reverted a
-// notebook's newer save, a notebook save reverted the new size).
-export const patchBlock = (blocks, id, patch) => blocks.map(block => block.id === id ? { ...block, ...patch } : block);
