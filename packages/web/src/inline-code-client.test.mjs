@@ -45,3 +45,10 @@ test('saved execution keys separate source/input snapshots without storing their
  for(const changed of [{...value,code:'return 2;'},{...value,input:2},{...value,ownerKey:'other'}])assert.notEqual(await inlineCodeTicketKey(changed),first);
  assert.ok(!first.includes('privateInput'));assert.ok(!first.includes('private-input'));
 });
+test('a 503 availability check means not available; a 503 on a submission is still unconfirmed and never resubmitted',async()=>{
+ const scope={app:'canvas-12345678',board:'main',sourceId:'code-card'},ownerKey='org:owner',live={scope,ownerKey,language:'javascript',code:'return 1;',input:null,readOnly:false},calls=[];
+ const client=createInlineCodeClient({...live,current:()=>live,persistTicket:async()=>{},pollMs:0,fetchImpl:async(path,options)=>{calls.push(options.method);return Response.json({error:'JavaScript execution is not configured.',code:'not_configured'},{status:503});}});
+ assert.deepEqual(await client.quote(),{available:false,maximumReservedCredits:null});
+ await assert.rejects(client.run({confirmed:true,maxReservedCredits:1}),/not confirmed \(503\)/);
+ assert.deepEqual(calls,['GET','POST']);
+});
