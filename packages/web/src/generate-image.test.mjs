@@ -49,6 +49,12 @@ test('Generate posts the signed proposal once under an id made from it, polls to
   assert.equal(imageCard(ready, proposal).fileRef.status.preview, 'pending');
 });
 
+test('a ready job reports what it charged in credits, only when the server settled one', () => {
+  assert.deepEqual(imageStatus({ ...ready, charged_credits: 6 }), { tone: 'ready', text: 'Added to the canvas.', retry: false, charged: 6 });
+  assert.deepEqual(imageStatus({ ...ready, charged_credits: null }), { tone: 'ready', text: 'Added to the canvas.', retry: false });
+  assert.deepEqual(imageStatus(ready), { tone: 'ready', text: 'Added to the canvas.', retry: false });
+});
+
 test('failed and unknown outcomes are said in plain words, are never sent again, and nothing is placed', async () => {
   const cases = [
     [job('failed', { reason: 'provider_rejected', cost: 'unknown' }), /could not be made\. It may have been charged\. It was not tried again/],
