@@ -123,8 +123,12 @@ async function createJob(req, env, deps) {
   if (!ready.ready) return json({ error: ready.message, code: ready.code }, 409);
   const quote = imageQuote(env, settings.value, refs.length, new TextEncoder().encode(prompt).length);
   if (quote.state !== 'priced') return json({ error: quote.message, code: 'quote_unknown', reason: quote.reason }, 409);
-  // The approval covers the quote: a price or bound that changed since needs a new approval (generation-review-contract.md 5).
-  if (!plain(p.quote) || p.quote.estimate_credits !== quote.estimate_credits || p.quote.reserve_credits !== quote.reserve_credits) return json({ error: 'The price changed since this was approved. Review it again.', code: 'quote_changed' }, 409);
+  // The approval covers the quote: a changed estimate, maximum charge or reservation (or a proposal signed before the maximum existed) needs a new
+  // approval (generation-review-contract.md 5). The answer carries the live quote in credits; the card signs the same settings again and the person presses Generate again.
+  if (!plain(p.quote) || p.quote.estimate_credits !== quote.estimate_credits || p.quote.max_credits !== quote.max_credits || p.quote.reserve_credits !== quote.reserve_credits) {
+    return json({ error: `The price changed to ${quote.estimate_credits} AI credits, and it can cost up to ${quote.max_credits} AI credits. Review it and press Generate again to confirm.`, code: 'quote_changed',
+      quote: { estimate_credits: quote.estimate_credits, max_credits: quote.max_credits, reserve_credits: quote.reserve_credits } }, 409);
+  }
   // Every reference is re-resolved under the requester's access before anything is consumed or reserved.
   const states = [], references = [];
   for (const ref of refs) {
@@ -147,16 +151,22 @@ async function createJob(req, env, deps) {
   return call(env, requester, body.generationId, 'create', {
     context: { requester: { org: requester.org, email: requester.email, userId: requester.userId ?? null }, owner: { org: scope.owner.org, email: scope.owner.email }, boardId: scope.row.id, app: body.app, board: body.board || 'main', cardId: body.cardId ?? null },
     request: { provider: m.provider, model: settings.value.model, settings: settings.value, prompt, references, proposal: { id: p.proposal_id, version: p.version },
-      quote: { estimateUsd: quote.estimateUsd, reserveUsd: quote.reserveUsd, estimate_credits: quote.estimate_credits, reserve_credits: quote.reserve_credits, basis: quote.basis, excludes: quote.excludes },
+      quote: { estimateUsd: quote.estimateUsd, maxUsd: quote.maxUsd, reserveUsd: quote.reserveUsd, estimate_credits: quote.estimate_credits, max_credits: quote.max_credits, reserve_credits: quote.reserve_credits, basis: quote.basis, excludes: quote.excludes },
       ...(body.fault ? { fault: body.fault } : {}) },
   });
 }
 
 const SAVING = new Set(['stored', 'recorded']);
 const pending = job => !!job.settlement && !job.settlement.done;
+// What the learner was charged, in credits, once settlement is done (null while unsettled or when the cost is unknown); never above the signed maximum.
+const chargedCredits = job => {
+  if (!job.settlement) return job.stage === 'refused' || job.stage === 'cancelled' ? 0 : null; // nothing was reserved, so nothing was charged
+  const s = job.settlement, usd = s?.done ? (s.chargedUsd === undefined ? s.costUsd : s.chargedUsd) : null;
+  return usd == null ? null : Math.ceil(Number((usd * 100).toFixed(6)));
+};
 const publicJob = job => ({
   id: job.id, stage: job.stage, reason: job.reason || null, ...(job.stage === 'refused' && job.reason ? { message: spendMessage(job.reason) } : {}),
-  provider: job.request.provider, model: job.request.model, estimate_credits: job.request.quote.estimate_credits,
+  provider: job.request.provider, model: job.request.model, estimate_credits: job.request.quote.estimate_credits, max_credits: job.request.quote.max_credits ?? null, charged_credits: chargedCredits(job),
   artifact: job.stage === 'ready' ? { sourceId: job.output.sourceId, sha256: job.output.sha256, mimeType: job.output.mimeType, bytes: job.output.bytes } : null,
   cost: job.cost?.state || (job.stage === 'unknown' || job.settlement?.costUsd === null ? 'unknown' : null),
   saveRetryable: SAVING.has(job.stage) || pending(job), createdAt: job.createdAt, updatedAt: job.updatedAt,
@@ -164,10 +174,10 @@ const publicJob = job => ({
 // Everything the job knows except bytes, which it never keeps, the requester's identity beyond its org, and any dollar amount: the
 // requester sees credits and cost states only (owner 2026-10-25); the dollar accounting stays in the job's storage, the ledger and
 // the owner telemetry routes.
-const creditQuote = q => ({ estimate_credits: q.estimate_credits, reserve_credits: q.reserve_credits, basis: q.basis, excludes: q.excludes });
+const creditQuote = q => ({ estimate_credits: q.estimate_credits, max_credits: q.max_credits ?? null, reserve_credits: q.reserve_credits, basis: q.basis, excludes: q.excludes });
 const creditSettlement = s => (s ? { status: s.status, calls: s.calls, done: !!s.done, costKnown: s.costUsd != null } : null);
 const inspectJob = job => ({ ...publicJob(job), opId: job.opId, settings: job.request.settings, prompt: job.request.prompt, references: job.request.references.map(r => ({ id: r.id, sha256: r.sha256, bytes: r.bytes, mimeType: r.mimeType })),
-  quote: creditQuote(job.request.quote), proposal: job.request.proposal, output: job.output || null, providerModel: job.providerModel || null, usage: job.usage || null, providerMs: job.providerMs ?? null, providerStatus: job.providerStatus ?? null, providerCode: job.providerCode ?? null, costs: job.cost ? { state: job.cost.state, overrun: !!job.cost.overrun?.exceeded } : null,
+  quote: creditQuote(job.request.quote), proposal: job.request.proposal, output: job.output || null, providerModel: job.providerModel || null, usage: job.usage || null, providerMs: job.providerMs ?? null, providerStatus: job.providerStatus ?? null, providerCode: job.providerCode ?? null, costs: job.cost ? { state: job.cost.state, overrun: !!job.cost.overrun?.exceeded, absorbed: (job.cost.absorbedUsd ?? 0) > 0 } : null,
   settlement: creditSettlement(job.settlement), retries: job.retries || 0, lastError: job.lastError || null, recoveredFrom: job.recoveredFrom || null, submittedAt: job.submittedAt || null, endedAt: job.endedAt || null });
 
 const payerEnv = (env, requester) => {
@@ -191,7 +201,7 @@ export class ImageJobs {
       if (job) return job.id === body.id ? json({ job: publicJob(job) }) : json({ error: 'Job binding conflict' }, 409);
       if (!imageJobsAllowed(this.env, body.identity.email)) return off();
       const { context: c, request: r } = body;
-      if (!plain(c) || c.requester?.email !== body.identity.email || c.requester?.org !== body.identity.org || !c.owner?.org || !c.owner?.email || !c.boardId || !plain(r) || !IMAGE_MODELS[r.model] || typeof r.prompt !== 'string' || !Array.isArray(r.references) || !(r.quote?.reserveUsd > 0)) return json({ error: 'Invalid image job' }, 400);
+      if (!plain(c) || c.requester?.email !== body.identity.email || c.requester?.org !== body.identity.org || !c.owner?.org || !c.owner?.email || !c.boardId || !plain(r) || !IMAGE_MODELS[r.model] || typeof r.prompt !== 'string' || !Array.isArray(r.references) || !(r.quote?.reserveUsd > 0) || !Number.isSafeInteger(r.quote?.max_credits) || r.quote.max_credits < 1) return json({ error: 'Invalid image job' }, 400);
       const opId = `image_generate:${(await sha(`${c.requester.org}|${c.requester.email.toLowerCase()}|${body.id}`)).slice(0, 32)}`;
       const now = Date.now();
       const created = { id: body.id, opId, sourceId: `fs_${(await sha(`image-generate-output:${opId}`)).slice(0, 24)}`, stage: 'queued', context: c, request: r, retries: 0, createdAt: now, updatedAt: now };
@@ -251,11 +261,12 @@ export class ImageJobs {
       case 'submitting': return this.recoverSubmission(job);
       case 'stored': return this.record(job);
       case 'recorded': {
-        // Three separate values: measured (usage reconciles), estimatedUpperBoundUsd, reservedMaxUsd. The ledger and the learner are
-        // charged the measured cost, else the upper bound (labelled estimated_upper_bound, never measured), else the reservation is
-        // kept as unknown cost. An amount above the reservation is recorded as an overrun, not clipped.
-        const cost = imageCost(job.request.model, job.usage, job.request.quote.reserveUsd);
-        return this.close({ ...job, cost }, 'ready', null, { status: 'settled', calls: 1, costUsd: cost.settledUsd });
+        // Three separate values: measured (usage reconciles), estimatedUpperBoundUsd, reservedMaxUsd. The platform ledger records the real cost:
+        // measured, else the upper bound (labelled estimated_upper_bound, never measured), else the reservation is kept as unknown cost; an amount
+        // above the reservation is recorded as an overrun, not clipped. The LEARNER is charged min(that, the maximum signed into the quote they
+        // confirmed): the difference is absorbed by the platform and recorded (cost.absorbedUsd).
+        const cost = imageCost(job.request.model, job.usage, job.request.quote.reserveUsd, Number.isSafeInteger(job.request.quote.max_credits) ? job.request.quote.max_credits / 100 : null);
+        return this.close({ ...job, cost }, 'ready', null, { status: 'settled', calls: 1, costUsd: cost.settledUsd, chargedUsd: cost.chargedUsd });
       }
       default: return null;
     }
@@ -367,9 +378,9 @@ export class ImageJobs {
   // ledger: null (nothing was reserved), or { status, calls, costUsd } where costUsd null keeps the reservation as unknown cost.
   async close(job, stage, reason, ledger) {
     // A finished call whose cost is unknown still says so, with the reservation it keeps held.
-    const cost = job.cost || (ledger && ledger.costUsd === null ? { state: 'unknown', measuredUsd: null, estimatedUpperBoundUsd: null, reservedMaxUsd: job.request.quote.reserveUsd, settledUsd: null, overrun: { exceeded: false, amountUsd: 0 } } : undefined);
+    const cost = job.cost || (ledger && ledger.costUsd === null ? { state: 'unknown', measuredUsd: null, estimatedUpperBoundUsd: null, reservedMaxUsd: job.request.quote.reserveUsd, maxChargeUsd: null, settledUsd: null, chargedUsd: null, absorbedUsd: 0, overrun: { exceeded: false, amountUsd: 0 } } : undefined);
     const closed = await this.save({ ...job, ...(cost ? { cost } : {}), stage, reason, endedAt: Date.now(), settlement: ledger ? { ...ledger, done: false } : null });
-    this.log(closed, 'closed', { ms: closed.providerMs ?? null, providerCode: closed.providerCode ?? null, ...(closed.cost ? { costState: closed.cost.state, measuredUsd: closed.cost.measuredUsd, estimatedUpperBoundUsd: closed.cost.estimatedUpperBoundUsd, reservedMaxUsd: closed.cost.reservedMaxUsd, overrun: closed.cost.overrun } : {}) });
+    this.log(closed, 'closed', { ms: closed.providerMs ?? null, providerCode: closed.providerCode ?? null, ...(closed.cost ? { costState: closed.cost.state, measuredUsd: closed.cost.measuredUsd, estimatedUpperBoundUsd: closed.cost.estimatedUpperBoundUsd, reservedMaxUsd: closed.cost.reservedMaxUsd, maxChargeUsd: closed.cost.maxChargeUsd, chargedUsd: closed.cost.chargedUsd, absorbedUsd: closed.cost.absorbedUsd, overrun: closed.cost.overrun } : {}) });
     if (ledger) await this.settleLedger(closed);
     return true;
   }
@@ -379,8 +390,9 @@ export class ImageJobs {
     const s = job.settlement, db = this.env.LEARN_DB;
     await settleSpend(db, job.opId, { status: s.status, calls: s.calls, costUsd: s.costUsd, provider: job.request.provider, model: job.providerModel || job.request.model,
       // usage_operations has no basis column: the marker says the amount settled is an upper bound, not a measurement (an overrun overwrites it with spend_bound_exceeded in settleSpend).
-      error: job.reason || (job.cost?.state === 'estimated_upper_bound' ? 'cost_estimated_upper_bound' : null) });
-    await settleAttempt(this.env, job.opId, { status: s.status, costMicros: toMicros(s.costUsd), model: job.providerModel || null, inputTokens: job.usage?.input_tokens ?? job.usage?.total_input_tokens ?? null, outputTokens: job.usage?.output_tokens ?? job.usage?.total_output_tokens ?? null });
+      error: job.reason || (job.cost?.absorbedUsd > 0 ? 'charge_capped' : job.cost?.state === 'estimated_upper_bound' ? 'cost_estimated_upper_bound' : null) });
+    // The learner's attempt is charged chargedUsd (capped at the signed maximum) where the settlement has one; every other end charges exactly what the ledger records (zero-credit failures stay 0).
+    await settleAttempt(this.env, job.opId, { status: s.status, costMicros: toMicros(s.chargedUsd === undefined ? s.costUsd : s.chargedUsd), model: job.providerModel || null, inputTokens: job.usage?.input_tokens ?? job.usage?.total_input_tokens ?? null, outputTokens: job.usage?.output_tokens ?? job.usage?.total_output_tokens ?? null });
     const attempt = await db.prepare('SELECT status FROM usage_attempts WHERE attempt_id = ?').bind(job.opId).first();
     if (attempt?.status === 'running') throw new Error('attempt not settled');
     await finishActionOf(this.env, job.opId, { status: job.stage === 'ready' ? 'completed' : job.stage === 'cancelled' ? 'cancelled' : 'failed', result: job.stage === 'ready' ? 'full' : 'none' });

@@ -6,39 +6,54 @@
 // (C:/s/spec/budget/budget.mjs reserve) and settled afterwards with the cost the job recorded; a run whose outcome is unknown stays booked at its maximum.
 // It stops at the first failure. Re-running skips runs that already have a PASS receipt in --out (--force repeats them).
 // Order: the free refusal paths first (a broken pipeline stops before any paid call), then one paid run per model.
-// What a paid run proves through the DEPLOYED path: the plan card's signed quote in credits, one edit and a stale edit refused, one job for a double press, the
-// operator inspect (owner-only path), the stored image (hash, type, size), credits charged versus credits quoted, the hold released, and (in UI mode) that the
-// image card is placed by your browser, persisted on the board and still there after a reload. It does not judge how the card looks: you do, at the prompts.
+// What a paid run proves through the DEPLOYED path (docs/features/image-jobs.md 6f): the plan's signed quote in credits as three separate numbers (estimate <= the
+// most it can cost <= the temporary hold, equal to this checkout's configuration), one job for a double press and none for a different press of the spent plan, the
+// operator inspect (owner-only path), the stored image (hash, type, size, signature), credits charged equal to min(the recorded real cost, the signed maximum) and
+// never above that maximum, the difference the platform absorbed, the hold released, the same charge after a reload and, in UI mode, that the image card is placed
+// by your browser, persisted on the board and still there after a reload. Both edit paths run (Sunburst and Nano Banana 2.1, each with a reference). It does not
+// judge how the card looks: you do, at the prompts.
 import { createHash, randomUUID } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
 import { createInterface } from 'node:readline';
 import { pathToFileURL } from 'node:url';
+import { readFileSync } from 'node:fs';
 import { imageCost, imageQuote } from '../packages/control-plane/src/image-providers.js';
 import { imageCard, imageGenerationId } from '../packages/web/src/generate-image.js';
 
 export const ORIGIN = 'https://digrabbithole.com';
-export const HOLD_USD = 0.2; // IMAGE_GENERATE_RESERVED_USD in wrangler.rabbit-hole-prod.jsonc: the most one job can hold, so the most a run may cost without an explicit overrun
+export const BOOK_USD = 0.2; // what a paid run books in the shared budget BEFORE its request (Pro: 0.40): above every hold but Pro's (0.05, 0.10) and far above the real cost seen (0.006 to 0.146). Unchanged discipline: reserve before the run, settle after
 export const FREE_MAX_USD = 0.02; // a refusal or injected-fault run sends nothing to a provider; this covers the worst case if the deployed code ignored the fault (one flare call, about 0.0063)
-export const HOLD_CREDITS = 20;
+// The Worker configuration this checkout would deploy (packages/web/wrangler.rabbit-hole-prod.jsonc): the per-model hold and maximum charge the deployed plan must carry.
+export function loadConfig(file = new URL('../packages/web/wrangler.rabbit-hole-prod.jsonc', import.meta.url)) {
+  const vars = JSON.parse(readFileSync(file, 'utf8').replace(/^\s*\/\/.*$/gm, '')).vars;
+  return { IMAGE_GENERATE_RESERVED_USD: vars.IMAGE_GENERATE_RESERVED_USD, IMAGE_RESERVED_USD_BY_MODEL: vars.IMAGE_RESERVED_USD_BY_MODEL, IMAGE_MAX_CHARGE_USD_BY_MODEL: vars.IMAGE_MAX_CHARGE_USD_BY_MODEL };
+}
+const quoteOf = (cfg, run, prompt) => imageQuote(cfg, { model: run.model, ...run.settings }, run.references ?? 0, new TextEncoder().encode(prompt).length);
+// Image input tokens a provider billed: proof that a reference reached the model (OpenAI usage details; Google usage by modality).
+export const imageInputTokens = u => u?.input_tokens_details?.image_tokens ?? (u?.input_tokens_by_modality || []).filter(m => m.modality === 'image').reduce((n, m) => n + m.tokens, 0);
 const OPENAI = { quality: 'low', aspect_ratio: '1:1', resolution: '1K' }, GOOGLE = { aspect_ratio: '1:1', resolution: '1K' };
 const PROMPT = 'A small red lighthouse on a rock at dusk, flat illustration.';
 // The worst-priced enabled combination is Nano Banana Pro 1K with the longest prompt the quote bounds (4,000 bytes): the Pro run sends about 3,900 so its shown price is the
 // maximum a learner can be quoted for an enabled row, and its thinking tokens (unpublished, unbounded by the adapter) are the one thing the 0.20 hold cannot prove.
 const LONG_PROMPT = `${PROMPT} ${'Keep the sea calm, the rock dark and the sky warm. '.repeat(75)}`.slice(0, 3900).trim();
-// kind: paid (a real provider call, reserved at HOLD_USD) or free. ui: the owner presses Generate in the browser (the only way the image card is placed).
+// kind: paid (a real provider call, booked at BOOK_USD) or free. ui: the owner presses Generate in the browser (the only way the image card is placed).
 export const RUNS = {
   'refuse-unready': { kind: 'free', model: 'gpt-image-2.5-flare', settings: { ...OPENAI, quality: 'medium' }, refusal: 'image_not_ready' },
+  // A plan whose signed maximum was raised by one credit: the signature no longer matches, so Generate is refused and nothing is created or held.
+  'refuse-tampered-max': { kind: 'free', model: 'gpt-image-2.5-flare', settings: OPENAI, refusal: 'proposal_refused', tamper: 'max' },
   'fault-provider_400': { kind: 'free', model: 'gpt-image-2.5-flare', settings: OPENAI, fault: 'provider_400', expect: { stage: 'failed', reason: 'provider_rejected' } },
   'fault-provider_429': { kind: 'free', model: 'gpt-image-2.5-flare', settings: OPENAI, fault: 'provider_429', expect: { stage: 'failed', reason: 'provider_rejected' } },
   'fault-network': { kind: 'free', model: 'gpt-image-2.5-flare', settings: OPENAI, fault: 'network', expect: { stage: 'unknown', reason: 'outcome_unknown' } },
   'fault-invalid_output': { kind: 'free', model: 'gpt-image-2.5-flare', settings: OPENAI, fault: 'invalid_output', expect: { stage: 'failed', reason: 'invalid_output' } },
   flare: { kind: 'paid', model: 'gpt-image-2.5-flare', settings: OPENAI, ui: true, mime: 'image/png' },
+  // sunburst: GENERATION (the plan card's own edit is exercised here too). sunburst-edit and nb21-edit: IMAGE EDITING, one reference uploaded through the file API.
   sunburst: { kind: 'paid', model: 'gpt-image-2.5-sunburst', settings: OPENAI, edit: true, mime: 'image/png' },
+  'sunburst-edit': { kind: 'paid', model: 'gpt-image-2.5-sunburst', settings: OPENAI, references: 1, mime: 'image/png' },
   nb21: { kind: 'paid', model: 'gemini-nano-banana-2.1', settings: GOOGLE, ui: true, mime: 'image/jpeg' },
   'nb21-edit': { kind: 'paid', model: 'gemini-nano-banana-2.1', settings: GOOGLE, references: 1, mime: 'image/jpeg' },
-  pro: { kind: 'paid', model: 'gemini-3-pro-image', settings: GOOGLE, mime: 'image/jpeg', prompt: LONG_PROMPT, max: 0.4 }, // booked at twice the hold: thinking above about 480 tokens settles over 0.20
+  pro: { kind: 'paid', model: 'gemini-3-pro-image', settings: GOOGLE, mime: 'image/jpeg', prompt: LONG_PROMPT, max: 0.4 }, // booked at twice the booking: thinking is unpublished, and the platform absorbs what the signed maximum does not charge
 };
-export const maxOf = name => RUNS[name].max ?? (RUNS[name].kind === 'paid' ? HOLD_USD : FREE_MAX_USD);
+export const maxOf = name => RUNS[name].max ?? (RUNS[name].kind === 'paid' ? BOOK_USD : FREE_MAX_USD);
 export const totalOf = names => Number(names.reduce((n, k) => n + maxOf(k), 0).toFixed(4));
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
@@ -76,11 +91,13 @@ export async function accept(argv, deps) {
   if (!o) { say(`usage: node scripts/image-acceptance.mjs [--dry-run] [--runs ${Object.keys(RUNS).join(',')}] [--api-only] [--other-session] [--force] [--out DIR]`); return 2; }
   const names = Object.keys(RUNS).filter(r => o.runs.includes(r)); // fixed order: free refusals, then paid
   say(`deployed image acceptance on ${ORIGIN}; runs, in order:`);
-  for (const k of names) { const r = RUNS[k]; say(`  ${k.padEnd(22)} ${r.kind.padEnd(4)} ${r.model} ${JSON.stringify(r.settings)}${r.fault ? ` fault=${r.fault}` : ''}${r.references ? ' +1 reference' : ''}${r.ui && !o.apiOnly ? ' [you press Generate]' : ''}  booked max US$${maxOf(k)}`); }
-  const paid = names.filter(k => RUNS[k].kind === 'paid');
-  for (const k of paid) { const r = RUNS[k], q = imageQuote({ IMAGE_GENERATE_RESERVED_USD: String(HOLD_USD) }, { model: r.model, ...r.settings }, r.references ?? 0, new TextEncoder().encode(r.prompt ?? PROMPT).length); say(`  quote for ${k}: ${q.state === 'priced' ? `US$${q.estimateUsd} (${q.estimate_credits} credits), hold ${q.reserve_credits} credits` : q.reason}`); }
-  say(`total booked in the shared budget: US$${totalOf(names)} (${paid.length} paid runs: US$${HOLD_USD} each, Pro US$0.4; ${names.length - paid.length} free-path runs x US$${FREE_MAX_USD}); observed real cost of the five paid runs: about US$0.28`);
-  say(`each paid run needs its hold in credits free on your account (${HOLD_CREDITS} today). Refused if the shared budget cannot cover the total.`);
+  for (const k of names) { const r = RUNS[k]; say(`  ${k.padEnd(22)} ${r.kind.padEnd(4)} ${r.model} ${JSON.stringify(r.settings)}${r.fault ? ` fault=${r.fault}` : ''}${r.references ? ' +1 reference (editing)' : ''}${r.ui && !o.apiOnly ? ' [you press Generate]' : ''}  booked max US$${maxOf(k)}`); }
+  const paid = names.filter(k => RUNS[k].kind === 'paid'), cfg = deps.config ? deps.config() : loadConfig();
+  const holdOf = k => quoteOf(cfg, RUNS[k], RUNS[k].prompt ?? PROMPT);
+  for (const k of paid) { const q = holdOf(k); say(`  quote for ${k}: ${q.state === 'priced' ? `estimate ${q.estimate_credits} credits, most it can cost ${q.max_credits}, held while it runs ${q.reserve_credits}` : q.reason}`); }
+  const needCredits = Math.max(0, ...paid.map(k => holdOf(k).reserve_credits ?? 0));
+  say(`total booked in the shared budget: US$${totalOf(names)} (${paid.length} paid runs: US$${BOOK_USD} each, Pro US$0.4; ${names.length - paid.length} free-path runs x US$${FREE_MAX_USD}); observed real cost of the six paid runs: about US$0.28 (bounds seen: 0.006, 0.006, 0.010, 0.057, 0.050, 0.146)`);
+  say(`the largest hold among these runs is ${needCredits} credits and must be free on your account. Refused if the shared budget cannot cover the total.`);
   if (o.dry) { say('dry run: read no credential, contacted nothing, booked nothing. Nothing was run, called or changed.'); return 0; }
   if (!deps.interactive()) { say('stopped: this command asks for your session cookie at a hidden prompt and needs an interactive terminal. Nothing was done.'); return 1; }
 
@@ -111,7 +128,7 @@ export async function accept(argv, deps) {
     say(`shared budget: US$${b0.remaining} left before booking US$${totalOf(names)}`);
     const usage0 = await api('GET', '/api/learn/usage');
     if (!usage0.ok || typeof usage0.json?.remainingCredits !== 'number') throw new Stop(`could not read /api/learn/usage (HTTP ${usage0.status}).`);
-    if (paid.length && usage0.json.remainingCredits < HOLD_CREDITS) throw new Stop(`only ${usage0.json.remainingCredits} credits left; a paid run holds up to ${HOLD_CREDITS}.`);
+    if (paid.length && usage0.json.remainingCredits < needCredits) throw new Stop(`only ${usage0.json.remainingCredits} credits left; the largest paid run holds ${needCredits}.`);
 
     const usage = async () => { const r = await api('GET', '/api/learn/usage'); if (!r.ok) throw new Stop(`could not read /api/learn/usage (HTTP ${r.status}).`); const f = r.json.byFeature?.find(x => x.feature === 'image_generate'); return { used: r.json.usedCredits, image: f?.usedCredits ?? 0, reserved: r.json.reservedCredits, unknown: r.json.unknownAttempts, remaining: r.json.remainingCredits }; };
     const poll = async (fn, ok, ms, every = 2000) => { const end = deps.clock() + ms; for (;;) { const v = await fn(); if (ok(v)) return v; if (deps.clock() > end) return null; await deps.sleep(every); } };
@@ -147,13 +164,19 @@ export async function accept(argv, deps) {
         ok('plan created and saved in the chat', made.status === 201 && made.json?.proposal?.command === 'generate-image', `HTTP ${made.status}`);
         let p = made.json.proposal;
         ok('settings are what was asked', Object.entries({ model: run.model, ...run.settings }).every(([k, v]) => p.settings?.[k] === v), JSON.stringify(p.settings));
-        const quoted = p.usage?.estimate_credits;
-        if (run.refusal) ok('no price is shown for settings with no verified price', quoted === null, `estimate ${quoted}`);
-        else ok('the quote is in credits and the hold covers it', Number.isInteger(quoted) && quoted >= 1 && Number.isInteger(p.usage?.reserve_credits) && p.usage.reserve_credits >= quoted, `estimate ${quoted}, hold ${p.usage?.reserve_credits}`);
+        const quoted = p.usage?.estimate_credits, maxCredits = p.usage?.max_credits, hold = p.usage?.reserve_credits ?? 0, unpriced = run.refusal === 'image_not_ready';
+        if (unpriced) ok('no price is shown for settings with no verified price', quoted === null && maxCredits === null, `estimate ${quoted}, most it can cost ${maxCredits}`);
+        else {
+          ok('the quote is three separate numbers in credits: estimate <= the most it can cost <= the temporary hold', Number.isInteger(quoted) && quoted >= 1 && Number.isInteger(maxCredits) && maxCredits >= quoted && Number.isInteger(hold) && hold >= maxCredits, `estimate ${quoted}, most it can cost ${maxCredits}, held ${hold}`);
+          const want = quoteOf(cfg, run, p.description);
+          ok("the maximum and the hold are this checkout's configuration (the deployed Worker matches the candidate)", want.state === 'priced' && maxCredits === want.max_credits && hold === want.reserve_credits, `deployed ${maxCredits}/${hold}, configured ${want.max_credits}/${want.reserve_credits}`);
+          ok('the signed quote carries the same maximum', p.quote?.max_credits === maxCredits && p.quote?.estimate_credits === quoted && p.quote?.reserve_credits === hold);
+          ok('the plan shows credits only (no dollar amount)', !/usd|dollar|\$|micros/i.test(JSON.stringify({ usage: p.usage, quote: p.quote })));
+        }
         ok('references resolve', made.json.references.every(r => r.state === 'ok'), made.json.references.map(r => r.state).join(','));
         const again = await api('GET', `/api/learn/chat/messages/${made.json.message_id}/proposal`);
         ok('the plan survives a reload (read again from the chat)', again.ok && again.json?.proposal?.proposal_id === p.proposal_id && again.json.proposal.version === p.version && again.json.used === false);
-        if (run.refusal) ok('the card says the settings cannot be generated yet (not ready, with a reason)', p.readiness?.ready === false && !!p.readiness?.message, p.readiness?.message);
+        if (unpriced) ok('the card says the settings cannot be generated yet (not ready, with a reason)', p.readiness?.ready === false && !!p.readiness?.message, p.readiness?.message);
         else ok('the plan is ready to generate', p.readiness?.ready === true, p.readiness?.message);
         if (run.edit) {
           const edited = await api('PUT', `/api/learn/chat/messages/${made.json.message_id}/proposal`, { expected_version: p.version, description: `${PROMPT} Soft evening light.` });
@@ -162,9 +185,9 @@ export async function accept(argv, deps) {
           ok('an edit from the old version is refused (409, nothing saved)', stale.status === 409);
           p = edited.json.proposal;
         }
-        const hold = p.usage?.reserve_credits ?? 0, gid = imageGenerationId(p), before = await usage();
+        const gid = imageGenerationId(p), before = await usage();
         if (run.kind === 'paid') ok('the account has the hold free', before.remaining >= hold, `${before.remaining} credits left, hold ${hold}`);
-        receipt.quoteCredits = quoted; receipt.generationId = gid; receipt.creditsBefore = before;
+        receipt.quoteCredits = quoted; receipt.maxCredits = maxCredits; receipt.holdCredits = hold; receipt.generationId = gid; receipt.creditsBefore = before;
 
         // Book the money, then (and only then) allow the request to be sent.
         const booked = budget.reserve(runId, 'image-acceptance', max);
@@ -176,7 +199,8 @@ export async function accept(argv, deps) {
         const submit = body => api('POST', '/api/learn/image-jobs', body);
         if (run.refusal) {
           phase = 'sent';
-          const refused = await submit({ generationId: gid, proposal: p, app: canvas });
+          const sent = run.tamper === 'max' ? { ...p, quote: { ...p.quote, max_credits: p.quote.max_credits + 1 } } : p;
+          const refused = await submit({ generationId: gid, proposal: sent, app: canvas });
           ok(`Generate is refused with ${run.refusal} (409)`, refused.status === 409 && refused.json?.code === run.refusal, `HTTP ${refused.status} ${refused.json?.code}`);
           if (refused.status === 409) { budget.release(runId); phase = 'none'; }
           ok('no job exists for it', (await api('GET', `/api/learn/image-jobs/${gid}`)).status === 404);
@@ -218,17 +242,20 @@ export async function accept(argv, deps) {
           if (run.fault) {
             const as = ij.stage === run.expect.stage && ij.reason === run.expect.reason;
             if (as) { budget.settle(runId, 0); phase = 'none'; }
-            else if (ij.stage === 'ready' && ij.usage) { usd = imageCost(run.model, ij.usage, HOLD_USD).settledUsd; if (typeof usd === 'number') budget.settle(runId, usd); else budget.uncertain(runId); phase = 'none'; }
+            else if (ij.stage === 'ready' && ij.usage) { usd = imageCost(run.model, ij.usage, 0).settledUsd; if (typeof usd === 'number') budget.settle(runId, usd); else budget.uncertain(runId); phase = 'none'; }
             else budget.uncertain(runId);
             ok(`the injected ${run.fault} ended ${run.expect.stage} / ${run.expect.reason} (no provider reached, nothing billed)`, as, `${ij.stage} / ${ij.reason}`);
           } else if (ij.stage === 'ready') {
-            usd = imageCost(run.model, ij.usage, HOLD_USD);
+            usd = imageCost(run.model, ij.usage, quoteOf(cfg, run, p.description).reserveUsd ?? 0);
             receipt.cost = { state: usd.state, usd: usd.settledUsd };
             if (typeof usd.settledUsd === 'number') { budget.settle(runId, usd.settledUsd); phase = 'none'; } else budget.uncertain(runId);
             ok('the cost is known (measured or an upper bound)', typeof usd.settledUsd === 'number', usd.state);
-            receipt.overHold = usd.settledUsd > HOLD_USD + 1e-9 ? `settled US$${usd.settledUsd}, above the US$${HOLD_USD} hold: an explicit overrun, never clipped` : null;
-          if (receipt.overHold) say(`  FINDING: ${receipt.overHold}`);
-          ok('the cost is within the booking', usd.settledUsd <= max + 1e-9, `US$${usd.settledUsd} of US$${max}`);
+            const holdUsd = hold / 100, capUsd = maxCredits / 100;
+            receipt.overHold = usd.settledUsd > holdUsd + 1e-9 ? `real cost US$${usd.settledUsd}, above the ${hold}-credit hold: an explicit overrun on the platform ledger, never clipped` : null;
+            receipt.absorbedUsd = Number(Math.max(0, usd.settledUsd - capUsd).toFixed(6));
+            if (receipt.overHold) say(`  FINDING: ${receipt.overHold}`);
+            if (receipt.absorbedUsd > 0) say(`  FINDING: real cost US$${usd.settledUsd} is above the signed maximum (${maxCredits} credits): the learner is charged the maximum, the platform absorbs US$${receipt.absorbedUsd}`);
+            ok('the real cost is within the booking', usd.settledUsd <= max + 1e-9, `US$${usd.settledUsd} of US$${max}`);
           } else if (ij.settlement?.calls === 0) { budget.release(runId); phase = 'none'; }
           else if (ij.providerStatus === 429) { budget.settle(runId, 0); phase = 'none'; }
           else budget.uncertain(runId);
@@ -238,15 +265,21 @@ export async function accept(argv, deps) {
           } else {
             ok('the job is ready', ij.stage === 'ready', `${ij.stage} ${ij.reason || ''}`);
             ok('settlement done, settled, one provider call, no retry', ij.settlement?.done === true && ij.settlement.status === 'settled' && ij.settlement.calls === 1 && (ij.retries || 0) === 0, JSON.stringify({ ...ij.settlement, retries: ij.retries }));
-            ok('the inspect quote equals the plan quote', ij.quote?.estimate_credits === quoted && ij.quote?.reserve_credits === hold);
+            ok('the inspect quote equals the plan quote (estimate, maximum, hold)', ij.quote?.estimate_credits === quoted && ij.quote?.max_credits === maxCredits && ij.quote?.reserve_credits === hold);
+            ok('the requester view carries the same estimate and maximum', job.estimate_credits === quoted && job.max_credits === maxCredits, `${job.estimate_credits}/${job.max_credits}`);
             ok('the same settings ran', ij.settings?.model === run.model && Object.entries(run.settings).every(([k, v]) => ij.settings[k] === v));
-            ok('no dollar amount is shown to the requester view', !/usd|dollar|\$/i.test(JSON.stringify(job)), 'status view');
+            ok('no dollar amount is shown to the requester view', !/usd|dollar|\$|micros/i.test(JSON.stringify(job)), 'status view');
+            if (run.references) {
+              ok('the reference reached the job', ij.references?.length === run.references, `${ij.references?.length} reference(s)`);
+              ok('the provider billed the reference as image input (editing, not generation)', imageInputTokens(ij.usage) > 0, `${imageInputTokens(ij.usage)} image input tokens`);
+            }
             // The stored image.
             const file = await api('GET', `/api/learn/files/${job.artifact.sourceId}`, undefined, { raw: true });
             ok('the stored image downloads', file.status === 200 && file.bytes.length === job.artifact.bytes, `HTTP ${file.status}, ${file.bytes?.length} bytes`);
             ok('its hash is the job\'s output hash', sha256(file.bytes) === job.artifact.sha256);
             ok(`it is a real ${run.mime}`, job.artifact.mimeType === run.mime && magic[run.mime](file.bytes), job.artifact.mimeType);
             ok('the web code turns the job into an image card', !!imageCard(job, p), 'imageCard(job, proposal)');
+            if (run.references) ok('the saved image is a new image, not the reference', job.artifact.sha256 !== sha256(referencePng()));
             receipt.output = { sourceId: job.artifact.sourceId, sha256: job.artifact.sha256, bytes: job.artifact.bytes, mimeType: job.artifact.mimeType };
           }
           // Credits: charged versus quoted, and the hold released.
@@ -259,14 +292,23 @@ export async function accept(argv, deps) {
           else { checks.push({ what: 'the hold after a failed job', pass: true, detail: `${before.reserved} -> ${after.reserved}${released ? ' (released)' : ' (FINDING: still held)'}` }); say(`  note the hold after a failed job: ${before.reserved} -> ${after.reserved}${released ? ' (released)' : ' (FINDING: still held)'}`); }
           if (run.kind === 'free') ok('nothing was charged', charged === 0 && Math.abs(after.used - before.used) < 1e-9, `${charged} credits`);
           else {
-            ok('credits charged equal the cost the job recorded (1 credit = US$0.01, no margin)', Math.abs(charged * 0.01 - usd.settledUsd) < 5e-5, `${charged} credits for US$${usd.settledUsd}`);
-            const rounded = Math.ceil(charged - 1e-9);
-            receipt.creditsVsQuote = rounded === quoted ? 'equal' : rounded > quoted && rounded <= hold ? 'above_quote_within_hold' : 'MISMATCH';
-            ok(`credits charged (${charged}, shown as ${rounded}) versus quoted (${quoted})`, receipt.creditsVsQuote !== 'MISMATCH', receipt.creditsVsQuote === 'equal' ? 'equal' : receipt.creditsVsQuote === 'above_quote_within_hold' ? `ABOVE the quote, within the ${hold}-credit hold: the known Google gap (price-verification.md, owner decision 3)` : 'outside the quote and the hold');
+            const expectUsd = Math.min(usd.settledUsd, maxCredits / 100), rounded = Math.ceil(charged - 1e-9);
+            ok('credits charged equal min(the recorded real cost, the signed maximum) (1 credit = US$0.01, no margin)', Math.abs(charged * 0.01 - expectUsd) < 5e-5, `${charged} credits; real cost US$${usd.settledUsd}, maximum ${maxCredits} credits`);
+            ok('the learner is never charged above the signed maximum', rounded <= maxCredits, `${rounded} <= ${maxCredits}`);
+            ok('the hold covers the maximum and the charge (released, not charged)', maxCredits <= hold && rounded <= hold, `${rounded} <= ${maxCredits} <= ${hold}`);
+            ok('the requester view reports exactly the credits charged', job.charged_credits === rounded, `view ${job.charged_credits}, ledger ${rounded}`);
+            ok('the operator view says whether the platform absorbed a difference', ij.costs?.absorbed === (receipt.absorbedUsd > 0), JSON.stringify(ij.costs));
+            receipt.creditsVsQuote = rounded === quoted ? 'equal' : rounded > quoted && rounded <= maxCredits ? 'above_estimate_within_maximum' : 'MISMATCH';
+            ok(`credits charged (${charged}, shown as ${rounded}) versus the estimate (${quoted}) and the most it can cost (${maxCredits})`, receipt.creditsVsQuote !== 'MISMATCH', receipt.creditsVsQuote === 'equal' ? 'equal to the estimate' : receipt.creditsVsQuote === 'above_estimate_within_maximum' ? `ABOVE the estimate, within the disclosed maximum (thinking tokens are billed but not published)` : 'outside the estimate and the maximum');
           }
           if (!run.fault && ij.stage === 'ready') {
             const reread = await api('GET', `/api/learn/image-jobs/${gid}`), proposalAfter = await api('GET', `/api/learn/chat/messages/${made.json.message_id}/proposal`);
             ok('after a reload the job is still ready with the same image, and the plan is marked used', reread.json?.job?.stage === 'ready' && reread.json.job.artifact?.sha256 === job.artifact.sha256 && proposalAfter.json?.used === true);
+            ok('after a reload the same estimate, maximum and charge are shown', reread.json.job.estimate_credits === job.estimate_credits && reread.json.job.max_credits === job.max_credits && reread.json.job.charged_credits === job.charged_credits, `${reread.json.job.estimate_credits}/${reread.json.job.max_credits}/${reread.json.job.charged_credits}`);
+            const other = await api('POST', '/api/learn/image-jobs', { generationId: `img-${randomUUID()}`, proposal: p, app: canvas });
+            ok('a different press of the spent plan is refused (409 proposal_used) and creates no job', other.status === 409 && other.json?.code === 'proposal_used', `HTTP ${other.status} ${other.json?.code}`);
+            const again = await api('POST', '/api/learn/image-jobs', { generationId: gid, proposal: p, app: canvas });
+            ok('pressing the same Generate again after the reload reaches the same job and charges nothing more', again.json?.job?.id === gid && (await usage()).image === after.image, `HTTP ${again.status}`);
             if (uiMode) {
               const onBoard = async () => { const s = (await api('GET', board)).json?.state; return (s?.blocks || []).filter(b => b?.fileRef?.source?.id === job.artifact.sourceId); };
               const found = await poll(onBoard, c => c.length > 0, 90 * 1000, 3000);
@@ -313,7 +355,7 @@ export async function accept(argv, deps) {
   }
   done.finished = deps.now();
   deps.receipts.writeSummary(stamp, JSON.stringify(done, null, 2));
-  say(`ACCEPTANCE PASSED for ${Object.keys(done.runs).length} runs. Not covered: how the image looks beyond your glance, storage failure and restart recovery, 2K/4K for the Google models, OpenAI quality above low, OpenAI editing (no published price), concurrent load, public (non-owner) generation (off).`);
+  say(`ACCEPTANCE PASSED for ${Object.keys(done.runs).length} runs. Not covered: how the image looks beyond your glance, storage failure and restart recovery, 2K/4K and Pro 4K, OpenAI quality above low, Flare editing and OpenAI references larger than the measured small image, concurrent load, public (non-owner) generation (off).`);
   return 0;
 }
 function ok2(say, what, pass, detail) { say(`  ${pass ? 'ok  ' : 'FAIL'} ${what}: ${detail}`); if (!pass) throw new Stop(`${what} (${detail})`); }

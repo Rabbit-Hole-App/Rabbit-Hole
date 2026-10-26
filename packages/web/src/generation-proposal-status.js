@@ -61,7 +61,7 @@ export function cardStatus({ card = null, output = null, pressed = false, loaded
 export function imageProposalStatus({ image = null, pressed = false, cardId = null } = {}) {
   if (!image) return pressed ? status('submitting', { label: 'Starting', active: true, spinner: true, detail: 'Sending your request.' }) : null;
   if (image.tone === 'working') return status('running', { label: 'Generating', active: true, spinner: true, detail: image.text });
-  if (image.tone === 'ready') return status('done', { label: 'Ready', cardId, detail: 'The image is ready on the canvas.' });
+  if (image.tone === 'ready') return status('done', { label: 'Ready', cardId, detail: `The image is ready on the canvas.${Number.isSafeInteger(image.charged) ? ` Charged ${image.charged.toLocaleString('en-US')} AI ${image.charged === 1 ? 'credit' : 'credits'}.` : ''}` });
   return status('failed', { detail: image.text });
 }
 
