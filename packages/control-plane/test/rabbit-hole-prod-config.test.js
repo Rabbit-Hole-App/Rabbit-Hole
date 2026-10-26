@@ -79,6 +79,11 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   assert.equal(app.vars.CAD_PRODUCTION_MONTHLY_MODEL_USD, '10');
   assert.equal(app.vars.CAD_PRODUCTION_ENABLED, undefined);
   assert.equal(app.vars.CAD_MODEL_ENABLED, undefined);
+  // CAD job limits (docs/features/cad.md, cad-review-first-acceptance.md): review-first is brief + source + review = three calls, so the two
+  // flags may never diverge; US$0.20 is reserved against the monthly US$10 line once per job (50 jobs), not per call.
+  assert.deepEqual([app.vars.CAD_MAX_CALLS, app.vars.CAD_MAX_USD, app.vars.CAD_MAX_REPAIRS], ['3', '0.20', '0']);
+  assert.ok(['true', 'false'].includes(app.vars.CAD_BRIEF_FIRST));
+  if (app.vars.CAD_BRIEF_FIRST === 'true') assert.ok(Number(app.vars.CAD_MAX_CALLS) >= 3, 'review-first needs three calls');
   // ExplainJobs (EXP-T12) is bound everywhere; in prod its tag follows the already-applied cad-jobs-1, since a migration tag
   // placed before an applied one would never run.
   // ImageJobs (IMG-01) likewise: bound everywhere, its image-jobs-1 tag last in prod, after the applied explain-jobs-1.
