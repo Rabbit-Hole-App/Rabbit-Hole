@@ -113,16 +113,21 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   assert.equal(app.vars.PUBLIC_ORIGIN, 'https://digrabbithole.com');
 });
 
-// FILE_JOBS is plumbing for file conversion, Ctrl+K image edits and Ctrl+K JavaScript runs. Binding it enables none of them: each
+// FILE_JOBS is plumbing for file conversion, Ctrl+K image edits and Ctrl+K JavaScript runs. Binding it enables none of them (the plumbing
+// release); the activation release adds only the conversion vars below. Each other
 // feature's own vars, secrets and (for JavaScript) the Dynamic Workers loader stay absent until that feature's own release.
 // The loader is also absent on purpose: on an account without Workers Paid its deploy is refused (error 10195) and would block the release.
-test('production binds FILE_JOBS but enables none of the features that use it', () => {
+test('production binds FILE_JOBS and enables only file conversion, not Ctrl+K image edits or JavaScript runs', () => {
   const app = config(APP);
   assert.deepEqual(app.durable_objects.bindings.filter(b => b.name === 'FILE_JOBS'), [{ name: 'FILE_JOBS', class_name: 'FileJobs' }]);
   assert.deepEqual(app.migrations.at(-1), { tag: 'file-jobs-1', new_sqlite_classes: ['FileJobs'] }, 'a new tag goes after every applied one');
-  for (const name of ['CONVERT_URL', 'FILE_JOB_ORIGIN', 'FILE_JOB_CONCURRENCY', 'INLINE_IMAGE_EDIT_ENABLED', 'INLINE_IMAGE_EDIT_RESERVED_USD',
+  for (const name of ['FILE_JOB_CONCURRENCY', 'INLINE_IMAGE_EDIT_ENABLED', 'INLINE_IMAGE_EDIT_RESERVED_USD',
     'INLINE_CODE_ENABLED', 'INLINE_CODE_MAX_RUNS', 'INLINE_CODE_MAX_MICROS', 'INLINE_CODE_RESERVE_MICROS']) assert.equal(app.vars[name], undefined, name);
   assert.equal(app.worker_loaders, undefined);
+  // File conversion is the one feature enabled here (canvas-file-converter.md section 7); it names the production converter, never the dev one.
+  assert.equal(app.vars.CONVERT_URL, 'https://rabbit-hole-convert-prod.fly.dev');
+  assert.equal(app.vars.FILE_JOB_ORIGIN, 'https://digrabbithole.com');
+  assert.doesNotMatch(JSON.stringify(app), /convert-dev/);
   for (const name of ['CONVERT_TOKEN', 'FILE_JOB_SECRET', 'INLINE_CODE_LOADER']) assert.ok(!JSON.stringify(app).includes(name), `${name} is a secret or a loader, never in the config`);
 });
 
