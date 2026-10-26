@@ -132,6 +132,24 @@ generate: Generate on the card still needs the existing confirmation, readiness 
 `/motion` in Auto went to the Tutor and showed no card (from the 2026-10-14 mode-aware routing); regression tests:
 `packages/web/src/motion-auto-route.test.mjs`; browser check: `motion-command-check.mjs`.
 
+**One submit is one user turn (bug lane 3aba249a, owner report 2026-10-26: one `/motion 15s explain photosynthesis, 16:9` showed two
+identical user bubbles).** A submitted `/` line has exactly one owner that records its user message. The Chat records it itself
+(`ask.jsx` `recordCommand`, saved through the idempotent `turnSaver`) when `runLearnCommand` runs the command; the chat route records
+it (`send` -> `begin`, saved by `/api/learn/ask`) when `runLearnCommand` answers `{ prompt }`. `learn-slash.js` `answersInChat` says
+which, and it must agree with `runLearnCommand`. It did not: it listed `motion` in its own `RUN_ACTIONS` and had no case for `/image`
+(`generate-image`, where the server offers it), while `runLearnCommand` answers both with `{ prompt }` (`reviewRequired`, and the
+`imageGenerationLive()` branch), so both paths recorded the line (a bubble and a persisted message each; the page's copy kept the
+`/motion` prefix, the chat turn's did not). Now `answersInChat` reads the same two tests (`reviewRequired`, the capability
+declaration's `flow: 'proposal'`, and `/image` where offered), each with words; a bare `/motion` still asks for its words and the Chat
+records it. No list of its own: a new proposal capability needs only its declaration. Identical words sent again are a new
+submission (a new turn id) and stay a separate turn; nothing is deduplicated by text. The `/api/learn/ask` request carries no client
+idempotency key and the page never re-sends it by itself (a Retry after a failed route is a new submission whose first attempt left no
+turn), so one owner per line is what keeps the persisted thread to one user message. Tests: `chat-turn-owner.test.mjs` (every Learn
+command line, Motion on and image generation offered, is exactly one user turn; fails on 506bdf90), `chat-output-refs.test.mjs`,
+`motion-command-check.mjs` (typed `/motion`, the Motion pill, the repeated `/motion` and the reload: one user bubble per turn and no
+user message saved by the page itself). Read-only inspection of an affected production thread:
+`scripts/chat-turn-inspect.mjs` (SELECT only; persisted messages, proposals, Generate presses and usage rows for a thread).
+
 **/animate** is removed from every user surface (`REMOVED_COMMANDS`: picker, window, examples, typed lines) and from new
 chat-answer suggestions (`chat-answer-meta.js` no longer offers `animate`). It stays a Tutor material tool
 (`MATERIAL_TOOLS`), so create_material, journey steps and Ctrl+K automatic routing still make animations, and saved

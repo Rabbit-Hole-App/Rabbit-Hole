@@ -10,7 +10,10 @@
 //      in answer_meta) draws the generation proposal card: title, Duration, Audio Off with On disabled, the server's credits line
 //      and one Generate, no Cancel; a duration change saves version 2 (MOCKED PUT .../proposal); Duration offers exactly 5 to 60 in
 //      fives and Aspect ratio the nine shared ratios (a proposal without one reads 16:9), and a change of either keeps the other
-//      (owner brief 2026-10-23); nothing reaches the video route;
+//      (owner brief 2026-10-23); nothing reaches the video route; and the line is ONE user turn (bug lane 3aba249a, owner
+//      2026-10-26: one /motion showed two identical user bubbles): one user bubble, and no user message saved by the page itself
+//      (the chat turn is saved by the server; before, ask.jsx recordCommand saved it as well);
+//   3b. the same /motion sent again later is its own second turn: exactly one more bubble, one more chat turn, nothing merged;
 //   4. MOCKED generation (/api/learn/video stubbed here): the card's Generate adds one video card and starts exactly one confirmed
 //      motion_request carrying the approved proposal; the card shows its progress, then the ready video with the job's title
 //      (no meta line, owner message 31);
@@ -43,11 +46,11 @@
 //      Tutor; their router assertions are unchanged except that the route body names mode 'ask';
 //   14-15. Ctrl+K on the selected card hands /motion to the Chat's proposal card (the editor says Sent to Chat, stages nothing,
 //      the Chat draft stays); a reload restores the saved proposals (MOCKED thread restore): the newest live, the generated one
-//      inactive, nothing sent;
+//      inactive, nothing sent, and exactly one user bubble per saved turn;
 //   16. readiness (motion-settings.js, test-configured policy): a MOCKED 45 s proposal keeps its value, says it is not ready and cannot Generate; choosing
 //      30 saves version 2 (MOCKED PUT) and Generate is enabled; Generate is never pressed and nothing reaches the video route;
 //      The policy in this step is the check's own test-configured one (5 to 30 s at 16:9); it asserts nothing about the 22 measured pairs, which control-plane
-//      motion-ready-policy.test.js pins. The step count per theme is 24 with Motion on (48 in all) and 3 with it off (6 in all).
+//      motion-ready-policy.test.js pins. The step count per theme is 25 with Motion on (50 in all) and 3 with it off (6 in all).
 // MOTION=off (a production-like build: VITE_RABBIT_HOLE=true only). Per theme: no /motion or /animate in the picker or the
 //   window, and a typed /motion says Motion is not available here and runs nothing.
 // Usage: BASE=http://127.0.0.1:9261 SMALL_CP=http://127.0.0.1:9263 VARS=C:/s/toc-uimotion/.dev.vars [MOTION=off] node e2e/motion-command-check.mjs [shotsDir]
@@ -101,7 +104,7 @@ const savedCanvas = async theme => {
   return made;
 };
 
-const total = OFF ? 6 : 48; // per theme: 24 steps with Motion on (8 for MOT-20b entry points, decisions and reload; 1 for MOT-22's refusal; 1 for readiness), 3 with it off
+const total = OFF ? 6 : 50; // per theme: 25 steps with Motion on (8 for MOT-20b entry points, decisions and reload; 1 for MOT-22's refusal; 1 for readiness; 1 for the repeated /motion as its own turn), 3 with it off
 const results = [];
 let failShot = null; // set per theme: what the page showed when a step failed (a screenshot beside the others, and the dock's words)
 const step = async (name, fn) => {
@@ -216,6 +219,17 @@ for (const theme of ['light', 'dark']) {
   const videoPosts = () => seen.filter(r => r.path === '/api/learn/video' && r.method === 'POST' && !r.body.includes('"action"'));
   // MOT-20: a /motion line is a chat turn whose answer draws a proposal card; its Generate is enabled once the answer is saved.
   const proposalCards = dock.locator('[data-generation-proposal]');
+  // One submit is one user turn (bug lane 3aba249a): the transcript's user bubbles, and the user messages the page saves by itself
+  // (POST .../chat/threads/<id>/messages). /api/learn/ask is MOCKED here and the real server saves the turn it is given, so a chat
+  // turn adds no page save: one there would be a second copy of the same line (ask.jsx recordCommand).
+  const userBubbles = dock.locator('[data-user-turn]');
+  const userSaves = () => seen.filter(r => r.method === 'POST' && /^\/api\/learn\/chat\/threads\/[^/]+\/messages$/.test(r.path) && JSON.parse(r.body || '{}').role === 'user');
+  const oneUserTurn = async (u0, s0, what) => {
+    await until(async () => (await userBubbles.count()) > u0, `${what}: its user bubble`);
+    await page.waitForTimeout(500); // a second bubble or save would come moments after the first
+    assert.equal((await userBubbles.count()) - u0, 1, `${what}: one user bubble`);
+    assert.equal(userSaves().length - s0, 0, `${what}: no user message saved by the page as well as by the chat turn`);
+  };
   const propose = async line => {
     const before = await proposalCards.count();
     await composer().fill(line); await composer().press('Enter');
@@ -350,10 +364,12 @@ for (const theme of ['light', 'dark']) {
   // MOT-20/UI-15 (owner messages 39 and 40) replaces the confirmation window: the proposal card comes from the chat answer.
   await step(`${theme}: typed /motion is a chat turn: the proposal card shows title, Duration, Audio Off, the credits line and one Generate; nothing starts`, async () => {
     const before = seen.length, cards = await page.locator('[data-block-id]').count(), turns = asks.length;
+    const u0 = await userBubbles.count(), s0 = userSaves().length;
     const card = await propose(LINE);
     const turn = asks[turns];
     assert.deepEqual([turn.command, turn.message, turn.generation?.motion?.concept !== undefined], ['motion', LINE.replace(/^\/motion /, ''), true], JSON.stringify(turn).slice(0, 200));
     assert.equal(asks.length - turns, 1, 'one chat turn');
+    await oneUserTurn(u0, s0, 'typed /motion');
     assert.equal(await card.getAttribute('data-generation-proposal'), 'motion');
     assert.equal(await card.getAttribute('data-proposal-active'), 'true');
     assert.equal((await card.locator('h3').innerText()).trim(), `Motion: ${LINE.replace(/^\/motion /, '')}`);
@@ -389,6 +405,19 @@ for (const theme of ['light', 'dark']) {
     // Nothing reaches the video route before Generate (a saved card's clip may load meanwhile, a GET of its asset), and no card lands.
     assert.equal(seen.slice(before).filter(r => r.path === '/api/learn/video' && r.method !== 'GET').length, 0, 'nothing asked of the video route before Generate');
     assert.equal(await page.locator('[data-block-id]').count(), cards, 'no card before Generate');
+    await dismiss();
+  });
+
+  // Bug lane 3aba249a: identical words sent again are a new submission, never merged into the first and never doubled.
+  await step(`${theme}: the same /motion sent again later is its own second user turn: one more bubble, one more chat turn`, async () => {
+    const words = LINE.replace(/^\/motion /, '');
+    const same = userBubbles.filter({ hasText: words });
+    const n0 = await same.count(), u0 = await userBubbles.count(), s0 = userSaves().length, a0 = asks.length;
+    assert.ok(n0 >= 1, 'the first /motion is still in the transcript');
+    await propose(LINE);
+    await oneUserTurn(u0, s0, 'the repeated /motion');
+    assert.equal((await same.count()) - n0, 1, 'the identical words are a second turn');
+    assert.equal(asks.length - a0, 1, 'one chat turn');
     await dismiss();
   });
 
@@ -698,7 +727,7 @@ for (const theme of ['light', 'dark']) {
   // ---- MOT-20b: every entry point reaches the same shared proposal card (CR-1's route decision MOCKED above) ----
   const NL = 'Create a 15-second animated explanation of photosynthesis';
   await step(`${theme}: the picker: choosing /motion then typing routes the named capability (no router call) and sends its token; the card follows`, async () => {
-    const r0 = routes.length, a0 = asks.length, before = await proposalCards.count();
+    const r0 = routes.length, a0 = asks.length, before = await proposalCards.count(), u0 = await userBubbles.count(), s0 = userSaves().length;
     await composer().click(); await composer().fill('/');
     await picker.locator('[data-slash-command="motion"]').click();
     await pill.waitFor();
@@ -707,6 +736,7 @@ for (const theme of ['light', 'dark']) {
     await until(async () => (await proposalCards.count()) > before, 'the picked proposal card');
     assert.deepEqual([routes[r0]?.capability, routes[r0]?.text], ['motion', '10s explain friction']);
     assert.deepEqual([asks[a0]?.command, asks[a0]?.route_token, asks.length - a0], ['motion', `route-token-${r0 + 1}`, 1]);
+    await oneUserTurn(u0, s0, 'the Motion pill'); // bug lane 3aba249a: the pill sends "/motion words", the same one user turn as typing it
     assert.equal(await proposalCards.last().getAttribute('data-proposal-active'), 'true');
     await dismiss();
   });
@@ -852,6 +882,8 @@ for (const theme of ['light', 'dark']) {
       const live = proposalCards.filter({ has: page.locator('h3', { hasText: /^Motion: explain this leaf$/ }) });
       await live.first().waitFor({ timeout: 15000 });
       assert.equal(await live.last().getAttribute('data-proposal-active'), 'true', 'the newest proposal can Generate');
+      // Bug lane 3aba249a: the restored transcript has one user bubble per saved turn of that thread, none added by the restore.
+      assert.equal(await userBubbles.count(), turns.filter(t => t.threadId === restoring).length, 'one user bubble per saved turn after the reload');
       const made = proposalCards.filter({ has: page.locator('h3', { hasText: /^Motion: explain this$/ }) });
       if (await made.count()) {
         assert.equal(await made.last().getAttribute('data-proposal-active'), 'false', 'the generated proposal cannot Generate again');
