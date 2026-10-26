@@ -6,7 +6,7 @@ const T = 'canvaschat-0123abcd-ef01-2345-6789-abcdef012345';
 const at = text => Math.floor(Date.parse(`${text.replace(' ', 'T')}Z`) / 1000);
 const message = (id, role, content, created_at, meta) => ({ id, role, content, created_at, meta_json: JSON.stringify(meta) });
 // A fake D1 that answers by statement and keeps every statement it was given.
-const fake = ({ messages, actions = [], attempts = [] }) => {
+const fake = ({ messages, actions = [], attempts = [], operations = [] }) => {
   const seen = [];
   const run = readOnly(sql => {
     seen.push(sql);
@@ -14,6 +14,7 @@ const fake = ({ messages, actions = [], attempts = [] }) => {
     if (/FROM threads WHERE/.test(sql)) return { results: [{ id: T, user: 'owner@example.com', scope_ref: 'canvas-1', title: 't', created_at: '2026-10-26 22:50:00' }] };
     if (/FROM messages m LEFT JOIN/.test(sql)) return { results: [...messages].reverse() }; // newest first, as the statement orders them
     if (/FROM usage_actions/.test(sql)) return { results: actions };
+    if (/FROM usage_operations/.test(sql)) return { results: operations };
     if (/FROM usage_attempts/.test(sql)) return { results: attempts };
     throw new Error(`unexpected statement: ${sql.slice(0, 80)}`);
   });
@@ -31,11 +32,14 @@ test('two user messages of the same words seconds apart are reported as two pers
       message(2, 'user', LINE, '2026-10-26 22:54:11', { mode: 'auto', command: 'motion' }),
       message(3, 'assistant', 'Here is a video proposal.', '2026-10-26 22:54:20', proposal),
     ], actions: [ask], attempts: [askAttempt],
+    operations: [{ op_id: 'motion-ce19016b', user_id: 'u1', category: 'motion', status: 'settled', admitted_at: at('2026-10-26 22:54:12'), calls: 1, cost_usd: 1.540278 }],
   });
   const { lines, facts } = inspect(run, { text: `/motion ${LINE}`, ...WINDOW });
   const out = lines.join('\n');
   assert.deepEqual([facts.duplicateClusters, facts.proposals, facts.usedProposals, facts.videoActions, facts.chargedVideoActions, facts.askActions], [1, 1, 0, 0, 0, 1]);
   assert.match(out, /TWO persisted user messages with the same words: #1 \(saved by the page\) and #2 \(saved by the chat turn\), 1 s apart/);
+  assert.match(out, /motion-ce19016b user u1 motion settled .*1 call\(s\), cost_usd 1\.540278/);
+  assert.match(out, /usage operations in the window: 1/);
   assert.match(out, /two persisted user messages\?\s+YES/);
   assert.match(out, /two proposals\?\s+no: 1 distinct/);
   assert.match(out, /two jobs\?\s+no/);

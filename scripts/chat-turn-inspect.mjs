@@ -67,7 +67,7 @@ export function inspect(run, { thread, text, from, to }) {
       AND mm.created_at >= ${lit(utc(Date.parse(from)))} AND mm.created_at <= ${lit(utc(Date.parse(to)))} LIMIT 10`).map(row => row.thread_id);
     say(`threads holding a user message with "${core(text)}" saved ${utc(Date.parse(from))} to ${utc(Date.parse(to))} UTC: ${threads.length ? threads.join(', ') : 'none'}`);
   }
-  const facts = { threads: threads.length, found: 0, duplicateClusters: 0, proposals: 0, usedProposals: 0, videoActions: 0, chargedVideoActions: 0, askActions: 0 };
+  const facts = { threads: threads.length, found: 0, duplicateClusters: 0, proposals: 0, usedProposals: 0, videoActions: 0, chargedVideoActions: 0, askActions: 0, operations: 0 };
   if (!threads.length) { say('nothing found: check the thread id, the words and the window (UTC rows, so the window must carry its offset)'); return { lines, facts }; }
   for (const id of threads) {
     const head = rows(`SELECT id, user, scope_ref, title, created_at FROM threads WHERE id = ${lit(id)}`)[0];
@@ -116,13 +116,18 @@ export function inspect(run, { thread, text, from, to }) {
       if (a.feature === 'ask') facts.askActions += 1;
       if (a.feature === 'video') { facts.videoActions += 1; if (a.charge_class === 'would_charge' && cost > refunded) facts.chargedVideoActions += 1; }
     }
+    // usage_operations: one admission per model call chain (idempotency key op_id); a submission admitted twice would show two rows here.
+    const ops = rows(`SELECT op_id, user_id, category, status, admitted_at, calls, cost_usd FROM usage_operations WHERE admitted_at >= ${t0} AND admitted_at <= ${t1} ORDER BY admitted_at LIMIT 40`);
+    facts.operations += ops.length;
+    say(`usage operations admitted in the same window (all users): ${ops.length}${ops.length === 40 ? ' (capped at 40)' : ''}`);
+    for (const o of ops) say(`  ${o.op_id} user ${o.user_id} ${o.category} ${o.status} admitted ${new Date(o.admitted_at * 1000).toISOString()}: ${o.calls} call(s), cost_usd ${o.cost_usd ?? 'not settled'}`);
   }
   if (!facts.found) { say('\nno such thread, so no answer: check the id'); return { lines, facts }; }
   say('\nANSWER (plain words)');
   say(`two persisted user messages?  ${facts.duplicateClusters ? `YES: ${facts.duplicateClusters} pair(s) of identical words saved within ${SAME_TURN_SECONDS} s` : 'no'}`);
   say(`two proposals?                ${facts.proposals > 1 ? 'YES' : 'no'}: ${facts.proposals} distinct proposal id(s)`);
   say(`two jobs?                     ${facts.usedProposals > 1 || facts.videoActions > 1 ? 'YES' : 'no'}: ${facts.usedProposals} proposal(s) with Generate pressed, ${facts.videoActions} video usage action(s) in the window`);
-  say(`two charges?                  ${facts.chargedVideoActions > 1 ? 'YES' : 'no'}: ${facts.chargedVideoActions} video action(s) charged to a learner; ask actions (model calls) in the window: ${facts.askActions}`);
+  say(`two charges?                  ${facts.chargedVideoActions > 1 ? 'YES' : 'no'}: ${facts.chargedVideoActions} video action(s) charged to a learner; ask actions (model calls) in the window: ${facts.askActions}; usage operations in the window: ${facts.operations}`);
   say('Not in D1: orchestrator job ids and the Motion job record (the LearnVideos Durable Object). A pressed Generate shows above as the proposal state key; the orchestrator logs each job: `fly logs -a rabbit-hole-motion-orchestrator --no-tail` (read-only, as in C:/s/spec/motion-validation/failed-job-61f70171-diagnosis.md).');
   return { lines, facts };
 }
