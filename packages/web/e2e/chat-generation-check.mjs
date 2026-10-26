@@ -2,7 +2,7 @@
 // every model route is aborted and counted; the chat answer, the route decision, the thread restore, the saved outputs and the video
 // job API are MOCKED in the browser (deterministic transports), so this proves wiring and states, not real generation.
 //   1. an ordinary Ask answer to a question with a card selected keeps Explore next, Add as card, Regenerate, Copy and the thumbs
-//   2. a non-generating slash command (/practice) gets none of Explore next, its spacing, Add as card or Regenerate; Copy and thumbs stay
+//   2. (in step 5, after the reload) a saved slash command answer (/quiz) gets none of Explore next, its spacing, Add as card or Regenerate; Copy and thumbs stay
 //   3. a /motion proposal (the mocked server still sends suggestions with it) shows no Explore next, no spacing, no Add as card or
 //      Added, no Regenerate; Copy and thumbs stay; Generate is enabled, with no spinner
 //   4. Generate: a double-click starts one job; the button is Starting at once (first observed phase), then Queued, then Generating
@@ -49,7 +49,7 @@ const KEY = 'a'.repeat(64);
 const STAGE = 'Planning, reviewing and rendering';
 const PHOTO = { id: 'k-photo', type: 'explanation', dx: 0, dy: 0, title: 'Photosynthesis', body: 'Plants use light energy to turn carbon dioxide and water into glucose and oxygen.' };
 
-const total = 26; // 13 steps per theme (the ten items above; 8 is five of them), light and dark
+const total = 24; // 12 steps per theme (the ten items above; 8 is five of them), light and dark
 const results = [];
 let failShot = null;
 const step = async (name, fn) => {
@@ -127,7 +127,7 @@ for (const theme of ['light', 'dark']) {
 
   // MOCKED video jobs: every start is a new job, listed by its placement id; the test moves a job through its states.
   const jobs = new Map(), attempts = [];
-  let drop = false, cancels = 0, serial = 0;
+  let drop = false, cancels = 0, serial = 0, gate = null;
   const hold = { usd: 8.96, state: 'released' };
   const listed = () => [...jobs.entries()].map(([id, job]) => ({ id, key: KEY, status: job.status, retryable: job.retryable !== false, hold,
     ...(job.status === 'failed' ? { error: job.error || 'The Motion job failed: still blocking after the repair round: blank_frame' } : {}),
@@ -139,6 +139,7 @@ for (const theme of ['light', 'dark']) {
     if (posted?.action === 'cancel') { cancels += 1; const job = jobs.get(posted.id); if (job) Object.assign(job, { status: 'failed', error: 'Stopped.' }); return route.fulfill({ json: { videos: listed() } }); }
     if (posted) {
       attempts.push(posted);
+      if (gate) await gate;
       if (drop) { drop = false; return route.abort('failed'); }
       serial += 1;
       const id = `job-${theme}-${serial}`;
@@ -181,15 +182,14 @@ for (const theme of ['light', 'dark']) {
   const phase = card => card.locator('[data-proposal-generate]').getAttribute('data-proposal-phase');
   const untilPhase = (card, want, what) => until(async () => (await phase(card)) === want, `${what || 'the proposal'} reads ${want}`, 40000);
   const label = card => card.locator('[data-proposal-generate]').innerText().then(text => text.trim());
-  const press = async card => {
-    await card.evaluate(node => {
-      const button = node.querySelector('[data-proposal-generate]');
-      window.__phases = [];
-      new MutationObserver(() => { const value = button.getAttribute('data-proposal-phase'); if (value && value !== window.__phases.at(-1)) window.__phases.push(value); }).observe(button, { attributes: true, attributeFilter: ['data-proposal-phase'] });
-    });
-    await card.locator('[data-proposal-generate]').click();
-  };
-  const phases = () => page.evaluate(() => window.__phases || []);
+  // The phases the proposal's button went through, in order, from the attribute's old values (React may commit two of them in one task).
+  const observe = card => card.evaluate(node => {
+    const button = node.querySelector('[data-proposal-generate]');
+    window.__olds = []; window.__button = button;
+    new MutationObserver(records => { for (const record of records) window.__olds.push(record.oldValue); }).observe(button, { attributes: true, attributeFilter: ['data-proposal-phase'], attributeOldValue: true });
+  });
+  const phases = () => page.evaluate(() => { const seq = [...window.__olds.slice(1), window.__button.getAttribute('data-proposal-phase')]; return seq.filter((value, i) => value && value !== seq[i - 1]); });
+  const press = async card => { await observe(card); await card.locator('[data-proposal-generate]').click(); };
   const jobOf = n => `job-${theme}-${n}`;
   failShot = async n => {
     await page.screenshot({ path: `${OUT}/FAIL-${String(n).padStart(2, '0')}-${theme}.png` }).catch(() => {});
@@ -219,21 +219,11 @@ for (const theme of ['light', 'dark']) {
     await shot('01-ordinary');
   });
 
-  // 2 ----------------------------------------------------------------------------------------------------------------
-  await step(`${theme}: a non-generating slash command (/practice) gets no Explore next, spacing, Add as card or Regenerate; Copy and the thumbs stay`, async () => {
-    const before = asks.length;
-    await send('/practice photosynthesis');
-    await until(() => asks.length > before, 'the chat turn');
-    assert.equal(asks.at(-1).command, 'practice');
-    await until(() => dock.locator('[data-answer]').count().then(count => count >= 2), 'the second answer');
-    const answer = dock.locator('[data-answer]').last();
-    await answer.locator('button[aria-label="Copy answer"]').waitFor({ timeout: 15000 });
-    assert.deepEqual(await extras(answer), { explore: 0, spacing: 0, add: 0, regenerate: 0, copy: 1, thumbs: 1 });
-    assert.equal(await answer.getByText('Explore next').count(), 0);
-    await shot('02-practice');
-  });
-
   // 3 ----------------------------------------------------------------------------------------------------------------
+  // A thread saved before this change: a slash command's answer (/quiz, saved with its command) that carries suggestions. Chat shows it after the
+  // reload in step 5 (answered by the Chat only through a restore now: every command runs as its own action).
+  turns.push({ threadId: turns[0].threadId, user: { role: 'user', content: '/quiz photosynthesis', command: 'quiz', messageId: '700001' },
+    answer: { role: 'assistant', content: 'Here is a question.', messageId: '700002', kind: 'answer', status: 'done', meta: { ...suggestions('700002'), alternatives: ['700002'] } } });
   const FIRST = '15s explain the first topic';
   await step(`${theme}: a /motion proposal has no Explore next, spacing, Add as card or Regenerate; Copy and the thumbs stay; Generate is enabled and idle`, async () => {
     await setMode('auto');
@@ -250,14 +240,20 @@ for (const theme of ['light', 'dark']) {
   await step(`${theme}: Generate (double-clicked) starts one job: Starting at once, then Queued, then Generating with the card's own stage; Chat and canvas agree`, async () => {
     const card = cardFor(FIRST);
     const blocks = await page.locator('[data-block-id]').count();
-    await card.evaluate(node => {
-      const button = node.querySelector('[data-proposal-generate]');
-      window.__phases = [];
-      new MutationObserver(() => { const value = button.getAttribute('data-proposal-phase'); if (value && value !== window.__phases.at(-1)) window.__phases.push(value); }).observe(button, { attributes: true, attributeFilter: ['data-proposal-phase'] });
-    });
+    await observe(card);
+    // The start is held at the server (MOCKED) so the pending submission can be seen: Starting, disabled, busy, nothing started yet.
+    let open; gate = new Promise(resolve => { open = resolve; });
     // The first job waits in the queue (MOCKED list), as soon as it exists.
-    const queue = setInterval(() => { const job = jobs.get(jobOf(1)); if (job && job.status === 'generating' && !job.released) job.status = 'queued'; }, 50);
+    const queue = setInterval(() => { const job = jobs.get(jobOf(1)); if (job && job.status === 'generating') job.status = 'queued'; }, 50);
     await card.locator('[data-proposal-generate]').dblclick();
+    await untilPhase(card, 'submitting');
+    await page.waitForTimeout(1500);
+    assert.equal(await phase(card), 'submitting', 'still starting while the start is pending');
+    assert.equal(await label(card), 'Starting');
+    assert.equal(await card.locator('[data-proposal-generate]').getAttribute('aria-busy'), 'true');
+    assert.equal(await card.locator('[data-proposal-generate]').isDisabled(), true);
+    assert.equal(startsMade(), 0, 'nothing is started yet');
+    open(); gate = null;
     await untilPhase(card, 'queued');
     clearInterval(queue);
     assert.equal((await phases())[0], 'submitting', `the first thing the press showed: ${(await phases()).join(', ')}`);
@@ -315,6 +311,7 @@ for (const theme of ['light', 'dark']) {
       // older answers: the ordinary one keeps a collapsed Suggestions toggle; the command and proposal answers have no extras at all
       assert.equal(await dock.locator('[data-answer-suggestions-toggle]').count(), 1, 'only the older ordinary answer has the toggle');
       assert.deepEqual(await extras(answerOf(card)), { explore: 0, spacing: 0, add: 0, regenerate: 0, copy: 1, thumbs: 1 }, 'the proposal answer, viewed after a reload');
+      assert.deepEqual(await extras(dock.locator('[data-answer]').nth(1)), { explore: 0, spacing: 0, add: 0, regenerate: 0, copy: 1, thumbs: 1 }, 'a saved /quiz answer, viewed after a reload');
       assert.equal(await dock.locator('[data-add-to-canvas]').count(), 1, 'Add as card remains on the ordinary answer only');
       assert.equal(await page.locator('[data-gen-indicator]').count(), 0, 'still no second banner');
       await shot('05-reloaded');

@@ -42,7 +42,8 @@ export function cardStatus({ card = null, output = null, pressed = false, loaded
   }
   const gen = generationState(card), shared = { cardId: card.id };
   if (gen.phase === 'running') {
-    const queued = gen.label === 'Queued', starting = gen.label === 'Starting';
+    // A video job has no placement until the server accepted the start: until then it is still starting, whatever the card already shows.
+    const queued = gen.label === 'Queued', starting = gen.label === 'Starting' || (card.type === 'video' && !card.placementId);
     const stoppable = card.type === 'video' && !!card.placementId && !!videoLabel(card).stoppable;
     return status(starting ? 'submitting' : queued ? 'queued' : 'running', { ...shared, label: starting ? 'Starting' : queued ? 'Queued' : 'Generating', active: true, spinner: true, canStop: stoppable,
       detail: starting ? 'Sending your request.' : card.type === 'video' ? videoLabel(card).progress : null });

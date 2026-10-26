@@ -119,6 +119,8 @@ test('cardStatus: Starting, Queued, Generating, Ready from the real card; the fa
   assert.equal(running.detail, 'Planning, reviewing and rendering', 'the stage is the card\'s own words');
   assert.equal(running.canStop, true, 'a /motion job with a placement can be stopped');
   assert.equal(seen(videoBlock({ placementId: undefined })).canStop, false);
+  assert.deepEqual([seen(videoBlock({ placementId: undefined })).label, seen(videoBlock({ placementId: undefined })).phase], ['Starting', 'submitting'], 'the start is not accepted until the job has a placement');
+  assert.equal(seen(videoBlock({ placementId: undefined, status: 'failed' })).phase, 'failed', 'a failed start is not starting');
   assert.equal(seen(videoBlock({ status: 'ready' })).spinner, false);
   for (const [over, phase] of [[{ status: 'failed' }, 'failed'], [{ status: 'failed', stopped: true }, 'stopped'], [{ status: 'failed', outcomeUnknown: true }, 'unknown']]) {
     const s = seen(videoBlock(over));
