@@ -1,6 +1,6 @@
 # Deployment handoff
 
-Last updated: Monday 2026-10-26, 12:12 AM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
+Last updated: Monday 2026-10-26, 1:40 AM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
 
 Authoritative inputs (repository-relative): the 60-row [feature inventory](evidence/feature-inventory.md), the [discrepancy table](evidence/completion-audit-discrepancies.md), the [validation budget ledger](evidence/validation-budget-ledger.md), the [flake list](evidence/flakes.md), the [FILE_JOBS contract](evidence/file-jobs-contract.md), feature docs under [`docs/features/`](../features/). The working task ledger and local receipts live on the integrator machine (`C:/s/spec/...`); important receipts are summarised under `docs/operations/evidence/`.
 
@@ -83,16 +83,23 @@ Production mutations are owner commands; one gate and one release at a time; no 
 
 ## 9. Morning action queue (owner)
 
-Dependency order. Status is current as of the stamp above; the executable commands are kept in the private queue `OWNER-QUEUE.md` on the integrator machine and in the chat; each is reproduced here when it is ready and verified.
+Dependency order. Commands marked READY were dry-run verified at the stamp above; the rest name their preparer and status. Nothing in this document authorises any action.
 
-1. Review this handoff and the [diagnosis](evidence/motion-failed-job-61f70171-diagnosis.md). Do NOT click "Generate again" on the failed job.
-2. Approve (or adjust) the consolidated budget/infrastructure request when it is published (`infra-package.md`). No spending is authorised by this document.
-3. Motion: after the failure-handling fix is gated, run the release command the integrator provides, then the one refund command, then a single confirmed acceptance job.
-4. Telemetry: after the safeguards re-review, give the production GO (release of candidate 8d476050 switches collection on; no secret is overwritten).
-5. Image: install the provider keys with the prepared secrets script (dry run first), then owner-only acceptance.
-6. Walk the production checklist in [owner observations](evidence/owner-observations.md) (credits meter, stars persist, weekly top 5, comments, focus).
+### Deadline outcome (the 12-hour target ended Mon 1:33 AM PT)
+
+Not met for the three headline releases. Motion is deployed, but public generation is paused and the first owner job failed (fix delivered, not released). Production Telemetry is adopted but not bound or activated (safeguards finished, final review confirmation pending, GO needed). /generate-image is built and gated inside C16, but disabled for everyone and not accepted. What is live is listed in section 1.
+
+1. **READY: release the batch C16** (gate run 40287871324 passed about 1:00 AM PT; main 629251d4 is its ancestor). Command: `cd /c/s/spec/day-1021 && bash train6.sh`. Environment: production (pushes main 629251d4 to 7b105a4b, runs the production release, probes). Contents: tutor timing, card-size and file-drop test fixes; weekly-top clock fix; FILE_JOBS plumbing (binding plus the file-jobs-1 Durable Object migration applied by the deploy; every FILE_JOBS feature stays disabled); Image activation (owner-only path for the principal and Gmail; public generation OFF); Credits finish (credits-only usage API: web and server ship together); Motion failure handling (Worker side; the orchestrator is unchanged until the redeploy step); Chat UX. No D1 migration and no cost. About 6-8 minutes. Success: a LIVE line and probes 200 200 401 401 405. Recovery: the script stops on its first mismatch and a rerun skips finished steps; a rollback is a new release of the previous SHA. Fallback candidate: C15 stack/c15-batch 675d3792 (gate 40284732780 passed; the same content without Chat UX).
+2. **Decision: Motion per-job ceiling** (proposal US$3.50; the floor is 2.56). It is needed before the orchestrator redeploy. The ceiling-config candidate, the orchestrator-only redeploy, the guarded refund of the 127.8 credits (dry run first) and a second confirmed acceptance job are sequenced by the Motion post-fix owner in motion-deploy.sh; the commands are added here when verified.
+3. **Decision: validation budget cap** (US$100 proposed; the ledger shows US$1.7506 remaining of the approved US$20): see [infra-package](evidence/infra-package.md) section 9.1. It unblocks paid image and Motion acceptance.
+4. **Image secrets**, after step 1: `node C:/s/spec/image-activation/prod-image-secrets.mjs --dry-run`, then without the flag (type PUT IMAGE SECRETS). It installs OPENAI_API_KEY and GEMINI_API_KEY on rabbit-hole-app (names only; values never printed; SUBSCRIPTION_OWNER_EMAIL preserved). SIDE EFFECT: installing the OpenAI key also switches on /api/learn/transcribe for signed-in canvas members (about US$0.006 a call, metered only by the platform cap). Decide before running.
+5. **Telemetry GO**, after the reviewer confirms the final script revision 09fe1c93: the owner's own terminal sequence is `--dry-run`, then `--preflight`, then phase A/B per the activation package. The candidate release 8d476050 switches collection on.
+6. Walk the production checklist in [owner observations](evidence/owner-observations.md). Do NOT click Generate again on the failed Motion job.
+7. Publish this document to main: after step 1 the integrator merges main into the docs branch and prepares `bash /c/s/spec/day-1021/release-docs.sh` (dry-run verified; docs-only; gate-reuse path).
 
 ## 10. Change log (PT)
+
+- 2026-10-26 1:40 AM: C16 stack/c16-batch 7b105a4b gate PASSED (run 40287871324); train6.sh dry-run verified; Telemetry round-3 fixes done (script 09fe1c93, harness 283 scenarios, 1110 checks, 0 failed, 1 skipped), reviewer confirming; the 12-hour target ended without the three headline releases usable (section 9).
 
 - 2026-10-26 12:12 AM: Telemetry safeguards harness clean (271 scenarios, 1070 checks, 0 failed, 1 skipped), independent diff re-review started. C15 `stack/c15-batch` 675d3792 pushed (main 629251d4 + tutor timing, card-size teardown, file-drop check, FILE_JOBS plumbing, Image activation owner-only, credits-finish, motion-failure-handling, tutor-session ordering; chat-restore and resize-persist merges reverted); CI and gate chain started. weekly-top.test.js clock time bomb (fails every verify after the Monday rollover) fixed inside C15; main itself carries the failing test until C15 releases.
 
