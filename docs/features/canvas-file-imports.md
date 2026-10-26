@@ -342,7 +342,7 @@ JOBS lane additions (efc63ef0, approved by the lead):
 - Staged outputs under `file-jobs/<job>/<attempt>/` are deleted 24 hours after the attempt is terminal, by the
   `FileJobs` alarm.
 
-Configuration (JOBS lane adds the dev and parallel configs; prod stays out until release): secrets `CONVERT_TOKEN`,
+Configuration (JOBS lane adds the dev and parallel configs; production binds only the Durable Object, docs/features/file-jobs-production.md): secrets `CONVERT_TOKEN`,
 `FILE_JOB_SECRET`; vars `CONVERT_URL`, `FILE_JOB_ORIGIN`, `FILE_JOB_CONCURRENCY`; Durable Object binding `FILE_JOBS`, class `FileJobs`,
 migration tag `file-jobs-1` (`new_sqlite_classes`).
 

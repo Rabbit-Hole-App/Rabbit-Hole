@@ -67,8 +67,8 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   assert.equal(app.workers_dev, false);
   assert.deepEqual(app.routes, [{ pattern: 'digrabbithole.com', custom_domain: true }]);
   assert.deepEqual(app.services, [{ binding: 'CONTROL_PLANE', service: 'rabbit-hole-cp' }]);
-  // Same classes and migration tags as dev, so the Durable Object model is the one tested there. FileJobs (file imports)
-  // is dev and parallel only until its release adds it here (lead ruling 2026-10-16, docs/features/canvas-file-imports.md).
+  // Same classes and migration tags as dev, so the Durable Object model is the one tested there. FileJobs (file imports) is bound here
+  // too (file-jobs-1, last) as shared plumbing only; docs/features/file-jobs-production.md lists what each feature still needs.
   // Owner authorized ongoing production CAD on 2026-10-17; binding is required,
   // while actual admission remains disabled until bounded production verification.
   assert.ok(app.durable_objects.bindings.some(b => b.name === 'CAD_JOBS' && b.class_name === 'CadJobs'));
@@ -80,9 +80,9 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   // ExplainJobs (EXP-T12) is bound everywhere; in prod its tag follows the already-applied cad-jobs-1, since a migration tag
   // placed before an applied one would never run.
   // ImageJobs (IMG-01) likewise: bound everywhere, its image-jobs-1 tag last in prod, after the applied explain-jobs-1.
-  const devOnly = { bindings: [...dev.durable_objects.bindings.filter(b => !['FileJobs','CadJobs','ExplainJobs','ImageJobs'].includes(b.class_name)), {name:'CAD_JOBS',class_name:'CadJobs'}, {name:'EXPLAIN_JOBS',class_name:'ExplainJobs'}, {name:'IMAGE_JOBS',class_name:'ImageJobs'}] };
+  const devOnly = { bindings: [...dev.durable_objects.bindings.filter(b => !['FileJobs','CadJobs','ExplainJobs','ImageJobs'].includes(b.class_name)), {name:'CAD_JOBS',class_name:'CadJobs'}, {name:'EXPLAIN_JOBS',class_name:'ExplainJobs'}, {name:'IMAGE_JOBS',class_name:'ImageJobs'}, {name:'FILE_JOBS',class_name:'FileJobs'}] };
   assert.deepEqual(app.durable_objects, devOnly);
-  assert.deepEqual(app.migrations, [...dev.migrations.filter(m => !['file-jobs-1','cad-jobs-1','explain-jobs-1','image-jobs-1'].includes(m.tag)), {tag:'cad-jobs-1',new_sqlite_classes:['CadJobs']}, {tag:'explain-jobs-1',new_sqlite_classes:['ExplainJobs']}, {tag:'image-jobs-1',new_sqlite_classes:['ImageJobs']}]);
+  assert.deepEqual(app.migrations, [...dev.migrations.filter(m => !['file-jobs-1','cad-jobs-1','explain-jobs-1','image-jobs-1'].includes(m.tag)), {tag:'cad-jobs-1',new_sqlite_classes:['CadJobs']}, {tag:'explain-jobs-1',new_sqlite_classes:['ExplainJobs']}, {tag:'image-jobs-1',new_sqlite_classes:['ImageJobs']}, {tag:'file-jobs-1',new_sqlite_classes:['FileJobs']}]);
   // A migration tag is applied once per worker: every config's tags are unique, and image-jobs-1 adds only ImageJobs.
   for (const c of [app, dev]) assert.equal(new Set(c.migrations.map(m => m.tag)).size, c.migrations.length);
   // IMG-01 stays off in every committed config; only the string 'true' accepts new jobs (image-jobs.js imageJobsEnabled).
@@ -95,6 +95,19 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   assert.equal(app.assets.directory, './dist-dev');
   // The one public origin (auth.js on feature/rabbit-hole-production-auth sends sign-in there).
   assert.equal(app.vars.PUBLIC_ORIGIN, 'https://digrabbithole.com');
+});
+
+// FILE_JOBS is plumbing for file conversion, Ctrl+K image edits and Ctrl+K JavaScript runs. Binding it enables none of them: each
+// feature's own vars, secrets and (for JavaScript) the Dynamic Workers loader stay absent until that feature's own release.
+// The loader is also absent on purpose: on an account without Workers Paid its deploy is refused (error 10195) and would block the release.
+test('production binds FILE_JOBS but enables none of the features that use it', () => {
+  const app = config(APP);
+  assert.deepEqual(app.durable_objects.bindings.filter(b => b.name === 'FILE_JOBS'), [{ name: 'FILE_JOBS', class_name: 'FileJobs' }]);
+  assert.deepEqual(app.migrations.at(-1), { tag: 'file-jobs-1', new_sqlite_classes: ['FileJobs'] }, 'a new tag goes after every applied one');
+  for (const name of ['CONVERT_URL', 'FILE_JOB_ORIGIN', 'FILE_JOB_CONCURRENCY', 'INLINE_IMAGE_EDIT_ENABLED', 'INLINE_IMAGE_EDIT_RESERVED_USD',
+    'INLINE_CODE_ENABLED', 'INLINE_CODE_MAX_RUNS', 'INLINE_CODE_MAX_MICROS', 'INLINE_CODE_RESERVE_MICROS']) assert.equal(app.vars[name], undefined, name);
+  assert.equal(app.worker_loaders, undefined);
+  for (const name of ['CONVERT_TOKEN', 'FILE_JOB_SECRET', 'INLINE_CODE_LOADER']) assert.ok(!JSON.stringify(app).includes(name), `${name} is a secret or a loader, never in the config`);
 });
 
 test('the control plane is private: no route, no workers.dev, SMALL_ENV production, BASE_URL and PUBLIC_ORIGIN the public origin', () => {
