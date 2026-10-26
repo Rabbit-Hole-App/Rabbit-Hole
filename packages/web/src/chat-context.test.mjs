@@ -170,7 +170,7 @@ test('a removed context document: its whole-document chip is stale, a page of it
   const hook = readFileSync(new URL('./chat-context.js', import.meta.url), 'utf8');
   assert.match(hook, /for \(const ref of attached\) if \(staleRef\(ref, removed\)\) dispatch\(\{ type: 'detach', ref \}\);\r?\n  \}, \[removed, attached\]\);/);
   // UI-26: the chip goes at once, but only in the conversation that asked; any other drops it by the removed ids above.
-  assert.match(hook, /await removeContextDoc\(canvas, doc\.id\);\r?\n      if \(key\.current === startedIn\) dispatch\(\{ type: 'detach', ref \}\);/);
+  assert.match(hook, /await removeContextDoc\(canvas, doc\.id\);\r?\n      if \(sameChat\(startedIn\)\) edit\(\{ type: 'detach', ref \}\);/); // sameChat: the conversation that asked, or the one its initial restore became
 });
 
 // UI-26 section 4: a document whose removal is in flight reads removing (its row pending, no second press); others do not.

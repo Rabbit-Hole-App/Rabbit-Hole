@@ -7,7 +7,8 @@ import { activeThread, rememberThread } from './chat-persist.js';
 //   { id: string | null, title, mode: 'auto' | 'ask' | 'tutor', setMode(mode), holdMode(mode | null),
 //     historyOpen, setHistoryOpen(open), newChat(), open(id) (a Promise; it rejects with the server's error), adopt(id, title) (the first send's done event names the new thread),
 //     restore: { key, mode, contextRefs, draft, messages, after? } (a new key resets the draft and the attached refs; messages is the transcript to show;
-//       after: only on a canvas's initial restore, the key showing when it began, so chat-draft.js keeps what the learner changed meanwhile),
+//       after: only on a canvas's initial restore, the key showing when it began, so chat-draft.js and chat-context.js keep what the
+//       learner changed meanwhile; the mode they picked meanwhile is the restored mode),
 //     turnKey: string (changes whenever the open thread changes; a stream started under another key is dropped, contract A5),
 //     liveKey() (turnKey read now; null once this canvas's Chat is gone, so a turn sent before is late wherever it lands),
 //     status: 'loading' | 'ready' | 'error' (restoring this canvas's conversation; never shown as an empty New chat while it
@@ -67,7 +68,7 @@ export const chatTitle = ({ status, title }) => (status === 'loading' ? 'Loading
 export function useChatThread(canvas, { slot = null } = {}) {
   const [id, setId] = useState(null), [title, setTitle] = useState(''), [mode, setModeState] = useState('auto'), [historyOpen, setHistoryOpen] = useState(false);
   const [restore, setRestore] = useState(() => blank(`${canvas}:new:0`)), [status, setStatus] = useState('loading');
-  const idRef = useRef(null), held = useRef(null), pending = useRef(null), timer = useRef(null), request = useRef(0), shownCanvas = useRef(canvas), keyRef = useRef(restore.key);
+  const idRef = useRef(null), held = useRef(null), picked = useRef(null), pending = useRef(null), timer = useRef(null), request = useRef(0), shownCanvas = useRef(canvas), keyRef = useRef(restore.key);
   const select = next => { idRef.current = next; setId(next); };
   const show = next => { keyRef.current = next.key; setRestore(next); };
   useEffect(() => { keyRef.current = restore.key; return () => { keyRef.current = null; }; }, [restore.key]);
@@ -94,6 +95,7 @@ export function useChatThread(canvas, { slot = null } = {}) {
   const newChat = useCallback(() => {
     flush();
     const turn = ++request.current;
+    picked.current = null;
     select(null); setTitle(''); setModeState(held.current || 'auto'); setHistoryOpen(false); setStatus('ready');
     show(blank(`${canvas}:new:${turn}`));
   }, [canvas, flush]);
@@ -101,14 +103,19 @@ export function useChatThread(canvas, { slot = null } = {}) {
   const load = useCallback(async (threadId, turn, after) => {
     const thread = await api(`/api/ask/threads/${encodeURIComponent(threadId)}`);
     if (turn !== request.current) return false;
-    const mode = restoredMode(held.current, thread.mode);
+    // picked: the mode the learner chose while the canvas's initial restore was pending (setMode). It is the latest choice, so it
+    // beats the saved and the held mode, and it is saved to the thread that resolved. A History open (no after) shows its own.
+    const choice = after ? picked.current : null, mode = choice || restoredMode(held.current, thread.mode);
+    picked.current = null;
     select(thread.id); setTitle(thread.title || ''); setModeState(mode); setHistoryOpen(false); setStatus('ready');
+    if (choice) saveState({ mode });
     show({ key: `${canvas}:${thread.id}:${turn}`, mode, contextRefs: thread.contextRefs || [], draft: thread.draft ?? null, messages: restoredMessages(thread.messages), ...(after ? { after } : {}) });
     return true;
-  }, [canvas]);
+  }, [canvas, saveState]);
   // History's open: the thread shown becomes this canvas's active one.
   const open = useCallback(async threadId => {
     flush();
+    picked.current = null;
     if (await load(threadId, ++request.current)) remember(threadId);
   }, [flush, load, remember]);
   // The first turn of a new chat names its thread, and a turn's thread becomes this canvas's active one (remember: false
@@ -120,7 +127,7 @@ export function useChatThread(canvas, { slot = null } = {}) {
     select(threadId); setTitle(previous => previous || nextTitle || '');
   }, [remember]);
   // A mode the learner picks is saved, and ends any hold.
-  const setMode = useCallback(next => { held.current = null; setModeState(next); saveState({ mode: next }); }, [saveState]);
+  const setMode = useCallback(next => { held.current = null; picked.current = next; setModeState(next); saveState({ mode: next }); }, [saveState]);
   // holdMode(mode): shown and not saved (the Table of contents selects Tutor on entry, LearnPage.jsx), so opening a tab sends
   // no request, and a restore arriving later keeps it; the next turn records it. holdMode(null) releases the hold.
   const holdMode = useCallback(next => { held.current = next; if (next) setModeState(next); }, []);
