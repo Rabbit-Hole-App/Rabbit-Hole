@@ -108,7 +108,7 @@ export default function WhiteboardNative({ block, appName, onChange, host }) {
   );
 
   return (
-    <div data-native-whiteboard className="flex min-h-0 flex-1 flex-col gap-2" style={{ pointerEvents: 'auto' }} onPointerDown={event => event.stopPropagation()}>
+    <div data-native-whiteboard data-scroll className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto" style={{ pointerEvents: 'auto' }} onPointerDown={event => event.stopPropagation()}>
       <div className="flex shrink-0 flex-wrap items-center gap-1.5">
         <button type="button" data-board-fit title="Show the whole drawing" onClick={() => dispatch({ type: 'fit', sketch: extent, frame })} className={button}><Maximize size={13} />Fit</button>
         <button type="button" data-board-reset title="Show the drawing at its real size" onClick={() => dispatch({ type: 'reset', sketch: extent, frame })} className={button}>100%</button>
@@ -116,8 +116,9 @@ export default function WhiteboardNative({ block, appName, onChange, host }) {
         {drawn && host && <button type="button" data-board-download-picture title="Save the drawing as shown, as a picture" onClick={async () => { const svg = await host.capture(block.id, 'svg'); if (svg) download(svg, `${fileName(block)}.svg`); }} className={button}><Download size={13} />Download picture</button>}
         {block.snapshot != null && <button type="button" data-board-download-original title="Save the board exactly as it was before this editor" onClick={() => saveText(`${fileName(block)}-original.json`, JSON.stringify(block.snapshot))} className={button}><Download size={13} />Download original</button>}
       </div>
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg">
-        <div ref={frameEl} className="absolute inset-0 min-h-[180px]">
+      {/* The drawing area never shrinks below 200 px: warnings, the kept list and the narration scroll the card instead. */}
+      <div className="relative min-h-[200px] flex-1 shrink-0 overflow-hidden rounded-lg">
+        <div ref={frameEl} className="absolute inset-0">
           {host
             ? host.render(block, { fill: true, sv: state.view, under: picture })
             : <p className="p-4 text-xs text-ink-2">Drawing is not available here.</p>}
