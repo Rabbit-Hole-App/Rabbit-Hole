@@ -103,6 +103,13 @@ The runner is bounded by D1: `FILE_JOB_CONCURRENCY` default 2 active attempts ac
 
 ## 6. The conversion service (packages/file-convert)
 
+**Update 2026-10-26 (fj-converter lane, base 7b105a4b):** the plumbing in section 2.1 is in main. `packages/file-convert/fly.prod.toml`,
+the owner commands (`activation/prod-convert.mjs`, `activation/acceptance.mjs`), their harnesses, the runbook and the verification
+status are in canvas-file-converter.md section 7. Two differences from the text below: `CONVERT_ALLOWED_ORIGINS` is a plain `[env]`
+value in `fly.prod.toml` (an origin is not a secret), so the only Fly secret is `CONVERT_TOKEN`; and the fastest rollback is deleting
+the `CONVERT_TOKEN` Worker secret (`prod-convert.mjs rollback L1`), which turns conversion off at once without a deploy. A read-only
+`flyctl apps list -o rabbit-hole` on 2026-10-26 showed no `rabbit-hole-convert-prod`.
+
 - Only a DEV app exists and is documented: `rabbit-hole-convert-dev` (Fly org `rabbit-hole`, `packages/file-convert/fly.dev.toml`, canvas-file-converter.md). `fly auth whoami` works (yudhisteer.chin@gmail.com); read-only `fly status -a rabbit-hole-convert-dev`: owner rabbit-hole, host rabbit-hole-convert-dev.fly.dev, one machine, version 9, region iad, started, 1/1 checks passing.
 - **No production converter is documented or deployed** ("Production hosting is undecided", canvas-file-converter.md section 1.8 and 4). I did not probe for undocumented apps. There is no `fly.prod.toml` for file-convert (cad-execute and lesson-renderer have one; the repo's pattern is `rabbit-hole-<service>-prod` with a test that the prod toml equals the dev toml except the `app =` line).
 - Needed for production (all owner-authorized new infrastructure; CLAUDE.md: "stop only for genuinely new authority (unapproved infrastructure...)"):
