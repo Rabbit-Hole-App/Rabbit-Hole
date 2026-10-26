@@ -289,7 +289,8 @@ const routes = {
       if (clip.size > 20 * 1024 * 1024) return Response.json({ error: 'That recording is too long; keep it under a minute.' }, { status: 400 });
       const access = await authorizedBoardApp(req, env, form.get('app'));
       if (access instanceof Response) return access;
-      if (!env.OPENAI_API_KEY) return Response.json({ error: 'Speech to text is not configured on this environment.' }, { status: 503 });
+      // Off unless TRANSCRIBE_ENABLED is exactly 'true', so installing OPENAI_API_KEY for image editing never switches transcription on (O-8 stays open).
+      if (!env.OPENAI_API_KEY || env.TRANSCRIBE_ENABLED !== 'true') return Response.json({ error: 'Speech to text is not configured on this environment.' }, { status: 503 });
       const upload = new FormData();
       upload.set('file', clip, 'answer.webm');
       upload.set('model', 'gpt-4o-transcribe');

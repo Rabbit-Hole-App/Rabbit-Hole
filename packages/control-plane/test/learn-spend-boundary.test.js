@@ -474,7 +474,7 @@ function inlinePaidRoute(path) {
 }
 for (const path of ['/api/learn/image', '/api/learn/tts', '/api/learn/transcribe']) test(`${path} actual route refuses caps after authorization/configuration`, async t => {
   const { LEARN_DB } = ledger(t);
-  const env = platform({ LEARN_DB, OPENAI_API_KEY: 'fixture', FISH_AUDIO_API_KEY: 'fixture', LEGACY_IMAGE_GENERATION: 'true' }); // the image route runs only with the flag on (test below)
+  const env = platform({ LEARN_DB, OPENAI_API_KEY: 'fixture', TRANSCRIBE_ENABLED: 'true', FISH_AUDIO_API_KEY: 'fixture', LEGACY_IMAGE_GENERATION: 'true' }); // the image route runs only with the flag on (test below)
   let calls = 0;
   const transport = async () => { calls++; return Response.json({}); };
   const invoke = (settings, auth = async () => ({ email: 'fixture' })) => {
@@ -490,6 +490,27 @@ for (const path of ['/api/learn/image', '/api/learn/tts', '/api/learn/transcribe
   await admitSpend(LEARN_DB, env, { opId: 'full', userId: 'fixture', org: 'platform', category: 'fixture', reservedUsd: 1 });
   assert.equal((await (await invoke(env)).json()).code, 'daily_cap_reached');
   assert.equal(calls, 0);
+});
+
+// Coordinator 2026-10-26: installing OPENAI_API_KEY (Ctrl+K image edit) must not switch transcription on. The route answers the same 503 text
+// unless TRANSCRIBE_ENABLED is exactly 'true'; off, no cap check, ledger read, usage record or upstream request happens.
+test('/api/learn/transcribe is off unless TRANSCRIBE_ENABLED is exactly true, key or no key: no upstream request, no usage record', async () => {
+  const untouched = name => (...args) => assert.fail(`${name} was called`);
+  const LEARN_DB = new Proxy({}, { get: (_, key) => untouched(`LEARN_DB.${String(key)}`) });
+  const call = env => {
+    const body = new FormData();
+    body.set('audio', new Blob(['fixture'], { type: 'audio/webm' }), 'fixture.webm'); body.set('app', 'fixture');
+    return inlinePaidRoute('/api/learn/transcribe')(new Request('https://synthetic.test/api/learn/transcribe', { method: 'POST', body }), env, '/api/learn/transcribe', async () => ({ email: 'fixture' }), untouched('paidRefusal'), untouched('paidSubmissionRefusal'), untouched('fishSpendTransport'), untouched('isPaidSpendReply'), untouched('fetch'));
+  };
+  const expected = { error: 'Speech to text is not configured on this environment.' };
+  for (const flag of [undefined, '', 'false', 'TRUE', '1', ' true']) for (const key of ['fixture', undefined]) {
+    const response = await call({ LEARN_DB, USAGE_PLATFORM_DAY_USD: '10', ...(key ? { OPENAI_API_KEY: key } : {}), ...(flag === undefined ? {} : { TRANSCRIBE_ENABLED: flag }) });
+    assert.equal(response.status, 503, `${JSON.stringify(flag)} ${key}`);
+    assert.deepEqual(await response.json(), expected);
+  }
+  const noKey = await call({ LEARN_DB, TRANSCRIBE_ENABLED: 'true' });
+  assert.equal(noKey.status, 503);
+  assert.deepEqual(await noKey.json(), expected);
 });
 
 // Owner 2026-10-23: legacy image generation is off unless the flag is exactly the string 'true'. Off, the actual route answers before

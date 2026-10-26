@@ -444,7 +444,7 @@ Tool results also carry short notes, such as "The learner now sees this page. Sa
 | Video moment embeddings | Workers AI `@cf/baai/bge-m3` into Vectorize `MOMENTS` | `learn-moment-index.js` | `AI`, `MOMENTS`, `INDEX_QUEUE` bindings |
 | YouTube search | Exa | `learn-youtube.js` | `EXA_API_KEY` |
 | Image generation (paid) | OpenAI `gpt-image-1`, 1024², low quality | `dev-worker.js` `/api/learn/image` | `OPENAI_API_KEY` |
-| Speech to text | OpenAI `gpt-4o-transcribe` | `dev-worker.js` `/api/learn/transcribe` | `OPENAI_API_KEY` |
+| Speech to text | OpenAI `gpt-4o-transcribe` | `dev-worker.js` `/api/learn/transcribe` | `OPENAI_API_KEY` and `TRANSCRIBE_ENABLED=true` (off by default) |
 | Video generation (paid) | FAL `fal-ai/bytedance/seedance/v1/lite` | `video-provider.js` | `FAL_API_KEY`, `LEARN_VIDEO_PROVIDER` |
 | Maths animation (paid) | private Manim worker | `math-provider.js` | `MATH_WORKER_URL`, `MATH_WORKER_TOKEN` |
 | Blender scene (paid) | private Blender worker | `learn-scene.js` | `SCENE_WORKER_URL`, `SCENE_WORKER_TOKEN` |

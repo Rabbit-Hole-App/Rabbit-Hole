@@ -64,6 +64,8 @@
     // is listed in IMAGE_ACCEPTANCE_EMAILS may use it under the ordinary admission, hold, settlement and readiness rules, so the
     // production acceptance runs through the real Worker, storage and accounting. It needs OPENAI_API_KEY / GEMINI_API_KEY (secrets).
     "IMAGE_GENERATE_ENABLED": "false",
+    // Speech to text for spoken answers (/api/learn/transcribe): off even when OPENAI_API_KEY exists; only "true" enables it (owner decision O-8 is open).
+    "TRANSCRIBE_ENABLED": "false",
     // The per-image hold, derived (docs/features/image-jobs.md 6c): the largest priced estimate among the enabled combinations is Nano
     // Banana Pro 1K, US$0.134 + a 4,000-byte prompt bound US$0.008 = US$0.142; the worst real settlement seen for it was US$0.1462
     // (run D). US$0.20 covers both and is a hold, released at settlement; the learner is charged the measured cost or the upper bound.
