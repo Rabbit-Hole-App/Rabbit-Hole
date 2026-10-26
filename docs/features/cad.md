@@ -95,8 +95,8 @@ Design: `C:/s/spec/cad-controls/design.md` (owner brief and decisions 2026-10-20
   Review-first takes at least three calls (brief, source, review). Production's `CAD_MAX_CALLS` is now 3 (inert while the
   flag is off; a pinned config test keeps calls >= 3 whenever the flag is `"true"`; control-plane test `CAD brief-first
   needs three calls` still shows the 2-call failure). Pricing, the executor budget and the first production job:
-  [cad-review-first-acceptance.md](cad-review-first-acceptance.md). Review-first is NOT active in production and no real
-  production review-first job has run.
+  [cad-review-first-acceptance.md](cad-review-first-acceptance.md). The owner approved enabling it for signed-in users (O-5, 2026-10-26); it is NOT active in production until the flip release,
+  and no real production review-first job has run.
 - Browser check: `packages/web/e2e/cad-controls-check.mjs` (local stack, scripted CAD routes, real local-kernel facts in
   `cad-controls-facts.json`).
 
