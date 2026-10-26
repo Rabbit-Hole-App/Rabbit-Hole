@@ -1,6 +1,6 @@
 # Deployment handoff
 
-Last updated: Sunday 2026-10-25, 10:20 PM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
+Last updated: Sunday 2026-10-25, 11:05 PM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
 
 Authoritative inputs (repository-relative): the 60-row [feature inventory](evidence/feature-inventory.md), the [discrepancy table](evidence/completion-audit-discrepancies.md), the [validation budget ledger](evidence/validation-budget-ledger.md), the [flake list](evidence/flakes.md), the [FILE_JOBS contract](evidence/file-jobs-contract.md), feature docs under [`docs/features/`](../features/). The working task ledger and local receipts live on the integrator machine (`C:/s/spec/...`); important receipts are summarised under `docs/operations/evidence/`.
 
@@ -32,7 +32,7 @@ Explicitly deferred or paused (not reactivated): 3D assemblies (brief not handed
 
 ## 4. Budget
 
-- Approved shared validation cap: **US$20.00** (unchanged). Live ledger (2026-10-25 9:55 PM PT): spent 17.9994, reserved 0.25 (dev volume), **remaining 1.7506**. The owner's willingness to go to **US$100** (Motion 40, Image 30, other acceptance 20, reserve 10) is a PROPOSAL; it is NOT approved and the ledger cap has not changed. A consolidated priced request is being prepared (`docs/operations/evidence/` will gain `infra-package.md`).
+- Approved shared validation cap: **US$20.00** (unchanged). Live ledger (2026-10-25 9:55 PM PT): spent 17.9994, reserved 0.25 (dev volume), **remaining 1.7506**. The owner's willingness to go to **US$100** (Motion 40, Image 30, other acceptance 20, reserve 10) is a PROPOSAL; it is NOT approved and the ledger cap has not changed. The consolidated priced package is ready: [infra-package](evidence/infra-package.md) (expected new recurring about US$2.6-4.6/month, ceiling about US$15, within the US$30 target; one-time test budget required tests about US$22 maximum / US$9 expected; proposed per-job acceptance ceiling US$3.00 instead of US$2.00; cap proposal US$100). Image lane needs only about US$0.70 more to run its acceptance plan.
 - Per-job Motion protection: validation bound US$3.00 (separate from the cap); the production acceptance window used a US$2.00 per-job ceiling, which caused the failed job below.
 - New recurring costs ALREADY approved: Motion 1 GB volume US$0.15/month. PROPOSED, not approved: converter production app (about US$9/month estimated, to be verified), math renderer, others (infra-package pending).
 
@@ -51,6 +51,7 @@ Legend: To Do / Doing / Blocked / Done (a task is Done only with production evid
 | Telemetry (`6c3f8d59-c864-4a96-9a99-7b54c2561e21`) | agent a44172a3 (safeguards); candidate `feat/telemetry-bindings-prod2` 8d476050 | Doing | dev bound/live; prod resources adopted; safeguards F1-F7 fixes + harness rerun in progress; prod binding candidate gated | binding candidate: verify/fast-e2e/gate 40257810296 passed; harness previous run 186 scenarios/653 pass; rerun pending | dev yes; prod no | dev dashboard inspection by owner pending; prod disabled | finish fixes, re-review, owner GO | independent re-review, owner GO and identity (principal `user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid`) | ready ~Mon 12-1 AM; live after GO |
 | Telemetry later increments (children) | unassigned | To Do | per-feature coverage, billing reconciliation, exports, archives, retention (no code exists) | - | - | - | assign owner | production activation first | - |
 | /generate-image (`125bbcae-8d5c-443b-89d7-bc774395c9d4`) | agent ad5f8e55 | Doing | 5 real provider-adapter runs exist (local harness, 2026-10-23); frontend/server gates, owner-only path, secrets command (ready), 4-model pricing and validation plan | unit/CI fixtures only for the deployed flow | substrate only | disabled | evidence reconciliation, candidate, owner-only acceptance | provider keys not installed, reserve var, price evidence for OpenAI models, validation budget | -; provisional |
+| Image activation candidate (under 125bbcae) | `feat/image-activation` ebea37b8, inside batch `stack/c14-batch` b0f5a6ad | Doing | owner-only path (IMAGE_ACCEPTANCE_EMAILS), server-derived command visibility, 8 priced rows (Nano Banana 2.1/Pro, flare, sunburst generate; sunburst edit greyed), hold 0.20 USD; public branch config/image-public-activation prepared, NOT pushed | image-owner-only 17 + image-capability 8 pass; verify 40272692101, fast-e2e 40272692089 green; no browser check of the flow | no | disabled | batch gate, release, secrets script, owner-only click-through | paid acceptance needs about US$0.44 reserve (ledger remaining 1.75 is below the Motion reserve); OPENAI_API_KEY also turns on /api/learn/transcribe (decision) | gate overnight; acceptance after release |
 | Image command rename (child of 125bbcae) | unassigned | To Do | `/image` generate, `/photos` search, `/generate-image` alias | - | - | - | assign one owner, implement | owner go (given 9:3x PM) | - |
 | Chat UX bugs (`b43b5a55-e9fa-444e-96d1-93510bc9faea`: `2a9f8ec0-0be6-4063-b8f2-ba989a9ca586`, `e80a2b45-dfbc-4916-951d-da69a9d3c39c`, `746c9e52-07fe-4269-8e1e-84454472f1b5`) | agent a0260024; `feat/chat-generation-ux` | Doing | shared response classification, job-bound generation status, remove Add as card | pending | no | - | helper + states + fork check | none | -; |
 | Credits (`dd97625a-c3df-43af-a042-85ac0dc4310a`) | agent ad75b135; `fix/credits-finish` | Doing | usage endpoint dollar removal, job-object sealing, Jev 429, refund paths, telemetry labels | previous fixes live (C13) | partly | meter/refusals CI-verified | implement | none | -; |
@@ -91,6 +92,8 @@ Dependency order. Status is current as of the stamp above; the executable comman
 6. Walk the production checklist in [owner observations](evidence/owner-observations.md) (credits meter, stars persist, weekly top 5, comments, focus).
 
 ## 10. Change log (PT)
+
+- 2026-10-25 11:05 PM: batch candidate `stack/c14-batch` b0f5a6ad built from main 629251d4 (tutor timing fix, card-size teardown, Study resize, Chat restore, file-drop check, FILE_JOBS plumbing, Image activation with owner-only path, public OFF); config tests 27/27; CI and sharded gate chain started; infra/provider package delivered; image candidate `feat/image-activation` ebea37b8 CI green.
 
 - 2026-10-25 10:20 PM: CAD constraint diagnosed (our egress ledger, not stale, not a provider limit); handoff docs release script prepared (docs-only, gate-reuse path, dry-run verified).
 
