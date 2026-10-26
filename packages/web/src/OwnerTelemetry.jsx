@@ -9,6 +9,8 @@ import { Button, ExpandedPageFrame, Input } from './ui.jsx';
 
 const API = '/api/owner/telemetry';
 const STATES = { settled: 'Measured', estimated: 'Estimated', unknown: 'Unknown provider cost, learner not charged', reserved: 'Running, learner credits reserved' };
+// Provider spend (the platform ledger) has its own states: its unknown and reserved rows carry a bound, never a cost.
+const PROVIDER_STATES = { settled: 'Provider cost measured', estimated: 'Provider cost estimated', unknown: 'Provider cost unknown', reserved: 'Running, reservation only' };
 const usd = micros => (micros == null ? 'none' : `$${(micros / 1e6).toFixed(4)}`);
 const time = value => (value == null ? 'never' : new Date(value > 1e12 ? value : value * 1000).toLocaleString());
 async function get(path, init) {
@@ -69,6 +71,16 @@ export function TelemetryView({ state, days, setDays }) {
                 <td className="py-1.5 pr-4">{STATES[row.cost_state] || row.cost_state}</td><td className="pr-4">{row.charge_class || 'unknown'}</td><td className="pr-4">{row.attempts}</td>
                 <td className="pr-4">{['settled', 'estimated'].includes(row.cost_state) ? usd(row.cost_micros) : 'none'}</td><td className="pr-4">{usd(row.reserved_micros)}</td></tr>)}</tbody></table>
             {!overview?.attempts?.length && <p className="pt-2 text-xs text-ink-2">No paid attempts in this window.</p>}
+          </Section>
+          <Section title="Provider spend by cost state">
+            <p className="pb-2 text-xs text-ink-2">From the platform ledger, live. What the provider billed us, apart from what the learner was charged above. A failure of ours costs the provider and charges the learner nothing. Each state is its own row; a bound is a ceiling, not a cost; nothing is added together.</p>
+            {overview?.providerSpend == null
+              ? <p className="text-xs text-ink-2">The platform ledger cannot be read on this deployment.</p>
+              : <table className="w-full text-sm"><thead><tr><Head icon={Layers}>Cost state</Head><Head icon={Tag}>Operation status</Head><Head icon={Hash}>Operations</Head><Head icon={CircleDollarSign}>Provider cost</Head><Head icon={CircleDollarSign}>Bound</Head><Head icon={CircleDollarSign}>Learner-side attempt</Head></tr></thead>
+                <tbody>{overview.providerSpend.map(row => <tr key={`${row.state}-${row.status}`} className="border-t border-line">
+                  <td className="py-1.5 pr-4">{PROVIDER_STATES[row.state] || row.state}</td><td className="pr-4">{row.status}</td><td className="pr-4">{row.operations}</td>
+                  <td className="pr-4">{usd(row.provider_cost_micros)}</td><td className="pr-4">{usd(row.bound_micros)}</td><td className="pr-4">{usd(row.attempt_micros)}</td></tr>)}</tbody></table>}
+            {overview?.providerSpend?.length === 0 && <p className="pt-2 text-xs text-ink-2">No paid operations in this window.</p>}
           </Section>
           <Section title="Events">
             <table className="w-full text-sm"><thead><tr><Head icon={Activity}>Event</Head><Head icon={Tag}>Outcome</Head><Head icon={Hash}>Count</Head></tr></thead>

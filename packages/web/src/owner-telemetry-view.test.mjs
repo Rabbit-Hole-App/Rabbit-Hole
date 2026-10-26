@@ -36,6 +36,10 @@ const OVERVIEW = { configured: true, environment: 'dev', days: 7, projectedAt: 1
     { cost_state: 'estimated', charge_class: 'would_charge', attempts: 1, cost_micros: 700, reserved_micros: 50000 },
     { cost_state: 'unknown', charge_class: 'free', attempts: 1, cost_micros: null, reserved_micros: 20000 },
     { cost_state: 'reserved', charge_class: 'would_charge', attempts: 1, cost_micros: null, reserved_micros: 30000 },
+  ],
+  providerSpend: [
+    { state: 'settled', status: 'failed', operations: 1, provider_cost_micros: 1_540_278, bound_micros: null, attempt_micros: 0 },
+    { state: 'unknown', status: 'failed', operations: 1, provider_cost_micros: null, bound_micros: 2_000_000, attempt_micros: 0 },
   ] };
 const HEALTH = { configured: true, environment: 'dev', lastIngestedAt: 1_760_000_000_000, isolate: { delivered: 3, rejected: 0, dropped: 0 },
   delivery: [{ source: 'explain_jobs', observed_at: 1_760_000_000_000, pending: 1, dead: 2, oldest_age_ms: 90000 }, { source: 'projection', observed_at: 1_760_000_000_000, pending: 0, dead: null, oldest_age_ms: null }], cursors: [] };
@@ -50,6 +54,15 @@ test('four cost states are four labelled rows; an amount is shown only on a row 
   assert.equal(/\btotal\b/i.test(text(html)), false, 'no total on the page');
   assert.match(text(html), /they are not added together/);
   assert.equal(/\.\.\.|â€¦/.test(text(html)), false, 'no ellipsis');
+});
+
+test('provider spend is its own table: a failed operation shows the provider cost beside a learner-side 0, and unknown shows a bound, never a cost', () => {
+  const html = render(state);
+  const provider = rows(html).filter(r => /^Provider cost /.test(r[0]));
+  assert.deepEqual(provider, [['Provider cost measured', 'failed', '1', '$1.5403', 'none', '$0.0000'], ['Provider cost unknown', 'failed', '1', 'none', '$2.0000', '$0.0000']]);
+  assert.match(text(html), /a bound is a ceiling, not a cost/);
+  assert.match(text(render({ ...state, overview: { ...OVERVIEW, providerSpend: null } })), /platform ledger cannot be read/);
+  assert.equal(/\.\.\.|…/.test(text(html)), false, 'no ellipsis');
 });
 
 test('events, browser errors and telemetry health print as recorded, dead letters included', () => {
