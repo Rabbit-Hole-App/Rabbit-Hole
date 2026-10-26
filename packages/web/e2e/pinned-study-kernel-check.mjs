@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { closeMenus, openMenu } from './canvas-menu-helpers.mjs';
 
-const total = 11; // the number of check() steps below; keep it equal
+const total = 12; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878', CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 const approvedDev = new Set(['https://rabbit-hole-cp-dev.tryrabbithole.workers.dev']);
 for (const origin of [BASE, CP]) assert.ok(/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin) || approvedDev.has(origin) || /^https:\/\/rabbit-hole-web-dev-[a-z0-9-]+\.tryrabbithole\.workers\.dev$/.test(origin), 'Only a dev clone or the local integration stack is allowed');
@@ -35,6 +35,35 @@ const NOTEBOOK = { id: 'nb', type: 'notebook', notebook_id: crypto.randomUUID(),
   ipynb: { nbformat: 4, nbformat_minor: 5, metadata: { kernelspec: { name: 'python', display_name: 'Python (Pyodide)', language: 'python' } }, cells } };
 const BLOCKS = [{ id: 'ex', type: 'explanation', dx: 0, dy: 0, title: 'Async sleep', body: 'await pauses this cell; the kernel keeps running it.' }, NOTEBOOK];
 
+// Step 0's fake of the parts of JupyterLab the helpers touch: four 60 px cells in a 130 px window that attaches only the cells it
+// shows (windowing 'full'), Shift+Enter that runs and advances (a no-op run while the kernel does not exist), the kernel
+// indicator, and a kernel that appears only when the test calls releaseKernel().
+const FAKE_NOTEBOOK = `<style>.jp-CodeCell{height:60px;box-sizing:border-box}#pane{height:130px;overflow:hidden;position:relative}.jp-CodeCell{position:absolute;left:0;right:0}</style>
+<div class="jp-Notebook-ExecutionIndicator" data-status="unknown"></div><div id="pane"></div>
+<script>
+const H = 60, VIEW = 130, outs = [[], [], [], []], indicator = document.querySelector('.jp-Notebook-ExecutionIndicator');
+let scroll = 0, counter = 0, kernel = false;
+const widgets = outs.map((_, i) => {
+  const node = document.createElement('div');
+  node.className = 'jp-CodeCell';
+  node.innerHTML = '<span class="jp-InputPrompt"></span><div class="cm-content" tabindex="0">cell ' + i + '</div>';
+  node.querySelector('.cm-content').onkeydown = event => { if (event.shiftKey && event.key === 'Enter') run(i); };
+  return { node, model: { executionState: 'idle', executionCount: null, outputs: { toJSON: () => outs[i] }, sharedModel: { getSource: () => 'cell ' + i } } };
+});
+const render = () => {
+  document.getElementById('pane').replaceChildren(...widgets.filter((_, i) => i * H < scroll + VIEW && (i + 1) * H > scroll).map(w => w.node));
+  widgets.forEach(({ node, model }, i) => { node.style.top = (i * H - scroll) + 'px'; node.querySelector('.jp-InputPrompt').textContent = (model.executionState === 'running' ? '[*]' : model.executionCount ? '[' + model.executionCount + ']' : '[ ]') + ':'; });
+};
+const content = { widgets, scrollToItem: i => { scroll = Math.max(0, i * H - (VIEW - H)); render(); } };
+const run = i => {
+  if (kernel) { widgets[i].model.executionCount = ++counter; outs[i] = [{ output_type: 'stream', text: 'out' + i + '\\n' }]; }
+  content.scrollToItem(Math.min(i + 1, 3));
+};
+window.jupyterapp = { shell: { currentWidget: { content } } };
+window.releaseKernel = () => { kernel = true; indicator.dataset.status = 'idle'; };
+render();
+</script>`;
+
 let session, canvas, browser, page;
 const api = async (path, method = 'GET', body) => { const r = await fetch(BASE + path, { method, headers: { cookie: `small_session=${session}`, origin: BASE, 'content-type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }); assert.ok(r.ok, `${method} ${path}: ${r.status}`); return r.json(); };
 const model = [], errors = [], results = [], failures = [];
@@ -45,10 +74,29 @@ const check = async (label, fn) => {
 };
 const until = async (fn, what, ms = 60000) => { const end = Date.now() + ms; for (;;) { if (await fn().catch(() => false)) return; if (Date.now() > end) throw Error(what); await page.waitForTimeout(200); } };
 const frame = () => page.frameLocator('[data-notebook-frame]');
-const cell = n => frame().locator('.jp-CodeCell').nth(n);
-const prompt = n => cell(n).locator('.jp-InputPrompt').first().innerText().then(text => text.trim());
-const output = n => cell(n).locator('.jp-OutputArea').first().innerText().then(text => text.trim());
-const runCell = async n => { await cell(n).locator('.cm-content').first().click(); await page.keyboard.press('Shift+Enter'); };
+// Cells are read and addressed through the notebook widget, never by their position among the rendered .jp-CodeCell nodes:
+// JupyterLab's default windowing ('full') detaches cells scrolled out of view, so once Shift+Enter had advanced and scrolled the
+// list, .jp-CodeCell nth(0) was cell b, not a (CI: "cell a was not rerun", runs 40374935577 and 40376116119).
+const cellState = (frame, n) => frame.locator('body').evaluate((_, n) => {
+  const cells = window.jupyterapp.shell.currentWidget.content.widgets, model = cells[n].model;
+  const text = out => [].concat(out.text ?? out.data?.['text/plain'] ?? '').join('');
+  // The prompt JupyterLab draws (cells/src/widget.ts): [*] while running, else [count].
+  return { count: cells.length, prompt: model.executionState === 'running' ? '[*]' : model.executionCount ? `[${model.executionCount}]` : '[ ]',
+    output: model.outputs.toJSON().map(text).join('').trim(), source: model.sharedModel.getSource() };
+}, n);
+// The cell's editor, scrolled into JupyterLab's window first (a detached cell has none). Tagged by index: the widget list is stable.
+const cellEditor = async (frame, n) => {
+  await frame.locator('body').evaluate((_, n) => { const content = window.jupyterapp.shell.currentWidget.content; content.scrollToItem(n); content.widgets[n].node.dataset.rhCell = String(n); }, n);
+  return frame.locator(`[data-rh-cell="${n}"] .cm-content`).first();
+};
+const pressCell = async (page, frame, n) => { await (await cellEditor(frame, n)).click(); await page.keyboard.press('Shift+Enter'); };
+// JupyterLab silently drops a run pressed before the kernel session exists (cells/src/widget.ts CodeCell.execute returns when
+// session.kernel is null, and Shift+Enter still advances), so the first run waits for the kernel to be idle, as cross-device-check does.
+const kernelIdle = (frame, ms) => frame.locator('.jp-Notebook-ExecutionIndicator[data-status="idle"]').waitFor({ state: 'attached', timeout: ms })
+  .catch(() => { throw Error(`the kernel was not idle within ${ms / 1000} s (it loads Python and its packages from the CDN)`); });
+const prompt = n => cellState(frame(), n).then(state => state.prompt);
+const output = n => cellState(frame(), n).then(state => state.output);
+const runCell = n => pressCell(page, frame(), n);
 const MARK = 'pinned-study-kernel';
 // The same iframe element, and no load of it since the mark (a load listener counts them).
 const sameFrame = async label => {
@@ -94,6 +142,26 @@ try {
   canvas = await api('/api/canvases', 'POST', { title: `Pinned kernel ${run}` });
   await api(`/api/learn/boards/${canvas.name}/main`, 'PUT', { state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: BLOCKS } });
   browser = await chromium.launch();
+  await check('0 the cell helpers on a fake notebook: a run before the kernel exists is dropped and a scrolled-out cell is not its neighbour (the old reads fail here deterministically), the helpers get both right', async () => {
+    const fake = await browser.newPage();
+    const open = async () => { await fake.setContent('<iframe data-notebook-frame style="width:400px;height:200px"></iframe>'); await (await fake.locator('iframe').elementHandle()).contentFrame().setContent(FAKE_NOTEBOOK); return fake.frameLocator('[data-notebook-frame]'); };
+    try {
+      let f = await open();
+      await pressCell(fake, f, 0); // before the kernel exists (the fake releases it on demand): dropped, as in JupyterLab
+      assert.equal((await cellState(f, 0)).prompt, '[ ]', 'a run pressed with no kernel does nothing (the B1 and G4 symptom)');
+      f = await open();
+      await f.locator('body').evaluate(() => window.releaseKernel());
+      await kernelIdle(f, 5000);
+      for (const n of [0, 1, 2]) await pressCell(fake, f, n);
+      assert.deepEqual([(await cellState(f, 0)).prompt, (await cellState(f, 2)).prompt], ['[1]', '[3]'], 'runs after the kernel is idle all run');
+      assert.equal(await f.locator('.jp-CodeCell').count(), 3, 'cell a was scrolled out of the window');
+      assert.notEqual(await f.locator('.jp-CodeCell').nth(0).locator('.jp-InputPrompt').innerText(), '[1]:', 'the old read, .jp-CodeCell nth(0), names cell b (the S1 and CAD symptom)');
+      const state = await cellState(f, 0);
+      assert.deepEqual([state.prompt, state.count], ['[1]', 4], 'the helper still reads cell a');
+      await pressCell(fake, f, 0);
+      assert.equal((await cellState(f, 0)).prompt, '[4]', 'a scrolled-out cell is scrolled back and run');
+    } finally { await fake.close(); }
+  });
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.route('**/*', route => {
@@ -108,16 +176,17 @@ try {
   await page.locator('[data-block-id="ex"]').waitFor({ timeout: 60000 });
   await page.locator('[data-notebook-frame]').waitFor({ timeout: 60000 });
   if (process.env.NOTEBOOK_ORIGIN) assert.ok((await page.locator('[data-notebook-frame]').getAttribute('src')).startsWith(process.env.NOTEBOOK_ORIGIN), 'the build points at the named notebook site');
-  await cell(0).locator('.cm-content').waitFor({ timeout: 180000 });
+  await frame().locator('.jp-CodeCell .cm-content').first().waitFor({ timeout: 180000 });
   await until(async () => (await page.locator('[data-block-id="nb"]').getByRole('button', { name: 'Run all' }).isEnabled()), 'the notebook became ready', 180000);
   await page.evaluate(mark => { const node = document.querySelector('[data-notebook-frame]'); node.__mark = mark; node.__loads = 0; node.addEventListener('load', () => { node.__loads++; }); }, MARK);
 
   await check('1 the real kernel runs a cell and keeps an unsaved edit before any switch', async () => {
+    await kernelIdle(frame(), 180000); // Python and its packages load from the CDN; a run pressed before the kernel exists is dropped (runs 40381143905 and job 120755601750 never ran cell a at all)
     await runCell(0);
-    await until(async () => /\[1\]/.test(await prompt(0)), 'cell a ran once', 150000); // the first run of a cell starts the Python kernel and loads its packages from the CDN: wait for that observable state, not 60 s (CI run on fafeff28 failed here at 149 s while the same check passed in 39 s on 0ea5e3ff)
-    await cell(3).locator('.cm-content').first().click();
+    await until(async () => /\[1\]/.test(await prompt(0)), 'cell a ran once');
+    await (await cellEditor(frame(), 3)).click();
     await page.keyboard.type('unsaved = 42');
-    await until(async () => (await cell(3).locator('.cm-content').first().innerText()).includes('unsaved = 42'), 'the edit is in the cell');
+    await until(async () => (await cellState(frame(), 3)).source.includes('unsaved = 42'), 'the edit is in the cell');
   });
 
   await check('2 a long cell is started and is running before the layout changes', async () => {
@@ -218,13 +287,13 @@ try {
   });
 
   await check('6 the unsaved edit and the cell count survive; Unpin leaves the notebook as it is', async () => {
-    assert.ok((await cell(3).locator('.cm-content').first().innerText()).includes('unsaved = 42'));
+    assert.ok((await cellState(frame(), 3)).source.includes('unsaved = 42'));
     await page.locator('[data-study-options]').click(); // WP6: Unpin is in the header's Reference options
     await page.getByRole('dialog', { name: 'Reference options' }).getByRole('button', { name: 'Unpin', exact: true }).click();
     await page.locator('[data-study-pane]').waitFor({ state: 'detached' });
     await sameFrame('unpin');
-    assert.equal(await frame().locator('.jp-CodeCell').count(), 4, 'no cell was added or removed');
-    assert.ok((await cell(3).locator('.cm-content').first().innerText()).includes('unsaved = 42'));
+    assert.equal((await cellState(frame(), 0)).count, 4, 'no cell was added or removed');
+    assert.ok((await cellState(frame(), 3)).source.includes('unsaved = 42'));
     await page.screenshot({ path: `${SHOTS}/6-after-unpin.png` });
   });
 
