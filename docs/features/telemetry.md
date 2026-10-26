@@ -286,6 +286,24 @@ No response content is ever logged.
   client-errors, support). No export, diagnostic download, reconciliation upload or archive retrieval exists yet; each will be added
   to the same table, and `test/owner-guard.test.js` enumerates the table and fails if a route is reachable unguarded, if a
   handler is run from anywhere but the dispatcher, or if another module serves `/api/owner`.
+- **Provider cost versus learner charge (two figures, two sets of cost states).** "Paid attempts by cost state" is
+  `accounting_attempts`, the projection of `usage_attempts`: what the learner was charged or holds. It is 0 (`settled`) for a
+  failure of ours, which `learn-video.js` settles at zero for the learner. "Provider spend by cost state" (`providerSpend` in
+  `/overview`) is the platform ledger, `usage_operations` (0016), where `settleSpend` records the provider's actual cost. Example, failed
+  Motion operation `motion-ce19016b-090f-4860-ae20-ee571e12dc52` (production, read before this change): `usage_operations.cost_usd`
+  1.540278, 5 calls, `failed`; `usage_attempts.cost_micros` 0. Before: the dashboard showed Measured $0.0000 and no provider figure. After: the
+  attempts table still shows $0.0000, and the provider table shows Provider cost measured $1.5403, learner-side attempt $0.0000.
+  `telemetry-provider-spend.js` reads the ledger live, read-only, in the request (no migration, no copy, so nothing is projected
+  twice and the projection stays idempotent). One operation is one row (`op_id` is the primary key and the attempt id), so spend is
+  counted once and is never added to the attempt cost. States, from `usage_operations` joined to its attempt: *measured* (`settled`),
+  *estimated* (error `cost_estimated_upper_bound`), *unknown* and *reserved*. `cost_usd` is not proof of a measurement: admission
+  writes the reservation there and `settleSpend` keeps it when the provider reports no cost, so an operation whose `cost_usd` still equals its
+  attempt's `reserved_micros`, that timed out, or that has no attempt, is *unknown* and its amount is shown only as a **bound**, never as a
+  cost; an operation still `admitted` is *reserved*. A cancelled operation made no call and is left out. Limits: a measured cost exactly equal
+  to the reservation reads as unknown (the conservative side); calls that bypass the ledger (`estimated` media) appear only in the attempts
+  table; history ends where `usage_operations` is pruned (never today). Evidence class: fixture-tested (`test/telemetry-provider-spend.test.js`,
+  `packages/web/src/owner-telemetry-view.test.mjs`); the projection and this route have never run in production, and the page has not been
+  deployed or looked at in a browser.
 - Every owner API response is `Cache-Control: no-store` and each authorized read is written to `owner_access_log`.
 - Ordinary user APIs carry no dollar amounts from telemetry: the owner API is the only reader of `cost_micros` and
   `reserved_micros` outside Credits' own routes.

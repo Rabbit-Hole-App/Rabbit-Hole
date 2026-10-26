@@ -2,7 +2,7 @@
 // first; anyone else gets the same plain 404 for every path and method. Read-only on LEARN_DB; the only writes are the
 // accounting projection and the owner access log, both in TELEMETRY_DB. Amounts are integer micro-USD, owner-only.
 //   GET  /access                 200 for the owner: whether telemetry storage is configured here, and this environment
-//   GET  /overview?days=1..30    events by name and outcome; attempts by cost state and payer class (never summed across states)
+//   GET  /overview?days=1..30    events by name and outcome; attempts by cost state and payer class (never summed across states); providerSpend by its own cost state (the platform ledger, live)
 //   GET  /actions/<action id>    one action from LEARN_DB with its attempts, and its telemetry events
 //   GET  /health                 delivery health, projection cursors and this isolate's emit counts
 //   GET  /client-errors?days=    browser failures grouped by fingerprint, route and release, with occurrences and affected accounts
@@ -14,6 +14,7 @@ import { telemetryEnvironment } from './telemetry-contract.js';
 import { deliveryCounts, emitTelemetry } from './telemetry-delivery.js';
 import { deliverStarEvents } from './canvas-star-events.js';
 import { projectAccounting } from './telemetry-projection.js';
+import { providerSpend } from './telemetry-provider-spend.js';
 import { projectLearning } from './telemetry-learning-projection.js';
 import { learningMetrics } from './telemetry-learning-metrics.js';
 
@@ -44,7 +45,7 @@ const ROUTES = {
     return json({ configured, environment, days, groups: await rows(db.prepare(CLIENT_ERRORS).bind(environment, sinceMs)) });
   } },
   learning: { method: 'GET', storage: true, run: async ({ db, req, environment }) => json(await learningMetrics(db, { environment, days: span(req).days })) },
-  overview: { method: 'GET', storage: true, run: async ({ db, req, configured, environment }) => {
+  overview: { method: 'GET', storage: true, run: async ({ env, db, req, configured, environment }) => {
     const { days, sinceMs } = span(req);
     return json({ configured, environment, days,
       events: await rows(db.prepare('SELECT event_name, outcome, COUNT(*) AS n FROM telemetry_events WHERE environment = ? AND occurred_at >= ? GROUP BY event_name, outcome ORDER BY n DESC').bind(environment, sinceMs)),
@@ -52,6 +53,9 @@ const ROUTES = {
       // running calls (the learner's credits are reserved while they run). The dashboard shows them side by side and never adds them together.
       attempts: await rows(db.prepare(`SELECT t.cost_state, a.charge_class, COUNT(*) AS attempts, SUM(t.cost_micros) AS cost_micros, SUM(t.reserved_micros) AS reserved_micros
         FROM accounting_attempts t LEFT JOIN accounting_actions a ON a.action_id = t.action_id WHERE t.started_at >= ? GROUP BY t.cost_state, a.charge_class`).bind(Math.floor(sinceMs / 1000))),
+      // The platform's provider spend, a separate figure with its own cost states, read live from the ledger (usage_operations): the
+      // attempts above are what the learner was charged, which is 0 for a failure of ours that still cost the provider.
+      providerSpend: await providerSpend(env.LEARN_DB, Math.floor(sinceMs / 1000)),
       projectedAt: (await db.prepare('SELECT MAX(updated_at) AS at FROM projection_cursors').first())?.at ?? null });
   } },
 };
