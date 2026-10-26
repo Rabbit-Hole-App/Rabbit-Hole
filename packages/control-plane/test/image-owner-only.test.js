@@ -192,7 +192,7 @@ for (const [fault, stage, reason, cost] of FAULTS) {
     assert.equal(job.stage, stage); assert.equal(job.reason, reason);
     assert.equal(w.h.calls.length, 0, 'the fixture provider was never reached');
     const inspect = (await (await w.api.read(PRINCIPAL, id, '/inspect')).json()).job;
-    assert.equal(inspect.settlement.done, true); assert.equal(inspect.settlement.costUsd, cost);
+    assert.equal(inspect.settlement.done, true); assert.equal(inspect.settlement.costKnown, cost !== null, 'the cost is known (0) or unknown (null); the inspect view carries no dollar amount (credits-finish)');
     assert.equal(w.h.sqlite.prepare('SELECT count(*) n FROM file_sources').get().n, 0, 'no image saved');
     // A second press is the same job; the plan is spent.
     assert.equal((await w.api.create(PRINCIPAL, proposal, id)).status, 200);
