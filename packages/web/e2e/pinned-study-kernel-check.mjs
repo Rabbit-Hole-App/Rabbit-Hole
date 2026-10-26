@@ -37,11 +37,11 @@ const BLOCKS = [{ id: 'ex', type: 'explanation', dx: 0, dy: 0, title: 'Async sle
 
 // Step 0's fake of the parts of JupyterLab the helpers touch: four 60 px cells in a 130 px window that attaches only the cells it
 // shows (windowing 'full'), Shift+Enter that runs and advances (a no-op run while the kernel does not exist), the kernel
-// indicator, and a kernel that appears only when the test calls releaseKernel().
+// indicator (idle from the start, as JupyterLab's is), and a kernel that appears only when the test calls releaseKernel().
 const FAKE_NOTEBOOK = `<style>.jp-CodeCell{height:60px;box-sizing:border-box}#pane{height:130px;overflow:hidden;position:relative}.jp-CodeCell{position:absolute;left:0;right:0}</style>
-<div class="jp-Notebook-ExecutionIndicator" data-status="unknown"></div><div id="pane"></div>
+<div class="jp-Notebook-ExecutionIndicator" data-status="idle"></div><div id="pane"></div>
 <script>
-const H = 60, VIEW = 130, outs = [[], [], [], []], indicator = document.querySelector('.jp-Notebook-ExecutionIndicator');
+const H = 60, VIEW = 130, outs = [[], [], [], []];
 let scroll = 0, counter = 0, kernel = false;
 const widgets = outs.map((_, i) => {
   const node = document.createElement('div');
@@ -59,8 +59,9 @@ const run = i => {
   if (kernel) { widgets[i].model.executionCount = ++counter; outs[i] = [{ output_type: 'stream', text: 'out' + i + '\\n' }]; }
   content.scrollToItem(Math.min(i + 1, 3));
 };
-window.jupyterapp = { shell: { currentWidget: { content } } };
-window.releaseKernel = () => { kernel = true; indicator.dataset.status = 'idle'; };
+const sessionContext = { get session() { return kernel ? { kernel: {} } : null; }, get kernelDisplayStatus() { return kernel ? 'idle' : 'initializing'; } };
+window.jupyterapp = { shell: { currentWidget: { content, sessionContext } } };
+window.releaseKernel = () => { kernel = true; };
 render();
 </script>`;
 
@@ -91,9 +92,17 @@ const cellEditor = async (frame, n) => {
 };
 const pressCell = async (page, frame, n) => { await (await cellEditor(frame, n)).click(); await page.keyboard.press('Shift+Enter'); };
 // JupyterLab silently drops a run pressed before the kernel session exists (cells/src/widget.ts CodeCell.execute returns when
-// session.kernel is null, and Shift+Enter still advances), so the first run waits for the kernel to be idle, as cross-device-check does.
-const kernelIdle = (frame, ms) => frame.locator('.jp-Notebook-ExecutionIndicator[data-status="idle"]').waitFor({ state: 'attached', timeout: ms })
-  .catch(() => { throw Error(`the kernel was not idle within ${ms / 1000} s (it loads Python and its packages from the CDN)`); });
+// session.kernel is null, and Shift+Enter still advances), so the first run waits for the session's own kernel status. Not the
+// toolbar's .jp-Notebook-ExecutionIndicator: its data-status starts as 'idle' before any kernel exists (executionindicator.tsx),
+// which let a press through (run 40392512154, 20:10Z: the indicator said idle and cell a never ran).
+const kernelState = frame => frame.locator('body').evaluate(() => { const context = window.jupyterapp.shell.currentWidget.sessionContext; return context.session?.kernel ? context.kernelDisplayStatus : 'no kernel session'; }).catch(error => `no notebook (${String(error.message).split(String.fromCharCode(10))[0].slice(0, 80)})`);
+const kernelIdle = async (frame, ms) => {
+  const end = Date.now() + ms;
+  for (let state = await kernelState(frame); state !== 'idle'; state = await kernelState(frame)) {
+    if (Date.now() > end) throw Error(`the kernel was not idle within ${ms / 1000} s, last state: ${state} (it loads Python and its packages from the CDN)`);
+    await new Promise(done => setTimeout(done, 250));
+  }
+};
 const prompt = n => cellState(frame(), n).then(state => state.prompt);
 const output = n => cellState(frame(), n).then(state => state.output);
 const runCell = n => pressCell(page, frame(), n);
@@ -150,6 +159,8 @@ try {
       await pressCell(fake, f, 0); // before the kernel exists (the fake releases it on demand): dropped, as in JupyterLab
       assert.equal((await cellState(f, 0)).prompt, '[ ]', 'a run pressed with no kernel does nothing (the B1 and G4 symptom)');
       f = await open();
+      assert.equal(await f.locator('.jp-Notebook-ExecutionIndicator').getAttribute('data-status'), 'idle', 'the toolbar indicator says idle with no kernel (the old gate let the press through here)');
+      await assert.rejects(kernelIdle(f, 600), /not idle within .*no kernel session/, 'the readiness wait does not accept a kernel that does not exist');
       await f.locator('body').evaluate(() => window.releaseKernel());
       await kernelIdle(f, 5000);
       for (const n of [0, 1, 2]) await pressCell(fake, f, n);
@@ -181,9 +192,9 @@ try {
   await page.evaluate(mark => { const node = document.querySelector('[data-notebook-frame]'); node.__mark = mark; node.__loads = 0; node.addEventListener('load', () => { node.__loads++; }); }, MARK);
 
   await check('1 the real kernel runs a cell and keeps an unsaved edit before any switch', async () => {
-    await kernelIdle(frame(), 180000); // Python and its packages load from the CDN; a run pressed before the kernel exists is dropped (runs 40381143905 and job 120755601750 never ran cell a at all)
+    await kernelIdle(frame(), 180000); // Python and its packages load from the CDN; a run pressed before the kernel exists is dropped (run 40381143905, job 120755601750 and run 40392512154 never ran cell a at all)
     await runCell(0);
-    await until(async () => /\[1\]/.test(await prompt(0)), 'cell a ran once');
+    await until(async () => /\[1\]/.test(await prompt(0)), 'cell a ran once').catch(async error => { throw Error(`${error.message}, kernel: ${await kernelState(frame())}`); });
     await (await cellEditor(frame(), 3)).click();
     await page.keyboard.type('unsaved = 42');
     await until(async () => (await cellState(frame(), 3)).source.includes('unsaved = 42'), 'the edit is in the cell');
