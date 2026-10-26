@@ -24,7 +24,10 @@
       { "name": "EXPLAIN_JOBS", "class_name": "ExplainJobs" },
       // IMG-01 image generation jobs, one object per generation (control-plane/src/image-jobs.js, docs/features/image-jobs.md).
       // Bound even while IMAGE_GENERATE_ENABLED is off, so existing jobs can still be inspected and settled.
-      { "name": "IMAGE_JOBS", "class_name": "ImageJobs" }
+      { "name": "IMAGE_JOBS", "class_name": "ImageJobs" },
+      // Shared plumbing for file conversion, Ctrl+K image edits and Ctrl+K JavaScript runs (control-plane/src/file-jobs.js,
+      // docs/features/file-jobs-production.md). Binding it enables NOTHING: each feature stays off until its own vars and secrets exist.
+      { "name": "FILE_JOBS", "class_name": "FileJobs" }
     ]
   },
   "migrations": [
@@ -33,7 +36,8 @@
     { "tag": "repository-imports-1", "new_sqlite_classes": ["RepositoryImports"] },
     { "tag": "cad-jobs-1", "new_sqlite_classes": ["CadJobs"] },
     { "tag": "explain-jobs-1", "new_sqlite_classes": ["ExplainJobs"] },
-    { "tag": "image-jobs-1", "new_sqlite_classes": ["ImageJobs"] }
+    { "tag": "image-jobs-1", "new_sqlite_classes": ["ImageJobs"] },
+    { "tag": "file-jobs-1", "new_sqlite_classes": ["FileJobs"] }
   ],
   // dev-worker.js bundles its pages from ./dist-dev; build with the production VITE_* env into that directory.
   "assets": { "directory": "./dist-dev", "binding": "ASSETS", "run_worker_first": true },
