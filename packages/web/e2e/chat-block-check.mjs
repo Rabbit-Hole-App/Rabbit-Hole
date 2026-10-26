@@ -812,7 +812,9 @@ await check('the drawing tools fold away', async () => {
 
 await check('a board answer can be explained back on the board', async () => {
   const board = canvas.locator('[data-block-id]').last();
-  const shapesBefore = await board.locator('.tl-shape').count();
+  // T6: the board counts what the Tutor drew by its own marks (author assistant); none yet, and nothing offered to remove
+  const drawn = board.locator('[data-board-clear-explanation]');
+  if (await drawn.count()) throw new Error('the board already claims Tutor drawing before any explanation');
   const dock = page.locator('input[placeholder^="Ask about"], textarea[placeholder^="Ask about"]').first();
   await dock.fill('What does the flat part of this curve mean?');
   await dock.press('Enter');
@@ -826,7 +828,11 @@ await check('a board answer can be explained back on the board', async () => {
   // the plan is drawn onto the same board, never a copy of it
   const failure = page.locator('[data-toast-error]');
   for (let waited = 0; waited < 240000; waited += 4000) {
-    if (await board.locator('.tl-shape').count() > shapesBefore) return;
+    if (await drawn.count()) {
+      const counted = await board.getByText(/\d+ (shapes|marks) drawn by the tutor/).first().innerText();
+      if (!/^[1-9]\d* /.test(counted)) throw new Error(`the Tutor's drawing is not counted: "${counted}"`);
+      return;
+    }
     // a failure is reported in a toast the learner can copy, not swallowed
     if (await failure.count()) throw new Error(`explaining failed: ${await failure.first().innerText()}`);
     await page.waitForTimeout(4000);

@@ -265,7 +265,8 @@ calls `marksIn`.
 `explain({ question, answer, onStage })` no longer draws by itself. It resolves to a **draw-back**
 `{ explanationId, marks: { strokes?, shapes?, items? }, cards: [{ kind, objectId, text, operation }] }` (`validateDrawBack`):
 every mark has `author: 'assistant'`, the one `explanationId` and its `objectId`; `cards` are the plan's graph, 3D, video,
-scene and image objects (`RICH_CARD` maps them to the block types `graph`, `model3d`, `videoGenerate`, `scene`, `image`).
+scene and image objects (`RICH_CARD` maps them to the palette entries `graph`, `model3d`, `videoGenerate`, `scene`, `image`;
+`RICH_TYPE` gives the saved block `type` the card renderer switches on, which for video is `video` with `mode: 'generate'`).
 The host applies marks and cards in **one** state update (one undo step). `explanationIdFor(whiteboardId, requestKey)` is
 the same for the same request, so a retry or a reload finds its marks and cards already there. **Remove explanation**
 is `removeExplanation(sketch, explanationId?)`: the Tutor's marks go, the learner's and the lesson's stay; cards beside
@@ -279,6 +280,25 @@ A card made from a draw-back is an ordinary canvas card (all its normal behaviou
 beside the originating whiteboard, not over it, in the card's own position fields. `cardsOf(blocks, whiteboardId)` lists
 a board's cards. Deleting a whiteboard leaves its cards; the link then points at nothing and is harmless. Objects that are
 already inside an existing snapshot are never converted into cards, dropped or flattened (migration rule 4).
+
+### Tutor draw-back, as built (workstream T)
+
+Code: `packages/web/src/board-draw-back.js` (pure; imports only `whiteboard-sketch.js` and `learn-board-layout.js`) with
+`board-draw-back.test.mjs`. It replaces the drawing half of `learn-board-renderer.js`, which stays until X1 deletes it.
+
+| Function | Job |
+|---|---|
+| `explainBoard({ whiteboardId, title, appName, question, answer, key, onStage, getSketch, exists, permit, request })` | What the card's `explain` does. Refuses before any paid request when `permit()` says read-only, returns `{ drawBack: null, reason: 'already-drawn' }` when `exists(explanationId)` (a retry or reload), calls `request` (`requestBoardExplanation`), checks `permit()` again after the plan arrives, and returns the draw-back. It draws nothing |
+| `planDrawBack({ plan, snapshot, whiteboardId, requestKey, sketch })` | Plan blocks to `{ explanationId, marks, cards, spoken }`, validated by `validateDrawBack`. Text, equation and code become text items (equation blue, code `mode: 'code'`, prose wrapped at 52 characters); a diagram becomes boxes with labels, straight arrows between neighbours and curves below the row for skips and loops; an image's marks are drawn on a dashed frame of the picture's proportions; a block with `fromObjectId` gets a red connector from the existing drawing. The new column goes right of the existing content (an empty board starts at 24, 24). Ids are `explanation-<explanationId>-<n>:<k>`, so the same request plans the same ids |
+| `applyDrawBack({ blocks, whiteboardId, drawBack, sketch, permit, layout, boardChars })` | One update for the host: the board's sketch gets the marks (`withSketch`, so a legacy board records `sketchFrom` and keeps `snapshot` by reference) and `insertLinkedCards` adds the cards. `permit` not allowed: the same `blocks` array comes back and nothing is written. Marks of an explanation already on the sketch are not added again, and a card whose `cardIdFor(link)` exists is skipped and not moved. `saveVerdict` over the sketch plus the new cards: if it does not fit, `blocks` is unchanged and `reason` says why |
+| `placeCards(kinds, layout)` | `{ dx, dy }` per card so it is drawn 40 px right of the board, stacked below anything already there. `layout = { box, taken, nextFlowTop, column }` is read by the host when applying, so a board moved or resized while the plan was coming still gets its cards beside it. No layout: offset 0, 0 (end of the column, still linked) |
+| `clearExplanation`, `explanationCount`, `hasExplanation`, `explanationBounds` | Remove explanation (the Tutor's marks only; cards stay), the "N marks drawn by the tutor" count, the retry guard, and the rectangle to focus after drawing |
+| `boardShapesIn(() => ({ sketch, frame, view }))`, `sketchRect` | `shapesIn` for `registerBoardAsk(id, { shapesIn, explain })` over `marksIn`; `frame = { rect: client rect of the drawing surface, w: its logical width }` divides out the canvas zoom, `view` is the card's `{ s, tx, ty }` |
+
+Card blocks made by `cardFor`: graph `{ title, brief, spec, state: {} }`, 3D `{ title, brief, modelUrl, camera, autoRotate, animation, animationTime }`,
+video `{ mode: 'generate', title, src: '', caption, operation, status: 'idle' }`, scene `{ title, brief, operation, status: 'idle', ... }`,
+image `{ mode: 'search', title, src, alt, caption, credit, variants, variant }` (a paper figure carries its citation in the caption). A video or
+scene card has its own Generate button and paid confirmation, so the old "unavailable on a whiteboard" proposal is gone.
 
 ## Capabilities lost at cutover
 
@@ -315,6 +335,19 @@ Lost or changed:
 14. **The card's own toolbar and its Hide-tools button** (`toolsHidden`): the canvas toolbar replaces both. Verified.
 15. **tldraw keyboard shortcuts** are replaced by the canvas's (`docs/features/canvas-editing.md`). To confirm.
 16. **The CDN fetch of tldraw's icons, fonts and translations and the usage reporting to tldraw** go away (a gain).
+
+Added by workstream T (all verified from `board-draw-back.js`):
+
+17. **The Tutor's answer no longer writes itself.** The old renderer faded shapes in, typed text character by character, followed it with
+    the camera and could be cancelled mid-way; the draw-back arrives in one update (one undo step) and the editor focuses it
+    (`explanationBounds`, `focusView`).
+18. **Image annotations sit on a frame, not on the picture.** The picture is a card beside the board; its box, circle, highlight, arrow,
+    path and label marks are drawn on a dashed frame of the picture's proportions on the board.
+19. **Links on the board are plain text.** The old board's Pexels credit and paper citation were clickable text shapes; now the
+    image card shows the Pexels credit link, and a paper citation is in the card's caption and the first mark's `meta.paper`.
+20. **Video and scene proposals gain a button.** They were drawn as "unavailable" on a whiteboard (no paid runner); they are now ordinary
+    cards with their own Generate and paid confirmation. This is a behaviour change the owner should know about (D2 asked for ordinary cards).
+21. **Diagram routing is simpler.** Neighbours are straight arrows; skips and loop-backs are curves under the row; a self-loop is not drawn.
 
 Already unavailable today because `WhiteboardBlock.jsx` hides them (`HIDDEN`): the page menu and multiple pages, the main menu
 and its export, the debug panel, the help menu and the shortcuts dialog, the minimap. Nothing is lost there.
