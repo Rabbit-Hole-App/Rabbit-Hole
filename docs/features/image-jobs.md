@@ -216,7 +216,7 @@ see AI credits only (1 credit = US$0.01); dollar amounts, usage and costs are in
 
 ## 6d. The owner-only acceptance window (owner 2026-10-25)
 
-Public generation stays off (`IMAGE_GENERATE_ENABLED` "false"). `IMAGE_ACCEPTANCE_EMAILS` (production config) lists exactly two entries, the owner's
+PUBLIC generation is ON in this branch (`IMAGE_GENERATE_ENABLED` "true", the primitive `image_generate` ready and direct): held for the owner's GO until the deployed owner-only acceptance has passed (it cannot run after this flip, it requires the owner path). Who may use it: everyone signed in, within the settings 6f lists as supported; everything else stays visible, greyed, with the reason, and is refused by the server. Rollback: set `IMAGE_GENERATE_ENABLED` to "false" and redeploy. `IMAGE_ACCEPTANCE_EMAILS` (production config) lists exactly two entries, the owner's
 Google application principal and the Gmail address, compared whole and lower-cased, as Motion's `MOTION_ACCEPTANCE_EMAILS` is. The identity is the
 verified session (`repositoryIdentity`, the control plane's `/api/me` by cookie); a header, body field or query never names the caller. For anyone
 else every route answers what it answers when generation is off (503 `image_generation_disabled`, `inspect` 404) and nothing is stored. The server
