@@ -2,7 +2,7 @@
 
 Ledger task `19e561b2-04b6-46bf-bc3b-2e6bb3f834ec`. Owner direction 2026-10-26: ship Rabbit Hole without the `tldraw`
 dependency and its license key. Branch `feat/tldraw-removal`, from main 7b105a4b. This document is the inventory, the
-replacement approach, the data-migration rule, the slices and the validation plan. Slice S1 is built; the rest is not.
+replacement approach, the data-migration rule, the slices and the validation plan. Slices S1 and S2 are built; the rest is not.
 
 ## Why (the license, read from the package)
 
@@ -168,7 +168,7 @@ guards come out only in S6, when `tldraw-imports.test.mjs` (the ratchet) has an 
 | Slice | Content | Needs owner decision | Imports removed |
 |---|---|---|---|
 | **S1 (built)** | `legacy-whiteboard.js` reader and SVG exporter; fixtures written by tldraw's own schema; the ratchet test; check-map entry | No | 0 |
-| S2 | Remove the dead player: delete `LearnCanvas.jsx`, `learn-graph-storage.js`, `learn-video-canvas.js`, `sigmoid-demo.js`, `canvas-preview.js`; cut the editor blocks out of `LearnPage.jsx` (lines listed above); update `learn-notes-view.test.mjs`, `index.css:728`, check-map | No | 4 of 11 |
+| **S2 (built)** | Remove the dead player: delete `LearnCanvas.jsx`, `learn-graph-storage.js`, `learn-video-canvas.js`, `sigmoid-demo.js`, `canvas-preview.js`; cut the editor blocks out of `LearnPage.jsx` (lines listed above); update `learn-notes-view.test.mjs`, `index.css:728`, check-map. As built, `LearnPage.jsx` keeps `const [editor, setEditor] = useState(null)` and its other guarded uses (none import tldraw); only the code that called the deleted modules went, and `demo.run` and `previewLesson` became empty functions (`previewLesson` already returned at once without an editor; `demo.run` would have thrown) | No | 4 of 11 (the fifth deleted file, `canvas-preview.js`, used the editor but did not import tldraw) |
 | S3 | Notes: per D4 (recommended: delete `LearnNotes.jsx`, the notes state in `LearnPage.jsx:313-345,1930-1970,2227,2397` and `captureNotePage`; leave IndexedDB data) | D4 | 1 |
 | S4 | New whiteboard card on our primitives, plus the converter and on-open migration (sub-steps below) | D1, D2, D3 | 0 until S5 |
 | S5 | Cut `WhiteboardBlock.jsx`, `learn-board-renderer.js`, `sigmoid-board.js` over to the new card; delete `learn-shape-utils.js`, the three shapes | after S4 | the last 6 |

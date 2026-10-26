@@ -5,8 +5,8 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 
 const REMAINING = [
-  'InteractiveGraphShape.jsx', 'LearnCanvas.jsx', 'LearnNotes.jsx', 'LearnVideoShape.jsx', 'ThreeDShape.jsx', 'WhiteboardBlock.jsx',
-  'learn-board-renderer.js', 'learn-graph-storage.js', 'learn-video-canvas.js', 'sigmoid-board.js', 'sigmoid-demo.js',
+  'InteractiveGraphShape.jsx', 'LearnNotes.jsx', 'LearnVideoShape.jsx', 'ThreeDShape.jsx', 'WhiteboardBlock.jsx',
+  'learn-board-renderer.js', 'sigmoid-board.js',
 ];
 const IMPORT = /(?:from|import\()\s*['"](?:tldraw|@tldraw\/[^'"]*)(?:\/[^'"]*)?['"]|^\s*import\s+['"]tldraw/m;
 

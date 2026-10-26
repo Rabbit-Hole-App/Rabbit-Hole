@@ -22,7 +22,6 @@ import { verifyExtractionRead } from './inline-extraction.js';
 import { prepareImageRevision } from './inline-image-revision.js';
 import { fileChatRef } from './file-chat-ref.js';
 import { fileContextManifest } from './file-context-manifest.js';
-import { captureSelection, selectionSnapshot } from './sigmoid-context.js';
 import { CourseInterview, CoursePanel, useLearnCourse } from './LearnCourse.jsx';
 import { LessonNotebook, LessonPractice, LessonReading } from './LearnExtras.jsx';
 import LearnOutline from './LearnOutline.jsx';
@@ -1772,70 +1771,18 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
 
   const pauseLesson = () => playback.current?.pause?.();
   const lesson = useRef(null);
-  const graphs = useRef(null);
-  const [graphError, setGraphError] = useState('');
-  useEffect(() => {
-    if (!editor) return;
-    let disposed = false;
-    import('./learn-graph-storage.js').then(({ persistGraphs }) => {
-      if (!disposed) graphs.current = persistGraphs(editor, app, () => lesson.current, value => { lesson.current = value; refreshSelection(v => v + 1); }, setGraphError);
-    });
-    return () => { disposed = true; graphs.current?.dispose(); graphs.current = null; };
-  }, [editor, app.name, app.email, app.org]);
-  useEffect(() => { graphs.current?.sync(); }, [progress?.page, progress?.playing]);
-  const videos = useRef(null), scenes = useRef(null);
-  useEffect(() => {
-    if (!editor) return;
-    let disposed = false;
-    import('./learn-video-canvas.js').then(({ videoCanvas }) => {
-      if (!disposed) {
-        const restore = value => { lesson.current = value; refreshSelection(v => v + 1); };
-        videos.current = videoCanvas(editor, app, () => lesson.current, restore);
-        scenes.current = videoCanvas(editor, app, () => lesson.current, restore, { kind: 'scene' });
-      }
-    });
-    return () => { disposed = true; videos.current?.dispose(); videos.current = null; scenes.current?.dispose(); scenes.current = null; };
-  }, [editor, app.name, app.email, app.org]);
-  useEffect(() => { videos.current?.sync(); scenes.current?.sync(); }, [progress?.page, progress?.playing]);
   const pinned = useRef(null);
   const [preview, setPreview] = useState(null);
   const previewRequest = useRef(0);
   // Removing the thumbnail also drops a selected area's picture from the question.
   const removeImage = () => { previewRequest.current++; setPreview(null); setAskTarget(previous => (String(previous?.id || '').startsWith('area:') ? { ...previous, image: undefined, preview: undefined } : previous)); };
-  const preparePreview = async () => {
-    const request = ++previewRequest.current;
-    setPreview(null);
-    try {
-      const snapshot = selectionSnapshot(editor, lesson.current, pinned.current);
-      if (!snapshot?.target) return;
-      const ellipse = pinned.current?.region;
-      const { canvasPreview } = await import('./canvas-preview.js');
-      const image = await canvasPreview(editor, snapshot, ellipse);
-      if (request === previewRequest.current) setPreview(image);
-    } catch { /* A deleted/incomplete selection is handled by the existing question flow. */ }
-  };
   const [, refreshSelection] = useState(0);
-  const lastSelection = useRef('');
   useEffect(() => editor?.store.listen(() => {
     if (pinned.current && pinned.current.runId !== lesson.current?.runId) {
       pinned.current = null; previewRequest.current++; setPreview(null);
     }
     refreshSelection(v => v + 1);
   }), [editor]);
-  useEffect(() => editor?.store.listen(() => {
-    const ids = editor.getSelectedShapeIds();
-    const key = [...ids].sort().join('|');
-    if (key === lastSelection.current) return;
-    lastSelection.current = key;
-    // Keep the captured target when focus moves to chat. Explicit X clears it.
-    if (!ids.length) return;
-    if (pinned.current?.region && [...pinned.current.shapeIds].sort().join('|') === key) return;
-    pauseLesson();
-    pinned.current = captureSelection(editor, lesson.current);
-    refreshSelection(v => v + 1);
-    if (pinned.current) preparePreview();
-    else removeImage();
-  }, { scope: 'session' }), [editor]);
   useEffect(() => () => { playback.current?.dispose(); previewRequest.current++; }, [app.name]);
   const openPaperReference = event => {
           const link = event.target.closest?.('a');
@@ -1885,42 +1832,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     startRef: startDemo,
     prompt: 'Explain the sigmoid function',
     disabled: !editor || progress?.playing || course.dirty || !!noteEditing,
-    run: async (replace) => {
-      clearRegionMarker();
-      setCourseView(false); setLearningView('lesson'); setSetupChat(false); setNarration('');
-      setProgress(null);
-      playback.current?.dispose();
-      let cancelled = false;
-      const controller = { dispose: () => { cancelled = true; } };
-      playback.current = controller;
-      pinned.current = null;
-      removeImage();
-      lesson.current = { runId: crypto.randomUUID(), currentStage: 'idea', recentExplanations: [] };
-      refreshSelection(v => v + 1);
-      const { playSigmoid } = await import('./sigmoid-demo.js');
-      if (cancelled) return;
-      playback.current = playSigmoid(editor, replace, lesson.current, recordProgress);
-      playback.current.play();
-    },
+    // ponytail: the animated lesson player is gone (tldraw removal S2); `editor` was never set, so run and previewLesson had nothing to drive.
+    run: async () => {},
   };
-  const previewLesson = async (generated, resume = false) => {
-    if (!editor) return;
-    clearRegionMarker(); setLessonSource(null); setPaperOpen(false); setSourceOpen(false);
-    playback.current?.dispose(); pinned.current = null; removeImage();
-    let cancelled = false;
-    playback.current = { dispose: () => { cancelled = true; } };
-    const { playSigmoid } = await import('./sigmoid-demo.js');
-    if (cancelled) return;
-    setCourseView(false); setLearningView('lesson'); setSetupChat(false);
-    await new Promise(resolve => requestAnimationFrame(resolve));
-    if (cancelled) return;
-    editor.updateViewportScreenBounds(editor.getContainer());
-    lesson.current = { runId: crypto.randomUUID(), currentStage: 'page-1', recentExplanations: [] };
-    const resumeAt = generated.id === nanoLesson.id && resume ? nanoProgress.saved.timeline : null;
-    playback.current = playSigmoid(editor, setNarration, lesson.current, recordProgress, generated);
-    if (Number.isFinite(resumeAt) && resumeAt > 0) playback.current.scrub(resumeAt);
-    else playback.current.play();
-  };
+  const previewLesson = async () => {};
   const nanoActive = suppliedCourse && lesson.current?.lessonId === nanoLesson.id;
   const pages = progress?.pages || [{ label: 'What is logistic regression?' }, { label: 'The formula' }, { label: 'The sigmoid function' }];
   const sampleIndex = sampleCourse.lessons.findIndex(item => item.id === (lesson.current?.lessonId || 'sigmoid-demo'));
@@ -2214,7 +2129,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         }} />;
   // The lesson canvas fills its workspace up to the page's top edge (owner, 2026-10-22): the header floats over it, with no
   // band of its own, unless a lesson heading, an error or the review-board note sits between them.
-  const headerOver = !courseView && learningView === 'lesson' && !((!isRepository && !isCanvas) || progress) && !graphError && !(reviewTools && board && !BOARDS[board]);
+  const headerOver = !courseView && learningView === 'lesson' && !((!isRepository && !isCanvas) || progress) && !(reviewTools && board && !BOARDS[board]);
   return <main className={OWNER_MAIN}>
     {/* Below lg the panel stacks under the lesson and the page scrolls: the
         lesson canvas keeps a real working height (see below) instead of being
@@ -2352,7 +2267,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         {learnerOpen && !suppliedCourse && <LearnOutline allowSample={!isRepository && !isCanvas} onToggleComplete={toggleSection} completed={completed} state={course} sample={sampleOutline} onSampleChange={setSampleOutline} activeId={lesson.current?.lessonId} activePage={progress?.page} disabled={outlineDisabled} onOpen={openFromOutline} />}
         <div className={`${courseView || learningView !== 'lesson' ? 'hidden' : 'flex'} relative min-h-0 flex-1 flex-col`}>
         {!canvasState.presenting && ((!isRepository && !isCanvas) || progress) && <div aria-label="Current lesson and section" className="mb-4"><h2 className="text-lg font-semibold">Lesson {sampleIndex >= 0 ? sampleIndex + 1 : 1}: {currentLesson?.title}</h2><p className="mt-1 text-sm text-ink-2">Section {(progress?.page || 0) + 1} of {pages.length}: {progress?.label || pages[0].label}</p></div>}
-        {graphError && <p role="alert" className="text-sm text-red-700">{graphError}</p>}
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
         {reviewTools && board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}

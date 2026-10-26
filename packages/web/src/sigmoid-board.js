@@ -4,7 +4,7 @@ import { sigmoidObjects } from './sigmoid-context.js';
 // A drawn sigmoid for the whiteboard block: enough of a lesson that both
 // "Ask in chat" and "Ask selection" have something real to talk about. Shapes
 // carry the semantic ids the tutor already knows from sigmoidObjects.
-// ponytail: static board; the animated version lives in sigmoid-demo.js.
+// ponytail: static board; the animated lesson player that drew it step by step was removed (tldraw removal S2).
 
 const LEFT = 140, RIGHT = 620, BOTTOM = 330, TOP = 90;
 const px = x => LEFT + ((x + 6) / 12) * (RIGHT - LEFT);

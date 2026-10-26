@@ -724,8 +724,6 @@ tr.cursor-pointer:active > td {
 /* Enlarged panels use the same content edges as the chat page. */
 .expanded-page-frame > [data-panel-content] { padding-inline: 0; padding-bottom: 0; }
 
-/* Lesson canvas tools hide until the side toggle opens them. */
-.learn-canvas.tools-hidden .tlui-toolbar { display: none; }
 
 /* Answer-check confetti burst; disabled for reduced-motion users. */
 @keyframes confetti-burst {
@@ -1001,7 +999,7 @@ html[data-text-size] [data-canvas-world] {
 
 /* Reduced decorative motion (Settings > Appearance & input, ui-prefs.js): the app's own transitions and animations stop, as
    prefers-reduced-motion does above. Lesson content is left alone: nothing in the canvas world changes, and lesson scenes
-   (AnimatedScene, InteractiveScene, sigmoid-demo, learn-board-renderer) read the OS setting themselves, so their steps and
+   (AnimatedScene, InteractiveScene, learn-board-renderer) read the OS setting themselves, so their steps and
    playback controls stay. */
 html[data-reduce-motion] :not(:where([data-canvas-world], [data-canvas-world] *)),
 html[data-reduce-motion] :not(:where([data-canvas-world] *))::before,
