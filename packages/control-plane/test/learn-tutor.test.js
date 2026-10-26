@@ -206,10 +206,19 @@ test('evaluate: no JEV key, or a JEV failure, is an error - nothing settled, no 
 test('evaluate: the larger evaluator timing out is telemetry outcome timeout; JEV events are kept', async t => {
   const bodies = [], original = globalThis.fetch;
   t.after(() => { globalThis.fetch = original; });
-  globalThis.fetch = async (url, options) => { bodies.push(JSON.parse(options.body)); return new Promise(() => {}); };
+  // The model call reaches fetch only after a real async step (loggedModel hashes the prompt with crypto.subtle), so a real 5 ms timer
+  // can fire first under load and the call is never made (CI gate run 40261411106: bodies.length 0 !== 1). The route's timer is
+  // mocked and ticked only once the evaluator has reached fetch: the timeout fires after the call by construction, never before it.
+  let reached;
+  const called = new Promise(resolve => { reached = resolve; });
+  globalThis.fetch = async (url, options) => { bodies.push(JSON.parse(options.body)); reached(); return new Promise(() => {}); };
   const w = world(t);
   const ask = async () => ({ body: answersOf({ ...settledAnswers, c0_mis0: 0.55 }) });
-  const result = await (await w.post('/api/learn/tutor/evaluate', { app: 'canvas-0a1b2c3d', message: 'x', spec: SPEC }, { ask, timeoutMs: 5 })).json();
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const pending = w.post('/api/learn/tutor/evaluate', { app: 'canvas-0a1b2c3d', message: 'x', spec: SPEC }, { ask, timeoutMs: 5 });
+  await called;
+  t.mock.timers.tick(5);
+  const result = await (await pending).json();
   assert.equal(result.evaluator, 'jev');
   assert.equal(result.larger_error, 'The evaluator timed out');
   assert.deepEqual([result.telemetry.larger.outcome, result.telemetry.larger.reason, result.telemetry.larger.served_model], ['timeout', 'contradiction', null]);
