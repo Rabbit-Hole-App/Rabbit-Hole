@@ -1,6 +1,6 @@
 # Deployment handoff
 
-Last updated: Sunday 2026-10-25, 11:25 PM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
+Last updated: Sunday 2026-10-25, 10:55 PM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
 
 Authoritative inputs (repository-relative): the 60-row [feature inventory](evidence/feature-inventory.md), the [discrepancy table](evidence/completion-audit-discrepancies.md), the [validation budget ledger](evidence/validation-budget-ledger.md), the [flake list](evidence/flakes.md), the [FILE_JOBS contract](evidence/file-jobs-contract.md), feature docs under [`docs/features/`](../features/). The working task ledger and local receipts live on the integrator machine (`C:/s/spec/...`); important receipts are summarised under `docs/operations/evidence/`.
 
@@ -93,9 +93,9 @@ Dependency order. Status is current as of the stamp above; the executable comman
 
 ## 10. Change log (PT)
 
-- 2026-10-25 11:25 PM: `fix/credits-finish` 1058a8dd delivered (credits-only usage API, sealing, Jev 429, refund path, labels); queued as successor C15 after the C14 gate.
+- 2026-10-25 10:55 PM: `fix/credits-finish` 1058a8dd delivered (credits-only usage API, sealing, Jev 429, refund path, labels); queued as successor C15 after the C14 gate.
 
-- 2026-10-25 11:05 PM: batch candidate `stack/c14-batch` b0f5a6ad built from main 629251d4 (tutor timing fix, card-size teardown, Study resize, Chat restore, file-drop check, FILE_JOBS plumbing, Image activation with owner-only path, public OFF); config tests 27/27; CI and sharded gate chain started; infra/provider package delivered; image candidate `feat/image-activation` ebea37b8 CI green.
+- 2026-10-25 10:45 PM: batch candidate `stack/c14-batch` b0f5a6ad built from main 629251d4 (tutor timing fix, card-size teardown, Study resize, Chat restore, file-drop check, FILE_JOBS plumbing, Image activation with owner-only path, public OFF); config tests 27/27; CI and sharded gate chain started; infra/provider package delivered; image candidate `feat/image-activation` ebea37b8 CI green.
 
 - 2026-10-25 10:20 PM: CAD constraint diagnosed (our egress ledger, not stale, not a provider limit); handoff docs release script prepared (docs-only, gate-reuse path, dry-run verified).
 
