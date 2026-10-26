@@ -16,7 +16,11 @@ import { imageAllowed, imageOperatorAllowed } from '../src/image-settings.js';
 import { imageJobsEnabled, imageJobsRoute } from '../src/image-jobs.js';
 import { artifactPlan, generateArtifact } from '../src/learn-artifact.js';
 
-const PUBLIC = false; // HELD FOR OWNER GO: the flip commit sets this to true together with the three gates
+const PUBLIC = false; // HELD FOR OWNER GO: the flip commit sets this to true together with the primitive and the server flag
+// The web constant is NOT flipped (decision in the hand-back): with the server's flag public, GET /api/learn/image-jobs answers available for everyone and the build
+// lists the command from that answer (image-capability.js). Flipping the constant too would make the UI offer the command whatever the server says, so turning the
+// server flag off (the rollback) would leave it listed and refused, and it rewrites 20 web tests written for the per-caller design.
+const WEB_CONSTANT = false;
 
 const read = relative => readFileSync(new URL(relative, import.meta.url), 'utf8');
 const SOURCES = { web: read('../../web/src/agent/slash.js'), primitive: read('../src/learn-primitives.js'), server: read('../../web/wrangler.rabbit-hole-prod.jsonc') };
@@ -28,20 +32,20 @@ const gatesOf = s => ({
   primitive: bool(s.primitive, /\n\s*image_generate: \{ ready: (true|false)/, 'image_generate.ready'),
   server: jsonc(s.server).vars.IMAGE_GENERATE_ENABLED === 'true',
 });
-const uniform = g => new Set(Object.values(g)).size === 1;
+const uniform = g => g.primitive === g.server && g.web === WEB_CONSTANT; // the gates that must move together, and the one that must not move
 const prodVars = jsonc(SOURCES.server).vars;
 const OWNERS = String(prodVars.IMAGE_ACCEPTANCE_EMAILS).split(/\s+/);
 const LEARNER = 'learner@example.test', LOOKALIKE = 'yudhisteer.chin01@gmail.com';
 
 test('the three code gates agree with each other and with the one reviewed switch', () => {
-  assert.deepEqual(gatesOf(SOURCES), { web: PUBLIC, primitive: PUBLIC, server: PUBLIC }, 'web constant, primitive ready flag and server flag must all equal PUBLIC');
+  assert.deepEqual(gatesOf(SOURCES), { web: WEB_CONSTANT, primitive: PUBLIC, server: PUBLIC }, 'primitive ready flag and server flag must both equal PUBLIC; the web constant stays at WEB_CONSTANT');
   // The text the test reads is the code that runs.
-  assert.equal(IMAGE_GENERATION, PUBLIC);
+  assert.equal(IMAGE_GENERATION, WEB_CONSTANT);
   assert.equal(isReady('image_generate'), PUBLIC);
   assert.equal(imageJobsEnabled(prodVars), PUBLIC);
 });
 
-test('negative control: flipping any one gate, or any two, without the rest is caught on the real files', () => {
+test('negative control: flipping the primitive, the server flag or the web constant alone, or the web constant with either, is caught on the real files', () => {
   const flip = {
     web: s => ({ ...s, web: s.web.replace(/(export const IMAGE_GENERATION = )(true|false);/, (_, a, b) => `${a}${b === 'true' ? 'false' : 'true'};`) }),
     primitive: s => ({ ...s, primitive: s.primitive.replace(/(\n\s*image_generate: \{ ready: )(true|false)/, (_, a, b) => `${a}${b === 'true' ? 'false' : 'true'}`) }),
@@ -51,13 +55,13 @@ test('negative control: flipping any one gate, or any two, without the rest is c
   for (const one of names) {
     const g = gatesOf(flip[one](SOURCES));
     assert.equal(uniform(g), false, `flipping only ${one} must be caught`);
-    assert.notEqual(g[one], PUBLIC, `${one} really flipped`);
+    assert.notEqual(g[one], one === 'web' ? WEB_CONSTANT : PUBLIC, `${one} really flipped`);
   }
-  for (const skip of names) assert.equal(uniform(gatesOf(names.filter(n => n !== skip).reduce((s, n) => flip[n](s), SOURCES))), false, `flipping all but ${skip} must be caught`);
-  // The one allowed move: all three together (what the flip commit does) is uniform and is the opposite of PUBLIC.
-  const all = gatesOf(names.reduce((s, n) => flip[n](s), SOURCES));
-  assert.equal(uniform(all), true);
-  assert.equal(all.web, !PUBLIC);
+  for (const skip of ['primitive', 'server']) assert.equal(uniform(gatesOf(names.filter(n => n !== skip).reduce((s, n) => flip[n](s), SOURCES))), false, `flipping all but ${skip} must be caught`);
+  // The one allowed move: the primitive and the server flag together (what the flip commit does) is uniform and is the opposite of PUBLIC.
+  const both = gatesOf(['primitive', 'server'].reduce((s, n) => flip[n](s), SOURCES));
+  assert.equal(uniform(both), true);
+  assert.equal(both.server, !PUBLIC);
 });
 
 test('the committed production config: only the listed owner reaches image generation unless the public gate is on', async () => {

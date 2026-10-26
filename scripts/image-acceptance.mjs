@@ -13,7 +13,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
 import { createInterface } from 'node:readline';
 import { pathToFileURL } from 'node:url';
-import { imageCost } from '../packages/control-plane/src/image-providers.js';
+import { imageCost, imageQuote } from '../packages/control-plane/src/image-providers.js';
 import { imageCard, imageGenerationId } from '../packages/web/src/generate-image.js';
 
 export const ORIGIN = 'https://digrabbithole.com';
@@ -22,6 +22,9 @@ export const FREE_MAX_USD = 0.02; // a refusal or injected-fault run sends nothi
 export const HOLD_CREDITS = 20;
 const OPENAI = { quality: 'low', aspect_ratio: '1:1', resolution: '1K' }, GOOGLE = { aspect_ratio: '1:1', resolution: '1K' };
 const PROMPT = 'A small red lighthouse on a rock at dusk, flat illustration.';
+// The worst-priced enabled combination is Nano Banana Pro 1K with the longest prompt the quote bounds (4,000 bytes): the Pro run sends about 3,900 so its shown price is the
+// maximum a learner can be quoted for an enabled row, and its thinking tokens (unpublished, unbounded by the adapter) are the one thing the 0.20 hold cannot prove.
+const LONG_PROMPT = `${PROMPT} ${'Keep the sea calm, the rock dark and the sky warm. '.repeat(75)}`.slice(0, 3900).trim();
 // kind: paid (a real provider call, reserved at HOLD_USD) or free. ui: the owner presses Generate in the browser (the only way the image card is placed).
 export const RUNS = {
   'refuse-unready': { kind: 'free', model: 'gpt-image-2.5-flare', settings: { ...OPENAI, quality: 'medium' }, refusal: 'image_not_ready' },
@@ -33,9 +36,9 @@ export const RUNS = {
   sunburst: { kind: 'paid', model: 'gpt-image-2.5-sunburst', settings: OPENAI, edit: true, mime: 'image/png' },
   nb21: { kind: 'paid', model: 'gemini-nano-banana-2.1', settings: GOOGLE, ui: true, mime: 'image/jpeg' },
   'nb21-edit': { kind: 'paid', model: 'gemini-nano-banana-2.1', settings: GOOGLE, references: 1, mime: 'image/jpeg' },
-  pro: { kind: 'paid', model: 'gemini-3-pro-image', settings: GOOGLE, mime: 'image/jpeg' },
+  pro: { kind: 'paid', model: 'gemini-3-pro-image', settings: GOOGLE, mime: 'image/jpeg', prompt: LONG_PROMPT, max: 0.4 }, // booked at twice the hold: thinking above about 480 tokens settles over 0.20
 };
-export const maxOf = name => (RUNS[name].kind === 'paid' ? HOLD_USD : FREE_MAX_USD);
+export const maxOf = name => RUNS[name].max ?? (RUNS[name].kind === 'paid' ? HOLD_USD : FREE_MAX_USD);
 export const totalOf = names => Number(names.reduce((n, k) => n + maxOf(k), 0).toFixed(4));
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
@@ -75,8 +78,9 @@ export async function accept(argv, deps) {
   say(`deployed image acceptance on ${ORIGIN}; runs, in order:`);
   for (const k of names) { const r = RUNS[k]; say(`  ${k.padEnd(22)} ${r.kind.padEnd(4)} ${r.model} ${JSON.stringify(r.settings)}${r.fault ? ` fault=${r.fault}` : ''}${r.references ? ' +1 reference' : ''}${r.ui && !o.apiOnly ? ' [you press Generate]' : ''}  booked max US$${maxOf(k)}`); }
   const paid = names.filter(k => RUNS[k].kind === 'paid');
-  say(`total booked in the shared budget: US$${totalOf(names)} (${paid.length} paid runs x US$${HOLD_USD}, ${names.length - paid.length} free-path runs x US$${FREE_MAX_USD}); observed real cost of the five paid runs: about US$0.28`);
-  say(`each paid run needs ${HOLD_CREDITS} credits free on your account (the hold). Refused if the shared budget cannot cover the total.`);
+  for (const k of paid) { const r = RUNS[k], q = imageQuote({ IMAGE_GENERATE_RESERVED_USD: String(HOLD_USD) }, { model: r.model, ...r.settings }, r.references ?? 0, new TextEncoder().encode(r.prompt ?? PROMPT).length); say(`  quote for ${k}: ${q.state === 'priced' ? `US$${q.estimateUsd} (${q.estimate_credits} credits), hold ${q.reserve_credits} credits` : q.reason}`); }
+  say(`total booked in the shared budget: US$${totalOf(names)} (${paid.length} paid runs: US$${HOLD_USD} each, Pro US$0.4; ${names.length - paid.length} free-path runs x US$${FREE_MAX_USD}); observed real cost of the five paid runs: about US$0.28`);
+  say(`each paid run needs its hold in credits free on your account (${HOLD_CREDITS} today). Refused if the shared budget cannot cover the total.`);
   if (o.dry) { say('dry run: read no credential, contacted nothing, booked nothing. Nothing was run, called or changed.'); return 0; }
   if (!deps.interactive()) { say('stopped: this command asks for your session cookie at a hidden prompt and needs an interactive terminal. Nothing was done.'); return 1; }
 
@@ -107,9 +111,9 @@ export async function accept(argv, deps) {
     say(`shared budget: US$${b0.remaining} left before booking US$${totalOf(names)}`);
     const usage0 = await api('GET', '/api/learn/usage');
     if (!usage0.ok || typeof usage0.json?.remainingCredits !== 'number') throw new Stop(`could not read /api/learn/usage (HTTP ${usage0.status}).`);
-    if (paid.length && usage0.json.remainingCredits < HOLD_CREDITS) throw new Stop(`only ${usage0.json.remainingCredits} credits left; a paid run holds ${HOLD_CREDITS}.`);
+    if (paid.length && usage0.json.remainingCredits < HOLD_CREDITS) throw new Stop(`only ${usage0.json.remainingCredits} credits left; a paid run holds up to ${HOLD_CREDITS}.`);
 
-    const usage = async () => { const r = await api('GET', '/api/learn/usage'); if (!r.ok) throw new Stop(`could not read /api/learn/usage (HTTP ${r.status}).`); const f = r.json.byFeature?.find(x => x.feature === 'image_generate'); return { used: r.json.usedCredits, image: f?.usedCredits ?? 0, reserved: r.json.reservedCredits, unknown: r.json.unknownAttempts }; };
+    const usage = async () => { const r = await api('GET', '/api/learn/usage'); if (!r.ok) throw new Stop(`could not read /api/learn/usage (HTTP ${r.status}).`); const f = r.json.byFeature?.find(x => x.feature === 'image_generate'); return { used: r.json.usedCredits, image: f?.usedCredits ?? 0, reserved: r.json.reservedCredits, unknown: r.json.unknownAttempts, remaining: r.json.remainingCredits }; };
     const poll = async (fn, ok, ms, every = 2000) => { const end = deps.clock() + ms; for (;;) { const v = await fn(); if (ok(v)) return v; if (deps.clock() > end) return null; await deps.sleep(every); } };
 
     let lastGid = null;
@@ -130,7 +134,7 @@ export async function accept(argv, deps) {
         say(`  canvas ${canvas} created (delete it when you are done): ${ORIGIN}/apps/${canvas}`);
 
         // The plan: server-signed, with its own quote in credits.
-        let references = [], prompt = PROMPT;
+        let references = [], prompt = run.prompt ?? PROMPT;
         if (run.references) {
           const bytes = referencePng(), declared = await api('POST', '/api/learn/files', { app: canvas, board: 'main', name: 'reference.png', type: 'image/png', size: bytes.length, sha256: sha256(bytes), family: 'image' });
           if (!declared.ok) throw new Stop(`${name}: reference declare answered HTTP ${declared.status}`);
@@ -145,7 +149,7 @@ export async function accept(argv, deps) {
         ok('settings are what was asked', Object.entries({ model: run.model, ...run.settings }).every(([k, v]) => p.settings?.[k] === v), JSON.stringify(p.settings));
         const quoted = p.usage?.estimate_credits;
         if (run.refusal) ok('no price is shown for settings with no verified price', quoted === null, `estimate ${quoted}`);
-        else ok('the quote is in credits and the hold is 20', Number.isInteger(quoted) && quoted >= 1 && p.usage?.reserve_credits === HOLD_CREDITS, `estimate ${quoted}, hold ${p.usage?.reserve_credits}`);
+        else ok('the quote is in credits and the hold covers it', Number.isInteger(quoted) && quoted >= 1 && Number.isInteger(p.usage?.reserve_credits) && p.usage.reserve_credits >= quoted, `estimate ${quoted}, hold ${p.usage?.reserve_credits}`);
         ok('references resolve', made.json.references.every(r => r.state === 'ok'), made.json.references.map(r => r.state).join(','));
         const again = await api('GET', `/api/learn/chat/messages/${made.json.message_id}/proposal`);
         ok('the plan survives a reload (read again from the chat)', again.ok && again.json?.proposal?.proposal_id === p.proposal_id && again.json.proposal.version === p.version && again.json.used === false);
@@ -158,7 +162,8 @@ export async function accept(argv, deps) {
           ok('an edit from the old version is refused (409, nothing saved)', stale.status === 409);
           p = edited.json.proposal;
         }
-        const gid = imageGenerationId(p), before = await usage();
+        const hold = p.usage?.reserve_credits ?? 0, gid = imageGenerationId(p), before = await usage();
+        if (run.kind === 'paid') ok('the account has the hold free', before.remaining >= hold, `${before.remaining} credits left, hold ${hold}`);
         receipt.quoteCredits = quoted; receipt.generationId = gid; receipt.creditsBefore = before;
 
         // Book the money, then (and only then) allow the request to be sent.
@@ -221,7 +226,9 @@ export async function accept(argv, deps) {
             receipt.cost = { state: usd.state, usd: usd.settledUsd };
             if (typeof usd.settledUsd === 'number') { budget.settle(runId, usd.settledUsd); phase = 'none'; } else budget.uncertain(runId);
             ok('the cost is known (measured or an upper bound)', typeof usd.settledUsd === 'number', usd.state);
-            ok('the cost is within the booking', usd.settledUsd <= max + 1e-9, `US$${usd.settledUsd} of US$${max}`);
+            receipt.overHold = usd.settledUsd > HOLD_USD + 1e-9 ? `settled US$${usd.settledUsd}, above the US$${HOLD_USD} hold: an explicit overrun, never clipped` : null;
+          if (receipt.overHold) say(`  FINDING: ${receipt.overHold}`);
+          ok('the cost is within the booking', usd.settledUsd <= max + 1e-9, `US$${usd.settledUsd} of US$${max}`);
           } else if (ij.settlement?.calls === 0) { budget.release(runId); phase = 'none'; }
           else if (ij.providerStatus === 429) { budget.settle(runId, 0); phase = 'none'; }
           else budget.uncertain(runId);
@@ -231,7 +238,7 @@ export async function accept(argv, deps) {
           } else {
             ok('the job is ready', ij.stage === 'ready', `${ij.stage} ${ij.reason || ''}`);
             ok('settlement done, settled, one provider call, no retry', ij.settlement?.done === true && ij.settlement.status === 'settled' && ij.settlement.calls === 1 && (ij.retries || 0) === 0, JSON.stringify({ ...ij.settlement, retries: ij.retries }));
-            ok('the inspect quote equals the plan quote', ij.quote?.estimate_credits === quoted && ij.quote?.reserve_credits === HOLD_CREDITS);
+            ok('the inspect quote equals the plan quote', ij.quote?.estimate_credits === quoted && ij.quote?.reserve_credits === hold);
             ok('the same settings ran', ij.settings?.model === run.model && Object.entries(run.settings).every(([k, v]) => ij.settings[k] === v));
             ok('no dollar amount is shown to the requester view', !/usd|dollar|\$/i.test(JSON.stringify(job)), 'status view');
             // The stored image.
@@ -254,8 +261,8 @@ export async function accept(argv, deps) {
           else {
             ok('credits charged equal the cost the job recorded (1 credit = US$0.01, no margin)', Math.abs(charged * 0.01 - usd.settledUsd) < 5e-5, `${charged} credits for US$${usd.settledUsd}`);
             const rounded = Math.ceil(charged - 1e-9);
-            receipt.creditsVsQuote = rounded === quoted ? 'equal' : rounded > quoted && rounded <= HOLD_CREDITS ? 'above_quote_within_hold' : 'MISMATCH';
-            ok(`credits charged (${charged}, shown as ${rounded}) versus quoted (${quoted})`, receipt.creditsVsQuote !== 'MISMATCH', receipt.creditsVsQuote === 'equal' ? 'equal' : receipt.creditsVsQuote === 'above_quote_within_hold' ? 'ABOVE the quote, within the 20-credit hold: the known Google gap (price-verification.md, owner decision 3)' : 'outside the quote and the hold');
+            receipt.creditsVsQuote = rounded === quoted ? 'equal' : rounded > quoted && rounded <= hold ? 'above_quote_within_hold' : 'MISMATCH';
+            ok(`credits charged (${charged}, shown as ${rounded}) versus quoted (${quoted})`, receipt.creditsVsQuote !== 'MISMATCH', receipt.creditsVsQuote === 'equal' ? 'equal' : receipt.creditsVsQuote === 'above_quote_within_hold' ? `ABOVE the quote, within the ${hold}-credit hold: the known Google gap (price-verification.md, owner decision 3)` : 'outside the quote and the hold');
           }
           if (!run.fault && ij.stage === 'ready') {
             const reread = await api('GET', `/api/learn/image-jobs/${gid}`), proposalAfter = await api('GET', `/api/learn/chat/messages/${made.json.message_id}/proposal`);

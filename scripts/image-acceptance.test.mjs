@@ -68,7 +68,7 @@ function world(over = {}) {
     fetch: async (url, init = {}) => {
       const method = init.method || 'GET', path = url.replace('https://digrabbithole.com', ''), key = (init.headers?.cookie || '').replace('small_session=', '');
       const body = typeof init.body === 'string' ? JSON.parse(init.body) : null;
-      w.requests.push({ method, path, key });
+      w.requests.push({ method, path, key, body });
       if (!url.startsWith('https://digrabbithole.com/')) throw new Error(`outside production: ${url}`);
       const owner = key === OWNER, other = key === OTHER;
       if (!owner && !other) return reply(401, { error: 'sign in' });
@@ -126,7 +126,7 @@ const go = (w, ...argv) => accept(argv, w.deps);
 test('dry run prints the plan and the total, contacts nothing, books nothing, reads no credential', async () => {
   const w = world({ deps: { fetch: async () => { throw new Error('fetched'); }, askHidden: async () => { throw new Error('asked'); } }, budget: { status: () => { throw new Error('ledger'); }, reserve: () => { throw new Error('ledger'); } } });
   assert.equal(await go(w, '--dry-run'), 0);
-  assert.match(text(w), /total booked in the shared budget: US\$1\.1 \(5 paid runs x US\$0\.2, 5 free-path runs x US\$0\.02\)/);
+  assert.match(text(w), /total booked in the shared budget: US\$1\.3 \(5 paid runs: US\$0\.2 each, Pro US\$0\.4; 5 free-path runs x US\$0\.02\)/);
   assert.match(text(w), /Nothing was run, called or changed/);
   for (const name of Object.keys(RUNS)) assert.match(text(w), new RegExp(name));
   assert.equal(w.requests.length, 0);
@@ -134,7 +134,7 @@ test('dry run prints the plan and the total, contacts nothing, books nothing, re
 test('arguments: unknown ones and a dry run with a mutating flag are refused', async () => {
   for (const argv of [['--yes'], ['--runs', 'nope'], ['--runs', ''], ['--dry-run', '--force'], ['--dry-run', '--other-session']]) { const w = world(); assert.equal(await go(w, ...argv), 2, argv.join(' ')); assert.equal(w.requests.length, 0); }
   assert.equal(parse(['--runs', 'flare,pro']).runs.length, 2);
-  assert.equal(totalOf(Object.keys(RUNS)), 1.1); assert.equal(maxOf('flare'), HOLD_USD); assert.equal(maxOf('fault-network'), 0.02);
+  assert.equal(totalOf(Object.keys(RUNS)), 1.3); assert.equal(maxOf('pro'), 0.4); assert.equal(maxOf('flare'), HOLD_USD); assert.equal(maxOf('fault-network'), 0.02);
 });
 test('a non-interactive terminal or a bad cookie stops before anything is sent', async () => {
   const a = world({ deps: { interactive: () => false } }); assert.equal(await go(a), 1); assert.equal(a.requests.length, 0);
@@ -258,6 +258,18 @@ test('the second account: an offer of generation to it fails the acceptance', as
   assert.equal(await go(w, '--api-only', '--runs', 'refuse-unready', '--other-session'), 1);
   assert.match(text(w), /another account: image generation is not offered/);
 });
+test('the Pro run quotes the worst enabled price (a ~3,900-byte prompt) and a settlement above the hold is a finding inside its 0.40 booking, then a stop on the credit check', async () => {
+  const w = world(); USAGE['gemini-3-pro-image'] = { ...USAGE['gemini-3-pro-image'], total_thought_tokens: 1000 };
+  try {
+    assert.equal(await go(w, '--api-only', '--runs', 'pro'), 1);
+  } finally { USAGE['gemini-3-pro-image'].total_thought_tokens = 80; }
+  const plan = w.requests.find(r => r.path === '/api/learn/chat/image-proposals').body;
+  assert.ok(plan.prompt.length >= 3800 && plan.prompt.length <= 4000, `${plan.prompt.length}`);
+  assert.match(text(w), /FINDING: settled US\$0\.2\d+, above the US\$0\.2 hold: an explicit overrun, never clipped/);
+  const entry = [...w.budget.entries.values()][0];
+  assert.equal(entry.status, 'settled'); assert.ok(entry.actual > 0.2 && entry.actual <= 0.4);
+  assert.match(text(w), /outside the quote and the hold/);
+});
 test('the reference image is a real 256x256 PNG', () => {
   const b = referencePng();
   assert.equal(b.readUInt32BE(0), 0x89504e47); assert.deepEqual([b.readUInt32BE(16), b.readUInt32BE(20)], [256, 256]); assert.ok(b.length < 200 * 1024);
@@ -269,7 +281,7 @@ test('REAL entry --dry-run under the permission model: no network, no child proc
   const dry = run(['--dry-run']), out = `${dry.stdout}${dry.stderr}`;
   assert.equal(dry.status, 0, out.slice(0, 400));
   assert.doesNotMatch(out, /ERR_ACCESS_DENIED/);
-  assert.match(out, /Nothing was run, called or changed/); assert.match(out, /US\$1\.1/);
+  assert.match(out, /Nothing was run, called or changed/); assert.match(out, /US\$1\.3/);
   // A real run on a machine with BUDGET_FILE set is refused before the ledger is opened; without a terminal it stops before a cookie is read.
   const priv = spawnSync(process.execPath, [join(HERE, 'image-acceptance.mjs')], { env: { ...env, BUDGET_FILE: join(ROOT, 'private-ledger.json') }, encoding: 'utf8', input: '' });
   assert.equal(priv.status, 2); assert.match(priv.stdout, /BUDGET_FILE is set/);
