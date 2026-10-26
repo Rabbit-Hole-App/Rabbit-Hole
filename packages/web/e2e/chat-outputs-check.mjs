@@ -21,6 +21,10 @@
 //  14. a pill line sent while another command runs stays in the composer and runs once that ends
 //  15. a line typed while the saved chat is still restoring (its GET held by the router until released) stays in the composer when the
 //      history lands, and is saved to the restored thread (owner decision A, 2026-10-22; chat-restore-draft.test.mjs is the unit twin)
+//  16. a context chip attached and a mode switched while the same saved chat is still restoring both survive it: the chip and the mode
+//      show when the history lands, are saved (the chip to the restored thread, the mode to the canvas's Tutor controls, where a canvas
+//      keeps its mode), ride the next /api/learn/ask body (mode, context_refs) and are there after a reload (fix/chat-restore-context;
+//      the CONTEXT and MODE tests of chat-restore-draft.test.mjs are the unit twin, on a thread that owns its mode)
 // Before this change step 1 fails: a / line never shows as a message. Step 14 fails on be869fa1 and main e3fc9671 (L1b): the
 // pill and its words clear and nothing is sent. /api/learn/ask and the Tutor plan get canned answers here.
 // Usage: BASE=http://127.0.0.1:9141 SMALL_CP=http://127.0.0.1:9143 VARS=<cp .dev.vars> node e2e/chat-outputs-check.mjs [shotsDir]
@@ -28,6 +32,7 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { unavailableCommand } from '../src/agent/slash.js';
+import { mockChatRoute } from './dev-cp.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:9141';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:9143';
@@ -108,7 +113,7 @@ const router = async route => {
 };
 
 const results = [];
-const total = 15;
+const total = 16;
 let page = null;
 // Diagnostics (owner, 2026-10-24): step start/end and the restore/send boundaries, in ms since the check began. Method, route
 // template and status only: never a message's text. Lines start with "diag", so run-part.sh's ok/FAIL count ignores them.
@@ -121,6 +126,11 @@ const trace = (page, n) => page.on('response', response => {
   const method = response.request().method(), path = new URL(response.url()).pathname;
   const hit = TRACED.find(([m, re]) => m === method && re.test(path));
   if (hit) diag(`page ${n} ${method} ${hit[2]} ${response.status()}`);
+  // The saved state of a thread (step 16): what the page sent, as keys and counts only, never a chip's text.
+  if (method === 'PUT' && path.startsWith('/api/learn/chat/threads/') && path.endsWith('/state')) {
+    const body = response.request().postDataJSON() || {};
+    diag(`page ${n} PUT /api/learn/chat/threads/:id/state ${response.status()} sends ${Object.keys(body).join('+') || 'nothing'} mode=${body.mode ?? '-'} refs=${body.contextRefs ? body.contextRefs.length : '-'}`);
+  }
 });
 const step = async (name, fn) => {
   const n = results.length + 1, began = Date.now() - T0;
@@ -447,6 +457,71 @@ await step('a line typed while the saved chat is still restoring stays in the co
     assert.equal(await composerOf(page).inputValue(), LINE, 'the restore kept the line typed meanwhile');
     await until(async () => (await thread())?.draft?.text === LINE, 'the line was not saved to the restored thread');
     await page.screenshot({ path: `${OUT}/15-typed-while-restoring-${THEME}.png` });
+  } finally { release(); threadHold = null; }
+  await context.close();
+});
+
+// fix/chat-restore-context: the same held restore, with a context chip and a mode instead of a line. The saved thread is Tutor with no chips,
+// so Auto and the chip can only come from the learner. Add to chat attaches the card and selects Ask; the Mode menu then picks Auto, so the
+// last choice made while loading is the one that must win. On a canvas the Mode menu is the canvas's Tutor controls (threadWithControls,
+// learn-coaching-client.js): the pick is saved there, never in the thread row, and the thread row takes the mode with the turn that
+// /api/learn/ask records (stubbed here). So the chip is read back from the thread, and the mode from the saved Tutor controls.
+await step('a chip attached and a mode switched while the saved chat is still restoring both survive it, are saved, ride the next message and survive a reload', async () => {
+  let release = () => {};
+  const saved = await thread();
+  await api(`/api/learn/chat/threads/${saved.id}/state`, { method: 'PUT', body: JSON.stringify({ mode: 'tutor', contextRefs: [] }) });
+  // The canvas's Tutor controls start on Tutor too (Auto is their default), so an Auto read back later is the learner's pick.
+  const tutorMode = async () => (await api(`/api/learn/coaching?app=${canvas.name}&board=main`)).state?.controls?.mode;
+  const { state: tutorState } = await api(`/api/learn/coaching?app=${canvas.name}&board=main`);
+  await api('/api/learn/coaching', { method: 'POST', body: JSON.stringify({ app: canvas.name, board: 'main', actionId: `cho-tutor-${run}`, expectedRevision: tutorState.revision, action: 'save_controls', payload: { event: { type: 'select_mode', mode: 'tutor' } } }) });
+  assert.equal(await tutorMode(), 'tutor', 'the Tutor controls start on Tutor');
+  threadHold = new Promise(done => { release = done; });
+  try {
+    ({ context, page } = await open());
+    await mockChatRoute(context);
+    const chips = () => pane(page).locator('[data-context-chip]'), modeIs = mode => pane(page).locator(`[data-chat-mode="${mode}"]`);
+    await page.locator('[data-chat-pane][data-chat-restore="loading"]').waitFor();
+    await card(page, OLD.id).locator('[data-drag-zone]').first().click();
+    await page.getByRole('button', { name: 'Add to chat', exact: true }).click();
+    await chips().first().waitFor();
+    const refKey = await chips().first().getAttribute('data-ref-key'), sourceId = refKey.split('|')[0];
+    await pane(page).getByRole('button', { name: 'Mode', exact: true }).click();
+    await page.getByRole('menuitemradio', { name: /^Auto/ }).click();
+    await modeIs('auto').waitFor();
+    release(); threadHold = null;
+    await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor();
+    await bubble(page, CAD_LINE).waitFor();
+    assert.equal(await pane(page).locator(`[data-context-chip][data-ref-key="${refKey}"]`).count(), 1, 'the restore kept the chip attached meanwhile');
+    assert.equal(await modeIs('auto').count(), 1, 'and the mode chosen meanwhile, not the saved Tutor');
+    await until(async () => (await thread())?.contextRefs?.some(ref => ref.sourceId === sourceId), 'the chip was not saved to the restored thread').catch(async error => {
+      const now = await thread(); // what the server holds, to tell no save from a refused one from another thread (ids only)
+      throw Error(`${error.message}: the server's thread ${now?.id === saved.id ? 'is the one seeded' : `is ${now?.id}, not the seeded ${saved.id}`} and holds refs ${JSON.stringify(now?.contextRefs?.map(ref => ref.sourceId))}; the chip is ${sourceId}`);
+    });
+    await until(async () => (await tutorMode()) === 'auto', 'the mode was not saved to the canvas Tutor controls').catch(async error => { throw Error(`${error.message}: they hold ${await tutorMode()}`); });
+    // Auto on a canvas with an active Tutor is the Tutor workflow (chat-route.js tutorTurn): a plan, no /api/learn/ask, and the saved
+    // question names the turn's mode. Only an Ask turn posts /api/learn/ask, which is where the chip rides (below).
+    const turns = [], QUESTION = 'why is a token id only an index', before = { asks: asks.length, plans: plans.length };
+    page.on('request', request => { const path = new URL(request.url()).pathname; if (request.method() === 'POST' && path.startsWith('/api/learn/chat/threads/') && path.endsWith('/messages')) turns.push(request.postDataJSON()); });
+    await send(page, QUESTION);
+    await until(async () => turns.some(turn => turn.role === 'user' && turn.content === QUESTION), 'the question was not saved as a message').catch(error => { throw Error(`${error.message}: saved ${JSON.stringify(turns.map(turn => [turn.role, turn.mode]))}, plans ${plans.length - before.plans}, asks ${asks.length - before.asks}`); });
+    assert.equal(turns.find(turn => turn.role === 'user' && turn.content === QUESTION).mode, 'auto', 'the question names the mode chosen meanwhile');
+    assert.deepEqual([asks.length, plans.length > before.plans], [before.asks, true], 'and, in Auto on this canvas, is a Tutor turn: a plan and no /api/learn/ask');
+    await until(async () => turns.some(turn => turn.role === 'assistant'), 'the Tutor reply was not saved');
+    await page.screenshot({ path: `${OUT}/16-chip-and-mode-while-restoring-${THEME}.png` });
+    await page.reload();
+    await page.locator(`[data-block-id="${OLD.id}"]`).waitFor({ timeout: 60000 });
+    await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor();
+    await pane(page).locator(`[data-context-chip][data-ref-key="${refKey}"]`).waitFor();
+    assert.equal(await modeIs('auto').count(), 1, 'after a reload the thread opens in the same mode');
+    // The chip rides the next message that goes to /api/learn/ask: an Ask turn.
+    await pane(page).getByRole('button', { name: 'Mode', exact: true }).click();
+    await page.getByRole('menuitemradio', { name: /^Ask/ }).click();
+    await modeIs('ask').waitFor();
+    const asked = asks.length;
+    await send(page, 'and why not a one hot vector');
+    await until(async () => asks.length > asked, 'the Ask message was not sent to /api/learn/ask');
+    assert.equal(asks.at(-1).mode, 'ask', 'the Ask message names its mode');
+    assert.ok(asks.at(-1).context_refs?.some(ref => ref.sourceId === sourceId), 'and carries the chip attached while the chat was restoring');
   } finally { release(); threadHold = null; }
   await context.close();
 });

@@ -280,7 +280,9 @@ await check('9 Explore search applies to the active tab only: Explainers by @han
   await viewer.locator('[data-explore-search]').fill('flash attention');
   await viewer.waitForTimeout(900);
   const found = await titles(viewer, '[data-explore-card]');
-  assert.ok(found.length >= 1 && found.every(t => t === T.flash), 'by title, any case');
+  // Every result matches the title search, whatever its case, and this check's own canvas is among them. Another check publishing a canvas
+  // whose title also holds the words (explore-creators-check: Flash attention <run>, in the same stack) is a match, not a failure.
+  assert.ok(found.includes(T.flash) && found.every(t => t.toLowerCase().includes('flash attention')), `by title, any case: ${JSON.stringify(found)}`);
   await viewer.locator('[data-explore-tabs]').getByRole('tab', { name: 'Creators' }).click();
   assert.equal(await viewer.locator('[data-explore-search]').getAttribute('placeholder'), 'Search creators');
   await viewer.locator('[data-explore-search]').fill(`@${H.full}`);

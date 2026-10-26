@@ -25,6 +25,19 @@ export async function persistBoard({ state, storageKey, storage, onSave }) {
   return { ok: local && remote !== 'failed', local, remote };
 }
 
+// The board written at once when this canvas goes away (an unmount, a reload or a closed tab) with a save still waiting out its
+// 400 ms: this browser's copy first, then onSave. null when the board is already what was last written or mounted with;
+// else { text, wrote } - wrote: the browser accepted the copy (full or blocked storage, or no key, is false and the push
+// below still carries the board).
+export function flushBoard({ state, lastWritten, storageKey, storage, onSave }) {
+  const text = JSON.stringify(state);
+  if (text === lastWritten) return null;
+  let wrote = false;
+  if (storageKey) { try { storage().setItem(storageKey, text); wrote = true; } catch { /* full or blocked storage */ } }
+  onSave?.(state, { now: true });
+  return { text, wrote };
+}
+
 // Work made on this page while the board was still loading (board-empty-report; owner: edits still in memory are never
 // discarded, and conflicting work is preserved, never silently dropped). Per board key, against the board the canvas
 // mounted with: objects added (by id, or for an object without one - pen ink - by its exact content), objects changed (by
