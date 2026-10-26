@@ -41,7 +41,11 @@ function OwnerTelemetry() {
     setState({ access: access.body, overview: overview.body, health: health.body, clientErrors: clientErrors.body, learning: learning.body });
   };
   useEffect(() => { load(); }, [days]);
+  return <TelemetryView state={state} days={days} setDays={setDays} />;
+}
 
+// The page as pure markup for a given state, so a unit test can render it over fixtures (owner-telemetry-view.test.mjs).
+export function TelemetryView({ state, days, setDays }) {
   if (state.hidden) return <p className="text-sm text-ink-2">Not found.</p>;
   if (state.loading && !state.access) return <p className="text-sm text-ink-2">Loading telemetry</p>;
   const { access, overview, health, clientErrors, learning } = state;
