@@ -97,7 +97,27 @@ Not met for the three headline releases. Motion is deployed, but public generati
 6. Walk the production checklist in [owner observations](evidence/owner-observations.md). Do NOT click Generate again on the failed Motion job.
 7. Publish this document to main: after step 1 the integrator merges main into the docs branch and prepares `bash /c/s/spec/day-1021/release-docs.sh` (dry-run verified; docs-only; gate-reuse path).
 
+### Motion sequence after step 1 (prepared by the Motion post-fix owner; all dry runs read-only and verified from a different cwd)
+
+Candidates: ceiling candidate `fix/motion-ceiling-3.50` c3acc21d (C16 + one config commit: `MOTION_JOB_CEILING_USD` 2.00 to 3.50 in `fly.orchestrator.toml`; verify 40289372567 and fast-e2e 40289372610 green after one rerun of an unrelated intermittent `pinned-study-kernel` failure), R2 re-cut `fix/motion-deploy-r5` 21570887 (the ceiling candidate + the R2 config; paused "0", measured policy on, no ceiling, owner list kept, 45/60 s unavailable; verify 40289793174 and fast-e2e 40289793224 green). Sharded gates for both are queued overnight (one at a time); the run ids go into `MOTION_GATE_RUN`.
+
+Owner decisions: A. ceiling value (3.50 recommended: floor 2.56; guard peak 2.74-2.80 without a repair, 3.05-3.13 with one, so 3.00 would refuse a job that needs a repair, the failure of job 61f70171; the script refuses anything above 5.00); B. refund of 127.8157 credits (idempotent, one audit row); C. one second job within the approved budget.
+
+Commands, in order (copy as is; only the two gate run ids are supplied by the integrator after the gates pass):
+
+1. `bash C:/s/spec/day-1021/train6.sh` (C16 release)
+2. `MOTION_REL=c3acc21dcd9b83300235f97bbf36645d98d6e8ed MOTION_JOB_CEILING_USD_APPROVED=3.50 MOTION_WORKER_RELEASE=yes MOTION_GATE_RUN=<ceiling gate run id> bash C:/s/spec/motion-validation/motion-deploy.sh post` (releases the ceiling candidate, waits until no job is in flight, redeploys ONLY the orchestrator at that SHA, verifies without a paid call; the renderer stays untouched)
+3. `MOTION_REL=c3acc21dcd9b83300235f97bbf36645d98d6e8ed MOTION_JOB_CEILING_USD_APPROVED=3.50 bash C:/s/spec/motion-validation/motion-deploy.sh refund` (dry run: prints the refund command)
+4. the same with `MOTION_REFUND_CONFIRM=yes` added (applies the refund)
+5. `MOTION_REL=c3acc21dcd9b83300235f97bbf36645d98d6e8ed MOTION_JOB_CEILING_USD_APPROVED=3.50 bash C:/s/spec/motion-validation/motion-deploy.sh accept2` (prints the second-job instructions: 15 s, 16:9, explicit confirmation, expected spend US$0.7-1.3, up to about 1.8, about 3 with one repair, hard stop at the ceiling)
+6. run the job in the browser, then the same command with `MOTION_ACCEPT2_DONE=yes` (reads the accounting row read-only and checks it)
+7. `MOTION_REL=21570887d82c6c2bd25763ba92e8a0a2869317ec MOTION_WORKER_RELEASE=yes MOTION_GATE_RUN=<R2 gate run id> bash C:/s/spec/motion-validation/motion-deploy.sh activate`, then a 9:16 job and `MOTION_REL=21570887d82c6c2bd25763ba92e8a0a2869317ec MOTION_ACCEPT_JOB_DONE=yes bash C:/s/spec/motion-validation/motion-deploy.sh activate`
+
+Rollback: `MOTION_ROLLBACK_CONFIRM=yes bash C:/s/spec/motion-validation/motion-deploy.sh rollback-orchestrator` (rollback of the orchestrator deploy is unverified for how `fly deploy --image --config` treats the config; the script reads the machine back and refuses to call it done if the image differs). Not exercised because no mutation is allowed: the orchestrator deploy and its verification, the refund apply, the rollback. ETA from the start of step 2, with gates green and step 1 done: about 1 h 10 min to 1 h 45 min including both jobs.
+
 ## 10. Change log (PT)
+
+- 2026-10-26 1:34 AM: Motion post-fix deployment sequence prepared (ceiling candidate c3acc21d, R2 re-cut 21570887, verify/fast-e2e green); gates queued overnight; commands added to section 9.
 
 - 2026-10-26 1:34 AM: C16 stack/c16-batch 7b105a4b gate PASSED (run 40287871324); train6.sh dry-run verified; Telemetry round-3 fixes done (script 09fe1c93, harness 283 scenarios, 1110 checks, 0 failed, 1 skipped), reviewer confirming; the 12-hour target ended without the three headline releases usable (section 9).
 
