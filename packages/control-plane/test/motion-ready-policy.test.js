@@ -100,8 +100,12 @@ test('the committed config does not activate: MOTION_RENDERER_CONFIG is absent f
   // R1: public Motion is paused ON PURPOSE (owner 2026-10-25) with exactly one account on the owner-only path; R2 flips the pause and uncomments the activation.
   const vars = JSON.parse(noComments(worker, '//')).vars;
   assert.equal(vars.MOTION_GENERATION_PAUSED, '1');
-  assert.equal(vars.MOTION_ACCEPTANCE_EMAILS, 'yudhisteer.chin@gmail.com');
-  assert.deepEqual(acceptanceEmails(vars), ['yudhisteer.chin@gmail.com']);
+  // The owner path admits the Google account's PRINCIPAL (a provider email never becomes a principal) and the Gmail address (emailed-code sign-in only).
+  assert.deepEqual(acceptanceEmails(vars), ['user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid', 'yudhisteer.chin@gmail.com']);
+  assert.equal(motionPaused(vars, 'user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid'), false, 'the Google account principal');
+  assert.equal(motionPaused({ ...vars, MOTION_GENERATION_PAUSED: '1' }, 'user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid'), false, 'admitted while paused');
+  assert.equal(motionPaused({ ...vars, MOTION_GENERATION_PAUSED: '1' }, 'user@0000000000000000000000000000000f.rabbithole.invalid'), true, 'another account principal is refused');
+  assert.equal(motionPaused({ ...vars, MOTION_GENERATION_PAUSED: '1' }, 'yudhisteer.chin01@gmail.com'), true, 'the look-alike is refused');
   assert.equal(motionPaused(vars, 'yudhisteer.chin@gmail.com'), false);
   assert.equal(motionPaused(vars, 'yudhisteer.chin01@gmail.com'), true, 'the look-alike account is a different person');
   assert.equal(motionPaused(vars, 'YUDHISTEER.CHIN@GMAIL.COM'), false, 'case is normalised');

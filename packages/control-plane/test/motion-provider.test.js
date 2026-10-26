@@ -317,7 +317,7 @@ test('only the production app config points at the Motion orchestrator, with a c
       assert.ok(motionReservationMicros({ MOTION_JOB_RESERVATION_USD: text.match(/"MOTION_JOB_RESERVATION_USD": "([^"]+)"/)?.[1] }) > 0, 'a valid hold');
       // Owner message 28: new generation paused in production until MOT-06/07 are fixed; dev, preview and local stay unpaused.
       assert.match(text, /"MOTION_GENERATION_PAUSED": "1"/);
-      assert.match(text, /"MOTION_ACCEPTANCE_EMAILS": "yudhisteer.chin@gmail.com"/);
+      assert.ok(text.includes('"MOTION_ACCEPTANCE_EMAILS": "user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid yudhisteer.chin@gmail.com"'));
       // Owner message 32: the confirmation's estimate, a typical job's actual cost (about 100 credits).
       assert.match(text, /"MOTION_ESTIMATE_USD": "1\.00"/);
     } else assert.doesNotMatch(text, /MOTION_ORCHESTRATOR|MOTION_JOB_RESERVATION|MOTION_GENERATION_PAUSED|MOTION_ESTIMATE/, name);

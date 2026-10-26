@@ -54,3 +54,16 @@ test('the chat capability route: while paused, Motion is unavailable to everyone
   assert.match(JSON.stringify(other), /temporarily unavailable|not available/i);
   assert.doesNotMatch(JSON.stringify(listed), /temporarily unavailable/i);
 });
+
+// R1b (owner 2026-10-26): the owner signs in with Google, and a provider-reported email never becomes the application principal (auth.js, migration 0026), so
+// the list carries the principal the production account really has. The matching semantics are unchanged: whole address, lower-cased.
+test('the production owner list: the Google account principal and the Gmail address are admitted while paused; another principal, the look-alike and a prefix are not', () => {
+  const env = paused({ MOTION_ACCEPTANCE_EMAILS: 'user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid yudhisteer.chin@gmail.com' });
+  assert.equal(motionPaused(env, 'user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid'), false);
+  assert.equal(motionPaused(env, 'USER@DDA2350771A4066E3080C605BA092E0A.RABBITHOLE.INVALID'), false, 'case is normalised');
+  assert.equal(motionPaused(env, 'yudhisteer.chin@gmail.com'), false);
+  for (const email of ['user@0000000000000000000000000000000f.rabbithole.invalid', 'user@dda2350771a4066e3080c605ba092e0b.rabbithole.invalid', 'user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid.evil.test', 'xuser@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid', 'yudhisteer.chin01@gmail.com', 'yudhisteer.chin@gmail.com.evil.test', 'user@rabbithole.invalid']) {
+    assert.equal(motionPaused(env, email), true, email);
+  }
+  assert.deepEqual(acceptanceEmails(env), ['user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid', 'yudhisteer.chin@gmail.com']);
+});
