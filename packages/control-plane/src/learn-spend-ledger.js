@@ -1,7 +1,7 @@
 // Shared atomic runtime spend ledger; no provider/model/evaluator dependencies. admitSpend is the one admission for every
 // paid provider call: the platform daily guard (usage_operations, 0016) and, for chargeable work, the payer's monthly AI
 // allowance (usage_actions/usage_attempts, 0022; owner L12 2026-10-20), checked and reserved in one D1 transaction.
-import { admissionPayer, attemptKind, beginAttempt, noteUsageRefusal, periodOf, periodReset, toMicros, usagePayer, usageRefusal, usageTotals, BALANCE_SCOPE, USED_SUM, HELD_SUM } from './learn-usage.js';
+import { admissionPayer, attemptKind, beginAttempt, noteUsageRefusal, periodOf, periodReset, toMicros, usagePayer, usageRefusal, usageTotals, releaseStaleHolds, BALANCE_SCOPE, USED_SUM, heldSum } from './learn-usage.js';
 import { allowanceFor } from './learn-entitlement.js';
 
 export const spendError = reason => Object.assign(new Error(reason), { code: reason });
@@ -32,8 +32,8 @@ const PLATFORM_INSERT = `INSERT INTO usage_operations (op_id, user_id, org, cate
         AND NOT EXISTS (SELECT 1 FROM usage_operations WHERE (COALESCE(settled_at, admitted_at) >= ? OR status = 'admitted') AND status <> 'cancelled' AND (cost_usd IS NULL OR error = 'spend_bound_exceeded'))
         AND (SELECT COALESCE(SUM(cost_usd), 0) FROM usage_operations WHERE (COALESCE(settled_at, admitted_at) >= ? OR status = 'admitted') AND status <> 'cancelled') + ? <= ?`;
 // Chargeable work adds its allowance to the same INSERT: used + held + this reservation within the allowance.
-const ALLOWANCE_CLAUSE = `
-        AND (SELECT ${USED_SUM} + ${HELD_SUM} ${BALANCE_SCOPE}) + ? <= ?`;
+const allowanceClause = now => `
+        AND (SELECT ${USED_SUM} + ${heldSum(now)} ${BALANCE_SCOPE}) + ? <= ?`;
 // The reservation, written in the same transaction and only when that INSERT admitted.
 const RESERVE = `INSERT INTO usage_attempts (attempt_id, action_id, kind, provider, model, reserved_micros, cost_state, status, started_at)
       SELECT ?, ?, ?, ?, ?, ?, 'reserved', 'running', ?
@@ -48,9 +48,9 @@ function refuse(env, reason, period = null) {
 }
 
 // Why a chargeable reservation was refused, for the person's explanation only; it never admits anything.
-async function explain(db, payer, need) {
+async function explain(db, payer, need, now) {
   try {
-    const row = await db.prepare(`SELECT ${USED_SUM} AS used, ${HELD_SUM} AS held ${BALANCE_SCOPE}`).bind(payer.userId, payer.period).first();
+    const row = await db.prepare(`SELECT ${USED_SUM} AS used, ${heldSum(now)} AS held ${BALANCE_SCOPE}`).bind(payer.userId, payer.period).first();
     const left = payer.allowance - Number(row?.used || 0), held = Number(row?.held || 0);
     if (left - held >= need) return 'daily_cap_reached'; // the allowance fits: the platform guard refused
     if (left <= 0) return 'allowance_exhausted';
@@ -81,10 +81,11 @@ export async function admitSpend(db, env, { opId, userId, org, category, reserve
     }
     return { refused: false, opId, attemptId: await beginAttempt(env, { attemptId: opId, kind, provider, model, reservedMicros, now }) };
   }
+  await releaseStaleHolds(db, { userId: payer.userId, now }); // calls that outlived their bound stop holding credits (idempotent)
   try {
     // One D1 batch is one transaction: no other request reads the balance between this check and this reservation.
     const [admitted, reserved] = await db.batch([
-      db.prepare(PLATFORM_INSERT + ALLOWANCE_CLAUSE).bind(...platform, payer.userId, payer.period, reservedMicros, payer.allowance),
+      db.prepare(PLATFORM_INSERT + allowanceClause(now)).bind(...platform, payer.userId, payer.period, reservedMicros, payer.allowance),
       db.prepare(RESERVE).bind(opId, payer.actionId, attemptKind(env, kind), provider, model, reservedMicros, now, opId, now),
     ]);
     if (admitted.meta?.changes === 1 && reserved.meta?.changes === 1) return { refused: false, opId, attemptId: opId };
@@ -93,7 +94,7 @@ export async function admitSpend(db, env, { opId, userId, org, category, reserve
   } catch {
     return refuse(env, 'allowance_unavailable', payer.period);
   }
-  return refuse(env, await explain(db, payer, reservedMicros), payer.period);
+  return refuse(env, await explain(db, payer, reservedMicros, now), payer.period);
 }
 
 export async function settleSpend(db, opId, { status = 'settled', calls = 0, costUsd = null, provider = null, model = null, error = null, now = Math.floor(Date.now() / 1000) } = {}) {

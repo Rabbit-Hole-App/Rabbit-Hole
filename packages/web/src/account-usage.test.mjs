@@ -121,7 +121,7 @@ test('the window regaining focus refreshes while a display is mounted, and not a
     assert.doesNotMatch(readFileSync(new URL(file, import.meta.url), 'utf8'), /setInterval|setTimeout\(.*refresh/, file);
 });
 
-test('requests with cost not yet known: a count, never an amount; a missing count is 0; a bad one is unavailable', () => {
+test('requests that ended without a confirmed cost: a count, never an amount; a missing count is 0; a bad one is unavailable', () => {
   assert.equal(readUsage(200, body()).usage.unknownAttempts, 0, 'a server without the field');
   assert.equal(readUsage(200, body({ unknownAttempts: null })).usage.unknownAttempts, 0);
   const some = readUsage(200, body({ unknownAttempts: 3, unknownReservedMicros: 400_000, reservedMicros: 400_000, remainingMicros: 32_200_000 }));
@@ -130,8 +130,8 @@ test('requests with cost not yet known: a count, never an amount; a missing coun
   for (const bad of [-1, 1.5, '2']) assert.equal(readUsage(200, body({ unknownAttempts: bad })).status, 'unavailable', String(bad));
   assert.equal(unknownLine(0), null);
   assert.equal(unknownLine(undefined), null);
-  assert.equal(unknownLine(1), '1 AI request with cost not yet known');
-  assert.equal(unknownLine(3), '3 AI requests with cost not yet known');
+  assert.equal(unknownLine(1), '1 AI request ended without a confirmed cost and was not charged');
+  assert.equal(unknownLine(3), '3 AI requests ended without a confirmed cost and were not charged');
   assert.doesNotMatch(unknownLine(3), /\$/);
   assert.equal(usageView(some).tone, 'ok', 'unknown cost alone never turns the gauge red');
 });

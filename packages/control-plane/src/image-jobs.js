@@ -282,6 +282,9 @@ export class ImageJobs {
       // Nothing left the worker: release. The provider answered with an error: failed, cost unknown (it may bill).
       // No answer (timeout, network): the outcome is unknown and is never resubmitted.
       if (!error?.providerRequestStarted) return this.close(failed, 'failed', error?.code || 'provider_not_started', { status: 'cancelled', calls: 0, costUsd: 0 });
+      // A rate limit (429) is the provider declining to start the request, the same reading spendTransport gives it (providerUnavailable):
+      // a known zero, status and code kept on the job. Every other answered error stays unknown cost: a status alone does not prove no work ran.
+      if (error.definiteResponse && error.status === 429) return this.close(failed, 'failed', 'provider_rejected', { status: 'failed', calls: 1, costUsd: 0 });
       if (error.definiteResponse) return this.close(failed, 'failed', error.code === 'invalid_output' ? 'invalid_output' : 'provider_rejected', unknownCost);
       return this.close(failed, 'unknown', 'outcome_unknown', unknownCost);
     }

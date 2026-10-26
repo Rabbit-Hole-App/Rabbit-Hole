@@ -71,7 +71,7 @@ export function featureRows(byFeature = []) {
 }
 
 // The quiet line for requests whose cost is not known yet: a count, never an amount (unknown cost is never $0). Null at 0.
-export const unknownLine = count => (count > 0 ? `${count} AI request${count === 1 ? '' : 's'} with cost not yet known` : null);
+export const unknownLine = count => (count > 0 ? `${count} AI request${count === 1 ? ' ended without a confirmed cost and was' : 's ended without a confirmed cost and were'} not charged` : null);
 
 // What the gauge, its tooltip and its label say for a state. Red ('empty') only when the server reports remaining 0.
 export function usageView(state) {

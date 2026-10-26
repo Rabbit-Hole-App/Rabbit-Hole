@@ -24,11 +24,12 @@ export async function usageFetch(req, env, { identity = devIdentity, now = Math.
   const allowance = await allowanceFor(env.LEARN_DB, env, userId, period);
   if (allowance == null) return json({ enforced, unavailable: 'accounting' }, 503);
   let totals, byFeature;
-  try { [totals, byFeature] = await Promise.all([usageTotals(env.LEARN_DB, userId, period), usageByFeature(env.LEARN_DB, userId, period)]); }
+  try { [totals, byFeature] = await Promise.all([usageTotals(env.LEARN_DB, userId, period, now), usageByFeature(env.LEARN_DB, userId, period, now)]); }
   catch { return json({ enforced, unavailable: 'accounting' }, 503); }
   return json({ enforced, currency: 'USD', period, resetsAt: periodReset(period), allowanceMicros: allowance,
     usedMicros: totals.used, reservedMicros: totals.reserved, estimatedMicros: totals.estimated,
     remainingMicros: Math.max(0, allowance - totals.used - totals.reserved),
-    // Unknown cost is never silently 0: how many finished attempts have no known cost, and the part of reservedMicros they hold.
+    // Unknown cost is never silently 0: how many finished attempts have no known cost, and the largest they could have cost. They are
+    // charged nothing and hold nothing: reservedMicros is only what is still running.
     unknownAttempts: totals.unknownAttempts, unknownReservedMicros: totals.unknownReserved, byFeature });
 }

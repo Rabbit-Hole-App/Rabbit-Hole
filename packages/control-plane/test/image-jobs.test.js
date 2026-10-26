@@ -567,7 +567,7 @@ test('recovery: a failing R2 list() is retried, not closed as unknown; another j
   assert.equal(h.calls.length, 1);
 });
 
-test('provider answers through the job: 429, 5xx and a moderation block are failed at unknown cost with the reason code kept; none is resubmitted', async t => {
+test('provider answers through the job: a 429 is a known zero (as in spendTransport); a 5xx and a moderation block stay unknown cost; the reason code is kept; none is resubmitted', async t => {
   const body = code => JSON.stringify({ error: { type: 'image_generation_user_error', code, message: 'echoed prompt text' } });
   for (const [status, text, code] of [[429, body('rate_limit_exceeded'), 'rate_limit_exceeded'], [503, '', null], [400, body('moderation_blocked'), 'moderation_blocked']]) {
     const h = harness(t);
@@ -580,8 +580,12 @@ test('provider answers through the job: 429, 5xx and a moderation block are fail
     assert.equal(job.providerStatus, status);
     assert.equal(job.providerCode, code);
     assert.equal(h.calls.length, 1);
-    assert.equal(attempts(h)[0].cost_state, 'unknown');
-    assert.equal(ops(h)[0].cost_usd, RESERVE, 'the reservation stays as the cost bound');
+    if (status === 429) {
+      assert.deepEqual([attempts(h)[0].cost_state, attempts(h)[0].cost_micros, ops(h)[0].cost_usd], ['settled', 0, 0], '429: the provider declined to start it, nothing is billed or held');
+    } else {
+      assert.equal(attempts(h)[0].cost_state, 'unknown');
+      assert.equal(ops(h)[0].cost_usd, RESERVE, 'the platform ledger keeps the reservation as the cost bound');
+    }
     const inspected = (await (await h.get(generationId, '/inspect')).json()).job;
     assert.ok(!JSON.stringify(inspected).includes('echoed prompt text'));
     assert.equal(inspected.providerCode, code);
