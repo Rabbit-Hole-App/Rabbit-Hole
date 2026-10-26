@@ -4,8 +4,10 @@
 //   motionReadiness        whether a combination may be GENERATED now: an allowlist of MEASURED combinations (ratio, duration bucket,
 //                          scene-complexity classes) with a policy version, for one renderer configuration. Default: empty, nothing ready.
 //   motionQuote            the versioned price for those inputs (measured buckets; the flat MOTION_ESTIMATE_USD when none is configured).
-//   motionBinding          what is SIGNED into a proposal (input.binding): the inputs, the price version and quote, the policy version
-//                          and the renderer configuration the card was made for.
+//   motionMaxCredits       the MAXIMUM POSSIBLE CHARGE in credits (MOTION_MAX_CHARGE_USD), a Worker setting pinned by a test to be at least the
+//                          orchestrator's per-job ceiling (docs/features/motion-credit-disclosure.md). Never the estimate, never the hold.
+//   motionBinding          what is SIGNED into a proposal (input.binding): the inputs, the price version and quote, the maximum, the policy
+//                          version and the renderer configuration the card was made for.
 //   motionGenerationCheck  what Generate (and Retry) asks, and motionExecutionCheck what runs again immediately before paid work.
 // Every option stays visible and selectable. Readiness is a conservative gate, not a promise: a ready combination can still fail, and
 // nothing here or in the copy may say it will succeed. Pure: no I/O.
@@ -20,6 +22,7 @@ export const MOTION_NOT_READY = 'motion_not_ready';
 export const MOTION_SETTINGS_INVALID = 'motion_settings_invalid';
 export const MOTION_QUOTE_STALE = 'motion_quote_stale';
 export const MOTION_RENDERER_CHANGED = 'motion_renderer_changed';
+export const MOTION_MAX_UNKNOWN = 'motion_max_unknown';
 export const FLAT_PRICE_VERSION = 'flat';
 
 // Everything that affects what a Motion video costs or whether it may run, from its settings; a missing ratio is the original 16:9.
@@ -72,11 +75,18 @@ export function motionQuote(env, inputs) {
   return { price_version: FLAT_PRICE_VERSION, estimate_credits: credits(Number(String(env?.MOTION_ESTIMATE_USD ?? '').trim() || NaN)) };
 }
 
-// What a Motion proposal signs (input.binding): the settings' inputs, the quote and its version, the readiness policy version and the
-// renderer configuration. Recomputed at Generate and compared.
+// The most one Motion job can charge, in credits (owner 2026-10-26: US$3.50 = 350 credits), from MOTION_MAX_CHARGE_USD; null when unset or
+// invalid, and null means Generate is refused (MOTION_MAX_UNKNOWN): a card never states the estimate without it. Same decimal rules as the hold.
+export function motionMaxCredits(env) {
+  const text = String(env?.MOTION_MAX_CHARGE_USD ?? '').trim();
+  return /^\d+(\.\d{1,6})?$/.test(text) && Number(text) <= 25 ? credits(Number(text)) : null;
+}
+
+// What a Motion proposal signs (input.binding): the settings' inputs, the quote and its version, the maximum charge, the readiness policy
+// version and the renderer configuration. Recomputed at Generate and compared: any change is a stale quote the person must reconfirm.
 export function motionBinding(env, settings) {
   const inputs = motionQuoteInputs(settings), quote = motionQuote(env, inputs);
-  return { inputs, price_version: quote.price_version, estimate_credits: quote.estimate_credits, policy_version: readyPolicy(env).version, renderer_config: liveRendererConfig(env) };
+  return { inputs, price_version: quote.price_version, estimate_credits: quote.estimate_credits, max_credits: motionMaxCredits(env), policy_version: readyPolicy(env).version, renderer_config: liveRendererConfig(env) };
 }
 
 // A proposal saved before the 5-second steps (for example 12 seconds) is still readable and still executable through this path: the
@@ -103,8 +113,11 @@ export function motionGenerationCheck(env, input) {
     const now = motionBinding(env, input.proposal.settings);
     // The renderer configuration the card was made for must be the live one (also checked by the orchestrator before it spends).
     if (bound.renderer_config !== now.renderer_config) return { error: 'The video renderer was updated since this card was made. Ask for it again in chat.', code: MOTION_RENDERER_CHANGED };
-    if (JSON.stringify(bound.inputs) !== JSON.stringify(now.inputs) || bound.price_version !== now.price_version || bound.estimate_credits !== now.estimate_credits) {
-      return { error: `The price changed to ${creditsText(now.estimate_credits)}. Review it and press Generate again to confirm.`, code: MOTION_QUOTE_STALE, quote: { price_version: now.price_version, estimate_credits: now.estimate_credits, inputs: now.inputs } };
+    if (now.max_credits == null) return { error: 'The most this video can cost is not available yet, so it cannot be generated.', code: MOTION_MAX_UNKNOWN };
+    // Stale: the inputs, price version, estimate, maximum charge or policy version differ from what the card was confirmed with.
+    // A proposal signed before the maximum existed has no max_credits: it is stale here, and its card is asked for again.
+    if (JSON.stringify(bound.inputs) !== JSON.stringify(now.inputs) || bound.price_version !== now.price_version || bound.estimate_credits !== now.estimate_credits || (bound.max_credits ?? null) !== now.max_credits || bound.policy_version !== now.policy_version) {
+      return { error: `The price changed to ${creditsText(now.estimate_credits)}, and it can cost up to ${now.max_credits.toLocaleString('en-US')} credits. Review it and press Generate again to confirm.`, code: MOTION_QUOTE_STALE, quote: { price_version: now.price_version, estimate_credits: now.estimate_credits, max_credits: now.max_credits, inputs: now.inputs } };
     }
   }
   const ready = motionReadiness(env, inputs);

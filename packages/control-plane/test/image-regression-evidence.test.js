@@ -16,7 +16,7 @@ import { MOTION_NOT_READY, motionQuoteInputs, motionReadiness } from '../src/mot
 const ALICE = 'alice@example.test';
 // The readiness policy THIS test configures (5 to 30 s at 16:9, as the deployed orchestrator accepted); it says nothing about what is validated.
 const MOTION_READY_SECONDS = { max: 30 };
-const env = { MOTION_RENDERER_CONFIG: 'r-test', MOTION_READY_POLICY: JSON.stringify({ version: 'orchestrator-5-30', renderer_config: 'r-test', entries: [{ aspect_ratio: '16:9', min_seconds: 5, max_seconds: 30, complexity: ['simple', 'standard', 'heavy'] }] }), ANTHROPIC_API_KEY: 'a'.repeat(40), MOTION_ORCHESTRATOR_URL: 'https://orchestrator.test/', MOTION_ORCHESTRATOR_TOKEN: 'm'.repeat(48), MOTION_ESTIMATE_USD: '1.00', MOTION_JOB_RESERVATION_USD: '8.96' };
+const env = { MOTION_RENDERER_CONFIG: 'r-test', MOTION_READY_POLICY: JSON.stringify({ version: 'orchestrator-5-30', renderer_config: 'r-test', entries: [{ aspect_ratio: '16:9', min_seconds: 5, max_seconds: 30, complexity: ['simple', 'standard', 'heavy'] }] }), ANTHROPIC_API_KEY: 'a'.repeat(40), MOTION_ORCHESTRATOR_URL: 'https://orchestrator.test/', MOTION_ORCHESTRATOR_TOKEN: 'm'.repeat(48), MOTION_ESTIMATE_USD: '1.00', MOTION_MAX_CHARGE_USD: '3.50', MOTION_JOB_RESERVATION_USD: '8.96' };
 const DEST = { org: 'w', app: 'canvas-1' };
 const CARD = { id: 'r1', label: 'CAD · Roller assembly', kind: 'card', sourceId: 'card:cad-1', revision: 'rev-1', range: null };
 const DESCRIPTION = 'Sunlight warms a body of water. Moist air rises and cools. Droplets fall as rain.';

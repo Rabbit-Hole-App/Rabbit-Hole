@@ -58,10 +58,10 @@ test('/explain settings, usage in credits and used text are its own, never Motio
   assert.deepEqual(validateSettings('explain', undefined), { value: {} });
   assert.deepEqual(validateSettings('explain', { presentation: 'steps' }), { value: { presentation: 'steps' } });
   for (const bad of [{ duration_seconds: 10 }, { audio: false }, { presentation: 'video' }, []]) assert.ok(validateSettings('explain', bad).error, JSON.stringify(bad));
-  const motionEnv = { ...BOTH, MOTION_ESTIMATE_USD: '1.00', MOTION_JOB_RESERVATION_USD: '8.96' };
+  const motionEnv = { ...BOTH, MOTION_ESTIMATE_USD: '1.00', MOTION_MAX_CHARGE_USD: '3.50', MOTION_JOB_RESERVATION_USD: '8.96' };
   assert.deepEqual(proposalUsage(motionEnv, 'explain'), { estimate_credits: null, reserve_credits: 332 });
   assert.deepEqual(proposalUsage({ ...motionEnv, EXPLAIN_ESTIMATE_USD: '0.42' }, 'explain'), { estimate_credits: 42, reserve_credits: 332 });
-  assert.deepEqual(proposalUsage(motionEnv, 'motion'), { estimate_credits: 100, reserve_credits: 896 });
+  assert.deepEqual(proposalUsage(motionEnv, 'motion'), { estimate_credits: 100, max_credits: 350, reserve_credits: 896 });
   assert.match(proposalUsedText('explain'), /made an explanation/);
   assert.match(proposalUsedText('motion'), /made a video/);
   const p = await signProposal(EXPLAIN_ONLY, fields(), ALICE);

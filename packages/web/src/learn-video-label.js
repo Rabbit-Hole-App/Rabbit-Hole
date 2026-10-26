@@ -18,10 +18,13 @@ const notGrounded = block => (block.motion?.grounding?.status === 'not_in_source
 // Owner message 28: while the server pauses new Motion generation (LearnVideos list motionPaused) the confirmation says so; the
 // server refuses the start itself with the same text.
 export const MOTION_PAUSED = 'Motion generation is temporarily unavailable while we fix a reliability issue.';
-// hold: what the server said (learn-scene-client.js motionHold): 'paused', its estimate in credits (owner message 32), or null, which
-// leaves PaidConfirm's default.
-export const motionConfirm = hold => (hold === 'paused' ? MOTION_PAUSED
-  : Number.isInteger(hold) && hold > 0 ? `This uses paid generation · about ${hold} credit${hold === 1 ? '' : 's'}` : 'This uses paid generation.');
+// offer: what the server said (learn-scene-client.js motionHold): 'paused', its three credit numbers {estimate, max, hold} (owner message 32 and
+// owner 2026-10-26: the estimate, the most it can cost and the temporary hold that is released unused, apart), or null, which leaves PaidConfirm's default.
+const n = x => Number(x).toLocaleString('en-US');
+export const motionConfirm = offer => (offer === 'paused' ? MOTION_PAUSED
+  : Number.isInteger(offer?.estimate) && offer.estimate > 0 && Number.isInteger(offer.max) && offer.max > 0
+    ? `This uses paid generation · estimated ${n(offer.estimate)} credits, at most ${n(offer.max)}.${Number.isInteger(offer.hold) && offer.hold > 0 ? ` ${n(offer.hold)} credits are held while it runs; whatever is not used is released.` : ''}`
+    : 'This uses paid generation.');
 
 // MOT-11 (owner review of 274bd689): a card saved with its job's placement follows that job again after a reload, while it runs and
 // once it failed or was stopped, so its error and its settlement reads come back. Read-only: the list GET, never a start.

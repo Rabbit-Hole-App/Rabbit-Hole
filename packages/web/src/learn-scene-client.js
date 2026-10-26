@@ -19,9 +19,13 @@ const videoEndpoint = app => `/api/learn/video?app=${encodeURIComponent(app)}&wo
 
 export const videoList = app => api(videoEndpoint(app));
 // What the confirmation may say about a new /motion video (LearnVideos list): 'paused' while new generation is paused (owner message
-// 28), else the server's estimate in credits (motionEstimateCredits, owner message 32), or null. Never derived here; the reservation
-// is internal, is no longer sent, and was never read for display (owner message 30).
-export const motionHold = async app => { const list = await videoList(app); return list?.motionPaused ? 'paused' : Number.isInteger(list?.motionEstimateCredits) && list.motionEstimateCredits > 0 ? list.motionEstimateCredits : null; };
+// 28), else the server's three credit numbers as {estimate, max, hold} (motionEstimateCredits, motionMaxCredits and the temporary
+// motionHoldCredits; owner messages 32 and 2026-10-26), or null. Never derived here, and the estimate is never returned without the maximum.
+const whole = n => Number.isInteger(n) && n > 0;
+export const motionHold = async app => {
+  const list = await videoList(app);
+  return list?.motionPaused ? 'paused' : whole(list?.motionEstimateCredits) && whole(list?.motionMaxCredits) ? { estimate: list.motionEstimateCredits, max: list.motionMaxCredits, hold: whole(list.motionHoldCredits) ? list.motionHoldCredits : null } : null;
+};
 
 export const startVideo = (app, operation, { confirmed = false, retry = false } = {}) =>
   api(videoEndpoint(app), { method: 'POST', body: JSON.stringify({ operation, lessonId: 'adaptive-canvas', page: 'canvas', confirmed, retry }) });

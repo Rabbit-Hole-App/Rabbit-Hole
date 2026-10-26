@@ -13,7 +13,7 @@ import { settingsOf } from './generation-confirmation-schema.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'proposal-card-')), outfile = join(dir, 'card.cjs');
 await esbuild.build({
-  stdin: { contents: "export { default as Card, usageLine, selectOptions } from './GenerationProposalCard.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { default as Card, usageLine, maxLine, holdLine, selectOptions } from './GenerationProposalCard.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty' },
 });
 const B = createRequire(import.meta.url)(outfile);
@@ -22,7 +22,7 @@ rmSync(dir, { recursive: true, force: true });
 // The shape generation-proposal.js signProposal returns (sig, input and expiry are not drawn).
 const proposal = (over = {}) => ({ proposal_id: 'gp-0123456789abcdef', version: 1, command: 'motion', title: 'Water cycle: evaporation to rain',
   description: 'Sunlight warms a body of water, causing evaporation. Moist air rises and cools, forming droplets that gather into clouds. The droplets grow and fall as rain.',
-  settings: { duration_seconds: 10, audio: false }, usage: { estimate_credits: 100, reserve_credits: 896 }, ...over });
+  settings: { duration_seconds: 10, audio: false }, usage: { estimate_credits: 100, max_credits: 350, reserve_credits: 896 }, ...over });
 const html = props => B.renderToStaticMarkup(B.createElement(B.Card, { proposal: proposal(), onGenerate: () => {}, onSettingsChange: () => {}, ...props }));
 const find = (node, pred) => {
   if (!node || typeof node !== 'object') return null;
@@ -88,16 +88,35 @@ test('Audio: Off selected, On disabled with the coming-soon tooltip', () => {
 });
 
 test('the usage line: server credits on one line, never dollars', () => {
-  assert.match(html(), /<p data-proposal-usage="true"[^>]*>Estimated cost: 100 AI credits<\/p>/, 'the reservation stays internal (owner, 2026-10-21)');
-  const big = html({ proposal: proposal({ usage: { estimate_credits: 1200, reserve_credits: 8960 } }) });
+  assert.match(html(), /<p data-proposal-usage="true"[^>]*>Estimated cost: 100 AI credits<\/p>/);
+  const big = html({ proposal: proposal({ usage: { estimate_credits: 1200, max_credits: 4200, reserve_credits: 8960 } }) });
   assert.match(big, /Estimated cost: 1,200 AI credits</);
-  for (const usage of [{ estimate_credits: 100, reserve_credits: 896 }, { estimate_credits: 100, reserve_credits: null }, { estimate_credits: null, reserve_credits: 896 }, { estimate_credits: 1200, reserve_credits: 8960 }]) {
-    assert.doesNotMatch(B.usageLine(usage), /\$/, JSON.stringify(usage));
+  assert.match(big, /Most it can cost: 4,200 AI credits\./);
+  for (const usage of [{ estimate_credits: 100, max_credits: 350, reserve_credits: 896 }, { estimate_credits: 100, max_credits: 350, reserve_credits: null }, { estimate_credits: null, reserve_credits: 896 }, { estimate_credits: 1200, max_credits: 4200, reserve_credits: 8960 }]) {
+    for (const line of [B.usageLine(usage), B.maxLine(usage), B.holdLine(usage)]) assert.doesNotMatch(line, /\$/, JSON.stringify(usage));
   }
   assert.equal(B.usageLine({ estimate_credits: null, reserve_credits: null }), '');
   assert.equal(B.usageLine({ estimate_credits: null, reserve_credits: 896 }), '', 'a reservation alone shows nothing');
-  assert.doesNotMatch(html({ proposal: proposal({ usage: { estimate_credits: null, reserve_credits: null } }) }), /data-proposal-usage/, 'no line without numbers');
+  assert.doesNotMatch(html({ proposal: proposal({ usage: { estimate_credits: null, reserve_credits: null } }) }), /Estimated cost/, 'no estimate line without numbers');
   assert.doesNotMatch(html(), /\$/);
+});
+
+// Owner 2026-10-26 (D1b): the estimate, the most it can cost and the temporary hold are three separate lines, never merged, and the estimate is never
+// shown alone (docs/features/motion-credit-disclosure.md). The pre-2026-10-26 rule "the reservation stays internal" is replaced.
+test('the Motion card states the estimate, the maximum and the temporary hold apart; without a maximum it shows no estimate and blocks Generate', () => {
+  const out = html();
+  assert.match(out, /<p data-proposal-usage="true"[^>]*>Estimated cost: 100 AI credits<\/p>/);
+  assert.match(out, /<p data-proposal-max[^>]*>Most it can cost: 350 AI credits\. You are never charged more\.<\/p>/);
+  assert.match(out, /<p data-proposal-hold[^>]*>896 AI credits are held while it runs; whatever is not used is released\.<\/p>/);
+  assert.doesNotMatch(out, /about 100|\.\.\.|…/, 'no single "about N credits" explanation, no ellipsis');
+  assert.doesNotMatch(out, /data-proposal-generate="true"[^>]*disabled/, 'a complete quote can be generated');
+  // The Motion proposal the server sent without a maximum (negative control: the same card with one is generatable above).
+  const bare = html({ proposal: proposal({ usage: { estimate_credits: 100, reserve_credits: 896 } }) });
+  assert.doesNotMatch(bare, /Estimated cost|data-proposal-max|data-proposal-hold/);
+  assert.match(bare, /data-proposal-usage-unknown[^>]*>Price not available yet</);
+  assert.match(bare, /<button[^>]*data-proposal-generate="true" disabled=""/);
+  assert.equal(B.maxLine({ estimate_credits: 100 }), '');
+  assert.equal(B.holdLine({ estimate_credits: 100, reserve_credits: 896 }), '', 'a hold never appears without the maximum');
 });
 
 // Owner schema spec 2026-10-23: Motion's duration is a select of exactly 5, 10, ... 60 seconds (generation-confirmation-schema.js).

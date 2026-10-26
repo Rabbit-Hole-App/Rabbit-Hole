@@ -174,7 +174,7 @@ for (const theme of ['light', 'dark']) {
       title: `Motion: ${words}`.slice(0, 120), description: 'A row of scores appears. Softmax turns it into weights. The weights add up to one.',
       settings: { duration_seconds: seconds, audio: false }, source_refs: [],
       input: { request: `/motion ${words}`.slice(0, 500), concept: body.generation?.motion?.concept ?? null, ...(body.generation?.motion?.context ? { context: body.generation.motion.context } : {}) },
-      expires_at: Math.floor(Date.now() / 1000) + 3600, sig: 'a'.repeat(64), usage: { estimate_credits: 100, reserve_credits: 896 } };
+      expires_at: Math.floor(Date.now() / 1000) + 3600, sig: 'a'.repeat(64), usage: { estimate_credits: 100, max_credits: 350, reserve_credits: 896 } };
     proposals.set(id, proposal);
     turns.push({ threadId, user: { role: 'user', content: words, messageId: String(800000 + n) }, answer: { role: 'assistant', content: 'Here is a video proposal.', messageId: id, kind: 'answer', status: 'done', meta: { actions: [], followUps: [] } } });
     return route.fulfill({ headers: { 'content-type': 'text/event-stream' }, body: sse('chunk', { text: 'Here is a video proposal.' })
@@ -376,6 +376,9 @@ for (const theme of ['light', 'dark']) {
     assert.equal(await card.locator('[data-proposal-duration]').inputValue(), '15');
     assert.deepEqual([await card.locator('[data-proposal-audio="off"]').getAttribute('aria-pressed'), await card.locator('[data-proposal-audio="on"]').isDisabled()], ['true', true]);
     assert.match(await card.locator('[data-proposal-usage]').innerText(), /^Estimated cost: 100 AI credits/);
+    // Owner 2026-10-26 (D1b): the estimate, the most it can cost and the temporary hold are three separate lines (docs/features/motion-credit-disclosure.md).
+    assert.equal((await card.locator('[data-proposal-max]').innerText()).trim(), 'Most it can cost: 350 AI credits. You are never charged more.');
+    assert.equal((await card.locator('[data-proposal-hold]').innerText()).trim(), '896 AI credits are held while it runs; whatever is not used is released.');
     assert.doesNotMatch(await card.innerText(), /\$\d|Will show|Cancel/);
     assert.deepEqual([await card.locator('[data-proposal-generate]').count(), (await card.locator('[data-proposal-generate]').innerText()).trim()], [1, 'Generate']);
     assert.equal(await card.getByRole('button', { name: 'Cancel' }).count(), 0, 'no Cancel');
@@ -437,9 +440,9 @@ for (const theme of ['light', 'dark']) {
     // A stop request (MOCKED): the job ends as the server ends it, failed with Stopped.
     if (request.method() === 'POST' && (request.postData() || '').includes('"action":"cancel"')) { stub.stopped = true; stub.error = 'Stopped.'; return route.fulfill({ json: { videos: [video('failed')] } }); }
     if (stub.stopped) return route.fulfill({ json: { videos: [video('failed')] } });
-    if (request.method() === 'POST') return route.fulfill({ status: 202, json: { motionEstimateCredits: 100, videos: [video('generating')], placementId: stub.id } });
+    if (request.method() === 'POST') return route.fulfill({ status: 202, json: { motionEstimateCredits: 100, motionMaxCredits: 350, motionHoldCredits: 896, videos: [video('generating')], placementId: stub.id } });
     stub.polls += 1;
-    return route.fulfill({ json: { motionEstimateCredits: 100, videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
+    return route.fulfill({ json: { motionEstimateCredits: 100, motionMaxCredits: 350, motionHoldCredits: 896, videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
   });
 
   await step(`${theme}: MOCKED generation: the proposal's Generate adds one card and starts one confirmed motion_request with the approved proposal; the ready video plays in it`, async () => {
@@ -902,7 +905,7 @@ for (const theme of ['light', 'dark']) {
     const slow = { proposal_id: `gp-${'45'.repeat(4)}${theme === 'dark' ? 'dddd' : 'aaaa'}0000`, version: 1, command: 'motion', title: `Motion: ${words}`,
       description: 'A row of scores appears. Softmax turns it into weights. The weights add up to one.', settings: { duration_seconds: 45, audio: false }, source_refs: [],
       input: { request: `/motion ${words}`, concept: null }, expires_at: Math.floor(Date.now() / 1000) + 3600, sig: 'a'.repeat(64),
-      usage: { estimate_credits: 100, reserve_credits: 896 }, readiness: ready({ duration_seconds: 45 }) };
+      usage: { estimate_credits: 100, max_credits: 350, reserve_credits: 896 }, readiness: ready({ duration_seconds: 45 }) };
     assert.equal(slow.readiness.ready, false, 'the fixture is the server\'s own not-ready answer');
     let saved = slow;
     const puts = [];
