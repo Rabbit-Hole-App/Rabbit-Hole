@@ -1,6 +1,6 @@
 # Deployment handoff
 
-Last updated: Sunday 2026-10-25, 10:55 PM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
+Last updated: Sunday 2026-10-25, 11:50 PM America/Los_Angeles (PDT). Updated after every lane handback, diagnosis, candidate freeze, gate, deployment and blocker (see the change log at the bottom). Any ETA older than its stamp is stale.
 
 Authoritative inputs (repository-relative): the 60-row [feature inventory](evidence/feature-inventory.md), the [discrepancy table](evidence/completion-audit-discrepancies.md), the [validation budget ledger](evidence/validation-budget-ledger.md), the [flake list](evidence/flakes.md), the [FILE_JOBS contract](evidence/file-jobs-contract.md), feature docs under [`docs/features/`](../features/). The working task ledger and local receipts live on the integrator machine (`C:/s/spec/...`); important receipts are summarised under `docs/operations/evidence/`.
 
@@ -61,8 +61,9 @@ Legend: To Do / Doing / Blocked / Done (a task is Done only with production evid
 | Infra + provider package | agent a294f2e4 | Doing | priced package (converter, math, JS loader, Motion, Telemetry), provider access table | - | - | - | package | - | provisional |
 | learn-tutor timing flake | `fix/learn-tutor-timing` c0bde839 | Done (fix), ships with next batch | deterministic timers | 20/20 idle, 20/20 under load; verify 40265441780 | no | - | batch | - | with successor |
 | card-size teardown | `fix/card-size-teardown2` 397ef351 | Done (fix), ships with next batch | | fast-e2e card-size 24/24 | no | - | batch | - | with successor |
-| Study resize persistence | `fix/resize-persist` 59509345 (`5b60a856-d5b4-4fc3-b6a1-3bc969113de0`) | To Do | not in main; owner-reported bug still live | - | no | broken | verify against main, batch | - | next batch |
-| Chat restore follow-up 4549cf57, file-drop check 22529b60 | unassigned | To Do | not in main | - | no | - | verify against main, batch | - | next batch |
+| Study resize persistence (`5b60a856-d5b4-4fc3-b6a1-3bc969113de0`) | agent acd2da33; old `fix/resize-persist` 59509345 (never green: own fast-e2e failed 2026-10-24; study-resize-persist-check 2/4 on the combined tree) | Doing | owner-reported bug still live in production; root cause being established; new branch `fix/study-resize-persist-2` | old branch not green; new: pending | no | broken | root cause + fix + CI | none | -; |
+| Chat restore follow-up (`7959cd39`) | agent acd2da33; old `fix/chat-restore-context` 4549cf57 (never green: chat-outputs 15/16, step 16 chip and mode not saved to the restored thread) | Doing | new branch `fix/chat-restore-context-2` | pending | no | - | root cause + fix + CI | none | -; |
+| File-drop check fix (`29a46467`) | `fix/filedrop-check` 22529b60, inside batch C15 | Doing | test-only | passed in the combined C14 CI | no | - | ships with C15 | none | with C15 |
 | Stars follow-ups (`18ac55d1-1da7-4d80-9bed-09535681a293`) | unassigned | To Do | analytics wiring, star events to telemetry, `star.opened` | - | - | partial | assign | telemetry sink | - |
 | Comments leftovers (`4c0f5e09-1105-4d5c-b272-afc866850e28`) | unassigned | To Do | enumerate defects/requirements | - | - | partial | enumerate | - | - |
 | tldraw removal, shared review-card adoption, /video, maths animation, transcription, Tutor rubric/visual | see [inventory](evidence/feature-inventory.md) section 5 | To Do | proposed ledger tasks created from the audit | - | - | - | assign | owner decisions in the inventory (O-1..O-16) | - |
@@ -92,6 +93,8 @@ Dependency order. Status is current as of the stamp above; the executable comman
 6. Walk the production checklist in [owner observations](evidence/owner-observations.md) (credits meter, stars persist, weekly top 5, comments, focus).
 
 ## 10. Change log (PT)
+
+- 2026-10-25 11:50 PM: batch C14 (b0f5a6ad) FAILED its fast-e2e on two unfinished stale fixes (chat-outputs 15/16, study-resize-persist 2/4); both old branches were never green. C15 (stack/c15-batch) is being integrated WITHOUT them (adds credits-finish 1058a8dd, motion-failure-handling f8ed2f93, tutor-session-order 423fe035; two text conflicts being resolved; junk file packages/control-plane/test/.wrangler/cache/cf.json removed). Motion failure-handling delivered (f8ed2f93): needs MOTION_JOB_CEILING_USD >= 2.56 (proposal 3.50) before it deploys; refund script prepared for action act-c0f759ed-5ce7-4b65-bce0-028745e2c5c1.
 
 - 2026-10-25 10:55 PM: `fix/credits-finish` 1058a8dd delivered (credits-only usage API, sealing, Jev 429, refund path, labels); queued as successor C15 after the C14 gate.
 
