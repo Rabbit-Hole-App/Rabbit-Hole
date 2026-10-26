@@ -137,10 +137,10 @@ test('the transcript renders the pill inline with the words, with no x and no ac
   ];
   const before = JSON.stringify(msgs);
   const html = transcript(msgs);
-  assert.match(html, /<span class="whitespace-pre-wrap break-words"><span data-command-pill="motion" data-command-tone="motion" class="[^"]*"><span class="inline-flex items-center gap-1 font-medium">Motion<\/span><\/span>15s explain photosynthesis\nwith leaves<\/span>/);
+  assert.match(html, /<span class="whitespace-pre-wrap break-words"><span data-command-pill="motion" data-command-tone="motion" class="[^"]*"><span class="inline-flex items-center gap-1 font-medium">Animated explainer<\/span><\/span>15s explain photosynthesis\nwith leaves<\/span>/);
   assert.match(html, /data-command-pill="3d"[^>]*><span [^>]*>3D<\/span><\/span>a cube<\/span>/);
   assert.match(html, />what does \/motion do\?</);
-  assert.doesNotMatch(html, /Remove Motion|Remove 3D|Change the command|>\/motion 15s|>\/3d a cube/);
+  assert.doesNotMatch(html, /Remove Animated explainer|Remove 3D|Change the command|>\/motion 15s|>\/3d a cube/);
   assert.equal((html.match(/data-command-pill/g) || []).length, 2);
   assert.equal(JSON.stringify(msgs), before, 'stored text and command untouched');
 });

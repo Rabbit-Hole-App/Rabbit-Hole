@@ -17,7 +17,7 @@ test('one command list: Learn keeps its commands, Home, Library and Project offe
 });
 
 test('every menu label scans in one short line; the pill label is short or falls back to the menu label', () => {
-  // 34: /motion's owner-worded "Create an animated explainer video" (owner, 2026-10-20), still one line in the picker.
+  // 34: still one line in the picker (/motion's menu line was "Create an animated explainer video" until owner 2026-10-26).
   for (const c of SLASH) for (const place of c.places) assert.ok(descFor(c, place).length <= 34, `${c.name} in ${place}: ${descFor(c, place)}`);
   for (const c of SLASH) assert.ok(labelOf(c).length <= 20 && !labelOf(c).startsWith('/'), `${c.name}: ${labelOf(c)}`);
   // Every retained command says what it does for the Slash commands window.
@@ -221,9 +221,10 @@ test('labels: a short pill label where there is one, else the menu label; never 
 });
 
 // Owner, 2026-10-20: /motion is the command for the Motion explainer-video pipeline, in place of /animate.
-test('/motion: its pill reads Motion, its menu line is the owner wording, and only a development or review build offers it', () => {
+// Owner, 2026-10-26: /motion is "Animated explainer" in the menu and on the pill (its stable id stays motion).
+test('/motion: its pill and menu line read Animated explainer, and only a development or review build offers it', () => {
   const motion = toolOf('motion');
-  assert.deepEqual([labelOf(motion), descFor(motion, 'learn'), motion.action, motion.needs], ['Motion', 'Create an animated explainer video', 'motion', 'motion_dev']);
+  assert.deepEqual([labelOf(motion), descFor(motion, 'learn'), motion.action, motion.needs], ['Animated explainer', 'Animated explainer', 'motion', 'motion_dev']);
   for (const surface of ['chat', 'ctrlk']) {
     assert.equal(resolveCommand('/motion 15s explain me softmax func', surface, { motionDev: true }).command, motion, surface);
     assert.deepEqual(resolveCommand('/motion 15s explain me softmax func', surface, { motionDev: false }), { unsupported: 'motion' }, surface);
