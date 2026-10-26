@@ -16,7 +16,7 @@ import { imageAllowed, imageOperatorAllowed } from '../src/image-settings.js';
 import { imageJobsEnabled, imageJobsRoute } from '../src/image-jobs.js';
 import { artifactPlan, generateArtifact } from '../src/learn-artifact.js';
 
-const PUBLIC = false; // HELD FOR OWNER GO: the flip commit sets this to true together with the primitive and the server flag
+const PUBLIC = true; // public activation (owner GO): set together with the primitive and the server flag
 // The web constant is NOT flipped (decision in the hand-back): with the server's flag public, GET /api/learn/image-jobs answers available for everyone and the build
 // lists the command from that answer (image-capability.js). Flipping the constant too would make the UI offer the command whatever the server says, so turning the
 // server flag off (the rollback) would leave it listed and refused, and it rewrites 20 web tests written for the per-caller design.

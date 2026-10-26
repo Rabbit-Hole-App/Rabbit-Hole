@@ -63,11 +63,11 @@
     "TELEMETRY_ENVIRONMENT": "production",
     // /explain v2 (EXP-T12): switched on at R1 (EXP-T23, owner production GO 2026-10-22; live runs C:/s/spec/explain/renders/r2-live).
     "EXPLAIN_V2_ENABLED": "true",
-    // IMG-01 image generation (docs/features/image-jobs.md): PUBLIC generation is off. Only "true" accepts new jobs from everyone.
-    // The ONLY exception is the controlled owner-only acceptance path below (owner 2026-10-25): a caller whose verified sign-in identity
+    // IMG-01 image generation (docs/features/image-jobs.md): PUBLIC generation is ON (owner GO). Only "true" accepts new jobs from everyone.
+    // The controlled owner-only acceptance path below (owner 2026-10-25) stays for the operator surfaces: a caller whose verified sign-in identity
     // is listed in IMAGE_ACCEPTANCE_EMAILS may use it under the ordinary admission, hold, settlement and readiness rules, so the
     // production acceptance runs through the real Worker, storage and accounting. It needs OPENAI_API_KEY / GEMINI_API_KEY (secrets).
-    "IMAGE_GENERATE_ENABLED": "false",
+    "IMAGE_GENERATE_ENABLED": "true",
     // Speech to text for spoken answers (/api/learn/transcribe): off even when OPENAI_API_KEY exists; only "true" enables it (owner decision O-8 is open).
     "TRANSCRIBE_ENABLED": "false",
     // The per-image hold, derived (docs/features/image-jobs.md 6c): the largest priced estimate among the enabled combinations is Nano

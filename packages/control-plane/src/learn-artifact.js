@@ -62,7 +62,7 @@ export function artifactPlan(command, { args = '', selection = null } = {}, env 
   const request = learnRequest(command, { args, selection });
   if (request.deterministic) return { result: 'direct', action: request.action };
   if (!request.allowedPrimitives) return { result: 'not_artifact', error: `/${command} is answered in chat, not as an artifact.` };
-  const ready = request.allowedPrimitives.filter(id => isReady(id) && !notProvisioned(env, id));
+  const ready = request.allowedPrimitives.filter(id => isReady(id) && !PRIMITIVES[id].direct && !notProvisioned(env, id)); // a direct primitive is never a model-written card
   if (!ready.length) {
     const blocked = request.allowedPrimitives.find(id => isReady(id) && notProvisioned(env, id));
     const reason = blocked ? PROVISIONED[blocked][1] : request.allowedPrimitives.map(id => PRIMITIVES[id]?.unavailable).find(Boolean);
