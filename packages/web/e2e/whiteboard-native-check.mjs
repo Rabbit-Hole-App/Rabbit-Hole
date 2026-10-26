@@ -106,7 +106,9 @@ const saved = async (id, until = () => true) => {
     if (block && until(block)) return block;
     await page.waitForTimeout(200);
   }
-  throw Error(`the stored ${id} never reached the expected state: ${JSON.stringify(await storedBlock(id)).slice(0, 300)}`);
+  const last = await storedBlock(id).catch(() => null);
+  const summary = last?.sketch ? { strokes: last.sketch.strokes.length, shapes: last.sketch.shapes.map(shape => [shape.id.slice(0, 6), shape.kind, ...['x1', 'y1', 'x2', 'y2'].map(key => Math.round(shape[key]))]), items: last.sketch.items.length, tooLarge: last.tooLarge } : last;
+  throw Error(`the stored ${id} never reached the expected state: ${JSON.stringify(summary)}`);
 };
 const storedBlock = id => page.evaluate(([key, blockId]) => JSON.parse(localStorage.getItem(key)).blocks.find(entry => entry.id === blockId), [KEY, id]);
 
