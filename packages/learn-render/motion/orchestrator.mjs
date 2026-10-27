@@ -42,10 +42,10 @@ import { validateMotionContext } from '../../control-plane/src/motion-context.js
 import { PRICES } from './director.js';
 import { fixtureSource } from './fixture-source.js';
 import { runMotionRequest } from './pipeline.mjs';
-import { MotionCancelled } from './review-job.mjs';
+import { MotionCancelled, STORYBOARD_LEVEL } from './review-job.mjs';
 import { COMPLEXITY_CLASSES } from './composition-limits.js';
 import { DURATION, MOTION_RATIOS, classifyFindings } from './contracts.js';
-import { AHEAD, MANDATORY_PATH, jobWorstCase, modelsFor, pathBound, pathFloor } from './spend-bound.mjs';
+import { AHEAD, MANDATORY_PATH, jobWorstCase, modelsFor, pathBound, pathFloor, routeBudget } from './spend-bound.mjs';
 import { AUTHOR_REPAIR_CAP } from './author.js';
 import { codeOfCause } from '../../control-plane/src/motion-failure.js';
 
@@ -117,8 +117,12 @@ export function recoveryActions(cause, cp, code = null, limits = null) {
   return cause === 'content' ? ['fix', 'edit'] : ['fix'];
 }
 // The calls a recovery from this checkpoint still has to make, and the rule that caps each (a repair is a patch, capped lower than the whole Author).
+// A blocking checkpoint with a STORYBOARD-level finding runs the route the pipeline takes for it (review-job.mjs): a Director revision, then a WHOLE Author,
+// then two reviewers. Any other blocking finding runs an Author PATCH (capped lower) and two reviewers. Priced as the route that runs (job 3c46c4d2's Continue
+// fixing was offered on the patch price, 2.89, while the attempt costs 4.26 at the caps).
 const stageOf = (cp, policy) => {
   const state = cp?.composition?.state ?? null;
+  if (state === 'blocking' && classifyFindings(cp.findings ?? []).blocking.some(f => STORYBOARD_LEVEL.includes(f.category))) return { path: [['motion_storyboard', 1], ['motion_composition', 1], ['motion_review', 2]], rules: {} };
   return { path: state === 'unreviewed' || state === 'accepted' ? [['motion_review', 2]] : [['motion_composition', 1], ['motion_review', 2]],
     rules: state === 'blocking' ? { motion_composition: { ...policy.motion_composition, max_tokens: AUTHOR_REPAIR_CAP } } : {} };
 };
@@ -137,7 +141,7 @@ export function nextStage(cp, { ceilingMicros = Infinity, maxCalls = Infinity, e
 // ceiling (the grant or the configured per-job ceiling, whichever is lower) holds the LEAST the required calls can cost (their output caps
 // priced: a strict lower bound, so only a job that cannot possibly finish is refused). null policy (tests of other behaviour) checks nothing.
 // -> {ok: true} | {ok: false, code, reason, floor_micros, ceiling_micros, calls}; `reason` is internal, never shown to a learner.
-export function preflight({ policy, maxCalls, ceilingMicros, path = MANDATORY_PATH, rules = {}, env = {} }) {
+export function preflight({ policy, maxCalls, ceilingMicros, path = MANDATORY_PATH, rules = {}, env = {}, routeCheck = false }) {
   if (!policy || !path.length) return { ok: true, floor_micros: 0 };
   const floor = pathFloor(path, policy, modelsFor(env), undefined, rules);
   const refuse = (code, reason) => ({ ok: false, code, reason, floor_micros: floor.micros, ceiling_micros: ceilingMicros, calls: floor.calls });
@@ -145,6 +149,14 @@ export function preflight({ policy, maxCalls, ceilingMicros, path = MANDATORY_PA
   if (floor.calls > maxCalls) return refuse('call_limit', `the ${maxCalls}-call limit is below the ${floor.calls} calls this job requires`);
   if (floor.unpriced.length) return refuse('unknown_cost_bound', `no price for the model of ${floor.unpriced.join(', ')}`);
   if (floor.micros > ceilingMicros) return refuse('job_ceiling_insufficient', `the least the ${floor.calls} required calls can cost ($${usd(floor.micros).toFixed(4)}) is more than the $${usd(ceilingMicros).toFixed(4)} job ceiling`);
+  // Route budget (opt in: MOTION_ROUTE_BUDGET_CHECK, orchestrator-main.mjs; a NEW job only): the ceiling must also carry the routes the policy offers, up to the
+  // supported maximum, so a ceiling that cannot is refused here with nothing spent, not after about US$1.5 at a repair. Does not promise the job succeeds.
+  if (routeCheck) {
+    const budget = routeBudget(policy, modelsFor(env));
+    if (budget.micros == null) return refuse('unknown_cost_bound', `no price or rule for the route budget (${[...budget.unpriced, ...budget.missing].join(', ')})`);
+    if (budget.micros > ceilingMicros) return { ...refuse('job_ceiling_insufficient', `the ${budget.route.replace(/_/g, ' ')} route the policy offers (call ${budget.call}, ${budget.kind}) needs up to $${usd(budget.micros).toFixed(4)}, more than the $${usd(ceilingMicros).toFixed(4)} job ceiling`), route_budget_micros: budget.micros };
+    return { ok: true, floor_micros: floor.micros, calls: floor.calls, route_budget_micros: budget.micros };
+  }
   return { ok: true, floor_micros: floor.micros, calls: floor.calls };
 }
 // The calls a job must make, by its entry: a new job the whole mandatory path; render calls no model; fix only what its checkpoint still needs.
@@ -276,7 +288,7 @@ export const jobView = j => ({
 // missing: the settings this process still lacks (the model key before its secret is set): /health says not ready and every
 // job is refused before anything starts, never failed halfway.
 export function motionOrchestrator({ token, service, call, env = {}, outDir, run = runMotionRequest, maxCalls = 16, ceilingMicros = Infinity, budget = null, policy = null, rendererHashes = null, missing = [], log = () => {}, renderer, plans = {},
-  jobTimeoutMs = 55 * 60 * 1000, resultTtlMs = 60 * 60 * 1000, recordTtlMs = 6 * 60 * 60 * 1000, now = () => Date.now() }) {
+  routeCheck = false, jobTimeoutMs = 55 * 60 * 1000, resultTtlMs = 60 * 60 * 1000, recordTtlMs = 6 * 60 * 60 * 1000, now = () => Date.now() }) {
   if (typeof token !== 'string' || token.length < 32) throw new Error('motionOrchestrator: a token of at least 32 characters is required');
   if (!service || typeof service.health !== 'function') throw new Error('motionOrchestrator: a render service client is required (there is no in-process renderer)');
   const boot = randomBytes(16).toString('hex');
@@ -503,9 +515,9 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     // Before the renderer, a hold or any paid work: a job whose required stages the policy forbids, whose call cap or prices are missing, or
     // whose ceiling cannot hold even the least the required calls cost is refused here, with nothing spent and a code the Worker explains.
     // Answered as the 503 not_configured the Worker already knows is a definite no-start; the amounts stay in the log, not the answer.
-    const checked = preflight({ policy: body.mode && policy ? RECOVERY_POLICY[body.mode] : policy, maxCalls, ceilingMicros: Math.min(body.grant.micros, ceilingMicros), ...requiredStages(body), env });
+    const checked = preflight({ policy: body.mode && policy ? RECOVERY_POLICY[body.mode] : policy, maxCalls, ceilingMicros: Math.min(body.grant.micros, ceilingMicros), ...requiredStages(body), env, routeCheck: routeCheck && !body.mode });
     if (!checked.ok) {
-      log(`job ${body.idempotency_key}: refused ${checked.code} before starting: ${checked.reason}; least needed $${checked.floor_micros == null ? 'unknown' : usd(checked.floor_micros)}, ceiling $${usd(Math.min(body.grant.micros, ceilingMicros))} (grant $${usd(body.grant.micros)}); nothing was spent`);
+      log(`job ${body.idempotency_key}: refused ${checked.code} before starting: ${checked.reason}; least needed $${checked.floor_micros == null ? 'unknown' : usd(checked.floor_micros)}${checked.route_budget_micros ? `, route budget $${usd(checked.route_budget_micros)}` : ''}, ceiling $${usd(Math.min(body.grant.micros, ceilingMicros))} (grant $${usd(body.grant.micros)}); nothing was spent`);
       return [503, { error: 'not_configured', code: checked.code, detail: `Motion cannot run this video within its configured limits (${checked.code}); nothing was started` }];
     }
     const health = await service.health().catch(() => null);
