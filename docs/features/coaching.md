@@ -1434,7 +1434,7 @@ interview preparation. See the mockup, positioning and motion proposal in
 
 ### Rabbit Hole developer documentation — 2026-09-29
 
-Added public `/docs` with nine chapters for the existing CLI, hosted API and
+(Retired 2026-10-26, see [documentation scope](rabbit-hole-docs.md).) Added public `/docs` with nine chapters for the existing CLI, hosted API and
 AWS/BYOC workflows. Docs appears beside Blog, Features and Pricing in public
 desktop/mobile navigation and the footer. The approved field-guide layout uses
 search, copyable examples, chapter navigation, in-page contents, and shared

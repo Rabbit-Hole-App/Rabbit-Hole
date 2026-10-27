@@ -100,8 +100,6 @@ const READERS = {
   'web/src/agent/ResultSheet.jsx': 'agent result links, not board links',
   'web/src/card-open.js': 'a comment about web links',
   'web/src/graph-renderers.js': 'a Desmos option',
-  'web/src/landing/docs-content.js': 'documentation link lists',
-  'web/src/landing/docs.jsx': 'documentation link lists',
   'web/src/LearnPage.jsx': 'canvas references in Search and on cards, not board links',
   'web/src/LinksPanel.jsx': 'canvas references (links between canvases), not board links',
   'web/src/canvas-search-panel.js': 'the Search Links filter id',

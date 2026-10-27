@@ -17,6 +17,11 @@ const DEV_MARKERS = ['Insert a sample lesson block', 'Agent workspace', 'Maths a
   'No review board is registered', 'small-learn-notebook-dev', 'small-learn-canvas-notebook-dev',
   'Material plan ready for review', 'Draft material plan', 'Quiz answer key', 'Edit this section in chat', 'Edit and approve curriculum',
   'Finish up in Curriculum', '__voiceFake', 'failStt'];
+// The retired CLI/BYOC Library empty state (App.jsx, behind !learnPreview): a Rabbit Hole build folds it away, so these strings must not
+// ship at all. A build without VITE_RABBIT_HOLE / VITE_COACHING_DEV (DIST=<that build>) must FAIL on them: it proves they are real.
+// ponytail: the Sidebar Developer tab / New app dialog and run.jsx copy stay in the bundle behind a runtime flag; e2e/legacy-copy-check.mjs
+// covers them in a browser.
+const LEGACY_MARKERS = ['ships the first one', 'Get the CLI', 'CLI for hosted Small', 'Use the private CLI to sign into this installation'];
 const failures = [];
 for (const chunk of REQUIRED_CHUNKS) if (!names.some(n => n.startsWith(`${chunk}-`))) failures.push(`missing Learn chunk ${chunk}`);
 for (const name of names) {
@@ -24,6 +29,7 @@ for (const name of names) {
   if (!name.endsWith('.js')) continue;
   const text = readFileSync(new URL(name, dir), 'utf8');
   for (const marker of DEV_MARKERS) if (text.includes(marker)) failures.push(`${name}: contains dev-only "${marker}"`);
+  for (const marker of LEGACY_MARKERS) if (text.includes(marker)) failures.push(`${name}: contains retired CLI/BYOC copy "${marker}"`);
 }
 // The /explain render entry (EXP-T18): explain-render.js loads it from this build's assets and its interception serves only
 // /render/scene.html and /static/<file>.(js|css|woff2?|ttf), so the entry must exist and reference nothing else.

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-// Production (rabbit-hole-app) serves Landing, sign-in and the support/docs pages from the build, so they are
+// Production (rabbit-hole-app) serves Landing, sign-in and the support pages from the build, so they are
 // in every build, not only the VITE_COACHING_DEV one (docs/features/rabbit-hole-production.md). Private BYOC never gets them.
 const inputs = async (env, tag) => {
   const saved = { ...process.env };
@@ -11,9 +11,9 @@ const inputs = async (env, tag) => {
   finally { process.env = saved; }
 };
 // render: the /explain review render entry (render/scene.html, EXP-T18), loaded only by explain-render.js.
-const PAGES = ['app', 'landing', 'blog', 'features', 'pricing', 'manifesto', 'auth', 'team', 'support', 'docs', 'render'];
+const PAGES = ['app', 'landing', 'blog', 'features', 'pricing', 'manifesto', 'auth', 'team', 'support', 'render'];
 
-test('a build without VITE_COACHING_DEV still emits Landing, the auth page and the support/docs pages', async () => {
+test('a build without VITE_COACHING_DEV still emits Landing, the auth page and the support pages', async () => {
   const input = await inputs({}, 'plain');
   assert.deepEqual(Object.keys(input || {}).sort(), [...PAGES].sort());
   assert.match(input.landing.replace(/\\/g, '/'), /\/design\/rabbit-hole-hero\.html$/);

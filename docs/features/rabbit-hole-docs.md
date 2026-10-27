@@ -1,5 +1,11 @@
 # Rabbit Hole developer documentation
 
+> **RETIRED (owner, 2026-10-26).** The public `/docs` pages were removed from Rabbit Hole: no Docs link on the landing page,
+> navigation or footers, no `/docs` build entry or content, and `/docs` and every `/docs/*` answer the normal not-found page with
+> HTTP 404 (`isRemovedDocsPath` in `packages/web/src/landing/support-routes.js`, `dev-worker.js`; proven by
+> `packages/web/e2e/docs-removed-check.mjs`). There is no replacement guide or Help. This file and the source map are kept as
+> history only; do not rebuild from them.
+
 Scope confirmed by the user's approved docs direction and request for the existing
 CLI, API and BYOC workflows, plus a Docs item beside Blog, Features and Pricing.
 The large mockup illustration is omitted pending a clearer art direction.

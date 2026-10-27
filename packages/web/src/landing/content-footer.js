@@ -14,7 +14,6 @@ if(footer){
         <a href="/features">Features</a>
         <a href="/blog">Blog</a>
         <a href="/pricing">Pricing</a>
-        <a href="/docs">Docs</a>
         <a class="content-footer-start" href="/sign-up">Get started</a>
       </nav>
     </div>
