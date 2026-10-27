@@ -1,6 +1,6 @@
 import { CAD_LIMITS, cadError, validateDesign } from './cad-contract.js';
 import { requestSpendBound, spendTransport } from './learn-spend.js';
-import { withUsage, noteUsageIdentity, withAttemptKind } from './learn-usage.js';
+import { withUsage, noteUsageIdentity, withAttemptKind, finishAction } from './learn-usage.js';
 import { CAD_INSTRUCTIONS, CAD_CHECK_INSTRUCTIONS } from '../../cad-execute/cad-instructions.js';
 import { tutorImageContext } from './learn-image-context.js';
 import { isUploadedMediaId } from './learn-media.js';
@@ -75,6 +75,13 @@ export async function runCadModel(env, job, prepared) {
   let modelEnv = withUsage(cadModelEnvironment(env), {feature:'artifact',req:new Request('https://cad/action',{headers:{'x-rh-action-key':job.operationKey}})});
   noteUsageIdentity(modelEnv, {userId:job.owner.userId,email:job.owner.email});
   modelEnv = withAttemptKind(modelEnv, job.repairReason ? 'repair' : 'generation');
+  // This call is its own usage action (operationKey): close it on every exit, as image-jobs and learn-video do. finishAction, not finishActionOf: the attempt id stays inside spendTransport.
+  let design;
+  try { design = await cadModelCall(modelEnv, env, job, prepared); } catch (error) { await finishAction(modelEnv, { status: 'failed', result: 'none' }); throw error; }
+  await finishAction(modelEnv, { status: 'completed', result: 'full' });
+  return design;
+}
+async function cadModelCall(modelEnv, env, job, prepared) {
   const { anthropic, aiSettings } = await import('./ask.js');
   if(env.SUBSCRIPTION_ONLY!=='true'){
     const settings=await aiSettings(env,job.owner.org);
