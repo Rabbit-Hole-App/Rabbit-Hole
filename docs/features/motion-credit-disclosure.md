@@ -99,8 +99,8 @@ The answer is `409 motion_quote_stale` with the updated quote (`price_version`, 
   `fly.orchestrator.toml` and fails unless `MOTION_MAX_CHARGE_USD` is at least the orchestrator's per-job ceiling
   (`min(hold, MOTION_JOB_CEILING_USD)`, and the whole hold when that line is removed) and at most the hold. Today the
   checked-in ceiling is US$2.00 (the US$3.50 raise is the separate release), so the displayed maximum is above the
-  enforced stop, which is the safe direction. R2's own comment says to remove the ceiling line; doing that now makes this
-  test fail until the maximum is consciously raised to the hold, which is an owner decision.
+  enforced stop, which is the safe direction. The ceiling stays through activation and any later public flip (owner 2026-10-27: the old R2 comment to remove it is withdrawn); removing it would make this
+  test fail until the maximum is consciously raised to the hold, which needs a new explicit owner approval.
 - **R2 gate** (`MOTION_GENERATION_PAUSED` off): the same test file builds the production Worker's variables with
   generation not paused and requires every Motion proposal to carry estimate, maximum and reservation, ordered
   estimate <= maximum <= reservation, and the card view to allow Generate. Removing `MOTION_MAX_CHARGE_USD` from the

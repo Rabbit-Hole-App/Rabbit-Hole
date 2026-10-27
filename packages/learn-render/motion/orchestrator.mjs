@@ -149,12 +149,14 @@ export function preflight({ policy, maxCalls, ceilingMicros, path = MANDATORY_PA
   if (floor.calls > maxCalls) return refuse('call_limit', `the ${maxCalls}-call limit is below the ${floor.calls} calls this job requires`);
   if (floor.unpriced.length) return refuse('unknown_cost_bound', `no price for the model of ${floor.unpriced.join(', ')}`);
   if (floor.micros > ceilingMicros) return refuse('job_ceiling_insufficient', `the least the ${floor.calls} required calls can cost ($${usd(floor.micros).toFixed(4)}) is more than the $${usd(ceilingMicros).toFixed(4)} job ceiling`);
-  // Route budget (opt in: MOTION_ROUTE_BUDGET_CHECK, orchestrator-main.mjs; a NEW job only): the ceiling must also carry the routes the policy offers, up to the
-  // supported maximum, so a ceiling that cannot is refused here with nothing spent, not after about US$1.5 at a repair. Does not promise the job succeeds.
+  // Route planning estimate (opt in: MOTION_ROUTE_BUDGET_CHECK, orchestrator-main.mjs; a NEW job only): the ceiling must also carry the estimate for the routes the policy
+  // offers, so a ceiling that cannot is refused here with nothing spent, not after about US$1.5 at a repair. The estimate replays the guard on a DECLARED envelope with
+  // ASSUMED per-call costs (spend-bound.mjs SUPPORTED_ENVELOPE): a fixture-based planning estimate, NOT a proven worst-case completion bound. The guard can still refuse or
+  // stop a call mid-job at the ceiling (zero learner credits), and admission does not promise a video.
   if (routeCheck) {
     const budget = routeBudget(policy, modelsFor(env));
-    if (budget.micros == null) return refuse('unknown_cost_bound', `no price or rule for the route budget (${[...budget.unpriced, ...budget.missing].join(', ')})`);
-    if (budget.micros > ceilingMicros) return { ...refuse('job_ceiling_insufficient', `the ${budget.route.replace(/_/g, ' ')} route the policy offers (call ${budget.call}, ${budget.kind}) needs up to $${usd(budget.micros).toFixed(4)}, more than the $${usd(ceilingMicros).toFixed(4)} job ceiling`), route_budget_micros: budget.micros };
+    if (budget.micros == null) return refuse('unknown_cost_bound', `no price or rule for the route planning estimate (${[...budget.unpriced, ...budget.missing].join(', ')})`);
+    if (budget.micros > ceilingMicros) return { ...refuse('job_ceiling_insufficient', `the planning estimate for the ${budget.route.replace(/_/g, ' ')} route the policy offers (call ${budget.call}, ${budget.kind}; fixture-based, not a proven worst case) is $${usd(budget.micros).toFixed(4)}, more than the $${usd(ceilingMicros).toFixed(4)} job ceiling`), route_budget_micros: budget.micros };
     return { ok: true, floor_micros: floor.micros, calls: floor.calls, route_budget_micros: budget.micros };
   }
   return { ok: true, floor_micros: floor.micros, calls: floor.calls };
@@ -517,7 +519,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     // Answered as the 503 not_configured the Worker already knows is a definite no-start; the amounts stay in the log, not the answer.
     const checked = preflight({ policy: body.mode && policy ? RECOVERY_POLICY[body.mode] : policy, maxCalls, ceilingMicros: Math.min(body.grant.micros, ceilingMicros), ...requiredStages(body), env, routeCheck: routeCheck && !body.mode });
     if (!checked.ok) {
-      log(`job ${body.idempotency_key}: refused ${checked.code} before starting: ${checked.reason}; least needed $${checked.floor_micros == null ? 'unknown' : usd(checked.floor_micros)}${checked.route_budget_micros ? `, route budget $${usd(checked.route_budget_micros)}` : ''}, ceiling $${usd(Math.min(body.grant.micros, ceilingMicros))} (grant $${usd(body.grant.micros)}); nothing was spent`);
+      log(`job ${body.idempotency_key}: refused ${checked.code} before starting: ${checked.reason}; least needed $${checked.floor_micros == null ? 'unknown' : usd(checked.floor_micros)}${checked.route_budget_micros ? `, route planning estimate $${usd(checked.route_budget_micros)}` : ''}, ceiling $${usd(Math.min(body.grant.micros, ceilingMicros))} (grant $${usd(body.grant.micros)}); nothing was spent`);
       return [503, { error: 'not_configured', code: checked.code, detail: `Motion cannot run this video within its configured limits (${checked.code}); nothing was started` }];
     }
     const health = await service.health().catch(() => null);
