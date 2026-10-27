@@ -153,7 +153,7 @@ test('production binds FILE_JOBS and enables only file conversion, not Ctrl+K im
 });
 
 // Batch B6 shipped Image, File Converter and Ctrl+K without Motion (Motion is blocked on owner acceptance). A Motion release replaces this pin in the same change that flips one of these:
-// the credit disclosure (feat/motion-policy-a) adds the signed maximum charge on the app Worker at the CURRENT approved 350 credits (the policy values commit moves it, with its own pin);
+// the credit disclosure adds the signed maximum charge on the app Worker; the policy values commit (HELD for the owner) sets it to 500 credits (US$5.00);
 // production Motion is still paused and has no renderer config.
 test('production Motion: public generation paused, no renderer config, the disclosed maximum on the app Worker only', () => {
   const app = config(APP), cp = config(CP);
@@ -161,7 +161,7 @@ test('production Motion: public generation paused, no renderer config, the discl
   assert.deepEqual([app.vars.MOTION_ORCHESTRATOR_URL, app.vars.MOTION_JOB_RESERVATION_USD, app.vars.MOTION_ESTIMATE_USD],
     ['https://rabbit-hole-motion-orchestrator.fly.dev', '8.96', '1.00']);
   for (const c of [app, cp]) assert.equal(c.vars?.MOTION_RENDERER_CONFIG, undefined, 'MOTION_RENDERER_CONFIG');
-  assert.equal(app.vars.MOTION_MAX_CHARGE_USD, '3.50');
+  assert.equal(app.vars.MOTION_MAX_CHARGE_USD, '5.00');
   assert.equal(cp.vars?.MOTION_MAX_CHARGE_USD, undefined, 'the control plane Worker has no maximum');
 });
 
