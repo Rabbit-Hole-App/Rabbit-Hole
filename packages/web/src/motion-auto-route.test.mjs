@@ -33,7 +33,7 @@ test('prose that merely mentions motion, and other commands, keep their routing'
 
 test('ask.jsx hands the typed command to the routing decision', () => {
   const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
-  assert.ok(ask.includes('explicit: !!commandName && reviewRequired(commandName)'), 'tutorTurn is told the turn is an explicit proposed command');
+  assert.ok(ask.includes('explicit: !!commandName && promptsChat(commandName)'), 'tutorTurn is told the turn is an explicit proposed command');
 });
 
 test('/motion with words becomes a prompt for the chat route: no request, card, held place or generation here', async () => {
