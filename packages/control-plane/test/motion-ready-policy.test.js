@@ -109,7 +109,7 @@ test('the committed config does not activate: MOTION_RENDERER_CONFIG is absent f
   assert.equal(motionPaused(vars, 'yudhisteer.chin@gmail.com'), false);
   assert.equal(motionPaused(vars, 'yudhisteer.chin01@gmail.com'), true, 'the look-alike account is a different person');
   assert.equal(motionPaused(vars, 'YUDHISTEER.CHIN@GMAIL.COM'), false, 'case is normalised');
-  assert.match(noComments(orchestrator, '#'), /^\s*MOTION_JOB_CEILING_USD = "3\.50"$/m, 'the acceptance window bounds one job to US$3.50, above the US$2.56 floor the orchestrator preflight needs');
+  assert.match(noComments(orchestrator, '#'), /^\s*MOTION_JOB_CEILING_USD = "5\.00"$/m, 'the acceptance window bounds one job to US$5.00 (policy candidate, owner-approved 2026-10-27), above the US$2.56 floor and the US$4.81 route planning estimate the orchestrator preflight needs');
   assert.ok(MEASURED_RENDERER_REVISION.startsWith(MEASURED_RENDERER_CONFIG.split('-')[0]));
 });
 
