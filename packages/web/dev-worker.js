@@ -32,12 +32,10 @@ import FEATURES from './dist-dev/design/rabbit-hole-features.html';
 import PRICING from './dist-dev/design/rabbit-hole-pricing.html';
 import MANIFESTO from './dist-dev/design/rabbit-hole-manifesto.html';
 import TEAM from './dist-dev/design/rabbit-hole-team.html';
-import DOCS from './dist-dev/design/rabbit-hole-docs.html';
-import { DOCS_PATHS } from './src/landing/docs-content.js';
 import AUTH from './dist-dev/design/rabbit-hole-auth.html';
 import { AUTH_PATHS } from './src/landing/auth-routes.js';
 import SUPPORT from './dist-dev/design/rabbit-hole-support.html';
-import { SUPPORT_PATHS, isPublicPageRequest } from './src/landing/support-routes.js';
+import { SUPPORT_PATHS, isPublicPageRequest, isRemovedDocsPath } from './src/landing/support-routes.js';
 import { byocFetch } from '../control-plane/src/byoc.js';
 import apiCode from '../byoc/api.py';
 import signerCode from '../byoc/signer.py';
@@ -124,12 +122,12 @@ const routes = {
     // Every production call from any module passes the fail-closed allowlist, not only the fall-through.
     env = guardControlPlane(env);
     const path = new URL(req.url).pathname;
-    if (DOCS_PATHS.includes(path.replace(/\/$/, ''))) {
-      if (!['GET', 'HEAD'].includes(req.method)) return new Response('Method not allowed', { status: 405, headers: { Allow: 'GET, HEAD' } });
-      return new Response(req.method === 'HEAD' ? null : DOCS, {
-        headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
-      });
-    }
+    // Rabbit Hole has no public Docs (owner 2026-10-26): /docs and everything under it is the 404 page, whatever the
+    // method or Accept header. A real 404 at the HTTP level, never the SPA shell (a soft 200).
+    if (isRemovedDocsPath(path)) return new Response(req.method === 'HEAD' ? null : SUPPORT, {
+      status: 404,
+      headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' },
+    });
     if (SUPPORT_PATHS.includes(path.replace(/\/$/, ''))) {
       if (!['GET', 'HEAD'].includes(req.method)) return new Response('Method not allowed', { status: 405, headers: { Allow: 'GET, HEAD' } });
       return new Response(req.method === 'HEAD' ? null : SUPPORT, {
