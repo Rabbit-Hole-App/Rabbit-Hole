@@ -321,7 +321,7 @@ test('only the production app config points at the Motion orchestrator, with a c
       // Owner message 32: the confirmation's estimate, a typical job's actual cost (about 100 credits).
       assert.match(text, /"MOTION_ESTIMATE_USD": "1\.00"/);
       // Owner 2026-10-26 (D1a/D1b): the maximum possible charge, apart from the estimate and the hold (motion-credit-disclosure.test.js pins it to the orchestrator ceiling).
-      assert.match(text, /"MOTION_MAX_CHARGE_USD": "3\.50"/);
+      assert.match(text, /"MOTION_MAX_CHARGE_USD": "5\.00"/);
     } else assert.doesNotMatch(text, /MOTION_ORCHESTRATOR|MOTION_JOB_RESERVATION|MOTION_GENERATION_PAUSED|MOTION_ESTIMATE|MOTION_MAX_CHARGE/, name);
   }
 });

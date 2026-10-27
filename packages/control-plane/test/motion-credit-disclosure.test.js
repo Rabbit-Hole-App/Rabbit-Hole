@@ -29,30 +29,30 @@ const sign = (env, over = {}) => signProposal(env, { ...validateProposalInput({ 
 const R2 = { ...READY, ...PROD, MOTION_GENERATION_PAUSED: '0', MOTION_ORCHESTRATOR_TOKEN: 'm'.repeat(48) };
 const { MOTION_MAX_CHARGE_USD: _removed, ...R2_WITHOUT_MAX } = R2; // eslint-disable-line no-unused-vars
 
-test('the three numbers are separate and ordered: estimate 100, maximum 350, temporary reservation 896 credits', () => {
-  assert.deepEqual([PROD.MOTION_ESTIMATE_USD, PROD.MOTION_MAX_CHARGE_USD, PROD.MOTION_JOB_RESERVATION_USD], ['1.00', '3.50', '8.96']);
-  assert.deepEqual(proposalUsage(R2, 'motion', { duration_seconds: 10 }), { estimate_credits: 100, max_credits: 350, reserve_credits: 896, inputs: { duration_seconds: 10, aspect_ratio: '16:9' }, price_version: 'flat' });
+test('the three numbers are separate and ordered: estimate 100, maximum 500, temporary reservation 896 credits', () => {
+  assert.deepEqual([PROD.MOTION_ESTIMATE_USD, PROD.MOTION_MAX_CHARGE_USD, PROD.MOTION_JOB_RESERVATION_USD], ['1.00', '5.00', '8.96']);
+  assert.deepEqual(proposalUsage(R2, 'motion', { duration_seconds: 10 }), { estimate_credits: 100, max_credits: 500, reserve_credits: 896, inputs: { duration_seconds: 10, aspect_ratio: '16:9' }, price_version: 'flat' });
 });
 
 test('the maximum is pinned to the orchestrator ceiling: at least the ceiling, at most the hold; removing or raising the ceiling fails here', () => {
   assert.equal(covered(PROD, ORCHESTRATOR_TOML), true, `MOTION_MAX_CHARGE_USD ${PROD.MOTION_MAX_CHARGE_USD} must cover fly.orchestrator.toml's per-job ceiling (${ceilingMicros(PROD, ORCHESTRATOR_TOML) / 1e6}) and not exceed the hold`);
   // Negative controls: the check really fails when the two drift (fixture TOML and variables, not the checked-in files).
   const toml = usd => `[env]\n  MOTION_JOB_CEILING_USD = "${usd}"\n`;
-  assert.equal(covered(PROD, toml('3.50')), true, 'the approved 3.50 ceiling is covered');
-  assert.equal(covered(PROD, toml('3.51')), false, 'a ceiling above the maximum');
+  assert.equal(covered(PROD, toml('5.00')), true, 'the approved 5.00 ceiling is covered');
+  assert.equal(covered(PROD, toml('5.01')), false, 'a ceiling above the maximum');
   assert.equal(covered(PROD, '[env]\n  # MOTION_JOB_CEILING_USD = "2.00"\n'), false, 'no ceiling line: the ceiling is the whole hold (8.96), more than the maximum');
-  assert.equal(covered({ ...PROD, MOTION_MAX_CHARGE_USD: '9.00' }, toml('3.50')), false, 'a maximum above the hold could never be held');
-  assert.equal(covered({ ...PROD }, ORCHESTRATOR_TOML.replace(/MOTION_JOB_CEILING_USD\s*=\s*"[^"]+"/, 'MOTION_JOB_CEILING_USD = "4.00"')), false);
+  assert.equal(covered({ ...PROD, MOTION_MAX_CHARGE_USD: '9.00' }, toml('5.00')), false, 'a maximum above the hold could never be held');
+  assert.equal(covered({ ...PROD }, ORCHESTRATOR_TOML.replace(/MOTION_JOB_CEILING_USD\s*=\s*"[^"]+"/, 'MOTION_JOB_CEILING_USD = "5.50"')), false);
 });
 
 test('the signed quote carries the maximum: binding, usage and the card view agree', async () => {
   const p = await sign(R2);
-  assert.equal(p.input.binding.max_credits, 350);
-  assert.deepEqual([p.usage.estimate_credits, p.usage.max_credits, p.usage.reserve_credits], [100, 350, 896]);
+  assert.equal(p.input.binding.max_credits, 500);
+  assert.deepEqual([p.usage.estimate_credits, p.usage.max_credits, p.usage.reserve_credits], [100, 500, 896]);
   assert.equal(await verifyProposal(R2, p, 'alice@example.test'), null);
   assert.match(await verifyProposal(R2, { ...p, input: { ...p.input, binding: { ...p.input.binding, max_credits: 100 } } }, 'alice@example.test'), /changed/, 'the signed maximum cannot be edited');
   const view = proposalView(p);
-  assert.deepEqual(view.usage, { estimate_credits: 100, max_credits: 350, reserve_credits: 896 });
+  assert.deepEqual(view.usage, { estimate_credits: 100, max_credits: 500, reserve_credits: 896 });
   assert.equal(view.allowed_actions.includes('generate'), true);
   assert.equal(motionGenerationCheck(R2, { request: input.request, proposal: p }), null, 'unchanged: not stale');
 });
@@ -98,7 +98,7 @@ test('R2 release gate: the production Worker config, with generation not paused,
   assert.equal(view.usage.unknown, undefined);
   for (const seconds of [5, 30, 60]) {
     const q = proposalView(await sign(R2, { settings: { duration_seconds: seconds, audio: false } }));
-    assert.equal(q.usage.max_credits, 350, `${seconds} s`);
+    assert.equal(q.usage.max_credits, 500, `${seconds} s`);
   }
 });
 
