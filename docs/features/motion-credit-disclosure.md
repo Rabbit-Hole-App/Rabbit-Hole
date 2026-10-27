@@ -10,6 +10,9 @@ Owner decisions, 2026-10-26 (they replace the earlier "the reservation stays int
   Pricing or settings changes that affect consent require the person to reconfirm.
 - Users see AI credits only. Dollars, micros and currency stay internal (CLAUDE.md "Standing owner rules").
 
+- **Policy candidate (HELD, not approved):** a platform stop of US$5.00 with a learner maximum of 500 credits, one values commit, is described in
+  `motion-admission-policy.md`. Until the owner approves it this document's 350-credit maximum and US$3.50 ceiling are the approved numbers.
+
 ## The three numbers
 
 They are recorded, signed, sent and shown separately. None is derived from another.
