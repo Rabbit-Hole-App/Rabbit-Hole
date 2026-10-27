@@ -157,6 +157,10 @@ export async function accept(argv, deps) {
           if (!declared.ok) throw new Stop(`${name}: reference declare answered HTTP ${declared.status}`);
           if (declared.json.upload) { const up = await api('PUT', declared.json.upload.url, new Uint8Array(bytes), { headers: { 'content-type': 'image/png' } }); if (!up.ok) throw new Stop(`${name}: reference upload answered HTTP ${up.status}`); }
           references = [{ id: 'r1', label: 'Reference image', kind: 'file', sourceId: declared.json.source.id, revision: sha256(bytes), range: null }];
+          // The server resolves a reference through the canvas row, which needs a file_source_refs row: only a board save with a card naming the source writes it (as the app does when an image is dropped).
+          const card = { id: 'reference-card', type: 'file', kind: 'image', format: 'png', label: 'reference.png', dx: 0, dy: 0, w: 320, h: 240, fileRef: { v: 1, source: { id: declared.json.source.id, rev: sha256(bytes) }, family: 'image', meta: { name: 'reference.png', type: 'image/png', size: bytes.length, title: 'Reference image' }, view: {}, derivatives: {}, job: null, doc: null, status: { preview: 'pending', context: 'none' } } };
+          const saved = await api('PUT', board, { state: { ...empty, blocks: [card] }, version: (await api('GET', board)).json?.version });
+          if (!saved.ok) throw new Stop(`${name}: saving the reference card answered HTTP ${saved.status}`);
           prompt = 'Repaint {{ref:r1}} as a winter scene, flat illustration.';
         }
         const thread = `canvaschat-${randomUUID()}`;

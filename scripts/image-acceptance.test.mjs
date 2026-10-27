@@ -44,7 +44,7 @@ function fakeBudget(remaining = 80) {
 
 // A simulated Rabbit Hole: the owner's session and one other account, canvases, proposals, jobs, an ImageJobs-like state machine, the usage ledger and the board.
 function world(over = {}) {
-  const w = { lines: [], requests: [], canvases: new Map(), proposals: new Map(), jobs: new Map(), files: new Map(), providerCalls: 0, n: 0, receipts: new Map(), summaries: [], now: 0,
+  const w = { lines: [], requests: [], canvases: new Map(), proposals: new Map(), jobs: new Map(), files: new Map(), providerCalls: 0, n: 0, savedRefs: new Set(), receipts: new Map(), summaries: [], now: 0,
     usage: { image: 0, other: 100, reserved: 0, unknown: 0 }, browser: false, ignoreFaults: false, chargeFactor: 1, jobAnswer: null, ownerAvailable: true, configured: true, otherAvailable: false, holdStays: false, pauses: 0, ...over };
   const reply = (status, body, headers = {}) => ({ status, headers: { get: k => headers[k.toLowerCase()] ?? null }, json: async () => { if (body === undefined || body instanceof Buffer) throw new Error('no json'); return body; }, arrayBuffer: async () => (body instanceof Buffer ? body.buffer.slice(body.byteOffset, body.byteOffset + body.length) : new ArrayBuffer(0)) });
   const publicJob = j => ({ id: j.id, stage: j.stage, reason: j.reason || null, provider: 'p', model: j.model, estimate_credits: j.quote.estimate_credits, max_credits: j.quote.max_credits, charged_credits: j.settlement?.done ? j.chargedCredits ?? null : null, artifact: j.stage === 'ready' ? j.output : null, cost: j.stage === 'ready' ? 'measured' : null, saveRetryable: false, createdAt: 1, updatedAt: 2 });
@@ -85,7 +85,7 @@ function world(over = {}) {
       if (path === '/api/learn/usage') return reply(200, { usedCredits: w.usage.other + w.usage.image, reservedCredits: w.usage.reserved, remainingCredits: 2500 - w.usage.other - w.usage.image - w.usage.reserved, unknownAttempts: w.usage.unknown, byFeature: w.usage.image ? [{ feature: 'image_generate', usedCredits: w.usage.image }] : [] });
       if (method === 'POST' && path === '/api/canvases') { const name = `canvas-${String(++w.n).padStart(8, '0')}`; w.canvases.set(name, { blocks: [], version: 1 }); return reply(201, { name }); }
       let m;
-      if ((m = path.match(/^\/api\/learn\/boards\/(canvas-\d+)\/main$/))) { const c = w.canvases.get(m[1]); return method === 'PUT' ? reply(200, { version: 2 }) : reply(200, { version: c.version, state: { blocks: c.blocks } }); }
+      if ((m = path.match(/^\/api\/learn\/boards\/(canvas-\d+)\/main$/))) { const c = w.canvases.get(m[1]); if (method === 'PUT') { for (const b of body?.state?.blocks || []) if (b?.fileRef?.source?.id) w.savedRefs.add(b.fileRef.source.id); return reply(200, { version: 2 }); } return reply(200, { version: c.version, state: { blocks: c.blocks } }); }
       if (method === 'POST' && path === '/api/learn/files') { const id = `fs_${String(++w.n).padStart(24, '0')}`; w.files.set(id, null); return reply(201, { source: { id }, upload: { method: 'PUT', url: `/api/learn/files/${id}` } }); }
       if (method === 'PUT' && (m = path.match(/^\/api\/learn\/files\/(fs_\d+)$/))) { w.files.set(m[1], Buffer.from(init.body)); return reply(200, {}); }
       if (method === 'GET' && (m = path.match(/^\/api\/learn\/files\/(fs_\d+)$/))) { const b = w.files.get(m[1]); return b ? reply(200, b, { 'content-type': 'image/png' }) : reply(404, { error: 'Not available' }); }
@@ -112,6 +112,8 @@ function world(over = {}) {
         const p = [...w.proposals.values()].find(x => x.current.proposal_id === body.proposal.proposal_id).current;
         if (JSON.stringify(body.proposal.quote) !== JSON.stringify(p.quote)) return reply(409, { code: 'proposal_refused', error: 'This proposal was not made for you, or it was changed.' });
         if (p.readiness.ready !== true) return reply(409, { code: 'image_not_ready', error: p.readiness.message });
+        // authorizeFileSource under the canvas row: a reference needs a file_source_refs row, written only by a board save with a card that names the source.
+        if (p.references.some(r => !w.savedRefs.has(r.sourceId))) return reply(409, { code: 'reference_blocked', error: 'A reference cannot be used for this image.', references: p.references.map(r => ({ id: r.id, state: w.savedRefs.has(r.sourceId) ? 'ok' : 'inaccessible' })) });
         if (!w.allowSecondJob && [...w.jobs.values()].some(x => x.proposal === p.proposal_id)) return reply(409, { code: 'proposal_used', error: 'This proposal already made an image.' });
         return reply(201, { job: publicJob(create(body)) });
       }
