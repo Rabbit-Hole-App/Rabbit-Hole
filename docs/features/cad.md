@@ -143,48 +143,45 @@ stays NULL on the attempt and at its admission bound on the platform ledger, nev
 Last row is policy, not a gap: refunding a delivered design is an owner decision, not made here. Learner-visible change: a CAD call whose billed reply was
 unusable no longer reduces the learner's credits; nothing else changes.
 
-### Historical rows (proposal only; nothing here has been run or applied)
+### Historical rows (reconcile and repair dry run; nothing has been applied)
 
-Deploying the fix does not repair earlier rows. Two kinds exist: (1) CAD attempts that settled at a cost and were then discarded, still counted as used; (2) CAD
-actions left `running` by the lifecycle bug (cosmetic: the balance sums attempts, not action status). D1 cannot tell a discarded call from a used one by itself
-(both attempts are `settled`); the job's error lives in the CadJobs Durable Object, so candidates must be confirmed against the job before any repair. After the
-lifecycle fix, `status = 'failed'` marks calls that threw. Read-only queries on the learn D1 (`LEARN_DB`):
+Deploying the fixes does not repair earlier rows: CAD attempts that settled at a cost and whose reply was then discarded still count as used, and actions from
+before the lifecycle fix still read `running` (cosmetic: the balance sums attempts, not action status). `running` says nothing about what a call delivered, so
+`scripts/cad-historical-reconcile.mjs` decides each CAD attempt (action feature `artifact`, client key `cad-<job>-<call>`) from D1 evidence only. Owner-run,
+from a checkout with `node_modules` (wrangler) and `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` in the owner credentials file (read by name, never printed);
+it reads `LEARN_DB` (`rabbit-hole-learn-prod` through `packages/web/wrangler.rabbit-hole-prod.jsonc`, or the dev pair) with three SELECTs and a runner that
+refuses anything else:
 
-```sql
--- 1. Chargeable CAD attempts still counted as used (candidates). Confirm each against its job (client_key = cad-<job id>-<n>) before repair.
-SELECT a.action_id, a.user_id, a.period, a.status AS action_status, a.result, a.client_key, t.attempt_id, t.cost_micros,
-       COALESCE(d.refunded_micros, 0) AS refunded_micros, o.cost_usd AS platform_cost_usd, o.status AS operation_status
-  FROM usage_operations o
-  JOIN usage_attempts t ON t.attempt_id = o.op_id
-  JOIN usage_actions a ON a.action_id = t.action_id
-  LEFT JOIN usage_attempt_detail d ON d.attempt_id = t.attempt_id
- WHERE o.category = 'cad' AND a.charge_class = 'would_charge' AND t.cost_state = 'settled' AND t.cost_micros > 0
-   AND COALESCE(d.refunded_micros, 0) = 0
- ORDER BY a.period, a.action_id;
--- Narrow to the failed ones once the lifecycle fix is live: add  AND a.status = 'failed'  (rows before it read 'running' whatever happened).
-
--- 2. Actions left 'running' by the lifecycle bug (CAD operations older than the artifact hold bound, 3600 s).
-SELECT a.action_id, a.user_id, a.period, a.client_key, a.started_at, t.status AS attempt_status, t.cost_state, t.cost_micros
-  FROM usage_actions a
-  JOIN usage_attempts t ON t.action_id = a.action_id
-  JOIN usage_operations o ON o.op_id = t.attempt_id AND o.category = 'cad'
- WHERE a.status = 'running' AND a.started_at < CAST(strftime('%s', 'now') AS INTEGER) - 3600
- ORDER BY a.started_at;
+```bash
+node scripts/cad-historical-reconcile.mjs prod reconcile            # one line per attempt, then totals by class
+node scripts/cad-historical-reconcile.mjs prod repair --dry-run     # the same, plus the rows a repair WOULD write
 ```
 
-Proposed repair for each confirmed attempt `<att>` of action `<act>` and user `<usr>`, in the exact shape `refundAttempt` writes (reason `route_failed_no_result`, whole
-cost; `cost_micros`, `usage_operations` and the action's cost are left alone; 1 credit = 10,000 micro-USD). Run through the existing owner-command pattern
-(`scripts/motion-refund-failed-job.mjs`: dry run first, apply once); do not hand-write SQL on production:
+| D1 evidence for an attempt | Class |
+| --- | --- |
+| charge class not `would_charge`, or no settled cost | NOT ELIGIBLE (not charged) |
+| `refunded_micros` equals the cost | NOT ELIGIBLE (refunded); part-refunded is UNKNOWN (owner review) |
+| action `completed` (after the lifecycle fix: `cadModelCall` returned) | NOT ELIGIBLE (delivered) |
+| action `failed` with a settled, unrefunded cost (after the lifecycle fix: `cadModelCall` threw after billing) | ELIGIBLE |
+| `running`, and exactly one new CAD source (`file_sources`, family `cad`) saved on the job's board within 300 s of settlement, before the board's next CAD call, with no other CAD job on the board in that window and a SHA-256 not seen on the board before (a parameter rebuild re-saves the accepted text) | NOT ELIGIBLE (delivered: `saveCadSource` runs only after the design validated) |
+| `running`, and the job's next call is kind `repair` while this one is not | NOT ELIGIBLE (delivered: a repair follows only a valid design whose build failed or a review that rejected it) |
+| anything else `running` | UNKNOWN |
 
-```sql
-INSERT OR IGNORE INTO usage_attempt_detail (attempt_id) VALUES ('<att>');
-UPDATE usage_attempt_detail SET refunded_micros = (SELECT cost_micros FROM usage_attempts WHERE attempt_id = '<att>' AND cost_state = 'settled'),
-       refunded_at = <now>, refund_reason = 'route_failed_no_result' WHERE attempt_id = '<att>' AND refunded_micros = 0;
-INSERT INTO usage_adjustments (adjustment_id, action_id, user_id, micros, reason, created_at) VALUES ('adj-<uuid>', '<act>', '<usr>', -<cost_micros>, 'route_failed_no_result', <now>);
-```
+Each line prints the job, call number, provider cost (`usage_operations.cost_usd`), learner charge (`cost_micros - refunded_micros` for `would_charge`), the class
+and its evidence or the exact missing evidence. A delivered design with no published build (`file_derivatives`, converter `cad-execute`), or followed by a repair,
+is also listed as a policy question: it stays charged under the last row of the table above. `repair --dry-run` prints (A) action-status repairs only, cosmetic,
+no money: `running` -> `completed`/`full` (ended at the attempt's settlement) for delivered calls; and (B) refunds, ELIGIBLE only, in `refundAttempt`'s shape
+(`usage_attempt_detail.refunded_micros` and one `usage_adjustments` row, reason `route_failed_no_result`), each with totals in micros and credits. UNKNOWN is never
+in (B). Both are guarded (`status = 'running'`, `refunded_micros = 0`), so after an apply a second dry run plans zero rows. There is no apply mode: `repair` without
+`--dry-run` refuses; applying needs the owner's approval and a separate, reviewed apply mode. Tests: `node --test scripts/cad-historical-reconcile.test.mjs`
+(in-memory SQLite from every learn migration; no wrangler, credential or network).
 
-For stale actions: `UPDATE usage_actions SET status = 'failed', result = 'none', ended_at = <now> WHERE action_id = '<act>' AND status = 'running'` (or `'completed'`, `'full'` for a
-confirmed good call). Both kinds are a production write and need the owner's approval.
+What D1 cannot prove: that a billed reply was unusable before the lifecycle fix. A refused or non-JSON reply, a clarifying question, a brief (`CAD_BRIEF_FIRST`), an
+accepted review and a valid design cancelled before it was saved all leave the same D1 trace (a settled attempt and nothing else). That outcome lives in the job's
+CadJobs record: `state`, `attempt`, `error`, `approval`/`briefHash`, `question`/`answer` and `lastFailure`. The operator diagnostic
+(`/internal/cad-job-diagnostic?job=<job id>` on the app Worker, `cad-job-diagnostic.js`) needs `CAD_DIAGNOSTIC_READ_TOKEN` and returns state, failure fields, `lastFailure`, brief and checks, but
+not `error`, `approval`, `question`/`answer` or `calls`; a model-stage failure records only `cad_failed` at stage `unknown` (a review: `checking`), the same as a failed source save. Even
+the full record decides only the job's last failure: Retry clears `error`, so an earlier call of a retried job can stay undecidable.
 
 ## Execution plan and ownership
 
