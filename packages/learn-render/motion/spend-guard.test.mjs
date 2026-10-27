@@ -223,15 +223,15 @@ test('MOTION_JOB_CEILING_USD: a dollar amount sets the ceiling; anything else st
   for (const bad of ['0', '-1', 'three', '3e6']) assert.deepEqual(orchestratorConfig({ ...base, MOTION_JOB_CEILING_USD: bad }).errors, ['MOTION_JOB_CEILING_USD: a dollar amount above 0'], bad);
 });
 
-test('MOTION_ROUTE_BUDGET_CHECK: off unless "1"; on, a ceiling below the route budget stops the START (a deploy failure, not a refused job); a ceiling at or above it, or none, starts', async () => {
+test('MOTION_ROUTE_BUDGET_CHECK: off unless "1"; on, a ceiling below the route planning estimate stops the START (a deploy failure, not a refused job); a ceiling at or above it, or none, starts', async () => {
   const { orchestratorConfig } = await import('./orchestrator-main.mjs');
   const base = { MOTION_ORCHESTRATOR_TOKEN: 'x'.repeat(40), MOTION_RENDERER_URL: 'https://r.test', MOTION_RENDERER_TOKEN: 't' };
   assert.equal(orchestratorConfig({ ...base, MOTION_JOB_CEILING_USD: '3.50' }).config.routeCheck, false, 'unset: the current behaviour, a 3.50 ceiling starts');
   assert.equal(orchestratorConfig({ ...base, MOTION_JOB_CEILING_USD: '3.50', MOTION_ROUTE_BUDGET_CHECK: '0' }).config.routeCheck, false);
-  assert.deepEqual(orchestratorConfig({ ...base, MOTION_JOB_CEILING_USD: '3.50', MOTION_ROUTE_BUDGET_CHECK: '1' }).errors, ['MOTION_JOB_CEILING_USD: $3.50 is below the route budget $4.8111 that MOTION_ROUTE_BUDGET_CHECK requires; every job would be refused']);
+  assert.deepEqual(orchestratorConfig({ ...base, MOTION_JOB_CEILING_USD: '3.50', MOTION_ROUTE_BUDGET_CHECK: '1' }).errors, ['MOTION_JOB_CEILING_USD: $3.50 is below the route planning estimate $4.8111 that MOTION_ROUTE_BUDGET_CHECK requires; every job would be refused']);
   const on = orchestratorConfig({ ...base, MOTION_JOB_CEILING_USD: '5.00', MOTION_ROUTE_BUDGET_CHECK: '1' }).config;
   assert.deepEqual([on.routeCheck, on.routeBudgetMicros, on.ceilingMicros], [true, 4_811_120, 5_000_000]);
-  assert.equal(orchestratorConfig({ ...base, MOTION_JOB_CEILING_USD: '4.811120', MOTION_ROUTE_BUDGET_CHECK: '1' }).config.routeCheck, true, 'exactly the budget');
+  assert.equal(orchestratorConfig({ ...base, MOTION_JOB_CEILING_USD: '4.811120', MOTION_ROUTE_BUDGET_CHECK: '1' }).config.routeCheck, true, 'exactly the planning estimate');
   assert.equal(orchestratorConfig({ ...base, MOTION_ROUTE_BUDGET_CHECK: '1' }).config.routeCheck, true, 'no ceiling: the grant decides, per job');
   assert.deepEqual(orchestratorConfig({ ...base, MOTION_ROUTE_BUDGET_CHECK: 'yes' }).errors, ['MOTION_ROUTE_BUDGET_CHECK: 1 (on) or unset']);
 });

@@ -15,7 +15,8 @@ primary_region = "iad"
   MOTION_MAX_CALLS = "9"
   MOTION_JOB_TIMEOUT_S = "3300"
   # ACCEPTANCE WINDOW (owner 2026-10-25, R1; ceiling raised 2.00 to 3.50 after the first acceptance job refused on 2.00): one job may spend at most US$3.50 of model money. The Worker still holds
-  # US$8.96 against the learner's allowance and releases the unused part. REMOVE this line in the activation release (R2): public jobs need the full hold.
+  # US$8.96 against the learner's allowance and releases the unused part. This ceiling STAYS through activation and any later public flip: nothing in R2a, R2b or activate-public may change MOTION_JOB_CEILING_USD, MOTION_MAX_CHARGE_USD or the reservation (MOTION_JOB_RESERVATION_USD);
+  # any change to those needs a new explicit owner approval and its own commit. (The earlier instruction to drop the ceiling in the activation release is withdrawn, owner 2026-10-27.)
   # The orchestrator preflight (orchestrator.mjs) refuses every job before any paid work when this is below US$2.56, the least the mandatory calls can cost;
   # the measured need (3.05 to 3.13 with one repair) is in docs/features/rabbit-hole-motion-v1-harness-spec.md "Failure codes, the preflight and what a limit charges".
   MOTION_JOB_CEILING_USD = "3.50"
