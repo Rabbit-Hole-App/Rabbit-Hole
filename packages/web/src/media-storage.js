@@ -24,5 +24,32 @@ export async function storeMedia(file, { kind, meta }) {
 
 // The original's bytes for a card, either shape. null when it cannot be read here.
 export const loadMediaOriginal = block => loadSource(block).catch(() => null);
+
+// A stored source can be unreadable for a moment: a card placed from a stored file (a generated image, Add to canvas) is read
+// before the board save that registers this canvas's reference to it (file_source_refs) lands, about 2 s later (LearnPage
+// pushBoard), and until then the server answers the same 404 as for a file this page may not read; a read can also fail in
+// transit. So a failed read of a stored source is tried again at once after each board save and otherwise with backoff, and is
+// called missing only when the waits run out. publish({ status: 'loading' | 'ready' | 'missing', blob }). -> cancel(): once the
+// card is removed, its source replaced or the page left, nothing more is read or published.
+export const READ_WAITS = [500, 1000, 2000, 4000, 8000, 16000];
+const boardSaved = fn => { globalThis.addEventListener?.('rh:board-saved', fn); return () => globalThis.removeEventListener?.('rh:board-saved', fn); };
+export function readOriginal(block, publish, { load = loadMediaOriginal, waits = READ_WAITS, onSaved = boardSaved } = {}) {
+  let live = true, timer = null, reading = false, saved = false, tries = 0;
+  const read = () => {
+    timer = null; reading = true; saved = false;
+    Promise.resolve(block).then(load).catch(() => null).then(value => {
+      reading = false;
+      if (!live) return;
+      if (value && typeof value !== 'string') { publish({ status: 'ready', blob: value }); return; }
+      if (!block?.fileRef?.source?.id || tries >= waits.length) { publish({ status: 'missing', blob: null }); return; }
+      timer = setTimeout(read, saved ? 0 : waits[tries]); tries++;
+    });
+  };
+  const off = onSaved(() => { if (!live) return; if (timer) { clearTimeout(timer); read(); } else if (reading) saved = true; });
+  publish({ status: 'loading', blob: null });
+  read();
+  return () => { live = false; clearTimeout(timer); off(); };
+}
+
 // What the card knows about its file: fileRef.meta for a fileRef card, the block's own meta otherwise.
 export const mediaMeta = block => block?.fileRef?.meta || block?.meta || {};
