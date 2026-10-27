@@ -10,11 +10,14 @@
 //   MOTION_JOB_CEILING_USD (optional, e.g. 3.00): the most provider spend one job may reach, whatever the worker's grant says; every call's
 //   worst case, in flight and unknown calls included, must fit under it before it is sent. Unset: the grant is the ceiling.
 // Every job runs under PRODUCTION_POLICY (orchestrator.mjs): its worst case is the per-job hold the worker admits.
+//   MOTION_ROUTE_BUDGET_CHECK (optional, "1"): refuse a NEW job before any spend unless the job ceiling carries the routes the policy offers (spend-bound.mjs routeBudget:
+//   first pass, Author patch, Director revision before or after the Author, up to the supported maximum). Startup refuses to run when this is on and the ceiling is below it.
 //   MOTION_DIRECTOR_MODEL, MOTION_AUTHOR_MODEL, MOTION_VISUAL_REVIEW_MODEL, MOTION_PEDAGOGICAL_REVIEW_MODEL (optional)
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { PRODUCTION_POLICY, motionOrchestrator, rendererCodeHashes } from './orchestrator.mjs';
+import { modelsFor, routeBudget } from './spend-bound.mjs';
 import { serviceClient } from './render-job.mjs';
 
 // The model call: Anthropic's Messages API with the orchestrator's own key, as ask.js anthropicTransport sends it (betas
@@ -41,8 +44,11 @@ export function orchestratorConfig(e = process.env) {
   try { renderer = new URL(e.MOTION_RENDERER_URL); } catch { errors.push('MOTION_RENDERER_URL: the sandboxed render service URL'); }
   if (!e.MOTION_RENDERER_TOKEN) errors.push('MOTION_RENDERER_TOKEN: required');
   const ceiling = e.MOTION_JOB_CEILING_USD == null || e.MOTION_JOB_CEILING_USD === '' ? null : /^\d+(\.\d{1,6})?$/.test(e.MOTION_JOB_CEILING_USD) && Number(e.MOTION_JOB_CEILING_USD) > 0 ? Number(e.MOTION_JOB_CEILING_USD) : (errors.push('MOTION_JOB_CEILING_USD: a dollar amount above 0'), null);
+  if (![undefined, '', '0', '1'].includes(e.MOTION_ROUTE_BUDGET_CHECK)) errors.push('MOTION_ROUTE_BUDGET_CHECK: 1 (on) or unset');
+  const routeCheck = e.MOTION_ROUTE_BUDGET_CHECK === '1', budget = routeBudget(PRODUCTION_POLICY, modelsFor(e)).micros;
+  if (routeCheck && ceiling != null && !errors.length && (budget == null || budget > Math.round(ceiling * 1e6))) errors.push(`MOTION_JOB_CEILING_USD: $${ceiling.toFixed(2)} is below the route budget ${budget == null ? '(unpriced)' : `$${(budget / 1e6).toFixed(4)}`} that MOTION_ROUTE_BUDGET_CHECK requires; every job would be refused`);
   const config = {
-    ceilingMicros: ceiling == null ? Infinity : Math.round(ceiling * 1e6),
+    routeCheck, routeBudgetMicros: budget, ceilingMicros: ceiling == null ? Infinity : Math.round(ceiling * 1e6),
     host: e.HOST || '0.0.0.0', port: int('PORT', 8080, 1, 65535), workDir: e.MOTION_WORK_DIR || '/tmp/motion-jobs',
     maxCalls: int('MOTION_MAX_CALLS', 9, 1, 32), jobTimeoutMs: int('MOTION_JOB_TIMEOUT_S', 3300, 60, 3500) * 1000,
     renderer: renderer && { url: renderer.href.replace(/\/$/, ''), token: e.MOTION_RENDERER_TOKEN }, token: e.MOTION_ORCHESTRATOR_TOKEN,
@@ -57,9 +63,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   if (errors) { for (const line of errors) console.error(`✗ ${line}`); process.exit(2); }
   const orchestrator = motionOrchestrator({
     token: config.token, service: serviceClient(config.renderer), call: apiCall, env: config.env, outDir: config.workDir,
-    maxCalls: config.maxCalls, ceilingMicros: config.ceilingMicros, policy: PRODUCTION_POLICY, missing: config.missing, rendererHashes: rendererCodeHashes(), jobTimeoutMs: config.jobTimeoutMs, log: line => console.log(`${new Date().toISOString()} ${line}`),
+    maxCalls: config.maxCalls, ceilingMicros: config.ceilingMicros, routeCheck: config.routeCheck, policy: PRODUCTION_POLICY, missing: config.missing, rendererHashes: rendererCodeHashes(), jobTimeoutMs: config.jobTimeoutMs, log: line => console.log(`${new Date().toISOString()} ${line}`),
   });
-  const server = createServer(orchestrator.handle).listen(config.port, config.host, () => console.log(`✓ Motion orchestrator on http://${config.host}:${config.port} (renderer ${new URL(config.renderer.url).host}, sandbox required: linux; ${config.maxCalls} calls and ${config.jobTimeoutMs / 1000} s per job, the production policy; hold per job from the worker's grant)${config.missing.length ? `; NOT READY: missing ${config.missing.join(', ')}, every job is refused` : ''}`));
+  const server = createServer(orchestrator.handle).listen(config.port, config.host, () => console.log(`✓ Motion orchestrator on http://${config.host}:${config.port} (renderer ${new URL(config.renderer.url).host}, sandbox required: linux; ${config.maxCalls} calls and ${config.jobTimeoutMs / 1000} s per job, the production policy; job ceiling ${config.ceilingMicros === Infinity ? 'none (the grant)' : `$${(config.ceilingMicros / 1e6).toFixed(2)}`}, route budget $${config.routeBudgetMicros == null ? 'unpriced' : (config.routeBudgetMicros / 1e6).toFixed(4)} ${config.routeCheck ? 'REQUIRED' : 'not enforced'}; hold per job from the worker's grant)${config.missing.length ? `; NOT READY: missing ${config.missing.join(', ')}, every job is refused` : ''}`));
   // A stop (deploy, scale) ends running jobs; the worker keeps their holds as unknown cost and refuses their grants here.
   for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { orchestrator.close(); server.close(); process.exit(0); });
 }
