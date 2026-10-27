@@ -47,6 +47,19 @@ FAQ-join screenshots were inspected. No browser errors or API calls. Evidence:
 entry in Coaching. The user approved this visual direction on 2026-09-29;
 the product scenes remain illustrative placeholders for future real captures.
 
+Update on 2026-10-27 (owner brief "AI Tutor", supersedes the scroll and tab
+choices above): the five tabs are AI Tutor, Explanations, Your materials, Learn
+by doing and Rabbit Holes, with AI Tutor selected first. Page scrolling no
+longer advances tabs; only a tab click, arrow keys, Home/End or a touch swipe
+changes them, and no tab numbers or "01 / 05" counter remain. AI Tutor shows a
+silent recorded take of the real canvas, Tutor panel and Explanation card
+(scripted lines, the prepared pendulum card; capture sources in
+`C:/s/spec/landing-tutor/capture/`) at about 30/70 copy to video, with Play/Pause
+and Replay below it, the disclosure "Scripted product demo · generation time
+omitted." and the conversation as text. The video never autoplays or loops and
+pauses when its tab is left, the window leaves view or the page is hidden. The
+other four tabs keep their illustrative scenes, labelled as such.
+
 Follow-up on 2026-09-29: the reserved white block is now the approved interactive
 [adaptive example](rabbit-hole-adaptive-demo.md). The overview window, original
 cloud loop and flush FAQ boundary remain unchanged.
