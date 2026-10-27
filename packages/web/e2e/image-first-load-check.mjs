@@ -4,6 +4,7 @@
 // and the first read is the server's 404. No model call and no paid call: every model route is aborted and counted; the image
 // capability, the plan (POST /api/learn/chat/image-proposals), the image job API and the thread restore are MOCKED in the browser.
 // The image files are REAL stored sources on the local Worker (uploaded here as PNGs), read through the real authorization.
+//   0. throughout: Auto mode on a canvas with an active Tutor; a typed /image gets its plan card and the Tutor plan route is never asked
 //   1. first load: the card is placed, shows a spinner and Loading image while Chat already says Ready and the charge; the board save is
 //      held until the read has been refused (404), then lands; the same card shows the decoded image, no reload, no second card
 //   2. a stored file that stays missing: Loading image, then "could not be read here" with Retry loading image after the bounded
@@ -114,7 +115,7 @@ async function prepare(context) {
   await context.route(/\/api\/ask\/threads\/[^/?]+$/, route => {
     const id = decodeURIComponent(new URL(route.request().url()).pathname.split('/').pop());
     if (!restoring || id !== restoring || route.request().method() !== 'GET') return route.fallback();
-    return route.fulfill({ json: { id, title: 'Image first load', mode: 'ask', contextRefs: [], draft: null, messages: turns.filter(t => t.threadId === id).flatMap(t => [t.user, t.answer]) } });
+    return route.fulfill({ json: { id, title: 'Image first load', mode: 'auto', contextRefs: [], draft: null, messages: turns.filter(t => t.threadId === id).flatMap(t => [t.user, t.answer]) } });
   });
 }
 async function open(context) {
@@ -147,12 +148,13 @@ failShot = n => page.screenshot({ path: `${OUT}/FAIL-${String(n).padStart(2, '0'
 const dock = page.locator('[data-chat-pane]');
 const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
 const modeButton = dock.getByRole('button', { name: 'Mode', exact: true });
-// Ask: in Auto a canvas with an active Tutor sends a non-review command line to the Tutor's plan (chat-route.js tutorTurn), which is
-// aborted here; Ask always posts the turn itself, where /image asks for its plan (ask.jsx imagePlan). Run 40541917172 part 3.
-if ((await modeButton.getAttribute('data-chat-mode')) !== 'ask') {
-  await modeButton.click(); await page.locator('[data-chat-mode-option="ask"]').click();
-  await until(async () => (await modeButton.getAttribute('data-chat-mode')) === 'ask', 'mode ask');
+// Auto, on a canvas with an active Tutor (every plain canvas has one, LearnTutor.jsx): a typed /image is not the Tutor's turn (ledger
+// c030d623; chat-route.js tutorTurn, ask.jsx promptsChat), so the Tutor plan route /api/learn/tutor/plan, aborted and counted here, is
+// never asked and the plan card comes from /api/learn/chat/image-proposals. Run 40541917172 part 3 saw the Tutor take it.
+if ((await modeButton.getAttribute('data-chat-mode')) !== 'auto') {
+  await modeButton.click(); await page.locator('[data-chat-mode-option="auto"]').click();
 }
+await until(async () => (await modeButton.getAttribute('data-chat-mode')) === 'auto', 'mode auto');
 await until(() => offered > 0, 'the page asked whether image generation is offered (MOCKED yes)');
 // /image <words>, then Generate on its plan card: -> the new canvas card's block id.
 async function generate(words) {
@@ -174,11 +176,13 @@ await context.route(new RegExp(`/api/learn/boards/${canvas.name}/main$`), async 
 
 // 1 ----------------------------------------------------------------------------------------------------------------
 let first = null;
-await step('first load: a spinner and Loading image while Chat says Ready; the read is refused until the board save lands, then the same card shows the image, no reload', async () => {
+await step('first load, in Auto with an active Tutor: /image gets its plan card; a spinner and Loading image while Chat says Ready; the read is refused until the board save lands, then the same card shows the image, no reload', async () => {
   let release; boardHolds.push({ released: new Promise(resolve => { release = resolve; }) });
   const navigations = page.navigations;
   try {
     first = await generate('a red square');
+    assert.equal(model.includes('/api/learn/tutor/plan'), false, 'the Tutor plan route was never asked: /image is not a Tutor turn in Auto');
+    assert.equal(plans.size, 1, 'the plan came from the image plan route (the plan card, not Tutor prose)');
     // The board save waits (held here) until this card's read has been refused: the order the owner hit, made deterministic.
     await until(() => reads.some(r => r.id === A.id && r.status === 404), 'the first read refused before the board save');
     const card = cardOf(page, first.id);
@@ -256,6 +260,12 @@ await step('a reload shows the image again; no card is placed again and no job i
     await page.waitForTimeout(3000); // the restored plan reads its job (MOCKED ready) and must not place a card
     assert.equal((await blockIds(page)).length, cards, 'no card placed again');
     assert.equal(posts.length, jobs, 'no job started or resubmitted');
+    assert.equal(posts.filter(id => id === `img-${plans.get('a red square').proposal.proposal_id}`).length, 1, 'one job POST for the first image, never a second');
+    const restored = dock.locator('[data-generation-proposal="generate-image"]', { hasText: 'a red square' });
+    assert.equal(await restored.count(), 1, 'one plan card for it');
+    assert.match(await restored.locator('[data-proposal-job-detail]').innerText(), /Charged 1 AI credit\./, 'one charge, as before');
+    assert.equal((await blockIds(page)).filter(id => id === first.id).length, 1, 'exactly one card for it');
+    assert.equal(model.includes('/api/learn/tutor/plan'), false, 'the Tutor plan route was still never asked');
     await page.screenshot({ path: `${OUT}/04-reloaded.png` });
     assert.deepEqual(page.errors, [], 'no page errors');
   } finally { restoring = null; }
