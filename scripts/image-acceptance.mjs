@@ -234,6 +234,8 @@ export async function accept(argv, deps) {
           say(`  job ${gid}: ${job.stage}${job.reason ? ` (${job.reason})` : ''}`);
           // The terminal stage is saved before its ledger step runs, so wait until the settlement says it is done.
           const inspect = await poll(() => api('GET', `/api/learn/image-jobs/${gid}/inspect`), r => !r.ok || !r.json?.job?.settlement || r.json.job.settlement.done === true, 30 * 1000, 1500) ?? await api('GET', `/api/learn/image-jobs/${gid}/inspect`);
+          // The requester view read at the terminal stage predates settlement (charged_credits is null until it is done): read it again now.
+          job = (await api('GET', `/api/learn/image-jobs/${gid}`)).json?.job ?? job;
           ok('operator inspect answers (owner path)', inspect.ok && inspect.json?.job?.id === gid, `HTTP ${inspect.status}`);
           const ij = inspect.json.job;
           receipt.inspect = { stage: ij.stage, reason: ij.reason, settlement: ij.settlement, retries: ij.retries, output: ij.output && { sha256: ij.output.sha256, bytes: ij.output.bytes, mimeType: ij.output.mimeType }, usage: ij.usage, providerMs: ij.providerMs, providerStatus: ij.providerStatus, costs: ij.costs, quote: ij.quote, providerModel: ij.providerModel };

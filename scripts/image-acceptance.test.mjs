@@ -54,7 +54,7 @@ function world(over = {}) {
     w.providerCalls++;
     const bytes = JPEG_MODELS.has(j.model) ? JPEG : PNG, usage = withReferences(j.model, USAGE[j.model], w.dropReference ? 0 : j.references), cost = imageCost(j.model, usage, j.quote.reserve_credits / 100, w.noCap ? null : j.quote.max_credits / 100);
     j.output = { sourceId: `fs_${String(++w.n).padStart(24, '0')}`, sha256: sha(bytes), mimeType: JPEG_MODELS.has(j.model) ? 'image/jpeg' : 'image/png', bytes: bytes.length };
-    w.files.set(j.output.sourceId, bytes); j.usage = usage; j.stage = 'ready'; j.settlement = { status: 'settled', calls: 1, done: true, costKnown: true };
+    w.files.set(j.output.sourceId, bytes); j.usage = usage; j.stage = 'ready'; j.settlement = { status: 'settled', calls: 1, done: true, costKnown: true }; if (w.lateSettle) { j.settlement.done = false; j.pendingSettle = true; } // the stage is saved before the ledger step finishes
     j.cost = cost; j.chargedCredits = Math.ceil(Number((cost.chargedUsd * 100).toFixed(6)));
     w.usage.reserved -= j.quote.reserve_credits; w.usage.image = Number((w.usage.image + cost.chargedUsd * 100 * w.chargeFactor).toFixed(4));
     if (w.browser) { const c = w.canvases.get(j.app); c.blocks.push({ type: 'file:image', fileRef: { source: { id: j.output.sourceId, rev: j.output.sha256 } } }); }
@@ -119,7 +119,7 @@ function world(over = {}) {
         let j = w.jobs.get(m[1]);
         if (!j && w.browser && owner && w.pressOn) j = create({ generationId: m[1], proposal: { proposal_id: m[1].slice(4) }, app: [...w.canvases.keys()].at(-1) });
         if (!j || !owner) return reply(404, { error: 'Not found' });
-        if (m[2]) { const q = [j.stage].includes('ready'); return reply(200, { job: { ...publicJob(j), settings: j.settings, quote: { ...j.quote }, references: Array.from({ length: j.references }, () => ({})), settlement: j.settlement, retries: 0, usage: j.usage || null, output: j.output || null, providerStatus: j.providerStatus ?? null, costs: q ? { state: 'x', overrun: false, absorbed: (j.cost?.absorbedUsd ?? 0) > 0 } : null, providerModel: j.model } }); }
+        if (m[2]) { const q = [j.stage].includes('ready'); const late = j.pendingSettle; const r = reply(200, { job: { ...publicJob(j), settings: j.settings, quote: { ...j.quote }, references: Array.from({ length: j.references }, () => ({})), settlement: j.settlement, retries: 0, usage: j.usage || null, output: j.output || null, providerStatus: j.providerStatus ?? null, costs: q ? { state: 'x', overrun: false, absorbed: (j.cost?.absorbedUsd ?? 0) > 0 } : null, providerModel: j.model } }); if (late) { j.settlement.done = true; j.pendingSettle = false; } return r; }
         advance(j); return reply(200, { job: publicJob(j) });
       }
       return reply(404, { error: `unexpected ${method} ${path}` });
@@ -200,6 +200,12 @@ test('every run, no browser: the refusals and the four faults charge nothing, ea
   // Every provider-reaching POST was booked first.
   w.requests.forEach((r, i) => { if (r.method === 'POST' && r.path === '/api/learn/image-jobs') assert.ok(w.budget.log.some(([op]) => op === 'reserve'), `booked before request ${i}`); });
 });
+test('the requester view is read again after settlement: a job whose stage is saved before its ledger step still shows the credits charged', async () => {
+  const w = world({ lateSettle: true });
+  assert.equal(await go(w, '--api-only'), 0, w.lines.join(String.fromCharCode(10)));
+  assert.doesNotMatch(text(w), /FAIL/);
+});
+
 test('the booking always precedes the job request, and the free runs go first', async () => {
   const w = world(); const order = [];
   const real = w.budget.reserve; w.budget.reserve = (...a) => { order.push(`reserve ${a[0]}`); return real(...a); };
