@@ -35,6 +35,8 @@ test('the card reads fileRef.meta first, the old block meta otherwise', () => {
 const SRC = { id: `fs_${'c'.repeat(24)}`, rev: 'd'.repeat(64) };
 const card = { id: 'k1', type: 'file', kind: 'image', fileRef: { v: 1, source: SRC, family: 'image', meta: { name: 'generated-image.png', type: 'image/png' } } };
 const settle = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
+// Wait for a state, not a fixed time: poll until ok() holds (bounded at 3 s, then the caller's assertion reports what is wrong).
+const until = async (ok, limit = 3000) => { for (const t0 = Date.now(); !ok() && Date.now() - t0 < limit;) await settle(1); };
 const png = () => ({ ok: true, status: 200, blob: async () => new Blob(['png bytes'], { type: 'image/png' }) });
 const notAvailable = () => ({ ok: false, status: 404, blob: async () => new Blob(['{"error":"Not available"}']) });
 // The page's file reads, answered by answer(n) for the nth read. Every URL is recorded: nothing else may be asked.
@@ -54,10 +56,10 @@ test('a generated image whose board reference is not saved yet (404) loads once 
   try {
     // Long backoff: only the board save can make this read succeed inside the test.
     const cancel = readOriginal(card, state => states.push(state), { waits: Array(6).fill(60000), onSaved: saves.onSaved });
-    await settle(5);
+    await until(() => server.urls.length === 1); await settle(); // the 404 is answered and handled
     assert.deepEqual(states.map(s => s.status), ['loading'], 'still loading after the 404: never "could not be read" in this window');
     registered = true; saves.fire(); // the board PUT answered: the reference row exists now
-    await settle(5);
+    await until(() => states.length === 2);
     assert.deepEqual(states.map(s => s.status), ['loading', 'ready']);
     assert.equal(await states[1].blob.text(), 'png bytes');
     assert.deepEqual(server.urls, Array(2).fill(`/api/learn/files/${SRC.id}?app=canvas-abcdef12&board=main`), 'the same scoped read, twice; no other request');
@@ -74,9 +76,9 @@ test('a board save that lands while the first read is still in flight reads agai
   const saves = boardSaves(), states = [];
   try {
     readOriginal(card, state => states.push(state), { waits: Array(6).fill(60000), onSaved: saves.onSaved });
-    await settle(2);
+    await until(() => server.urls.length === 1); // the first read is in flight
     registered = true; saves.fire(); open(); // the save answered before the 404 for the read it raced came back
-    await settle(10);
+    await until(() => states.length === 2);
     assert.deepEqual(states.map(s => s.status), ['loading', 'ready']);
     assert.equal(server.urls.length, 2);
   } finally { server.restore(); setFileScope(null); resetUploads(); }
@@ -115,6 +117,36 @@ test('a source that stays missing says so after the bounded retries; Retry reads
   } finally { server.restore(); setFileScope(null); resetUploads(); }
 });
 
+test('a board save that lands after the retries ran out recovers the card without Retry: one read per save, and none on a share page', async () => {
+  resetUploads(); setFileScope({ app: 'canvas-abcdef12', board: 'main' });
+  let registered = false;
+  const server = files(() => (registered ? png() : notAvailable()));
+  const saves = boardSaves(), states = [];
+  try {
+    const cancel = readOriginal(card, state => states.push(state), { waits: [1, 1], onSaved: saves.onSaved });
+    await until(() => states.at(-1).status === 'missing'); await settle(); // past the page's one-tick read de-duplication
+    assert.equal(server.urls.length, 3, 'one read and two retries, then it stops');
+    saves.fire(); // a save that still has not registered the reference: one more read, no loop
+    await until(() => server.urls.length === 4); await settle(20);
+    assert.deepEqual([server.urls.length, states.at(-1).status], [4, 'missing']);
+    registered = true; saves.fire(); // the late save lands
+    await until(() => states.at(-1).status === 'ready');
+    assert.deepEqual([server.urls.length, states.at(-1).status], [5, 'ready']);
+    assert.equal(await states.at(-1).blob.text(), 'png bytes');
+    cancel();
+    assert.equal(saves.listeners(), 0);
+    // A share page cannot register a reference and never saves the board: a stray signal reads nothing.
+    setFileScope({ share: 'tok-1' }); server.urls.length = 0;
+    const shared = boardSaves(), seen = [];
+    registered = false;
+    const other = { ...card, fileRef: { ...card.fileRef, source: { ...SRC, id: `fs_${'e'.repeat(24)}` } } }; // the owner's copy of the first file is cached here
+    readOriginal(other, state => seen.push(state), { waits: [1], onSaved: shared.onSaved });
+    await until(() => seen.at(-1).status === 'missing'); await settle();
+    shared.fire(); await settle(20);
+    assert.equal(server.urls.length, 2, 'one read and one retry; the save signal adds none');
+  } finally { server.restore(); setFileScope(null); resetUploads(); }
+});
+
 test('a source this page may not read stays unavailable: the same 404, no bytes, no other route', async () => {
   resetUploads(); setFileScope({ share: 'tok-1' });
   const server = files(() => notAvailable());
@@ -148,8 +180,10 @@ test('a late result after the card is deleted, its source replaced or the page l
 test('a card with no stored source and no copy here is missing at once, with no retry', async () => {
   let reads = 0;
   const states = [];
-  readOriginal({ kind: 'svg', fileRef: { source: null, local: 'import:gone' } }, state => states.push(state), { load: async () => { reads++; return null; }, waits: [1, 1], onSaved: boardSaves().onSaved });
+  const saves = boardSaves();
+  readOriginal({ kind: 'svg', fileRef: { source: null, local: 'import:gone' } }, state => states.push(state), { load: async () => { reads++; return null; }, waits: [1, 1], onSaved: saves.onSaved });
   await settle(100);
+  saves.fire(); await settle(20); // only a stored source is read again after a save
   assert.deepEqual([states.map(s => s.status), reads], [['loading', 'missing'], 1]);
 });
 
