@@ -56,7 +56,7 @@ async function sendEmail(env, to, subject, text, {idempotencyKey} = {}) {
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json', ...(idempotencyKey ? {'Idempotency-Key':idempotencyKey} : {}) },
-      body: JSON.stringify({ from: env.EMAIL_FROM || 'small <onboarding@resend.dev>', to: [to], subject, text }),
+      body: JSON.stringify({ from: env.EMAIL_FROM || 'Rabbit Hole <onboarding@resend.dev>', to: [to], subject, text }),
     });
     if (!resp.ok) console.error(`email send failed: status ${resp.status}`);
     return resp.ok;
@@ -216,7 +216,7 @@ async function apiLogin(req, env) {
     return json({ error: CLI_LOGIN_UNAVAILABLE }, 503);
   }
   const challenge = await sign({ t: 'challenge', id, exp: t + 600 }, env.MASTER_KEY);
-  const sent = await sendEmail(env, email, `small deploy login code: ${code}`, `Your small deploy login code is ${code}\nIt expires in 10 minutes.`);
+  const sent = await sendEmail(env, email, `Rabbit Hole sign-in code: ${code}`, `Your Rabbit Hole sign-in code is ${code}\nIt expires in 10 minutes.`);
   if (sent) return json({ challenge });
   // Echoing the code is an auth bypass - only on test instances (SMALL_ENV test plus TEST_BYPASS_SECRET).
   if (echoesLogin(env)) return json({ challenge, devCode: code, warning: 'test instance - code echoed' });
