@@ -120,6 +120,72 @@ POST progress, PUT outputs/:name, POST complete/fail. Results use
 Callbacks are scoped to the current job/attempt. Generated Python receives no
 provider credentials. Independent artifact validation runs in a fresh sandbox.
 
+## Failed model calls and credits (fix/cad-failed-call-refund)
+
+Each CAD model call is its own usage action (client key `cad-<job id>-<call number>`, feature `artifact`, platform ledger category `cad`) with one
+attempt. `runCadModel` closes the action on every exit and, when the call throws, refunds it with `refundFailedAction`: the same policy the route
+boundary applies to a failed request (`credits-2500.md`, Failed work refunds). The refund changes only `usage_attempt_detail.refunded_micros` and one
+`usage_adjustments` row; the attempt's `cost_micros` and `usage_operations.cost_usd` (the provider expense) are never touched, and an unknown cost
+stays NULL on the attempt and at its admission bound on the platform ledger, never 0. Refunding is one guarded UPDATE, so a repeat or replay refunds nothing twice.
+
+| Failure class | Learner charged | Why | Refund written |
+| --- | --- | --- | --- |
+| Provider HTTP error (400, 401, 5xx), no usable usage | 0 | cost unknown (NULL), nothing held | none needed |
+| Provider capacity refusal (429, 529, 400 "usage limits") | 0 | known zero cost | none needed |
+| Transport failure or the 120 s timeout | 0 | cost unknown (NULL); the platform reservation is kept until recovery | none needed |
+| Admission refused (allowance, platform cap, spend bound) | 0 | no attempt is written | none needed |
+| Provider answered (billed) but the reply is not JSON | 0 | settled at the measured cost, then refunded in full | `route_failed_no_result` |
+| Provider answered but the design is refused by validation, or an approved brief's source call asks for a change | 0 | as above | `route_failed_no_result` |
+| Our-side bug after the provider answered (any throw in `cadModelCall` after settlement) | 0 | as above | `route_failed_no_result` |
+| Answer delivered: brief, design, clarifying question, review (accepted or rejected) | measured cost | the learner received what was paid for | none |
+| Valid design, later failure (executor, validation of the build, cancel, Retry) | measured cost | an answered call is charged, as Explain charges its answered calls; Retry resumes | none |
+
+Last row is policy, not a gap: refunding a delivered design is an owner decision, not made here. Learner-visible change: a CAD call whose billed reply was
+unusable no longer reduces the learner's credits; nothing else changes.
+
+### Historical rows (proposal only; nothing here has been run or applied)
+
+Deploying the fix does not repair earlier rows. Two kinds exist: (1) CAD attempts that settled at a cost and were then discarded, still counted as used; (2) CAD
+actions left `running` by the lifecycle bug (cosmetic: the balance sums attempts, not action status). D1 cannot tell a discarded call from a used one by itself
+(both attempts are `settled`); the job's error lives in the CadJobs Durable Object, so candidates must be confirmed against the job before any repair. After the
+lifecycle fix, `status = 'failed'` marks calls that threw. Read-only queries on the learn D1 (`LEARN_DB`):
+
+```sql
+-- 1. Chargeable CAD attempts still counted as used (candidates). Confirm each against its job (client_key = cad-<job id>-<n>) before repair.
+SELECT a.action_id, a.user_id, a.period, a.status AS action_status, a.result, a.client_key, t.attempt_id, t.cost_micros,
+       COALESCE(d.refunded_micros, 0) AS refunded_micros, o.cost_usd AS platform_cost_usd, o.status AS operation_status
+  FROM usage_operations o
+  JOIN usage_attempts t ON t.attempt_id = o.op_id
+  JOIN usage_actions a ON a.action_id = t.action_id
+  LEFT JOIN usage_attempt_detail d ON d.attempt_id = t.attempt_id
+ WHERE o.category = 'cad' AND a.charge_class = 'would_charge' AND t.cost_state = 'settled' AND t.cost_micros > 0
+   AND COALESCE(d.refunded_micros, 0) = 0
+ ORDER BY a.period, a.action_id;
+-- Narrow to the failed ones once the lifecycle fix is live: add  AND a.status = 'failed'  (rows before it read 'running' whatever happened).
+
+-- 2. Actions left 'running' by the lifecycle bug (CAD operations older than the artifact hold bound, 3600 s).
+SELECT a.action_id, a.user_id, a.period, a.client_key, a.started_at, t.status AS attempt_status, t.cost_state, t.cost_micros
+  FROM usage_actions a
+  JOIN usage_attempts t ON t.action_id = a.action_id
+  JOIN usage_operations o ON o.op_id = t.attempt_id AND o.category = 'cad'
+ WHERE a.status = 'running' AND a.started_at < CAST(strftime('%s', 'now') AS INTEGER) - 3600
+ ORDER BY a.started_at;
+```
+
+Proposed repair for each confirmed attempt `<att>` of action `<act>` and user `<usr>`, in the exact shape `refundAttempt` writes (reason `route_failed_no_result`, whole
+cost; `cost_micros`, `usage_operations` and the action's cost are left alone; 1 credit = 10,000 micro-USD). Run through the existing owner-command pattern
+(`scripts/motion-refund-failed-job.mjs`: dry run first, apply once); do not hand-write SQL on production:
+
+```sql
+INSERT OR IGNORE INTO usage_attempt_detail (attempt_id) VALUES ('<att>');
+UPDATE usage_attempt_detail SET refunded_micros = (SELECT cost_micros FROM usage_attempts WHERE attempt_id = '<att>' AND cost_state = 'settled'),
+       refunded_at = <now>, refund_reason = 'route_failed_no_result' WHERE attempt_id = '<att>' AND refunded_micros = 0;
+INSERT INTO usage_adjustments (adjustment_id, action_id, user_id, micros, reason, created_at) VALUES ('adj-<uuid>', '<act>', '<usr>', -<cost_micros>, 'route_failed_no_result', <now>);
+```
+
+For stale actions: `UPDATE usage_actions SET status = 'failed', result = 'none', ended_at = <now> WHERE action_id = '<act>' AND status = 'running'` (or `'completed'`, `'full'` for a
+confirmed good call). Both kinds are a production write and need the owner's approval.
+
 ## Execution plan and ownership
 
 - Root (`feature/cad-integration`): API, durable orchestration, existing ledger

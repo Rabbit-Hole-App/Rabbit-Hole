@@ -83,7 +83,7 @@ Missing usage or cost stays missing: `cost_micros` NULL / absent `quantities` ke
 
 - Voice Scribe: the browser streams the microphone straight to the provider; the server sees only the token mint (15 minute
   token), so session duration is not observed and its cost is recorded `unknown`. Metering needs a server-observed duration.
-- `refundAttempt` is the mechanism; `refundFailedAction` (see Failed work refunds) and the owner script `scripts/motion-refund-failed-job.mjs` call it; no other failure path does. Platform-funded work (practice grading, tutor evaluation,
+- `refundAttempt` is the mechanism; `refundFailedAction` (see Failed work refunds; also called by `runCadModel` for a CAD model call that fails after its billed answer, `cad.md`) and the owner script `scripts/motion-refund-failed-job.mjs` call it; no other failure path does. Platform-funded work (practice grading, tutor evaluation,
   renderer compute, webpage screening) stays recorded apart and never in the user's balance.
 
 ## Browser checks (run by CI fast-e2e on the exact SHA)
