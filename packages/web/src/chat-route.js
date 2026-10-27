@@ -10,8 +10,8 @@
 //   does: only that route sends them all. A turn about exactly one page keeps the Tutor, which reads it (pdf-source.js tutorPage).
 // - fileTurn, a question with an imported file attached (file-chat-ref.js), posts to /api/learn/ask too: the Tutor's plan does
 //   not read file refs, and dropping one silently would answer as if the file were read.
-// - explicit, an explicit command whose capability is proposed before anything is made (/motion; proposal-capabilities.js
-//   reviewRequired), posts to /api/learn/ask in every mode: the command asks for its own review and confirmation flow, so the
+// - explicit, an explicit command whose capability is proposed before anything is made (/motion, proposal-capabilities.js
+//   reviewRequired; /image, whose plan card the server makes; learn-slash.js promptsChat), posts to /api/learn/ask in every mode: the command asks for its own review and confirmation flow, so the
 //   Tutor's plan never answers it (owner, 2026-10-24, docs/features/rabbit-hole-commands.md "Routing in Auto mode").
 //   Ordinary prose that merely mentions motion has no command, so it stays a Tutor turn.
 export const tutorTurn = ({ tutor, codeTurn = false, pageTurn = false, fileTurn = false, explicit = false, chat = null, mode = 'auto', toc = false }) => !!tutor && !codeTurn && !pageTurn && !fileTurn && !explicit && (!chat || mode === 'auto' || (mode === 'tutor' && !toc));

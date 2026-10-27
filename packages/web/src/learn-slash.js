@@ -99,7 +99,7 @@ export const isLearnCommand = name => commandsFor('learn').some(command => comma
 // prompt the chat are /image where the server offers it and every proposal capability (the declaration's flow, reviewRequired), each
 // with words: the same two tests runLearnCommand makes. chat-turn-owner.test.mjs holds this to runLearnCommand.
 const RUN_ACTIONS = new Set(['cad', 'open_source', 'insert_notebook', 'insert_whiteboard', 'dive', 'goal']);
-const promptsChat = name => (name === 'generate-image' && imageGenerationLive()) || reviewRequired(name);
+export const promptsChat = name => (name === 'generate-image' && imageGenerationLive()) || reviewRequired(name);
 export function answersInChat(text, { motionDev } = {}) {
   const resolved = resolveCommand(text, 'learn', { motionDev });
   if (!resolved?.command || resolved.command.name === 'image') return false;

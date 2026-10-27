@@ -131,6 +131,10 @@ explain?" inside the command (the line is kept) instead of starting anything. Re
 generate: Generate on the card still needs the existing confirmation, readiness and credit checks. Before 2026-10-24 a typed
 `/motion` in Auto went to the Tutor and showed no card (from the 2026-10-14 mode-aware routing); regression tests:
 `packages/web/src/motion-auto-route.test.mjs`; browser check: `motion-command-check.mjs`.
+`/image <words>` (id `generate-image`, where the server offers it) follows the same rule (ledger c030d623): `ask.jsx` routes with
+`learn-slash.js` `promptsChat`, the test that also makes the line the chat route's turn, so with an active Tutor in Auto or Tutor mode the
+words get the server-made plan card (`imagePlan`), not a Tutor answer. Before this the Tutor answered them and no plan card appeared;
+regression test: `packages/web/src/image-auto-route.test.mjs`.
 
 **One submit is one user turn (bug lane 3aba249a, owner report 2026-10-26: one `/motion 15s explain photosynthesis, 16:9` showed two
 identical user bubbles).** A submitted `/` line has exactly one owner that records its user message. The Chat records it itself

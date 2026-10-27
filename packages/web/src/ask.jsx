@@ -33,7 +33,7 @@ import { NO_STEPS, historyKey, recordStep, removesToken, travel } from './comman
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { composerKey } from './composer-keys.js';
 import { chatSendKey, sendKeyLabel } from './ui-prefs.js';
-import { answersInChat, commandLine, holdsLine, lineCommand, releaseLine } from './learn-slash.js';
+import { answersInChat, commandLine, holdsLine, lineCommand, promptsChat, releaseLine } from './learn-slash.js';
 import { typedOf } from './agent/slash.js';
 import { mergeOutputs, outputSink } from './chat-output-refs.js';
 import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
@@ -689,7 +689,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     // So does a progress question (Tutor Task 10): only that route reads the learner's evidence for it, read-only, and the
     // Tutor's path could take the message for an answer to assess. A mentioned canvas too: only /api/learn/ask reads it.
     const fileTurn = [...attachedRefs, target?.ref].some(ref => ref?.kind === 'file' || ref?.kind === 'excerpt' || ref?.kind === 'progress' || ref?.kind === 'canvas');
-    const viaTutor = tutorTurn({ tutor, codeTurn, pageTurn: turnHasPage(target, attachedRefs) && !pdfPage, fileTurn, explicit: !!commandName && reviewRequired(commandName), chat, mode: chat?.thread.mode, toc: tocView });
+    const viaTutor = tutorTurn({ tutor, codeTurn, pageTurn: turnHasPage(target, attachedRefs) && !pdfPage, fileTurn, explicit: !!commandName && promptsChat(commandName), chat, mode: chat?.thread.mode, toc: tocView });
     if (!viaTutor || isDemo) begin();
     const append = (t) => setMsgs((m) => {
       const next = m.slice();
