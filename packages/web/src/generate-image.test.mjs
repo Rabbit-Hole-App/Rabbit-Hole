@@ -49,6 +49,19 @@ test('Generate posts the signed proposal once under an id made from it, polls to
   assert.equal(imageCard(ready, proposal).fileRef.status.preview, 'pending');
 });
 
+test('a repeated completion (a second press, a reload resuming the job) reveals the one card: one card, one job id, one submission each', async () => {
+  const blocks = [], requests = [];
+  // The canvas ops as LearnPage insertCard behaves: an equivalent card (same) is revealed, never added again.
+  const canvas = { insertCard: (card, { same }) => { const found = blocks.find(same); if (found) return { id: found.id, existed: true }; blocks.push({ ...card, id: `card-${blocks.length + 1}` }); return { id: blocks.at(-1).id, existed: false }; } };
+  const api = async (path, options = {}) => { requests.push([options.method || 'GET', path, options.body && JSON.parse(options.body).generationId]); return { job: ready }; };
+  const first = await runImageJob({ api, proposal, app: 'a', ops: canvas, wait: async () => {} });
+  const again = await runImageJob({ api, proposal, app: 'a', ops: canvas, wait: async () => {} });
+  assert.equal(blocks.length, 1, 'exactly one card');
+  assert.deepEqual([first.cardId, again.cardId], ['card-1', 'card-1']);
+  assert.deepEqual(requests.map(r => r[2]), ['img-gp-0123456789abcdef', 'img-gp-0123456789abcdef'], 'the same generation id: the server answers the same job, consumed and charged once');
+  assert.ok(requests.every(([, path]) => path === '/api/learn/image-jobs'), 'no file read or other route here: the card reads its own image');
+});
+
 test('a ready job reports what it charged in credits, only when the server settled one', () => {
   assert.deepEqual(imageStatus({ ...ready, charged_credits: 6 }), { tone: 'ready', text: 'Added to the canvas.', retry: false, charged: 6 });
   assert.deepEqual(imageStatus({ ...ready, charged_credits: null }), { tone: 'ready', text: 'Added to the canvas.', retry: false });
