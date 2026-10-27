@@ -504,3 +504,19 @@ test('CONTINUE FIXING from the refused job: offered, and a fresh US$3.50 attempt
   assert.deepEqual(peaks(r.h.fake.trace).map(p => p.peak), [2_369_860, 2_331_385, 2_293_278, 2_613_773]);
   assert.equal(r.v.spend.cost_usd, usd(REVISION_MICROS + AUTHOR_MICROS + OBSERVED_SPLIT.visual + OBSERVED_SPLIT.pedagogical));
 });
+
+test('repair path 3, pre-Author storyboard revision: a storyboard that fails its own checks is revised BEFORE the Author; a later Author patch is still available; 9 of 9 calls', async t => {
+  const BAD = { beats: STORYBOARD.beats.map((b, i) => (i === 0 ? { ...b, start_time: 0.05 } : b)) }; // off the 0.1 s grid: storyboard_invalid
+  const make = (author = AUTHOR_MICROS) => { const s = route({ author, pass1: { visual: [VIS_FINDING] }, revision: true, repair: PATCH, pass2: {} }); s.motion_storyboard = [step(BAD, OBSERVED_SPLIT.storyboard), step(STORYBOARD_INPUT, REVISION_MICROS)]; return s; };
+  const h = await harness(t, make(), { ceiling: GRANT });
+  const { v } = await h.run();
+  assert.equal(v.status, 'ready', JSON.stringify(v.failure ?? v.failure_reason));
+  assert.deepEqual(h.fake.trace.map(c => c.tool), ['motion_brief', 'motion_storyboard', 'motion_storyboard', 'motion_composition', 'motion_review', 'motion_review', 'motion_composition', 'motion_review', 'motion_review']);
+  assert.deepEqual([v.repair_count, v.repairs, v.spend.calls], [2, { storyboard: 1, author: 1 }, 9]);
+  assert.equal(h.fake.trace[6].max_tokens, AUTHOR_REPAIR_CAP, 'the Author repair after a PRE-Author revision is a patch');
+  // Its guard peaks by Author profile (0.37, 0.60, 1.152778, 1.48).
+  const row = [];
+  for (const a of [370_000, 600_000, AUTHOR_MICROS, 1_480_000]) { const p = await harness(t, make(a), { ceiling: GRANT }); await p.run(); row.push(Math.max(...peaks(p.fake.trace).map(r => r.peak))); }
+  assert.deepEqual(row, [2_635_035, 2_635_035, 3_111_273, 3_438_495]);
+  assert.ok(row.every(p => p <= CEILING), 'the US$3.50 ceiling covers this route at every profile, the Author at its cap included');
+});
