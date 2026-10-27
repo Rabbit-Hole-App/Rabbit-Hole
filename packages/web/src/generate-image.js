@@ -33,7 +33,8 @@ const NOT_SENT = new Set(['not_configured', 'invalid_input', 'reference_changed'
 // no request is said to cost nothing; job.cost, its state string, is unknown for the rest). stuck: saving has gone on for a while, so the person may retry the save.
 export function imageStatus(job, { stuck = false } = {}) {
   const billed = ' It may have been charged.';
-  if (job.stage === 'ready') return { tone: 'ready', text: 'Added to the canvas.', retry: false };
+  // What was charged, in credits, once settled (never above the most it could cost, which the card showed before Generate).
+  if (job.stage === 'ready') return { tone: 'ready', text: 'Added to the canvas.', retry: false, ...(Number.isSafeInteger(job.charged_credits) ? { charged: job.charged_credits } : {}) };
   if (SAVING.has(job.stage)) return stuck ? { tone: 'working', text: 'Your image was made but saving it is taking longer than expected.', retry: true } : { tone: 'working', text: 'Saving your image.', retry: false };
   if (WORKING.has(job.stage)) return { tone: 'working', text: 'Making your image.', retry: false };
   if (job.stage === 'refused') return { tone: 'failed', text: job.message || 'This image was not started.', retry: false };

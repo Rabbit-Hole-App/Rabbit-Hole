@@ -74,6 +74,15 @@
     // Banana Pro 1K, US$0.134 + a 4,000-byte prompt bound US$0.008 = US$0.142; the worst real settlement seen for it was US$0.1462
     // (run D). US$0.20 covers both and is a hold, released at settlement; the learner is charged the measured cost or the upper bound.
     "IMAGE_GENERATE_RESERVED_USD": "0.20",
+    // The hold per model (docs/features/image-jobs.md 6c, "Cost bound per combination"): each is the model's largest enabled estimate at a 4,000-byte prompt plus room for
+    // the unpublished thinking tokens Google bills. Flare and Sunburst 0.05 (estimate 0.026, measured 0.006); Nano Banana 2.1 0.10 (estimate 0.041, observed bound 0.064,
+    // room for about 2,000 thinking tokens); Pro 0.30 (estimate 0.142, observed 0.1462, room for about 1,300 thinking tokens: the shared 0.20 broke at about 480).
+    "IMAGE_RESERVED_USD_BY_MODEL": "{\"gpt-image-2.5-flare\":0.05,\"gpt-image-2.5-sunburst\":0.05,\"gemini-nano-banana-2.1\":0.10,\"gemini-3-pro-image\":0.30}",
+    // The MAXIMUM CHARGE per model (docs/features/image-jobs.md 6f): the most one image can ever charge the learner, signed into the quote they confirm (a change makes the quote stale). Never above the hold,
+    // never below the model's largest enabled estimate; at settlement the learner is charged min(real cost, this) and the platform absorbs the rest, recorded. Flare and Sunburst 0.04 (4 credits; largest
+    // estimate 0.0302, Sunburst with two references and a 4,000-byte prompt), Nano Banana 2.1 0.08 (8; largest estimate 0.0413, observed bound 0.0555 to 0.0636), Pro 0.20 (20; largest estimate 0.142, observed bound 0.1462). Pro 4K and Nano Banana 4K estimates
+    // exceed these, so their quotes are paused (they are not validated either).
+    "IMAGE_MAX_CHARGE_USD_BY_MODEL": "{\"gpt-image-2.5-flare\":0.04,\"gpt-image-2.5-sunburst\":0.04,\"gemini-nano-banana-2.1\":0.08,\"gemini-3-pro-image\":0.20}",
     // Exactly the Motion owner list: the owner's Google application principal (a provider email never becomes a principal) and the Gmail
     // address, compared whole and lower-cased. yudhisteer.chin01@gmail.com is a DIFFERENT account and does not match. Empty = nobody.
     "IMAGE_ACCEPTANCE_EMAILS": "user@dda2350771a4066e3080c605ba092e0a.rabbithole.invalid yudhisteer.chin@gmail.com",

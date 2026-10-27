@@ -220,6 +220,7 @@ npx wrangler dev -c packages/control-plane/wrangler.rabbit-hole-dev.jsonc --loca
   ("Attention (local review)", NanoGPT deep-dive board) for hands-on testing.
 - `node packages/web/e2e/dive-check.mjs <outDir>` walks flows A to K against the local stack, with
   screenshots. It refuses any other host.
+- Open (2026-10-26): the gate run 40392709758 failed dive after every flow passed because of one page error, `Cannot read properties of undefined (reading 'schema')` (job 121817667701); the check exits 1 on any page error and does not suppress them. The source of the error is unidentified. `dive-check.mjs` now prints the error's stack, the last shot and the URL, so a recurrence names it.
 
 ## Known limits (v1)
 

@@ -1,4 +1,4 @@
-import { imageQuote } from '../src/image-providers.js';
+import { IMAGE_MODELS, imageQuote } from '../src/image-providers.js';
 import { IMAGE_VALIDATED } from '../src/image-settings.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -101,10 +101,31 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   assert.equal(dev.vars.IMAGE_GENERATE_RESERVED_USD, undefined);
   assert.equal(app.vars.IMAGE_GENERATE_RESERVED_USD, '0.20');
   const promptBytes = 4000; // the longest prompt the job accepts
-  const estimates = IMAGE_VALIDATED.map(r => imageQuote({ IMAGE_GENERATE_RESERVED_USD: '9' }, { model: r.model, quality: r.quality ?? undefined, aspect_ratio: r.aspect_ratio, resolution: r.resolution }, r.max_references, promptBytes)).filter(q => q.state === 'priced').map(q => q.estimateUsd);
+  const wide = { IMAGE_GENERATE_RESERVED_USD: '9', IMAGE_MAX_CHARGE_USD_BY_MODEL: JSON.stringify(Object.fromEntries(Object.keys(IMAGE_MODELS).map(m => [m, 9]))) };
+  const estimates = IMAGE_VALIDATED.map(r => imageQuote(wide, { model: r.model, quality: r.quality ?? undefined, aspect_ratio: r.aspect_ratio, resolution: r.resolution }, r.max_references, promptBytes)).filter(q => q.state === 'priced').map(q => q.estimateUsd);
   assert.ok(estimates.length >= 6, 'the enabled combinations are priced');
   assert.ok(Math.max(...estimates) <= Number(app.vars.IMAGE_GENERATE_RESERVED_USD), `the hold ${app.vars.IMAGE_GENERATE_RESERVED_USD} covers the largest estimate ${Math.max(...estimates)}`);
   assert.ok(Math.max(...estimates) >= 0.14, 'the derivation in the config comment (Pro 1K US$0.134 + prompt bound) is the maximum');
+  // The hold is per model (image-providers.js reserveFor): every enabled row is quoted under its own model's hold, and no hold is below that model's largest estimate.
+  const byModel = JSON.parse(app.vars.IMAGE_RESERVED_USD_BY_MODEL);
+  assert.deepEqual(Object.keys(byModel).sort(), Object.keys(IMAGE_MODELS).sort(), 'every model has its own hold');
+  for (const r of IMAGE_VALIDATED) {
+    const q = imageQuote(app.vars, { model: r.model, quality: r.quality ?? undefined, aspect_ratio: r.aspect_ratio, resolution: r.resolution }, r.max_references, promptBytes);
+    if (q.state === 'priced') assert.ok(q.estimateUsd <= byModel[r.model] && q.reserveUsd === byModel[r.model], `${r.model} ${r.operation}: hold ${byModel[r.model]} covers ${q.estimateUsd}`);
+  }
+  assert.ok(byModel['gemini-3-pro-image'] >= 0.3, 'Pro holds room for its unpublished thinking tokens: the shared 0.20 broke at about 480 of them');
+  // The maximum charge per model (docs/features/image-jobs.md 6f): every enabled and priced row has estimate <= maximum <= hold, in dollars and in credits.
+  const maxes = JSON.parse(app.vars.IMAGE_MAX_CHARGE_USD_BY_MODEL);
+  assert.deepEqual(Object.keys(maxes).sort(), Object.keys(IMAGE_MODELS).sort(), 'every model has its own maximum charge');
+  let pricedRows = 0;
+  for (const r of IMAGE_VALIDATED) {
+    const q = imageQuote(app.vars, { model: r.model, quality: r.quality ?? undefined, aspect_ratio: r.aspect_ratio, resolution: r.resolution }, r.max_references, promptBytes);
+    assert.equal(q.state, 'priced', `${r.model} ${r.operation} is ready, so it must be priced (${q.reason})`);
+    pricedRows += 1;
+    assert.ok(q.estimateUsd <= q.maxUsd && q.maxUsd <= q.reserveUsd && q.maxUsd === maxes[r.model], `${r.model} ${r.operation}: ${q.estimateUsd} <= ${q.maxUsd} <= ${q.reserveUsd}`);
+    assert.ok(q.estimate_credits <= q.max_credits && q.max_credits <= q.reserve_credits);
+  }
+  assert.equal(pricedRows, 8, 'every ready combination is priced: eight, Sunburst editing included');
   assert.equal(app.vars.EXPLAIN_V2_ENABLED, 'true'); // R1 switch-on (owner production GO, 2026-10-22)
   assert.deepEqual(JSON.parse(app.vars.EXPLAIN_BRIEF_THRESHOLDS), { components: 12, credits: 400 });
   // dev-worker.js bundles its HTML from ./dist-dev, so the directory keeps that name.
@@ -129,6 +150,16 @@ test('production binds FILE_JOBS and enables only file conversion, not Ctrl+K im
   assert.equal(app.vars.FILE_JOB_ORIGIN, 'https://digrabbithole.com');
   assert.doesNotMatch(JSON.stringify(app), /convert-dev/);
   for (const name of ['CONVERT_TOKEN', 'FILE_JOB_SECRET', 'INLINE_CODE_LOADER']) assert.ok(!JSON.stringify(app).includes(name), `${name} is a secret or a loader, never in the config`);
+});
+
+// Batch B6 ships Image, File Converter and Ctrl+K without Motion (Motion is blocked on owner acceptance). Production Motion stays exactly as released: paused, no renderer config,
+// no credit-disclosure cap. A Motion release replaces this pin in the same change that flips one of these.
+test('production Motion is unchanged: public generation paused, no renderer config, no disclosure cap', () => {
+  const app = config(APP), cp = config(CP);
+  assert.equal(app.vars.MOTION_GENERATION_PAUSED, '1');
+  assert.deepEqual([app.vars.MOTION_ORCHESTRATOR_URL, app.vars.MOTION_JOB_RESERVATION_USD, app.vars.MOTION_ESTIMATE_USD],
+    ['https://rabbit-hole-motion-orchestrator.fly.dev', '8.96', '1.00']);
+  for (const c of [app, cp]) for (const name of ['MOTION_RENDERER_CONFIG', 'MOTION_MAX_CHARGE_USD']) assert.equal(c.vars?.[name], undefined, name);
 });
 
 test('the control plane is private: no route, no workers.dev, SMALL_ENV production, BASE_URL and PUBLIC_ORIGIN the public origin', () => {

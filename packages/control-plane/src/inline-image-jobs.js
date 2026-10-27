@@ -2,6 +2,7 @@
 // No converter Retry, board mutation, new namespace or monthly/CAD-budget inference.
 import { createImageEditJobCoordinator } from './inline-image-edit-job.js';
 import { imageEditProvider } from './inline-image-edit-provider.js';
+import { imageCost } from './image-providers.js';
 import { admitSpend, settleSpend } from './learn-spend-ledger.js';
 import { learnMedia } from './learn-storage.js';
 import { withUsage, noteUsageIdentity, settleAttempt, toMicros } from './learn-usage.js';
@@ -106,12 +107,14 @@ function coordinator(state, env, dependencies = {}) {
       storage: state.storage,
       // A job stored without its requester has no payer and is refused (payer_unavailable), never platform-funded.
       admitSpend: options => (dependencies.admitSpend || admitSpend)(env.LEARN_DB, payerEnv(env, context.payer), { ...options, userId: context.email, org: context.org, kind: 'media', provider: 'openai', model: 'gpt-image-2.5-sunburst-2026-09-08' }),
-      // The allowance hold settles with the ledger: a cancel before dispatch releases it (cost 0); a delivered edit has no
-      // provider bill here, so it stays held as unknown cost (learn-usage.js settleAttempt).
+      // The allowance hold settles with the ledger: a cancel before dispatch releases it (cost 0); a delivered edit settles at
+      // min(priced provider usage, reservation); usage that cannot be priced stays held as unknown cost (learn-usage.js settleAttempt).
       settleSpend: async (id, options) => {
         await (dependencies.settleSpend || settleSpend)(env.LEARN_DB, id, options);
-        await settleAttempt(env, id, { status: options.status === 'cancelled' && !options.calls ? 'cancelled' : 'settled', costMicros: toMicros(options.costUsd) });
+        await settleAttempt(env, id, { status: options.status === 'cancelled' && !options.calls ? 'cancelled' : 'settled', costMicros: toMicros(options.costUsd), model: options.model || null, inputTokens: options.inputTokens ?? null, outputTokens: options.outputTokens ?? null });
       },
+      // Priced from the provider-reported usage at the verified rates (image-providers.js, the same function IMG-01 settles with).
+      cost: dependencies.cost || ((usage, reservedUsd) => imageCost('gpt-image-2.5-sunburst', usage, reservedUsd).settledUsd),
       edit: dependencies.edit || (input => imageEditProvider({ apiKey: env.OPENAI_API_KEY }).edit(input)),
       publish: dependencies.publish || (async ({ jobId, sha256, result }) => {
         const sourceId = `fs_${(await sha(`image-edit-output:${jobId}`)).slice(0, 24)}`;

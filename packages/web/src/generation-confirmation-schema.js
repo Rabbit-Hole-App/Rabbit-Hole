@@ -121,7 +121,7 @@ export const GENERATION_COMMANDS = Object.freeze({
   // from the server's quote; a request with no quote is blocked (requires_quote), never priced at zero. Reference images are
   // `references`, limited per model (referenceRules).
   'generate-image': define({
-    label: 'Image', noun: 'image', review_policy: 'always', flag: 'IMAGE_GENERATION', settings_noun: 'an image setting', cancel: true, requires_quote: true,
+    label: 'Image', noun: 'image', review_policy: 'always', flag: 'IMAGE_GENERATION', settings_noun: 'an image setting', cancel: true, requires_quote: true, requires_max: true,
     settings: [
       field('model', 'Model', 'select', { required: true, options: Object.entries(IMAGE_MODELS).map(([value, m]) => ({ value, label: m.label })) }),
       field('quality', 'Quality', 'select', { by_model: byModel('qualities') }),
@@ -266,14 +266,17 @@ export function proposalView(p, resolved = {}) {
   // dropped). A proposal saved before the schema existed keeps the values it was made with. A command that needs a server quote
   // (requires_quote) is blocked, with the reason, while the server has none: the price is never taken as zero.
   const priced = p.usage?.estimate_credits != null;
+  // A command with requires_max (an image, owner 2026-10-26): the estimate is never stated without the maximum possible charge, so a proposal the server did not give both
+  // numbers is blocked like an unquoted one. The temporary hold (reserve_credits) travels with them for the card to say it is released unused.
+  const unmaxed = !!def?.requires_max && (!priced || p.usage?.max_credits == null);
   // The server's readiness answer (control-plane motion-settings.js) is shown before confirmation and blocks Generate; the options stay selectable.
   const unready = p.readiness?.ready === false ? [{ path: 'readiness', message: p.readiness.message }] : [];
-  const validation_errors = [...(p.schema_version ? settingsProblems(p.command, p.settings, { references: p.references ?? [] }) : []), ...(def?.requires_quote && !priced ? [{ path: 'usage', message: 'The price for these settings is not known yet, so it cannot be generated.' }] : []), ...unready, ...(resolved.validation_errors ?? [])];
+  const validation_errors = [...(p.schema_version ? settingsProblems(p.command, p.settings, { references: p.references ?? [] }) : []), ...((def?.requires_quote && !priced) || unmaxed ? [{ path: 'usage', message: 'The price for these settings is not known yet, so it cannot be generated.' }] : []), ...unready, ...(resolved.validation_errors ?? [])];
   return {
     schema_version: p.schema_version ?? SCHEMA_VERSION, proposal_id: p.proposal_id, revision: p.version, command: p.command, original_request: p.original_request ?? p.input?.request ?? '',
     title: p.title, description: typeof p.prompt === 'string' ? p.prompt : p.description, settings: p.settings ?? {}, references: p.references ?? [],
     requirements: p.requirements ?? [], assumptions: p.assumptions ?? [], missing_information, limitations: p.limitations ?? [],
-    review: resolved.review ?? reviewFor(p.command), ...(def?.requires_quote && !priced ? { usage: { estimate_credits: null, unknown: true } } : priced ? { usage: { estimate_credits: p.usage.estimate_credits, ...(resolved.quote_id ? { quote_id: resolved.quote_id } : {}), ...(resolved.quote_expires_at ? { expires_at: resolved.quote_expires_at } : {}) } } : {}),
+    review: resolved.review ?? reviewFor(p.command), ...((def?.requires_quote && !priced) || unmaxed ? { usage: { estimate_credits: null, unknown: true } } : priced ? { usage: { estimate_credits: p.usage.estimate_credits, ...(def?.requires_max ? { max_credits: p.usage.max_credits, reserve_credits: p.usage.reserve_credits ?? null } : {}), ...(resolved.quote_id ? { quote_id: resolved.quote_id } : {}), ...(resolved.quote_expires_at ? { expires_at: resolved.quote_expires_at } : {}) } } : {}),
     notices: legacyNotices(p.command, p.settings ?? {}),
     status, validation_errors, allowed_actions: allowedActions(def, { status, validation_errors, missing_information, review: resolved.review }),
   };

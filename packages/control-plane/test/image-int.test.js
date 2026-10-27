@@ -26,13 +26,15 @@ test('the whole signed route: propose, read back, Generate, one image, one consu
   // The signed quote is the server's own: what imageQuote says for these settings and this prompt.
   const q = imageQuote(h.env, h.model, 0, new TextEncoder().encode(FOX).length);
   assert.equal(q.state, 'priced');
-  assert.deepEqual(p.quote, { estimate_credits: q.estimate_credits, reserve_credits: q.reserve_credits });
-  assert.deepEqual(p.usage, { estimate_credits: q.estimate_credits, reserve_credits: q.reserve_credits });
+  assert.deepEqual(p.quote, { estimate_credits: q.estimate_credits, max_credits: q.max_credits, reserve_credits: q.reserve_credits });
+  assert.deepEqual(p.usage, { estimate_credits: q.estimate_credits, max_credits: q.max_credits, reserve_credits: q.reserve_credits });
+  assert.ok(q.estimate_credits <= q.max_credits && q.max_credits <= q.reserve_credits, 'estimate <= most it can cost <= hold');
   assert.equal(p.readiness.ready, true);
   // The card's view: priced and generatable.
   const view = proposalView(p);
   assert.deepEqual(view.validation_errors, []);
   assert.ok(view.allowed_actions.includes('generate'));
+  assert.deepEqual(view.usage, { estimate_credits: q.estimate_credits, max_credits: q.max_credits, reserve_credits: q.reserve_credits }, 'the card gets all three, apart');
   // Stored on the chat exactly as a chat proposal is, with its one state.
   const stored = h.sqlite.prepare('SELECT meta_json FROM chat_message_meta WHERE message_id = ?').get(Number(body.message_id));
   assert.equal(JSON.parse(stored.meta_json).proposal.sig, p.sig);
@@ -70,7 +72,8 @@ test('refusals on the signed route: each stable code, with nothing consumed, res
   // Tampered: any signed field changed after signing.
   const tampered = await made(h.model);
   cases.push(['proposal_refused', { ...tampered, description: 'A different picture entirely.' }, tampered]);
-  cases.push(['proposal_refused', { ...tampered, quote: { estimate_credits: 1, reserve_credits: 1 } }, tampered]);
+  cases.push(['proposal_refused', { ...tampered, quote: { estimate_credits: 1, max_credits: 1, reserve_credits: 1 } }, tampered]);
+  cases.push(['proposal_refused', { ...tampered, quote: { ...tampered.quote, max_credits: tampered.quote.max_credits + 1 } }, tampered]); // a raised maximum is not signed
   cases.push(['proposal_refused', { ...tampered, sig: `v2.${'0'.repeat(64)}` }, tampered]);
   cases.push(['proposal_refused', { ...tampered, sig: 'fixture-signed' }, tampered]);
   // Not ready: a combination no live run covered (Nano Banana 2.1 at 4K, the Pro model at 16:9), named on the card first.
@@ -87,7 +90,7 @@ test('refusals on the signed route: each stable code, with nothing consumed, res
   const openai = (await h.propose({ settings: h.model }, h.proposalDeps, noBound)).body.proposal;
   assert.equal(openai.readiness.ready, true);
   assert.equal(openai.quote, null);
-  assert.deepEqual(openai.usage, { estimate_credits: null, reserve_credits: null });
+  assert.deepEqual(openai.usage, { estimate_credits: null, max_credits: null, reserve_credits: null });
   const unknown = proposalView(openai);
   assert.deepEqual(unknown.usage, { estimate_credits: null, unknown: true });
   assert.ok(!unknown.allowed_actions.includes('generate'));
@@ -95,6 +98,9 @@ test('refusals on the signed route: each stable code, with nothing consumed, res
   // Quote mismatch: the server's price moved after approval.
   const priced = await made(h.model);
   cases.push(['quote_changed', priced, priced, { IMAGE_GENERATE_RESERVED_USD: '0.6' }]);
+  // The MAXIMUM moved after approval (settings or pricing change): stale, the person reconfirms. The hold moving is stale too.
+  const maxes = JSON.parse(h.env.IMAGE_MAX_CHARGE_USD_BY_MODEL);
+  cases.push(['quote_changed', priced, priced, { IMAGE_MAX_CHARGE_USD_BY_MODEL: JSON.stringify({ ...maxes, [h.model.model]: maxes[h.model.model] - 0.01 }) }]);
   for (const [code, sent, original, patch] of cases) {
     const e = patch ? { ...h.env, ...patch } : h.env;
     const out = await h.generate(sent, `gen-${crypto.randomUUID()}`, h.routeDeps, e);

@@ -125,10 +125,19 @@ test('Generate image: only the selected model\'s options, an unquoted price bloc
   assert.match(out, /<button[^>]*data-proposal-generate="true" disabled=""/);
   assert.match(text(out), /The price for these settings is not known yet/);
   // a quote and valid settings: enabled
-  const priced = html({ proposal: image({ model: 'gemini-3-pro-image', aspect_ratio: '16:9' }, { usage: { estimate_credits: 14 } }) });
-  assert.match(priced, /Estimated cost: 14 AI credits/); // owner 2026-10-23 wording (GenerationProposalCard.jsx) assert.doesNotMatch(priced, /<button[^>]*data-proposal-generate="true" disabled=""/);
+  // Three numbers, each in its own line (owner 2026-10-26, as Motion): the estimate, the most it can cost, the temporary hold. An estimate alone blocks Generate.
+  const priced = html({ proposal: image({ model: 'gemini-3-pro-image', aspect_ratio: '16:9' }, { usage: { estimate_credits: 14, max_credits: 20, reserve_credits: 30 } }) });
+  assert.match(priced, /Estimated cost: 14 AI credits/); // owner 2026-10-23 wording (GenerationProposalCard.jsx)
+  assert.match(priced, /data-proposal-max[^>]*>Most it can cost: 20 AI credits\. You are never charged more\./);
+  assert.match(priced, /data-proposal-hold[^>]*>30 AI credits are held while it runs; whatever is not used is released\./);
+  assert.doesNotMatch(priced, /<button[^>]*data-proposal-generate="true" disabled=""/);
+  assert.doesNotMatch(text(priced), /\$|dollar|USD|cents/i, 'credits only');
+  const unmaxed = html({ proposal: image({ model: 'gemini-3-pro-image', aspect_ratio: '16:9' }, { usage: { estimate_credits: 14 } }) });
+  assert.match(unmaxed, /data-proposal-usage-unknown[^>]*>Price not available yet</);
+  assert.doesNotMatch(unmaxed, /Estimated cost/); assert.doesNotMatch(unmaxed, /data-proposal-max/);
+  assert.match(unmaxed, /<button[^>]*data-proposal-generate="true" disabled=""/);
   // the model changed under a quality it does not support: named, with its path, nothing silently dropped
-  const conflict = html({ proposal: image({ model: 'gemini-3-pro-image', quality: 'high' }, { usage: { estimate_credits: 14 } }) });
+  const conflict = html({ proposal: image({ model: 'gemini-3-pro-image', quality: 'high' }, { usage: { estimate_credits: 14, max_credits: 20, reserve_credits: 30 } }) });
   assert.match(conflict, /data-proposal-error-path="settings\.quality"[\s\S]*?settings\.quality is not supported by Nano Banana Pro/);
   assert.match(conflict, /<button[^>]*data-proposal-generate="true" disabled=""/);
 });

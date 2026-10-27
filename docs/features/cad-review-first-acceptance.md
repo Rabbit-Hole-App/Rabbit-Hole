@@ -72,45 +72,77 @@ Prices come from the registry `packages/control-plane/src/pricing-registry.js` (
 - **Inertness, proven how**: with the flag false `cad-jobs.js` line 183 never sets `modelPhase:'brief'`, and `CAD_MAX_CALLS` is read only by `cadLimits()` as an upper bound. The test runs a whole single-shot job under production enforcement at calls 2 and at calls 3 and asserts the results deep-equal: model phases `['single','review']`, calls, repairs, reserved USD, phase USD, executor limits, the global model reservation and retained bytes.
 - **The one reachable difference** (so "inert" is exact, not absolute): a single-shot job that spent both calls and then FAILED its review used to be refused by Retry ("reached its accepted budget"); at 3 calls Retry is accepted once and makes one more review call, still inside the same job's `CAD_MAX_USD` and the same monthly reservation. It is pinned by a test. It needs a provider or review failure to happen first.
 - Negative control: with the committed value put back to "2" the config test fails (`actual ['2','0.20','0']`). The existing test `CAD brief-first needs three calls` (explicit `CAD_MAX_CALLS: '2'`) still shows the old behaviour fails before review.
-- The HELD commit (separate, not in the candidate branch tip) changes only `"CAD_BRIEF_FIRST": "false"` to `"true"`.
+- The HELD commit (separate, not in the candidate branch tip; current branch `feat/cad-review-first-held-flip-2` cut from batch B2, which is not released; rebase it onto the current main before use) changes only `"CAD_BRIEF_FIRST": "false"` to `"true"`.
 
-## 4. Production acceptance package (first real review-first job). NOT RUN.
+## 4. Production acceptance of review-first (first real job). NOT RUN.
 
-Owner decisions first: O-5 (enable review-first), GO for the paid job, and the exposure choice below.
+Status vocabulary: the inert candidate (`CAD_MAX_CALLS` 3) is live on main (B1 d0e8b2b0, 2026-10-26 1:46 PM PT); `CAD_BRIEF_FIRST` is still `"false"`. Review-first is NOT enabled and NOT accepted until the order below has run and its receipt passes. Deployed but disabled is incomplete.
 
-**One command, one click.** The lane's helper is `C:/s/spec/cad-review-first/cad-acceptance.mjs` (read-only toward production: its only request is `GET /health`; local writes are its baseline/receipt files and the shared validation budget; `selftest` proves a dry run writes nothing). Owner steps: (1) run `node C:/s/spec/cad-review-first/cad-acceptance.mjs pre --go "RUN CAD ACCEPTANCE"` (preflight, baseline, budget reserve of US$0.50 as run `cad-review-first-acceptance-1`; without `--go` it is a dry run), (2) click Generate in the browser as in the steps below, (3) run `node C:/s/spec/cad-review-first/cad-acceptance.mjs post --go "RUN CAD ACCEPTANCE" --actual-usd <total>` (deltas, token-match verdict, receipt, budget settle). `stop` prints the stop commands. The shared validation budget is US$100 total (owner 2026-10-26; status when checked: remaining 81.75): this job's reserve of US$0.50 is two jobs at the US$0.20 ceiling plus machine and transfer. The typed owner command is still required before any production CAD job.
+### 4.1 Owner order (one command per step; each needs the owner's go)
 
-**Preconditions**
-1. Inert candidate released to production (normal release; owner's `main` push).
-2. Time is after Sat 2026-10-31 5:00 PM PDT (clean November ledger), or the owner accepts October's 6-attempt room.
-3. HELD flip released. The flag is global: every CAD user gets review-first from that release. Exposure options: (a) run the job immediately after the release and keep the flag if it passes (recommended while CAD has no public users beyond the owner, which this lane did not verify); (b) scope admission to one canvas with `CAD_VERIFICATION_BOARD_ID` plus `CAD_VERIFICATION_MAX_CALLS=3` / `_MAX_USD=0.20` (the code path exists; it blocks CAD on every other canvas, needs another deploy and was not tested for 3 calls here).
-4. Budget: `pre --go` reserves US$0.50 in `C:/s/spec/budget/budget.mjs`; CAD also has its own US$10 per month authorization (both apply).
-5. `CAD_PRODUCTION_ENABLED` and `CAD_MODEL_ENABLED` are secrets whose values nobody can read; if either is not "true" the card says so and nothing is spent.
+Held change: branch `feat/cad-review-first-held-flip-2`, one line `CAD_BRIEF_FIRST` "true" on top of the current batch.
 
-**Steps** (owner, browser, signed in as the org that owns CAD)
-1. Baseline: `curl -s https://rabbit-hole-cad-prod.fly.dev/health`. Record `month`, `reservedBytes`, `reservations`, `image` (expect 3134c69a), `capabilities` (expect `["parameters"]`).
-2. Create a new board named `CAD review-first acceptance 2026-MM-DD`. Select no other card (context above about 2 KB makes the source call exceed the per-call cap, F5) and attach no picture.
-3. Run `/cad` with exactly: `Plate 80x50x6 mm, four 5 mm holes 8 mm in from the edges` (the C2 plate with units; no units would add a question and a call). Confirm the paid consent. Expect state `awaiting_approval` and the Review design panel (call 1).
-4. Do NOT use Edit details (C2 finding F1: the review compares the build with the requirement TEXT, so an edited value can be rejected, and with repairs 0 that fails the job). Click Generate (the approval is a second paid confirmation). Expect building, then ready with STEP and GLB (calls 2 and 3 and the executor attempt).
-5. Quick edit: change one value (hole diameter 5 to 6), Preview, Accept. No model call. Open Show dimensions and Focus.
-6. Re-run the health curl.
+1. Release the held flip (normal release of that one line; the owner's main push). From this moment the flag is open to everyone who can reach CAD (4.2).
+2. `node C:/s/spec/cad-review-first/cad-acceptance.mjs pre --go "RUN CAD ACCEPTANCE"`: reads the executor `/health` ledger, REFUSES (exit 2, "Do not click Generate") with fewer than 2 attempts of capacity, checks image 3134c69a, the `parameters` capability and `busy`, writes the baseline, reserves US$0.50 in the shared validation budget (US$100 total), and prints the exact browser steps. Without `--go` it is a dry run that writes nothing.
+3. Browser, one job (printed by `pre`): `/cad` the plate prompt, confirm consent, the Review design appears; double-click Generate once; wait for ready; reload; an out-of-range Quick edit (refused), then a valid one (Preview, Accept); read the amounts shown.
+4. `node C:/s/spec/cad-review-first/cad-acceptance.mjs post --go "RUN CAD ACCEPTANCE" --actual-usd <total> --observed <what you saw>`: reads `/health` again and writes the receipt.
+Run `pre` again if more than 30 minutes pass before the click (`post` warns when the baseline is over an hour old).
 
-**Expected spend** (nothing is invented: the model rows are the C2 measurements and section 2 reservations; Fly rows are `cad-production.md` rates)
+### 4.2 Who else can reach CAD while the flag is open
+
+Verified from code (read 2026-10-26 at `rabbit-hole/main` d0e8b2b0): `cadRoute` serves any signed-in user for a board they own (`SELECT ... WHERE id AND org AND owner_email`); `/cad` is an ordinary Learn slash command offered on a canvas that provides `startCad`; there is no user allowlist, no per-account flag and no per-board scope in the route or in the production config (no `CAD_*ALLOW*` var). Nothing else gates a job except: the paid-consent body, `SUBSCRIPTION_ONLY` refusal, `CAD_MODEL_ENABLED` and `CAD_PRODUCTION_ENABLED` being "true" (secrets), the executor being configured, the global US$10 model line (50 jobs a month) and the US$35 infrastructure projection, the single executor slot (a second job gets 429 `busy`), and the executor transfer ledger (6 attempts left in October, 186 from Oct 31 5:00 PM PDT). Sharing: shared and forked cards expose saved artifacts only, never live job state.
+Could not verify: who can currently sign in to digrabbithole.com (sign-up pages exist; I found no sign-in allowlist in the production config or auth source, but I did not read production data), how many people other than the owner are signed in, and whether the two CAD secrets are "true". If the owner wants only themselves, the only existing mechanism is `CAD_VERIFICATION_BOARD_ID` (one canvas; blocks CAD for everyone else, needs a var deploy, tested for 2-call jobs, not 3).
+
+### 4.3 What the receipt proves, and what it cannot
+
+| Owner requirement | Evidence | Source |
+|---|---|---|
+| Token match (executor accepts the control plane's bearer token) | reservations rose and bytes are a whole number of 11,534,336 B attempts | machine-verified by `post` from `/health` |
+| Ledger and retained-bytes delta | exactly +2 attempts = +23,068,672 B (build plus rebuild) | machine-verified (executor ledger only; the control-plane retained-byte and model ledgers are Durable Object state with no read route: not verifiable here) |
+| Duplicate-press protection (one job for a double click) | count is exactly 2, not 3 | inferred from the count by `post`; unit-tested: `a double click on Generate approves once` (the second approval is refused with 409 "This design brief changed", so a harmless notice may flash; one source call, one executor dispatch) and create/rebuild are deduplicated by `requestId` |
+| Failure path (refused attempt charges as designed and is explained) | the out-of-range edit leaves the count at 2; the explanation is read in the browser | count machine-verified; explanation owner-observed |
+| Brief approval, source generation, review, ready | Review design shown, ready with STEP and GLB | owner-observed (`--observed review-panel,ready`) |
+| Reload recovery | the card and its state return after a reload | owner-observed (`reload`); unit-tested (job state is the durable job record) |
+| Quick edit and deterministic rebuild | Preview, Accept; no model call | owner-observed (`quick-edit`); the count (+1 attempt, no extra model phase) supports it |
+| Credits only | no dollar amount on the card, consent or usage meter | owner-observed (`credits-only`); the server strips dollars from the CAD job view (credits-2500.md) |
+| Provider spend | the card diagnostics or the provider console | not machine-verifiable; passed as `--actual-usd` |
+Anything not passed in `--observed` is written to the receipt as NOT VERIFIED.
+
+### 4.4 Expected spend (model rows are the C2 measurements and the section 2 reservations; Fly rows are the `cad-production.md` rates)
 
 | Item | Expected | Hard ceiling |
 |---|---|---|
-| Model, 3 calls | $0.031 - $0.071 (typically $0.04 - $0.06) | job reserves $0.20 (`CAD_MAX_USD`); this job's three-call reservation is about $0.18 |
-| Executor transfer ledger | +2 attempts (build, rebuild) = +23,068,672 B, reservations +2 (from a clean Nov ledger: 23,068,672 / 2); real bytes sent are small (the Linux probe downloaded 145,329 B for all five artifacts of one build) | cap 2 GiB |
-| Fly machine | cold start, build, 5 idle minutes: about 7 minutes at $0.0353/hour = about $0.004 | |
-| Total | **about $0.04 - $0.08**; a failed first job and one new job double it | US$10 model month, US$35 infrastructure month (existing authorization) |
-| Monthly model reservation | $0.20 per job (one entry) | $10 |
+| Model, 3 calls | $0.031 - $0.071 (typically $0.04 - $0.06) | the job reserves $0.20 (`CAD_MAX_USD`); this job's three-call reservation is about $0.18 |
+| Executor transfer ledger | +2 attempts = +23,068,672 B; real bytes sent are small (the Linux probe downloaded 145,329 B for all five artifacts of one build) | cap 2 GiB |
+| Fly machine | cold start, build, 5 idle minutes: about 7 minutes at $0.0353/hour, about $0.004 | |
+| Total | about $0.04 - $0.08; a failed first job and one new job double it | US$10 model month, US$35 infrastructure month, shared validation budget reserve US$0.50 |
 
-**Token match receipt** (what it means: the executor bearer token `CAD_EXECUTOR_TOKEN` held by the control plane is the one the executor holds, which the 10-21 rollout could not prove; and the per-attempt callback token derived from `CAD_JOB_SECRET` is accepted). Evidence: the executor accepted the dispatch (a mismatch is a 401 and the job fails at dispatch), the health `reservations` rose by exactly 1 per attempt and `reservedBytes` by 11,534,336, and the job reached `ready` with artifacts (callbacks authenticated). Record in `C:/s/spec/cad-review-first/acceptance-receipt.md`: health before/after (full JSON), job id, the three phase USD values (card / owner diagnostics), the card's revision id, PT times, and the dev/prod build SHA. Anything not observed stays "not verified".
+### 4.5 Stop and rollback (if the job fails or anything looks wrong)
 
-**How to stop**
-- Before step 3: do nothing; no paid call has happened.
-- During a job: Cancel on the card (cancel spends nothing more; unit-tested "Cancel during review spends nothing more and contacts no executor").
-- Hard stop, no release needed: `cd packages/web` then `npx wrangler secret put CAD_MODEL_ENABLED --config wrangler.rabbit-hole-prod.jsonc` and enter `false` (the documented failure step, `cad-production.md` item 7; flags checked against `wrangler secret put --help`). Executor: `fly machine stop 8e2570a74ed058 -a rabbit-hole-cad-prod`, and if spend or health requires, `fly machine update 8e2570a74ed058 -a rabbit-hole-cad-prod --autostart=false` (flags checked against `--help`; the 10-21 receipt gives the machine id). Retain the volume, Durable Objects and R2 artifacts.
-- Turn review-first back off: revert the HELD commit and release. In-flight `awaiting_approval` jobs stay durable.
+- Before the paid click: nothing has been spent; run `release` on the budget entry (`stop` prints the command).
+- During a job: Cancel on the card (spends nothing more; unit-tested).
+- Fastest, no release needed: `cd packages/web` then `npx wrangler secret put CAD_MODEL_ENABLED --config wrangler.rabbit-hole-prod.jsonc` and enter `false` (the documented failure step, `cad-production.md` item 7). New jobs then answer "unavailable"; saved cards and in-flight `awaiting_approval` jobs stay.
+- Executor: `fly machine stop 8e2570a74ed058 -a rabbit-hole-cad-prod`, and if spend or health requires, `fly machine update 8e2570a74ed058 -a rabbit-hole-cad-prod --autostart=false`. Retain the volume, Durable Objects and R2 artifacts.
+- Flip back: revert the held commit and release (the one-line inverse); this is the permanent way to turn review-first off, and `CAD_MODEL_ENABLED` false also turns off single-shot CAD until it is set back to "true".
+`node C:/s/spec/cad-review-first/cad-acceptance.mjs stop` prints these.
 
-Not covered by any of this: Windows/Linux browser visuals of the Review design in production, the 3 Linux executor sandbox paths not exercised by the smoke, real-model quality beyond the three C2 shapes, and the Focus adapter on a real CAD model (ledger d3a0e047).
+Not covered by any of this: Windows/Linux browser visuals of the Review design in production, the Linux executor sandbox paths not exercised by the 10-21 smoke, real-model quality beyond the three C2 shapes, Focus on a real model, shared-card behaviour for other users.
+
+## 5. Supported settings and limits (published; source in brackets)
+
+| Setting or limit | Value | Source |
+|---|---|---|
+| `CAD_BRIEF_FIRST` | `"true"` enables review-first for every user; default and production today `"false"`; read only as the string `true` | `cad-jobs.js` line 183, `wrangler.rabbit-hole-prod.jsonc` |
+| `CAD_MAX_CALLS` | 3 (brief, source, review); must be at least 3 whenever the flag is true (a config test pins it); can only be lowered by config, hard ceiling 6 | `cad-contract.js` `CAD_LIMITS`, `rabbit-hole-prod-config.test.js` |
+| `CAD_MAX_REPAIRS` | 0: a rejected review fails the job, there is no automatic repair; hard ceiling 1 | same |
+| `CAD_MAX_USD` | 0.20 per job (reserved about 0.18); also the amount reserved once per job against the monthly US$10 line (50 jobs a month) | `cad-production-budget.js`, section 2 |
+| Per-call cap | US$0.10 per model call; the source call after approval has about $0.009 of headroom | `cad-model.js`, section 2 (C2 F5) |
+| Prompt context | keep canvas context under about 2 KB and attach no reference picture on a review-first request, or the source call can be refused after the brief is paid | section 2 |
+| Executor attempts | one at a time (a second job gets 429 busy); 11 MiB reserved per attempt; 2 GiB per UTC month (186 attempts; October has 6 left; resets Sat 2026-10-31 5:00 PM PDT) | `production-budget.mjs`, section 1 |
+| Artifact size | 10 MiB per artifact and per job (`CAD_MAX_ARTIFACT_BYTES`, `CAD_MAX_TOTAL_BYTES`) | wrangler prod config |
+| Time | 15 minutes per job (`elapsedMs` 900,000), 300 s per executor stage, 600 s total execution; model call timeout 120 s | `cad-contract.js`, `cad-model.js` |
+| Quick edit | only the parameters the brief declared (at most 40: length, angle, number, count, choice, boolean; linear compare constraints); validated server side; a rebuild runs the saved source with new values and makes no model call; one proposed change at a time; Preview then Accept or Discard | `cad-parameters.js`, `cad-jobs.js` rebuild |
+| Changing the brief | Edit details re-validates without a call; adding or removing parameters needs a new brief (a new call); the review compares the build with the requirement TEXT, so edit the sentence too (C2 F1) | `cad-controls.test.js` |
+| Exports | STEP and GLB from the build; STL and 3MF on request (each is one more executor attempt) | `cad-jobs.js` exports |
+| Retry | a failed job can be retried while calls remain; at 3 calls a review-first job that used all three cannot be retried (start a new one, another $0.20 reservation) | `cad-jobs.js` retry |
+| What users see | credits only; dollars, provider names and the ledger are excluded server-side | `credits-2500.md` |

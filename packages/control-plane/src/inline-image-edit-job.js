@@ -8,7 +8,8 @@ const hashOK = hash => typeof hash === 'string' && /^[a-f0-9]{64}$/.test(hash);
 const digest = async bytes => [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(byte => byte.toString(16).padStart(2, '0')).join('');
 const clone = value => structuredClone(value);
 
-export function createImageEditJobCoordinator({ storage, admitSpend, settleSpend, edit, publish, now = Date.now }) {
+// cost(usage, reservedUsd) -> the provider-reported cost in USD, or null when the usage cannot be priced. Optional: without it the hold stays at the reservation.
+export function createImageEditJobCoordinator({ storage, admitSpend, settleSpend, edit, publish, cost, now = Date.now }) {
   if (!storage?.transaction || ![admitSpend, settleSpend, edit, publish].every(fn => typeof fn === 'function')) throw error('invalid_configuration', 'Durable storage and bound job dependencies are required.');
   const active = new Map(), controllers = new Map();
   const change = (id, fn) => storage.transaction(async tx => {
@@ -85,9 +86,15 @@ export function createImageEditJobCoordinator({ storage, admitSpend, settleSpend
       });
       if (ready.phase !== 'ready') return ready;
       try {
-        // Missing verified price never becomes zero. Existing ledger retains its reserved bound.
-        await settleSpend(ready.operationId, { status: 'settled', calls: 1, costUsd: null, provider: 'openai', model: 'gpt-image-2.5-sunburst-2026-09-08' });
-        return change(id, job => ({ ...job, reservation: 'settled_at_reserved_bound', updatedAt: now() }));
+        // Settled at min(priced provider usage, reservation): the person is never charged more than they approved and never a flat
+        // reservation when usage is priced. Usage that cannot be priced (absent, unreconciled, no rate) is never turned into zero: the
+        // ledger keeps the reserved bound as unknown cost.
+        let priced = null;
+        try { priced = cost ? cost(ready.usage, ready.request.reservedUsd) : null; } catch { priced = null; }
+        const costUsd = Number.isFinite(priced) && priced >= 0 ? Math.min(priced, ready.request.reservedUsd) : null;
+        await settleSpend(ready.operationId, { status: 'settled', calls: 1, costUsd, provider: 'openai', model: 'gpt-image-2.5-sunburst-2026-09-08',
+          inputTokens: ready.usage?.input_tokens ?? null, outputTokens: ready.usage?.output_tokens ?? null });
+        return change(id, job => ({ ...job, reservation: costUsd == null ? 'settled_at_reserved_bound' : 'settled_at_usage_cost', ...(costUsd != null && priced > ready.request.reservedUsd ? { costClippedToReservation: true } : {}), updatedAt: now() }));
       } catch { return ready; } // Reconciliation may settle accounting later; never re-run generation.
     } catch {
       return hold(id, signal.aborted ? 'cancelled_after_start' : 'attempt_outcome_unknown');

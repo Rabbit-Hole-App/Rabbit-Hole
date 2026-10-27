@@ -46,18 +46,33 @@ export function imageSettings(settings, referenceCount = 0) {
 // $1.5/M = $0.00168 for Nano Banana 2.1 references). OpenAI publishes token RATES only (no tokens per image), so the OpenAI rows are
 // the largest output token count MEASURED in real runs at quality low (196 tokens at 1024x1024, 157 at 2048x1152; img-A-1, img-B-1,
 // imgact-sunburst1k-1, imgact-flare169-1), rounded up to 200 tokens x $30/M = $0.006. Other qualities and sizes have no row and
-// are never quoted. OpenAI reference-image tokens are not published either: editing with references has no OpenAI price.
+// are never quoted. OpenAI reference-image tokens are not published: Sunburst's reference row is MEASURED (run B, img-B-1: 2 small references billed 512 image
+// input tokens, 256 each x $8/M = $0.002048, rounded up to $0.0021). It is a measured estimate, not a bound (bigger references bill more); what protects the learner
+// is the signed maximum charge. Flare has no reference row, so Flare cannot be quoted with references.
 const PRICES = {
   'gemini-nano-banana-2.1': { output: { '1K': 0.0336, '2K': 0.0504, '4K': 0.113 }, referenceImage: 0.00168, textPerMillion: 1.5 },
   'gemini-3-pro-image': { output: { '1K': 0.134, '2K': 0.134, '4K': 0.24 }, referenceImage: 0.0011, textPerMillion: 2.0 },
-  'gpt-image-2.5-sunburst': { outputBySize: { low: { '1024x1024': 0.006, '2048x1152': 0.006 } }, referenceImage: null, textPerMillion: 5 },
+  'gpt-image-2.5-sunburst': { outputBySize: { low: { '1024x1024': 0.006, '2048x1152': 0.006 } }, referenceImage: 0.0021, textPerMillion: 5 },
   'gpt-image-2.5-flare': { outputBySize: { low: { '1024x1024': 0.006, '2048x1152': 0.006 } }, referenceImage: null, textPerMillion: 5 },
 };
 const credits = usd => Math.ceil(Number((usd * 100).toFixed(6)));
-// One generation's quote: the estimate from the published table and the reservation the job holds while it runs
-// (IMAGE_GENERATE_RESERVED_USD, the owner's bound). -> { state: 'priced', ... } or { state: 'unknown', reason }. Unknown blocks
-// Generate. The estimate excludes thinking tokens (billed by Google, count not published), so it is shown as an estimate only;
-// the ledger settles at the reservation unless the provider reports usage this table can price.
+// The hold for one model: IMAGE_RESERVED_USD_BY_MODEL (JSON, { model: usd }) when it names the model, else IMAGE_GENERATE_RESERVED_USD. A map that cannot be read, or a value
+// that is not a positive number, leaves the model with no hold, so it cannot be quoted (fail closed).
+function reserveFor(env, model) {
+  let own;
+  try { own = JSON.parse(env?.IMAGE_RESERVED_USD_BY_MODEL || '{}')?.[model]; } catch { return NaN; }
+  return Number(String(own ?? env?.IMAGE_GENERATE_RESERVED_USD ?? '').trim() || NaN);
+}
+// The MAXIMUM CHARGE for one model (owner 2026-10-26, docs/features/image-jobs.md 6f): IMAGE_MAX_CHARGE_USD_BY_MODEL (JSON, { model: usd }), the most one job
+// can ever charge the learner, signed into the quote. No default: a map that cannot be read, or a model it does not name, has no maximum and cannot be quoted.
+function maxFor(env, model) {
+  try { return Number(String(JSON.parse(env?.IMAGE_MAX_CHARGE_USD_BY_MODEL || '{}')?.[model] ?? '').trim() || NaN); } catch { return NaN; }
+}
+// One generation's quote, three separate numbers: the ESTIMATE from the published table, the MAXIMUM CHARGE the learner authorizes
+// (IMAGE_MAX_CHARGE_USD_BY_MODEL) and the temporary RESERVATION the job holds while it runs (the per-model hold above). Always
+// estimate <= maximum <= reservation, or the quote is paused. -> { state: 'priced', ... } or { state: 'unknown', reason }. Unknown
+// blocks Generate. The estimate excludes thinking tokens (billed by Google, count not published), so it is shown as an estimate only;
+// the ledger settles the real cost (measured, else the upper bound) and the learner is charged min(that, the signed maximum).
 export function imageQuote(env, settings, referenceCount = 0, promptBytes = 0) {
   const checked = imageSettings(settings, referenceCount);
   if (checked.error) return { state: 'unknown', reason: 'invalid_settings', message: checked.error };
@@ -72,10 +87,14 @@ export function imageQuote(env, settings, referenceCount = 0, promptBytes = 0) {
   if (output == null) return { state: 'unknown', reason: 'pricing_unverified', message: 'The price for these settings is not known yet, so it cannot be generated.' };
   // A token is at least one UTF-8 byte, so prompt bytes bound the prompt's text tokens from above.
   const estimateUsd = Number((output + referenceCount * (price.referenceImage || 0) + promptBytes * price.textPerMillion / 1e6).toFixed(6));
-  const reserveUsd = Number(String(env?.IMAGE_GENERATE_RESERVED_USD ?? '').trim() || NaN);
+  const reserveUsd = reserveFor(env, model);
   if (!Number.isFinite(reserveUsd) || reserveUsd <= 0) return { state: 'unknown', reason: 'reserve_unset', message: 'Image generation has no spending bound configured.' };
   if (reserveUsd < estimateUsd) return { state: 'unknown', reason: 'reserve_below_estimate', message: 'Image generation is paused: its spending bound is below this estimate.' };
-  return { state: 'priced', model, estimateUsd, reserveUsd, estimate_credits: credits(estimateUsd), reserve_credits: credits(reserveUsd), basis: 'published_per_image', excludes: ['thinking_tokens'] };
+  const maxUsd = maxFor(env, model);
+  if (!Number.isFinite(maxUsd) || maxUsd <= 0) return { state: 'unknown', reason: 'max_unset', message: 'The most this image can cost is not available yet, so it cannot be generated.' };
+  if (maxUsd < estimateUsd) return { state: 'unknown', reason: 'max_below_estimate', message: 'Image generation is paused: its maximum charge is below this estimate.' };
+  if (maxUsd > reserveUsd) return { state: 'unknown', reason: 'max_above_reserve', message: 'Image generation is paused: its maximum charge is above its reservation.' };
+  return { state: 'priced', model, estimateUsd, maxUsd, reserveUsd, estimate_credits: credits(estimateUsd), max_credits: credits(maxUsd), reserve_credits: credits(reserveUsd), basis: 'published_per_image', excludes: ['thinking_tokens'] };
 }
 
 // Token rates in USD per million tokens, from the providers' own pricing pages read 2026-10-23: Google
@@ -138,12 +157,16 @@ export const measuredCostUsd = (model, usage) => usageCost(model, usage).measure
 
 // The three values, kept apart (owner 2026-10-23). reservedMaxUsd is what the job held; settledUsd is what the ledger and the
 // learner are charged: measured if there is one, else the estimated upper bound (never labelled measured), else null (unknown: the
-// ledger keeps the reservation as unknown cost). A settled amount above the reservation is an explicit overrun, never clipped.
-export function imageCost(model, usage, reservedMaxUsd) {
+// ledger keeps the reservation as unknown cost). settledUsd is the REAL cost the platform ledger records, never clipped (an amount above the
+// reservation is an explicit overrun). chargedUsd is what the LEARNER is charged: min(real cost, the maximum signed into the quote they confirmed);
+// absorbedUsd is what the platform carries above that maximum, recorded as its own metric. maxChargeUsd null (a job made before the maximum existed) charges the real cost.
+export function imageCost(model, usage, reservedMaxUsd, maxChargeUsd = null) {
   const { measuredUsd, estimatedUpperBoundUsd } = usageCost(model, usage);
   const settledUsd = measuredUsd ?? estimatedUpperBoundUsd;
   const over = settledUsd != null && settledUsd > reservedMaxUsd + 1e-9;
-  return { state: measuredUsd != null ? 'measured' : estimatedUpperBoundUsd != null ? 'estimated_upper_bound' : 'unknown', measuredUsd, estimatedUpperBoundUsd, reservedMaxUsd, settledUsd,
+  const chargedUsd = settledUsd == null ? null : maxChargeUsd == null ? settledUsd : Math.min(settledUsd, maxChargeUsd);
+  const absorbedUsd = chargedUsd == null ? 0 : Number((settledUsd - chargedUsd).toFixed(6));
+  return { state: measuredUsd != null ? 'measured' : estimatedUpperBoundUsd != null ? 'estimated_upper_bound' : 'unknown', measuredUsd, estimatedUpperBoundUsd, reservedMaxUsd, maxChargeUsd, settledUsd, chargedUsd, absorbedUsd,
     overrun: { exceeded: over, amountUsd: over ? Number((settledUsd - reservedMaxUsd).toFixed(6)) : 0 } };
 }
 

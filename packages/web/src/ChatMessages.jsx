@@ -96,6 +96,9 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
       if (why.kind !== 'used') setPressed(false);
       // Already made (a reload, another tab): said on the card's status line, not as a job still starting.
       setProblem(why); setImage(why.kind === 'used' ? { tone: 'failed', text: why.message, retry: false } : null); setError(why.kind === 'used' || why.kind === 'references' ? null : why.message);
+      // A stale quote (the estimate, the most it can cost or the hold changed since the person confirmed): the same settings are signed again with the server's live quote,
+      // the card shows the three new numbers, and the sentence stays until the person presses Generate again to confirm.
+      if (failure?.data?.code === 'quote_changed') onSave({ settings: p.settings }).catch(() => {}).then(() => setError(why.message));
     });
   };
   // A reload (or switching back to this thread) finds the image job this proposal already started and shows it again, without a new
