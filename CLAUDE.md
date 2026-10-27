@@ -274,6 +274,14 @@ This rule changes how a GO is carried out; it does not itself authorize any prod
 - A push to `main` runs the production release (`.github/workflows/deploy-prod.yml`). Each `main` push and each
   production D1 migration needs the owner's explicit approval, normally as a `!` command the owner runs; prepare the
   exact command only when it is ready to run. Paid calls and new infrastructure keep their own approvals.
+- **Owner commands are launchers** (owner, 2026-10-27). Hand the owner one copy-paste command or double-click launcher that runs from any
+  directory, with the paths, environment variables, pinned SHAs and prerequisite checks inside it; the owner assembles
+  nothing. It opens the right terminal itself, keeps any genuinely required manual confirmation (a typed approval is never
+  automated), shows progress, writes a log automatically, ends with a clear result that preserves the real exit code, and on
+  failure prints the exact error and next action. Reruns resume or skip finished steps. Verify the launcher (paths,
+  terminal handling, a read-only check) before sending it, never send a placeholder or a command to adapt. Label where it
+  runs: a Claude Code command starts with `!`; a command for the owner's own terminal is a single launcher with no `!`.
+  The message contains only what it does, the command, the required confirmation and the expected duration and result.
 - Testing any script that can mutate production (an owner script, migration, deploy, secret or resource-creating
   command) requires ENFORCED isolation: run it in a harness with no production credentials in its environment and no
   route to production services (an offline process whose PATH holds only stubs of the real executables), with mocks and
