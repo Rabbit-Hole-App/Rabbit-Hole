@@ -434,15 +434,19 @@ for (const theme of ['light', 'dark']) {
     if (stub.paused) return request.method() === 'POST' ? route.fulfill({ status: 503, json: { error: PAUSED, code: 'motion_paused' } }) : route.fulfill({ json: { motionPaused: true, videos: [] } });
     // The server's reservation state (MOCKED); the amount is no longer sent at all (owner 2026-10-25), and the card never shows the reservation.
     const hold = status => ({ state: status === 'generating' ? 'reserved' : status === 'failed' && !stub.settled ? 'pending' : 'released' });
-    const video = status => ({ id: stub.id, key: KEY, status, retryable: true, hold: hold(status),
+    const video = status => ({ id: stub.id, key: KEY, status, retryable: true, hold: hold(status), ...(status === 'generating' && stub.startedAt ? { startedAt: stub.startedAt } : {}),
       ...(status === 'failed' ? { error: stub.error || 'The Motion job failed: still blocking after the repair round: blank_frame' } : {}),
       ...(status === 'ready' ? { provider: 'motion', motion: { title: TITLE, duration_seconds: 15, renderer: 'remotion', source_refs: [{ id: 'S1', kind: 'code', path: 'model.py', start_line: 62, end_line: 64 }] } } : {}) });
     // A stop request (MOCKED): the job ends as the server ends it, failed with Stopped.
     if (request.method() === 'POST' && (request.postData() || '').includes('"action":"cancel"')) { stub.stopped = true; stub.error = 'Stopped.'; return route.fulfill({ json: { videos: [video('failed')] } }); }
     if (stub.stopped) return route.fulfill({ json: { videos: [video('failed')] } });
     if (request.method() === 'POST') return route.fulfill({ status: 202, json: { motionEstimateCredits: 100, motionMaxCredits: 350, motionHoldCredits: 896, videos: [video('generating')], placementId: stub.id } });
+    // A held read (the reload step only) is answered when the step opens it; one held across the reload belongs to a page that left.
+    const gated = !!stub.gate;
+    if (gated) await stub.gate;
     stub.polls += 1;
-    return route.fulfill({ json: { motionEstimateCredits: 100, motionMaxCredits: 350, motionHoldCredits: 896, videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
+    const answered = route.fulfill({ json: { motionEstimateCredits: 100, motionMaxCredits: 350, motionHoldCredits: 896, videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
+    return gated ? answered.catch(() => {}) : answered;
   });
 
   await step(`${theme}: MOCKED generation: the proposal's Generate adds one card and starts one confirmed motion_request with the approved proposal; the ready video plays in it`, async () => {
@@ -536,8 +540,10 @@ for (const theme of ['light', 'dark']) {
     await dismiss();
   });
 
-  await step(`${theme}: MOCKED reload mid-job: the saved card follows the same job again, with no second start, and plays it`, async () => {
-    stub = { id: `p-reload-${theme}`, polls: 0, end: 'ready', held: true };
+  // Task 733e996d (a reload reset the progress bar to zero): until its first read is answered the reloaded card says Restoring
+  // progress (no bar, no 0), then shows the time since the server (MOCKED startedAt, 5 minutes ago) started the job.
+  await step(`${theme}: MOCKED reload mid-job: the saved card says Restoring progress, then the server's elapsed time; it follows the same job again, with no second start, and plays it`, async () => {
+    stub = { id: `p-reload-${theme}`, polls: 0, end: 'ready', held: true, startedAt: Date.now() - 300_000 };
     const posts = videoPosts().length;
     await generate(`/motion 15s explain attention heads ${theme}`);
     const card = page.locator('[data-block-id]', { hasText: 'Planning, reviewing and rendering' });
@@ -545,12 +551,25 @@ for (const theme of ['light', 'dark']) {
     const id = await card.getAttribute('data-block-id');
     // The board is saved with the job's placement id before the reload.
     await until(() => seen.some(r => r.method === 'PUT' && /\/api\/learn\/boards\/[^/]+\/main$/.test(r.path) && r.body.includes(stub.id)), 'the board saved with the placement id');
+    let open;
+    stub.gate = new Promise(resolve => { open = resolve; });
     await page.reload();
     await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 });
     const mine = page.locator(`[data-block-id="${id}"]`);
     await mine.waitFor({ timeout: 30000 });
+    await mine.locator('[data-progress-restoring]').waitFor({ timeout: 10000 });
+    assert.equal((await mine.locator('[data-progress-restoring]').innerText()).trim(), 'Restoring progress', 'no ellipsis');
+    assert.equal(await mine.locator('[data-progress]').count(), 0, 'no bar while its status is fetched');
+    assert.doesNotMatch(await mine.innerText(), /\b0s elapsed|\b0%/);
+    await mine.scrollIntoViewIfNeeded();
+    await mine.screenshot({ path: `${OUT}/${theme}-06b-restoring-progress.png` });
     const polled = stub.polls;
+    stub.gate = null; open();
     await until(() => stub.polls > polled, 'the restored card polls its job');
+    await mine.locator('[data-progress]').waitFor({ timeout: 10000 });
+    assert.match(await mine.innerText(), /Planning, reviewing and rendering · [34]\d\ds elapsed/, 'the server start time, not the reload');
+    assert.ok(parseFloat(await mine.locator('[data-progress]').evaluate(node => node.style.width)) >= 33, 'the bar resumes where the job is');
+    await mine.screenshot({ path: `${OUT}/${theme}-06b-restored-progress.png` });
     stub.held = false;
     await mine.locator('video[data-lesson-video]').waitFor({ timeout: 30000 });
     assert.equal(videoPosts().length - posts, 1, 'one start; the reload only follows it');

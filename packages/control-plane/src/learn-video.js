@@ -342,7 +342,8 @@ export class LearnVideos {
     for (const [key, j] of jobs) if (j.provider === 'motion_request' && j.status === 'failed') refunded.set(key, await this.refundedMicros(j));
     return { ...(estimate ? { motionEstimateCredits: estimate } : {}), ...(max ? { motionMaxCredits: max, motionHoldCredits: Math.ceil(holdMicros / 10_000) } : {}), ...(paused ? { motionPaused: true } : {}), videos: [...placements.values()].map(p => {
       const j = jobs.get(`job:${p.key}`);
-      return { ...p, status: j?.status || 'idle', error: userSafeError(j?.error, j?.failureCode), retryable: !j?.uncertain, duration: j?.input.duration, provider: j?.result?.provider, generationId: j?.result?.generationId, ...(j?.result?.motion ? { motion: j.result.motion } : {}), ...(motionHold(j) ? { hold: motionHold(j) } : {}),
+      // startedAt: while it runs, when its current attempt started (ms), so a reloaded card restores its elapsed time instead of 0.
+      return { ...p, status: j?.status || 'idle', error: userSafeError(j?.error, j?.failureCode), retryable: !j?.uncertain, duration: j?.input.duration, provider: j?.result?.provider, generationId: j?.result?.generationId, ...(j?.status === 'generating' ? { startedAt: j.startedAt } : {}), ...(j?.result?.motion ? { motion: j.result.motion } : {}), ...(motionHold(j) ? { hold: motionHold(j) } : {}),
         ...(j?.provider === 'motion_request' ? { usage: { usedCredits: (j.usedMicros || 0) / 10_000, unknown: !!j.usageUnknown } } : {}), ...(j?.provider === 'motion_request' && j.status === 'failed' ? { recovery: this.motionRecovery(j, !!holdMicros, refunded.get(`job:${p.key}`)) } : {}) };
     }) };
   }

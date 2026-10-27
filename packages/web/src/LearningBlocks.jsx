@@ -879,6 +879,7 @@ function useConfirmedStart(block, onChange, generate) {
 }
 
 function Progress({ seconds, expected, label }) {
+  if (seconds == null) return <p className="w-full text-center text-xs text-ink-2">{label}</p>; // no known start: the words, no bar or percent
   const percent = Math.min(96, Math.round((seconds / expected) * 100));
   return (
     <div className="w-full">
@@ -1537,7 +1538,11 @@ function ImageBody({ block, appName, onChange, onFile }) {
 const hostOf = src => { try { return /^https?:/.test(src) ? new URL(src).hostname.replace(/^www\./, '') : ''; } catch { return ''; } };
 function VideoBody({ block, appName, onChange, onFile }) {
   const [error, setError] = useState('');
-  const elapsed = useElapsed(block.status === 'generating' || block.status === 'queued');
+  // When this card's job started (ms): the server's startedAt once it answers, or this page's press. A card reloaded with its job
+  // has none until that first answer (undefined: Restoring progress, never 0%); an answer without one is null (the words, no bar).
+  const [since, setSince] = useState(() => (resumesJob(block) ? undefined : null));
+  useElapsed(block.status === 'generating' || block.status === 'queued'); // re-renders each second while it runs
+  const elapsed = typeof since === 'number' ? Math.max(0, Math.round((Date.now() - since) / 1000)) : null;
   const polling = useRef(null), settleReads = useRef(0);
   useEffect(() => () => clearTimeout(polling.current), []);
   // The poll writes onto the card as it is NOW: a copy captured when Generate ran would put back
@@ -1557,6 +1562,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
     try {
       const list = await videoList(appName);
       const mine = list.videos?.find(video => video.id === placementId);
+      setSince(s => (Number.isFinite(mine?.startedAt) ? mine.startedAt : s ?? null));
       if (!mine) return;
       const current = latest.current;
       if (mine.status === 'ready') {
@@ -1581,7 +1587,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
       }
       if (mine.status !== current.status) onChange({ ...current, status: mine.status });
       polling.current = setTimeout(() => follow(placementId), 5000);
-    } catch (problem) { setError(problem.message); }
+    } catch (problem) { setSince(s => s ?? null); setError(problem.message); }
   };
   // Stop asks first (owner message 35): an inline confirmation, Cancel focused; Cancel or Escape sends nothing and returns focus
   // to Stop; its Stop sends the stop request once.
@@ -1598,7 +1604,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
   // Recovery from the saved work: Retry rendering (free) or Continue fixing (paid, confirmed) under the same card and job.
   const recover = async mode => {
     clearTimeout(polling.current); settleReads.current = 0;
-    setError(''); setConfirming(false); setFailure(null);
+    setError(''); setConfirming(false); setFailure(null); setSince(Date.now());
     onChange({ ...withoutEnd(latest.current), status: 'generating' });
     try { await recoverVideo(appName, placement || block.placementId, mode, { confirmed: mode === 'fix' }); follow(placement || block.placementId); }
     catch (problem) { setError(problem.message); onChange({ ...latest.current, status: 'failed' }); follow(placement || block.placementId); }
@@ -1612,6 +1618,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
     const retry = current.status === 'failed';
     const operation = pressOperation(current, retry);
     current = { ...withoutEnd(current), operation };
+    setSince(Date.now());
     onChange({ ...current, status: 'generating' });
     try { const { placementId } = await startVideo(appName, operation, { confirmed: true, retry }); follow(placementId); }
     catch (problem) {
@@ -1671,7 +1678,9 @@ function VideoBody({ block, appName, onChange, onFile }) {
             {!/^motion_(request|render)$/.test(block.operation?.op || '') && <p className="text-xs text-ink-2">{label.detail}</p>}
             {pending
               ? <>
-                  <Progress seconds={elapsed} expected={label.expected} label={label.progress} />
+                  {since === undefined
+                    ? <p data-progress-restoring role="status" className="text-xs text-ink-2">Restoring progress</p>
+                    : <Progress seconds={elapsed} expected={label.expected} label={label.progress} />}
                   {label.stoppable && placement && <button ref={stopButton} type="button" data-stop-video aria-expanded={askStop} onClick={() => setAskStop(true)} className="flex h-8 items-center rounded-lg border border-line px-3.5 text-sm font-medium text-ink hover:bg-white">Stop</button>}
                   {label.stoppable && placement && askStop && (
                     <div data-stop-confirm role="group" aria-label="Stop this video" className="flex flex-wrap items-center justify-center gap-2 text-xs text-ink-2"

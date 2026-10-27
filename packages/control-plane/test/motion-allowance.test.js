@@ -201,6 +201,29 @@ test('duplicate submits and a worker restart mid-job: one reservation, one orche
   assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 800_000, 'settled']]);
 });
 
+// Task 733e996d (a reload reset the card's progress to zero): a reloaded card's replayed start of the same press (its request id)
+// is the same job, never a second job or hold; while it runs the list carries the attempt's server start time for the card.
+test('a replayed press after a reload: one orchestrator job, one hold; the running job lists its startedAt, the ready one does not', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start();
+  w.script([{ stage: 'directing', max_tokens: 16000, out: 5000, hold: true }, ...FIRST_PASS.slice(1)]);
+  const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
+  const press = { ...motionOp, request_id: 'press-reload-1' };
+  const before = Date.now();
+  const first = await (await actor.fetch(ask({}, press))).json();
+  const replayed = await (await actor.fetch(ask({}, press))).json();
+  assert.equal(replayed.placementId, first.placementId, 'the same card placement');
+  assert.deepEqual([w.orchestrator.posts, motionAttempts(sqlite).length], [1, 1], 'one job and one hold for the press and its replay');
+  const running = await video(actor);
+  assert.equal(running.status, 'generating');
+  assert.ok(Number.isInteger(running.startedAt) && running.startedAt >= before && running.startedAt <= Date.now(), `startedAt ${running.startedAt}`);
+  for (let i = 0; i < 50 && !w.model.held; i++) await sleep(5);
+  w.model.held();
+  await settle(actor, async () => (await video(actor)).status === 'ready');
+  assert.equal((await video(actor)).startedAt, undefined, 'only a running job lists it');
+  assert.deepEqual([w.orchestrator.posts, motionAttempts(sqlite).length], [1, 1]);
+});
+
 // Owner review MOT-07 (message 27) replaces the resend of owner item 2: the lost answer is reconciled by closing the key.
 test('an unconfirmed start is never resent: closing its key answers the job it started, never a second', async t => {
   const { sqlite, LEARN_DB } = d1(t);
