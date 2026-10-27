@@ -36,14 +36,15 @@ const SRC = { id: `fs_${'c'.repeat(24)}`, rev: 'd'.repeat(64) };
 const card = { id: 'k1', type: 'file', kind: 'image', fileRef: { v: 1, source: SRC, family: 'image', meta: { name: 'generated-image.png', type: 'image/png' } } };
 const settle = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
 // Wait for a state, not a fixed time: poll until ok() holds (bounded at 3 s, then the caller's assertion reports what is wrong).
+const last = states => states.at(-1)?.status;
 const until = async (ok, limit = 3000) => { for (const t0 = Date.now(); !ok() && Date.now() - t0 < limit;) await settle(1); };
 const png = () => ({ ok: true, status: 200, blob: async () => new Blob(['png bytes'], { type: 'image/png' }) });
 const notAvailable = () => ({ ok: false, status: 404, blob: async () => new Blob(['{"error":"Not available"}']) });
 // The page's file reads, answered by answer(n) for the nth read. Every URL is recorded: nothing else may be asked.
 function files(answer) {
-  const urls = [], real = globalThis.fetch;
-  globalThis.fetch = async url => { urls.push(String(url)); return answer(urls.length); };
-  return { urls, restore: () => { globalThis.fetch = real; } };
+  const urls = [], real = globalThis.fetch, server = { urls, answered: 0, restore: () => { globalThis.fetch = real; } };
+  globalThis.fetch = async url => { urls.push(String(url)); try { return await answer(urls.length); } finally { server.answered++; } };
+  return server;
 }
 // The board-saved signal (LearnPage saveBoard dispatches rh:board-saved), as the reader subscribes to it.
 const boardSaves = () => { const fns = new Set(); return { onSaved: fn => { fns.add(fn); return () => fns.delete(fn); }, fire: () => [...fns].forEach(fn => fn()), listeners: () => fns.size }; };
@@ -56,7 +57,7 @@ test('a generated image whose board reference is not saved yet (404) loads once 
   try {
     // Long backoff: only the board save can make this read succeed inside the test.
     const cancel = readOriginal(card, state => states.push(state), { waits: Array(6).fill(60000), onSaved: saves.onSaved });
-    await until(() => server.urls.length === 1); await settle(); // the 404 is answered and handled
+    await until(() => server.answered === 1); await settle(); // the 404 is answered and handled
     assert.deepEqual(states.map(s => s.status), ['loading'], 'still loading after the 404: never "could not be read" in this window');
     registered = true; saves.fire(); // the board PUT answered: the reference row exists now
     await until(() => states.length === 2);
@@ -90,7 +91,7 @@ test('a read that fails in transit is tried again with backoff and shows the ima
   const states = [];
   try {
     const cancel = readOriginal(card, state => states.push(state), { waits: [1, 2, 4, 8, 16, 32], onSaved: boardSaves().onSaved });
-    await settle(300); cancel();
+    await until(() => last(states) === 'ready'); cancel();
     assert.deepEqual(states.map(s => s.status), ['loading', 'ready']);
     assert.equal(server.urls.length, 3);
   } finally { server.restore(); setFileScope(null); resetUploads(); }
@@ -103,15 +104,15 @@ test('a source that stays missing says so after the bounded retries; Retry reads
   const states = [];
   try {
     readOriginal(card, state => states.push(state), { waits: [1, 1, 1], onSaved: boardSaves().onSaved });
-    await settle(300);
+    await until(() => last(states) === 'missing');
     assert.deepEqual(states.map(s => s.status), ['loading', 'missing']);
     assert.equal(server.urls.length, 4, 'one read and three retries, then it stops');
-    await settle(100);
+    await settle(100); // a negative: nothing more may come, so a bounded wait is the check
     assert.equal(server.urls.length, 4, 'no read after the retries ran out');
     // Retry (the card's button) runs the read again: the existing stored asset only. No image job, no provider, no charge.
     there = true;
     readOriginal(card, state => states.push(state), { waits: [1, 1, 1], onSaved: boardSaves().onSaved });
-    await settle(100);
+    await until(() => last(states) === 'ready');
     assert.deepEqual(states.map(s => s.status), ['loading', 'missing', 'loading', 'ready']);
     assert.ok(server.urls.every(url => url.startsWith(`/api/learn/files/${SRC.id}?`)), server.urls.join(' '));
   } finally { server.restore(); setFileScope(null); resetUploads(); }
@@ -127,7 +128,7 @@ test('a board save that lands after the retries ran out recovers the card withou
     await until(() => states.at(-1).status === 'missing'); await settle(); // past the page's one-tick read de-duplication
     assert.equal(server.urls.length, 3, 'one read and two retries, then it stops');
     saves.fire(); // a save that still has not registered the reference: one more read, no loop
-    await until(() => server.urls.length === 4); await settle(20);
+    await until(() => server.answered === 4); await settle(20); // that read is answered; a bounded window shows no loop follows
     assert.deepEqual([server.urls.length, states.at(-1).status], [4, 'missing']);
     registered = true; saves.fire(); // the late save lands
     await until(() => states.at(-1).status === 'ready');
@@ -153,7 +154,7 @@ test('a source this page may not read stays unavailable: the same 404, no bytes,
   const states = [];
   try {
     readOriginal(card, state => states.push(state), { waits: [1, 1], onSaved: boardSaves().onSaved });
-    await settle(300);
+    await until(() => last(states) === 'missing');
     assert.deepEqual(states.map(s => [s.status, s.blob]), [['loading', null], ['missing', null]]);
     assert.deepEqual(server.urls, Array(3).fill(`/api/learn/files/${SRC.id}?share=tok-1`), 'read only through the link it was opened with');
   } finally { server.restore(); setFileScope(null); resetUploads(); }
@@ -165,14 +166,14 @@ test('a late result after the card is deleted, its source replaced or the page l
   const cancel = readOriginal(card, state => states.push(state), { load: () => new Promise(resolve => { finish = resolve; }), waits: [1], onSaved: saves.onSaved });
   await settle(1);
   cancel(); finish(new Blob(['late bytes']));
-  await settle(5);
+  await settle(5); // a negative: nothing may be published, so a bounded wait is the check
   assert.deepEqual(states.map(s => s.status), ['loading'], 'nothing published after cancel');
   // Cancelled while a retry waits: neither the timer nor a board save reads again.
   let reads = 0;
-  const later = readOriginal(card, state => states.push(state), { load: async () => { reads++; return null; }, waits: [20], onSaved: saves.onSaved });
-  await settle(2);
+  const later = readOriginal(card, state => states.push(state), { load: async () => { reads++; return null; }, waits: [60000], onSaved: saves.onSaved }); // the retry timer never fires by itself
+  await until(() => reads === 1);
   later(); saves.fire();
-  await settle(100);
+  await settle(100); // a negative: nothing more may come, so a bounded wait is the check
   assert.equal(reads, 1);
   assert.equal(saves.listeners(), 0);
 });
@@ -182,7 +183,7 @@ test('a card with no stored source and no copy here is missing at once, with no 
   const states = [];
   const saves = boardSaves();
   readOriginal({ kind: 'svg', fileRef: { source: null, local: 'import:gone' } }, state => states.push(state), { load: async () => { reads++; return null; }, waits: [1, 1], onSaved: saves.onSaved });
-  await settle(100);
+  await until(() => last(states) === 'missing');
   saves.fire(); await settle(20); // only a stored source is read again after a save
   assert.deepEqual([states.map(s => s.status), reads], [['loading', 'missing'], 1]);
 });
