@@ -37,7 +37,7 @@ const TYPE = n => (n.endsWith('.pdf') ? 'application/pdf' : n.endsWith('.png') ?
 
 // A simulated Rabbit Hole. `w.bug` switches one defect on; `w.kill` marks the converter machine killed (the next job needs a second attempt).
 function world(over = {}) {
-  const w = { lines: [], requests: [], written: {}, ask: [COOKIE, OTHER], answers: ['KILL CONVERTER MACHINE'], bug: {}, sources: new Map(), jobs: new Map(), keys: new Map(), derivs: new Map(), board: { version: 1, state: {} }, credits: [1, 0, 0], flyCalls: [], killed: false, n: 0 };
+  const w = { lines: [], requests: [], written: {}, ask: [COOKIE, OTHER], answers: ['KILL CONVERTER MACHINE'], bug: {}, sources: new Map(), jobs: new Map(), keys: new Map(), derivs: new Map(), board: { version: 1, state: {} }, credits: [1, 0, 0], flyCalls: [], killed: false, n: 0, boardRow: false, refs: new Set() };
   const reply = (status, body, h = {}) => ({ status, ok: status < 400, headers: { get: k => h[k.toLowerCase()] ?? null }, json: async () => body, arrayBuffer: async () => (body instanceof Buffer ? body : Buffer.alloc(0)) });
   const derivativesOf = job => {
     const key = `${job.source}|${job.converter}|${canon(job.options)}`;
@@ -60,7 +60,7 @@ function world(over = {}) {
       if (path === '/api/me') return reply(200, { email: 'x' });
       if (path === '/api/learn/usage') return w.bug.noUsage ? reply(503, { unavailable: 'accounting' }) : reply(200, { usedCredits: w.credits[0], reservedCredits: w.credits[1], unknownAttempts: w.credits[2] });
       if (method === 'POST' && path === '/api/canvases') return reply(201, { name: 'cv_1' });
-      if (path === '/api/learn/boards/cv_1/main') { if (method === 'PUT') { const b = JSON.parse(init.body); w.board = { version: w.board.version + 1, state: w.bug.noBoard ? {} : b.state }; } return reply(200, w.board); }
+      if (path === '/api/learn/boards/cv_1/main') { if (method === 'PUT') { const b = JSON.parse(init.body); w.board = { version: w.board.version + 1, state: w.bug.noBoard ? {} : b.state }; w.boardRow = !w.bug.noBoardRow; w.refs = new Set(w.bug.dropRefs ? [] : (b.state.blocks || []).map(x => x.fileRef?.source?.id).filter(Boolean)); } return reply(200, w.board); }
       if (method === 'POST' && path === '/api/learn/files') {
         const b = JSON.parse(init.body);
         if (w.bug.refuseDamaged && b.name.includes('damaged')) return reply(400, { error: 'This file is not a valid presentation.' });
@@ -93,13 +93,18 @@ function world(over = {}) {
         }
         return reply(200, { job: { id: j.id, state: j.state, attempt: j.attempt, error: j.error, limitations: [] } });
       }
-      if ((m = path.match(/^\/api\/learn\/files\/sources\/(fs_\d+)\/derivatives\?sha=([0-9a-f]+)&converter=([a-z-]+)&options=([0-9a-f]+)/))) {
-        const j = [...w.jobs.values()].find(x => x.source === m[1] && !x.bad && x.state === 'ready' && x.converter === m[3]);
-        if (!j || sha(canon(j.options)) !== m[4]) return reply(200, { derivatives: [] });
+      // The server's two ways in (file-jobs.js boardThrough + file-access.js authorizeFileSource): no &app= is the owner reading their own source; &app= needs
+      // the board row AND a file_source_refs row for the source, which only a board save with a card naming it writes. Either miss is the same 404.
+      const viaBoard = (q, source) => !q.get('app') || (w.boardRow && w.refs.has(source));
+      if ((m = path.match(/^\/api\/learn\/files\/sources\/(fs_\d+)\/derivatives\?(.*)$/))) {
+        const q = new URLSearchParams(m[2]);
+        if (!viaBoard(q, m[1])) return reply(404, { error: 'Not available' });
+        const j = [...w.jobs.values()].find(x => x.source === m[1] && !x.bad && x.state === 'ready' && x.converter === q.get('converter'));
+        if (!j || sha(canon(j.options)) !== q.get('options')) return reply(200, { derivatives: [] });
         return reply(200, { derivatives: derivativesOf(j).map(({ body, ...d }) => d) });
       }
-      if ((m = path.match(/^\/api\/learn\/files\/(fs_\d+)\/d\/(fd_\d+)$/))) {
-        if (!mine && !w.bug.otherReads) return reply(404, { error: 'Not available' });
+      if ((m = path.match(/^\/api\/learn\/files\/(fs_\d+)\/d\/(fd_\d+)(?:\?(.*))?$/))) {
+        if ((!mine && !w.bug.otherReads) || !viaBoard(new URLSearchParams(m[3] || ''), m[1])) return reply(404, { error: 'Not available' });
         const d = [...w.derivs.values()].flat().find(x => x.id === m[2]);
         return reply(200, d.body, { 'content-type': TYPE(d.name), 'x-content-sha256': w.bug.badSha ? '0'.repeat(64) : sha(d.body) });
       }
@@ -283,4 +288,43 @@ test('REAL entry: a dry run with no environment, no process grant and no network
   assert.match(real.stdout, /needs an interactive terminal/);
   assert.doesNotMatch(`${real.stdout}${real.stderr}`, new RegExp(COOKIE));
   assert.equal(go(['--cookie', COOKIE]).status, 2);
+});
+
+test('the board path is a different check from the owner path: listing through a board that was never saved with the card answers 404 (the first production run)', async () => {
+  // The simulation is as strict as the server. Reading your own source needs no board; &app=&board= needs the board row and a reference written by a save.
+  const w = world(); const cookie = { headers: { cookie: `small_session=${COOKIE}` } };
+  const url = `${ORIGIN}/api/learn/files/sources/fs_000000000000000000000001/derivatives?sha=${'a'.repeat(64)}&converter=office-pdf&options=${'b'.repeat(64)}`;
+  assert.equal((await w.deps.fetch(`${url}&app=cv_1&board=main`, cookie)).status, 404, 'before any board save, through the board: 404 Not available');
+  assert.equal((await w.deps.fetch(url, cookie)).status, 200, 'the owner path needs no board');
+  // So the flow lists conversions on the owner path and proves the board path only after saving the card.
+  const run = world(); assert.equal(await accept([], run.deps), 0, run.text());
+  assert.match(run.text(), /^reload: PASS/m);
+  const listings = run.requests.filter(r => r.url.includes('/derivatives?'));
+  const firstBoard = listings.findIndex(r => r.url.includes('&app='));
+  assert.ok(firstBoard > 0 && listings.slice(0, firstBoard).every(r => !r.url.includes('app=')), 'every conversion criterion lists on the owner path, before the board is involved');
+  const puts = run.requests.map((r, i) => [r, i]).filter(([r]) => r.url.endsWith('/api/learn/boards/cv_1/main') && r.init.method === 'PUT');
+  assert.ok(puts.length >= 2 && JSON.parse(puts.at(-1)[0].init.body).state.blocks[0].fileRef.source.id, 'a board with the card was saved through the app PUT route');
+  assert.ok(run.requests.findIndex(r => r.url.includes('&app=')) > puts.at(-1)[1], 'and only then was the board path read');
+});
+
+test('the reload criterion fails, and says why, when the board has no row or does not reference the file; the conversion criteria still pass', async () => {
+  for (const bug of [{ noBoardRow: true }, { dropRefs: true }]) {
+    const w = world(); w.bug = bug;
+    assert.equal(await accept([], w.deps), 1);
+    assert.match(w.text(), /^docx: PASS/m);
+    assert.match(w.text(), /reload: reading through the saved board failed \(GET .*derivatives: 404 Not available\)/);
+    assert.doesNotMatch(w.text(), /^reload: PASS/m);
+  }
+});
+
+test('--trash moves the named acceptance canvases to Trash with the app route, behind the hidden cookie prompt, and only those', async () => {
+  const w = world(); w.deps.fetch = async (u, i) => { w.requests.push({ url: u, init: i }); return { ok: true, status: 200 }; };
+  assert.equal(await accept(['--trash', 'canvas-59ba58a7,canvas-0a1b2c3d'], w.deps), 0);
+  assert.deepEqual(w.requests.map(r => `${r.init.method} ${r.url}`), [`POST ${ORIGIN}/api/apps/canvas-59ba58a7/trash`, `POST ${ORIGIN}/api/apps/canvas-0a1b2c3d/trash`]);
+  assert.ok(w.requests.every(r => r.init.headers.cookie === `small_session=${COOKIE}` && r.init.headers.origin === ORIGIN));
+  noLeak(w);
+  for (const argv of [['--trash', 'main'], ['--trash', 'canvas-1234567'], ['--trash', ''], ['--trash', 'canvas-59ba58a7', '--dry-run'], ['--trash', 'canvas-59ba58a7', '--full']]) assert.equal(await accept(argv, world().deps), 2, argv.join(' '));
+  const f = world(); f.deps.fetch = async () => ({ ok: false, status: 404 });
+  assert.equal(await accept(['--trash', 'canvas-59ba58a7'], f.deps), 1); assert.match(f.text(), /NOT moved \(HTTP 404\)/);
+  const n = world({ interactive: () => false }); assert.equal(await accept(['--trash', 'canvas-59ba58a7'], n.deps), 1); assert.equal(n.requests.length, 0);
 });

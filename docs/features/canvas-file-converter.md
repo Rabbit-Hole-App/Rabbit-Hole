@@ -429,11 +429,21 @@ requests use the options the product's own code sends (a unit test pins them to 
 | step, stp | `as1-oc-214.stp` (18 parts, mm), `cube-in.step` (1 part, inch) | valid GLB 2.0 whose length matches; `structure.json` has the parts and the declared unit |
 | usage | all of the above | `usedCredits`, `reservedCredits`, `unknownAttempts` equal before and after (not checked, and not counted, if the summary is unavailable) |
 | duplicate | the DOCX again | the same file and key give the same source and job (200, not created); a second card adds no derivative |
-| reload | the DOCX card | from the saved board alone a fresh read finds the finished job and byte-identical derivatives |
+| reload | the DOCX card | the board is SAVED with a card for the file (the app's own PUT), then a fresh read of it finds the card, the finished job, and the same derivatives listed and downloaded through the board (`&app=<canvas>&board=main`) |
 | failure | a truncated PPTX | ends `failed` with a plain reason (no dollar text), no derivative, no credit change; or is refused at upload with a plain error |
 | cancel | `deck-40.pptx` | ends `cancelled` (a job that finished first is reported and not counted) |
 | other | a second account | 404 for the job and every derivative |
 | retry | `deck-40.pptx` | after `SIGKILL` of the converter machine while Converting, the job settles ready on attempt 2 or later with the same outputs |
+
+Two ways to read your own file, and why the acceptance uses both (found by the first production run, 2026-10-26, which stopped at a 404):
+the **owner path** (no query: `authorizeFileSource` lets the source's owner read it, no board involved) is what every conversion criterion
+uses; the **board path** (`&app=<canvas>&board=main`) needs the board row and a `file_source_refs` row, which only a board save with a card
+naming the source writes, and answers the same 404 "Not available" otherwise. Only the `reload` criterion uses the board path, after the save.
+
+Rerunning after a stopped run: the script is safe to run again. It creates a NEW canvas each run (titled with the time) and a new job per
+file (the idempotency key carries the time); an identical file by the same owner reuses the stored source. Clean up with
+`node packages/file-convert/activation/acceptance.mjs --trash canvas-xxxxxxxx,canvas-yyyyyyyy` (the canvas names the runs printed), which
+moves them to Trash through the app's own route; empty Trash in the app to remove them for good.
 
 Not covered by any run: `.doc`, PPT, ODT/ODP, RTF, AIFF, WebM (no upload family), AC-3, files near 25 MiB, many users at once.
 

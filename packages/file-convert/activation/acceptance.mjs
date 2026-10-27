@@ -54,7 +54,7 @@ const source = p => (p.synth ? wavBytes() : readFileSync(join(FIXTURES, p.file))
 export const SCENARIOS = {
   usage: 'a conversion changes no credit figure: usedCredits, reservedCredits and unknownAttempts equal before and after all of the above',
   duplicate: 'dropping the same file again and submitting the same key returns the same source and job (200, not a second job); a second card on the same file adds no derivative',
-  reload: 'from the saved board alone (card -> fileRef -> job -> derivatives) a fresh read finds the finished job and the same bytes',
+  reload: 'after saving a board with a card for the file (the app own PUT route), a fresh read of that board finds the card, the finished job, and the same derivatives and bytes listed and downloaded THROUGH the board (&app=<canvas>&board=main)',
   failure: 'a damaged presentation ends failed (or is refused at upload) with a plain reason, no derivative and no credit change',
   cancel: 'cancelling a 40-slide job ends cancelled (a job that finished first is reported and not counted)',
   other: 'a second account gets 404 for the job and every derivative',
@@ -66,7 +66,7 @@ const TERMINAL = ['ready', 'ready_with_limitations', 'failed', 'cancelled'];
 const OK = ['ready', 'ready_with_limitations'];
 
 export function parse(argv) {
-  const o = { dry: false, paths: null, cancel: true, other: false, retry: false, full: false, out: null };
+  const o = { dry: false, paths: null, cancel: true, other: false, retry: false, full: false, out: null, trash: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--dry-run') o.dry = true;
@@ -75,8 +75,10 @@ export function parse(argv) {
     else if (a === '--retry-drill') o.retry = true;
     else if (a === '--full') o.full = true;
     else if (a === '--out') o.out = argv[++i] ?? null;
+    else if (a === '--trash') { o.trash = String(argv[++i] ?? '').split(',').filter(Boolean); if (!o.trash.length || o.trash.some(n => !/^canvas-[a-f0-9]{8}$/.test(n))) return null; }
     else if (a === '--paths') { o.paths = String(argv[++i] ?? '').split(',').filter(Boolean); if (!o.paths.length || o.paths.some(p => !PATHS[p])) return null; } else return null;
   }
+  if (o.trash) return o.dry || o.paths || o.full || o.other || o.retry || o.out ? null : o;
   if (o.full) { if (o.paths || !o.cancel) return null; o.other = o.retry = true; }
   o.all = !o.paths;
   o.paths ||= Object.keys(PATHS);
@@ -118,7 +120,19 @@ export function content(k, f) {
 
 export async function accept(argv, deps) {
   const say = deps.out, o = parse(argv);
-  if (!o) { say(`usage: node acceptance.mjs [--dry-run | --full | [--paths ${Object.keys(PATHS).join(',')}] [--no-cancel] [--other-session] [--retry-drill]] [--out file]`); return 2; }
+  if (!o) { say(`usage: node acceptance.mjs [--dry-run | --full | [--paths ${Object.keys(PATHS).join(',')}] [--no-cancel] [--other-session] [--retry-drill]] [--out file] | --trash canvas-xxxxxxxx[,canvas-yyyyyyyy]`); return 2; }
+  if (o.trash) {
+    // Cleanup: move the acceptance canvases to Trash through the app's own route (POST /api/apps/<canvas>/trash); Trash keeps them until you empty it.
+    if (!deps.interactive()) { say('stopped: needs an interactive terminal for the hidden cookie prompt. Nothing was done.'); return 1; }
+    const v = (await deps.askHidden(`Paste the small_session cookie value for ${ORIGIN} (nothing is echoed): `)).trim();
+    if (!/^[!-~]{16,4096}$/.test(v)) { say('that does not look like a cookie value.'); return 1; }
+    for (const name of o.trash) {
+      const r = await deps.fetch(`${ORIGIN}/api/apps/${name}/trash`, { method: 'POST', body: '{}', headers: { cookie: `small_session=${v}`, origin: ORIGIN, 'content-type': 'application/json' } });
+      say(`${name}: ${r.ok ? 'moved to Trash' : `NOT moved (HTTP ${r.status})`}`);
+      if (!r.ok) return 1;
+    }
+    return 0;
+  }
   const wanted = [...o.paths, ...(o.all ? ['usage', 'duplicate', 'reload', 'failure'] : []), ...(o.cancel && o.all ? ['cancel'] : []), ...(o.other ? ['other'] : []), ...(o.retry ? ['retry'] : [])];
   say(`acceptance on ${ORIGIN} against the converter ${CONVERT_URL}`);
   say('criteria (a path passes only when the job is ready, its derivatives are exactly the listed outputs, each downloads with the sha256 the server recorded and the right magic bytes, and:)');
@@ -181,14 +195,18 @@ export async function accept(argv, deps) {
       }
       throw new Error(`job ${job.id} did not finish within 6 minutes`);
     };
-    const listing = async (s, p) => ((await json(cookie, `/api/learn/files/sources/${s.id}/derivatives?sha=${s.rev}&converter=${p.converter}&options=${sha256(canonical(p.options))}&app=${canvas.name}`)).derivatives || []);
+    // Two ways to read your own file, and they are different checks. Owner path (no query): authorizeFileSource lets the source's owner read it with no board involved;
+    // every conversion criterion uses it. Board path (&app=&board=): the board must exist AND hold a file_source_refs row for the source, which a board SAVE writes
+    // when a card names the source: listing through a board that was never saved with the card answers 404 "Not available" (the first production run's failure).
+    const BOARD = `app=${canvas.name}&board=main`;
+    const listing = async (s, p, through = false) => ((await json(cookie, `/api/learn/files/sources/${s.id}/derivatives?sha=${s.rev}&converter=${p.converter}&options=${sha256(canonical(p.options))}${through ? `&${BOARD}` : ''}`)).derivatives || []);
     // The finished job's derivatives, each downloaded and checked; returns the files by name, or a reason.
-    const collect = async (k, s) => {
-      const p = PATHS[k], listed = await listing(s, p), got = listed.map(d => d.name).sort(), want = [...p.outputs].sort();
+    const collect = async (k, s, through = false) => {
+      const p = PATHS[k], listed = await listing(s, p, through), got = listed.map(d => d.name).sort(), want = [...p.outputs].sort();
       if (JSON.stringify(got) !== JSON.stringify(want)) return { why: `derivatives are ${got.join(', ')}; expected ${want.join(', ')}.` };
       const files = {};
       for (const d of listed) {
-        const r = await call(cookie, `/api/learn/files/${s.id}/d/${d.id}`), body = Buffer.from(await r.arrayBuffer()), type = (r.headers.get('content-type') || '').split(';')[0];
+        const r = await call(cookie, `/api/learn/files/${s.id}/d/${d.id}${through ? `?${BOARD}` : ''}`), body = Buffer.from(await r.arrayBuffer()), type = (r.headers.get('content-type') || '').split(';')[0];
         if (r.status !== 200) return { why: `${d.name} answered HTTP ${r.status}.` };
         if (sha256(body) !== r.headers.get('x-content-sha256')) return { why: `${d.name} bytes do not hash to the sha256 the server recorded.` };
         if (body.length !== d.bytes) return { why: `${d.name} is ${body.length} bytes; the listing says ${d.bytes}.` };
@@ -231,7 +249,10 @@ export async function accept(argv, deps) {
       const saved = (await json(cookie, board)).state?.blocks?.find(b => b.id === 'acceptance-card')?.fileRef;
       if (!saved?.job || !saved.source?.id) return fail('reload: the saved board did not return the card\'s file reference.');
       const job = (await json(cookie, `/api/learn/files/jobs/${saved.job}`)).job;
-      const back = await collect(k, { id: saved.source.id, rev: saved.source.rev });
+      let back;
+      try { back = await collect(k, { id: saved.source.id, rev: saved.source.rev }, true); } catch (e) {
+        return fail(`reload: reading through the saved board failed (${e.message}). A 404 here means the board has no row or does not reference the file; the card was saved with the app's own PUT, so this is a server fault to report.`);
+      }
       const same = Object.keys(first.c.files).every(n => back.files?.[n]?.sha256 === first.c.files[n].sha256);
       if (!OK.includes(job.state) || back.why || !same) return fail(`reload: from the saved board the job is ${job.state} and the derivatives ${back.why || (same ? 'match' : 'differ from the first read')}.`);
       pass('reload', 'a fresh read of the saved board finds the finished job and byte-identical derivatives');
