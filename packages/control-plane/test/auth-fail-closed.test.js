@@ -151,6 +151,18 @@ test('production with a working provider: web says Check your email, CLI returns
   assert.ok(!cli.text.includes(CODE) && !cli.text.includes('devCode') && !cli.text.includes('/auth?token'));
 });
 
+test('the CLI login-code email is branded Rabbit Hole: subject, plain-text body (no HTML part), sender default; no legacy name', async (t) => {
+  const sent = provider(t, 'ok');
+  assert.equal((await cliLogin(withDb(t, { ...BASE, SMALL_ENV: 'production', RESEND_API_KEY: 're_fake' }))).res.status, 200);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].subject, `Rabbit Hole sign-in code: ${CODE}`);
+  assert.equal(sent[0].text, `Your Rabbit Hole sign-in code is ${CODE}
+It expires in 10 minutes.`);
+  assert.equal(sent[0].html, undefined);
+  assert.equal(sent[0].from, 'Rabbit Hole <onboarding@resend.dev>');
+  assert.ok(!/small/i.test(JSON.stringify(sent[0])), 'no legacy small name in the email');
+});
+
 for (const mode of ['test', 'dev']) {
   const env = { ...BASE, SMALL_ENV: mode, TEST_BYPASS_SECRET: SECRET, SMALL_TEST_BYPASS: SECRET };
 

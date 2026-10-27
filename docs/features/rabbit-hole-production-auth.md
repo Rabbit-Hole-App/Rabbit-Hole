@@ -133,7 +133,7 @@ The production Worker sets `PUBLIC_ORIGIN = "https://digrabbithole.com"` as a va
 - **Lifetime and limits:** 15 minutes. Per address, 3 links per 15 minutes and 10 per day.
 - **Email:** subject `Your Rabbit Hole sign-in link`, plain text, sent with `POST https://api.resend.com/emails`.
 - **Failure:** a missing key, a Resend error or a network error deletes the row and answers 503 "We couldn't send a sign-in email right now...". It never carries the link, `devLink` or a token. Logs show only `email send failed: status N`.
-- **`EMAIL_FROM`** is passed straight to Resend as `from`. Without it the sender is `small <onboarding@resend.dev>`, which Resend only delivers to the account owner, so production needs it.
+- **`EMAIL_FROM`** is passed straight to Resend as `from`. Without it the sender is `Rabbit Hole <onboarding@resend.dev>`, which Resend only delivers to the account owner, so production needs it.
 
 **Resend setup** (not done yet; take the DNS values from the Resend dashboard, not from here):
 1. Add the sending domain in Resend: `digrabbithole.com`, or a subdomain such as `mail.digrabbithole.com` to keep the apex's reputation separate.
@@ -142,7 +142,7 @@ The production Worker sets `PUBLIC_ORIGIN = "https://digrabbithole.com"` as a va
 4. Create an API key with Sending access, restricted to that domain. It becomes `RESEND_API_KEY`.
 5. Set `EMAIL_FROM` to an address on the verified domain, e.g. `Rabbit Hole <signin@digrabbithole.com>`.
 
-The CLI login code (`/api/cli/login`) uses the same sender. Its subject still says "small deploy".
+The CLI login code (`/api/cli/login`) uses the same sender. Subject `Rabbit Hole sign-in code: <code>`, body `Your Rabbit Hole sign-in code is <code>` and `It expires in 10 minutes.` (plain text only; pinned by `test/auth-fail-closed.test.js`).
 
 ## E. Provider changes, prepared and not applied
 

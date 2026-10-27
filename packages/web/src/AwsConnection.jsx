@@ -74,7 +74,7 @@ export default function AwsConnection({ workspace, apps = [], onChanged, onAcces
     </SettingsRow>
     {confirmDisconnect && <ConfirmDialog
       title="Disconnect AWS?"
-      body={<><p>This disconnects AWS from Small for this workspace. Your AWS resources and data stay intact, and you can reconnect later. Existing access may take up to 3 minutes to expire.</p>{error && <p role="alert" className="mt-2 text-danger">{error}</p>}</>}
+      body={<><p>This disconnects AWS from {learnPreview ? 'Rabbit Hole' : 'Small'} for this workspace. Your AWS resources and data stay intact, and you can reconnect later. Existing access may take up to 3 minutes to expire.</p>{error && <p role="alert" className="mt-2 text-danger">{error}</p>}</>}
       confirmLabel={busy ? 'Disconnecting' : 'Disconnect'}
       onConfirm={disconnect}
       onCancel={() => { if (!busy) { setConfirmDisconnect(false); setError(''); } }}
