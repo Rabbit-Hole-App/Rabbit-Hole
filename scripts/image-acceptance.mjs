@@ -313,7 +313,7 @@ export async function accept(argv, deps) {
               const onBoard = async () => { const s = (await api('GET', board)).json?.state; return (s?.blocks || []).filter(b => b?.fileRef?.source?.id === job.artifact.sourceId); };
               const found = await poll(onBoard, c => c.length > 0, 90 * 1000, 3000);
               ok('your browser placed the image card and the board saved it (exactly one)', found?.length === 1, `${found?.length ?? 0} card(s)`);
-              say(`  LOOK: the card at ${ORIGIN}/apps/${canvas} must show the image (not a broken picture) and open full size. Reload once more (Ctrl+R).`);
+              say(`  LOOK: the card at ${ORIGIN}/apps/${canvas} must show the image without a reload (Loading image first is fine; "This stored file could not be read here" is a FAIL), not a broken picture, and open full size. Then reload once more (Ctrl+R).`);
               await deps.pause('  Press Enter here when you have reloaded and the image card is still there: ');
               const stillThere = await onBoard();
               ok('after the second reload the board still holds the card', stillThere.length === 1, `${stillThere.length} card(s)`);

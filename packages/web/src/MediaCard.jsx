@@ -3,7 +3,7 @@
 // Every state says what is true: a preview that cannot be shown says why, and the original stays downloadable.
 import { useEffect, useRef, useState } from 'react';
 import { Download, Loader2, RotateCcw, TriangleAlert, X } from 'lucide-react';
-import { loadMediaOriginal, mediaMeta } from './media-storage.js';
+import { mediaMeta, readOriginal } from './media-storage.js';
 import { SvgRefused, sanitizeSvg } from './svg-sanitize.js';
 import { canWrite, cancelPlayback, derivativeState, derivativeUrl, findPlayback, probeMedia, requestPlayback, retryPlayback, watchPlayback } from './media-playback.js';
 import { FORK_PENDING_LABEL } from './file-jobs-client.js';
@@ -19,22 +19,23 @@ const codecName = codec => (codec || '').split(',').map(c => CODEC[c.trim()] || 
 
 // The original's bytes from this browser or the board, typed by what the import read (the server serves unknown types
 // as application/octet-stream), plus a download URL that can never render in the page.
+// A stored source that cannot be read yet keeps loading while readOriginal retries (media-storage.js); retry reads it again.
 function useOriginal(block) {
-  const [state, setState] = useState({ blob: null, download: null, missing: false });
+  const [state, setState] = useState({ blob: null, download: null, missing: false, loading: true });
+  const [attempt, setAttempt] = useState(0);
   const meta = mediaMeta(block);
   useEffect(() => {
-    let live = true, download = null;
-    loadMediaOriginal(block).then(value => {
-      if (!live) return;
-      if (!value || typeof value === 'string') { setState({ blob: null, download: null, missing: true }); return; }
+    let download = null;
+    const cancel = readOriginal(block, ({ status, blob: value }) => {
+      if (status !== 'ready') { setState({ blob: null, download: null, missing: status === 'missing', loading: status === 'loading' }); return; }
       const type = meta.type || value.type;
       const blob = value.type === type ? value : new Blob([value], { type });
       download = URL.createObjectURL(new Blob([value], { type: 'application/octet-stream' }));
-      setState({ blob, download, missing: false });
-    }).catch(() => live && setState({ blob: null, download: null, missing: true }));
-    return () => { live = false; if (download) URL.revokeObjectURL(download); };
-  }, [block.assetKey, block.fileRef?.source?.id, block.fileRef?.source?.rev, meta.type]); // eslint-disable-line react-hooks/exhaustive-deps
-  return state;
+      setState({ blob, download, missing: false, loading: false });
+    });
+    return () => { cancel(); if (download) URL.revokeObjectURL(download); };
+  }, [block.assetKey, block.fileRef?.source?.id, block.fileRef?.source?.rev, meta.type, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
+  return { ...state, retry: () => setAttempt(n => n + 1) };
 }
 const useObjectUrl = blob => {
   const [url, setUrl] = useState(null);
@@ -55,7 +56,15 @@ function Notice({ state, children, action }) {
     </div>
   );
 }
-const Missing = ({ stored }) => <p data-media-state="missing" className="p-2 text-sm text-ink-2">{stored ? 'This stored file could not be read here.' : 'This file is not in this browser or saved with the board yet.'}</p>;
+// Retry reads the stored file again (readOriginal): no job, no provider, no charge.
+export const Missing = ({ stored, noun = 'file', onRetry }) => (
+  <div data-media-state="missing" className="flex items-start gap-2 p-2 text-sm text-ink-2">
+    <p className="min-w-0 flex-1">{stored ? 'This stored file could not be read here.' : 'This file is not in this browser or saved with the board yet.'}</p>
+    {stored && onRetry && <button type="button" data-media-retry-load onPointerDown={event => event.stopPropagation()} onClick={onRetry}
+      className="flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink"><RotateCcw size={12} />Retry loading {noun}</button>}
+  </div>
+);
+const Loading = ({ noun }) => <p role="status" data-media-state="loading" className="flex items-center gap-2 p-2 text-sm text-ink-2"><Loader2 size={14} className="shrink-0 animate-spin" />Loading {noun}</p>;
 
 // ---- SVG --------------------------------------------------------------------------------------------------------------
 
@@ -274,12 +283,13 @@ export default function MediaBody({ block, onChange }) {
   const original = useOriginal(block);
   const upload = useUpload(block, onChange);
   const pending = block.fileRef && !block.fileRef.source?.id;
-  if (original.missing) return <>{pending && <SaveState state={upload.state} onRetry={upload.retry} />}<Missing stored={!!block.fileRef?.source?.id} /></>;
   const Body = BODY[block.kind] || ImageBody;
+  const noun = Body === ImageBody ? 'image' : 'file';
+  if (original.missing) return <>{pending && <SaveState state={upload.state} onRetry={upload.retry} />}<Missing stored={!!block.fileRef?.source?.id} noun={noun} onRetry={original.retry} /></>;
   return (
     <div data-media-card={block.kind} data-saved={block.fileRef ? (pending ? 'pending' : 'stored') : 'board-file'}>
       {pending && <SaveState state={upload.state} onRetry={upload.retry} />}
-      <Body block={block} original={original} onChange={onChange} />
+      {original.loading ? <Loading noun={noun} /> : <Body block={block} original={original} onChange={onChange} />}
       <div className="flex justify-end pt-1"><DownloadOriginal href={original.download} name={block.label} /></div>
     </div>
   );

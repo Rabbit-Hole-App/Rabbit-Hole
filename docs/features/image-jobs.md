@@ -245,6 +245,19 @@ and a repeated Generate charging nothing more, and, in UI mode (`flare` and `nb2
 owner presses Generate in the browser), that the image card is placed by the browser, persisted on the board and still there after a reload. A card is placed only
 by the browser (a job that ended before a reload is only shown), so `--api-only` reports the card as not verified. Receipts (no secrets): `C:/s/spec/image-activate/receipts`.
 The command stops at the first failure, skips runs with a PASS receipt on a re-run (`--force` repeats), and refuses a private ledger (`BUDGET_FILE`).
+
+**First-load display (acceptance criterion, task b4b89fb0, owner report 2026-10-27).** The generated image appears in its existing card without a reload.
+Cause of the report (a Sunburst low 1:1 1K reference edit: Chat said Ready and 1 credit, the card said "This stored file could not be read here." until a
+reload): `runImageJob` places the card when the job is ready, the card reads its stored file at once with this canvas's scope (`?app=&board=`), and the
+server authorizes that read only through a `file_source_refs` row, which the board save naming the card writes (about 1.9 s later: the canvas's 400 ms
+local save, then `pushBoard`'s 1.5 s debounce); until then the read is the same 404 as an unauthorized one, and the card never read again. A dropped image
+never hit this because its bytes are read from this browser. Now (`readOriginal`, media-storage.js; MediaCard.jsx) the card shows a spinner and "Loading
+image" (no ellipsis in UI text, a standing rule, so not "Loading image…"), reads again at once after each board save (`rh:board-saved`) and otherwise with
+backoff (0.5, 1, 2, 4, 8, 16 s), and only then says "This stored file could not be read here." with "Retry loading image", which reads the same stored file
+again: no job, no provider call, no charge. Chat's Ready and charge (generation complete) stay separate from the card's preview. Authorization is unchanged:
+a file this page may not read stays the same 404 and is shown as unavailable after the retries. A result for a card that was deleted, replaced or left is
+dropped. Tests: `media-storage.test.mjs` (reading a stored original), `media-card-loading.test.mjs`, `generate-image.test.mjs` (one card for a repeated
+completion), browser check `e2e/image-first-load-check.mjs` (fork tier, local stack, mocked job API, real stored sources).
 Tests: `scripts/image-acceptance.test.mjs` (a simulated deployed Rabbit Hole and a fake ledger, plus the real entry's `--dry-run` under Node's permission model).
 
 Public activation is one reviewed commit, held on branch `feat/image-activation-public-flip` for the owner's GO: the primitive `image_generate.ready`

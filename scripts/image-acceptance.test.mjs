@@ -214,6 +214,7 @@ test('UI mode: the owner presses Generate, the browser places the card, the boar
   const w = world({ browser: true, pressOn: true });
   assert.equal(await go(w, '--runs', 'flare,nb21'), 0, w.lines.join('\n'));
   assert.match(text(w), /YOUR TURN/); assert.match(text(w), /your browser placed the image card/); assert.match(text(w), /LOOK:/);
+  assert.match(text(w), /must show the image without a reload/, 'first-load display is the criterion (task b4b89fb0)');
   assert.equal(w.pauses, 2);
   const r = JSON.parse([...w.receipts.values()][0]); assert.deepEqual(r.card, { placedBy: 'your browser', persisted: true });
   assert.equal(w.providerCalls, 2);
