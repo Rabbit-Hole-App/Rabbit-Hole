@@ -114,7 +114,7 @@ async function prepare(context) {
   await context.route(/\/api\/ask\/threads\/[^/?]+$/, route => {
     const id = decodeURIComponent(new URL(route.request().url()).pathname.split('/').pop());
     if (!restoring || id !== restoring || route.request().method() !== 'GET') return route.fallback();
-    return route.fulfill({ json: { id, title: 'Image first load', mode: 'auto', contextRefs: [], draft: null, messages: turns.filter(t => t.threadId === id).flatMap(t => [t.user, t.answer]) } });
+    return route.fulfill({ json: { id, title: 'Image first load', mode: 'ask', contextRefs: [], draft: null, messages: turns.filter(t => t.threadId === id).flatMap(t => [t.user, t.answer]) } });
   });
 }
 async function open(context) {
@@ -147,9 +147,11 @@ failShot = n => page.screenshot({ path: `${OUT}/FAIL-${String(n).padStart(2, '0'
 const dock = page.locator('[data-chat-pane]');
 const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
 const modeButton = dock.getByRole('button', { name: 'Mode', exact: true });
-if ((await modeButton.getAttribute('data-chat-mode')) !== 'auto') {
-  await modeButton.click(); await page.locator('[data-chat-mode-option="auto"]').click();
-  await until(async () => (await modeButton.getAttribute('data-chat-mode')) === 'auto', 'mode auto');
+// Ask: in Auto a canvas with an active Tutor sends a non-review command line to the Tutor's plan (chat-route.js tutorTurn), which is
+// aborted here; Ask always posts the turn itself, where /image asks for its plan (ask.jsx imagePlan). Run 40541917172 part 3.
+if ((await modeButton.getAttribute('data-chat-mode')) !== 'ask') {
+  await modeButton.click(); await page.locator('[data-chat-mode-option="ask"]').click();
+  await until(async () => (await modeButton.getAttribute('data-chat-mode')) === 'ask', 'mode ask');
 }
 await until(() => offered > 0, 'the page asked whether image generation is offered (MOCKED yes)');
 // /image <words>, then Generate on its plan card: -> the new canvas card's block id.
@@ -255,9 +257,9 @@ await step('a reload shows the image again; no card is placed again and no job i
     assert.equal((await blockIds(page)).length, cards, 'no card placed again');
     assert.equal(posts.length, jobs, 'no job started or resubmitted');
     await page.screenshot({ path: `${OUT}/04-reloaded.png` });
+    assert.deepEqual(page.errors, [], 'no page errors');
   } finally { restoring = null; }
 });
-assert.deepEqual(page.errors, [], 'no page errors');
 await context.close();
 
 // 5 ----------------------------------------------------------------------------------------------------------------
