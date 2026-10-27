@@ -1,7 +1,7 @@
 // The render service's job controls: idempotent submits keyed by a stable render-job id (same id never starts a second render, in any
 // state, across a restart over the same store), explicit cancel, the per-job deadline (off by default) and the configuration each
 // record states. The child is stub-child.mjs (the same job-directory protocol, no rendering); nothing here renders or spends.
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import * as realFs from 'node:fs';
 import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -23,11 +23,22 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
 const tmp = (t, prefix) => { const d = mkdtempSync(join(tmpdir(), prefix)); t.after(() => rmSync(d, { recursive: true, force: true })); return d; };
 
+// A service left listening keeps this file's process alive after its last test (the units gate then hangs until its timeout):
+// a throwing t.after hook skips the hooks registered after it. So each service stops and closes before its job directory is
+// removed (no child is starting inside a directory being deleted), and the file's own after() closes any service still open.
+const open = new Set();
+after(() => {
+  const left = [...open];
+  for (const svc of left) { svc.stop(); svc.server.close(); }
+  assert.equal(left.length, 0, `${left.length} render service(s) were still open after their test`);
+});
+
 async function start(t, mode, options = {}) {
-  const jobsDir = tmp(t, 'motion-ctl-jobs-');
+  const jobsDir = mkdtempSync(join(tmpdir(), 'motion-ctl-jobs-'));
   const svc = motionRenderService({ token: TOKEN, sandbox: 'none', jobsDir, childScript: join(HERE, 'stub-child.mjs'), childArgs: [mode], ...options });
+  open.add(svc);
   await new Promise(r => svc.server.listen(0, '127.0.0.1', r));
-  t.after(() => { svc.stop(); svc.server.close(); });
+  t.after(() => { svc.stop(); svc.server.close(); open.delete(svc); rmSync(jobsDir, { recursive: true, force: true, maxRetries: 5 }); });
   const base = `http://127.0.0.1:${svc.server.address().port}`;
   const call = (path, { headers = auth, ...init } = {}) => fetch(base + path, { headers, ...init });
   const post = (body, key, headers = auth) => call('/render', { method: 'POST', headers: { ...headers, 'content-type': 'application/json', ...(key ? { 'idempotency-key': key } : {}) }, body: typeof body === 'string' ? body : JSON.stringify(body) });
