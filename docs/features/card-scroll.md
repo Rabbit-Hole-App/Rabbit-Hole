@@ -1,5 +1,7 @@
 # Card editing and reversible Scrollable / Full content layouts
 
+Shipped scope, exact release evidence and verification limits: [October 17 release receipt](../releases/2026-10-17-card-scroll.md). The brief below records requested behavior; the receipt states the supported card types and intentional restrictions.
+
 Implement two independent features:
 
 1. Ctrl+K → Edit can rewrite a selected card according to the user's instruction.

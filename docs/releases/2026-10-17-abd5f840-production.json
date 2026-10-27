@@ -1,0 +1,39 @@
+{
+  "sha": "abd5f840cd701b072630e6405f93a78978875acc",
+  "build": "32af51ae8a826b88",
+  "run": "39056178155.1",
+  "at": "2026-10-17T18:01:21.470Z",
+  "deployed": {
+    "rabbit-hole-cp": "0fd168d4-852b-4c04-a586-dd6b739e6c5a",
+    "rabbit-hole-app": "1547d013-ef17-4948-a677-3521f66ff27e"
+  },
+  "smoke": [
+    {
+      "check": "GET / 200 and the new build's entry",
+      "ok": true,
+      "got": "200 /static/landing-DDZHwc5_.js"
+    },
+    {
+      "check": "GET /static/landing-DDZHwc5_.js 200",
+      "ok": true,
+      "got": 200
+    },
+    {
+      "check": "GET /login 302 to /sign-in",
+      "ok": true,
+      "got": "302 https://digrabbithole.com/sign-in"
+    },
+    {
+      "check": "GET /a/x 404",
+      "ok": true,
+      "got": 404
+    },
+    {
+      "check": "GET /api/me 401",
+      "ok": true,
+      "got": 401
+    }
+  ],
+  "outcome": "released",
+  "sanitization": "Recovery bookmarks and previous versions omitted; retain original workflow artifact for recovery."
+}
