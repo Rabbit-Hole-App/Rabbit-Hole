@@ -22,7 +22,7 @@ const browser = await chromium.launch();
 
 // Links in the DOM, so the mobile sheet (hidden until the menu opens) and the footers count too.
 const docsLinks = (page) => page.evaluate(() => [...document.querySelectorAll('a[href]')]
-  .filter((a) => /^\/docs(\/|$)/i.test(new URL(a.href, location.href).pathname) || /^\s*(docs|documentation)\s*$/i.test(a.textContent || ''))
+  .filter((a) => { const u = new URL(a.href, location.href); return (u.origin === location.origin && /^\/docs(\/|$)/i.test(u.pathname)) || /^\s*(docs|documentation)\s*$/i.test(a.textContent || ''); }) // same-origin only: a card may cite an outside docs site
   .map((a) => `${a.getAttribute('href')} "${(a.textContent || '').trim()}"`));
 
 const noDocsLinks = async (viewport) => {
