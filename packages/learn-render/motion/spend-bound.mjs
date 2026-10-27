@@ -106,3 +106,66 @@ export function holdCoverage(policy, hold, models, prices, order = ['motion_brie
   }
   return { ...worst, hold, fits: worst.micros <= hold, reachable_micros: reachable };
 }
+
+// ---- The route budget: what a ceiling must be able to carry for the routes the policy OFFERS (owner lane 2026-10-26, after job 3c46c4d2) ----
+// The guard refuses a call unless committed + its bound + the floor of the calls that must follow it fit the ceiling. The hold (8.96) is the
+// policy-cap bound of all 9 calls; no ceiling below it PROVES a route. What a ceiling can honestly be asked is whether the guard lets the offered
+// routes run when every call is within the declared SUPPORTED_ENVELOPE (request sizes of the largest supported job: 30 s, 8 beats, 18 review
+// frames) and every finished call cost no more than the envelope's `actual`. A ceiling below that is refused before any spend. Not a promise that
+// a job succeeds: a job outside the envelope (an Author at its 64000-token cap in both rounds) is still stopped by the guard, at zero credits.
+// Every number is pinned by spend-bound.test.mjs against the recorded requests and the guard itself. ponytail: the envelope is declared, not measured per job.
+const shape = (kind, bytes, images, actual, max_tokens) => Object.freeze({ kind, bytes, images, actual, ...(max_tokens ? { max_tokens } : {}) });
+export const SUPPORTED_ENVELOPE = Object.freeze({
+  brief: shape('motion_brief', 16000, 0, 70_000),
+  storyboard: shape('motion_storyboard', 24000, 0, 250_000),
+  revision: shape('motion_storyboard', 40000, 0, 250_000),
+  author: shape('motion_composition', 32000, 0, 1_200_000),
+  author_whole: shape('motion_composition', 72000, 0, 1_200_000), // after a Director revision the Author rewrites the whole source
+  author_patch: shape('motion_composition', 72000, 0, 150_000, 24000), // 24000 = AUTHOR_REPAIR_CAP (author.js), pinned by the test
+  review: shape('motion_review', 16000, 18, 85_000), // each of the two reviewers; 18 = the 17 contact frames of an 8-beat storyboard (the most it can have) + one Director keyframe
+});
+const PAIR = ['review', 'review'];
+// The four routes the pipeline can take (review-job.mjs): the first pass, the Author patch, a Director revision before the Author, a Director
+// revision after a blocking review. Each is the full call sequence in order.
+export const ROUTES = Object.freeze({
+  first_pass: ['brief', 'storyboard', 'author', ...PAIR],
+  author_patch: ['brief', 'storyboard', 'author', ...PAIR, 'author_patch', ...PAIR],
+  pre_author_revision: ['brief', 'storyboard', 'revision', 'author', ...PAIR, 'author_patch', ...PAIR],
+  post_review_revision: ['brief', 'storyboard', 'author', ...PAIR, 'revision', 'author_whole', ...PAIR],
+});
+// The guard's sum at every call of a route (orchestrator.mjs guarded): committed (finished calls at the envelope's cost, the first reviewer of a pair
+// still in flight at its bound) + this call's bound + the floor of what must follow (AHEAD; the first reviewer holds a place for the second).
+// -> {micros, call (1-based), kind, name, rows} for the largest, or {micros: null, unpriced|missing} when a kind has no price or no rule.
+export function routePeak(names, policy, models = 'claude-opus-5-5', prices = MODEL_PRICES, envelope = SUPPORTED_ENVELOPE) {
+  const rows = [], issued = {};
+  let committed = 0, firstReviewerBound = 0;
+  for (const [i, name] of names.entries()) {
+    const e = envelope[name], base = policy?.[e.kind];
+    if (!base) return { micros: null, missing: [e.kind] };
+    const ids = [].concat(typeof models === 'string' ? models : models[e.kind] ?? []);
+    if (!ids.length || ids.some(id => !prices[id])) return { micros: null, unpriced: [e.kind] };
+    const bound = Math.max(...ids.map(id => callBoundMicros({ ...base, bytes: e.bytes, images: e.images, max_tokens: e.max_tokens ?? base.max_tokens }, prices[id])));
+    const count = issued[e.kind] || 0;
+    const path = e.kind === 'motion_review' ? (count % 2 === 0 ? [['motion_review', 1]] : []) : (AHEAD[e.kind] ?? []);
+    const ahead = pathFloor(path, policy, models, prices).micros ?? 0;
+    const inFlight = e.kind === 'motion_review' && count % 2 === 1 ? firstReviewerBound : 0; // the second reviewer sees the first at its bound
+    rows.push({ call: i + 1, kind: e.kind, name, bound, committed: committed + inFlight, ahead, peak: committed + inFlight + bound + ahead });
+    issued[e.kind] = count + 1;
+    if (e.kind !== 'motion_review') committed += e.actual;
+    else if (count % 2 === 0) firstReviewerBound = bound;
+    else committed += 2 * e.actual; // the pair has landed: both at cost
+  }
+  const top = rows.reduce((a, b) => (b.peak > a.peak ? b : a));
+  return { micros: top.peak, call: top.call, kind: top.kind, name: top.name, rows };
+}
+// The least a ceiling may be for a NEW job: the largest guard sum over the offered routes. -> {micros, route, call, kind, routes: {name: micros}} | {micros: null, unpriced|missing}
+export function routeBudget(policy, models = 'claude-opus-5-5', prices = MODEL_PRICES, envelope = SUPPORTED_ENVELOPE) {
+  const routes = {};
+  for (const [name, names] of Object.entries(ROUTES)) {
+    const p = routePeak(names, policy, models, prices, envelope);
+    if (p.micros == null) return { micros: null, unpriced: p.unpriced ?? [], missing: p.missing ?? [] };
+    routes[name] = p;
+  }
+  const [route, top] = Object.entries(routes).reduce((a, b) => (b[1].micros > a[1].micros ? b : a));
+  return { micros: top.micros, route, call: top.call, kind: top.kind, routes: Object.fromEntries(Object.entries(routes).map(([k, v]) => [k, v.micros])) };
+}
