@@ -107,13 +107,14 @@ export function holdCoverage(policy, hold, models, prices, order = ['motion_brie
   return { ...worst, hold, fits: worst.micros <= hold, reachable_micros: reachable };
 }
 
-// ---- The route budget: what a ceiling must be able to carry for the routes the policy OFFERS (owner lane 2026-10-26, after job 3c46c4d2) ----
-// The guard refuses a call unless committed + its bound + the floor of the calls that must follow it fit the ceiling. The hold (8.96) is the
-// policy-cap bound of all 9 calls; no ceiling below it PROVES a route. What a ceiling can honestly be asked is whether the guard lets the offered
-// routes run when every call is within the declared SUPPORTED_ENVELOPE (request sizes of the largest supported job: 30 s, 8 beats, 18 review
-// frames) and every finished call cost no more than the envelope's `actual`. A ceiling below that is refused before any spend. Not a promise that
-// a job succeeds: a job outside the envelope (an Author at its 64000-token cap in both rounds) is still stopped by the guard, at zero credits.
-// Every number is pinned by spend-bound.test.mjs against the recorded requests and the guard itself. ponytail: the envelope is declared, not measured per job.
+// ---- The route budget (the route PLANNING ESTIMATE): what a ceiling should be able to carry for the routes the policy OFFERS (owner lane 2026-10-26, after job 3c46c4d2) ----
+// A FIXTURE-BASED PLANNING ESTIMATE, NOT a proven worst-case completion bound. It replays the real guard on a DECLARED SUPPORTED_ENVELOPE (request sizes of the largest
+// supported job: 30 s, 8 beats, 18 review frames) with ASSUMED per-call costs (the envelope's `actual`: Author 1.2 per round, review pair 0.17, patch 0.15).
+// The guard refuses a call unless committed + its bound + the floor of the calls that must follow it fit the ceiling. The hold (8.96) is the policy-cap bound of all
+// 9 calls, and the provable worst case is that reservation; no ceiling below it PROVES a route. A ceiling below the estimate is refused before any spend. A ceiling at
+// or above it does NOT promise a video: a job whose calls cost more than the assumptions (an Author at its 64000-token cap in both rounds) is still refused or stopped
+// by the guard mid-job, at zero learner credits. Every number is pinned by the tests against the recorded requests and the guard itself.
+// ponytail: the envelope and its costs are declared, not measured per job.
 const shape = (kind, bytes, images, actual, max_tokens) => Object.freeze({ kind, bytes, images, actual, ...(max_tokens ? { max_tokens } : {}) });
 export const SUPPORTED_ENVELOPE = Object.freeze({
   brief: shape('motion_brief', 16000, 0, 70_000),
@@ -158,7 +159,7 @@ export function routePeak(names, policy, models = 'claude-opus-5-5', prices = MO
   const top = rows.reduce((a, b) => (b.peak > a.peak ? b : a));
   return { micros: top.peak, call: top.call, kind: top.kind, name: top.name, rows };
 }
-// The least a ceiling may be for a NEW job: the largest guard sum over the offered routes. -> {micros, route, call, kind, routes: {name: micros}} | {micros: null, unpriced|missing}
+// The planning estimate for a NEW job (not a worst-case bound, see above): the largest guard sum over the offered routes on the declared envelope. -> {micros, route, call, kind, routes: {name: micros}} | {micros: null, unpriced|missing}
 export function routeBudget(policy, models = 'claude-opus-5-5', prices = MODEL_PRICES, envelope = SUPPORTED_ENVELOPE) {
   const routes = {};
   for (const [name, names] of Object.entries(ROUTES)) {

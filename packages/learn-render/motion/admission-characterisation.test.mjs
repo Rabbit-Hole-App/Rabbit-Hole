@@ -534,8 +534,8 @@ test('repair path 3, pre-Author storyboard revision: a storyboard that fails its
   assert.ok(row.every(p => p <= CEILING), 'the US$3.50 ceiling covers this route at every profile, the Author at its cap included');
 });
 
-// ---- THE POLICY CANDIDATE: the route budget (docs/features/motion-admission-policy.md) ------------------------------------------------------
-// The HELD candidate adds, behind MOTION_ROUTE_BUDGET_CHECK, a preflight that refuses a NEW job before any spend when the ceiling cannot carry the routes the
+// ---- THE POLICY CANDIDATE: the route planning estimate (docs/features/motion-admission-policy.md) ----
+// The policy candidate adds, behind MOTION_ROUTE_BUDGET_CHECK, a preflight that refuses a NEW job before any spend when the ceiling cannot carry the PLANNING ESTIMATE (fixture-based, not a proven worst case) of the routes the
 // policy offers. Everything above this line is unchanged behaviour (the check is off in those harnesses), which is the negative control for what follows.
 const envelopeAs = trace => { // an envelope made of the sizes and costs one real run used (the two reviewers' costs are averaged)
   const by = (tool, n) => trace.filter(c => c.tool === tool)[n];
@@ -546,7 +546,7 @@ const envelopeAs = trace => { // an envelope made of the sizes and costs one rea
     review: sh(by('motion_review', 1), rv) };
 };
 
-test('ROUTE BUDGET: the number, per route, and the call that sets it (policy-cap rules, the declared envelope, claude-opus-5-5)', () => {
+test('ROUTE PLANNING ESTIMATE (fixture-based, not a proven worst case): the number, per route, and the call that sets it (policy-cap rules, the declared envelope with assumed per-call costs, claude-opus-5-5)', () => {
   const budget = routeBudget(PRODUCTION_POLICY, modelsFor({}));
   assert.deepEqual([budget.micros, budget.route, budget.call, budget.kind], [4_811_120, 'post_review_revision', 9, 'motion_review']);
   assert.deepEqual(budget.routes, { first_pass: 3_191_120, author_patch: 3_511_120, pre_author_revision: 3_761_120, post_review_revision: 4_811_120 });
@@ -556,7 +556,7 @@ test('ROUTE BUDGET: the number, per route, and the call that sets it (policy-cap
   assert.equal(routeBudget({ ...PRODUCTION_POLICY, motion_review: undefined }, modelsFor({})).micros, null, 'a stage the policy does not allow has no budget');
 });
 
-test('ROUTE BUDGET envelope: inside the policy caps, the frame count is the structural maximum, the patch cap is the Author repair cap, and it covers the recorded real requests', async t => {
+test('ROUTE PLANNING ESTIMATE envelope: inside the policy caps, the frame count is the structural maximum, the patch cap is the Author repair cap, and it covers the recorded real requests', async t => {
   for (const e of Object.values(SUPPORTED_ENVELOPE)) { const rule = PRODUCTION_POLICY[e.kind]; assert.ok(e.bytes <= rule.bytes && e.images <= rule.images && (e.max_tokens ?? rule.max_tokens) <= rule.max_tokens, e.kind); }
   assert.equal(SUPPORTED_ENVELOPE.author_patch.max_tokens, AUTHOR_REPAIR_CAP);
   // 8 beats is the storyboard maximum (storyboard-check.js); the contact frames of such a storyboard, with no brief keyframes, are 2 + 2 x 8 less the first beat's start (frame 0 again) = 17;
@@ -575,7 +575,7 @@ test('ROUTE BUDGET envelope: inside the policy caps, the frame count is the stru
   assert.ok(2 * bound('review') >= 1_510_000, 'the review pair covers the recorded 16-frame pair (1.51; the 15-frame pair is 1.461)');
 });
 
-test('ROUTE BUDGET simulator = the real guard: for each route, routePeak on the sizes and costs a real run used is the guard\'s own peak (never below it, within one reviewer-bound difference above it)', async t => {
+test('ROUTE PLANNING ESTIMATE simulator = the real guard: for each route, routePeak on the sizes and costs a real run used is the guard\'s own peak (never below it, within one reviewer-bound difference above it)', async t => {
   for (const [name, make] of [['first_pass', FIRST_PASS], ['author_patch', PATCH_ROUTE], ['post_review_revision', REVISION_ROUTE]]) {
     const h = await harness(t, make(), { ceiling: GRANT });
     const { v } = await h.run();
@@ -592,7 +592,7 @@ test('ROUTE BUDGET simulator = the real guard: for each route, routePeak on the 
   assert.ok(routePeak(ROUTES.post_review_revision, PRODUCTION_POLICY, modelsFor({}), undefined, { ...env, review: { ...env.review, images: 0, bytes: 100 } }).micros < Math.max(...peaks(probe.fake.trace).map(r => r.peak)));
 });
 
-test('PREFLIGHT ROUTE CHECK: a ceiling below the route budget is refused at POST /jobs with nothing spent, a specific reason and no amount in the answer; US$3.50 refused, US$5.00 admitted and carries the revision route', async t => {
+test('PREFLIGHT ROUTE CHECK: a ceiling below the route planning estimate is refused at POST /jobs with nothing spent, a specific reason and no amount in the answer; US$3.50 refused, US$5.00 admitted and carries the revision route', async t => {
   const budget = routeBudget(PRODUCTION_POLICY, modelsFor({})).micros;
   // US$3.50 (grant 8.96): refused before any renderer check, hold use or paid call.
   const low = await harness(t, {}, { ceiling: CEILING, routeCheck: true });
@@ -601,7 +601,7 @@ test('PREFLIGHT ROUTE CHECK: a ceiling below the route budget is refused at POST
   assert.deepEqual([refused.answer.error, refused.answer.code], ['not_configured', 'job_ceiling_insufficient']);
   assert.doesNotMatch(JSON.stringify(refused.answer), /\$|\d\.\d\d/, 'no amount in what the Worker relays');
   assert.deepEqual([low.fake.trace.length, low.o.jobs.size, low.o.active], [0, 0, null], 'no model call, no job, no renderer work');
-  assert.match(low.logs.at(-1), /refused job_ceiling_insufficient before starting: the post review revision route the policy offers \(call 9, motion_review\) needs up to \$4\.8111, more than the \$3\.5000 job ceiling; least needed \$2\.56, route budget \$4\.81112, ceiling \$3\.5 .*nothing was spent/);
+  assert.match(low.logs.at(-1), /refused job_ceiling_insufficient before starting: the planning estimate for the post review revision route the policy offers \(call 9, motion_review; fixture-based, not a proven worst case\) is \$4\.8111, more than the \$3\.5000 job ceiling; least needed \$2\.56, route planning estimate \$4\.81112, ceiling \$3\.5 .*nothing was spent/);
   // The check is exact: one micro-USD below the budget is refused, the budget itself passes preflight; a small GRANT lowers the ceiling the same way.
   const pre = ceilingMicros => preflight({ policy: PRODUCTION_POLICY, maxCalls: 9, ceilingMicros, routeCheck: true });
   assert.deepEqual([pre(budget - 1).ok, pre(budget - 1).code, pre(budget).ok, pre(budget).route_budget_micros], [false, 'job_ceiling_insufficient', true, budget]);
@@ -617,10 +617,10 @@ test('PREFLIGHT ROUTE CHECK: a ceiling below the route budget is refused at POST
   assert.ok(Math.max(...peaks(ok.fake.trace).map(r => r.peak)) <= budget, 'the real guard peak of that run is inside the budget');
 });
 
-test('PREFLIGHT ROUTE CHECK is for NEW jobs: a recovery attempt at US$3.50 is not refused by the new-job route budget (Continue fixing is gated by nextStage, shown above)', async t => {
+test('PREFLIGHT ROUTE CHECK is for NEW jobs: a recovery attempt at US$3.50 is not refused by the new-job route planning estimate (Continue fixing is gated by nextStage, shown above)', async t => {
   const first = await observed(t);
   const artifacts = await (await first.h.req(`/jobs/${first.id}/artifacts`)).json();
   const r = await continueFixing(t, artifacts, { ceiling: CEILING, routeCheck: true });
-  assert.equal(r.status, 202, 'a recovery is not refused by the new-job route budget');
+  assert.equal(r.status, 202, 'a recovery is not refused by the new-job route planning estimate');
   assert.equal(r.v.status, 'ready');
 });
