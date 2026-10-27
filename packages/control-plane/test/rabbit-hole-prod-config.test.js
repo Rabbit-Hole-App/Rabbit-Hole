@@ -154,14 +154,17 @@ test('production binds FILE_JOBS and enables file conversion and Ctrl+K image ed
   for (const name of ['CONVERT_TOKEN', 'FILE_JOB_SECRET', 'INLINE_CODE_LOADER']) assert.ok(!JSON.stringify(app).includes(name), `${name} is a secret or a loader, never in the config`);
 });
 
-// Batch B6 ships Image, File Converter and Ctrl+K without Motion (Motion is blocked on owner acceptance). Production Motion stays exactly as released: paused, no renderer config,
-// no credit-disclosure cap. A Motion release replaces this pin in the same change that flips one of these.
-test('production Motion is unchanged: public generation paused, no renderer config, no disclosure cap', () => {
+// Batch B6 shipped Image, File Converter and Ctrl+K without Motion (Motion is blocked on owner acceptance). A Motion release replaces this pin in the same change that flips one of these:
+// the credit disclosure (feat/motion-policy-a) adds the signed maximum charge on the app Worker at the CURRENT approved 350 credits (the policy values commit moves it, with its own pin);
+// production Motion is still paused and has no renderer config.
+test('production Motion: public generation paused, no renderer config, the disclosed maximum on the app Worker only', () => {
   const app = config(APP), cp = config(CP);
   assert.equal(app.vars.MOTION_GENERATION_PAUSED, '1');
   assert.deepEqual([app.vars.MOTION_ORCHESTRATOR_URL, app.vars.MOTION_JOB_RESERVATION_USD, app.vars.MOTION_ESTIMATE_USD],
     ['https://rabbit-hole-motion-orchestrator.fly.dev', '8.96', '1.00']);
-  for (const c of [app, cp]) for (const name of ['MOTION_RENDERER_CONFIG', 'MOTION_MAX_CHARGE_USD']) assert.equal(c.vars?.[name], undefined, name);
+  for (const c of [app, cp]) assert.equal(c.vars?.MOTION_RENDERER_CONFIG, undefined, 'MOTION_RENDERER_CONFIG');
+  assert.equal(app.vars.MOTION_MAX_CHARGE_USD, '3.50');
+  assert.equal(cp.vars?.MOTION_MAX_CHARGE_USD, undefined, 'the control plane Worker has no maximum');
 });
 
 test('the control plane is private: no route, no workers.dev, SMALL_ENV production, BASE_URL and PUBLIC_ORIGIN the public origin', () => {
