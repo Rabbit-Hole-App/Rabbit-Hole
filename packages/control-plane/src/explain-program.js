@@ -62,8 +62,8 @@ export async function artifactIntact(artifact) {
 // Text in the manifest the learner reads, as the reviewer's "facts" (the source itself goes in its own block).
 export const programFacts = manifest => [...new Set([manifest.summary, manifest.description, ...(manifest.assumptions || []), ...(manifest.inputs || []).flatMap(i => [i.label, ...(i.options || []).map(o => o.label)]), ...(manifest.readouts || []).map(r => r.label)].filter(Boolean).map(t => String(t).trim()))];
 
-// The default state and the moments a first capture shows. shortcut: Task 6 replaces this by the stated sampling manifest
-// (defaults, boundaries, selected combinations, intermediate poses); it is never claimed exhaustive.
+// The default state and the declared playback moments; programCaptureManifest (explain-render.js) samples them and the boundary
+// input states within the capture budget, and states what it sampled and omitted. Never claimed exhaustive.
 export const defaultInputs = manifest => resolveInputs(manifest, {});
 export const programMoments = manifest => (manifest.duration ? [0, Number((manifest.duration / 2).toFixed(3)), manifest.duration] : [0]);
 

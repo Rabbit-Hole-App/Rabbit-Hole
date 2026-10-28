@@ -78,16 +78,40 @@ export async function captureManifest(scene, { reserved, themes = ['light', 'dar
   return { compiledHash: await compiledHash(scene), reserved, entries, coverage: { states: states.length, moments: moments.length, frames: unique, themes: themes.slice(0, fit) } };
 }
 
-// The program card's capture manifest (explain sandbox Task 5 first version): the default inputs at the start, middle and end of the
-// declared playback (the start only when there is none), light theme. The program decides the frame size at run time; the
-// nominal viewport is the contract default. shortcut: Task 6 replaces this by the stated sampling manifest (boundaries, selected
-// control combinations, intermediate poses); samples are evidence, never an exhaustive claim.
+// The single-input boundary states of a program, in declared order (a number's min and max, a select's first and last option), each a
+// change from the defaults, then ONE combined state (every input at its max/last, else at its min/first). Identical states are
+// dropped, so none costs a capture twice. shortcut: the contract has only number and select inputs; intermediate values and further
+// combinations are not sampled, so these are evidence, never an exhaustive claim.
+function alternativeStates(manifest, defaults) {
+  const bounds = input => (input.type === 'number' ? [['min', input.min], ['max', input.max]] : [['first', input.options[0].value], ['last', input.options.at(-1).value]]);
+  const seen = new Set([canonicalJson(defaults)]), out = [];
+  const add = (label, inputs) => { const key = canonicalJson(inputs); if (!seen.has(key)) { seen.add(key); out.push({ label, inputs }); } };
+  for (const input of manifest.inputs) for (const [edge, value] of bounds(input)) add(`${edge} of ${input.id}`, { ...defaults, [input.id]: value });
+  const single = out.length;
+  if (manifest.inputs.length > 1) for (const side of [1, 0]) if (out.length === single) add(`combined: every input at its ${side ? 'max/last' : 'min/first'}`, Object.fromEntries(manifest.inputs.map(input => [input.id, bounds(input)[side][1]])));
+  return out;
+}
+
+// The program card's capture manifest: the default inputs at the start, middle and end of the declared playback (the start only when
+// there is none), then, in the capture budget that remains, the boundary input states (alternativeStates) at the middle moment, light
+// theme. The defaults always come first and are never dropped for an alternative; what does not fit is listed in coverage.omitted
+// (never trimmed silently, never over the reservation). The program decides the frame size at run time; the nominal viewport is the
+// contract default.
 export async function programCaptureManifest(artifact, { reserved, themes = ['light'], dpr = 1, width = 960, height = 540 }) {
   const inputs = defaultInputs(artifact.manifest), moments = programMoments(artifact.manifest);
   const fit = themes.filter((_, index) => moments.length * (index + 1) <= reserved.captures);
   if (!fit.length) throw new RenderError('over_budget', `this program needs ${moments.length} captures and a round reviews at most ${reserved.captures}`);
-  const entries = moments.flatMap((time, m) => fit.map(theme => ({ id: [moments.length > 1 && `t${m}`, theme].filter(Boolean).join('-'), part: 0, time, inputs, theme, width, height, dpr, target: 'frame' })));
-  return { compiledHash: await compiledHash(artifact), reserved, entries, coverage: { states: 1, moments: moments.length, frames: moments.length, themes: fit } };
+  const entry = (id, time, theme, state) => ({ id, part: 0, time, inputs: state, theme, width, height, dpr, target: 'frame' });
+  const entries = moments.flatMap((time, m) => fit.map(theme => entry([moments.length > 1 && `t${m}`, theme].filter(Boolean).join('-'), time, theme, inputs)));
+  const sampled = moments.map((time, m) => ({ id: entries[m * fit.length].id, label: 'default', inputs: {}, time }));
+  const candidates = alternativeStates(artifact.manifest, inputs), room = Math.max(0, reserved.captures - entries.length);
+  const alternatives = candidates.slice(0, room), time = moments[moments.length >> 1];
+  for (const [k, { label, inputs: state }] of alternatives.entries()) {
+    const added = entry(`a${k}-${fit[0]}`, time, fit[0], state);
+    entries.push(added);
+    sampled.push({ id: added.id, label, inputs: Object.fromEntries(Object.entries(state).filter(([key, value]) => value !== inputs[key])), time });
+  }
+  return { compiledHash: await compiledHash(artifact), reserved, entries, coverage: { states: 1 + alternatives.length, moments: moments.length, frames: sampled.length, themes: fit, sampled, omitted: candidates.slice(room).map(c => c.label) } };
 }
 
 // Exact manifest after compile: dedups identical states by hash, refuses (never trims) an over-budget manifest

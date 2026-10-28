@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { renderStage } from '../src/explain-job.js';
-import { RENDER_ENTRY, RENDER_LIMITS, RENDER_ORIGIN, allowedAsset, checkManifest, compiledHash, interceptor, programCaptureManifest, renderStates, reserveCaptures } from '../src/explain-render.js';
+import { RENDER_ENTRY, RENDER_LIMITS, RENDER_ORIGIN, allowedAsset, checkManifest, compiledHash, interceptor, programCaptureManifest, renderStates, reserveCaptures, reserveRound } from '../src/explain-render.js';
 import { buildProgramArtifact } from '../src/explain-program.js';
 
 const scene = { id: 's', width: 400, height: 300, duration: 2, objects: [], timeline: [] };
@@ -186,4 +186,84 @@ test('a blocked capture times out through the real capture path, closes the page
   assert.equal(result.captures.length, 3);
   assert.equal(fresh.state.closed, true);
   assert.equal(timers(), before);
+});
+
+// Task 6 review coverage: the program capture manifest samples the defaults first, then boundary input states within the budget.
+const SOURCE = 'export function evaluate() { return { frame: { objects: [] }, quantities: {} }; }';
+const num = (id, min, max, def) => ({ type: 'number', id, label: id, min, max, default: def });
+const pick = (id, values, def) => ({ type: 'select', id, label: id, default: def, options: values.map(value => ({ value, label: value })) });
+const programWith = (inputs, duration = 4) => buildProgramArtifact({ source: SOURCE,
+  manifest: { title: 'T', summary: 'S', assumptions: [], description: 'D', inputs, ...(duration ? { duration } : {}), readouts: [], capabilities: ['time_playback', 'number_inputs', 'select_inputs'] } });
+const SIX = reserveRound({ cap: 6 });
+
+test('a program with no inputs keeps the default moments only and states nothing omitted', async () => {
+  const artifact = await programWith([]);
+  const manifest = await programCaptureManifest(artifact, { reserved: SIX });
+  assert.deepEqual(manifest.entries.map(e => [e.id, e.time]), [['t0-light', 0], ['t1-light', 2], ['t2-light', 4]]);
+  assert.deepEqual(manifest.coverage, { states: 1, moments: 3, frames: 3, themes: ['light'], sampled: [
+    { id: 't0-light', label: 'default', inputs: {}, time: 0 }, { id: 't1-light', label: 'default', inputs: {}, time: 2 }, { id: 't2-light', label: 'default', inputs: {}, time: 4 }], omitted: [] });
+});
+
+test('one numeric input: the default moments, then its min and max at the middle moment, within six', async () => {
+  const artifact = await programWith([num('speed', 1, 9, 4)]);
+  const manifest = await programCaptureManifest(artifact, { reserved: SIX });
+  assert.deepEqual(manifest.entries.map(e => [e.id, e.time, e.inputs.speed]), [['t0-light', 0, 4], ['t1-light', 2, 4], ['t2-light', 4, 4], ['a0-light', 2, 1], ['a1-light', 2, 9]]);
+  assert.deepEqual(manifest.coverage.sampled.slice(3), [{ id: 'a0-light', label: 'min of speed', inputs: { speed: 1 }, time: 2 }, { id: 'a1-light', label: 'max of speed', inputs: { speed: 9 }, time: 2 }]);
+  assert.deepEqual([manifest.coverage.states, manifest.coverage.frames, manifest.coverage.omitted], [3, 5, []]);
+});
+
+test('mixed inputs: boundaries in declared order, one combined state last, the six-capture budget is never exceeded and the rest is listed as omitted', async () => {
+  const artifact = await programWith([num('mass', 1, 5, 2), pick('mode', ['a', 'b', 'c'], 'b'), num('g', 0, 10, 3)]);
+  const manifest = await programCaptureManifest(artifact, { reserved: SIX });
+  assert.equal(manifest.entries.length, 6);
+  assert.deepEqual(manifest.coverage.sampled.slice(3).map(s => s.label), ['min of mass', 'max of mass', 'first of mode']);
+  assert.deepEqual(manifest.coverage.omitted, ['last of mode', 'min of g', 'max of g', 'combined: every input at its max/last']);
+  // With room for everything, the combined state is the last sample and the changed keys are the only ones listed.
+  const roomy = await programCaptureManifest(artifact, { reserved: reserveRound({ cap: 12 }) });
+  assert.equal(roomy.entries.length, 3 + 7);
+  assert.deepEqual(roomy.coverage.sampled.at(-1), { id: 'a6-light', label: 'combined: every input at its max/last', inputs: { mass: 5, mode: 'c', g: 10 }, time: 2 });
+  assert.deepEqual(roomy.coverage.omitted, []);
+  assert.deepEqual(roomy.entries.at(-1).inputs, { mass: 5, mode: 'c', g: 10 });
+});
+
+test('a state equal to another (a default already at a boundary) is captured once', async () => {
+  const artifact = await programWith([num('x', 0, 1, 0), pick('mode', ['a', 'b'], 'b')], 0);
+  const manifest = await programCaptureManifest(artifact, { reserved: SIX });
+  // No duration: the start only. x=0 is its min and mode 'b' its last, both the default, so only x max and mode first remain; both combined
+  // states (x max + mode b, x min + mode a) repeat one of those and are dropped.
+  assert.deepEqual(manifest.coverage.sampled.map(s => s.label), ['default', 'max of x', 'first of mode']);
+  assert.deepEqual(manifest.entries.map(e => e.id), ['light', 'a0-light', 'a1-light']);
+  const states = manifest.entries.map(e => JSON.stringify(e.inputs));
+  assert.equal(new Set(states).size, states.length);
+  assert.equal((await checkManifest(manifest, artifact)).entries.length, 3);
+});
+
+test('a reservation too small for alternatives falls back to the default moments without throwing, and too small for the moments is over_budget', async () => {
+  const artifact = await programWith([num('speed', 1, 9, 4)]);
+  const exact = await programCaptureManifest(artifact, { reserved: reserveRound({ cap: 3 }) });
+  assert.deepEqual(exact.entries.map(e => e.id), ['t0-light', 't1-light', 't2-light']);
+  assert.deepEqual(exact.coverage.omitted, ['min of speed', 'max of speed']);
+  const four = await programCaptureManifest(artifact, { reserved: reserveRound({ cap: 4 }) });
+  assert.deepEqual([four.entries.length, four.coverage.omitted], [4, ['max of speed']]);
+  await assert.rejects(programCaptureManifest(artifact, { reserved: reserveRound({ cap: 2 }) }), { code: 'over_budget' });
+});
+
+test('both themes still apply to the default moments only when they fit twice; alternatives use whatever room is left, light first', async () => {
+  const artifact = await programWith([num('speed', 1, 9, 4)]);
+  const manifest = await programCaptureManifest(artifact, { reserved: SIX, themes: ['light', 'dark'] });
+  assert.deepEqual(manifest.entries.map(e => e.id), ['t0-light', 't0-dark', 't1-light', 't1-dark', 't2-light', 't2-dark']);
+  assert.deepEqual(manifest.coverage.omitted, ['min of speed', 'max of speed']);
+  const tight = await programCaptureManifest(artifact, { reserved: reserveRound({ cap: 5 }), themes: ['light', 'dark'] });
+  assert.deepEqual([tight.coverage.themes, tight.entries.length], [['light'], 5]);
+});
+
+test('checkManifest accepts a generated program manifest and refuses it for another compiled version or a smaller reservation', async () => {
+  const artifact = await programWith([num('speed', 1, 9, 4), pick('mode', ['a', 'b'], 'a')]);
+  const manifest = await programCaptureManifest(artifact, { reserved: SIX });
+  const checked = await checkManifest(manifest, artifact);
+  assert.equal(checked.entries.length, manifest.entries.length);
+  assert.ok(checked.entries.length <= SIX.captures);
+  assert.equal(checked.compiledHash, await compiledHash(artifact));
+  await assert.rejects(checkManifest(manifest, { ...artifact, source: artifact.source + ' ' }), { code: 'stale_version' });
+  await assert.rejects(checkManifest({ ...manifest, reserved: reserveRound({ cap: 3 }) }, artifact), { code: 'over_budget' });
 });
