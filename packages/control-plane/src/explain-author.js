@@ -8,7 +8,8 @@ import { evaluateScene } from '../../web/src/scene-evaluate.js';
 import { captureMoments, canonicalJson } from './explain-render.js';
 import { EXAMPLES } from '../../web/src/visual-components/examples/index.js';
 import { sceneProblem } from './learn-scene-gates.js';
-import { authorTool, EXPLAIN_AUTHOR_SYSTEM, GAP_NEEDS } from './agents/explain-author.js';
+import { authorTool, EXPLAIN_AUTHOR_SYSTEM, EXPLAIN_PROGRAM_RULES, GAP_NEEDS, programContext } from './agents/explain-author.js';
+import { PROGRAM_CAPABILITIES, PROGRAM_LIMITS, buildProgramArtifact, checkProgramDraft, programEnabled } from './explain-program.js';
 import { ExplainPolicyError, callExplainRole } from './explain-policy.js';
 import { learnMedia } from './learn-storage.js';
 
@@ -105,19 +106,28 @@ export function evidenceProblem(spec, evidence = []) {
 // One author call. input: { prompt, brief, context, evidence, examples (ids) }; cat and limits default to the registry's.
 async function authorCall(input, ctx, { cat = catalogue(), limits = SPEC_LIMITS } = {}) {
   const examples = selectExamples(input.examples || []);
+  const program = programEnabled(ctx.env || {});
+  // With the program route on, interactive and timed ideas are programs: the catalogue offered is the static one, so no
+  // component with learner controls can stand in for a request that needs a program.
+  if (program) cat = cat.filter(entry => !Object.keys(entry.controls || {}).length);
   const content = JSON.stringify({
     request: input.prompt, brief: input.brief ?? null, context: input.context ?? null, ...(input.edit ? { edit: input.edit } : {}),
     evidence: (input.evidence || []).map(({ id, kind, location, excerpt, page, lines, limitations }) => ({ id, kind, location, excerpt, page, lines, limitations })),
     catalogue: cat, composition: authorComposition(), supported: compilerSupport(), limits,
+    ...(program ? { program: programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES) } : {}),
     examples: examples.map(({ id, spec }) => ({ id, use: 'composition only, never facts', spec })),
   });
   // A layout reference image goes beside the text with its role said first; it is never an evidence record.
   const blocks = input.reference ? [{ type: 'text', text: content }, { type: 'text', text: IMAGE_ROLES.layout_reference }, { type: 'image', source: { type: 'base64', media_type: input.reference.mediaType, data: input.reference.data } }] : content;
-  const out = await ctx.call('author', { system: EXPLAIN_AUTHOR_SYSTEM, tool: authorTool(cat), content: blocks });
+  const out = await ctx.call('author', { system: program ? EXPLAIN_AUTHOR_SYSTEM + EXPLAIN_PROGRAM_RULES : EXPLAIN_AUTHOR_SYSTEM, tool: authorTool(cat, { program }), content: blocks });
   const { input: reply } = out;
   if (reply.kind === 'capability_gap') {
     if (!Array.isArray(reply.gap?.needs) || !reply.gap.needs.length) throw new ExplainPolicyError('invalid_turn', 'The author reported a gap without saying what is needed.');
     return { gap: capabilityGap(reply.gap.needs, reply.gap.reason, 'author'), call: out };
+  }
+  if (program && reply.kind === 'program') {
+    if (!plain(reply.program)) throw new ExplainPolicyError('invalid_turn', 'The author returned no program.');
+    return { program: reply.program, call: out };
   }
   if (reply.kind !== 'spec' || !plain(reply.spec)) throw new ExplainPolicyError('invalid_turn', 'The author returned no spec.');
   return { spec: reply.spec, call: out };
@@ -127,8 +137,9 @@ export async function authorStage(job, ctx) {
   // The card's presentation setting at Generate overrides the brief's.
   const brief = job.brief && job.settings?.presentation ? { ...job.brief, presentation: job.settings.presentation } : job.brief;
   const reference = job.reference ? await referenceImage(ctx.env, job.reference) : null;
-  const { spec, gap } = await authorCall({ prompt: job.prompt, brief, context: job.context, evidence: job.evidence, examples: job.examples, edit: job.base ? { spec: job.base.spec } : null, reference }, ctx);
-  return gap ? { gap } : { spec };
+  const edit = job.base ? (job.base.program ? { program: job.base.program } : { spec: job.base.spec }) : null;
+  const { spec, program, gap } = await authorCall({ prompt: job.prompt, brief, context: job.context, evidence: job.evidence, examples: job.examples, edit, reference }, ctx);
+  return gap ? { gap } : program ? { program } : { spec };
 }
 
 // Standalone, for dev tooling (Lane D's prompt -> spec -> render script; C:/s/spec/explain/e2e-demo.md) and the M3 harness:
@@ -148,7 +159,23 @@ export async function authorExplanation(prompt, { env = {}, callModel, catalogue
 
 // Trusted checks, no model call: capability gaps first (nothing to repair), then evidence and example provenance, the
 // compiler (registry, parameters, limits, anchors) and the scene gates every generated scene passes (sceneProblem).
-export function validateStage(job) {
+// The program path's trusted checks (no model call): source and manifest against the frozen contract, then the artifact with
+// host-computed hashes. A capability the runtime does not offer is a gap, never a repair or a substitute card.
+// -> { artifact } | { problems, category, repairable } | { gap }
+export async function validateProgramStage(job) {
+  const checked = checkProgramDraft(job.program);
+  if (checked.gap) return { gap: capabilityGap(checked.gap.needs, checked.gap.reason, 'compiler') };
+  if (checked.problems) return { problems: checked.problems, category: 'spec', repairable: true };
+  return { artifact: await buildProgramArtifact(checked.bundle) };
+}
+
+export function validateStage(job, ctx = {}) {
+  const env = ctx.env ?? ctx; // the pipeline passes its ctx ({env, call, limits}); a bare env also works
+  // The program route owns interactive and timed explanations: a catalogue spec asking for them is refused with the fix, never
+  // quietly drawn static (explain-job.js no longer rewrites it when the route is on).
+  if (programEnabled(env) && (job.spec?.presentation?.mode === 'time' || job.spec?.presentation?.experiments?.length)) {
+    return { problems: ['this explanation has controls or changes over time: return it as kind program (a JavaScript program and manifest), not as catalogue components'], category: 'spec', repairable: true };
+  }
   const needs = capabilityGaps(job.spec);
   if (needs.length) return { gap: capabilityGap(needs, null, 'compiler') };
   const problems = [];

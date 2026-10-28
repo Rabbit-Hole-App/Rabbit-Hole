@@ -34,7 +34,7 @@ function stack(t) {
   // FAKE_BROWSER: what renderStates drives; every capture request is recorded.
   const rendered = [];
   const FAKE_BROWSER = { async newPage() { return { setRequestInterception: async () => {}, on() {}, emulateMediaFeatures: async () => {}, goto: async () => {}, waitForFunction: async () => {}, setViewport: async () => {},
-    evaluate: async (fn, request) => { rendered.push({ theme: request.theme, time: request.time, inputs: request.inputs }); return { ok: true, fonts: { missing: [] } }; }, $: async () => ({ screenshot: async () => PNG }), close: async () => {} }; }, close: async () => {} };
+    evaluate: async (fn, request) => { rendered.push({ theme: request.theme, time: request.time, inputs: request.inputs, program: !!request.program }); return { ok: true, fonts: { missing: [] } }; }, $: async () => ({ screenshot: async () => PNG }), close: async () => {} }; }, close: async () => {} };
   const FAKE_ASSETS = { fetch: async () => new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }) };
   // The production render stage (explain-render.js by default); only the browser launch is injected.
   const pipeline = { ...explainPipeline, render: renderStage({ launch: async () => FAKE_BROWSER }) };
@@ -137,4 +137,131 @@ test('M3: the flag off answers 404 through the worker and starts nothing', async
   const off = await s.read('POST', '/api/learn/explain/jobs', { boardId: saved.body.board_id, requestId: 'req-m3-0000003', cardId: 'card-rain-03', prompt: 'x', requestClass: 'simple' });
   assert.deepEqual([off.status, off.body.code], [404, 'explain_disabled']);
   assert.equal(s.calls.length, 0);
+});
+
+// ---- Program artifacts (explain sandbox Task 5) --------------------------------------------------------------------------
+// HAND-AUTHORED TEST DATA, not generation evidence: a generic program and its manifest in the frozen contract's shape
+// (packages/web/src/explain-program/contract.js). The scripted provider returns it as the author's reply; nothing is paid.
+import { verifyHashes } from '../../web/src/explain-program/contract.js';
+const PROGRAM = {
+  source: `function evaluate({ inputs, time }) {
+  const level = inputs.rate * time;
+  const width = Math.min(800, 40 * level);
+  return { frame: { width: 960, height: 540, objects: [
+    { kind: 'box', id: 'bar', x: 40, y: 200, w: Math.max(1, width), h: 60, role: 'output' },
+    { kind: 'text', id: 'caption', x: 40, y: 150, text: 'Level ' + level.toFixed(2) } ], readouts: [{ id: 'level', value: level }] }, quantities: { level } };
+}`,
+  manifest: { title: 'A rate times a time', summary: 'A bar grows with the rate you choose.', assumptions: ['Constant rate.'], description: 'A bar whose length is the rate multiplied by the elapsed time.',
+    inputs: [{ type: 'number', id: 'rate', label: 'Rate', unit: '1/s', default: 2, min: 0, max: 10, step: 1 }], duration: 4,
+    readouts: [{ id: 'level', label: 'Level', decimals: 2 }], capabilities: ['time_playback', 'number_inputs'] },
+};
+const PROMPT = 'Show how a level builds up at a constant rate and let me change the rate.';
+async function runJob(s, boardId, { requestId, cardId, prompt = PROMPT }) {
+  const created = await s.read('POST', '/api/learn/explain/jobs', { boardId, requestId, cardId, prompt, requestClass: 'simple' });
+  assert.equal(created.status, 202, JSON.stringify(created.body));
+  const id = created.body.job.id;
+  let view;
+  for (let i = 0; i < 30; i++) { await s.alarms(); view = await s.read('GET', `/api/learn/explain/jobs/${id}?board=${boardId}`); if (view.body.job.terminal) break; }
+  return { id, view, created };
+}
+
+test('M3 program: pending -> program artifact -> reload, zero new author calls, ownership kept', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  const boardId = saved.body.board_id;
+  s.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
+  s.queues.report_review = [verdicts(['t0-light', 't1-light', 't2-light'])];
+  const { id, view, created } = await runJob(s, boardId, { requestId: 'req-prog-0000001', cardId: 'card-prog-01' });
+  assert.deepEqual([view.body.job.stage, view.body.job.stopReason, view.body.job.round], ['ready', 'accepted', 0]);
+  // The route offered Opus the program kind; the catalogue it saw has no component with learner controls.
+  const authorBody = s.calls.find(c => c.name === 'author_explanation').body;
+  assert.deepEqual(authorBody.tools[0].input_schema.properties.kind.enum, ['spec', 'program', 'capability_gap']);
+  const authorInput = JSON.parse(authorBody.messages[0].content[0].text);
+  assert.equal(authorInput.catalogue.some(entry => Object.keys(entry.controls || {}).length), false, 'no interactive component stands in for a program');
+  assert.equal(authorInput.program.limits.sourceBytes, 16384);
+  assert.match(authorBody.system[0].text, /Program route/);
+  // A replayed request is the same job: one admitted author attempt.
+  assert.equal((await s.read('POST', '/api/learn/explain/jobs', { boardId, requestId: 'req-prog-0000001', cardId: 'card-prog-01', prompt: PROMPT, requestClass: 'simple' })).body.job.id, id);
+  assert.deepEqual([count(s, 'author_explanation'), count(s, 'report_review'), count(s, 'repair_explanation')], [1, 1, 0]);
+  // The program was captured through the program render path (start, middle, end of its playback), the pixels reviewed.
+  assert.deepEqual(s.rendered.map(r => [r.time, r.program]), [[0, true], [2, true], [4, true]]);
+  assert.equal(s.calls.find(c => c.name === 'report_review').body.messages[0].content.filter(b => b.type === 'image').length, 3);
+  // The saved card is a reference: no source, no scene. Its identity names the host-computed bundle.
+  const { block, job } = view.body;
+  assert.deepEqual([block.type, block.id, block.scene, block.program.resultId, block.program.kind], ['animation', 'card-prog-01', undefined, job.result.resultId, 'explain_program']);
+  assert.equal(JSON.stringify(block).includes('function evaluate'), false, 'executable text never rides in the canvas JSON');
+  assert.deepEqual([job.result.kind, block.explain.bundleHash.length, block.program.bundleHash.length], ['program', 64, 64]);
+  // The artifact is read back through the authorized result route and its hashes verify.
+  const read = await s.read('GET', `/api/learn/explain/jobs/results/${job.result.resultId}?board=${boardId}`);
+  assert.equal(read.status, 200);
+  assert.equal(read.body.artifact.source, PROGRAM.source);
+  assert.equal(await verifyHashes(read.body.artifact), true);
+  assert.equal(read.body.artifact.bundleHash, block.explain.bundleHash);
+  assert.deepEqual(read.body.artifact.fingerprints, { engine: 'quickjs-0.32.0', sdk: 'sdk-1', renderer: 'renderer-1' });
+  // Another person cannot read it, and an unknown result id answers the same refusal.
+  const own = s.env.CONTROL_PLANE.fetch;
+  s.env.CONTROL_PLANE.fetch = async () => Response.json({ org: 'team', email: 'stranger@test', orgName: 'Team', user_id: 'u-other' });
+  assert.equal((await s.read('GET', `/api/learn/explain/jobs/results/${job.result.resultId}?board=${boardId}`)).status, 404);
+  s.env.CONTROL_PLANE.fetch = own;
+  assert.equal((await s.read('GET', `/api/learn/explain/jobs/results/er_nothing?board=${boardId}`)).status, 404);
+  // Settlement: author and review each settled once under one learner action.
+  const attempts = rows(s, "SELECT kind, cost_state, action_id FROM usage_attempts WHERE provider = 'anthropic'");
+  assert.deepEqual(attempts.map(a => [a.kind, a.cost_state]), [['generation', 'settled'], ['evaluation', 'settled']]);
+  assert.equal(new Set(attempts.map(a => a.action_id)).size, 1);
+  // Place the card, save, reload: the reference is back, the artifact still reads, no model call and no new job.
+  const placed = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: { ...EMPTY, blocks: [{ ...block, x: 40, y: 40 }] }, version: saved.body.version });
+  assert.equal(placed.status, 200, JSON.stringify(placed.body));
+  s.restart();
+  const before = s.calls.length;
+  const board = await s.read('GET', `/api/learn/boards/${CANVAS}/main`);
+  const card = board.body.state.blocks.find(b => b.id === 'card-prog-01');
+  assert.deepEqual([card.program.bundleHash, card.explain.resultId], [read.body.artifact.bundleHash, job.result.resultId]);
+  const again = await s.read('GET', `/api/learn/explain/jobs/results/${card.explain.resultId}?board=${boardId}`);
+  assert.equal(again.body.artifact.sourceHash, read.body.artifact.sourceHash);
+  assert.deepEqual((await s.read('GET', `/api/learn/explain/jobs/${id}?board=${boardId}`)).body.block, block);
+  assert.equal(s.calls.length, before, 'reload made no model call');
+  assert.equal(count(s, 'author_explanation'), 1);
+  assert.equal(created.body.job.id, id);
+});
+
+test('M3 program: a model-supplied hash is refused, a bad program is not made static, no card is saved', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  s.queues.author_explanation = [{ kind: 'program', program: { ...PROGRAM, sourceHash: 'a'.repeat(64) } }];
+  const { view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000002', cardId: 'card-prog-02' });
+  assert.equal(view.body.job.stage, 'failed');
+  assert.equal(view.body.block, undefined, 'no card, and no static substitute');
+  assert.equal(s.rendered.length, 0, 'nothing was rendered for a refused program');
+  assert.equal(count(s, 'author_explanation'), 1);
+  assert.match(JSON.stringify(view.body.job), /unsupported_repair|spec/);
+});
+
+test('M3 program: a timed catalogue spec is refused with the fix, not rewritten static', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  s.queues.author_explanation = [{ kind: 'spec', spec: { ...SPEC, presentation: { mode: 'time', duration: 4 } } }];
+  s.queues.repair_explanation = [{ operation: 'none', reason: 'Needs a program.' }];
+  const { view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000003', cardId: 'card-prog-03' });
+  assert.equal(view.body.job.stage, 'failed');
+  assert.equal(view.body.block, undefined);
+  assert.equal(s.rendered.length, 0, 'the timed spec was not silently drawn as a static card');
+  const repair = JSON.parse(s.calls.find(c => c.name === 'repair_explanation').body.messages[0].content[0].text);
+  assert.match(repair.problems.join(' '), /kind program/);
+});
+
+test('M3 program: with the route off the author is not offered programs and a program reply is an invalid turn', async t => {
+  const s = stack(t);
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  s.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
+  const { view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000004', cardId: 'card-prog-04' });
+  const body = s.calls.find(c => c.name === 'author_explanation').body;
+  assert.deepEqual(body.tools[0].input_schema.properties.kind.enum, ['spec', 'capability_gap']);
+  assert.equal(body.system[0].text.includes('Program route'), false);
+  assert.equal('program' in JSON.parse(body.messages[0].content[0].text), false);
+  assert.equal(view.body.job.stage, 'failed');
+  assert.equal(view.body.block, undefined);
+  assert.equal(s.rendered.length, 0);
 });
