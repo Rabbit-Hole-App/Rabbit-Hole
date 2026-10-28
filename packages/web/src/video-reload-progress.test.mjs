@@ -103,6 +103,27 @@ test('a job that finished while the page was away shows its video on the first a
   assert.deepEqual(starts(), []);
 });
 
+// Owner addition (task 733e996d): mount, unmount and reload never stop, start, retry or recover a job, whatever the card's state, and an
+// answer that lands after the card unmounted sends nothing either. Every one of those is a POST; the card's only request is the list GET.
+test('mount, unmount (with a read still in flight) and remount send zero cancel, start or recover requests for a running, failed or stopped card', async () => {
+  const recovery = { cause: 'content', code: 'content_rejected', actions: ['fix', 'edit'], explanation: 'x', regenerate: true, accounting: { chargedCredits: 140, refundedCredits: 0, unknown: false } };
+  const cases = [
+    ['generating', SAVED, { id: 'p1', key: KEY, status: 'generating', startedAt: Date.now() - 1000 }],
+    ['failed', { ...SAVED, status: 'failed' }, { id: 'p1', key: KEY, status: 'failed', error: 'x', retryable: true, hold: { state: 'released' }, recovery }],
+    ['stopped', { ...SAVED, status: 'failed', stopped: true }, { id: 'p1', key: KEY, status: 'failed', error: 'Stopped.', retryable: true, hold: { state: 'released' } }],
+  ];
+  for (const [name, block, video] of cases) {
+    await mount(block);
+    const late = answers.shift(); // the read still in flight when the card goes away
+    await B.act(async () => root.unmount()); root = null;
+    await B.act(async () => late({ videos: [video] })); await settle();
+    await mount(block);
+    while (answers.length) await answer({ videos: [video] });
+    assert.ok(requests.length >= 1, `${name}: the remount read its job`);
+    assert.deepEqual(starts(), [], `${name}: no POST (cancel, start, retry or recover)`);
+  }
+});
+
 test('a replayed mount of the saved card (a second reload) issues no job-creating request', async () => {
   for (let i = 0; i < 2; i++) {
     await mount(SAVED);

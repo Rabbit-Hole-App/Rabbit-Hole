@@ -553,6 +553,7 @@ for (const theme of ['light', 'dark']) {
     await until(() => seen.some(r => r.method === 'PUT' && /\/api\/learn\/boards\/[^/]+\/main$/.test(r.path) && r.body.includes(stub.id)), 'the board saved with the placement id');
     let open;
     stub.gate = new Promise(resolve => { open = resolve; });
+    const atReload = seen.length;
     await page.reload();
     await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 });
     const mine = page.locator(`[data-block-id="${id}"]`);
@@ -573,6 +574,7 @@ for (const theme of ['light', 'dark']) {
     stub.held = false;
     await mine.locator('video[data-lesson-video]').waitFor({ timeout: 30000 });
     assert.equal(videoPosts().length - posts, 1, 'one start; the reload only follows it');
+    assert.equal(seen.slice(atReload).filter(r => r.path === '/api/learn/video' && r.method === 'POST').length, 0, 'after the reload: no start, stop, retry or recovery request');
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-06b-reloaded-ready-card.png` });
     await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 30000 });
