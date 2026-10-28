@@ -38,6 +38,7 @@ export default defineConfig({
     ...(process.env.VITE_PRIVATE_BYOC !== 'true' ? {
       rolldownOptions: { input: {
         app: fileURLToPath(new URL('./index.html', import.meta.url)),
+        explainProgram: fileURLToPath(new URL('./src/explain-program/entry.js', import.meta.url)), // bundles the generated-program runtime Worker and its WASM (disabled: nothing imports it until ProgramScene, Task 4)
         landing: fileURLToPath(new URL('./design/rabbit-hole-hero.html', import.meta.url)),
         blog: fileURLToPath(new URL('./design/rabbit-hole-blog.html', import.meta.url)),
         features: fileURLToPath(new URL('./design/rabbit-hole-features.html', import.meta.url)),
