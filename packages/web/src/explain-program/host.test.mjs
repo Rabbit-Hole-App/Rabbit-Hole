@@ -189,3 +189,17 @@ test('the Blob-started Worker name is the same literal in page-worker.js and wor
   assert.ok(read('./worker.js').includes(`self.name === '${named}'`));
   assert.doesNotMatch(read('./runtime.js'), /\bimport\s*\(\s*['\"`]|newQuickJSWASMModuleFromVariant\(/);
 });
+
+test('a failed run says in which phase it failed and how long it had run, apart from the learner-facing error', async () => {
+  const loadLoop = createProgramHost({ artifact: await seal(`for (;;) {}
+export function evaluate() { return {}; }`), createWorker: factory() });
+  const evaluateLoop = createProgramHost({ artifact: await seal(LOOP), createWorker: factory() });
+  const [slowLoad, slowEvaluate] = await Promise.all([settled(loadLoop.evaluate(request(1))), settled(evaluateLoop.evaluate(request(2)))]);
+  assert.deepEqual([slowLoad.error.code, slowLoad.error.where.phase], ['runtime_limit', 'load']);
+  assert.deepEqual([slowEvaluate.error.code, slowEvaluate.error.where.phase], ['runtime_limit', 'evaluate']);
+  for (const { error } of [slowLoad, slowEvaluate]) {
+    assert.ok(error.where.ms >= GUEST_LIMITS.interruptMs * 0.5 && error.where.ms < 5000, String(error.where.ms));
+    assert.equal(JSON.stringify(error).includes('phase'), false, 'the learner-facing error stays the code and its fixed message');
+  }
+  loadLoop.dispose(); evaluateLoop.dispose();
+});

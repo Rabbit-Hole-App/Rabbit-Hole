@@ -21,7 +21,10 @@ import { pageWorkerFactory } from '../src/explain-program/page-worker.js';
 const NOOP = () => {};
 let factory = null; // the Worker factory for this page: the script and the compiled engine are fetched once
 
-const failure = (code, diagnostic) => ({ ok: false, programError: { code, diagnostic: String(diagnostic ?? '').slice(0, 500) } });
+// where: the runtime's phase (load, evaluate, serialize, engine) and elapsed ms when it reported them, so a load overrun can be told from an evaluate overrun.
+const PHASES = ['load', 'evaluate', 'serialize', 'engine'];
+const failure = (code, diagnostic, where) => ({ ok: false, programError: { code, diagnostic: String(diagnostic ?? '').slice(0, 500),
+  ...(PHASES.includes(where?.phase) ? { phase: where.phase } : {}), ...(Number.isFinite(where?.ms) ? { ms: Math.round(where.ms * 10) / 10 } : {}) } });
 
 export async function renderProgram(request, { host, root, frames, faces, nextMount }) {
   window.__renderDone = null;
@@ -35,7 +38,7 @@ export async function renderProgram(request, { host, root, frames, faces, nextMo
   const asked = evaluateRequestFor(manifest, { inputs: request.inputs }, request.time ?? 0, 1); // the card's own request builder
   let reply;
   try { reply = await programHost.evaluate(asked); }
-  catch (error) { return (window.__renderDone = failure(error.code || 'runtime_error', error.diagnostic ?? error.message)); }
+  catch (error) { return (window.__renderDone = failure(error.code || 'runtime_error', error.diagnostic ?? error.message, error.where)); }
   finally { programHost.dispose('review render done'); }
   const view = normalizeFrame(reply.frame, manifest);
   if (!view.ok) return (window.__renderDone = failure(view.error.code, view.issue));

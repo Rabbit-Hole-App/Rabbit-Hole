@@ -83,11 +83,16 @@ export const renderStage = ({ render = explainRender, ...deps } = {}) => async (
     // A capture that never finished: the program held the page (its own run is interrupted inside the engine, so a blocked page is the
     // program's doing, not an outage). The session was closed and a fresh one is used for the repaired program; no render is billed.
     if (program && error.code === 'capture_timeout') return { problems: ['running the program did not finish within the capture time limit (runtime_limit): the page stopped answering; write a lighter program'], category: 'spec', repairable: true };
-    if (error.code === 'program_error') return { problems: [`running the program failed (${String(error.program?.code || 'runtime_error').slice(0, 40)}): ${String(error.program?.diagnostic || 'no detail').slice(0, 300)}`], category: 'spec', repairable: true };
+    if (error.code === 'program_error') return { problems: [`running the program failed (${String(error.program?.code || 'runtime_error').slice(0, 40)}${programWhere(error.program)}): ${String(error.program?.diagnostic || 'no detail').slice(0, 300)}`], category: 'spec', repairable: true };
     throw Object.assign(fail(`The explanation could not be rendered (${error.code || 'render_failed'}). Retry rendering.`, 503), { category: 'renderer' });
   }
   // A program's coverage (what was sampled and what was not) is bound to the artifact hash it was computed for.
   return { captures: out.captures.map(({ png, ...capture }) => ({ ...capture, compiledHash: out.compiledHash, mediaType: 'image/png' })), renders: out.captures.map(() => ({ ok: true })), ...(program ? { coverage: { compiledHash: out.compiledHash, ...manifest.coverage } } : {}) };
+};
+// The runtime's phase and elapsed time when the page reported them (untrusted: only a known phase and a number are repeated).
+const programWhere = program => {
+  const parts = [['load', 'evaluate', 'serialize', 'engine'].includes(program?.phase) && `phase ${program.phase}`, Number.isFinite(program?.ms) && `${Math.round(program.ms)} ms`].filter(Boolean);
+  return parts.length ? `; ${parts.join(', ')}` : '';
 };
 const base64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s); };
 // The spec's title is not drawn (the card's header shows the learner's request), so it is not a fact the pixels must show:

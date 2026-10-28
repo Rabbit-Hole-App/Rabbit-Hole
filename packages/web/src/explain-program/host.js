@@ -79,7 +79,8 @@ export function createProgramHost({ artifact, limits = LIMITS, createWorker = de
       if (data?.id !== request.requestId) return; // not the answer to this request
       clearTimeout(timer);
       if (data.phase === 'engine' && worker === target) stopWorker(); // the Worker closed itself
-      if (!data.ok) return reject(new RuntimeError(data.code, data.detail));
+      // Where the run failed and how long it had been running (a load overrun is not an evaluate overrun): kept apart like the diagnostic, never in the message.
+      if (!data.ok) return reject(Object.defineProperty(new RuntimeError(data.code, data.detail), 'where', { value: { phase: data.phase, ms: data.metrics?.ms ?? performance.now() - started }, enumerable: false }));
       const result = parseGuestResult(data.value);
       if (!result.ok) return reject(new RuntimeError(result.error.code, result.issue));
       resolve({ requestId: request.requestId, ...result.value, metrics: { ms: performance.now() - started, outputBytes: data.metrics.outputBytes } });

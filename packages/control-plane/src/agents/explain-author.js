@@ -1,6 +1,7 @@
 // /explain v2 author prompt and tool (EXP-T17; plan v2.1 sections 3.2, 3.3). The author writes a VisualSpec from the
 // registered components only, or says what is missing as a structured capability gap. The independent image review is Lane
 // D's (explain-review.js), a separate call that never sees the author's reasoning.
+import { LIMITS as RUNTIME_LIMITS } from '../../../web/src/explain-program/limits.js';
 
 export const GAP_NEEDS = Object.freeze(['math', 'steps', 'experiment', 'component', 'evidence', 'other']);
 
@@ -150,19 +151,21 @@ Program route. You may return kind program instead of kind spec. Choose by what 
 - kind spec: a static picture or named steps that the catalogue can draw. Prefer it for diagrams, flows and architectures.
 - kind program: the learner moves a control, the card changes with time, or numbers must be calculated and drawn. Never draw such an idea with catalogue components, and never replace a requested control or motion with a static picture. If neither kind can draw it truthfully, return a capability_gap.
 A program is one ES module that EXPORTS evaluate, exactly: export function evaluate({ inputs, time, seed, state }) { ... } returning { frame, quantities }. A function that is only global is not found by the runtime. No import statement works (no module can load); the SDK is the global sdk, available before the module runs. It is pure: the same inputs, time and seed give the same result. It runs in an isolated interpreter with only the helpers listed in program.sdk; it has no network, storage, clock, timers, imports or DOM (Math.random is seeded from seed), and a run that exceeds program.limits is stopped.
-- inputs holds one value per manifest input id (a number, or the id of the chosen option); time is the playback second (0 when the manifest has no time); seed is an integer; state is null.
+- inputs holds one value per manifest input id (a number, or the id of the chosen option); time is the playback second (0 when the manifest has no duration); seed is an integer; state is null.
 - Do all calculation in the program, from the learner's request and the context. Write the formulas the explanation needs; the host has no subject formulas. Report calculated values as quantities (name: number) and show the ones the learner should read as frame text, from the same variables that draw the picture, so the drawing and the numbers cannot disagree.
-- Declare every control the learner is meant to move in manifest.inputs with a sensible domain, and any playback in manifest.time. State assumptions and idealisations in manifest.assumptions. Keep one idea per card.
+- Declare every control the learner is meant to move in manifest.inputs with a sensible domain, and any playback in manifest.duration (seconds). Input ids and readout ids share one namespace and must all differ. State assumptions and idealisations in manifest.assumptions. Keep one idea per card.
+- Each evaluation has a hard time budget (program.limits.evaluationMs). It covers the SDK and your source loading, evaluate and serialization, in a slow interpreter, so keep the program small and cheap: compute a curve once, with about 60 points or fewer, and avoid long loops.
 - Draw only within program.frame (width and height); keep every object inside it for every admitted input and time, and keep text clear of moving parts. Use program.sdk for geometry and number formatting.
 - Keep source under program.limits.sourceBytes and the manifest under program.limits.manifestBytes. Do not write hashes, versions, permissions or limits; the host sets them.
 - Quote nothing from the examples; they show composition only.`;
 
-// What the author is told about the runtime (program.* in the input). The SDK list mirrors packages/web/src/explain-program/sdk.js
+// What the author is told about the runtime (program.* in the input). evaluationMs is the runtime's own per-run deadline (limits.js). The SDK list mirrors packages/web/src/explain-program/sdk.js
 // (a global `sdk`); the frame description mirrors contract.js Frame. Limits come from the contract, so they cannot drift.
 export function programContext(limits, capabilities) {
   return {
     capabilities,
-    limits: { sourceBytes: limits.sourceBytes, manifestBytes: limits.manifestBytes, objects: limits.objects, pointsPerObject: limits.pointsPerObject, pointsTotal: limits.pointsTotal, maxOutputBytes: limits.maxOutputBytes, inputs: limits.inputs, duration: limits.duration },
+    limits: { sourceBytes: limits.sourceBytes, manifestBytes: limits.manifestBytes, objects: limits.objects, pointsPerObject: limits.pointsPerObject, pointsTotal: limits.pointsTotal, maxOutputBytes: limits.maxOutputBytes, inputs: limits.inputs, duration: limits.duration,
+      evaluationMs: RUNTIME_LIMITS.interruptMs, evaluation: `each run of the program is stopped after ${RUNTIME_LIMITS.interruptMs} ms in total: setting up the SDK, loading your source, evaluate and serialization, in a slow interpreter. Keep it small and cheap (compute a curve once, about 60 points or fewer).` },
     frame: { returns: '{frame: {width, height, objects, readouts}, quantities: {name: number}}', width: 'default 960, at most 4096', height: 'default 540, at most 4096', readouts: '[{id, value}] for the ids declared in manifest.readouts' },
     objectKinds: {
       line: '{kind:"line", id, from:{x,y}, to:{x,y}, role?, opacity?}', arrow: '{kind:"arrow", id, from:{x,y}, to:{x,y}, role?, opacity?}',
