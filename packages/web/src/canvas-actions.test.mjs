@@ -164,6 +164,44 @@ test('read-only: a viewer sees Start Rabbit Hole (and Add comment where comments
   assert.deepEqual(labels(actionsFor(resolveTarget(el('div', { 'data-item-id': 'eq' }), model([])), fakeCtx({ readOnly: true, comment: false }).ctx)), [], 'no Rabbit Hole on a non-card');
 });
 
+// Owner, 2026-10-27: a card that opens a kept Rabbit Hole offers Enter and Delete; inside a kept hole the empty canvas offers
+// Delete for that hole. Choosing Delete only asks (Dive.jsx's dialog); opening the menu asks nothing.
+test('Rabbit Hole rows: Enter and Delete on a card with a kept hole, Delete on the empty canvas inside one, nowhere else', () => {
+  const card = el('div', { 'data-block-id': 'c1' }), bare = el('div', { 'data-canvas-surface': '' });
+  const hole = { name: 'canvas-0000beef', title: 'Softmax' };
+  const owner = ({ portal = null, current = null } = {}) => {
+    const made = fakeCtx();
+    Object.assign(made.ctx.canvas, { holeOf: id => (id === 'c1' ? portal : null), currentHole: () => current, deleteHole: (...args) => { made.calls.push(['deleteHole', ...args]); } });
+    return made;
+  };
+  const rabbit = rows => labels(rows).filter(label => label.includes('Rabbit Hole'));
+  // No hole yet: Start, as before, and no Delete.
+  assert.deepEqual(rabbit(actionsFor(resolveTarget(card, model([])), owner().ctx)), ['Start Rabbit Hole']);
+  // A kept hole: Enter first (the same run as Start: it enters the existing hole); Delete Rabbit Hole with the deletes, above the
+  // card's own Delete.
+  const { ctx, calls } = owner({ portal: hole });
+  const rows = actionsFor(resolveTarget(card, model([])), ctx);
+  assert.equal(labels(rows)[0], 'Enter Rabbit Hole');
+  assert.deepEqual(labels(rows).slice(-2), ['Delete Rabbit Hole', 'Delete']);
+  assert.equal(rows.find(row => row.id === 'delete-rabbit-hole').danger, true);
+  assert.equal(calls.length, 0, 'opening the menu runs nothing');
+  assert.equal(runAction('start-rabbit-hole', resolveTarget(card, model([])), ctx).ran, true);
+  assert.deepEqual(calls.at(-1), ['startRabbitHole', 'c1']);
+  assert.equal(runAction('delete-rabbit-hole', resolveTarget(card, model([])), ctx).ran, true);
+  assert.deepEqual(calls.at(-1), ['deleteHole', hole.name], 'the card\'s own hole, through the dialog');
+  // Another card on the same canvas has none of it.
+  assert.deepEqual(rabbit(actionsFor(resolveTarget(el('div', { 'data-block-id': 'c2' }), model([])), ctx)), ['Start Rabbit Hole']);
+  // The empty canvas: only inside a kept hole, last, and for that hole.
+  assert.deepEqual(rabbit(actionsFor(resolveTarget(bare, model([])), owner().ctx)), [], 'a root canvas or a pending hole');
+  const inside = owner({ current: hole });
+  const canvasRows = labels(actionsFor(resolveTarget(bare, model([])), inside.ctx));
+  assert.equal(canvasRows.at(-1), 'Delete Rabbit Hole', canvasRows.join(', '));
+  assert.equal(runAction('delete-rabbit-hole', resolveTarget(bare, model([])), inside.ctx).ran, true);
+  assert.deepEqual(inside.calls.at(-1), ['deleteHole', hole.name]);
+  // A view-only board passes no hole (AdaptiveCanvas holeOf is your canvas only): Start, as before.
+  assert.deepEqual(rabbit(actionsFor(resolveTarget(card, model([])), fakeCtx({ readOnly: true, comment: false }).ctx)), ['Start Rabbit Hole']);
+});
+
 test('roles through S1 can(): hidden hides, signIn keeps the row and hands over to sign-in, a refusal disables with its reason', () => {
   const viewer = capability => ({
     'generate.paid': { allowed: false, reason: 'Fork to generate in your own copy' },

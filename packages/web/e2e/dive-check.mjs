@@ -396,11 +396,12 @@ await page.setViewportSize({ width: 1600, height: 1000 }); await page.waitForTim
 console.log('flow G ok');
 
 // ---- I: delete a leaf after a confirmation; a hole with holes inside needs the subtree warning ----
+// Owner, 2026-10-27: every Rabbit Hole delete asks "Delete this Rabbit Hole?" with Yes, delete and Cancel (Dive.jsx confirmDialog).
 await nav().locator('[aria-current="location"]').hover();
 await nav().getByRole('button', { name: 'Delete float32' }).click();
-await page.getByRole('dialog').waitFor();
+await page.getByRole('dialog', { name: 'Delete this Rabbit Hole?' }).waitFor();
 await shot('11-delete-leaf-confirm');
-await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click();
+await page.getByRole('dialog').getByRole('button', { name: 'Yes, delete', exact: true }).click();
 await page.waitForFunction(name => location.pathname.endsWith(name), levels.at(-2)); await page.waitForTimeout(1200);
 assert.equal((await tree(levels.at(-2))).children.length, 0);
 await nav().locator('[data-dive-level]').first().click(); // the root
@@ -410,8 +411,8 @@ await page.locator('[data-dive-picker] .group', { hasText: 'Softmax, from scores
 await page.locator('[data-dive-picker]').getByRole('button', { name: 'Delete Softmax, from scores' }).click();
 await page.getByRole('dialog').waitFor();
 await shot('12-delete-subtree-confirm');
-assert.match(await page.getByRole('dialog').innerText(), /3 holes inside it/);
-await page.getByRole('dialog').getByRole('button', { name: /Delete 4 holes/ }).click();
+assert.match(await page.getByRole('dialog').innerText(), /3 Rabbit Holes inside it are deleted too/);
+await page.getByRole('dialog').getByRole('button', { name: 'Yes, delete', exact: true }).click();
 await page.waitForTimeout(1200);
 rootTree = await tree(root.name, BOARD);
 assert.deepEqual(rootTree.children.map(child => child.title), ['Numerical stability']);

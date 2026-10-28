@@ -161,7 +161,7 @@ test('seams: the canvas menu offers Add comment on an object only (owner, 2026-1
   assert.match(canvas, /\(item && item\.kind !== 'sticky'\) \|\| \(shape && TEXT_BOX\[shape\.kind\]\) \? w : 0/, 'a text box, an equation and a text shape keep their whole top edge for their controls');
   assert.match(read('./CommentPins.jsx'), /pinTopCentre\(box, index, SIZE, GAP\)/, 'every object pin goes through pinTopCentre');
   // UI-25: the menu's rows are the action registry's; Add comment comes right after Start Rabbit Hole, with its C hint.
-  const entries = allActions(), start = entries.find(entry => entry.label === 'Start Rabbit Hole'), comment = entries.find(entry => entry.id === 'add-comment');
+  const entries = allActions(), start = entries.find(entry => entry.id === 'start-rabbit-hole'), comment = entries.find(entry => entry.id === 'add-comment');
   assert.deepEqual([comment.label, comment.icon, comment.hint, comment.group], ['Add comment', 'MessageCircle', 'C', start.group]);
   assert.ok(start.order < comment.order && !entries.some(entry => entry.group === start.group && entry.order > start.order && entry.order < comment.order), 'a card: right after Start Rabbit Hole');
   assert.match(canvas, /\{commentPins && presenting === null && <CommentPins /, 'no pins while presenting');

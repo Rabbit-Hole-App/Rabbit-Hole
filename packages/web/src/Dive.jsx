@@ -192,9 +192,9 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
   };
 
   // Delete: a leaf after a plain confirmation; a hole with holes inside only after the subtree
-  // warning names them. Never a silent cascade.
+  // warning names them. Never a silent cascade. `back` takes the focus again on Cancel.
   const [confirm, setConfirm] = useState(null);
-  const askDelete = async level => {
+  const askDelete = async (level, back = null) => {
     // An empty hole is left, not deleted: nothing of it was saved. The only pending level the navigator
     // shows is the hole the learner is in (one left is discarded, and children come from the server).
     if (level.pending) {
@@ -205,15 +205,15 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
     }
     try {
       const below = await api(`/api/canvases/dives?app=${encodeURIComponent(level.app)}&board=main`);
-      if (!below.children.length) { setConfirm({ level, descendants: [] }); return; }
+      if (!below.children.length) { setConfirm({ level, descendants: [], back }); return; }
       await api(`/api/canvases/dives/${level.app}`, { method: 'DELETE' });
     } catch (failure) {
-      if (failure.status === 409 && failure.data?.descendants) setConfirm({ level, descendants: failure.data.descendants });
+      if (failure.status === 409 && failure.data?.descendants) setConfirm({ level, descendants: failure.data.descendants, back });
       else setError(`Not deleted: ${failure.message}`);
     }
   };
   const doDelete = async () => {
-    const { level, descendants } = confirm;
+    const { level, descendants, back } = confirm;
     setConfirm(null);
     try {
       const { deleted } = await api(`/api/canvases/dives/${level.app}${descendants.length ? '?subtree=1' : ''}`, { method: 'DELETE' });
@@ -221,10 +221,12 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
       const path = treeRef.current.path, at = path.findIndex(entry => deleted.includes(entry.app));
       if (at > 0) go(path[at - 1]); else load();
     } catch (failure) {
-      if (failure.status === 409 && failure.data?.descendants) setConfirm({ level, descendants: failure.data.descendants });
+      if (failure.status === 409 && failure.data?.descendants) setConfirm({ level, descendants: failure.data.descendants, back });
       else setError(`Not deleted: ${failure.message}`);
     }
   };
+  // The kept hole open now (not the root, not a pending one): what the empty canvas's Delete Rabbit Hole deletes.
+  const current = !pending && tree?.path.length > 1 ? tree.path.at(-1) : null;
 
   // The Tutor's suggested dive (later): window.dispatchEvent(new CustomEvent('small:dive-suggest', { detail: { blockId, topic } })).
   // With a blockId the card is the origin; without one a topic anchor card is made on confirm.
@@ -250,6 +252,14 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
       const known = stateRef.current.card?.id === id ? stateRef.current.card : null;
       const { notice } = dive('', via, title ? { id, title } : known || { id, title: canvasApi.current?.block?.(id)?.title || '' });
       if (notice?.text) toast(notice.text);
+    },
+    // The canvas right-click menu's Delete Rabbit Hole (owner, 2026-10-27): a card's kept hole, or the hole open now, through
+    // askDelete and its dialog; Cancel gives the focus back to the card.
+    current: current && { name: current.app, title: current.title },
+    remove: name => {
+      const child = children.find(entry => entry.name === name);
+      if (child) askDelete({ ...child, app: child.name, kind: 'canvas' }, document.querySelector(`[data-block-id="${CSS.escape(child.origin_block_id)}"]`));
+      else if (current?.app === name) askDelete(current);
     } },
     navigator: { tree: tree && { ...tree, children }, pending, error, climb, enter, rename, askDelete },
     // The canvas title's Rabbit Holes menu (TitleHoles): a level on the path is climbed to, as the map's levels are;
@@ -262,13 +272,18 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
         <p className="mt-1 text-xs text-ink-3">Add a card, a drawing or a note and it is kept. Leave this Rabbit Hole with nothing in it and it disappears.</p>
       </div>
     </div>,
+    // Owner, 2026-10-27: one dialog for every Rabbit Hole delete, worded as DELETE /api/canvases/dives (dives.js) does it: the
+    // canvas rows, boards, comments and stars go for good (no Trash); the link row goes, so the origin card is a plain card
+    // again; links to it from other canvases resolve as Unavailable (canvas-refs.js). Holes inside go only after this names them.
     confirmDialog: confirm && <ConfirmDialog
-      title={confirm.descendants.length ? `Delete "${confirm.level.title}" and everything inside it?` : `Delete "${confirm.level.title}"?`}
-      body={confirm.descendants.length
-        ? <>This Rabbit Hole has {confirm.descendants.length} hole{confirm.descendants.length === 1 ? '' : 's'} inside it, and they go too: <span className="font-medium text-ink">{confirm.descendants.map(hole => hole.title).join(', ')}</span>. Their canvases are removed from this browser.</>
-        : 'Its canvas is removed from this browser, and the card it came from loses its outline.'}
-      confirmLabel={confirm.descendants.length ? `Delete ${confirm.descendants.length + 1} holes` : 'Delete'}
-      onCancel={() => setConfirm(null)} onConfirm={doDelete} />,
+      title="Delete this Rabbit Hole?"
+      body={<span data-dive-delete-body>
+        <span className="font-medium text-ink">{confirm.level.title}</span> and everything on its canvas are deleted permanently. It does not go to Trash.
+        {confirm.descendants.length > 0 && <> The {confirm.descendants.length} Rabbit Hole{confirm.descendants.length === 1 ? '' : 's'} inside it {confirm.descendants.length === 1 ? 'is' : 'are'} deleted too: <span className="font-medium text-ink">{confirm.descendants.map(hole => hole.title).join(', ')}</span>.</>}
+        {' '}The card it opens from stays, without its Rabbit Hole outline. Links to {confirm.descendants.length ? 'them' : 'it'} from other canvases show as Unavailable.
+      </span>}
+      confirmLabel="Yes, delete"
+      onCancel={() => { const { back } = confirm; setConfirm(null); if (back?.isConnected) back.focus({ preventScroll: true }); }} onConfirm={doDelete} />,
     suggestionCard: suggestion && <DiveSuggestion topic={suggestion.topic} onDive={acceptSuggestion} onKeep={() => setSuggestion(null)} />,
   };
 }

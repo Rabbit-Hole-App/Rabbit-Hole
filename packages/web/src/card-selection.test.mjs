@@ -206,7 +206,8 @@ test('the canvas right-click menu: every item is one MenuRow with its icon, on c
   assert.match(ui, /disabled:cursor-default disabled:text-ink-3 disabled:hover:bg-transparent/);
   // The suggested marks where they apply: Start Rabbit Hole's own, Add comment, Copy text, Duplicate, Delete.
   for (const [label, icon] of [['Start Rabbit Hole', 'ArrowDownToLine'], ['Add comment', 'MessageCircle'], ['Copy text', 'Copy'], ['Duplicate', 'CopyPlus'], ['Delete', 'Trash2']]) {
-    const row = rows.find(entry => entry.label === label || (label === 'Delete' && entry.id === 'delete'));
+    // Start Rabbit Hole's label reads Enter Rabbit Hole on a card with a kept hole (owner, 2026-10-27), so it is found by id.
+    const row = rows.find(entry => entry.label === label || (label === 'Delete' && entry.id === 'delete') || (label === 'Start Rabbit Hole' && entry.id === 'start-rabbit-hole'));
     assert.equal(row?.icon, icon, label);
   }
 });

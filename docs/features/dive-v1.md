@@ -134,6 +134,8 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
   back the pending question. Card inputs and practice state already persist in the parent's block
   data.
 - **Delete.**
+  - From the navigator, or the canvas right-click menu (owner 2026-10-27: Delete Rabbit Hole on a card's kept hole or on the empty
+    canvas inside one; `card-context-menu.md`). One dialog: "Delete this Rabbit Hole?", Yes, delete and Cancel.
   - A leaf is deleted after a confirmation.
   - A hole with descendants gets a subtree warning that names them.
   - Deleted holes' local keys are cleared, and the outline goes with the link.
