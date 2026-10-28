@@ -729,6 +729,8 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
     const next = applyInputToBlock(latest.current, name, value);
     if (next === latest.current) return;
     setPlaying(false);
+    // A changed setting is a new run of a timed experiment: it starts again from its first moment.
+    if (scene && presentationMode(scene) === 'time') setTime(0);
     (live && onChangeQuiet ? onChangeQuiet : onChange)(next);
   };
   // Which inputs the active practice has locked - the widgets show it and

@@ -47,6 +47,16 @@ FAQ-join screenshots were inspected. No browser errors or API calls. Evidence:
 entry in Coaching. The user approved this visual direction on 2026-09-29;
 the product scenes remain illustrative placeholders for future real captures.
 
+Update on 2026-10-27 (owner brief "AI Tutor" and its corrections): the five tabs are AI
+Tutor, Explanations, Your materials, Learn by doing and Rabbit Holes, in that order, with the window, its size and the
+pinned scroll-through above unchanged (scrolling advances the tabs and reverses on the way up; tabs stay clickable).
+The tab numbers and the "01 / 05" counter are gone. AI Tutor shows a silent screen recording of the real canvas,
+Chat panel and an interactive /explain card (a wide edit, and a closer 9:8 edit for phones) at about 30/70 copy to
+video. It plays muted on a loop only while its tab is shown, the window is on screen and the page is visible, with a
+thin progress line and no player controls or disclosure; reduced motion keeps its poster. The conversation is in the
+page as screen-reader text. The other four tabs keep their illustrative scenes. How the recording is made, and what in
+it is prepared or scripted, is kept with its sources outside the repository (C:/s/spec/landing-tutor/).
+
 Follow-up on 2026-09-29: the reserved white block is now the approved interactive
 [adaptive example](rabbit-hole-adaptive-demo.md). The overview window, original
 cloud loop and flush FAQ boundary remain unchanged.
