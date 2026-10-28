@@ -6,14 +6,28 @@
 // without drawing anything, and the page must still render the next valid program. The page makes no request outside this origin, and
 // its WASM comes from /static/ with the application/wasm MIME type (what explain-render.js's interceptor serves).
 // The programs below are HAND-AUTHORED TEST DATA, not generation evidence. Local stack only, no model call, no secrets.
-// Usage: BASE=http://127.0.0.1:8878 node e2e/explain-program-render-check.mjs   (the served build must contain render/scene.html)
+// The page is served from the BUILT files (dist-dev, or RENDER_DIST) by a tiny static server below, not by the dev worker: the dev worker
+// (run_worker_first) answers only its own routes, so it never serves /render/scene.html; the control plane's Browser Rendering session
+// likewise gets the entry from the assets binding. The engine runs in a REAL dedicated Worker started from a Blob (page-worker.js).
+// Usage: node e2e/explain-program-render-check.mjs   (after a web build; no stack, no BASE)
 import { chromium } from '@playwright/test';
+import { createServer } from 'node:http';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { buildProgramArtifact, checkProgramDraft } from '../../control-plane/src/explain-program.js';
 import { sealProgram } from '../src/explain-program/contract.js';
 import { PROGRAM_STAMPS } from '../src/explain-program/stamps.js';
 
-const BASE = process.env.BASE || 'http://127.0.0.1:8878';
-if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(BASE)) throw Error('explain-program-render-check runs against the local stack only');
+const ROOT = new URL(`../${process.env.RENDER_DIST || 'dist-dev'}/`, import.meta.url);
+if (!existsSync(new URL('render/scene.html', ROOT))) throw Error(`no built render entry at ${ROOT.pathname}render/scene.html: build the web app first`);
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.wasm': 'application/wasm', '.svg': 'image/svg+xml', '.json': 'application/json' };
+const server = createServer((request, response) => {
+  const path = decodeURIComponent(new URL(request.url, 'http://local').pathname);
+  const file = new URL('.' + path, ROOT);
+  if (!file.pathname.startsWith(ROOT.pathname) || !existsSync(file) || !statSync(file).isFile()) { response.writeHead(404).end('not found'); return; }
+  response.writeHead(200, { 'content-type': TYPES[path.slice(path.lastIndexOf('.'))] ?? 'application/octet-stream' }).end(readFileSync(file));
+});
+await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+const BASE = `http://127.0.0.1:${server.address().port}`;
 const TOTAL = 32; // bump with the checks below; the printed line is what CI reads
 let passed = 0;
 const check = (name, ok, detail = '') => { if (ok) passed++; console.log(`${ok ? 'ok' : 'FAIL'}: ${name}${detail ? ` (${detail})` : ''}`); };
@@ -53,6 +67,8 @@ const browser = await chromium.launch();
 try {
   const context = await browser.newContext();
   const page = await context.newPage();
+  page.on('pageerror', error => console.log(`page error: ${error.message}`)); // what CI shows if the entry fails to start
+  page.on('console', message => { if (message.type() === 'error') console.log(`page console.error: ${message.text().slice(0, 300)}`); });
   const offOrigin = [], wasm = [], violations = [];
   page.on('request', request => { if (!request.url().startsWith(BASE) && !/^(data|blob):/.test(request.url())) offOrigin.push(request.url()); });
   page.on('response', response => { if (response.url().endsWith('.wasm')) wasm.push({ url: response.url(), type: response.headers()['content-type'], status: response.status() }); });
@@ -142,5 +158,6 @@ try {
     check('a fresh session renders the next valid sealed program after the blocked one', next.ok === true && next.bundleHash === artifact.bundleHash && next.trace.quantities.level === 4, JSON.stringify(next).slice(0, 200));
   } finally { await fresh.close(); }
 }
+server.close();
 console.log(`${passed}/${TOTAL} checks passed`);
 process.exit(passed === TOTAL ? 0 : 1);

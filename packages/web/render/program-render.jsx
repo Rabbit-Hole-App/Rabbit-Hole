@@ -3,10 +3,10 @@
 // the driver can screenshot it. Loaded on demand by render-scene.jsx (window.__renderProgram), so a legacy scene capture never
 // loads the interpreter.
 //
-// One difference from the card, stated: the card's host runs the engine in a dedicated Worker; here the host's createWorker option
-// gives it a page-side stand-in that calls runProgram directly. The review page is trusted, inert and has no network, request
-// interception cannot be relied on to cover a Worker's own fetches, and the guest still runs only inside QuickJS under the same
-// interrupt, heap, stack and output limits. Worker termination and CSP are proven by e2e/explain-program-check.mjs.
+// The engine runs in a REAL dedicated Worker, as on the learner's card (page-worker.js): the page fetches the bundled worker script and the
+// WASM through the intercepted /static assets, checks the WASM against the pinned fingerprint, compiles it and starts the Worker from a
+// Blob, handing it the compiled module, so the Worker fetches nothing itself and host.js can Worker.terminate it. Worker termination
+// itself is proven by e2e/explain-program-check.mjs; that Browser Rendering leaves the blob: Worker alone is only provable in a real run.
 //
 // request: { program: ProgramArtifact, time, inputs, theme, width, height }
 // -> { ok: true, frame, fonts, theme, bundleHash, trace, drawn } | { ok: false, programError: { code, diagnostic } } | { ok: false, error }
@@ -16,23 +16,10 @@ import { parseArtifact } from '../src/explain-program/contract.js';
 import { normalizeFrame } from '../src/explain-program/frame.js';
 import { createProgramHost } from '../src/explain-program/host.js';
 import { evaluateRequestFor } from '../src/explain-program/program-card.js';
-import { loadEngine, runProgram } from '../src/explain-program/runtime.js';
+import { pageWorkerFactory } from '../src/explain-program/page-worker.js';
 
 const NOOP = () => {};
-let engine = null; // one WASM instance for the page, loaded on first use
-
-// The Worker-shaped object host.js drives: it answers { ready } once and runs each posted program in the engine.
-class InPageWorker {
-  constructor() {
-    this.onmessage = this.onerror = null;
-    this.stopped = false;
-    engine ??= loadEngine();
-    engine.then(() => this.emit({ ready: true, bootMs: 0 }), () => this.emit({ ready: false }));
-  }
-  emit(data) { setTimeout(() => { if (!this.stopped) this.onmessage?.({ data }); }, 0); }
-  postMessage({ id, source, request }) { engine.then(loaded => this.emit({ id, ...runProgram(loaded, { source, request }) }), () => this.emit({ id, ok: false, code: 'runtime_error', phase: 'engine', detail: 'engine failure' })); }
-  terminate() { this.stopped = true; }
-}
+let factory = null; // the Worker factory for this page: the script and the compiled engine are fetched once
 
 const failure = (code, diagnostic) => ({ ok: false, programError: { code, diagnostic: String(diagnostic ?? '').slice(0, 500) } });
 
@@ -42,7 +29,9 @@ export async function renderProgram(request, { host, root, frames, faces, nextMo
   if (!parsed.ok) return (window.__renderDone = failure(parsed.error.code, parsed.issue));
   const artifact = parsed.value, { manifest } = artifact;
   document.documentElement.classList.toggle('dark', request.theme === 'dark');
-  const programHost = createProgramHost({ artifact, createWorker: () => new InPageWorker() });
+  // A page that cannot load its own engine is a platform failure, not the program's: it is not a programError (the server retries the render).
+  try { factory ??= pageWorkerFactory(); await factory; } catch (error) { factory = null; return (window.__renderDone = { ok: false, error: `engine unavailable: ${String(error.diagnostic ?? error.message).slice(0, 300)}` }); }
+  const programHost = createProgramHost({ artifact, createWorker: await factory });
   const asked = evaluateRequestFor(manifest, { inputs: request.inputs }, request.time ?? 0, 1); // the card's own request builder
   let reply;
   try { reply = await programHost.evaluate(asked); }

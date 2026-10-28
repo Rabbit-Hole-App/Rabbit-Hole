@@ -19,6 +19,7 @@ const ASSETS = { fetch: async request => {
 function fakeRequest(url) {
   const r = { url: () => url, outcome: null };
   r.abort = reason => { r.outcome = `abort:${reason}`; };
+  r.continue = () => { r.outcome = 'continue'; };
   r.respond = response => { r.outcome = `respond:${response.status}:${response.headers['content-type']}`; };
   return r;
 }
@@ -75,6 +76,9 @@ test('only the entry and its hashed static assets are served; every other reques
     [`${RENDER_ORIGIN}/uploads/engine.wasm`]: 'abort:blockedbyclient',
     [`${RENDER_ORIGIN}/api/learn/boards`]: 'abort:blockedbyclient',
     [`${RENDER_ORIGIN}${RENDER_ENTRY}?scene=leak`]: 'abort:blockedbyclient',
+    [`blob:${RENDER_ORIGIN}/0f8a3c2e-1b7d-4e55-9a10-6c2d4f8e9b11`]: 'continue', // the page's own Worker script, built from a Blob
+    'blob:https://elsewhere.example/0f8a3c2e-1b7d-4e55-9a10-6c2d4f8e9b11': 'abort:blockedbyclient',
+    'data:text/javascript,alert(1)': 'abort:blockedbyclient',
     'https://fonts.googleapis.com/css': 'abort:blockedbyclient',
     'http://169.254.169.254/latest/meta-data': 'abort:blockedbyclient',
     [`https://rabbit-hole-cp-dev.tryrabbithole.workers.dev${RENDER_ENTRY}`]: 'abort:blockedbyclient',

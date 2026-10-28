@@ -121,6 +121,9 @@ export async function checkManifest(manifest, scene, limits = RENDER_LIMITS) {
 // The pinned interpreter's WASM is a trusted, versioned, hashed build asset like the scripts; it is served with its own MIME type
 // (a streaming compile refuses anything else) and nothing else of that shape is admitted.
 export const allowedAsset = url => url.origin === RENDER_ORIGIN && !url.search && (url.pathname === RENDER_ENTRY || /^\/static\/[A-Za-z0-9._-]+\.(js|css|woff2?|ttf|wasm)$/.test(url.pathname));
+// The review page starts the engine's Worker from a Blob it built itself (page-worker.js): the browser serves that blob: URL, there is
+// nothing to fetch, so it is let through only when it belongs to this page's origin. Every other blob:, data: or remote URL is aborted.
+const ownBlob = url => url.protocol === 'blob:' && url.origin === RENDER_ORIGIN;
 const contentTypeOf = (url, response) => (url.pathname.endsWith('.wasm') ? 'application/wasm' : response.headers.get('content-type') || 'application/octet-stream');
 
 // The interception handler, separate so a unit test can drive it with fake requests.
@@ -128,6 +131,7 @@ export function interceptor(assets, log) {
   return async request => {
     let url;
     try { url = new URL(request.url()); } catch { url = null; }
+    if (url && ownBlob(url)) { log.served.push('blob:worker'); return request.continue(); }
     if (!url || !allowedAsset(url)) { log.blocked.push(request.url()); return request.abort('blockedbyclient'); }
     const response = await assets.fetch(new Request(url.href));
     if (!response.ok) { log.blocked.push(request.url()); return request.abort('failed'); }
