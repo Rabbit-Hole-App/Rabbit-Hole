@@ -168,7 +168,7 @@ export default function ProgramScene({ block, onChange, onChangeQuiet, onControl
           </button>
           <input type="range" aria-label="Explanation time" min={0} max={duration} step={0.05} value={time}
             onChange={event => { setPlaying(false); setTime(clampTime(manifest, Number(event.target.value))); }} className="h-8 min-w-0 flex-1 accent-accent" />
-          <span className="w-14 shrink-0 text-right text-xs tabular-nums text-ink-2">{time.toFixed(1)}s</span>
+          <span data-program-time className="w-14 shrink-0 text-right text-xs tabular-nums text-ink-2">{time.toFixed(1)}s</span>
         </div>
       )}
       {rows.length > 0 && (

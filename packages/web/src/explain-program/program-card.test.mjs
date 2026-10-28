@@ -6,6 +6,7 @@ import {
   resetProgram, resolveProgram, setProgramInput,
 } from './program-card.js';
 import { growthFixture } from './fixtures.js';
+import { BOARDS, BOARD_SEED_VERSIONS, PROGRAM_FIXTURE_BOARD } from '../demo-scenes.js';
 import { applyExplainEdit, explainEditProblem, explainResultBlock } from '../explain-client.js';
 
 // Fixtures are hand-authored test data, not generation evidence.
@@ -22,6 +23,9 @@ test('only an animation block with a program reference is a program card; scene 
 
 test('a fixture card is admitted only where the build flag is set, and never runs unsealed', async () => {
   assert.equal(fixturesAdmitted({ VITE_EXPLAIN_PROGRAM_FIXTURES: 'true' }), true);
+  assert.equal(fixturesAdmitted({ VITE_COACHING_DEV: 'true' }), true, 'the dev and review build');
+  assert.equal(fixturesAdmitted({ VITE_RABBIT_HOLE: 'true' }), false, 'the production build flag admits nothing');
+  assert.equal(fixturesAdmitted({ VITE_EXPLAIN_PROGRAM_FIXTURES: 'false', VITE_COACHING_DEV: 'false', MODE: 'production' }), false);
   assert.equal(fixturesAdmitted({}), false);
   assert.equal(fixturesAdmitted(undefined), false);
   const refused = await resolveProgram(card(), { fixtures: false, stamps });
@@ -154,4 +158,27 @@ test('legacy results are unchanged by the program path', () => {
   const applied = applyExplainEdit(editing, { id: 'e', stage: 'ready', cardId: 'c', boardId: 'b', result: { ...result, baseRevision: 'xr_9' } }, { id: 'c', scene: { ...scene, duration: 3 } });
   assert.equal(applied.ok, true);
   assert.equal(applied.block.time, 3);
+});
+
+test('the preview board holds only fixture references, and a build without the flag runs none of them', async () => {
+  assert.equal(BOARD_SEED_VERSIONS[PROGRAM_FIXTURE_BOARD], 1);
+  const blocks = BOARDS[PROGRAM_FIXTURE_BOARD]();
+  assert.deepEqual(blocks.map(item => item.program.fixtureId), ['fixture-growth', 'fixture-search', 'fixture-loop', 'fixture-capability']);
+  for (const item of blocks) {
+    assert.deepEqual(Object.keys(item.program), ['fixtureId'], 'a reference only: no source on the board');
+    assert.equal(isProgramBlock(item), true);
+    const refused = await resolveProgram(item, { fixtures: false, stamps });
+    assert.equal(refused.ok, false, `${item.program.fixtureId} must not run without the build flag`);
+    assert.equal(refused.error.message, ERROR_MESSAGES.invalid_program);
+  }
+});
+
+test('the error fixtures end in the fixed messages: the loop is sealed and then stopped by the host, the capability one is refused before it runs', async () => {
+  const [, , loop, capability] = BOARDS[PROGRAM_FIXTURE_BOARD]();
+  const sealed = await resolveProgram(loop, { fixtures: true, stamps });
+  assert.equal(sealed.ok, true, 'the loop is a valid artifact; the interpreter stops it at run time');
+  const blocked = await resolveProgram(capability, { fixtures: true, stamps });
+  assert.equal(blocked.ok, false);
+  assert.equal(blocked.error.code, 'unsupported_capability');
+  assert.equal(blocked.error.message, 'This explanation needs a capability that is not available yet.');
 });

@@ -11,9 +11,10 @@ import { RuntimeError, parseArtifact, resolveInputs, sealProgram, verifyHashes }
 
 export const isProgramBlock = block => block?.type === 'animation' && !!block.program && typeof block.program === 'object';
 
-// The build flag that admits seeded fixture cards. Production builds do not set it, so a fixture reference in a saved
-// block is refused there. import.meta.env is passed in by the caller.
-export const fixturesAdmitted = env => env?.VITE_EXPLAIN_PROGRAM_FIXTURES === 'true';
+// The build flags that admit seeded fixture cards: VITE_EXPLAIN_PROGRAM_FIXTURES, or the dev and review build's own
+// VITE_COACHING_DEV (flags.js reviewTools), which every CI and dev build sets so no workflow has to change. A production build
+// sets neither, so a fixture reference in a saved block is refused there. import.meta.env is passed in by the caller.
+export const fixturesAdmitted = env => env?.VITE_EXPLAIN_PROGRAM_FIXTURES === 'true' || env?.VITE_COACHING_DEV === 'true';
 
 const refuse = (code, diagnostic) => ({ ok: false, error: new RuntimeError(code, diagnostic) });
 
@@ -25,8 +26,8 @@ export async function resolveProgram(block, { client, fixtures = false, stamps =
   if (!ref) return refuse('invalid_program', 'not a program card');
   if (ref.fixtureId !== undefined) {
     if (!fixtures || !stamps) return refuse('invalid_program', 'fixture cards are not admitted in this build');
-    const { FIXTURES } = await import('./fixtures.js');
-    const fixture = FIXTURES.find(item => item.id === ref.fixtureId);
+    const { FIXTURES, ERROR_FIXTURES } = await import('./fixtures.js');
+    const fixture = [...FIXTURES, ...ERROR_FIXTURES].find(item => item.id === ref.fixtureId);
     if (!fixture) return refuse('invalid_program', 'unknown fixture');
     const sealed = await sealProgram({ manifest: fixture.manifest, source: fixture.source }, stamps);
     return sealed.ok ? { ok: true, artifact: sealed.value } : { ok: false, error: sealed.error };

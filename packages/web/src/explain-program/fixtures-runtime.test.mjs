@@ -74,11 +74,21 @@ run('the same program at another time or input draws a different picture without
 });
 
 run('a hostile program is stopped by the host and the next card still runs', async () => {
-  const loop = { manifest: growthFixture.manifest, source: 'export function evaluate() { for (;;) {} }' };
+  const loop = { manifest: growthFixture.manifest, source: 'export function evaluate({ inputs, time, seed, state }) { for (;;) {} }' };
   const sealed = await sealProgram(loop, await programStamps());
   const host = createProgramHost({ artifact: sealed.value, createWorker: inProcessWorker });
   await assert.rejects(host.evaluate({ requestId: 'x', inputs: resolveInputs(sealed.value.manifest, {}), time: 0, seed: 1, state: null }), error => error.code === 'runtime_limit');
   host.dispose('test over');
   const after = await evaluateOnHost(searchFixture, { inputs: {}, time: 0 });
   assert.equal(after.reply.requestId, 'r1');
+});
+
+run('a program that only defines a global evaluate is refused by the interpreter, not run', () => {
+  const request = { inputs: {}, time: 0, seed: 1, state: null };
+  for (const source of ['function evaluate({ inputs, time, seed, state }) { return { frame: { objects: [] }, quantities: {} }; }', 'globalThis.evaluate = () => ({ frame: { objects: [] }, quantities: {} });']) {
+    const out = runtime.runProgram(engine, { source, request });
+    assert.equal(out.ok, false, source);
+    assert.equal(out.code, 'invalid_program');
+  }
+  assert.equal(runtime.runProgram(engine, { source: 'export function evaluate({ inputs, time, seed, state }) { return { frame: { objects: [] }, quantities: {} }; }', request }).ok, true);
 });

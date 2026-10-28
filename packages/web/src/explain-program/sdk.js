@@ -1,5 +1,8 @@
 // The guest-side SDK (plan section 5.2): generic geometry and formatting helpers only. No subject formulas, no lesson catalogue.
 // SDK_SOURCE is plain script text the runtime evaluates in the guest BEFORE the generated module, defining one global, `sdk`.
+// The generated program is an ES module with no imports whose only contract is the named export
+//   export function evaluate({ inputs, time, seed, state }) { ... return { frame, quantities }; }
+// and it reaches these helpers as the global `sdk`.
 // Every helper is pure and returns plain JSON that the Frame contract (contract.js) accepts.
 export const SDK_VERSION = 'sdk-1';
 
