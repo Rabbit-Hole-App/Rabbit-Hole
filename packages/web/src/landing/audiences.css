@@ -58,7 +58,7 @@
 #who-is-it-for :is(select,button):focus-visible{outline:2px solid #955169;outline-offset:4px}
 @media(hover:hover) and (pointer:fine){.audience-navigation button:not(:disabled):hover{background:#f4e7ed;border-color:#cda9b7}}
 @media(max-width:1100px){.audience-next-label{display:none}.audience-copy h3{font-size:clamp(36px,4.8vw,54px)}.audience-node{padding:14px}.audience-canvas-toolbar{padding:0 14px}}
-@media(max-width:900px),(max-height:759px){.audience-stage{gap:18px}.audience-slides{height:590px}.audience-scroll-hint{display:none}.audience-slide{grid-template-rows:130px minmax(0,1fr)}}
+@media(max-width:900px),(max-height:879px){.audience-stage{gap:18px}.audience-slides{height:590px}.audience-scroll-hint{display:none}.audience-slide{grid-template-rows:130px minmax(0,1fr)}}
 @media(max-width:700px){
   #below #who-is-it-for{margin:0 -20px;padding:48px 20px 64px;scroll-margin-top:78px}
   .audience-stage{gap:18px}.audience-topline{padding-top:16px}.audience-count{font-size:12px}
@@ -74,3 +74,66 @@
   .audience-navigation{gap:8px}.audience-navigation button{padding:8px;min-width:42px;min-height:42px}.audience-next-label{display:none}
 }
 @media(prefers-reduced-motion:reduce){.audience-slide,.audience-copy,.audience-navigation button{transition:none!important;transform:none!important}}
+
+/* Real-capture layouts: University students, AI / ML engineers, Interview preparation, Educators ([data-layout]).
+   Captures are stills of Rabbit Hole's own cards (public/landing/audience-*-v1.webp); all words around them are HTML. */
+.audience-body{min-height:0;min-width:0}
+.aud-capture{position:relative;margin:0;border:1px solid var(--audience-line);border-radius:10px;overflow:hidden;background:#fff}
+.aud-capture img{display:block;width:100%;height:auto}
+.aud-label{display:block;margin:0 0 10px;font:500 11px/1.4 var(--ui);letter-spacing:.1em;text-transform:uppercase;color:var(--audience-muted)}
+/* manual mode (phones, short screens): the real-capture slides take their natural height instead of the placeholder's fixed one */
+#who-is-it-for:not(.is-scroll)[data-layout]:not([data-layout="placeholder"]) .audience-slides{height:auto}
+#who-is-it-for:not(.is-scroll) .audience-slide[data-layout]{grid-template-rows:auto auto}
+#who-is-it-for:not(.is-scroll) .audience-slide[data-layout].is-active{position:relative;inset:auto}
+#who-is-it-for:not(.is-scroll) .audience-slide[data-layout] .audience-copy-mask{min-height:130px}
+/* University students: three situations, capture then title, learner question, supporting sentence */
+.aud-situations{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:32px;align-items:start}
+.aud-university .aud-capture{aspect-ratio:500/360;display:grid;align-content:center}
+.aud-situation h4{margin:18px 0 8px;font:500 21px/1.25 var(--display);letter-spacing:-.03em}
+.aud-question{margin:0 0 6px;font:400 17px/1.5 var(--ui);color:var(--audience-ink)}
+.aud-support{margin:0;font:400 15px/1.55 var(--ui);color:var(--audience-muted)}
+/* AI / ML engineers: one paper-and-code scene, wider than the column on large screens; editorial highlights and links are decoration only */
+.aud-ml{position:relative;justify-self:center;width:min(1320px,calc(100% + 140px),calc(100vw - 48px));aspect-ratio:1000/320}
+.aud-ml .aud-paper{position:absolute;left:0;top:0;width:44%}
+.aud-ml .aud-code{position:absolute;left:53%;top:36.9%;width:47%}
+.aud-mark{position:absolute;border-radius:3px;background:rgba(186,120,143,.16);box-shadow:0 0 0 1px rgba(186,120,143,.6);mix-blend-mode:multiply;pointer-events:none}
+.aud-mark-eq{left:32.4%;top:74.7%;width:35.4%;height:12.2%}
+.aud-mark-l67{left:2.4%;top:52.6%;width:95.2%;height:7.4%}
+.aud-mark-l69{left:2.4%;top:66.5%;width:95.2%;height:7.4%}
+.aud-mark-l71{left:2.4%;top:80.4%;width:95.2%;height:7.4%}
+.aud-links{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;fill:none;stroke:#b5798e;stroke-width:1.1;overflow:visible}
+.aud-links path{vector-effect:non-scaling-stroke}
+.aud-ask{position:absolute;left:44.8%;top:50%;width:7.6%;margin:0;font:500 15px/1.35 var(--display);letter-spacing:-.02em;color:#70515c}
+.aud-ask sub{font-size:.7em;vertical-align:baseline;position:relative;top:.22em}
+/* Interview preparation: one dominant card */
+.aud-ml,.aud-interview{align-self:center}
+.aud-interview{display:grid;justify-items:center;align-content:start}
+.aud-interview .aud-capture{width:min(820px,100%)}
+/* Educators: a smaller slide (about 30%) beside the dominant teaching card (about 70%) */
+.aud-educators{display:grid;grid-template-columns:minmax(0,.32fr) minmax(0,.68fr);gap:36px;align-items:start}
+.aud-educators .aud-result{margin-top:34px}
+.aud-request{margin:16px 0 0;padding:2px 0 2px 14px;border-left:2px solid #d8b9c3}
+.aud-request p{margin:0;font:400 14px/1.55 var(--ui);color:var(--audience-ink)}
+.aud-request .aud-label{margin-bottom:6px}
+@media(max-width:1100px){.aud-situations{gap:22px}.aud-situation h4{font-size:19px}.aud-question{font-size:16px}.aud-support{font-size:14px}.aud-ask{font-size:13px}}
+@media(max-width:900px){
+  .aud-situations{grid-template-columns:1fr;gap:40px}
+  .aud-university .aud-capture{aspect-ratio:auto}
+  .aud-ml{width:100%;aspect-ratio:auto;display:flex;flex-direction:column;gap:20px}
+  .aud-ml .aud-paper,.aud-ml .aud-code{position:relative;left:auto;top:auto;width:100%}
+  .aud-ml .aud-paper{order:1}.aud-ml .aud-ask{order:2}.aud-ml .aud-code{order:3}
+  .aud-ml .aud-links{display:none}
+  .aud-ask{position:static;width:auto;font-size:18px}
+  .aud-educators{grid-template-columns:1fr;gap:28px}
+  .aud-educators .aud-result{margin-top:0}
+}
+.aud-pan{position:relative}
+@media(max-width:900px){
+  /* the code card keeps its readable size on a phone and pans sideways inside its frame */
+  .aud-code{overflow-x:auto;overscroll-behavior-x:contain}
+  .aud-pan{width:max(100%,600px)}
+}
+@media(max-width:700px){
+  .aud-mark-eq{left:22.5%;top:80.8%;width:55%;height:11%}
+  .aud-label{font-size:11px}
+}

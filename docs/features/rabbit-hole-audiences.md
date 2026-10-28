@@ -47,3 +47,20 @@ checks passed across seven viewport sizes (320–1440px), including real wheel a
 touch input, forward/reverse selection, short viewports and reduced motion.
 Desktop/mobile screenshots were visually inspected. No browser errors or API
 calls. Evidence: `tmp/audience-section/deployed-live/results.json`.
+
+## Real-capture views (2026-10-28, landing-audiences preview)
+
+University students, AI / ML engineers, Interview preparation and Educators (the audiences with a `kind` in
+`packages/web/src/landing/audiences.js`) replace the placeholder with still captures of Rabbit Hole's own cards
+(`public/landing/audience-*-v1.webp`, plus `-phone-v1.webp` crops served below 700px). Creators & writers and
+Enterprise onboarding keep the placeholder. Brief: C:/s/spec/landing-audiences/BRIEF.md.
+
+- Captures are the real product components (companion PDF reader with its real Highlight, `repo-code` code card,
+  explain-back card, static Explanation card) rendered from the built app with every `/api` answered by a local
+  harness; no model call. Source PDFs, scene, stub, capture and optimise scripts, and notes live in
+  `C:/s/spec/landing-audiences/` (`capture/`, `NOTES.md`). All words around the captures are HTML.
+- Layouts: `[data-layout]` on the slide and on `#who-is-it-for` (`university`, `ml`, `interview`, `educators`,
+  `placeholder`). Pink highlights and connectors on the AI / ML scene are decoration (`aria-hidden`).
+- Pinned scrolling now needs a viewport at least 880px tall (was 760px) because these layouts need about 590px of
+  slide area; shorter screens use the manual selector, arrows and swipe. In manual mode the four views take their
+  natural height. The code card pans sideways on a phone and is excluded from the swipe gesture.
