@@ -24,7 +24,7 @@ function fakeRequest(url) {
 }
 
 // A puppeteer-shaped browser whose page fires the given page requests through the interceptor on goto.
-function fakeBrowser({ pageRequests = [], renderResult = { ok: true, fonts: { missing: [] } }, hang = false } = {}) {
+function fakeBrowser({ pageRequests = [], renderResult = { ok: true, fonts: { missing: [] } }, hang = false, hangClose = false } = {}) {
   const state = { closed: false, evaluated: [], intercepted: [], handler: null };
   const page = {
     setRequestInterception: async on => { state.interception = on; },
@@ -35,6 +35,7 @@ function fakeBrowser({ pageRequests = [], renderResult = { ok: true, fonts: { mi
       for (const u of [url, ...pageRequests]) { const r = fakeRequest(u); await state.handler(r); state.intercepted.push(r); }
     },
     waitForFunction: async () => {},
+    close: async () => { state.pageClosed = (state.pageClosed || 0) + 1; if (hangClose) return new Promise(() => {}); },
     evaluate: async (fn, request) => { state.evaluated.push(request); state.entries = [...(state.entries || []), String(fn).includes('__renderProgram') ? 'program' : 'scene']; if (hang) return new Promise(() => {}); return typeof renderResult === 'function' ? renderResult(request) : renderResult; },
     $: async () => ({ screenshot: async () => new TextEncoder().encode(`png:${state.evaluated.length}`) }),
   };
@@ -155,4 +156,30 @@ test('a program is captured through __renderProgram from its artifact: the manif
   await assert.rejects(renderStates({ ASSETS }, { program: { ...artifact, source: artifact.source + ' ' } }, manifest, { launch: async () => browser }), { code: 'stale_version' });
   const failing = fakeBrowser({ renderResult: { ok: false, programError: { code: 'runtime_error', diagnostic: 'ReferenceError: x' } } });
   await assert.rejects(renderStates({ ASSETS }, { program: artifact }, manifest, { launch: async () => failing.browser }), error => error.code === 'program_error' && error.program.code === 'runtime_error');
+});
+
+test('a blocked capture times out through the real capture path, closes the page and the session even when the page will not close, leaves no timer, and the next program captures', async () => {
+  const artifact = await buildProgramArtifact({ source: 'export function evaluate() { return { frame: { objects: [] }, quantities: {} }; }',
+    manifest: { title: 'T', summary: 'S', assumptions: [], description: 'D', inputs: [], duration: 4, readouts: [], capabilities: ['time_playback'] } });
+  const manifest = await programCaptureManifest(artifact, { reserved: reserveCaptures({ states: 1, checkpoints: 3, themes: 1 }) });
+  const timers = () => process.getActiveResourcesInfo().filter(kind => kind === 'Timeout').length;
+  const before = timers();
+  const stuck = fakeBrowser({ hang: true, hangClose: true }); // evaluate never answers (a blocked page thread) and page.close never answers either
+  stuck.browser.closeCalls = 0;
+  const original = stuck.browser.close;
+  stuck.browser.close = async () => { stuck.browser.closeCalls++; return original(); };
+  const started = Date.now();
+  await assert.rejects(renderStates({ ASSETS }, { program: artifact }, manifest, { launch: async () => stuck.browser, limits: { captureMs: 30, closeMs: 30, totalMs: 5000 } }), { code: 'capture_timeout' });
+  assert.ok(Date.now() - started < 1000, 'the job was not held by the hung page');
+  assert.equal(stuck.state.evaluated.length, 1, 'no further capture was attempted on the blocked page');
+  assert.equal(stuck.state.pageClosed, 1, 'the page was asked to close');
+  assert.equal(stuck.browser.closeCalls, 1, 'the session was closed even though the page never answered its close');
+  assert.equal(stuck.state.closed, true);
+  assert.equal(timers(), before, 'no timer or interval is left running');
+  // The next capture (the repaired program) gets a fresh session and succeeds.
+  const fresh = fakeBrowser({ renderResult: { ok: true, fonts: { missing: [] } } });
+  const result = await renderStates({ ASSETS }, { program: artifact }, manifest, { launch: async () => fresh.browser, limits: { captureMs: 30, closeMs: 30 } });
+  assert.equal(result.captures.length, 3);
+  assert.equal(fresh.state.closed, true);
+  assert.equal(timers(), before);
 });

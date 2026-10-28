@@ -25,19 +25,20 @@ const SPEC = { version: 1, id: 'rain', title: 'Where rain comes from', component
 ], connections: [{ from: 'sea.right', to: 'cloud.left' }], presentation: { mode: 'static' } };
 const verdicts = (ids, visual = 'pass', findings = []) => ({ captures: ids.map(id => ({ id, semantic: 'pass', visual, findings: visual === 'fail' ? findings : [] })) });
 
-function stack(t) {
+function stack(t, { renderLimits } = {}) {
   const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
   sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
   sqlite.prepare("INSERT INTO canvases(org,name,owner_email,title) VALUES('team',?,?,'Weather')").run(CANVAS, OWNER);
   const LEARN_DB = { prepare: text => { let args = []; const stmt = sqlite.prepare(text); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => ({ meta: stmt.run(...args) }), now: () => ({ meta: stmt.run(...args) }) }; },
     batch: async statements => { sqlite.exec('BEGIN'); try { const out = statements.map(s => s.now()); sqlite.exec('COMMIT'); return out; } catch (error) { sqlite.exec('ROLLBACK'); throw error; } } };
   // FAKE_BROWSER: what renderStates drives; every capture request is recorded.
-  const rendered = [], behavior = { programErrors: [] }; // behavior.programErrors: a queue of program failures the next program captures report
+  const rendered = [], behavior = { programErrors: [], hang: 0, pagesClosed: 0, browsersClosed: 0 }; // hang: program captures that never answer (a blocked page)
+  // behavior.programErrors: a queue of program failures the next program captures report
   const FAKE_BROWSER = { async newPage() { return { setRequestInterception: async () => {}, on() {}, emulateMediaFeatures: async () => {}, goto: async () => {}, waitForFunction: async () => {}, setViewport: async () => {},
-    evaluate: async (fn, request) => { rendered.push({ theme: request.theme, time: request.time, inputs: request.inputs, program: !!request.program }); if (request.program && behavior.programErrors.length) return { ok: false, programError: behavior.programErrors.shift() }; return { ok: true, fonts: { missing: [] }, ...(request.program ? { trace: { inputs: request.inputs, time: request.time, quantities: { level: request.time * (request.inputs.rate ?? 0) }, metrics: { ms: 1 } } } : {}) }; }, $: async () => ({ screenshot: async () => PNG }), close: async () => {} }; }, close: async () => {} };
+    evaluate: async (fn, request) => { rendered.push({ theme: request.theme, time: request.time, inputs: request.inputs, program: !!request.program }); if (request.program && behavior.hang > 0) { behavior.hang--; return new Promise(() => {}); } if (request.program && behavior.programErrors.length) return { ok: false, programError: behavior.programErrors.shift() }; return { ok: true, fonts: { missing: [] }, ...(request.program ? { trace: { inputs: request.inputs, time: request.time, quantities: { level: request.time * (request.inputs.rate ?? 0) }, metrics: { ms: 1 } } } : {}) }; }, $: async () => ({ screenshot: async () => PNG }), close: async () => { behavior.pagesClosed++; } }; }, close: async () => { behavior.browsersClosed++; } };
   const FAKE_ASSETS = { fetch: async () => new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }) };
   // The production render stage (explain-render.js by default); only the browser launch is injected.
-  const pipeline = { ...explainPipeline, render: renderStage({ launch: async () => FAKE_BROWSER }) };
+  const pipeline = { ...explainPipeline, render: renderStage({ launch: async () => FAKE_BROWSER, ...(renderLimits ? { limits: renderLimits } : {}) }) };
   const stored = new Map(), actors = new Map();
   const durable = (data) => { let lock = Promise.resolve(); return { id: 'x', storage: { get: async k => structuredClone(data.get(k)), put: async (k, v) => { if (typeof k === 'object') for (const [a, b] of Object.entries(k)) data.set(a, structuredClone(b)); else data.set(k, structuredClone(v)); }, delete: async k => data.delete(k), list: async ({ prefix }) => new Map([...data].filter(([k]) => k.startsWith(prefix)).map(([k, v]) => [k, structuredClone(v)])), setAlarm: async () => {}, getAlarm: async () => null, deleteAlarm: async () => {} }, blockConcurrencyWhile: fn => { const r = lock.then(fn); lock = r.catch(() => {}); return r; } }; };
   const actor = name => { if (!actors.has(name)) { if (!stored.has(name)) stored.set(name, new Map()); actors.set(name, new ExplainJobs(durable(stored.get(name)), env, pipeline)); } return actors.get(name); };
@@ -427,4 +428,32 @@ test('M3 program: a program that only defines a global evaluate is invalid_progr
   const host = createProgramHost({ artifact: sealed.value, createWorker: () => new StandIn() });
   await assert.rejects(host.evaluate({ requestId: 'r3', inputs: { rate: 2 }, time: 2, seed: 0, state: null }), { code: 'invalid_program' });
   host.dispose();
+});
+
+test('M3 program: a capture that never finishes closes the session, goes to repair as runtime_limit (not an outage, not billed), and the repaired program captures', async t => {
+  const s = stack(t, { renderLimits: { captureMs: 40, closeMs: 40 } });
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  s.behavior.hang = 1; // the first capture of the first candidate blocks forever
+  const timers = () => process.getActiveResourcesInfo().filter(kind => kind === 'Timeout').length;
+  const before = timers();
+  s.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
+  s.queues.repair_explanation = [{ operation: 'program', program: { ...PROGRAM, source: PROGRAM.source + '\n// lighter' } }];
+  s.queues.report_review = [verdicts(['t0-light', 't1-light', 't2-light'])];
+  const { id, view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000012', cardId: 'card-prog-12' });
+  assert.deepEqual([view.body.job.stage, view.body.job.round], ['ready', 1]);
+  // The blocked capture was abandoned: its page and its browser session were closed, and nothing was reviewed for that candidate.
+  assert.deepEqual([s.behavior.pagesClosed, s.behavior.browsersClosed], [2, 2], 'both renders closed their page and their session');
+  assert.deepEqual([count(s, 'author_explanation'), count(s, 'report_review'), count(s, 'repair_explanation')], [1, 1, 1]);
+  // It reached repair as the program's runtime_limit, not as a render outage to retry.
+  const repair = JSON.parse(s.calls.find(c => c.name === 'repair_explanation').body.messages[0].content[0].text);
+  assert.match(repair.problems.join(' '), /did not finish within the capture time limit \(runtime_limit\)/);
+  assert.equal(view.body.job.failure, null);
+  assert.equal(view.body.job.recovery.includes('retry_render'), false);
+  // Captures: one attempt for the blocked candidate, then the repaired program's three; only the successful render's captures are billed as renders.
+  assert.equal(s.rendered.length, 4);
+  assert.equal(rows(s, "SELECT COUNT(*) AS n FROM usage_actions WHERE feature = 'render'")[0].n, 3);
+  assert.equal(timers(), before, 'no timer is left running');
+  const read = await s.read('GET', `/api/learn/explain/jobs/${id}?board=${saved.body.board_id}&detail=1`);
+  assert.equal(read.status, 200);
 });

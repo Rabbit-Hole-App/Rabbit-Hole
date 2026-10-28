@@ -80,6 +80,9 @@ export const renderStage = ({ render = explainRender, ...deps } = {}) => async (
   try { out = await renderStates(ctx.env, program ? { program } : job.compiled, manifest, { jobId: job.id, ...deps }); }
   catch (error) {
     // The program ran and failed: a repairable problem for the program (stable code, bounded diagnostic), not a render outage.
+    // A capture that never finished: the program held the page (its own run is interrupted inside the engine, so a blocked page is the
+    // program's doing, not an outage). The session was closed and a fresh one is used for the repaired program; no render is billed.
+    if (program && error.code === 'capture_timeout') return { problems: ['running the program did not finish within the capture time limit (runtime_limit): the page stopped answering; write a lighter program'], category: 'spec', repairable: true };
     if (error.code === 'program_error') return { problems: [`running the program failed (${String(error.program?.code || 'runtime_error').slice(0, 40)}): ${String(error.program?.diagnostic || 'no detail').slice(0, 300)}`], category: 'spec', repairable: true };
     throw Object.assign(fail(`The explanation could not be rendered (${error.code || 'render_failed'}). Retry rendering.`, 503), { category: 'renderer' });
   }

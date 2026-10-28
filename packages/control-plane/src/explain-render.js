@@ -13,7 +13,7 @@ import { defaultInputs, programMoments } from './explain-program.js';
 
 export const RENDER_ORIGIN = 'https://render.invalid'; // never resolves: every request is answered or aborted here
 export const RENDER_ENTRY = '/render/scene.html';
-export const RENDER_LIMITS = Object.freeze({ maxCaptures: 64, maxPixels: 64 * 1600 * 1200 * 4, navigateMs: 15_000, captureMs: 10_000, totalMs: 90_000, maxSide: 4096, keepAliveMs: 10_000 });
+export const RENDER_LIMITS = Object.freeze({ maxCaptures: 64, maxPixels: 64 * 1600 * 1200 * 4, navigateMs: 15_000, captureMs: 10_000, totalMs: 90_000, closeMs: 5_000, maxSide: 4096, keepAliveMs: 10_000 });
 
 export class RenderError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -136,6 +136,12 @@ export function interceptor(assets, log) {
   };
 }
 
+// A close that never answers (a page whose thread is blocked) must not hold the job: it gets closeMs, then the session is closed
+// instead, which ends every page in it. Never rejects.
+const closeWithin = (ms, closing) => {
+  let timer;
+  return Promise.race([Promise.resolve(closing).catch(() => {}), new Promise(resolve => { timer = setTimeout(resolve, ms); })]).finally(() => clearTimeout(timer));
+};
 const within = (ms, promise, code) => {
   let timer;
   return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new RenderError(code, `render timed out after ${ms} ms`)), ms); })]).finally(() => clearTimeout(timer));
@@ -192,10 +198,10 @@ export async function renderStates(env, compiled, manifest, deps = {}) {
         captures.push(capture);
       }
       return { compiledHash: checked.compiledHash, captures, requests, browserMs: Date.now() - opened };
-      } finally { await page.close?.().catch(() => {}); }
+      } finally { await closeWithin(limits.closeMs, page.close?.()); }
     })(), 'render_timeout');
   } finally {
-    if (!deps.browser) await browser.close().catch(() => {});
+    if (!deps.browser) await closeWithin(limits.closeMs, browser.close());
   }
 }
 

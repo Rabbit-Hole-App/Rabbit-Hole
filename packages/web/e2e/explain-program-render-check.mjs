@@ -14,7 +14,7 @@ import { PROGRAM_STAMPS } from '../src/explain-program/stamps.js';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(BASE)) throw Error('explain-program-render-check runs against the local stack only');
-const TOTAL = 29; // bump with the checks below; the printed line is what CI reads
+const TOTAL = 32; // bump with the checks below; the printed line is what CI reads
 let passed = 0;
 const check = (name, ok, detail = '') => { if (ok) passed++; console.log(`${ok ? 'ok' : 'FAIL'}: ${name}${detail ? ` (${detail})` : ''}`); };
 
@@ -109,6 +109,38 @@ try {
   check('the sealed artifact the check used passes the contract\'s own hash verification', (await import('../src/explain-program/contract.js').then(m => m.verifyHashes(artifact))) === true);
 } finally {
   await browser.close();
+}
+
+// ---- A page thread the engine's interrupt cannot reach (explain-render.js capture timeout and session close) ----------------------------------
+// The guest is interrupted inside the engine, but anything that blocks the PAGE thread outside it (here a spin in the page itself) stops the
+// page answering. The control plane then times the capture out (unit-tested through renderStates and the job in explain-m3.test.js) and
+// closes the SESSION, not just the page. This case proves the browser half on Chromium: a spinning page stops answering, closing the
+// browser ends it, and a fresh session renders the next valid program. The Cloudflare Browser Rendering fork itself is only provable in a
+// real Browser Rendering run (Task 7 dev clone).
+{
+  const blocked = await chromium.launch();
+  let closedInTime = false, closeMs = -1;
+  try {
+    const trapped = await blocked.newPage();
+    await trapped.goto(BASE + '/render/scene.html');
+    await trapped.waitForFunction(() => window.__renderReady === true, null, { timeout: 30000 });
+    trapped.evaluate(() => { const end = performance.now() + 120000; while (performance.now() < end) { /* the page thread is busy */ } }).catch(() => {});
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const answered = await Promise.race([trapped.evaluate(() => 1).then(() => true, () => true), new Promise(resolve => setTimeout(() => resolve(false), 1500))]);
+    check('a spinning page thread stops answering (what the engine interrupt cannot reach)', answered === false);
+    const t0 = Date.now();
+    closedInTime = await Promise.race([blocked.close().then(() => true, () => true), new Promise(resolve => setTimeout(() => resolve(false), 30000))]);
+    closeMs = Date.now() - t0;
+  } finally { await blocked.close().catch(() => {}); }
+  check('closing the browser session ends the blocked page within 30 s', closedInTime === true, closeMs + ' ms');
+  const fresh = await chromium.launch();
+  try {
+    const page = await fresh.newPage();
+    await page.goto(BASE + '/render/scene.html');
+    await page.waitForFunction(() => window.__renderReady === true, null, { timeout: 30000 });
+    const next = await page.evaluate(request => window.__renderProgram(request), { program: artifact, time: 2, inputs: { rate: 2 }, theme: 'light', width: 960, height: 540 });
+    check('a fresh session renders the next valid sealed program after the blocked one', next.ok === true && next.bundleHash === artifact.bundleHash && next.trace.quantities.level === 4, JSON.stringify(next).slice(0, 200));
+  } finally { await fresh.close(); }
 }
 console.log(`${passed}/${TOTAL} checks passed`);
 process.exit(passed === TOTAL ? 0 : 1);
