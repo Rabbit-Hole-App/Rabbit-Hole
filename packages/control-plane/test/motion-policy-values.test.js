@@ -31,8 +31,8 @@ test('the approved numbers, and only these: stop 5.00, maximum 500 credits, rese
   assert.deepEqual([orchestrator('MOTION_MAX_CALLS'), orchestrator('MOTION_JOB_TIMEOUT_S')], ['9', '3300']);
 });
 
-test('R2a (owner-only activation) is NOT the public flip: public Motion stays paused; the measured renderer configuration is active in BOTH files with the same id', () => {
-  assert.equal(PROD.MOTION_GENERATION_PAUSED, '1', 'R2b (the public flip, a later HELD commit) is the only thing that sets "0"');
+test('R2b (the public flip, HELD): public Motion is unpaused; the measured renderer configuration is active in BOTH files with the same id; the policy numbers are unchanged', () => {
+  assert.equal(PROD.MOTION_GENERATION_PAUSED, '0', 'R2b is the only commit that sets "0"');
   assert.equal(PROD.MOTION_RENDERER_CONFIG, '03f2a1efc08e-1.5cpu-3gib-420s', 'the Worker activates the measured policy (R2a)');
   assert.equal(orchestrator('MOTION_RENDERER_CONFIG'), PROD.MOTION_RENDERER_CONFIG, 'the orchestrator carries the same id');
   assert.match(PROD.MOTION_ACCEPTANCE_EMAILS, /^user@dda2350771a4066e3080c605ba092e0a\.rabbithole\.invalid/, 'the owner-only list is unchanged');
