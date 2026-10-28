@@ -74,7 +74,7 @@ const mediaFor = (take, index) => `<div class="overview-media">
     ${take.sources(narrow).map(([src, type]) => `<source src="${src}" type="${type}">`).join('')}
   </video>
   <span class="overview-progress" aria-hidden="true"><i></i></span>
-  <ol class="overview-transcript" id="overview-transcript-text-${index}">${take.lines.map(([who, line]) => `<li>${who}: ${line}</li>`).join('')}</ol>
+  <ol class="overview-transcript" id="overview-transcript-text-${index}">${(take.linesFor ? take.linesFor(narrow) : take.lines).map(([who, line]) => `<li>${who}: ${line}</li>`).join('')}</ol>
 </div>`;
 const takes = {
   0: { label: 'The Rabbit Hole canvas with the Tutor beside it: a learner tests a prediction about pendulums', lines: TUTOR_LINES,
@@ -104,9 +104,10 @@ const takes = {
       ['Learner', 'Opens Search, filters to Links and follows the backlink from Attention and context back to the exact card, What about word order?.'],
       ['Learner', 'Goes up to the parent Rabbit Hole and marks Attention done in the table of contents.'],
     ],
-    // ponytail: phones use the wide cut until the phone cut of this take is exported (then `n ? 'phone' : 'wide'` as in take 2).
-    poster: () => '/landing/rabbitholes-wide-v1-poster.jpg',
-    sources: () => [['/landing/rabbitholes-wide-v1.webm', 'video/webm'], ['/landing/rabbitholes-wide-v1.mp4', 'video/mp4']] },
+    // The phone cut ends on the parent canvas returning after Up to the parent hole; only the wide cut marks Attention done.
+    linesFor(n) { return n ? this.lines.slice(0, -1).concat([['Learner', 'Goes up to the parent Rabbit Hole with Up to the parent hole, and the Understanding transformers canvas returns.']]) : this.lines; },
+    poster: n => `/landing/rabbitholes-${n ? 'phone' : 'wide'}-v2-poster.jpg`,
+    sources: n => [[`/landing/rabbitholes-${n ? 'phone' : 'wide'}-v2.webm`, 'video/webm'], [`/landing/rabbitholes-${n ? 'phone' : 'wide'}-v2.mp4`, 'video/mp4']] },
 };
 
 const root = document.getElementById('observatory');
