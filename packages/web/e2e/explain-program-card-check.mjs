@@ -66,7 +66,7 @@ try {
   await open();
 
   await check('1 the growth card draws its picture from the saved program: curve, marker, axes and a readout', async () => {
-    await card('p-growth').locator('[data-program-frame] [data-animation-object]').first().waitFor({ timeout: 30000 });
+    await card('p-growth').locator('[data-program-frame] [data-animation-object]').first().waitFor({ state: 'attached', timeout: 30000 }); // a horizontal axis line has no height, so Playwright calls its group hidden: wait for it to exist
     assert.ok(await card('p-growth').locator('[data-program-frame] polyline').count() >= 1, 'a plotted curve');
     assert.ok(await card('p-growth').locator('[data-program-frame] [data-animation-object="marker"]').count() === 1);
     assert.match(await readouts('p-growth'), /^Balance: 1000$/);
@@ -126,7 +126,7 @@ try {
     await scrub('p-growth', 2);
     await page.waitForTimeout(2500); // the canvas saves after a short pause
     await open();
-    await card('p-growth').locator('[data-program-frame] [data-animation-object]').first().waitFor({ timeout: 30000 });
+    await card('p-growth').locator('[data-program-frame] [data-animation-object]').first().waitFor({ state: 'attached', timeout: 30000 }); // a horizontal axis line has no height, so Playwright calls its group hidden: wait for it to exist
     assert.equal(await timeText('p-growth'), '2.0s');
     assert.match(await card('p-growth').locator('[data-input-readout="rate"]').innerText(), /^8/);
   });
