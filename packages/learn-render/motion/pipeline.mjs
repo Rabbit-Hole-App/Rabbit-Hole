@@ -137,7 +137,7 @@ export async function runMotionRequest({
     const unkept = approvedErrors(brief, approved);
     if (unkept.length) return fail(`brief: it does not keep the approved proposal: ${unkept.join('; ')}`);
 
-    let s = await enter('storyboarding', () => storyboarder({ brief, call, env, effort }));
+    let s = await enter('storyboarding', () => storyboarder({ brief, call, env, effort, limits: allowedLimits(approved?.allowed_complexity) }));
     record(s);
     if (s.storyboard) keep('storyboard.round-0.json', { status: s.status, errors: s.check?.errors ?? [], storyboard: s.storyboard });
     if (s.status === 'storyboard_invalid') {
@@ -146,7 +146,7 @@ export async function runMotionRequest({
       out.repairs.storyboard = 1;
       const findings = s.check.errors.map(e => ({ reviewer: 'harness', category: 'storyboard_check', description: e }));
       out.storyboard_repair = { findings: findings.length, errors: s.check.errors };
-      s = await enter('storyboard_revision', () => storyboarder({ brief, call, env, effort, round: 1, revision: { storyboard: s.storyboard, findings } }));
+      s = await enter('storyboard_revision', () => storyboarder({ brief, call, env, effort, round: 1, limits: allowedLimits(approved?.allowed_complexity), revision: { storyboard: s.storyboard, findings } }));
       record(s);
       out.storyboard_repair.status = s.status;
       if (s.storyboard) keep('storyboard.round-1.json', { status: s.status, errors: s.check?.errors ?? [], storyboard: s.storyboard });

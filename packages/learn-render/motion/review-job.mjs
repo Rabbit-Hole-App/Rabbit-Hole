@@ -191,7 +191,7 @@ export async function runMotionJob({
     out.repair = { route: toStoryboard ? 'director_revision_then_author' : 'author', findings: blocking.length, ...(storyboardLevel && !toStoryboard ? { storyboard_repair_already_spent: true } : {}) };
     let sb = current.storyboard;
     if (toStoryboard) {
-      const s = await revise({ brief, call, env, effort, round: 1, revision: { storyboard: sb, findings: blocking } });
+      const s = await revise({ brief, call, env, effort, round: 1, limits, revision: { storyboard: sb, findings: blocking } });
       record(s);
       out.repair.storyboard = { status: s.status, ...(s.check?.errors?.length ? { errors: s.check.errors } : {}), ...(s.error ? { error: s.error, detail: s.detail } : {}) };
       if (s.status !== 'storyboard') return fail(`storyboard repair (Director revision): ${s.status}${s.error ? `: ${s.error}: ${s.detail}` : `: ${s.check.errors.slice(0, 3).join('; ')}`}`, s.status === 'failed' ? 'model' : 'content');

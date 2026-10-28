@@ -28,7 +28,12 @@ export const MEASURED_RENDERER_REVISION = '03f2a1efc08e8d5c0d73aadced534b614c13f
 // the orchestrator checks (orchestrator.mjs rendererCodeHashes). A test compares it with this checkout's hash, so editing a renderer file after
 // the measurement fails CI until the pairs are measured again.
 export const MEASURED_RENDERER_CODE_HASH = '02d5069eeb4d';
-export const MEASURED_POLICY_VERSION = 'p2-03f2a1efc08e';
+// p3 (owner decision 2026-10-27): the two 15 s pairs also cover the static class 'standard' (STANDARD_PAIRS). A new version makes every card signed under p2 stale, as an allowance change must.
+export const MEASURED_POLICY_VERSION = 'p3-03f2a1efc08e';
+// Owner decision 2026-10-27, OWNER-ONLY validation: the 16:9 and 9:16 pairs at 15 s allow 'simple' AND 'standard'. Evidence: the one model-built 16:9 15 s composition that rendered and was accepted (job bc05caf2) measures 'standard' (146 elements,
+// 25354 bytes) and so does the plan the storyboard check allows (up to 25 appearances at 15 s, about 6.1 elements each); the fixtures (simple/medium) rendered in 100-121 s of the 420 s limit. 'heavy' stays out, and no class changes the 420 s render limit,
+// the 3300 s job timeout, the 9-call cap or the US$5.00 ceiling (those are service and orchestrator constants that never read the class). Everything else stays 'simple' only.
+const STANDARD_PAIRS = new Set(['16:9|15', '9:16|15']);
 export const LEGACY_POLICY_VERSION = 'legacy-5-30';
 
 const cell = (ratio, seconds, scene, receipt, service_total_s, extra = {}) => Object.freeze({ ratio, seconds, scene, receipt, service_total_s, ...extra });
@@ -119,7 +124,7 @@ export const MEASURED_READY_POLICY = Object.freeze({
   renderer_config: MEASURED_RENDERER_CONFIG,
   entries: Object.freeze(keys.map(k => {
     const [aspect_ratio, s] = k.split('|'), seconds = Number(s);
-    return Object.freeze({ aspect_ratio, min_seconds: seconds, max_seconds: seconds, complexity: ['simple'], receipts: enabled.filter(c => c.ratio === aspect_ratio && c.seconds === seconds).map(c => c.receipt) });
+    return Object.freeze({ aspect_ratio, min_seconds: seconds, max_seconds: seconds, complexity: STANDARD_PAIRS.has(k) ? ['simple', 'standard'] : ['simple'], receipts: enabled.filter(c => c.ratio === aspect_ratio && c.seconds === seconds).map(c => c.receipt) });
   })),
 });
 
