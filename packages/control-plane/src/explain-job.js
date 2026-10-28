@@ -86,7 +86,8 @@ export const renderStage = ({ render = explainRender, ...deps } = {}) => async (
     if (error.code === 'program_error') return { problems: [`running the program failed (${String(error.program?.code || 'runtime_error').slice(0, 40)}): ${String(error.program?.diagnostic || 'no detail').slice(0, 300)}`], category: 'spec', repairable: true };
     throw Object.assign(fail(`The explanation could not be rendered (${error.code || 'render_failed'}). Retry rendering.`, 503), { category: 'renderer' });
   }
-  return { captures: out.captures.map(({ png, ...capture }) => ({ ...capture, compiledHash: out.compiledHash, mediaType: 'image/png' })), renders: out.captures.map(() => ({ ok: true })) };
+  // A program's coverage (what was sampled and what was not) is bound to the artifact hash it was computed for.
+  return { captures: out.captures.map(({ png, ...capture }) => ({ ...capture, compiledHash: out.compiledHash, mediaType: 'image/png' })), renders: out.captures.map(() => ({ ok: true })), ...(program ? { coverage: { compiledHash: out.compiledHash, ...manifest.coverage } } : {}) };
 };
 const base64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s); };
 // The spec's title is not drawn (the card's header shows the learner's request), so it is not a fact the pixels must show:
@@ -101,7 +102,9 @@ export async function reviewStage(job, ctx) {
   }));
   let out;
   try { out = await reviewCaptures({ request: job.prompt, compiledHash: captures[0]?.compiledHash, facts: job.artifact ? programFacts(job.artifact.manifest) : specFacts({ ...job.spec, title: null }), evidence: job.evidence || [], captures,
-    ...(job.artifact ? { program: { ...draftOf(job.artifact), traces: captures.map(({ id, trace }) => ({ id, ...trace })) } } : {}) }, { callRole: ctx.call }); }
+    ...(job.artifact ? { program: { ...draftOf(job.artifact), traces: captures.map(({ id, trace }) => ({ id, ...trace })),
+      // Only the coverage computed for exactly the captures being reviewed; one from an earlier or replaced artifact is not shown.
+      ...(job.coverage && job.coverage.compiledHash === captures[0]?.compiledHash ? { coverage: job.coverage } : {}) } } : {}) }, { callRole: ctx.call }); }
   catch (error) { if (error.cause) throw error.cause; throw Object.assign(fail(`The explanation could not be reviewed (${error.code || 'review_failed'}).`, 503), { category: error.code === 'missing_pixels' ? 'renderer' : 'spec' }); }
   const findings = out.captures.flatMap(capture => capture.findings), serious = findings.filter(f => f.severity !== 'minor');
   return { accepted: out.accepted, findings, repairable: allowedRepairs({ findings }).length > 0, category: serious[0]?.category || 'spec', imagesReviewed: captures.length };
@@ -123,7 +126,7 @@ export function publicExplainJob(job) {
   };
 }
 // The private record of a run (spec, findings, candidates, calls, capture keys), for the owner's own verification runs only.
-const explainDiagnostics = job => ({ spec: job.spec, ...(job.program ? { program: job.program, artifact: job.artifact && { ...job.artifact, source: undefined, sourceBytes: job.artifact.source.length } } : {}), findings: job.findings, candidates: job.candidates || [], settings: job.settings,
+const explainDiagnostics = job => ({ spec: job.spec, ...(job.program ? { program: job.program, artifact: job.artifact && { ...job.artifact, source: undefined, sourceBytes: job.artifact.source.length } } : {}), ...(job.coverage ? { coverage: job.coverage } : {}), findings: job.findings, candidates: job.candidates || [], settings: job.settings,
   calls: job.calls, captures: (job.captures || []).map(({ data: _bytes, ...capture }) => capture), counts: job.counts, timing: job.timing });
 
 // Only the actions that can run now (plan section 1.4). retry_render: a retained valid spec, render again (no reauthoring).
@@ -611,6 +614,7 @@ export class ExplainJobs {
     } else if (stage === 'rendering') {
       // A program that ran and failed goes to repair like a refused spec, with the reason; it is not a render failure.
       if (out.problems?.length) { job.findings.push({ round: job.round, stage, problems: out.problems }); return this.repairOrStop(job, out); }
+      if (out.coverage) job.coverage = out.coverage; else delete job.coverage;
       job.captures = out.captures || []; job.renders += out.renders?.length || 0; countStage(job.timing, { captures: job.captures.length });
       await this.recordRenders(job, out.renders || []);
       next('reviewing');
@@ -625,6 +629,7 @@ export class ExplainJobs {
       if (out.rejected) return this.stopWith(job, 'unsupported_repair', 'spec', 'This explanation needs a change the repair step cannot make. Edit the request and try again.');
       if (out.progress === false) return this.stopWith(job, 'no_progress', 'spec', 'The explanation could not be repaired. Edit the request and try again.');
       if (out.program) Object.assign(job, { program: out.program, spec: null, artifact: null, compiled: null }); else Object.assign(job, { spec: out.spec, compiled: null });
+      delete job.coverage; // the replaced artifact's sampling no longer describes anything
       next('validating');
     }
     await this.save(job);

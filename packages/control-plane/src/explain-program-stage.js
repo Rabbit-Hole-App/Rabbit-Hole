@@ -52,7 +52,7 @@ export function programFitProblems(env, artifact, job, { findings = REPAIR_FORWA
     const maxImages = EXPLAIN_ROLES.review.maxImages;
     const captures = Array.from({ length: maxImages }, (_, i) => ({ id: `s${i}-t0-light`, compiledHash: 'x', theme: 'light', time: 0, inputs: {}, data: 'AAAA', mediaType: 'image/png' }));
     const { content } = buildReviewContent({ request: job.prompt, compiledHash: 'x', facts: programFacts(artifact.manifest), evidence: job.evidence || [], captures,
-      program: { ...draft, traces: [{ pad: 'x'.repeat(REVIEW_LIMITS.traceBytes - 32) }] } });
+      program: { ...draft, traces: [{ pad: 'x'.repeat(REVIEW_LIMITS.traceBytes - 32) }], coverage: { sampled: [], omitted: ['x'.repeat(REVIEW_LIMITS.coverageChars)] } } });
     explainRequest(env, 'review', { system: REVIEW_SYSTEM + REVIEW_PROGRAM_RULES, tool: REVIEW_TOOL, content });
   } catch (error) { if (error?.code === 'input_too_large') fail('review', error); else if (error?.code !== 'payload_too_large') throw error; else out.push(error.message); }
   try {

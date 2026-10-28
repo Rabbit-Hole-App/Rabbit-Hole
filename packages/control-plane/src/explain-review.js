@@ -5,7 +5,7 @@
 // stale captures, too many or too large images. A request with no image block can never count as an image review.
 // The model call is injected (callRole: Lane C's callExplainRole on the explain_review role, admitted by the job).
 
-export const REVIEW_LIMITS = Object.freeze({ traceBytes: 6144, maxImages: 6, maxImageBytes: 3_500_000, maxTotalBytes: 18_000_000, maxEvidence: 16, maxExcerpt: 1500, maxFacts: 120 });
+export const REVIEW_LIMITS = Object.freeze({ traceBytes: 6144, coverageChars: 1024, maxImages: 6, maxImageBytes: 3_500_000, maxTotalBytes: 18_000_000, maxEvidence: 16, maxExcerpt: 1500, maxFacts: 120 });
 
 export class ReviewError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -90,6 +90,11 @@ ${program.source}` });
     if (new TextEncoder().encode(traces).length > limits.traceBytes) throw new ReviewError('payload_too_large', `the execution traces are over ${limits.traceBytes} bytes`);
     content.push({ type: 'text', text: `Execution traces (one per capture):
 ${traces}` });
+    // What the host sampled and did not (explain-render.js programCaptureManifest): a fact about the review, not an instruction. The labels
+    // reuse the program's own input ids, so the block is cut to a fixed length.
+    if (program.coverage) content.push({ type: 'text', text: `Review sampling (computed by the host, not by the program; samples are not exhaustive proof):
+Sampled: ${JSON.stringify(program.coverage.sampled || [])}
+Not sampled: ${JSON.stringify(program.coverage.omitted || [])}`.slice(0, limits.coverageChars) });
   }
   for (const { c, data, mediaType } of images) {
     content.push({ type: 'text', text: `Capture ${c.id} (${stateText(c)}):` });

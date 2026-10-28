@@ -129,6 +129,7 @@ test('the job render stage renders through renderStates: inert interception, lig
   const stored = [];
   const out = await renderStage({ launch: async () => browser, store: async key => stored.push(key) })({ id: 'job1', compiled: { scene } }, { env: { ASSETS } });
   assert.deepEqual(out.captures.map(c => c.id), ['light', 'dark']);
+  assert.equal('coverage' in out, false, 'a scene job has no program coverage');
   assert.ok(out.captures.every(c => c.key?.startsWith('explain/job1/') && c.mediaType === 'image/png' && !('png' in c)));
   assert.deepEqual(stored, out.captures.map(c => c.key));
   assert.equal(state.interception, true);
@@ -266,4 +267,15 @@ test('checkManifest accepts a generated program manifest and refuses it for anot
   assert.equal(checked.compiledHash, await compiledHash(artifact));
   await assert.rejects(checkManifest(manifest, { ...artifact, source: artifact.source + ' ' }), { code: 'stale_version' });
   await assert.rejects(checkManifest({ ...manifest, reserved: reserveRound({ cap: 3 }) }, artifact), { code: 'over_budget' });
+});
+
+test('the job render stage returns the program coverage bound to its artifact hash, with what the budget cut', async () => {
+  const artifact = await programWith([num('speed', 1, 9, 4), pick('mode', ['a', 'b'], 'a')]);
+  const { browser } = fakeBrowser();
+  const out = await renderStage({ launch: async () => browser, store: async () => {} })({ id: 'job3', artifact }, { env: { ASSETS } });
+  assert.equal(out.captures.length, 6);
+  assert.equal(out.coverage.compiledHash, await compiledHash(artifact));
+  assert.deepEqual(out.coverage.sampled.map(s => s.label), ['default', 'default', 'default', 'min of speed', 'max of speed', 'last of mode']);
+  assert.deepEqual(out.coverage.omitted, ['combined: every input at its max/last']);
+  assert.equal(out.coverage.sampled.length, out.captures.length);
 });

@@ -4,7 +4,7 @@
 // The stage work is a stub pipeline (named PIPELINE below): T16-T19 supply the real one.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { explainRoute, explainPipeline } from '../src/explain-job.js';
+import { explainRoute, explainPipeline, reviewStage } from '../src/explain-job.js';
 import { explainReservation } from '../src/explain-policy.js';
 import { BOARD, OWNER, explainStack, rows, spent } from './explain-fixture.js';
 import { signProposal, publishRevision, proposalRecord, proposalState } from '../src/generation-proposal.js';
@@ -431,4 +431,30 @@ test('Generate on a v2 brief proposal is unchanged: no references to check, the 
   assert.equal((await s.send('approve', { proposal: p }, waiting.id)).status, 202);
   assert.equal(s.state.data.get(`job:${waiting.id}`).brief.summary, summary);
   assert.equal(s.state.data.get(`job:${waiting.id}`).approval.reviewHash, undefined);
+});
+
+// Task 6 review coverage: what the render stage says it sampled is kept on the job and shown to the reviewer, for the exact artifact only.
+test('a program render stage coverage is stored on the job and reaches the diagnostics; a scene job keeps none', async t => {
+  const coverage = { compiledHash: 'h1', states: 3, moments: 1, frames: 3, themes: ['light'], sampled: [{ id: 'light', label: 'default', inputs: {}, time: 0 }], omitted: ['max of x'] };
+  const s = setup(t, { pipeline: PIPELINE({ render: async () => ({ captures: ['a'], renders: [{ ok: true }], coverage }) }) });
+  const { body } = await s.create();
+  assert.deepEqual((await s.run(body.job.id)).coverage, coverage);
+  const plain = setup(t);
+  const other = await plain.create();
+  assert.equal('coverage' in await plain.run(other.body.job.id), false);
+});
+
+test('the reviewer sees the coverage computed for the captures it reviews, and a coverage of a replaced artifact is not shown', async () => {
+  const manifest = { title: 'T', summary: 'S', assumptions: [], description: 'D', inputs: [], readouts: [], capabilities: [] };
+  const captures = [{ id: 'light', compiledHash: 'h-new', theme: 'light', time: 0, inputs: {}, data: 'AAAA', mediaType: 'image/png', trace: { time: 0 } }];
+  const coverage = hash => ({ compiledHash: hash, sampled: [{ id: 'light', label: 'default', inputs: {}, time: 0 }], omitted: ['max of x'] });
+  const run = async coverageOf => {
+    const sent = [];
+    const ctx = { env: {}, call: async (role, request) => { sent.push(request.content.map(b => b.text || '').join(' ')); return { input: { captures: [{ id: 'light', semantic: 'pass', visual: 'pass', findings: [] }] } }; } };
+    await reviewStage({ prompt: 'Explain x.', artifact: { source: 'export function evaluate() {}', manifest }, captures, coverage: coverageOf }, ctx);
+    return sent[0];
+  };
+  assert.match(await run(coverage('h-new')), /Review sampling[^]*"label":"default"[^]*Not sampled: \["max of x"\]/);
+  assert.doesNotMatch(await run(coverage('h-old')), /Review sampling/);
+  assert.doesNotMatch(await run(undefined), /Review sampling/);
 });

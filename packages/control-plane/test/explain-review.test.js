@@ -66,3 +66,16 @@ test('an outage is review_unavailable, never an accept', async () => {
   await assert.rejects(reviewCaptures({ ...base, captures: [cap('a')] }, { callRole: async () => { throw new Error('HTTP 529 overloaded'); } }), { code: 'review_unavailable' });
   await assert.rejects(reviewCaptures({ ...base, captures: [cap('a')] }, {}), { code: 'no_transport' });
 });
+
+test('a program review states what was sampled and what was not, next to the traces, and is bounded', () => {
+  const program = { source: 'export function evaluate() {}', manifest: { title: 'T' }, traces: [{ id: 'a', time: 0 }] };
+  const text = input => buildReviewContent({ ...base, captures: [cap('a')], program: input }).content.filter(b => b.type === 'text').map(b => b.text);
+  const withCoverage = text({ ...program, coverage: { sampled: [{ id: 'a0-light', label: 'min of x', inputs: { x: 1 }, time: 2 }], omitted: ['max of x', 'combined: every input at its max/last'] } });
+  const block = withCoverage.find(t => t.startsWith('Review sampling'));
+  assert.match(block, /not exhaustive proof/);
+  assert.match(block, /Sampled: \[\{"id":"a0-light","label":"min of x","inputs":\{"x":1\},"time":2\}\]/);
+  assert.match(block, /Not sampled: \["max of x","combined: every input at its max\/last"\]/);
+  assert.ok(withCoverage.findIndex(t => t.startsWith('Execution traces')) < withCoverage.indexOf(block));
+  assert.equal(text(program).some(t => t.startsWith('Review sampling')), false);
+  assert.ok(text({ ...program, coverage: { sampled: [], omitted: ['x'.repeat(5000)] } }).find(t => t.startsWith('Review sampling')).length <= REVIEW_LIMITS.coverageChars);
+});
