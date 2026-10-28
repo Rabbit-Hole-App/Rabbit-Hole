@@ -4,7 +4,8 @@
 // the HOST computes (never a hash the model wrote), and answers the facts a reviewer reads. It runs no guest code: execution
 // belongs to the pinned interpreter in the browser and in the review browser. The checks here are a fast, deterministic early
 // refusal that gives the author a one-line fix; they are not the security boundary.
-import { CAPABILITIES, CONTRACT_LIMITS, ProgramBundle, resolveInputs, sealProgram, unsupportedCapabilities, verifyHashes } from '../../web/src/explain-program/contract.js';
+import { CAPABILITIES, CONTRACT_LIMITS, PROGRAM_VERSIONS, ProgramBundle, resolveInputs, sealProgram, unsupportedCapabilities, verifyHashes } from '../../web/src/explain-program/contract.js';
+import { ENGINE_FINGERPRINT, ENGINE_VERSION } from '../../web/src/explain-program/limits.js';
 import { sdkFingerprint } from '../../web/src/explain-program/sdk.js';
 
 export const programEnabled = env => env.EXPLAIN_PROGRAM_ENABLED === 'true';
@@ -13,22 +14,27 @@ export const programEnabled = env => env.EXPLAIN_PROGRAM_ENABLED === 'true';
 export const programExecution = env => ({ allowed: env.EXPLAIN_PROGRAM_EXECUTION_KILL !== 'true' });
 export { CAPABILITIES as PROGRAM_CAPABILITIES, CONTRACT_LIMITS as PROGRAM_LIMITS };
 
-// shortcut: the engine and build fingerprints the host binds into a bundle identity. Agent A's runtime build owns the real values
-// (limits.js / the packaged interpreter); replace this constant by that import when it lands. A saved artifact keeps the stamps it
-// was sealed with, so a later engine can never run it unnoticed.
-export const PROGRAM_STAMPS = Object.freeze({ runtimeVersion: 'quickjs-emscripten@0.32.0', fingerprints: Object.freeze({ engine: 'quickjs-0.32.0', sdk: 'sdk-1', renderer: 'renderer-1' }) });
+// The stamps this server seals into every artifact: exactly what Agent A's host accepts (host.js programStamps). The engine is named
+// by its version and the SHA-256 of its WASM; QuickJS itself is never imported here. shortcut: switch to the shared stamps.js
+// (ENGINE_VERSION, ENGINE_FINGERPRINT, SDK fingerprint) when it lands; a test pins equality with host.js programStamps().
+export const programStamps = async () => ({ runtimeVersion: ENGINE_VERSION, fingerprints: { engine: ENGINE_FINGERPRINT, sdk: await sdkFingerprint(), renderer: PROGRAM_VERSIONS.rendererVersion } });
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 
 // Source is untrusted text, not a place to look for dangerous words: a lesson may legitimately mention "fetch", "import" or a URL in
-// a label, and the isolated interpreter (not a pattern list) denies every capability. The early checks need no parser: some text,
-// an evaluate entry point, and no control characters.
+// a label, and the isolated interpreter (not a pattern list) denies every capability. The early checks need no parser: some text, no
+// control characters, no import statement (none can load), and the module format the runtime reads: an ES module that EXPORTS
+// evaluate. A function that only exists globally cannot be read by the runtime, so it is refused here with the same stable code
+// the runtime would answer (invalid_program) and a one-line fix, which repair can act on.
+const EXPORTS_EVALUATE = /\bexport\s+(?:async\s+)?(?:function\s*\*?|const|let|var)\s+evaluate\b|\bexport\s*\{[^}]*\bevaluate\b[^}]*\}/;
+export const EXPORT_FORMAT = 'export function evaluate({ inputs, time, seed, state }) { ... } returning { frame, quantities }';
 export function sourceProblems(source) {
-  if (typeof source !== 'string' || !source.trim()) return ['source must be JavaScript text'];
+  if (typeof source !== 'string' || !source.trim()) return ['invalid_program: source must be JavaScript text'];
   const out = [];
   // eslint-disable-next-line no-control-regex
-  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(source)) out.push('source contains a control character');
-  if (!/\bevaluate\b/.test(source)) out.push('source must define evaluate({inputs, time, seed, state})');
+  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(source)) out.push('invalid_program: source contains a control character');
+  if (/^\s*import\b/m.test(source)) out.push('invalid_program: no import is available (the SDK is the global sdk); remove the import statement');
+  if (!EXPORTS_EVALUATE.test(source)) out.push(`invalid_program: the module must export evaluate: ${EXPORT_FORMAT}`);
   return out;
 }
 
@@ -45,9 +51,10 @@ export function checkProgramDraft(draft) {
 }
 
 // The one stored artifact: the bundle plus the host's version stamps and computed hashes (contract.js sealProgram).
-export async function buildProgramArtifact(bundle, stamps = PROGRAM_STAMPS) {
+export async function buildProgramArtifact(bundle, stamps = null) {
+  stamps ??= await programStamps();
   // The SDK fingerprint is the real hash of the SDK text the guest receives (sdk.js), so a changed SDK is a different bundle.
-  const sealed = await sealProgram(bundle, { ...stamps, fingerprints: { ...stamps.fingerprints, sdk: await sdkFingerprint() } });
+  const sealed = await sealProgram(bundle, stamps);
   if (!sealed.ok) throw Object.assign(new Error(sealed.issue || 'the program could not be sealed'), { code: 'invalid_program' });
   return sealed.value;
 }

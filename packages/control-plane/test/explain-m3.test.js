@@ -143,8 +143,9 @@ test('M3: the flag off answers 404 through the worker and starts nothing', async
 // HAND-AUTHORED TEST DATA, not generation evidence: a generic program and its manifest in the frozen contract's shape
 // (packages/web/src/explain-program/contract.js). The scripted provider returns it as the author's reply; nothing is paid.
 import { verifyHashes } from '../../web/src/explain-program/contract.js';
+import { ENGINE_FINGERPRINT, ENGINE_VERSION } from '../../web/src/explain-program/limits.js';
 const PROGRAM = {
-  source: `function evaluate({ inputs, time }) {
+  source: `export function evaluate({ inputs, time }) {
   const level = inputs.rate * time;
   const width = Math.min(800, 40 * level);
   return { frame: { width: 960, height: 540, objects: [
@@ -204,7 +205,7 @@ test('M3 program: pending -> program artifact -> reload, zero new author calls, 
   assert.deepEqual(read.body.execution, { allowed: true });
   assert.equal(await verifyHashes(read.body.artifact), true);
   assert.equal(read.body.artifact.bundleHash, block.explain.bundleHash);
-  assert.deepEqual([read.body.artifact.fingerprints.engine, read.body.artifact.fingerprints.sdk.length, read.body.artifact.fingerprints.renderer], ['quickjs-0.32.0', 64, 'renderer-1']);
+  assert.deepEqual([read.body.artifact.runtimeVersion, read.body.artifact.fingerprints.engine, read.body.artifact.fingerprints.sdk.length, read.body.artifact.fingerprints.renderer], [ENGINE_VERSION, ENGINE_FINGERPRINT, 64, 'renderer-1']);
   // Another person cannot read it, and an unknown result id answers the same refusal.
   const own = s.env.CONTROL_PLANE.fetch;
   s.env.CONTROL_PLANE.fetch = async () => Response.json({ org: 'team', email: 'stranger@test', orgName: 'Team', user_id: 'u-other' });
@@ -350,4 +351,79 @@ test('M3 program: the server owns execution eligibility; the kill switch turns i
   assert.deepEqual(killed.body.job.result.execution, { allowed: false });
   assert.equal(killed.body.job.result.program.sourceHash, view.body.job.result.program.sourceHash, 'the saved artifact is kept');
   assert.deepEqual((await s.read('GET', `/api/learn/explain/jobs/results/${view.body.job.result.resultId}?board=${boardId}`)).body.execution, { allowed: false });
+});
+
+// ---- The server-sealed artifact against Agent A's REAL host and the pinned engine (no mocked runtime) ----------------------------
+// Browser Worker termination and the review entry are proven by CI browser checks; here the host, engine, contract and frame code
+// are the real ones behind a Worker-shaped stand-in (as packages/web/src/explain-program/host.test.mjs does).
+import { createProgramHost, programStamps as hostStamps } from '../../web/src/explain-program/host.js';
+import { loadEngine, runProgram } from '../../web/src/explain-program/runtime.js';
+import { normalizeFrame } from '../../web/src/explain-program/frame.js';
+import { sealProgram } from '../../web/src/explain-program/contract.js';
+import { programStamps } from '../src/explain-program.js';
+
+const ENGINE = loadEngine();
+class StandIn {
+  constructor() { Object.assign(this, { onmessage: null, onerror: null, terminated: false }); ENGINE.then(() => this.emit({ ready: true, bootMs: 1 })); }
+  emit(data) { setTimeout(() => !this.terminated && this.onmessage?.({ data }), 0); }
+  postMessage({ id, source, request }) { ENGINE.then(engine => this.emit({ id, ...runProgram(engine, { source, request }, { ...LIMITS_FOR_TESTS }) })); }
+  terminate() { this.terminated = true; }
+}
+import { LIMITS } from '../../web/src/explain-program/limits.js';
+const LIMITS_FOR_TESTS = { ...LIMITS, interruptMs: 150 }; // a loaded machine must not turn a valid run into a time-limit error
+
+test('M3 program: an artifact sealed by the server accept path is accepted by the real host and yields a valid frame', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  s.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
+  s.queues.report_review = [verdicts(['t0-light', 't1-light', 't2-light'])];
+  const { view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000010', cardId: 'card-prog-10' });
+  const artifact = view.body.job.result.program; // sealed by the real accept path, read from the authorized answer
+  assert.equal(view.body.job.stage, 'ready');
+  // The server seals with exactly the stamps the host accepts.
+  assert.deepEqual(await programStamps(), await hostStamps());
+  assert.equal(artifact.runtimeVersion, (await hostStamps()).runtimeVersion);
+  assert.match(PROGRAM.source, /^export function evaluate\(/, 'the fixture is the module format the runtime reads');
+  const host = createProgramHost({ artifact, createWorker: () => new StandIn() });
+  try {
+    const reply = await host.evaluate({ requestId: 'r1', inputs: { rate: 2 }, time: 2, seed: 0, state: null });
+    assert.equal(reply.requestId, 'r1');
+    assert.equal(reply.quantities.level, 4);
+    const frame = normalizeFrame(reply.frame, artifact.manifest);
+    assert.equal(frame.ok, true, frame.issue);
+    assert.deepEqual(frame.readouts, [{ id: 'level', label: 'Level', text: '4.00' }]);
+    assert.deepEqual(frame.scene.objects.map(o => o.id), ['bar', 'caption']);
+    assert.equal(frame.scene.objects.find(o => o.id === 'bar').initialState.w, 160);
+  } finally { host.dispose(); }
+  // A tampered copy of the same artifact is refused by the host before anything runs.
+  const tampered = createProgramHost({ artifact: { ...artifact, source: artifact.source.replace('40 * level', '41 * level') }, createWorker: () => new StandIn() });
+  await assert.rejects(tampered.evaluate({ requestId: 'r2', inputs: { rate: 2 }, time: 2, seed: 0, state: null }), { code: 'invalid_program' });
+  tampered.dispose();
+});
+
+test('M3 program: a program that only defines a global evaluate is invalid_program at the server and at the real runtime', async t => {
+  const GLOBAL_ONLY = PROGRAM.source.replace('export function evaluate', 'function evaluate');
+  // The server refuses it with the stable code and the exact fix, and repair is told the format.
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  s.queues.author_explanation = [{ kind: 'program', program: { ...PROGRAM, source: GLOBAL_ONLY } }];
+  s.queues.repair_explanation = [{ operation: 'program', program: PROGRAM }];
+  s.queues.report_review = [verdicts(['t0-light', 't1-light', 't2-light'])];
+  const { view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000011', cardId: 'card-prog-11' });
+  const repair = JSON.parse(s.calls.find(c => c.name === 'repair_explanation').body.messages[0].content[0].text);
+  assert.match(repair.problems.join(' '), /invalid_program: the module must export evaluate: export function evaluate\(\{ inputs, time, seed, state \}\)/);
+  assert.match(s.calls.find(c => c.name === 'repair_explanation').body.system[0].text, /export function evaluate/);
+  assert.deepEqual([view.body.job.stage, view.body.job.round], ['ready', 1], 'the repaired module is accepted');
+  assert.equal(s.rendered.length, 3, 'the global-only program was never rendered');
+  // Even if it were sealed, the real runtime answers the same stable code, so nothing runs it.
+  const engine = await ENGINE;
+  const out = runProgram(engine, { source: GLOBAL_ONLY, request: { inputs: { rate: 2 }, time: 2, seed: 0, state: null } }, LIMITS_FOR_TESTS);
+  assert.deepEqual([out.ok, out.code], [false, 'invalid_program']);
+  const sealed = await sealProgram({ manifest: PROGRAM.manifest, source: GLOBAL_ONLY }, await hostStamps());
+  assert.equal(sealed.ok, true);
+  const host = createProgramHost({ artifact: sealed.value, createWorker: () => new StandIn() });
+  await assert.rejects(host.evaluate({ requestId: 'r3', inputs: { rate: 2 }, time: 2, seed: 0, state: null }), { code: 'invalid_program' });
+  host.dispose();
 });

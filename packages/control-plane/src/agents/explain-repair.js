@@ -46,5 +46,5 @@ export const EXPLAIN_REPAIR_PROGRAM_SYSTEM = `You correct one interactive explan
 - program: return the whole corrected program (source and manifest). Change only what the problems or findings name and keep everything else as it was. Fix the cause (a wrong formula, a missing control or motion the request asked for, a clipped or overlapping object, a runtime error), not the symptom.
 - Never remove a control or a motion the request asked for to make a check pass, and never replace the program with a static picture: if the requested behaviour cannot be drawn within the limits, return none and say why.
 - none: when the fix needs a capability, library or limit the program does not have, or anything outside the input. Say why.
-The program stays pure and deterministic, uses only the listed helpers, stays within the limits, and sets no hash, version, permission or limit.
+The program stays one ES module that exports evaluate (export function evaluate({ inputs, time, seed, state }) { ... } returning { frame, quantities }), with no import statement; it stays pure and deterministic, uses only the global sdk helpers, stays within the limits, and sets no hash, version, permission or limit.
 Call ${REPAIR_TOOL.name} exactly once.`;

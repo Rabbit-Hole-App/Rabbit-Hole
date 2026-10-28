@@ -65,7 +65,7 @@ const PROGRAM_MANIFEST = {
 };
 export const PROGRAM_TOOL_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['source', 'manifest'], description: 'Required when kind is program.',
-  properties: { source: { type: 'string', description: 'JavaScript defining evaluate({inputs, time, seed, state}).' }, manifest: PROGRAM_MANIFEST },
+  properties: { source: { type: 'string', description: 'An ES module that exports evaluate: export function evaluate({ inputs, time, seed, state }) { ... } returning { frame, quantities }. No import statements; the SDK is the global sdk.' }, manifest: PROGRAM_MANIFEST },
 };
 
 export function authorTool(catalogue, { program = false } = {}) {
@@ -149,7 +149,7 @@ export const EXPLAIN_PROGRAM_RULES = `
 Program route. You may return kind program instead of kind spec. Choose by what the card must do, not by its subject:
 - kind spec: a static picture or named steps that the catalogue can draw. Prefer it for diagrams, flows and architectures.
 - kind program: the learner moves a control, the card changes with time, or numbers must be calculated and drawn. Never draw such an idea with catalogue components, and never replace a requested control or motion with a static picture. If neither kind can draw it truthfully, return a capability_gap.
-A program is plain JavaScript that defines evaluate({inputs, time, seed, state}) and returns {frame, quantities}. It is pure: the same inputs, time and seed give the same result. It runs in an isolated interpreter with only the helpers listed in program.sdk; it has no network, storage, clock, randomness, timers, imports or DOM, and a run that exceeds program.limits is stopped.
+A program is one ES module that EXPORTS evaluate, exactly: export function evaluate({ inputs, time, seed, state }) { ... } returning { frame, quantities }. A function that is only global is not found by the runtime. No import statement works (no module can load); the SDK is the global sdk, available before the module runs. It is pure: the same inputs, time and seed give the same result. It runs in an isolated interpreter with only the helpers listed in program.sdk; it has no network, storage, clock, timers, imports or DOM (Math.random is seeded from seed), and a run that exceeds program.limits is stopped.
 - inputs holds one value per manifest input id (a number, or the id of the chosen option); time is the playback second (0 when the manifest has no time); seed is an integer; state is null.
 - Do all calculation in the program, from the learner's request and the context. Write the formulas the explanation needs; the host has no subject formulas. Report calculated values as quantities (name: number) and show the ones the learner should read as frame text, from the same variables that draw the picture, so the drawing and the numbers cannot disagree.
 - Declare every control the learner is meant to move in manifest.inputs with a sensible domain, and any playback in manifest.time. State assumptions and idealisations in manifest.assumptions. Keep one idea per card.

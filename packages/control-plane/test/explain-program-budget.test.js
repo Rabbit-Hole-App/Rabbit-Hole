@@ -25,11 +25,11 @@ const headroom = (role, body) => Math.floor((roleBoundMicros(role) - boundOf(bod
 // contains no subject, and is filler for size, not an example of generation).
 function typicalSource(size) {
   const unit = i => `  var v${i} = clamp(inputs.a${i % 3} * time + ${i}, 0, 100);\n  objects.push(sdk.line("l${i}", 40, ${i * 7 % 300}, 40 + v${i}, ${i * 11 % 300}, { role: "output" }));\n  objects.push(sdk.text("t${i}", 40, ${i * 7 % 300}, "v${i} = " + sdk.format(v${i}, 2)));\n`;
-  let out = 'function evaluate({ inputs, time }) {\n  var objects = [];\n', i = 0;
+  let out = 'export function evaluate({ inputs, time }) {\n  var objects = [];\n', i = 0;
   while (bytes(out) < size - 80) out += unit(i++);
   return `${out}  return { frame: sdk.frame(objects), quantities: {} };\n}\n`.slice(0, size);
 }
-const quotesOnly = size => `function evaluate(){ return "${'\\"'.repeat(Math.floor(size / 2) - 40)}"; }`;
+const quotesOnly = size => `export function evaluate(){ return "${'\\"'.repeat(Math.floor(size / 2) - 40)}"; }`;
 const MANIFEST = { title: 'Generic', summary: 'A generic program.', assumptions: ['One idealisation.'], description: 'A generic picture.',
   inputs: [{ type: 'number', id: 'a0', label: 'First', default: 1, min: 0, max: 10 }, { type: 'select', id: 's', label: 'Mode', default: 'x', options: [{ value: 'x', label: 'X' }, { value: 'y', label: 'Y' }] }], duration: 8,
   readouts: [{ id: 'r', label: 'Reading', decimals: 2 }], capabilities: ['time_playback', 'number_inputs', 'select_inputs'] };
