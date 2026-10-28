@@ -2,6 +2,7 @@
 // browser Worker termination itself is proven by e2e/explain-program-check.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createProgramHost, liveRuntimeCount, programStamps } from './host.js';
 import { loadEngine, runProgram } from './runtime.js';
 import { LIMITS } from './limits.js';
@@ -180,4 +181,11 @@ test('every evaluation starts from a fresh guest: shuffled orders give identical
   for (const k of order) answers.push((await host.evaluate(request(k, { rate: k, years: 10, mode: 'simple' }))).quantities);
   assert.deepEqual(answers, order.map(k => ({ calls: 1, seen: 1, k })));
   host.dispose();
+});
+
+test('the Blob-started Worker name is the same literal in page-worker.js and worker.js, and the Worker bundle needs no import()', () => {
+  const read = name => readFileSync(new URL(name, import.meta.url), 'utf8');
+  const named = read('./page-worker.js').match(/const NAME = '([^']+)'/)[1];
+  assert.ok(read('./worker.js').includes(`self.name === '${named}'`));
+  assert.doesNotMatch(read('./runtime.js'), /import\s*\(|newQuickJSWASMModuleFromVariant\(/);
 });

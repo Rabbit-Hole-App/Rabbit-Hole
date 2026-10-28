@@ -9,17 +9,31 @@
 // It is synchronous and has no imports (static import fails at load, import() never loads anything). The SDK (sdk.js) is the
 // global `sdk`, defined before the module runs. A source without that named export (a plain global function evaluate, a
 // default export) is invalid_program.
-import { DefaultIntrinsics, newQuickJSWASMModuleFromVariant, newVariant } from 'quickjs-emscripten-core';
-import variant from '@jitl/quickjs-wasmfile-release-sync';
+import { DefaultIntrinsics, QuickJSWASMModule, newVariant } from 'quickjs-emscripten-core';
+import { QuickJSFFI } from '@jitl/quickjs-wasmfile-release-sync/ffi';
+import emscriptenModule from '@jitl/quickjs-wasmfile-release-sync/emscripten-module';
 import { LIMITS } from './limits.js';
 import { SDK_SOURCE } from './sdk.js';
+
+// The release-sync variant, with its two parts imported statically instead of through the package's dynamic import(), so the
+// Worker bundle is self-contained: page-worker.js starts it from a Blob, where it can fetch nothing of its own.
+const variant = { type: 'sync', importFFI: async () => QuickJSFFI, importModuleLoader: async () => emscriptenModule };
 
 // One WASM instance per Worker; a failed instance is replaced by loading another. Its linear memory is capped: QuickJS's own
 // heap limit is not reliable in this build (it counts malloc_usable_size, which the WASM build lacks, so large arrays and
 // typed arrays passed a 16 MiB limit up to 2 GiB in runtime.test.mjs). The WASM maximum is the hard memory bound.
-export const loadEngine = (limits = LIMITS) => newQuickJSWASMModuleFromVariant(newVariant(variant, {
-  wasmMemory: new WebAssembly.Memory({ initial: 256, maximum: limits.wasmBytes / 65536 }),
-}));
+// wasmModule: an already compiled engine (page-worker.js hands one over), so nothing is fetched.
+// shortcut: these lines are newQuickJSWASMModuleFromVariant (0.32.0) minus its dynamic import() of the module class, which would
+// be a separate chunk the Blob-started Worker cannot fetch; re-check them when the pinned version changes.
+export async function loadEngine(limits = LIMITS, wasmModule) {
+  const loader = await newVariant(variant, {
+    wasmMemory: new WebAssembly.Memory({ initial: 256, maximum: limits.wasmBytes / 65536 }),
+    ...(wasmModule ? { wasmModule } : {}),
+  }).importModuleLoader();
+  const wasm = await loader();
+  wasm.type = 'sync';
+  return new QuickJSWASMModule(wasm, new QuickJSFFI(wasm));
+}
 
 // Trusted guest-side helpers, made before any guest source runs so guest changes to JSON or String cannot replace them.
 // Math.random becomes mulberry32 over the request seed: reproducible, no host entropy.

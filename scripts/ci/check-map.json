@@ -532,6 +532,7 @@
     "packages/web/src/explain-program/sdk.js": ["explain-program-check.mjs"],
     "packages/web/src/explain-program/host.js": ["explain-program-check.mjs"],
     "packages/web/src/explain-program/stamps.js": ["explain-program-check.mjs"],
+    "packages/web/src/explain-program/page-worker.js": ["explain-program-check.mjs"],
     "packages/web/e2e/explain-program-check.mjs": ["explain-program-check.mjs"],
     "packages/web/src/explain-client.js": ["explain-entry-check.mjs","explain-scene-check.mjs","slash-sheet-check.mjs","inline-ai-check.mjs","card-edit-check.mjs","explain-proposal-card-check.mjs"],
     "packages/web/src/ExplainPending.jsx": ["explain-entry-check.mjs","explain-scene-check.mjs","chat-block-check.mjs","explain-proposal-card-check.mjs"],
