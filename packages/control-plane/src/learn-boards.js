@@ -871,6 +871,34 @@ async function sharedCard(req, env, token, cardId) {
   return sharedCardSource(env, await redactRepositoryCards(env.LEARN_DB, JSON.parse(found.row.state_json), viewer), cardId, viewer, admit);
 }
 
+// A program card on this link (/explain program cards): the accepted artifact the card's saved reference names, for whoever the
+// link admits, signed out too. The card must be on the board the server saved and reference a program result; the result is read
+// from the canvas's ExplainJobs object as the board owner's own (its 'result' action: owner, board and artifact hashes checked),
+// never as the visitor, and must be exactly the result, revision and bundle the card saved. The answer is only what the player
+// runs: the artifact, its identity without job or canvas internals, and the server's execution decision. Anything else, the same
+// 404 a card source answers. The owner's job and result routes are unchanged and stay owner-only.
+// ponytail: no per-link read budget (a storage read and a hash check, not a snapshot parse); add admitUsage if reads grow.
+const PROGRAM_IDENTITY = ['resultId', 'cardId', 'revision', 'kind', 'bundleHash', 'sourceHash', 'manifestHash', 'versions'];
+async function sharedProgram(req, env, token, cardId) {
+  const found = await sharedAccess(req, env, token);
+  if (found instanceof Response) return found;
+  const missing = json({ error: 'Not available' }, 404);
+  // explain-job.js explainEnabled: the whole /explain v2 route's switch applies here too (not imported: it pulls the render stack).
+  if (env.EXPLAIN_V2_ENABLED !== 'true' || !env.EXPLAIN_JOBS) return missing;
+  const { row } = found;
+  const block = (sharedState(JSON.parse(row.state_json)).blocks || []).find(b => b?.id === cardId);
+  const ref = block?.type === 'animation' ? block.program : null, saved = block?.explain;
+  if (!ref?.bundleHash || !saved?.resultId || !saved.revision) return missing;
+  const stub = env.EXPLAIN_JOBS.get(env.EXPLAIN_JOBS.idFromName(row.id));
+  const answer = await stub.fetch('https://explain/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'result', id: saved.resultId, board: { id: row.id, app: row.app, board: row.board }, user: { org: row.org, email: row.owner_email } }) });
+  if (!answer.ok) return missing;
+  const { artifact, identity, execution } = await answer.json();
+  if (identity?.resultId !== saved.resultId || identity.cardId !== cardId || identity.revision !== saved.revision
+    || identity.bundleHash !== ref.bundleHash || artifact?.bundleHash !== ref.bundleHash) return missing;
+  return json({ artifact, identity: Object.fromEntries(PROGRAM_IDENTITY.map(key => [key, identity[key] ?? null])), execution: { allowed: execution?.allowed === true } });
+}
+
 async function openShared(req, env, token) {
   const found = await sharedAccess(req, env, token);
   if (found instanceof Response) return found;
@@ -1019,6 +1047,13 @@ export async function learnBoardsRoute(path, req, env) {
     let token, cardId;
     try { [token, cardId] = [decodeURIComponent(carding[1]), decodeURIComponent(carding[2])]; } catch { return json({ error: 'Not available' }, 404); } // a malformed % escape
     return sharedCard(req, env, token, cardId);
+  }
+  const programming = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/cards\/([^/]+)\/program$/);
+  if (programming) {
+    if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
+    let token, cardId;
+    try { [token, cardId] = [decodeURIComponent(programming[1]), decodeURIComponent(programming[2])]; } catch { return json({ error: 'Not available' }, 404); }
+    return sharedProgram(req, env, token, cardId);
   }
   const shared = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)$/);
   if (shared) {

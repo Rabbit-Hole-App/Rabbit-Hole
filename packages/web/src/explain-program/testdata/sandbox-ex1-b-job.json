@@ -1,0 +1,150 @@
+{
+ "job": {
+  "id": "ej_307b2e1aa21a4e38a56b8091ba77d208",
+  "version": 1,
+  "boardId": "aa367de4-008a-41ee-8697-53aff9f30ad6",
+  "cardId": "card-sandbox-ex1-b",
+  "requestClass": "simple",
+  "stage": "ready",
+  "attempt": 1,
+  "terminal": true,
+  "round": 1,
+  "stopReason": "accepted",
+  "failure": null,
+  "recovery": [],
+  "result": {
+   "jobId": "ej_307b2e1aa21a4e38a56b8091ba77d208",
+   "resultId": "er_a5e593503ee047bebc5ac2fcf55f0707",
+   "cardId": "card-sandbox-ex1-b",
+   "canvas": {
+    "boardId": "aa367de4-008a-41ee-8697-53aff9f30ad6"
+   },
+   "promptRef": "14749b3a6ac5d157",
+   "revision": "xr_7bd61999b4e749e4bc59dc7de356bdda",
+   "baseRevision": null,
+   "kind": "program",
+   "bundleHash": "62c202e9826cd30b8e9a49d5c4a896d19011ad4466c75574c306cdc420db434e",
+   "sourceHash": "b682bfc24c2bc7e63dc008e234bafb36d681071ff981383d874e0a0259a3a41c",
+   "manifestHash": "69c621da46d3254cff01cb801d748230a222450b4e10a8b1b8be7a0368c662b3",
+   "versions": {
+    "schema": 1,
+    "runtime": "quickjs-release-sync@0.32.0",
+    "sdk": "sdk-1",
+    "renderer": "renderer-1"
+   },
+   "policyVersion": 1,
+   "program": {
+    "kind": "explain_program",
+    "schemaVersion": 1,
+    "runtimeVersion": "quickjs-release-sync@0.32.0",
+    "sdkVersion": "sdk-1",
+    "rendererVersion": "renderer-1",
+    "runtimePolicyVersion": "policy-1",
+    "permissionProfileVersion": "perm-1",
+    "fingerprints": {
+     "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+     "sdk": "055af456c39a33723545f654b4901f901758101579b2a9fbc92ecc01aea6efe2",
+     "renderer": "renderer-1"
+    },
+    "dependencies": [],
+    "manifest": {
+     "title": "How a hot coffee cools in a room",
+     "summary": "The coffee's temperature over one hour, drawn as it happens. It falls fast at first, then more slowly, and levels off at the room temperature. Change the room temperature to see the curve shift.",
+     "assumptions": [
+      "Newton's law of cooling: heat loss is proportional to the coffee-room temperature difference.",
+      "Coffee starts at 90 °C; cooling constant k = 0.05 per minute (a typical uncovered mug).",
+      "Room temperature stays constant; the coffee is evenly mixed; no evaporation effects modelled separately.",
+      "20 seconds of playback shows 60 minutes."
+     ],
+     "description": "A graph of temperature (0 to 100 °C) against time (0 to 60 minutes). A horizontal line marks the room temperature. A dot traces the coffee's temperature from 90 °C, dropping steeply at first and flattening as it nears the room line. A faint grey curve shows a 20 °C room to compare. Text on the right gives the cooling formula and notes that a bigger gap means faster cooling.",
+     "inputs": [
+      {
+       "type": "number",
+       "id": "room",
+       "label": "Room temperature",
+       "unit": "°C",
+       "default": 10,
+       "min": 0,
+       "max": 30,
+       "step": 1
+      }
+     ],
+     "duration": 20,
+     "readouts": [
+      {
+       "id": "coffee",
+       "label": "Coffee temperature",
+       "unit": "°C",
+       "decimals": 1
+      },
+      {
+       "id": "minutes",
+       "label": "Time elapsed",
+       "unit": "min",
+       "decimals": 0
+      },
+      {
+       "id": "gap",
+       "label": "Gap to room",
+       "unit": "°C",
+       "decimals": 1
+      },
+      {
+       "id": "rate",
+       "label": "Cooling rate",
+       "unit": "°C/min",
+       "decimals": 2
+      }
+     ],
+     "capabilities": [
+      "time_playback",
+      "number_inputs",
+      "polyline",
+      "math_text"
+     ]
+    },
+    "source": "export function evaluate({ inputs, time }) {\n  const Ta = sdk.clamp(Number(inputs.room), 0, 30);\n  const T0 = 90, k = 0.05, tMax = 60, dur = 20;\n  const tm = sdk.clamp(time / dur * tMax, 0, tMax);\n  const X0 = 100, X1 = 610, Y0 = 460, Y1 = 60;\n  const xs = sdk.linear([0, tMax], [X0, X1]);\n  const ys = sdk.linear([0, 100], [Y0, Y1]);\n  const temp = (t, a) => a + (T0 - a) * Math.exp(-k * t);\n  const obj = [];\n  obj.push(sdk.line('xaxis', X0, Y0, X1, Y0));\n  obj.push(sdk.line('yaxis', X0, Y0, X0, Y1));\n  for (let m = 0; m <= 60; m += 10) obj.push(sdk.text('xt' + m, xs(m), Y0 + 22, String(m), { align: 'middle' }));\n  for (let c = 0; c <= 100; c += 20) obj.push(sdk.text('yt' + c, X0 - 16, ys(c) + 5, String(c), { align: 'middle' }));\n  obj.push(sdk.text('xlab', (X0 + X1) / 2, Y0 + 50, 'Time (minutes)', { align: 'middle' }));\n  obj.push(sdk.text('ylab', X0 - 60, Y1 - 20, 'Temperature (°C)'));\n  obj.push(sdk.line('roomline', X0, ys(Ta), X1, ys(Ta), { role: 'input', opacity: 0.8 }));\n  obj.push(sdk.text('roomlab', X0 + 10, ys(Ta) - 8, 'Room ' + sdk.format(Ta, 0) + ' °C', { role: 'input' }));\n  if (Math.abs(Ta - 20) > 0.5) {\n    const refPts = [];\n    for (let i = 0; i <= 60; i++) { const t = i / 60 * tMax; refPts.push([xs(t), ys(temp(t, 20))]); }\n    obj.push(sdk.polyline('ref', refPts, { role: 'neutral', opacity: 0.35 }));\n  }\n  const full = [];\n  for (let i = 0; i <= 120; i++) { const t = i / 120 * tMax; full.push([xs(t), ys(temp(t, Ta))]); }\n  obj.push(sdk.polyline('future', full, { role: 'prediction', opacity: 0.3 }));\n  const te = Math.max(tm, 0.01);\n  const done = [];\n  for (let i = 0; i <= 60; i++) { const t = i / 60 * te; done.push([xs(t), ys(temp(t, Ta))]); }\n  obj.push(sdk.polyline('trace', done, { role: 'output' }));\n  const Tc = temp(tm, Ta);\n  const cx = xs(tm), cy = ys(Tc);\n  obj.push(sdk.circle('dot', cx, cy, 14, { role: 'output' }));\n  if (cx < X0 + 50) {\n    obj.push(sdk.text('dotlab', cx + 14, cy - 12, sdk.format(Tc, 1) + ' °C', { align: 'start', role: 'output' }));\n  } else {\n    obj.push(sdk.text('dotlab', cx, cy - 16, sdk.format(Tc, 1) + ' °C', { align: 'middle', role: 'output' }));\n  }\n  const PX = 650;\n  obj.push(sdk.text('s1', PX, 80, \"Newton's law of cooling\"));\n  obj.push(sdk.math('s2', PX, 120, 'T(t)=T_a+(T_0-T_a)\\\\,e^{-kt}'));\n  obj.push(sdk.text('s2b', PX, 150, 'T_a = room temperature', { opacity: 0.8 }));\n  obj.push(sdk.text('s3', PX, 180, 'Start 90 °C, k = 0.05 per min'));\n  obj.push(sdk.text('s4', PX, 216, 'The bigger the gap to the'));\n  obj.push(sdk.text('s5', PX, 238, 'room, the faster it cools.'));\n  obj.push(sdk.text('s6', PX, 274, 'The gap halves every'));\n  obj.push(sdk.text('s7', PX, 296, 'about 14 minutes.'));\n  obj.push(sdk.text('s8', PX, 332, 'Colder room: faster drop,'));\n  obj.push(sdk.text('s9', PX, 354, 'settles at a lower temp.'));\n  obj.push(sdk.text('s10', PX, 396, 'Faint grey curve:', { opacity: 0.7 }));\n  obj.push(sdk.text('s11', PX, 418, '20 °C room, to compare.', { opacity: 0.7 }));\n  const gap = Tc - Ta, rate = k * gap;\n  return {\n    frame: { width: 960, height: 540, objects: obj, readouts: [\n      { id: 'coffee', value: Tc }, { id: 'minutes', value: tm }, { id: 'gap', value: gap }, { id: 'rate', value: rate }] },\n    quantities: { coffee: Tc, minutes: tm, gap: gap, rate: rate, room_temp: Ta }\n  };\n}\n",
+    "sourceHash": "b682bfc24c2bc7e63dc008e234bafb36d681071ff981383d874e0a0259a3a41c",
+    "manifestHash": "69c621da46d3254cff01cb801d748230a222450b4e10a8b1b8be7a0368c662b3",
+    "bundleHash": "62c202e9826cd30b8e9a49d5c4a896d19011ad4466c75574c306cdc420db434e"
+   },
+   "execution": {
+    "allowed": true
+   }
+  },
+  "createdAt": 1793222818644,
+  "updatedAt": 1793222933731
+ },
+ "block": {
+  "type": "animation",
+  "id": "card-sandbox-ex1-b",
+  "title": "How a hot coffee cools in a room",
+  "program": {
+   "kind": "explain_program",
+   "resultId": "er_a5e593503ee047bebc5ac2fcf55f0707",
+   "bundleHash": "62c202e9826cd30b8e9a49d5c4a896d19011ad4466c75574c306cdc420db434e"
+  },
+  "explain": {
+   "jobId": "ej_307b2e1aa21a4e38a56b8091ba77d208",
+   "resultId": "er_a5e593503ee047bebc5ac2fcf55f0707",
+   "cardId": "card-sandbox-ex1-b",
+   "canvas": {
+    "boardId": "aa367de4-008a-41ee-8697-53aff9f30ad6"
+   },
+   "promptRef": "14749b3a6ac5d157",
+   "revision": "xr_7bd61999b4e749e4bc59dc7de356bdda",
+   "baseRevision": null,
+   "kind": "program",
+   "bundleHash": "62c202e9826cd30b8e9a49d5c4a896d19011ad4466c75574c306cdc420db434e",
+   "sourceHash": "b682bfc24c2bc7e63dc008e234bafb36d681071ff981383d874e0a0259a3a41c",
+   "manifestHash": "69c621da46d3254cff01cb801d748230a222450b4e10a8b1b8be7a0368c662b3",
+   "versions": {
+    "schema": 1,
+    "runtime": "quickjs-release-sync@0.32.0",
+    "sdk": "sdk-1",
+    "renderer": "renderer-1"
+   },
+   "policyVersion": 1
+  }
+ }
+}

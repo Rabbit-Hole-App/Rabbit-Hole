@@ -673,3 +673,16 @@ test('REPLAY ex1-a: four candidates at the contract maximum (16 KiB source, a 3 
     assert.deepEqual([version.stored, version.source.length, version.verified], [true, 16384, { programHash: true, sourceHash: true }]);
   }
 });
+
+test('M3 program: a malformed capabilities field (a string, not a list) is repaired with an actionable message, not a crash', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  s.queues.author_explanation = [{ kind: 'program', program: { ...PROGRAM, manifest: { ...PROGRAM.manifest, capabilities: 'time_playback' } } }];
+  s.queues.repair_explanation = [{ operation: 'program', program: PROGRAM, reason: 'capabilities is a list.' }];
+  s.queues.report_review = [verdicts(CAPTURES)];
+  const { view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000026', cardId: 'card-prog-26' });
+  assert.deepEqual([view.body.job.stage, view.body.job.round, count(s, 'repair_explanation')], ['ready', 1, 1]);
+  const repair = JSON.parse(s.calls.find(c => c.name === 'repair_explanation').body.messages[0].content[0].text);
+  assert.match(repair.problems.join(' '), /manifest\.capabilities: .*expected array, received string/);
+});

@@ -1,15 +1,17 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useReducedMotion } from 'motion/react';
 import { Pause, Play } from 'lucide-react';
 import { api } from '../api.js';
-import { explainClient } from '../explain-client.js';
+import { explainClient, sharedProgramClient } from '../explain-client.js';
+import { CardSourceScope } from '../use-card-source.js';
 import { Frame } from '../AnimatedScene.jsx';
 import { InputWidget } from '../SceneControls.jsx';
-import { normalizeFrame } from './frame.js';
+import { legibleFrame, normalizeFrame } from './frame.js';
 import { createProgramHost, programStamps } from './host.js';
+import { createFrameScheduler } from './playback.js';
 import {
-  clampTime, evaluateRequestFor, fixturesAdmitted, isCurrentReply, programChanged, programErrorMessage, programInputs, programTime, resetProgram, resolveProgram,
-  setProgramInput,
+  clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programInputs, programTime, resetProgram, resolveProgram,
+  setProgramInput, shownProgram,
 } from './program-card.js';
 
 // The interactive program card (plan sections 5.2 and 8): the existing Explanation card shell around the shared Frame. This file
@@ -35,37 +37,49 @@ function NumberInput({ input, value, onInput }) {
   );
 }
 
-export default function ProgramScene({ block, onChange, onChangeQuiet, onControlsHeight = null }) {
+export default function ProgramScene({ block: saved, onChange: save, onChangeQuiet: saveQuiet, onControlsHeight = null, onProgramFrame = null }) {
+  // On a share link (SharedBoardPage's CardSourceScope) the program is read by the link, and the visitor's inputs and time stay in
+  // this card's memory: never saved (not the owner's board, not the visitor's tab copy), so a reload starts from the saved card.
+  const scope = useContext(CardSourceScope);
+  const token = scope?.token || null;
+  const [local, setLocal] = useState(null);
+  const block = token ? shownProgram(saved, local) : saved;
+  const keep = next => setLocal(keptProgram(saved, next));
+  const onChange = token ? keep : save, onChangeQuiet = token ? keep : saveQuiet;
   const [artifact, setArtifact] = useState(null);
   const [failure, setFailure] = useState(null);
   const [attempt, setAttempt] = useState(0); // "Restart explanation" bumps it: the same saved artifact, a fresh host
   const [hostReady, setHostReady] = useState(0);
-  const [view, setView] = useState(null);
-  const [time, setTime] = useState(block.time || 0);
+  const [view, setView] = useState(null); // the drawn frame: normalizeFrame's result plus the time it was evaluated at
+  const [time, setTime] = useState(block.time || 0); // the requested moment (the clock, the scrubber)
+  const [epoch, setEpoch] = useState(0); // bumped by a jump in time (scrub, replay, reset): older answers are then never drawn
+  const [box, setBox] = useState(null); // the legible frame box, from the first frame of this artifact (frame.js legibleFrame)
   const [playing, setPlaying] = useState(false);
   const still = useReducedMotion();
   const latest = useRef(block);
   latest.current = block;
   const host = useRef(null);
+  const scheduler = useRef(null);
   const counter = useRef(0);
   const frame = useRef(0);
   const controls = useRef(null);
   const manifest = artifact?.manifest ?? null;
 
   // Resolve the saved reference to a runnable artifact. A fixture card needs the build flag; an accepted program is fetched through
-  // the authorized job route and must match this card's identity and saved hash (program-card.js).
+  // its saved result (the owner's result route, or the link's program read) and must match this card's identity and saved hash (program-card.js).
   useEffect(() => {
     let live = true;
     setArtifact(null); setView(null); setFailure(null);
     (async () => {
       const current = latest.current;
       const boardId = current.explain?.canvas?.boardId;
-      const out = await resolveProgram(current, { client: boardId ? explainClient(api, boardId) : null, fixtures: fixturesAdmitted(import.meta.env), stamps: await programStamps() });
+      const client = token ? sharedProgramClient(token) : boardId ? explainClient(api, boardId) : null;
+      const out = await resolveProgram(current, { client, fixtures: fixturesAdmitted(import.meta.env), stamps: await programStamps() });
       if (!live) return;
       if (out.ok) setArtifact(out.artifact); else setFailure(out.error);
     })();
     return () => { live = false; };
-  }, [block.id, block.program?.bundleHash, block.program?.fixtureId, block.explain?.resultId, attempt]);
+  }, [block.id, block.program?.bundleHash, block.program?.fixtureId, block.explain?.resultId, attempt, token]);
 
   // One host per artifact, disposed with the card (hidden, deleted, navigated away): a Worker is never left behind.
   useEffect(() => {
@@ -78,18 +92,34 @@ export default function ProgramScene({ block, onChange, onChangeQuiet, onControl
 
   const inputs = manifest ? programInputs(manifest, block) : null;
   const inputsKey = inputs ? JSON.stringify(inputs) : '';
-  // Evaluate whenever the inputs or the moment change. The newest request wins: an answer for an older one is dropped.
+  // One frame scheduler per host (playback.js): it draws every completed frame of the current inputs and epoch, in order, and
+  // settles on the exact requested moment. It is not torn down when the time changes, so a frame slower than one animation
+  // frame is drawn instead of dropped.
   useEffect(() => {
     if (!manifest || !host.current) return undefined;
-    let live = true;
-    const id = ++counter.current;
-    host.current.evaluate(evaluateRequestFor(manifest, latest.current, time, id)).then(reply => {
-      if (!live || !isCurrentReply(reply, counter.current)) return;
-      const out = normalizeFrame(reply.frame, manifest);
-      if (out.ok) { setView(out); setFailure(null); } else setFailure(out.error);
-    }, error => { if (live && id === counter.current && error?.name !== 'AbortError') setFailure(error); }); // a superseded or disposed request is not a failure
-    return () => { live = false; };
-  }, [manifest, hostReady, inputsKey, time]);
+    const target = host.current;
+    const created = createFrameScheduler({
+      evaluate: job => target.evaluate(evaluateRequestFor(manifest, { ...latest.current, inputs: job.inputs }, job.time, ++counter.current)),
+      show: (reply, job) => {
+        const out = normalizeFrame(reply.frame, manifest);
+        if (out.ok) { setView({ ...out, time: job.time }); setFailure(null); } else setFailure(out.error);
+      },
+      fail: error => setFailure(error),
+    });
+    scheduler.current = created;
+    return () => { created.dispose(); if (scheduler.current === created) scheduler.current = null; };
+  }, [manifest, hostReady]);
+  useEffect(() => {
+    if (manifest) scheduler.current?.want({ key: `${inputsKey}#${epoch}`, time: clampTime(manifest, time), inputs });
+  }, [manifest, hostReady, inputsKey, epoch, time]);
+  // The card's size comes from the artifact's first frame only (LearningBlocks sizeFor), so playback never resizes it.
+  useEffect(() => { setBox(null); }, [artifact]);
+  useEffect(() => {
+    if (!view || box) return;
+    const legible = legibleFrame(view.scene);
+    setBox(legible);
+    onProgramFrame?.(legible);
+  }, [view, box, onProgramFrame]);
 
   const duration = manifest?.duration ?? 0;
   // Play advances real simulation time (the readouts are never rescaled); the loop is the scene card's.
@@ -117,13 +147,18 @@ export default function ProgramScene({ block, onChange, onChangeQuiet, onControl
     document.addEventListener('visibilitychange', hide);
     return () => document.removeEventListener('visibilitychange', hide);
   }, []);
-  // The controls row reports its real height so the card grows by it, as SceneControls does.
+  // The rows under the frame (readouts, transport, Interact, assumptions) report their real height so the card grows by it, as
+  // SceneControls does. They exist only once a frame is drawn, so the observer starts then (keyed on drawn, not on the manifest,
+  // which arrives a render earlier and found no rows to observe).
+  const drawn = !!(manifest && view);
   useLayoutEffect(() => {
     if (!onControlsHeight || !controls.current) return undefined;
     const observer = new ResizeObserver(() => onControlsHeight(controls.current ? controls.current.offsetHeight + 8 : 0));
     observer.observe(controls.current);
     return () => { observer.disconnect(); onControlsHeight(0); };
-  }, [onControlsHeight, manifest]);
+  }, [onControlsHeight, drawn]);
+  // The drawing changes only when a new frame is drawn, not on every clock tick.
+  const picture = useMemo(() => view && <Frame scene={view.scene} state={view.state} selecting={false} marked={null} picked={null} pop={STILL} fixedView onPick={NOOP} onRegion={NOOP} />, [view]);
 
   if (failure) {
     return (
@@ -143,36 +178,53 @@ export default function ProgramScene({ block, onChange, onChangeQuiet, onControl
     (live && onChangeQuiet ? onChangeQuiet : onChange)(next);
   };
   const atEnd = time >= duration - 0.001;
+  // A jump in time (not the clock running): answers asked for before it are never drawn after it.
+  const seek = next => { setTime(next); setEpoch(count => count + 1); };
   const play = () => {
-    if (still) { setTime(atEnd ? 0 : duration); return; } // reduced motion: show the end, do not travel to it
-    if (atEnd && !playing) setTime(0);
+    if (still) { seek(atEnd ? 0 : duration); return; } // reduced motion: show the end, do not travel to it
+    if (atEnd && !playing) seek(0);
     setPlaying(value => !value);
   };
-  const reset = () => { setPlaying(false); setTime(0); onChange(resetProgram(latest.current)); };
+  const reset = () => { setPlaying(false); seek(0); onChange(resetProgram(latest.current)); };
   const rows = manifest.inputs;
+  // While playing, the time shown is the drawn frame's own moment, so the label never runs ahead of the picture; paused, it is
+  // the requested moment, which the picture settles on within one evaluation (data-program-settling until then).
+  const shownTime = playing ? view.time : time;
+  // The frame keeps its legible box: a larger card draws it larger; a smaller one (a phone's Focus, a learner's resize) scrolls
+  // the drawing inside its viewport instead of shrinking its text below the floors, and the rows below stay in view.
+  const legible = box ?? legibleFrame(view.scene);
   return (
-    <div data-program-card className="flex min-h-0 flex-1 flex-col gap-2" onPointerDown={event => event.stopPropagation()}>
-      <div data-program-frame role="group" aria-label={manifest.description} className="min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-white">
-        <Frame scene={view.scene} state={view.state} selecting={false} marked={null} picked={null} pop={STILL} fixedView onPick={NOOP} onRegion={NOOP} />
+    <div data-program-card data-program-settling={(!playing && view.time !== clampTime(manifest, time)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
+      onPointerDown={event => event.stopPropagation()}>
+      <div data-program-viewport className="flex min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white">
+        <div data-program-frame role="group" aria-label={manifest.description} className="flex-1" style={{ minWidth: legible.w, minHeight: legible.h }}>{picture}</div>
       </div>
       <p className="sr-only">{manifest.summary}</p>
+      <div ref={controls} className="flex shrink-0 flex-col gap-2">
       {view.readouts.length > 0 && (
-        <p data-program-readouts aria-live="polite" className="shrink-0 text-sm tabular-nums text-ink">
-          {view.readouts.map(readout => `${readout.label}: ${readout.text}`).join(' · ')}
+        // Each readout keeps one line and its value a fixed minimum width, so a changing number never rewraps the row
+        // (and never resizes the card) during playback.
+        <p data-program-readouts aria-live="polite" className="text-sm tabular-nums text-ink">
+          {view.readouts.map((readout, index) => (
+            <span key={readout.id}>
+              <span className="inline-block whitespace-nowrap">{readout.label}: <span className="inline-block" style={{ minWidth: `${valueWidth(manifest, readout.id)}ch` }}>{readout.text}</span></span>
+              {index < view.readouts.length - 1 && ' · '}
+            </span>
+          ))}
         </p>
       )}
       {duration > 0 && (
-        <div data-animation-transport className="flex shrink-0 items-center gap-1.5">
+        <div data-animation-transport className="flex items-center gap-1.5">
           <button type="button" data-animation-play onClick={play} className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">
             {playing ? <Pause size={14} /> : <Play size={14} />}{playing ? 'Pause' : atEnd ? 'Replay' : 'Play'}
           </button>
           <input type="range" aria-label="Explanation time" min={0} max={duration} step={0.05} value={time}
-            onChange={event => { setPlaying(false); setTime(clampTime(manifest, Number(event.target.value))); }} className="h-8 min-w-0 flex-1 accent-accent" />
-          <span data-program-time className="w-14 shrink-0 text-right text-xs tabular-nums text-ink-2">{time.toFixed(1)}s</span>
+            onChange={event => { setPlaying(false); seek(clampTime(manifest, Number(event.target.value))); }} className="h-8 min-w-0 flex-1 accent-accent" />
+          <span data-program-time className="w-14 shrink-0 text-right text-xs tabular-nums text-ink-2">{shownTime.toFixed(1)}s</span>
         </div>
       )}
       {rows.length > 0 && (
-        <div ref={controls} data-scene-controls className="shrink-0 rounded-lg border border-line bg-white px-3 pt-1.5 pb-2">
+        <div data-scene-controls className="rounded-lg border border-line bg-white px-3 pt-1.5 pb-2">
           <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-2 uppercase">Interact</p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             {rows.map(input => (input.type === 'number'
@@ -185,7 +237,17 @@ export default function ProgramScene({ block, onChange, onChangeQuiet, onControl
           </div>
         </div>
       )}
-      {manifest.assumptions.length > 0 && <p data-program-assumptions className="shrink-0 text-[11px] text-ink-2">Assumes: {manifest.assumptions.join(' ')}</p>}
+      {/* Long assumptions sit in a bounded region that scrolls (data-scroll: the canvas wheel leaves it to the browser). */}
+      {manifest.assumptions.length > 0 && <p data-program-assumptions data-scroll className="max-h-[4.5em] overflow-y-auto text-[11px] text-ink-2">Assumes: {manifest.assumptions.join(' ')}</p>}
+      </div>
     </div>
   );
+}
+
+// The minimum width (ch) of a readout's value: a sign, three digits, its decimals and its unit. Static per manifest, so the
+// readouts row keeps its layout while the numbers change; a longer value only widens its own item.
+function valueWidth(manifest, id) {
+  const definition = manifest.readouts.find(readout => readout.id === id);
+  if (!definition) return 0;
+  return 4 + (definition.decimals ? definition.decimals + 1 : 0) + (definition.unit ? definition.unit.length + 1 : 0);
 }

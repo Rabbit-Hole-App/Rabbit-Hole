@@ -23,6 +23,7 @@ import RepositoryGraph from './RepositoryGraph.jsx';
 import FlowDiagram from './FlowDiagram.jsx';
 import AnimatedScene from './AnimatedScene.jsx';
 import ProgramScene from './explain-program/ProgramScene.jsx';
+import { programCardSize } from './explain-program/frame.js';
 import { describeProgram } from './explain-program/program-card.js';
 const WhiteboardBlock = lazyFeature(() => import('./WhiteboardBlock.jsx'), 'The whiteboard');
 import { fromTemplate, presentationMode } from './animation-scene.js';
@@ -486,7 +487,11 @@ export const BLOCK_TYPES = {
     // only free variable left once the floors are fixed is how much room the
     // block gets. Generic - it reads the scene's own content bounds and the
     // typography classes it draws, never which scene it is.
-    sizeFor: block => {
+    // A program card (block.program) has no scene in the block: its size comes from the legible box of the program's own
+    // first frame (frame.js legibleFrame, reported by ProgramScene once per artifact) plus this card's chrome. Its rows under
+    // the frame (readouts, transport, Interact, assumptions) report their measured height like the INTERACT zone below.
+    sizeFor: (block, programFrame = null) => {
+      if (block.program) return programFrame ? programCardSize(programFrame, { chrome: { w: FRAME_CHROME.w, h: FRAME_CHROME.h - TRANSPORT }, minWidth: 560 }) : null;
       const report = block.scene ? sceneLegibility(block.scene) : null;
       if (!report) return null;
       // The INTERACT zone below the frame and transport is not reserved here:
@@ -1187,7 +1192,7 @@ function WhiteboardBody({ block, appName, onChange }) {
 
 // A short animation from scene JSON: deterministic playback the learner can
 // pause, scrub and ask about without the scene ever changing.
-function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPracticeHeight, onControlsHeight }) {
+function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPracticeHeight, onControlsHeight, onProgramFrame }) {
   // A same-card Edit's candidate, while the learner looks at Proposed (ExplainEditBar): drawn, never saved or changed.
   const [candidate, setCandidate] = useState(null);
   const ignore = () => {};
@@ -1206,7 +1211,7 @@ function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPract
           : candidate?.scene
             ? <AnimatedScene key="proposed" block={{ ...candidate, id: block.id }} onChange={ignore} onChangeQuiet={ignore} />
             : block.program
-            ? <ProgramScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onControlsHeight={onControlsHeight} />
+            ? <ProgramScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onControlsHeight={onControlsHeight} onProgramFrame={onProgramFrame} />
             : <AnimatedScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onControlsHeight={onControlsHeight} />}
       </div>
       <SceneActivity block={block} onChange={onChange} onHeight={onPracticeHeight} />
@@ -1983,7 +1988,7 @@ export function describeBlock(block) {
 }
 
 // `viewKey`: a 3D scene's viewer is driven by a toolbar outside the card under that name (ThreeDBody); the canvas passes none.
-export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appName, onAskRegion, onGrade, onAskScene, onPracticeHeight, onControlsHeight, selected = true, readOnly = false, onCadEdit, cadAccount = '', viewKey = null }) {
+export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appName, onAskRegion, onGrade, onAskScene, onPracticeHeight, onControlsHeight, onProgramFrame, selected = true, readOnly = false, onCadEdit, cadAccount = '', viewKey = null }) {
   if (block.type === 'challenge') return <ChallengeBody block={block} onChange={onChange} onFile={onFile} onGrade={onGrade} appName={appName} />;
   if (block.type === 'quiz') return <QuizBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'flashcards') return <FlashcardsBody block={block} onChange={onChange} />;
@@ -1997,7 +2002,7 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'audio') return <AudioBody block={block} appName={appName} onChange={onChange} />;
   if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return <SceneActivityBody block={block} onChange={onChange} onAskScene={onAskScene} />;
   if (block.type === 'whiteboard') return <WhiteboardBody block={block} appName={appName} onChange={onChange} />;
-  if (block.type === 'animation') return <AnimationBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskAnimation={onAskRegion} onPracticeHeight={onPracticeHeight} onControlsHeight={onControlsHeight} />;
+  if (block.type === 'animation') return <AnimationBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskAnimation={onAskRegion} onPracticeHeight={onPracticeHeight} onControlsHeight={onControlsHeight} onProgramFrame={onProgramFrame} />;
   if (block.type === 'flow') return <FlowBody block={block} />;
   if (block.type === 'mermaid') return <MermaidBody block={block} onChange={onChange} />;
   if (block.type === 'knowledge') return <KnowledgeBody block={block} onChange={onChange} onFile={onFile} />;

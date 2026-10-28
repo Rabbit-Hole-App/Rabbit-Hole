@@ -184,8 +184,10 @@ function parseWith(schema, raw, code) {
   const parsed = schema.safeParse(raw);
   return parsed.success ? { ok: true, value: parsed.data } : { ok: false, error: new RuntimeError(code), issue: firstIssue(parsed.error) };
 }
-// A manifest requiring a capability this build lacks is unsupported_capability, not a malformed program.
-export const unsupportedCapabilities = manifest => (manifest?.capabilities || []).filter(capability => !CAPABILITIES.includes(capability));
+// A manifest requiring a capability this build lacks is unsupported_capability, not a malformed program. Model output is untrusted: only a
+// list of strings is read here; a field of another type (or a non-string in the list) is a malformed manifest, which the schema reports with its
+// path, the expected type and the observed type, so it can be repaired.
+export const unsupportedCapabilities = manifest => (Array.isArray(manifest?.capabilities) ? manifest.capabilities : []).filter(capability => typeof capability === 'string' && !CAPABILITIES.includes(capability));
 export function parseManifest(raw) {
   const result = parseWith(ProgramManifest, raw, 'invalid_program');
   if (!result.ok) return result;

@@ -26,9 +26,22 @@ export function explainClient(api, boardId) {
   return {
     create: request => post(EXPLAIN_ROOT, request),
     get: id => api(`${EXPLAIN_ROOT}/${encodeURIComponent(id)}?board=${encodeURIComponent(boardId)}`),
+    // An accepted program by its saved result (kept when its job is pruned): { artifact, identity, execution }, owner-only.
+    result: resultId => api(`${EXPLAIN_ROOT}/results/${encodeURIComponent(resultId)}?board=${encodeURIComponent(boardId)}`),
     action: (id, action, body = {}) => post(`${EXPLAIN_ROOT}/${encodeURIComponent(id)}/${action}`, body),
   };
 }
+
+// The same read on a share link or publication (learn-boards.js sharedProgram): by the link and the card's id, signed out too.
+// A plain fetch, as a link's card source reads (use-card-source.js), so a refusal is the card's own state, never a sign-in redirect.
+export const sharedProgramClient = (token, fetcher = (...args) => fetch(...args)) => ({
+  result: async (_resultId, cardId) => {
+    const response = await fetcher(`/api/learn/boards/shared/${encodeURIComponent(token)}/cards/${encodeURIComponent(cardId)}/program`);
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data) throw Object.assign(new Error(data?.error || 'Not available'), { status: response.status });
+    return data;
+  },
+});
 
 // The server answers 404 explain_disabled where /explain v2 is off: the caller keeps today's /explain.
 export const explainDisabled = error => error?.status === 404 && (error.data?.code === 'explain_disabled' || !error.data?.code);
@@ -85,7 +98,10 @@ export function applyExplainEdit(card, job, candidate) {
     || job.boardId !== editing.boardId || job.result.canvas?.boardId !== editing.boardId) return { ok: false, reason: 'This proposed version belongs to another card.' };
   if (job.result.baseRevision !== card.explain?.revision) return { ok: false, stale: true, reason: 'This explanation changed after the edit started. The proposed version and your request are kept; ask again to edit the current one.' };
   const kept = Object.fromEntries(LAYOUT.filter(key => Object.hasOwn(card, key)).map(key => [key, card[key]]));
-  const { explainEdit: _editing, ...rest } = { ...card, ...candidate, ...kept, explain: savedIdentity(job.result), ...programRef(candidate) };
+  // The card's previous representation goes with the old version: a scene candidate must not keep the old program reference, nor a program
+  // candidate the old scene (the candidate brings its own). Placement, id, title and the saved prompt carry over; identity is the new result's.
+  const { explainEdit: _editing, scene: _scene, program: _program, ...previous } = card;
+  const rest = { ...previous, ...candidate, ...kept, explain: savedIdentity(job.result), ...programRef(candidate) };
   return { ok: true, block: { ...rest, inputs: {}, inputRevision: (card.inputRevision || 0) + 1, time: candidate.time ?? candidate.scene?.duration ?? 0, selectedObject: null, marked: null } };
 }
 // Discard (or a failed edit): the accepted explanation stays exactly as it was.
