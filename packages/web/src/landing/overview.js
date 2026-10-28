@@ -28,14 +28,9 @@ const scenes = [
       <div class="overview-feedback overview-beat"><strong>Follow the context.</strong><p>The cat is tired. The surrounding words help us connect the idea.</p></div></div>`,
   },
   {
-    label: 'Rabbit Holes', title: 'Pick up the thread. <br>Keep going deeper.',
-    copy: 'Branch into a question, explore connected canvases and return without losing your place.',
-    status: 'Your understanding has somewhere to stay.',
-    description: 'A learning collection holds an explanation, a canvas and personal notes ready to revisit.',
-    art: `<div class="overview-demo demo-library"><span class="overview-demo-label">YOUR LEARNING, TOGETHER</span><div class="overview-collection overview-beat"><span class="overview-collection-symbol">↳</span><div><small>LEARNING COLLECTION</small><strong>Attention, understood.</strong><span>Follow the connections you made.</span></div></div>
-      <div class="overview-saved-row overview-beat"><span>01</span><div><strong>The idea in plain language</strong><small>Explanation · Sources attached</small></div><i>↗</i></div>
-      <div class="overview-saved-row overview-beat"><span>02</span><div><strong>My visual map</strong><small>Canvas · Connections and examples</small></div><i>↗</i></div>
-      <div class="overview-saved-row overview-beat"><span>03</span><div><strong>Questions to come back to</strong><small>Notes · The next way in</small></div><i>↗</i></div></div>`,
+    label: 'Rabbit Holes', eyebrow: 'Rabbit Holes', title: 'Follow a question further.', video: true,
+    copy: 'Explore a related question in its own canvas. Bring in videos and articles, link your ideas, and find your way back.',
+    status: 'Connected ideas. Room to explore.',
   },
 ];
 
@@ -95,6 +90,17 @@ const takes = {
   2: { label: 'The Rabbit Hole workspace: a paper and the nanoGPT repository open together, with a code card, a highlighted passage and a conversation about both', lines: MATERIALS_LINES,
     poster: n => `/landing/materials-${n ? 'phone-v6' : 'wide-v4'}-poster.jpg`,
     sources: n => [[`/landing/materials-${n ? 'phone-v6' : 'wide-v4'}.webm`, 'video/webm'], [`/landing/materials-${n ? 'phone-v6' : 'wide-v4'}.mp4`, 'video/mp4']] },
+  4: { label: 'The Rabbit Hole canvas: a question opens its own Rabbit Hole with a video, a link leads to a second Rabbit Hole with a Wikipedia article, and the backlink leads home', lines: [
+      ['Canvas', 'The canvas Understanding transformers shows two question cards, How does attention use context? and How does the model know word order?, and a three-entry table of contents.'],
+      ['Learner', 'Right-clicks How does attention use context? and chooses Enter Rabbit Hole.'],
+      ['Canvas', 'A separate canvas, Attention and context, opens with a YouTube video card from 3Blue1Brown and a card, What about word order?, carrying a link to Position and word order.'],
+      ['Learner', 'Follows the link to Position and word order, which holds the Wikipedia article Positional encoding, and scrolls to its Sinusoidal section.'],
+      ['Learner', 'Opens Search, filters to Links and follows the backlink from Attention and context back to the exact card, What about word order?.'],
+      ['Learner', 'Goes up to the parent Rabbit Hole and marks Attention done in the table of contents.'],
+    ],
+    // ponytail: phones use the wide cut until the phone cut of this take is exported (then `n ? 'phone' : 'wide'` as in take 2).
+    poster: () => '/landing/rabbitholes-wide-v1-poster.jpg',
+    sources: () => [['/landing/rabbitholes-wide-v1.webm', 'video/webm'], ['/landing/rabbitholes-wide-v1.mp4', 'video/mp4']] },
 };
 
 const root = document.getElementById('observatory');
