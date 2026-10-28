@@ -1,6 +1,6 @@
 import './overview.css';
 
-// AI Tutor and Beyond lecture notes are recorded takes of the real app; the other three are still illustrative,
+// AI Tutor, Beyond lecture notes and Bring your materials are recorded takes of the real app; the other two are still illustrative,
 // local-only scenes until their own films exist. None of them are working app controls.
 const scenes = [
   {
@@ -14,15 +14,9 @@ const scenes = [
     status: 'Your slides, in more than one form.',
   },
   {
-    label: 'Your materials', title: 'Start with what <br>makes you curious.',
-    copy: 'Bring a PDF or webpage, select something, ask about it and retain its source.',
-    status: 'Your material is the starting point.',
-    description: 'A paper, a repository and personal notes come together in one learning project.',
-    art: `<div class="overview-demo demo-gather"><span class="overview-demo-label">YOUR STARTING POINT</span>
-      <div class="overview-source-card overview-beat"><span class="overview-file">≡</span><div><strong>A paper worth understanding</strong><small>Attention Is All You Need</small></div><span class="overview-check">✓</span></div>
-      <div class="overview-source-card overview-beat"><span class="overview-file">{ }</span><div><strong>The code behind the idea</strong><small>model / attention.py</small></div><span class="overview-check">✓</span></div>
-      <div class="overview-source-card overview-beat"><span class="overview-file">↳</span><div><strong>Your unfinished thoughts</strong><small>Notes, questions, possibilities</small></div><span class="overview-check">✓</span></div>
-      <div class="overview-small-prompt overview-beat">How does it all connect? <span>↗</span></div></div>`,
+    label: 'Bring your materials', eyebrow: 'Bring your materials', title: 'Understand your papers and code together.', video: true,
+    copy: 'Upload a paper or connect a GitHub repository. Explore the code, highlight a passage and ask questions with both sources in context.',
+    status: 'Your paper and your code, in one conversation.',
   },
   {
     label: 'Learn by doing', title: 'Turn a little clarity <br>into understanding.',
@@ -72,6 +66,16 @@ const BEYOND_LINES = [
   ['Canvas', 'An interactive graph plots output speed against input speed. Changing the driven gear from 24 to 36 teeth lowers the output at 120 RPM from 60 RPM to 40 RPM.'],
   ['Canvas', 'The slide and the video, the model and the graph sit together on one canvas.'],
 ];
+const MATERIALS_LINES = [
+  ['Learner', 'Starts a rabbit hole from the Start dialog, adds the paper Attention Is All You Need as a PDF and connects the GitHub repository karpathy/nanoGPT.'],
+  ['Canvas', 'The workspace opens with the paper on the canvas and both sources available to Chat. The learner opens the repository graph, selects the forward method of CausalSelfAttention in model.py and adds it to Chat.'],
+  ['Learner', 'What does this part do?'],
+  ['Chat', 'It updates each token using information from itself and earlier tokens. Later tokens are masked.'],
+  ['Canvas', 'The learner adds the method to the canvas as a code card, showing model.py lines 67 to 71, the attention calculation.'],
+  ['Learner', 'Opens the paper, goes to page 4, selects the sentence about dot products in Section 3.2.1, highlights it and adds the highlight to Chat.'],
+  ['Learner', 'Which lines implement this part of the paper?'],
+  ['Chat', 'Lines 67–71 implement the paper’s attention calculation. Line 68 adds the causal mask, preventing attention to future tokens.'],
+];
 // Two edits of each take: a wide one, and a closer one for phones (the stacked panel is nearly square there).
 const narrow = matchMedia('(max-width: 700px)').matches;
 const mediaFor = (take, index) => `<div class="overview-media">
@@ -88,6 +92,9 @@ const takes = {
     poster: n => `/landing/beyond-notes-${n ? 'phone' : 'wide'}-poster-v2.jpg`,
     // WebM first; the MP4 (H.264, faststart) is for browsers without WebM. Both lead with the same 2.5 s hold of the empty canvas.
     sources: n => [[`/landing/beyond-notes-${n ? 'phone' : 'wide'}-v2.webm`, 'video/webm'], [`/landing/beyond-notes-${n ? 'phone' : 'wide'}-v2.mp4`, 'video/mp4']] },
+  2: { label: 'The Rabbit Hole workspace: a paper and the nanoGPT repository open together, with a code card, a highlighted passage and a conversation about both', lines: MATERIALS_LINES,
+    poster: n => `/landing/materials-wide-v1-poster.jpg`, // ponytail: the phone cut is still to come; phones use the wide take until then
+    sources: n => [[`/landing/materials-wide-v1.webm`, 'video/webm'], [`/landing/materials-wide-v1.mp4`, 'video/mp4']] },
 };
 
 const root = document.getElementById('observatory');
