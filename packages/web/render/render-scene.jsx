@@ -63,4 +63,6 @@ window.__renderScene = async request => {
   window.__renderDone = { ok: true, frame: { width: Math.round(box.width), height: Math.round(box.height) }, fonts: { missing }, theme };
   return window.__renderDone;
 };
+// A generated program (explain sandbox Task 6): loaded on demand so a scene capture never pulls the interpreter. See program-render.jsx.
+window.__renderProgram = async request => (await import('./program-render.jsx')).renderProgram(request, { host, root, frames, faces: FACES, nextMount: () => ++mounts });
 window.__renderReady = true;

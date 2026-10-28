@@ -28,11 +28,12 @@ import { consumeProposal, envelopeFor, proposalRecord, proposalState, publishRev
 import { blockedBody, referencesKey, resolveReferences } from './generation-review-refs.js';
 import { isReviewProposal } from '../../web/src/generation-review.js';
 import { needsPreparation, prepareStage } from './explain-brief.js';
-import { authorStage, selectExamples, specFacts, validateStage } from './explain-author.js';
+import { authorStage, selectExamples, specFacts, validateProgramStage, validateStage } from './explain-author.js';
+import { artifactIntact, draftOf, programEnabled, programExecution, programFacts, programReference } from './explain-program.js';
 import { reviewCaptures } from './explain-review.js';
 import * as explainRender from './explain-render.js';
 import { learnMedia } from './learn-storage.js';
-import { allowedRepairs, defectKeys, presentationFix, repairStage } from './explain-repair.js';
+import { allowedRepairs, defectKeys, presentationFix, programRepairStage, repairStage } from './explain-repair.js';
 import { EXPLAIN_LIMITS, EXPLAIN_POLICY_VERSION, REQUEST_CLASSES, ExplainPolicyError, callExplainRole, checkExplainRequest, explainReservation,
   explainRequest, newTiming, markTiming, beginStage, countStage, endStage, timingSummary } from './explain-policy.js';
 
@@ -63,19 +64,25 @@ export const EXPLAIN_DISABLED = 'Explanations are not available here yet.';
 // A deployment without BROWSER says rendering is unavailable and keeps the compiled result for Retry rendering.
 export const renderStage = ({ render = explainRender, ...deps } = {}) => async (job, ctx) => {
   if (!ctx.env?.BROWSER && !deps.launch && !deps.browser) throw Object.assign(fail('Rendering explanations is not available here yet.', 503, 'render_unavailable'), { category: 'renderer' });
-  const { captureManifest, renderStates, reserveRound } = render;
-  const { scene } = job.compiled;
+  const { captureManifest, programCaptureManifest, renderStates, reserveRound } = render;
+  const program = job.artifact;
+  const scene = job.compiled?.scene;
   // Every part, admitted control state and named step (EXP-T18 per-step review, r2-contract.md section 4), within the
   // round's reservation; a card with more distinct frames than one review covers is refused, never trimmed.
   let manifest;
-  try { manifest = await captureManifest(scene, { reserved: reserveRound({ cap: EXPLAIN_LIMITS.render.capturesPerRound }) }); }
+  const reserved = reserveRound({ cap: EXPLAIN_LIMITS.render.capturesPerRound });
+  try { manifest = program ? await programCaptureManifest(program, { reserved }) : await captureManifest(scene, { reserved }); }
   catch (error) {
     if (error.code !== 'over_budget') throw error;
     throw Object.assign(fail('This explanation has more steps or settings than one check can cover. Edit the request to use fewer.', 422, 'over_budget'), { category: 'budget', stopReason: 'unsupported_repair' });
   }
   let out;
-  try { out = await renderStates(ctx.env, job.compiled, manifest, { jobId: job.id, ...deps }); }
-  catch (error) { throw Object.assign(fail(`The explanation could not be rendered (${error.code || 'render_failed'}). Retry rendering.`, 503), { category: 'renderer' }); }
+  try { out = await renderStates(ctx.env, program ? { program } : job.compiled, manifest, { jobId: job.id, ...deps }); }
+  catch (error) {
+    // The program ran and failed: a repairable problem for the program (stable code, bounded diagnostic), not a render outage.
+    if (error.code === 'program_error') return { problems: [`running the program failed (${String(error.program?.code || 'runtime_error').slice(0, 40)}): ${String(error.program?.diagnostic || 'no detail').slice(0, 300)}`], category: 'spec', repairable: true };
+    throw Object.assign(fail(`The explanation could not be rendered (${error.code || 'render_failed'}). Retry rendering.`, 503), { category: 'renderer' });
+  }
   return { captures: out.captures.map(({ png, ...capture }) => ({ ...capture, compiledHash: out.compiledHash, mediaType: 'image/png' })), renders: out.captures.map(() => ({ ok: true })) };
 };
 const base64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s); };
@@ -90,12 +97,14 @@ export async function reviewStage(job, ctx) {
     return object ? { ...capture, data: base64(new Uint8Array(await object.arrayBuffer())) } : capture;
   }));
   let out;
-  try { out = await reviewCaptures({ request: job.prompt, compiledHash: captures[0]?.compiledHash, facts: specFacts({ ...job.spec, title: null }), evidence: job.evidence || [], captures }, { callRole: ctx.call }); }
+  try { out = await reviewCaptures({ request: job.prompt, compiledHash: captures[0]?.compiledHash, facts: job.artifact ? programFacts(job.artifact.manifest) : specFacts({ ...job.spec, title: null }), evidence: job.evidence || [], captures,
+    ...(job.artifact ? { program: { ...draftOf(job.artifact), traces: captures.map(({ id, trace }) => ({ id, ...trace })) } } : {}) }, { callRole: ctx.call }); }
   catch (error) { if (error.cause) throw error.cause; throw Object.assign(fail(`The explanation could not be reviewed (${error.code || 'review_failed'}).`, 503), { category: error.code === 'missing_pixels' ? 'renderer' : 'spec' }); }
   const findings = out.captures.flatMap(capture => capture.findings), serious = findings.filter(f => f.severity !== 'minor');
   return { accepted: out.accepted, findings, repairable: allowedRepairs({ findings }).length > 0, category: serious[0]?.category || 'spec', imagesReviewed: captures.length };
 }
-export const explainPipeline = Object.freeze({ prepare: prepareStage, author: authorStage, validate: validateStage, render: renderStage(), review: reviewStage, repair: repairStage });
+export const explainPipeline = Object.freeze({ prepare: prepareStage, author: authorStage, validate: (job, ctx) => (job.program ? validateProgramStage(job, ctx) : validateStage(job, ctx)), render: renderStage(), review: reviewStage,
+  repair: (job, ctx) => (job.artifact || job.program ? programRepairStage(job, ctx) : repairStage(job, ctx)) });
 
 // Learner-facing view: credits, never dollars; no prompt, findings, spec or private diagnostics.
 const credits = micros => Math.ceil((micros || 0) / 10000);
@@ -111,7 +120,7 @@ export function publicExplainJob(job) {
   };
 }
 // The private record of a run (spec, findings, candidates, calls, capture keys), for the owner's own verification runs only.
-const explainDiagnostics = job => ({ spec: job.spec, findings: job.findings, candidates: job.candidates || [], settings: job.settings,
+const explainDiagnostics = job => ({ spec: job.spec, ...(job.program ? { program: job.program, artifact: job.artifact && { ...job.artifact, source: undefined, sourceBytes: job.artifact.source.length } } : {}), findings: job.findings, candidates: job.candidates || [], settings: job.settings,
   calls: job.calls, captures: (job.captures || []).map(({ data: _bytes, ...capture }) => capture), counts: job.counts, timing: job.timing });
 
 // Only the actions that can run now (plan section 1.4). retry_render: a retained valid spec, render again (no reauthoring).
@@ -120,12 +129,12 @@ export function recoveryOf(job) {
   if (job.stage !== 'failed') return [];
   if (job.inFlight) return ['reconcile'];
   const actions = [];
-  if (job.failure?.stage === 'rendering' && job.compiled) actions.push('retry_render');
+  if (job.failure?.stage === 'rendering' && (job.compiled || job.artifact)) actions.push('retry_render');
   // Paused for the provider: the refused call was never counted, so resuming is always within the ceiling.
   else if (job.failure?.category === 'provider_unavailable' || job.failure?.retryable && withinCeiling(job)) actions.push('new_attempt');
   return [...actions, 'edit_request'];
 }
-const withinCeiling = job => job.counts.author < EXPLAIN_LIMITS.calls.author || (job.spec && job.round < EXPLAIN_LIMITS.correctionRounds);
+const withinCeiling = job => job.counts.author < EXPLAIN_LIMITS.calls.author || ((job.spec || job.artifact) && job.round < EXPLAIN_LIMITS.correctionRounds);
 
 function validateCreate(p) {
   if (!KEY.test(p.requestId || '')) throw fail('requestId is required.');
@@ -157,8 +166,10 @@ export async function explainRoute(path, req, env, deps = {}) {
   const board = await env.LEARN_DB.prepare('SELECT id, app, board FROM learn_boards WHERE id = ? AND org = ? AND owner_email = ?').bind(boardId, user.org, user.email).first();
   if (!board) return json({ error: 'Not available' }, 404);
   const rest = path.slice(PREFIX.length).split('/').filter(Boolean).map(decodeURIComponent);
-  const action = req.method === 'GET' ? (rest[0] ? 'get' : 'list') : (rest[0] ? rest[1] : 'create');
-  if (!['get', 'list', 'create', 'cancel', 'retry', 'approve', 'refine'].includes(action) || rest.length > 2) return json({ error: 'Not found' }, 404);
+  // GET .../results/<resultId>: a saved program, read under this canvas's authorization (the player's only source of executable text).
+  const results = req.method === 'GET' && rest[0] === 'results' && rest.length === 2;
+  const action = results ? 'result' : req.method === 'GET' ? (rest[0] ? 'get' : 'list') : (rest[0] ? rest[1] : 'create');
+  if (!['get', 'list', 'create', 'cancel', 'retry', 'approve', 'refine', 'result'].includes(action) || (rest.length > 2 && !results)) return json({ error: 'Not found' }, 404);
   // EXP-T15 on v2: an attached image is read here, under this canvas's authorization, by the existing reader (as
   // /api/learn/artifact does), stored for the job and offered to the author as a layout reference only. Never a browser key.
   delete body.reference;
@@ -192,7 +203,7 @@ export async function explainRoute(path, req, env, deps = {}) {
   }
   const stub = env.EXPLAIN_JOBS.get(env.EXPLAIN_JOBS.idFromName(board.id));
   return stub.fetch('https://explain/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, id: rest[0] || null, payload: body, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null }, origin: url.origin,
+    body: JSON.stringify({ action, id: results ? rest[1] : rest[0] || null, payload: body, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null }, origin: url.origin,
       // Owner-only diagnostics for live verification runs on a dev clone (EXPLAIN_DIAGNOSTICS, never set in a committed config).
       detail: req.method === 'GET' && url.searchParams.get('detail') === '1' && env.EXPLAIN_DIAGNOSTICS === 'true' }) });
 }
@@ -225,14 +236,29 @@ export class ExplainJobs {
       return json({ jobs: jobs.sort((a, b) => a.createdAt - b.createdAt).map(publicExplainJob) });
     }
     if (action === 'create') return this.create(payload, board, user, origin);
+    if (action === 'result') return this.programResult(id, board, user);
     const job = id && await this.get(id);
     if (!job || job.owner.email !== user.email || job.boardId !== board.id) throw fail('Not available', 404);
-    if (action === 'get') return json({ job: publicExplainJob(job), ...(job.stage === 'ready' ? { block: await this.block(job) } : {}), ...(detail ? { diagnostics: explainDiagnostics(job) } : {}) });
+    if (action === 'get') {
+      const view = publicExplainJob(job), block = job.stage === 'ready' ? await this.block(job) : null;
+      // A program's artifact rides on this authorized answer only (never in the identity the card saves): the host-hashed artifact and the
+      // server's execution decision, which the card obeys.
+      if (block?.program) view.result = { ...view.result, program: (await this.state.storage.get(`result:${job.resultId}`)).artifact, execution: programExecution(this.env) };
+      return json({ job: view, ...(block ? { block } : {}), ...(detail ? { diagnostics: explainDiagnostics(job) } : {}) });
+    }
     if (action === 'cancel') return this.stop(job);
     if (action === 'retry') return this.retry(job, payload);
     if (action === 'approve') return this.approve(job, payload);
     if (action === 'refine') return this.refine(job, payload);
     throw fail('Not found', 404);
+  }
+
+  // The saved program for a card on this canvas, for its owner only; a program is never served by hash alone or by another canvas.
+  async programResult(resultId, board, user) {
+    const saved = await this.state.storage.get(`result:${resultId}`);
+    if (saved?.kind !== 'program' || saved.owner?.email !== user.email || saved.boardId !== board.id) throw fail('Not available', 404);
+    if (!await artifactIntact(saved.artifact)) throw fail('This explanation could not be opened. Your saved version is kept.', 409, 'version_unavailable');
+    return json({ artifact: saved.artifact, identity: saved.identity, execution: programExecution(this.env) });
   }
 
   async create(payload, board, user, origin) {
@@ -258,7 +284,7 @@ export class ExplainJobs {
       stage: 'queued', attempt: 1, round: 0, stopped: false, stopReason: null, failure: null, inFlight: null,
       counts: { brief: 0, author: 0, review: 0, repair: 0 }, reservedMicros: 0, calls: [], renders: 0,
       prepKey: `xp${hex()}`, actionKey: `xg${hex()}`, resultId: `er_${hex()}`, revision: `xr_${hex()}`,
-      brief: null, briefHash: null, approval: null, spec: null, compiled: null, findings: [], result: null,
+      brief: null, briefHash: null, approval: null, spec: null, compiled: null, program: null, artifact: null, findings: [], result: null,
       timing: newTiming(payload.requestClass, now), createdAt: now, updatedAt: now, deadline: now + EXPLAIN_LIMITS.deadlines.jobMs,
       reservation: reserve,
     };
@@ -286,11 +312,16 @@ export class ExplainJobs {
     if (block.explain.revision !== payload.baseRevision) throw fail('This explanation changed. Reload before editing.', 409, 'edit_stale');
     const saved = await this.state.storage.get(`result:${block.explain.resultId}`);
     if (!saved || saved.identity.cardId !== payload.cardId || saved.identity.revision !== payload.baseRevision) throw unsupported();
+    // A program card's base is its stored artifact, read from this canvas's own result record and checked against its hashes.
+    if (saved.kind === 'program') {
+      if (!programEnabled(this.env) || saved.boardId !== board.id || !await artifactIntact(saved.artifact)) throw unsupported();
+      return { revision: payload.baseRevision, resultId: block.explain.resultId, program: draftOf(saved.artifact) };
+    }
     return { revision: payload.baseRevision, resultId: block.explain.resultId, spec: saved.spec };
   }
   async prune(jobs) {
     const old = jobs.filter(j => TERMINAL.has(j.stage)).sort((a, b) => b.updatedAt - a.updatedAt).slice(JOBS_KEPT - 1);
-    for (const j of old) { await this.state.storage.delete?.(jobKey(j.id)); await this.state.storage.delete?.(`request:${j.requestId}`); await this.state.storage.delete?.(`result:${j.resultId}`); }
+    for (const j of old) { await this.state.storage.delete?.(jobKey(j.id)); await this.state.storage.delete?.(`request:${j.requestId}`); if (!j.artifact) await this.state.storage.delete?.(`result:${j.resultId}`); } // a program's source lives only here, so pruning a job keeps its result
   }
 
   // The learner's available allowance must cover generation's full worst case before any of it starts.
@@ -335,7 +366,7 @@ export class ExplainJobs {
       // result and captures); preparation is admitted per call, so only generation is checked against the allowance.
       const paused = job.failure?.category === 'provider_unavailable' ? job.failure.stage : null;
       if (paused !== 'preparing') await this.admitGeneration(job);
-      const stage = paused || (job.spec ? 'validating' : 'authoring');
+      const stage = paused || (job.spec || job.program ? 'validating' : 'authoring');
       Object.assign(job, { stage, failure: null, stopReason: null, attempt: job.attempt + 1, deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs });
     } else throw fail(job.stage === 'failed' ? 'This explanation reached its limit. Edit the request to start a new one.' : 'Only a failed explanation can be retried.', 409);
     beginStage(job.timing, job.stage);
@@ -425,6 +456,8 @@ export class ExplainJobs {
   // The saved result the browser places: the compiled scene and its identity. Saved content renders without a model call.
   async block(job) {
     const saved = await this.state.storage.get(`result:${job.resultId}`);
+    // A program card keeps a reference on the canvas, never its source: the player reads the artifact through the result route.
+    if (saved?.kind === 'program') return { type: 'animation', id: job.cardId, title: saved.artifact.manifest.title, program: programReference(saved.artifact, job.resultId), explain: job.result };
     return saved && { type: 'animation', id: job.cardId, scene: saved.compiled?.scene ?? saved.compiled, explain: job.result };
   }
 
@@ -557,17 +590,24 @@ export class ExplainJobs {
         job.threadId ??= await this.briefThread(job);
         await this.postBrief(job);
       }
-    } else if (stage === 'authoring') { job.spec = out.spec; next('validating'); }
+    } else if (stage === 'authoring') {
+      // The author's reply is a catalogue spec or a program (a discriminated result); never both.
+      if (out.program) Object.assign(job, { program: out.program, spec: null, artifact: null }); else Object.assign(job, { spec: out.spec, program: null, artifact: null });
+      next('validating');
+    }
     else if (stage === 'validating') {
       if (out.problems?.length) {
         job.findings.push({ round: job.round, stage, problems: out.problems });
         // A time presentation that only reveals is fixed deterministically first: no model call and no correction round.
-        const fixed = presentationFix(job.spec);
+        // With the program route on, a timed idea is never rewritten static: the problem goes to repair or to a stop with its reason.
+        const fixed = job.spec && !programEnabled(this.env) ? presentationFix(job.spec) : null;
         if (!fixed) return this.repairOrStop(job, out);
         job.candidates = [...(job.candidates || []), { round: job.round, operation: 'presentation', progress: true, specHash: (await sha256Hex(JSON.stringify(fixed))).slice(0, 16) }];
         job.spec = fixed; next('validating');
-      } else { job.compiled = out.compiled; next('rendering'); }
+      } else { if (out.artifact) Object.assign(job, { artifact: out.artifact, compiled: null }); else job.compiled = out.compiled; next('rendering'); }
     } else if (stage === 'rendering') {
+      // A program that ran and failed goes to repair like a refused spec, with the reason; it is not a render failure.
+      if (out.problems?.length) { job.findings.push({ round: job.round, stage, problems: out.problems }); return this.repairOrStop(job, out); }
       job.captures = out.captures || []; job.renders += out.renders?.length || 0; countStage(job.timing, { captures: job.captures.length });
       await this.recordRenders(job, out.renders || []);
       next('reviewing');
@@ -581,7 +621,8 @@ export class ExplainJobs {
       job.candidates = [...(job.candidates || []), { round: job.round, operation: out.operation || null, progress: out.progress !== false, specHash: out.spec ? (await sha256Hex(JSON.stringify(out.spec))).slice(0, 16) : null, ...(out.rejected ? { rejected: out.rejected } : {}) }];
       if (out.rejected) return this.stopWith(job, 'unsupported_repair', 'spec', 'This explanation needs a change the repair step cannot make. Edit the request and try again.');
       if (out.progress === false) return this.stopWith(job, 'no_progress', 'spec', 'The explanation could not be repaired. Edit the request and try again.');
-      job.spec = out.spec; job.compiled = null; next('validating');
+      if (out.program) Object.assign(job, { program: out.program, spec: null, artifact: null, compiled: null }); else Object.assign(job, { spec: out.spec, compiled: null });
+      next('validating');
     }
     await this.save(job);
   }
@@ -606,7 +647,23 @@ export class ExplainJobs {
     Object.assign(job, { stage: 'failed', stopReason, failure: { stage: job.stage, category, message, retryable } });
     await this.save(job); await this.finishUsage(job, 'failed');
   }
+  // A program result: the artifact (source, manifest, pinned versions, host-computed hashes) stored behind this canvas's ownership,
+  // with the model that authored it and the provenance of what it was given. Its identity names the bundle, not a scene.
+  async acceptProgram(job) {
+    const artifact = job.artifact, author = job.calls.filter(c => c.role === 'author' && c.status === 'settled').at(-1);
+    const hashOf = async value => (await sha256Hex(JSON.stringify(value ?? null))).slice(0, 16);
+    job.result = { jobId: job.id, resultId: job.resultId, cardId: job.cardId, canvas: { boardId: job.boardId }, promptRef: (await sha256Hex(job.prompt)).slice(0, 16),
+      revision: job.revision, baseRevision: job.baseRevision, kind: 'program', bundleHash: artifact.bundleHash, sourceHash: artifact.sourceHash, manifestHash: artifact.manifestHash,
+      versions: { schema: artifact.schemaVersion, runtime: artifact.runtimeVersion, sdk: artifact.sdkVersion, renderer: artifact.rendererVersion }, policyVersion: job.policyVersion };
+    await this.state.storage.put(`result:${job.resultId}`, { kind: 'program', artifact, identity: job.result, owner: { org: job.owner.org, email: job.owner.email }, boardId: job.boardId, cardId: job.cardId,
+      authoredBy: author ? { requested: author.requested, served: author.served } : null,
+      provenance: { request: job.result.promptRef, context: await hashOf(job.context), evidence: (job.evidence || []).map(record => record.id).slice(0, 64), edited: job.baseRevision ?? null } });
+    endStage(job.timing, 'accepted'); markTiming(job.timing, 'result');
+    Object.assign(job, { stage: 'ready', stopReason: 'accepted' });
+    await this.save(job); await this.finishUsage(job, 'completed');
+  }
   async accept(job, out) {
+    if (job.artifact) return this.acceptProgram(job);
     const spec = JSON.stringify(job.spec), compiled = JSON.stringify(job.compiled);
     job.result = { jobId: job.id, resultId: job.resultId, cardId: job.cardId, canvas: { boardId: job.boardId }, promptRef: (await sha256Hex(job.prompt)).slice(0, 16),
       revision: job.revision, baseRevision: job.baseRevision, specHash: (await sha256Hex(spec)).slice(0, 16), compiledHash: (await sha256Hex(compiled)).slice(0, 16),
