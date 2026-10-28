@@ -70,7 +70,9 @@ test('the renderer path draws program text through text nodes: the only HTML sin
   assert.match(renderer, /<span key=\{index\} style=\{\{ whiteSpace: 'pre' \}\}>\{run\.text\}<\/span>/);
   assert.match(renderer, /fill: labelFill \}\}>\{shown\}<\/text>/);
   // The program card itself never sets HTML.
-  if (existsSync(new URL('../ProgramScene.jsx', import.meta.url))) assert.equal(read('../ProgramScene.jsx').includes('dangerouslySetInnerHTML'), false);
+  const scene = read('./ProgramScene.jsx');
+  for (const sink of ['dangerouslySetInnerHTML', 'innerHTML', 'eval(', 'new Function', 'document.write']) assert.equal(scene.includes(sink), false, `ProgramScene must not use ${sink}`);
+  assert.equal(existsSync(new URL('./ProgramScene.jsx', import.meta.url)), true);
   assert.equal(read('./frame.js').includes('innerHTML'), false);
 });
 
