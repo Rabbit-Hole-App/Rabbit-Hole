@@ -7,7 +7,7 @@ import { getSceneState, validateScene } from '../animation-scene.js';
 import { causalAttentionScene } from '../reference-scenes.js';
 import { transformerBlockScene, vlmScene, worldModelScene, codebaseOrientationScene } from '../gallery-scenes.js';
 import { axisScene, residualScene, sigmoidScene } from '../demo-scenes.js';
-import { FIXTURES, growthFixture, searchFixture } from './fixtures.js';
+import { ERROR_FIXTURES, FIXTURES, growthFixture, searchFixture } from './fixtures.js';
 
 // Trusted hand-authored fixtures only: evaluated natively here because no host exists in this file. Generated or hostile source
 // never runs this way (plan section 9); that belongs to the isolated interpreter.
@@ -84,4 +84,16 @@ test('old scenes are untouched by the polyline addition: no new keys on their ev
   }
   assert.equal(keys.has('points'), false);
   assert.equal(keys.has('clip'), false);
+});
+
+test('every fixture is the canonical module form: a named export evaluate with the full argument, no imports, never a bare global function', () => {
+  for (const fixture of [...FIXTURES, ...ERROR_FIXTURES]) {
+    assert.match(fixture.source, /^export function evaluate\(\{ inputs, time, seed, state \}\) \{/, fixture.id);
+    assert.equal(/^\s*import\s/m.test(fixture.source), false, `${fixture.id} imports nothing`);
+    assert.equal(fixture.source.split('function evaluate').length - 1, 1, `${fixture.id} defines evaluate once`);
+    assert.equal(/(globalThis|self|window)[.]evaluate\s*=|^(var|let|const)\s+evaluate\s*=/m.test(fixture.source), false, `${fixture.id} does not assign a global evaluate`);
+  }
+  // The pattern this test exists to catch: a program that only defines a global evaluate does not match.
+  assert.doesNotMatch('function evaluate({ inputs, time, seed, state }) {}', /^export function evaluate\(\{ inputs, time, seed, state \}\) \{/);
+  assert.doesNotMatch('globalThis.evaluate = ({ inputs }) => ({});', /^export function evaluate/);
 });
