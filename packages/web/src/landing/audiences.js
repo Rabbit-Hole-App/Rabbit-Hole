@@ -4,7 +4,7 @@ import './audiences.css';
 // `kind`) carry real captures of Rabbit Hole cards; the other two keep their neutral canvas placeholders. No
 // model calls or working product interactions inside these previews.
 const audiences = [
-  { name: 'Creators & writers', title: 'For creators & writers.', benefit: 'Turn deep research into something worth sharing.', context: 'Essays, newsletters and videos', source: 'Research & references', question: 'How do I explain attention clearly?', result: 'A clearer explanation', path: 'Research → understanding → your next story', note: 'Follow the idea back to its source.' },
+  { name: 'Content creators', kind: 'creators', title: 'Give your audience more to explore.', benefit: 'Share your knowledge and learn from your audience.' },
   { name: 'AI / ML engineers', kind: 'ml', title: 'From the paper to the code.', benefit: 'Understand new ideas and apply them to your work.' },
   { name: 'Educators', kind: 'educators', title: 'Prepare your next lesson.', benefit: 'Support for planning, explaining and teaching.' },
   { name: 'University students', kind: 'university', title: 'For university students.', benefit: 'Support for your coursework, assignments and exams.' },
@@ -40,7 +40,7 @@ const situations = [
     title: 'Understand a lecture.', question: '“How did they get from this equation to the next?”', support: 'Work through the missing steps using your lecture material.' },
   { name: 'problems', w: 500, h: 360, phone: [352, 350], alt: 'Rabbit Hole’s PDF reader open on Problem set 03: find the eigenvalues of A, where A is the two-by-two matrix with first row 2, 1 and second row 1, 2.',
     title: 'Work through an assignment.', question: '“I followed the example. Why can’t I solve this one?”', support: 'Get guidance where you’re stuck and practise applying the idea.' },
-  { name: 'eigen', w: 472, h: 242, phone: [362, 242], alt: 'A Rabbit Hole explain-back card asking: What does an eigenvector represent? Explain it in your own words. The answer field is empty.',
+  { name: 'eigen', w: 472, h: 258, phone: [362, 258], alt: 'A Rabbit Hole explain-back card asking: What does an eigenvector represent? Explain it in your own words. The answer field is empty.',
     title: 'Prepare for an exam.', question: '“Could I explain this without looking at my notes?”', support: 'Explain it back, answer practice questions and identify gaps.' },
 ];
 const layouts = {
@@ -52,6 +52,24 @@ const layouts = {
       <figure class="aud-capture aud-code" data-no-swipe><div class="aud-pan">${img('code', 672, 287, 'A Rabbit Hole code card for model.py, lines 66 to 71 of karpathy/nanoGPT: the manual attention calculation. It multiplies the queries by the transposed keys and scales by 1.0 / math.sqrt(k.size(-1)), applies a causal mask, takes a softmax and multiplies by the values.')}<span class="aud-mark aud-mark-l67" aria-hidden="true"></span><span class="aud-mark aud-mark-l69" aria-hidden="true"></span><span class="aud-mark aud-mark-l71" aria-hidden="true"></span></div></figure>
       <svg class="aud-links" viewBox="0 0 1000 320" preserveAspectRatio="none" aria-hidden="true"><path d="M440 235.5 C482 235.5 488 230.6 530 230.6"/><path d="M440 235.5 C482 235.5 488 258.5 530 258.5"/><path d="M440 235.5 C482 235.5 488 286.5 530 286.5"/></svg>
       <p class="aud-ask">Why divide by √d<sub>k</sub>?</p></div>`,
+  creators: () => `<div class="audience-body aud-creators">
+      <div class="aud-post"><p class="aud-label">Your post</p>
+        <article class="aud-postcard" aria-label="Example post by an example creator">
+          <header><span class="aud-avatar" aria-hidden="true">EC</span><span><strong>Example Creator</strong><small>Audio explainers</small></span></header>
+          <p>What changes when you reverse an audio recording?</p>
+          <p>I put the explanation in a Rabbit Hole canvas so you can explore it and try your own version.</p>
+          <img src="/landing/audience-creators-post-v1.webp" width="1200" height="640" alt="The post’s picture: two spectrograms of the same synthetic plucked tone, Original and Reversed. The reversed one is the original mirrored left to right." loading="lazy" decoding="async" draggable="false">
+          <div class="aud-postlink"><strong>Audio reversal: waveform and spectrum</strong><span>rabbit-hole.example/e/AudioRev7kQ2mX9pL4tNdE</span></div>
+        </article></div>
+      <span class="aud-arrow aud-arrow-1" aria-hidden="true">→</span>
+      <div class="aud-shared"><p class="aud-label">Your shared canvas</p>
+        <figure class="aud-capture">${img('creators-canvas', 1120, 580, 'The shared Rabbit Hole canvas Audio reversal: waveform and spectrum, opened from the post. The header shows the creator’s @handle, a Star button with a count of 1 and Fork with a count of 1. The canvas holds an Explanation card with bar charts of the loudness over time, original and reversed, and the same spectrum for both. The Comments panel shows a reader’s comment: what happens if you reverse only part of the audio?', [390, 600])}
+          <img class="aud-only-phone" src="/landing/audience-creators-comment-phone-v1.webp" width="390" height="236" alt="The reader’s comment in the Comments panel: what happens if you reverse only part of the audio?" loading="lazy" decoding="async" draggable="false"></figure></div>
+      <span class="aud-arrow aud-arrow-2" aria-hidden="true">→</span>
+      <div class="aud-engage"><p class="aud-label">What your audience explores</p>
+        <figure class="aud-capture">${img('creators-fork', 431, 252, 'A reader’s fork in their Rabbit Hole Library: What if only part is reversed? It reads Forked from Audio reversal: waveform and spectrum, with the original creator’s @handle.')}</figure>
+        <p class="aud-idea">An idea for the next post</p>
+        <figure class="aud-capture">${img('creators-engagement', 431, 346, 'The creator’s own profile: the Canvases tab and their public canvas Audio reversal: waveform and spectrum, with a Star button showing 1 and the footer 1 fork.')}</figure></div></div>`,
   interview: () => `<div class="audience-body aud-interview"><figure class="aud-capture">${img('twosum', 672, 312, 'A Rabbit Hole explain-back card for Two Sum. Question: You used a hash map instead of checking every pair. Why? What’s the trade-off? The learner’s answer: i can check if the other number is already in the map instead of going through the whole list again. Feedback under Understanding evidence: That explains the speed advantage. What happens to memory usage as you store more numbers?', [362, 374])}</figure></div>`,
   educators: () => `<div class="audience-body aud-educators">
       <div class="aud-source"><p class="aud-label">Your lecture slide</p><figure class="aud-capture">${img('slide', 500, 345, 'Rabbit Hole’s PDF reader open on linear-algebra-eigenvectors-slide.pdf: a lecture slide titled Eigenvectors with Av = λv, v ≠ 0, the sentence The transformation scales v by λ, and an example matrix with first row 2, 0 and second row 0, 1.', [352, 340])}</figure>

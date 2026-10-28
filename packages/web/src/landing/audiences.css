@@ -137,3 +137,32 @@
   .aud-mark-eq{left:22.5%;top:80.8%;width:55%;height:11%}
   .aud-label{font-size:11px}
 }
+
+/* Content creators: post -> shared canvas -> audience participation. The post is landing layout (a neutral example, no brand); the canvas,
+   fork card and profile card are real Rabbit Hole captures. The shared canvas carries most of the weight; the arrows are decoration. */
+.aud-creators{align-self:center;justify-self:center;width:min(1320px,calc(100% + 140px),calc(100vw - 48px));display:grid;grid-template-columns:minmax(0,18.5fr) minmax(0,59.5fr) minmax(0,20.5fr);column-gap:24px;align-items:start;position:relative}
+.aud-creators .aud-capture img+img{border-top:1px solid var(--audience-line)}
+.aud-postcard{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--audience-line);border-radius:10px;background:#fff;font:400 13px/1.45 var(--ui);color:var(--audience-ink)}
+.aud-postcard header{display:flex;align-items:center;gap:8px}
+.aud-postcard header span:last-child{display:flex;flex-direction:column;line-height:1.25}
+.aud-postcard small{font-size:11px;color:var(--audience-muted)}
+.aud-postcard p{margin:0}
+.aud-avatar{display:grid;place-items:center;flex:none;width:32px;height:32px;border-radius:50%;background:var(--audience-blush);color:#70515c;font:600 11px/1 var(--ui)}
+.aud-postcard img{display:block;width:100%;height:auto;border-radius:6px;border:1px solid var(--audience-line)}
+.aud-postlink{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:6px;background:#f4f3ef}
+.aud-postlink strong{font-weight:500;font-size:13px}
+.aud-postlink span{font-size:11px;color:var(--audience-muted);word-break:break-all}
+.aud-arrow{position:absolute;top:50%;color:#ba788f;font:400 18px/1 var(--ui);pointer-events:none}
+.aud-arrow-1{left:calc(18.5% + 4px)}.aud-arrow-2{left:calc(78% + 4px)}
+.aud-shared{margin-top:18px}
+.aud-engage .aud-capture{margin:0}
+.aud-idea{margin:10px 0 10px;padding-left:10px;border-left:2px solid #d8b9c3;font:500 13px/1.4 var(--ui);color:#70515c}
+.aud-capture img.aud-only-phone{display:none}
+@media(max-width:1100px){.aud-creators{column-gap:16px}.aud-arrow{display:none}}
+@media(max-width:900px){
+  .aud-creators{width:100%;display:flex;flex-direction:column;gap:28px}
+  .aud-arrow{display:none}
+  .aud-shared{margin-top:0}
+  .aud-capture img.aud-only-phone{display:block}
+  .aud-postcard{max-width:420px}
+}

@@ -64,3 +64,16 @@ Enterprise onboarding keep the placeholder. Brief: C:/s/spec/landing-audiences/B
 - Pinned scrolling now needs a viewport at least 880px tall (was 760px) because these layouts need about 590px of
   slide area; shorter screens use the manual selector, arrows and swipe. In manual mode the four views take their
   natural height. The code card pans sideways on a phone and is excluded from the swipe gesture.
+
+## Content creators (2026-10-28)
+
+Replaces the Creators & writers view (Enterprise onboarding keeps its placeholder). Layout `creators`: a neutral example post (landing HTML,
+no brand; its picture is an original synthetic spectrogram, `audience-creators-post-v1.webp`), the real shared canvas page `/e/<token>` (header
+with @handle, Star, Fork and the Comments panel), a reader's fork card from the Library ("Forked from ...") and the creator's own profile card
+(Star count, "1 fork"). Phone crops: `audience-creators-canvas-phone-v1.webp`, `-comment-phone-v1.webp`.
+
+Capabilities checked in code before capture: shared page, public comments, Star, Fork with fork provenance, creator profile and its
+Analytics panel all exist. Creator analytics stores nothing yet: its panel shows "Not collected yet" for everything except the canonical fork
+count and the public board count, so the landing shows the profile card counters instead and no analytics panel. The prepared demo is one
+reader (one star, one comment, one private fork); nothing here is real engagement. Sources and scripts: C:/s/spec/landing-audiences/capture
+(`creators.mjs`, `capture-creators.mjs`, `make-post-visual.py`, `optimise-creators.py`).
