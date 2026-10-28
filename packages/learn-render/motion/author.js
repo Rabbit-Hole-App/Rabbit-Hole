@@ -19,6 +19,7 @@
 import { DEFAULT_RENDERER, MODEL_ROLES, STAGE, TRANSPORT_KINDS, stageOf, afterMalformed, repairFindings, validateAuthorOutput } from './contracts.js';
 import { HF_AUTHOR_TOOL_DESCRIPTION, hfAuthorSystem, checkHfAuthorOutput, hfRendererFacts } from './hf-author.js';
 import { callRecord } from './director.js';
+import { sizeBudgetText } from './composition-limits.js';
 import { checkAuthorSource, requiredText, timelineFrames } from './author-check.js';
 import { resolveRole } from './model-config.js';
 import { FONT_FAMILIES, IMPORTS, SOURCE_MAX_BYTES, checkComposition } from './static-check.js';
@@ -140,11 +141,12 @@ export const authorEffort = (storyboard, requested = 'high', seconds = 0) => (re
 // finishing its tool call (2026-10-04); streaming keeps a long generation safe.
 // A repair after a Director revision rebuilds toward a changed inventory: that stays a whole composition. HyperFrames keeps its own loop.
 export const patchable = (repair, renderer = DEFAULT_RENDERER) => !!repair?.source && !repair.revision && renderer !== 'hyperframes';
-export function authorRequest(brief, storyboard, { effort = 'high', maxTokens, repair = null, renderer = DEFAULT_RENDERER } = {}) {
+export function authorRequest(brief, storyboard, { effort = 'high', maxTokens, repair = null, renderer = DEFAULT_RENDERER, limits = null } = {}) {
   const base = authorContext(brief, storyboard);
   const hf = renderer === 'hyperframes', patch = patchable(repair, renderer);
   maxTokens ??= patch ? AUTHOR_REPAIR_CAP : AUTHOR_OUTPUT_CAP;
-  const ask = `Implement this storyboard${hf ? ' as a HyperFrames composition' : ''}.\n\ninput = ${JSON.stringify(hf ? { ...base, renderer: hfRendererFacts(base) } : base)}`;
+  const budget = sizeBudgetText(limits); // only under a restricted allowance (pipeline.mjs): with none, the request is unchanged
+  const ask = `Implement this storyboard${hf ? ' as a HyperFrames composition' : ''}.\n\ninput = ${JSON.stringify(hf ? { ...base, renderer: hfRendererFacts(base) } : base)}${budget ? `\n\n${budget}` : ''}`;
   return {
     max_tokens: maxTokens,
     stream: true, // a long generation never waits on a silent connection (stream-message.js)
@@ -245,10 +247,10 @@ const reask = errors => `Your motion_composition call did not match its schema:\
 // never a semantic repair, and nothing has rendered from it (this stage has not returned). Any
 // other end (provider error, refusal) fails the stage; max_tokens and malformed tool arguments take
 // the schema-only re-ask.
-export async function runAuthor({ brief, storyboard, call, env = {}, effort = 'high', round = 0, repair = null, renderer = DEFAULT_RENDERER, clock = () => Date.now() }) {
+export async function runAuthor({ brief, storyboard, call, env = {}, effort = 'high', round = 0, repair = null, renderer = DEFAULT_RENDERER, limits = null, clock = () => Date.now() }) {
   const role = MODEL_ROLES.author;
   const model = resolveRole(role, env);
-  const body = authorRequest(brief, storyboard, { effort, repair, renderer });
+  const body = authorRequest(brief, storyboard, { effort, repair, renderer, limits });
   const job = { round, format_retries: [] };
   const calls = [];
   const transport_retries = [];

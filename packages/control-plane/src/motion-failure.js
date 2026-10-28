@@ -31,6 +31,12 @@ export const FAILURE_CODES = Object.freeze({
   infrastructure: Object.freeze({ zeroCredit: true, deterministic: false, message: 'Our video service had a problem and stopped this video. The work done so far is saved.' }),
   // Reviewer or check findings the job could not resolve inside its one repair (cause content). Charged as before.
   content_rejected: Object.freeze({ zeroCredit: false, deterministic: false, message: null }),
+  // The authored composition is outside the complexity classes the readiness policy covers for these settings, or beyond the absolute table
+  // (composition-limits.js, checked before any review or render; nothing was rendered). A static count of the source, not a capacity test.
+  // Our restriction, not the learner's work and not a reviewer's finding (cause stays 'content' for older Workers, which charge it as content_rejected):
+  // the learner is charged nothing, the provider's real cost is still recorded and counted. A new Author may write a smaller composition.
+  composition_not_covered: Object.freeze({ zeroCredit: true, deterministic: false, message: 'The video Motion drew was more complex than it has been checked for at these settings, so it was not rendered. This is a limit on our side, not your AI credits. The work so far is saved.' }),
+  composition_over_limits: Object.freeze({ zeroCredit: true, deterministic: false, message: 'The video Motion drew was more complex than Motion supports, so it was not rendered. This is a limit on our side, not your AI credits. The work so far is saved.' }),
   // A model call failed partway (cause model). Charged as before.
   model_failed: Object.freeze({ zeroCredit: false, deterministic: false, message: null }),
   missing_context: Object.freeze({ zeroCredit: false, deterministic: false, message: null }),
@@ -44,7 +50,9 @@ export const codeOfCause = cause => BY_CAUSE[cause] ?? null;
 // The code of an orchestrator view: its own failure_code when it names a known one, else what its cause implies.
 export const failureCodeOf = view => (view?.failure_code in FAILURE_CODES ? view.failure_code : codeOfCause(view?.cause));
 // Our own per-job limits: the codes the orchestrator names for a timeout or a refused call (its cause is 'limit').
-export const LIMIT_CODES = Object.freeze(['job_ceiling_insufficient', 'policy_rejected', 'call_limit', 'unknown_cost_bound', 'job_timeout', 'limit_unspecified']);
+export const LIMIT_CODES = Object.freeze(['job_ceiling_insufficient', 'policy_rejected', 'call_limit', 'unknown_cost_bound', 'job_timeout', 'limit_unspecified', 'composition_not_covered', 'composition_over_limits']);
+// The codes of the static composition gate (composition-limits.js): only a composition the live allowance covers is worth Continue fixing.
+export const COMPOSITION_CODES = Object.freeze(['composition_not_covered', 'composition_over_limits']);
 // The system limits whose message replaces the orchestrator's failure_reason (which carries internal amounts) in what the learner reads.
 export const hasUserMessage = code => !!FAILURE_CODES[code]?.message;
 export const failureMessage = code => FAILURE_CODES[code]?.message ?? null;

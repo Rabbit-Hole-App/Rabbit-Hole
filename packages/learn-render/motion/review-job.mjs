@@ -89,7 +89,7 @@ export async function runMotionJob({
   renderer = DEFAULT_RENDERER,
   // Recovery (owner message 38): save(checkpoint) receives the job's reusable state whenever it changes (a valid composition,
   // then its review), and resume {findings} starts a recovery attempt at the repair with a saved review's exact findings.
-  save = () => {}, resume = null,
+  save = () => {}, resume = null, limits = null, // limits: the numeric size limits the readiness policy allows (composition-limits.js allowedLimits), told to the Author repair too
 }) {
   const stop = () => checkpoint(signal);
   const polling = signal ? { sleep: abortableSleep(signal) } : {};
@@ -203,7 +203,7 @@ export async function runMotionJob({
     // After a Director revision the Author reconciles to the revised storyboard's object inventory.
     const revised = toStoryboard ? inventoryChange(current.storyboard, sb) : null;
     if (revised) out.repair.storyboard.inventory = revised;
-    const fixed = await repairAuthor({ brief, storyboard: sb, call, env, effort, round: 1, renderer, repair: source ? { source, composition_id: a?.output?.composition_id, findings: blocking, ...(revised ? { revision: revised } : {}) } : null });
+    const fixed = await repairAuthor({ brief, storyboard: sb, call, env, effort, round: 1, renderer, limits, repair: source ? { source, composition_id: a?.output?.composition_id, findings: blocking, ...(revised ? { revision: revised } : {}) } : null });
     record(fixed);
     if (fixed.output?.source && dir) { mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, `composition.repaired.${renderer === 'hyperframes' ? 'html' : 'jsx'}`), fixed.output.source); } // diagnostics (a recovery's job directory may not exist yet: nothing rendered before its repair)
     out.repair.author = { status: fixed.status, ...(fixed.check?.errors?.length ? { errors: fixed.check.errors } : {}), ...(fixed.error ? { error: fixed.error, detail: fixed.detail } : {}) };

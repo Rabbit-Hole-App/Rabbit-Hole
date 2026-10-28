@@ -4,7 +4,7 @@ import { videoProvider } from './video-provider.js';
 import { ManimProvider, cacheKey as mathCacheKey } from './math-provider.js';
 import { MotionProvider, MotionRequestProvider, motionCacheKey, motionGrant, motionRequestCacheKey, motionReservationMicros, validateMotionRender, validateMotionRequest } from './motion-provider.js';
 import { MOTION_PAUSED, consumeProposal, motionPaused, verifyProposal } from './generation-proposal.js';
-import { liveRendererConfig, motionExecutionCheck, motionGenerationCheck, motionMaxCredits } from './motion-settings.js';
+import { liveRendererConfig, motionExecutionCheck, motionExecutionTerms, motionGenerationCheck, motionMaxCredits } from './motion-settings.js';
 import { blockedBody, resolveReferences } from './generation-review-refs.js';
 import { isReviewProposal } from '../../web/src/generation-review.js';
 import { paidRefusal } from './learn-paid.js';
@@ -13,7 +13,7 @@ import { byteRange, learnMedia } from './learn-storage.js';
 import { admitSpend, operationId, settleSpend, spendEnforced, spendMessage } from './learn-spend-ledger.js';
 import { forwardUsagePayer, usageFromForwarded, recordMedia, usageContext, usageRefusal, settleAttempt, withUsage, noteUsageIdentity, finishAction, finishActionOf } from './learn-usage.js';
 import { admitRender, releaseRender } from './learn-render-admission.js';
-import { FAILURE_CODES, LIMIT_CODES, failureCodeOf, failureMessage, isDeterministic, isZeroCredit, userSafeError } from './motion-failure.js';
+import { COMPOSITION_CODES, FAILURE_CODES, LIMIT_CODES, failureCodeOf, failureMessage, isDeterministic, isZeroCredit, userSafeError } from './motion-failure.js';
 
 const json = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
 const POLL_MS = 10000; // Clips take minutes; background polling does not depend on an open browser.
@@ -216,9 +216,9 @@ export class LearnVideos {
           if (job.status !== 'generating') return json({ error: 'Nothing is generating here' }, 409);
           if (job.provider !== 'motion_request') return json({ error: 'This video cannot be stopped once it has started' }, 409);
           let unconfirmed = '';
-          try { if (job.ticket) await new MotionRequestProvider(this.env).cancel(job.ticket); }
+          try { if (job.ticket) await new MotionRequestProvider(this.env).cancel(job.ticket, 'learner_request'); }
           catch (error) { unconfirmed = ` The Motion harness did not confirm the stop: ${error.message}`; }
-          Object.assign(job, { status: 'failed', error: `Stopped.${unconfirmed}`, stopped: true, uncertain: false });
+          Object.assign(job, { status: 'failed', error: `Stopped.${unconfirmed}`, stopped: true, uncertain: false, stopRequest: { at: Date.now(), origin: 'learner_request' } });
           await this.state.storage.put(`job:${p.key}`, job);
           // Its hold settles once the orchestrator reports what the stopped job really spent.
           if (needsSettling(job)) await this.state.storage.setAlarm(Date.now() + POLL_MS);
@@ -239,10 +239,10 @@ export class LearnVideos {
           const saved = await learnMedia(this.env).get(job.recovery.key);
           const artifacts = saved ? await saved.json().catch(() => null) : null;
           if (!artifacts?.checkpoint || !artifacts.seal) return json({ error: 'The saved work for this video is no longer available. Generate it again.' }, 409);
-          Object.assign(job, { status: 'generating', startedAt: Date.now(), ticket: null, error: undefined, stopped: false, uncertain: false, spend: undefined, failureCode: undefined, failure: undefined });
+          Object.assign(job, { status: 'generating', startedAt: Date.now(), ticket: null, error: undefined, stopped: false, stopRequest: undefined, uncertain: false, spend: undefined, failureCode: undefined, failure: undefined });
           await this.state.storage.put(`job:${p.key}`, job);
           await this.state.storage.setAlarm(Date.now() + POLL_MS);
-          await this.startMotion(req, job, new MotionRequestProvider(this.env), entered, { mode: body.mode, checkpoint: artifacts.checkpoint, seal: artifacts.seal, holdMicros: job.recovery.holdFixMicros });
+          await this.startMotion(req, job, new MotionRequestProvider(this.env), entered, { mode: body.mode, checkpoint: artifacts.checkpoint, seal: artifacts.seal, holdMicros: job.recovery.holdFixMicros, allowed_complexity: motionExecutionTerms(this.env, job.input.proposal?.settings).allowed_complexity });
           await this.state.storage.put(`job:${p.key}`, job);
           return json({ ...await this.list(callerEmail(this.env, req)), placementId: p.id }, 202);
         }
@@ -292,7 +292,7 @@ export class LearnVideos {
           }
           if (input.proposal && !owner) await this.state.storage.put(`proposal:${input.proposal.proposal_id}`, key);
           // A retry of the same Motion job spends from the same ceiling: what earlier attempts used (or may have used) carries over.
-          job = { key, input, status: 'generating', startedAt: Date.now(), version, provider: maths ? 'manim' : motion ? 'motion' : motionRequest ? 'motion_request' : this.env.LEARN_VIDEO_PROVIDER, ...(motionRequest ? { consumedMicros: job?.consumedMicros || 0 } : {}) };
+          job = { key, input, status: 'generating', startedAt: Date.now(), version, provider: maths ? 'manim' : motion ? 'motion' : motionRequest ? 'motion_request' : this.env.LEARN_VIDEO_PROVIDER, ...(motionRequest ? { consumedMicros: job?.consumedMicros || 0, ...(job?.attempts ? { attempts: job.attempts } : {}) } : {}) };
           // A Manim render is platform-funded rendering (owner 5A decision C, 2026-10-21: 'render', apart from the learner's
           // allowance): it takes the learner's render slot across all canvases first (render fairness, 2026-10-21).
           if (maths) {
@@ -356,7 +356,8 @@ export class LearnVideos {
   motionRecovery(j, startable, refundedMicros = 0) {
     const r = j.recovery, left = (motionReservationMicros(this.env) ?? 0) - (j.consumedMicros || 0);
     const code = j.failureCode ?? r?.code ?? (r?.cause === 'limit' ? 'limit_unspecified' : null), need = r?.nextNeedMicros ?? 1;
-    const actions = (j.uncertain || !r ? [] : r.actions).filter(a => (a === 'render' || a === 'fix' ? startable && !!r.key && (a === 'render' || left >= need) : true));
+    const covered = !COMPOSITION_CODES.includes(code) || (!!r?.limitsClass && (a => !a || a.includes(r.limitsClass))(motionExecutionTerms(this.env, j.input.proposal?.settings).allowed_complexity));
+    const actions = (j.uncertain || !r ? [] : r.actions).filter(a => (a === 'render' || a === 'fix' ? startable && !!r.key && (a === 'render' || left >= need) && (a === 'render' || covered) : true));
     const explanation = j.uncertain ? null : failureMessage(code) ?? (r?.cause && EXPLAIN[r.cause] ? EXPLAIN[r.cause]({ ...r, actions }) : null);
     return { cause: j.uncertain ? 'unconfirmed' : r?.cause ?? null, code: j.uncertain ? null : code, actions, explanation, regenerate: startable && !j.uncertain && left > 0 && !isDeterministic(code),
       accounting: { chargedCredits: (j.usedMicros || 0) / 10_000, refundedCredits: (refundedMicros || 0) / 10_000, unknown: !!j.usageUnknown } };
@@ -390,7 +391,7 @@ export class LearnVideos {
       job.spend.grant = await motionGrant(this.env.MOTION_ORCHESTRATOR_TOKEN, job.spend.opId, job.spend.micros, Math.floor(Date.now() / 1000), await provider.boot(left()));
       await this.state.storage.put(`job:${job.key}`, job);
       if (left() < MOTION_MIN_POST_MS) throw Object.assign(new Error(SLOW), { definite: true }); // no POST left: nothing started
-      job.ticket = await provider.submit(job.input, job.spend, job.repository, left(), recover && { mode: recover.mode, checkpoint: recover.checkpoint, seal: recover.seal });
+      job.ticket = await provider.submit(job.input, job.spend, job.repository, left(), recover && { mode: recover.mode, checkpoint: recover.checkpoint, seal: recover.seal, allowed_complexity: recover.allowed_complexity });
     } catch (error) {
       if (!error.definite) return; // unconfirmed: the alarm reconciles the key, never resubmits
       await this.settleMotion(job, NOTHING);
@@ -466,6 +467,11 @@ export class LearnVideos {
     job.usedMicros = (job.usedMicros || 0) + (charge ?? 0);
     if (known == null && !free) job.usageUnknown = true;
     (job.providerCost ||= []).push({ opId: spend.opId, micros: known, charged: charge, ...(known != null && charge < known && !free ? { capped: true } : {}), free, cause: view?.cause ?? (view ? null : 'lost'), code: code ?? null, calls: view?.spend?.provider_calls ?? null });
+    // One durable line per attempt (operators only, never in list()): a later recovery or retry resets the card's failure fields, never this list.
+    // key: the attempt's saved artifacts in LEARN_MEDIA (read by that exact key); stop: who asked for the Stop and when, when one was recorded.
+    (job.attempts ||= []).push({ opId: spend.opId, ticket: job.ticket?.id ?? null, startedAt: job.startedAt ?? null, endedAt: Date.now(), status: view?.status ?? 'lost', code: code ?? null, cause: view?.cause ?? null,
+      reason: String(view?.failure?.reason ?? view?.failure_reason ?? '').slice(0, 300) || null, calls, costMicros: known, chargedMicros: charge, free,
+      key: job.recovery?.jobId && job.recovery.jobId === job.ticket?.id ? job.recovery.key : null, ...(job.stopRequest ? { stop: job.stopRequest } : {}) });
     // Why it failed, for operators and recovery: kept in the job record, never in what list() sends to a browser. A charged attempt's id is kept
     // too, so the card can tell credits charged from credits refunded (refundAttempt) and from a released hold.
     if (view?.status === 'failed') Object.assign(job, { failureCode: code, failure: { code, cause: view.cause ?? null, ...(view.failure ?? {}) } });
@@ -493,7 +499,7 @@ export class LearnVideos {
   async stopLanded(job) {
     const stored = await this.state.storage.get(`job:${job.key}`);
     if (!stored?.stopped || job.stopped) return false;
-    Object.assign(job, { stopped: true, status: stored.status, error: stored.error, uncertain: stored.uncertain });
+    Object.assign(job, { stopped: true, status: stored.status, error: stored.error, uncertain: stored.uncertain, stopRequest: stored.stopRequest });
     return true;
   }
 
@@ -528,7 +534,7 @@ export class LearnVideos {
     }
     await this.stopLanded(job); // so a Stop during that poll is cancelled and settles as cancelled, not failed
     // Stop is durable (MOT-09): a job still running after Stop, recovered by its key or whose stop went unconfirmed, is told again.
-    if (job.stopped && view?.status === 'running') await provider.cancel(job.ticket).catch(() => {});
+    if (job.stopped && view?.status === 'running') await provider.cancel(job.ticket, 'durable_resend').catch(() => {});
     if (view?.status === 'running' && !late) return;
     if (view && view.status !== 'running' && view.spend?.in_flight > 0 && !late) return; // a stopped call still lands and is priced
     const ended = view && view.status !== 'running' ? view : null;
@@ -573,7 +579,7 @@ export class LearnVideos {
     const f = a.blocking?.[0];
     job.recovery = { key, jobId: job.ticket.id, rev: a.rev, final: a.status !== 'running', cause: a.cause ?? null, code: a.failure_code ?? null, nextNeedMicros: Number.isFinite(a.next_need_usd) ? Math.ceil(a.next_need_usd * 1e6) : null, actions: Array.isArray(a.actions) ? a.actions : [],
       state: a.checkpoint?.composition?.state ?? null, storyboard: !!a.checkpoint?.storyboard, holdFixMicros: Math.ceil((a.hold_usd?.fix ?? 0) * 1e6) || null,
-      question: a.clarification?.question ?? null, finding: f ? { category: f.category, description: String(f.description).slice(0, 240) } : null };
+      question: a.clarification?.question ?? null, limitsClass: a.checkpoint?.composition?.limits?.class ?? null, finding: f ? { category: f.category, description: String(f.description).slice(0, 240) } : null };
   }
 
   async alarm() {
@@ -585,7 +591,7 @@ export class LearnVideos {
         try { await this.pollMotion(job); }
         catch (error) { if (error.final) { job.status = 'failed'; job.error = error.message; if (error.failureCode) job.failureCode ||= error.failureCode; } } // transient: the next poll
         // A Stop that landed after pollMotion's last look: kept, and its job told to stop now that it has a ticket.
-        if (await this.stopLanded(job) && job.ticket) await new MotionRequestProvider(this.env).cancel(job.ticket).catch(() => {});
+        if (await this.stopLanded(job) && job.ticket) await new MotionRequestProvider(this.env).cancel(job.ticket, 'alarm_resend').catch(() => {});
         await this.state.storage.put(key, job);
         continue;
       }

@@ -27,6 +27,20 @@ export function measureComposition(source, { durationSeconds }) {
 // The smallest class whose limits hold every metric, or null when even the heaviest is exceeded.
 export const complexityClass = metrics => COMPLEXITY_CLASSES.find(c => Object.entries(COMPOSITION_LIMITS[c]).every(([k, max]) => metrics[k] <= max)) ?? null;
 
+// The numeric limits the models must be told (owner 2026-10-27, job e3a2f10e: the gate enforced a class the Author never saw): those of the
+// most permissive class the readiness policy covers, or null when no restriction applies (allowed omitted: only the absolute table does).
+export const allowedLimits = allowed => {
+  const classes = Array.isArray(allowed) ? COMPLEXITY_CLASSES.filter(c => allowed.includes(c)) : [];
+  return classes.length ? { class: classes.at(-1), ...COMPOSITION_LIMITS[classes.at(-1)] } : null;
+};
+// The sentence the Author is given. It names the measured quantities exactly as measureComposition counts them, and says what to do when the
+// storyboard cannot fit (the existing needs_revision route), so a lesson is never thinned silently to pass the gate.
+export const sizeBudgetText = limits => limits && [
+  'Size budget (a hard check on your source, run before anything renders; a composition over it is not rendered):',
+  `at most ${limits.layers} layers (every <Sequence>, <AbsoluteFill> or <Series.Sequence> tag and every data-start attribute), ${limits.elements} elements (every opening <Tag>, components included), ${limits.text_chars} characters of text between tags and ${limits.asset_bytes} bytes of source.`,
+  'Keep every storyboard object, label and on-screen text: reduce decoration, not content. If the storyboard cannot be built faithfully inside this budget, return status needs_revision and name the budget in reason; do not drop content to fit.',
+].join(' ');
+
 // -> { ok: true, class, metrics } or { ok: false, reason (one line), class, metrics }. allowed: the classes the readiness policy covers for
 // this combination (omitted: only the absolute ceiling applies, as for a local run with no policy).
 export function checkCompositionLimits(source, { durationSeconds, allowed = null }) {
