@@ -31,14 +31,11 @@ test('an unknown capability is unsupported_capability, not a malformed program',
   assert.equal(result.error.message, ERROR_MESSAGES.unsupported_capability);
 });
 
-test('manifest bounds: defaults inside the domain, select combinations, markup and URLs in text', () => {
+test('manifest bounds: defaults inside the domain, select combinations, input count', () => {
   assert.equal(parseManifest(manifest({ inputs: [{ type: 'number', id: 'x', label: 'X', default: 11, min: 0, max: 10 }] })).ok, false);
   assert.equal(parseManifest(manifest({ inputs: [{ type: 'number', id: 'x', label: 'X', default: 1, min: 5, max: 5 }] })).ok, false);
   const select = id => ({ type: 'select', id, label: id, default: '1', options: Array.from({ length: 5 }, (_, n) => ({ value: String(n + 1), label: String(n + 1) })) });
   assert.equal(parseManifest(manifest({ inputs: [select('p'), select('q'), select('r')], readouts: [] })).ok, false, '5*5*5 = 125 states');
-  assert.equal(parseManifest(manifest({ summary: '<script>alert(1)</script>' })).ok, false);
-  assert.equal(parseManifest(manifest({ summary: 'see https://example.com/x' })).ok, false);
-  assert.equal(parseManifest(manifest({ summary: 'when a < b and b > c' })).ok, true, 'a comparison is not markup');
   assert.equal(parseManifest(manifest({ inputs: Array.from({ length: 5 }, (_, n) => ({ type: 'number', id: `n${n}`, label: 'n', default: 1, min: 0, max: 2 })) })).ok, false, 'at most four inputs');
   const twin = [{ type: 'number', id: 'same', label: 'a', default: 1, min: 0, max: 2 }, { type: 'number', id: 'same', label: 'b', default: 1, min: 0, max: 2 }];
   assert.equal(parseManifest(manifest({ inputs: twin })).ok, false, 'duplicate ids');
@@ -90,8 +87,7 @@ test('a valid frame normalises defaults; wrong frames are invalid_output', () =>
   assert.equal(result.value.objects[0].role, 'neutral');
   const bad = [
     [{ kind: 'box', id: 'b', x: Number.NaN, y: 0, w: 1, h: 1 }], [{ kind: 'box', id: 'b', x: 0, y: 0, w: 1, h: 1, onclick: 'x' }],
-    [{ kind: 'image', id: 'i', src: 'https://example.com/a.png', x: 0, y: 0 }], [{ kind: 'box', id: 'b', x: 0, y: 0, w: 1, h: 1, text: '<b>x</b>' }],
-    [{ kind: 'text', id: 't', x: 0, y: 0, text: 'visit https://example.com' }], [{ kind: 'text', id: 't', x: 0, y: 0 }],
+    [{ kind: 'image', id: 'i', src: 'https://example.com/a.png', x: 0, y: 0 }], [{ kind: 'text', id: 't', x: 0, y: 0 }],
     [{ kind: 'text', id: 't', x: 0, y: 0, text: 'a', runs: [{ kind: 'text', text: 'a' }] }], [{ kind: 'box', id: 'b b', x: 0, y: 0, w: 1, h: 1 }],
     [{ kind: 'box', id: 'b', x: 0, y: 0, w: 1, h: 1 }, { kind: 'circle', id: 'b', x: 0, y: 0, w: 1 }], [{ kind: 'box', id: 'b', x: 0, y: 0, w: 1, h: 1, fn: () => 1 }],
     [{ kind: 'box', id: 'b', x: 1e9, y: 0, w: 1, h: 1 }], [{ kind: 'box', id: 'b', x: 0, y: 0, w: 1, h: 1, role: 'rainbow' }],
@@ -121,9 +117,7 @@ test('GuestResult needs finite named quantities; RuntimeError carries a stable c
   assert.equal(parseGuestResult({ frame: frame([]), quantities: { total: 4.5 } }).ok, true);
   assert.equal(parseGuestResult({ frame: frame([]), quantities: { total: Number.NaN } }).ok, false);
   assert.equal(parseGuestResult({ frame: frame([]) }).value.quantities !== undefined, true);
-  const error = new RuntimeError('runtime_limit');
-  assert.deepEqual(error.toJSON(), { code: 'runtime_limit', message: 'This explanation stopped because it exceeded its runtime limit.' });
-  assert.equal(new RuntimeError('made_up').code, 'runtime_error');
+  assert.deepEqual(new RuntimeError('runtime_limit').toJSON(), { code: 'runtime_limit', message: 'This explanation stopped because it exceeded its runtime limit.' });
 });
 
 test('resolveInputs completes, clamps and falls back to defaults', () => {

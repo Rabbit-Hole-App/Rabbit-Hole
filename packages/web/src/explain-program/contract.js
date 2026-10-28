@@ -17,7 +17,7 @@ export const PROGRAM_VERSIONS = Object.freeze({
 // Starting limits from plan section 5.3. limits.js (runtime owner) is the runtime policy file; these are the contract-level
 // bounds a Frame or artifact must satisfy before anything renders, so they live with the schemas that enforce them.
 export const CONTRACT_LIMITS = Object.freeze({
-  sourceBytes: 16 * 1024, manifestBytes: 4 * 1024, outputBytes: 256 * 1024, depth: 32,
+  sourceBytes: 16 * 1024, manifestBytes: 4 * 1024, maxOutputBytes: 256 * 1024, depth: 32,
   objects: 60, objectsTotal: 240, pointsPerObject: 2000, pointsTotal: 10000, inputs: 4, optionCombinations: 64, options: 8, readouts: 8, quantities: 32, assumptions: 8,
   duration: 120, coordinate: 100000, size: 2000, text: 200, runs: 16,
 });
@@ -35,11 +35,12 @@ const name = z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,31}$/, 'a name starts wit
 const hash = z.string().regex(/^[0-9a-f]{64}$/, 'a SHA-256 hex digest');
 const version = z.string().regex(/^[A-Za-z0-9._@+-]{1,64}$/);
 
-// Plain text only: no markup, no URL. It is always drawn as a text node, never as HTML; this refuses it early and visibly.
-const MARKUP = /<\/?[A-Za-z!][^>]*>/;
-const URLISH = /(?:^|[^A-Za-z0-9])(?:[A-Za-z][A-Za-z0-9+.-]*:\/\/|javascript:|data:|mailto:)/i;
-const plain = max => z.string().min(1).max(max).refine(text => !MARKUP.test(text) && !URLISH.test(text), 'plain text only: no markup and no URL');
-const maybePlain = max => z.string().max(max).refine(text => !MARKUP.test(text) && !URLISH.test(text), 'plain text only: no markup and no URL');
+// Text is data. It is always drawn through escaped text nodes (React children and SVG text), never parsed as HTML, so a lesson may
+// quote a URL or a tag ("A URL starts with https://", "The <div> tag groups content") as literal words. What stays forbidden is
+// FIELDS that make the host load or run something: every object below is strict, so an href, src, url, image, handler or
+// function-valued key is refused as an unknown key, and zod types refuse a function where a string or number belongs.
+const plain = max => z.string().min(1).max(max);
+const maybePlain = max => z.string().max(max);
 
 const run = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('text'), text: plain(CONTRACT_LIMITS.text) }).strict(),
@@ -155,11 +156,16 @@ export const ERROR_MESSAGES = Object.freeze({
   version_unavailable: 'This explanation could not run. Your saved version is kept.',
 });
 export const RuntimeErrorSchema = z.object({ code: z.enum(ERROR_CODES), message: z.string().min(1).max(200) }).strict();
+const normalizeCode = code => (typeof code === 'string' && ERROR_CODES.includes(code) ? code : 'runtime_error');
+// The learner-facing part is only the stable code and its fixed message. Anything diagnostic (a source excerpt, a stack, a
+// context string) goes in the second argument, is kept apart on a non-enumerable field, and never reaches the message or toJSON.
 export class RuntimeError extends Error {
-  constructor(code, message = ERROR_MESSAGES[code]) {
-    super(message);
+  constructor(code, diagnostic) {
+    const normalized = normalizeCode(code); // unknown, undefined and non-string codes become runtime_error first
+    super(ERROR_MESSAGES[normalized]);
     this.name = 'RuntimeError';
-    this.code = ERROR_CODES.includes(code) ? code : 'runtime_error';
+    this.code = normalized;
+    Object.defineProperty(this, 'diagnostic', { value: typeof diagnostic === 'string' ? diagnostic.slice(0, 500) : undefined, enumerable: false });
   }
   toJSON() { return { code: this.code, message: this.message }; }
 }
@@ -190,8 +196,18 @@ export const parseArtifact = raw => {
   return manifest.ok ? parseWith(ProgramArtifact, raw, 'invalid_program') : manifest;
 };
 export const parseEvaluateRequest = raw => parseWith(EvaluateRequest, raw, 'invalid_program');
-export const parseFrame = raw => parseWith(Frame, raw, 'invalid_output');
-export const parseGuestResult = raw => parseWith(GuestResult, raw, 'invalid_output');
+// Output is measured before it is parsed: the canonical serialized byte length of the WHOLE result (frame, quantities, and for
+// a response its id and metrics) must not exceed CONTRACT_LIMITS.maxOutputBytes, the one authoritative output limit. A result
+// that is over, too deep, or not plain JSON is invalid_output; the issue text states the limit and echoes none of the content.
+function parseOutput(schema, raw) {
+  try { canonicalBytes(raw, CONTRACT_LIMITS.maxOutputBytes); } catch {
+    return { ok: false, error: new RuntimeError('invalid_output'), issue: `the result is over ${CONTRACT_LIMITS.maxOutputBytes} bytes, nested too deeply, or not plain JSON` };
+  }
+  return parseWith(schema, raw, 'invalid_output');
+}
+export const parseFrame = raw => parseOutput(Frame, raw);
+export const parseGuestResult = raw => parseOutput(GuestResult, raw);
+export const parseEvaluateResponse = raw => parseOutput(EvaluateResponse, raw);
 
 // ---- inputs -----------------------------------------------------------------------------------------------------------
 
@@ -216,6 +232,40 @@ export function canonicalJson(value) {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
   if (value && typeof value === 'object') return `{${Object.keys(value).sort().filter(key => value[key] !== undefined).map(key => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
   throw new TypeError('not JSON');
+}
+// The exact UTF-8 byte length of canonicalJson(value), counted without building the string and stopping as soon as the count passes
+// budget (a RangeError), so an oversized or cyclic value is refused at a bounded cost. TypeError for anything JSON cannot carry.
+const utf8Length = text => new TextEncoder().encode(text).length;
+export function canonicalBytes(value, budget = Infinity) {
+  let total = 0;
+  const add = count => { total += count; if (total > budget) throw new RangeError('over budget'); };
+  const walk = (node, depth) => {
+    if (depth > CONTRACT_LIMITS.depth) throw new RangeError('too deep');
+    if (node === null) return add(4);
+    if (typeof node === 'boolean') return add(node ? 4 : 5);
+    if (typeof node === 'number') { if (!Number.isFinite(node)) throw new TypeError('not a finite number'); return add(JSON.stringify(node).length); }
+    if (typeof node === 'string') { if (node.length > budget) throw new RangeError('over budget'); return add(utf8Length(JSON.stringify(node))); }
+    if (Array.isArray(node)) {
+      add(2);
+      node.forEach((item, index) => { if (index) add(1); walk(item, depth + 1); });
+      return undefined;
+    }
+    if (typeof node === 'object') {
+      add(2);
+      let first = true;
+      for (const key of Object.keys(node)) {
+        if (node[key] === undefined) continue;
+        if (!first) add(1);
+        first = false;
+        add(utf8Length(JSON.stringify(key)) + 1);
+        walk(node[key], depth + 1);
+      }
+      return undefined;
+    }
+    throw new TypeError('not JSON');
+  };
+  walk(value, 0);
+  return total;
 }
 export async function sha256Hex(text) {
   const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
