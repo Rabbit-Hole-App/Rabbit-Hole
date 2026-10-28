@@ -150,7 +150,7 @@ not leave executable work unassigned while suitable agent and execution capacity
 - **Scheduling check before waiting.** Before waiting for agents, CI, deployment, paid validation or owner input, review
   the ready queue and start any independent authorized work that can proceed. Waiting is appropriate only when no
   useful independent work is available, execution capacity is exhausted, or a concrete dependency blocks it. While
-  waiting, the coordinator integrates ready hand-backs, prepares the next candidate and its checks, diagnoses unrelated
+  waiting, the coordinator integrates ready hand-backs, prepares the next candidate, its scripts, acceptance instructions and checks, diagnoses unrelated
   failures, prepares migration commands, receipts, fixtures and documentation, resolves interface questions between
   lanes, and safely closes completed worktrees. Do not repeatedly report "waiting for agents" while ready tasks remain
   unassigned.
@@ -163,10 +163,17 @@ not leave executable work unassigned while suitable agent and execution capacity
   candidate validation should proceed concurrently where the existing workflow and resources permit. Prepare later
   candidates while the current one is in CI or awaiting its release command; run independent checks concurrently;
   serialize only operations that share mutable resources or need ordering; keep a single integration and release owner.
-  Freeze a candidate before release verification instead of adding unrelated work and restarting its checks. When
+  Freeze a candidate, and the release base it sits on, before long validation instead of adding unrelated work and
+  restarting its checks. Changing the base (for example rebasing onto a newly released `main`) needs a stated reason and
+  a list of the evidence that must be rerun: apply the existing reuse rules (identical patches, unchanged files and
+  contracts keep their evidence) and name the specific changed files or contract that force any rerun. When
   integration or rebasing changes the candidate SHA, obtain the required evidence for the resulting SHA. Use the
   existing gate-reuse eligibility and batching rules; do not weaken a gate or alter workflow policy to shorten the
   queue.
+- **Background runs.** Every background run (harness, gate watcher, CI wait, capture, long test) has a named owner, a
+  log location and an explicit completion result (exit code or `RESULT` line) that its owner reads from the run itself.
+  An agent finishing its turn, or a completion notice, does not mean its background work finished: track the process
+  and its log, and record the script and candidate versions that were tested.
 - **Budgets.** Paid work stays inside the existing shared budget and authorization; more agents do not receive
   separate budgets.
 - A hand-back contains: commit SHA; changes made; tests actually executed and their results; remaining limitations;
@@ -195,6 +202,17 @@ not leave executable work unassigned while suitable agent and execution capacity
   deployed user-flow. Mocked model responses prove wiring only.
 - Never weaken assertions, suppress errors or raise timeouts merely to get green without explaining the underlying
   condition.
+- **Preflight before expensive validation.** Before a long harness, gate or suite run, verify the candidate SHA and
+  branch it will use, the harness configuration and its defaults (branch names, paths, variables) and that every
+  required file or fixture exists. A stale default fails immediately, not mid-run.
+- **Harnesses clean up after themselves.** Every harness, test runner and capture owns the child processes, servers,
+  ports and temporary resources it starts and removes them on success, failure and cancellation. A cleanup failure stays
+  visible in the output and does not stop the remaining cleanup steps. Leftover processes are stopped only when
+  positively identified as that harness's own (PID, creation time, full command line and recorded sandbox), never by
+  blanket termination.
+- **Representative user flow early.** Before calling a feature release-ready, exercise one representative enabled user
+  flow (the first thing a signed-in user does with it) through the approved route; unit and fixture checks do not
+  stand in for it.
 
 ### Intermittent failures
 
@@ -256,6 +274,14 @@ This rule changes how a GO is carried out; it does not itself authorize any prod
 - A push to `main` runs the production release (`.github/workflows/deploy-prod.yml`). Each `main` push and each
   production D1 migration needs the owner's explicit approval, normally as a `!` command the owner runs; prepare the
   exact command only when it is ready to run. Paid calls and new infrastructure keep their own approvals.
+- **Owner commands are launchers** (owner, 2026-10-27). Hand the owner one copy-paste command or double-click launcher that runs from any
+  directory, with the paths, environment variables, pinned SHAs and prerequisite checks inside it; the owner assembles
+  nothing. It opens the right terminal itself, keeps any genuinely required manual confirmation (a typed approval is never
+  automated), shows progress, writes a log automatically, ends with a clear result that preserves the real exit code, and on
+  failure prints the exact error and next action. Reruns resume or skip finished steps. Verify the launcher (paths,
+  terminal handling, a read-only check) before sending it, never send a placeholder or a command to adapt. Label where it
+  runs: a Claude Code command starts with `!`; a command for the owner's own terminal is a single launcher with no `!`.
+  The message contains only what it does, the command, the required confirmation and the expected duration and result.
 - Testing any script that can mutate production (an owner script, migration, deploy, secret or resource-creating
   command) requires ENFORCED isolation: run it in a harness with no production credentials in its environment and no
   route to production services (an offline process whose PATH holds only stubs of the real executables), with mocks and
