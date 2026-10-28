@@ -74,9 +74,6 @@ export const evaluateRequestFor = (manifest, block, time, requestId) => ({
 // What a learner sees for a failure: only the fixed message of the normalised code (contract.js).
 export const programErrorMessage = error => new RuntimeError(error?.code).message;
 
-// A reply is current only for the request the card last sent.
-export const isCurrentReply = (reply, latestRequestId) => reply?.requestId === String(latestRequestId);
-
 // The composer and tutor context for a program card: what the learner can see and has set, never source.
 export function describeProgram(block, manifest = null) {
   const lines = [`Interactive explanation on the canvas: ${block.title}`];

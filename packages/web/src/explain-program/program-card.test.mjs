@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ERROR_MESSAGES, parseManifest, sealProgram } from './contract.js';
 import {
-  clampTime, describeProgram, evaluateRequestFor, fixturesAdmitted, isCurrentReply, isProgramBlock, programChanged, programErrorMessage, programInputs, programTime,
+  clampTime, describeProgram, evaluateRequestFor, fixturesAdmitted, isProgramBlock, programChanged, programErrorMessage, programInputs, programTime,
   resetProgram, resolveProgram, setProgramInput,
 } from './program-card.js';
 import { growthFixture } from './fixtures.js';
@@ -109,8 +109,6 @@ test('time starts at zero, is clamped to the duration, and a request carries onl
   assert.equal(clampTime({ ...manifest, duration: undefined }, 5), 0, 'a static program has no time');
   const request = evaluateRequestFor(manifest, card({ inputs: { rate: 7, stray: 1 } }), 2.5, 9);
   assert.deepEqual(request, { requestId: '9', inputs: { rate: 7, years: 10, mode: 'compound' }, time: 2.5, seed: 0, state: null });
-  assert.equal(isCurrentReply({ requestId: '9' }, 9), true);
-  assert.equal(isCurrentReply({ requestId: '8' }, 9), false, 'an older answer cannot replace a newer one');
 });
 
 test('a failure shows only the fixed message of the normalised code', () => {

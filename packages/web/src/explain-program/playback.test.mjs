@@ -1,0 +1,131 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createFrameScheduler } from './playback.js';
+
+// A fake host whose every evaluation takes `latency` ms of fake time, one at a time (host.js keeps one in flight and the newest
+// waiting), and a fake animation clock of 16 ms frames. Regression for the starved playback seen on the genuine sandbox-ex1-b
+// card: the drawing stayed at t=0 while the time readout ran, because every answer slower than one frame was dropped.
+function rig({ latency = 50 } = {}) {
+  let now = 0;
+  const timers = [];
+  const later = (ms, fn) => timers.push({ at: now + ms, fn });
+  const advance = ms => {
+    const end = now + ms;
+    for (;;) {
+      timers.sort((a, b) => a.at - b.at);
+      if (!timers.length || timers[0].at > end) break;
+      const next = timers.shift();
+      now = next.at;
+      next.fn();
+    }
+    now = end;
+  };
+  let busy = false, pending = null;
+  const requests = [];
+  const run = () => {
+    if (busy || !pending) return;
+    const job = pending;
+    pending = null;
+    busy = true;
+    later(job.latency ?? latency, () => { busy = false; job.resolve({ frame: { at: job.request.time, inputs: job.request.inputs } }); run(); });
+  };
+  const evaluate = request => new Promise((resolve, reject) => {
+    requests.push(request);
+    if (pending) pending.reject(new DOMException('superseded', 'AbortError'));
+    pending = { request, resolve, reject };
+    run();
+  });
+  const shown = [], failures = [];
+  const scheduler = createFrameScheduler({ evaluate: job => evaluate(job), show: (reply, job) => shown.push({ ...job, reply }), fail: error => failures.push(error) });
+  const flush = () => new Promise(resolve => setImmediate(resolve));
+  // Fake animation frames: the card's clock asks for the moment of each frame, the way ProgramScene's effect does.
+  const play = async ({ key, inputs = {}, from = 0, ms, speed = 1 }) => {
+    const start = now;
+    while (now - start < ms) {
+      scheduler.want({ key, time: from + (now - start) / 1000 * speed, inputs });
+      advance(16);
+      await flush();
+    }
+  };
+  const settle = async () => { for (let i = 0; i < 50; i++) { advance(1000); await flush(); } };
+  return { scheduler, shown, failures, requests, play, settle, advance, flush, get now() { return now; } };
+}
+
+test('frames slower than one animation frame are drawn while the clock runs, in chronological order', async () => {
+  const r = rig({ latency: 50 }); // about three animation frames per evaluation
+  await r.play({ key: 'a', ms: 2000 });
+  // 2 s at 50 ms per evaluation, each next request sent on the next fake frame (64 ms): about 31 completed frames, every one
+  // drawn (the old card drew none of them).
+  assert.ok(r.shown.length >= 28, `drew ${r.shown.length} frames`);
+  const times = r.shown.map(frame => frame.time);
+  assert.deepEqual(times, [...times].sort((a, b) => a - b), 'never an older moment after a newer one');
+  assert.ok(times.at(-1) > 1.8, 'the drawing follows the clock');
+  // Coalescing: only the newest moment is ever asked for, so requests track completions, not animation frames (125 here).
+  assert.ok(r.requests.length <= r.shown.length + 2, `${r.requests.length} requests for ${r.shown.length} frames`);
+});
+
+test('after the clock stops, the drawing settles on the exact requested moment', async () => {
+  const r = rig({ latency: 70 });
+  await r.play({ key: 'a', ms: 1000 });
+  r.scheduler.want({ key: 'a', time: 1.234, inputs: {} }); // pause at an arbitrary moment
+  await r.settle();
+  assert.equal(r.shown.at(-1).time, 1.234);
+  const before = r.requests.length;
+  r.scheduler.want({ key: 'a', time: 1.234, inputs: {} });
+  await r.settle();
+  assert.equal(r.requests.length, before, 'a settled card asks for nothing more');
+});
+
+test('a scrub (new epoch) never draws an answer asked for before it, and settles on the scrubbed moment', async () => {
+  const r = rig({ latency: 80 });
+  await r.play({ key: 'a#0', from: 10, ms: 500 });
+  const drawnBefore = r.shown.length;
+  r.scheduler.want({ key: 'a#1', time: 3, inputs: {} }); // scrub back to 3 s while a 10.x s frame is in flight
+  await r.settle();
+  const after = r.shown.slice(drawnBefore);
+  assert.deepEqual(after.map(frame => [frame.key, frame.time]), [['a#1', 3]], 'the in-flight 10 s answer is not drawn after the scrub');
+});
+
+test('rapid input changes never draw a stale result: only the last inputs are drawn', async () => {
+  const r = rig({ latency: 60 });
+  for (let value = 0; value <= 20; value++) { // a slider dragged through 21 values, one per animation frame
+    r.scheduler.want({ key: `room=${value}#0`, time: 5, inputs: { room: value } });
+    r.advance(16);
+    await r.flush();
+  }
+  await r.settle();
+  const last = r.shown.at(-1);
+  assert.deepEqual([last.key, last.reply.frame.inputs], ['room=20#0', { room: 20 }]);
+  // Every frame drawn was the newest state at the moment it was drawn: never one the slider had already left.
+  for (const frame of r.shown) assert.equal(frame.key, frame.reply.frame.inputs && `room=${frame.reply.frame.inputs.room}#0`);
+  const drawnKeys = r.shown.map(frame => frame.key);
+  assert.deepEqual(drawnKeys, [...new Set(drawnKeys)], 'no state is drawn twice or after a newer one');
+  assert.deepEqual(r.failures, [], 'superseded requests are not failures');
+});
+
+test('a reset during playback draws defaults at time zero, and nothing is drawn after dispose', async () => {
+  const r = rig({ latency: 40 });
+  await r.play({ key: 'room=25#0', inputs: { room: 25 }, ms: 400 });
+  r.scheduler.want({ key: 'room=10#1', time: 0, inputs: { room: 10 } });
+  await r.settle();
+  assert.deepEqual([r.shown.at(-1).key, r.shown.at(-1).time], ['room=10#1', 0]);
+  const count = r.shown.length;
+  r.scheduler.want({ key: 'room=10#1', time: 4, inputs: { room: 10 } });
+  r.scheduler.dispose();
+  await r.settle();
+  assert.equal(r.shown.length, count);
+});
+
+test('a failure of the current state is reported once; a failure of an older state is not', async () => {
+  const errors = [];
+  let calls = 0;
+  const scheduler = createFrameScheduler({
+    evaluate: job => { calls += 1; return Promise.reject(Object.assign(new Error('runtime'), { code: job.key === 'old' ? 'x' : 'runtime_limit' })); },
+    show: () => assert.fail('nothing to draw'), fail: error => errors.push(error.code),
+  });
+  scheduler.want({ key: 'old', time: 0, inputs: {} });
+  scheduler.want({ key: 'new', time: 0, inputs: {} });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(errors, ['runtime_limit']);
+  assert.equal(calls, 2, 'no retry loop');
+});
