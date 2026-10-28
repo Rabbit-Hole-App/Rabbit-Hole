@@ -93,8 +93,8 @@ const takes = {
     // WebM first; the MP4 (H.264, faststart) is for browsers without WebM. Both lead with the same 2.5 s hold of the empty canvas.
     sources: n => [[`/landing/beyond-notes-${n ? 'phone' : 'wide'}-v3.webm`, 'video/webm'], [`/landing/beyond-notes-${n ? 'phone' : 'wide'}-v3.mp4`, 'video/mp4']] },
   2: { label: 'The Rabbit Hole workspace: a paper and the nanoGPT repository open together, with a code card, a highlighted passage and a conversation about both', lines: MATERIALS_LINES,
-    poster: n => `/landing/materials-${n ? 'phone' : 'wide'}-v1-poster.jpg`,
-    sources: n => [[`/landing/materials-${n ? 'phone' : 'wide'}-v1.webm`, 'video/webm'], [`/landing/materials-${n ? 'phone' : 'wide'}-v1.mp4`, 'video/mp4']] },
+    poster: n => `/landing/materials-${n ? 'phone-v6' : 'wide-v4'}-poster.jpg`,
+    sources: n => [[`/landing/materials-${n ? 'phone-v6' : 'wide-v4'}.webm`, 'video/webm'], [`/landing/materials-${n ? 'phone-v6' : 'wide-v4'}.mp4`, 'video/mp4']] },
 };
 
 const root = document.getElementById('observatory');
