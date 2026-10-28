@@ -134,8 +134,9 @@ export function storyboardContext(brief) {
 
 // revision {storyboard, findings}: the repair round's Director revision (M6, spec §4.8 step 8):
 // the same sections, the storyboard as implemented, and the blocking findings.
-export function storyboardRequest(brief, { effort = 'high', maxTokens = 16000, revision = null } = {}) {
-  const ask = `Storyboard this brief.\n\nbrief = ${JSON.stringify(storyboardContext(brief))}`;
+export function storyboardRequest(brief, { effort = 'high', maxTokens = 16000, revision = null, limits = null } = {}) {
+  const cap = limits ? maxOccurrences(brief.duration?.seconds, limits) : null; // only under a restricted allowance (pipeline.mjs): with none, the request is unchanged
+  const ask = `Storyboard this brief.\n\nbrief = ${JSON.stringify(storyboardContext(brief))}${cap != null && cap < maxOccurrences(brief.duration?.seconds) ? `\n\nSize budget: the finished composition is limited in size, so the object appearances of this storyboard number at most ${cap} (the allowed size class holds no more); show fewer objects per beat, keep every must_show item.` : ''}`;
   return {
     max_tokens: maxTokens,
     thinking: { type: 'adaptive' },
@@ -205,10 +206,10 @@ const reask = errors => `Your motion_storyboard call did not match its schema:\n
 // -> { status: 'storyboard' | 'storyboard_invalid' | 'failed', storyboard?, check?, calls, format_retries }
 // round 1 with revision {storyboard, findings} is the repair round's Director revision (M6): the
 // revised storyboard keeps the id, takes the next version, and is checked like any other.
-export async function runStoryboard({ brief, call, env = {}, effort = 'high', round = 0, revision = null, clock = () => Date.now() }) {
+export async function runStoryboard({ brief, call, env = {}, effort = 'high', round = 0, revision = null, limits = null, clock = () => Date.now() }) {
   const role = MODEL_ROLES.director;
   const model = resolveRole(role, env);
-  const body = storyboardRequest(brief, { effort, revision });
+  const body = storyboardRequest(brief, { effort, revision, limits });
   const job = { round, format_retries: [] }; // the storyboard stage's one schema-only re-ask
   const calls = [];
   const fail = (error, detail, extra = {}) => ({ status: 'failed', error, detail, calls, format_retries: job.format_retries, ...extra });
@@ -227,7 +228,7 @@ export async function runStoryboard({ brief, call, env = {}, effort = 'high', ro
     const errors = use ? validateStoryboardOutput(use.input) : [`no ${STORYBOARD_TOOL.name} call (stop_reason ${message.stop_reason})`];
     if (!errors.length) {
       const storyboard = revision ? { ...assembleStoryboard(brief, use.input, revision.storyboard.id), version: (revision.storyboard.version || 1) + 1 } : assembleStoryboard(brief, use.input);
-      const check = checkStoryboard(storyboard, brief);
+      const check = checkStoryboard(storyboard, brief, { limits });
       // Semantic failures are surfaced, never re-asked and never repaired here.
       return { status: check.errors.length ? 'storyboard_invalid' : 'storyboard', storyboard, check, calls, format_retries: job.format_retries };
     }

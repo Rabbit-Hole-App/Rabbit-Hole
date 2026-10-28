@@ -314,3 +314,16 @@ test('limits gate on the Author repair: the review job gets the same allowance a
   assert.deepEqual([given.gate('<AbsoluteFill>' + '<Sequence><div>x</div></Sequence>'.repeat(12) + '</AbsoluteFill>').code], ['composition_not_covered']);
   assert.deepEqual([r.status, r.cause, r.failure_code], ['failed', 'content', 'composition_not_covered']);
 });
+
+test('every planning and authoring stage gets the same allowance: storyboarder (first and revised), Author, the review job and its Director revision; none gets one without an allowance', async () => {
+  const keep = { title: BRIEF.title, duration_seconds: BRIEF.duration.seconds, description: 'Scores become weights. The weights sum to one. Masked positions get none.' };
+  const seen = [];
+  const d = doubles({ storyboard: ['storyboard_invalid', 'storyboard'] });
+  for (const name of ['storyboarder', 'author', 'job']) { const f = d.stages[name]; d.stages[name] = async a => { seen.push([name, a.round ?? 0, a.limits?.class ?? null, a.limits?.elements ?? null]); return f(a); }; }
+  await run(d, { approved: { ...keep, allowed_complexity: ['simple', 'standard'] } });
+  assert.deepEqual(seen, [['storyboarder', 0, 'standard', 160], ['storyboarder', 1, 'standard', 160], ['author', 0, 'standard', 160], ['job', 0, 'standard', 160]]);
+  const none = []; const d2 = doubles();
+  for (const name of ['storyboarder', 'author', 'job']) { const f = d2.stages[name]; d2.stages[name] = async a => { none.push(a.limits ?? null); return f(a); }; }
+  await run(d2);
+  assert.deepEqual(none, [null, null, null], 'no allowance, nothing added');
+});

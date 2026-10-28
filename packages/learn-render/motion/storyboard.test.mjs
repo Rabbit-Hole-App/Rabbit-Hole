@@ -407,3 +407,26 @@ test('scope by duration: object appearances are bounded, the recorded 60 s story
   assert.deepEqual([appearances(read('./fixtures/m3/softmax-15s-attention.real.storyboard.json')), checkStoryboard(read('./fixtures/m3/softmax-15s-attention.real.storyboard.json'), read('./fixtures/m2/softmax-15s-attention.brief.json')).errors.filter(e => /appearances/.test(e))], [23, []]);
   assert.match(HARD_LIMITS, /6\. Scope: the object appearances .* at most floor\(16 \+ 0\.6 x duration\.seconds\), never more than 36 \(15 s -> 25, 30 s -> 34, 60 s -> 36\)/);
 });
+
+// 2026-10-27 (owner): the plan-side bound comes from the ALLOWED CLASS, so a plan that validates cannot exceed the class its composition is refused for.
+test('the allowed class bounds the plan: appearances x the measured per-appearance size fit the class, for every class and duration; no restriction changes nothing', async () => {
+  const { COMPOSITION_LIMITS, allowedLimits } = await import('./composition-limits.js');
+  const { PER_APPEARANCE } = await import('./storyboard-check.js');
+  for (const c of ['simple', 'standard', 'heavy']) for (let s = 5; s <= 60; s += 5) {
+    const n = maxOccurrences(s, allowedLimits([c])), l = COMPOSITION_LIMITS[c];
+    assert.ok(n * PER_APPEARANCE.elements <= l.elements && n * PER_APPEARANCE.asset_bytes <= l.asset_bytes && n <= maxOccurrences(s), `${c} ${s}s: ${n} appearances`);
+  }
+  assert.deepEqual([5, 15, 30, 60].map(s => maxOccurrences(s, null)), [19, 25, 34, 36], 'no allowance: the duration rule alone, as before');
+  assert.deepEqual([maxOccurrences(15, allowedLimits(['simple'])), maxOccurrences(15, allowedLimits(['simple', 'standard'])), maxOccurrences(30, allowedLimits(['simple', 'standard']))], [9, 25, 26], 'derived from the allowance: simple holds 9 at 15 s, standard keeps the 25 the duration allows, 30 s is cut to 26');
+  // The recorded 22-appearance plan of production job e3a2f10e-class videos: valid for the duration rule, refused at plan time under simple, accepted under standard.
+  const s = read('./fixtures/m3/softmax-15s-attention.real.storyboard.json'), b = read('./fixtures/m2/softmax-15s-attention.brief.json');
+  const n = s.beats.reduce((x, y) => x + y.visible_objects.length, 0);
+  assert.ok(n > 9 && n <= 25, `fixture has ${n} appearances`);
+  assert.deepEqual(checkStoryboard(s, b).errors.filter(e => /appearances/.test(e)), []);
+  assert.ok(checkStoryboard(s, b, { limits: allowedLimits(['simple']) }).errors.some(e => e === `storyboard: ${n} object appearances for 15s (at most 9, the most the allowed size class holds); show fewer objects per beat`));
+  assert.deepEqual(checkStoryboard(s, b, { limits: allowedLimits(['simple', 'standard']) }).errors.filter(e => /appearances/.test(e)), []);
+  // The Director request for the storyboard states the bound only when the allowance makes it smaller than the duration rule's.
+  assert.equal(storyboardRequest(b).messages[0].content, storyboardRequest(b, { limits: null }).messages[0].content);
+  assert.equal(storyboardRequest(b, { limits: allowedLimits(['simple', 'standard']) }).messages[0].content, storyboardRequest(b).messages[0].content, 'standard at 15 s changes nothing');
+  assert.match(storyboardRequest(b, { limits: allowedLimits(['simple']) }).messages[0].content, /Size budget: .* at most 9 \(the allowed size class holds no more\)/);
+});
