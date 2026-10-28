@@ -48,7 +48,10 @@ try {
     stray.push(route.request().url());
     return route.abort();
   });
-  context.on('request', request => { if (!request.url().startsWith(BASE) && !/^(data|blob):/.test(request.url())) offOrigin.push(request.url()); });
+  // The app page itself mounts the Learn notebook frame, which loads from the product's own notebook origin (src/learn-notebook*.js
+  // NOTEBOOK_ORIGIN). That is the product, not the card: it is the one origin allowed. Any other host is a failure.
+  const NOTEBOOK_ORIGIN = 'https://small-learn-canvas-notebook-dev.tryrabbithole.workers.dev';
+  context.on('request', request => { const url = request.url(); if (!url.startsWith(BASE) && !url.startsWith(`${NOTEBOOK_ORIGIN}/`) && !/^(data|blob):/.test(url)) offOrigin.push(url); });
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   const shot = async name => { await page.waitForTimeout(400); await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
@@ -158,7 +161,7 @@ try {
     assert.ok(await card('old-scene').locator('[data-animation-frame]').count() >= 1);
     assert.equal(await card('old-scene').locator('[data-program-card]').count(), 0);
   });
-  await check('14 no model route was called, nothing left the origin, and no page error', async () => {
+  await check('14 no model route was called, no host other than the app and its own notebook frame was contacted, and no page error', async () => {
     assert.deepEqual(stray, []);
     assert.deepEqual(offOrigin, []);
     assert.deepEqual(errors, []);
