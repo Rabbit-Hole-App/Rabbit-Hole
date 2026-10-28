@@ -1,12 +1,8 @@
 // The runtime resource policy for generated /explain programs (plan docs/superpowers/plans/2026-10-28-explain-sandbox.md, 5.3).
-// Starting values to measure, not product guarantees: change one only with evidence and bump the contract's
-// PROGRAM_VERSIONS.runtimePolicyVersion. Size and shape bounds come from contract.js (one authoritative constant each).
+// Starting values to measure, not product guarantees: change one only with evidence and bump RUNTIME_POLICY_VERSION in
+// stamps.js together with the contract's PROGRAM_VERSIONS.runtimePolicyVersion. Size and shape bounds come from contract.js
+// (one authoritative constant each).
 import { CONTRACT_LIMITS } from './contract.js';
-
-// The pinned engine (package.json): the version an artifact names, and the SHA-256 of the WASM it runs
-// (runtime.test.mjs checks it against the installed file). An artifact naming anything else is version_unavailable.
-export const ENGINE_VERSION = 'quickjs-release-sync@0.32.0';
-export const ENGINE_FINGERPRINT = '105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232';
 
 export const LIMITS = Object.freeze({
   sourceBytes: CONTRACT_LIMITS.sourceBytes,
