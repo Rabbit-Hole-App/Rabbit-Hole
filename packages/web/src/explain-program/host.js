@@ -9,8 +9,8 @@
 // evaluate resolves { requestId, frame, quantities, metrics } or rejects a contract RuntimeError; a superseded or disposed
 // request rejects an AbortError (DOMException), which the card ignores.
 import { PROGRAM_VERSIONS, RuntimeError, parseArtifact, parseEvaluateRequest, parseGuestResult, verifyHashes } from './contract.js';
-import { ENGINE_FINGERPRINT, ENGINE_VERSION, LIMITS } from './limits.js';
-import { sdkFingerprint } from './sdk.js';
+import { LIMITS } from './limits.js';
+import { PROGRAM_STAMPS } from './stamps.js';
 
 const aborted = reason => new DOMException(reason, 'AbortError');
 const defaultWorker = () => new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
@@ -21,19 +21,16 @@ const waiters = [];
 const wake = () => waiters.splice(0).forEach(resolve => resolve());
 export const liveRuntimeCount = () => live.size;
 
-// The stamps this host runs, for sealProgram (contract.js). The engine is named, not imported: no QuickJS in the page bundle.
-export const programStamps = async () => ({
-  runtimeVersion: ENGINE_VERSION,
-  fingerprints: { engine: ENGINE_FINGERPRINT, sdk: await sdkFingerprint(), renderer: PROGRAM_VERSIONS.rendererVersion },
-});
+// The stamps this host runs (stamps.js), for sealProgram (contract.js). Async for the card's existing call.
+export const programStamps = async () => PROGRAM_STAMPS;
 
 async function verify(artifact) {
   const parsed = parseArtifact(artifact);
   if (!parsed.ok) throw parsed.error;
   const program = parsed.value;
-  const stamps = await programStamps();
-  const pinned = program.runtimeVersion === stamps.runtimeVersion && program.fingerprints.engine === stamps.fingerprints.engine
-    && program.fingerprints.sdk === stamps.fingerprints.sdk && Object.entries(PROGRAM_VERSIONS).every(([key, value]) => program[key] === value);
+  const { fingerprints, ...versions } = { ...PROGRAM_VERSIONS, ...PROGRAM_STAMPS };
+  const pinned = Object.entries(versions).every(([key, value]) => program[key] === value)
+    && Object.entries(fingerprints).every(([key, value]) => program.fingerprints[key] === value);
   if (!pinned) throw new RuntimeError('version_unavailable', `artifact needs ${program.runtimeVersion}`);
   if (!(await verifyHashes(program))) throw new RuntimeError('invalid_program', 'stored hashes do not match the artifact');
   return program;

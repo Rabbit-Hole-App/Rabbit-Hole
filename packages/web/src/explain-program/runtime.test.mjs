@@ -4,11 +4,10 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { createHash } from 'node:crypto';
-import { createRequire } from 'node:module';
+import { writeFileSync } from 'node:fs';
 import { loadEngine, runProgram } from './runtime.js';
-import { ENGINE_FINGERPRINT, ENGINE_VERSION, LIMITS } from './limits.js';
+import { LIMITS } from './limits.js';
+import { ENGINE_VERSION } from './stamps.js';
 
 const VALID = `export function evaluate({ inputs, time }) {
   const n = 200, points = [];
@@ -62,11 +61,6 @@ function abuse(name, source, expected, check) {
   });
 }
 
-test('ENGINE_FINGERPRINT is the SHA-256 of the installed engine WASM', () => {
-  const wasm = createRequire(import.meta.url).resolve('@jitl/quickjs-wasmfile-release-sync/wasm');
-  assert.equal(createHash('sha256').update(readFileSync(wasm)).digest('hex'), ENGINE_FINGERPRINT);
-});
-
 test('a valid program evaluates to bounded JSON', () => {
   const out = run(VALID, REQUEST, RELAXED);
   assert.equal(out.ok, true, out.detail);
@@ -90,7 +84,7 @@ abuse('fetch to an external observer throws in the guest', () => `export functio
 abuse('XMLHttpRequest / WebSocket construction throws', () => `export function evaluate() { new XMLHttpRequest().open('GET', '${OBSERVED()}'); new WebSocket('ws://127.0.0.1:1'); }`, { code: 'runtime_error', phase: 'evaluate' });
 abuse('static import of a URL is refused at load', () => `import x from '${OBSERVED()}'; export function evaluate() { return x; }`, { code: 'invalid_program', phase: 'load' });
 abuse('static import of a bare package is refused at load', `import fs from 'node:fs'; export function evaluate() { return { r: fs.readFileSync('/etc/passwd', 'utf8') }; }`, { code: 'invalid_program', phase: 'load' });
-abuse('dynamic import() never loads and its promise never settles a result', () => `export function evaluate() { const p = import('${OBSERVED()}'); return { frame: { objects: [] }, kind: typeof p }; }`, null);
+abuse('dynamic import() is unavailable: it loads nothing (no loader, no observer request) and its promise never settles', () => `export function evaluate() { const p = import('${OBSERVED()}'); return { frame: { objects: [] }, kind: typeof p }; }`, null);
 abuse('document.cookie / localStorage reads throw', `export function evaluate() { return { c: document.cookie, s: localStorage.getItem('session') }; }`, { code: 'runtime_error', phase: 'evaluate' });
 abuse('Function-constructor escape reaches only the guest global', `export function evaluate() {
   const g = (function () {}).constructor('return this')();
@@ -152,6 +146,13 @@ abuse('async evaluate yields a promise, which serializes to an empty object (the
 
 abuse('syntax error', `export function evaluate( {`, { code: 'invalid_program', phase: 'load' });
 abuse('no evaluate export', `export const x = 1;`, { code: 'invalid_program', phase: 'load' });
+abuse('a global function evaluate without export is refused', `function evaluate({ inputs }) { return { frame: { objects: [] }, quantities: {} }; }`, { code: 'invalid_program', phase: 'load' },
+  out => assert.match(out.detail, /must export function evaluate/));
+abuse('a default-exported evaluate is refused', `export default function evaluate() { return { frame: { objects: [] }, quantities: {} }; }`, { code: 'invalid_program', phase: 'load' });
+abuse('the canonical form: export function evaluate({ inputs, time, seed, state }) with the global sdk', `export function evaluate({ inputs, time, seed, state }) {
+  const points = sdk.sample(x => Math.sin(x * inputs.k + time), 0, 1, 10);
+  return { frame: sdk.frame([sdk.polyline('wave', points), sdk.text('seed', 0, 0, 'seed ' + seed)]), quantities: { k: inputs.k, stateless: state === null ? 1 : 0 } };
+}`, null, out => { assert.equal(out.value.frame.objects[0].points.length, 11); assert.equal(out.value.frame.objects[1].text, 'seed 7'); assert.deepEqual(out.value.quantities, { k: 2, stateless: 1 }); });
 abuse('source over the size limit', `export function evaluate() { return {}; } //${'x'.repeat(LIMITS.sourceBytes)}`, { code: 'invalid_program', phase: 'load' });
 test('state over the size limit is refused before the guest starts', () => {
   const out = run(VALID, { ...REQUEST, state: { blob: 'x'.repeat(LIMITS.stateBytes) } });

@@ -3,6 +3,12 @@
 // covers SDK and source load, evaluate and serialization, and guest heap/stack caps. The guest has the ECMAScript built-ins only:
 // no host function is ever exposed to it, module imports are refused (no loader is set), Date is absent and Math.random is
 // seeded from the request. Pending jobs (promise callbacks) are never run. Host watchdog/termination is host.js's job.
+//
+// The authoring format, exactly: the source is one ES module whose named export is
+//   export function evaluate({ inputs, time, seed, state }) { ...; return { frame, quantities }; }
+// It is synchronous and has no imports (static import fails at load, import() never loads anything). The SDK (sdk.js) is the
+// global `sdk`, defined before the module runs. A source without that named export (a plain global function evaluate, a
+// default export) is invalid_program.
 import { DefaultIntrinsics, newQuickJSWASMModuleFromVariant, newVariant } from 'quickjs-emscripten-core';
 import variant from '@jitl/quickjs-wasmfile-release-sync';
 import { LIMITS } from './limits.js';
@@ -85,7 +91,7 @@ export function runProgram(engine, { source, request }, limits = LIMITS) {
     const loaded = context.evalCode(source, 'program.js', { type: 'module' });
     if (loaded.error) return guestFail(loaded.error, 'invalid_program', 'load');
     const evaluate = keep(context.getProp(keep(loaded.value), 'evaluate'));
-    if (context.typeof(evaluate) !== 'function') return fail('invalid_program', 'load', 'the program exports no evaluate function');
+    if (context.typeof(evaluate) !== 'function') return fail('invalid_program', 'load', 'the program must export function evaluate({ inputs, time, seed, state })');
 
     const arg = context.callFunction(parse, context.undefined, keep(context.newString(input)));
     if (arg.error) return guestFail(arg.error, 'runtime_error', 'evaluate');

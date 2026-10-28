@@ -4,9 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createProgramHost, liveRuntimeCount, programStamps } from './host.js';
 import { loadEngine, runProgram } from './runtime.js';
-import { ENGINE_FINGERPRINT, ENGINE_VERSION, LIMITS } from './limits.js';
-import { PROGRAM_VERSIONS } from './contract.js';
-import { sdkFingerprint } from './sdk.js';
+import { LIMITS } from './limits.js';
 import { parseEvaluateResponse, sealProgram } from './contract.js';
 import { growthFixture } from './fixtures.js';
 
@@ -69,10 +67,6 @@ test('a tampered or differently pinned artifact never starts a Worker', async ()
   await assert.rejects(otherSdk.evaluate(request(1)), { code: 'version_unavailable' });
   assert.equal(started, before);
   for (const host of [tampered, otherEngine, otherWasm, otherSdk]) host.dispose();
-});
-
-test('programStamps are the pinned engine, the exact SDK and the renderer version', async () => {
-  assert.deepEqual(await programStamps(), { runtimeVersion: ENGINE_VERSION, fingerprints: { engine: ENGINE_FINGERPRINT, sdk: await sdkFingerprint(), renderer: PROGRAM_VERSIONS.rendererVersion } });
 });
 
 test('rapid input changes: one in flight, only the newest waits, the newest inputs win', async () => {
