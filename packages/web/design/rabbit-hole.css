@@ -23,7 +23,7 @@
   #spacer,#shaft-track{height:calc(100vh + 350px);height:calc(100svh + 350px)}
   /* The page below starts 230px sooner than the shaft releases: the manifesto rises over the closed hole instead of
      leaving the floating bar alone on a black screen. 120px keeps its eyebrow out of sight until the headline has faded. */
-  #spacer{height:calc(100vh + 120px);height:calc(100svh + 120px)}
+  #spacer{height:calc(100vh + 235px);height:calc(100svh + 235px)}
 
   /* ---- hero shaft: you are falling down it. The title is drawn into the canvas, so
      there is no overlay element and nothing that can lag behind the scroll. ---- */
