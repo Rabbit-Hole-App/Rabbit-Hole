@@ -4,10 +4,11 @@
 // bundle the card saved. The answer is the artifact, a trimmed identity and the execution decision, nothing else. Every other
 // case refuses the way a card source does. The owner's job and result routes stay owner-only. No model call, no board write.
 // The real ExplainJobs object on in-memory storage; results are seeded as acceptProgram stores them, with no job record (pruned).
-import test from 'node:test';
+import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { setup } from './shared-canvas-fixture.js';
 import { ExplainJobs, explainRoute } from '../src/explain-job.js';
+import { newTiming } from '../src/explain-policy.js';
 import { buildProgramArtifact, programReference } from '../src/explain-program.js';
 import { verifyHashes } from '../../web/src/explain-program/contract.js';
 
@@ -149,4 +150,74 @@ test('the owner reads a saved card whose job was pruned through the result route
   assert.equal((await f.read(token, 'card-a', 'ben')).status, 200);
   assert.equal((await f.owner('er_a', boardId, 'ben')).status, 404, 'another account');
   assert.equal((await f.owner('er_a', boardId)).status, 401, 'signed out');
+});
+
+// ---- The visitor is explicitly NOT the owner: ben (ben@test, org ben-ws) signed in, against ana's board (ana@test, org ana-ws). ----
+
+describe('visitor is not the owner: a signed-in non-owner on ana\'s share link', () => {
+  // ana's job record for card-a, as ExplainJobs keeps it while it is not pruned, so the owner-only job route has something to refuse.
+  const seedJob = (f, boardId, a) => f.store(boardId).set('job:ej_er_a', { id: 'ej_er_a', version: 1, boardId, cardId: 'card-a', owner: { org: 'ana-ws', email: 'ana@test', userId: null },
+    requestClass: 'simple', stage: 'ready', attempt: 1, round: 0, stopReason: 'accepted', failure: null, inFlight: null, calls: [], counts: {}, resultId: 'er_a', result: a.identity,
+    timing: newTiming('simple', Date.now()), createdAt: Date.now(), updatedAt: Date.now() });
+  const job = (f, boardId, as) => explainRoute('/api/learn/explain/jobs/ej_er_a', new Request(`https://app.test/api/learn/explain/jobs/ej_er_a?board=${boardId}`, { headers: { cookie: `small_session=${as}` } }), f.env);
+  const VISITOR = 'ben';
+
+  test('(1) the public link lets the non-owner read the card\'s accepted artifact, with only the allowed fields', async t => {
+    const f = world(t);
+    const { token, a } = await sharedBoard(f);
+    assert.notEqual(VISITOR, 'ana');
+    const got = await f.read(token, 'card-a', VISITOR);
+    assert.equal(got.status, 200, got.text);
+    assert.deepEqual(Object.keys(got.body).sort(), ['artifact', 'execution', 'identity']);
+    assert.deepEqual(Object.keys(got.body.identity), IDENTITY_KEYS);
+    assert.deepEqual(got.body.artifact, a.artifact);
+    assert.equal(await verifyHashes(got.body.artifact), true);
+    for (const secret of ['ana@test', 'ana-ws', 'ej_er_', 'jobId', 'promptRef', 'authoredBy', 'provenance', 'diagnostics', 'history', 'calls', 'usage', 'credits', 'owner'])
+      assert.equal(got.text.includes(secret), false, `answered with ${secret}`);
+  });
+
+  test('(2) the same non-owner is refused by the owner-only job and result routes for that board (the owner is not)', async t => {
+    const f = world(t);
+    const { boardId, token, a } = await sharedBoard(f);
+    seedJob(f, boardId, a);
+    assert.equal((await f.read(token, 'card-a', VISITOR)).status, 200, 'the link admits the visitor');
+    assert.equal((await job(f, boardId, VISITOR)).status, 404, 'job route: not the owner');
+    assert.equal((await f.owner('er_a', boardId, VISITOR)).status, 404, 'result route: not the owner');
+    assert.equal((await job(f, boardId, 'ana')).status, 200, 'the owner reads the same job');
+    assert.equal((await f.owner('er_a', boardId, 'ana')).status, 200, 'the owner reads the same result');
+  });
+
+  test('(3) after the owner revokes the link, the non-owner\'s program read is refused', async t => {
+    const f = world(t);
+    const { canvas, token } = await sharedBoard(f);
+    assert.equal((await f.read(token, 'card-a', VISITOR)).status, 200);
+    assert.equal((await f.call('POST', `/api/learn/boards/${canvas.name}/main/share`, { as: 'ana', body: { shared: false } })).status, 200);
+    assert.equal((await f.read(token, 'card-a', VISITOR)).status, 404);
+    assert.equal((await f.call('GET', `/api/learn/boards/shared/${token}`, { as: VISITOR })).status, 404, 'as the board read');
+  });
+
+  test('(4, 5) a card not on the board, another board\'s card/result pair and an unrelated private result are refused', async t => {
+    const f = world(t);
+    const { token } = await sharedBoard(f);
+    // card-x / er_x is a result on ana's other, unshared canvas; card-c on the shared board points at it; card-u / er_u is on this
+    // board's object but its card is not on the board; card-f points at er_u.
+    for (const card of ['nothing', 'card-x', 'card-c', 'card-u', 'card-f', 'er_x', 'er_u']) {
+      const got = await f.read(token, card, VISITOR);
+      assert.deepEqual([got.status, got.body], [404, { error: 'Not available' }], card);
+    }
+  });
+
+  test('(6) a non-public link: a signed-in non-owner opens the board and reads the program, exactly as the board read admits them', async t => {
+    // Documented behaviour (learn-boards.js sharedAccess): a link without public_view opens for any signed-in account and sends a
+    // signed-out visitor to sign in (401 { signIn: true }); the program read answers the same way.
+    const f = world(t);
+    const { token } = await sharedBoard(f, { publicView: false });
+    const board = await f.call('GET', `/api/learn/boards/shared/${token}`, { as: VISITOR });
+    const read = await f.read(token, 'card-a', VISITOR);
+    assert.deepEqual([board.status, read.status], [200, 200]);
+    assert.equal(board.body.access.role === 'owner', false, 'the board read does not see the visitor as the owner');
+    const out = [await f.call('GET', `/api/learn/boards/shared/${token}`), await f.read(token, 'card-a')];
+    assert.deepEqual(out.map(r => [r.status, r.body]), [[401, out[0].body], [401, out[0].body]]);
+    assert.equal(out[0].body.signIn, true);
+  });
 });
