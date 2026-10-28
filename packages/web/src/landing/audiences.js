@@ -1,15 +1,14 @@
 import './audiences.css';
 
-// Draft positioning. University students, AI / ML engineers, Interview preparation and Educators (those with a
-// `kind`) carry real captures of Rabbit Hole cards; the other two keep their neutral canvas placeholders. No
-// model calls or working product interactions inside these previews.
+// Draft positioning. Every audience carries real captures of Rabbit Hole cards (stills, prepared content) inside the
+// section's rounded frame; the words around them are HTML. No model calls or working product interactions here.
 const audiences = [
-  { name: 'Content creators', kind: 'creators', title: 'Give your audience more to explore.', benefit: 'Share your knowledge and learn from your audience.' },
-  { name: 'AI / ML engineers', kind: 'ml', title: 'From the paper to the code.', benefit: 'Understand new ideas and apply them to your work.' },
-  { name: 'Educators', kind: 'educators', title: 'Prepare your next lesson.', benefit: 'Support for planning, explaining and teaching.' },
-  { name: 'University students', kind: 'university', title: 'For university students.', benefit: 'Support for your coursework, assignments and exams.' },
-  { name: 'Enterprise onboarding', title: 'For the newest engineer.', benefit: 'Find your way through the code, and the thinking behind it.', context: 'New teams and unfamiliar codebases', source: 'The team’s repository', question: 'Where does this request go next?', result: 'Your map of the code', path: 'Repository → architecture → context → contribution', note: 'Trace a request through the unfamiliar.' },
-  { name: 'Interview preparation', kind: 'interview', title: 'Practise explaining your solution.', benefit: 'Prepare for interviews and practise explaining your thinking.' },
+  { name: 'University students', kind: 'university', context: 'Lectures, assignments and exams', title: 'For university students.', benefit: 'Support for your coursework, assignments and exams.' },
+  { name: 'AI / ML engineers', kind: 'ml', context: 'Papers and repositories', title: 'From the paper to the code.', benefit: 'Understand new ideas and apply them to your work.' },
+  { name: 'Interview preparation', kind: 'interview', context: 'Technical reasoning', title: 'Practise explaining your solution.', benefit: 'Prepare for interviews and practise explaining your thinking.' },
+  { name: 'Educators', kind: 'educators', context: 'Lessons and examples', title: 'Prepare your next lesson.', benefit: 'Support for planning, explaining and teaching.' },
+  { name: 'Content creators', kind: 'creators', context: 'Shared canvas', title: 'Give your audience more to explore.', benefit: 'Share your knowledge and learn from your audience.' },
+  { name: 'Team onboarding', kind: 'enterprise', context: 'New teams and unfamiliar codebases', title: 'Understand the code you inherit.', benefit: 'Help new teammates learn and contribute.' },
 ];
 
 const root = document.getElementById('who-is-it-for');
@@ -22,8 +21,8 @@ const nextLabel = next.querySelector('.audience-next-label');
 const count = root.querySelector('.audience-count');
 const progressBar = root.querySelector('.audience-progress span');
 const announcement = root.querySelector('.audience-announcement');
-// 880px: the tallest real-capture layout needs about 590px of slide area, which the sticky stage (viewport - 112px, minus its own header and controls) gives from this height up.
-const scrollMode = matchMedia('(min-width: 901px) and (min-height: 880px)');
+// The same pin conditions as What is Rabbit Hole? (overview.js): wide enough and at least 700px tall. Content is scaled to fit the stage (fit below), never spilled.
+const scrollMode = matchMedia('(min-width: 901px) and (min-height: 700px)');
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 const clamp = value => Math.max(0, Math.min(1, value));
 let selected = -1, queued = false, gesture = null;
@@ -48,9 +47,9 @@ const layouts = {
       <figure class="aud-capture">${img(item.name, item.w, item.h, item.alt, item.phone)}</figure>
       <h4>${item.title}</h4><p class="aud-question">${item.question}</p><p class="aud-support">${item.support}</p></li>`).join('')}</ul></div>`,
   ml: () => `<div class="audience-body aud-ml">
-      <figure class="aud-capture aud-paper">${img('paper', 620, 410, 'Rabbit Hole’s PDF reader open on Attention Is All You Need, page 4, section 3.2.1 Scaled Dot-Product Attention, showing the equation Attention(Q, K, V) = softmax(QKᵀ / √dₖ)V.', [352, 460])}<span class="aud-mark aud-mark-eq" aria-hidden="true"></span></figure>
-      <figure class="aud-capture aud-code" data-no-swipe><div class="aud-pan">${img('code', 672, 287, 'A Rabbit Hole code card for model.py, lines 66 to 71 of karpathy/nanoGPT: the manual attention calculation. It multiplies the queries by the transposed keys and scales by 1.0 / math.sqrt(k.size(-1)), applies a causal mask, takes a softmax and multiplies by the values.')}<span class="aud-mark aud-mark-l67" aria-hidden="true"></span><span class="aud-mark aud-mark-l69" aria-hidden="true"></span><span class="aud-mark aud-mark-l71" aria-hidden="true"></span></div></figure>
-      <svg class="aud-links" viewBox="0 0 1000 320" preserveAspectRatio="none" aria-hidden="true"><path d="M440 235.5 C482 235.5 488 230.6 530 230.6"/><path d="M440 235.5 C482 235.5 488 258.5 530 258.5"/><path d="M440 235.5 C482 235.5 488 286.5 530 286.5"/></svg>
+      <figure class="aud-capture aud-paper">${img('paper', 540, 330, 'Rabbit Hole’s PDF reader open on Attention Is All You Need, page 4, section 3.2.1 Scaled Dot-Product Attention, showing the equation Attention(Q, K, V) = softmax(QKᵀ / √dₖ)V.', [352, 460])}<span class="aud-mark aud-mark-eq" aria-hidden="true"></span></figure>
+      <figure class="aud-capture aud-code" data-no-swipe><div class="aud-pan">${img('code', 548, 252, 'A Rabbit Hole code card for model.py, lines 66 to 71 of karpathy/nanoGPT: the manual attention calculation. It multiplies the queries by the transposed keys and scales by 1.0 / math.sqrt(k.size(-1)), applies a causal mask, takes a softmax and multiplies by the values.')}<span class="aud-mark aud-mark-l67" aria-hidden="true"></span><span class="aud-mark aud-mark-l69" aria-hidden="true"></span><span class="aud-mark aud-mark-l71" aria-hidden="true"></span></div></figure>
+      <svg class="aud-links" viewBox="0 0 1120 342" preserveAspectRatio="none" aria-hidden="true"><path d="M394 266 C480 266 480 194 571 194"/><path d="M394 266 C480 266 480 234 571 234"/><path d="M394 266 C480 266 480 274 571 274"/></svg>
       <p class="aud-ask">Why divide by √d<sub>k</sub>?</p></div>`,
   creators: () => `<div class="audience-body aud-creators">
       <div class="aud-post"><p class="aud-label">Your post</p>
@@ -59,37 +58,33 @@ const layouts = {
           <p>What changes when you reverse an audio recording?</p>
           <p>I put the explanation in a Rabbit Hole canvas so you can explore it and try your own version.</p>
           <img src="/landing/audience-creators-post-v1.webp" width="1200" height="640" alt="The post’s picture: two spectrograms of the same synthetic plucked tone, Original and Reversed. The reversed one is the original mirrored left to right." loading="lazy" decoding="async" draggable="false">
-          <div class="aud-postlink"><strong>Audio reversal: waveform and spectrum</strong><span>rabbit-hole.example/e/AudioRev7kQ2mX9pL4tNdE</span></div>
+          <div class="aud-postlink"><strong>Audio reversal: waveform and spectrum</strong><span>Link to the canvas</span></div>
         </article></div>
       <span class="aud-arrow aud-arrow-1" aria-hidden="true">→</span>
       <div class="aud-shared"><p class="aud-label">Your shared canvas</p>
-        <figure class="aud-capture">${img('creators-canvas', 1120, 580, 'The shared Rabbit Hole canvas Audio reversal: waveform and spectrum, opened from the post. The header shows the creator’s @handle, a Star button with a count of 1 and Fork with a count of 1. The canvas holds an Explanation card with bar charts of the loudness over time, original and reversed, and the same spectrum for both. The Comments panel shows a reader’s comment: what happens if you reverse only part of the audio?', [390, 600])}
-          <img class="aud-only-phone" src="/landing/audience-creators-comment-phone-v1.webp" width="390" height="236" alt="The reader’s comment in the Comments panel: what happens if you reverse only part of the audio?" loading="lazy" decoding="async" draggable="false"></figure></div>
+        <figure class="aud-capture">${img('creators-canvas', 537, 414, 'The shared Rabbit Hole canvas Audio reversal: waveform and spectrum, opened from the post. The header shows the creator’s @handle, a Star button and Fork with a count of 1. The Explanation card shows bar charts of the loudness over time, original and reversed, and the same spectrum for both.', [390, 716])}</figure></div>
       <span class="aud-arrow aud-arrow-2" aria-hidden="true">→</span>
-      <div class="aud-engage"><p class="aud-label">What your audience explores</p>
-        <figure class="aud-capture">${img('creators-fork', 431, 252, 'A reader’s fork in their Rabbit Hole Library: What if only part is reversed? It reads Forked from Audio reversal: waveform and spectrum, with the original creator’s @handle.')}</figure>
+      <div class="aud-reader">
+        <figure class="aud-capture">${img('creators-comment', 375, 221, 'A reader’s comment in the canvas’s Comments panel: what happens if you reverse only part of the audio?')}</figure>
         <p class="aud-idea">An idea for the next post</p>
-        <figure class="aud-capture">${img('creators-engagement', 431, 346, 'The creator’s own profile: the Canvases tab and their public canvas Audio reversal: waveform and spectrum, with a Star button showing 1 and the footer 1 fork.')}</figure></div></div>`,
+        <figure class="aud-capture">${img('creators-fork', 431, 252, 'A reader’s fork in their Rabbit Hole Library: What if only part is reversed? It reads Forked from Audio reversal: waveform and spectrum, with the original creator’s @handle.')}</figure></div></div>`,
+  enterprise: () => `<div class="audience-body aud-enterprise">
+      <figure class="aud-capture aud-graph">${img('enterprise-graph', 560, 470, 'Rabbit Hole’s Graph view of the karpathy/nanoGPT repository at commit 3adf61e: the files and the classes and functions in them as a connected map, with a search field for files or symbols and the count 15 files, 58 nodes, 70 relationships.', [372, 520])}</figure>
+      <figure class="aud-capture aud-explain-back">${img('enterprise-q', 472, 237, 'A Rabbit Hole explain-back card asking: Where does this request go next? The answer field is empty.', [362, 237])}</figure></div>`,
   interview: () => `<div class="audience-body aud-interview"><figure class="aud-capture">${img('twosum', 672, 312, 'A Rabbit Hole explain-back card for Two Sum. Question: You used a hash map instead of checking every pair. Why? What’s the trade-off? The learner’s answer: i can check if the other number is already in the map instead of going through the whole list again. Feedback under Understanding evidence: That explains the speed advantage. What happens to memory usage as you store more numbers?', [362, 374])}</figure></div>`,
   educators: () => `<div class="audience-body aud-educators">
       <div class="aud-source"><p class="aud-label">Your lecture slide</p><figure class="aud-capture">${img('slide', 500, 345, 'Rabbit Hole’s PDF reader open on linear-algebra-eigenvectors-slide.pdf: a lecture slide titled Eigenvectors with Av = λv, v ≠ 0, the sentence The transformation scales v by λ, and an example matrix with first row 2, 0 and second row 0, 1.', [352, 340])}</figure>
         <blockquote class="aud-request"><span class="aud-label">Teacher’s request</span><p>this slide is pretty abstract. give me a visual example and a question i can ask the class</p></blockquote></div>
       <div class="aud-result"><p class="aud-label">A question for the class</p><figure class="aud-capture">${img('explain', 752, 404, 'A Rabbit Hole Explanation card titled Which direction stays the same? Two coordinate diagrams, Before and After applying A, share one origin and scale. Vector 1 runs along the horizontal axis and stays on it; Vector 2 points up and to the right and changes direction. The question reads: Which vector is an eigenvector? How can you tell without calculating?', [392, 502])}</figure></div></div>`,
 };
-const placeholder = item => `<figure class="audience-workflow" aria-label="Illustrative canvas placeholder for ${item.name}">
-    <div class="audience-canvas-toolbar"><span><span class="rh-mark" aria-hidden="true"></span>Rabbit Hole <i>/</i> <span class="audience-canvas-name">${item.context}</span></span><span class="audience-placeholder-label">Canvas placeholder</span></div>
-    <div class="audience-canvas">
-      <svg class="audience-connectors" viewBox="0 0 1000 360" preserveAspectRatio="none" aria-hidden="true"><path d="M235 150 C310 150 310 100 410 100 M600 100 C690 100 625 240 735 240"/></svg>
-      <div class="audience-node audience-source" aria-hidden="true"><span class="audience-node-label">Your starting point</span><strong>${item.source}</strong><span class="audience-skeleton-line"></span><span class="audience-skeleton-line short"></span><span class="audience-node-footer">A source worth following ↗</span></div>
-      <div class="audience-node audience-question"><span class="audience-node-label">Follow the question</span><strong>${item.question}</strong><span class="audience-question-rule" aria-hidden="true"></span><span class="audience-node-footer">One question opens the next.</span></div>
-      <div class="audience-node audience-result" aria-hidden="true"><span class="audience-node-label">Make it yours</span><strong>${item.result}</strong><span class="audience-skeleton-line"></span><span class="audience-skeleton-line short"></span></div>
-      <p class="audience-callout"><span aria-hidden="true">↳</span>${item.note}</p>
-    </div>
-    <figcaption><span>${item.path}</span><span class="audience-preview-note">Illustrative workflow</span></figcaption>
-  </figure>`;
-stories.innerHTML = audiences.map((item, index) => `<article class="audience-slide"${item.kind ? ` data-layout="${item.kind}"` : ''} role="group" aria-roledescription="slide" aria-label="${index + 1} of 6: ${item.name}" aria-hidden="true" inert>
-  <div class="audience-copy-mask"><div class="audience-copy"><h3>${item.title}</h3><p>${item.benefit}</p></div></div>
-  ${item.kind ? layouts[item.kind]() : placeholder(item)}
+// The section's rounded frame with the Rabbit Hole header row and the product's dotted canvas (audiences.css), around every audience's captures.
+const frame = item => `<div class="audience-workflow is-real">
+    <div class="audience-canvas-toolbar" aria-hidden="true"><span><span class="rh-mark"></span>Rabbit Hole <i>/</i> <span class="audience-canvas-name">${item.context}</span></span></div>
+    <div class="audience-canvas is-real">${layouts[item.kind]()}</div>
+  </div>`;
+stories.innerHTML = audiences.map((item, index) => `<article class="audience-slide" data-layout="${item.kind}" role="group" aria-roledescription="slide" aria-label="${index + 1} of 6: ${item.name}" aria-hidden="true" inert>
+  <div class="audience-copy-mask"><div class="audience-copy"><h3>${item.name}</h3><p class="audience-subtitle">${item.title}</p><p class="audience-lede">${item.benefit}</p></div></div>
+  ${frame(item)}
 </article>`).join('');
 picker.innerHTML = audiences.map((item, index) => `<option value="${index}">${item.name}</option>`).join('');
 const slides = [...stories.children];
@@ -99,7 +94,7 @@ function show(index, source = 'scroll') {
   root.classList.toggle('is-instant', source === 'keyboard' || source === 'selection');
   selected = index;
   root.dataset.audience = String(index + 1);
-  root.dataset.layout = audiences[index].kind || 'placeholder';
+  root.dataset.layout = audiences[index].kind;
   slides.forEach((slide, i) => {
     slide.classList.toggle('is-active', i === index);
     slide.classList.toggle('is-before', i < index);
@@ -111,9 +106,27 @@ function show(index, source = 'scroll') {
   previous.disabled = index === 0;
   nextLabel.textContent = index < 5 ? audiences[index + 1].name : 'Keep exploring';
   next.setAttribute('aria-label', index < 5 ? `Next audience: ${audiences[index + 1].name}` : 'Continue to the next section');
-  if (source !== 'scroll') announcement.textContent = `${index + 1} of 6. ${audiences[index].name}. ${audiences[index].benefit}`;
+  if (source !== 'scroll') announcement.textContent = `${index + 1} of 6. ${audiences[index].name}. ${audiences[index].title} ${audiences[index].benefit}`;
 }
 
+// Pinned: every composition is laid out at one design width (DESIGN px) and scaled as a whole to the framed canvas (never larger than its room,
+// never spilling), so heading + frame + navigation stay together on a short window. Manual mode (phones, short windows) keeps natural size.
+const DESIGN = 1100;
+function fit() {
+  for (const slide of slides) {
+    const body = slide.querySelector('.audience-body'), canvas = slide.querySelector('.audience-canvas');
+    body.style.cssText = '';
+    if (!scrollMode.matches) continue;
+    const style = getComputedStyle(canvas);
+    const room = canvas.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+    const wide = canvas.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    body.style.width = `${DESIGN}px`;
+    const height = body.offsetHeight, z = Math.min(1.04, wide / DESIGN, room / height);
+    body.style.transformOrigin = '50% 0';
+    body.style.transform = `scale(${z})`;
+    body.style.marginBottom = `${height * (z - 1)}px`;
+  }
+}
 function geometry() {
   const style = getComputedStyle(root);
   const top = parseFloat(style.paddingTop);
@@ -138,6 +151,13 @@ function schedule() {
   if (queued) return;
   queued = true;
   requestAnimationFrame(update);
+}
+// size changes (resize, mode, fonts, the stage itself) re-fit the content, then update; plain scrolling only updates
+let refitting = false;
+function refit() {
+  if (refitting) return;
+  refitting = true;
+  requestAnimationFrame(() => { refitting = false; root.classList.toggle('is-scroll', scrollMode.matches); fit(); update(); });
 }
 function choose(index, source = 'button') {
   if (index < 0) return;
@@ -182,10 +202,11 @@ stories.addEventListener('pointerup', event => {
 });
 stories.addEventListener('pointercancel', () => { gesture = null; });
 addEventListener('scroll', schedule, { passive: true });
-addEventListener('resize', schedule);
-scrollMode.addEventListener('change', schedule);
-reduced.addEventListener('change', schedule);
-new ResizeObserver(schedule).observe(stage);
-document.fonts.ready.then(schedule);
+addEventListener('resize', refit);
+scrollMode.addEventListener('change', refit);
+reduced.addEventListener('change', refit);
+new ResizeObserver(refit).observe(stage);
+document.fonts.ready.then(refit);
+slides.forEach(slide => slide.querySelectorAll('img').forEach(image => { if (!image.complete) image.addEventListener('load', refit, { once: true }); }));
 show(0);
 update();
