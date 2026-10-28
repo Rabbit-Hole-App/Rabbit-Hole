@@ -19,13 +19,9 @@ const scenes = [
     status: 'Your paper and your code, in one conversation.',
   },
   {
-    label: 'Learn by doing', title: 'Turn a little clarity <br>into understanding.',
-    copy: 'Work through problems, write, run code or experiment beside the learning material.',
-    status: 'Learning you can put to the test.',
-    description: 'An illustrative practice question selects the cat, then explains that it refers to the tired cat.',
-    art: `<div class="overview-demo demo-check"><span class="overview-demo-label">A QUICK CHECK</span><p class="overview-practice-question">“The cat sat down because it was tired.”<br><strong>What does “it” refer to?</strong></p>
-      <div class="overview-answer-option overview-beat"><span>A</span>The cat<i>✓</i></div><div class="overview-answer-option overview-beat"><span>B</span>The place it sat</div>
-      <div class="overview-feedback overview-beat"><strong>Follow the context.</strong><p>The cat is tired. The surrounding words help us connect the idea.</p></div></div>`,
+    label: 'Learn by doing', eyebrow: 'Learn by doing', title: 'Put what you read into practice.', video: true,
+    copy: 'Keep a paper in view while you work in a notebook. Then explain the idea in your own words and get feedback.',
+    status: 'Read it. Work through it. Explain it back.',
   },
   {
     label: 'Rabbit Holes', eyebrow: 'Rabbit Holes', title: 'Follow a question further.', video: true,
@@ -90,6 +86,16 @@ const takes = {
   2: { label: 'The Rabbit Hole workspace: a paper and the nanoGPT repository open together, with a code card, a highlighted passage and a conversation about both', lines: MATERIALS_LINES,
     poster: n => `/landing/materials-${n ? 'phone-v6' : 'wide-v4'}-poster.jpg`,
     sources: n => [[`/landing/materials-${n ? 'phone-v6' : 'wide-v4'}.webm`, 'video/webm'], [`/landing/materials-${n ? 'phone-v6' : 'wide-v4'}.mp4`, 'video/mp4']] },
+  3: { label: 'The Rabbit Hole workspace: a pinned paper beside a Python notebook that computes attention weights, then a practice card where the learner explains the result and gets feedback',
+    lines: [['Learner', 'Pins the paper Attention Is All You Need beside the notebook and completes the weights line in the notebook.'],
+      ['Notebook', 'Run all prints [0.27, 0.73, 0.0]: the third weight is zero because that position is masked.'],
+      ['Learner', '/practice explain it back: why is the third attention weight zero?'],
+      ['Canvas', 'An Explain back card asks why the third attention weight is zero even though its original score is the largest.'],
+      ['Learner', 'It is less relevant.'],
+      ['Feedback', 'Here it is excluded because it is a future token. Masking sets its score to −∞ before softmax, making its weight zero.']],
+    poster: () => '/landing/learn-wide-v1-poster.jpg',
+    // ponytail: no separate phone cut yet; phones use the wide files until learn-phone-v1 exists.
+    sources: () => [['/landing/learn-wide-v1.webm', 'video/webm'], ['/landing/learn-wide-v1.mp4', 'video/mp4']] },
   4: { label: 'The Rabbit Hole canvas: a question opens its own Rabbit Hole with a video, a link leads to a second Rabbit Hole with a Wikipedia article, and the backlink leads home', lines: [
       ['Canvas', 'The canvas Understanding transformers shows two question cards, How does attention use context? and How does the model know word order?, and a three-entry table of contents.'],
       ['Learner', 'Right-clicks How does attention use context? and chooses Enter Rabbit Hole.'],
