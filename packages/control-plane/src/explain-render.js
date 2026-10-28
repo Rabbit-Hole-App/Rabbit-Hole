@@ -9,6 +9,7 @@ import { evaluateScene } from '../../web/src/scene-evaluate.js';
 import { LIMITS as SCENE_LIMITS, timeCheckpoints } from '../../web/src/visual-components/budget.js';
 import { stateInputs } from '../../web/src/visual-components/compile.js';
 import { learnMedia } from './learn-storage.js';
+import { defaultInputs, programMoments } from './explain-program.js';
 
 export const RENDER_ORIGIN = 'https://render.invalid'; // never resolves: every request is answered or aborted here
 export const RENDER_ENTRY = '/render/scene.html';
@@ -77,6 +78,18 @@ export async function captureManifest(scene, { reserved, themes = ['light', 'dar
   return { compiledHash: await compiledHash(scene), reserved, entries, coverage: { states: states.length, moments: moments.length, frames: unique, themes: themes.slice(0, fit) } };
 }
 
+// The program card's capture manifest (explain sandbox Task 5 first version): the default inputs at the start, middle and end of the
+// declared playback (the start only when there is none), light theme. The program decides the frame size at run time; the
+// nominal viewport is the contract default. shortcut: Task 6 replaces this by the stated sampling manifest (boundaries, selected
+// control combinations, intermediate poses); samples are evidence, never an exhaustive claim.
+export async function programCaptureManifest(artifact, { reserved, themes = ['light'], dpr = 1, width = 960, height = 540 }) {
+  const inputs = defaultInputs(artifact.manifest), moments = programMoments(artifact.manifest);
+  const fit = themes.filter((_, index) => moments.length * (index + 1) <= reserved.captures);
+  if (!fit.length) throw new RenderError('over_budget', `this program needs ${moments.length} captures and a round reviews at most ${reserved.captures}`);
+  const entries = moments.flatMap((time, m) => fit.map(theme => ({ id: [moments.length > 1 && `t${m}`, theme].filter(Boolean).join('-'), part: 0, time, inputs, theme, width, height, dpr, target: 'frame' })));
+  return { compiledHash: await compiledHash(artifact), reserved, entries, coverage: { states: 1, moments: moments.length, frames: moments.length, themes: fit } };
+}
+
 // Exact manifest after compile: dedups identical states by hash, refuses (never trims) an over-budget manifest
 // and a manifest built for another compiled version.
 export async function checkManifest(manifest, scene, limits = RENDER_LIMITS) {
@@ -130,7 +143,9 @@ const within = (ms, promise, code) => {
 // @cloudflare/puppeteer on env.BROWSER); deps.store(key, png) defaults to LEARN_MEDIA under explain/<jobId>/.
 export async function renderStates(env, compiled, manifest, deps = {}) {
   const limits = { ...RENDER_LIMITS, ...(deps.limits || {}) };
-  const checked = await checkManifest(manifest, compiled.scene, limits);
+  // A program card is captured from its artifact (the same pinned engine and renderer play it); a legacy card from its scene.
+  const subject = compiled.program ?? compiled.scene;
+  const checked = await checkManifest(manifest, subject, limits);
   if (!env?.ASSETS?.fetch) throw new RenderError('render_unavailable', 'render assets are not bound');
   let browser = deps.browser; // a caller-owned session (several scenes in one session); never closed here
   const opened = Date.now();
@@ -154,9 +169,10 @@ export async function renderStates(env, compiled, manifest, deps = {}) {
       const captures = [];
       for (const entry of checked.entries) {
         await page.setViewport({ width: entry.width + 48, height: entry.height + 400, deviceScaleFactor: entry.dpr });
-        const done = await within(limits.captureMs, page.evaluate(request => window.__renderScene(request), {
-          scene: compiled.scene, time: entry.time, inputs: entry.inputs, theme: entry.theme, width: entry.width, height: entry.height,
-        }), 'capture_timeout');
+        const request = { time: entry.time, inputs: entry.inputs, theme: entry.theme, width: entry.width, height: entry.height };
+        const done = await within(limits.captureMs, compiled.program
+          ? page.evaluate(request => window.__renderProgram(request), { ...request, program: compiled.program })
+          : page.evaluate(request => window.__renderScene(request), { ...request, scene: compiled.scene }), 'capture_timeout');
         if (!done?.ok) throw new RenderError('scene_invalid', `render entry refused capture ${entry.id}: ${done?.error || 'unknown'}`);
         if (done.fonts?.missing?.length) throw new RenderError('fonts_missing', `fonts not loaded for ${entry.id}: ${done.fonts.missing.join(', ')}`);
         const element = await page.$(entry.target === 'body' ? '[data-render-target]' : '[data-animation-frame]');

@@ -41,7 +41,34 @@ const PRESENTATION = {
     },
   },
 };
-export function authorTool(catalogue) {
+// The program variant (explain sandbox plan 5.2): generated JavaScript plus its manifest. No hash, permission or limit field exists
+// here: the host computes hashes and owns permissions and limits, so a model cannot supply them.
+const NAME = { type: 'string', description: 'A name: a letter, then up to 31 letters, digits or underscores.' };
+const PROGRAM_MANIFEST = {
+  type: 'object', additionalProperties: false, required: ['title', 'summary', 'assumptions', 'description', 'inputs', 'readouts', 'capabilities'],
+  properties: {
+    title: { type: 'string', maxLength: 120 }, summary: { type: 'string', maxLength: 400, description: 'What the card shows, in plain words (no markup, no URL).' },
+    description: { type: 'string', maxLength: 600, description: 'An accessible description of the picture for a learner who cannot see it.' },
+    assumptions: { type: 'array', maxItems: 8, items: { type: 'string', maxLength: 300 }, description: 'What the program idealises or leaves out (for example small angles, no friction).' },
+    inputs: {
+      type: 'array', maxItems: 4, description: 'Controls the learner may move. A number has min, max (default inside) and optional step; a select has options [{value, label}] (default is one value). Select options combine to at most 64 states.',
+      items: { type: 'object', additionalProperties: false, required: ['type', 'id', 'label', 'default'], properties: {
+        type: { type: 'string', enum: ['number', 'select'] }, id: NAME, label: { type: 'string', maxLength: 60 }, unit: { type: 'string', maxLength: 16 }, default: { type: ['number', 'string'] },
+        min: { type: 'number' }, max: { type: 'number' }, step: { type: 'number', exclusiveMinimum: 0 },
+        options: { type: 'array', minItems: 2, maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['value', 'label'], properties: { value: { type: 'string', maxLength: 32 }, label: { type: 'string', maxLength: 60 } } } },
+      } },
+    },
+    duration: { type: 'number', exclusiveMinimum: 0, maximum: 120, description: 'Seconds of playback. Omit for a card that does not change over time.' },
+    readouts: { type: 'array', maxItems: 8, description: 'Named numbers the frame reports (frame.readouts [{id, value}]) and the card labels.', items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: NAME, label: { type: 'string', maxLength: 60 }, unit: { type: 'string', maxLength: 16 }, decimals: { type: 'integer', minimum: 0, maximum: 6 } } } },
+    capabilities: { type: 'array', maxItems: 16, items: { type: 'string' }, description: 'Only names listed under program.capabilities in the input.' },
+  },
+};
+export const PROGRAM_TOOL_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['source', 'manifest'], description: 'Required when kind is program.',
+  properties: { source: { type: 'string', description: 'JavaScript defining evaluate({inputs, time, seed, state}).' }, manifest: PROGRAM_MANIFEST },
+};
+
+export function authorTool(catalogue, { program = false } = {}) {
   const names = catalogue.map(entry => entry.name);
   const spec = {
     type: 'object', additionalProperties: false, required: ['version', 'id', 'title', 'components', 'presentation'],
@@ -76,12 +103,15 @@ export function authorTool(catalogue) {
   };
   return {
     name: 'author_explanation',
-    description: 'Return the explanation as one VisualSpec built only from the catalogue, or a capability gap when the request needs something the catalogue or the supported features cannot draw truthfully.',
+    description: program
+      ? 'Return the explanation as one VisualSpec built only from the catalogue (kind spec: a static or stepped picture), as one JavaScript program with its manifest (kind program: anything interactive or that changes over time), or a capability gap when the request needs something neither can draw truthfully.'
+      : 'Return the explanation as one VisualSpec built only from the catalogue, or a capability gap when the request needs something the catalogue or the supported features cannot draw truthfully.',
     input_schema: {
       type: 'object', additionalProperties: false, required: ['kind'],
       properties: {
-        kind: { type: 'string', enum: ['spec', 'capability_gap'] },
+        kind: { type: 'string', enum: program ? ['spec', 'program', 'capability_gap'] : ['spec', 'capability_gap'] },
         spec,
+        ...(program ? { program: PROGRAM_TOOL_SCHEMA } : {}),
         gap: {
           type: 'object', additionalProperties: false, required: ['needs', 'reason'], description: 'Required when kind is capability_gap.',
           properties: {
@@ -110,3 +140,41 @@ Rules:
 - If the request needs something supported marks false (typeset math, named steps, experiments), a component the catalogue lacks, or a specific source that was not provided (only for a source-dependent, current or versioned claim), call the tool with kind capability_gap and say what is needed. Never draw a simpler substitute that hides the missing part.
 - Stay within limits. Every drawn text line is one object, and a part shows at most limits.objectsPerPart: a box is one object plus one per wrapped line of its label (about 27 characters per line at default width), a flow step adds its box, its lines and an arrow. Measured: a module with an 80-character label draws 4 objects, a 6-step flow of short steps 11. Keep labels short. Follow composition (card size, parts as a pager, overview and detail, containers): it is Lane A's, with the measured limits. A child inherits its parent's part, so set part on the top component of each sub-card, not on its children. Each distinct frame (every control value and pager part, times every step) is checked as its own image: at most limits.reviewedStates (6) per card, so keep control values x steps small. Connect only at anchors the catalogue entry declares; where a component names an anchor for its role (for example attention-steps output), connect there, not at a generic box side.
 Call author_explanation exactly once.`;
+
+// ---- Program authoring (EXPLAIN_PROGRAM_ENABLED; explain sandbox plan 5.2) ----
+// Appended to EXPLAIN_AUTHOR_SYSTEM only when the program route is on. The routing rule is about the kind of explanation, never a
+// topic: the model picks spec or program from what the learner can do with the card.
+export const EXPLAIN_PROGRAM_RULES = `
+
+Program route. You may return kind program instead of kind spec. Choose by what the card must do, not by its subject:
+- kind spec: a static picture or named steps that the catalogue can draw. Prefer it for diagrams, flows and architectures.
+- kind program: the learner moves a control, the card changes with time, or numbers must be calculated and drawn. Never draw such an idea with catalogue components, and never replace a requested control or motion with a static picture. If neither kind can draw it truthfully, return a capability_gap.
+A program is plain JavaScript that defines evaluate({inputs, time, seed, state}) and returns {frame, quantities}. It is pure: the same inputs, time and seed give the same result. It runs in an isolated interpreter with only the helpers listed in program.sdk; it has no network, storage, clock, randomness, timers, imports or DOM, and a run that exceeds program.limits is stopped.
+- inputs holds one value per manifest input id (a number, or the id of the chosen option); time is the playback second (0 when the manifest has no time); seed is an integer; state is null.
+- Do all calculation in the program, from the learner's request and the context. Write the formulas the explanation needs; the host has no subject formulas. Report calculated values as quantities (name: number) and show the ones the learner should read as frame text, from the same variables that draw the picture, so the drawing and the numbers cannot disagree.
+- Declare every control the learner is meant to move in manifest.inputs with a sensible domain, and any playback in manifest.time. State assumptions and idealisations in manifest.assumptions. Keep one idea per card.
+- Draw only within program.frame (width and height); keep every object inside it for every admitted input and time, and keep text clear of moving parts. Use program.sdk for geometry and number formatting.
+- Keep source under program.limits.sourceBytes and the manifest under program.limits.manifestBytes. Do not write hashes, versions, permissions or limits; the host sets them.
+- Quote nothing from the examples; they show composition only.`;
+
+// shortcut: the SDK list below is a draft of what Agent B's sdk.js will export (program.sdk); replace it by that module's own
+// description when it lands and keep this one place. The frame description follows the frozen contract (contract.js Frame).
+export function programContext(limits, capabilities) {
+  return {
+    capabilities,
+    limits: { sourceBytes: limits.sourceBytes, manifestBytes: limits.manifestBytes, objects: limits.objects, pointsPerObject: limits.pointsPerObject, pointsTotal: limits.pointsTotal, outputBytes: limits.outputBytes, inputs: limits.inputs, duration: limits.duration },
+    frame: { returns: '{frame: {width, height, objects, readouts}, quantities: {name: number}}', width: 'default 960, at most 4096', height: 'default 540, at most 4096', readouts: '[{id, value}] for the ids declared in manifest.readouts' },
+    objectKinds: {
+      line: '{kind:"line", id, from:{x,y}, to:{x,y}, role?, opacity?}', arrow: '{kind:"arrow", id, from:{x,y}, to:{x,y}, role?, opacity?}',
+      circle: '{kind:"circle", id, x, y, w (diameter), text?, role?, opacity?, rotation?}', box: '{kind:"box", id, x, y, w, h, text?, role?, opacity?, rotation?}',
+      text: '{kind:"text", id, x, y, text or runs:[{kind:"text",text}|{kind:"math",tex}], align?:"start"|"middle", role?, opacity?}',
+      polyline: '{kind:"polyline", id, points:[[x,y],...], clip?:{x,y,w,h}, role?, opacity?}',
+    },
+    ids: 'unique, 1 to 64 characters of letters, digits and _ . : -',
+    roles: ['neutral', 'input', 'output', 'prediction', 'observed', 'learner', 'tutor', 'code', 'warning', 'success'],
+    sdk: { note: 'generic helpers only, global in the program', functions: [
+      'clamp(v, lo, hi)', 'lerp(a, b, t)', 'rotate(point, pivot, radians) -> point', 'polar(cx, cy, r, radians) -> point',
+      'linspace(a, b, n) -> number[]', 'sampleCurve(f, a, b, n) -> points', 'fmt(value, digits) -> string',
+    ] },
+  };
+}
