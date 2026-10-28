@@ -312,11 +312,14 @@ test('the Author is told the size budget of the allowed class; without a restric
   const same = authorRequest(A.brief(), A.storyboard(), { limits: allowedLimits(null) });
   assert.deepEqual(same, plain);
   const limits = allowedLimits(['simple']);
-  assert.deepEqual(limits, { class: 'simple', ...COMPOSITION_LIMITS.simple });
+  assert.deepEqual(limits, { class: 'simple', classes: ['simple'], ...COMPOSITION_LIMITS.simple });
   assert.equal(allowedLimits(['simple', 'standard']).class, 'standard', 'the most permissive allowed class');
   const told = authorRequest(A.brief(), A.storyboard(), { limits }).messages[0].content;
   assert.ok(told.startsWith(plain.messages[0].content), 'the input is untouched; the budget is appended');
   assert.match(told, /at most 8 layers .*60 elements.*800 characters.*16384 bytes of source/);
   assert.match(told, /needs_revision/);
+  assert.match(told, /classes simple; the caps are those of the largest, simple/);
+  assert.match(told, /60 seconds/);
+  assert.match(told, /For orientation only, not a rule and not a guarantee/);
   assert.deepEqual(authorRequest(A.brief(), A.storyboard(), { limits }).system, plain.system, 'the cached system prompt is unchanged');
 });

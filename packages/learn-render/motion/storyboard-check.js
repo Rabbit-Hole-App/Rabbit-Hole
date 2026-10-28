@@ -28,15 +28,7 @@ export const LIMITS = Object.freeze({
 // 15 s -> 25 and 30 s -> 34 admit the sizes that rendered (M1 23, M2 31, M2 retry 27); 36 is where the Author's output stays at effort high
 // (author.js AUTHOR_OUTPUT_BUDGET / AUTHOR_TOKENS_PER_OCCURRENCE, tied by a test). Fewer appearances per beat, not fewer beats.
 export const OCCURRENCES = Object.freeze({ base: 16, per_second: 0.6, ceiling: 36 });
-// What one object appearance costs in a composition, from the ONE real model-built composition that rendered and was accepted (job bc05caf2, 16:9 15 s: 24 appearances -> 146 elements,
-// 25354 bytes = 6.08 and 1056.4 per appearance, rounded up). One data point: re-measure with more accepted compositions. It links the plan's size to a composition class's limits.
-export const PER_APPEARANCE = Object.freeze({ elements: 6.1, asset_bytes: 1060 });
-// limits: the numeric limits of the most permissive class the readiness policy allows (composition-limits.js allowedLimits), or null (no restriction). A plan that validates
-// then cannot be larger than the composition class it will be refused for: the bound is the smaller of the duration rule and what the class's elements and bytes hold.
-export const maxOccurrences = (seconds, limits = null) => {
-  const byDuration = Math.min(OCCURRENCES.ceiling, Math.floor(OCCURRENCES.base + OCCURRENCES.per_second * seconds));
-  return Number.isFinite(limits?.elements) ? Math.min(byDuration, Math.floor(limits.elements / PER_APPEARANCE.elements), Math.floor(limits.asset_bytes / PER_APPEARANCE.asset_bytes)) : byDuration;
-};
+export const maxOccurrences = seconds => Math.min(OCCURRENCES.ceiling, Math.floor(OCCURRENCES.base + OCCURRENCES.per_second * seconds));
 // Implementation detail that belongs to the Author, never the storyboard.
 const IMPLEMENTATION = /\b\d+(?:\.\d+)?\s*(?:px|rem|em|pt|vh|vw)\b|#[0-9a-f]{6}\b|#[0-9a-f]{3}\b|\b(?:rgba?|hsla?)\s*\(|cubic-bezier|\bease(?:In|Out|InOut)\w*|\b(?:useCurrentFrame|useVideoConfig|interpolate|spring|AbsoluteFill|requestAnimationFrame|className|zIndex|z-index|translate[XYZ]?|div)\b/i;
 const CONDITION_WORDS = new Set(['self', 'not', 'is', 'None', 'True', 'False', 'and', 'or', 'in']);
@@ -155,7 +147,7 @@ const learnerText = beat => [
 const shownCode = (beat, f) => beat.visible_objects.filter(o => o.source).map(o => f.lineText(o.source.source_ref_id, o.source.start_line, o.source.end_line)).join('\n');
 const allText = (beat, f) => [...beat.visible_objects.flatMap(o => [o.description, o.label, o.change]), beat.on_screen_text, beat.narration_line, beat.transition, beat.framing, shownCode(beat, f)].filter(Boolean).join('\n');
 
-export function checkStoryboard(storyboard, brief, { limits = null } = {}) {
+export function checkStoryboard(storyboard, brief) {
   const errors = validateStoryboard(storyboard, brief);
   const beats = Array.isArray(storyboard?.beats) ? storyboard.beats : [];
   const shaped = beats.length && beats.every(b => b && Array.isArray(b.visible_objects) && b.visible_objects.every(o => o && typeof o === 'object') && Array.isArray(b.claim_ids));
@@ -169,8 +161,8 @@ export function checkStoryboard(storyboard, brief, { limits = null } = {}) {
   const maxBeats = Math.max(2, Math.min(8, Math.floor(seconds / LIMITS.seconds_per_beat)));
   if (beats.length > maxBeats) e.push(`storyboard: ${beats.length} beats for ${seconds}s (at most ${maxBeats}); narrow the beats, not the brief`);
 
-  const appearances = beats.reduce((n, b) => n + b.visible_objects.length, 0), maxAppearances = maxOccurrences(seconds, limits);
-  if (appearances > maxAppearances) e.push(`storyboard: ${appearances} object appearances for ${seconds}s (at most ${maxAppearances}${limits && maxAppearances < maxOccurrences(seconds) ? ', the most the allowed size class holds' : ''}); show fewer objects per beat`);
+  const appearances = beats.reduce((n, b) => n + b.visible_objects.length, 0), maxAppearances = maxOccurrences(seconds);
+  if (appearances > maxAppearances) e.push(`storyboard: ${appearances} object appearances for ${seconds}s (at most ${maxAppearances}); show fewer objects per beat`);
 
   const coverageShow = new Map(brief.must_show.map(m => [m, []]));
   const declared = new Map(brief.must_show.map(m => [m, []]));

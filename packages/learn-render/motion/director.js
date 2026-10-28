@@ -12,6 +12,7 @@ import { BLOCKING_CATEGORIES, MODEL_ROLES, NARRATION_POLICIES, PROMPT_SPEC_VERSI
 import { MOTION_DEFAULT_RATIO } from './stage-sizes.js';
 import { durationDecision } from './duration.js';
 import { resolveRole } from './model-config.js';
+import { allowanceInfo } from './composition-limits.js';
 
 // director-2 (2026-10-21): requests with no supplied source (grounding.status), claims citing nothing.
 export const DIRECTOR_VERSION = 'director-2';
@@ -100,7 +101,7 @@ export function directorContext(turn, grounding, decision, approved = null) {
 // The request body for ask.js anthropic(env, body, model): adaptive thinking, an explicit effort,
 // the motion_brief tool with tool_choice auto (forced tool_choice is a 400 on Claude Opus 5.5),
 // server-side refusal fallbacks, and a cache breakpoint on the fixed system prompt.
-export function directorRequest(context, { effort = 'high', maxTokens = 16000 } = {}) {
+export function directorRequest(context, { effort = 'high', maxTokens = 16000, limits = null } = {}) {
   return {
     max_tokens: maxTokens,
     thinking: { type: 'adaptive' },
@@ -110,7 +111,7 @@ export function directorRequest(context, { effort = 'high', maxTokens = 16000 } 
     system: [{ type: 'text', text: DIRECTOR_SYSTEM, cache_control: { type: 'ephemeral' } }],
     tools: [DIRECTOR_TOOL],
     tool_choice: { type: 'auto' },
-    messages: [{ role: 'user', content: `Write the motion_brief for this turn.\n\ncontext = ${JSON.stringify(context)}` }],
+    messages: [{ role: 'user', content: `Write the motion_brief for this turn.\n\ncontext = ${JSON.stringify(context)}${limits ? `\n\n${allowanceInfo(limits)} Scope the brief so the video can be built inside this size; keep what the learner asked for.` : ''}` }],
   };
 }
 
@@ -241,12 +242,12 @@ export function callRecord(role, model, message, latencyMs) {
 // -> { status: 'brief' | 'needs_clarification' | 'failed', ... } with every call recorded.
 // approved (MOT-20): the learner's approved proposal. Its duration is the decision and its title the brief's (the harness sets
 // both, never the model); the Director keeps its scope (DIRECTOR_SYSTEM).
-export async function runDirector({ turn, grounding, call, env = {}, effort = 'high', now = () => new Date(), clock = () => Date.now(), approved = null }) {
+export async function runDirector({ turn, grounding, call, env = {}, effort = 'high', now = () => new Date(), clock = () => Date.now(), approved = null, limits = null }) {
   if (!['grounded', 'ungrounded'].includes(grounding.status)) return { status: 'needs_clarification', clarification: grounding.clarification, grounding_status: grounding.status, calls: [], format_retries: [] };
   const role = MODEL_ROLES.director;
   const model = resolveRole(role, env);
   const decision = durationDecision(approved ? `${approved.duration_seconds}s` : turn.structured_interpretation.request_text);
-  const body = directorRequest(directorContext(turn, grounding, decision, approved), { effort });
+  const body = directorRequest(directorContext(turn, grounding, decision, approved), { effort, limits });
   const job = { round: 0, format_retries: [] }; // the brief stage's one schema-only re-ask (contracts.js afterMalformed)
   const calls = [];
   const fail = (error, detail, extra = {}) => ({ status: 'failed', error, detail, decision_line: decision.line, calls, format_retries: job.format_retries, ...extra });

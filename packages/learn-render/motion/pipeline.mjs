@@ -127,7 +127,7 @@ export async function runMotionRequest({
     if (!out.target) return end('needs_clarification', { clarification: grounding.clarification, cause: 'missing_context' });
 
     if (plan) return await fromPlan(grounding);
-    const d = await enter('directing', () => director({ turn, grounding, call, env, effort, ...(approved ? { approved } : {}) }));
+    const d = await enter('directing', () => director({ turn, grounding, call, env, effort, limits: allowedLimits(approved?.allowed_complexity), ...(approved ? { approved } : {}) }));
     record(d);
     out.decision_line = d.decision_line ?? null;
     if (d.status === 'needs_clarification') return end('needs_clarification', { clarification: d.clarification, cause: 'missing_context' });

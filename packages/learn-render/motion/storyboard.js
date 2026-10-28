@@ -8,6 +8,7 @@
 // schema-only re-ask; a semantically wrong storyboard is returned as storyboard_invalid with its
 // reasons. M3 never spends the repair round: that is wired with the full QA loop (M6).
 import { LIMITS, OCCURRENCES, checkStoryboard, maxOccurrences } from './storyboard-check.js';
+import { allowanceInfo } from './composition-limits.js';
 import { MODEL_ROLES, OBJECT_FIELDS, PEDAGOGICAL_ROLES, TIME_GRID, afterMalformed, repairFindings } from './contracts.js';
 import { callRecord } from './director.js';
 import { resolveRole } from './model-config.js';
@@ -135,8 +136,8 @@ export function storyboardContext(brief) {
 // revision {storyboard, findings}: the repair round's Director revision (M6, spec §4.8 step 8):
 // the same sections, the storyboard as implemented, and the blocking findings.
 export function storyboardRequest(brief, { effort = 'high', maxTokens = 16000, revision = null, limits = null } = {}) {
-  const cap = limits ? maxOccurrences(brief.duration?.seconds, limits) : null; // only under a restricted allowance (pipeline.mjs): with none, the request is unchanged
-  const ask = `Storyboard this brief.\n\nbrief = ${JSON.stringify(storyboardContext(brief))}${cap != null && cap < maxOccurrences(brief.duration?.seconds) ? `\n\nSize budget: the finished composition is limited in size, so the object appearances of this storyboard number at most ${cap} (the allowed size class holds no more); show fewer objects per beat, keep every must_show item.` : ''}`;
+  const info = allowanceInfo(limits); // information only, under a restricted allowance (pipeline.mjs); the storyboard check is unchanged
+  const ask = `Storyboard this brief.\n\nbrief = ${JSON.stringify(storyboardContext(brief))}${info ? `\n\n${info} The object-appearance rule above still applies; plan the storyboard so the finished composition can be built inside this size.` : ''}`;
   return {
     max_tokens: maxTokens,
     thinking: { type: 'adaptive' },
@@ -228,7 +229,7 @@ export async function runStoryboard({ brief, call, env = {}, effort = 'high', ro
     const errors = use ? validateStoryboardOutput(use.input) : [`no ${STORYBOARD_TOOL.name} call (stop_reason ${message.stop_reason})`];
     if (!errors.length) {
       const storyboard = revision ? { ...assembleStoryboard(brief, use.input, revision.storyboard.id), version: (revision.storyboard.version || 1) + 1 } : assembleStoryboard(brief, use.input);
-      const check = checkStoryboard(storyboard, brief, { limits });
+      const check = checkStoryboard(storyboard, brief);
       // Semantic failures are surfaced, never re-asked and never repaired here.
       return { status: check.errors.length ? 'storyboard_invalid' : 'storyboard', storyboard, check, calls, format_retries: job.format_retries };
     }

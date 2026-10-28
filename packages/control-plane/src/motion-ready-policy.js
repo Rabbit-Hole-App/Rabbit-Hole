@@ -31,7 +31,7 @@ export const MEASURED_RENDERER_CODE_HASH = '02d5069eeb4d';
 // p3 (owner decision 2026-10-27): the two 15 s pairs also cover the static class 'standard' (STANDARD_PAIRS). A new version makes every card signed under p2 stale, as an allowance change must.
 export const MEASURED_POLICY_VERSION = 'p3-03f2a1efc08e';
 // Owner decision 2026-10-27, OWNER-ONLY validation: the 16:9 and 9:16 pairs at 15 s allow 'simple' AND 'standard'. Evidence: the one model-built 16:9 15 s composition that rendered and was accepted (job bc05caf2) measures 'standard' (146 elements,
-// 25354 bytes) and so does the plan the storyboard check allows (up to 25 appearances at 15 s, about 6.1 elements each); the fixtures (simple/medium) rendered in 100-121 s of the 420 s limit. 'heavy' stays out, and no class changes the 420 s render limit,
+// 25354 bytes) (a 24-appearance plan; the storyboard check is unchanged and does not bound the size of the code); the fixtures (simple/medium) rendered in 100-121 s of the 420 s limit. 'heavy' stays out, and no class changes the 420 s render limit,
 // the 3300 s job timeout, the 9-call cap or the US$5.00 ceiling (those are service and orchestrator constants that never read the class). Everything else stays 'simple' only.
 const STANDARD_PAIRS = new Set(['16:9|15', '9:16|15']);
 export const LEGACY_POLICY_VERSION = 'legacy-5-30';
