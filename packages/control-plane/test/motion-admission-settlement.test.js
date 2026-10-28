@@ -133,3 +133,23 @@ test('unknown provider cost on a refused job: the platform keeps the WHOLE reser
   assert.deepEqual([ctx.job.providerCost[0].micros, ctx.job.consumedMicros], [null, 1_540_278], 'the video ceiling counts the bound it knows');
   assert.deepEqual(await platformSpendStatus(ctx.LEARN_DB, { USAGE_PLATFORM_DAY_USD: '8.96' }), { refused: true, reason: 'daily_cap_reached' });
 });
+
+// 2026-10-27 (job e3a2f10e): our static composition gate is ours, not a content judgement: the learner is charged nothing, the provider cost is kept.
+const gateView = (spend = {}) => observedView({ cause: 'content', failure_code: 'composition_not_covered', failure_reason: 'composition limits: the composition is standard, which is not covered for these settings (covered: simple)', failure: undefined, renders: 0, render_states: [] }, { refused: null, calls: 3, ...spend });
+test('composition limits refusal: the learner is charged zero, the provider cost is recorded once and counted, the attempt keeps its code', async t => {
+  const ctx = await run(t, gateView());
+  const l = ledger(ctx);
+  assert.deepEqual(l.operations, [['failed', 3, 1.540278, 'motion_composition_not_covered']], 'platform side: the actual provider cost and the code');
+  assert.deepEqual(l.attempts, [[8_960_000, 'settled', 0, 'failed']], 'learner side: settled at zero credits (a content_rejected failure is charged)');
+  assert.deepEqual(await l.balance.then(b => [b.used, b.reserved]), [0, 0]);
+  assert.deepEqual([ctx.job.consumedMicros, ctx.job.usedMicros, ctx.job.providerCost.map(c => [c.micros, c.charged, c.free, c.code])], [1_540_278, 0, [[1_540_278, 0, true, 'composition_not_covered']]]);
+  assert.equal(ctx.job.usageUnknown, undefined);
+  assert.deepEqual(ctx.job.attempts.map(a => [a.code, a.costMicros, a.chargedMicros, a.free]), [['composition_not_covered', 1_540_278, 0, true]]);
+});
+test('composition limits refusal with an unreadable provider cost: still zero for the learner; the cost stays unknown, never guessed as zero', async t => {
+  const ctx = await run(t, gateView({ cost_usd: null, bound_usd: 1.540278 }));
+  const l = ledger(ctx);
+  assert.deepEqual(l.attempts, [[8_960_000, 'settled', 0, 'failed']]);
+  assert.deepEqual([ctx.job.providerCost[0].micros, ctx.job.attempts[0].costMicros, ctx.job.consumedMicros], [null, null, 1_540_278], 'unknown stays unknown; the video ceiling counts the bound');
+  assert.equal(l.platformUsd, 8.96, 'the platform keeps the whole reservation until the real cost is reconciled');
+});
