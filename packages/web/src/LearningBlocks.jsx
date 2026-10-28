@@ -22,6 +22,8 @@ import LearnPaper from './LearnPaper.jsx';
 import RepositoryGraph from './RepositoryGraph.jsx';
 import FlowDiagram from './FlowDiagram.jsx';
 import AnimatedScene from './AnimatedScene.jsx';
+import ProgramScene from './explain-program/ProgramScene.jsx';
+import { describeProgram } from './explain-program/program-card.js';
 const WhiteboardBlock = lazyFeature(() => import('./WhiteboardBlock.jsx'), 'The whiteboard');
 import { fromTemplate, presentationMode } from './animation-scene.js';
 import { describeAnimation } from './scene-describe.js';
@@ -1198,10 +1200,13 @@ function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPract
       <div className="mt-2 flex min-h-0 flex-1 flex-col">
         {/* An /explain v2 job still making this card (EXP-T20): its stage until the result attaches here. */}
         {block.explainEdit && <ExplainEditBar block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onPreview={setCandidate} />}
-        {block.explainJob && !block.scene
+        {block.explainJob && !block.scene && !block.program
           ? <ExplainPending block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} />
-          : candidate
+          // ponytail: a program candidate has no Proposed preview yet (edit of a program is Task 9); the saved card stays shown.
+          : candidate?.scene
             ? <AnimatedScene key="proposed" block={{ ...candidate, id: block.id }} onChange={ignore} onChangeQuiet={ignore} />
+            : block.program
+            ? <ProgramScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onControlsHeight={onControlsHeight} />
             : <AnimatedScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onControlsHeight={onControlsHeight} />}
       </div>
       <SceneActivity block={block} onChange={onChange} onHeight={onPracticeHeight} />
@@ -1951,7 +1956,7 @@ export function describeBlock(block) {
   if (block.type === 'code') return { kind: 'Code exercise', title: block.title, text: `Code exercise: ${block.title}\n${block.brief}\nGiven setup:\n${block.setup}\nLearner's current code:\n${block.draft ?? block.starter}\nChecks it must pass:\n${block.checks}` };
   if (block.type === 'audio') return { kind: 'Narration', title: block.title, text: [`Narration block: ${block.title}`, block.text].join(NEWLINE) };
   if (block.type === 'whiteboard') return { kind: 'Whiteboard', title: block.title, text: `Learner whiteboard: ${block.title}` };
-  if (block.type === 'animation') return describeAnimation(block);
+  if (block.type === 'animation') return block.program ? describeProgram(block) : describeAnimation(block);
   if (block.type === 'flow') return { kind: 'Diagram', title: block.title, text: [`Laid-out diagram: ${block.title}`, `Nodes: ${block.spec.nodes.map(node => node.label).join(', ')}`, `Edges: ${block.spec.edges.map(edge => `${edge.source} -> ${edge.target}${edge.label ? ` (${edge.label})` : ''}`).join('; ')}`].join(NEWLINE) };
   if (block.type === 'mermaid') return { kind: 'Diagram', title: block.title, text: [`Mermaid diagram: ${block.title}`, block.code].join(NEWLINE) };
   if (block.type === 'knowledge') return { kind: 'Graph', title: block.title, text: [`Knowledge graph: ${block.title}`, `Nodes: ${block.graph.nodes.map(node => node.label).join(', ')}`, `Edges: ${block.graph.edges.map(edge => `${edge.source} ${edge.relation} ${edge.target}`).join('; ')}`, block.selected ? `Learner selected: ${block.selected.label}` : ''].join(NEWLINE) };
