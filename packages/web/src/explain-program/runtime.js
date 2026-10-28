@@ -8,8 +8,6 @@ import variant from '@jitl/quickjs-wasmfile-release-sync';
 import { LIMITS } from './limits.js';
 import { SDK_SOURCE } from './sdk.js';
 
-export const ENGINE_VERSION = 'quickjs-emscripten-core@0.32.0/@jitl/quickjs-wasmfile-release-sync@0.32.0';
-
 // One WASM instance per Worker; a failed instance is replaced by loading another. Its linear memory is capped: QuickJS's own
 // heap limit is not reliable in this build (it counts malloc_usable_size, which the WASM build lacks, so large arrays and
 // typed arrays passed a 16 MiB limit up to 2 GiB in runtime.test.mjs). The WASM maximum is the hard memory bound.

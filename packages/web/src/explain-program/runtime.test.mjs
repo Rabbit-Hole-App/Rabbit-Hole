@@ -4,9 +4,11 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { writeFileSync } from 'node:fs';
-import { ENGINE_VERSION, loadEngine, runProgram } from './runtime.js';
-import { LIMITS } from './limits.js';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { loadEngine, runProgram } from './runtime.js';
+import { ENGINE_FINGERPRINT, ENGINE_VERSION, LIMITS } from './limits.js';
 
 const VALID = `export function evaluate({ inputs, time }) {
   const n = 200, points = [];
@@ -54,6 +56,11 @@ function abuse(name, source, expected, check) {
     assert.equal(next.value.frame.objects[0].points.length, 200);
   });
 }
+
+test('ENGINE_FINGERPRINT is the SHA-256 of the installed engine WASM', () => {
+  const wasm = createRequire(import.meta.url).resolve('@jitl/quickjs-wasmfile-release-sync/wasm');
+  assert.equal(createHash('sha256').update(readFileSync(wasm)).digest('hex'), ENGINE_FINGERPRINT);
+});
 
 test('a valid program evaluates to bounded JSON', () => {
   const out = run(VALID);
