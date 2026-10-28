@@ -82,12 +82,22 @@ export function runProgram(engine, { source, request }, limits = LIMITS) {
   try {
     runtime.setMemoryLimit(limits.heapBytes);
     runtime.setMaxStackSize(limits.stackBytes);
-    const deadline = performance.now() + limits.interruptMs;
-    runtime.setInterruptHandler(() => interrupted ||= performance.now() > deadline); // started before any source runs
-    context = runtime.newContext({ intrinsics: { ...DefaultIntrinsics, Date: false } });
+    // Two deadlines, one handler. The host's own setup (context, prelude, SDK: trusted code, the same for every program, slowest on a cold
+    // engine) is bounded by the host watchdog; the program's work (loading ITS source, evaluate, serialization) then gets exactly
+    // limits.interruptMs, started after the SDK is in. A setup that fails or is interrupted is the host's, never the program's.
+    let deadline = performance.now() + limits.watchdogMs;
+    runtime.setInterruptHandler(() => interrupted ||= performance.now() > deadline); // started before any code runs
     const keep = handle => (handles.push(handle), handle);
-    const helpers = keep(context.unwrapResult(context.evalCode(prelude(Number(request.seed) || 0, limits.outputBytes), 'prelude.js', { type: 'global' })));
-    const [parse, serialize, describe] = [0, 1, 2].map(i => keep(context.getProp(helpers, i)));
+    let parse, serialize, describe;
+    try {
+      context = runtime.newContext({ intrinsics: { ...DefaultIntrinsics, Date: false } });
+      const helpers = keep(context.unwrapResult(context.evalCode(prelude(Number(request.seed) || 0, limits.outputBytes), 'prelude.js', { type: 'global' })));
+      [parse, serialize, describe] = [0, 1, 2].map(i => keep(context.getProp(helpers, i)));
+      keep(context.unwrapResult(context.evalCode(SDK_SOURCE, 'sdk.js', { type: 'global' }))); // the generic SDK (one global, sdk)
+    } catch (error) {
+      return fail('runtime_error', 'setup', interrupted ? 'setup time limit' : `setup failed: ${String(error?.message ?? error).slice(0, 200)}`);
+    }
+    deadline = performance.now() + limits.interruptMs;
     // A guest exception: limit hit, else its bounded description (read in the guest, still under the deadline).
     const guestFail = (error, code, phase) => {
       keep(error);
@@ -98,10 +108,7 @@ export function runProgram(engine, { source, request }, limits = LIMITS) {
       return fail(LIMIT_MESSAGES.test(detail) ? 'runtime_limit' : code, phase, detail);
     };
 
-    // The generic SDK (one global, sdk), then the generated module: both under the same deadline and limits.
-    const sdk = context.evalCode(SDK_SOURCE, 'sdk.js', { type: 'global' });
-    if (sdk.error) return guestFail(sdk.error, 'runtime_error', 'load');
-    keep(sdk.value);
+    // The generated module, under the program's deadline and the same limits.
     const loaded = context.evalCode(source, 'program.js', { type: 'module' });
     if (loaded.error) return guestFail(loaded.error, 'invalid_program', 'load');
     const evaluate = keep(context.getProp(keep(loaded.value), 'evaluate'));

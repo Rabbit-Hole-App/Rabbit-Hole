@@ -154,7 +154,7 @@ A program is one ES module that EXPORTS evaluate, exactly: export function evalu
 - inputs holds one value per manifest input id (a number, or the id of the chosen option); time is the playback second (0 when the manifest has no duration); seed is an integer; state is null.
 - Do all calculation in the program, from the learner's request and the context. Write the formulas the explanation needs; the host has no subject formulas. Report calculated values as quantities (name: number) and show the ones the learner should read as frame text, from the same variables that draw the picture, so the drawing and the numbers cannot disagree.
 - Declare every control the learner is meant to move in manifest.inputs with a sensible domain, and any playback in manifest.duration (seconds). Input ids and readout ids share one namespace and must all differ. State assumptions and idealisations in manifest.assumptions. Keep one idea per card.
-- Each evaluation has a hard time budget (program.limits.evaluationMs). It covers the SDK and your source loading, evaluate and serialization, in a slow interpreter, so keep the program small and cheap: compute a curve once, with about 60 points or fewer, and avoid long loops.
+- Each run is stopped after ${RUNTIME_LIMITS.interruptMs} ms of your own work: loading your source, evaluate and serialization, in a slow interpreter that can be several times slower on its first run. Keep it small: compute each curve once, a few hundred points in total at most, no long loops.
 - Draw only within program.frame (width and height); keep every object inside it for every admitted input and time, and keep text clear of moving parts. Use program.sdk for geometry and number formatting.
 - Keep source under program.limits.sourceBytes and the manifest under program.limits.manifestBytes. Do not write hashes, versions, permissions or limits; the host sets them.
 - Quote nothing from the examples; they show composition only.`;
@@ -165,7 +165,7 @@ export function programContext(limits, capabilities) {
   return {
     capabilities,
     limits: { sourceBytes: limits.sourceBytes, manifestBytes: limits.manifestBytes, objects: limits.objects, pointsPerObject: limits.pointsPerObject, pointsTotal: limits.pointsTotal, maxOutputBytes: limits.maxOutputBytes, inputs: limits.inputs, duration: limits.duration,
-      evaluationMs: RUNTIME_LIMITS.interruptMs, evaluation: `each run of the program is stopped after ${RUNTIME_LIMITS.interruptMs} ms in total: setting up the SDK, loading your source, evaluate and serialization, in a slow interpreter. Keep it small and cheap (compute a curve once, about 60 points or fewer).` },
+      evaluationMs: RUNTIME_LIMITS.interruptMs, evaluation: `each run is stopped after ${RUNTIME_LIMITS.interruptMs} ms of your own work: loading your source, evaluate and serialization, in a slow interpreter that can be several times slower on its first run. Keep it small: compute each curve once, a few hundred points in total at most, no long loops.` },
     frame: { returns: '{frame: {width, height, objects, readouts}, quantities: {name: number}}', width: 'default 960, at most 4096', height: 'default 540, at most 4096', readouts: '[{id, value}] for the ids declared in manifest.readouts' },
     objectKinds: {
       line: '{kind:"line", id, from:{x,y}, to:{x,y}, role?, opacity?}', arrow: '{kind:"arrow", id, from:{x,y}, to:{x,y}, role?, opacity?}',

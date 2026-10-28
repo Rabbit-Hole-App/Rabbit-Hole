@@ -186,9 +186,10 @@ test('M3 program: pending -> program artifact -> reload, zero new author calls, 
   assert.equal(authorInput.program.limits.sourceBytes, 16384);
   // The author is told the runtime's own per-run time budget (not a number copied into the prompt), the shared id namespace and the real duration field.
   assert.equal(authorInput.program.limits.evaluationMs, LIMITS.interruptMs);
-  assert.match(authorInput.program.limits.evaluation, new RegExp(`stopped after ${LIMITS.interruptMs} ms in total: setting up the SDK, loading your source, evaluate and serialization`));
+  const budget = `each run is stopped after ${LIMITS.interruptMs} ms of your own work: loading your source, evaluate and serialization, in a slow interpreter that can be several times slower on its first run. Keep it small: compute each curve once, a few hundred points in total at most, no long loops.`;
+  assert.equal(authorInput.program.limits.evaluation, budget);
+  assert.equal(authorBody.system[0].text.includes(`- E${budget.slice(1)}`), true, 'the same sentence is in the author rules');
   assert.match(authorBody.system[0].text, /Input ids and readout ids share one namespace and must all differ/);
-  assert.match(authorBody.system[0].text, /hard time budget \(program\.limits\.evaluationMs\)[^]*about 60 points or fewer/);
   assert.match(authorBody.system[0].text, /playback in manifest\.duration/);
   assert.equal(authorBody.system[0].text.includes('manifest.time'), false);
   assert.match(authorBody.system[0].text, /Program route/);
@@ -602,4 +603,34 @@ test('REPLAY ex1-a: a legacy scene job takes the old path unchanged: no history,
   assert.deepEqual(['history', 'historyDropped', 'coverage', 'artifact', 'program'].filter(key => key in diagnostics), []);
   assert.deepEqual([typeof diagnostics.candidates[0].specHash, 'programHash' in diagnostics.candidates[0]], ['string', false]);
   assert.deepEqual(s.rendered.map(r => r.program), [false, false, false, false]);
+});
+
+test('M3 program: a setup or engine failure on the render page is a render failure to retry, never a program defect sent to repair', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  const boardId = saved.body.board_id;
+  s.behavior.programErrors.push({ code: 'runtime_error', diagnostic: 'setup time limit', phase: 'setup', ms: 21.3 });
+  s.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
+  s.queues.report_review = [verdicts(CAPTURES)];
+  const { id, view } = await runJob(s, boardId, { requestId: 'req-prog-0000023', cardId: 'card-prog-23' });
+  const job = view.body.job;
+  assert.deepEqual([job.stage, job.round, job.failure.stage, job.failure.category, job.failure.retryable], ['failed', 0, 'rendering', 'renderer', true]);
+  assert.equal(job.failure.message, 'The explanation could not be rendered (runtime_setup). Retry rendering.');
+  assert.deepEqual(job.recovery, ['retry_render', 'edit_request']);
+  assert.deepEqual([count(s, 'author_explanation'), count(s, 'repair_explanation'), count(s, 'report_review')], [1, 0, 0], 'no repair and no review for the host failure');
+  // Retry renders the same candidate: no new author call, no new round.
+  const retried = await s.read('POST', `/api/learn/explain/jobs/${id}/retry`, { boardId, expectedAttempt: job.attempt });
+  assert.equal(retried.status, 202, JSON.stringify(retried.body));
+  let after;
+  for (let i = 0; i < 30; i++) { await s.alarms(); after = await s.read('GET', `/api/learn/explain/jobs/${id}?board=${boardId}`); if (after.body.job.terminal) break; }
+  assert.deepEqual([after.body.job.stage, after.body.job.round, count(s, 'author_explanation'), count(s, 'repair_explanation')], ['ready', 0, 1, 0]);
+  // The same phase for the interpreter itself, and an unknown phase, are told apart: only setup and engine are the host's.
+  const other = stack(t);
+  other.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  const board2 = (await other.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 })).body.board_id;
+  other.behavior.programErrors.push({ code: 'runtime_error', diagnostic: 'engine failure', phase: 'engine', ms: 3 });
+  other.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
+  const engine = await runJob(other, board2, { requestId: 'req-prog-0000024', cardId: 'card-prog-24' });
+  assert.deepEqual([engine.view.body.job.failure.category, count(other, 'repair_explanation')], ['renderer', 0]);
 });

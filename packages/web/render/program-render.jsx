@@ -21,8 +21,8 @@ import { pageWorkerFactory } from '../src/explain-program/page-worker.js';
 const NOOP = () => {};
 let factory = null; // the Worker factory for this page: the script and the compiled engine are fetched once
 
-// where: the runtime's phase (load, evaluate, serialize, engine) and elapsed ms when it reported them, so a load overrun can be told from an evaluate overrun.
-const PHASES = ['load', 'evaluate', 'serialize', 'engine'];
+// where: the runtime's phase (setup, load, evaluate, serialize, engine) and elapsed ms when it reported them, so a load overrun can be told from an evaluate overrun.
+const PHASES = ['setup', 'load', 'evaluate', 'serialize', 'engine'];
 const failure = (code, diagnostic, where) => ({ ok: false, programError: { code, diagnostic: String(diagnostic ?? '').slice(0, 500),
   ...(PHASES.includes(where?.phase) ? { phase: where.phase } : {}), ...(Number.isFinite(where?.ms) ? { ms: Math.round(where.ms * 10) / 10 } : {}) } });
 

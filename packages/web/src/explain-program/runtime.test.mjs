@@ -225,3 +225,50 @@ Rows matching expectation: ${passed}/${rows.length} (node:test assertions are au
 - WASM linear memory: ${mb(timings.wasmAfterFirst || 0)} after the first run, ${mb(timings.wasmAfter300 || 0)} after 300 runs with 6 heap-exhaustion programs interleaved; peak seen across all cases ${mb(peakWasm)}.
 `;
 }
+
+// ---- Two deadlines (setup is the host's, the program's work keeps exactly interruptMs) --------------------------------------------------
+const TRIVIAL = 'export function evaluate() { return { frame: { objects: [] }, quantities: {} }; }';
+test('trusted setup is bounded apart from the program: an interrupt inside it is a setup failure, never an escape from runProgram', async () => {
+  const engine = await loadEngine();
+  // watchdogMs is the setup bound: a bound already past stops the prelude/SDK, which used to throw InternalError out of runProgram.
+  const out = runProgram(engine, { source: TRIVIAL, request: REQUEST }, { ...LIMITS, watchdogMs: -1 });
+  assert.deepEqual([out.ok, out.code, out.phase, out.detail], [false, 'runtime_error', 'setup', 'setup time limit']);
+  assert.ok(out.metrics.ms >= 0);
+  assert.equal(runProgram(engine, { source: TRIVIAL, request: REQUEST }, RELAXED).ok, true, 'the same engine runs the next program');
+});
+
+test('setup is not charged to the program: with a slow setup (30 ms inside newContext) a trivial program still passes a 10 ms deadline', async () => {
+  const engine = await loadEngine();
+  const slow = Object.create(engine);
+  slow.newRuntime = () => {
+    const runtime = engine.newRuntime(), newContext = runtime.newContext.bind(runtime);
+    runtime.newContext = options => { for (const end = performance.now() + 30; performance.now() < end;); return newContext(options); };
+    return runtime;
+  };
+  const out = runProgram(slow, { source: TRIVIAL, request: REQUEST }, { ...LIMITS, interruptMs: 10 });
+  assert.equal(out.ok, true, JSON.stringify(out));
+  assert.ok(out.metrics.ms > 30, 'the setup alone passed the program budget');
+});
+
+test('the program keeps exactly interruptMs for its own work: loops in evaluate, in module load and in serialization stop with their phase and that timing', async () => {
+  const engine = await loadEngine();
+  const limits = { ...LIMITS, interruptMs: 40 };
+  const cases = [
+    ['evaluate', 'export function evaluate() { for (;;) {} }'],
+    ['load', 'for (;;) {}\nexport function evaluate() { return {}; }'],
+    ['serialize', 'export function evaluate() { return { get big() { for (;;) {} } }; }'],
+  ];
+  for (const [phase, source] of cases) {
+    const out = runProgram(engine, { source, request: REQUEST }, limits);
+    assert.deepEqual([out.ok, out.code, out.phase], [false, 'runtime_limit', phase], phase);
+    assert.ok(out.metrics.ms >= 40 && out.metrics.ms < 40 + LIMITS.watchdogMs, `${phase}: ${out.metrics.ms} ms`);
+  }
+});
+
+test('the other limits are unchanged by the setup bound: memory, output size and source size are still enforced', async () => {
+  const engine = await loadEngine();
+  const run = source => runProgram(engine, { source, request: REQUEST }, RELAXED);
+  assert.equal(run('export function evaluate() { const a = []; for (;;) a.push(new Array(1e5).fill(1)); }').code, 'runtime_limit');
+  assert.deepEqual([run('export function evaluate() { return { s: "x".repeat(1e6) }; }').code, run('export function evaluate() { return { s: "x".repeat(1e6) }; }').phase], ['invalid_output', 'serialize']);
+  assert.equal(runProgram(engine, { source: 'x'.repeat(LIMITS.sourceBytes + 1), request: REQUEST }, RELAXED).code, 'invalid_program');
+});
