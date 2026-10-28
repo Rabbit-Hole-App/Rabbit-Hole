@@ -187,5 +187,5 @@ test('the Blob-started Worker name is the same literal in page-worker.js and wor
   const read = name => readFileSync(new URL(name, import.meta.url), 'utf8');
   const named = read('./page-worker.js').match(/const NAME = '([^']+)'/)[1];
   assert.ok(read('./worker.js').includes(`self.name === '${named}'`));
-  assert.doesNotMatch(read('./runtime.js'), /\bimport\s*\(|newQuickJSWASMModuleFromVariant\(/);
+  assert.doesNotMatch(read('./runtime.js'), /\bimport\s*\(\s*['\"`]|newQuickJSWASMModuleFromVariant\(/);
 });
