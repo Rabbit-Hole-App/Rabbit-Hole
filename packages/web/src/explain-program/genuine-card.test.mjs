@@ -20,6 +20,8 @@ function fakeApi() {
   const api = async (path, init = {}) => {
     calls.push({ path, method: init.method || 'GET' });
     if ((init.method || 'GET') !== 'GET') throw Object.assign(new Error('no POST in this flow'), { status: 500 });
+    // The accepted result by its saved reference (the durable result route): { artifact, identity, execution }.
+    if (path.includes('/jobs/results/')) { const { program, ...identity } = structuredClone(RECORDED.job.result); return { artifact: program, identity, execution: identity.execution ?? { allowed: true } }; }
     return structuredClone(RECORDED);
   };
   return { api, calls };
@@ -45,8 +47,9 @@ test('the recorded job response attaches to its pending card and resolves to the
   const out = await resolveProgram(reloaded, { client: explainClient(api, reloaded.explain.canvas.boardId) });
   assert.equal(out.ok, true, out.error?.message);
   assert.equal(out.artifact.bundleHash, BUNDLE);
-  assert.deepEqual(calls.map(call => call.method), ['GET', 'GET'], 'two GETs of the job route, no explain POST');
-  assert.ok(calls.every(call => call.path.startsWith(`/api/learn/explain/jobs/${job.id}?board=`)));
+  assert.deepEqual(calls.map(call => call.method), ['GET', 'GET'], 'a GET of the job (the pending poll) and a GET of the durable result, no explain POST');
+  assert.ok(calls[0].path.startsWith(`/api/learn/explain/jobs/${job.id}?board=`), 'the pending card polls its job');
+  assert.ok(calls[1].path.startsWith('/api/learn/explain/jobs/results/er_a5e593503ee047bebc5ac2fcf55f0707?board='), 'the saved card loads its accepted result, not the job record');
   // A card on another canvas or with another bundle is refused, never drawn.
   assert.equal((await resolveProgram({ ...reloaded, program: { bundleHash: '0'.repeat(64) } }, { client })).ok, false);
   assert.equal(explainResultBlock({ ...pending, id: 'other-card' }, data.job, data.block), null);
