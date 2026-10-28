@@ -448,7 +448,7 @@ export class LearnVideos {
     // Exactly once: a second call while the first awaits the ledger, or after it, does nothing.
     if (!spend?.admitted || spend.settled || spend.settling) return;
     spend.settling = true;
-    await this.stopLanded(job); // a Stop stored since this copy was read decides who stopped it
+    try { await this.stopLanded(job); } catch (error) { spend.settling = false; throw error; } // a Stop stored since this copy was read decides who stopped it
     const cost = view?.spend?.cost_usd, known = Number.isFinite(cost) && cost >= 0 ? Math.ceil(Number((cost * 1e6).toFixed(6))) : null;
     const bound = Number.isFinite(view?.spend?.bound_usd) ? Math.ceil(Number((view.spend.bound_usd * 1e6).toFixed(6))) : spend.micros;
     const free = zeroCredit(view, { learnerStop: !!job.stopped && !!spend.opId && job.stoppedOp === spend.opId }), code = failureCodeOf(view), calls = view?.spend?.calls || 0, status = calls === 0 && known === 0 ? 'cancelled' : view?.status === 'ready' ? 'settled' : 'failed';
