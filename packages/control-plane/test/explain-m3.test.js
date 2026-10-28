@@ -143,7 +143,7 @@ test('M3: the flag off answers 404 through the worker and starts nothing', async
 // HAND-AUTHORED TEST DATA, not generation evidence: a generic program and its manifest in the frozen contract's shape
 // (packages/web/src/explain-program/contract.js). The scripted provider returns it as the author's reply; nothing is paid.
 import { verifyHashes } from '../../web/src/explain-program/contract.js';
-import { ENGINE_FINGERPRINT, ENGINE_VERSION } from '../../web/src/explain-program/limits.js';
+import { ENGINE_FINGERPRINT, ENGINE_VERSION } from '../../web/src/explain-program/stamps.js';
 const PROGRAM = {
   source: `export function evaluate({ inputs, time }) {
   const level = inputs.rate * time;
@@ -360,7 +360,7 @@ import { createProgramHost, programStamps as hostStamps } from '../../web/src/ex
 import { loadEngine, runProgram } from '../../web/src/explain-program/runtime.js';
 import { normalizeFrame } from '../../web/src/explain-program/frame.js';
 import { sealProgram } from '../../web/src/explain-program/contract.js';
-import { programStamps } from '../src/explain-program.js';
+import { PROGRAM_STAMPS } from '../src/explain-program.js';
 
 const ENGINE = loadEngine();
 class StandIn {
@@ -382,8 +382,9 @@ test('M3 program: an artifact sealed by the server accept path is accepted by th
   const artifact = view.body.job.result.program; // sealed by the real accept path, read from the authorized answer
   assert.equal(view.body.job.stage, 'ready');
   // The server seals with exactly the stamps the host accepts.
-  assert.deepEqual(await programStamps(), await hostStamps());
-  assert.equal(artifact.runtimeVersion, (await hostStamps()).runtimeVersion);
+  const accepted = await hostStamps();
+  assert.deepEqual([artifact.runtimeVersion, artifact.fingerprints], [accepted.runtimeVersion, accepted.fingerprints]);
+  assert.deepEqual([PROGRAM_STAMPS.runtimeVersion, PROGRAM_STAMPS.fingerprints], [accepted.runtimeVersion, accepted.fingerprints]);
   assert.match(PROGRAM.source, /^export function evaluate\(/, 'the fixture is the module format the runtime reads');
   const host = createProgramHost({ artifact, createWorker: () => new StandIn() });
   try {
@@ -421,7 +422,7 @@ test('M3 program: a program that only defines a global evaluate is invalid_progr
   const engine = await ENGINE;
   const out = runProgram(engine, { source: GLOBAL_ONLY, request: { inputs: { rate: 2 }, time: 2, seed: 0, state: null } }, LIMITS_FOR_TESTS);
   assert.deepEqual([out.ok, out.code], [false, 'invalid_program']);
-  const sealed = await sealProgram({ manifest: PROGRAM.manifest, source: GLOBAL_ONLY }, await hostStamps());
+  const sealed = await sealProgram({ manifest: PROGRAM.manifest, source: GLOBAL_ONLY }, PROGRAM_STAMPS);
   assert.equal(sealed.ok, true);
   const host = createProgramHost({ artifact: sealed.value, createWorker: () => new StandIn() });
   await assert.rejects(host.evaluate({ requestId: 'r3', inputs: { rate: 2 }, time: 2, seed: 0, state: null }), { code: 'invalid_program' });

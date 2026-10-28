@@ -4,9 +4,8 @@
 // the HOST computes (never a hash the model wrote), and answers the facts a reviewer reads. It runs no guest code: execution
 // belongs to the pinned interpreter in the browser and in the review browser. The checks here are a fast, deterministic early
 // refusal that gives the author a one-line fix; they are not the security boundary.
-import { CAPABILITIES, CONTRACT_LIMITS, PROGRAM_VERSIONS, ProgramBundle, resolveInputs, sealProgram, unsupportedCapabilities, verifyHashes } from '../../web/src/explain-program/contract.js';
-import { ENGINE_FINGERPRINT, ENGINE_VERSION } from '../../web/src/explain-program/limits.js';
-import { sdkFingerprint } from '../../web/src/explain-program/sdk.js';
+import { CAPABILITIES, CONTRACT_LIMITS, ProgramBundle, resolveInputs, sealProgram, unsupportedCapabilities, verifyHashes } from '../../web/src/explain-program/contract.js';
+import { PROGRAM_STAMPS } from '../../web/src/explain-program/stamps.js';
 
 export const programEnabled = env => env.EXPLAIN_PROGRAM_ENABLED === 'true';
 // Server-owned execution eligibility, separate from generation: an accepted artifact may be played unless the kill switch is set
@@ -14,10 +13,9 @@ export const programEnabled = env => env.EXPLAIN_PROGRAM_ENABLED === 'true';
 export const programExecution = env => ({ allowed: env.EXPLAIN_PROGRAM_EXECUTION_KILL !== 'true' });
 export { CAPABILITIES as PROGRAM_CAPABILITIES, CONTRACT_LIMITS as PROGRAM_LIMITS };
 
-// The stamps this server seals into every artifact: exactly what Agent A's host accepts (host.js programStamps). The engine is named
-// by its version and the SHA-256 of its WASM; QuickJS itself is never imported here. shortcut: switch to the shared stamps.js
-// (ENGINE_VERSION, ENGINE_FINGERPRINT, SDK fingerprint) when it lands; a test pins equality with host.js programStamps().
-export const programStamps = async () => ({ runtimeVersion: ENGINE_VERSION, fingerprints: { engine: ENGINE_FINGERPRINT, sdk: await sdkFingerprint(), renderer: PROGRAM_VERSIONS.rendererVersion } });
+// The stamps this server seals into every artifact are the host's own pins (stamps.js: imports nothing, so neither QuickJS nor zod
+// comes with it); the host answers version_unavailable if any differs, and stamps.test.mjs fails on drift.
+export { PROGRAM_STAMPS };
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -51,9 +49,7 @@ export function checkProgramDraft(draft) {
 }
 
 // The one stored artifact: the bundle plus the host's version stamps and computed hashes (contract.js sealProgram).
-export async function buildProgramArtifact(bundle, stamps = null) {
-  stamps ??= await programStamps();
-  // The SDK fingerprint is the real hash of the SDK text the guest receives (sdk.js), so a changed SDK is a different bundle.
+export async function buildProgramArtifact(bundle, stamps = PROGRAM_STAMPS) {
   const sealed = await sealProgram(bundle, stamps);
   if (!sealed.ok) throw Object.assign(new Error(sealed.issue || 'the program could not be sealed'), { code: 'invalid_program' });
   return sealed.value;
