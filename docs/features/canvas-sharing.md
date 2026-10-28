@@ -97,6 +97,7 @@ the owner. A fork copies that same list, never the board's whole R2 prefix.
 | `POST /api/learn/boards/shared/:token/ask` | signed in (any link they can open, public too) | ask about the shared canvas; streams the answer, writes nothing of the owner's (one usage event), rate limited ([shared-canvas-ask.md](shared-canvas-ask.md)) |
 | `GET/PUT /api/learn/boards/:app/:board/assets/:key`, `GET .../assets` | owner | board files, list |
 | `GET /api/learn/boards/shared/:token/assets/:key` | as the link | board files through a link |
+| `GET /api/learn/boards/shared/:token/cards/:card/program` | as the link | an /explain program card's accepted artifact: the card must be on the saved board and its saved result, revision and bundle must match the board owner's stored result; answers only `{ artifact, identity, execution }`, else 404 `Not available`. The visitor's inputs and time stay in the card's memory, never saved |
 | `GET /api/learn/boards/shared/:token/holes` | as the link | the read-only Rabbit Holes Map: only the levels this viewer could open by their own link ([dive-v1.md](dive-v1.md), "Shared map") |
 | `POST /api/learn/boards/shared/:token/fork` | signed in (any link they can open) | make the viewer's Canvas copy; returns `{ name, url, files, forked_from }`. Same handler as `POST /api/learn/boards/fork` ([canvas-forking.md](canvas-forking.md)) |
 
