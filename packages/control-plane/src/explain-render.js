@@ -118,7 +118,10 @@ export async function checkManifest(manifest, scene, limits = RENDER_LIMITS) {
 }
 
 // Only the entry and its hashed build assets; nothing else may load.
-export const allowedAsset = url => url.origin === RENDER_ORIGIN && !url.search && (url.pathname === RENDER_ENTRY || /^\/static\/[A-Za-z0-9._-]+\.(js|css|woff2?|ttf)$/.test(url.pathname));
+// The pinned interpreter's WASM is a trusted, versioned, hashed build asset like the scripts; it is served with its own MIME type
+// (a streaming compile refuses anything else) and nothing else of that shape is admitted.
+export const allowedAsset = url => url.origin === RENDER_ORIGIN && !url.search && (url.pathname === RENDER_ENTRY || /^\/static\/[A-Za-z0-9._-]+\.(js|css|woff2?|ttf|wasm)$/.test(url.pathname));
+const contentTypeOf = (url, response) => (url.pathname.endsWith('.wasm') ? 'application/wasm' : response.headers.get('content-type') || 'application/octet-stream');
 
 // The interception handler, separate so a unit test can drive it with fake requests.
 export function interceptor(assets, log) {
@@ -129,7 +132,7 @@ export function interceptor(assets, log) {
     const response = await assets.fetch(new Request(url.href));
     if (!response.ok) { log.blocked.push(request.url()); return request.abort('failed'); }
     log.served.push(url.pathname);
-    return request.respond({ status: 200, headers: { 'content-type': response.headers.get('content-type') || 'application/octet-stream' }, body: new Uint8Array(await response.arrayBuffer()) });
+    return request.respond({ status: 200, headers: { 'content-type': contentTypeOf(url, response) }, body: new Uint8Array(await response.arrayBuffer()) });
   };
 }
 

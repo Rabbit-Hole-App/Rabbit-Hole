@@ -2,7 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { renderStage } from '../src/explain-job.js';
-import { RENDER_ENTRY, RENDER_LIMITS, RENDER_ORIGIN, allowedAsset, checkManifest, compiledHash, interceptor, renderStates, reserveCaptures } from '../src/explain-render.js';
+import { RENDER_ENTRY, RENDER_LIMITS, RENDER_ORIGIN, allowedAsset, checkManifest, compiledHash, interceptor, programCaptureManifest, renderStates, reserveCaptures } from '../src/explain-render.js';
+import { buildProgramArtifact } from '../src/explain-program.js';
 
 const scene = { id: 's', width: 400, height: 300, duration: 2, objects: [], timeline: [] };
 const entry = (id, extra = {}) => ({ id, time: 1, inputs: {}, theme: 'light', width: 400, height: 300, dpr: 1, ...extra });
@@ -11,7 +12,7 @@ const manifestFor = async (entries, reserved = reserveCaptures({ states: 4, them
 // Assets that exist in the "build": the entry and two hashed static files.
 const ASSETS = { fetch: async request => {
   const path = new URL(request.url).pathname;
-  const files = { [RENDER_ENTRY]: ['<html></html>', 'text/html'], '/static/render-abc.js': ['//js', 'text/javascript'], '/static/KaTeX_Main-Regular-x.woff2': ['font', 'font/woff2'] };
+  const files = { [RENDER_ENTRY]: ['<html></html>', 'text/html'], '/static/render-abc.js': ['//js', 'text/javascript'], '/static/KaTeX_Main-Regular-x.woff2': ['font', 'font/woff2'], '/static/emscripten-module-abc.wasm': ['wasm', 'application/octet-stream'] };
   return files[path] ? new Response(files[path][0], { headers: { 'content-type': files[path][1] } }) : new Response('nope', { status: 404 });
 } };
 
@@ -34,7 +35,7 @@ function fakeBrowser({ pageRequests = [], renderResult = { ok: true, fonts: { mi
       for (const u of [url, ...pageRequests]) { const r = fakeRequest(u); await state.handler(r); state.intercepted.push(r); }
     },
     waitForFunction: async () => {},
-    evaluate: async (fn, request) => { state.evaluated.push(request); if (hang) return new Promise(() => {}); return renderResult; },
+    evaluate: async (fn, request) => { state.evaluated.push(request); state.entries = [...(state.entries || []), String(fn).includes('__renderProgram') ? 'program' : 'scene']; if (hang) return new Promise(() => {}); return typeof renderResult === 'function' ? renderResult(request) : renderResult; },
     $: async () => ({ screenshot: async () => new TextEncoder().encode(`png:${state.evaluated.length}`) }),
   };
   return { state, browser: { newPage: async () => page, close: async () => { state.closed = true; } } };
@@ -67,7 +68,10 @@ test('only the entry and its hashed static assets are served; every other reques
     [`${RENDER_ORIGIN}${RENDER_ENTRY}`]: 'respond:200:text/html',
     [`${RENDER_ORIGIN}/static/render-abc.js`]: 'respond:200:text/javascript',
     [`${RENDER_ORIGIN}/static/KaTeX_Main-Regular-x.woff2`]: 'respond:200:font/woff2',
+    [`${RENDER_ORIGIN}/static/emscripten-module-abc.wasm`]: 'respond:200:application/wasm', // the engine's WASM is served with its own MIME type
     [`${RENDER_ORIGIN}/static/missing.js`]: 'abort:failed',
+    [`${RENDER_ORIGIN}/static/emscripten-module-abc.wasm?x=1`]: 'abort:blockedbyclient',
+    [`${RENDER_ORIGIN}/uploads/engine.wasm`]: 'abort:blockedbyclient',
     [`${RENDER_ORIGIN}/api/learn/boards`]: 'abort:blockedbyclient',
     [`${RENDER_ORIGIN}${RENDER_ENTRY}?scene=leak`]: 'abort:blockedbyclient',
     'https://fonts.googleapis.com/css': 'abort:blockedbyclient',
@@ -134,3 +138,21 @@ test('the job render stage: no BROWSER binding is "not available"; a bound BROWS
 });
 
 test('a launched render browser idles at most 10 s for reuse (billed browser time)', () => assert.ok(RENDER_LIMITS.keepAliveMs <= 10_000));
+
+test('a program is captured through __renderProgram from its artifact: the manifest names the artifact hash, traces are kept, a failing run is a program error', async () => {
+  const artifact = await buildProgramArtifact({ source: 'export function evaluate() { return { frame: { objects: [] }, quantities: {} }; }',
+    manifest: { title: 'T', summary: 'S', assumptions: [], description: 'D', inputs: [], duration: 4, readouts: [], capabilities: ['time_playback'] } });
+  const manifest = await programCaptureManifest(artifact, { reserved: reserveCaptures({ states: 1, checkpoints: 3, themes: 1 }) });
+  assert.equal(manifest.compiledHash, await compiledHash(artifact));
+  assert.deepEqual(manifest.entries.map(e => [e.id, e.time]), [['t0-light', 0], ['t1-light', 2], ['t2-light', 4]]);
+  const { state, browser } = fakeBrowser({ renderResult: request => ({ ok: true, fonts: { missing: [] }, trace: { inputs: request.inputs, time: request.time, quantities: { q: request.time }, metrics: { ms: 1 } } }) });
+  const result = await renderStates({ ASSETS }, { program: artifact }, manifest, { launch: async () => browser });
+  assert.deepEqual(state.entries, ['program', 'program', 'program']);
+  assert.deepEqual(state.evaluated.map(r => r.program.bundleHash), Array(3).fill(artifact.bundleHash));
+  assert.deepEqual(result.captures.map(c => c.trace.quantities.q), [0, 2, 4]);
+  assert.equal(result.compiledHash, await compiledHash(artifact));
+  // A manifest built for another artifact is stale; a program that ran and failed is a program error with its stable code.
+  await assert.rejects(renderStates({ ASSETS }, { program: { ...artifact, source: artifact.source + ' ' } }, manifest, { launch: async () => browser }), { code: 'stale_version' });
+  const failing = fakeBrowser({ renderResult: { ok: false, programError: { code: 'runtime_error', diagnostic: 'ReferenceError: x' } } });
+  await assert.rejects(renderStates({ ASSETS }, { program: artifact }, manifest, { launch: async () => failing.browser }), error => error.code === 'program_error' && error.program.code === 'runtime_error');
+});
