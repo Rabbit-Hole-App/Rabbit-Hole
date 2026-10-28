@@ -21,8 +21,12 @@ import { d1Over, readOnly } from './motion-refund-failed-job.mjs';
 const OWNER = 'dda2350771a4066e3080c605ba092e0a'; // the learner of both jobs (production read 2026-10-27, integrator)
 export const CANDIDATES = Object.freeze({
   'act-8f6d6c98-b6cd-49c2-afde-714d076bce4c': Object.freeze({ job: 'e3a2f10ec8cc5519cb28520c41427e41', operation: 'motion-daeecd76-af4c-4235-9dae-feea0f433fb0', user: OWNER, micros: 1_397_401, status: 'failed',
-    billingClass: 1, reason: 'motion_invalid_output_no_result',
-    pending: 'job 1 failed content_rejected after 3 calls; whether our checks rejected the model output (class 1) or the request was refused (class 2) is unknown until its findings are read' }),
+    billingClass: 1, reason: 'motion_composition_limits_no_result',
+    // Recovered 2026-10-27 from LEARN_MEDIA by exact key (read-only): the saved artifact of this orchestrator job. It names OUR static composition gate (composition-limits.js,
+    // allowed class 'simple' only), with no reviewer finding: not the learner's request, not a model content judgement. It is evidence, not a confirmation.
+    evidence: Object.freeze({ key: 'learn-video-dev/586fc2bcf8df9eec60eb961cd59f294401240dddfd06b947dd6ab041ebc1b1aa/542ad8a879ee9a8ca6b1a96612f42d5ae09b41578bf8cf4f9ec7994a46949104.motion/e3a2f10ec8cc5519cb28520c41427e41.json',
+      sha256: 'b4480103131d8f3140605a5fc05f7cfd56d65bd761ab74d2389abe73d2210073', failure_code: 'content_rejected', failure_reason: 'composition limits: the composition is standard, which is not covered for these settings (covered: simple)', findings: 0, blocking: 0 }),
+    pending: 'the saved artifact shows our composition-limits gate refused the video (class standard, covered: simple) with no reviewer finding, so it meets the proposed zero-credit rule for our own restriction; the owner has not confirmed the refund' }),
   'act-9a25fc26-9abd-4a04-a6d3-588a360997ac': Object.freeze({ job: '9b739bc92b2431442273e58435969d54', operation: 'motion-66699755-90f0-480d-bb0d-8c97ba4947fc', user: OWNER, micros: 1_018_218, status: 'failed',
     billingClass: 4, reason: 'motion_stop_not_by_learner_no_result',
     pending: 'job 2 was stopped 0.22 s after it started; whether the learner pressed Stop and confirmed it (class 3) or the stop came from elsewhere (class 4) is unknown' }),
@@ -68,6 +72,7 @@ export async function reconcile({ run, action, apply, refund, now = Math.floor(D
   if (!plan.ok) { say(plan.reason); return { exit: 1, lines }; }
   say(`${apply ? 'apply' : 'dry run'}: action ${action} (job ${known.job}, operation ${known.operation}), period ${plan.period}, billing class ${known.billingClass}`);
   say(confirmed ? `CONFIRMED eligible: ${confirmed}` : `CANDIDATE, NOT CONFIRMED: ${known.pending}`);
+  if (known.evidence) say(`evidence (recovered artifact, sha256 ${known.evidence.sha256}): ${known.evidence.failure_reason}; findings ${known.evidence.findings}, blocking ${known.evidence.blocking}; key ${known.evidence.key}`);
   say(`the attempt was charged ${credits(plan.micros)} (${plan.micros} micro-USD); already refunded ${credits(plan.refunded_micros)}`);
   if (plan.state === 'done') { say('nothing to do: this charge is already refunded in full'); return { exit: 0, lines }; }
   say(`${confirmed ? 'would refund' : 'if confirmed, would refund'} ${credits(plan.micros)} (${plan.micros} micro-USD) through refundAttempt, reason ${known.reason}: refunded_micros on usage_attempt_detail and one usage_adjustments audit row; the settled cost stays as recorded`);

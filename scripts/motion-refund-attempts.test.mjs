@@ -58,6 +58,8 @@ test('the dry run lists job 1 and job 2 as CANDIDATE, NOT CONFIRMED, shows the p
     assert.match(text, /\nCANDIDATE, NOT CONFIRMED: /);
     assert.match(text, new RegExp(`charged ${charged.replace('.', '\\.')} `));
     assert.match(text, /if confirmed, would refund/);
+    if (action === JOB1) assert.match(text, /\nevidence \(recovered artifact, sha256 b4480103[0-9a-f]+\): composition limits: the composition is standard, which is not covered for these settings \(covered: simple\); findings 0, blocking 0; key learn-video-dev\//);
+    else assert.doesNotMatch(text, /evidence \(recovered artifact/, 'job 2 stays unresolved: no evidence is claimed for it');
     assert.match(lines.at(-1), /DRY RUN: nothing was written\. --apply is refused until this action is confirmed/);
   }
   assert.deepEqual([db.writes, db.state()], [[], before]);
