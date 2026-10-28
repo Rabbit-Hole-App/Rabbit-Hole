@@ -521,3 +521,85 @@ test('M3 program: a capture that never finishes closes the session, goes to repa
   const read = await s.read('GET', `/api/learn/explain/jobs/${id}?board=${saved.body.board_id}&detail=1`);
   assert.equal(read.status, 200);
 });
+
+// ---- Regression replays of genuine run sandbox-ex1-a (offline: no model call, no genuine-generation claim) --------------------------
+// The surviving last draft of that run is a FIXTURE only (test/fixtures/explain-ex1-a); nothing about its subject is in the generator, the
+// prompts or the rules. Its control is `room` (min -10, default 10, max 30) with a 20 minute playback: the same five captures as PROGRAM.
+const EX1 = { source: readFileSync(new URL('./fixtures/explain-ex1-a/last-draft-source.js', import.meta.url), 'utf8'), manifest: JSON.parse(readFileSync(new URL('./fixtures/explain-ex1-a/last-draft-manifest.json', import.meta.url), 'utf8')) };
+// The first draft of that run reused the control's id for a readout.
+const EX1_DUPLICATE = { source: EX1.source, manifest: { ...EX1.manifest, readouts: [...EX1.manifest.readouts, { id: 'room', label: 'Room', unit: '°C', decimals: 0 }] } };
+// The reviewer's real wording for the label collision (genuine run, round 3), filed as it was: category component, layout-repairable.
+const ROOMLAB = { verdict: 'visual', category: 'component', severity: 'major', object: 'roomlab', message: "The 'room 10°C' label runs past the plot edge into the side panel. Its end collides with 'It slows as it nears the room' (n2) at x≈700, so the two pieces of text overlap.", repairable: true };
+const repairedLabel = n => ({ ...EX1, source: EX1.source.replace("sdk.text('roomlab', x1 + 8,", `sdk.text('roomlab', x1 - ${4 + n},`) });
+
+test('REPLAY ex1-a: every round is kept in the private history (invalid, runtime failure, rejected, accepted); hashes match the stored source; the public view has none of it', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  s.env.EXPLAIN_DIAGNOSTICS = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  const boardId = saved.body.board_id;
+  s.behavior.programErrors.push({ code: 'runtime_limit', diagnostic: 'time limit', phase: 'load', ms: 61.2 });
+  s.queues.author_explanation = [{ kind: 'program', program: EX1_DUPLICATE }];
+  s.queues.repair_explanation = [EX1, repairedLabel(0), repairedLabel(1)].map(program => ({ operation: 'program', program, reason: 'Fixed.' }));
+  s.queues.report_review = [verdicts(CAPTURES, 'fail', [ROOMLAB]), verdicts(CAPTURES)];
+  const { id, view } = await runJob(s, boardId, { requestId: 'req-prog-0000021', cardId: 'card-prog-21', prompt: 'Show how a cup cools in a room and let me change the room temperature.' });
+  assert.deepEqual([view.body.job.stage, view.body.job.stopReason, view.body.job.round], ['ready', 'accepted', 3]);
+  const { diagnostics } = (await s.read('GET', `/api/learn/explain/jobs/${id}?board=${boardId}&detail=1`)).body;
+  const history = diagnostics.history;
+  assert.deepEqual(history.map(h => [h.round, h.stage, h.outcome]), [[0, 'validating', 'invalid'], [1, 'rendering', 'runtime'], [2, 'reviewing', 'rejected'], [3, 'reviewing', 'accepted']]);
+  // (a) duplicate ids: the validation feedback names the id and both places it is used.
+  assert.match(history[0].problems[0], /"room" is used more than once, as an input and a readout; rename one of each pair/);
+  assert.equal(history[0].source, EX1.source);
+  assert.equal(history[0].hashes.sourceHash, undefined, 'a draft that failed validation has no sealed hashes yet, only the draft hash');
+  // (b) the runtime failure keeps its code, phase and timing.
+  assert.deepEqual(history[1].runtime, { code: 'runtime_limit', phase: 'load', ms: 61.2 });
+  assert.match(history[1].problems[0], /running the program failed \(runtime_limit; phase load, 61 ms\)/);
+  // (c) the layout finding reached repair while budget remained, with the reviewer's own id, category, severity, text and capture.
+  const finding = history[2].findings[0];
+  assert.deepEqual([finding.id, finding.category, finding.severity, finding.capture, finding.object], ['rf1', 'component', 'major', 't0-light', 'roomlab']);
+  assert.match(finding.message, /collides with 'It slows as it nears the room'/);
+  assert.equal(count(s, 'repair_explanation'), 3);
+  // (e) the recorded hashes are the stored source's: each entry's source hashes to its sourceHash, the candidate hashes are the next entry's
+  // programHash, and the last entry is the artifact that was saved.
+  const sha = async text => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))].map(b => b.toString(16).padStart(2, '0')).join('');
+  for (const entry of history.slice(1)) assert.equal(await sha(entry.source), entry.hashes.sourceHash);
+  assert.deepEqual(history.slice(1).map(h => h.hashes.programHash), diagnostics.candidates.map(c => c.programHash));
+  const stored = (await s.read('GET', `/api/learn/explain/jobs/results/${view.body.job.result.resultId}?board=${boardId}`)).body.artifact;
+  assert.deepEqual([history[3].hashes.bundleHash, history[3].hashes.sourceHash, history[3].source], [stored.bundleHash, stored.sourceHash, stored.source]);
+  assert.equal(history.every(h => h.truncated === false), true);
+  // The learner-facing view carries none of it.
+  const plain = await s.read('GET', `/api/learn/explain/jobs/${id}?board=${boardId}`);
+  assert.equal('history' in plain.body.job || 'diagnostics' in plain.body, false);
+  assert.equal(JSON.stringify(plain.body).includes('x1 - 4'), false, 'no candidate source in the public view');
+});
+
+test('REPLAY ex1-a: a layout finding filed as component reaches repair, and exhausted repairs end as rounds with every round kept', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  s.env.EXPLAIN_DIAGNOSTICS = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  s.queues.author_explanation = [{ kind: 'program', program: EX1 }];
+  s.queues.report_review = [1, 2, 3, 4].map(() => verdicts(CAPTURES, 'fail', [ROOMLAB]));
+  s.queues.repair_explanation = [0, 1, 2].map(n => ({ operation: 'program', program: repairedLabel(n), reason: 'Moved the label.' }));
+  const { id, view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000022', cardId: 'card-prog-22' });
+  assert.deepEqual([view.body.job.stage, view.body.job.stopReason, view.body.job.round], ['failed', 'rounds', 3]);
+  assert.deepEqual([count(s, 'report_review'), count(s, 'repair_explanation')], [4, 3]);
+  const { diagnostics } = (await s.read('GET', `/api/learn/explain/jobs/${id}?board=${saved.body.board_id}&detail=1`)).body;
+  assert.deepEqual(diagnostics.history.map(h => [h.round, h.outcome]), [[0, 'rejected'], [1, 'rejected'], [2, 'rejected'], [3, 'rejected']]);
+  assert.equal(new Set(diagnostics.history.map(h => h.hashes.programHash)).size, 4, 'four different candidates, each traceable');
+});
+
+test('REPLAY ex1-a: a legacy scene job takes the old path unchanged: no history, no coverage, a spec hash and no program hash', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_DIAGNOSTICS = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  s.queues.author_explanation = [{ kind: 'spec', spec: SPEC }];
+  s.queues.report_review = [verdicts(['light', 'dark'], 'fail', [{ verdict: 'visual', category: 'spec', severity: 'major', object: 'sea.box', message: 'The boxes touch.', repairable: true }]), verdicts(['light', 'dark'])];
+  s.queues.repair_explanation = [{ operation: 'hints', patches: [{ component: 'sea', hint: 'width', value: 240 }], reason: 'Wider.' }];
+  const { id, view } = await runJob(s, saved.body.board_id, { requestId: 'req-scene-0000001', cardId: 'card-scene-01', prompt: 'Explain where rain comes from.' });
+  assert.deepEqual([view.body.job.stage, view.body.job.round], ['ready', 1]);
+  const { diagnostics } = (await s.read('GET', `/api/learn/explain/jobs/${id}?board=${saved.body.board_id}&detail=1`)).body;
+  assert.deepEqual(['history', 'historyDropped', 'coverage', 'artifact', 'program'].filter(key => key in diagnostics), []);
+  assert.deepEqual([typeof diagnostics.candidates[0].specHash, 'programHash' in diagnostics.candidates[0]], ['string', false]);
+  assert.deepEqual(s.rendered.map(r => r.program), [false, false, false, false]);
+});

@@ -1,0 +1,55 @@
+{
+  "title": "How a cup of coffee cools in a room",
+  "summary": "The coffee's temperature drops quickly at first, then more slowly as it gets close to room temperature. Change the room temperature to see where the curve levels off and how fast the coffee cools.",
+  "assumptions": [
+    "Newton's law of cooling: heat loss is proportional to the gap between coffee and room temperature.",
+    "Coffee starts at 90 °C; cooling constant k = 0.05 per minute (the gap halves about every 14 minutes).",
+    "The room is large, so its temperature does not change; evaporation and stirring are not modelled separately."
+  ],
+  "description": "A line graph of coffee temperature (0 to 100 °C) against time (0 to 60 minutes). A curve starts at 90 °C and bends down toward a horizontal line marking the room temperature, getting closer without crossing it. A dot moves along the curve as time plays. On the right, a box shows the current coffee temperature, with the time, the gap to the room, the cooling rate and the cooling formula. A faint curve shows a 20 °C room for comparison.",
+  "inputs": [
+    {
+      "type": "number",
+      "id": "room",
+      "label": "Room temperature",
+      "unit": "°C",
+      "default": 10,
+      "min": -10,
+      "max": 30,
+      "step": 1
+    }
+  ],
+  "duration": 20,
+  "readouts": [
+    {
+      "id": "minutes",
+      "label": "Time",
+      "unit": "min",
+      "decimals": 0
+    },
+    {
+      "id": "coffee",
+      "label": "Coffee temperature",
+      "unit": "°C",
+      "decimals": 1
+    },
+    {
+      "id": "room_c",
+      "label": "Room temperature",
+      "unit": "°C",
+      "decimals": 0
+    },
+    {
+      "id": "gap",
+      "label": "Gap to room",
+      "unit": "°C",
+      "decimals": 1
+    }
+  ],
+  "capabilities": [
+    "time_playback",
+    "number_inputs",
+    "polyline",
+    "math_text"
+  ]
+}

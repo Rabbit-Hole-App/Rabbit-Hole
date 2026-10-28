@@ -33,6 +33,7 @@ import { artifactIntact, draftOf, programEnabled, programExecution, programFacts
 import { reviewCaptures } from './explain-review.js';
 import * as explainRender from './explain-render.js';
 import { learnMedia } from './learn-storage.js';
+import { recordRound, programHashOf } from './explain-history.js';
 import { allowedRepairs, defectKeys, programRepairable, presentationFix, programRepairStage, repairStage } from './explain-repair.js';
 import { EXPLAIN_LIMITS, EXPLAIN_POLICY_VERSION, REQUEST_CLASSES, ExplainPolicyError, callExplainRole, checkExplainRequest, explainReservation,
   explainRequest, newTiming, markTiming, beginStage, countStage, endStage, timingSummary } from './explain-policy.js';
@@ -82,8 +83,8 @@ export const renderStage = ({ render = explainRender, ...deps } = {}) => async (
     // The program ran and failed: a repairable problem for the program (stable code, bounded diagnostic), not a render outage.
     // A capture that never finished: the program held the page (its own run is interrupted inside the engine, so a blocked page is the
     // program's doing, not an outage). The session was closed and a fresh one is used for the repaired program; no render is billed.
-    if (program && error.code === 'capture_timeout') return { problems: ['running the program did not finish within the capture time limit (runtime_limit): the page stopped answering; write a lighter program'], category: 'spec', repairable: true };
-    if (error.code === 'program_error') return { problems: [`running the program failed (${String(error.program?.code || 'runtime_error').slice(0, 40)}${programWhere(error.program)}): ${String(error.program?.diagnostic || 'no detail').slice(0, 300)}`], category: 'spec', repairable: true };
+    if (program && error.code === 'capture_timeout') return { problems: ['running the program did not finish within the capture time limit (runtime_limit): the page stopped answering; write a lighter program'], runtime: { code: 'runtime_limit', phase: 'capture' }, category: 'spec', repairable: true };
+    if (error.code === 'program_error') return { problems: [`running the program failed (${String(error.program?.code || 'runtime_error').slice(0, 40)}${programWhere(error.program)}): ${String(error.program?.diagnostic || 'no detail').slice(0, 300)}`], runtime: { code: error.program?.code, phase: error.program?.phase, ms: error.program?.ms }, category: 'spec', repairable: true };
     throw Object.assign(fail(`The explanation could not be rendered (${error.code || 'render_failed'}). Retry rendering.`, 503), { category: 'renderer' });
   }
   // A program's coverage (what was sampled and what was not) is bound to the artifact hash it was computed for.
@@ -131,7 +132,7 @@ export function publicExplainJob(job) {
   };
 }
 // The private record of a run (spec, findings, candidates, calls, capture keys), for the owner's own verification runs only.
-const explainDiagnostics = job => ({ spec: job.spec, ...(job.program ? { program: job.program, artifact: job.artifact && { ...job.artifact, source: undefined, sourceBytes: job.artifact.source.length } } : {}), ...(job.coverage ? { coverage: job.coverage } : {}), findings: job.findings, candidates: job.candidates || [], settings: job.settings,
+const explainDiagnostics = job => ({ spec: job.spec, ...(job.program ? { program: job.program, artifact: job.artifact && { ...job.artifact, source: undefined, sourceBytes: job.artifact.source.length } } : {}), ...(job.coverage ? { coverage: job.coverage } : {}), ...(job.history ? { history: job.history, historyDropped: job.historyDropped || 0 } : {}), findings: job.findings, candidates: job.candidates || [], settings: job.settings,
   calls: job.calls, captures: (job.captures || []).map(({ data: _bytes, ...capture }) => capture), counts: job.counts, timing: job.timing });
 
 // Only the actions that can run now (plan section 1.4). retry_render: a retained valid spec, render again (no reauthoring).
@@ -609,6 +610,7 @@ export class ExplainJobs {
     else if (stage === 'validating') {
       if (out.problems?.length) {
         job.findings.push({ round: job.round, stage, problems: out.problems });
+        if (job.program) await recordRound(job, { stage, outcome: 'invalid', problems: out.problems });
         // A time presentation that only reveals is fixed deterministically first: no model call and no correction round.
         // With the program route on, a timed idea is never rewritten static: the problem goes to repair or to a stop with its reason.
         const fixed = job.spec && !programEnabled(this.env) ? presentationFix(job.spec) : null;
@@ -618,7 +620,11 @@ export class ExplainJobs {
       } else { if (out.artifact) Object.assign(job, { artifact: out.artifact, compiled: null }); else job.compiled = out.compiled; next('rendering'); }
     } else if (stage === 'rendering') {
       // A program that ran and failed goes to repair like a refused spec, with the reason; it is not a render failure.
-      if (out.problems?.length) { job.findings.push({ round: job.round, stage, problems: out.problems }); return this.repairOrStop(job, out); }
+      if (out.problems?.length) {
+        job.findings.push({ round: job.round, stage, problems: out.problems });
+        if (job.artifact) await recordRound(job, { stage, outcome: 'runtime', problems: out.problems, runtime: out.runtime });
+        return this.repairOrStop(job, out);
+      }
       if (out.coverage) job.coverage = out.coverage; else delete job.coverage;
       job.captures = out.captures || []; job.renders += out.renders?.length || 0; countStage(job.timing, { captures: job.captures.length });
       await this.recordRenders(job, out.renders || []);
@@ -626,11 +632,12 @@ export class ExplainJobs {
     } else if (stage === 'reviewing') {
       // The reviewer's findings are kept for an accepted result too (minor ones do not block it).
       job.findings.push({ round: job.round, stage, accepted: out.accepted === true, findings: out.findings || [] });
+      if (job.artifact) await recordRound(job, { stage, outcome: out.accepted === true ? 'accepted' : 'rejected', findings: out.findings || [] });
       if (out.accepted === true) return this.accept(job, out);
       return this.repairOrStop(job, out);
     } else if (stage === 'repairing') {
       // Every candidate is recorded (round, operation, hash); a refused or empty repair stops the job rather than spend again.
-      job.candidates = [...(job.candidates || []), { round: job.round, operation: out.operation || null, progress: out.progress !== false, specHash: out.spec ? (await sha256Hex(JSON.stringify(out.spec))).slice(0, 16) : null, ...(out.program ? { programHash: (await sha256Hex(JSON.stringify(out.program))).slice(0, 16) } : {}), ...(out.rejected ? { rejected: out.rejected } : {}) }];
+      job.candidates = [...(job.candidates || []), { round: job.round, operation: out.operation || null, progress: out.progress !== false, specHash: out.spec ? (await sha256Hex(JSON.stringify(out.spec))).slice(0, 16) : null, ...(out.program ? { programHash: await programHashOf({ source: out.program.source, manifest: out.program.manifest }) } : {}), ...(out.rejected ? { rejected: out.rejected } : {}) }];
       if (out.rejected) return this.stopWith(job, 'unsupported_repair', 'spec', 'This explanation needs a change the repair step cannot make. Edit the request and try again.');
       if (out.progress === false) return this.stopWith(job, 'no_progress', 'spec', 'The explanation could not be repaired. Edit the request and try again.');
       if (out.program) Object.assign(job, { program: out.program, spec: null, artifact: null, compiled: null }); else Object.assign(job, { spec: out.spec, compiled: null });

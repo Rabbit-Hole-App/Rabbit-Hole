@@ -74,7 +74,12 @@ export const ProgramManifest = z.object({
   capabilities: z.array(z.string().min(1).max(32)).max(16),
 }).strict().superRefine((manifest, context) => {
   const ids = [...manifest.inputs.map(input => input.id), ...manifest.readouts.map(readout => readout.id)];
-  if (new Set(ids).size !== ids.length) context.addIssue({ code: 'custom', message: 'input and readout ids must be unique', path: ['inputs'] });
+  if (new Set(ids).size !== ids.length) {
+    // Name the clash and say how to fix it: a control and a readout often want the same word ("room"), and they share one namespace.
+    const taken = new Set(), twice = [...new Set(ids.filter(id => taken.size === taken.add(id).size))].slice(0, 4);
+    const where = id => [manifest.inputs.some(input => input.id === id) && 'an input', manifest.readouts.some(readout => readout.id === id) && 'a readout'].filter(Boolean).join(' and ');
+    context.addIssue({ code: 'custom', message: `input and readout ids must be unique (they share one namespace): ${twice.map(id => `"${id}" is used more than once, as ${where(id)}`).join('; ')}; rename one of each pair`, path: ['inputs'] });
+  }
   const combinations = manifest.inputs.filter(input => input.type === 'select').reduce((total, input) => total * input.options.length, 1);
   if (combinations > CONTRACT_LIMITS.optionCombinations) context.addIssue({ code: 'custom', message: `select options combine to ${combinations} states (at most ${CONTRACT_LIMITS.optionCombinations})`, path: ['inputs'] });
   if (utf8(JSON.stringify(manifest)) > CONTRACT_LIMITS.manifestBytes) context.addIssue({ code: 'custom', message: `the manifest is over ${CONTRACT_LIMITS.manifestBytes} bytes`, path: [] });
