@@ -232,9 +232,17 @@ test('trusted setup is bounded apart from the program: an interrupt inside it is
   const engine = await loadEngine();
   // watchdogMs is the setup bound: a bound already past stops the prelude/SDK, which used to throw InternalError out of runProgram.
   const out = runProgram(engine, { source: TRIVIAL, request: REQUEST }, { ...LIMITS, watchdogMs: -1 });
-  assert.deepEqual([out.ok, out.code, out.phase, out.detail], [false, 'runtime_error', 'setup', 'setup time limit']);
+  assert.deepEqual([out.ok, out.code, out.phase, out.detail], [false, 'runtime_limit', 'setup', 'setup time limit']);
   assert.ok(out.metrics.ms >= 0);
   assert.equal(runProgram(engine, { source: TRIVIAL, request: REQUEST }, RELAXED).ok, true, 'the same engine runs the next program');
+});
+
+test('a non-timeout exception in trusted setup is a runtime error in the setup phase', async () => {
+  const engine = await loadEngine();
+  const broken = Object.create(engine);
+  broken.newRuntime = () => { const runtime = engine.newRuntime(); runtime.newContext = () => { throw new Error('boom'); }; return runtime; };
+  const out = runProgram(broken, { source: TRIVIAL, request: REQUEST }, RELAXED);
+  assert.deepEqual([out.ok, out.code, out.phase, out.detail], [false, 'runtime_error', 'setup', 'setup failed: boom']);
 });
 
 test('setup is not charged to the program: with a slow setup (30 ms inside newContext) a trivial program still passes a 10 ms deadline', async () => {

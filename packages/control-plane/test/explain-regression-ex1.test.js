@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { checkProgramDraft } from '../src/explain-program.js';
-import { HISTORY_LIMITS, recordRound } from '../src/explain-history.js';
+import { HISTORY_LIMITS, recordRound, resolveVersion, programHashOf, versionKey } from '../src/explain-history.js';
 import { loadEngine, runProgram } from '../../web/src/explain-program/runtime.js';
 import { LIMITS } from '../../web/src/explain-program/limits.js';
 import { normalizeFrame } from '../../web/src/explain-program/frame.js';
@@ -61,42 +61,79 @@ test('(g) the detector is generic: a clear layout has no overlap, a moved label 
   assert.equal(textBoxes({ objects: [{ kind: 'box', id: 'k', x: 0, y: 0, w: 10, h: 10 }] }).length, 0, 'only text objects are measured');
 });
 
-// ---- the history caps ---------------------------------------------------------------------------------------------------------------
-const jobWith = (over = {}) => ({ round: 0, attempt: 1, program: { source: 'export function evaluate() {}', manifest: { title: 'T' } }, ...over });
+// ---- the history: small entries, complete versions by reference ------------------------------------------------------------------------
+const MAX_SOURCE = HISTORY_LIMITS.sourceBytes, MAX_MANIFEST = HISTORY_LIMITS.manifestBytes; // 16,384 and 4,096: the contract's own limits
+const manifestOf = n => ({ title: 'M'.repeat(MAX_MANIFEST - 12 - String(n).length) + n });   // JSON is exactly MAX_MANIFEST bytes
+const maxProgram = n => ({ source: String(n).padEnd(MAX_SOURCE, 'a'), manifest: manifestOf(n) });
+const jobWith = (over = {}) => ({ id: 'job1', round: 0, attempt: 1, program: { source: 'export function evaluate() {}', manifest: { title: 'T' } }, ...over });
+const store = (fail = false) => { const map = new Map(); return { map, put: async (k, v) => { if (fail) throw new Error('quota'); map.set(k, structuredClone(v)); }, get: async k => structuredClone(map.get(k)), delete: async k => map.delete(k) }; };
 const size = value => new TextEncoder().encode(JSON.stringify(value)).length;
+const sha256 = async text => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))].map(b => b.toString(16).padStart(2, '0')).join('');
 
-test('history caps: the source and the text are cut at their byte caps with an explicit flag, and nothing else is cut', async () => {
-  const job = jobWith({ program: { source: 'é'.repeat(HISTORY_LIMITS.sourceBytes), manifest: { title: 'T'.repeat(5000) } } });
-  const findings = Array.from({ length: 30 }, (_, i) => ({ id: `rf${i}`, category: 'spec', severity: 'major', verdict: 'visual', target: { capture: 'c', object: 'o' }, message: 'm'.repeat(900) }));
-  await recordRound(job, { stage: 'reviewing', outcome: 'rejected', findings, problems: Array.from({ length: 20 }, () => 'p'.repeat(900)) });
+test('history: the maximum valid program (16 KiB source + 4 KiB manifest) is stored whole, resolves for the owner and re-verifies from the stored text', async () => {
+  assert.equal(size(manifestOf(1)), MAX_MANIFEST);
+  const storage = store(), job = jobWith({ program: maxProgram(1) });
+  await recordRound(job, { stage: 'validating', outcome: 'invalid', problems: ['x'] }, storage);
   const [entry] = job.history;
-  assert.equal(entry.truncated, true);
-  assert.ok(entry.cut.includes('source') && entry.cut.includes('manifest') && entry.cut.includes('count'));
-  assert.ok(new TextEncoder().encode(entry.source).length <= HISTORY_LIMITS.sourceBytes);
-  assert.ok(new TextEncoder().encode(entry.manifest).length <= HISTORY_LIMITS.manifestBytes);
-  assert.ok(entry.findings.length <= HISTORY_LIMITS.findings && entry.problems.length <= HISTORY_LIMITS.problems);
-  assert.ok(size({ problems: entry.problems, findings: entry.findings }) <= HISTORY_LIMITS.textBytes + 200);
-  assert.ok(entry.findings.every(f => f.message.length <= HISTORY_LIMITS.line));
-  const small = jobWith();
-  await recordRound(small, { stage: 'validating', outcome: 'invalid', problems: ['x'] });
-  assert.deepEqual([small.history[0].truncated, small.history[0].cut], [false, []]);
+  assert.deepEqual([entry.version.stored, entry.sizes, entry.truncated], [true, { sourceBytes: MAX_SOURCE, manifestBytes: MAX_MANIFEST }, false]);
+  assert.equal(entry.version.key, versionKey('job1', entry.hashes.programHash));
+  assert.ok(size(entry) < 1500, `the entry holds no program text: ${size(entry)} bytes`);
+  const found = await resolveVersion(job, entry.hashes.programHash, storage);
+  assert.deepEqual([found.stored, found.source.length, found.verified], [true, MAX_SOURCE, { programHash: true, sourceHash: true }]);
+  assert.equal(await sha256(found.source), entry.hashes.sourceHash, 'the stored source hashes to the recorded hash');
+  assert.equal(await programHashOf(found), entry.hashes.programHash);
+  // A tampered stored value does not verify.
+  storage.map.get(entry.version.key).source += ' ';
+  assert.deepEqual((await resolveVersion(job, entry.hashes.programHash, storage)).verified, { programHash: false, sourceHash: false });
+  assert.deepEqual(await resolveVersion(job, 'ffffffffffffffff', storage), { stored: false, reason: 'unknown_version' });
 });
 
-test('history caps: at most eight entries, the total never passes 64 KiB, and a record near the 128 KiB value limit shrinks the entry instead of growing past it', async () => {
-  const big = jobWith({ program: { source: 'a'.repeat(HISTORY_LIMITS.sourceBytes), manifest: { title: 'M'.repeat(HISTORY_LIMITS.manifestBytes - 40) } } });
+test('history: a multi-round job at the maxima keeps every version whole, stays far under the record cap, and bounds the objects it stores', async () => {
+  const storage = store(), job = jobWith();
+  const findings = Array.from({ length: 12 }, (_, i) => ({ id: `rf${i}`, category: 'spec', severity: 'major', verdict: 'visual', target: { capture: 'c', object: 'o' }, message: 'm'.repeat(900) }));
   for (let round = 0; round < 12; round++) {
-    big.round = round;
-    await recordRound(big, { stage: 'reviewing', outcome: 'rejected', findings: [{ id: 'rf1', category: 'spec', severity: 'major', verdict: 'visual', message: 'x'.repeat(400) }] });
-    assert.ok(size(big.history) <= HISTORY_LIMITS.totalBytes, `round ${round}: ${size(big.history)} bytes`);
+    job.round = round; job.program = maxProgram(round);
+    await recordRound(job, { stage: 'reviewing', outcome: 'rejected', findings, problems: Array.from({ length: 20 }, () => 'p'.repeat(900)) }, storage);
+    assert.ok(size(job.history) <= HISTORY_LIMITS.totalBytes, `round ${round}: ${size(job.history)} bytes of history`);
+    assert.ok(size(job) <= HISTORY_LIMITS.recordBytes);
   }
-  assert.ok(big.history.length <= HISTORY_LIMITS.entries);
-  assert.ok(big.history.length + big.historyDropped >= 8 && big.historyDropped >= 4, 'the rounds past the cap are counted, not stored');
-  assert.ok(big.history.every(entry => entry.hashes.programHash.length === 16), 'the hashes survive any shrinking');
-  // A job record already close to the limit: the entry is shrunk (source first) so that the whole value stays under 120 KiB.
-  const heavy = jobWith({ context: 'c'.repeat(HISTORY_LIMITS.recordBytes - 9000) });
-  await recordRound(heavy, { stage: 'validating', outcome: 'invalid', problems: ['p'] });
-  assert.ok(size(heavy) <= HISTORY_LIMITS.recordBytes, String(size(heavy)));
-  const full = jobWith({ context: 'c'.repeat(HISTORY_LIMITS.recordBytes) });
-  await recordRound(full, { stage: 'validating', outcome: 'invalid', problems: ['p'] });
-  assert.deepEqual([full.history, full.historyDropped], [undefined, 1], 'no room at all: counted, the job itself is never put over the limit by its history');
+  assert.equal(job.history.length, HISTORY_LIMITS.entries);
+  assert.equal(job.historyDropped, 4, 'rounds past the cap are counted, not stored');
+  assert.equal(storage.map.size, HISTORY_LIMITS.entries, 'at most one stored version per entry: 8 objects of about 21 KiB');
+  for (const entry of job.history) {
+    assert.equal(entry.truncated, true, 'the 12 findings and 20 problems are cut to the text budget, and say so');
+    assert.ok(entry.findings.every(f => f.programHash === entry.hashes.programHash) && entry.problems.every(p => p.programHash === entry.hashes.programHash));
+    const found = await resolveVersion(job, entry.hashes.programHash, storage);
+    assert.deepEqual([found.stored, found.source.length, found.verified], [true, MAX_SOURCE, { programHash: true, sourceHash: true }]);
+  }
+  assert.equal(new Set(job.history.map(h => h.hashes.programHash)).size, 8);
+});
+
+test('history: a version over the contract maximum or a failed write is stored:false with its reason, never replayable, and the entry still records its hashes', async () => {
+  const oversize = jobWith({ program: { source: 'a'.repeat(MAX_SOURCE + 1), manifest: { title: 'T' } } });
+  await recordRound(oversize, { stage: 'validating', outcome: 'invalid', problems: ['the source is over 16384 bytes'] }, store());
+  assert.deepEqual(oversize.history[0].version, { stored: false, reason: 'source_over_contract_limit' });
+  const wide = jobWith({ program: { source: 'x', manifest: { title: 'M'.repeat(MAX_MANIFEST) } } });
+  await recordRound(wide, { stage: 'validating', outcome: 'invalid' }, store());
+  assert.deepEqual(wide.history[0].version, { stored: false, reason: 'manifest_over_contract_limit' });
+  const failing = jobWith({ program: maxProgram(7) }), storage = store(true);
+  await recordRound(failing, { stage: 'rendering', outcome: 'runtime', runtime: { code: 'runtime_limit', phase: 'load', ms: 61.2 } }, storage);
+  const [entry] = failing.history;
+  assert.deepEqual(entry.version, { stored: false, reason: 'storage_failed' });
+  assert.deepEqual(entry.runtime, { code: 'runtime_limit', phase: 'load', ms: 61.2, programHash: entry.hashes.programHash });
+  assert.equal(entry.hashes.programHash.length, 16);
+  for (const job of [oversize, failing]) assert.deepEqual(await resolveVersion(job, job.history[0].hashes.programHash, storage), { stored: false, reason: job.history[0].version.reason });
+  const none = jobWith();
+  await recordRound(none, { stage: 'validating', outcome: 'invalid' });
+  assert.deepEqual(none.history[0].version, { stored: false, reason: 'no_storage' });
+});
+
+test('history: the same candidate rendered again is stored once (content-addressed), and a record with no room for the entry removes the version it just wrote', async () => {
+  const storage = store(), job = jobWith({ program: maxProgram(3) });
+  await recordRound(job, { stage: 'rendering', outcome: 'runtime' }, storage);
+  await recordRound(job, { stage: 'reviewing', outcome: 'rejected' }, storage);
+  assert.deepEqual([job.history.length, storage.map.size, job.history[0].version.key === job.history[1].version.key], [2, 1, true]);
+  const full = jobWith({ program: maxProgram(4), context: 'c'.repeat(HISTORY_LIMITS.recordBytes) }), other = store();
+  await recordRound(full, { stage: 'validating', outcome: 'invalid', problems: ['p'] }, other);
+  assert.deepEqual([full.history, full.historyDropped, other.map.size], [undefined, 1, 0]);
 });

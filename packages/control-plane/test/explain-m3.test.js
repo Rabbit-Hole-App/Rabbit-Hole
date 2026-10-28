@@ -549,25 +549,36 @@ test('REPLAY ex1-a: every round is kept in the private history (invalid, runtime
   const history = diagnostics.history;
   assert.deepEqual(history.map(h => [h.round, h.stage, h.outcome]), [[0, 'validating', 'invalid'], [1, 'rendering', 'runtime'], [2, 'reviewing', 'rejected'], [3, 'reviewing', 'accepted']]);
   // (a) duplicate ids: the validation feedback names the id and both places it is used.
-  assert.match(history[0].problems[0], /"room" is used more than once, as an input and a readout; rename one of each pair/);
-  assert.equal(history[0].source, EX1.source);
-  assert.equal(history[0].hashes.sourceHash, undefined, 'a draft that failed validation has no sealed hashes yet, only the draft hash');
+  assert.match(history[0].problems[0].message, /"room" is used more than once, as an input and a readout; rename one of each pair/);
+  assert.equal(history[0].problems[0].programHash, history[0].hashes.programHash, 'a problem names the exact version it is about');
+  assert.equal(history[0].hashes.bundleHash, undefined, 'a draft that failed validation is not sealed: no bundle hash');
+  assert.deepEqual(history.map(h => h.version.stored), [true, true, true, true]);
   // (b) the runtime failure keeps its code, phase and timing.
-  assert.deepEqual(history[1].runtime, { code: 'runtime_limit', phase: 'load', ms: 61.2 });
-  assert.match(history[1].problems[0], /running the program failed \(runtime_limit; phase load, 61 ms\)/);
+  assert.deepEqual(history[1].runtime, { code: 'runtime_limit', phase: 'load', ms: 61.2, programHash: history[1].hashes.programHash });
+  assert.match(history[1].problems[0].message, /running the program failed \(runtime_limit; phase load, 61 ms\)/);
   // (c) the layout finding reached repair while budget remained, with the reviewer's own id, category, severity, text and capture.
   const finding = history[2].findings[0];
   assert.deepEqual([finding.id, finding.category, finding.severity, finding.capture, finding.object], ['rf1', 'component', 'major', 't0-light', 'roomlab']);
   assert.match(finding.message, /collides with 'It slows as it nears the room'/);
+  assert.equal(finding.programHash, history[2].hashes.programHash);
   assert.equal(count(s, 'repair_explanation'), 3);
   // (e) the recorded hashes are the stored source's: each entry's source hashes to its sourceHash, the candidate hashes are the next entry's
   // programHash, and the last entry is the artifact that was saved.
   const sha = async text => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))].map(b => b.toString(16).padStart(2, '0')).join('');
-  for (const entry of history.slice(1)) assert.equal(await sha(entry.source), entry.hashes.sourceHash);
+  const complete = {};
+  for (const entry of history) {
+    const { version } = (await s.read('GET', `/api/learn/explain/jobs/${id}?board=${boardId}&detail=1&version=${entry.hashes.programHash}`)).body;
+    assert.deepEqual([version.stored, version.verified], [true, { programHash: true, sourceHash: true }]);
+    assert.equal(await sha(version.source), entry.hashes.sourceHash, 'the stored source hashes to the recorded hash');
+    complete[entry.round] = version;
+  }
+  assert.equal(complete[0].source, EX1.source, 'the first draft is kept whole, although it never validated');
   assert.deepEqual(history.slice(1).map(h => h.hashes.programHash), diagnostics.candidates.map(c => c.programHash));
   const stored = (await s.read('GET', `/api/learn/explain/jobs/results/${view.body.job.result.resultId}?board=${boardId}`)).body.artifact;
-  assert.deepEqual([history[3].hashes.bundleHash, history[3].hashes.sourceHash, history[3].source], [stored.bundleHash, stored.sourceHash, stored.source]);
-  assert.equal(history.every(h => h.truncated === false), true);
+  assert.deepEqual([history[3].hashes.bundleHash, history[3].hashes.sourceHash, complete[3].source], [stored.bundleHash, stored.sourceHash, stored.source]);
+  assert.equal(history.every(h => h.truncated === false && !('source' in h)), true, 'an entry holds no program text, so nothing in it is a cut copy');
+  // Another learner cannot resolve it, and without detail nothing is returned.
+  assert.equal('version' in (await s.read('GET', `/api/learn/explain/jobs/${id}?board=${boardId}&version=${history[0].hashes.programHash}`)).body, false);
   // The learner-facing view carries none of it.
   const plain = await s.read('GET', `/api/learn/explain/jobs/${id}?board=${boardId}`);
   assert.equal('history' in plain.body.job || 'diagnostics' in plain.body, false);
@@ -610,7 +621,7 @@ test('M3 program: a setup or engine failure on the render page is a render failu
   s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
   const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
   const boardId = saved.body.board_id;
-  s.behavior.programErrors.push({ code: 'runtime_error', diagnostic: 'setup time limit', phase: 'setup', ms: 21.3 });
+  s.behavior.programErrors.push({ code: 'runtime_limit', diagnostic: 'setup time limit', phase: 'setup', ms: 21.3 });
   s.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
   s.queues.report_review = [verdicts(CAPTURES)];
   const { id, view } = await runJob(s, boardId, { requestId: 'req-prog-0000023', cardId: 'card-prog-23' });
@@ -633,4 +644,32 @@ test('M3 program: a setup or engine failure on the render page is a render failu
   other.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
   const engine = await runJob(other, board2, { requestId: 'req-prog-0000024', cardId: 'card-prog-24' });
   assert.deepEqual([engine.view.body.job.failure.category, count(other, 'repair_explanation')], ['renderer', 0]);
+});
+
+test('REPLAY ex1-a: four candidates at the contract maximum (16 KiB source, a 3 KiB+ manifest) are each kept whole; the saved job stays under the 128 KiB value limit', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  s.env.EXPLAIN_DIAGNOSTICS = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  const boardId = saved.body.board_id;
+  const assumptions = Array.from({ length: 8 }, (_, i) => `Assumption ${i}: ${'a'.repeat(280)}`);
+  const padded = n => {
+    const base = repairedLabel(n).source + `\n// v${n} `;
+    return { source: base + 'p'.repeat(16384 - new TextEncoder().encode(base).length), manifest: { ...EX1.manifest, assumptions } };
+  };
+  s.queues.author_explanation = [{ kind: 'program', program: padded(0) }];
+  s.queues.report_review = [1, 2, 3, 4].map(() => verdicts(CAPTURES, 'fail', [ROOMLAB]));
+  s.queues.repair_explanation = [1, 2, 3].map(n => ({ operation: 'program', program: padded(n), reason: 'Moved the label.' }));
+  const { id, view } = await runJob(s, boardId, { requestId: 'req-prog-0000025', cardId: 'card-prog-25' });
+  assert.deepEqual([view.body.job.stage, view.body.job.stopReason], ['failed', 'rounds']);
+  const record = [...s.stored.values()].map(map => map.get(`job:${id}`)).find(Boolean);
+  const bytes = value => new TextEncoder().encode(JSON.stringify(value)).length;
+  assert.ok(bytes(record) < 128 * 1024, `the job value is ${bytes(record)} bytes`);
+  assert.ok(bytes(record.history) < 16 * 1024, `four entries, no program text: ${bytes(record.history)} bytes`);
+  assert.deepEqual(record.history.map(h => h.sizes.sourceBytes), [16384, 16384, 16384, 16384]);
+  assert.ok(record.history.every(h => h.sizes.manifestBytes > 3072 && h.sizes.manifestBytes <= 4096), 'manifests above the old 3 KiB cap');
+  for (const entry of record.history) {
+    const { version } = (await s.read('GET', `/api/learn/explain/jobs/${id}?board=${boardId}&detail=1&version=${entry.hashes.programHash}`)).body;
+    assert.deepEqual([version.stored, version.source.length, version.verified], [true, 16384, { programHash: true, sourceHash: true }]);
+  }
 });

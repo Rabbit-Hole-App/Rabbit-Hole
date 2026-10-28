@@ -84,7 +84,8 @@ export function runProgram(engine, { source, request }, limits = LIMITS) {
     runtime.setMaxStackSize(limits.stackBytes);
     // Two deadlines, one handler. The host's own setup (context, prelude, SDK: trusted code, the same for every program, slowest on a cold
     // engine) is bounded by the host watchdog; the program's work (loading ITS source, evaluate, serialization) then gets exactly
-    // limits.interruptMs, started after the SDK is in. A setup that fails or is interrupted is the host's, never the program's.
+    // limits.interruptMs, started after the SDK is in, over ALL generated execution (top-level source, evaluate, serialization). A setup that fails or
+    // is interrupted is the host's (phase setup), never the program's. This is not a warm-up: a cold engine still pays its setup.
     let deadline = performance.now() + limits.watchdogMs;
     runtime.setInterruptHandler(() => interrupted ||= performance.now() > deadline); // started before any code runs
     const keep = handle => (handles.push(handle), handle);
@@ -95,7 +96,8 @@ export function runProgram(engine, { source, request }, limits = LIMITS) {
       [parse, serialize, describe] = [0, 1, 2].map(i => keep(context.getProp(helpers, i)));
       keep(context.unwrapResult(context.evalCode(SDK_SOURCE, 'sdk.js', { type: 'global' }))); // the generic SDK (one global, sdk)
     } catch (error) {
-      return fail('runtime_error', 'setup', interrupted ? 'setup time limit' : `setup failed: ${String(error?.message ?? error).slice(0, 200)}`);
+      // The bound was hit: a time limit, in the setup phase. Any other exception in trusted setup is a runtime error in the same phase.
+      return interrupted ? fail('runtime_limit', 'setup', 'setup time limit') : fail('runtime_error', 'setup', `setup failed: ${String(error?.message ?? error).slice(0, 200)}`);
     }
     deadline = performance.now() + limits.interruptMs;
     // A guest exception: limit hit, else its bounded description (read in the guest, still under the deadline).

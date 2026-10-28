@@ -33,7 +33,7 @@ import { artifactIntact, draftOf, programEnabled, programExecution, programFacts
 import { reviewCaptures } from './explain-review.js';
 import * as explainRender from './explain-render.js';
 import { learnMedia } from './learn-storage.js';
-import { recordRound, programHashOf } from './explain-history.js';
+import { recordRound, programHashOf, resolveVersion } from './explain-history.js';
 import { allowedRepairs, defectKeys, programRepairable, presentationFix, programRepairStage, repairStage } from './explain-repair.js';
 import { EXPLAIN_LIMITS, EXPLAIN_POLICY_VERSION, REQUEST_CLASSES, ExplainPolicyError, callExplainRole, checkExplainRequest, explainReservation,
   explainRequest, newTiming, markTiming, beginStage, countStage, endStage, timingSummary } from './explain-policy.js';
@@ -220,7 +220,9 @@ export async function explainRoute(path, req, env, deps = {}) {
   return stub.fetch('https://explain/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, id: results ? rest[1] : rest[0] || null, payload: body, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null }, origin: url.origin,
       // Owner-only diagnostics for live verification runs on a dev clone (EXPLAIN_DIAGNOSTICS, never set in a committed config).
-      detail: req.method === 'GET' && url.searchParams.get('detail') === '1' && env.EXPLAIN_DIAGNOSTICS === 'true' }) });
+      detail: req.method === 'GET' && url.searchParams.get('detail') === '1' && env.EXPLAIN_DIAGNOSTICS === 'true',
+      // ?version=<programHash>: the complete stored source and manifest of one candidate (owner diagnostics only, with detail=1).
+      version: /^[0-9a-f]{16}$/.test(url.searchParams.get('version') || '') ? url.searchParams.get('version') : null }) });
 }
 
 export class ExplainJobs {
@@ -245,7 +247,7 @@ export class ExplainJobs {
     }
   }
 
-  async action({ action, id, payload = {}, board, user, origin, detail = false }) {
+  async action({ action, id, payload = {}, board, user, origin, detail = false, version = null }) {
     if (action === 'list') {
       const jobs = [...(await this.state.storage.list({ prefix: 'job:' })).values()].filter(j => j.owner.email === user.email);
       return json({ jobs: jobs.sort((a, b) => a.createdAt - b.createdAt).map(publicExplainJob) });
@@ -259,7 +261,7 @@ export class ExplainJobs {
       // A program's artifact rides on this authorized answer only (never in the identity the card saves): the host-hashed artifact and the
       // server's execution decision, which the card obeys.
       if (block?.program) view.result = { ...view.result, program: (await this.state.storage.get(`result:${job.resultId}`)).artifact, execution: programExecution(this.env) };
-      return json({ job: view, ...(block ? { block } : {}), ...(detail ? { diagnostics: explainDiagnostics(job) } : {}) });
+      return json({ job: view, ...(block ? { block } : {}), ...(detail ? { diagnostics: explainDiagnostics(job), ...(version ? { version: await resolveVersion(job, version, this.state.storage) } : {}) } : {}) });
     }
     if (action === 'cancel') return this.stop(job);
     if (action === 'retry') return this.retry(job, payload);
@@ -336,7 +338,7 @@ export class ExplainJobs {
   }
   async prune(jobs) {
     const old = jobs.filter(j => TERMINAL.has(j.stage)).sort((a, b) => b.updatedAt - a.updatedAt).slice(JOBS_KEPT - 1);
-    for (const j of old) { await this.state.storage.delete?.(jobKey(j.id)); await this.state.storage.delete?.(`request:${j.requestId}`); if (!j.artifact) await this.state.storage.delete?.(`result:${j.resultId}`); } // a program's source lives only here, so pruning a job keeps its result
+    for (const j of old) { await this.state.storage.delete?.(jobKey(j.id)); await this.state.storage.delete?.(`request:${j.requestId}`); if (!j.artifact) await this.state.storage.delete?.(`result:${j.resultId}`); for (const h of j.history || []) if (h.version?.stored) await this.state.storage.delete?.(h.version.key); } // a program's source lives only here, so pruning a job keeps its result
   }
 
   // The learner's available allowance must cover generation's full worst case before any of it starts.
@@ -613,7 +615,7 @@ export class ExplainJobs {
     else if (stage === 'validating') {
       if (out.problems?.length) {
         job.findings.push({ round: job.round, stage, problems: out.problems });
-        if (job.program) await recordRound(job, { stage, outcome: 'invalid', problems: out.problems });
+        if (job.program) await recordRound(job, { stage, outcome: 'invalid', problems: out.problems }, this.state.storage);
         // A time presentation that only reveals is fixed deterministically first: no model call and no correction round.
         // With the program route on, a timed idea is never rewritten static: the problem goes to repair or to a stop with its reason.
         const fixed = job.spec && !programEnabled(this.env) ? presentationFix(job.spec) : null;
@@ -625,7 +627,7 @@ export class ExplainJobs {
       // A program that ran and failed goes to repair like a refused spec, with the reason; it is not a render failure.
       if (out.problems?.length) {
         job.findings.push({ round: job.round, stage, problems: out.problems });
-        if (job.artifact) await recordRound(job, { stage, outcome: 'runtime', problems: out.problems, runtime: out.runtime });
+        if (job.artifact) await recordRound(job, { stage, outcome: 'runtime', problems: out.problems, runtime: out.runtime }, this.state.storage);
         return this.repairOrStop(job, out);
       }
       if (out.coverage) job.coverage = out.coverage; else delete job.coverage;
@@ -635,7 +637,7 @@ export class ExplainJobs {
     } else if (stage === 'reviewing') {
       // The reviewer's findings are kept for an accepted result too (minor ones do not block it).
       job.findings.push({ round: job.round, stage, accepted: out.accepted === true, findings: out.findings || [] });
-      if (job.artifact) await recordRound(job, { stage, outcome: out.accepted === true ? 'accepted' : 'rejected', findings: out.findings || [] });
+      if (job.artifact) await recordRound(job, { stage, outcome: out.accepted === true ? 'accepted' : 'rejected', findings: out.findings || [] }, this.state.storage);
       if (out.accepted === true) return this.accept(job, out);
       return this.repairOrStop(job, out);
     } else if (stage === 'repairing') {

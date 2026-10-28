@@ -18,7 +18,7 @@ async function answer({ data: { id, source, request } }) {
     self.postMessage({ id, ...runProgram(await engine, { source, request }) });
   } catch {
     // The engine itself failed (a WASM trap, not a guest exception): report once and stop; the host starts a new Worker.
-    self.postMessage({ id, ok: false, code: 'runtime_error', phase: 'engine', detail: 'engine failure' });
+    self.postMessage({ id, ok: false, code: 'runtime_error', phase: 'engine', detail: 'engine failure: the interpreter stopped outside the program' });
     self.close();
   }
 }
