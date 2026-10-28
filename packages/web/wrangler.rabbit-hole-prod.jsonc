@@ -143,7 +143,7 @@
     // public activation: public generation stays paused (next line), so only the owner list below can start. To go back to today's settings
     // (16:9, 5 to 30 s) comment this line again.
     "MOTION_RENDERER_CONFIG": "03f2a1efc08e-1.5cpu-3gib-420s",
-    // R2b, THE PUBLIC FLIP (owner 2026-10-26), HELD: released only after the 16:9 and 9:16 owner-only acceptance jobs passed with their accounting rows and the
+    // R2b, THE PUBLIC FLIP (owner GO 2026-10-28): released only after the 16:9 and 9:16 owner-only acceptance jobs passed with their accounting rows and the
     // corrected credit disclosure is on main. Public generation is back ON ("0") and nothing else changes: the orchestrator's US$5.00 per-job ceiling and the
     // 500-credit maximum stay (the disclosed maximum charge is pinned to the ceiling). The owner list below stays: it only matters while this is "1" (a later pause).
     "MOTION_GENERATION_PAUSED": "0",
