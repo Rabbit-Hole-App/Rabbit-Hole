@@ -18,10 +18,14 @@ const VALID = `export function evaluate({ inputs, time }) {
   return { frame: { objects, readouts: [{ id: 'k', value: inputs.k ?? 1 }] }, quantities: { k: inputs.k ?? 1 } };
 }`;
 const REQUEST = { inputs: { k: 2 }, time: 0.5, seed: 7, state: null };
+// Valid programs are checked for correctness under the host watchdog's budget, not the 50 ms interrupt: on this shared machine
+// (other lanes' builds) a valid 2-4 ms program intermittently took over 50 ms of wall time. The abuse cases keep the real
+// 50 ms budget, and the disposal test counts how many valid runs went over it (reported in the receipt).
+const RELAXED = { ...LIMITS, interruptMs: LIMITS.watchdogMs };
 
 let engine, observer, hits = 0, peakWasm = 0;
 const rows = [], timings = {};
-const run = (source, request = REQUEST, limits) => {
+const run = (source, request = REQUEST, limits = RELAXED) => {
   const out = runProgram(engine, { source, request }, limits);
   peakWasm = Math.max(peakWasm, out.metrics.wasmBytes);
   return out;
@@ -45,8 +49,8 @@ const OBSERVED = () => `http://127.0.0.1:${observer.address().port}/leak`;
 function abuse(name, source, expected, check) {
   test(name, () => {
     const before = hits;
-    const out = run(typeof source === 'function' ? source() : source);
-    const next = run(VALID);
+    const out = run(typeof source === 'function' ? source() : source, REQUEST, expected ? LIMITS : RELAXED);
+    const next = run(VALID, REQUEST, RELAXED);
     rows.push({ name, expected: expected ? `${expected.code}/${expected.phase}` : 'ok', got: out.ok ? 'ok' : `${out.code}/${out.phase}`, ms: out.metrics.ms, detail: out.ok ? '' : out.detail, followUp: next.ok, network: hits - before });
     if (expected) assert.deepEqual({ code: out.code, phase: out.phase }, expected, out.detail);
     else assert.equal(out.ok, true, out.detail);
@@ -63,7 +67,7 @@ test('ENGINE_FINGERPRINT is the SHA-256 of the installed engine WASM', () => {
 });
 
 test('a valid program evaluates to bounded JSON', () => {
-  const out = run(VALID);
+  const out = run(VALID, REQUEST, RELAXED);
   assert.equal(out.ok, true, out.detail);
   assert.equal(out.value.frame.objects.length, 21);
   assert.equal(out.value.quantities.k, 2);
@@ -115,14 +119,15 @@ abuse('catastrophic regular expression', `export function evaluate() { return { 
 abuse('a guest that catches the interrupt cannot keep running', `export function evaluate() { for (;;) { try { for (;;) {} } catch (e) {} } }`, { code: 'runtime_limit', phase: 'evaluate' });
 
 // Output: serialized in the guest under the deadline, measured before it is copied out, then depth-checked.
+// Cases are built cheaply (long strings, few entries) so the size bound, not the deadline, is what stops them on a busy machine.
 // The whole result (frame, quantities, anything else) is measured: the guest-side bound stops an oversized walk, the host
 // checks the exact UTF-8 bytes. Over the limit is invalid_output (the stable contract code).
 const N = LIMITS.outputBytes, AT = 'x'.repeat(N - 8); // {"s":"<AT>"} is exactly N bytes
 abuse('huge output (1 MB string)', `export function evaluate() { return { s: 'x'.repeat(1 << 20) }; }`, { code: 'invalid_output', phase: 'serialize' });
-abuse('huge output across many objects', `export function evaluate() { return { frame: { objects: Array.from({ length: 10000 }, (_, i) => ({ kind: 'circle', id: 'c' + i, x: i, y: i, r: 1 })) }, quantities: {} }; }`, { code: 'invalid_output', phase: 'serialize' });
-abuse('huge quantities beside a small frame', `export function evaluate() { const q = {}; for (let i = 0; i < 40000; i++) q['q' + i] = i; return { frame: { objects: [] }, quantities: q }; }`, { code: 'invalid_output', phase: 'serialize' });
+abuse('huge output across many objects', `export function evaluate() { return { frame: { objects: Array.from({ length: 600 }, (_, i) => ({ kind: 'text', id: 'c' + i, x: i, y: i, text: 'w'.repeat(500) })) }, quantities: {} }; }`, { code: 'invalid_output', phase: 'serialize' });
+abuse('huge quantities beside a small frame', `export function evaluate() { const q = {}, long = 'q'.repeat(60); for (let i = 0; i < 4000; i++) q[long + i] = i; return { frame: { objects: [] }, quantities: q }; }`, { code: 'invalid_output', phase: 'serialize' });
 abuse('getter inflates output during serialization', `export function evaluate() { return { frame: { get objects() { return 'y'.repeat(300000); } } }; }`, { code: 'invalid_output', phase: 'serialize' });
-abuse('toJSON inflates output during serialization', `export function evaluate() { return { frame: { toJSON() { return new Array(100000).fill(123456); } } }; }`, { code: 'invalid_output', phase: 'serialize' });
+abuse('toJSON inflates output during serialization', `export function evaluate() { return { frame: { toJSON() { return new Array(300).fill('z'.repeat(1000)); } } }; }`, { code: 'invalid_output', phase: 'serialize' });
 abuse('output exactly at the byte limit passes', `export function evaluate() { return { s: 'x'.repeat(${N - 8}) }; }`, null, out => { assert.equal(out.metrics.outputBytes, N); assert.equal(out.value.s, AT); });
 abuse('output one byte over the limit is refused', `export function evaluate() { return { s: 'x'.repeat(${N - 7}) }; }`, { code: 'invalid_output', phase: 'serialize' });
 abuse('multi-byte output at the byte limit passes (bytes, not characters)', `export function evaluate() { return { s: 'é'.repeat(${(N - 8) / 2}) }; }`, null);
@@ -141,7 +146,7 @@ abuse('microtask loop is never run', `export function evaluate() {
   Promise.resolve().then(() => { for (;;) {} });
   (async () => { await null; for (;;) {} })();
   return { frame: { objects: [] }, quantities: {} };
-}`, null, out => assert.ok(out.metrics.ms < LIMITS.interruptMs));
+}`, null); // had a queued loop run, the operation would end in runtime_limit, not ok
 abuse('async evaluate yields a promise, which serializes to an empty object (the frame schema then refuses it)', `export async function evaluate() { return { frame: {} }; }`, null, out => assert.deepEqual(out.value, {}));
 
 abuse('syntax error', `export function evaluate( {`, { code: 'invalid_program', phase: 'load' });
@@ -170,7 +175,7 @@ test('time and randomness come only from the request: no Date, seeded Math.rando
 
 test('repeated engine initialization gives independent engines that each run', async () => {
   const engines = await Promise.all([loadEngine(), loadEngine(), loadEngine()]);
-  for (const other of engines) assert.equal(runProgram(other, { source: VALID, request: REQUEST }).ok, true);
+  for (const other of engines) assert.equal(runProgram(other, { source: VALID, request: REQUEST }, RELAXED).ok, true);
   assert.equal(runProgram(engines[0], { source: `globalThis.x = 1; export function evaluate() { return { x: 1 }; }`, request: REQUEST }).ok, true);
   assert.deepEqual(runProgram(engines[1], { source: `export function evaluate() { return { x: typeof x }; }`, request: REQUEST }).value, { x: 'undefined' });
 });
@@ -180,18 +185,18 @@ test('disposal: 300 operations, abuse interleaved, leave WASM memory flat; warm 
   const t0 = performance.now();
   const cold = await loadEngine();
   timings.coldBootMs = performance.now() - t0;
-  const first = runProgram(cold, { source: VALID, request: REQUEST });
+  const first = runProgram(cold, { source: VALID, request: REQUEST }, RELAXED);
   timings.firstRunMs = first.metrics.ms;
   timings.wasmAfterFirst = cold.getWasmMemory().buffer.byteLength;
   const warm = [];
   for (let i = 0; i < 300; i++) {
     if (i % 50 === 25) runProgram(cold, { source: `export function evaluate() { const k = []; for (;;) k.push(new Array(1e5).fill(1)); }`, request: REQUEST });
-    const out = runProgram(cold, { source: VALID, request: { ...REQUEST, time: i / 30 } });
+    const out = runProgram(cold, { source: VALID, request: { ...REQUEST, time: i / 30 } }, RELAXED);
     assert.equal(out.ok, true, out.detail);
     warm.push(out.metrics.ms);
   }
   warm.sort((x, y) => x - y);
-  Object.assign(timings, { warmP50Ms: warm[150], warmP95Ms: warm[285], warmMaxMs: warm.at(-1), wasmAfter300: cold.getWasmMemory().buffer.byteLength, outputBytes: first.metrics.outputBytes });
+  Object.assign(timings, { overInterrupt: warm.filter(ms => ms > LIMITS.interruptMs).length, warmP50Ms: warm[150], warmP95Ms: warm[285], warmMaxMs: warm.at(-1), wasmAfter300: cold.getWasmMemory().buffer.byteLength, outputBytes: first.metrics.outputBytes });
   assert.ok(timings.wasmAfter300 <= LIMITS.wasmBytes && peakWasm <= LIMITS.wasmBytes, `WASM memory ${timings.wasmAfter300}, peak ${peakWasm}`);
 });
 
@@ -214,7 +219,7 @@ Rows matching expectation: ${passed}/${rows.length} (node:test assertions are au
 ## Timings and memory (this machine, Node, not a browser)
 
 - Cold engine boot, first in this process (WASM compile + instantiate): ${timings.firstBootMs?.toFixed(1)} ms; a later boot in the same process: ${timings.coldBootMs?.toFixed(1)} ms; first operation ${timings.firstRunMs?.toFixed(2)} ms.
-- Warm operation (fresh runtime + context, source load, evaluate, in-guest serialize, host parse) for the 200-point + 20-object program, 300 runs: p50 ${timings.warmP50Ms?.toFixed(2)} ms, p95 ${timings.warmP95Ms?.toFixed(2)} ms, max ${timings.warmMaxMs?.toFixed(2)} ms. Output ${timings.outputBytes} bytes.
+- Warm operation (fresh runtime + context, source load, evaluate, in-guest serialize, host parse) for the 200-point + 20-object program, 300 runs: p50 ${timings.warmP50Ms?.toFixed(2)} ms, p95 ${timings.warmP95Ms?.toFixed(2)} ms, max ${timings.warmMaxMs?.toFixed(2)} ms; ${timings.overInterrupt} of 300 took longer than the ${LIMITS.interruptMs} ms interrupt budget. Output ${timings.outputBytes} bytes.
 - WASM linear memory: ${mb(timings.wasmAfterFirst || 0)} after the first run, ${mb(timings.wasmAfter300 || 0)} after 300 runs with 6 heap-exhaustion programs interleaved; peak seen across all cases ${mb(peakWasm)}.
 `;
 }
