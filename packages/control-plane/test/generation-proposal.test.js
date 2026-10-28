@@ -49,7 +49,7 @@ test('the review rules: Motion proposes; search, /dive, notebook, whiteboard and
 test('signed for one learner: a forged, edited, other-learner or expired proposal is refused; usage is the server\'s, in credits', async () => {
   const p = await sign();
   assert.match(p.proposal_id, /^gp-[0-9a-f]{16}$/);
-  assert.deepEqual([p.version, p.settings, p.input, p.usage], [1, { duration_seconds: 10, aspect_ratio: '16:9', audio: false }, { ...input, binding: { inputs: { duration_seconds: 10, aspect_ratio: '16:9' }, price_version: 'flat', estimate_credits: 100, max_credits: 350, policy_version: 'legacy-5-30', renderer_config: null } }, { estimate_credits: 100, max_credits: 350, reserve_credits: 896, inputs: { duration_seconds: 10, aspect_ratio: '16:9' }, price_version: 'flat' }]);
+  assert.deepEqual([p.version, p.settings, p.input, p.usage], [1, { duration_seconds: 10, aspect_ratio: '16:9', audio: false }, { ...input, binding: { inputs: { duration_seconds: 10, aspect_ratio: '16:9' }, price_version: 'flat', estimate_credits: 100, max_credits: 350, policy_version: 'legacy-5-30', renderer_config: null } }, { estimate_credits: 100, max_credits: 350, reserve_credits: 896, inputs: { duration_seconds: 10, aspect_ratio: '16:9' }, price_version: 'flat', estimate_basis: 'flat' }]);
   assert.equal(await verifyProposal(env, p, 'alice@example.test'), null);
   assert.equal(await verifyProposal(env, p, 'ALICE@example.test'), null, 'the email is compared without case');
   assert.match(await verifyProposal(env, p, 'bob@example.test'), /not made for you/);
@@ -201,6 +201,8 @@ test('the signed binding: inputs, quote, price version, policy version and rende
   const priced = { ...live, MOTION_PRICE_TABLE: table('b1', 1.5) };
   const q = await signProposal(priced, { ...validateProposalInput(water()), input }, 'alice@example.test');
   assert.deepEqual([q.usage.estimate_credits, q.usage.price_version, q.input.binding.price_version], [150, 'b1', 'b1']);
+  // Owner 2026-10-28: the card words the estimate by its basis, derived from the same signed price version: a table is 'measured', the single configured price is 'flat'.
+  assert.deepEqual([q.usage.estimate_basis, q.input.binding.price_version !== 'flat'], ['measured', true]);
   assert.equal(motionGenerationCheck(priced, { request: '/motion x', proposal: q }), null);
   const stale = motionGenerationCheck({ ...priced, MOTION_PRICE_TABLE: table('b2', 2) }, { request: '/motion x', proposal: q });
   assert.deepEqual([stale.code, stale.quote, stale.error], [MOTION_QUOTE_STALE, { price_version: 'b2', estimate_credits: 200, max_credits: 350, inputs: { duration_seconds: 10, aspect_ratio: '16:9' } }, 'The price changed to About 200 credits, and it can cost up to 350 credits. Review it and press Generate again to confirm.']);

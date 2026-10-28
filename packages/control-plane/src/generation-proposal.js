@@ -19,7 +19,7 @@ import { CHAT_CAPABILITIES, chatCapability } from '../../web/src/inline-ai-route
 import { hmacHex } from './token.js';
 import { explainReservation } from './explain-policy.js';
 import { SCHEMA_VERSION, commandDefinition, firstReadOnly, settingsOf, validateSettings as validateCommandSettings } from '../../web/src/generation-confirmation-schema.js';
-import { MOTION_DEFAULT_RATIO, MOTION_RATIOS, motionBinding, motionMaxCredits, motionQuote, motionQuoteInputs, motionReadiness } from './motion-settings.js';
+import { FLAT_PRICE_VERSION, MOTION_DEFAULT_RATIO, MOTION_RATIOS, motionBinding, motionMaxCredits, motionQuote, motionQuoteInputs, motionReadiness } from './motion-settings.js';
 import { REVIEW_LISTS, escapeText, plainPrompt, reviewHash, reviewOf, validateReview } from '../../web/src/generation-review.js';
 import { imageQuote } from './image-providers.js';
 import { imageReadiness } from './image-settings.js';
@@ -166,10 +166,11 @@ export function proposalUsage(env, command, settings) {
   const hold = motionReservationMicros(env);
   // inputs: what this quote was made for (motionQuoteInputs, the pricing seam), and price_version: the version of the price table (or "flat").
   // Both are signed with the proposal (motionBinding); Generate answers a stale one with the updated quote (motionGenerationCheck).
+  // estimate_basis is derived from that signed price_version ('flat' = the single configured price, else a measured table), so the card's wording cannot disagree with the binding.
   const quote = motionQuote(env, motionQuoteInputs(settings));
   // Three separate numbers (owner 2026-10-26, docs/features/motion-credit-disclosure.md): the estimate, the MAXIMUM POSSIBLE CHARGE (max_credits,
   // the figure signed into the binding) and the temporary reservation (reserve_credits: held while it runs, released unused). Credits only.
-  return { estimate_credits: quote.estimate_credits, max_credits: motionMaxCredits(env), reserve_credits: hold == null ? null : credits(hold / 1e6), ...(settings ? { inputs: motionQuoteInputs(settings), price_version: quote.price_version } : {}) };
+  return { estimate_credits: quote.estimate_credits, max_credits: motionMaxCredits(env), reserve_credits: hold == null ? null : credits(hold / 1e6), ...(settings ? { inputs: motionQuoteInputs(settings), price_version: quote.price_version, estimate_basis: quote.price_version === FLAT_PRICE_VERSION ? 'flat' : 'measured' } : {}) };
 }
 // The server's readiness answer for the card, unsigned like usage and decided again at Generate: Motion only.
 const readinessOf = (env, p) => (p.command === 'generate-image' ? { readiness: imageReadiness(p.settings, p.references?.length ?? 0) } : p.command === 'motion' ? { readiness: motionReadiness(env, motionQuoteInputs(p.settings)) } : {});

@@ -91,9 +91,9 @@ test('the usage line: server credits on one line, never dollars', () => {
   assert.match(html(), /<p data-proposal-usage="true"[^>]*>Estimated cost: 100 AI credits<\/p>/);
   const big = html({ proposal: proposal({ usage: { estimate_credits: 1200, max_credits: 4200, reserve_credits: 8960 } }) });
   assert.match(big, /Estimated cost: 1,200 AI credits</);
-  assert.match(big, /Most it can cost: 4,200 AI credits\./);
+  assert.match(big, /It never costs more than 4,200 AI credits\./);
   for (const usage of [{ estimate_credits: 100, max_credits: 350, reserve_credits: 896 }, { estimate_credits: 100, max_credits: 350, reserve_credits: null }, { estimate_credits: null, reserve_credits: 896 }, { estimate_credits: 1200, max_credits: 4200, reserve_credits: 8960 }]) {
-    for (const line of [B.usageLine(usage), B.maxLine(usage), B.holdLine(usage)]) assert.doesNotMatch(line, /\$/, JSON.stringify(usage));
+    for (const line of [B.usageLine(usage), B.maxLine(usage), B.holdLine(usage, 0)]) assert.doesNotMatch(line, /\$/, JSON.stringify(usage));
   }
   assert.equal(B.usageLine({ estimate_credits: null, reserve_credits: null }), '');
   assert.equal(B.usageLine({ estimate_credits: null, reserve_credits: 896 }), '', 'a reservation alone shows nothing');
@@ -106,8 +106,8 @@ test('the usage line: server credits on one line, never dollars', () => {
 test('the Motion card states the estimate, the maximum and the temporary hold apart; without a maximum it shows no estimate and blocks Generate', () => {
   const out = html();
   assert.match(out, /<p data-proposal-usage="true"[^>]*>Estimated cost: 100 AI credits<\/p>/);
-  assert.match(out, /<p data-proposal-max[^>]*>Most it can cost: 350 AI credits\. You are never charged more\.<\/p>/);
-  assert.match(out, /<p data-proposal-hold[^>]*>896 AI credits are held while it runs; whatever is not used is released\.<\/p>/);
+  assert.match(out, /<p data-proposal-max[^>]*>It never costs more than 350 AI credits\.<\/p>/);
+  assert.doesNotMatch(out, /data-proposal-hold/, 'the hold is not said when it cannot block this person (their credits left are unknown)');
   assert.doesNotMatch(out, /about 100|\.\.\.|…/, 'no single "about N credits" explanation, no ellipsis');
   assert.doesNotMatch(out, /data-proposal-generate="true"[^>]*disabled/, 'a complete quote can be generated');
   // The Motion proposal the server sent without a maximum (negative control: the same card with one is generatable above).
@@ -117,6 +117,35 @@ test('the Motion card states the estimate, the maximum and the temporary hold ap
   assert.match(bare, /<button[^>]*data-proposal-generate="true" disabled=""/);
   assert.equal(B.maxLine({ estimate_credits: 100 }), '');
   assert.equal(B.holdLine({ estimate_credits: 100, reserve_credits: 896 }), '', 'a hold never appears without the maximum');
+});
+
+// Owner 2026-10-28: a MEASURED estimate (the average actual cost of earlier videos, usage.estimate_basis) reads "About N AI credits."; the flat price and any
+// estimate without a measured basis keep "Estimated cost: N AI credits". The server derives the basis from the signed price version.
+test('the estimate wording follows its basis: measured reads About N, flat and unlabelled read Estimated cost', () => {
+  const measured = { estimate_credits: 158, max_credits: 500, reserve_credits: 896, estimate_basis: 'measured' };
+  assert.equal(B.usageLine(measured), 'About 158 AI credits.');
+  assert.equal(B.usageLine({ ...measured, estimate_basis: 'flat' }), 'Estimated cost: 158 AI credits');
+  assert.equal(B.usageLine({ ...measured, estimate_basis: undefined }), 'Estimated cost: 158 AI credits');
+  assert.equal(B.usageLine({ ...measured, estimate_credits: null }), '', 'no number, no line, whatever the basis');
+  const out = html({ proposal: proposal({ usage: measured }) });
+  assert.match(out, /<p data-proposal-usage="true"[^>]*>About 158 AI credits\.<\/p>/);
+  assert.match(out, /<p data-proposal-max[^>]*>It never costs more than 500 AI credits\.<\/p>/);
+  assert.doesNotMatch(out, /Estimated cost|based on|Most it can cost|never charged more/);
+  assert.match(html({ proposal: proposal({ usage: { ...measured, estimate_basis: 'flat' } }) }), />Estimated cost: 158 AI credits</);
+});
+
+// The hold is enforced against the person's credits left (admitSpend: used + held + this hold must fit their allowance), so it can refuse a start even when the
+// estimate is far lower. It is said only then; otherwise it is noise.
+test('the hold line appears only when the credits left are below the hold', () => {
+  const usage = { estimate_credits: 158, max_credits: 500, reserve_credits: 896, estimate_basis: 'measured' };
+  assert.equal(B.holdLine(usage), '', 'credits left unknown: nothing');
+  assert.equal(B.holdLine(usage, 896), '', 'exactly the hold fits');
+  assert.equal(B.holdLine(usage, 5000), '');
+  assert.equal(B.holdLine(usage, 895), 'You need 896 AI credits available to start; unused credits are released.');
+  assert.equal(B.holdLine(usage, 0), 'You need 896 AI credits available to start; unused credits are released.');
+  assert.equal(B.holdLine({ ...usage, max_credits: undefined }, 0), '', 'a hold never appears without the maximum');
+  assert.match(html({ proposal: proposal({ usage }), available: 300 }), /<p data-proposal-hold[^>]*>You need 896 AI credits available to start; unused credits are released\.<\/p>/);
+  assert.doesNotMatch(html({ proposal: proposal({ usage }), available: 3000 }), /data-proposal-hold/);
 });
 
 // Owner schema spec 2026-10-23: Motion's duration is a select of exactly 5, 10, ... 60 seconds (generation-confirmation-schema.js).

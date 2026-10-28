@@ -15,7 +15,7 @@
 // onSave(edit) -> Promise (settings: { settings }, details: { title, description, ... }); onSettingsChange(settings) (older callers);
 // onCancel; onOpenReference(reference); states (server reference states); problem ({ message, errors }); groups ({ key: { defs, legend,
 // parse } }) and groupProblem(key, id, value) for parameter groups; Editor (the pill editor lane's component for the description).
-// status (generation-proposal-status.js, from the REAL job): once Generate was pressed the button shows the job's state (Starting, Queued,
+// available: the person's AI credits left, for the hold line (holdLine). status (generation-proposal-status.js, from the REAL job): once Generate was pressed the button shows the job's state (Starting, Queued,
 // Generating, Ready) with a spinner while it runs, a status line under the actions (announced politely, elapsed time shown but never
 // announced), Go to card (onGoToCard) and, where the job can be stopped, Stop (onStop: the canvas card's own stop request). Without a
 // status the card is as before (made reads Added to the canvas). startedAt: when the job was pressed, for the elapsed time.
@@ -33,15 +33,19 @@ import { Button, Tip, cn } from './ui.jsx';
 
 const ICONS = { doc: FileText, card: StickyNote, group: Group, code: FileCode2, image: ImageIcon, media: Film, web: Globe, progress: ChartColumnIncreasing, canvas: Shapes, file: FileText, excerpt: FileText, graph: ChartColumnIncreasing };
 const fmt = n => Number(n).toLocaleString('en-US');
-// Server-provided credits only (owner messages 30-33: never dollars). The estimate line is "Estimated cost: 12 AI credits" (owner, 2026-10-23).
-// An image also states its other two numbers, apart (owner 2026-10-26, docs/features/image-jobs.md 6f): the most it can cost, and the temporary hold that is
-// released unused. They exist only where the server sent a maximum (schema requires_max), so the estimate is never alone there. -> '' without the number.
+// Server-provided credits only (owner messages 30-33: never dollars). A MEASURED estimate (usage.estimate_basis 'measured': the average actual cost of
+// earlier videos, from the signed price table) reads "About 158 AI credits."; any other estimate (the flat price, /explain) keeps "Estimated cost: 12 AI credits"
+// (owner, 2026-10-23). An image also states its other two numbers, apart (owner 2026-10-26, docs/features/image-jobs.md 6f): the most it can cost, and the
+// temporary hold that is released unused. They exist only where the server sent a maximum (schema requires_max), so the estimate is never alone there.
+// Owner 2026-10-28: shorter wording; the hold is said only when it can block this person (their available credits are below it). -> '' without the number.
 export function usageLine(usage) {
   const e = usage?.estimate_credits;
-  return e != null ? `Estimated cost: ${fmt(e)} AI credits` : '';
+  if (e == null) return '';
+  return usage.estimate_basis === 'measured' ? `About ${fmt(e)} AI credits.` : `Estimated cost: ${fmt(e)} AI credits`;
 }
-export const maxLine = usage => (usage?.max_credits != null ? `Most it can cost: ${fmt(usage.max_credits)} AI credits. You are never charged more.` : '');
-export const holdLine = usage => (usage?.max_credits != null && usage.reserve_credits != null ? `${fmt(usage.reserve_credits)} AI credits are held while it runs; whatever is not used is released.` : '');
+export const maxLine = usage => (usage?.max_credits != null ? `It never costs more than ${fmt(usage.max_credits)} AI credits.` : '');
+// available: the person's AI credits left (null = not known: nothing is said). A start is refused when the hold does not fit in them, so only then is it worth a line.
+export const holdLine = (usage, available = null) => (usage?.max_credits != null && usage.reserve_credits != null && available != null && usage.reserve_credits > available ? `You need ${fmt(usage.reserve_credits)} AI credits available to start; unused credits are released.` : '');
 // A price the server cannot quote is said, never shown as zero (the command blocks Generate until it can).
 export const UNKNOWN_PRICE = 'Price not available yet';
 // A select field's choices from the schema, plus the proposal's own value when it is not one of them (a proposal made before the
@@ -281,7 +285,7 @@ function StopControl({ noun, onStop, onFailed }) {
 
 // made: this proposal already added its card (inactive, but not superseded).
 export default function GenerationProposalCard({ proposal = null, view: given = null, defaultEditing = false, settingsMode = 'live', active = true, onGenerate, onSave, onSettingsChange, onCancel, onOpenReference, busy = false, made = false, states = null, problem = null, groups = null,
-  groupProblem = null, released = 0, status = null, startedAt = null, noun = 'video', onStop = null, onGoToCard = null, onStopFailed = null, Editor = DefaultEditor, eyebrow = null, requestLabel = null, note = null, extraSections = [], compact = false, isolate = false, attrs: attrsFn = none }) {
+  groupProblem = null, available = null, released = 0, status = null, startedAt = null, noun = 'video', onStop = null, onGoToCard = null, onStopFailed = null, Editor = DefaultEditor, eyebrow = null, requestLabel = null, note = null, extraSections = [], compact = false, isolate = false, attrs: attrsFn = none }) {
   const view = given ?? proposalView(proposal, states ? { validation_errors: states.filter(s => s.state !== 'ok').map(s => ({ path: `references.${s.id}`, message: s.message })) } : {});
   const def = commandDefinition(view.command);
   const tokenized = proposal ? isReviewProposal(proposal) : false;
@@ -392,7 +396,7 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
       {usage ? <p data-proposal-usage className="text-xs text-ink-2">{usage}</p>
         : view.usage?.unknown && <p data-proposal-usage data-proposal-usage-unknown className="text-xs text-ink-2">{UNKNOWN_PRICE}</p>}
       {maxLine(view.usage) && <p data-proposal-max className="text-xs text-ink-2">{maxLine(view.usage)}</p>}
-      {holdLine(view.usage) && <p data-proposal-hold className="text-xs text-ink-2">{holdLine(view.usage)}</p>}
+      {holdLine(view.usage, available) && <p data-proposal-hold className="text-xs text-ink-2">{holdLine(view.usage, available)}</p>}
       {note && <p data-proposal-note {...attrs('cost')} className="text-[11px] text-ink-2">{note}</p>}
       {message && <p role="alert" data-proposal-problem {...attrs('problem')} className="text-xs text-fail">{message}</p>}
       <div className={cn('flex flex-wrap items-center gap-3', isolate && 'justify-end gap-2')}>

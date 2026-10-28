@@ -14,6 +14,7 @@ import AnswerSuggestions from './AnswerSuggestions.jsx';
 import SyllabusMessage from './SyllabusMessage.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
 import GenerationProposalCard from './GenerationProposalCard.jsx';
+import { useAccountUsage } from './UsageGauge.jsx';
 import { PROPOSAL_REFUSED_EVENT, approvesJob, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
 import { fetchProposal, problemOf, saveProposal } from './generation-review-client.js';
 import { withPrompt } from './card-prompt.js';
@@ -29,6 +30,8 @@ import { responseKind, turnIndex } from './chat-response-kind.js';
 // Generate adds its capability's card (proposalBlock, an adapter per capability) with the exact approved proposal, once (insertCard finds one it already made).
 export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   const p = m.meta.proposal;
+  const account = useAccountUsage(); // the hold line is said only when this person's credits left are below it (holdLine)
+  const available = account.status === 'ready' && account.usage.enforced ? account.usage.remaining / 10_000 : null;
   const chat = useChatWorkspace(); // a reference pill opens its source beside the Chat, as an attached chip does
   const [busy, setBusy] = useState(false), [error, setError] = useState(null), [pressed, setPressed] = useState(false), [released, setReleased] = useState(0);
   const saved = /^\d+$/.test(String(m.messageId ?? ''));
@@ -158,7 +161,7 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   return (
     <div className="mt-2">
       {/* A motion or image proposal draws its job's status on the card itself (status), so it no longer reads Added to the canvas. */}
-      <GenerationProposalCard proposal={p} active={active} made={cardKind ? false : made} released={released} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
+      <GenerationProposalCard proposal={p} active={active} made={cardKind ? false : made} released={released} available={available} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
         status={status} startedAt={output?.startedAt || pressedAt} noun={cardKind === 'image' ? 'image' : 'video'} onGoToCard={goToCard}
         onStop={status?.canStop && ops?.stopGeneration ? () => ops.stopGeneration(status.cardId) : null} onStopFailed={setError}
         onGenerate={onGenerate} onSave={onSave} onOpenReference={ref => chat?.openSource?.({ sourceId: ref.sourceId, kind: ref.kind, name: ref.label, version: ref.revision, range: ref.range })} />

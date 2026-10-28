@@ -41,13 +41,22 @@ Worker-side counterpart, and a test keeps the two from drifting (below).
 
 ## Confirmation card copy (credits only, plain language)
 
-The Motion proposal card shows three lines, each in its own element, in this order:
+Owner 2026-10-28 (replaces the three-line wording of 2026-10-26): shorter, and the estimate comes from measured earlier videos.
 
 ```
-Estimated cost: 100 AI credits
-Most it can cost: 350 AI credits. You are never charged more.
-896 AI credits are held while it runs; whatever is not used is released.
+About 158 AI credits.                              (estimate_basis "measured": the average actual cost of earlier videos)
+Estimated cost: 100 AI credits                     (estimate_basis "flat", or no basis: the single configured price, /explain)
+It never costs more than 500 AI credits.
+You need 896 AI credits available to start; unused credits are released.   (only when the person's credits left are below the hold)
 ```
+
+`usage.estimate_basis` is derived on the server from the quote's `price_version` ("flat" = `MOTION_ESTIMATE_USD`, anything else = a
+`MOTION_PRICE_TABLE` version), the same version the proposal signs in `input.binding`, so the wording cannot disagree with the signed
+quote; moving between flat and a table (or between table versions) makes an open card stale once and the person reconfirms. The hold is
+enforced against the learner's allowance (`admitSpend`: used + held + the hold must fit), so it can refuse a start even when the estimate
+is far lower; the card says it only when the account usage (`/api/learn/usage`, enforced) shows fewer credits left than the hold, and
+says nothing when that is unknown. The measured table is produced by `motion-price-table.mjs` (read-only, completed accepted videos only).
+The maximum (500) and the hold (896) are unchanged.
 
 The older video card's confirmation reads:
 `This uses paid generation · estimated 100 credits, at most 350. 896 credits are held while it runs; whatever is not used is released.`
@@ -56,8 +65,7 @@ Rules: the estimate is never shown without the maximum. If the server cannot giv
 estimate), the card shows "Price not available yet", its validation says the price is not known, and Generate is blocked
 (`requires_max` in `generation-confirmation-schema.js`); the older card falls back to "This uses paid generation." with
 no number. A card saved before this change has no maximum, so it is blocked and the person asks for it again in chat.
-Whether to show the 896-credit hold at all is an open owner decision (see the hand-back); it is one line
-(`holdLine`, `motionConfirm`) and removable without touching the signed quote.
+The older canvas video card (`motionConfirm`) still uses its previous sentence.
 
 ## The signed, versioned quote (reconfirmation rule)
 

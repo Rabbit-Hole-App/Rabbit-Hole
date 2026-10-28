@@ -31,7 +31,7 @@ const { MOTION_MAX_CHARGE_USD: _removed, ...R2_WITHOUT_MAX } = R2; // eslint-dis
 
 test('the three numbers are separate and ordered: estimate 100, maximum 500, temporary reservation 896 credits', () => {
   assert.deepEqual([PROD.MOTION_ESTIMATE_USD, PROD.MOTION_MAX_CHARGE_USD, PROD.MOTION_JOB_RESERVATION_USD], ['1.00', '5.00', '8.96']);
-  assert.deepEqual(proposalUsage(R2, 'motion', { duration_seconds: 10 }), { estimate_credits: 100, max_credits: 500, reserve_credits: 896, inputs: { duration_seconds: 10, aspect_ratio: '16:9' }, price_version: 'flat' });
+  assert.deepEqual(proposalUsage(R2, 'motion', { duration_seconds: 10 }), { estimate_credits: 100, max_credits: 500, reserve_credits: 896, inputs: { duration_seconds: 10, aspect_ratio: '16:9' }, price_version: 'flat', estimate_basis: 'flat' });
 });
 
 test('the maximum is pinned to the orchestrator ceiling: at least the ceiling, at most the hold; removing or raising the ceiling fails here', () => {
@@ -52,7 +52,13 @@ test('the signed quote carries the maximum: binding, usage and the card view agr
   assert.equal(await verifyProposal(R2, p, 'alice@example.test'), null);
   assert.match(await verifyProposal(R2, { ...p, input: { ...p.input, binding: { ...p.input.binding, max_credits: 100 } } }, 'alice@example.test'), /changed/, 'the signed maximum cannot be edited');
   const view = proposalView(p);
-  assert.deepEqual(view.usage, { estimate_credits: 100, max_credits: 500, reserve_credits: 896 });
+  assert.deepEqual(view.usage, { estimate_credits: 100, estimate_basis: 'flat', max_credits: 500, reserve_credits: 896 });
+  // Owner 2026-10-28: a price table makes the basis 'measured' (the card then says "About N AI credits."), and it reaches the card view; the flat price stays 'flat'.
+  const measured = { ...R2, MOTION_PRICE_TABLE: JSON.stringify({ version: 'm1-test', buckets: [{ aspect_ratio: ['16:9'], min_seconds: 5, max_seconds: 30, estimate_usd: 1.578164 }] }) };
+  const m = await sign(measured);
+  assert.deepEqual([m.usage.estimate_credits, m.usage.estimate_basis, m.input.binding.price_version, proposalView(m).usage.estimate_basis], [158, 'measured', 'm1-test', 'measured']);
+  assert.equal(motionGenerationCheck(R2, { request: input.request, proposal: m }).code, 'motion_quote_stale', 'a card made on the table is stale once the flat price is live again');
+  assert.equal(motionGenerationCheck(measured, { request: input.request, proposal: p }).code, 'motion_quote_stale', 'an existing flat card is stale once the table is live: the person reconfirms');
   assert.equal(view.allowed_actions.includes('generate'), true);
   assert.equal(motionGenerationCheck(R2, { request: input.request, proposal: p }), null, 'unchanged: not stale');
 });

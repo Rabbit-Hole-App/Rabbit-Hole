@@ -377,8 +377,9 @@ for (const theme of ['light', 'dark']) {
     assert.deepEqual([await card.locator('[data-proposal-audio="off"]').getAttribute('aria-pressed'), await card.locator('[data-proposal-audio="on"]').isDisabled()], ['true', true]);
     assert.match(await card.locator('[data-proposal-usage]').innerText(), /^Estimated cost: 100 AI credits/);
     // Owner 2026-10-26 (D1b): the estimate, the most it can cost and the temporary hold are three separate lines (docs/features/motion-credit-disclosure.md).
-    assert.equal((await card.locator('[data-proposal-max]').innerText()).trim(), 'Most it can cost: 350 AI credits. You are never charged more.');
-    assert.equal((await card.locator('[data-proposal-hold]').innerText()).trim(), '896 AI credits are held while it runs; whatever is not used is released.');
+    // Owner 2026-10-28: shorter wording. This mock has no measured basis, so the estimate keeps "Estimated cost"; the hold is said only when the person's credits left are below it.
+    assert.equal((await card.locator('[data-proposal-max]').innerText()).trim(), 'It never costs more than 350 AI credits.');
+    assert.equal(await card.locator('[data-proposal-hold]').count(), 0, 'the hold is not said unless it can block this person');
     assert.doesNotMatch(await card.innerText(), /\$\d|Will show|Cancel/);
     assert.deepEqual([await card.locator('[data-proposal-generate]').count(), (await card.locator('[data-proposal-generate]').innerText()).trim()], [1, 'Generate']);
     assert.equal(await card.getByRole('button', { name: 'Cancel' }).count(), 0, 'no Cancel');

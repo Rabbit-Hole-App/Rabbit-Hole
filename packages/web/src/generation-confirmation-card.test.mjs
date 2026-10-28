@@ -128,8 +128,8 @@ test('Generate image: only the selected model\'s options, an unquoted price bloc
   // Three numbers, each in its own line (owner 2026-10-26, as Motion): the estimate, the most it can cost, the temporary hold. An estimate alone blocks Generate.
   const priced = html({ proposal: image({ model: 'gemini-3-pro-image', aspect_ratio: '16:9' }, { usage: { estimate_credits: 14, max_credits: 20, reserve_credits: 30 } }) });
   assert.match(priced, /Estimated cost: 14 AI credits/); // owner 2026-10-23 wording (GenerationProposalCard.jsx)
-  assert.match(priced, /data-proposal-max[^>]*>Most it can cost: 20 AI credits\. You are never charged more\./);
-  assert.match(priced, /data-proposal-hold[^>]*>30 AI credits are held while it runs; whatever is not used is released\./);
+  assert.match(priced, /data-proposal-max[^>]*>It never costs more than 20 AI credits\./);
+  assert.doesNotMatch(priced, /data-proposal-hold/, 'the hold is said only when it can block the person (holdLine)');
   assert.doesNotMatch(priced, /<button[^>]*data-proposal-generate="true" disabled=""/);
   assert.doesNotMatch(text(priced), /\$|dollar|USD|cents/i, 'credits only');
   const unmaxed = html({ proposal: image({ model: 'gemini-3-pro-image', aspect_ratio: '16:9' }, { usage: { estimate_credits: 14 } }) });
