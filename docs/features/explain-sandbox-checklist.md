@@ -1,6 +1,6 @@
 # Generic /explain sandbox checklist
 
-Plan: [docs/superpowers/plans/2026-10-28-explain-sandbox.md](../superpowers/plans/2026-10-28-explain-sandbox.md). Baseline main 1a4434cff466d0648dc274dbb56dc2481a64fbf4 (inspected 2026-10-28). Times are PT unless marked UTC. Nothing here is a claim that the sandbox, provider generation or a production deployment has passed.
+Plan: [docs/superpowers/plans/2026-10-28-explain-sandbox.md](../superpowers/plans/2026-10-28-explain-sandbox.md). Baseline main 1a4434cff466d0648dc274dbb56dc2481a64fbf4 (inspected 2026-10-28). Times are PT unless marked UTC. Updated 2026-10-28 10:55 AM PT against branch feat/explain-sandbox-m3. Columns are kept separate on purpose: implemented (code on the branch), tested (check kind and run), on main, deployed, enabled, accepted. Nothing here is on main, deployed to a usable preview, or accepted by genuine generation yet.
 
 Superseded: the earlier component-family plan (swinging-body, gear-train, dedicated pendulumPeriod/gearRate calculators; reports REPORT.md and REPORT-v2-tightened.md, kept only as historical evidence) and the proposal for a custom expression language.
 
@@ -13,14 +13,18 @@ Owners: integrator = Parallel; Agent A runtime (Tasks 1, 3); Agent B card/render
 | Task | Owner | Implemented | Checked (kind/run) | Main SHA/link | Deployed | Enabled audience | Accepted evidence | Next action/blocker |
 |---|---|---|---|---|---|---|---|---|
 | 0 Plan and baseline | integrator | plan + checklist committed on branch feat/explain-sandbox-task0-plan | docs only | not on main | no | none | none | owner launcher with the first milestone (Tasks 0-2) |
-| 1 Interpreter boundary | A | not started | | | | | | runtime proof |
-| 2 Artifact and render contract | B | not started | | | | | | |
-| 3 Host and responsiveness | A | not started | | | | | | needs 1, 2 |
-| 4 Program inside the card | B | not started | | | | | | needs 2, 3 |
-| 5 Author and persist via V2 | C | not started | | | | | | needs 2 |
-| 6 Review, repair, accounting | C | not started | | | | | | needs 3-5 |
-| 7 Genuine MVP | integrator + C | not started | | | | | | needs 1-6; reprice first |
-| 8 Interactions and time | B / A | not started | | | | | | needs 7 |
-| 9 Context, Tutor, edits | C | not started | | | | | | needs 7 |
-| 10 Quality and compatibility | A + B | not started | | | | | | needs 8, 9 |
-| 11 Rollout and docs | integrator | not started | | | | | | needs 10 |
+| 1 Interpreter boundary | A | yes: 6902eb79b, bdafab12e, fd2fafd70, 7bfe61d20 (QuickJS/WASM 0.32.0, 32 MiB memory cap, output bound in the guest) | runtime.test.mjs 90/90 twice (receipts/task1-runtime.md); unit/browser checks on f084c417: verify 40661624225, fast-e2e 40661624070, release gate 40663885255 (all success; base 61682c72). Re-cut on a644f5e4 as dadfe009a: verify 40737784191 success; fast-e2e rerun and gate pending | not on main | no | none | none yet (unit and CI only) | rides with the release |
+| 2 Artifact and render contract | B | yes: 29e487f4d, ce391439a, 9b7100244, a98c4e6fd (stamps.js) | contract/frame/fixtures tests; unit/browser checks on f084c417: verify 40661624225, fast-e2e 40661624070, release gate 40663885255 (all success; base 61682c72). Re-cut on a644f5e4 as dadfe009a: verify 40737784191 success; fast-e2e rerun and gate pending | not on main | no | none | none yet | rides with the release |
+| 3 Host and responsiveness | A | yes: a752e9303, 7bfe61d20, 4b7061cd9 (one request in flight, newest wins) | host tests; unit/browser checks on f084c417: verify 40661624225, fast-e2e 40661624070, release gate 40663885255 (all success; base 61682c72). Re-cut on a644f5e4 as dadfe009a: verify 40737784191 success; fast-e2e rerun and gate pending | not on main | no | none | none yet | rides with the release |
+| 4 Program inside the card | B | yes: bf7561d12, 3ab11fd66 (ProgramScene on the shared Frame, fixture preview board) | e2e/explain-program-card-check.mjs in fast-e2e; unit/browser checks on f084c417: verify 40661624225, fast-e2e 40661624070, release gate 40663885255 (all success; base 61682c72). Re-cut on a644f5e4 as dadfe009a: verify 40737784191 success; fast-e2e rerun and gate pending | not on main | no | none | none yet (fixtures only, not genuine) | rides with the release |
+| 5 Author and persist via V2 | C | yes: 88cbb8e7a (behind EXPLAIN_PROGRAM_ENABLED, default false) | explain-m3 and budget tests; unit/browser checks on f084c417: verify 40661624225, fast-e2e 40661624070, release gate 40663885255 (all success; base 61682c72). Re-cut on a644f5e4 as dadfe009a: verify 40737784191 success; fast-e2e rerun and gate pending | not on main | no | none (flag false; dev-only enable in f084c417f) | none yet | rides with the release |
+| 6 Review, repair, accounting | C | PARTIAL: 7c5a58a64 (review evidence, repair, request-fit preflight, execution decision), aef165ca2 and 7a3fcbb20 (review renderer in the real Worker). Gap found 2026-10-28: programCaptureManifest samples only default inputs at start/middle/end | review/render checks; unit/browser checks on f084c417: verify 40661624225, fast-e2e 40661624070, release gate 40663885255 (all success; base 61682c72). Re-cut on a644f5e4 as dadfe009a: verify 40737784191 success; fast-e2e rerun and gate pending | not on main | no | none | none | IN PROGRESS: alternative input states (boundaries, one combined state) inside the existing six-capture budget, with the sampled and omitted states recorded in coverage; then re-run CI on the final candidate |
+| 7 Genuine MVP | integrator + C | PARTIAL: fixture-driven e2e/explain-program-check.mjs and the genuine driver rehearsed with fixtures. No genuine model-generated example exists yet | fixture runs only | not on main | no | none | none: two structurally different genuine examples, actual review/repair, controls/playback, save/reload and zero model calls during interaction are all still to be shown | after the final candidate passes CI and gate: dev deploy, ex1-cooling then a structurally different second prompt, inside the US$50 sandbox budget; receipts under C:/s/spec/explain-sandbox/receipts |
+| 8 Interactions and time | B / A | not started |  |  |  |  |  | tracked; not part of the MVP; needs 7 |
+| 9 Context, Tutor, edits | C | not started |  |  |  |  |  | tracked; needs 7 |
+| 10 Quality and compatibility | A + B | not started |  |  |  |  |  | tracked; needs 8, 9 |
+| 11 Rollout and docs | integrator | not started |  |  |  |  |  | tracked; needs 10. The MVP release is NOT Task 11 and does not close it |
+
+## MVP definition and scope notes
+
+MVP = Tasks 1-7 as originally defined. Passing CI on the MVP branch does not complete Tasks 8-11. No subtask has been dropped; Task 6 coverage and Task 7 genuine generation are open and listed above. Main already carries the Motion public flip (a644f5e4); the /explain release is independent of it.
