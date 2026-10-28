@@ -187,3 +187,29 @@ test('Retry sends the attempt it saw; a repeat at that attempt is the same reque
   await client.action('ej_1', 'retry', { expectedAttempt: 2 });
   assert.deepEqual(sent, [['/api/learn/explain/jobs/ej_1/retry', { boardId: 'board-A', expectedAttempt: 2 }], ['/api/learn/explain/jobs/ej_1/retry', { boardId: 'board-A', expectedAttempt: 2 }]]);
 });
+
+// Program <-> scene edits: the applied card holds exactly one representation.
+test('Apply replaces the old representation: program -> scene drops the program reference, scene -> program drops the scene, identity and placement carry over', () => {
+  const reference = { bundleHash: 'a'.repeat(64) };
+  const programCard = { id: 'card-1', type: 'animation', title: 'Growth', program: reference, explain: identity({ revision: 'xr_1', bundleHash: reference.bundleHash }), dx: 10, dy: 20, w: 400, locked: false, inputs: { rate: 5 }, inputRevision: 2, time: 1.5, prompt: { text: '/explain growth' } };
+  const sceneCard = { id: 'card-1', type: 'animation', title: 'Heap', scene, explain: identity({ revision: 'xr_1' }), dx: 10, dy: 20, w: 400, locked: false, inputs: { k: 1 }, inputRevision: 2, time: 1, prompt: { text: '/explain heaps' } };
+  const done = job({ id: 'ej_2', stage: 'ready', terminal: true, result: identity({ jobId: 'ej_2', resultId: 'er_2', revision: 'xr_2', baseRevision: 'xr_1' }) });
+  const apply = (card, candidate) => applyExplainEdit(explainEditing(card, job({ id: 'ej_2', stage: 'authoring' }), 'change it'), done, { type: 'animation', id: 'card-1', title: 'New', explain: done.result, ...candidate });
+  const toScene = apply(programCard, { scene: { ...scene, duration: 3 } });
+  assert.equal(toScene.ok, true);
+  assert.deepEqual(['program' in toScene.block, toScene.block.scene.duration, toScene.block.time, toScene.block.inputs, toScene.block.inputRevision], [false, 3, 3, {}, 3]);
+  assert.equal(JSON.stringify(toScene.block).includes(reference.bundleHash), false, 'no trace of the old program reference, even in the identity');
+  const toProgram = apply(sceneCard, { program: { bundleHash: 'b'.repeat(64), resultId: 'er_2' } });
+  assert.equal(toProgram.ok, true);
+  assert.deepEqual(['scene' in toProgram.block, toProgram.block.program, toProgram.block.time, toProgram.block.inputs, toProgram.block.inputRevision], [false, { bundleHash: 'b'.repeat(64) }, 0, {}, 3]);
+  // Identity, placement and the card's own words are the card's; the explanation identity is the new result's.
+  for (const block of [toScene.block, toProgram.block]) {
+    assert.deepEqual([block.id, block.type, block.dx, block.dy, block.w, block.locked, block.explain.resultId, block.explain.revision, block.title, block.explainEdit], ['card-1', 'animation', 10, 20, 400, false, 'er_2', 'xr_2', 'New', undefined]);
+  }
+  assert.deepEqual([toScene.block.prompt.text, toProgram.block.prompt.text], ['/explain growth', '/explain heaps']);
+  // The same representation again keeps exactly one (a program edited into a program).
+  const again = apply(programCard, { program: { bundleHash: 'c'.repeat(64) } });
+  assert.deepEqual([again.block.program, 'scene' in again.block], [{ bundleHash: 'c'.repeat(64) }, false]);
+  // Program editing is supported (explainEditProblem offers it), so the merge path is corrected, not disabled.
+  assert.equal(explainEditProblem({ ...programCard, explain: identity({ revision: 'xr_1' }) }), null);
+});
