@@ -72,7 +72,7 @@ const TUTOR_LINES = [
 const narrow = matchMedia('(max-width: 700px)').matches;
 const media = `<div class="overview-media">
   <video muted playsinline loop preload="none" poster="/landing/ai-tutor-demo${narrow ? '-phone' : ''}-poster-v3.jpg" aria-label="The Rabbit Hole canvas with the Tutor beside it: a learner tests a prediction about pendulums" aria-describedby="overview-transcript-text">
-    <source src="/landing/ai-tutor-demo${narrow ? '-phone' : ''}-v4.webm" type="video/webm">
+    <source src="/landing/ai-tutor-demo${narrow ? '-phone' : ''}-v5.webm" type="video/webm">
   </video>
   <span class="overview-progress" aria-hidden="true"><i></i></span>
   <ol class="overview-transcript" id="overview-transcript-text">${TUTOR_LINES.map(([who, line]) => `<li>${who}: ${line}</li>`).join('')}</ol>
