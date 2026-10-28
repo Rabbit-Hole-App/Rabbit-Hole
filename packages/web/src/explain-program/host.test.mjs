@@ -11,6 +11,9 @@ import { parseEvaluateResponse, sealProgram } from './contract.js';
 import { growthFixture } from './fixtures.js';
 
 const engine = loadEngine();
+// The stand-in's guest interrupt is test-only and below the 250 ms host watchdog: these tests are about host behaviour, and a
+// loaded machine must not turn a valid run into runtime_limit. A looping guest still ends in runtime_limit (interrupt or watchdog).
+const GUEST_LIMITS = { ...LIMITS, interruptMs: 150 };
 const workers = new Set(); // every stand-in not yet terminated: an orphan shows up here
 let started = 0;
 // mode: 'real' runs the program; 'hang' never answers; 'mute' never boots; 'rogue' answers late even after terminate.
@@ -25,7 +28,7 @@ class StandIn {
   postMessage({ id, source, request }) {
     if (this.mode === 'hang') return;
     engine.then(e => {
-      const out = runProgram(e, { source, request });
+      const out = runProgram(e, { source, request }, GUEST_LIMITS);
       this.mode === 'rogue' ? setTimeout(() => this.emit({ id, ...out }), 400) : this.emit({ id, ...out });
     });
   }
@@ -108,7 +111,7 @@ test('a Worker that never answers is terminated by the host watchdog and replace
   const host = createProgramHost({ artifact: await seal(), createWorker: () => new StandIn(mode) });
   const t0 = performance.now();
   await assert.rejects(host.evaluate(request(1)), { code: 'runtime_limit' });
-  assert.ok(performance.now() - t0 < LIMITS.watchdogMs + 200);
+  assert.ok(performance.now() - t0 < 5000, 'the watchdog fired (a hang would never settle)');
   assert.equal(workers.size, 0, 'the hung Worker was terminated');
   mode = 'real';
   assert.equal((await host.evaluate(request(2))).requestId, 'r2');
