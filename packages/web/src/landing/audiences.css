@@ -39,8 +39,10 @@
 .audience-picker{display:flex;flex-direction:column;gap:4px;min-width:220px;position:relative}
 .audience-picker>span{font:400 10px/1.4 var(--ui);color:var(--audience-muted)}
 .audience-picker select{max-width:100%;border:0;border-radius:0;border-bottom:1px solid #c9c5c0;min-height:32px;padding:4px 24px 4px 0;background:#fff;font:500 13px/1.4 var(--ui);color:var(--audience-ink);cursor:pointer}
-.audience-scroll-hint{font:400 11px/1.5 var(--ui);color:var(--audience-muted);text-align:center}
-.audience-scroll-hint span{margin-left:8px;font-size:15px;color:var(--audience-ink)}
+.audience-continue{font:400 12px/1.5 var(--ui);color:var(--audience-muted);text-align:center;text-decoration:none;padding:10px 6px;border-radius:6px}
+.audience-continue span{margin-left:6px;font-size:15px;color:var(--audience-ink);display:inline-block;transition:transform 200ms var(--ease-out)}
+.audience-continue:focus-visible{outline:2px solid #955169;outline-offset:3px}
+@media(hover:hover) and (pointer:fine){.audience-continue:hover{color:var(--audience-ink);text-decoration:underline}.audience-continue:hover span{transform:translateY(2px)}}
 .audience-navigation{display:flex;align-items:center;gap:10px}
 .audience-navigation button{display:flex;align-items:center;justify-content:center;gap:16px;border:1px solid #d7d4cf;border-radius:999px;min-width:44px;min-height:44px;padding:8px 14px;background:#fff;color:var(--audience-ink);font:400 12px/1.4 var(--ui);cursor:pointer;transition:background-color 150ms ease,border-color 150ms ease}
 .audience-navigation button>span:last-child{font-size:18px;line-height:1}
@@ -50,7 +52,7 @@
 #who-is-it-for :is(select,button):focus-visible{outline:2px solid #955169;outline-offset:4px}
 @media(hover:hover) and (pointer:fine){.audience-navigation button:not(:disabled):hover{background:#f4e7ed;border-color:#cda9b7}}
 @media(max-width:1100px){.audience-next-label{display:none}.audience-node{padding:14px}.audience-canvas-toolbar{padding:0 14px}}
-@media(max-width:900px),(max-height:699px){.audience-stage{gap:18px}.audience-slides{height:590px}.audience-scroll-hint{display:none}.audience-slide{grid-template-rows:auto minmax(0,1fr)}.audience-copy h3{font-size:clamp(30px,5vw,48px)}}
+@media(max-width:900px),(max-height:699px){.audience-stage{gap:18px}.audience-slides{height:590px}.audience-slide{grid-template-rows:auto minmax(0,1fr)}.audience-copy h3{font-size:clamp(30px,5vw,48px)}}
 @media(max-width:700px){
   #below #who-is-it-for{margin:0 -20px;padding:48px 20px 64px;scroll-margin-top:78px}
   .audience-stage{gap:18px}.audience-topline{padding-top:16px}.audience-count{font-size:12px}
@@ -244,3 +246,5 @@
   .aud-iv-side{align-items:stretch}.aud-iv-sketch{width:100%!important}
   .aud-iv-h.br{display:none}
 }
+
+@media(max-width:900px){.audience-controls{flex-wrap:wrap}.audience-continue{order:3;flex:1 0 100%;padding:6px 0 0}}

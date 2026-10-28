@@ -100,3 +100,7 @@
 @media(min-width:901px) and (min-height:700px){.overview-window{zoom:1.08}}
 /* Pinned desktop: the video box takes the footage's own 1296:720 ratio from the window's height, so nothing is cropped and no bars show; the copy column takes the rest. */
 @media(min-width:901px) and (min-height:700px){.overview-panel-video{grid-template-columns:minmax(0,1fr) auto}.overview-panel-video .overview-media{height:100%;aspect-ratio:1296/720}}
+/* Continue: leaves the pinned section at any tab, so nothing has to be scrolled through or finished first. */
+.overview-continue{flex:none;color:#55657b;text-decoration:none;font-weight:500;padding:6px 0}.overview-continue span{display:inline-block;margin-left:4px;transition:transform 200ms var(--ease-out)}.overview-continue:focus-visible{outline:2px solid #5a7297;outline-offset:3px;border-radius:3px}
+@media(hover:hover) and (pointer:fine){.overview-continue:hover{color:#20232a;text-decoration:underline}.overview-continue:hover span{transform:translateY(2px)}}
+.overview-status{min-width:0}
