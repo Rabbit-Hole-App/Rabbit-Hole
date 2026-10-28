@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { ERROR_MESSAGES, parseManifest, sealProgram } from './contract.js';
 import {
   clampTime, describeProgram, evaluateRequestFor, fixturesAdmitted, isProgramBlock, programChanged, programErrorMessage, programInputs, programTime,
-  resetProgram, resolveProgram, setProgramInput,
+  keptProgram, resetProgram, resolveProgram, setProgramInput, shownProgram,
 } from './program-card.js';
 import { growthFixture } from './fixtures.js';
 import { BOARDS, BOARD_SEED_VERSIONS, PROGRAM_FIXTURE_BOARD } from '../demo-scenes.js';
-import { applyExplainEdit, explainEditProblem, explainResultBlock } from '../explain-client.js';
+import { applyExplainEdit, explainEditProblem, explainResultBlock, sharedProgramClient } from '../explain-client.js';
 
 // Fixtures are hand-authored test data, not generation evidence.
 const stamps = { runtimeVersion: 'engine-1', fingerprints: { engine: 'e1', sdk: 's1', renderer: 'r1' } };
@@ -37,23 +37,34 @@ test('a fixture card is admitted only where the build flag is set, and never run
   assert.equal((await resolveProgram(card({ program: { fixtureId: 'nope' } }), { fixtures: true, stamps })).ok, false);
 });
 
-// An accepted program: resolved only through the job route, bound to this card's identity and the saved bundle hash.
+// An accepted program: resolved only through its saved result (the owner's result route answers { artifact, identity, execution }),
+// bound to this card's identity and the saved bundle hash. The job record is never read: it is pruned while the result is kept.
 async function accepted(overrides = {}) {
   const sealed = (await sealProgram({ manifest: growthFixture.manifest, source: growthFixture.source }, stamps)).value;
   const identity = { jobId: 'job1', resultId: 'er_1', revision: 'xr_1', cardId: 'card1', canvas: { boardId: 'board1' } };
-  const job = { id: 'job1', stage: 'ready', cardId: 'card1', boardId: 'board1', result: { ...identity, program: sealed, execution: { allowed: true } } };
   const block = { id: 'card1', type: 'animation', title: 'Balance', explain: identity, program: { bundleHash: sealed.bundleHash } };
   const calls = [];
-  const client = { get: async id => { calls.push(id); return { job: { ...job, ...overrides.job, result: { ...job.result, ...overrides.result } } }; } };
+  const client = {
+    get: async id => { calls.push(['job', id]); throw Object.assign(new Error('pruned'), { status: 404 }); }, // the job record is gone
+    result: async (resultId, cardId) => { calls.push(['result', resultId, cardId]); return { artifact: sealed, identity: { ...identity, ...overrides.result }, execution: { allowed: true }, ...overrides.answer }; },
+  };
   return { client, block: { ...block, ...overrides.block }, sealed, calls };
 }
 
-test('an accepted program resolves through the authorized job route, never from the block', async () => {
+test('an accepted program resolves through its saved result, never the job record and never from the block', async () => {
   const { client, block, sealed, calls } = await accepted();
   const out = await resolveProgram(block, { client });
   assert.equal(out.ok, true);
   assert.equal(out.artifact.bundleHash, sealed.bundleHash);
-  assert.deepEqual(calls, ['job1']);
+  assert.deepEqual(calls, [['result', 'er_1', 'card1']], 'opens with its job record pruned');
+  // A share link's answer names no canvas (the server bound it to the link's board) and no job: it still resolves and verifies.
+  const link = { result: async () => ({ artifact: sealed, identity: { resultId: 'er_1', cardId: 'card1', revision: 'xr_1', kind: 'program', bundleHash: sealed.bundleHash }, execution: { allowed: true } }) };
+  assert.equal((await resolveProgram(block, { client: link })).ok, true);
+  // A card with no saved result yet (still pending) is not resolved here: ExplainPending polls its job.
+  const pending = { ...block, explain: undefined };
+  calls.length = 0;
+  assert.equal((await resolveProgram(pending, { client })).error.code, 'version_unavailable');
+  assert.deepEqual(calls, [], 'no result read without a saved result id');
   // Source pasted into canvas JSON is not read: with no route, nothing runs.
   const pasted = await resolveProgram({ ...block, program: { bundleHash: sealed.bundleHash, source: 'export function evaluate(){return {}}', manifest: {} } }, { client: null });
   assert.equal(pasted.ok, false);
@@ -66,10 +77,10 @@ test('an accepted program is refused when anything about its identity, hash or s
     'another board': { result: { canvas: { boardId: 'board2' } } },
     'another result': { result: { resultId: 'er_2' } },
     'another revision': { result: { revision: 'xr_2' } },
-    'not ready': { job: { stage: 'rendering' } },
-    'server says no': { result: { execution: { allowed: false } } },
-    'no execution policy': { result: { execution: undefined } },
-    'a client approval flag is not a policy': { result: { execution: { allowed: 'true' } } },
+    'no identity': { answer: { identity: null } },
+    'server says no': { answer: { execution: { allowed: false } } },
+    'no execution policy': { answer: { execution: undefined } },
+    'a client approval flag is not a policy': { answer: { execution: { allowed: 'true' } } },
     'saved hash differs': { block: { program: { bundleHash: 'f'.repeat(64) } } },
   };
   for (const [name, overrides] of Object.entries(cases)) {
@@ -79,10 +90,33 @@ test('an accepted program is refused when anything about its identity, hash or s
     assert.ok(['version_unavailable', 'unsupported_capability'].includes(out.error.code), name);
   }
   const tampered = await accepted();
-  const bad = { ...tampered.client, get: async () => { const { job } = await tampered.client.get(); return { job: { ...job, result: { ...job.result, program: { ...job.result.program, source: `${job.result.program.source} ` } } } }; } };
+  const bad = { result: async (...args) => { const answer = await tampered.client.result(...args); return { ...answer, artifact: { ...answer.artifact, source: `${answer.artifact.source} ` } }; } };
   assert.equal((await resolveProgram(tampered.block, { client: bad })).ok, false, 'source changed after hashing');
-  const down = await resolveProgram(tampered.block, { client: { get: async () => { throw Object.assign(new Error('x'), { status: 500 }); } } });
+  const down = await resolveProgram(tampered.block, { client: { result: async () => { throw Object.assign(new Error('x'), { status: 500 }); } } });
   assert.equal(down.error.code, 'version_unavailable');
+  const refused = await resolveProgram(tampered.block, { client: { result: async () => { throw Object.assign(new Error('Not available'), { status: 404 }); } } });
+  assert.equal(refused.error.code, 'version_unavailable', 'a revoked link or a refused read');
+});
+
+test('a share link reads a program card by the link and the card id, and the visitor\'s changes stay in memory, never saved', async () => {
+  const { block, sealed } = await accepted();
+  const requested = [];
+  const answer = { artifact: sealed, identity: { resultId: 'er_1', cardId: 'card1', revision: 'xr_1', kind: 'program', bundleHash: sealed.bundleHash }, execution: { allowed: true } };
+  const link = sharedProgramClient('tok/en', async (url, init) => { requested.push([url, init]); return Response.json(answer); });
+  const out = await resolveProgram(block, { client: link });
+  assert.equal(out.ok, true);
+  assert.deepEqual(requested, [['/api/learn/boards/shared/tok%2Fen/cards/card1/program', undefined]], 'one GET by the link, no job route, no POST');
+  const gone = sharedProgramClient('tok', async () => Response.json({ error: 'Not available' }, { status: 404 }));
+  assert.equal((await resolveProgram(block, { client: gone })).error.code, 'version_unavailable', 'a revoked link refuses the program too');
+  // Inputs, time and Reset change only the in-memory card; a reload (nothing kept) shows the saved card; a different saved card drops it.
+  const changed = { ...setProgramInput(block, manifest, 'rate', 9), time: 3 };
+  const kept = keptProgram(block, changed);
+  assert.equal(shownProgram(block, kept), changed);
+  assert.equal(programInputs(manifest, shownProgram(block, kept)).rate, 9);
+  assert.equal(block.inputs, undefined, 'the saved card is untouched');
+  assert.equal(shownProgram(block, null), block, 'a reload starts from the saved defaults');
+  assert.equal(shownProgram({ ...block, explain: { ...block.explain, resultId: 'er_2' } }, kept).explain.resultId, 'er_2', 'a newer saved card is shown as saved');
+  assert.equal(shownProgram(block, keptProgram(block, resetProgram(changed))).time, 0);
 });
 
 test('inputs: saved values apply, a change bumps the revision once, an unchanged value writes nothing, reset restores defaults and time zero', () => {

@@ -1,16 +1,17 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useReducedMotion } from 'motion/react';
 import { Pause, Play } from 'lucide-react';
 import { api } from '../api.js';
-import { explainClient } from '../explain-client.js';
+import { explainClient, sharedProgramClient } from '../explain-client.js';
+import { CardSourceScope } from '../use-card-source.js';
 import { Frame } from '../AnimatedScene.jsx';
 import { InputWidget } from '../SceneControls.jsx';
 import { legibleFrame, normalizeFrame } from './frame.js';
 import { createProgramHost, programStamps } from './host.js';
 import { createFrameScheduler } from './playback.js';
 import {
-  clampTime, evaluateRequestFor, fixturesAdmitted, programChanged, programErrorMessage, programInputs, programTime, resetProgram, resolveProgram,
-  setProgramInput,
+  clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programInputs, programTime, resetProgram, resolveProgram,
+  setProgramInput, shownProgram,
 } from './program-card.js';
 
 // The interactive program card (plan sections 5.2 and 8): the existing Explanation card shell around the shared Frame. This file
@@ -36,7 +37,15 @@ function NumberInput({ input, value, onInput }) {
   );
 }
 
-export default function ProgramScene({ block, onChange, onChangeQuiet, onControlsHeight = null, onProgramFrame = null }) {
+export default function ProgramScene({ block: saved, onChange: save, onChangeQuiet: saveQuiet, onControlsHeight = null, onProgramFrame = null }) {
+  // On a share link (SharedBoardPage's CardSourceScope) the program is read by the link, and the visitor's inputs and time stay in
+  // this card's memory: never saved (not the owner's board, not the visitor's tab copy), so a reload starts from the saved card.
+  const scope = useContext(CardSourceScope);
+  const token = scope?.token || null;
+  const [local, setLocal] = useState(null);
+  const block = token ? shownProgram(saved, local) : saved;
+  const keep = next => setLocal(keptProgram(saved, next));
+  const onChange = token ? keep : save, onChangeQuiet = token ? keep : saveQuiet;
   const [artifact, setArtifact] = useState(null);
   const [failure, setFailure] = useState(null);
   const [attempt, setAttempt] = useState(0); // "Restart explanation" bumps it: the same saved artifact, a fresh host
@@ -57,19 +66,20 @@ export default function ProgramScene({ block, onChange, onChangeQuiet, onControl
   const manifest = artifact?.manifest ?? null;
 
   // Resolve the saved reference to a runnable artifact. A fixture card needs the build flag; an accepted program is fetched through
-  // the authorized job route and must match this card's identity and saved hash (program-card.js).
+  // its saved result (the owner's result route, or the link's program read) and must match this card's identity and saved hash (program-card.js).
   useEffect(() => {
     let live = true;
     setArtifact(null); setView(null); setFailure(null);
     (async () => {
       const current = latest.current;
       const boardId = current.explain?.canvas?.boardId;
-      const out = await resolveProgram(current, { client: boardId ? explainClient(api, boardId) : null, fixtures: fixturesAdmitted(import.meta.env), stamps: await programStamps() });
+      const client = token ? sharedProgramClient(token) : boardId ? explainClient(api, boardId) : null;
+      const out = await resolveProgram(current, { client, fixtures: fixturesAdmitted(import.meta.env), stamps: await programStamps() });
       if (!live) return;
       if (out.ok) setArtifact(out.artifact); else setFailure(out.error);
     })();
     return () => { live = false; };
-  }, [block.id, block.program?.bundleHash, block.program?.fixtureId, block.explain?.resultId, attempt]);
+  }, [block.id, block.program?.bundleHash, block.program?.fixtureId, block.explain?.resultId, attempt, token]);
 
   // One host per artifact, disposed with the card (hidden, deleted, navigated away): a Worker is never left behind.
   useEffect(() => {
