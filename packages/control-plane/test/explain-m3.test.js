@@ -157,6 +157,8 @@ const PROGRAM = {
     inputs: [{ type: 'number', id: 'rate', label: 'Rate', unit: '1/s', default: 2, min: 0, max: 10, step: 1 }], duration: 4,
     readouts: [{ id: 'level', label: 'Level', decimals: 2 }], capabilities: ['time_playback', 'number_inputs'] },
 };
+// The program's playback moments for its default rate, then its one number input at its min and max (explain-render.js programCaptureManifest).
+const CAPTURES = ['t0-light', 't1-light', 't2-light', 'a0-light', 'a1-light'];
 const PROMPT = 'Show how a level builds up at a constant rate and let me change the rate.';
 async function runJob(s, boardId, { requestId, cardId, prompt = PROMPT }) {
   const created = await s.read('POST', '/api/learn/explain/jobs', { boardId, requestId, cardId, prompt, requestClass: 'simple' });
@@ -173,7 +175,7 @@ test('M3 program: pending -> program artifact -> reload, zero new author calls, 
   const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
   const boardId = saved.body.board_id;
   s.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
-  s.queues.report_review = [verdicts(['t0-light', 't1-light', 't2-light'])];
+  s.queues.report_review = [verdicts(CAPTURES)];
   const { id, view, created } = await runJob(s, boardId, { requestId: 'req-prog-0000001', cardId: 'card-prog-01' });
   assert.deepEqual([view.body.job.stage, view.body.job.stopReason, view.body.job.round], ['ready', 'accepted', 0]);
   // The route offered Opus the program kind; the catalogue it saw has no component with learner controls.
@@ -186,9 +188,12 @@ test('M3 program: pending -> program artifact -> reload, zero new author calls, 
   // A replayed request is the same job: one admitted author attempt.
   assert.equal((await s.read('POST', '/api/learn/explain/jobs', { boardId, requestId: 'req-prog-0000001', cardId: 'card-prog-01', prompt: PROMPT, requestClass: 'simple' })).body.job.id, id);
   assert.deepEqual([count(s, 'author_explanation'), count(s, 'report_review'), count(s, 'repair_explanation')], [1, 1, 0]);
-  // The program was captured through the program render path (start, middle, end of its playback), the pixels reviewed.
-  assert.deepEqual(s.rendered.map(r => [r.time, r.program]), [[0, true], [2, true], [4, true]]);
-  assert.equal(s.calls.find(c => c.name === 'report_review').body.messages[0].content.filter(b => b.type === 'image').length, 3);
+  // The program was captured through the program render path (start, middle, end of its playback at the default rate, then the middle at
+  // the rate's min and max), the pixels reviewed, and the reviewer was told what was sampled and what was not.
+  assert.deepEqual(s.rendered.map(r => [r.time, r.inputs.rate, r.program]), [[0, 2, true], [2, 2, true], [4, 2, true], [2, 0, true], [2, 10, true]]);
+  const reviewed = s.calls.find(c => c.name === 'report_review').body.messages[0].content;
+  assert.equal(reviewed.filter(b => b.type === 'image').length, 5);
+  assert.match(reviewed.find(b => b.text?.startsWith('Review sampling')).text, /"label":"min of rate"[^]*"label":"max of rate"[^]*Not sampled: \[\]/);
   // The saved card is a reference: no source, no scene. Its identity names the host-computed bundle.
   const { block, job } = view.body;
   assert.deepEqual([block.type, block.id, block.scene, block.program.resultId, block.program.kind], ['animation', 'card-prog-01', undefined, job.result.resultId, 'explain_program']);
@@ -284,14 +289,14 @@ test('M3 program: a failing review is repaired as a program, re-executed and re-
   const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
   const boardId = saved.body.board_id;
   const fixed = { ...PROGRAM, source: PROGRAM.source.replace('40 * level', '80 * level') };
-  const ids = ['t0-light', 't1-light', 't2-light'];
+  const ids = CAPTURES;
   s.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
   s.queues.report_review = [verdicts(ids, 'fail', [{ verdict: 'semantic', category: 'spec', severity: 'major', object: 'bar', message: 'The bar grows too slowly to show the rate.', repairable: true }]), verdicts(ids)];
   s.queues.repair_explanation = [{ operation: 'program', program: fixed, reason: 'Doubled the scale.' }];
   const { id, view } = await runJob(s, boardId, { requestId: 'req-prog-0000005', cardId: 'card-prog-05' });
   assert.deepEqual([view.body.job.stage, view.body.job.round], ['ready', 1]);
   assert.deepEqual([count(s, 'author_explanation'), count(s, 'report_review'), count(s, 'repair_explanation')], [1, 2, 1]);
-  assert.equal(s.rendered.length, 6, 'the repaired program was executed and captured again');
+  assert.equal(s.rendered.length, 10, 'the repaired program was executed and captured again');
   // The reviewer received the source, the manifest and a trace for each capture, as untrusted material in their own blocks.
   const first = s.calls.filter(c => c.name === 'report_review')[0].body.messages[0].content.map(b => b.text || '');
   assert.equal(first.some(text => text.startsWith('Program source') && text.includes(PROGRAM.source)), true);
@@ -318,7 +323,7 @@ test('M3 program: a program that fails when run goes to repair with the reason, 
   s.behavior.programErrors.push({ code: 'runtime_error', diagnostic: 'ReferenceError: levl is not defined' });
   s.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
   s.queues.repair_explanation = [{ operation: 'program', program: { ...PROGRAM, source: PROGRAM.source + '\n// repaired' } }];
-  s.queues.report_review = [verdicts(['t0-light', 't1-light', 't2-light'])];
+  s.queues.report_review = [verdicts(CAPTURES)];
   const { view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000006', cardId: 'card-prog-06' });
   assert.deepEqual([view.body.job.stage, view.body.job.round], ['ready', 1]);
   const repair = JSON.parse(s.calls.find(c => c.name === 'repair_explanation').body.messages[0].content[0].text);
@@ -344,7 +349,7 @@ test('M3 program: the server owns execution eligibility; the kill switch turns i
   const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
   const boardId = saved.body.board_id;
   s.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
-  s.queues.report_review = [verdicts(['t0-light', 't1-light', 't2-light'])];
+  s.queues.report_review = [verdicts(CAPTURES)];
   const { id, view } = await runJob(s, boardId, { requestId: 'req-prog-0000009', cardId: 'card-prog-09' });
   assert.deepEqual(view.body.job.result.execution, { allowed: true });
   s.env.EXPLAIN_PROGRAM_EXECUTION_KILL = 'true';
@@ -378,7 +383,7 @@ test('M3 program: an artifact sealed by the server accept path is accepted by th
   s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
   const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
   s.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
-  s.queues.report_review = [verdicts(['t0-light', 't1-light', 't2-light'])];
+  s.queues.report_review = [verdicts(CAPTURES)];
   const { view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000010', cardId: 'card-prog-10' });
   const artifact = view.body.job.result.program; // sealed by the real accept path, read from the authorized answer
   assert.equal(view.body.job.stage, 'ready');
@@ -412,13 +417,13 @@ test('M3 program: a program that only defines a global evaluate is invalid_progr
   const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
   s.queues.author_explanation = [{ kind: 'program', program: { ...PROGRAM, source: GLOBAL_ONLY } }];
   s.queues.repair_explanation = [{ operation: 'program', program: PROGRAM }];
-  s.queues.report_review = [verdicts(['t0-light', 't1-light', 't2-light'])];
+  s.queues.report_review = [verdicts(CAPTURES)];
   const { view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000011', cardId: 'card-prog-11' });
   const repair = JSON.parse(s.calls.find(c => c.name === 'repair_explanation').body.messages[0].content[0].text);
   assert.match(repair.problems.join(' '), /invalid_program: the module must export evaluate: export function evaluate\(\{ inputs, time, seed, state \}\)/);
   assert.match(s.calls.find(c => c.name === 'repair_explanation').body.system[0].text, /export function evaluate/);
   assert.deepEqual([view.body.job.stage, view.body.job.round], ['ready', 1], 'the repaired module is accepted');
-  assert.equal(s.rendered.length, 3, 'the global-only program was never rendered');
+  assert.equal(s.rendered.length, CAPTURES.length, 'only the repaired program was rendered; the global-only one never was');
   // Even if it were sealed, the real runtime answers the same stable code, so nothing runs it.
   const engine = await ENGINE;
   const out = runProgram(engine, { source: GLOBAL_ONLY, request: { inputs: { rate: 2 }, time: 2, seed: 0, state: null } }, LIMITS_FOR_TESTS);
@@ -439,7 +444,7 @@ test('M3 program: a capture that never finishes closes the session, goes to repa
   const before = timers();
   s.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
   s.queues.repair_explanation = [{ operation: 'program', program: { ...PROGRAM, source: PROGRAM.source + '\n// lighter' } }];
-  s.queues.report_review = [verdicts(['t0-light', 't1-light', 't2-light'])];
+  s.queues.report_review = [verdicts(CAPTURES)];
   const { id, view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000012', cardId: 'card-prog-12' });
   assert.deepEqual([view.body.job.stage, view.body.job.round], ['ready', 1]);
   // The blocked capture was abandoned: its page and its browser session were closed, and nothing was reviewed for that candidate.
@@ -450,9 +455,9 @@ test('M3 program: a capture that never finishes closes the session, goes to repa
   assert.match(repair.problems.join(' '), /did not finish within the capture time limit \(runtime_limit\)/);
   assert.equal(view.body.job.failure, null);
   assert.equal(view.body.job.recovery.includes('retry_render'), false);
-  // Captures: one attempt for the blocked candidate, then the repaired program's three; only the successful render's captures are billed as renders.
-  assert.equal(s.rendered.length, 4);
-  assert.equal(rows(s, "SELECT COUNT(*) AS n FROM usage_actions WHERE feature = 'render'")[0].n, 3);
+  // Captures: one attempt for the blocked candidate, then the repaired program's five; only the successful render's captures are billed as renders.
+  assert.equal(s.rendered.length, 6);
+  assert.equal(rows(s, "SELECT COUNT(*) AS n FROM usage_actions WHERE feature = 'render'")[0].n, 5);
   assert.equal(timers(), before, 'no timer is left running');
   const read = await s.read('GET', `/api/learn/explain/jobs/${id}?board=${saved.body.board_id}&detail=1`);
   assert.equal(read.status, 200);
