@@ -56,9 +56,12 @@ const TUTOR_LINES = [
   ['Learner', 'I want to understand what affects a pendulum’s swing.'],
   ['Tutor', 'What would make a pendulum swing more slowly: more weight or a longer string?'],
   ['Learner', 'More weight?'],
-  ['Tutor', 'Let’s test that. Change only the mass first.'],
+  ['Tutor', 'Let’s compare two pendulums. Type /explain to open the example.'],
   ['Learner', '/explain compare how mass and length affect a pendulum’s swing'],
-  ['Canvas', 'The card “What changes a pendulum’s swing?” opens with A, the reference, and B, your experiment, both at 1 kg and 1 m. B’s mass is set to 2 kg and Play starts both: they swing together, 2.01 s per swing each.'],
+  ['Canvas', 'The card “What changes a pendulum’s swing?” opens with A, the reference, and B, your experiment, both at 1 kg and 1 m.'],
+  ['Learner', 'What should I change?'],
+  ['Tutor', 'Change B’s mass to 2 kg, keep its length unchanged, then press Play.'],
+  ['Canvas', 'B’s mass is set to 2 kg and Play starts both: they swing together, 2.01 s per swing each.'],
   ['Learner', 'They’re still swinging together.'],
   ['Tutor', 'Right, the extra mass didn’t change the timing. Now try a longer string.'],
   ['Canvas', 'B goes back to 1 kg and its length to 2 m, then Play: B swings more slowly, 2.84 s per swing against A’s 2.01 s.'],
@@ -68,8 +71,8 @@ const TUTOR_LINES = [
 // Two edits of one take: a wide one, and a closer one for phones (the stacked panel is nearly square there).
 const narrow = matchMedia('(max-width: 700px)').matches;
 const media = `<div class="overview-media">
-  <video muted playsinline loop preload="none" poster="/landing/ai-tutor-demo${narrow ? '-phone' : ''}-poster-v2.jpg" aria-label="The Rabbit Hole canvas with the Tutor beside it: a learner tests a prediction about pendulums" aria-describedby="overview-transcript-text">
-    <source src="/landing/ai-tutor-demo${narrow ? '-phone' : ''}-v2.webm" type="video/webm">
+  <video muted playsinline loop preload="none" poster="/landing/ai-tutor-demo${narrow ? '-phone' : ''}-poster-v3.jpg" aria-label="The Rabbit Hole canvas with the Tutor beside it: a learner tests a prediction about pendulums" aria-describedby="overview-transcript-text">
+    <source src="/landing/ai-tutor-demo${narrow ? '-phone' : ''}-v3.webm" type="video/webm">
   </video>
   <span class="overview-progress" aria-hidden="true"><i></i></span>
   <ol class="overview-transcript" id="overview-transcript-text">${TUTOR_LINES.map(([who, line]) => `<li>${who}: ${line}</li>`).join('')}</ol>
