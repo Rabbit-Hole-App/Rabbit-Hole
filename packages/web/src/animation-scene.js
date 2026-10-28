@@ -45,7 +45,7 @@ export const plainRuns = runs => runs.map(run => (run.kind === 'math' ? plainMat
 // Every type here has a branch in AnimatedScene.jsx. Adding a member without
 // one produces an object that validates and draws nothing, which is how arrow,
 // line and image shipped invisible. The renderer's own test reads this list.
-export const RENDERED_TYPES = ['box', 'text', 'circle', 'arrow', 'line', 'equation', 'code', 'image', 'grid', 'strip', 'bars', 'tokens'];
+export const RENDERED_TYPES = ['box', 'text', 'circle', 'arrow', 'line', 'equation', 'code', 'image', 'grid', 'strip', 'bars', 'tokens', 'polyline'];
 
 const objectSchema = z.object({
   id: z.string().min(1).max(64),
@@ -103,6 +103,10 @@ const objectSchema = z.object({
     typography: z.enum(TYPE_ROLES).default('body'),
     from: vector.optional(),
     to: vector.optional(),
+    // polyline: a bounded series of finite points (curves, coils, plotted data) and an optional clip rectangle. Generic
+    // by design - nothing here names a curve's meaning. x/y/w/h on the object are its bounding box, set by the author.
+    points: z.array(z.tuple([z.number(), z.number()])).min(2).max(2000).optional(),
+    clip: z.object({ x: z.number(), y: z.number(), w: z.number().positive().max(2000), h: z.number().positive().max(2000) }).strict().optional(),
     rows: z.number().int().positive().max(64).optional(),
     cols: z.number().int().positive().max(64).optional(),
     cell: z.number().positive().max(80).optional(),
@@ -413,6 +417,7 @@ export function validateScene(raw) {
     if (['arrow', 'line'].includes(object.type) && !(object.initialState.from && object.initialState.to)) {
       throw new Error(`Object "${object.id}": ${object.type === 'arrow' ? 'an' : 'a'} ${object.type} needs a from and a to`);
     }
+    if (object.type === 'polyline' && !object.initialState.points) throw new Error(`Object "${object.id}": a polyline needs points`);
   }
   for (const event of scene.timeline) {
     // A name is an author convenience, not something the evaluator should ever
@@ -615,6 +620,8 @@ export function getSceneState(scene, time) {
     cellHighlightKind: object.initialState.cellHighlightKind ?? null,
     pickInput: object.initialState.pickInput ?? null,
     crop: object.initialState.crop ?? null,
+    // Only a polyline carries these; every other object's state keeps exactly the keys it always had.
+    ...(object.initialState.points ? { points: object.initialState.points, clip: object.initialState.clip ?? null } : {}),
     sweep: null,
     emphasis: 0,
   }]));
