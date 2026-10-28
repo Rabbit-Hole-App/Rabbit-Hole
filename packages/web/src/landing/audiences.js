@@ -39,8 +39,8 @@ const situations = [
     title: 'Understand a lecture.', question: '“How did they get from this equation to the next?”', support: 'Work through the missing steps using your lecture material.' },
   { name: 'problems', w: 500, h: 360, phone: [352, 350], alt: 'Rabbit Hole’s PDF reader open on Problem set 03: find the eigenvalues of A, where A is the two-by-two matrix with first row 2, 1 and second row 1, 2.',
     title: 'Work through an assignment.', question: '“I followed the example. Why can’t I solve this one?”', support: 'Get guidance where you’re stuck and practise applying the idea.' },
-  { name: 'eigen', w: 472, h: 258, phone: [362, 258], alt: 'A Rabbit Hole explain-back card asking: What does an eigenvector represent? Explain it in your own words. The answer field is empty.',
-    title: 'Prepare for an exam.', question: '“Could I explain this without looking at my notes?”', support: 'Explain it back, answer practice questions and identify gaps.' },
+  { name: 'quiz', w: 706, h: 450, phone: [364, 444], alt: 'A Rabbit Hole practice quiz beside the lecture PDF Linear algebra, Lecture 04. The question asks which condition lets (A − λI)x = 0 have a non-zero solution. The chosen answer, det(A − λI) = 0, is marked right, and the feedback explains that A − λI must be singular, giving λ = 1 or λ = 3 for the matrix with rows 2, 1 and 1, 2.',
+    title: 'Prepare for an exam.', question: '“Could I answer questions on this without looking at my notes?”', support: 'Practise with questions from your course material and identify gaps.' },
 ];
 const NOTEBOOK = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="1.8" width="10" height="12.4" rx="1.6"/><path d="M6 1.8v12.4M8.4 5.2h2.6M8.4 8h2.6"/></svg>';
 // The learner's drawing for the Interview preparation illustration: hand-drawn feel (slightly uneven strokes), inline SVG.
@@ -85,9 +85,21 @@ const layouts = {
         <figure class="aud-capture">${img('creators-comment', 375, 221, 'A reader’s comment in the canvas’s Comments panel: what happens if you reverse only part of the audio?')}</figure>
         <p class="aud-idea">An idea for the next post</p>
         <figure class="aud-capture">${img('creators-fork', 431, 252, 'A reader’s fork in their Rabbit Hole Library: What if only part is reversed? It reads Forked from Audio reversal: waveform and spectrum, with the original creator’s @handle.')}</figure></div></div>`,
+  // Enterprise onboarding: an ILLUSTRATIVE example (heat1d, a small solver written for this page), shown as real Rabbit Hole cards captured with prepared content.
+  // The captions and arrows are landing text and decoration. The notebook is an extracted example; nothing says the whole repository runs in Rabbit Hole.
   enterprise: () => `<div class="audience-body aud-enterprise">
-      <figure class="aud-capture aud-graph">${img('enterprise-graph', 560, 470, 'Rabbit Hole’s Graph view of the karpathy/nanoGPT repository at commit 3adf61e: the files and the classes and functions in them as a connected map, with a search field for files or symbols and the count 15 files, 58 nodes, 70 relationships.', [372, 520])}</figure>
-      <figure class="aud-capture aud-explain-back">${img('enterprise-q', 472, 237, 'A Rabbit Hole explain-back card asking: Where does this request go next? The answer field is empty.', [362, 237])}</figure></div>`,
+      <p class="aud-ent-ask"><span class="aud-label">A new teammate asks</span>i’m new to this repo. how do i run it, and what is this solver actually doing?</p>
+      <div class="aud-ent-grid">
+        <div class="aud-ent-col aud-ent-a"><p class="aud-label">How do I run this?</p>
+          <figure class="aud-capture">${img('ent-readme', 342, 214, 'Rabbit Hole code card for README.md of the illustrative heat1d example, lines 7 to 10: install Python 3.10 or newer, create a virtual environment with python -m venv .venv, activate it with source .venv/bin/activate, then run python solver.py.', [362, 214])}</figure>
+          <figure class="aud-capture">${img('ent-solver', 342, 280, 'Rabbit Hole code card for solver.py, the step function of the illustrative heat1d example: each new temperature is T[i] + r * (T[i - 1] - 2 * T[i] + T[i + 1]).', [362, 280])}</figure></div>
+        <span class="aud-arrow" aria-hidden="true">→</span>
+        <div class="aud-ent-col aud-ent-c"><p class="aud-label">What is this code doing, and why?</p>
+          <figure class="aud-capture">${img('ent-explain', 312, 342, 'A Rabbit Hole explanation card, What the solver is doing: each interior node moves toward the average of its neighbours, with r = alpha times dt over dx squared; stable only while r is at most 0.5, so run sets dt to 0.4 times dx squared over alpha. The left end is held at t_left and the right end at 20 degrees Celsius.', [362, 342])}</figure></div>
+        <span class="aud-arrow" aria-hidden="true">→</span>
+        <div class="aud-ent-col aud-ent-b"><p class="aud-label">Can I try a change? Did it help? <em>Extracted example</em></p>
+          <figure class="aud-capture">${img('ent-nb', 612, 552, 'The Rabbit Hole notebook card holding an extracted example of the heat1d solver. The edited line sets the left boundary temperature from 100 to 150 degrees Celsius. The printed result: the midpoint temperature at 3000 seconds is 57.39 degrees (exact 57.36) for the original and 80.76 degrees (exact 80.72) for the modified run. A plot compares the two temperature profiles along the rod.', [362, 652])}</figure></div>
+      </div></div>`,
   // PREPARED FUTURE-UI ILLUSTRATION (owner-approved, landing only, 2026-10-28). Built in HTML/CSS/SVG with prepared content. It is NOT the real Explain-back
   // card and not implemented product functionality: no microphone, recording, upload, assessment, model call or network. Its controls only change this page's visuals.
   interview: () => `<div class="audience-body aud-interview" data-mockup="interview">
