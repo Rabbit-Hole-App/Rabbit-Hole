@@ -122,6 +122,14 @@ export const lineCommand = text => { const name = parseSlash(String(text))?.name
 // One line is held; a later Enter holds the newer one.
 export const holdsLine = line => !!parseSlash(String(line));
 export const releaseLine = (held, input) => (held != null && String(input).trim() === held.trim() ? held : null);
+// What a finished command may put on screen. scope is the conversation (the chat thread's restore key, chat-threads.js) the
+// command started in: when New chat or another thread has replaced it, the command's card still lands but its notice, draft and
+// confirmation do not follow into the new conversation (null).
+export const commandUi = (out, { raw, started, current, tracked = false }) => {
+  if (started !== current) return null;
+  if (out.prompt) return { prompt: out.prompt };
+  return { finder: out.finder, keep: out.keep, notice: out.notice || null, proposal: out.proposal ? { ...out.proposal, prompt: raw.trim(), tracked } : null };
+};
 
 // The / line a Chat Send runs through LearnSlash (ask.jsx send), or null when the text is a chat turn: a chosen pill sends
 // "/command words", and a typed /line runs as typed, replacing the pill. A command's own prompt coming back (prompted:
@@ -278,6 +286,9 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   if (result.result === 'validation_error' && result.primitive === 'animation') return { keep: `/${name} ${args}`, notice: { tone: 'error',
     text: 'The interactive explanation could not be made: it failed its checks, so nothing was added. Send the line again to retry.',
     detail: failedCheck(result.error), actions: [{ label: 'Make a plain explanation instead', line: `/${name} in plain text: ${args}` }] } };
+  // Any other card the model could not make valid, even after its one repair: say so in plain words and keep the validator's
+  // words as the detail (a contract violation, with no primitive, keeps its message).
+  if (result.result === 'validation_error' && result.primitive) return { keep: `/${name} ${args}`, notice: { tone: 'error', text: `${NAMES[result.primitive] ? NAMES[result.primitive][0].toUpperCase() + NAMES[result.primitive].slice(1) : 'The card'} could not be made: it failed its checks, so nothing was added. Send the line again to retry.`, detail: failedCheck(result.error) } };
   return { notice: { tone: 'error', text: result.error || 'That could not be made. Try again.' } };
 }
 
