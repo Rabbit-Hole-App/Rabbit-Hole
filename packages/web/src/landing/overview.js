@@ -1,6 +1,6 @@
 import './overview.css';
 
-// AI Tutor is a recorded take of the real app; the other four are still illustrative,
+// AI Tutor and Beyond lecture notes are recorded takes of the real app; the other three are still illustrative,
 // local-only scenes until their own films exist. None of them are working app controls.
 const scenes = [
   {
@@ -9,15 +9,9 @@ const scenes = [
     status: 'Guidance that responds to your understanding.',
   },
   {
-    label: 'Explanations', title: 'See the idea. <br>Make the connection.',
-    copy: 'A difficult concept becomes a clear visual explanation with meaningful interactions.',
-    status: 'A space to think things through.',
-    description: 'A visual canvas connects the word it to the cat in an example sentence, with a source note beside it.',
-    art: `<div class="overview-demo demo-map"><span class="overview-demo-label">YOUR LEARNING CANVAS</span>
-      <p class="overview-sentence">The cat sat down because <em>it</em> was tired.</p>
-      <svg class="overview-map-lines" viewBox="0 0 500 270" fill="none"><path d="M260 86C260 160 130 118 130 197M260 86C260 130 390 118 390 197" stroke="#c4c8cd" stroke-width="1.5"/><path class="overview-beat" d="M260 86C260 160 130 118 130 197" stroke="#586f96" stroke-width="3"/></svg>
-      <div class="overview-map-node map-word overview-beat">it</div><div class="overview-map-node map-cat overview-beat">the cat <small>useful context</small></div><div class="overview-map-node map-mat overview-beat">the mat</div>
-      <div class="overview-map-note overview-beat">↳ The clue is in the relationship.</div></div>`,
+    label: 'Beyond lecture notes', eyebrow: 'Beyond lecture notes', title: 'See the same idea in different ways.', video: true,
+    copy: 'Turn a concept from your slides into a video, a 3D model or an interactive graph.',
+    status: 'Your slides, in more than one form.',
   },
   {
     label: 'Your materials', title: 'Start with what <br>makes you curious.',
@@ -51,7 +45,7 @@ const scenes = [
   },
 ];
 
-// The recorded take's conversation as text, for screen readers (the video itself is silent).
+// Each recorded take's conversation as text, for screen readers (the videos are silent).
 const TUTOR_LINES = [
   ['Learner', 'I want to understand what affects a pendulum’s swing.'],
   ['Tutor', 'What would make a pendulum swing more slowly: more weight or a longer string?'],
@@ -67,16 +61,34 @@ const TUTOR_LINES = [
   ['Canvas', 'B goes back to 1 kg and its length to 2 m, then Play: B swings more slowly, 2.84 s per swing against A’s 2.01 s.'],
   ['Learner', 'The longer string makes it slower, not the extra weight.'],
   ['Tutor', 'Exactly. The longer pendulum takes more time to complete each swing.'],
-]
-// Two edits of one take: a wide one, and a closer one for phones (the stacked panel is nearly square there).
+];
+const BEYOND_LINES = [
+  ['Learner', 'Drops the lecture slide “Gear ratios and rotational speed” onto the canvas and selects it.'],
+  ['Learner', '/motion Explain why the 24-tooth gear turns half as fast as the 12-tooth gear in this slide.'],
+  ['Canvas', 'A short silent video shows gear A, 12 teeth at 120 RPM, driving gear B, 24 teeth at 60 RPM. Two turns of A make one turn of B, in the opposite direction.'],
+  ['Learner', '/cad Create a 3D model of the 12-tooth and 24-tooth gear pair in this slide.'],
+  ['Canvas', 'The design is reviewed, then a 3D model of the two gears opens and is turned to show the teeth, the thickness and the bores.'],
+  ['Learner', '/graph Compare output speed for 24 and 36 driven teeth, with a 12-tooth driver.'],
+  ['Canvas', 'An interactive graph plots output speed against input speed. Changing the driven gear from 24 to 36 teeth lowers the output at 120 RPM from 60 RPM to 40 RPM.'],
+  ['Canvas', 'The slide and the video, the model and the graph sit together on one canvas.'],
+];
+// Two edits of each take: a wide one, and a closer one for phones (the stacked panel is nearly square there).
 const narrow = matchMedia('(max-width: 700px)').matches;
-const media = `<div class="overview-media">
-  <video muted playsinline loop preload="none" poster="/landing/ai-tutor-demo${narrow ? '-phone' : ''}-poster-v3.jpg" aria-label="The Rabbit Hole canvas with the Tutor beside it: a learner tests a prediction about pendulums" aria-describedby="overview-transcript-text">
-    <source src="/landing/ai-tutor-demo${narrow ? '-phone' : ''}-v5.webm" type="video/webm">
+const mediaFor = (take, index) => `<div class="overview-media">
+  <video muted playsinline loop preload="none" poster="${take.poster(narrow)}" aria-label="${take.label}" aria-describedby="overview-transcript-text-${index}">
+    ${take.sources(narrow).map(([src, type]) => `<source src="${src}" type="${type}">`).join('')}
   </video>
   <span class="overview-progress" aria-hidden="true"><i></i></span>
-  <ol class="overview-transcript" id="overview-transcript-text">${TUTOR_LINES.map(([who, line]) => `<li>${who}: ${line}</li>`).join('')}</ol>
+  <ol class="overview-transcript" id="overview-transcript-text-${index}">${take.lines.map(([who, line]) => `<li>${who}: ${line}</li>`).join('')}</ol>
 </div>`;
+const takes = {
+  0: { label: 'The Rabbit Hole canvas with the Tutor beside it: a learner tests a prediction about pendulums', lines: TUTOR_LINES,
+    poster: n => `/landing/ai-tutor-demo${n ? '-phone' : ''}-poster-v3.jpg`, sources: n => [[`/landing/ai-tutor-demo${n ? '-phone' : ''}-v5.webm`, 'video/webm']] },
+  1: { label: 'The Rabbit Hole canvas: a lecture slide on gear ratios becomes a video, a 3D model and an interactive graph', lines: BEYOND_LINES,
+    poster: n => `/landing/beyond-notes-${n ? 'phone' : 'wide'}-poster-v1.jpg`,
+    // WebM first (its frames are exact); the MP4 (H.264 through VLC) is for browsers without WebM and loses the first 1.6 s to a frozen frame, see NOTES.md
+    sources: n => [[`/landing/beyond-notes-${n ? 'phone' : 'wide'}-v1.webm`, 'video/webm'], [`/landing/beyond-notes-${n ? 'phone' : 'wide'}-v1.mp4`, 'video/mp4']] },
+};
 
 const root = document.getElementById('observatory');
 const stage = root.querySelector('.overview-stage');
@@ -93,20 +105,26 @@ let selected = -1, queued = false, gesture = null;
 tablist.innerHTML = scenes.map((scene, index) => `<button type="button" role="tab" id="overview-tab-${index}" aria-controls="overview-panel-${index}" aria-selected="false" tabindex="-1">${scene.label}</button>`).join('');
 screens.innerHTML = scenes.map((scene, index) => `<div class="overview-panel${scene.video ? ' overview-panel-video' : ''}" role="tabpanel" id="overview-panel-${index}" aria-labelledby="overview-tab-${index}" aria-hidden="true" inert>
   <div class="overview-panel-copy"><span class="overview-panel-eyebrow">${scene.eyebrow || scene.label}</span><h3>${scene.title}</h3><p>${scene.copy}</p></div>
-  ${scene.video ? media : `<div class="overview-illustration" role="img" aria-label="${scene.description}"><div aria-hidden="true">${scene.art}</div></div>`}
+  ${scene.video ? mediaFor(takes[index], index) : `<div class="overview-illustration" role="img" aria-label="${scene.description}"><div aria-hidden="true">${scene.art}</div></div>`}
 </div>`).join('');
 const tabs = [...tablist.children], panels = [...screens.children];
-// The AI Tutor take plays silently on a loop only while its tab is shown, the window is on screen and the page is visible;
+// A recorded take plays silently on a loop only while its tab is shown, the window is on screen and the page is visible;
 // with reduced motion it stays on its poster. There are no player controls: it is a picture of the product, not a player.
-const video = root.querySelector('.overview-media video'), progress = root.querySelector('.overview-progress i');
-let onScreen = false, frame = 0;
-const track = () => { progress.style.transform = `scaleX(${video.duration ? video.currentTime / video.duration : 0})`; frame = requestAnimationFrame(track); };
-video.addEventListener('playing', () => { cancelAnimationFrame(frame); track(); });
-video.addEventListener('pause', () => cancelAnimationFrame(frame));
+const recorded = panels.map(panel => ({ video: panel.querySelector('video'), progress: panel.querySelector('.overview-progress i') })).map((entry, index) => ({ ...entry, index }));
+let onScreen = false;
+recorded.forEach(entry => {
+  if (!entry.video) return;
+  const track = () => { entry.progress.style.transform = `scaleX(${entry.video.duration ? entry.video.currentTime / entry.video.duration : 0})`; entry.frame = requestAnimationFrame(track); };
+  entry.video.addEventListener('playing', () => { cancelAnimationFrame(entry.frame); track(); });
+  entry.video.addEventListener('pause', () => cancelAnimationFrame(entry.frame));
+});
 function syncVideo() {
-  const play = scenes[selected]?.video && onScreen && !document.hidden && !reduced.matches;
-  if (play && video.paused) video.play().catch(() => {});
-  else if (!play && !video.paused) video.pause();
+  for (const { video, index } of recorded) {
+    if (!video) continue;
+    const play = index === selected && onScreen && !document.hidden && !reduced.matches;
+    if (play && video.paused) video.play().catch(() => {});
+    else if (!play && !video.paused) video.pause();
+  }
 }
 document.addEventListener('visibilitychange', syncVideo);
 reduced.addEventListener('change', syncVideo);
@@ -125,7 +143,7 @@ function show(index, instant = false) {
     panel.inert = i !== index;
   });
   status.textContent = scenes[index].status;
-  // The recorded tab is the product itself; the other four are illustrations.
+  // The recorded tabs are the product itself; the others are illustrations.
   preview.hidden = !!scenes[index].video;
   syncVideo();
 }
