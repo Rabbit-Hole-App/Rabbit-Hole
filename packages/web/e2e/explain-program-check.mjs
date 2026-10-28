@@ -2,7 +2,8 @@
 // runtime Worker (src/explain-program/worker.js) and its QuickJS WASM asset load from this origin under the headers the
 // worker wrapper really sends (framing-headers.js), with no CSP violation; guest programs run only inside the interpreter;
 // time, heap and output limits stop the guest and the next program still runs; Worker.terminate stops a busy Worker and no
-// late message arrives. An external observer (a local HTTP server the guest programs target) must see no request.
+// late message arrives; the same for a Worker started the review-render way (page-worker.js: Blob script, compiled engine posted
+// in). An external observer (a local HTTP server the guest programs target) must see no request.
 // Local stack only, no model call, no secrets. Reads the built assets from dist-dev (served) and dist (production build).
 // Usage: BASE=http://127.0.0.1:8878 node e2e/explain-program-check.mjs
 import { chromium } from '@playwright/test';
@@ -11,7 +12,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(BASE)) throw Error('explain-program-check runs against the local stack only');
-const TOTAL = 23; // bump with the checks below; the printed line is what CI reads
+const TOTAL = 25; // bump with the checks below; the printed line is what CI reads
 let passed = 0;
 const check = (name, ok, detail = '') => { if (ok) passed++; console.log(`${ok ? 'ok' : 'FAIL'}: ${name}${detail ? ` (${detail})` : ''}`); };
 
@@ -52,12 +53,14 @@ try {
   const offOrigin = [];
   context.on('request', request => { if (!request.url().startsWith(BASE) && !/^(data|blob):/.test(request.url())) offOrigin.push(request.url()); });
 
-  const result = await page.evaluate(async ({ workerUrl, OBSERVED }) => {
+  const result = await page.evaluate(async ({ workerUrl, wasmUrl, OBSERVED }) => {
     const VALID = `export function evaluate({ inputs, time }) { const points = []; for (let i = 0; i < 200; i++) points.push([i / 20, Math.sin(i / 20 * inputs.k + time)]);
       return { frame: { objects: [{ kind: 'polyline', id: 'curve', points }] }, quantities: { k: inputs.k } }; }`;
     const request = { inputs: { k: 2 }, time: 0.5, seed: 1, state: null };
-    const start = () => new Promise((resolve, reject) => {
-      const t0 = performance.now(), worker = new Worker(workerUrl, { type: 'module' });
+    // fromPage: started as page-worker.js does for review rendering: script and WASM fetched by the page, Worker from a Blob.
+    const start = (fromPage = null) => new Promise((resolve, reject) => {
+      const t0 = performance.now(), worker = fromPage ? new Worker(fromPage.url, { type: 'module', name: 'explain-program-page-wasm' }) : new Worker(workerUrl, { type: 'module' });
+      if (fromPage) worker.postMessage({ wasmModule: fromPage.wasmModule });
       worker.onerror = e => reject(Error(`worker error: ${e.message}`));
       worker.onmessage = ({ data }) => data.ready ? resolve({ worker, coldMs: performance.now() - t0, bootMs: data.bootMs }) : reject(Error('engine did not load'));
     });
@@ -111,8 +114,21 @@ try {
     const again = [];
     for (let i = 0; i < 5; i++) { const w = await start(); const r = await call(w.worker, VALID); again.push(r.ok); w.worker.terminate(); }
     out.repeated = again;
+
+    // The review-render path: the Worker fetches nothing itself (a Blob script with no imports, the compiled engine posted in).
+    const fromPage = { url: URL.createObjectURL(new Blob([await (await fetch(workerUrl)).text()], { type: 'text/javascript' })), wasmModule: await WebAssembly.compileStreaming(fetch(wasmUrl)) };
+    const blob = await start(fromPage);
+    const blobValid = await call(blob.worker, VALID), blobLoop = await call(blob.worker, cases.loop), blobAfter = await call(blob.worker, VALID);
+    out.blob = { ok: blobValid.ok && blobAfter.ok, loop: blobLoop.code, coldMs: blob.coldMs };
+    let blobLate = 0;
+    blob.worker.onmessage = () => { blobLate++; };
+    blob.worker.postMessage({ id: 'busy', source: cases.loop, request });
+    await new Promise(resolve => setTimeout(resolve, 5));
+    blob.worker.terminate();
+    await new Promise(resolve => setTimeout(resolve, 400));
+    out.blob.lateMessages = blobLate;
     return out;
-  }, { workerUrl: `/static/${served.worker}`, OBSERVED });
+  }, { workerUrl: `/static/${served.worker}`, wasmUrl: `/static/${served.wasm}`, OBSERVED });
 
   console.log(JSON.stringify(result, null, 1));
   check('a valid program evaluates in the built Worker', result.firstValid.ok && result.firstValid.points === 200, JSON.stringify(result.firstValid));
@@ -126,6 +142,8 @@ try {
   check('warm round trip p95 under the 16 ms frame budget', result.warm.p95 < 16, `${result.warm.p95.toFixed(2)} ms`);
   check('Worker.terminate on a busy Worker: no late message', result.terminated.lateMessages === 0, JSON.stringify(result.terminated));
   check('repeated Worker start, evaluate and terminate', result.repeated.length === 5 && result.repeated.every(Boolean));
+  check('review-render path: a Blob-started Worker given the compiled engine evaluates, stops a loop, and a valid program runs after', result.blob.ok && result.blob.loop === 'runtime_limit', JSON.stringify(result.blob));
+  check('review-render path: Worker.terminate on the busy Blob Worker, no late message', result.blob.lateMessages === 0);
   check('the external observer saw no guest request', hits === 0, `${hits} hits`);
   check('no request left this origin', offOrigin.length === 0, offOrigin.join(' '));
   const violations = await page.evaluate(() => window.__cspViolations);
