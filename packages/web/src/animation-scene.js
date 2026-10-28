@@ -195,6 +195,8 @@ const eventSchema = z.object({
     'draw_path', 'erase_path', 'change_text', 'type_text', 'change_value',
     'connect', 'disconnect', 'focus_camera', 'pan_camera', 'zoom_camera', 'pause',
     'set_values', 'replace_values', 'highlight_cell', 'sweep', 'emphasize',
+    // A periodic swing about a pivot, computed from elapsed time (angle = amplitude * cos(2 pi t / period)).
+    'oscillate',
   ]),
   target: z.string().max(64).optional(),
   from: z.string().max(64).optional(),
@@ -455,6 +457,10 @@ export function validateScene(raw) {
     if (event.action === 'pan_camera' && !(Number.isFinite(event.value?.x) && Number.isFinite(event.value?.y))) {
       throw new Error(`Timeline event at ${event.at}s: pan_camera needs an x and a y`);
     }
+    if (event.action === 'oscillate' && !(Number.isFinite(event.value?.period) && event.value.period > 0 && Number.isFinite(event.value?.amplitude) && Math.abs(event.value.amplitude) <= 90
+      && Number.isFinite(event.value?.pivot?.x) && Number.isFinite(event.value?.pivot?.y))) {
+      throw new Error(`Timeline event at ${event.at}s: oscillate needs a period above 0, an amplitude of at most 90 degrees and a pivot x and y`);
+    }
     if (event.at + event.duration > scene.duration + 0.001) throw new Error(`Timeline event at ${event.at}s runs past the ${scene.duration}s scene`);
   }
   const presentation = scene.presentation;
@@ -694,6 +700,16 @@ export function getSceneState(scene, time) {
       case 'emphasize': if (object) object.emphasis = progress; break;
       case 'focus_camera': if (object) camera = { ...camera, x: object.x + (object.w ?? 0) / 2, y: object.y + (object.h ?? 0) / 2, zoom: event.value?.zoom ?? camera.zoom }; break;
       case 'pan_camera': if (event.value) camera = { ...camera, x: camera.x + (event.value.x - camera.x) * progress, y: camera.y + (event.value.y - camera.y) * progress }; break;
+      // The object as authored hangs at angle 0; at time t it is turned about the pivot by amplitude * cos(2 pi t / period)
+      // degrees (clockwise on screen), from the event's start until its end, where it stays. A line turns both ends and a
+      // circle its centre; any other shape moves its x/y point only (it is not itself rotated).
+      case 'oscillate': if (object && event.value) {
+        const { period, amplitude, pivot } = event.value;
+        const angle = amplitude * Math.cos(2 * Math.PI * (Math.min(at, event.at + event.duration) - event.at) / period) * Math.PI / 180;
+        const turn = point => point && { ...point, x: pivot.x + (point.x - pivot.x) * Math.cos(angle) - (point.y - pivot.y) * Math.sin(angle), y: pivot.y + (point.x - pivot.x) * Math.sin(angle) + (point.y - pivot.y) * Math.cos(angle) };
+        if (object.from || object.to) { object.from = turn(object.from); object.to = turn(object.to); }
+        else Object.assign(object, turn({ x: object.x, y: object.y }));
+      } break;
       case 'zoom_camera': if (event.value) camera = { ...camera, zoom: camera.zoom + ((event.value.zoom ?? event.value) - camera.zoom) * progress }; break;
       default: break; // pause is a timeline marker, not a state change
     }
