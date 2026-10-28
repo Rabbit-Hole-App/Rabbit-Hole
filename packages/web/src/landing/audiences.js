@@ -244,6 +244,12 @@ function choose(index, source = 'button') {
   }
   progressBar.style.transform = `scaleX(${(index + 1) / 6})`;
 }
+// Continue leaves the pinned section from any audience: to the reviews once they are mounted, else the FAQ.
+root.querySelector('.audience-continue').addEventListener('click', event => {
+  event.preventDefault();
+  const reviews = document.getElementById('reviews'), target = reviews && reviews.offsetHeight ? reviews : document.getElementById('faq');
+  target.scrollIntoView({ behavior: 'instant', block: 'start' });
+});
 picker.addEventListener('change', () => choose(Number(picker.value), 'selection'));
 previous.addEventListener('click', event => choose(selected - 1, event.detail === 0 ? 'keyboard' : 'button'));
 next.addEventListener('click', event => choose(selected + 1, event.detail === 0 ? 'keyboard' : 'button'));
