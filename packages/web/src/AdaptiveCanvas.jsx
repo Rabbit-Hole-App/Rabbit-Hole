@@ -5368,6 +5368,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // Your canvas: the card's Rabbit Hole, entered when it has one and made first otherwise (Dive.jsx); a view-only
       // board: the viewer's own private Rabbit Hole (shared-canvas-rabbit-hole.md).
       startRabbitHole: id => (visiting ? onStartRabbitHole(id) : portalOf(id) ? divePortals.enter(portalOf(id).name) : divePortals.open(id, undefined, 'learner_menu')),
+      // Your canvas only: the kept hole a card opens, the hole open now, and Dive.jsx's delete with its confirmation.
+      holeOf: id => (!visiting && divePortals?.remove && portalOf(id)) || null,
+      currentHole: () => (!visiting && divePortals?.remove && divePortals.current) || null,
+      deleteHole: name => divePortals.remove(name),
       addComment: onAddComment ? (point, on) => commentAt(point, on) : null,
       linkCanvas: onLinkCanvas ? arg => onLinkCanvas(arg) : null,
       // A visitor's local copy renames no card (SHARE-02: titles are the source's).

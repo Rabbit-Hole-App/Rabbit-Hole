@@ -252,6 +252,33 @@ test('deleting a canvas or a Rabbit Hole drops its index rows in the same batch'
   assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM learn_canvas_refs WHERE source_board = ?').get(holeId).n, 0);
 });
 
+// The right-click menu's Delete Rabbit Hole (owner, 2026-10-27) reuses this DELETE. It never recurses into what the hole links to:
+// the parent, a sibling hole and a linked canvas keep their rows and boards; the hole's own links leave the linked canvas's
+// backlinks; a link to the hole reads as Unavailable, with no title; the parent's card is no longer a portal.
+test('deleting a Rabbit Hole deletes it alone: parent, sibling and linked canvas stay; links to it read as Unavailable', async t => {
+  const f = setup(t);
+  const parent = await f.canvas('ana', 'Attention'), linked = await f.canvas('ana', 'Linear algebra');
+  const hole = async (name, title, origin) => {
+    assert.equal((await f.call('POST', '/api/canvases/dives', { as: 'ana', body: { name, title, parent: { app: parent.name, board: 'main' }, origin_block_id: origin, dive: {} } })).status, 201);
+    assert.equal((await f.save('ana', { name }, board(card(`${origin}-in`, [{ id: `r-${origin}`, target: linked.id }])), 0)).status, 200);
+    return { name, id: f.sqlite.prepare("SELECT id FROM learn_boards WHERE app = ? AND board = 'main'").get(name).id };
+  };
+  const softmax = await hole('canvas-0000a001', 'Softmax', 'card-s'), scaling = await hole('canvas-0000a002', 'Scaling', 'card-q');
+  assert.equal((await f.save('ana', parent, board(card('card-s', [{ id: 'r-to-hole', target: softmax.id }], 'Scores'), card('card-q', [])), 0)).status, 200);
+  assert.deepEqual((await f.links('ana', linked)).body.to.map(group => group.title).sort(), ['Scaling', 'Softmax']);
+  const before = f.sqlite.prepare('SELECT app, state_json FROM learn_boards WHERE app IN (?, ?, ?) ORDER BY app').all(parent.name, linked.name, scaling.name);
+
+  const gone = await f.call('DELETE', `/api/canvases/dives/${softmax.name}`, { as: 'ana' });
+  assert.deepEqual([gone.status, gone.body.deleted], [200, [softmax.name]]);
+  assert.deepEqual(f.sqlite.prepare('SELECT name FROM canvases ORDER BY name').all().map(row => row.name), [parent.name, linked.name, scaling.name].sort());
+  assert.deepEqual(f.sqlite.prepare('SELECT app, state_json FROM learn_boards WHERE app IN (?, ?, ?) ORDER BY app').all(parent.name, linked.name, scaling.name), before, 'no other board changed');
+  assert.deepEqual((await f.links('ana', linked)).body.to.map(group => group.title), ['Scaling'], 'the hole\'s backlink is gone, the sibling\'s stays');
+  assert.deepEqual((await f.links('ana', parent)).body.from, [{ target: softmax.id, unavailable: true, refs: [{ id: 'r-to-hole', object: 'card-s', objectTitle: 'Scores' }] }]);
+  assert.equal((await f.links('ana', softmax)).status, 404);
+  const tree = (await f.call('GET', `/api/canvases/dives?app=${parent.name}&board=main`, { as: 'ana' })).body;
+  assert.deepEqual(tree.children.map(child => [child.name, child.origin_block_id]), [[scaling.name, 'card-q']], 'card-s is a plain card again');
+});
+
 test('0021 is additive, re-runnable and exactly what repository-schema.sql applies', async t => {
   const { readFileSync } = await import('node:fs');
   const { DatabaseSync } = await import('node:sqlite');

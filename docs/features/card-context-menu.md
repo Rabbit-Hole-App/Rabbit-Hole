@@ -18,6 +18,29 @@ Permissions, grounding and return navigation are the existing flow's:
 
 Opening, Escape or an outside click never creates anything. Only clicking the item does.
 
+## Enter and Delete Rabbit Hole
+
+Owner request, 2026-10-27. On your own canvas:
+
+- **A card that opens a kept Rabbit Hole** (its portal; right-clicking its "↓ title" tab is the same) shows **Enter Rabbit Hole**
+  in place of Start Rabbit Hole (the same flow: it enters that hole), and **Delete Rabbit Hole** with the deletes, above the card's
+  own Delete (so Add comment still follows the Rabbit Hole row, as the 2026-10-08 order has it).
+- **The empty canvas inside a kept Rabbit Hole** shows **Delete Rabbit Hole** for that hole, last in the menu. A root canvas and an
+  empty (pending) hole, which is discarded when left, have none.
+- Delete Rabbit Hole only opens the navigator's delete confirmation (`Dive.jsx` `askDelete`, one dialog for every Rabbit Hole
+  delete): **Delete this Rabbit Hole?**, then what the existing `DELETE /api/canvases/dives/<hole>` does: the hole and everything on
+  its canvas are deleted permanently and do not go to Trash; holes inside it, if any, are named and deleted with it (the existing
+  subtree rule); the card it opens from stays, without its outline; links to it from other canvases show as Unavailable.
+  **Cancel** (or Escape) sends nothing, changes nothing and gives the focus back to the card. **Yes, delete** runs the delete.
+- After a delete from inside, the page goes to the parent canvas. The portal is derived from the parent's children, so no card
+  opens a deleted canvas; the card is kept as a plain card, as before this change. Canvases the hole links to, its parent and its
+  siblings are never deleted.
+- A shared or view-only board has neither row: Start Rabbit Hole there is still the viewer's own hole.
+
+Checks: `src/canvas-actions.test.mjs` (the rows), `src/dive-delete.test.mjs` (the dialog and Cancel),
+`packages/control-plane/test/canvas-refs.test.js` (the delete leaves parent, sibling and linked canvas; links read Unavailable),
+`e2e/rabbit-hole-menu-check.mjs` (both entry points, Cancel, Yes, delete; fast-e2e, fork runner).
+
 ## A view-only board edits nothing
 
 On a shared board the menu shows only **Start Rabbit Hole**, and only on a card. The editing rows (Duplicate, Group, Select all, Delete…) are owner-only, and a right-click off a card opens no menu. The board presses through the hand tool, so the card is found by its bounds, as its click selection does.
@@ -29,7 +52,8 @@ Owner, 2026-10-08: "on card, when we right click we see Copy text, Duplicate etc
 | Item | Icon |
 |---|---|
 | Add comment, Add comment here | MessageCircle |
-| Start Rabbit Hole | ArrowDownToLine (its mark on the shared header and the Explore card) |
+| Start Rabbit Hole, Enter Rabbit Hole | ArrowDownToLine (its mark on the shared header and the Explore card) |
+| Delete Rabbit Hole | Trash2 |
 | Ask about this | CircleHelp (the /ask mark) |
 | Open in reader | BookOpen |
 | Open on Wikipedia, Open on YouTube | ExternalLink |

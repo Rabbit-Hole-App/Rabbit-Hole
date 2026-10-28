@@ -120,7 +120,8 @@ const allLocked = (target, ctx) => target.ids.filter(id => ctx.lockable(id)).eve
 export const COMMON_ACTIONS = [
   // Start Rabbit Hole (owner, 2026-10-07): from the right-clicked card, even with others selected, through the flow that owns
   // it (entering the card's existing Rabbit Hole); only the click starts anything. Which cards qualify: canStartRabbitHole.
-  { id: 'start-rabbit-hole', label: 'Start Rabbit Hole', icon: 'ArrowDownToLine', group: 'primary', order: 10, targets: ['card', 'multi', 'group'],
+  // On your canvas a card that already opens a kept hole says so: Enter Rabbit Hole (owner, 2026-10-27), the same run.
+  { id: 'start-rabbit-hole', label: (t, ctx) => (ctx.canvas.holeOf?.(t.id) ? 'Enter Rabbit Hole' : 'Start Rabbit Hole'), icon: 'ArrowDownToLine', group: 'primary', order: 10, targets: ['card', 'multi', 'group'],
     applies: (t, ctx) => t.family === 'block' && !!ctx.canvas.canStartRabbitHole?.(t.id), requires: 'canvas.child',
     data: t => ({ 'data-menu-start-rabbit-hole': '', 'data-origin': t.id }), run: (t, ctx) => ctx.canvas.startRabbitHole(t.id) },
   // Add comment (canvas-comments.md section 5): the pin goes on the object or group under the pointer.
@@ -195,6 +196,12 @@ export const COMMON_ACTIONS = [
   { id: 'fit-canvas', label: 'Fit canvas', icon: 'Scan', group: 'canvas', order: 40, targets: ['canvas'], hint: 'Shift 1', requires: 'canvas.view',
     data: 'data-menu-fit-canvas', run: (t, ctx) => ctx.commands.zoomFit() },
 
+  // Delete Rabbit Hole (owner, 2026-10-27): the right-clicked card's kept hole, or on the empty canvas the hole open now. It only
+  // opens Dive.jsx's confirmation; the delete is that flow's own (DELETE /api/canvases/dives), run from its Yes, delete.
+  { id: 'delete-rabbit-hole', label: 'Delete Rabbit Hole', icon: 'Trash2', group: 'delete', order: 5, targets: ['card', 'multi', 'group', 'canvas'], danger: true,
+    applies: (t, ctx) => (t.kind === 'canvas' ? !!ctx.canvas.currentHole?.() : t.family === 'block' && !!ctx.canvas.holeOf?.(t.id)), requires: 'canvas.child',
+    data: t => ({ 'data-menu-delete-rabbit-hole': '', ...(t.id ? { 'data-origin': t.id } : {}) }),
+    run: (t, ctx) => ctx.canvas.deleteHole((t.kind === 'canvas' ? ctx.canvas.currentHole() : ctx.canvas.holeOf(t.id)).name) },
   // A group's Delete removes its members too, so it says so (brief section 3).
   { id: 'delete', label: t => (t.kind === 'group' ? 'Delete group and contents' : 'Delete'), icon: 'Trash2', group: 'delete', order: 10,
     targets: [...SELECTION_KINDS, 'connector'], hint: 'Del', shortcut: { key: 'Delete' }, danger: true, mutates: true, requires: 'canvas.local-edit',
