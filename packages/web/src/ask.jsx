@@ -519,7 +519,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // this composer, and its late events are dropped (contract A5).
   useEffect(() => {
     if (!chatThread) return;
-    setMsgs(chatThread.restore.messages || []); setChoices(null); setCodeSelection(null); setView('chat');
+    setMsgs(chatThread.restore.messages || []); setChoices(null); setCodeSelection(null); setView('chat'); held.current = null; // a /line queued behind the old thread's turn does not run in this one
     if (answerFlight.current) { answerFlight.current = null; setBusy(false); }
   }, [chatThread?.restore.key]); // eslint-disable-line react-hooks/exhaustive-deps
   // The restore keeps the transcript this pane shows, so a remounted Chat pane comes back to it, not to the thread as opened.
@@ -1271,7 +1271,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         {!tocView && <CadReview ops={workspace?.canvasOps} />}
         {routeShown && <RouteDecision decision={routeShown} onDismiss={() => setRouteShown(null)} onChoose={id => send(routeShown.raw, undefined, { routeAs: id })}
           onAnswer={() => send(routeShown.raw, undefined, { routeAs: 'answer' })} onRetry={() => send(routeShown.raw, undefined, routeShown.command ? { command: routeShown.command, prompted: true } : {})} />}
-        {slash && <div className="relative"><slash.Picker apiRef={slashRef} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true, command: promptCommand.current, prompted: true })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
+        {slash && <div className="relative"><slash.Picker apiRef={slashRef} scope={chatThread?.restore.key ?? null} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true, command: promptCommand.current, prompted: true })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
         {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command} token={commandToken}
           onKeyDown={slash ? event => { if (removesToken(event, { command, selectionStart: event.target.selectionStart, selectionEnd: event.target.selectionEnd })) { event.preventDefault(); removeCommand(); return; } if (commandHistory(event)) return; slashRef.current?.onKeyDown(event);
