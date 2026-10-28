@@ -70,13 +70,13 @@ export const PRIMITIVES = {
   },
   challenge: {
     ready: true,
-    about: 'A predict-first challenge: the learner commits a guess before the material. expects lists the key ideas a good answer contains; reveal is shown after.',
+    about: 'A predict-first challenge: the learner commits a guess before the material. expects is a JSON array of 2 to 6 short strings, one key idea each, for example "expects": ["First key idea", "Second key idea"], never one string; it lists the key ideas a good answer contains. reveal is shown after.',
     schema: shape({ prompt: text(600), hint: text(300), expects: list(text(200), 2, 6), reveal: text(800) }),
     block: spec => ({ type: 'challenge', prompt: spec.prompt, hint: spec.hint, expects: spec.expects, reveal: spec.reveal, answer: null }),
   },
   explain_back: {
     ready: true,
-    about: 'Ask the learner to explain the idea back in their own words; expects lists the key ideas a good explanation covers.',
+    about: 'Ask the learner to explain the idea back in their own words; expects is a JSON array of 2 to 6 short strings, one key idea each, for example "expects": ["First key idea", "Second key idea"], never one string; it lists the key ideas a good explanation covers.',
     schema: shape({ prompt: text(600), hint: text(300), expects: list(text(200), 2, 6) }),
     block: spec => ({ type: 'challenge', mode: 'explain_back', prompt: spec.prompt, hint: spec.hint, expects: spec.expects, reveal: '', answer: null }),
   },

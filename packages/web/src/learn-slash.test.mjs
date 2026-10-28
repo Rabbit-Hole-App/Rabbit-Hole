@@ -142,6 +142,18 @@ test('/explain: a made interactive explanation is inserted; a failed one keeps t
   assert.equal(plain.did.find(entry => entry[0] === 'post')[2].args, 'in plain text: interactive binary search');
 });
 
+// A card the model could not make valid after its one repair: plain words for the learner, the validator's words kept as the detail.
+test('/practice: an explain-back that failed its checks says so plainly, keeps the line and the technical detail', async () => {
+  const failed = harness({ result: 'validation_error', primitive: 'explain_back', error: 'explain_back.expects: expected an array of 2 to 6 strings, got string' });
+  const out = await failed.run('/practice explain softmax');
+  assert.ok(!failed.did.some(entry => entry[0] === 'block'));
+  assert.equal(out.notice.tone, 'error');
+  assert.equal(out.notice.text, 'An explain-back could not be made: it failed its checks, so nothing was added. Send the line again to retry.');
+  assert.doesNotMatch(out.notice.text, /expected array|expects/);
+  assert.equal(out.notice.detail, 'explain_back.expects: expected an array of 2 to 6 strings, got string');
+  assert.equal(out.keep, '/practice explain softmax');
+});
+
 test('an unknown command says so', async () => {
   const { did, run } = harness();
   assert.match((await run('/frobnicate')).notice.text, /not a Learn command/);
