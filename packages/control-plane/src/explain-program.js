@@ -5,8 +5,12 @@
 // belongs to the pinned interpreter in the browser and in the review browser. The checks here are a fast, deterministic early
 // refusal that gives the author a one-line fix; they are not the security boundary.
 import { CAPABILITIES, CONTRACT_LIMITS, ProgramBundle, resolveInputs, sealProgram, unsupportedCapabilities, verifyHashes } from '../../web/src/explain-program/contract.js';
+import { sdkFingerprint } from '../../web/src/explain-program/sdk.js';
 
 export const programEnabled = env => env.EXPLAIN_PROGRAM_ENABLED === 'true';
+// Server-owned execution eligibility, separate from generation: an accepted artifact may be played unless the kill switch is set
+// (EXPLAIN_PROGRAM_EXECUTION_KILL=true). The card runs a program only when the server's answer says allowed; a client flag never does.
+export const programExecution = env => ({ allowed: env.EXPLAIN_PROGRAM_EXECUTION_KILL !== 'true' });
 export { CAPABILITIES as PROGRAM_CAPABILITIES, CONTRACT_LIMITS as PROGRAM_LIMITS };
 
 // shortcut: the engine and build fingerprints the host binds into a bundle identity. Agent A's runtime build owns the real values
@@ -42,7 +46,8 @@ export function checkProgramDraft(draft) {
 
 // The one stored artifact: the bundle plus the host's version stamps and computed hashes (contract.js sealProgram).
 export async function buildProgramArtifact(bundle, stamps = PROGRAM_STAMPS) {
-  const sealed = await sealProgram(bundle, stamps);
+  // The SDK fingerprint is the real hash of the SDK text the guest receives (sdk.js), so a changed SDK is a different bundle.
+  const sealed = await sealProgram(bundle, { ...stamps, fingerprints: { ...stamps.fingerprints, sdk: await sdkFingerprint() } });
   if (!sealed.ok) throw Object.assign(new Error(sealed.issue || 'the program could not be sealed'), { code: 'invalid_program' });
   return sealed.value;
 }
@@ -64,5 +69,4 @@ export const draftOf = artifact => ({ source: artifact.source, manifest: artifac
 
 // What the learner's card keeps on the canvas, without the source: the source is read back through the authorized result route,
 // so canvas JSON cannot carry executable text into the player.
-export const programReference = (artifact, resultId) => ({ kind: artifact.kind, resultId, bundleHash: artifact.bundleHash, manifest: artifact.manifest,
-  versions: { schema: artifact.schemaVersion, runtime: artifact.runtimeVersion, sdk: artifact.sdkVersion, renderer: artifact.rendererVersion, runtimePolicy: artifact.runtimePolicyVersion, permissionProfile: artifact.permissionProfileVersion, fingerprints: artifact.fingerprints } });
+export const programReference = (artifact, resultId) => ({ kind: artifact.kind, resultId, bundleHash: artifact.bundleHash });

@@ -173,12 +173,15 @@ export async function renderStates(env, compiled, manifest, deps = {}) {
         const done = await within(limits.captureMs, compiled.program
           ? page.evaluate(request => window.__renderProgram(request), { ...request, program: compiled.program })
           : page.evaluate(request => window.__renderScene(request), { ...request, scene: compiled.scene }), 'capture_timeout');
+        // A program that ran and failed is the program's fault (repairable), not the renderer's: its stable code and a bounded private
+        // diagnostic go to repair, never to the learner.
+        if (done?.programError) throw Object.assign(new RenderError('program_error', `the program failed on capture ${entry.id}`), { program: done.programError });
         if (!done?.ok) throw new RenderError('scene_invalid', `render entry refused capture ${entry.id}: ${done?.error || 'unknown'}`);
         if (done.fonts?.missing?.length) throw new RenderError('fonts_missing', `fonts not loaded for ${entry.id}: ${done.fonts.missing.join(', ')}`);
         const element = await page.$(entry.target === 'body' ? '[data-render-target]' : '[data-animation-frame]');
         if (!element) throw new RenderError('scene_invalid', `capture target missing for ${entry.id}`);
         const png = new Uint8Array(await element.screenshot({ type: 'png' }));
-        const capture = { id: entry.id, aliases: entry.aliases, stateHash: entry.stateHash, theme: entry.theme, time: entry.time, inputs: entry.inputs, ...(entry.step ? { step: entry.step } : {}), png, sha256: await sha256Hex(png) };
+        const capture = { id: entry.id, aliases: entry.aliases, stateHash: entry.stateHash, theme: entry.theme, time: entry.time, inputs: entry.inputs, ...(entry.step ? { step: entry.step } : {}), ...(done.trace ? { trace: done.trace } : {}), png, sha256: await sha256Hex(png) };
         if (deps.jobId || deps.store) {
           capture.key = `explain/${deps.jobId || 'adhoc'}/${entry.stateHash.slice(0, 16)}.png`;
           await (deps.store ? deps.store(capture.key, png) : learnMedia(env).put(capture.key, png, { httpMetadata: { contentType: 'image/png' } }));

@@ -32,9 +32,9 @@ function stack(t) {
   const LEARN_DB = { prepare: text => { let args = []; const stmt = sqlite.prepare(text); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => ({ meta: stmt.run(...args) }), now: () => ({ meta: stmt.run(...args) }) }; },
     batch: async statements => { sqlite.exec('BEGIN'); try { const out = statements.map(s => s.now()); sqlite.exec('COMMIT'); return out; } catch (error) { sqlite.exec('ROLLBACK'); throw error; } } };
   // FAKE_BROWSER: what renderStates drives; every capture request is recorded.
-  const rendered = [];
+  const rendered = [], behavior = { programErrors: [] }; // behavior.programErrors: a queue of program failures the next program captures report
   const FAKE_BROWSER = { async newPage() { return { setRequestInterception: async () => {}, on() {}, emulateMediaFeatures: async () => {}, goto: async () => {}, waitForFunction: async () => {}, setViewport: async () => {},
-    evaluate: async (fn, request) => { rendered.push({ theme: request.theme, time: request.time, inputs: request.inputs, program: !!request.program }); return { ok: true, fonts: { missing: [] } }; }, $: async () => ({ screenshot: async () => PNG }), close: async () => {} }; }, close: async () => {} };
+    evaluate: async (fn, request) => { rendered.push({ theme: request.theme, time: request.time, inputs: request.inputs, program: !!request.program }); if (request.program && behavior.programErrors.length) return { ok: false, programError: behavior.programErrors.shift() }; return { ok: true, fonts: { missing: [] }, ...(request.program ? { trace: { inputs: request.inputs, time: request.time, quantities: { level: request.time * (request.inputs.rate ?? 0) }, metrics: { ms: 1 } } } : {}) }; }, $: async () => ({ screenshot: async () => PNG }), close: async () => {} }; }, close: async () => {} };
   const FAKE_ASSETS = { fetch: async () => new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }) };
   // The production render stage (explain-render.js by default); only the browser launch is injected.
   const pipeline = { ...explainPipeline, render: renderStage({ launch: async () => FAKE_BROWSER }) };
@@ -65,7 +65,7 @@ function stack(t) {
   const read = async (method, path, body) => { const res = await send(method, path, body); return { status: res.status, body: await res.json() }; };
   const alarms = async () => { for (const a of actors.values()) await a.alarm(); };
   const restart = () => actors.clear();
-  return { sqlite, env, queues, calls, rendered, read, alarms, restart, stored };
+  return { sqlite, env, queues, calls, rendered, behavior, read, alarms, restart, stored };
 }
 const count = (s, name) => s.calls.filter(c => c.name === name).length;
 const rows = (s, sql) => s.sqlite.prepare(sql).all().map(r => ({ ...r }));
@@ -191,14 +191,20 @@ test('M3 program: pending -> program artifact -> reload, zero new author calls, 
   const { block, job } = view.body;
   assert.deepEqual([block.type, block.id, block.scene, block.program.resultId, block.program.kind], ['animation', 'card-prog-01', undefined, job.result.resultId, 'explain_program']);
   assert.equal(JSON.stringify(block).includes('function evaluate'), false, 'executable text never rides in the canvas JSON');
-  assert.deepEqual([job.result.kind, block.explain.bundleHash.length, block.program.bundleHash.length], ['program', 64, 64]);
+  assert.deepEqual([job.result.kind, block.explain.bundleHash.length, block.program.bundleHash.length, block.title], ['program', 64, 64, PROGRAM.manifest.title]);
+  // The authorized job answer carries the host-hashed artifact and the server's execution decision for the card; the saved identity does not.
+  assert.equal(job.result.program.bundleHash, block.program.bundleHash);
+  assert.deepEqual(job.result.execution, { allowed: true });
+  assert.equal('program' in block.explain, false);
+  assert.equal(await verifyHashes(job.result.program), true);
   // The artifact is read back through the authorized result route and its hashes verify.
   const read = await s.read('GET', `/api/learn/explain/jobs/results/${job.result.resultId}?board=${boardId}`);
   assert.equal(read.status, 200);
   assert.equal(read.body.artifact.source, PROGRAM.source);
+  assert.deepEqual(read.body.execution, { allowed: true });
   assert.equal(await verifyHashes(read.body.artifact), true);
   assert.equal(read.body.artifact.bundleHash, block.explain.bundleHash);
-  assert.deepEqual(read.body.artifact.fingerprints, { engine: 'quickjs-0.32.0', sdk: 'sdk-1', renderer: 'renderer-1' });
+  assert.deepEqual([read.body.artifact.fingerprints.engine, read.body.artifact.fingerprints.sdk.length, read.body.artifact.fingerprints.renderer], ['quickjs-0.32.0', 64, 'renderer-1']);
   // Another person cannot read it, and an unknown result id answers the same refusal.
   const own = s.env.CONTROL_PLANE.fetch;
   s.env.CONTROL_PLANE.fetch = async () => Response.json({ org: 'team', email: 'stranger@test', orgName: 'Team', user_id: 'u-other' });
@@ -230,12 +236,15 @@ test('M3 program: a model-supplied hash is refused, a bad program is not made st
   s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
   const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
   s.queues.author_explanation = [{ kind: 'program', program: { ...PROGRAM, sourceHash: 'a'.repeat(64) } }];
+  s.queues.repair_explanation = [{ operation: 'none', reason: 'Cannot supply a hash.' }];
   const { view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000002', cardId: 'card-prog-02' });
   assert.equal(view.body.job.stage, 'failed');
   assert.equal(view.body.block, undefined, 'no card, and no static substitute');
   assert.equal(s.rendered.length, 0, 'nothing was rendered for a refused program');
   assert.equal(count(s, 'author_explanation'), 1);
-  assert.match(JSON.stringify(view.body.job), /unsupported_repair|spec/);
+  const repair = JSON.parse(s.calls.find(c => c.name === 'repair_explanation').body.messages[0].content[0].text);
+  assert.match(repair.problems.join(' '), /program.|Unrecognized key|sourceHash/);
+  assert.equal(view.body.job.stopReason, 'no_progress');
 });
 
 test('M3 program: a timed catalogue spec is refused with the fix, not rewritten static', async t => {
@@ -264,4 +273,81 @@ test('M3 program: with the route off the author is not offered programs and a pr
   assert.equal(view.body.job.stage, 'failed');
   assert.equal(view.body.block, undefined);
   assert.equal(s.rendered.length, 0);
+});
+
+test('M3 program: a failing review is repaired as a program, re-executed and re-reviewed; the reviewed hash is the played hash', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  s.env.EXPLAIN_DIAGNOSTICS = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  const boardId = saved.body.board_id;
+  const fixed = { ...PROGRAM, source: PROGRAM.source.replace('40 * level', '80 * level') };
+  const ids = ['t0-light', 't1-light', 't2-light'];
+  s.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
+  s.queues.report_review = [verdicts(ids, 'fail', [{ verdict: 'semantic', category: 'spec', severity: 'major', object: 'bar', message: 'The bar grows too slowly to show the rate.', repairable: true }]), verdicts(ids)];
+  s.queues.repair_explanation = [{ operation: 'program', program: fixed, reason: 'Doubled the scale.' }];
+  const { id, view } = await runJob(s, boardId, { requestId: 'req-prog-0000005', cardId: 'card-prog-05' });
+  assert.deepEqual([view.body.job.stage, view.body.job.round], ['ready', 1]);
+  assert.deepEqual([count(s, 'author_explanation'), count(s, 'report_review'), count(s, 'repair_explanation')], [1, 2, 1]);
+  assert.equal(s.rendered.length, 6, 'the repaired program was executed and captured again');
+  // The reviewer received the source, the manifest and a trace for each capture, as untrusted material in their own blocks.
+  const first = s.calls.filter(c => c.name === 'report_review')[0].body.messages[0].content.map(b => b.text || '');
+  assert.equal(first.some(text => text.startsWith('Program source') && text.includes(PROGRAM.source)), true);
+  assert.equal(first.some(text => text.startsWith('Program manifest')), true);
+  assert.match(first.find(text => text.startsWith('Execution traces')), /"quantities":\{"level":/);
+  // The repair read the finding and the current source, and only the corrected program is stored.
+  const repair = s.calls.find(c => c.name === 'repair_explanation').body.messages[0].content.map(b => b.text || '');
+  assert.match(repair[0], /grows too slowly/);
+  assert.equal(repair.some(text => text.startsWith('Current source') && text.includes('40 * level')), true);
+  const read = await s.read('GET', `/api/learn/explain/jobs/results/${view.body.job.result.resultId}?board=${boardId}`);
+  assert.equal(read.body.artifact.source, fixed.source);
+  assert.equal(await verifyHashes(read.body.artifact), true);
+  // Every capture the last review saw carries the hash of the artifact that was saved: review matches what is played.
+  const diagnostics = (await s.read('GET', `/api/learn/explain/jobs/${id}?board=${boardId}&detail=1`)).body.diagnostics;
+  assert.equal(new Set(diagnostics.captures.map(c => c.compiledHash)).size, 1);
+  assert.deepEqual(diagnostics.candidates.map(c => [c.operation, c.progress]), [['program', true]]);
+  assert.equal(diagnostics.captures.every(c => c.compiledHash === diagnostics.captures[0].compiledHash), true);
+});
+
+test('M3 program: a program that fails when run goes to repair with the reason, never to a static card', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  s.behavior.programErrors.push({ code: 'runtime_error', diagnostic: 'ReferenceError: levl is not defined' });
+  s.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
+  s.queues.repair_explanation = [{ operation: 'program', program: { ...PROGRAM, source: PROGRAM.source + '\n// repaired' } }];
+  s.queues.report_review = [verdicts(['t0-light', 't1-light', 't2-light'])];
+  const { view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000006', cardId: 'card-prog-06' });
+  assert.deepEqual([view.body.job.stage, view.body.job.round], ['ready', 1]);
+  const repair = JSON.parse(s.calls.find(c => c.name === 'repair_explanation').body.messages[0].content[0].text);
+  assert.match(repair.problems.join(' '), /running the program failed \(runtime_error\): ReferenceError: levl/);
+  assert.equal(count(s, 'report_review'), 1, 'a failed run was never reviewed');
+  assert.equal(view.body.block.program.kind, 'explain_program');
+});
+
+test('M3 program: a capability the runtime lacks is an explicit gap, not a repair or a static card', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  s.queues.author_explanation = [{ kind: 'program', program: { ...PROGRAM, manifest: { ...PROGRAM.manifest, capabilities: ['three_d_world'] } } }];
+  const { view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000007', cardId: 'card-prog-07' });
+  assert.deepEqual([view.body.job.stage, view.body.job.stopReason, view.body.job.failure.category], ['failed', 'capability_gap', 'capability']);
+  assert.equal(view.body.block, undefined);
+  assert.deepEqual([s.rendered.length, count(s, 'repair_explanation'), count(s, 'report_review')], [0, 0, 0]);
+});
+
+test('M3 program: the server owns execution eligibility; the kill switch turns it off without removing the saved artifact', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  const boardId = saved.body.board_id;
+  s.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
+  s.queues.report_review = [verdicts(['t0-light', 't1-light', 't2-light'])];
+  const { id, view } = await runJob(s, boardId, { requestId: 'req-prog-0000009', cardId: 'card-prog-09' });
+  assert.deepEqual(view.body.job.result.execution, { allowed: true });
+  s.env.EXPLAIN_PROGRAM_EXECUTION_KILL = 'true';
+  const killed = await s.read('GET', `/api/learn/explain/jobs/${id}?board=${boardId}`);
+  assert.deepEqual(killed.body.job.result.execution, { allowed: false });
+  assert.equal(killed.body.job.result.program.sourceHash, view.body.job.result.program.sourceHash, 'the saved artifact is kept');
+  assert.deepEqual((await s.read('GET', `/api/learn/explain/jobs/results/${view.body.job.result.resultId}?board=${boardId}`)).body.execution, { allowed: false });
 });

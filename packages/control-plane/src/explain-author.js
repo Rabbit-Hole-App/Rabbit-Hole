@@ -10,6 +10,7 @@ import { EXAMPLES } from '../../web/src/visual-components/examples/index.js';
 import { sceneProblem } from './learn-scene-gates.js';
 import { authorTool, EXPLAIN_AUTHOR_SYSTEM, EXPLAIN_PROGRAM_RULES, GAP_NEEDS, programContext } from './agents/explain-author.js';
 import { PROGRAM_CAPABILITIES, PROGRAM_LIMITS, buildProgramArtifact, checkProgramDraft, programEnabled } from './explain-program.js';
+import { programFitProblems } from './explain-program-stage.js';
 import { ExplainPolicyError, callExplainRole } from './explain-policy.js';
 import { learnMedia } from './learn-storage.js';
 
@@ -162,11 +163,19 @@ export async function authorExplanation(prompt, { env = {}, callModel, catalogue
 // The program path's trusted checks (no model call): source and manifest against the frozen contract, then the artifact with
 // host-computed hashes. A capability the runtime does not offer is a gap, never a repair or a substitute card.
 // -> { artifact } | { problems, category, repairable } | { gap }
-export async function validateProgramStage(job) {
+export async function validateProgramStage(job, ctx = {}) {
   const checked = checkProgramDraft(job.program);
   if (checked.gap) return { gap: capabilityGap(checked.gap.needs, checked.gap.reason, 'compiler') };
   if (checked.problems) return { problems: checked.problems, category: 'spec', repairable: true };
-  return { artifact: await buildProgramArtifact(checked.bundle) };
+  const { manifest } = checked.bundle, problems = [];
+  // The requested behaviour is kept whatever kind the author returned: a plan (or the card's Generate setting) that asks for
+  // playback or controls cannot be met by a program that declares neither.
+  const wanted = job.brief?.presentation;
+  if (wanted === 'experiment' && !manifest.inputs.length) problems.push('the approved plan asks for a control the learner moves, but the manifest declares no input');
+  if (wanted === 'time' && !manifest.duration) problems.push('the approved plan asks for playback over time, but the manifest declares no duration');
+  const artifact = await buildProgramArtifact(checked.bundle);
+  problems.push(...programFitProblems(ctx.env ?? {}, artifact, job));
+  return problems.length ? { problems: [...new Set(problems)], category: 'spec', repairable: true } : { artifact };
 }
 
 export function validateStage(job, ctx = {}) {

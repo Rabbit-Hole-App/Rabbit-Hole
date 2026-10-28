@@ -11,7 +11,9 @@ import { presentationRepair } from './learn-scene-gates.js';
 import { COMPOSITION, catalogue, componentFor } from '../../web/src/visual-components/registry.js';
 import { SPEC_LIMITS } from './explain-author.js';
 import { canonicalJson } from '../../web/src/explain-contract.js';
-import { EXPLAIN_REPAIR_SYSTEM, REPAIR_TOOL } from './agents/explain-repair.js';
+import { EXPLAIN_REPAIR_PROGRAM_SYSTEM, EXPLAIN_REPAIR_SYSTEM, REPAIR_PROGRAM_TOOL, REPAIR_TOOL } from './agents/explain-repair.js';
+import { draftOf } from './explain-program.js';
+import { programRepairContent } from './explain-program-stage.js';
 import { EXPLAIN_LIMITS, EXPLAIN_ROLES } from './explain-policy.js';
 import { sha256Hex } from './learn-grade-jev.js';
 
@@ -81,6 +83,26 @@ export async function repairStage(job, ctx) {
   }
   if (canonicalJson(spec) === canonicalJson(job.spec)) return { progress: false, reason: 'The repair changed nothing.' };
   return { spec, progress: true, operation: input.operation, reason };
+}
+
+// The program repair stage (explain sandbox Task 6): one explain_repair call returns the whole corrected program or none. Only
+// what the trusted checks or the review named may change; the host re-seals, re-executes and re-reviews the result, and a repair that
+// changes nothing stops the job (no progress), so a stuck program cannot spend the remaining rounds. -> { program, progress: true,
+// operation } | { progress: false, rejected?, reason? }
+export async function programRepairStage(job, ctx) {
+  const failure = job.findings.at(-1) || {};
+  const serious = (failure.findings || []).filter(f => f.severity !== 'minor');
+  if (!failure.problems?.length && !serious.length) return { progress: false, rejected: 'This failure cannot be repaired by changing the program.' };
+  if (serious.some(f => !['spec', 'source'].includes(f.category))) return { progress: false, rejected: 'This failure needs a change the repair step cannot make. Edit the request and try again.' };
+  const named = new Set((failure.findings || []).map(f => f.target?.capture ?? f.target?.state).filter(Boolean));
+  const images = (job.captures || []).filter(capture => named.has(capture.id) && typeof capture.data === 'string').slice(0, EXPLAIN_ROLES.repair.maxImages);
+  const { input } = await ctx.call('repair', { system: EXPLAIN_REPAIR_PROGRAM_SYSTEM, tool: REPAIR_PROGRAM_TOOL, content: programRepairContent(job, failure, images) });
+  const reason = typeof input.reason === 'string' ? input.reason.slice(0, 300) : null;
+  if (input.operation === 'none') return { progress: false, reason };
+  if (input.operation !== 'program' || !plain(input.program)) return { progress: false, rejected: 'The repair returned no program.' };
+  const current = job.artifact ? draftOf(job.artifact) : job.program;
+  if (canonicalJson(input.program) === canonicalJson(current)) return { progress: false, reason: 'The repair changed nothing.' };
+  return { program: input.program, progress: true, operation: 'program', reason };
 }
 
 // Component and renderer defects found by review: deduplicated keys for the development backlog (T11). Only the component,

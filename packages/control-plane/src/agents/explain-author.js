@@ -157,12 +157,12 @@ A program is plain JavaScript that defines evaluate({inputs, time, seed, state})
 - Keep source under program.limits.sourceBytes and the manifest under program.limits.manifestBytes. Do not write hashes, versions, permissions or limits; the host sets them.
 - Quote nothing from the examples; they show composition only.`;
 
-// shortcut: the SDK list below is a draft of what Agent B's sdk.js will export (program.sdk); replace it by that module's own
-// description when it lands and keep this one place. The frame description follows the frozen contract (contract.js Frame).
+// What the author is told about the runtime (program.* in the input). The SDK list mirrors packages/web/src/explain-program/sdk.js
+// (a global `sdk`); the frame description mirrors contract.js Frame. Limits come from the contract, so they cannot drift.
 export function programContext(limits, capabilities) {
   return {
     capabilities,
-    limits: { sourceBytes: limits.sourceBytes, manifestBytes: limits.manifestBytes, objects: limits.objects, pointsPerObject: limits.pointsPerObject, pointsTotal: limits.pointsTotal, outputBytes: limits.outputBytes, inputs: limits.inputs, duration: limits.duration },
+    limits: { sourceBytes: limits.sourceBytes, manifestBytes: limits.manifestBytes, objects: limits.objects, pointsPerObject: limits.pointsPerObject, pointsTotal: limits.pointsTotal, maxOutputBytes: limits.maxOutputBytes, inputs: limits.inputs, duration: limits.duration },
     frame: { returns: '{frame: {width, height, objects, readouts}, quantities: {name: number}}', width: 'default 960, at most 4096', height: 'default 540, at most 4096', readouts: '[{id, value}] for the ids declared in manifest.readouts' },
     objectKinds: {
       line: '{kind:"line", id, from:{x,y}, to:{x,y}, role?, opacity?}', arrow: '{kind:"arrow", id, from:{x,y}, to:{x,y}, role?, opacity?}',
@@ -172,9 +172,10 @@ export function programContext(limits, capabilities) {
     },
     ids: 'unique, 1 to 64 characters of letters, digits and _ . : -',
     roles: ['neutral', 'input', 'output', 'prediction', 'observed', 'learner', 'tutor', 'code', 'warning', 'success'],
-    sdk: { note: 'generic helpers only, global in the program', functions: [
-      'clamp(v, lo, hi)', 'lerp(a, b, t)', 'rotate(point, pivot, radians) -> point', 'polar(cx, cy, r, radians) -> point',
-      'linspace(a, b, n) -> number[]', 'sampleCurve(f, a, b, n) -> points', 'fmt(value, digits) -> string',
+    sdk: { global: 'sdk', note: 'generic helpers; they return the plain objects above', functions: [
+      'sdk.clamp(v, lo, hi)', 'sdk.lerp(a, b, t)', 'sdk.linear([d0, d1], [r0, r1]) -> (v) => number', 'sdk.sample(f, from, to, count) -> [[x, y]...] (count + 1 points)', 'sdk.format(v, decimals = 2) -> string',
+      'sdk.box(id, x, y, w, h, opts?)', 'sdk.circle(id, x, y, diameter, opts?)', 'sdk.text(id, x, y, text, opts?)', 'sdk.math(id, x, y, tex, opts?)',
+      'sdk.line(id, x1, y1, x2, y2, opts?)', 'sdk.arrow(id, x1, y1, x2, y2, opts?)', 'sdk.polyline(id, points, opts?)', 'sdk.frame(objects, opts?) -> {objects, ...opts}',
     ] },
   };
 }
