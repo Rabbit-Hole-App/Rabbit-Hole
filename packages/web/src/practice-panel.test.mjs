@@ -38,6 +38,7 @@ await esbuild.build({
     loader: 'jsx',
   },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
+  loader: { '.css': 'empty' }, // SceneActivity reaches KaTeX's stylesheet through Md.jsx
 });
 const { SceneActivity, SceneControls, createElement, renderToStaticMarkup } = createRequire(import.meta.url)(outfile);
 rmSync(dir, { recursive: true, force: true });
@@ -187,4 +188,13 @@ test('every input type locks to one statement, and none of its alternatives', ()
     'Marked = a, c · locked by practice',
   ]);
   for (const name of names) assert.ok(!html.includes(`data-input-control="${name}"`), `${name}: an alternative is still on screen`);
+});
+
+test('a practice prompt and its feedback typeset delimited math, in the same paragraphs', () => {
+  const { block } = PRACTICE_CARDS[0];
+  const withMath = { ...block, activity: { ...block.activity, prompt: String.raw`Is $\frac{a}{b}$ larger?`, feedbackPass: String.raw`Yes, $x_i$.`, feedbackFail: String.raw`No, $x_i$.` } };
+  const html = renderActivity(applyCheck(setActivityAnswer(enterPractice(withMath), somePick(block.activity.answer))));
+  assert.equal((html.match(/class="katex"/g) || []).length, 2, 'prompt and feedback');
+  assert.doesNotMatch(text(html.replace(/<annotation[^>]*>[\s\S]*?<\/annotation>/g, '')), /\$|\\frac/, 'no delimiter or TeX command on screen');
+  assert.match(html, /<p class="mt-1 text-sm text-ink">Is <span data-chat-math="inline"/);
 });

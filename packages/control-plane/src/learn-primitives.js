@@ -13,6 +13,7 @@ import { VIDEO_SCHEMA, validateVideo } from './learn-video-schema.js';
 import { SCENE_SCHEMA, validateScene } from './learn-scene-schema.js';
 import { validateMathAnimation } from './learn-math-schema.js';
 import { validateToolInput as validateSchema } from './learn-validation.js';
+import { MATH_FORMAT } from './agents/math-format.js';
 import MATH_SCHEMA from '../../math-renderer/math-schema.json' with { type: 'json' };
 
 const text = (maxLength, minLength = 1) => ({ type: 'string', minLength, maxLength });
@@ -41,7 +42,7 @@ const graphSpec = (renderer, spec) => {
 export const PRIMITIVES = {
   explanation: {
     ready: true,
-    about: 'A titled explanation in Markdown with optional folded extras (worked example, misconception). Use $...$ for maths.',
+    about: `A titled explanation in Markdown with optional folded extras (worked example, misconception). ${MATH_FORMAT}`,
     schema: shape({ title: text(120), body: text(2000), more: list(shape({ label: text(40), text: text(800) }), 0, 3) }, ['title', 'body']),
     block: spec => ({ type: 'explanation', title: spec.title, body: spec.body, ...(spec.more?.length ? { more: spec.more } : {}) }),
   },
