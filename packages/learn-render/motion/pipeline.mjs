@@ -98,6 +98,13 @@ export async function runMotionRequest({
     if (keep) save({ composition: { output: keep, state: 'unreviewed', limits: { class: checked.class, metrics: checked.metrics, allowed } } });
     return end('failed', { failure_reason: `composition limits: ${checked.reason}`, cause: 'content', failure_code: checked.class ? 'composition_not_covered' : 'composition_over_limits' });
   };
+  // The same gate for a composition the Author REPAIR returns (review-job.mjs), which would otherwise reach the renderer unchecked.
+  const repairGate = (source, brief) => {
+    if (typeof source !== 'string') return null;
+    const allowed = approved?.allowed_complexity ?? null, checked = checkCompositionLimits(source, { durationSeconds: brief.duration.seconds, allowed });
+    out.complexity = { class: checked.class, metrics: checked.metrics };
+    return checked.ok ? null : { reason: `composition limits: ${checked.reason}`, code: checked.class ? 'composition_not_covered' : 'composition_over_limits', limits: { class: checked.class, metrics: checked.metrics, allowed } };
+  };
   const save = part => { out.checkpoint = { ...out.checkpoint, ...part }; }; // replaced, never mutated: the orchestrator notices it on the next stage or job log line
   // Diagnostics stay with the job: every stage's artifact, whatever happens next.
   const keep = (name, value) => { if (!dir) return; mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, name), typeof value === 'string' ? value : JSON.stringify(value, null, 2)); };
@@ -207,12 +214,12 @@ export async function runMotionRequest({
     const job = await enter('review_and_render', () => reviewJob({
       brief, storyboard, author: a, origin: { storyboard: 'model_generated', composition: 'model_generated' },
       service, call, env, dir, effort, signal, renderer, prior: { repairs: { ...out.repairs }, format_retries: out.format_retries, transport_retries: out.transport_retries },
-      log: line => onStage(line.replace(/^job: /, 'job:'), out), save, resume, limits: allowedLimits(approved?.allowed_complexity),
+      log: line => onStage(line.replace(/^job: /, 'job:'), out), save, resume, limits: allowedLimits(approved?.allowed_complexity), gate: source => repairGate(source, brief),
     }));
     out.calls.push(...job.calls);
     Object.assign(out, { job: job.job, passes: job.passes, render: job.render, job_errors: job.job_errors, storyboard_revised: job.storyboard_revised, repairs: { ...job.job.repairs }, transport_retries: job.job.transport_retries });
     if (job.repair) out.repair = job.repair;
-    if (job.job.status !== 'ready') return fail(job.job.failure_reason, job.cause);
+    if (job.job.status !== 'ready') return end('failed', { failure_reason: job.job.failure_reason, cause: job.cause ?? 'model', ...(job.failure_code ? { failure_code: job.failure_code } : {}) });
     out.block = motionVideoBlock({ brief, renderId: job.render.render_id, jobId: job.job.id, renderer });
     return end('ready');
   }
