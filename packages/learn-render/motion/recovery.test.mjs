@@ -199,3 +199,18 @@ test('orchestrator /recover: only a checkpoint it sealed starts; a render recove
   assert.deepEqual([v.spend.calls, v.cause], [0, 'limit'], 'nothing was sent; the refusal is the limit');
   assert.deepEqual(seen, ['render']);
 });
+
+// 2026-10-27: a recovery attempt was not given the readiness policy's allowed classes, so it ran unrestricted while a new job did not.
+test('orchestrator /recover: the allowed complexity classes travel to the pipeline as `approved`, and an unknown class is refused', async t => {
+  const seen = [];
+  const run = async ({ recover, approved }) => { seen.push(approved ?? null); return { status: 'failed', failure_reason: 'stub', cause: 'content', checkpoint: recover?.checkpoint }; };
+  const { req, grant, done } = await orchestrator(t, run, { policy: { motion_review: { calls: 4, max_tokens: 16000, bytes: 24000, images: 20 } } });
+  const checkpoint = { request: REQUEST, brief: BRIEF, storyboard: STORYBOARD, composition: { output: { status: 'composition', composition_id: 'x', source: SOURCE }, state: 'unreviewed' }, findings: [], frames: [] };
+  const seal = sealCheckpoint(TOKEN, checkpoint);
+  assert.equal((await req('/recover', { ...grant(), mode: 'fix', checkpoint, seal, allowed_complexity: ['huge'] })).status, 400);
+  const started = await (await req('/recover', { ...grant(), mode: 'fix', checkpoint, seal, allowed_complexity: ['simple'] })).json();
+  await done(started.job_id);
+  const plain = await (await req('/recover', { ...grant(), mode: 'fix', checkpoint, seal })).json();
+  await done(plain.job_id);
+  assert.deepEqual(seen, [{ allowed_complexity: ['simple'] }, null], 'a recovery with no allowance named is unrestricted, as before');
+});

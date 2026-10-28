@@ -167,8 +167,9 @@ export const requiredPath = body => requiredStages(body).path;
 export function validateRecoverRequest(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return ['body: an object is required'];
   const e = [];
-  for (const k of Object.keys(body)) if (!['idempotency_key', 'grant', 'mode', 'checkpoint', 'seal'].includes(k)) e.push(`${k}: not a field`);
+  for (const k of Object.keys(body)) if (!['idempotency_key', 'grant', 'mode', 'checkpoint', 'seal', 'allowed_complexity'].includes(k)) e.push(`${k}: not a field`);
   if (!['render', 'fix'].includes(body.mode)) e.push('mode: render | fix');
+  if (body.allowed_complexity !== undefined && (!Array.isArray(body.allowed_complexity) || body.allowed_complexity.some(c => !COMPLEXITY_CLASSES.includes(c)))) e.push('allowed_complexity: classes of ' + COMPLEXITY_CLASSES.join(', '));
   if (!body.checkpoint || typeof body.checkpoint !== 'object' || Array.isArray(body.checkpoint) || typeof body.checkpoint.request !== 'string') e.push('checkpoint: the object GET /jobs/<id>/artifacts returned');
   if (!/^[0-9a-f]{64}$/.test(body.seal || '')) e.push('seal: 64 hex');
   if (typeof body.idempotency_key !== 'string' || !KEY.test(body.idempotency_key)) e.push('idempotency_key: 8 to 128 characters [A-Za-z0-9_-]');
@@ -357,7 +358,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
   function start(body, preflight = '') {
     const id = randomBytes(16).toString('hex');
     const controller = new AbortController();
-    const recover = body.mode ? { mode: body.mode, checkpoint: body.checkpoint } : null;
+    const recover = body.mode ? { mode: body.mode, checkpoint: body.checkpoint, ...(body.allowed_complexity ? { allowed_complexity: body.allowed_complexity } : {}) } : null;
     const job = { id, key: body.idempotency_key, status: 'running', stage: 'queued', created_at: new Date(now()).toISOString(), controller, calls: [], renders: [], grant_micros: body.grant.micros, ceiling_micros: Math.min(body.grant.micros, ceilingMicros), refusal: null, refusalInfo: null, failure: null, kinds: {}, digests: new Map(), rev: 0, checkpoint: null,
       policy: recover && policy ? RECOVERY_POLICY[recover.mode] : policy };
     jobs.set(id, job); keys.set(job.key, id);
@@ -485,7 +486,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     // Each new checkpoint the pipeline saves bumps rev, so the worker copies it while the job still runs (a restart loses only
     // the work in flight).
     const onStage = (stage, out) => { job.stage = stage; if (out?.checkpoint && out.checkpoint !== job.checkpoint) { job.checkpoint = out.checkpoint; job.rev++; } };
-    runner({ message: recover ? recover.checkpoint.request : body.request, ...(readable ? { source: pinned } : {}), location: body.location ?? {}, context: body.context ?? null, call: guarded, env, service: counted, dir: join(outDir, id), signal: controller.signal, onStage, ...(renderer ? { renderer } : {}), ...(!recover && plans[body.request] ? { plan: plans[body.request] } : {}), ...(!recover && body.approved_proposal ? { approved: body.approved_proposal } : {}), ...(recover ? { recover, renderer: recover.checkpoint.renderer ?? renderer } : {}) })
+    runner({ message: recover ? recover.checkpoint.request : body.request, ...(readable ? { source: pinned } : {}), location: body.location ?? {}, context: body.context ?? null, call: guarded, env, service: counted, dir: join(outDir, id), signal: controller.signal, onStage, ...(renderer ? { renderer } : {}), ...(!recover && plans[body.request] ? { plan: plans[body.request] } : {}), ...(!recover && body.approved_proposal ? { approved: body.approved_proposal } : {}), ...(recover ? { recover, ...(recover.allowed_complexity ? { approved: { allowed_complexity: recover.allowed_complexity } } : {}), renderer: recover.checkpoint.renderer ?? renderer } : {}) })
       .then(result => { job.result = result; job.status = result.status; })
       .catch(error => { job.result = { status: 'failed', failure_reason: `the pipeline crashed: ${String(error?.message || error).split('\n')[0]}`, cause: 'infra' }; job.status = 'failed'; })
       .finally(() => {
@@ -587,7 +588,11 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
       if (!job) return send(res, 404, { error: 'not_found', detail: 'unknown job' });
       if (m[2] === '/cancel') {
         if (req.method !== 'POST') return send(res, 405, { error: 'method_not_allowed' });
-        if (job.status === 'running') { job.controller.abort(); log(`job ${job.id}: stop requested during ${job.stage}`); }
+        // origin: who the Worker says asked (learner_request | durable_resend | alarm_resend); a caller that names none is logged as unnamed.
+        // It is a label for the operator's trace, never a decision input (the bearer token already proved the caller).
+        const named = (await readJson(req, 256).catch(() => ({}))).origin;
+        const origin = /^[a-z_]{1,32}$/.test(named ?? '') ? named : 'unnamed';
+        if (job.status === 'running') { job.controller.abort(); log(`job ${job.id}: stop requested during ${job.stage} (origin ${origin})`); }
         return send(res, 202, { job_id: job.id, status: job.status === 'running' ? 'stopping' : job.status });
       }
       if (req.method !== 'GET') return send(res, 405, { error: 'method_not_allowed' });
