@@ -28,3 +28,10 @@ Owners: integrator = Parallel; Agent A runtime (Tasks 1, 3); Agent B card/render
 ## MVP definition and scope notes
 
 MVP = Tasks 1-7 as originally defined. Passing CI on the MVP branch does not complete Tasks 8-11. No subtask has been dropped; Task 6 coverage and Task 7 genuine generation are open and listed above. Main already carries the Motion public flip (a644f5e4); the /explain release is independent of it.
+
+## Candidate log (2026-10-28)
+
+- 0e7ac65b9: gated and dev-deployed; genuine run 1 (ex1-cooling) failed (unsupported_repair, US$0.44).
+- Diagnosis: the stored job record was read through owner diagnostics (EXPLAIN_DIAGNOSTICS set as a secret on the preview worker, owner-approved). Round 0 duplicate input/readout id; round 1 runtime_limit on a cold first capture; round 2 "engine failure"; round 3 reached review with seven true layout findings and no round left. Earlier round sources were overwritten and are lost; only the last draft survives (kept as a test fixture).
+- Timing (offline replays on this machine, not the preview): the 50 ms deadline started before trusted setup (cold setup median 17.8 ms, max 54.6 ms, against 12.4 ms median for the program's own work); a deadline expiring in setup escaped as "engine failure". Memory was never approached (16 MiB of 32 MiB). Open: the contract allows 10,000 polyline points but serializing that alone takes about 37 ms.
+- Next candidate (local until pushed): review routing for program findings, the rounds stop reason, programHash on repair candidates, shared id namespace and duration wording in the author prompt, runtime phase and timing in diagnostics, bounded per-round history in the private job record, actionable duplicate-id message, and a separate setup bound so the program's 50 ms starts after trusted setup (setup failures are render failures, not repairs). Local suites pass; CI, gate, dev deploy and genuine acceptance still pending.
