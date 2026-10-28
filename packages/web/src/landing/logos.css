@@ -1,27 +1,20 @@
-/* Organisation-logo strip: compact, one row, slow left-to-right drift, transform-only animation. */
-#below #used-by{--logos-gap:72px;max-width:1080px;margin:72px auto 96px;padding:0}
+/* Organisation-logo strip: one row, slow left-to-right drift, transform-only animation, every logo one uniform gray. */
+#below #used-by{--logos-gap:80px;--logos-scale:1;max-width:1080px;margin:136px auto 144px;padding:0}
 #used-by:empty{display:none}
-#used-by .logos-head{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:28px}
-#below #used-by h2{margin:0;font:500 13px/1.5 var(--ui);letter-spacing:.01em;color:var(--muted);text-align:center}
-#used-by .logos-toggle{display:grid;place-items:center;flex:none;width:32px;height:32px;border:1px solid var(--hair);border-radius:50%;background:#fff;color:var(--muted);cursor:pointer;transition:background-color 150ms ease,color 150ms ease,transform 120ms ease}
-#used-by .logos-toggle:hover{background:#f4f4f2;color:var(--fg)}
-#used-by .logos-toggle:active{transform:scale(.92)}
-#used-by .logos-toggle:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
-#used-by .logos-i-play,#used-by .logos-toggle[aria-pressed="true"] .logos-i-pause{display:none}
-#used-by .logos-toggle[aria-pressed="true"] .logos-i-play{display:block}
-#used-by .logos-strip{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+#below #used-by h2{margin:0 0 56px;font:500 14px/1.5 var(--ui);letter-spacing:.01em;color:var(--muted);text-align:center}
+#used-by .logos-strip{overflow:hidden;padding:12px 0;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
 #used-by .logos-track{display:flex;width:max-content;animation:logos-ltr var(--logos-dur,60s) linear infinite;will-change:transform}
 #used-by .logos-group{display:flex;flex:none;align-items:center;list-style:none;margin:0;padding:0}
 #used-by .logos-group li{flex:none;display:flex;align-items:center;margin-right:var(--logos-gap)}
-#used-by .logos-group img{display:block;width:auto;max-width:none;user-select:none;-webkit-user-drag:none}
+/* One uniform gray for any logo (coloured or white, all on transparent backgrounds): black, then 50% opacity. Gray is CSS only. */
+#used-by .logos-group img{display:block;width:auto;max-width:none;height:calc(var(--h) * 1px * var(--logos-scale));filter:brightness(0);opacity:.5;user-select:none;-webkit-user-drag:none}
 /* Moves left to right: the track starts half a length to the left and slides back to zero. */
 @keyframes logos-ltr{from{transform:translate3d(-50%,0,0)}to{transform:translate3d(0,0,0)}}
-#used-by .logos-strip:hover .logos-track,#used-by:focus-within .logos-track,#used-by[data-paused] .logos-track{animation-play-state:paused}
-@media(max-width:700px){#below #used-by{--logos-gap:48px;margin:48px auto 64px}#used-by .logos-head{flex-wrap:wrap}}
+#used-by .logos-strip:hover .logos-track,#used-by:focus-within .logos-track{animation-play-state:paused}
+@media(max-width:700px){#below #used-by{--logos-gap:52px;--logos-scale:.8;margin:96px auto 104px}#below #used-by h2{margin-bottom:40px}}
 @media(prefers-reduced-motion:reduce){
   #used-by .logos-track{animation:none;width:auto}
-  #used-by .logos-strip{overflow-x:auto;overscroll-behavior-x:contain;-webkit-mask-image:none;mask-image:none;padding-bottom:8px}
+  #used-by .logos-strip{overflow-x:auto;overscroll-behavior-x:contain;-webkit-mask-image:none;mask-image:none;padding-bottom:16px}
   #used-by .logos-group[aria-hidden="true"],#used-by .logos-group li[aria-hidden="true"]{display:none}
   #used-by .logos-group li:last-child{margin-right:0}
-  #used-by .logos-toggle{display:none}
 }
