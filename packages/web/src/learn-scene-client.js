@@ -30,9 +30,10 @@ export const motionHold = async app => {
 export const startVideo = (app, operation, { confirmed = false, retry = false } = {}) =>
   api(videoEndpoint(app), { method: 'POST', body: JSON.stringify({ operation, lessonId: 'adaptive-canvas', page: 'canvas', confirmed, retry }) });
 
-// Stop a generating job whose provider can stop (a /motion request); free, so no confirmation.
+// Stop a generating job whose provider can stop (a /motion request). Both callers (the card's and the Chat card's Stop) send it only after
+// their "Stop this video?" confirmation, so it says confirmed: the server charges a stop only when the learner confirmed it (PROPOSED, NOT APPROVED).
 export const stopVideo = (app, placementId) =>
-  api(videoEndpoint(app), { method: 'POST', body: JSON.stringify({ action: 'cancel', id: placementId }) });
+  api(videoEndpoint(app), { method: 'POST', body: JSON.stringify({ action: 'cancel', id: placementId, confirmed: true }) });
 
 // Recovery of a failed /motion card (owner message 38): mode render (free) or fix (paid: confirmed after PaidConfirm).
 export const recoverVideo = (app, placementId, mode, { confirmed = false } = {}) =>

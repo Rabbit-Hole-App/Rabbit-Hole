@@ -34,6 +34,8 @@ export const FAILURE_CODES = Object.freeze({
   // A model call failed partway (cause model). Charged as before.
   model_failed: Object.freeze({ zeroCredit: false, deterministic: false, message: null }),
   missing_context: Object.freeze({ zeroCredit: false, deterministic: false, message: null }),
+  // PROPOSED, NOT APPROVED (feat/motion-billing-correction): a stop is charged only when it is the learner's confirmed Stop of THIS attempt
+  // (isZeroCredit learnerStop); a stop of any other origin, or of an origin the Worker did not record, charges nothing.
   stopped: Object.freeze({ zeroCredit: false, deterministic: false, message: null }),
   // A limit reported by an older orchestrator that named no code (cause 'limit' alone): every such limit is ours, never the learner's allowance.
   limit_unspecified: Object.freeze({ zeroCredit: true, deterministic: true, message: "This video stopped at one of Motion's per-video limits. This is a limit on our side, not your AI credits." }),
@@ -49,7 +51,9 @@ export const LIMIT_CODES = Object.freeze(['job_ceiling_insufficient', 'policy_re
 export const hasUserMessage = code => !!FAILURE_CODES[code]?.message;
 export const failureMessage = code => FAILURE_CODES[code]?.message ?? null;
 // A failed job is charged nothing: our own limits and our own infrastructure, never the learner's work or choice.
-export const isZeroCredit = view => !view || (view.status === 'failed' && !!FAILURE_CODES[failureCodeOf(view)]?.zeroCredit);
+// PROPOSED, NOT APPROVED: a cancelled job is charged (its measured cost) only for the learner's confirmed Stop of this attempt (learnerStop,
+// from the Worker's own record); a system-originated stop or one whose origin is unknown is charged nothing. Provider cost is recorded either way.
+export const isZeroCredit = (view, { learnerStop = false } = {}) => !view || (view.status === 'failed' && !!FAILURE_CODES[failureCodeOf(view)]?.zeroCredit) || (view.status === 'cancelled' && !learnerStop);
 export const isDeterministic = code => !!FAILURE_CODES[code]?.deterministic;
 
 // A stored or relayed message that carries the orchestrator's internal refusal text (a job recorded before codes existed: "stopped before

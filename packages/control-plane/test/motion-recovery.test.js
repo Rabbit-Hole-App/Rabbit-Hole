@@ -120,7 +120,7 @@ const env0 = (LEARN_DB, extra = {}) => ({ SMALL_ENV: 'dev', LEARN_DB, USAGE_PLAT
 const who = req => forwardUsagePayer(req, { userId: 'u-alice', email: 'alice@example.test' });
 const generate = () => who(new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ operation: op, lessonId: 'canvas', page: 'canvas', confirmed: true }) }));
 const recover = (id, mode, extra = {}) => who(new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ action: 'recover', id, mode, ...extra }) }));
-const stopping = id => new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ action: 'cancel', id }) });
+const stopping = id => new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ action: 'cancel', id, confirmed: true }) }); // as the UI's Stop confirmation sends it
 // A firing alarm is cleared before its handler runs, as in Durable Objects: only what the handler sets again stays pending.
 async function settle(actor, done) { for (let i = 0; i < 300; i++) { actor.state.clock.alarm = null; await actor.alarm(); if (await done()) return; await sleep(5); } assert.fail('the job did not reach the expected state'); }
 const video = async actor => (await actor.list()).videos[0];

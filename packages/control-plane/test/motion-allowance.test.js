@@ -124,7 +124,7 @@ const env0 = (LEARN_DB, allowanceUsd = '50', extra = {}) => ({ SMALL_ENV: 'dev',
   MOTION_ORCHESTRATOR_URL: 'https://orchestrator.test/', MOTION_ORCHESTRATOR_TOKEN: TOKEN, MOTION_JOB_RESERVATION_USD: '2', ...READY, ...extra });
 const ask = (extra = {}, op = motionOp) => forwardUsagePayer(new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST',
   body: JSON.stringify({ operation: op, lessonId: 'canvas', page: 'canvas', confirmed: true, ...extra }) }), { userId: 'u-alice', email: 'alice@example.test' });
-const stopping = placementId => new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ action: 'cancel', id: placementId }) });
+const stopping = placementId => new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ action: 'cancel', id: placementId, confirmed: true }) }); // as the UI's Stop confirmation sends it
 // The learner's month: settled spend used, outstanding holds reserved (the same sums admission reads).
 const balance = LEARN_DB => usageTotals(LEARN_DB, 'u-alice', PERIOD);
 const motionAttempts = sqlite => rows(sqlite, 'usage_attempts').filter(a => a.attempt_id.startsWith('motion-')).map(a => [a.reserved_micros, a.cost_state, a.cost_micros, a.status]);

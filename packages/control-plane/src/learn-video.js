@@ -39,7 +39,8 @@ const motionHold = j => (j?.provider === 'motion_request' && j.spend?.admitted ?
 // failing (the orchestrator crashed, or lost the job: no view) and now every limit WE set (the per-job ceiling, the production policy, the call
 // cap, an unbounded cost, the overall timeout: motion-failure.js) charge the learner nothing and release the whole reservation. The provider
 // cost is still recorded (usage_operations.cost_usd, job.providerCost) and still counts toward the video's ceiling. Charged as before: content
-// and model failures, and a Stop. A learner's own allowance running out never starts a job (admitMotion), so it charges nothing either.
+// and model failures, and the learner's confirmed Stop (PROPOSED, NOT APPROVED: a stop of any other or unknown origin charges zero). A learner's
+// own allowance running out never starts a job (admitMotion), so it charges nothing either.
 const zeroCredit = isZeroCredit;
 // An attempt is reconciled until it settles, held or free (MOT-21): a free render recovery holds nothing, yet a Stop of it is
 // followed until the orchestrator confirms it ended, its renders are recorded once, and nothing new starts over it.
@@ -218,7 +219,8 @@ export class LearnVideos {
           let unconfirmed = '';
           try { if (job.ticket) await new MotionRequestProvider(this.env).cancel(job.ticket); }
           catch (error) { unconfirmed = ` The Motion harness did not confirm the stop: ${error.message}`; }
-          Object.assign(job, { status: 'failed', error: `Stopped.${unconfirmed}`, stopped: true, uncertain: false });
+          // PROPOSED, NOT APPROVED: the learner's confirmed Stop is recorded against THIS attempt's hold; only it is charged (isZeroCredit learnerStop).
+          Object.assign(job, { status: 'failed', error: `Stopped.${unconfirmed}`, stopped: true, uncertain: false, stoppedOp: body.confirmed === true ? job.spend?.opId ?? null : null });
           await this.state.storage.put(`job:${p.key}`, job);
           // Its hold settles once the orchestrator reports what the stopped job really spent.
           if (needsSettling(job)) await this.state.storage.setAlarm(Date.now() + POLL_MS);
@@ -446,9 +448,10 @@ export class LearnVideos {
     // Exactly once: a second call while the first awaits the ledger, or after it, does nothing.
     if (!spend?.admitted || spend.settled || spend.settling) return;
     spend.settling = true;
+    await this.stopLanded(job); // a Stop stored since this copy was read decides who stopped it
     const cost = view?.spend?.cost_usd, known = Number.isFinite(cost) && cost >= 0 ? Math.ceil(Number((cost * 1e6).toFixed(6))) : null;
     const bound = Number.isFinite(view?.spend?.bound_usd) ? Math.ceil(Number((view.spend.bound_usd * 1e6).toFixed(6))) : spend.micros;
-    const free = zeroCredit(view), code = failureCodeOf(view), calls = view?.spend?.calls || 0, status = calls === 0 && known === 0 ? 'cancelled' : view?.status === 'ready' ? 'settled' : 'failed';
+    const free = zeroCredit(view, { learnerStop: !!job.stopped && !!spend.opId && job.stoppedOp === spend.opId }), code = failureCodeOf(view), calls = view?.spend?.calls || 0, status = calls === 0 && known === 0 ? 'cancelled' : view?.status === 'ready' ? 'settled' : 'failed';
     // The settle-time guard (owner 2026-10-26): the learner is never charged more than the maximum signed into the quote they confirmed (the live
     // maximum for a request with no card). The provider's real cost is still recorded and counted toward the video's ceiling; a zero-credit failure stays 0.
     const maxCredits = job.input?.proposal?.input?.binding?.max_credits ?? motionMaxCredits(this.env), cap = Number.isFinite(maxCredits) ? maxCredits * 10_000 : Infinity;
@@ -492,7 +495,7 @@ export class LearnVideos {
   async stopLanded(job) {
     const stored = await this.state.storage.get(`job:${job.key}`);
     if (!stored?.stopped || job.stopped) return false;
-    Object.assign(job, { stopped: true, status: stored.status, error: stored.error, uncertain: stored.uncertain });
+    Object.assign(job, { stopped: true, stoppedOp: stored.stoppedOp ?? null, status: stored.status, error: stored.error, uncertain: stored.uncertain });
     return true;
   }
 

@@ -61,6 +61,7 @@ function orchestrator(t, { refuse = null } = {}) {
     if (u.pathname === '/jobs' && init.method === 'POST') { state.posts.push(JSON.parse(init.body)); return state.refuse ? json(state.refuse.body, state.refuse.status) : json({ job_id: JOB, status: 'running' }, 202); }
     if (u.pathname === `/jobs/${JOB}`) return json(state.view);
     if (u.pathname === `/jobs/${JOB}/artifacts`) return json(state.artifacts);
+    if (u.pathname === `/jobs/${JOB}/cancel`) { state.cancels = (state.cancels || 0) + 1; return json({ job_id: JOB, status: 'stopping' }, 202); }
     return json({ error: 'not_found' }, 404);
   };
   t.after(() => { globalThis.fetch = original; });
@@ -165,13 +166,80 @@ test('the current charging policy, stated by test: renderer and infrastructure f
     assert.deepEqual(rows(sqlite, 'usage_operations').map(o => o.cost_usd), [0.8], `${cause}: the provider cost is recorded either way`);
   }
   assert.equal(isZeroCredit(null), true, 'a job the orchestrator lost');
-  assert.equal(isZeroCredit({ status: 'cancelled', cause: 'stopped' }), false);
+  // PROPOSED, NOT APPROVED (feat/motion-billing-correction): only the learner's confirmed Stop of this attempt is charged.
+  assert.equal(isZeroCredit({ status: 'cancelled', cause: 'stopped' }, { learnerStop: true }), false);
+  assert.equal(isZeroCredit({ status: 'cancelled', cause: 'stopped' }), true, 'a stop of unknown or system origin');
   assert.deepEqual(LIMIT_CODES.filter(c => !FAILURE_CODES[c].zeroCredit), [], 'every code the orchestrator names for a limit is zero-credit');
   assert.equal(isDeterministic('job_ceiling_insufficient') && isDeterministic('policy_rejected') && isDeterministic('unknown_cost_bound'), true);
   assert.equal(codeOfCause('stopped'), 'stopped');
 });
 
-test('a job refused at start by the orchestrator preflight: nothing started, nothing charged, the hold released, the sentence is the code\'s and no retry is offered', async t => {
+// PROPOSED, NOT APPROVED (feat/motion-billing-correction, docs/features/rabbit-hole-motion-v1-harness-spec.md "Billing correction"): one test per class.
+// Every class keeps the provider's measured cost on the platform ledger (an unknown one stays unknown, never 0), settles once and releases the hold.
+const stopRequest = (id, confirmed) => new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ action: 'cancel', id, ...(confirmed ? { confirmed: true } : {}) }) });
+// Job 2 of 2026-10-27 (operation motion-66699755): cancelled during authoring after one call, US$1.018218.
+const cancelledView = (cost = 1.018218) => failedView({ status: 'cancelled', stage: 'authoring', cause: 'stopped', failure_code: 'stopped', failure: null, failure_reason: 'stopped during authoring', renders: 0, render_states: [],
+  spend: { hold_usd: 2, cost_usd: cost, bound_usd: cost ?? 1.5, ceiling_usd: 2, calls: 1, in_flight: 0, refused: null, provider_calls: [] } });
+// Starts a job, optionally Stops it from the card (confirmed or not), then lets the orchestrator report it cancelled and settles it.
+async function stoppedJob(t, { stop = null, cost = 1.018218, before = null } = {}) {
+  const r = await run(t, { artifacts: artifactsOf([], { status: 'cancelled', cause: 'stopped', failure_code: 'stopped' }) });
+  const { placementId } = await r.first.json();
+  if (before) await before(r);
+  if (stop) assert.equal((await r.actor.fetch(stopRequest(placementId, stop === 'confirmed'))).status, 200);
+  r.fake.view = cancelledView(cost);
+  await settle(r.actor, async () => motionAttempts(r.sqlite)[0][1] !== 'reserved');
+  await r.actor.alarm(); await r.actor.alarm(); // a repeated alarm settles nothing twice
+  const [[, job]] = [...await r.actor.state.storage.list({ prefix: 'job:' })];
+  return { ...r, job };
+}
+const opRows = sqlite => rows(sqlite, 'usage_operations').map(o => [o.status, o.cost_usd]);
+
+test('billing class 3, the learner pressed Stop and confirmed: charged the measured cost of the work done, once; the hold released', async t => {
+  const { sqlite, LEARN_DB, job } = await stoppedJob(t, { stop: 'confirmed' });
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 1_018_218, 'failed']]);
+  assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [1_018_218, 0]);
+  assert.deepEqual(opRows(sqlite), [['failed', 1.018218]]);
+  assert.deepEqual(job.providerCost.map(c => [c.micros, c.charged, c.free]), [[1_018_218, 1_018_218, false]], 'settled once');
+  assert.equal(rows(sqlite, 'usage_actions').find(a => a.feature === 'video').status, 'cancelled');
+});
+
+test('billing class 4, a stop the learner did not confirm for this attempt: system-originated, unconfirmed or stale, charged zero; the provider cost is kept', async t => {
+  for (const [name, options] of [
+    ['the orchestrator ended it cancelled with no Stop from the card (system or unknown origin)', {}],
+    ['a cancel request without the confirmation', { stop: 'unconfirmed' }],
+    ['a Stop recorded for an earlier attempt of the same video', { before: async r => {
+      const [[key, job]] = [...await r.actor.state.storage.list({ prefix: 'job:' })];
+      await r.actor.state.storage.put(key, { ...job, stopped: true, stoppedOp: 'motion-an-earlier-attempt' });
+    } }],
+  ]) {
+    const { sqlite, LEARN_DB, job } = await stoppedJob(t, options);
+    assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 0, 'failed']], name);
+    assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [0, 0], name);
+    assert.deepEqual(opRows(sqlite), [['failed', 1.018218]], `${name}: the measured provider cost is never zeroed`);
+    assert.deepEqual(job.providerCost.map(c => [c.micros, c.charged, c.free]), [[1_018_218, 0, true]], `${name}: settled once, cost kept`);
+  }
+  // An unknown provider cost on such a stop stays unknown (the operation keeps its admitted bound, the job record null), never 0.
+  const { sqlite, job } = await stoppedJob(t, { cost: null });
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 0, 'failed']]);
+  const [[status, costUsd]] = opRows(sqlite);
+  assert.ok(status === 'failed' && costUsd > 0, `unknown cost not recorded as 0 (${costUsd})`);
+  assert.deepEqual(job.providerCost.map(c => [c.micros, c.charged]), [[null, 0]]);
+});
+
+test('billing classes 1 and 2 are NOT changed yet: invalid model output and a refused request both arrive as model_failed or content_rejected, with no stable sub-code', async t => {
+  // The orchestrator says why only in free text (failure_reason), so the Worker cannot tell "our checks rejected the model's output" (class 1)
+  // from "the provider refused the request" (class 2). Both stay charged until a sub-code exists; an internal crash (infrastructure) is zero.
+  for (const [cause, reason, charged] of [['model', 'brief: invalid_output: 3 errors', 800_000], ['model', 'brief: refused: cyber', 800_000],
+    ['content', 'composition limits: the composition is complex, which is not covered for these settings (covered: simple)', 800_000], ['content', 'storyboard (after its repair): storyboard_invalid: B2 too long', 800_000],
+    ['infra', 'the pipeline crashed: TypeError', 0]]) {
+    const { sqlite, LEARN_DB } = await run(t, { view: failedView({ cause, failure_code: undefined, failure: undefined, failure_reason: reason, spend: { cost_usd: 0.8, bound_usd: 0.8, calls: 3, in_flight: 0 } }), artifacts: artifactsOf([], { cause, failure_code: undefined, failure_reason: reason }) });
+    assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', charged, 'failed']], reason);
+    assert.deepEqual(await balance(LEARN_DB).then(b => b.reserved), 0, reason);
+    assert.deepEqual(opRows(sqlite), [['failed', 0.8]], `${reason}: the provider cost is recorded either way`);
+  }
+});
+
+test('a job refused at start by the orchestrator preflight:nothing started, nothing charged, the hold released, the sentence is the code\'s and no retry is offered', async t => {
   const refuse = { status: 503, body: { error: 'not_configured', code: 'job_ceiling_insufficient', detail: 'Motion cannot run this video within its configured limits (job_ceiling_insufficient); nothing was started' } };
   const { sqlite, LEARN_DB, actor, first } = await run(t, { refuse });
   const v = (await first.json()).videos[0];
