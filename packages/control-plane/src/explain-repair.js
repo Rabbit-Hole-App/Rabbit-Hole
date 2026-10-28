@@ -29,6 +29,16 @@ export function allowedRepairs(failure) {
   return serious.some(claim) ? ['hints', 'spec'] : ['hints'];
 }
 
+// A program repair rewrites the whole program, so any serious finding about what the program draws, computes or lays out is repairable
+// (explain-review.js REVIEW_PROGRAM_RULES: category spec or source). A reviewer that files it under component is also routed to the program:
+// everything on a program card is the program's own output. Only a renderer fault (the host's drawing) or a failure with no finding is not.
+const PROGRAM_CATEGORIES = ['spec', 'source', 'component'];
+export function programRepairable(failure) {
+  if (failure?.problems?.length) return true;
+  const serious = (failure?.findings || []).filter(f => f.severity !== 'minor');
+  return serious.length > 0 && serious.every(f => PROGRAM_CATEGORIES.includes(f.category));
+}
+
 // Per instance, the hints a repair may change and their declared limits (from the registry, never from the spec).
 export function repairableHints(spec) {
   const out = {};
@@ -91,9 +101,7 @@ export async function repairStage(job, ctx) {
 // operation } | { progress: false, rejected?, reason? }
 export async function programRepairStage(job, ctx) {
   const failure = job.findings.at(-1) || {};
-  const serious = (failure.findings || []).filter(f => f.severity !== 'minor');
-  if (!failure.problems?.length && !serious.length) return { progress: false, rejected: 'This failure cannot be repaired by changing the program.' };
-  if (serious.some(f => !['spec', 'source'].includes(f.category))) return { progress: false, rejected: 'This failure needs a change the repair step cannot make. Edit the request and try again.' };
+  if (!programRepairable(failure)) return { progress: false, rejected: 'This failure needs a change the repair step cannot make. Edit the request and try again.' };
   const named = new Set((failure.findings || []).map(f => f.target?.capture ?? f.target?.state).filter(Boolean));
   const images = (job.captures || []).filter(capture => named.has(capture.id) && typeof capture.data === 'string').slice(0, EXPLAIN_ROLES.repair.maxImages);
   const { input } = await ctx.call('repair', { system: EXPLAIN_REPAIR_PROGRAM_SYSTEM, tool: REPAIR_PROGRAM_TOOL, content: programRepairContent(job, failure, images) });

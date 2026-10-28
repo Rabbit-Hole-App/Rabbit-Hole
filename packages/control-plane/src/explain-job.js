@@ -33,7 +33,7 @@ import { artifactIntact, draftOf, programEnabled, programExecution, programFacts
 import { reviewCaptures } from './explain-review.js';
 import * as explainRender from './explain-render.js';
 import { learnMedia } from './learn-storage.js';
-import { allowedRepairs, defectKeys, presentationFix, programRepairStage, repairStage } from './explain-repair.js';
+import { allowedRepairs, defectKeys, programRepairable, presentationFix, programRepairStage, repairStage } from './explain-repair.js';
 import { EXPLAIN_LIMITS, EXPLAIN_POLICY_VERSION, REQUEST_CLASSES, ExplainPolicyError, callExplainRole, checkExplainRequest, explainReservation,
   explainRequest, newTiming, markTiming, beginStage, countStage, endStage, timingSummary } from './explain-policy.js';
 
@@ -107,7 +107,7 @@ export async function reviewStage(job, ctx) {
       ...(job.coverage && job.coverage.compiledHash === captures[0]?.compiledHash ? { coverage: job.coverage } : {}) } } : {}) }, { callRole: ctx.call }); }
   catch (error) { if (error.cause) throw error.cause; throw Object.assign(fail(`The explanation could not be reviewed (${error.code || 'review_failed'}).`, 503), { category: error.code === 'missing_pixels' ? 'renderer' : 'spec' }); }
   const findings = out.captures.flatMap(capture => capture.findings), serious = findings.filter(f => f.severity !== 'minor');
-  return { accepted: out.accepted, findings, repairable: allowedRepairs({ findings }).length > 0, category: serious[0]?.category || 'spec', imagesReviewed: captures.length };
+  return { accepted: out.accepted, findings, repairable: job.artifact ? programRepairable({ findings }) : allowedRepairs({ findings }).length > 0, category: serious[0]?.category || 'spec', imagesReviewed: captures.length };
 }
 export const explainPipeline = Object.freeze({ prepare: prepareStage, author: authorStage, validate: (job, ctx) => (job.program ? validateProgramStage(job, ctx) : validateStage(job, ctx)), render: renderStage(), review: reviewStage,
   repair: (job, ctx) => (job.artifact || job.program ? programRepairStage(job, ctx) : repairStage(job, ctx)) });
@@ -625,7 +625,7 @@ export class ExplainJobs {
       return this.repairOrStop(job, out);
     } else if (stage === 'repairing') {
       // Every candidate is recorded (round, operation, hash); a refused or empty repair stops the job rather than spend again.
-      job.candidates = [...(job.candidates || []), { round: job.round, operation: out.operation || null, progress: out.progress !== false, specHash: out.spec ? (await sha256Hex(JSON.stringify(out.spec))).slice(0, 16) : null, ...(out.rejected ? { rejected: out.rejected } : {}) }];
+      job.candidates = [...(job.candidates || []), { round: job.round, operation: out.operation || null, progress: out.progress !== false, specHash: out.spec ? (await sha256Hex(JSON.stringify(out.spec))).slice(0, 16) : null, ...(out.program ? { programHash: (await sha256Hex(JSON.stringify(out.program))).slice(0, 16) } : {}), ...(out.rejected ? { rejected: out.rejected } : {}) }];
       if (out.rejected) return this.stopWith(job, 'unsupported_repair', 'spec', 'This explanation needs a change the repair step cannot make. Edit the request and try again.');
       if (out.progress === false) return this.stopWith(job, 'no_progress', 'spec', 'The explanation could not be repaired. Edit the request and try again.');
       if (out.program) Object.assign(job, { program: out.program, spec: null, artifact: null, compiled: null }); else Object.assign(job, { spec: out.spec, compiled: null });
@@ -636,6 +636,9 @@ export class ExplainJobs {
   }
   async repairOrStop(job, out) {
     await this.recordDefects(job, out.findings);
+    // A program has no unrepairable finding of its own to blame once the corrections are spent: the budget is the reason it stops.
+    const program = job.artifact || job.program;
+    if (program && job.round >= EXPLAIN_LIMITS.correctionRounds) return this.stopWith(job, 'rounds', out.category || 'spec', 'The explanation did not pass its checks within three corrections. Edit the request and try again.');
     if (out.repairable === false) return this.stopWith(job, 'unsupported_repair', out.category || 'spec', out.message || 'This explanation needs a change the repair step cannot make. Edit the request.');
     if (job.round >= EXPLAIN_LIMITS.correctionRounds) return this.stopWith(job, 'rounds', out.category || 'spec', 'The explanation did not pass its checks within three corrections. Edit the request and try again.');
     job.round++; endStage(job.timing, 'rejected'); job.stage = 'repairing'; beginStage(job.timing, 'repairing');
@@ -644,7 +647,8 @@ export class ExplainJobs {
   // Component and renderer defects: one durable, deduplicated backlog entry per defect on this canvas, and one sanitized log
   // line for the development backlog (T11). Runtime code never edits the library.
   async recordDefects(job, findings) {
-    for (const { key, category, component } of await defectKeys(job.spec, findings)) {
+    // Shared-library defects only: a program card's own layout finding is the program's to fix, never a library backlog entry.
+    for (const { key, category, component } of await defectKeys(job.spec, job.artifact || job.program ? (findings || []).filter(f => f.category === 'renderer') : findings)) {
       const entry = await this.state.storage.get(`defect:${key}`), now = Date.now();
       await this.state.storage.put(`defect:${key}`, { key, category, component, count: (entry?.count || 0) + 1, firstAt: entry?.firstAt || now, lastAt: now });
       console.log(JSON.stringify({ event: 'explain_defect', key, category, component, count: (entry?.count || 0) + 1 }));

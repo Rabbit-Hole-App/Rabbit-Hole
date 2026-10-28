@@ -316,6 +316,39 @@ test('M3 program: a failing review is repaired as a program, re-executed and re-
   assert.equal(diagnostics.captures.every(c => c.compiledHash === diagnostics.captures[0].compiledHash), true);
 });
 
+// The reviewer's categories come from the component cards. A program's overlap is its own output: a finding filed as component, even one the
+// reviewer calls not layout-repairable, is the program's to fix, and each repair candidate is traceable by the hash of the program it returned.
+const OVERLAP = { verdict: 'visual', category: 'component', severity: 'major', object: 'caption', message: 'The caption overlaps the bar.', repairable: false };
+test('M3 program: a layout finding filed as component reaches program repair, and the candidate records the program hash', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  s.env.EXPLAIN_DIAGNOSTICS = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  const fixed = { ...PROGRAM, source: PROGRAM.source.replace("y: 150", "y: 120") };
+  s.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
+  s.queues.report_review = [verdicts(CAPTURES, 'fail', [OVERLAP]), verdicts(CAPTURES)];
+  s.queues.repair_explanation = [{ operation: 'program', program: fixed, reason: 'Moved the caption up.' }];
+  const { id, view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000013', cardId: 'card-prog-13' });
+  assert.deepEqual([view.body.job.stage, view.body.job.stopReason, view.body.job.round], ['ready', 'accepted', 1]);
+  assert.deepEqual([count(s, 'report_review'), count(s, 'repair_explanation')], [2, 1]);
+  const { diagnostics } = (await s.read('GET', `/api/learn/explain/jobs/${id}?board=${saved.body.board_id}&detail=1`)).body;
+  assert.match(diagnostics.candidates[0].programHash, /^[0-9a-f]{16}$/);
+  assert.equal(diagnostics.candidates[0].specHash, null);
+});
+
+test('M3 program: three corrections that still fail stop as rounds, not as an unsupported repair', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  s.queues.author_explanation = [{ kind: 'program', program: PROGRAM }];
+  s.queues.report_review = [1, 2, 3, 4].map(() => verdicts(CAPTURES, 'fail', [OVERLAP]));
+  s.queues.repair_explanation = [1, 2, 3].map(n => ({ operation: 'program', program: { ...PROGRAM, source: PROGRAM.source + `
+// attempt ${n}` }, reason: 'Tried.' }));
+  const { view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000014', cardId: 'card-prog-14' });
+  assert.deepEqual([view.body.job.stage, view.body.job.stopReason, view.body.job.round], ['failed', 'rounds', 3]);
+  assert.deepEqual([count(s, 'report_review'), count(s, 'repair_explanation')], [4, 3]);
+});
+
 test('M3 program: a program that fails when run goes to repair with the reason, never to a static card', async t => {
   const s = stack(t);
   s.env.EXPLAIN_PROGRAM_ENABLED = 'true';

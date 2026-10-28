@@ -1,7 +1,7 @@
 // EXP-T18 review: refusals before spending, image transport, verdict coverage. No live model call.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { REVIEW_LIMITS, buildReviewContent, parseReview, reviewCaptures } from '../src/explain-review.js';
+import { REVIEW_LIMITS, REVIEW_PROGRAM_RULES, buildReviewContent, parseReview, reviewCaptures } from '../src/explain-review.js';
 
 const png = n => new Uint8Array(Array.from({ length: n }, (_, i) => i % 256));
 const cap = (id, extra = {}) => ({ id, compiledHash: 'h1abcdef', theme: 'light', time: 1, inputs: {}, png: png(64), ...extra });
@@ -78,4 +78,8 @@ test('a program review states what was sampled and what was not, next to the tra
   assert.ok(withCoverage.findIndex(t => t.startsWith('Execution traces')) < withCoverage.indexOf(block));
   assert.equal(text(program).some(t => t.startsWith('Review sampling')), false);
   assert.ok(text({ ...program, coverage: { sampled: [], omitted: ['x'.repeat(5000)] } }).find(t => t.startsWith('Review sampling')).length <= REVIEW_LIMITS.coverageChars);
+});
+
+test('a program review is told its own layout and calculations are category spec, with component and renderer kept for the host', () => {
+  assert.match(REVIEW_PROGRAM_RULES, /overlap[^]*report it as category spec[^]*repairable by changing the program[^]*component or renderer only for a fault in the host's shared drawing/);
 });

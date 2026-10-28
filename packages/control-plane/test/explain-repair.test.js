@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { explainPipeline } from '../src/explain-job.js';
-import { allowedRepairs, presentationFix, repairableHints } from '../src/explain-repair.js';
+import { allowedRepairs, presentationFix, programRepairable, repairableHints } from '../src/explain-repair.js';
 import { explainStack } from './explain-fixture.js';
 
 const PNG = 'iVBORw0KGgo=';
@@ -153,4 +153,16 @@ test('a time presentation that only reveals is made static deterministically (B2
   assert.match(done.findings[0].problems.join(' '), /time mode on a timeline that only reveals/);
   assert.deepEqual(done.candidates.map(c => [c.round, c.operation, c.progress]), [[0, 'presentation', true]]);
   assert.deepEqual([model.count('author_explanation'), model.count('report_review'), model.count('repair_explanation')], [1, 1, 0]);
+});
+
+test('which findings a program repair takes: its own layout and claims however filed, never a host renderer fault or an empty failure', () => {
+  const finding = (category, extra = {}) => ({ findings: [{ verdict: 'visual', category, severity: 'major', specRepairable: false, ...extra }] });
+  assert.equal(programRepairable({ problems: ['invalid_program: x'] }), true);
+  for (const category of ['spec', 'source', 'component']) assert.equal(programRepairable(finding(category)), true, category);
+  for (const category of ['renderer', 'budget']) assert.equal(programRepairable(finding(category)), false, category);
+  assert.equal(programRepairable({ findings: [...finding('spec').findings, ...finding('renderer').findings] }), false);
+  assert.equal(programRepairable(finding('renderer', { severity: 'minor' })), false, 'minor findings alone are not a failure');
+  assert.equal(programRepairable({ findings: [] }), false);
+  // The scene path is unchanged: a component finding there is a library defect that is never repaired.
+  assert.deepEqual(allowedRepairs(finding('component')), []);
 });
