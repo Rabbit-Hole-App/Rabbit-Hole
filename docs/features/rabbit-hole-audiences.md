@@ -80,9 +80,9 @@ reader (one star, one comment, one private fork); nothing here is real engagemen
 
 ## Frame, order and hierarchy (2026-10-28)
 
-- Order everywhere: University students, AI / ML engineers, Interview preparation, Educators, Content creators, Team onboarding (06). University students is selected first.
-- Hierarchy above the canvas: the audience name is the large heading; the benefit headline and sentence are smaller lines. The old Enterprise onboarding placeholder is renamed Team onboarding ("Understand the code you inherit." / "Help new teammates learn and contribute.").
+- Order everywhere: University students, AI / ML engineers, Interview preparation, Educators, Content creators, Enterprise onboarding (06). University students is selected first.
+- Hierarchy above the canvas: the audience name is the large heading; the benefit headline and sentence are smaller lines. Enterprise onboarding carries ("Understand the code you inherit." / "Help new teammates learn and contribute.").
 - Every audience sits in the original rounded frame with the Rabbit Hole header row, on the product's dotted canvas grid. The faded section illustration is removed; the page around the section is plain white.
 - Pinning uses the same conditions as What is Rabbit Hole? (width over 900px, height at least 700px). A composition is laid out at 1100px and scaled to the framed canvas, so heading, frame and navigation stay in the pinned viewport. Earlier cause of missing pinning: this section's own 880px minimum height (raised from 760px).
 - Content creators shows the reader comment and the fork ("Forked from ..."); no analytics or profile crop (creator analytics collects nothing yet). The post's link line reads "Link to the canvas": no real, safely creatable public destination exists for the demo.
-- Team onboarding is an interim view (real Graph of the pinned nanoGPT repository and an explain-back card) until the owner approves a heat-transfer repository.
+- Enterprise onboarding (name restored; text "Understand the code you inherit." / "Help new teammates learn and contribute." is an assumption pending owner veto) is shown as an illustrative heat-conduction example, see below.

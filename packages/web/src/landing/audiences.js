@@ -3,12 +3,12 @@ import './audiences.css';
 // Draft positioning. Every audience carries real captures of Rabbit Hole cards (stills, prepared content) inside the
 // section's rounded frame; the words around them are HTML. No model calls or working product interactions here.
 const audiences = [
-  { name: 'University students', kind: 'university', context: 'Lectures, assignments and exams', title: 'For university students.', benefit: 'Support for your coursework, assignments and exams.' },
+  { name: 'University students', kind: 'university', context: 'Lectures, assignments and exams', title: 'Connect the concepts. Build understanding that stays with you.', benefit: 'Support for your coursework, assignments and exams.' },
   { name: 'AI / ML engineers', kind: 'ml', context: 'Papers and repositories', title: 'From the paper to the code.', benefit: 'Understand new ideas and apply them to your work.' },
   { name: 'Interview preparation', kind: 'interview', context: 'Technical reasoning', title: 'Practise explaining your solution.', benefit: 'Prepare for interviews and practise explaining your thinking.' },
   { name: 'Educators', kind: 'educators', context: 'Lessons and examples', title: 'Prepare your next lesson.', benefit: 'Support for planning, explaining and teaching.' },
   { name: 'Content creators', kind: 'creators', context: 'Shared canvas', title: 'Give your audience more to explore.', benefit: 'Share your knowledge and learn from your audience.' },
-  { name: 'Team onboarding', kind: 'enterprise', context: 'New teams and unfamiliar codebases', title: 'Understand the code you inherit.', benefit: 'Help new teammates learn and contribute.' },
+  { name: 'Enterprise onboarding', kind: 'enterprise', context: 'New teams and unfamiliar codebases', title: 'Understand the code you inherit.', benefit: 'Help new teammates learn and contribute.' },
 ];
 
 const root = document.getElementById('who-is-it-for');
@@ -42,6 +42,23 @@ const situations = [
   { name: 'eigen', w: 472, h: 258, phone: [362, 258], alt: 'A Rabbit Hole explain-back card asking: What does an eigenvector represent? Explain it in your own words. The answer field is empty.',
     title: 'Prepare for an exam.', question: '“Could I explain this without looking at my notes?”', support: 'Explain it back, answer practice questions and identify gaps.' },
 ];
+const NOTEBOOK = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="1.8" width="10" height="12.4" rx="1.6"/><path d="M6 1.8v12.4M8.4 5.2h2.6M8.4 8h2.6"/></svg>';
+// The learner's drawing for the Interview preparation illustration: hand-drawn feel (slightly uneven strokes), inline SVG.
+const SKETCH = `<svg viewBox="0 0 400 270" role="img" aria-hidden="true" class="aud-iv-draw" fill="none" stroke="#2b2a27" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+  <g font-family="'Bradley Hand','Segoe Print','Comic Sans MS',cursive" fill="#2b2a27" stroke="none" font-size="19">
+    <text x="22" y="52">nums</text>
+    <text x="119" y="24" font-size="13" fill="#8a857c">0</text><text x="171" y="24" font-size="13" fill="#8a857c">1</text><text x="223" y="24" font-size="13" fill="#8a857c">2</text><text x="275" y="24" font-size="13" fill="#8a857c">3</text>
+    <text x="119" y="56">2</text><text x="171" y="56">7</text><text x="217" y="56">11</text><text x="269" y="56">15</text>
+    <text x="22" y="108">Target: 9</text>
+    <text x="30" y="150" font-size="15" fill="#6b6760">seen</text><text x="38" y="188" font-size="20">seen: 2 → index 0</text>
+    <text x="250" y="148" font-size="20">9 − 7 = 2</text>
+    <text x="150" y="250" fill="#955169" font-size="18">store numbers as i go</text>
+  </g>
+  <path d="M100 30 C150 27 290 29 298 33 C297 52 296 64 297 70 C240 73 150 71 101 69 C98 56 100 42 100 30"/>
+  <path d="M152 31 C150 45 153 58 151 69"/><path d="M204 31 C206 45 203 57 205 69"/><path d="M256 30 C257 44 255 58 256 70"/>
+  <path d="M26 158 C23 176 25 196 28 204 C90 209 190 206 242 203 C245 188 243 170 241 158 C170 155 80 157 26 158"/>
+  <path d="M300 158 C292 148 160 133 91 167 M91 167 L105 157 M91 167 L104 172" stroke="#955169"/>
+</svg>`;
 const layouts = {
   university: () => `<div class="audience-body aud-university"><ul class="aud-situations">${situations.map(item => `<li class="aud-situation">
       <figure class="aud-capture">${img(item.name, item.w, item.h, item.alt, item.phone)}</figure>
@@ -71,7 +88,44 @@ const layouts = {
   enterprise: () => `<div class="audience-body aud-enterprise">
       <figure class="aud-capture aud-graph">${img('enterprise-graph', 560, 470, 'Rabbit Hole’s Graph view of the karpathy/nanoGPT repository at commit 3adf61e: the files and the classes and functions in them as a connected map, with a search field for files or symbols and the count 15 files, 58 nodes, 70 relationships.', [372, 520])}</figure>
       <figure class="aud-capture aud-explain-back">${img('enterprise-q', 472, 237, 'A Rabbit Hole explain-back card asking: Where does this request go next? The answer field is empty.', [362, 237])}</figure></div>`,
-  interview: () => `<div class="audience-body aud-interview"><figure class="aud-capture">${img('twosum', 672, 312, 'A Rabbit Hole explain-back card for Two Sum. Question: You used a hash map instead of checking every pair. Why? What’s the trade-off? The learner’s answer: i can check if the other number is already in the map instead of going through the whole list again. Feedback under Understanding evidence: That explains the speed advantage. What happens to memory usage as you store more numbers?', [362, 374])}</figure></div>`,
+  // PREPARED FUTURE-UI ILLUSTRATION (owner-approved, landing only, 2026-10-28). Built in HTML/CSS/SVG with prepared content. It is NOT the real Explain-back
+  // card and not implemented product functionality: no microphone, recording, upload, assessment, model call or network. Its controls only change this page's visuals.
+  interview: () => `<div class="audience-body aud-interview" data-mockup="interview">
+      <svg class="aud-iv-wire" aria-hidden="false" focusable="false"><path class="aud-iv-wire-hit" d="" tabindex="0" role="button" aria-label="Connection from the notebook two_sum.ipynb to this card’s Input. Press Delete to disconnect it; the notebook stays."/><path class="aud-iv-wire-line" d="" aria-hidden="true"/></svg>
+      <article class="aud-iv-nb" aria-label="Source notebook two_sum.ipynb"><span class="aud-iv-nbicon" aria-hidden="true">${NOTEBOOK}</span><span><strong>two_sum.ipynb</strong><small>Notebook · source</small></span></article>
+      <div class="aud-iv-pair">
+        <article class="aud-iv-card" aria-label="Explain back">
+          <span class="aud-iv-port" aria-hidden="true"><i></i><b>Input</b></span>
+          <div class="aud-iv-handle" data-drag title="Drag to move the card and its sketch together"><span></span></div>
+          <p class="aud-iv-kicker"><i aria-hidden="true"></i>Explain back</p>
+          <p class="aud-iv-q">You used a hash map instead of checking every pair. Why? What’s the trade-off?</p>
+          <div class="aud-iv-answer" role="textbox" aria-readonly="true" aria-multiline="true" aria-label="Your answer, not yet submitted">i check whether the other number is already in the map. that saves checking every pair, but the map uses extra memory.</div>
+          <div class="aud-iv-pill" data-pill><span class="aud-iv-nbicon" aria-hidden="true">${NOTEBOOK}</span>two_sum.ipynb<button type="button" data-unlink aria-label="Disconnect two_sum.ipynb from this card" title="Disconnect (the notebook stays)">×</button></div>
+          <div class="aud-iv-foot"><button type="button" class="aud-iv-ghost" data-sketch-toggle aria-pressed="true">Hide sketch</button><button type="button" class="aud-iv-submit" tabindex="-1">Submit answer</button></div>
+        </article>
+        <div class="aud-iv-link" aria-hidden="true"><i></i><span><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6.5 9.5l3-3M5 8L3.6 9.4a2.4 2.4 0 003.4 3.4L8.4 11.4M11 8l1.4-1.4A2.4 2.4 0 009 3.2L7.6 4.6"/></svg>Linked</span><i></i></div>
+        <div class="aud-iv-side" data-side>
+          <figure class="aud-iv-sketch" data-sketch aria-label="Sketch, linked to the explain-back card. Drawing: the array 2, 7, 11, 15; target 9; a box seen holding 2 at index 0; 9 minus 7 equals 2 with an arrow to the stored 2; the note store numbers as i go.">
+            <div class="aud-iv-handle" data-drag title="Drag to move the sketch and the card together"><span></span></div>
+            <div class="aud-iv-bar"><span class="aud-iv-label">Sketch <em>Linked</em></span>
+              <span class="aud-iv-tools" role="toolbar" aria-label="Drawing tools (illustration)">
+                <button type="button" aria-pressed="true" aria-label="Pen" title="Pen"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 2.5l3 3-8 8H2.5v-3z"/></svg></button>
+                <button type="button" aria-pressed="false" aria-label="Shapes" title="Shapes"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2.5" y="2.5" width="7" height="7" rx="1"/><circle cx="10.5" cy="10.5" r="3.2"/></svg></button>
+                <button type="button" aria-pressed="false" aria-label="Text" title="Text"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3.5 4V3h9v1M8 3v10M6 13h4"/></svg></button>
+              </span></div>
+            <div class="aud-iv-dots">${SKETCH}</div>
+            <i class="aud-iv-h tl" aria-hidden="true"></i><i class="aud-iv-h tr" aria-hidden="true"></i><i class="aud-iv-h bl" aria-hidden="true"></i>
+            <button type="button" class="aud-iv-h br" data-resize aria-label="Resize the sketch" title="Resize the sketch"></button>
+          </figure>
+          <div class="aud-iv-rec" role="group" aria-label="Recording controls for the sketch (simulated)">
+            <button type="button" data-rec="record"><i class="dot" aria-hidden="true"></i>Record</button>
+            <button type="button" data-rec="pause">Pause</button>
+            <button type="button" data-rec="stop">Stop</button>
+            <button type="button" data-rec="audio" aria-pressed="true">Audio on</button>
+            <output class="aud-iv-time" aria-live="off">00:00</output>
+          </div>
+        </div>
+      </div></div>`,
   educators: () => `<div class="audience-body aud-educators">
       <div class="aud-source"><p class="aud-label">Your lecture slide</p><figure class="aud-capture">${img('slide', 500, 345, 'Rabbit Hole’s PDF reader open on linear-algebra-eigenvectors-slide.pdf: a lecture slide titled Eigenvectors with Av = λv, v ≠ 0, the sentence The transformation scales v by λ, and an example matrix with first row 2, 0 and second row 0, 1.', [352, 340])}</figure>
         <blockquote class="aud-request"><span class="aud-label">Teacher’s request</span><p>this slide is pretty abstract. give me a visual example and a question i can ask the class</p></blockquote></div>
@@ -208,5 +262,77 @@ reduced.addEventListener('change', refit);
 new ResizeObserver(refit).observe(stage);
 document.fonts.ready.then(refit);
 slides.forEach(slide => slide.querySelectorAll('img').forEach(image => { if (!image.complete) image.addEventListener('load', refit, { once: true }); }));
+// Interview preparation illustration (prepared future UI, landing only): local visual interactions only. Dragging a header moves the card and sketch together,
+// the sketch resizes within bounds, the notebook connection can be disconnected (pill x, or select the line and press Delete), and recording is simulated
+// (a counter and button states; no microphone, nothing stored). Wheel scrolling is never intercepted: only the handles take pointer capture.
+(() => {
+  const box = root.querySelector('[data-mockup="interview"]');
+  if (!box) return;
+  const nb = box.querySelector('.aud-iv-nb'), pair = box.querySelector('.aud-iv-pair'), port = box.querySelector('.aud-iv-port i'), side = box.querySelector('[data-side]');
+  const link = box.querySelector('.aud-iv-link'), sketch = box.querySelector('[data-sketch]'), toggle = box.querySelector('[data-sketch-toggle]');
+  const svg = box.querySelector('.aud-iv-wire'), hit = svg.querySelector('.aud-iv-wire-hit'), line = svg.querySelector('.aud-iv-wire-line'), narrow = matchMedia('(max-width: 900px)');
+  let dx = 0, dy = 0, linked = true, shown = true, scale = 1;
+  // all offsets are layout offsets (unaffected by the pinned fit scale)
+  const at = (el, stop) => { let x = 0, y = 0; for (; el && el !== stop; el = el.offsetParent) { x += el.offsetLeft; y += el.offsetTop; } return [x, y]; };
+  function draw() {
+    const move = narrow.matches ? [0, 0] : [dx, dy];
+    pair.style.transform = `translate(${move[0]}px,${move[1]}px)`;
+    box.classList.toggle('is-unlinked', !linked);
+    box.classList.toggle('is-nosketch', !shown);
+    svg.style.display = linked ? '' : 'none';
+    if (!linked) return;
+    const [nx, ny] = at(nb, box), [px, py] = at(port, box);
+    const ex = px + port.offsetWidth / 2 + move[0], ey = py + port.offsetHeight / 2 + move[1];
+    svg.setAttribute('width', box.offsetWidth); svg.setAttribute('height', box.offsetHeight);
+    let d;
+    if (narrow.matches) { const sx = nx + 18, sy = ny + nb.offsetHeight; d = `M${sx} ${sy} L${sx} ${ey} L${ex} ${ey}`; }
+    else { const sx = nx + nb.offsetWidth, sy = ny + nb.offsetHeight / 2, m = (ex - sx) / 2; d = `M${sx} ${sy} C${sx + m} ${sy} ${ex - m} ${ey} ${ex} ${ey}`; }
+    hit.setAttribute('d', d); line.setAttribute('d', d);
+  }
+  const unlink = () => { linked = false; draw(); };
+  box.querySelector('[data-unlink]').addEventListener('click', unlink);
+  hit.addEventListener('keydown', event => { if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); unlink(); } });
+  hit.addEventListener('click', () => hit.focus());
+  toggle.addEventListener('click', () => { shown = !shown; toggle.textContent = shown ? 'Hide sketch' : 'Add sketch'; toggle.setAttribute('aria-pressed', String(shown)); draw(); });
+  // drag the pair by either header (disabled on phones, where the stack scrolls with the page)
+  let drag = null;
+  const k = () => box.getBoundingClientRect().width / box.offsetWidth || 1;
+  box.querySelectorAll('[data-drag]').forEach(handle => handle.addEventListener('pointerdown', event => {
+    if (narrow.matches) return;
+    drag = { x: event.clientX, y: event.clientY, dx, dy, k: k() }; handle.setPointerCapture(event.pointerId); event.preventDefault();
+  }));
+  // resize the sketch independently: its width (the drawing scales with it), bounded by its column and a minimum
+  let size = null, width = null;
+  const handle = box.querySelector('[data-resize]');
+  handle.addEventListener('pointerdown', event => { size = { x: event.clientX, w: sketch.offsetWidth, k: k() }; handle.setPointerCapture(event.pointerId); event.preventDefault(); });
+  const move = event => {
+    if (drag) { dx = Math.max(-18, Math.min(18, drag.dx + (event.clientX - drag.x) / drag.k)); dy = Math.max(-28, Math.min(28, drag.dy + (event.clientY - drag.y) / drag.k)); draw(); }
+    if (size) { const max = side.offsetWidth, w = Math.max(max * .7, Math.min(max, size.w + (event.clientX - size.x) / size.k)); sketch.style.width = `${w}px`; draw(); }
+  };
+  handle.addEventListener('keydown', event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); const max = side.offsetWidth, w = Math.max(max * .7, Math.min(max, sketch.offsetWidth + (event.key === 'ArrowRight' ? 20 : -20))); sketch.style.width = `${w}px`; draw(); } });
+  box.addEventListener('pointermove', move);
+  const end = () => { drag = null; size = null; };
+  box.addEventListener('pointerup', end); box.addEventListener('pointercancel', end);
+  // tool buttons: selectable states only
+  box.querySelectorAll('.aud-iv-tools button').forEach(button => button.addEventListener('click', () => { box.querySelectorAll('.aud-iv-tools button').forEach(other => other.setAttribute('aria-pressed', String(other === button))); }));
+  // simulated recording: record counts up, pause holds, stop resets, audio toggles
+  const rec = box.querySelector('.aud-iv-rec'), time = rec.querySelector('output');
+  let state = 'idle', seconds = 0, timer = null;
+  const paint = () => { rec.dataset.state = state; time.textContent = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`; };
+  const stopTimer = () => { clearInterval(timer); timer = null; };
+  rec.addEventListener('click', event => {
+    const button = event.target.closest('button');
+    if (!button) return;
+    const kind = button.dataset.rec;
+    if (kind === 'audio') { const on = button.getAttribute('aria-pressed') !== 'true'; button.setAttribute('aria-pressed', String(on)); button.textContent = on ? 'Audio on' : 'Audio off'; return; }
+    if (kind === 'record' && state !== 'recording') { state = 'recording'; stopTimer(); timer = setInterval(() => { seconds += 1; paint(); }, 1000); }
+    if (kind === 'pause' && state === 'recording') { state = 'paused'; stopTimer(); }
+    if (kind === 'stop') { state = 'idle'; seconds = 0; stopTimer(); }
+    paint();
+  });
+  new ResizeObserver(draw).observe(box);
+  addEventListener('resize', draw);
+  draw(); paint();
+})();
 show(0);
 update();
