@@ -108,7 +108,18 @@ abuse('catastrophic regular expression', `export function evaluate() { return { 
 abuse('a guest that catches the interrupt cannot keep running', `export function evaluate() { for (;;) { try { for (;;) {} } catch (e) {} } }`, { code: 'runtime_limit', phase: 'evaluate' });
 
 // Output: serialized in the guest under the deadline, measured before it is copied out, then depth-checked.
-abuse('huge output (1 MB string)', `export function evaluate() { return { s: 'x'.repeat(1 << 20) }; }`, { code: 'runtime_limit', phase: 'serialize' });
+// The whole result (frame, quantities, anything else) is measured: the guest-side bound stops an oversized walk, the host
+// checks the exact UTF-8 bytes. Over the limit is invalid_output (the stable contract code).
+const N = LIMITS.outputBytes, AT = 'x'.repeat(N - 8); // {"s":"<AT>"} is exactly N bytes
+abuse('huge output (1 MB string)', `export function evaluate() { return { s: 'x'.repeat(1 << 20) }; }`, { code: 'invalid_output', phase: 'serialize' });
+abuse('huge output across many objects', `export function evaluate() { return { frame: { objects: Array.from({ length: 10000 }, (_, i) => ({ kind: 'circle', id: 'c' + i, x: i, y: i, r: 1 })) }, quantities: {} }; }`, { code: 'invalid_output', phase: 'serialize' });
+abuse('huge quantities beside a small frame', `export function evaluate() { const q = {}; for (let i = 0; i < 40000; i++) q['q' + i] = i; return { frame: { objects: [] }, quantities: q }; }`, { code: 'invalid_output', phase: 'serialize' });
+abuse('getter inflates output during serialization', `export function evaluate() { return { frame: { get objects() { return 'y'.repeat(300000); } } }; }`, { code: 'invalid_output', phase: 'serialize' });
+abuse('toJSON inflates output during serialization', `export function evaluate() { return { frame: { toJSON() { return new Array(100000).fill(123456); } } }; }`, { code: 'invalid_output', phase: 'serialize' });
+abuse('output exactly at the byte limit passes', `export function evaluate() { return { s: 'x'.repeat(${N - 8}) }; }`, null, out => { assert.equal(out.metrics.outputBytes, N); assert.equal(out.value.s, AT); });
+abuse('output one byte over the limit is refused', `export function evaluate() { return { s: 'x'.repeat(${N - 7}) }; }`, { code: 'invalid_output', phase: 'serialize' });
+abuse('multi-byte output at the byte limit passes (bytes, not characters)', `export function evaluate() { return { s: 'é'.repeat(${(N - 8) / 2}) }; }`, null);
+abuse('multi-byte output over the byte limit is refused though its character count is half the limit', `export function evaluate() { return { s: 'é'.repeat(${(N - 8) / 2 + 1}) }; }`, { code: 'invalid_output', phase: 'serialize' });
 abuse('cyclic output', `export function evaluate() { const o = {}; o.self = o; return o; }`, { code: 'invalid_output', phase: 'serialize' });
 abuse('deeply nested output', `export function evaluate() { let o = {}; for (let i = 0; i < 1000; i++) o = { o }; return o; }`, { code: 'invalid_output', phase: 'serialize' });
 abuse('getter loop during serialization', `export function evaluate() { return { get x() { for (;;) {} } }; }`, { code: 'runtime_limit', phase: 'serialize' });
@@ -132,6 +143,14 @@ abuse('source over the size limit', `export function evaluate() { return {}; } /
 test('state over the size limit is refused before the guest starts', () => {
   const out = run(VALID, { ...REQUEST, state: { blob: 'x'.repeat(LIMITS.stateBytes) } });
   assert.deepEqual({ code: out.code, phase: out.phase }, { code: 'runtime_limit', phase: 'load' });
+});
+
+test('the SDK is defined before the program, per operation, and a program cannot change it for the next one', () => {
+  const uses = run(`export function evaluate({ inputs }) { return { frame: sdk.frame([sdk.polyline('p', sdk.sample(x => x * inputs.k, 0, 1, 4)), sdk.circle('c', 1, 2, 3)]), quantities: {} }; }`);
+  assert.equal(uses.ok, true, uses.detail);
+  assert.deepEqual(uses.value.frame.objects[0], { kind: 'polyline', id: 'p', points: [[0, 0], [0.25, 0.5], [0.5, 1], [0.75, 1.5], [1, 2]] });
+  run(`sdk.sample = () => 'tampered'; export function evaluate() { return { x: sdk.sample() }; }`);
+  assert.deepEqual(run(`export function evaluate() { return { x: sdk.sample(x => x, 0, 1, 1) }; }`).value, { x: [[0, 0], [1, 1]] });
 });
 
 test('time and randomness come only from the request: no Date, seeded Math.random', () => {

@@ -1,11 +1,12 @@
 // The guest interpreter adapter: generated /explain source runs only inside a pinned QuickJS/WASM engine, never as native
 // JavaScript. Each operation gets a fresh QuickJS runtime and context (no state survives between calls), one deadline that
-// covers source load, evaluate and serialization, and guest heap/stack caps. The guest has the ECMAScript built-ins only:
+// covers SDK and source load, evaluate and serialization, and guest heap/stack caps. The guest has the ECMAScript built-ins only:
 // no host function is ever exposed to it, module imports are refused (no loader is set), Date is absent and Math.random is
 // seeded from the request. Pending jobs (promise callbacks) are never run. Host watchdog/termination is host.js's job.
 import { DefaultIntrinsics, newQuickJSWASMModuleFromVariant, newVariant } from 'quickjs-emscripten-core';
 import variant from '@jitl/quickjs-wasmfile-release-sync';
 import { LIMITS } from './limits.js';
+import { SDK_SOURCE } from './sdk.js';
 
 export const ENGINE_VERSION = 'quickjs-emscripten-core@0.32.0/@jitl/quickjs-wasmfile-release-sync@0.32.0';
 
@@ -79,6 +80,10 @@ export function runProgram(engine, { source, request }, limits = LIMITS) {
       return fail(LIMIT_MESSAGES.test(detail) ? 'runtime_limit' : code, phase, detail);
     };
 
+    // The generic SDK (one global, sdk), then the generated module: both under the same deadline and limits.
+    const sdk = context.evalCode(SDK_SOURCE, 'sdk.js', { type: 'global' });
+    if (sdk.error) return guestFail(sdk.error, 'runtime_error', 'load');
+    keep(sdk.value);
     const loaded = context.evalCode(source, 'program.js', { type: 'module' });
     if (loaded.error) return guestFail(loaded.error, 'invalid_program', 'load');
     const evaluate = keep(context.getProp(keep(loaded.value), 'evaluate'));
@@ -96,11 +101,12 @@ export function runProgram(engine, { source, request }, limits = LIMITS) {
     if (context.typeof(text.value) !== 'string') return fail('invalid_output', 'serialize', 'the result is not JSON');
     if (context.getNumber(keep(context.getProp(text.value, 'length'))) > limits.outputBytes) return fail('invalid_output', 'serialize', 'output over its size limit');
     const json = context.getString(text.value);
-    if (encoder.encode(json).length > limits.outputBytes) return fail('invalid_output', 'serialize', 'output over its size limit');
+    const outputBytes = encoder.encode(json).length;
+    if (outputBytes > limits.outputBytes) return fail('invalid_output', 'serialize', 'output over its size limit');
     let value;
     try { value = JSON.parse(json); } catch { return fail('invalid_output', 'serialize', 'the result is not JSON'); }
     if (value === null || typeof value !== 'object' || tooDeep(value, limits.outputDepth)) return fail('invalid_output', 'serialize', 'the result is not a bounded JSON object');
-    return { ok: true, value, metrics: { ...metrics(), outputBytes: json.length } };
+    return { ok: true, value, metrics: { ...metrics(), outputBytes } };
   } finally {
     for (const handle of handles.reverse()) if (handle.alive) handle.dispose();
     context?.dispose();
