@@ -165,7 +165,7 @@ export class MotionRequestProvider {
   // approved_proposal (MOT-20): the Director keeps its title, duration and scope.
   async submit(input, spend, repository = null, timeoutMs = 20000, recover = null) {
     const response = await this.request(recover ? '/recover' : '/jobs', { method: 'POST', timeoutMs, body: recover
-      ? { idempotency_key: spend.opId, grant: spend.grant, mode: recover.mode, checkpoint: recover.checkpoint, seal: recover.seal }
+      ? { idempotency_key: spend.opId, grant: spend.grant, mode: recover.mode, checkpoint: recover.checkpoint, seal: recover.seal, ...(recover.allowed_complexity ? { allowed_complexity: recover.allowed_complexity } : {}) }
       : { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), ...(repository ? { repository } : {}), ...(input.proposal ? { approved_proposal: approvedProposal(input.proposal, motionExecutionTerms(this.env, input.proposal.settings)) } : {}), idempotency_key: spend.opId, grant: spend.grant } });
     const body = await response.json().catch(() => ({}));
     if (response.status === 202 && /^[0-9a-f]{32}$/.test(body.job_id || '')) return { id: body.job_id };
@@ -222,8 +222,9 @@ export class MotionRequestProvider {
     // The provenance the card shows once ready: the brief's title and the block's motion record.
     return { bytes, provider: 'motion', generationId: job.render_id, motion: { title: job.title, ...job.motion } };
   }
-  async cancel(ticket) {
-    const response = await this.request(`/jobs/${ticket.id}/cancel`, { method: 'POST' });
+  // origin names who asked, for the orchestrator's log line only: learner_request (the Stop button), durable_resend (a poll re-sending a recorded Stop), alarm_resend.
+  async cancel(ticket, origin = 'unnamed') {
+    const response = await this.request(`/jobs/${ticket.id}/cancel`, { method: 'POST', body: { origin } });
     if (!response.ok) throw new Error(`Motion orchestrator HTTP ${response.status}`);
   }
 }

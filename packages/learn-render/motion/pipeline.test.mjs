@@ -274,3 +274,56 @@ test('pre-render validation: a composition over the limit table, or in an uncove
   assert.match(refused.failure_reason, /^composition limits: the composition is simple, which is not covered for these settings/);
   assert.ok(!uncovered.log.some(([stage]) => stage === 'job'));
 });
+
+// Job e3a2f10e (2026-10-27): the limits gate refused an authored composition and discarded it, with its metrics. Now the refusal has a stable
+// failure code, keeps the composition (unreviewed) with the class, metrics and allowed set, and Continue fixing reviews it without a new Author call.
+test('limits gate: a refused composition is kept with its measured class and metrics, has a stable failure code, and a later attempt reviews it without the Author', async () => {
+  const keep = { title: BRIEF.title, duration_seconds: BRIEF.duration.seconds, description: 'Scores become weights. The weights sum to one. Masked positions get none.' };
+  const d = doubles();
+  const r = await run(d, { approved: { ...keep, allowed_complexity: ['standard', 'heavy'] } });
+  assert.deepEqual([r.status, r.cause, r.failure_code], ['failed', 'content', 'composition_not_covered']);
+  const kept = r.checkpoint.composition;
+  assert.deepEqual([kept.state, kept.output.source, kept.limits.class, kept.limits.allowed], ['unreviewed', 'SRC', 'simple', ['standard', 'heavy']]);
+  assert.deepEqual(Object.keys(kept.limits.metrics), ['layers', 'elements', 'text_chars', 'asset_bytes', 'duration_seconds']);
+  const big = '<AbsoluteFill>' + '<Sequence><div>x</div></Sequence>'.repeat(60) + '</AbsoluteFill>';
+  const d2 = doubles(); const author = d2.stages.author;
+  d2.stages.author = async a => { const x = await author(a); x.output.source = big; return x; };
+  const over = await run(d2);
+  assert.deepEqual([over.failure_code, over.checkpoint.composition.limits.class], ['composition_over_limits', null]);
+  // The policy is corrected (or the setting is covered): Continue fixing starts from the kept composition, no Author call.
+  const d3 = doubles();
+  const fixed = await runMotionRequest({ call: async () => assert.fail('doubled'), service, dir: mkdtempSync(join(tmpdir(), 'motion-pipeline-')), stages: d3.stages, approved: { ...keep, allowed_complexity: ['simple'] }, recover: { mode: 'fix', checkpoint: r.checkpoint } });
+  assert.equal(fixed.status, 'ready');
+  assert.deepEqual(d3.log.map(([stage]) => stage), ['job'], 'no director, storyboard or author call');
+  // Under the same refusing policy the same gate refuses again, free and with the same code; the kept composition is not replaced.
+  const d4 = doubles();
+  const again = await runMotionRequest({ call: async () => assert.fail('doubled'), service, dir: mkdtempSync(join(tmpdir(), 'motion-pipeline-')), stages: d4.stages, approved: { ...keep, allowed_complexity: ['standard', 'heavy'] }, recover: { mode: 'fix', checkpoint: r.checkpoint } });
+  assert.deepEqual([again.status, again.failure_code, d4.log.length], ['failed', 'composition_not_covered', 0]);
+});
+
+test('limits gate on the Author repair: the review job gets the same allowance and its failure code reaches the pipeline result', async () => {
+  const keep = { title: BRIEF.title, duration_seconds: BRIEF.duration.seconds, description: 'Scores become weights. The weights sum to one. Masked positions get none.' };
+  const d = doubles({ job: 'failed' });
+  let given = null;
+  const job = d.stages.job;
+  d.stages.job = async a => { given = a; const r = await job(a); r.failure_code = 'composition_not_covered'; r.cause = 'content'; return r; };
+  const r = await run(d, { approved: { ...keep, allowed_complexity: ['simple'] } });
+  assert.deepEqual(given.limits && given.limits.class, 'simple', 'the review job (and its Author repair) is told the allowed size limits');
+  assert.equal(typeof given.gate, 'function');
+  assert.equal(given.gate('SRC'), null, 'a small repaired composition passes');
+  assert.deepEqual([given.gate('<AbsoluteFill>' + '<Sequence><div>x</div></Sequence>'.repeat(12) + '</AbsoluteFill>').code], ['composition_not_covered']);
+  assert.deepEqual([r.status, r.cause, r.failure_code], ['failed', 'content', 'composition_not_covered']);
+});
+
+test('every planning and authoring stage gets the same allowance as information: Director, storyboarder (first and revised), Author, the review job and its Director revision; none gets one without an allowance', async () => {
+  const keep = { title: BRIEF.title, duration_seconds: BRIEF.duration.seconds, description: 'Scores become weights. The weights sum to one. Masked positions get none.' };
+  const seen = [];
+  const d = doubles({ storyboard: ['storyboard_invalid', 'storyboard'] });
+  for (const name of ['director', 'storyboarder', 'author', 'job']) { const f = d.stages[name]; d.stages[name] = async a => { seen.push([name, a.round ?? 0, a.limits?.class ?? null, a.limits?.elements ?? null]); return f(a); }; }
+  await run(d, { approved: { ...keep, allowed_complexity: ['simple', 'standard'] } });
+  assert.deepEqual(seen, [['director', 0, 'standard', 160], ['storyboarder', 0, 'standard', 160], ['storyboarder', 1, 'standard', 160], ['author', 0, 'standard', 160], ['job', 0, 'standard', 160]]);
+  const none = []; const d2 = doubles();
+  for (const name of ['director', 'storyboarder', 'author', 'job']) { const f = d2.stages[name]; d2.stages[name] = async a => { none.push(a.limits ?? null); return f(a); }; }
+  await run(d2);
+  assert.deepEqual(none, [null, null, null, null], 'no allowance, nothing added');
+});

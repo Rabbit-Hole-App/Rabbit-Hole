@@ -89,7 +89,7 @@ export async function runMotionJob({
   renderer = DEFAULT_RENDERER,
   // Recovery (owner message 38): save(checkpoint) receives the job's reusable state whenever it changes (a valid composition,
   // then its review), and resume {findings} starts a recovery attempt at the repair with a saved review's exact findings.
-  save = () => {}, resume = null,
+  save = () => {}, resume = null, gate = () => null, limits = null, // limits: the numeric size limits the readiness policy allows (composition-limits.js allowedLimits), told to the Author repair too
 }) {
   const stop = () => checkpoint(signal);
   const polling = signal ? { sleep: abortableSleep(signal) } : {};
@@ -112,7 +112,7 @@ export async function runMotionJob({
   const record = r => { out.calls.push(...(r.calls || [])); job.format_retries.push(...(r.format_retries || [])); job.transport_retries.push(...(r.transport_retries || [])); };
   const finish = () => ({ ...out, job_errors: validateJob(job) });
   // cause: what recovery fits (pipeline.mjs CAUSES): content, renderer or model.
-  const fail = (reason, cause) => { job.failure_reason = reason; out.cause = cause; set('failed'); return finish(); };
+  const fail = (reason, cause, code = null) => { job.failure_reason = reason; out.cause = cause; if (code) out.failure_code = code; set('failed'); return finish(); };
   const keep = (composition, findings = []) => save({ storyboard: current.storyboard, composition, findings, frames: job.preview_refs?.keyframes ?? [] });
 
   let current = { storyboard, author };
@@ -132,6 +132,8 @@ export async function runMotionJob({
       // A recovery attempt's first pass: the saved review's findings, so the repair starts without reviewing again.
       else if (resume?.findings && round === 0) findings = resume.findings;
       else {
+        const over = round > 0 ? gate(a.output?.source) : null; // the Author repair is bound by the same allowance as the first Author
+        if (over) { keep({ output: a.output, state: 'unreviewed', limits: over.limits }); return fail(over.reason, 'content', over.code); }
         keep({ output: a.output, state: 'unreviewed' });
         stop();
         set('rendering_preview');
@@ -189,7 +191,7 @@ export async function runMotionJob({
     out.repair = { route: toStoryboard ? 'director_revision_then_author' : 'author', findings: blocking.length, ...(storyboardLevel && !toStoryboard ? { storyboard_repair_already_spent: true } : {}) };
     let sb = current.storyboard;
     if (toStoryboard) {
-      const s = await revise({ brief, call, env, effort, round: 1, revision: { storyboard: sb, findings: blocking } });
+      const s = await revise({ brief, call, env, effort, round: 1, limits, revision: { storyboard: sb, findings: blocking } });
       record(s);
       out.repair.storyboard = { status: s.status, ...(s.check?.errors?.length ? { errors: s.check.errors } : {}), ...(s.error ? { error: s.error, detail: s.detail } : {}) };
       if (s.status !== 'storyboard') return fail(`storyboard repair (Director revision): ${s.status}${s.error ? `: ${s.error}: ${s.detail}` : `: ${s.check.errors.slice(0, 3).join('; ')}`}`, s.status === 'failed' ? 'model' : 'content');
@@ -203,7 +205,7 @@ export async function runMotionJob({
     // After a Director revision the Author reconciles to the revised storyboard's object inventory.
     const revised = toStoryboard ? inventoryChange(current.storyboard, sb) : null;
     if (revised) out.repair.storyboard.inventory = revised;
-    const fixed = await repairAuthor({ brief, storyboard: sb, call, env, effort, round: 1, renderer, repair: source ? { source, composition_id: a?.output?.composition_id, findings: blocking, ...(revised ? { revision: revised } : {}) } : null });
+    const fixed = await repairAuthor({ brief, storyboard: sb, call, env, effort, round: 1, renderer, limits, repair: source ? { source, composition_id: a?.output?.composition_id, findings: blocking, ...(revised ? { revision: revised } : {}) } : null });
     record(fixed);
     if (fixed.output?.source && dir) { mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, `composition.repaired.${renderer === 'hyperframes' ? 'html' : 'jsx'}`), fixed.output.source); } // diagnostics (a recovery's job directory may not exist yet: nothing rendered before its repair)
     out.repair.author = { status: fixed.status, ...(fixed.check?.errors?.length ? { errors: fixed.check.errors } : {}), ...(fixed.error ? { error: fixed.error, detail: fixed.detail } : {}) };

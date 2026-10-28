@@ -416,3 +416,17 @@ test('an infrastructure render failure stops the job: the Author repair unused, 
     assert.equal(r.job.repairs.author, 1, 'the composition fault spent the repair');
   }
 });
+
+// 2026-10-27: the Author's REPAIR is bound by the same allowance as the first Author; before this, a repaired composition reached the renderer unchecked.
+test('a repaired composition the allowance refuses is not previewed or rendered: it is kept unreviewed with its code', async () => {
+  const h = harness({ previews: [blankPreview([[0, 1.34]]), clean()], reviews: [[], [], [], []] });
+  const gated = [];
+  const r = await run('softmax', h, { gate: source => { gated.push(source); return { reason: 'composition limits: the composition is standard, which is not covered for these settings (covered: simple)', code: 'composition_not_covered', limits: { class: 'standard', metrics: {}, allowed: ['simple'] } }; }, save: () => {} });
+  assert.deepEqual([r.job.status, r.cause, r.failure_code], ['failed', 'content', 'composition_not_covered']);
+  assert.deepEqual(gated, ['REPAIRED-SOURCE'], 'only the repaired composition is gated here (the first one was gated by the pipeline)');
+  assert.deepEqual(h.log.map(l => l[0]), ['preview', 'visual_review', 'pedagogical_review', 'author'], 'no second preview, no review of the repair, no final render');
+  const saved = [];
+  const h2 = harness({ previews: [blankPreview([[0, 1.34]]), clean()], reviews: [[], [], [], []] });
+  await run('softmax', h2, { gate: () => ({ reason: 'x', code: 'composition_over_limits', limits: { class: null } }), save: part => saved.push(part) });
+  assert.deepEqual([saved.at(-1).composition.state, saved.at(-1).composition.output.source, saved.at(-1).composition.limits.class], ['unreviewed', 'REPAIRED-SOURCE', null]);
+});

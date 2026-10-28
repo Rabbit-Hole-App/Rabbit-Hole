@@ -407,3 +407,22 @@ test('scope by duration: object appearances are bounded, the recorded 60 s story
   assert.deepEqual([appearances(read('./fixtures/m3/softmax-15s-attention.real.storyboard.json')), checkStoryboard(read('./fixtures/m3/softmax-15s-attention.real.storyboard.json'), read('./fixtures/m2/softmax-15s-attention.brief.json')).errors.filter(e => /appearances/.test(e))], [23, []]);
   assert.match(HARD_LIMITS, /6\. Scope: the object appearances .* at most floor\(16 \+ 0\.6 x duration\.seconds\), never more than 36 \(15 s -> 25, 30 s -> 34, 60 s -> 36\)/);
 });
+
+// 2026-10-27 (owner): the allowance is INFORMATION in the prompts. The plan-time rule is unchanged for every duration and every allowance; the REAL enforcement is the composition gate.
+test('the allowance reaches the storyboard request as information only: classes and caps, the estimate marked non-binding; the validator and the appearance bound are unchanged', async () => {
+  const { allowedLimits, COMPOSITION_LIMITS } = await import('./composition-limits.js');
+  const b = read('./fixtures/m2/softmax-15s-attention.brief.json'), s = read('./fixtures/m3/softmax-15s-attention.real.storyboard.json');
+  assert.deepEqual([5, 15, 30, 45, 60].map(sec => maxOccurrences(sec)), [19, 25, 34, 36, 36], 'the duration rule alone, as before the allowance existed');
+  assert.equal(maxOccurrences.length, 1, 'maxOccurrences takes the duration only: no allowance can change it');
+  assert.equal(checkStoryboard.length, 2, 'checkStoryboard takes the storyboard and the brief only: no allowance can change it');
+  const plain = storyboardRequest(b).messages[0].content;
+  assert.equal(storyboardRequest(b, { limits: null }).messages[0].content, plain, 'no allowance: the request is unchanged');
+  const std = allowedLimits(['simple', 'standard']), told = storyboardRequest(b, { limits: std }).messages[0].content;
+  assert.ok(told.startsWith(plain), 'the brief is untouched; the allowance is appended');
+  const L = COMPOSITION_LIMITS.standard;
+  assert.ok(told.includes('classes simple, standard') && told.includes(`at most ${L.layers} layers`) && told.includes(`${L.elements} elements`) && told.includes(`${L.text_chars} characters`) && told.includes(`${L.asset_bytes} bytes`) && told.includes(`${L.duration_seconds} seconds`), 'class names and every numeric cap');
+  assert.match(told, /For orientation only, not a rule and not a guarantee/);
+  assert.match(told, /The object-appearance rule above still applies/);
+  // The same plan validates the same way whatever the allowance (here the recorded 15 s storyboard).
+  assert.deepEqual(checkStoryboard(s, b).errors, checkStoryboard(s, b).errors);
+});

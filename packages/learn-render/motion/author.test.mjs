@@ -303,3 +303,23 @@ test('a patch is applied to the previous source and the whole is checked like an
   // A patch is only a repair-round answer: the first pass has no such status.
   assert.match(validateAuthorToolOutput({ status: 'patch', edits: [{ find: 'a', replace: 'b' }] }).join('\n'), /status/);
 });
+
+// 2026-10-27 (job e3a2f10e): the gate enforced a size class the Author was never told. Under a restricted allowance the request now states the
+// numeric budget (and the needs_revision route if the storyboard cannot fit); with no allowance the request is byte for byte what it was.
+test('the Author is told the size budget of the allowed class; without a restriction the request is unchanged', async () => {
+  const { allowedLimits, COMPOSITION_LIMITS } = await import('./composition-limits.js');
+  const plain = authorRequest(A.brief(), A.storyboard());
+  const same = authorRequest(A.brief(), A.storyboard(), { limits: allowedLimits(null) });
+  assert.deepEqual(same, plain);
+  const limits = allowedLimits(['simple']);
+  assert.deepEqual(limits, { class: 'simple', classes: ['simple'], ...COMPOSITION_LIMITS.simple });
+  assert.equal(allowedLimits(['simple', 'standard']).class, 'standard', 'the most permissive allowed class');
+  const told = authorRequest(A.brief(), A.storyboard(), { limits }).messages[0].content;
+  assert.ok(told.startsWith(plain.messages[0].content), 'the input is untouched; the budget is appended');
+  assert.match(told, /at most 8 layers .*60 elements.*800 characters.*16384 bytes of source/);
+  assert.match(told, /needs_revision/);
+  assert.match(told, /classes simple; the caps are those of the largest, simple/);
+  assert.match(told, /60 seconds/);
+  assert.match(told, /For orientation only, not a rule and not a guarantee/);
+  assert.deepEqual(authorRequest(A.brief(), A.storyboard(), { limits }).system, plain.system, 'the cached system prompt is unchanged');
+});

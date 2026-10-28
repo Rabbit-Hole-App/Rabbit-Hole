@@ -28,7 +28,7 @@ import { groundTarget } from '../../control-plane/src/source-grounding.js';
 import { runAuthor } from './author.js';
 import { runDirector } from './director.js';
 import { fixtureSource } from './fixture-source.js';
-import { checkCompositionLimits } from './composition-limits.js';
+import { allowedLimits, checkCompositionLimits } from './composition-limits.js';
 import { DEFAULT_RENDERER, validateBrief, validateStoryboard } from './contracts.js';
 import { renderComposition } from './render-job.mjs';
 import { MotionCancelled, abortableSleep, checkpoint, runMotionJob } from './review-job.mjs';
@@ -86,12 +86,24 @@ export async function runMotionRequest({
   };
   const fail = (reason, cause = 'model') => end('failed', { failure_reason: reason, cause });
   // Before anything renders: the generated composition against the stable limit table and the complexity classes the readiness policy covers.
-  const overLimits = (source, brief) => {
+  // keep: the authored composition (its output), saved with the class and metrics measured, so a refusal never discards paid work or hides
+  // what was measured (job e3a2f10e, 2026-10-27: "standard, not covered" and nothing left to inspect). Saved as an unreviewed composition:
+  // Continue fixing then reviews it instead of paying for the Author again, and this same gate checks it again under the live policy.
+  const overLimits = (source, brief, keep = null) => {
     if (typeof source !== 'string') return null;
-    const checked = checkCompositionLimits(source, { durationSeconds: brief.duration.seconds, allowed: approved?.allowed_complexity ?? null });
-    if (checked.ok) { out.complexity = { class: checked.class, metrics: checked.metrics }; return null; }
+    const allowed = approved?.allowed_complexity ?? null;
+    const checked = checkCompositionLimits(source, { durationSeconds: brief.duration.seconds, allowed });
     out.complexity = { class: checked.class, metrics: checked.metrics };
-    return fail(`composition limits: ${checked.reason}`, 'content');
+    if (checked.ok) return null;
+    if (keep) save({ composition: { output: keep, state: 'unreviewed', limits: { class: checked.class, metrics: checked.metrics, allowed } } });
+    return end('failed', { failure_reason: `composition limits: ${checked.reason}`, cause: 'content', failure_code: checked.class ? 'composition_not_covered' : 'composition_over_limits' });
+  };
+  // The same gate for a composition the Author REPAIR returns (review-job.mjs), which would otherwise reach the renderer unchecked.
+  const repairGate = (source, brief) => {
+    if (typeof source !== 'string') return null;
+    const allowed = approved?.allowed_complexity ?? null, checked = checkCompositionLimits(source, { durationSeconds: brief.duration.seconds, allowed });
+    out.complexity = { class: checked.class, metrics: checked.metrics };
+    return checked.ok ? null : { reason: `composition limits: ${checked.reason}`, code: checked.class ? 'composition_not_covered' : 'composition_over_limits', limits: { class: checked.class, metrics: checked.metrics, allowed } };
   };
   const save = part => { out.checkpoint = { ...out.checkpoint, ...part }; }; // replaced, never mutated: the orchestrator notices it on the next stage or job log line
   // Diagnostics stay with the job: every stage's artifact, whatever happens next.
@@ -115,7 +127,7 @@ export async function runMotionRequest({
     if (!out.target) return end('needs_clarification', { clarification: grounding.clarification, cause: 'missing_context' });
 
     if (plan) return await fromPlan(grounding);
-    const d = await enter('directing', () => director({ turn, grounding, call, env, effort, ...(approved ? { approved } : {}) }));
+    const d = await enter('directing', () => director({ turn, grounding, call, env, effort, limits: allowedLimits(approved?.allowed_complexity), ...(approved ? { approved } : {}) }));
     record(d);
     out.decision_line = d.decision_line ?? null;
     if (d.status === 'needs_clarification') return end('needs_clarification', { clarification: d.clarification, cause: 'missing_context' });
@@ -125,7 +137,7 @@ export async function runMotionRequest({
     const unkept = approvedErrors(brief, approved);
     if (unkept.length) return fail(`brief: it does not keep the approved proposal: ${unkept.join('; ')}`);
 
-    let s = await enter('storyboarding', () => storyboarder({ brief, call, env, effort }));
+    let s = await enter('storyboarding', () => storyboarder({ brief, call, env, effort, limits: allowedLimits(approved?.allowed_complexity) }));
     record(s);
     if (s.storyboard) keep('storyboard.round-0.json', { status: s.status, errors: s.check?.errors ?? [], storyboard: s.storyboard });
     if (s.status === 'storyboard_invalid') {
@@ -134,7 +146,7 @@ export async function runMotionRequest({
       out.repairs.storyboard = 1;
       const findings = s.check.errors.map(e => ({ reviewer: 'harness', category: 'storyboard_check', description: e }));
       out.storyboard_repair = { findings: findings.length, errors: s.check.errors };
-      s = await enter('storyboard_revision', () => storyboarder({ brief, call, env, effort, round: 1, revision: { storyboard: s.storyboard, findings } }));
+      s = await enter('storyboard_revision', () => storyboarder({ brief, call, env, effort, round: 1, limits: allowedLimits(approved?.allowed_complexity), revision: { storyboard: s.storyboard, findings } }));
       record(s);
       out.storyboard_repair.status = s.status;
       if (s.storyboard) keep('storyboard.round-1.json', { status: s.status, errors: s.check?.errors ?? [], storyboard: s.storyboard });
@@ -191,23 +203,23 @@ export async function runMotionRequest({
   }
 
   async function authorAndRender(brief, storyboard, { given = null, resume = null } = {}) {
-    const a = given ?? await enter('authoring', () => author({ brief, storyboard, call, env, effort, round: 0, renderer }));
+    const a = given ?? await enter('authoring', () => author({ brief, storyboard, call, env, effort, round: 0, renderer, limits: allowedLimits(approved?.allowed_complexity) }));
     record(a);
     if (!given && a.output?.source) keep(renderer === 'hyperframes' ? 'composition.html' : 'composition.jsx', a.output.source);
     if (a.output?.status === 'needs_revision') keep('author.needs_revision.json', a.output);
     if (a.status === 'failed') return fail(`author: ${a.error}: ${a.detail}`);
-    const limited = overLimits(a.output?.source, brief);
+    const limited = overLimits(a.output?.source, brief, !given && a.status === 'composition' ? a.output : null);
     if (limited) return limited;
 
     const job = await enter('review_and_render', () => reviewJob({
       brief, storyboard, author: a, origin: { storyboard: 'model_generated', composition: 'model_generated' },
       service, call, env, dir, effort, signal, renderer, prior: { repairs: { ...out.repairs }, format_retries: out.format_retries, transport_retries: out.transport_retries },
-      log: line => onStage(line.replace(/^job: /, 'job:'), out), save, resume,
+      log: line => onStage(line.replace(/^job: /, 'job:'), out), save, resume, limits: allowedLimits(approved?.allowed_complexity), gate: source => repairGate(source, brief),
     }));
     out.calls.push(...job.calls);
     Object.assign(out, { job: job.job, passes: job.passes, render: job.render, job_errors: job.job_errors, storyboard_revised: job.storyboard_revised, repairs: { ...job.job.repairs }, transport_retries: job.job.transport_retries });
     if (job.repair) out.repair = job.repair;
-    if (job.job.status !== 'ready') return fail(job.job.failure_reason, job.cause);
+    if (job.job.status !== 'ready') return end('failed', { failure_reason: job.job.failure_reason, cause: job.cause ?? 'model', ...(job.failure_code ? { failure_code: job.failure_code } : {}) });
     out.block = motionVideoBlock({ brief, renderId: job.render.render_id, jobId: job.job.id, renderer });
     return end('ready');
   }

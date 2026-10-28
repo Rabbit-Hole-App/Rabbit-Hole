@@ -43,7 +43,7 @@ test('ACTIVATED (MOTION_RENDERER_CONFIG = the measured id): exactly the receipt-
   const { ready, refused } = grid(live);
   assert.deepEqual(ready, EXPECTED);
   assert.equal(EXPECTED.length, 22);
-  for (const k of ready) { const [r, s] = k.split('|'), x = at(live, Number(s), r); assert.deepEqual([x.complexity, x.policy_version], [['simple'], MEASURED_POLICY_VERSION]); }
+  for (const k of ready) { const [r, s] = k.split('|'), x = at(live, Number(s), r); assert.deepEqual([x.complexity, x.policy_version], [k.endsWith('|15') && ['16:9', '9:16'].includes(k.split('|')[0]) ? ['simple', 'standard'] : ['simple'], MEASURED_POLICY_VERSION]); }
   for (const k of refused) { const [r, s] = k.split('|'), x = at(live, Number(s), r); assert.equal(x.code, MOTION_NOT_READY); assert.doesNotMatch(x.message, /\.\.\.|…|\$/, 'one plain line, credits only'); }
   // Neighbours stay refused: the 16:9 steps of 5 are each measured, so 35 and above are not enabled by 30 passing, and an off-step second is not covered.
   assert.equal(at(live, 12, '16:9').ready, false, 'a saved 12 s proposal passed in legacy mode but has no receipt');
@@ -116,7 +116,7 @@ test('R2a config: the measured policy is on in the Worker and the orchestrator, 
   assert.equal(readyPolicy(env).entries.length, 22);
   const p916 = { title: 'T', description: 'D', settings: { duration_seconds: 15, aspect_ratio: '9:16', audio: false } };
   assert.equal(motionGenerationCheck(env, { request: '/motion x', proposal: p916 }), null, 'the 9:16 15 s acceptance job may be generated');
-  assert.deepEqual(motionExecutionTerms(env, p916.settings), { renderer_config: MEASURED_RENDERER_CONFIG, allowed_complexity: ['simple'] });
+  assert.deepEqual(motionExecutionTerms(env, p916.settings), { renderer_config: MEASURED_RENDERER_CONFIG, allowed_complexity: ['simple', 'standard'] });
   assert.equal(motionGenerationCheck(env, { request: '/motion x', proposal: { ...p916, settings: { duration_seconds: 15, audio: false } } }), null, 'the 16:9 15 s job too');
   for (const r of ['16:9', '9:16']) for (const s of [45, 60]) assert.equal(at(env, s, r).ready, false, `${s} s at ${r} stays unavailable`);
   assert.ok(MEASURED_RENDERER_REVISION.startsWith(MEASURED_RENDERER_CONFIG.split('-')[0]));
