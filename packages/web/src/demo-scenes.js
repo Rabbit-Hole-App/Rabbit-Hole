@@ -321,8 +321,17 @@ const block = (scene, time) => ({
   id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0,
   title: scene.title, scene, time, selectedObject: null, marked: null,
 });
+// The interactive program card's preview (docs plan 2026-10-28-explain-sandbox.md, Task 4): hand-authored fixture programs, each a
+// REFERENCE ({ fixtureId }) that only a build with VITE_EXPLAIN_PROGRAM_FIXTURES=true will run; every other build shows the fixed
+// "could not run" message instead. The last two cards exist to show the fixed error messages. Test data, not generation evidence.
+export const PROGRAM_FIXTURE_BOARD = 'explain-program-fixtures';
+const programBlocks = () => [
+  ['Balance over time', 'fixture-growth'], ['Halving a sorted row', 'fixture-search'],
+  ['A program that never finishes', 'fixture-loop'], ['A program that needs an unavailable capability', 'fixture-capability'],
+].map(([title, fixtureId]) => ({ id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title, program: { fixtureId }, time: 0, selectedObject: null, marked: null }));
 export const BOARDS = {
   demo: demoBlocks,
+  [PROGRAM_FIXTURE_BOARD]: programBlocks,
   // Exactly the two pictures the palette question needs: the roles side by
   // side, and the one shipped scene where a role reading as body ink actually
   // costs the learner something.
@@ -387,6 +396,7 @@ export const BOARD_REVIEW_STATES = { 'nanogpt-deep-dive': NANOGPT_REVIEW_STATES,
 // earlier seed can never silently override a newer one, and nobody has to
 // mint a new board name per review round.
 export const BOARD_SEED_VERSIONS = {
+  [PROGRAM_FIXTURE_BOARD]: 1,
   'static-app-review': 5,
   'static-app-review-2': 2,
   'static-app-review-3': 1,

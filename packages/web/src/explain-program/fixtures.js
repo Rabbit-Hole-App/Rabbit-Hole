@@ -1,6 +1,8 @@
 // HAND-AUTHORED TEST DATA. Two unrelated programs written by a person to exercise one contract. They are not generation
 // evidence: no model wrote them, and they prove nothing about what a model will author. They carry subject matter (a
 // savings curve, a binary search) only as data; nothing in the product reads these names.
+// Every source is the canonical form: an ES module with the named export `export function evaluate({ inputs, time, seed, state })`
+// returning { frame, quantities }, no imports, the SDK as the global `sdk`.
 export const FIXTURE_NOTE = 'hand-authored test data, not generation evidence';
 
 export const growthFixture = {
@@ -16,7 +18,7 @@ export const growthFixture = {
     duration: 4, readouts: [{ id: 'balance', label: 'Balance', decimals: 0 }],
     capabilities: ['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text'],
   },
-  source: `export function evaluate({ inputs, time }) {
+  source: `export function evaluate({ inputs, time, seed, state }) {
   const rate = inputs.rate / 100;
   const balance = t => (inputs.mode === 'compound' ? 1000 * Math.pow(1 + rate, t) : 1000 * (1 + rate * t));
   const shown = inputs.years * Math.min(1, time / 4);
@@ -52,7 +54,7 @@ export const searchFixture = {
     duration: 4, readouts: [{ id: 'checks', label: 'Checks so far', decimals: 0 }],
     capabilities: ['time_playback', 'number_inputs'],
   },
-  source: `export function evaluate({ inputs, time }) {
+  source: `export function evaluate({ inputs, time, seed, state }) {
   const target = Math.round(inputs.target);
   const until = Math.floor(time);
   let lo = 1, hi = 15, mid = 8, step = 0;
@@ -83,3 +85,11 @@ export const searchFixture = {
 };
 
 export const FIXTURES = [growthFixture, searchFixture];
+
+// Cards the preview board shows so the three fixed error messages can be seen. Kept apart from FIXTURES: those must all render.
+// fixture-loop never ends, so the interpreter stops it (runtime_limit). fixture-capability asks for something this build lacks
+// (unsupported_capability, refused before anything runs). Both are hand-authored test data.
+export const ERROR_FIXTURES = [
+  { id: 'fixture-loop', note: FIXTURE_NOTE, manifest: { ...searchFixture.manifest, title: 'A program that never finishes' }, source: 'export function evaluate({ inputs, time, seed, state }) { for (;;) {} }' },
+  { id: 'fixture-capability', note: FIXTURE_NOTE, manifest: { ...searchFixture.manifest, title: 'A program that needs an unavailable capability', capabilities: ['webgl'] }, source: searchFixture.source },
+];
