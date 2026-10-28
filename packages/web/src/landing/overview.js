@@ -85,9 +85,9 @@ const takes = {
   0: { label: 'The Rabbit Hole canvas with the Tutor beside it: a learner tests a prediction about pendulums', lines: TUTOR_LINES,
     poster: n => `/landing/ai-tutor-demo${n ? '-phone' : ''}-poster-v3.jpg`, sources: n => [[`/landing/ai-tutor-demo${n ? '-phone' : ''}-v5.webm`, 'video/webm']] },
   1: { label: 'The Rabbit Hole canvas: a lecture slide on gear ratios becomes a video, a 3D model and an interactive graph', lines: BEYOND_LINES,
-    poster: n => `/landing/beyond-notes-${n ? 'phone' : 'wide'}-poster-v1.jpg`,
-    // WebM first (its frames are exact); the MP4 (H.264 through VLC) is for browsers without WebM and loses the first 1.6 s to a frozen frame, see NOTES.md
-    sources: n => [[`/landing/beyond-notes-${n ? 'phone' : 'wide'}-v1.webm`, 'video/webm'], [`/landing/beyond-notes-${n ? 'phone' : 'wide'}-v1.mp4`, 'video/mp4']] },
+    poster: n => `/landing/beyond-notes-${n ? 'phone' : 'wide'}-poster-v2.jpg`,
+    // WebM first; the MP4 (H.264, faststart) is for browsers without WebM. Both lead with the same 2.5 s hold of the empty canvas.
+    sources: n => [[`/landing/beyond-notes-${n ? 'phone' : 'wide'}-v2.webm`, 'video/webm'], [`/landing/beyond-notes-${n ? 'phone' : 'wide'}-v2.mp4`, 'video/mp4']] },
 };
 
 const root = document.getElementById('observatory');
