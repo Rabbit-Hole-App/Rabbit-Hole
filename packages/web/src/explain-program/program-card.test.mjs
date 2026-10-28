@@ -40,7 +40,7 @@ async function accepted(overrides = {}) {
   const job = { id: 'job1', stage: 'ready', cardId: 'card1', boardId: 'board1', result: { ...identity, program: sealed, execution: { allowed: true } } };
   const block = { id: 'card1', type: 'animation', title: 'Balance', explain: identity, program: { bundleHash: sealed.bundleHash } };
   const calls = [];
-  const client = { get: async id => { calls.push(id); return { ...job, ...overrides.job, result: { ...job.result, ...overrides.result } }; } };
+  const client = { get: async id => { calls.push(id); return { job: { ...job, ...overrides.job, result: { ...job.result, ...overrides.result } } }; } };
   return { client, block: { ...block, ...overrides.block }, sealed, calls };
 }
 
@@ -75,7 +75,7 @@ test('an accepted program is refused when anything about its identity, hash or s
     assert.ok(['version_unavailable', 'unsupported_capability'].includes(out.error.code), name);
   }
   const tampered = await accepted();
-  const bad = { ...tampered.client, get: async () => { const job = await tampered.client.get(); return { ...job, result: { ...job.result, program: { ...job.result.program, source: `${job.result.program.source} ` } } }; } };
+  const bad = { ...tampered.client, get: async () => { const { job } = await tampered.client.get(); return { job: { ...job, result: { ...job.result, program: { ...job.result.program, source: `${job.result.program.source} ` } } } }; } };
   assert.equal((await resolveProgram(tampered.block, { client: bad })).ok, false, 'source changed after hashing');
   const down = await resolveProgram(tampered.block, { client: { get: async () => { throw Object.assign(new Error('x'), { status: 500 }); } } });
   assert.equal(down.error.code, 'version_unavailable');

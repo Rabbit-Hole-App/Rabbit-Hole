@@ -11,6 +11,7 @@ import { resolveTarget } from './learn-target.js';
 import { cardBlock } from './nanogpt/board.js';
 import { partIndex } from './nanogpt/depth/board.js';
 import { describeAnimation } from './scene-describe.js';
+import { describeProgram } from './explain-program/program-card.js';
 import { checkStatus, enterPractice, isPracticing } from './scene-activity.js';
 import { applyInputToBlock } from './scene-evaluate.js';
 import { coerceInputs, validateInputDeclarations } from './scene-inputs.js';
@@ -362,7 +363,7 @@ function relevantCards(target, concepts, domain) {
 // for the planner only (nothing here or in route() reads it); a turn whose route allows create_material (Task 11b: typed and
 // voice turns too) adds available_materials as the last key.
 // A selected block as text: an animation's description, else its title and body (the planner's target and the handoff's card).
-const cardText = block => (block?.type === 'animation' ? describeAnimation(block).text : block ? [block.title, block.body].filter(Boolean).join('\n') : null);
+const cardText = block => (block?.type === 'animation' ? (block.program ? describeProgram(block) : describeAnimation(block)).text : block ? [block.title, block.body].filter(Boolean).join('\n') : null);
 export function plannerContext({ turn, routed, block, states, claims = [], store = null, domain = NANOGPT }) {
   const card = domain.cardModule(turn.target?.card);
   const labels = partLabels(card);

@@ -18,7 +18,7 @@ export const fixturesAdmitted = env => env?.VITE_EXPLAIN_PROGRAM_FIXTURES === 't
 const refuse = (code, diagnostic) => ({ ok: false, error: new RuntimeError(code, diagnostic) });
 
 // Result: { ok: true, artifact } or { ok: false, error: RuntimeError }.
-// client: explainClient(api, boardId) (get(jobId) is the existing authorized job route). stamps: sealProgram's version stamps for
+// client: explainClient(api, boardId) (get(jobId) is the existing authorized job route and answers { job, block }). stamps: sealProgram's version stamps for
 // fixtures. Never evaluates anything; it only decides which artifact may be run.
 export async function resolveProgram(block, { client, fixtures = false, stamps = null } = {}) {
   const ref = block?.program;
@@ -34,7 +34,7 @@ export async function resolveProgram(block, { client, fixtures = false, stamps =
   const identity = block.explain;
   if (!client || !identity?.jobId || !identity.resultId || !identity.revision || !ref.bundleHash) return refuse('version_unavailable', 'no accepted result for this card');
   let job;
-  try { job = await client.get(identity.jobId); } catch (problem) { return refuse('version_unavailable', `result route failed: ${problem?.status ?? 'network'}`); }
+  try { job = (await client.get(identity.jobId))?.job; } catch (problem) { return refuse('version_unavailable', `result route failed: ${problem?.status ?? 'network'}`); }
   const result = job?.result;
   // The job must be this card's own accepted, ready result on this canvas, at the revision the card saved.
   if (job?.stage !== 'ready' || !result || result.resultId !== identity.resultId || result.revision !== identity.revision
