@@ -89,9 +89,9 @@ const takes = {
   0: { label: 'The Rabbit Hole canvas with the Tutor beside it: a learner tests a prediction about pendulums', lines: TUTOR_LINES,
     poster: n => `/landing/ai-tutor-demo${n ? '-phone' : ''}-poster-v3.jpg`, sources: n => [[`/landing/ai-tutor-demo${n ? '-phone' : ''}-v5.webm`, 'video/webm']] },
   1: { label: 'The Rabbit Hole canvas: a lecture slide on gear ratios becomes a video, a 3D model and an interactive graph', lines: BEYOND_LINES,
-    poster: n => `/landing/beyond-notes-${n ? 'phone' : 'wide'}-poster-v2.jpg`,
+    poster: n => `/landing/beyond-notes-${n ? 'phone' : 'wide'}-poster-v3.jpg`,
     // WebM first; the MP4 (H.264, faststart) is for browsers without WebM. Both lead with the same 2.5 s hold of the empty canvas.
-    sources: n => [[`/landing/beyond-notes-${n ? 'phone' : 'wide'}-v2.webm`, 'video/webm'], [`/landing/beyond-notes-${n ? 'phone' : 'wide'}-v2.mp4`, 'video/mp4']] },
+    sources: n => [[`/landing/beyond-notes-${n ? 'phone' : 'wide'}-v3.webm`, 'video/webm'], [`/landing/beyond-notes-${n ? 'phone' : 'wide'}-v3.mp4`, 'video/mp4']] },
   2: { label: 'The Rabbit Hole workspace: a paper and the nanoGPT repository open together, with a code card, a highlighted passage and a conversation about both', lines: MATERIALS_LINES,
     poster: n => `/landing/materials-wide-v1-poster.jpg`, // ponytail: the phone cut is still to come; phones use the wide take until then
     sources: n => [[`/landing/materials-wide-v1.webm`, 'video/webm'], [`/landing/materials-wide-v1.mp4`, 'video/mp4']] },
