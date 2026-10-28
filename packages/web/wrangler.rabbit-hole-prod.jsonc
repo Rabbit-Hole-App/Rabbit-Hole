@@ -143,12 +143,10 @@
     // public activation: public generation stays paused (next line), so only the owner list below can start. To go back to today's settings
     // (16:9, 5 to 30 s) comment this line again.
     "MOTION_RENDERER_CONFIG": "03f2a1efc08e-1.5cpu-3gib-420s",
-    // PUBLIC Motion is still PAUSED on purpose (R1, owner 2026-10-25): "1" refuses every new start; jobs already started still poll, stop, settle and
-    // play. The ONLY exception is the controlled owner-only path: a caller whose verified full sign-in email is in MOTION_ACCEPTANCE_EMAILS (below)
-    // may still start, under the ordinary admission, hold and settlement rules, so the acceptance jobs exercise the real renderer, orchestrator,
-    // storage and accounting. R2b (the public flip, a separate release) sets this to "0" and nothing else (the orchestrator's US$5.00 per-job ceiling and the 500-credit maximum stay), only after
-    // the 16:9 and 9:16 owner-only jobs passed and the credit disclosure fix is on main.
-    "MOTION_GENERATION_PAUSED": "1",
+    // R2b, THE PUBLIC FLIP (owner GO 2026-10-28): released only after the 16:9 and 9:16 owner-only acceptance jobs passed with their accounting rows and the
+    // corrected credit disclosure is on main. Public generation is back ON ("0") and nothing else changes: the orchestrator's US$5.00 per-job ceiling and the
+    // 500-credit maximum stay (the disclosed maximum charge is pinned to the ceiling). The owner list below stays: it only matters while this is "1" (a later pause).
+    "MOTION_GENERATION_PAUSED": "0",
     // The owner path (R1b, owner 2026-10-26): TWO full addresses, space separated, each compared whole and lower-cased against the account's application
     // principal (auth.js: a provider-reported email never becomes a principal). The first is the principal of the owner's Google sign-in (user_id
     // dda2350771a4066e3080c605ba092e0a, read from production D1: user@<id>.rabbithole.invalid); the second admits the Gmail address only for someone who proved
