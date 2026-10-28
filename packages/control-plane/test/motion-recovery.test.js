@@ -73,7 +73,7 @@ function world(t) {
       if (step.wait) { gate.waiting = true; await new Promise(r => { gate.release = r; signal.addEventListener('abort', r, { once: true }); }); gate.waiting = false; continue; }
       if (step.save) { out.checkpoint = step.save; onStage('review_and_render', out); continue; }
       if (step.render) { await svc.submit({}); continue; }
-      if (step.fail) return { status: 'failed', failure_reason: `stub: ${step.fail}`, cause: step.fail, checkpoint: out.checkpoint, job: { findings: out.checkpoint?.findings ?? [] } };
+      if (step.fail) return { status: 'failed', failure_reason: `stub: ${step.fail}`, cause: step.fail, ...(step.code ? { failure_code: step.code } : {}), checkpoint: out.checkpoint, job: { findings: out.checkpoint?.findings ?? [] } };
       const r = await guarded({}, { max_tokens: 16000, tools: [{ name: 'motion_review' }], messages: [{ role: 'user', content: 'x' }], out: step.call }, MODEL);
       if (!r.ok) return { status: 'failed', failure_reason: `stub: ${await r.text()}`, cause: 'limit', checkpoint: out.checkpoint };
       await r.text();
@@ -86,10 +86,10 @@ function world(t) {
   const original = globalThis.fetch;
   // cancelFault: how the next cancel goes wrong, once: 'lost' (never delivered), '502' (delivered, its answer replaced by a proxy
   // 502) or 'timeout' (delivered, its answer never read). hang(path): that request is delivered and never answered.
-  const orchestrator = { posts: [], cancels: 0, delivered: 0, lose: 0, cancelFault: null, hang: () => false };
+  const orchestrator = { posts: [], logs: [], cancels: 0, delivered: 0, lose: 0, cancelFault: null, hang: () => false };
   orchestrator.start = async () => {
     if (server) { server.close(); orchestrator.o.close(); }
-    orchestrator.o = motionOrchestrator({ token: TOKEN, service, call, outDir: mkdtempSync(join(tmpdir(), 'motion-rec-')), env: { MOTION_RENDERER_CONFIG: READY.MOTION_RENDERER_CONFIG }, run });
+    orchestrator.o = motionOrchestrator({ token: TOKEN, service, call, outDir: mkdtempSync(join(tmpdir(), 'motion-rec-')), env: { MOTION_RENDERER_CONFIG: READY.MOTION_RENDERER_CONFIG }, run, log: line => orchestrator.logs.push(line) });
     server = createServer(orchestrator.o.handle);
     await new Promise(r => server.listen(0, '127.0.0.1', r));
     orchestrator.base = `http://127.0.0.1:${server.address().port}`;
@@ -321,4 +321,73 @@ test('MOT-21 worker restart mid-reconcile of a stopped free render recovery: sta
   await actor.fetch(new Request('https://dev.test/api/learn/video?app=demo'));
   assert.ok(ctx.clock.alarm, 'a read of the list re-arms the alarm');
   await reconciledOnce(ctx, actor);
+});
+
+// Durable per-attempt findings (2026-10-27, job e3a2f10e): a recovery resets the card's failure fields, never the record of the attempt that failed.
+test('each attempt keeps its own durable record: a recovery does not erase the previous attempt reason or its saved artifacts', async t => {
+  const { LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start();
+  w.script({ first: [{ call: 5000 }, { save: cp('blocking') }, { fail: 'content' }], recover: [{ call: 4000 }, { save: cp('unreviewed') }, { fail: 'content' }] });
+  const env = env0(LEARN_DB), actor = new LearnVideos(durable('rec-d'), env);
+  await actor.fetch(generate());
+  await settle(actor, async () => (await video(actor)).status === 'failed' && (await video(actor)).hold?.state === 'released');
+  const { id } = await video(actor);
+  await actor.fetch(recover(id, 'fix', { confirmed: true }));
+  await settle(actor, async () => (await video(actor)).status === 'failed' && (await video(actor)).hold?.state === 'released' && [...actor.state.data.values()].find(v => v.provider === 'motion_request').attempts?.length === 2);
+  const job = [...actor.state.data.values()].find(v => v.provider === 'motion_request');
+  const [first, second] = job.attempts;
+  assert.deepEqual([first.status, first.cause, first.code], ['failed', 'content', 'content_rejected']);
+  assert.match(first.reason, /stub: content/, 'the first attempt own reason is still there after the recovery');
+  assert.notEqual(first.ticket, second.ticket);
+  assert.notEqual(first.key, second.key, 'one saved artifact per attempt, each readable by its exact key');
+  for (const attempt of job.attempts) assert.ok(env.LEARN_MEDIA.objects.has(attempt.key), 'the artifact of ' + attempt.ticket + ' exists');
+  assert.equal(first.stop, undefined, 'a failure is not recorded as a stop');
+});
+
+// Who asked for a Stop is recorded where it can be read afterwards: the orchestrator's log line and the attempt's record.
+test('a learner Stop names its origin in the orchestrator log and in the attempt record; a job nobody stopped has none', async t => {
+  const { LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start();
+  w.script({ first: [{ call: 5000 }, { save: cp('blocking') }, { fail: 'content' }], recover: [{ call: 2000 }, { wait: true }, { call: 2000 }] });
+  const actor = new LearnVideos(durable('rec-e'), env0(LEARN_DB));
+  await actor.fetch(generate());
+  await settle(actor, async () => (await video(actor)).hold?.state === 'released');
+  const { id } = await video(actor);
+  await actor.fetch(recover(id, 'fix', { confirmed: true }));
+  for (let i = 0; i < 100 && !w.gate.waiting; i++) await sleep(5);
+  await actor.fetch(stopping(id));
+  await settle(actor, async () => (await video(actor)).hold?.state === 'released');
+  assert.equal(w.orchestrator.logs.filter(l => /stop requested during/.test(l)).length, 1);
+  assert.match(w.orchestrator.logs.find(l => /stop requested during/.test(l)), /[(]origin learner_request[)]$/);
+  const job = [...actor.state.data.values()].find(v => v.provider === 'motion_request');
+  assert.equal(job.attempts[0].stop, undefined, 'the first attempt was never stopped');
+  assert.equal(job.attempts[1].stop.origin, 'learner_request');
+  assert.ok(Number.isFinite(job.attempts[1].stop.at));
+});
+
+test('a composition limits refusal reaches the card as its own message, not the generic plan sentence, and its kept composition is recoverable', async t => {
+  const { LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start();
+  w.script({ first: [{ call: 5000 }, { save: cp('unreviewed') }, { fail: 'content', code: 'composition_not_covered' }] });
+  const actor = new LearnVideos(durable('rec-f'), env0(LEARN_DB));
+  await actor.fetch(generate());
+  await settle(actor, async () => (await video(actor)).status === 'failed' && (await video(actor)).hold?.state === 'released');
+  const failed = await video(actor);
+  assert.match(failed.recovery.explanation, /more complex than it has been checked for/);
+  assert.doesNotMatch(failed.recovery.explanation, /did not pass its checks/);
+  assert.equal(failed.recovery.code, 'composition_not_covered');
+  assert.deepEqual(failed.recovery.actions, ['edit'], 'nothing was measured on the checkpoint: Continue fixing could not address the refusal, so it is not offered');
+  assert.equal(failed.recovery.accounting.chargedCredits, 0, 'our restriction: the learner is charged nothing');
+  assert.equal(failed.usage.usedCredits, 0);
+  const job = [...actor.state.data.values()].find(v => v.provider === 'motion_request');
+  assert.equal(job.attempts[0].code, 'composition_not_covered');
+  assert.ok(job.providerCost[0].micros > 0 && job.providerCost[0].charged === 0 && job.providerCost[0].free, 'the provider cost is recorded and counted, the charge is zero');
+  // With the refused composition's class on the checkpoint and an allowance that covers it, Continue fixing is offered again.
+  const w2 = world(t); await w2.orchestrator.start();
+  const kept = { ...cp('unreviewed'), composition: { ...cp('unreviewed').composition, limits: { class: 'standard', metrics: {}, allowed: ['simple'] } } };
+  w2.script({ first: [{ call: 5000 }, { save: kept }, { fail: 'content', code: 'composition_not_covered' }] });
+  const actor2 = new LearnVideos(durable('rec-g'), env0(LEARN_DB));
+  await actor2.fetch(generate());
+  await settle(actor2, async () => (await video(actor2)).status === 'failed' && (await video(actor2)).hold?.state === 'released');
+  assert.deepEqual((await video(actor2)).recovery.actions, ['fix', 'edit'], 'no allowance restriction on a request without a proposal: the kept composition is coverable');
 });
