@@ -98,9 +98,8 @@ const takes = {
       ['Canvas', 'An Explain back card asks why the third attention weight is zero even though its original score is the largest.'],
       ['Learner', 'It is less relevant.'],
       ['Feedback', 'Here it is excluded because it is a future token. Masking sets its score to −∞ before softmax, making its weight zero.']],
-    poster: () => '/landing/learn-wide-v1-poster.jpg',
-    // ponytail: no separate phone cut yet; phones use the wide files until learn-phone-v1 exists.
-    sources: () => [['/landing/learn-wide-v1.webm', 'video/webm'], ['/landing/learn-wide-v1.mp4', 'video/mp4']] },
+    poster: n => `/landing/learn-${n ? 'phone' : 'wide'}-v2-poster.jpg`,
+    sources: n => [[`/landing/learn-${n ? 'phone' : 'wide'}-v2.webm`, 'video/webm'], [`/landing/learn-${n ? 'phone' : 'wide'}-v2.mp4`, 'video/mp4']] },
 };
 
 const root = document.getElementById('observatory');
