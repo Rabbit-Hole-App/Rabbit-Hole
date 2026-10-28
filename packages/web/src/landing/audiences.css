@@ -78,8 +78,9 @@
 #who-is-it-for:not(.is-scroll) .audience-slide[data-layout]{grid-template-rows:auto auto}
 #who-is-it-for:not(.is-scroll) .audience-slide[data-layout].is-active{position:relative;inset:auto}
 /* University students: three situations, capture then title, learner question, supporting sentence */
-.aud-situations{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:32px;align-items:start}
+.aud-situations{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,.8fr) minmax(0,1.5fr);gap:32px;align-items:start}
 .aud-university .aud-capture{aspect-ratio:500/360;display:grid;align-content:center}
+.aud-university .aud-situation:nth-child(3) .aud-capture{aspect-ratio:auto}
 .aud-situation h4{margin:18px 0 8px;font:500 21px/1.25 var(--display);letter-spacing:-.03em}
 .aud-question{margin:0 0 6px;font:400 17px/1.5 var(--ui);color:var(--audience-ink)}
 .aud-support{margin:0;font:400 15px/1.55 var(--ui);color:var(--audience-muted)}
@@ -96,6 +97,76 @@
 .aud-links path{vector-effect:non-scaling-stroke}
 .aud-ask{position:absolute;left:51.5%;top:1%;margin:0;white-space:nowrap;font:500 15px/1.35 var(--display);letter-spacing:-.02em;color:#70515c}
 .aud-ask sub{font-size:.7em;vertical-align:baseline;position:relative;top:.22em}
+/* Educators: a smaller slide (about 30%) beside the dominant teaching card (about 70%) */
+.aud-educators{display:grid;grid-template-columns:minmax(0,.32fr) minmax(0,.68fr);gap:36px;align-items:start}
+.aud-educators .aud-result{margin-top:34px}
+.aud-request{margin:16px 0 0;padding:2px 0 2px 14px;border-left:2px solid #d8b9c3}
+.aud-request p{margin:0;font:400 14px/1.55 var(--ui);color:var(--audience-ink)}
+.aud-request .aud-label{margin-bottom:6px}
+@media(max-width:1100px){.aud-situations{gap:22px}.aud-situation h4{font-size:19px}.aud-question{font-size:16px}.aud-support{font-size:14px}.aud-ask{position:absolute;left:51.5%;top:1%;margin:0;white-space:nowrap;font:500 15px/1.35 var(--display);letter-spacing:-.02em;color:#70515c}}
+@media(max-width:900px){
+  .aud-situations{grid-template-columns:1fr;gap:40px}
+  .aud-university .aud-capture{aspect-ratio:auto}
+  .aud-ml{width:100%;aspect-ratio:auto;display:flex;flex-direction:column;gap:20px}
+  .aud-ml .aud-paper,.aud-ml .aud-code{position:relative;left:auto;top:auto;width:100%}
+  .aud-ml .aud-paper{order:1}.aud-ml .aud-ask{position:absolute;left:51.5%;top:1%;margin:0;white-space:nowrap;font:500 15px/1.35 var(--display);letter-spacing:-.02em;color:#70515c}.aud-ml .aud-code{order:3}
+  .aud-ml .aud-links{display:none}
+  .aud-ask{position:absolute;left:51.5%;top:1%;margin:0;white-space:nowrap;font:500 15px/1.35 var(--display);letter-spacing:-.02em;color:#70515c}
+  .aud-educators{grid-template-columns:1fr;gap:28px}
+  .aud-educators .aud-result{margin-top:0}
+}
+.aud-pan{position:relative}
+@media(max-width:900px){
+  /* the code card keeps its readable size on a phone and pans sideways inside its frame */
+  .aud-code{overflow-x:auto;overscroll-behavior-x:contain}
+  .aud-pan{width:max(100%,600px)}
+}
+@media(max-width:700px){
+  .aud-mark-eq{left:29%;top:71.5%;width:42%;height:12%}
+  .aud-label{font-size:11px}
+}
+
+/* Content creators: post -> shared canvas -> audience participation. The post is landing layout (a neutral example, no brand); the canvas,
+   fork card and profile card are real Rabbit Hole captures. The shared canvas carries most of the weight; the arrows are decoration. */
+.aud-creators{width:100%;display:grid;grid-template-columns:minmax(0,230fr) minmax(0,537fr) minmax(0,375fr);column-gap:24px;align-items:start;position:relative}
+.aud-creators .aud-capture img+img{border-top:1px solid var(--audience-line)}
+.aud-postcard{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--audience-line);border-radius:10px;background:#fff;font:400 13px/1.45 var(--ui);color:var(--audience-ink)}
+.aud-postcard header{display:flex;align-items:center;gap:8px}
+.aud-postcard header span:last-child{display:flex;flex-direction:column;line-height:1.25}
+.aud-postcard small{font-size:11px;color:var(--audience-muted)}
+.aud-postcard p{margin:0}
+.aud-avatar{display:grid;place-items:center;flex:none;width:32px;height:32px;border-radius:50%;background:var(--audience-blush);color:#70515c;font:600 11px/1 var(--ui)}
+.aud-postcard img{display:block;width:100%;height:auto;border-radius:6px;border:1px solid var(--audience-line)}
+.aud-postlink{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:6px;background:#f4f3ef}
+.aud-postlink strong{font-weight:500;font-size:13px}
+.aud-postlink span{font-size:11px;color:var(--audience-muted);word-break:break-all}
+.aud-arrow{position:absolute;top:50%;color:#ba788f;font:400 18px/1 var(--ui);pointer-events:none}
+.aud-arrow-1{left:calc(19.5% + 2px)}.aud-arrow-2{left:calc(64.5% + 4px)}
+.aud-shared{margin-top:0}
+.aud-reader{display:flex;flex-direction:column;gap:0;align-self:center}
+.aud-idea{margin:10px 0 10px;padding-left:10px;border-left:2px solid #d8b9c3;font:500 13px/1.4 var(--ui);color:#70515c}
+@media(max-width:1100px){.aud-creators{column-gap:16px}.aud-arrow{display:none}}
+@media(max-width:900px){
+  .aud-creators{width:100%;display:flex;flex-direction:column;gap:28px}
+  .aud-arrow{display:none}
+  .aud-shared{margin-top:0}
+  .aud-postcard{max-width:420px}
+}
+
+/* Enterprise onboarding: illustrative heat-conduction example as real cards; the notebook and its results are the largest */
+.aud-enterprise{display:flex;flex-direction:column;gap:12px}
+.aud-ent-ask{margin:0;display:flex;align-items:baseline;gap:12px;padding:8px 14px;border-left:2px solid #d8b9c3;background:#fff;font:400 15px/1.45 var(--ui);color:var(--audience-ink)}
+.aud-ent-ask .aud-label{margin:0;flex:none}
+.aud-ent-grid{display:grid;grid-template-columns:342fr 28px 312fr 28px 612fr;align-items:center}
+.aud-ent-col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.aud-ent-col .aud-label{margin:0}.aud-ent-col .aud-label em{margin-left:6px;font:500 10px/1.4 var(--ui);font-style:normal;letter-spacing:.04em;text-transform:none;color:#3d6a4a;background:#eef3ee;border:1px solid #cfe0d2;border-radius:999px;padding:0 7px}
+.aud-ent-col .aud-capture{border-radius:12px}
+.aud-enterprise .aud-arrow{position:static;text-align:center;align-self:center}
+@media(max-width:900px){
+  .aud-ent-ask{flex-direction:column;gap:4px}
+  .aud-ent-grid{grid-template-columns:1fr;row-gap:22px}
+  .aud-enterprise .aud-arrow{display:none}
+}
 /* Interview preparation: PREPARED FUTURE-UI ILLUSTRATION (landing only). HTML/CSS/SVG, not the real Explain-back card. */
 .aud-interview{position:relative;display:grid;grid-template-columns:172px minmax(0,1fr);column-gap:40px;align-items:center;font:400 14px/1.45 var(--ui);color:var(--audience-ink)}
 .aud-iv-wire{position:absolute;left:0;top:0;overflow:visible;fill:none;pointer-events:none;z-index:2}
