@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import katex from 'katex';
@@ -425,8 +425,12 @@ function RunsLabel({ runs, text, x, y, anchor, baseline, type, fill }) {
   );
 }
 
-function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop, onInputPick = null, lockedInputs = [] }) {
+// Exported for ProgramScene (explain-program): the same trusted drawing for a generated program's frame, which arrives as a
+// scene plus its state at one moment. fixedView draws exactly the declared width and height instead of fitting the content, so
+// a frame that changes every tick does not rescale; every scene card leaves it off and is framed as before.
+export function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop, onInputPick = null, lockedInputs = [], fixedView = false }) {
   const host = useRef(null);
+  const clipPrefix = useId().replace(/[^A-Za-z0-9_-]/g, '');
   const drag = useRef(null);
   const [rectangle, setRectangle] = useState(null);
   // The real rendered box, so the viewBox can be built at the viewport's own
@@ -474,7 +478,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop,
   // instead of trusting the scene's own (habitually oversized) width/height:
   // the app-review framing finding, fixed once, here, rather than per scene.
   const cameraAuthored = scene.timeline.some(event => event.action === 'focus_camera' || event.action === 'pan_camera' || event.action === 'zoom_camera');
-  const bounds = cameraAuthored ? null : sceneContentBounds(scene);
+  const bounds = cameraAuthored || fixedView ? null : sceneContentBounds(scene);
   let origin, span;
   if (bounds) {
     // Pad the content and match the VIEWPORT's aspect, not the scene's. The
@@ -493,7 +497,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop,
   // Every box and circle, in draw order, with the ink its fill carries: a
   // glyph another object draws over one reads against that fill (inkOver).
   const shapes = visibleObjects.map(object => {
-    if (!(object.opacity > 0) || ['arrow', 'line', 'image', 'text', 'equation', 'code', ...DATA_TYPES].includes(object.type)) return null;
+    if (!(object.opacity > 0) || ['arrow', 'line', 'polyline', 'image', 'text', 'equation', 'code', ...DATA_TYPES].includes(object.type)) return null;
     const { x, y } = centreOf(object), w = object.w || (object.type === 'circle' ? 60 : 0), h = object.type === 'circle' ? w : object.h || 0;
     const { onFill } = shapeStyle(object.role, { highlighted: object.highlighted, chosen: picked === object.semanticId }, undefined, object.identitySlot);
     return { xMin: x - w / 2, xMax: x + w / 2, yMin: y - h / 2, yMax: y + h / 2, role: object.role, onFill };
@@ -546,12 +550,13 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop,
           const isCircle = object.type === 'circle';
           const isData = DATA_TYPES.includes(object.type);
           const isStroke = object.type === 'arrow' || object.type === 'line';
+          const isPolyline = object.type === 'polyline';
           const isImage = object.type === 'image';
           const maths = isEquation ? typeset(shown) : null;
           // A circle is placed by its centre, so its label is centred on the
           // same point; boxes centre inside their frame.
           const centre = centreOf(object);
-          const label = labelAt(object, { stroke: isStroke, above: isData || isImage, text: isText }, centre, visibleObjects);
+          const label = labelAt(object, { stroke: isStroke || isPolyline, above: isData || isImage, text: isText }, centre, visibleObjects);
           // State never changes which role's colour is shown, only weight and
           // fill strength - one resolved look serves every shape below.
           // IDENTITY (if this object has one) takes the hue role would
@@ -608,6 +613,12 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop,
                   : <image href={object.src} x={object.x} y={object.y} width={object.w} height={object.h}
                       preserveAspectRatio="xMidYMid slice"
                       style={{ stroke: look.stroke, strokeWidth: look.strokeWidth }} />)
+                : isPolyline
+                ? (<>
+                    {object.clip && <clipPath id={`${clipPrefix}-${object.id}`}><rect x={object.clip.x} y={object.clip.y} width={object.clip.w} height={object.clip.h} /></clipPath>}
+                    <polyline points={object.points.map(([px, py]) => `${px},${py}`).join(' ')} fill="none" strokeLinecap="round" strokeLinejoin="round"
+                      clipPath={object.clip ? `url(#${clipPrefix}-${object.id})` : undefined} style={{ stroke: look.stroke, strokeWidth: look.strokeWidth }} />
+                  </>)
                 : isStroke
                 ? <line x1={object.from?.x ?? object.x} y1={object.from?.y ?? object.y}
                     x2={object.to?.x ?? object.x} y2={object.to?.y ?? object.y}

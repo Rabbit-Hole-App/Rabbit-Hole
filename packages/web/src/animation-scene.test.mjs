@@ -394,6 +394,7 @@ const SAMPLE = {
   strip: { values: [1, 2] },
   bars: { values: [1, 2] },
   tokens: { tokens: ['a', 'b'] },
+  polyline: { points: [[0, 0], [5, 5]], w: 5, h: 5 },
 };
 
 test('every declared type has a sample the gate accepts', () => {

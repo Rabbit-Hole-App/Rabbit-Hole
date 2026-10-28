@@ -103,10 +103,10 @@ test('a valid frame normalises defaults; wrong frames are invalid_output', () =>
   }
 });
 
-test('frame budgets: 240 objects, 2000 points each, 10000 points in total, finite points, a hostile key', () => {
+test('frame budgets: 60 objects, 2000 points each, 10000 points in total, finite points, a hostile key', () => {
   const boxes = n => Array.from({ length: n }, (_, i) => ({ kind: 'box', id: `b${i}`, x: i, y: 0, w: 4, h: 4 }));
-  assert.equal(parseFrame(frame(boxes(240))).ok, true);
-  assert.equal(parseFrame(frame(boxes(241))).ok, false);
+  assert.equal(parseFrame(frame(boxes(60))).ok, true);
+  assert.equal(parseFrame(frame(boxes(61))).ok, false);
   assert.equal(parseFrame(frame([curve(2000)])).ok, true);
   assert.equal(parseFrame(frame([curve(2001)])).ok, false);
   assert.equal(parseFrame(frame([curve(1), ])).ok, false, 'a polyline needs two points');

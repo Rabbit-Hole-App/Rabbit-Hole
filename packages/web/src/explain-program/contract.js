@@ -12,11 +12,13 @@ export const PROGRAM_VERSIONS = Object.freeze({
   schemaVersion: SCHEMA_VERSION, sdkVersion: 'sdk-1', rendererVersion: 'renderer-1', runtimePolicyVersion: 'policy-1', permissionProfileVersion: 'perm-1',
 });
 
+// ponytail: objects is 60 because the existing scene gate allows 60 on screen without a pager (animation-scene.js); the plan's 240 total
+// (objectsTotal) needs parts, which arrive with Task 8.
 // Starting limits from plan section 5.3. limits.js (runtime owner) is the runtime policy file; these are the contract-level
 // bounds a Frame or artifact must satisfy before anything renders, so they live with the schemas that enforce them.
 export const CONTRACT_LIMITS = Object.freeze({
   sourceBytes: 16 * 1024, manifestBytes: 4 * 1024, outputBytes: 256 * 1024, depth: 32,
-  objects: 240, pointsPerObject: 2000, pointsTotal: 10000, inputs: 4, optionCombinations: 64, options: 8, readouts: 8, quantities: 32, assumptions: 8,
+  objects: 60, objectsTotal: 240, pointsPerObject: 2000, pointsTotal: 10000, inputs: 4, optionCombinations: 64, options: 8, readouts: 8, quantities: 32, assumptions: 8,
   duration: 120, coordinate: 100000, size: 2000, text: 200, runs: 16,
 });
 
