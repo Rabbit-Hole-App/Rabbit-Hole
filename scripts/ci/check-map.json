@@ -532,6 +532,7 @@
     "packages/web/src/explain-program/sdk.js": ["explain-program-check.mjs","explain-program-card-check.mjs","explain-program-render-check.mjs"],
     "packages/web/src/explain-program/host.js": ["explain-program-check.mjs","explain-program-card-check.mjs","explain-program-render-check.mjs"],
     "packages/web/src/explain-program/ProgramScene.jsx": ["explain-program-check.mjs","explain-program-card-check.mjs"],
+    "packages/web/src/explain-program/ProgramNotes.jsx": ["explain-program-card-check.mjs"],
     "packages/web/src/explain-program/program-card.js": ["explain-program-check.mjs","explain-program-card-check.mjs","explain-program-render-check.mjs"],
     "packages/web/src/explain-program/stamps.js": ["explain-program-check.mjs","explain-program-card-check.mjs","explain-program-render-check.mjs"],
     "packages/web/src/explain-program/page-worker.js": ["explain-program-check.mjs","explain-program-render-check.mjs"],
