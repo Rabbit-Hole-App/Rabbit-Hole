@@ -157,6 +157,15 @@ credit card required.” Generation prompt and provenance are in
 regeneration adds denser abstract wireframe/cutaway diagrams on the right,
 following the user's refinement request. Package content is unchanged.
 
+Current packages (owner, 2026-10-29): exactly three cards, Free ($0), Pro and
+Team (both "Contact for pricing"), with the owner's copy verbatim. Free's
+**Get started** opens `/sign-up`; both **Contact** buttons open
+`mailto:hello@digrabbithole.com`. The note below the cards, the credits
+explanation and the For teams panel are removed; all package information lives
+inside its card. No paid prices, checkout or "unlimited" claims. The card
+limits (canvases, storage, model choice) are copy only: they are not enforced
+by the product yet.
+
 ### Previous pricing artwork
 
 The user rejected the key and butter-yellow palette on 2026-09-28. `/pricing`

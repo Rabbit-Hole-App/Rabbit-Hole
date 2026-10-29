@@ -108,9 +108,7 @@
   .tier .name{font:500 14px/1 var(--ui);letter-spacing:.04em;text-transform:uppercase;
               color:var(--muted)}
   .tier.hero-tier .name{color:rgba(255,255,255,.62)}
-  .tier .price{font:600 46px/1 var(--display);letter-spacing:-.03em;margin:18px 0 6px}
-  .tier .per{font:400 14.5px/1 var(--ui);color:var(--muted);margin-bottom:24px}
-  .tier.hero-tier .per{color:rgba(255,255,255,.62)}
+  .tier .price{font:600 46px/1 var(--display);letter-spacing:-.03em;margin:18px 0 24px}
   .tier ul{list-style:none;margin-bottom:28px}
   .tier li{font:400 15.5px/1.6 var(--ui);color:var(--muted);
            padding-left:20px;position:relative}
@@ -219,7 +217,8 @@
 .content-page #pricing .hero-tier .pick:focus-visible{outline-color:#fff}
 .content-page #pricing .pick.card-action{position:relative;display:flex;justify-content:center;min-height:44px;padding:13px 48px}
 .content-page #pricing .pick .card-action-icon{position:absolute;right:7px;top:calc(50% - 15px)}
-.content-page #pricing .pricing-note{font:400 13px/1.6 var(--ui);color:var(--muted);margin-top:20px;max-width:760px}
+/* A worded price keeps the $0 line height so the bullets and buttons stay level. */
+.content-page #pricing .price-contact{font-size:20px;line-height:46px}
 @media(max-width:900px){
   .content-page #pricing .tier-summary{min-height:0}
 }
