@@ -28,6 +28,7 @@
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { BOARDS } from '../src/demo-scenes.js';
+import { BAND_ROOM } from '../src/canvas-slots.js';
 import { reveal } from './canvas-reveal.mjs';
 import { DEV_CP } from './dev-cp.mjs';
 
@@ -294,7 +295,10 @@ async function probeEdge(page, card, title, label, side = 'right') {
     // (the depth ladder) starts at the room's top and pans out from under the chrome.
     const first = await page.evaluate(() => Math.min(...[...document.querySelectorAll('[data-canvas-surface] [data-block-id]')].map(el => el.getBoundingClientRect().top)));
     if (scale > 0.2001 && under.length) fail(`desktop: after zoom to fit, card(s) under the minimap and zoom or the hooks: ${under.join('; ')}`);
-    if (scale <= 0.2001 && first > (fit.header?.bottom ?? fit.surface.y) + 49) fail(`desktop: at the 20% floor the fit does not start at the top, below the header (${Math.round(first)})`);
+    // Owner 2026-10-29: over the canvas the header is an opaque band, kept clear BAND_ROOM deeper (AdaptiveCanvas controlRects).
+    const band = fit.header && await page.evaluate(() => getComputedStyle(document.querySelector('[data-canvas-header]')).position === 'absolute');
+    const roomTop = fit.header ? fit.header.bottom + (band ? BAND_ROOM : 0) : fit.surface.y;
+    if (scale <= 0.2001 && first > roomTop + 49) fail(`desktop: at the 20% floor the fit does not start at the top, below the header (${Math.round(first)}, room from ${Math.round(roomTop)})`);
     aligned(fit, 'desktop, after zoom to fit');
     // A longer zoom label: zoom in to 3 digits; the group keeps one width.
     for (let i = 0; i < 12 && Number.parseInt((await geometry(page)).zoom, 10) < 100; i++) await page.locator('[data-zoom] [title="Zoom in"]').click();

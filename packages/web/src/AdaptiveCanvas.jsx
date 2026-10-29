@@ -57,7 +57,7 @@ import { DivePortals } from './Dive.jsx';
 import { canvasObjects } from './dive.js';
 import { VIEW_ONLY_CONTROLS, openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
-import { chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, openingPan, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
+import { BAND_ROOM, chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, openingPan, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { areaTarget, cropBinding } from './area-crop.js';
 import { flushBoard, lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
@@ -2919,15 +2919,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The floating controls over the drawing surface (owner, 2026-10-22: the surface fills the canvas workspace; the toolbar,
   // the Rabbit Hole navigator above it and the page header's controls float over it), as their measured rectangles in
   // surface px - never a constant gutter. Fit, reveal, placement and the opening camera keep clear of them.
-  // The page header over the canvas is an opaque band that takes the pointer (owner 2026-10-29), so it counts whole, and 32 px
-  // deeper: a card just below it keeps its own row of controls (34-38 px and its 8 px gap) or the floating bar (34 px, 20 px up)
-  // out from under the band, so they are never moved over other content to stay pressable.
+  // The page header over the canvas is an opaque band that takes the pointer (owner 2026-10-29), so it counts whole, and
+  // BAND_ROOM deeper (canvas-slots.js): a card's own row and the floating bar stand below it, never moved over other content.
   const controlRects = () => {
     const frame = surface.current.getBoundingClientRect(), found = pageHeader();
     const header = found && getComputedStyle(found).position === 'absolute' ? found : null; // in flow (above the surface): not over it
     return [...(gutter.current?.querySelectorAll('[role="toolbar"], [data-gutter-top] > *') || []), ...(header ? [header] : [])]
       .map(node => [node, node.getBoundingClientRect()]).filter(([, rect]) => rect.width && rect.height && rect.right > frame.left && rect.left < frame.right && rect.bottom > frame.top && rect.top < frame.bottom)
-      .map(([node, rect]) => ({ left: rect.left - frame.left, top: rect.top - frame.top, right: rect.right - frame.left, bottom: rect.bottom - frame.top + (node === header ? 32 : 0) }));
+      .map(([node, rect]) => ({ left: rect.left - frame.left, top: rect.top - frame.top, right: rect.right - frame.left, bottom: rect.bottom - frame.top + (node === header ? BAND_ROOM : 0) }));
   };
   const controlArea = () => freeArea({ w: surface.current.clientWidth, h: surface.current.clientHeight }, controlRects(), 0);
   // What the learner can see of the surface: less what floats over it - the chat sheet above the composer, the

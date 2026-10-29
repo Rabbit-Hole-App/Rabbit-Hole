@@ -92,7 +92,12 @@ test('fit, reveal, placement and the opening camera keep clear of the measured t
   // Owner 2026-10-29: the opaque header band counts whole and 32 px deeper, so a first-row card's own row of controls (and the
   // floating bar) stand below it, never moved over other content (fast-e2e 40845874842, 40850976588, 40853973678).
   assert.match(canvas, /found = pageHeader\(\);\s*const header = found && getComputedStyle\(found\)\.position === 'absolute' \? found : null;/);
-  assert.match(canvas, /bottom: rect\.bottom - frame\.top \+ \(node === header \? 32 : 0\)/);
+  assert.match(canvas, /bottom: rect\.bottom - frame\.top \+ \(node === header \? BAND_ROOM : 0\)/);
+  // The canvas checks (canvas-chrome, canvas-skeleton, canvas-toolbar) import the same value, never a copy of it.
+  assert.match(read('canvas-slots.js'), /export const BAND_ROOM = 32;/);
+  for (const check of ['canvas-chrome-check.mjs', 'canvas-skeleton-check.mjs', 'canvas-toolbar-check.mjs']) {
+    assert.match(readFileSync(new URL(`../e2e/${check}`, import.meta.url), 'utf8'), /import \{[^}]*BAND_ROOM[^}]*\} from '\.\.\/src\/canvas-slots\.js';/, check);
+  }
   assert.match(canvas, /const controlArea = \(\) => freeArea\(\{ w: surface\.current\.clientWidth, h: surface\.current\.clientHeight \}, controlRects\(\), 0\);/);
   assert.match(canvas, /const visibleArea = \(\) => \{[\s\S]*?overlays\.push\(\.\.\.controlRects\(\)\);/, 'reveal, search and placement in view (visibleWorld) read visibleArea');
   assert.match(canvas, /const area = controlArea\(\), w = area\.right - area\.left;/, 'fit');

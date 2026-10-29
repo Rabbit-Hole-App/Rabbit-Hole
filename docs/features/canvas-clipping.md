@@ -101,8 +101,9 @@ Geometry: a selected card's own row of controls stands 8 px above the card (34 p
 bar 20 px above a selection (34 px), so a first-row card kept only 24 px under the header's buttons had its row under the band,
 hidden and unpressable. Moving the row or the bar instead (under the band's edge, below the card, over the card's top) put them
 over neighbouring content and broke other presses (fast-e2e 40845874842, 40850976588, 40853973678). So the row and the bar keep
-their place and the camera keeps room for them: `controlRects` (AdaptiveCanvas.jsx) counts the band whole and 32 px deeper,
+their place and the camera keeps room for them: `controlRects` (AdaptiveCanvas.jsx) counts the band whole and `BAND_ROOM` (32 px, canvas-slots.js) deeper,
 which fit, reveal, search, new-card placement and the opening camera (`homeView`) all read. The opening camera therefore puts
 the world origin 36 px lower than before the band (a saved board opens slightly lower; saved coordinates do not change). A
 card the learner pans under the band still has its row hidden there, like any content panned under a control (owner
-2026-10-22). `e2e/canvas-chrome-check.mjs` and `e2e/canvas-skeleton-check.mjs` measure the band the same way.
+2026-10-22). `e2e/canvas-chrome-check.mjs`, `e2e/canvas-skeleton-check.mjs` and `e2e/canvas-toolbar-check.mjs` measure the
+band the same way and import `BAND_ROOM`, so their fit and reveal expectations follow the app's own value.
