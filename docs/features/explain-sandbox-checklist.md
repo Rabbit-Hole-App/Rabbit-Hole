@@ -2,7 +2,9 @@
 
 Plan: [docs/superpowers/plans/2026-10-28-explain-sandbox.md](../superpowers/plans/2026-10-28-explain-sandbox.md). Times are PT. Updated 2026-10-29 after the MVP release. Shipped, verified and deferred work are listed separately below; "shipped" never implies "verified".
 
-Continuation (Tasks 8-11 and the R0 closeout): [docs/superpowers/plans/2026-10-29-explain-tasks-8-11.md](../superpowers/plans/2026-10-29-explain-tasks-8-11.md). R0 (Focus/pending/Notes, brief before Generate, conversational proposal Edit) is production-deployed in release 5 `f421cc5de` since 2026-10-29 09:26 AM PT; its deployed check is open.
+Continuation (Tasks 8-11 and the R0 closeout): [docs/superpowers/plans/2026-10-29-explain-tasks-8-11.md](../superpowers/plans/2026-10-29-explain-tasks-8-11.md). R0 (Focus/pending/Notes, brief before Generate, conversational proposal Edit) is production-deployed in release 5 `f421cc5de` since 2026-10-29 09:26 AM PT; its deployed check is open. Later production releases on main: `a99bd1bee` (run 40929134650, 11:15 AM PT) and `7fe96729d` (run 40933538699, 11:43 AM PT; contains Task 9.1, the Proposed preview of a program Edit, `50c135651`); both runs succeeded, no deployed check of 9.1 is recorded here.
+
+Support, limits, recovery, rollback pins, the Task 10.4 evidence inventory and the 10.1/10.2 test plan: [explain-program-support.md](explain-program-support.md).
 
 Superseded: the earlier component-family plan (swinging-body, gear-train, dedicated pendulumPeriod/gearRate calculators; reports REPORT.md and REPORT-v2-tightened.md, kept only as historical evidence) and the proposal for a custom expression language.
 
@@ -24,12 +26,12 @@ Owners: integrator = Parallel; Agent A runtime (Tasks 1, 3); Agent B card/render
 - Genuine example 2, sorting (sandbox-ex2-a, 2026-10-28 10:58 PM PT, dev serving fc31f723a): "bubble sort vs selection sort", ready in 152 s after one repair round, review accepted; source e458faa9..., manifest 70b45088..., bundle b39fe01b..., result er_f2d73f14a46f450b955b6054909946c6; US$0.42. Deployed check: stepping redraws, the algorithm select switches the drawing and totals (9 vs 10 comparisons), no generation call during interaction, board unchanged.
 - Deployed shared-page check of the cooling card on dev at fc31f723a (owner view and a simulated signed-out view, desktop 1440x900 and phone 390x844, Chat open): Play, slider and readouts reachable at first view, Play animates, board hash unchanged, no generation call (Curious sends origin only and returns idle). Local harness rechecks on a build of the same SHA passed (Notes, Back, reload, Focus re-entry for owner, viewer and guest).
 - Evidence files: C:/s/spec/explain-sandbox/genuine/runs/ (sandbox-ex1-b, sandbox-ex2-a, deployed-fc31f723a), C:/s/spec/explain-sandbox/mvp/ (desktop and phone rechecks).
-- NOT yet collected: the read-only production receipt for the owner's own production request (it needs the owner's session cookie at a hidden prompt in their console: C:/s/spec/explain-sandbox/prod/explain-prod-verify.cmd). Production verification stays open until that receipt exists.
+- Production receipt for the owner's gravity request, collected 2026-10-29 09:44 AM PT (C:/s/spec/explain-sandbox/prod/receipts/explain-prod-receipt-20261029-094422.json): 14 of 15 read-only checks pass (job ready/accepted round 0, 21 credits known, hold released, stored/recomputed/card/identity bundle `3ed2d2ab...` match, execution allowed). Its verdict is FAIL only on "control plane serves the released sha": the script's release pin still named `fc31f723a` while release 5 `f421cc5de` (09:26 AM PT) was serving. Rerun with the pin refreshed to close it; no new generation is needed. The receipt carries no model identity and no interaction evidence.
 
 ## Known limitations of the shipped build (follow-ups, not blockers)
 
 - In Focus at smaller heights the drawing keeps a minimum size and scrolls inside its viewport, so the lower part can sit behind an internal scrollbar (follow-up branch feat/focus-sizing).
-- A frame that misses the 50 ms program deadline stops the card with a Restart message instead of being skipped.
+- A frame that misses the 50 ms program deadline stops the card with a Restart message instead of being skipped. Fix (owner option A, skip and stop after three in a row): fix/explain-frame-overrun `3648d595b`, in release/chain-overrun `f676fd95c`; pushed, not on main, not deployed.
 - The pending card is large and has no activity indicator (follow-up branch fix/explain-pending-card).
 - The automatic numerical readouts are printed under the drawing and can repeat values the drawing already shows (planned: move them into Notes under "Values").
 - On phone, a viewer or guest Focus keeps the tools palette, which narrows the time slider (about 106 px); keeping the toolbar in Focus is intentional.
@@ -47,31 +49,31 @@ Owners: integrator = Parallel; Agent A runtime (Tasks 1, 3); Agent B card/render
 | 5 Author and persist via V2 | shipped | program artifacts stored behind canvas ownership, loaded through the durable result route |
 | 6 Review, repair, accounting | shipped | six-capture sampling; traces over the review limit go to bounded repair; completed captures recorded as platform renders; sampling beyond six captures deferred |
 | 7 Genuine MVP | shipped, production receipt pending | two genuine examples on the same runtime (cooling, sorting); production verification awaits the owner's receipt run |
-| 8 Interactions and time | not started | tracked; not part of the MVP |
-| 9 Context, Tutor, edits | not started | tracked |
-| 10 Quality and compatibility | not started | tracked |
-| 11 Rollout and docs | not started | the MVP release is NOT Task 11 and does not close it |
+| 8 Interactions and time | in progress, none on main | 8.1 schema 2 contract feat/explain-state-contract `86d746e0d` and 8.2 ordered state feat/explain-state-controller `137018604`: implemented, pushed, not on main; 8.3 feat/explain-actions pushed, not on main; 8.4 not started |
+| 9 Context, Tutor, edits | in progress | 9.1 Proposed program preview: on main and production-released in `7fe96729d`, no deployed check recorded; 9.2 feat/explain-material-evidence pushed, not on main; 9.3, 9.4 see their lanes |
+| 10 Quality and compatibility | in progress, none on main | 10.1 offscreen pause feat/explain-offscreen-pause `35410272d`: implemented, pushed, not on main; 10.3 retention tests on docs/explain-qualification; 10.2 matrix and 10.4 runs not started (plan and inventory in explain-program-support.md) |
+| 11 Rollout and docs | in progress | support page on docs/explain-qualification; rollback pins need re-cutting on the final main; the MVP release is NOT Task 11 and does not close it |
 
 ## Deferred (tracked, not complete)
 
 | Item | Plan source | State |
 |---|---|---|
-| Offscreen-card suspension (only hidden-tab pause exists) | Task 3 | open |
+| Offscreen-card suspension (only hidden-tab pause exists on main) | Task 3, 10.1 | implemented on feat/explain-offscreen-pause, not on main |
 | Focus for PDF, notebook, video and CAD cards; dark theme; real mobile browser in CI | Tasks 4, 10 | not verified |
 | Sampling manifest for continuous multi-control cards beyond the six-capture budget | Task 6 review coverage | open |
 | Renders of a candidate whose capture timed out are not counted (the blocked capture never finished) | Task 6 accounting | by design |
-| Frame-deadline policy (skip one late frame instead of stopping the card) | Task 3 | decision open |
-| Event API, context/Tutor/edits, qualification, rollout docs | Tasks 8-11 | not started |
+| Frame-deadline policy (skip one late frame instead of stopping the card) | Task 3 | decided (owner option A, 2026-10-29); fix pushed, not on main |
+| Event API, context/Tutor/edits, qualification, rollout docs | Tasks 8-11 | in progress, see Task status |
 
 ## Brief approval (owner decision 2026-10-29)
 
-Every new /explain request shows an editable brief in Chat and waits for an explicit Generate before anything is authored. This replaces the earlier requirement that simple requests go directly to authoring (plan sections 1, 2 and Task 5 carry dated notes). Branch feat/explain-brief-approval, based on main fc31f723a; server commit 7da255a95.
+Every new /explain request shows an editable brief in Chat and waits for an explicit Generate before anything is authored. This replaces the earlier requirement that simple requests go directly to authoring (plan sections 1, 2 and Task 5 carry dated notes). Branch feat/explain-brief-approval, based on main fc31f723a; server commit 7da255a95; on main and production-deployed in release 5 `f421cc5de` (deployed check open).
 
 | Item | Implemented | Checked (kind/run) | Main SHA | Deployed | Enabled | Accepted | Next action/blocker |
 |---|---|---|---|---|---|---|---|
-| Server decision: needsPreparation true for every new request whatever requestClass the client sends (a same-card Edit keeps its path); briefDecision always requires review; preparing always moves to awaiting_approval; Retry after a failed brief prepares it again | yes | control-plane unit (explain-brief, explain-job, explain-m3 through the real worker) | not on main | no | rides EXPLAIN_V2_ENABLED | none | full gate (server code) |
-| Program brief: with EXPLAIN_PROGRAM_ENABLED planned against PROGRAM_CAPABILITIES and runtime limits, no component list; legacy catalogue path unchanged when off | yes | control-plane unit (fixture brief replies only) | not on main | no | rides EXPLAIN_PROGRAM_ENABLED | none | genuine brief wording needs a paid run, not done |
-| Chat card: canonical schema review_policy always, Review explanation heading, limitations section, cost note, Cancel wired to the job's cancel, Generate once per revision (confirmProposal); waiting card says "Review the explanation plan in Chat" | yes | web unit; e2e/explain-proposal-card-check.mjs updated (8 steps) for CI; local harness screenshots | not on main | no | as above | none | owner review in the browser |
-| Combined with conversational Edit (feat/proposal-edit-chat, release/all-1): the brief card's action is Edit (Chat target, no inline form); the instruction refines that exact revision (refine with proposal id and version, 409 brief_stale otherwise); Cancel on a targeted brief clears the target | yes | control-plane unit (explain-refine-target); web unit; e2e/explain-proposal-card-check.mjs steps 1, 3 and 6 for CI | not on main | no | as above | none | full gate on release/all-1 |
+| Server decision: needsPreparation true for every new request whatever requestClass the client sends (a same-card Edit keeps its path); briefDecision always requires review; preparing always moves to awaiting_approval; Retry after a failed brief prepares it again | yes | control-plane unit (explain-brief, explain-job, explain-m3 through the real worker) | f421cc5de (release 5) | production 2026-10-29 09:26 AM PT | rides EXPLAIN_V2_ENABLED | none | full gate (server code) |
+| Program brief: with EXPLAIN_PROGRAM_ENABLED planned against PROGRAM_CAPABILITIES and runtime limits, no component list; legacy catalogue path unchanged when off | yes | control-plane unit (fixture brief replies only) | f421cc5de (release 5) | production 2026-10-29 09:26 AM PT | rides EXPLAIN_PROGRAM_ENABLED | none | genuine brief wording needs a paid run, not done |
+| Chat card: canonical schema review_policy always, Review explanation heading, limitations section, cost note, Cancel wired to the job's cancel, Generate once per revision (confirmProposal); waiting card says "Review the explanation plan in Chat" | yes | web unit; e2e/explain-proposal-card-check.mjs updated (8 steps) for CI; local harness screenshots | f421cc5de (release 5) | production 2026-10-29 09:26 AM PT | as above | none | owner review in the browser |
+| Combined with conversational Edit (feat/proposal-edit-chat, release/all-1): the brief card's action is Edit (Chat target, no inline form); the instruction refines that exact revision (refine with proposal id and version, 409 brief_stale otherwise); Cancel on a targeted brief clears the target | yes | control-plane unit (explain-refine-target); web unit; e2e/explain-proposal-card-check.mjs steps 1, 3 and 6 for CI | f421cc5de (release 5) | production 2026-10-29 09:26 AM PT | as above | none | full gate on release/all-1 |
 
 Jobs stored before this ships keep their own `prepare` flag: a direct job (prepare false) still authors; a job already waiting or past approval is unchanged; a job caught mid-preparation waits for Generate.
