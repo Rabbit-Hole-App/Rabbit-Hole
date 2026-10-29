@@ -57,7 +57,7 @@ import { DivePortals } from './Dive.jsx';
 import { canvasObjects } from './dive.js';
 import { VIEW_ONLY_CONTROLS, openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
-import { chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, openingPan, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
+import { cardBox, chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, openingPan, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { areaTarget, cropBinding } from './area-crop.js';
 import { flushBoard, lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
@@ -2858,7 +2858,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const owner = exchangesRef.current.find(item => item.id === element.dataset.blockId) || blocksRef.current.find(item => item.id === element.dataset.blockId);
       // A focused card keeps the box it had: its temporary Focus size is never a bound (connectors, minimap, placement).
       if (owner && owner.id === focusRef.current?.id && boundsRef.current[owner.id]) next[owner.id] = boundsRef.current[owner.id];
-      else if (owner) { const slot = element.parentElement?.hasAttribute('data-card-slot') ? element.parentElement : null; next[owner.id] = { x: element.offsetLeft + (slot?.offsetLeft || 0) + owner.dx, y: element.offsetTop + (slot?.offsetTop || 0) + owner.dy, w: element.offsetWidth, h: element.offsetHeight }; }
+      else if (owner) next[owner.id] = cardBox(element, owner);
     }
     return next;
   };

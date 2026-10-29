@@ -2,9 +2,10 @@
 // a fresh browser profile, no model call. A canvas is seeded with the hand-authored fixture program cards (fixtures.js, test data
 // and not generation evidence) plus one old scene card; the dev build admits fixture cards (VITE_COACHING_DEV, program-card.js).
 // Covers: the picture draws from the saved program, Play and Pause, the scrubber, a number control and a choice control, Reset,
-// reload keeping the learner's values, the two fixed error messages with Restart, an old scene card still working, and (Task 9.1)
-// an Edit's Proposed program preview: its own player, never saved, Current back, Discard keeping the card. The edit job's ready
-// answer is a route stand-in whose candidate names a fixture program (wiring only; the result-route resolution is unit-tested).
+// reload keeping the learner's values, the two fixed error messages with Restart, an old scene card still working, on the
+// owner's View only shared page a program card saved with no dx/dy (as an /explain job places it) selected by a click, with Focus,
+// and (Task 9.1) an Edit's Proposed program preview: its own player, never saved, Current back, Discard keeping the card. The edit
+// job's ready answer is a route stand-in whose candidate names a fixture program (wiring only; the result-route resolution is unit-tested).
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/explain-program-card-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -16,7 +17,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('explain-program-card-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'explain-program-card-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 15; // bump with the checks below; the printed line is what CI reads
+const TOTAL = 16; // bump with the checks below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `prog-${run}@example.com`, secret, handle: `prog_${run}` }) })).json();
@@ -43,6 +44,12 @@ const editSeed = { ...seed, blocks: [{ ...program('p-edit', 'Balance over time',
 const editResult = { jobId: EDIT.id, resultId: 'er_preview', cardId: 'p-edit', canvas: { boardId: EDIT.boardId }, revision: 'xr_preview', baseRevision: 'xr_base', kind: 'program' };
 const editAnswer = { job: { id: EDIT.id, version: 1, boardId: EDIT.boardId, cardId: 'p-edit', requestClass: 'edit', stage: 'ready', terminal: true, round: 0, stopReason: 'accepted', failure: null, recovery: [], usage: { credits: 0, unknown: false }, result: editResult },
   block: { type: 'animation', id: 'p-edit', title: 'Halving a sorted row', program: { fixtureId: 'fixture-search' }, explain: editResult } };
+// The owner's View only page (/b/<token>): a lead program card, then one saved with no dx/dy, as an /explain job's card is placed.
+const { dx: _dx, dy: _dy, ...placed } = program('v-placed', 'Halving a sorted row', 'fixture-search');
+const viewCanvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Program view only ${run}` }) });
+const viewShare = await api(`/api/learn/boards/${viewCanvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true,
+  state: { ...seed, blocks: [program('v-lead', 'Balance over time', 'fixture-growth'), placed] } }) });
+const viewBoard = async () => JSON.stringify((await api(`/api/learn/boards/${viewCanvas.name}/main`))?.state ?? null);
 
 const browser = await chromium.launch();
 const errors = [], stray = [], offOrigin = [];
@@ -179,6 +186,27 @@ try {
   await check('13 an old scene card is unchanged: its frame draws and it has no program card inside', async () => {
     assert.ok(await card('old-scene').locator('[data-animation-frame]').count() >= 1);
     assert.equal(await card('old-scene').locator('[data-program-card]').count(), 0);
+  });
+  await check("13b on the owner's View only page a click selects a program card saved with no dx/dy, and Focus opens it; nothing is saved", async () => {
+    const before = await viewBoard();
+    await page.goto(`${BASE}/b/${viewShare.sharing.view}`);
+    const placedCard = card('v-placed');
+    await placedCard.locator('[data-program-frame] [data-animation-object]').first().waitFor({ state: 'attached', timeout: 60000 });
+    assert.equal(await page.locator('[data-view-only]').count(), 1, "the owner's own link is View only");
+    await page.waitForTimeout(1500);
+    if (await page.locator('[data-focus-back]').count()) { await page.locator('[data-focus-back]').first().click(); await page.waitForTimeout(1200); } // a lead program that cannot be whole opens in Focus
+    const { width, height } = page.viewportSize();
+    const title = () => placedCard.locator('p[data-drag-zone]').evaluate(e => { const r = e.getBoundingClientRect(); return { x: r.x + 30, y: r.y + Math.min(r.height / 2, 12) }; });
+    for (let i = 0; i < 12; i++) { const { y } = await title(); if (y > 60 && y < height - 200) break; await page.mouse.move(width * 0.35, height - 120); await page.mouse.wheel(0, y >= height - 200 ? 250 : -250); await page.waitForTimeout(250); }
+    const at = await title();
+    await page.mouse.click(at.x, at.y);
+    await page.locator('[data-focus-button]').waitFor({ timeout: 10000 });
+    await page.locator('[data-focus-button]').click();
+    await page.locator('[data-focus-host][data-block-id="v-placed"]').waitFor({ timeout: 10000 });
+    await shot('F-view-only-focus');
+    await page.locator('[data-focus-back]').first().click();
+    await page.waitForTimeout(800);
+    assert.equal(await viewBoard(), before, 'the View only page saved nothing');
   });
   await check("14 an Edit's Proposed program plays in its own player and saves nothing; Current returns; Discard keeps the card's inputs and time", async () => {
     // The edit job's ready answer (registered last, so it wins over the GET fallback above): a program candidate with no scene.
