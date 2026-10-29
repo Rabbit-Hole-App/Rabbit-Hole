@@ -27,7 +27,7 @@ function scripted(t, queues) {
   return calls;
 }
 function stack(t, render = async () => ({ captures: [{ id: 'light', data: PNG, mediaType: 'image/png' }], renders: [{ ok: true }] })) {
-  const s = explainStack(t, { pipeline: { ...explainPipeline, render } });
+  const s = explainStack(t, { pipeline: { ...explainPipeline, render }, generate: true });
   s.env.LEARN_MEDIA = memoryBucket();
   const namespace = { idFromName: name => name, get: () => ({ fetch: (url, init) => s.actor.fetch(new Request(url, init)) }) };
   const reads = [];

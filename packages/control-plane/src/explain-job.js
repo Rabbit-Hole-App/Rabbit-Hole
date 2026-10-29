@@ -2,7 +2,8 @@
 // idFromName(boardId)), following CadJobs (request fence, short locked mutations, alarm-driven stages, call ledger, Stop)
 // and LearnVideos (durable Stop, unknown acceptance never resent, platform-paid renders recorded apart).
 //
-// Stages: queued -> [preparing -> awaiting_approval] -> authoring -> validating -> rendering -> reviewing -> ready, with
+// Stages: queued -> [preparing -> awaiting_approval] -> authoring -> validating -> rendering -> reviewing -> ready (the bracket is
+// every new request's since 2026-10-29; only an in-threshold Edit and a direct job stored before then skip it), with
 // repairing -> validating for at most EXPLAIN_LIMITS.correctionRounds rounds across all gates; failed and cancelled are terminal.
 // The stage work (brief, author, compile, render, review, repair) is a pipeline injected at construction (explainPipeline by
 // default, T16-T19's stages); the whole route is off unless EXPLAIN_V2_ENABLED is 'true'.
@@ -138,7 +139,8 @@ export function publicExplainJob(job) {
     id: job.id, version: 1, boardId: job.boardId, cardId: job.cardId, requestClass: job.requestClass, stage: job.stage, attempt: job.attempt,
     terminal: TERMINAL.has(job.stage), round: job.round, stopReason: job.stopReason, failure: job.failure,
     recovery: recoveryOf(job), usage: { credits: credits(settled), unknown: job.calls.some(c => c.status === 'unknown') },
-    result: job.result, ...(job.brief ? { brief: job.brief, briefHash: job.briefHash } : {}),
+    // The brief without its verbatim request: the prompt stays private to the job (the Chat card shows it from the signed proposal).
+    result: job.result, ...(job.brief ? { brief: { ...job.brief, request: undefined }, briefHash: job.briefHash } : {}),
     // Stage timing (plan 3.6): durations and counts only, the measurements T22 and the targets use.
     timing: timingSummary(job.timing), createdAt: job.createdAt, updatedAt: job.updatedAt,
   };
@@ -306,8 +308,8 @@ export class ExplainJobs {
       id: `ej_${hex()}`, version: 1, policyVersion: EXPLAIN_POLICY_VERSION, boardId: board.id, app: board.app, board: board.board,
       owner: { org: user.org, email: user.email, userId: user.userId || null }, origin, cardId: payload.cardId, requestId: payload.requestId,
       prompt: payload.prompt.trim(), context: payload.context ?? null, examples: payload.examples ?? [], evidence: [], source: payload.source ?? 'explicit', base, reference: payload.reference ?? null, requestClass: payload.requestClass, baseRevision: payload.baseRevision ?? null,
-      // Preparation (a brief) is the server's decision (T16 owns the rule); until then a researched request prepares one.
-      // A brief is prepared unless the request is simple and within the configured thresholds (explain-brief.js).
+      // Preparation (a brief) is the server's decision (explain-brief.js needsPreparation): every new explanation prepares one and
+      // waits for Generate, whatever requestClass the client sent; a job stored before that rule keeps its own prepare flag.
       prepare: needsPreparation(this.env, payload.requestClass), threadId: payload.threadId ?? null, settings: null, decision: null, refinement: null, pendingProposal: null,
       stage: 'queued', attempt: 1, round: 0, stopped: false, stopReason: null, failure: null, inFlight: null,
       counts: { brief: 0, author: 0, review: 0, repair: 0 }, reservedMicros: 0, calls: [], renders: 0,
@@ -393,8 +395,9 @@ export class ExplainJobs {
       // A job paused for the provider resumes at the stage it paused in, keeping every completed stage (its spec, compiled
       // result and captures); preparation is admitted per call, so only generation is checked against the allowance.
       const paused = job.failure?.category === 'provider_unavailable' ? job.failure.stage : null;
-      if (paused !== 'preparing') await this.admitGeneration(job);
-      const stage = paused || (job.spec || job.program ? 'validating' : 'authoring');
+      // A brief that was never approved is prepared again: a Retry never skips the learner's review.
+      const stage = paused || (job.prepare && !job.approval ? 'preparing' : job.spec || job.program ? 'validating' : 'authoring');
+      if (stage !== 'preparing') await this.admitGeneration(job);
       Object.assign(job, { stage, failure: null, stopReason: null, attempt: job.attempt + 1, deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs });
     } else throw fail(job.stage === 'failed' ? 'This explanation reached its limit. Edit the request to start a new one.' : 'Only a failed explanation can be retried.', 409);
     beginStage(job.timing, job.stage);
@@ -411,6 +414,7 @@ export class ExplainJobs {
     if (record?.state?.used) return;
     const p = await signProposal(this.env, { command: 'explain', title: job.brief.title, description: job.brief.summary, settings: { presentation: job.brief.presentation }, source_refs: [],
       assumptions: (job.brief.assumptions || []).map(a => String(a).replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 20),
+      limitations: (job.brief.limitations || []).map(a => String(a).replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 20),
       input: { org: job.owner.org, app: job.app, job: job.id, brief_hash: job.briefHash, request: job.prompt.slice(0, 500) } }, job.owner.email,
       { envelope: envelopeFor(this.env, { org: job.owner.org, app: job.app }), ...(previous ? { id: previous.id, version: (record?.current?.version ?? previous.version) + 1 } : {}) });
     const row = await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?) RETURNING id').bind(job.threadId, 'assistant', 'Here is the plan for your explanation. Generate makes it.').first();
@@ -605,19 +609,15 @@ export class ExplainJobs {
     if (out.gap) { await this.stopWith(job, 'capability_gap', 'capability', out.gap.message); job.failure.gap = out.gap; return this.save(job); }
     if (stage === 'preparing') {
       job.brief = out.brief; job.briefHash = await sha256Hex(JSON.stringify(out.brief)); job.approval = null; job.refinement = null;
-      job.decision = out.decision ?? { capability: 'explain', requiresBrief: true, briefReasons: ['threshold_missing'] };
+      job.decision = out.decision ?? { capability: 'explain', requiresBrief: true, briefReasons: ['review_always'] };
       await this.finishUsage({ ...job, actionKey: null }, 'completed');
-      if (!job.decision.requiresBrief) {
-        // No trigger fired: straight on to generation, after its own allowance check (a refusal stops the job, nothing spent).
-        await this.admitGeneration(job);
-        markTiming(job.timing, 'generate'); next('authoring');
-      } else {
-        endStage(job.timing, 'done'); job.stage = 'awaiting_approval'; beginStage(job.timing, 'awaiting_approval'); markTiming(job.timing, 'proposalReady');
-        // A brief always reaches the learner: with no thread from the request (Tutor, Ctrl+K on a canvas without a chat), it
-        // goes on the canvas's open Chat thread, a new one when there is none (owner default, 2026-10-22). Review is never skipped.
-        job.threadId ??= await this.briefThread(job);
-        await this.postBrief(job);
-      }
+      // A prepared brief always waits for the learner's Generate (owner, 2026-10-29): no decision, threshold or pipeline answer
+      // moves it on to authoring; only approve() does.
+      endStage(job.timing, 'done'); job.stage = 'awaiting_approval'; beginStage(job.timing, 'awaiting_approval'); markTiming(job.timing, 'proposalReady');
+      // A brief always reaches the learner: with no thread from the request (Tutor, Ctrl+K on a canvas without a chat), it
+      // goes on the canvas's open Chat thread, a new one when there is none (owner default, 2026-10-22). Review is never skipped.
+      job.threadId ??= await this.briefThread(job);
+      await this.postBrief(job);
     } else if (stage === 'authoring') {
       // The author's reply is a catalogue spec or a program (a discriminated result); never both.
       if (out.program) Object.assign(job, { program: out.program, spec: null, artifact: null }); else Object.assign(job, { spec: out.spec, program: null, artifact: null });

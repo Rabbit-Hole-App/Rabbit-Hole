@@ -1,25 +1,28 @@
 // /explain v2 brief prompt and tool (EXP-T16; plan v2.1 sections 1.1, 1.4, 3.3). The brief says what the explanation will
-// show, in plain sentences, and flags what makes it need the learner's review; the server, not the model, decides whether
-// it does (explain-brief.js briefDecision).
+// show, in plain sentences, and flags what the learner should know before approving it; the server, not the model, decides
+// that it is reviewed (explain-brief.js briefDecision: every new request is).
 import { GAP_NEEDS } from './explain-author.js';
 
+// componentNames: the catalogue the brief plans with; null on the program route, where no component is planned.
 export function briefTool(componentNames) {
+  const catalogue = Array.isArray(componentNames);
   return {
     name: 'explain_brief',
-    description: 'The brief for one explanation card: what it will show, its assumptions and which components it plans to use.',
+    description: catalogue ? 'The brief for one explanation card: what it will show, its assumptions and which components it plans to use.' : 'The brief for one explanation card: what it will show, what changes, what the learner adjusts and what it demonstrates, with its assumptions and limitations.',
     input_schema: {
-      type: 'object', additionalProperties: false, required: ['title', 'summary', 'presentation', 'components', 'assumptions', 'ambiguous', 'expanded'],
+      type: 'object', additionalProperties: false, required: ['title', 'summary', 'presentation', ...(catalogue ? ['components'] : []), 'assumptions', 'ambiguous', 'expanded'],
       properties: {
         title: { type: 'string', description: 'A short, specific title, at most 80 characters.' },
-        summary: { type: 'string', description: 'What the card will show: 3 or 4 complete plain sentences (at most 10). No lists, labels or prefixes such as "Will show".' },
+        summary: { type: 'string', description: catalogue ? 'What the card will show: 3 or 4 complete plain sentences (at most 10). No lists, labels or prefixes such as "Will show".'
+          : 'What the card will show, what changes or plays over time, what the learner can adjust and what comparison or insight it demonstrates: 3 or 4 complete plain sentences, leaving out any that does not apply. No lists, labels, prefixes, code, component or technical names.' },
         presentation: { type: 'string', enum: ['static', 'steps', 'time', 'experiment'], description: 'The simplest that teaches; static unless the idea needs more.' },
-        components: { type: 'array', items: { type: 'string', enum: componentNames }, description: 'The catalogue components it plans to use.' },
+        ...(catalogue ? { components: { type: 'array', items: { type: 'string', enum: componentNames }, description: 'The catalogue components it plans to use.' } } : {}),
         assumptions: { type: 'array', items: { type: 'string' }, description: 'Material assumptions the learner should accept; empty when none.' },
         evidence_ids: { type: 'array', items: { type: 'string' }, description: 'Evidence record ids it relies on, from the input only.' },
         limitations: { type: 'array', items: { type: 'string' }, description: 'What it will leave out or cannot show, plainly.' },
         ambiguous: { type: 'boolean', description: 'true when the subject or its version is ambiguous.' },
         expanded: { type: 'boolean', description: 'true when the card goes beyond what was literally asked.' },
-        gap: { type: 'object', additionalProperties: false, required: ['needs', 'reason'], properties: { needs: { type: 'array', items: { type: 'string', enum: GAP_NEEDS } }, reason: { type: 'string' } }, description: 'Only when the explanation cannot be drawn with the catalogue and supported features.' },
+        gap: { type: 'object', additionalProperties: false, required: ['needs', 'reason'], properties: { needs: { type: 'array', items: { type: 'string', enum: GAP_NEEDS } }, reason: { type: 'string' } }, description: catalogue ? 'Only when the explanation cannot be drawn with the catalogue and supported features.' : 'Only when the explanation cannot be made within the runtime capabilities and limits.' },
       },
     },
   };
@@ -28,4 +31,13 @@ export function briefTool(componentNames) {
 export const EXPLAIN_BRIEF_SYSTEM = `You plan one explanation card before it is drawn. Input: request (the learner's words, verbatim), context (attached material), evidence (records with ids and excerpts), catalogue (the components available, with what they draw), supported (features the drawing step can do now).
 Write a brief the learner can approve: a title and 3 or 4 plain sentences saying what the card will show. Choose the simplest presentation that teaches (static unless steps, timing or an experiment is what makes the idea clear). List only catalogue components. Name material assumptions, and say plainly what it will leave out. Well-established textbook knowledge needs no evidence; rely on evidence ids only from the input.
 Set ambiguous when the subject or its version could mean different things, expanded when the card goes beyond what was asked. If the idea cannot be drawn with the catalogue and supported features, fill gap instead of promising it.
+Call explain_brief exactly once.`;
+
+// The program route (EXPLAIN_PROGRAM_ENABLED): the card is a small generated visualization that runs in the learner's browser, so
+// the plan is held to the runtime's real capabilities and limits instead of a component list.
+export const EXPLAIN_PROGRAM_BRIEF_SYSTEM = `You plan one explanation card before it is made. Input: request (the learner's words, verbatim), context (attached material), evidence (records with ids and excerpts), runtime (what the card can do: its capabilities and limits, including how many controls and how many seconds of playback).
+The card is a small visualization: it draws shapes, lines, curves, labels and equations, can play over time, and can offer the learner a few number or choice controls. It calculates and shows values from the same variables it draws.
+Write a brief the learner can approve: a title and 3 or 4 plain sentences saying what the visualization will show, what changes or plays over time, what the learner can adjust, and what comparison or insight it demonstrates. Leave out a sentence that does not apply. Write for the learner: never mention code, programs, components, capabilities, limits or other technical terms. For example: "Compare an object falling on Earth and on the Moon, side by side. Change the drop height and object mass, then play or scrub the motion. Compare their fall times and weights." (an example of the form only; write from the request).
+Choose the simplest presentation that teaches: static, steps (named stages), time (it plays over time) or experiment (the learner moves a control). Plan no more controls or playback than the runtime allows. Put material assumptions and idealisations (for example "Air resistance is ignored.") in assumptions, and what it will leave out or cannot show in limitations; leave either empty when there is none. Well-established textbook knowledge needs no evidence; rely on evidence ids only from the input.
+Set ambiguous when the subject or its version could mean different things, expanded when the card goes beyond what was asked. If the idea cannot be made within the runtime, fill gap instead of promising it.
 Call explain_brief exactly once.`;
