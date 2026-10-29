@@ -220,40 +220,8 @@
 .content-page #pricing .pick.card-action{position:relative;display:flex;justify-content:center;min-height:44px;padding:13px 48px}
 .content-page #pricing .pick .card-action-icon{position:absolute;right:7px;top:calc(50% - 15px)}
 .content-page #pricing .pricing-note{font:400 13px/1.6 var(--ui);color:var(--muted);margin-top:20px;max-width:760px}
-.content-page #pricing .pricing-details{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:56px;align-items:start;border-top:1px solid var(--hair);margin-top:88px;padding-top:56px}
-.content-page #pricing .pricing-details h2{font:500 38px/1.12 var(--display);letter-spacing:-.035em;margin-bottom:14px}
-.content-page #pricing .pricing-details p,.content-page #pricing .pricing-details li{font:400 15px/1.65 var(--ui);color:#626262}
-.content-page #pricing .credit-rules{list-style:none;margin:32px 0 0;padding:0}
-.content-page #pricing .credit-rules li{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:start;gap:16px;padding:24px 0;border-top:1px solid var(--hair)}
-.content-page #pricing .credit-icon{width:30px;height:30px;color:var(--fg);margin-top:1px}
-.content-page #pricing .credit-rules h3{font:500 15px/1.4 var(--ui);color:var(--fg);margin-bottom:7px}
-.content-page #pricing .credit-rules p{font-size:14px;line-height:1.6}
-.content-page #pricing .credit-label{font:500 11px/1.35 var(--ui);padding:5px 8px;border:1px solid #e6e4e8;border-radius:6px;color:#62566c;background:#f7f5f9;white-space:nowrap}
-.content-page #pricing .credit-included{color:#3e6449;background:#f0f6f1;border-color:#dce8df}
-.content-page #pricing .credit-reset{display:flex;align-items:center;gap:10px;font-size:13px;margin-top:8px}
-.content-page #pricing .credit-reset svg{width:19px;height:19px;flex:none}
-.content-page #pricing .pricing-team{padding:30px 32px 32px;background:#f7f5f9;border:1px solid #e6e4e8;border-radius:20px}
-.content-page #pricing .pricing-team .team-status{display:inline-flex;align-items:center;gap:7px;font:500 12px/1.4 var(--ui);color:#62566c;margin-bottom:26px}
-.content-page #pricing .team-status span{width:6px;height:6px;border:1px solid currentColor;border-radius:50%}
-.content-page #pricing .pricing-team h2{font-size:32px;margin-bottom:10px}
-.content-page #pricing .team-rate{display:flex;align-items:center;gap:14px;margin-top:28px}
-.content-page #pricing .pricing-team .team-price{font:500 52px/1 var(--display);letter-spacing:-.04em;color:var(--fg)}
-.content-page #pricing .team-rate p+p{font-size:12px;line-height:1.5}
-.content-page #pricing .pricing-team .team-minimum{font-size:12px;margin-top:12px}
-.content-page #pricing .pricing-team .team-workspace{font-size:14px;padding-top:24px;margin-top:26px;border-top:1px solid #ded9e3;color:var(--fg)}
-.content-page #pricing .pricing-team ul{list-style:none;margin:18px 0 0;padding:0}
-.content-page #pricing .pricing-team li{position:relative;font-size:14px;padding-left:22px;margin-top:12px}
-.content-page #pricing .pricing-team li::before{content:"";position:absolute;left:1px;top:7px;width:9px;height:5px;border-left:1px solid #71617e;border-bottom:1px solid #71617e;transform:rotate(-45deg)}
 @media(max-width:900px){
   .content-page #pricing .tier-summary{min-height:0}
-  .content-page #pricing .pricing-details{grid-template-columns:minmax(0,1fr);gap:40px;margin-top:56px;padding-top:40px}
-}
-@media(max-width:600px){
-  .content-page #pricing .pricing-details h2{font-size:30px}
-  .content-page #pricing .credit-rules li{grid-template-columns:26px minmax(0,1fr);gap:12px;padding:22px 0}
-  .content-page #pricing .credit-icon{width:26px;height:26px}
-  .content-page #pricing .credit-label{grid-column:2;justify-self:start}
-  .content-page #pricing .pricing-team{padding:26px 24px 28px}
 }
 
 /* The print collage belongs to the introduction; plans start below the artwork. */
