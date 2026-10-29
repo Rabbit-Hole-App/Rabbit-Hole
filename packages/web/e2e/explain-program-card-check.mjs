@@ -2,7 +2,8 @@
 // a fresh browser profile, no model call. A canvas is seeded with the hand-authored fixture program cards (fixtures.js, test data
 // and not generation evidence) plus one old scene card; the dev build admits fixture cards (VITE_COACHING_DEV, program-card.js).
 // Covers: the picture draws from the saved program, Play and Pause, the scrubber, a number control and a choice control, Reset,
-// reload keeping the learner's values, the two fixed error messages with Restart, an old scene card still working, on the
+// reload keeping the learner's values, the two fixed error messages with Restart, an old scene card still working, (Task 10.1) a
+// playing card that leaves the view pauses and comes back at the same moment, delete and in-app navigation close its Worker, on the
 // owner's View only shared page a program card saved with no dx/dy (as an /explain job places it) selected by a click, with Focus,
 // and (Task 9.1) an Edit's Proposed program preview: its own player, never saved, Current back, Discard keeping the card. The edit
 // job's ready answer is a route stand-in whose candidate names a fixture program (wiring only; the result-route resolution is unit-tested).
@@ -17,7 +18,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('explain-program-card-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'explain-program-card-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 16; // bump with the checks below; the printed line is what CI reads
+const TOTAL = 19; // bump with the checks below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `prog-${run}@example.com`, secret, handle: `prog_${run}` }) })).json();
@@ -41,6 +42,10 @@ const EDIT = { id: 'ej_preview', boardId: 'board-preview', stage: 'ready', instr
 const editCanvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Program edit ${run}` }) });
 const editKey = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${editCanvas.name}:ink`;
 const editSeed = { ...seed, blocks: [{ ...program('p-edit', 'Balance over time', 'fixture-growth'), inputs: { rate: 8 }, inputRevision: 1, time: 2, explainEdit: EDIT }] };
+// Task 10.1: a third canvas with one program card, the target of an in-app navigation.
+const navCanvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Program navigation ${run}` }) });
+const navKey = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${navCanvas.name}:ink`;
+const navSeed = { ...seed, blocks: [program('p-nav', 'Halving a sorted row', 'fixture-search')] };
 const editResult = { jobId: EDIT.id, resultId: 'er_preview', cardId: 'p-edit', canvas: { boardId: EDIT.boardId }, revision: 'xr_preview', baseRevision: 'xr_base', kind: 'program' };
 const editAnswer = { job: { id: EDIT.id, version: 1, boardId: EDIT.boardId, cardId: 'p-edit', requestClass: 'edit', stage: 'ready', terminal: true, round: 0, stopReason: 'accepted', failure: null, recovery: [], usage: { credits: 0, unknown: false }, result: editResult },
   block: { type: 'animation', id: 'p-edit', title: 'Halving a sorted row', program: { fixtureId: 'fixture-search' }, explain: editResult } };
@@ -60,6 +65,7 @@ try {
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.addInitScript(([storageKey, value]) => { if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, JSON.stringify(value)); }, [key, seed]);
   await context.addInitScript(([storageKey, value]) => { if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, JSON.stringify(value)); }, [editKey, editSeed]);
+  await context.addInitScript(([storageKey, value]) => { if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, JSON.stringify(value)); }, [navKey, navSeed]);
   // Playing, scrubbing and controls are local: no model route may be called. Any such POST fails the run.
   await context.route(/\/api\/learn\/(ask|tutor|artifact|home-ask|journeys?|explain)\b/, route => {
     if (route.request().method() === 'GET' || new URL(route.request().url()).pathname === '/api/learn/tutor/next-steps') return route.fallback();
@@ -72,6 +78,36 @@ try {
   context.on('request', request => { const url = request.url(); if (!url.startsWith(BASE) && !url.startsWith(`${NOTEBOOK_ORIGIN}/`) && !/^(data|blob):/.test(url)) offOrigin.push(url); });
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
+  // Every program Worker the page starts (host.js: the built worker.js chunk, not the file parser's), and whether it has closed
+  // (Task 10.1: a closed card leaves none running).
+  const started = [];
+  page.on('worker', worker => {
+    if (!/\/worker-[^/]*\.js(\?|$)/.test(worker.url())) return;
+    const record = { closed: false };
+    started.push(record);
+    worker.on('close', () => { record.closed = true; });
+  });
+  const running = () => started.filter(record => !record.closed).length;
+  const until = async (ok, ms = 5000) => { for (const end = Date.now() + ms; !(await ok()) && Date.now() < end;) await page.waitForTimeout(100); return ok(); };
+  // Animation frames in which the drawing changed, over ms: the frames the card actually drew (not the clock's ticks).
+  const drawnFrames = (id, ms) => page.evaluate(([id, ms]) => new Promise(resolve => {
+    const el = document.querySelector(`[data-block-id="${id}"] [data-program-frame]`);
+    let changed = false, frames = 0, drawn = 0;
+    const watch = new MutationObserver(() => { changed = true; });
+    watch.observe(el, { subtree: true, childList: true, attributes: true, characterData: true });
+    const t0 = performance.now();
+    const tick = now => { frames++; if (changed) { drawn++; changed = false; } if (now - t0 < ms) requestAnimationFrame(tick); else { watch.disconnect(); resolve({ ms: Math.round(now - t0), frames, drawn }); } };
+    requestAnimationFrame(tick);
+  }), [id, ms]);
+  // A point on the bare canvas, to pan from (the wheel pans 1:1 there; over a card it may scroll the card).
+  const barePoint = () => page.evaluate(() => {
+    const s = document.querySelector('[data-canvas-surface]').getBoundingClientRect();
+    for (let y = s.top + 60; y < s.bottom - 60; y += 30) for (let x = s.left + 6; x < s.right - 6; x += 30) {
+      const el = document.elementFromPoint(x, y);
+      if (el?.closest('[data-canvas-surface]') && !el.closest('[data-block-id],[data-item-id],[data-shape-id],[data-canvas-bottom] button,[role="toolbar"],[data-zoom],[data-canvas-minimap],iframe,button')) return { x, y };
+    }
+    return null;
+  });
   const shot = async name => { await page.waitForTimeout(400); await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
   const card = id => page.locator(`[data-block-id="${id}"]`);
   const timeText = async id => (await card(id).locator('[data-program-time]').innerText()).trim();
@@ -187,6 +223,48 @@ try {
     assert.ok(await card('old-scene').locator('[data-animation-frame]').count() >= 1);
     assert.equal(await card('old-scene').locator('[data-program-card]').count(), 0);
   });
+  await check('14 a playing card that leaves the view pauses: no frame is drawn while away, and it returns paused at the moment it left', async () => {
+    await scrub('p-growth', 0);
+    await card('p-growth').locator('[data-animation-play]').click();
+    await page.waitForTimeout(500);
+    const playing = await drawnFrames('p-growth', 1000);
+    console.log(`measure: p-growth playing in view, headless Chromium ${browser.version()}, 1600x1000: ${playing.drawn} drawn frames in ${playing.frames} animation frames over ${playing.ms} ms`);
+    assert.ok(playing.drawn > 0, 'the card draws while it plays in view');
+    const at = await barePoint();
+    assert.ok(at, 'a bare canvas point to pan from');
+    const left = Number((await timeText('p-growth')).replace('s', ''));
+    await page.mouse.move(at.x, at.y);
+    await page.mouse.wheel(0, 5000);
+    assert.ok(await until(async () => /Play|Replay/.test(await card('p-growth').locator('[data-animation-play]').innerText())), 'out of view, the card paused');
+    const away = await drawnFrames('p-growth', 1500);
+    assert.equal(away.drawn, 0, `no frame drawn while out of view (${JSON.stringify(away)})`);
+    await page.evaluate(() => document.activeElement?.blur());
+    await page.keyboard.press('Shift+Digit1');
+    await page.waitForTimeout(900);
+    const back = Number((await timeText('p-growth')).replace('s', ''));
+    assert.ok(back >= left && back - left < 0.6, `returned at ${back}s, left at ${left}s: no fast-forward through the 1.5 s away`);
+    assert.match(await card('p-growth').locator('[data-animation-play]').innerText(), /Play/);
+    assert.ok(await card('p-growth').locator('[data-program-frame] polyline').count() >= 1, 'the same picture is drawn on return');
+  });
+  await check('15 deleting a card closes its Worker', async () => {
+    await scrub('p-growth', 1); // a fresh evaluation, so the card holds a live Worker
+    const before = running();
+    assert.ok(before >= 1, 'the card holds a Worker');
+    await card('p-growth').click({ button: 'right', position: { x: 20, y: 10 } });
+    await page.locator('[data-canvas-menu]').getByRole('menuitem', { name: 'Delete', exact: true }).click();
+    await card('p-growth').waitFor({ state: 'detached', timeout: 10000 });
+    assert.ok(await until(() => running() <= before - 1), `${before} Workers before, ${running()} after`);
+  });
+  await check('16 in-app navigation to another canvas closes every Worker the old canvas started', async () => {
+    await scrub('p-search', 1);
+    const old = started.filter(record => !record.closed);
+    assert.ok(old.length >= 1, 'the search card holds a Worker');
+    const t0 = Date.now();
+    await page.evaluate(path => { history.pushState({ depth: (history.state?.depth || 0) + 1 }, '', path); dispatchEvent(new PopStateEvent('popstate')); }, `/apps/${navCanvas.name}`);
+    assert.ok(await until(() => old.every(record => record.closed)), `${old.filter(record => !record.closed).length} of the old canvas's Workers still running`);
+    await card('p-nav').locator('[data-program-frame] [data-animation-object^="cell-"]').first().waitFor({ state: 'attached', timeout: 60000 });
+    console.log(`measure: in-app navigation to a canvas until its program card's first frame, cold Worker: ${Date.now() - t0} ms (headless Chromium, local stack)`);
+  });
   await check("13b on the owner's View only page a click selects a program card saved with no dx/dy, and Focus opens it; nothing is saved", async () => {
     const before = await viewBoard();
     await page.goto(`${BASE}/b/${viewShare.sharing.view}`);
@@ -208,7 +286,7 @@ try {
     await page.waitForTimeout(800);
     assert.equal(await viewBoard(), before, 'the View only page saved nothing');
   });
-  await check("14 an Edit's Proposed program plays in its own player and saves nothing; Current returns; Discard keeps the card's inputs and time", async () => {
+  await check("17 an Edit's Proposed program plays in its own player and saves nothing; Current returns; Discard keeps the card's inputs and time", async () => {
     // The edit job's ready answer (registered last, so it wins over the GET fallback above): a program candidate with no scene.
     await context.route(new RegExp(`/api/learn/explain/jobs/${EDIT.id}[?]`), route => route.fulfill({ json: editAnswer }));
     const workers = { opened: 0, closed: 0 };
@@ -248,7 +326,7 @@ try {
     assert.match(await edit.locator('[data-input-readout="rate"]').innerText(), /^8/);
     assert.equal(await edit.locator('[data-program-error]').count(), 0);
   });
-  await check('15 no model route was called, no host other than the app and its own notebook frame was contacted, and no page error', async () => {
+  await check('18 no model route was called, no host other than the app and its own notebook frame was contacted, and no page error', async () => {
     assert.deepEqual(stray, []);
     assert.deepEqual(offOrigin, []);
     assert.deepEqual(errors, []);

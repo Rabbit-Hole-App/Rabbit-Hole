@@ -375,14 +375,41 @@ await nav().locator('[data-dive-down]').click();
 await page.locator('[data-dive-picker]').waitFor();
 await shot('08-child-picker');
 await page.locator('[data-dive-picker]').getByRole('menuitem', { name: softmaxTitle }).click();
-await page.waitForFunction(name => location.pathname.endsWith(name), softmax); await page.waitForTimeout(1200);
+await page.waitForFunction(name => location.pathname.endsWith(name), softmax);
 console.log('flow H ok');
 
 // ---- F: double-click a level name to rename; Enter saves ----
-await nav().locator('[aria-current="location"] [data-dive-level]').dblclick();
+// The rename opens as soon as the hole's notebook card is drawn, so usually while it is still starting, and keeps its focus and text
+// through that start-up: Jupyter focuses its first cell as it starts, which blurred the field and dropped the rename (gate 40925212785,
+// fast-e2e 40926982735). The notebook site's bridge (notebook-canvas/canvas-bridge.js) makes script focus a no-op until the learner
+// presses or types in it; an inert frame did not stop it (fast-e2e 40940868103). This step passes only once the canvas notebook site
+// this build points at carries that bridge. A notebook site that never answers (data-notebook-stalled) leaves nothing to start.
+await page.locator('[data-notebook-frame]').waitFor();
+// What happens to the field, in order (fast-e2e 40940868103: the field was gone with the frame inert): focus moves, the window's blur,
+// the notebook's bridge messages, and the node whose removal took the field (the field itself, or an ancestor that remounted).
+await page.evaluate(() => {
+  const t0 = performance.now(), log = window.__renameLog = [], at = () => Math.round(performance.now() - t0);
+  const name = node => (node?.nodeType === 1 ? `${node.tagName.toLowerCase()}${node.getAttribute('aria-label') ? `[${node.getAttribute('aria-label')}]` : ''}${Object.keys(node.dataset).slice(0, 3).map(key => `[data-${key.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`)}]`).join('')}` : String(node));
+  const field = 'input[aria-label="Rename this Rabbit Hole"]';
+  document.addEventListener('focusin', event => log.push(`${at()} focusin ${name(event.target)}`), true);
+  document.addEventListener('focusout', event => log.push(`${at()} focusout ${name(event.target)} to ${name(event.relatedTarget)}`), true);
+  const inert = () => document.querySelector('[data-notebook-frame]')?.inert;
+  window.addEventListener('blur', () => log.push(`${at()} window blur, active ${name(document.activeElement)}, frame inert ${inert()}`));
+  window.addEventListener('message', event => { if (typeof event.data?.type === 'string') log.push(`${at()} message ${event.data.type}`); });
+  new MutationObserver(records => { for (const record of records) for (const node of record.removedNodes) if (node.nodeType === 1 && (node.matches(field) || node.querySelector(field))) log.push(`${at()} field removed with ${name(node)} from ${name(record.target)}, active ${name(document.activeElement)}, frame inert ${inert()}`); })
+    .observe(document.body, { childList: true, subtree: true });
+});
+await nav().locator(`[aria-current="location"] [data-dive-level="${softmax}"]`).dblclick();
 const rename = nav().getByRole('textbox', { name: 'Rename this Rabbit Hole' });
 await rename.fill('Softmax, from scores');
+const starting = await page.getByText('Starting Python', { exact: true }).count() > 0;
+await page.locator('[data-notebook-header] button[aria-pressed]:not([disabled]), [data-notebook-stalled]').first().waitFor({ timeout: 60000 });
+await page.waitForTimeout(1000);
+console.log(`rename opened while the notebook was starting: ${starting ? 'yes' : 'no, it had started'}`);
 await shot('09-rename');
+const renameLog = await page.evaluate(() => window.__renameLog.join(' | '));
+assert.deepEqual(await page.evaluate(() => { const field = document.querySelector('[data-dive-navigator] input[aria-label="Rename this Rabbit Hole"]'); return field && { focused: field === document.activeElement, value: field.value }; }),
+  { focused: true, value: 'Softmax, from scores' }, `the rename keeps its focus and text while the notebook starts; ${renameLog}`);
 await rename.press('Enter'); await page.waitForTimeout(800);
 assert.equal((await tree(root.name, BOARD)).children.find(child => child.name === softmax).title, 'Softmax, from scores');
 console.log('flow F ok');

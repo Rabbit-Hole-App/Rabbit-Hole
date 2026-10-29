@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createFrameScheduler, frameKey } from './playback.js';
+import { createFrameScheduler, frameKey, watchSeen } from './playback.js';
 import { RuntimeError } from './contract.js';
 
 // A fake host whose every evaluation takes `latency` ms of fake time, one at a time (host.js keeps one in flight and the newest
@@ -225,4 +225,68 @@ test('a frame asked for an older state never draws after a newer one: a transiti
   // A replaced artifact: the same revision number of another program's state is another key.
   assert.notEqual(frameKey(inputs, 1, initial), frameKey(inputs, 1, committed('b'.repeat(64), 3, 0)));
   assert.equal(frameKey(inputs, 0), `${JSON.stringify(inputs)}#0#-`, 'a schema 1 card keys on inputs and epoch, as before');
+});
+
+// Task 10.1: a card that cannot be seen pauses. A fake document and IntersectionObserver stand in for the browser's.
+function seen({ focused = false } = {}) {
+  const listeners = new Set(), doc = { hidden: false, addEventListener: (_, fn) => listeners.add(fn), removeEventListener: (_, fn) => listeners.delete(fn) };
+  let observer = null;
+  class Observer { constructor(fn) { observer = this; this.fn = fn; this.watched = []; } observe(el) { this.watched.push(el); } disconnect() { this.watched = []; } }
+  const element = { closest: selector => (selector === '[data-focus-host]' && focused ? element : null) };
+  const paused = [];
+  const stop = watchSeen(element, () => paused.push(true), { doc, Observer });
+  return {
+    paused, stop, listeners, get observer() { return observer; },
+    view: isIntersecting => observer.fn([{ isIntersecting }]),
+    tab: hidden => { doc.hidden = hidden; listeners.forEach(fn => fn()); },
+  };
+}
+
+test('a card that leaves the view or a hidden tab pauses; coming back into view does not resume it', () => {
+  const s = seen();
+  s.view(true);
+  assert.equal(s.paused.length, 0);
+  s.view(false);
+  assert.equal(s.paused.length, 1, 'panned out of view');
+  s.view(true);
+  assert.equal(s.paused.length, 1, 're-entry starts nothing: the card stays paused at its moment');
+  s.tab(true);
+  assert.equal(s.paused.length, 2, 'hidden tab');
+  s.tab(false);
+  assert.equal(s.paused.length, 2);
+});
+
+test('a card in Focus counts as seen wherever its canvas spot is', () => {
+  const s = seen({ focused: true });
+  s.view(false);
+  assert.equal(s.paused.length, 0);
+  s.tab(true);
+  assert.equal(s.paused.length, 1, 'a hidden tab still pauses a focused card');
+});
+
+test('stopping the watch removes the tab listener and the observer; without an element only the tab is watched', () => {
+  const s = seen();
+  assert.equal(s.observer.watched.length, 1);
+  s.stop();
+  assert.equal(s.listeners.size, 0);
+  assert.equal(s.observer.watched.length, 0);
+  const listeners = new Set(), paused = [];
+  const doc = { hidden: true, addEventListener: (_, fn) => listeners.add(fn), removeEventListener: (_, fn) => listeners.delete(fn) };
+  const stop = watchSeen(null, () => paused.push(true), { doc, Observer: class { constructor() { throw Error('no element, no observer'); } } });
+  listeners.forEach(fn => fn());
+  assert.equal(paused.length, 1);
+  stop();
+  assert.equal(listeners.size, 0);
+});
+
+test('paused offscreen, the scheduler asks for nothing more and keeps the last drawn frame', async () => {
+  const asked = [], drawn = [];
+  const scheduler = createFrameScheduler({ evaluate: job => (asked.push(job.time), Promise.resolve({})), show: (_, job) => drawn.push(job.time) });
+  // The clock wants t=1.2 when the card leaves view; paused, the clock stops, so no later moment is ever wanted.
+  scheduler.want({ key: 'k', time: 1.2, inputs: {} });
+  for (let i = 0; i < 5; i++) await new Promise(resolve => setImmediate(resolve));
+  scheduler.want({ key: 'k', time: 1.2, inputs: {} }); // re-entry re-renders the same wanted moment
+  for (let i = 0; i < 5; i++) await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual([asked, drawn], [[1.2], [1.2]], 'settled: the same moment is not evaluated again');
+  scheduler.dispose();
 });

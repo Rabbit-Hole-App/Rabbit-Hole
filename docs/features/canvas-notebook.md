@@ -133,8 +133,13 @@ active cell and latest error are later messages on the same bridge.
 
 The iframe owns the pointer, wheel and keyboard while the pointer or focus is
 inside it, so canvas shortcuts never see a key typed in a cell. Clicking into
-the notebook selects the card; Jupyter's start-up focus is handed back to the
-canvas. The drag strip and header move the card; the corner resizes it. While
+the notebook selects the card. Jupyter's start-up focus never leaves the
+canvas: the bridge makes script focus a no-op until the learner presses or
+types in the notebook, so a field being typed in on the canvas (a Rabbit Hole
+rename, the composer) keeps its focus while a notebook starts. Since Jupyter's
+current widget follows focus, the bridge's state report, Run all, Restart and
+cell edits act on the card's notebook (the one it opened) while nothing is
+current, so they work before the learner presses in it. The drag strip and header move the card; the corner resizes it. While
 any canvas drag is in progress, iframes ignore the pointer.
 
 ## Limits
