@@ -384,6 +384,20 @@ console.log('flow H ok');
 // fast-e2e 40926982735). NotebookCard keeps the frame inert until the notebook has started. A notebook site that never answers
 // (data-notebook-stalled) leaves nothing to start, so the rename is checked as before.
 await page.locator('[data-notebook-frame]').waitFor();
+// What happens to the field, in order (fast-e2e 40940868103: the field was gone with the frame inert): focus moves, the window's blur,
+// the notebook's bridge messages, and the node whose removal took the field (the field itself, or an ancestor that remounted).
+await page.evaluate(() => {
+  const t0 = performance.now(), log = window.__renameLog = [], at = () => Math.round(performance.now() - t0);
+  const name = node => (node?.nodeType === 1 ? `${node.tagName.toLowerCase()}${node.getAttribute('aria-label') ? `[${node.getAttribute('aria-label')}]` : ''}${Object.keys(node.dataset).slice(0, 3).map(key => `[data-${key.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`)}]`).join('')}` : String(node));
+  const field = 'input[aria-label="Rename this Rabbit Hole"]';
+  document.addEventListener('focusin', event => log.push(`${at()} focusin ${name(event.target)}`), true);
+  document.addEventListener('focusout', event => log.push(`${at()} focusout ${name(event.target)} to ${name(event.relatedTarget)}`), true);
+  const inert = () => document.querySelector('[data-notebook-frame]')?.inert;
+  window.addEventListener('blur', () => log.push(`${at()} window blur, active ${name(document.activeElement)}, frame inert ${inert()}`));
+  window.addEventListener('message', event => { if (typeof event.data?.type === 'string') log.push(`${at()} message ${event.data.type}`); });
+  new MutationObserver(records => { for (const record of records) for (const node of record.removedNodes) if (node.nodeType === 1 && (node.matches(field) || node.querySelector(field))) log.push(`${at()} field removed with ${name(node)} from ${name(record.target)}, active ${name(document.activeElement)}, frame inert ${inert()}`); })
+    .observe(document.body, { childList: true, subtree: true });
+});
 await nav().locator(`[aria-current="location"] [data-dive-level="${softmax}"]`).dblclick();
 const rename = nav().getByRole('textbox', { name: 'Rename this Rabbit Hole' });
 await rename.fill('Softmax, from scores');
@@ -391,9 +405,10 @@ const starting = await page.getByText('Starting Python', { exact: true }).count(
 await page.locator('[data-notebook-header] button[aria-pressed]:not([disabled]), [data-notebook-stalled]').first().waitFor({ timeout: 60000 });
 await page.waitForTimeout(1000);
 console.log(`rename opened while the notebook was starting: ${starting ? 'yes' : 'no, it had started'}`);
-assert.deepEqual(await page.evaluate(() => { const field = document.querySelector('[data-dive-navigator] input[aria-label="Rename this Rabbit Hole"]'); return field && { focused: field === document.activeElement, value: field.value }; }),
-  { focused: true, value: 'Softmax, from scores' }, 'the rename keeps its focus and text while the notebook starts');
 await shot('09-rename');
+const renameLog = await page.evaluate(() => window.__renameLog.join(' | '));
+assert.deepEqual(await page.evaluate(() => { const field = document.querySelector('[data-dive-navigator] input[aria-label="Rename this Rabbit Hole"]'); return field && { focused: field === document.activeElement, value: field.value }; }),
+  { focused: true, value: 'Softmax, from scores' }, `the rename keeps its focus and text while the notebook starts; ${renameLog}`);
 await rename.press('Enter'); await page.waitForTimeout(800);
 assert.equal((await tree(root.name, BOARD)).children.find(child => child.name === softmax).title, 'Softmax, from scores');
 console.log('flow F ok');
