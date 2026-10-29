@@ -75,11 +75,13 @@ const check = async (label, fn) => {
 };
 const until = async (fn, what, ms = 60000) => { const end = Date.now() + ms; for (;;) { if (await fn().catch(() => false)) return; if (Date.now() > end) throw Error(what); await page.waitForTimeout(200); } };
 const frame = () => page.frameLocator('[data-notebook-frame]');
+// The notebook widget is the shell's current one when focus made it current, else the main area's notebook: the canvas notebook
+// site takes no focus until the learner presses in it, so currentWidget is null until then (fix/dive-flake: "no notebook").
 // Cells are read and addressed through the notebook widget, never by their position among the rendered .jp-CodeCell nodes:
 // JupyterLab's default windowing ('full') detaches cells scrolled out of view, so once Shift+Enter had advanced and scrolled the
 // list, .jp-CodeCell nth(0) was cell b, not a (CI: "cell a was not rerun", runs 40374935577 and 40376116119).
 const cellState = (frame, n) => frame.locator('body').evaluate((_, n) => {
-  const cells = window.jupyterapp.shell.currentWidget.content.widgets, model = cells[n].model;
+  const cells = [window.jupyterapp.shell.currentWidget, ...(window.jupyterapp.shell.widgets?.('main') ?? [])].find(widget => widget?.content?.widgets).content.widgets, model = cells[n].model;
   const text = out => [].concat(out.text ?? out.data?.['text/plain'] ?? '').join('');
   // The prompt JupyterLab draws (cells/src/widget.ts): [*] while running, else [count].
   return { count: cells.length, prompt: model.executionState === 'running' ? '[*]' : model.executionCount ? `[${model.executionCount}]` : '[ ]',
@@ -87,7 +89,7 @@ const cellState = (frame, n) => frame.locator('body').evaluate((_, n) => {
 }, n);
 // The cell's editor, scrolled into JupyterLab's window first (a detached cell has none). Tagged by index: the widget list is stable.
 const cellEditor = async (frame, n) => {
-  await frame.locator('body').evaluate((_, n) => { const content = window.jupyterapp.shell.currentWidget.content; content.scrollToItem(n); content.widgets[n].node.dataset.rhCell = String(n); }, n);
+  await frame.locator('body').evaluate((_, n) => { const content = [window.jupyterapp.shell.currentWidget, ...(window.jupyterapp.shell.widgets?.('main') ?? [])].find(widget => widget?.content?.widgets).content; content.scrollToItem(n); content.widgets[n].node.dataset.rhCell = String(n); }, n);
   return frame.locator(`[data-rh-cell="${n}"] .cm-content`).first();
 };
 const pressCell = async (page, frame, n) => { await (await cellEditor(frame, n)).click(); await page.keyboard.press('Shift+Enter'); };
@@ -95,7 +97,7 @@ const pressCell = async (page, frame, n) => { await (await cellEditor(frame, n))
 // session.kernel is null, and Shift+Enter still advances), so the first run waits for the session's own kernel status. Not the
 // toolbar's .jp-Notebook-ExecutionIndicator: its data-status starts as 'idle' before any kernel exists (executionindicator.tsx),
 // which let a press through (run 40392512154, 20:10Z: the indicator said idle and cell a never ran).
-const kernelState = frame => frame.locator('body').evaluate(() => { const context = window.jupyterapp.shell.currentWidget.sessionContext; return context.session?.kernel ? context.kernelDisplayStatus : 'no kernel session'; }).catch(error => `no notebook (${String(error.message).split(String.fromCharCode(10))[0].slice(0, 80)})`);
+const kernelState = frame => frame.locator('body').evaluate(() => { const context = [window.jupyterapp.shell.currentWidget, ...(window.jupyterapp.shell.widgets?.('main') ?? [])].find(widget => widget?.content?.widgets).sessionContext; return context.session?.kernel ? context.kernelDisplayStatus : 'no kernel session'; }).catch(error => `no notebook (${String(error.message).split(String.fromCharCode(10))[0].slice(0, 80)})`);
 const kernelIdle = async (frame, ms) => {
   const end = Date.now() + ms;
   for (let state = await kernelState(frame); state !== 'idle'; state = await kernelState(frame)) {

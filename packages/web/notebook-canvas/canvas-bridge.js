@@ -79,10 +79,18 @@
     return out;
   };
   const isNotebook = widget => !!widget?.content?.model?.cells && !!widget.sessionContext;
+  // The card's notebook is the widget docmanager:open returned (init, below). The shell's current widget follows focus (Lumino
+  // FocusTracker) and the guard above lets Jupyter take none, so it stays null until the learner presses in here: nothing below
+  // may depend on it alone (e9461ff59 left Run all, Restart and the state report dead).
+  let opened = null;
+  // What the card shows: the learner's pick, else the card's notebook.
+  const shown = () => app.shell.currentWidget ?? (opened?.isDisposed ? null : opened);
+  // The notebook a command acts on: the current widget when it is a notebook, else the card's notebook.
+  const notebook = () => [app.shell.currentWidget, opened?.isDisposed ? null : opened].find(isNotebook) ?? null;
   document.addEventListener('keydown',event=>{
     if(!app||!(event.ctrlKey||event.metaKey)||event.key.toLowerCase()!=='k')return;
     event.preventDefault();event.stopPropagation();
-    try{post({type:'edit-selection',result:globalThis.RHNotebookCells.capture(app.shell.currentWidget)});}catch(error){post({type:'cell-error',error:error.message});}
+    try{post({type:'edit-selection',result:globalThis.RHNotebookCells.capture(notebook())});}catch(error){post({type:'cell-error',error:error.message});}
   },true);
 
   // The whole workspace as { path: entry }, for a shared board's copy: text
@@ -120,7 +128,7 @@
   };
 
   const report = debounce(async () => {
-    const widget = app.shell.currentWidget;
+    const widget = shown();
     post({ type: 'state', active_path: widget?.context?.path ?? null, active_kind: isNotebook(widget) ? 'notebook' : widget?.context ? 'file' : null, files: await tree() });
   }, 300);
 
@@ -128,7 +136,7 @@
   // without Jupyter's two-minute autosave; notebooks also report their document.
   const watched = new WeakSet();
   const follow = () => {
-    const widget = app.shell.currentWidget;
+    const widget = shown();
     report();
     if (!widget?.context || watched.has(widget)) return;
     watched.add(widget);
@@ -199,7 +207,7 @@
       await chrome();
       drawer(false);
       const opening = (await exists(active)) ? active : copyPath;
-      if (await exists(opening)) await app.commands.execute('docmanager:open', { path: opening });
+      if (await exists(opening)) opened = await app.commands.execute('docmanager:open', { path: opening });
       app.shell.currentChanged.connect(follow);
       contents.fileChanged.connect(report);
       follow();
@@ -209,7 +217,7 @@
       return;
     }
     if (!app) return;
-    const widget = app.shell.currentWidget;
+    const widget = notebook();
     if(['cells-snapshot','cells-apply','cells-restore'].includes(type)){
       const requestId=event.data.requestId;
       if(typeof requestId!=='string'||!/^[A-Za-z0-9-]{1,100}$/.test(requestId))return;
@@ -225,7 +233,8 @@
       try { post({ type: 'workspace', files: await snapshot() }); }
       catch (error) { post({ type: 'workspace', error: error.message === 'too-large' ? 'too-large' : 'failed' }); }
     }
-    if (type === 'run-all' && isNotebook(widget)) app.commands.execute('notebook:run-all-cells');
-    if (type === 'restart' && isNotebook(widget)) widget.sessionContext.restartKernel();
+    // widgetId names the notebook: JupyterLab's getCurrent reads it before the tracker's focus-based current widget.
+    if (type === 'run-all' && widget) app.commands.execute('notebook:run-all-cells', { widgetId: widget.id, activate: false });
+    if (type === 'restart' && widget) widget.sessionContext.restartKernel();
   });
 })();
