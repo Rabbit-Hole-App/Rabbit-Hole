@@ -143,3 +143,29 @@ test('buttons are never treated as reviewed when no transition fitted: the rende
   assert.equal(out.repairable, true);
   assert.match(out.problems[0], /no room in one review to check the 3 buttons or selections/);
 });
+
+// Owner review of 0ee34e70c (fix 3): a viewport is admitted only if every review capture of it fits the round's pixel reservation, the
+// two are one number, and a candidate over the reservation goes to bounded repair instead of offering Retry rendering for an unchanged artifact.
+test('admitted viewports fit the render reservation; a too-large one is a repairable problem, never Retry rendering', async () => {
+  const { PROGRAM_LIMITS } = await import('../src/explain-program.js');
+  const { EXPLAIN_LIMITS } = await import('../src/explain-policy.js');
+  const { RenderError } = await import('../src/explain-render.js');
+  const cap = EXPLAIN_LIMITS.render.capturesPerRound, reserved = reserveRound({ cap });
+  assert.equal(reserved.pixels / cap, PROGRAM_LIMITS.viewportPixels, 'the per-capture reservation and the admitted viewport are the same number');
+  // 1920 x 1080 (three captures: 6,220,800 pixels against 5,779,200) is refused at validation with the fix, before any render.
+  const big = { program: { ...draft(springFixture), manifest: { ...springFixture.manifest, viewport: { width: 1920, height: 1080 } } }, prompt: 'p', evidence: [] };
+  const refused = await validateProgramStage(big, { env: ON });
+  assert.equal(refused.artifact, undefined, 'never sealed');
+  assert.ok(refused.repairable && refused.problems.some(problem => /viewport 1920 x 1080 is 2073600 pixels, over the 963200/.test(problem)), JSON.stringify(refused.problems));
+  // The largest admitted viewport with playback fills the six captures exactly within the reservation.
+  const largest = { ...springFixture.manifest, viewport: { width: 1120, height: 860 }, duration: 4 };
+  const artifact = await buildProgramArtifact(checkProgramDraft({ source: springFixture.source.replace(/width: 960, height: 300/g, 'width: 1120, height: 860'), manifest: largest }, { stateful: true }).bundle);
+  const manifest = await programCaptureManifest(artifact, { reserved });
+  const checked = await checkManifest(manifest, artifact);
+  assert.ok(checked.entries.length === cap && checked.pixels <= reserved.pixels, `${checked.entries.length} captures, ${checked.pixels} of ${reserved.pixels} pixels`);
+  // Whatever the cause, a program's over-budget render is the candidate's size: bounded repair, not a 503 with Retry rendering.
+  const render = { reserveRound, programCaptureManifest, renderStates: async () => { throw new RenderError('over_budget', 'capture manifest needs 3 captures / 6220800 px, over its reservation'); } };
+  const out = await renderStage({ render, browser: {} })({ id: 'j', artifact }, { env: {} });
+  assert.equal(out.repairable, true);
+  assert.match(out.problems[0], /too large for one review .*6220800 px.*smaller viewport, at most 963200 pixels/);
+});

@@ -30,7 +30,7 @@ import { blockedBody, referencesKey, resolveReferences } from './generation-revi
 import { isReviewProposal } from '../../web/src/generation-review.js';
 import { needsPreparation, prepareStage } from './explain-brief.js';
 import { authorStage, selectExamples, specFacts, validateProgramStage, validateStage } from './explain-author.js';
-import { artifactIntact, draftOf, programEnabled, programExecution, programFacts, programReference } from './explain-program.js';
+import { PROGRAM_LIMITS, artifactIntact, draftOf, programEnabled, programExecution, programFacts, programReference } from './explain-program.js';
 import { REVIEW_LIMITS, reviewCaptures, traceBytes } from './explain-review.js';
 import * as explainRender from './explain-render.js';
 import { learnMedia } from './learn-storage.js';
@@ -97,6 +97,9 @@ export const renderStage = ({ render = explainRender, ...deps } = {}) => async (
     // The host's own setup (or the interpreter itself) failed on the page: not the program's doing, so it is a render failure, never repair.
     // The job stops at rendering with Retry rendering offered (same candidate, no new round); platform compute is accounted as for any render failure.
     const platform = error.code === 'program_error' && ['setup', 'engine'].includes(error.program?.phase);
+    // A program's captures over the round's pixel reservation are a deterministic fact of this candidate (its size), never a render outage:
+    // Retry rendering would fail the same way, so it goes to bounded repair with the measured reason. The reservation is not raised.
+    if (program && error.code === 'over_budget') return { problems: [`the review captures of this program are too large for one review (${String(error.message).slice(0, 160)}): use a smaller viewport, at most ${PROGRAM_LIMITS.viewportPixels} pixels (for example 1120 x 860)`], category: 'spec', repairable: true };
     if (program && error.code === 'capture_timeout') return { problems: ['running the program did not finish within the capture time limit (runtime_limit): the page stopped answering; write a lighter program'], runtime: { code: 'runtime_limit', phase: 'capture' }, category: 'spec', repairable: true };
     if (error.code === 'program_error' && !platform) return { problems: [`running the program failed (${String(error.program?.code || 'runtime_error').slice(0, 40)}${programWhere(error.program)}): ${String(error.program?.diagnostic || 'no detail').slice(0, 300)}`], runtime: { code: error.program?.code, phase: error.program?.phase, ms: error.program?.ms }, category: 'spec', repairable: true };
     throw Object.assign(fail(`The explanation could not be rendered (${platform ? `runtime_${error.program.phase}` : error.code || 'render_failed'}). Retry rendering.`, 503, platform ? `runtime_${error.program.phase}` : undefined), { category: 'renderer' });

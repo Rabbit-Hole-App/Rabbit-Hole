@@ -2,7 +2,7 @@
 // registered components only, or says what is missing as a structured capability gap. The independent image review is Lane
 // D's (explain-review.js), a separate call that never sees the author's reasoning.
 import { LIMITS as RUNTIME_LIMITS } from '../../../web/src/explain-program/limits.js';
-import { STATEFUL_CONTRACT } from '../../../web/src/explain-program/contract.js';
+import { CONTRACT_LIMITS, STATEFUL_CONTRACT } from '../../../web/src/explain-program/contract.js';
 
 export const GAP_NEEDS = Object.freeze(['math', 'steps', 'experiment', 'component', 'evidence', 'other']);
 
@@ -68,7 +68,7 @@ const PROGRAM_MANIFEST = {
 // With stateful programs on (explain-program.js statefulEnabled), the manifest may also declare a viewport, buttons and selectable
 // objects (contract.js STATEFUL_CONTRACT); declaring any of them makes the program stateful.
 const STATEFUL_MANIFEST = {
-  viewport: { type: 'object', additionalProperties: false, required: ['width', 'height'], description: 'Stateful programs only (required there): the frame size every frame has.', properties: { width: { type: 'number', exclusiveMinimum: 0, maximum: 4096 }, height: { type: 'number', exclusiveMinimum: 0, maximum: 4096 } } },
+  viewport: { type: 'object', additionalProperties: false, required: ['width', 'height'], description: `Stateful programs only (required there): the frame size every frame has; width x height at most ${CONTRACT_LIMITS.viewportPixels} pixels (for example 1120 x 860 or 960 x 540).`, properties: { width: { type: 'number', exclusiveMinimum: 0, maximum: 4096 }, height: { type: 'number', exclusiveMinimum: 0, maximum: 4096 } } },
   actions: { type: 'array', maxItems: 8, description: 'Stateful programs only: buttons the learner presses; each press is one event {type:"action", action: id}.', items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: NAME, label: { type: 'string', maxLength: 60 } } } },
   targets: { type: 'array', maxItems: 8, description: 'Stateful programs only: frame objects the learner selects (by clicking or a button); id is the frame object id, drawn in every frame; each selection is one event {type:"select", target: id}.', items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: { type: 'string', maxLength: 64 }, label: { type: 'string', maxLength: 60 } } } },
 };

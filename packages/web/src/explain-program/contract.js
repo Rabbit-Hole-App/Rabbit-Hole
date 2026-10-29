@@ -24,6 +24,9 @@ export const CONTRACT_LIMITS = Object.freeze({
   objects: 60, objectsTotal: 240, pointsPerObject: 2000, pointsTotal: 10000, inputs: 4, optionCombinations: 64, options: 8, readouts: 8, quantities: 32, assumptions: 8,
   duration: 120, coordinate: 100000, size: 2000, text: 200, runs: 16,
   stateBytes: 32 * 1024, actions: 8, targets: 8, // schema 2 only; LIMITS.stateBytes is this value
+  // schema 2 only: a viewport's width x height, the per-capture size the review reserves (explain-render.js reserveRound: the largest
+  // scene card, 1120 x 860, per capture), so every admitted viewport fits its review. explain-stateful.test.js pins the two together.
+  viewportPixels: 1120 * 860,
 });
 
 export const ERROR_CODES = Object.freeze(['invalid_program', 'unsupported_capability', 'runtime_limit', 'runtime_error', 'invalid_output', 'version_unavailable']);
@@ -103,6 +106,8 @@ export const StatefulManifest = z.object({
   targets: z.array(targetSchema).max(CONTRACT_LIMITS.targets),
 }).strict().superRefine((manifest, context) => {
   manifestChecks(manifest, context);
+  const { width, height } = manifest.viewport;
+  if (width * height > CONTRACT_LIMITS.viewportPixels) context.addIssue({ code: 'custom', message: `the viewport ${width} x ${height} is ${width * height} pixels, over the ${CONTRACT_LIMITS.viewportPixels} each review capture allows: use a smaller viewport, for example 1120 x 860 or 960 x 540`, path: ['viewport'] });
   for (const key of ['actions', 'targets']) {
     const ids = manifest[key].map(item => item.id);
     if (new Set(ids).size !== ids.length) context.addIssue({ code: 'custom', message: `${key} ids must be unique`, path: [key] });
@@ -116,7 +121,7 @@ export const draftSchemaVersion = draft => (draft?.manifest && typeof draft.mani
 // What the author is told about the stateful contract, from the same constants the schemas enforce.
 export const STATEFUL_CONTRACT = Object.freeze({
   exports: 'export function initialState({ inputs, seed }) -> state; export function reduce({ state, event, inputs, time, seed }) -> state; export function evaluate({ inputs, time, seed, state }) -> { frame, quantities }',
-  manifest: `viewport {width, height} (required, at most 4096 each; every frame has exactly this size), actions [{id, label}] (at most ${CONTRACT_LIMITS.actions} buttons; id is a name), targets [{id, label}] (at most ${CONTRACT_LIMITS.targets}; id is the id of a frame object the learner can select; every frame draws every target under that id)`,
+  manifest: `viewport {width, height} (required; width x height at most ${CONTRACT_LIMITS.viewportPixels} pixels, for example 1120 x 860 or 960 x 540; every frame has exactly this size), actions [{id, label}] (at most ${CONTRACT_LIMITS.actions} buttons; id is a name), targets [{id, label}] (at most ${CONTRACT_LIMITS.targets}; id is the id of a frame object the learner can select; every frame draws every target under that id)`,
   events: [`{type:"action", action: <an actions id>}`, `{type:"select", target: <a targets id>}`, `{type:"input", input: <an inputs id>, value: <the new value>}`],
   state: `a plain JSON object: finite numbers, strings, booleans, null, arrays and objects; at most ${CONTRACT_LIMITS.stateBytes} bytes as JSON and ${CONTRACT_LIMITS.depth} levels deep`,
   rules: 'reduce returns the next state from the state and one event, without changing its arguments; evaluate draws the state. All three are pure and deterministic: the same seed and the same ordered events give the same state. Math.random restarts from seed on every call, so keep any random sequence counter in the state.',
