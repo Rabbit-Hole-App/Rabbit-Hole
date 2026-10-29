@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createShadowGrader, parseVerdict } from './learn-grade-shadow.js';
 import { challengePrompt, explainBackPrompt, stripVerdict } from './learn-grade-prompts.js';
+import { MATH_FORMAT } from '../../control-plane/src/agents/math-format.js';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -86,10 +87,12 @@ test('the prompts moved unchanged', () => {
 const CHALLENGE_TAIL = [
   'Start your reply with a line reading exactly "VERDICT: good" when the answer covers the key ideas, or "VERDICT: partial" otherwise.',
   'Then reply in at most three short sentences: say which key ideas they already have, name what is missing or wrong, and end with one nudge about what to watch for next. Address the learner as "you". Do not give the full explanation away.',
+  MATH_FORMAT,
 ];
 const EXPLAIN_TAIL = [
   'Start your reply with a line reading exactly "VERDICT: good" only when every key idea is present and correct, otherwise "VERDICT: partial".',
   'Then in at most three short sentences: name the ideas they got right, name each missing or incorrect one explicitly, and ask one question that would settle the gap. Address the learner as "you". Do not restate the whole explanation for them.',
+  MATH_FORMAT,
 ];
 test('golden: the challenge instruction, with key ideas and with the empty-ideas fallback', () => {
   assert.equal(challengePrompt({ prompt: 'Why exp?', expects: ['positive', 'sums to one'] }, 'It "stays" positive.'), [
