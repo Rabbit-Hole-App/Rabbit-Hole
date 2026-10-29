@@ -1,5 +1,15 @@
 # Rabbit Hole manifesto — editorial revision
 
+## Current: original page on a black background (owner, 2026-10-29)
+
+The 2026-10-28 black-and-white copy and size brief was superseded by "as it was before, but black background"
+(owner, 2026-10-29). The page keeps the original copy, sections, portraits, typography, spacing, red highlights and
+staircase geometry and animation below. Only the colours change: page, atmosphere and footer are #000; text that was
+dark is #FFF, secondary labels (section labels, captions, path prompts) #BDBDBD, editorial rules neutral #616161;
+the scroll-driven fade to beige is removed; the staircase canvas draws white edges with neutral grey faces at lower
+opacity so it stays behind the text; portraits no longer use multiply blending (it turns them black on black). The
+black nav with a white Get started button and the black footer are scoped to `.manifesto-page`.
+
 ## Review deployment update (2026-09-30)
 
 The user explicitly authorized publishing everything on this branch to

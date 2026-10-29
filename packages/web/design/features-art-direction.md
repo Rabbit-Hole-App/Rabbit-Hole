@@ -7,7 +7,7 @@ quiet for the live heading; the more detailed construction sits on the right.
 This is a distinct composition in the visual family of Blog and Pricing.
 Both reference assets remain unchanged.
 
-The feature walkthrough follows on a white page. Public navigation,
+The feature catalogue follows on a white page. Public navigation,
 mobile menu, shared static footer and native scrolling remain intact. The image
 is decorative, with empty alt text; all product text remains HTML. Responsive
 object positioning prioritizes heading legibility on phones.
@@ -16,39 +16,20 @@ Asset: `public/landing/features-collage-v1.png`, 2172 × 724.
 Exact prompt, style references and hash:
 `design/manifesto-features-art-prompts.md`.
 
-## Illustrative product walkthrough
+## Feature catalogue (replaces the walkthrough, 2026-10-28)
 
-The user approved staged demos while real product recordings are unavailable
-(2026-09-29). Four eight-second HTML/SVG loops use the same attention example:
-gather sources, ask a follow-up, explore a visual connection, and practice/save.
-These are presentation-only fixtures: no ingestion, inference, submission,
-storage, or integration. Each frame is labeled "Illustrative product preview";
-the conceptual diagram contains no invented model measurements.
+The owner's pictures-only brief (C:/s/spec/landing-features/BRIEF.md) replaced the four-step illustrative walkthrough
+(`features-demos.js`/`.css`, its stacked demo windows and the 01/04 counter) with a static catalogue: title "Features",
+subtitle "Explore the tools inside Rabbit Hole.", an index of feature-name anchors and one static screenshot per feature.
+Copy, order and publish state: `src/landing/features-data.js`; pictures: `src/landing/features-images.json` and
+`src/landing/features/`; rendered into the page at build time by `src/landing/features-catalogue.js` (vite.config.js).
+No runtime script. A production build shows only `published` entries; a `VITE_COACHING_DEV` build adds staged ones.
+Capture conventions and the source-kit manifest live in C:/s/spec/landing-features/.
 
-On desktop, a small preview stays beside the explanation while native scrolling
-selects the nearest chapter. Two real preview cards peek behind the front card;
-the next card comes forward while the outgoing one slips into the back. Position
-and scale follow scroll progress directly over the middle third between chapter
-centers, so partial scrolling and reversing retrace the same shuffle. The deck
-holds still while its front demo plays, and playback pauses during the shuffle.
-Reduced motion switches between still deck arrangements without interpolation.
-On phones, the existing separate previews keep their static offset outlines.
-A quiet dotted thread connects the four numbered steps. At 800px and below,
-each explanation precedes its own preview in normal document flow. The header,
-navigation, and footer are preserved. At the user's request, the three older
-summary cards were removed after the walkthrough was reviewed.
-
-`src/landing/features-demos.js` controls the active chapter and visibility;
-`features-demos.css` supplies the staged loops. Only the active visible preview
-animates, and inactive/hidden-page animations pause. Reduced motion presents
-complete still frames. Decorative demo controls never receive focus or accept
-input; accessible descriptions explain the preview. There are no playback
-buttons or additional animation dependencies.
-
-Validation covers forward/reverse scrolling, actual loop playback and pausing,
-phone stacking, menu behavior, no clipped content or horizontal overflow,
-reduced motion, and absence of API requests. Browser evidence is retained in
-`tmp/features-demos/` locally.
+Owner correction the same evening: every entry reuses the walkthrough's framed preview (the frame, header bar, layered
+back frames and dashed divider of the removed `features-demos.css`) with the picture on the left and the name, subtitle
+and description on the right; phones stack the frame above the copy. No step label or counter. The picture keeps its
+aspect ratio (`object-fit: contain`, 640 px max height); slot sizes: C:/s/spec/landing-features/LAYOUT-SLOTS.md.
 
 ## Stairway moved to Manifesto
 
