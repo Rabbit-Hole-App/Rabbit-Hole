@@ -10,5 +10,17 @@
       "w": 680,
       "h": 1160
     }
+  },
+  "11-rabbit-holes": {
+    "desktop": {
+      "src": "11-rabbit-holes-desktop.webp",
+      "w": 2360,
+      "h": 1327
+    },
+    "mobile": {
+      "src": "11-rabbit-holes-mobile.webp",
+      "w": 800,
+      "h": 627
+    }
   }
 }
