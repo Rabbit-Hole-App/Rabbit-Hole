@@ -32,10 +32,11 @@ function stack(t, { renderLimits } = {}) {
   const LEARN_DB = { prepare: text => { let args = []; const stmt = sqlite.prepare(text); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => ({ meta: stmt.run(...args) }), now: () => ({ meta: stmt.run(...args) }) }; },
     batch: async statements => { sqlite.exec('BEGIN'); try { const out = statements.map(s => s.now()); sqlite.exec('COMMIT'); return out; } catch (error) { sqlite.exec('ROLLBACK'); throw error; } } };
   // FAKE_BROWSER: what renderStates drives; every capture request is recorded.
-  const rendered = [], behavior = { programErrors: [], hang: 0, pagesClosed: 0, browsersClosed: 0 }; // hang: program captures that never answer (a blocked page)
+  // quantities(request): what a program capture's trace reports instead of the default level (null keeps the default)
+  const rendered = [], behavior = { programErrors: [], hang: 0, pagesClosed: 0, browsersClosed: 0, quantities: null }; // hang: program captures that never answer (a blocked page)
   // behavior.programErrors: a queue of program failures the next program captures report
   const FAKE_BROWSER = { async newPage() { return { setRequestInterception: async () => {}, on() {}, emulateMediaFeatures: async () => {}, goto: async () => {}, waitForFunction: async () => {}, setViewport: async () => {},
-    evaluate: async (fn, request) => { rendered.push({ theme: request.theme, time: request.time, inputs: request.inputs, program: !!request.program }); if (request.program && behavior.hang > 0) { behavior.hang--; return new Promise(() => {}); } if (request.program && behavior.programErrors.length) return { ok: false, programError: behavior.programErrors.shift() }; return { ok: true, fonts: { missing: [] }, ...(request.program ? { trace: { inputs: request.inputs, time: request.time, quantities: { level: request.time * (request.inputs.rate ?? 0) }, metrics: { ms: 1 } } } : {}) }; }, $: async () => ({ screenshot: async () => PNG }), close: async () => { behavior.pagesClosed++; } }; }, close: async () => { behavior.browsersClosed++; } };
+    evaluate: async (fn, request) => { rendered.push({ theme: request.theme, time: request.time, inputs: request.inputs, program: !!request.program }); if (request.program && behavior.hang > 0) { behavior.hang--; return new Promise(() => {}); } if (request.program && behavior.programErrors.length) return { ok: false, programError: behavior.programErrors.shift() }; return { ok: true, fonts: { missing: [] }, ...(request.program ? { trace: { inputs: request.inputs, time: request.time, quantities: behavior.quantities?.(request) ?? { level: request.time * (request.inputs.rate ?? 0) }, metrics: { ms: 1 } } } : {}) }; }, $: async () => ({ screenshot: async () => PNG }), close: async () => { behavior.pagesClosed++; } }; }, close: async () => { behavior.browsersClosed++; } };
   const FAKE_ASSETS = { fetch: async () => new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }) };
   // The production render stage (explain-render.js by default); only the browser launch is injected.
   const pipeline = { ...explainPipeline, render: renderStage({ launch: async () => FAKE_BROWSER, ...(renderLimits ? { limits: renderLimits } : {}) }) };
@@ -355,6 +356,57 @@ test('M3 program: three corrections that still fail stop as rounds, not as an un
   const { view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000014', cardId: 'card-prog-14' });
   assert.deepEqual([view.body.job.stage, view.body.job.stopReason, view.body.job.round], ['failed', 'rounds', 3]);
   assert.deepEqual([count(s, 'report_review'), count(s, 'repair_explanation')], [4, 3]);
+});
+
+// EXPLAIN-TRACE-BUDGET-01: six captures (3 playback moments + 3 boundary states of two inputs), each trace at the contract's maximum of 32
+// quantities with 32-character names and long finite values. Every trace is legal on its own; together they are over the review's
+// 6144-byte trace limit, which the reviewer refuses rather than read clipped.
+import { Quantities } from '../../web/src/explain-program/contract.js';
+import { REVIEW_LIMITS } from '../src/explain-review.js';
+const WIDE = { source: `${PROGRAM.source}\n// wide`, manifest: { ...PROGRAM.manifest, inputs: [...PROGRAM.manifest.inputs, { type: 'number', id: 'scale', label: 'Scale', default: 1, min: 1, max: 5, step: 1 }] } };
+const WIDE_CAPTURES = ['t0-light', 't1-light', 't2-light', 'a0-light', 'a1-light', 'a2-light'];
+const WIDE_QUANTITIES = Object.fromEntries(Array.from({ length: 32 }, (_, i) => [`q${String(i).padStart(2, '0')}`.padEnd(32, 'x'), -1.2345678901234567e-7 * (i + 1)]));
+const wideTraces = s => { s.behavior.quantities = request => (request.program.source.includes('// wide') ? WIDE_QUANTITIES : null); };
+test('M3 program: six legal maximum-size traces over the review trace limit go to repair with the measured size, not a plain failure', async t => {
+  assert.equal(Object.keys(Quantities.parse(WIDE_QUANTITIES)).length, 32, 'each trace is within the contract');
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  wideTraces(s);
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  s.queues.author_explanation = [{ kind: 'program', program: WIDE }];
+  s.queues.repair_explanation = [{ operation: 'program', program: PROGRAM, reason: 'Kept one quantity.' }];
+  s.queues.report_review = [verdicts(CAPTURES)];
+  const { view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000041', cardId: 'card-prog-41' });
+  assert.equal(s.rendered.length, WIDE_CAPTURES.length + CAPTURES.length, 'the wide program was captured six times, the repaired one five');
+  assert.deepEqual([view.body.job.stage, view.body.job.stopReason, view.body.job.round], ['ready', 'accepted', 1]);
+  assert.deepEqual([count(s, 'report_review'), count(s, 'repair_explanation')], [1, 1], 'no review was spent on traces it would refuse');
+  const [problem] = JSON.parse(s.calls.find(c => c.name === 'repair_explanation').body.messages[0].content[0].text).problems;
+  const size = Number(problem.match(/are (\d+) bytes/)?.[1]);
+  assert.ok(size > REVIEW_LIMITS.traceBytes, problem);
+  assert.equal(problem, `the execution traces of the 6 captures are ${size} bytes, over the review limit of 6144 bytes: return fewer quantities or shorter quantity names (now up to 32 per capture); keep each capture's trace under about 1024 bytes`);
+  // The reviewer then read the repaired program's traces whole.
+  const reviewed = s.calls.find(c => c.name === 'report_review').body.messages[0].content.find(b => b.text?.startsWith('Execution traces')).text;
+  assert.match(reviewed, /"quantities":\{"level":/);
+});
+
+test('M3 program: an oversized trace is never retried unchanged: an identical repair stops as no progress, a still-oversized one stops at the rounds', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  wideTraces(s);
+  const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
+  s.queues.author_explanation = [{ kind: 'program', program: WIDE }, { kind: 'program', program: WIDE }];
+  s.queues.repair_explanation = [{ operation: 'program', program: WIDE, reason: 'Unchanged.' }];
+  const same = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000042', cardId: 'card-prog-42' });
+  assert.deepEqual([same.view.body.job.stage, same.view.body.job.stopReason, same.view.body.job.round], ['failed', 'no_progress', 1]);
+  assert.deepEqual(same.view.body.job.recovery, ['edit_request'], 'no Retry that would run the same program again');
+  assert.deepEqual([count(s, 'report_review'), count(s, 'repair_explanation')], [0, 1]);
+  assert.equal(s.rendered.length, WIDE_CAPTURES.length, 'rendered once');
+  // Changed each time but still too large: bounded by the existing correction rounds, still no review spent.
+  s.queues.repair_explanation = [1, 2, 3].map(n => ({ operation: 'program', program: { ...WIDE, source: `${WIDE.source}\n// attempt ${n}` }, reason: 'Tried.' }));
+  const still = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000043', cardId: 'card-prog-43' });
+  assert.deepEqual([still.view.body.job.stage, still.view.body.job.stopReason, still.view.body.job.round], ['failed', 'rounds', 3]);
+  assert.deepEqual([count(s, 'report_review'), count(s, 'repair_explanation')], [0, 4]);
+  assert.deepEqual(still.view.body.job.recovery, ['edit_request']);
 });
 
 test('M3 program: a program that fails when run goes to repair with the reason, never to a static card', async t => {

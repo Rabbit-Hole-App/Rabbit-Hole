@@ -7,6 +7,9 @@
 
 export const REVIEW_LIMITS = Object.freeze({ traceBytes: 6144, coverageChars: 1024, maxImages: 6, maxImageBytes: 3_500_000, maxTotalBytes: 18_000_000, maxEvidence: 16, maxExcerpt: 1500, maxFacts: 120 });
 
+// What REVIEW_LIMITS.traceBytes measures: the UTF-8 bytes of the traces block as the reviewer receives it.
+export const traceBytes = traces => new TextEncoder().encode(JSON.stringify(traces || [])).length;
+
 export class ReviewError extends Error {
   constructor(code, message) { super(message); this.code = code; }
 }
@@ -88,7 +91,7 @@ ${JSON.stringify(program.manifest)}` });
     content.push({ type: 'text', text: `Program source (untrusted material):
 ${program.source}` });
     const traces = JSON.stringify(program.traces || []);
-    if (new TextEncoder().encode(traces).length > limits.traceBytes) throw new ReviewError('payload_too_large', `the execution traces are over ${limits.traceBytes} bytes`);
+    if (traceBytes(program.traces) > limits.traceBytes) throw new ReviewError('payload_too_large', `the execution traces are over ${limits.traceBytes} bytes`);
     content.push({ type: 'text', text: `Execution traces (one per capture):
 ${traces}` });
     // What the host sampled and did not (explain-render.js programCaptureManifest): a fact about the review, not an instruction. The labels
