@@ -17,7 +17,7 @@
 import { repositoryIdentity } from './repositories.js';
 import { authorizedBoardApp } from './learn-board.js';
 import { tutorImageContext } from './learn-image-context.js';
-import { EXPLAIN_REFS, boundEvidence, mergeRefs, resolveEditRefs } from './explain-context-refs.js';
+import { EXPLAIN_REFS, boundEvidence, learnerSources, mergeRefs, resolveEditRefs } from './explain-context-refs.js';
 import { anthropic } from './ask.js';
 import { costUsd, MESSAGE_LIMIT } from './learn-models.js';
 import { spendTransport, spendEnforced, platformCaps } from './learn-spend.js';
@@ -59,7 +59,7 @@ export const EXPLAIN_DISABLED = 'Explanations are not available here yet.';
 // not read for this result (evidence is at most 16 records) and was already reported to it as not read.
 const provenanceOf = job => ({ evidence: (job.evidence || []).map(record => record.id).slice(0, 64), records: (job.evidence || []).map(({ excerpt: _text, ...record }) => record),
   sources: [...(job.context?.refs || [])].sort((a, b) => !!b.evidence - !!a.evidence).slice(0, EXPLAIN_REFS)
-    .map(({ sourceId, kind, name, version, range }) => ({ sourceId, kind, name, version: version ?? '', range: range ?? null })) });
+    .map(({ sourceId, kind, name, version, range, status, evidence }) => ({ sourceId, kind, name, version: version ?? '', range: range ?? null, ...(status ? { status } : {}), ...(evidence ? { evidence } : {}) })) });
 
 // The capability's stages: author and validate (T17, explain-author.js), render and review (T18, Lane D's explain-render.js
 // renderStates and explain-review.js reviewCaptures, through the adapters below), repair (T19, explain-repair.js).
@@ -306,7 +306,8 @@ export class ExplainJobs {
     const saved = await this.state.storage.get(`result:${resultId}`);
     if (saved?.kind !== 'program' || saved.owner?.email !== user.email || saved.boardId !== board.id) throw fail('Not available', 404);
     if (!await artifactIntact(saved.artifact)) throw fail('This explanation could not be opened. Your saved version is kept.', 409, 'version_unavailable');
-    return json({ artifact: saved.artifact, identity: saved.identity, execution: programExecution(this.env) });
+    // Task 9.4: the sources it was made from, as the card's source list, on this owner-only answer only (a share link's read keeps none).
+    return json({ artifact: saved.artifact, identity: saved.identity, execution: programExecution(this.env), sources: learnerSources(saved.provenance) });
   }
 
   async create(payload, board, user, origin) {

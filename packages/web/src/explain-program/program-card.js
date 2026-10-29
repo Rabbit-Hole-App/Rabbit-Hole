@@ -47,7 +47,8 @@ export async function resolveProgram(block, { client, fixtures = false, stamps =
   const parsed = parseArtifact(answer.artifact);
   if (!parsed.ok) return { ok: false, error: parsed.error };
   if (parsed.value.bundleHash !== ref.bundleHash || !(await verifyHashes(parsed.value))) return refuse('version_unavailable', 'bundle hash mismatch');
-  return { ok: true, artifact: parsed.value };
+  // Task 9.4: the owner's answer names the sources the result was made from (identity only; a share link's names none).
+  return { ok: true, artifact: parsed.value, ...(Array.isArray(answer.sources) ? { sources: answer.sources } : {}) };
 }
 
 // ---- learner state ----------------------------------------------------------------------------------------------------

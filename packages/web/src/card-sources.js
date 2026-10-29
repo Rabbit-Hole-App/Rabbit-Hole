@@ -7,7 +7,7 @@
 export const SOURCE_GROUPS = [
   { id: 'code', label: 'Code', kinds: ['code'] },
   { id: 'docs', label: 'Paper/documentation', kinds: ['paper', 'doc', 'web'] },
-  { id: 'data', label: 'Dataset/source material', kinds: ['dataset'] },
+  { id: 'data', label: 'Dataset/source material', kinds: ['dataset', 'file'] },
   { id: 'example', label: 'Example/calculation provenance', kinds: ['calculation'] },
 ];
 
@@ -44,6 +44,15 @@ export function sourceProblems(source) {
       need(HTTPS.test(source.url || ''), `${source.kind} needs an https url`);
       need(source.sha256 === undefined || /^[0-9a-f]{64}$/.test(source.sha256), 'sha256 must be 64 hex characters');
       break;
+    // A canvas file an explanation was made from (explain-context-refs.js learnerSources): its name and what was read; no link,
+    // the file stays where the learner keeps it.
+    case 'file': {
+      need(text(source.title), 'file needs a title');
+      need(source.page === undefined || (Number.isInteger(source.page) && source.page >= 1), 'file page must be a positive integer');
+      const [start, end] = Array.isArray(source.lines) ? source.lines : [1, 1];
+      need(source.lines === undefined || (Number.isInteger(start) && Number.isInteger(end) && start >= 1 && end >= start), 'file lines must be [start, end]');
+      break;
+    }
     case 'calculation':
       need(PROVENANCE_STATUSES.includes(source.status), `calculation status must be one of: ${PROVENANCE_STATUSES.join(', ')}`);
       need(text(source.title), 'calculation needs a title');
@@ -60,6 +69,7 @@ export function sourceProblems(source) {
 export const validSources = sources => (Array.isArray(sources) ? sources.filter(source => !sourceProblems(source).length) : []);
 
 export function sourceLabel(source) {
+  if (source.kind === 'file') return `${source.title}${source.page ? `, p. ${source.page}` : ''}${source.lines ? `, lines ${source.lines[0]}-${source.lines[1]}` : ''}`;
   if (source.kind !== 'code') return source.title;
   const [start, end] = source.lines;
   return `${source.path}:${start}${end > start ? `-${end}` : ''}`;
@@ -88,7 +98,7 @@ export function sourceTarget(source) {
     const href = source.arxiv ? `https://arxiv.org/abs/${source.arxiv}${source.page ? `#page=${source.page}` : ''}` : source.url;
     return { open: 'link', href };
   }
-  if (source.kind === 'calculation') return { open: 'detail' };
+  if (source.kind === 'calculation' || source.kind === 'file') return { open: 'detail' };
   const wiki = source.url.match(WIKIPEDIA);
   if (wiki) return { open: 'wiki', title: decodeURIComponent(wiki[1]), href: source.url };
   return { open: 'link', href: source.url };

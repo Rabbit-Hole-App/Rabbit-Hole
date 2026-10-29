@@ -138,7 +138,7 @@ test('Task 9.2: what the server read reaches the brief, author and reviewer as t
   assert.deepEqual(saved.provenance.evidence, [record.id]);
   assert.equal(saved.provenance.records[0].contentHash, record.contentHash);
   assert.equal('excerpt' in saved.provenance.records[0], false);
-  assert.deepEqual(saved.provenance.sources, [{ sourceId: CODE_REF.sourceId, kind: 'code', name: 'rain.js', version: COMMIT, range: CODE_REF.range }, { sourceId: 'card:c1', kind: 'card', name: 'Weather notes', version: '', range: null }]);
+  assert.deepEqual(saved.provenance.sources, [{ sourceId: CODE_REF.sourceId, kind: 'code', name: 'rain.js', version: COMMIT, range: CODE_REF.range, status: 'read', evidence: record.id }, { sourceId: 'card:c1', kind: 'card', name: 'Weather notes', version: '', range: null, status: 'listed' }]);
   assert.doesNotMatch(JSON.stringify(s.state.data.get(`job:${job.id}`)), /card text the browser sent/);
 });
 

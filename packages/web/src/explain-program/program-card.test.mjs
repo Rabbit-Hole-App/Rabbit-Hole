@@ -256,3 +256,13 @@ test('describeProgram reports the displayed moment and playback, not the saved t
   assert.match(describeProgram(saved).text, /Paused at 3.5s of 4s/);
   assert.doesNotMatch(describeProgram({ ...saved, inputs: { rate: 2 } }).text, /Shown now/);
 });
+
+// Task 9.4: the owner's result answer names the sources the card was made from; the card shows them only as given (a share link's
+// answer has none), and only well-formed ones (card-sources.js).
+test('a resolved program carries the sources its result answer names, and none when the answer names none', async () => {
+  const sources = [{ kind: 'file', title: 'Lab notes.pdf', page: 2, note: 'Read for this explanation.' }];
+  const owner = await accepted({ answer: { sources } });
+  assert.deepEqual((await resolveProgram(owner.block, { client: owner.client })).sources, sources);
+  const link = await accepted();
+  assert.equal('sources' in (await resolveProgram(link.block, { client: link.client })), false);
+});

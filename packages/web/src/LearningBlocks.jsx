@@ -1198,7 +1198,7 @@ function WhiteboardBody({ block, appName, onChange }) {
 
 // A short animation from scene JSON: deterministic playback the learner can
 // pause, scrub and ask about without the scene ever changing.
-function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPracticeHeight, onControlsHeight, onProgramFrame }) {
+function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPracticeHeight, onControlsHeight, onProgramFrame, onFile }) {
   // A same-card Edit's candidate, while the learner looks at Proposed (ExplainEditBar): drawn, never saved or changed.
   const [candidate, setCandidate] = useState(null);
   const ignore = () => {};
@@ -1218,7 +1218,7 @@ function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPract
           : candidate?.scene
             ? <AnimatedScene key="proposed" block={{ ...candidate, id: block.id }} onChange={ignore} onChangeQuiet={ignore} />
             : block.program
-            ? <ProgramScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onControlsHeight={onControlsHeight} onProgramFrame={onProgramFrame} />
+            ? <ProgramScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onControlsHeight={onControlsHeight} onProgramFrame={onProgramFrame} onFile={onFile} />
             : <AnimatedScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onControlsHeight={onControlsHeight} />}
       </div>
       <SceneActivity block={block} onChange={onChange} onHeight={onPracticeHeight} />
@@ -2010,7 +2010,7 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'audio') return <AudioBody block={block} appName={appName} onChange={onChange} />;
   if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return <SceneActivityBody block={block} onChange={onChange} onAskScene={onAskScene} />;
   if (block.type === 'whiteboard') return <WhiteboardBody block={block} appName={appName} onChange={onChange} />;
-  if (block.type === 'animation') return <AnimationBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskAnimation={onAskRegion} onPracticeHeight={onPracticeHeight} onControlsHeight={onControlsHeight} onProgramFrame={onProgramFrame} />;
+  if (block.type === 'animation') return <AnimationBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskAnimation={onAskRegion} onPracticeHeight={onPracticeHeight} onControlsHeight={onControlsHeight} onProgramFrame={onProgramFrame} onFile={onFile} />;
   if (block.type === 'flow') return <FlowBody block={block} />;
   if (block.type === 'mermaid') return <MermaidBody block={block} onChange={onChange} />;
   if (block.type === 'knowledge') return <KnowledgeBody block={block} onChange={onChange} onFile={onFile} />;

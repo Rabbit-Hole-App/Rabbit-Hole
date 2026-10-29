@@ -53,7 +53,7 @@ function SourceItem({ source, onFile }) {
       onClick={() => onFile(target.path, target.line, target.lineEnd, { commit: target.commit, repo: target.repo })}
       className={`${link} font-mono`}><FileCode2 size={13} aria-hidden="true" />{label}</button>;
   } else if (target.open === 'detail') {
-    head = <span className="text-sm"><span className="mr-1.5 rounded bg-hover px-1.5 py-0.5 text-xs text-ink-2">{source.status}</span>{label}</span>;
+    head = <span className="text-sm">{source.status && <span className="mr-1.5 rounded bg-hover px-1.5 py-0.5 text-xs text-ink-2">{source.status}</span>}{label}</span>;
   } else {
     // Real links: the lesson page intercepts arXiv and Wikipedia ones into its
     // readers; anything else - and a code citation where there is no inspector

@@ -114,3 +114,18 @@ export async function resolveEditRefs(req, env, ctx, given, inherited, deps = {}
   const bounded = boundEvidence([...own.refs, ...base.refs, ...rest.slice(EXPLAIN_REFS).map(omit)], [...own.evidence, ...base.evidence]);
   return { refs: bounded.refs, evidence: bounded.evidence, text: [own.text, base.text].filter(Boolean).join('\n\n').slice(0, EXPLAIN_REF_TEXT) };
 }
+
+// Task 9.4: a result's sources as the card's source list (web card-sources.js shapes), from its private provenance: identity, range
+// and whether it was read, never an excerpt. Only the kinds an explanation reads (code, file); opening one rechecks access (the
+// source inspector, the repository host). Each entry says what happened to it, and what to do when it was not available.
+const SOURCE_NOTES = { unavailable: 'Not available to you when this explanation was made. Attach it again, or ask its owner for access.', other: 'Attached, but not read for this explanation.' };
+export function learnerSources(provenance) {
+  const records = new Map((provenance?.records || []).map(record => [record.id, record]));
+  return (provenance?.sources || []).filter(source => source.kind === 'code' || source.kind === 'file').map(source => {
+    const record = source.evidence ? records.get(source.evidence) : null;
+    const note = (record ? `Read for this explanation${record.limitations?.length ? `: ${record.limitations.join('; ')}` : ''}.` : SOURCE_NOTES[source.status] || SOURCE_NOTES.other).slice(0, 300);
+    const at = source.kind === 'code' ? parseCodeRef(source) : null, lines = record?.lines ?? (source.range?.start != null ? { start: source.range.start, end: source.range.end } : null);
+    if (at?.path && /^[0-9a-f]{40}$/.test(at.commit) && lines) return { kind: 'code', repo: at.repo, revision: at.commit, path: at.path, lines: [lines.start, lines.end], note };
+    return { kind: 'file', title: source.name, ...(record?.page ? { page: record.page } : {}), ...(record?.lines && !at ? { lines: [record.lines.start, record.lines.end] } : {}), note };
+  });
+}
