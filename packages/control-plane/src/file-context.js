@@ -87,12 +87,13 @@ async function authorized(req, env, sourceId, { user, app, member, row: board })
 }
 
 // refs: the turn's validated context refs (only kind 'file' are read). Returns { coverage: Map(refKey -> label),
-// blocks: [text], images: [model content blocks] } for chatContext and the model message. user: { org, email } of the asker;
+// blocks: [text], images: [model content blocks], reads: [{ key, sha256, text, cut }] } for chatContext and the model message
+// (reads: each excerpt read, the source revision it came from and why it is partial). user: { org, email } of the asker;
 // app: the canvas asked on; member: a member board id.
 // A whole PNG/JPEG/WebP image source (a dropped image, a PDF region crop) of at most 5 MiB rides as an image block, labelled
 // 'image included': the model was given the picture, which never says it read or understood it.
 export async function fileContext(req, env, refs, { user = null, app = null, member = null, row = null, limits = FILE_CONTEXT } = {}) {
-  const coverage = new Map(), blocks = [], images = [];
+  const coverage = new Map(), blocks = [], images = [], reads = [];
   let left = limits.perTurn, pictures = limits.imageBytes ?? FILE_CONTEXT.imageBytes;
   for (const ref of (refs || []).filter(r => r.kind === 'file')) {
     const key = `${ref.sourceId}|${JSON.stringify(ref.range ?? null)}`;
@@ -136,8 +137,9 @@ export async function fileContext(req, env, refs, { user = null, app = null, mem
     const why = [text.length < full.length && `the first ${text.length} of ${full.length} characters`, read.limited && `the extraction kept ${read.limited}`,
       !read.complete && !read.limited && 'the extraction is incomplete'].filter(Boolean);
     const note = cut ? ` - partial: ${why.join('; ')}` : '';
+    reads.push({ key, sha256: rev, text, cut: why });
     blocks.push(`${derivative.kind === 'transcript' ? 'Transcript' : 'Extracted text'} of ${JSON.stringify(ref.name)} (${ref.sourceId}${ref.range ? ` range ${JSON.stringify(ref.range)}` : ''}, extraction ${derivative.converter_version || 'v1'})${note}; cite by the bracketed locations:\n${text}${text.length < full.length ? '\n[file excerpt truncated]' : ''}`);
   }
-  return { coverage, blocks, images };
+  return { coverage, blocks, images, reads };
 }
 

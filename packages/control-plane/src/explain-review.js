@@ -5,7 +5,9 @@
 // stale captures, too many or too large images. A request with no image block can never count as an image review.
 // The model call is injected (callRole: Lane C's callExplainRole on the explain_review role, admitted by the job).
 
-export const REVIEW_LIMITS = Object.freeze({ traceBytes: 6144, coverageChars: 1024, maxImages: 6, maxImageBytes: 3_500_000, maxTotalBytes: 18_000_000, maxEvidence: 16, maxExcerpt: 1500, maxFacts: 120 });
+export const REVIEW_LIMITS = Object.freeze({ traceBytes: 6144, coverageChars: 1024, maxImages: 6, maxImageBytes: 3_500_000, maxTotalBytes: 18_000_000, maxEvidence: 16, maxExcerpt: 4000, maxFacts: 120 });
+// maxExcerpt is a record's whole excerpt (EVIDENCE_LIMITS.excerpt), so the reviewer reads what the author read (Task 9.2); a job's records
+// together stay within explain-context-refs.js EXPLAIN_REF_TEXT, the old 16 x 1500 worst case.
 
 // What REVIEW_LIMITS.traceBytes measures: the UTF-8 bytes of the traces block as the reviewer receives it.
 export const traceBytes = traces => new TextEncoder().encode(JSON.stringify(traces || [])).length;

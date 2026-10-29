@@ -10,6 +10,7 @@ import { BOARD, OWNER, explainStack, rows, spent } from './explain-fixture.js';
 import { signProposal, publishRevision, proposalRecord, proposalState } from '../src/generation-proposal.js';
 import { referencesKey } from '../src/generation-review-refs.js';
 import { plainPrompt } from '../../web/src/generation-review.js';
+import { evidenceRecord } from '../src/explain-evidence.js';
 
 const tool = { name: 'explain_out', description: 'Output.', input_schema: { type: 'object' } };
 
@@ -416,14 +417,16 @@ test('Generate on an edited brief runs the approved prompt; checked references r
   assert.equal((await stateOf(s, edited)).used, null);
   assert.equal(s.state.data.get(`job:${waiting.id}`).stage, 'awaiting_approval');
   const before = s.state.data.get(`job:${waiting.id}`).briefHash;
-  const checked = { key: referencesKey(edited.references), refs: [{ sourceId: FILE.sourceId, kind: 'file', name: FILE.label, status: 'extracted' }], text: 'PENDULUM NOTES: length 1 m, period 2 s' };
+  // Task 9.2: Generate's own read of the kept reference is the job's evidence (the reader's records, bound to the attached revision).
+  const record = await evidenceRecord({ kind: 'attachment', location: FILE.sourceId, revision: SHA, text: '[p. 1] length 1 m, period 2 s', excerpt: '[p. 1] length 1 m, period 2 s', page: 1, access: 'owner' });
+  const checked = { key: referencesKey(edited.references), refs: [{ sourceId: FILE.sourceId, kind: 'file', name: FILE.label, status: 'extracted', evidence: record.id }], text: 'PENDULUM NOTES: length 1 m, period 2 s', evidence: [record] };
   const approved = await s.send('approve', { proposal: edited, approved_refs: checked }, waiting.id);
   assert.equal(approved.status, 202);
   const job = s.state.data.get(`job:${waiting.id}`);
   assert.deepEqual([job.brief.title, job.brief.summary, job.brief.assumptions, job.brief.presentation, job.settings], ['A swinging pendulum', plainPrompt(edited.prompt, edited.references), ['No friction.'], 'steps', { presentation: 'steps' }]);
   assert.equal(job.approval.reviewHash, edited.review_hash);
   assert.notEqual(job.briefHash, before, 'the hash names the brief authoring receives');
-  assert.deepEqual([job.context.refs, job.context.refText], [checked.refs, checked.text]);
+  assert.deepEqual([job.context.refs, job.context.refText, job.evidence], [checked.refs, checked.text, [record]]);
   assert.deepEqual((await stateOf(s, edited)).used, { version: 1, key: waiting.id });
   assert.equal((await s.send('approve', { proposal: edited, approved_refs: checked }, waiting.id)).status, 200, 'a second press is the same job');
 });
