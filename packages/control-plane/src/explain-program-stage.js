@@ -4,8 +4,9 @@
 // Asking the author for a bundle the reviewer cannot receive would waste a paid call, so the preflight builds the REAL review and
 // repair requests at their worst-case image and evidence sizes, with the program, and returns a specific size problem instead of
 // omitting anything. Nothing here calls a model.
-import { buildReviewContent, REVIEW_LIMITS, REVIEW_PROGRAM_RULES, REVIEW_SYSTEM, REVIEW_TOOL } from './explain-review.js';
-import { EXPLAIN_REPAIR_PROGRAM_SYSTEM, REPAIR_PROGRAM_TOOL } from './agents/explain-repair.js';
+import { buildReviewContent, REVIEW_LIMITS, REVIEW_TOOL, reviewSystem } from './explain-review.js';
+import { EXPLAIN_REPAIR_PROGRAM_SYSTEM, repairProgramTool } from './agents/explain-repair.js';
+import { STATEFUL_SCHEMA_VERSION, draftSchemaVersion } from '../../web/src/explain-program/contract.js';
 import { EXPLAIN_LIMITS, EXPLAIN_ROLES, explainRequest, roleBoundMicros } from './explain-policy.js';
 import { draftOf, programFacts, PROGRAM_LIMITS } from './explain-program.js';
 import { programContext } from './agents/explain-author.js';
@@ -19,13 +20,15 @@ const plainFinding = ({ category, severity, target, message }) => ({ category, s
 const rank = f => (f.severity === 'blocker' ? 0 : f.severity === 'major' ? 1 : 2);
 // What the repair role reads about a failed program: the problems and findings as data, the limits it must keep, then the manifest
 // and the source in their own blocks (escaped once). Images are the failing captures only, at most the role's limit.
+// A stateful program (schema 2) is repaired as one: repair is told its contract and keeps its fields (repairProgramTool).
+export const programStateful = program => draftSchemaVersion(program) === STATEFUL_SCHEMA_VERSION;
 export function programRepairContent(job, failure, images = []) {
+  const program = job.artifact ? draftOf(job.artifact) : job.program;
   const problems = (failure.problems || []).slice(0, REPAIR_FORWARD.problems).map(clip);
   const findings = [...(failure.findings || [])].sort((a, b) => rank(a) - rank(b)).slice(0, REPAIR_FORWARD.findings).map(plainFinding);
   const omitted = Math.max(0, (failure.problems || []).length - problems.length) + Math.max(0, (failure.findings || []).length - findings.length);
   const head = { request: job.prompt, problems, findings, ...(omitted ? { omitted } : {}), allowed: ['program'],
-    roundsLeft: EXPLAIN_LIMITS.correctionRounds - job.round, program: programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES) };
-  const program = job.artifact ? draftOf(job.artifact) : job.program;
+    roundsLeft: EXPLAIN_LIMITS.correctionRounds - job.round, program: programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES, { stateful: programStateful(program) }) };
   return [
     { type: 'text', text: JSON.stringify(head) },
     { type: 'text', text: `Current manifest (JSON):\n${JSON.stringify(program.manifest)}` },
@@ -53,12 +56,12 @@ export function programFitProblems(env, artifact, job, { findings = REPAIR_FORWA
     const captures = Array.from({ length: maxImages }, (_, i) => ({ id: `s${i}-t0-light`, compiledHash: 'x', theme: 'light', time: 0, inputs: {}, data: 'AAAA', mediaType: 'image/png' }));
     const { content } = buildReviewContent({ request: job.prompt, compiledHash: 'x', facts: programFacts(artifact.manifest), evidence: job.evidence || [], captures,
       program: { ...draft, traces: [{ pad: 'x'.repeat(REVIEW_LIMITS.traceBytes - 32) }], coverage: { sampled: [], omitted: ['x'.repeat(REVIEW_LIMITS.coverageChars)] } } });
-    explainRequest(env, 'review', { system: REVIEW_SYSTEM + REVIEW_PROGRAM_RULES, tool: REVIEW_TOOL, content });
+    explainRequest(env, 'review', { system: reviewSystem(draft), tool: REVIEW_TOOL, content });
   } catch (error) { if (error?.code === 'input_too_large') fail('review', error); else if (error?.code !== 'payload_too_large') throw error; else out.push(error.message); }
   try {
     const failure = { problems: Array.from({ length: problems }, () => 'p'.repeat(REPAIR_FORWARD.text)), findings: Array.from({ length: findings }, () => ({ category: 'spec', severity: 'major', target: { capture: 's0-t0-light', object: 'o'.repeat(64) }, message: 'm'.repeat(REPAIR_FORWARD.text) })) };
     const images = Array.from({ length: EXPLAIN_ROLES.repair.maxImages }, (_, i) => ({ id: `s${i}-t0-light`, data: 'AAAA' }));
-    explainRequest(env, 'repair', { system: EXPLAIN_REPAIR_PROGRAM_SYSTEM, tool: REPAIR_PROGRAM_TOOL, content: programRepairContent({ ...job, artifact, round: 0 }, failure, images) });
+    explainRequest(env, 'repair', { system: EXPLAIN_REPAIR_PROGRAM_SYSTEM, tool: repairProgramTool({ stateful: programStateful(draft) }), content: programRepairContent({ ...job, artifact, round: 0 }, failure, images) });
   } catch (error) { if (error?.code === 'input_too_large') fail('repair', error); else throw error; }
   return out;
 }

@@ -4,31 +4,39 @@
 // - Events apply one at a time, in the order dispatched, each to the state the previous one produced. None is dropped: when the queue
 //   is full (cap), dispatch returns false so the card can hold the control back, instead of growing without bound.
 // - Only consecutive queued changes of the same input coalesce (the newest value wins); nothing coalesces across another event.
-// - A new state is committed only after its own frame was also valid (check): a state the program cannot draw is never kept, so it
-//   can never be saved and break the card on reload. A failed operation keeps the last accepted state.
+// - A new state, an initial one and a reset's included, is committed only after its own frame was also valid (check, with the inputs
+//   and time it was computed for): a state the program cannot draw is never kept, so it can never be saved and break the card on
+//   reload. A failed operation, a failed reset included, keeps the last accepted state.
 // - A result applies only to the state it was computed from and the generation (reset, dispose) it was asked in.
 // - Reset and a missing or incompatible saved state initialize again with the original seed. A saved state (programStateFor) is
 //   rehydrated as it is: a restart is not a replay and calls no initialize.
-//   createInteractionController({ host, bundleHash, seed, saved, publish(envelope), persist(envelope), fail(error), check(envelope) })
-//     .start(inputs)  .dispatch(event, { inputs, time }) -> boolean  .reset(inputs)  .current() -> envelope | null  .dispose()
-// The envelope is what the card keeps (block.programState): { bundleHash, state, revision, seed }. Never source.
+//   createInteractionController({ host, bundleHash, seed, saved, publish(envelope, { initial }), persist(envelope, { reset }), fail(error), check(envelope, { inputs, time }) })
+//     .start(inputs, { time })  .dispatch(event, { inputs, time }) -> boolean  .reset(inputs)  .current() -> envelope | null  .dispose()
+// The envelope is what the card keeps (block.programState): { bundleHash, state, revision, seed, inputs }. Never source.
 export const ACTION_QUEUE_CAP = 16;
 
 export function createInteractionController({ host, bundleHash, seed, saved = null, publish, persist = () => {}, fail = () => {}, check = async () => {}, cap = ACTION_QUEUE_CAP }) {
   let committed = null, queue = [], busy = false, dead = false, generation = 0, count = 0;
   const requestId = () => `s${++count}`;
-  const envelope = (state, revision) => ({ bundleHash, state, revision, seed });
+  // inputs: the snapshot the state was computed and checked with; the card draws the state with these, never with newer ones.
+  const envelope = (state, revision, inputs) => ({ bundleHash, state, revision, seed, inputs });
   const failed = (error, mine) => { if (!dead && mine === generation && error?.name !== 'AbortError') { queue = []; fail(error); } };
 
-  async function initialize(inputs) {
+  // check(next, { inputs, time }) runs before anything is replaced: a state that fails it is never published or saved, so a failed
+  // reset keeps the last good state, in memory and as saved.
+  async function initialize(inputs, { time = 0, reset = false } = {}) {
     const mine = ++generation;
     queue = [];
     busy = true;
     try {
       const reply = await host.initialize({ requestId: requestId(), inputs, seed });
       if (dead || mine !== generation) return;
-      committed = envelope(reply.state, committed ? committed.revision + 1 : 0); // revisions only grow, so an older frame never matches
-      publish(committed);
+      const next = envelope(reply.state, committed ? committed.revision + 1 : 0, inputs); // revisions only grow, so an older frame never matches
+      await check(next, { inputs, time });
+      if (dead || mine !== generation) return;
+      committed = next;
+      publish(next, { initial: true });
+      if (reset) persist(next, { reset: true });
     } catch (error) { failed(error, mine); } finally { if (mine === generation) { busy = false; pump(); } }
   }
 
@@ -39,19 +47,19 @@ export function createInteractionController({ host, bundleHash, seed, saved = nu
     try {
       const reply = await host.reduce({ requestId: requestId(), state: base.state, event, inputs, time, seed });
       if (dead || mine !== generation) return;
-      const next = envelope(reply.state, base.revision + 1);
-      await check(next);
+      const next = envelope(reply.state, base.revision + 1, inputs);
+      await check(next, { inputs, time });
       if (dead || mine !== generation) return;
       committed = next;
-      publish(next);
-      persist(next);
+      publish(next, { initial: false });
+      persist(next, { reset: false });
     } catch (error) { failed(error, mine); } finally { if (mine === generation) { busy = false; pump(); } }
   }
 
   return {
-    start(inputs) {
-      if (saved) { committed = saved; publish(saved); return; }
-      initialize(inputs);
+    start(inputs, { time = 0 } = {}) {
+      if (saved) { committed = saved; publish(saved, { initial: false }); return; }
+      initialize(inputs, { time });
     },
     dispatch(event, { inputs, time = 0 }) {
       if (dead) return false;
@@ -62,7 +70,7 @@ export function createInteractionController({ host, bundleHash, seed, saved = nu
       pump();
       return true;
     },
-    reset(inputs) { if (!dead) initialize(inputs); },
+    reset(inputs) { if (!dead) initialize(inputs, { reset: true }); },
     current: () => committed,
     pending: () => queue.length,
     dispose() { dead = true; queue = []; },

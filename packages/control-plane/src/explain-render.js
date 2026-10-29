@@ -92,26 +92,50 @@ function alternativeStates(manifest, defaults) {
   return out;
 }
 
+// The most events replayed before one capture (reducer work is bounded per capture as well as by the capture count).
+export const REVIEW_EVENTS = 4;
+// A stateful program's sampled transitions, from its initial state at the default inputs, in declared order: each button pressed
+// once, each selectable object selected once, then the first button pressed REVIEW_EVENTS times (a run of the same step). Identical
+// sequences are dropped. shortcut: longer or mixed sequences are not sampled; these are evidence, never an exhaustive claim.
+export function transitionSequences(manifest) {
+  const actions = (manifest.actions || []).map(a => ({ label: `press ${a.id}`, events: [{ type: 'action', action: a.id }] }));
+  const targets = (manifest.targets || []).map(t => ({ label: `select ${t.id}`, events: [{ type: 'select', target: t.id }] }));
+  const run = manifest.actions?.length ? [{ label: `press ${manifest.actions[0].id} ${REVIEW_EVENTS} times`, events: Array.from({ length: REVIEW_EVENTS }, () => ({ type: 'action', action: manifest.actions[0].id })) }] : [];
+  return [...actions, ...targets, ...run];
+}
+
 // The program card's capture manifest: the default inputs at the start, middle and end of the declared playback (the start only when
-// there is none), then, in the capture budget that remains, the boundary input states (alternativeStates) at the middle moment, light
-// theme. The defaults always come first and are never dropped for an alternative; what does not fit is listed in coverage.omitted
-// (never trimmed silently, never over the reservation). The program decides the frame size at run time; the nominal viewport is the
-// contract default.
-export async function programCaptureManifest(artifact, { reserved, themes = ['light'], dpr = 1, width = 960, height = 540 }) {
+// there is none), then, in the capture budget that remains, a stateful program's transitions (transitionSequences, at the first
+// moment) and then the boundary input states (alternativeStates) at the middle moment, light theme. The defaults always come first and
+// are never dropped for an alternative; what does not fit is listed in coverage.omitted (never trimmed silently, never over the
+// reservation). A schema 1 program decides the frame size at run time (the nominal viewport is the contract default); a stateful one
+// is captured at its declared viewport, with the seed every capture replays from.
+export async function programCaptureManifest(artifact, { reserved, themes = ['light'], dpr = 1, width = artifact.manifest.viewport?.width ?? 960, height = artifact.manifest.viewport?.height ?? 540, seed = 0 }) {
   const inputs = defaultInputs(artifact.manifest), moments = programMoments(artifact.manifest);
   const fit = themes.filter((_, index) => moments.length * (index + 1) <= reserved.captures);
   if (!fit.length) throw new RenderError('over_budget', `this program needs ${moments.length} captures and a round reviews at most ${reserved.captures}`);
-  const entry = (id, time, theme, state) => ({ id, part: 0, time, inputs: state, theme, width, height, dpr, target: 'frame' });
+  const stateful = artifact.schemaVersion === 2;
+  const entry = (id, time, theme, state, events) => ({ id, part: 0, time, inputs: state, theme, width, height, dpr, target: 'frame', ...(stateful ? { seed, events: events ?? [] } : {}) });
   const entries = moments.flatMap((time, m) => fit.map(theme => entry([moments.length > 1 && `t${m}`, theme].filter(Boolean).join('-'), time, theme, inputs)));
-  const sampled = moments.map((time, m) => ({ id: entries[m * fit.length].id, label: 'default', inputs: {}, time }));
-  const candidates = alternativeStates(artifact.manifest, inputs), room = Math.max(0, reserved.captures - entries.length);
+  const sampled = moments.map((time, m) => ({ id: entries[m * fit.length].id, label: 'default', inputs: {}, time, ...(stateful ? { events: [] } : {}) }));
+  let room = Math.max(0, reserved.captures - entries.length);
+  const transitions = stateful ? transitionSequences(artifact.manifest) : [], taken = transitions.slice(0, room);
+  for (const [k, { label, events }] of taken.entries()) {
+    const added = entry(`e${k}-${fit[0]}`, moments[0], fit[0], inputs, events);
+    entries.push(added);
+    sampled.push({ id: added.id, label, inputs: {}, time: moments[0], events });
+  }
+  room -= taken.length;
+  const candidates = alternativeStates(artifact.manifest, inputs);
   const alternatives = candidates.slice(0, room), time = moments[moments.length >> 1];
   for (const [k, { label, inputs: state }] of alternatives.entries()) {
     const added = entry(`a${k}-${fit[0]}`, time, fit[0], state);
     entries.push(added);
-    sampled.push({ id: added.id, label, inputs: Object.fromEntries(Object.entries(state).filter(([key, value]) => value !== inputs[key])), time });
+    sampled.push({ id: added.id, label, inputs: Object.fromEntries(Object.entries(state).filter(([key, value]) => value !== inputs[key])), time, ...(stateful ? { events: [] } : {}) });
   }
-  return { compiledHash: await compiledHash(artifact), reserved, entries, coverage: { states: 1 + alternatives.length, moments: moments.length, frames: sampled.length, themes: fit, sampled, omitted: candidates.slice(room).map(c => c.label) } };
+  const omitted = [...transitions.slice(taken.length), ...candidates.slice(room)].map(c => c.label);
+  return { compiledHash: await compiledHash(artifact), reserved, entries, coverage: { states: 1 + alternatives.length, moments: moments.length, frames: sampled.length, themes: fit, sampled, omitted,
+    ...(stateful ? { transitions: { sampled: taken.length, declared: transitions.length, events: taken.reduce((sum, t) => sum + t.events.length, 0), seed } } : {}) } };
 }
 
 // Exact manifest after compile: dedups identical states by hash, refuses (never trims) an over-budget manifest
@@ -127,7 +151,9 @@ export async function checkManifest(manifest, scene, limits = RENDER_LIMITS) {
     if (!(entry.width >= 16 && entry.width <= limits.maxSide && entry.height >= 16 && entry.height <= limits.maxSide) || ![1, 2].includes(entry.dpr)) throw new RenderError('bad_entry', `capture ${entry.id} has an unsupported size`);
     if (!['light', 'dark'].includes(entry.theme) || !['frame', 'body'].includes(entry.target)) throw new RenderError('bad_entry', `capture ${entry.id} has an unknown theme or target`);
     // A frameHash (captureManifest: the evaluated frame) identifies the pixels; without one, the requested state does.
-    const state = entry.frameHash ? { frameHash: entry.frameHash } : { part: entry.part, step: entry.step, time: entry.time, inputs: entry.inputs };
+    // A stateful program's capture is also the seed and the ordered events replayed before it (bounded, REVIEW_EVENTS).
+    if (entry.events && (!Array.isArray(entry.events) || entry.events.length > REVIEW_EVENTS || !Number.isInteger(entry.seed))) throw new RenderError('bad_entry', `capture ${entry.id} has an unbounded event sequence`);
+    const state = entry.frameHash ? { frameHash: entry.frameHash } : { part: entry.part, step: entry.step, time: entry.time, inputs: entry.inputs, ...(entry.events ? { seed: entry.seed, events: entry.events } : {}) };
     const stateHash = await sha256Hex(canonicalJson({ compiledHash: actual, ...state, theme: entry.theme, width: entry.width, height: entry.height, dpr: entry.dpr, target: entry.target }));
     if (seen.has(stateHash)) seen.get(stateHash).aliases.push(entry.id);
     else seen.set(stateHash, { ...entry, stateHash, aliases: [] });
@@ -206,7 +232,7 @@ export async function renderStates(env, compiled, manifest, deps = {}) {
       const captures = [];
       for (const entry of checked.entries) {
         await page.setViewport({ width: entry.width + 48, height: entry.height + 400, deviceScaleFactor: entry.dpr });
-        const request = { time: entry.time, inputs: entry.inputs, theme: entry.theme, width: entry.width, height: entry.height };
+        const request = { time: entry.time, inputs: entry.inputs, theme: entry.theme, width: entry.width, height: entry.height, ...(entry.events ? { seed: entry.seed, events: entry.events } : {}) };
         const done = await within(limits.captureMs, compiled.program
           ? page.evaluate(request => window.__renderProgram(request), { ...request, program: compiled.program })
           : page.evaluate(request => window.__renderScene(request), { ...request, scene: compiled.scene }), 'capture_timeout');
@@ -214,11 +240,15 @@ export async function renderStates(env, compiled, manifest, deps = {}) {
         // diagnostic go to repair, never to the learner.
         if (done?.programError) throw Object.assign(new RenderError('program_error', `the program failed on capture ${entry.id}`), { program: done.programError });
         if (!done?.ok) throw new RenderError('scene_invalid', `render entry refused capture ${entry.id}: ${done?.error || 'unknown'}`);
+        // A stateful capture is of the sealed bundle and of the very sequence asked for: anything else is never reviewed.
+        if (compiled.program && entry.events && (done.bundleHash !== compiled.program.bundleHash || canonicalJson(done.trace?.events ?? null) !== canonicalJson(entry.events))) throw new RenderError('scene_invalid', `capture ${entry.id} ran another bundle or event sequence`);
         if (done.fonts?.missing?.length) throw new RenderError('fonts_missing', `fonts not loaded for ${entry.id}: ${done.fonts.missing.join(', ')}`);
         const element = await page.$(entry.target === 'body' ? '[data-render-target]' : '[data-animation-frame]');
         if (!element) throw new RenderError('scene_invalid', `capture target missing for ${entry.id}`);
         const png = new Uint8Array(await element.screenshot({ type: 'png' }));
-        const capture = { id: entry.id, aliases: entry.aliases, stateHash: entry.stateHash, theme: entry.theme, time: entry.time, inputs: entry.inputs, ...(entry.step ? { step: entry.step } : {}), ...(done.trace ? { trace: done.trace } : {}), png, sha256: await sha256Hex(png) };
+        // A program capture is bound to its bundle: the bundle hash, the replayed seed and events, the resulting state hash (in the trace) and the pixels' hash.
+        const capture = { id: entry.id, aliases: entry.aliases, stateHash: entry.stateHash, theme: entry.theme, time: entry.time, inputs: entry.inputs, ...(entry.step ? { step: entry.step } : {}),
+          ...(compiled.program ? { bundleHash: compiled.program.bundleHash } : {}), ...(entry.events ? { seed: entry.seed, events: entry.events } : {}), ...(done.trace ? { trace: done.trace } : {}), png, sha256: await sha256Hex(png) };
         if (deps.jobId || deps.store) {
           capture.key = `explain/${deps.jobId || 'adhoc'}/${entry.stateHash.slice(0, 16)}.png`;
           await (deps.store ? deps.store(capture.key, png) : learnMedia(env).put(capture.key, png, { httpMetadata: { contentType: 'image/png' } }));

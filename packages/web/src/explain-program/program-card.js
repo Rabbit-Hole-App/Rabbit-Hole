@@ -1,4 +1,4 @@
-import { RuntimeError, STATEFUL_SCHEMA_VERSION, parseArtifact, resolveInputs, sealProgram, stateProblem, verifyHashes } from './contract.js';
+import { RuntimeError, STATEFUL_SCHEMA_VERSION, draftSchemaVersion, parseArtifact, resolveInputs, sealProgram, stateProblem, verifyHashes } from './contract.js';
 
 // The program card's pure logic (no React): what a block holds, how a saved reference becomes a runnable artifact, and how
 // inputs and time turn into EvaluateRequests. ProgramScene.jsx is the thin view over this.
@@ -27,10 +27,11 @@ export async function resolveProgram(block, { client, fixtures = false, stamps =
   if (!ref) return refuse('invalid_program', 'not a program card');
   if (ref.fixtureId !== undefined) {
     if (!fixtures || !stamps) return refuse('invalid_program', 'fixture cards are not admitted in this build');
-    const { FIXTURES, ERROR_FIXTURES } = await import('./fixtures.js');
-    const fixture = [...FIXTURES, ...ERROR_FIXTURES].find(item => item.id === ref.fixtureId);
+    const { FIXTURES, STATEFUL_FIXTURES, ERROR_FIXTURES } = await import('./fixtures.js');
+    const fixture = [...FIXTURES, ...STATEFUL_FIXTURES, ...ERROR_FIXTURES].find(item => item.id === ref.fixtureId);
     if (!fixture) return refuse('invalid_program', 'unknown fixture');
-    const sealed = await sealProgram({ manifest: fixture.manifest, source: fixture.source }, stamps);
+    const bundle = { manifest: fixture.manifest, source: fixture.source };
+    const sealed = await sealProgram(bundle, { ...stamps, schemaVersion: draftSchemaVersion(bundle) });
     return sealed.ok ? { ok: true, artifact: sealed.value } : { ok: false, error: sealed.error };
   }
   const identity = block.explain;
@@ -69,16 +70,17 @@ export const programChanged = (manifest, block) => JSON.stringify(programInputs(
 // not touch the program or its revision.
 export const resetProgram = block => { const { programState: _state, ...rest } = block; return { ...rest, inputs: {}, inputRevision: (block.inputRevision || 0) + 1, time: 0 }; };
 
-// A schema 2 card's learner state, beside inputs and time: block.programState = { bundleHash, state, revision, seed }
-// (interaction.js commits it). Used only for the artifact it was made by and only when it is still within the state rule; anything
-// else is incompatible and null, so the card initializes again instead of handing an unrelated state to this source.
+// A schema 2 card's learner state, beside inputs and time: block.programState = { bundleHash, state, revision, seed, inputs }
+// (interaction.js commits it; inputs is the snapshot the state was computed and checked with, normalized to the manifest's inputs).
+// Used only for the artifact it was made by and only when it is still within the state rule; anything else is incompatible and null,
+// so the card initializes again instead of handing an unrelated state to this source.
 export const programSeed = block => (Number.isInteger(block?.seed) ? block.seed : 0);
 export function programStateFor(block, artifact) {
   const saved = block?.programState;
   if (artifact?.schemaVersion !== STATEFUL_SCHEMA_VERSION || !saved || typeof saved !== 'object' || saved.bundleHash !== artifact.bundleHash) return null;
   const { bundleHash, state, revision, seed } = saved;
   const fits = Number.isInteger(revision) && revision >= 0 && Number.isInteger(seed) && seed >= 0 && seed <= 0xffffffff && stateProblem(state) === null;
-  return fits ? { bundleHash, state, revision, seed } : null;
+  return fits ? { bundleHash, state, revision, seed, inputs: resolveInputs(artifact.manifest, saved.inputs) } : null;
 }
 
 // A share link's visitor plays with the card in memory only (ProgramScene): their changes are kept beside the saved card, never

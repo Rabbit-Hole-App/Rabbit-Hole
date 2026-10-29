@@ -109,6 +109,18 @@ export const StatefulManifest = z.object({
   }
 });
 const manifestFor = schemaVersion => (schemaVersion === STATEFUL_SCHEMA_VERSION ? StatefulManifest : ProgramManifest);
+// The schema an author's draft asks for: one that declares a viewport, actions or targets is stateful (schema 2); anything else is schema 1.
+// The author never writes a version: this is read from what the manifest declares.
+export const STATEFUL_MANIFEST_KEYS = Object.freeze(['viewport', 'actions', 'targets']);
+export const draftSchemaVersion = draft => (draft?.manifest && typeof draft.manifest === 'object' && STATEFUL_MANIFEST_KEYS.some(key => Object.hasOwn(draft.manifest, key)) ? STATEFUL_SCHEMA_VERSION : SCHEMA_VERSION);
+// What the author is told about the stateful contract, from the same constants the schemas enforce.
+export const STATEFUL_CONTRACT = Object.freeze({
+  exports: 'export function initialState({ inputs, seed }) -> state; export function reduce({ state, event, inputs, time, seed }) -> state; export function evaluate({ inputs, time, seed, state }) -> { frame, quantities }',
+  manifest: `viewport {width, height} (required, at most 4096 each; every frame has exactly this size), actions [{id, label}] (at most ${CONTRACT_LIMITS.actions} buttons; id is a name), targets [{id, label}] (at most ${CONTRACT_LIMITS.targets}; id is the id of a frame object the learner can select; every frame draws every target under that id)`,
+  events: [`{type:"action", action: <an actions id>}`, `{type:"select", target: <a targets id>}`, `{type:"input", input: <an inputs id>, value: <the new value>}`],
+  state: `a plain JSON object: finite numbers, strings, booleans, null, arrays and objects; at most ${CONTRACT_LIMITS.stateBytes} bytes as JSON and ${CONTRACT_LIMITS.depth} levels deep`,
+  rules: 'reduce returns the next state from the state and one event, without changing its arguments; evaluate draws the state. All three are pure and deterministic: the same seed and the same ordered events give the same state. Math.random restarts from seed on every call, so keep any random sequence counter in the state.',
+});
 
 // ---- artifact ---------------------------------------------------------------------------------------------------------
 
@@ -294,13 +306,16 @@ function parseOutput(schema, raw) {
   return parseWith(schema, raw, 'invalid_output');
 }
 export const parseFrame = raw => parseOutput(Frame, raw);
-// With a schema 2 manifest, the frame must also have exactly the declared viewport.
+// With a schema 2 manifest, every frame must also have exactly the declared viewport and draw every declared target under its own id
+// (stable ids: a learner can always select what the card offers). The Frame's object and point limits apply to every result as before.
 export function parseGuestResult(raw, manifest = null) {
   const result = parseOutput(GuestResult, raw);
   if (!result.ok || !manifest?.viewport) return result;
-  const { width, height } = result.value.frame, viewport = manifest.viewport;
-  return width === viewport.width && height === viewport.height ? result
-    : { ok: false, error: new RuntimeError('invalid_output'), issue: `frame: ${width} x ${height}, but the manifest viewport is ${viewport.width} x ${viewport.height}` };
+  const { width, height, objects } = result.value.frame, viewport = manifest.viewport;
+  const invalid = issue => ({ ok: false, error: new RuntimeError('invalid_output'), issue });
+  if (width !== viewport.width || height !== viewport.height) return invalid(`frame: ${width} x ${height}, but the manifest viewport is ${viewport.width} x ${viewport.height}`);
+  const drawn = new Set(objects.map(object => object.id)), missing = (manifest.targets || []).filter(target => !drawn.has(target.id)).map(target => target.id);
+  return missing.length ? invalid(`frame: declared targets are not drawn: ${missing.slice(0, 4).join(', ')} (draw every target in every frame under its own id)`) : result;
 }
 export const parseEvaluateResponse = raw => parseOutput(EvaluateResponse, raw);
 

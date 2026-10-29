@@ -168,14 +168,14 @@ test('disposal and an owner reload restore the accepted state without initializi
 
 test('a saved state is used only for its own artifact and only while it fits the state rule', async () => {
   const artifact = await seal();
-  const good = { bundleHash: artifact.bundleHash, state: { count: 1 }, revision: 2, seed: 0 };
-  assert.deepEqual(programStateFor({ programState: good }, artifact), good);
+  const good = { bundleHash: artifact.bundleHash, state: { count: 1 }, revision: 2, seed: 0, inputs: { step: 3, stray: 1 } };
+  assert.deepEqual(programStateFor({ programState: good }, artifact), { ...good, inputs: { step: 3 } }, 'its input snapshot is normalized to the manifest');
   assert.equal(programStateFor({ programState: { ...good, bundleHash: 'f'.repeat(64) } }, artifact), null, 'another artifact: incompatible');
   assert.equal(programStateFor({ programState: good }, { ...artifact, schemaVersion: 1 }), null, 'a schema 1 card has no state');
   for (const bad of [{ state: { n: 'x'.repeat(LIMITS.stateBytes) } }, { state: [] }, { revision: -1 }, { revision: 1.5 }, { seed: -1 }, { seed: 2 ** 32 }]) {
     assert.equal(programStateFor({ programState: { ...good, ...bad } }, artifact), null, JSON.stringify(bad).slice(0, 60));
   }
-  assert.deepEqual(Object.keys(programStateFor({ programState: { ...good, source: 'export function evaluate() {}' } }, artifact)), ['bundleHash', 'state', 'revision', 'seed'], 'nothing else is carried');
+  assert.deepEqual(Object.keys(programStateFor({ programState: { ...good, source: 'export function evaluate() {}' } }, artifact)), ['bundleHash', 'state', 'revision', 'seed', 'inputs'], 'nothing else is carried');
   assert.equal(resetProgram({ id: 'c', programState: good, inputs: { step: 3 }, time: 2 }).programState, undefined, 'reset drops the saved state');
 });
 
@@ -202,4 +202,68 @@ test('a schema 1 card never takes a saved state', async () => {
   const sealed = await sealProgram({ manifest: growthFixture.manifest, source: growthFixture.source }, PROGRAM_STAMPS);
   assert.equal(sealed.ok, true, sealed.issue);
   assert.equal(programStateFor({ programState: { bundleHash: sealed.value.bundleHash, state: {}, revision: 0, seed: 0 } }, sealed.value), null);
+});
+
+// Owner review of 1370186 (fix 1): the card saves an input change at once, so by the time an earlier transition is checked the
+// latest inputs may already be newer. Each transition is checked, committed and drawn with its own input snapshot.
+const SNAPSHOT = `export function initialState({ inputs }) { return { step: inputs.step, count: 0 }; }
+export function reduce({ state, event, inputs }) {
+  if (event.type === 'input') return { ...state, step: event.value };
+  return { ...state, count: state.count + inputs.step };
+}
+export function evaluate({ state, inputs }) {
+  // The state and the inputs it was computed with must agree, or the frame is invalid.
+  if (state.step !== inputs.step) return { frame: { width: 400, height: 300, objects: [{ kind: 'nope', id: 'x' }] }, quantities: {} };
+  return { frame: { width: 400, height: 300, objects: [sdk.text('n', 10, 20, String(state.count))] }, quantities: { count: state.count } };
+}`;
+test('two quick input changes: each transition is checked and committed with its own input snapshot, never the newer inputs', async () => {
+  const artifact = await seal(SNAPSHOT);
+  const host = createProgramHost({ artifact, createWorker: standIn });
+  let latestInputs = { step: 2 }; // what the card has saved: an input change is saved as soon as it is made
+  const persisted = [], failures = [];
+  const controller = createInteractionController({
+    host, bundleHash: artifact.bundleHash, seed: 0, publish: () => {}, persist: next => persisted.push(next), fail: error => failures.push(error),
+    check: async (next, context) => {
+      const reply = await host.evaluate({ requestId: `c${next.revision}`, inputs: context?.inputs ?? latestInputs, time: 0, seed: 0, state: next.state }, { supersede: false });
+      if (reply.frame.objects.some(object => object.id === 'x')) throw Object.assign(new Error('invalid frame'), { code: 'invalid_output' });
+    },
+  });
+  controller.start({ step: 2 });
+  await new Promise(resolve => setTimeout(resolve, 150));
+  for (const step of [3, 4]) {
+    latestInputs = { step };
+    controller.dispatch({ type: 'input', input: 'step', value: step }, { inputs: { step } });
+    controller.dispatch(add, { inputs: { step } }); // an action between them, so the two changes do not coalesce
+  }
+  for (let i = 0; i < 40 && persisted.length < 4 && !failures.length; i++) await new Promise(resolve => setTimeout(resolve, 50));
+  assert.deepEqual(failures, [], 'no transition failed against inputs it was not computed with');
+  assert.deepEqual(persisted.map(e => [e.state.step, e.state.count, e.inputs?.step]), [[3, 0, 3], [3, 3, 3], [4, 3, 4], [4, 7, 4]], 'each commit carries its own snapshot');
+  controller.dispose(); host.dispose();
+});
+
+// Owner review of 1370186 (fix 2): initialization and Reset are checked before they replace anything.
+test('a reset whose initial state cannot be drawn keeps the last good state, in memory and as saved', async () => {
+  const BROKEN_RESET = COUNTER.replace('return { count: 0, draws: [], n: 0, seed };', 'return { count: inputs.step === 5 ? -1 : 0, draws: [], n: 0, seed };');
+  const c = card(await seal(BROKEN_RESET));
+  c.controller.start(INPUTS);
+  c.controller.dispatch(add, { inputs: INPUTS });
+  await c.idle();
+  const good = c.controller.current();
+  assert.equal(good.state.count, 2);
+  const publishedBefore = c.published.length, savedBefore = c.persisted.length;
+  c.controller.reset({ step: 5 }); // its initial state draws an invalid frame
+  await c.idle();
+  assert.equal(c.failures.at(-1)?.code, 'invalid_output', 'the failed reset is reported');
+  assert.equal(c.controller.current(), good, 'the last good state is kept');
+  assert.deepEqual([c.published.length, c.persisted.length], [publishedBefore, savedBefore], 'nothing was published or saved for it');
+  // A first initialization that cannot be drawn publishes nothing either.
+  const d = card(await seal(BROKEN_RESET));
+  d.controller.start({ step: 5 });
+  await d.idle();
+  assert.deepEqual([d.controller.current(), d.published.length, d.failures.at(-1)?.code], [null, 0, 'invalid_output']);
+  // A good reset is saved once, as one reset.
+  c.controller.reset(INPUTS);
+  await c.idle();
+  assert.deepEqual([c.controller.current().state.count, c.persisted.length], [0, savedBefore + 1]);
+  c.dispose(); d.dispose();
 });
