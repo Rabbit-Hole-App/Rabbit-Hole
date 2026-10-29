@@ -22,7 +22,8 @@ const NOTEBOOK = { id: 'nb', type: 'notebook', notebook_id: crypto.randomUUID(),
   ipynb: { nbformat: 4, nbformat_minor: 5, metadata: { kernelspec: { name: 'python', display_name: 'Python (Pyodide)', language: 'python' } },
     cells: [{ id: 'a', cell_type: 'code', source: 'n = globals().get("n", 0) + 1\nprint(n * 42)', metadata: {}, execution_count: null, outputs: [] }] } };
 
-const results = [], failures = [], errors = [];
+const results = [], failures = [], errors = [], model = [];
+const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|artifact|assess|grade|home-ask|image|inline\/|journey|scene|transcribe|tts|voice\/|tutor\/|dive|explore|next-steps|selection|plan|course))/;
 let browser, page;
 const check = async (label, fn) => {
   try { await fn(); results.push(label); console.log(`ok ${label}`); }
@@ -40,6 +41,12 @@ try {
   browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
+  // On a dev clone a model-capable request would be a real, paid one: abort and count them (as pinned-study-kernel-check does).
+  await context.route('**/*', route => {
+    const request = route.request(), url = new URL(request.url());
+    if (url.origin === BASE && !['GET', 'HEAD', 'OPTIONS'].includes(request.method()) && MODEL.test(url.pathname)) { model.push(`${request.method()} ${url.pathname}`); return route.abort(); }
+    return route.continue();
+  });
   page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message.slice(0, 200)));
   await page.goto(`${BASE}/apps/${canvas.name}`);
@@ -86,5 +93,6 @@ try {
   await browser?.close();
 }
 if (errors.length) console.log(`page errors: ${errors.join(' | ')}`);
+if (model.length) { console.log(`model-capable requests aborted: ${model.join(' | ')}`); failures.push('no model-capable request'); }
 console.log(`${results.length}/${total} checks passed${failures.length ? `; failed: ${failures.join(' | ')}` : ''}`);
-process.exit(results.length === total ? 0 : 1);
+process.exit(results.length === total && !failures.length ? 0 : 1);
