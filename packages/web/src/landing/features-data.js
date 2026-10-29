@@ -26,7 +26,7 @@ export const FEATURES = [
   { id: '20-browser-cards', title: 'Browser cards', subtitle: 'Keep web sources in your workspace.', description: 'Open supported web content alongside your other cards.', alt: 'A web source open inside a Rabbit Hole browser card.', published: true },
   { id: '21-document-editor', title: 'Document editor', subtitle: 'Write alongside your canvas.', description: 'Develop your notes and explanations in a document view.', alt: "Rabbit Hole's document editor displaying structured learning notes.", published: true },
   { id: '22-3d-file-import', title: '3D file import', subtitle: 'Bring your existing models.', description: 'View supported 3D files directly on the canvas.', alt: 'An imported 3D model with its filename visible on the canvas.', published: true },
-  { id: '23-table-of-contents', title: 'Table of contents & learning progress', subtitle: 'Find your place and see your progress.', description: 'Navigate sections and review your progress through a learning canvas.', alt: 'A learning outline with section navigation and recorded progress indicators.', published: true },
+  { id: '23-table-of-contents', title: 'Table of contents', subtitle: 'Find your place. Keep learning.', description: 'Organize a topic into sections and jump to the part you want to work on.', alt: 'A learning outline with section navigation and recorded progress indicators.', published: true },
   { id: '24-comments', title: 'Comments', subtitle: 'Discuss the work where it lives.', description: 'Leave feedback on a shared canvas and respond in context.', alt: 'A comment thread on a loss graph: a question about where the curve flattens and a reply.', published: true },
   { id: '25-canvas-search', title: 'Canvas search', subtitle: 'Find what you added.', description: 'Search canvas content and jump to the relevant result.', alt: 'Canvas search finding a softmax card and showing the selected result.', published: true },
   { id: '26-photo-search', title: 'Photo search', subtitle: 'Find a photo for your idea.', description: 'Search for existing photos and keep their attribution with them.', alt: 'Photo-search results with a selected photograph and its attribution.', published: false },
@@ -41,5 +41,5 @@ export const PAGE_GROUPS = [
   { title: 'Learn from your material.', layout: 'stack', ids: ['01-ai-tutor', '05-pdf-reader', '04-github-code-graph', '07-pin-study'] },
   { title: 'Explore ideas in action.', layout: 'stack-mirrored', ids: ['06-notebooks', '09-interactive-graphs', '03-animated-explainer-videos', '10-cad-generation'] },
   { title: 'Follow the next question.', layout: 'wide', ids: ['11-rabbit-holes'] },
-  { title: 'Build on what you learn.', layout: 'tiles', ids: ['08-practice', '14-edit-with-ai', '24-comments', '16-sharing-forking'] },
+  { title: 'Build on what you learn.', layout: 'tiles', ids: ['08-practice', '23-table-of-contents', '24-comments', '16-sharing-forking'] },
 ];
