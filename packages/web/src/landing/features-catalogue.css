@@ -33,6 +33,10 @@
 .feature-stack .feature-copy::before{content:"";position:absolute;left:-30px;top:0;bottom:0;border-left:1px dashed #c7d2c0}
 .feature-stack .feature:first-child .feature-copy::before{top:115px}
 .feature-stack .feature:last-child .feature-copy::before{bottom:115px}
+/* Keep the stack pinned while its last copy is read: the grid must reach the sticky frame's bottom (sticky top + 26 px back
+   frame room + 54 px header and borders + --frame) when that copy is centred. A margin grows the track without moving the
+   copy's centre, which drives features-demos.js. */
+.feature-stack .feature:last-child .feature-copy{margin-bottom:max(0px, calc(max(104px, 50svh - var(--frame) / 2 - 40px) + 80px + var(--frame) - 50svh - clamp(460px, 64svh, 580px) / 2))}
 .is-mirrored .feature-copy{grid-column:1}
 .is-mirrored .feature-copy::before{left:auto;right:-30px}
 .feature-stack .feature-demo{grid-column:1;grid-row:1 / span var(--features);align-self:start;position:sticky;top:max(104px,calc(50svh - var(--frame) / 2 - 40px));isolation:isolate;padding:26px 24px 0 0;opacity:0;visibility:hidden;pointer-events:none;transition:opacity 240ms var(--ease-out),visibility 240ms}
@@ -113,6 +117,7 @@
   .feature-stack .feature-copy{min-height:0;padding:0 0 24px}
   /* no overlapping back frames on phone (brief section 7) */
   .feature-stack .feature-copy::before{display:none}
+  .feature-stack .feature:last-child .feature-copy{margin-bottom:0}
   .feature-stack .feature-demo{position:relative;top:auto;padding:0;opacity:1;visibility:visible;transition:none}
   .feature-stack .feature-demo::before,.feature-stack .feature-demo::after{display:none}
   .feature-stack .demo-content,.feature-wide .demo-content,.feature-tiles .demo-content{height:auto;aspect-ratio:auto;display:block}
