@@ -289,3 +289,17 @@ test('review replay checks the initial state and every state after it with the c
     assert.deepEqual([stuck.code, stuck.replayStep, stuck.replayPhase], ['invalid_output', 2, 'evaluate']);
   } finally { host.dispose(); }
 });
+
+// Owner review of genuine case t811-c5-a (rf3, rf9): the review replay moves an input as the card does (the new value reaches that reduce
+// and every later one) and replays the card's Reset (review only { type: 'reset' }) by initializing again with the default inputs.
+test('review replay: an input event carries its new value onward, and Reset re-initializes with the defaults', async () => {
+  const { replayTransitions } = await import('./interaction.js');
+  const artifact = await seal();
+  const host = createProgramHost({ artifact, createWorker: standIn });
+  try {
+    const moved = await replayTransitions({ host, manifest: artifact.manifest, inputs: INPUTS, seed: 0, events: [{ type: 'input', input: 'step', value: 5 }, add] });
+    assert.deepEqual([moved.state.step, moved.state.count, moved.inputs], [5, 5, { step: 5 }], 'the press after the move uses the moved value');
+    const reset = await replayTransitions({ host, manifest: artifact.manifest, inputs: INPUTS, seed: 0, events: [{ type: 'input', input: 'step', value: 5 }, add, { type: 'reset' }] });
+    assert.deepEqual([reset.state.count, reset.inputs], [0, INPUTS], 'Reset from a changed state: the initial state at the default inputs');
+  } finally { host.dispose(); }
+});

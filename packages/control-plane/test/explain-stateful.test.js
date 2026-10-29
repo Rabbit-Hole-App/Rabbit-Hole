@@ -85,8 +85,8 @@ test('the review samples bounded transitions from the initial state, within the 
   assert.deepEqual(manifest.entries[1].events, [{ type: 'action', action: 'step' }]);
   assert.ok(manifest.entries.every(entry => entry.seed === 0 && entry.events.length <= REVIEW_EVENTS && entry.width === 720 && entry.height === 360), 'declared viewport, bounded replay');
   const declared = transitionSequences(artifact.manifest);
-  assert.equal(declared.length, 2 + 6 + 1);
-  assert.deepEqual(manifest.coverage.transitions, { sampled: 5, declared: 9, events: 1 + 1 + 1 + 1 + 1, seed: 0 });
+  assert.equal(declared.length, 1 + 1 + 1 + 6 + 1, 'the first press, Reset after it, the other press after it, six selections, a run (owner review of t811-c5-a: priority order)');
+  assert.deepEqual(manifest.coverage.transitions, { sampled: 5, declared: 10, events: 1 + 2 + 2 + 1 + 1, seed: 0 });
   assert.deepEqual(manifest.coverage.omitted, declared.slice(5).map(sequence => sequence.label), 'every transition not sampled is named');
   // Events are part of what a capture is: two sequences never collapse into one capture.
   const checked = await checkManifest(manifest, artifact);
@@ -114,7 +114,7 @@ test('each stateful capture replays its seed and events in the review page and i
   const honest = request => ({ ok: true, fonts: { missing: [] }, bundleHash: request.program.bundleHash, trace: { events: request.events, seed: request.seed, stateHash: 'h', quantities: {} } });
   const { asked, browser } = fakeBrowser(honest);
   const out = await renderStates(ENV, { program: artifact }, manifest, { browser, store: async () => {} });
-  assert.deepEqual(asked.map(request => request.events.length), [0, 1, 1, 1, 1, 1]);
+  assert.deepEqual(asked.map(request => request.events.length), [0, 1, 2, 2, 1, 1]);
   for (const capture of out.captures) assert.deepEqual([capture.bundleHash, capture.seed, Array.isArray(capture.events)], [artifact.bundleHash, 0, true]);
   // Another bundle, or another sequence than the one asked for, is never reviewed.
   const other = fakeBrowser(request => ({ ...honest(request), bundleHash: 'f'.repeat(64) }));
@@ -184,4 +184,25 @@ test('drag targets: the draft is admitted and the review samples one bounded dra
   const manifest = await programCaptureManifest(artifact, { reserved: reserveRound({ cap: 6 }) });
   assert.ok(manifest.entries.some(entry => entry.events?.[0]?.type === 'drag_start'), 'the drag is sampled within the six captures');
   assert.ok((await checkManifest(manifest, artifact)).entries.length <= 6);
+});
+
+// Owner review of genuine case t811-c5-a (findings rf3, rf9): a stateful card's review moves every number input the way the learner moves
+// it (an input event its reduce receives) and presses Reset from a changed state, within the six captures, beside the button presses.
+test('stateful review moves each number input as the learner does and samples Reset from a changed state, within the six captures', async () => {
+  const artifact = await sealed(springFixture); // one number input (stiffness, 1 to 20, default 4) and two buttons
+  const manifest = await programCaptureManifest(artifact, { reserved: reserveRound({ cap: 6 }) });
+  const events = manifest.entries.map(entry => entry.events);
+  assert.ok(manifest.entries.length <= 6);
+  assert.ok(events.some(list => list.some(event => event.type === 'input' && event.input === 'stiffness' && event.value === 20)), 'the number input is moved');
+  assert.ok(events.some(list => list.length >= 2 && list.at(-1).type === 'reset' && list[0].type !== 'reset'), 'Reset from a changed state');
+  assert.ok(events.some(list => list.length >= 2 && list.at(-1).type === 'action' && list.at(-1).action === 'kick'), 'the other button after the first');
+  assert.equal(manifest.coverage.transitions.sampled, manifest.coverage.transitions.declared, 'every transition of this card was sampled; what did not fit is still listed as omitted');
+  // A card with more number inputs than room: they are moved together in one sequence, still within the six captures and the event cap.
+  const four = { ...springFixture.manifest, inputs: ['a', 'b', 'c', 'd'].map(id => ({ type: 'number', id, label: id, default: 1, min: 0, max: 5 })), duration: 4 };
+  const crowded = await buildProgramArtifact(checkProgramDraft({ source: springFixture.source, manifest: four }, { stateful: true }).bundle);
+  const tight = await programCaptureManifest(crowded, { reserved: reserveRound({ cap: 6 }) });
+  assert.ok(tight.entries.length <= 6 && tight.entries.every(entry => entry.events.length <= REVIEW_EVENTS));
+  const moved = new Set(tight.entries.flatMap(entry => entry.events.filter(event => event.type === 'input').map(event => event.input)));
+  assert.deepEqual([...moved].sort(), ['a', 'b', 'c', 'd'], 'every number input is moved at least once');
+  assert.ok(tight.entries.some(entry => entry.events.at(-1)?.type === 'reset'), 'Reset still sampled');
 });

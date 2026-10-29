@@ -94,11 +94,31 @@ function alternativeStates(manifest, defaults) {
 
 // The most events replayed before one capture (reducer work is bounded per capture as well as by the capture count).
 export const REVIEW_EVENTS = 4;
-// A stateful program's sampled transitions, from its initial state at the default inputs, in declared order: each button pressed
-// once, each selectable object selected once, then the first button pressed REVIEW_EVENTS times (a run of the same step). Identical
-// sequences are dropped. shortcut: longer or mixed sequences are not sampled; these are evidence, never an exhaustive claim.
-export function transitionSequences(manifest) {
-  const actions = (manifest.actions || []).map(a => ({ label: `press ${a.id}`, events: [{ type: 'action', action: a.id }] }));
+// The card's own Reset in a review sequence (review only, never a program event): the review page initializes again with the default
+// inputs, exactly as the card's Reset does (interaction.js replayTransitions).
+export const REVIEW_RESET = Object.freeze({ type: 'reset' });
+// A number input moved to a boundary the learner can reach: its max, or its min when the default already is the max.
+const moved = input => (input.default === input.max ? input.min : input.max);
+// A stateful program's sampled transitions, from its initial state at the default inputs, in priority order:
+//   1. the first button pressed once;
+//   2. each number input moved as the learner moves it (an input event, which the program's reduce receives), one sequence each, or one
+//      sequence moving them all when that is what fits beside 1 and 3 in the room left (room);
+//   3. the card's Reset from a non-initial state (after the first press, else after the input move);
+//   4. every other button pressed after the first one (so a program's own reset or undo runs from a changed state);
+//   5. one drag per drag target, each selectable object selected once, the first button pressed REVIEW_EVENTS times.
+// Identical sequences are dropped. shortcut: longer or mixed sequences are not sampled; these are evidence, never an exhaustive claim.
+export function transitionSequences(manifest, { room = Infinity } = {}) {
+  const [first, ...others] = manifest.actions || [];
+  const press = action => ({ type: 'action', action: action.id });
+  const numbers = (manifest.inputs || []).filter(input => input.type === 'number');
+  const move = input => ({ type: 'input', input: input.id, value: moved(input) });
+  const opening = first ? [{ label: `press ${first.id}`, events: [press(first)] }] : [];
+  const separate = numbers.map(input => ({ label: `move ${input.id} to ${moved(input)}`, events: [move(input)] }));
+  const together = numbers.length ? [{ label: `move ${numbers.map(input => `${input.id} to ${moved(input)}`).join(', ')}`, events: numbers.map(move) }] : [];
+  const lead = first ? [press(first)] : numbers.length ? [move(numbers[0])] : [];
+  const reset = lead.length ? [{ label: `${first ? `press ${first.id}` : `move ${numbers[0].id}`}, then Reset`, events: [...lead, REVIEW_RESET] }] : [];
+  const inputs = opening.length + separate.length + reset.length <= room ? separate : together;
+  const actions = others.map(action => ({ label: `press ${first.id}, then ${action.id}`, events: [press(first), press(action)] }));
   const targets = (manifest.targets || []).map(t => ({ label: `select ${t.id}`, events: [{ type: 'select', target: t.id }] }));
   // One representative drag per drag target (Task 8.4): pressed at the viewport's centre, moved to three quarters of its width, released
   // there. The program decides what a drag from that point does; this only shows the review that dragging works and what it draws.
@@ -106,8 +126,8 @@ export function transitionSequences(manifest) {
     const { width, height } = manifest.viewport, from = { x: width / 2, y: height / 2 }, to = { x: width * 3 / 4, y: height / 2 };
     return { label: `drag ${t.id} from (${from.x}, ${from.y}) to (${to.x}, ${to.y})`, events: [{ type: 'drag_start', target: t.id, ...from }, { type: 'drag_move', target: t.id, ...to }, { type: 'drag_end', target: t.id, ...to }] };
   });
-  const run = manifest.actions?.length ? [{ label: `press ${manifest.actions[0].id} ${REVIEW_EVENTS} times`, events: Array.from({ length: REVIEW_EVENTS }, () => ({ type: 'action', action: manifest.actions[0].id })) }] : [];
-  return [...actions, ...drags, ...targets, ...run];
+  const run = first ? [{ label: `press ${first.id} ${REVIEW_EVENTS} times`, events: Array.from({ length: REVIEW_EVENTS }, () => press(first)) }] : [];
+  return [...opening, ...inputs, ...reset, ...actions, ...drags, ...targets, ...run];
 }
 
 // The program card's capture manifest: the default inputs at the start, middle and end of the declared playback (the start only when
@@ -125,7 +145,7 @@ export async function programCaptureManifest(artifact, { reserved, themes = ['li
   const entries = moments.flatMap((time, m) => fit.map(theme => entry([moments.length > 1 && `t${m}`, theme].filter(Boolean).join('-'), time, theme, inputs)));
   const sampled = moments.map((time, m) => ({ id: entries[m * fit.length].id, label: 'default', inputs: {}, time, ...(stateful ? { events: [] } : {}) }));
   let room = Math.max(0, reserved.captures - entries.length);
-  const transitions = stateful ? transitionSequences(artifact.manifest) : [], taken = transitions.slice(0, room);
+  const transitions = stateful ? transitionSequences(artifact.manifest, { room }) : [], taken = transitions.slice(0, room);
   for (const [k, { label, events }] of taken.entries()) {
     const added = entry(`e${k}-${fit[0]}`, moments[0], fit[0], inputs, events);
     entries.push(added);

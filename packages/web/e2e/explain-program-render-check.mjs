@@ -16,7 +16,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { buildProgramArtifact, checkProgramDraft } from '../../control-plane/src/explain-program.js';
 import { sealProgram } from '../src/explain-program/contract.js';
 import { PROGRAM_STAMPS } from '../src/explain-program/stamps.js';
-import { dragFixture, sortFixture } from '../src/explain-program/fixtures.js';
+import { dragFixture, sortFixture, springFixture } from '../src/explain-program/fixtures.js';
 
 const ROOT = new URL(`../${process.env.RENDER_DIST || 'dist-dev'}/`, import.meta.url);
 if (!existsSync(new URL('render/scene.html', ROOT))) throw Error(`no built render entry at ${ROOT.pathname}render/scene.html: build the web app first`);
@@ -29,7 +29,7 @@ const server = createServer((request, response) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const BASE = `http://127.0.0.1:${server.address().port}`;
-const TOTAL = 36; // bump with the checks below; the printed line is what CI reads
+const TOTAL = 38; // bump with the checks below; the printed line is what CI reads
 let passed = 0;
 const check = (name, ok, detail = '') => { if (ok) passed++; console.log(`${ok ? 'ok' : 'FAIL'}: ${name}${detail ? ` (${detail})` : ''}`); };
 
@@ -147,6 +147,15 @@ export function evaluate({ state }) { return { frame: { width: 400, height: 300,
   const dragEvents = [{ type: 'drag_start', target: 'handle', x: 360, y: 180 }, { type: 'drag_move', target: 'handle', x: 540, y: 180 }, { type: 'drag_end', target: 'handle', x: 540, y: 180 }];
   const dragReplay = dragged && await render(dragged, { width: 720, height: 360, seed: 0, events: dragEvents });
   check('a sampled drag replays in the review page and draws its resulting state', dragReplay?.ok === true && dragReplay.trace.state?.x === 540 && dragReplay.trace.state?.drops === 1 && /Handle at 540, placed 1 times/.test(await page.locator('[data-program-frame]').textContent()), JSON.stringify(dragReplay).slice(0, 300));
+  // Owner review of genuine case t811-c5-a (rf3, rf9): a number input moved as the learner moves it, then a press, uses the moved value; the
+  // card's Reset ({ type: 'reset' }, review only) from a changed state comes back to the initial state at the default inputs.
+  const springDraft = checkProgramDraft({ source: springFixture.source, manifest: springFixture.manifest }, { stateful: true });
+  const spring = springDraft.bundle ? await buildProgramArtifact(springDraft.bundle) : null;
+  const movedRun = spring && await render(spring, { width: 960, height: 300, seed: 0, inputs: { stiffness: 4 }, events: [{ type: 'input', input: 'stiffness', value: 9 }, { type: 'action', action: 'advance' }] });
+  const expected = (() => { let x = 1, v = 0; for (let n = 0; n < 10; n++) { v -= 9 * x * 0.01; x += v * 0.01; } return x; })();
+  check('a moved number input reaches the press after it in the review page, and the trace reports the moved value', movedRun?.ok === true && movedRun.trace.inputs.stiffness === 9 && Math.abs(movedRun.trace.state.x - expected) < 1e-9, JSON.stringify(movedRun).slice(0, 300));
+  const resetRun = spring && await render(spring, { width: 960, height: 300, seed: 0, inputs: { stiffness: 4 }, events: [{ type: 'input', input: 'stiffness', value: 9 }, { type: 'action', action: 'advance' }, { type: 'reset' }] });
+  check('Reset from a changed state replays as the card Reset does: the initial state at the default inputs', resetRun?.ok === true && resetRun.trace.inputs.stiffness === 4 && resetRun.trace.state?.x === 1 && resetRun.trace.state?.t === 0, JSON.stringify(resetRun).slice(0, 300));
   check('the program renderer left no Worker or request behind', offOrigin.length === 0 && (await page.evaluate(() => performance.getEntriesByType('resource').every(e => e.name.startsWith(location.origin)))));
   check('every program failure returned a stable code, never a stack', [tampered, otherEngine, globalOut, threw, looped].every(r => r.programError && /^[a-z_]+$/.test(r.programError.code) && !/\n\s+at /.test(r.programError.diagnostic ?? '')));
   check('the sealed artifact the check used passes the contract\'s own hash verification', (await import('../src/explain-program/contract.js').then(m => m.verifyHashes(artifact))) === true);

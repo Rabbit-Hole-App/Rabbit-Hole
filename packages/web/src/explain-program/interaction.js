@@ -30,22 +30,31 @@ export async function checkStateFrame({ host, manifest, block = {}, inputs, time
 
 // The review's replay of one sampled sequence (render/program-render.jsx), the card's path step by step: initialize, then each event in
 // order, and every state, the initial one included, checked by checkStateFrame before the next event, so a sequence the learner could not
-// get through never passes review. -> { state, reply, view } of the final state; a failure carries replayStep (0 = the initial state)
-// and replayPhase (initialize, reduce or evaluate).
-export async function replayTransitions({ host, manifest, inputs, seed, time = 0, events = [] }) {
-  let step = 0, phase = 'initialize';
+// get through never passes review. As on the card, an input event carries the inputs with the new value (its reduce and everything after
+// see them), and { type: 'reset' } (review only, never a program event) is the card's Reset: initialize again with the default inputs.
+// -> { state, inputs, reply, view } of the final state; a failure carries replayStep (0 = the initial state) and replayPhase (initialize,
+// reduce or evaluate).
+export async function replayTransitions({ host, manifest, inputs: defaults, seed, time = 0, events = [] }) {
+  let step = 0, phase = 'initialize', inputs = defaults;
   try {
     let { state } = await host.initialize({ requestId: 'i', inputs, seed });
     phase = 'evaluate';
     let checked = await checkStateFrame({ host, manifest, block: { seed }, inputs, time, state, requestId: 'c0' });
     for (const event of events) {
       step += 1;
-      phase = 'reduce';
-      ({ state } = await host.reduce({ requestId: `r${step}`, state, event, inputs, time, seed }));
+      if (event?.type === 'reset') {
+        phase = 'initialize';
+        inputs = defaults;
+        ({ state } = await host.initialize({ requestId: `i${step}`, inputs, seed }));
+      } else {
+        phase = 'reduce';
+        if (event?.type === 'input') inputs = { ...inputs, [event.input]: event.value };
+        ({ state } = await host.reduce({ requestId: `r${step}`, state, event, inputs, time, seed }));
+      }
       phase = 'evaluate';
       checked = await checkStateFrame({ host, manifest, block: { seed }, inputs, time, state, requestId: `c${step}` });
     }
-    return { state, ...checked };
+    return { state, inputs, ...checked };
   } catch (error) {
     throw Object.assign(error, { replayStep: step, replayPhase: phase });
   }

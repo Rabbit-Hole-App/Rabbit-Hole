@@ -42,11 +42,11 @@ export async function renderProgram(request, { host, root, frames, faces, nextMo
   const stateful = artifact.schemaVersion === STATEFUL_SCHEMA_VERSION;
   const seed = stateful && Number.isInteger(request.seed) ? request.seed : 0, events = stateful && Array.isArray(request.events) ? request.events : [];
   const card = { inputs: request.inputs, seed };
-  let reply, state = null;
+  let reply, state = null, drawnInputs = null; // drawnInputs: a stateful replay's final inputs (an input event changes them)
   try {
     // A stateful capture replays as the card plays: the initial state and each state after it must pass the card's own frame check
     // (interaction.js replayTransitions), so a sequence the learner could not get through never passes review.
-    if (stateful) ({ state, reply } = await replayTransitions({ host: programHost, manifest, inputs: evaluateRequestFor(manifest, card, 0, 'i').inputs, seed, time: request.time ?? 0, events }));
+    if (stateful) ({ state, reply, inputs: drawnInputs } = await replayTransitions({ host: programHost, manifest, inputs: evaluateRequestFor(manifest, card, 0, 'i').inputs, seed, time: request.time ?? 0, events }));
     else reply = await programHost.evaluate(evaluateRequestFor(manifest, card, request.time ?? 0, 1)); // the card's own request builder
   }
   catch (error) {
@@ -54,7 +54,7 @@ export async function renderProgram(request, { host, root, frames, faces, nextMo
     return (window.__renderDone = failure(error.code || 'runtime_error', `${error.diagnostic ?? error.message ?? ''}${after}`, error.where ?? { phase: error.replayPhase ?? 'evaluate' }));
   }
   finally { programHost.dispose('review render done'); }
-  const asked = evaluateRequestFor(manifest, card, request.time ?? 0, 1);
+  const asked = evaluateRequestFor(manifest, drawnInputs ? { ...card, inputs: drawnInputs } : card, request.time ?? 0, 1);
   const view = normalizeFrame(reply.frame, manifest);
   if (!view.ok) return (window.__renderDone = failure(view.error.code, view.issue));
 
