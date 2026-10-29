@@ -146,3 +146,11 @@ export function freeSlot(items, at, slot, { column = 560, gap = 20 } = {}) {
   for (let hits = covered(blocks.length, top); hits.length; hits = covered(blocks.length, top)) top = Math.max(...hits.map(item => item.y + item.h)) + gap;
   return { at: blocks.length, top: top - end };
 }
+
+// A column card's box in world units: its laid-out place (inside its pair slot, if any) plus its own offset. A card saved with no
+// offset (an /explain card, placed by its job) sits at its laid-out place; a missing dx/dy must never make the box NaN, or the
+// view-only page's click selection, which finds a card by its box, never finds it.
+export function cardBox(element, card) {
+  const slot = element.parentElement?.hasAttribute('data-card-slot') ? element.parentElement : null;
+  return { x: element.offsetLeft + (slot?.offsetLeft || 0) + (card.dx || 0), y: element.offsetTop + (slot?.offsetTop || 0) + (card.dy || 0), w: element.offsetWidth, h: element.offsetHeight };
+}

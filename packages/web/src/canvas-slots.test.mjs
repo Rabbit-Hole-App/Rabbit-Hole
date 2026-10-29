@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { columnEntries, fillSlot, pairStart, slotIndex, slotSize, GENERIC_SLOT } from './canvas-slots.js';
+import { cardBox, columnEntries, fillSlot, pairStart, slotIndex, slotSize, GENERIC_SLOT } from './canvas-slots.js';
 
 const blocks = ['a', 'b', 'c'].map(id => ({ id }));
 const order = entries => entries.map(entry => entry.block?.id ?? entry.slot.id);
@@ -184,4 +184,14 @@ test('openingPan: a shared canvas opens on its first card whole, zoom kept, clea
   assert.equal(openingPan(card, home, { left: 24, top: 74, right: 856, bottom: 696 }, clear), null);
   // A phone's canvas (390 px): no pan.
   assert.equal(openingPan(card, { x: 24, y: 24, z: 1 }, { left: 24, top: 24, right: 366, bottom: 609 }, clear), null);
+});
+
+test('a card box is its laid-out place plus its offset; a card saved with no offset (an /explain card) still has a real box', () => {
+  const element = (parent = null) => ({ offsetLeft: 10, offsetTop: 400, offsetWidth: 996, offsetHeight: 808, parentElement: parent });
+  assert.deepEqual(cardBox(element(), { id: 'a', dx: 5, dy: -20 }), { x: 15, y: 380, w: 996, h: 808 });
+  const bare = cardBox(element(), { id: 'card-sandbox-ex2-a', type: 'animation' });
+  assert.deepEqual(bare, { x: 10, y: 400, w: 996, h: 808 });
+  assert.ok(Object.values(bare).every(Number.isFinite), 'no NaN: the view-only click hit test compares against it');
+  const slot = { offsetLeft: 100, offsetTop: 50, hasAttribute: name => name === 'data-card-slot' };
+  assert.deepEqual(cardBox(element(slot), { id: 'b' }), { x: 110, y: 450, w: 996, h: 808 });
 });
