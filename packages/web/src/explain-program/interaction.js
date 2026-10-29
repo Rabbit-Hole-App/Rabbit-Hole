@@ -52,17 +52,18 @@ export async function replayTransitions({ host, manifest, inputs, seed, time = 0
 }
 
 export function createInteractionController({ host, bundleHash, seed, saved = null, publish, persist = () => {}, fail = () => {}, check = async () => {}, cap = ACTION_QUEUE_CAP }) {
-  let committed = null, queue = [], busy = false, dead = false, generation = 0, count = 0;
+  let committed = null, queue = [], busy = false, dead = false, generation = 0, count = 0, openDrag = null; // openDrag: the admitted drag whose end is still to come
   const requestId = () => `s${++count}`;
   // inputs: the snapshot the state was computed and checked with; the card draws the state with these, never with newer ones.
   const envelope = (state, revision, inputs) => ({ bundleHash, state, revision, seed, inputs });
-  const failed = (error, mine) => { if (!dead && mine === generation && error?.name !== 'AbortError') { queue = []; fail(error); } };
+  const failed = (error, mine) => { if (!dead && mine === generation && error?.name !== 'AbortError') { queue = []; openDrag = null; fail(error); } };
 
   // check(next, { inputs, time }) runs before anything is replaced: a state that fails it is never published or saved, so a failed
   // reset keeps the last good state, in memory and as saved.
   async function initialize(inputs, { time = 0, reset = false } = {}) {
     const mine = ++generation;
     queue = [];
+    openDrag = null;
     busy = true;
     try {
       const reply = await host.initialize({ requestId: requestId(), inputs, seed });
@@ -101,13 +102,17 @@ export function createInteractionController({ host, bundleHash, seed, saved = nu
       if (dead) return false;
       const last = queue[queue.length - 1];
       if (event?.type === 'input' && last?.event.type === 'input' && last.event.input === event.input) { queue[queue.length - 1] = { event, inputs, time }; return true; }
-      // A drag's moves merge into the newest one, and its end takes the place of a waiting move (it carries the final point), so a drag
-      // never fills the queue; a start is admitted only with room left for its end.
+      // A drag's moves merge into the newest one, and its end takes the place of a waiting move (it carries the final point). A start is
+      // admitted only with room for its end, and from then until its end is queued one slot stays reserved for that end, whatever else
+      // arrives meanwhile: an admitted drag always ends, in order, and the queue never passes the cap.
+      const ending = event?.type === 'drag_end' && event.target === openDrag;
       const sameDrag = last?.event.type === 'drag_move' && last.event.target === event?.target;
-      if ((event?.type === 'drag_move' || event?.type === 'drag_end') && sameDrag) { queue[queue.length - 1] = { event, inputs, time }; return true; }
-      if (event?.type === 'drag_start' && queue.length + 2 > cap) return false;
-      if (queue.length >= cap) return false;
+      if ((event?.type === 'drag_move' || event?.type === 'drag_end') && sameDrag) { queue[queue.length - 1] = { event, inputs, time }; if (ending) openDrag = null; return true; }
+      const free = cap - queue.length - (openDrag !== null && !ending ? 1 : 0);
+      if (free < (event?.type === 'drag_start' ? 2 : 1)) return false;
       queue.push({ event, inputs, time });
+      if (event?.type === 'drag_start') openDrag = event.target;
+      else if (ending) openDrag = null;
       pump();
       return true;
     },
