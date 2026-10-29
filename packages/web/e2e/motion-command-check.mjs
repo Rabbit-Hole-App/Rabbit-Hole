@@ -869,7 +869,8 @@ for (const theme of ['light', 'dark']) {
     await dismiss();
   });
 
-  await step(`${theme}: Ctrl+K: /motion about the selected card goes to the Chat's proposal card; the editor says so and the Chat draft stays`, async () => {
+  // Owner spec 2026-10-29 4.2: Ctrl+K hands the explicit line to Chat and closes; the Chat's proposal card is its answer.
+  await step(`${theme}: Ctrl+K: /motion about the selected card goes to the Chat's proposal card; the editor closes and the Chat draft stays`, async () => {
     await composer().fill('my draft stays');
     const photo = page.locator('[data-block-id="k-photo"]');
     const handle = await photo.locator('[data-drag-handle]').boundingBox();
@@ -885,7 +886,7 @@ for (const theme of ['light', 'dark']) {
     assert.deepEqual([turn?.command, turn?.message], ['motion', 'explain this leaf']);
     assert.match(JSON.stringify(turn.generation?.motion?.context?.selection || {}), /k-photo/, 'the turn is about Ctrl+K\'s selection');
     assert.equal(routes.at(-1).capability, 'motion', 'named: no router call');
-    await page.locator('[data-inline-notice]').getByText('Sent to Chat: review the proposal there, then Generate.').waitFor();
+    await page.locator('[data-inline-ai]').waitFor({ state: 'detached', timeout: 10000 });
     assert.equal(await composer().inputValue(), 'my draft stays', 'the Chat draft is kept');
     assert.equal(videoPosts().length, posts, 'nothing generated or staged by Ctrl+K');
     assert.equal(await page.locator('[data-inline-preview], [data-paid-generate]').count(), 0, 'no staged card and no confirmation in the editor');

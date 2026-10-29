@@ -215,12 +215,13 @@ assert.equal(await dock.locator('[data-command-pill]').count(), 0);
 assert.equal(await composer().inputValue(), 'softmax', 'the pill\'s × keeps the text');
 // Enter in the search takes the highlighted match (a description match here) and hands focus back to the composer.
 await dock.getByRole('button', { name: 'Commands' }).click();
-await search.pressSequentially('plot'); // a description match: /graph's "Plot a function or supplied data"
+await search.pressSequentially('example'); // a description match: /code's title is Code example
 await search.press('Enter');
 await dock.locator('[data-command-pill]').waitFor();
 assert.equal(await composer().inputValue(), 'softmax', 'Enter in the search chooses the command and keeps the text');
 assert.ok(await composer().evaluate(node => node === document.activeElement), 'choosing from the search focuses the composer');
-await dock.getByRole('button', { name: 'Remove Graph' }).click();
+assert.equal(await dock.locator('[data-command-pill]').getAttribute('data-command-pill'), 'code', 'the description match is /code');
+await dock.getByRole('button', { name: 'Remove Code example' }).click();
 await dock.getByRole('button', { name: 'Commands' }).click();
 await search.press('Escape');
 await search.waitFor({ state: 'detached' });

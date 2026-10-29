@@ -71,8 +71,9 @@ function CardPreview({ preview, stage, appName, narrow }) {
   const spec = BLOCK_TYPES[type] || {};
   const own = preview.size?.(narrow) || spec.sizeFor?.(block) || {};
   const viewKey = block.type === 'scene' && block.modelUrl ? 'slash-sheet:scene' : null;
-  // The 3D view's Interact and Fit view sit above the card, as on the canvas's selected-card toolbar.
-  const room = { w: stage.w - 2, h: stage.h - 2 - (viewKey ? 40 : 0) };
+  // The 3D view's Interact and Fit view sit above the card, as on the canvas's selected-card toolbar: the toolbar row and its 8 px
+  // gap take 46 px (CI fast-e2e 40853008983 measured the card 4 px over its stage with 40 reserved), so 48 keeps the whole card in.
+  const room = { w: stage.w - 2, h: stage.h - 2 - (viewKey ? 48 : 0) };
   const nativeW = own.width ?? spec.width ?? 380, nativeH = own.height ?? spec.height;
   const aspect = type === 'animation' && block.scene ? { selector: '[data-animation-frame]', ratio: block.scene.width / block.scene.height, fixed: true }
     : type === 'videoGenerate' ? { selector: 'video', ratio: 16 / 9, fixed: false } : null;

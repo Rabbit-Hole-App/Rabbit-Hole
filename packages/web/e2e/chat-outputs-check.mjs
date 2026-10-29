@@ -374,7 +374,7 @@ const WORDS = 'why softmax';
 const pillSend = async (page, name, words = WORDS) => {
   const box = composerOf(page);
   await box.click(); await box.fill(`/${name} `);
-  await pane(page).locator(`[data-command-pill="${name}"]`).waitFor();
+  await pane(page).locator(`[data-chat-composer] [data-command-pill="${name}"]`).waitFor(); // the composer's pill, not a sent line's
   await box.fill(words); await page.waitForTimeout(150); await box.press('Enter');
 };
 const idle = page => until(async () => (await pane(page).locator('[data-chat-composer] button[aria-label="Stop"]').count()) === 0, 'the chat stays busy');
@@ -422,16 +422,17 @@ await step('a pill line sent while another command runs stays in the composer an
     await send(page, '/explain softmax as a ratio');
     await pane(page).locator('[data-slash-result]', { hasText: 'Working on /explain' }).waitFor();
     await until(async () => artifacts.length === requested + 1 && artifacts.at(-1)?.command === 'explain', '/explain made no request');
-    // A retained card command as the pill (owner, 2026-10-20, L7: the prompt commands this step used are removed).
+    // A card command that still asks the artifact route directly as the pill (owner, 2026-10-20, L7: the prompt commands this step used
+    // are removed; owner spec 2026-10-29: /quiz now prepares a brief first, so /explain stands in).
     const before = artifacts.length, asked = asks.length;
-    await pillSend(page, 'quiz', 'while it works');
+    await pillSend(page, 'explain', 'while it works');
     await page.waitForTimeout(600);
-    assert.equal(await composerOf(page).inputValue(), '/quiz while it works', 'the held line stays in the composer');
+    assert.equal(await composerOf(page).inputValue(), '/explain while it works', 'the held line stays in the composer');
     assert.equal(artifacts.length, before, 'nothing is requested while the command runs');
     await page.screenshot({ path: `${OUT}/14-held-${THEME}.png` });
     release(); artifactHold = null;
     await until(async () => artifacts.length === before + 1, 'the held line never ran');
-    assert.deepEqual([artifacts.at(-1).command, artifacts.at(-1).args], ['quiz', 'while it works']);
+    assert.deepEqual([artifacts.at(-1).command, artifacts.at(-1).args], ['explain', 'while it works']);
     await idle(page);
     await page.waitForTimeout(800);
     assert.deepEqual([artifacts.length, asks.length], [before + 1, asked], 'it ran once, as its card command');
