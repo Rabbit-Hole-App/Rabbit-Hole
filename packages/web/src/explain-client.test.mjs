@@ -99,15 +99,16 @@ test('the canvas places a job\'s card once under its own id, never a second one,
   const { readFileSync } = await import('node:fs');
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   const body = canvas.match(/placeExplain: ([\s\S]*?),\r?\n      reconcileCad:/)[1];
-  const factory = new Function('alive', 'readOnlyRef', 'blocksRef', 'snapshot', 'insertAtView', `return (${body})`);
-  const blocks = { current: [] }, inserted = [];
-  const place = (readOnly = false) => factory({ current: true }, { current: readOnly }, blocks, () => {}, block => { inserted.push(block); return block.id; });
+  const factory = new Function('alive', 'readOnlyRef', 'blocksRef', 'snapshot', 'insertAtView', 'revealing', `return (${body})`);
+  const blocks = { current: [] }, inserted = [], revealing = { current: new Set() };
+  const place = (readOnly = false) => factory({ current: true }, { current: readOnly }, blocks, () => {}, block => { inserted.push(block); return block.id; }, revealing);
   const card = explainPendingBlock({ job: job(), prompt: 'heaps' });
   assert.equal(place()(card), 'card-1');
   assert.equal(place()(card), 'card-1', 'a resent press finds the same card');
   assert.deepEqual(inserted.map(block => block.id), ['card-1']);
   assert.equal(place(true)({ ...card, id: 'card-2' }), null);
   assert.equal(place()({ ...card, type: 'cad', id: 'card-3' }), null);
+  assert.deepEqual([...revealing.current], ['card-1'], 'only the placed card waits to open in Focus once ready (owner, 2026-10-28)');
 });
 
 // EXP-T20 slice 2: same-card Edit, Apply / Discard (plan section 1.3).

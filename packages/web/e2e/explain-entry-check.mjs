@@ -3,7 +3,9 @@
 // with EXPLAIN_V2_ENABLED off, never calls a model, and every other model-capable request is aborted and counted.
 //   1. typed /explain: one job (source explicit, the saved line's chat thread), its card placed at once and waiting;
 //   2. a reload while it waits shows the same card, observes the job and creates nothing; ready, the card becomes the
-//      explanation and the board saves its result identity;
+//      explanation and the board saves its result identity, and does not open in Focus (a reload never reveals);
+//   Owner, 2026-10-28: a job this canvas started opens its card in Focus once when ready; Back to canvas dismisses it for good
+//      (steps 3-6 and 8). A job finishing on another canvas opens nothing there or on return (step 7);
 //   3. the picker (Add explanation pill + words) is the same job path;
 //   4. Use example (a submitted suggestion) only fills the composer; its Send makes one job;
 //   5. natural language the server routes to explain (chat route, flow direct) is the same job path;
@@ -114,6 +116,15 @@ const composerOf = page => page.locator('[data-chat-pane] [data-chat-composer] t
 const send = async (page, text) => { const box = composerOf(page); await box.click(); await box.fill(text); await page.waitForTimeout(150); await box.press('Enter'); };
 const pending = (page, id) => page.locator(`[data-block-id="${id}"] [data-explain-pending]`);
 const drawn = (page, id) => page.locator(`[data-block-id="${id}"] svg [data-animation-object]`).first();
+// The card a job made here opens in Focus once when ready; Back to canvas dismisses it and it never reopens.
+const revealed = async (page, id) => {
+  await page.locator(`[data-block-id="${id}"][data-focus-host]`).waitFor({ timeout: 20000 });
+  await page.locator('[data-focus-back]').click();
+  await page.locator('[data-focus-host]').waitFor({ state: 'detached', timeout: 5000 });
+  await page.waitForTimeout(2500);
+  assert.equal(await page.locator('[data-focus-host]').count(), 0, `${id}: dismissed, it never reopens`);
+};
+const notRevealed = async page => { await page.waitForTimeout(2500); assert.equal(await page.locator('[data-focus-host]').count(), 0, 'nothing opened in Focus'); };
 const newJob = async count => { await until(async () => creates.length === count, `expected ${count} job create(s), saw ${creates.length}`); return [...jobs.values()].at(-1); };
 
 let { context, page } = await open(canvasA.name);
@@ -141,6 +152,7 @@ await step('a reload while it waits shows the same card, creates nothing; ready,
   await drawn(page, first.cardId).waitFor({ timeout: 20000 });
   await until(async () => (await board(canvasA.name)).blocks.find(block => block.id === first.cardId)?.explain?.resultId === `er_${first.id}`, 'the board does not hold the result identity');
   assert.equal(await page.locator(`[data-block-id="${first.cardId}"]`).count(), 1, 'one card for the job');
+  await notRevealed(page);
   await page.screenshot({ path: `${OUT}/2-ready.png` });
 });
 
@@ -155,6 +167,7 @@ await step('the picker: the Add explanation pill and its words make the same job
   assert.deepEqual([lastCreate().prompt, lastCreate().source], ['why a heap is a complete tree', 'explicit']);
   await pending(page, job.cardId).waitFor();
   release(job);
+  await revealed(page, job.cardId);
 });
 
 await step('Use example only fills the composer; its Send makes one job', async () => {
@@ -171,6 +184,7 @@ await step('Use example only fills the composer; its Send makes one job', async 
   const job = await newJob(3);
   assert.equal(lastCreate().prompt, 'how binary search works');
   release(job);
+  await revealed(page, job.cardId);
 });
 
 await step('natural language the server routes to explain is the same job path', async () => {
@@ -181,6 +195,7 @@ await step('natural language the server routes to explain is the same job path',
   assert.deepEqual([lastCreate().prompt, lastCreate().source], ['draw how a heap swaps a new item up', 'explicit']);
   await pending(page, job.cardId).waitFor();
   release(job);
+  await revealed(page, job.cardId);
 });
 
 await step('a command-bearing Ctrl+K /explain on a selected card: one job, source command, the card\'s words as context', async () => {
@@ -197,6 +212,7 @@ await step('a command-bearing Ctrl+K /explain on a selected card: one job, sourc
   await editor.waitFor({ state: 'detached', timeout: 5000 });
   await pending(page, job.cardId).waitFor();
   release(job);
+  await revealed(page, job.cardId);
 });
 
 await step('canvas switch: a job finishing while canvas B is open attaches to nothing there, and to its card on A', async () => {
@@ -209,8 +225,10 @@ await step('canvas switch: a job finishing while canvas B is open attaches to no
   await page.waitForTimeout(3000);
   assert.equal(await page.locator(`[data-block-id="${job.cardId}"]`).count(), 0, 'nothing on B');
   assert.ok(!(await board(canvasB.name)).blocks.some(block => block.id === job.cardId), 'B\'s board never holds it');
+  assert.equal(await page.locator('[data-focus-host]').count(), 0, 'nothing opened in Focus on B');
   await page.goto(`${BASE}/apps/${canvasA.name}`);
   await drawn(page, job.cardId).waitFor({ timeout: 30000 });
+  await notRevealed(page);
 });
 
 await step('provider_unavailable: paused with the request kept; Retry twice sends one Retry at the job\'s attempt; then it fills in', async () => {
@@ -235,6 +253,7 @@ await step('provider_unavailable: paused with the request kept; Retry twice send
   assert.equal(creates.length, 7, 'Retry makes no new job');
   release(job);
   await drawn(page, job.cardId).waitFor({ timeout: 20000 });
+  await revealed(page, job.cardId);
 });
 
 await step('stale revision: an Edit made from another revision of the card is refused at Apply; the card and candidate stay', async () => {

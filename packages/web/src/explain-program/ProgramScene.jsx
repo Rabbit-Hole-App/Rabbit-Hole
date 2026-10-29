@@ -6,7 +6,7 @@ import { explainClient, sharedProgramClient } from '../explain-client.js';
 import { CardSourceScope } from '../use-card-source.js';
 import { Frame } from '../AnimatedScene.jsx';
 import { InputWidget } from '../SceneControls.jsx';
-import { focusFrameBox, legibleFrame, normalizeFrame } from './frame.js';
+import { focusFrameBox, legibleFrame, normalizeFrame, readableScale } from './frame.js';
 import { createProgramHost, programStamps } from './host.js';
 import { createFrameScheduler } from './playback.js';
 import ProgramNotes from './ProgramNotes.jsx';
@@ -125,7 +125,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   useEffect(() => {
     if (!view || box) return;
     const legible = legibleFrame(view.scene);
-    setBox(legible);
+    setBox({ ...legible, minScale: readableScale(view.scene, legible) });
     onProgramFrame?.(legible);
   }, [view, box, onProgramFrame]);
 
@@ -168,10 +168,11 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     return () => { observer.disconnect(); onControlsHeight(0); };
   }, [onControlsHeight, drawn]);
   // Focus (focus-adapter-explanation.js gives the card the whole pane): the drawing takes the room the pane leaves after the
-  // card's own chrome and rows, fitted by the smaller of the width and height scales; below its legible box the box stays legible
-  // and the drawing scrolls inside a viewport as high as that room, so the rows stay on screen. The fixed part (chrome, gaps, padding) is measured once on
-  // entering, while the viewport still fills the leftover, so setting the box never feeds back into the room. Open Notes are not
-  // counted: opening them grows the content, it never shrinks the drawing.
+  // card's own chrome and rows (collapsed Notes included), fitted by the smaller of the width and height scales and centred; it
+  // shrinks to fit down to its readable scale (frame.js readableScale), and only under that scrolls inside a viewport as high as
+  // that room, so the rows stay on screen. The fixed part (chrome, gaps, padding, both axes) is measured once on entering, while
+  // the viewport still fills the leftover, so setting the box never feeds back into the room. Open Notes are not counted:
+  // opening them grows the content, it never shrinks the drawing.
   useLayoutEffect(() => {
     const card = root.current?.closest('[data-block]');
     if (!card || !box) return undefined;
@@ -181,8 +182,8 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       if (!card.hasAttribute('data-focus-host') || !viewport || !rowsEl) { fixed = null; setFocusBox(null); return; }
       const notes = rowsEl.querySelector('[data-program-notes] > ul:not([hidden])');
       const rowsHeight = rowsEl.offsetHeight - (notes?.offsetHeight ?? 0);
-      if (fixed === null) fixed = card.clientHeight - viewport.clientHeight - rowsHeight;
-      const next = focusFrameBox(box, { w: viewport.clientWidth, h: card.clientHeight - fixed - rowsHeight });
+      if (fixed === null) fixed = { w: card.clientWidth - viewport.clientWidth, h: card.clientHeight - viewport.clientHeight - rowsHeight };
+      const next = focusFrameBox(box, { w: card.clientWidth - fixed.w, h: card.clientHeight - fixed.h - rowsHeight }, box.minScale);
       setFocusBox(prev => (prev && prev.w === next.w && prev.h === next.h && prev.scroll === next.scroll && prev.view === next.view ? prev : next));
     };
     const observer = new ResizeObserver(measure);
@@ -225,15 +226,15 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // While playing, the time shown is the drawn frame's own moment, so the label never runs ahead of the picture; paused, it is
   // the requested moment, which the picture settles on within one evaluation (data-program-settling until then).
   const shownTime = playing ? view.time : time;
-  // The frame keeps its legible box: a larger card draws it larger; a smaller one (a phone's Focus, a learner's resize) scrolls
-  // the drawing inside its viewport instead of shrinking its text below the floors, and the rows below stay in view.
+  // On the canvas the frame keeps its legible box: a larger card draws it larger; a smaller one (a learner's resize) scrolls the
+  // drawing inside its viewport instead of shrinking its text below the floors. In Focus, focusBox sizes it (see the measure above).
   const legible = box ?? legibleFrame(view.scene);
   return (
     <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
       onPointerDown={event => event.stopPropagation()}>
       <div data-program-viewport className="flex min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white"
-        style={focusBox ? { flex: 'none', height: (focusBox.scroll ? focusBox.view : focusBox.h) + 2, overflow: focusBox.scroll ? 'auto' : 'hidden' } : undefined}>
-        <div data-program-frame role="group" aria-label={manifest.description} className="flex-1" style={focusBox ? { flex: 'none', width: focusBox.w, height: focusBox.h, minWidth: legible.w, margin: '0 auto' } : { minWidth: legible.w, minHeight: legible.h }}>{picture}</div>
+        style={focusBox ? { flex: 'none', height: (focusBox.scroll ? focusBox.view : focusBox.h) + 2, overflow: focusBox.scroll ? 'auto' : 'hidden', ...(focusBox.scroll ? {} : { width: focusBox.w + 2, alignSelf: 'center' }) } : undefined}>
+        <div data-program-frame role="group" aria-label={manifest.description} className="flex-1" style={focusBox ? { flex: 'none', width: focusBox.w, height: focusBox.h, margin: '0 auto' } : { minWidth: legible.w, minHeight: legible.h }}>{picture}</div>
       </div>
       <p className="sr-only">{manifest.summary}</p>
       <div ref={controls} className="flex shrink-0 flex-col gap-2">
