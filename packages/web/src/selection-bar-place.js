@@ -24,6 +24,8 @@ export function anchorOf(boxes, view) {
 // Whether object `id` shows the actions in its own row (a host) rather than the floating bar. Not on a narrow view (the row
 // can run off the edge), and not on an object with a comment pin (owner ruling, 2026-10-21): the pin sits at its top centre at
 // a constant screen size while the row scales with the zoom, so only the floating bar (placeBar) clears the pin at every zoom.
-export function usesHost({ sole, narrow = false, pinned = null }, id) {
-  return sole === id && !narrow && !pinned?.(id);
+// cut(id): the object's row would stand past the surface's edge, under a side panel such as Chat (owner, 2026-10-28: "controls
+// must be reachable with the chat panel open"), where the floating bar, kept inside the view, takes over.
+export function usesHost({ sole, narrow = false, pinned = null, cut = null }, id) {
+  return sole === id && !narrow && !pinned?.(id) && !cut?.(id);
 }

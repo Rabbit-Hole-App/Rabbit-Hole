@@ -148,7 +148,7 @@ test('Add to chat replaces the Ask in chat pills: hosts on the rows above the ob
   // pill would sit over the Focus header); on a view-only
   // board or a local copy Add to chat and Quick Edit are absent, and only Focus (presentation only, focus-study.md section 7) may
   // show - and the floating bar.
-  assert.match(canvas, /<SelectionActionsProvider sole=\{selection\.length === 1 \? selection\[0\] : null\} hidden=\{!!inline \|\| presenting !== null \|\| !!focus\} focusLabel=\{soleFocus\?\.label \|\| null\} onFocus=\{focusSole\} narrow=\{\(surface\.current\?\.clientWidth \|\| 1200\) < 640\} pinned=\{[^}]*\} onAddToChat=\{readOnly \|\| localCopy \? null : addToChat\} added=\{[^}]*isAttached\(chatRefOf\(objectById\(selection\[0\]\)\)\)\)\} onQuickEdit=\{inlineAi && !readOnly && !localCopy \? quickEdit : null\}>/);
+  assert.match(canvas, /<SelectionActionsProvider sole=\{selection\.length === 1 \? selection\[0\] : null\} hidden=\{!!inline \|\| presenting !== null \|\| !!focus\} focusLabel=\{soleFocus\?\.label \|\| null\} onFocus=\{focusSole\} narrow=\{\(surface\.current\?\.clientWidth \|\| 1200\) < 640\} pinned=\{[^}]*\} cut=\{barCut\} onAddToChat=\{readOnly \|\| localCopy \? null : addToChat\} added=\{[^}]*isAttached\(chatRefOf\(objectById\(selection\[0\]\)\)\)\)\} onQuickEdit=\{inlineAi && !readOnly && !localCopy \? quickEdit : null\}>/);
   assert.match(canvas, /<SelectionActionBar anchor=\{barAnchor\} box=\{barBox\} \/>/);
   // Add to chat: one object is its card chip, asked (its answer lands as a card linked to it); a dropped image is shown to the tutor
   // too; a group, several objects or a shape are ONE chip with their ids and a text read at send; the draft is untouched, nothing is sent.

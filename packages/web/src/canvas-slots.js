@@ -107,6 +107,19 @@ export function panInto(box, view, area, centre = false) {
   return { ...view, x: axis(box.x, box.w, view.x, area.left, area.right), y: axis(box.y, box.h, view.y, area.top, area.bottom) };
 }
 
+// A shared canvas's opening camera on its first card (owner, 2026-10-28: "controls must be reachable with the chat panel
+// open"): the pan, zoom kept, that shows `box` (world px: the card from its top down to its last control) whole inside `area`
+// (surface px, visibleArea: what the panel, the header and the floating controls leave) and above `floorOver(x0, x1)`, the
+// floating bottom chrome's top over the card's span (chromeTop less its margin). null when it cannot be whole there.
+export function openingPan(box, view, area, floorOver) {
+  const first = panInto(box, view, area);
+  const left = first.x + box.x * view.z, right = left + box.w * view.z;
+  const bottom = Math.min(area.bottom, floorOver(left, right));
+  const next = panInto(box, view, { ...area, bottom: Math.max(area.top + 1, bottom) });
+  const top = next.y + box.y * view.z;
+  return left >= area.left && right <= area.right && top >= area.top && top + box.h * view.z <= bottom ? next : null;
+}
+
 // Where a slot can stand without covering anything drawn in the column. A card keeps its dragged offset (dx, dy)
 // from its flow place - a drag, or the gap rail's pull - so one dragged up can be drawn over the flow place in front of
 // it, and a slot reserved there would sit under it. The slot takes the free place nearest the one insertAtView picks

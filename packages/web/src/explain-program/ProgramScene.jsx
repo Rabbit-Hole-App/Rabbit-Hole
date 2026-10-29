@@ -103,13 +103,16 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   useEffect(() => {
     if (!manifest || !host.current) return undefined;
     const target = host.current;
+    // A failed frame stops the card (playback.js: no retry loop). The clock stops too, so the next tick cannot redraw over the
+    // message: without it a transient failure flashed the message for a few frames and the drawing came back.
+    const stop = error => { setPlaying(false); setFailure(error); };
     const created = createFrameScheduler({
       evaluate: job => target.evaluate(evaluateRequestFor(manifest, { ...latest.current, inputs: job.inputs }, job.time, ++counter.current)),
       show: (reply, job) => {
         const out = normalizeFrame(reply.frame, manifest);
-        if (out.ok) { setView({ ...out, time: job.time }); setFailure(null); } else setFailure(out.error);
+        if (out.ok) { setView({ ...out, time: job.time }); setFailure(null); } else stop(out.error);
       },
-      fail: error => setFailure(error),
+      fail: stop,
     });
     scheduler.current = created;
     return () => { created.dispose(); if (scheduler.current === created) scheduler.current = null; };
@@ -155,7 +158,9 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // The rows under the frame (readouts, transport, Interact, assumptions) report their real height so the card grows by it, as
   // SceneControls does. They exist only once a frame is drawn, so the observer starts then (keyed on drawn, not on the manifest,
   // which arrives a render earlier and found no rows to observe).
-  const drawn = !!(manifest && view);
+  // The failure message replaces the rows, so a failure ends this observer too; otherwise it keeps watching the removed rows and
+  // the card stays short by their height after the drawing returns.
+  const drawn = !!(manifest && view && !failure);
   useLayoutEffect(() => {
     if (!onControlsHeight || !controls.current) return undefined;
     const observer = new ResizeObserver(() => onControlsHeight(controls.current ? controls.current.offsetHeight + 8 : 0));
@@ -164,7 +169,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   }, [onControlsHeight, drawn]);
   // Focus (focus-adapter-explanation.js gives the card the whole pane): the drawing takes the room the pane leaves after the
   // card's own chrome and rows, fitted by the smaller of the width and height scales; below its legible box the box stays legible
-  // and the Focus content scrolls instead (index.css [data-focus-host]). The fixed part (chrome, gaps, padding) is measured once on
+  // and the drawing scrolls inside a viewport as high as that room, so the rows stay on screen. The fixed part (chrome, gaps, padding) is measured once on
   // entering, while the viewport still fills the leftover, so setting the box never feeds back into the room. Open Notes are not
   // counted: opening them grows the content, it never shrinks the drawing.
   useLayoutEffect(() => {
@@ -178,7 +183,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       const rowsHeight = rowsEl.offsetHeight - (notes?.offsetHeight ?? 0);
       if (fixed === null) fixed = card.clientHeight - viewport.clientHeight - rowsHeight;
       const next = focusFrameBox(box, { w: viewport.clientWidth, h: card.clientHeight - fixed - rowsHeight });
-      setFocusBox(prev => (prev && prev.w === next.w && prev.h === next.h && prev.scroll === next.scroll ? prev : next));
+      setFocusBox(prev => (prev && prev.w === next.w && prev.h === next.h && prev.scroll === next.scroll && prev.view === next.view ? prev : next));
     };
     const observer = new ResizeObserver(measure);
     observer.observe(card);
@@ -227,7 +232,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
       onPointerDown={event => event.stopPropagation()}>
       <div data-program-viewport className="flex min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white"
-        style={focusBox ? { flex: 'none', height: focusBox.h + 2, overflow: focusBox.scroll ? 'visible' : 'hidden' } : undefined}>
+        style={focusBox ? { flex: 'none', height: (focusBox.scroll ? focusBox.view : focusBox.h) + 2, overflow: focusBox.scroll ? 'auto' : 'hidden' } : undefined}>
         <div data-program-frame role="group" aria-label={manifest.description} className="flex-1" style={focusBox ? { flex: 'none', width: focusBox.w, height: focusBox.h, minWidth: legible.w, margin: '0 auto' } : { minWidth: legible.w, minHeight: legible.h }}>{picture}</div>
       </div>
       <p className="sr-only">{manifest.summary}</p>

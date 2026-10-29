@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { focusFrameBox, legibleFrame } from './frame.js';
+import { FOCUS_MIN_VIEW, focusFrameBox, legibleFrame } from './frame.js';
 
 // Focus on an Explanation program (owner screenshot 2026-10-28: a wide drawing in a short box, its lower half and x-axis behind
 // an internal scrollbar). The box is the legible box fitted into the room by the smaller of the two scales; under the legible box
-// it stays legible and the Focus content scrolls. Synthetic frames of two shapes; nothing names a topic.
+// it stays legible and the drawing scrolls above the rows. Synthetic frames of two shapes; nothing names a topic.
 const text = { id: 't', type: 'text', initialState: { label: 'a', opacity: 1 } };
 const frameOf = (width, height) => legibleFrame({ width, height, objects: [text], timeline: [] });
 const wide = frameOf(960, 540), tall = frameOf(540, 720);
@@ -27,10 +27,15 @@ test('a tall frame is limited by the height too, and never wider than its aspect
   assert.deepEqual([narrow.scroll, narrow.w, narrow.h], [false, 600, 800], 'width-limited when the room is narrow and deep');
 });
 
-test('under the legible box the drawing is not shrunk: the legible box is kept and the Focus content scrolls', () => {
-  assert.deepEqual(focusFrameBox(wide, { w: 1216, h: 380 }), { w: 960, h: 540, scroll: true }, '1280 x 720: too short');
-  assert.deepEqual(focusFrameBox(wide, { w: 350, h: 600 }), { w: 960, h: 540, scroll: true }, 'a phone: too narrow');
+// Owner, 2026-10-28: "controls must be reachable with the chat panel open". Under the legible box the drawing scrolls in a viewport
+// as high as the room, so the rows below it (readouts, Play, the time slider, Interact) stay on screen.
+test('under the legible box the drawing is not shrunk: it scrolls in a viewport as high as the room, never past its own height', () => {
+  assert.deepEqual(focusFrameBox(wide, { w: 1216, h: 380 }), { w: 960, h: 540, scroll: true, view: 380 }, '1280 x 720: too short');
+  assert.deepEqual(focusFrameBox(wide, { w: 350, h: 600 }), { w: 960, h: 540, scroll: true, view: 540 }, 'a phone: too narrow, no taller than the drawing');
+  assert.deepEqual(focusFrameBox(wide, { w: 350, h: 40 }), { w: 960, h: 540, scroll: true, view: FOCUS_MIN_VIEW }, 'no room at all: a minimum window, the card scrolls');
   assert.deepEqual(focusFrameBox(tall, { w: 540, h: 720 }), { w: 540, h: 720, scroll: false }, 'exactly legible fits');
+  const scene = readFileSync(new URL('./ProgramScene.jsx', import.meta.url), 'utf8');
+  assert.match(scene, /height: \(focusBox\.scroll \? focusBox\.view : focusBox\.h\) \+ 2, overflow: focusBox\.scroll \? 'auto' : 'hidden'/, 'the viewport scrolls the drawing, not the rows');
 });
 
 test('Focus shows one title (the card hides its own kicker and title) and the canvas draws its maps and Curious through focusWidgets', () => {

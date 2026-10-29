@@ -166,3 +166,22 @@ test('an insert never lands between a PDF page and its label', () => {
   assert.equal(pairStart(other, 1), 1, 'a label of another PDF is not its label');
   assert.equal(pairStart([{ id: 'h', type: 'divider' }, { id: 'p', type: 'slide', number: 1 }], 1), 1, 'a plain divider is no label');
 });
+
+// Owner, 2026-10-28 ("controls must be reachable with the chat panel open"; measured on the deployed shared page at c59bae962:
+// the 960 px cooling card opened at x 258 in a 1040 px surface beside the 400 px Chat panel, its time slider's right 117 px under it).
+test('openingPan: a shared canvas opens on its first card whole, zoom kept, clear of the panel and the floating chrome', async () => {
+  const { openingPan } = await import('./canvas-slots.js');
+  const home = { x: 258, y: 98, z: 1 }, card = { x: 0, y: 0, w: 960, h: 600 };
+  const open = { left: 24, top: 74, right: 1016, bottom: 876 }; // 1040 x 900 surface less the header and a 24 px margin
+  const clear = () => Infinity;
+  // Past the panel: pulled left just inside, its top where it was.
+  assert.deepEqual(openingPan(card, home, open, clear), { x: 56, y: 98, z: 1 });
+  // Already whole: the opening camera stays.
+  assert.deepEqual(openingPan({ ...card, w: 560 }, home, open, clear), home);
+  // The bottom chrome over the card's span (the minimap at the lower left, 718 px) is a floor: too tall above it, so no pan.
+  assert.equal(openingPan({ ...card, h: 760 }, home, open, (x0) => (x0 < 200 ? 694 : Infinity)), null);
+  // Wider than the room (1280 x 720 beside the panel, 880 px surface): never zoomed out, no pan.
+  assert.equal(openingPan(card, home, { left: 24, top: 74, right: 856, bottom: 696 }, clear), null);
+  // A phone's canvas (390 px): no pan.
+  assert.equal(openingPan(card, { x: 24, y: 24, z: 1 }, { left: 24, top: 24, right: 366, bottom: 609 }, clear), null);
+});

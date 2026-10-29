@@ -60,6 +60,8 @@ test('a pinned card shows the floating bar, which never meets its pin at zoom 0.
   assert.equal(usesHost({ sole: 'c1', pinned }, 'c1'), false, 'a pinned card: the floating bar');
   assert.equal(usesHost({ sole: 'c2', pinned }, 'c2'), true, 'a card without a pin keeps its row');
   assert.equal(usesHost({ sole: 'c2', narrow: true, pinned }, 'c2'), false, 'a narrow view: the floating bar');
+  assert.equal(usesHost({ sole: 'c2', pinned, cut: id => id === 'c2' }, 'c2'), false, 'a card whose row is under the Chat panel: the floating bar (owner, 2026-10-28)');
+  assert.equal(usesHost({ sole: 'c2', pinned, cut: () => false }, 'c2'), true, 'a card whose row is in view keeps it');
   for (const z of [0.2, 1, 2]) {
     const anchor = anchorOf([card], { x: 10, y: 5, z });
     const at = placeBar(anchor, bar, view), pin = pinTopCentre(anchor, 0, SIZE, 4);

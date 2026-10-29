@@ -129,3 +129,23 @@ test('a failure of the current state is reported once; a failure of an older sta
   assert.deepEqual(errors, ['runtime_limit']);
   assert.equal(calls, 2, 'no retry loop');
 });
+
+// Blank-frame investigation (2026-10-28): one failed frame during playback swapped the card for its error message for about three
+// frames, then the next good frame drew over it, and the card stayed short by its rows until reload. The scheduler reports the
+// failure once and asks for nothing more by itself; ProgramScene stops the clock on it (so no later tick draws over the message)
+// and ends the rows' size observer while the message shows (drawn is false), so Restart measures the rows again.
+test('a failed frame during playback is reported once and nothing is drawn after it while the card asks for nothing more', async () => {
+  const errors = [], drawn = [];
+  let calls = 0;
+  const scheduler = createFrameScheduler({
+    evaluate: job => { calls += 1; return job.time === 1 ? Promise.reject(Object.assign(new Error('bad frame'), { code: 'invalid_output' })) : Promise.resolve({ frame: job.time }); },
+    show: (reply, job) => drawn.push(job.time), fail: error => errors.push(error.code),
+  });
+  for (const time of [0, 0.5, 1]) { scheduler.want({ key: 'a', time, inputs: {} }); await new Promise(resolve => setImmediate(resolve)); }
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual([drawn, errors, calls], [[0, 0.5], ['invalid_output'], 3]);
+  const scene = (await import('node:fs')).readFileSync(new URL('./ProgramScene.jsx', import.meta.url), 'utf8');
+  assert.match(scene, /const stop = error => \{ setPlaying\(false\); setFailure\(error\); \};/, 'a failure stops the clock');
+  assert.match(scene, /else stop\(out\.error\);\s*\},\s*fail: stop,/, 'a failed evaluation and a frame that fails its checks both stop the card');
+  assert.match(scene, /const drawn = !!\(manifest && view && !failure\);/, 'the rows observer ends while the message replaces them');
+});

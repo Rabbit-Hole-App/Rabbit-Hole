@@ -57,7 +57,7 @@ import { DivePortals } from './Dive.jsx';
 import { canvasObjects } from './dive.js';
 import { VIEW_ONLY_CONTROLS, openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
-import { chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
+import { chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, openingPan, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { areaTarget, cropBinding } from './area-crop.js';
 import { flushBoard, lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
@@ -3277,7 +3277,32 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const undo = () => travelHistory(history,future);
   const redo = () => travelHistory(future,history);
   // The opening camera, compensated for the controls that now float over the surface (homeView): no jump on load.
-  useEffect(() => { setView(autoView.current = homeView(controlArea(), COLUMN)); }, []);
+  const openedAt = useRef(null); // the learner's camera moves when the opening camera was set (openOnLead)
+  useEffect(() => { setView(autoView.current = homeView(controlArea(), COLUMN)); openedAt.current = manualMoves.current; }, []);
+  // A shared canvas opens on its first card whole (openingPan: zoom 1, clear of the Chat panel, the header and the floating
+  // chrome), from its top down to its last control. An Explanation program that cannot be whole there opens in Focus: its
+  // drawing's text is at its legibility floor at zoom 1, so it is never zoomed out to fit. Until the viewer moves the camera
+  // (Back to canvas restores one, which counts), a panel opening, closing or resizing applies this again.
+  const opening = useRef(!!permissions?.shared);
+  const openOnLead = () => {
+    const lead = blocksRef.current[0], box = lead && boundsRef.current[lead.id], element = box && column.current?.querySelector(`[data-block-id="${CSS.escape(lead.id)}"]`);
+    if (!opening.current || focusRef.current || !element || !surface.current || manualMoves.current !== openedAt.current) return;
+    const v = viewRef.current, top = element.getBoundingClientRect().top;
+    const last = Math.max(0, ...[...element.querySelectorAll('[data-animation-transport], [data-scene-controls]')].map(node => node.getBoundingClientRect().bottom - top));
+    const next = openingPan({ ...box, h: last ? last / v.z : box.h }, v, visibleArea(), (x0, x1) => chromeTop(x0, x1) - 24);
+    if (next) { if (next.x !== v.x || next.y !== v.y) setView(autoView.current = next); }
+    else if (lead.program) commandsRef.current?.enterFocus(lead.id);
+  };
+  const openOnLeadRef = useRef(openOnLead);
+  openOnLeadRef.current = openOnLead;
+  useEffect(() => { openOnLeadRef.current(); }, [bounds]);
+  useEffect(() => {
+    if (!opening.current || !surface.current || typeof ResizeObserver === 'undefined') return undefined;
+    let frame = 0;
+    const observer = new ResizeObserver(() => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => openOnLeadRef.current()); });
+    observer.observe(surface.current);
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+  }, []);
   // Wheel pans the world; ctrl/cmd+wheel zooms at the cursor. Non-passive so
   // the page behind the canvas does not scroll. Empty space in the tools'
   // gutter pans too, so the gutter is no dead zone; its controls, menus and
@@ -5323,7 +5348,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const { left, top, right, bottom } = anchorOf(barBoxes, { x: 0, y: 0, z: 1 });
     barBoxes.push({ x: left - GROUP_PAD, y: top - GROUP_PAD - GROUP_CHIP, w: right - left + GROUP_PAD * 2, h: bottom - top + GROUP_PAD * 2 + GROUP_CHIP });
   }
-  const barAnchor = tool === 'select' && selection.some(id => !emptyText(id)) ? anchorOf(barBoxes, view) : null;
+  // A view-only board selects with the hand (its press handler above), so its bar shows there too: Focus is its one action.
+  const barAnchor = (tool === 'select' || readOnly) && selection.some(id => !emptyText(id)) ? anchorOf(barBoxes, view) : null;
   // The room it may use ends where the bottom chrome (zoom, composer) begins, under the bar's width.
   const barBox = { w: surface.current?.clientWidth || 1200, h: surface.current && barAnchor ? chromeTop(barAnchor.right - 300, barAnchor.right) : 800 };
   // hasPin(id): the object shows a comment pin at its top centre (CommentPins, owner 2026-10-21), so it takes the floating bar
@@ -5493,6 +5519,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     run: (id, actionId) => { const done = runAction(actionId, cardTarget(id), actionCtx); if (!done.ran && done.reason) toast(done.reason); },
   };
   const soleFocus = selection.length === 1 && !focus ? adapterFor(objectById(selection[0]), { view, readOnly }) : null;
+  // A card whose own row would sit past the surface's right edge (under a side panel such as Chat) or above its top: its actions
+  // take the floating bar, which stays inside the view (usesHost).
+  const barCut = id => { const box = boxesOf([id])[0], width = surface.current?.clientWidth; return !!box && !!width && (view.x + (box.x + box.w) * view.z > width || view.y + box.y * view.z < 40); };
   const hasPin = commentPins && presenting === null ? id => commentPins.some(pin => pin.anchor?.kind === 'object' && pin.anchor.object_id === id) : null;
   return (
     // Delete, ctrl+z, copy and paste all stand down while a text field has focus,
@@ -5504,7 +5533,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
     <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, resizeCard, patchBlock: patchBlockNow, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
-    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
+    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
       onPointerDownCapture={event => {
         // An open text edit whose focus went to a style-panel field ends when the press lands anywhere else.

@@ -19,12 +19,12 @@ const Ctx = createContext(null);
 
 // added: the one selected object's ref is already in this chat (pdf-materials-refinement.md section 6), so Add to chat reads
 // Added to chat; pressing it again opens the chat and attaches nothing twice.
-export function SelectionActionsProvider({ sole, hidden = false, narrow = false, pinned = null, added = false, focusLabel = null, onFocus = null, onAddToChat, onQuickEdit, children }) {
+export function SelectionActionsProvider({ sole, hidden = false, narrow = false, pinned = null, cut = null, added = false, focusLabel = null, onFocus = null, onAddToChat, onQuickEdit, children }) {
   const [hosted, setHosted] = useState(0);
   const busy = useCanvasBusy();
   const register = useCallback(() => { setHosted(count => count + 1); return () => setHosted(count => count - 1); }, []);
   const mac = useMemo(isMac, []);
-  const value = useMemo(() => ({ sole, hidden: hidden || busy, narrow, pinned, added, focusLabel: onFocus ? focusLabel : null, onFocus, onAddToChat, onQuickEdit, mac, hosted, register }), [sole, hidden, busy, narrow, pinned, added, focusLabel, onFocus, onAddToChat, onQuickEdit, mac, hosted, register]);
+  const value = useMemo(() => ({ sole, hidden: hidden || busy, narrow, pinned, cut, added, focusLabel: onFocus ? focusLabel : null, onFocus, onAddToChat, onQuickEdit, mac, hosted, register }), [sole, hidden, busy, narrow, pinned, cut, added, focusLabel, onFocus, onAddToChat, onQuickEdit, mac, hosted, register]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
@@ -61,7 +61,7 @@ function Actions({ ctx, mode, className = '', style }) {
 // divider: a thin rule before it, where other controls of the row come first.
 export function SelectionActionsHost({ id, className = '', style, divider = false }) {
   const ctx = useContext(Ctx);
-  // On a narrow view, or on an object with a comment pin, the floating bar takes over (usesHost, selection-bar-place.js).
+  // On a narrow view, on an object with a comment pin, or on one whose row would be cut off, the floating bar takes over (usesHost, selection-bar-place.js).
   const here = !!ctx && usesHost(ctx, id);
   const register = ctx?.register;
   useLayoutEffect(() => (here ? register() : undefined), [here, register]);

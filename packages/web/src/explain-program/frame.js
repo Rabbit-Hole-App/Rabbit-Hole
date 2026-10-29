@@ -52,11 +52,13 @@ export function programCardSize(box, { chrome, minWidth = 0 }) {
 
 // Focus: the drawing's box inside the room the pane leaves for it (CSS px), aspect kept: the legible box scaled by the smaller
 // of the width and height scales, so a wide frame never grows taller than the room and a tall one never wider. Below the legible
-// box (scale under 1) it is not shrunk: the legible box is kept and scroll says the Focus content scrolls instead. Generic: the
-// legible box and the room only.
+// box (scale under 1) it is not shrunk: the legible box is kept and scroll says the drawing scrolls inside a viewport `view` px
+// high (the room's height, at least FOCUS_MIN_VIEW), so the readouts and controls under it stay on screen (owner, 2026-10-28:
+// "controls must be reachable with the chat panel open"). Generic: the legible box and the room only.
+export const FOCUS_MIN_VIEW = 160;
 export function focusFrameBox(legible, room) {
   const scale = Math.min(room.w / legible.w, room.h / legible.h);
-  if (!(scale >= 1)) return { w: legible.w, h: legible.h, scroll: true };
+  if (!(scale >= 1)) return { w: legible.w, h: legible.h, scroll: true, view: Math.min(legible.h, Math.max(FOCUS_MIN_VIEW, Math.floor(room.h))) };
   return { w: Math.floor(legible.w * scale), h: Math.floor(legible.h * scale), scroll: false };
 }
 
