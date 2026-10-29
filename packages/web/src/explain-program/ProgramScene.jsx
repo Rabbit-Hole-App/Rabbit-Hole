@@ -1,4 +1,4 @@
-import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useReducedMotion } from 'motion/react';
 import { Pause, Play } from 'lucide-react';
 import { api } from '../api.js';
@@ -9,6 +9,7 @@ import { InputWidget } from '../SceneControls.jsx';
 import { legibleFrame, normalizeFrame } from './frame.js';
 import { createProgramHost, programStamps } from './host.js';
 import { createFrameScheduler } from './playback.js';
+import ProgramNotes from './ProgramNotes.jsx';
 import {
   clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programInputs, programTime, resetProgram, resolveProgram,
   setProgramInput, shownProgram,
@@ -55,6 +56,8 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   const [epoch, setEpoch] = useState(0); // bumped by a jump in time (scrub, replay, reset): older answers are then never drawn
   const [box, setBox] = useState(null); // the legible frame box, from the first frame of this artifact (frame.js legibleFrame)
   const [playing, setPlaying] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false); // the viewer's own: never saved, never part of the card's derived size
+  const notesId = useId();
   const still = useReducedMotion();
   const latest = useRef(block);
   latest.current = block;
@@ -237,8 +240,8 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
           </div>
         </div>
       )}
-      {/* Long assumptions sit in a bounded region that scrolls (data-scroll: the canvas wheel leaves it to the browser). */}
-      {manifest.assumptions.length > 0 && <p data-program-assumptions data-scroll className="max-h-[4.5em] overflow-y-auto text-[11px] text-ink-2">Assumes: {manifest.assumptions.join(' ')}</p>}
+      {/* Notes (the manifest's assumptions): collapsed under the controls; opening grows the card by the rows' measured height. */}
+      <ProgramNotes id={notesId} notes={manifest.assumptions} open={notesOpen} onToggle={() => setNotesOpen(value => !value)} />
       </div>
     </div>
   );

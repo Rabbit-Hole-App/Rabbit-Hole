@@ -16,8 +16,8 @@ test('index.css re-enables exactly the VIEW_ONLY_CONTROLS regions inside a view-
   assert.deepEqual(list(rule[1]), list(VIEW_ONLY_CONTROLS));
 });
 
-test('only playback, inputs, the pager and Restart are offered: nothing that edits or draws', () => {
-  assert.deepEqual(list(VIEW_ONLY_CONTROLS), ['[data-animation-transport]', '[data-card-pager]', '[data-program-restart]', '[data-scene-controls]']);
+test('only playback, inputs, the pager, Restart and Notes are offered: nothing that edits or draws', () => {
+  assert.deepEqual(list(VIEW_ONLY_CONTROLS), ['[data-animation-transport]', '[data-card-pager]', '[data-program-notes]', '[data-program-restart]', '[data-scene-controls]']);
   for (const editing of ['textarea', 'contenteditable', 'data-sketch', 'data-drag-zone']) assert.ok(!VIEW_ONLY_CONTROLS.includes(editing));
 });
 
@@ -25,6 +25,6 @@ test('the canvas marks its card layer view-only and leaves a press on those cont
   const canvas = read('./AdaptiveCanvas.jsx');
   assert.match(canvas, /<div ref=\{column\} data-view-only-cards=\{readOnly \|\| undefined\}/);
   assert.match(canvas, /if \(tool === 'hand' && readOnly\) \{\s*\/\/[^\n]*\n\s*if \(event\.target\.closest\?\.\(VIEW_ONLY_CONTROLS\)\) return;/);
-  const cards = read('./explain-program/ProgramScene.jsx') + read('./AnimatedScene.jsx') + read('./SceneControls.jsx');
-  for (const marker of ['data-animation-transport', 'data-scene-controls', 'data-card-pager', 'data-program-restart']) assert.ok(cards.includes(marker), marker);
+  const cards = read('./explain-program/ProgramScene.jsx') + read('./explain-program/ProgramNotes.jsx') + read('./AnimatedScene.jsx') + read('./SceneControls.jsx');
+  for (const marker of ['data-animation-transport', 'data-scene-controls', 'data-card-pager', 'data-program-restart', 'data-program-notes']) assert.ok(cards.includes(marker), marker);
 });
