@@ -908,11 +908,13 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   // A repository graph card (GraphCard.jsx): its header strip moves it, its frame resizes it, the graph inside keeps its own pointer.
   if (block.type === 'repo-graph') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || GRAPH_CARD.w} height={block.h || GRAPH_CARD.h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
     <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the graph</p>}><GraphCard block={block} selected={selected} /></Suspense></CanvasNode>;
+  // A size whose height is undefined (a pending Explanation) means the content's height, not the type's fixed one.
+  const sized = BLOCK_TYPES[block.type]?.sizeFor?.(block, programFrame);
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       autoMax={BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
-      width={BLOCK_TYPES[block.type]?.sizeFor?.(block, programFrame)?.width ?? BLOCK_TYPES[block.type]?.width}
-      height={BLOCK_TYPES[block.type]?.sizeFor?.(block, programFrame)?.height ?? BLOCK_TYPES[block.type]?.height}
+      width={sized?.width ?? BLOCK_TYPES[block.type]?.width}
+      height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
       extraHeight={sourcesHeight + practiceHeight + controlsHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
       tools={selected ? <>
