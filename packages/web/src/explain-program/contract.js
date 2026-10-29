@@ -7,6 +7,9 @@ import { ROLES } from '../scene-vocab.js';
 
 export const PROGRAM_KIND = 'explain_program';
 export const SCHEMA_VERSION = 1;
+// Schema 2 is the stateful contract (initialState/reduce/evaluate, declared actions/targets, one viewport). Only artifacts that need state
+// use it; schema 1 artifacts parse, hash and run exactly as before. host.js runs a version only if stamps.js lists its whole tuple.
+export const STATEFUL_SCHEMA_VERSION = 2;
 // Versions the card side owns. runtimeVersion (the pinned interpreter build) is stamped by whoever seals the artifact.
 export const PROGRAM_VERSIONS = Object.freeze({
   schemaVersion: SCHEMA_VERSION, sdkVersion: 'sdk-1', rendererVersion: 'renderer-1', runtimePolicyVersion: 'policy-1', permissionProfileVersion: 'perm-1',
@@ -20,6 +23,7 @@ export const CONTRACT_LIMITS = Object.freeze({
   sourceBytes: 16 * 1024, manifestBytes: 4 * 1024, maxOutputBytes: 256 * 1024, depth: 32,
   objects: 60, objectsTotal: 240, pointsPerObject: 2000, pointsTotal: 10000, inputs: 4, optionCombinations: 64, options: 8, readouts: 8, quantities: 32, assumptions: 8,
   duration: 120, coordinate: 100000, size: 2000, text: 200, runs: 16,
+  stateBytes: 32 * 1024, actions: 8, targets: 8, // schema 2 only; LIMITS.stateBytes is this value
 });
 
 export const ERROR_CODES = Object.freeze(['invalid_program', 'unsupported_capability', 'runtime_limit', 'runtime_error', 'invalid_output', 'version_unavailable']);
@@ -65,14 +69,15 @@ const selectInput = z.object({
 const inputSchema = z.union([numberInput, selectInput]);
 const readoutSchema = z.object({ id: name, label: plain(60), unit: maybePlain(16).optional(), decimals: z.number().int().min(0).max(6).default(2) }).strict();
 
-export const ProgramManifest = z.object({
+const manifestShape = {
   title: plain(120), summary: plain(400), assumptions: z.array(plain(300)).max(CONTRACT_LIMITS.assumptions),
   description: plain(600), // the accessible description of what the picture shows
   inputs: z.array(inputSchema).max(CONTRACT_LIMITS.inputs),
   duration: z.number().positive().max(CONTRACT_LIMITS.duration).optional(), // seconds; absent means a static, time-free card
   readouts: z.array(readoutSchema).max(CONTRACT_LIMITS.readouts),
   capabilities: z.array(z.string().min(1).max(32)).max(16),
-}).strict().superRefine((manifest, context) => {
+};
+const manifestChecks = (manifest, context) => {
   const ids = [...manifest.inputs.map(input => input.id), ...manifest.readouts.map(readout => readout.id)];
   if (new Set(ids).size !== ids.length) {
     // Name the clash and say how to fix it: a control and a readout often want the same word ("room"), and they share one namespace.
@@ -83,30 +88,81 @@ export const ProgramManifest = z.object({
   const combinations = manifest.inputs.filter(input => input.type === 'select').reduce((total, input) => total * input.options.length, 1);
   if (combinations > CONTRACT_LIMITS.optionCombinations) context.addIssue({ code: 'custom', message: `select options combine to ${combinations} states (at most ${CONTRACT_LIMITS.optionCombinations})`, path: ['inputs'] });
   if (utf8(JSON.stringify(manifest)) > CONTRACT_LIMITS.manifestBytes) context.addIssue({ code: 'custom', message: `the manifest is over ${CONTRACT_LIMITS.manifestBytes} bytes`, path: [] });
+};
+export const ProgramManifest = z.object(manifestShape).strict().superRefine(manifestChecks);
+
+// Schema 2 adds: one fixed viewport every evaluated frame must have (resizing scales it; inputs and actions never change the card's
+// aspect), the button actions a reducer may receive, and the frame object ids a learner may select. Nothing else crosses as an event.
+const frameSide = z.number().positive().max(4096); // the Frame's own dimension bound
+const actionSchema = z.object({ id: name, label: plain(60) }).strict();
+const targetSchema = z.object({ id, label: plain(60) }).strict(); // id: the frame object a learner selects
+export const StatefulManifest = z.object({
+  ...manifestShape,
+  viewport: z.object({ width: frameSide, height: frameSide }).strict(),
+  actions: z.array(actionSchema).max(CONTRACT_LIMITS.actions),
+  targets: z.array(targetSchema).max(CONTRACT_LIMITS.targets),
+}).strict().superRefine((manifest, context) => {
+  manifestChecks(manifest, context);
+  for (const key of ['actions', 'targets']) {
+    const ids = manifest[key].map(item => item.id);
+    if (new Set(ids).size !== ids.length) context.addIssue({ code: 'custom', message: `${key} ids must be unique`, path: [key] });
+  }
 });
+const manifestFor = schemaVersion => (schemaVersion === STATEFUL_SCHEMA_VERSION ? StatefulManifest : ProgramManifest);
 
 // ---- artifact ---------------------------------------------------------------------------------------------------------
 
 const sourceSchema = z.string().min(1).refine(text => utf8(text) <= CONTRACT_LIMITS.sourceBytes, `the source is over ${CONTRACT_LIMITS.sourceBytes} bytes`);
 // What the author model supplies. Never versions, never hashes: the host stamps and computes those.
 export const ProgramBundle = z.object({ manifest: ProgramManifest, source: sourceSchema }).strict();
-export const ProgramArtifact = z.object({
-  kind: z.literal(PROGRAM_KIND), schemaVersion: z.literal(SCHEMA_VERSION),
+export const StatefulBundle = z.object({ manifest: StatefulManifest, source: sourceSchema }).strict();
+const artifactSchema = schemaVersion => z.object({
+  kind: z.literal(PROGRAM_KIND), schemaVersion: z.literal(schemaVersion),
   runtimeVersion: version, sdkVersion: version, rendererVersion: version, runtimePolicyVersion: version, permissionProfileVersion: version,
   fingerprints: z.object({ engine: version, sdk: version, renderer: version }).strict(),
   dependencies: z.array(version).max(8).default([]),
-  manifest: ProgramManifest, source: sourceSchema, sourceHash: hash, manifestHash: hash, bundleHash: hash,
+  manifest: manifestFor(schemaVersion), source: sourceSchema, sourceHash: hash, manifestHash: hash, bundleHash: hash,
 }).strict();
+export const ProgramArtifact = artifactSchema(SCHEMA_VERSION);
+export const StatefulArtifact = artifactSchema(STATEFUL_SCHEMA_VERSION);
 
 // ---- evaluate request / frame / response ------------------------------------------------------------------------------
 
-export const EvaluateRequest = z.object({
+const inputValue = z.union([finite(1e9), z.string().max(32)]);
+const requestFields = {
   requestId: z.string().min(1).max(64),
-  inputs: z.record(name, z.union([finite(1e9), z.string().max(32)])).refine(record => Object.keys(record).length <= CONTRACT_LIMITS.inputs, 'too many inputs'),
+  inputs: z.record(name, inputValue).refine(record => Object.keys(record).length <= CONTRACT_LIMITS.inputs, 'too many inputs'),
   time: z.number().min(0).max(CONTRACT_LIMITS.duration),
   seed: z.number().int().min(0).max(0xffffffff),
-  state: z.null(), // MVP: no guest state. Task 8 widens this to bounded JSON.
-}).strict();
+};
+export const EvaluateRequest = z.object({ ...requestFields, state: z.null() }).strict(); // schema 1: no guest state, ever
+
+// ---- schema 2: state and events -----------------------------------------------------------------------------------------
+
+// The one state rule, for requests, guest results and (Task 8.2) storage alike: a plain JSON object, finite numbers only, no value
+// nested deeper than CONTRACT_LIMITS.depth levels (the root is level 1, as for guest output), at most CONTRACT_LIMITS.stateBytes of
+// canonical UTF-8 JSON. Returns the first problem, or null. The size is measured first, at a bounded cost.
+const plainContainer = node => Array.isArray(node) || [Object.prototype, null].includes(Object.getPrototypeOf(node));
+const stateTooDeep = (node, level) => level > CONTRACT_LIMITS.depth
+  || (node !== null && typeof node === 'object' && (!plainContainer(node) || Object.values(node).some(child => stateTooDeep(child, level + 1))));
+export function stateProblem(value) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return 'state must be a JSON object';
+  try { canonicalBytes(value, CONTRACT_LIMITS.stateBytes); } catch (error) {
+    return error instanceof RangeError ? `state is over ${CONTRACT_LIMITS.stateBytes} bytes or nested too deeply` : 'state must be plain JSON with finite numbers';
+  }
+  return stateTooDeep(value, 1) ? `state is nested deeper than ${CONTRACT_LIMITS.depth} levels or is not plain JSON` : null;
+}
+const stateSchema = z.unknown().superRefine((value, context) => { const problem = stateProblem(value); if (problem) context.addIssue({ code: 'custom', message: problem }); });
+
+// The strict event union. Drag (start/move/end) is reserved for Task 8.4 and refused as unsupported_capability until then.
+export const ProgramEvent = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('action'), action: name }).strict(),
+  z.object({ type: z.literal('select'), target: id }).strict(),
+  z.object({ type: z.literal('input'), input: name, value: inputValue }).strict(),
+]);
+export const StatefulEvaluateRequest = z.object({ ...requestFields, state: stateSchema }).strict();
+export const InitializeRequest = z.object({ requestId: requestFields.requestId, inputs: requestFields.inputs, seed: requestFields.seed }).strict();
+export const ReduceRequest = z.object({ ...requestFields, state: stateSchema, event: z.unknown() }).strict(); // event: parseEvent, against the manifest
 
 const style = { role: z.enum(ROLES).default('neutral'), opacity: z.number().min(0).max(1).default(1) };
 const labelled = { text: plain(CONTRACT_LIMITS.text).optional(), runs: z.array(run).min(1).max(CONTRACT_LIMITS.runs).optional() };
@@ -188,21 +244,46 @@ function parseWith(schema, raw, code) {
 // list of strings is read here; a field of another type (or a non-string in the list) is a malformed manifest, which the schema reports with its
 // path, the expected type and the observed type, so it can be repaired.
 export const unsupportedCapabilities = manifest => (Array.isArray(manifest?.capabilities) ? manifest.capabilities : []).filter(capability => typeof capability === 'string' && !CAPABILITIES.includes(capability));
-export function parseManifest(raw) {
-  const result = parseWith(ProgramManifest, raw, 'invalid_program');
+export function parseManifest(raw, schemaVersion = SCHEMA_VERSION) {
+  const result = parseWith(manifestFor(schemaVersion), raw, 'invalid_program');
   if (!result.ok) return result;
   const missing = unsupportedCapabilities(result.value);
   return missing.length ? { ok: false, error: new RuntimeError('unsupported_capability'), issue: `capabilities: ${missing.join(', ')}` } : result;
 }
-export const parseBundle = raw => {
-  const manifest = parseManifest(raw?.manifest);
-  return manifest.ok ? parseWith(ProgramBundle, raw, 'invalid_program') : manifest;
+const stateful = schemaVersion => schemaVersion === STATEFUL_SCHEMA_VERSION;
+export const parseBundle = (raw, schemaVersion = SCHEMA_VERSION) => {
+  const manifest = parseManifest(raw?.manifest, schemaVersion);
+  return manifest.ok ? parseWith(stateful(schemaVersion) ? StatefulBundle : ProgramBundle, raw, 'invalid_program') : manifest;
 };
+// The artifact's own schemaVersion picks its schema: 2 is the stateful one, anything else is read as schema 1, whose literal refuses
+// a version it does not know.
 export const parseArtifact = raw => {
-  const manifest = parseManifest(raw?.manifest);
-  return manifest.ok ? parseWith(ProgramArtifact, raw, 'invalid_program') : manifest;
+  const schemaVersion = stateful(raw?.schemaVersion) ? STATEFUL_SCHEMA_VERSION : SCHEMA_VERSION;
+  const manifest = parseManifest(raw?.manifest, schemaVersion);
+  return manifest.ok ? parseWith(stateful(schemaVersion) ? StatefulArtifact : ProgramArtifact, raw, 'invalid_program') : manifest;
 };
 export const parseEvaluateRequest = raw => parseWith(EvaluateRequest, raw, 'invalid_program');
+export const parseStatefulEvaluateRequest = raw => parseWith(StatefulEvaluateRequest, raw, 'invalid_program');
+export const parseInitializeRequest = raw => parseWith(InitializeRequest, raw, 'invalid_program');
+export const parseState = raw => parseWith(stateSchema, raw, 'invalid_output'); // a state the guest returned
+// An event the manifest declares: a declared action or target, or a declared input with an allowed value. Never throws.
+export function parseEvent(raw, manifest) {
+  if (typeof raw?.type === 'string' && raw.type.startsWith('drag')) return { ok: false, error: new RuntimeError('unsupported_capability'), issue: 'event: drag is not supported yet' };
+  const parsed = parseWith(ProgramEvent, raw, 'invalid_program');
+  if (!parsed.ok) return parsed;
+  const event = parsed.value, input = event.type === 'input' && manifest.inputs.find(item => item.id === event.input);
+  const declared = event.type === 'action' ? manifest.actions.some(action => action.id === event.action)
+    : event.type === 'select' ? manifest.targets.some(target => target.id === event.target)
+      : !!input && (input.type === 'number' ? typeof event.value === 'number' && event.value >= input.min && event.value <= input.max
+        : input.options.some(option => option.value === event.value));
+  return declared ? parsed : { ok: false, error: new RuntimeError('invalid_program'), issue: `event: this ${event.type} is not declared by the manifest` };
+}
+export function parseReduceRequest(raw, manifest) {
+  const parsed = parseWith(ReduceRequest, raw, 'invalid_program');
+  if (!parsed.ok) return parsed;
+  const event = parseEvent(parsed.value.event, manifest);
+  return event.ok ? { ok: true, value: { ...parsed.value, event: event.value } } : event;
+}
 // Output is measured before it is parsed: the canonical serialized byte length of the WHOLE result (frame, quantities, and for
 // a response its id and metrics) must not exceed CONTRACT_LIMITS.maxOutputBytes, the one authoritative output limit. A result
 // that is over, too deep, or not plain JSON is invalid_output; the issue text states the limit and echoes none of the content.
@@ -213,7 +294,14 @@ function parseOutput(schema, raw) {
   return parseWith(schema, raw, 'invalid_output');
 }
 export const parseFrame = raw => parseOutput(Frame, raw);
-export const parseGuestResult = raw => parseOutput(GuestResult, raw);
+// With a schema 2 manifest, the frame must also have exactly the declared viewport.
+export function parseGuestResult(raw, manifest = null) {
+  const result = parseOutput(GuestResult, raw);
+  if (!result.ok || !manifest?.viewport) return result;
+  const { width, height } = result.value.frame, viewport = manifest.viewport;
+  return width === viewport.width && height === viewport.height ? result
+    : { ok: false, error: new RuntimeError('invalid_output'), issue: `frame: ${width} x ${height}, but the manifest viewport is ${viewport.width} x ${viewport.height}` };
+}
 export const parseEvaluateResponse = raw => parseOutput(EvaluateResponse, raw);
 
 // ---- inputs -----------------------------------------------------------------------------------------------------------
@@ -291,9 +379,10 @@ export async function computeHashes(artifact) {
 }
 // Author output (manifest + source) plus the host's version stamps becomes a stored artifact. Any hash the model supplied is
 // not read: parseBundle is strict, so it is refused before this runs.
-// stamps: { runtimeVersion, fingerprints: { engine, sdk, renderer }, dependencies?, ...overrides of PROGRAM_VERSIONS }.
+// stamps: { runtimeVersion, fingerprints: { engine, sdk, renderer }, dependencies?, ...overrides of PROGRAM_VERSIONS }. A stamp set
+// with schemaVersion 2 (STATEFUL_PROGRAM_STAMPS, stamps.js) seals a stateful bundle.
 export async function sealProgram(bundle, stamps) {
-  const parsed = parseBundle(bundle);
+  const parsed = parseBundle(bundle, stamps?.schemaVersion ?? SCHEMA_VERSION);
   if (!parsed.ok) return parsed;
   const draft = { kind: PROGRAM_KIND, ...PROGRAM_VERSIONS, dependencies: [], ...stamps, ...parsed.value };
   return parseArtifact({ ...draft, ...(await computeHashes(draft)) });

@@ -13,10 +13,17 @@ export const RENDERER_VERSION = 'renderer-1';
 export const RUNTIME_POLICY_VERSION = 'policy-1';
 export const PERMISSION_PROFILE_VERSION = 'perm-1';
 
-// Pass as sealProgram(bundle, PROGRAM_STAMPS) (contract.js). The host accepts exactly these.
+// Pass as sealProgram(bundle, PROGRAM_STAMPS) (contract.js): schema 1, what the control plane seals today.
 export const PROGRAM_STAMPS = Object.freeze({
   runtimeVersion: ENGINE_VERSION,
   runtimePolicyVersion: RUNTIME_POLICY_VERSION,
   permissionProfileVersion: PERMISSION_PROFILE_VERSION,
   fingerprints: Object.freeze({ engine: ENGINE_FINGERPRINT, sdk: SDK_FINGERPRINT, renderer: RENDERER_VERSION }),
 });
+// The stateful contract (schema 2) on the same engine, SDK, renderer and policies. Nothing in production seals with it yet (Task 8.3).
+export const STATEFUL_PROGRAM_STAMPS = Object.freeze({ ...PROGRAM_STAMPS, schemaVersion: 2 });
+
+// Every version tuple host.js will run, whole: an artifact runs only if all of these fields equal one entry exactly. No "same major",
+// no field ignored. A new engine, SDK, renderer or policy is a new entry, added beside the old one while artifacts sealed with it remain.
+const tuple = (schemaVersion, stamps) => Object.freeze({ schemaVersion, sdkVersion: 'sdk-1', rendererVersion: RENDERER_VERSION, ...stamps });
+export const SUPPORTED_PROGRAM_TUPLES = Object.freeze([tuple(1, PROGRAM_STAMPS), tuple(2, STATEFUL_PROGRAM_STAMPS)]);
