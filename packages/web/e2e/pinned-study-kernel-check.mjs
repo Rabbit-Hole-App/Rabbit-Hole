@@ -95,7 +95,17 @@ const pressCell = async (page, frame, n) => { await (await cellEditor(frame, n))
 // session.kernel is null, and Shift+Enter still advances), so the first run waits for the session's own kernel status. Not the
 // toolbar's .jp-Notebook-ExecutionIndicator: its data-status starts as 'idle' before any kernel exists (executionindicator.tsx),
 // which let a press through (run 40392512154, 20:10Z: the indicator said idle and cell a never ran).
-const kernelState = frame => frame.locator('body').evaluate(() => { const context = window.jupyterapp.shell.currentWidget.sessionContext; return context.session?.kernel ? context.kernelDisplayStatus : 'no kernel session'; }).catch(error => `no notebook (${String(error.message).split(String.fromCharCode(10))[0].slice(0, 80)})`);
+// The shell's currentWidget follows focus (Lumino FocusTracker), and the bridge, the card's Run all and Restart and these
+// helpers read it. When it is null the state names the opened notebook's own kernel and where focus is, so a notebook that
+// never received focus is told apart from one that did not open (fast-e2e 40926824840 and 40947265937: "no notebook").
+const kernelState = frame => frame.locator('body').evaluate(() => {
+  const shell = window.jupyterapp.shell, context = shell.currentWidget?.sessionContext;
+  if (!context) {
+    const opened = [...shell.widgets('main')].find(widget => widget.sessionContext), kernel = opened?.sessionContext;
+    return `no current widget (opened notebook: ${opened ? (kernel.session?.kernel ? kernel.kernelDisplayStatus : 'no kernel session') : 'none'}, focus: ${String(document.activeElement?.className || document.activeElement?.tagName || 'none').slice(0, 60)}, frame focused: ${document.hasFocus()})`;
+  }
+  return context.session?.kernel ? context.kernelDisplayStatus : 'no kernel session';
+}).catch(error => `no notebook (${String(error.message).split(String.fromCharCode(10))[0].slice(0, 80)})`);
 const kernelIdle = async (frame, ms) => {
   const end = Date.now() + ms;
   for (let state = await kernelState(frame); state !== 'idle'; state = await kernelState(frame)) {
