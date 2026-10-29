@@ -14,8 +14,8 @@
   "03-animated-explainer-videos": {
     "desktop": {
       "src": "03-animated-explainer-videos-desktop.webp",
-      "w": 996,
-      "h": 1884
+      "w": 2124,
+      "h": 1932
     }
   },
   "04-github-code-graph": {
@@ -78,15 +78,15 @@
   "10-cad-generation": {
     "desktop": {
       "src": "10-cad-generation-desktop.webp",
-      "w": 1620,
-      "h": 2145
+      "w": 2316,
+      "h": 2202
     }
   },
   "11-rabbit-holes": {
     "desktop": {
       "src": "11-rabbit-holes-desktop.webp",
       "w": 3840,
-      "h": 2160
+      "h": 2021
     },
     "mobile": {
       "src": "11-rabbit-holes-mobile.webp",
@@ -101,34 +101,13 @@
       "h": 1233
     }
   },
-  "16-sharing-forking": [
-    {
-      "caption": "Shared canvas",
-      "desktop": {
-        "src": "16-sharing-forking-a-desktop.webp",
-        "w": 1175,
-        "h": 890
-      },
-      "mobile": {
-        "src": "16-sharing-forking-a-mobile.webp",
-        "w": 800,
-        "h": 708
-      }
-    },
-    {
-      "caption": "The fork",
-      "desktop": {
-        "src": "16-sharing-forking-b-desktop.webp",
-        "w": 1700,
-        "h": 780
-      },
-      "mobile": {
-        "src": "16-sharing-forking-b-mobile.webp",
-        "w": 800,
-        "h": 677
-      }
+  "16-sharing-forking": {
+    "desktop": {
+      "src": "16-sharing-forking-desktop.webp",
+      "w": 1600,
+      "h": 1409
     }
-  ],
+  },
   "23-table-of-contents": {
     "desktop": {
       "src": "23-table-of-contents-desktop.webp",
