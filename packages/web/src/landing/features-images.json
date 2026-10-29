@@ -81,5 +81,12 @@
         "h": 677
       }
     }
-  ]
+  ],
+  "24-comments": {
+    "desktop": {
+      "src": "24-comments-desktop.webp",
+      "w": 976,
+      "h": 1270
+    }
+  }
 }
