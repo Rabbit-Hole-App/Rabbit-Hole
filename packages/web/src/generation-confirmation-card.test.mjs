@@ -12,9 +12,14 @@ import * as esbuild from 'esbuild';
 import { proposalView } from './generation-confirmation-schema.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'confirmation-card-')), outfile = join(dir, 'card.cjs');
+// ContextChips' graph reaches a Vite ?url import (the PDF worker): an empty module here, as answer-footer.test.mjs does.
+const viteUrl = { name: 'vite-url', setup(build) {
+  build.onResolve({ filter: /\?url$/ }, args => ({ path: args.path, namespace: 'vite-url' }));
+  build.onLoad({ filter: /.*/, namespace: 'vite-url' }, () => ({ contents: 'export default ""' }));
+} };
 await esbuild.build({
-  stdin: { contents: "export { default as Card, buildEdit } from './GenerationProposalCard.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'js' },
-  bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty' },
+  stdin: { contents: "export { default as Card, buildEdit } from './GenerationProposalCard.jsx'; export { EditTargetPill } from './ContextChips.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'js' },
+  bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', plugins: [viteUrl], loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty' },
 });
 const B = createRequire(import.meta.url)(outfile);
 rmSync(dir, { recursive: true, force: true });
@@ -80,6 +85,39 @@ test('the details form: title, description editor, references with Remove, the l
   // the Edit details button on a card that is not editing
   assert.match(html(), /<button[^>]*data-proposal-edit/);
   assert.doesNotMatch(html({ active: false }), /data-proposal-edit/, 'a superseded card is not editable');
+});
+
+test('Edit (conversational): one Edit button that hands the exact revision to the Chat; no form, no save, no Generate; text read only; the target is highlighted', () => {
+  const out = html({ onEdit: () => {} });
+  assert.match(out, /<button[^>]*data-proposal-edit="true"[^>]*>Edit<\/button>/);
+  assert.doesNotMatch(out, /Edit details|data-proposal-save|data-proposal-discard|data-proposal-editor|<input data-proposal-title|data-proposal-remove-reference/, 'no inline editor in this flow');
+  assert.match(out, /<select data-proposal-duration="true"/, 'direct settings stay on the card');
+  assert.match(out, /<button[^>]*data-proposal-generate="true"(?! disabled)/, 'Generate is unchanged until a revision is published');
+  const edits = [], saved = [], generated = [];
+  const root = tree({ onEdit: x => edits.push(x), onSave: e => saved.push(e), onGenerate: x => generated.push(x) });
+  find(root, n => n.props?.['data-proposal-edit']).props.onClick();
+  assert.deepEqual(edits, [v3()], 'the exact proposal revision clicked');
+  assert.deepEqual([saved.length, generated.length], [0, 0], 'Edit saves nothing and starts nothing');
+  assert.doesNotMatch(html({ onEdit: () => {}, active: false }), /data-proposal-edit/, 'a superseded card is not a target');
+  // The targeted card: the selection styling and its marker; the id and revision a pill reveals it by.
+  const targeted = html({ onEdit: () => {}, targeted: true });
+  assert.match(targeted, /<section[^>]*data-proposal-id="gp-0123456789abcdef" data-proposal-version="2" data-proposal-targeted="true"[^>]*class="[^"]*border-accent ring-1 ring-accent/);
+  assert.doesNotMatch(out, /data-proposal-targeted|ring-1 ring-accent/);
+  // Without onEdit (a command with no chat revision: a CAD brief, an image) the card keeps Edit details.
+  assert.match(html(), /data-proposal-edit="true"[^>]*>Edit details</);
+});
+
+test('the Editing pill: Editing: title, a truncating title, a reachable x labelled Cancel editing this proposal; a click reveals, x cancels', () => {
+  const target = { proposalId: 'gp-a', version: 3, title: 'Gravity on Earth and Moon, with a much longer title that has to truncate on a phone' };
+  const out = B.renderToStaticMarkup(B.createElement(B.EditTargetPill, { target, onReveal: () => {}, onCancel: () => {} }));
+  assert.match(out, /<li data-proposal-edit-target="gp-a" data-proposal-edit-version="3"[^>]*class="[^"]*max-w-full min-w-0[^"]*border-line[^"]*pr-0.5"/);
+  assert.match(out, /<span class="shrink-0 text-ink-3">Editing:<\/span><span class="min-w-0 truncate">Gravity on Earth and Moon, with a much longer title/);
+  assert.match(out, /<button type="button" data-proposal-edit-cancel="true" aria-label="Cancel editing this proposal"[^>]*class="flex h-5 w-5 shrink-0[^"]*"><svg/, 'the x never shrinks away');
+  const calls = [];
+  const root = B.EditTargetPill({ target, onReveal: () => calls.push('reveal'), onCancel: () => calls.push('cancel') });
+  find(root, n => n.props?.['data-proposal-edit-reveal']).props.onClick();
+  find(root, n => n.props?.['data-proposal-edit-cancel']).props.onClick();
+  assert.deepEqual(calls, ['reveal', 'cancel']);
 });
 
 test('Explain declares presentation only: no duration or audio, its assumptions shown, Cancel only where supported and wired', () => {

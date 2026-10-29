@@ -40,7 +40,7 @@ import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
 import { CadReview } from './CadReview.jsx';
 import { openOnce } from './learn-opening.js';
 import { lateEvent, settle, withAnswerMeta, withDone, withSavedReply } from './chat-threads.js';
-import { approvesJob, currentProposal, routeChat, routeOutcome } from './generation-proposal-chat.js';
+import { approvesJob, currentProposal, editRefusal, editSpent, routeChat, routeOutcome } from './generation-proposal-chat.js';
 import { imageGenerationOn, requestImagePlan } from './generate-image.js';
 import { loadImageCapability } from './image-capability.js';
 import { EXPLAIN_BRIEF_EVENT } from './explain-client.js';
@@ -524,6 +524,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   }, [chatThread?.restore.key]); // eslint-disable-line react-hooks/exhaustive-deps
   // The restore keeps the transcript this pane shows, so a remounted Chat pane comes back to it, not to the thread as opened.
   useEffect(() => { if (chatThread) chatThread.restore.messages = msgs; }, [msgs]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The proposal card's Edit target (chat-workspace.jsx editing): it takes precedence over the implicit latest proposal below, and
+  // is cleared once its revision is no longer the live one (a revision published, generated or expired).
+  const editTarget = chat && !tocView ? chat.editing?.target ?? null : null;
+  useEffect(() => { if (editSpent(editTarget, msgs, outputOps?.proposalMade)) chat.editing.clear(); }, [msgs, editTarget]); // eslint-disable-line react-hooks/exhaustive-deps
   // prompted: raw is a command's prompt coming back from LearnSlash (onPrompt), the chat turn itself. Answers false when it
   // refuses that turn, so LearnSlash gives the line back with an error instead of losing it.
   const send = async (raw, scopeOverride, { opening = false, skipJourney = false, command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false, routeAs = null } = {}) => {
@@ -535,6 +539,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     // TOC refinements and explicit Ask never go to the journey resolver or start a journey: a course or journey
     // on this canvas must not turn an Ask turn into syllabus work.
     if (tocView || chat?.thread.mode === 'ask') skipJourney = true;
+    // An Edit target's turn is that proposal's revision: never a journey answer.
+    const edit = !regenerate ? editTarget : null;
+    if (edit) skipJourney = true;
     // conflicts.md Q4: typing "not now" while a tray is open is the Not now control too (suggestions paused, saved).
     if (!tocView && tray?.tray && /^\s*not now[.!]?\s*$/i.test(raw)) chat?.coaching?.dispatch({ type: 'not_now' });
     // Learning journeys (LearnJourney.jsx, adaptive-learning-path-v1-architecture.md §6.1, §7.2): on a board with a
@@ -574,11 +581,17 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     // EXP-T20 slice 3: while an /explain brief waits for Generate (its card says so), a plain Chat turn refines it (the job's refine route), as a
     // chat turn revises a live Motion proposal. The words are saved as the learner's message; the next version of the brief
     // appears in this thread when it is ready. A refusal keeps the words in the composer and says why.
-    const brief = chat && !tocView && !regenerate && !prompted && !commandName && !file && workspace?.canvasOps?.refineExplain ? currentProposal(msgs, outputOps?.proposalMade) : null;
+    // An Edit target goes first: its own command's path for exactly that revision (Explain here, Motion through the turn below), the
+    // words kept when it is refused; never another command, never a file, never Generate.
+    const editRefused = edit ? editRefusal(edit, { command: commandName, file }) : null;
+    if (editRefused) { setRouteShown({ kind: 'unsupported', message: editRefused, raw }); return false; }
+    const brief = edit ? (edit.command === 'explain' && workspace?.canvasOps?.refineExplain ? edit.proposal : null)
+      : chat && !tocView && !regenerate && !prompted && !commandName && !file && workspace?.canvasOps?.refineExplain ? currentProposal(msgs, outputOps?.proposalMade) : null;
+    if (edit && approvesJob(brief) && !workspace.canvasOps.explainWaiting?.(brief.input.job)) { setRouteShown({ kind: 'unsupported', message: 'This plan is not waiting for review now. Edit its latest version when it appears.', raw }); return false; }
     if (approvesJob(brief) && workspace.canvasOps.explainWaiting?.(brief.input.job)) {
       setInput(''); setMentions([]);
       recordCommand(message);
-      try { await workspace.canvasOps.refineExplain(brief, message); }
+      try { await workspace.canvasOps.refineExplain(brief, message, edit ? { proposal_id: edit.proposalId, version: edit.version } : undefined); if (edit) chat.editing.clear(); }
       catch (error) { setInput(current => current || raw); setRouteShown({ kind: 'unsupported', message: error.message, raw }); }
       return;
     }
@@ -688,7 +701,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     // A PDF excerpt (pdf-excerpt.js) rides as client text the Tutor's plan does not read: like a file, it goes to /api/learn/ask.
     // So does a progress question (Tutor Task 10): only that route reads the learner's evidence for it, read-only, and the
     // Tutor's path could take the message for an answer to assess. A mentioned canvas too: only /api/learn/ask reads it.
-    const fileTurn = [...attachedRefs, target?.ref].some(ref => ref?.kind === 'file' || ref?.kind === 'excerpt' || ref?.kind === 'progress' || ref?.kind === 'canvas');
+    // An Edit target's turn goes there too: only that route revises the proposal it names.
+    const fileTurn = !!edit || [...attachedRefs, target?.ref].some(ref => ref?.kind === 'file' || ref?.kind === 'excerpt' || ref?.kind === 'progress' || ref?.kind === 'canvas');
     const viaTutor = tutorTurn({ tutor, codeTurn, pageTurn: turnHasPage(target, attachedRefs) && !pdfPage, fileTurn, explicit: !!commandName && promptsChat(commandName), chat, mode: chat?.thread.mode, toc: tocView });
     if (!viaTutor || isDemo) begin();
     const append = (t) => setMsgs((m) => {
@@ -801,7 +815,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         // path), exactly the chips attached at Send with card, group, image and media text resolved now.
         ...(chat ? { mode: askMode(chat.thread.mode, tocView), command: commandName, context_refs: refsForSend(withPage(withPage(codeTurnRefs.refs, target?.docPage), target?.excerptCrop), { target: target?.ref }) } : {}),
         // UI-15 / MOT-20: what a generation proposal would be about, and the live proposal this turn may refine (LearnPage).
-        ...(chat && canvasOps?.generation ? ((generation) => (generation ? { generation } : {}))(canvasOps.generation(about?.selection ?? (target ? { ...target, text: targetText } : null), currentProposal(msgs, canvasOps.proposalMade), about?.concept)) : {}),
+        // An Edit target names its exact revision (edit: the server revises that one or refuses); otherwise the implicit latest live one.
+        ...(chat && canvasOps?.generation ? ((generation) => (generation ? { generation } : {}))(canvasOps.generation(about?.selection ?? (target ? { ...target, text: targetText } : null), edit?.command === 'motion' ? edit.proposal : currentProposal(msgs, canvasOps.proposalMade), about?.concept, edit?.command === 'motion')) : {}),
         // The live canvas (whole-canvas context): its inventory, relevant excerpts, relations and coverage.
         ...(canvasContext ? { canvas_context: canvasContext } : {}),
       };
@@ -818,7 +833,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       // with zero router calls and signs its route. Other commands' prompts, Tutor turns, regenerations and attachments are not
       // routed. Only a decided answer or proposal is sent (a proposal with its route_token); a direct capability runs its own
       // command; anything else gives the words back with the decision.
-      if (chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && payload.mode !== 'tutor' && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {
+      if (chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && !edit && payload.mode !== 'tutor' && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {
         const outcome = routeOutcome(await routeChat((url, init) => fetch(url, { ...init, headers: { ...init.headers, ...wsHeaders() }, signal: flight.signal }), payload, { capability: routeAs ?? commandName ?? null }));
         if (late()) return;
         // Plain words the router read as an image request take the same plan route as the typed command.
@@ -857,6 +872,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           keepRefused(d);
           // A mentioned canvas this learner can no longer read: its pill reads it again (now unavailable) and the words come back.
           if (d.code === 'canvas_unavailable') { recheckMentions(); setInput(current => current || raw); }
+          // A refused Edit (its revision changed or cannot be revised): nothing was stored, and the instruction comes back to the composer.
+          if (edit) setInput(current => current || raw);
         }
         return;
       }

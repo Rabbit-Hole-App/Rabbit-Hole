@@ -167,6 +167,26 @@ assumptions?, missing_information?, limitations?, visual_constraints? }`. Rules:
 Approval binds to the signature of the current revision (prompt, references with revisions, settings, destination, quote). Execution
 reads ONLY the verified, consumed proposal; text a client resends is compared by signature, never used as input.
 
+### 7a. Conversational Edit (owner spec 2026-10-29)
+
+On a proposal whose command revises in chat (`editPath` in `generation-proposal-chat.js`), the card's action is **Edit**, not Edit
+details: it opens Chat, focuses the composer with its draft kept, adds one `Editing: <title> x` pill (`ContextChips.jsx`
+`EditTargetPill`; x is "Cancel editing this proposal") and highlights that card. The target (`chat-workspace.jsx` `editing`) is that
+exact proposal id and revision, its message, thread and canvas, scoped to the open conversation: New chat, opening another thread or
+canvas, a reload, Generate, Cancel on that Explain brief, or a newer published revision clears it. Clicking Edit sends nothing and calls no model. The next Chat turn
+revises exactly that revision, never the implicit latest proposal, never another command, never Generate:
+
+- **motion**: the turn sends `generation: { current, edit: true }`; the server refuses (409 `proposal_edit_stale`, nothing stored, no
+  model call) unless `current` verifies and is the server's current revision (`currentRevision`), then offers only the proposal tool
+  and publishes the next version through `publishRevision` against that read (a change landing meanwhile is a `proposalConflict`).
+- **explain**: `refine { message, proposal: { proposal_id, version } }` on the same job; the job refuses (409 `brief_stale`) unless
+  that is the published current revision of its brief; `postBrief` publishes the next version as before.
+- **cad** and **generate-image**: no chat revision path exists (CAD's `brief` action is a manual edit, Image proposals are made with no
+  model call), so they keep Edit details. A Motion or Explain proposal with attached references keeps Edit details too (neither chat
+  path carries references).
+
+The original stays in history; it reads Superseded with Generate disabled once the new revision is published.
+
 ## 8. Reference resolution before dispatch
 
 Before the one-shot consume, the server re-resolves each reference under the requester's access (`authorizeFileSource`,

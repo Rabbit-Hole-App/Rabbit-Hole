@@ -304,6 +304,8 @@ export async function reviseProposal(env, p, edit, user, bind = null) {
 // shortcut: threads has no (user, scope_ref) index, so this scans the learner's threads; add one with the next threads migration.
 const RECORD = "SELECT mm.message_id, mm.meta_json FROM chat_message_meta mm JOIN threads t ON t.id = mm.thread_id WHERE t.user = ? AND t.scope_ref = ? AND mm.role = 'assistant' AND json_extract(mm.meta_json, '$.proposal.proposal_id') = ?";
 export const PROPOSAL_STALE = 'A newer version of this proposal exists. Use the latest card in the chat.';
+// The card's Edit named a revision that is no longer the current one (or cannot be revised): nothing is stored, no model is called.
+export const PROPOSAL_EDIT_STALE = 'This proposal changed since you chose Edit. Review the latest version, then press Edit on it.';
 export const PROPOSAL_USED = 'This proposal already made a video. Ask for a new version in chat to make another.';
 // The used text per capability (Motion's unchanged).
 export const proposalUsedText = command => (command === 'explain' ? 'This proposal already made an explanation. Ask for a new version in chat to make another.' : command === 'generate-image' ? 'This proposal already made an image. Ask for a new one to make another.' : PROPOSAL_USED);

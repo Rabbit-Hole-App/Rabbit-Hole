@@ -444,6 +444,12 @@ export class ExplainJobs {
     if (job.stage !== 'awaiting_approval') throw fail('This brief can no longer be changed.', 409, 'brief_stale');
     const message = typeof payload.message === 'string' ? payload.message.trim() : '';
     if (!message || message.length > MESSAGE_LIMIT) throw fail('Say what to change.');
+    // The card's Edit names the revision it was written for (proposal { proposal_id, version }): only the published current revision of
+    // this job's brief is refined, never a newer one the learner did not review.
+    if (payload.proposal !== undefined) {
+      const record = job.pendingProposal ? await proposalRecord(this.env.LEARN_DB, job.owner.email, job.app, job.pendingProposal.id).catch(() => null) : null;
+      if (!record?.current || record.state?.used || payload.proposal?.proposal_id !== job.pendingProposal.id || payload.proposal?.version !== record.current.version) throw fail('This plan changed since you chose Edit. Review the latest version, then press Edit on it.', 409, 'brief_stale');
+    }
     if (job.counts.brief >= EXPLAIN_LIMITS.calls.brief * (1 + EXPLAIN_LIMITS.refinements)) throw fail('This brief reached its change limit. Start a new request.', 429);
     endStage(job.timing, 'refined');
     Object.assign(job, { refinement: message, approval: null, stage: 'preparing' });

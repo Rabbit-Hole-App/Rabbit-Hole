@@ -46,7 +46,7 @@ test('the card: title as the heading, the description as plain text, no labels, 
   assert.match(out, /<button[^>]*bg-\(--action-blue\)[^>]*data-proposal-generate="true"[^>]*>Generate<\/button>/, 'the house action Button');
   assert.doesNotMatch(out, />Cancel</);
   assert.match(out, /data-proposal-active="true"/);
-  assert.doesNotMatch(out, /Updated below/);
+  assert.doesNotMatch(out, /Superseded/);
 });
 
 test('a double-click on Generate calls onGenerate once', () => {
@@ -69,14 +69,14 @@ test('Generate is inert while busy and when superseded; a superseded card says s
   assert.equal(stale.length, 0);
   const out = html({ active: false });
   assert.match(out, /data-proposal-active="false"/);
-  assert.match(out, /Updated below/);
+  assert.match(out, /Superseded/);
   assert.match(out, /<button[^>]*data-proposal-generate="true" disabled=""/);
   assert.match(out, /<select data-proposal-duration="true" disabled=""/);
   assert.match(out, /data-proposal-audio="off" aria-pressed="true" disabled=""/);
   // A proposal that already added its card is inactive too, and says where it went rather than that it was updated.
   const made = html({ active: false, made: true });
   assert.match(made, /Added to the canvas/);
-  assert.doesNotMatch(made, /Updated below/);
+  assert.doesNotMatch(made, /Superseded/);
 });
 
 test('Audio: Off selected, On disabled with the coming-soon tooltip', () => {
