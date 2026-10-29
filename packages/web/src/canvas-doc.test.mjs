@@ -160,7 +160,8 @@ test('caretRect: the range rect when there is one, else the empty line box', asy
 test('the surface scroll pans the camera only while the document has the focus', async () => {
   const { readFileSync } = await import('node:fs');
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
-  assert.match(canvas, /const scrolled = \(\) => \{\s+\/\/[^\n]*\s+if \(!document\.activeElement\?\.closest\?\.\('\[data-canvas-doc\]'\)\) return;\s+const dx = element\.scrollLeft/);
+  // While a card is focused the surface never scrolls (Focus places the card on screen, not the camera); otherwise as before.
+  assert.match(canvas, /const scrolled = \(\) => \{(?:\s+\/\/[^\n]*)+\s+if \(focusRef\.current\) \{ element\.scrollLeft = 0; element\.scrollTop = 0; return; \}\s+\/\/[^\n]*\s+if \(!document\.activeElement\?\.closest\?\.\('\[data-canvas-doc\]'\)\) return;\s+const dx = element\.scrollLeft/);
 });
 
 // Lead 1:28 AM PT: Ctrl+End / Ctrl+Home are the editor's own moves, not the browser's native caret move, which raced
