@@ -1,0 +1,21 @@
+{
+ "label": "loaded-2x-cores",
+ "at": "2026-10-29T03:37:44.380Z",
+ "node": "v24.19.0",
+ "interruptMs": 50,
+ "watchdogMs": 250,
+ "calls": 3603,
+ "ok": 3603,
+ "fails": 0,
+ "invalidFrames": 0,
+ "msTotalCall": {
+  "p50": 4.11,
+  "p90": 7.01,
+  "p99": 19.42,
+  "max": 65.05
+ },
+ "over25": 21,
+ "over50": 1,
+ "failSamples": [],
+ "invalidSamples": []
+}

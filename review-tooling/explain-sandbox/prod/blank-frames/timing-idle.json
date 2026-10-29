@@ -1,0 +1,21 @@
+{
+ "label": "idle",
+ "at": "2026-10-29T03:35:49.634Z",
+ "node": "v24.19.0",
+ "interruptMs": 50,
+ "watchdogMs": 250,
+ "calls": 1201,
+ "ok": 1201,
+ "fails": 0,
+ "invalidFrames": 0,
+ "msTotalCall": {
+  "p50": 3.48,
+  "p90": 6.1,
+  "p99": 18.13,
+  "max": 71.81
+ },
+ "over25": 9,
+ "over50": 2,
+ "failSamples": [],
+ "invalidSamples": []
+}

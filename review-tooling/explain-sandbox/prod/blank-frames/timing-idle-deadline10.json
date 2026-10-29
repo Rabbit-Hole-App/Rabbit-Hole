@@ -1,0 +1,29 @@
+{
+ "label": "idle-deadline10",
+ "at": "2026-10-29T03:36:26.879Z",
+ "node": "v24.19.0",
+ "interruptMs": 10,
+ "watchdogMs": 250,
+ "calls": 1201,
+ "ok": 1200,
+ "fails": 1,
+ "invalidFrames": 0,
+ "msTotalCall": {
+  "p50": 2.46,
+  "p90": 3.46,
+  "p99": 5.13,
+  "max": 46.52
+ },
+ "over25": 1,
+ "over50": 0,
+ "failSamples": [
+  {
+   "t": 0,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 46.5154
+  }
+ ],
+ "invalidSamples": []
+}

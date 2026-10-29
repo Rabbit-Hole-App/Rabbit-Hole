@@ -1,0 +1,57 @@
+{
+ "label": "idle-deadline20",
+ "at": "2026-10-29T03:36:35.652Z",
+ "node": "v24.19.0",
+ "interruptMs": 20,
+ "watchdogMs": 250,
+ "calls": 1201,
+ "ok": 1196,
+ "fails": 5,
+ "invalidFrames": 0,
+ "msTotalCall": {
+  "p50": 3.23,
+  "p90": 4.91,
+  "p99": 23.88,
+  "max": 97.54
+ },
+ "over25": 9,
+ "over50": 2,
+ "failSamples": [
+  {
+   "t": 0.2833333333333333,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 41.04020000000003
+  },
+  {
+   "t": 3.216666666666667,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 29.614199999999983
+  },
+  {
+   "t": 3.5,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 28.757300000000214
+  },
+  {
+   "t": 7.25,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 23.88289999999961
+  },
+  {
+   "t": 12.683333333333334,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 88.94509999999991
+  }
+ ],
+ "invalidSamples": []
+}

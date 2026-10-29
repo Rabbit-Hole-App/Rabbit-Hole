@@ -1,0 +1,71 @@
+{
+ "source": "verify-build/results/results.json",
+ "at": "2026-10-29T02:17:12.538Z",
+ "candidate": "e92ab817fdb689fca4f2c643e3f09c7f60cf8069",
+ "runs": {
+  "page-owner-desktop": {
+   "playFrames": 179,
+   "framesWithLabelAndDot": 179,
+   "framesMissing": 0,
+   "drawnTimeFrom": 0,
+   "cardHeight": {
+    "open": 827,
+    "playing": 827,
+    "paused": 827,
+    "pausedLater": 827
+   },
+   "playStillRunningAfter": {
+    "label": "3.9s",
+    "button": "Pause"
+   }
+  },
+  "page-owner-phone": {
+   "playFrames": 176,
+   "framesWithLabelAndDot": 176,
+   "framesMissing": 0,
+   "drawnTimeFrom": 0,
+   "cardHeight": {
+    "open": 827,
+    "playing": 827,
+    "paused": 827,
+    "pausedLater": 827
+   },
+   "playStillRunningAfter": {
+    "label": "3.9s",
+    "button": "Pause"
+   }
+  },
+  "bare-desktop": {
+   "playFrames": 180,
+   "framesWithLabelAndDot": 177,
+   "framesMissing": 3,
+   "drawnTimeFrom": -3.92,
+   "cardHeight": {
+    "open": 827,
+    "playing": 640,
+    "paused": 640,
+    "pausedLater": 640
+   },
+   "playStillRunningAfter": {
+    "label": "3.9s",
+    "button": "Pause"
+   }
+  },
+  "bare-phone": {
+   "playFrames": 178,
+   "framesWithLabelAndDot": 178,
+   "framesMissing": 0,
+   "drawnTimeFrom": 0,
+   "cardHeight": {
+    "open": 827,
+    "playing": 827,
+    "paused": 827,
+    "pausedLater": 827
+   },
+   "playStillRunningAfter": {
+    "label": "3.9s",
+    "button": "Pause"
+   }
+  }
+ }
+}

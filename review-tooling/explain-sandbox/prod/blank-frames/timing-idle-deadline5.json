@@ -1,0 +1,162 @@
+{
+ "label": "idle-deadline5",
+ "at": "2026-10-29T03:36:19.928Z",
+ "node": "v24.19.0",
+ "interruptMs": 5,
+ "watchdogMs": 250,
+ "calls": 1201,
+ "ok": 1146,
+ "fails": 55,
+ "invalidFrames": 0,
+ "msTotalCall": {
+  "p50": 3.37,
+  "p90": 6.85,
+  "p99": 20.34,
+  "max": 79.99
+ },
+ "over25": 8,
+ "over50": 2,
+ "failSamples": [
+  {
+   "t": 0,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 33.03280000000001
+  },
+  {
+   "t": 0.016666666666666666,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 7.523799999999994
+  },
+  {
+   "t": 2.55,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 9.805200000000013
+  },
+  {
+   "t": 2.6666666666666665,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 6.746799999999894
+  },
+  {
+   "t": 5.75,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 18.27019999999993
+  },
+  {
+   "t": 8.766666666666667,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 9.2820999999999
+  },
+  {
+   "t": 8.8,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 9.142500000000382
+  },
+  {
+   "t": 9.75,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 9.241100000000188
+  },
+  {
+   "t": 14.183333333333334,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 12.203400000000329
+  },
+  {
+   "t": 14.216666666666667,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 6.704399999999623
+  },
+  {
+   "t": 14.35,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 10.658699999999953
+  },
+  {
+   "t": 14.366666666666667,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 10.650900000000547
+  },
+  {
+   "t": 14.383333333333333,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 16.111799999999675
+  },
+  {
+   "t": 14.45,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 6.238900000000285
+  },
+  {
+   "t": 14.55,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 8.05580000000009
+  },
+  {
+   "t": 14.683333333333334,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 15.95929999999953
+  },
+  {
+   "t": 14.716666666666667,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 12.589799999999741
+  },
+  {
+   "t": 14.766666666666667,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 8.338700000000244
+  },
+  {
+   "t": 14.95,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 37.04899999999998
+  },
+  {
+   "t": 14.966666666666667,
+   "code": "runtime_limit",
+   "phase": "serialize",
+   "detail": "time limit",
+   "ms": 11.949599999999919
+  }
+ ],
+ "invalidSamples": []
+}

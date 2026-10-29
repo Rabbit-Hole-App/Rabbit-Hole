@@ -1,0 +1,34 @@
+diff --git a/packages/web/src/explain-program/ProgramScene.jsx b/packages/web/src/explain-program/ProgramScene.jsx
+index 5f402ee77..feaabf8f8 100644
+--- a/packages/web/src/explain-program/ProgramScene.jsx
++++ b/packages/web/src/explain-program/ProgramScene.jsx
+@@ -98,13 +98,16 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
+   useEffect(() => {
+     if (!manifest || !host.current) return undefined;
+     const target = host.current;
++    // A failed frame stops the card (playback.js: no retry loop). The clock stops too, so the next tick cannot redraw over the
++    // message: without it a transient failure flashed the message for a few frames and the drawing came back.
++    const stop = error => { setPlaying(false); setFailure(error); };
+     const created = createFrameScheduler({
+       evaluate: job => target.evaluate(evaluateRequestFor(manifest, { ...latest.current, inputs: job.inputs }, job.time, ++counter.current)),
+       show: (reply, job) => {
+         const out = normalizeFrame(reply.frame, manifest);
+-        if (out.ok) { setView({ ...out, time: job.time }); setFailure(null); } else setFailure(out.error);
++        if (out.ok) { setView({ ...out, time: job.time }); setFailure(null); } else stop(out.error);
+       },
+-      fail: error => setFailure(error),
++      fail: stop,
+     });
+     scheduler.current = created;
+     return () => { created.dispose(); if (scheduler.current === created) scheduler.current = null; };
+@@ -150,7 +153,9 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
+   // The rows under the frame (readouts, transport, Interact, assumptions) report their real height so the card grows by it, as
+   // SceneControls does. They exist only once a frame is drawn, so the observer starts then (keyed on drawn, not on the manifest,
+   // which arrives a render earlier and found no rows to observe).
+-  const drawn = !!(manifest && view);
++  // The failure message replaces the rows, so a failure ends this observer too; otherwise it keeps watching the removed rows and
++  // the card stays short by their height after the drawing returns.
++  const drawn = !!(manifest && view && !failure);
+   useLayoutEffect(() => {
+     if (!onControlsHeight || !controls.current) return undefined;
+     const observer = new ResizeObserver(() => onControlsHeight(controls.current ? controls.current.offsetHeight + 8 : 0));
