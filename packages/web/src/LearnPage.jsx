@@ -2271,8 +2271,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             instead of clipping or overlapping, never a scroller, which would clip the dropdowns. Equal side padding (px-12)
             clears the absolute Home button on the left and balances it on the right, so Home never shifts the group off the
             canvas area's centre (owner header correction, 2026-10-16). */}
-        {/* Over the canvas (headerOver) it is an opaque band that takes the pointer (owner, 2026-10-29: no card shows between
-            the title and the menus; supersedes 2026-10-22's see-through row). */}
+        {/* Over the canvas (headerOver) it takes no pointer itself: only its controls do, so the canvas under the rest of the row
+            pans, draws and selects (owner, 2026-10-22: no full-width band). */}
         {!canvasState.presenting && <div data-canvas-header className={`${headerOver ? OWNER_HEADER_OVER : 'relative shrink-0'} ${OWNER_HEADER}`}>
           {/* The page's top-left corner goes back (owner 2026-10-04: Back, not a jump to Home): to the page the learner
               came from, or Home when the canvas was opened directly. The navigator climbs holes; recentring is Shift 0. */}

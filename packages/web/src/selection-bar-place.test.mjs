@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { anchorOf, barCeiling, placeBar, rowUnderBand, usesHost } from './selection-bar-place.js';
+import { anchorOf, placeBar, usesHost } from './selection-bar-place.js';
 import { pinTopCentre } from './comments/anchors.js';
 
 const bar = { w: 260, h: 32 }, view = { w: 1200, h: 800 };
@@ -16,29 +16,6 @@ test('it flips below when there is no room above, and still never covers the sel
   const at = placeBar({ left: 300, top: 20, right: 700, bottom: 120 }, bar, view);
   assert.equal(at.side, 'below');
   assert.ok(at.top >= 120, 'below the selection');
-});
-
-// Owner 2026-10-29: the page header is an opaque band over the canvas, so a card at the top keeps its bar out from under it.
-test('the bar never sits under the page header band over the canvas', () => {
-  assert.equal(barCeiling({ bottom: 48 }, { top: 0 }), 56, 'the band over the surface: 8 px below it');
-  assert.equal(barCeiling({ bottom: 60 }, { top: 100 }), 8, 'a header above the surface (in flow): the plain 8 px');
-  assert.equal(barCeiling(undefined, { top: 0 }), 8, 'no header (a shared or embedded canvas)');
-  const top = barCeiling({ bottom: 48 }, { top: 0 });
-  const at = placeBar({ left: 300, top: 60, right: 700, bottom: 200 }, bar, view, { top });
-  assert.equal(at.side, 'below', 'a card just under the band: the bar goes below it');
-  assert.ok(placeBar({ left: 300, top: 40, right: 700, bottom: 790 }, bar, view, { top }).top >= 56, 'inside a tall selection, still below the band');
-});
-
-// fast-e2e on 6fc4ae23b (chat-outputs 16, panel-header L1): a first-row card's own row (Add to chat) lay under the band. Flipped
-// below the card it covered the next card's drag strip (focus-adapters on 7a39f5cfa), so it moves down over its own card instead.
-test('a card row that the band would hide moves to just below the band, over its own card', () => {
-  const band = barCeiling({ bottom: 48 }, { top: 0 }, 0);
-  assert.equal(band, 48);
-  assert.equal(rowUnderBand(68, 1, band), -12, 'the first card at the opening camera: the row starts 8 px below the band, 12 px above the card');
-  assert.equal(rowUnderBand(20, 2, band), 18, 'a card under the band at 200%: in its own px, 8 screen px below the band');
-  assert.equal(rowUnderBand(90, 1, band), null, 'room for the row between the band and the card');
-  assert.equal(rowUnderBand(70, 0.5, band), null, 'zoomed out, the row is smaller');
-  assert.equal(rowUnderBand(10, 1, 0), null, 'no band over the surface');
 });
 
 test('on a narrow view it prefers below the selection, where a card has its own row of controls above it', () => {

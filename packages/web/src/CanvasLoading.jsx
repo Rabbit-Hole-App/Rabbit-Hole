@@ -21,9 +21,7 @@ import logoWhite from './assets/rabbit-hole-white.png';
 // The owner's canvas (LearnPage): the header floats over the canvas (headerOver), Chat's panel on the right.
 export const OWNER_MAIN = 'relative flex min-w-0 flex-1 overflow-hidden max-lg:flex-col max-lg:overflow-y-auto';
 export const OWNER_HEADER = 'flex items-center justify-center-safe px-12 pt-3 pb-1 max-md:px-2 max-md:pt-2';
-// An opaque band in the canvas's own colour, taking the pointer like any chrome (owner 2026-10-29: "block the upper header ...
-// so that the cards does not appear in between the texts/menu names"; supersedes the see-through header of 2026-10-22).
-export const OWNER_HEADER_OVER = 'absolute inset-x-0 top-0 z-40 bg-white';
+export const OWNER_HEADER_OVER = 'pointer-events-none absolute inset-x-0 top-0 z-40 [&>*]:pointer-events-auto';
 export const OWNER_HEADER_GROUP = 'flex max-w-full min-w-0 flex-wrap items-center justify-center-safe gap-1 gap-y-0.5';
 export const OWNER_CANVAS = 'relative min-h-0 flex-1 max-lg:h-[var(--phone-canvas-h,75dvh)] max-lg:flex-none';
 // CanvasPage's column: LearnPage's <main> is not the sidebar's sibling, so the column restores the phone top strip's padding.

@@ -11,9 +11,8 @@
 // ([data-canvas-header]) and the tools column ([data-tool-gutter]) float over it, taking the pointer only on their controls;
 // fit, reveal and placement keep clear of the controls' measured rectangles; the opening camera is compensated (no jump).
 // Covered for it: the surface's edges with zero, one and two right panels; a card pushed past each of the four edges at 50%,
-// 100% and 117% is drawn right up to the surface boundary and clipped only there; in the old gutter band a
-// click selects a card, the pen draws ink and the region capture starts its marquee (the header row is an opaque band since
-// owner 2026-10-29, checked on its own); a window resize and a reload move no
+// 100% and 117% is drawn right up to the surface boundary and clipped only there; in the old gutter and header bands a
+// click selects a card, the pen draws ink and the region capture starts its marquee; a window resize and a reload move no
 // card on screen or in its saved coordinates; fit (Shift+1, Back to content) with zero, one and two panels and a new card
 // placed in view never sit under the toolbar, the navigator, the header, Home or the minimap.
 // Covered: both panels open (no blank strip, the map shown in the tools column, the selected PDF card and its reader
@@ -147,9 +146,7 @@ const fillsWorkspace = async (g, label) => {
   assert.ok(g.header.y >= g.surface.y - 0.5 && g.header.bottom < g.surface.bottom, `${label}: the header ${JSON.stringify(g.header)} floats over the surface ${JSON.stringify(g.surface)}`);
   assert.ok(g.tools.x >= g.surface.x - 0.5 && Math.abs(g.tools.y - g.header.bottom) <= 1 && g.tools.bottom <= g.surface.bottom + 0.5, `${label}: the tools column ${JSON.stringify(g.tools)} floats over the surface from below the header (${Math.round(g.header.bottom)})`);
   const events = await page.evaluate(() => ['[data-canvas-header]', '[data-tool-gutter]'].map(sel => getComputedStyle(document.querySelector(sel)).pointerEvents));
-  // Owner 2026-10-29 ("block the upper header ... so that the cards does not appear in between the texts/menu names"): the
-  // header is an opaque band that takes the pointer like any chrome; the tools column still lets it through.
-  assert.deepEqual(events, ['auto', 'none'], `${label}: the header band takes the pointer and the tools column lets it through (only its controls take it)`);
+  assert.deepEqual(events, ['none', 'none'], `${label}: the header and the tools column let the pointer through (only their controls take it)`);
   noBlankStrip(g, label);
 };
 // A press on the card's drag strip, near its left end (always on screen here), selects it.
@@ -280,10 +277,8 @@ const pastEdge = async (id, edge) => {
     const card = document.querySelector(`[data-canvas-surface] [data-block-id="${blockId}"]`).getBoundingClientRect();
     const mine = (x, y) => !!document.elementFromPoint(x, y)?.closest(`[data-canvas-surface] [data-block-id="${blockId}"]`);
     const vertical = side === 'left' || side === 'right';
-    // Owner 2026-10-29: the opaque header band is the top edge the learner sees; the card is drawn up to it and hidden under it.
-    const top = Math.max(s.top, document.querySelector('[data-canvas-header]')?.getBoundingClientRect().bottom ?? s.top);
-    const inner = { left: s.left + 2, right: s.right - 2, top: top + 2, bottom: s.bottom - 2 }[side];
-    const outer = { left: s.left - 2, right: s.right + 2, top: top - 2, bottom: s.bottom + 2 }[side];
+    const inner = { left: s.left + 2, right: s.right - 2, top: s.top + 2, bottom: s.bottom - 2 }[side];
+    const outer = { left: s.left - 2, right: s.right + 2, top: s.top - 2, bottom: s.bottom + 2 }[side];
     const [from, to] = vertical ? [Math.max(card.top, s.top) + 4, Math.min(card.bottom, s.bottom) - 4] : [Math.max(card.left, s.left) + 4, Math.min(card.right, s.right) - 4];
     const past = { left: card.left < s.left - 1, right: card.right > s.right + 1, top: card.top < s.top - 1, bottom: card.bottom > s.bottom + 1 }[side];
     for (let t = from; t <= to; t += 6) {
@@ -507,37 +502,7 @@ for (const pct of [50, 100, 117]) {
   });
 }
 
-// Owner 2026-10-29 ("block the upper header at an appropriate height so that the cards does not appear in between the
-// texts/menu names"; supersedes 2026-10-22 for the header row): the header row is an opaque band in the canvas colour. A card
-// panned under it is hidden there, and every point of the band beside the controls is the header, never the card or canvas.
-await check('owner 2026-10-29: the header row is an opaque band that hides a card panned under it and takes the pointer there', async () => {
-  await setPanels(1);
-  await page.keyboard.press('Shift+Digit0');
-  await settle();
-  await deselect();
-  let { points } = await bandPoints('top');
-  const target = points[0];
-  assert.ok(target, `top: a point of the header band beside the controls: ${JSON.stringify(points.slice(0, 3))}`);
-  for (let i = 0; i < 5; i += 1) {
-    const card = (await geometry()).cards[PDF_CARD], dx = target.x - (card.x + 30), dy = target.y - (card.y + 10);
-    if (Math.abs(dx) < 2 && Math.abs(dy) < 2) break;
-    await panBy(dx, dy);
-  }
-  ({ points } = await bandPoints('top'));
-  const band = await page.evaluate(() => { const h = document.querySelector('[data-canvas-header]'), s = getComputedStyle(h); return { bg: s.backgroundColor, body: getComputedStyle(document.body).backgroundColor }; });
-  assert.ok(band.bg === band.body && !/rgba\(.*, 0\)|transparent/.test(band.bg), `top: the header band is opaque in the page colour (${band.bg} vs body ${band.body})`);
-  const through = points.filter(point => point.surface);
-  assert.ok(points.length && !through.length, `top: ${through.length}/${points.length} header band points answer as the canvas: ${JSON.stringify(through.slice(0, 3))}`);
-  await page.mouse.click(target.x, target.y);
-  await page.waitForTimeout(300);
-  assert.equal(await page.locator('[role="toolbar"][aria-label="Selection actions"] [data-add-to-chat]').isVisible(), false, 'top: a press on the header band does not select the card under it');
-  await shot('06h-band-top-opaque');
-  await page.keyboard.press('Shift+Digit0');
-  await settle();
-  facts.band_top = { pressedAt: target, points: points.length, bg: band.bg };
-});
-
-for (const band of ['left']) {
+for (const band of ['left', 'top']) {
   await check(`owner 2026-10-22: in the old ${band === 'left' ? 'tools gutter' : 'header row'} band a click selects a card, the pen draws ink and the region capture starts there`, async () => {
     await setPanels(1);
     await page.evaluate(() => document.activeElement?.blur());

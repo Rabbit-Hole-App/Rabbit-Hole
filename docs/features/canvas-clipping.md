@@ -87,19 +87,3 @@ except on their controls. Fit, reveal and placement avoid the controls' measured
 compensated (`homeView`, unit-tested in canvas-slots.test.mjs) so saved coordinates stay and boards do not jump.
 `e2e/canvas-clipping-check.mjs` covers the four edges at several zooms (117% included), zero, one and two right panels,
 resize and reload, and pointer use in the newly usable top and left areas.
-
-## Owner decision 2026-10-29: the header row is an opaque band
-
-"Block the upper header at an appropriate height so that the cards does not appear in between the texts/menu names." Over
-the lesson canvas the header (`OWNER_HEADER_OVER`, CanvasLoading.jsx) keeps its place and size but is an opaque band in the
-canvas's own colour (`bg-white`, the surface and page colour in both themes) that takes the pointer like any chrome: a card
-panned under it is hidden there and cannot be pressed through it. The surface still runs to the page top and the tools column
-still lets the pointer through. Fit, reveal, Focus and the opening camera already stop below the header controls plus their
-margin, which clears the band's 4 px bottom padding, so no geometry changed. `e2e/canvas-clipping-check.mjs` and
-`e2e/canvas-toolbar-check.mjs` check the band instead of pointer use through it.
-
-A selected object's controls never hide under the band. The floating selection bar keeps 8 px below it (`barCeiling`) and
-flips below the selection when there is no room above, as it already did at the view's edge. A card's own row of controls
-(Open, the CAD tools, Focus, Add to chat, Quick Edit) moves down to 8 px below the band, over the card's own top, when the band
-would cover it (`rowUnderBand`, selection-bar-place.js); this is the case for the first card at the opening camera. The row never
-flips below its card, where it would cover the next card's drag strip; the floating bar can lie over the card below.

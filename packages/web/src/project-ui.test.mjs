@@ -74,12 +74,11 @@ test('repository canvas review fixes: graph keys stay in the column, Retry refet
   // (centred only while it fits), with the right panel open or closed alike: no separate column layout any more.
   // Equal side padding (owner header correction, 2026-10-16): Home's room on the left is balanced on the right, so the group
   // centres on the canvas area itself.
-  // Owner, 2026-10-22: over the lesson canvas the header floats (absolute), else in flow; owner 2026-10-29: as an opaque band
-  // in the canvas colour that takes the pointer, so no card shows between the title and the menus.
+  // Owner, 2026-10-22: over the lesson canvas the header floats (absolute, the pointer through but its controls), else in flow.
   // Its classes are CanvasLoading.jsx's constants, shared with the canvas loading skeleton (owner brief 2026-10-23).
   const shellConstants = read('CanvasLoading.jsx');
   assert.match(learn, /<div data-canvas-header className=\{`\$\{headerOver \? OWNER_HEADER_OVER : 'relative shrink-0'\} \$\{OWNER_HEADER\}`\}>/);
-  assert.match(shellConstants, /export const OWNER_HEADER_OVER = 'absolute inset-x-0 top-0 z-40 bg-white';/);
+  assert.match(shellConstants, /export const OWNER_HEADER_OVER = 'pointer-events-none absolute inset-x-0 top-0 z-40 \[&>\*\]:pointer-events-auto';/);
   assert.match(shellConstants, /export const OWNER_HEADER = 'flex items-center justify-center-safe px-12 [^']*';/);
   assert.match(learn, /<div data-header-group className=\{OWNER_HEADER_GROUP\}>/);
   assert.match(shellConstants, /export const OWNER_HEADER_GROUP = 'flex max-w-full min-w-0 flex-wrap items-center justify-center-safe gap-1 gap-y-0\.5';/);
