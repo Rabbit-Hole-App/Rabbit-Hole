@@ -1,47 +1,62 @@
 # Generic /explain sandbox checklist
 
-Plan: [docs/superpowers/plans/2026-10-28-explain-sandbox.md](../superpowers/plans/2026-10-28-explain-sandbox.md). Baseline main 1a4434cff466d0648dc274dbb56dc2481a64fbf4 (inspected 2026-10-28). Times are PT unless marked UTC. Updated 2026-10-28 10:55 AM PT against branch feat/explain-sandbox-m3. Columns are kept separate on purpose: implemented (code on the branch), tested (check kind and run), on main, deployed, enabled, accepted. Nothing here is on main, deployed to a usable preview, or accepted by genuine generation yet.
+Plan: [docs/superpowers/plans/2026-10-28-explain-sandbox.md](../superpowers/plans/2026-10-28-explain-sandbox.md). Times are PT. Updated 2026-10-29 after the MVP release. Shipped, verified and deferred work are listed separately below; "shipped" never implies "verified".
 
 Superseded: the earlier component-family plan (swinging-body, gear-train, dedicated pendulumPeriod/gearRate calculators; reports REPORT.md and REPORT-v2-tightened.md, kept only as historical evidence) and the proposal for a custom expression language.
 
-Server flags: `EXPLAIN_PROGRAM_ENABLED=false` (generation default) and a separate server-controlled execution eligibility/kill policy; `EXPLAIN_V2_ENABLED` is not changed globally.
+Server flags in production since the MVP release: `EXPLAIN_PROGRAM_ENABLED=true` (generation), `EXPLAIN_PROGRAM_EXECUTION_KILL=false` (execution allowed), no `EXPLAIN_DIAGNOSTICS`; `EXPLAIN_V2_ENABLED` unchanged. Rollbacks are separate: generation off (flag false; existing cards keep running), execution kill (cards loaded afterwards refuse to run; a card already open keeps running; generation stays on), and emergency Worker rollback (both Workers to the pre-release pair; also stops new generation).
 
-Paid validation budget: US$50 total for /explain sandbox validation (owner, 2026-10-27 about 10:45 PM PT); ledger C:/s/spec/budget/budget-explain-sandbox.json (reserve before each run, settle against measured spend, spent plus reservations within US$50; pause paid runs if the cap would be exceeded).
+Paid validation budget: US$50 total for /explain sandbox validation (owner, 2026-10-27), inside the shared US$100 cap; ledger C:/s/spec/budget/budget-explain-sandbox.json. Spent so far US$1.2061 (sandbox-ex1-a 0.44, sandbox-ex1-b 0.346126, sandbox-ex2-a 0.42).
 
-Owners: integrator = Parallel; Agent A runtime (Tasks 1, 3); Agent B card/renderer (Tasks 2, 4); Agent C generation (Tasks 5-7, 9, agent a7123b9a); independent reviewer at the Task 1/3 boundary and before activation.
+Owners: integrator = Parallel; Agent A runtime (Tasks 1, 3); Agent B card/renderer (Tasks 2, 4); Agent C generation (Tasks 5-7, 9); independent review before any wider activation.
 
-| Task | Owner | Implemented | Checked (kind/run) | Main SHA/link | Deployed | Enabled audience | Accepted evidence | Next action/blocker |
-|---|---|---|---|---|---|---|---|---|
-| 0 Plan and baseline | integrator | plan + checklist committed on branch feat/explain-sandbox-task0-plan | docs only | not on main | no | none | none | owner launcher with the first milestone (Tasks 0-2) |
-| 1 Interpreter boundary | A | yes: 6902eb79b, bdafab12e, fd2fafd70, 7bfe61d20 (QuickJS/WASM 0.32.0, 32 MiB memory cap, output bound in the guest) | runtime.test.mjs 90/90 twice (receipts/task1-runtime.md); unit/browser checks on f084c417: verify 40661624225, fast-e2e 40661624070, release gate 40663885255 (all success; base 61682c72). Re-cut on a644f5e4 as dadfe009a: verify 40737784191 success; fast-e2e rerun and gate pending | not on main | no | none | none yet (unit and CI only) | rides with the release |
-| 2 Artifact and render contract | B | yes: 29e487f4d, ce391439a, 9b7100244, a98c4e6fd (stamps.js) | contract/frame/fixtures tests; unit/browser checks on f084c417: verify 40661624225, fast-e2e 40661624070, release gate 40663885255 (all success; base 61682c72). Re-cut on a644f5e4 as dadfe009a: verify 40737784191 success; fast-e2e rerun and gate pending | not on main | no | none | none yet | rides with the release |
-| 3 Host and responsiveness | A | yes: a752e9303, 7bfe61d20, 4b7061cd9 (one request in flight, newest wins) | host tests; unit/browser checks on f084c417: verify 40661624225, fast-e2e 40661624070, release gate 40663885255 (all success; base 61682c72). Re-cut on a644f5e4 as dadfe009a: verify 40737784191 success; fast-e2e rerun and gate pending | not on main | no | none | none yet | rides with the release |
-| 4 Program inside the card | B | yes: bf7561d12, 3ab11fd66 (ProgramScene on the shared Frame, fixture preview board) | e2e/explain-program-card-check.mjs in fast-e2e; unit/browser checks on f084c417: verify 40661624225, fast-e2e 40661624070, release gate 40663885255 (all success; base 61682c72). Re-cut on a644f5e4 as dadfe009a: verify 40737784191 success; fast-e2e rerun and gate pending | not on main | no | none | none yet (fixtures only, not genuine) | rides with the release |
-| 5 Author and persist via V2 | C | yes: 88cbb8e7a (behind EXPLAIN_PROGRAM_ENABLED, default false) | explain-m3 and budget tests; unit/browser checks on f084c417: verify 40661624225, fast-e2e 40661624070, release gate 40663885255 (all success; base 61682c72). Re-cut on a644f5e4 as dadfe009a: verify 40737784191 success; fast-e2e rerun and gate pending | not on main | no | none (flag false; dev-only enable in f084c417f) | none yet | rides with the release |
-| 6 Review, repair, accounting | C | yes on the branch: 7c5a58a64 (review evidence, repair, request-fit preflight, execution decision), aef165ca2 and 7a3fcbb20 (review renderer in the real Worker), e8092f6fd (alternative input states: boundaries of each number/select input plus one combined state, captured at the middle moment inside the existing six-capture budget, deduplicated, default moments never dropped), 47193d5ab (the sampled and omitted states stored on the job and shown to the reviewer, bound to the artifact hash, cleared on repair) | local unit runs 2026-10-28: explain-render 19/19, explain-review 6/6, explain-job 20/20, explain-program-budget 5/5, explain-capture-manifest 7/7; explain-m3 not runnable locally (quickjs package absent), left to CI. CI on the final candidate pending | not on main | no | none | none | CI and gate on the final candidate, then genuine runs. Limits: only number and select inputs exist; intermediate values, other combinations and intermediate poses are not sampled (samples are not exhaustive proof); the sampling text is capped at 1024 characters |
-| 7 Genuine MVP | integrator + C | PARTIAL: fixture-driven e2e/explain-program-check.mjs and the genuine driver. Genuine run 1 (sandbox-ex1-a, ex1-cooling, 2026-10-28 12:05 PM PT) on the dev preview serving 0e7ac65b9 FAILED after 168.6 s: stopReason unsupported_repair, no artifact, US$0.44 (44 credits, 5 calls, 3 repairs, 5 captures); the generated program was nearly correct (physics matched the formula) with layout overlaps. Root causes: three contract failures before the first review consumed the correction rounds (details unreadable until diagnostics are on) and a pipeline defect that routed program layout findings as unrepairable (fixed in ce6b0cdd2, with the round-budget stop reason and the program source hash on repair candidates; dev-only EXPLAIN_DIAGNOSTICS) | fixture runs; genuine run 1 failed; ce6b0cdd2 local suites pass (explain-m3 16/16, explain-repair 9/9, explain-review 7/7, job 20/20, render 19/19, budget 5/5, manifest 7/7); CI pending | not on main | dev preview serves 0e7ac65b9 (sandbox dev deploy 2026-10-28 ~12:03 PM PT, not ce6b0cdd2) | none | none: no genuine example has succeeded; two structurally different genuine examples, actual review/repair, controls/playback, save/reload and zero model calls during interaction remain to be shown | re-cut candidate, gate, dev deploy, rerun ex1-cooling then ex2-sorting inside the US$50 sandbox budget (US$0.44 spent of it); evidence under C:/s/spec/explain-sandbox/genuine/runs |
-| 8 Interactions and time | B / A | not started |  |  |  |  |  | tracked; not part of the MVP; needs 7 |
-| 9 Context, Tutor, edits | C | not started |  |  |  |  |  | tracked; needs 7 |
-| 10 Quality and compatibility | A + B | not started |  |  |  |  |  | tracked; needs 8, 9 |
-| 11 Rollout and docs | integrator | not started |  |  |  |  |  | tracked; needs 10. The MVP release is NOT Task 11 and does not close it |
+## Shipped (on main and in production)
 
-## MVP definition and scope notes
+- Candidate fc31f723a3effb6f7d649dcdece574595853fe5e, released 2026-10-28 11:16 PM PT by production release run 40828037255 (success). Production Workers after the release: app a8658a1f-a2b2-4409-9cc3-27bedd59a6af, control plane 2294e46b-eb99-4289-ad24-2f3732ce8ae8, both serving fc31f723a3ef; public probes 200 200 401 401 405.
+- Contents: QuickJS/WASM program runtime and host (Tasks 1, 3), artifact and render contract (Task 2), the program card with Play, scrubbing, inputs, Notes and Focus (Task 4), program authoring, review, bounded repair and persistence through the V2 job (Tasks 5, 6), shared-view access to saved program cards, first-view controls reachable with Chat open, Focus that keeps the toolbar and Chat and hides the minimap, Rabbit Hole map and Curious, a failed frame stops the card, oversized review traces go to bounded repair, and completed captures are recorded as platform renders when that happens.
 
-MVP = Tasks 1-7 as originally defined. Passing CI on the MVP branch does not complete Tasks 8-11. No subtask has been dropped; Task 6 coverage and Task 7 genuine generation are open and listed above. Main already carries the Motion public flip (a644f5e4); the /explain release is independent of it.
+## Verified (evidence)
 
-## Candidate log (2026-10-28)
+- Release checks on the exact SHA: verify 40822150990, fast-e2e 40822151054, release gate 40824102275, deploy-dev 40825765676 (all success).
+- Genuine example 1, cooling (sandbox-ex1-b, 2026-10-28, dev): generated by the real route, hashes verified; source b682bfc2..., manifest 69c621da..., bundle 62c202e9...; US$0.346126. An earlier attempt (sandbox-ex1-a) failed with unsupported_repair (US$0.44) and led to the pipeline fixes that shipped.
+- Genuine example 2, sorting (sandbox-ex2-a, 2026-10-28 10:58 PM PT, dev serving fc31f723a): "bubble sort vs selection sort", ready in 152 s after one repair round, review accepted; source e458faa9..., manifest 70b45088..., bundle b39fe01b..., result er_f2d73f14a46f450b955b6054909946c6; US$0.42. Deployed check: stepping redraws, the algorithm select switches the drawing and totals (9 vs 10 comparisons), no generation call during interaction, board unchanged.
+- Deployed shared-page check of the cooling card on dev at fc31f723a (owner view and a simulated signed-out view, desktop 1440x900 and phone 390x844, Chat open): Play, slider and readouts reachable at first view, Play animates, board hash unchanged, no generation call (Curious sends origin only and returns idle). Local harness rechecks on a build of the same SHA passed (Notes, Back, reload, Focus re-entry for owner, viewer and guest).
+- Evidence files: C:/s/spec/explain-sandbox/genuine/runs/ (sandbox-ex1-b, sandbox-ex2-a, deployed-fc31f723a), C:/s/spec/explain-sandbox/mvp/ (desktop and phone rechecks).
+- NOT yet collected: the read-only production receipt for the owner's own production request (it needs the owner's session cookie at a hidden prompt in their console: C:/s/spec/explain-sandbox/prod/explain-prod-verify.cmd). Production verification stays open until that receipt exists.
 
-- 0e7ac65b9: gated and dev-deployed; genuine run 1 (ex1-cooling) failed (unsupported_repair, US$0.44).
-- Diagnosis: the stored job record was read through owner diagnostics (EXPLAIN_DIAGNOSTICS set as a secret on the preview worker, owner-approved). Round 0 duplicate input/readout id; round 1 runtime_limit on a cold first capture; round 2 "engine failure"; round 3 reached review with seven true layout findings and no round left. Earlier round sources were overwritten and are lost; only the last draft survives (kept as a test fixture).
-- Timing (offline replays on this machine, not the preview): the 50 ms deadline started before trusted setup (cold setup median 17.8 ms, max 54.6 ms, against 12.4 ms median for the program's own work); a deadline expiring in setup escaped as "engine failure". Memory was never approached (16 MiB of 32 MiB). Open: the contract allows 10,000 polyline points but serializing that alone takes about 37 ms.
-- Next candidate (local until pushed): review routing for program findings, the rounds stop reason, programHash on repair candidates, shared id namespace and duration wording in the author prompt, runtime phase and timing in diagnostics, bounded per-round history in the private job record, actionable duplicate-id message, and a separate setup bound so the program's 50 ms starts after trusted setup (setup failures are render failures, not repairs). Local suites pass; CI, gate, dev deploy and genuine acceptance still pending.
+## Known limitations of the shipped build (follow-ups, not blockers)
 
-## Deferred from the MVP candidate (tracked, not complete; owner 2026-10-28: do not let these expand the first usable increment)
+- In Focus at smaller heights the drawing keeps a minimum size and scrolls inside its viewport, so the lower part can sit behind an internal scrollbar (follow-up branch feat/focus-sizing).
+- A frame that misses the 50 ms program deadline stops the card with a Restart message instead of being skipped.
+- The pending card is large and has no activity indicator (follow-up branch fix/explain-pending-card).
+- The automatic numerical readouts are printed under the drawing and can repeat values the drawing already shows (planned: move them into Notes under "Values").
+- On phone, a viewer or guest Focus keeps the tools palette, which narrows the time slider (about 106 px); keeping the toolbar in Focus is intentional.
+- On an owner canvas that is not a shared page, the minimap can overlap the lower controls of a card.
+
+## Task status
+
+| Task | State | Notes |
+|---|---|---|
+| 0 Plan and baseline | done | plan and checklist on main |
+| 1 Interpreter boundary | shipped | QuickJS/WASM 0.32.0; abuse-case receipts in receipts/task1-runtime.md |
+| 2 Artifact and render contract | shipped | strict artifact and frame validation, generic polyline |
+| 3 Host and responsiveness | shipped | one request in flight, newest wins; hidden-tab pause only (offscreen-card suspension deferred) |
+| 4 Program inside the card | shipped | Play, scrub, inputs, reload, Notes, Focus |
+| 5 Author and persist via V2 | shipped | program artifacts stored behind canvas ownership, loaded through the durable result route |
+| 6 Review, repair, accounting | shipped | six-capture sampling; traces over the review limit go to bounded repair; completed captures recorded as platform renders; sampling beyond six captures deferred |
+| 7 Genuine MVP | shipped, production receipt pending | two genuine examples on the same runtime (cooling, sorting); production verification awaits the owner's receipt run |
+| 8 Interactions and time | not started | tracked; not part of the MVP |
+| 9 Context, Tutor, edits | not started | tracked |
+| 10 Quality and compatibility | not started | tracked |
+| 11 Rollout and docs | not started | the MVP release is NOT Task 11 and does not close it |
+
+## Deferred (tracked, not complete)
 
 | Item | Plan source | State |
 |---|---|---|
-| Offscreen-card suspension (only hidden-tab pause exists: ProgramScene visibilitychange) | Task 3 | open |
+| Offscreen-card suspension (only hidden-tab pause exists) | Task 3 | open |
 | Focus for PDF, notebook, video and CAD cards; dark theme; real mobile browser in CI | Tasks 4, 10 | not verified |
 | Sampling manifest for continuous multi-control cards beyond the six-capture budget | Task 6 review coverage | open |
-| Renders of a candidate whose capture timed out are not counted (blocked capture never finished) | Task 6 accounting | by design, unchanged |
+| Renders of a candidate whose capture timed out are not counted (the blocked capture never finished) | Task 6 accounting | by design |
+| Frame-deadline policy (skip one late frame instead of stopping the card) | Task 3 | decision open |
 | Event API, context/Tutor/edits, qualification, rollout docs | Tasks 8-11 | not started |
