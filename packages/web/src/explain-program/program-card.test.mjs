@@ -5,9 +5,9 @@ import {
   clampTime, describeProgram, evaluateRequestFor, fixturesAdmitted, isProgramBlock, programChanged, programErrorMessage, programInputs, programTime,
   keptProgram, resetProgram, resolveProgram, setProgramInput, shownProgram,
 } from './program-card.js';
-import { growthFixture } from './fixtures.js';
+import { growthFixture, searchFixture } from './fixtures.js';
 import { BOARDS, BOARD_SEED_VERSIONS, PROGRAM_FIXTURE_BOARD } from '../demo-scenes.js';
-import { applyExplainEdit, explainEditProblem, explainResultBlock, sharedProgramClient } from '../explain-client.js';
+import { applyExplainEdit, explainEditProblem, explainProposedBlock, explainResultBlock, sharedProgramClient } from '../explain-client.js';
 
 // Fixtures are hand-authored test data, not generation evidence.
 const stamps = { runtimeVersion: 'engine-1', fingerprints: { engine: 'e1', sdk: 's1', renderer: 'r1' } };
@@ -213,4 +213,44 @@ test('the error fixtures end in the fixed messages: the loop is sealed and then 
   assert.equal(blocked.ok, false);
   assert.equal(blocked.error.code, 'unsupported_capability');
   assert.equal(blocked.error.message, 'This explanation needs a capability that is not available yet.');
+});
+
+// ---- Task 9.1: the Proposed preview of a program Edit -----------------------------------------------------------------------
+
+test('Proposed resolves the program candidate\'s own artifact through the owner\'s result route; another card\'s candidate is refused', async () => {
+  const accepted = (await sealProgram({ manifest: growthFixture.manifest, source: growthFixture.source }, stamps)).value;
+  const proposedArtifact = (await sealProgram({ manifest: searchFixture.manifest, source: searchFixture.source }, stamps)).value;
+  const base = { jobId: 'job1', resultId: 'er_1', revision: 'xr_1', cardId: 'card1', canvas: { boardId: 'board1' } };
+  // What the owner's result route holds on this canvas: the accepted result, this card's edit candidate, and another card's candidate.
+  const results = {
+    er_1: { artifact: accepted, identity: base },
+    er_2: { artifact: proposedArtifact, identity: { ...base, jobId: 'job2', resultId: 'er_2', revision: 'xr_2', baseRevision: 'xr_1' } },
+    er_9: { artifact: proposedArtifact, identity: { ...base, jobId: 'job9', resultId: 'er_9', revision: 'xr_9', cardId: 'card2' } },
+  };
+  const calls = [];
+  const client = { result: async (resultId, cardId) => { calls.push([resultId, cardId]); return { ...results[resultId], execution: { allowed: true } }; } };
+  const card = { id: 'card1', type: 'animation', title: 'Balance', program: { bundleHash: accepted.bundleHash }, explain: base, inputs: { rate: 7 }, time: 2,
+    explainEdit: { id: 'job2', boardId: 'board1', stage: 'ready', instruction: 'Show a sorted row instead' } };
+  // The ready edit answer (explain-job.js block): program, no scene.
+  const candidate = { type: 'animation', id: 'card1', title: searchFixture.manifest.title, program: { kind: 'explain_program', resultId: 'er_2', bundleHash: proposedArtifact.bundleHash }, explain: results.er_2.identity };
+  const proposed = explainProposedBlock(card, candidate);
+  const shown = await resolveProgram(proposed, { client });
+  assert.equal(shown.ok, true);
+  assert.equal(shown.artifact.bundleHash, proposedArtifact.bundleHash, 'the candidate, not the accepted program');
+  assert.notEqual(shown.artifact.bundleHash, accepted.bundleHash);
+  assert.deepEqual(calls, [['er_2', 'card1']], 'read by its own result id, under this card');
+  assert.equal((await resolveProgram(card, { client })).artifact.bundleHash, accepted.bundleHash, 'Current still resolves the accepted program');
+  // Changing the result id to another card's candidate (or to a result whose bundle is not the reference) is refused.
+  const forged = { ...proposed, explain: { ...proposed.explain, resultId: 'er_9', revision: 'xr_9' } };
+  assert.equal((await resolveProgram(forged, { client })).error.code, 'version_unavailable', 'another card\'s candidate');
+  const swapped = { ...proposed, explain: { ...proposed.explain, resultId: 'er_1', revision: 'xr_1' } };
+  assert.equal((await resolveProgram(swapped, { client })).error.code, 'version_unavailable', 'the accepted result under the candidate\'s bundle');
+  // A share link reads only the card's saved result: the candidate's identity does not match it, so the link never shows a candidate.
+  const link = { result: async () => ({ artifact: accepted, identity: { resultId: 'er_1', cardId: 'card1', revision: 'xr_1', kind: 'program', bundleHash: accepted.bundleHash }, execution: { allowed: true } }) };
+  assert.equal((await resolveProgram(proposed, { client: link })).ok, false);
+  // The preview's own changes stay in its memory (ProgramScene preview): the accepted card's inputs and time are untouched.
+  const played = keptProgram(proposed, { ...setProgramInput(proposed, parseManifest(searchFixture.manifest).value, 'target', 9), time: 3 });
+  assert.equal(shownProgram(proposed, played).time, 3);
+  assert.deepEqual([card.inputs, card.time], [{ rate: 7 }, 2]);
+  assert.equal(shownProgram(card, played), card, 'kept preview state never shows on the accepted card');
 });
