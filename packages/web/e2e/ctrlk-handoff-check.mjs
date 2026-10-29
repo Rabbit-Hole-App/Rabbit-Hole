@@ -42,7 +42,7 @@ await say('t1-a', 'assistant', 'A push or a pull.');
 const CHIP = { sourceId: `card:${FORCE.id}`, kind: 'card', name: 'Forces', version: 'v1' };
 await api(`/api/learn/chat/threads/${thread}/state`, { method: 'PUT', body: JSON.stringify({ contextRefs: [CHIP] }) });
 
-const total = 13;
+const total = 14;
 let passed = 0, failed = 0;
 const ok = (name, condition, extra = '') => { if (condition) passed += 1; else failed += 1; console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${extra ? `  (${extra})` : ''}`); };
 const until = async (fn, ms = 15000) => { const end = Date.now() + ms; for (;;) { if (await fn()) return true; if (Date.now() > end) return false; await new Promise(r => setTimeout(r, 150)); } };
@@ -141,6 +141,8 @@ try {
   const first = briefs[0];
   ok('taken: the brief request is /quiz about the Photosynthesis card, never a revision', briefs.length === 1 && first.command === 'quiz' && /photosynthesis/.test(first.request) && first.selection?.id === PHOTO.id && first.revise === undefined, JSON.stringify(first || null).slice(0, 200));
   ok('taken: the Chat draft is unchanged', await composer().inputValue() === 'my own draft');
+  // The brief names the card by its plain title, never its structured content as JSON; the card's words still ride as context.
+  ok('taken: the brief\'s selection title is the card\'s plain title', first?.selection?.title === PHOTO.title && /Plants use light energy/.test(first?.context || ''), `${first?.selection?.title} | ${String(first?.context).slice(0, 80)}`);
 
   // 3. An Edit target armed on that brief; a Ctrl+K /diagram on the Forces card is its own brief and leaves the Chat's context alone.
   const brief = dock.locator('[data-generation-proposal="quiz"][data-proposal-active="true"]').last();
