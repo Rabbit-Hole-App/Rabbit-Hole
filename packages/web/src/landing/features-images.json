@@ -23,6 +23,18 @@
       "h": 704
     }
   },
+  "08-practice": {
+    "desktop": {
+      "src": "08-practice-desktop.webp",
+      "w": 1302,
+      "h": 1025
+    },
+    "mobile": {
+      "src": "08-practice-mobile.webp",
+      "w": 800,
+      "h": 1001
+    }
+  },
   "11-rabbit-holes": {
     "desktop": {
       "src": "11-rabbit-holes-desktop.webp",
@@ -32,7 +44,42 @@
     "mobile": {
       "src": "11-rabbit-holes-mobile.webp",
       "w": 800,
-      "h": 597
+      "h": 769
     }
-  }
+  },
+  "14-edit-with-ai": {
+    "desktop": {
+      "src": "14-edit-with-ai-desktop.webp",
+      "w": 1404,
+      "h": 1233
+    }
+  },
+  "16-sharing-forking": [
+    {
+      "caption": "Shared canvas",
+      "desktop": {
+        "src": "16-sharing-forking-a-desktop.webp",
+        "w": 1175,
+        "h": 890
+      },
+      "mobile": {
+        "src": "16-sharing-forking-a-mobile.webp",
+        "w": 800,
+        "h": 708
+      }
+    },
+    {
+      "caption": "The fork",
+      "desktop": {
+        "src": "16-sharing-forking-b-desktop.webp",
+        "w": 1700,
+        "h": 780
+      },
+      "mobile": {
+        "src": "16-sharing-forking-b-mobile.webp",
+        "w": 800,
+        "h": 677
+      }
+    }
+  ]
 }

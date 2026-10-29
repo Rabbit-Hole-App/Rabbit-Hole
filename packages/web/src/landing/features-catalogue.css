@@ -56,13 +56,13 @@
 /* Rabbit Holes (owner, 2026-10-28 late): one 16:9 picture under its copy, everything on one centre axis (title, copy,
    frame), and title, copy and the whole framed picture fit one desktop viewport once the title sits below the navigation.
    The section may run wider than the 1180 px content (up to 100vw - 64 px, 1560 px max), but a 16:9 frame's width
-   follows the height left over: 100svh minus 354 px (76 nav clearance + 57 title + 28 gap + 114 stacked copy + 16 gap
-   + 54 header and borders + 8 below), times 16/9. The picture is whole (contain). */
-.features-page #below .feature-group[data-layout="wide"]{max-width:none;margin-inline:calc(50% - min(50vw - 32px, 780px));scroll-margin-top:76px;text-align:center}
+   follows the height left over: 100svh minus 345 px (72 nav clearance, the nav ends at 66.5 px; 57 title + 28 gap + 114
+   stacked copy + 16 gap + 54 header and borders + 4 below), times 16/9. The picture is whole (contain). */
+.features-page #below .feature-group[data-layout="wide"]{max-width:none;margin-inline:calc(50% - min(50vw - 32px, 780px));scroll-margin-top:72px;text-align:center}
 .features-page #below [data-layout="wide"] .feature-group-title{margin-bottom:28px}
 .feature-wide .feature-copy{margin-bottom:16px}
 .feature-wide .feature-copy p{max-width:640px;margin-inline:auto}
-.feature-wide .feature-demo{max-width:max(560px,calc((100svh - 354px) * 16 / 9 + 2px));margin-inline:auto;text-align:left}
+.feature-wide .feature-demo{max-width:max(560px,calc((100svh - 345px) * 16 / 9 + 2px));margin-inline:auto;text-align:left}
 .feature-wide .demo-content{aspect-ratio:16 / 9}
 /* The collection (owner brief A): 12 columns, Practice 7 | Edit with AI 5, then Comments 5 | Sharing & forking 7. Tiles in a
    row share its height; heading and copy above the picture, inside the tile. Pictures keep their natural height (capped,
@@ -79,6 +79,8 @@
 .features-page #below .feature-tiles h3{font-size:28px;margin-bottom:16px}
 .feature-tiles .feature-copy p{max-width:420px}
 .feature-tiles img{display:block;width:100%;height:auto;max-height:480px;object-fit:contain}
+/* Sharing & forking: its two captioned parts stack (shared canvas, then the fork), so each keeps the tile's full width. */
+.feature-tiles #sharing-forking .feature-parts{grid-auto-flow:row}
 /* The wide picture fills its 16:9 area whole: one picture, or captioned parts sharing it. */
 .feature-wide .demo-content{display:flex}
 .feature-wide picture{display:contents}
