@@ -21,6 +21,13 @@ export function openTarget(block, { portal = null, dive = false, readers = false
   return null;
 }
 
+// A view-only canvas (a shared link) arms the hand tool, so its cards take no pointer and the surface pans and selects
+// from anywhere. These are the regions of a card a viewer may still operate: an explanation's playback transport, its
+// Interact controls, its sub-card pager and Restart. They only change what this viewer sees (never saved: a view-only
+// board has no save) and call no route. index.css re-enables them under [data-view-only] with this same list, and the
+// surface leaves a press on them to the control (AdaptiveCanvas down).
+export const VIEW_ONLY_CONTROLS = '[data-animation-transport], [data-scene-controls], [data-card-pager], [data-program-restart]';
+
 // A double-click on one of the card's own controls belongs to that control, never to Open: form fields,
 // buttons, links, players, drawing surfaces and anything that sets its own pointer cursor (a draggable point,
 // a slider thumb). The card's drag strip opens even though it shows a grab cursor.
