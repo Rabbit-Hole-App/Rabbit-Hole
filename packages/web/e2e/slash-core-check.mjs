@@ -47,7 +47,7 @@ const dock = page.locator('[data-chat-pane]');
 const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
 await composer().waitFor({ timeout: 30000 });
 const picker = dock.locator('[data-slash-picker]');
-const pill = dock.locator('[data-command-pill]');
+const pill = dock.locator('[data-chat-composer] [data-command-pill]'); // the composer's pill, never a sent message's read-only one
 const finder = page.getByRole('dialog', { name: 'Search' });
 const focused = () => composer().evaluate(node => node === document.activeElement);
 
@@ -130,7 +130,8 @@ await finder.getByText('Attention Is All You Need').waitFor({ timeout: 10000 });
 ok('/arxiv <id> opens the finder on arXiv with the ID, previewed before adding', await finder.getByLabel('Search in').inputValue() === 'arxiv' && searches.at(-1) === 'arxiv:1706.03762');
 await page.keyboard.press('Escape');
 await finder.waitFor({ state: 'detached' });
-ok('closed: the typed line comes back as typed', await pill.count() === 0 && await composer().inputValue() === '/arxiv 1706.03762');
+// Owner brief 2026-10-29 (BRIEF-PILLS 3): a command pasted with its words becomes its pill, so the draft comes back as that pill and the words.
+ok('closed: the line comes back as its pill and words', await pill.getAttribute('data-command-pill') === 'arxiv' && await composer().inputValue() === '1706.03762');
 const searched = searches.length;
 await composer().fill('/paper attention mechanisms');
 await composer().press('Enter');

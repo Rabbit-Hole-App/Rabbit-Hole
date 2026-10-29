@@ -29,7 +29,7 @@ import { NO_REFS, canvasTargetField, tocAskProps } from './learn-ask-target.js';
 import { MAX_OUTLINE_HEADINGS, outlineRevision } from './learn-outline-model.js';
 import { destinationOf } from './answer-destination.js';
 import CommandPill from './CommandPill.jsx';
-import { NO_STEPS, historyKey, recordStep, removesToken, travel } from './command-token.js';
+import { NO_STEPS, composerCommand, historyKey, recordStep, removesToken, travel } from './command-token.js';
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { composerKey } from './composer-keys.js';
 import { chatSendKey, sendKeyLabel } from './ui-prefs.js';
@@ -334,8 +334,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     event.preventDefault(); commandSteps.current = next.steps; setCommand(next.command); return true;
   };
   const setComposerInput = (value) => {
-    const chosen = slash && value.match(/^\/([\w-]+) $/);
-    if (chosen && slash.isCommand?.(chosen[1])) { changeCommand(chosen[1], stash.current ?? ''); setInput(stash.current ?? ''); stash.current = null; return; }
+    // Picked, typed with a separator or pasted with words: the pill is the resolved id, replacing any other (command-token.js composerCommand).
+    // ponytail: LearnPage's slash.isCommand is no longer read; drop it with the next LearnPage.jsx change (a broad fast-e2e path).
+    const chosen = slash && composerCommand(value, stash.current);
+    if (chosen) { changeCommand(chosen.command, chosen.text); setInput(chosen.text); stash.current = null; return; }
     if (value === '' && stash.current !== null) { setInput(stash.current); stash.current = null; return; }
     setInput(value);
   };

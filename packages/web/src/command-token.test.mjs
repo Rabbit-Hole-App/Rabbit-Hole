@@ -10,9 +10,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
-import { NO_STEPS, historyKey, recordStep, removesToken, sentCommand, travel } from './command-token.js';
+import * as token from './command-token.js';
 import { draftSlot } from './chat-draft.js';
-import { commandLine } from './learn-slash.js';
+import { commandLine, lineCommand, runLearnCommand } from './learn-slash.js';
+import { setImageGeneration } from './agent/slash.js';
+
+const { NO_STEPS, historyKey, recordStep, removesToken, sentCommand, travel } = token;
 
 const dir = mkdtempSync(join(tmpdir(), 'command-token-')), outfile = join(dir, 'token.cjs');
 const viteUrl = { name: 'vite-url', setup(build) {
@@ -149,8 +152,96 @@ test('ask.jsx wires the token: boundary Backspace, x, Undo/Redo steps, and Send 
   const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
   assert.match(ask, /if \(removesToken\(event, \{ command, selectionStart: event\.target\.selectionStart, selectionEnd: event\.target\.selectionEnd \}\)\) \{ event\.preventDefault\(\); removeCommand\(\); return; \} if \(commandHistory\(event\)\) return;/);
   assert.doesNotMatch(ask, /event\.key === 'Backspace' && !input/, 'the old empty-only rule is gone');
-  assert.match(ask, /if \(chosen && slash\.isCommand\?\.\(chosen\[1\]\)\) \{ changeCommand\(chosen\[1\], stash\.current \?\? ''\);/);
   assert.match(ask, /commandSteps\.current = NO_STEPS; setCommand\(null\);/);
   const messages = readFileSync(new URL('./ChatMessages.jsx', import.meta.url), 'utf8');
   assert.match(messages, /<SentText m=\{m\} \/>/);
 });
+
+// Slash pills (owner brief 2026-10-29, BRIEF-PILLS 1-4): what the Chat composer stores, shows and sends for a picked, typed or pasted
+// command. typed is what a learner types; id the stable command id stored in the draft and the saved message (agent/slash.js typed).
+const EIGHTEEN = [
+  ['explain', 'explain'], ['practice', 'practice'], ['quiz', 'quiz'], ['flashcards', 'flashcards'], ['goal', 'goal'], ['code', 'code'],
+  ['graph', 'graph'], ['diagram', 'diagram'], ['notebook', 'notebook'], ['image', 'generate-image'], ['motion', 'motion'], ['cad', 'cad'],
+  ['3d', '3d'], ['browser', 'browser'], ['photos', 'image'], ['youtube', 'youtube'], ['arxiv', 'arxiv'], ['wikipedia', 'wikipedia'],
+];
+const LIVE = { motionDev: true };
+const withImages = (on, run) => { setImageGeneration(on); try { return run(); } finally { setImageGeneration(false); } };
+const shownPill = name => B.renderToStaticMarkup(B.createElement(B.CommandPill, { name })).match(/data-command-pill="([^"]+)".*?font-medium">([^<]*)</).slice(1);
+
+test('Chat: each of the 18 picked, typed, uppercase or pasted stores its id, shows its typed pill and sends its typed line', () => withImages(true, () => {
+  assert.equal(EIGHTEEN.length, 18);
+  for (const [typed, id] of EIGHTEEN) {
+    // Picked (LearnSlash choose writes "/typed ") and typed with a separator: the pill, and the words typed before the palette come back.
+    assert.deepEqual(token.composerCommand(`/${typed} `, 'my draft', LIVE), { command: id, text: 'my draft' }, `picked /${typed}`);
+    assert.deepEqual(token.composerCommand(`/${typed} `, null, LIVE), { command: id, text: '' }, `typed /${typed}`);
+    assert.deepEqual(token.composerCommand(`/${typed.toUpperCase()} `, null, LIVE), { command: id, text: '' }, `uppercase /${typed.toUpperCase()}`);
+    // Pasted with its words: the words stay exactly as pasted.
+    const words = 'two  words\nand a line';
+    assert.deepEqual(token.composerCommand(`/${typed} ${words}`, 'my draft', LIVE), { command: id, text: words }, `pasted /${typed}`);
+    // The visible pill is the typed name; the outgoing line is the typed line; the saved message restores the same pill.
+    assert.deepEqual(shownPill(id), [id, typed], `pill ${id}`);
+    const line = commandLine(words, { command: id });
+    assert.equal(line, `/${typed} ${words}`, `line /${typed}`);
+    assert.equal(lineCommand(line), id, `sent id /${typed}`);
+    assert.deepEqual(sentCommand({ content: line, command: lineCommand(line) }), { command: id, text: words }, `restored /${typed}`);
+  }
+  // Not a command and its separator: text.
+  for (const value of ['/image', '/', 'the /image of it', ' /image ', '/usr/bin/env ', '/nope ']) assert.equal(token.composerCommand(value, null, LIVE), null, value);
+}));
+
+test('Chat: /image is the generation and /photos the search; aliases resolve; a typed command replaces the pill; nothing else changes', () => withImages(true, () => {
+  // The confirmed bug: "/image " became the photos pill (id image) and sent /photos; "/photos " made no pill and left the old one.
+  assert.deepEqual(token.composerCommand('/image ', null), { command: 'generate-image', text: '' });
+  assert.deepEqual(token.composerCommand('/photos ', null), { command: 'image', text: '' });
+  // Registered aliases: /generate-image is /image; /photo is /photos (one command, photos stays its pill and menu name).
+  assert.deepEqual(token.composerCommand('/generate-image a fox', null), { command: 'generate-image', text: 'a fox' });
+  assert.deepEqual(token.composerCommand('/photo Mount Fuji', null), { command: 'image', text: 'Mount Fuji' });
+  assert.deepEqual(token.composerCommand('/PHOTO ', null), { command: 'image', text: '' });
+  assert.deepEqual(shownPill('image'), ['image', 'photos']);
+  assert.equal(commandLine('Mount Fuji', { command: 'image' }), '/photos Mount Fuji');
+  // Replacing a stale pill: the draft's command becomes the newly typed one and the text stays (draftSlot is the Chat's draft store).
+  let draft = { text: 'keep me', command: 'image', savedAt: 0 };
+  draft = draftSlot(draft, { type: 'command', command: token.composerCommand('/image ', null).command, at: 1 });
+  assert.deepEqual([draft.command, draft.text], ['generate-image', 'keep me']);
+  draft = draftSlot(draft, { type: 'command', command: token.composerCommand('/photos ', null).command, at: 2 });
+  assert.deepEqual([draft.command, draft.text], ['image', 'keep me']);
+  draft = draftSlot(draft, { type: 'command', command: null, at: 3 });
+  assert.deepEqual([draft.command, draft.text], [null, 'keep me']);
+}));
+
+test('Chat: unavailable /image says image generation is unavailable and never becomes the photo search; removed commands stay text', async () => {
+  setImageGeneration(false);
+  for (const value of ['/image ', '/IMAGE a cat', '/generate-image a cat']) assert.equal(token.composerCommand(value, null), null, value);
+  const inserted = [];
+  const canvas = { insertBlock: block => { inserted.push(block); return 'b1'; } };
+  const post = () => { throw Error('no request'); };
+  for (const line of ['/image a cat', '/IMAGE a cat', '/generate-image a cat']) {
+    const out = await runLearnCommand(line, { app: 'a', canvas, post, openSearch: () => { throw Error('no search'); } });
+    assert.match(out.notice.text, /^Image generation is not available here\./, line);
+  }
+  assert.deepEqual(inserted, [], 'no photo search card');
+  // /photo still searches with generation off.
+  assert.deepEqual(token.composerCommand('/photo ', null), { command: 'image', text: '' });
+  // Removed commands, and /motion where it is not offered, stay text: Send says they are unavailable.
+  for (const name of ['dive', 'whiteboard', 'video']) {
+    assert.equal(token.composerCommand(`/${name} x`, null, LIVE), null, name);
+    assert.match((await runLearnCommand(`/${name} x`, { app: 'a', canvas, post })).notice.text, new RegExp(`^/${name} is no longer available`), name);
+  }
+  assert.equal(token.composerCommand('/motion ', null, { motionDev: false }), null);
+});
+
+test('saved messages and drafts keep their ids: legacy image messages and drafts restore their original pill', () => withImages(true, () => {
+  // An old message saved by the photo search (command image), with or without metadata, is still photos; a generation is image.
+  assert.deepEqual(sentCommand({ content: '/image Mount Fuji', command: 'image' }), { command: 'image', text: 'Mount Fuji' });
+  assert.deepEqual(sentCommand({ content: '/image Mount Fuji' }), { command: 'image', text: 'Mount Fuji' });
+  assert.deepEqual(sentCommand({ content: '/generate-image a fox', command: 'generate-image' }), { command: 'generate-image', text: 'a fox' });
+  assert.deepEqual(sentCommand({ content: '/photo Mount Fuji', command: 'image' }), { command: 'image', text: 'Mount Fuji' });
+  const html = transcript([
+    { role: 'user', messageId: '1', content: '/image Mount Fuji', command: 'image', status: 'done' },
+    { role: 'user', messageId: '2', content: '/image a fox', command: 'generate-image', status: 'done' },
+  ]);
+  assert.match(html, /data-command-pill="image"[^>]*><span [^>]*>photos<\/span><\/span>Mount Fuji/);
+  assert.match(html, /data-command-pill="generate-image"[^>]*><span [^>]*>image<\/span><\/span>a fox/);
+  // A restored draft (chat-draft.js keeps the id): the pill reads from the id, never from a rename.
+  for (const [id, typed] of [['image', 'photos'], ['generate-image', 'image']]) assert.deepEqual(shownPill(draftSlot({ text: '', command: null, savedAt: 0 }, { type: 'command', command: id, at: 1 }).command), [id, typed]);
+}));

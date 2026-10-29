@@ -527,12 +527,12 @@ await run('Ctrl+K / commands: the registry list, keys, typed = picked, pill remo
   await page.waitForFunction(() => window.__inlineMock.calls.some(call => call.type === 'decide' && call.request.mode === 'edit'));
   const edit = await lastDecide();
   check('what Edit sends has no command', edit.mode === 'edit' && edit.prompt === 'shorter words', JSON.stringify(edit));
-  // /explain: Explain with no pill, and the explicit command still sent.
+  // /explain: Explain with its pill (owner brief 2026-10-29: every selected command shows CommandPill), and the explicit command still sent.
   await fresh();
   await field.focus();
   await page.keyboard.type('/expl');
   await page.keyboard.press('Enter');
-  check('/explain selects Explain with no pill', (await page.locator('[data-command-pill]').count()) === 0 && (await popover(page).getAttribute('data-inline-command')) === 'explain' && await modeOf(page) === 'explain');
+  check('/explain selects Explain with its pill', (await page.locator('[data-inline-ai] [data-command-pill="explain"]').count()) === 1 && (await popover(page).getAttribute('data-inline-command')) === 'explain' && await modeOf(page) === 'explain');
   await page.keyboard.type('why it is a leaf');
   await page.keyboard.press('Enter');
   await closed();
