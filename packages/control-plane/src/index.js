@@ -14,7 +14,7 @@ import { uploadedPaperAsDocument } from './learn-paper.js';
 import { uploadedMediaAsImage } from './learn-media.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
 import { verifyChatRoute } from './chat-capability-route.js';
-import { MOTION_PAUSED, PROPOSAL_SYSTEM, PROPOSAL_TOOL, currentRevision, proposalRecord, proposalState, publishRevision, motionAbout, motionOffered, motionPaused, motionRequestLine, signProposal, validateProposalInput, verifyProposal, envelopeFor } from './generation-proposal.js';
+import { MOTION_PAUSED, PROPOSAL_EDIT_STALE, PROPOSAL_SYSTEM, PROPOSAL_TOOL, currentRevision, proposalRecord, proposalState, publishRevision, motionAbout, motionOffered, motionPaused, motionRequestLine, signProposal, validateProposalInput, verifyProposal, envelopeFor } from './generation-proposal.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, searchWikipedia, readWikipedia, validateShowWikipedia, wikiTitle } from './learn-wiki.js';
 import { findVideoMoments, videoMomentTools } from './learn-youtube.js';
 import { WIKI_SHOWN_NOTE } from './agents/learn-chat.js';
@@ -1030,7 +1030,12 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     const motionInput = body.generation?.motion === undefined ? null : motionAbout(body.generation.motion);
     if (body.generation?.motion !== undefined && !motionInput) return json({ error: 'generation.motion must be {concept?, context?}' }, 400);
     const current = body.generation?.current && !(await verifyProposal(env, body.generation.current, user.email)) ? body.generation.current : null;
-    generation = motionInput && motionOffered(env, user.email) ? { motion: motionInput, current: current?.command === 'motion' ? current : null } : null;
+    // The card's Edit (generation.edit): current is the exact revision the learner chose. Unlike the implicit latest proposal, one
+    // that does not verify for them, or is not a Motion proposal, is refused here rather than ignored; it is re-read below.
+    const edit = body.generation?.edit === true;
+    if (edit && current?.command !== 'motion') return json({ error: PROPOSAL_EDIT_STALE, code: 'proposal_edit_stale' }, 409);
+    generation = motionInput && motionOffered(env, user.email) ? { motion: motionInput, current: current?.command === 'motion' ? current : null, edit } : null;
+    if (edit && !generation) return json(motionPaused(env, user.email) ? { error: MOTION_PAUSED, code: 'motion_paused' } : { error: 'Motion is not available in this environment yet. Nothing was changed.', code: 'motion_unavailable' }, 503);
   }
   if (chat?.command === 'motion' && !generation) {
     return json(motionPaused(env, user.email) ? { error: MOTION_PAUSED, code: 'motion_paused' } : { error: 'Motion is not available in this environment yet. Nothing was started.', code: 'motion_unavailable' }, 503);
@@ -1087,6 +1092,8 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
         const checked = validateProposalInput(input, chat?.contextRefs || []);
         if (checked.error) return refused(checked.error);
         const current = generation.current?.command === checked.command ? generation.current : null;
+        // An Edit turn revises the chosen proposal only: never a new proposal, never another command.
+        if (generation.edit && !current) return refused('this turn changes the proposal the learner chose to edit; call it with command motion and the whole revised proposal');
         // UI-15.1: references the person attached on the card are theirs to edit there; a chat refinement would write a new description
         // without them, so it is refused in words rather than dropping them.
         if (current?.references?.length) return refused('this proposal has attached references; the learner changes it on its card, not in chat');
@@ -1239,6 +1246,15 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
       .bind(user.org, user.email, scopeKind, scopeRef).run();
     threadId = r.meta.last_row_id;
   }
+  // The card's Edit: the server's current revision on this canvas must be exactly the one the learner chose (MOT-22 state). A newer
+  // revision (a settings save, another refinement), a generated or another canvas's proposal is refused before the question is
+  // stored or a model is called; the record read here is the one the revision is published against, so a change landing after this
+  // read loses the compare-and-swap and comes back as a conflict, never overwritten.
+  if (generation?.edit) {
+    const found = await currentRevision(db, user.email, scopeRef, generation.current);
+    if (!found || found.proposal.sig !== generation.current.sig) return json({ error: PROPOSAL_EDIT_STALE, code: 'proposal_edit_stale', current: found?.proposal ?? null }, 409);
+    Object.assign(generation, { current: found.proposal, record: found.record });
+  }
   const history = await threadTurns(db, threadId, seed, attachedName ? `${message} [attached: ${attachedName}]` : message, turn?.userMessageId);
   let system = conversation === 'learn' ? (lessonSnapshot ? LEARN_SNAPSHOT_SYSTEM : LEARN_SYSTEM) : undefined;
   // Whole-canvas context rides with every turn that sends it, in every mode: the mode changes the workflow, never the context.
@@ -1255,6 +1271,8 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     // what the turn is, and its one tool is the proposal (no research). Real-model run 2026-10-21: offered among the research
     // tools, the Opus answer read Wikipedia and wrote an essay instead.
     if (generation && chat.command === 'motion') Object.assign(research, { tools: [PROPOSAL_TOOL], system: `${PROPOSAL_SYSTEM}\nThis turn is a /motion request for a video of what the learner wrote: call ${PROPOSAL_TOOL.name} once now with command motion, then reply in one short sentence.`, arxiv: false });
+    // An Edit turn: the learner pressed Edit on the proposal below, and this message says how to change it. Its one tool is the proposal.
+    if (generation?.edit) Object.assign(research, { tools: [PROPOSAL_TOOL], system: `${PROPOSAL_SYSTEM}\nThe learner pressed Edit on the proposal you made (below) and this message says how to change it: call ${PROPOSAL_TOOL.name} once now with command motion and the whole proposal, changed as they asked, then reply in one short sentence.`, arxiv: false });
     memory = await threadMemory(db, threadId, history.userMessageId);
     // On a project canvas its code refs are read from the repository snapshot (canvases.js projectRepository), once each:
     // they are not listed again as named attachments.
@@ -1280,7 +1298,7 @@ ${await progressQuestionContext(req, env, chat.contextRefs, seam?.app)}`;
     research.onAnswer = text => { const split = splitAnswerMeta(text); trailer = split.raw; return split.content; };
     // A refinement revises the learner's unanswered proposal: the model sees what the card says now. MOT-22: the server's current
     // revision on this canvas, not the browser's copy (stale in another tab, or already generated: the turn proposes anew).
-    if (generation?.current) { const found = await currentRevision(db, user.email, scopeRef, generation.current); Object.assign(generation, { current: found?.proposal ?? null, record: found?.record ?? null }); }
+    if (generation?.current && !generation.record) { const found = await currentRevision(db, user.email, scopeRef, generation.current); Object.assign(generation, { current: found?.proposal ?? null, record: found?.record ?? null }); }
     const current = generation?.current;
     if (current) context = `${context}\n\nThe proposal you made, not generated yet (version ${current.version}): ${JSON.stringify({ command: current.command, title: current.title, description: current.description, settings: current.settings, source_ref_ids: current.source_refs.map(r => r.sourceId) })}`;
   }

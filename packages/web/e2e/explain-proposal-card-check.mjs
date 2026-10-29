@@ -5,10 +5,11 @@
 // with its save (PUT/GET /api/learn/chat/messages/:id/proposal) answered here. No model call: every other model-capable request
 // is aborted and counted. Light theme.
 //   1. a brief that waits for approval: its card shows the title, the request, Presentation, the assumptions and the credits line,
-//      Edit details and an enabled Generate; no Duration, Audio or Cancel; the job's card says to review it in Chat; nothing approved;
+//      Edit and an enabled Generate; no Duration, Audio or Cancel; the job's card says to review it in Chat; nothing approved;
 //   2. a Presentation change saves version 2 (one PUT from version 1, the whole settings), nothing approved;
-//   3. Edit details: a new title and assumptions; Generate waits while the form is open; Save sends one PUT from version 2 with only
-//      those keys, and the card shows version 3;
+//   3. Edit (conversational editing, owner spec 2026-10-29): no inline form; the composer keeps its draft and gets one Editing pill, the
+//      card is highlighted, x cancels both and keeps the draft; Edit again and the instruction sends one refine naming version 2 (no
+//      PUT, no approve); the revised plan arrives as version 3, the original stays in history as Superseded with Generate disabled;
 //   4. Generate (a double-click) sends exactly one approve for that job with the saved version 3; the card is made, inactive, and the
 //      job's card becomes the explanation;
 //   5. a refused Generate (409 brief_stale): its reason is said under the card, one approve, nothing made, the job's card still waits;
@@ -41,7 +42,7 @@ const canvas = await api('/api/canvases', 'POST', { title: `Explain brief card $
 await api(`/api/learn/boards/${canvas.name}/main`, 'PUT', { state: { ...EMPTY, blocks: [NOTES] } });
 
 // The fake job server: every job waits for approval ('awaiting_approval' after its create answer) until the check releases it.
-const jobs = new Map(), creates = [], approves = [];
+const jobs = new Map(), creates = [], approves = [], refines = [];
 const view = job => ({ id: job.id, version: 1, boardId: job.boardId, cardId: job.cardId, requestClass: job.requestClass, stage: job.stage, attempt: 1,
   terminal: ['ready', 'failed', 'cancelled'].includes(job.stage), round: 0, stopReason: null, failure: null, recovery: [],
   usage: { credits: 0, unknown: false }, result: job.stage === 'ready' ? job.identity : null, createdAt: 0, updatedAt: 0 });
@@ -50,6 +51,8 @@ const release = job => Object.assign(job, { stage: 'ready', identity: { jobId: j
 // The brief the real job posts on the line's thread (explain-job.js postBrief): a signed v3 explain proposal on an assistant message.
 const REF = { id: 'r1', label: 'Heap notes', kind: 'card', sourceId: 'card:notes', revision: 'rev-1', range: null };
 const ASSUMPTIONS = ['The heap is a max-heap.', 'Keys are whole numbers.'];
+// The revised plan the job posts after an Edit instruction (its next version).
+const REVISED = 'Heaps: a tree and its array', REVISED_TEXT = 'The heap is drawn as a tree beside its array. Each parent stays above its children in both.';
 const proposals = new Map(), briefs = [], puts = []; // proposals: message id -> its current revision; briefs: { messageId, threadId, jobId }
 let nextBrief = null; // the next job's brief shape (refs, approve answers), set by a step before its /explain line
 const briefFor = (job, n, { references = [] } = {}) => ({
@@ -98,8 +101,23 @@ const router = async route => {
       job.stage = 'authoring';
       return route.fulfill({ status: 202, json: { job: view(job) } });
     }
+    // A refinement (the card's Edit): the brief is prepared again; the job's next read still says preparing, the one after publishes
+    // the next version of the same proposal on the same thread, as the real job's postBrief does.
+    if (one[2] === 'refine') {
+      const body = request.postDataJSON(), last = briefs.filter(b => b.jobId === job.id).at(-1);
+      refines.push({ jobId: job.id, body });
+      Object.assign(job, { stage: 'preparing', revision: { from: last, seen: false, message: body.message } });
+      return route.fulfill({ status: 202, json: { job: view(job) } });
+    }
     if (one[2]) return route.fulfill({ json: { job: view(job) } });
     if (url.searchParams.get('board') !== job.boardId) return route.fulfill({ status: 404, json: { error: 'Not available' } });
+    if (job.revision && !job.revision.seen) job.revision.seen = true;
+    else if (job.revision) {
+      const { from } = job.revision, current = proposals.get(from.messageId), messageId = String(700001 + briefs.length);
+      proposals.set(messageId, { ...current, version: current.version + 1, title: REVISED, description: REVISED_TEXT, prompt: REVISED_TEXT });
+      briefs.push({ messageId, threadId: from.threadId, jobId: job.id });
+      Object.assign(job, { stage: 'awaiting_approval', revision: null });
+    }
     return route.fulfill({ json: { job: view(job), ...(job.stage === 'ready' ? { block: { type: 'animation', id: job.cardId, title: SCENE_EXAMPLE.title, scene: SCENE_EXAMPLE, explain: job.identity } } : {}) } });
   }
   // The thread's restore: the real saved lines, plus the briefs posted on it.
@@ -189,7 +207,7 @@ await step('a brief that waits for approval: title, request, Presentation, assum
   assert.match(await card.locator('[data-proposal-usage]').innerText(), /Estimated cost: 40 AI credits/);
   assert.doesNotMatch(await card.innerText(), /\$\d/);
   assert.equal(await card.locator('[data-proposal-duration], [data-proposal-audio="on"], [data-proposal-audio="off"], [data-proposal-cancel]').count(), 0, 'no Duration, Audio or Cancel');
-  assert.equal(await card.locator('[data-proposal-edit]').count(), 1, 'Edit details');
+  assert.equal((await card.locator('[data-proposal-edit]').innerText()).trim(), 'Edit', 'Edit, the Chat editing target (never Edit details)');
   await card.locator('[data-proposal-generate]:not([disabled])').waitFor({ timeout: 10000 });
   await page.locator(`[data-block-id="${job.cardId}"] [data-explain-pending]`).waitFor({ state: 'attached' });
   assert.match(await page.locator(`[data-block-id="${job.cardId}"] [data-explain-stage]`).innerText(), /Review the brief in Chat/);
@@ -206,25 +224,47 @@ await step('a Presentation change saves version 2: one PUT from version 1 with t
   assert.equal(approves.length, 0, 'a settings change approves nothing');
 });
 
-const RETITLED = 'Heaps: keeping the order';
-const MORE = [...ASSUMPTIONS, 'No two keys are equal.'];
-await step('Edit details: Generate waits while the form is open; Save sends one PUT from version 2 with only the title and assumptions; version 3', async () => {
-  const { card, id } = first;
+const DRAFT = 'Draft kept ';
+const INSTRUCTION = 'Show the heap as a tree and as its array, side by side.';
+await step('Edit: an Editing pill in the composer (draft kept, x cancels), the card highlighted and read only; the instruction refines version 2 once; version 3 arrives and the original is Superseded', async () => {
+  const { card, id, job, title } = first;
+  const pill = dock.locator('[data-proposal-edit-target]');
+  await composer().click(); await composer().fill(DRAFT);
   await card.locator('[data-proposal-edit]').click();
-  await card.locator('[data-proposal-title]').fill(RETITLED);
-  await card.locator('[data-proposal-list="assumptions"]').fill(MORE.join('\n'));
-  assert.equal(await card.locator('[data-proposal-generate]').isDisabled(), true, 'Generate waits for the saved revision');
-  await card.locator('[data-proposal-save]').click();
-  const card3 = card;
-  await until(async () => (await card3.getAttribute('data-proposal-version')) === '3', 'version 3 after Save');
-  assert.equal((await card3.locator('h3').innerText()).trim(), RETITLED, 'the saved title');
-  const mine = puts.filter(p => p.id === id).map(p => p.body);
-  assert.equal(mine.length, 2, 'one more save');
-  assert.deepEqual(mine[1], { expected_version: 2, title: RETITLED, assumptions: MORE }, 'only the changed keys, from version 2');
-  assert.deepEqual(await card3.locator('[data-proposal-section="assumptions"] li').allInnerTexts(), MORE);
-  first.card = card3;
-  assert.equal(approves.length, 0);
-  await card3.screenshot({ path: `${OUT}/3-edited.png` });
+  await pill.waitFor();
+  assert.equal((await pill.innerText()).replace(/\s+/g, ' ').trim(), `Editing: ${title}`);
+  assert.equal(await card.getAttribute('data-proposal-targeted'), 'true', 'the targeted card is highlighted');
+  assert.equal(await card.locator('[data-proposal-title], [data-proposal-editor], [data-proposal-list], [data-proposal-save], [data-proposal-discard]').count(), 0, 'no inline editor');
+  assert.equal(await composer().inputValue(), DRAFT, 'the draft stays');
+  await until(async () => composer().evaluate(node => node === document.activeElement), 'the composer is focused');
+  await card.screenshot({ path: `${OUT}/3-editing.png` });
+  // x: the target and the highlight go, the draft and the card stay.
+  await dock.getByRole('button', { name: 'Cancel editing this proposal' }).click();
+  await until(async () => (await pill.count()) === 0, 'the pill is gone');
+  assert.equal(await card.getAttribute('data-proposal-targeted'), null);
+  assert.equal(await composer().inputValue(), DRAFT);
+  // Edit again, then the instruction: one refine naming the revision clicked, nothing saved, nothing approved.
+  await card.locator('[data-proposal-edit]').click();
+  await pill.waitFor();
+  await send(INSTRUCTION);
+  await until(async () => refines.length === 1, 'one refine');
+  const { boardId, ...sent } = refines[0].body;
+  assert.deepEqual(sent, { message: INSTRUCTION, proposal: { proposal_id: proposals.get(id).proposal_id, version: 2 } }, 'the instruction for version 2');
+  assert.equal(boardId, job.boardId);
+  assert.deepEqual([puts.filter(p => p.id === id).length, approves.length], [1, 0], 'no save, no approve');
+  await until(async () => (await pill.count()) === 0, 'the target is spent');
+  // The revised plan: version 3 of the same proposal, live; the original stays in history, Superseded, its Generate disabled.
+  const next = dock.locator('[data-generation-proposal="explain"][data-proposal-version="3"]').filter({ has: page.locator('[data-proposal-request]', { hasText: job.prompt }) });
+  await next.waitFor({ timeout: 20000 });
+  const old = dock.locator('[data-generation-proposal="explain"][data-proposal-version="2"]').filter({ has: page.locator('[data-proposal-request]', { hasText: job.prompt }) });
+  assert.equal(await old.getAttribute('data-proposal-active'), 'false');
+  assert.equal((await old.locator('[data-proposal-superseded]').innerText()).trim(), 'Superseded');
+  assert.equal(await old.locator('[data-proposal-generate]').isDisabled(), true);
+  assert.equal((await next.locator('h3').innerText()).trim(), REVISED);
+  await next.locator('[data-proposal-generate]:not([disabled])').waitFor({ timeout: 10000 });
+  assert.equal(approves.length, 0, 'the revision waits for Generate');
+  Object.assign(first, { card: next, id: briefs.at(-1).messageId });
+  await next.screenshot({ path: `${OUT}/3-revised.png` });
 });
 
 await step('Generate (a double-click) sends exactly one approve with the saved version 3; the card is made and the job\'s card becomes the explanation', async () => {

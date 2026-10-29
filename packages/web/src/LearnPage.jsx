@@ -453,7 +453,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     insertChat: entry => canvasApi.current?.insertChat(entry),
     // UI-15 / MOT-20 (generation-proposal-chat.js): what a chat turn sends so the server can propose a Motion video (the canvas
     // is the learner's location: its title names the concept), and whether a proposal already made its card here.
-    generation: (target, current, concept = app.title) => generationField({ offered: isLearnCommand('motion'), concept, target, current }),
+    generation: (target, current, concept = app.title, edit = false) => generationField({ offered: isLearnCommand('motion'), concept, target, current, edit }),
     proposalMade: proposalId => !!canvasApi.current?.blocks?.().some(madeFrom(proposalId)),
     // The card a proposal made, read live (the Chat's proposal card reports its job from this block), and the canvas card's own Stop for
     // it: the same stop request VideoBody sends (learn-scene-client.js stopVideo), then the block says it was stopped, as the card does.
@@ -505,10 +505,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // A Chat turn while that brief waits (EXP-T20 slice 3, ask.jsx): the job prepares its next version (Lane C refine); the
     // previous approval no longer counts, and the card observes the job again.
     explainWaiting: jobId => !!canvasApi.current?.blocks?.().some(block => block.explainJob?.id === jobId && block.explainJob.stage === 'awaiting_approval'),
-    refineExplain: async (proposal, message) => {
+    // expected (the card's Edit): { proposal_id, version } the instruction was written for; the job refines only that revision.
+    refineExplain: async (proposal, message, expected) => {
       const boardId = commentBoardRef.current;
       if (!boardId || typeof proposal?.input?.job !== 'string') throw new Error('This explanation can be changed only on its own canvas.');
-      const { job } = await explainClient(api, boardId).action(proposal.input.job, 'refine', { message });
+      const { job } = await explainClient(api, boardId).action(proposal.input.job, 'refine', { message, ...(expected ? { proposal: expected } : {}) });
       window.dispatchEvent(new CustomEvent(EXPLAIN_JOB_EVENT, { detail: { jobId: proposal.input.job } }));
       return job;
     },

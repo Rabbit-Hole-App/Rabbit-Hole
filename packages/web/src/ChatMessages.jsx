@@ -14,7 +14,7 @@ import AnswerSuggestions from './AnswerSuggestions.jsx';
 import SyllabusMessage from './SyllabusMessage.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
 import GenerationProposalCard from './GenerationProposalCard.jsx';
-import { PROPOSAL_REFUSED_EVENT, approvesJob, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
+import { PROPOSAL_REFUSED_EVENT, approvesJob, editPath, editTarget, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
 import { fetchProposal, problemOf, saveProposal } from './generation-review-client.js';
 import { withPrompt } from './card-prompt.js';
 import { reportClientError } from './client-telemetry.js';
@@ -45,6 +45,12 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   const made = pressed || !!ops?.proposalMade?.(p.proposal_id) || (!!output && !refusedCard);
   // Generate is enabled by the command's own start adapter: an output card (Motion) or an existing job (Explain).
   const active = !made && !!startAdapter(p, ops) && proposalActive(p, msgs);
+  // Edit (conversational editing): this exact revision becomes the Chat's editing target, the composer opens and keeps its draft.
+  // Nothing is sent, no model is called, nothing generates. Only where its command revises in chat (editPath); otherwise the card
+  // keeps its details form. The Table of contents' conversation never targets a proposal.
+  const editing = chat && !chat.tocView ? chat.editing : null, target = editing?.target;
+  const targeted = !!target && target.proposalId === p.proposal_id && target.version === p.version;
+  const onEdit = editing && active && saved && editPath(p, ops) ? () => { editing.set(editTarget(p, m.messageId, chat.thread?.id ?? null)); chat.panels?.openChat(); chat.composer.focus(); } : null;
   // UI-15.1: each reference's state from the server (changed, deleted, inaccessible, unsupported), read now; a blocked one is said before Generate.
   const [states, setStates] = useState(null), [problem, setProblem] = useState(null);
   const wanted = saved && p.references?.length > 0;
@@ -65,6 +71,8 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
     try {
       const result = await saveProposal(api, m.messageId, base, edit);
       setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, meta: { ...x.meta, proposal: result.proposal } } : x)));
+      // The person's own settings change on the targeted card: the target follows it to the revision they now see.
+      if (targeted) editing.set(editTarget(result.proposal, m.messageId, target.threadId));
       setStates(result.references?.length ? result.references : null);
     } catch (failure) {
       const next = edit.settings && Object.keys(edit).length === 1 ? settingsConflict(failure, edit.settings, m.messageId) : null;
@@ -119,6 +127,7 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
     return () => { live = false; };
   }, [resumable, p.proposal_id]); // eslint-disable-line react-hooks/exhaustive-deps
   const onGenerate = () => {
+    if (targeted) editing.clear(); // Generate spends this revision: no edit target stays on it
     if (p.command === 'generate-image') { generateImage(); return; }
     // /explain (EXP-T20): its card already waits on the canvas for this job; Generate approves the job's reviewed brief there.
     if (approvesJob(p)) {
@@ -161,7 +170,7 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
       <GenerationProposalCard proposal={p} active={active} made={cardKind ? false : made} released={released} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
         status={status} startedAt={output?.startedAt || pressedAt} noun={cardKind === 'image' ? 'image' : 'video'} onGoToCard={goToCard}
         onStop={status?.canStop && ops?.stopGeneration ? () => ops.stopGeneration(status.cardId) : null} onStopFailed={setError}
-        onGenerate={onGenerate} onSave={onSave} onOpenReference={ref => chat?.openSource?.({ sourceId: ref.sourceId, kind: ref.kind, name: ref.label, version: ref.revision, range: ref.range })} />
+        onEdit={onEdit} targeted={targeted} onGenerate={onGenerate} onSave={onSave} onOpenReference={ref => chat?.openSource?.({ sourceId: ref.sourceId, kind: ref.kind, name: ref.label, version: ref.revision, range: ref.range })} />
       {error && <p role="alert" className="mt-1 text-xs text-danger">{error}</p>}
       {image?.retry && <p data-image-job-status={image.tone} className="mt-1 text-xs text-ink-2"><button type="button" data-image-retry-save onClick={() => retryImageSave(api, `img-${p.proposal_id}`).catch(() => {})} className="rounded border border-line px-2 py-0.5 text-ink hover:bg-hover">Try saving again</button></p>}
       {problem?.kind === 'invalid' && problem.errors?.length > 0 && <ul role="alert" data-proposal-save-errors className="mt-1 text-xs text-danger">{problem.errors.map((e, k) => <li key={k}>{e.message}</li>)}</ul>}

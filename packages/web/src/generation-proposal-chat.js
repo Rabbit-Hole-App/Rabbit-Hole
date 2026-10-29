@@ -20,10 +20,11 @@ export function currentProposal(msgs, made = () => false, now = Date.now()) {
 }
 // The chat turn's generation field: what a Motion proposal would be about (the canvas concept and the selected card, with its
 // text as sent) and the live proposal it may revise. Null where this build offers no Motion.
-export function generationField({ offered, concept = null, target = null, current = null }) {
+// edit: current is the card the person pressed Edit on (an explicit target): the server revises exactly that revision or refuses.
+export function generationField({ offered, concept = null, target = null, current = null, edit = false }) {
   if (!offered) return null;
   const context = motionContext(target);
-  return { motion: { concept: String(concept || '').slice(0, 100) || null, ...(context ? { context } : {}) }, ...(current ? { current } : {}) };
+  return { motion: { concept: String(concept || '').slice(0, 100) || null, ...(context ? { context } : {}) }, ...(current ? { current } : {}), ...(current && edit ? { edit: true } : {}) };
 }
 // Generate: each proposed capability's adapter (MOT-20b) builds the card its handler already starts, confirmed, carrying the exact
 // approved proposal; nothing else differs per capability. Motion: the existing video card (its request, concept and selected card
@@ -42,6 +43,21 @@ export const approvesJob = p => p?.command === 'explain' && typeof p.input?.job 
 // ops.approveExplain) or null (this build cannot start it). Generate is enabled by THIS, never by one command's adapter.
 // 'image' (IMG-01, generate-image.js): the image job is started and followed from the card, behind the web flag.
 export const startAdapter = (p, ops) => (proposalBlock(p) ? (ops?.insertCard ? 'output' : null) : approvesJob(p) ? (ops?.approveExplain ? 'job' : null) : p?.command === 'generate-image' ? (imageGenerationOn() && ops?.insertCard ? 'image' : null) : null);
+// ---- The card's Edit (conversational editing): an explicit Chat target on the exact revision the person clicked ----
+// The target the Chat holds (chat-workspace.jsx editing): command, proposal id and revision, its message and thread, its canvas
+// and title; an Explain brief also its job and brief hash. The signed proposal rides, so the turn names that exact revision.
+export const editTarget = (p, messageId, threadId = null) => ({ command: p.command, proposalId: p.proposal_id, version: p.version, messageId: String(messageId), threadId,
+  canvas: p.input?.app ?? null, title: p.title, ...(typeof p.input?.job === 'string' ? { jobId: p.input.job, briefHash: p.input.brief_hash ?? null } : {}), proposal: p });
+// How a proposal is revised in chat: 'motion' (the chat turn, index.js generation.edit) or 'explain' (its job's refine; the send says so
+// when the brief no longer waits); null keeps the card's own details form (Image and CAD have no chat revision; attached references
+// ride neither path).
+export const editPath = (p, ops) => (p?.references?.length ? null : p?.command === 'motion' ? (ops?.generation?.(null, null) ? 'motion' : null)
+  : approvesJob(p) && ops?.refineExplain ? 'explain' : null);
+export const EDIT_ONE_THING = 'This message edits the proposal in the Editing pill. Remove the pill to run a command or attach a file.';
+// A turn with a target never runs another command or takes a file: it is refused in words and the draft is kept. -> text or null
+export const editRefusal = (target, { command = null, file = null } = {}) => (target && (command || file) ? EDIT_ONE_THING : null);
+// The target is spent once its revision is not the live one (a revision published, generated or expired): it is cleared, never retargeted.
+export const editSpent = (target, msgs, made = () => false, now = Date.now()) => !!target && !proposalActive(target.proposal, msgs, made, now);
 // MOT-22: a settings save the server refused because the proposal changed: the learner's choice (draft) beside the latest
 // (current). here: the latest is this answer's card, so it shows it and Use mine saves the draft from it; retryable: not generated.
 // -> null for any other failure.

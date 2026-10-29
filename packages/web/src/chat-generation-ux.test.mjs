@@ -22,7 +22,7 @@ const viteUrl = { name: 'vite-url', setup(build) {
   build.onLoad({ filter: /.*/, namespace: 'vite-url' }, () => ({ contents: 'export default ""' }));
 } };
 await esbuild.build({
-  stdin: { contents: "export { ChatMessages, ProposalSlot } from './ChatMessages.jsx'; export { default as Card } from './GenerationProposalCard.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { ChatMessages, ProposalSlot } from './ChatMessages.jsx'; export { ChatWorkspace } from './chat-workspace.jsx'; export { default as Card } from './GenerationProposalCard.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', plugins: [viteUrl], loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty' },
 });
 const B = createRequire(import.meta.url)(outfile);
@@ -312,4 +312,48 @@ test('the source pins it: an image proposal resumes after a reload by a read, th
   assert.match(chat, /const resumable = cardKind === 'image' && saved && !pressed && proposalActive\(p, msgs\) && imageGenerationOn\(\);/);
   assert.match(chat, /if \(!ended\) runImageJob\(/);
   assert.match(chat, /ops\?\.findCard\?\.\(sameFileCard/);
+});
+
+// ---- conversational editing: the card's Edit makes this exact revision the Chat's target (chat-workspace editing) ----
+const workspace = (target = null) => {
+  const calls = [];
+  return { calls, value: { canvas: 'canvas-1', thread: { id: 'canvaschat-1' }, panels: { openChat: () => calls.push(['openChat']) }, composer: { focus: () => calls.push(['focus']) }, openSource: () => {},
+    editing: { target, set: next => calls.push(['set', next]), clear: () => calls.push(['clear']) } } };
+};
+// ProposalSlot inside a Chat workspace; the drawn card's element is returned so its handlers can be pressed.
+const inChat = (ws, p, { msgs = null, opsFor = ops({ generation: () => ({ motion: {} }), refineExplain: async () => {} }) } = {}) => {
+  const list = msgs ?? [{ role: 'user', content: '/motion the water cycle', command: 'motion', messageId: '700' }, answer({ meta: meta({ proposal: p }) })];
+  const i = list.findIndex(m => m.meta?.proposal === p);
+  let tree = null;
+  const Probe = () => { tree = B.ProposalSlot({ m: list[i], i, msgs: list, setMsgs: () => {}, ops: opsFor }); return tree; };
+  const html = B.renderToStaticMarkup(B.createElement(B.ChatWorkspace.Provider, { value: ws.value }, B.createElement(Probe)));
+  return { html, card: tree.props.children[0] };
+};
+
+test('Edit on a proposal: Edit (never Edit details), it sets this exact revision as the target and opens the composer; nothing saved, sent or generated', () => {
+  const ws = workspace(), inserted = [];
+  const p = proposal({ version: 2, input: { request: '/motion the water cycle', concept: 'Weather', org: 'w', app: 'canvas-1' } });
+  const { html, card } = inChat(ws, p, { opsFor: ops({ generation: () => ({ motion: {} }), insertCard: block => { inserted.push(block); return { id: 'x' }; } }) });
+  assert.match(html, /<button[^>]*data-proposal-edit="true"[^>]*>Edit<\/button>/);
+  assert.doesNotMatch(html, /Edit details/);
+  card.props.onEdit(p);
+  assert.deepEqual(ws.calls, [['set', { command: 'motion', proposalId: p.proposal_id, version: 2, messageId: '812', threadId: 'canvaschat-1', canvas: 'canvas-1', title: 'Water cycle', proposal: p }], ['openChat'], ['focus']], 'the draft is untouched: focus, never prepare or setText');
+  assert.deepEqual(inserted, [], 'Edit never generates');
+});
+
+test('two proposals in one chat: only the targeted revision is highlighted; Generate on it clears the target; another command keeps its own form', () => {
+  const a = proposal({ proposal_id: 'gp-aaaaaaaaaaaaaaaa', title: 'Gravity on Earth and Moon' }), b = proposal({ proposal_id: 'gp-bbbbbbbbbbbbbbbb', title: 'Water cycle' });
+  const msgs = [{ role: 'user', content: '/motion gravity', command: 'motion', messageId: '700' }, answer({ messageId: '812', meta: meta({ proposal: a }) }),
+    { role: 'user', content: '/motion rain', command: 'motion', messageId: '813' }, answer({ messageId: '814', meta: meta({ proposal: b }) })];
+  const ws = workspace({ command: 'motion', proposalId: a.proposal_id, version: 1, messageId: '812', title: a.title, proposal: a });
+  const first = inChat(ws, a, { msgs }), second = inChat(ws, b, { msgs });
+  assert.match(first.html, /data-proposal-targeted="true"/);
+  assert.doesNotMatch(second.html, /data-proposal-targeted/, 'the other proposal is not the target');
+  const a2 = { ...a, version: 2 };
+  assert.doesNotMatch(inChat(ws, a2, { msgs: [...msgs, answer({ messageId: '815', meta: meta({ proposal: a2 }) })] }).html, /data-proposal-targeted/, 'a newer revision is not the one reviewed');
+  first.card.props.onGenerate(a);
+  assert.deepEqual(ws.calls.at(-1), ['clear'], 'Generate spends the targeted revision');
+  // An image proposal (no chat revision) keeps Edit details; so does a Motion proposal with attached references.
+  assert.doesNotMatch(inChat(workspace(), proposal({ command: 'generate-image', settings: { model: 'gpt-image-2' } })).html, />Edit<\/button>/);
+  assert.doesNotMatch(inChat(workspace(), proposal({ references: [{ id: 'r1', label: 'Notes', kind: 'card', sourceId: 'card:n', revision: 'r', range: null }] })).html, />Edit<\/button>/);
 });
