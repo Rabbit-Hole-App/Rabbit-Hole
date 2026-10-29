@@ -18,7 +18,7 @@ test('production shows only published entries with a picture; preview adds stage
   assert.match(prod, /id="notebooks"/);
   assert.doesNotMatch(prod, /interactive-explanations/); // staged (published: false)
   assert.doesNotMatch(prod, /github-code-graph/); // published, but no picture yet
-  assert.match(renderCatalogue(FEATURES, images, { preview: true }), /href="#interactive-explanations"/);
+  assert.match(renderCatalogue(FEATURES, images, { preview: true }), /id="interactive-explanations"/);
   assert.equal(renderCatalogue(FEATURES, {}), '');
 });
 
@@ -39,4 +39,14 @@ test('every entry is framed: Rabbit Hole header, picture before the copy, compos
   for (const a of html.split('<article ').slice(1)) assert.ok(a.indexOf('feature-demo') < a.indexOf('feature-copy'));
   assert.match(html, /<figcaption>Outgoing link<\/figcaption>.*<figcaption>Backlink<\/figcaption>/);
   assert.doesNotMatch(html, /\d\d \/ \d\d/); // no step counter
+});
+
+test('one sticky stack for the visible entries: no index row, frame count in --features, copy i in row i, first active', () => {
+  const html = renderCatalogue(FEATURES, { '01-ai-tutor': pic('01-ai-tutor'), '04-github-code-graph': pic('04'), '06-notebooks': pic('06', false) });
+  assert.doesNotMatch(html, /features-index|<nav/);
+  assert.match(html, /^<div class="features-catalogue" data-feature-walkthrough style="--features:3">/);
+  assert.deepEqual([...html.matchAll(/class="feature-copy" style="grid-row:(\d+)"/g)].map(m => m[1]), ['1', '2', '3']);
+  assert.equal((html.match(/data-feature-step/g) || []).length, 3);
+  assert.equal((html.match(/is-active/g) || []).length, 1);
+  assert.match(html, /<article class="feature is-active" id="ai-tutor"/);
 });
