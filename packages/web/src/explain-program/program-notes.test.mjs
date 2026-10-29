@@ -25,9 +25,49 @@ const render = props => B.renderToStaticMarkup(B.createElement(B.ProgramNotes, {
 // The genuine sandbox-ex1-b card's own assumptions (the recorded job response), plus one with delimited math.
 const recorded = JSON.parse(readFileSync(new URL('./testdata/sandbox-ex1-b-job.json', import.meta.url), 'utf8')).job.result.program.manifest.assumptions;
 
-test('no notes, no Notes row', () => {
+test('no notes and no values, no Notes row', () => {
   assert.equal(render({ notes: [] }), '');
   assert.equal(render({ notes: undefined }), '');
+  assert.equal(render({ notes: [], values: [] }), '');
+});
+
+// The frame's readouts as normalizeFrame gives them (label, text with its unit), here the sandbox-ex1-b card's own definitions.
+const values = time => [
+  { id: 'coffee', label: 'Coffee temperature', text: `${(90 - time).toFixed(1)} °C` },
+  { id: 'minutes', label: 'Time elapsed', text: `${time} min` },
+];
+const valueItems = html => [...html.matchAll(/<li data-program-value="([^"]+)">([\s\S]*?)<\/li>/g)].map(match => [match[1], match[2].replace(/<[^>]+>/g, '')]);
+
+// Owner, 2026-10-28: the readouts moved from a strip under the drawing into Notes, under "Values".
+test('values only: Notes still shows, collapsed, with a Values section and no assumptions', () => {
+  const html = render({ notes: [], values: values(0) });
+  assert.match(html, /data-program-notes-toggle[^>]*aria-expanded="false"/);
+  assert.match(html, /<ul id="c1-notes" hidden=""/);
+  assert.match(html, />Values<\/p>/);
+  assert.doesNotMatch(html, /data-program-assumptions|Assumptions/);
+  assert.deepEqual(valueItems(html), [['coffee', 'Coffee temperature: 90.0 °C'], ['minutes', 'Time elapsed: 0 min']]);
+});
+
+test('values follow the view they are given: each render shows its own numbers', () => {
+  assert.deepEqual(valueItems(render({ values: values(12), open: true })).map(item => item[1]), ['Coffee temperature: 78.0 °C', 'Time elapsed: 12 min']);
+});
+
+test('values and assumptions: Values first, then the assumptions under their own heading', () => {
+  const html = render({ notes: recorded, values: values(0), open: true });
+  assert.ok(html.indexOf('>Values</p>') < html.indexOf('>Assumptions</p>'));
+  assert.equal(valueItems(html).length, 2);
+  assert.equal([...html.matchAll(/<li>/g)].length, recorded.length);
+  assert.match(html, /<ul id="c1-notes"[^>]* class="[^"]*text-sm[^"]*"/, '14 px text, as the notes');
+});
+
+test('assumptions only: no section headings, the notes as before', () => {
+  assert.doesNotMatch(render({ notes: recorded, open: true }), /Values|Assumptions<\/p>/);
+});
+
+test('ProgramScene draws no readout strip under the frame and hands the readouts to Notes', () => {
+  const scene = readFileSync(new URL('./ProgramScene.jsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(scene, /data-program-readouts/);
+  assert.match(scene, /<ProgramNotes [^>]*values=\{view\.readouts\}/);
 });
 
 test('collapsed by default: a real button with aria-expanded false, controlling a hidden list', () => {

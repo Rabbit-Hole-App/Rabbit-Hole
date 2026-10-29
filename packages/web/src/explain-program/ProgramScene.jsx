@@ -155,7 +155,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     document.addEventListener('visibilitychange', hide);
     return () => document.removeEventListener('visibilitychange', hide);
   }, []);
-  // The rows under the frame (readouts, transport, Interact, assumptions) report their real height so the card grows by it, as
+  // The rows under the frame (transport, Interact, Notes) report their real height so the card grows by it, as
   // SceneControls does. They exist only once a frame is drawn, so the observer starts then (keyed on drawn, not on the manifest,
   // which arrives a render earlier and found no rows to observe).
   // The failure message replaces the rows, so a failure ends this observer too; otherwise it keeps watching the removed rows and
@@ -238,18 +238,6 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       </div>
       <p className="sr-only">{manifest.summary}</p>
       <div ref={controls} className="flex shrink-0 flex-col gap-2">
-      {view.readouts.length > 0 && (
-        // Each readout keeps one line and its value a fixed minimum width, so a changing number never rewraps the row
-        // (and never resizes the card) during playback.
-        <p data-program-readouts aria-live="polite" className="text-sm tabular-nums text-ink">
-          {view.readouts.map((readout, index) => (
-            <span key={readout.id}>
-              <span className="inline-block whitespace-nowrap">{readout.label}: <span className="inline-block" style={{ minWidth: `${valueWidth(manifest, readout.id)}ch` }}>{readout.text}</span></span>
-              {index < view.readouts.length - 1 && ' · '}
-            </span>
-          ))}
-        </p>
-      )}
       {duration > 0 && (
         <div data-animation-transport className="flex items-center gap-1.5">
           <button type="button" data-animation-play onClick={play} className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">
@@ -274,17 +262,10 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
           </div>
         </div>
       )}
-      {/* Notes (the manifest's assumptions): collapsed under the controls; opening grows the card by the rows' measured height. */}
-      <ProgramNotes id={notesId} notes={manifest.assumptions} open={notesOpen} onToggle={() => setNotesOpen(value => !value)} />
+      {/* Notes (the drawn frame's readouts as Values, the manifest's assumptions): collapsed under the controls; opening grows
+          the card by the rows' measured height. */}
+      <ProgramNotes id={notesId} notes={manifest.assumptions} values={view.readouts} open={notesOpen} onToggle={() => setNotesOpen(value => !value)} />
       </div>
     </div>
   );
-}
-
-// The minimum width (ch) of a readout's value: a sign, three digits, its decimals and its unit. Static per manifest, so the
-// readouts row keeps its layout while the numbers change; a longer value only widens its own item.
-function valueWidth(manifest, id) {
-  const definition = manifest.readouts.find(readout => readout.id === id);
-  if (!definition) return 0;
-  return 4 + (definition.decimals ? definition.decimals + 1 : 0) + (definition.unit ? definition.unit.length + 1 : 0);
 }
