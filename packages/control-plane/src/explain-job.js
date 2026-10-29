@@ -459,6 +459,7 @@ export class ExplainJobs {
   async approve(job, payload) {
     const stale = () => fail('This brief changed. Review it again before generating.', 409, 'brief_stale');
     if (job.proposal && job.proposal.id === payload.proposal?.proposal_id && job.proposal.version === payload.proposal?.version) return json({ job: publicExplainJob(job) });
+    if (job.stage === 'cancelled') throw fail('This explanation was stopped. Ask for it again to make one.', 409, 'brief_stale');
     if (job.stage !== 'awaiting_approval') throw stale();
     const p = payload.proposal, refused = await verifyProposal(this.env, p, job.owner.email);
     if (refused) throw fail(refused, 409, 'proposal_invalid');

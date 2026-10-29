@@ -238,7 +238,8 @@ test('Cancel on a waiting brief stops the job through the existing cancel action
   await s.run(body.job.id);
   const cancelled = await s.send('cancel', {}, body.job.id);
   assert.deepEqual([cancelled.status, cancelled.body.job.stage, cancelled.body.job.stopReason], [200, 'cancelled', 'stopped']);
-  assert.equal((await s.approve(body.job.id)).status, 409);
+  const refused = await s.approve(body.job.id);
+  assert.deepEqual([refused.status, refused.body.code, refused.body.error], [409, 'brief_stale', 'This explanation was stopped. Ask for it again to make one.']);
   await s.run(body.job.id);
   assert.deepEqual(model.calls.map(c => c.name), ['explain_brief']);
   assert.equal(rows(s.sqlite, 'usage_actions').some(a => a.status === 'running'), false);

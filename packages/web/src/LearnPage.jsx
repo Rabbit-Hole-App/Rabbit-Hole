@@ -502,6 +502,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       window.dispatchEvent(new CustomEvent(EXPLAIN_JOB_EVENT, { detail: { jobId: proposal.input.job } }));
       return job?.cardId || null;
     },
+    // Cancel on that brief: the job's own cancel action (Lane C stop); its waiting card observes the job again and says Stopped.
+    cancelExplain: async proposal => {
+      const boardId = commentBoardRef.current;
+      if (!boardId || typeof proposal?.input?.job !== 'string') throw new Error('This explanation can be stopped only on its own canvas.');
+      const { job } = await explainClient(api, boardId).action(proposal.input.job, 'cancel');
+      window.dispatchEvent(new CustomEvent(EXPLAIN_JOB_EVENT, { detail: { jobId: proposal.input.job } }));
+      return job;
+    },
     // A Chat turn while that brief waits (EXP-T20 slice 3, ask.jsx): the job prepares its next version (Lane C refine); the
     // previous approval no longer counts, and the card observes the job again.
     explainWaiting: jobId => !!canvasApi.current?.blocks?.().some(block => block.explainJob?.id === jobId && block.explainJob.stage === 'awaiting_approval'),

@@ -5,7 +5,7 @@ export const EXPLAIN_ROOT = '/api/learn/explain/jobs';
 
 // What the card says while the job works: the server's stage, never a guess. No ellipses (UI copy rule).
 const STAGES = {
-  queued: 'Queued', preparing: 'Reading the request', awaiting_approval: 'Review the brief in Chat', authoring: 'Writing the explanation',
+  queued: 'Queued', preparing: 'Reading the request', awaiting_approval: 'Review the explanation plan in Chat', authoring: 'Writing the explanation',
   validating: 'Checking it', rendering: 'Rendering it', reviewing: 'Reviewing the render', repairing: 'Fixing what the review found',
   ready: 'Ready', cancelled: 'Stopped',
 };

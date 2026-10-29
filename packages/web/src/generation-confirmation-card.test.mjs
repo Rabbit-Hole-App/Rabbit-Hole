@@ -98,6 +98,41 @@ test('Explain declares presentation only: no duration or audio, its assumptions 
   assert.match(text(html({ proposal: explain })), /Explain a pendulum\./);
 });
 
+// Owner decision 2026-10-29: every /explain request shows this card before anything is authored. Heading, unchanged request,
+// title, description, Presentation, assumptions and limitations apart, the cost note, Edit details and Generate; editing has Save and
+// Discard and Generate waits for the saved revision.
+test('Explain review card: Review explanation heading, the request unchanged, assumptions and limitations apart, the cost note, and the Edit/Save/Discard/Generate states', () => {
+  const explain = { proposal_id: 'gp-cccccccccccccccc', version: 1, schema_version: 1, command: 'explain', title: 'Falling on Earth and the Moon', description: 'Compare an object falling on Earth and on the Moon, side by side.', prompt: 'Compare an object falling on Earth and on the Moon, side by side.',
+    settings: { presentation: 'experiment' }, input: { request: 'why things fall slower on the Moon', org: 'w', app: 'a', job: 'ej_1' }, original_request: 'why things fall slower on the Moon', references: [],
+    assumptions: ['Air resistance is ignored.'], limitations: ['One object at a time on each world.'], sig: `v3.${'0'.repeat(64)}` };
+  const props = { proposal: explain, eyebrow: 'Review explanation', note: 'Preparing this plan used one model call.', onCancel: () => {} };
+  const out = html(props), words = text(out);
+  assert.match(out, /aria-label="Review explanation"/);
+  assert.match(words, /Review explanation Falling on Earth and the Moon/);
+  assert.match(out, /data-proposal-request[^>]*>[^]*why things fall slower on the Moon/);
+  assert.match(words, /Assumptions Air resistance is ignored\./);
+  assert.match(words, /Limitations One object at a time on each world\./);
+  assert.doesNotMatch(words, /Not supported or not verified/, 'Explain titles its limitations plainly');
+  assert.match(out, /data-proposal-note[^>]*>Preparing this plan used one model call\./);
+  assert.match(out, /<button[^>]*data-proposal-edit[^>]*>Edit details</);
+  assert.match(out, /<button[^>]*data-proposal-cancel/);
+  assert.doesNotMatch(out, /<button[^>]*data-proposal-generate="true" disabled/, 'a saved valid revision can be generated');
+  // Editing: title and description fields, the assumptions as a list, the limitations still read only; Save and Discard, Generate waits.
+  const editing = html({ ...props, defaultEditing: true });
+  assert.match(editing, /<input data-proposal-title="true" aria-label="Title"[^>]*value="Falling on Earth and the Moon"/);
+  assert.match(editing, /<textarea data-proposal-editor="true" aria-label="Description"/);
+  assert.match(editing, /data-proposal-list="assumptions"/);
+  assert.doesNotMatch(editing, /data-proposal-list="limitations"/);
+  assert.match(text(editing), /Limitations One object at a time on each world\./);
+  assert.match(editing, /<button[^>]*data-proposal-discard[^>]*>Discard</);
+  assert.match(editing, /<button[^>]*data-proposal-save="true" disabled=""[^>]*>Save</, 'nothing changed yet');
+  assert.match(editing, /<button[^>]*data-proposal-generate="true" disabled=""/);
+  assert.doesNotMatch(editing, /data-proposal-cancel|data-proposal-edit=/);
+  // What Save sends: only the changed fields, no model call (the client PUTs them).
+  const view = proposalView(explain);
+  assert.deepEqual(B.buildEdit(view, { ...view, title: 'Falling, side by side', assumptions: ['No air.'] }, true), { title: 'Falling, side by side', assumptions: ['No air.'] });
+});
+
 test('a command with no settings draws no Settings section, no placeholder control and still confirms', () => {
   for (const command of ['video', '3d', 'flashcards']) {
     const out = html({ proposal: { proposal_id: 'gp-bbbbbbbbbbbbbbbb', version: 1, command, title: 'Rain', description: 'Rain falls.', settings: {}, input: { request: `/${command} rain` } } });

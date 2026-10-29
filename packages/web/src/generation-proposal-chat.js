@@ -38,6 +38,11 @@ const ADAPTERS = {
 export const proposalBlock = p => ADAPTERS[p?.command]?.(p) ?? null;
 // /explain (EXP-T20, Lane C): no card to add, because the job's card already waits on its canvas; Generate approves that job.
 export const approvesJob = p => p?.command === 'explain' && typeof p.input?.job === 'string' && !proposalBlock(p);
+// The Explain review card (owner, 2026-10-29): its heading, and what it says about cost. The brief it shows was a model call, as a
+// change asked for in Chat is; Save is not (generation-review-client.js); Generate starts the paid work. Said as CAD's brief says it.
+export const EXPLAIN_REVIEW_HEADING = 'Review explanation';
+export const EXPLAIN_COST_NOTE = 'Preparing this plan used one model call, and each change asked for in Chat uses another. Saving edits here makes no call. Generate starts the paid work: writing the explanation, checking it and reviewing its render.';
+export const EXPLAIN_STOPPED = 'Stopped before anything was generated.';
 // How a proposal starts, by its command's adapter: 'output' (add the output card, needs ops.insertCard), 'job' (approve the existing job, needs
 // ops.approveExplain) or null (this build cannot start it). Generate is enabled by THIS, never by one command's adapter.
 // 'image' (IMG-01, generate-image.js): the image job is started and followed from the card, behind the web flag.
