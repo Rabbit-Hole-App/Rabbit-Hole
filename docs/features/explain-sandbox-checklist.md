@@ -29,7 +29,7 @@ Owners: integrator = Parallel; Agent A runtime (Tasks 1, 3); Agent B card/render
 ## Known limitations of the shipped build (follow-ups, not blockers)
 
 - In Focus at smaller heights the drawing keeps a minimum size and scrolls inside its viewport, so the lower part can sit behind an internal scrollbar (follow-up branch feat/focus-sizing).
-- A frame that misses the 50 ms program deadline stops the card with a Restart message instead of being skipped.
+- A frame that misses the 50 ms program deadline is skipped and the last frame stays (owner decision 2026-10-29, option A; branch fix/explain-frame-overrun, playback.js); a completed frame resets the count and the third overrun in a row stops the card with the Restart message. Every other error (host watchdog, boot deadline, memory, output, version) still stops it at once, and all limits are unchanged. The review capture player (render/program-render.jsx) does not use this scheduler and still fails a capture on one overrun.
 - The pending card is large and has no activity indicator (follow-up branch fix/explain-pending-card).
 - The automatic numerical readouts are printed under the drawing and can repeat values the drawing already shows (planned: move them into Notes under "Values").
 - On phone, a viewer or guest Focus keeps the tools palette, which narrows the time slider (about 106 px); keeping the toolbar in Focus is intentional.
