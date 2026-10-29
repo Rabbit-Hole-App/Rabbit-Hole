@@ -375,13 +375,24 @@ await nav().locator('[data-dive-down]').click();
 await page.locator('[data-dive-picker]').waitFor();
 await shot('08-child-picker');
 await page.locator('[data-dive-picker]').getByRole('menuitem', { name: softmaxTitle }).click();
-await page.waitForFunction(name => location.pathname.endsWith(name), softmax); await page.waitForTimeout(1200);
+await page.waitForFunction(name => location.pathname.endsWith(name), softmax);
 console.log('flow H ok');
 
 // ---- F: double-click a level name to rename; Enter saves ----
-await nav().locator('[aria-current="location"] [data-dive-level]').dblclick();
+// The rename opens as soon as the hole's notebook card is drawn, so usually while it is still starting, and keeps its focus and text
+// through that start-up: Jupyter focuses its first cell as it starts, which blurred the field and dropped the rename (gate 40925212785,
+// fast-e2e 40926982735). NotebookCard keeps the frame inert until the notebook has started. A notebook site that never answers
+// (data-notebook-stalled) leaves nothing to start, so the rename is checked as before.
+await page.locator('[data-notebook-frame]').waitFor();
+await nav().locator(`[aria-current="location"] [data-dive-level="${softmax}"]`).dblclick();
 const rename = nav().getByRole('textbox', { name: 'Rename this Rabbit Hole' });
 await rename.fill('Softmax, from scores');
+const starting = await page.getByText('Starting Python', { exact: true }).count() > 0;
+await page.locator('[data-notebook-header] button[aria-pressed]:not([disabled]), [data-notebook-stalled]').first().waitFor({ timeout: 60000 });
+await page.waitForTimeout(1000);
+console.log(`rename opened while the notebook was starting: ${starting ? 'yes' : 'no, it had started'}`);
+assert.deepEqual(await page.evaluate(() => { const field = document.querySelector('[data-dive-navigator] input[aria-label="Rename this Rabbit Hole"]'); return field && { focused: field === document.activeElement, value: field.value }; }),
+  { focused: true, value: 'Softmax, from scores' }, 'the rename keeps its focus and text while the notebook starts');
 await shot('09-rename');
 await rename.press('Enter'); await page.waitForTimeout(800);
 assert.equal((await tree(root.name, BOARD)).children.find(child => child.name === softmax).title, 'Softmax, from scores');
