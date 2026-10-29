@@ -96,9 +96,15 @@ test('LearnPage: "/" opens the right panel on Find and focuses it; the finder ho
 test('SearchBar adds only through the Add to canvas button: Enter searches a new query and only previews an answered one (lead ruling 2026-10-16)', () => {
   const bar = readFileSync(new URL('./SearchBar.jsx', import.meta.url), 'utf8');
   assert.equal((bar.match(/choose\(/g) || []).length, 1, 'choose is called in one place');
-  assert.match(bar, /<button type="button" onClick=\{\(\) => choose\(results\[active\] \|\| results\[0\]\)\}[^>]*>\s*Add to canvas<\/button>/);
-  const submit = bar.slice(bar.indexOf('onSubmit='), bar.indexOf('}}>', bar.indexOf('onSubmit=')));
+  // The finder's presentation (FinderPanel, also drawn by the Slash Commands window with fixture results) calls its onAdd only from
+  // the Add to canvas button; SearchBar's onAdd is that one choose.
+  assert.match(bar, /onAdd=\{\(\) => choose\(results\[active\] \|\| results\[0\]\)\}/);
+  assert.match(bar, /<button type="button" onClick=\{onAdd\}[^>]*>\s*Add to canvas<\/button>/);
+  assert.equal((bar.match(/onAdd\b/g) || []).length, 3, 'onAdd: passed once, declared once, used once');
+  const submit = bar.slice(bar.indexOf('onSubmit='), bar.indexOf(' onRetry=', bar.indexOf('onSubmit=')));
   assert.match(submit, /if \(!current\) run\(\);/);
   assert.doesNotMatch(submit, /choose/);
-  assert.match(bar, /data-finder-result=\{result\.key\} onClick=\{\(\) => setActive\(index\)\}/, 'a click previews');
+  assert.match(bar, /event\.preventDefault\(\);\r?\n\s*\/\/ Enter searches[^\n]*\n\s*onSubmit\(\);/, 'the form submits through onSubmit only');
+  assert.match(bar, /data-finder-result=\{result\.key\} onClick=\{\(\) => onActive\(index\)\}/, 'a click previews');
+  assert.match(bar, /onActive=\{setActive\}/);
 });

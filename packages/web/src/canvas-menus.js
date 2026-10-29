@@ -5,7 +5,7 @@
 // There is no Files menu (the right panel's Context and Search do that work) and no Share, Publish or Embed here (the Share button).
 // Row kinds, drawn by CanvasMenubar: an action (label, icon, hint, disabled, onSelect), a submenu (items), a radio or check row
 // (radio / check, a check row stays open), a choice (the Page guides selector) and a divider. Disabled rows stay, greyed, never explained.
-import { AlignHorizontalDistributeCenter, AlignHorizontalJustifyCenter, ArrowUpToLine, Clipboard, Copy, CopyPlus, Eye, Focus, Globe, Grid2X2, Group, Heading1, Layers, Link, LockKeyhole, LockKeyholeOpen, Maximize2, Minus, NotebookPen, Paintbrush, PanelsTopLeft, Pipette, Redo2, Scan, Scissors, Search, Sigma, StickyNote, Trash2, Type, Undo2, Ungroup, Upload, Wand, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlignHorizontalDistributeCenter, AlignHorizontalJustifyCenter, ArrowUpToLine, Clipboard, Copy, CopyPlus, Eye, Focus, Globe, Grid2X2, Group, Heading1, Layers, Link, LockKeyhole, LockKeyholeOpen, Maximize2, Minus, NotebookPen, Paintbrush, PanelsTopLeft, Pipette, Redo2, Scan, Scissors, Search, Sigma, SquareSlash, StickyNote, Trash2, Type, Undo2, Ungroup, Upload, Wand, ZoomIn, ZoomOut } from 'lucide-react';
 
 // Section, sub-sections, text box, sticky note, divider and equation: inserted on this canvas only, no request, no model call.
 export const localInsertItems = canvas => [
@@ -38,7 +38,9 @@ const arrangeRows = (canvas, rows, least, state) => rows.map(([label, how]) => (
 
 // panel: the right panel's { open, setOpen } where the page has one; drawing: false where the canvas has no toolbar (a viewer).
 // study: the owner's Pinned Study (StudyPane.jsx useStudy, UI-27); a shared canvas passes none, so it has no Canvas / Study rows.
-export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdit = false, comments = {}, docView, setDocView, panel = null, drawing = true, study = null }) => {
+// onSlashCommands: opens the Slash Commands window (owner spec 2026-10-29 section 7.1); a canvas without a Chat composer passes none,
+// so it has no row that does nothing.
+export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdit = false, comments = {}, docView, setDocView, panel = null, drawing = true, study = null, onSlashCommands = null }) => {
   const locked = canvasState.selectionLocked;
   const checkRow = (label, on, set) => ({ label, check: !!on, onToggle: set });
   const widget = name => on => canvas()?.showWidget(name, on);
@@ -121,6 +123,7 @@ export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdi
         { divider: true },
         // Shows the document and frames its top.
         { label: 'Go to document start', icon: ArrowUpToLine, onSelect: () => { setDocView('editor'); requestAnimationFrame(() => requestAnimationFrame(() => canvas()?.goToDoc())); } },
+        ...(onSlashCommands ? [{ divider: true }, { label: 'Slash Commands', icon: SquareSlash, onSelect: onSlashCommands }] : []),
       ],
     },
   ];

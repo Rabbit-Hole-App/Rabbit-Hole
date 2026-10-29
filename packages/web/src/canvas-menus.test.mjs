@@ -113,9 +113,27 @@ test('View: zooms, Workspace, Show / hide, Page guides; the old Mode, Keep tool 
   assert.deepEqual(labels(view.items), ['Zoom in', 'Zoom out', 'Zoom to 100%', 'Fit canvas', 'Fit selection', 'Workspace', 'Show / hide', 'Page guides', 'Go to document start']);
   assert.deepEqual(labels(find(view.items, 'Workspace').items), ['Canvas', 'Editor']);
   assert.deepEqual(labels(find(view.items, 'Show / hide').items), ['Toolbar', 'Right panel', 'Minimap', 'Rabbit Hole Map', 'Comment pins', 'Learning suggestions']);
-  assert.doesNotMatch(labels(walk(view.items)).join('|'), /Curious|Comments|Keep tool active|Keyboard shortcuts|Slash commands|Mode|Zoom to fit/);
+  // Without onSlashCommands (a canvas with no Chat composer) there is no Slash Commands row (owner spec 2026-10-29 section 10.4).
+  assert.doesNotMatch(labels(walk(view.items)).join('|'), /Curious|Comments|Keep tool active|Keyboard shortcuts|Slash [Cc]ommands|Mode|Zoom to fit/);
   assert.deepEqual(find(view.items, 'Page guides').choice.options.map(option => option[0]), ['off', 'portrait', 'landscape'], 'the page-guide formats are kept');
   assert.deepEqual(['Zoom in', 'Zoom out', 'Zoom to 100%', 'Fit canvas'].map(label => find(view.items, label).hint), ['Ctrl +', 'Ctrl -', 'Shift 0', 'Shift 1']);
+});
+
+// Owner spec 2026-10-29 section 7.1: Slash Commands under View opens the window through the page's own callback (LearnPage's
+// slashHelpOpen state); a page that passes none (a shared canvas) gets no row that does nothing.
+test('View: Slash Commands, last after a divider, calls the page\'s callback; no callback, no row', () => {
+  const opened = [];
+  const view = owner({}, { onSlashCommands: () => opened.push('slash') })[2];
+  assert.deepEqual(groups(view.items).at(-1), ['Slash Commands']);
+  const row = find(view.items, 'Slash Commands');
+  assert.equal(menuIcon(row.icon).props['aria-hidden'], 'true');
+  assert.equal(row.disabled, undefined);
+  row.onSelect();
+  assert.deepEqual(opened, ['slash']);
+  assert.equal(find(build({})[2].items, 'Slash Commands'), undefined);
+  assert.equal(groups(build({})[2].items).at(-1).at(-1), 'Go to document start', 'no trailing divider without it');
+  assert.match(readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8'), /canvasEditMenus\(\{[^\n]*onSlashCommands: \(\) => setSlashHelpOpen\(true\) \}\)/);
+  assert.doesNotMatch(readFileSync(new URL('./SharedBoardPage.jsx', import.meta.url), 'utf8'), /onSlashCommands/, 'a shared canvas has no Chat composer to fill');
 });
 
 test('View: Fit selection needs a selection; Workspace marks the current mode; no study, layout or save commands', () => {
