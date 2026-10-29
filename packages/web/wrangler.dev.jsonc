@@ -149,6 +149,8 @@
     "EXPLAIN_V2_ENABLED": "true",
     // Generated interactive programs (docs/superpowers/plans/2026-10-28-explain-sandbox.md, Task 5): DEV ONLY. The production config does not set it, so production generation stays off.
     "EXPLAIN_PROGRAM_ENABLED": "true",
+    // Stateful programs (buttons, selections and remembered state; Task 8.3, explain-program.js statefulEnabled): on with R3 (owner decision 2026-10-29, "C: turn it on in production with R3").
+    "EXPLAIN_PROGRAM_STATEFUL": "true",
     // Owner diagnostics of a job (GET .../jobs/<id>?board=<id>&detail=1; the job owner only, 404 for anyone else): DEV ONLY, no production config sets it.
     "EXPLAIN_DIAGNOSTICS": "true",
     // IMG-01 image generation (docs/features/image-jobs.md): off, as in production. Only "true" accepts new jobs.
