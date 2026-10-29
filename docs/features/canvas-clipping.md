@@ -100,6 +100,6 @@ margin, which clears the band's 4 px bottom padding, so no geometry changed. `e2
 
 A selected object's controls never hide under the band. The floating selection bar keeps 8 px below it (`barCeiling`) and
 flips below the selection when there is no room above, as it already did at the view's edge. A card's own row of controls
-(Open, the CAD tools, Focus, Add to chat, Quick Edit) stands below the card instead of above it when the band would cover the
-row (`rowUnderBand`, selection-bar-place.js); this is the case for the first card at the opening camera. Either may then lie over
-the card below.
+(Open, the CAD tools, Focus, Add to chat, Quick Edit) moves down to 8 px below the band, over the card's own top, when the band
+would cover it (`rowUnderBand`, selection-bar-place.js); this is the case for the first card at the opening camera. The row never
+flips below its card, where it would cover the next card's drag strip; the floating bar can lie over the card below.

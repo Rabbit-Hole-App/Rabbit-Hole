@@ -29,14 +29,16 @@ test('the bar never sits under the page header band over the canvas', () => {
   assert.ok(placeBar({ left: 300, top: 40, right: 700, bottom: 790 }, bar, view, { top }).top >= 56, 'inside a tall selection, still below the band');
 });
 
-// fast-e2e on 6fc4ae23b (chat-outputs 16, panel-header L1): a first-row card's own row (Add to chat) lay under the band.
-test('a card row that the band would hide stands below the card', () => {
+// fast-e2e on 6fc4ae23b (chat-outputs 16, panel-header L1): a first-row card's own row (Add to chat) lay under the band. Flipped
+// below the card it covered the next card's drag strip (focus-adapters on 7a39f5cfa), so it moves down over its own card instead.
+test('a card row that the band would hide moves to just below the band, over its own card', () => {
   const band = barCeiling({ bottom: 48 }, { top: 0 }, 0);
   assert.equal(band, 48);
-  assert.equal(rowUnderBand(68, 1, band), true, 'the opening camera\'s first card: its row would be under the band');
-  assert.equal(rowUnderBand(90, 1, band), false, 'room for the row between the band and the card');
-  assert.equal(rowUnderBand(70, 0.5, band), false, 'zoomed out, the row is smaller');
-  assert.equal(rowUnderBand(10, 1, 0), false, 'no band over the surface');
+  assert.equal(rowUnderBand(68, 1, band), -12, 'the first card at the opening camera: the row starts 8 px below the band, 12 px above the card');
+  assert.equal(rowUnderBand(20, 2, band), 18, 'a card under the band at 200%: in its own px, 8 screen px below the band');
+  assert.equal(rowUnderBand(90, 1, band), null, 'room for the row between the band and the card');
+  assert.equal(rowUnderBand(70, 0.5, band), null, 'zoomed out, the row is smaller');
+  assert.equal(rowUnderBand(10, 1, 0), null, 'no band over the surface');
 });
 
 test('on a narrow view it prefers below the selection, where a card has its own row of controls above it', () => {
