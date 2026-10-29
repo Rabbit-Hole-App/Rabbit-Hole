@@ -3,7 +3,7 @@
 // kinds claim a Focus control.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { READING_MAX, containBox, fillBox, hostTransform, registerHostAdapter } from './focus-host.js';
+import { READING_MAX, WIDE_MAX, containBox, fillBox, hostTransform, registerHostAdapter } from './focus-host.js';
 import { adapterFor, focusAdapters } from './focus-controller.js';
 import './focus-adapter-pdf.js';
 import './focus-adapter-explanation.js';
@@ -23,10 +23,26 @@ test('fillBox: the whole frame, or a capped width centred in it', () => {
   assert.deepEqual(fillBox({ left: 0, top: 0, width: 500, height: 400 }, { maxWidth: READING_MAX }), { left: 0, top: 0, width: 500, height: 400 });
 });
 
-test('PDF: the reader takes the full width of a wide, short pane; it is never shrunk to fit a page vertically', () => {
+// Owner, 2026-10-28: a reader takes the pane up to about 1200 px (was the full width of any pane).
+test('PDF: the reader takes the width of a wide, short pane up to WIDE_MAX; it is never shrunk to fit a page vertically', () => {
   const host = fakeHost({ width: 600, height: 640 });
   focusAdapters.get('pdf').enter(host, { left: 0, top: 0, width: 1800, height: 500 }, { view: { x: 0, y: 0, z: 1 } });
-  assert.deepEqual([host.vars['--focus-w'], host.vars['--focus-h']], ['1800px', '500px']);
+  assert.deepEqual([host.vars['--focus-w'], host.vars['--focus-h']], ['1200px', '500px']);
+});
+
+// Owner, 2026-10-28, one shared Focus with per-type responsive defaults: reading cards centred at about 680-840 px, readers and
+// editors about 960-1200 px where space permits, CAD / 3D / tables most of the pane. Each a cap, never a fixed width.
+test('per-type width defaults: reading 760, reader 1200 (the notebook: focus-adapter-notebook.test.mjs), workspace kinds the whole frame; a narrower pane is never exceeded', () => {
+  const wide = { left: 0, top: 0, width: 1800, height: 700 }, narrow = { left: 0, top: 0, width: 640, height: 700 };
+  const view = { view: { x: 0, y: 0, z: 1 } };
+  const width = (kind, frame, host = fakeHost({ width: 400, height: 300 })) => { focusAdapters.get(kind).enter(host, frame, view); return host.vars['--focus-w']; };
+  const text = () => Object.assign(fakeHost({ width: 400, height: 300 }), { querySelector: selector => (selector === ':scope > [data-scroll]' ? {} : null) });
+  assert.deepEqual([READING_MAX, WIDE_MAX], [760, 1200]);
+  assert.equal(width('explanation', wide, text()), '760px', 'a text Explanation');
+  assert.equal(width('note', wide), '760px');
+  assert.equal(width('pdf', wide), '1200px');
+  for (const kind of ['cad', 'table', 'model']) assert.equal(width(kind, wide), '1800px', kind);
+  for (const kind of ['explanation', 'note', 'pdf', 'cad']) assert.equal(width(kind, narrow, kind === 'explanation' ? text() : undefined), '640px', `${kind} in a narrow pane`);
 });
 
 test('containBox: the picture at its own aspect, as large as fits with its rows, centred, never larger than the frame', () => {

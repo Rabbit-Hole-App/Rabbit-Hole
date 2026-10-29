@@ -74,6 +74,8 @@ const SIGMOID_FIGURE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy
 // gap-2 above it, which a static scene does not draw (AnimatedScene).
 const FRAME_CHROME = { w: 36, h: 140 };
 const TRANSPORT = 40;
+// A card waiting for its /explain job: compact, its height its content's (about 220 with a one-line title).
+export const EXPLAIN_PENDING_SIZE = { width: 440, height: undefined };
 
 // typicalHeight (a card whose height follows its content): what a skeleton holds for one on its way
 // (canvas-slots.js slotSize, docs/features/canvas-skeleton-cards.md) - the palette sample's rendered height,
@@ -491,6 +493,9 @@ export const BLOCK_TYPES = {
     // first frame (frame.js legibleFrame, reported by ProgramScene once per artifact) plus this card's chrome. Its rows under
     // the frame (readouts, transport, Interact, assumptions) report their measured height like the INTERACT zone below.
     sizeFor: (block, programFrame = null) => {
+      // A temporary default, never saved as w/h: once the result attaches (explainResultBlock keeps only a learner's own
+      // resize) the card takes its scene's or frame's size below.
+      if (block.explainJob && !block.scene && !block.program) return EXPLAIN_PENDING_SIZE;
       if (block.program) return programFrame ? programCardSize(programFrame, { chrome: { w: FRAME_CHROME.w, h: FRAME_CHROME.h - TRANSPORT }, minWidth: 560 }) : null;
       const report = block.scene ? sceneLegibility(block.scene) : null;
       if (!report) return null;
@@ -1748,8 +1753,9 @@ function ExplanationBody({ block, onFile }) {
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       {/* A /dive topic anchor (dive.js anchorBlock) is the learner's topic, not an explanation yet: no kicker, and a body only when it adds to the title. */}
-      {!block.anchor && <Kicker>Explanation</Kicker>}
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      {/* Focus's own header names the card: its kicker and title hide there (index.css [data-focus-hide]). */}
+      <div data-focus-hide>{!block.anchor && <Kicker>Explanation</Kicker>}
+      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p></div>
       {block.body && <div className="mt-1 text-sm"><Md text={block.body} onFile={onFile} /></div>}
       {(block.more || []).map((section, index) => (
         <div key={index} className="mt-2 border-t border-line pt-2">

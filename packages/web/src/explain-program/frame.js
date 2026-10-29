@@ -1,5 +1,5 @@
 import { getSceneState, validateScene } from '../animation-scene.js';
-import { MAX_SCENE_VIEWPORT, sceneLegibility } from '../scene-layout.js';
+import { LEGIBILITY_FLOORS, MAX_SCENE_VIEWPORT, sceneLegibility } from '../scene-layout.js';
 import { parseFrame, RuntimeError } from './contract.js';
 
 // A guest's frame becomes the trusted renderer's input: the contract check (contract.js), then the existing scene gate
@@ -50,16 +50,25 @@ export function programCardSize(box, { chrome, minWidth = 0 }) {
   return { width, height: Math.round((width - chrome.w) * box.h / box.w + chrome.h) };
 }
 
+// Focus may draw a frame smaller than its legible box, down to the scale where its smallest text reaches the smallest floor the
+// legibility rules allow anywhere (LEGIBILITY_FLOORS.metadata, 12 px): the per-class floors size the canvas card, 12 px is the
+// readable minimum. A frame of body text (15 px) may shrink to 0.8 of its box; one already capped under its floors, not at all.
+export function readableScale(scene, legible = legibleFrame(scene)) {
+  const sizes = Object.values(sceneLegibility(scene)?.effective ?? {}).map(size => size.authored);
+  const smallest = (sizes.length ? Math.min(...sizes) : LEGIBILITY_FLOORS.body) * legible.w / scene.width;
+  return Math.min(1, LEGIBILITY_FLOORS.metadata / smallest);
+}
+
 // Focus: the drawing's box inside the room the pane leaves for it (CSS px), aspect kept: the legible box scaled by the smaller
-// of the width and height scales, so a wide frame never grows taller than the room and a tall one never wider. Below the legible
-// box (scale under 1) it is not shrunk: the legible box is kept and scroll says the drawing scrolls inside a viewport `view` px
-// high (the room's height, at least FOCUS_MIN_VIEW), so the readouts and controls under it stay on screen (owner, 2026-10-28:
-// "controls must be reachable with the chat panel open"). Generic: the legible box and the room only.
-export const FOCUS_MIN_VIEW = 160;
-export function focusFrameBox(legible, room) {
-  const scale = Math.min(room.w / legible.w, room.h / legible.h);
-  if (!(scale >= 1)) return { w: legible.w, h: legible.h, scroll: true, view: Math.min(legible.h, Math.max(FOCUS_MIN_VIEW, Math.floor(room.h))) };
-  return { w: Math.floor(legible.w * scale), h: Math.floor(legible.h * scale), scroll: false };
+// of the width and height scales, so a wide frame never grows taller than the room and a tall one never wider (owner,
+// 2026-10-28: a 16:9 frame in 500 px of height is about 889 px wide, not the full width). It shrinks to fit while that scale
+// stays at or above minScale (readableScale); below it the drawing is drawn whole at minScale and `scroll` says the Focus content
+// (drawing, controls and Notes together) scrolls as one surface, never the drawing inside a box of its own (owner, 2026-10-29).
+// Generic: the legible box, the room and the text floor only.
+export function focusFrameBox(legible, room, minScale = 1) {
+  const fit = Math.min(room.w / legible.w, room.h / legible.h);
+  const scale = fit >= minScale ? fit : minScale;
+  return { w: Math.round(legible.w * scale), h: Math.round(legible.h * scale), scroll: fit < minScale };
 }
 
 const readoutText = (definition, value) => `${value.toFixed(definition.decimals)}${definition.unit ? ` ${definition.unit}` : ''}`;

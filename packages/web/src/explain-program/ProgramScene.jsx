@@ -6,7 +6,7 @@ import { explainClient, sharedProgramClient } from '../explain-client.js';
 import { CardSourceScope } from '../use-card-source.js';
 import { Frame } from '../AnimatedScene.jsx';
 import { InputWidget } from '../SceneControls.jsx';
-import { focusFrameBox, legibleFrame, normalizeFrame } from './frame.js';
+import { focusFrameBox, legibleFrame, normalizeFrame, readableScale } from './frame.js';
 import { createProgramHost, programStamps } from './host.js';
 import { createFrameScheduler } from './playback.js';
 import ProgramNotes from './ProgramNotes.jsx';
@@ -125,7 +125,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   useEffect(() => {
     if (!view || box) return;
     const legible = legibleFrame(view.scene);
-    setBox(legible);
+    setBox({ ...legible, minScale: readableScale(view.scene, legible) });
     onProgramFrame?.(legible);
   }, [view, box, onProgramFrame]);
 
@@ -155,7 +155,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     document.addEventListener('visibilitychange', hide);
     return () => document.removeEventListener('visibilitychange', hide);
   }, []);
-  // The rows under the frame (readouts, transport, Interact, assumptions) report their real height so the card grows by it, as
+  // The rows under the frame (transport, Interact, Notes) report their real height so the card grows by it, as
   // SceneControls does. They exist only once a frame is drawn, so the observer starts then (keyed on drawn, not on the manifest,
   // which arrives a render earlier and found no rows to observe).
   // The failure message replaces the rows, so a failure ends this observer too; otherwise it keeps watching the removed rows and
@@ -168,10 +168,11 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     return () => { observer.disconnect(); onControlsHeight(0); };
   }, [onControlsHeight, drawn]);
   // Focus (focus-adapter-explanation.js gives the card the whole pane): the drawing takes the room the pane leaves after the
-  // card's own chrome and rows, fitted by the smaller of the width and height scales; below its legible box the box stays legible
-  // and the drawing scrolls inside a viewport as high as that room, so the rows stay on screen. The fixed part (chrome, gaps, padding) is measured once on
-  // entering, while the viewport still fills the leftover, so setting the box never feeds back into the room. Open Notes are not
-  // counted: opening them grows the content, it never shrinks the drawing.
+  // card's own chrome and rows (collapsed Notes included), fitted by the smaller of the width and height scales and centred; it
+  // shrinks to fit down to its readable scale (frame.js readableScale), and only under that is it drawn whole at that scale while
+  // the focused card scrolls as one surface (index.css [data-focus-host]:has([data-program-viewport])). The fixed part (chrome, gaps, padding, both axes) is measured once on entering, while
+  // the viewport still fills the leftover, so setting the box never feeds back into the room. Open Notes are not counted:
+  // opening them grows the content, it never shrinks the drawing.
   useLayoutEffect(() => {
     const card = root.current?.closest('[data-block]');
     if (!card || !box) return undefined;
@@ -181,9 +182,9 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       if (!card.hasAttribute('data-focus-host') || !viewport || !rowsEl) { fixed = null; setFocusBox(null); return; }
       const notes = rowsEl.querySelector('[data-program-notes] > ul:not([hidden])');
       const rowsHeight = rowsEl.offsetHeight - (notes?.offsetHeight ?? 0);
-      if (fixed === null) fixed = card.clientHeight - viewport.clientHeight - rowsHeight;
-      const next = focusFrameBox(box, { w: viewport.clientWidth, h: card.clientHeight - fixed - rowsHeight });
-      setFocusBox(prev => (prev && prev.w === next.w && prev.h === next.h && prev.scroll === next.scroll && prev.view === next.view ? prev : next));
+      if (fixed === null) fixed = { w: card.clientWidth - viewport.clientWidth, h: card.clientHeight - viewport.clientHeight - rowsHeight };
+      const next = focusFrameBox(box, { w: card.clientWidth - fixed.w, h: card.clientHeight - fixed.h - rowsHeight }, box.minScale);
+      setFocusBox(prev => (prev && prev.w === next.w && prev.h === next.h && prev.scroll === next.scroll ? prev : next));
     };
     const observer = new ResizeObserver(measure);
     observer.observe(card);
@@ -225,30 +226,18 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // While playing, the time shown is the drawn frame's own moment, so the label never runs ahead of the picture; paused, it is
   // the requested moment, which the picture settles on within one evaluation (data-program-settling until then).
   const shownTime = playing ? view.time : time;
-  // The frame keeps its legible box: a larger card draws it larger; a smaller one (a phone's Focus, a learner's resize) scrolls
-  // the drawing inside its viewport instead of shrinking its text below the floors, and the rows below stay in view.
+  // On the canvas the frame keeps its legible box: a larger card draws it larger; a smaller one (a learner's resize) scrolls the
+  // drawing inside its viewport instead of shrinking its text below the floors. In Focus, focusBox sizes it (see the measure above).
   const legible = box ?? legibleFrame(view.scene);
   return (
     <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
       onPointerDown={event => event.stopPropagation()}>
       <div data-program-viewport className="flex min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white"
-        style={focusBox ? { flex: 'none', height: (focusBox.scroll ? focusBox.view : focusBox.h) + 2, overflow: focusBox.scroll ? 'auto' : 'hidden' } : undefined}>
-        <div data-program-frame role="group" aria-label={manifest.description} className="flex-1" style={focusBox ? { flex: 'none', width: focusBox.w, height: focusBox.h, minWidth: legible.w, margin: '0 auto' } : { minWidth: legible.w, minHeight: legible.h }}>{picture}</div>
+        style={focusBox ? { flex: 'none', width: focusBox.w + 2, height: focusBox.h + 2, overflow: 'hidden', alignSelf: 'safe center' } : undefined}>
+        <div data-program-frame role="group" aria-label={manifest.description} className="flex-1" style={focusBox ? { flex: 'none', width: focusBox.w, height: focusBox.h, margin: '0 auto' } : { minWidth: legible.w, minHeight: legible.h }}>{picture}</div>
       </div>
       <p className="sr-only">{manifest.summary}</p>
       <div ref={controls} className="flex shrink-0 flex-col gap-2">
-      {view.readouts.length > 0 && (
-        // Each readout keeps one line and its value a fixed minimum width, so a changing number never rewraps the row
-        // (and never resizes the card) during playback.
-        <p data-program-readouts aria-live="polite" className="text-sm tabular-nums text-ink">
-          {view.readouts.map((readout, index) => (
-            <span key={readout.id}>
-              <span className="inline-block whitespace-nowrap">{readout.label}: <span className="inline-block" style={{ minWidth: `${valueWidth(manifest, readout.id)}ch` }}>{readout.text}</span></span>
-              {index < view.readouts.length - 1 && ' · '}
-            </span>
-          ))}
-        </p>
-      )}
       {duration > 0 && (
         <div data-animation-transport className="flex items-center gap-1.5">
           <button type="button" data-animation-play onClick={play} className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">
@@ -273,17 +262,10 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
           </div>
         </div>
       )}
-      {/* Notes (the manifest's assumptions): collapsed under the controls; opening grows the card by the rows' measured height. */}
-      <ProgramNotes id={notesId} notes={manifest.assumptions} open={notesOpen} onToggle={() => setNotesOpen(value => !value)} />
+      {/* Notes (the drawn frame's readouts as Values, the manifest's assumptions): collapsed under the controls; opening grows
+          the card by the rows' measured height. */}
+      <ProgramNotes id={notesId} notes={manifest.assumptions} values={view.readouts} open={notesOpen} onToggle={() => setNotesOpen(value => !value)} />
       </div>
     </div>
   );
-}
-
-// The minimum width (ch) of a readout's value: a sign, three digits, its decimals and its unit. Static per manifest, so the
-// readouts row keeps its layout while the numbers change; a longer value only widens its own item.
-function valueWidth(manifest, id) {
-  const definition = manifest.readouts.find(readout => readout.id === id);
-  if (!definition) return 0;
-  return 4 + (definition.decimals ? definition.decimals + 1 : 0) + (definition.unit ? definition.unit.length + 1 : 0);
 }

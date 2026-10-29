@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { api } from './api.js';
-import { EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainResultBlock, explainRetry, explainRunning, explainStage, explainUnavailable } from './explain-client.js';
+import { EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainResultBlock, explainRetry, explainRunning, explainStage, explainUnavailable, explainWorking } from './explain-client.js';
 
 // An Explanation card whose /explain v2 job is still working (EXP-T20 slice 1). It shows the server's stage and Stop; when
 // the job is ready it becomes the explanation, on this card only (explainResultBlock). Polling observes, it never advances
@@ -54,16 +55,23 @@ export default function ExplainPending({ block, onChange, onChangeQuiet, readOnl
   };
   const shown = job || { stage: waiting.stage, terminal: false };
   const running = explainRunning(shown);
-  const retry = explainRetry(shown), paused = explainUnavailable(shown);
+  const retry = explainRetry(shown), paused = explainUnavailable(shown), working = explainWorking(shown);
   const request = String(block.promptUsed || block.title || '').trim();
+  // Compact (LearningBlocks sizeFor, 440 wide): the status row, then Stop. pt-1/pb-1 with the body's mt-2/pb-3 make 12px above,
+  // 16px below; min-h-[125px] under the header makes a one-line-title card about 220 tall (owner, 2026-10-28), a wrapped title more.
   return (
-    <div data-explain-pending={shown.stage} className="flex min-h-24 flex-1 flex-col items-start justify-center gap-2 rounded-lg border border-dashed border-line px-3 py-3">
+    <div data-explain-pending={shown.stage} className="flex min-h-[125px] flex-col items-start gap-3 pt-1 pb-1">
       {paused ? (
         <div data-explain-unavailable role="status" className="flex flex-col gap-1">
           <p data-explain-stage className="text-sm text-ink">{explainStage(shown)}</p>
           {request && <p className="text-xs text-ink-2">Your request: {request}</p>}
         </div>
-      ) : <p data-explain-stage aria-live="polite" className={`text-sm ${shown.stage === 'failed' ? 'text-red-700' : 'text-ink-2'}`}>{explainStage(shown)}</p>}
+      ) : (
+        <div className="flex items-center gap-2">
+          {working && <Loader2 data-explain-spinner aria-hidden="true" size={16} className="shrink-0 text-ink-3 motion-safe:animate-spin" />}
+          <p data-explain-stage aria-live="polite" className={`text-sm ${shown.stage === 'failed' ? 'text-red-700' : working ? 'shimmer' : 'text-ink-2'}`}>{explainStage(shown)}</p>
+        </div>
+      )}
       {problem && <p className="text-xs text-red-700">{problem}</p>}
       {!readOnly && (
         <div className="flex gap-1.5">

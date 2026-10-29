@@ -243,6 +243,12 @@ await step('Generate (a double-click) sends exactly one approve with the saved v
   release(job);
   await page.locator(`[data-block-id="${job.cardId}"] svg [data-animation-object]`).first().waitFor({ state: 'attached', timeout: 20000 });
   assert.equal(approvesOf(job).length, 1, 'still one approve');
+  // Owner, 2026-10-28: the finished explanation opens in Focus once; Back to canvas dismisses it and it never reopens.
+  await page.locator(`[data-block-id="${job.cardId}"][data-focus-host]`).waitFor({ timeout: 20000 });
+  await page.locator('[data-focus-back]').click();
+  await page.locator('[data-focus-host]').waitFor({ state: 'detached', timeout: 5000 });
+  await page.waitForTimeout(2500);
+  assert.equal(await page.locator('[data-focus-host]').count(), 0, 'dismissed, it never reopens');
 });
 
 await step('a refused Generate (409 brief_stale) says why under the card: one approve, nothing made, the job\'s card still waits', async () => {

@@ -79,6 +79,20 @@ export function exitNavigation(state) {
   return { ...state.saved, scroll: state.saved.scroll.filter(entry => !inside(entry.node)) };
 }
 
+// Reveal a finished explanation (owner, 2026-10-28): a card this canvas's own request placed (`waiting`, ids held in memory by
+// the mounted canvas only, so never after a reload or on another canvas) opens in Focus once, when its result has attached.
+// Returns the id to open now, or null; every id it settles leaves `waiting`, so a dismissed card never reopens. A card gone
+// from this canvas (deleted, or the canvas changed) is dropped; one still making waits.
+export function readyToReveal(waiting, blockOf) {
+  for (const id of waiting) {
+    const block = blockOf(id);
+    if (block?.explainJob) continue;
+    waiting.delete(id);
+    if (block && (block.program || block.scene)) return id;
+  }
+  return null;
+}
+
 // The focus snapshot onState reports (no navigation, no element): what the toolbar, menus and Study read.
 export const focusSnapshot = state => (state ? { id: state.id, kind: state.kind } : null);
 

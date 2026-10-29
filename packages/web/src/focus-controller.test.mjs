@@ -84,3 +84,25 @@ test('shouldExitOnEscape: only an unclaimed Escape while focusing', () => {
   assert.equal(shouldExitOnEscape(key({ tagName: 'BUTTON', closest: () => null }), on), true);
   for (const open of ['menuOpen', 'dialogOpen', 'gesture', 'viewerActive']) assert.equal(shouldExitOnEscape(key(), { ...on, [open]: true }), false, open);
 });
+
+// Owner, 2026-10-28: "when generation succeeds, open that card in the existing Focus view once, provided the user is still viewing
+// the originating canvas/request. Do not interrupt another canvas, reopen after dismissal, or reopen on reload."
+test('readyToReveal: a waiting card opens once when its result attaches; gone or settled ids leave; others wait', async () => {
+  const { readyToReveal } = await import('./focus-controller.js');
+  const cards = new Map([['a', { id: 'a', explainJob: { id: 'j1' } }], ['b', { id: 'b', explainJob: { id: 'j2' } }]]);
+  const waiting = new Set(['a', 'b', 'gone']);
+  const blockOf = id => cards.get(id);
+  assert.equal(readyToReveal(waiting, blockOf), null, 'both still making');
+  assert.deepEqual([...waiting], ['a', 'b'], 'a card no longer on this canvas (deleted, or another canvas shown) is dropped');
+  cards.set('b', { id: 'b', type: 'animation', program: { bundleHash: 'h' } });
+  assert.equal(readyToReveal(waiting, blockOf), 'b', 'ready: opened');
+  assert.equal(readyToReveal(waiting, blockOf), null, 'once: after Back to canvas it never reopens');
+  assert.deepEqual([...waiting], ['a']);
+  cards.set('a', { id: 'a', type: 'animation', scene: null });
+  assert.equal(readyToReveal(waiting, blockOf), null, 'no result to show (stopped): dropped, not opened');
+  assert.equal(waiting.size, 0);
+  const canvas = (await import('node:fs')).readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  assert.match(canvas, /revealing\.current\.add\(card\.id\);\r?\n\s*return insertAtView\(added, into\);/, 'only placeExplain (this canvas, this session) adds a card');
+  assert.match(canvas, /if \(id && !focusRef\.current\) commandsRef\.current\?\.enterFocus\(id\);/, 'the existing Focus entry, never over another focused card');
+  assert.match(canvas, /const revealing = useRef\(new Set\(\)\);/, 'in memory only: a reload starts empty');
+});
