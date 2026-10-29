@@ -11,7 +11,7 @@ import { createProgramHost, programStamps } from './host.js';
 import { createFrameScheduler } from './playback.js';
 import ProgramNotes from './ProgramNotes.jsx';
 import {
-  clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programInputs, programTime, rememberProgram, resetProgram, resolveProgram,
+  clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programInputs, programPlayback, programTime, rememberProgram, resetProgram, resolveProgram,
   setProgramInput, shownProgram,
 } from './program-card.js';
 
@@ -149,6 +149,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     const saved = Number(clampTime(manifest, time).toFixed(2));
     if (saved !== (latest.current.time ?? 0)) (onChangeQuiet || onChange)({ ...latest.current, time: saved });
   }, [playing, time, manifest]);
+  useEffect(() => { programPlayback(latest.current, playing); }, [playing]); // Task 9.3: the described moment is playing or paused
   // A hidden tab pauses playback instead of burning the interpreter.
   useEffect(() => {
     const hide = () => { if (document.hidden) setPlaying(false); };

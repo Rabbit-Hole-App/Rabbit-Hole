@@ -88,28 +88,34 @@ export const programErrorMessage = error => new RuntimeError(error?.code).messag
 const loaded = new Map();
 const LOADED_CARDS = 64;
 export function rememberProgram(block, manifest, drawn = null) {
-  const key = savedKey(block);
+  const key = savedKey(block), playing = loaded.get(key)?.playing ?? false;
   loaded.delete(key);
-  loaded.set(key, { manifest, drawn: drawn && { inputs: JSON.stringify(drawn.inputs), time: drawn.time, readouts: drawn.readouts } });
+  loaded.set(key, { manifest, playing, drawn: drawn && { inputs: JSON.stringify(drawn.inputs), time: drawn.time, readouts: drawn.readouts } });
   if (loaded.size > LOADED_CARDS) loaded.delete(loaded.keys().next().value);
 }
 export const loadedProgram = block => loaded.get(savedKey(block)) ?? null;
+// Whether the card is playing: while it plays, the shown moment runs ahead of the saved block.time (saved again at Pause).
+export function programPlayback(block, playing) {
+  const entry = loaded.get(savedKey(block));
+  if (entry) entry.playing = playing;
+}
 
 const valueText = (input, value) => `${input.type === 'select' ? input.options.find(option => option.value === value)?.label ?? value : value}${input.unit ? ` ${input.unit}` : ''}`;
 export const PROGRAM_DESCRIPTION = 2000;
 // The composer and tutor context for a program card: what the learner can see and has set, never source. manifest: the resolved
-// artifact's (by default what this page loaded for this exact card). Readouts come only from a frame drawn at the card's current
-// inputs and time; without a loaded manifest it says what is not known rather than guessing.
+// artifact's (by default what this page loaded for this exact card). The moment and readouts are the drawn frame's, and only while
+// it was drawn at the card's current inputs (the shown moment runs ahead of the saved time during Play); else the saved time, with
+// the readouts said to be not drawn. Without a loaded manifest it says what is not known rather than guessing.
 export function describeProgram(block, manifest = loadedProgram(block)?.manifest ?? null) {
   const lines = [`Interactive explanation on the canvas: ${block.title}`];
   if (manifest) {
     lines.push(manifest.summary, `What it shows: ${manifest.description}`);
     if (manifest.assumptions.length) lines.push(`Assumptions: ${manifest.assumptions.join(' ')}`);
-    const inputs = programInputs(manifest, block), time = programTime(manifest, block);
+    const inputs = programInputs(manifest, block), entry = loadedProgram(block);
     for (const input of manifest.inputs) lines.push(`${input.label}: ${valueText(input, inputs[input.id])}`);
-    if (manifest.duration) lines.push(`Paused at ${time.toFixed(1)}s of ${manifest.duration}s`);
-    const drawn = loadedProgram(block)?.drawn;
-    if (drawn && drawn.inputs === JSON.stringify(inputs) && Math.abs(drawn.time - time) < 0.01) { if (drawn.readouts.length) lines.push(`Shown now: ${drawn.readouts.map(r => `${r.label} ${r.text}`).join('; ')}`); }
+    const drawn = entry?.drawn?.inputs === JSON.stringify(inputs) ? entry.drawn : null, time = drawn ? clampTime(manifest, drawn.time) : programTime(manifest, block);
+    if (manifest.duration) lines.push(`${drawn && entry.playing ? 'Playing, now at' : 'Paused at'} ${time.toFixed(1)}s of ${manifest.duration}s`);
+    if (drawn) { if (drawn.readouts.length) lines.push(`Shown now: ${drawn.readouts.map(r => `${r.label} ${r.text}`).join('; ')}`); }
     else if (manifest.readouts.length) lines.push(`Its readouts (${manifest.readouts.map(r => r.label).join(', ')}) are not drawn for these settings yet; do not state their values.`);
   } else lines.push('Its controls, settings and readouts are not loaded on this page yet; do not state their values.');
   return { kind: 'Explanation', title: block.title, text: lines.join('\n').slice(0, PROGRAM_DESCRIPTION) };

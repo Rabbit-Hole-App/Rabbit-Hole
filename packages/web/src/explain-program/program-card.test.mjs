@@ -232,10 +232,27 @@ test('describeProgram uses the loaded manifest and drawn readouts of this exact 
   rememberProgram(saved, manifest, { inputs: programInputs(manifest, saved), time: 2, readouts: [{ id: 'balance', label: 'Balance', text: '1469' }] });
   assert.match(describeProgram(saved).text, /Shown now: Balance 1469/);
   assert.doesNotMatch(describeProgram({ ...saved, inputs: { rate: 9, mode: 'simple' } }).text, /Shown now/, 'a frame drawn at other settings is never reported');
-  assert.match(describeProgram({ ...saved, time: 3 }).text, /not drawn for these settings yet/);
+  assert.match(describeProgram({ ...saved, time: 3 }).text, /Paused at 2.0s of 4s[^]*Shown now: Balance 1469/, 'the drawn moment, not a saved time it was not drawn at');
   // Another revision of the card (an applied Edit: new result and bundle) is a different identity: nothing carried over.
   assert.equal(loadedProgram({ ...saved, program: { bundleHash: 'bh2' }, explain: { resultId: 'er2', revision: 'xr2' } }), null);
   assert.match(describeProgram({ ...saved, program: { bundleHash: 'bh2' }, explain: { resultId: 'er2', revision: 'xr2' } }).text, /not loaded on this page yet/);
   assert.equal(describeProgram(saved).text.includes(growthFixture.source.slice(0, 40)), false, 'never source');
   assert.ok(describeProgram(saved).text.length <= PROGRAM_DESCRIPTION);
+});
+
+// REGRESSION (review of e8f1bd0b): during Play the card advances its own clock without saving block.time, so the description said
+// "Paused at 0.0s" and dropped the readouts drawn at 5 s. It now reports the drawn frame's moment and whether it is playing; a
+// frame drawn at other settings is still never reported.
+test('describeProgram reports the displayed moment and playback, not the saved time, keeping stale-input protection', async () => {
+  const { programPlayback, rememberProgram } = await import('./program-card.js');
+  const saved = card({ id: 'card-play', program: { bundleHash: 'bh-play' }, explain: { resultId: 'er-play', revision: 'xr-play' }, inputs: { rate: 8 }, time: 0 });
+  rememberProgram(saved, manifest, { inputs: programInputs(manifest, saved), time: 3.5, readouts: [{ id: 'balance', label: 'Balance', text: '1310' }] });
+  programPlayback?.(saved, true);
+  const playing = describeProgram(saved).text;
+  assert.match(playing, /Playing, now at 3.5s of 4s/);
+  assert.match(playing, /Shown now: Balance 1310/);
+  assert.doesNotMatch(playing, /Paused at 0.0s/);
+  programPlayback?.(saved, false);
+  assert.match(describeProgram(saved).text, /Paused at 3.5s of 4s/);
+  assert.doesNotMatch(describeProgram({ ...saved, inputs: { rate: 2 } }).text, /Shown now/);
 });
