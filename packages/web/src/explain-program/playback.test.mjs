@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createFrameScheduler } from './playback.js';
+import { createFrameScheduler, frameKey } from './playback.js';
 
 // A fake host whose every evaluation takes `latency` ms of fake time, one at a time (host.js keeps one in flight and the newest
 // waiting), and a fake animation clock of 16 ms frames. Regression for the starved playback seen on the genuine sandbox-ex1-b
@@ -148,4 +148,28 @@ test('a failed frame during playback is reported once and nothing is drawn after
   assert.match(scene, /const stop = error => \{ setPlaying\(false\); setFailure\(error\); \};/, 'a failure stops the clock');
   assert.match(scene, /else stop\(out\.error\);\s*\},\s*fail: stop,/, 'a failed evaluation and a frame that fails its checks both stop the card');
   assert.match(scene, /const drawn = !!\(manifest && view && !failure\);/, 'the rows observer ends while the message replaces them');
+});
+
+test('a frame asked for an older state never draws after a newer one: a transition, a reset and a replaced artifact', async () => {
+  const r = rig({ latency: 80 });
+  const inputs = { step: 2 };
+  const committed = (bundleHash, revision, count) => ({ bundleHash, revision, state: { count }, seed: 0 });
+  const want = (epoch, envelope, time = 0) => r.scheduler.want({ key: frameKey(inputs, epoch, envelope), time, inputs, state: envelope.state });
+  const one = committed('a'.repeat(64), 1, 2), two = committed('a'.repeat(64), 2, 4);
+  want(0, one); // in flight
+  r.advance(10); await r.flush();
+  want(0, two); // a transition commits while the older state's frame is still being evaluated
+  await r.settle();
+  assert.deepEqual(r.shown.map(frame => frame.state.count), [4], 'the older state was never drawn');
+  // Reset: a time jump (epoch) and the initial state at a newer revision, while the old state's frame is in flight.
+  const drawn = r.shown.length;
+  want(0, two, 1);
+  r.advance(10); await r.flush();
+  const initial = committed('a'.repeat(64), 3, 0);
+  want(1, initial);
+  await r.settle();
+  assert.deepEqual(r.shown.slice(drawn).map(frame => [frame.state.count, frame.time]), [[0, 0]]);
+  // A replaced artifact: the same revision number of another program's state is another key.
+  assert.notEqual(frameKey(inputs, 1, initial), frameKey(inputs, 1, committed('b'.repeat(64), 3, 0)));
+  assert.equal(frameKey(inputs, 0), `${JSON.stringify(inputs)}#0#-`, 'a schema 1 card keys on inputs and epoch, as before');
 });

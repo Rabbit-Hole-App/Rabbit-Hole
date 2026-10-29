@@ -1,0 +1,70 @@
+// Ordered state transitions for a schema 2 (stateful) program card (plan Task 8.2). Pure: no React, no DOM. It owns the committed
+// state and the event queue; the host (host.js) runs every operation in the isolated interpreter.
+//
+// - Events apply one at a time, in the order dispatched, each to the state the previous one produced. None is dropped: when the queue
+//   is full (cap), dispatch returns false so the card can hold the control back, instead of growing without bound.
+// - Only consecutive queued changes of the same input coalesce (the newest value wins); nothing coalesces across another event.
+// - A new state is committed only after its own frame was also valid (check): a state the program cannot draw is never kept, so it
+//   can never be saved and break the card on reload. A failed operation keeps the last accepted state.
+// - A result applies only to the state it was computed from and the generation (reset, dispose) it was asked in.
+// - Reset and a missing or incompatible saved state initialize again with the original seed. A saved state (programStateFor) is
+//   rehydrated as it is: a restart is not a replay and calls no initialize.
+//   createInteractionController({ host, bundleHash, seed, saved, publish(envelope), persist(envelope), fail(error), check(envelope) })
+//     .start(inputs)  .dispatch(event, { inputs, time }) -> boolean  .reset(inputs)  .current() -> envelope | null  .dispose()
+// The envelope is what the card keeps (block.programState): { bundleHash, state, revision, seed }. Never source.
+export const ACTION_QUEUE_CAP = 16;
+
+export function createInteractionController({ host, bundleHash, seed, saved = null, publish, persist = () => {}, fail = () => {}, check = async () => {}, cap = ACTION_QUEUE_CAP }) {
+  let committed = null, queue = [], busy = false, dead = false, generation = 0, count = 0;
+  const requestId = () => `s${++count}`;
+  const envelope = (state, revision) => ({ bundleHash, state, revision, seed });
+  const failed = (error, mine) => { if (!dead && mine === generation && error?.name !== 'AbortError') { queue = []; fail(error); } };
+
+  async function initialize(inputs) {
+    const mine = ++generation;
+    queue = [];
+    busy = true;
+    try {
+      const reply = await host.initialize({ requestId: requestId(), inputs, seed });
+      if (dead || mine !== generation) return;
+      committed = envelope(reply.state, committed ? committed.revision + 1 : 0); // revisions only grow, so an older frame never matches
+      publish(committed);
+    } catch (error) { failed(error, mine); } finally { if (mine === generation) { busy = false; pump(); } }
+  }
+
+  async function pump() {
+    if (busy || dead || !committed || !queue.length) return;
+    const mine = generation, base = committed, { event, inputs, time } = queue.shift();
+    busy = true;
+    try {
+      const reply = await host.reduce({ requestId: requestId(), state: base.state, event, inputs, time, seed });
+      if (dead || mine !== generation) return;
+      const next = envelope(reply.state, base.revision + 1);
+      await check(next);
+      if (dead || mine !== generation) return;
+      committed = next;
+      publish(next);
+      persist(next);
+    } catch (error) { failed(error, mine); } finally { if (mine === generation) { busy = false; pump(); } }
+  }
+
+  return {
+    start(inputs) {
+      if (saved) { committed = saved; publish(saved); return; }
+      initialize(inputs);
+    },
+    dispatch(event, { inputs, time = 0 }) {
+      if (dead) return false;
+      const last = queue[queue.length - 1];
+      if (event?.type === 'input' && last?.event.type === 'input' && last.event.input === event.input) { queue[queue.length - 1] = { event, inputs, time }; return true; }
+      if (queue.length >= cap) return false;
+      queue.push({ event, inputs, time });
+      pump();
+      return true;
+    },
+    reset(inputs) { if (!dead) initialize(inputs); },
+    current: () => committed,
+    pending: () => queue.length,
+    dispose() { dead = true; queue = []; },
+  };
+}

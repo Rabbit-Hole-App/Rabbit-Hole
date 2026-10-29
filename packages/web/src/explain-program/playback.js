@@ -10,6 +10,10 @@
 //   createFrameScheduler({ evaluate(job) -> Promise<reply>, show(reply, job), fail(error, job) })
 //     .want({ key, time, inputs })   the state the card needs drawn now
 //     .dispose()                     nothing is drawn or sent after this
+// The key of the state a frame is valid for: the inputs, the card's time-jump epoch and, for a schema 2 card, the committed state
+// (artifact and revision; interaction.js revisions only grow). A frame asked for an older state therefore never draws after a newer one.
+export const frameKey = (inputs, epoch, programState = null) => `${JSON.stringify(inputs)}#${epoch}#${programState ? `${programState.bundleHash}:${programState.revision}` : '-'}`;
+
 export function createFrameScheduler({ evaluate, show, fail = () => {} }) {
   let wanted = null, sent = null, shown = null, dead = false;
   const pump = () => {

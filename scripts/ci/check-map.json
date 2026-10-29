@@ -540,6 +540,8 @@
     "packages/web/src/explain-program/page-worker.js": ["explain-program-check.mjs","explain-program-render-check.mjs"],
     "packages/web/src/explain-program/frame-overlap.js": ["explain-program-check.mjs","explain-program-card-check.mjs","explain-program-render-check.mjs"],
     "packages/web/src/explain-program/playback.js": ["explain-program-check.mjs","explain-program-card-check.mjs","explain-program-render-check.mjs"],
+    "packages/web/src/explain-program/interaction.js": ["explain-program-check.mjs","explain-program-card-check.mjs"],
+    "packages/web/src/explain-program/use-program-state.js": ["explain-program-check.mjs","explain-program-card-check.mjs"],
     "packages/web/src/explain-program/testdata/*.json": ["explain-program-check.mjs","explain-program-card-check.mjs","explain-program-render-check.mjs"],
     "packages/web/e2e/explain-program-check.mjs": ["explain-program-check.mjs"],
     "packages/web/e2e/explain-program-card-check.mjs": ["explain-program-card-check.mjs"],

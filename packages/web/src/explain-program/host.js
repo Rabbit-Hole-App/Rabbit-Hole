@@ -5,7 +5,7 @@
 // validates every result against the contract before returning it. Late or foreign messages are ignored. Across all cards at most
 // LIMITS.activeRuntimes Workers live: an idle card's Worker is evicted for a card that needs to run, and an unused Worker is
 // terminated after LIMITS.idleMs. Inputs and state live outside the guest (the caller keeps them), so terminating a Worker loses nothing.
-//   createProgramHost({ artifact }) -> { evaluate(request), initialize(request), reduce(request), dispose(reason) }; programStamps()
+//   createProgramHost({ artifact }) -> { evaluate(request, { supersede }), initialize(request), reduce(request), dispose(reason) }; programStamps()
 // evaluate resolves { requestId, frame, quantities, metrics }; initialize({ requestId, inputs, seed }) and reduce({ requestId, state,
 // event, inputs, time, seed }) resolve { requestId, state, metrics } and exist only for a schema 2 artifact (else unsupported_capability).
 // Each rejects a contract RuntimeError; a superseded or disposed request rejects an AbortError (DOMException), which the card ignores.
@@ -144,23 +144,23 @@ export function createProgramHost({ artifact, limits = LIMITS, createWorker = de
     }
   }
 
-  function request(operation, raw) {
+  // supersede: false is an evaluate that must answer (interaction.js checks a new state's frame with it); it neither replaces a
+  // waiting frame nor is replaced.
+  function request(operation, raw, { supersede = operation === 'evaluate' } = {}) {
     if (disposed) return Promise.reject(aborted('disposed'));
     if (admission.error) return Promise.reject(admission.error);
     const parsed = parseRequest(operation, raw, admission.program);
     if (!parsed.ok) return Promise.reject(parsed.error);
     return new Promise((resolve, reject) => {
-      // Only a waiting evaluate is superseded (a frame for older inputs is worthless); a state change is never dropped.
-      if (operation === 'evaluate') {
-        queue = queue.filter(job => job.operation !== 'evaluate' || (settle(job, () => job.reject(aborted('superseded by newer inputs'))), false));
-      }
-      queue.push({ operation, request: parsed.value, resolve, reject, done: false });
+      // Only a waiting frame request is superseded (a frame for older inputs is worthless); a state change is never dropped.
+      if (supersede) queue = queue.filter(job => !job.supersede || (settle(job, () => job.reject(aborted('superseded by newer inputs'))), false));
+      queue.push({ operation, supersede, request: parsed.value, resolve, reject, done: false });
       pump();
     });
   }
 
   return {
-    evaluate: raw => request('evaluate', raw),
+    evaluate: (raw, options) => request('evaluate', raw, options),
     initialize: raw => request('initialize', raw),
     reduce: raw => request('reduce', raw),
     dispose(reason = 'disposed') {

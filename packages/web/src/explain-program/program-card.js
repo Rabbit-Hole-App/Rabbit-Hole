@@ -1,4 +1,4 @@
-import { RuntimeError, parseArtifact, resolveInputs, sealProgram, verifyHashes } from './contract.js';
+import { RuntimeError, STATEFUL_SCHEMA_VERSION, parseArtifact, resolveInputs, sealProgram, stateProblem, verifyHashes } from './contract.js';
 
 // The program card's pure logic (no React): what a block holds, how a saved reference becomes a runnable artifact, and how
 // inputs and time turn into EvaluateRequests. ProgramScene.jsx is the thin view over this.
@@ -65,8 +65,21 @@ export function setProgramInput(block, manifest, name, value) {
   return next[name] === current[name] ? block : { ...block, inputs: next, inputRevision: (block.inputRevision || 0) + 1 };
 }
 export const programChanged = (manifest, block) => JSON.stringify(programInputs(manifest, block)) !== JSON.stringify(resolveInputs(manifest, {}));
-// Reset: defaults for every input and time zero. It does not touch the program or its revision.
-export const resetProgram = block => ({ ...block, inputs: {}, inputRevision: (block.inputRevision || 0) + 1, time: 0 });
+// Reset: defaults for every input and time zero, and no saved program state (the card initializes again with its seed). It does
+// not touch the program or its revision.
+export const resetProgram = block => { const { programState: _state, ...rest } = block; return { ...rest, inputs: {}, inputRevision: (block.inputRevision || 0) + 1, time: 0 }; };
+
+// A schema 2 card's learner state, beside inputs and time: block.programState = { bundleHash, state, revision, seed }
+// (interaction.js commits it). Used only for the artifact it was made by and only when it is still within the state rule; anything
+// else is incompatible and null, so the card initializes again instead of handing an unrelated state to this source.
+export const programSeed = block => (Number.isInteger(block?.seed) ? block.seed : 0);
+export function programStateFor(block, artifact) {
+  const saved = block?.programState;
+  if (artifact?.schemaVersion !== STATEFUL_SCHEMA_VERSION || !saved || typeof saved !== 'object' || saved.bundleHash !== artifact.bundleHash) return null;
+  const { bundleHash, state, revision, seed } = saved;
+  const fits = Number.isInteger(revision) && revision >= 0 && Number.isInteger(seed) && seed >= 0 && seed <= 0xffffffff && stateProblem(state) === null;
+  return fits ? { bundleHash, state, revision, seed } : null;
+}
 
 // A share link's visitor plays with the card in memory only (ProgramScene): their changes are kept beside the saved card, never
 // saved, and shown only while the card is still the same saved card. Nothing kept (a reload): the saved card itself.
@@ -74,9 +87,10 @@ const savedKey = block => `${block.id}|${block.program?.bundleHash}|${block.expl
 export const keptProgram = (saved, next) => ({ key: savedKey(saved), block: next });
 export const shownProgram = (saved, kept) => (kept?.key === savedKey(saved) ? kept.block : saved);
 
-// The request the host evaluates. requestId is the card's own counter so a late answer can be recognised and dropped.
-export const evaluateRequestFor = (manifest, block, time, requestId) => ({
-  requestId: String(requestId), inputs: programInputs(manifest, block), time: clampTime(manifest, time), seed: Number.isInteger(block.seed) ? block.seed : 0, state: null,
+// The request the host evaluates. requestId is the card's own counter so a late answer can be recognised and dropped. state: the
+// committed schema 2 state (null for schema 1).
+export const evaluateRequestFor = (manifest, block, time, requestId, state = null) => ({
+  requestId: String(requestId), inputs: programInputs(manifest, block), time: clampTime(manifest, time), seed: programSeed(block), state,
 });
 
 // What a learner sees for a failure: only the fixed message of the normalised code (contract.js).

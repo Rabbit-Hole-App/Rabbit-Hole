@@ -214,3 +214,19 @@ test('Apply replaces the old representation: program -> scene drops the program 
   // Program editing is supported (explainEditProblem offers it), so the merge path is corrected, not disabled.
   assert.equal(explainEditProblem({ ...programCard, explain: identity({ revision: 'xr_1' }) }), null);
 });
+
+// Task 8.2: a program's learner state belongs to the source that made it.
+test('Apply of a new program revision clears the old interaction state; Discard keeps it', () => {
+  const programState = { bundleHash: 'a'.repeat(64), state: { count: 6 }, revision: 3, seed: 0 };
+  const card = { id: 'card-1', type: 'animation', title: 'Counter', program: { bundleHash: 'a'.repeat(64) }, explain: identity({ revision: 'xr_1' }), inputs: { step: 2 }, inputRevision: 1, time: 0, programState };
+  const editing = explainEditing(card, job({ id: 'ej_2', stage: 'authoring' }), 'change it');
+  const done = job({ id: 'ej_2', stage: 'ready', terminal: true, result: identity({ jobId: 'ej_2', resultId: 'er_2', revision: 'xr_2', baseRevision: 'xr_1' }) });
+  for (const bundleHash of ['b'.repeat(64), 'a'.repeat(64)]) { // even a candidate with the same bundle starts from its own initial state
+    const applied = applyExplainEdit(editing, done, { type: 'animation', id: 'card-1', title: 'Counter', explain: done.result, program: { bundleHash } });
+    assert.equal(applied.ok, true);
+    assert.equal('programState' in applied.block, false);
+  }
+  assert.deepEqual(discardExplainEdit(editing).programState, programState, 'Discard keeps the accepted card and its state exactly');
+  const stale = applyExplainEdit({ ...editing, explain: identity({ revision: 'xr_9' }) }, done, { type: 'animation', id: 'card-1', explain: done.result, program: { bundleHash: 'b'.repeat(64) } });
+  assert.equal(stale.ok, false, 'a refused Apply changes nothing');
+});

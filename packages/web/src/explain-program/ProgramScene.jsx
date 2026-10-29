@@ -8,7 +8,8 @@ import { Frame } from '../AnimatedScene.jsx';
 import { InputWidget } from '../SceneControls.jsx';
 import { focusFrameBox, legibleFrame, normalizeFrame, readableScale } from './frame.js';
 import { createProgramHost, programStamps } from './host.js';
-import { createFrameScheduler } from './playback.js';
+import { createFrameScheduler, frameKey } from './playback.js';
+import { useProgramState } from './use-program-state.js';
 import ProgramNotes from './ProgramNotes.jsx';
 import {
   clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programInputs, programTime, resetProgram, resolveProgram,
@@ -94,6 +95,9 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     setHostReady(count => count + 1);
     return () => { if (host.current === created) host.current = null; created.dispose('card closed'); };
   }, [artifact]);
+  // A schema 2 card's committed state (use-program-state.js): settled states saved quietly, a share-link visitor's kept in memory.
+  const programState = useProgramState({ host: host.current, hostKey: hostReady, artifact, block, time,
+    persist: next => (onChangeQuiet || onChange)({ ...latest.current, programState: next }), fail: error => { setPlaying(false); setFailure(error); } });
 
   const inputs = manifest ? programInputs(manifest, block) : null;
   const inputsKey = inputs ? JSON.stringify(inputs) : '';
@@ -107,7 +111,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     // message: without it a transient failure flashed the message for a few frames and the drawing came back.
     const stop = error => { setPlaying(false); setFailure(error); };
     const created = createFrameScheduler({
-      evaluate: job => target.evaluate(evaluateRequestFor(manifest, { ...latest.current, inputs: job.inputs }, job.time, ++counter.current)),
+      evaluate: job => target.evaluate(evaluateRequestFor(manifest, { ...latest.current, inputs: job.inputs }, job.time, ++counter.current, job.state)),
       show: (reply, job) => {
         const out = normalizeFrame(reply.frame, manifest);
         if (out.ok) { setView({ ...out, time: job.time }); setFailure(null); } else stop(out.error);
@@ -118,8 +122,8 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     return () => { created.dispose(); if (scheduler.current === created) scheduler.current = null; };
   }, [manifest, hostReady]);
   useEffect(() => {
-    if (manifest) scheduler.current?.want({ key: `${inputsKey}#${epoch}`, time: clampTime(manifest, time), inputs });
-  }, [manifest, hostReady, inputsKey, epoch, time]);
+    if (manifest && programState.ready) scheduler.current?.want({ key: frameKey(inputs, epoch, programState.envelope), time: clampTime(manifest, time), inputs, state: programState.envelope?.state ?? null });
+  }, [manifest, hostReady, inputsKey, epoch, time, programState.ready, programState.envelope]);
   // The card's size comes from the artifact's first frame only (LearningBlocks sizeFor), so playback never resizes it.
   useEffect(() => { setBox(null); }, [artifact]);
   useEffect(() => {
@@ -212,6 +216,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     if (next === latest.current) return;
     setPlaying(false);
     (live && onChangeQuiet ? onChangeQuiet : onChange)(next);
+    if (programState.stateful) programState.dispatch({ type: 'input', input: name, value: next.inputs[name] }, { inputs: next.inputs, time });
   };
   const atEnd = time >= duration - 0.001;
   // A jump in time (not the clock running): answers asked for before it are never drawn after it.
@@ -221,7 +226,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     if (atEnd && !playing) seek(0);
     setPlaying(value => !value);
   };
-  const reset = () => { setPlaying(false); seek(0); onChange(resetProgram(latest.current)); };
+  const reset = () => { setPlaying(false); seek(0); onChange(resetProgram(latest.current)); programState.reset(programInputs(manifest, {})); };
   const rows = manifest.inputs;
   // While playing, the time shown is the drawn frame's own moment, so the label never runs ahead of the picture; paused, it is
   // the requested moment, which the picture settles on within one evaluation (data-program-settling until then).
