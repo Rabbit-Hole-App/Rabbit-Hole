@@ -76,3 +76,15 @@ test('an explanation\'s canvas file is a source entry: its name, page or lines, 
   assert.ok(sourceProblems({ kind: 'file', title: '' }).length);
   assert.ok(sourceProblems({ kind: 'file', title: 'x', lines: [5, 2] }).length);
 });
+
+// REGRESSION (review of d7a722e2): an explanation's file source opens through the existing file opener (file-to-canvas.js
+// addFileToCanvas: the authorized route, the exact revision) by its stable reference; without one it stays a plain entry.
+test('a file source with its stable reference opens as that file ref; one without it is not a link', async () => {
+  const { sourceProblems, sourceTarget } = await import('./card-sources.js');
+  const sourceId = `file:fs_${'1'.repeat(24)}@${'e'.repeat(64)}`;
+  const file = { kind: 'file', title: 'Lab notes.csv', sourceId, range: { page: 2 }, page: 2, note: 'Read for this explanation.' };
+  assert.deepEqual(sourceProblems(file), []);
+  assert.deepEqual(sourceTarget(file), { open: 'source', ref: { sourceId, kind: 'file', name: 'Lab notes.csv', version: '', range: { page: 2 } } });
+  assert.deepEqual(sourceTarget({ kind: 'file', title: 'x.csv' }), { open: 'detail' });
+  assert.ok(sourceProblems({ ...file, sourceId: 'file:anything' }).length, 'only a stable file:<source>@<sha256> reference');
+});

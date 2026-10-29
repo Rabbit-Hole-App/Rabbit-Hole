@@ -92,3 +92,16 @@ test('an Edit reads its own refs and its inherited sources apart: inheriting nev
   assert.ok(out.refs.slice(23).every(r => r.status === 'omitted' && r.note === NOT_READ.omitted), 'inherited past one read\'s 20 refs are reported omitted');
   await assert.rejects(resolveEditRefs({}, {}, { user, board }, 'x', refs(2), { code }), error => error.status === 400, 'the learner\'s own refs are still validated');
 });
+
+// REGRESSION (review of d7a722e2): a file source reached the card as a name only, so it could not be opened. It keeps its stable,
+// authorized reference (file:<source>@<sha256> and the range read) for the existing opener, which rechecks access; a result
+// accepted before sources kept their status and evidence id still names what it read.
+test('a file source keeps its stable reference and the range read; a source saved without an evidence id still finds its record', async () => {
+  const { learnerSources } = await import('../src/explain-context-refs.js');
+  const FILE = `file:fs_${'1'.repeat(24)}@${'e'.repeat(64)}`;
+  const record = { id: 'ev_00000000000000aa', kind: 'attachment', location: FILE, revision: 'e'.repeat(64), page: 2, limitations: [] };
+  const [now] = learnerSources({ records: [record], sources: [{ sourceId: FILE, kind: 'file', name: 'Lab notes.pdf', version: '', range: { page: 2 }, status: 'extracted', evidence: record.id }] });
+  assert.deepEqual(now, { kind: 'file', title: 'Lab notes.pdf', sourceId: FILE, range: { page: 2 }, page: 2, note: 'Read for this explanation.' });
+  const [before] = learnerSources({ records: [record], sources: [{ sourceId: FILE, kind: 'file', name: 'Lab notes.pdf', version: '', range: { page: 2 } }] });
+  assert.equal(before.note, 'Read for this explanation.', 'pre-9.4 provenance: matched by its location');
+});
