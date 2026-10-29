@@ -2,8 +2,8 @@
 /* A shared grid layer overlaps the essay without a negative sticky margin.
    Clip the drawing at the article boundary, including short phone viewports. */
 .manifesto-journey{position:relative;display:grid;grid-template-columns:minmax(0,1fr);isolation:isolate;overflow:clip}
-.manifesto-stair-art{grid-area:1 / 1;align-self:start;position:sticky;top:0;width:100%;height:100svh;z-index:-1;pointer-events:none;opacity:.34}
+.manifesto-stair-art{grid-area:1 / 1;align-self:start;position:sticky;top:0;width:100%;height:100svh;z-index:-1;pointer-events:none;opacity:.2}
 #manifesto-stairs{display:block;width:100%;height:100%;image-rendering:pixelated}
 @media(max-width:700px){
-  .manifesto-stair-art{opacity:.25}
+  .manifesto-stair-art{opacity:.18}
 }

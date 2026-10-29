@@ -4,7 +4,7 @@
 .manifesto-eyebrow{font:500 12px/1.5 var(--ui);letter-spacing:.02em;color:#BDBDBD;margin-bottom:24px}
 .manifesto-page #below .manifesto-heading h1{font:500 80px/1.05 var(--display);letter-spacing:-.05em;margin-bottom:24px}
 .manifesto-deck{font:500 22px/1.5 var(--ui);letter-spacing:-.025em}
-.manifesto-section{margin-top:64px}
+.manifesto-page #below .manifesto-section{margin:64px 0 0}
 .manifesto-page #below .manifesto-section h2{font:500 32px/1.25 var(--display);letter-spacing:-.03em;margin-bottom:24px}
 .manifesto-section p+p{margin-top:24px}
 .manifesto-ending{margin-top:64px}
@@ -30,7 +30,7 @@
   .manifesto-article{padding:130px 20px 72px;font-size:18px}
   .manifesto-page #below .manifesto-heading h1{font-size:44px}
   .manifesto-deck{font-size:18px}
-  .manifesto-section,.manifesto-ending{margin-top:48px}
+  .manifesto-page #below .manifesto-section,.manifesto-ending{margin-top:48px}
   .manifesto-page #below .manifesto-section h2{font-size:26px;margin-bottom:20px}
   .manifesto-section p+p{margin-top:20px}
 }
