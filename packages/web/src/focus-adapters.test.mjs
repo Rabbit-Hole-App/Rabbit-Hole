@@ -139,3 +139,17 @@ test('the Focus button keeps the row 34 px and adds no words; exitFocus restores
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   assert.match(canvas, /exitFocus: \(\) => \{ focusShown\.current = syncFocus\(focusShown\.current, null, \{[^}]*restore: saved => commandsRef\.current\.restoreNavigation\(saved\) \}\); dispatchFocus\(\{ type: 'exit' \}\); \}/);
 });
+
+// The pane Focus sizes a card in: the surface less its floating controls (the tool palette) and the open side panel's inset, as
+// AdaptiveCanvas focusWorkspace builds it (freeArea over the control rects, right edge less edgeInset, bottom above the dock).
+test('the Focus pane leaves room for the toolbar on the left and an open chat panel on the right', async () => {
+  const { freeArea } = await import('./canvas-slots.js');
+  const surface = { w: 1440, h: 900 }, palette = { left: 8, top: 136, right: 84, bottom: 596 }, chatInset = 400;
+  const area = freeArea(surface, [palette], 0);
+  const pane = workspaceFrame({ ...area, right: Math.min(area.right, surface.w - chatInset), bottom: Math.min(area.bottom, 900) });
+  assert.ok(pane.left >= palette.right, 'clear of the palette');
+  assert.ok(pane.left + pane.width <= surface.w - chatInset, 'clear of the chat panel');
+  assert.ok(pane.top >= FOCUS_BAR && pane.height > 0);
+  const closed = workspaceFrame({ ...area, right: Math.min(area.right, surface.w), bottom: 900 });
+  assert.ok(closed.width > pane.width, 'closing the panel gives the content its room back');
+});

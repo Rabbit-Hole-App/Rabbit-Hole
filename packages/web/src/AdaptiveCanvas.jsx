@@ -10,7 +10,7 @@ import { renamable, renameBlock, groupEditText, groupLabelFrom } from './card-re
 import './card-layout.css';
 import { IconBtn, toast } from './ui.jsx';
 import { saveUiPref, uiPrefs } from './ui-prefs.js';
-import { effectiveWidgets, widgetToggle } from './widget-visibility.js';
+import { effectiveWidgets, focusWidgets, widgetToggle } from './widget-visibility.js';
 import { notebookEditor } from './notebook-inline-client.js';
 import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
@@ -2031,6 +2031,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Focus (docs/features/focus-study.md): one card alone in the working pane, through focus-controller.js. Presentation only:
   // no board write, no undo entry (snapshot is never called for it), no model call. The adapter restyles the card's own host.
   const [focus, dispatchFocus] = useReducer(focusReducer, null);
+  // What is drawn: while a card is focused the minimap, the Rabbit Hole map and Curious stand down (focusWidgets); the widget choices
+  // are untouched, so Back to canvas shows exactly what was shown before. The toolbar stays.
+  const drawnWidgets = focusWidgets({ minimap, holeMap, curious }, !!focus);
   const focusRef = useRef(null), focusShown = useRef(null);
   focusRef.current = focus;
   const focusWorkspace = () => { const area = controlArea(); return workspaceFrame({ ...area, right: Math.min(area.right, surface.current.clientWidth - edgeInset), bottom: Math.min(area.bottom, chromeTop(area.left, area.right)) }); };
@@ -2044,6 +2047,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const observer = new ResizeObserver(measure);
     for (const node of [surface.current, pageHeader(), ...(bottomStrip.current?.children || [])]) if (node) observer.observe(node);
     window.addEventListener('resize', measure);
+    measure(); // the minimap, Rabbit Hole map and Curious hide while focused: the pane is measured again without them
     return () => { observer.disconnect(); window.removeEventListener('resize', measure); cancelAnimationFrame(tick); };
   }, [focus?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Deleted, or no longer focusable (read-only now, failed): a clean exit.
@@ -2898,7 +2902,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!strip || !at) return [];
     const rects = [...strip.querySelectorAll(':scope > * > *')].flatMap(boxesIn).filter(rect => rect.width && rect.height);
     const slot = strip.querySelector('[data-hooks-slot]'), room = hooksRoom.current, edge = strip.getBoundingClientRect();
-    if (curious && slot && room && !slot.getBoundingClientRect().height) rects.push({ left: edge.right - room.right - room.w, right: edge.right - room.right, top: edge.bottom - room.bottom - room.h });
+    if (drawnWidgets.curious && slot && room && !slot.getBoundingClientRect().height) rects.push({ left: edge.right - room.right - room.w, right: edge.right - room.right, top: edge.bottom - room.bottom - room.h });
     return chromeObstacles(rects.map(rect => ({ left: rect.left - at.left, right: rect.right - at.left, top: rect.top - at.top })), at.height, viewRef.current);
   };
   // The floating controls over the drawing surface (owner, 2026-10-22: the surface fills the canvas workspace; the toolbar,
@@ -5868,7 +5872,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <div data-gutter-top className={`pointer-events-none! mb-auto flex flex-col gap-3 [&>*]:pointer-events-auto ${import.meta.env.VITE_COACHING_DEV === 'true' ? 'pt-12' : 'pt-3'} @max-[640px]:hidden ${toolSide === 'left' ? 'items-start self-start' : 'items-end self-end'}`}>
           {/* The Rabbit Holes Map always sits here, on either side, never in a column of its own: a full-height 92 px column
               ended the canvas (overflow hidden) short of the panel, a blank strip cutting cards early (UI-17, canvas-clipping.md). */}
-          {gutterTop && <div className={holeMap ? undefined : 'hidden'}>{gutterTop}</div>}
+          {gutterTop && <div className={drawnWidgets.holeMap ? undefined : 'hidden'}>{gutterTop}</div>}
         </div>
         {/* Dev-only workbench: drop any lesson block on the canvas to review its
             look before lessons are assembled. */}
@@ -5976,7 +5980,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             row, 8px apart, both one outer width - the column is as wide as its widest child (the minimap's fixed frame) and
             the zoom row stretches to it, its slack going to the percentage, so both edges line up at any zoom label. */}
         <div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">
-        {minimap && <div data-canvas-minimap>
+        {drawnWidgets.minimap && <div data-canvas-minimap>
           <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
             surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
             onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />
@@ -6006,7 +6010,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {/* Lower right: the hooks, bottom-aligned with the composer and right of it, the width the left stack gave them. It
             also balances the left column, so the composer stays centred. On a phone, above the composer at the right. */}
         <div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">
-          {hooks && <div data-hooks-slot ref={hooksSlot} className={`w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)] ${curious ? '' : 'hidden'}`}>{hooks}</div>}
+          {hooks && <div data-hooks-slot ref={hooksSlot} className={`w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)] ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
         </div>
       </div>}
     </div>

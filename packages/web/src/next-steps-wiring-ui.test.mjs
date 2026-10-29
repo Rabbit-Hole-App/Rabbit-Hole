@@ -101,9 +101,9 @@ test('LearnPage: useNextSteps mounts only with Rabbit Hole on and a Chat compose
   // Voice Mode's caption keeps the canvas's lower-left stack (tutor.extras stay drawn there while Voice is on); the hook card is
   // the bottom strip's lower right, beside the composer (owner, 2026-10-08).
   assert.match(page, /leftRail=\{voiceOn \? <TutorCaption caption=\{voice\.caption\} state=\{voice\.state\} extras=\{tutor\.extras\} \/> : null\}\n\s+hooks=\{steps \? <NextStepsCard steps=\{steps\} onPick=\{\(step, hook\) => \(step\.section \? journey\?\.nextSection\?\.\(\) : \(chatRef\.current\?\.panels\.openChat\(\), nextStepSend\.current\?\.\(step, hook\.hook\)\)\)\} \/> : null\}/);
-  assert.match(canvas, /<div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">\n\s+\{hooks && <div data-hooks-slot ref=\{hooksSlot\} className=\{`w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] empty:hidden max-md:w-\[min\(100%,300px\)\] \$\{curious \? '' : 'hidden'\}`\}>\{hooks\}<\/div>\}/);
+  assert.match(canvas, /<div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">\n\s+\{hooks && <div data-hooks-slot ref=\{hooksSlot\} className=\{`w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] empty:hidden max-md:w-\[min\(100%,300px\)\] \$\{drawnWidgets\.curious \? '' : 'hidden'\}`\}>\{hooks\}<\/div>\}/);
   // View > Curious off (owner brief 2026-10-21 item 3) hides the mounted card and frees its corner: no reserved room either.
-  assert.match(canvas, /if \(curious && slot && room && !slot\.getBoundingClientRect\(\)\.height\) rects\.push\(/);
+  assert.match(canvas, /if \(drawnWidgets\.curious && slot && room && !slot\.getBoundingClientRect\(\)\.height\) rects\.push\(/);
   // A hook click opens Chat and sends through the Chat AskPanel's nextStepRef (chatAskProps).
   assert.match(page, /tray: journey\.trayProps, voice, nextStepRef: nextStepSend,/);
   // Owner, 2026-10-22: right of the floating tools column when it docks left.

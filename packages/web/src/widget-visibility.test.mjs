@@ -2,7 +2,7 @@
 // otherwise in Study, and the two stores never write each other.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { effectiveWidgets, widgetToggle } from './widget-visibility.js';
+import { FOCUS_HIDDEN, effectiveWidgets, focusWidgets, widgetToggle } from './widget-visibility.js';
 import { defaultStudy, readStudy, studyReducer, writeStudy } from './study-state.js';
 import { readUiPrefs, saveUiPref, UI_PREF_DEFAULTS } from './ui-prefs.js';
 
@@ -64,5 +64,17 @@ test('blocked storage: a Study toggle still applies in the page and is never rep
     const result = toggle(stores, 'study', 'holeMap', true);
     assert.equal(result.ok, false);
     assert.equal(effectiveWidgets({ mode: 'study', canvas: ALL_ON, study: stores.study.maps }).holeMap, true, 'shown for this page');
+  }
+});
+
+// Focus (owner, 2026-10-28): the minimap, the Rabbit Hole map and Curious stand down while a card is focused; the toolbar stays;
+// Back to canvas shows each exactly as before, a hidden one included. focusWidgets is a view, so nothing is written to restore.
+test('focus hides the minimap, Rabbit Hole map and Curious, keeps the toolbar, and restores each exactly', () => {
+  assert.deepEqual([...FOCUS_HIDDEN], ['minimap', 'holeMap', 'curious']);
+  for (const shown of [{ minimap: true, holeMap: true, curious: true, toolbar: true }, { minimap: false, holeMap: true, curious: false, toolbar: false }, { minimap: true, holeMap: false, curious: true, toolbar: true }]) {
+    const before = structuredClone(shown);
+    assert.deepEqual(focusWidgets(shown, true), { minimap: false, holeMap: false, curious: false, toolbar: shown.toolbar });
+    assert.deepEqual(shown, before, 'the choices are never written');
+    assert.equal(focusWidgets(shown, false), shown, 'out of Focus: exactly what was shown, already-hidden ones still hidden');
   }
 });
