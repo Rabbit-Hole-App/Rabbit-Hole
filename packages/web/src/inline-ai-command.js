@@ -27,8 +27,9 @@ export function filterCommands(commands, query) {
   return [...commands.filter(command => words(command).some(word => word.startsWith(typed))), ...commands.filter(command => !words(command).some(word => word.startsWith(typed)) && line(command).includes(typed))];
 }
 
-// Whether a command shows its pill: /explain is the Explain mode itself, so it has none (owner 2A); every other command shows CommandPill.
-export const showsPill = name => !!name && name !== 'explain';
+// Whether a command shows its pill: every selected command shows CommandPill, /explain included (owner brief 2026-10-29, replacing 2A's
+// no-pill /explain).
+export const showsPill = name => !!name;
 
 // Picking a command from the list: a generation command selects Explain (owner 2A); a source search leaves the mode.
 // Returns the editor's next { mode, command, text }; the words typed after it are kept.
@@ -47,15 +48,14 @@ export function switchMode({ command, text }, mode) {
 //   { source: { source, query } }   a source search: Ctrl+K's finder opens (nothing is generated or sent)
 //   { unsupported: name }           a typed command that is not offered (nothing is sent; never a different command)
 //   { mode, command: null, text, prompt }  plain words for the inline editor (prompt is the line the request check reads)
-// A picked command and the same command typed submit the same thing. motionDev defaults on: /motion where this canvas cannot run
-// it is still handed over, and Chat says plainly that it is unavailable here.
+// A picked command and the same command typed submit the same thing, and a command typed at the start of the words replaces the
+// picked one, as in Chat (owner brief 2026-10-29). motionDev defaults on: /motion where this canvas cannot run it is still handed
+// over, and Chat says plainly that it is unavailable here.
 export function submission({ mode, command = null, text = '' }, options = { motionDev: true }) {
   let name = command, words = String(text);
-  if (!name) {
-    const typed = resolveCommand(words, 'ctrlk', options);
-    if (typed?.unsupported) return { unsupported: typed.unsupported };
-    if (typed) { name = typed.command.name; words = typed.arg; }
-  }
+  const typed = resolveCommand(words, 'ctrlk', options);
+  if (typed?.unsupported) return { unsupported: typed.unsupported };
+  if (typed) { name = typed.command.name; words = typed.arg; }
   if (!name) return { mode, command: null, text: words, prompt: words };
   words = words.trim();
   const entry = commandsFor('ctrlk', options).find(candidate => candidate.name === name);

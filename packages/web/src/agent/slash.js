@@ -19,8 +19,9 @@
 // proposal, the Tutor, the chat router and Ctrl+K's routes carry, and it never changes meaning (id `image` is still the photo
 // search, `generate-image` the paid generation). typed is what a learner TYPES when it differs, and aliases are further typed
 // names that still work: /image types as id `generate-image`, /photos as id `image`, /generate-image stays an alias of
-// /image. Every typed line goes through resolveCommand/idOfTyped; every line built from an id goes through typedOf. Saved
-// ids are never remapped: an old `image` message keeps reading as the photo search it was.
+// /image and /photo of /photos (owner brief 2026-10-29: still 18 commands). Every typed line goes through
+// resolveCommand/idOfTyped; every line built from an id goes through typedOf. Saved ids are never remapped:
+// an old `image` message keeps reading as the photo search it was.
 // needs: 'image_generation' is offered only where image generation is on (IMAGE_GENERATION, below); 'motion_dev' only in a
 // development or review build (MOTION_DEV, below), never in production.
 
@@ -76,7 +77,7 @@ export const SLASH = [
   // Search (owner 4A, 2026-10-16): the shared source finder opens on the source with the query, searches at once when there is
   // one, and adds nothing until Add to canvas. No model routes or reads them. /arxiv takes a topic or an arXiv ID or link and
   // previews it before adding. /photos (id image) inserts the photo-search card, which searches once placed.
-  { name: 'image', typed: 'photos', kind: 'generate', group: 'source', places: CTRLK, label: 'Photo search', desc: 'Photo search', about: 'Find an existing photo and add it to your canvas with its credit.', placeholder: 'What photo are you looking for? Or press Enter to open search.', family: ['image'] },
+  { name: 'image', typed: 'photos', aliases: ['photo'], kind: 'generate', group: 'source', places: CTRLK, label: 'Photo search', desc: 'Photo search', about: 'Find an existing photo and add it to your canvas with its credit.', placeholder: 'What photo are you looking for? Or press Enter to open search.', family: ['image'] },
   { name: 'youtube', kind: 'source', group: 'source', places: ['learn', 'ctrlk', 'insert'], label: 'YouTube search', desc: 'YouTube search', about: 'Find an existing YouTube video, preview it, then add it to the canvas.', placeholder: 'What video would you like to find? Or press Enter to open search.', action: 'open_source', source: 'youtube', deterministic: true },
   { name: 'arxiv', kind: 'source', group: 'source', places: ['learn', 'ctrlk', 'insert'], label: 'arXiv search', desc: 'arXiv search', about: 'Find a research paper by topic, title or arXiv link and add it to the canvas.', placeholder: 'Enter a topic, paper title or arXiv link, or press Enter to open search.', action: 'open_source', source: 'arxiv', deterministic: true },
   { name: 'wikipedia', kind: 'source', group: 'source', places: ['learn', 'ctrlk', 'insert'], label: 'Wikipedia search', desc: 'Wikipedia search', about: 'Find a Wikipedia article and add it to your canvas.', placeholder: 'What topic would you like to look up? Or press Enter to open search.', action: 'open_source', source: 'wikipedia', deterministic: true },

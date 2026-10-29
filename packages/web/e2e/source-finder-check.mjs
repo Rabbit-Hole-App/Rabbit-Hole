@@ -58,7 +58,7 @@ await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 });
 const dock = page.locator('[data-chat-pane]');
 const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
 await composer().waitFor({ timeout: 30000 });
-const pill = dock.locator('[data-command-pill]');
+const pill = dock.locator('[data-chat-composer] [data-command-pill]'); // the composer's pill, never a sent message's read-only one
 const finder = page.getByRole('dialog', { name: 'Search' });
 const addButton = finder.getByRole('button', { name: 'Add to canvas' });
 const menubar = page.getByRole('menubar', { name: 'Canvas menu' });
@@ -118,7 +118,8 @@ await finder.getByText('Backpropagation', { exact: true }).first().waitFor({ tim
 ok('/wikipedia <query>: the finder opens on Wikipedia and searches at once', await finder.getByLabel('Search in').inputValue() === 'wikipedia' && searches.at(-1) === 'wikipedia:backprop');
 await page.keyboard.press('Escape');
 await finder.waitFor({ state: 'detached' });
-ok('Escape gives the typed line back', await composer().inputValue() === '/wikipedia backprop');
+// Owner brief 2026-10-29 (BRIEF-PILLS 3): a command pasted with its words becomes its pill; Escape gives back that pill and the words.
+ok('Escape gives the typed line back', await pill.getAttribute('data-command-pill') === 'wikipedia' && await composer().inputValue() === 'backprop');
 await composer().fill('');
 
 // 5. Insert: Search sources opens the one finder, empty, waiting; its source choices are YouTube, arXiv and Wikipedia.

@@ -8,6 +8,11 @@
 //   3. with a Chat draft, a context chip and an armed Edit target (the quiz brief), a Ctrl+K /diagram on another card is its own new
 //      brief (never a revision of the Chat's Edit) and leaves the draft, the chips and the Edit target as they were
 //   4. the same when the brief request fails: Chat says why, and the draft, the chips and the Edit target stay
+//   5. slash pills (owner brief 2026-10-29, BRIEF-PILLS): on a second canvas told image generation is offered (MOCKED), typed, uppercase,
+//      aliased, picked (mouse and keyboard) and pasted Chat commands show the resolved pill (/image: generate-image, /photos and /photo:
+//      image), replace a stale pill, keep the words, and send their own line (the /image plan route MOCKED to refuse, the photo search
+//      aborted, each recorded); a legacy /image message restores as photos; Ctrl+K shows the explain pill, and selected /quiz plus a typed
+//      "/image cat" sends /image cat, leaving the Chat draft as it was
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 [VARS=<stack .dev.vars>] node e2e/ctrlk-handoff-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -42,7 +47,7 @@ await say('t1-a', 'assistant', 'A push or a pull.');
 const CHIP = { sourceId: `card:${FORCE.id}`, kind: 'card', name: 'Forces', version: 'v1' };
 await api(`/api/learn/chat/threads/${thread}/state`, { method: 'PUT', body: JSON.stringify({ contextRefs: [CHIP] }) });
 
-const total = 14;
+const total = 28;
 let passed = 0, failed = 0;
 const ok = (name, condition, extra = '') => { if (condition) passed += 1; else failed += 1; console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${extra ? `  (${extra})` : ''}`); };
 const until = async (fn, ms = 15000) => { const end = Date.now() + ms; for (;;) { if (await fn()) return true; if (Date.now() > end) return false; await new Promise(r => setTimeout(r, 150)); } };
@@ -169,6 +174,85 @@ try {
   await shot('03-isolated-failure');
   const afterFail = await chatContext();
   ok('failure: Chat says why, and the Chat draft, context chips and Edit target are unchanged', said && briefs.length === 3 && briefs[2].revise === undefined && afterFail === beforeFail && JSON.parse(beforeFail).edit.length === 1, `said ${said}; ${beforeFail} -> ${afterFail}`);
+
+  // 5. Slash pills (owner brief 2026-10-29, BRIEF-PILLS): a second canvas whose page is told image generation is offered (MOCKED
+  // GET /api/learn/image-jobs). The /image plan route is MOCKED to refuse and records what was sent; the photo search is aborted and
+  // recorded. Nothing is generated or searched.
+  await page.close();
+  const pills = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Slash pills ${run}` }) });
+  await api(`/api/learn/boards/${pills.name}/main`, { method: 'PUT', body: JSON.stringify({ state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [PHOTO] } }) });
+  // A legacy message saved by the old /image (the photo search) with no command metadata: it restores as the photos pill.
+  const legacy = `canvaschat-${crypto.randomUUID()}`;
+  await api(`/api/learn/chat/threads/${legacy}/messages`, { method: 'POST', body: JSON.stringify({ app: pills.name, client_id: 'l1-u', role: 'user', content: '/image Mount Fuji', title: 'Legacy' }) });
+  await api(`/api/learn/chat/threads/${legacy}/messages`, { method: 'POST', body: JSON.stringify({ app: pills.name, client_id: 'l1-a', role: 'assistant', content: 'Added an image card.' }) });
+  await context.route(/\/api\/learn\/image-jobs(\?|$)/, route => route.fulfill({ json: { available: true } }));
+  const plans = [], photos = [];
+  await context.route('**/api/learn/chat/image-proposals', route => { plans.push(route.request().postDataJSON()); return route.fulfill({ status: 400, json: { error: 'Image plans are not made in this check.' } }); });
+  await context.route('**/api/learn/photos**', route => { photos.push(new URL(route.request().url()).searchParams.toString()); return route.abort(); });
+  const p2 = await context.newPage();
+  p2.setDefaultTimeout(15000);
+  p2.on('pageerror', error => errors.push(error.message.slice(0, 160)));
+  await p2.goto(`${BASE}/apps/${pills.name}`);
+  await p2.waitForSelector('[data-tool-gutter]', { timeout: 60000 });
+  await p2.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 30000 });
+  const dock2 = p2.locator('[data-chat-pane]');
+  const box = () => p2.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
+  const chatPill = dock2.locator('[data-chat-composer] [data-command-pill]');
+  const pillIs = async (id, typed, text) => (await chatPill.count()) === 1 && await chatPill.getAttribute('data-command-pill') === id && (await chatPill.innerText()).trim() === typed && await box().inputValue() === text;
+  const seen = async () => `${await chatPill.getAttribute('data-command-pill').catch(() => 'none')}/${await chatPill.innerText().catch(() => '')}/"${await box().inputValue()}"`;
+  await dock2.getByText('Added an image card.').first().waitFor({ timeout: 10000 }).catch(() => {});
+  const restored = dock2.locator('div.rounded-lg.bg-hover', { hasText: 'Mount Fuji' }).locator('[data-command-pill]');
+  ok('Chat: a legacy saved /image message restores as the photos pill (id image)', await restored.getAttribute('data-command-pill').catch(() => null) === 'image' && (await restored.innerText().catch(() => '')).trim() === 'photos');
+  const mode2 = dock2.getByRole('button', { name: 'Mode', exact: true });
+  if ((await mode2.getAttribute('data-chat-mode')) !== 'ask') { await mode2.click(); await p2.locator('[data-chat-mode-option="ask"]').click(); }
+  await until(async () => (await mode2.getAttribute('data-chat-mode')) === 'ask');
+  // Typed with a separator: /image is the generation pill, and /photos then replaces it with the photo search pill (never left beside it).
+  await box().fill('/quiz ');
+  await box().fill('/image ');
+  ok('Chat: typed "/image " replaces the quiz pill with the image pill (id generate-image)', await pillIs('generate-image', 'image', ''), await seen());
+  await box().fill('/photos ');
+  ok('Chat: typed "/photos " replaces it with the photos pill (id image), no stale pill', await pillIs('image', 'photos', ''), await seen());
+  await box().fill('/photo ');
+  ok('Chat: the /photo alias is the photos pill', await pillIs('image', 'photos', ''), await seen());
+  // Uppercase, then words; the x keeps the words; a picked command (mouse) keeps them too.
+  await box().fill('/IMAGE ');
+  await box().fill('a red fox');
+  ok('Chat: uppercase "/IMAGE " is the image pill', await pillIs('generate-image', 'image', 'a red fox'), await seen());
+  await dock2.getByRole('button', { name: 'Remove Image generation', exact: true }).click();
+  ok('Chat: removing the pill keeps the words', (await chatPill.count()) === 0 && await box().inputValue() === 'a red fox', await seen());
+  await dock2.locator('[data-command-slot]').click();
+  await dock2.locator('[data-slash-command="image"]').click();
+  ok('Chat: picking /photos (mouse) shows the photos pill and keeps the words', await pillIs('image', 'photos', 'a red fox'), await seen());
+  await dock2.locator('[data-chat-composer] [data-command-pill] button[title="Change the command"]').click();
+  await p2.keyboard.type('image gen');
+  await p2.keyboard.press('Enter');
+  ok('Chat: choosing /image by keyboard replaces it and keeps the words', await pillIs('generate-image', 'image', 'a red fox'), await seen());
+  await box().press('Enter');
+  ok('Chat: the image pill sends /image (the image plan request), never a photo search', await until(() => plans.length === 1) && /a red fox/.test(plans[0]?.prompt || '') && photos.length === 0, `${JSON.stringify(plans)} photos ${photos.length}`);
+  // Pasted with its words: the photos pill and the words; Send is the photo search line, saved and restored as photos.
+  await box().fill('/photos Mount Fuji at dawn');
+  ok('Chat: pasted "/photos <words>" becomes the photos pill and keeps the words', await pillIs('image', 'photos', 'Mount Fuji at dawn'), await seen());
+  await box().press('Enter');
+  const sentPhotos = dock2.locator('div.rounded-lg.bg-hover', { hasText: 'Mount Fuji at dawn' }).filter({ has: p2.locator('[data-command-pill="image"]') });
+  ok('Chat: the photos pill sends /photos (a photo search card, no image plan)', await until(async () => (await sentPhotos.count()) === 1 && photos.some(query => /Mount\+Fuji\+at\+dawn/.test(query))) && plans.length === 1, `${photos.join(' ')} plans ${plans.length}`);
+  await shot('04-chat-pills');
+  // Ctrl+K: picked /explain shows its pill; a typed leading /image replaces a selected /quiz (never "/quiz /image cat").
+  await box().fill('chat draft stays');
+  await p2.locator(`[data-block-id="${PHOTO.id}"] [data-drag-zone]`).first().click();
+  await p2.keyboard.press('Control+k');
+  const editor2 = p2.locator('[data-inline-ai]'), field2 = p2.locator('[data-inline-prompt]');
+  await editor2.waitFor({ timeout: 10000 });
+  await field2.fill('/');
+  await p2.locator('[data-inline-command-option="explain"]').click();
+  ok('Ctrl+K: picked /explain shows the explain pill', (await editor2.locator('[data-command-pill="explain"]').count()) === 1 && (await editor2.locator('[data-command-pill]').innerText()).trim() === 'explain');
+  await editor2.getByRole('button', { name: 'Remove Explanation', exact: true }).click();
+  await field2.fill('/');
+  await p2.locator('[data-inline-command-option="quiz"]').click();
+  await field2.fill('/image cat');
+  await field2.press('Enter');
+  ok('Ctrl+K: selected quiz + "/image cat" sends /image cat (the image plan), not "/quiz /image cat"', await until(() => plans.length === 2) && plans[1]?.prompt === 'cat' && briefs.length === 3, `${JSON.stringify(plans[1] || null)} briefs ${briefs.length}`);
+  ok('Ctrl+K: the Chat draft is unchanged', await box().inputValue() === 'chat draft stays', await box().inputValue());
+  await shot('05-ctrlk-pills');
   ok('no model route was called and the page raised no error', model.length === 0 && errors.length === 0, [...model, ...errors].join(' | '));
 } catch (error) {
   failed += 1;

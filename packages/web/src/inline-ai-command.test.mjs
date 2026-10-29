@@ -2,7 +2,7 @@
 // the same 18 commands as Chat, each explicit one handed to Chat's dispatcher).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SLASH, commandsFor, typedOf } from './agent/slash.js';
+import { SLASH, commandsFor, setImageGeneration, typedOf } from './agent/slash.js';
 import { pickerSections } from './learn-slash.js';
 import { ctrlkCommands, filterCommands, pick, pickerQuery, showsPill, submission, switchMode, unsupportedText } from './inline-ai-command.js';
 import { EXPLICIT_ROUTES, ROUTES, routeRequest } from './inline-ai-route.js';
@@ -65,10 +65,11 @@ test('every explicit command, typed or picked, in either mode, is handed to Chat
   assert.deepEqual(submission({ mode: 'explain', text: '/browser https://docs.python.org/3/tutorial/' }), { handoff: { command: 'browser', line: '/browser https://docs.python.org/3/tutorial/' } });
 });
 
-test('modes: a generation command selects Explain; /explain has no pill but is still handed over; Edit clears generation commands', () => {
+test('modes: a generation command selects Explain; /explain shows its pill and is handed over; Edit clears generation commands', () => {
   assert.equal(pick({ mode: 'edit', text: 'kept' }, entry('code')).mode, 'explain');
   assert.equal(pick({ mode: 'edit' }, entry('youtube')).mode, 'edit', 'a source search leaves the mode');
-  assert.equal(showsPill('explain'), false);
+  // Owner brief 2026-10-29 (BRIEF-PILLS 3): the selected command shows consistently with CommandPill, /explain included.
+  assert.equal(showsPill('explain'), true);
   assert.equal(showsPill('code'), true);
   assert.equal(showsPill(null), false);
   assert.equal(submission({ mode: 'explain', command: 'explain', text: 'why' }).handoff.line, '/explain why');
@@ -81,6 +82,50 @@ test('modes: a generation command selects Explain; /explain has no pill but is s
   assert.equal(switchMode({ command: 'code', text: '' }, 'explain').command, 'code');
   // Auto: Explain with no command is the automatic routing, its words sent as typed (non-slash Ctrl+K is unchanged).
   assert.deepEqual(submission({ mode: 'explain', command: null, text: 'Explain this ' }), { mode: 'explain', command: null, text: 'Explain this ', prompt: 'Explain this ' });
+});
+
+// Owner brief 2026-10-29 (BRIEF-PILLS 2, 3): an explicit leading command replaces the selected one, as in Chat; aliases and any case resolve.
+test('Ctrl+K: a typed leading command replaces the selected one; aliases and uppercase resolve; unavailable /image never searches photos', () => {
+  setImageGeneration(true);
+  try {
+    // The bug: selected quiz + "/image cat" was sent as "/quiz /image cat".
+    assert.deepEqual(submission({ mode: 'explain', command: 'quiz', text: '/image cat' }), { handoff: { command: 'generate-image', line: '/image cat' } });
+    assert.deepEqual(submission({ mode: 'explain', command: 'quiz', text: '/IMAGE cat' }), { handoff: { command: 'generate-image', line: '/image cat' } });
+    assert.deepEqual(submission({ mode: 'explain', command: 'quiz', text: '/generate-image cat' }), { handoff: { command: 'generate-image', line: '/image cat' } });
+    assert.deepEqual(submission({ mode: 'explain', command: 'generate-image', text: '/photos cat' }), { handoff: { command: 'image', line: '/photos cat' } });
+    assert.deepEqual(submission({ mode: 'explain', command: 'quiz', text: '/photo cat' }), { handoff: { command: 'image', line: '/photos cat' } });
+    assert.deepEqual(submission({ mode: 'explain', command: 'image', text: '/youtube cats' }), { source: { source: 'youtube', query: 'cats' } });
+    assert.deepEqual(submission({ mode: 'explain', command: 'quiz', text: '/dive cat' }), { unsupported: 'dive' }, 'a removed command is said, never the selected one');
+    // A /word that is not at the very start is the selected command's words.
+    assert.deepEqual(submission({ mode: 'explain', command: 'quiz', text: 'what /image means' }), { handoff: { command: 'quiz', line: '/quiz what /image means' } });
+    assert.ok(filterCommands(ctrlkCommands({ motionDev: true }), 'photo').some(command => command.name === 'image'), '/photo lists photos');
+  } finally { setImageGeneration(false); }
+  for (const text of ['/image cat', '/IMAGE cat']) {
+    const out = submission({ mode: 'explain', command: 'quiz', text });
+    assert.equal(out.handoff, undefined, text);
+    assert.equal(unsupportedText(out.unsupported), 'Image generation is not available here. /photos searches for real photos.', text);
+  }
+  assert.deepEqual(submission({ mode: 'explain', command: 'quiz', text: '/photo cat' }), { handoff: { command: 'image', line: '/photos cat' } });
+});
+
+test('Ctrl+K: each of the 18 picked, typed, uppercase or replacing a selected command submits its id and typed line', () => {
+  setImageGeneration(true);
+  try {
+    const typedNames = { 'generate-image': 'image', image: 'photos' };
+    const all = ctrlkCommands({ motionDev: true });
+    assert.equal(all.length, 18);
+    for (const command of all) {
+      const typed = typedNames[command.name] || command.name;
+      const want = command.kind === 'source' ? { source: { source: command.source, query: 'a b' } } : { handoff: { command: command.name, line: `/${typed} a b` } };
+      const picked = pick({ mode: 'edit', text: '' }, command);
+      assert.deepEqual(submission({ ...picked, text: 'a b' }), want, `picked ${typed}`);
+      assert.equal(showsPill(picked.command), true, `pill ${typed}`);
+      assert.deepEqual(submission({ mode: 'explain', text: `/${typed} a b` }), want, `typed ${typed}`);
+      assert.deepEqual(submission({ mode: 'explain', text: `/${typed.toUpperCase()} a b` }), want, `uppercase ${typed}`);
+      const other = command.name === 'quiz' ? 'code' : 'quiz';
+      assert.deepEqual(submission({ mode: 'explain', command: other, text: `/${typed} a b` }), want, `replaces ${other} with ${typed}`);
+    }
+  } finally { setImageGeneration(false); }
 });
 
 test('removing a pill keeps the words: what is sent is then the words alone', () => {
