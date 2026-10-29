@@ -104,3 +104,17 @@ test('fixture cards seal by what they declare: schema 2 for the stateful ones, t
   const direct = await sealProgram({ manifest: growthFixture.manifest, source: growthFixture.source }, PROGRAM_STAMPS);
   assert.deepEqual([growth.artifact.schemaVersion, growth.artifact.bundleHash], [1, direct.value.bundleHash]);
 });
+
+// Owner acceptance for R3: the picture, its readouts and the review's replay all come from the same accepted state and inputs.
+test('the review replay draws exactly the frame and readouts the card draws for the same accepted state', async () => {
+  const { replayTransitions } = await import('./interaction.js');
+  const events = [{ type: 'action', action: 'advance' }, { type: 'action', action: 'kick' }, { type: 'action', action: 'advance' }];
+  const card = await play(springFixture, events);
+  const host = createProgramHost({ artifact: card.artifact, createWorker: standIn });
+  try {
+    const review = await replayTransitions({ host, manifest: card.artifact.manifest, inputs: inputsOf(springFixture.manifest), seed: 0, events });
+    assert.deepEqual(review.state, card.state);
+    assert.deepEqual(review.reply.frame, card.frames.at(-1).frame, 'the same picture');
+    assert.deepEqual(review.view.readouts, normalizeFrame(card.frames.at(-1).frame, card.artifact.manifest).readouts, 'the same readouts');
+  } finally { host.dispose(); }
+});

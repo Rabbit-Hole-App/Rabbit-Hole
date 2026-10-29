@@ -103,6 +103,11 @@ try {
     await page.waitForTimeout(500);
     assert.match(await frameText('p-spring'), /after 0\.1 s/, 'one advance, not one per input change');
     assert.equal(await card('p-spring').locator('[data-program-error]').count(), 0);
+    // The picture and the Notes values come from the same accepted state and its input snapshot.
+    await card('p-spring').locator('[data-program-notes-toggle]').click();
+    assert.equal((await card('p-spring').locator('[data-program-value="position"]').innerText()).trim(), `Position: ${x.toFixed(2)} m`);
+    assert.equal((await card('p-spring').locator('[data-program-value="elapsed"]').innerText()).trim(), 'Time: 0.1 s');
+    await card('p-spring').locator('[data-program-notes-toggle]').click();
   });
   await check('6 Reset restores the initial state and offers nothing more to reset', async () => {
     await card('p-sort').locator('[data-scene-reset]').click();
