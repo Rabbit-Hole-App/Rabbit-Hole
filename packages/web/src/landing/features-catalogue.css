@@ -1,33 +1,57 @@
-/* The static Features catalogue (features-catalogue.js). Pictures are plain images: no hover, cursor or tab stop. */
-.features-index{max-width:1280px;margin:56px auto 96px;padding:0 28px;display:flex;flex-wrap:wrap;gap:8px}
+/* The static Features catalogue (features-catalogue.js). Pictures are plain images: no hover, cursor or tab stop.
+   Each entry reuses the walkthrough's framed preview (features-demos.css at e801cf290): frame left, copy right, dashed
+   divider, layered back frames. The figcaption row is gone, so the back frames' bottom insets drop by its height
+   (31 px desktop, 28 px phone). Picture slot sizes for captures: C:/s/spec/landing-features/LAYOUT-SLOTS.md. */
+.features-index{max-width:1180px;margin:56px auto 40px;display:flex;flex-wrap:wrap;gap:8px}
 .features-index a{display:inline-block;padding:8px 13px;border:1px solid #c7d2c0;border-radius:999px;background:#fff;color:#173d2a;font:500 13px/1.2 var(--ui);text-decoration:none;transition:border-color 150ms ease,background-color 150ms ease}
 .features-index a:hover{border-color:#173d2a}
 .features-index a:active{background:#eef2ea}
 .features-index a:focus-visible{outline:2px solid #173d2a;outline-offset:2px}
-.features-catalogue{max-width:1280px;margin:0 auto;padding:0 28px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:112px 56px}
-.feature{min-width:0;scroll-margin-top:104px}
-.feature-full{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,3fr) minmax(0,7fr);gap:56px;align-items:center}
-.feature-grid{display:flex;flex-direction:column;gap:28px}
-.feature-grid .feature-media{order:-1}
-.features-page #below .feature h2{font:500 clamp(30px,2.6vw,40px)/1.05 var(--display);letter-spacing:-.05em;margin:0 0 14px}
-.feature-copy p{font:400 17px/1.6 var(--ui);color:#4a5847;margin:0;max-width:440px}
+.features-catalogue{max-width:1180px;margin:0 auto 88px}
+.feature{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);column-gap:84px;align-items:center;scroll-margin-top:104px}
+.feature-copy{align-self:stretch;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:76px 0;position:relative;min-width:0}
+.feature-copy::before{content:"";position:absolute;left:-30px;top:0;bottom:0;border-left:1px dashed #c7d2c0}
+.feature:first-child .feature-copy::before{top:115px}
+.feature:last-child .feature-copy::before{bottom:115px}
+.features-page #below .feature h2{font:500 clamp(34px,3.2vw,46px)/1.04 var(--display);letter-spacing:-.055em;margin:0 0 25px}
+.feature-copy p{font:400 17px/1.65 var(--ui);color:#4a5847;margin:0;max-width:345px}
 .feature-copy .feature-subtitle{font-weight:500;color:#173d2a;margin-bottom:8px}
-.feature-media{min-width:0}
-.feature-media img{display:block;width:100%;height:auto}
-.feature-parts{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:20px;align-items:start}
+.feature-demo{position:relative;isolation:isolate;margin:48px 0;padding:26px 24px 0 0;min-width:0}
+.feature-demo::before,.feature-demo::after{content:"";position:absolute;border:1px solid #bdcbb2;border-radius:14px;pointer-events:none;z-index:-1}
+.feature-demo::before{inset:14px 12px 19px 12px;background:#f2f5ec}
+.feature-demo::after{inset:0 0 31px 24px;border-color:#d9e0d2;z-index:-2}
+.demo-window{position:relative;border:1px solid #c2cebb;border-radius:12px;background:#fcfdfa;overflow:hidden;box-shadow:0 20px 45px -30px #263d294d;color:#193529}
+.demo-toolbar{height:52px;padding:0 22px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border-bottom:1px solid #e4e9df;font:400 11px/1.4 var(--ui);color:#65735e}
+.demo-toolbar>span:last-child{display:flex;align-items:center;gap:10px}
+.demo-brand{font:600 13px/1 var(--ui);letter-spacing:-.045em;color:#18291e}
+.demo-toolbar i{width:6px;height:6px;border-radius:50%;background:#8ba275}
+/* The picture keeps its own aspect ratio; one taller than the slot is scaled down whole (contain), never cropped. */
+.demo-window img{display:block;width:100%;height:auto;max-height:640px;object-fit:contain}
+.feature-parts{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:12px;align-items:start}
 .feature-parts figure{margin:0;min-width:0}
-.feature-parts figcaption{font:500 13px/1.4 var(--ui);color:#54684e;margin-top:10px}
-@media(max-width:900px){
-  .features-index{margin:40px auto 72px;padding:0 8px}
-  .features-catalogue{grid-template-columns:minmax(0,1fr);gap:80px;padding:0 8px}
-  .feature-full{display:flex;flex-direction:column;align-items:stretch;gap:24px}
-  .feature-grid{gap:24px}
-  .feature-grid .feature-media{order:0}
+.feature-parts figcaption{font:500 13px/1.4 var(--ui);color:#54684e;padding:8px 12px 12px}
+@media(max-width:1100px) and (min-width:801px){
+  .feature{column-gap:58px;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
+  .features-page #below .feature h2{font-size:37px}
+  .feature-copy p{font-size:15px}
+  .demo-toolbar{padding:0 16px}
+  .demo-toolbar>span:last-child{font-size:10px;gap:7px}
 }
-@media(max-width:600px){
-  .features-index{margin:32px auto 56px;padding:0 2px}
-  .features-catalogue{gap:64px;padding:0 2px}
-  .features-page #below .feature h2{font-size:30px}
-  .feature-copy p{font-size:16px}
+@media(max-width:800px){
+  .features-index{max-width:620px;margin:40px auto 32px}
+  .features-catalogue{max-width:620px;margin-bottom:70px}
+  .feature{display:block;margin:0 0 64px}
+  .feature-copy{padding:38px 0 30px}
+  .feature-copy::before{display:none}
+  .features-page #below .feature h2{font-size:38px;margin-bottom:18px}
+  .feature-copy p{font-size:16px;max-width:460px}
+  .feature-demo{margin:0;padding:20px 17px 0 0}
+  .feature-demo::before{inset:10px 8px 14px 9px}
+  .feature-demo::after{inset:0 0 24px 17px}
   .feature-parts{grid-auto-flow:row}
+}
+@media(max-width:430px){
+  .demo-toolbar{padding:0 14px;height:47px}
+  .demo-toolbar>span:last-child{font-size:9px;gap:6px}
+  .demo-brand{font-size:12px}
 }

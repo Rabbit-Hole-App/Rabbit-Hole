@@ -26,6 +26,11 @@ Copy, order and publish state: `src/landing/features-data.js`; pictures: `src/la
 No runtime script. A production build shows only `published` entries; a `VITE_COACHING_DEV` build adds staged ones.
 Capture conventions and the source-kit manifest live in C:/s/spec/landing-features/.
 
+Owner correction the same evening: every entry reuses the walkthrough's framed preview (the frame, header bar, layered
+back frames and dashed divider of the removed `features-demos.css`) with the picture on the left and the name, subtitle
+and description on the right; phones stack the frame above the copy. No step label or counter. The picture keeps its
+aspect ratio (`object-fit: contain`, 640 px max height); slot sizes: C:/s/spec/landing-features/LAYOUT-SLOTS.md.
+
 ## Stairway moved to Manifesto
 
 At the user's request on 2026-09-29, the existing scroll-built wireframe stairs
