@@ -9,7 +9,8 @@ import { answersInChat, EXAMPLES, runLearnCommand } from './learn-slash.js';
 import { commandsFor, setImageGeneration } from './agent/slash.js';
 import { reviewRequired } from './proposal-capabilities.js';
 
-const canvas = { startCad: async () => ({}), insertNotebook: () => 'n', insertBlock: () => 'b', insertPaper: () => 'p', reserve: () => 'slot:1', release: () => {}, dive: () => ({ notice: null }), openSources: () => ({}) };
+// briefs: a Chat canvas (simple material commands prepare a brief, material-brief.js).
+const canvas = { briefs: true, startCad: async () => ({}), insertNotebook: () => 'n', insertBlock: () => 'b', insertPaper: () => 'p', reserve: () => 'slot:1', release: () => {}, dive: () => ({ notice: null }), openSources: () => ({}) };
 const post = async () => ({ result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 't', body: 'b' } });
 const run = line => runLearnCommand(line, { app: 'demo', canvas, post, openSearch: () => ({ added: false }), motionDev: true }).catch(() => ({}));
 // User messages one submission makes: the Chat records the line unless the chat route owns it; the chat route records a { prompt }.

@@ -23,6 +23,7 @@ import { sameFileCard } from './file-to-canvas.js';
 import { mergeOutputs, openOutput, outputSink } from './chat-output-refs.js';
 import { cardStatus, imageProposalStatus, madeFromVersion, outputForProposal } from './generation-proposal-status.js';
 import { responseKind, turnIndex } from './chat-response-kind.js';
+import { briefHeading, isBriefCommand } from './material-brief.js';
 
 // UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its
 // proposal that has not made its card yet. A settings change saves the next version over this message (chat-proposal-route.js);
@@ -31,6 +32,7 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   const p = m.meta.proposal;
   const chat = useChatWorkspace(); // a reference pill opens its source beside the Chat, as an attached chip does
   const [busy, setBusy] = useState(false), [error, setError] = useState(null), [pressed, setPressed] = useState(false), [released, setReleased] = useState(0);
+  const making = useRef(false); // one material Generate in flight, even across two clicks in one frame
   const saved = /^\d+$/.test(String(m.messageId ?? ''));
   // Bug 2 (chat generation UX): the proposal's visual state is its REAL job's, read from the card it made on the canvas (the same block
   // the canvas card and the Chat's watch read), or from the output this turn saved for it after a reload; the local pressed flag only
@@ -144,6 +146,16 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
       });
       return;
     }
+    // A simple material brief (material-brief.js): the existing generator makes its card from the signed brief, once (the server
+    // consumes it; a failure gives it back, so Generate can be pressed again). busy covers the call; made only once the card is in.
+    if (startAdapter(p, ops) === 'material') {
+      if (pressed || making.current) return;
+      making.current = true; setBusy(true); setError(null); setPressedAt(new Date().toISOString());
+      ops.generateMaterial(p).then(({ blockId }) => { setPressed(true); if (blockId) { ops.locate?.(blockId); keepOutput(blockId); } })
+        .catch(failure => { const why = problemOf(failure); if (why.kind === 'used') setPressed(true); setError(why.message); })
+        .finally(() => { making.current = false; setBusy(false); });
+      return;
+    }
     const id = generateProposal(p, { inFlight: pressed, insertCard: ops.insertCard, wrap: block => withPrompt(block, p.input.request) });
     if (pressed) return; // one press in flight
     setPressed(true); setPressedAt(new Date().toISOString()); setError(null);
@@ -179,7 +191,7 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
     <div className="mt-2">
       {/* A motion or image proposal draws its job's status on the card itself (status), so it no longer reads Added to the canvas. */}
       <GenerationProposalCard proposal={p} active={active} made={cardKind ? false : made} released={released} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
-        {...(explainJob ? { eyebrow: EXPLAIN_REVIEW_HEADING, note: EXPLAIN_COST_NOTE, onCancel } : {})}
+        {...(explainJob ? { eyebrow: EXPLAIN_REVIEW_HEADING, note: EXPLAIN_COST_NOTE, onCancel } : isBriefCommand(p.command) ? { eyebrow: briefHeading(p.command) } : {})}
         status={status} startedAt={output?.startedAt || pressedAt} noun={cardKind === 'image' ? 'image' : 'video'} onGoToCard={goToCard}
         onStop={status?.canStop && ops?.stopGeneration ? () => ops.stopGeneration(status.cardId) : null} onStopFailed={setError}
         onEdit={onEdit} targeted={targeted} onGenerate={onGenerate} onSave={onSave} onOpenReference={ref => chat?.openSource?.({ sourceId: ref.sourceId, kind: ref.kind, name: ref.label, version: ref.revision, range: ref.range })} />

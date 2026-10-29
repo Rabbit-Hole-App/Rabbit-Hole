@@ -23,6 +23,7 @@ import { MOTION_DEFAULT_RATIO, MOTION_RATIOS, motionBinding, motionMaxCredits, m
 import { REVIEW_LISTS, escapeText, plainPrompt, reviewHash, reviewOf, validateReview } from '../../web/src/generation-review.js';
 import { imageQuote } from './image-providers.js';
 import { imageReadiness } from './image-settings.js';
+import { BRIEF_COMMANDS, isBriefCommand } from '../../web/src/material-brief.js';
 
 export const PROPOSAL_TTL_S = 24 * 60 * 60;
 const TITLE_MAX = 120, DESCRIPTION_MAX = 1500, REQUEST_MAX = 500, REFS_MAX = 8;
@@ -36,7 +37,9 @@ export const WIRED = Object.freeze(Object.keys(CHAT_CAPABILITIES).filter(reviewR
 // What the server may sign: the chat tool's commands plus /explain, whose brief the server prepares itself (EXP-T12/T16).
 // The chat model is offered only WIRED; /explain joins it when its capability is declared (Lane B, CHAT_CAPABILITIES).
 // IMG-01: /generate-image is signed (v3 only, chat-proposal-route.js) by the server from the person's own request: no chat model proposes it.
-export const SIGNABLE = Object.freeze([...new Set([...WIRED, 'explain', 'generate-image'])]);
+// Owner spec 2026-10-29: the simple material briefs (web/src/material-brief.js) are signed by the server from the person's own explicit command,
+// with no model call (chat-proposal-route.js material-proposals); they are never offered to the chat model (WIRED).
+export const SIGNABLE = Object.freeze([...new Set([...WIRED, 'explain', 'generate-image', ...BRIEF_COMMANDS])]);
 
 // Motion's settings (learn-render motion/duration.js DURATION). Audio On stays unavailable until narration works.
 // The bounds are the declaration's Duration field: one definition with the card.
@@ -308,7 +311,8 @@ export const PROPOSAL_STALE = 'A newer version of this proposal exists. Use the 
 export const PROPOSAL_EDIT_STALE = 'This proposal changed since you chose Edit. Review the latest version, then press Edit on it.';
 export const PROPOSAL_USED = 'This proposal already made a video. Ask for a new version in chat to make another.';
 // The used text per capability (Motion's unchanged).
-export const proposalUsedText = command => (command === 'explain' ? 'This proposal already made an explanation. Ask for a new version in chat to make another.' : command === 'generate-image' ? 'This proposal already made an image. Ask for a new one to make another.' : PROPOSAL_USED);
+export const proposalUsedText = command => (command === 'explain' ? 'This proposal already made an explanation. Ask for a new version in chat to make another.' : command === 'generate-image' ? 'This proposal already made an image. Ask for a new one to make another.'
+  : isBriefCommand(command) ? 'This brief already made its card. Send the command again to make another.' : PROPOSAL_USED);
 export const proposalState = p => ({ version: p.version, sig: p.sig, used: null });
 // -> {rows, root, state, current}: current is the published revision's proposal (null while its answer is being written).
 export async function proposalRecord(db, user, app, id) {
@@ -326,6 +330,15 @@ export async function proposalRecord(db, user, app, id) {
 // The compare-and-swap every change goes through: the root row exactly as it was read. -> a statement; run() changes 1 when it landed.
 const swapRoot = (db, root, state, meta = root.meta) => db.prepare('UPDATE chat_message_meta SET meta_json = ? WHERE message_id = ? AND meta_json = ?').bind(JSON.stringify({ ...meta, proposalState: state }), root.messageId, root.raw);
 const landed = result => result?.meta?.changes === 1;
+// The same compare-and-swap as one statement, for a batch that writes the revision's rows only when it lands (chat-proposal-route.js).
+export const publishStatement = (db, record, proposal) => swapRoot(db, record.root, proposalState(proposal));
+// A simple brief's Generate that made no card (a question back, a refusal, an error): its consumption by exactly this press is given
+// back, so the same revision can be generated again. Nothing else is touched; a newer state is left as it is. -> true when given back.
+export async function releaseProposal(db, p, user, app, key) {
+  const record = await proposalRecord(db, user, app, p.proposal_id).catch(() => null);
+  if (!record?.state?.used || record.state.used.key !== key) return false;
+  return landed(await swapRoot(db, record.root, { ...record.state, used: null }).run());
+}
 // A chat refinement publishes its new revision against the state its turn read. -> true when it became current.
 export async function publishRevision(db, record, proposal) {
   return landed(await swapRoot(db, record.root, proposalState(proposal)).run());

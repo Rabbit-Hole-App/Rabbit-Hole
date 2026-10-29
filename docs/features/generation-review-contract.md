@@ -185,7 +185,28 @@ revises exactly that revision, never the implicit latest proposal, never another
   model call), so they keep Edit details. A Motion or Explain proposal with attached references keeps Edit details too (neither chat
   path carries references).
 
+- **practice, quiz, flashcards, code, graph, diagram, 3d** (section 7b): `POST /api/learn/chat/material-proposals { revise: { proposal },
+  change }` publishes the next version of exactly that revision with no model call: the learner's words are added to the brief's
+  request (`input.changes`, said on the card as "Changes you asked for: ..."), never rewritten; a revision that is not the current one
+  is a 409 `proposal_edit_stale` with nothing stored. At most five changes per brief.
+
 The original stays in history; it reads Superseded with Generate disabled once the new revision is published.
+
+### 7b. Simple material briefs (owner spec 2026-10-29 section 6)
+
+An explicit /practice, /quiz, /flashcards, /code, /graph, /diagram or /3d typed in Chat, or handed to it by Ctrl+K, prepares a brief
+before anything is made: `POST /api/learn/chat/material-proposals { app, thread_id, command, request, selection?, context? }`
+(chat-proposal-route.js) builds a compact title and one sentence from the learner's words, else the selected card
+(`web/src/material-brief.js materialBrief`), with **no model call**, signs it as a v3 proposal (`SIGNABLE` gains these seven; the chat
+model's tool, `WIRED`, never offers them) and saves the user line and the brief's answer row in the chat exactly as an image plan is
+(owner-only canvas; existing `chat_message_meta` storage, no migration). The card is the shared GenerationProposalCard
+(`Review quiz` heading, the brief, limitations for /3d's paid scene, **Edit** through Chat, **Generate**; no Save, no prose form:
+schema `chat_edit`). Generate posts `/api/learn/artifact` with the signed brief (`ops.generateMaterial`, one press in flight): the
+server verifies it, consumes it once by that press (`consumeProposal`, before any model call: a second press is `proposal_used`) and
+runs the existing generator on the brief's own words, selection and context (`generationArgs`), never the body's. A press that makes
+no card (a question back, a refusal, an error) gives the consumption back (`releaseProposal`), so Generate can be pressed again; the
+card made carries `proposalId` (`madeFrom`). The Tutor's own create_material, Ctrl+K's automatic routing and a canvas without Chat
+keep the direct path: the brief is the explicit command's flow only.
 
 ## 8. Reference resolution before dispatch
 

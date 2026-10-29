@@ -35,9 +35,8 @@ export const ROUTES = Object.freeze({
 // Removed commands (/simplify, /example, /deeper and the rest, owner 2026-10-20) have no inline form either: typed, they are
 // unavailable (unavailableCommand); plain words ("explain it more simply") still route.
 export const NOT_INLINE = Object.freeze({
-  dive: 'navigation: opens a Rabbit Hole (use /dive or Start Rabbit Hole)',
   goal: 'goal management: opens your learning goals in Progress, unrelated to the selection',
-  notebook: 'adds an empty notebook, unrelated to the selection', whiteboard: 'adds an empty whiteboard, unrelated to the selection',
+  notebook: 'adds an empty notebook, unrelated to the selection', browser: 'adds a captured webpage, unrelated to the selection',
   practice: 'assessment, not explanation: it waits for the learner\'s answer in the chat',
   // Paid image generation (/image, id `generate-image`) has no inline route yet; it is off everywhere today (agent/slash.js IMAGE_GENERATION).
   'generate-image': 'paid image generation: use it from the chat composer',
@@ -138,13 +137,12 @@ export function readRoute(body, routes = ROUTES, meta = META) {
 //   confirmation or finder); settings: [] here; the shared card's fields are the canonical schema's (generation-confirmation-schema.js settingsOf). The Generate
 //   adapter stays web code (generation-proposal-chat.js). generation-proposal.js reads flow and settings from here.
 // Adding a capability is one entry here (plus, for a proposal, its settings validator and Generate adapter).
-// Not declared, so explicit only: /explain (not wired, owner), navigation and empty inserts (dive, notebook, whiteboard),
-// practice, compare, animate, walkthrough, cad, and the removed commands.
+// Not declared, so explicit only: empty inserts (notebook, browser), practice, cad, and the removed commands (/video, owner spec
+// 2026-10-29: a removed command is never a route's direct target).
 export const CHAT_ROUTE_PROTOCOL_VERSION = 'chat-route-c1';
 export const CHAT_ANSWER = Object.freeze({ intent: 'Reply in the chat: a question, an explanation, a definition, advice, or a question about a video, a picture, a feature or a tool (for example "can Motion make audio?" or "why is this video wrong?"), and any request that declines a format (for example "explain this, but don\'t make a video").' });
 export const CHAT_CAPABILITIES = Object.freeze({
   motion: { flow: 'proposal', intent: 'A new animated explainer video made for the learner, asked for as the output: for example "make this into a video" or "create a short animated explanation of X".' },
-  video: { flow: 'direct', intent: 'A new generated realistic video clip of a real-world scene or footage, not an explainer of an idea.' },
   'generate-image': { flow: 'direct', intent: 'A new AI-generated picture or illustration (made, not found).' },
   '3d': { flow: 'direct', intent: 'A new 3D model or 3D scene.' },
   diagram: { flow: 'direct', intent: 'A new diagram or flowchart card that draws structure or steps.' },

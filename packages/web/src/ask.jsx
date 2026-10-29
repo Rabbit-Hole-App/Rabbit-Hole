@@ -34,7 +34,7 @@ import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { composerKey } from './composer-keys.js';
 import { chatSendKey, sendKeyLabel } from './ui-prefs.js';
 import { answersInChat, commandLine, holdsLine, lineCommand, promptsChat, releaseLine } from './learn-slash.js';
-import { typedOf } from './agent/slash.js';
+import { toolOf, typedOf } from './agent/slash.js';
 import { mergeOutputs, outputSink } from './chat-output-refs.js';
 import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
 import { CadReview } from './CadReview.jsx';
@@ -42,6 +42,8 @@ import { openOnce } from './learn-opening.js';
 import { lateEvent, settle, withAnswerMeta, withDone, withSavedReply } from './chat-threads.js';
 import { approvesJob, currentProposal, editRefusal, editSpent, routeChat, routeOutcome } from './generation-proposal-chat.js';
 import { imageGenerationOn, requestImagePlan } from './generate-image.js';
+import { isBriefCommand, requestMaterialBrief } from './material-brief.js';
+import { problemOf } from './generation-review-client.js';
 import { loadImageCapability } from './image-capability.js';
 import { EXPLAIN_BRIEF_EVENT } from './explain-client.js';
 import RouteDecision from './RouteDecision.jsx';
@@ -470,9 +472,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // through the same idempotent save an Auto turn's question uses (chat-persist.js turnSaver: one client id per line, so a retry
   // writes it once). Cancel, failure and completion never touch it. A line whose words go on to the chat route (answersInChat)
   // is that route's turn and is saved there. Answers { onCard }: the sink the command's cards report to.
-  const recordCommand = raw => {
+  // handoff: Ctrl+K's line, about its own selection (LearnSlash exec), never the composer's armed card.
+  const recordCommand = (raw, handoff = null) => {
     const content = raw.trim();
-    if (!chatThread || !content || answersInChat(content)) return null;
+    if (!chatThread || !content || answersInChat(content, { selected: !!(handoff ? handoff.target?.id : canvasTarget?.id) })) return null;
     const turnId = crypto.randomUUID(), title = content.slice(0, 120), sentKey = chatThread.liveKey();
     chatThread.claim(); // a restore still on its way never replaces this line
     generation.dismissSettled();
@@ -724,6 +727,21 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       chatThread.adopt(made.thread_id, message.slice(0, 120));
       setThreads(ts => ts.some(t => t.id === made.thread_id) ? ts : [{ id: made.thread_id, title: message.slice(0, 120) }, ...ts]);
     };
+    // Owner spec 2026-10-29 section 6: an explicit simple material command (material-brief.js) or an Edit of its brief. The server
+    // builds the compact brief from these words and the selected card (no model call), signs it and saves it in this chat (a revision:
+    // the next version of exactly the targeted brief, or a 409 when it changed); the answer is the brief's card, and Generate makes it.
+    const materialPlan = async words => {
+      if (attached) throw new Error('This command does not take an attachment. Select a card on the canvas to use it.');
+      const chosen = about?.selection ?? (target ? { id: target.id, title: target.title, text: targetText } : null);
+      const made = await requestMaterialBrief(api, { app: chat.canvas, threadId: threadId.current || chatThread.id || newThreadId(), command: commandName, text: words, selection: chosen, edit });
+      if (late()) return;
+      if (edit) chat.editing.clear();
+      mirror(edit ? 'Here is the updated brief. Generate makes it.' : 'Here is the brief. Generate makes it.');
+      setMsgs(messages => withDone(withAnswerMeta(messages, replyId, { kind: 'answer', proposal: made.proposal }), replyId, { messageId: made.message_id }));
+      threadId.current = made.thread_id;
+      chatThread.adopt(made.thread_id, message.slice(0, 120));
+      setThreads(ts => ts.some(t => t.id === made.thread_id) ? ts : [{ id: made.thread_id, title: message.slice(0, 120) }, ...ts]);
+    };
     // The cards this answer committed to opening (a progress event's card): each holds its place on the canvas
     // until its card lands; whatever is still held when the answer ends goes (docs/features/canvas-skeleton-cards.md).
     const slots = {};
@@ -735,6 +753,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         return;
       }
       if (chat && chatThread && !regenerate && !viaTutor && commandName === 'generate-image' && imageGenerationOn()) { await imagePlan(message); return; }
+      if (chat && chatThread && !regenerate && (isBriefCommand(commandName) || (edit && isBriefCommand(edit.command)))) {
+        try { await materialPlan(message); } catch (failure) { if (edit) setInput(current => current || raw); throw new Error(problemOf(failure).message); }
+        return;
+      }
       // Tutor v1 (LearnTutor.jsx): on the NanoGPT Attention slice the Tutor answers instead of the
       // Learn chat - the learner's own words, and the card they armed or selected. On a journey canvas a turn the
       // journey takes comes back handled, with nothing drawn; a failed one gives the words back.
@@ -938,7 +960,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // the server reuses that turn's stored question, mode, command and refs, so nothing open now leaks in.
   // A command turn from another surface (chat.ask, MOT-20b: Ctrl+K's /motion): the same loop, about its own selection, and the
   // composer's draft and chips stay as they are.
-  useEffect(() => (chatThread ? chat.registerSender(({ regenerate, prompt, command: asked, about } = {}) => {
+  // Ctrl+K's explicit command (owner spec 2026-10-29 4.2): { line, about } runs through this Chat's own dispatcher (LearnSlash), as if
+  // typed here, about Ctrl+K's selection; the composer's draft and chips are never touched. false: not taken (another command runs).
+  useEffect(() => (chatThread ? chat.registerSender(({ regenerate, prompt, command: asked, about, line } = {}) => {
+    if (line) { if (!slashRef.current?.handoff) return false; promptCommand.current = lineCommand(line); return slashRef.current.handoff(line, { about: about ?? null, target: about?.selection ?? null }); }
     if (prompt) return send(prompt, undefined, { skipJourney: true, command: asked, prompted: true, about, keepDraft: true });
     const index = msgs.findIndex(m => m.messageId === regenerate?.messageId);
     const question = index > 0 ? msgs.slice(0, index).findLast(m => m.role === 'user')?.content : null;
@@ -1288,11 +1313,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         {!tocView && <CadReview ops={workspace?.canvasOps} />}
         {routeShown && <RouteDecision decision={routeShown} onDismiss={() => setRouteShown(null)} onChoose={id => send(routeShown.raw, undefined, { routeAs: id })}
           onAnswer={() => send(routeShown.raw, undefined, { routeAs: 'answer' })} onRetry={() => send(routeShown.raw, undefined, routeShown.command ? { command: routeShown.command, prompted: true } : {})} />}
-        {slash && <div className="relative"><slash.Picker apiRef={slashRef} scope={chatThread?.restore.key ?? null} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true, command: promptCommand.current, prompted: true })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
+        {slash && <div className="relative"><slash.Picker apiRef={slashRef} scope={chatThread?.restore.key ?? null} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={(prompt, handoff) => send(prompt, undefined, { skipJourney: true, command: promptCommand.current, prompted: true, ...(handoff ? { about: handoff.about, keepDraft: true } : {}) })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
         {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command} token={commandToken}
           onKeyDown={slash ? event => { if (removesToken(event, { command, selectionStart: event.target.selectionStart, selectionEnd: event.target.selectionEnd })) { event.preventDefault(); removeCommand(); return; } if (commandHistory(event)) return; slashRef.current?.onKeyDown(event);
-            if (busy && !event.defaultPrevented && composerKey(event.nativeEvent, chatSendKey()) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? `Add details, or press ${sendKeyLabel()}` : tray?.tray?.free_text ? 'Type your answer, or ask anything' : placeholder} busy={busy}
+            if (busy && !event.defaultPrevented && composerKey(event.nativeEvent, chatSendKey()) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? (toolOf(command)?.placeholder || `Add details, or press ${sendKeyLabel()}`) : tray?.tray?.free_text ? 'Type your answer, or ask anything' : placeholder} busy={busy}
           dock={dock} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
           stacked={!!chat} tocView={tocView} chips={chat && !tocView ? <ContextChips readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, attachedRefs))?.id ?? null}
             selection={canvasTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, card: canvasTarget.card, preview: canvasTarget.preview, paper: canvasTarget.paper, docPage: canvasTarget.docPage, image: canvasTarget.image, pinned: pinnedTarget, onClear: onClearCanvasTarget } : null} extra={boardPending}

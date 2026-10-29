@@ -2,17 +2,19 @@ import { openSlashHelp } from './canvas-menu-helpers.mjs';
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { DEV_CP } from './dev-cp.mjs';
+import { EXAMPLES } from '../src/learn-slash.js';
+import { BRIEF_COMMANDS, PREVIEWS } from '../src/slash-sheet.js';
+import { REMOVED_COMMANDS, SLASH, descFor } from '../src/agent/slash.js';
 
-// View > Slash commands on the parallel clone, then the Agent Bar's sheet on the Library: the search is focused on open and
-// filters by name and description; choosing a command shows the real card it
-// makes (the canvas's own card component) at its canvas size and working; paid
-// media shows a committed finished clip or model, or a labelled picture, never Generate;
-// /dive says what it opens. Every retained command shows a demo, what it does and an example; Use example prepares an
-// editable draft and sends nothing; the 17 removed commands appear nowhere, and the Agent Bar has no commands left (owner,
-// 2026-10-20). No model calls, nothing generated.
+// View > Slash Commands (owner spec 2026-10-29 sections 7, 8 and 9; src/SlashCommandsSheet.jsx, SlashCommandPreview.jsx, slash-sheet.js):
+// opened from View with a Chat draft written, which it keeps; the search is focused and filters by name and title; every listed
+// command shows its registry title and description, its example and one preview on the example's subject, fitted to the stage (the
+// whole card inside it, no outer scroller); a generator's View brief switches the same stage to its brief; Use example closes the
+// window and prepares the draft, never sending; at 1440x900, 1280x720 and 390x844, light and dark. No model call, search, capture
+// or paid request is made.
 // usage: node e2e/slash-sheet-check.mjs [screenshot dir]
 // A local stack instead: BASE=http://127.0.0.1:<app> SMALL_CP=http://127.0.0.1:<cp> node e2e/slash-sheet-check.mjs [dir] - a fresh
-// canvas, a session minted with packages/control-plane/.dev.vars, and /graph's card skipped (a keyless build has no Desmos key).
+// canvas and a session minted with packages/control-plane/.dev.vars.
 const LOCAL = process.env.BASE || null;
 if (LOCAL && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(LOCAL)) throw Error('BASE must be a local stack');
 const BASE = LOCAL || 'https://small-cp-dev-small-parallel.tryrabbithole.workers.dev';
@@ -28,145 +30,100 @@ if (LOCAL) {
 }
 let failed = 0;
 const ok = (name, condition, extra = '') => { if (!condition) failed += 1; console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${extra ? `  (${extra})` : ''}`); };
-const skip = (name, why) => console.log(`SKIP  ${name}  (local stack: ${why})`);
 const browser = await chromium.launch();
-const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
-const page = await context.newPage();
-const errors = [];
-page.on('pageerror', error => errors.push(error.message.slice(0, 160)));
-const paid = [];
-page.on('request', request => { if (request.method() === 'POST' && /\/api\/learn\/(image|video|scene|tts|artifact)/.test(request.url())) paid.push(request.url()); });
 const canvasName = LOCAL && (await (await fetch(`${BASE}/api/canvases`, { method: 'POST', headers: { 'Content-Type': 'application/json', cookie: `small_session=${session}` }, body: JSON.stringify({ title: 'Slash sheet check' }) })).json()).name;
-await page.goto(LOCAL ? `${BASE}/apps/${canvasName}` : `${BASE}/apps/repo-06745f10-nanogpt?tab=learn&board=sheet-${Date.now().toString(36)}`);
-await page.getByRole('menubar', { name: 'Canvas menu' }).waitFor({ timeout: 60000 });
-await openSlashHelp(page); // // Owner brief 2026-10-22: Slash commands left View for the chat composer's slash palette
-const sheet = page.getByRole('dialog', { name: 'Slash commands' });
-await sheet.waitFor();
-// The search: focused on open; a leading / is ignored; Enter takes the first match; Esc clears it before it closes the sheet.
-const search = sheet.locator('[data-slash-search]');
-const rows = sheet.locator('[data-slash-help]');
-const all = await rows.count();
-ok('the search is focused when the sheet opens', await search.evaluate(node => node === document.activeElement));
-await search.fill('/flash');
-ok('typing filters by command name, ignoring the leading /', await rows.count() === 1 && await rows.first().getAttribute('data-slash-help') === 'flashcards');
-await search.press('Enter');
-ok('Enter selects the first match', await sheet.locator('[data-slash-card="flashcards"]').waitFor({ timeout: 15000 }).then(() => true).catch(() => false));
-await search.fill('rabbit');
-ok('typing filters by description', await rows.count() === 1 && await rows.first().getAttribute('data-slash-help') === 'dive');
-await search.fill('zzz');
-ok('no match says so', await rows.count() === 0 && await sheet.getByText('No commands match').count() === 1);
-await page.keyboard.press('Escape');
-ok('Esc clears the search and keeps the sheet open', await search.inputValue() === '' && await sheet.isVisible() && await rows.count() === all, `${all} rows`);
-// Owner, 2026-10-20: every retained command is listed (More learning tools included, no /more); none of the 17 removed is,
-// nor /animate: /motion is the animation command (L8), offered by this development build.
-const RETAINED = ['dive', 'practice', 'quiz', 'goal', 'explain', 'code', 'graph', 'diagram', 'motion', 'flashcards', 'notebook', 'image', 'youtube', 'arxiv', 'wikipedia', 'whiteboard', 'video', 'cad', '3d'];
-const REMOVED = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper', 'animate'];
-const listed = await rows.evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp));
-ok('every retained command is listed', RETAINED.every(name => listed.includes(name)) && listed.length === RETAINED.length, listed.join(' '));
-ok('no removed command is listed', REMOVED.every(name => !listed.includes(name)));
-await sheet.screenshot({ path: `${SHOTS}/sheet-list.png` });
-// Each says what it is and does: menu label, whether it creates a card, opens or searches, its sentence, Sourced or AI-generated.
-const about = async name => { await sheet.locator(`[data-slash-help="${name}"]`).click(); return { label: await sheet.locator('[data-slash-label]').innerText(), effect: await sheet.locator('[data-slash-effect]').innerText(), media: await sheet.locator('[data-slash-media]').count() ? await sheet.locator('[data-slash-media]').innerText() : null, text: await sheet.locator('[data-slash-about]').innerText() }; };
-const explain = await about('explain');
-ok('/explain: Add explanation, creates a card', explain.label === 'Add explanation' && explain.effect === 'Creates a card' && explain.text.startsWith('Creates an explanation card on the canvas.'), JSON.stringify(explain));
-await sheet.screenshot({ path: `${SHOTS}/sheet-explain-about.png` });
-const dive = await about('dive');
-ok('/dive: Open Rabbit Hole, opens, says what it needs selected', dive.label === 'Open Rabbit Hole' && dive.effect === 'Opens a Rabbit Hole' && /selected card/.test(dive.text), JSON.stringify(dive));
-await sheet.screenshot({ path: `${SHOTS}/sheet-dive.png` });
-const image = await about('image'), video = await about('video'), youtube = await about('youtube'), three = await about('3d');
-ok('/photos searches and is Sourced; /video generates and is AI-generated; /youtube searches and is Sourced', image.label === 'Search photos' && image.effect === 'Searches' && image.media === 'Sourced'
-  && video.label === 'Generate video' && video.effect === 'Creates a card' && video.media === 'AI-generated' && youtube.media === 'Sourced', JSON.stringify([image, video, youtube]));
-ok('/3d reads Add 3D scene', three.label === 'Add 3D scene', three.label);
-ok('/image (id generate-image) is not advertised while image generation is off', !listed.includes('generate-image'));
-// Every command shows a demo: a card, what a source search does (Release B), or what /dive does.
-const missing = [];
-for (const command of await rows.evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp))) {
-  await sheet.locator(`[data-slash-help="${command}"]`).click();
-  if (!await sheet.locator('[data-slash-card], [data-slash-chat], [data-slash-finder], [data-slash-cad]').first().waitFor({ timeout: 15000 }).then(() => true).catch(() => false)) missing.push(command);
-  if(command==='cad'){
-    const text=await sheet.locator('[data-slash-cad]').textContent();
-    ok('CAD describes background work, clarification and explicit generation',text.includes('saved background job')&&text.includes('missing dimensions')&&text.includes('Selecting CAD does not start generation'));
+const errors = [], live = [];
+// Anything that would generate, search, capture, grade, transcribe or save from the window.
+const LIVE = /\/api\/(learn\/(artifact|image|video|scene|tts|search|photos|transcribe|coaching|webcard|explain|cad|motion)|ask)\b/;
+const VIEWPORTS = [{ width: 1440, height: 900 }, { width: 1280, height: 720 }, { width: 390, height: 844 }];
+const draftText = 'a question I am still writing';
+
+for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
+  const tag = `${viewport.width}x${viewport.height}-${scheme}`;
+  const context = await browser.newContext({ viewport, colorScheme: scheme });
+  await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
+  const page = await context.newPage();
+  page.on('pageerror', error => errors.push(`${tag}: ${error.message.slice(0, 160)}`));
+  page.on('request', request => { if (request.method() !== 'GET' && LIVE.test(new URL(request.url()).pathname)) live.push(`${tag} ${request.method()} ${request.url()}`); });
+  await page.goto(LOCAL ? `${BASE}/apps/${canvasName}` : `${BASE}/apps/repo-06745f10-nanogpt?tab=learn&board=sheet-${Date.now().toString(36)}`);
+  await page.getByRole('menubar', { name: 'Canvas menu' }).waitFor({ timeout: 60000 });
+  const composer = page.locator('[data-chat-pane] [data-chat-composer] textarea').first();
+  const hasComposer = await composer.isVisible().catch(() => false);
+  if (hasComposer) await composer.fill(draftText);
+  await openSlashHelp(page);
+  const sheet = page.getByRole('dialog', { name: 'Slash Commands', exact: true });
+  const search = sheet.locator('[data-slash-search]');
+  ok(`${tag}: View > Slash Commands opens the window with its search focused`, await search.evaluate(node => node === document.activeElement));
+  ok(`${tag}: title and subtitle`, (await sheet.locator('h2').innerText()) === 'Slash Commands' && await sheet.getByText('Choose a command to see what it does and try an example.').count() === 1
+    && (await search.getAttribute('placeholder')) === 'Find a command');
+  const narrow = viewport.width < 900;
+  const listed = narrow
+    ? await sheet.locator('[data-slash-select] option[data-slash-help]').evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp))
+    : await sheet.locator('button[data-slash-help]').evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp));
+  const offered = SLASH.map(command => command.name);
+  ok(`${tag}: lists only registry commands, at least the 16 always offered, none removed`, listed.length >= 16 && listed.length <= 18 && listed.every(name => offered.includes(name)) && !listed.some(name => REMOVED_COMMANDS.includes(name)), listed.join(' '));
+  const choose = async name => {
+    if (narrow) await sheet.locator('[data-slash-select]').selectOption(name);
+    else await sheet.locator(`button[data-slash-help="${name}"]`).click();
+    await sheet.locator(`[data-slash-pane="${name}"]`).waitFor({ timeout: 10000 });
+  };
+  if (!narrow) {
+    await search.fill('/flash');
+    ok(`${tag}: typing filters by name, ignoring the leading /`, (await sheet.locator('button[data-slash-help]').evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp))).join() === 'flashcards');
+    await search.press('Enter');
+    ok(`${tag}: Enter selects the first match`, await sheet.locator('[data-slash-pane="flashcards"]').count() === 1);
+    await search.fill('zzz');
+    ok(`${tag}: no match says so`, await sheet.getByText('No commands match').count() === 1);
+    await search.press('Escape');
+    ok(`${tag}: Esc clears the search and keeps the window open`, (await search.inputValue()) === '' && await sheet.isVisible());
   }
+  // Every listed command: its title, description, example and one fitted preview; a generator's brief in the same stage.
+  const fit = [];
+  for (const name of listed) {
+    await choose(name);
+    const command = SLASH.find(entry => entry.name === name);
+    const pane = sheet.locator(`[data-slash-pane="${name}"]`);
+    const copy = (await pane.locator('[data-slash-label]').innerText()) === descFor(command, 'learn') && (await pane.locator('[data-slash-about]').innerText()) === command.about
+      && (await pane.locator('[data-slash-example]').innerText()) === EXAMPLES[name];
+    ok(`${tag}: /${name} shows its title, description and example`, copy);
+    const shown = pane.locator('[data-slash-card], [data-slash-brief], [data-slash-goal], [data-slash-finder], [data-slash-unavailable]').first();
+    await shown.waitFor({ timeout: 20000 });
+    await page.waitForTimeout(name === 'graph' || name === 'diagram' || name === '3d' || name === 'explain' ? 1500 : 400);
+    const measure = async () => pane.evaluate(node => {
+      const stage = node.querySelector('[data-slash-stage]'), item = stage.firstElementChild;
+      const s = stage.getBoundingClientRect(), c = item.getBoundingClientRect(), d = node.closest('[role="dialog"]').getBoundingClientRect();
+      const card = stage.querySelector('[data-slash-card]');
+      return { stage: `${Math.round(s.width)}x${Math.round(s.height)}`, item: `${Math.round(c.width)}x${Math.round(c.height)}`, inside: c.left >= s.left - 1 && c.right <= s.right + 1 && c.top >= s.top - 1 && c.bottom <= s.bottom + 1,
+        overflow: card?.dataset.slashOverflow === 'true', page: document.scrollingElement.scrollHeight <= innerHeight + 1 && d.bottom <= innerHeight + 1 };
+    });
+    const result = await measure();
+    fit.push(`${name} ${result.item} in ${result.stage}`);
+    ok(`${tag}: /${name} preview fits its stage (whole card, no outer scroll${name === 'notebook' ? '' : ', nothing hidden inside'})`, result.inside && result.page && (name === 'notebook' || !result.overflow), JSON.stringify(result));
+    await page.screenshot({ path: `${SHOTS}/${tag}-${name}.png` });
+    if (BRIEF_COMMANDS.includes(name) && PREVIEWS[name].kind !== 'none') {
+      await pane.locator('[data-slash-view="brief"]').click();
+      await pane.locator(`[data-slash-brief="${name}"]`).waitFor({ timeout: 10000 });
+      const brief = await measure();
+      ok(`${tag}: /${name} View brief shows its brief in the same stage, Generate disabled`, brief.inside && await pane.locator('[data-slash-card]').count() === 0 && await pane.locator('[data-proposal-generate]').isDisabled(), JSON.stringify(brief));
+      await page.screenshot({ path: `${SHOTS}/${tag}-${name}-brief.png` });
+      await pane.locator('[data-slash-view="result"]').click();
+    }
+  }
+  console.log(`fit ${tag}: ${fit.join('; ')}`);
+  // Use example: the window closes and the example becomes the draft's pill and words, after the draft already written; nothing sent.
+  if (hasComposer && listed.includes('quiz')) {
+    await choose('quiz');
+    await sheet.locator('[data-slash-use-example="quiz"]').click();
+    await sheet.waitFor({ state: 'detached', timeout: 5000 });
+    const value = await composer.inputValue();
+    ok(`${tag}: Use example keeps the written draft, adds the example's words and the quiz pill, and sends nothing`,
+      value.startsWith(draftText) && value.endsWith("Newton's second law") && await page.locator('[data-chat-pane] [data-command-pill="quiz"]').count() >= 1, value);
+    await page.screenshot({ path: `${SHOTS}/${tag}-use-example.png` });
+  } else {
+    await page.keyboard.press('Escape');
+  }
+  await context.close();
 }
-ok('every command shows a demo', missing.length === 0, missing.join(' '));
-// The card a command makes: [data-slash-card] and a readiness hint per card type.
-// /explain opens on its interactive visual (L10): a stored real /explain scene drawn by the scene renderer.
-const expect = { graph: '.dcg-container, canvas', quiz: 'button', diagram: '.react-flow__node', motion: 'video[data-lesson-video]', explain: 'svg [data-animation-object]', notebook: 'iframe', code: 'pre, code' };
-for (const [command, ready] of Object.entries(expect)) {
-  if (LOCAL && command === 'graph') { skip('/graph shows its real card', 'no Desmos key in a keyless build'); continue; }
-  await sheet.locator(`[data-slash-help="${command}"]`).click();
-  const card = sheet.locator('[data-slash-card]');
-  await card.waitFor({ timeout: 15000 });
-  const drawn = await card.locator(ready).first().waitFor({ timeout: 20000 }).then(() => true).catch(() => false);
-  // The canvas width of that card type (CanvasNode: BLOCK_TYPES width, or 380; notebook 640); an animation is sized from its scene.
-  const widths = { graph: 560, quiz: 380, flow: 560, mathAnimation: 560, videoGenerate: 560, explanation: 440, notebook: 640, walkthrough: 420, snippet: 520, animation: null };
-  const type = await card.getAttribute('data-slash-card');
-  const width = Math.round((await card.boundingBox()).width);
-  await page.waitForTimeout(800);
-  await sheet.screenshot({ path: `${SHOTS}/sheet-${command}.png` });
-  ok(`/${command} shows its real card (${type}) at its canvas width`, drawn && (widths[type] === null ? width >= 400 : width === widths[type]), `${width}px`);
-}
-// Interactive as on the canvas: answering the quiz reveals why; paid Generate is off.
-await sheet.locator('[data-slash-help="quiz"]').click();
-await sheet.locator('[data-slash-card="quiz"]').getByRole('button').first().click();
-ok('the quiz card works: choosing an option answers it', await sheet.locator('[data-slash-card="quiz"]').innerText().then(text => /differentiate|σ|sigma/i.test(text)));
-// Paid media always shows a finished example from committed files, on any stack: /motion plays a real Motion video (the
-// committed final.mp4 of job 8a2015a4, L8, played from a blob URL so it seeks); /3d shows its scene card ready in the canvas's 3D
-// viewer on the committed model (slash-3d-check.mjs covers it in full); /video shows a labelled picture of the finished card.
-// No Generate card.
-await sheet.locator('[data-slash-help="motion"]').click();
-const clip = sheet.locator('[data-slash-card] video[data-lesson-video]');
-const plays = await clip.waitFor({ timeout: 20000 }).then(() => clip.evaluate(node => new Promise(done => { if (node.readyState >= 1) return done(node.duration); node.addEventListener('loadedmetadata', () => done(node.duration), { once: true }); setTimeout(() => done(0), 15000); }))).catch(() => 0);
-ok('/motion plays its real Motion video, not a Generate card', Math.round(plays) === 15 && (await clip.getAttribute('src')).startsWith('blob:') && await sheet.locator('[data-slash-card]').getByText('Softmax: Turning Attention Scores into Weights').count() === 1 && await sheet.locator('[data-slash-card] [data-generate-video]').count() === 0, `${plays}s`);
-await sheet.screenshot({ path: `${SHOTS}/sheet-motion.png` });
-await sheet.locator('[data-slash-help="3d"]').click();
-const model = sheet.locator('[data-slash-card="scene"] [data-three-d-viewer]');
-const shown = await model.waitFor({ timeout: 15000 }).then(() => sheet.locator('[data-slash-card="scene"] [data-three-d-viewer][data-viewer-live] canvas').waitFor({ timeout: 20000 })).then(() => true, () => false);
-ok('/3d shows its scene card live on the committed model, not a picture or a Generate card', shown && await sheet.locator('img[data-slash-illustration]').count() === 0 && await sheet.locator('[data-slash-card] [data-generate-scene]').count() === 0);
-await sheet.screenshot({ path: `${SHOTS}/sheet-3d.png` });
-for (const [command, type] of [['video', 'videoGenerate']]) {
-  await sheet.locator(`[data-slash-help="${command}"]`).click();
-  // decode(), not naturalWidth: an SVG with only a viewBox loads with naturalWidth 0; decode() rejects only a broken image.
-  const picture = sheet.locator(`[data-slash-card="${type}"] img[data-slash-illustration]`);
-  const drawn = await picture.waitFor({ timeout: 15000 }).then(() => picture.evaluate(node => node.decode().then(() => true, () => false))).catch(() => false);
-  ok(`/${command} shows a labelled picture of the finished card, not a Generate card`, drawn && await sheet.locator(`[data-slash-card="${type}"]`).getByText('Illustration.').count() === 1 && await sheet.locator('[data-slash-card] [data-generate-video], [data-slash-card] [data-generate-scene]').count() === 0);
-  await sheet.screenshot({ path: `${SHOTS}/sheet-${command}.png` });
-}
-await sheet.locator('[data-slash-help="dive"]').click();
-const diveDemo = sheet.locator('[data-slash-chat="dive"]');
-ok('/dive says what it opens and adds no card', await sheet.locator('[data-slash-card]').count() === 0 && (await diveDemo.innerText()).includes('/dive how cells produce ATP'));
-await sheet.locator('[data-slash-help="diagram"]').click();
-await sheet.getByRole('tab', { name: 'Mermaid diagram' }).click();
-ok('a command with several cards switches between them', await sheet.locator('[data-slash-card="mermaid"]').count() === 1);
-await search.focus();
-await page.keyboard.press('Escape');
-ok('Esc with an empty search closes the sheet', await sheet.waitFor({ state: 'detached', timeout: 5000 }).then(() => true).catch(() => false));
-// Use example (owner, 2026-10-20): the example becomes an editable draft - the command's pill and its words - in the Chat
-// composer, and nothing is sent.
-await openSlashHelp(page); // // Owner brief 2026-10-22: Slash commands left View for the chat composer's slash palette
-await sheet.waitFor();
-await sheet.locator('[data-slash-help="explain"]').click();
-const posted = paid.length;
-await sheet.locator('[data-slash-use-example="explain"]').click();
-await sheet.waitFor({ state: 'detached', timeout: 5000 });
-const chatComposer = page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
-await chatComposer.waitFor({ timeout: 10000 });
-const draftPill = page.locator('[data-chat-pane] [data-command-pill]');
-await page.waitForTimeout(500);
-ok('Use example: the composer holds the Add explanation pill and the words, editable, focused, not sent',
-  await draftPill.getAttribute('data-command-pill') === 'explain' && (await draftPill.innerText()).trim() === 'Add explanation' && await chatComposer.inputValue() === 'how binary search works'
-  && await chatComposer.evaluate(node => node === document.activeElement) && paid.length === posted, `${await chatComposer.inputValue()} / ${paid.length - posted} posts`);
-await page.screenshot({ path: `${SHOTS}/use-example-draft.png` });
-await chatComposer.fill('how merge sort works');
-ok('the drafted words can be edited before sending', await chatComposer.inputValue() === 'how merge sort works' && paid.length === posted);
-// The Library has no Agent Bar at all (owner, 2026-10-22: the composer is removed from Home, Library and Explore), so no / commands
-// sheet, Auto picker or removed-command note can show there. Library, so nothing here asks a model.
-await page.goto(`${BASE}/library`);
-await page.locator('main').first().waitFor({ timeout: 60000 });
-await page.waitForTimeout(500);
-ok('the Library has no bar: no composer, picker, Auto button or / commands sheet', await page.locator('[data-agent-bar], main textarea, main [data-chat-composer], [role="listbox"], [data-bar-slash-help]').count() === 0);
-await page.screenshot({ path: `${SHOTS}/library-no-bar.png` });
-ok('no page errors and no paid request', errors.length === 0 && paid.length === 0, `${errors.join(' | ')} ${paid.join(' ')}`);
+ok('no page errors and no live request from the window', errors.length === 0 && live.length === 0, `${errors.join(' | ')} ${live.join(' ')}`);
 await browser.close();
 process.exit(failed ? 1 : 0);

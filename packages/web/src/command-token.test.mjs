@@ -93,7 +93,7 @@ test('Undo and Redo bring back the pill and its command together, step by step, 
 
 test('the composer draws the pill inline before the text, and without a command draws no token', () => {
   const html = composer({ value: 'Create a camera frustum', token: pill('3d') });
-  assert.match(html, /<div data-command-token="true" class="relative overflow-hidden"><span class="absolute z-\[1\] flex left-1 top-0"><span data-command-pill="3d"[^>]*>.*?3D.*?aria-label="Remove 3D".*?<\/span><\/span><textarea [^>]*style="text-indent:0"/);
+  assert.match(html, /<div data-command-token="true" class="relative overflow-hidden"><span class="absolute z-\[1\] flex left-1 top-0"><span data-command-pill="3d"[^>]*>.*?>3d<.*?aria-label="Remove 3D scene".*?<\/span><\/span><textarea [^>]*style="text-indent:0"/);
   assert.ok(html.indexOf('data-command-pill') < html.indexOf('<textarea'), 'the pill comes before the text');
   assert.ok(html.indexOf('<textarea') < html.indexOf('data-composer-toolbar'), 'and the toolbar holds no pill');
   const plain = composer({ value: 'hi' });
@@ -137,10 +137,10 @@ test('the transcript renders the pill inline with the words, with no x and no ac
   ];
   const before = JSON.stringify(msgs);
   const html = transcript(msgs);
-  assert.match(html, /<span class="whitespace-pre-wrap break-words"><span data-command-pill="motion" data-command-tone="motion" class="[^"]*"><span class="inline-flex items-center gap-1 font-medium">Motion<\/span><\/span>15s explain photosynthesis\nwith leaves<\/span>/);
-  assert.match(html, /data-command-pill="3d"[^>]*><span [^>]*>3D<\/span><\/span>a cube<\/span>/);
+  assert.match(html, /<span class="whitespace-pre-wrap break-words"><span data-command-pill="motion" data-command-tone="motion" class="[^"]*"><span class="inline-flex items-center gap-1 font-medium">motion<\/span><\/span>15s explain photosynthesis\nwith leaves<\/span>/);
+  assert.match(html, /data-command-pill="3d"[^>]*><span [^>]*>3d<\/span><\/span>a cube<\/span>/);
   assert.match(html, />what does \/motion do\?</);
-  assert.doesNotMatch(html, /Remove Motion|Remove 3D|Change the command|>\/motion 15s|>\/3d a cube/);
+  assert.doesNotMatch(html, /Remove Animated explainer|Remove 3D scene|Change the command|>\/motion 15s|>\/3d a cube/);
   assert.equal((html.match(/data-command-pill/g) || []).length, 2);
   assert.equal(JSON.stringify(msgs), before, 'stored text and command untouched');
 });

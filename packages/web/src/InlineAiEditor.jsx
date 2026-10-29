@@ -30,8 +30,8 @@ import { inlineProvenance, cardId, cardTx, describeChange, editTx, explainConnec
 import { createInlineSession, routeColumn, stageTimings } from './inline-ai-session.js';
 import { layoutDiagram, toCanvasObjects, validateDiagram } from './inline-diagram.js';
 import { placeResult, regionStyle } from './inline-placement.js';
-import { PROMPT_MAX, routeLabel, selectionSummary } from './inline-ai-route.js';
-import { ctrlkCommands, filterCommands, pick, pickerQuery, showsPill, submission, switchMode, unsupportedText } from './inline-ai-command.js';
+import { PROMPT_MAX, routeLabel, selectionSubject, selectionSummary } from './inline-ai-route.js';
+import { HANDOFF_REFUSED, ctrlkCommands, filterCommands, pick, pickerQuery, showsPill, submission, switchMode, unsupportedText } from './inline-ai-command.js';
 import { descFor, typedOf } from './agent/slash.js';
 import CommandPill from './CommandPill.jsx';
 import { CommandMark } from './CommandTone.jsx';
@@ -114,6 +114,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const explainTarget = !!config.explainEdit && !readOnly && !target.creation && target.ids?.length === 1 && canvas.board?.().blocks?.find(block => block.id === target.ids[0] && block.type === 'animation');
   const explainEditReason = explainTarget ? explainEditProblem(explainTarget) : null;
   const [explainError, setExplainError] = useState('');
+  const [handoffError, setHandoffError] = useState('');
   const cardEditReason = !imageTarget && !notebookTarget && !cadTarget && !target.creation && (explainTarget ? explainEditReason : cardEditSelectionReason(target.ids || [], canvas.board?.() || {}));
   const fileLocked = !imageTarget && !cadTarget && !target.creation && fileEditLocked(target.ids || [], canvas.board?.());
   const [mode, setMode] = useState(target.creation || fileLocked || cardEditReason ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain');
@@ -319,12 +320,12 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     });
   };
   // The / commands (inline-ai-command.js): the registry's Ctrl+K list for this canvas, filtered as the line is typed.
-  const offered = useMemo(() => ctrlkCommands({ enabled: config.enabled ?? null, sources: !!config.openSearch, motionDev: true }), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const offered = useMemo(() => ctrlkCommands({ sources: !!config.openSearch, motionDev: true }), []); // eslint-disable-line react-hooks/exhaustive-deps
   const query = command || readOnly ? null : pickerQuery(prompt);
   const pickerOpen = query !== null && !pickerShut;
   const matches = pickerOpen ? filterCommands(offered, query) : [];
   const focusField = () => field.current?.focus({ preventScroll: true });
-  const typing = value => { setCadConfirmation(null); setPrompt(value); setActive(0); setRefused(null); if (pickerQuery(value) === null) setPickerShut(false); };
+  const typing = value => { setCadConfirmation(null); setPrompt(value); setActive(0); setRefused(null); setHandoffError(''); if (pickerQuery(value) === null) setPickerShut(false); };
   // Picked: the command and its mode (a generation command selects Explain); the line is then its words.
   const choose = entry => { const next = pick({ mode, text: '' }, entry); setMode(next.mode); setCommand(next.command); setPrompt(next.text); setRefused(null); focusField(); };
   const changeMode = value => { const next = switchMode({ command, text: prompt }, value); setMode(next.mode); setCommand(next.command); };
@@ -344,8 +345,22 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     // A source search where no finder can open (an embed without one) is said like any command Ctrl+K lacks here.
     if (out.unsupported || (out.source && !config.openSearch)) { setRefused(out.unsupported || out.source.source); return; }
     if (out.source) { openFinder(out.source); return; }
+    // An explicit command (owner spec 2026-10-29 4.2): handed to Chat's dispatcher as its typed line, about THIS selection as it is
+    // now (its first id and every object's words), and Ctrl+K closes. Chat asks, prepares the brief or acts, and the result lands on
+    // this canvas through Chat's own output path. Nothing is generated here. Not taken (Chat busy or not open in time): the line stays.
+    if (out.handoff) {
+      if (!config.handoff) { setRefused(typedOf(out.handoff.command)); return; }
+      const objects = target.creation ? [] : (prepare(selectionOnly, out.handoff.line).context?.target?.objects || []);
+      const words = objects.map(entry => String(entry.range?.text ?? entry.text ?? '').trim()).filter(Boolean).join('\n').slice(0, 8000);
+      const title = selectionSubject({ target: { objects } }).slice(0, 100) || null;
+      const selection = target.ids?.length ? { id: target.ids[0], kind: objects.length === 1 ? [objects[0].type, objects[0].kind].filter(Boolean).join(':') : 'Selection', title, text: words } : null;
+      setHandoffError('');
+      if (await config.handoff(out.handoff.line, { selection, concept: title })) { onClose(); return; }
+      setHandoffError(HANDOFF_REFUSED);
+      return;
+    }
     if (out.mode !== mode) setMode(out.mode);
-    if(out.command==='cad' || (out.mode==='edit' && cadTarget)) {
+    if(out.mode==='edit' && cadTarget) {
       if(!out.text.trim()){setCadError('What would you like to create or change?');return;}
       setCadError('');
       if(!config.cad){setCadError('CAD generation is not available on this canvas.');return;}
@@ -359,14 +374,6 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       try { await config.explainEdit(explainTarget, out.text.trim()); onClose(); }
       catch (problem) { setExplainError(problem.message); }
       return;
-    }
-    // EXP-T20 slice 3: a command-bearing /explain is the shared /explain job and its card, with the selection's words as
-    // context (no routing call). Where v2 is off here (null) it is sent as before.
-    if (out.command === 'explain' && out.text.trim() && config.explainCreate) {
-      setExplainError('');
-      const context = (prepare(selectionOnly, out.text).context?.target?.objects || []).map(entry => String(entry.range?.text ?? entry.text ?? '').trim()).filter(Boolean).join('\n').slice(0, 8000);
-      try { if (await config.explainCreate(out.text.trim(), { context: context || null, source: 'command' })) { onClose(); return; } }
-      catch (problem) { setExplainError(problem.message); return; }
     }
     submit(out.prompt, out.mode);
   };
@@ -613,7 +620,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         if (matches.length) setActive(index => (index + (event.key === 'ArrowDown' ? 1 : matches.length - 1)) % matches.length);
         return;
       }
-      if ((event.key === 'Enter' || event.key === 'Tab') && !event.shiftKey && !event.ctrlKey && !event.metaKey && matches.length) { event.preventDefault(); choose(matches[Math.min(active, matches.length - 1)]); return; }
+      // A command typed in full (/notebook) is sent by this Enter, as in Chat (owner spec 2026-10-29 5.3); a partial word is picked.
+      const exact = event.key === 'Enter' && offered.some(command => typedOf(command.name) === query || command.aliases?.includes(query));
+      if ((event.key === 'Enter' || event.key === 'Tab') && !exact && !event.shiftKey && !event.ctrlKey && !event.metaKey && matches.length) { event.preventDefault(); choose(matches[Math.min(active, matches.length - 1)]); return; }
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setPickerShut(true); return; }
     }
     const what = composerKey(event.nativeEvent);
@@ -911,6 +920,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         {cadConfirmation && <PaidConfirm message="Generate this CAD revision? Bounded generation includes model and executor work." onCancel={()=>setCadConfirmation(null)} onGenerate={generateCad} />}
         {explainError && <p data-explain-edit-status role="status" className="mt-2 text-xs text-ink-2">{explainError}</p>}
         {(cadPending || cadError) && <p data-cad-submit-status role="status" className="mt-2 text-xs text-ink-2">{cadPending ? 'Saving the CAD job' : cadError}</p>}
+        {handoffError && <p data-inline-handoff-refused role="status" className="mt-2 text-xs text-ink-2">{handoffError}</p>}
         {refused && <p data-inline-unsupported={refused} role="status" className="mt-2 text-xs text-ink-2">{unsupportedText(refused)}</p>}
         {state.declined && <p data-inline-decision={state.declined.decision} role="status" className="mt-2 text-xs text-ink-2">{state.declined.message}</p>}
         {state.error && <p data-inline-error role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-[#b42318]">{state.error}

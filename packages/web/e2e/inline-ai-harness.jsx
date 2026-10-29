@@ -146,6 +146,9 @@ const config = {
   transport, enabled, mocked: true, flushMs: params.has('flush') ? Number(params.get('flush')) : 50, prepareOnOpen: params.get('prep') !== '0',
   // MOT-20b: a proposed capability (/motion) is handed to the Chat (LearnPage chat.ask); recorded here, as the Chat would take it.
   propose: (command, args, about) => { if (command !== 'motion' || !motionOn) return false; mock.calls.push({ type: 'propose', command, args, about }); return true; },
+  // Owner spec 2026-10-29 4.2: an explicit command is handed to Chat as its typed line (LearnPage chat.ask { line, about }); recorded
+  // here, as the Chat would take it.
+  handoff: (line, about) => { mock.calls.push({ type: 'handoff', line, about }); return true; },
   extras: () => ({ title: 'Inline AI test board' }),
   sendTelemetry: rows => { mock.telemetry.push(...rows); },
   openSearch: seed => { mock.calls.push({ type: 'openSearch', source: seed.source, query: seed.query }); return new Promise(done => openSearch({ ...seed, done })); },

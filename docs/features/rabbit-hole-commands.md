@@ -15,6 +15,55 @@ a second command list.
 
 smart-home does not edit `ask.jsx` or `LearnPage.jsx`.
 
+## The 18 commands (owner spec 2026-10-29, slash commands cleanup)
+
+Binding. It supersedes the Places and Commands rows below, the 2026-10-20 retained-per-surface lists and the Ctrl+K set of
+Release B wherever they disagree; those sections are history.
+
+**Catalogue** (`agent/slash.js` `SLASH`, sections `LEARN_MENU`, shared by the Chat picker, Ctrl+K and View > Slash Commands):
+
+| Section | Commands (display name; typed with a leading /) |
+|---|---|
+| Learn | explain, practice, quiz, flashcards, goal |
+| Create | code, graph, diagram, notebook, image, motion, cad, 3d, browser |
+| Search | photos, youtube, arxiv, wikipedia |
+
+Stable ids are unchanged: typed /photos is id `image`, typed /image is id `generate-image` (alias /generate-image, not a 19th
+command). /image needs the server's image offer and /motion a Motion build; where either is off it is not listed and, typed, says
+why on both surfaces. Explain Back is a mode of the Practice card (/practice explain it back: ...), never a command.
+
+**Removed:** /dive, /whiteboard and /video (`REMOVED_COMMANDS`). Typed on any surface, each says it is no longer available and
+runs nothing. The Tutor keeps whiteboard and video as internal material tools (`MATERIAL_TOOLS`); saved Whiteboard and Video cards,
+Motion, Rabbit Hole navigation and Start Rabbit Hole (the card menu) stay. A Rabbit Hole about a topic with no card (the old
+`/dive <topic>` anchor) has no entry point now.
+
+**Added:** /browser, the existing saved webpage capture (`insertWebpage`): no URL opens the address dialog; a URL is checked by the
+paste rule (`canvas-paste.js isWebUrl`) and captured; anything else keeps the line and asks for a full https:// address. It is
+never a web search and never an interactive browser.
+
+**One dispatcher.** Ctrl+K offers the same list (`inline-ai-command.js ctrlkCommands`) and hands every explicit command to Chat
+as its typed line about Ctrl+K's own selection (`submission` -> `{ handoff }`, LearnPage `handoff` -> `chat-workspace ask({ line,
+about })` -> LearnSlash `handoff`): Chat runs it through `runLearnCommand` exactly as if typed there, without touching the Chat
+draft (a kept line only fills an empty composer). A turn asked while Chat is opening waits for its send loop (up to 8 s); while
+another command runs in Chat the line stays in Ctrl+K and says so. Nothing is checked or generated in Ctrl+K for an explicit
+command, and the inline `/diagram` shapes alias is never reached by one. The source searches keep Ctrl+K's own finder (result
+choice, placement and focus return); plain words keep the inline editor.
+
+**Bare commands and optional words:** /notebook (empty notebook; words never write one), /goal (Learning goals; words prefill an
+unsaved goal), /browser (address dialog), /photos (the photo-search card), /youtube, /arxiv, /wikipedia (the finder on that
+source) work with no words. The eleven generators need a subject: their words, else the selected card; with neither they ask and
+keep the line. A bare /explain about a selected card runs the same explicit Explain job.
+
+**Enter:** a command typed in full (`/notebook`, an exact typed name or alias) runs on that Enter in Chat and Ctrl+K
+(`learn-slash.js exactCommand`); a partial word accepts the highlighted suggestion and the next Enter sends.
+
+**Briefs:** explain, practice, quiz, flashcards, code, graph, diagram, image, motion, cad and 3d prepare a brief before anything is
+made. Explain, Motion, Image and CAD keep their own planners and approval; the seven simple ones use the compact brief of
+`material-brief.js` (docs/features/generation-review-contract.md section 7b).
+
+**Display:** marks and pills show the typed name without its slash (`explain`, `photos`, `3d`); the slash stays in typed syntax,
+copyable examples and saved messages. A pill's x is named by the command's title (Remove Photo search).
+
 ## Slash-command cleanup (owner, 2026-10-20)
 
 Binding owner requests of 2026-10-20 (the L7 lane, branch `ui/slash-cleanup`). They replace the older rows below where they
@@ -350,3 +399,30 @@ Since 2026-10-06 the global composer is workspace chrome ([workspace-dock.md](wo
 workspace from the sidebar to the window edge and passes `flat`, a hairline shadow instead of `shadow-pop`. Height,
 radius, border, `+`, Auto and Send stay shared; the Learn composer keeps its float and width. `wp6-composer-parity`'s
 shadow comparison predates this and needs the same exception.
+
+## Slash Commands window (owner spec 2026-10-29 sections 7 to 9)
+
+Opened from **View > Slash Commands** (the canvas menubar, `canvas-menus.js` `onSlashCommands`; a canvas with no Chat composer has no
+row) and from the / palette's help button; both open LearnPage's `slashHelpOpen` sheet. Opening it leaves the Chat draft as written.
+
+- Copy: title **Slash Commands**; subtitle **Choose a command to see what it does and try an example.**; search **Find a command**;
+  **Use example**; **View brief** / **View result**; note **Example preview. Nothing is generated or saved here.**
+- It lists `pickerSections('/')` (Learn, Create, Search), so it shows what the picker offers in this build. Each command shows its
+  registry title (`desc`), description (`about`) and example (`learn-slash.js` `EXAMPLES`), then one preview on the example's
+  subject (`slash-sheet.js` `PREVIEWS`, help/demo data only). Generators show the finished result; View brief shows the same
+  stage's brief in the shared `GenerationProposalCard` with no action allowed (`slash-sheet.js` `BRIEFS`, `briefView`).
+- Use example closes the window and calls `chat.composer.prepare({ command, text })`: the command pill and the example's words,
+  after any draft already written (chat-draft.js A6). It never sends.
+- Fit (`SlashCommandPreview.jsx`): the stage is measured (ResizeObserver); a card takes at most its canvas size and at most the
+  stage, and a card whose content keeps a shape (an explanation's scene, a video) is narrowed or shortened until the whole card
+  fits. No outer scroller. Desktop: dialog `min(1120px, 100vw - 32px)` by `100dvh - 32px`, 16px padding, 224px command column, 16px
+  gap, 12px pane padding. Below 900px the column becomes a search and a selector above the preview; on a phone the dialog takes
+  the full screen with 12px padding and 44px controls.
+- Isolation: Learning Goals runs on coaching of its own whose saves say nothing is saved; the finder is `SearchBar.jsx`'s
+  `FinderPanel` presentation on fixture results (no search, no remembered source, Add to canvas adds nothing); the notebook is
+  `NotebookBody preview` (no notebook site, kernel or save); Speak, Find, Generate and paid starts inside a card do nothing; the
+  practice card's feedback is canned and labelled as an example.
+- Previews with no matching saved result say so instead of showing another subject: `/image` and `/cad` show their brief only,
+  `/browser` states that no capture ships with the window, and `/photos`, `/youtube` and `/wikipedia` show the search with no
+  results ("This window does not search"). `/arxiv` shows arXiv 1706.03762's real record.
+- Checks: `slash-sheet.test.mjs`, `canvas-menus.test.mjs`; browser: `e2e/slash-sheet-check.mjs`, `e2e/view-menu-check.mjs` (17).

@@ -2,7 +2,7 @@
 // /api/learn/artifact answer is replayed in the browser - by default the authoring contract's own example, or with
 // SCENES=<dir> each recorded real /explain answer there (<id>.json: { args, response }) - and every other model-capable request
 // is aborted and counted, so this check never calls a model.
-//   1. the selected-command pill reads "Add explanation", with no /;
+//   1. the selected-command pill reads "explain", with no / (owner spec 2026-10-29: the typed name);
 //   2. an interactive /explain answer becomes an Animation card drawn by the scene renderer, with its controls;
 //   3. every control setting, every combination of the controls included (inputStates, as the gates and the verifier see them):
 //      the card's values and texts are the ones the scene evaluator computes for it (scene-evaluate.js);
@@ -135,13 +135,13 @@ const controlValue = async (card, declaration) => {
 let { context, page } = await open();
 const commandWords = 'interactive: how binary search narrows the range';
 
-await step('the selected-command pill reads "Add explanation", with no /', async () => {
+await step('the selected-command pill reads "explain", with no /', async () => {
   const box = composerOf(page);
   await box.click(); await box.fill('/expl');
   await page.locator('[data-slash-command="explain"]').click();
   const pill = page.locator('[data-chat-pane] [data-command-pill="explain"]');
   await pill.waitFor();
-  assert.equal((await pill.innerText()).trim(), 'Add explanation');
+  assert.equal((await pill.innerText()).trim(), 'explain');
   assert.ok(!(await pill.innerText()).includes('/'));
   await page.screenshot({ path: `${OUT}/${THEME}-1-pill.png` });
   await box.fill('');
@@ -225,32 +225,18 @@ await step('a refused scene adds and saves no card, keeps the line, says what fa
   await page.screenshot({ path: `${OUT}/${THEME}-plain-fallback.png` });
 });
 
-await step('View > Slash commands: /explain\'s interactive examples work there, and opening it generates nothing', async () => {
+// Owner spec 2026-10-29 sections 7-9: the window shows ONE matching preview per command (binary search for /explain), with no
+// "Can make" tabs; its previews are slash-sheet-check.mjs's. Here: /explain's entry opens from View and generates nothing.
+await step('View > Slash Commands: /explain\'s entry and its preview open there, and opening it generates nothing', async () => {
   const before = posts.length;
-  await openSlashHelp(page); // // Owner brief 2026-10-22: Slash commands left View for the chat composer's slash palette
-  const sheet = page.getByRole('dialog', { name: 'Slash commands' });
-  await sheet.locator('[data-slash-help="explain"]').click();
-  assert.equal(await sheet.locator('[data-slash-label]').innerText(), 'Add explanation');
-  await sheet.getByRole('tab', { name: 'Interactive visual' }).waitFor();
-  const examples = sheet.locator('[data-explain-example]');
-  const count = await examples.count();
-  assert.ok(count >= 1, 'an interactive example to choose');
-  for (let index = 0; index < count; index++) {
-    await examples.nth(index).click();
-    const card = sheet.locator('[data-slash-card="animation"]');
-    await card.locator('svg [data-animation-object]').first().waitFor();
-    const origin = await examples.nth(index).getAttribute('data-explain-example-origin');
-    assert.ok(['generated', 'fixture'].includes(origin));
-    const control = card.locator('[data-scene-controls] [data-input-control]').first();
-    if (await control.count()) {
-      const svg = await card.locator('svg').first().innerHTML();
-      const stepper = card.locator('[data-input-step$=":next"]').first();
-      if (await stepper.count() && await stepper.isEnabled()) await stepper.click();
-      else await card.locator('[data-scene-controls] [data-input-control]:not([aria-pressed="true"])').first().click();
-      await until(async () => (await card.locator('svg').first().innerHTML()) !== svg, `example ${index + 1}: moving its control changed nothing`, 5000);
-    }
-    await sheet.screenshot({ path: `${OUT}/${THEME}-sheet-example-${index + 1}.png` });
-  }
+  await openSlashHelp(page);
+  const sheet = page.getByRole('dialog', { name: 'Slash Commands' });
+  await sheet.locator('button[data-slash-help="explain"]').click();
+  assert.equal(await sheet.locator('[data-slash-label]').innerText(), 'Explanation');
+  assert.equal(await sheet.getByRole('tab', { name: 'Interactive visual' }).count(), 0, 'no Can make tabs');
+  await sheet.locator('[data-slash-stage]').first().waitFor();
+  assert.match(await sheet.locator('[data-slash-example]').innerText(), /\/explain how binary search works/);
+  await sheet.screenshot({ path: `${OUT}/${THEME}-sheet-explain.png` });
   assert.equal(posts.length, before, 'the window posted no artifact request');
   await page.keyboard.press('Escape');
 });

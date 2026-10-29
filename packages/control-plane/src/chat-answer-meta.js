@@ -13,7 +13,6 @@ actions: 0-3 artifacts the learner could make next, only when one would genuinel
 - diagram: a native editable diagram (flow, structure, process)
 - graph: a math function or data plot
 - image: a picture of a real thing
-- video: an existing video clip
 - notebook: runnable Python. Only when this answer contains the Python code, add "code":{"language":"python","cells":["..."]} copied verbatim, setup and imports in the first cell; otherwise omit code
 - code: a new code example; compare: a side-by-side comparison; practice: a practice task; quiz: one test question
 Never use image for a diagram, plot or animation.
@@ -43,7 +42,8 @@ export function splitAnswerMeta(text) {
   return { content: s, raw: null };
 }
 
-const ALLOWED = ['diagram', 'graph', 'video', 'image', 'notebook', 'code', 'compare', 'practice', 'quiz', 'motion'];
+// /video left the commands (owner spec 2026-10-29): an answer never suggests it.
+const ALLOWED = ['diagram', 'graph', 'image', 'notebook', 'code', 'compare', 'practice', 'quiz', 'motion'];
 const KINDS = ['clarify', 'implication', 'check', 'connect', 'next'];
 const str = (v, max) => { const t = typeof v === 'string' ? v.trim() : ''; return t && t.length <= max ? t : null; };
 // Notebook code the answer already has: Python only (notebooks run Python), every cell a string, blank cells dropped.

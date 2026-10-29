@@ -63,6 +63,26 @@ const modeButton = (p = page) => pane(p).getByRole('button', { name: 'Mode', exa
 const tutorSwitch = (p = page) => pane(p).getByRole('switch', { name: 'Proactive Tutor suggestions' });
 const pickMode = async (label, p = page) => { await modeButton(p).click(); await p.getByRole('menuitemradio', { name: new RegExp(`^${label}`) }).click(); await p.waitForTimeout(350); };
 const quiet = async (label, before, ms = 3000) => { await page.waitForTimeout(ms); assert.deepEqual(model.slice(before), [], `${label}: no model request`); };
+// Start Rabbit Hole from a card's right-click menu (owner spec 2026-10-29: /dive left the commands; the card menu is the way down,
+// card-context-menu-check.mjs). id: a card's block id, else the first content card whose menu offers it (a heading has none).
+const startHole = async (page, id = null) => {
+  const cards = id ? page.locator(`[data-block-id="${id}"]`) : page.locator('[data-block-id]:not([data-chat-block])');
+  const item = page.locator('[data-canvas-menu] [data-menu-start-rabbit-hole]');
+  for (let i = 0, n = Math.min(await cards.count(), 8); i < n; i++) {
+    const strip = cards.nth(i).locator('[data-drag-zone]').last();
+    if (!await strip.count()) continue;
+    await strip.scrollIntoViewIfNeeded();
+    await strip.click({ button: 'right', position: { x: 30, y: 10 } });
+    await page.locator('[data-canvas-menu]').waitFor({ timeout: 5000 });
+    if (await item.count()) {
+      await item.click();
+      await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 15000 });
+      return;
+    }
+    await page.keyboard.press('Escape');
+  }
+  throw Error(`no card here offers Start Rabbit Hole${id ? ` (${id})` : ''}`);
+};
 const open = async (name, p = page) => { await p.goto(`${BASE}/apps/${name}`); await pane(p).waitFor({ state: 'visible', timeout: 60000 }); await p.locator('[data-chat-composer] textarea').first().waitFor({ timeout: 30000 }); await p.waitForTimeout(1500); };
 const box = async locator => (await locator.boundingBox()) || { x: -1, y: -1, width: 0, height: 0 };
 
@@ -266,10 +286,10 @@ await check('owner 4a: a hole made from Tutor On opens with one turn; a reload o
   await select.click({ position: { x: 12, y: 8 }, force: true });
   await settle();
   const before = model.length;
-  await field().fill('/dive majority vote');
-  await page.waitForTimeout(200);
-  await field().press('Enter');
-  await page.waitForURL(/hole=|canvas-[a-f0-9]{8}/, { timeout: 15000 }).catch(() => {});
+  // /dive left the commands (owner spec 2026-10-29): the hole is made from the card's menu; its opening waits for the learner's
+  // press above the composer (owner decision 4a, card-context-menu-check.mjs), then runs once.
+  await startHole(page, CARD.id);
+  await page.locator('[data-tutor-opening-waiting] button').first().click({ timeout: 10000 }).catch(() => {});
   await page.waitForTimeout(5000);
   const opening = model.slice(before).filter(entry => entry.includes('/api/learn/tutor/plan') || entry.includes('/api/learn/ask'));
   assert.equal(opening.length, 1, `one opening turn for the guided entry: ${model.slice(before).join()}`);

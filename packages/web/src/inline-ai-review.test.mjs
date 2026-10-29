@@ -336,11 +336,12 @@ test('M6: a question asked while a preview shows can go back to that preview, an
 test('re-review blocker: a paid proposal stays a proposal after a stale Generate and a stopped or failed new request', async () => {
   const wait = held();
   let round = 0;
-  // A paid card proposal (MOT-20b: Motion no longer stages one here; a real-footage video stands in for any paid card).
+  // A paid card proposal (MOT-20b: Motion no longer stages one here; a 3D scene stands in for any paid card since /video left the
+  // commands, owner spec 2026-10-29).
   const session = make({ generate: async () => { round += 1; if (round === 1) await wait.gate; throw new Error('The model failed.'); },
-    artifact: async () => ({ result: 'paid_proposal', block: { type: 'video', mode: 'generate' }, message: 'This uses paid generation.', primitive: 'video' }) },
-    { enabled: ['note', 'diagram', 'image', 'video'] });
-  assert.equal(await session.submit({ mode: 'explain', prompt: '/video 15s footage of a tree', prepare: snapshot() }), 'proposal');
+    artifact: async () => ({ result: 'paid_proposal', block: { type: 'scene' }, message: 'This uses paid generation.', primitive: 'blender_scene' }) },
+    { enabled: ['note', 'diagram', 'image', '3d'] });
+  assert.equal(await session.submit({ mode: 'explain', prompt: '/3d a tree', prepare: snapshot() }), 'proposal');
   // 1-2. Generate is refused as stale.
   assert.equal(session.accept(() => ({ stale: { content: true, text: 'The selection changed while this was being made.' } })).stale.content, true);
   assert.equal(session.state.status, 'stale');

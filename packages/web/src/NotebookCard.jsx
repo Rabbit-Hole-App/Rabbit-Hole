@@ -11,7 +11,9 @@ import { registerNotebookEditor, notebookCellRequest } from './notebook-inline-c
 // header, then the card's Jupyter workspace in an iframe on the isolated
 // notebook origin. The workspace keeps its own files; the card keeps the
 // manifest and a copy of the active notebook, reported over the bridge.
-export default function NotebookBody({ block, onSelect, onDocument, onManifest, onEditCells }) {
+// preview: the Slash Commands window's /notebook example (owner spec 2026-10-29 sections 8.9 and 9): the same header with one empty
+// cell in place of the workspace, so no notebook site loads, no kernel starts, nothing runs and nothing is saved or registered.
+export default function NotebookBody({ block, onSelect, onDocument, onManifest, onEditCells, preview = false }) {
   const frame = useRef(null);
   const [loaded, setLoaded] = useState(false);
   // If the notebook site never answers (unreachable, or not deployed where
@@ -20,7 +22,7 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
   const [stalled, setStalled] = useState(false);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    if (loaded) return;
+    if (loaded || preview) return;
     setStalled(false);
     const timer = setTimeout(() => setStalled(true), 30000);
     return () => clearTimeout(timer);
@@ -38,7 +40,7 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
     const requestId=crypto.randomUUID(),timer=setTimeout(()=>{pending.current.delete(requestId);reject(new Error('This notebook site did not acknowledge selected-cell editing.'));},5000);
     pending.current.set(requestId,{resolve,reject,timer});send(type,notebookCellRequest(extra,requestId));
   });
-  useEffect(()=>registerNotebookEditor(block.id,{
+  useEffect(()=>preview?undefined:registerNotebookEditor(block.id,{
     capture:async()=>{const result=await requestCells('cells-snapshot');frameRevision.current=result.revision;latest.current.onDocument(result.path,result.ipynb);return {...result,id:block.id,notebookId:block.notebook_id};},
     apply:async input=>{applying.current=true;try{const result=await requestCells('cells-apply',input);frameRevision.current=result.revision;return result;}finally{applying.current=false;}},
     restore:async input=>{applying.current=true;try{const result=await requestCells('cells-restore',input);frameRevision.current=result.revision;return result;}finally{applying.current=false;}},
@@ -69,6 +71,7 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
   const exportNow = useRef(() => {});
   exportNow.current = () => { if (ready.current && workspaceStore()?.save) send('export'); };
   useEffect(() => {
+    if (preview) return undefined;
     const onRequest = () => exportNow.current();
     window.addEventListener(EXPORT_WORKSPACES, onRequest);
     return () => { window.removeEventListener(EXPORT_WORKSPACES, onRequest); clearTimeout(exportTimer.current); };
@@ -80,6 +83,7 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
   };
 
   useEffect(() => {
+    if (preview) return undefined;
     const receive = event => {
       if (event.source !== frame.current?.contentWindow || event.origin !== NOTEBOOK_ORIGIN || event.data?.protocol !== NOTEBOOK_PROTOCOL) return;
       const { type } = event.data;
@@ -134,7 +138,7 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
         <button type="button" aria-pressed={files} className={`${action} ${files ? 'bg-hover text-ink' : ''}`} disabled={!loaded} onPointerDown={stop} onClick={toggleFiles}><FolderTree size={12} />Files</button>
         <button type="button" className={action} disabled={!loaded || kind !== 'notebook'} onPointerDown={stop} onClick={() => send('run-all')}><Play size={12} />Run all</button>
         <button type="button" className={action} disabled={!loaded || kind !== 'notebook'} onPointerDown={stop} onClick={() => send('restart')}><RotateCcw size={12} />Restart</button>
-        <button type="button" aria-label="More notebook actions" className={action} onPointerDown={stop} onClick={() => setMenu(open => !open)}><MoreHorizontal size={14} /></button>
+        <button type="button" aria-label="More notebook actions" className={action} disabled={preview} onPointerDown={stop} onClick={() => setMenu(open => !open)}><MoreHorizontal size={14} /></button>
         {menu && (
           // UI-25: the card's own rows from the canvas action registry, run like the right-click menu's (CanvasMenu.jsx).
           <div role="menu" aria-label="Notebook actions" data-card-menu className="absolute top-8 right-3 z-30 w-60 rounded-lg border border-line bg-white p-1 shadow-md" onPointerDown={stop}>
@@ -142,7 +146,15 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
           </div>
         )}
       </div>
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-b-xl border-t border-line">
+      {preview ? (
+        <div data-notebook-preview className="min-h-0 flex-1 rounded-b-xl border-t border-line bg-surface px-4 py-3">
+          <div className="flex items-start gap-2 font-mono text-[13px] leading-5">
+            <span aria-hidden="true" className="pt-1.5 text-ink-3">[ ]:</span>
+            <div aria-label="Empty code cell" className="h-8 min-w-0 flex-1 rounded border border-line bg-hover/40" />
+          </div>
+          <p className="mt-2 text-xs text-ink-2">Add code, then run a cell.</p>
+        </div>
+      ) : <div className="relative min-h-0 flex-1 overflow-hidden rounded-b-xl border-t border-line">
         <iframe key={attempt} ref={frame} data-notebook-frame title="Jupyter notebook" src={notebookUrl(workspaceIdFor(block.notebook_id))} className="h-full w-full bg-white"
           sandbox="allow-scripts allow-same-origin allow-downloads" allow="clipboard-write"
           onLoad={open} />
@@ -156,7 +168,7 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
             </div>
           </div>
         )}
-      </div>
+      </div>}
     </>
   );
 }

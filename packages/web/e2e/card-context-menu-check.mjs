@@ -1,6 +1,6 @@
 // Start Rabbit Hole from a card's right-click menu (owner, 2026-10-07; docs/features/card-context-menu.md), against the
 // LOCAL stack only: local D1 and fresh browser profiles. No model is called: /api/learn/ask is aborted as a guard and no
-// composer question is ever sent (only /whiteboard, which draws locally). Prints no secrets.
+// composer question is ever sent (only /notebook, which adds its card locally). Prints no secrets.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/card-context-menu-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -203,10 +203,10 @@ await check('5 a kept hole: the card is its portal, and right-click Start Rabbit
   await page.locator('[data-tutor-opening-waiting] button').first().click({ timeout: 15000 }); // owner 4a
   await opening;
   const composer = page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
-  await composer.click(); await composer.fill('/whiteboard Bulge sketch'); await page.waitForTimeout(150); await composer.press('Enter');
+  await composer.click(); await composer.fill('/notebook'); await page.waitForTimeout(150); await composer.press('Enter'); // /whiteboard left the commands (owner spec 2026-10-29)
   await page.waitForTimeout(500);
   assert.ok(url().searchParams.get('hole'), 'the command waits while the opening turn runs');
-  assert.equal(await composer.inputValue(), '/whiteboard Bulge sketch', 'held, not dropped or cleared');
+  assert.equal(await composer.inputValue(), '/notebook', 'held, not dropped or cleared');
   release();
   await page.getByText('What would you like to explore first?').first().waitFor({ timeout: 20000 });
   await page.waitForFunction(() => /^\/apps\/canvas-[a-f0-9]{8}$/.test(location.pathname) && !location.search.includes('hole='), null, { timeout: 20000 });

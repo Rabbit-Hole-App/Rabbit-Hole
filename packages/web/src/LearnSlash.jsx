@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, ChevronRight, CircleHelp, Loader2, SquareSlash, X } from 'lucide-react';
-import { commandUi, parseSlash, pickerSections, releaseLine, searchSections } from './learn-slash.js';
+import { ArrowUpRight, CircleHelp, Loader2, SquareSlash, X } from 'lucide-react';
+import { commandUi, exactCommand, parseSlash, pickerSections, releaseLine, searchSections } from './learn-slash.js';
 import PaidConfirm from './PaidConfirm.jsx';
 import { CommandMark } from './CommandTone.jsx';
 import { typedOf } from './agent/slash.js';
@@ -28,32 +28,28 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
   const scopeNow = useRef(scope);
   scopeNow.current = scope;
   useEffect(() => { setNotice(null); setProposal(null); setBusy(false); held.current = null; }, [scope]);
-  // "More learning tools" opens in place: a click, Enter on it, or scrolling
-  // to the bottom of the list. It is a way in, not a command.
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreHeader = useRef(null);
   // The search field's text, or null when the palette was opened by typing / (the composer is its search then).
   const [query, setQuery] = useState(null);
   const sections = busy ? null : query ? searchSections(query) : pickerSections(input);
-  // Keyboard order: every visible command, with the collapsible section's
-  // header in its place so Enter can open it.
-  const items = sections?.flatMap(section => (section.collapsible ? [{ name: '__more', toggle: true }, ...(moreOpen ? section.items : [])] : section.items)) || [];
-  useEffect(() => { setActive(0); if (!input.startsWith('/')) { setMoreOpen(false); setQuery(null); } }, [input]);
+  // Keyboard order: every visible command.
+  const items = sections?.flatMap(section => section.items) || [];
+  useEffect(() => { setActive(0); if (!input.startsWith('/')) setQuery(null); }, [input]);
 
   const choose = name => {
-    // Opening by click or Enter brings the new tools into view.
-    if (name === '__more') { if (!moreOpen) requestAnimationFrame(() => moreHeader.current?.scrollIntoView({ block: 'start' })); setMoreOpen(open => !open); return; }
     setInput(`/${typedOf(name)} `);
     if (query !== null) composerRef?.current?.focus(); // the search field goes; the command's details are typed in the composer
   };
-  const exec = async raw => {
+  // handoff (Ctrl+K, owner spec 2026-10-29 4.2): another surface's line runs here exactly as a typed one, about ITS selection
+  // ({ target, about }), and the composer's own draft is never cleared or replaced (a kept line only fills an empty composer).
+  const exec = async (raw, handoff = null) => {
     const name = parseSlash(raw)?.name || '';
     const started = scope;
-    setInput(''); setProposal(null); setBusy(true);
+    if (!handoff) setInput('');
+    setProposal(null); setBusy(true);
     setNotice({ tone: 'busy', text: `Working on /${name}` });
-    const turn = onRun?.(raw) || null;
+    const turn = onRun?.(raw, handoff) || null;
     let out;
-    try { out = await run(raw, target, turn); }
+    try { out = await run(raw, target, turn, handoff); }
     catch (error) { out = { notice: { tone: 'error', text: error.message } }; }
     const ui = commandUi(out, { raw, started, current: scopeNow.current, tracked: !!turn });
     if (!ui) return; // the conversation changed: the card stays, nothing here (New chat already cleared the notice)
@@ -61,11 +57,11 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
     // A prompt the chat refuses (onPrompt answers false) is never lost: the line comes back with an error.
     if (ui.prompt) {
       setNotice(null);
-      Promise.resolve(onPrompt(ui.prompt)).then(sent => { if (sent === false) { setInput(raw); setNotice({ tone: 'error', text: `/${name} was not sent while the chat was busy. Press Enter to send it.` }); } });
+      Promise.resolve(onPrompt(ui.prompt, handoff)).then(sent => { if (sent === false) { if (!handoff || !input.trim()) setInput(raw); setNotice({ tone: 'error', text: `/${name} was not sent while the chat was busy. Press Enter to send it.` }); } });
       return;
     }
     if (ui.finder) onFinder?.(ui.finder);
-    if (ui.keep) setInput(ui.keep);
+    if (ui.keep && (!handoff || !input.trim())) setInput(ui.keep);
     setNotice(ui.notice);
     // The confirmation shows the line it asks about (brief 1); a recorded line's generation shows above the composer (ChatOutputs).
     setProposal(ui.proposal);
@@ -78,10 +74,12 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
   }, [busy]); // eslint-disable-line react-hooks/exhaustive-deps
   apiRef.current = {
     onKeyDown: event => {
-      if (!items.length) return;
+      if (!items.length || event.defaultPrevented || event.nativeEvent?.isComposing || event.isComposing) return;
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault();
         setActive(index => (index + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length);
+      } else if (event.key === 'Enter' && !event.shiftKey && query === null && exactCommand(input)) {
+        // A command typed in full (/notebook): this Enter is the composer's send, never a second "accept suggestion" step.
       } else if (event.key === 'Enter' || event.key === 'Tab') {
         event.preventDefault();
         choose(items[Math.min(active, items.length - 1)].name);
@@ -93,6 +91,8 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
     search: () => setQuery(''),
     // A sent line that starts with / is a command, never a chat message.
     intercept: raw => { if (busy) { held.current = raw; return true; } exec(raw); return true; },
+    // Ctrl+K's line (chat-workspace ask): run now, or refuse while another command runs so the sender keeps it and says so.
+    handoff: (raw, handoff) => { if (busy) return false; exec(raw, handoff); return true; },
   };
 
   const tone = { error: 'text-fail', question: 'text-ink', done: 'text-ink-2', info: 'text-ink-2', busy: 'text-ink-2' };
@@ -144,24 +144,13 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
               }} />
             {help}
           </div>}
-          <div role="listbox" aria-label="Commands" data-slash-picker className="min-h-0 flex-1 overflow-y-auto p-1"
-            onScroll={event => { const box = event.currentTarget; if (!moreOpen && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) setMoreOpen(true); }}>
+          <div role="listbox" aria-label="Commands" data-slash-picker className="min-h-0 flex-1 overflow-y-auto p-1">
           {query === null && help && <div className="pointer-events-none sticky top-0 z-10 -mb-7 flex justify-end">{help}</div>}
           {items.length ? sections.map((section, sectionIndex) => (
             <div key={section.title || sectionIndex}>
               {sectionIndex > 0 && <div className="mx-2 my-1 border-t border-line" />}
-              {section.collapsible ? (() => {
-                index += 1;
-                const mine = index;
-                return (
-                  <button ref={moreHeader} type="button" role="option" aria-selected={mine === active} aria-expanded={moreOpen} data-slash-more
-                    onMouseEnter={() => setActive(mine)} onMouseDown={event => event.preventDefault()} onClick={() => choose('__more')}
-                    className={`flex w-full items-center gap-1.5 rounded-lg px-2 pt-1.5 pb-1 text-left text-[11px] font-semibold tracking-wide text-ink-3 uppercase hover:text-ink ${mine === active ? 'bg-hover' : ''}`}>
-                    <ChevronRight size={12} className={`transition-transform ${moreOpen ? 'rotate-90' : ''}`} />{section.title}
-                  </button>
-                );
-              })() : section.title && <p className="px-2 pt-1.5 pb-1 text-[11px] font-semibold tracking-wide text-ink-3 uppercase">{section.title}</p>}
-              {(!section.collapsible || moreOpen) && section.items.map(item => {
+              {section.title && <p className="px-2 pt-1.5 pb-1 text-[11px] font-semibold tracking-wide text-ink-3 uppercase">{section.title}</p>}
+              {section.items.map(item => {
                 index += 1;
                 const mine = index;
                 return (
@@ -169,7 +158,7 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
                     onMouseEnter={() => setActive(mine)} onMouseDown={event => event.preventDefault()} onClick={() => choose(item.name)}
                     className={`flex w-full items-baseline gap-2 rounded-lg px-2 py-1.5 text-left text-sm ${mine === active ? 'bg-hover' : ''}`}>
                     <CommandMark name={item.name} className="text-ink" />
-                    <span className="truncate text-xs text-ink-2">{item.desc}</span>
+                    <span className="truncate text-xs text-ink-2">{item.about || item.desc}</span>
                   </button>
                 );
               })}

@@ -63,6 +63,26 @@ const mic = page => page.getByRole('button', { name: /^Voice mode( is paused)?$/
 const paused = async page => (await mic(page).getAttribute('aria-label')) === 'Voice mode is paused';
 const cardTitles = page => page.locator('[data-block-id]:not([data-chat-block])').allInnerTexts();
 const settle = page => page.waitForSelector('[data-tool-gutter]', { timeout: 30000 }).then(() => page.waitForTimeout(1500));
+// Start Rabbit Hole from a card's right-click menu (owner spec 2026-10-29: /dive left the commands; the card menu is the way down,
+// card-context-menu-check.mjs). id: a card's block id, else the first content card whose menu offers it (a heading has none).
+const startHole = async (page, id = null) => {
+  const cards = id ? page.locator(`[data-block-id="${id}"]`) : page.locator('[data-block-id]:not([data-chat-block])');
+  const item = page.locator('[data-canvas-menu] [data-menu-start-rabbit-hole]');
+  for (let i = 0, n = Math.min(await cards.count(), 8); i < n; i++) {
+    const strip = cards.nth(i).locator('[data-drag-zone]').last();
+    if (!await strip.count()) continue;
+    await strip.scrollIntoViewIfNeeded();
+    await strip.click({ button: 'right', position: { x: 30, y: 10 } });
+    await page.locator('[data-canvas-menu]').waitFor({ timeout: 5000 });
+    if (await item.count()) {
+      await item.click();
+      await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 15000 });
+      return;
+    }
+    await page.keyboard.press('Escape');
+  }
+  throw Error(`no card here offers Start Rabbit Hole${id ? ` (${id})` : ''}`);
+};
 const composer = page => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
 
 // 1. The project opens on its canvas; its composer is the Tutor: the owner and a learner get the same.
@@ -91,8 +111,8 @@ for (const [index, [email, app]] of PEOPLE.entries()) {
   await shot(page, `${who}-2-typed-turn`);
 
   // A Rabbit Hole under the course keeps the Tutor and climbs back to the course canvas.
-  await composer(page).fill('/dive softmax'); await composer(page).press('Enter');
-  await page.waitForURL(url => url.searchParams.has('hole'), { timeout: 20000 });
+  // /dive left the commands (owner spec 2026-10-29): the hole is made from a card's menu.
+  await startHole(page);
   // The hole's Tutor waits for its Rabbit Hole path (the dives tree), which loads after the canvas.
   await mic(page).waitFor({ timeout: 15000 }).catch(() => assert.fail(`${who}: the hole keeps the Tutor`));
   await shot(page, `${who}-3-hole`);

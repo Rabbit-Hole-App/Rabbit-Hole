@@ -1097,7 +1097,7 @@ function QuizBody({ block, onChange, onFile }) {
           );
         })}
       </div>
-      {block.choice && !solved && <p className="mt-2 text-xs text-red-700">Not quite — look at where the exponential ends up, and try again.</p>}
+      {block.choice && !solved && <p className="mt-2 text-xs text-red-700">Not quite. Try another option.</p>}
       {solved && <div className="mt-2 border-t border-line pt-2 text-sm text-ink-2"><span className="mr-1 font-medium text-green-700">✓ Right.</span><Md text={block.why} onFile={onFile} /></div>}
     </div>
   );

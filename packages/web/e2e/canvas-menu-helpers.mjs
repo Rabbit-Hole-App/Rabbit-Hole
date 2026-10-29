@@ -47,8 +47,10 @@ export async function setShown(page, name, on) {
   await page.waitForFunction(([label, value]) => [...document.querySelectorAll('[role="menubar"] [role="menuitemcheckbox"]')].find(node => node.textContent.trim() === label)?.getAttribute('aria-checked') === value, [name, String(on)], { timeout: 5000 });
 }
 
-// The slash commands sheet is opened from the chat composer's slash palette (the existing help surface): type /, press its help button.
+// View > Slash Commands (owner spec 2026-10-29 section 7.1) opens the Slash Commands window. It never touches the Chat composer,
+// so a draft written there is still there when the window closes (the slash palette's own help button opens the same window).
 export async function openSlashHelp(page) {
-  await page.locator('[data-chat-pane] [data-chat-composer] textarea').first().fill('/');
-  await page.getByRole('button', { name: 'Open Slash commands' }).first().click();
+  const view = await openMenu(page, 'View');
+  await view.getByRole('menuitem', { name: 'Slash Commands', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Slash Commands' }).waitFor({ timeout: 10000 });
 }

@@ -109,7 +109,7 @@ await finder.waitFor({ state: 'detached' });
 await page.waitForFunction(() => document.activeElement?.closest?.('[data-chat-composer]'), null, { timeout: 5000 }).catch(() => {});
 ok('Cancel adds nothing and gives the Chat draft back, focused', await pill.getAttribute('data-command-pill') === 'arxiv' && await composer().inputValue() === ''
   && await page.locator('[aria-label="Paper reader"]').count() === 0 && await composer().evaluate(node => node === document.activeElement));
-await dock.getByRole('button', { name: 'Remove Search arXiv', exact: true }).click();
+await dock.getByRole('button', { name: 'Remove arXiv search', exact: true }).click(); // owner spec 2026-10-29: the x is named by the title
 
 // 4. Chat: /wikipedia <query>; Escape keeps the typed draft.
 await composer().fill('/wikipedia backprop');

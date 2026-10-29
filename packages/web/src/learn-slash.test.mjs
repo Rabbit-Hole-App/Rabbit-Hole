@@ -17,39 +17,97 @@ const harness = reply => {
   return { did, run: (text, target) => runLearnCommand(text, { app: 'demo', target, canvas, post, openSearch }) };
 };
 
-test('/ opens the grouped picker: LEARN, CREATE, SEARCH, then every other command under More learning tools', () => {
+// Owner spec 2026-10-29: the 18 commands in three shared sections (the same in Ctrl+K and the Slash Commands window); no More section.
+test('/ opens the grouped picker: LEARN, CREATE and SEARCH hold every offered command', () => {
   const sections = pickerSections('/');
-  assert.deepEqual(sections.map(section => section.title), ['Learn', 'Create', 'Search', 'More learning tools']);
-  assert.deepEqual(sections[0].items.map(item => item.name), ['dive', 'practice', 'quiz', 'goal']);
-  assert.deepEqual(sections[1].items.map(item => item.name), ['explain', 'code', 'graph', 'diagram', 'flashcards', 'notebook']);
-  // /motion takes /animate's place in a development or review build (owner, 2026-10-20), with the owner's words.
-  assert.deepEqual(pickerSections('/', { motionDev: true })[1].items.slice(3, 6), [{ name: 'diagram', desc: 'Add a diagram' }, { name: 'motion', desc: 'Create an animated explainer video' }, { name: 'flashcards', desc: 'Add flashcards' }]);
+  assert.deepEqual(sections.map(section => section.title), ['Learn', 'Create', 'Search']);
+  assert.deepEqual(sections[0].items.map(item => item.name), ['explain', 'practice', 'quiz', 'flashcards', 'goal']);
+  assert.deepEqual(sections[1].items.map(item => item.name), ['code', 'graph', 'diagram', 'notebook', 'cad', '3d', 'browser']);
+  // A Motion build and an account offered image generation add /motion and /image (id generate-image) in their places.
+  assert.deepEqual(pickerSections('/', { motionDev: true, imageGeneration: true })[1].items.map(item => item.name), ['code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', '3d', 'browser']);
   assert.deepEqual(pickerSections('/anim', { motionDev: true }), [], '/animate is not offered');
-  // Owner, 2026-10-20: the photo search leads the searches (owner, 2026-10-26: it is typed /photos, id image); /arxiv is the one paper search.
-  assert.deepEqual(sections[2].items, [{ name: 'image', desc: 'Search photos' }, { name: 'youtube', desc: 'Search YouTube' }, { name: 'arxiv', desc: 'Search arXiv' }, { name: 'wikipedia', desc: 'Search Wikipedia' }]);
-  // With /more gone, the rest stay one list away (owner, 2026-10-20).
-  assert.equal(sections[3].collapsible, true);
-  assert.deepEqual(sections[3].items.map(item => item.name), ['whiteboard', 'video', 'cad', '3d']);
-  for (const name of ['paper', 'more', 'walkthrough', 'compare', 'source', 'deeper', 'simplify', 'example', 'ask', 'teach', 'animate']) {
+  // The photo search (typed /photos, id image) leads the searches; each row carries its title and its one-sentence description.
+  assert.deepEqual(sections[2].items.map(item => [item.name, item.desc]), [['image', 'Photo search'], ['youtube', 'YouTube search'], ['arxiv', 'arXiv search'], ['wikipedia', 'Wikipedia search']]);
+  assert.ok(sections.flatMap(section => section.items).every(item => item.about?.length > 20));
+  for (const name of ['paper', 'more', 'walkthrough', 'compare', 'source', 'deeper', 'simplify', 'example', 'ask', 'teach', 'animate', 'dive', 'whiteboard', 'video']) {
     assert.ok(sections.flatMap(section => section.items).every(item => item.name !== name), name);
   }
   assert.deepEqual(pickerSections('/pa'), []);
   assert.deepEqual(pickerSections('/wa'), []);
-  assert.equal(sections[0].items[0].desc, 'Open Rabbit Hole');
-  assert.equal(sections[1].items[0].desc, 'Add explanation');
+  assert.deepEqual(pickerSections('/br')[0].items.map(item => item.name), ['browser']);
   assert.deepEqual(pickerSections('/gr')[0].items.map(item => item.name), ['graph']);
   assert.equal(pickerSections('/graph sigmoid'), null);
   assert.equal(pickerSections('hello'), null);
   assert.deepEqual(parseSlash('/Graph  training loss '), { name: 'graph', args: 'training loss' });
 });
 
-test('/notebook and /whiteboard insert directly, with no model call', async () => {
+test('/notebook inserts an empty notebook directly, with no model call; trailing words never write one', async () => {
   const { did, run } = harness();
   await run('/notebook');
-  await run('/whiteboard forces');
-  assert.deepEqual(did.map(entry => entry[0]), ['notebook', 'block']);
-  assert.equal(did[1][1].type, 'whiteboard');
+  await run('/notebook plot a sine wave');
+  assert.deepEqual(did.map(entry => entry[0]), ['notebook', 'notebook']);
   assert.ok(!did.some(entry => entry[0] === 'post'));
+  // The Tutor's own create_material still adds a whiteboard (agent/slash.js MATERIAL_TOOLS); a typed /whiteboard says it is gone.
+  const tutor = [];
+  await runLearnCommand('/whiteboard forces', { app: 'demo', canvas: { insertBlock: block => tutor.push(block.type) }, post: async () => ({}), internal: true });
+  assert.deepEqual(tutor, ['whiteboard']);
+  assert.match((await run('/whiteboard forces')).notice.text, /^\/whiteboard is no longer available/);
+});
+
+// Owner spec 2026-10-29: /browser is the canvas's webpage capture. No URL opens its address dialog; a URL is checked and captured;
+// anything else says what is wanted and keeps the line, never searching. No model, no post.
+test('/browser: the address dialog, a validated capture, or the line back with what is wanted', async () => {
+  const did = [];
+  const canvas = { insertWebpage: url => { did.push(url ?? null); return url ? 'web-1' : null; } };
+  const run = line => runLearnCommand(line, { app: 'demo', canvas, post: async () => { did.push('post'); return {}; } });
+  assert.deepEqual(await run('/browser'), { notice: null });
+  assert.deepEqual(await run('/browser https://docs.python.org/3/tutorial/'), { notice: { tone: 'done', text: 'Adding the webpage.', blockId: 'web-1' } });
+  const bad = await run('/browser python tutorial');
+  assert.equal(bad.keep, '/browser python tutorial');
+  assert.match(bad.notice.text, /starting with https:\/\//);
+  assert.deepEqual(did, [null, 'https://docs.python.org/3/tutorial/'], 'one dialog, one capture, no search and no post');
+  assert.match((await runLearnCommand('/browser', { app: 'demo', canvas: {}, post: async () => ({}) })).notice.text, /cannot be added/);
+});
+
+// Owner spec 2026-10-29 section 6: on a Chat canvas an explicit simple material command is a chat turn that prepares its brief
+// (ask.jsx materialPlan); nothing is posted or reserved here. No words and no selection asks; a selected card is enough.
+test('brief commands on a Chat canvas: the words go to the brief, nothing is generated; a bare one uses the selected card or asks', async () => {
+  const { BRIEF_COMMANDS } = await import('./material-brief.js');
+  const did = [];
+  const canvas = { briefs: true, reserve: () => did.push('reserve'), insertBlock: () => did.push('block') };
+  const run = (line, target = null) => runLearnCommand(line, { app: 'demo', target, canvas, post: async () => { did.push('post'); return {}; } });
+  for (const name of BRIEF_COMMANDS) {
+    assert.deepEqual(await run(`/${typedOf(name)} Newton's second law`), { prompt: "Newton's second law" }, name);
+    const bare = await run(`/${typedOf(name)}`);
+    assert.equal(bare.notice.tone, 'question', name);
+    assert.equal(bare.keep, `/${typedOf(name)} `);
+    assert.deepEqual(await run(`/${typedOf(name)}`, { id: 'card-1', title: 'Forces' }), { prompt: 'the selected card "Forces"' }, name);
+  }
+  assert.deepEqual(did, [], 'no request, no skeleton, no card before Generate');
+  // The Tutor's own material and a canvas without Chat keep the direct path.
+  const direct = harness({ result: 'artifact', primitive: 'quiz', block: { type: 'quiz', question: 'Q?', options: [], why: '' } });
+  assert.equal((await direct.run('/quiz forces')).notice.text, 'Added a quiz.');
+});
+
+// Owner spec 2026-10-29 5.2: a bare /explain with a selected card is the same explicit job as a typed one, about that card.
+test('/explain with no words: about the selected card through the same job, else it asks; never the legacy route', async () => {
+  const started = [];
+  const canvas = { startExplain: async (words, options) => { started.push([words, options.context]); return { blockId: 'ex-1' }; }, reserve: () => 'slot', release: () => {}, insertBlock: () => 'b' };
+  const post = async () => { throw Error('no legacy request'); };
+  const out = await runLearnCommand('/explain', { app: 'demo', target: { id: 'card-1', title: 'Heaps', text: 'A heap is a tree.' }, canvas, post });
+  assert.equal(out.notice.blockId, 'ex-1');
+  assert.deepEqual(started, [['the selected card "Heaps"', 'A heap is a tree.']]);
+  const asked = await runLearnCommand('/explain', { app: 'demo', canvas, post });
+  assert.equal(asked.notice.tone, 'question');
+  assert.equal(asked.keep, '/explain ');
+});
+
+// Owner spec 2026-10-29 5.3: Enter on a command typed in full runs it; a partial word only accepts the suggestion.
+test('exactCommand: a full typed name or alias, never a partial word, a removed command or a line with words', async () => {
+  const { exactCommand } = await import('./learn-slash.js');
+  assert.deepEqual(['/notebook', '/photos', '/goal', ' /browser ', '/NOTEBOOK'].map(line => exactCommand(line)), [true, true, true, true, true]);
+  assert.deepEqual(['/note', '/notebook x', '/whiteboard', '/', 'notebook', '/image'].map(line => exactCommand(line)), [false, false, false, false, false, false]);
+  assert.equal(exactCommand('/image', { imageGeneration: true }), true);
 });
 
 // Owner, 2026-10-20: 17 commands removed. Typed in Chat, each says it is unavailable and runs nothing: no post, no card, no
@@ -106,7 +164,7 @@ test('family commands go to the artifact endpoint with the command only, never a
 });
 
 test('a paid result waits for Generate; a question, an unsupported primitive or an error inserts nothing', async () => {
-  const paid = await harness({ result: 'paid_proposal', primitive: 'video_generate', block: { type: 'video' }, message: 'This uses paid generation.' }).run('/video a prism');
+  const paid = await harness({ result: 'paid_proposal', primitive: 'blender_scene', block: { type: 'scene' }, message: 'This uses paid generation.' }).run('/3d a prism');
   assert.equal(paid.proposal.message, 'This uses paid generation.');
   for (const [reply, tone] of [
     [{ result: 'clarification', question: 'What would you like to compare?' }, 'question'],
@@ -285,18 +343,18 @@ test('commands that make no card, or make one at once, reserve nothing', async (
 // once the learner confirms Generate; Cancel never shows one.
 test('a paid command holds no place until Generate; Generate holds it and the confirmed card takes it', async () => {
   const proposal = { result: 'paid_proposal', primitive: 'maths_animation', block: { type: 'video', mode: 'generate' }, message: 'This uses paid generation.' };
-  for (const command of ['/video light through a prism', '/3d a camera frustum']) {
+  for (const command of ['/3d light through a prism', '/3d a camera frustum']) {
     const { did, run } = slotHarness(proposal);
     const out = await run(command);
     assert.deepEqual(did.map(entry => entry[0]), ['post'], `${command}: the proposal only, no skeleton`);
     assert.equal(out.proposal.message, 'This uses paid generation.');
   }
   const { did, run } = slotHarness(proposal);
-  const out = await run('/video light through a prism');
+  const out = await run('/3d light through a prism');
   // Cancel: the composer drops the proposal and nothing reaches the canvas.
   assert.ok(!did.some(entry => entry[0] === 'reserve' || entry[0] === 'block'));
   out.proposal.generate();
-  assert.deepEqual(did.slice(1), [['reserve', { label: 'Creating /video', card: 'videoGenerate' }], ['block', 'video', { into: 'slot:1' }]]);
+  assert.deepEqual(did.slice(1), [['reserve', { label: 'Creating /3d', card: 'scene' }], ['block', 'video', { into: 'slot:1' }]]);
 });
 
 // Duplicate card on reuse (owner priority 2, 2026-10-21): the server keys a paid video or scene job by its operation
@@ -309,7 +367,7 @@ test('a paid Generate reuses the card that already shows its job; repeated press
     const did = [];
     const canvas = { blocks: () => blocks, focusBlock: id => did.push(['focus', id]), reserve: () => { did.push(['reserve']); return 'slot:1'; }, release: () => {},
       insertBlock: block => { did.push(['block', block.operation]); return 'card-new'; } };
-    const out = await runLearnCommand('/video the sigmoid slope', { app: 'demo', canvas, post: async () => proposal, openSearch: () => {} });
+    const out = await runLearnCommand('/3d the sigmoid slope', { app: 'demo', canvas, post: async () => proposal, openSearch: () => {} });
     return { did, generate: out.proposal.generate };
   };
   // The finished card from an earlier Generate (as the saved board restores it): revealed, nothing inserted, on every press.
@@ -526,7 +584,7 @@ test('commandLine: a pill line runs once; every command prompt that comes back i
   assert.equal(commandLine('  ', { command: 'dive' }), '/dive', 'a bare pill');
   assert.equal(commandLine(' /example tanh ', { command: 'simplify' }), '/example tanh', 'a typed line replaces the pill');
   assert.equal(commandLine('why softmax'), null, 'plain words are a chat turn');
-  const canvas = { startCad: async () => ({}), insertNotebook: () => 'n', insertBlock: () => 'b', insertPaper: () => 'p', reserve: () => 'slot:1', release: () => {}, dive: () => ({ notice: null }), openSources: () => ({}) };
+  const canvas = { briefs: true, startCad: async () => ({}), insertNotebook: () => 'n', insertBlock: () => 'b', insertPaper: () => 'p', reserve: () => 'slot:1', release: () => {}, dive: () => ({ notice: null }), openSources: () => ({}) };
   const post = async () => ({ result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 't', body: 'b' } });
   const prompted = [];
   for (const { name } of commandsFor('learn', { hidden: true })) {
@@ -535,14 +593,14 @@ test('commandLine: a pill line runs once; every command prompt that comes back i
     prompted.push(name);
     assert.equal(commandLine(out.prompt, { command: name, prompted: true }), null, `/${name}: its prompt is the chat turn`);
   }
-  // Owner, 2026-10-20 (L7): /ask, /deeper, /example, /simplify and /teach were the commands that answered with a prompt; all
-  // five are removed, so none does now. The prompted guard stays for any command that answers with one again.
-  assert.deepEqual(prompted.sort(), []);
+  // Owner, 2026-10-20 (L7): /ask, /deeper, /example, /simplify and /teach were removed. Owner spec 2026-10-29: the simple material
+  // commands answer with their brief's words on a Chat canvas; each comes back as the chat turn, never a line again.
+  assert.deepEqual(prompted.sort(), ['3d', 'code', 'diagram', 'flashcards', 'graph', 'practice', 'quiz']);
   assert.equal(commandLine('/whiteboard tides', { command: 'ask', prompted: true }), null, '"/ask /whiteboard tides": a prompt starting with / is not run');
   // Effects never run here, so the wiring is pinned in source; the browser run is e2e/chat-outputs-check.mjs steps 13 and 14.
   const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
   assert.match(ask, /const line = !regenerate && slash \? commandLine\(raw, \{ command, prompted \}\) : null;/);
-  assert.match(ask, /onPrompt=\{prompt => send\(prompt, undefined, \{ skipJourney: true, command: promptCommand\.current, prompted: true \}\)\}/);
+  assert.match(ask, /onPrompt=\{\(prompt, handoff\) => send\(prompt, undefined, \{ skipJourney: true, command: promptCommand\.current, prompted: true, \.\.\.\(handoff \? \{ about: handoff\.about, keepDraft: true \} : \{\}\) \}\)\}/);
 });
 
 // Release B (owner 4A and A4, 2026-10-16): the source searches open the shared finder with the query and run no model;

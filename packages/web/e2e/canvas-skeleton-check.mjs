@@ -12,8 +12,8 @@
 //      cancels every pending correction; untouched, the card gets exactly one.
 //   B. Layout: the cards below make room for the skeleton, and close up (or not) to the card's measured height.
 //   C. A clarification and a failure leave no skeleton.
-//   P. A paid command (/video) shows its proposal and no skeleton; Cancel shows none; Generate shows one, and the
-//      confirmed card takes its slot.
+//   P. A paid command (/3d; owner spec 2026-10-29: /video left the commands) shows its brief and no skeleton; a second brief shows
+//      none; its Generate shows one, and the confirmed card takes its slot.
 //   D. Sharing and forks: a push made while a skeleton waits, and a fork of that board, carry no skeleton.
 //   E. Research: no skeleton while searching; one at the committed "Opening", filled by the paper; a suppressed
 //      article's goes when the answer ends; a paper already on the canvas takes the slot's place.
@@ -77,6 +77,43 @@ await page.route(/\/api\/learn\/boards\/[^/]+\/[^/]+$/, route => { if (route.req
 const shot = async name => { await page.screenshot({ path: `${OUT}/${name}.png` }); console.log('shot', name); };
 const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
 const send = async text => { await composer().click(); await composer().fill(text); await page.waitForTimeout(120); await composer().press('Enter'); };
+// Owner spec 2026-10-29 section 6: an explicit /diagram, /quiz or /3d prepares its brief in Chat first (material-brief.js) and holds
+// its skeleton only from the brief's Generate. The brief route is answered here, as the artifact route is (the local stack holds no
+// signing key and nothing here may reach a model); Generate then posts the artifact route above.
+let briefs = 0;
+await page.route('**/api/learn/chat/material-proposals', async route => {
+  const body = route.request().postDataJSON(), n = ++briefs, words = String(body.request || '');
+  const text = `A brief for ${words || 'the selected card'}.`;
+  const proposal = { proposal_id: `gp-${String(n).padStart(16, '0')}`, version: 1, command: body.command, title: words.slice(0, 80) || 'Brief', description: text, settings: {}, source_refs: [],
+    input: { request: `/${body.command} ${words}`.trim(), args: words, selection: body.selection ?? null, context: body.context ?? null, changes: [], org: 'o', app: 'a' },
+    expires_at: Math.floor(Date.now() / 1000) + 3600, sig: `v3.${'0'.repeat(64)}`, schema_version: 1, mode: 'generate', original_request: `/${body.command} ${words}`.trim(), prompt: text,
+    visual_constraints: [], references: [], requirements: [], assumptions: [], missing_information: [], limitations: [], destination: { org: 'o', app: 'a' }, quote: null, review_hash: 'fixture' };
+  await route.fulfill({ status: 201, json: { thread_id: body.thread_id, message_id: String(9000 + n), proposal } });
+});
+// The newest live brief card in Chat, once the brief is drawn.
+const briefCard = async () => { const card = page.locator('[data-chat-pane] [data-generation-proposal][data-proposal-active="true"]').last(); await card.waitFor({ timeout: 10000 }); return card; };
+// Send the command and press its brief's Generate.
+const brief = async text => { await send(text); await (await briefCard()).locator('[data-proposal-generate]').click(); };
+// Start Rabbit Hole from a card's right-click menu (owner spec 2026-10-29: /dive left the commands; the card menu is the way down,
+// card-context-menu-check.mjs). id: a card's block id, else the first content card whose menu offers it (a heading has none).
+const startHole = async (page, id = null) => {
+  const cards = id ? page.locator(`[data-block-id="${id}"]`) : page.locator('[data-block-id]:not([data-chat-block])');
+  const item = page.locator('[data-canvas-menu] [data-menu-start-rabbit-hole]');
+  for (let i = 0, n = Math.min(await cards.count(), 8); i < n; i++) {
+    const strip = cards.nth(i).locator('[data-drag-zone]').last();
+    if (!await strip.count()) continue;
+    await strip.scrollIntoViewIfNeeded();
+    await strip.click({ button: 'right', position: { x: 30, y: 10 } });
+    await page.locator('[data-canvas-menu]').waitFor({ timeout: 5000 });
+    if (await item.count()) {
+      await item.click();
+      await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 15000 });
+      return;
+    }
+    await page.keyboard.press('Escape');
+  }
+  throw Error(`no card here offers Start Rabbit Hole${id ? ` (${id})` : ''}`);
+};
 const open = async path => { await page.goto(`${BASE}${path}`); await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 }); await page.waitForTimeout(2000); };
 const slots = () => page.locator('[data-slot-id]');
 const waitFor = async (test, what, ms = 15000) => { for (let at = Date.now(); Date.now() - at < ms; await page.waitForTimeout(50)) if (await test()) return; assert.fail(`timed out: ${what}`); };
@@ -254,7 +291,7 @@ for (const [command, block, fixed] of [
   const before = await column();
   let release;
   artifactNext = () => new Promise(resolve => { release = () => resolve({ json: { result: 'artifact', primitive: block.type === 'flow' ? 'flow_diagram' : block.type, block } }); });
-  await send(command);
+  await (command.startsWith('/diagram') ? brief(command) : send(command));
   await slots().first().waitFor({ timeout: 2000 });
   await page.waitForTimeout(400);
   const reserved = await column(), at = reserved.findIndex(entry => entry.slot), slot = reserved[at], below = reserved[at + 1];
@@ -274,16 +311,16 @@ for (const [command, block, fixed] of [
 // ---- C. A clarification and a failure end the wait with no skeleton left ----
 // /compare is a removed command (owner, 2026-10-20): /diagram stands in for the clarification.
 artifactNext = () => later(900, { json: { result: 'clarification', question: 'Diagram which two functions?' } });
-await send('/diagram them');
+await brief('/diagram them');
 await slots().first().waitFor({ timeout: 2000 });
 await noSlot();
-check('C1 a clarification removes the skeleton and asks', await page.locator('[data-slash-result]').innerText().then(text => text.includes('Diagram which two functions?')));
+check('C1 a clarification removes the skeleton and asks', await page.locator('[data-chat-pane]').getByText('Diagram which two functions?').first().waitFor({ timeout: 5000 }).then(() => true).catch(() => false));
 const blocksBefore = (await column()).length;
 artifactNext = () => later(900, { status: 502, json: { error: 'Artifact generation unavailable (model HTTP 529). Try again.' } });
-await send('/quiz embeddings');
+await brief('/quiz embeddings');
 await slots().first().waitFor({ timeout: 2000 });
 await noSlot();
-check('C2 a failure removes the skeleton; the error stays in the composer', (await page.locator('[data-slash-result]').innerText()).includes('unavailable') && (await column()).length === blocksBefore);
+check('C2 a failure removes the skeleton; the error stays on the brief', await page.locator('[data-chat-pane]').getByText('Artifact generation unavailable', { exact: false }).first().waitFor({ timeout: 5000 }).then(() => true).catch(() => false) && (await column()).length === blocksBefore);
 await shot('05-failure-no-ghost');
 
 // ---- P. A paid command: the proposal only; Cancel never shows a skeleton; Generate does, and the card takes it ----
@@ -294,26 +331,25 @@ await page.evaluate(() => {
     .observe(document.querySelector('[data-canvas-surface]'), { childList: true, subtree: true });
 });
 const slotsSeen = () => page.evaluate(() => window.__slotsSeen.length);
-// /video (paid generation) since /animate left the commands (owner, 2026-10-20: /motion is the animation command).
+// /3d (paid generation) since /video left the commands (owner spec 2026-10-29); its generator's paid card is fixed here.
 const PAID = { type: 'video', mode: 'generate', title: 'Light through a prism', src: '', caption: 'An illustration, not measured footage.', operation: { steps: [] }, status: 'idle' };
-artifactNext = () => later(900, { json: { result: 'paid_proposal', primitive: 'video_generate', block: PAID, message: 'This uses paid generation.' } });
+artifactNext = () => later(900, { json: { result: 'paid_proposal', primitive: 'blender_scene', block: PAID, message: 'This uses paid generation.' } });
 const paidBlocks = (await column()).length;
-await send('/video light through a prism');
-await page.locator('[data-paid-generate]').waitFor({ timeout: 5000 });
-check('P1 a paid command shows its proposal and no skeleton', (await slotsSeen()) === 0 && (await slots().count()) === 0);
+await send('/3d light through a prism');
+await briefCard();
+check('P1 a paid command shows its brief and no skeleton', (await slotsSeen()) === 0 && (await slots().count()) === 0);
 await shot('05b-paid-proposal-no-skeleton');
-await page.locator('[data-paid-cancel]').click();
 await page.waitForTimeout(800);
-check('P2 Cancel never shows a skeleton or a card', (await slotsSeen()) === 0 && (await column()).length === paidBlocks && paidStarts.length === 0);
-await send('/video light through a prism');
-await page.locator('[data-paid-generate]').waitFor({ timeout: 5000 });
-check('P3 the proposal again: still no skeleton', (await slotsSeen()) === 0);
-await page.locator('[data-paid-generate]').click();
+check('P2 until Generate, no skeleton, no card and no paid start', (await slotsSeen()) === 0 && (await column()).length === paidBlocks && paidStarts.length === 0);
+await send('/3d light through a prism');
+const paidBrief = await briefCard();
+check('P3 the brief again: still no skeleton', (await slotsSeen()) === 0);
+await paidBrief.locator('[data-proposal-generate]').click();
 await waitFor(async () => (await column()).length === paidBlocks + 1, 'the confirmed card');
 await page.waitForTimeout(600);
 const [paidSlot] = await page.evaluate(() => window.__slotsSeen);
 const paidCard = (await column()).find(entry => entry.top === paidSlot?.top);
-check('P4 Generate shows a skeleton, and the confirmed card takes its slot', (await slotsSeen()) === 1 && /Creating \/video/.test(paidSlot.label) && !!paidCard && !paidCard.slot && (await page.locator(`[data-block-id="${paidCard.id}"]`).innerText()).includes(PAID.title), JSON.stringify(paidSlot));
+check('P4 Generate shows a skeleton, and the confirmed card takes its slot', (await slotsSeen()) === 1 && /Creating \/3d/.test(paidSlot.label) && !!paidCard && !paidCard.slot && (await page.locator(`[data-block-id="${paidCard.id}"]`).innerText()).includes(PAID.title), JSON.stringify(paidSlot));
 await shot('05c-paid-confirmed-card-in-slot');
 
 // ---- D. Sharing: a push made while a skeleton waits carries none, and neither does a fork of the board ----
@@ -461,8 +497,9 @@ gate.release();
 
 // G. A Rabbit Hole under the slice: the skeleton never keeps the pending hole; the card does, at the asked part.
 planNext = sent => later(300, { json: { strategy: 'none', move: 'explain', reason: '', actions: [say(sent.learner_intent.kind === 'opening' ? 'Softmax first.' : 'Here is the memory part.')] } });
-await send('/dive softmax');
-await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 20000 });
+// /dive left the commands (owner spec 2026-10-29): the hole is made from a card's menu, and its opening runs on the learner's press.
+await startHole(page);
+await page.locator('[data-tutor-opening-waiting] button').first().click({ timeout: 10000 }).catch(() => {});
 await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(3000);
 const hole = new URL(page.url()).searchParams.get('hole'), holeZoom = await zoom();
 dives.length = 0;

@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EXPLAIN_EXAMPLES, ORIGIN_NOTES } from './explain-examples.js';
-import { sheetCards, TAB_LABELS } from './slash-sheet.js';
+import { PREVIEWS } from './slash-sheet.js';
 import { SAMPLES_NOTE, sceneProblem } from '../../control-plane/src/learn-scene-gates.js';
 
 test('every stored interactive example is a labelled animation card that passes the scene gates at every setting', () => {
@@ -20,9 +20,12 @@ test('every stored interactive example is a labelled animation card that passes 
   }
 });
 
-test('the window opens /explain on its Interactive visual, then text and table', () => {
-  assert.deepEqual(sheetCards('explain').map(entry => entry.card), ['animation', 'explanation', 'table']);
-  assert.equal(TAB_LABELS.animation, 'Interactive visual');
+// Owner spec 2026-10-29 section 8.1: the window shows /explain's example on the stored binary-search answer only (no card tabs).
+test('the window shows /explain how binary search works on the stored binary-search answer', () => {
+  const binary = EXPLAIN_EXAMPLES.find(entry => entry.id === 'binary-search');
+  assert.equal(binary.origin, 'generated');
+  assert.equal(PREVIEWS.explain.card, 'animation');
+  assert.deepEqual(PREVIEWS.explain.block.scene, binary.block.scene);
 });
 
 test('the pendulum example states its period to two decimals at every length (owner follow-up: "Period T = 1 s")', async () => {

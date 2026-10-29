@@ -56,8 +56,8 @@ const progressPane = (p = page) => p.locator('[data-progress-pane]');
 const title = (p = page) => p.locator('#progress-title');
 const open = async (p = page) => { await p.goto(`${BASE}/apps/${canvas.name}`); await chatPane(p).waitFor({ state: 'visible', timeout: 60000 }); await field(p).waitFor({ timeout: 30000 }); };
 const send = async (text, p = page) => { await field(p).click(); await field(p).fill(text); await field(p).press('Enter'); };
-// A bare /goal: Enter on the open picker makes the Goal pill, and Enter again runs it.
-const goalCommand = async (p = page) => { await field(p).click(); await field(p).fill('/goal'); await field(p).press('Enter'); await pill(p).waitFor(); await field(p).press('Enter'); };
+// A bare /goal typed in full: one Enter runs it (owner spec 2026-10-29 5.3: an exact command is not a suggestion to accept first).
+const goalCommand = async (p = page) => { await field(p).click(); await field(p).fill('/goal'); await field(p).press('Enter'); };
 
 // Add goal is the house primary Button (ui.jsx variant primary): --color-primary-fill with white text in both themes, a darker
 // hover, a visible keyboard focus ring. Its white-on-blue contrast is measured and printed; the check holds the WCAG 1.4.3
@@ -94,18 +94,19 @@ await check('typed /goal <words> opens goal management with the words in a new g
   await shot('goal-01-typed-light');
 });
 
-await check('the / picker offers Goal; picking it makes the inline Goal pill, which x and Backspace remove, keeping the words', async () => {
+// Owner spec 2026-10-29: the pill reads the typed name, goal; its x is named by the title, Learning goal.
+await check('the / picker offers goal; picking it makes the inline goal pill, which x and Backspace remove, keeping the words', async () => {
   // Owner 2026-10-22: Progress is a tab of Chat's panel, so /goal left Chat behind it; the Chat tab brings the composer back.
   await page.locator('[data-panel-tab="chat"]').click();
   await field().click();
   await field().fill('/go');
   await chatPane().locator('[data-slash-command="goal"]').click();
   await pill().waitFor();
-  assert.equal((await pill().innerText()).trim(), 'Goal');
-  await chatPane().getByRole('button', { name: 'Remove Goal', exact: true }).click();
+  assert.equal((await pill().innerText()).trim(), 'goal');
+  await chatPane().getByRole('button', { name: 'Remove Learning goal', exact: true }).click();
   await until(async () => (await pill().count()) === 0, 'x removes the pill');
-  await field().fill('/goal');
-  await field().press('Enter'); // Enter on the open picker picks Goal
+  await field().fill('/go');
+  await field().press('Enter'); // Enter on a partial word picks the highlighted goal
   await pill().waitFor();
   await field().fill('learn chess openings');
   await field().press('Home');

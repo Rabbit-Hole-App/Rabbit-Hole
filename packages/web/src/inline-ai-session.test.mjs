@@ -224,9 +224,9 @@ test('paid: /motion hands off to the Chat with nothing staged; a paid card propo
   const off = make({}, { propose, enabled: ['note'] }).session;
   assert.equal(await off.submit({ mode: 'explain', prompt: '/motion softmax', prepare: snapshot() }), 'unsupported');
   assert.match(off.state.declined.message, /not available/);
-  // A paid artifact proposal (/video's generated clip) is a proposal too, never a started job.
-  const video = make({ artifact: async () => ({ result: 'paid_proposal', primitive: 'video_generate', block: { type: 'video', mode: 'generate', operation: {} }, message: 'This uses paid generation.' }) }, { enabled: ['note', 'video'] }).session;
-  await video.submit({ mode: 'explain', prompt: '/video it', prepare: snapshot() });
+  // A paid artifact proposal (a 3D scene; /video left the commands, owner spec 2026-10-29) is a proposal too, never a started job.
+  const video = make({ artifact: async () => ({ result: 'paid_proposal', primitive: 'blender_scene', block: { type: 'scene', operation: {} }, message: 'This uses paid generation.' }) }, { enabled: ['note', '3d'] }).session;
+  await video.submit({ mode: 'explain', prompt: '/3d it', prepare: snapshot() });
   assert.equal(video.state.status, 'proposal');
   assert.equal(video.state.preview.kind, 'proposal');
   // /animate is no longer a command (owner, 2026-10-20: /motion is): typed, it runs nothing, even where its route is on.

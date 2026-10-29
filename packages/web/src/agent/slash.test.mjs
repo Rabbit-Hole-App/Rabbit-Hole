@@ -5,10 +5,25 @@ import { isReady } from '../../../control-plane/src/learn-primitives.js';
 
 const names = (list) => list.map((c) => c.name);
 
-// Owner, 2026-10-20: the slash-command cleanup. These are the commands a learner can still type or pick in a production
-// build; a development or review build adds /motion, which replaced /animate.
-// /goal (owner, 2026-10-21): goal management, explicit only.
-const LEARN = ['dive', 'practice', 'goal', 'quiz', 'explain', 'flashcards', 'code', 'graph', 'diagram', 'whiteboard', 'image', 'video', 'cad', '3d', 'notebook', 'youtube', 'arxiv', 'wikipedia'];
+// Owner spec 2026-10-29 (slash commands cleanup): exactly 18 public commands, the same in Chat and Ctrl+K, in the shared section
+// order. /dive, /whiteboard and /video are removed, /browser is added. /motion needs a Motion build and /image (id generate-image)
+// the server's image offer.
+const PUBLIC = ['explain', 'practice', 'quiz', 'flashcards', 'goal', 'code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', '3d', 'browser', 'image', 'youtube', 'arxiv', 'wikipedia'];
+const LEARN = PUBLIC.filter((n) => n !== 'motion' && n !== 'generate-image');
+
+test('exactly 18 public commands in the shared sections; the removed three are gone and /browser is one entry', () => {
+  assert.equal(SLASH.length, 18);
+  assert.deepEqual(names(SLASH), PUBLIC);
+  assert.deepEqual([...LEARN_MENU.learn, ...LEARN_MENU.create, ...LEARN_MENU.search], PUBLIC, 'every command in exactly one section, in order');
+  assert.deepEqual(LEARN_MENU.learn, ['explain', 'practice', 'quiz', 'flashcards', 'goal']);
+  assert.deepEqual(LEARN_MENU.create, ['code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', '3d', 'browser']);
+  assert.deepEqual(LEARN_MENU.search, ['image', 'youtube', 'arxiv', 'wikipedia']);
+  for (const name of ['dive', 'whiteboard', 'video']) assert.ok(!names(SLASH).includes(name) && REMOVED_COMMANDS.includes(name), name);
+  assert.deepEqual(names(commandsFor('learn', { motionDev: true, imageGeneration: true })), PUBLIC);
+  assert.deepEqual([learnRequest('browser').action, learnRequest('browser').deterministic, learnRequest('browser').allowedPrimitives], ['insert_webpage', true, null]);
+  // Explain Back is a Practice mode, never a command.
+  assert.ok(!SLASH.some((c) => /explain.?back|challenge/.test(c.name)));
+});
 
 test('one command list: Learn keeps its commands, Home, Library and Project offer none', () => {
   assert.deepEqual(names(commandsFor('learn', { motionDev: false })), LEARN);
@@ -16,12 +31,11 @@ test('one command list: Learn keeps its commands, Home, Library and Project offe
   assert.equal(new Set(names([...SLASH, ...MATERIAL_TOOLS])).size, SLASH.length + MATERIAL_TOOLS.length);
 });
 
-test('every menu label scans in one short line; the pill label is short or falls back to the menu label', () => {
-  // 34: /motion's owner-worded "Create an animated explainer video" (owner, 2026-10-20), still one line in the picker.
+test('every title scans in one short line; each command says what it does and hints its composer', () => {
   for (const c of SLASH) for (const place of c.places) assert.ok(descFor(c, place).length <= 34, `${c.name} in ${place}: ${descFor(c, place)}`);
   for (const c of SLASH) assert.ok(labelOf(c).length <= 20 && !labelOf(c).startsWith('/'), `${c.name}: ${labelOf(c)}`);
-  // Every retained command says what it does for the Slash commands window.
   for (const c of SLASH) assert.ok(c.about?.length > 20, c.name);
+  for (const c of SLASH) assert.ok(c.placeholder?.length > 10 && !/\.\.\.|…/.test(c.placeholder), `${c.name} placeholder`);
 });
 
 test('a Learn command becomes one semantic request with the selection as context; without one it acts on the current concept', () => {
@@ -30,7 +44,7 @@ test('a Learn command becomes one semantic request with the selection as context
     { kind: 'learn', command: 'quiz', family: 'quiz', allowedPrimitives: ['quiz'], deterministic: false, paid: [], prompt: 'Ask me one short question on the selected card "Attention · Guided", then wait for my answer. Focus: the softmax.', context: card, selection: card });
   assert.deepEqual(learnRequest('notebook', { args: 'for experimenting with softmax' }),
     { kind: 'learn', command: 'notebook', family: 'notebook', allowedPrimitives: ['notebook'], deterministic: true, paid: [], action: 'insert_notebook', prompt: 'for experimenting with softmax', context: null, selection: null });
-  assert.equal(learnRequest('explain').prompt, 'Add explanation for the current concept.');
+  assert.equal(learnRequest('explain').prompt, 'Explanation for the current concept.');
   for (const name of ['find', 'source', 'paper', 'deeper', 'ask', 'more']) assert.throws(() => learnRequest(name), /not a Learn command/, name);
 });
 
@@ -49,7 +63,8 @@ test('the review copy keeps its limits on the bar\'s internal ask and teach', ()
 });
 
 // Learn tool families (user, 2026-09-28, via the Learn branch). Auto stays the default; a slash command is an
-// optional override that names the primitives the tutor may return. compare and walkthrough are the Tutor's material tools.
+// optional override that names the primitives the tutor may return. compare, walkthrough, animate, whiteboard and video are the
+// Tutor's material tools.
 const FAMILIES = {
   explain: ['explanation', 'table', 'animation', 'narration'], flashcards: ['flashcards'], code: ['code_sample', 'code_exercise'],
   graph: ['interactive_graph', 'data_plot', 'knowledge_graph'], diagram: ['flow_diagram', 'mermaid_diagram'], walkthrough: ['walkthrough'],
@@ -80,15 +95,14 @@ test('each tool or narrowed intent names exactly its allowed primitives', () => 
 
 // Owner, 2026-10-20: search and generation are separate commands; neither family holds the other's primitive.
 // Owner, 2026-10-26: /image generates (id generate-image), /photos searches (id image); the ids never change meaning.
-test('media: /photos (id image) only searches, /image (id generate-image) and /video only generate, /youtube only searches', () => {
+test('media: /photos (id image) only searches, /image (id generate-image) only generates, /youtube only searches; the Tutor keeps video', () => {
   assert.deepEqual(learnRequest('image').paid, []);
   assert.ok(!learnRequest('image').allowedPrimitives.includes('image_generate'));
   assert.deepEqual(learnRequest('generate-image').allowedPrimitives, ['image_generate']);
-  assert.deepEqual(learnRequest('video').allowedPrimitives, ['video_generate']);
-  assert.ok(!learnRequest('video').allowedPrimitives.includes('video'));
+  assert.deepEqual(learnRequest('video').allowedPrimitives, ['video_generate'], 'the Tutor\'s internal material tool');
   assert.deepEqual([learnRequest('youtube').action, learnRequest('youtube').allowedPrimitives], ['open_source', null]);
-  assert.deepEqual(['image', 'generate-image', 'youtube', 'video', '3d', 'explain', 'dive'].map((n) => descFor(toolOf(n), 'learn')),
-    ['Search photos', 'Generate image', 'Search YouTube', 'Generate video', 'Add 3D scene', 'Add explanation', 'Open Rabbit Hole']);
+  assert.deepEqual(['image', 'generate-image', 'youtube', '3d', 'explain', 'browser'].map((n) => descFor(toolOf(n), 'learn')),
+    ['Photo search', 'Image generation', 'YouTube search', '3D scene', 'Explanation', 'Browser']);
 });
 
 // Owner, 2026-10-26: the typed names. /image is the paid generation, /photos the photo search, /generate-image still works as
@@ -111,18 +125,16 @@ test('typed names: /image resolves to generate-image, /photos to the photo searc
   assert.deepEqual(['photos', 'image', 'generate-image', 'explain', 'simplify', 'imagine'].map(idOfTyped), ['image', 'generate-image', 'generate-image', 'explain', 'simplify', 'imagine']);
   // Every typed name and alias of an entry resolves to it and to no other entry.
   for (const entry of SLASH) for (const word of [typedOf(entry.name), ...(entry.aliases || [])]) assert.equal(idOfTyped(word), entry.name, `${entry.name}: ${word}`);
-  // The menu and the pill read the new labels, not the typed names.
-  assert.equal(labelOf(toolOf('generate-image')), 'Generate image');
-  assert.equal(labelOf(toolOf('image')), 'Search photos');
-  assert.match(toolOf('generate-image').about, /\/photos does/);
-  assert.match(toolOf('image').about, /\/image does/);
+  // The menu reads the titles (the pill shows the typed name, CommandPill.jsx).
+  assert.equal(labelOf(toolOf('generate-image')), 'Image generation');
+  assert.equal(labelOf(toolOf('image')), 'Photo search');
 });
 
 // Saved data names ids, never typed names: id `image` is still the photo search and `generate-image` still the generation.
 test('saved ids keep their meaning: toolOf(image) is the photo search, toolOf(generate-image) the generation', () => {
   assert.deepEqual(toolOf('image').family, ['image']);
   assert.deepEqual(toolOf('generate-image').family, ['image_generate']);
-  assert.equal(commandsFor('learn').find((c) => c.name === 'image')?.desc, 'Search photos');
+  assert.equal(commandsFor('learn').find((c) => c.name === 'image')?.desc, 'Photo search');
 });
 
 // /image needs image generation: hidden from every list and refused when typed (as /image or its alias /generate-image) until the server offers it for this person, never turned on here.
@@ -161,8 +173,8 @@ test('paid primitives always confirm and carry no guessed cost', () => {
   assert.deepEqual(learnRequest('code').paid, []);
 });
 
-test('notebook and whiteboard are deterministic: no model', () => {
-  for (const [name, action] of [['notebook', 'insert_notebook'], ['whiteboard', 'insert_whiteboard']]) {
+test('notebook, browser and the Tutor\'s whiteboard are deterministic: no model', () => {
+  for (const [name, action] of [['notebook', 'insert_notebook'], ['browser', 'insert_webpage'], ['whiteboard', 'insert_whiteboard']]) {
     const r = learnRequest(name);
     assert.equal(r.deterministic, true, name);
     assert.equal(r.action, action, name);
@@ -178,32 +190,22 @@ test('/practice subtype words narrow the family; plain /practice leaves the whol
   assert.equal(learnRequest('practice', { args: 'coding' }).family, 'practice');
 });
 
-test('the Learn picker: LEARN, CREATE and SEARCH; every other command under More learning tools', () => {
-  assert.deepEqual(LEARN_MENU.learn, ['dive', 'practice', 'quiz', 'goal']);
-  assert.deepEqual(LEARN_MENU.create, ['explain', 'code', 'graph', 'diagram', 'motion', 'flashcards', 'notebook']);
-  assert.deepEqual(LEARN_MENU.search, ['image', 'youtube', 'arxiv', 'wikipedia']);
-  for (const name of [...LEARN_MENU.learn, ...LEARN_MENU.create, ...LEARN_MENU.search]) assert.ok(names(SLASH).includes(name), name);
-});
-
-// Release B (owner decisions 1A, 2A, 4A and A4, 2026-10-16): one registry with surface capabilities.
-const CTRLK_SET = ['explain', 'code', 'graph', 'diagram', 'flashcards', 'image', 'video', 'cad', '3d', 'motion', 'youtube', 'arxiv', 'wikipedia'];
-
-test('surfaces: Ctrl+K offers exactly the owner set; Chat is the Learn list; Insert offers the three source searches', () => {
-  assert.deepEqual(names(commandsFor('ctrlk', { motionDev: true })).sort(), [...CTRLK_SET].sort());
-  // A production build has no /motion anywhere, Ctrl+K included.
-  assert.deepEqual(names(commandsFor('ctrlk', { motionDev: false })).sort(), CTRLK_SET.filter((n) => n !== 'motion').sort());
-  assert.deepEqual(commandsFor('chat', { motionDev: true }), commandsFor('learn', { motionDev: true }));
+// Owner spec 2026-10-29: Chat and Ctrl+K offer the same 18 (Ctrl+K hands each to Chat's dispatcher); Insert the three source searches.
+test('surfaces: Ctrl+K offers exactly Chat\'s list; Insert offers the three source searches', () => {
+  for (const options of [{ motionDev: true }, { motionDev: false }, { motionDev: true, imageGeneration: true }]) {
+    assert.deepEqual(commandsFor('ctrlk', options), commandsFor('learn', options), JSON.stringify(options));
+    assert.deepEqual(commandsFor('chat', options), commandsFor('learn', options));
+  }
+  assert.ok(!names(commandsFor('ctrlk', { motionDev: false })).includes('motion'), 'no Motion build: no /motion anywhere');
   assert.deepEqual(names(commandsFor('insert')), ['youtube', 'arxiv', 'wikipedia']);
   for (const c of SLASH) {
-    if (c.places.includes('ctrlk') && c.name !== 'generate-image') assert.ok(CTRLK_SET.includes(c.name), c.name);
+    assert.ok(c.places.includes('learn') && c.places.includes('ctrlk'), c.name);
     if (['youtube', 'arxiv', 'wikipedia'].includes(c.name)) assert.deepEqual(c.places, ['learn', 'ctrlk', 'insert']);
   }
-  for (const name of ['dive', 'practice', 'quiz', 'whiteboard', 'notebook']) assert.deepEqual(toolOf(name).places, ['learn'], name);
 });
 
-test('every command has a kind; the generate ones are what Ctrl+K picks Explain for, the source ones open the finder', () => {
+test('every command has a kind; the source ones open the finder', () => {
   for (const c of [...SLASH, ...MATERIAL_TOOLS]) assert.ok(['generate', 'source', 'prompt', 'dialog'].includes(c.kind), c.name);
-  assert.deepEqual(names(commandsFor('ctrlk', { motionDev: true }).filter((c) => c.kind === 'generate')), ['explain', 'flashcards', 'code', 'graph', 'diagram', 'image', 'video', 'cad', '3d', 'motion']);
   for (const name of ['youtube', 'arxiv', 'wikipedia']) {
     const c = toolOf(name);
     assert.equal(c.kind, 'source');
@@ -213,17 +215,17 @@ test('every command has a kind; the generate ones are what Ctrl+K picks Explain 
   }
 });
 
-test('labels: a short pill label where there is one, else the menu label; never a /name', () => {
-  assert.deepEqual(['video', 'youtube', 'arxiv', 'wikipedia', 'image'].map((n) => labelOf(toolOf(n))), ['Generate video', 'Search YouTube', 'Search arXiv', 'Search Wikipedia', 'Search photos']);
-  assert.deepEqual(['explain', 'dive', '3d', 'cad', 'practice', 'quiz', 'graph'].map((n) => labelOf(toolOf(n))), ['Add explanation', 'Open Rabbit Hole', '3D', 'CAD', 'Practice', 'Quiz', 'Graph']);
+test('labels: the command\'s title, never a /name', () => {
+  assert.deepEqual(['youtube', 'arxiv', 'wikipedia', 'image'].map((n) => labelOf(toolOf(n))), ['YouTube search', 'arXiv search', 'Wikipedia search', 'Photo search']);
+  assert.deepEqual(['explain', '3d', 'cad', 'practice', 'quiz', 'graph', 'goal'].map((n) => labelOf(toolOf(n))), ['Explanation', '3D scene', 'CAD model', 'Practice', 'Quiz', 'Graph', 'Learning goal']);
   // A saved message's removed command still reads as words.
   assert.equal(labelOf({ name: 'simplify' }), 'Simplify');
 });
 
 // Owner, 2026-10-20: /motion is the command for the Motion explainer-video pipeline, in place of /animate.
-test('/motion: its pill reads Motion, its menu line is the owner wording, and only a development or review build offers it', () => {
+test('/motion: its title is Animated explainer, and only a Motion build offers it', () => {
   const motion = toolOf('motion');
-  assert.deepEqual([labelOf(motion), descFor(motion, 'learn'), motion.action, motion.needs], ['Motion', 'Create an animated explainer video', 'motion', 'motion_dev']);
+  assert.deepEqual([labelOf(motion), descFor(motion, 'learn'), motion.action, motion.needs], ['Animated explainer', 'Animated explainer', 'motion', 'motion_dev']);
   for (const surface of ['chat', 'ctrlk']) {
     assert.equal(resolveCommand('/motion 15s explain me softmax func', surface, { motionDev: true }).command, motion, surface);
     assert.deepEqual(resolveCommand('/motion 15s explain me softmax func', surface, { motionDev: false }), { unsupported: 'motion' }, surface);
@@ -242,9 +244,9 @@ test('resolveCommand: a typed command is the very entry the picker lists; an uno
   }
   assert.deepEqual(resolveCommand('  /Explain   why softmax  ', 'ctrlk'), { command: toolOf('explain'), arg: 'why softmax' });
   assert.deepEqual(resolveCommand('/youtube', 'chat'), { command: toolOf('youtube'), arg: '' });
-  // Learn prompts and dialog commands are unsupported in Ctrl+K, but unchanged in Chat.
-  for (const name of ['quiz', 'dive', 'notebook', 'whiteboard', 'practice']) {
-    assert.deepEqual(resolveCommand(`/${name} x`, 'ctrlk'), { unsupported: name }, name);
+  // Every Learn command resolves alike in Ctrl+K and Chat (one dispatcher).
+  for (const name of ['quiz', 'notebook', 'practice', 'goal', 'browser']) {
+    assert.equal(resolveCommand(`/${name} x`, 'ctrlk').command.name, name, name);
     assert.equal(resolveCommand(`/${name} x`, 'chat').command.name, name, name);
   }
   assert.deepEqual(resolveCommand('/motion 15s softmax', 'ctrlk', { motionDev: false }), { unsupported: 'motion' });
@@ -252,12 +254,12 @@ test('resolveCommand: a typed command is the very entry the picker lists; an uno
   for (const text of ['explain this', '', '/', 'a /graph later', null]) assert.equal(resolveCommand(text, 'chat'), null, String(text));
 });
 
-// Owner, 2026-10-20: 17 commands removed, then /animate (/motion is the animation command). None is listed or resolves for a
-// typed line on any surface; each says it is unavailable. The Tutor's material tools (compare, walkthrough, animate) resolve
-// only for its own create_material (internal).
+// Owner, 2026-10-20: 17 commands removed, then /animate (/motion is the animation command); owner spec 2026-10-29: /dive,
+// /whiteboard and /video. None is listed or resolves for a typed line on any surface; each says it is unavailable. The Tutor's
+// material tools (compare, walkthrough, animate, whiteboard, video) resolve only for its own create_material (internal).
 test('the removed commands are gone from every surface list and every typed dispatch, and say they are unavailable', () => {
-  assert.equal(REMOVED_COMMANDS.length, 18);
-  assert.deepEqual([...REMOVED_COMMANDS].sort(), ['animate', 'ask', 'compare', 'connect', 'deeper', 'do', 'example', 'find', 'more', 'new', 'open', 'paper', 'research', 'run', 'simplify', 'source', 'teach', 'walkthrough']);
+  assert.equal(REMOVED_COMMANDS.length, 21);
+  assert.deepEqual([...REMOVED_COMMANDS].sort(), ['animate', 'ask', 'compare', 'connect', 'deeper', 'dive', 'do', 'example', 'find', 'more', 'new', 'open', 'paper', 'research', 'run', 'simplify', 'source', 'teach', 'video', 'walkthrough', 'whiteboard']);
   for (const name of REMOVED_COMMANDS) {
     assert.ok(!names(SLASH).includes(name), name);
     for (const surface of ['chat', 'learn', 'ctrlk', 'insert', 'home', 'project']) {
@@ -270,8 +272,8 @@ test('the removed commands are gone from every surface list and every typed disp
   // The bar lists no commands, so it never says to type / (AgentBar.jsx).
   assert.equal(unavailableCommand('teach', { listed: false }), '/teach is no longer available. Ask in your own words.');
   // The Tutor's internal path, and only it, still reaches the material tools.
-  assert.deepEqual(names(MATERIAL_TOOLS), ['compare', 'walkthrough', 'animate']);
-  for (const name of ['compare', 'walkthrough', 'animate']) {
+  assert.deepEqual(names(MATERIAL_TOOLS), ['compare', 'walkthrough', 'animate', 'whiteboard', 'video']);
+  for (const name of names(MATERIAL_TOOLS)) {
     assert.ok(names(commandsFor('learn', { internal: true })).includes(name), name);
     assert.equal(resolveCommand(`/${name} x`, 'chat', { internal: true }).command.name, name);
     assert.deepEqual(resolveCommand(`/${name} x`, 'chat'), { unsupported: name });

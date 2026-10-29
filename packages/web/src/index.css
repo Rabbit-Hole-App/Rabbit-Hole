@@ -218,9 +218,6 @@ html {
   --cmd-motion-fg: #86198f;
   --cmd-motion-line: #f5d0fe;
   /* Every other command (owner, 2026-10-08): its own hue, spread round the wheel clear of red and the primary blue. */
-  --cmd-dive-bg: #f6fdec;
-  --cmd-dive-fg: #457010;
-  --cmd-dive-line: #d4f1b1;
   --cmd-practice-bg: #eefdec;
   --cmd-practice-fg: #26761e;
   --cmd-practice-line: #b7f1b1;
@@ -242,15 +239,12 @@ html {
   --cmd-diagram-bg: #eceefd;
   --cmd-diagram-fg: #1e2576;
   --cmd-diagram-line: #b1b6f1;
-  --cmd-whiteboard-bg: #f5ecfd;
-  --cmd-whiteboard-fg: #411070;
-  --cmd-whiteboard-line: #d2b1f1;
+  --cmd-browser-bg: #f5ecfd;
+  --cmd-browser-fg: #411070;
+  --cmd-browser-line: #d2b1f1;
   --cmd-image-bg: #fbecfd;
   --cmd-image-fg: #601070;
   --cmd-image-line: #e7b1f1;
-  --cmd-video-bg: #fdecfb;
-  --cmd-video-fg: #761e6a;
-  --cmd-video-line: #f1b1e9;
   --cmd-cad-bg: #eaf7f3;
   --cmd-cad-fg: #185b57;
   --cmd-cad-line: #aed8ce;
@@ -278,7 +272,6 @@ html {
 }
 [data-command-tone] { background-color: var(--cmd-bg); color: var(--cmd-fg); border-color: var(--cmd-line); }
 [data-command-tone="motion"] { --cmd-bg: var(--cmd-motion-bg); --cmd-fg: var(--cmd-motion-fg); --cmd-line: var(--cmd-motion-line); }
-[data-command-tone="dive"] { --cmd-bg: var(--cmd-dive-bg); --cmd-fg: var(--cmd-dive-fg); --cmd-line: var(--cmd-dive-line); }
 [data-command-tone="practice"] { --cmd-bg: var(--cmd-practice-bg); --cmd-fg: var(--cmd-practice-fg); --cmd-line: var(--cmd-practice-line); }
 [data-command-tone="quiz"] { --cmd-bg: var(--cmd-quiz-bg); --cmd-fg: var(--cmd-quiz-fg); --cmd-line: var(--cmd-quiz-line); }
 [data-command-tone="explain"] { --cmd-bg: var(--cmd-explain-bg); --cmd-fg: var(--cmd-explain-fg); --cmd-line: var(--cmd-explain-line); }
@@ -286,9 +279,8 @@ html {
 [data-command-tone="code"] { --cmd-bg: var(--cmd-code-bg); --cmd-fg: var(--cmd-code-fg); --cmd-line: var(--cmd-code-line); }
 [data-command-tone="graph"] { --cmd-bg: var(--cmd-graph-bg); --cmd-fg: var(--cmd-graph-fg); --cmd-line: var(--cmd-graph-line); }
 [data-command-tone="diagram"] { --cmd-bg: var(--cmd-diagram-bg); --cmd-fg: var(--cmd-diagram-fg); --cmd-line: var(--cmd-diagram-line); }
-[data-command-tone="whiteboard"] { --cmd-bg: var(--cmd-whiteboard-bg); --cmd-fg: var(--cmd-whiteboard-fg); --cmd-line: var(--cmd-whiteboard-line); }
+[data-command-tone="browser"] { --cmd-bg: var(--cmd-browser-bg); --cmd-fg: var(--cmd-browser-fg); --cmd-line: var(--cmd-browser-line); }
 [data-command-tone="image"] { --cmd-bg: var(--cmd-image-bg); --cmd-fg: var(--cmd-image-fg); --cmd-line: var(--cmd-image-line); }
-[data-command-tone="video"] { --cmd-bg: var(--cmd-video-bg); --cmd-fg: var(--cmd-video-fg); --cmd-line: var(--cmd-video-line); }
 [data-command-tone="cad"] { --cmd-bg: var(--cmd-cad-bg); --cmd-fg: var(--cmd-cad-fg); --cmd-line: var(--cmd-cad-line); }
 [data-command-tone="3d"] { --cmd-bg: var(--cmd-3d-bg); --cmd-fg: var(--cmd-3d-fg); --cmd-line: var(--cmd-3d-line); }
 [data-command-tone="notebook"] { --cmd-bg: var(--cmd-notebook-bg); --cmd-fg: var(--cmd-notebook-fg); --cmd-line: var(--cmd-notebook-line); }
@@ -362,9 +354,6 @@ html {
   --cmd-motion-bg: #2f1233;
   --cmd-motion-fg: #f5d0fe;
   --cmd-motion-line: #86198f;
-  --cmd-dive-bg: #253414;
-  --cmd-dive-fg: #daf9b4;
-  --cmd-dive-line: #598226;
   --cmd-practice-bg: #173414;
   --cmd-practice-fg: #a9f7a1;
   --cmd-practice-line: #2f8226;
@@ -386,15 +375,12 @@ html {
   --cmd-diagram-bg: #141634;
   --cmd-diagram-fg: #a1a8f7;
   --cmd-diagram-line: #262e82;
-  --cmd-whiteboard-bg: #241434;
-  --cmd-whiteboard-fg: #d7b4f9;
-  --cmd-whiteboard-line: #562682;
+  --cmd-browser-bg: #241434;
+  --cmd-browser-fg: #d7b4f9;
+  --cmd-browser-line: #562682;
   --cmd-image-bg: #2e1434;
   --cmd-image-fg: #edb4f9;
   --cmd-image-line: #732682;
-  --cmd-video-bg: #34142f;
-  --cmd-video-fg: #f7a1ec;
-  --cmd-video-line: #822676;
   --cmd-cad-bg: #132e2a;
   --cmd-cad-fg: #a7e3d6;
   --cmd-cad-line: #356b60;

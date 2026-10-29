@@ -5,7 +5,7 @@ import { deflateSync } from 'node:zlib';
 import { DEV_CP } from './dev-cp.mjs';
 
 // The Learn composer on the parallel clone (project Learn, karpathy/nanoGPT):
-// the / picker's "More learning tools" section, View > Slash commands, and the
+// the / picker's sections, View > Slash Commands, and the
 // composer's + menu - an attached image and a mentioned canvas (Mention a
 // canvas) both reach the tutor. Two real model calls; no paid generation.
 // usage: node e2e/composer-plus-check.mjs [screenshot dir]
@@ -47,29 +47,23 @@ await composer.waitFor({ timeout: 60000 });
 await page.waitForTimeout(1500);
 const input = composer.locator('input:not([type="file"])');
 
-// 1. The / picker: no /more row; More learning tools opens by click and by scrolling.
+// 1. The / picker: no /more row, and no More section (owner spec 2026-10-29: Learn, Create and Search hold every command).
 await input.fill('/');
 const picker = page.locator('[data-slash-picker]');
 await picker.waitFor();
 ok('the picker has no /more row', await picker.locator('[data-slash-command="more"]').count() === 0);
-const more = picker.locator('[data-slash-more]');
-ok('More learning tools is a collapsed section', await more.count() === 1 && await more.getAttribute('aria-expanded') === 'false');
-await more.click();
-ok('clicking it opens the rest of the tools in place, in view', await more.getAttribute('aria-expanded') === 'true' && await picker.locator('[data-slash-command="whiteboard"]').count() === 1
-  && await picker.evaluate(box => { const first = box.querySelector('[data-slash-more]').nextElementSibling || box.querySelector('[data-slash-more]'); const a = box.getBoundingClientRect(), b = first.getBoundingClientRect(); return b.top >= a.top - 1 && b.bottom <= a.bottom + 1; }));
-await page.screenshot({ path: `${SHOTS}/picker-more-open.png` });
-await more.click();
-await picker.evaluate(box => { box.scrollTop = box.scrollHeight; box.dispatchEvent(new Event('scroll')); });
-await page.waitForTimeout(300);
-ok('scrolling to the bottom opens it too', await more.getAttribute('aria-expanded') === 'true');
+ok('no More learning tools section: every command is in Learn, Create or Search', await picker.locator('[data-slash-more]').count() === 0
+  && await picker.locator('[data-slash-command="browser"]').count() === 1 && await picker.locator('[data-slash-command="whiteboard"]').count() === 0);
+await page.screenshot({ path: `${SHOTS}/picker-sections.png` });
 await input.fill('');
 
-// 2. View > Slash commands.
-await openSlashHelp(page); // // Owner brief 2026-10-22: Slash commands left View for the chat composer's slash palette
-const sheet = page.getByRole('dialog', { name: 'Slash commands' });
+// 2. View > Slash Commands.
+await openSlashHelp(page);
+const sheet = page.getByRole('dialog', { name: 'Slash Commands' });
 await sheet.waitFor();
-const rows = await sheet.locator('[data-slash-help]').count();
-ok('View > Slash commands lists the commands with examples', rows >= 20 && await sheet.getByText('e.g. /graph y = sin(x) and y = cos(x)').count() === 1, `${rows} commands`);
+const rows = await sheet.locator('nav button[data-slash-help]').count();
+await sheet.locator('button[data-slash-help="graph"]').click();
+ok('View > Slash Commands lists the commands with their examples', rows >= 16 && (await sheet.locator('[data-slash-example]').innerText()).trim() === '/graph y = sin(x) and y = cos(x)', `${rows} commands`);
 await sheet.screenshot({ path: `${SHOTS}/slash-commands-sheet.png` });
 await page.keyboard.press('Escape');
 

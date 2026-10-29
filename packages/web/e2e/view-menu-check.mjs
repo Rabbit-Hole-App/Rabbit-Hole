@@ -527,6 +527,27 @@ await check('16 View has Canvas and Study radios above Workspace (Canvas checked
   await quiet(page, 'Canvas / Study', before);
 });
 
+// Owner spec 2026-10-29 section 7.1: View > Slash Commands opens the Slash Commands window, last in View after a divider; opening and
+// closing it keeps the Chat draft as written and asks nothing.
+await check('17 View > Slash Commands opens the window over a written Chat draft; Escape closes it to the draft, unchanged, and nothing is asked', async () => {
+  const before = counts();
+  const field = page.locator('[data-chat-pane] [data-chat-composer] textarea').first();
+  await field.fill('a draft I am still writing');
+  const rows = await (await openMenu(page, 'View')).evaluate(menu => [...menu.querySelectorAll(':scope [role^="menuitem"]')].filter(row => row.closest('[role="menu"]') === menu).map(row => row.textContent.trim()));
+  assert.equal(rows.at(-1), 'Slash Commands', `Slash Commands is the last View row: ${rows.join(', ')}`);
+  await menubar(page).getByRole('menuitem', { name: 'Slash Commands', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Slash Commands', exact: true });
+  await sheet.waitFor({ timeout: 10000 });
+  assert.equal(await sheet.locator('[data-slash-search]').evaluate(node => node === document.activeElement), true, 'the search has focus');
+  assert.equal(await field.inputValue(), 'a draft I am still writing');
+  await shot(page, 'view-17-slash-commands');
+  await page.keyboard.press('Escape');
+  await sheet.waitFor({ state: 'detached', timeout: 5000 });
+  assert.equal(await field.inputValue(), 'a draft I am still writing', 'the draft is kept');
+  await field.fill('');
+  await quiet(page, 'Slash Commands', before);
+});
+
 await check('13 no model-capable request was let through, and hook sets came only after learner turns with Curious shown or the empty state request', async () => {
   assert.deepEqual(model, []);
   // The no-request windows themselves are asserted in 4-10; here only the totals: three shown turns and the one click asked.
@@ -537,6 +558,6 @@ await check('13 no model-capable request was let through, and hook sets came onl
 await browser.close();
 const fatal = errors.filter(e => !/ResizeObserver/.test(e));
 if (fatal.length) { console.log(`page errors:\n${fatal.join('\n')}`); process.exitCode = 1; }
-const total = 19;
+const total = 20;
 console.log(`${results.length}/${total} view menu checks passed${failures.length ? `; failed: ${failures.join(' | ')}` : ''}`);
 if (results.length !== total) process.exitCode = 1;

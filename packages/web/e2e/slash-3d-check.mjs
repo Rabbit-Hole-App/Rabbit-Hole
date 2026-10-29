@@ -1,21 +1,23 @@
-// The /3d example in View > Slash commands (owner, 2026-10-20): a real 3D model in the canvas's own scene card and viewer
+// The /3d example in View > Slash Commands (owner, 2026-10-20; owner spec 2026-10-29 sections 7-9: one measured preview that fits, no
+// outer scroll, and a brief before the /3d card): a real 3D model in the canvas's own scene card and viewer
 // (LearningBlocks ThreeDBody, three-d-renderer.js) on the committed GLB public/lesson-assets/slash-3d-frustum.glb, never the old
 // frustum picture. LOCAL stack only. Every model and job route is counted (and a non-GET one aborted); the window must make none.
 // In light and in dark:
 //   1. on open the model renders: a loading line, then a live viewer with drawn pixels; no picture; Interact and Fit view sit in
 //      a toolbar outside the card, above its top right, with no control in the viewer; the Interact pill reads Interact; the
 //      e.g. line, the card's title and brief and the committed model are one subject (the frustum, cube and ray it draws);
-//   2. before Interact the wheel over the model scrolls the window's preview and leaves the camera where it was;
-//   3. Interact: a drag orbits and the wheel zooms (the viewer's pixels change), and the preview does not scroll;
+//   2. the card fits its measured stage (data-slash-fit, data-slash-overflow false, no outer scroll), and before Interact the wheel
+//      over the model leaves the camera where it was;
+//   3. Interact: a drag orbits and the wheel zooms (the viewer's pixels change), and nothing scrolls;
 //   4. Fit view frames the model as it opened (the opening pixels again);
-//   5. Escape ends the interaction, the window stays open, and the wheel scrolls the preview again;
+//   5. Escape ends the interaction, the window stays open, and the wheel leaves the camera again;
 //   6. closing and reopening the window shows the model live again;
 // then once, in light:
 //   7. a model file that 404s shows the viewer's own failure and Retry model in the card, never the picture; Retry loads it;
-//   8. the selected /3d pill in the Chat composer reads 3D (never /3d) and its x is Remove 3D;
-//   9. a real /3d card on the canvas - /api/learn/artifact and the scene job answered in the browser with the same GLB and the
-//      same title and brief (the viewer fills the card below its text, so the brief's length sets its height) - has the
-//      preview's card width, body size and DOM (the same ThreeDBody structure and three.js canvas);
+//   8. the selected /3d pill in the Chat composer reads 3d (never /3d) and its x is Remove 3D scene;
+//   9. a real /3d card on the canvas - its brief, then Generate; the brief route, /api/learn/artifact and the scene job answered in
+//      the browser with the same GLB and the same title and brief - has the preview's DOM (the same ThreeDBody structure and
+//      three.js canvas); the preview card is no wider than it and fits its stage (the window never copies the native size);
 //  10. no page errors, and no model or job request from the window (counted), none of the canvas's stubbed ones reaching the server.
 // Before this change step 1 fails: /3d shows img[data-slash-illustration] (slash-3d-frustum.svg) and no viewer, and its e.g.
 // line asked for the solar system while the model shown is the camera frustum sample.
@@ -58,6 +60,13 @@ const router = async route => {
   if (url.origin !== BASE && !['data:', 'blob:'].includes(url.protocol)) { outside.push(`${url.hostname} (step ${results.length + 1}, ${phase}, from ${request.frame()?.url() || '?'})`); return route.abort(); }
   if (url.pathname === '/lesson-assets/slash-3d-frustum.glb' && missingGlb) return route.fulfill({ status: 404, contentType: 'text/plain', body: 'Not found' });
   if (['/api/learn/tutor/next-steps', '/api/learn/next-steps'].includes(url.pathname)) return route.fulfill({ json: { options: [], suggestions: [], fingerprint: null } });
+  // Step 9: the /3d brief (owner spec 2026-10-29), answered here as the server signs it (the local stack has no signing key).
+  if (canvasStubs && url.pathname === '/api/learn/chat/material-proposals') {
+    const body = JSON.parse(request.postData() || '{}'), words = String(body.request || ''), text = `A 3D scene of ${words}, to explore its spatial relationships.`;
+    return route.fulfill({ status: 201, json: { thread_id: body.thread_id, message_id: '9301', proposal: { proposal_id: 'gp-0000000000000301', version: 1, command: '3d', title: words.slice(0, 80) || '3D scene', description: text, settings: {}, source_refs: [],
+      input: { request: `/3d ${words}`, args: words, selection: null, context: null, changes: [], org: 'o', app: 'a' }, expires_at: Math.floor(Date.now() / 1000) + 3600, sig: `v3.${'0'.repeat(64)}`, schema_version: 1, mode: 'generate',
+      original_request: `/3d ${words}`, prompt: text, visual_constraints: [], references: [], requirements: [], assumptions: [], missing_information: [], limitations: ['Making it uses paid generation.'], destination: { org: 'o', app: 'a' }, quote: null, review_hash: 'fixture' } } });
+  }
   if (!MODEL.test(url.pathname)) return route.fallback();
   seen.push({ phase, request: `${request.method()} ${url.pathname}` });
   // Step 9 only: a real /3d request's answers, as the server and the Blender job give them, all in the browser.
@@ -129,31 +138,30 @@ const open = async theme => {
   await until(() => Promise.resolve(seen.slice(mark).some(entry => entry.request === 'GET /api/learn/cad/jobs')), 'the page never restored CAD status', 30000);
   return { context, page };
 };
-const sheetOf = page => page.getByRole('dialog', { name: 'Slash commands' });
+const sheetOf = page => page.getByRole('dialog', { name: 'Slash Commands' });
 const openSheet = async page => {
   phase = 'window';
-  await openSlashHelp(page); // // Owner brief 2026-10-22: Slash commands left View for the chat composer's slash palette
+  await openSlashHelp(page); // View > Slash Commands (owner spec 2026-10-29)
   await sheetOf(page).waitFor();
-  await sheetOf(page).locator('[data-slash-help="3d"]').click();
+  await sheetOf(page).locator('button[data-slash-help="3d"]').click();
 };
-const close = async page => { await sheetOf(page).getByRole('button', { name: 'Close slash commands' }).click(); await sheetOf(page).waitFor({ state: 'detached' }); phase = 'page'; };
+const close = async page => { await sheetOf(page).getByRole('button', { name: 'Close Slash Commands' }).click(); await sheetOf(page).waitFor({ state: 'detached' }); phase = 'page'; };
 const parts = page => {
   const sheet = sheetOf(page), card = sheet.locator('[data-slash-card="scene"]'), viewer = card.locator('[data-three-d-viewer]');
   const tools = sheet.locator('[data-cad-tools^="slash-sheet:"]');
-  // The preview's scroll box: the pane around the card.
-  const pane = card.locator('xpath=ancestor::div[contains(@class,"overflow-auto")][1]');
-  return { sheet, card, viewer, tools, pane, interact: tools.locator('[data-cad-interact]'), fit: tools.locator('[data-cad-fit]') };
+  // The measured stage the card fits in (SlashCommandPreview.jsx): it never scrolls.
+  const stage = sheet.locator('[data-slash-stage]').first();
+  return { sheet, card, viewer, tools, stage, interact: tools.locator('[data-cad-interact]'), fit: tools.locator('[data-cad-fit]') };
 };
 // The viewer's picture above its foot, where the loading and Drag to orbit hints sit: the camera checks compare the model only.
-// Brought fully into view first, so two shots compare the same pixels wherever the preview was scrolled (callers check the
-// preview's scroll before taking one).
+// Brought fully into view first, so two shots compare the same pixels.
 const still = async (page, viewer) => {
   await viewer.scrollIntoViewIfNeeded();
   const box = await viewer.boundingBox();
   return page.screenshot({ clip: { x: box.x + 1, y: box.y + 1, width: box.width - 2, height: box.height - 34 } });
 };
 const live = viewer => until(() => viewer.evaluate(node => node.hasAttribute('data-viewer-live')), 'the viewer never went live', 20000);
-// The scroll box is put at the top and the model under the pointer, so one wheel tick can scroll it.
+// The model under the pointer, for a wheel tick or a drag.
 const hover = async (page, viewer) => { const box = await viewer.boundingBox(); await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); return box; };
 
 for (const theme of ['light', 'dark']) {
@@ -169,7 +177,7 @@ for (const theme of ['light', 'dark']) {
     assert.equal(await sheet.locator('img[data-slash-illustration]').count(), 0, 'no picture');
     // One subject: the e.g. line and the card's own text name the concept and every object the model draws, and nothing else.
     assert.deepEqual(DRAWN, ['frustum', 'cube', 'ray'], 'the objects the committed model draws');
-    const example = (await sheet.locator('section[aria-label="/3d preview"] code').first().innerText()).toLowerCase(), text = (await card.innerText()).toLowerCase();
+    const example = (await sheet.locator('[data-slash-example]').innerText()).toLowerCase(), text = (await card.innerText()).toLowerCase();
     for (const word of ['perspective projection', ...DRAWN]) assert.ok(example.includes(word) && text.includes(word), `the e.g. line and the card both name ${word}: ${example} / ${text}`);
     assert.doesNotMatch(await sheet.innerText(), /solar|planet/i, 'the window names a subject the model does not show');
     assert.equal(await viewer.locator('canvas[data-engine^="three.js"]').count(), 1, 'the three.js renderer canvas');
@@ -188,9 +196,8 @@ for (const theme of ['light', 'dark']) {
     await card.getByRole('button', { name: 'Pause animation' }).click();
     await page.waitForTimeout(400);
     opening = await still(page, viewer);
-    // The review shot: the whole window at a taller size, the preview at its top (Pause scrolled it).
+    // The review shot: the whole window at a taller size.
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await parts(page).pane.evaluate(node => { node.scrollTop = 0; });
     await page.mouse.move(5, 5);
     await page.waitForTimeout(300);
     await sheet.screenshot({ path: `${OUT}/${theme}-1-open.png` });
@@ -198,20 +205,19 @@ for (const theme of ['light', 'dark']) {
     await page.waitForTimeout(300);
     assert.deepEqual(fromWindow(before), [], 'model or job requests from the window');
   });
-  await step(`${theme}: before Interact the wheel scrolls the window and the camera stays`, async () => {
-    const { viewer, pane } = parts(page);
-    await pane.evaluate(node => { node.scrollTop = 0; });
-    assert.ok(await pane.evaluate(node => node.scrollHeight > node.clientHeight + 20), 'the preview overflows, so it can scroll');
+  await step(`${theme}: the card fits its measured stage with no outer scroll, and before Interact the wheel leaves the camera`, async () => {
+    const { card, viewer, stage } = parts(page);
+    assert.match(await card.getAttribute('data-slash-fit') || '', /^\d+x\d+$/, 'the card was measured');
+    assert.equal(await card.getAttribute('data-slash-overflow'), 'false', 'nothing of the card is cut off');
+    assert.ok(await stage.evaluate(node => node.scrollHeight <= node.clientHeight + 1 && node.scrollWidth <= node.clientWidth + 1), 'the stage never scrolls');
     await hover(page, viewer);
     await page.mouse.wheel(0, 200);
-    await until(() => pane.evaluate(node => node.scrollTop > 0), 'the preview did not scroll');
     await page.waitForTimeout(300);
     const after = await still(page, viewer);
     assert.ok(changed(opening, after) < 0.002, `the camera moved: ${changed(opening, after).toFixed(4)}`);
-    await pane.evaluate(node => { node.scrollTop = 0; });
   });
   await step(`${theme}: Interact - a drag orbits and the wheel zooms, and the window does not scroll`, async () => {
-    const { sheet, viewer, interact, pane } = parts(page);
+    const { sheet, viewer, interact, stage } = parts(page);
     await interact.click();
     await until(() => viewer.evaluate(node => node.hasAttribute('data-viewer-active')), 'Interact did not start');
     assert.equal(await interact.getAttribute('aria-pressed'), 'true');
@@ -221,11 +227,10 @@ for (const theme of ['light', 'dark']) {
     await page.waitForTimeout(300);
     const orbited = await still(page, viewer);
     assert.ok(changed(opening, orbited) > 0.01, `a drag did not move the camera: ${changed(opening, orbited).toFixed(4)}`);
-    const top = await pane.evaluate(node => node.scrollTop);
     await hover(page, viewer);
     await page.mouse.wheel(0, -400);
     await page.waitForTimeout(300);
-    assert.equal(await pane.evaluate(node => node.scrollTop), top, 'the window scrolled while interacting');
+    assert.equal(await stage.evaluate(node => node.scrollTop), 0, 'nothing scrolled while interacting');
     const zoomed = await still(page, viewer);
     assert.ok(changed(orbited, zoomed) > 0.01, `the wheel did not zoom: ${changed(orbited, zoomed).toFixed(4)}`);
     await sheet.screenshot({ path: `${OUT}/${theme}-3-interacting.png` });
@@ -238,17 +243,17 @@ for (const theme of ['light', 'dark']) {
     assert.ok(changed(opening, fitted) < 0.002, `not the opening framing: ${changed(opening, fitted).toFixed(4)}`);
   });
   await step(`${theme}: Escape ends the interaction and the window stays open`, async () => {
-    const { sheet, viewer, interact, pane } = parts(page);
+    const { sheet, viewer, interact } = parts(page);
     await page.keyboard.press('Escape');
     await until(() => viewer.evaluate(node => !node.hasAttribute('data-viewer-active')), 'Escape did not end the interaction');
     assert.equal(await interact.getAttribute('aria-pressed'), 'false');
     await page.waitForTimeout(300);
     assert.ok(await sheet.isVisible(), 'the window closed');
-    await pane.evaluate(node => { node.scrollTop = 0; });
+    const before = await still(page, viewer);
     await hover(page, viewer);
     await page.mouse.wheel(0, 200);
-    await until(() => pane.evaluate(node => node.scrollTop > 0), 'after Escape the wheel did not scroll the window');
-    await pane.evaluate(node => { node.scrollTop = 0; });
+    await page.waitForTimeout(300);
+    assert.ok(changed(before, await still(page, viewer)) < 0.002, 'after Escape the wheel still moved the camera');
   });
   await step(`${theme}: closing and reopening the window shows the model live again`, async () => {
     const before = seen.length;
@@ -284,21 +289,25 @@ for (const theme of ['light', 'dark']) {
   });
   const dock = page.locator('[data-chat-pane]');
   const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
-  await step('the selected /3d pill reads 3D, and its x is Remove 3D', async () => {
+  // Owner spec 2026-10-29: the pill reads the typed name (3d); its x is named by the title.
+  await step('the selected /3d pill reads 3d, and its x is Remove 3D scene', async () => { // owner spec 2026-10-29: the typed name
     await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 20000 });
     await composer().click();
     await composer().fill('/3d ');
     const pill = dock.locator('[data-command-pill="3d"]');
     await pill.waitFor();
-    assert.equal((await pill.innerText()).trim(), '3D');
-    assert.equal(await dock.getByRole('button', { name: 'Remove 3D', exact: true }).count(), 1);
+    assert.equal((await pill.innerText()).trim(), '3d');
+    assert.equal(await dock.getByRole('button', { name: 'Remove 3D scene', exact: true }).count(), 1);
     await dock.screenshot({ path: `${OUT}/light-8-pill.png` });
   });
   await step('a real /3d card on the canvas has the preview\'s card width, body size and DOM, on the same renderer', async () => {
     canvasStubs = true; phase = 'canvas';
     await composer().fill('a camera frustum');
     await composer().press('Enter');
-    await dock.locator('[data-paid-generate]').click();
+    // Owner spec 2026-10-29 section 6: its brief first; Generate on it makes the card.
+    const brief = dock.locator('[data-generation-proposal="3d"][data-proposal-active="true"]').last();
+    await brief.waitFor({ timeout: 10000 });
+    await brief.locator('[data-proposal-generate]').click();
     const block = page.locator('[data-block-id]').filter({ has: page.locator('[data-three-d-viewer]') });
     await block.waitFor({ timeout: 20000 });
     await live(block.locator('[data-three-d-viewer]'));
@@ -318,10 +327,10 @@ for (const theme of ['light', 'dark']) {
     await live(viewer);
     const inSheet = await shape(card);
     assert.equal(inSheet.tree, onCanvas.tree, 'the same ThreeDBody DOM');
-    assert.deepEqual(inSheet.body, onCanvas.body, 'the same body size');
-    assert.deepEqual(inSheet.viewer, onCanvas.viewer, 'the same viewer size');
     assert.equal(inSheet.engine, onCanvas.engine);
-    assert.equal(await card.evaluate(node => node.offsetWidth), frameWidth, 'the same card width');
+    // The window fits the card to its stage (owner spec 2026-10-29 7.2, 7.4): never wider than the canvas card, never cut off.
+    assert.ok(await card.evaluate(node => node.offsetWidth) <= frameWidth + 1, 'the preview card is no wider than the canvas card');
+    assert.equal(await card.getAttribute('data-slash-overflow'), 'false');
     console.log(`   card ${frameWidth} px wide, body ${onCanvas.body.join('x')}, viewer ${onCanvas.viewer.join('x')}, ${onCanvas.engine}`);
     await close(page);
     await page.screenshot({ path: `${OUT}/light-9-canvas-card.png` });

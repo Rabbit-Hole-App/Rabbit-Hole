@@ -194,11 +194,9 @@ for (const theme of ['light', 'dark']) {
   await check(`${theme}: Add goal (goal management) clears 4.5:1 at rest, hovered, focused and pressed, with a focus ring`, async () => {
     await openCanvas(page);
     await themed(page, theme);
-    // A bare /goal: Enter on the open picker makes the Goal pill, and Enter again runs it (goal-command-check).
+    // A bare /goal typed in full runs on one Enter (owner spec 2026-10-29 5.3; goal-command-check).
     const field = page.locator('[data-chat-pane] [data-chat-composer] textarea').first();
     await field.click(); await field.fill('/goal'); await field.press('Enter');
-    await page.locator('[data-chat-pane] [data-chat-composer] [data-command-pill="goal"]').waitFor();
-    await field.press('Enter');
     const add = page.locator('[data-goal-manager] [data-goal-add-save]');
     await until(() => add.isEnabled(), 'Add goal enabled once the saved goals load');
     await states(page, add, 'Add goal', theme, PRIMARY);

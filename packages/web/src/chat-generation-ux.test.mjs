@@ -49,7 +49,8 @@ test('responseKind: persisted metadata first, then the existing command parser o
   assert.equal(responseKind(answer(), { ...user('make a cad part'), outputs: [{ cardId: 'c1' }] }).reason, 'outputs');
   assert.deepEqual(responseKind(answer(), { ...user('Photosynthesis'), command: 'quiz' }), { kind: 'command', ordinary: false, command: 'quiz', reason: 'command' });
   // an older turn with no saved command: a registered /name at the very start
-  for (const name of ['motion', 'image', 'generate-image', 'cad', 'explain', 'video']) assert.equal(responseKind(answer(), user(`/${name} something`)).command, name, name);
+  // (/video left the commands, owner spec 2026-10-29: its saved turns carry their command metadata, read above.)
+  for (const name of ['motion', 'image', 'generate-image', 'cad', 'explain', 'browser']) assert.equal(responseKind(answer(), user(`/${name} something`)).command, name, name);
   // not a command: prose that mentions one, an unknown /word, a path, the answer's own words
   assert.equal(responseKind(answer({ content: 'Try /motion for a video.' }), user('How do I make a video?')).kind, 'ordinary');
   assert.equal(responseKind(answer(), user('What does /motion do?')).kind, 'ordinary');
@@ -356,4 +357,26 @@ test('two proposals in one chat: only the targeted revision is highlighted; Gene
   // An image proposal (no chat revision) keeps Edit details; so does a Motion proposal with attached references.
   assert.doesNotMatch(inChat(workspace(), proposal({ command: 'generate-image', settings: { model: 'gpt-image-2' } })).html, />Edit<\/button>/);
   assert.doesNotMatch(inChat(workspace(), proposal({ references: [{ id: 'r1', label: 'Notes', kind: 'card', sourceId: 'card:n', revision: 'r', range: null }] })).html, />Edit<\/button>/);
+});
+
+// Owner spec 2026-10-29 section 6: a simple material brief draws the shared card with its command heading, Edit (through Chat, never
+// a prose form) and Generate; Generate asks the existing generator once, however often it is pressed, and never before it is pressed.
+test('a simple material brief: Review quiz, Edit and Generate; one generator call per press, none before', async () => {
+  const calls = [];
+  const quiz = proposal({ command: 'quiz', title: "Newton's second law", description: "One multiple-choice question about Newton's second law, with feedback after you answer.", settings: {},
+    input: { request: "/quiz Newton's second law", args: "Newton's second law", selection: null, context: null, changes: [], org: 'w', app: 'canvas-1' } });
+  const ws = workspace();
+  const opsFor = ops({ generateMaterial: async p => { calls.push(p.proposal_id); return { blockId: 'quiz-card' }; } });
+  const { html, card } = inChat(ws, quiz, { msgs: [{ role: 'user', content: "/quiz Newton's second law", command: 'quiz', messageId: '700' }, answer({ meta: meta({ proposal: quiz }) })], opsFor });
+  assert.match(html, /Review quiz/);
+  assert.match(html, /<button[^>]*data-proposal-edit="true"[^>]*>Edit<\/button>/);
+  assert.doesNotMatch(html, /Edit details|data-proposal-save/);
+  assert.match(html, /data-proposal-generate="true"/);
+  assert.deepEqual(calls, [], 'drawing the brief generates nothing');
+  card.props.onEdit(quiz);
+  assert.equal(ws.calls[0][0], 'set', 'Edit makes this revision the Chat target');
+  assert.deepEqual(calls, [], 'Edit generates nothing');
+  card.props.onGenerate(quiz); card.props.onGenerate(quiz);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(calls, ['gp-0123456789abcdef'], 'one press in flight');
 });
