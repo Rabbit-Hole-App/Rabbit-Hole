@@ -93,7 +93,7 @@ test('the author is told the stateful contract from the enforced limits', () => 
   assert.match(STATEFUL_CONTRACT.manifest, new RegExp(`at most ${CONTRACT_LIMITS.actions} buttons`));
   assert.match(STATEFUL_CONTRACT.manifest, new RegExp(`at most ${CONTRACT_LIMITS.targets};`));
   assert.match(STATEFUL_CONTRACT.state, new RegExp(`${CONTRACT_LIMITS.stateBytes} bytes`));
-  assert.equal(STATEFUL_CONTRACT.events.length, 3, 'action, select, input; drag is not offered');
+  assert.equal(STATEFUL_CONTRACT.events.length, 4, 'action, select, input and drag (Task 8.4)');
 });
 
 test('fixture cards seal by what they declare: schema 2 for the stateful ones, the schema 1 ones exactly as before', async () => {

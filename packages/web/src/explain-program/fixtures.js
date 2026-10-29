@@ -163,7 +163,41 @@ export function evaluate({ state }) {
   events: [{ type: 'action', action: 'advance' }, { type: 'action', action: 'kick' }, { type: 'input', input: 'stiffness', value: 9 }, { type: 'action', action: 'advance' }],
 };
 
-export const STATEFUL_FIXTURES = [sortFixture, springFixture];
+// A drag target (Task 8.4): a handle the learner drags along a track; its position is wherever the pointer is, in frame coordinates. The
+// fixed marker at 540 is only there for the browser check to drop the handle on a known point.
+export const dragFixture = {
+  id: 'fixture-drag', note: FIXTURE_NOTE,
+  manifest: {
+    title: 'Placing a point on a track', summary: 'Drag the handle along the track; the card reports where it is and how many times it was placed.',
+    assumptions: ['The track runs from 60 to 660.'], description: 'A horizontal track with a square handle and a small marker.',
+    inputs: [], readouts: [{ id: 'position', label: 'Position', decimals: 0 }, { id: 'drops', label: 'Placed', decimals: 0 }], capabilities: [],
+    viewport: { width: 720, height: 360 },
+    actions: [{ id: 'centre', label: 'Centre it' }],
+    targets: [{ id: 'handle', label: 'Handle', drag: true }],
+  },
+  source: `export function initialState() { return { x: 180, dragging: false, drops: 0, moves: 0 }; }
+export function reduce({ state, event }) {
+  const at = x => Math.min(660, Math.max(60, x));
+  if (event.type === 'drag_start') return { ...state, x: at(event.x), dragging: true };
+  if (event.type === 'drag_move') return { ...state, x: at(event.x), moves: state.moves + 1 };
+  if (event.type === 'drag_end') return { ...state, x: at(event.x), dragging: false, drops: state.drops + 1 };
+  if (event.type === 'action') return { ...state, x: 360 };
+  return state;
+}
+export function evaluate({ state }) {
+  return {
+    frame: sdk.frame([
+      sdk.line('track', 60, 180, 660, 180), sdk.box('mark', 530, 220, 20, 20, { role: 'observed' }),
+      sdk.box('handle', state.x - 20, 160, 40, 40, { role: state.dragging ? 'learner' : 'input' }),
+      sdk.text('label', 60, 60, 'Handle at ' + Math.round(state.x) + (state.dragging ? ' (dragging)' : '') + ', placed ' + state.drops + ' times'),
+    ], { width: 720, height: 360, readouts: [{ id: 'position', value: state.x }, { id: 'drops', value: state.drops }] }),
+    quantities: { position: state.x, drops: state.drops, moves: state.moves },
+  };
+}`,
+  events: [{ type: 'drag_start', target: 'handle', x: 200, y: 180 }, { type: 'drag_move', target: 'handle', x: 400, y: 180 }, { type: 'drag_end', target: 'handle', x: 420, y: 190 }],
+};
+
+export const STATEFUL_FIXTURES = [sortFixture, springFixture, dragFixture];
 
 // Cards the preview board shows so the three fixed error messages can be seen. Kept apart from FIXTURES: those must all render.
 // fixture-loop never ends, so the interpreter stops it (runtime_limit). fixture-capability asks for something this build lacks

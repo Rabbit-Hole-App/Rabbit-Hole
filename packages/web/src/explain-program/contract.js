@@ -98,7 +98,7 @@ export const ProgramManifest = z.object(manifestShape).strict().superRefine(mani
 // aspect), the button actions a reducer may receive, and the frame object ids a learner may select. Nothing else crosses as an event.
 const frameSide = z.number().positive().max(4096); // the Frame's own dimension bound
 const actionSchema = z.object({ id: name, label: plain(60) }).strict();
-const targetSchema = z.object({ id, label: plain(60) }).strict(); // id: the frame object a learner selects
+const targetSchema = z.object({ id, label: plain(60), drag: z.boolean().optional() }).strict(); // id: the frame object a learner selects (and, with drag, moves)
 export const StatefulManifest = z.object({
   ...manifestShape,
   viewport: z.object({ width: frameSide, height: frameSide }).strict(),
@@ -121,8 +121,9 @@ export const draftSchemaVersion = draft => (draft?.manifest && typeof draft.mani
 // What the author is told about the stateful contract, from the same constants the schemas enforce.
 export const STATEFUL_CONTRACT = Object.freeze({
   exports: 'export function initialState({ inputs, seed }) -> state; export function reduce({ state, event, inputs, time, seed }) -> state; export function evaluate({ inputs, time, seed, state }) -> { frame, quantities }',
-  manifest: `viewport {width, height} (required; width x height at most ${CONTRACT_LIMITS.viewportPixels} pixels, for example 1120 x 860 or 960 x 540; every frame has exactly this size), actions [{id, label}] (at most ${CONTRACT_LIMITS.actions} buttons; id is a name), targets [{id, label}] (at most ${CONTRACT_LIMITS.targets}; id is the id of a frame object the learner can select; every frame draws every target under that id)`,
-  events: [`{type:"action", action: <an actions id>}`, `{type:"select", target: <a targets id>}`, `{type:"input", input: <an inputs id>, value: <the new value>}`],
+  manifest: `viewport {width, height} (required; width x height at most ${CONTRACT_LIMITS.viewportPixels} pixels, for example 1120 x 860 or 960 x 540; every frame has exactly this size), actions [{id, label}] (at most ${CONTRACT_LIMITS.actions} buttons; id is a name), targets [{id, label, drag?}] (at most ${CONTRACT_LIMITS.targets}; id is the id of a frame object the learner can select; with drag: true the learner can also drag it; every frame draws every target under that id)`,
+  events: [`{type:"action", action: <an actions id>}`, `{type:"select", target: <a targets id>}`, `{type:"input", input: <an inputs id>, value: <the new value>}`,
+    `{type:"drag_start" | "drag_move" | "drag_end", target: <a drag target id>, x, y} (x, y: the pointer in frame coordinates, inside the viewport; one drag is a start, any number of moves, then an end; moves may be merged, the last position and the end always arrive)`],
   state: `a plain JSON object: finite numbers, strings, booleans, null, arrays and objects; at most ${CONTRACT_LIMITS.stateBytes} bytes as JSON and ${CONTRACT_LIMITS.depth} levels deep`,
   rules: 'reduce returns the next state from the state and one event, without changing its arguments; evaluate draws the state. All three are pure and deterministic: the same seed and the same ordered events give the same state. Math.random restarts from seed on every call, so keep any random sequence counter in the state.',
 });
@@ -171,11 +172,15 @@ export function stateProblem(value) {
 }
 const stateSchema = z.unknown().superRefine((value, context) => { const problem = stateProblem(value); if (problem) context.addIssue({ code: 'custom', message: problem }); });
 
-// The strict event union. Drag (start/move/end) is reserved for Task 8.4 and refused as unsupported_capability until then.
+// The strict event union. A drag (Task 8.4) is start, moves and end on one declared drag target, at a point in frame coordinates
+// inside the viewport; nothing else about the pointer crosses.
+export const DRAG_EVENTS = Object.freeze(['drag_start', 'drag_move', 'drag_end']);
+const dragEvent = type => z.object({ type: z.literal(type), target: id, x: z.number(), y: z.number() }).strict();
 export const ProgramEvent = z.discriminatedUnion('type', [
   z.object({ type: z.literal('action'), action: name }).strict(),
   z.object({ type: z.literal('select'), target: id }).strict(),
   z.object({ type: z.literal('input'), input: name, value: inputValue }).strict(),
+  ...DRAG_EVENTS.map(dragEvent),
 ]);
 export const StatefulEvaluateRequest = z.object({ ...requestFields, state: stateSchema }).strict();
 export const InitializeRequest = z.object({ requestId: requestFields.requestId, inputs: requestFields.inputs, seed: requestFields.seed }).strict();
@@ -283,16 +288,18 @@ export const parseEvaluateRequest = raw => parseWith(EvaluateRequest, raw, 'inva
 export const parseStatefulEvaluateRequest = raw => parseWith(StatefulEvaluateRequest, raw, 'invalid_program');
 export const parseInitializeRequest = raw => parseWith(InitializeRequest, raw, 'invalid_program');
 export const parseState = raw => parseWith(stateSchema, raw, 'invalid_output'); // a state the guest returned
-// An event the manifest declares: a declared action or target, or a declared input with an allowed value. Never throws.
+// An event the manifest declares: a declared action or target, a drag on a declared drag target at a point inside the viewport, or a
+// declared input with an allowed value. Never throws.
 export function parseEvent(raw, manifest) {
-  if (typeof raw?.type === 'string' && raw.type.startsWith('drag')) return { ok: false, error: new RuntimeError('unsupported_capability'), issue: 'event: drag is not supported yet' };
   const parsed = parseWith(ProgramEvent, raw, 'invalid_program');
   if (!parsed.ok) return parsed;
   const event = parsed.value, input = event.type === 'input' && manifest.inputs.find(item => item.id === event.input);
+  const inside = () => event.x >= 0 && event.x <= manifest.viewport.width && event.y >= 0 && event.y <= manifest.viewport.height;
   const declared = event.type === 'action' ? manifest.actions.some(action => action.id === event.action)
     : event.type === 'select' ? manifest.targets.some(target => target.id === event.target)
-      : !!input && (input.type === 'number' ? typeof event.value === 'number' && event.value >= input.min && event.value <= input.max
-        : input.options.some(option => option.value === event.value));
+      : DRAG_EVENTS.includes(event.type) ? manifest.targets.some(target => target.id === event.target && target.drag === true) && inside()
+        : !!input && (input.type === 'number' ? typeof event.value === 'number' && event.value >= input.min && event.value <= input.max
+          : input.options.some(option => option.value === event.value));
   return declared ? parsed : { ok: false, error: new RuntimeError('invalid_program'), issue: `event: this ${event.type} is not declared by the manifest` };
 }
 export function parseReduceRequest(raw, manifest) {

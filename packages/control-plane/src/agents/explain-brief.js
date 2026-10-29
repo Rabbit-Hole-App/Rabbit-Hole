@@ -44,4 +44,4 @@ Call explain_brief exactly once.`;
 
 // Appended only when stateful programs are on (explain-program.js statefulEnabled): the card may also offer buttons and selectable parts.
 export const EXPLAIN_STATEFUL_BRIEF_RULES = `
-The card can also offer a few buttons and let the learner select parts of the picture (runtime.buttons), remembering what happened: for example running an algorithm one step per press, or choosing an item and seeing the consequence. Plan buttons or selections only when pressing or choosing is what teaches the idea, and say in the summary what the learner presses or selects and what it shows.`;
+The card can also offer a few buttons and let the learner select or drag parts of the picture (runtime.buttons), remembering what happened: for example running an algorithm one step per press, or choosing an item and seeing the consequence. Plan buttons or selections only when pressing or choosing is what teaches the idea, and say in the summary what the learner presses or selects and what it shows.`;

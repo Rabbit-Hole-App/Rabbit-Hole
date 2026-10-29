@@ -169,3 +169,19 @@ test('admitted viewports fit the render reservation; a too-large one is a repair
   assert.equal(out.repairable, true);
   assert.match(out.problems[0], /too large for one review .*6220800 px.*smaller viewport, at most 963200 pixels/);
 });
+
+// Task 8.4: a drag target goes through the same pipeline: the draft is admitted (stateful on), and the review samples one bounded,
+// representative drag from the initial state, inside the viewport, beside the button presses.
+test('drag targets: the draft is admitted and the review samples one bounded drag per drag target', async () => {
+  const { dragFixture } = await import('../../web/src/explain-program/fixtures.js');
+  const checked = checkProgramDraft(draft(dragFixture), { stateful: true });
+  assert.equal(checked.schemaVersion, 2, JSON.stringify(checked.problems));
+  const artifact = await buildProgramArtifact(checked.bundle);
+  const sequences = transitionSequences(artifact.manifest);
+  const drag = sequences.find(sequence => sequence.events[0].type === 'drag_start');
+  assert.deepEqual(drag.events.map(event => [event.type, event.target, event.x, event.y]), [['drag_start', 'handle', 360, 180], ['drag_move', 'handle', 540, 180], ['drag_end', 'handle', 540, 180]]);
+  assert.ok(drag.events.length <= REVIEW_EVENTS);
+  const manifest = await programCaptureManifest(artifact, { reserved: reserveRound({ cap: 6 }) });
+  assert.ok(manifest.entries.some(entry => entry.events?.[0]?.type === 'drag_start'), 'the drag is sampled within the six captures');
+  assert.ok((await checkManifest(manifest, artifact)).entries.length <= 6);
+});

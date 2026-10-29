@@ -4,7 +4,9 @@
 // Covers: declared buttons and selectable objects drawn with the shared controls and operable by keyboard; three fast presses applied
 // exactly once each and in order; a selection by clicking the drawing and by its button; rapid input changes followed by an action,
 // applied with their own values; Reset after button-only changes; reload restoring the committed state; a refused change followed by
-// Restart and reload, which come back to the last committed state and inputs without retrying it.
+// Restart and reload, which come back to the last committed state and inputs without retrying it. Task 8.4 (fixtures.js dragFixture):
+// a drag target hit and dragged at canvas zoom and pan outside Focus (the SVG's own screen transform, FX-56), dropped on a known point;
+// a rapid drag end; a cancelled pointer; a drag outside the target; the keyboard equivalent; a share-link viewer's drag kept local.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/explain-program-state-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -15,7 +17,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('explain-program-state-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'explain-program-state-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 9; // bump with the checks below; the printed line is what CI reads
+const TOTAL = 15; // bump with the checks below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `state-${run}@example.com`, secret, handle: `state_${run}` }) })).json();
@@ -25,7 +27,7 @@ const api = async (path, init = {}) => {
 };
 
 const program = (id, title, fixtureId) => ({ id, type: 'animation', dx: 0, dy: 0, title, program: { fixtureId }, time: 0, selectedObject: null, marked: null });
-const BLOCKS = [program('p-sort', 'Sorting by neighbour swaps', 'fixture-sort'), program('p-spring', 'A mass on a spring, step by step', 'fixture-spring')];
+const BLOCKS = [program('p-sort', 'Sorting by neighbour swaps', 'fixture-sort'), program('p-spring', 'A mass on a spring, step by step', 'fixture-spring'), program('p-drag', 'Placing a point on a track', 'fixture-drag')];
 const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Stateful card ${run}` }) });
 const catalog = await api('/api/apps');
 const key = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${canvas.name}:ink`;
@@ -147,7 +149,96 @@ try {
     assert.match(await card('p-spring').locator('[data-input-readout="stiffness"]').innerText(), /^7/);
     assert.equal(await card('p-spring').locator('[data-program-error]').count(), 0);
   });
-  await check('9 no model route was called, no host other than the app and its own notebook frame was contacted, and no page error', async () => {
+  // ---- Task 8.4: drag targets ----------------------------------------------------------------------------------------------------
+  const centre = async locator => { const box = await locator.boundingBox(); return { x: box.x + box.width / 2, y: box.y + box.height / 2 }; };
+  const handle = (on = page) => on.locator('[data-block-id="p-drag"] [data-program-frame] [data-animation-object="handle"]');
+  const mark = (on = page) => on.locator('[data-block-id="p-drag"] [data-program-frame] [data-animation-object="mark"]');
+  const dragText = async (on = page) => (await on.locator('[data-block-id="p-drag"] [data-program-frame]').textContent()).replace(/\s+/g, ' ');
+  const handleAt = async (on = page) => Number((await dragText(on)).match(/Handle at (\d+)/)[1]);
+  const placed = async () => Number((await dragText()).match(/placed (\d+) times/)[1]);
+  const settledAt = async (expected, on = page, slack = 3) => {
+    for (let i = 0; i < 60; i++) { const text = await dragText(on); if (!/dragging/.test(text) && Math.abs(Number(text.match(/Handle at (\d+)/)[1]) - expected) <= slack) return; await page.waitForTimeout(100); }
+    assert.fail(`the handle did not settle at ${expected}: ${await dragText(on)}`);
+  };
+  // A pointer drag from the handle to the screen point of the marker (540 in frame units), through the real mouse.
+  const dropOnMark = async (on = page, steps = 8) => {
+    const from = await centre(handle(on)), to = await centre(mark(on));
+    await on.mouse.move(from.x, from.y); await on.mouse.down(); await on.mouse.move(to.x, to.y, { steps }); await on.mouse.up();
+  };
+  const centreIt = async () => { await card('p-drag').locator('[data-program-action="centre"]').click(); await settledAt(360, page, 0); };
+  await check('9 at canvas zoom and pan, outside Focus, the drag target is hit and dropped where the pointer is, in frame coordinates (FX-56)', async () => {
+    await handle().waitFor({ state: 'attached', timeout: 30000 });
+    const before = await centre(handle());
+    await page.locator('[title="Zoom in"]').click();
+    await page.mouse.move(200, 800); await page.mouse.wheel(-60, -40); await page.waitForTimeout(600); // pan over empty canvas
+    const after = await centre(handle());
+    assert.ok(Math.abs(after.x - before.x) > 5 || Math.abs(after.y - before.y) > 5, 'the canvas view changed');
+    assert.equal(await card('p-drag').locator('[data-program-focus]').count(), 0, 'not in Focus');
+    await dropOnMark();
+    await settledAt(540);
+    assert.equal(await placed(), 1);
+    // The picture and the Notes values come from the same accepted state.
+    await card('p-drag').locator('[data-program-notes-toggle]').click();
+    assert.equal((await card('p-drag').locator('[data-program-value="position"]').innerText()).trim(), `Position: ${await handleAt()}`);
+    await card('p-drag').locator('[data-program-notes-toggle]').click();
+    await shot('D-drag-at-zoom');
+  });
+  await check('10 a rapid drag (no pause before the release) ends exactly once at its last point', async () => {
+    await centreIt();
+    await dropOnMark(page, 2);
+    await settledAt(540);
+    assert.equal(await placed(), 2);
+  });
+  await check('11 a cancelled pointer ends the drag at its last point; the program is never left mid-drag', async () => {
+    await centreIt();
+    const from = await centre(handle()), to = await centre(mark());
+    await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(to.x, to.y, { steps: 6 });
+    await card('p-drag').locator('[data-program-frame] [data-animation-frame]').evaluate(element => element.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1, bubbles: true })));
+    await page.mouse.up();
+    await settledAt(540);
+    assert.equal(await placed(), 3);
+  });
+  await check('12 a drag that starts outside the target sends nothing to the program', async () => {
+    await centreIt();
+    const frame = await card('p-drag').locator('[data-program-frame] [data-animation-frame]').boundingBox(), to = await centre(mark());
+    await page.mouse.move(frame.x + 15, frame.y + frame.height - 15); await page.mouse.down(); await page.mouse.move(to.x, to.y, { steps: 6 }); await page.mouse.up();
+    await page.waitForTimeout(600);
+    assert.deepEqual([await handleAt(), await placed()], [360, 3]);
+  });
+  await check('13 the keyboard equivalent: an arrow key on the target\'s button moves it as one drag', async () => {
+    const button = card('p-drag').locator('[data-program-target="handle"]');
+    assert.equal(await button.getAttribute('aria-keyshortcuts'), 'ArrowLeft ArrowRight ArrowUp ArrowDown');
+    await button.focus();
+    await page.keyboard.press('ArrowRight');
+    await settledAt(360 + 720 / 20, page, 0);
+    assert.equal(await placed(), 4);
+  });
+  await check('14 a share-link viewer drags the card in memory only: no board write, and a reload shows the saved card', async () => {
+    await page.waitForTimeout(2500); // the canvas saves after a short pause: the link serves the owner's saved card (Handle at 396)
+    const state = { ...seed, blocks: [program('p-drag', 'Placing a point on a track', 'fixture-drag')] };
+    const shared = await api(`/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true, state }) });
+    assert.ok(shared?.sharing?.view, JSON.stringify(shared).slice(0, 200));
+    const visitor = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+    const writes = [];
+    visitor.on('request', request => { if (request.method() !== 'GET' && /\/api\/learn\/boards/.test(request.url())) writes.push(`${request.method()} ${new URL(request.url()).pathname}`); });
+    const viewer = await visitor.newPage();
+    viewer.on('pageerror', error => errors.push(error.message));
+    await viewer.goto(`${BASE}/b/${shared.sharing.view}`);
+    await handle(viewer).waitFor({ state: 'attached', timeout: 60000 });
+    const saved = await handleAt(viewer); // the owner's saved card, as the link serves it
+    assert.equal(saved, 396, 'the last position the owner saved');
+    await viewer.evaluate(() => document.activeElement?.blur());
+    await viewer.keyboard.press('Shift+Digit1'); // zoom to fit, so the card is on screen
+    await viewer.waitForTimeout(900);
+    await dropOnMark(viewer);
+    await settledAt(540, viewer);
+    await viewer.reload();
+    await handle(viewer).waitFor({ state: 'attached', timeout: 60000 });
+    assert.equal(await handleAt(viewer), saved, 'the saved shared card, not the visitor\'s drag');
+    assert.deepEqual(writes, []);
+    await visitor.close();
+  });
+  await check('15 no model route was called, no host other than the app and its own notebook frame was contacted, and no page error', async () => {
     assert.deepEqual(stray, []);
     assert.deepEqual(offOrigin, []);
     assert.deepEqual(errors, []);

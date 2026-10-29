@@ -217,7 +217,36 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   }, [box, drawn]);
   // The drawing changes only when a new frame is drawn, not on every clock tick.
   const pick = useRef(NOOP); // a click on a declared target (set below with the current state); any other object is not interactive
+  const dragTo = useRef(NOOP), dragging = useRef(null); // a drag of a declared drag target (set below), and the one in progress
+  const pointer = useRef(null), dragged = useRef(false); // the captured pointer of that drag; a click right after a moved drag is not a pick
+  const dragIds = useMemo(() => (manifest?.targets ?? []).filter(target => target.drag).map(target => target.id), [manifest]);
   const picture = useMemo(() => view && <Frame scene={view.scene} state={view.state} selecting={false} marked={null} picked={null} pop={STILL} fixedView onPick={id => pick.current(id)} onRegion={NOOP} />, [view]);
+  // A new artifact or host, or leaving the card, ends any drag in progress without sending anything more.
+  useEffect(() => () => { dragging.current = null; pointer.current = null; }, [artifact, hostReady]);
+  // The pointer side of a drag (Task 8.4), on the drawing's own container, so the shared Frame is unchanged: a press on a declared drag
+  // target captures the pointer until it is released, cancelled or lost, and every point is read through the SVG's own screen transform
+  // (getScreenCTM), so canvas zoom and pan, Focus scaling and letterboxing never reach the program. A press anywhere else is not a drag.
+  const framePoint = event => {
+    const matrix = event.currentTarget.querySelector('[data-animation-frame] svg')?.getScreenCTM();
+    if (!matrix) return null;
+    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
+    return { x: point.x, y: point.y };
+  };
+  const pointerDrag = {
+    onPointerDown: event => {
+      dragged.current = false;
+      const id = event.button === 0 && event.target.closest?.('[data-animation-object]')?.getAttribute('data-animation-object');
+      if (!id || !dragIds.includes(id)) return;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      pointer.current = { id, pointerId: event.pointerId, moved: false };
+      dragTo.current('start', id, framePoint(event));
+    },
+    onPointerMove: event => { const active = pointer.current; if (active?.pointerId !== event.pointerId) return; active.moved = true; dragTo.current('move', active.id, framePoint(event)); },
+    onPointerUp: event => { const active = pointer.current; if (active?.pointerId !== event.pointerId) return; pointer.current = null; dragged.current = active.moved; dragTo.current('end', active.id, framePoint(event)); },
+    // A cancelled or lost pointer ends the drag at its last point (no point given).
+    onPointerCancel: event => { const active = pointer.current; if (active?.pointerId !== event.pointerId) return; pointer.current = null; dragTo.current('end', active.id, null); },
+    onLostPointerCapture: event => { const active = pointer.current; if (active?.pointerId !== event.pointerId) return; pointer.current = null; dragTo.current('end', active.id, null); },
+  };
 
   if (failure) {
     return (
@@ -249,7 +278,36 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // The latest inputs: any input change made before this press is already queued ahead of it.
   const act = event => { if (programState.dispatch(event, { inputs, time })) setPlaying(false); };
   const targets = manifest.targets ?? [], actions = manifest.actions ?? [];
-  pick.current = id => { if (targets.some(target => target.id === id)) act({ type: 'select', target: id }); };
+  pick.current = id => { if (dragged.current) { dragged.current = false; return; } if (targets.some(target => target.id === id)) act({ type: 'select', target: id }); };
+  // Drags (Task 8.4): bounded start/move/end events at points inside the viewport. A start the queue cannot hold is not begun; a
+  // cancelled or lost pointer ends the drag at its last point, so a program is never left mid-drag.
+  const viewport = manifest.viewport, inside = point => ({ x: Math.min(viewport?.width ?? 0, Math.max(0, point.x)), y: Math.min(viewport?.height ?? 0, Math.max(0, point.y)) });
+  dragTo.current = (phase, id, point) => {
+    if (!dragIds.includes(id)) return;
+    if (phase === 'start') {
+      const at = point && inside(point);
+      dragging.current = at && programState.dispatch({ type: 'drag_start', target: id, ...at }, { inputs, time }) ? { target: id, ...at } : null;
+      if (dragging.current) setPlaying(false);
+      return;
+    }
+    const active = dragging.current;
+    if (!active || active.target !== id) return;
+    const at = point ? inside(point) : { x: active.x, y: active.y };
+    if (phase === 'move') { dragging.current = { ...active, ...at }; programState.dispatch({ type: 'drag_move', target: id, ...at }, { inputs, time }); return; }
+    dragging.current = null;
+    programState.dispatch({ type: 'drag_end', target: id, ...at }, { inputs, time });
+  };
+  // The keyboard equivalent of a drag: an arrow key on a drag target's button moves it by a twentieth of the viewport (Shift: a
+  // hundredth), as one start, move and end from where the frame draws it.
+  const nudge = (id, event) => {
+    const step = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
+    const object = step && view.scene.objects.find(item => item.semanticId === id);
+    if (!object || !viewport) return;
+    event.preventDefault();
+    const { x = 0, y = 0, w = 0, h } = object.initialState, from = inside({ x: x + w / 2, y: y + (h ?? w) / 2 }), size = event.shiftKey ? 100 : 20;
+    const to = inside({ x: from.x + step[0] * viewport.width / size, y: from.y + step[1] * viewport.height / size });
+    dragTo.current('start', id, from); dragTo.current('move', id, to); dragTo.current('end', id, to);
+  };
   const atEnd = time >= duration - 0.001;
   // A jump in time (not the clock running): answers asked for before it are never drawn after it.
   const seek = next => { setTime(next); setEpoch(count => count + 1); };
@@ -259,7 +317,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     setPlaying(value => !value);
   };
   // A schema 2 Reset saves only once its initial state has been checked (persist above); a failed one keeps the last good state.
-  const reset = () => { setPlaying(false); seek(0); if (programState.stateful) { setPendingInputs(null); programState.reset(programInputs(manifest, {})); } else onChange(resetProgram(latest.current)); };
+  const reset = () => { dragging.current = null; setPlaying(false); seek(0); if (programState.stateful) { setPendingInputs(null); programState.reset(programInputs(manifest, {})); } else onChange(resetProgram(latest.current)); };
   const rows = manifest.inputs;
   const changed = programChanged(manifest, latest.current) || programTime(manifest, latest.current) > 0 || programState.changed;
   // While playing, the time shown is the drawn frame's own moment, so the label never runs ahead of the picture; paused, it is
@@ -273,7 +331,8 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       onPointerDown={event => event.stopPropagation()}>
       <div data-program-viewport className="flex min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white"
         style={focusBox ? { flex: 'none', width: focusBox.w + 2, height: focusBox.h + 2, overflow: 'hidden', alignSelf: 'safe center' } : undefined}>
-        <div data-program-frame role="group" aria-label={manifest.description} className="flex-1" style={focusBox ? { flex: 'none', width: focusBox.w, height: focusBox.h, margin: '0 auto' } : { minWidth: legible.w, minHeight: legible.h }}>{picture}</div>
+        <div data-program-frame role="group" aria-label={manifest.description} className="flex-1" {...(dragIds.length ? pointerDrag : {})}
+          style={{ ...(focusBox ? { flex: 'none', width: focusBox.w, height: focusBox.h, margin: '0 auto' } : { minWidth: legible.w, minHeight: legible.h }), ...(dragIds.length ? { touchAction: 'none' } : {}) }}>{picture}</div>
       </div>
       <p className="sr-only">{manifest.summary}</p>
       <div ref={controls} className="flex shrink-0 flex-col gap-2">
@@ -310,6 +369,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
                 <span className="text-xs font-medium text-ink-2">Select:</span>
                 {targets.map(target => (
                   <button key={target.id} type="button" data-program-target={target.id} disabled={programState.full} onClick={() => act({ type: 'select', target: target.id })}
+                    {...(target.drag ? { 'data-program-drag': '', 'aria-keyshortcuts': 'ArrowLeft ArrowRight ArrowUp ArrowDown', 'aria-description': 'Arrow keys move it', onKeyDown: event => nudge(target.id, event) } : {})}
                     className="flex h-8 items-center rounded-lg border border-line px-2.5 text-xs text-ink hover:bg-hover disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent">{target.label}</button>
                 ))}
               </div>
