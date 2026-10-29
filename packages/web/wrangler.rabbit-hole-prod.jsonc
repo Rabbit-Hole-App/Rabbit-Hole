@@ -63,6 +63,10 @@
     "TELEMETRY_ENVIRONMENT": "production",
     // /explain v2 (EXP-T12): switched on at R1 (EXP-T23, owner production GO 2026-10-22; live runs C:/s/spec/explain/renders/r2-live).
     "EXPLAIN_V2_ENABLED": "true",
+    // Generated interactive programs (generic /explain, docs/features/explain-sandbox-checklist.md): switched on once the accepted cooling and sorting examples pass on dev (owner production GO, 2026-10-28).
+    // The execution kill switch stays off: set EXPLAIN_PROGRAM_EXECUTION_KILL to "true" to stop every program card from running (saved cards are kept). EXPLAIN_DIAGNOSTICS is never set here.
+    "EXPLAIN_PROGRAM_ENABLED": "true",
+    "EXPLAIN_PROGRAM_EXECUTION_KILL": "false",
     // IMG-01 image generation (docs/features/image-jobs.md): PUBLIC generation is off. Only "true" accepts new jobs from everyone.
     // The ONLY exception is the controlled owner-only acceptance path below (owner 2026-10-25): a caller whose verified sign-in identity
     // is listed in IMAGE_ACCEPTANCE_EMAILS may use it under the ordinary admission, hold, settlement and readiness rules, so the
