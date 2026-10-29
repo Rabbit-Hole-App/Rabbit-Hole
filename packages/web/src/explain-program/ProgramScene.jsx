@@ -39,15 +39,18 @@ function NumberInput({ input, value, onInput }) {
   );
 }
 
-export default function ProgramScene({ block: saved, onChange: save, onChangeQuiet: saveQuiet, onControlsHeight = null, onProgramFrame = null }) {
+export default function ProgramScene({ block: saved, onChange: save, onChangeQuiet: saveQuiet, preview = false, onControlsHeight = null, onProgramFrame = null }) {
   // On a share link (SharedBoardPage's CardSourceScope) the program is read by the link, and the visitor's inputs and time stay in
   // this card's memory: never saved (not the owner's board, not the visitor's tab copy), so a reload starts from the saved card.
+  // A Proposed preview (an Edit's candidate, ExplainEditBar) is the same: its inputs and time are this preview's own, and it never
+  // calls the accepted card's save callbacks.
   const scope = useContext(CardSourceScope);
   const token = scope?.token || null;
+  const ephemeral = !!token || preview;
   const [local, setLocal] = useState(null);
-  const block = token ? shownProgram(saved, local) : saved;
+  const block = ephemeral ? shownProgram(saved, local) : saved;
   const keep = next => setLocal(keptProgram(saved, next));
-  const onChange = token ? keep : save, onChangeQuiet = token ? keep : saveQuiet;
+  const onChange = ephemeral ? keep : save, onChangeQuiet = ephemeral ? keep : saveQuiet;
   const [artifact, setArtifact] = useState(null);
   const [failure, setFailure] = useState(null);
   const [attempt, setAttempt] = useState(0); // "Restart explanation" bumps it: the same saved artifact, a fresh host

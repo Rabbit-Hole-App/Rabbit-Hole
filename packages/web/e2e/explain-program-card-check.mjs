@@ -2,7 +2,9 @@
 // a fresh browser profile, no model call. A canvas is seeded with the hand-authored fixture program cards (fixtures.js, test data
 // and not generation evidence) plus one old scene card; the dev build admits fixture cards (VITE_COACHING_DEV, program-card.js).
 // Covers: the picture draws from the saved program, Play and Pause, the scrubber, a number control and a choice control, Reset,
-// reload keeping the learner's values, the two fixed error messages with Restart, and an old scene card still working.
+// reload keeping the learner's values, the two fixed error messages with Restart, an old scene card still working, and (Task 9.1)
+// an Edit's Proposed program preview: its own player, never saved, Current back, Discard keeping the card. The edit job's ready
+// answer is a route stand-in whose candidate names a fixture program (wiring only; the result-route resolution is unit-tested).
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/explain-program-card-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -14,7 +16,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('explain-program-card-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'explain-program-card-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 14; // bump with the checks below; the printed line is what CI reads
+const TOTAL = 15; // bump with the checks below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `prog-${run}@example.com`, secret, handle: `prog_${run}` }) })).json();
@@ -33,6 +35,14 @@ const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify
 const catalog = await api('/api/apps');
 const key = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${canvas.name}:ink`;
 const seed = { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], blocks: BLOCKS, exchanges: [] };
+// Task 9.1: a second canvas with one accepted program card (the growth fixture, the learner's rate 8 at 2 s) and a ready Edit on it.
+const EDIT = { id: 'ej_preview', boardId: 'board-preview', stage: 'ready', instruction: 'Show a sorted row instead' };
+const editCanvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Program edit ${run}` }) });
+const editKey = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${editCanvas.name}:ink`;
+const editSeed = { ...seed, blocks: [{ ...program('p-edit', 'Balance over time', 'fixture-growth'), inputs: { rate: 8 }, inputRevision: 1, time: 2, explainEdit: EDIT }] };
+const editResult = { jobId: EDIT.id, resultId: 'er_preview', cardId: 'p-edit', canvas: { boardId: EDIT.boardId }, revision: 'xr_preview', baseRevision: 'xr_base', kind: 'program' };
+const editAnswer = { job: { id: EDIT.id, version: 1, boardId: EDIT.boardId, cardId: 'p-edit', requestClass: 'edit', stage: 'ready', terminal: true, round: 0, stopReason: 'accepted', failure: null, recovery: [], usage: { credits: 0, unknown: false }, result: editResult },
+  block: { type: 'animation', id: 'p-edit', title: 'Halving a sorted row', program: { fixtureId: 'fixture-search' }, explain: editResult } };
 
 const browser = await chromium.launch();
 const errors = [], stray = [], offOrigin = [];
@@ -42,6 +52,7 @@ try {
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.addInitScript(([storageKey, value]) => { if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, JSON.stringify(value)); }, [key, seed]);
+  await context.addInitScript(([storageKey, value]) => { if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, JSON.stringify(value)); }, [editKey, editSeed]);
   // Playing, scrubbing and controls are local: no model route may be called. Any such POST fails the run.
   await context.route(/\/api\/learn\/(ask|tutor|artifact|home-ask|journeys?|explain)\b/, route => {
     if (route.request().method() === 'GET' || new URL(route.request().url()).pathname === '/api/learn/tutor/next-steps') return route.fallback();
@@ -169,7 +180,47 @@ try {
     assert.ok(await card('old-scene').locator('[data-animation-frame]').count() >= 1);
     assert.equal(await card('old-scene').locator('[data-program-card]').count(), 0);
   });
-  await check('14 no model route was called, no host other than the app and its own notebook frame was contacted, and no page error', async () => {
+  await check("14 an Edit's Proposed program plays in its own player and saves nothing; Current returns; Discard keeps the card's inputs and time", async () => {
+    // The edit job's ready answer (registered last, so it wins over the GET fallback above): a program candidate with no scene.
+    await context.route(new RegExp(`/api/learn/explain/jobs/${EDIT.id}[?]`), route => route.fulfill({ json: editAnswer }));
+    const workers = { opened: 0, closed: 0 };
+    page.on('worker', worker => { workers.opened++; worker.on('close', () => { workers.closed++; }); });
+    await page.goto(`${BASE}/apps/${editCanvas.name}`);
+    const edit = card('p-edit');
+    await edit.locator('[data-program-frame] polyline').first().waitFor({ state: 'attached', timeout: 60000 });
+    await edit.locator('[data-explain-show="proposed"]').waitFor({ timeout: 30000 });
+    assert.equal(await edit.locator('[data-explain-show="current"]').getAttribute('aria-pressed'), 'true');
+    assert.equal(await timeText('p-edit'), '2.0s');
+    const live = page.workers().length;
+    await edit.locator('[data-explain-show="proposed"]').click();
+    await edit.locator('[data-program-frame] [data-animation-object^="cell-"]').first().waitFor({ state: 'attached', timeout: 30000 });
+    assert.equal(await edit.locator('[data-program-frame] [data-animation-object^="cell-"]').count(), 15, 'the candidate program, not the accepted one');
+    assert.equal(await edit.locator('[data-program-frame] polyline').count(), 0);
+    assert.equal(await timeText('p-edit'), '0.0s', 'the preview starts at its own beginning');
+    assert.ok(workers.closed >= 1, "the accepted card's host was disposed");
+    assert.ok(page.workers().length <= live, 'no host left behind');
+    // The preview's own controls and time move the preview only.
+    await edit.locator('input[data-input-control="target"]').fill('3');
+    await scrub('p-edit', 3);
+    await shot('F-edit-proposed');
+    await edit.locator('[data-explain-show="current"]').click();
+    await edit.locator('[data-program-frame] polyline').first().waitFor({ state: 'attached', timeout: 30000 });
+    assert.ok(page.workers().length <= live, 'the preview host was disposed');
+    assert.equal(await timeText('p-edit'), '2.0s', "the accepted card's moment, untouched by the preview");
+    assert.match(await edit.locator('[data-input-readout="rate"]').innerText(), /^8/);
+    // Proposed again starts fresh: the preview's earlier changes were never saved anywhere.
+    await edit.locator('[data-explain-show="proposed"]').click();
+    await edit.locator('[data-program-frame] [data-animation-object^="cell-"]').first().waitFor({ state: 'attached', timeout: 30000 });
+    assert.match(await edit.locator('[data-input-readout="target"]').innerText(), /^11/);
+    // Discard: the bar goes, the accepted program, its inputs and its time stay.
+    await edit.locator('[data-explain-discard]').click();
+    await edit.locator('[data-explain-edit]').waitFor({ state: 'detached', timeout: 10000 });
+    await edit.locator('[data-program-frame] polyline').first().waitFor({ state: 'attached', timeout: 30000 });
+    assert.equal(await timeText('p-edit'), '2.0s');
+    assert.match(await edit.locator('[data-input-readout="rate"]').innerText(), /^8/);
+    assert.equal(await edit.locator('[data-program-error]').count(), 0);
+  });
+  await check('15 no model route was called, no host other than the app and its own notebook frame was contacted, and no page error', async () => {
     assert.deepEqual(stray, []);
     assert.deepEqual(offOrigin, []);
     assert.deepEqual(errors, []);
