@@ -525,7 +525,7 @@ a {
 
 /* A view-only canvas (shared link): the card layer takes no pointer (hand tool), except the controls a viewer may operate.
    Same list as VIEW_ONLY_CONTROLS in card-open.js (view-only-controls.test.mjs keeps them equal). */
-[data-view-only] [data-block] :is([data-animation-transport], [data-scene-controls], [data-card-pager], [data-program-restart]) {
+[data-view-only] [data-block] :is([data-animation-transport], [data-scene-controls], [data-card-pager], [data-program-restart], [data-program-notes]) {
   pointer-events: auto;
 }
 
