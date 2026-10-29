@@ -100,8 +100,14 @@ export const REVIEW_EVENTS = 4;
 export function transitionSequences(manifest) {
   const actions = (manifest.actions || []).map(a => ({ label: `press ${a.id}`, events: [{ type: 'action', action: a.id }] }));
   const targets = (manifest.targets || []).map(t => ({ label: `select ${t.id}`, events: [{ type: 'select', target: t.id }] }));
+  // One representative drag per drag target (Task 8.4): pressed at the viewport's centre, moved to three quarters of its width, released
+  // there. The program decides what a drag from that point does; this only shows the review that dragging works and what it draws.
+  const drags = (manifest.targets || []).filter(t => t.drag).map(t => {
+    const { width, height } = manifest.viewport, from = { x: width / 2, y: height / 2 }, to = { x: width * 3 / 4, y: height / 2 };
+    return { label: `drag ${t.id} from (${from.x}, ${from.y}) to (${to.x}, ${to.y})`, events: [{ type: 'drag_start', target: t.id, ...from }, { type: 'drag_move', target: t.id, ...to }, { type: 'drag_end', target: t.id, ...to }] };
+  });
   const run = manifest.actions?.length ? [{ label: `press ${manifest.actions[0].id} ${REVIEW_EVENTS} times`, events: Array.from({ length: REVIEW_EVENTS }, () => ({ type: 'action', action: manifest.actions[0].id })) }] : [];
-  return [...actions, ...targets, ...run];
+  return [...actions, ...drags, ...targets, ...run];
 }
 
 // The program card's capture manifest: the default inputs at the start, middle and end of the declared playback (the start only when

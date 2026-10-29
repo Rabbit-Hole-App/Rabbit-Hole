@@ -3,7 +3,8 @@
 //
 // - Events apply one at a time, in the order dispatched, each to the state the previous one produced. None is dropped: when the queue
 //   is full (cap), dispatch returns false so the card can hold the control back, instead of growing without bound.
-// - Only consecutive queued changes of the same input coalesce (the newest value wins); nothing coalesces across another event.
+// - Only consecutive queued changes of the same input coalesce (the newest value wins), and consecutive moves of one drag (its end
+//   replaces a waiting move); nothing coalesces across another event.
 // - A new state, an initial one and a reset's included, is committed only after its own frame was also valid (check, with the inputs
 //   and time it was computed for): a state the program cannot draw is never kept, so it can never be saved and break the card on
 //   reload. A failed operation, a failed reset included, keeps the last accepted state.
@@ -100,6 +101,11 @@ export function createInteractionController({ host, bundleHash, seed, saved = nu
       if (dead) return false;
       const last = queue[queue.length - 1];
       if (event?.type === 'input' && last?.event.type === 'input' && last.event.input === event.input) { queue[queue.length - 1] = { event, inputs, time }; return true; }
+      // A drag's moves merge into the newest one, and its end takes the place of a waiting move (it carries the final point), so a drag
+      // never fills the queue; a start is admitted only with room left for its end.
+      const sameDrag = last?.event.type === 'drag_move' && last.event.target === event?.target;
+      if ((event?.type === 'drag_move' || event?.type === 'drag_end') && sameDrag) { queue[queue.length - 1] = { event, inputs, time }; return true; }
+      if (event?.type === 'drag_start' && queue.length + 2 > cap) return false;
       if (queue.length >= cap) return false;
       queue.push({ event, inputs, time });
       pump();

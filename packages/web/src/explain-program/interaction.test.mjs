@@ -63,8 +63,8 @@ function card(artifact, { saved = null, seed = 0, cap, frames = true } = {}) {
     // The card's frame check: the new state's frame through the same host, validated.
     check: frames ? async next => { await counted.evaluate({ requestId: `c${next.revision}`, inputs: INPUTS, time: 0, seed, state: next.state }, { supersede: false }); } : undefined,
   });
-  // Settled: no new host call for 60 ms and nothing queued.
-  const idle = async () => { let last = -1; while (last !== calls.length || controller.pending()) { last = calls.length; await new Promise(r => setTimeout(r, 60)); } };
+  // Settled: no new host call for 150 ms and nothing queued (wide enough for a loaded machine running the whole suite).
+  const idle = async () => { let last = -1; while (last !== calls.length || controller.pending()) { last = calls.length; await new Promise(r => setTimeout(r, 150)); } };
   return { host, controller, calls, published, persisted, failures, idle, dispose: () => { controller.dispose(); host.dispose(); } };
 }
 

@@ -85,7 +85,7 @@ test('state: non-finite numbers, non-JSON values and non-objects fail', () => {
 
 // ---- events -----------------------------------------------------------------------------------------------------------
 
-test('events: only declared actions, targets and allowed input values pass; drag is reserved; nothing else crosses', () => {
+test('events: only declared actions, targets and allowed input values pass; a drag needs a declared drag target (Task 8.4); nothing else crosses', () => {
   const manifest = parseManifest(MANIFEST, 2).value;
   for (const ok of [{ type: 'action', action: 'add' }, { type: 'select', target: 'count-box' }, { type: 'input', input: 'step', value: 5 }, { type: 'input', input: 'tone', value: 'loud' }]) {
     assert.equal(parseEvent(ok, manifest).ok, true, JSON.stringify(ok));
@@ -100,7 +100,8 @@ test('events: only declared actions, targets and allowed input values pass; drag
     const out = parseEvent(bad, manifest);
     assert.deepEqual([out.ok, out.error?.code], [false, 'invalid_program'], JSON.stringify(bad));
   }
-  for (const type of ['drag_start', 'drag_move', 'drag_end']) assert.equal(parseEvent({ type, target: 'count-box', x: 1, y: 2 }, manifest).error.code, 'unsupported_capability');
+  // Task 8.4 replaced the reservation (drag refused as unsupported_capability): a target that is not declared draggable is refused.
+  for (const type of ['drag_start', 'drag_move', 'drag_end']) assert.equal(parseEvent({ type, target: 'count-box', x: 1, y: 2 }, manifest).error.code, 'invalid_program');
 });
 
 // ---- manifest and artifact --------------------------------------------------------------------------------------------
@@ -178,7 +179,7 @@ test('a schema 2 card initializes, reduces declared events and evaluates its sta
     await assert.rejects(host.evaluate(evalReq(2, null)), { code: 'invalid_program' });
     await assert.rejects(host.reduce(reduceReq(4, first.state, { type: 'action', action: 'delete' })), { code: 'invalid_program' });
     await assert.rejects(host.reduce(reduceReq(5, { s: 'x'.repeat(LIMITS.stateBytes) }, { type: 'action', action: 'add' })), { code: 'invalid_program' });
-    await assert.rejects(host.reduce(reduceReq(6, first.state, { type: 'drag_start', target: 'count-box' })), { code: 'unsupported_capability' });
+    await assert.rejects(host.reduce(reduceReq(6, first.state, { type: 'drag_start', target: 'count-box' })), { code: 'invalid_program' }); // not a drag target, no point (Task 8.4)
   } finally { host.dispose(); }
 });
 
