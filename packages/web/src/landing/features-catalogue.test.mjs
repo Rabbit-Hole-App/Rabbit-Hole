@@ -49,7 +49,7 @@ test('the page definition: four sections in order, their layouts and entries (ow
     ['Learn from your material.', 'stack', 4], ['Explore ideas in action.', 'stack-mirrored', 4],
     ['Follow the next question.', 'wide', 1], ['Build on what you learn.', 'tiles', 4]]);
   assert.deepEqual(PAGE_IDS, ['01-ai-tutor', '05-pdf-reader', '04-github-code-graph', '07-pin-study', '06-notebooks', '09-interactive-graphs',
-    '03-animated-explainer-videos', '10-cad-generation', '11-rabbit-holes', '08-practice', '14-edit-with-ai', '24-comments', '16-sharing-forking']);
+    '03-animated-explainer-videos', '10-cad-generation', '11-rabbit-holes', '08-practice', '23-table-of-contents', '24-comments', '16-sharing-forking']);
   for (const id of PAGE_IDS) assert.ok(FEATURES.some(f => f.id === id), id);
   assert.equal(new Set(PAGE_IDS).size, PAGE_IDS.length);
 });
@@ -72,8 +72,8 @@ test('each stack section is its own walkthrough: its own steps, --features count
   // Rabbit Holes and the collection stay outside the stack logic.
   const rest = html.slice(html.indexOf('data-layout="wide"'));
   assert.doesNotMatch(rest, /data-feature-step|data-feature-walkthrough|is-active/);
-  assert.match(rest, /<div class="feature-wide">\n<article class="feature" id="rabbit-holes">/);
-  assert.deepEqual([...rest.slice(rest.indexOf('feature-tiles')).matchAll(/<article class="feature" id="([a-z-]+)"/g)].map(m => m[1]), ['practice', 'edit-with-ai', 'comments', 'sharing-forking']);
+  assert.match(rest, /<div class="feature-wide">\n<article class="feature" id="rabbit-holes" style="--ar:1760 \/ 1100">/); // the frame takes the picture's aspect
+  assert.deepEqual([...rest.slice(rest.indexOf('feature-tiles')).matchAll(/<article class="feature" id="([a-z-]+)"/g)].map(m => m[1]), ['practice', 'table-of-contents', 'comments', 'sharing-forking']);
   assert.equal((html.match(/loading="eager"/g) || []).length, 1);
 });
 
@@ -84,7 +84,7 @@ test('the page shows its 13 entries in section order; production drops staged en
   assert.deepEqual(prod, PAGE_IDS.filter(id => FEATURES.find(f => f.id === id).published));
   const preview = renderCatalogue(FEATURES, all, { preview: true });
   assert.deepEqual([...preview.matchAll(/<h2 class="feature-group-title">([^<]+)</g)].map(m => m[1]), PAGE_GROUPS.map(g => g.title));
-  assert.doesNotMatch(preview, /id="(bidirectional-links|ask-about-selection|canvas-search)"/);
+  assert.doesNotMatch(preview, /id="(bidirectional-links|ask-about-selection|canvas-search|edit-with-ai)"/);
   // A section whose entries are all staged renders nothing in production, not an empty heading.
   const staged = { '09-interactive-graphs': pic('09'), '03-animated-explainer-videos': pic('03'), '01-ai-tutor': pic('01') };
   const html = renderCatalogue(FEATURES, staged);

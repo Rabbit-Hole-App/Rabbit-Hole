@@ -31,6 +31,8 @@ function frame(image, title, alt, eager) {
   return `<div class="feature-demo"><div class="demo-window"><div class="demo-toolbar" aria-hidden="true"><span class="demo-brand">Rabbit Hole</span><span>${esc(title)} <i></i></span></div><div class="demo-content">${body}</div></div></div>`;
 }
 
+// The wide frame takes its single picture's own aspect ratio (--ar), so a wider capture widens the frame with no bands.
+const aspect = image => Array.isArray(image) ? '' : ` style="--ar:${image.desktop.w} / ${image.desktop.h}"`;
 const copy = (f, row) => `<div class="feature-copy"${row ? ` style="grid-row:${row}"` : ''}><h3>${esc(f.title)}</h3><p class="feature-subtitle">${esc(f.subtitle)}</p><p>${esc(f.description)}</p></div>`;
 
 export function renderCatalogue(features, images, { preview = false, groups = PAGE_GROUPS } = {}) {
@@ -44,7 +46,7 @@ export function renderCatalogue(features, images, { preview = false, groups = PA
     // 'wide' and 'tiles' scroll normally, outside the stack logic. Copy comes first in the DOM (the phone order).
     const entries = list.map((f, i) => stack
       ? `<article class="feature${i === 0 ? ' is-active' : ''}" id="${anchorOf(f.id)}" data-feature-step>${copy(f, i + 1)}${shot(f)}</article>`
-      : `<article class="feature" id="${anchorOf(f.id)}">${copy(f)}${shot(f)}</article>`).join('\n');
+      : `<article class="feature" id="${anchorOf(f.id)}"${g.layout === 'wide' ? aspect(images[f.id]) : ''}>${copy(f)}${shot(f)}</article>`).join('\n');
     const open = stack ? `<div class="feature-stack${g.layout === 'stack-mirrored' ? ' is-mirrored' : ''}" data-feature-walkthrough style="--features:${list.length}">`
       : `<div class="feature-${g.layout}">`;
     return `<section class="feature-group" data-layout="${g.layout}"><h2 class="feature-group-title">${esc(g.title)}</h2>\n${open}\n${entries}\n</div>\n</section>`;
