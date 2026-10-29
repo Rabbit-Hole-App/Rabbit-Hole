@@ -55,7 +55,8 @@ test('explicit commands, picker and suggestion ids, Tutor mode and plain explain
   assert.deepEqual([picked.route, picked.via, picked.flow, picked.args, picked.paid], ['capability:youtube', 'capability', 'direct', 'photosynthesis', false]);
   assert.equal((await decideWith(ask, 'tell me more', { capability: 'answer' })).route, 'answer');
   assert.equal((await decideWith(ask, '/diagram the water cycle')).route, 'capability:diagram');
-  assert.equal((await decideWith(ask, '/dive photosynthesis')).flow, 'direct', 'an undeclared Learn command keeps its own direct handler');
+  // /dive left the commands (owner spec 2026-10-29); /notebook is an undeclared Learn command that keeps its own direct handler.
+  assert.equal((await decideWith(ask, '/notebook photosynthesis')).flow, 'direct', 'an undeclared Learn command keeps its own direct handler');
   const removed = await decideWith(ask, '/simplify this');
   assert.equal(removed.route, 'unsupported');
   assert.deepEqual([(await decideWith(ask, '/nope x')).route, (await decideWith(ask, '/nope x')).message], ['unsupported', '/nope is not a Learn command.']);
