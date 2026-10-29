@@ -1,0 +1,139 @@
+{
+  "01-ai-tutor": {
+    "desktop": {
+      "src": "01-ai-tutor-desktop.webp",
+      "w": 1396,
+      "h": 1160
+    },
+    "mobile": {
+      "src": "01-ai-tutor-mobile.webp",
+      "w": 680,
+      "h": 1160
+    }
+  },
+  "03-animated-explainer-videos": {
+    "desktop": {
+      "src": "03-animated-explainer-videos-desktop.webp",
+      "w": 996,
+      "h": 1884
+    }
+  },
+  "04-github-code-graph": {
+    "desktop": {
+      "src": "04-github-code-graph-desktop.webp",
+      "w": 1356,
+      "h": 980
+    },
+    "mobile": {
+      "src": "04-github-code-graph-mobile.webp",
+      "w": 716,
+      "h": 704
+    }
+  },
+  "05-pdf-reader": {
+    "desktop": {
+      "src": "05-pdf-reader-desktop.webp",
+      "w": 1232,
+      "h": 1240
+    }
+  },
+  "06-notebooks": {
+    "desktop": {
+      "src": "06-notebooks-desktop.webp",
+      "w": 1938,
+      "h": 1440
+    }
+  },
+  "07-pin-study": {
+    "desktop": {
+      "src": "07-pin-study-desktop.webp",
+      "w": 1392,
+      "h": 1893
+    }
+  },
+  "08-practice": {
+    "desktop": {
+      "src": "08-practice-desktop.webp",
+      "w": 1302,
+      "h": 1025
+    },
+    "mobile": {
+      "src": "08-practice-mobile.webp",
+      "w": 800,
+      "h": 1001
+    }
+  },
+  "09-interactive-graphs": {
+    "desktop": {
+      "src": "09-interactive-graphs-desktop.webp",
+      "w": 1800,
+      "h": 1321
+    },
+    "mobile": {
+      "src": "09-interactive-graphs-mobile.webp",
+      "w": 800,
+      "h": 1189
+    }
+  },
+  "10-cad-generation": {
+    "desktop": {
+      "src": "10-cad-generation-desktop.webp",
+      "w": 1620,
+      "h": 2145
+    }
+  },
+  "11-rabbit-holes": {
+    "desktop": {
+      "src": "11-rabbit-holes-desktop.webp",
+      "w": 3840,
+      "h": 2160
+    },
+    "mobile": {
+      "src": "11-rabbit-holes-mobile.webp",
+      "w": 800,
+      "h": 769
+    }
+  },
+  "14-edit-with-ai": {
+    "desktop": {
+      "src": "14-edit-with-ai-desktop.webp",
+      "w": 1404,
+      "h": 1233
+    }
+  },
+  "16-sharing-forking": [
+    {
+      "caption": "Shared canvas",
+      "desktop": {
+        "src": "16-sharing-forking-a-desktop.webp",
+        "w": 1175,
+        "h": 890
+      },
+      "mobile": {
+        "src": "16-sharing-forking-a-mobile.webp",
+        "w": 800,
+        "h": 708
+      }
+    },
+    {
+      "caption": "The fork",
+      "desktop": {
+        "src": "16-sharing-forking-b-desktop.webp",
+        "w": 1700,
+        "h": 780
+      },
+      "mobile": {
+        "src": "16-sharing-forking-b-mobile.webp",
+        "w": 800,
+        "h": 677
+      }
+    }
+  ],
+  "24-comments": {
+    "desktop": {
+      "src": "24-comments-desktop.webp",
+      "w": 976,
+      "h": 1270
+    }
+  }
+}

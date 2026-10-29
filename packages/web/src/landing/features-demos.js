@@ -1,10 +1,17 @@
-// These deterministic previews illustrate the product; they never call a model,
-// upload sources, submit answers, or persist learner data.
-const walkthrough=document.querySelector('[data-feature-walkthrough]');
-const steps=[...walkthrough.querySelectorAll('[data-feature-step]')];
+// The Features page's scroll-driven stacks, restored from e801cf290 and generalized from its four cyclic steps to N
+// entries (features-catalogue.js). Every [data-feature-walkthrough] runs on its own: its steps, active state and poses
+// never reach another stack. Desktop: the framed pictures stay sticky beside the copy (left, or right when .is-mirrored,
+// which also mirrors the back frames' offset) and the front frame changes as its copy reaches the viewport middle; poses
+// depend only on scroll position, so scrolling back reverses them. A stack never wraps: its first entry has no frame
+// behind it from the end, its last none from the start. Phone (max-width 800px): ordinary stacked sections. Reduced
+// motion: the matching frame, without the shuffle.
 const compact=matchMedia('(max-width: 800px)');
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
-const copies=steps.map(step=>step.querySelector('.feature-step-copy'));
+document.querySelectorAll('[data-feature-walkthrough]').forEach(walkthrough=>{
+const steps=[...walkthrough.querySelectorAll('[data-feature-step]')];
+const count=steps.length;
+const side=walkthrough.classList.contains('is-mirrored')?-1:1;
+const copies=steps.map(step=>step.querySelector('.feature-copy'));
 const demos=steps.map(step=>step.querySelector('.feature-demo'));
 const contents=demos.map(demo=>demo.querySelector('.demo-content'));
 const clamp=value=>Math.max(0,Math.min(1,value));
@@ -13,9 +20,10 @@ const slots=[{x:0,y:0,scale:1},{x:12,y:-26,scale:.975},{x:24,y:-52,scale:.95},{x
 let queued=false;
 
 function pose(index,slot,opacity,z){
-  const card=index%steps.length,demo=demos[card];
-  contents[card].style.opacity='1';
-  demo.style.transform=`translate(${slot.x.toFixed(3)}px,${slot.y.toFixed(3)}px) scale(${slot.scale.toFixed(5)})`;
+  if(index<0||index>=count)return;
+  const demo=demos[index];
+  contents[index].style.opacity='1';
+  demo.style.transform=`translate(${(slot.x*side).toFixed(3)}px,${slot.y.toFixed(3)}px) scale(${slot.scale.toFixed(5)})`;
   demo.style.opacity=String(opacity);
   demo.style.visibility=opacity>0?'visible':'hidden';
   demo.style.zIndex=String(z);
@@ -23,20 +31,23 @@ function pose(index,slot,opacity,z){
 function between(from,to,progress){
   return {x:mix(from.x,to.x,progress),y:mix(from.y,to.y,progress),scale:mix(from.scale,to.scale,progress)};
 }
+function hideAll(){demos.forEach((_,index)=>pose(index,slots[3],0,0));}
+// Front frame, the next one behind it, and the previous one at the back.
 function deck(front){
-  demos.forEach((_,index)=>pose(index,slots[3],0,0));
+  hideAll();
   pose(front,slots[0],1,4);
   pose(front+1,slots[1],1,3);
-  pose(front+3,slots[2],1,2);
+  pose(front-1,slots[2],1,2);
 }
 function shuffle(front,progress){
-  // The front card slips out, passes behind at zero opacity, then joins the
-  // back. These poses depend only on scroll position, including on reversal.
+  // The front frame slips out, passes behind at zero opacity, then joins the back. At progress 0 this is deck(front),
+  // at 1 deck(front+1).
+  hideAll();
   const travel={x:-Math.min(42,demos[front].offsetWidth*.065),y:10,scale:.98};
   const incoming=clamp(progress/.8);
   pose(front+1,between(slots[1],slots[0],incoming),1,3);
   pose(front+2,between(slots[3],slots[1],progress),clamp((progress-.2)/.5),2);
-  pose(front+3,between(slots[2],slots[3],progress),1-clamp(progress/.4),1);
+  pose(front-1,between(slots[2],slots[3],progress),1-clamp(progress/.4),1);
   if(progress<.45){
     const depart=progress/.45;
     pose(front,between(slots[0],travel,depart),1-depart,4);
@@ -44,9 +55,9 @@ function shuffle(front,progress){
     const returnToBack=clamp((progress-.45)/.55);
     pose(front,between({...slots[2],x:slots[2].x+14},slots[2],returnToBack),returnToBack,1);
   }
-  // Reveal the new text only after the old text has passed behind. Otherwise
-  // a paused mid-shuffle scroll would leave two explanations superimposed.
-  contents[(front+1)%steps.length].style.opacity=String(clamp((progress-.45)/.35));
+  // Reveal the new picture only after the old one has passed behind, so a paused mid-shuffle scroll never
+  // superimposes two pictures.
+  contents[front+1].style.opacity=String(clamp((progress-.45)/.35));
 }
 
 function update(){
@@ -67,16 +78,16 @@ function update(){
   walkthrough.classList.toggle('is-deck',!compact.matches);
   if(compact.matches){
     walkthrough.removeAttribute('data-shuffle');
-  }else if(reduced.matches){
+  }else if(reduced.matches||count<2){
     deck(selected);
     walkthrough.dataset.shuffle='0';
   }else{
     const centers=rects.map(rect=>rect.top+rect.height/2);
     let front=0;
-    while(front<steps.length-2&&middle>centers[front+1])front++;
+    while(front<count-2&&middle>centers[front+1])front++;
     const chapter=clamp((middle-centers[front])/(centers[front+1]-centers[front]));
-    // Hold the reading pose across most of a chapter. Only the middle third
-    // of the distance to the next chapter moves the deck.
+    // Hold the reading pose across most of a chapter. Only the middle third of the distance to the next chapter
+    // moves the deck.
     const progress=clamp((chapter-.34)/.32);
     if(progress===0)deck(front);
     else if(progress===1)deck(front+1);
@@ -84,12 +95,7 @@ function update(){
     walkthrough.dataset.shuffle=progress.toFixed(4);
   }
   walkthrough.classList.toggle('is-shuffling',moving);
-  steps.forEach((step,index)=>{
-    step.classList.toggle('is-active',index===selected);
-    const rect=demos[index].getBoundingClientRect();
-    const visible=rect.bottom>120&&rect.top<innerHeight-60;
-    step.classList.toggle('is-running',index===selected&&visible&&!moving&&!document.hidden&&!reduced.matches);
-  });
+  steps.forEach((step,index)=>step.classList.toggle('is-active',index===selected));
   walkthrough.dataset.activeStep=String(selected+1);
 }
 function schedule(){
@@ -99,9 +105,9 @@ function schedule(){
 }
 addEventListener('scroll',schedule,{passive:true});
 addEventListener('resize',schedule);
-document.addEventListener('visibilitychange',update);
 compact.addEventListener('change',schedule);
 reduced.addEventListener('change',schedule);
 new ResizeObserver(schedule).observe(walkthrough);
 document.fonts.ready.then(schedule);
 update();
+});
