@@ -236,13 +236,18 @@ try {
     await page.mouse.move(at.x, at.y);
     await page.mouse.wheel(0, 5000);
     assert.ok(await until(async () => /Play|Replay/.test(await card('p-growth').locator('[data-animation-play]').innerText())), 'out of view, the card paused');
+    // The moment it paused at, read while it is away. It is later than `left` by the pan and the IntersectionObserver's delivery (it reports
+    // on a following rendering step, later on a loaded runner), so that gap is not asserted tightly; the guarantee is that this moment is
+    // kept. Without the observer the card plays on to its end (4 s) and reads Replay, which fails both checks below.
+    const paused = Number((await timeText('p-growth')).replace('s', ''));
+    assert.ok(!/Replay/.test(await card('p-growth').locator('[data-animation-play]').innerText()) && paused < 4 && paused - left < 1.5, `paused at ${paused}s after leaving at ${left}s: by the observer, not the end of the program`);
     const away = await drawnFrames('p-growth', 1500);
     assert.equal(away.drawn, 0, `no frame drawn while out of view (${JSON.stringify(away)})`);
     await page.evaluate(() => document.activeElement?.blur());
     await page.keyboard.press('Shift+Digit1');
     await page.waitForTimeout(900);
     const back = Number((await timeText('p-growth')).replace('s', ''));
-    assert.ok(back >= left && back - left < 0.6, `returned at ${back}s, left at ${left}s: no fast-forward through the 1.5 s away`);
+    assert.equal(back, paused, `returned at ${back}s, paused at ${paused}s (left at ${left}s): the moment it paused at is kept, no fast-forward through the 1.5 s away`);
     assert.match(await card('p-growth').locator('[data-animation-play]').innerText(), /Play/);
     assert.ok(await card('p-growth').locator('[data-program-frame] polyline').count() >= 1, 'the same picture is drawn on return');
   });
@@ -304,14 +309,15 @@ try {
     assert.equal(await edit.locator('[data-program-frame] polyline').count(), 0);
     assert.equal(await timeText('p-edit'), '0.0s', 'the preview starts at its own beginning');
     assert.ok(workers.closed >= 1, "the accepted card's host was disposed");
-    assert.ok(page.workers().length <= live, 'no host left behind');
+    // A Worker's close reaches Playwright after the next host has started, so wait for it (5 s); a host never closed still fails.
+    assert.ok(await until(() => page.workers().length <= live), `no host left behind (${page.workers().length} Workers, ${live} before)`);
     // The preview's own controls and time move the preview only.
     await edit.locator('input[data-input-control="target"]').fill('3');
     await scrub('p-edit', 3);
     await shot('F-edit-proposed');
     await edit.locator('[data-explain-show="current"]').click();
     await edit.locator('[data-program-frame] polyline').first().waitFor({ state: 'attached', timeout: 30000 });
-    assert.ok(page.workers().length <= live, 'the preview host was disposed');
+    assert.ok(await until(() => page.workers().length <= live), `the preview host was disposed (${page.workers().length} Workers, ${live} before)`);
     assert.equal(await timeText('p-edit'), '2.0s', "the accepted card's moment, untouched by the preview");
     assert.match(await edit.locator('[data-input-readout="rate"]').innerText(), /^8/);
     // Proposed again starts fresh: the preview's earlier changes were never saved anywhere.
