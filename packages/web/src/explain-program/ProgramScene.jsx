@@ -102,12 +102,19 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     return () => { if (host.current === created) host.current = null; created.dispose('card closed'); };
   }, [artifact]);
   // A schema 2 card's committed state (use-program-state.js): settled states saved quietly, a share-link visitor's kept in memory.
-  // A completed Reset is one undo step that saves the defaults and the new initial state together.
+  // Its inputs are saved only together with the state they were committed with (never before their transition succeeds); until then the
+  // controls show the pending values. A completed Reset is one undo step that saves the defaults and the new initial state together.
+  const [pendingInputs, setPendingInputs] = useState(null);
   const programState = useProgramState({ host: host.current, hostKey: hostReady, artifact, block, time,
-    persist: (next, how) => (how?.reset ? onChange({ ...resetProgram(latest.current), programState: next }) : (onChangeQuiet || onChange)({ ...latest.current, programState: next })),
-    fail: error => { setPlaying(false); setFailure(error); } });
+    persist: (next, how) => {
+      if (how?.reset) { onChange({ ...resetProgram(latest.current), programState: next }); return; }
+      const moved = JSON.stringify(programInputs(artifact.manifest, latest.current)) !== JSON.stringify(next.inputs);
+      (onChangeQuiet || onChange)({ ...latest.current, inputs: next.inputs, ...(moved ? { inputRevision: (latest.current.inputRevision || 0) + 1 } : {}), programState: next });
+      setPendingInputs(pending => (pending && JSON.stringify(pending) === JSON.stringify(next.inputs) ? null : pending));
+    },
+    fail: error => { setPendingInputs(null); setPlaying(false); setFailure(error); } });
 
-  const inputs = manifest ? programInputs(manifest, block) : null;
+  const inputs = manifest ? (programState.stateful ? pendingInputs ?? programState.envelope?.inputs ?? programInputs(manifest, block) : programInputs(manifest, block)) : null;
   // A schema 2 frame is drawn with the inputs its committed state was computed for; newer inputs wait for their own transition.
   const frameInputs = programState.envelope?.inputs ?? inputs;
   const inputsKey = inputs ? JSON.stringify(inputs) : '';
@@ -224,10 +231,17 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   if (!manifest || !view) return <div data-program-loading className="grid min-h-24 place-content-center p-4 text-center text-xs text-ink-2">Preparing the explanation</div>;
 
   const setInput = (name, value, { live = false } = {}) => {
+    // A schema 2 change is a transition first: shown at once, saved only when it commits; one the queue refuses is neither.
+    if (programState.stateful) {
+      const next = setProgramInput({ ...latest.current, inputs }, manifest, name, value);
+      if (next.inputs === inputs || next.inputs[name] === inputs[name]) return;
+      if (!programState.dispatch({ type: 'input', input: name, value: next.inputs[name] }, { inputs: next.inputs, time })) return;
+      setPlaying(false);
+      setPendingInputs(next.inputs);
+      return;
+    }
     const next = setProgramInput(latest.current, manifest, name, value);
     if (next === latest.current) return;
-    // A schema 2 change is a transition first: one the queue refuses is not saved either.
-    if (programState.stateful && !programState.dispatch({ type: 'input', input: name, value: next.inputs[name] }, { inputs: next.inputs, time })) return;
     setPlaying(false);
     (live && onChangeQuiet ? onChangeQuiet : onChange)(next);
   };
@@ -245,7 +259,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     setPlaying(value => !value);
   };
   // A schema 2 Reset saves only once its initial state has been checked (persist above); a failed one keeps the last good state.
-  const reset = () => { setPlaying(false); seek(0); if (programState.stateful) programState.reset(programInputs(manifest, {})); else onChange(resetProgram(latest.current)); };
+  const reset = () => { setPlaying(false); seek(0); if (programState.stateful) { setPendingInputs(null); programState.reset(programInputs(manifest, {})); } else onChange(resetProgram(latest.current)); };
   const rows = manifest.inputs;
   const changed = programChanged(manifest, latest.current) || programTime(manifest, latest.current) > 0 || programState.changed;
   // While playing, the time shown is the drawn frame's own moment, so the label never runs ahead of the picture; paused, it is

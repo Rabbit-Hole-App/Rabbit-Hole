@@ -3,7 +3,8 @@
 // not generation evidence); the dev build admits fixture cards (VITE_COACHING_DEV, program-card.js).
 // Covers: declared buttons and selectable objects drawn with the shared controls and operable by keyboard; three fast presses applied
 // exactly once each and in order; a selection by clicking the drawing and by its button; rapid input changes followed by an action,
-// applied with their own values; Reset after button-only changes; reload restoring the committed state.
+// applied with their own values; Reset after button-only changes; reload restoring the committed state; a refused change followed by
+// Restart and reload, which come back to the last committed state and inputs without retrying it.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/explain-program-state-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -14,7 +15,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('explain-program-state-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'explain-program-state-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 8; // bump with the checks below; the printed line is what CI reads
+const TOTAL = 9; // bump with the checks below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `state-${run}@example.com`, secret, handle: `state_${run}` }) })).json();
@@ -125,7 +126,23 @@ try {
     assert.match(await card('p-spring').locator('[data-input-readout="stiffness"]').innerText(), /^7/);
     await shot('C-after-reload');
   });
-  await check('8 no model route was called, no host other than the app and its own notebook frame was contacted, and no page error', async () => {
+  await check('8 a change the program refuses stops the card; Restart and reload come back to the last committed state and inputs, never retrying it', async () => {
+    const [x] = advance([1, 0], 7);
+    await card('p-spring').locator('input[data-input-control="stiffness"]').fill('20'); // the fixture refuses a stiffness above 18
+    await card('p-spring').locator('[data-program-error]').waitFor({ timeout: 30000 });
+    await card('p-spring').locator('[data-program-restart]').click();
+    await card('p-spring').locator('[data-program-action="advance"]').waitFor({ timeout: 30000 });
+    await waitText('p-spring', new RegExp(`Position ${x.toFixed(2)} m after 0\\.1 s`));
+    await page.waitForTimeout(800);
+    assert.equal(await card('p-spring').locator('[data-program-error]').count(), 0, 'the refused change was not retried');
+    assert.match(await card('p-spring').locator('[data-input-readout="stiffness"]').innerText(), /^7/, 'the committed input, not the refused one');
+    await page.waitForTimeout(2500);
+    await open();
+    await waitText('p-spring', new RegExp(`Position ${x.toFixed(2)} m after 0\\.1 s`));
+    assert.match(await card('p-spring').locator('[data-input-readout="stiffness"]').innerText(), /^7/);
+    assert.equal(await card('p-spring').locator('[data-program-error]').count(), 0);
+  });
+  await check('9 no model route was called, no host other than the app and its own notebook frame was contacted, and no page error', async () => {
     assert.deepEqual(stray, []);
     assert.deepEqual(offOrigin, []);
     assert.deepEqual(errors, []);

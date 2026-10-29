@@ -132,7 +132,7 @@ export const springFixture = {
   id: 'fixture-spring', note: FIXTURE_NOTE,
   manifest: {
     title: 'A mass on a spring, step by step', summary: 'Each press advances a mass on a spring by a tenth of a second; a kick gives it speed.',
-    assumptions: ['No friction.', 'Small steps of a hundredth of a second.'], description: 'A mass moving left and right of its rest point, with its position and the time so far.',
+    assumptions: ['No friction.', 'Small steps of a hundredth of a second.', 'A stiffness above 18 is refused (test data: a transition the program refuses).'], description: 'A mass moving left and right of its rest point, with its position and the time so far.',
     inputs: [{ type: 'number', id: 'stiffness', label: 'Stiffness', unit: 'N/m', default: 4, min: 1, max: 20, step: 1 }],
     readouts: [{ id: 'position', label: 'Position', unit: 'm', decimals: 2 }, { id: 'elapsed', label: 'Time', unit: 's', decimals: 1 }], capabilities: ['number_inputs'],
     viewport: { width: 960, height: 300 },
@@ -141,7 +141,7 @@ export const springFixture = {
   },
   source: `export function initialState() { return { x: 1, v: 0, t: 0 }; }
 export function reduce({ state, event, inputs }) {
-  if (event.type === 'input') return state;
+  if (event.type === 'input') { if (event.value > 18) throw new Error('a stiffness above 18 is not modelled'); return state; }
   if (event.action === 'kick') return { ...state, v: state.v + 1 };
   let { x, v } = state;
   for (let n = 0; n < 10; n++) { v -= inputs.stiffness * x * 0.01; x += v * 0.01; }

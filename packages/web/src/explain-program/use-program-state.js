@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { STATEFUL_SCHEMA_VERSION } from './contract.js';
-import { normalizeFrame } from './frame.js';
-import { ACTION_QUEUE_CAP, createInteractionController } from './interaction.js';
-import { evaluateRequestFor, programInputs, programSeed, programStateFor } from './program-card.js';
+import { ACTION_QUEUE_CAP, checkStateFrame, createInteractionController } from './interaction.js';
+import { programInputs, programSeed, programStateFor } from './program-card.js';
 
 // ProgramScene's thin binding to interaction.js for a schema 2 card: one controller per host, the committed state for the frame
 // scheduler, settled states saved through persist (the owner's board save, or a share-link visitor's or a Proposed preview's in-memory
@@ -31,17 +30,12 @@ export function useProgramState({ host, hostKey, artifact, block, time, persist,
       persist: (next, how) => latest.current.persist(next, how),
       fail: error => { setPending(0); latest.current.fail(error); },
       // A new state is kept only if its frame is valid too, at the inputs and time it was computed for (never newer ones).
-      check: async (next, { inputs, time: moment }) => {
-        const reply = await host.evaluate(evaluateRequestFor(artifact.manifest, { ...latest.current.block, inputs }, moment, `c${++checks}`, next.state), { supersede: false });
-        const out = normalizeFrame(reply.frame, artifact.manifest);
-        if (!out.ok) throw out.error;
-      },
+      check: (next, { inputs, time: moment }) => checkStateFrame({ host, manifest: artifact.manifest, block: latest.current.block, inputs, time: moment, state: next.state, requestId: `c${++checks}` }),
     });
     controller.current = created;
-    const inputs = programInputs(artifact.manifest, start);
-    created.start(inputs, { time: at });
-    // The saved inputs are the learner's latest; a change saved after the last committed state (a reload before it committed) is applied again.
-    if (saved) for (const [name, value] of Object.entries(inputs)) if (saved.inputs[name] !== value) created.dispatch({ type: 'input', input: name, value }, { inputs, time: at });
+    // A saved state is restored with the input snapshot it was committed with, and nothing else: a change that never committed (it failed,
+    // or the page went away first) is not rebuilt or retried, so Restart and reload always come back to the last good state.
+    created.start(saved ? saved.inputs : programInputs(artifact.manifest, start), { time: at });
     return () => { created.dispose(); if (controller.current === created) controller.current = null; };
   }, [stateful, host, hostKey, artifact]);
   const dispatch = (event, context) => {
