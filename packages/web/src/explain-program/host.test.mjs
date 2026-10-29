@@ -8,6 +8,7 @@ import { loadEngine, runProgram } from './runtime.js';
 import { LIMITS } from './limits.js';
 import { parseEvaluateResponse, sealProgram } from './contract.js';
 import { growthFixture } from './fixtures.js';
+import { createFrameScheduler, frameOverrun } from './playback.js';
 
 const engine = loadEngine();
 // The stand-in's guest interrupt is test-only and below the 250 ms host watchdog: these tests are about host behaviour, and a
@@ -202,4 +203,36 @@ export function evaluate() { return {}; }`), createWorker: factory() });
     assert.equal(JSON.stringify(error).includes('phase'), false, 'the learner-facing error stays the code and its fixed message');
   }
   loadLoop.dispose(); evaluateLoop.dispose();
+});
+
+// Owner decision 2026-10-29 (option A), through the real engine: the guest's operation deadline is the one skippable failure.
+test('a frame overrun is recognised, and the same Worker draws the next frame: every operation has its own QuickJS runtime and context', async () => {
+  const source = `${growthFixture.source.replace('export function evaluate(', 'function frame(')}
+export function evaluate(request) { if (request.time === 1) for (;;) {} return frame(request); }`;
+  const host = createProgramHost({ artifact: await seal(source), createWorker: factory() });
+  assert.equal((await host.evaluate(request(0))).requestId, 'r0');
+  const before = started;
+  const slow = await settled(host.evaluate(request(1)));
+  assert.equal(frameOverrun(slow.error), true, slow.error?.diagnostic);
+  assert.equal((await host.evaluate(request(2))).requestId, 'r2');
+  assert.equal(started, before, 'no new Worker was needed after the overrun');
+  host.dispose();
+});
+
+test('an infinite loop stops the card after three overruns; a hung Worker is still killed by the watchdog and stops it at once', async () => {
+  const run = async (artifact, mode) => {
+    const host = createProgramHost({ artifact, createWorker: factory(mode) });
+    let asked = 0;
+    const stopped = await new Promise(resolve => {
+      const scheduler = createFrameScheduler({ evaluate: job => (asked++, host.evaluate({ requestId: `s${asked}`, inputs: job.inputs, time: job.time, seed: 1, state: null })), show: () => assert.fail('nothing to draw'), fail: resolve });
+      scheduler.want({ key: 'a', time: 0, inputs: { rate: 5, years: 10, mode: 'compound' } });
+    });
+    host.dispose();
+    return { stopped, asked };
+  };
+  const loop = await run(await seal(LOOP), 'real');
+  assert.deepEqual([loop.stopped.code, frameOverrun(loop.stopped), loop.asked], ['runtime_limit', true, 3]);
+  const hung = await run(await seal(), 'hang');
+  assert.deepEqual([hung.stopped.code, frameOverrun(hung.stopped), hung.asked], ['runtime_limit', false, 1]);
+  assert.equal(workers.size, 0, 'the watchdog terminated the hung Worker');
 });
