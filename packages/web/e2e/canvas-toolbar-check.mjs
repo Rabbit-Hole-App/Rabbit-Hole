@@ -231,8 +231,9 @@ async function probeEdge(page, card, title, label, side = 'right') {
     if (Math.abs(moved - 240) > 4) fail(`desktop: wheel over the tools column's empty part moved the canvas ${Math.round(moved)}px, expected 240`);
     results.gutterWheel = { at: round(empty.spot), moved: Math.round(moved) };
   }
-  // Owner decision 2026-10-22: nothing is clipped at the old gutter or header boundary. The card, panned so its top left runs
-  // under the header row and the tools column, is drawn there and answers the pointer beside the controls.
+  // Owner decision 2026-10-22: nothing is clipped at the old gutter boundary. The card, panned so its top left runs under the
+  // header row and the tools column, is drawn under the tools column and answers the pointer beside its controls; the header
+  // row hides it (owner 2026-10-29: an opaque band).
   {
     g = await geometry(page); box = await card.boundingBox();
     // A wheel over bare canvas (a card's scrolling body keeps its own wheel).
@@ -261,9 +262,12 @@ async function probeEdge(page, card, title, label, side = 'right') {
         probed += 1;
         // The element that took the point is named, so a miss says what covers the card there.
         const hit = await page.evaluate(([px, py, t]) => { const el = document.elementFromPoint(px, py); return el?.closest('[data-block-id]')?.textContent?.includes(t) ? null : `${el?.tagName?.toLowerCase()}${[...(el?.attributes || [])].filter(a => a.name.startsWith('data-') || a.name === 'role' || a.name === 'aria-label').map(a => `[${a.name}=${a.value}]`).join('')} in ${el?.closest('[data-gutter-top],[data-tool-gutter],[data-canvas-header],[data-canvas-bottom]')?.outerHTML?.slice(0, 60) ?? 'the page'}`; }, [x, y, widest.block.title]);
-        if (hit) missed.push(`(${Math.round(x)},${Math.round(y)}) ${hit}`); else drawn += 1;
+        // Owner 2026-10-29 ("block the upper header ... so that the cards does not appear in between the texts/menu names"):
+        // the header row is an opaque band, so there every point is the header itself, never the card under it.
+        const header = name === 'header' && await page.evaluate(([px, py]) => !!document.elementFromPoint(px, py)?.closest('[data-canvas-header]'), [x, y]);
+        if (name === 'header' ? !header : hit) missed.push(`(${Math.round(x)},${Math.round(y)}) ${hit ?? 'the card'}`); else drawn += 1;
       }
-      if (!probed || drawn < probed) fail(`desktop: under the ${name} ${name === 'header' ? 'row' : 'column'} only ${drawn}/${probed} points beside the controls reach the card ${JSON.stringify(round(box))}; not the card at ${missed.join('; ')}`);
+      if (!probed || drawn < probed) fail(name === 'header' ? `desktop: over the card ${JSON.stringify(round(box))} only ${drawn}/${probed} header band points beside the controls are the opaque header; not it at ${missed.join('; ')}` : `desktop: under the tools column only ${drawn}/${probed} points beside the controls reach the card ${JSON.stringify(round(box))}; not the card at ${missed.join('; ')}`);
       results[`${name}Band`] = { probed, drawn };
     }
     await page.screenshot({ path: `${OUT}/desktop-card-under-header-and-tools.png` });
