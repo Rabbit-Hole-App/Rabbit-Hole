@@ -12,7 +12,7 @@ import { artifactFetch } from '../src/learn-artifact.js';
 import { canvasesFetch } from '../src/canvases.js';
 import { PROPOSAL_TOOL, proposalRecord, validateProposalInput } from '../src/generation-proposal.js';
 import { proposalView } from '../../web/src/generation-confirmation-schema.js';
-import { BRIEF_COMMANDS, generationArgs, materialBrief } from '../../web/src/material-brief.js';
+import { BRIEF_COMMANDS, BRIEF_LIMITS, generationArgs, materialBrief } from '../../web/src/material-brief.js';
 
 const OWNER = { org: 'org-1', email: 'owner@example.test', userId: 'u-owner' };
 const APP = 'demo-app', THREAD = 'canvaschat-11111111-2222-3333-4444-555555555555';
@@ -147,6 +147,26 @@ test('an Edit that loses its race to Generate or another Edit stores no message 
     const saved = await h.chat(`next ordinary message after ${winner}`);
     assert.equal(saved.status, 201, `${winner}: ${await saved.text()}`);
   }
+});
+
+test('an accepted Edit reaches generation intact: one that would not fit the request limit is refused before it is approved', async t => {
+  const h = stack(t);
+  const full = (await h.post({ command: 'quiz', request: 'w'.repeat(BRIEF_LIMITS.args) })).body.proposal;
+  const before = h.rows().length;
+  const over = await h.post({ revise: { proposal: full }, change: 'add a falling apple' });
+  assert.equal(over.res.status, 400, over.body.code);
+  assert.equal(over.body.code, 'brief_too_long');
+  assert.equal(h.rows().length, before, 'nothing stored');
+  assert.equal((await h.state(full)).sig, full.sig, 'the brief is unchanged');
+  // Exactly at the limit: accepted, and the generator gets every word of it.
+  const change = 'add a falling apple', request = 'w'.repeat(BRIEF_LIMITS.args - `
+Change: ${change}`.length);
+  const v1 = (await h.post({ command: 'quiz', request })).body.proposal;
+  const v2 = (await h.post({ revise: { proposal: v1 }, change })).body.proposal;
+  assert.equal(v2.version, 2);
+  assert.equal((await h.generate(v2)).res.status, 200);
+  assert.equal(h.calls.at(-1).args, `${request}
+Change: ${change}`);
 });
 
 test('the route refuses what is not a brief: another command, no subject, a bad selection', async t => {

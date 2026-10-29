@@ -10,7 +10,7 @@
 // comes back anyway. Paid primitives come back as proposals; nothing here
 // starts a job.
 import { learnRequest, primitive as contract } from '../../web/src/agent/slash.js';
-import { generationArgs, isBriefCommand } from '../../web/src/material-brief.js';
+import { BRIEF_LIMITS, generationArgs, isBriefCommand } from '../../web/src/material-brief.js';
 import { consumeProposal, releaseProposal, verifyProposal } from './generation-proposal.js';
 import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
@@ -192,6 +192,7 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
     if (user instanceof Response) return user;
     const refused = await verifyProposal(env, p, user.email);
     if (refused) return json({ error: refused, code: 'proposal_refused' }, 409);
+    if (generationArgs(p.input).length > BRIEF_LIMITS.args) return json({ error: 'This brief is too long to make. Send the command again with a shorter request.', code: 'brief_too_long' }, 409);
     const key = crypto.randomUUID();
     const spent = await consumeProposal(env.LEARN_DB, p, user.email, { org: user.org, app: body.app }, key);
     if (spent) return json(spent, 409);

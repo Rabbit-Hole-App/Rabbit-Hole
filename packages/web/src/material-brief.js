@@ -78,4 +78,5 @@ export const briefHeading = command => `Review ${HEADINGS[command] || 'brief'}`;
 // The typed line a brief records as its request: `/quiz Newton's second law` (the typed name: /photos, /image).
 export const briefRequest = (command, args) => `/${typedOf(command)} ${squash(args)}`.trim();
 // What the generator receives at Generate: the learner's full words and each requested change, in order (never the short title).
-export const generationArgs = input => [squash(input?.args), ...(input?.changes || []).map(change => `Change: ${squash(change)}`)].filter(Boolean).join('\n').slice(0, BRIEF_LIMITS.args);
+// Never cut: the revision route refuses a change that would take it past BRIEF_LIMITS.args, and Generate refuses an older one that did.
+export const generationArgs = input => [squash(input?.args), ...(input?.changes || []).map(change => `Change: ${squash(change)}`)].filter(Boolean).join('\n');

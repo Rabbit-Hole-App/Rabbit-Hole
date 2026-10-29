@@ -20,7 +20,7 @@
 // browser keeps the draft.
 import { repositoryIdentity } from './repositories.js';
 import { PROPOSAL_EDIT_STALE, PROPOSAL_STALE, currentRevision, proposalRecord, proposalState, proposalUsedText, publishStatement, reviewAvailable, reviseProposal, saveRevision, signProposal, verifyProposal } from './generation-proposal.js';
-import { BRIEF_LIMITS, briefRequest, isBriefCommand, materialBrief } from '../../web/src/material-brief.js';
+import { BRIEF_LIMITS, briefRequest, generationArgs, isBriefCommand, materialBrief } from '../../web/src/material-brief.js';
 import { resolveReferences } from './generation-review-refs.js';
 import { imageAllowed, imageOperatorEmails } from './image-settings.js';
 import { validateSettings } from '../../web/src/generation-confirmation-schema.js';
@@ -115,6 +115,8 @@ async function createMaterialProposal(req, env, deps) {
     if (!found || found.proposal.sig !== base.sig) return stale(found?.proposal ?? null);
     const input = found.proposal.input, changes = [...(input.changes || []), change];
     if (changes.length > BRIEF_LIMITS.changes) return json({ error: 'This brief reached its change limit. Send the command again with the whole request.', code: 'brief_change_limit' }, 429);
+    // Generate sends the request and every change as one request of at most BRIEF_LIMITS.args: refuse now, never cut an approved change.
+    if (generationArgs({ args: input.args, changes }).length > BRIEF_LIMITS.args) return json({ error: 'This change would make the request too long. Send the command again with a shorter request.', code: 'brief_too_long' }, 400);
     const brief = materialBrief(base.command, { args: input.args, selection: input.selection, changes });
     record = found.record; line = change;
     try {
