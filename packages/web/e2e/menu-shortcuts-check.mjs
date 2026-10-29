@@ -160,7 +160,8 @@ await page.keyboard.press('?');
 await page.waitForTimeout(150);
 ok('? again closes it', (await sheet.count()) === 0);
 await openMenu('View');
-ok('View lists no Keyboard shortcuts or Slash commands row (the ? key and the slash palette open them)', (await row('Keyboard shortcuts').count()) === 0 && (await row('Slash commands').count()) === 0);
+// Owner spec 2026-10-29 section 7.1: Slash Commands is back under View; Keyboard shortcuts stays on the ? key.
+ok('View lists Slash Commands and no Keyboard shortcuts row (the ? key opens them)', (await row('Keyboard shortcuts').count()) === 0 && (await row('Slash Commands').count()) === 1);
 await page.keyboard.press('Escape');
 await blank();
 await page.keyboard.press('?');
