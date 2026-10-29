@@ -95,7 +95,7 @@ export const renderStage = ({ render = explainRender, ...deps } = {}) => async (
   if (program) {
     const size = traceBytes(reviewTraces(out.captures)), limit = REVIEW_LIMITS.traceBytes, n = out.captures.length;
     const most = Math.max(...out.captures.map(c => Object.keys(c.trace?.quantities || {}).length));
-    if (size > limit) return { problems: [`the execution traces of the ${n} captures are ${size} bytes, over the review limit of ${limit} bytes: return fewer quantities or shorter quantity names (now up to ${most} per capture); keep each capture's trace under about ${Math.floor(limit / n)} bytes`], category: 'spec', repairable: true };
+    if (size > limit) return { problems: [`the execution traces of the ${n} captures are ${size} bytes, over the review limit of ${limit} bytes: return fewer quantities or shorter quantity names (now up to ${most} per capture); keep each capture's trace under about ${Math.floor(limit / n)} bytes`], category: 'spec', repairable: true, renders: out.captures.map(() => ({ ok: true })) };
   }
   // A program's coverage (what was sampled and what was not) is bound to the artifact hash it was computed for.
   return { captures: out.captures.map(({ png, ...capture }) => ({ ...capture, compiledHash: out.compiledHash, mediaType: 'image/png' })), renders: out.captures.map(() => ({ ok: true })), ...(program ? { coverage: { compiledHash: out.compiledHash, ...manifest.coverage } } : {}) };
@@ -638,6 +638,8 @@ export class ExplainJobs {
       // A program that ran and failed goes to repair like a refused spec, with the reason; it is not a render failure.
       if (out.problems?.length) {
         job.findings.push({ round: job.round, stage, problems: out.problems });
+        // Captures that completed before an oversized trace sent the program to repair are still platform renders.
+        if (out.renders?.length) { job.renders += out.renders.length; await this.recordRenders(job, out.renders); }
         if (job.artifact) await recordRound(job, { stage, outcome: 'runtime', problems: out.problems, runtime: out.runtime }, this.state.storage);
         return this.repairOrStop(job, out);
       }

@@ -379,6 +379,10 @@ test('M3 program: six legal maximum-size traces over the review trace limit go t
   const { view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000041', cardId: 'card-prog-41' });
   assert.equal(s.rendered.length, WIDE_CAPTURES.length + CAPTURES.length, 'the wide program was captured six times, the repaired one five');
   assert.deepEqual([view.body.job.stage, view.body.job.stopReason, view.body.job.round], ['ready', 'accepted', 1]);
+  // The oversized candidate's six completed captures are platform renders too; the learner's charge is unchanged (one artifact).
+  assert.equal(rows(s, "SELECT COUNT(*) AS n FROM usage_actions WHERE feature = 'render'")[0].n, 11);
+  assert.deepEqual(rows(s, "SELECT feature, charge_class, status FROM usage_actions WHERE feature <> 'render' ORDER BY rowid").map(r => [r.feature, r.charge_class, r.status]),
+    [['artifact', 'would_charge', 'completed']]);
   assert.deepEqual([count(s, 'report_review'), count(s, 'repair_explanation')], [1, 1], 'no review was spent on traces it would refuse');
   const [problem] = JSON.parse(s.calls.find(c => c.name === 'repair_explanation').body.messages[0].content[0].text).problems;
   const size = Number(problem.match(/are (\d+) bytes/)?.[1]);
