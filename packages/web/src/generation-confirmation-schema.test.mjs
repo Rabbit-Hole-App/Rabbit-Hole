@@ -26,9 +26,11 @@ test('every generation command in the registry has a definition, and an unknown 
   assert.deepEqual(reviewFor('made-up', { required: false, reasons: [] }), { required: true, reasons: ['policy'] }, 'a decision cannot switch off an unknown command');
   assert.deepEqual(reviewFor('motion', { required: false }), { required: true, reasons: ['policy'] }, 'nor an always policy');
   assert.deepEqual(reviewFor('flashcards'), { required: false, reasons: [] });
-  assert.deepEqual(reviewFor('explain', { required: false, reasons: [] }), { required: false, reasons: [] }, 'conditional: the server decides');
+  // Owner decision 2026-10-29: every new /explain request is reviewed (it was conditional on the server's thresholds).
+  assert.equal(reviewPolicyOf('explain'), 'always');
+  assert.deepEqual(reviewFor('explain', { required: false, reasons: [] }), { required: true, reasons: ['policy'] }, 'no decision switches an Explain review off');
   assert.deepEqual(reviewFor('explain', { required: true, reasons: ['assumptions'] }), { required: true, reasons: ['assumptions'] });
-  assert.deepEqual(reviewFor('explain'), { required: true, reasons: ['undecided'] }, 'conditional with no decision is required');
+  assert.deepEqual(reviewFor('explain'), { required: true, reasons: ['policy'] });
   assert.deepEqual(reviewFor('cad', {}), { required: true, reasons: ['undecided'] });
   assert.equal(validateSettings('made-up', {}).error, 'These settings cannot be changed here.');
 });
@@ -248,4 +250,14 @@ test('a Motion proposal view needs the maximum: with the estimate alone it is bl
   }
   // Explain is unchanged: its estimate is shown without a maximum.
   assert.deepEqual(proposalView({ ...p, command: 'explain', settings: { presentation: 'auto' }, usage: { estimate_credits: 40, reserve_credits: 120 } }).usage, { estimate_credits: 40 });
+});
+
+test('Explain shows its assumptions and limitations apart, each only when present; the limitations are read only', () => {
+  const def = commandDefinition('explain');
+  assert.deepEqual([def.sections, def.section_titles], [['references', 'assumptions', 'limitations', 'usage'], { limitations: 'Limitations' }]);
+  assert.deepEqual([isEditable('explain', 'title'), isEditable('explain', 'description'), isEditable('explain', 'assumptions'), isEditable('explain', 'limitations')], [true, true, true, false]);
+  const p = { proposal_id: 'gp-aaaaaaaaaaaaaaaa', version: 1, command: 'explain', title: 'Falling', description: 'Compare two falls.', settings: { presentation: 'experiment' }, input: { request: 'falling', job: 'ej_1' } };
+  assert.deepEqual(visibleSections(proposalView({ ...p, assumptions: ['Air resistance is ignored.'], limitations: ['One object per world.'] })), ['assumptions', 'limitations']);
+  assert.deepEqual(visibleSections(proposalView(p)), [], 'empty lists are hidden');
+  assert.deepEqual(proposalView(p).allowed_actions, ['edit', 'save', 'generate', 'cancel']);
 });

@@ -25,7 +25,7 @@ function scripted(t, queues) {
   };
   return { calls, count: name => calls.filter(c => c.name === name).length };
 }
-const stack = t => explainStack(t, { pipeline: { ...explainPipeline, render: STUB_RENDER } });
+const stack = t => explainStack(t, { pipeline: { ...explainPipeline, render: STUB_RENDER }, generate: true });
 const place = (s, blocks) => s.sqlite.prepare('UPDATE learn_boards SET state_json = ? WHERE id = ?').run(JSON.stringify({ blocks }), BOARD.id);
 const boardBlocks = s => JSON.parse(s.sqlite.prepare('SELECT state_json FROM learn_boards WHERE id = ?').get(BOARD.id).state_json).blocks || [];
 async function made(t, s) {

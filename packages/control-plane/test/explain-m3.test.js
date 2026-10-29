@@ -23,9 +23,12 @@ const SPEC = { version: 1, id: 'rain', title: 'Where rain comes from', component
   { id: 'sea', component: 'module', version: 1, parent: 'row', params: { label: 'Sun warms the sea', role: 'input' } },
   { id: 'cloud', component: 'module', version: 1, parent: 'row', params: { label: 'Vapour rises and cools into clouds', role: 'output' } },
 ], connections: [{ from: 'sea.right', to: 'cloud.left' }], presentation: { mode: 'static' } };
+// DEFAULT_BRIEF: the explain_brief answer when a test scripts none. Every new request prepares a brief and waits for Generate (owner,
+// 2026-10-29); with `generate` (the default) alarms() then presses Generate through the real approve route, as the Chat card does.
+const DEFAULT_BRIEF = { title: 'Fixture plan', summary: 'The card shows what was asked.', presentation: 'static', components: [], assumptions: [], ambiguous: false, expanded: false };
 const verdicts = (ids, visual = 'pass', findings = []) => ({ captures: ids.map(id => ({ id, semantic: 'pass', visual, findings: visual === 'fail' ? findings : [] })) });
 
-function stack(t, { renderLimits } = {}) {
+function stack(t, { renderLimits, generate = true } = {}) {
   const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
   sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
   sqlite.prepare("INSERT INTO canvases(org,name,owner_email,title) VALUES('team',?,?,'Weather')").run(CANVAS, OWNER);
@@ -60,20 +63,31 @@ function stack(t, { renderLimits } = {}) {
     calls.push({ name, body });
     let input = queues[name]?.shift();
     if (typeof input === 'function') input = input(body);
+    if (input === undefined && name === 'explain_brief') input = DEFAULT_BRIEF;
     if (input === undefined) throw new Error(`no scripted reply for ${name}`);
     return Response.json({ model: body.model, content: [{ type: 'tool_use', id: `t${calls.length}`, name, input }], stop_reason: 'tool_use', usage: { input_tokens: 4000, output_tokens: 900 } });
   };
   const send = async (method, path, body) => worker.fetch(new Request(`https://dev.example${path}`, { method, headers: { cookie: 'small_session=s', ...(body ? { 'content-type': 'application/json', origin: 'https://dev.example' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) }), env, { waitUntil() {} });
   const read = async (method, path, body) => { const res = await send(method, path, body); return { status: res.status, body: await res.json() }; };
-  const alarms = async () => { for (const a of actors.values()) await a.alarm(); };
+  // Generate on every waiting brief: its posted, signed proposal (the chat answer's meta) through POST .../approve.
+  const approvals = [];
+  const approveWaiting = async () => {
+    for (const data of stored.values()) for (const [key, job] of data) {
+      if (!key.startsWith('job:') || job.stage !== 'awaiting_approval' || job.approval) continue;
+      const proposal = sqlite.prepare('SELECT meta_json FROM chat_message_meta ORDER BY message_id DESC').all().map(r => JSON.parse(r.meta_json).proposal).find(p => p?.input?.job === job.id);
+      approvals.push(await read('POST', `/api/learn/explain/jobs/${encodeURIComponent(job.id)}/approve`, { boardId: job.boardId, proposal }));
+    }
+  };
+  const alarms = async () => { for (const a of actors.values()) await a.alarm(); if (generate) await approveWaiting(); };
   const restart = () => actors.clear();
-  return { sqlite, env, queues, calls, rendered, behavior, read, alarms, restart, stored };
+  return { sqlite, env, queues, calls, rendered, behavior, read, alarms, restart, stored, approveWaiting, approvals };
 }
 const count = (s, name) => s.calls.filter(c => c.name === name).length;
 const rows = (s, sql) => s.sqlite.prepare(sql).all().map(r => ({ ...r }));
 
-test('M3: submit -> author -> compile -> render -> review -> repair -> settle -> save -> reload, through the real worker', async t => {
-  const s = stack(t);
+// Owner decision 2026-10-29: a simple request no longer goes straight to authoring; it prepares a brief and waits for Generate.
+test('M3: submit -> brief -> Generate -> author -> compile -> render -> review -> repair -> settle -> save -> reload, through the real worker', async t => {
+  const s = stack(t, { generate: false });
   const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
   assert.equal(saved.status, 200);
   const boardId = saved.body.board_id;
@@ -88,9 +102,15 @@ test('M3: submit -> author -> compile -> render -> review -> repair -> settle ->
   // A double click: the same request id is the same job.
   assert.equal((await s.read('POST', '/api/learn/explain/jobs', submit)).body.job.id, id);
   let view;
+  for (let i = 0; i < 10; i++) { await s.alarms(); view = await s.read('GET', `/api/learn/explain/jobs/${id}?board=${boardId}`); if (view.body.job.stage === 'awaiting_approval') break; }
+  // The simple request waits on its brief: one brief call, no author, render or review until Generate, however long it waits.
+  for (let i = 0; i < 3; i++) await s.alarms();
+  assert.deepEqual([(await s.read('GET', `/api/learn/explain/jobs/${id}?board=${boardId}`)).body.job.stage, s.calls.map(c => c.name), s.rendered.length], ['awaiting_approval', ['explain_brief'], 0]);
+  await s.approveWaiting();
+  assert.deepEqual(s.approvals.map(r => r.status), [202]);
   for (let i = 0; i < 30; i++) { await s.alarms(); view = await s.read('GET', `/api/learn/explain/jobs/${id}?board=${boardId}`); if (view.body.job.terminal) break; }
   assert.deepEqual([view.body.job.stage, view.body.job.round, view.body.job.stopReason], ['ready', 1, 'accepted']);
-  assert.deepEqual([count(s, 'author_explanation'), count(s, 'report_review'), count(s, 'repair_explanation')], [1, 2, 1]);
+  assert.deepEqual([count(s, 'explain_brief'), count(s, 'author_explanation'), count(s, 'report_review'), count(s, 'repair_explanation')], [1, 1, 2, 1]);
   // Rendered by renderStates twice (one per candidate), light and dark at the finished state; the PNGs are in LEARN_MEDIA.
   assert.deepEqual(s.rendered.map(r => r.theme), ['light', 'dark', 'light', 'dark']);
   const review = s.calls.filter(c => c.name === 'report_review')[1].body.messages[0].content;
@@ -99,14 +119,15 @@ test('M3: submit -> author -> compile -> render -> review -> repair -> settle ->
   const { block, job } = view.body;
   assert.deepEqual([block.type, block.id, block.explain.resultId, job.result.cardId], ['animation', 'card-rain-01', job.result.resultId, 'card-rain-01']);
   assert.equal(block.scene.objects.find(o => o.id === 'sea.box').initialState.w >= 240, true, 'the repaired layout is what was saved');
-  // Exactly-once settlement: four calls, four settled operations, one learner action (completed), renders recorded apart.
-  assert.deepEqual(rows(s, "SELECT status, calls FROM usage_operations WHERE category = 'explain'").map(r => [r.status, r.calls]), Array(4).fill(['settled', 1]));
+  // Exactly-once settlement: five calls, five settled operations, one learner action per phase (preparation, generation; both
+  // completed), renders recorded apart.
+  assert.deepEqual(rows(s, "SELECT status, calls FROM usage_operations WHERE category = 'explain'").map(r => [r.status, r.calls]), Array(5).fill(['settled', 1]));
   const attempts = rows(s, "SELECT kind, cost_state, action_id FROM usage_attempts WHERE provider = 'anthropic'");
-  assert.deepEqual(attempts.map(a => [a.kind, a.cost_state]), [['generation', 'settled'], ['evaluation', 'settled'], ['repair', 'settled'], ['evaluation', 'settled']]);
-  assert.equal(new Set(attempts.map(a => a.action_id)).size, 1);
+  assert.deepEqual(attempts.map(a => [a.kind, a.cost_state]), [['generation', 'settled'], ['generation', 'settled'], ['evaluation', 'settled'], ['repair', 'settled'], ['evaluation', 'settled']]);
+  assert.equal(new Set(attempts.map(a => a.action_id)).size, 2);
   assert.deepEqual(rows(s, "SELECT feature, charge_class, status FROM usage_actions ORDER BY rowid").map(r => [r.feature, r.charge_class, r.status]),
-    [['artifact', 'would_charge', 'completed'], ...Array(4).fill(['render', 'free', 'completed'])]);
-  assert.equal(job.usage.credits, Math.ceil(4 * (4000 * 4 + 900 * 20) / 10000));
+    [['artifact', 'would_charge', 'completed'], ['artifact', 'would_charge', 'completed'], ...Array(4).fill(['render', 'free', 'completed'])]);
+  assert.equal(job.usage.credits, Math.ceil(5 * (4000 * 4 + 900 * 20) / 10000));
   // The browser places the block and saves the canvas; a reload reads it back and needs no model call to show it.
   const placed = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: { ...EMPTY, blocks: [{ ...block, x: 40, y: 40 }] }, version: saved.body.version });
   assert.equal(placed.status, 200);
@@ -120,15 +141,19 @@ test('M3: submit -> author -> compile -> render -> review -> repair -> settle ->
   assert.equal(s.calls.length, before, 'reload and reopen made no model call');
 });
 
-test('M3: a refused request (allowance exhausted) makes no call, no job and no card', async t => {
+// Owner decision 2026-10-29: the request is stored and prepares its brief (no up-front generation check); the brief call itself is
+// refused at admission, so nothing is sent and no card is saved.
+test('M3: a refused request (allowance exhausted) makes no call and no card', async t => {
   const s = stack(t);
   const saved = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: EMPTY, version: 0 });
   s.sqlite.prepare("INSERT INTO usage_actions (action_id, user_id, payer, payer_reason, feature, charge_class, period, status, started_at) VALUES ('seed', 'u-owner', 'user', 'signed_in', 'ask', 'would_charge', ?, 'completed', ?)").run(new Date().toISOString().slice(0, 7), Math.floor(Date.now() / 1000));
   s.sqlite.prepare("INSERT INTO usage_attempts (attempt_id, action_id, kind, reserved_micros, cost_micros, cost_state, status, started_at) VALUES ('seed-a', 'seed', 'generation', 50000000, 50000000, 'settled', 'settled', ?)").run(Math.floor(Date.now() / 1000));
   const refused = await s.read('POST', '/api/learn/explain/jobs', { boardId: saved.body.board_id, requestId: 'req-m3-0000002', cardId: 'card-rain-02', prompt: 'Explain where rain comes from.', requestClass: 'simple' });
-  assert.deepEqual([refused.status, refused.body.code, refused.body.reason], [429, 'allowance_limited', 'exhausted']);
-  assert.equal(s.calls.length, 0);
-  assert.equal((await s.read('GET', `/api/learn/explain/jobs?board=${saved.body.board_id}`)).body.jobs.length, 0);
+  assert.equal(refused.status, 202);
+  for (let i = 0; i < 5; i++) await s.alarms();
+  const [job] = (await s.read('GET', `/api/learn/explain/jobs?board=${saved.body.board_id}`)).body.jobs;
+  assert.deepEqual([job.stage, job.failure.category, s.calls.length], ['failed', 'budget', 0]);
+  assert.match(job.failure.message, /^Not enough AI credits\./);
   assert.deepEqual((await s.read('GET', `/api/learn/boards/${CANVAS}/main`)).body.state.blocks, []);
 });
 
@@ -227,10 +252,13 @@ test('M3 program: pending -> program artifact -> reload, zero new author calls, 
   assert.equal((await s.read('GET', `/api/learn/explain/jobs/results/${job.result.resultId}?board=${boardId}`)).status, 404);
   s.env.CONTROL_PLANE.fetch = own;
   assert.equal((await s.read('GET', `/api/learn/explain/jobs/results/er_nothing?board=${boardId}`)).status, 404);
-  // Settlement: author and review each settled once under one learner action.
+  // Settlement: the brief under its preparation action; author and review each settled once under the generation action.
   const attempts = rows(s, "SELECT kind, cost_state, action_id FROM usage_attempts WHERE provider = 'anthropic'");
-  assert.deepEqual(attempts.map(a => [a.kind, a.cost_state]), [['generation', 'settled'], ['evaluation', 'settled']]);
-  assert.equal(new Set(attempts.map(a => a.action_id)).size, 1);
+  assert.deepEqual(attempts.map(a => [a.kind, a.cost_state]), [['generation', 'settled'], ['generation', 'settled'], ['evaluation', 'settled']]);
+  assert.equal(new Set(attempts.map(a => a.action_id)).size, 2);
+  // The program route plans the brief against the runtime, with no component list (no registered topic component needed).
+  const briefBody = s.calls.find(c => c.name === 'explain_brief').body, briefInput = JSON.parse(briefBody.messages[0].content[0].text);
+  assert.deepEqual([briefInput.catalogue, briefInput.runtime.capabilities, 'components' in briefBody.tools[0].input_schema.properties], [undefined, ['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text'], false]);
   // Place the card, save, reload: the reference is back, the artifact still reads, no model call and no new job.
   const placed = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: { ...EMPTY, blocks: [{ ...block, x: 40, y: 40 }] }, version: saved.body.version });
   assert.equal(placed.status, 200, JSON.stringify(placed.body));
@@ -382,7 +410,7 @@ test('M3 program: six legal maximum-size traces over the review trace limit go t
   // The oversized candidate's six completed captures are platform renders too; the learner's charge is unchanged (one artifact).
   assert.equal(rows(s, "SELECT COUNT(*) AS n FROM usage_actions WHERE feature = 'render'")[0].n, 11);
   assert.deepEqual(rows(s, "SELECT feature, charge_class, status FROM usage_actions WHERE feature <> 'render' ORDER BY rowid").map(r => [r.feature, r.charge_class, r.status]),
-    [['artifact', 'would_charge', 'completed']]);
+    [['artifact', 'would_charge', 'completed'], ['artifact', 'would_charge', 'completed']], 'the brief and the artifact');
   assert.deepEqual([count(s, 'report_review'), count(s, 'repair_explanation')], [1, 1], 'no review was spent on traces it would refuse');
   const [problem] = JSON.parse(s.calls.find(c => c.name === 'repair_explanation').body.messages[0].content[0].text).problems;
   const size = Number(problem.match(/are (\d+) bytes/)?.[1]);

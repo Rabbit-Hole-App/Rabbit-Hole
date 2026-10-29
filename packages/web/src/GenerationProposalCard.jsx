@@ -371,7 +371,7 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
         if (editing && isEditable(view.command, s)) return <ListField key={s} f={{ key: s, label: SECTION_TITLES[s] }} value={draft[s]} disabled={working} onChange={value => set(s, value)} extra={attrs('field', s)} />;
         return (
           <div key={s} data-proposal-section={s}>
-            <p className="text-[11px] font-semibold tracking-wide text-ink-3 uppercase">{SECTION_TITLES[s]}</p>
+            <p className="text-[11px] font-semibold tracking-wide text-ink-3 uppercase">{def?.section_titles?.[s] ?? SECTION_TITLES[s]}</p>
             <ul className={cn('list-disc pl-4 text-xs text-ink', TONES[s])} {...attrs('list', s)}>{shown[s].map((item, i) => <li key={i}>{item}</li>)}</ul>
           </div>
         );

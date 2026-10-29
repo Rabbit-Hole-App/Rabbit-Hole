@@ -31,8 +31,8 @@ Paths below were inspected on the baseline; new paths proposed later are not cla
 
 | Existing location | Reuse / required adjustment |
 |---|---|
-| `packages/web/src/LearnPage.jsx`, startExplain | Sends ordinary requests as requestClass simple, places pending card. Preserve command, Tutor and context entry points. |
-| `packages/control-plane/src/explain-brief.js` | Normal simple requests with configured thresholds skip preparation. Do not add mandatory approval because a card is interactive. Clarify only when a material ambiguity or existing policy requires it. |
+| `packages/web/src/LearnPage.jsx`, startExplain | Sends ordinary requests as requestClass simple, places pending card. Preserve command, Tutor and context entry points. **Superseded 2026-10-29 (owner decision):** every new /explain request now prepares an editable brief and waits for an explicit Generate in Chat; no request class or threshold skips it. See docs/features/explain-sandbox-checklist.md, "Brief approval". The server ignores requestClass for that decision. |
+| `packages/control-plane/src/explain-brief.js` | Normal simple requests with configured thresholds skip preparation. Do not add mandatory approval because a card is interactive. Clarify only when a material ambiguity or existing policy requires it. **Superseded 2026-10-29 (owner decision):** every new /explain request now prepares an editable brief and waits for an explicit Generate in Chat; no request class or threshold skips it. See docs/features/explain-sandbox-checklist.md, "Brief approval". |
 | `packages/control-plane/src/agents/explain-author.js`, authorTool | Currently limits output to registered VisualSpec components. Add a program-output variant, using the same author role. |
 | `packages/control-plane/src/explain-author.js` | Capability declaration, author call and validation. Add program validation; do not send source code through compileVisual. |
 | `packages/web/src/visual-components/compile.js` | Existing component compiler. Preserve it for legacy results; it does not propagate component motion. Do not rebuild it into a second programming language. |
@@ -69,7 +69,7 @@ Preserve the existing admitted model transport and pricing registry. These are p
 
 | Responsibility | Model / mechanism | Instructions |
 |---|---|---|
-| Optional preparation | `explain_brief` → `claude-opus-5-5` | Existing 4,000 output-token cap. No new routine planning call for simple requests. |
+| Optional preparation | `explain_brief` → `claude-opus-5-5` | Existing 4,000 output-token cap. No new routine planning call for simple requests. **Superseded 2026-10-29 (owner decision):** every new /explain request now prepares an editable brief and waits for an explicit Generate in Chat; no request class or threshold skips it. See docs/features/explain-sandbox-checklist.md, "Brief approval". The brief call is now routine for every new request, under the existing preparation accounting. |
 | Program author | `explain_author` → `claude-opus-5-5` | Start with existing 10,000 output tokens. Supply the small runtime SDK, output contract, limits and authorized context. Produce one program bundle through the validated tool. |
 | Independent review | `explain_review` → `claude-opus-5-5` | Existing 3,000 output tokens. Separate context receives learner request, source/claims, evidence, execution traces and actual captures, not the author's reasoning. Check teaching and behavior, not only appearance. |
 | Repair | `explain_repair` → `claude-opus-5-5` | Existing 6,000 output tokens; keep at most three correction rounds. Program repairs may replace source/manifest, but never raise host permissions or limits. |
@@ -233,7 +233,7 @@ Each numbered task is a coherent, checked main integration. A task may contain m
 - [ ] Offer Opus the small SDK, artifact schema, declared runtime limits and authorized context. Request generated source, manifest and explicit assumptions. No prepared JSON, intercepted route or implicit old-artifact fallback.
 - [ ] Validate source/manifest and host-computed hashes before preview. Extend accept/block/editBase/result helpers for both artifact kinds; existing scene-only assumptions must not drop program cards.
 - [ ] Store source, manifest, runtime/SDK versions, hashes, model identity and context provenance behind existing ownership checks. Never expose private artifacts through public asset URLs.
-- [ ] Keep normal requests on the existing direct author path. A request requiring unsupported capability returns an explicit gap; requested motion cannot be silently rewritten static.
+- [ ] Keep normal requests on the existing direct author path. A request requiring unsupported capability returns an explicit gap; requested motion cannot be silently rewritten static. **Superseded 2026-10-29 (owner decision):** every new /explain request now prepares an editable brief and waits for an explicit Generate in Chat; no request class or threshold skips it. See docs/features/explain-sandbox-checklist.md, "Brief approval".
 
 **Done:** real-route fixture tests show pending → program artifact → reload with identity/ACL intact; replayed request produces one job, one admitted author attempt and one mocked settlement. Genuine provider/spend evidence belongs to Task 7.
 **Main:** new generation path still server-disabled until Task 6 evidence.

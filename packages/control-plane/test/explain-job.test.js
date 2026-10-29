@@ -39,22 +39,31 @@ const PIPELINE = (over = {}) => ({
   ...over,
 });
 
-function setup(t, { pipeline = PIPELINE(), review, used = 0 } = {}) {
-  const stack = explainStack(t, { pipeline, used });
+function setup(t, { pipeline = PIPELINE(), review, used = 0, generate = false } = {}) {
+  const stack = explainStack(t, { pipeline, used, generate });
   return { ...stack, model: provider(t, { review }) };
 }
+// A new request up to the moment Generate is pressed on its brief (explain-fixture.js generate: no brief call): the next alarm is
+// the author call.
+async function generated(s) {
+  const { body } = await s.create();
+  await s.actor.alarm(); await s.actor.alarm(); // queued -> preparing -> awaiting_approval
+  assert.equal((await s.approve(body.job.id)).status, 202);
+  return { body };
+}
 
-test('exhausted or insufficient allowance refuses before any external call; nothing is stored', async t => {
-  for (const [used, reason] of [[50e6, 'exhausted'], [50e6 - explainReservation().generationMicros + 1, 'insufficient']]) {
-    const s = setup(t, { used });
-    const refused = await s.create();
-    assert.equal(refused.status, 429);
-    assert.deepEqual([refused.body.code, refused.body.reason], ['allowance_limited', reason]);
-    assert.equal(s.model.calls.length, 0);
-    assert.equal(s.state.data.size, 0, 'no job and no request fence');
-    assert.deepEqual(rows(s.sqlite, 'usage_operations'), []);
-    assert.equal(rows(s.sqlite, 'usage_actions').length, 1, 'only the seeded month');
-  }
+// Owner decision 2026-10-29: every new request prepares a brief and waits for Generate, so a request is no longer refused up front
+// for generation's worst case (the direct path this test pinned). The brief call is admitted on its own, and generation's worst
+// case is checked at Generate ('a Generate refused for allowance' below).
+test('exhausted or insufficient allowance: the brief call is refused with nothing sent, or Generate is refused before any author call', async t => {
+  const s = setup(t, { used: 50e6 });
+  const { body } = await s.create();
+  const refused = await s.run(body.job.id);
+  assert.deepEqual([refused.stage, refused.failure.category, s.model.calls.length], ['failed', 'budget', 0]);
+  assert.deepEqual(rows(s.sqlite, 'usage_operations'), []);
+  const low = setup(t, { used: 50e6 - explainReservation().generationMicros + 1, generate: true });
+  const waiting = await low.run((await low.create()).body.job.id);
+  assert.deepEqual([waiting.stage, waiting.refused.status, waiting.refused.body.reason, low.model.calls.length], ['awaiting_approval', 429, 'insufficient', 0]);
 });
 
 test('a call refused at its own admission ran nothing: known zero, not counted against the job ceiling, and Retry stays offered', async t => {
@@ -83,8 +92,8 @@ test('concurrent duplicate submits make one job; a reused id with other words, o
   assert.equal(s.model.calls.length, 0, 'submission alone calls nothing');
 });
 
-test('a direct job runs author -> validate -> render -> review to one saved result, settled once per call under one action', async t => {
-  const s = setup(t);
+test('after Generate a job runs author -> validate -> render -> review to one saved result, settled once per call under one action', async t => {
+  const s = setup(t, { generate: true });
   const { body } = await s.create();
   const done = await s.run(body.job.id);
   assert.equal(done.stage, 'ready');
@@ -102,7 +111,7 @@ test('a direct job runs author -> validate -> render -> review to one saved resu
   const view = await s.job(body.job.id);
   assert.equal(view.job.terminal, true);
   // Stage timing in the job view: each stage entered, with its calls, and a processing total.
-  assert.deepEqual(view.job.timing.stages.map(stage => stage.stage), ['authoring', 'validating', 'rendering', 'reviewing']);
+  assert.deepEqual(view.job.timing.stages.map(stage => stage.stage), ['preparing', 'awaiting_approval', 'authoring', 'validating', 'rendering', 'reviewing']);
   assert.deepEqual([view.job.timing.requestClass, view.job.timing.calls, typeof view.job.timing.processingMs], ['simple', 2, 'number']);
   assert.equal(view.job.usage.credits, Math.ceil(2 * (1000 * 4 + 500 * 20) / 10000));
   assert.deepEqual(Object.keys(view.job.result).sort(), ['baseRevision', 'canvas', 'cardId', 'compiledHash', 'componentVersions', 'jobId', 'policyVersion', 'promptRef', 'resultId', 'revision', 'specHash']);
@@ -118,10 +127,9 @@ test('a direct job runs author -> validate -> render -> review to one saved resu
 });
 
 test('Stop during a background call: the call settles, its late result is dropped, no paid step follows, and a restart keeps it stopped', async t => {
-  const s = setup(t);
-  const { body } = await s.create();
+  const s = setup(t, { generate: true });
+  const { body } = await generated(s);
   const release = s.model.hold();
-  await s.actor.alarm(); // queued -> authoring
   const running = s.actor.alarm(); // the author call, parked at the provider
   await new Promise(r => setTimeout(r, 20));
   assert.equal(s.state.data.get(`job:${body.job.id}`).inFlight.role, 'author');
@@ -141,10 +149,9 @@ test('Stop during a background call: the call settles, its late result is droppe
 });
 
 test('a call interrupted by a restart is reconciled as unknown, never resent, and its reservation stays held', async t => {
-  const s = setup(t);
-  const { body } = await s.create();
+  const s = setup(t, { generate: true });
+  const { body } = await generated(s);
   const release = s.model.hold();
-  await s.actor.alarm();
   const lost = s.actor.alarm(); // the original object's call never answers before the "restart"
   await new Promise(r => setTimeout(r, 20));
   const restarted = s.object();
@@ -166,10 +173,9 @@ test('a call interrupted by a restart is reconciled as unknown, never resent, an
 
 test('REGRESSION an interrupted call: the learner holds credits only inside the artifact bound (1 hour), then nothing; its late answer cannot charge, settle or revive the failed job', async t => {
   const { usageTotals } = await import('../src/learn-usage.js');
-  const s = setup(t);
-  const { body } = await s.create();
+  const s = setup(t, { generate: true });
+  const { body } = await generated(s);
   const release = s.model.hold();
-  await s.actor.alarm();
   const lost = s.actor.alarm();
   await new Promise(r => setTimeout(r, 20));
   const restarted = s.object();
@@ -190,7 +196,7 @@ test('REGRESSION an interrupted call: the learner holds credits only inside the 
 });
 test('a render failure keeps the compiled result; Retry re-renders without reauthoring, and a duplicate Retry changes nothing', async t => {
   let renders = 0;
-  const s = setup(t, { pipeline: PIPELINE({ render: async () => { if (renders++ === 0) throw Object.assign(new Error('The renderer is busy.'), { status: 503, category: 'renderer' }); return { captures: ['a'], renders: [{ ok: true }] }; } }) });
+  const s = setup(t, { generate: true, pipeline: PIPELINE({ render: async () => { if (renders++ === 0) throw Object.assign(new Error('The renderer is busy.'), { status: 503, category: 'renderer' }); return { captures: ['a'], renders: [{ ok: true }] }; } }) });
   const { body } = await s.create();
   const failed = await s.run(body.job.id);
   assert.deepEqual([failed.stage, failed.failure.stage, failed.failure.category], ['failed', 'rendering', 'renderer']);
@@ -205,7 +211,7 @@ test('a render failure keeps the compiled result; Retry re-renders without reaut
 });
 
 test('three correction rounds shared by all gates, then a stop; calls never exceed the policy', async t => {
-  const s = setup(t, { review: () => ({ accepted: false }) });
+  const s = setup(t, { generate: true, review: () => ({ accepted: false }) });
   const { body } = await s.create();
   const done = await s.run(body.job.id, s.actor, 80);
   assert.deepEqual([done.stage, done.stopReason, done.round], ['failed', 'rounds', 3]);
@@ -214,7 +220,7 @@ test('three correction rounds shared by all gates, then a stop; calls never exce
   assert.equal(rows(s.sqlite, 'usage_operations').every(o => o.status === 'settled'), true);
   assert.deepEqual((await s.job(body.job.id)).job.recovery, ['edit_request']);
   // An unrepairable finding stops at once.
-  const u = setup(t, { review: () => ({ accepted: false, repairable: false }) });
+  const u = setup(t, { generate: true, review: () => ({ accepted: false, repairable: false }) });
   const job = (await u.create()).body.job;
   assert.deepEqual([(await u.run(job.id)).stopReason, u.model.calls.length], ['unsupported_repair', 2]);
 });
@@ -307,7 +313,7 @@ function authorReplies(t, replies) {
   return calls;
 }
 test('the production pipeline authors and compiles a real spec; with no browser bound it stops at rendering and keeps it', async t => {
-  const s = setup(t, { pipeline: explainPipeline });
+  const s = setup(t, { pipeline: explainPipeline, generate: true });
   const calls = authorReplies(t, [{ kind: 'spec', spec: SPEC }]);
   const { body } = await s.create({ prompt: 'Explain where rain comes from.' });
   const done = await s.run(body.job.id);
@@ -321,7 +327,7 @@ test('the production pipeline authors and compiles a real spec; with no browser 
 // Experiments compile since L3's controls: one on a plain component (no control) is refused by the trusted check and never
 // drawn; the repair round that cannot fix it stops the job with no card.
 test('the production pipeline: an experiment whose input is not a control is refused before rendering, with no card', async t => {
-  const s = setup(t, { pipeline: explainPipeline });
+  const s = setup(t, { pipeline: explainPipeline, generate: true });
   const experiment = { ...SPEC, presentation: { mode: 'static', experiments: [{ id: 'e', purpose: 'Compare lengths.', input: 'length', domain: { values: [1, 4] }, affects: [SPEC.components[0].id], contrasts: ['Longer is slower.'] }] } };
   authorReplies(t, [{ kind: 'spec', spec: experiment }, { operation: 'none', reason: 'Needs a controllable component.' }]);
   const { body } = await s.create({ prompt: 'Show how the string length changes the period.' });
@@ -351,7 +357,7 @@ test('the production pipeline: experiments over the state limit dispatch no rend
     },
     review: async () => { dispatched.review++; return { accepted: true }; } };
 
-  const s = setup(t, { pipeline });
+  const s = setup(t, { pipeline, generate: true });
   authorReplies(t, [{ kind: 'spec', spec: over }, { operation: 'none', reason: 'Needs fewer values.' }]);
   const refused = await s.run((await s.create({ prompt: 'Compare two pendulums.' })).body.job.id);
   assert.deepEqual(dispatched, { render: [], review: 0 }, 'nothing rendered or reviewed');
@@ -359,7 +365,7 @@ test('the production pipeline: experiments over the state limit dispatch no rend
   assert.deepEqual([refused.counts.author, refused.counts.repair, refused.counts.review], [1, 1, 0]);
   assert.deepEqual(refused.findings[0], { round: 0, stage: 'validating', problems: ['The experiments admit at least 289 states (parts included), over the 64 that are checked one by one: admit fewer values'] });
 
-  const a = setup(t, { pipeline });
+  const a = setup(t, { pipeline, generate: true });
   authorReplies(t, [{ kind: 'spec', spec: pendulum }]);
   const admitted = await a.run((await a.create({ prompt: 'Show how the length sets the period.', requestId: 'req-00000003', cardId: 'card-0003' })).body.job.id);
   assert.equal(admitted.stage, 'ready');
@@ -436,10 +442,10 @@ test('Generate on a v2 brief proposal is unchanged: no references to check, the 
 // Task 6 review coverage: what the render stage says it sampled is kept on the job and shown to the reviewer, for the exact artifact only.
 test('a program render stage coverage is stored on the job and reaches the diagnostics; a scene job keeps none', async t => {
   const coverage = { compiledHash: 'h1', states: 3, moments: 1, frames: 3, themes: ['light'], sampled: [{ id: 'light', label: 'default', inputs: {}, time: 0 }], omitted: ['max of x'] };
-  const s = setup(t, { pipeline: PIPELINE({ render: async () => ({ captures: ['a'], renders: [{ ok: true }], coverage }) }) });
+  const s = setup(t, { generate: true, pipeline: PIPELINE({ render: async () => ({ captures: ['a'], renders: [{ ok: true }], coverage }) }) });
   const { body } = await s.create();
   assert.deepEqual((await s.run(body.job.id)).coverage, coverage);
-  const plain = setup(t);
+  const plain = setup(t, { generate: true });
   const other = await plain.create();
   assert.equal('coverage' in await plain.run(other.body.job.id), false);
 });

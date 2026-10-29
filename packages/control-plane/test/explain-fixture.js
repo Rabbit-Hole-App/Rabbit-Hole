@@ -3,7 +3,7 @@
 // instance (object() is the object after a restart). No fetch is installed here: each test installs its provider.
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
-import { ExplainJobs } from '../src/explain-job.js';
+import { ExplainJobs, explainPipeline } from '../src/explain-job.js';
 import { periodOf } from '../src/learn-usage.js';
 
 const sql = name => readFileSync(new URL(`../learn-migrations/${name}`, import.meta.url), 'utf8');
@@ -52,13 +52,20 @@ export function durable(data = new Map()) {
     blockConcurrencyWhile: fn => { const result = lock.then(fn); lock = result.catch(() => {}); return result; } };
 }
 
-export function explainStack(t, { pipeline, used = 0 } = {}) {
+// Every new request waits for Generate on its brief (owner, 2026-10-29). A test of what happens AFTER Generate opts into
+// `generate`: its brief stage is this fixed brief (no model call), and run() presses Generate once the brief waits, with the
+// posted signed proposal through the real approve action (consumeProposal, the allowance check), then goes on.
+export const FIXTURE_BRIEF = Object.freeze({ version: 1, title: 'Fixture plan', summary: 'The card shows what was asked.', assumptions: [], presentation: 'static', components: [], evidenceIds: [], limitations: [], ambiguous: false, expanded: false });
+export const postedProposal = (sqlite, id) => rows(sqlite, 'chat_message_meta').map(r => JSON.parse(r.meta_json).proposal).filter(p => p?.input?.job === id).at(-1) ?? null;
+
+export function explainStack(t, { pipeline, used = 0, generate = false } = {}) {
   const { sqlite, LEARN_DB } = d1(t);
   if (used) spent(sqlite, used);
   const env = { SMALL_ENV: 'dev', ANTHROPIC_API_KEY: 'test-key', USAGE_PLATFORM_DAY_USD: '10', AI_MONTHLY_ALLOWANCE_USD: '50', LEARN_DB, EXPLAIN_V2_ENABLED: 'true',
-    // Configured brief thresholds: a simple request within them goes straight to authoring (explain-brief.js).
+    // Configured brief thresholds, as every deployed config has them: they no longer skip a new request's brief (explain-brief.js).
     EXPLAIN_BRIEF_THRESHOLDS: JSON.stringify({ components: 12, credits: 400 }) };
   const state = durable();
+  if (generate) pipeline = { ...(pipeline || explainPipeline), prepare: async job => ({ brief: { ...FIXTURE_BRIEF, request: job.prompt } }) };
   const object = () => new ExplainJobs(state, env, pipeline);
   const actor = object();
   const send = async (action, payload = {}, id = null, who = OWNER, on = actor) => {
@@ -67,7 +74,18 @@ export function explainStack(t, { pipeline, used = 0 } = {}) {
   };
   const create = (extra = {}) => send('create', { requestId: 'req-00000001', cardId: 'card-0001', prompt: 'Explain a pendulum.', requestClass: 'simple', ...extra });
   const job = async id => (await send('get', {}, id)).body;
-  // Each alarm advances each live job by one stage.
-  const run = async (id, on = actor, max = 40) => { for (let i = 0; i < max; i++) { await on.alarm(); const j = state.data.get(`job:${id}`); if (['ready', 'failed', 'cancelled', 'awaiting_approval'].includes(j.stage) && !j.inFlight) return j; } return state.data.get(`job:${id}`); };
-  return { sqlite, env, state, actor, object, send, create, job, run };
+  // Generate on the job's posted brief, as the Chat card sends it.
+  const approve = (id, on = actor) => send('approve', { proposal: postedProposal(sqlite, id) }, id, OWNER, on);
+  // Each alarm advances each live job by one stage. With `generate`, a waiting brief is approved once and the job goes on; a refused
+  // Generate returns the waiting job with the refusal as `refused`.
+  const run = async (id, on = actor, max = 40) => {
+    for (let i = 0; i < max; i++) {
+      await on.alarm();
+      const j = state.data.get(`job:${id}`);
+      if (generate && j.stage === 'awaiting_approval' && !j.approval) { const r = await approve(id, on); if (r.status !== 202) return { ...state.data.get(`job:${id}`), refused: r }; continue; }
+      if (['ready', 'failed', 'cancelled', 'awaiting_approval'].includes(j.stage) && !j.inFlight) return j;
+    }
+    return state.data.get(`job:${id}`);
+  };
+  return { sqlite, env, state, actor, object, send, create, job, run, approve };
 }

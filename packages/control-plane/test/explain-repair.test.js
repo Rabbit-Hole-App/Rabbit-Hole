@@ -36,7 +36,7 @@ function scripted(t, queues) {
   return { calls, count: name => calls.filter(c => c.name === name).length };
 }
 async function runJob(t, queues, extra = {}) {
-  const s = explainStack(t, { pipeline: { ...explainPipeline, render: STUB_RENDER } });
+  const s = explainStack(t, { pipeline: { ...explainPipeline, render: STUB_RENDER }, generate: true });
   const model = scripted(t, queues);
   const { body } = await s.create({ prompt: 'Explain where rain comes from.', ...extra });
   return { s, model, id: body.job.id, done: await s.run(body.job.id, s.actor, 80) };

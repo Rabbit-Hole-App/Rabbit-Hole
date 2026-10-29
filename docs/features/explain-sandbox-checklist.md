@@ -60,3 +60,15 @@ Owners: integrator = Parallel; Agent A runtime (Tasks 1, 3); Agent B card/render
 | Renders of a candidate whose capture timed out are not counted (the blocked capture never finished) | Task 6 accounting | by design |
 | Frame-deadline policy (skip one late frame instead of stopping the card) | Task 3 | decision open |
 | Event API, context/Tutor/edits, qualification, rollout docs | Tasks 8-11 | not started |
+
+## Brief approval (owner decision 2026-10-29)
+
+Every new /explain request shows an editable brief in Chat and waits for an explicit Generate before anything is authored. This replaces the earlier requirement that simple requests go directly to authoring (plan sections 1, 2 and Task 5 carry dated notes). Branch feat/explain-brief-approval, based on main fc31f723a; server commit 7da255a95.
+
+| Item | Implemented | Checked (kind/run) | Main SHA | Deployed | Enabled | Accepted | Next action/blocker |
+|---|---|---|---|---|---|---|---|
+| Server decision: needsPreparation true for every new request whatever requestClass the client sends (a same-card Edit keeps its path); briefDecision always requires review; preparing always moves to awaiting_approval; Retry after a failed brief prepares it again | yes | control-plane unit (explain-brief, explain-job, explain-m3 through the real worker) | not on main | no | rides EXPLAIN_V2_ENABLED | none | full gate (server code) |
+| Program brief: with EXPLAIN_PROGRAM_ENABLED planned against PROGRAM_CAPABILITIES and runtime limits, no component list; legacy catalogue path unchanged when off | yes | control-plane unit (fixture brief replies only) | not on main | no | rides EXPLAIN_PROGRAM_ENABLED | none | genuine brief wording needs a paid run, not done |
+| Chat card: canonical schema review_policy always, Review explanation heading, limitations section, cost note, Cancel wired to the job's cancel, Generate once per revision (confirmProposal); waiting card says "Review the explanation plan in Chat" | yes | web unit; e2e/explain-proposal-card-check.mjs updated (8 steps) for CI; local harness screenshots | not on main | no | as above | none | owner review in the browser |
+
+Jobs stored before this ships keep their own `prepare` flag: a direct job (prepare false) still authors; a job already waiting or past approval is unchanged; a job caught mid-preparation waits for Generate.
