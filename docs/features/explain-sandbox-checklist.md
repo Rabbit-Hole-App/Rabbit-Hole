@@ -2,7 +2,7 @@
 
 Plan: [docs/superpowers/plans/2026-10-28-explain-sandbox.md](../superpowers/plans/2026-10-28-explain-sandbox.md). Times are PT. Updated 2026-10-29 after the MVP release. Shipped, verified and deferred work are listed separately below; "shipped" never implies "verified".
 
-Continuation (Tasks 8-11 and the R0 closeout): [docs/superpowers/plans/2026-10-29-explain-tasks-8-11.md](../superpowers/plans/2026-10-29-explain-tasks-8-11.md). R0 (Focus/pending/Notes, brief before Generate, conversational proposal Edit) is production-deployed in release 5 `f421cc5de` since 2026-10-29 09:26 AM PT; its deployed check is open. Later production releases on main: `a99bd1bee` (run 40929134650, 11:15 AM PT) and `7fe96729d` (run 40933538699, 11:43 AM PT; contains Task 9.1, the Proposed preview of a program Edit, `50c135651`); both runs succeeded, no deployed check of 9.1 is recorded here.
+Continuation (Tasks 8-11 and the R0 closeout): [docs/superpowers/plans/2026-10-29-explain-tasks-8-11.md](../superpowers/plans/2026-10-29-explain-tasks-8-11.md). R0 (Focus/pending/Notes, brief before Generate, conversational proposal Edit) is production-deployed in release 5 `f421cc5de` since 2026-10-29 09:26 AM PT; its deployed check is open. Later production releases on main: `a99bd1bee` (run 40929134650, 11:15 AM PT) and `7fe96729d` (run 40933538699, 11:43 AM PT; contains Task 9.1, the Proposed preview of a program Edit, `50c135651`); both runs succeeded, no deployed check of 9.1 is recorded here. Then `7978f39a0` (1:04 PM PT) and `70b7425ed` (2:39 PM PT, contains the frame-overrun fix `3648d595b`). R3 (stateful) is not among them.
 
 Support, limits, recovery, rollback pins, the Task 10.4 evidence inventory and the 10.1/10.2 test plan: [explain-program-support.md](explain-program-support.md).
 
@@ -31,7 +31,7 @@ Owners: integrator = Parallel; Agent A runtime (Tasks 1, 3); Agent B card/render
 ## Known limitations of the shipped build (follow-ups, not blockers)
 
 - In Focus at smaller heights the drawing keeps a minimum size and scrolls inside its viewport, so the lower part can sit behind an internal scrollbar (follow-up branch feat/focus-sizing).
-- A frame that misses the 50 ms program deadline stops the card with a Restart message instead of being skipped. Fix (owner option A, skip and stop after three in a row): fix/explain-frame-overrun `3648d595b`, in release/chain-overrun `f676fd95c`; pushed, not on main, not deployed.
+- A frame that misses the 50 ms program deadline is skipped and the last frame stays (owner decision 2026-10-29, option A; branch fix/explain-frame-overrun, playback.js); a completed frame resets the count and the third overrun in a row stops the card with the Restart message. Every other error (host watchdog, boot deadline, memory, output, version) still stops it at once, and all limits are unchanged. The review capture player (render/program-render.jsx) does not use this scheduler and still fails a capture on one overrun.
 - The pending card is large and has no activity indicator (follow-up branch fix/explain-pending-card).
 - The automatic numerical readouts are printed under the drawing and can repeat values the drawing already shows (planned: move them into Notes under "Values").
 - On phone, a viewer or guest Focus keeps the tools palette, which narrows the time slider (about 106 px); keeping the toolbar in Focus is intentional.
@@ -49,10 +49,10 @@ Owners: integrator = Parallel; Agent A runtime (Tasks 1, 3); Agent B card/render
 | 5 Author and persist via V2 | shipped | program artifacts stored behind canvas ownership, loaded through the durable result route |
 | 6 Review, repair, accounting | shipped | six-capture sampling; traces over the review limit go to bounded repair; completed captures recorded as platform renders; sampling beyond six captures deferred |
 | 7 Genuine MVP | shipped, production receipt pending | two genuine examples on the same runtime (cooling, sorting); production verification awaits the owner's receipt run |
-| 8 Interactions and time | in progress, none on main | 8.1 schema 2 contract feat/explain-state-contract `86d746e0d` and 8.2 ordered state feat/explain-state-controller `137018604`: implemented, pushed, not on main; 8.3 feat/explain-actions pushed, not on main; 8.4 not started |
-| 9 Context, Tutor, edits | in progress | 9.1 Proposed program preview: on main and production-released in `7fe96729d`, no deployed check recorded; 9.2 feat/explain-material-evidence pushed, not on main; 9.3, 9.4 see their lanes |
-| 10 Quality and compatibility | in progress, none on main | 10.1 offscreen pause feat/explain-offscreen-pause `35410272d`: implemented, pushed, not on main; 10.3 retention tests on docs/explain-qualification; 10.2 matrix and 10.4 runs not started (plan and inventory in explain-program-support.md) |
-| 11 Rollout and docs | in progress | support page on docs/explain-qualification; rollback pins need re-cutting on the final main; the MVP release is NOT Task 11 and does not close it |
+| 8 Interactions and time | in progress, none on main | 8.1 schema 2 contract (`86d746e0d`), 8.2 ordered state (`137018604`) and 8.3 stateful buttons and selections (`0ee34e70c`, owner-review fixes `649732a07` `462b54977` `ecb42a47d` `2a7588f0b`) and the switch `EXPLAIN_PROGRAM_STATEFUL=true` (`b6caa951c`; revert that commit alone to turn it off): implemented and pushed on release/chain-r3 `6b52ee7ea` (verify success, fast-e2e failure on that SHA); NOT on main, NOT deployed; 8.4 drag not on any release branch |
+| 9 Context, Tutor, edits | in progress | 9.1 Proposed program preview: on main, production-released in `7fe96729d`, no deployed check recorded; 9.2-9.4 (`9968f5087`, `ec89b730b`): pushed in release/chain-r3, not on main, not deployed |
+| 10 Quality and compatibility | in progress | frame overrun (option A, `3648d595b`): on main and production-released in `70b7425ed` (2:39 PM PT); 10.1 offscreen pause feat/explain-offscreen-pause `35410272d`: implemented, pushed, not on main (goes into the candidate after R3, with 8.4); 10.3 retention tests on docs/explain-qualification (also pass on a local merge of R3 `6b52ee7ea`); 10.2 matrix not started; 10.4 cases 4 and 5 planned (C:/s/spec/explain-sandbox/genuine/t811-plan.md), not run |
+| 11 Rollout and docs | in progress | explain-program-support.md on docs/explain-qualification (not on main), updated for R3; rollback pins need re-cutting on the final main; the stateful switch reverts with `b6caa951c`; the MVP release is NOT Task 11 and does not close it |
 
 ## Deferred (tracked, not complete)
 
@@ -62,7 +62,7 @@ Owners: integrator = Parallel; Agent A runtime (Tasks 1, 3); Agent B card/render
 | Focus for PDF, notebook, video and CAD cards; dark theme; real mobile browser in CI | Tasks 4, 10 | not verified |
 | Sampling manifest for continuous multi-control cards beyond the six-capture budget | Task 6 review coverage | open |
 | Renders of a candidate whose capture timed out are not counted (the blocked capture never finished) | Task 6 accounting | by design |
-| Frame-deadline policy (skip one late frame instead of stopping the card) | Task 3 | decided (owner option A, 2026-10-29); fix pushed, not on main |
+| Frame-deadline policy (skip one late frame instead of stopping the card) | Task 3 | decided (owner option A, 2026-10-29); on main and production-released in `70b7425ed` |
 | Event API, context/Tutor/edits, qualification, rollout docs | Tasks 8-11 | in progress, see Task status |
 
 ## Brief approval (owner decision 2026-10-29)
