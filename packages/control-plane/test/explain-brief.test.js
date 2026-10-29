@@ -269,7 +269,7 @@ test('a generic program topic is briefed against the program runtime, with no re
   const sent = model.calls[0].body, input = JSON.parse(sent.messages[0].content[0].text);
   assert.deepEqual([input.catalogue, input.supported, input.runtime.capabilities, input.runtime.limits.inputs, input.runtime.limits.duration], [undefined, undefined, ['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text'], 4, 120]);
   assert.deepEqual(['components' in sent.tools[0].input_schema.properties, sent.tools[0].input_schema.required.includes('components')], [false, false]);
-  assert.match(sent.system[0].text, /what the learner can adjust/);
+  assert.match(sent.system[0].text, /for each control, button or selectable part, what using it lets the learner test/); // FX-60 replaced "what the learner can adjust"
   const [meta] = posted(s);
   assert.deepEqual([meta.proposal.description, meta.proposal.assumptions, meta.proposal.limitations, meta.proposal.settings], [plan.summary, plan.assumptions, plan.limitations, { presentation: 'experiment' }]);
   assert.equal(JSON.stringify(meta.proposal).includes('galaxy'), false, 'no implementation term reaches the card');
@@ -278,4 +278,25 @@ test('a generic program topic is briefed against the program runtime, with no re
   scripted(t, { explain_brief: [plan] });
   const gap = await legacy.run((await legacy.create({ threadId: 'th1' })).body.job.id);
   assert.deepEqual([gap.stage, gap.stopReason, gap.failure.gap.needs], ['failed', 'capability_gap', ['component']]);
+});
+
+// FX-60: every brief says what the learner will see, what visibly changes, which relationship that change shows and what each
+// control lets the learner test, in its existing summary field; the author is held to deliver it. Generic: no subject is named.
+test('brief and author prompts pin the four elements, on both routes, in the existing summary field and with no subject named', async () => {
+  const { BRIEF_ELEMENTS, EXPLAIN_BRIEF_SYSTEM, EXPLAIN_PROGRAM_BRIEF_SYSTEM, briefTool } = await import('../src/agents/explain-brief.js');
+  const { EXPLAIN_AUTHOR_SYSTEM } = await import('../src/agents/explain-author.js');
+  for (const element of [/what the learner will see: the objects drawn/, /what visibly changes/, /which relationship or idea that change shows/, /for each control, button or selectable part, what using it lets the learner test/]) assert.match(BRIEF_ELEMENTS, element);
+  for (const prompt of [EXPLAIN_BRIEF_SYSTEM, EXPLAIN_PROGRAM_BRIEF_SYSTEM]) assert.ok(prompt.includes(BRIEF_ELEMENTS));
+  for (const tool of [briefTool(['flow']), briefTool(null)]) {
+    assert.ok(tool.input_schema.properties.summary.description.includes(BRIEF_ELEMENTS));
+    assert.deepEqual(Object.keys(tool.input_schema.properties).filter(k => !['title', 'summary', 'presentation', 'components', 'assumptions', 'evidence_ids', 'limitations', 'ambiguous', 'expanded', 'gap'].includes(k)), [], 'no new brief field');
+  }
+  assert.match(EXPLAIN_AUTHOR_SYSTEM, /With brief: make the card deliver what its summary says: draw the objects it names, make the change it names visible, show the relationship it names in labels or readouts, and give each control, button or selectable part the test it names/);
+  assert.doesNotMatch(BRIEF_ELEMENTS, /pendulum|gravity|cool|sort|heap|earth|moon|interest|rain/i);
+  // The brief call itself carries it: the system prompt and the tool the model gets.
+  const sent = [];
+  const call = async (role, body) => { sent.push(body); return { input: { title: 'T', summary: 'One. Two. Three.', presentation: 'static', components: [], assumptions: [], ambiguous: false, expanded: false } }; };
+  const { prepareStage } = await import('../src/explain-brief.js');
+  await prepareStage({ prompt: 'Explain it.', context: null, evidence: [] }, { env: {}, call });
+  assert.ok(sent[0].system.includes(BRIEF_ELEMENTS) && sent[0].tool.input_schema.properties.summary.description.includes(BRIEF_ELEMENTS));
 });

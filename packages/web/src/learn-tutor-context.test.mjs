@@ -57,3 +57,34 @@ test('the Tutor\'s card context for a program card is its loaded explanation and
   assert.ok(text.includes(manifest.summary));
   assert.equal(text.includes(growthFixture.source.slice(0, 40)), false);
 });
+
+// FX-61: a stateful card the learner acted on is named in the Tutor's card context by what they can see and did: its buttons and
+// selectable parts by the card's own labels, and the target or button the shown state came from. Never the raw state or source,
+// never an id the manifest does not label, and no model call (this is the selection/Tutor context path, cardContext).
+test('the Tutor\'s card context names a selected stateful target by its label, bounded, with no raw state or source', async () => {
+  const { cardContext } = await import('./learn-tutor.js');
+  const { programActivity, rememberProgram, PROGRAM_DESCRIPTION } = await import('./explain-program/program-card.js');
+  const { parseManifest, STATEFUL_SCHEMA_VERSION } = await import('./explain-program/contract.js');
+  const { sortFixture, dragFixture } = await import('./explain-program/fixtures.js');
+  const manifest = parseManifest(sortFixture.manifest, STATEFUL_SCHEMA_VERSION).value;
+  const block = { id: 'card-fx61', type: 'animation', title: 'Sorting', program: { bundleHash: 'bh-fx61' }, explain: { resultId: 'er-fx61', revision: 'xr-fx61' },
+    programState: { bundleHash: 'bh-fx61', state: { secretOrder: [5, 3, 1] }, revision: 4, seed: 0, inputs: {} } };
+  rememberProgram(block, manifest);
+  const before = cardContext(block);
+  assert.match(before, /Buttons: Compare next pair, Shuffle/);
+  assert.match(before, /Parts the learner can select: Bar 1, Bar 2, Bar 3, Bar 4, Bar 5, Bar 6/);
+  assert.doesNotMatch(before, /last selected/, 'nothing committed on this page yet: no action is claimed');
+  programActivity(block, { type: 'select', target: 'bar-3' });
+  assert.match(cardContext(block), /The learner last selected "Bar 4"; the picture shows the result\./);
+  programActivity(block, { type: 'action', action: 'step' });
+  assert.match(cardContext(block), /The learner last pressed "Compare next pair"/);
+  programActivity(block, { type: 'select', target: 'not-declared' });
+  assert.doesNotMatch(cardContext(block), /not-declared|last selected/, 'an id the card does not label is never named');
+  for (const leak of ['secretOrder', 'reduce', 'initialState', sortFixture.source.slice(0, 30)]) assert.equal(cardContext(block).includes(leak), false, leak);
+  assert.ok(cardContext(block).length <= PROGRAM_DESCRIPTION);
+  const drag = parseManifest(dragFixture.manifest, STATEFUL_SCHEMA_VERSION).value, dragged = { ...block, id: 'card-fx61-drag', program: { bundleHash: 'bh-drag' } };
+  rememberProgram(dragged, drag);
+  programActivity(dragged, { type: 'drag_end', target: 'handle', x: 10, y: 20 });
+  assert.match(cardContext(dragged), /Handle can also be dragged/);
+  assert.match(cardContext(dragged), /The learner last moved "Handle"/);
+});

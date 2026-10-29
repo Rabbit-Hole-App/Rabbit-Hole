@@ -105,9 +105,9 @@ export const programErrorMessage = error => new RuntimeError(error?.code).messag
 const loaded = new Map();
 const LOADED_CARDS = 64;
 export function rememberProgram(block, manifest, drawn = null) {
-  const key = savedKey(block), playing = loaded.get(key)?.playing ?? false;
+  const key = savedKey(block), { playing = false, last = null } = loaded.get(key) || {};
   loaded.delete(key);
-  loaded.set(key, { manifest, playing, drawn: drawn && { inputs: JSON.stringify(drawn.inputs), time: drawn.time, readouts: drawn.readouts } });
+  loaded.set(key, { manifest, playing, last, drawn: drawn && { inputs: JSON.stringify(drawn.inputs), time: drawn.time, readouts: drawn.readouts } });
   if (loaded.size > LOADED_CARDS) loaded.delete(loaded.keys().next().value);
 }
 export const loadedProgram = block => loaded.get(savedKey(block)) ?? null;
@@ -116,7 +116,22 @@ export function programPlayback(block, playing) {
   const entry = loaded.get(savedKey(block));
   if (entry) entry.playing = playing;
 }
+// FX-61: the learner event this card's latest committed transition came from (use-program-state.js last), for its description.
+export function programActivity(block, event) {
+  const entry = loaded.get(savedKey(block));
+  if (entry) entry.last = event ?? null;
+}
 
+const labelOf = (list, id) => (list || []).find(item => item.id === id)?.label ?? null;
+// The last learner event in the words the card shows (its declared labels); null for anything the manifest does not name.
+function activityText(manifest, event) {
+  const target = labelOf(manifest.targets, event?.target), input = manifest.inputs.find(item => item.id === event?.input);
+  if (event?.type === 'action') { const label = labelOf(manifest.actions, event.action); return label && `pressed "${label}"`; }
+  if (event?.type === 'select') return target && `selected "${target}"`;
+  if (event?.type === 'drag_end' || event?.type === 'drag_move') return target && `moved "${target}"`;
+  if (event?.type === 'input') return input ? `set ${input.label} to ${valueText(input, event.value)}` : null;
+  return null;
+}
 const valueText = (input, value) => `${input.type === 'select' ? input.options.find(option => option.value === value)?.label ?? value : value}${input.unit ? ` ${input.unit}` : ''}`;
 export const PROGRAM_DESCRIPTION = 2000;
 // The composer and tutor context for a program card: what the learner can see and has set, never source. manifest: the resolved
@@ -132,6 +147,12 @@ export function describeProgram(block, manifest = loadedProgram(block)?.manifest
     for (const input of manifest.inputs) lines.push(`${input.label}: ${valueText(input, inputs[input.id])}`);
     const drawn = entry?.drawn?.inputs === JSON.stringify(inputs) ? entry.drawn : null, time = drawn ? clampTime(manifest, drawn.time) : programTime(manifest, block);
     if (manifest.duration) lines.push(`${drawn && entry.playing ? 'Playing, now at' : 'Paused at'} ${time.toFixed(1)}s of ${manifest.duration}s`);
+    // Schema 2 (FX-61): what the learner can press and select, by the card's own labels, and the action the shown state came from.
+    const actions = manifest.actions || [], targets = manifest.targets || [], dragged = targets.filter(target => target.drag);
+    if (actions.length) lines.push(`Buttons: ${actions.map(action => action.label).join(', ')}`);
+    if (targets.length) lines.push(`Parts the learner can select: ${targets.map(target => target.label).join(', ')}${dragged.length ? ` (${dragged.map(target => target.label).join(', ')} can also be dragged)` : ''}`);
+    const last = entry?.last && activityText(manifest, entry.last);
+    if (last) lines.push(`The learner last ${last}; the picture shows the result.`);
     if (drawn) { if (drawn.readouts.length) lines.push(`Shown now: ${drawn.readouts.map(r => `${r.label} ${r.text}`).join('; ')}`); }
     else if (manifest.readouts.length) lines.push(`Its readouts (${manifest.readouts.map(r => r.label).join(', ')}) are not drawn for these settings yet; do not state their values.`);
   } else lines.push('Its controls, settings and readouts are not loaded on this page yet; do not state their values.');

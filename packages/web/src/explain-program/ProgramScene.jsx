@@ -13,7 +13,7 @@ import { useProgramState } from './use-program-state.js';
 import ProgramNotes from './ProgramNotes.jsx';
 import SourcesDisclosure from '../SourcesDisclosure.jsx';
 import {
-  clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programInputs, programPlayback, programTime, rememberProgram, resetProgram, resolveProgram,
+  clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programActivity, programInputs, programPlayback, programTime, rememberProgram, resetProgram, resolveProgram,
   setProgramInput, shownProgram,
 } from './program-card.js';
 
@@ -113,6 +113,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       setPendingInputs(pending => (pending && JSON.stringify(pending) === JSON.stringify(next.inputs) ? null : pending));
     },
     fail: error => { setPendingInputs(null); setPlaying(false); setFailure(error); } });
+  useEffect(() => { if (!preview) programActivity(latest.current, programState.last); }, [programState.last, preview]); // FX-61: the Tutor names the last committed action
 
   const inputs = manifest ? (programState.stateful ? pendingInputs ?? programState.envelope?.inputs ?? programInputs(manifest, block) : programInputs(manifest, block)) : null;
   // A schema 2 frame is drawn with the inputs its committed state was computed for; newer inputs wait for their own transition.
