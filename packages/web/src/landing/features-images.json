@@ -1,4 +1,47 @@
 {
+  "01-ai-tutor": {
+    "desktop": {
+      "src": "01-ai-tutor-desktop.webp",
+      "w": 1760,
+      "h": 678
+    },
+    "mobile": {
+      "src": "01-ai-tutor-mobile.webp",
+      "w": 800,
+      "h": 1359
+    }
+  },
+  "03-animated-explainer-videos": {
+    "desktop": {
+      "src": "03-animated-explainer-videos-desktop.webp",
+      "w": 1120,
+      "h": 846
+    }
+  },
+  "04-github-code-graph": {
+    "desktop": {
+      "src": "04-github-code-graph-desktop.webp",
+      "w": 1760,
+      "h": 645
+    },
+    "mobile": {
+      "src": "04-github-code-graph-mobile.webp",
+      "w": 720,
+      "h": 1478
+    }
+  },
+  "05-pdf-reader": {
+    "desktop": {
+      "src": "05-pdf-reader-desktop.webp",
+      "w": 1232,
+      "h": 800
+    },
+    "mobile": {
+      "src": "05-pdf-reader-mobile.webp",
+      "w": 760,
+      "h": 860
+    }
+  },
   "06-notebooks": {
     "desktop": {
       "src": "06-notebooks-desktop.webp",
@@ -121,5 +164,54 @@
         "h": 603
       }
     }
-  ]
+  ],
+  "18-3d-scenes": {
+    "desktop": {
+      "src": "18-3d-scenes-desktop.webp",
+      "w": 1064,
+      "h": 916
+    }
+  },
+  "20-browser-cards": {
+    "desktop": {
+      "src": "20-browser-cards-desktop.webp",
+      "w": 1112,
+      "h": 1036
+    }
+  },
+  "21-document-editor": {
+    "desktop": {
+      "src": "21-document-editor-desktop.webp",
+      "w": 1410,
+      "h": 1320
+    }
+  },
+  "22-3d-file-import": {
+    "desktop": {
+      "src": "22-3d-file-import-desktop.webp",
+      "w": 1108,
+      "h": 916
+    }
+  },
+  "23-table-of-contents": {
+    "desktop": {
+      "src": "23-table-of-contents-desktop.webp",
+      "w": 1760,
+      "h": 988
+    }
+  },
+  "24-comments": {
+    "desktop": {
+      "src": "24-comments-desktop.webp",
+      "w": 1760,
+      "h": 890
+    }
+  },
+  "25-canvas-search": {
+    "desktop": {
+      "src": "25-canvas-search-desktop.webp",
+      "w": 1760,
+      "h": 988
+    }
+  }
 }

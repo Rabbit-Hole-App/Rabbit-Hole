@@ -12,10 +12,10 @@ test('the catalogue has the 26 brief entries in order with unique ids', () => {
 });
 
 test('production shows only published entries with a picture; preview adds staged ones; no picture is never shown', () => {
-  const images = { '01-ai-tutor': pic('01-ai-tutor'), '02-interactive-explanations': pic('02'), '03-animated-explainer-videos': pic('03', false) };
+  const images = { '01-ai-tutor': pic('01-ai-tutor'), '02-interactive-explanations': pic('02'), '06-notebooks': pic('06', false) };
   const prod = renderCatalogue(FEATURES, images);
   assert.match(prod, /id="ai-tutor"/);
-  assert.match(prod, /id="animated-explainer-videos"/);
+  assert.match(prod, /id="notebooks"/);
   assert.doesNotMatch(prod, /interactive-explanations/); // staged (published: false)
   assert.doesNotMatch(prod, /github-code-graph/); // published, but no picture yet
   assert.match(renderCatalogue(FEATURES, images, { preview: true }), /href="#interactive-explanations"/);
@@ -23,7 +23,7 @@ test('production shows only published entries with a picture; preview adds stage
 });
 
 test('first picture eager, the rest lazy; phone source only where a phone crop exists; copy is escaped', () => {
-  const html = renderCatalogue(FEATURES, { '01-ai-tutor': pic('01-ai-tutor'), '03-animated-explainer-videos': pic('03', false), '04-github-code-graph': pic('04') });
+  const html = renderCatalogue(FEATURES, { '01-ai-tutor': pic('01-ai-tutor'), '06-notebooks': pic('06', false), '04-github-code-graph': pic('04') });
   assert.equal((html.match(/loading="eager"/g) || []).length, 1);
   assert.equal((html.match(/loading="lazy"/g) || []).length, 2);
   assert.equal((html.match(/<source /g) || []).length, 2);
