@@ -70,7 +70,7 @@ async function sharedBoard(f, { publicView = true } = {}) {
   assert.equal(placed.status, 200, placed.text);
   const shared = await f.call('POST', `/api/learn/boards/${canvas.name}/main/share`, { as: 'ana', body: { shared: true, view: true, public_view: publicView } });
   assert.equal(shared.status, 200, shared.text);
-  return { canvas, boardId, token: shared.body.sharing.view, a, b };
+  return { canvas, boardId, otherId, token: shared.body.sharing.view, a, b };
 }
 
 const IDENTITY_KEYS = ['resultId', 'cardId', 'revision', 'kind', 'bundleHash', 'sourceHash', 'manifestHash', 'versions'];
@@ -220,4 +220,28 @@ describe('visitor is not the owner: a signed-in non-owner on ana\'s share link',
     assert.deepEqual(out.map(r => [r.status, r.body]), [[401, out[0].body], [401, out[0].body]]);
     assert.equal(out[0].body.signIn, true);
   });
+});
+
+// Task 9.1: a same-card Edit's candidate is a result of its own on the canvas's object, never on the board until Apply. The share link
+// reads only what the saved card names, and the owner route stays owner- and canvas-bound, so a changed result id reads no candidate.
+test('an Edit candidate is never served by the link, and only its owner reads it on its own canvas', async t => {
+  const f = world(t);
+  const { boardId, otherId, token, a } = await sharedBoard(f);
+  const candidate = await f.accept(boardId, 'card-a', 'er_cand', program('Cooling A, edited', 5));
+  f.store(boardId).get('result:er_cand').identity.baseRevision = a.identity.revision;
+  // The link keeps serving the card's accepted result while a candidate exists for the same card.
+  const got = await f.read(token, 'card-a', 'ben');
+  assert.equal(got.status, 200);
+  assert.deepEqual(got.body.artifact, a.artifact);
+  assert.notEqual(got.body.artifact.bundleHash, candidate.artifact.bundleHash);
+  assert.equal(got.text.includes('er_cand'), false);
+  // Addressing the candidate by its result id as if it were a card names nothing.
+  assert.deepEqual([(await f.read(token, 'er_cand', 'ben')).status, (await f.read(token, 'er_cand')).status], [404, 404]);
+  // The owner reads the candidate on its own canvas; another account and another canvas are refused.
+  const mine = await f.owner('er_cand', boardId, 'ana');
+  assert.equal(mine.status, 200);
+  assert.deepEqual([(await mine.json()).identity.cardId, candidate.identity.cardId], ['card-a', 'card-a']);
+  assert.equal((await f.owner('er_cand', boardId, 'ben')).status, 404, 'another account');
+  assert.equal((await f.owner('er_cand', otherId, 'ana')).status, 404, 'another canvas of the same owner');
+  assert.equal((await f.owner('er_cand', boardId)).status, 401, 'signed out');
 });

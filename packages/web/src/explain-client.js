@@ -107,5 +107,8 @@ export function applyExplainEdit(card, job, candidate) {
   const rest = { ...previous, ...candidate, ...kept, explain: savedIdentity(job.result), ...programRef(candidate) };
   return { ok: true, block: { ...rest, inputs: {}, inputRevision: (card.inputRevision || 0) + 1, time: candidate.time ?? candidate.scene?.duration ?? 0, selectedObject: null, marked: null } };
 }
+// Proposed (ExplainEditBar): the candidate drawn in this card, under this card's id but with the candidate's own result identity and
+// program reference, so a program candidate resolves its own artifact through the authorized result route. Drawn only, never saved.
+export const explainProposedBlock = (card, candidate) => (candidate?.scene || candidate?.program ? { ...candidate, id: card.id } : null);
 // Discard (or a failed edit): the accepted explanation stays exactly as it was.
 export const discardExplainEdit = card => { const { explainEdit: _editing, ...rest } = card; return rest; };

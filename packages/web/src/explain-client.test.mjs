@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { EXPLAIN_UNAVAILABLE, applyExplainEdit, discardExplainEdit, explainClient, explainRetry, explainUnavailable, explainDisabled, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock, explainResultBlock, explainRunning, explainStage } from './explain-client.js';
+import { EXPLAIN_UNAVAILABLE, applyExplainEdit, discardExplainEdit, explainClient, explainRetry, explainUnavailable, explainDisabled, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock, explainProposedBlock, explainResultBlock, explainRunning, explainStage } from './explain-client.js';
 import { submitCadOnce } from './cad-client.js';
 import { runLearnCommand } from './learn-slash.js';
 
@@ -213,4 +213,30 @@ test('Apply replaces the old representation: program -> scene drops the program 
   assert.deepEqual([again.block.program, 'scene' in again.block], [{ bundleHash: 'c'.repeat(64) }, false]);
   // Program editing is supported (explainEditProblem offers it), so the merge path is corrected, not disabled.
   assert.equal(explainEditProblem({ ...programCard, explain: identity({ revision: 'xr_1' }) }), null);
+});
+
+// Task 9.1: a completed program's Edit whose candidate is a program (no scene). Proposed draws that candidate, never the accepted program.
+test('a ready program candidate (program, no scene) is previewed by its own result identity under this card id; Apply is one update; Discard keeps the card', () => {
+  const accepted = { id: 'card-1', type: 'animation', title: 'Growth', program: { bundleHash: 'a'.repeat(64) }, explain: identity({ revision: 'xr_1', bundleHash: 'a'.repeat(64) }),
+    dx: 10, dy: 20, inputs: { rate: 5 }, inputRevision: 2, time: 1.5, programState: { step: 3 } };
+  const editing = explainEditing(accepted, job({ id: 'ej_2', stage: 'authoring' }), 'add friction');
+  const done = job({ id: 'ej_2', stage: 'ready', terminal: true, result: identity({ jobId: 'ej_2', resultId: 'er_2', revision: 'xr_2', baseRevision: 'xr_1', kind: 'program', bundleHash: 'b'.repeat(64) }) });
+  // The server's ready answer (explain-job.js block): a program reference and the candidate's identity, no scene.
+  const candidate = { type: 'animation', id: 'card-1', title: 'Growth with friction', program: { kind: 'explain_program', resultId: 'er_2', bundleHash: 'b'.repeat(64) }, explain: done.result };
+  assert.equal('scene' in candidate, false);
+  const proposed = explainProposedBlock(editing, candidate);
+  assert.deepEqual([proposed.id, proposed.program.bundleHash, proposed.explain.resultId, proposed.explain.revision, proposed.explain.canvas.boardId, 'scene' in proposed],
+    ['card-1', 'b'.repeat(64), 'er_2', 'xr_2', 'board-A', false], 'the candidate\'s own artifact, not the accepted one');
+  assert.equal(explainProposedBlock(editing, null), null, 'Current: nothing proposed');
+  assert.equal(explainProposedBlock(editing, { id: 'card-1' }), null, 'a candidate with neither representation draws nothing');
+  assert.deepEqual(editing.program, accepted.program, 'building the preview changed nothing on the card');
+  // Apply: one block for one onChange (one undo step), the candidate's reference and identity, learner state reset.
+  const applied = applyExplainEdit(editing, done, candidate);
+  assert.equal(applied.ok, true);
+  assert.deepEqual([applied.block.program, applied.block.explain.resultId, applied.block.explain.revision, applied.block.inputs, applied.block.time, applied.block.explainEdit],
+    [{ bundleHash: 'b'.repeat(64) }, 'er_2', 'xr_2', {}, 0, undefined]);
+  // A stale card (the accepted revision moved on) is refused, as for a scene.
+  assert.equal(applyExplainEdit({ ...editing, explain: identity({ revision: 'xr_3' }) }, done, candidate).stale, true);
+  // Discard: the accepted artifact, inputs, time and program state exactly as they were.
+  assert.deepEqual(discardExplainEdit(editing), accepted);
 });

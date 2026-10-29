@@ -1,6 +1,7 @@
 import CadCard from './CadCard.jsx';
 import ExplainPending from './ExplainPending.jsx';
 import ExplainEditBar from './ExplainEditBar.jsx';
+import { explainProposedBlock } from './explain-client.js';
 import { cadContext } from './cad-client.js';
 import { dropView, publishView } from './cad-viewer-store.js';
 import { holdViewerGestures } from './content-gestures.js';
@@ -1201,6 +1202,7 @@ function WhiteboardBody({ block, appName, onChange }) {
 function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPracticeHeight, onControlsHeight, onProgramFrame }) {
   // A same-card Edit's candidate, while the learner looks at Proposed (ExplainEditBar): drawn, never saved or changed.
   const [candidate, setCandidate] = useState(null);
+  const proposed = explainProposedBlock(block, candidate);
   const ignore = () => {};
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
@@ -1214,9 +1216,11 @@ function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPract
         {block.explainEdit && <ExplainEditBar block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onPreview={setCandidate} />}
         {block.explainJob && !block.scene && !block.program
           ? <ExplainPending block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} />
-          // ponytail: a program candidate has no Proposed preview yet (edit of a program is Task 9); the saved card stays shown.
-          : candidate?.scene
-            ? <AnimatedScene key="proposed" block={{ ...candidate, id: block.id }} onChange={ignore} onChangeQuiet={ignore} />
+          // Proposed: the candidate's own artifact in a preview player of its own (key: Current and Proposed never share a host).
+          : proposed?.program
+            ? <ProgramScene key="proposed" preview block={proposed} onControlsHeight={onControlsHeight} onProgramFrame={onProgramFrame} />
+          : proposed?.scene
+            ? <AnimatedScene key="proposed" block={proposed} onChange={ignore} onChangeQuiet={ignore} />
             : block.program
             ? <ProgramScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onControlsHeight={onControlsHeight} onProgramFrame={onProgramFrame} />
             : <AnimatedScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onControlsHeight={onControlsHeight} />}
