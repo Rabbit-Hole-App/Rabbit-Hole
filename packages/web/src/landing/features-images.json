@@ -11,6 +11,18 @@
       "h": 1160
     }
   },
+  "04-github-code-graph": {
+    "desktop": {
+      "src": "04-github-code-graph-desktop.webp",
+      "w": 1356,
+      "h": 980
+    },
+    "mobile": {
+      "src": "04-github-code-graph-mobile.webp",
+      "w": 716,
+      "h": 704
+    }
+  },
   "11-rabbit-holes": {
     "desktop": {
       "src": "11-rabbit-holes-desktop.webp",
