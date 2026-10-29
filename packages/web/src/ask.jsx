@@ -542,8 +542,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     // TOC refinements and explicit Ask never go to the journey resolver or start a journey: a course or journey
     // on this canvas must not turn an Ask turn into syllabus work.
     if (tocView || chat?.thread.mode === 'ask') skipJourney = true;
-    // An Edit target's turn is that proposal's revision: never a journey answer.
-    const edit = !regenerate ? editTarget : null;
+    // An Edit target's turn is that proposal's revision: never a journey answer. keepDraft: a turn another surface sent (Ctrl+K, about
+    // its own selection) is never the Chat's Edit, and below it neither uses nor clears any of the Chat's own context, sent or refused.
+    const edit = !regenerate && !keepDraft ? editTarget : null;
     if (edit) skipJourney = true;
     // conflicts.md Q4: typing "not now" while a tray is open is the Not now control too (suggestions paused, saved).
     if (!tocView && tray?.tray && /^\s*not now[.!]?\s*$/i.test(raw)) chat?.coaching?.dispatch({ type: 'not_now' });
@@ -577,7 +578,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       }
     }
     // @-chips ride at the front of the message text
-    const message = [...mentions.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
+    const chips = keepDraft ? [] : mentions;
+    const message = [...chips.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     // A refused turn leaves no /deeper or /simplify waiting for the next one (LearnTutor slash).
     if (!message || busy) { tutor?.slash?.(null); return false; }
     setRouteShown(null);
@@ -616,21 +618,24 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     setBusy(true);
     const flight = new AbortController();
     answerFlight.current = flight;
+    // keepDraft (another surface's turn): the draft, @-chips, attachment, code range, attached paper, article, video and image and the
+    // armed card all stay the Chat's, for its own next turn.
     if (!regenerate && !keepDraft) { setInput(''); setMentions([]); }
-    const sourceRange = codeSelection;
-    setCodeSelection(null);
-    const attached = regenerate ? null : file;
-    if (!regenerate) setFile(null);
-    const canvasImage = !isDemo ? boardContext?.preview || (canvasTarget?.id?.startsWith?.('area:') ? canvasTarget.preview : null) : null;
-    const questionPaper = boardContext?.paper;
-    const questionWiki = boardContext?.wiki;
-    const questionVideo = boardContext?.video;
-    const questionImage = boardContext?.image;
+    const sourceRange = keepDraft ? null : codeSelection;
+    if (!keepDraft) setCodeSelection(null);
+    const attached = regenerate || keepDraft ? null : file;
+    if (!regenerate && !keepDraft) setFile(null);
+    const canvasImage = !isDemo && !keepDraft ? boardContext?.preview || (canvasTarget?.id?.startsWith?.('area:') ? canvasTarget.preview : null) : null;
+    const board = keepDraft ? null : boardContext;
+    const questionPaper = board?.paper;
+    const questionWiki = board?.wiki;
+    const questionVideo = board?.video;
+    const questionImage = board?.image;
     const questionOutline = boardContext?.outline?.();
     // Tutor Task 11: the accepted plan revision this turn was asked on; its outline proposal applies only while it holds.
     const questionPlan = boardContext?.planRevision?.();
-    if (!isDemo) boardContext?.removeImage();
-    const target = canvasTarget; // selected lesson block riding as context
+    if (!isDemo && !keepDraft) boardContext?.removeImage();
+    const target = keepDraft ? null : canvasTarget; // selected lesson block riding as context
     // The attachment follows its card until this exact moment: a function-
     // valued text resolves the card's CURRENT visible state now, and the
     // string it returns is frozen into this one request. A later input
@@ -822,7 +827,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         // With a codebase the selection rides as code refs (context_refs below); repository_context then names only the commit.
         ...(repository && repositoryContext ? { repository_context: { ...(codebase ? {} : repositoryContext), commit: sourceRange?.commit || (codebase && (codebase.snapshot?.commit || codebase.commit)) || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),
         // @-mentioned apps: the server adds each one's context to this chat.
-        ...(mentions.length ? { mentions: [...mentions] } : {}),
+        ...(chips.length ? { mentions: [...chips] } : {}),
         // The learner's own words; the card, group or region they asked about rides beside them,
         // its text resolved at send (targetText) so a live card sends the state the learner sees.
         message,

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, CircleHelp, Loader2, SquareSlash, X } from 'lucide-react';
-import { commandUi, exactCommand, parseSlash, pickerSections, releaseLine, searchSections } from './learn-slash.js';
+import { commandUi, exactCommand, parseSlash, pickerSections, promptTaken, releaseLine, searchSections } from './learn-slash.js';
 import PaidConfirm from './PaidConfirm.jsx';
 import { CommandMark } from './CommandTone.jsx';
 import { typedOf } from './agent/slash.js';
@@ -41,6 +41,7 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
   };
   // handoff (Ctrl+K, owner spec 2026-10-29 4.2): another surface's line runs here exactly as a typed one, about ITS selection
   // ({ target, about }), and the composer's own draft is never cleared or replaced (a kept line only fills an empty composer).
+  // -> whether the line was taken: false only for a prompt the Chat refused (busy), which a handoff's sender keeps and says so.
   const exec = async (raw, handoff = null) => {
     const name = parseSlash(raw)?.name || '';
     const started = scope;
@@ -52,19 +53,21 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
     try { out = await run(raw, target, turn, handoff); }
     catch (error) { out = { notice: { tone: 'error', text: error.message } }; }
     const ui = commandUi(out, { raw, started, current: scopeNow.current, tracked: !!turn });
-    if (!ui) return; // the conversation changed: the card stays, nothing here (New chat already cleared the notice)
+    if (!ui) return true; // the conversation changed: the card stays, nothing here (New chat already cleared the notice)
     setBusy(false);
-    // A prompt the chat refuses (onPrompt answers false) is never lost: the line comes back with an error.
+    // A prompt the chat refuses (onPrompt answers false) is never lost: the line comes back with an error, or stays in Ctrl+K.
     if (ui.prompt) {
       setNotice(null);
-      Promise.resolve(onPrompt(ui.prompt, handoff)).then(sent => { if (sent === false) { if (!handoff || !input.trim()) setInput(raw); setNotice({ tone: 'error', text: `/${name} was not sent while the chat was busy. Press Enter to send it.` }); } });
-      return;
+      const sent = Promise.resolve(onPrompt(ui.prompt, handoff));
+      sent.then(out => { if (out === false && !handoff) { setInput(raw); setNotice({ tone: 'error', text: `/${name} was not sent while the chat was busy. Press Enter to send it.` }); } });
+      return promptTaken(sent);
     }
     if (ui.finder) onFinder?.(ui.finder);
     if (ui.keep && (!handoff || !input.trim())) setInput(ui.keep);
     setNotice(ui.notice);
     // The confirmation shows the line it asks about (brief 1); a recorded line's generation shows above the composer (ChatOutputs).
     setProposal(ui.proposal);
+    return true;
   };
   useEffect(() => {
     if (busy || held.current == null) return;
@@ -91,8 +94,9 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
     search: () => setQuery(''),
     // A sent line that starts with / is a command, never a chat message.
     intercept: raw => { if (busy) { held.current = raw; return true; } exec(raw); return true; },
-    // Ctrl+K's line (chat-workspace ask): run now, or refuse while another command runs so the sender keeps it and says so.
-    handoff: (raw, handoff) => { if (busy) return false; exec(raw, handoff); return true; },
+    // Ctrl+K's line (chat-workspace ask): run now, or refuse while another command runs or when the Chat refuses its prompt, so the
+    // sender keeps it and says so. Answers once taken or refused, never at the command's end.
+    handoff: (raw, handoff) => (busy ? false : exec(raw, handoff)),
   };
 
   const tone = { error: 'text-fail', question: 'text-ink', done: 'text-ink-2', info: 'text-ink-2', busy: 'text-ink-2' };

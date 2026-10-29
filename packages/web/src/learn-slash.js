@@ -134,6 +134,10 @@ export const commandUi = (out, { raw, started, current, tracked = false }) => {
   if (out.prompt) return { prompt: out.prompt };
   return { finder: out.finder, keep: out.keep, notice: out.notice || null, proposal: out.proposal ? { ...out.proposal, prompt: raw.trim(), tracked } : null };
 };
+// Whether the Chat took a command's prompt (LearnSlash onPrompt -> ask.jsx send). send answers false before its first await when it
+// refuses (busy), and otherwise runs the whole turn, so a send not settled false at once is taken: Ctrl+K never waits for the answer.
+// The race lists send first, so an already-settled send wins over the `true`. -> Promise<boolean>
+export const promptTaken = sent => Promise.race([sent, true]).then(out => out !== false);
 
 // The / line a Chat Send runs through LearnSlash (ask.jsx send), or null when the text is a chat turn: a chosen pill sends
 // "/command words", and a typed /line runs as typed, replacing the pill. A command's own prompt coming back (prompted:

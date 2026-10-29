@@ -957,8 +957,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       return runLearnCommand(text, {
         app: app.name,
         target: handoff ? handoff.target : askTarget,
-        // The composer's attached image (its uploaded media id), as a question carries it (ask.jsx image_context).
-        attachedImage: imageAttached && imageContext?.id ? imageContext.id : null,
+        // The composer's attached image (its uploaded media id), as a question carries it (ask.jsx image_context); never a handoff's.
+        attachedImage: !handoff && imageAttached && imageContext?.id ? imageContext.id : null,
         canvas: withCardSink({
           startCad: async (prompt, options) => { const result = await startCad(prompt, options); if (result?.block?.id) sink?.(result.block.id); return result; },
           // turn (ask.jsx recordCommand): the thread its line was saved in (a reviewed brief is posted there) and the Chat's
