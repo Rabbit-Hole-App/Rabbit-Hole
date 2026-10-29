@@ -3,12 +3,11 @@ import './manifesto-stairs.css';
 const journey=document.getElementById('manifesto-journey');
 const artwork=document.getElementById('manifesto-stair-art');
 const canvas=document.getElementById('manifesto-stairs');
-const depth=document.getElementById('manifesto-depth-color');
 const ctx=canvas.getContext('2d');
 const media=matchMedia('(prefers-reduced-motion: reduce)');
 const clamp=value=>Math.max(0,Math.min(1,value));
 const mix=(a,b,t)=>a.map((v,i)=>Math.round(v+(b[i]-v)*t));
-const pale=[249,247,242],deep=[229,223,214],ink=[74,69,62];
+const black=[0,0,0],white=[255,255,255];
 const radius=3.7,stepCount=10,rise=.25,stairWidth=1.48;
 const flightDrop=stepCount*rise,run=(radius*2-stairWidth)/stepCount;
 const corners=[[-radius,-radius],[radius,-radius],[radius,radius],[-radius,radius]];
@@ -45,17 +44,16 @@ for(let flight=-4;flight<32;flight++){
   }
 }
 
-// A fixed screen-space ink pattern keeps the dither quiet while geometry moves.
+// A fixed screen-space grain pattern keeps the dither quiet while geometry moves.
 const tile=document.createElement('canvas');tile.width=4;tile.height=4;
 const tileCtx=tile.getContext('2d');
-tileCtx.fillStyle='rgba(74,69,62,.38)';
+tileCtx.fillStyle='rgba(255,255,255,.38)';
 tileCtx.fillRect(0,0,1,1);tileCtx.fillRect(2,2,1,1);
 const grain=ctx?.createPattern(tile,'repeat');
 
 function draw(progress){
   if(!ctx||!width||!height)return;
   ctx.clearRect(0,0,width,height);
-  const background=mix(pale,deep,progress);
   const cameraY=3.2+progress*20;
   // Grow each tread from the preceding edge. Ordered construction includes
   // landings, so a new step never floats ahead of an unfinished connection.
@@ -95,13 +93,13 @@ function draw(progress){
   for(const surface of visible){
     const visibility=clamp((29-surface.localY)/19)*clamp((surface.localY+4.5)/1.5);
     if(visibility<=0)continue;
-    const shade=mix(background,ink,surface.tone*visibility);
+    const shade=mix(black,white,surface.tone*visibility);
     ctx.beginPath();
     surface.projected.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));
     ctx.closePath();
     ctx.fillStyle=`rgb(${shade.join(',')})`;ctx.fill();
     ctx.fillStyle=grain;ctx.globalAlpha=visibility*.8;ctx.fill();ctx.globalAlpha=1;
-    ctx.strokeStyle=`rgba(74,69,62,${visibility*.88})`;
+    ctx.strokeStyle=`rgba(255,255,255,${visibility*.88})`;
     ctx.lineWidth=.85;ctx.stroke();
   }
   canvas.dataset.faces=String(visible.length);
@@ -114,7 +112,6 @@ function render(){
   queued=false;
   const progress=media.matches ? .32 : clamp((scrollY-start)/span);
   journey.dataset.progress=progress.toFixed(3);
-  depth.style.opacity=String(progress);
   draw(progress);
 }
 function schedule(){if(!queued){queued=true;requestAnimationFrame(render);}}

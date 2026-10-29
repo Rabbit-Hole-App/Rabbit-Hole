@@ -96,12 +96,12 @@ export const GENERATION_COMMANDS = Object.freeze({
     ],
     sections: ['references', 'usage'], editable_fields: ['title', 'description', 'references', 'duration_seconds', 'aspect_ratio'],
   }),
-  // Explain: the server's conditional-review policy (explain-brief.js briefDecision) decides whether a brief is reviewed; the
-  // same card is used when it is, the direct path otherwise. Presentation is its only setting.
+  // Explain: every new request's brief is reviewed (owner, 2026-10-29; the server's explain-brief.js briefDecision always requires it).
+  // Presentation is its only setting; the brief's limitations are shown, read only, under their own title.
   explain: define({
-    label: 'Explanation', noun: 'explanation', review_policy: 'conditional', settings_noun: 'an explanation setting', cancel: true,
+    label: 'Explanation', noun: 'explanation', review_policy: 'always', settings_noun: 'an explanation setting', cancel: true,
     settings: [field('presentation', 'Presentation', 'select', { options: PRESENTATIONS })],
-    sections: ['references', 'assumptions', 'usage'], editable_fields: ['title', 'description', 'references', 'assumptions', 'presentation'],
+    sections: ['references', 'assumptions', 'limitations', 'usage'], section_titles: { limitations: 'Limitations' }, editable_fields: ['title', 'description', 'references', 'assumptions', 'presentation'],
   }),
   // CAD: the job's own brief (cad-jobs.js), approved by its exact hash. Units are fixed by the brief; the parameter VALUES change
   // without a new brief, the parameter list does not (structuralChange in the job); requirements, assumptions, missing information

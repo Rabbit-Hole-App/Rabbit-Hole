@@ -96,7 +96,8 @@ test('fit, reveal, placement and the opening camera keep clear of the measured t
   assert.doesNotMatch(canvas, /Math\.max\(24, \(surface\.current\.clientWidth - COLUMN\) \/ 2\)/, 'no camera centred on the whole surface under the tools');
   // The header's classes are CanvasLoading.jsx's, shared with the loading skeleton (owner brief 2026-10-23).
   assert.match(page, /data-canvas-header className=\{`\$\{headerOver \? OWNER_HEADER_OVER : 'relative shrink-0'\}/, 'the header floats over the canvas');
-  assert.match(read('CanvasLoading.jsx'), /export const OWNER_HEADER_OVER = 'pointer-events-none absolute inset-x-0 top-0 z-40 \[&>\*\]:pointer-events-auto';/, 'the header floats over the canvas');
+  // Owner 2026-10-29: an opaque band in the canvas colour that takes the pointer; no card shows between the title and the menus.
+  assert.match(read('CanvasLoading.jsx'), /export const OWNER_HEADER_OVER = 'absolute inset-x-0 top-0 z-40 bg-white';/, 'the header floats over the canvas as an opaque band');
   assert.match(page, /expanded-page-frame @container\/frame relative /);
 });
 

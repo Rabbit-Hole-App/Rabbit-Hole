@@ -39,6 +39,15 @@ test('focusStyle: frame size at text scale 1, the old footprint kept, placed fro
   assert.equal(focusStyle(null, { height: 540, left: 0, top: 0 }), null);
 });
 
+// Owner, 2026-10-28: a notebook or code editor takes the pane up to about 1200 px (focus-host.js WIDE_MAX), centred.
+test('a wide pane: the notebook is at most 1200 px wide, centred in the frame', () => {
+  const host = fakeHost();
+  notebookFocus.enter(host, { left: 0, top: 64, width: 1800, height: 600 }, { view: { x: 0, y: 0, z: 1 } });
+  assert.equal(host.style.getPropertyValue('--focus-w'), '1200px');
+  assert.equal(host.style.getPropertyValue('--focus-transform'), 'translate(300px, -236px) scale(1)');
+  notebookFocus.exit(host);
+});
+
 test('enter, update and exit: idempotent, in place, the same host and iframe under the same parent', () => {
   const host = fakeHost(), parent = host.parentNode, iframe = host.iframe;
   notebookFocus.enter(host, FRAME, { view: VIEW });

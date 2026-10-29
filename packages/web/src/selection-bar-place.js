@@ -4,6 +4,10 @@
 // Pure, so it is tested without a browser (selection-bar-place.test.mjs).
 // below: prefer under the selection (a narrow view, where an object's own row of controls takes the space above it).
 // gap 20: above the selection the bar clears a comment pin centred on its top edge (30 px, pinTopCentre; owner, 2026-10-21).
+// The bar's top limit (placeBar's `top`) in the surface's pixels: 8 px below the page header's opaque band where that band lies
+// over the surface (owner 2026-10-29), else 8 px. header, frame: their client rects (either may be missing).
+export const barCeiling = (header, frame, inset = 8) => Math.max(inset, header && frame ? header.bottom - frame.top + inset : inset);
+
 export function placeBar(anchor, size, box, { gap = 20, margin = 8, top: inset = 8, below = false } = {}) {
   const roomAbove = anchor.top - gap - size.h >= inset;
   const roomBelow = anchor.bottom + gap + size.h <= box.h - margin;

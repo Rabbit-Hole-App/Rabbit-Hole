@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { explainPipeline } from '../src/explain-job.js';
 import { briefDecision, briefThresholds, needsPreparation } from '../src/explain-brief.js';
 import { proposalRecord, signProposal } from '../src/generation-proposal.js';
+import { chatProposalFetch } from '../src/chat-proposal-route.js';
 import { catalogue } from '../../web/src/visual-components/registry.js';
 import { BOARD, OWNER, explainStack, rows, spent } from './explain-fixture.js';
 
@@ -39,11 +40,13 @@ function stack(t, { thresholds = true } = {}) {
 }
 const posted = s => rows(s.sqlite, 'chat_message_meta').map(r => JSON.parse(r.meta_json));
 
-test('the server decides review: missing thresholds, research, ambiguity, assumptions, expanded meaning, interaction, density or cost', () => {
+// Owner decision 2026-10-29: every new /explain request shows its brief and waits for Generate. It replaces the rule this test
+// pinned (a simple request within the thresholds, with no trigger, went straight to authoring).
+test('the server always requires review of a new request; the reasons still name thresholds, research, ambiguity, assumptions, meaning, interaction, density or cost', () => {
   const env = { EXPLAIN_BRIEF_THRESHOLDS: JSON.stringify({ components: 3, credits: 400 }) };
   const base = { presentation: 'static', components: ['flow'], assumptions: [], ambiguous: false, expanded: false };
-  assert.deepEqual(briefDecision(env, base), { capability: 'explain', source: 'explicit', uncertain: false, missingInputs: [], requiresBrief: false, briefReasons: [], permittedActions: ['generate'] });
-  const reasons = (b, opts, e = env) => briefDecision(e, { ...base, ...b }, opts).briefReasons;
+  assert.deepEqual(briefDecision(env, base), { capability: 'explain', source: 'explicit', uncertain: false, missingInputs: [], requiresBrief: true, briefReasons: ['review_always'], permittedActions: ['brief', 'clarify'] });
+  const reasons = (b, opts, e = env) => briefDecision(e, { ...base, ...b }, opts).briefReasons.slice(1);
   assert.deepEqual(reasons({}, {}, {}), ['threshold_missing']);
   assert.deepEqual(reasons({}, {}, { EXPLAIN_BRIEF_THRESHOLDS: '{"components": "many"}' }), ['threshold_missing']);
   assert.deepEqual(reasons({}, { evidence: FIXTURE_EVIDENCE }), ['research']);
@@ -53,9 +56,11 @@ test('the server decides review: missing thresholds, research, ambiguity, assump
   assert.deepEqual(reasons({ presentation: 'time' }), ['interactive']);
   assert.deepEqual(reasons({ components: ['flow', 'module', 'callout', 'legend'] }), ['density']);
   assert.deepEqual(reasons({}, {}, { EXPLAIN_BRIEF_THRESHOLDS: JSON.stringify({ components: 3, credits: 100 }) }), ['cost']);
-  assert.equal(needsPreparation(env, 'simple'), false);
-  assert.equal(needsPreparation(env, 'researched'), true);
-  assert.equal(needsPreparation({}, 'simple'), true, 'no thresholds: every request is reviewed');
+  // Every new request prepares a brief whatever class the client sends and whatever thresholds are configured; only a same-card Edit
+  // keeps its earlier path.
+  for (const e of [env, {}]) for (const requestClass of ['simple', 'researched']) assert.equal(needsPreparation(e, requestClass), true, requestClass);
+  assert.equal(needsPreparation(env, 'edit'), false);
+  assert.equal(needsPreparation({}, 'edit'), true);
   assert.deepEqual(briefThresholds(env), { components: 3, credits: 400 });
 });
 
@@ -65,7 +70,7 @@ test('a reviewed brief: one brief call, original wording kept, posted as the sig
   const { body } = await s.create({ requestClass: 'researched', threadId: 'th1', prompt: 'explain   where RAIN comes from' });
   const waiting = await s.run(body.job.id);
   assert.equal(waiting.stage, 'awaiting_approval', JSON.stringify([waiting.failure, waiting.findings]));
-  assert.deepEqual(waiting.decision.briefReasons, ['assumptions']);
+  assert.deepEqual(waiting.decision.briefReasons, ['review_always', 'assumptions']);
   assert.equal(waiting.brief.request, 'explain   where RAIN comes from', 'verbatim');
   const sent = model.calls[0].body;
   assert.deepEqual([sent.model, sent.tools[0].name, sent.tool_choice.type], ['claude-opus-5-5', 'explain_brief', 'auto']);
@@ -138,19 +143,30 @@ test('preflight: a brief that plans an unknown component is a capability gap, wi
   }
 });
 
-test('no trigger fires: after one brief call the job goes straight to authoring, under its own allowance check', async t => {
-  const s = stack(t);
-  const model = scripted(t, { explain_brief: [brief()], author_explanation: [{ kind: 'spec', spec: SPEC }], report_review: [accept] });
-  const done = await s.run((await s.create({ requestClass: 'researched', threadId: 'th1' })).body.job.id);
-  assert.deepEqual([done.stage, done.decision.requiresBrief, posted(s).length], ['ready', false, 0]);
-  assert.deepEqual(model.calls.map(c => c.name), ['explain_brief', 'author_explanation', 'report_review']);
-  // The same with the allowance spent meanwhile: the brief was paid for, generation is refused before any author call.
+// Owner decision 2026-10-29: this replaces "no trigger fires: after one brief call the job goes straight to authoring".
+test('a simple request with no trigger, within the thresholds, waits after one brief call: no author, render or review call until Generate', async t => {
+  for (const requestClass of ['simple', 'researched']) {
+    let renders = 0;
+    const s = explainStack(t, { pipeline: { ...explainPipeline, render: async () => { renders++; return STUB_RENDER(); } } });
+    const model = scripted(t, { explain_brief: [brief()], author_explanation: [{ kind: 'spec', spec: SPEC }], report_review: [accept] });
+    const { body } = await s.create({ requestClass });
+    let waiting = await s.run(body.job.id);
+    for (let i = 0; i < 3; i++) waiting = await s.run(body.job.id); // the waiting brief is never advanced by a timer
+    assert.deepEqual([waiting.stage, waiting.decision.requiresBrief, waiting.approval, posted(s).length], ['awaiting_approval', true, null, 1], requestClass);
+    assert.deepEqual([model.calls.map(c => c.name), renders], [['explain_brief'], 0], requestClass);
+    assert.equal(waiting.counts.author + waiting.counts.review, 0);
+    assert.equal((await s.approve(body.job.id)).status, 202);
+    assert.equal((await s.run(body.job.id)).stage, 'ready');
+    assert.deepEqual([model.calls.map(c => c.name), renders], [['explain_brief', 'author_explanation', 'report_review'], 1]);
+  }
+  // The allowance spent meanwhile: the brief was paid for; Generate is refused before any author call and consumes nothing.
   const r = stack(t);
-  // The month is spent elsewhere while the brief call runs (it was already admitted).
   const refused = scripted(t, { explain_brief: [() => { spent(r.sqlite, 50e6 - 1000); return brief(); }] });
   const job = (await r.create({ requestClass: 'researched', threadId: 'th1' })).body.job;
-  const stopped = await r.run(job.id);
-  assert.deepEqual([stopped.stage, stopped.failure.category, refused.count('author_explanation')], ['failed', 'budget', 0], JSON.stringify([stopped.failure, stopped.findings]));
+  const waiting = await r.run(job.id);
+  const answer = await r.approve(job.id);
+  assert.deepEqual([waiting.stage, answer.status, answer.body.code, refused.count('author_explanation')], ['awaiting_approval', 429, 'allowance_limited', 0]);
+  assert.equal((await proposalRecord(r.env.LEARN_DB, OWNER.email, BOARD.app, posted(r)[0].proposal.proposal_id)).state.used, null);
 });
 
 test('two unrelated topics with fixture evidence take the same path: nothing is topic-specific', async t => {
@@ -160,7 +176,7 @@ test('two unrelated topics with fixture evidence take the same path: nothing is 
     const { body } = await s.create({ requestClass: 'researched', threadId: 'th1', prompt });
     s.state.data.set(`job:${body.job.id}`, { ...s.state.data.get(`job:${body.job.id}`), evidence: FIXTURE_EVIDENCE });
     const waiting = await s.run(body.job.id);
-    assert.deepEqual([waiting.stage, waiting.decision.briefReasons, waiting.brief.evidenceIds, waiting.brief.request], ['awaiting_approval', ['research'], ['ev-fixture-1'], prompt], title);
+    assert.deepEqual([waiting.stage, waiting.decision.briefReasons, waiting.brief.evidenceIds, waiting.brief.request], ['awaiting_approval', ['review_always', 'research'], ['ev-fixture-1'], prompt], title);
   }
 });
 
@@ -172,4 +188,94 @@ test('a refused brief call (allowance spent) stops the job as budget, with nothi
   const stopped = await s.run(job.id);
   assert.deepEqual([stopped.stage, stopped.failure.category, model.calls.length], ['failed', 'budget', 0]);
   assert.match(stopped.failure.message, /Not enough AI credits/);
+});
+
+// The Chat card's Save: PUT /api/learn/chat/messages/:id/proposal (chat-proposal-route.js), a new signed revision with no model call.
+const save = (s, messageId, body) => chatProposalFetch(new Request(`https://dev.test/api/learn/chat/messages/${messageId}/proposal`, { method: 'PUT', headers: { origin: 'https://dev.test' }, body: JSON.stringify(body) }), s.env, { identity: async () => OWNER })
+  .then(async r => ({ status: r.status, body: await r.json() }));
+const read = (s, messageId) => chatProposalFetch(new Request(`https://dev.test/api/learn/chat/messages/${messageId}/proposal`), s.env, { identity: async () => OWNER }).then(r => r.json());
+const messageOf = s => rows(s.sqlite, 'chat_message_meta').at(-1).message_id;
+
+test('edited wording reaches the author; Save makes no model call, a reload keeps the saved brief, the stale revision is refused and a double Generate starts once', async t => {
+  const s = stack(t);
+  const model = scripted(t, { explain_brief: [brief({ assumptions: ['Rain here means liquid rain.'], limitations: ['It leaves out snow and hail.'] })], author_explanation: [{ kind: 'spec', spec: SPEC }], report_review: [accept] });
+  const { body } = await s.create({ threadId: 'th1', prompt: 'Explain where rain comes from.' });
+  const waiting = await s.run(body.job.id);
+  const v1 = posted(s)[0].proposal, id = messageOf(s);
+  // The limitations are shown with the brief (read only); the original request is the learner's words, unchanged.
+  assert.deepEqual([v1.limitations, v1.original_request, v1.assumptions], [['It leaves out snow and hail.'], 'Explain where rain comes from.', ['Rain here means liquid rain.']]);
+  const edit = { expected_version: 1, title: 'Rain from the sea', description: 'Follow one drop from the warm sea up into a cloud and down again as rain.', assumptions: ['Rain is liquid water.'] };
+  const saved = await save(s, id, edit);
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  const v2 = saved.body.proposal;
+  assert.deepEqual([v2.version, v2.title, v2.description, v2.original_request, model.calls.length], [2, edit.title, edit.description, 'Explain where rain comes from.', 1], 'a Save is no model call');
+  // Saving from the old revision again (another tab): refused with the current one, which is kept.
+  assert.equal((await save(s, id, { ...edit, expected_version: 1, title: 'Other' })).status, 409);
+  // A reload: a new object over the same storage, the card read again; the saved brief and the waiting job are both still there.
+  const restarted = s.object();
+  assert.deepEqual([(await read(s, id)).proposal.title, (await s.send('get', {}, body.job.id, OWNER, restarted)).body.job.stage], [edit.title, 'awaiting_approval']);
+  // The stale revision's Generate is refused and consumes nothing.
+  const stale = await s.send('approve', { proposal: v1 }, body.job.id);
+  assert.deepEqual([stale.status, stale.body.code], [409, 'proposal_stale']);
+  assert.equal((await proposalRecord(s.env.LEARN_DB, OWNER.email, BOARD.app, v1.proposal_id)).state.used, null);
+  // A double click: two Generates of the saved revision at once start one job, once.
+  const presses = await Promise.all([s.send('approve', { proposal: v2 }, body.job.id), s.send('approve', { proposal: v2 }, body.job.id)]);
+  assert.deepEqual(presses.map(r => r.status).sort(), [200, 202]);
+  assert.deepEqual((await proposalRecord(s.env.LEARN_DB, OWNER.email, BOARD.app, v1.proposal_id)).state.used, { version: 2, key: body.job.id });
+  const done = await s.run(body.job.id);
+  assert.equal(done.stage, 'ready');
+  assert.deepEqual([model.count('explain_brief'), model.count('author_explanation')], [1, 1]);
+  // What authoring received: the learner's edited title, description and assumptions, the prepared limitations, the verbatim request.
+  const author = JSON.parse(model.calls.find(c => c.name === 'author_explanation').body.messages[0].content[0].text);
+  assert.deepEqual([author.request, author.brief.title, author.brief.summary, author.brief.assumptions, author.brief.limitations], ['Explain where rain comes from.', edit.title, edit.description, edit.assumptions, ['It leaves out snow and hail.']]);
+  assert.equal(done.result.cardId, waiting.cardId, 'the waiting card is the one completed');
+});
+
+test('Cancel on a waiting brief stops the job through the existing cancel action: nothing is authored and Generate is refused', async t => {
+  const s = stack(t);
+  const model = scripted(t, { explain_brief: [brief()] });
+  const { body } = await s.create({ threadId: 'th1' });
+  await s.run(body.job.id);
+  const cancelled = await s.send('cancel', {}, body.job.id);
+  assert.deepEqual([cancelled.status, cancelled.body.job.stage, cancelled.body.job.stopReason], [200, 'cancelled', 'stopped']);
+  const refused = await s.approve(body.job.id);
+  assert.deepEqual([refused.status, refused.body.code, refused.body.error], [409, 'brief_stale', 'This explanation was stopped. Ask for it again to make one.']);
+  await s.run(body.job.id);
+  assert.deepEqual(model.calls.map(c => c.name), ['explain_brief']);
+  assert.equal(rows(s.sqlite, 'usage_actions').some(a => a.status === 'running'), false);
+});
+
+test('Retry after a failed brief prepares the brief again and waits: it never goes on to authoring', async t => {
+  const s = stack(t);
+  const model = scripted(t, { explain_brief: [brief({ title: '' }), brief()] });
+  const { body } = await s.create({ threadId: 'th1' });
+  const failed = await s.run(body.job.id);
+  assert.deepEqual([failed.stage, failed.failure.stage, (await s.job(body.job.id)).job.recovery], ['failed', 'preparing', ['new_attempt', 'edit_request']]);
+  assert.equal((await s.send('retry', { expectedAttempt: 1 }, body.job.id)).body.job.stage, 'preparing', 'old code: authoring, with no approved brief');
+  const waiting = await s.run(body.job.id);
+  assert.deepEqual([waiting.stage, model.calls.map(c => c.name)], ['awaiting_approval', ['explain_brief', 'explain_brief']]);
+});
+
+test('a generic program topic is briefed against the program runtime, with no registered topic component; the legacy route keeps the catalogue', async t => {
+  const s = stack(t);
+  s.env.EXPLAIN_PROGRAM_ENABLED = 'true';
+  const plan = brief({ title: 'Falling on Earth and the Moon', summary: 'Compare an object falling on Earth and on the Moon, side by side. Change the drop height and object mass, then play or scrub the motion. Compare their fall times and weights.',
+    presentation: 'experiment', components: ['galaxy'], assumptions: ['Air resistance is ignored.'], limitations: ['It shows one object at a time on each world.'] });
+  const model = scripted(t, { explain_brief: [plan] });
+  const { body } = await s.create({ threadId: 'th1', prompt: 'Explain why things fall slower on the Moon.' });
+  const waiting = await s.run(body.job.id);
+  assert.equal(waiting.stage, 'awaiting_approval', JSON.stringify(waiting.failure));
+  assert.deepEqual([waiting.brief.components, waiting.brief.presentation, waiting.brief.assumptions], [[], 'experiment', ['Air resistance is ignored.']], 'no component name is checked or kept');
+  const sent = model.calls[0].body, input = JSON.parse(sent.messages[0].content[0].text);
+  assert.deepEqual([input.catalogue, input.supported, input.runtime.capabilities, input.runtime.limits.inputs, input.runtime.limits.duration], [undefined, undefined, ['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text'], 4, 120]);
+  assert.deepEqual(['components' in sent.tools[0].input_schema.properties, sent.tools[0].input_schema.required.includes('components')], [false, false]);
+  assert.match(sent.system[0].text, /what the learner can adjust/);
+  const [meta] = posted(s);
+  assert.deepEqual([meta.proposal.description, meta.proposal.assumptions, meta.proposal.limitations, meta.proposal.settings], [plan.summary, plan.assumptions, plan.limitations, { presentation: 'experiment' }]);
+  assert.equal(JSON.stringify(meta.proposal).includes('galaxy'), false, 'no implementation term reaches the card');
+  // The route off: the same reply is a capability gap (the legacy catalogue path is unchanged).
+  const legacy = stack(t);
+  scripted(t, { explain_brief: [plan] });
+  const gap = await legacy.run((await legacy.create({ threadId: 'th1' })).body.job.id);
+  assert.deepEqual([gap.stage, gap.stopReason, gap.failure.gap.needs], ['failed', 'capability_gap', ['component']]);
 });

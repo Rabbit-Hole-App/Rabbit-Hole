@@ -16,7 +16,7 @@ import { threadWithControls } from './learn-coaching-client.js';
 //   context  (chat-context.js, A4a) the one shared context collection: docs, attached refs, upload state
 //   sources  (chat-sources.js, A4b) the active source, back stack, reading position per source
 // Surfaces outside a Learn canvas get null from useChatWorkspace() and keep their old behaviour.
-const ChatWorkspace = createContext(null);
+export const ChatWorkspace = createContext(null);
 // Goal requests are numbered across the page, so a remounted workspace never repeats one Progress already opened.
 let goalRequests = 0;
 export const useChatWorkspace = () => useContext(ChatWorkspace);
@@ -68,9 +68,17 @@ export function ChatWorkspaceProvider({ canvas, board = 'main', canvasOps: initi
   const showProgress = panels.openProgress;
   const openGoals = useCallback((draft = '') => { showProgress(); setGoalRequest({ seq: ++goalRequests, draft: String(draft || '').trim().slice(0, 200) }); }, [showProgress]);
   const goals = useMemo(() => ({ request: goalRequest, open: openGoals }), [goalRequest, openGoals]);
+  // The proposal card's Edit (conversational editing, generation-proposal-chat.js editTarget): the one proposal revision the next
+  // Chat turn revises, shown as the composer's Editing pill. Scoped to this canvas and the open conversation (the thread's restore
+  // key: open, New chat and a canvas change each make a new one), so it is never carried into another conversation or left hidden.
+  const editScope = `${canvas}|${ownThread.restore?.key ?? ''}`;
+  const [editHeld, setEditHeld] = useState(null);
+  useEffect(() => { setEditHeld(held => (held && held.scope !== editScope ? null : held)); }, [editScope]);
+  const editTarget = editHeld?.scope === editScope ? editHeld.target : null;
+  const editing = useMemo(() => ({ target: editTarget, set: target => setEditHeld({ scope: editScope, target }), clear: () => setEditHeld(null) }), [editTarget, editScope]);
   // The "This canvas" chip's line: coverage.summary of the last canvas_context the page built (a sent turn, or the chip's preview).
   const [canvasCoverage, setCanvasCoverage] = useState(null);
-  const value = useMemo(() => ({ canvas, board, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, setCanvasOps, canvasCoverage, setCanvasCoverage, toc, tocThreadId: tocThread.id, coaching, goals }), [canvas, board, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, canvasCoverage, toc, tocThread.id, coaching, goals]);
+  const value = useMemo(() => ({ canvas, board, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, setCanvasOps, canvasCoverage, setCanvasCoverage, toc, tocThreadId: tocThread.id, coaching, goals, editing }), [canvas, board, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, canvasCoverage, toc, tocThread.id, coaching, goals, editing]);
   return <ChatWorkspace.Provider value={value}>{children}</ChatWorkspace.Provider>;
 }
 

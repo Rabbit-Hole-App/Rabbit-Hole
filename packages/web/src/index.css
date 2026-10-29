@@ -217,7 +217,8 @@ html {
   --cmd-motion-bg: #fdf4ff;
   --cmd-motion-fg: #86198f;
   --cmd-motion-line: #f5d0fe;
-  /* Every other command (owner, 2026-10-08): its own hue, spread round the wheel clear of red and the primary blue. */  --cmd-practice-bg: #eefdec;
+  /* Every other command (owner, 2026-10-08): its own hue, spread round the wheel clear of red and the primary blue. */
+  --cmd-practice-bg: #eefdec;
   --cmd-practice-fg: #26761e;
   --cmd-practice-line: #b7f1b1;
   --cmd-quiz-bg: #ecfded;
@@ -243,7 +244,8 @@ html {
   --cmd-browser-line: #d2b1f1;
   --cmd-image-bg: #fbecfd;
   --cmd-image-fg: #601070;
-  --cmd-image-line: #e7b1f1;  --cmd-cad-bg: #eaf7f3;
+  --cmd-image-line: #e7b1f1;
+  --cmd-cad-bg: #eaf7f3;
   --cmd-cad-fg: #185b57;
   --cmd-cad-line: #aed8ce;
   --cmd-3d-bg: #fdecf9;
@@ -351,7 +353,8 @@ html {
   --action-blue: #1b6fc2;
   --cmd-motion-bg: #2f1233;
   --cmd-motion-fg: #f5d0fe;
-  --cmd-motion-line: #86198f;  --cmd-practice-bg: #173414;
+  --cmd-motion-line: #86198f;
+  --cmd-practice-bg: #173414;
   --cmd-practice-fg: #a9f7a1;
   --cmd-practice-line: #2f8226;
   --cmd-quiz-bg: #143416;
@@ -377,7 +380,8 @@ html {
   --cmd-browser-line: #562682;
   --cmd-image-bg: #2e1434;
   --cmd-image-fg: #edb4f9;
-  --cmd-image-line: #732682;  --cmd-cad-bg: #132e2a;
+  --cmd-image-line: #732682;
+  --cmd-cad-bg: #132e2a;
   --cmd-cad-fg: #a7e3d6;
   --cmd-cad-line: #356b60;
   --cmd-3d-bg: #34142b;
@@ -1015,4 +1019,12 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
    Explanation program sizes its drawing to the pane (ProgramScene focusFrameBox); when the pane is under its legible box, the
    whole focused card scrolls, never the drawing alone. */
 [data-focus-host] [data-focus-hide] { display: none; }
-[data-focus-host]:has([data-program-viewport]) { overflow: auto !important; }
+[data-focus-host]:has([data-program-viewport]) { overflow: auto !important; overscroll-behavior: contain; }
+/* A short window (owner, 2026-10-29: reclaim space before scrolling): a focused program card's rows close up so the drawing gets
+   the height. Play, the scrubber and the inputs keep their 32 px targets; Interact's label sits beside its inputs. */
+@media (max-height: 800px) {
+  [data-focus-host] [data-program-card], [data-focus-host] [data-program-card] > div:last-child { gap: 0.25rem; }
+  [data-focus-host] [data-program-card] [data-scene-controls] { display: flex; align-items: center; gap: 1rem; padding-block: 0.25rem; }
+  [data-focus-host] [data-program-card] [data-scene-controls] > p { margin: 0; }
+  [data-focus-host] [data-program-card] [data-program-notes-toggle] { min-height: 2rem; }
+}

@@ -1,10 +1,11 @@
 // Focus notebook (docs/features/focus-study.md sections 1 and 4): the notebook card's own host, restyled in place to fill the
-// working frame. Never a portal, a clone, a remount or a move: moving an iframe to another parent reloads it and restarts
+// working frame, up to WIDE_MAX wide and centred. Never a portal, a clone, a remount or a move: moving an iframe to another parent reloads it and restarts
 // Python, so this only sets an attribute and four custom properties on the existing [data-block-id] element (the
 // [data-focus-host] rule in index.css reads them) and takes them off again. The host keeps its parent, its React key and its
 // children; the iframe, its kernel, running cells, outputs, selection and unsaved edits are untouched. Nothing is saved:
 // no onSize, no onChange, no board write. The notebook scrolls its own cells at normal text size (scale 1 / view.z).
 import { frameInWorld, registerFocusAdapter } from './focus-controller.js';
+import { WIDE_MAX, fillBox } from './focus-host.js';
 
 export const FOCUS_HOST = 'data-focus-host';
 const PROPS = ['--focus-w', '--focus-h', '--focus-mb', '--focus-transform'];
@@ -25,7 +26,7 @@ export function focusStyle(world, { height, left, top }) {
 function place(host, frame, ctx) {
   if (!held.has(host)) return;
   // Read after the attribute is on: the rule's margin-left 0 is what offsetLeft reports; the transform never changes it.
-  const style = focusStyle(frameInWorld(frame, ctx?.view), { height: held.get(host).height, left: host.offsetLeft, top: host.offsetTop });
+  const style = focusStyle(frameInWorld(frame && fillBox(frame, { maxWidth: WIDE_MAX }), ctx?.view), { height: held.get(host).height, left: host.offsetLeft, top: host.offsetTop });
   if (style) for (const name of PROPS) host.style.setProperty(name, style[name]);
 }
 

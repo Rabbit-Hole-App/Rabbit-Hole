@@ -58,3 +58,22 @@ test('confirmProposal starts a revision once: a double click shares the first ca
   assert.equal(await confirmProposal(q, flaky), 'ok'); assert.equal(tries, 2);
   forgetPress(q); assert.equal(await confirmProposal(q, flaky), 'ok'); assert.equal(tries, 3);
 });
+
+// Owner decision 2026-10-29: every /explain request waits on its brief. Its Generate is the job's approve, started once per saved
+// revision; a refused one (a stale revision, a stopped job) gives the press back with the server's words, and the draft is kept.
+test('an Explain Generate approves its job once per revision; a stale or stopped refusal can be pressed again on the current revision', async () => {
+  const brief = proposal({ proposal_id: 'gp-cccccccccccccccc', command: 'explain', settings: { presentation: 'steps' }, input: { request: 'falling', job: 'ej_1' }, usage: { estimate_credits: null, reserve_credits: 332 } });
+  const approves = [];
+  const approveExplain = async p => { approves.push(p.version); if (p.version === 2) throw fail(409, { code: 'proposal_stale', error: 'This proposal changed; use the latest version.' }); return 'card-1'; };
+  const [a, b] = await Promise.all([confirmProposal({ ...brief, version: 3 }, approveExplain), confirmProposal({ ...brief, version: 3 }, approveExplain)]);
+  assert.deepEqual([a, b, approves], ['card-1', 'card-1', [3]], 'a double click approves once and completes the waiting card');
+  const stale = await confirmProposal(brief, approveExplain).catch(problemOf);
+  assert.deepEqual([stale.kind, stale.message, approves], ['stale', 'This proposal changed; use the latest version.', [3, 2]]);
+  assert.equal(await confirmProposal(brief, async () => 'card-1'), 'card-1', 'the refused press was given back');
+  const stopped = problemOf(fail(409, { code: 'brief_stale', error: 'This explanation was stopped. Ask for it again to make one.' }));
+  assert.deepEqual([stopped.kind, stopped.message], ['refused', 'This explanation was stopped. Ask for it again to make one.']);
+  // A save of the brief is the proposal route only (no model, no job action), from the revision it was made from.
+  const calls = [];
+  await saveProposal(async (path, opts) => { calls.push([path, opts.method, JSON.parse(opts.body)]); return { proposal: { ...brief, version: 3, title: 'Edited' }, references: [] }; }, 77, { version: 2 }, { title: 'Edited' });
+  assert.deepEqual(calls, [['/api/learn/chat/messages/77/proposal', 'PUT', { expected_version: 2, title: 'Edited' }]]);
+});

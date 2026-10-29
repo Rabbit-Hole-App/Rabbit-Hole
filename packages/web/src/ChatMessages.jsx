@@ -14,8 +14,8 @@ import AnswerSuggestions from './AnswerSuggestions.jsx';
 import SyllabusMessage from './SyllabusMessage.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
 import GenerationProposalCard from './GenerationProposalCard.jsx';
-import { PROPOSAL_REFUSED_EVENT, approvesJob, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
-import { fetchProposal, problemOf, saveProposal } from './generation-review-client.js';
+import { EXPLAIN_COST_NOTE, EXPLAIN_REVIEW_HEADING, EXPLAIN_STOPPED, PROPOSAL_REFUSED_EVENT, approvesJob, editPath, editTarget, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
+import { confirmProposal, fetchProposal, problemOf, saveProposal } from './generation-review-client.js';
 import { withPrompt } from './card-prompt.js';
 import { reportClientError } from './client-telemetry.js';
 import { imageGenerationId, imageGenerationOn, imageStatus, retryImageSave, runImageJob } from './generate-image.js';
@@ -43,8 +43,16 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   const refusedCard = !!card?.proposalRefused;
   const [pressedAt, setPressedAt] = useState(null);
   const made = pressed || !!ops?.proposalMade?.(p.proposal_id) || (!!output && !refusedCard);
+  // An Explain brief stopped here (Cancel: the job's own cancel action); a reload asks the server, which refuses its Generate.
+  const [stopped, setStopped] = useState(false);
   // Generate is enabled by the command's own start adapter: an output card (Motion) or an existing job (Explain).
-  const active = !made && !!startAdapter(p, ops) && proposalActive(p, msgs);
+  const active = !made && !stopped && !!startAdapter(p, ops) && proposalActive(p, msgs);
+  // Edit (conversational editing): this exact revision becomes the Chat's editing target, the composer opens and keeps its draft.
+  // Nothing is sent, no model is called, nothing generates. Only where its command revises in chat (editPath); otherwise the card
+  // keeps its details form. The Table of contents' conversation never targets a proposal.
+  const editing = chat && !chat.tocView ? chat.editing : null, target = editing?.target;
+  const targeted = !!target && target.proposalId === p.proposal_id && target.version === p.version;
+  const onEdit = editing && active && saved && editPath(p, ops) ? () => { editing.set(editTarget(p, m.messageId, chat.thread?.id ?? null)); chat.panels?.openChat(); chat.composer.focus(); } : null;
   // UI-15.1: each reference's state from the server (changed, deleted, inaccessible, unsupported), read now; a blocked one is said before Generate.
   const [states, setStates] = useState(null), [problem, setProblem] = useState(null);
   const wanted = saved && p.references?.length > 0;
@@ -65,6 +73,8 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
     try {
       const result = await saveProposal(api, m.messageId, base, edit);
       setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, meta: { ...x.meta, proposal: result.proposal } } : x)));
+      // The person's own settings change on the targeted card: the target follows it to the revision they now see.
+      if (targeted) editing.set(editTarget(result.proposal, m.messageId, target.threadId));
       setStates(result.references?.length ? result.references : null);
     } catch (failure) {
       const next = edit.settings && Object.keys(edit).length === 1 ? settingsConflict(failure, edit.settings, m.messageId) : null;
@@ -119,12 +129,14 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
     return () => { live = false; };
   }, [resumable, p.proposal_id]); // eslint-disable-line react-hooks/exhaustive-deps
   const onGenerate = () => {
+    if (targeted) editing.clear(); // Generate spends this revision: no edit target stays on it
     if (p.command === 'generate-image') { generateImage(); return; }
     // /explain (EXP-T20): its card already waits on the canvas for this job; Generate approves the job's reviewed brief there.
     if (approvesJob(p)) {
       if (pressed || !ops.approveExplain) return;
       setPressed(true); setError(null);
-      ops.approveExplain(p).then(id => { if (id) ops.locate?.(id); }).catch(failure => {
+      // One approve per revision (generation-review-client.js): a second press, or this card drawn again, shares the first.
+      confirmProposal(p, ops.approveExplain).then(id => { if (id) ops.locate?.(id); }).catch(failure => {
         const why = problemOf(failure);
         // already made (a reload, another tab): the proposal is spent, so it is shown as made rather than pressable again
         if (why.kind !== 'used') setPressed(false);
@@ -149,7 +161,15 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   // The status the card draws (bug 2): the job's, never the press's. A superseded version of the proposal draws none.
   const own = madeFromVersion(card || output, p);
   const status = cardKind === 'card' ? (own ? cardStatus({ card, output: refusedCard ? null : output, pressed, loaded: ops?.workspace?.().loaded !== false, noun: 'video' }) : null)
-    : cardKind === 'image' ? imageProposalStatus({ image, pressed, cardId: imageCard }) : null;
+    : cardKind === 'image' ? imageProposalStatus({ image, pressed, cardId: imageCard })
+      : stopped ? { phase: 'stopped', label: null, active: false, spinner: false, detail: EXPLAIN_STOPPED, canStop: false, cardId: null } : null;
+  // Cancel on an Explain brief: the waiting job's existing cancel action; the canvas card observes it again.
+  const explainJob = approvesJob(p);
+  const onCancel = explainJob && ops?.cancelExplain ? async () => {
+    setBusy(true); setError(null);
+    // A stopped brief is no longer an Edit target (the server refuses its refine), so the composer stops naming it.
+    try { await ops.cancelExplain(p); setStopped(true); if (targeted) editing.clear(); } catch (failure) { setError(problemOf(failure).message); } finally { setBusy(false); }
+  } : null;
   const goToCard = status?.cardId ? async () => {
     setError(null);
     const result = await openOutput(output && output.cardId === status.cardId ? output : { cardId: status.cardId }, ops);
@@ -159,9 +179,10 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
     <div className="mt-2">
       {/* A motion or image proposal draws its job's status on the card itself (status), so it no longer reads Added to the canvas. */}
       <GenerationProposalCard proposal={p} active={active} made={cardKind ? false : made} released={released} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
+        {...(explainJob ? { eyebrow: EXPLAIN_REVIEW_HEADING, note: EXPLAIN_COST_NOTE, onCancel } : {})}
         status={status} startedAt={output?.startedAt || pressedAt} noun={cardKind === 'image' ? 'image' : 'video'} onGoToCard={goToCard}
         onStop={status?.canStop && ops?.stopGeneration ? () => ops.stopGeneration(status.cardId) : null} onStopFailed={setError}
-        onGenerate={onGenerate} onSave={onSave} onOpenReference={ref => chat?.openSource?.({ sourceId: ref.sourceId, kind: ref.kind, name: ref.label, version: ref.revision, range: ref.range })} />
+        onEdit={onEdit} targeted={targeted} onGenerate={onGenerate} onSave={onSave} onOpenReference={ref => chat?.openSource?.({ sourceId: ref.sourceId, kind: ref.kind, name: ref.label, version: ref.revision, range: ref.range })} />
       {error && <p role="alert" className="mt-1 text-xs text-danger">{error}</p>}
       {image?.retry && <p data-image-job-status={image.tone} className="mt-1 text-xs text-ink-2"><button type="button" data-image-retry-save onClick={() => retryImageSave(api, `img-${p.proposal_id}`).catch(() => {})} className="rounded border border-line px-2 py-0.5 text-ink hover:bg-hover">Try saving again</button></p>}
       {problem?.kind === 'invalid' && problem.errors?.length > 0 && <ul role="alert" data-proposal-save-errors className="mt-1 text-xs text-danger">{problem.errors.map((e, k) => <li key={k}>{e.message}</li>)}</ul>}

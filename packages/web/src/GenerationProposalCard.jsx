@@ -2,7 +2,10 @@
 // (generation-confirmation-schema.js) and a signed proposal (control-plane generation-proposal.js) or a ready-made view (a CAD
 // brief, through its adapter). Title; the proposed description with its clickable reference pills; the settings the command declares
 // (none declared, none drawn); references, requirements, assumptions, missing information and limitations when present; validation
-// errors; the server's credit estimate; Edit details, Save, Discard, Generate and, where the command supports it, Cancel.
+// errors; the server's credit estimate; Edit, Generate and, where the command supports it, Cancel.
+// Edit (onEdit, conversational editing): the owner of the card makes it the Chat's editing target; the card draws no form, its text
+// stays read only, and targeted highlights it with the selection styling. Clicking Edit sends nothing, calls no model and never
+// generates. A command with no chat revision (no onEdit: a CAD brief, an image) keeps Edit details, Save and Discard below.
 //
 // Settings are deterministic and, in the default 'live' mode, save as they change (a new revision, no model call). In 'form' mode
 // (a CAD brief, whose every save re-hashes it) they are edited in the details form with the text. Text details are edited in a form
@@ -281,7 +284,7 @@ function StopControl({ noun, onStop, onFailed }) {
 
 // made: this proposal already added its card (inactive, but not superseded).
 export default function GenerationProposalCard({ proposal = null, view: given = null, defaultEditing = false, settingsMode = 'live', active = true, onGenerate, onSave, onSettingsChange, onCancel, onOpenReference, busy = false, made = false, states = null, problem = null, groups = null,
-  groupProblem = null, released = 0, status = null, startedAt = null, noun = 'video', onStop = null, onGoToCard = null, onStopFailed = null, Editor = DefaultEditor, eyebrow = null, requestLabel = null, note = null, extraSections = [], compact = false, isolate = false, attrs: attrsFn = none }) {
+  groupProblem = null, onEdit = null, targeted = false, released = 0, status = null, startedAt = null, noun = 'video', onStop = null, onGoToCard = null, onStopFailed = null, Editor = DefaultEditor, eyebrow = null, requestLabel = null, note = null, extraSections = [], compact = false, isolate = false, attrs: attrsFn = none }) {
   const view = given ?? proposalView(proposal, states ? { validation_errors: states.filter(s => s.state !== 'ok').map(s => ({ path: `references.${s.id}`, message: s.message })) } : {});
   const def = commandDefinition(view.command);
   const tokenized = proposal ? isReviewProposal(proposal) : false;
@@ -329,9 +332,9 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
   const message = problem?.message || saveError;
   const request = view.original_request && view.original_request.replace(/^\/[a-z0-9-]+\s*/i, '');
   return (
-    <section data-generation-proposal={view.command} data-proposal-version={view.revision} data-proposal-active={active ? 'true' : 'false'} data-proposal-status={view.status} {...attrs('root')}
+    <section data-generation-proposal={view.command} data-proposal-id={view.proposal_id} data-proposal-version={view.revision} data-proposal-targeted={targeted ? 'true' : undefined} data-proposal-active={active ? 'true' : 'false'} data-proposal-status={view.status} {...attrs('root')}
       aria-label={eyebrow || view.title} {...(isolate ? { role: 'group', onPointerDown: event => event.stopPropagation() } : {})}
-      className={cn('flex w-full', !compact && 'max-w-xl', 'min-w-0 flex-col rounded-lg border bg-surface', compact ? 'mb-1.5 max-h-[55vh] gap-1.5 overflow-y-auto border-accent/30 bg-accent/[0.07] px-3 py-2' : 'gap-3 border-line p-4', !active && !status && 'opacity-70')}>
+      className={cn('flex w-full', !compact && 'max-w-xl', 'min-w-0 flex-col rounded-lg border bg-surface', compact ? 'mb-1.5 max-h-[55vh] gap-1.5 overflow-y-auto border-accent/30 bg-accent/[0.07] px-3 py-2' : cn('gap-3 p-4', targeted ? 'border-accent ring-1 ring-accent' : 'border-line'), !active && !status && 'opacity-70')}>
       {eyebrow && <p className="flex items-center gap-1.5 text-sm font-semibold text-ink"><FileCheck2 size={15} aria-hidden className="shrink-0 text-accent" />{eyebrow}</p>}
       {editing && isEditable(view.command, 'title')
         ? <input data-proposal-title aria-label="Title" value={draft.title} onChange={event => set('title', event.target.value)} className={cn(control, 'w-full text-[15px] font-semibold')} />
@@ -371,7 +374,7 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
         if (editing && isEditable(view.command, s)) return <ListField key={s} f={{ key: s, label: SECTION_TITLES[s] }} value={draft[s]} disabled={working} onChange={value => set(s, value)} extra={attrs('field', s)} />;
         return (
           <div key={s} data-proposal-section={s}>
-            <p className="text-[11px] font-semibold tracking-wide text-ink-3 uppercase">{SECTION_TITLES[s]}</p>
+            <p className="text-[11px] font-semibold tracking-wide text-ink-3 uppercase">{def?.section_titles?.[s] ?? SECTION_TITLES[s]}</p>
             <ul className={cn('list-disc pl-4 text-xs text-ink', TONES[s])} {...attrs('list', s)}>{shown[s].map((item, i) => <li key={i}>{item}</li>)}</ul>
           </div>
         );
@@ -402,6 +405,7 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
             <Button type="button" variant="secondary" size="sm" data-proposal-discard {...attrs('discard')} disabled={saving} onClick={close}>Discard</Button>
             <Button type="button" variant="secondary" size="sm" data-proposal-save {...attrs('save')} disabled={saving || !dirty || bad} onClick={save}>Save</Button>
           </>
+          : onEdit ? active && view.allowed_actions.includes('edit') && <Button type="button" variant="secondary" size="sm" data-proposal-edit {...attrs('edit')} disabled={working} onClick={() => onEdit(proposal ?? view)}>Edit</Button>
           : detailKeys.length > 0 && active && view.allowed_actions.includes('edit') && <Button type="button" variant="secondary" size="sm" data-proposal-edit {...attrs('edit')} disabled={working} onClick={open}>Edit details</Button>}
         <Button type="button" variant="action" data-proposal-generate {...attrs('generate')} disabled={!active || working || !canGenerate || sentKey === key || !!status}
           {...(status ? { 'data-proposal-phase': status.phase, 'aria-busy': status.spinner || undefined } : {})}
@@ -411,7 +415,7 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
         {status?.cardId && onGoToCard && <Button type="button" variant="secondary" data-proposal-go-to-card className={cn(!compact && 'h-9! [@media(pointer:coarse)]:min-h-11!')} onClick={onGoToCard}>Go to card</Button>}
         {status?.canStop && onStop && <StopControl noun={noun} onStop={onStop} onFailed={onStopFailed} />}
         {status ? null : made ? <span data-proposal-made className="text-xs text-ink-2">Added to the canvas</span>
-          : !active && <span data-proposal-superseded className="text-xs text-ink-2">Updated below</span>}
+          : !active && <span data-proposal-superseded className="text-xs text-ink-2">Superseded</span>}
       </div>
       {status && <JobStatus status={status} startedAt={startedAt} />}
     </section>

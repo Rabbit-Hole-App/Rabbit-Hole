@@ -5,7 +5,7 @@ export const EXPLAIN_ROOT = '/api/learn/explain/jobs';
 
 // What the card says while the job works: the server's stage, never a guess. No ellipses (UI copy rule).
 const STAGES = {
-  queued: 'Queued', preparing: 'Reading the request', awaiting_approval: 'Review the brief in Chat', authoring: 'Writing the explanation',
+  queued: 'Queued', preparing: 'Reading the request', awaiting_approval: 'Review the explanation plan in Chat', authoring: 'Writing the explanation',
   validating: 'Checking it', rendering: 'Rendering it', reviewing: 'Reviewing the render', repairing: 'Fixing what the review found',
   ready: 'Ready', cancelled: 'Stopped',
 };
@@ -20,6 +20,9 @@ export const EXPLAIN_UNAVAILABLE = 'Explanations are temporarily unavailable. Yo
 export const explainRetry = job => job?.recovery?.find(action => action === 'retry_render' || action === 'new_attempt') || (explainUnavailable(job) ? 'new_attempt' : null);
 // Polled while the server is working; a brief awaiting approval waits on the learner, not on a timer.
 export const explainRunning = job => !!job && !job.terminal && job.stage !== 'awaiting_approval';
+// The pending card's spinner: only while the server works on it. A card's saved stage (shown before the first poll, and on a
+// card that does not poll) has no terminal flag, so a stopped, failed or ready stage counts as not working by name.
+export const explainWorking = job => explainRunning(job) && !explainUnavailable(job) && !['ready', 'failed', 'cancelled'].includes(job.stage);
 
 export function explainClient(api, boardId) {
   const post = (path, body = {}) => api(path, { method: 'POST', body: JSON.stringify({ boardId, ...body }) });

@@ -453,7 +453,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     insertChat: entry => canvasApi.current?.insertChat(entry),
     // UI-15 / MOT-20 (generation-proposal-chat.js): what a chat turn sends so the server can propose a Motion video (the canvas
     // is the learner's location: its title names the concept), and whether a proposal already made its card here.
-    generation: (target, current, concept = app.title) => generationField({ offered: isLearnCommand('motion'), concept, target, current }),
+    generation: (target, current, concept = app.title, edit = false) => generationField({ offered: isLearnCommand('motion'), concept, target, current, edit }),
     proposalMade: proposalId => !!canvasApi.current?.blocks?.().some(madeFrom(proposalId)),
     // The card a proposal made, read live (the Chat's proposal card reports its job from this block), and the canvas card's own Stop for
     // it: the same stop request VideoBody sends (learn-scene-client.js stopVideo), then the block says it was stopped, as the card does.
@@ -502,13 +502,22 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       window.dispatchEvent(new CustomEvent(EXPLAIN_JOB_EVENT, { detail: { jobId: proposal.input.job } }));
       return job?.cardId || null;
     },
+    // Cancel on that brief: the job's own cancel action (Lane C stop); its waiting card observes the job again and says Stopped.
+    cancelExplain: async proposal => {
+      const boardId = commentBoardRef.current;
+      if (!boardId || typeof proposal?.input?.job !== 'string') throw new Error('This explanation can be stopped only on its own canvas.');
+      const { job } = await explainClient(api, boardId).action(proposal.input.job, 'cancel');
+      window.dispatchEvent(new CustomEvent(EXPLAIN_JOB_EVENT, { detail: { jobId: proposal.input.job } }));
+      return job;
+    },
     // A Chat turn while that brief waits (EXP-T20 slice 3, ask.jsx): the job prepares its next version (Lane C refine); the
     // previous approval no longer counts, and the card observes the job again.
     explainWaiting: jobId => !!canvasApi.current?.blocks?.().some(block => block.explainJob?.id === jobId && block.explainJob.stage === 'awaiting_approval'),
-    refineExplain: async (proposal, message) => {
+    // expected (the card's Edit): { proposal_id, version } the instruction was written for; the job refines only that revision.
+    refineExplain: async (proposal, message, expected) => {
       const boardId = commentBoardRef.current;
       if (!boardId || typeof proposal?.input?.job !== 'string') throw new Error('This explanation can be changed only on its own canvas.');
-      const { job } = await explainClient(api, boardId).action(proposal.input.job, 'refine', { message });
+      const { job } = await explainClient(api, boardId).action(proposal.input.job, 'refine', { message, ...(expected ? { proposal: expected } : {}) });
       window.dispatchEvent(new CustomEvent(EXPLAIN_JOB_EVENT, { detail: { jobId: proposal.input.job } }));
       return job;
     },
@@ -2235,8 +2244,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             instead of clipping or overlapping, never a scroller, which would clip the dropdowns. Equal side padding (px-12)
             clears the absolute Home button on the left and balances it on the right, so Home never shifts the group off the
             canvas area's centre (owner header correction, 2026-10-16). */}
-        {/* Over the canvas (headerOver) it takes no pointer itself: only its controls do, so the canvas under the rest of the row
-            pans, draws and selects (owner, 2026-10-22: no full-width band). */}
+        {/* Over the canvas (headerOver) it is an opaque band that takes the pointer (owner, 2026-10-29: no card shows between
+            the title and the menus; supersedes 2026-10-22's see-through row). */}
         {!canvasState.presenting && <div data-canvas-header className={`${headerOver ? OWNER_HEADER_OVER : 'relative shrink-0'} ${OWNER_HEADER}`}>
           {/* The page's top-left corner goes back (owner 2026-10-04: Back, not a jump to Home): to the page the learner
               came from, or Home when the canvas was opened directly. The navigator climbs holes; recentring is Shift 0. */}

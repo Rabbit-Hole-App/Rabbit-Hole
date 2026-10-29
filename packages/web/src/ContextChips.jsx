@@ -35,6 +35,20 @@ const LABEL_ONLY = 'Only one uploaded PDF is read per question; this page is sen
 // that is also selected is one chip marked selected (its x unpins it and lets go of the selection); the rest are dashed chips,
 // three shown and the others behind +N.
 const SHOWN = 3;
+// The proposal card's Edit target (chat-workspace.jsx editing): an editing target, not an attachment, so it is never a ref. Its
+// title truncates and its x stays reachable on a phone row; a click reveals the proposal in the chat, x cancels the target only.
+export function EditTargetPill({ target, onReveal, onCancel }) {
+  return (
+    <li data-proposal-edit-target={target.proposalId} data-proposal-edit-version={target.version} title={`Editing: ${target.title}`} className={`${CHIP} pr-0.5`}>
+      <button type="button" data-proposal-edit-reveal onClick={onReveal} className="flex h-full min-w-0 items-center gap-1 rounded-l-md pl-1.5 hover:bg-hover">
+        <span className="shrink-0 text-ink-3">Editing:</span><span className="min-w-0 truncate">{target.title}</span>
+      </button>
+      <button type="button" data-proposal-edit-cancel onClick={onCancel} aria-label="Cancel editing this proposal" title="Cancel editing this proposal" className={CHIP_ICON_BUTTON}><X size={12} aria-hidden /></button>
+    </li>
+  );
+}
+// The targeted proposal's card, the Chat opened and the card scrolled into view: the revision the pill names, never a newer one.
+const revealProposal = (chat, target) => { chat.panels.openChat(); requestAnimationFrame(() => document.querySelector(`[data-generation-proposal][data-proposal-id="${CSS.escape(target.proposalId)}"][data-proposal-version="${CSS.escape(String(target.version))}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })); };
 export default function ContextChips({ readPaper = null, selection = null, code = null, extra = null }) {
   const chat = useChatWorkspace();
   const [more, setMore] = useState(false);
@@ -60,6 +74,7 @@ export default function ContextChips({ readPaper = null, selection = null, code 
           tabIndex={0} onPointerEnter={preview} onFocus={preview} className={`${CHIP} bg-hover px-1.5 text-ink-2`}>
           <Shapes size={14} strokeWidth={1.75} aria-hidden className="shrink-0 text-ink-3" /> This canvas
         </li>
+        {chat.editing?.target && <EditTargetPill target={chat.editing.target} onReveal={() => revealProposal(chat, chat.editing.target)} onCancel={chat.editing.clear} />}
         {selection && !selection.pinned && (() => {
           // The label is the source object's (UI-09): a document, file or code ref's own name, else the title the canvas resolved.
           const { ref } = selection, name = ref?.name || String(selection.title ?? '').replace(/\$([^$]*)\$/g, '$1'), label = ref ? rangeLabel(ref.kind === 'excerpt' ? null : ref.range) : '', labelOnly = !!ref && labelOnlyChip(ref, readPaper);

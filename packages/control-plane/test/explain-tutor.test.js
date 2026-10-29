@@ -30,28 +30,36 @@ function scripted(t, queues) {
 // The Tutor's material, as runMaterials sends it: its request words and the card the learner selected as context.
 const material = { requestId: 'req-tutor-0001', cardId: 'card-tutor-01', source: 'tutor', requestClass: 'simple', prompt: 'Two vents side by side: runny magma lets gas out, sticky magma traps it.', context: { target: { title: 'How volcanoes form' } } };
 
-test('a Tutor visual is the same job: same stages, same calls, one learner action, no intent or planning call of its own', async t => {
+const BRIEF = { title: 'Two volcano vents', summary: 'Two vents sit side by side. Runny magma lets gas out. Sticky magma traps it.', presentation: 'static', components: ['stack', 'module'], assumptions: [], ambiguous: false, expanded: false };
+
+// Owner decision 2026-10-29: every new /explain request, the Tutor's included, waits on its brief for Generate (it replaced the
+// direct path this test pinned: author and review straight after the request).
+test('a Tutor visual is the same job: one brief that waits on the canvas Chat for Generate, then the same stages and calls, no intent call of its own', async t => {
   assert.ok(ACTION_TYPES.includes('create_material'));
   const s = explainStack(t, { pipeline: { ...explainPipeline, render: STUB_RENDER } });
-  const calls = scripted(t, { author_explanation: [{ kind: 'spec', spec: SPEC }], report_review: [accept] });
+  const calls = scripted(t, { explain_brief: [BRIEF], author_explanation: [{ kind: 'spec', spec: SPEC }], report_review: [accept] });
   const { body } = await s.create(material);
+  const waiting = await s.run(body.job.id);
+  assert.deepEqual([waiting.stage, calls], ['awaiting_approval', ['explain_brief']], 'nothing is authored before Generate');
+  assert.match(waiting.threadId, /^canvaschat-/, 'the Tutor sent no thread: the brief goes on the canvas open Chat');
+  assert.equal((await s.approve(body.job.id)).status, 202);
   const done = await s.run(body.job.id);
   assert.deepEqual([done.stage, done.source, done.result.cardId], ['ready', 'tutor', 'card-tutor-01']);
-  assert.deepEqual(calls, ['author_explanation', 'report_review']);
+  assert.deepEqual(calls, ['explain_brief', 'author_explanation', 'report_review']);
   const attempts = rows(s.sqlite, 'usage_attempts').filter(a => a.provider === 'anthropic');
-  assert.deepEqual([attempts.map(a => a.kind), new Set(attempts.map(a => a.action_id)).size], [['generation', 'evaluation'], 1]);
+  assert.deepEqual([attempts.map(a => a.kind), new Set(attempts.map(a => a.action_id)).size], [['generation', 'generation', 'evaluation'], 2], 'preparation and generation, one action each');
   // Reopening the job (a reload, the Progress view) starts nothing.
   await s.job(body.job.id); await s.run(body.job.id);
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
 });
 
-test('a Tutor visual on an exhausted allowance is refused before any call; an unsupported one is a gap, not a card', async t => {
+test('a Tutor visual on an exhausted allowance sends no call; an unsupported one is a gap, not a card', async t => {
   const s = explainStack(t, { pipeline: { ...explainPipeline, render: STUB_RENDER } });
   spent(s.sqlite, 50e6);
   const calls = scripted(t, {});
-  const refused = await s.create(material);
-  assert.deepEqual([refused.status, refused.body.reason, calls.length], [429, 'exhausted', 0]);
-  const g = explainStack(t, { pipeline: { ...explainPipeline, render: STUB_RENDER } });
+  const refused = await s.run((await s.create(material)).body.job.id);
+  assert.deepEqual([refused.stage, refused.failure.category, calls.length], ['failed', 'budget', 0]);
+  const g = explainStack(t, { pipeline: { ...explainPipeline, render: STUB_RENDER }, generate: true });
   scripted(t, { author_explanation: [{ kind: 'capability_gap', gap: { needs: ['experiment'], reason: 'Comparing vents needs a slider.' } }] });
   const gap = await g.run((await g.create(material)).body.job.id);
   assert.deepEqual([gap.stage, gap.failure.gap.needs, gap.result], ['failed', ['experiment'], null]);

@@ -45,7 +45,7 @@ function pipeline() {
 }
 function setup(t, opts = {}) {
   const p = pipeline();
-  return { ...explainStack(t, { pipeline: p.stages }), model: provider(t, opts), seen: p.seen };
+  return { ...explainStack(t, { pipeline: p.stages, generate: true }), model: provider(t, opts), seen: p.seen };
 }
 const held = async s => (await usageTotals(s.env.LEARN_DB, OWNER.userId, PERIOD)).reserved;
 const paused = (job, stage) => {

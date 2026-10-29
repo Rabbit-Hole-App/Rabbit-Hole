@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { currentProposal, failedStart, generateProposal, generationField, madeFrom, proposalActive, proposalBlock, proposalRefusal, refinementConflictText, refusedReason, settingsConflict } from './generation-proposal-chat.js';
+import { EDIT_ONE_THING, currentProposal, editPath, editRefusal, editSpent, editTarget, failedStart, generateProposal, generationField, madeFrom, proposalActive, proposalBlock, proposalRefusal, refinementConflictText, refusedReason, settingsConflict } from './generation-proposal-chat.js';
 
 const soon = Math.floor(Date.now() / 1000) + 3600;
 const p = (id, version, over = {}) => ({ proposal_id: id, version, command: 'motion', title: `T ${id} ${version}`, settings: { duration_seconds: 10, audio: false }, input: { request: '/motion explain rain', concept: 'Weather' }, expires_at: soon, ...over });
@@ -77,7 +77,7 @@ test('route: the bound fields come from the ask payload; each decision becomes s
 test('the Chat routes plain turns and proposed commands; other command prompts, regenerations and Tutor turns do not', async () => {
   const { readFileSync } = await import('node:fs');
   const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
-  assert.ok(ask.includes("if (chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && payload.mode !== 'tutor' && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {"), 'plain turns and proposed commands route; other command prompts never loop back through it');
+  assert.ok(ask.includes("if (chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && !edit && payload.mode !== 'tutor' && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {"), 'plain turns and proposed commands route; other command prompts and Edit turns (an explicit proposal target) never loop back through it');
   assert.ok(ask.includes('{ capability: routeAs ?? commandName ?? null }'), 'an explicit command names its capability: zero router calls');
   assert.ok(ask.includes('if (outcome.token) payload.route_token = outcome.token;'));
   assert.ok(ask.includes('if (!keepDraft) setInput(current => current || (commandName ?'), 'a shown decision gives the words back, never over a kept draft');
@@ -228,4 +228,48 @@ test('a refused save or Generate keeps the learner\'s choice and says what it wa
   const refusal = (code, id) => Object.assign(new Error('x'), { status: 409, data: { code, current: explain, current_message_id: id } });
   assert.equal(settingsConflict(refusal('proposal_stale', '40'), { presentation: 'steps' }, 40).message, 'Not saved: this proposal changed meanwhile. Latest: Over time (version 3). Yours: Steps.');
   assert.equal(settingsConflict(refusal('proposal_used', '40'), { presentation: 'steps' }, 40).message, 'Not saved: this proposal already made an explanation. Your choice was Steps.');
+});
+
+// Conversational editing: the card's Edit makes one exact revision the Chat's target, and the next turn revises that one only.
+test('Edit: the target is the clicked revision with its routing fields, which commands revise in chat, and when a target is spent', () => {
+  const a = p('gp-a', 2, { input: { request: '/motion rain', concept: 'Weather', org: 'w', app: 'canvas-1' } }), b = p('gp-b', 1);
+  const brief = p('gp-e', 3, { command: 'explain', settings: { presentation: 'steps' }, input: { org: 'w', app: 'canvas-1', job: 'ej_1', brief_hash: 'bh-1', request: 'rain' } });
+  assert.deepEqual(editTarget(a, 41, 'canvaschat-1'), { command: 'motion', proposalId: 'gp-a', version: 2, messageId: '41', threadId: 'canvaschat-1', canvas: 'canvas-1', title: a.title, proposal: a });
+  assert.deepEqual([editTarget(brief, '7').jobId, editTarget(brief, '7').briefHash, editTarget(brief, '7').version], ['ej_1', 'bh-1', 3], 'an Explain brief carries its job and brief hash');
+  // Which commands revise in chat: Motion where it is offered, Explain through its job's refine; Image and CAD keep the card form,
+  // and so does a proposal with attached references (neither path carries them).
+  const ops = { generation: () => ({ motion: {} }), refineExplain: async () => {} };
+  assert.equal(editPath(a, ops), 'motion');
+  assert.equal(editPath(a, { ...ops, generation: () => null }), null, 'no Motion here: no chat revision');
+  assert.equal(editPath(brief, ops), 'explain');
+  assert.equal(editPath(brief, { generation: ops.generation }), null);
+  assert.equal(editPath(p('gp-i', 1, { command: 'generate-image' }), ops), null, 'Image: no chat revision path');
+  assert.equal(editPath(p('gp-c', 1, { command: 'cad' }), ops), null, 'CAD: no chat revision path');
+  assert.equal(editPath({ ...a, references: [{ id: 'r1' }] }, ops), null);
+  // A target turn never runs another command or takes a file; the draft stays.
+  assert.equal(editRefusal(editTarget(a, 1), { command: 'cad' }), EDIT_ONE_THING);
+  assert.equal(editRefusal(editTarget(a, 1), { file: {} }), EDIT_ONE_THING);
+  assert.equal(editRefusal(editTarget(a, 1), {}), null);
+  assert.equal(editRefusal(null, { command: 'cad' }), null);
+  // Spent: a newer revision published, generated or expired; a newer OTHER proposal (the implicit latest) never spends it.
+  const target = editTarget(a, 1), msgs = [answer(a), answer(b)];
+  assert.equal(currentProposal(msgs), b, 'the implicit latest is the other proposal');
+  assert.equal(editSpent(target, msgs), false);
+  assert.equal(editSpent(target, [...msgs, answer(p('gp-a', 3))]), true, 'its next revision was published');
+  assert.equal(editSpent(target, msgs, id => id === 'gp-a'), true, 'generated');
+  assert.equal(editSpent(editTarget(p('gp-x', 1, { expires_at: 10 }), 1), [answer(p('gp-x', 1, { expires_at: 10 }))]), true, 'expired');
+  assert.equal(editSpent(null, msgs), false);
+  // The turn names it explicitly: edit rides only with its current.
+  assert.deepEqual(generationField({ offered: true, concept: 'Weather', current: a, edit: true }), { motion: { concept: 'Weather' }, current: a, edit: true });
+  assert.deepEqual(generationField({ offered: true, concept: 'Weather', edit: true }), { motion: { concept: 'Weather' } });
+});
+
+test('the source pins it: an Edit target takes precedence over the implicit latest proposal, per command, and is never routed or sent to the Tutor', async () => {
+  const { readFileSync } = await import('node:fs');
+  const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
+  assert.ok(ask.includes("const brief = edit ? (edit.command === 'explain' && workspace?.canvasOps?.refineExplain ? edit.proposal : null)"), 'Explain: the target brief, never the latest one');
+  assert.ok(ask.includes('refineExplain(brief, message, edit ? { proposal_id: edit.proposalId, version: edit.version } : undefined)'), 'Explain: the refine names the revision');
+  assert.ok(ask.includes("edit?.command === 'motion' ? edit.proposal : currentProposal(msgs, canvasOps.proposalMade), about?.concept, edit?.command === 'motion')"), 'Motion: the target revision, marked as an Edit');
+  assert.ok(ask.includes('const fileTurn = !!edit || ['), 'never a Tutor turn');
+  assert.ok(ask.includes('if (editSpent(editTarget, msgs, outputOps?.proposalMade)) chat.editing.clear();'), 'a spent target never stays hidden');
 });

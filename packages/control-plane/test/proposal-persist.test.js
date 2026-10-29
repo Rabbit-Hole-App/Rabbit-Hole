@@ -429,3 +429,76 @@ test('MOT-22 delayed and out-of-order settings saves from an old revision: 409 w
   const after = await putSettings(s, second, 20, 4);
   assert.deepEqual([after.status, after.body.code], [409, 'proposal_used']);
 });
+
+// The proposal card's Edit (conversational editing): the turn names the exact revision the learner chose (generation.edit).
+const editTurn = (s, threadId, current, message = 'show the clouds instead') => s.send('POST', '/api/learn/ask', { scope: { app: CANVAS }, thread_id: threadId, message, mode: 'auto', generation: { motion: { concept: 'Weather' }, current, edit: true } });
+const threadLength = async (s, threadId) => (await s.read('GET', `/api/ask/threads/${threadId}`)).body.messages.length;
+
+test('Edit: two proposals in one chat, the instruction revises exactly the clicked one as its next version; the other is untouched', async t => {
+  const s = stack(t);
+  const { threadId, messageId: aId, proposal: a } = await propose(s);
+  // A second, newer proposal in the same chat: the implicit latest one, which an Edit of the first must never revise.
+  s.model.replies.push(toolCall('rivers', RIVERS), 'A second proposal.\n<answer_meta>{}</answer_meta>');
+  const second = sse(await (await s.send('POST', '/api/learn/ask', { scope: { app: CANVAS }, thread_id: threadId, message: 'and one about rivers', mode: 'ask', command: 'motion', generation: { motion: { concept: 'Weather' } } })).text());
+  const b = second.find(e => e.event === 'answer_meta').data.proposal;
+  assert.notEqual(b.proposal_id, a.proposal_id);
+  const calls = s.model.calls.length;
+  s.model.replies.push(toolCall('clouds', CLOUDS), 'Updated.\n<answer_meta>{}</answer_meta>');
+  const res = await editTurn(s, threadId, a);
+  assert.equal(res.status, 200);
+  const meta = sse(await res.text()).find(e => e.event === 'answer_meta').data;
+  assert.deepEqual([meta.proposal.proposal_id, meta.proposal.version, meta.proposal.description], [a.proposal_id, 2, CLOUDS], 'the clicked proposal, next version');
+  // The model was given the proposal tool only, told this is an Edit of the proposal shown to it (the chosen one, not the latest).
+  const sent = s.model.calls[calls];
+  assert.deepEqual(sent.tools.map(tool => tool.name), ['propose_generation']);
+  assert.match(JSON.stringify(sent.system), /pressed Edit on the proposal/);
+  assert.match(JSON.stringify(sent.messages), new RegExp(a.title));
+  // History keeps the original as it was; the other proposal is still its own version 1; nothing was generated.
+  const { messages } = await restore(s, threadId, aId);
+  assert.equal(messages.find(m => String(m.messageId) === String(aId)).meta.proposal.version, 1, 'the original stays in history');
+  assert.equal(messages.filter(m => m.meta?.proposal?.proposal_id === b.proposal_id).map(m => m.meta.proposal.version).join(), '1');
+  assert.equal(proposalActive(a, messages), false, 'the original is superseded once its revision is published');
+  assert.equal(proposalActive(meta.proposal, messages), true);
+  nothingStarted(s, 'an Edit never generates');
+});
+
+test('Edit on a revision that is no longer current, generated, tampered or not Motion: 409 before the question is stored or a model is called', async t => {
+  const s = stack(t);
+  const { threadId, messageId, proposal: v1 } = await propose(s);
+  const v2 = (await putSettings(s, messageId, 20, 1)).body.proposal;
+  const calls = s.model.calls.length, length = await threadLength(s, threadId);
+  const refused = async (current, why) => {
+    const res = await s.read('POST', '/api/learn/ask', { scope: { app: CANVAS }, thread_id: threadId, message: 'change it', mode: 'auto', generation: { motion: { concept: 'Weather' }, current, edit: true } });
+    assert.deepEqual([res.status, res.body.code], [409, 'proposal_edit_stale'], why);
+    return res.body;
+  };
+  const stale = await refused(v1, 'a settings change landed after the learner chose Edit');
+  assert.equal(stale.current.version, 2, 'the current revision comes back to show');
+  await refused({ ...v2, title: 'Tampered' }, 'a proposal that does not verify');
+  await refused({ ...v2, command: 'generate-image' }, 'not a Motion proposal');
+  assert.deepEqual([s.model.calls.length, await threadLength(s, threadId)], [calls, length], 'nothing stored, no model call');
+  // Generated: its Edit is refused too, and the video it made is the only one.
+  assert.equal((await generate(s, press(v2))).status, 202);
+  await refused(v2, 'a generated proposal');
+  assert.equal(s.model.calls.length, calls);
+});
+
+test('Edit racing a settings change: the change that landed first stays current, the instruction comes back as a conflict, nothing overwritten', async t => {
+  const s = stack(t);
+  const { threadId, messageId, proposal: v1 } = await propose(s);
+  const g = gate();
+  s.model.replies.push(g.wait(toolCall('clouds', CLOUDS)), 'Updated.\n<answer_meta>{}</answer_meta>');
+  const calls = s.model.calls.length;
+  const pending = editTurn(s, threadId, v1);
+  for (let i = 0; i < 200 && s.model.calls.length < calls + 1; i++) await new Promise(r => setTimeout(r, 5));
+  assert.equal(s.model.calls.length, calls + 1, 'the Edit turn is waiting on the model');
+  const v2 = (await putSettings(s, messageId, 20, 1)).body.proposal;
+  assert.equal(v2.version, 2, 'the settings change lands meanwhile');
+  g.open();
+  const meta = sse(await (await pending).text()).find(e => e.event === 'answer_meta').data;
+  assert.equal(meta.proposal, undefined, 'not published');
+  assert.equal(meta.proposalConflict.draft.description, CLOUDS, 'the instruction\'s result comes back beside the current one');
+  const { proposal } = await restore(s, threadId, messageId);
+  assert.deepEqual(proposal, v2, 'the settings change is current, not overwritten');
+  nothingStarted(s, 'nothing generated');
+});

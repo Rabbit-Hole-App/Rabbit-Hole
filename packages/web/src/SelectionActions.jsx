@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check, Maximize, MessageSquarePlus, Wand } from 'lucide-react';
 import { chordLabel, isMac } from './shortcut-owner.js';
-import { placeBar, usesHost } from './selection-bar-place.js';
+import { barCeiling, placeBar, usesHost } from './selection-bar-place.js';
 
 // The selection action bar (owner brief 2026-10-13: "rename Ask in chat to Add to chat (ctrl + L) or Quick Edit (ctrl + k )"):
 // two clickable actions with their shortcut hints, for a selected card, shape, text object, group or several objects.
@@ -113,6 +113,8 @@ export function SelectionActionBar({ anchor, box }) {
     if (node && (node.offsetWidth !== size.w || node.offsetHeight !== size.h)) setSize({ w: node.offsetWidth, h: node.offsetHeight });
   });
   if (!show) return null;
-  const at = size.w ? placeBar(anchor, size, box, { below: ctx.narrow }) : { left: -9999, top: -9999 };
+  // Never under the page header's opaque band (owner 2026-10-29): its controls would be hidden and unpressable there.
+  const top = barCeiling(document.querySelector('[data-canvas-header]')?.getBoundingClientRect(), ref.current?.offsetParent?.getBoundingClientRect());
+  const at = size.w ? placeBar(anchor, size, box, { below: ctx.narrow, top }) : { left: -9999, top: -9999 };
   return <div ref={ref} className="pointer-events-none absolute z-30" style={{ left: at.left, top: at.top }}><Actions ctx={ctx} mode="floating" /></div>;
 }
