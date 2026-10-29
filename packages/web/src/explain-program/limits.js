@@ -8,7 +8,7 @@ export const LIMITS = Object.freeze({
   sourceBytes: CONTRACT_LIMITS.sourceBytes,
   outputBytes: CONTRACT_LIMITS.maxOutputBytes, // the complete guest result, UTF-8, bounded inside the guest while it serializes
   outputDepth: CONTRACT_LIMITS.depth,
-  stateBytes: 32 * 1024,
+  stateBytes: CONTRACT_LIMITS.stateBytes, // schema 2 guest state, the one limit (contract.js stateProblem)
   heapBytes: 16 * 1024 * 1024, // guest heap (QuickJS runtime memory limit; not reliable alone, see wasmBytes)
   wasmBytes: 32 * 1024 * 1024, // hard cap on the engine's WASM linear memory, per Worker (16 MiB initial)
   stackBytes: 256 * 1024,
@@ -18,4 +18,4 @@ export const LIMITS = Object.freeze({
   activeRuntimes: 2, // live Workers across all cards; an idle one is evicted for a card that needs to run
   idleMs: 30000, // a Worker unused this long is terminated (its card restarts it on the next evaluate)
 });
-if (!(LIMITS.outputBytes > 0 && LIMITS.sourceBytes > 0 && LIMITS.outputDepth > 0)) throw Error('contract.js does not export the runtime size limits');
+if (!(LIMITS.outputBytes > 0 && LIMITS.sourceBytes > 0 && LIMITS.outputDepth > 0 && LIMITS.stateBytes > 0)) throw Error('contract.js does not export the runtime size limits');

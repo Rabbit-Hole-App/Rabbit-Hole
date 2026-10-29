@@ -103,7 +103,8 @@ export function applyExplainEdit(card, job, candidate) {
   const kept = Object.fromEntries(LAYOUT.filter(key => Object.hasOwn(card, key)).map(key => [key, card[key]]));
   // The card's previous representation goes with the old version: a scene candidate must not keep the old program reference, nor a program
   // candidate the old scene (the candidate brings its own). Placement, id, title and the saved prompt carry over; identity is the new result's.
-  const { explainEdit: _editing, scene: _scene, program: _program, ...previous } = card;
+  // The old program's learner state (programState) belongs to the old source, so it goes too; the new program starts from its own initial state.
+  const { explainEdit: _editing, scene: _scene, program: _program, programState: _state, ...previous } = card;
   const rest = { ...previous, ...candidate, ...kept, explain: savedIdentity(job.result), ...programRef(candidate) };
   return { ok: true, block: { ...rest, inputs: {}, inputRevision: (card.inputRevision || 0) + 1, time: candidate.time ?? candidate.scene?.duration ?? 0, selectedObject: null, marked: null } };
 }

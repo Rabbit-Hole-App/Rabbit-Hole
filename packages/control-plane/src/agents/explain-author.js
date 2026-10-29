@@ -2,6 +2,7 @@
 // registered components only, or says what is missing as a structured capability gap. The independent image review is Lane
 // D's (explain-review.js), a separate call that never sees the author's reasoning.
 import { LIMITS as RUNTIME_LIMITS } from '../../../web/src/explain-program/limits.js';
+import { STATEFUL_CONTRACT } from '../../../web/src/explain-program/contract.js';
 
 export const GAP_NEEDS = Object.freeze(['math', 'steps', 'experiment', 'component', 'evidence', 'other']);
 
@@ -64,12 +65,25 @@ const PROGRAM_MANIFEST = {
     capabilities: { type: 'array', maxItems: 16, items: { type: 'string' }, description: 'Only names listed under program.capabilities in the input.' },
   },
 };
-export const PROGRAM_TOOL_SCHEMA = {
-  type: 'object', additionalProperties: false, required: ['source', 'manifest'], description: 'Required when kind is program.',
-  properties: { source: { type: 'string', description: 'An ES module that exports evaluate: export function evaluate({ inputs, time, seed, state }) { ... } returning { frame, quantities }. No import statements; the SDK is the global sdk.' }, manifest: PROGRAM_MANIFEST },
+// With stateful programs on (explain-program.js statefulEnabled), the manifest may also declare a viewport, buttons and selectable
+// objects (contract.js STATEFUL_CONTRACT); declaring any of them makes the program stateful.
+const STATEFUL_MANIFEST = {
+  viewport: { type: 'object', additionalProperties: false, required: ['width', 'height'], description: 'Stateful programs only (required there): the frame size every frame has.', properties: { width: { type: 'number', exclusiveMinimum: 0, maximum: 4096 }, height: { type: 'number', exclusiveMinimum: 0, maximum: 4096 } } },
+  actions: { type: 'array', maxItems: 8, description: 'Stateful programs only: buttons the learner presses; each press is one event {type:"action", action: id}.', items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: NAME, label: { type: 'string', maxLength: 60 } } } },
+  targets: { type: 'array', maxItems: 8, description: 'Stateful programs only: frame objects the learner selects (by clicking or a button); id is the frame object id, drawn in every frame; each selection is one event {type:"select", target: id}.', items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: { type: 'string', maxLength: 64 }, label: { type: 'string', maxLength: 60 } } } },
 };
+export const programToolSchema = ({ stateful = false } = {}) => ({
+  type: 'object', additionalProperties: false, required: ['source', 'manifest'], description: 'Required when kind is program.',
+  properties: {
+    source: { type: 'string', description: stateful
+      ? 'An ES module with no import statements (the SDK is the global sdk). A program without state exports evaluate({ inputs, time, seed, state }) returning { frame, quantities }; a stateful program (its manifest declares viewport, actions or targets) also exports initialState({ inputs, seed }) and reduce({ state, event, inputs, time, seed }).'
+      : 'An ES module that exports evaluate: export function evaluate({ inputs, time, seed, state }) { ... } returning { frame, quantities }. No import statements; the SDK is the global sdk.' },
+    manifest: stateful ? { ...PROGRAM_MANIFEST, properties: { ...PROGRAM_MANIFEST.properties, ...STATEFUL_MANIFEST } } : PROGRAM_MANIFEST,
+  },
+});
+export const PROGRAM_TOOL_SCHEMA = programToolSchema();
 
-export function authorTool(catalogue, { program = false } = {}) {
+export function authorTool(catalogue, { program = false, stateful = false } = {}) {
   const names = catalogue.map(entry => entry.name);
   const spec = {
     type: 'object', additionalProperties: false, required: ['version', 'id', 'title', 'components', 'presentation'],
@@ -112,7 +126,7 @@ export function authorTool(catalogue, { program = false } = {}) {
       properties: {
         kind: { type: 'string', enum: program ? ['spec', 'program', 'capability_gap'] : ['spec', 'capability_gap'] },
         spec,
-        ...(program ? { program: PROGRAM_TOOL_SCHEMA } : {}),
+        ...(program ? { program: programToolSchema({ stateful }) } : {}),
         gap: {
           type: 'object', additionalProperties: false, required: ['needs', 'reason'], description: 'Required when kind is capability_gap.',
           properties: {
@@ -159,11 +173,17 @@ A program is one ES module that EXPORTS evaluate, exactly: export function evalu
 - Keep source under program.limits.sourceBytes and the manifest under program.limits.manifestBytes. Do not write hashes, versions, permissions or limits; the host sets them.
 - Quote nothing from the examples; they show composition only.`;
 
+// Appended after EXPLAIN_PROGRAM_RULES only when stateful programs are on: the contract itself is in program.stateful.
+export const EXPLAIN_STATEFUL_RULES = `
+Stateful programs. When the learner must press buttons or select parts of the picture and the card must remember what happened (an algorithm run step by step, a decision with consequences, a sequence of choices), write a stateful program as described in program.stateful: declare manifest.viewport, manifest.actions (buttons) and manifest.targets (selectable frame objects), and export initialState, reduce and evaluate. Without buttons or selections, write an ordinary program (no viewport, actions or targets).
+- The state is the only memory: reduce returns the next state from the current state and one event, evaluate draws the state. The same seed and the same events in the same order must give the same state.
+- Every frame has exactly manifest.viewport's size and draws every target under its own id. Show the result of each action in the picture, and keep the state small.`;
 // What the author is told about the runtime (program.* in the input). evaluationMs is the runtime's own per-run deadline (limits.js). The SDK list mirrors packages/web/src/explain-program/sdk.js
 // (a global `sdk`); the frame description mirrors contract.js Frame. Limits come from the contract, so they cannot drift.
-export function programContext(limits, capabilities) {
+export function programContext(limits, capabilities, { stateful = false } = {}) {
   return {
     capabilities,
+    ...(stateful ? { stateful: STATEFUL_CONTRACT } : {}),
     limits: { sourceBytes: limits.sourceBytes, manifestBytes: limits.manifestBytes, objects: limits.objects, pointsPerObject: limits.pointsPerObject, pointsTotal: limits.pointsTotal, maxOutputBytes: limits.maxOutputBytes, inputs: limits.inputs, duration: limits.duration,
       evaluationMs: RUNTIME_LIMITS.interruptMs, evaluation: `each run is stopped after ${RUNTIME_LIMITS.interruptMs} ms of your own work: loading your source, evaluate and serialization, in a slow interpreter that can be several times slower on its first run. Keep it small: compute each curve once, a few hundred points in total at most, no long loops.` },
     frame: { returns: '{frame: {width, height, objects, readouts}, quantities: {name: number}}', width: 'default 960, at most 4096', height: 'default 540, at most 4096', readouts: '[{id, value}] for the ids declared in manifest.readouts' },

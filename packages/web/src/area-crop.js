@@ -6,7 +6,7 @@
 const NEWLINE = String.fromCharCode(10);
 
 // Place, size and view state are not content: moving a card or picking an object never makes a new revision.
-const NOT_CONTENT = new Set(['dx', 'dy', 'w', 'h', 'space', 'time', 'inputs', 'inputRevision', 'marked', 'selectedObject', 'selectRequest', 'cardLayout']);
+const NOT_CONTENT = new Set(['dx', 'dy', 'w', 'h', 'space', 'time', 'inputs', 'inputRevision', 'programState', 'marked', 'selectedObject', 'selectRequest', 'cardLayout']);
 
 // FNV-1a over the card's content. shortcut: a 32-bit hash, enough to tell revisions of one card apart; use a server
 // revision once cards carry one (T20 explainRevision).

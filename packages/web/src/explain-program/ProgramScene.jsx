@@ -8,7 +8,8 @@ import { Frame } from '../AnimatedScene.jsx';
 import { InputWidget } from '../SceneControls.jsx';
 import { focusFrameBox, legibleFrame, normalizeFrame, readableScale } from './frame.js';
 import { createProgramHost, programStamps } from './host.js';
-import { createFrameScheduler } from './playback.js';
+import { createFrameScheduler, frameKey } from './playback.js';
+import { useProgramState } from './use-program-state.js';
 import ProgramNotes from './ProgramNotes.jsx';
 import SourcesDisclosure from '../SourcesDisclosure.jsx';
 import {
@@ -100,8 +101,15 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     setHostReady(count => count + 1);
     return () => { if (host.current === created) host.current = null; created.dispose('card closed'); };
   }, [artifact]);
+  // A schema 2 card's committed state (use-program-state.js): settled states saved quietly, a share-link visitor's kept in memory.
+  // A completed Reset is one undo step that saves the defaults and the new initial state together.
+  const programState = useProgramState({ host: host.current, hostKey: hostReady, artifact, block, time,
+    persist: (next, how) => (how?.reset ? onChange({ ...resetProgram(latest.current), programState: next }) : (onChangeQuiet || onChange)({ ...latest.current, programState: next })),
+    fail: error => { setPlaying(false); setFailure(error); } });
 
   const inputs = manifest ? programInputs(manifest, block) : null;
+  // A schema 2 frame is drawn with the inputs its committed state was computed for; newer inputs wait for their own transition.
+  const frameInputs = programState.envelope?.inputs ?? inputs;
   const inputsKey = inputs ? JSON.stringify(inputs) : '';
   // One frame scheduler per host (playback.js): it draws every completed frame of the current inputs and epoch, in order, and
   // settles on the exact requested moment. It is not torn down when the time changes, so a frame slower than one animation
@@ -113,7 +121,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     // message: without it a transient failure flashed the message for a few frames and the drawing came back.
     const stop = error => { setPlaying(false); setFailure(error); };
     const created = createFrameScheduler({
-      evaluate: job => target.evaluate(evaluateRequestFor(manifest, { ...latest.current, inputs: job.inputs }, job.time, ++counter.current)),
+      evaluate: job => target.evaluate(evaluateRequestFor(manifest, { ...latest.current, inputs: job.inputs }, job.time, ++counter.current, job.state)),
       show: (reply, job) => {
         const out = normalizeFrame(reply.frame, manifest);
         if (out.ok) { if (!preview) rememberProgram(latest.current, manifest, { inputs: job.inputs, time: job.time, readouts: out.readouts }); setView({ ...out, time: job.time }); setFailure(null); } else stop(out.error);
@@ -124,8 +132,8 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     return () => { created.dispose(); if (scheduler.current === created) scheduler.current = null; };
   }, [manifest, hostReady]);
   useEffect(() => {
-    if (manifest) scheduler.current?.want({ key: `${inputsKey}#${epoch}`, time: clampTime(manifest, time), inputs });
-  }, [manifest, hostReady, inputsKey, epoch, time]);
+    if (manifest && programState.ready) scheduler.current?.want({ key: frameKey(frameInputs, epoch, programState.envelope), time: clampTime(manifest, time), inputs: frameInputs, state: programState.envelope?.state ?? null });
+  }, [manifest, hostReady, inputsKey, epoch, time, programState.ready, programState.envelope]);
   // The card's size comes from the artifact's first frame only (LearningBlocks sizeFor), so playback never resizes it.
   useEffect(() => { setBox(null); }, [artifact]);
   useEffect(() => {
@@ -201,7 +209,8 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     return () => { observer.disconnect(); marks.disconnect(); };
   }, [box, drawn]);
   // The drawing changes only when a new frame is drawn, not on every clock tick.
-  const picture = useMemo(() => view && <Frame scene={view.scene} state={view.state} selecting={false} marked={null} picked={null} pop={STILL} fixedView onPick={NOOP} onRegion={NOOP} />, [view]);
+  const pick = useRef(NOOP); // a click on a declared target (set below with the current state); any other object is not interactive
+  const picture = useMemo(() => view && <Frame scene={view.scene} state={view.state} selecting={false} marked={null} picked={null} pop={STILL} fixedView onPick={id => pick.current(id)} onRegion={NOOP} />, [view]);
 
   if (failure) {
     return (
@@ -217,9 +226,16 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   const setInput = (name, value, { live = false } = {}) => {
     const next = setProgramInput(latest.current, manifest, name, value);
     if (next === latest.current) return;
+    // A schema 2 change is a transition first: one the queue refuses is not saved either.
+    if (programState.stateful && !programState.dispatch({ type: 'input', input: name, value: next.inputs[name] }, { inputs: next.inputs, time })) return;
     setPlaying(false);
     (live && onChangeQuiet ? onChangeQuiet : onChange)(next);
   };
+  // Buttons and selections (schema 2): ordered transitions of the committed state, never a save of their own (the commit saves).
+  // The latest inputs: any input change made before this press is already queued ahead of it.
+  const act = event => { if (programState.dispatch(event, { inputs, time })) setPlaying(false); };
+  const targets = manifest.targets ?? [], actions = manifest.actions ?? [];
+  pick.current = id => { if (targets.some(target => target.id === id)) act({ type: 'select', target: id }); };
   const atEnd = time >= duration - 0.001;
   // A jump in time (not the clock running): answers asked for before it are never drawn after it.
   const seek = next => { setTime(next); setEpoch(count => count + 1); };
@@ -228,8 +244,10 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     if (atEnd && !playing) seek(0);
     setPlaying(value => !value);
   };
-  const reset = () => { setPlaying(false); seek(0); onChange(resetProgram(latest.current)); };
+  // A schema 2 Reset saves only once its initial state has been checked (persist above); a failed one keeps the last good state.
+  const reset = () => { setPlaying(false); seek(0); if (programState.stateful) programState.reset(programInputs(manifest, {})); else onChange(resetProgram(latest.current)); };
   const rows = manifest.inputs;
+  const changed = programChanged(manifest, latest.current) || programTime(manifest, latest.current) > 0 || programState.changed;
   // While playing, the time shown is the drawn frame's own moment, so the label never runs ahead of the picture; paused, it is
   // the requested moment, which the picture settles on within one evaluation (data-program-settling until then).
   const shownTime = playing ? view.time : time;
@@ -255,7 +273,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
           <span data-program-time className="w-14 shrink-0 text-right text-xs tabular-nums text-ink-2">{shownTime.toFixed(1)}s</span>
         </div>
       )}
-      {rows.length > 0 && (
+      {(rows.length > 0 || actions.length > 0 || targets.length > 0) && (
         <div data-scene-controls className="rounded-lg border border-line bg-white px-3 pt-1.5 pb-2">
           <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-2 uppercase">Interact</p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -263,7 +281,26 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
               ? <NumberInput key={input.id} input={input} value={inputs[input.id]} onInput={setInput} />
               : <InputWidget key={input.id} declaration={{ name: input.id, type: 'choice', label: input.label, options: input.options.map(option => ({ id: option.value, label: option.label })) }}
                   value={inputs[input.id]} onInput={setInput} />))}
-            {(programChanged(manifest, latest.current) || programTime(manifest, latest.current) > 0) && (
+            {/* Declared buttons, then the declared selectable objects (also clickable in the drawing): native buttons, so Tab, Enter and
+                Space work. While the transition queue is full they are greyed and keep their names. */}
+            {actions.length > 0 && (
+              <div role="group" aria-label="Actions" className="flex flex-wrap items-center gap-1.5">
+                {actions.map(action => (
+                  <button key={action.id} type="button" data-program-action={action.id} disabled={programState.full} onClick={() => act({ type: 'action', action: action.id })}
+                    className="flex h-8 items-center rounded-lg border border-line px-3 text-sm text-ink hover:bg-hover disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent">{action.label}</button>
+                ))}
+              </div>
+            )}
+            {targets.length > 0 && (
+              <div role="group" aria-label="Select" className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-medium text-ink-2">Select:</span>
+                {targets.map(target => (
+                  <button key={target.id} type="button" data-program-target={target.id} disabled={programState.full} onClick={() => act({ type: 'select', target: target.id })}
+                    className="flex h-8 items-center rounded-lg border border-line px-2.5 text-xs text-ink hover:bg-hover disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent">{target.label}</button>
+                ))}
+              </div>
+            )}
+            {changed && (
               <button type="button" data-scene-reset onClick={reset} className="flex h-8 items-center rounded-lg px-2.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">Reset experiment</button>
             )}
           </div>

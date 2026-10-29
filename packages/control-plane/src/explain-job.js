@@ -85,6 +85,9 @@ export const renderStage = ({ render = explainRender, ...deps } = {}) => async (
     if (error.code !== 'over_budget') throw error;
     throw Object.assign(fail('This explanation has more steps or settings than one check can cover. Edit the request to use fewer.', 422, 'over_budget'), { category: 'budget', stopReason: 'unsupported_repair' });
   }
+  // A stateful program's buttons and selections are checked too: one whose captures leave no room for a transition is never reviewed as if they were.
+  const transitions = manifest.coverage?.transitions;
+  if (transitions?.declared && !transitions.sampled) return { problems: [`the playback captures leave no room in one review to check the ${transitions.declared} buttons or selections: use a shorter playback or none`], category: 'spec', repairable: true };
   let out;
   try { out = await renderStates(ctx.env, program ? { program } : job.compiled, manifest, { jobId: job.id, ...deps }); }
   catch (error) {
@@ -112,7 +115,7 @@ export const renderStage = ({ render = explainRender, ...deps } = {}) => async (
 const reviewTraces = captures => captures.map(({ id, trace }) => ({ id, ...trace }));
 // The runtime's phase and elapsed time when the page reported them (untrusted: only a known phase and a number are repeated).
 const programWhere = program => {
-  const parts = [['load', 'evaluate', 'serialize', 'engine'].includes(program?.phase) && `phase ${program.phase}`, Number.isFinite(program?.ms) && `${Math.round(program.ms)} ms`].filter(Boolean);
+  const parts = [['load', 'evaluate', 'initialize', 'reduce', 'serialize', 'engine'].includes(program?.phase) && `phase ${program.phase}`, Number.isFinite(program?.ms) && `${Math.round(program.ms)} ms`].filter(Boolean);
   return parts.length ? `; ${parts.join(', ')}` : '';
 };
 const base64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s); };

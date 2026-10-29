@@ -56,9 +56,17 @@ This card is a program (an ES module exporting evaluate, run in an isolated inte
 - category: everything a program draws, computes or lays out (overlap, clipping, crowding, a wrong formula, a missing control) is its own output: report it as category spec, and it is repairable by changing the program. Use component or renderer only for a fault in the host's shared drawing that no change to the program could fix.
 - visual: as for any card. Judge motion and controls from the sampled captures only; say in a finding when you cannot judge a behaviour from what you were shown.`;
 
+// Added after REVIEW_PROGRAM_RULES when the program is stateful (its manifest declares a viewport, buttons or selectable objects).
+export const REVIEW_STATEFUL_RULES = `
+
+This program also has state: buttons (manifest.actions) and selectable objects (manifest.targets) send events, and the program's reduce turns the current state and one event into the next state. Each capture says which events were applied, in order, from the initial state, and its trace gives the seed, those events and the resulting state (or its hash). Check that every sampled transition does what the request and the labels promise, that the picture shows the resulting state, and that the drawing, the readouts and the state agree. The sample is not exhaustive: say in a finding when a behaviour you were asked to judge was not sampled.`;
+export const statefulProgram = program => !!program?.manifest?.viewport;
+export const reviewSystem = program => (program ? REVIEW_SYSTEM + REVIEW_PROGRAM_RULES + (statefulProgram(program) ? REVIEW_STATEFUL_RULES : '') : REVIEW_SYSTEM);
+
 const b64Length = data => Math.floor((data.length * 3) / 4) - (data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0);
 const toBase64 = bytes => (typeof Buffer !== 'undefined' ? Buffer.from(bytes).toString('base64') : btoa(String.fromCharCode(...bytes)));
-const stateText = c => `theme ${c.theme || 'light'}, ${c.step ? `step "${c.step}", ` : ''}time ${c.time ?? 'end'}s${c.inputs && Object.keys(c.inputs).length ? `, inputs ${JSON.stringify(c.inputs)}` : ''}`;
+const eventsText = events => (!Array.isArray(events) ? '' : events.length ? `, after the events ${JSON.stringify(events)} in this order from the initial state` : ', the initial state');
+const stateText = c => `theme ${c.theme || 'light'}, ${c.step ? `step "${c.step}", ` : ''}time ${c.time ?? 'end'}s${c.inputs && Object.keys(c.inputs).length ? `, inputs ${JSON.stringify(c.inputs)}` : ''}${eventsText(c.events)}`;
 
 // Validate and build the user turn. input: { request, compiledHash, facts: [string], evidence: [EvidenceRecord-ish],
 // captures: [{ id, compiledHash, theme, time, inputs, png: Uint8Array } | { ..., data: base64, mediaType }] }.
@@ -154,7 +162,7 @@ export async function reviewCaptures(input, { callRole, limits = REVIEW_LIMITS }
     const { content, imageBlocks } = buildReviewContent({ ...input, captures: batch }, limits);
     if (imageBlocks !== batch.length || !imageBlocks) throw new ReviewError('missing_pixels', 'a review without images is not an image review');
     let reply;
-    try { reply = await callRole('review', { system: input.program ? REVIEW_SYSTEM + REVIEW_PROGRAM_RULES : REVIEW_SYSTEM, tool: REVIEW_TOOL, content }); }
+    try { reply = await callRole('review', { system: reviewSystem(input.program), tool: REVIEW_TOOL, content }); }
     catch (error) { throw Object.assign(new ReviewError('review_unavailable', `review call failed: ${error.message}`), { cause: error }); }
     calls.push({ identity: reply.identity ?? null, usage: reply.usage ?? null, imageBlocks });
     results.push(...parseReview(reply.input, batch).captures);

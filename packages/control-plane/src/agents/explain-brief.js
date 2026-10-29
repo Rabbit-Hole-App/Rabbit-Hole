@@ -41,3 +41,7 @@ Write a brief the learner can approve: a title and 3 or 4 plain sentences saying
 Choose the simplest presentation that teaches: static, steps (named stages), time (it plays over time) or experiment (the learner moves a control). Plan no more controls or playback than the runtime allows. Put material assumptions and idealisations (for example "Air resistance is ignored.") in assumptions, and what it will leave out or cannot show in limitations; leave either empty when there is none. Well-established textbook knowledge needs no evidence; rely on evidence ids only from the input.
 Set ambiguous when the subject or its version could mean different things, expanded when the card goes beyond what was asked. If the idea cannot be made within the runtime, fill gap instead of promising it.
 Call explain_brief exactly once.`;
+
+// Appended only when stateful programs are on (explain-program.js statefulEnabled): the card may also offer buttons and selectable parts.
+export const EXPLAIN_STATEFUL_BRIEF_RULES = `
+The card can also offer a few buttons and let the learner select parts of the picture (runtime.buttons), remembering what happened: for example running an algorithm one step per press, or choosing an item and seeing the consequence. Plan buttons or selections only when pressing or choosing is what teaches the idea, and say in the summary what the learner presses or selects and what it shows.`;

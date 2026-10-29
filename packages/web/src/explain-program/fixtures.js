@@ -86,6 +86,85 @@ export const searchFixture = {
 
 export const FIXTURES = [growthFixture, searchFixture];
 
+// Stateful (schema 2) programs: initialState, reduce and evaluate, declared buttons and selectable objects. Same rule as above:
+// hand-authored test data, subject matter only as data. One is an algorithm stepped by ordered button presses with selectable items;
+// the other a continuous numeric simulation advanced by a button and shaped by a number input.
+export const sortFixture = {
+  id: 'fixture-sort', note: FIXTURE_NOTE,
+  manifest: {
+    title: 'Sorting by neighbour swaps', summary: 'Each press compares one neighbouring pair of bars and swaps them if they are out of order.',
+    assumptions: ['Six values, sorted smallest first.'], description: 'Six bars of different heights; the pair being compared is marked and a selected bar shows its value.',
+    inputs: [], readouts: [{ id: 'swaps', label: 'Swaps so far', decimals: 0 }], capabilities: [],
+    viewport: { width: 720, height: 360 },
+    actions: [{ id: 'step', label: 'Compare next pair' }, { id: 'shuffle', label: 'Shuffle' }],
+    targets: [0, 1, 2, 3, 4, 5].map(k => ({ id: 'bar-' + k, label: 'Bar ' + (k + 1) })),
+  },
+  source: `export function initialState({ seed }) { return { values: [5, 2, 6, 1, 4, 3], i: 0, swaps: 0, sorted: false, selected: null, shuffles: 0 }; }
+export function reduce({ state, event }) {
+  if (event.type === 'select') return { ...state, selected: Number(event.target.slice(4)) };
+  if (event.action === 'shuffle') {
+    for (let k = 0; k < state.shuffles * 5; k++) Math.random(); // Math.random restarts from seed each call: skip the draws of earlier shuffles
+    const values = [...state.values];
+    for (let k = values.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [values[k], values[j]] = [values[j], values[k]]; }
+    return { ...state, values, i: 0, swaps: 0, sorted: false, shuffles: state.shuffles + 1 };
+  }
+  if (state.sorted) return state;
+  const values = [...state.values], i = state.i, swap = values[i] > values[i + 1];
+  if (swap) [values[i], values[i + 1]] = [values[i + 1], values[i]];
+  const next = (i + 1) % (values.length - 1);
+  const sorted = next === 0 && values.every((v, k) => k === 0 || values[k - 1] <= v);
+  return { ...state, values, i: next, swaps: state.swaps + (swap ? 1 : 0), sorted };
+}
+export function evaluate({ state }) {
+  const bars = state.values.map((v, k) => sdk.box('bar-' + k, 60 + k * 100, 300 - v * 40, 80, v * 40, {
+    text: String(v), role: state.sorted ? 'success' : k === state.i || k === state.i + 1 ? 'prediction' : k === state.selected ? 'learner' : 'neutral' }));
+  const caption = state.sorted ? 'Sorted after ' + state.swaps + ' swaps' : 'Next: compare bar ' + (state.i + 1) + ' and bar ' + (state.i + 2);
+  const picked = state.selected === null ? 'Select a bar to see its value' : 'Bar ' + (state.selected + 1) + ' holds ' + state.values[state.selected];
+  return {
+    frame: sdk.frame([...bars, sdk.text('caption', 60, 30, caption), sdk.text('picked', 60, 340, picked)], { width: 720, height: 360, readouts: [{ id: 'swaps', value: state.swaps }] }),
+    quantities: { swaps: state.swaps, position: state.i },
+  };
+}`,
+  events: [{ type: 'action', action: 'step' }, { type: 'action', action: 'step' }, { type: 'select', target: 'bar-2' }, { type: 'action', action: 'shuffle' }],
+};
+
+export const springFixture = {
+  id: 'fixture-spring', note: FIXTURE_NOTE,
+  manifest: {
+    title: 'A mass on a spring, step by step', summary: 'Each press advances a mass on a spring by a tenth of a second; a kick gives it speed.',
+    assumptions: ['No friction.', 'Small steps of a hundredth of a second.'], description: 'A mass moving left and right of its rest point, with its position and the time so far.',
+    inputs: [{ type: 'number', id: 'stiffness', label: 'Stiffness', unit: 'N/m', default: 4, min: 1, max: 20, step: 1 }],
+    readouts: [{ id: 'position', label: 'Position', unit: 'm', decimals: 2 }, { id: 'elapsed', label: 'Time', unit: 's', decimals: 1 }], capabilities: ['number_inputs'],
+    viewport: { width: 960, height: 300 },
+    actions: [{ id: 'advance', label: 'Advance 0.1 s' }, { id: 'kick', label: 'Kick' }],
+    targets: [],
+  },
+  source: `export function initialState() { return { x: 1, v: 0, t: 0 }; }
+export function reduce({ state, event, inputs }) {
+  if (event.type === 'input') return state;
+  if (event.action === 'kick') return { ...state, v: state.v + 1 };
+  let { x, v } = state;
+  for (let n = 0; n < 10; n++) { v -= inputs.stiffness * x * 0.01; x += v * 0.01; }
+  return { x, v, t: Math.round((state.t + 0.1) * 10) / 10 };
+}
+export function evaluate({ state }) {
+  const px = sdk.linear([-3, 3], [80, 880]);
+  const x = sdk.clamp(state.x, -3, 3);
+  return {
+    frame: sdk.frame([
+      sdk.line('track', 80, 200, 880, 200), sdk.line('rest', px(0), 170, px(0), 230),
+      sdk.line('spring', 80, 160, px(x), 160, { role: 'input' }),
+      sdk.box('mass', px(x) - 30, 130, 60, 60, { role: 'output' }),
+      sdk.text('label', 80, 60, 'Position ' + sdk.format(state.x) + ' m after ' + sdk.format(state.t, 1) + ' s'),
+    ], { width: 960, height: 300, readouts: [{ id: 'position', value: state.x }, { id: 'elapsed', value: state.t }] }),
+    quantities: { position: state.x, speed: state.v, elapsed: state.t },
+  };
+}`,
+  events: [{ type: 'action', action: 'advance' }, { type: 'action', action: 'kick' }, { type: 'input', input: 'stiffness', value: 9 }, { type: 'action', action: 'advance' }],
+};
+
+export const STATEFUL_FIXTURES = [sortFixture, springFixture];
+
 // Cards the preview board shows so the three fixed error messages can be seen. Kept apart from FIXTURES: those must all render.
 // fixture-loop never ends, so the interpreter stops it (runtime_limit). fixture-capability asks for something this build lacks
 // (unsupported_capability, refused before anything runs). Both are hand-authored test data.

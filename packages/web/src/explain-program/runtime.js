@@ -9,6 +9,8 @@
 // It is synchronous and has no imports (static import fails at load, import() never loads anything). The SDK (sdk.js) is the
 // global `sdk`, defined before the module runs. A source without that named export (a plain global function evaluate, a
 // default export) is invalid_program.
+// A schema 2 (stateful) module also exports initialState({ inputs, seed }) and reduce({ state, event, inputs, time, seed }), each
+// returning the next JSON state. They run here the same way, one operation per fresh context: runProgram's operation picks the export.
 import { DefaultIntrinsics, QuickJSWASMModule, newVariant } from 'quickjs-emscripten-core';
 import { QuickJSFFI } from '@jitl/quickjs-wasmfile-release-sync/ffi';
 import emscriptenModule from '@jitl/quickjs-wasmfile-release-sync/emscripten-module';
@@ -40,7 +42,8 @@ export async function loadEngine(limits = LIMITS, wasmModule) {
 // serialize is JSON.stringify with a replacer that keeps a lower bound on the output's length while the walk runs (after each
 // getter and toJSON): past maxBytes it throws, so an oversized result stops before its string is built. Every UTF-16 unit is
 // at least one UTF-8 byte, so the bound never refuses a result that fits; the host still measures the exact bytes.
-const prelude = (seed, maxBytes) => `(() => {
+// finiteOnly (a state result): a NaN or Infinity throws instead of quietly becoming null.
+const prelude = (seed, maxBytes, finiteOnly) => `(() => {
   let s = ${seed >>> 0};
   Math.random = () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   const slice = Function.prototype.call.bind(String.prototype.slice), str = String, isArray = Array.isArray, stringify = JSON.stringify, finite = Number.isFinite;
@@ -50,7 +53,7 @@ const prelude = (seed, maxBytes) => `(() => {
     return stringify(value, function (key, v) {
       const t = typeof v;
       if (t === 'undefined' || t === 'function' || t === 'symbol') return v;
-      if (key !== '' && !isArray(this)) size += key.length + 3;
+${finiteOnly ? "      if (t === 'number' && !finite(v)) throw new TypeError('state numbers must be finite');\n" : ''}      if (key !== '' && !isArray(this)) size += key.length + 3;
       size += t === 'string' ? v.length + 2 : t === 'number' ? (finite(v) ? str(v).length : 4) : t === 'boolean' ? 4 : 2;
       if (size > ${maxBytes | 0}) throw new RangeError('output over its size limit');
       return v;
@@ -66,14 +69,25 @@ const encoder = new TextEncoder();
 const tooDeep = (value, max, depth = 1) => depth > max || (value !== null && typeof value === 'object'
   && Object.values(value).some(child => tooDeep(child, max, depth + 1)));
 
-// runProgram(engine, { source, request: { inputs, time, seed, state } }) -> { ok: true, value, metrics } |
-// { ok: false, code, phase, detail, metrics }. detail is bounded guest text for logs/review, never for the learner.
-export function runProgram(engine, { source, request }, limits = LIMITS) {
+// The guest export each operation calls, and the argument it receives (evaluate's is exactly the schema 1 argument).
+const OPERATIONS = Object.freeze({
+  evaluate: { exported: 'evaluate', signature: '{ inputs, time, seed, state }', arg: r => ({ inputs: r.inputs ?? {}, time: r.time ?? 0, seed: r.seed ?? 0, state: r.state ?? null }) },
+  initialize: { exported: 'initialState', signature: '{ inputs, seed }', arg: r => ({ inputs: r.inputs ?? {}, seed: r.seed ?? 0 }) },
+  reduce: { exported: 'reduce', signature: '{ state, event, inputs, time, seed }', arg: r => ({ state: r.state ?? null, event: r.event ?? null, inputs: r.inputs ?? {}, time: r.time ?? 0, seed: r.seed ?? 0 }) },
+});
+
+// runProgram(engine, { source, request, operation = 'evaluate' }) -> { ok: true, operation, value, metrics } |
+// { ok: false, operation, code, phase, detail, metrics }. detail is bounded guest text for logs/review, never for the learner.
+// initialize and reduce return the new state as value, bounded by limits.stateBytes while it serializes; host.js checks the rest.
+export function runProgram(engine, { source, request, operation = 'evaluate' }, limits = LIMITS) {
   const started = performance.now();
   const metrics = () => ({ ms: performance.now() - started, wasmBytes: engine.getWasmMemory().buffer.byteLength });
-  const fail = (code, phase, detail) => ({ ok: false, code, phase, detail, metrics: metrics() });
+  const fail = (code, phase, detail) => ({ ok: false, operation, code, phase, detail, metrics: metrics() });
+  const op = Object.hasOwn(OPERATIONS, operation) ? OPERATIONS[operation] : null;
+  if (!op) return fail('invalid_program', 'load', 'unknown operation');
+  const maxBytes = operation === 'evaluate' ? limits.outputBytes : limits.stateBytes;
   if (typeof source !== 'string' || encoder.encode(source).length > limits.sourceBytes) return fail('invalid_program', 'load', 'source is missing or over its size limit');
-  const input = JSON.stringify({ inputs: request.inputs ?? {}, time: request.time ?? 0, seed: request.seed ?? 0, state: request.state ?? null });
+  const input = JSON.stringify(op.arg(request));
   if (encoder.encode(JSON.stringify(request.state ?? null)).length > limits.stateBytes) return fail('runtime_limit', 'load', 'state is over its size limit');
 
   const runtime = engine.newRuntime();
@@ -92,7 +106,7 @@ export function runProgram(engine, { source, request }, limits = LIMITS) {
     let parse, serialize, describe;
     try {
       context = runtime.newContext({ intrinsics: { ...DefaultIntrinsics, Date: false } });
-      const helpers = keep(context.unwrapResult(context.evalCode(prelude(Number(request.seed) || 0, limits.outputBytes), 'prelude.js', { type: 'global' })));
+      const helpers = keep(context.unwrapResult(context.evalCode(prelude(Number(request.seed) || 0, maxBytes, operation !== 'evaluate'), 'prelude.js', { type: 'global' })));
       [parse, serialize, describe] = [0, 1, 2].map(i => keep(context.getProp(helpers, i)));
       keep(context.unwrapResult(context.evalCode(SDK_SOURCE, 'sdk.js', { type: 'global' }))); // the generic SDK (one global, sdk)
     } catch (error) {
@@ -113,27 +127,27 @@ export function runProgram(engine, { source, request }, limits = LIMITS) {
     // The generated module, under the program's deadline and the same limits.
     const loaded = context.evalCode(source, 'program.js', { type: 'module' });
     if (loaded.error) return guestFail(loaded.error, 'invalid_program', 'load');
-    const evaluate = keep(context.getProp(keep(loaded.value), 'evaluate'));
-    if (context.typeof(evaluate) !== 'function') return fail('invalid_program', 'load', 'the program must export function evaluate({ inputs, time, seed, state })');
+    const exported = keep(context.getProp(keep(loaded.value), op.exported));
+    if (context.typeof(exported) !== 'function') return fail('invalid_program', 'load', `the program must export function ${op.exported}(${op.signature})`);
 
     const arg = context.callFunction(parse, context.undefined, keep(context.newString(input)));
-    if (arg.error) return guestFail(arg.error, 'runtime_error', 'evaluate');
-    const out = context.callFunction(evaluate, context.undefined, keep(arg.value));
-    if (out.error) return guestFail(out.error, 'runtime_error', 'evaluate');
+    if (arg.error) return guestFail(arg.error, 'runtime_error', operation);
+    const out = context.callFunction(exported, context.undefined, keep(arg.value));
+    if (out.error) return guestFail(out.error, 'runtime_error', operation);
 
     // Serialize inside the guest, bounded and under the same deadline; measure the string before copying it out.
     const text = context.callFunction(serialize, context.undefined, keep(out.value));
     if (text.error) return guestFail(text.error, 'invalid_output', 'serialize');
     keep(text.value);
     if (context.typeof(text.value) !== 'string') return fail('invalid_output', 'serialize', 'the result is not JSON');
-    if (context.getNumber(keep(context.getProp(text.value, 'length'))) > limits.outputBytes) return fail('invalid_output', 'serialize', 'output over its size limit');
+    if (context.getNumber(keep(context.getProp(text.value, 'length'))) > maxBytes) return fail('invalid_output', 'serialize', 'output over its size limit');
     const json = context.getString(text.value);
     const outputBytes = encoder.encode(json).length;
-    if (outputBytes > limits.outputBytes) return fail('invalid_output', 'serialize', 'output over its size limit');
+    if (outputBytes > maxBytes) return fail('invalid_output', 'serialize', 'output over its size limit');
     let value;
     try { value = JSON.parse(json); } catch { return fail('invalid_output', 'serialize', 'the result is not JSON'); }
     if (value === null || typeof value !== 'object' || tooDeep(value, limits.outputDepth)) return fail('invalid_output', 'serialize', 'the result is not a bounded JSON object');
-    return { ok: true, value, metrics: { ...metrics(), outputBytes } };
+    return { ok: true, operation, value, metrics: { ...metrics(), outputBytes } };
   } finally {
     for (const handle of handles.reverse()) if (handle.alive) handle.dispose();
     context?.dispose();

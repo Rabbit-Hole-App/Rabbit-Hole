@@ -8,11 +8,13 @@
 // Blob, handing it the compiled module, so the Worker fetches nothing itself and host.js can Worker.terminate it. Worker termination
 // itself is proven by e2e/explain-program-check.mjs; that Browser Rendering leaves the blob: Worker alone is only provable in a real run.
 //
-// request: { program: ProgramArtifact, time, inputs, theme, width, height }
+// A stateful program (schema 2) is initialized with request.seed, then each of request.events (at most REVIEW_EVENTS, server-chosen) is
+// reduced in order through the same host, and the resulting state is evaluated: the card's own path, never a replay elsewhere.
+// request: { program: ProgramArtifact, time, inputs, theme, width, height, seed?, events? }
 // -> { ok: true, frame, fonts, theme, bundleHash, trace, drawn } | { ok: false, programError: { code, diagnostic } } | { ok: false, error }
 import { flushSync } from 'react-dom';
 import { Frame } from '../src/AnimatedScene.jsx';
-import { parseArtifact } from '../src/explain-program/contract.js';
+import { STATEFUL_SCHEMA_VERSION, canonicalJson, parseArtifact, sha256Hex } from '../src/explain-program/contract.js';
 import { normalizeFrame } from '../src/explain-program/frame.js';
 import { createProgramHost } from '../src/explain-program/host.js';
 import { evaluateRequestFor } from '../src/explain-program/program-card.js';
@@ -22,7 +24,8 @@ const NOOP = () => {};
 let factory = null; // the Worker factory for this page: the script and the compiled engine are fetched once
 
 // where: the runtime's phase (setup, load, evaluate, serialize, engine) and elapsed ms when it reported them, so a load overrun can be told from an evaluate overrun.
-const PHASES = ['setup', 'load', 'evaluate', 'serialize', 'engine'];
+const PHASES = ['setup', 'load', 'evaluate', 'initialize', 'reduce', 'serialize', 'engine'];
+const STATE_SHOWN = 400; // a state this small is shown to the reviewer whole; a larger one by its hash and size only
 const failure = (code, diagnostic, where) => ({ ok: false, programError: { code, diagnostic: String(diagnostic ?? '').slice(0, 500),
   ...(PHASES.includes(where?.phase) ? { phase: where.phase } : {}), ...(Number.isFinite(where?.ms) ? { ms: Math.round(where.ms * 10) / 10 } : {}) } });
 
@@ -35,11 +38,23 @@ export async function renderProgram(request, { host, root, frames, faces, nextMo
   // A page that cannot load its own engine is a platform failure, not the program's: it is not a programError (the server retries the render).
   try { factory ??= pageWorkerFactory(); await factory; } catch (error) { factory = null; return (window.__renderDone = { ok: false, error: `engine unavailable: ${String(error.diagnostic ?? error.message).slice(0, 300)}` }); }
   const programHost = createProgramHost({ artifact, createWorker: await factory });
-  const asked = evaluateRequestFor(manifest, { inputs: request.inputs }, request.time ?? 0, 1); // the card's own request builder
-  let reply;
-  try { reply = await programHost.evaluate(asked); }
-  catch (error) { return (window.__renderDone = failure(error.code || 'runtime_error', error.diagnostic ?? error.message, error.where)); }
+  const stateful = artifact.schemaVersion === STATEFUL_SCHEMA_VERSION;
+  const seed = stateful && Number.isInteger(request.seed) ? request.seed : 0, events = stateful && Array.isArray(request.events) ? request.events : [];
+  const card = { inputs: request.inputs, seed };
+  let reply, state = null, operation = 'evaluate';
+  try {
+    if (stateful) {
+      operation = 'initialize';
+      ({ state } = await programHost.initialize({ requestId: 'i', inputs: evaluateRequestFor(manifest, card, 0, 'i').inputs, seed }));
+      operation = 'reduce';
+      for (const [n, event] of events.entries()) ({ state } = await programHost.reduce({ ...evaluateRequestFor(manifest, card, request.time ?? 0, `r${n}`), state, event }));
+      operation = 'evaluate';
+    }
+    reply = await programHost.evaluate(evaluateRequestFor(manifest, card, request.time ?? 0, 1, state)); // the card's own request builder
+  }
+  catch (error) { return (window.__renderDone = failure(error.code || 'runtime_error', error.diagnostic ?? error.message, error.where ?? { phase: operation })); }
   finally { programHost.dispose('review render done'); }
+  const asked = evaluateRequestFor(manifest, card, request.time ?? 0, 1);
   const view = normalizeFrame(reply.frame, manifest);
   if (!view.ok) return (window.__renderDone = failure(view.error.code, view.issue));
 
@@ -81,7 +96,14 @@ export async function renderProgram(request, { host, root, frames, faces, nextMo
     // What the driver asserts: the bundle that ran is the sealed one, and something was actually drawn.
     bundleHash: artifact.bundleHash,
     drawn: { objects: view.scene.objects.length, elements: frame.querySelectorAll('svg *').length, readouts: view.readouts.length },
-    trace: { inputs: asked.inputs, time: asked.time, quantities: reply.quantities, metrics: { ms: Math.round(reply.metrics.ms * 100) / 100 } },
+    trace: { inputs: asked.inputs, time: asked.time, quantities: reply.quantities, metrics: { ms: Math.round(reply.metrics.ms * 100) / 100 },
+      ...(stateful ? await stateTrace(seed, events, state) : {}) },
   };
   return window.__renderDone;
+}
+
+// What the reviewer reads about a stateful capture: the seed and events replayed, and the resulting state (whole when small, else its hash and size).
+async function stateTrace(seed, events, state) {
+  const json = canonicalJson(state), bytes = new TextEncoder().encode(json).length;
+  return { seed, events, stateHash: await sha256Hex(json), ...(bytes <= STATE_SHOWN ? { state } : { stateBytes: bytes }) };
 }

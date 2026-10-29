@@ -8,8 +8,8 @@ import { evaluateScene } from '../../web/src/scene-evaluate.js';
 import { captureMoments, canonicalJson } from './explain-render.js';
 import { EXAMPLES } from '../../web/src/visual-components/examples/index.js';
 import { sceneProblem } from './learn-scene-gates.js';
-import { authorTool, EXPLAIN_AUTHOR_SYSTEM, EXPLAIN_PROGRAM_RULES, GAP_NEEDS, programContext } from './agents/explain-author.js';
-import { PROGRAM_CAPABILITIES, PROGRAM_LIMITS, buildProgramArtifact, checkProgramDraft, programEnabled } from './explain-program.js';
+import { authorTool, EXPLAIN_AUTHOR_SYSTEM, EXPLAIN_PROGRAM_RULES, EXPLAIN_STATEFUL_RULES, GAP_NEEDS, programContext } from './agents/explain-author.js';
+import { PROGRAM_CAPABILITIES, PROGRAM_LIMITS, buildProgramArtifact, checkProgramDraft, programEnabled, statefulEnabled } from './explain-program.js';
 import { programFitProblems } from './explain-program-stage.js';
 import { ExplainPolicyError, callExplainRole } from './explain-policy.js';
 import { learnMedia } from './learn-storage.js';
@@ -108,7 +108,7 @@ export function evidenceProblem(spec, evidence = []) {
 // One author call. input: { prompt, brief, context, evidence, examples (ids) }; cat and limits default to the registry's.
 async function authorCall(input, ctx, { cat = catalogue(), limits = SPEC_LIMITS } = {}) {
   const examples = selectExamples(input.examples || []);
-  const program = programEnabled(ctx.env || {});
+  const program = programEnabled(ctx.env || {}), stateful = statefulEnabled(ctx.env || {});
   // With the program route on, interactive and timed ideas are programs: the catalogue offered is the static one, so no
   // component with learner controls can stand in for a request that needs a program.
   if (program) cat = cat.filter(entry => !Object.keys(entry.controls || {}).length);
@@ -116,12 +116,12 @@ async function authorCall(input, ctx, { cat = catalogue(), limits = SPEC_LIMITS 
     request: input.prompt, brief: input.brief ?? null, context: input.context ?? null, ...(input.edit ? { edit: input.edit } : {}),
     evidence: modelEvidence(input.evidence),
     catalogue: cat, composition: authorComposition(), supported: compilerSupport(), limits,
-    ...(program ? { program: programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES) } : {}),
+    ...(program ? { program: programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES, { stateful }) } : {}),
     examples: examples.map(({ id, spec }) => ({ id, use: 'composition only, never facts', spec })),
   });
   // A layout reference image goes beside the text with its role said first; it is never an evidence record.
   const blocks = input.reference ? [{ type: 'text', text: content }, { type: 'text', text: IMAGE_ROLES.layout_reference }, { type: 'image', source: { type: 'base64', media_type: input.reference.mediaType, data: input.reference.data } }] : content;
-  const out = await ctx.call('author', { system: program ? EXPLAIN_AUTHOR_SYSTEM + EXPLAIN_PROGRAM_RULES : EXPLAIN_AUTHOR_SYSTEM, tool: authorTool(cat, { program }), content: blocks });
+  const out = await ctx.call('author', { system: program ? EXPLAIN_AUTHOR_SYSTEM + EXPLAIN_PROGRAM_RULES + (stateful ? EXPLAIN_STATEFUL_RULES : '') : EXPLAIN_AUTHOR_SYSTEM, tool: authorTool(cat, { program, stateful }), content: blocks });
   const { input: reply } = out;
   if (reply.kind === 'capability_gap') {
     if (!Array.isArray(reply.gap?.needs) || !reply.gap.needs.length) throw new ExplainPolicyError('invalid_turn', 'The author reported a gap without saying what is needed.');
@@ -165,14 +165,14 @@ export async function authorExplanation(prompt, { env = {}, callModel, catalogue
 // host-computed hashes. A capability the runtime does not offer is a gap, never a repair or a substitute card.
 // -> { artifact } | { problems, category, repairable } | { gap }
 export async function validateProgramStage(job, ctx = {}) {
-  const checked = checkProgramDraft(job.program);
+  const checked = checkProgramDraft(job.program, { stateful: statefulEnabled(ctx.env ?? {}) });
   if (checked.gap) return { gap: capabilityGap(checked.gap.needs, checked.gap.reason, 'compiler') };
   if (checked.problems) return { problems: checked.problems, category: 'spec', repairable: true };
   const { manifest } = checked.bundle, problems = [];
   // The requested behaviour is kept whatever kind the author returned: a plan (or the card's Generate setting) that asks for
   // playback or controls cannot be met by a program that declares neither.
   const wanted = job.brief?.presentation;
-  if (wanted === 'experiment' && !manifest.inputs.length) problems.push('the approved plan asks for a control the learner moves, but the manifest declares no input');
+  if (wanted === 'experiment' && !manifest.inputs.length && !manifest.actions?.length && !manifest.targets?.length) problems.push('the approved plan asks for a control the learner moves, but the manifest declares no input');
   if (wanted === 'time' && !manifest.duration) problems.push('the approved plan asks for playback over time, but the manifest declares no duration');
   const artifact = await buildProgramArtifact(checked.bundle);
   problems.push(...programFitProblems(ctx.env ?? {}, artifact, job));

@@ -17,6 +17,9 @@ export const MAX_OVERRUNS = 3;
 // The 50 ms generated-operation deadline (runtime.js reports it as 'time limit' after setup). The host watchdog, boot deadline,
 // memory and output limits carry other diagnostics, so they still stop the card at once.
 export const frameOverrun = error => error?.code === 'runtime_limit' && error.diagnostic === 'time limit';
+// The key of the state a frame is valid for: the inputs, the card's time-jump epoch and, for a schema 2 card, the committed state
+// (artifact and revision; interaction.js revisions only grow). A frame asked for an older state therefore never draws after a newer one.
+export const frameKey = (inputs, epoch, programState = null) => `${JSON.stringify(inputs)}#${epoch}#${programState ? `${programState.bundleHash}:${programState.revision}` : '-'}`;
 
 export function createFrameScheduler({ evaluate, show, fail = () => {} }) {
   let wanted = null, sent = null, shown = null, dead = false, overruns = 0;

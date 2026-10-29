@@ -16,6 +16,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { buildProgramArtifact, checkProgramDraft } from '../../control-plane/src/explain-program.js';
 import { sealProgram } from '../src/explain-program/contract.js';
 import { PROGRAM_STAMPS } from '../src/explain-program/stamps.js';
+import { sortFixture } from '../src/explain-program/fixtures.js';
 
 const ROOT = new URL(`../${process.env.RENDER_DIST || 'dist-dev'}/`, import.meta.url);
 if (!existsSync(new URL('render/scene.html', ROOT))) throw Error(`no built render entry at ${ROOT.pathname}render/scene.html: build the web app first`);
@@ -28,7 +29,7 @@ const server = createServer((request, response) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const BASE = `http://127.0.0.1:${server.address().port}`;
-const TOTAL = 32; // bump with the checks below; the printed line is what CI reads
+const TOTAL = 34; // bump with the checks below; the printed line is what CI reads
 let passed = 0;
 const check = (name, ok, detail = '') => { if (ok) passed++; console.log(`${ok ? 'ok' : 'FAIL'}: ${name}${detail ? ` (${detail})` : ''}`); };
 
@@ -120,6 +121,17 @@ try {
   const scene = { id: 's', title: 'T', width: 300, height: 200, duration: 1, objects: [{ id: 'b', type: 'box', initialState: { x: 20, y: 20, w: 100, h: 50, label: 'A', opacity: 1 } }], timeline: [], presentation: { mode: 'static' } };
   const legacy = await page.evaluate(request => window.__renderScene(request), { scene, time: 1, inputs: {}, theme: 'light', width: 300, height: 200 });
   check('a scene capture on the same page still works (legacy path unchanged)', legacy.ok === true && legacy.frame.width === 300, JSON.stringify(legacy).slice(0, 200));
+  // Task 8.3: a stateful program sealed by the server path (stateful drafts admitted) replays the seed and events the review asked for
+  // through the same host, at its declared viewport, and reports the events and the resulting state; an undeclared event fails in reduce.
+  const sortDraft = checkProgramDraft({ source: sortFixture.source, manifest: sortFixture.manifest }, { stateful: true });
+  const sorted = sortDraft.bundle ? await buildProgramArtifact(sortDraft.bundle) : null;
+  const events = [{ type: 'action', action: 'step' }, { type: 'action', action: 'step' }, { type: 'select', target: 'bar-2' }];
+  const replay = sorted && await render(sorted, { width: 720, height: 360, seed: 0, events });
+  check('a stateful program replays its events in the review page: declared size, the events and the resulting state reported', replay?.ok === true && replay.frame.width === 720 && replay.bundleHash === sorted.bundleHash
+    && JSON.stringify(replay.trace.events) === JSON.stringify(events) && /^[0-9a-f]{64}$/.test(replay.trace.stateHash) && replay.trace.state?.swaps === 1 && replay.trace.state?.selected === 2
+    && /Bar 3 holds 6/.test(await page.locator('[data-program-frame]').textContent()), JSON.stringify(replay).slice(0, 300));
+  const undeclared = sorted && await render(sorted, { width: 720, height: 360, seed: 0, events: [{ type: 'action', action: 'explode' }] });
+  check('an undeclared event fails in the reduce phase with its stable code', undeclared?.ok === false && undeclared.programError?.code === 'invalid_program' && undeclared.programError.phase === 'reduce', JSON.stringify(undeclared));
   check('the program renderer left no Worker or request behind', offOrigin.length === 0 && (await page.evaluate(() => performance.getEntriesByType('resource').every(e => e.name.startsWith(location.origin)))));
   check('every program failure returned a stable code, never a stack', [tampered, otherEngine, globalOut, threw, looped].every(r => r.programError && /^[a-z_]+$/.test(r.programError.code) && !/\n\s+at /.test(r.programError.diagnostic ?? '')));
   check('the sealed artifact the check used passes the contract\'s own hash verification', (await import('../src/explain-program/contract.js').then(m => m.verifyHashes(artifact))) === true);
