@@ -1,15 +1,14 @@
 # Rabbit Hole manifesto — editorial revision
 
-## Current: black-and-white treatment (owner brief 2026-10-28)
+## Current: original page on a black background (owner, 2026-10-29)
 
-Supersedes the copy, palette, portraits and highlight decisions below. The page now carries the owner's shorter
-copy (Knowledge does not end. / The next step should depend on you. / Understanding comes from using an idea. /
-Keep the thread.) on #000 with #FFF text, #BDBDBD labels and no red highlights. The Socrates and Feynman portrait
-sections are removed. The staircase keeps its geometry and scroll-built animation, recoloured to white edges and
-neutral grey faces, subdued behind the text. Sizes: hero 80/44px, section headings 32/26px, body 20/18px at line
-height 1.6, a 680px column with 20px phone padding, 64/48px between sections, ordinary scrolling. The black nav with
-a white Get started button and the black footer are scoped to `.manifesto-page`; other pages are unchanged.
-The landing page's manifesto preview (`pink-cloud.css`) is not part of this change.
+The 2026-10-28 black-and-white copy and size brief was superseded by "as it was before, but black background"
+(owner, 2026-10-29). The page keeps the original copy, sections, portraits, typography, spacing, red highlights and
+staircase geometry and animation below. Only the colours change: page, atmosphere and footer are #000; text that was
+dark is #FFF, secondary labels (section labels, captions, path prompts) #BDBDBD, editorial rules neutral #616161;
+the scroll-driven fade to beige is removed; the staircase canvas draws white edges with neutral grey faces at lower
+opacity so it stays behind the text; portraits no longer use multiply blending (it turns them black on black). The
+black nav with a white Get started button and the black footer are scoped to `.manifesto-page`.
 
 ## Review deployment update (2026-09-30)
 
