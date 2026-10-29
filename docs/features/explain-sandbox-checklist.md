@@ -2,6 +2,8 @@
 
 Plan: [docs/superpowers/plans/2026-10-28-explain-sandbox.md](../superpowers/plans/2026-10-28-explain-sandbox.md). Times are PT. Updated 2026-10-29 after the MVP release. Shipped, verified and deferred work are listed separately below; "shipped" never implies "verified".
 
+Continuation (Tasks 8-11 and the R0 closeout): [docs/superpowers/plans/2026-10-29-explain-tasks-8-11.md](../superpowers/plans/2026-10-29-explain-tasks-8-11.md). R0 (Focus/pending/Notes, brief before Generate, conversational proposal Edit) is production-deployed in release 5 `f421cc5de` since 2026-10-29 09:26 AM PT; its deployed check is open.
+
 Superseded: the earlier component-family plan (swinging-body, gear-train, dedicated pendulumPeriod/gearRate calculators; reports REPORT.md and REPORT-v2-tightened.md, kept only as historical evidence) and the proposal for a custom expression language.
 
 Server flags in production since the MVP release: `EXPLAIN_PROGRAM_ENABLED=true` (generation), `EXPLAIN_PROGRAM_EXECUTION_KILL=false` (execution allowed), no `EXPLAIN_DIAGNOSTICS`; `EXPLAIN_V2_ENABLED` unchanged. Rollbacks are separate: generation off (flag false; existing cards keep running), execution kill (cards loaded afterwards refuse to run; a card already open keeps running; generation stays on), and emergency Worker rollback (both Workers to the pre-release pair; also stops new generation).
