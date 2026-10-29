@@ -2,8 +2,8 @@
   "01-ai-tutor": {
     "desktop": {
       "src": "01-ai-tutor-desktop.webp",
-      "w": 1760,
-      "h": 678
+      "w": 1304,
+      "h": 1472
     },
     "mobile": {
       "src": "01-ai-tutor-mobile.webp",
@@ -177,6 +177,11 @@
       "src": "20-browser-cards-desktop.webp",
       "w": 1112,
       "h": 1036
+    },
+    "mobile": {
+      "src": "20-browser-cards-mobile.webp",
+      "w": 712,
+      "h": 1272
     }
   },
   "21-document-editor": {
@@ -191,27 +196,47 @@
       "src": "22-3d-file-import-desktop.webp",
       "w": 1108,
       "h": 916
+    },
+    "mobile": {
+      "src": "22-3d-file-import-mobile.webp",
+      "w": 712,
+      "h": 952
     }
   },
   "23-table-of-contents": {
     "desktop": {
       "src": "23-table-of-contents-desktop.webp",
-      "w": 1760,
-      "h": 988
+      "w": 1318,
+      "h": 1260
+    },
+    "mobile": {
+      "src": "23-table-of-contents-mobile.webp",
+      "w": 640,
+      "h": 1580
     }
   },
   "24-comments": {
     "desktop": {
       "src": "24-comments-desktop.webp",
-      "w": 1760,
-      "h": 890
+      "w": 1588,
+      "h": 824
+    },
+    "mobile": {
+      "src": "24-comments-mobile.webp",
+      "w": 800,
+      "h": 1088
     }
   },
   "25-canvas-search": {
     "desktop": {
       "src": "25-canvas-search-desktop.webp",
-      "w": 1760,
-      "h": 988
+      "w": 1368,
+      "h": 1306
+    },
+    "mobile": {
+      "src": "25-canvas-search-mobile.webp",
+      "w": 640,
+      "h": 1164
     }
   }
 }
