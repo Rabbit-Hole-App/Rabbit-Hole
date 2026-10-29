@@ -78,6 +78,16 @@ export function featureRows(byFeature = []) {
 // The quiet line for requests whose cost is not known yet: a count, never an amount (unknown cost is never $0). Null at 0.
 export const unknownLine = count => (count > 0 ? `${count} AI request${count === 1 ? ' ended without a confirmed cost and was' : 's ended without a confirmed cost and were'} not charged` : null);
 
+// Buy credits (owner, 2026-10-29; BuyCreditsDialog.jsx): a typed "Other amount" in USD is a positive number with at most two
+// decimal places ("20", "0.5", "12.34"), else null. No exponent, sign, Infinity or blank.
+export function purchaseAmount(text) {
+  const value = String(text).trim();
+  return /^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/.test(value) && Number(value) > 0 ? Number(value) : null;
+}
+// The one checkout handler, for both entry points. ponytail: no payment provider yet (Stripe comes later); it charges nothing,
+// adds no credits and never reports a purchase.
+export const checkoutCredits = () => 'Credit purchases are coming soon.';
+
 // What the gauge, its tooltip and its label say for a state. Red ('empty') only when the server reports remaining 0.
 export function usageView(state) {
   if (state.status === 'ready') {

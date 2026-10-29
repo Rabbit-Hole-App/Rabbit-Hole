@@ -7,7 +7,10 @@
 //   3. an account with recorded usage keeps its 5,000 (a granted month is shown whatever the date), and the transition rule itself:
 //      before 2026-11 an account with chargeable usage and no grant yet is shown 5,000, from 2026-11 everyone 2,500; a FREE action
 //      (practice grading) is not usage, so a new account that did one is still shown 2,500;
-//   4. no dollar amount anywhere on those surfaces.
+//   4. no dollar amount anywhere on those surfaces;
+//   5. Buy credits (owner, 2026-10-29): the gauge popover and Settings > AI usage open the same dialog ($20, $50, $100, Other
+//      amount in USD); Buy waits for a valid amount, says "Credit purchases are coming soon." and changes nothing. The dialog's
+//      purchase amounts are the owner's decision and are not part of the step 4 scan, which reads the usage surfaces only.
 // Isolation: no real provider key, behind the provider tripwire (e2e/provider-tripwire.js); this check requires zero hits.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 D1_CONFIG=<stack>/integ-local-cp.jsonc PERSIST=<stack>/local
 //   [VARS=<.dev.vars with TEST_BYPASS_SECRET>] node e2e/credits-meter-check.mjs [shotsDir]
@@ -91,6 +94,7 @@ const first = await fresh.usage();
 assert.equal(first.enforced, true, `this stack must enforce the allowance for this check: ${JSON.stringify(first)}`);
 const PERIOD = first.period; // the server's current UTC month
 const run = Date.now().toString(36);
+let canvasName = null; // the new account's canvas, for the Buy credits step
 
 await check('a new account: the server grants 2,500 credits, nothing used, before any canvas is opened', async () => {
   assert.equal(first.allowanceCredits, 2500, 'the allowance is 2,500 credits');
@@ -108,6 +112,7 @@ await check('a new account: the canvas gauge and Settings both read 2,500 AI cre
   try {
     await context.addInitScript(seeds => { for (const [key, value] of Object.entries(seeds)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); },
       { [`small.adaptive-canvas:${catalog.org}:${catalog.email}:${made.name}:ink`]: state });
+    canvasName = made.name;
     await page.goto(`${BASE}/apps/${made.name}`);
     await page.locator('[data-block-id="c-tides"]').waitFor({ timeout: 60000 });
     await page.locator('[data-usage-gauge]').click();
@@ -163,6 +168,71 @@ await check('the transition rule: before 2026-11 chargeable usage keeps 5,000, f
   assert.match(await settingsText(free), /Monthly credits\s*2,500 AI credits every month/);
 });
 
+await check('Buy credits (owner, 2026-10-29): the gauge and Settings open one dialog; Other amount, Buy disabled until valid, coming soon, Escape, Cancel and Close change nothing', async () => {
+  const before = await fresh.usage();
+  const { context, page } = await visit(fresh);
+  // Writes while the dialog is on screen that could be a purchase or a credit change (the canvas may save itself meanwhile).
+  const writes = [];
+  page.on('request', request => {
+    const { pathname } = new URL(request.url());
+    if (request.method() !== 'GET' && /credit|usage|purchase|checkout|billing|pay/i.test(pathname)) writes.push(`${request.method()} ${pathname}`);
+  });
+  const dialog = page.getByRole('dialog', { name: 'Buy credits' });
+  const focused = () => page.evaluate(() => { const el = document.activeElement; return el ? [...el.attributes].map(a => a.name).join(' ') : ''; });
+  const drive = async how => {
+    await dialog.waitFor({ timeout: 10000 });
+    assert.deepEqual((await dialog.getByRole('radio').allInnerTexts()).map(t => t.trim()), ['$20', '$50', '$100', 'Other amount'], how);
+    assert.match(await focused(), /data-buy-amount/, `${how}: focus moved into the dialog`);
+    const total = () => dialog.locator('[data-buy-total]').innerText().then(t => t.trim());
+    const buy = dialog.getByRole('button', { name: 'Buy', exact: true });
+    assert.equal(await total(), 'Total: $20.00', how);
+    await dialog.getByRole('radio', { name: '$50', exact: true }).click();
+    assert.equal(await total(), 'Total: $50.00', how);
+    await dialog.getByRole('radio', { name: '$100', exact: true }).click();
+    assert.equal(await total(), 'Total: $100.00', how);
+    await dialog.getByRole('radio', { name: 'Other amount', exact: true }).click();
+    const box = dialog.getByLabel('Amount in USD');
+    await box.waitFor();
+    assert.ok(await buy.isDisabled(), `${how}: Buy waits for an amount`);
+    for (const bad of ['0', '-1', '1.234', 'abc', '1e3']) { await box.fill(bad); assert.ok(await buy.isDisabled(), `${how}: ${bad}`); }
+    await box.fill('12.34');
+    assert.equal(await total(), 'Total: $12.34', how);
+    await buy.click();
+    assert.equal((await dialog.locator('[data-buy-notice]').innerText()).trim(), 'Credit purchases are coming soon.', how);
+    assert.doesNotMatch(await dialog.innerText(), /\d[\d,]* (AI )?credits?\b|successful|thank you|complete/i, `${how}: no credits figure, no purchase shown`);
+    await page.screenshot({ path: `${SHOTS}/buy-credits-${how}.png` });
+  };
+  try {
+    // 1. From the canvas gauge's popover; Escape closes it and focus goes back to the gauge.
+    await page.goto(`${BASE}/apps/${canvasName}`);
+    await page.locator('[data-usage-gauge]').waitFor({ timeout: 60000 });
+    await page.locator('[data-usage-gauge]').click();
+    await page.locator('[data-usage-popover] [data-usage-every]').waitFor({ timeout: 30000 });
+    await page.locator('[data-usage-popover] [data-buy-credits]').click();
+    await drive('gauge');
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({ state: 'detached', timeout: 5000 });
+    assert.match(await focused(), /data-usage-gauge/, 'focus back on the gauge');
+    // 2. From Settings > AI usage, the usage still shown; Cancel, Close and Escape each close only the dialog.
+    await page.goto(`${BASE}/apps?settings=usage`);
+    const settings = page.locator('[data-usage-settings]');
+    await settings.getByText('Monthly credits').waitFor({ timeout: 60000 });
+    const open = async () => { await settings.locator('[data-buy-credits]').click(); await dialog.waitFor({ timeout: 10000 }); };
+    await open();
+    await drive('settings');
+    for (const [how, close] of [['Cancel', () => dialog.getByRole('button', { name: 'Cancel', exact: true }).click()], ['Close', () => dialog.getByRole('button', { name: 'Close', exact: true }).click()], ['Escape', () => page.keyboard.press('Escape')]]) {
+      if (how !== 'Cancel') await open();
+      await close();
+      await dialog.waitFor({ state: 'detached', timeout: 5000 });
+      assert.ok(await settings.getByText('Monthly credits').isVisible(), `${how}: Settings and its usage stay open`);
+      assert.match(await focused(), /data-buy-credits/, `${how}: focus back on Buy credits`);
+    }
+  } finally { await context.close(); }
+  assert.deepEqual(writes, [], 'no purchase, credit or usage write request');
+  const after = await fresh.usage();
+  for (const key of ['allowanceCredits', 'usedCredits', 'remainingCredits']) assert.equal(after[key], before[key], `${key} unchanged`);
+});
+
 await check('no dollar amount, USD or cents on the gauge or in Settings > AI usage, whichever account', async () => {
   assert.ok(surfaces.length >= 7, `${surfaces.length} surfaces were read`);
   for (const text of surfaces) assert.doesNotMatch(text, NO_DOLLARS, text);
@@ -171,6 +241,6 @@ await check('no dollar amount, USD or cents on the gauge or in Settings > AI usa
 await browser.close();
 assert.deepEqual(errors, [], `page errors: ${errors.join(' | ')}`);
 assert.deepEqual(await tripwire(), [], 'zero provider requests over the whole check');
-const total = 6;
+const total = 7;
 console.log(`credits-meter-check: ${results.length}/${total} checks passed`);
 assert.equal(results.length, total);

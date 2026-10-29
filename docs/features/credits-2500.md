@@ -97,7 +97,14 @@ counted by the tripwire, and both checks require zero.
   the renewal line in Los Angeles time, then pinned at the cutover (`2026-11-01T00:00:00Z` reads "Renews on October 31, 5:00 PM PDT",
   and "November 1, 9:00 AM GMT+9" in Tokyo); an account with a granted 5,000 month and recorded usage is shown 5,000, its usage and
   what is left; the transition rule on the live clock (before 2026-11 chargeable usage is 5,000, from 2026-11 everyone 2,500) and a
-  free action not counting as usage; no dollar amount, "USD" or "cents" on those surfaces.
+  free action not counting as usage; no dollar amount, "USD" or "cents" on those surfaces. Then the Buy credits dialog from both
+  entry points (below).
+
+**Buy credits (owner, 2026-10-29).** Settings > AI usage and the gauge popover each have a Buy credits button opening the same
+dialog (`BuyCreditsDialog.jsx`): $20, $50, $100 or Other amount (a USD box; `account-usage.js` `purchaseAmount` accepts a positive
+number with up to two decimals), the selected total in dollars, and Buy, disabled until the amount is valid. This purchase price is
+the one dollar amount people see; it is not a usage figure, and no dollars-to-credits conversion is shown. Until payments exist, Buy
+calls `checkoutCredits`, which only shows "Credit purchases are coming soon.": no request, no charge, no credits added.
 - `allowance-enforcement-check.mjs`: exhausted, insufficient, reserved and accounting-unavailable each refuse a chat Send before any
   provider call, with one toast ("Not enough AI credits. Renews on <Los Angeles time>."), View usage opening Settings, the prompt
   given back and the canvas still editable. The exhausted refusal charges and reserves nothing (used stays at the

@@ -14,7 +14,7 @@ import * as esbuild from 'esbuild';
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const dir = mkdtempSync(join(tmpdir(), 'usage-gauge-')), outfile = join(dir, 'gauge.cjs');
 await esbuild.build({
-  stdin: { contents: "export { default as UsageGauge, UsageDetails, UsageSettings, popoverShift } from './UsageGauge.jsx'; export { createUsageStore } from './account-usage.js'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { default as UsageGauge, UsageDetails, UsageSettings, popoverShift } from './UsageGauge.jsx'; export { default as BuyCreditsDialog } from './BuyCreditsDialog.jsx'; export { createUsageStore } from './account-usage.js'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty' },
 });
 const B = createRequire(import.meta.url)(outfile);
@@ -75,7 +75,9 @@ test('the popover: allowance heading, remaining prominently, used of total, rese
   assert.match(html, /data-usage-note[^>]*>Tracking only - limits are not enforced yet\.</);
   assert.match(html, /<button type="button" data-view-usage[^>]*>View usage<\/button>/);
   assert.doesNotMatch(html, /Temporarily reserved|data-usage-bar-reserved/, 'no reserved line at zero');
-  assert.doesNotMatch(html, /Upgrade|Buy|Subscribe|checkout/i, 'no purchase controls');
+  // Buy credits (owner, 2026-10-29) replaced "no purchase controls": one Buy credits button, still no plan or subscription.
+  assert.match(html, /<button type="button" data-buy-credits[^>]*>Buy credits<\/button>/);
+  assert.doesNotMatch(html, /Upgrade|Subscribe|checkout/i, 'no plan or subscription controls');
 });
 
 test('the popover: reserved shown apart, exhausted in words, enforced hides the note, allowance from the server', () => {
@@ -109,7 +111,7 @@ test('the popover: unavailable says so with no numbers; signed out has no number
   assert.doesNotMatch(unavailable, /\$\d|\d credit/);
   const out = details({ status: 'signed_out' });
   assert.match(out, />Sign in to see your AI credits</);
-  assert.doesNotMatch(out, /\$\d|\d credit|data-view-usage/);
+  assert.doesNotMatch(out, /\$\d|\d credit|data-view-usage|data-buy-credits/);
 });
 
 test('Settings > AI usage: allowance, used, remaining, next reset and the bar; reserved only when held; the note', async () => {
@@ -117,6 +119,8 @@ test('Settings > AI usage: allowance, used, remaining, next reset and the bar; r
   assert.match(html, /data-usage-settings/);
   assert.match(html, />AI usage</);
   assert.match(html, /across all your canvases/);
+  assert.match(html, /<button[^>]*data-buy-credits="true"[^>]*>Buy credits<\/button>/, 'Buy credits beside the usage, which stays');
+  assert.doesNotMatch(html, /data-buy-credits-dialog/, 'the dialog opens only from the button');
   assert.match(html, /data-usage-note[^>]*>Tracking only - limits are not enforced yet\.</);
   for (const [row, value] of [['Monthly credits', '5,000 AI credits every month'], ['Used', '1,740 credits'], ['Remaining', '3,260 credits'], ['Renewal', 'Renews on October 31, 5:00 PM PDT']])
     assert.match(html, new RegExp(`>${row}</div>[\\s\\S]*?>${value}</span>`), row);
@@ -165,4 +169,38 @@ test('the owner and member canvas top bars carry the gauge, the shared header do
   assert.match(sidebar, /asked = params\.get\('settings'\);\n    if \(asked && \/\^\[a-z-\]\{1,32\}\$\/\.test\(asked\)\) \{/);
   // The endpoint answers for the session only: the client never names a user.
   assert.doesNotMatch(read('account-usage.js'), /USAGE_PATH\s*\+|\?user|userId|user_id/);
+});
+
+test('Buy credits (owner, 2026-10-29): one dialog, $20 picked, the total in dollars and no credits figure, Buy, Cancel and Close', () => {
+  const html = B.renderToStaticMarkup(B.createElement(B.BuyCreditsDialog, { onClose: () => {} }));
+  assert.match(html, /role="dialog" aria-modal="true" aria-label="Buy credits"/);
+  assert.match(html, />Buy credits</);
+  assert.match(html, /role="radiogroup" aria-label="Amount"/);
+  const options = [...html.matchAll(/role="radio" aria-checked="(true|false)" data-buy-amount="([^"]+)"[^>]*>([^<]*)</g)].map(m => [m[2], m[1], m[3]]);
+  assert.deepEqual(options, [['20', 'true', '$20'], ['50', 'false', '$50'], ['100', 'false', '$100'], ['other', 'false', 'Other amount']]);
+  assert.match(html, /data-buy-total[^>]*>Total: \$20\.00</);
+  assert.doesNotMatch(html, /data-buy-other/, 'the USD box appears only for Other amount');
+  assert.doesNotMatch(html, /\d[\d,]* (AI )?credits?\b/i, 'no dollars-to-credits conversion');
+  assert.match(html, /aria-label="Close" title="Close"/);
+  assert.match(html, />Cancel<\/button>/);
+  assert.match(html, /<button[^>]*>Buy<\/button>/);
+  assert.doesNotMatch(html, /\.\.\.|…/, 'no ellipsis');
+});
+
+test('Buy credits wiring: one handler that only says coming soon, Buy disabled while invalid, focus in and back, both entry points', () => {
+  const dialog = read('BuyCreditsDialog.jsx'), gauge = read('UsageGauge.jsx');
+  assert.match(dialog, /const amount = pick === 'other' \? purchaseAmount\(other\) : pick;/);
+  assert.match(dialog, /confirmDisabled=\{amount == null\}/);
+  assert.match(dialog, /onConfirm=\{\(\) => \{ if \(amount != null\) setNotice\(checkoutCredits\(amount\)\); \}\}/);
+  assert.match(dialog, /onCancel=\{onClose\}/, 'Cancel, Escape and the backdrop close it');
+  assert.match(dialog, /aria-label="Close" title="Close" onClick=\{onClose\}/);
+  assert.match(dialog, /\{pick === 'other' && \(/);
+  assert.match(dialog, /box\.current\?\.querySelector\('\[aria-checked="true"\]'\)\?\.focus\(\);/, 'focus moves into the dialog');
+  assert.match(dialog, /return \(\) => \{ if \(opener\?\.isConnected\) opener\.focus\(\); \};/, 'and back to what opened it');
+  assert.doesNotMatch(dialog, /fetch\(|api\(|refresh/, 'no network call and no credit change');
+  // Both entry points render the same dialog; Settings in place (its Escape defers to a dialog inside it), the gauge portaled.
+  assert.match(gauge, /onBuyCredits=\{\(\) => \{ close\(true\); setBuying\(true\); \}\}/);
+  assert.match(gauge, /\{buying && createPortal\(<BuyCreditsDialog onClose=\{\(\) => setBuying\(false\)\} \/>, document\.body\)\}/);
+  assert.match(gauge, /\{buying && <BuyCreditsDialog onClose=\{\(\) => setBuying\(false\)\} \/>\}/);
+  assert.equal(gauge.match(/<BuyCreditsDialog /g).length, 2);
 });

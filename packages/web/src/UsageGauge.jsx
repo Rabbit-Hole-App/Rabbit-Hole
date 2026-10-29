@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { Gauge } from 'lucide-react';
 import { barParts, creditCount, featureRows, formatCredits, formatReset, unknownLine, usageStore, usageView } from './account-usage.js';
-import { SettingsRow } from './ui.jsx';
+import { Button, SettingsRow } from './ui.jsx';
+import BuyCreditsDialog from './BuyCreditsDialog.jsx';
 
 // The monthly AI allowance on screen (owner D4 sections 1-3): the canvas top bar's gauge and its popover, and Settings > AI usage.
 // All of them read one store (account-usage.js), so they never disagree.
@@ -43,7 +45,7 @@ export function UsageBar({ usage }) {
 const Note = ({ children }) => <p data-usage-note className="rounded-md bg-hover px-2 py-1.5 text-xs text-ink-2">{children}</p>;
 
 // The popover's content (D4 section 3).
-export function UsageDetails({ state, onViewUsage }) {
+export function UsageDetails({ state, onViewUsage, onBuyCredits }) {
   const view = usageView(state), usage = view.usage;
   return (
     <>
@@ -64,7 +66,10 @@ export function UsageDetails({ state, onViewUsage }) {
         </>
       ) : <p role="status" className="mt-1 text-sm text-ink-2">{view.label}</p>}
       {state.status !== 'signed_out' && (
-        <button type="button" data-view-usage onClick={onViewUsage} className="mt-3 rounded-sm text-sm font-medium text-accent hover:underline">View usage</button>
+        <div className="mt-3 flex items-center gap-4">
+          <button type="button" data-view-usage onClick={onViewUsage} className="rounded-sm text-sm font-medium text-accent hover:underline">View usage</button>
+          <button type="button" data-buy-credits onClick={onBuyCredits} className="rounded-sm text-sm font-medium text-accent hover:underline">Buy credits</button>
+        </div>
       )}
     </>
   );
@@ -76,6 +81,7 @@ export default function UsageGauge({ signedIn = true, onViewUsage = openUsageSet
   const state = useAccountUsage({ signedIn, store });
   const view = usageView(state);
   const [open, setOpen] = useState(false);
+  const [buying, setBuying] = useState(false);
   const [shift, setShift] = useState(0);
   const box = useRef(null), trigger = useRef(null), panel = useRef(null);
   const id = useId();
@@ -106,9 +112,12 @@ export default function UsageGauge({ signedIn = true, onViewUsage = openUsageSet
       {open && (
         <div ref={panel} id={id} role="dialog" aria-label="AI credits" tabIndex={-1} data-usage-popover style={shift ? { right: -shift } : undefined}
           className="absolute top-full right-0 z-50 mt-2 w-72 max-w-[calc(100vw-1.5rem)] rounded-xl border border-line bg-white p-3 shadow-pop outline-none">
-          <UsageDetails state={state} onViewUsage={() => { close(false); onViewUsage(); }} />
+          <UsageDetails state={state} onViewUsage={() => { close(false); onViewUsage(); }}
+            onBuyCredits={() => { close(true); setBuying(true); }} />
         </div>
       )}
+      {/* Outside the popover, which closes on a press outside it; the dialog hands focus back to the gauge. */}
+      {buying && createPortal(<BuyCreditsDialog onClose={() => setBuying(false)} />, document.body)}
     </span>
   );
 }
@@ -118,6 +127,7 @@ const Amount = ({ children, className = '' }) => <span className={`text-sm tabul
 // Settings > AI usage (D4 section 1): the signed-in person's account allowance across all canvases.
 export function UsageSettings({ Heading, store = usageStore }) {
   const state = useAccountUsage({ store });
+  const [buying, setBuying] = useState(false);
   // Opening the section is a refresh point (D4 section 5); a first load the hook just started already is one.
   useEffect(() => { if (store.getSnapshot().status !== 'loading') store.refresh(); }, [store]);
   const view = usageView(state), usage = view.usage;
@@ -125,6 +135,8 @@ export function UsageSettings({ Heading, store = usageStore }) {
     <div data-usage-settings>
       <div className="text-2xl font-semibold">AI usage</div>
       <div className="pt-2 text-base text-ink-2">Your AI credits, shared across all your canvases and devices. Different AI features use different amounts.</div>
+      <div className="pt-4"><Button variant="secondary" data-buy-credits onClick={() => setBuying(true)}>Buy credits</Button></div>
+      {buying && <BuyCreditsDialog onClose={() => setBuying(false)} />}
       {view.note && <div className="pt-4"><Note>{view.note}</Note></div>}
       <Heading>This month</Heading>
       {usage ? (

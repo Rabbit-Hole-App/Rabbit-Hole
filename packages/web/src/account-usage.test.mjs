@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { TRACKING_NOTE, USAGE_PATH, barParts, createUsageStore, creditCount, formatCredits, formatReset, readUsage, unknownLine, usageView } from './account-usage.js';
+import { TRACKING_NOTE, USAGE_PATH, barParts, checkoutCredits, createUsageStore, creditCount, formatCredits, formatReset, purchaseAmount, readUsage, unknownLine, usageView } from './account-usage.js';
 
 // The server's answer: AI credits only (no dollars, micros or currency on the wire).
 const body = (over = {}) => ({ enforced: false, period: '2026-10', resetsAt: '2026-11-01T00:00:00.000Z',
@@ -198,4 +198,11 @@ test('by feature: well-formed rows pass through with learner names, same names a
     assert.equal('byFeature' in state.usage, false, JSON.stringify(bad));
   }
   assert.equal('byFeature' in readUsage(200, body()).usage, false, 'a server before the field');
+});
+
+test('Buy credits (owner, 2026-10-29): Other amount is a positive USD number with up to two decimals; checkout only says coming soon', () => {
+  for (const [text, amount] of [['20', 20], ['0.5', 0.5], ['12.34', 12.34], [' 7 ', 7]]) assert.equal(purchaseAmount(text), amount, JSON.stringify(text));
+  for (const text of ['', '0', '-1', '1.234', 'abc', '1e3', ' ', 'Infinity', '0.00', '12.', '+5', '1,000', 'NaN'])
+    assert.equal(purchaseAmount(text), null, JSON.stringify(text));
+  assert.equal(checkoutCredits(50), 'Credit purchases are coming soon.');
 });
