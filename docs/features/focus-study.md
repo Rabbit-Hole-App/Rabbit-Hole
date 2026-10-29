@@ -162,17 +162,30 @@ includes a card-layout slot's offset. While focused: a press on a drag zone does
 `dy` / `w` / `h`); the host carries `data-scroll`, so the canvas wheel scrolls the card instead of panning the board; a
 direct `[data-scroll]` body takes the height and scrolls inside; the PDF and YouTube iframes take the pointer (they ignore
 it until the card is selected, and `enterFocus` deselects); a card-layout slot rises with its card; a note gets the
-surface token, a border and padding, and scrolls. Three placements: **fill** (the frame), **reading** (fill, at most 760 px
-wide, centred) and **contain** (the picture or video at its own aspect ratio, as large as the frame allows with the card's
-other rows, centred, never cropped; no picture yet: fill).
+surface token, a border and padding, and scrolls. Four placements: **fill** (the frame), **reading** (fill, at most 760 px
+wide, centred), **wide** (fill, at most 1200 px wide, centred: `WIDE_MAX`) and **contain** (the picture or video at its own
+aspect ratio, as large as the frame allows with the card's other rows, centred, never cropped; no picture yet: fill).
+
+Owner, 2026-10-28: one shared Focus with responsive per-type defaults, never fixed widths or topic rules. Text and notes:
+reading (680-840 px asked; 760 used). Notebook and PDF: wide (960-1200 px where space permits). Image, slide and video:
+contain. CAD, 3D model and table: fill. An Explanation program (`animation` with `program`) fills the pane, and its drawing
+is fitted inside by `frame.js` `focusFrameBox`: the legible box scaled by the smaller of the width and height scales after the
+header, the rows and the collapsed Notes row, centred at its own width, shrinking down to `readableScale` (the scale where the
+frame's smallest text reaches the 12 px `LEGIBILITY_FLOORS.metadata` floor; 0.8 for body text) and only under that scrolling
+inside a viewport as high as the room, so the controls stay on screen. Quiz and flashcards stay without a Focus control (row
+below); adding one is a separate decision.
+
+Reveal on ready (owner, 2026-10-28): an Explanation this canvas's own request placed (`placeExplain`) opens in Focus once,
+through `enterFocus`, when its result attaches, unless another card is focused then. The ids live in the mounted canvas's
+memory only (`focus-controller.js` `readyToReveal`), so a reload, another canvas, or a card already dismissed never opens.
 
 | Kind (`type` / file `kind`) | Renderer | Layout and scroll | Live state | Verdict |
 |---|---|---|---|---|
-| `pdf` | `PdfCard` (AdaptiveCanvas.jsx): the browser's own PDF viewer in an iframe (blob URL) | fixed height (`h` or 640), the viewer scrolls and zooms itself | page, scroll, zoom, text selection inside the viewer | **SUPPORTED** "Focus PDF", fill. The iframe is resized in place, so page, scroll, selection and the viewer's own page and zoom controls are kept; nothing is shrunk to fit vertically. The width fit is the viewer's own (Chrome and Edge re-fit width on resize at their default zoom); the native viewer cannot be scripted, and changing its URL to force `#view=FitH` would reload it and lose the page, so that is not done |
-| `paper` | `PaperBody` > `LearnPaper.jsx` (pdf.js canvas and text layer) | fixed height, inner `overflow-auto` scroller; the page is `zoom x 100%` of the scroller's width | page (`block.paper.page`), scroll, zoom, highlights, text selection | **SUPPORTED** "Focus PDF", fill. At zoom 1 the page is exactly the available width (its own CSS), the text layer refits by its ResizeObserver, no re-render; the reader's page, zoom, Previous/Next and zoom buttons are kept |
+| `pdf` | `PdfCard` (AdaptiveCanvas.jsx): the browser's own PDF viewer in an iframe (blob URL) | fixed height (`h` or 640), the viewer scrolls and zooms itself | page, scroll, zoom, text selection inside the viewer | **SUPPORTED** "Focus PDF", wide. The iframe is resized in place, so page, scroll, selection and the viewer's own page and zoom controls are kept; nothing is shrunk to fit vertically. The width fit is the viewer's own (Chrome and Edge re-fit width on resize at their default zoom); the native viewer cannot be scripted, and changing its URL to force `#view=FitH` would reload it and lose the page, so that is not done |
+| `paper` | `PaperBody` > `LearnPaper.jsx` (pdf.js canvas and text layer) | fixed height, inner `overflow-auto` scroller; the page is `zoom x 100%` of the scroller's width | page (`block.paper.page`), scroll, zoom, highlights, text selection | **SUPPORTED** "Focus PDF", wide. At zoom 1 the page is exactly the available width (its own CSS), the text layer refits by its ResizeObserver, no re-render; the reader's page, zoom, Previous/Next and zoom buttons are kept |
 | `slide` (a PDF page as an image) | `SlideCard` | `img w-full h-auto`, no scroll | none | **SUPPORTED** "Focus page", contain |
 | `explanation` (and a PDF text excerpt) | `ExplanationBody` / `ExcerptBody` (LearningBlocks.jsx) | `[data-scroll]` body, `autoMax` 520 | open "more" sections, excerpt note being typed | **SUPPORTED** "Focus explanation", reading, internal scroll, normal text size |
-| `animation` (learner-facing "Explanation", /explain scenes) | `AnimationBody` > `AnimatedScene.jsx` | frame is `flex-1`; the SVG viewBox follows the frame's own aspect (pads, never crops) | playback (play/pause, time), selection, practice | **SUPPORTED** "Focus explanation", fill; playback state is component state and survives the resize |
+| `animation` (learner-facing "Explanation", /explain scenes) | `AnimationBody` > `AnimatedScene.jsx` | frame is `flex-1`; the SVG viewBox follows the frame's own aspect (pads, never crops) | playback (play/pause, time), selection, practice | **SUPPORTED** "Focus explanation", fill (a program's drawing is fitted inside, see above); playback state is component state and survives the resize |
 | `table` | `TableBody` | `[data-scroll]` body, `overflow-x-auto` table, sticky header | none | **SUPPORTED** "Focus table", fill (tables want the width), internal scroll both ways |
 | `image` | `ImageBody` | `[data-scroll]`, `img w-full`, variants, caption, search row below | variant shown, search results, typed query, confirm | **SUPPORTED** "Focus image", contain |
 | file `image`, `svg` (not an excerpt) | `FileCard` / `MediaCard.jsx` image and SVG previews | `img w-full`, `autoMax` 620 | none | **SUPPORTED** "Focus image", contain |
@@ -181,7 +194,7 @@ other rows, centred, never cropped; no picture yet: fill).
 | file `clip` (dropped video) | `MediaCard.jsx` video player | `<video>` | playback | **SUPPORTED** "Focus video", contain |
 | `cad` | `CadCard.jsx` (`CadPreview`, three.js `three-d-renderer.js`) | fixed height, viewer `flex-1`, ResizeObserver resizes the renderer | camera, Interact (orbit) mode, dimensions toggle, edit state, generation polling | **SUPPORTED** "Focus CAD model", fill, camera untouched (never calls Fit view). The focused viewer counts as selected (`viewSelected`), so Interact holds, and Interact, Fit view and Show dimensions (`CadViewerTools`) sit in the Focus header beside Back to canvas (section 7). Browser coverage with a real 3D asset (the fixture GLB of `cad-viewer-check.mjs`, answered in the browser): `e2e/focus-cad-check.mjs` (fork, CI only) |
 | file `model` (imported 3D model, point cloud, splat, CAD file) | `ModelCard.jsx` (same renderer) | fixed height, viewer `flex-1` | camera, Interact mode | **SUPPORTED** "Focus 3D model", fill; its Interact and Fit buttons are in its own header, in reach. An Interact running when Focus starts ends (deselection, ModelCard's own rule); Interact again inside Focus |
-| `notebook` | `NotebookCard` / `NotebookCard.jsx` | iframe | kernel, cells, unsaved edits | WP3 (`focus-adapter-notebook.js`) |
+| `notebook` | `NotebookCard` / `NotebookCard.jsx` | iframe | kernel, cells, unsaved edits | WP3 (`focus-adapter-notebook.js`), wide |
 | sticky and text items (notes; not code boxes) | `ItemView` (AdaptiveCanvas.jsx), RichText | absolute `[data-item-id]` in the items layer, a note grows with its words, no inner scroll | editing caret, typing | **SUPPORTED** "Focus note", reading, at its own text size, scrolling inside; editing while focused saves as usual. WP2's `enterFocus` and host lookup already resolve items |
 | `model3d`, `scene` (Blender, when ready) | `ThreeDBody` (LearningBlocks.jsx) | viewer `flex-1`, ResizeObserver | camera, clip, play state | UNSUPPORTED for now (not in brief 3.2/3.3); the 3D model adapter's fill would work unchanged, a one-line follow-up |
 | `scene` interactive activity | `SceneActivityBody` | fixed size | attempt state | UNSUPPORTED (not in the brief) |

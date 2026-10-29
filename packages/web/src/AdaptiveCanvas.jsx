@@ -95,7 +95,7 @@ const VIEW_ONLY_HIDDEN = new Set(['canvas.local-edit', 'source.write', 'generate
 const rowGroup = id => allActions().find(entry => entry.id === id)?.group || null;
 // S1's one permission model (canvas-permissions.js, contract-permissions.md): the menu, the card ⋮ and the shortcuts ask it.
 import { can as permit } from './canvas-permissions.js';
-import { adapterFor, focusReducer, focusSnapshot, shouldExitOnEscape } from './focus-controller.js';
+import { adapterFor, focusReducer, focusSnapshot, readyToReveal, shouldExitOnEscape } from './focus-controller.js';
 import { syncFocus, workspaceFrame } from './focus-adapters.js';
 import FocusFrame from './FocusFrame.jsx';
 import { rabbitHoleTarget } from './canvas-actions-types.js';
@@ -2056,6 +2056,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   useLayoutEffect(() => { if (focus?.id && surface.current) dispatchFocus({ type: 'workspace-changed', frame: focusWorkspace() }); }, [focus?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Deleted, or no longer focusable (read-only now, failed): a clean exit.
   useEffect(() => { const id = focusRef.current?.id; if (id && !adapterFor(objectById(id), { view: viewRef.current, readOnly })) dispatchFocus({ type: 'content-gone', id }); }, [blocks, exchanges, items, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  // This canvas's own /explain cards (placeExplain): each opens in Focus once when ready, unless another card is focused then.
+  const revealing = useRef(new Set());
+  useEffect(() => {
+    const id = revealing.current.size ? readyToReveal(revealing.current, key => blocksRef.current.find(block => block.id === key)) : null;
+    if (id && !focusRef.current) commandsRef.current?.enterFocus(id);
+  }, [blocks]);
   const focusSole = useCallback(() => commandsRef.current?.enterFocus(selectedRef.current[0]), []);
   const commandsRef = useRef(null);
   useEffect(() => {
@@ -2242,6 +2248,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         snapshot();
         const added = { ...card, dx: 0, dy: 0 };
         blocksRef.current = [...blocksRef.current, added];
+        revealing.current.add(card.id);
         return insertAtView(added, into);
       },
       reconcileCad: (incoming, { insert = true } = {}) => {
