@@ -78,19 +78,39 @@ async function stillUsable(label) {
   assert.equal((await page.getByTitle('Reset zoom').innerText()).trim(), '100%', `${label}: Shift 0 resets the view`);
 }
 
+// Start Rabbit Hole from a card's right-click menu (owner spec 2026-10-29: /dive left the commands; the card menu is the way down,
+// card-context-menu-check.mjs). id: a card's block id, else the first content card whose menu offers it (a heading has none).
+const startHole = async (page, id = null) => {
+  const cards = id ? page.locator(`[data-block-id="${id}"]`) : page.locator('[data-block-id]:not([data-chat-block])');
+  const item = page.locator('[data-canvas-menu] [data-menu-start-rabbit-hole]');
+  for (let i = 0, n = Math.min(await cards.count(), 8); i < n; i++) {
+    const strip = cards.nth(i).locator('[data-drag-zone]').last();
+    if (!await strip.count()) continue;
+    await strip.scrollIntoViewIfNeeded();
+    await strip.click({ button: 'right', position: { x: 30, y: 10 } });
+    await page.locator('[data-canvas-menu]').waitFor({ timeout: 5000 });
+    if (await item.count()) {
+      await item.click();
+      await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 15000 });
+      return;
+    }
+    await page.keyboard.press('Escape');
+  }
+  throw Error(`no card here offers Start Rabbit Hole${id ? ` (${id})` : ''}`);
+};
 await page.goto(`${BASE}/apps/${root.name}?board=nanogpt-deep-dive`); await settle();
 await checkShell('root'); await stillUsable('root');
 await page.screenshot({ path: `${OUT}/shell-1-root.png` });
 // The dock's hide-composer icon (owner, 2026-10-13) went with the dock: the Chat pane's composer is never hidden.
 
-await slash('/dive explain softmax'); await page.waitForFunction(() => location.search.includes('hole=')); await settle();
+await startHole(page); await settle(); // a hole from the board's first card
 await checkShell('pending child');
 await slash('/notebook'); await persisted(); await page.waitForTimeout(600); // /whiteboard left the commands (owner spec 2026-10-29)
 await checkShell('child'); await stillUsable('child');
 await page.screenshot({ path: `${OUT}/shell-2-child.png` });
 
 const child = new URL(page.url()).pathname;
-await slash('/dive numerical stability'); await page.waitForFunction(() => location.search.includes('hole=')); await settle();
+await startHole(page); await settle(); // down again, from the child's notebook card
 await slash('/notebook'); await persisted(); await page.waitForTimeout(600);
 await checkShell('grandchild'); await stillUsable('grandchild');
 assert.equal(await page.locator('[data-dive-navigator] [data-dive-level]').count(), 3, 'root, child, grandchild in the navigator');

@@ -1,4 +1,9 @@
-// /dive visual acceptance (docs/features/dive-v1.md), flows A-K, against the LOCAL stack only:
+// Rabbit Hole acceptance (docs/features/dive-v1.md), flows A-K, against the LOCAL stack only.
+// Owner spec 2026-10-29 (slash commands cleanup): /dive is no longer a command. Typed in Chat or Ctrl+K it says it is no longer
+// available and opens nothing (flow R); every hole here is opened from a card through the card menu's Start Rabbit Hole (or a
+// double-click). The old flow E (no card: /dive <topic> made a topic anchor card and dived from it, and a bare /dive asked) is
+// dropped with the command; topic-only holes have no entry point now (an owner question, not a check). Each first object is an
+// empty notebook (/notebook), since /whiteboard left the commands too.
 //   npx wrangler dev -c packages/web/wrangler.dev.jsonc -c packages/control-plane/wrangler.jsonc --local --persist-to .small/dive-local --port 8788
 // It writes to local D1 and this browser profile; never point it at a deployed worker.
 // Usage: node e2e/dive-check.mjs [outDir]
@@ -49,9 +54,29 @@ const blocks = () => page.$$eval('[data-block-id]:not([data-chat-block])', nodes
 const select = async id => { const strip = page.locator(`[data-block-id="${id}"] [data-drag-zone]`).last(); await strip.scrollIntoViewIfNeeded(); await strip.click({ position: { x: 12, y: 8 } }); await page.waitForTimeout(300); };
 const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
 const slash = async text => { await composer().click(); await composer().fill(text); await page.waitForTimeout(150); await composer().press('Enter'); await page.waitForTimeout(800); };
-// Down from the selected card by /dive with no topic (dive-v1.md: "Selected card. /dive [topic] dives from it"): the
-// picker fills "/dive ", Enter runs it. Ctrl/Cmd+K on a selected card is the inline AI editor's (owner 2026-10-13).
-const diveFromSelected = async () => { await slash('/dive'); await composer().press('Enter'); await page.waitForTimeout(800); };
+// Start Rabbit Hole from a card's right-click menu (owner spec 2026-10-29: /dive left the commands; the card menu is the way down,
+// card-context-menu-check.mjs). id: a card's block id, else the first content card whose menu offers it (a heading has none).
+const startHole = async (page, id = null) => {
+  const cards = id ? page.locator(`[data-block-id="${id}"]`) : page.locator('[data-block-id]:not([data-chat-block])');
+  const item = page.locator('[data-canvas-menu] [data-menu-start-rabbit-hole]');
+  for (let i = 0, n = Math.min(await cards.count(), 8); i < n; i++) {
+    const strip = cards.nth(i).locator('[data-drag-zone]').last();
+    if (!await strip.count()) continue;
+    await strip.scrollIntoViewIfNeeded();
+    await strip.click({ button: 'right', position: { x: 30, y: 10 } });
+    await page.locator('[data-canvas-menu]').waitFor({ timeout: 5000 });
+    if (await item.count()) {
+      await item.click();
+      await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 15000 });
+      return;
+    }
+    await page.keyboard.press('Escape');
+  }
+  throw Error(`no card here offers Start Rabbit Hole${id ? ` (${id})` : ''}`);
+};
+// Down from a card: its menu's Start Rabbit Hole (enters the card's own hole when it has one). Ctrl/Cmd+K on a selected card is
+// the inline AI editor's (owner 2026-10-13).
+const diveFrom = async id => { await startHole(page, id); await page.waitForTimeout(800); };
 const deselect = async () => { await page.evaluate(() => document.activeElement?.blur()); await page.keyboard.press('Escape'); await page.waitForTimeout(200); }; // never a click: it could land on a card
 const nav = () => page.locator('[data-dive-navigator]');
 const waitPersisted = async () => { await page.waitForFunction(() => /^\/apps\/canvas-[a-f0-9]{8}$/.test(location.pathname) && !location.search.includes('hole='), null, { timeout: 15000 }); await page.waitForTimeout(600); };
@@ -162,7 +187,8 @@ const dock = page.locator('[data-chat-pane]');
 assert.doesNotMatch(await dock.innerText(), /\b(Opus|Sonnet|Haiku)\b/, 'no model names in the Learn composer');
 await composer().fill('softmax');
 await dock.getByRole('button', { name: 'Commands' }).click();
-await dock.locator('[data-slash-command="dive"]').waitFor();
+await dock.locator('[data-slash-command="graph"]').waitFor();
+assert.equal(await dock.locator('[data-slash-command="dive"]').count(), 0, 'no /dive in the palette (owner spec 2026-10-29)');
 await shot('01b-auto-palette');
 // Auto opens the palette on its search field (owner, 2026-10-08): focused, filtering by name and description without the
 // field moving, its keys never reaching the composer; up/down move the highlight; Esc clears a typed search first.
@@ -180,27 +206,27 @@ assert.equal((await search.boundingBox()).y, fieldTop, 'the field does not move 
 await shot('01b2-auto-search-empty');
 await search.press('Escape');
 assert.equal(await search.inputValue(), '', 'Esc clears a typed search first and keeps the palette');
-await dock.locator('[data-slash-command="dive"]').click();
+await dock.locator('[data-slash-command="graph"]').click();
 await dock.locator('[data-command-pill]').waitFor();
 assert.equal(await composer().inputValue(), 'softmax', 'choosing a command keeps the typed text as its argument');
 await shot('01c-command-pill');
-await dock.getByRole('button', { name: 'Remove Open Rabbit Hole' }).click();
+await dock.getByRole('button', { name: 'Remove Graph' }).click();
 assert.equal(await dock.locator('[data-command-pill]').count(), 0);
 assert.equal(await composer().inputValue(), 'softmax', 'the pill\'s × keeps the text');
 // Enter in the search takes the highlighted match (a description match here) and hands focus back to the composer.
 await dock.getByRole('button', { name: 'Commands' }).click();
-await search.pressSequentially('rabbit');
+await search.pressSequentially('plot'); // a description match: /graph's "Plot a function or supplied data"
 await search.press('Enter');
 await dock.locator('[data-command-pill]').waitFor();
 assert.equal(await composer().inputValue(), 'softmax', 'Enter in the search chooses the command and keeps the text');
 assert.ok(await composer().evaluate(node => node === document.activeElement), 'choosing from the search focuses the composer');
-await dock.getByRole('button', { name: 'Remove Open Rabbit Hole' }).click();
+await dock.getByRole('button', { name: 'Remove Graph' }).click();
 await dock.getByRole('button', { name: 'Commands' }).click();
 await search.press('Escape');
 await search.waitFor({ state: 'detached' });
 assert.equal(await composer().inputValue(), 'softmax', 'Esc on an empty search closes the palette and gives the text back');
 await dock.getByRole('button', { name: 'Commands' }).waitFor();
-await composer().fill('/dive ');
+await composer().fill('/graph ');
 await dock.locator('[data-command-pill]').waitFor();
 assert.equal(await composer().inputValue(), '', 'a typed command becomes the pill');
 await composer().press('Backspace');
@@ -216,17 +242,16 @@ await shot('02-selected-card');
 
 // ---- A: an empty dive is a pending hole with a temporary portal; leaving the tree discards it ----
 // Ctrl/Cmd+K on a selected card opens the inline AI editor (owner 2026-10-13, docs/features/inline-ai-editor.md §2):
-// no hole, no Search. /dive and Start Rabbit Hole stay the ways down.
+// no hole, no Search. Start Rabbit Hole (and a double-click) are the ways down.
 await page.keyboard.press('Control+k');
 await page.locator('[data-inline-ai]').waitFor();
 assert.equal(url().searchParams.get('hole'), null, 'Ctrl+K on a selected card opens the inline editor, not a hole');
 assert.equal(await page.getByPlaceholder('Describe what you are looking for').count(), 0, 'Ctrl+K on a selected card is not Search');
 await page.keyboard.press('Escape');
 await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
-await diveFromSelected();
-await page.waitForFunction(() => location.search.includes('hole='));
+await diveFrom(card1);
 await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1200);
-assert.equal(await page.locator('[role="dialog"][aria-label*="earch"]').count(), 0, '/dive on a selected card dives, not Search');
+assert.equal(await page.locator('[role="dialog"][aria-label*="earch"]').count(), 0, 'Start Rabbit Hole on a card dives, not Search');
 const pendingName = url().searchParams.get('hole');
 await shot('03-pending-empty-hole');
 assert.equal((await get(`/api/canvases/dives?app=${root.name}&board=${BOARD}`)).children.length, 0, 'a pending hole is not persisted');
@@ -260,16 +285,14 @@ await shot('04b-after-leaving-tree');
 console.log('flow A ok');
 
 const tree = (app, board = 'main') => get(`/api/canvases/dives?app=${app}&board=${board}`);
-const addObject = async label => { await slash(`/whiteboard ${label}`); await waitPersisted(); };
+const addObject = async () => { await slash('/notebook'); await waitPersisted(); }; // the hole's first object
 const firstCard = async () => (await blocks())[0];
 const selectedRing = id => page.locator(`[data-block-id="${id}"]`).first().evaluate(node => node.className.includes('ring-2'));
 
-// ---- B + D: /dive <topic> from a selected card; the first object keeps it; the parent card gets the green hole outline ----
-await select(card1);
-await slash('/dive softmax');
-await page.waitForFunction(() => location.search.includes('hole='));
+// ---- B + D: Start Rabbit Hole from a card; the first object keeps it; the parent card gets the green hole outline ----
+await diveFrom(card1);
 await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1000);
-await addObject('Softmax sketch');
+await addObject();
 const softmax = url().pathname.split('/').pop();
 await shot('05-persistent-child');
 // The stored origin contract: the block, the runtime scene and the authored card stay distinct.
@@ -279,7 +302,9 @@ assert.match(softmaxOrigin.origin_scene_id, /^nanogpt-c[0-9]{2}-/);
 assert.ok(softmaxOrigin.origin_card_id && softmaxOrigin.origin_card_id !== card1 && softmaxOrigin.origin_card_id !== softmaxOrigin.origin_scene_id, JSON.stringify(softmaxOrigin));
 assert.ok(softmaxOrigin.origin_concept_ids.length > 0, 'concepts resolved, not defaulted to []');
 let rootTree = await tree(root.name, BOARD);
-assert.deepEqual(rootTree.children.map(child => [child.name, child.title, child.origin_block_id]), [[softmax, 'Softmax', card1]]);
+assert.deepEqual(rootTree.children.map(child => [child.name, child.origin_block_id]), [[softmax, card1]]);
+const softmaxTitle = rootTree.children[0].title;
+assert.ok(softmaxTitle, 'the hole is titled from its card');
 // The map dragged inside the hole: its levels still work from the new spot, and the spot is the same on every canvas.
 const holeSpot = await dragMap(420, 240); // right, over the canvas: the map's home is the tools gutter's top left (UI-17)
 await shot('holes-map-04-dragged-in-hole');
@@ -297,73 +322,58 @@ await page.locator('[data-dive-grip]').dblclick();
 near(await mapAt(), home, 'reset before the card flows');
 await shot('06-parent-hole-outline');
 
-// ---- C: the portal enters the child; /dive on a card with a child enters it, never a duplicate ----
+// ---- C: the portal enters the child; Start Rabbit Hole on a card with a child enters it, never a duplicate ----
 await page.locator(`[data-dive-portal="${softmax}"]`).click();
 await page.waitForFunction(name => location.pathname.endsWith(name), softmax); await page.waitForTimeout(1200);
 await up();
 await page.locator(`[data-block-id="${card1}"]`).first().dblclick({ position: { x: 40, y: 40 } });
 await page.waitForFunction(name => location.pathname.endsWith(name), softmax); await page.waitForTimeout(1200);
 await up();
-await select(card1);
-await diveFromSelected();
+await page.locator(`[data-block-id="${card1}"] [data-drag-zone]`).last().click({ button: 'right', position: { x: 30, y: 10 } });
+assert.equal((await page.locator('[data-canvas-menu] [data-menu-start-rabbit-hole]').innerText()).trim(), 'Enter Rabbit Hole', 'a card with a kept hole offers Enter Rabbit Hole');
+await page.locator('[data-canvas-menu] [data-menu-start-rabbit-hole]').click();
 await page.waitForFunction(name => location.pathname.endsWith(name), softmax); await page.waitForTimeout(1200);
 assert.equal((await tree(root.name, BOARD)).children.length, 1, 'no duplicate child');
 await up();
 console.log('flows B C D ok');
 
-// ---- E: no card selected - /dive <topic> makes a topic anchor card on this canvas and dives from it ----
-const anchorCard = () => page.$$eval('[data-block-id]:not([data-chat-block])', nodes => nodes.find(node => node.innerText.includes('Explain numerical stability'))?.dataset.blockId || null);
+// ---- R (owner spec 2026-10-29; replaces flow E): /dive is no longer a command. Typed in Chat or in Ctrl+K, with or without a
+// topic and a selected card, it says so and opens nothing: no hole, no anchor card, no request. ----
+const removedDive = '/dive is no longer available. Type / to see the commands, or ask in your own words.';
 await deselect();
-await slash('/dive explain numerical stability');
-await page.waitForFunction(() => location.search.includes('hole=')); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1000);
-assert.equal(await nav().locator('[aria-current="location"] [data-dive-level]').innerText(), 'Numerical stability');
-await shot('07-anchor-pending-hole');
-await up(); // still empty: the anchor card stays on the parent; its empty hole is discarded (owner, 4b764cb0)
-const anchor = await anchorCard();
-assert.ok(anchor, 'the anchor card stays on the parent');
-assert.equal(await page.locator(`[data-block-id="${anchor}"]`).first().evaluate(node => node.className.includes('outline-hole-pending')), false, 'the discarded empty hole leaves no portal on its anchor');
-await page.locator(`[data-block-id="${anchor}"]`).scrollIntoViewIfNeeded();
-await shot('07b-anchor-card-no-outline');
-await select(anchor);
-await diveFromSelected();
-await page.waitForFunction(() => location.search.includes('hole=')); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1000);
-await addObject('Stability sketch');
-await up();
-assert.equal(await page.locator(`[data-block-id="${anchor}"] [data-dive-portal]`).count(), 1, 'a persisted child outlines its anchor');
-await shot('07c-anchor-hole-outline');
-const anchorChild = (await tree(root.name, BOARD)).children.find(child => child.origin_block_id === anchor);
-const anchorOrigin = (await tree(anchorChild.name)).dive.origin;
-assert.deepEqual([anchorOrigin.origin_block_id, anchorOrigin.origin_scene_id, anchorOrigin.origin_card_id, anchorOrigin.anchor_request], [anchor, null, null, 'explain numerical stability']);
-// Bare /dive, no card, no conversation: ask, never an empty "Dive" card.
+for (const line of ['/dive explain numerical stability', '/dive']) {
+  const before = (await blocks()).length, dives = (await tree(root.name, BOARD)).children.length;
+  await slash(line);
+  await page.locator('[data-chat-pane] [data-slash-result]').getByText(removedDive, { exact: true }).waitFor({ timeout: 8000 });
+  assert.equal(url().searchParams.get('hole'), null, `${line}: no hole`);
+  assert.equal((await blocks()).length, before, `${line}: no anchor card`);
+  assert.equal((await tree(root.name, BOARD)).children.length, dives, `${line}: nothing kept`);
+}
+await shot('07-typed-dive-unavailable');
+await select(card1);
+await page.keyboard.press('Control+k');
+await page.locator('[data-inline-ai]').waitFor();
+await page.locator('[data-inline-prompt]').fill('/dive softmax');
+await page.keyboard.press('Enter');
+await page.locator('[data-inline-unsupported="dive"]').waitFor({ timeout: 5000 });
+assert.equal(await page.locator('[data-inline-unsupported="dive"]').innerText(), removedDive, 'Ctrl+K says the same');
+assert.equal(url().searchParams.get('hole'), null, 'Ctrl+K /dive opens no hole');
+await page.keyboard.press('Escape');
+await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
 await deselect();
-const before = (await blocks()).length;
-await slash('/dive');
-await composer().press('Enter'); await page.waitForTimeout(800); // the picker fills "/dive ", Enter runs it
-await page.getByText('What do you want to go deeper into?').first().waitFor();
-assert.equal((await blocks()).length, before, 'no card made without a topic');
-assert.equal(url().searchParams.get('hole'), null);
-await shot('07d-bare-dive-asks');
-await page.locator('[data-chat-pane]').getByRole('button', { name: 'Remove Open Rabbit Hole' }).click(); await composer().fill(''); await page.keyboard.press('Escape');
-// /dive <topic> with no card: the anchor shows the topic once, with no Explanation kicker; leaving
-// the empty hole takes its temporary portal with it.
-await deselect();
-await slash('/dive logits');
-await page.waitForFunction(() => location.search.includes('hole=')); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1000);
-await nav().locator('[aria-current="location"]').hover();
-await nav().getByRole('button', { name: 'Delete Logits' }).click(); // "Leave this empty hole"
-await page.waitForFunction(() => !location.search.includes('hole=')); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1200);
-const logits = await page.$$eval('[data-block-id]:not([data-chat-block])', nodes => nodes.find(node => node.innerText.replace(/(Add to chat|Quick Edit)\s*(Ctrl|Cmd)\+[KL]/g, '').replace(/^Open\s*/, '').replace(/^Focus\s*/, '').trim() === 'Logits')?.dataset.blockId || null); // the selected card's own Open pill and selection actions aside (Focus leads them: docs/features/focus-study.md section 7)
-assert.ok(logits, 'the anchor reads just "Logits": no duplicate body, no kicker');
-assert.equal(await page.locator(`[data-block-id="${logits}"] [data-dive-portal]`).count(), 0, 'an abandoned pending child leaves no portal');
-await page.locator(`[data-block-id="${logits}"]`).scrollIntoViewIfNeeded();
-await shot('07e-anchor-title-once');
-console.log('flow E ok');
+console.log('flow R ok');
 
 // ---- H: two cards, two holes: the child picker ----
+// The second hole, from the second card (flow E's anchor hole was the second one before /dive left the commands).
+await diveFrom(card2);
+await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1000);
+await addObject();
+const second = url().pathname.split('/').pop();
+await up();
 await nav().locator('[data-dive-down]').click();
 await page.locator('[data-dive-picker]').waitFor();
 await shot('08-child-picker');
-await page.locator('[data-dive-picker]').getByRole('menuitem', { name: 'Softmax' }).click();
+await page.locator('[data-dive-picker]').getByRole('menuitem', { name: softmaxTitle }).click();
 await page.waitForFunction(name => location.pathname.endsWith(name), softmax); await page.waitForTimeout(1200);
 console.log('flow H ok');
 
@@ -378,11 +388,10 @@ console.log('flow F ok');
 
 // ---- G: depth - four levels and more, no cap ----
 const levels = [softmax];
-for (const topic of ['temperature', 'exp and log', 'overflow', 'float32']) {
-  await select(await firstCard());
-  await slash(`/dive ${topic}`);
-  await page.waitForFunction(() => location.search.includes('hole=')); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(800);
-  await addObject(`${topic} sketch`);
+for (let depth = 0; depth < 4; depth++) {
+  await diveFrom(await firstCard()); // down from this level's notebook
+  await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(800);
+  await addObject();
   levels.push(url().pathname.split('/').pop());
   if (levels.length === 3) await shot('10-navigator-4-levels');
 }
@@ -397,8 +406,9 @@ console.log('flow G ok');
 
 // ---- I: delete a leaf after a confirmation; a hole with holes inside needs the subtree warning ----
 // Owner, 2026-10-27: every Rabbit Hole delete asks "Delete this Rabbit Hole?" with Yes, delete and Cancel (Dive.jsx confirmDialog).
+const leafTitle = (await tree(levels.at(-2))).children[0]?.title;
 await nav().locator('[aria-current="location"]').hover();
-await nav().getByRole('button', { name: 'Delete float32' }).click();
+await nav().getByRole('button', { name: `Delete ${leafTitle}` }).click();
 await page.getByRole('dialog', { name: 'Delete this Rabbit Hole?' }).waitFor();
 await shot('11-delete-leaf-confirm');
 await page.getByRole('dialog').getByRole('button', { name: 'Yes, delete', exact: true }).click();
@@ -415,7 +425,7 @@ assert.match(await page.getByRole('dialog').innerText(), /3 Rabbit Holes inside 
 await page.getByRole('dialog').getByRole('button', { name: 'Yes, delete', exact: true }).click();
 await page.waitForTimeout(1200);
 rootTree = await tree(root.name, BOARD);
-assert.deepEqual(rootTree.children.map(child => child.title), ['Numerical stability']);
+assert.deepEqual(rootTree.children.map(child => child.name), [second], 'only the second card\'s hole stays');
 assert.equal(await page.locator(`[data-dive-portal="${softmax}"]`).count(), 0, 'the outline goes with the hole');
 console.log('flow I ok');
 
@@ -475,11 +485,12 @@ const firstObjects = {
     await page.locator('[data-chat-block]').first().waitFor();
   },
 };
-for (const [kind, add] of Object.entries(firstObjects)) {
+const jCards = (await blocks()).filter(id => id !== card2).slice(0, 3); // a card per kind, none with a hole yet (card2 keeps one)
+for (const [index, [kind, add]] of Object.entries(firstObjects).entries()) {
   await open(ROOT_URL);
   await deselect();
-  await slash(`/dive first ${kind}`);
-  await page.waitForFunction(() => location.search.includes('hole=')); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1000);
+  await diveFrom(jCards[index]);
+  await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1000);
   assert.equal(await hint(), 1, `${kind}: a new hole shows the hint`);
   if (kind === 'shape') await shot('15-new-hole-hint');
   await add();

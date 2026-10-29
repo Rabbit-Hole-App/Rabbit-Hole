@@ -60,7 +60,7 @@ const ACTIONS = {
   'Insert → Sticky note': menu('Sticky note'),
   'Insert → Divider': menu('Divider'),
   'Insert → Notebook': menu('Notebook'),
-  '/whiteboard': type('/whiteboard Attention'),
+  '/notebook': type('/notebook'), // /whiteboard left the commands (owner spec 2026-10-29)
   '/explain (stubbed)': type('/explain softmax'),
   'paste an image': pasteImage,
   'chat answer → Add to canvas (stubbed)': async page => {
