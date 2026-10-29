@@ -133,7 +133,11 @@ const zoom = async () => Number((await camera()).match(/scale\(([\d.]+)\)/)[1]);
 // largest remaining rectangle per overlay); a card is never revealed or centred under them.
 const freeArea = () => page.evaluate(() => {
   const frame = document.querySelector('[data-canvas-surface]').getBoundingClientRect(), sheet = document.querySelector('[data-chat-sheet]')?.getBoundingClientRect();
-  const overlays = [sheet, ...[...document.querySelectorAll('[data-tool-gutter] [role="toolbar"], [data-gutter-top] > *'), ...(document.querySelector('[data-canvas-header]')?.children || [])].map(node => node.getBoundingClientRect())]
+  // Owner 2026-10-29: the header over the canvas is an opaque band, cut whole and 32 px deeper (room for a first-row card's
+  // own row of controls; AdaptiveCanvas controlRects).
+  const header = document.querySelector('[data-canvas-header]'), band = header && getComputedStyle(header).position === 'absolute' ? header.getBoundingClientRect() : null;
+  const overlays = [sheet, ...[...document.querySelectorAll('[data-tool-gutter] [role="toolbar"], [data-gutter-top] > *')].map(node => node.getBoundingClientRect()),
+    band && { left: band.left, right: band.right, top: band.top, bottom: band.bottom + 32, width: band.width, height: band.height }]
     .filter(rect => rect && rect.width && rect.height);
   let area = { left: frame.left, top: frame.top, right: frame.right, bottom: frame.bottom };
   const room = r => Math.max(0, r.right - r.left) * Math.max(0, r.bottom - r.top);

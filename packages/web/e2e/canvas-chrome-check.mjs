@@ -160,7 +160,8 @@ const layout = async (page, where, { phone = false, shared = false } = {}) => {
   if (scale > 0.2001) for (const card of cards) for (const [name, b] of chrome) assert.ok(disjoint(card, b), `${where}: after zoom to fit, card ${card.id} ${JSON.stringify(round(card))} is under the ${name} ${JSON.stringify(round(b))}`);
   else {
     // Owner decision 2026-10-22: the header floats over the canvas, so the room's top is below its controls (the fit starts 48 px under them).
-    const headerBottom = await page.evaluate(() => Math.max(0, ...[...(document.querySelector('[data-canvas-header]')?.children || [])].map(el => el.getBoundingClientRect()).filter(r => r.width && r.height).map(r => r.bottom)));
+    // Owner 2026-10-29: over the canvas it is an opaque band, kept clear whole and 32 px deeper (AdaptiveCanvas controlRects).
+    const headerBottom = await page.evaluate(() => { const h = document.querySelector('[data-canvas-header]'); return h && getComputedStyle(h).position === 'absolute' ? h.getBoundingClientRect().bottom + 32 : Math.max(0, ...[...(h?.children || [])].map(el => el.getBoundingClientRect()).filter(r => r.width && r.height).map(r => r.bottom)); });
     assert.ok(Math.min(...cards.map(card => card.y)) <= Math.max(fitted.y, headerBottom) + 49, `${where}: at the 20% floor the fit does not start at the top, below the header (${Math.round(Math.max(fitted.y, headerBottom))})`);
   }
   fits.push(`${where} ${Math.round(scale * 100)}%`);

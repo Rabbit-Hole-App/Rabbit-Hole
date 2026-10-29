@@ -87,3 +87,22 @@ except on their controls. Fit, reveal and placement avoid the controls' measured
 compensated (`homeView`, unit-tested in canvas-slots.test.mjs) so saved coordinates stay and boards do not jump.
 `e2e/canvas-clipping-check.mjs` covers the four edges at several zooms (117% included), zero, one and two right panels,
 resize and reload, and pointer use in the newly usable top and left areas.
+
+## Owner decision 2026-10-29: the header row is an opaque band
+
+"Block the upper header at an appropriate height so that the cards does not appear in between the texts/menu names." Over
+the lesson canvas the header (`OWNER_HEADER_OVER`, CanvasLoading.jsx) keeps its place and size but is an opaque band in the
+canvas's own colour (`bg-white`, the surface and page colour in both themes) that takes the pointer like any chrome: a card
+panned under it is hidden there and cannot be pressed through it. The surface still runs to the page top and the tools column
+still lets the pointer through. `e2e/canvas-clipping-check.mjs` and `e2e/canvas-toolbar-check.mjs` check the band instead
+of pointer use through it.
+
+Geometry: a selected card's own row of controls stands 8 px above the card (34 px, 38 px with the CAD tools) and the floating
+bar 20 px above a selection (34 px), so a first-row card kept only 24 px under the header's buttons had its row under the band,
+hidden and unpressable. Moving the row or the bar instead (under the band's edge, below the card, over the card's top) put them
+over neighbouring content and broke other presses (fast-e2e 40845874842, 40850976588, 40853973678). So the row and the bar keep
+their place and the camera keeps room for them: `controlRects` (AdaptiveCanvas.jsx) counts the band whole and 32 px deeper,
+which fit, reveal, search, new-card placement and the opening camera (`homeView`) all read. The opening camera therefore puts
+the world origin 36 px lower than before the band (a saved board opens slightly lower; saved coordinates do not change). A
+card the learner pans under the band still has its row hidden there, like any content panned under a control (owner
+2026-10-22). `e2e/canvas-chrome-check.mjs` and `e2e/canvas-skeleton-check.mjs` measure the band the same way.

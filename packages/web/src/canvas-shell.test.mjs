@@ -88,7 +88,11 @@ test('fit, focus and a new card stop above the floating chrome over their span (
 // Owner, 2026-10-22: fit, reveal and new-card placement avoid the floating controls' ACTUAL rectangles, measured, never a
 // constant gutter; the opening camera is compensated (canvas-slots homeView) so saved boards do not jump.
 test('fit, reveal, placement and the opening camera keep clear of the measured toolbar, navigator and header', () => {
-  assert.match(canvas, /const controlRects = \(\) => \{[\s\S]*?gutter\.current\?\.querySelectorAll\('\[role="toolbar"\], \[data-gutter-top\] > \*'\)[\s\S]*?pageHeader\(\)\?\.children[\s\S]*?getBoundingClientRect\(\)/);
+  assert.match(canvas, /const controlRects = \(\) => \{[\s\S]*?gutter\.current\?\.querySelectorAll\('\[role="toolbar"\], \[data-gutter-top\] > \*'\)[\s\S]*?getBoundingClientRect\(\)/);
+  // Owner 2026-10-29: the opaque header band counts whole and 32 px deeper, so a first-row card's own row of controls (and the
+  // floating bar) stand below it, never moved over other content (fast-e2e 40845874842, 40850976588, 40853973678).
+  assert.match(canvas, /found = pageHeader\(\);\s*const header = found && getComputedStyle\(found\)\.position === 'absolute' \? found : null;/);
+  assert.match(canvas, /bottom: rect\.bottom - frame\.top \+ \(node === header \? 32 : 0\)/);
   assert.match(canvas, /const controlArea = \(\) => freeArea\(\{ w: surface\.current\.clientWidth, h: surface\.current\.clientHeight \}, controlRects\(\), 0\);/);
   assert.match(canvas, /const visibleArea = \(\) => \{[\s\S]*?overlays\.push\(\.\.\.controlRects\(\)\);/, 'reveal, search and placement in view (visibleWorld) read visibleArea');
   assert.match(canvas, /const area = controlArea\(\), w = area\.right - area\.left;/, 'fit');
@@ -96,7 +100,8 @@ test('fit, reveal, placement and the opening camera keep clear of the measured t
   assert.doesNotMatch(canvas, /Math\.max\(24, \(surface\.current\.clientWidth - COLUMN\) \/ 2\)/, 'no camera centred on the whole surface under the tools');
   // The header's classes are CanvasLoading.jsx's, shared with the loading skeleton (owner brief 2026-10-23).
   assert.match(page, /data-canvas-header className=\{`\$\{headerOver \? OWNER_HEADER_OVER : 'relative shrink-0'\}/, 'the header floats over the canvas');
-  assert.match(read('CanvasLoading.jsx'), /export const OWNER_HEADER_OVER = 'pointer-events-none absolute inset-x-0 top-0 z-40 \[&>\*\]:pointer-events-auto';/, 'the header floats over the canvas');
+  // Owner 2026-10-29: an opaque band in the canvas colour that takes the pointer; no card shows between the title and the menus.
+  assert.match(read('CanvasLoading.jsx'), /export const OWNER_HEADER_OVER = 'absolute inset-x-0 top-0 z-40 bg-white';/, 'the header floats over the canvas as an opaque band');
   assert.match(page, /expanded-page-frame @container\/frame relative /);
 });
 
