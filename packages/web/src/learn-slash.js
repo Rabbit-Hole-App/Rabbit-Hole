@@ -50,15 +50,18 @@ export const searchSections = query => filterSections(pickerSections('/'), query
 // One example per command for View > Slash Commands (owner spec 2026-10-29 section 8): its preview shows the same subject
 // (slash-sheet.js PREVIEWS). Use example puts the line in the composer to edit; it never sends.
 export const EXAMPLES = {
-  explain: '/explain how binary search works', practice: '/practice explain it back: why the sky is blue', quiz: "/quiz Newton's second law",
+  // The window's saved /explain answer (slash-sheet.js COOLING_EXAMPLE, run sandbox-ex1-b, asked as "I put a cup of hot coffee in a
+  // cold room. Show me how it cools down over time, and let me change the temperature of the room ..."), in one line.
+  explain: '/explain how a hot coffee cools in a cold room, and let me change the room temperature', practice: '/practice explain it back: why the sky is blue', quiz: "/quiz Newton's second law",
   flashcards: '/flashcards Spanish verbs for travel', goal: '/goal read a balance sheet with confidence',
   code: '/code a function that reverses a linked list', graph: '/graph y = sin(x) and y = cos(x)', diagram: '/diagram an HTTP request from browser to server',
   notebook: '/notebook', 'generate-image': '/image a watercolor mountain landscape',
   // The exact request that made the window's real Motion clip (job 8a2015a4, slash-sheet.js MOTION_CLIP).
   motion: '/motion 15s explain me softmax func',
-  cad: '/cad an educational 40 mm by 20 mm by 5 mm rectangular plate', '3d': '/3d perspective projection: a camera frustum with a cube inside it and a ray',
-  browser: '/browser https://docs.python.org/3/tutorial/',
-  image: '/photos Mount Fuji', youtube: '/youtube binary search tutorial', arxiv: '/arxiv 1706.03762', wikipedia: '/wikipedia Photosynthesis',
+  cad: '/cad a 60 x 40 x 5 mm plate with four 4 mm through holes and a centred 20 x 10 mm pocket, 3 mm deep', '3d': '/3d perspective projection: a camera frustum with a cube inside it and a ray',
+  browser: '/browser https://jalammar.github.io/illustrated-transformer/',
+  image: '/photos cat', youtube: '/youtube attention in transformers step by step 3blue1brown', arxiv: '/arxiv 1706.03762',
+  wikipedia: '/wikipedia https://en.wikipedia.org/wiki/Transformer_(deep_learning_architecture)',
 };
 // The canvas card each primitive becomes: its + palette sample in
 // LearningBlocks' BLOCK_TYPES (the notebook is its own card).

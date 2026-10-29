@@ -9,7 +9,8 @@ import { REMOVED_COMMANDS, SLASH, descFor } from '../src/agent/slash.js';
 // View > Slash Commands (owner spec 2026-10-29 sections 7, 8 and 9; src/SlashCommandsSheet.jsx, SlashCommandPreview.jsx, slash-sheet.js):
 // opened from View with a Chat draft written, which it keeps; the search is focused and filters by name and title; every listed
 // command shows its registry title and description, its example and one preview on the example's subject, fitted to the stage (the
-// whole card inside it, no outer scroller); a generator's View brief switches the same stage to its brief; Use example closes the
+// whole card inside it, no outer scroller) just under its example; the owner's 2026-10-29 examples (C:/s/spec/slash-window/BRIEF-EXAMPLES.md)
+// show their real results in the real cards; a generator's View brief switches the same stage to its brief; Use example closes the
 // window and prepares the draft, never sending; at 1440x900, 1280x720 and 390x844, light and dark. No model call, search, capture
 // or paid request is made.
 // usage: node e2e/slash-sheet-check.mjs [screenshot dir]
@@ -93,12 +94,30 @@ for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
       const stage = node.querySelector('[data-slash-stage]'), item = stage.firstElementChild;
       const s = stage.getBoundingClientRect(), c = item.getBoundingClientRect(), d = node.closest('[role="dialog"]').getBoundingClientRect();
       const card = stage.querySelector('[data-slash-card]');
-      return { stage: `${Math.round(s.width)}x${Math.round(s.height)}`, item: `${Math.round(c.width)}x${Math.round(c.height)}`, inside: c.left >= s.left - 1 && c.right <= s.right + 1 && c.top >= s.top - 1 && c.bottom <= s.bottom + 1,
+      return { stage: `${Math.round(s.width)}x${Math.round(s.height)}`, item: `${Math.round(c.width)}x${Math.round(c.height)}`, gap: Math.round(c.top - s.top), inside: c.left >= s.left - 1 && c.right <= s.right + 1 && c.top >= s.top - 1 && c.bottom <= s.bottom + 1,
         overflow: card?.dataset.slashOverflow === 'true', page: document.scrollingElement.scrollHeight <= innerHeight + 1 && d.bottom <= innerHeight + 1 };
     });
     const result = await measure();
     fit.push(`${name} ${result.item} in ${result.stage}`);
-    ok(`${tag}: /${name} preview fits its stage (whole card, no outer scroll${name === 'notebook' ? '' : ', nothing hidden inside'})`, result.inside && result.page && (name === 'notebook' || !result.overflow), JSON.stringify(result));
+    // A notebook or an article scrolls in its own reader (owner, 2026-10-29); every other card shows all it holds.
+    const reader = name === 'notebook' || name === 'wikipedia';
+    ok(`${tag}: /${name} preview fits its stage (whole card, no outer scroll${reader ? '' : ', nothing hidden inside'})`, result.inside && result.page && (reader || !result.overflow), JSON.stringify(result));
+    // Owner, 2026-10-29: no empty gap between the example and its preview; the title, description and Use example stay visible.
+    ok(`${tag}: /${name} preview starts right under its example`, result.gap <= 2, String(result.gap));
+    if (hasComposer) ok(`${tag}: /${name} Use example is visible`, await pane.locator(`[data-slash-use-example="${name}"]`).isVisible());
+    // The owner's examples (C:/s/spec/slash-window/BRIEF-EXAMPLES.md): real results in the real cards.
+    if (name === 'explain') ok(`${tag}: /explain draws the saved cooling program whole, with Play, the scrubber and the room temperature, Notes closed`,
+      await pane.locator('[data-program-frame] svg').count() > 0 && await pane.locator('[data-animation-play]').isVisible() && await pane.locator('input[aria-label="Explanation time"]').isVisible()
+      && await pane.locator('[data-input-control="room"]').isVisible() && await pane.locator('[data-program-notes] > ul:not([hidden])').count() === 0
+      && await pane.locator('[data-program-card]').getAttribute('data-program-focus') === 'fit');
+    if (name === 'image') ok(`${tag}: /photos shows a Pexels cat photo with its photographer, and no Generate offer`,
+      await pane.locator('img[src^="https://images.pexels.com/"]').count() === 1 && await pane.getByText(/Photo by .+ on Pexels/).count() === 1
+      && !(await pane.locator('[data-image-generate]').isVisible()) && await pane.locator('[data-image-generate-unavailable]').filter({ visible: true }).count() === 0);
+    if (name === 'cad') ok(`${tag}: /cad shows the real model in the CAD viewer with its Interact tools`, await pane.locator('[data-cad-viewer]').count() === 1 && await pane.locator('[data-cad-interact]').count() === 1);
+    if (name === 'notebook') ok(`${tag}: /notebook opens the notebook card's JupyterLab frame`, await pane.locator('iframe[data-notebook-frame][data-notebook-preview]').count() === 1);
+    if (name === 'youtube') ok(`${tag}: /youtube shows the 3Blue1Brown video in YouTube's player`, await pane.locator('iframe[src^="https://www.youtube-nocookie.com/embed/eMlx5fFNoYc"]').count() === 1 && await pane.getByText('Sourced · YouTube · 3Blue1Brown').count() === 1);
+    if (name === 'wikipedia') ok(`${tag}: /wikipedia shows the Transformer article's opening and its source`, await pane.getByRole('heading', { name: 'Transformer (deep learning architecture)' }).count() === 1 && await pane.getByRole('link', { name: 'Open on Wikipedia' }).count() === 1);
+    if (name === 'arxiv') ok(`${tag}: /arxiv shows the paper with its authors and abstract opening`, await pane.getByText('Ashish Vaswani, Noam Shazeer, Niki Parmar et al. · arXiv:1706.03762v7').count() === 1 && await pane.getByText(/The dominant sequence transduction models/).count() === 1);
     await page.screenshot({ path: `${SHOTS}/${tag}-${name}.png` });
     if (BRIEF_COMMANDS.includes(name) && PREVIEWS[name].kind !== 'none') {
       await pane.locator('[data-slash-view="brief"]').click();

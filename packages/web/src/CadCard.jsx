@@ -20,6 +20,8 @@ import { useCadDraft, withDraft } from './cad-draft-store.js';
 // or workspace headers to an artifact URL outside Rabbit Hole.
 export function cadReadUrl(path, { ownerRead = false, scope = fileScope(), origin = window.location.origin } = {}) {
   const url=new URL(path,origin);
+  // A committed example model (the Slash Commands window's /cad example): a static file of this origin, read with no scope.
+  if(url.origin===origin && /^\/lesson-assets\/slash-cad-[\w.-]+\.glb$/.test(url.pathname))return url.pathname;
   if(url.origin!==origin || !/^\/api\/learn\/(files|cad\/jobs)\//.test(url.pathname))throw new Error('This CAD artifact has an invalid delivery URL.');
   // Unsaved proposed artifacts are readable by their source owner before board refs exist.
   // Shared/member pages and detached copies must retain reference-scoped authorization.

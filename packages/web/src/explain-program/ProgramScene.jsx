@@ -47,6 +47,9 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // calls the accepted card's save callbacks.
   const scope = useContext(CardSourceScope);
   const token = scope?.token || null;
+  // The Slash Commands window's /explain example (SlashCommandPreview.jsx): its saved result is read from a bundled fixture
+  // ({ client }), and the drawing is fitted whole to the window's card, as Focus fits it to the pane.
+  const example = scope?.programExample || null;
   const ephemeral = !!token || preview;
   const [local, setLocal] = useState(null);
   const block = ephemeral ? shownProgram(saved, local) : saved;
@@ -84,7 +87,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     (async () => {
       const current = latest.current;
       const boardId = current.explain?.canvas?.boardId;
-      const client = token ? sharedProgramClient(token) : boardId ? explainClient(api, boardId) : null;
+      const client = example ? example.client : token ? sharedProgramClient(token) : boardId ? explainClient(api, boardId) : null;
       const out = await resolveProgram(current, { client, fixtures: fixturesAdmitted(import.meta.env), stamps: await programStamps() });
       if (!live) return;
       // A Proposed preview never feeds the accepted card's description (program-card.js loaded): the Tutor describes the saved card.
@@ -193,16 +196,17 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // the viewport still fills the leftover, so setting the box never feeds back into the room. Open Notes are not counted:
   // opening them grows the content, it never shrinks the drawing.
   useLayoutEffect(() => {
-    const card = root.current?.closest('[data-block]');
+    // The window's example card is fitted the same way, whole (no readable-scale floor: its card is sized for its window).
+    const card = root.current?.closest(example ? '[data-slash-card]' : '[data-block]');
     if (!card || !box) return undefined;
     let fixed = null;
     const measure = () => {
       const viewport = root.current?.querySelector('[data-program-viewport]'), rowsEl = controls.current;
-      if (!card.hasAttribute('data-focus-host') || !viewport || !rowsEl) { fixed = null; setFocusBox(null); return; }
+      if ((!example && !card.hasAttribute('data-focus-host')) || !viewport || !rowsEl) { fixed = null; setFocusBox(null); return; }
       const notes = rowsEl.querySelector('[data-program-notes] > ul:not([hidden])');
       const rowsHeight = rowsEl.offsetHeight - (notes?.offsetHeight ?? 0);
       if (fixed === null) fixed = { w: card.clientWidth - viewport.clientWidth, h: card.clientHeight - viewport.clientHeight - rowsHeight };
-      const next = focusFrameBox(box, { w: card.clientWidth - fixed.w, h: card.clientHeight - fixed.h - rowsHeight }, box.minScale);
+      const next = focusFrameBox(box, { w: card.clientWidth - fixed.w, h: card.clientHeight - fixed.h - rowsHeight }, example ? 0 : box.minScale);
       setFocusBox(prev => (prev && prev.w === next.w && prev.h === next.h && prev.scroll === next.scroll ? prev : next));
     };
     const observer = new ResizeObserver(measure);

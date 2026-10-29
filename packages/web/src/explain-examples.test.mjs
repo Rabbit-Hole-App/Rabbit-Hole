@@ -1,9 +1,9 @@
 // /explain's stored interactive examples in View > Slash commands (L10): each is a checked block the server returned, still
-// passing every scene gate at every control setting, labelled by origin; the window opens /explain on them.
+// passing every scene gate at every control setting, labelled by origin. (The Slash Commands window's /explain example is the
+// saved cooling program since the owner's 2026-10-29 examples brief: slash-sheet.test.mjs.)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EXPLAIN_EXAMPLES, ORIGIN_NOTES } from './explain-examples.js';
-import { PREVIEWS } from './slash-sheet.js';
 import { SAMPLES_NOTE, sceneProblem } from '../../control-plane/src/learn-scene-gates.js';
 
 test('every stored interactive example is a labelled animation card that passes the scene gates at every setting', () => {
@@ -18,14 +18,6 @@ test('every stored interactive example is a labelled animation card that passes 
     const noted = entry.block.scene.objects.some(object => object.id === 'samples-note' && object.initialState.text === SAMPLES_NOTE);
     assert.equal(noted, entry.block.calculation === 'precomputed', `${entry.id}: the samples note exactly when precomputed`);
   }
-});
-
-// Owner spec 2026-10-29 section 8.1: the window shows /explain's example on the stored binary-search answer only (no card tabs).
-test('the window shows /explain how binary search works on the stored binary-search answer', () => {
-  const binary = EXPLAIN_EXAMPLES.find(entry => entry.id === 'binary-search');
-  assert.equal(binary.origin, 'generated');
-  assert.equal(PREVIEWS.explain.card, 'animation');
-  assert.deepEqual(PREVIEWS.explain.block.scene, binary.block.scene);
 });
 
 test('the pendulum example states its period to two decimals at every length (owner follow-up: "Period T = 1 s")', async () => {

@@ -705,6 +705,17 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
 // own scrubber is cross-origin and cannot be drawn on, so the moment is shown
 // on our bar underneath - and clicking that bar reloads the embed there.
 function VideoCard({ block, zoom, selected, connected, appName, onSelect, onMove, onChange, onLayout, onConnect, onSnap, onWatch }) {
+  return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
+      connected={connected} width={COLUMN} height={block.h || 420} autoMax={undefined} saved={{ w: block.w, h: block.h }}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+      <YouTubeMoment block={block} selected={selected} appName={appName} onChange={onChange} onWatch={onWatch} />
+    </CanvasNode>
+  );
+}
+
+// The YouTube card's body, also drawn by the Slash Commands window's /youtube example (SlashCommandPreview.jsx).
+export function YouTubeMoment({ block, selected, appName, onChange, onWatch }) {
   // The embed is a cross-origin iframe, so a deleted video is invisible to us.
   // The observable is this thumbnail: deleted videos 404 it, and one report
   // lets the worker prune the video's derived data. Once per card, ever.
@@ -732,9 +743,7 @@ function VideoCard({ block, zoom, selected, connected, appName, onSelect, onMove
     onWatch?.({ id: block.id, videoId: block.videoId, title: block.title, start: at, end: stillIn ? block.end ?? null : null });
   };
   return (
-    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
-      connected={connected} width={COLUMN} height={block.h || 420} autoMax={undefined} saved={{ w: block.w, h: block.h }}
-      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+    <>
       <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
         <span className="h-1.5 w-1.5 rounded-full bg-ink" />Video<span className="truncate normal-case tracking-normal text-ink-3">{block.title}</span>
         {/* The tutor could not read this video's captions, so the moment is a
@@ -803,7 +812,7 @@ function VideoCard({ block, zoom, selected, connected, appName, onSelect, onMove
           )}
         </div>
       </div>
-    </CanvasNode>
+    </>
   );
 }
 

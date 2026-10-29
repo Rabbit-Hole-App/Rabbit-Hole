@@ -32,3 +32,10 @@ test('jobs retain board scope and unrelated URLs remain rejected',()=>{
  assert.equal(url('/api/learn/cad/jobs/job',{ownerRead:true,scope:{app:'app',board:'board'}}).searchParams.get('board'),'board');
  for(const path of ['https://evil.example/api/learn/files/source','/api/private'])assert.throws(()=>url(path,{ownerRead:true}),/invalid delivery URL/);
 });
+// The Slash Commands window's /cad example (owner, 2026-10-29): a committed model of this origin is read as a plain static path,
+// with no scope; anything else under /lesson-assets, another origin, or another kind of file is still refused.
+test('committed example models are read from this origin only',()=>{
+ const shared={share:'token',app:'app',board:'board'};
+ assert.equal(read('/lesson-assets/slash-cad-plate-9a3fa75c.glb',{scope:shared},scopeQuery),'/lesson-assets/slash-cad-plate-9a3fa75c.glb');
+ for(const path of ['https://evil.example/lesson-assets/slash-cad-plate-9a3fa75c.glb','/lesson-assets/other.glb','/lesson-assets/slash-cad-x.png'])assert.throws(()=>url(path,{ownerRead:true}),/invalid delivery URL/);
+});

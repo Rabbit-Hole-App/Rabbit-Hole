@@ -16,7 +16,7 @@ import { quoteFromRange, locateQuote, rangeFromOffsets, containsOffset, paintHig
 // wheel pans the canvas instead); `highlights` + `onHighlights` are the
 // learner's yellow marks, and `highlighting` is highlighter mode.
 export default function LearnWiki({ app, article, openAt = 0, onNavigate, onSection, onSelect, onClose = null, compact = false,
-  locked = null, onLock = null, highlights = null, onHighlights = null, highlighting = false, onHighlighting = null, paintKey = null }) {
+  locked = null, onLock = null, highlights = null, onHighlights = null, highlighting = false, onHighlighting = null, paintKey = null, saved = null }) {
   const [page, setPage] = useState(null);
   const [error, setError] = useState('');
   const [current, setCurrent] = useState(article);
@@ -40,6 +40,9 @@ export default function LearnWiki({ app, article, openAt = 0, onNavigate, onSect
     const controller = new AbortController();
     setPage(null); setError(''); setMark(null);
     (async () => {
+      // saved: a stored /api/learn/wiki answer for the opening article (the Slash Commands window's /wikipedia example); a link
+      // followed from it reads the route as usual.
+      if (saved && current.title === saved.title) { setPage({ ...saved, html: sanitizeArticle(saved.html, saved.title) }); return; }
       const response = await fetch(`/api/learn/wiki?app=${encodeURIComponent(app)}&title=${encodeURIComponent(current.title)}`, { headers: wsHeaders(), signal: controller.signal });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'Could not open that article.');

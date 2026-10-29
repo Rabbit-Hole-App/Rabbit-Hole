@@ -231,7 +231,7 @@ async function pass(theme) {
   await sheet.locator('[data-slash-use-example="explain"]').click();
   await sheet.waitFor({ state: 'detached', timeout: 5000 });
   await pill.waitFor({ timeout: 5000 });
-  ok(`${theme}: Use example prepares an editable draft (pill and words) and sends nothing`, (await pill.innerText()).trim() === 'explain' && await composer().inputValue() === 'how binary search works' && model.length + artifacts.length === posts);
+  ok(`${theme}: Use example prepares an editable draft (pill and words) and sends nothing`, (await pill.innerText()).trim() === 'explain' && await composer().inputValue() === 'how a hot coffee cools in a cold room, and let me change the room temperature' && model.length + artifacts.length === posts);
   await shot('14-use-example-draft');
   await composer().fill('how merge sort works');
   ok(`${theme}: the draft is editable before sending`, await composer().inputValue() === 'how merge sort works' && model.length + artifacts.length === posts);
