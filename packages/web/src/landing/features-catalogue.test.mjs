@@ -28,7 +28,8 @@ test('first picture eager, the rest lazy; phone source only where a phone crop e
   assert.equal((html.match(/loading="lazy"/g) || []).length, 2);
   assert.equal((html.match(/<source /g) || []).length, 2);
   assert.match(html, /GitHub import &amp; code graph/);
-  assert.match(html, /alt="Tutor discussing a learner's pendulum/);
+  const tutor = FEATURES.find(f => f.id === '01-ai-tutor');
+  assert.ok(html.includes(`alt="${tutor.alt.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`)); // the entry's own alt, escaped
 });
 
 test('every entry is framed: Rabbit Hole header, copy before the picture, composite parts captioned in one frame', () => {
@@ -46,9 +47,9 @@ const PAGE_IDS = PAGE_GROUPS.flatMap(g => g.ids);
 test('the page definition: four sections in order, their layouts and entries (owner brief 4-4-1-3)', () => {
   assert.deepEqual(PAGE_GROUPS.map(g => [g.title, g.layout, g.ids.length]), [
     ['Learn from your material.', 'stack', 4], ['Explore ideas in action.', 'stack-mirrored', 4],
-    ['Follow the next question.', 'wide', 1], ['Build on what you learn.', 'tiles', 3]]);
+    ['Follow the next question.', 'wide', 1], ['Build on what you learn.', 'tiles', 4]]);
   assert.deepEqual(PAGE_IDS, ['01-ai-tutor', '05-pdf-reader', '04-github-code-graph', '07-pin-study', '06-notebooks', '09-interactive-graphs',
-    '03-animated-explainer-videos', '10-cad-generation', '11-rabbit-holes', '08-practice', '14-edit-with-ai', '16-sharing-forking']);
+    '03-animated-explainer-videos', '10-cad-generation', '11-rabbit-holes', '08-practice', '14-edit-with-ai', '24-comments', '16-sharing-forking']);
   for (const id of PAGE_IDS) assert.ok(FEATURES.some(f => f.id === id), id);
   assert.equal(new Set(PAGE_IDS).size, PAGE_IDS.length);
 });
@@ -72,18 +73,18 @@ test('each stack section is its own walkthrough: its own steps, --features count
   const rest = html.slice(html.indexOf('data-layout="wide"'));
   assert.doesNotMatch(rest, /data-feature-step|data-feature-walkthrough|is-active/);
   assert.match(rest, /<div class="feature-wide">\n<article class="feature" id="rabbit-holes">/);
-  assert.deepEqual([...rest.slice(rest.indexOf('feature-tiles')).matchAll(/<article class="feature" id="([a-z-]+)"/g)].map(m => m[1]), ['practice', 'edit-with-ai', 'sharing-forking']);
+  assert.deepEqual([...rest.slice(rest.indexOf('feature-tiles')).matchAll(/<article class="feature" id="([a-z-]+)"/g)].map(m => m[1]), ['practice', 'edit-with-ai', 'comments', 'sharing-forking']);
   assert.equal((html.match(/loading="eager"/g) || []).length, 1);
 });
 
-test('the page shows its 12 entries in section order; production drops staged entries and empty sections', () => {
+test('the page shows its 13 entries in section order; production drops staged entries and empty sections', () => {
   const all = Object.fromEntries(FEATURES.map(f => [f.id, pic(f.id)]));
   assert.deepEqual(visibleFeatures(FEATURES, all, true).map(f => f.id), PAGE_IDS);
   const prod = visibleFeatures(FEATURES, all, false).map(f => f.id);
   assert.deepEqual(prod, PAGE_IDS.filter(id => FEATURES.find(f => f.id === id).published));
   const preview = renderCatalogue(FEATURES, all, { preview: true });
   assert.deepEqual([...preview.matchAll(/<h2 class="feature-group-title">([^<]+)</g)].map(m => m[1]), PAGE_GROUPS.map(g => g.title));
-  assert.doesNotMatch(preview, /id="(bidirectional-links|ask-about-selection|comments)"/);
+  assert.doesNotMatch(preview, /id="(bidirectional-links|ask-about-selection|canvas-search)"/);
   // A section whose entries are all staged renders nothing in production, not an empty heading.
   const staged = { '09-interactive-graphs': pic('09'), '03-animated-explainer-videos': pic('03'), '01-ai-tutor': pic('01') };
   const html = renderCatalogue(FEATURES, staged);

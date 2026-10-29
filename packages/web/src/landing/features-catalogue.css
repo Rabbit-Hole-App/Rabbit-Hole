@@ -7,10 +7,11 @@
 .features-page #below .feature-group{max-width:1180px;margin:0 auto 120px}
 .features-page #below .feature-group:first-of-type{margin-top:72px}
 .features-page #below .feature-group:last-child{margin-bottom:0}
-.features-page #below .feature-group-title{font:500 46px/1.1 var(--display);letter-spacing:-.05em;margin:0 0 44px}
-.features-page #below .feature h3{font:500 clamp(34px,3vw,42px)/1.06 var(--display);letter-spacing:-.05em;margin:0 0 22px}
-.feature-copy p{font:400 17px/1.6 var(--ui);color:#4a5847;margin:0;max-width:360px}
-.feature-copy .feature-subtitle{font-weight:500;color:#173d2a;margin-bottom:8px}
+.features-page #below .feature-group-title{font:500 52px/1.1 var(--display);letter-spacing:-.05em;margin:0 0 44px}
+/* Type (owner brief B): section title 52, feature name 32 (28 in the collection), subtitle 18, description 16; phone below. */
+.features-page #below .feature h3{font:500 32px/1.1 var(--display);letter-spacing:-.04em;margin:0 0 16px}
+.feature-copy p{font:400 16px/1.6 var(--ui);color:#4a5847;margin:0;max-width:360px}
+.feature-copy .feature-subtitle{font-size:18px;font-weight:500;color:#173d2a;margin-bottom:8px}
 
 /* Frame: the Rabbit Hole window, shared by every layout. */
 .feature-demo{position:relative;margin:0;min-width:0}
@@ -52,30 +53,34 @@
 .feature-stack .feature-parts img{max-height:calc(var(--frame) - 48px)}
 
 /* Rabbit Holes: one full-width 16:9 picture (or two captioned parts side by side), copy above. */
-.feature-wide .feature-copy{margin-bottom:36px}
+.feature-wide .feature-copy{margin-bottom:24px}
 .feature-wide .demo-content{aspect-ratio:16 / 9}
-/* The collection: two equal tiles above one full-width tile; heading and copy above the picture, inside the tile. */
-.feature-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
-.feature-tiles .feature{display:flex;flex-direction:column;gap:22px;padding:24px;border:1px solid #d9e0d2;border-radius:12px;background:#fff;min-width:0}
-.feature-tiles .feature:last-child:nth-child(odd){grid-column:1 / -1;--pic:400px}
-.feature-tiles .feature-demo{margin-top:auto}
-.features-page #below .feature-tiles h3{font-size:28px;line-height:1.1;letter-spacing:-.045em;margin-bottom:14px}
-.feature-tiles .feature-copy p{font-size:16px;max-width:420px}
-.feature-tiles .demo-content{height:var(--pic,360px)}
-/* Wide and tile pictures fill their area whole: one picture, or captioned parts sharing it. */
-.feature-wide .demo-content,.feature-tiles .demo-content{display:flex}
-.feature-wide picture,.feature-tiles picture{display:contents}
-.feature-wide img,.feature-tiles img{display:block;width:100%;height:100%;min-height:0;object-fit:contain}
-.feature-wide .feature-parts,.feature-tiles .feature-parts{width:100%;height:100%;grid-template-rows:minmax(0,1fr);align-items:stretch}
-.feature-wide .feature-parts figure,.feature-tiles .feature-parts figure{display:flex;flex-direction:column;min-height:0}
-.feature-wide .feature-parts img,.feature-tiles .feature-parts img{flex:1 1 0;height:auto}
+/* The collection (owner brief A): 12 columns, Practice 7 | Edit with AI 5, then Comments 5 | Sharing & forking 7. Tiles in a
+   row share its height; heading and copy above the picture, inside the tile. Pictures keep their natural height (capped,
+   contain), so content sets the row height and nothing is cropped to match. */
+.feature-tiles{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:24px}
+.feature-tiles .feature{display:flex;flex-direction:column;gap:24px;padding:24px;border:1px solid #d9e0d2;border-radius:12px;background:#fff;min-width:0}
+.feature-tiles #practice,.feature-tiles #sharing-forking{grid-column:span 7}
+.feature-tiles #edit-with-ai,.feature-tiles #comments{grid-column:span 5}
+/* The frame fills the rest of the tile, so frames in a row end together; the picture sits centred in it, whole. */
+.feature-tiles .feature-demo,.feature-tiles .demo-window{flex:1;display:flex;flex-direction:column}
+.feature-tiles .demo-content{flex:1;display:flex;align-items:center;justify-content:center}
+.feature-tiles .demo-content>picture{display:contents}
+.feature-tiles .demo-content>.feature-parts{width:100%}
+.features-page #below .feature-tiles h3{font-size:28px;margin-bottom:16px}
+.feature-tiles .feature-copy p{max-width:420px}
+.feature-tiles img{display:block;width:100%;height:auto;max-height:480px;object-fit:contain}
+/* The wide picture fills its 16:9 area whole: one picture, or captioned parts sharing it. */
+.feature-wide .demo-content{display:flex}
+.feature-wide picture{display:contents}
+.feature-wide img{display:block;width:100%;height:100%;min-height:0;object-fit:contain}
+.feature-wide .feature-parts{width:100%;height:100%;grid-template-rows:minmax(0,1fr);align-items:stretch}
+.feature-wide .feature-parts figure{display:flex;flex-direction:column;min-height:0}
+.feature-wide .feature-parts img{flex:1 1 0;height:auto}
 
 @media(max-width:1100px) and (min-width:801px){
   .feature-stack{column-gap:58px;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
   .feature-stack.is-mirrored{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr)}
-  .features-page #below .feature-stack h3{font-size:37px}
-  .feature-stack .feature-copy p{font-size:16px}
-  .feature-tiles .feature{--pic:300px}
   .demo-toolbar{padding:0 16px}
   .demo-toolbar>span:last-child{font-size:10px;gap:7px}
 }
@@ -84,26 +89,27 @@
   .features-page #below .feature-group{max-width:620px;margin-bottom:72px}
   .features-page #below .feature-group:first-of-type{margin-top:40px}
   .features-page #below .feature-group:last-child{margin-bottom:0}
-  .features-page #below .feature-group-title{font-size:34px;margin-bottom:32px}
-  .features-page #below .feature h3{font-size:30px;margin-bottom:14px}
-  .feature-copy p{font-size:16px;max-width:460px}
+  .features-page #below .feature-group-title{font-size:36px}
+  .features-page #below .feature h3{font-size:28px;margin-bottom:14px}
+  .features-page #below .feature-tiles h3{font-size:26px}
+  .feature-copy p,.feature-copy .feature-subtitle{font-size:16px}
+  .feature-copy p{max-width:460px}
   .feature-stack{display:block}
   .feature-stack .feature{display:block;margin:0 0 60px}
   .feature-stack .feature:last-child{margin-bottom:0}
-  .feature-stack .feature-copy{min-height:0;padding:0 0 22px}
+  .feature-stack .feature-copy{min-height:0;padding:0 0 24px}
+  /* no overlapping back frames on phone (brief section 7) */
   .feature-stack .feature-copy::before{display:none}
-  .feature-stack .feature-demo{position:relative;top:auto;padding:20px 17px 0 0;opacity:1;visibility:visible;transition:none}
-  .feature-stack .feature-demo::before{inset:10px 8px 14px 9px}
-  .feature-stack .feature-demo::after{inset:0 0 24px 17px}
+  .feature-stack .feature-demo{position:relative;top:auto;padding:0;opacity:1;visibility:visible;transition:none}
+  .feature-stack .feature-demo::before,.feature-stack .feature-demo::after{display:none}
   .feature-stack .demo-content,.feature-wide .demo-content,.feature-tiles .demo-content{height:auto;aspect-ratio:auto;display:block}
   .feature-stack .demo-window img,.feature-wide img,.feature-tiles img{height:auto;max-height:640px}
   .feature-parts{grid-auto-flow:row}
   .feature-wide .feature-parts,.feature-tiles .feature-parts{height:auto}
   .feature-wide .feature-parts figure,.feature-tiles .feature-parts figure{display:block}
-  .feature-wide .feature-copy{margin-bottom:22px}
   .feature-tiles{grid-template-columns:minmax(0,1fr)}
   .feature-tiles .feature{padding:20px}
-  .feature-tiles .feature:last-child:nth-child(odd){grid-column:auto}
+  .feature-tiles #practice,.feature-tiles #edit-with-ai,.feature-tiles #comments,.feature-tiles #sharing-forking{grid-column:auto}
 }
 @media(max-width:430px){
   .demo-toolbar{padding:0 14px;height:47px}

@@ -35,11 +35,11 @@ export const FEATURES = [
 // The page (owner brief 2026-10-28, 4-4-1-3; C:/s/spec/landing-features/OWNER-BRIEF-4-4-1-3.md): its sections in order,
 // each with a title, a layout and its catalogue entries in order. The only source for which entries get a place on
 // /features and where. Layouts: 'stack' (sticky pictures left, copy right), 'stack-mirrored' (copy left, pictures right),
-// 'wide' (one full-width picture), 'tiles' (two equal tiles above one full-width tile). The full catalogue above stays;
+// 'wide' (one full-width picture), 'tiles' (a 12-column collection: 7/5 then 5/7). The full catalogue above stays;
 // entries left out here lose only their place on the page. Production availability (published) is a separate filter.
 export const PAGE_GROUPS = [
   { title: 'Learn from your material.', layout: 'stack', ids: ['01-ai-tutor', '05-pdf-reader', '04-github-code-graph', '07-pin-study'] },
   { title: 'Explore ideas in action.', layout: 'stack-mirrored', ids: ['06-notebooks', '09-interactive-graphs', '03-animated-explainer-videos', '10-cad-generation'] },
   { title: 'Follow the next question.', layout: 'wide', ids: ['11-rabbit-holes'] },
-  { title: 'Build on what you learn.', layout: 'tiles', ids: ['08-practice', '14-edit-with-ai', '16-sharing-forking'] },
+  { title: 'Build on what you learn.', layout: 'tiles', ids: ['08-practice', '14-edit-with-ai', '24-comments', '16-sharing-forking'] },
 ];
