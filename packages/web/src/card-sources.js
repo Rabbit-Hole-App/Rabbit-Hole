@@ -3,6 +3,7 @@
 // The card itself keeps only a short status label ("Calculated toy example");
 // citations, line references and generation notes live here. Nothing in this
 // module knows which card, repository or lesson it describes.
+import { FILE_SOURCE } from './file-chat-ref.js';
 
 export const SOURCE_GROUPS = [
   { id: 'code', label: 'Code', kinds: ['code'] },
@@ -48,6 +49,7 @@ export function sourceProblems(source) {
     // the file stays where the learner keeps it.
     case 'file': {
       need(text(source.title), 'file needs a title');
+      need(source.sourceId === undefined || FILE_SOURCE.test(source.sourceId), 'file sourceId must be file:<source id>@<sha256>');
       need(source.page === undefined || (Number.isInteger(source.page) && source.page >= 1), 'file page must be a positive integer');
       const [start, end] = Array.isArray(source.lines) ? source.lines : [1, 1];
       need(source.lines === undefined || (Number.isInteger(start) && Number.isInteger(end) && start >= 1 && end >= start), 'file lines must be [start, end]');
@@ -98,6 +100,9 @@ export function sourceTarget(source) {
     const href = source.arxiv ? `https://arxiv.org/abs/${source.arxiv}${source.page ? `#page=${source.page}` : ''}` : source.url;
     return { open: 'link', href };
   }
+  // A file with its stable reference opens through the existing file opener (file-to-canvas.js addFileToCanvas), which reads it
+  // under the page's access at that exact revision; without one it is an entry, not a link.
+  if (source.kind === 'file' && source.sourceId) return { open: 'source', ref: { sourceId: source.sourceId, kind: 'file', name: source.title, version: '', range: source.range ?? null } };
   if (source.kind === 'calculation' || source.kind === 'file') return { open: 'detail' };
   const wiki = source.url.match(WIKIPEDIA);
   if (wiki) return { open: 'wiki', title: decodeURIComponent(wiki[1]), href: source.url };

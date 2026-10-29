@@ -122,10 +122,13 @@ const SOURCE_NOTES = { unavailable: 'Not available to you when this explanation 
 export function learnerSources(provenance) {
   const records = new Map((provenance?.records || []).map(record => [record.id, record]));
   return (provenance?.sources || []).filter(source => source.kind === 'code' || source.kind === 'file').map(source => {
-    const record = source.evidence ? records.get(source.evidence) : null;
+    // A source saved before it kept its evidence id (results accepted before Task 9.4): its record is the one read at its location.
+    const record = source.evidence ? records.get(source.evidence) : [...records.values()].find(r => r.location === source.sourceId) ?? null;
     const note = (record ? `Read for this explanation${record.limitations?.length ? `: ${record.limitations.join('; ')}` : ''}.` : SOURCE_NOTES[source.status] || SOURCE_NOTES.other).slice(0, 300);
     const at = source.kind === 'code' ? parseCodeRef(source) : null, lines = record?.lines ?? (source.range?.start != null ? { start: source.range.start, end: source.range.end } : null);
     if (at?.path && /^[0-9a-f]{40}$/.test(at.commit) && lines) return { kind: 'code', repo: at.repo, revision: at.commit, path: at.path, lines: [lines.start, lines.end], note };
-    return { kind: 'file', title: source.name, ...(record?.page ? { page: record.page } : {}), ...(record?.lines && !at ? { lines: [record.lines.start, record.lines.end] } : {}), note };
+    // A file keeps its stable reference and the range read, so the card's opener (file-to-canvas.js) reads it under access again.
+    const file = !at && /^file:fs_[0-9a-f]{24}@[0-9a-f]{64}$/.test(source.sourceId) ? { sourceId: source.sourceId, range: record?.page ? { page: record.page } : source.range ?? null } : {};
+    return { kind: 'file', title: source.name, ...file, ...(record?.page ? { page: record.page } : {}), ...(record?.lines && !at ? { lines: [record.lines.start, record.lines.end] } : {}), note };
   });
 }
