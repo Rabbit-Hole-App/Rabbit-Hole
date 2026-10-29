@@ -4,7 +4,8 @@
    the picture column across all rows and stays sticky, the copy scrolls beside the dashed divider, and features-demos.js
    shuffles the front frame as each copy arrives. .is-mirrored swaps the columns, the divider and the back frames' side.
    Rabbit Holes (.feature-wide) and the collection (.feature-tiles) scroll normally. Slot sizes: C:/s/spec/landing-features/LAYOUT-SLOTS.md. */
-.features-page #below .feature-group{max-width:1180px;margin:0 auto 120px}
+/* scroll-margin: an anchor jump puts the section title below the floating navigation (its bottom is at 66.5 px). */
+.features-page #below .feature-group{max-width:1180px;margin:0 auto 120px;scroll-margin-top:82px}
 .features-page #below .feature-group:first-of-type{margin-top:72px}
 .features-page #below .feature-group:last-child{margin-bottom:0}
 .features-page #below .feature-group-title{font:500 52px/1.1 var(--display);letter-spacing:-.05em;margin:0 0 44px}
@@ -53,7 +54,15 @@
 .feature-stack .feature-parts img{max-height:calc(var(--frame) - 48px)}
 
 /* Rabbit Holes: one full-width 16:9 picture (or two captioned parts side by side), copy above. */
-.feature-wide .feature-copy{margin-bottom:24px}
+/* Desktop (owner, Rabbit Holes fit): title, copy and the whole framed picture fit one viewport once the title sits below
+   the navigation. The copy takes one row (name and subtitle | description), and the frame's width follows the height left
+   over: 100svh minus 358 px (82 nav clearance + 57 title + 44 gap + 80 copy + 24 gap + 54 header and borders + 16 below),
+   times 16/9. The frame stays left-aligned with the title; the picture is whole (contain). */
+.feature-wide .feature-copy{display:grid;grid-template-columns:auto minmax(0,360px);column-gap:56px;justify-content:start;align-items:end;margin-bottom:24px}
+.feature-wide .feature-copy h3,.feature-wide .feature-subtitle{grid-column:1}
+.feature-wide .feature-copy .feature-subtitle{margin-bottom:0}
+.feature-wide .feature-copy p:not(.feature-subtitle){grid-column:2;grid-row:1 / span 2}
+.feature-wide .feature-demo{max-width:max(560px,calc((100svh - 358px) * 16 / 9 + 2px))}
 .feature-wide .demo-content{aspect-ratio:16 / 9}
 /* The collection (owner brief A): 12 columns, Practice 7 | Edit with AI 5, then Comments 5 | Sharing & forking 7. Tiles in a
    row share its height; heading and copy above the picture, inside the tile. Pictures keep their natural height (capped,
@@ -107,6 +116,9 @@
   .feature-parts{grid-auto-flow:row}
   .feature-wide .feature-parts,.feature-tiles .feature-parts{height:auto}
   .feature-wide .feature-parts figure,.feature-tiles .feature-parts figure{display:block}
+  .feature-wide .feature-copy{display:block}
+  .feature-wide .feature-copy .feature-subtitle{margin-bottom:8px}
+  .feature-wide .feature-demo{max-width:none}
   .feature-tiles{grid-template-columns:minmax(0,1fr)}
   .feature-tiles .feature{padding:20px}
   .feature-tiles #practice,.feature-tiles #edit-with-ai,.feature-tiles #comments,.feature-tiles #sharing-forking{grid-column:auto}
