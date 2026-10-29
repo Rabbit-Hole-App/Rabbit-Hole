@@ -26,13 +26,13 @@ async function imageProbes(env, references, ctx, authorize) {
 const contextRef = r => ({ sourceId: r.sourceId, kind: r.kind, name: r.label.slice(0, 120), version: r.revision, range: r.range });
 
 // ctx: { req, user: { org, email }, app }. deps.read: the reader (tests inject), default resolveExplainRefs.
-// -> { states, blocked, text, refs }: text is the resolved content for the executor, refs the reader's per-reference status.
+// -> { states, blocked, text, refs, evidence }: text and evidence are what the reader read for the executor, refs its per-reference status.
 export async function resolveReferences(env, p, ctx, deps = {}) {
   const references = p.references || [];
-  if (!references.length) return { states: [], blocked: [], text: '', refs: [] };
+  if (!references.length) return { states: [], blocked: [], text: '', refs: [], evidence: [] };
   if (p.command === 'generate-image') {
     const states = referenceStates(references, await imageProbes(env, references, ctx, deps.authorize));
-    return { states, blocked: blockedReferences(states), text: '', refs: [] };
+    return { states, blocked: blockedReferences(states), text: '', refs: [], evidence: [] };
   }
   const consumes = CONSUMES[p.command] || [];
   const probes = {}, readable = references.filter(r => consumes.includes(r.kind));
@@ -49,7 +49,7 @@ export async function resolveReferences(env, p, ctx, deps = {}) {
     });
   }
   const states = referenceStates(references, probes);
-  return { states, blocked: blockedReferences(states), text: got?.text ?? '', refs: got?.refs ?? [] };
+  return { states, blocked: blockedReferences(states), text: got?.text ?? '', refs: got?.refs ?? [], evidence: got?.evidence ?? [] };
 }
 
 // The 409 body for a blocked review: every blocked reference with its words, so nothing is dropped or truncated.

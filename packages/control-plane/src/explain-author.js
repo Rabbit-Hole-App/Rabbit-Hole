@@ -13,6 +13,7 @@ import { PROGRAM_CAPABILITIES, PROGRAM_LIMITS, buildProgramArtifact, checkProgra
 import { programFitProblems } from './explain-program-stage.js';
 import { ExplainPolicyError, callExplainRole } from './explain-policy.js';
 import { learnMedia } from './learn-storage.js';
+import { modelEvidence } from './explain-evidence.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 // The spec and scene limits the author is told and the compiler enforces (explain-contract.js visualSpecSchema;
@@ -113,7 +114,7 @@ async function authorCall(input, ctx, { cat = catalogue(), limits = SPEC_LIMITS 
   if (program) cat = cat.filter(entry => !Object.keys(entry.controls || {}).length);
   const content = JSON.stringify({
     request: input.prompt, brief: input.brief ?? null, context: input.context ?? null, ...(input.edit ? { edit: input.edit } : {}),
-    evidence: (input.evidence || []).map(({ id, kind, location, excerpt, page, lines, limitations }) => ({ id, kind, location, excerpt, page, lines, limitations })),
+    evidence: modelEvidence(input.evidence),
     catalogue: cat, composition: authorComposition(), supported: compilerSupport(), limits,
     ...(program ? { program: programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES) } : {}),
     examples: examples.map(({ id, spec }) => ({ id, use: 'composition only, never facts', spec })),

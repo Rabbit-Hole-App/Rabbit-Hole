@@ -10,6 +10,7 @@ import { EXPLAIN_LIMITS, EXPLAIN_ROLES, explainRequest, roleBoundMicros } from '
 import { draftOf, programFacts, PROGRAM_LIMITS } from './explain-program.js';
 import { programContext } from './agents/explain-author.js';
 import { PROGRAM_CAPABILITIES } from './explain-program.js';
+import { modelEvidence } from './explain-evidence.js';
 
 // The most the repair role is sent about a failure, so that the program it must fix still fits its request. Beyond the caps the
 // head says how many were left out (serious findings first), so nothing is dropped unannounced.
@@ -24,7 +25,9 @@ export function programRepairContent(job, failure, images = []) {
   const findings = [...(failure.findings || [])].sort((a, b) => rank(a) - rank(b)).slice(0, REPAIR_FORWARD.findings).map(plainFinding);
   const omitted = Math.max(0, (failure.problems || []).length - problems.length) + Math.max(0, (failure.findings || []).length - findings.length);
   const head = { request: job.prompt, problems, findings, ...(omitted ? { omitted } : {}), allowed: ['program'],
-    roundsLeft: EXPLAIN_LIMITS.correctionRounds - job.round, program: programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES) };
+    roundsLeft: EXPLAIN_LIMITS.correctionRounds - job.round, program: programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES),
+    // The same records the author and the reviewer were given, so a source finding is repaired against its source.
+    ...(job.evidence?.length ? { evidence: modelEvidence(job.evidence) } : {}) };
   const program = job.artifact ? draftOf(job.artifact) : job.program;
   return [
     { type: 'text', text: JSON.stringify(head) },

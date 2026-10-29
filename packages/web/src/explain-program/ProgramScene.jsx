@@ -10,8 +10,9 @@ import { focusFrameBox, legibleFrame, normalizeFrame, readableScale } from './fr
 import { createProgramHost, programStamps } from './host.js';
 import { createFrameScheduler } from './playback.js';
 import ProgramNotes from './ProgramNotes.jsx';
+import SourcesDisclosure from '../SourcesDisclosure.jsx';
 import {
-  clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programInputs, programTime, resetProgram, resolveProgram,
+  clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programInputs, programPlayback, programTime, rememberProgram, resetProgram, resolveProgram,
   setProgramInput, shownProgram,
 } from './program-card.js';
 
@@ -38,7 +39,7 @@ function NumberInput({ input, value, onInput }) {
   );
 }
 
-export default function ProgramScene({ block: saved, onChange: save, onChangeQuiet: saveQuiet, preview = false, onControlsHeight = null, onProgramFrame = null }) {
+export default function ProgramScene({ block: saved, onChange: save, onChangeQuiet: saveQuiet, preview = false, onControlsHeight = null, onProgramFrame = null, onFile = null }) {
   // On a share link (SharedBoardPage's CardSourceScope) the program is read by the link, and the visitor's inputs and time stay in
   // this card's memory: never saved (not the owner's board, not the visitor's tab copy), so a reload starts from the saved card.
   // A Proposed preview (an Edit's candidate, ExplainEditBar) is the same: its inputs and time are this preview's own, and it never
@@ -51,6 +52,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   const keep = next => setLocal(keptProgram(saved, next));
   const onChange = ephemeral ? keep : save, onChangeQuiet = ephemeral ? keep : saveQuiet;
   const [artifact, setArtifact] = useState(null);
+  const [sources, setSources] = useState(null); // Task 9.4: the result's sources, from the owner's result answer only
   const [failure, setFailure] = useState(null);
   const [attempt, setAttempt] = useState(0); // "Restart explanation" bumps it: the same saved artifact, a fresh host
   const [hostReady, setHostReady] = useState(0);
@@ -77,14 +79,15 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // its saved result (the owner's result route, or the link's program read) and must match this card's identity and saved hash (program-card.js).
   useEffect(() => {
     let live = true;
-    setArtifact(null); setView(null); setFailure(null);
+    setArtifact(null); setSources(null); setView(null); setFailure(null);
     (async () => {
       const current = latest.current;
       const boardId = current.explain?.canvas?.boardId;
       const client = token ? sharedProgramClient(token) : boardId ? explainClient(api, boardId) : null;
       const out = await resolveProgram(current, { client, fixtures: fixturesAdmitted(import.meta.env), stamps: await programStamps() });
       if (!live) return;
-      if (out.ok) setArtifact(out.artifact); else setFailure(out.error);
+      // A Proposed preview never feeds the accepted card's description (program-card.js loaded): the Tutor describes the saved card.
+      if (out.ok) { if (!preview) rememberProgram(current, out.artifact.manifest); setSources(out.sources ?? null); setArtifact(out.artifact); } else setFailure(out.error);
     })();
     return () => { live = false; };
   }, [block.id, block.program?.bundleHash, block.program?.fixtureId, block.explain?.resultId, attempt, token]);
@@ -113,7 +116,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       evaluate: job => target.evaluate(evaluateRequestFor(manifest, { ...latest.current, inputs: job.inputs }, job.time, ++counter.current)),
       show: (reply, job) => {
         const out = normalizeFrame(reply.frame, manifest);
-        if (out.ok) { setView({ ...out, time: job.time }); setFailure(null); } else stop(out.error);
+        if (out.ok) { if (!preview) rememberProgram(latest.current, manifest, { inputs: job.inputs, time: job.time, readouts: out.readouts }); setView({ ...out, time: job.time }); setFailure(null); } else stop(out.error);
       },
       fail: stop,
     });
@@ -152,6 +155,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     const saved = Number(clampTime(manifest, time).toFixed(2));
     if (saved !== (latest.current.time ?? 0)) (onChangeQuiet || onChange)({ ...latest.current, time: saved });
   }, [playing, time, manifest]);
+  useEffect(() => { if (!preview) programPlayback(latest.current, playing); }, [playing, preview]); // Task 9.3: the described moment is playing or paused
   // A hidden tab pauses playback instead of burning the interpreter.
   useEffect(() => {
     const hide = () => { if (document.hidden) setPlaying(false); };
@@ -268,6 +272,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       {/* Notes (the drawn frame's readouts as Values, the manifest's assumptions): collapsed under the controls; opening grows
           the card by the rows' measured height. */}
       <ProgramNotes id={notesId} notes={manifest.assumptions} values={view.readouts} open={notesOpen} onToggle={() => setNotesOpen(value => !value)} />
+      {sources?.length > 0 && <SourcesDisclosure sources={sources} onFile={onFile} />}
       </div>
     </div>
   );

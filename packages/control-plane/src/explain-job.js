@@ -17,7 +17,7 @@
 import { repositoryIdentity } from './repositories.js';
 import { authorizedBoardApp } from './learn-board.js';
 import { tutorImageContext } from './learn-image-context.js';
-import { resolveExplainRefs } from './explain-context-refs.js';
+import { EXPLAIN_REFS, boundEvidence, learnerSources, mergeRefs, resolveEditRefs } from './explain-context-refs.js';
 import { anthropic } from './ask.js';
 import { costUsd, MESSAGE_LIMIT } from './learn-models.js';
 import { spendTransport, spendEnforced, platformCaps } from './learn-spend.js';
@@ -53,6 +53,13 @@ const jobKey = id => `job:${id}`;
 const hex = () => crypto.randomUUID().replaceAll('-', '');
 export const explainEnabled = env => env.EXPLAIN_V2_ENABLED === 'true';
 export const EXPLAIN_DISABLED = 'Explanations are not available here yet.';
+// Task 9.2: an accepted result's private provenance. The records it was made from, without their excerpts (the location, revision
+// and hash name what was read), and the sources an Edit of it reads again under the learner's access then: at most one read's
+// EXPLAIN_REFS, the ones this result has evidence from first, so lineage cannot grow edit by edit. A source left out here was
+// not read for this result (evidence is at most 16 records) and was already reported to it as not read.
+const provenanceOf = job => ({ evidence: (job.evidence || []).map(record => record.id).slice(0, 64), records: (job.evidence || []).map(({ excerpt: _text, ...record }) => record),
+  sources: [...(job.context?.refs || [])].sort((a, b) => !!b.evidence - !!a.evidence).slice(0, EXPLAIN_REFS)
+    .map(({ sourceId, kind, name, version, range, status, evidence }) => ({ sourceId, kind, name, version: version ?? '', range: range ?? null, ...(status ? { status } : {}), ...(evidence ? { evidence } : {}) })) });
 
 // The capability's stages: author and validate (T17, explain-author.js), render and review (T18, Lane D's explain-render.js
 // renderStates and explain-review.js reviewCaptures, through the adapters below), repair (T19, explain-repair.js).
@@ -214,11 +221,22 @@ export async function explainRoute(path, req, env, deps = {}) {
     await learnMedia(env).put(key, JSON.stringify({ mediaType: image.source.media_type, data: image.source.data }), { httpMetadata: { contentType: 'application/json' } });
     body.reference = { key, role: 'layout_reference', mediaType: image.source.media_type };
   }
+  const stub = env.EXPLAIN_JOBS.get(env.EXPLAIN_JOBS.idFromName(board.id));
+  const who = { org: user.org, email: user.email, userId: user.userId || user.user_id || null };
+  // Task 9.2: an Edit re-reads the sources its accepted base was made from (its private provenance), under this learner's access now.
+  const lineage = action === 'create' && body.requestClass === 'edit' && typeof body.cardId === 'string' && typeof body.baseRevision === 'string'
+    ? await stub.fetch('https://explain/action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'lineage', payload: { cardId: body.cardId, baseRevision: body.baseRevision }, board, user: who }) })
+      .then(r => (r.ok ? r.json() : null)).then(b => (Array.isArray(b?.refs) ? b.refs : [])).catch(() => [])
+    : [];
   // EXP-T20 slice 3: the Chat's pinned and temporary refs, read here under this canvas's authorization, never the browser's text.
-  if (action === 'create' && body.context_refs != null) {
+  // Only this read makes evidence, refs and their text (never a client field).
+  delete body.evidence;
+  if (body.context && typeof body.context === 'object' && !Array.isArray(body.context)) { const { refs: _refs, refText: _text, ...rest } = body.context; body.context = rest; }
+  if (action === 'create' && (body.context_refs != null || lineage.length)) {
     let got;
-    try { got = await resolveExplainRefs(req, env, { user, board }, body.context_refs); } catch (error) { return json({ error: error.message }, error.status || 400); }
+    try { got = await resolveEditRefs(req, env, { user, board }, body.context_refs, lineage, deps.readers); } catch (error) { return json({ error: error.message }, error.status || 400); }
     body.context = { ...(body.context && typeof body.context === 'object' ? body.context : {}), refs: got.refs, ...(got.text ? { refText: got.text } : {}) };
+    body.evidence = got.evidence;
   }
   delete body.context_refs;
   // UI-15.1: Generate on a reviewed brief. The proposal's references are read here, under this learner's access, and the job gets only what
@@ -227,11 +245,10 @@ export async function explainRoute(path, req, env, deps = {}) {
   if (action === 'approve' && body.proposal?.references?.length && isReviewProposal(body.proposal)) {
     const found = await (deps.resolveReferences || resolveReferences)(env, { ...body.proposal, command: 'explain' }, { req, user, app: board.app }, { read: deps.read });
     if (found.blocked.length) return json(blockedBody(found.states), 409);
-    body.approved_refs = { key: referencesKey(body.proposal.references), refs: found.refs, text: found.text };
+    body.approved_refs = { key: referencesKey(body.proposal.references), refs: found.refs, text: found.text, evidence: found.evidence || [] };
   }
-  const stub = env.EXPLAIN_JOBS.get(env.EXPLAIN_JOBS.idFromName(board.id));
   return stub.fetch('https://explain/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, id: results ? rest[1] : rest[0] || null, payload: body, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null }, origin: url.origin,
+    body: JSON.stringify({ action, id: results ? rest[1] : rest[0] || null, payload: body, board, user: who, origin: url.origin,
       // Owner-only diagnostics for live verification runs on a dev clone (EXPLAIN_DIAGNOSTICS, never set in a committed config).
       detail: req.method === 'GET' && url.searchParams.get('detail') === '1' && env.EXPLAIN_DIAGNOSTICS === 'true',
       // ?version=<programHash>: the complete stored source and manifest of one candidate (owner diagnostics only, with detail=1).
@@ -266,6 +283,7 @@ export class ExplainJobs {
       return json({ jobs: jobs.sort((a, b) => a.createdAt - b.createdAt).map(publicExplainJob) });
     }
     if (action === 'create') return this.create(payload, board, user, origin);
+    if (action === 'lineage') return json({ refs: await this.lineage(payload, board, user) });
     if (action === 'result') return this.programResult(id, board, user);
     const job = id && await this.get(id);
     if (!job || job.owner.email !== user.email || job.boardId !== board.id) throw fail('Not available', 404);
@@ -288,7 +306,8 @@ export class ExplainJobs {
     const saved = await this.state.storage.get(`result:${resultId}`);
     if (saved?.kind !== 'program' || saved.owner?.email !== user.email || saved.boardId !== board.id) throw fail('Not available', 404);
     if (!await artifactIntact(saved.artifact)) throw fail('This explanation could not be opened. Your saved version is kept.', 409, 'version_unavailable');
-    return json({ artifact: saved.artifact, identity: saved.identity, execution: programExecution(this.env) });
+    // Task 9.4: the sources it was made from, as the card's source list, on this owner-only answer only (a share link's read keeps none).
+    return json({ artifact: saved.artifact, identity: saved.identity, execution: programExecution(this.env), sources: learnerSources(saved.provenance) });
   }
 
   async create(payload, board, user, origin) {
@@ -307,7 +326,7 @@ export class ExplainJobs {
     const job = {
       id: `ej_${hex()}`, version: 1, policyVersion: EXPLAIN_POLICY_VERSION, boardId: board.id, app: board.app, board: board.board,
       owner: { org: user.org, email: user.email, userId: user.userId || null }, origin, cardId: payload.cardId, requestId: payload.requestId,
-      prompt: payload.prompt.trim(), context: payload.context ?? null, examples: payload.examples ?? [], evidence: [], source: payload.source ?? 'explicit', base, reference: payload.reference ?? null, requestClass: payload.requestClass, baseRevision: payload.baseRevision ?? null,
+      prompt: payload.prompt.trim(), context: payload.context ?? null, examples: payload.examples ?? [], evidence: payload.evidence ?? [], source: payload.source ?? 'explicit', base, reference: payload.reference ?? null, requestClass: payload.requestClass, baseRevision: payload.baseRevision ?? null,
       // Preparation (a brief) is the server's decision (explain-brief.js needsPreparation): every new explanation prepares one and
       // waits for Generate, whatever requestClass the client sent; a job stored before that rule keeps its own prepare flag.
       prepare: needsPreparation(this.env, payload.requestClass), threadId: payload.threadId ?? null, settings: null, decision: null, refinement: null, pendingProposal: null,
@@ -348,6 +367,14 @@ export class ExplainJobs {
       return { revision: payload.baseRevision, resultId: block.explain.resultId, program: draftOf(saved.artifact) };
     }
     return { revision: payload.baseRevision, resultId: block.explain.resultId, spec: saved.spec };
+  }
+  // The sources an Edit's base was made from, for the route to read again (never their stored text): [] when the base cannot be
+  // edited or was accepted before results kept their sources.
+  async lineage(payload, board, user) {
+    try {
+      const base = await this.editBase(payload, board), saved = await this.state.storage.get(`result:${base.resultId}`);
+      return saved.owner && saved.owner.email !== user.email ? [] : saved.provenance?.sources || [];
+    } catch { return []; }
   }
   async prune(jobs) {
     const old = jobs.filter(j => TERMINAL.has(j.stage)).sort((a, b) => b.updatedAt - a.updatedAt).slice(JOBS_KEPT - 1);
@@ -414,7 +441,8 @@ export class ExplainJobs {
     if (record?.state?.used) return;
     const p = await signProposal(this.env, { command: 'explain', title: job.brief.title, description: job.brief.summary, settings: { presentation: job.brief.presentation }, source_refs: [],
       assumptions: (job.brief.assumptions || []).map(a => String(a).replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 20),
-      limitations: (job.brief.limitations || []).map(a => String(a).replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 20),
+      // Task 9.2: the server's own word on each attached source it did not read comes first, never only the model's.
+      limitations: [...(job.context?.refs || []).filter(r => r.note).map(r => `${r.name}: ${r.note}.`), ...(job.brief.limitations || [])].map(a => String(a).replace(/\s+/g, ' ').trim().slice(0, 300)).filter(Boolean).slice(0, 20),
       input: { org: job.owner.org, app: job.app, job: job.id, brief_hash: job.briefHash, request: job.prompt.slice(0, 500) } }, job.owner.email,
       { envelope: envelopeFor(this.env, { org: job.owner.org, app: job.app }), ...(previous ? { id: previous.id, version: (record?.current?.version ?? previous.version) + 1 } : {}) });
     const row = await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?) RETURNING id').bind(job.threadId, 'assistant', 'Here is the plan for your explanation. Generate makes it.').first();
@@ -483,7 +511,13 @@ export class ExplainJobs {
     if (isReviewProposal(p)) {
       job.brief = { ...job.brief, title: p.title, summary: p.description, assumptions: p.assumptions, ...(p.settings.presentation ? { presentation: p.settings.presentation } : {}) };
       job.briefHash = await sha256Hex(JSON.stringify(job.brief)); reviewHash = p.review_hash;
-      if (p.references.length) job.context = { ...(job.context && typeof job.context === 'object' ? job.context : {}), refs: payload.approved_refs.refs, refText: [job.context?.refText, payload.approved_refs.text].filter(Boolean).join('\n\n').slice(0, 24000) };
+      if (p.references.length) {
+        // Task 9.2: what Generate's read found is the evidence, the fresh records first, beside create's within the same bounds.
+        const refs = mergeRefs(job.context?.refs || [], payload.approved_refs.refs), used = new Set(refs.map(r => r.evidence));
+        const bounded = boundEvidence(refs, [...(payload.approved_refs.evidence || []), ...(job.evidence || [])].filter(r => used.has(r.id)));
+        job.context = { ...(job.context && typeof job.context === 'object' ? job.context : {}), refs: bounded.refs, refText: [job.context?.refText, payload.approved_refs.text].filter(Boolean).join('\n\n').slice(0, 24000) };
+        job.evidence = bounded.evidence;
+      }
     }
     markTiming(job.timing, 'generate');
     Object.assign(job, { approval: { briefHash: job.briefHash, ...(reviewHash ? { reviewHash } : {}), at: Date.now() }, stage: 'authoring', deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs });
@@ -706,7 +740,7 @@ export class ExplainJobs {
       versions: { schema: artifact.schemaVersion, runtime: artifact.runtimeVersion, sdk: artifact.sdkVersion, renderer: artifact.rendererVersion }, policyVersion: job.policyVersion };
     await this.state.storage.put(`result:${job.resultId}`, { kind: 'program', artifact, identity: job.result, owner: { org: job.owner.org, email: job.owner.email }, boardId: job.boardId, cardId: job.cardId,
       authoredBy: author ? { requested: author.requested, served: author.served } : null,
-      provenance: { request: job.result.promptRef, context: await hashOf(job.context), evidence: (job.evidence || []).map(record => record.id).slice(0, 64), edited: job.baseRevision ?? null } });
+      provenance: { ...provenanceOf(job), request: job.result.promptRef, context: await hashOf(job.context), edited: job.baseRevision ?? null } });
     endStage(job.timing, 'accepted'); markTiming(job.timing, 'result');
     Object.assign(job, { stage: 'ready', stopReason: 'accepted' });
     await this.save(job); await this.finishUsage(job, 'completed');
@@ -717,7 +751,7 @@ export class ExplainJobs {
     job.result = { jobId: job.id, resultId: job.resultId, cardId: job.cardId, canvas: { boardId: job.boardId }, promptRef: (await sha256Hex(job.prompt)).slice(0, 16),
       revision: job.revision, baseRevision: job.baseRevision, specHash: (await sha256Hex(spec)).slice(0, 16), compiledHash: (await sha256Hex(compiled)).slice(0, 16),
       componentVersions: out.componentVersions || job.compiled?.componentVersions || {}, policyVersion: job.policyVersion };
-    await this.state.storage.put(`result:${job.resultId}`, { spec: job.spec, compiled: job.compiled, identity: job.result });
+    await this.state.storage.put(`result:${job.resultId}`, { spec: job.spec, compiled: job.compiled, identity: job.result, provenance: provenanceOf(job) });
     endStage(job.timing, 'accepted'); markTiming(job.timing, 'result');
     Object.assign(job, { stage: 'ready', stopReason: 'accepted' });
     await this.save(job); await this.finishUsage(job, 'completed');

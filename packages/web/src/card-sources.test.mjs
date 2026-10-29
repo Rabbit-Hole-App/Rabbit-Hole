@@ -64,3 +64,15 @@ test('the shared schema and disclosure name no card, lesson or repository', () =
     assert.doesNotMatch(text, /nano|karpathy|shakespeare|model\.py|train\.py|\bc\d\d-/i, file);
   }
 });
+
+test('an explanation\'s canvas file is a source entry: its name, page or lines, and a note; never a link', async () => {
+  const { groupSources, sourceLabel, sourceProblems, sourceTarget } = await import('./card-sources.js');
+  const file = { kind: 'file', title: 'Lab notes.pdf', page: 2, note: 'Read for this explanation.' };
+  assert.deepEqual(sourceProblems(file), []);
+  assert.equal(sourceLabel(file), 'Lab notes.pdf, p. 2');
+  assert.equal(sourceLabel({ kind: 'file', title: 'data.csv', lines: [21, 40] }), 'data.csv, lines 21-40');
+  assert.deepEqual(sourceTarget(file), { open: 'detail' });
+  assert.deepEqual(groupSources([file]).map(g => g.id), ['data']);
+  assert.ok(sourceProblems({ kind: 'file', title: '' }).length);
+  assert.ok(sourceProblems({ kind: 'file', title: 'x', lines: [5, 2] }).length);
+});

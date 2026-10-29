@@ -10,6 +10,7 @@ import { programContext } from './agents/explain-author.js';
 import { PROGRAM_CAPABILITIES, PROGRAM_LIMITS, programEnabled } from './explain-program.js';
 import { ExplainPolicyError } from './explain-policy.js';
 import { proposalUsage } from './generation-proposal.js';
+import { modelEvidence } from './explain-evidence.js';
 
 const text = (value, max) => (typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, max) : '');
 const list = (value, max, n = 8) => (Array.isArray(value) ? value.map(v => text(v, max)).filter(Boolean).slice(0, n) : []);
@@ -49,7 +50,7 @@ export async function prepareStage(job, ctx) {
   const program = programEnabled(ctx.env || {});
   const cat = program ? [] : catalogue(), names = cat.map(entry => entry.name), supported = program ? null : compilerSupport();
   const content = JSON.stringify({ request: job.prompt, context: job.context ?? null, refinement: job.refinement ?? null, previous: job.brief ?? null,
-    evidence: (job.evidence || []).map(({ id, kind, location, excerpt, limitations }) => ({ id, kind, location, excerpt, limitations })),
+    evidence: modelEvidence(job.evidence),
     ...(program ? { runtime: { capabilities: PROGRAM_CAPABILITIES, limits: programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES).limits } } : { catalogue: cat.map(({ name, description }) => ({ name, description })), supported }) });
   const { input } = await ctx.call('brief', { system: program ? EXPLAIN_PROGRAM_BRIEF_SYSTEM : EXPLAIN_BRIEF_SYSTEM, tool: briefTool(program ? null : names), content });
   if (input.gap?.needs?.length) return { gap: capabilityGap(input.gap.needs, input.gap.reason, 'brief') };

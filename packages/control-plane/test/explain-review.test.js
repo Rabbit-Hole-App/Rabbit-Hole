@@ -83,3 +83,15 @@ test('a program review states what was sampled and what was not, next to the tra
 test('a program review is told its own layout and calculations are category spec, with component and renderer kept for the host', () => {
   assert.match(REVIEW_PROGRAM_RULES, /overlap[^]*report it as category spec[^]*repairable by changing the program[^]*component or renderer only for a fault in the host's shared drawing/);
 });
+
+// Task 9.2: the reviewer and the repair read the same records the author read: a record's whole excerpt, with its limits.
+test('the reviewer reads each evidence record whole, with its limitations; the program repair gets the same records', async () => {
+  const { evidenceRecord } = await import('../src/explain-evidence.js');
+  const { programRepairContent } = await import('../src/explain-program-stage.js');
+  const record = await evidenceRecord({ kind: 'attachment', location: `file:fs_${'1'.repeat(24)}@${'a'.repeat(64)}`, revision: 'a'.repeat(64), text: 'y'.repeat(3999), excerpt: `${'y'.repeat(3998)}Z`, page: 3, access: 'owner', limitations: ['the first 3999 of 9000 characters'] });
+  const text = buildReviewContent({ ...base, evidence: [record], captures: [cap('c1')] }).content[0].text;
+  assert.ok(text.includes(`[${record.id}] ${record.location} (limits: the first 3999 of 9000 characters)`));
+  assert.ok(text.includes(`${'y'.repeat(3998)}Z`), 'not cut to a shorter excerpt than the author was given');
+  const head = JSON.parse(programRepairContent({ prompt: 'Explain.', round: 0, evidence: [record], program: { manifest: {}, source: 'x' } }, { problems: [], findings: [] })[0].text);
+  assert.deepEqual(head.evidence, [{ id: record.id, kind: 'attachment', location: record.location, excerpt: record.excerpt, page: 3, limitations: record.limitations }]);
+});

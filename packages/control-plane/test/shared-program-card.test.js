@@ -245,3 +245,35 @@ test('an Edit candidate is never served by the link, and only its owner reads it
   assert.equal((await f.owner('er_cand', otherId, 'ana')).status, 404, 'another canvas of the same owner');
   assert.equal((await f.owner('er_cand', boardId)).status, 401, 'signed out');
 });
+
+// Task 9.4: a result's sources reach its owner's card from the result's private provenance (identity and what was read, never an
+// excerpt), so they survive a reload; each revision answers with its own (an applied Edit, or a discarded one keeping the base);
+// a share link's read names none of them.
+test('the owner\'s result answer lists its sources per revision, with what was read and what to do when one was not; the link names none', async t => {
+  const f = world(t);
+  const { token, a, boardId } = await sharedBoard(f);
+  const COMMIT = 'c'.repeat(40), FILE = `file:fs_${'1'.repeat(24)}@${'e'.repeat(64)}`;
+  const record = { version: 1, id: 'ev_0123456789abcdef', kind: 'repository', location: `code:octo/heat@${COMMIT}:sim/cool.py`, revision: COMMIT, contentHash: 'sha256:abcdefgh', lines: { start: 21, end: 40 }, retrievedAt: new Date(0).toISOString(), access: 'workspace', limitations: [] };
+  const base = f.store(boardId).get('result:er_a');
+  f.store(boardId).set('result:er_a', { ...base, provenance: { ...base.provenance, evidence: [record.id], records: [record], sources: [
+    { sourceId: `code:octo/heat@${COMMIT}:sim/cool.py`, kind: 'code', name: 'cool.py', version: COMMIT, range: { path: 'sim/cool.py', start: 25, end: 30 }, status: 'read', evidence: record.id },
+    { sourceId: FILE, kind: 'file', name: 'Lab notes.pdf', version: '', range: { page: 2 }, status: 'unavailable' },
+    { sourceId: 'card:c1', kind: 'card', name: 'Notes card', version: '', range: null, status: 'listed' }] } });
+  // An Edit's candidate of the same card, made from the file alone: its own result and revision.
+  const edited = await f.accept(boardId, 'card-a', 'er_a2', program('Cooling A, edited', 1));
+  const saved = f.store(boardId).get('result:er_a2');
+  f.store(boardId).set('result:er_a2', { ...saved, provenance: { ...saved.provenance, sources: [{ sourceId: FILE, kind: 'file', name: 'Lab notes.pdf', version: '', range: { page: 2 }, status: 'listed' }] } });
+  const ownerRead = async resultId => (await f.owner(resultId, boardId, 'ana')).json();
+  const before = await ownerRead('er_a');
+  assert.deepEqual(before.sources, [
+    { kind: 'code', repo: 'octo/heat', revision: COMMIT, path: 'sim/cool.py', lines: [21, 40], note: 'Read for this explanation.' },
+    { kind: 'file', title: 'Lab notes.pdf', note: 'Not available to you when this explanation was made. Attach it again, or ask its owner for access.' }]);
+  assert.equal(JSON.stringify(before.sources).includes('Notes card'), false, 'only the kinds an explanation reads');
+  // Apply: the card now names er_a2 and reads its sources; Discard: it still names er_a and reads the base's, after any reload.
+  assert.deepEqual((await ownerRead(edited.identity.resultId)).sources, [{ kind: 'file', title: 'Lab notes.pdf', note: 'Attached, but not read for this explanation.' }]);
+  assert.deepEqual((await ownerRead(a.identity.resultId)).sources, before.sources);
+  const link = await f.read(token, 'card-a');
+  assert.equal(link.status, 200);
+  assert.equal('sources' in link.body, false);
+  for (const secret of ['octo/heat', 'cool.py', 'Lab notes']) assert.equal(link.text.includes(secret), false, `the link answered with ${secret}`);
+});

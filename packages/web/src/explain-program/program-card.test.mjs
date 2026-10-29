@@ -254,3 +254,55 @@ test('Proposed resolves the program candidate\'s own artifact through the owner\
   assert.deepEqual([card.inputs, card.time], [{ rate: 7 }, 2]);
   assert.equal(shownProgram(card, played), card, 'kept preview state never shows on the accepted card');
 });
+
+// Task 9.3: the Tutor's and composer's context for a program card comes from what this page already loaded for that exact card:
+// no fetch, no source, readouts only from a frame drawn at the card's current settings, and an honest partial description otherwise.
+test('describeProgram uses the loaded manifest and drawn readouts of this exact card, and says what it does not know', async () => {
+  const { rememberProgram, loadedProgram, PROGRAM_DESCRIPTION } = await import('./program-card.js');
+  const saved = card({ id: 'card-93', program: { bundleHash: 'bh1' }, explain: { resultId: 'er1', revision: 'xr1' }, inputs: { rate: 8, mode: 'simple' }, time: 2 });
+  const before = describeProgram(saved).text;
+  assert.match(before, /not loaded on this page yet; do not state their values/);
+  assert.doesNotMatch(before, /Yearly rate/);
+  rememberProgram(saved, manifest);
+  const loadedText = describeProgram(saved).text;
+  assert.match(loadedText, /Yearly rate: 8 %/);
+  assert.match(loadedText, /Interest: Simple/, 'a select reads as the option label the learner sees');
+  assert.match(loadedText, /Paused at 2.0s of 4s/);
+  assert.match(loadedText, /Its readouts \(Balance\) are not drawn for these settings yet; do not state their values/);
+  rememberProgram(saved, manifest, { inputs: programInputs(manifest, saved), time: 2, readouts: [{ id: 'balance', label: 'Balance', text: '1469' }] });
+  assert.match(describeProgram(saved).text, /Shown now: Balance 1469/);
+  assert.doesNotMatch(describeProgram({ ...saved, inputs: { rate: 9, mode: 'simple' } }).text, /Shown now/, 'a frame drawn at other settings is never reported');
+  assert.match(describeProgram({ ...saved, time: 3 }).text, /Paused at 2.0s of 4s[^]*Shown now: Balance 1469/, 'the drawn moment, not a saved time it was not drawn at');
+  // Another revision of the card (an applied Edit: new result and bundle) is a different identity: nothing carried over.
+  assert.equal(loadedProgram({ ...saved, program: { bundleHash: 'bh2' }, explain: { resultId: 'er2', revision: 'xr2' } }), null);
+  assert.match(describeProgram({ ...saved, program: { bundleHash: 'bh2' }, explain: { resultId: 'er2', revision: 'xr2' } }).text, /not loaded on this page yet/);
+  assert.equal(describeProgram(saved).text.includes(growthFixture.source.slice(0, 40)), false, 'never source');
+  assert.ok(describeProgram(saved).text.length <= PROGRAM_DESCRIPTION);
+});
+
+// REGRESSION (review of e8f1bd0b): during Play the card advances its own clock without saving block.time, so the description said
+// "Paused at 0.0s" and dropped the readouts drawn at 5 s. It now reports the drawn frame's moment and whether it is playing; a
+// frame drawn at other settings is still never reported.
+test('describeProgram reports the displayed moment and playback, not the saved time, keeping stale-input protection', async () => {
+  const { programPlayback, rememberProgram } = await import('./program-card.js');
+  const saved = card({ id: 'card-play', program: { bundleHash: 'bh-play' }, explain: { resultId: 'er-play', revision: 'xr-play' }, inputs: { rate: 8 }, time: 0 });
+  rememberProgram(saved, manifest, { inputs: programInputs(manifest, saved), time: 3.5, readouts: [{ id: 'balance', label: 'Balance', text: '1310' }] });
+  programPlayback?.(saved, true);
+  const playing = describeProgram(saved).text;
+  assert.match(playing, /Playing, now at 3.5s of 4s/);
+  assert.match(playing, /Shown now: Balance 1310/);
+  assert.doesNotMatch(playing, /Paused at 0.0s/);
+  programPlayback?.(saved, false);
+  assert.match(describeProgram(saved).text, /Paused at 3.5s of 4s/);
+  assert.doesNotMatch(describeProgram({ ...saved, inputs: { rate: 2 } }).text, /Shown now/);
+});
+
+// Task 9.4: the owner's result answer names the sources the card was made from; the card shows them only as given (a share link's
+// answer has none), and only well-formed ones (card-sources.js).
+test('a resolved program carries the sources its result answer names, and none when the answer names none', async () => {
+  const sources = [{ kind: 'file', title: 'Lab notes.pdf', page: 2, note: 'Read for this explanation.' }];
+  const owner = await accepted({ answer: { sources } });
+  assert.deepEqual((await resolveProgram(owner.block, { client: owner.client })).sources, sources);
+  const link = await accepted();
+  assert.equal('sources' in (await resolveProgram(link.block, { client: link.client })), false);
+});
