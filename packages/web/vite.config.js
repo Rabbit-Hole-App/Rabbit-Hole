@@ -27,7 +27,6 @@ export default defineConfig({
       if (process.env.VITE_COACHING_DEV !== 'true' || process.env.VITE_PRIVATE_BYOC === 'true') return;
       server.middlewares.use((req, _res, next) => {
         if (AUTH_PATHS.includes(req.url?.split('?')[0].replace(/\/$/, ''))) req.url = '/design/rabbit-hole-auth.html';
-        if (req.url?.split('?')[0].replace(/\/$/, '') === '/team') req.url = '/design/rabbit-hole-team.html';
         if (SUPPORT_PATHS.includes(req.url?.split('?')[0].replace(/\/$/, ''))) req.url = '/design/rabbit-hole-support.html';
         next();
       });
@@ -58,7 +57,6 @@ export default defineConfig({
         pricing: fileURLToPath(new URL('./design/rabbit-hole-pricing.html', import.meta.url)),
         manifesto: fileURLToPath(new URL('./design/rabbit-hole-manifesto.html', import.meta.url)),
         auth: fileURLToPath(new URL('./design/rabbit-hole-auth.html', import.meta.url)),
-        team: fileURLToPath(new URL('./design/rabbit-hole-team.html', import.meta.url)),
         support: fileURLToPath(new URL('./design/rabbit-hole-support.html', import.meta.url)),
         render: fileURLToPath(new URL('./render/scene.html', import.meta.url)), // /explain render entry (EXP-T18)
       } },

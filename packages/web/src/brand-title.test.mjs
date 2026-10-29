@@ -12,6 +12,6 @@ test('the app shell is titled Rabbit Hole in its own HTML, not "small deploy"', 
 
 test('every Rabbit Hole page names the product in its own HTML and none keeps the legacy name', () => {
   const pages = readdirSync(new URL('../design/', import.meta.url)).filter(f => /^rabbit-hole-.*\.html$/.test(f) && f !== 'rabbit-hole-mobile-check.html');
-  assert.ok(pages.length >= 8, `found ${pages.length} pages`);
+  assert.ok(pages.length >= 7, `found ${pages.length} pages`); // seven since the public Team page was removed (owner 2026-10-29)
   for (const page of pages) assert.match(title(`../design/${page}`), /^(.+ \| )?Rabbit Hole$/, page);
 });
