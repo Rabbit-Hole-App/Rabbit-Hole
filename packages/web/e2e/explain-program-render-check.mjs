@@ -29,7 +29,7 @@ const server = createServer((request, response) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const BASE = `http://127.0.0.1:${server.address().port}`;
-const TOTAL = 34; // bump with the checks below; the printed line is what CI reads
+const TOTAL = 35; // bump with the checks below; the printed line is what CI reads
 let passed = 0;
 const check = (name, ok, detail = '') => { if (ok) passed++; console.log(`${ok ? 'ok' : 'FAIL'}: ${name}${detail ? ` (${detail})` : ''}`); };
 
@@ -132,6 +132,15 @@ try {
     && /Bar 3 holds 6/.test(await page.locator('[data-program-frame]').textContent()), JSON.stringify(replay).slice(0, 300));
   const undeclared = sorted && await render(sorted, { width: 720, height: 360, seed: 0, events: [{ type: 'action', action: 'explode' }] });
   check('an undeclared event fails in the reduce phase with its stable code', undeclared?.ok === false && undeclared.programError?.code === 'invalid_program' && undeclared.programError.phase === 'reduce', JSON.stringify(undeclared));
+  // Owner review of 0ee34e70c (fix 2): every state of the replay is checked as the card checks it, so a program whose second state
+  // cannot be drawn fails review even though its fourth draws.
+  const stuckDraft = checkProgramDraft({ manifest: { title: 'Count', summary: 'A count.', assumptions: [], description: 'A count.', inputs: [], readouts: [], capabilities: [], viewport: { width: 400, height: 300 }, actions: [{ id: 'add', label: 'Add' }], targets: [] },
+    source: `export function initialState() { return { count: 0 }; }
+export function reduce({ state }) { return { count: state.count + 1 }; }
+export function evaluate({ state }) { return { frame: { width: 400, height: 300, objects: state.count === 2 ? [{ kind: 'nope', id: 'x' }] : [sdk.text('n', 10, 20, String(state.count))] }, quantities: { count: state.count } }; }` }, { stateful: true });
+  const stuckArtifact = stuckDraft.bundle ? await buildProgramArtifact(stuckDraft.bundle) : null;
+  const stuck = stuckArtifact && await render(stuckArtifact, { width: 400, height: 300, seed: 0, events: Array(4).fill({ type: 'action', action: 'add' }) });
+  check('a sequence the learner could not play through fails review at its first undrawable state', stuck?.ok === false && stuck.programError?.code === 'invalid_output' && /at state 2 of 4/.test(stuck.programError.diagnostic), JSON.stringify(stuck));
   check('the program renderer left no Worker or request behind', offOrigin.length === 0 && (await page.evaluate(() => performance.getEntriesByType('resource').every(e => e.name.startsWith(location.origin)))));
   check('every program failure returned a stable code, never a stack', [tampered, otherEngine, globalOut, threw, looped].every(r => r.programError && /^[a-z_]+$/.test(r.programError.code) && !/\n\s+at /.test(r.programError.diagnostic ?? '')));
   check('the sealed artifact the check used passes the contract\'s own hash verification', (await import('../src/explain-program/contract.js').then(m => m.verifyHashes(artifact))) === true);

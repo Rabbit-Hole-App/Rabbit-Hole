@@ -18,6 +18,7 @@ import { STATEFUL_SCHEMA_VERSION, canonicalJson, parseArtifact, sha256Hex } from
 import { normalizeFrame } from '../src/explain-program/frame.js';
 import { createProgramHost } from '../src/explain-program/host.js';
 import { evaluateRequestFor } from '../src/explain-program/program-card.js';
+import { replayTransitions } from '../src/explain-program/interaction.js';
 import { pageWorkerFactory } from '../src/explain-program/page-worker.js';
 
 const NOOP = () => {};
@@ -41,18 +42,17 @@ export async function renderProgram(request, { host, root, frames, faces, nextMo
   const stateful = artifact.schemaVersion === STATEFUL_SCHEMA_VERSION;
   const seed = stateful && Number.isInteger(request.seed) ? request.seed : 0, events = stateful && Array.isArray(request.events) ? request.events : [];
   const card = { inputs: request.inputs, seed };
-  let reply, state = null, operation = 'evaluate';
+  let reply, state = null;
   try {
-    if (stateful) {
-      operation = 'initialize';
-      ({ state } = await programHost.initialize({ requestId: 'i', inputs: evaluateRequestFor(manifest, card, 0, 'i').inputs, seed }));
-      operation = 'reduce';
-      for (const [n, event] of events.entries()) ({ state } = await programHost.reduce({ ...evaluateRequestFor(manifest, card, request.time ?? 0, `r${n}`), state, event }));
-      operation = 'evaluate';
-    }
-    reply = await programHost.evaluate(evaluateRequestFor(manifest, card, request.time ?? 0, 1, state)); // the card's own request builder
+    // A stateful capture replays as the card plays: the initial state and each state after it must pass the card's own frame check
+    // (interaction.js replayTransitions), so a sequence the learner could not get through never passes review.
+    if (stateful) ({ state, reply } = await replayTransitions({ host: programHost, manifest, inputs: evaluateRequestFor(manifest, card, 0, 'i').inputs, seed, time: request.time ?? 0, events }));
+    else reply = await programHost.evaluate(evaluateRequestFor(manifest, card, request.time ?? 0, 1)); // the card's own request builder
   }
-  catch (error) { return (window.__renderDone = failure(error.code || 'runtime_error', error.diagnostic ?? error.message, error.where ?? { phase: operation })); }
+  catch (error) {
+    const after = stateful ? ` (at state ${error.replayStep ?? 0} of ${events.length}: ${error.replayStep ? 'after event ' + error.replayStep : 'the initial state'})` : '';
+    return (window.__renderDone = failure(error.code || 'runtime_error', `${error.diagnostic ?? error.message ?? ''}${after}`, error.where ?? { phase: error.replayPhase ?? 'evaluate' }));
+  }
   finally { programHost.dispose('review render done'); }
   const asked = evaluateRequestFor(manifest, card, request.time ?? 0, 1);
   const view = normalizeFrame(reply.frame, manifest);

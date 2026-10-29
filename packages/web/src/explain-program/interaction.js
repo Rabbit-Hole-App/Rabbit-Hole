@@ -13,7 +13,42 @@
 //   createInteractionController({ host, bundleHash, seed, saved, publish(envelope, { initial }), persist(envelope, { reset }), fail(error), check(envelope, { inputs, time }) })
 //     .start(inputs, { time })  .dispatch(event, { inputs, time }) -> boolean  .reset(inputs)  .current() -> envelope | null  .dispose()
 // The envelope is what the card keeps (block.programState): { bundleHash, state, revision, seed, inputs }. Never source.
+import { normalizeFrame } from './frame.js';
+import { evaluateRequestFor } from './program-card.js';
+
 export const ACTION_QUEUE_CAP = 16;
+
+// The one validation rule for a state, used by the card (use-program-state.js) and by the review replay: its frame at the inputs and
+// time it was computed for, evaluated through the same host (never superseded) and normalised. Throws the contract error; returns the frame.
+export async function checkStateFrame({ host, manifest, block = {}, inputs, time = 0, state, requestId }) {
+  const reply = await host.evaluate(evaluateRequestFor(manifest, { ...block, inputs }, time, requestId, state), { supersede: false });
+  const view = normalizeFrame(reply.frame, manifest);
+  if (!view.ok) throw view.error;
+  return { reply, view };
+}
+
+// The review's replay of one sampled sequence (render/program-render.jsx), the card's path step by step: initialize, then each event in
+// order, and every state, the initial one included, checked by checkStateFrame before the next event, so a sequence the learner could not
+// get through never passes review. -> { state, reply, view } of the final state; a failure carries replayStep (0 = the initial state)
+// and replayPhase (initialize, reduce or evaluate).
+export async function replayTransitions({ host, manifest, inputs, seed, time = 0, events = [] }) {
+  let step = 0, phase = 'initialize';
+  try {
+    let { state } = await host.initialize({ requestId: 'i', inputs, seed });
+    phase = 'evaluate';
+    let checked = await checkStateFrame({ host, manifest, block: { seed }, inputs, time, state, requestId: 'c0' });
+    for (const event of events) {
+      step += 1;
+      phase = 'reduce';
+      ({ state } = await host.reduce({ requestId: `r${step}`, state, event, inputs, time, seed }));
+      phase = 'evaluate';
+      checked = await checkStateFrame({ host, manifest, block: { seed }, inputs, time, state, requestId: `c${step}` });
+    }
+    return { state, ...checked };
+  } catch (error) {
+    throw Object.assign(error, { replayStep: step, replayPhase: phase });
+  }
+}
 
 export function createInteractionController({ host, bundleHash, seed, saved = null, publish, persist = () => {}, fail = () => {}, check = async () => {}, cap = ACTION_QUEUE_CAP }) {
   let committed = null, queue = [], busy = false, dead = false, generation = 0, count = 0;

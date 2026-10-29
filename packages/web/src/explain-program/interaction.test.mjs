@@ -267,3 +267,25 @@ test('a reset whose initial state cannot be drawn keeps the last good state, in 
   assert.deepEqual([c.controller.current().state.count, c.persisted.length], [0, savedBefore + 1]);
   c.dispose(); d.dispose();
 });
+
+// Owner review of 0ee34e70c (fix 2): the review replays a sampled sequence as the card plays it. A program whose state after the
+// second press cannot be drawn fails review there, even though its fourth state draws: the learner could never get past it.
+const STUCK_AT_TWO = `export function initialState() { return { count: 0 }; }
+export function reduce({ state }) { return { count: state.count + 1 }; }
+export function evaluate({ state }) {
+  if (state.count === 2) return { frame: { width: 400, height: 300, objects: [{ kind: 'nope', id: 'x' }] }, quantities: {} };
+  return { frame: { width: 400, height: 300, objects: [sdk.text('n', 10, 20, String(state.count))] }, quantities: { count: state.count } };
+}`;
+test('review replay checks the initial state and every state after it with the card\'s rule, and stops at the first that fails', async () => {
+  const { replayTransitions } = await import('./interaction.js');
+  const artifact = await seal(STUCK_AT_TWO);
+  const host = createProgramHost({ artifact, createWorker: standIn });
+  const presses = n => Array.from({ length: n }, () => add);
+  try {
+    const one = await replayTransitions({ host, manifest: artifact.manifest, inputs: INPUTS, seed: 0, events: presses(1) });
+    assert.deepEqual([one.state.count, one.reply.quantities.count], [1, 1]);
+    const stuck = await replayTransitions({ host, manifest: artifact.manifest, inputs: INPUTS, seed: 0, events: presses(4) }).then(() => null, error => error);
+    assert.ok(stuck, 'a sequence that cannot be played through never passes');
+    assert.deepEqual([stuck.code, stuck.replayStep, stuck.replayPhase], ['invalid_output', 2, 'evaluate']);
+  } finally { host.dispose(); }
+});
