@@ -43,10 +43,30 @@ them (read 2026-10-29):
 - Cloudflare Web Analytics (its beacon is on every production page): https://developers.cloudflare.com/web-analytics/data-metrics/core-web-vitals/
   and https://developers.cloudflare.com/speed/observatory/rum-beacon/ (no cookies or localStorage).
 
-Google's Gemini API terms could not be retrieved, so the policy names Google as a
-provider without describing its retention or training practice. Providers whose
-production key is optional and not installed (Exa, Pexels, FAL, HeyGen) are not
-listed.
+- TypeSafe: https://typesafe.ai/privacy ("We will not train or fine tune any artificial intelligence or machine
+  learning models on your prompts or other Input"; no retention period stated).
+- Fly.io: https://fly.io/legal/privacy-policy/ (for data in customer apps "fly.io acts as a processor (or service
+  provider) on your instructions").
+- ElevenLabs: https://elevenlabs.io/docs/developers/resources/zero-retention-mode ("By default, ElevenLabs retains
+  data, in accordance with the Privacy Policy"; Speech to Text input and output retained by default; Zero Retention
+  Mode is Enterprise-only). Our realtime Scribe call (`web/src/voice-stt.js`) sets no logging option, so the default
+  applies. Voice input is paused in the UI (`LISTENING_PAUSED = true`, `LearnVoice.jsx:19`), though the token route
+  still answers while `ELEVENLABS_API_KEY` is installed.
+
+Not claimed, because the source does not settle it:
+
+- Google Gemini API (https://ai.google.dev/gemini-api/terms, modified 2026-04-28): Paid Services are not used to
+  improve Google's products and are logged for a limited period for abuse detection; Unpaid Services may be used to
+  improve products and read by human reviewers. Whether our Gemini key's Cloud project has billing is not verifiable
+  here, so the policy names Google without either statement.
+- Fish Audio (https://fish.audio/privacy/, effective 2024-08-28) and Resend (https://resend.com/legal/privacy-policy,
+  updated 2026-08-27) publish no API-specific training or retention terms on those pages.
+
+Production secrets were read by name (Cloudflare `workers/scripts/<name>/settings`, 2026-10-29): `rabbit-hole-app` has
+`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `TYPESAFE_API_KEY`, `FISH_AUDIO_API_KEY`, `ELEVENLABS_API_KEY`,
+`DESMOS_API_KEY`, `PEXELS_API_KEY`, `CONVERT_TOKEN` (with `CONVERT_URL` set); `rabbit-hole-cp` has `RESEND_API_KEY`,
+`GOOGLE_*` and `GITHUB_*`. No `EXA_API_KEY`, so Exa (and FAL, HeyGen) are not listed. `TRANSCRIBE_ENABLED=false`, so
+OpenAI transcription is not listed.
 
 ## Design and integration
 
