@@ -30,7 +30,7 @@ import { isReviewProposal } from '../../web/src/generation-review.js';
 import { needsPreparation, prepareStage } from './explain-brief.js';
 import { authorStage, selectExamples, specFacts, validateProgramStage, validateStage } from './explain-author.js';
 import { artifactIntact, draftOf, programEnabled, programExecution, programFacts, programReference } from './explain-program.js';
-import { reviewCaptures } from './explain-review.js';
+import { REVIEW_LIMITS, reviewCaptures, traceBytes } from './explain-review.js';
 import * as explainRender from './explain-render.js';
 import { learnMedia } from './learn-storage.js';
 import { recordRound, programHashOf, resolveVersion } from './explain-history.js';
@@ -90,9 +90,18 @@ export const renderStage = ({ render = explainRender, ...deps } = {}) => async (
     if (error.code === 'program_error' && !platform) return { problems: [`running the program failed (${String(error.program?.code || 'runtime_error').slice(0, 40)}${programWhere(error.program)}): ${String(error.program?.diagnostic || 'no detail').slice(0, 300)}`], runtime: { code: error.program?.code, phase: error.program?.phase, ms: error.program?.ms }, category: 'spec', repairable: true };
     throw Object.assign(fail(`The explanation could not be rendered (${platform ? `runtime_${error.program.phase}` : error.code || 'render_failed'}). Retry rendering.`, 503, platform ? `runtime_${error.program.phase}` : undefined), { category: 'renderer' });
   }
+  // The review reads every trace whole and refuses traces over its limit; legal quantities across the captures can still exceed it, so the
+  // program is told the measured size now, before any review is spent, and repairs it within the correction rounds like any runtime problem.
+  if (program) {
+    const size = traceBytes(reviewTraces(out.captures)), limit = REVIEW_LIMITS.traceBytes, n = out.captures.length;
+    const most = Math.max(...out.captures.map(c => Object.keys(c.trace?.quantities || {}).length));
+    if (size > limit) return { problems: [`the execution traces of the ${n} captures are ${size} bytes, over the review limit of ${limit} bytes: return fewer quantities or shorter quantity names (now up to ${most} per capture); keep each capture's trace under about ${Math.floor(limit / n)} bytes`], category: 'spec', repairable: true };
+  }
   // A program's coverage (what was sampled and what was not) is bound to the artifact hash it was computed for.
   return { captures: out.captures.map(({ png, ...capture }) => ({ ...capture, compiledHash: out.compiledHash, mediaType: 'image/png' })), renders: out.captures.map(() => ({ ok: true })), ...(program ? { coverage: { compiledHash: out.compiledHash, ...manifest.coverage } } : {}) };
 };
+// The traces block the reviewer receives: one per capture, in capture order.
+const reviewTraces = captures => captures.map(({ id, trace }) => ({ id, ...trace }));
 // The runtime's phase and elapsed time when the page reported them (untrusted: only a known phase and a number are repeated).
 const programWhere = program => {
   const parts = [['load', 'evaluate', 'serialize', 'engine'].includes(program?.phase) && `phase ${program.phase}`, Number.isFinite(program?.ms) && `${Math.round(program.ms)} ms`].filter(Boolean);
@@ -111,7 +120,7 @@ export async function reviewStage(job, ctx) {
   }));
   let out;
   try { out = await reviewCaptures({ request: job.prompt, compiledHash: captures[0]?.compiledHash, facts: job.artifact ? programFacts(job.artifact.manifest) : specFacts({ ...job.spec, title: null }), evidence: job.evidence || [], captures,
-    ...(job.artifact ? { program: { ...draftOf(job.artifact), traces: captures.map(({ id, trace }) => ({ id, ...trace })),
+    ...(job.artifact ? { program: { ...draftOf(job.artifact), traces: reviewTraces(captures),
       // Only the coverage computed for exactly the captures being reviewed; one from an earlier or replaced artifact is not shown.
       ...(job.coverage && job.coverage.compiledHash === captures[0]?.compiledHash ? { coverage: job.coverage } : {}) } } : {}) }, { callRole: ctx.call }); }
   catch (error) { if (error.cause) throw error.cause; throw Object.assign(fail(`The explanation could not be reviewed (${error.code || 'review_failed'}).`, 503), { category: error.code === 'missing_pixels' ? 'renderer' : 'spec' }); }
@@ -140,11 +149,13 @@ const explainDiagnostics = job => ({ spec: job.spec, ...(job.program ? { program
 
 // Only the actions that can run now (plan section 1.4). retry_render: a retained valid spec, render again (no reauthoring).
 // new_attempt: a paid retry within this job's remaining ceiling. edit_request: always, a new request.
+const CANDIDATE_STOPS = new Set(['rounds', 'no_progress', 'unsupported_repair']);
 export function recoveryOf(job) {
   if (job.stage !== 'failed') return [];
   if (job.inFlight) return ['reconcile'];
   const actions = [];
-  if (job.failure?.stage === 'rendering' && (job.compiled || job.artifact)) actions.push('retry_render');
+  // Not after a stop about the candidate itself (corrections spent, no progress, unrepairable): rendering it again fails the same way.
+  if (job.failure?.stage === 'rendering' && (job.compiled || job.artifact) && !CANDIDATE_STOPS.has(job.stopReason)) actions.push('retry_render');
   // Paused for the provider: the refused call was never counted, so resuming is always within the ceiling.
   else if (job.failure?.category === 'provider_unavailable' || job.failure?.retryable && withinCeiling(job)) actions.push('new_attempt');
   return [...actions, 'edit_request'];
