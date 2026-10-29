@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFrameScheduler } from './playback.js';
+import { RuntimeError } from './contract.js';
 
 // A fake host whose every evaluation takes `latency` ms of fake time, one at a time (host.js keeps one in flight and the newest
 // waiting), and a fake animation clock of 16 ms frames. Regression for the starved playback seen on the genuine sandbox-ex1-b
@@ -148,4 +149,56 @@ test('a failed frame during playback is reported once and nothing is drawn after
   assert.match(scene, /const stop = error => \{ setPlaying\(false\); setFailure\(error\); \};/, 'a failure stops the clock');
   assert.match(scene, /else stop\(out\.error\);\s*\},\s*fail: stop,/, 'a failed evaluation and a frame that fails its checks both stop the card');
   assert.match(scene, /const drawn = !!\(manifest && view && !failure\);/, 'the rows observer ends while the message replaces them');
+});
+
+// Owner decision 2026-10-29 (option A): a frame that misses the 50 ms operation deadline is skipped and the last frame stays; a
+// completed frame resets the count; the third overrun in a row stops the card; every other error still stops it at once.
+const OVERRUN = () => new RuntimeError('runtime_limit', 'time limit'); // what host.js rejects for runtime.js's interrupt
+function scripted(outcomes) {
+  const drawn = [], errors = [], asked = [];
+  const scheduler = createFrameScheduler({
+    evaluate: job => { asked.push(job.time); const next = outcomes.shift(); return next === 'ok' ? Promise.resolve({ frame: job.time }) : Promise.reject(next()); },
+    show: (reply, job) => drawn.push(job.time), fail: error => errors.push(error),
+  });
+  const at = async time => { scheduler.want({ key: 'a', time, inputs: {} }); for (let i = 0; i < 5; i++) await new Promise(resolve => setImmediate(resolve)); };
+  return { drawn, errors, asked, at };
+}
+
+test('one overrun keeps the last frame, the newest moment is asked for again and drawn, and the count resets', async () => {
+  const r = scripted(['ok', OVERRUN, 'ok', OVERRUN, OVERRUN, 'ok']);
+  await r.at(0);
+  await r.at(1); // overrun, then t=1 again: drawn
+  assert.deepEqual([r.drawn, r.errors.length], [[0, 1], 0]);
+  await r.at(2); // two more overruns: under three in a row since the reset
+  assert.deepEqual([r.drawn, r.errors.length, r.asked], [[0, 1, 2], 0, [0, 1, 1, 2, 2, 2]]);
+});
+
+test('three overruns in a row stop the card once, with the frame drawn before them still the last one drawn', async () => {
+  const r = scripted(['ok', OVERRUN, OVERRUN, OVERRUN, 'ok']);
+  await r.at(0);
+  await r.at(1);
+  assert.deepEqual([r.drawn, r.errors.map(error => error.code), r.asked], [[0], ['runtime_limit'], [0, 1, 1, 1]]);
+  for (let i = 0; i < 5; i++) await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(r.asked, [0, 1, 1, 1], 'the scheduler asks for nothing more by itself after the stop');
+});
+
+test('overrun, success, overrun, overrun does not stop the card', async () => {
+  const r = scripted([OVERRUN, 'ok', OVERRUN, OVERRUN, 'ok']);
+  await r.at(0); // overrun, then drawn
+  await r.at(1); // overrun, overrun, then drawn
+  assert.deepEqual([r.drawn, r.errors.length], [[0, 1], 0]);
+});
+
+test('every other error stops the card at once: watchdog, boot, setup, memory, output, version, Worker failure', async () => {
+  const others = [
+    ['runtime_limit', 'host watchdog: Worker terminated'], ['runtime_limit', 'engine boot deadline'], ['runtime_limit', 'setup time limit'],
+    ['runtime_limit', 'InternalError: out of memory'], ['runtime_limit', 'state is over its size limit'], ['invalid_output', 'output over its size limit'],
+    ['version_unavailable', 'engine did not load'], ['runtime_error', 'Worker failed'], ['invalid_program', 'time limit'],
+  ];
+  for (const [code, diagnostic] of others) {
+    const r = scripted(['ok', () => new RuntimeError(code, diagnostic), 'ok']);
+    await r.at(0);
+    await r.at(1);
+    assert.deepEqual([r.drawn, r.errors.map(error => error.code), r.asked], [[0], [code], [0, 1]], diagnostic);
+  }
 });
