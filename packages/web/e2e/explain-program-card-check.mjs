@@ -57,7 +57,13 @@ try {
   const shot = async name => { await page.waitForTimeout(400); await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
   const card = id => page.locator(`[data-block-id="${id}"]`);
   const timeText = async id => (await card(id).locator('[data-program-time]').innerText()).trim();
-  const readouts = async id => (await card(id).locator('[data-program-readouts]').innerText()).trim();
+  // The readouts are listed under Values in the card's collapsed Notes (owner, 2026-10-28: no strip under the drawing); this
+  // opens Notes once and reads them there.
+  const readouts = async id => {
+    const toggle = card(id).locator('[data-program-notes-toggle]');
+    if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+    return (await card(id).locator('[data-program-values] [data-program-value]').allInnerTexts()).map(text => text.trim()).join(' · ');
+  };
   const scrub = async (id, seconds) => { await card(id).locator('input[aria-label="Explanation time"]').fill(String(seconds)); await page.waitForTimeout(500); };
   const open = async () => {
     await page.goto(`${BASE}/apps/${canvas.name}`);
@@ -72,6 +78,8 @@ try {
     await card('p-growth').locator('[data-program-frame] [data-animation-object]').first().waitFor({ state: 'attached', timeout: 30000 }); // a horizontal axis line has no height, so Playwright calls its group hidden: wait for it to exist
     assert.ok(await card('p-growth').locator('[data-program-frame] polyline').count() >= 1, 'a plotted curve');
     assert.ok(await card('p-growth').locator('[data-program-frame] [data-animation-object="marker"]').count() === 1);
+    assert.equal(await card('p-growth').locator('[data-program-readouts]').count(), 0, 'no readout strip under the drawing');
+    assert.equal(await card('p-growth').locator('[data-program-notes-toggle]').getAttribute('aria-expanded'), 'false', 'Notes start collapsed');
     assert.match(await readouts('p-growth'), /^Balance: 1000$/);
     assert.equal(await card('p-growth').locator('[data-program-error]').count(), 0);
     await shot('A-growth-at-zero');

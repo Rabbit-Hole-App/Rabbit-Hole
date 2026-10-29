@@ -1033,4 +1033,12 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
    Explanation program sizes its drawing to the pane (ProgramScene focusFrameBox); when the pane is under its legible box, the
    whole focused card scrolls, never the drawing alone. */
 [data-focus-host] [data-focus-hide] { display: none; }
-[data-focus-host]:has([data-program-viewport]) { overflow: auto !important; }
+[data-focus-host]:has([data-program-viewport]) { overflow: auto !important; overscroll-behavior: contain; }
+/* A short window (owner, 2026-10-29: reclaim space before scrolling): a focused program card's rows close up so the drawing gets
+   the height. Play, the scrubber and the inputs keep their 32 px targets; Interact's label sits beside its inputs. */
+@media (max-height: 800px) {
+  [data-focus-host] [data-program-card], [data-focus-host] [data-program-card] > div:last-child { gap: 0.25rem; }
+  [data-focus-host] [data-program-card] [data-scene-controls] { display: flex; align-items: center; gap: 1rem; padding-block: 0.25rem; }
+  [data-focus-host] [data-program-card] [data-scene-controls] > p { margin: 0; }
+  [data-focus-host] [data-program-card] [data-program-notes-toggle] { min-height: 2rem; }
+}

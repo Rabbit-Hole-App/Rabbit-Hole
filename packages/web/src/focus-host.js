@@ -6,6 +6,8 @@
 import { frameInWorld, registerFocusAdapter } from './focus-controller.js';
 
 export const READING_MAX = 760; // a readable line for the cards' 14 px body text
+// A reader or editor (notebook, PDF) takes the pane up to this width, centred, and scrolls natively (owner, 2026-10-28: about 960-1200 px).
+export const WIDE_MAX = 1200;
 
 // The host box in surface px (pure). fill: the frame, at most maxWidth wide, centred.
 export function fillBox(frame, { maxWidth = Infinity } = {}) {

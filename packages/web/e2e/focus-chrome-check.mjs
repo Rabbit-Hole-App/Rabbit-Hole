@@ -110,7 +110,7 @@ await check('1 The selected notebook shows Focus notebook in its toolbar (32 to 
   await page.locator('[data-canvas-menu]').waitFor({ state: 'detached' });
 });
 
-await check('2 The toolbar Focus button enters Focus: the header shows the title and Back to canvas, the notebook host fills the frame, no board save', async () => {
+await check('2 The toolbar Focus button enters Focus: the header shows the title and Back to canvas, the notebook host fills the frame up to 1200 px, no board save', async () => {
   await selectNotebook();
   home = { camera: await camera(), selection: await selectedIds() };
   const before = counts();
@@ -120,7 +120,9 @@ await check('2 The toolbar Focus button enters Focus: the header shows the title
   assert.equal(byButton.id, 'nb'); assert.equal(byButton.kind, 'notebook'); assert.equal(byButton.host, 'nb');
   await frame().getByRole('button', { name: 'Back to canvas', exact: true }).waitFor();
   assert.ok(byButton.hostBox[1] >= byButton.header[1] + byButton.header[3], 'the host sits below the header');
-  assert.ok(Math.abs(byButton.hostBox[2] - byButton.header[2]) <= 2, `the host is as wide as the header (${byButton.hostBox[2]} / ${byButton.header[2]})`);
+  // Owner, 2026-10-28: a notebook takes the pane up to about 1200 px (focus-host.js WIDE_MAX), centred under the header.
+  assert.ok(Math.abs(byButton.hostBox[2] - Math.min(byButton.header[2], 1200)) <= 2, `the host is as wide as the header, at most 1200 (${byButton.hostBox[2]} / ${byButton.header[2]})`);
+  assert.ok(Math.abs(byButton.hostBox[0] + byButton.hostBox[2] / 2 - (byButton.header[0] + byButton.header[2] / 2)) <= 2, 'the host is centred under the header');
   await shot('2-focused');
   await quiet('enter', before);
   assert.equal(await geometry(), geometry0, 'no saved geometry changed');

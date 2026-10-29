@@ -95,7 +95,7 @@ const VIEW_ONLY_HIDDEN = new Set(['canvas.local-edit', 'source.write', 'generate
 const rowGroup = id => allActions().find(entry => entry.id === id)?.group || null;
 // S1's one permission model (canvas-permissions.js, contract-permissions.md): the menu, the card ⋮ and the shortcuts ask it.
 import { can as permit } from './canvas-permissions.js';
-import { adapterFor, focusReducer, focusSnapshot, shouldExitOnEscape } from './focus-controller.js';
+import { adapterFor, focusReducer, focusSnapshot, readyToReveal, shouldExitOnEscape } from './focus-controller.js';
 import { syncFocus, workspaceFrame } from './focus-adapters.js';
 import FocusFrame from './FocusFrame.jsx';
 import { rabbitHoleTarget } from './canvas-actions-types.js';
@@ -908,11 +908,13 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   // A repository graph card (GraphCard.jsx): its header strip moves it, its frame resizes it, the graph inside keeps its own pointer.
   if (block.type === 'repo-graph') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || GRAPH_CARD.w} height={block.h || GRAPH_CARD.h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
     <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the graph</p>}><GraphCard block={block} selected={selected} /></Suspense></CanvasNode>;
+  // A size whose height is undefined (a pending Explanation) means the content's height, not the type's fixed one.
+  const sized = BLOCK_TYPES[block.type]?.sizeFor?.(block, programFrame);
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       autoMax={BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
-      width={BLOCK_TYPES[block.type]?.sizeFor?.(block, programFrame)?.width ?? BLOCK_TYPES[block.type]?.width}
-      height={BLOCK_TYPES[block.type]?.sizeFor?.(block, programFrame)?.height ?? BLOCK_TYPES[block.type]?.height}
+      width={sized?.width ?? BLOCK_TYPES[block.type]?.width}
+      height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
       extraHeight={sourcesHeight + practiceHeight + controlsHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
       tools={selected ? <>
@@ -2054,6 +2056,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   useLayoutEffect(() => { if (focus?.id && surface.current) dispatchFocus({ type: 'workspace-changed', frame: focusWorkspace() }); }, [focus?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Deleted, or no longer focusable (read-only now, failed): a clean exit.
   useEffect(() => { const id = focusRef.current?.id; if (id && !adapterFor(objectById(id), { view: viewRef.current, readOnly })) dispatchFocus({ type: 'content-gone', id }); }, [blocks, exchanges, items, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  // This canvas's own /explain cards (placeExplain): each opens in Focus once when ready, unless another card is focused then.
+  const revealing = useRef(new Set());
+  useEffect(() => {
+    const id = revealing.current.size ? readyToReveal(revealing.current, key => blocksRef.current.find(block => block.id === key)) : null;
+    if (id && !focusRef.current) commandsRef.current?.enterFocus(id);
+  }, [blocks]);
   const focusSole = useCallback(() => commandsRef.current?.enterFocus(selectedRef.current[0]), []);
   const commandsRef = useRef(null);
   useEffect(() => {
@@ -2240,6 +2248,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         snapshot();
         const added = { ...card, dx: 0, dy: 0 };
         blocksRef.current = [...blocksRef.current, added];
+        revealing.current.add(card.id);
         return insertAtView(added, into);
       },
       reconcileCad: (incoming, { insert = true } = {}) => {
