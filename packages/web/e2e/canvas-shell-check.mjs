@@ -120,7 +120,15 @@ await page.screenshot({ path: `${OUT}/shell-3-grandchild.png` });
 // selected card opens that editor, and with nothing selected the key still stays on the canvas - it never opens Search (which moved
 // to Ctrl/Cmd+Shift+F, shortcut-owner.js) and never dives. Dive.jsx still dives on Ctrl+K on a canvas without the inline editor.
 const search = page.getByPlaceholder('Describe what you are looking for');
-await page.keyboard.press('Escape'); await page.mouse.click(700, 500); await page.keyboard.press('Control+k'); await page.waitForTimeout(500);
+// A bare canvas point: the grandchild's notebook card (it replaced the whiteboard) keeps key presses in its frame when clicked.
+const bare = await page.evaluate(() => {
+  for (let y = 560; y > 140; y -= 40) for (let x = 300; x < innerWidth - 420; x += 40) {
+    const el = document.elementFromPoint(x, y);
+    if (el?.closest('[data-canvas-surface]') && !el.closest('[data-block-id],[data-item-id],[data-shape-id],button,[role="toolbar"],iframe')) return { x, y };
+  }
+  return { x: 700, y: 500 };
+});
+await page.keyboard.press('Escape'); await page.mouse.click(bare.x, bare.y); await page.keyboard.press('Control+k'); await page.waitForTimeout(500);
 assert.equal(new URL(page.url()).searchParams.get('hole'), null, 'Ctrl+K with no card does not dive');
 assert.equal(await search.count(), 0, 'Ctrl+K with nothing selected does not open Search');
 await page.keyboard.press('Escape');
