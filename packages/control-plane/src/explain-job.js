@@ -17,7 +17,7 @@
 import { repositoryIdentity } from './repositories.js';
 import { authorizedBoardApp } from './learn-board.js';
 import { tutorImageContext } from './learn-image-context.js';
-import { boundEvidence, mergeRefs, resolveExplainRefs } from './explain-context-refs.js';
+import { EXPLAIN_REFS, boundEvidence, mergeRefs, resolveEditRefs } from './explain-context-refs.js';
 import { anthropic } from './ask.js';
 import { costUsd, MESSAGE_LIMIT } from './learn-models.js';
 import { spendTransport, spendEnforced, platformCaps } from './learn-spend.js';
@@ -54,9 +54,12 @@ const hex = () => crypto.randomUUID().replaceAll('-', '');
 export const explainEnabled = env => env.EXPLAIN_V2_ENABLED === 'true';
 export const EXPLAIN_DISABLED = 'Explanations are not available here yet.';
 // Task 9.2: an accepted result's private provenance. The records it was made from, without their excerpts (the location, revision
-// and hash name what was read), and the sources an Edit of it reads again under the learner's access then.
+// and hash name what was read), and the sources an Edit of it reads again under the learner's access then: at most one read's
+// EXPLAIN_REFS, the ones this result has evidence from first, so lineage cannot grow edit by edit. A source left out here was
+// not read for this result (evidence is at most 16 records) and was already reported to it as not read.
 const provenanceOf = job => ({ evidence: (job.evidence || []).map(record => record.id).slice(0, 64), records: (job.evidence || []).map(({ excerpt: _text, ...record }) => record),
-  sources: (job.context?.refs || []).map(({ sourceId, kind, name, version, range }) => ({ sourceId, kind, name, version: version ?? '', range: range ?? null })) });
+  sources: [...(job.context?.refs || [])].sort((a, b) => !!b.evidence - !!a.evidence).slice(0, EXPLAIN_REFS)
+    .map(({ sourceId, kind, name, version, range }) => ({ sourceId, kind, name, version: version ?? '', range: range ?? null })) });
 
 // The capability's stages: author and validate (T17, explain-author.js), render and review (T18, Lane D's explain-render.js
 // renderStates and explain-review.js reviewCaptures, through the adapters below), repair (T19, explain-repair.js).
@@ -230,9 +233,8 @@ export async function explainRoute(path, req, env, deps = {}) {
   delete body.evidence;
   if (body.context && typeof body.context === 'object' && !Array.isArray(body.context)) { const { refs: _refs, refText: _text, ...rest } = body.context; body.context = rest; }
   if (action === 'create' && (body.context_refs != null || lineage.length)) {
-    const given = body.context_refs ?? [];
     let got;
-    try { got = await resolveExplainRefs(req, env, { user, board }, Array.isArray(given) && given.every(r => r && typeof r === 'object') ? mergeRefs(lineage, given) : given, deps.readers); } catch (error) { return json({ error: error.message }, error.status || 400); }
+    try { got = await resolveEditRefs(req, env, { user, board }, body.context_refs, lineage, deps.readers); } catch (error) { return json({ error: error.message }, error.status || 400); }
     body.context = { ...(body.context && typeof body.context === 'object' ? body.context : {}), refs: got.refs, ...(got.text ? { refText: got.text } : {}) };
     body.evidence = got.evidence;
   }

@@ -25,6 +25,16 @@ export const NOT_READ = Object.freeze({
 });
 const noteOf = status => NOT_READ[status] || (status === 'not_read' ? NOT_READ.omitted : NOT_READ.listed);
 const refKey = ref => `${ref.sourceId}|${JSON.stringify(ref.range ?? null)}`;
+// chat-modes.js contextRefs' limit: one read takes at most this many refs.
+export const EXPLAIN_REFS = 20;
+// A file record's page or lines: those of the units actually in its excerpt (file-context.js reads.locs), never the asked range,
+// which an extraction unit can exceed. Nothing when they are not one page or not all line ranges.
+function readRange(locs) {
+  if (!locs?.length || locs.some(loc => !loc)) return {};
+  if (locs.every(loc => loc.page != null && loc.page === locs[0].page)) return { page: locs[0].page };
+  if (locs.every(loc => loc.start != null)) return { lines: { start: Math.min(...locs.map(loc => loc.start)), end: Math.max(...locs.map(loc => loc.end ?? loc.start)) } };
+  return {};
+}
 
 // The records within the review's record count and the excerpt cap, in order; a cut excerpt says so, and a ref whose record
 // is left out becomes omitted. -> { refs, evidence }
@@ -77,8 +87,7 @@ export async function resolveExplainRefs(req, env, { user, board }, value, { cod
       // An image file rides to a question as a picture; an /explain job is never given it (its layout image is image_context).
       status.set(ref, label === 'image included' ? 'listed' : label);
       if (read) records.set(ref, await evidenceRecord({ kind: 'attachment', location: ref.sourceId, revision: read.sha256, text: read.text, excerpt: read.text,
-        ...(ref.range?.page != null ? { page: ref.range.page } : {}), ...(ref.range?.start != null ? { lines: { start: ref.range.start, end: ref.range.end } } : {}),
-        access: 'owner', limitations: read.cut, retrievedAt: now?.() }));
+        ...readRange(read.locs), access: 'owner', limitations: read.cut, retrievedAt: now?.() }));
     }
   }
   for (const ref of refs.filter(r => r.kind === 'excerpt' && typeof r.text === 'string' && r.text.trim())) {
@@ -92,4 +101,16 @@ export async function resolveExplainRefs(req, env, { user, board }, value, { cod
   });
   const bounded = boundEvidence(out, refs.map(ref => records.get(ref)).filter(Boolean));
   return { refs: bounded.refs, evidence: bounded.evidence, text: parts.join('\n\n').slice(0, EXPLAIN_REF_TEXT) };
+}
+
+// An Edit's reads: the learner's own refs (validated as any request's: a malformed one is refused) and, apart, the base's inherited
+// sources, so inheriting can never push a valid request past the ref limit. New refs come first for the shared evidence bounds;
+// an inherited source past EXPLAIN_REFS, or one its read could not take, is reported omitted, never dropped.
+export async function resolveEditRefs(req, env, ctx, given, inherited, deps = {}) {
+  const own = await resolveExplainRefs(req, env, ctx, given ?? [], deps);
+  const fresh = new Set(own.refs.map(refKey)), rest = (inherited || []).filter(ref => !fresh.has(refKey(ref)));
+  const omit = ref => ({ sourceId: ref.sourceId, kind: ref.kind, name: ref.name, version: ref.version ?? '', range: ref.range ?? null, status: 'omitted', note: NOT_READ.omitted });
+  const base = rest.length ? await resolveExplainRefs(req, env, ctx, rest.slice(0, EXPLAIN_REFS), deps).catch(() => ({ refs: rest.slice(0, EXPLAIN_REFS).map(omit), evidence: [], text: '' })) : { refs: [], evidence: [], text: '' };
+  const bounded = boundEvidence([...own.refs, ...base.refs, ...rest.slice(EXPLAIN_REFS).map(omit)], [...own.evidence, ...base.evidence]);
+  return { refs: bounded.refs, evidence: bounded.evidence, text: [own.text, base.text].filter(Boolean).join('\n\n').slice(0, EXPLAIN_REF_TEXT) };
 }

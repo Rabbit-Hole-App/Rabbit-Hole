@@ -161,3 +161,43 @@ test('Task 9.2: an Edit reads its base sources again under the learner\'s access
   const sent = JSON.parse(model.calls.filter(c => c.name === 'author_explanation')[1].body.messages[0].content[0].text);
   assert.deepEqual([sent.evidence, sent.context.refs[0].status], [[], 'unavailable'], 'the author is told, and gets no stale excerpt');
 });
+
+// REGRESSION (review of 4c402a02): inherited sources were merged into the Edit's own refs, so 20 inherited plus any new one passed
+// contextRefs' 20-ref limit and refused a valid Edit; a result that had accumulated 21 sources (create's refs plus Generate's)
+// refused every later Edit. Inherited sources are now read apart, within the same evidence bounds, and what is left out is said.
+const manyRefs = (n, from = 1, repo = 'octo/repo') => Array.from({ length: n }, (_, i) => ({ sourceId: `code:${repo}@${COMMIT}:src/rain.js`, kind: 'code', name: `part ${from + i}`, version: COMMIT, range: { path: 'src/rain.js', start: from + i, end: from + i } }));
+const readEach = async (env, who, refs) => refs.map(ref => ({ name: ref.name, status: 'read', code: { path: 'src/rain.js', start: ref.range.start, end: ref.range.end, content: `${ref.range.start}: line ${ref.range.start}` } }));
+
+test('an Edit of a result with 20 sources takes 20 new refs; past the limits each source is reported omitted, never refused', async t => {
+  const s = stack(t);
+  scripted(t, { author_explanation: [{ kind: 'spec', spec: SPEC }, { kind: 'spec', spec: EDITED }], report_review: [accept, accept] });
+  const post = routed(s, () => ({ code: readEach }));
+  const first = await post({ requestId: 'req-many-0001', cardId: 'card-0001', prompt: 'Explain where rain comes from.', requestClass: 'simple', context_refs: manyRefs(20) });
+  const done = await s.run(first.body.job.id);
+  place(s, [{ ...(await s.job(done.id)).block, x: 40, y: 40 }]);
+  assert.equal(s.state.data.get(`result:${done.resultId}`).provenance.sources.length, 20);
+  const edit = await post({ requestId: 'req-many-0002', cardId: 'card-0001', prompt: 'Say that rain or snow falls.', requestClass: 'edit', baseRevision: done.result.revision, context_refs: manyRefs(20, 101) });
+  assert.equal(edit.status, 202, JSON.stringify(edit.body));
+  const job = s.state.data.get(`job:${edit.body.job.id}`);
+  assert.equal(job.context.refs.length, 40);
+  assert.equal(job.evidence.length, 16);
+  assert.ok(job.context.refs.slice(0, 16).every(r => r.evidence), 'the new refs come first');
+  assert.ok(job.context.refs.filter(r => !r.evidence).every(r => r.status === 'omitted' && /past this explanation's source limit/.test(r.note)));
+});
+
+test('a result that accumulated 21 sources keeps 20 for its lineage, and its Edit with no new attachment still starts', async t => {
+  const s = stack(t);
+  scripted(t, { author_explanation: [{ kind: 'spec', spec: SPEC }, { kind: 'spec', spec: EDITED }], report_review: [accept, accept] });
+  const post = routed(s, () => ({ code: readEach }));
+  const first = await post({ requestId: 'req-many-0003', cardId: 'card-0001', prompt: 'Explain where rain comes from.', requestClass: 'simple', context_refs: manyRefs(20) });
+  // Generate merges its kept reference into create's 20 (explain-job.js approve): the job now holds 21.
+  s.state.data.get(`job:${first.body.job.id}`).context.refs.push({ ...manyRefs(1, 50)[0], status: 'read' });
+  const done = await s.run(first.body.job.id);
+  place(s, [{ ...(await s.job(done.id)).block, x: 40, y: 40 }]);
+  const sources = s.state.data.get(`result:${done.resultId}`).provenance.sources;
+  assert.equal(sources.length, 20);
+  assert.ok(sources.slice(0, 16).every(src => src.name.startsWith('part ')));
+  const edit = await post({ requestId: 'req-many-0004', cardId: 'card-0001', prompt: 'Say that rain or snow falls.', requestClass: 'edit', baseRevision: done.result.revision });
+  assert.equal(edit.status, 202, JSON.stringify(edit.body));
+  assert.equal(s.state.data.get(`job:${edit.body.job.id}`).evidence.length, 16);
+});

@@ -232,3 +232,18 @@ test('an /explain job gets each excerpt read as an EvidenceRecord of its revisio
   const refused = await resolveExplainRefs(request('friend'), env, { user: PEOPLE.friend, board: { app: 'demo-app' } }, [ref({ page: 2 })]);
   assert.deepEqual([refused.refs[0].status, refused.evidence], ['unavailable', []]);
 });
+
+// REGRESSION (review of 4c402a02): a record named the asked lines although the extraction returned a larger unit (asked 25-30,
+// read 21-40, recorded 25-30). It now names the units actually in its excerpt, and a cut excerpt names only what it kept.
+test('an /explain record names the line range actually read, not the range asked for', async t => {
+  const { env, request, source, derivative, store } = setup(t);
+  source();
+  store.set(derivative(), JSON.stringify({ v: 1, complete: true, units: [{ loc: { start: 1, end: 20 }, text: 'a'.repeat(3990) }, { loc: { start: 21, end: 40 }, text: 'Line 25 says the period is 2 s.' }, { loc: { start: 41, end: 60 }, text: 'later' }] }));
+  const at = { user: PEOPLE.owner, board: { app: 'demo-app' } };
+  const asked = await resolveExplainRefs(request('owner'), env, at, [ref({ start: 25, end: 30 })]);
+  assert.deepEqual(asked.evidence[0].lines, { start: 21, end: 40 });
+  assert.match(asked.evidence[0].excerpt, /^\[L21-40\] Line 25/);
+  const cut = await resolveExplainRefs(request('owner'), env, at, [ref({ start: 15, end: 45 })]);
+  assert.deepEqual(cut.evidence[0].lines, { start: 1, end: 40 }, 'the cut excerpt holds L1-20 and the start of L21-40, not L41-60');
+  assert.ok(cut.evidence[0].limitations.some(l => /the first 4000 of \d+ characters/.test(l)));
+});
