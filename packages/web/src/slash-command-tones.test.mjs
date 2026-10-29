@@ -49,8 +49,9 @@ test('the same command looks the same everywhere: the / picker, the composer pil
   const source = read('./CommandTone.jsx');
   // No command carries an icon (owner, 2026-10-08): the mark is its coloured /name, nothing else.
   assert.doesNotMatch(source, /COMMAND_ICONS|CommandIcon|lucide-react|<Icon/);
-  // The tone is keyed by the stable id (name); the text is what is typed (typedOf: id image shows /photos, generate-image shows /image).
-  assert.match(source, /return <span data-command-tone=\{name\} className=\{`inline-flex shrink-0 items-center rounded-md border px-1\.5 font-medium \$\{className\}`\}>\/\{typedOf\(name\)\}<\/span>;/);
+  // The tone is keyed by the stable id (name); the text is the typed name without its slash (owner spec 2026-10-29: id image
+  // shows photos, generate-image shows image). The slash stays only in typed syntax.
+  assert.match(source, /return <span data-command-tone=\{name\} className=\{`inline-flex shrink-0 items-center rounded-md border px-1\.5 font-medium \$\{className\}`\}>\{typedOf\(name\)\}<\/span>;/);
   assert.match(source, /export const COMMAND_TONES = SLASH\.map\(\(command\) => command\.name\);/, 'every command in the registry is toned');
   if (commandTone) { assert.equal(commandTone('explain'), 'explain'); assert.equal(commandTone('quiz'), 'quiz'); assert.equal(commandTone('auto'), null); assert.equal(commandTone('simplify'), null); }
   assert.match(read('./LearnSlash.jsx'), /<CommandMark name=\{item\.name\} className="text-ink" \/>/);
@@ -63,9 +64,9 @@ test('the same command looks the same everywhere: the / picker, the composer pil
   const pill = read('./CommandPill.jsx');
   assert.match(pill, /const tone = commandTone\(name\);/);
   assert.match(pill, /data-command-pill=\{name\} data-command-tone=\{tone \|\| undefined\}/);
-  // Owner, 2026-10-20: the selected pill reads the registry label, never /name (/simplify: Simplify); the tint stays, no icon.
-  assert.match(pill, /const label = commandLabel\(name\);/);
-  assert.match(pill, /font-medium">\{label\}<\/button>/);
+  // Owner spec 2026-10-29: the selected pill reads the typed name without its slash; the tint stays, no icon.
+  assert.match(pill, /const shown = typedOf\(name\);/);
+  assert.match(pill, /font-medium">\{shown\}<\/button>/);
   assert.doesNotMatch(pill, /`\/\$\{name\}`/);
   assert.doesNotMatch(pill, /CommandIcon/);
   for (const code of [ask, read('./agent/AgentBar.jsx')]) assert.doesNotMatch(code, /CommandIcon/);
@@ -80,7 +81,7 @@ test('the same command looks the same everywhere: the / picker, the composer pil
 test('every command in the registry has its own colour in both themes; no two share one', async () => {
   const { SLASH } = await import('./agent/slash.js');
   const names = SLASH.map((command) => command.name);
-  assert.ok(names.length >= 19, `${names.length} commands`);
+  assert.equal(names.length, 18);
   const accent = token('light', '--color-accent');
   for (const theme of ['light', 'dark']) {
     const seen = new Map();
@@ -96,6 +97,6 @@ test('every command in the registry has its own colour in both themes; no two sh
   }
   for (const name of names) assert.ok(css.includes(`[data-command-tone="${name}"] { --cmd-bg: var(--cmd-${name}-bg); --cmd-fg: var(--cmd-${name}-fg); --cmd-line: var(--cmd-${name}-line); }`), `/${name} rule`);
   // A removed command keeps no colour; the bar draws no command mark or pill (it has no slash commands since 2026-10-20).
-  for (const name of ['ask', 'teach', 'research', 'do', 'find', 'more', 'simplify', 'compare', 'walkthrough', 'source', 'paper']) assert.ok(!css.includes(`--cmd-${name}-`), name);
+  for (const name of ['ask', 'teach', 'research', 'do', 'find', 'more', 'simplify', 'compare', 'walkthrough', 'source', 'paper', 'dive', 'whiteboard', 'video']) assert.ok(!css.includes(`--cmd-${name}-`), name);
   assert.doesNotMatch(read('./agent/AgentBar.jsx'), /CommandMark|data-command-pill/);
 });

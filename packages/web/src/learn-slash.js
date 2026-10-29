@@ -4,10 +4,11 @@
 // here, and what running one does. Pure apart from the injected post/canvas,
 // so it is tested without a browser.
 import { reviewRequired } from './proposal-capabilities.js';
-import { LEARN_MENU, commandsFor, descFor, imageGenerationLive, learnRequest, resolveCommand, idOfTyped, typedOf, unavailableCommand } from './agent/slash.js';
+import { LEARN_MENU, MENU_TITLES, commandsFor, descFor, imageGenerationLive, learnRequest, resolveCommand, idOfTyped, typedOf, unavailableCommand } from './agent/slash.js';
 import { PRIMITIVES, isReady } from '../../control-plane/src/learn-primitives.js';
 import { filterSections } from './command-search.js';
 import { withPrompt } from './card-prompt.js';
+import { isWebUrl } from './canvas-paste.js';
 import { existingGeneration } from './generation-state.js';
 
 // Offered only when something can satisfy it now: no family (chat or a direct
@@ -15,49 +16,48 @@ import { existingGeneration } from './generation-state.js';
 // name still runs and says plainly what is not available yet.
 export const available = command => !command.family || command.deterministic || command.family.some(id => isReady(id) || PRIMITIVES[id]?.direct);
 
-const row = command => ({ name: command.name, desc: descFor(command, 'learn') });
+// desc: the command's title (the Slash Commands window's list); about: its one-sentence description (the / picker's line).
+const row = command => ({ name: command.name, desc: descFor(command, 'learn'), about: command.about });
 
 // The picker's sections for what is typed, or null when it should be closed.
-// A bare / shows the primary menu (LEARN, CREATE, then SEARCH: images and the source finders) and a collapsible
-// "More learning tools" section with every other available command, so every command stays one list away (owner,
-// 2026-10-20: there is no /more). A typed prefix searches every available Learn command.
+// A bare / shows every available command in the shared sections (LEARN, CREATE, SEARCH: agent/slash.js LEARN_MENU, the same in
+// Ctrl+K and the Slash Commands window). A typed prefix searches every available Learn command.
 // motionDev: as commandsFor (a development build offers /motion); tests pass it to see that build's list.
-export function pickerSections(text, { motionDev } = {}) {
+export function pickerSections(text, { motionDev, imageGeneration } = {}) {
   const typed = text.match(/^\/([\w-]*)$/)?.[1];
   if (typed === undefined) return null;
-  const learn = commandsFor('learn', { motionDev }).filter(available);
+  const learn = commandsFor('learn', { motionDev, ...(imageGeneration === undefined ? {} : { imageGeneration }) }).filter(available);
   if (typed) {
-    // By what a learner types: /ima lists /image (Generate image), /pho lists /photos, and /gen still finds it by its alias.
+    // By what a learner types: /ima lists /image (Image generation), /pho lists /photos, and /gen still finds it by its alias.
     const items = learn.filter(command => [typedOf(command.name), ...(command.aliases || [])].some(word => word.startsWith(typed.toLowerCase()))).map(row);
     return items.length ? [{ title: null, items }] : [];
   }
   const pick = names => names.map(name => learn.find(command => command.name === name)).filter(Boolean).map(row);
-  const primary = [...LEARN_MENU.learn, ...LEARN_MENU.create, ...LEARN_MENU.search];
-  const rest = learn.filter(command => !primary.includes(command.name)).map(row);
-  return [
-    { title: 'Learn', items: pick(LEARN_MENU.learn) },
-    { title: 'Create', items: pick(LEARN_MENU.create) },
-    { title: 'Search', items: pick(LEARN_MENU.search) },
-    { title: 'More learning tools', collapsible: true, items: rest },
-  ];
+  return Object.entries(LEARN_MENU).map(([key, names]) => ({ title: MENU_TITLES[key], items: pick(names) })).filter(section => section.items.length);
 }
+// Enter on a typed /word (owner spec 2026-10-29 5.3): a command typed in full (its typed name or an alias, exactly) runs at once;
+// a partial one accepts the highlighted suggestion, and the next Enter sends. -> true when the line is exactly an offered command.
+export const exactCommand = (text, options = {}) => {
+  const typed = String(text ?? '').trim().match(/^\/([\w-]+)$/)?.[1]?.toLowerCase();
+  return !!typed && commandsFor('learn', options).some(command => typedOf(command.name) === typed || command.aliases?.includes(typed));
+};
 
 // The Auto palette's search field (LearnSlash.jsx): the bare / menu matched by name or description, as the
 // Slash commands sheet searches (command-search.js); More learning tools' matches show open, under their title.
 export const searchSections = query => filterSections(pickerSections('/'), query).map(section => ({ ...section, collapsible: false }));
 
-// One use per command for the View > Slash commands sheet, each a different topic (owner, 2026-10-20): the sheet's card is a
-// sample of the card the command makes, never made from the example. Use example puts the line in the composer to edit.
+// One example per command for View > Slash Commands (owner spec 2026-10-29 section 8): its preview shows the same subject
+// (slash-sheet.js PREVIEWS). Use example puts the line in the composer to edit; it never sends.
 export const EXAMPLES = {
-  dive: '/dive how cells produce ATP', practice: '/practice explain it back: why the sky is blue', quiz: '/quiz the causes of the French Revolution',
-  explain: '/explain how binary search works', code: '/code a function that reverses a linked list', graph: '/graph y = sin(x) and y = cos(x)',
-  diagram: '/diagram how a bill becomes law', flashcards: '/flashcards Spanish verbs for travel', goal: '/goal read a balance sheet with confidence',
-  notebook: '/notebook', whiteboard: '/whiteboard the water cycle',
-  image: '/photos Mount Fuji', 'generate-image': '/image a watercolor mountain landscape', video: '/video raindrops falling into a pond',
-  cad: '/cad an educational 40 mm by 20 mm by 5 mm rectangular plate', '3d': '/3d perspective projection: a camera frustum with a cube inside it and a ray',
-  youtube: '/youtube binary search tutorial', arxiv: '/arxiv graph neural networks', wikipedia: '/wikipedia Photosynthesis',
+  explain: '/explain how binary search works', practice: '/practice explain it back: why the sky is blue', quiz: "/quiz Newton's second law",
+  flashcards: '/flashcards Spanish verbs for travel', goal: '/goal read a balance sheet with confidence',
+  code: '/code a function that reverses a linked list', graph: '/graph y = sin(x) and y = cos(x)', diagram: '/diagram an HTTP request from browser to server',
+  notebook: '/notebook', 'generate-image': '/image a watercolor mountain landscape',
   // The exact request that made the window's real Motion clip (job 8a2015a4, slash-sheet.js MOTION_CLIP).
   motion: '/motion 15s explain me softmax func',
+  cad: '/cad an educational 40 mm by 20 mm by 5 mm rectangular plate', '3d': '/3d perspective projection: a camera frustum with a cube inside it and a ray',
+  browser: '/browser https://docs.python.org/3/tutorial/',
+  image: '/photos Mount Fuji', youtube: '/youtube binary search tutorial', arxiv: '/arxiv 1706.03762', wikipedia: '/wikipedia Photosynthesis',
 };
 // The canvas card each primitive becomes: its + palette sample in
 // LearningBlocks' BLOCK_TYPES (the notebook is its own card).
@@ -98,7 +98,7 @@ export const isLearnCommand = name => commandsFor('learn').some(command => comma
 // user message either way (UI changes brief 1; bug lane 3aba249a: /motion and /image were recorded by both paths). The commands that
 // prompt the chat are /image where the server offers it and every proposal capability (the declaration's flow, reviewRequired), each
 // with words: the same two tests runLearnCommand makes. chat-turn-owner.test.mjs holds this to runLearnCommand.
-const RUN_ACTIONS = new Set(['cad', 'open_source', 'insert_notebook', 'insert_whiteboard', 'dive', 'goal']);
+const RUN_ACTIONS = new Set(['cad', 'open_source', 'insert_notebook', 'insert_whiteboard', 'insert_webpage', 'goal']);
 export const promptsChat = name => (name === 'generate-image' && imageGenerationLive()) || reviewRequired(name);
 export function answersInChat(text, { motionDev } = {}) {
   const resolved = resolveCommand(text, 'learn', { motionDev });
@@ -208,8 +208,15 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   // /goal: goal management in Progress, the words after it in a new goal's field, unsaved. The same entry as Progress's Set a
   // goal (chat-workspace.jsx goals.open). No model, no save.
   if (request.action === 'goal') return canvas.goal ? (canvas.goal(args), { notice: null }) : { notice: { tone: 'info', text: 'Learning goals are kept on a saved canvas.' } };
-  // /dive: the page opens the hole from the selected card, or keeps the intent until one is selected.
-  if (request.action === 'dive') return canvas.dive ? canvas.dive(args) : { notice: { tone: 'info', text: 'Rabbit Holes are not available here yet.' } };
+  // /browser: the canvas's existing webpage capture (AdaptiveCanvas insertWebpage). No words open its address dialog; a URL is checked
+  // by the paste rule (canvas-paste.js isWebUrl) and captured as a webpage card. Anything else is never searched: the line comes back.
+  if (request.action === 'insert_webpage') {
+    if (!canvas.insertWebpage) return { notice: { tone: 'info', text: 'Webpages cannot be added to this canvas.' } };
+    if (!args) { canvas.insertWebpage(); return { notice: null }; }
+    if (!isWebUrl(args)) return { notice: { tone: 'error', text: 'Enter a full webpage address starting with https://, for example /browser https://docs.python.org/3/tutorial/' }, keep: `/browser ${args}` };
+    const blockId = canvas.insertWebpage(args);
+    return blockId ? { notice: { tone: 'done', text: 'Adding the webpage.', blockId } } : { notice: { tone: 'error', text: 'This page could not be added to the canvas.' }, keep: `/browser ${args}` };
+  }
   // A proposed capability (its declaration's flow, proposal-capabilities.js; /motion first, MOT-20/UI-15): a chat turn. The chat proposes it on the shared card
   // (generation-proposal-chat.js), the learner refines it in chat, and the card's Generate makes it. Nothing starts here.
   // /image (id `generate-image`), where the server offers it to this person: the line is a chat turn whose plan the server signs (ask.jsx,

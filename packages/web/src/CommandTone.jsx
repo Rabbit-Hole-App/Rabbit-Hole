@@ -12,6 +12,6 @@ export const commandTone = name => (TONED.has(name) ? name : null);
 
 // The command as text, with its tint: the / picker rows and the Slash commands sheets.
 export function CommandMark({ name, className = '' }) {
-  if (!commandTone(name)) return <span className={`shrink-0 font-medium ${className}`}>/{typedOf(name)}</span>;
-  return <span data-command-tone={name} className={`inline-flex shrink-0 items-center rounded-md border px-1.5 font-medium ${className}`}>/{typedOf(name)}</span>;
+  if (!commandTone(name)) return <span className={`shrink-0 font-medium ${className}`}>{typedOf(name)}</span>;
+  return <span data-command-tone={name} className={`inline-flex shrink-0 items-center rounded-md border px-1.5 font-medium ${className}`}>{typedOf(name)}</span>;
 }

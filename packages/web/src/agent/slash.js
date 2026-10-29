@@ -7,8 +7,8 @@
 // Places: 'home' is Home, Library and Explore (workspace scope) and 'project' the Project hub and its Map - neither offers
 // a slash command since 2026-10-20 (owner); 'learn' is the Learn composer (the canvas Chat; 'chat' names the same surface); 'ctrlk' is the canvas's inline
 // Ctrl+K editor; 'insert' is the canvas Insert menu (Release B, owner 2026-10-16: one registry with surface capabilities,
-// no separate list per picker). Ctrl+K offers exactly the generate and source commands that list it; anything else typed
-// there is reported as unavailable, never run as a different command.
+// no separate list per picker). Chat and Ctrl+K offer the same 18 (owner spec 2026-10-29); Ctrl+K hands an explicit command to Chat's
+// dispatcher (inline-ai-command.js). Anything else typed is reported as unavailable, never run as a different command.
 // kind: 'generate' makes canvas material, 'source' opens the shared source finder (no model), 'prompt' is a Learn intent
 // worded for the tutor that makes a card (/practice, /quiz), 'dialog' opens or inserts something of its own (no generation).
 // Two labels, never a /name (owner, 2026-10-20): desc is the menu label, the picker's line (/explain: Add explanation; /3d: Add
@@ -28,59 +28,66 @@
 // 'map_node' today; the owning branches add the rest when they expose them (shapes in the contract doc).
 export const SELECTIONS = ['project', 'map_node', 'card', 'equation', 'notebook_cell', 'notebook_file', 'canvas_object'];
 
-// Learn's generate commands that Ctrl+K also offers (owner decision 1A, 2026-10-16).
+// Every public command is offered in Chat and Ctrl+K alike (owner spec 2026-10-29: one catalogue, one dispatcher); the source
+// searches are also in the canvas Insert menu.
 const CTRLK = ['learn', 'ctrlk'];
 // What a learner (or the Tutor's create_material request) says to pick /explain's form: a representation, never a topic.
 // Plain text is checked first, so "/explain in plain text: <an interactive request>" (the failed-scene offer) is text.
 export const PLAIN_WORDS = /\bplain[- ](text|words|explanation)\b|\btext[- ]only\b|\bin text\b|\bwithout (a |an )?(visual|interactive)/i;
 export const INTERACTIVE_WORDS = /\binteractive\b|\bsimulat(e|ion|or)\b|\bsliders?\b|\bvisuali[sz](e|ation)\b|\banimat(e|ed|ion)\b|\bexplorable\b/i;
-// The slash commands a learner can type or pick (owner, 2026-10-20: 17 commands removed, see REMOVED_COMMANDS). Home,
-// Library and Project offer none: their bar takes plain words (router.js).
+// The 18 slash commands a learner can type or pick (owner spec 2026-10-29, docs/features/rabbit-hole-commands.md): /dive, /whiteboard
+// and /video are removed (REMOVED_COMMANDS), /browser is added. Home, Library and Project offer none: their bar takes plain words
+// (router.js). desc is the command's title (the picker line and the Slash Commands window), about its one-sentence description,
+// placeholder the composer's hint while its pill is chosen. kind: 'generate' makes canvas material, 'prompt' is a Learn intent
+// worded for the tutor that makes a card (/practice, /quiz), 'source' opens the shared source finder (no model), 'dialog' opens or
+// inserts something of its own (no generation). Which commands prepare a brief before Generate: learn-slash.js BRIEF_COMMANDS.
 export const SLASH = [
-  // /dive opens a nested Rabbit Hole from the selected card or a topic (docs/features/dive-v1.md). Learn runs it itself: no model.
-  { name: 'dive', kind: 'dialog', group: 'learn', places: ['learn'], desc: 'Open Rabbit Hole', about: 'Opens a nested Rabbit Hole for the selected card, or for the topic you type.', action: 'dive', deterministic: true },
-  { name: 'practice', kind: 'prompt', group: 'learn', places: ['learn'], label: 'Practice', desc: 'Let me try it', about: 'Creates a practice card (a challenge, explain-back, quiz or coding task) on the selected card or a topic, then waits for your answer.', prompt: 'Give me one practice task on {target} and wait for my answer.',
-    family: ['challenge', 'explain_back', 'quiz', 'code_exercise'],
-    narrow: [[/explain(ing)? it back/i, 'explain_back'], [/\bcoding\b/i, 'code_exercise'], [/multiple[- ]choice/i, 'quiz']] },
-  // /goal (owner, 2026-10-21): goal management in Progress - add, edit, delete and choose the current goal. The words after it
-  // fill a new goal's field, unsaved. Explicit only: no model runs, and plain words never route to it (inline-ai-route.js).
-  { name: 'goal', kind: 'dialog', group: 'learn', places: ['learn'], label: 'Goal', desc: 'Set a learning goal', about: 'Opens your learning goals in Progress: add one (what you type after /goal fills it in, unsaved), edit or delete one, or choose your current goal. No AI is used.', action: 'goal', deterministic: true },
-  { name: 'quiz', kind: 'prompt', group: 'learn', places: ['learn'], label: 'Quiz', desc: 'Test me', about: 'Creates a one-question quiz card on the selected card or a topic, then waits for your answer.', prompt: 'Ask me one short question on {target}, then wait for my answer.', family: ['quiz'] },
-  // Create: tool overrides (user, 2026-09-28). Auto stays the default; a command names the family the tutor
-  // must return a validated block from, or it asks a clarifying question. Deterministic ones run no model.
+  // Learn
   // /explain makes an interactive visual (animation: the authored cards' scene format) when controls, calculations or motion
   // teach the idea, and a text explanation otherwise (owner, 2026-10-21). Asking for one in words narrows to it: a plain-text
   // request never gets a scene, and an interactive one never gets text instead (a scene that fails says so).
-  { name: 'explain', kind: 'generate', group: 'create', places: CTRLK, desc: 'Add explanation', about: 'Creates an explanation card on the canvas. It is an interactive visual with controls when moving something helps the idea land, otherwise a text explanation; ask for "interactive" or "plain text" to choose. With a card selected, it uses that card as context.', family: ['explanation', 'table', 'animation', 'narration'],
+  { name: 'explain', kind: 'generate', group: 'learn', places: CTRLK, label: 'Explanation', desc: 'Explanation', about: 'Understand an idea with a visual explanation you can play and explore.', placeholder: 'What would you like to understand?', family: ['explanation', 'table', 'animation', 'narration'],
     narrow: [[PLAIN_WORDS, 'explanation'], [INTERACTIVE_WORDS, 'animation']] },
-  { name: 'flashcards', kind: 'generate', group: 'create', places: CTRLK, label: 'Flashcards', desc: 'Add flashcards', about: 'Creates a flashcard deck card on the canvas. With a card selected, it uses that card as context.', family: ['flashcards'] },
-  { name: 'code', kind: 'generate', group: 'create', places: CTRLK, label: 'Code', desc: 'Add code', about: 'Creates a code example card on the canvas. With a card selected, it uses that card as context.', family: ['code_sample', 'code_exercise'] },
-  { name: 'graph', kind: 'generate', group: 'create', places: CTRLK, label: 'Graph', desc: 'Add a graph or plot', about: 'Creates an interactive graph or plot card on the canvas. With a card selected, it uses that card as context.', family: ['interactive_graph', 'data_plot', 'knowledge_graph'] },
-  { name: 'diagram', kind: 'generate', group: 'create', places: CTRLK, label: 'Diagram', desc: 'Add a diagram', about: 'Creates a diagram card on the canvas. With a card selected, it uses that card as context.', family: ['flow_diagram', 'mermaid_diagram'] },
-  { name: 'whiteboard', kind: 'dialog', group: 'create', places: ['learn'], label: 'Whiteboard', desc: 'Add a whiteboard', about: 'Adds a whiteboard card to the canvas, titled with what you type.', family: ['whiteboard'], action: 'insert_whiteboard', deterministic: true },
+  // Explain Back is a mode of the Practice card reached through /practice, never a command of its own (owner spec 2026-10-29).
+  { name: 'practice', kind: 'prompt', group: 'learn', places: CTRLK, label: 'Practice', desc: 'Practice', about: 'Try a task or explain an idea in your own words, then get feedback on your answer.', placeholder: 'What would you like to practise?', prompt: 'Give me one practice task on {target} and wait for my answer.',
+    family: ['challenge', 'explain_back', 'quiz', 'code_exercise'],
+    narrow: [[/explain(ing)? it back/i, 'explain_back'], [/\bcoding\b/i, 'code_exercise'], [/multiple[- ]choice/i, 'quiz']] },
+  { name: 'quiz', kind: 'prompt', group: 'learn', places: CTRLK, label: 'Quiz', desc: 'Quiz', about: 'Check your understanding with a multiple-choice question and feedback.', placeholder: 'What should the question test?', prompt: 'Ask me one short question on {target}, then wait for my answer.', family: ['quiz'] },
+  { name: 'flashcards', kind: 'generate', group: 'learn', places: CTRLK, label: 'Flashcards', desc: 'Flashcards', about: 'Review a topic with question-and-answer cards you can flip through.', placeholder: 'What would you like to remember?', family: ['flashcards'] },
+  // /goal (owner, 2026-10-21): goal management in Progress - add, edit, delete and choose the current goal. The words after it
+  // fill a new goal's field, unsaved. Explicit only: no model runs, and plain words never route to it (inline-ai-route.js).
+  { name: 'goal', kind: 'dialog', group: 'learn', places: CTRLK, label: 'Learning goal', desc: 'Learning goal', about: 'Add or manage a learning goal in Progress.', placeholder: 'What would you like to be able to do? Or press Enter to open your goals.', action: 'goal', deterministic: true },
+  // Create
+  { name: 'code', kind: 'generate', group: 'create', places: CTRLK, label: 'Code example', desc: 'Code example', about: 'See a Python example for the task you describe.', placeholder: 'What should the Python example do?', family: ['code_sample', 'code_exercise'] },
+  { name: 'graph', kind: 'generate', group: 'create', places: CTRLK, label: 'Graph', desc: 'Graph', about: 'Plot a function or supplied data and explore how it changes.', placeholder: 'What function or data should the graph show?', family: ['interactive_graph', 'data_plot', 'knowledge_graph'] },
+  { name: 'diagram', kind: 'generate', group: 'create', places: CTRLK, label: 'Diagram', desc: 'Diagram', about: 'Show the steps or relationships in a process.', placeholder: 'What process or structure should the diagram show?', family: ['flow_diagram', 'mermaid_diagram'] },
+  { name: 'notebook', kind: 'dialog', group: 'create', places: CTRLK, label: 'Notebook', desc: 'Notebook', about: 'Add an empty notebook for code, calculations and results.', placeholder: 'Press Enter to add an empty notebook.', family: ['notebook'], action: 'insert_notebook', deterministic: true },
   // Media: search and generation are separate commands (owner, 2026-10-20). A search never turns into generation and a
   // generation never into a search, so neither family holds the other's primitive.
-  { name: 'image', typed: 'photos', kind: 'generate', group: 'create', places: CTRLK, desc: 'Search photos', about: 'Searches for real photos and adds an image card that shows the photo and its credit. It never generates an image: /image does.', family: ['image'] },
-  { name: 'generate-image', typed: 'image', aliases: ['generate-image'], kind: 'generate', group: 'create', places: CTRLK, desc: 'Generate image', about: 'Creates an AI-generated image card. Generating it is paid, so it asks first. It never searches for photos: /photos does. With a card selected, it uses that card as context.', family: ['image_generate'], needs: 'image_generation' },
-  { name: 'video', kind: 'generate', group: 'create', places: CTRLK, label: 'Generate video', desc: 'Generate video', about: 'Creates an AI-generated video card. Generating it is paid, so it asks first. It never searches for videos: /youtube does. With a card selected, it uses that card as context.', family: ['video_generate'] },
-  { name: 'cad', kind: 'generate', group: 'create', places: CTRLK, label: 'CAD', desc: 'Create a parametric CAD model', about: 'Creates a parametric CAD model card with checked downloads. It asks about missing dimensions and before generating.', action: 'cad', deterministic: true },
-  { name: '3d', kind: 'generate', group: 'create', places: CTRLK, label: '3D', desc: 'Add 3D scene', about: 'Creates a 3D scene card on the canvas. Generating it is paid, so it asks first. With a card selected, it uses that card as context.', family: ['3d_model', 'blender_scene'] },
-  // The command for the Motion explainer-video pipeline (owner, 2026-10-20: it replaces /animate). Development and review
-  // builds only (needs motion_dev); a paid proposal with no model call before Generate.
-  { name: 'motion', kind: 'generate', group: 'create', places: CTRLK, label: 'Motion', desc: 'Create an animated explainer video', about: 'Creates an animated explainer video card: Motion plans, reviews and renders a 5 to 60 second video of what you type. Generating it is paid, so it asks first.', action: 'motion', deterministic: true, needs: 'motion_dev' },
-  { name: 'notebook', kind: 'dialog', group: 'create', places: ['learn'], label: 'Notebook', desc: 'Add a notebook', about: 'Adds an empty notebook card to the canvas.', family: ['notebook'], action: 'insert_notebook', deterministic: true },
-  // Source search (owner 4A, 2026-10-16): the shared source finder opens on the source with the query, searches at once
-  // when there is one, and adds nothing until Add to canvas. No model routes or reads them. /arxiv takes a topic or an
-  // arXiv ID or link and previews it before adding; /youtube finds existing videos (/video generates a new clip).
-  { name: 'youtube', kind: 'source', group: 'source', places: ['learn', 'ctrlk', 'insert'], label: 'Search YouTube', desc: 'Search YouTube', about: 'Opens Search on YouTube videos and searches for what you type. Nothing is added until you add a video; it never generates one.', action: 'open_source', source: 'youtube', deterministic: true },
-  { name: 'arxiv', kind: 'source', group: 'source', places: ['learn', 'ctrlk', 'insert'], label: 'Search arXiv', desc: 'Search arXiv', about: 'Opens Search on arXiv papers: a topic, or an arXiv ID or link. Nothing is added until you add a paper.', action: 'open_source', source: 'arxiv', deterministic: true },
-  { name: 'wikipedia', kind: 'source', group: 'source', places: ['learn', 'ctrlk', 'insert'], label: 'Search Wikipedia', desc: 'Search Wikipedia', about: 'Opens Search on Wikipedia articles. Nothing is added until you add an article.', action: 'open_source', source: 'wikipedia', deterministic: true },
+  { name: 'generate-image', typed: 'image', aliases: ['generate-image'], kind: 'generate', group: 'create', places: CTRLK, label: 'Image generation', desc: 'Image generation', about: 'Describe a new image, review the plan, then generate it.', placeholder: 'What should the image show?', family: ['image_generate'], needs: 'image_generation' },
+  // The command for the Motion explainer-video pipeline (owner, 2026-10-20: it replaces /animate); a paid proposal with no model
+  // call before Generate. Offered where Motion is (needs motion_dev, below).
+  { name: 'motion', kind: 'generate', group: 'create', places: CTRLK, label: 'Animated explainer', desc: 'Animated explainer', about: 'Turn a topic into an animated explainer video after reviewing its plan.', placeholder: 'What should the video explain?', action: 'motion', deterministic: true, needs: 'motion_dev' },
+  { name: 'cad', kind: 'generate', group: 'create', places: CTRLK, label: 'CAD model', desc: 'CAD model', about: 'Describe a dimensioned part, review its brief, then generate a CAD model.', placeholder: 'What part should be made, and what are its dimensions?', action: 'cad', deterministic: true },
+  { name: '3d', kind: 'generate', group: 'create', places: CTRLK, label: '3D scene', desc: '3D scene', about: 'Create a 3D scene to explore a spatial idea.', placeholder: 'What objects and relationships should the scene show?', family: ['3d_model', 'blender_scene'] },
+  // /browser (owner spec 2026-10-29): the existing saved webpage capture (AdaptiveCanvas insertWebpage), not a web browser. A URL is
+  // captured as a webpage card; none opens the address dialog. No model.
+  { name: 'browser', kind: 'dialog', group: 'create', places: CTRLK, label: 'Browser', desc: 'Browser', about: 'Bring a webpage onto your canvas to read, highlight and ask questions about it.', placeholder: 'Paste a webpage URL, or press Enter to add one.', action: 'insert_webpage', deterministic: true },
+  // Search (owner 4A, 2026-10-16): the shared source finder opens on the source with the query, searches at once when there is
+  // one, and adds nothing until Add to canvas. No model routes or reads them. /arxiv takes a topic or an arXiv ID or link and
+  // previews it before adding. /photos (id image) inserts the photo-search card, which searches once placed.
+  { name: 'image', typed: 'photos', kind: 'generate', group: 'source', places: CTRLK, label: 'Photo search', desc: 'Photo search', about: 'Find an existing photo and add it to your canvas with its credit.', placeholder: 'What photo are you looking for? Or press Enter to open search.', family: ['image'] },
+  { name: 'youtube', kind: 'source', group: 'source', places: ['learn', 'ctrlk', 'insert'], label: 'YouTube search', desc: 'YouTube search', about: 'Find an existing YouTube video, preview it, then add it to the canvas.', placeholder: 'What video would you like to find? Or press Enter to open search.', action: 'open_source', source: 'youtube', deterministic: true },
+  { name: 'arxiv', kind: 'source', group: 'source', places: ['learn', 'ctrlk', 'insert'], label: 'arXiv search', desc: 'arXiv search', about: 'Find a research paper by topic, title or arXiv link and add it to the canvas.', placeholder: 'Enter a topic, paper title or arXiv link, or press Enter to open search.', action: 'open_source', source: 'arxiv', deterministic: true },
+  { name: 'wikipedia', kind: 'source', group: 'source', places: ['learn', 'ctrlk', 'insert'], label: 'Wikipedia search', desc: 'Wikipedia search', about: 'Find a Wikipedia article and add it to your canvas.', placeholder: 'What topic would you like to look up? Or press Enter to open search.', action: 'open_source', source: 'wikipedia', deterministic: true },
 ];
 
 // The Tutor's and journeys' material tools that are no longer slash commands (owner, 2026-10-20: "separate user-facing
 // slash-command availability from the Tutor's internal material tools"). No picker, sheet or typed line reaches them
 // (commandsFor leaves them out); the Tutor's create_material, a journey step's make.command, Ctrl+K's automatic routing
 // and /api/learn/artifact still make comparison tables and walkthroughs through them (commandsFor's `internal`, learnRequest).
+// /whiteboard and /video (owner spec 2026-10-29) left the public commands; the Tutor still adds whiteboards and proposes generated
+// clips through them, and saved Whiteboard and Video cards keep their renderers.
 export const MATERIAL_TOOLS = [
   { name: 'compare', kind: 'generate', group: 'learn', places: ['learn'], desc: 'Compare ideas', prompt: 'Compare side by side, with {target} as context.',
     // No animation: interactive scenes are /explain's and the Tutor's explanation material only (owner, 2026-10-21).
@@ -89,6 +96,8 @@ export const MATERIAL_TOOLS = [
   // /animate (owner, 2026-10-20: /motion is the animation command): the Tutor and journeys still make animations with it, and
   // saved animation cards keep their renderers; no picker, window, example or chat suggestion offers it.
   { name: 'animate', kind: 'generate', group: 'create', places: ['learn'], desc: 'Add an animation', family: ['reference_attention', 'maths_animation'] },
+  { name: 'whiteboard', kind: 'dialog', group: 'create', places: ['learn'], label: 'Whiteboard', desc: 'Add a whiteboard', family: ['whiteboard'], action: 'insert_whiteboard', deterministic: true },
+  { name: 'video', kind: 'generate', group: 'create', places: ['learn'], label: 'Generate video', desc: 'Generate video', family: ['video_generate'] },
 ];
 // A registry entry by name, user command or material tool: what a saved message, a validator or a generator looks up.
 export const toolOf = (name) => SLASH.find((c) => c.name === name) || MATERIAL_TOOLS.find((c) => c.name === name);
@@ -101,7 +110,9 @@ export const idOfTyped = (typed) => entryOfTyped(typed)?.name ?? typed;
 // Removed slash commands (owner, 2026-10-20). Typed on any surface, each says it is unavailable and runs nothing; ordinary
 // words still ask, compare, simplify or explore, and the Tutor keeps its material tools (MATERIAL_TOOLS).
 export const REMOVED_COMMANDS = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper',
-  'simplify', 'example', 'compare', 'source', 'paper', 'animate'];
+  'simplify', 'example', 'compare', 'source', 'paper', 'animate',
+  // Owner spec 2026-10-29: Rabbit Hole navigation, Whiteboard cards and Motion's video stay; only the typed commands go.
+  'dive', 'whiteboard', 'video'];
 // Image generation from a command: off while the image_generate primitive is not ready (learn-primitives.js; slash.test.mjs
 // holds the two equal). /generate-image is hidden and refused while it is off; this cleanup does not turn it on.
 export const IMAGE_GENERATION = false;
@@ -120,12 +131,14 @@ export function unavailableCommand(name, { listed = true, imageGeneration = imag
   return null;
 }
 
-// The Learn picker's primary menu, in order. Every other Learn command is listed under More learning tools.
+// The sections of the picker, Ctrl+K and the Slash Commands window, in order (owner spec 2026-10-29). Every public command is in
+// exactly one (slash.test.mjs), so no surface keeps a list of its own.
 export const LEARN_MENU = {
-  learn: ['dive', 'practice', 'quiz', 'goal'],
-  create: ['explain', 'code', 'graph', 'diagram', 'motion', 'flashcards', 'notebook'],
+  learn: ['explain', 'practice', 'quiz', 'flashcards', 'goal'],
+  create: ['code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', '3d', 'browser'],
   search: ['image', 'youtube', 'arxiv', 'wikipedia'],
 };
+export const MENU_TITLES = { learn: 'Learn', create: 'Create', search: 'Search' };
 
 // Canvas primitives are ids the Learn branch maps to block types. A paid primitive always confirms, even
 // when named with a slash: an explicit command only skips the tutor's "would this help?" proposal.
