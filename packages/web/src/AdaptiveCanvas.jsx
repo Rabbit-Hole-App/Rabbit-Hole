@@ -2047,9 +2047,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const observer = new ResizeObserver(measure);
     for (const node of [surface.current, pageHeader(), ...(bottomStrip.current?.children || [])]) if (node) observer.observe(node);
     window.addEventListener('resize', measure);
-    measure(); // the minimap, Rabbit Hole map and Curious hide while focused: the pane is measured again without them
     return () => { observer.disconnect(); window.removeEventListener('resize', measure); cancelAnimationFrame(tick); };
   }, [focus?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The minimap, Rabbit Hole map and Curious hide while focused: the pane is measured again without them before the first paint,
+  // so the focused card never changes size a frame after entering (focus-chrome-check step 4 compares two entries).
+  useLayoutEffect(() => { if (focus?.id && surface.current) dispatchFocus({ type: 'workspace-changed', frame: focusWorkspace() }); }, [focus?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Deleted, or no longer focusable (read-only now, failed): a clean exit.
   useEffect(() => { const id = focusRef.current?.id; if (id && !adapterFor(objectById(id), { view: viewRef.current, readOnly })) dispatchFocus({ type: 'content-gone', id }); }, [blocks, exchanges, items, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
   const focusSole = useCallback(() => commandsRef.current?.enterFocus(selectedRef.current[0]), []);
@@ -3279,19 +3281,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The opening camera, compensated for the controls that now float over the surface (homeView): no jump on load.
   const openedAt = useRef(null); // the learner's camera moves when the opening camera was set (openOnLead)
   useEffect(() => { setView(autoView.current = homeView(controlArea(), COLUMN)); openedAt.current = manualMoves.current; }, []);
-  // A shared canvas opens on its first card whole (openingPan: zoom 1, clear of the Chat panel, the header and the floating
+  // A shared canvas whose first card is an Explanation program opens on it whole (openingPan: zoom 1, clear of the Chat panel, the header and the floating
   // chrome), from its top down to its last control. An Explanation program that cannot be whole there opens in Focus: its
   // drawing's text is at its legibility floor at zoom 1, so it is never zoomed out to fit. Until the viewer moves the camera
   // (Back to canvas restores one, which counts), a panel opening, closing or resizing applies this again.
   const opening = useRef(!!permissions?.shared);
   const openOnLead = () => {
     const lead = blocksRef.current[0], box = lead && boundsRef.current[lead.id], element = box && column.current?.querySelector(`[data-block-id="${CSS.escape(lead.id)}"]`);
-    if (!opening.current || focusRef.current || !element || !surface.current || manualMoves.current !== openedAt.current) return;
+    if (!opening.current || !lead?.program || focusRef.current || !element || !surface.current || manualMoves.current !== openedAt.current) return;
     const v = viewRef.current, top = element.getBoundingClientRect().top;
     const last = Math.max(0, ...[...element.querySelectorAll('[data-animation-transport], [data-scene-controls]')].map(node => node.getBoundingClientRect().bottom - top));
     const next = openingPan({ ...box, h: last ? last / v.z : box.h }, v, visibleArea(), (x0, x1) => chromeTop(x0, x1) - 24);
     if (next) { if (next.x !== v.x || next.y !== v.y) setView(autoView.current = next); }
-    else if (lead.program) commandsRef.current?.enterFocus(lead.id);
+    else commandsRef.current?.enterFocus(lead.id);
   };
   const openOnLeadRef = useRef(openOnLead);
   openOnLeadRef.current = openOnLead;
@@ -5519,9 +5521,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     run: (id, actionId) => { const done = runAction(actionId, cardTarget(id), actionCtx); if (!done.ran && done.reason) toast(done.reason); },
   };
   const soleFocus = selection.length === 1 && !focus ? adapterFor(objectById(selection[0]), { view, readOnly }) : null;
-  // A card whose own row would sit past the surface's right edge (under a side panel such as Chat) or above its top: its actions
+  // On a view-only board, a card whose own row would sit past the surface's right edge (under a side panel such as Chat) or above its top: its actions
   // take the floating bar, which stays inside the view (usesHost).
-  const barCut = id => { const box = boxesOf([id])[0], width = surface.current?.clientWidth; return !!box && !!width && (view.x + (box.x + box.w) * view.z > width || view.y + box.y * view.z < 40); };
+  const barCut = id => { if (!readOnly) return false; const box = boxesOf([id])[0], width = surface.current?.clientWidth; return !!box && !!width && (view.x + (box.x + box.w) * view.z > width || view.y + box.y * view.z < 40); };
   const hasPin = commentPins && presenting === null ? id => commentPins.some(pin => pin.anchor?.kind === 'object' && pin.anchor.object_id === id) : null;
   return (
     // Delete, ctrl+z, copy and paste all stand down while a text field has focus,
