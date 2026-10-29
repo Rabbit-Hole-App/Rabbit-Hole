@@ -2,13 +2,13 @@
   "01-ai-tutor": {
     "desktop": {
       "src": "01-ai-tutor-desktop.webp",
-      "w": 1304,
-      "h": 1472
+      "w": 1398,
+      "h": 1296
     },
     "mobile": {
       "src": "01-ai-tutor-mobile.webp",
-      "w": 800,
-      "h": 1359
+      "w": 670,
+      "h": 1296
     }
   },
   "03-animated-explainer-videos": {

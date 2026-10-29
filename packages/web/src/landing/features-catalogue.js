@@ -1,17 +1,17 @@
 // Build-time renderer for the Features catalogue (vite.config.js replaces <!-- features-catalogue --> in
-// design/rabbit-hole-features.html with this). Static pictures, no network call; features-demos.js runs the scroll-driven
-// stack (sticky frames left, copy right), restored from e801cf290 for any number of entries.
+// design/rabbit-hole-features.html with this). Static pictures, no network call. The page's sections come from PAGE_GROUPS;
+// features-demos.js runs each stack section's scroll-driven deck on its own (restored from e801cf290).
 // Pictures live in src/landing/features/ so Vite emits only the ones this HTML references: an entry left out of a
 // production build never ships its picture. Conventions: C:/s/spec/landing-features/CAPTURE-CONVENTIONS.md.
 
-import { PAGE_ORDER } from './features-data.js';
+import { PAGE_GROUPS } from './features-data.js';
 
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export const anchorOf = id => id.replace(/^\d+-/, '');
 
-// Entries a build shows: the page selection in its order (PAGE_ORDER), then published ones (staged ones too in a preview
-// build), only with a picture.
-export const visibleFeatures = (features, images, preview, order = PAGE_ORDER) => order.map(id => features.find(f => f.id === id))
+// Entries a build shows from a list of ids, in that order: published ones (staged ones too in a preview build), only with
+// a picture. Default: every section's entries.
+export const visibleFeatures = (features, images, preview, order = PAGE_GROUPS.flatMap(g => g.ids)) => order.map(id => features.find(f => f.id === id))
   .filter(f => f && (f.published || preview) && images[f.id]);
 
 const url = src => `../src/landing/features/${src}`;
@@ -31,11 +31,22 @@ function frame(image, title, alt, eager) {
   return `<div class="feature-demo"><div class="demo-window"><div class="demo-toolbar" aria-hidden="true"><span class="demo-brand">Rabbit Hole</span><span>${esc(title)} <i></i></span></div><div class="demo-content">${body}</div></div></div>`;
 }
 
-export function renderCatalogue(features, images, { preview = false } = {}) {
-  const list = visibleFeatures(features, images, preview);
-  if (!list.length) return '';
-  // Desktop grid: every frame spans all rows (--features) of column 1 and stays sticky; copy i sits in row i of column 2.
-  const entries = list.map((f, i) => `<article class="feature${i === 0 ? ' is-active' : ''}" id="${anchorOf(f.id)}" data-feature-step>${frame(images[f.id], f.title, f.alt, i === 0)}`
-    + `<div class="feature-copy" style="grid-row:${i + 1}"><h2>${esc(f.title)}</h2><p class="feature-subtitle">${esc(f.subtitle)}</p><p>${esc(f.description)}</p></div></article>`).join('\n');
-  return `<div class="features-catalogue" data-feature-walkthrough style="--features:${list.length}">\n${entries}\n</div>`;
+const copy = (f, row) => `<div class="feature-copy"${row ? ` style="grid-row:${row}"` : ''}><h3>${esc(f.title)}</h3><p class="feature-subtitle">${esc(f.subtitle)}</p><p>${esc(f.description)}</p></div>`;
+
+export function renderCatalogue(features, images, { preview = false, groups = PAGE_GROUPS } = {}) {
+  let eager = true; // only the page's first picture loads eagerly
+  const shot = f => { const html = frame(images[f.id], f.title, f.alt, eager); eager = false; return html; };
+  return groups.map(g => {
+    const list = visibleFeatures(features, images, preview, g.ids);
+    if (!list.length) return ''; // no section heading without entries
+    const stack = g.layout === 'stack' || g.layout === 'stack-mirrored';
+    // Stack: every frame spans all rows (--features) of the picture column and stays sticky; copy i sits in row i.
+    // 'wide' and 'tiles' scroll normally, outside the stack logic. Copy comes first in the DOM (the phone order).
+    const entries = list.map((f, i) => stack
+      ? `<article class="feature${i === 0 ? ' is-active' : ''}" id="${anchorOf(f.id)}" data-feature-step>${copy(f, i + 1)}${shot(f)}</article>`
+      : `<article class="feature" id="${anchorOf(f.id)}">${copy(f)}${shot(f)}</article>`).join('\n');
+    const open = stack ? `<div class="feature-stack${g.layout === 'stack-mirrored' ? ' is-mirrored' : ''}" data-feature-walkthrough style="--features:${list.length}">`
+      : `<div class="feature-${g.layout}">`;
+    return `<section class="feature-group" data-layout="${g.layout}"><h2 class="feature-group-title">${esc(g.title)}</h2>\n${open}\n${entries}\n</div>\n</section>`;
+  }).filter(Boolean).join('\n');
 }

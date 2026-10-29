@@ -1,14 +1,16 @@
-// The Features page's scroll-driven stack, restored from e801cf290 and generalized from its four cyclic steps to the
-// catalogue's N entries (features-catalogue.js). Desktop: the framed pictures stay sticky on the left and the front frame
-// changes as its copy reaches the viewport middle; poses depend only on scroll position, so scrolling back reverses them.
-// The stack never wraps: the first entry has no frame behind it from the end, the last none from the start.
-// Phone (max-width 800px): ordinary stacked sections. Reduced motion: the matching frame, without the shuffle.
-const walkthrough=document.querySelector('[data-feature-walkthrough]');
-if(walkthrough){
-const steps=[...walkthrough.querySelectorAll('[data-feature-step]')];
-const count=steps.length;
+// The Features page's scroll-driven stacks, restored from e801cf290 and generalized from its four cyclic steps to N
+// entries (features-catalogue.js). Every [data-feature-walkthrough] runs on its own: its steps, active state and poses
+// never reach another stack. Desktop: the framed pictures stay sticky beside the copy (left, or right when .is-mirrored,
+// which also mirrors the back frames' offset) and the front frame changes as its copy reaches the viewport middle; poses
+// depend only on scroll position, so scrolling back reverses them. A stack never wraps: its first entry has no frame
+// behind it from the end, its last none from the start. Phone (max-width 800px): ordinary stacked sections. Reduced
+// motion: the matching frame, without the shuffle.
 const compact=matchMedia('(max-width: 800px)');
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+document.querySelectorAll('[data-feature-walkthrough]').forEach(walkthrough=>{
+const steps=[...walkthrough.querySelectorAll('[data-feature-step]')];
+const count=steps.length;
+const side=walkthrough.classList.contains('is-mirrored')?-1:1;
 const copies=steps.map(step=>step.querySelector('.feature-copy'));
 const demos=steps.map(step=>step.querySelector('.feature-demo'));
 const contents=demos.map(demo=>demo.querySelector('.demo-content'));
@@ -21,7 +23,7 @@ function pose(index,slot,opacity,z){
   if(index<0||index>=count)return;
   const demo=demos[index];
   contents[index].style.opacity='1';
-  demo.style.transform=`translate(${slot.x.toFixed(3)}px,${slot.y.toFixed(3)}px) scale(${slot.scale.toFixed(5)})`;
+  demo.style.transform=`translate(${(slot.x*side).toFixed(3)}px,${slot.y.toFixed(3)}px) scale(${slot.scale.toFixed(5)})`;
   demo.style.opacity=String(opacity);
   demo.style.visibility=opacity>0?'visible':'hidden';
   demo.style.zIndex=String(z);
@@ -108,4 +110,4 @@ reduced.addEventListener('change',schedule);
 new ResizeObserver(schedule).observe(walkthrough);
 document.fonts.ready.then(schedule);
 update();
-}
+});
