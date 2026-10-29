@@ -3314,6 +3314,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   useEffect(() => {
     const element = surface.current;
     const scrolled = () => {
+      // A focused card (Focus) is placed on screen, not by the camera: a reveal that scrolls the surface (a focused control in a
+      // focused card that scrolls) would move the card and its header off the pane. The card scrolls itself; the surface stays.
+      if (focusRef.current) { element.scrollLeft = 0; element.scrollTop = 0; return; }
       // Only while the document has the focus (its caret's reveal): any other scroll stays as it always was.
       if (!document.activeElement?.closest?.('[data-canvas-doc]')) return;
       const dx = element.scrollLeft, dy = element.scrollTop;
