@@ -79,3 +79,28 @@ test('the drag fixture through the host, and the review replay of a sampled drag
     assert.equal(out.view.readouts.find(readout => readout.id === 'position').text, '420');
   } finally { host.dispose(); }
 });
+
+// Owner review of dfd154521: an admitted drag keeps room for its end while other events arrive. With the normal 16-event cap: one
+// operation in flight, 14 queued, a drag start admitted, then one more ordinary event must be refused so that the end still fits and
+// the program never stays mid-drag.
+test('an admitted drag keeps its end reserved while other events arrive: the end always fits, order and the cap are kept', async () => {
+  const artifact = await seal();
+  const host = createProgramHost({ artifact, createWorker: standIn });
+  const reduced = [], saved = [];
+  const counted = { initialize: raw => host.initialize(raw), evaluate: (raw, options) => host.evaluate(raw, options), reduce: raw => (reduced.push(raw.event.type), host.reduce(raw)) };
+  const committed = { bundleHash: artifact.bundleHash, state: { x: 180, dragging: false, drops: 0, moves: 0 }, revision: 0, seed: 0, inputs: {} };
+  const controller = createInteractionController({ host: counted, bundleHash: artifact.bundleHash, seed: 0, saved: committed, publish: () => {}, persist: next => saved.push(next), check: async () => {} });
+  controller.start({});
+  const centre = { type: 'action', action: 'centre' };
+  assert.equal(controller.dispatch(centre, { inputs: {} }), true); // taken at once: the one in flight
+  for (let i = 0; i < 14; i++) assert.equal(controller.dispatch(centre, { inputs: {} }), true, `queued ${i + 1}`);
+  assert.equal(controller.pending(), 14);
+  assert.equal(controller.dispatch(at('drag_start', 300), { inputs: {} }), true, 'a start with room for its end');
+  assert.equal(controller.dispatch(centre, { inputs: {} }), false, 'the last slot belongs to the drag\'s end');
+  assert.equal(controller.dispatch(at('drag_end', 500), { inputs: {} }), true, 'the end always fits');
+  assert.ok(controller.pending() <= 16, 'the cap is kept');
+  for (let i = 0; i < 100 && (controller.pending() || saved.at(-1)?.state.drops !== 1); i++) await new Promise(resolve => setTimeout(resolve, 50));
+  assert.deepEqual(reduced.slice(-2), ['drag_start', 'drag_end'], 'in order, after the actions queued before them');
+  assert.deepEqual([saved.at(-1).state.x, saved.at(-1).state.dragging, saved.at(-1).state.drops], [500, false, 1], 'not left mid-drag');
+  controller.dispose(); host.dispose();
+});
