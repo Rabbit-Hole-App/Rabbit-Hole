@@ -57,36 +57,32 @@
 .feature-stack .demo-content>.feature-parts{width:100%}
 .feature-stack .feature-parts img{max-height:calc(var(--frame) - 48px)}
 
-/* Rabbit Holes (owner, 2026-10-28 late): one 16:9 picture under its copy, everything on one centre axis (title, copy,
+/* Rabbit Holes (owner, 2026-10-28 late): one picture under its copy, everything on one centre axis (title, copy,
    frame), and title, copy and the whole framed picture fit one desktop viewport once the title sits below the navigation.
-   The section may run wider than the 1180 px content (up to 100vw - 64 px, 1560 px max), but a 16:9 frame's width
-   follows the height left over: 100svh minus 345 px (72 nav clearance, the nav ends at 66.5 px; 57 title + 28 gap + 114
-   stacked copy + 16 gap + 54 header and borders + 4 below), times 16/9. The picture is whole (contain). */
-.features-page #below .feature-group[data-layout="wide"]{max-width:none;margin-inline:calc(50% - min(50vw - 32px, 780px));scroll-margin-top:72px;text-align:center}
-.features-page #below [data-layout="wide"] .feature-group-title{margin-bottom:28px}
-.feature-wide .feature-copy{margin-bottom:16px}
+   The section may run wider than the 1180 px content (up to 100vw - 64 px, 1560 px max), but the frame's width
+   follows the height left over times the picture's aspect ratio (--ar from the renderer, 16:9 fallback): 100svh minus
+   328 px (70 nav clearance, the nav ends at 66.5 px; 57 title + 20 gap + 112 stacked copy + 12 gap + 54 header and
+   borders + 2 below). The picture is whole (contain). */
+.features-page #below .feature-group[data-layout="wide"]{max-width:none;margin-inline:calc(50% - min(50vw - 32px, 780px));scroll-margin-top:70px;text-align:center}
+.features-page #below [data-layout="wide"] .feature-group-title{margin-bottom:20px}
+.features-page #below .feature-wide h3{margin-bottom:14px}
+.feature-wide .feature-copy{margin-bottom:12px}
 .feature-wide .feature-copy p{max-width:640px;margin-inline:auto}
-.feature-wide .feature-demo{max-width:max(560px,calc((100svh - 345px) * 16 / 9 + 2px));margin-inline:auto;text-align:left}
-.feature-wide .demo-content{aspect-ratio:16 / 9}
-/* The collection (owner brief A): 12 columns, Practice 7 | Edit with AI 5, then Comments 5 | Sharing & forking 7. Tiles in a
-   row share its height; heading and copy above the picture, inside the tile. Pictures keep their natural height (capped,
-   contain), so content sets the row height and nothing is cropped to match. */
+.feature-wide .feature-demo{max-width:max(560px,calc((100svh - 328px) * var(--ar, 16 / 9) + 2px));margin-inline:auto;text-align:left}
+.feature-wide .demo-content{aspect-ratio:var(--ar, 16 / 9)}
+/* The collection (owner, 2026-10-29): 12 columns, Practice 7 | Table of contents 5, then Comments 5 | Sharing & forking 7.
+   Heading and copy above the picture, inside the tile; the picture follows at its natural height (no fixed height or cap),
+   so a tile is copy + picture. Tiles in a row stretch to the row's height; any difference is tile padding below the frame,
+   never blank frame area or a stretched or cropped picture. */
 .feature-tiles{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:24px}
 .feature-tiles .feature{display:flex;flex-direction:column;gap:24px;padding:24px;border:1px solid #d9e0d2;border-radius:12px;background:#fff;min-width:0}
 .feature-tiles #practice,.feature-tiles #sharing-forking{grid-column:span 7}
-.feature-tiles #edit-with-ai,.feature-tiles #comments{grid-column:span 5}
-/* The frame fills the rest of the tile, so frames in a row end together; the picture sits at its top, whole. */
-.feature-tiles .feature-demo,.feature-tiles .demo-window{flex:1;display:flex;flex-direction:column}
-.feature-tiles .demo-content{flex:1;display:flex;align-items:flex-start;justify-content:center}
-.feature-tiles .demo-content>picture{display:contents}
-.feature-tiles .demo-content>.feature-parts{width:100%}
+.feature-tiles #table-of-contents,.feature-tiles #comments{grid-column:span 5}
 .features-page #below .feature-tiles h3{font-size:28px;margin-bottom:16px}
 .feature-tiles .feature-copy p{max-width:420px}
-.feature-tiles img{display:block;width:100%;height:auto;max-height:480px;object-fit:contain}
-/* Sharing & forking: its two captioned parts stack (shared canvas, then the fork), so each keeps the tile's full width. */
+.feature-tiles img{display:block;width:100%;height:auto}
+/* Sharing & forking while it is still two captioned parts: they stack, each at the tile's full width. */
 .feature-tiles #sharing-forking .feature-parts{grid-auto-flow:row}
-/* Comments is portrait; its row is as tall as the stacked Sharing tile anyway, so it takes the tile's full width. */
-.feature-tiles #comments img{max-height:none}
 /* The wide picture fills its 16:9 area whole: one picture, or captioned parts sharing it. */
 .feature-wide .demo-content{display:flex}
 .feature-wide picture{display:contents}
@@ -121,7 +117,7 @@
   .feature-stack .feature-demo{position:relative;top:auto;padding:0;opacity:1;visibility:visible;transition:none}
   .feature-stack .feature-demo::before,.feature-stack .feature-demo::after{display:none}
   .feature-stack .demo-content,.feature-wide .demo-content,.feature-tiles .demo-content{height:auto;aspect-ratio:auto;display:block}
-  .feature-stack .demo-window img,.feature-wide img,.feature-tiles img{height:auto;max-height:640px}
+  .feature-stack .demo-window img,.feature-wide img{height:auto;max-height:640px}
   .feature-parts{grid-auto-flow:row}
   .feature-wide .feature-parts,.feature-tiles .feature-parts{height:auto}
   .feature-wide .feature-parts figure,.feature-tiles .feature-parts figure{display:block}
@@ -131,7 +127,7 @@
   .feature-wide .feature-demo{max-width:none}
   .feature-tiles{grid-template-columns:minmax(0,1fr)}
   .feature-tiles .feature{padding:20px}
-  .feature-tiles #practice,.feature-tiles #edit-with-ai,.feature-tiles #comments,.feature-tiles #sharing-forking{grid-column:auto}
+  .feature-tiles #practice,.feature-tiles #table-of-contents,.feature-tiles #comments,.feature-tiles #sharing-forking{grid-column:auto}
 }
 @media(max-width:430px){
   .demo-toolbar{padding:0 14px;height:47px}
