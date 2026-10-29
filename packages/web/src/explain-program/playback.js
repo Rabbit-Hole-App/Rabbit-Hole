@@ -1,4 +1,5 @@
-// Which frame a program card asks its host for, and which answers it draws (ProgramScene.jsx). Pure; no React, no DOM.
+// Which frame a program card asks its host for, and which answers it draws (ProgramScene.jsx), and when a card pauses because it cannot be seen (watchSeen,
+// the only part that touches the DOM). No React.
 //
 // A frame is valid for one state: key = the artifact's host + the inputs + a state epoch the card bumps on a scrub, a reset or
 // a replay. The playback time is NOT part of the key: while playing, the newest frame that completes for the current key is
@@ -17,6 +18,21 @@ export const MAX_OVERRUNS = 3;
 // The 50 ms generated-operation deadline (runtime.js reports it as 'time limit' after setup). The host watchdog, boot deadline,
 // memory and output limits carry other diagnostics, so they still stop the card at once.
 export const frameOverrun = error => error?.code === 'runtime_limit' && error.diagnostic === 'time limit';
+
+// When a playing card can no longer be seen (Task 10.1): a hidden tab, or the card panned or scrolled out of the viewport. A card in
+// Focus ([data-focus-host] on it or an ancestor) is seen wherever its canvas spot is. The card pauses (onHidden), so its clock
+// stops, no frame is asked for and the last drawn frame, inputs and moment stay as they were: coming back shows that same moment,
+// paused, never a fast-forward through the time it was away. Play intent is not kept, as a hidden tab already did.
+//   watchSeen(element, onHidden) -> stop()
+export function watchSeen(element, onHidden, { doc = globalThis.document, Observer = globalThis.IntersectionObserver } = {}) {
+  const tab = () => { if (doc.hidden) onHidden(); };
+  doc.addEventListener('visibilitychange', tab);
+  const observer = element && Observer ? new Observer(entries => {
+    if (!entries.at(-1).isIntersecting && !element.closest('[data-focus-host]')) onHidden();
+  }) : null;
+  observer?.observe(element);
+  return () => { doc.removeEventListener('visibilitychange', tab); observer?.disconnect(); };
+}
 
 export function createFrameScheduler({ evaluate, show, fail = () => {} }) {
   let wanted = null, sent = null, shown = null, dead = false, overruns = 0;

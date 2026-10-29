@@ -8,7 +8,7 @@ import { Frame } from '../AnimatedScene.jsx';
 import { InputWidget } from '../SceneControls.jsx';
 import { focusFrameBox, legibleFrame, normalizeFrame, readableScale } from './frame.js';
 import { createProgramHost, programStamps } from './host.js';
-import { createFrameScheduler } from './playback.js';
+import { createFrameScheduler, watchSeen } from './playback.js';
 import ProgramNotes from './ProgramNotes.jsx';
 import {
   clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programInputs, programTime, resetProgram, resolveProgram,
@@ -152,18 +152,14 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     const saved = Number(clampTime(manifest, time).toFixed(2));
     if (saved !== (latest.current.time ?? 0)) (onChangeQuiet || onChange)({ ...latest.current, time: saved });
   }, [playing, time, manifest]);
-  // A hidden tab pauses playback instead of burning the interpreter.
-  useEffect(() => {
-    const hide = () => { if (document.hidden) setPlaying(false); };
-    document.addEventListener('visibilitychange', hide);
-    return () => document.removeEventListener('visibilitychange', hide);
-  }, []);
   // The rows under the frame (transport, Interact, Notes) report their real height so the card grows by it, as
   // SceneControls does. They exist only once a frame is drawn, so the observer starts then (keyed on drawn, not on the manifest,
   // which arrives a render earlier and found no rows to observe).
   // The failure message replaces the rows, so a failure ends this observer too; otherwise it keeps watching the removed rows and
   // the card stays short by their height after the drawing returns.
   const drawn = !!(manifest && view && !failure);
+  // A hidden tab or a card out of view pauses playback instead of burning the interpreter (playback.js watchSeen; root exists once drawn).
+  useEffect(() => watchSeen(root.current, () => setPlaying(false)), [drawn]);
   useLayoutEffect(() => {
     if (!onControlsHeight || !controls.current) return undefined;
     const observer = new ResizeObserver(() => onControlsHeight(controls.current ? controls.current.offsetHeight + 8 : 0));
