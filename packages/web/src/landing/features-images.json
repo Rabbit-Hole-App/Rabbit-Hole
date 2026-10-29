@@ -49,6 +49,11 @@
       "src": "07-pin-study-desktop.webp",
       "w": 1800,
       "h": 1016
+    },
+    "mobile": {
+      "src": "07-pin-study-mobile.webp",
+      "w": 800,
+      "h": 941
     }
   },
   "08-practice": {
@@ -111,13 +116,8 @@
   "23-table-of-contents": {
     "desktop": {
       "src": "23-table-of-contents-desktop.webp",
-      "w": 1630,
-      "h": 992
-    },
-    "mobile": {
-      "src": "23-table-of-contents-mobile.webp",
       "w": 798,
-      "h": 840
+      "h": 1306
     }
   },
   "24-comments": {
