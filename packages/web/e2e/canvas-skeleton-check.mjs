@@ -27,6 +27,7 @@ import http from 'node:http';
 import { readFileSync, mkdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { BOARDS } from '../src/demo-scenes.js';
+import { BAND_ROOM } from '../src/canvas-slots.js';
 import { cardModule, TUTOR_BOARD } from '../src/learn-tutor-claims.js';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8848';
@@ -131,9 +132,13 @@ const zoom = async () => Number((await camera()).match(/scale\(([\d.]+)\)/)[1]);
 // Owner decision 2026-10-22: the surface fills the workspace and the toolbar, the navigator above it and the page header's
 // controls float over it, so their measured rectangles are cut too, the way canvas-slots freeArea cuts any overlay (the
 // largest remaining rectangle per overlay); a card is never revealed or centred under them.
-const freeArea = () => page.evaluate(() => {
+const freeArea = () => page.evaluate(roomBelow => {
   const frame = document.querySelector('[data-canvas-surface]').getBoundingClientRect(), sheet = document.querySelector('[data-chat-sheet]')?.getBoundingClientRect();
-  const overlays = [sheet, ...[...document.querySelectorAll('[data-tool-gutter] [role="toolbar"], [data-gutter-top] > *'), ...(document.querySelector('[data-canvas-header]')?.children || [])].map(node => node.getBoundingClientRect())]
+  // Owner 2026-10-29: the header over the canvas is an opaque band, cut whole and BAND_ROOM deeper (room for a first-row card's
+  // own row of controls; AdaptiveCanvas controlRects).
+  const header = document.querySelector('[data-canvas-header]'), band = header && getComputedStyle(header).position === 'absolute' ? header.getBoundingClientRect() : null;
+  const overlays = [sheet, ...[...document.querySelectorAll('[data-tool-gutter] [role="toolbar"], [data-gutter-top] > *')].map(node => node.getBoundingClientRect()),
+    band && { left: band.left, right: band.right, top: band.top, bottom: band.bottom + roomBelow, width: band.width, height: band.height }]
     .filter(rect => rect && rect.width && rect.height);
   let area = { left: frame.left, top: frame.top, right: frame.right, bottom: frame.bottom };
   const room = r => Math.max(0, r.right - r.left) * Math.max(0, r.bottom - r.top);
@@ -143,7 +148,7 @@ const freeArea = () => page.evaluate(() => {
       .reduce((best, cut) => (room(cut) > room(best) ? cut : best));
   }
   return { left: area.left + 24, top: area.top + 24, right: area.right - 24, bottom: area.bottom - 24, sheet: sheet && sheet.height ? { top: sheet.top, left: sheet.left, right: sheet.right, bottom: sheet.bottom } : null };
-});
+}, BAND_ROOM);
 const inFree = async locator => { const [box, area] = [await locator.boundingBox(), await freeArea()]; return box.x >= area.left - 2 && box.y >= area.top - 2 && box.x + box.width <= area.right + 2 && box.y + box.height <= area.bottom + 2; };
 // Centred where the camera had to move (here, up or down); an axis already in view is left alone.
 const centred = async locator => { const [box, area] = [await locator.boundingBox(), await freeArea()]; return Math.abs(box.y + box.height / 2 - (area.top + area.bottom) / 2) < 3 && box.x >= area.left - 2 && box.x + box.width <= area.right + 2; };

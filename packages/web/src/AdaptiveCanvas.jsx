@@ -57,7 +57,7 @@ import { DivePortals } from './Dive.jsx';
 import { canvasObjects } from './dive.js';
 import { VIEW_ONLY_CONTROLS, openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
-import { cardBox, chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, openingPan, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
+import { BAND_ROOM, cardBox, chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, openingPan, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { areaTarget, cropBinding } from './area-crop.js';
 import { flushBoard, lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
@@ -390,8 +390,8 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
       {/* The selected card's controls above it are ONE row (owner finding 2026-10-23: Open at the left edge and the CAD controls with
           Add to chat / Quick Edit from the right edge were anchored apart and met when the card was narrow). Open leads, `tools`
           follow right-aligned; one gap, one height (34px, the old selection bar's; 38px when the CAD tools are in it); the 8px gap above the card is the first-row
-          card's limit: it sits 24px under the floating canvas header, and the row must keep its centre below the header's buttons
-          (panel-header-check presses Add to chat there); when they do not fit the row wraps upward from the card (bottom-full) so it never
+          card's limit: fit, reveal and the opening camera keep room for this row below the page header's opaque band (controlRects,
+          owner 2026-10-29), so it is never under the band (panel-header-check presses Add to chat there); when they do not fit the row wraps upward from the card (bottom-full) so it never
           lies over the card or its top port. The one selected card says how it opens: a small Open, never a big button on every card
           (touch has no double-click). */}
       {selected && ((opens && opener.single === id) || tools) && (
@@ -2919,11 +2919,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The floating controls over the drawing surface (owner, 2026-10-22: the surface fills the canvas workspace; the toolbar,
   // the Rabbit Hole navigator above it and the page header's controls float over it), as their measured rectangles in
   // surface px - never a constant gutter. Fit, reveal, placement and the opening camera keep clear of them.
+  // The page header over the canvas is an opaque band that takes the pointer (owner 2026-10-29), so it counts whole, and
+  // BAND_ROOM deeper (canvas-slots.js): a card's own row and the floating bar stand below it, never moved over other content.
   const controlRects = () => {
-    const frame = surface.current.getBoundingClientRect();
-    return [...(gutter.current?.querySelectorAll('[role="toolbar"], [data-gutter-top] > *') || []), ...(pageHeader()?.children || [])]
-      .map(node => node.getBoundingClientRect()).filter(rect => rect.width && rect.height && rect.right > frame.left && rect.left < frame.right && rect.bottom > frame.top && rect.top < frame.bottom)
-      .map(rect => ({ left: rect.left - frame.left, top: rect.top - frame.top, right: rect.right - frame.left, bottom: rect.bottom - frame.top }));
+    const frame = surface.current.getBoundingClientRect(), found = pageHeader();
+    const header = found && getComputedStyle(found).position === 'absolute' ? found : null; // in flow (above the surface): not over it
+    return [...(gutter.current?.querySelectorAll('[role="toolbar"], [data-gutter-top] > *') || []), ...(header ? [header] : [])]
+      .map(node => [node, node.getBoundingClientRect()]).filter(([, rect]) => rect.width && rect.height && rect.right > frame.left && rect.left < frame.right && rect.bottom > frame.top && rect.top < frame.bottom)
+      .map(([node, rect]) => ({ left: rect.left - frame.left, top: rect.top - frame.top, right: rect.right - frame.left, bottom: rect.bottom - frame.top + (node === header ? BAND_ROOM : 0) }));
   };
   const controlArea = () => freeArea({ w: surface.current.clientWidth, h: surface.current.clientHeight }, controlRects(), 0);
   // What the learner can see of the surface: less what floats over it - the chat sheet above the composer, the
