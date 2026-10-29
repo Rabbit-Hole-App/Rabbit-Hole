@@ -30,7 +30,7 @@ import { inlineProvenance, cardId, cardTx, describeChange, editTx, explainConnec
 import { createInlineSession, routeColumn, stageTimings } from './inline-ai-session.js';
 import { layoutDiagram, toCanvasObjects, validateDiagram } from './inline-diagram.js';
 import { placeResult, regionStyle } from './inline-placement.js';
-import { PROMPT_MAX, routeLabel, selectionSubject, selectionSummary } from './inline-ai-route.js';
+import { PROMPT_MAX, routeLabel, selectionSummary, selectionTitle } from './inline-ai-route.js';
 import { HANDOFF_REFUSED, ctrlkCommands, filterCommands, pick, pickerQuery, showsPill, submission, switchMode, unsupportedText } from './inline-ai-command.js';
 import { descFor, typedOf } from './agent/slash.js';
 import CommandPill from './CommandPill.jsx';
@@ -352,7 +352,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       if (!config.handoff) { setRefused(typedOf(out.handoff.command)); return; }
       const objects = target.creation ? [] : (prepare(selectionOnly, out.handoff.line).context?.target?.objects || []);
       const words = objects.map(entry => String(entry.range?.text ?? entry.text ?? '').trim()).filter(Boolean).join('\n').slice(0, 8000);
-      const title = selectionSubject({ target: { objects } }).slice(0, 100) || null;
+      const title = selectionTitle({ target: { objects } }, board()?.blocks || []).slice(0, 100) || null;
       const selection = target.ids?.length ? { id: target.ids[0], kind: objects.length === 1 ? [objects[0].type, objects[0].kind].filter(Boolean).join(':') : 'Selection', title, text: words } : null;
       setHandoffError('');
       if (await config.handoff(out.handoff.line, { selection, concept: title })) { onClose(); return; }

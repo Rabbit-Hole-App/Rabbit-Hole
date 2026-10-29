@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { commandsFor } from './agent/slash.js';
-import { decideRoute, explicitCommand, inlineStatus, isPlainExplain, planRoute, readRoute, routeRequest, ROUTES, ROUTE_THRESHOLDS, NOT_INLINE } from './inline-ai-route.js';
+import { decideRoute, explicitCommand, inlineStatus, isPlainExplain, planRoute, readRoute, routeRequest, ROUTES, ROUTE_THRESHOLDS, NOT_INLINE, selectionTitle } from './inline-ai-route.js';
 import { THRESHOLDS } from '../../control-plane/src/learn-grade-jev.js';
 
 const all = Object.keys(ROUTES);
@@ -81,4 +81,18 @@ test('the route validator: malformed answers throw; low confidence, several and 
 test('routing thresholds are the router\'s own, not the grader\'s', () => {
   assert.notDeepEqual(ROUTE_THRESHOLDS, THRESHOLDS);
   assert.deepEqual(Object.keys(ROUTE_THRESHOLDS).sort(), ['confidence', 'probability']);
+});
+
+// Ctrl+K's hand-off named an editable card by its context text, which is the card's structured content as JSON: the brief read
+// `the selected card "{"title":...}"` (slash follow-up, owner 2026-10-29). Its title is the card's own; the context keeps the JSON.
+test('selectionTitle: a card is called by its own title, never its JSON content; other objects by their words', async () => {
+  const { buildContext, createContextCache } = await import('./inline-ai-context.js');
+  const board = { strokes: [], shapes: [], items: [{ id: 't1', kind: 'text', text: 'Light  reactions' }], links: [], groups: [], exchanges: [], boxes: {},
+    blocks: [{ id: 'k-photo', type: 'explanation', title: 'Photosynthesis', body: 'Plants use light.' }, { id: 'k-q', type: 'quiz', question: 'Why?', options: [] }] };
+  const context = ids => buildContext(board, { ids }, { cache: createContextCache(), boardKey: ids.join() });
+  const card = context(['k-photo']);
+  assert.equal(JSON.parse(card.target.objects[0].text).title, 'Photosynthesis', 'the structured content payload is unchanged');
+  assert.equal(selectionTitle(card, board.blocks), 'Photosynthesis');
+  assert.equal(selectionTitle(context(['t1']), board.blocks), 'Light reactions');
+  assert.equal(selectionTitle(context(['k-q']), board.blocks), '', 'an untitled card: no name, never its JSON');
 });

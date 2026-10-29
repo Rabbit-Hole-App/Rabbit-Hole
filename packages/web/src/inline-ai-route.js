@@ -207,6 +207,12 @@ export function decideRoute(read, { enabled = ['note'], thresholds = ROUTE_THRES
 // search is about. Never the canvas title. '' when the selection has no words (a bare shape, an untitled image).
 export const selectionSubject = context => (context?.target?.objects || [])
   .map(entry => String(entry.range?.text ?? entry.text ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean).join('; ').slice(0, 200);
+// What a handed-off selection is called (its brief's "the selected card" and Motion's concept): a card's own title from the board,
+// never its text, which for an editable card is its structured content as JSON (inline-ai-context.js); any other object's words.
+export const selectionTitle = (context, blocks = []) => (context?.target?.objects || [])
+  .map(entry => { const card = entry.type === 'card' ? blocks.find(block => block.id === entry.id) : null;
+    return String(card ? card.title ?? '' : entry.range?.text ?? entry.text ?? '').replace(/\s+/g, ' ').trim(); })
+  .filter(Boolean).join('; ').slice(0, 200);
 const askFor = route => (route === 'image' ? 'What should the photo show? Type it after /photos, for example /photos an oak tree.'
   : route === 'motion' ? 'What should the video explain? Type it after /motion, for example /motion 15s explain this tree.'
   : `What should the ${routeLabel(route).toLowerCase()} show? Type it after /${route}, for example /${route} how this connects to the rest.`);
