@@ -1,5 +1,4 @@
-.manifesto-atmosphere{position:fixed;inset:0;z-index:-1;background:#f9f7f2;pointer-events:none}
-#manifesto-depth-color{position:absolute;inset:0;background:#e5dfd6;opacity:0}
+.manifesto-atmosphere{position:fixed;inset:0;z-index:-1;background:#000;pointer-events:none}
 /* A shared grid layer overlaps the essay without a negative sticky margin.
    Clip the drawing at the article boundary, including short phone viewports. */
 .manifesto-journey{position:relative;display:grid;grid-template-columns:minmax(0,1fr);isolation:isolate;overflow:clip}

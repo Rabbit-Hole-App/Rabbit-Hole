@@ -1,5 +1,16 @@
 # Rabbit Hole manifesto — editorial revision
 
+## Current: black-and-white treatment (owner brief 2026-10-28)
+
+Supersedes the copy, palette, portraits and highlight decisions below. The page now carries the owner's shorter
+copy (Knowledge does not end. / The next step should depend on you. / Understanding comes from using an idea. /
+Keep the thread.) on #000 with #FFF text, #BDBDBD labels and no red highlights. The Socrates and Feynman portrait
+sections are removed. The staircase keeps its geometry and scroll-built animation, recoloured to white edges and
+neutral grey faces, subdued behind the text. Sizes: hero 80/44px, section headings 32/26px, body 20/18px at line
+height 1.6, a 680px column with 20px phone padding, 64/48px between sections, ordinary scrolling. The black nav with
+a white Get started button and the black footer are scoped to `.manifesto-page`; other pages are unchanged.
+The landing page's manifesto preview (`pink-cloud.css`) is not part of this change.
+
 ## Review deployment update (2026-09-30)
 
 The user explicitly authorized publishing everything on this branch to
