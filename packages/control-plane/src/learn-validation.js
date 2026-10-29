@@ -3,7 +3,9 @@ export function validateToolInput(value, schema, path = 'input') {
   const fail = message => { throw new Error(`${path}: ${message}`); };
   const types = [].concat(schema.type || []);
   const isType = type => type === 'null' ? value === null : type === 'array' ? Array.isArray(value) : type === 'object' ? value !== null && typeof value === 'object' && !Array.isArray(value) : type === 'integer' ? Number.isInteger(value) : typeof value === type;
-  if (types.length && !types.some(isType)) fail(`expected ${types.join(' or ')}`);
+  // Say the whole expected shape and the type received, so a repair can act on it ("expected an array of 2 to 6 strings, got string").
+  const wanted = type => (type === 'array' && schema.items?.type && schema.minItems !== undefined && schema.maxItems !== undefined ? `an array of ${schema.minItems} to ${schema.maxItems} ${schema.items.type}s` : type);
+  if (types.length && !types.some(isType)) fail(`expected ${types.map(wanted).join(' or ')}, got ${value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value}`);
   if (schema.enum && !schema.enum.includes(value)) fail(`expected one of ${schema.enum.join(', ')}`);
   if (typeof value === 'string') {
     if (schema.minLength !== undefined && value.trim().length < schema.minLength) fail(`requires at least ${schema.minLength} non-whitespace characters`);

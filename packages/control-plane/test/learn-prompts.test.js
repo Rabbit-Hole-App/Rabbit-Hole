@@ -22,15 +22,15 @@ import { assessAnswer } from '../src/learn-grade-routes.js';
 const fingerprint = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
 const PINS = {
   teachingPolicy: 'af83a270b721abfc',
-  chat: '8ba78d2bd5da9bf0', // canvas seam and app asks; 2026-10-14: earlier answers are history, not evidence; a title is a weak hint; any subject, request first (topic-restriction brief)
-  chatSnapshot: '75fd4965a31b942c', // an app ask carrying a lesson_snapshot (legacy selection contract)
-  chatOutline: '8e4510902ef9b033',
-  repository: 'dd59f312d45aad50',
-  artifact: '20dc07a7bfe8bca7', // 2026-10-21 L10: when to make an interactive scene (make_animation)
+  chat: '2e23a7f06ff5e5c4', // canvas seam and app asks; 2026-10-28: shared MATH_FORMAT sentence; 2026-10-14: earlier answers are history, not evidence; a title is a weak hint; any subject, request first (topic-restriction brief)
+  chatSnapshot: '61d5410bbb7e17a8', // an app ask carrying a lesson_snapshot (legacy selection contract)
+  chatOutline: '0ca275342a219e28',
+  repository: '09f83dc74b31a487',
+  artifact: '9000332e59c5dd59', // 2026-10-28: MATH_FORMAT; 2026-10-21 L10: when to make an interactive scene (make_animation)
   sceneVerify: '95072982913f0bc1', // 2026-10-21 L10 (owner): the verifier pass over a generated scene (learn-scene-author.test.js sends it)
   board: '4436c297d574838d', // env without DESMOS_API_KEY, so BOARD_NO_DESMOS is appended
   boardReview: 'bce6f95a93d18528',
-  gradingMessage: '1b9c8ceb43a290f2', // the challengePrompt fixture below
+  gradingMessage: 'c26ecea8f9877e04', // the challengePrompt fixture below; 2026-10-28: ends with MATH_FORMAT
 };
 const CHAT_TOOLS = ['search_wikipedia', 'read_wikipedia', 'show_wikipedia', 'find_video_moments', 'show_video', 'search_arxiv', 'read_arxiv_paper'];
 const REPOSITORY_TOOLS = ['get_repo_overview', 'search_code', 'get_relationships', 'explain_symbol', 'find_connection_path', 'query_graph', 'read_source', 'find_video_moments', 'show_video', 'search_arxiv', 'read_arxiv_paper'];

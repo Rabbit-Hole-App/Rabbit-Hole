@@ -34,7 +34,7 @@ import { loadAsset } from './learn-board-assets.js';
 import { groupShot } from './learn-group-shot.js';
 import { describeCanvasObject, groupTargetText } from './learn-ask-target.js';
 import { SelectionActionBar, SelectionActionsHost, SelectionActionsProvider } from './SelectionActions.jsx';
-import { anchorOf } from './selection-bar-place.js';
+import { anchorOf, barCeiling, rowUnderBand } from './selection-bar-place.js';
 import { addToChatAllowed, claimChord, quickEditAllowed } from './shortcut-owner.js';
 import { askDraft } from './agent/scope.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
@@ -392,10 +392,11 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
           follow right-aligned; one gap, one height (34px, the old selection bar's; 38px when the CAD tools are in it); the 8px gap above the card is the first-row
           card's limit: it sits 24px under the floating canvas header, and the row must keep its centre below the header's buttons
           (panel-header-check presses Add to chat there); when they do not fit the row wraps upward from the card (bottom-full) so it never
-          lies over the card or its top port. The one selected card says how it opens: a small Open, never a big button on every card
+          lies over the card or its top port; where the page header's opaque band would hide it, it stands below the card (rowUnderBand,
+          owner 2026-10-29). The one selected card says how it opens: a small Open, never a big button on every card
           (touch has no double-click). */}
       {selected && ((opens && opener.single === id) || tools) && (
-        <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-wrap items-stretch gap-x-2 gap-y-1.5 [&>*]:min-h-[34px] has-[[data-cad-tools]]:[&>*]:min-h-[38px]">
+        <div data-card-chrome-row data-thumbnail-hide className={`pointer-events-none absolute right-0 left-0 z-30 ${edit.rowBelow?.(id) ? 'top-full mt-2' : 'bottom-full mb-2'} flex flex-wrap items-stretch gap-x-2 gap-y-1.5 [&>*]:min-h-[34px] has-[[data-cad-tools]]:[&>*]:min-h-[38px]`}>
           {opens && opener.single === id && (
             <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
               onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
@@ -5533,6 +5534,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // On a shared page (view-only or a local copy), a card whose own row would sit past the surface's right edge (under a side panel such as Chat) or above its top: its actions
   // take the floating bar, which stays inside the view (usesHost).
   const barCut = id => { if (!permissions?.shared) return false; const box = boxesOf([id])[0], width = surface.current?.clientWidth; return !!box && !!width && (view.x + (box.x + box.w) * view.z > width || view.y + box.y * view.z < 40); };
+  // A card whose own row would lie under the page header's opaque band (owner 2026-10-29) shows the row below itself (CanvasNode).
+  const rowBelow = id => { const box = boxesOf([id])[0]; return !!box && rowUnderBand(view.y + box.y * view.z, view.z, barCeiling(pageHeader()?.getBoundingClientRect(), surface.current?.getBoundingClientRect(), 0)); };
   const hasPin = commentPins && presenting === null ? id => commentPins.some(pin => pin.anchor?.kind === 'object' && pin.anchor.object_id === id) : null;
   return (
     // Delete, ctrl+z, copy and paste all stand down while a text field has focus,
@@ -5542,7 +5545,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // the field it belongs to is left alone, so typing still works.
     // account (CanvasEdit): whose viewing preferences this browser keeps (a CAD card's Show dimensions); storageKey is
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
-    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, resizeCard, patchBlock: patchBlockNow, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
+    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, rowBelow, resizeCard, patchBlock: patchBlockNow, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
     <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"

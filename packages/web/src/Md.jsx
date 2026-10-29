@@ -206,6 +206,18 @@ const Block = memo(function Block({ src, first, ...ctx }) {
   return lines(source.split('\n'), { ...ctx, math }, first);
 });
 
+// Math-aware text for a span, label, button or paragraph that Md's block wrapper would break: the same tokenizer and inline renderer,
+// but no div, p or display block, so layout stays as it was. Display math is typeset inline. mathOnly: text a learner typed
+// (a submitted answer) gets its math typeset and nothing else read as Markdown.
+export function MdInline({ text, onFile, sourcePath, mathOnly = false }) {
+  const { source, math } = tokenizeMath(text ?? '');
+  const flat = math.map(m => ({ ...m, display: false }));
+  // A display token comes wrapped in newlines (tokenizeMath); on one line they are only a space.
+  const line = source.replace(/\s*\n\s*(?=\uE000)|(?<=\uE001)\s*\n\s*/g, ' ');
+  if (mathOnly) return line.split(/\uE000(\d+)\uE001/).map((part, i) => (i % 2 ? <MathText key={i} {...flat[part]} /> : part));
+  return inline(line, flat, onFile, sourcePath);
+}
+
 // doc: the text is a document in its own pane (a Chat answer), so headings get sizes; everywhere else they stay body-sized.
 export function Md({ text, onRun, onFile: given, sourcePath = singleSourcePath(text), doc = false }) {
   const refs = useContext(CodeRefs);

@@ -8,6 +8,11 @@
 // over the surface (owner 2026-10-29), else 8 px. header, frame: their client rects (either may be missing).
 export const barCeiling = (header, frame, inset = 8) => Math.max(inset, header && frame ? header.bottom - frame.top + inset : inset);
 
+// Whether a card's own row of controls (34 px plus its 8 px gap above the card, both scaled with the zoom) would lie under that
+// band; the row then stands below the card, as the bar does (owner 2026-10-29). top: the card's top and band: the band's bottom,
+// both in surface px (band 0: none over the surface).
+export const rowUnderBand = (top, zoom, band) => band > 0 && top - 42 * zoom < band;
+
 export function placeBar(anchor, size, box, { gap = 20, margin = 8, top: inset = 8, below = false } = {}) {
   const roomAbove = anchor.top - gap - size.h >= inset;
   const roomBelow = anchor.bottom + gap + size.h <= box.h - margin;

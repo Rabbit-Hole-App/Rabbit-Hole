@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, CircleHelp, Loader2, SquareSlash, X } from 'lucide-react';
-import { exactCommand, parseSlash, pickerSections, releaseLine, searchSections } from './learn-slash.js';
+import { commandUi, exactCommand, parseSlash, pickerSections, releaseLine, searchSections } from './learn-slash.js';
 import PaidConfirm from './PaidConfirm.jsx';
 import { CommandMark } from './CommandTone.jsx';
 import { typedOf } from './agent/slash.js';
@@ -16,13 +16,18 @@ import { CommandSearch } from './CommandList.jsx';
 // keeps its draft meanwhile (ask.jsx).
 // onRun(line): a command line starts running; the Chat saves it as the user's message and answers { onCard } (the card-id sink
 // its cards report to, chat-output-refs.js), or null when it keeps no record of it (a line whose words go on to the chat).
-export default function LearnSlash({ apiRef, composerRef = null, input, setInput, target, run, onPrompt, onHelp = null, onFocusBlock = null, onFinder = null, onRun = null }) {
+// scope: the conversation these notices belong to (the chat thread's restore key, ask.jsx). New chat or another thread clears them,
+// and a command that finishes after that adds its card but shows nothing here (learn-slash.js commandUi).
+export default function LearnSlash({ apiRef, composerRef = null, input, setInput, target, run, onPrompt, onHelp = null, onFocusBlock = null, onFinder = null, onRun = null, scope = null }) {
   const [active, setActive] = useState(0);
   const [notice, setNotice] = useState(null);
   const [proposal, setProposal] = useState(null);
   const [busy, setBusy] = useState(false);
   // A command sent while one runs is held and runs after it, if the composer still shows it (learn-slash.js releaseLine).
   const held = useRef(null);
+  const scopeNow = useRef(scope);
+  scopeNow.current = scope;
+  useEffect(() => { setNotice(null); setProposal(null); setBusy(false); held.current = null; }, [scope]);
   // The search field's text, or null when the palette was opened by typing / (the composer is its search then).
   const [query, setQuery] = useState(null);
   const sections = busy ? null : query ? searchSections(query) : pickerSections(input);
@@ -38,6 +43,7 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
   // ({ target, about }), and the composer's own draft is never cleared or replaced (a kept line only fills an empty composer).
   const exec = async (raw, handoff = null) => {
     const name = parseSlash(raw)?.name || '';
+    const started = scope;
     if (!handoff) setInput('');
     setProposal(null); setBusy(true);
     setNotice({ tone: 'busy', text: `Working on /${name}` });
@@ -45,18 +51,20 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
     let out;
     try { out = await run(raw, target, turn, handoff); }
     catch (error) { out = { notice: { tone: 'error', text: error.message } }; }
+    const ui = commandUi(out, { raw, started, current: scopeNow.current, tracked: !!turn });
+    if (!ui) return; // the conversation changed: the card stays, nothing here (New chat already cleared the notice)
     setBusy(false);
     // A prompt the chat refuses (onPrompt answers false) is never lost: the line comes back with an error.
-    if (out.prompt) {
+    if (ui.prompt) {
       setNotice(null);
-      Promise.resolve(onPrompt(out.prompt, handoff)).then(sent => { if (sent === false) { if (!handoff || !input.trim()) setInput(raw); setNotice({ tone: 'error', text: `/${name} was not sent while the chat was busy. Press Enter to send it.` }); } });
+      Promise.resolve(onPrompt(ui.prompt, handoff)).then(sent => { if (sent === false) { if (!handoff || !input.trim()) setInput(raw); setNotice({ tone: 'error', text: `/${name} was not sent while the chat was busy. Press Enter to send it.` }); } });
       return;
     }
-    if (out.finder) onFinder?.(out.finder);
-    if (out.keep && (!handoff || !input.trim())) setInput(out.keep);
-    setNotice(out.notice || null);
+    if (ui.finder) onFinder?.(ui.finder);
+    if (ui.keep && (!handoff || !input.trim())) setInput(ui.keep);
+    setNotice(ui.notice);
     // The confirmation shows the line it asks about (brief 1); a recorded line's generation shows above the composer (ChatOutputs).
-    setProposal(out.proposal ? { ...out.proposal, prompt: raw.trim(), tracked: !!turn } : null);
+    setProposal(ui.proposal);
   };
   useEffect(() => {
     if (busy || held.current == null) return;
@@ -113,10 +121,11 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
             {proposal && <PaidConfirm message={proposal.message} prompt={proposal.prompt}
               onCancel={() => setProposal(null)}
               onGenerate={async () => {
-                const chosen = proposal; setProposal(null); setBusy(true);
-                try { const done = await chosen.generate(); setNotice(done?.reused ? { tone: 'done', text: 'Already on the canvas.', blockId: done.reused } : chosen.tracked ? null : { tone: 'done', text: 'Generating on the canvas.' }); }
-                catch (error) { setNotice({ tone: 'error', text: error.message }); }
-                finally { setBusy(false); }
+                const chosen = proposal, started = scope; setProposal(null); setBusy(true);
+                const mine = () => started === scopeNow.current; // a new conversation shows nothing of this generation (it still starts)
+                try { const done = await chosen.generate(); if (mine()) setNotice(done?.reused ? { tone: 'done', text: 'Already on the canvas.', blockId: done.reused } : chosen.tracked ? null : { tone: 'done', text: 'Generating on the canvas.' }); }
+                catch (error) { if (mine()) setNotice({ tone: 'error', text: error.message }); }
+                finally { if (mine()) setBusy(false); }
               }} />}
           </div>
           {!busy && <button type="button" aria-label="Dismiss" onClick={() => { setNotice(null); setProposal(null); }} className="shrink-0 rounded p-0.5 text-ink-3 hover:bg-hover hover:text-ink"><X size={12} /></button>}

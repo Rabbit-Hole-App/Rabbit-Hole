@@ -8,6 +8,7 @@ import { createContext, Suspense, useContext, useEffect, useLayoutEffect, useRef
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { Check, ChevronLeft, ChevronRight, Code, Loader2, PenLine, Play, RotateCcw, Search, Volume2, X } from 'lucide-react';
 import { Md } from './ask.jsx';
+import { MdInline } from './Md.jsx';
 import { api, wsHeaders } from './api.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { loadAsset } from './learn-board-assets.js';
@@ -1012,7 +1013,7 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
       {!answered ? (
         <>
           <div style={live} onPointerDown={e => e.stopPropagation()}>
-            <p className="mt-1 text-xs text-ink-2 italic">{block.hint}</p>
+            <p className="mt-1 text-xs text-ink-2 italic"><MdInline text={block.hint} /></p>
             <div className="mt-2 flex flex-wrap gap-2">
               <SpeakAnswer appName={appName} onText={text => setDraft(current => (current ? `${current} ${text}` : text))} />
               <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') commit(); }}
@@ -1048,7 +1049,7 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
         </>
       ) : (
         <>
-          {block.answer && <div className="mt-2 flex justify-end"><span data-answer data-grade={grade || 'pending'} className={`max-w-[85%] rounded-xl border px-3 py-1.5 text-sm whitespace-pre-wrap ${tint}`}>{block.answer}</span></div>}
+          {block.answer && <div className="mt-2 flex justify-end"><span data-answer data-grade={grade || 'pending'} className={`max-w-[85%] rounded-xl border px-3 py-1.5 text-sm whitespace-pre-wrap ${tint}`}><MdInline text={block.answer} mathOnly /></span></div>}
           {/* The submitted sketch, read-only at three quarters size; it carries the grade's tint when it is the whole answer. */}
           {block.sketchSubmitted && (sketchHost ? (
             <div data-answer-sketch {...(!block.answer ? { 'data-answer': true, 'data-grade': grade || 'pending' } : {})}
@@ -1762,7 +1763,7 @@ function ExplanationBody({ block, onFile }) {
           <button type="button" data-explain-more onPointerDown={e => e.stopPropagation()}
             onClick={() => setOpen(previous => ({ ...previous, [index]: !previous[index] }))}
             className="flex w-full items-center justify-between gap-2 text-left text-xs font-medium text-ink-2 hover:text-ink">
-            {section.label}
+            <MdInline text={section.label} />
             <ChevronRight size={13} className={open[index] ? 'rotate-90 transition-transform' : 'transition-transform'} />
           </button>
           {open[index] && <div className="mt-1.5 text-sm text-ink-2"><Md text={section.text} onFile={onFile} /></div>}
@@ -1909,7 +1910,7 @@ function CodeBody({ block, onChange, onFile }) {
       {run && run !== 'starting' && !run.ok && (
         <div className="mt-2 rounded-lg border border-red-700/25 bg-red-700/5 p-2 text-xs">
           <p><span className="font-medium text-red-700">Why it failed:</span> {(run.error || 'A check did not pass.').split('\n').filter(Boolean).pop()}</p>
-          {block.hint && <p className="mt-1 text-ink"><span className="font-medium">Hint:</span> {block.hint}</p>}
+          {block.hint && <p className="mt-1 text-ink"><span className="font-medium">Hint:</span> <MdInline text={block.hint} /></p>}
         </div>
       )}
       {run && run !== 'starting' && run.output && (

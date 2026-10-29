@@ -74,11 +74,17 @@ const focusNow = () => page.evaluate(() => {
   const box = node => { const r = node?.getBoundingClientRect(); return r ? [r.x, r.y, r.width, r.height].map(Math.round) : null; };
   return { id: f?.dataset.focusFrame || null, kind: f?.dataset.focusKind || null, header: box(f), host: host?.dataset.blockId || null, hostBox: box(host) };
 });
-// The notebook's drag strip selects it on a press (a click without movement moves nothing).
+// The notebook's drag strip selects it on a press (a click without movement moves nothing). The press goes to a point of the
+// strip that is on top: with the heading above it selected, the heading's floating bar stands below the heading, over part of
+// the strip, because the page header's opaque band leaves it no room above (placeBar, owner 2026-10-29).
 const selectNotebook = async () => {
-  const strip = await page.locator('[data-block-id="nb"] [data-drag-handle]').boundingBox();
+  const strip = await page.locator('[data-block-id="nb"] [data-drag-handle]').evaluate(node => {
+    const r = node.getBoundingClientRect(), y = r.top + r.height / 2;
+    for (let x = r.left + r.width / 2; x > r.left + 4; x -= 8) if (node.contains(document.elementFromPoint(x, y))) return { x, y };
+    return null;
+  }).catch(() => null);
   assert.ok(strip, 'the notebook card is on screen');
-  await page.mouse.click(strip.x + strip.width / 2, strip.y + strip.height / 2);
+  await page.mouse.click(strip.x, strip.y);
   await until(async () => (await selectedIds()).includes('nb'), 'the notebook card is selected');
 };
 

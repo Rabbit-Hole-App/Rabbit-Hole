@@ -97,3 +97,9 @@ panned under it is hidden there and cannot be pressed through it. The surface st
 still lets the pointer through. Fit, reveal, Focus and the opening camera already stop below the header controls plus their
 margin, which clears the band's 4 px bottom padding, so no geometry changed. `e2e/canvas-clipping-check.mjs` and
 `e2e/canvas-toolbar-check.mjs` check the band instead of pointer use through it.
+
+A selected object's controls never hide under the band. The floating selection bar keeps 8 px below it (`barCeiling`) and
+flips below the selection when there is no room above, as it already did at the view's edge. A card's own row of controls
+(Open, the CAD tools, Focus, Add to chat, Quick Edit) stands below the card instead of above it when the band would cover the
+row (`rowUnderBand`, selection-bar-place.js); this is the case for the first card at the opening camera. Either may then lie over
+the card below.

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cardsFor, commandLine, holdsLine, lineCommand, materialCommands, MOTION_OFF, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
+import { cardsFor, commandLine, commandUi, holdsLine, lineCommand, materialCommands, MOTION_OFF, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
 import { generationField } from './generation-proposal-chat.js';
 import { commandsFor, idOfTyped, learnRequest, typedOf } from './agent/slash.js';
 import { readFileSync } from 'node:fs';
@@ -198,6 +198,42 @@ test('/explain: a made interactive explanation is inserted; a failed one keeps t
   const plain = harness({ result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'B', body: 'b' } });
   await plain.run(notice.notice.actions[0].line);
   assert.equal(plain.did.find(entry => entry[0] === 'post')[2].args, 'in plain text: interactive binary search');
+});
+
+// A card the model could not make valid after its one repair: plain words for the learner, the validator's words kept as the detail.
+test('/practice: an explain-back that failed its checks says so plainly, keeps the line and the technical detail', async () => {
+  const failed = harness({ result: 'validation_error', primitive: 'explain_back', error: 'explain_back.expects: expected an array of 2 to 6 strings, got string' });
+  const out = await failed.run('/practice explain softmax');
+  assert.ok(!failed.did.some(entry => entry[0] === 'block'));
+  assert.equal(out.notice.tone, 'error');
+  assert.equal(out.notice.text, 'An explain-back could not be made: it failed its checks, so nothing was added. Send the line again to retry.');
+  assert.doesNotMatch(out.notice.text, /expected array|expects/);
+  assert.equal(out.notice.detail, 'explain_back.expects: expected an array of 2 to 6 strings, got string');
+  assert.equal(out.keep, '/practice explain softmax');
+});
+
+// New chat (chat-threads.js newChat) changes the thread's restore key. A command started before that still adds its card, but its
+// notice, kept draft, source finder, chat prompt and confirmation stay out of the new conversation (LearnSlash.jsx scope).
+test('a command finished in the same conversation shows its result; one finished after New chat shows nothing', async () => {
+  const { did, run } = harness({ result: 'artifact', primitive: 'challenge', block: { type: 'challenge', prompt: 'p' } });
+  const out = await run('/practice softmax');
+  assert.equal(did.filter(entry => entry[0] === 'block').length, 1, 'the card is inserted by the command itself, whatever the conversation');
+  assert.equal(out.notice.text, 'Added a challenge.');
+  const same = commandUi(out, { raw: '/practice softmax', started: 'canvas:t1:0', current: 'canvas:t1:0' });
+  assert.deepEqual(same.notice, out.notice);
+  assert.equal(commandUi(out, { raw: '/practice softmax', started: 'canvas:t1:0', current: 'canvas:new:1' }), null);
+  // Every kind of result is dropped, not only a notice.
+  for (const result of [{ keep: '/practice ', notice: { tone: 'question', text: 'q' } }, { proposal: { message: 'm', generate: () => {} } }, { finder: Promise.resolve({ added: false }) }, { prompt: 'p' }]) {
+    assert.equal(commandUi(result, { raw: '/x', started: 'a', current: 'b' }), null);
+  }
+});
+
+test('a result in the same conversation keeps its draft, finder, prompt and tracked confirmation', () => {
+  const ui = result => commandUi(result, { raw: ' /video prism ', started: 'k', current: 'k', tracked: true });
+  assert.deepEqual(ui({ prompt: 'ask' }), { prompt: 'ask' });
+  assert.equal(ui({ keep: '/graph ' }).keep, '/graph ');
+  assert.equal(ui({ notice: { tone: 'done', text: 'x' } }).proposal, null);
+  assert.deepEqual(ui({ proposal: { message: 'm' } }).proposal, { message: 'm', prompt: '/video prism', tracked: true });
 });
 
 test('an unknown command says so', async () => {
