@@ -205,17 +205,48 @@ cell passed, failed or not tested, with the build SHA.
   - Unit tests: `playback.test.mjs` (watchSeen, Focus, settling while paused) and `lifecycle.test.mjs` (three cards on two
     Workers).
   - Still to add after 8.3: a stateful card offscreen keeps its committed state and its queue, and drops no actions.
-- 10.2 matrix, not started. Each row is checked against the drawing itself: axes and labels visible, the pointer reaches
-  the controls, Play changes positions, Pause holds, scrub and input state match the picture, Notes opens without crushing
-  the graph, and Back and Focus keep state.
+- 10.2 matrix, run 2026-10-29 between 4:46 and 4:55 PM PT on https://preview.digrabbithole.com.
+  - The served commit, read from the Cloudflare version chain before and after the run, was `d3d50986e` (R3).
+  - Saved cards only: cooling (sandbox-ex1-b, schema 1), sorting (sandbox-ex2-a, schema 1) and stack/queue (t811-c4-b,
+    schema 2). No generation call was made.
+  - Browser: headless Google Chrome under Playwright on a Windows 11 workstation.
+  - Script `C:/s/spec/explain-sandbox/genuine/matrix-check.mjs` (65 ok, 0 failed, 1 not testable). Log
+    `C:/s/spec/explain-sandbox/matrix-d3d50986e.out`; measured facts in `C:/s/spec/explain-sandbox/matrix/d3d50986e/matrix.json`. I looked at the screenshots myself.
+  - A control counts as "reachable" when its centre is on screen and on top after panning the canvas to it, as a learner would.
+  - **390x844 is a Chromium viewport with touch emulation. It is not an iPhone, Safari or WebKit test.**
 
-| Viewport | Owner | Shared viewer | Signed-out share | Light | Dark | Keyboard | Reduced motion |
-|---|---|---|---|---|---|---|---|
-| 1440x900 | cooling on dev `fc31f723a`: passed | passed (simulated) | passed (simulated) | passed | not tested | not tested | not tested |
-| 1280x720 with Chat open | not tested | not tested | not tested | not tested | not tested | not tested | not tested |
-| 390x844 (Chromium; not an iPhone or WebKit test) | cooling: passed | passed (simulated) | passed (simulated) | passed | not tested | not tested | not tested |
+| Cell | Result | What was checked | Screenshots (`C:/s/spec/explain-sandbox/matrix/d3d50986e/`) |
+|---|---|---|---|
+| 1440x900, owner, light | passed | Cooling: Play advances the time and the drawing; Pause holds it; scrubbing to 15 s redraws and the label reads 15.0s; the room slider changes the curve; Notes opens with the drawing at the same height (545 px before and after); Focus and Back keep the time, the room setting and the drawing. Sorting: the step slider and the algorithm select redraw. Stack: Add twice redraws, and Reset returns to the initial drawing. | `d1440-owner-light-*` |
+| 1440x900, owner, keyboard only | passed, with one accessibility failure (below) | Enter plays, Space pauses, Tab goes from Play to the time slider, arrow keys move both sliders, Enter on Reset, Enter on a sorting option presses it, Enter and Space on the stack's Add both act, Tab goes from Add to Remove. Selectable targets: not tested on a genuine card (stack declares none); the fixture check `explain-program-state-check.mjs` covers them. | `d1440-owner-keyboard-*` |
+| 1440x900, owner, dark | passed (inspected) | Axes, labels, curves, cells and buttons are readable in dark theme on all three cards. | `d1440-owner-dark-*` |
+| 1440x900, owner, reduced motion | passed | Play jumps straight to the end (20.0 s) and the button reads Replay; no animation. | `d1440-owner-reduced-motion-*` |
+| 1280x720, owner, Chat open | passed | The first control of each card is reachable beside Chat after panning. A card wider than the canvas needs panning to see its right side. | `d1280-owner-chat-*` |
+| 390x844, owner, light | passed (Chromium only) | The first control of each card is reachable after panning, and it acts. The cards keep their legible width, so a learner pans to see each side. | `m390-owner-light-*` |
+| 1440x900, shared, signed-out (simulated) | passed | Controls are reachable and act. A visitor writes nothing (only the app's own RUM and Curious next-steps calls, which were aborted). | `d1440-shared-signedout-*` |
+| 390x844, shared, signed-out (simulated) | passed (Chromium only) | Same as the row above. | `m390-shared-signedout-*` |
 
-Browsers: Chromium only. WebKit and Firefox are not tested; add them only where the existing tooling already runs them.
+Failures reported to the integrator (functional or accessibility; nothing cosmetic):
+- **Focus placement.** In the 1440x900 owner run, the focused cooling card was drawn shifted left: the y-axis, its labels
+  and the left end of the controls were off-screen (`d1440-owner-light-cooling-05-focus.png`).
+  - It reproduced in 2 of 2 full matrix runs, after the pass's sequence: Play, Pause, scrub to 15 s, room slider to maximum,
+    Notes open, then Focus from the card's menu.
+  - It did not reproduce in two shorter probes, which placed the card fully in view: Focus from zoom-to-fit, and Focus
+    from a panned view with Notes open (`focus-1440x900-fit-settled.png`, `focus-1440x900-panned-settled.png`).
+  - Back to canvas kept the state every time.
+  - Cause not isolated.
+- **Keyboard focus hidden by the minimap.** A keyboard-focused control can sit under the canvas minimap: the stack's
+  focused Add button was covered (`d1440-owner-keyboard-stack-01-add-focused.png`), because the canvas does not pan to the
+  focused control. This is the known minimap overlap; for keyboard users it fails "focus not obscured".
+
+Not tested:
+- Signed-in shared viewer, as opposed to the simulated signed-out visitor.
+- Dark theme at 1280 and 390.
+- Real mobile devices.
+- WebKit and Firefox.
+- A schema 2 card with selectable targets or with a number input. No genuine card has passed review with them yet.
+- R4 (`9846cc0a5`), which the preview did not serve during the run.
+
 
 ## Known gaps
 
@@ -229,4 +260,5 @@ Browsers: Chromium only. WebKit and Firefox are not tested; add them only where 
 | Execution kill does not stop already-open cards | integrator | Accepted as documented; an immediate stop needs a new mechanism (not planned) |
 | Rollback pins stale (above) | integrator | Re-cut generation-off and kill on the final main; re-record the emergency pair at release |
 | Gravity: request text, model identity and interaction evidence not recorded | owner | None needed unless 10.4 counts gravity as an interaction case |
-| 10.2 matrix rows not tested | qualification lane | Run after 8.3 lands, on the release candidate |
+| 10.2: Focus placement after a played, scrubbed card (cause not isolated); keyboard focus under the minimap | card/Focus lane | Reproduce from the matrix sequence above; pan or scroll the focused control clear of canvas chrome |
+| 10.2 rows still not tested (above) | qualification lane | Rerun `matrix-check.mjs` when the preview serves R4; the rows not tested need a signed-in viewer, real devices or other engines |
