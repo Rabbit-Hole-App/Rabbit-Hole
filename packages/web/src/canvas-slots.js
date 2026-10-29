@@ -87,6 +87,11 @@ export function freeArea(surface, overlays, pad = 24) {
 // before, so an existing board opens without a jump.
 export const homeView = (area, column = 560) => ({ x: area.left + Math.max(24, (area.right - area.left - column) / 2), y: area.top + 24, z: 1 });
 
+// How much deeper than the page header's opaque band over the canvas (owner 2026-10-29) fit, reveal, placement and the
+// opening camera keep clear (AdaptiveCanvas controlRects): a card just below it keeps its own row of controls (34-38 px and
+// its 8 px gap) or the floating bar (34 px, 20 px up) out from under the band. The canvas checks read the same value.
+export const BAND_ROOM = 32;
+
 // The floating bottom chrome as obstacles for a card placed in view, in world units (owner rule: canvas utilities never
 // cover content): each control's span (surface px: left, right, top) from its top down to the surface's bottom, the floor
 // chromeTop gives a reveal over that span. height: the surface's; view { x, y, z }.

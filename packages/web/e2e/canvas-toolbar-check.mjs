@@ -28,6 +28,7 @@
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { BOARDS } from '../src/demo-scenes.js';
+import { BAND_ROOM } from '../src/canvas-slots.js';
 import { reveal } from './canvas-reveal.mjs';
 import { DEV_CP } from './dev-cp.mjs';
 
@@ -231,8 +232,9 @@ async function probeEdge(page, card, title, label, side = 'right') {
     if (Math.abs(moved - 240) > 4) fail(`desktop: wheel over the tools column's empty part moved the canvas ${Math.round(moved)}px, expected 240`);
     results.gutterWheel = { at: round(empty.spot), moved: Math.round(moved) };
   }
-  // Owner decision 2026-10-22: nothing is clipped at the old gutter or header boundary. The card, panned so its top left runs
-  // under the header row and the tools column, is drawn there and answers the pointer beside the controls.
+  // Owner decision 2026-10-22: nothing is clipped at the old gutter boundary. The card, panned so its top left runs under the
+  // header row and the tools column, is drawn under the tools column and answers the pointer beside its controls; the header
+  // row hides it (owner 2026-10-29: an opaque band).
   {
     g = await geometry(page); box = await card.boundingBox();
     // A wheel over bare canvas (a card's scrolling body keeps its own wheel).
@@ -261,9 +263,12 @@ async function probeEdge(page, card, title, label, side = 'right') {
         probed += 1;
         // The element that took the point is named, so a miss says what covers the card there.
         const hit = await page.evaluate(([px, py, t]) => { const el = document.elementFromPoint(px, py); return el?.closest('[data-block-id]')?.textContent?.includes(t) ? null : `${el?.tagName?.toLowerCase()}${[...(el?.attributes || [])].filter(a => a.name.startsWith('data-') || a.name === 'role' || a.name === 'aria-label').map(a => `[${a.name}=${a.value}]`).join('')} in ${el?.closest('[data-gutter-top],[data-tool-gutter],[data-canvas-header],[data-canvas-bottom]')?.outerHTML?.slice(0, 60) ?? 'the page'}`; }, [x, y, widest.block.title]);
-        if (hit) missed.push(`(${Math.round(x)},${Math.round(y)}) ${hit}`); else drawn += 1;
+        // Owner 2026-10-29 ("block the upper header ... so that the cards does not appear in between the texts/menu names"):
+        // the header row is an opaque band, so there every point is the header itself, never the card under it.
+        const header = name === 'header' && await page.evaluate(([px, py]) => !!document.elementFromPoint(px, py)?.closest('[data-canvas-header]'), [x, y]);
+        if (name === 'header' ? !header : hit) missed.push(`(${Math.round(x)},${Math.round(y)}) ${hit ?? 'the card'}`); else drawn += 1;
       }
-      if (!probed || drawn < probed) fail(`desktop: under the ${name} ${name === 'header' ? 'row' : 'column'} only ${drawn}/${probed} points beside the controls reach the card ${JSON.stringify(round(box))}; not the card at ${missed.join('; ')}`);
+      if (!probed || drawn < probed) fail(name === 'header' ? `desktop: over the card ${JSON.stringify(round(box))} only ${drawn}/${probed} header band points beside the controls are the opaque header; not it at ${missed.join('; ')}` : `desktop: under the tools column only ${drawn}/${probed} points beside the controls reach the card ${JSON.stringify(round(box))}; not the card at ${missed.join('; ')}`);
       results[`${name}Band`] = { probed, drawn };
     }
     await page.screenshot({ path: `${OUT}/desktop-card-under-header-and-tools.png` });
@@ -290,7 +295,10 @@ async function probeEdge(page, card, title, label, side = 'right') {
     // (the depth ladder) starts at the room's top and pans out from under the chrome.
     const first = await page.evaluate(() => Math.min(...[...document.querySelectorAll('[data-canvas-surface] [data-block-id]')].map(el => el.getBoundingClientRect().top)));
     if (scale > 0.2001 && under.length) fail(`desktop: after zoom to fit, card(s) under the minimap and zoom or the hooks: ${under.join('; ')}`);
-    if (scale <= 0.2001 && first > (fit.header?.bottom ?? fit.surface.y) + 49) fail(`desktop: at the 20% floor the fit does not start at the top, below the header (${Math.round(first)})`);
+    // Owner 2026-10-29: over the canvas the header is an opaque band, kept clear BAND_ROOM deeper (AdaptiveCanvas controlRects).
+    const band = fit.header && await page.evaluate(() => getComputedStyle(document.querySelector('[data-canvas-header]')).position === 'absolute');
+    const roomTop = fit.header ? fit.header.bottom + (band ? BAND_ROOM : 0) : fit.surface.y;
+    if (scale <= 0.2001 && first > roomTop + 49) fail(`desktop: at the 20% floor the fit does not start at the top, below the header (${Math.round(first)}, room from ${Math.round(roomTop)})`);
     aligned(fit, 'desktop, after zoom to fit');
     // A longer zoom label: zoom in to 3 digits; the group keeps one width.
     for (let i = 0; i < 12 && Number.parseInt((await geometry(page)).zoom, 10) < 100; i++) await page.locator('[data-zoom] [title="Zoom in"]').click();
