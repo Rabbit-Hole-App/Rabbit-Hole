@@ -74,17 +74,44 @@ test('the Tutor\'s card context names a selected stateful target by its label, b
   assert.match(before, /Buttons: Compare next pair, Shuffle/);
   assert.match(before, /Parts the learner can select: Bar 1, Bar 2, Bar 3, Bar 4, Bar 5, Bar 6/);
   assert.doesNotMatch(before, /last selected/, 'nothing committed on this page yet: no action is claimed');
-  programActivity(block, { type: 'select', target: 'bar-3' });
+  const shown = revision => rememberProgram(block, manifest, { inputs: {}, time: 0, readouts: [], revision });
+  shown(5); programActivity(block, { type: 'select', target: 'bar-3' }, 5);
   assert.match(cardContext(block), /The learner last selected "Bar 4"; the picture shows the result\./);
-  programActivity(block, { type: 'action', action: 'step' });
+  shown(6); programActivity(block, { type: 'action', action: 'step' }, 6);
   assert.match(cardContext(block), /The learner last pressed "Compare next pair"/);
-  programActivity(block, { type: 'select', target: 'not-declared' });
+  programActivity(block, { type: 'select', target: 'not-declared' }, 6);
   assert.doesNotMatch(cardContext(block), /not-declared|last selected/, 'an id the card does not label is never named');
   for (const leak of ['secretOrder', 'reduce', 'initialState', sortFixture.source.slice(0, 30)]) assert.equal(cardContext(block).includes(leak), false, leak);
   assert.ok(cardContext(block).length <= PROGRAM_DESCRIPTION);
   const drag = parseManifest(dragFixture.manifest, STATEFUL_SCHEMA_VERSION).value, dragged = { ...block, id: 'card-fx61-drag', program: { bundleHash: 'bh-drag' } };
   rememberProgram(dragged, drag);
-  programActivity(dragged, { type: 'drag_end', target: 'handle', x: 10, y: 20 });
+  rememberProgram(dragged, drag, { inputs: {}, time: 0, readouts: [], revision: 3 });
+  programActivity(dragged, { type: 'drag_end', target: 'handle', x: 10, y: 20 }, 3);
   assert.match(cardContext(dragged), /Handle can also be dragged/);
   assert.match(cardContext(dragged), /The learner last moved "Handle"/);
+});
+
+// REGRESSION (review of 0632b6a74): the action was published when its state committed, before its frame was drawn, and the drawn
+// readouts were matched by inputs only, so the Tutor read "the picture shows the result" beside the previous state's values. The
+// action and the readouts are now bound to the state revision of the frame actually displayed.
+test('a committed action whose frame is not drawn yet is not described as shown, and the old state\'s readouts are not reported', async () => {
+  const { cardContext } = await import('./learn-tutor.js');
+  const { programActivity, rememberProgram } = await import('./explain-program/program-card.js');
+  const { parseManifest, STATEFUL_SCHEMA_VERSION } = await import('./explain-program/contract.js');
+  const { sortFixture } = await import('./explain-program/fixtures.js');
+  const manifest = parseManifest(sortFixture.manifest, STATEFUL_SCHEMA_VERSION).value;
+  const block = { id: 'card-fx61-late', type: 'animation', title: 'Sorting', program: { bundleHash: 'bh-late' }, explain: { resultId: 'er-late', revision: 'xr-late' } };
+  rememberProgram(block, manifest, { inputs: {}, time: 0, readouts: [{ id: 'swaps', label: 'Swaps so far', text: '1' }], revision: 1 });
+  programActivity(block, { type: 'action', action: 'step' }, 1);
+  assert.match(cardContext(block), /Shown now: Swaps so far 1/);
+  // The next press commits revision 2; its frame is still being drawn.
+  programActivity(block, { type: 'action', action: 'shuffle' }, 2);
+  const late = cardContext(block);
+  assert.doesNotMatch(late, /the picture shows the result/);
+  assert.doesNotMatch(late, /Shown now: Swaps so far 1/, 'the previous state\'s values are not reported as current');
+  assert.match(late, /The learner last pressed "Shuffle"; its result is not drawn yet/);
+  // Its frame arrives: the action and the values now describe the same displayed state.
+  rememberProgram(block, manifest, { inputs: {}, time: 0, readouts: [{ id: 'swaps', label: 'Swaps so far', text: '0' }], revision: 2 });
+  assert.match(cardContext(block), /The learner last pressed "Shuffle"; the picture shows the result\./);
+  assert.match(cardContext(block), /Shown now: Swaps so far 0/);
 });

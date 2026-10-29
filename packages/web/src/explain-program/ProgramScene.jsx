@@ -113,7 +113,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       setPendingInputs(pending => (pending && JSON.stringify(pending) === JSON.stringify(next.inputs) ? null : pending));
     },
     fail: error => { setPendingInputs(null); setPlaying(false); setFailure(error); } });
-  useEffect(() => { if (!preview) programActivity(latest.current, programState.last); }, [programState.last, preview]); // FX-61: the Tutor names the last committed action
+  useEffect(() => { if (!preview) programActivity(latest.current, programState.last, programState.envelope?.revision ?? null); }, [programState.envelope, programState.last, preview]); // FX-61: the committed revision and the action it came from
 
   const inputs = manifest ? (programState.stateful ? pendingInputs ?? programState.envelope?.inputs ?? programInputs(manifest, block) : programInputs(manifest, block)) : null;
   // A schema 2 frame is drawn with the inputs its committed state was computed for; newer inputs wait for their own transition.
@@ -132,7 +132,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       evaluate: job => target.evaluate(evaluateRequestFor(manifest, { ...latest.current, inputs: job.inputs }, job.time, ++counter.current, job.state)),
       show: (reply, job) => {
         const out = normalizeFrame(reply.frame, manifest);
-        if (out.ok) { if (!preview) rememberProgram(latest.current, manifest, { inputs: job.inputs, time: job.time, readouts: out.readouts }); setView({ ...out, time: job.time }); setFailure(null); } else stop(out.error);
+        if (out.ok) { if (!preview) rememberProgram(latest.current, manifest, { inputs: job.inputs, time: job.time, readouts: out.readouts, revision: job.revision ?? null }); setView({ ...out, time: job.time }); setFailure(null); } else stop(out.error);
       },
       fail: stop,
     });
@@ -140,7 +140,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     return () => { created.dispose(); if (scheduler.current === created) scheduler.current = null; };
   }, [manifest, hostReady]);
   useEffect(() => {
-    if (manifest && programState.ready) scheduler.current?.want({ key: frameKey(frameInputs, epoch, programState.envelope), time: clampTime(manifest, time), inputs: frameInputs, state: programState.envelope?.state ?? null });
+    if (manifest && programState.ready) scheduler.current?.want({ key: frameKey(frameInputs, epoch, programState.envelope), time: clampTime(manifest, time), inputs: frameInputs, state: programState.envelope?.state ?? null, revision: programState.envelope?.revision ?? null });
   }, [manifest, hostReady, inputsKey, epoch, time, programState.ready, programState.envelope]);
   // The card's size comes from the artifact's first frame only (LearningBlocks sizeFor), so playback never resizes it.
   useEffect(() => { setBox(null); }, [artifact]);
