@@ -57,11 +57,28 @@ export function ChatWorkspaceProvider({ canvas, board = 'main', canvasOps: initi
   const addToChat = useCallback((ref, options) => { if (canvasOps?.retainFileForContext?.(ref, options?.fileRef) === false) return false; panels.openChat(); thread.setMode('ask'); context.attach(ref); composer.focus(); }, [panels, thread, context, composer, canvasOps]);
   // The Chat's AskPanel registers its send loop (A2); regenerate(messageId) re-sends that turn with regenerate: { messageId }
   // (contract B5). The server reuses the stored turn's mode, command and refs, so nothing open now leaks in.
-  const sender = useRef(null);
-  const registerSender = useCallback(send => { sender.current = send; return () => { if (sender.current === send) sender.current = null; }; }, []);
+  const sender = useRef(null), waiting = useRef(null);
+  const registerSender = useCallback(send => {
+    sender.current = send;
+    // A turn asked while the Chat pane was still mounting runs once, as soon as its send loop exists.
+    const held = waiting.current;
+    if (held) { waiting.current = null; clearTimeout(held.timer); Promise.resolve(send(held.turn)).then(held.resolve, () => held.resolve(false)); }
+    return () => { if (sender.current === send) sender.current = null; };
+  }, []);
   const regenerate = useCallback(messageId => sender.current?.({ regenerate: { messageId: String(messageId) } }), []);
-  // ask(turn) (MOT-20b): another surface's command turn through the same loop, e.g. Ctrl+K's /motion: { prompt, command, about }.
-  const ask = useCallback(turn => sender.current?.(turn), []);
+  // ask(turn) (MOT-20b): another surface's command turn through the same loop: Ctrl+K's explicit command line { line, about } (owner
+  // spec 2026-10-29: Chat owns every explicit command), or a prompted turn { prompt, command, about }. With no send loop yet (the Chat
+  // pane is opening) the one turn waits for it, up to 8 seconds, then answers false so the caller keeps the line and says so.
+  // Never sent twice: a newer turn replaces a waiting one, which answers false.
+  const ask = useCallback(turn => {
+    if (sender.current) return sender.current(turn);
+    waiting.current?.resolve(false);
+    clearTimeout(waiting.current?.timer);
+    return new Promise(resolve => {
+      const held = { turn, resolve, timer: setTimeout(() => { if (waiting.current === held) { waiting.current = null; resolve(false); } }, 8000) };
+      waiting.current = held;
+    });
+  }, []);
   // /goal and Progress's Set a goal (owner, 2026-10-21): the one entry to goal management. open(draft) shows Progress and asks it
   // to open the learner's goals, draft (the words after /goal) in the new goal's field, unsaved. Nothing is sent or saved here.
   const [goalRequest, setGoalRequest] = useState(null);

@@ -19,7 +19,8 @@
 // the browser keeps the learner's draft beside the latest. A refused edit is a 400 with the words and the paths (errors), and the
 // browser keeps the draft.
 import { repositoryIdentity } from './repositories.js';
-import { PROPOSAL_STALE, proposalRecord, proposalState, proposalUsedText, reviewAvailable, reviseProposal, saveRevision, signProposal } from './generation-proposal.js';
+import { PROPOSAL_EDIT_STALE, PROPOSAL_STALE, currentRevision, proposalRecord, proposalState, proposalUsedText, publishStatement, reviewAvailable, reviseProposal, saveRevision, signProposal, verifyProposal } from './generation-proposal.js';
+import { BRIEF_LIMITS, briefRequest, isBriefCommand, materialBrief } from '../../web/src/material-brief.js';
 import { resolveReferences } from './generation-review-refs.js';
 import { imageAllowed, imageOperatorEmails } from './image-settings.js';
 import { validateSettings } from '../../web/src/generation-confirmation-schema.js';
@@ -75,10 +76,92 @@ async function createImageProposal(req, env, deps) {
   return json({ thread_id: body.thread_id, message_id: String(row.message_id), proposal: p, references: states.states }, 201);
 }
 
+// Owner spec 2026-10-29 section 6: POST /api/learn/chat/material-proposals
+//   { app, thread_id, command, request, selection?: { kind: 'card', id, title }, context? }           -> 201 a new brief
+//   { app, thread_id, revise: { proposal }, change }                                                  -> 201 its next revision
+// -> { thread_id, message_id, proposal }. An explicit /practice, /quiz, /flashcards, /code, /graph, /diagram or /3d becomes a signed v3
+// proposal on its owner's canvas chat with NO model call: the compact brief is built from the person's own words and the selected card
+// (web/src/material-brief.js), and nothing is generated until Generate (learn-artifact.js consumes it). A revision (conversational
+// Edit) is the next version of exactly the revision named, which must be the server's current one (409 proposal_edit_stale, nothing
+// stored, otherwise); the person's words are added to the brief's request, never rewritten, and its rows are written in the same batch
+// as the compare-and-swap that publishes it, so a revision that loses a race leaves nothing behind. Owner-only, as image plans are.
+const MATERIAL_PATH = '/api/learn/chat/material-proposals';
+const BRIEF_REPLY = 'Here is the brief. Generate makes it.', BRIEF_REVISED = 'Here is the updated brief. Generate makes it.';
+async function createMaterialProposal(req, env, deps) {
+  if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
+  if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
+  const user = await (deps.identity || repositoryIdentity)(req, env);
+  if (user instanceof Response) return user;
+  if (!env.LEARN_DB || !reviewAvailable(env)) return json({ error: 'Briefs are not available here yet.', code: 'not_configured' }, 503);
+  let body;
+  try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+  const plainBody = v => !!v && typeof v === 'object' && !Array.isArray(v);
+  if (!plainBody(body) || typeof body.app !== 'string' || !body.app || body.app.length > 200 || !THREAD.test(body.thread_id || '')) return json({ error: 'An app and a chat id are required.' }, 400);
+  const owner = await (deps.owner || (async (r, e, app) => (await import('./learn-boards.js')).boardOwner(r, e, app)))(req, env, body.app);
+  if (owner instanceof Response) return owner;
+  if (owner.org !== user.org || owner.email !== user.email) return json({ error: 'Canvas not found' }, 404);
+  const db = env.LEARN_DB;
+  const thread = await db.prepare('SELECT org, user, scope_ref FROM threads WHERE id = ?').bind(body.thread_id).first();
+  if (thread && (thread.org !== user.org || thread.user !== user.email)) return json({ error: 'Chat not found' }, 404);
+  if (thread && thread.scope_ref !== body.app) return json({ error: 'This chat belongs to another canvas', code: 'thread_canvas_mismatch' }, 409);
+  const text = (v, max) => (typeof v === 'string' && v.length <= max ? v.replace(/\s+/g, ' ').trim() : null);
+  let p, record = null, line;
+  if (body.revise !== undefined) {
+    const base = body.revise?.proposal, change = text(body.change, BRIEF_LIMITS.change);
+    if (!plainBody(base) || !isBriefCommand(base.command) || !change) return json({ error: 'Say what to change in the brief.' }, 400);
+    const stale = (current = null) => json({ error: PROPOSAL_EDIT_STALE, code: 'proposal_edit_stale', current }, 409);
+    if (await verifyProposal(env, base, user.email)) return stale();
+    const found = await currentRevision(db, user.email, body.app, base);
+    if (!found || found.proposal.sig !== base.sig) return stale(found?.proposal ?? null);
+    const input = found.proposal.input, changes = [...(input.changes || []), change];
+    if (changes.length > BRIEF_LIMITS.changes) return json({ error: 'This brief reached its change limit. Send the command again with the whole request.', code: 'brief_change_limit' }, 429);
+    const brief = materialBrief(base.command, { args: input.args, selection: input.selection, changes });
+    record = found.record; line = change;
+    try {
+      p = await signProposal(env, { command: base.command, title: brief.title, description: brief.description, settings: {}, source_refs: [], limitations: brief.limitations,
+        original_request: found.proposal.original_request, input: { ...input, changes } }, user.email, { id: base.proposal_id, version: found.proposal.version + 1, envelope: 'v3' });
+    } catch (error) { return json({ error: error.message, code: 'proposal_invalid' }, 400); }
+  } else {
+    const args = typeof body.request === 'string' && body.request.length <= BRIEF_LIMITS.args ? body.request.replace(/\s+/g, ' ').trim() : null;
+    const sel = body.selection ?? null;
+    const selection = sel === null ? null : plainBody(sel) && sel.kind === 'card' && typeof sel.id === 'string' && sel.id && sel.id.length <= 200 && (sel.title == null || typeof sel.title === 'string')
+      ? { kind: 'card', id: sel.id, title: String(sel.title ?? '').slice(0, BRIEF_LIMITS.selectionTitle) } : undefined;
+    const context = body.context == null ? null : typeof body.context === 'string' && body.context.length <= BRIEF_LIMITS.context ? body.context : undefined;
+    if (!isBriefCommand(body.command) || args === null || selection === undefined || context === undefined) return json({ error: 'A brief needs one of its commands, the request and at most one selected card.' }, 400);
+    const brief = materialBrief(body.command, { args, selection });
+    if (!brief) return json({ error: 'Say what it should be about, or select a card first.', code: 'brief_subject' }, 400);
+    line = briefRequest(body.command, args);
+    try {
+      p = await signProposal(env, { command: body.command, title: brief.title, description: brief.description, settings: {}, source_refs: [], limitations: brief.limitations,
+        original_request: line.slice(0, 500), input: { request: line.slice(0, 500), args, selection, context, changes: [], org: user.org, app: body.app } }, user.email, { envelope: 'v3' });
+    } catch (error) { return json({ error: error.message, code: 'proposal_invalid' }, 400); }
+  }
+  const at = new Date().toISOString();
+  const meta = { version: 1, mode: 'ask', kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, proposal: p, ...(record ? {} : { proposalState: proposalState(p) }) };
+  // A revision's rows exist only when its compare-and-swap lands: each insert is conditioned on the root now holding this revision.
+  const landed = record ? ' WHERE EXISTS (SELECT 1 FROM chat_message_meta r WHERE r.message_id = ? AND json_extract(r.meta_json, \'$.proposalState.sig\') = ?)' : '';
+  const gate = record ? [record.root.messageId, p.sig] : [];
+  const results = await db.batch([
+    ...(record ? [publishStatement(db, record, p)] : [db.prepare("INSERT OR IGNORE INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,'',?)").bind(body.thread_id, user.org, user.email, body.app, (p.title || 'Brief').slice(0, 120))]),
+    db.prepare(`INSERT INTO messages(thread_id,role,content) SELECT ?,?,?${landed}`).bind(body.thread_id, 'user', line.slice(0, 4000), ...gate),
+    db.prepare(`INSERT INTO chat_message_meta(message_id,thread_id,role,meta_json) SELECT max(id),?,?,? FROM messages WHERE thread_id=?${landed.replace(' WHERE ', ' AND ')}`).bind(body.thread_id, 'user', JSON.stringify({ mode: 'auto', command: p.command, contextRefs: [] }), body.thread_id, ...gate),
+    db.prepare(`INSERT INTO messages(thread_id,role,content) SELECT ?,?,?${landed}`).bind(body.thread_id, 'assistant', record ? BRIEF_REVISED : BRIEF_REPLY, ...gate),
+    db.prepare(`INSERT INTO chat_message_meta(message_id,thread_id,role,meta_json) SELECT max(id),?,?,? FROM messages WHERE thread_id=?${landed.replace(' WHERE ', ' AND ')}`).bind(body.thread_id, 'assistant', JSON.stringify(meta), body.thread_id, ...gate),
+    db.prepare('INSERT INTO chat_thread_state(thread_id,last_activity_at,updated_at) VALUES(?,?,?) ON CONFLICT(thread_id) DO UPDATE SET last_activity_at=excluded.last_activity_at, updated_at=excluded.updated_at').bind(body.thread_id, at, at),
+  ]);
+  if (record && results[0]?.meta?.changes !== 1) {
+    const now = await currentRevision(db, user.email, body.app, p).catch(() => null);
+    return json({ error: PROPOSAL_EDIT_STALE, code: 'proposal_edit_stale', current: now?.proposal ?? null }, 409);
+  }
+  const row = await db.prepare("SELECT message_id FROM chat_message_meta WHERE thread_id = ? AND role = 'assistant' AND json_extract(meta_json, '$.proposal.sig') = ?").bind(body.thread_id, p.sig).first();
+  return json({ thread_id: body.thread_id, message_id: String(row.message_id), proposal: p }, 201);
+}
+
 // null when the path is not this route, so the dispatcher can try the next one. deps: identity and the reference reader (tests inject).
 export async function chatProposalFetch(req, env, deps = {}) {
   const url = new URL(req.url), match = url.pathname.match(PATH);
   if (url.pathname === IMAGE_PATH) return createImageProposal(req, env, deps);
+  if (url.pathname === MATERIAL_PATH) return createMaterialProposal(req, env, deps);
   if (!match) return null;
   if (req.method !== 'PUT' && req.method !== 'GET') return json({ error: 'GET or PUT required' }, 405);
   if (req.method === 'PUT' && req.headers.has('origin') && req.headers.get('origin') !== url.origin) return json({ error: 'Invalid origin' }, 403);

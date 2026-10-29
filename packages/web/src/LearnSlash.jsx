@@ -41,7 +41,7 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
     if (!handoff) setInput('');
     setProposal(null); setBusy(true);
     setNotice({ tone: 'busy', text: `Working on /${name}` });
-    const turn = onRun?.(raw) || null;
+    const turn = onRun?.(raw, handoff) || null;
     let out;
     try { out = await run(raw, target, turn, handoff); }
     catch (error) { out = { notice: { tone: 'error', text: error.message } }; }

@@ -25,7 +25,9 @@ test('every generation command in the registry has a definition, and an unknown 
   assert.equal(reviewPolicyOf('made-up'), 'always');
   assert.deepEqual(reviewFor('made-up', { required: false, reasons: [] }), { required: true, reasons: ['policy'] }, 'a decision cannot switch off an unknown command');
   assert.deepEqual(reviewFor('motion', { required: false }), { required: true, reasons: ['policy'] }, 'nor an always policy');
-  assert.deepEqual(reviewFor('flashcards'), { required: false, reasons: [] });
+  // Owner spec 2026-10-29: every explicit generation command is reviewed; the simple ones through their compact brief (material-brief.js).
+  for (const name of ['practice', 'quiz', 'flashcards', 'code', 'graph', 'diagram', '3d']) assert.deepEqual(reviewFor(name), { required: true, reasons: ['policy'] }, name);
+  assert.deepEqual(reviewFor('image'), { required: false, reasons: [] }, 'the photo search is not a generation');
   // Owner decision 2026-10-29: every new /explain request is reviewed (it was conditional on the server's thresholds).
   assert.equal(reviewPolicyOf('explain'), 'always');
   assert.deepEqual(reviewFor('explain', { required: false, reasons: [] }), { required: true, reasons: ['policy'] }, 'no decision switches an Explain review off');
@@ -147,7 +149,10 @@ test('a proposal view: logical fields, hidden empty sections, actions follow val
   assert.deepEqual(allowedActions(cad, { status: 'needs_input' }), ['edit', 'save', 'cancel'], 'needs input: no Generate');
   for (const status of ['preparing', 'generating', 'completed', 'failed', 'cancelled', 'superseded', 'expired']) assert.deepEqual(allowedActions(cad, { status }), [], status);
   assert.deepEqual(allowedActions(null, {}), [], 'no definition, no action');
-  assert.deepEqual(allowedActions(commandDefinition('flashcards'), {}), ['generate', 'cancel'], 'a command with nothing editable still generates');
+  assert.deepEqual(allowedActions(commandDefinition('compare'), {}), ['generate', 'cancel'], 'a command with nothing editable still generates');
+  // A simple brief edits only through Chat (chat_edit): Edit and Generate, never Save or a prose form, and no Cancel of its own.
+  assert.deepEqual(allowedActions(commandDefinition('quiz'), {}), ['edit', 'generate']);
+  assert.deepEqual(commandDefinition('quiz').editable_fields, []);
   const cadView = proposalView({ ...p, command: 'cad', missing_information: ['Width?'], assumptions: ['Mild steel'], references: [] });
   assert.deepEqual(visibleSections(cadView), ['assumptions', 'missing_information', 'usage']);
 });

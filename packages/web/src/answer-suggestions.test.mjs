@@ -33,7 +33,7 @@ const META = {
   actions: [
     { id: 'a1', capabilityId: 'diagram', label: 'Draw the cache flow', sourceMessageId: '812', contextRefs: REFS, args: { subject: 'cache lookup from client to DB' }, generationRequired: true, paid: false },
     { id: 'a2', capabilityId: 'notebook', label: 'Open in Notebook', sourceMessageId: '812', contextRefs: REFS, args: { subject: 'the LRU example', code: { language: 'python', cells: ['from functools import lru_cache', 'print(1)'] } }, generationRequired: false, paid: false },
-    { id: 'a3', capabilityId: 'video', label: 'Explain with a video', sourceMessageId: '812', contextRefs: REFS, args: { subject: 'cache eviction' }, generationRequired: true, paid: true },
+    { id: 'a3', capabilityId: 'graph', label: 'Plot the eviction rate', sourceMessageId: '812', contextRefs: REFS, args: { subject: 'cache eviction' }, generationRequired: true, paid: true },
   ],
   followUps: [{ id: 'f1', text: 'Why does a <changed> key miss?', kind: 'clarify' }, { id: 'f2', text: 'What would LFU change here?', kind: 'implication' }],
 };
@@ -53,9 +53,9 @@ test('latest answer: three actions with icons and labels, generation marked; Exp
   assert.deepEqual(acts, [
     ['diagram', 'Generates: cache lookup from client to DB', 'Draw the cache flow', true],
     ['notebook', 'Opens the code from this answer', 'Open in Notebook', false],
-    ['video', 'Generates: cache eviction', 'Explain with a video', true],
+    ['graph', 'Generates: cache eviction', 'Plot the eviction rate', true],
   ]);
-  assert.match(out, /lucide-workflow/); assert.match(out, /lucide-notebook-pen/); assert.match(out, /lucide-video/);
+  assert.match(out, /lucide-workflow/); assert.match(out, /lucide-notebook-pen/); assert.match(out, /lucide-chart-line/);
   assert.doesNotMatch(out, /lucide-sparkles|AppIcon/);
   // Questions sit in their own titled section after the actions group, never mixed into it.
   assert.match(out, /<div role="group" aria-label="Suggested actions"[^>]*>(?:(?!aria-label="Explore next").)*<\/div><section aria-label="Explore next"/);
@@ -94,7 +94,7 @@ test('clicks: a generation action prepares command, subject and refs only; noteb
   const click = attr => find(tree, p => p[attr] !== undefined && typeof p.onClick === 'function');
   const [diagram, notebook, video] = click('data-answer-action');
   diagram.onClick(); video.onClick();
-  assert.deepEqual(prepare.calls, [[{ command: 'diagram', text: 'cache lookup from client to DB', contextRefs: REFS }], [{ command: 'video', text: 'cache eviction', contextRefs: REFS }]]);
+  assert.deepEqual(prepare.calls, [[{ command: 'diagram', text: 'cache lookup from client to DB', contextRefs: REFS }], [{ command: 'graph', text: 'cache eviction', contextRefs: REFS }]]);
   assert.equal(insertNotebook.calls.length, 0);
   notebook.onClick();
   assert.deepEqual(insertNotebook.calls, [[['from functools import lru_cache', 'print(1)'], 'python']]);

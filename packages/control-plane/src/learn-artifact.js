@@ -10,6 +10,9 @@
 // comes back anyway. Paid primitives come back as proposals; nothing here
 // starts a job.
 import { learnRequest, primitive as contract } from '../../web/src/agent/slash.js';
+import { generationArgs, isBriefCommand } from '../../web/src/material-brief.js';
+import { consumeProposal, releaseProposal, verifyProposal } from './generation-proposal.js';
+import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { PRIMITIVES, isReady, artifactBlock } from './learn-primitives.js';
 import { planModel } from './ask.js';
@@ -157,7 +160,12 @@ export const IMAGE_ROLES = Object.freeze({
 // POST /api/learn/artifact {app, command, args, selection, context, image_context?, image_role?}. Any
 // family or allowedPrimitives in the body is ignored: the command decides.
 // images: the existing authorized image reader (learn-image-context.js), injected by tests.
-export async function artifactFetch(req, env, generate = generateArtifact, { images = tutorImageContext } = {}) {
+// proposal (owner spec 2026-10-29 section 6): Generate on a simple material brief (web/src/material-brief.js). The signed brief must be
+// this person's, for this command and canvas, and its current unused revision; it is consumed once by this press (a double press gets
+// proposal_used) BEFORE any model call, and the generator takes the brief's own words, selection and context, never the body's. A press
+// that makes no card (a question back, a refusal, an error) gives the consumption back. Without a proposal the route is unchanged (the
+// Tutor's create_material, Ctrl+K's automatic routing and the internal material tools never draw a brief).
+export async function artifactFetch(req, env, generate = generateArtifact, { images = tutorImageContext, identity = null } = {}) {
   const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
   if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
   if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
@@ -175,8 +183,24 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
   if (access instanceof Response) return access;
   const ownerRefused = subscriptionOwnerRefusal(env, access);
   if (ownerRefused) return ownerRefused;
+  let brief = null;
+  if (body.proposal !== undefined) {
+    const p = body.proposal;
+    if (!isBriefCommand(body.command) || p?.command !== body.command) return json({ error: 'This brief is for another command. Send the command again.', code: 'proposal_refused' }, 409);
+    if (!env.LEARN_DB) return json({ error: 'Briefs are not available here yet.', code: 'not_configured' }, 503);
+    const user = await (identity || repositoryIdentity)(req, env);
+    if (user instanceof Response) return user;
+    const refused = await verifyProposal(env, p, user.email);
+    if (refused) return json({ error: refused, code: 'proposal_refused' }, 409);
+    const key = crypto.randomUUID();
+    const spent = await consumeProposal(env.LEARN_DB, p, user.email, { org: user.org, app: body.app }, key);
+    if (spent) return json(spent, 409);
+    brief = { p, user, key };
+    Object.assign(body, { args: generationArgs(p.input), selection: p.input.selection ?? null, context: p.input.context ?? null });
+  }
+  const giveBack = () => (brief ? releaseProposal(env.LEARN_DB, brief.p, brief.user.email, body.app, brief.key).catch(() => false) : null);
   let documents;
-  try { documents = await contextDocumentBlocks(env, access, null, { query: `${body.args || ''} ${body.context || ''}` }); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
+  try { documents = await contextDocumentBlocks(env, access, null, { query: `${body.args || ''} ${body.context || ''}` }); } catch (error) { await giveBack(); return json({ error: `Context documents: ${error.message}` }, 502); }
   // The image's bytes, read here under this canvas's authorization: never a browser-claimed URL, and never silently dropped.
   if (body.image_context !== undefined) {
     const got = await images(env, access, { image_context: body.image_context, board: body.board ?? 'main' }).catch(() => null);
@@ -187,7 +211,8 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
   try {
     const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}) });
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
+    if (out?.result !== 'artifact' && out?.result !== 'paid_proposal') await giveBack();
     return json(out);
   }
-  catch (error) { return json({ error: error.message }, 502); }
+  catch (error) { await giveBack(); return json({ error: error.message }, 502); }
 }

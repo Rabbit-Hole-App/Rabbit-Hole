@@ -1314,7 +1314,8 @@ test('ask.jsx and LearnPage.jsx: the sheet opens only for a Tutor reply; slash p
   // The sheet opens inside begin(): a turn the journey takes never reopens it.
   assert.equal(ask.split('if (panelAsk) { setSheetOpen(true); setSheetHistory(false); }').length, 2, 'once');
   assert.match(ask, /const begin = \(\) => \{\n\s+if \(begun\) return;\n\s+begun = true;\n\s+if \(panelAsk\) \{ setSheetOpen\(true\); setSheetHistory\(false\); \}/);
-  assert.match(ask, /onPrompt=\{prompt => send\(prompt, undefined, \{ skipJourney: true, command: promptCommand\.current, prompted: true \}\)\}/);
+  // A Ctrl+K line's prompt (owner spec 2026-10-29) carries its own selection and keeps the draft; it still skips the journey.
+  assert.match(ask, /onPrompt=\{\(prompt, handoff\) => send\(prompt, undefined, \{ skipJourney: true, command: promptCommand\.current, prompted: true, \.\.\.\(handoff \? \{ about: handoff\.about, keepDraft: true \} : \{\}\) \}\)\}/);
   assert.match(ask, /if \(journey\.busy\) \{ tutor\?\.slash\?\.\(null\); return; \}/);
   assert.match(ask, /if \(!message \|\| busy\) \{ tutor\?\.slash\?\.\(null\); return false; \}/);
   assert.match(read('LearnTutor.jsx'), /slash: \(name, raw\) => \{ slashNext\.current = SLASHES\.includes\(name\) \? \{ name, raw \} : null; \}/);

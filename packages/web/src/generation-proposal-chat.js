@@ -4,6 +4,7 @@
 import { motionContext } from './learn-slash.js';
 import { commandDefinition, fieldsFor } from './generation-confirmation-schema.js';
 import { imageGenerationOn } from './generate-image.js';
+import { isBriefCommand } from './material-brief.js';
 
 const proposalOf = m => (m?.role === 'assistant' && m.meta?.proposal?.proposal_id ? m.meta.proposal : null);
 // Each proposal's newest version in the conversation: a refinement in chat is a later message with the same id.
@@ -47,7 +48,10 @@ export const EXPLAIN_STOPPED = 'Stopped before anything was generated.';
 // How a proposal starts, by its command's adapter: 'output' (add the output card, needs ops.insertCard), 'job' (approve the existing job, needs
 // ops.approveExplain) or null (this build cannot start it). Generate is enabled by THIS, never by one command's adapter.
 // 'image' (IMG-01, generate-image.js): the image job is started and followed from the card, behind the web flag.
-export const startAdapter = (p, ops) => (proposalBlock(p) ? (ops?.insertCard ? 'output' : null) : approvesJob(p) ? (ops?.approveExplain ? 'job' : null) : p?.command === 'generate-image' ? (imageGenerationOn() && ops?.insertCard ? 'image' : null) : null);
+// 'material' (owner spec 2026-10-29; material-brief.js): a simple command's brief; Generate asks the existing generator with the signed
+// brief (ops.generateMaterial, /api/learn/artifact), which consumes it once.
+export const startAdapter = (p, ops) => (proposalBlock(p) ? (ops?.insertCard ? 'output' : null) : approvesJob(p) ? (ops?.approveExplain ? 'job' : null) : p?.command === 'generate-image' ? (imageGenerationOn() && ops?.insertCard ? 'image' : null)
+  : isBriefCommand(p?.command) ? (ops?.generateMaterial ? 'material' : null) : null);
 // ---- The card's Edit (conversational editing): an explicit Chat target on the exact revision the person clicked ----
 // The target the Chat holds (chat-workspace.jsx editing): command, proposal id and revision, its message and thread, its canvas
 // and title; an Explain brief also its job and brief hash. The signed proposal rides, so the turn names that exact revision.
@@ -56,8 +60,10 @@ export const editTarget = (p, messageId, threadId = null) => ({ command: p.comma
 // How a proposal is revised in chat: 'motion' (the chat turn, index.js generation.edit) or 'explain' (its job's refine; the send says so
 // when the brief no longer waits); null keeps the card's own details form (Image and CAD have no chat revision; attached references
 // ride neither path).
+// 'material': a simple brief's next revision from the learner's words, with no model call (chat-proposal-route.js material-proposals
+// revise; the words are added to the request, never rewritten).
 export const editPath = (p, ops) => (p?.references?.length ? null : p?.command === 'motion' ? (ops?.generation?.(null, null) ? 'motion' : null)
-  : approvesJob(p) && ops?.refineExplain ? 'explain' : null);
+  : approvesJob(p) && ops?.refineExplain ? 'explain' : isBriefCommand(p?.command) && ops?.generateMaterial ? 'material' : null);
 export const EDIT_ONE_THING = 'This message edits the proposal in the Editing pill. Remove the pill to run a command or attach a file.';
 // A turn with a target never runs another command or takes a file: it is refused in words and the draft is kept. -> text or null
 export const editRefusal = (target, { command = null, file = null } = {}) => (target && (command || file) ? EDIT_ONE_THING : null);
@@ -104,7 +110,8 @@ export function generateProposal(p, { inFlight, insertCard, wrap = block => bloc
   return block ? insertCard(wrap(block), { same: madeFrom(p.proposal_id) })?.id ?? null : null;
 }
 // The card a proposal already made, so a second press (or a reload) finds it instead of adding another.
-export const madeFrom = proposalId => block => block?.operation?.proposal?.proposal_id === proposalId && !block.proposalRefused;
+// A simple brief's card carries the brief's id (proposalId, set where generateMaterial inserts it).
+export const madeFrom = proposalId => block => (block?.operation?.proposal?.proposal_id ?? block?.proposalId) === proposalId && !block.proposalRefused;
 
 // ---- CR-1's route decision (C:/s/spec/day-1021/chat-route-interface.md): the call a plain chat turn makes before it is sent ----
 // The bound fields are read from the ask's own payload, so the ask sends them unchanged. -> the decision, or null where the

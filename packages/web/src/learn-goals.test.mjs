@@ -27,11 +27,12 @@ test('typed /goal and /goal <words> open goal management through the page\'s goa
   assert.match((await runLearnCommand('/goal x', { app: 'x', canvas: {}, post })).notice.text, /saved canvas/);
 });
 
-test('the picker lists /goal under Learn and its pill reads Goal; Set a goal calls the same entry as the command', () => {
+// Owner spec 2026-10-29: the pill shows the typed name (goal); the command's title is Learning goal.
+test('the picker lists /goal under Learn and its title is Learning goal; Set a goal calls the same entry as the command', () => {
   assert.ok(pickerSections('/')[0].items.some(item => item.name === 'goal'));
   assert.deepEqual(pickerSections('/go')[0].items.map(item => item.name), ['goal']);
   assert.ok(isLearnCommand('goal'), 'picking it makes the removable inline pill (ask.jsx setComposerInput)');
-  assert.equal(commandLabel('goal'), 'Goal');
+  assert.equal(commandLabel('goal'), 'Learning goal');
   assert.equal(resolveCommand('/goal learn chess', 'learn').arg, 'learn chess');
   // One entry: the page binds the command's goal handler to goals.open, and Set a goal (and Manage goals) call goals.open.
   assert.match(read('./LearnPage.jsx'), /goal: args => chat\.goals\?\.open\(args\)/);

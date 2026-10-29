@@ -166,7 +166,7 @@ test('watchOutputs: entries carry each card state; a settled card changed since 
 // The Chat saves a typed line itself unless runLearnCommand answers it with { prompt } (the chat route saves that turn), so a
 // line is one user message either way. Held to every Learn command's example line, with and without its words.
 test('answersInChat agrees with runLearnCommand for every Learn command', async () => {
-  const canvas = { startCad: async () => ({}), insertNotebook: () => 'n', insertBlock: () => 'b', insertPaper: () => 'p', reserve: () => 'slot:1', release: () => {}, dive: () => ({ notice: null }), openSources: () => ({}) };
+  const canvas = { briefs: true, startCad: async () => ({}), insertNotebook: () => 'n', insertBlock: () => 'b', insertPaper: () => 'p', reserve: () => 'slot:1', release: () => {}, dive: () => ({ notice: null }), openSources: () => ({}) };
   const post = async () => ({ result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 't', body: 'b' } });
   for (const command of commandsFor('learn', { hidden: true })) {
     for (const line of [EXAMPLES[command.name] || `/${command.name} something`, `/${command.name}`]) {

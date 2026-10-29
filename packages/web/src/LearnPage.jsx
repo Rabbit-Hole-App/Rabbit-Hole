@@ -34,10 +34,11 @@ import LearnSlash from './LearnSlash.jsx';
 import FeedbackButton from './FeedbackButton.jsx';
 import TableOfContents from './TableOfContents.jsx';
 import UsageGauge from './UsageGauge.jsx';
-import { available, isLearnCommand, runLearnCommand } from './learn-slash.js';
+import { available, cardsFor, generateCommand, isLearnCommand, runLearnCommand } from './learn-slash.js';
 import { generationField, madeFrom } from './generation-proposal-chat.js';
 import { stopVideo } from './learn-scene-client.js';
-import { commandsFor } from './agent/slash.js';
+import { commandsFor, typedOf } from './agent/slash.js';
+import { generationArgs } from './material-brief.js';
 import { openSourceFinder, returnFocus, setSourceFinderHost, slashOpensFind } from './source-finder.js';
 import { httpTransport } from './inline-ai-transport.js';
 import { EXPLICIT_ROUTES, ROUTES as INLINE_ROUTES } from './inline-ai-route.js';
@@ -469,6 +470,26 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // A chat card added under its answer's local id takes the saved message's id (ask.jsx), unless that id is already here.
     rekeyCard: (from, to) => setExchanges(previous => rekeyed(previous, from, to)),
     locate: id => canvasApi.current?.focusBlock(id),
+    // Generate on a simple material brief (owner spec 2026-10-29; material-brief.js): the existing generator, with the signed brief,
+    // which the server consumes once and generates from (its own words, selection and context). The card holds its place while it is
+    // made and carries the brief's id (madeFrom). Anything but a card gives the place up and says why. -> { blockId }
+    generateMaterial: async proposal => {
+      const live = canvasApi.current, command = proposal.command;
+      if (!live) throw new Error('Open this canvas to make it.');
+      const slot = live.reserve?.({ label: `Creating /${typedOf(command)}`, card: cardsFor(command)[0]?.card ?? null }) ?? null;
+      let result;
+      try {
+        result = await generateCommand(command, generationArgs(proposal.input), { app: app.name, selection: proposal.input?.selection ?? null, context: proposal.input?.context ?? null, proposal,
+          post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(askScope.pending ? { pending: askScope.pending } : {}) }) }) });
+      } catch (error) { if (slot) live.release?.(slot); throw error.name === 'TimeoutError' ? new Error('This took too long. Press Generate to try again.') : error; }
+      if (result.result === 'artifact' || result.result === 'paid_proposal') {
+        // A paid card (a 3D scene) starts at once: this Generate on its brief is the confirmation.
+        const block = { ...withPrompt(result.block, proposal.input?.request), proposalId: proposal.proposal_id, ...(result.result === 'paid_proposal' ? { confirmedStart: true } : {}) };
+        return { blockId: canvasApi.current?.insertBlock(block, { into: slot }) ?? null };
+      }
+      if (slot) live.release?.(slot);
+      throw new Error(result.question || result.message || result.error || 'That could not be made. Press Generate to try again.');
+    },
     // The Tutor entry (learn-coaching-entry.js): whether this board has been restored, and how much is on it (cards and native
     // objects). Never content: a count only.
     workspace: () => ({ loaded: boardLoaded.current, content: (canvasApi.current?.blocks?.().length || 0) + (canvasApi.current?.semantic?.()?.snapshot?.objects?.length || 0) }),
@@ -928,13 +949,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     focusBlock: id => canvas()?.focusBlock(id),
     // turn (ask.jsx recordCommand): { onCard }, the sink each card this command inserts is reported to, so the Chat keeps it
     // under the command's saved message (chat-output-refs.js withCardSink).
-    run: (text, _target, turn = null) => {
+    // handoff (Ctrl+K's line, LearnSlash exec): its own selection is the target, never the composer's armed card.
+    run: (text, _target, turn = null, handoff = null) => {
       const sink = turn?.onCard || null;
       // /deeper, /simplify, /ask and /teach no longer reach the Tutor as a turn's slash (owner, 2026-10-20): they are removed
       // commands, and runLearnCommand says so; the same words without the slash are an ordinary Tutor turn.
       return runLearnCommand(text, {
         app: app.name,
-        target: askTarget,
+        target: handoff ? handoff.target : askTarget,
         // The composer's attached image (its uploaded media id), as a question carries it (ask.jsx image_context).
         attachedImage: imageAttached && imageContext?.id ? imageContext.id : null,
         canvas: withCardSink({
@@ -949,8 +971,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           focusBlock: id => canvasApi.current?.focusBlock(id),
           reserve: slot => canvasApi.current?.reserve(slot),
           release: id => canvasApi.current?.release(id),
-          dive: args => dive.run(args),
+          // /browser: the canvas's webpage capture (no URL: its address dialog).
+          insertWebpage: url => { const id = canvasApi.current?.insertWebpage(url) ?? null; if (id) sink?.(id); return id; },
           goal: args => chat.goals?.open(args), // /goal: goal management in Progress (chat-workspace.jsx goals.open)
+          // A Chat canvas prepares an explicit material command's brief before generating it (learn-slash.js, material-brief.js).
+          briefs: !!chat?.thread,
         }, sink),
         // A Chat source command's finder (the shared opener): settles { added } when it closes, so the composer keeps its
         // draft until then; focus goes back to the composer.
@@ -1118,7 +1143,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     },
     cad: startCad,
     explainEdit: startExplainEdit,
-    explainCreate: explainLatest, // a command-bearing Ctrl+K /explain (EXP-T20 slice 3): the same job and card; null where v2 is off
     cadRead: id => cadClient(api,app.name,boardName).get(id),
     cadAction: async (id,action,body) => {
       const destination=canvasApi.current;
@@ -1133,6 +1157,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // Ctrl+K's proposed capabilities (proposal-capabilities.js; /motion first, MOT-20b): the Chat's own command turn about Ctrl+K's
     // selection, so it is proposed on the same shared card as the composer's; nothing starts here. Answers false where this
     // build does not offer the command or the Chat cannot take the turn.
+    // Ctrl+K's explicit commands (owner spec 2026-10-29 4.2): the line goes to Chat's own dispatcher, about Ctrl+K's selection, and
+    // Chat opens. Answers false when Chat could not take it (another command runs there, or Chat did not open in time).
+    handoff: async (line, about = {}) => { const live = chatWorkspace.current; if (!live?.ask) return false; live.panels?.openChat?.(); return (await live.ask({ line, about })) === true; },
     propose: async (command, args, about = {}) => { const live = chatWorkspace.current; if (!isLearnCommand(command) || !live?.ask) return false; live.panels?.openChat?.(); return (await live.ask({ prompt: args, command, about })) !== false; },
     // Current Chat's live transcript and deliberately attached source metadata support the selected edit.
     // The existing context builder budgets these separately from the complete editable target. A listed reference

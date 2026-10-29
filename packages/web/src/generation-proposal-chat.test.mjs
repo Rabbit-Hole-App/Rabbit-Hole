@@ -273,3 +273,18 @@ test('the source pins it: an Edit target takes precedence over the implicit late
   assert.ok(ask.includes('const fileTurn = !!edit || ['), 'never a Tutor turn');
   assert.ok(ask.includes('if (editSpent(editTarget, msgs, outputOps?.proposalMade)) chat.editing.clear();'), 'a spent target never stays hidden');
 });
+
+// Owner spec 2026-10-29 section 6: a simple material brief starts through its own adapter (the existing generator with the signed
+// brief), is revised in chat by its words (editPath material), and the card it made carries its id (madeFrom).
+test('simple material briefs: their start adapter, their conversational Edit and the card they made', async () => {
+  const { startAdapter } = await import('./generation-proposal-chat.js');
+  const quiz = p('gp-q', 1, { command: 'quiz', settings: {}, input: { request: '/quiz forces', args: 'forces', changes: [] } });
+  assert.equal(startAdapter(quiz, { generateMaterial: async () => ({}) }), 'material');
+  assert.equal(startAdapter(quiz, { insertCard: () => {} }), null, 'no adapter here: Generate stays off');
+  assert.equal(editPath(quiz, { generateMaterial: async () => ({}) }), 'material');
+  assert.equal(editPath(quiz, {}), null);
+  assert.equal(proposalBlock(quiz), null, 'never a Motion card');
+  assert.equal(madeFrom('gp-q')({ id: 'c1', type: 'quiz', proposalId: 'gp-q' }), true);
+  assert.equal(madeFrom('gp-q')({ id: 'c2', type: 'quiz', proposalId: 'gp-other' }), false);
+  assert.equal(startAdapter(p('gp-c', 1, { command: 'cad' }), { generateMaterial: async () => ({}), insertCard: () => {} }), null, 'CAD keeps its own job flow');
+});

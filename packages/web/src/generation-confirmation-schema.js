@@ -134,13 +134,19 @@ export const GENERATION_COMMANDS = Object.freeze({
   // The other paid generators: a confirmation with no settings today. They keep their handler; they gain the shared card when
   // their path migrates (matrix in the contract doc).
   video: define({ label: 'Video', noun: 'video', review_policy: 'always', sections: ['references', 'usage'], editable_fields: ['description'] }),
-  '3d': define({ label: '3D scene', noun: 'scene', review_policy: 'always', sections: ['references', 'usage'], editable_fields: ['description'] }),
   animate: define({ label: 'Animation', noun: 'animation', review_policy: 'always', sections: ['usage'], editable_fields: ['description'] }),
+  // The simple material briefs (owner spec 2026-10-29 section 6; material-brief.js): an explicit /practice, /quiz, /flashcards,
+  // /code, /graph, /diagram or /3d prepares a brief in Chat and makes its card only at Generate. No settings: their generators take
+  // none. chat_edit: Edit revises the brief through Chat (a new revision), never a prose form, so nothing here is form-editable.
+  // The Tutor's own material (create_material) and Ctrl+K's automatic routing never draw a brief: this is the explicit command's flow.
+  practice: define({ label: 'Practice', noun: 'practice card', review_policy: 'always', chat_edit: true, cancel: false, sections: ['limitations'] }),
+  quiz: define({ label: 'Quiz', noun: 'quiz', review_policy: 'always', chat_edit: true, cancel: false, sections: ['limitations'] }),
+  flashcards: define({ label: 'Flashcards', noun: 'deck', review_policy: 'always', chat_edit: true, cancel: false, sections: ['limitations'] }),
+  code: define({ label: 'Code example', noun: 'code example', review_policy: 'always', chat_edit: true, cancel: false, sections: ['limitations'] }),
+  graph: define({ label: 'Graph', noun: 'graph', review_policy: 'always', chat_edit: true, cancel: false, sections: ['limitations'] }),
+  diagram: define({ label: 'Diagram', noun: 'diagram', review_policy: 'always', chat_edit: true, cancel: false, sections: ['limitations'] }),
+  '3d': define({ label: '3D scene', noun: 'scene', review_policy: 'always', chat_edit: true, cancel: false, sections: ['limitations'] }),
   // Free, immediate cards: no confirmation by policy. An empty settings list says so; a missing definition is NOT this.
-  flashcards: define({ label: 'Flashcards', review_policy: 'none' }),
-  code: define({ label: 'Code', review_policy: 'none' }),
-  graph: define({ label: 'Graph', review_policy: 'none' }),
-  diagram: define({ label: 'Diagram', review_policy: 'none' }),
   image: define({ label: 'Image search', review_policy: 'none' }),
   compare: define({ label: 'Comparison', review_policy: 'none' }),
   walkthrough: define({ label: 'Walkthrough', review_policy: 'none' }),
@@ -287,6 +293,7 @@ export function allowedActions(def, { status = 'awaiting_review', validation_err
   if (!open || !def) return [];
   const actions = [];
   if (def.editable_fields.length) actions.push('edit', 'save');
+  else if (def.chat_edit) actions.push('edit'); // conversational Edit only: nothing is saved from a form
   if (status === 'awaiting_review' && !validation_errors.length && !missing_information.length) actions.push('generate');
   if (def.cancel) actions.push('cancel');
   return actions;

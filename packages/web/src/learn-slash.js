@@ -4,11 +4,12 @@
 // here, and what running one does. Pure apart from the injected post/canvas,
 // so it is tested without a browser.
 import { reviewRequired } from './proposal-capabilities.js';
-import { LEARN_MENU, MENU_TITLES, commandsFor, descFor, imageGenerationLive, learnRequest, resolveCommand, idOfTyped, typedOf, unavailableCommand } from './agent/slash.js';
+import { LEARN_MENU, MENU_TITLES, commandsFor, descFor, imageGenerationLive, learnRequest, resolveCommand, idOfTyped, toolOf, typedOf, unavailableCommand } from './agent/slash.js';
 import { PRIMITIVES, isReady } from '../../control-plane/src/learn-primitives.js';
 import { filterSections } from './command-search.js';
 import { withPrompt } from './card-prompt.js';
 import { isWebUrl } from './canvas-paste.js';
+import { briefSubject, isBriefCommand } from './material-brief.js';
 import { existingGeneration } from './generation-state.js';
 
 // Offered only when something can satisfy it now: no family (chat or a direct
@@ -99,10 +100,13 @@ export const isLearnCommand = name => commandsFor('learn').some(command => comma
 // prompt the chat are /image where the server offers it and every proposal capability (the declaration's flow, reviewRequired), each
 // with words: the same two tests runLearnCommand makes. chat-turn-owner.test.mjs holds this to runLearnCommand.
 const RUN_ACTIONS = new Set(['cad', 'open_source', 'insert_notebook', 'insert_whiteboard', 'insert_webpage', 'goal']);
-export const promptsChat = name => (name === 'generate-image' && imageGenerationLive()) || reviewRequired(name);
-export function answersInChat(text, { motionDev } = {}) {
+// A simple material brief (material-brief.js) is a chat turn too: the brief route saves the line with its brief, so it is never recorded twice.
+export const promptsChat = name => (name === 'generate-image' && imageGenerationLive()) || reviewRequired(name) || isBriefCommand(name);
+// selected: whether the line is about a selected card (a bare brief command then prepares its brief from it).
+export function answersInChat(text, { motionDev, selected = false } = {}) {
   const resolved = resolveCommand(text, 'learn', { motionDev });
   if (!resolved?.command || resolved.command.name === 'image') return false;
+  if (isBriefCommand(resolved.command.name)) return !!resolved.arg || selected;
   if (promptsChat(resolved.command.name)) return !!resolved.arg;
   let request;
   try { request = learnRequest(resolved.command.name, { args: resolved.arg }); } catch { return false; }
@@ -164,9 +168,10 @@ export const imageSearchBlock = args => ({ type: 'image', mode: 'search', title:
 // stages it as a preview (docs/features/inline-ai-editor.md §7). A caller's signal (Cancel) aborts it too.
 // image (EXP-T15, /explain only): an uploaded image's media id; the server reads its bytes under this canvas's own
 // authorization (learn-image-context.js), never from a browser URL. Its role is a layout reference by default.
-export function generateCommand(name, args, { app, selection = null, context = null, image = null, post, signal = null }) {
+// proposal: the signed brief this Generate makes (material-brief.js): the server consumes it once and generates from its own words.
+export function generateCommand(name, args, { app, selection = null, context = null, image = null, proposal = null, post, signal = null }) {
   const timeout = AbortSignal.timeout(ARTIFACT_TIMEOUT_MS);
-  return post('/api/learn/artifact', { app, command: name, args, selection, context, ...(image ? { image_context: { id: image }, image_role: 'layout_reference' } : {}) }, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+  return post('/api/learn/artifact', { app, command: name, args, selection, context, ...(proposal ? { proposal } : {}), ...(image ? { image_context: { id: image }, image_role: 'layout_reference' } : {}) }, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
 }
 
 // What a typed /motion says in a build that does not offer it (production): it runs nothing.
@@ -230,6 +235,14 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
     if (!args) return { notice: { tone: 'question', text: 'What should the video explain? Add a topic after /motion.' }, keep: `/${name} ` };
     return { prompt: args };
   }
+  // The simple material briefs (owner spec 2026-10-29 section 6; material-brief.js): an explicit command on a Chat canvas (canvas.briefs)
+  // is a chat turn that prepares the command's brief (ask.jsx materialPlan); its card is made only at Generate. With no words and no
+  // selected card it asks for the subject and keeps the line. The Tutor's own create_material (internal) makes its card as before.
+  if (!internal && canvas.briefs && isBriefCommand(name)) {
+    const subject = briefSubject(args, selection);
+    if (!subject) return { notice: { tone: 'question', text: `${toolOf(name).placeholder} Add it after /${typedOf(name)}, or select a card first.` }, keep: `/${typedOf(name)} ` };
+    return { prompt: args || subject };
+  }
   // /photos (id `image`) finds a real picture: the card searches and the learner chooses. It never generates (/image does).
   if (name === 'image') {
     canvas.insertBlock(imageSearchBlock(args));
@@ -253,9 +266,13 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   // server has it off (startExplain answers null) the command runs as it always has. EXP-T15: the selected target's text and
   // the image (a region crop, an image card or the composer's attachment) go with the job; the job API reads the image's
   // bytes on the server under this canvas's authorization, as a layout reference only (explain-job.js explainRoute).
-  if (name === 'explain' && canvas.startExplain && args.trim()) {
+  // A bare /explain about a selected card is the same explicit job (owner spec 2026-10-29 5.2): its subject is that card, never the
+  // legacy route because the words are empty; with neither words nor a selection it asks.
+  const explainWords = name === 'explain' ? args.trim() || (target?.id && !image ? briefSubject('', selection) : '') : '';
+  if (name === 'explain' && !internal && !explainWords) return { notice: { tone: 'question', text: `${toolOf('explain').placeholder} Add it after /explain, or select a card first.` }, keep: '/explain ' };
+  if (name === 'explain' && canvas.startExplain && explainWords) {
     // EXP-T21: the Tutor's chosen tool (internal) is the same job, recorded as its source; no intent call is made for it.
-    const started = await canvas.startExplain(args, { context: target?.text ? String(target.text).slice(0, 8000) : null, image, promptUsed, ...(internal ? { source: 'tutor' } : {}) });
+    const started = await canvas.startExplain(explainWords, { context: target?.text ? String(target.text).slice(0, 8000) : null, image, promptUsed, ...(internal ? { source: 'tutor' } : {}) });
     if (started) return { notice: { tone: 'done', text: 'Making the explanation on the canvas.', ...(started.blockId ? { blockId: started.blockId } : {}) } };
   }
   const slot = mayConfirmPaid(name) ? null : hold();

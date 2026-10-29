@@ -20,7 +20,9 @@ test('/image with an active Tutor is never a Tutor turn, in Auto, Tutor or Ask m
     for (const mode of ['auto', 'tutor', 'ask']) assert.equal(viaTutor('generate-image', mode), false, `${mode}: the plan card, not the Tutor`);
     assert.equal(viaTutor('motion', 'auto'), false, '/motion as before');
     assert.equal(viaTutor(null, 'auto'), true, 'prose still goes to the Tutor');
-    assert.equal(viaTutor('practice', 'auto'), true, 'a command without its own flow still goes to the Tutor');
+    // /practice prepares its own brief now (owner spec 2026-10-29, material-brief.js), so it is no longer a Tutor turn either.
+    assert.equal(viaTutor('practice', 'auto'), false, 'a brief command has its own flow');
+    assert.equal(viaTutor('goal', 'auto'), true, 'a command without its own flow still goes to the Tutor');
   } finally { setImageGeneration(false); }
 });
 
