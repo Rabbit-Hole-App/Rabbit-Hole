@@ -17,8 +17,8 @@ is ignored. An artifact sealed for anything else gets the fixed "could not run" 
 
 - Schema 1 is on `main` and in production. Every accepted card so far is schema 1, including cooling, sorting and
   gravity.
-- Schema 2 is R3: `release/chain-r3` `6b52ee7ea`, which carries 8.1 `86d746e0d`, 8.2 `137018604`, 8.3 `0ee34e70c` and the
-  owner-review fixes. It is pushed, but not on `main` and not deployed. `stamps.js SUPPORTED_PROGRAM_TUPLES` lists both
+- Schema 2 is R3, which carries 8.1 `86d746e0d`, 8.2 `137018604`, 8.3 `0ee34e70c` and the owner-review fixes. It is on `main`
+  and production-released in `d3d50986e` (3:11 PM PT), with `EXPLAIN_PROGRAM_STATEFUL=true`. `stamps.js SUPPORTED_PROGRAM_TUPLES` lists both
   tuples; schema 2 seals with `STATEFUL_PROGRAM_STAMPS`.
 - Which schema new generation seals:
   - On `main`: `PROGRAM_STAMPS`, schema 1 only. `control-plane/src/explain-program.js` imports it from
@@ -49,7 +49,7 @@ is ignored. An artifact sealed for anything else gets the fixed "could not run" 
 | Time | 50 ms per operation, inside the guest (source load, call and serialization); 250 ms host watchdog, then `Worker.terminate`; 2 s engine boot |
 | Memory | 32 MiB WASM cap per Worker; 16 MiB QuickJS heap; 256 KiB stack |
 | Workers | at most 2 live across all cards; an idle one is evicted for a card that needs to run; one unused for 30 s is terminated |
-| State (schema 2, R3, not released) | 32 KiB canonical UTF-8, depth 32, finite numbers only (`LIMITS.stateBytes`; one rule in `contract.js stateProblem`) |
+| State (schema 2, R3) | 32 KiB canonical UTF-8, depth 32, finite numbers only (`LIMITS.stateBytes`; one rule in `contract.js stateProblem`) |
 | Actions / targets / viewport (schema 2, R3) | 8 / 8 / width x height at most `viewportPixels` 963,200 (1120 x 860), the per-capture size the review reserves; every stateful frame has the declared viewport |
 | Pending events (schema 2, R3) | 16 (`interaction.js ACTION_QUEUE_CAP`); buttons are greyed, names kept, while it is full |
 
@@ -63,7 +63,7 @@ Released (schema 1):
   memory, and nothing is written to the source board.
 - With reduced motion, Play shows the end state instead of animating.
 
-R3, schema 2 only (`release/chain-r3` `6b52ee7ea`, not released):
+R3, schema 2 only (released in `d3d50986e`):
 - Controls:
   - Declared buttons and selectable drawing objects use the existing button style and work from the keyboard.
   - Clicking a declared target in the drawing sends the same select event as its button.
@@ -150,13 +150,13 @@ benchmark.
 
 ## Rollback controls
 
-These are separate controls (three today, four once R3 ships). Each needs exact-SHA `verify` and `fast-e2e`, plus the gate, before use.
+These are four separate controls. Each needs exact-SHA `verify` and `fast-e2e`, plus the gate, before use.
 
 | Control | Effect | Current pin | State |
 |---|---|---|---|
 | Generation off | `EXPLAIN_PROGRAM_ENABLED=false`. No new programs, and Edit of a program card is refused. Accepted cards keep running. | local branch `release/explain-rel5-off` `7319d063a` (flag + pinning test) | Cut on `f421cc5de`. `main` is now `70b7425ed`, so it must be re-cut on the final main before use. Not pushed. |
 | Execution kill | `EXPLAIN_PROGRAM_EXECUTION_KILL=true`. A card that loads afterwards refuses to run. A card already open keeps running until it is reloaded (the check runs at result load; `retention.test.mjs` pins this). Generation and charges continue. | local branch `release/explain-rel5-kill` `c137bd27f` | Cut on `f421cc5de`. Re-cut on the final main. Not pushed. |
-| Stateful generation off (R3 only) | `EXPLAIN_PROGRAM_STATEFUL` unset or false. New requests author schema 1 only. Accepted schema 2 cards keep running, because execution does not read this switch. | revert `b6caa951c` alone | Exists only once R3 is released. Same checks as the others. |
+| Stateful generation off | `EXPLAIN_PROGRAM_STATEFUL` unset or false. New requests author schema 1 only. Accepted schema 2 cards keep running, because execution does not read this switch. | revert `b6caa951c` alone (it is in `d3d50986e`) | Live since R3 (3:11 PM PT). Same checks as the others. |
 | Emergency Worker rollback | Both production Workers go back to the recorded pre-release pair. This also stops new generation. | `C:/s/spec/explain-sandbox/prod/state/prev-worker.txt` | Stale: it records the pair from before `fc31f723a`. It must be re-recorded at the next release, or it would roll back every release since. |
 
 `C:/s/spec/explain-sandbox/prod/generation-off.pins` and `kill.pins` still name the pre-MVP cuts `9f7060d47` and
@@ -172,12 +172,13 @@ never from an agent's claim. Spend is in the ledger `C:/s/spec/budget/budget-exp
 | 1 | Cooling, physics, schema 1 (sandbox-ex1-b, dev, 2026-10-28) | "I put a cup of hot coffee in a cold room. Show me how it cools down over time, and let me change the temperature of the room..." | author, review, repair, review: requested and served `claude-opus-5-5` | `62c202e9...` (hashes re-verified) | accepted, round 1 (one repair), result `er_a5e59350...` | Deployed check on dev `fc31f723a`: Play animates, the room slider is reachable, shared view, desktop and 390 px, board unchanged (`runs/deployed-fc31f723a`) | US$0.346126 (settled) | job 115 s from create to ready | The harness lost its connection (`fetch failed`) and collected afterwards. The earlier attempt sandbox-ex1-a failed (US$0.44). |
 | 2 | Sorting, computing (non-physics), schema 1 (sandbox-ex2-a, dev, 2026-10-28 10:58 PM) | "Walk me through how bubble sort and selection sort each put the same short list of numbers in order, one step at a time..." | 4 calls, requested and served `claude-opus-5-5` | `b39fe01b...` | accepted, round 1 (one repair), result `er_f2d73f14...` | Automated: the algorithm select switches the drawing and the totals (9 vs 10 comparisons), no generation call, board unchanged. Stepping redraws: one manual capture (`check/sorting-step21.png`) | US$0.42 (settled) | 144 s processing | Time is a "step" slider (0-21), and there is no Play. The check's Play and time asserts failed because no transport exists, so stepping is not an automated assert. |
 | 3 | Gravity, physics, schema 1 (owner, production) | Not recorded (the receipt keeps only `promptRef a4e6dab2...`). Card title: "Gravity on Earth and on the Moon". | not exposed: the read-only routes carry no model identity | `3ed2d2ab...` (stored, recomputed, card and identity all match) | accepted, round 0, 2 calls, result `er_0f9a7032...` | none in the receipt (read-only). The owner's own check is not written down. | 21 credits on the owner's production account (US$0.21 at the 1 credit = US$0.01 rate the dev runs show; not in the sandbox ledger) | 67.9 s processing | Receipt `C:/s/spec/explain-sandbox/prod/receipts/explain-prod-receipt-20261029-094422.json` (09:44 AM): 14 of 15 checks pass. The verdict is FAIL only because the script's release pin was stale (expected `fc31f723a`, served `f421cc5de`, release 5 from 09:26). Correction to the 8-11 brief: this receipt exists. |
-| 4 | Missing: a non-physics subject chosen after 8.3 ships, using a stateful action (schema 2) | | | | | | | | |
-| 5 | Missing: another subject using continuous control under schema 2 | | | | | | | | |
+| 4 | Stack versus queue, computing (non-physics), schema 2, chosen after R3 was implemented (t811-c4-b, dev preview `d3d50986e`, 2026-10-29) | "Help me understand how a stack and a queue are different. Give me buttons to add a new item and to take one out, and show me which item comes out of each one every time I press." | brief, author, repair, review: requested and served `claude-opus-5-5` | `7ea95f64...` (hashes re-verified on `d3d50986e`); 3 actions (Add next item, Remove one item, Start over), no targets or inputs | accepted, round 1 (one repair), result `er_55ab7c30...` | Deployed owner board: each button changes the drawing and the Notes values; a non-initial state survives reload; Reset returns to the initial state; only the board's own save was written. Phone: drawn, controls visible. Shared viewer: a press changes only the viewer's drawing, reload returns to the saved card, the shared board is unchanged. 16 ok, 0 failed, 2 not testable (no number input; Restart appears only on the failure view) | US$0.36 (36 credits) | job 120.7 s | The first attempt t811-c4-a (US$0.02) stopped at the brief because the driver had no Generate step. The driver's poll lost one GET ('fetch failed'), and the evidence was collected afterwards with GET-only calls. |
+| 5 | pH of water, chemistry, a slider together with buttons under schema 2, chosen after R3 was implemented (t811-c5-a, dev preview `d3d50986e`) | "Show me how the pH of a glass of water changes as I add drops of vinegar or baking soda. Let me add drops with buttons, and let me slide how strong the vinegar is to see how that changes things." | brief, author, repair, review: requested and served `claude-opus-5-5` | none accepted (the author's draft omitted `manifest.targets`; the repaired candidate was `d52567be...`) | **failed**: review rejected round 1, `unsupported_repair` (category spec); not retried | none (no card) | US$0.41 (41 credits) | job 129 s | All 9 findings were minor: crowded axis labels, and spaces collapsed in one text line (5 findings). Two findings were about review coverage, not the program: the sampled captures never moved the slider (rf3), and Reset was sampled only from the initial state (rf9). This matches R3's capture plan: each button once, each target once, then a run of the first button, and no input. Continuous control under schema 2 is therefore not reviewed. |
 
-The three existing cases prove schema 1 transfer only; none uses an event. Two runs, cases 4 and 5, cover what is
-missing: at least one non-physics case, one chosen after implementation, one stateful action and one continuous control.
-Neither has been run.
+Cases 1-3 prove schema 1 transfer. Case 4 proves one stateful-action transfer under schema 2: non-physics, chosen after
+implementation, with deployed owner and viewer interaction. Case 5, a continuous control under schema 2, failed review. So
+four qualifying subjects exist, not five, and there is no qualifying continuous-control example under schema 2 yet. Tasks
+8-11 spend so far is US$0.79 of US$5.00 (t811-c4-a 0.02, t811-c4-b 0.36, t811-c5-a 0.41).
 
 Budget (owner, 2026-10-29; recorded in `C:/s/spec/budget/ledger.md`):
 - The cap is US$5.00 for Tasks 8-11 runs only. The earlier US$1.2061 does not count.
@@ -220,10 +221,10 @@ Browsers: Chromium only. WebKit and Firefox are not tested; add them only where 
 
 | Gap | Owner | Next step |
 |---|---|---|
-| R3 (schema 2) not on main, not deployed; fast-e2e on `6b52ee7ea` concluded failure | integrator | Release R3, then rerun `retention.test.mjs` on that main (it already passes on a local merge) |
-| Offscreen pause not in R3 | integrator | Goes into the candidate after R3, together with 8.4 |
+| Offscreen pause not on main | integrator | In the R4 candidate `9846cc0a5`; its card check step 14 timing fix is on fix/explain-offscreen-check |
 | Two interaction tests (`interaction.test.mjs`, the reset cases) failed once under the full web suite on a local merge of R3 and offscreen; both passed alone twice | runtime lane | Treat as intermittent and unresolved; recheck on the next candidate |
-| 10.4 cases 4 and 5 not run | qualification lane | Plan in `C:/s/spec/explain-sandbox/genuine/t811-plan.md`; run after R3 is on the dev preview and the integrator says go |
+| Stateful review does not sample number inputs or Reset from a changed state (t811-c5-a findings rf3 and rf9), so continuous control under schema 2 is unreviewed | runtime/review lane | Add input and changed-state Reset sequences to the capture plan within the six captures, then run one more continuous-control case (cap room: US$4.21) |
+| 10.4: four qualifying subjects, not five | qualification lane | One continuous-control case after the review sampling gap is fixed; results and evidence paths in `C:/s/spec/explain-sandbox/genuine/t811-plan.md` |
 | Three playing cards on two Workers trade Workers on almost every frame (59 Worker starts in the unit run). Correct, but each trade is a cold boot. Offscreen pause removes most real contention. | runtime lane | Measure in the browser before changing eviction |
 | Execution kill does not stop already-open cards | integrator | Accepted as documented; an immediate stop needs a new mechanism (not planned) |
 | Rollback pins stale (above) | integrator | Re-cut generation-off and kill on the final main; re-record the emergency pair at release |
