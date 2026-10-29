@@ -160,7 +160,7 @@ await step('the picker: the Add explanation pill and its words make the same job
   const box = composerOf(page);
   await box.click(); await box.fill('/expl');
   await page.locator('[data-slash-command="explain"]').click();
-  await page.locator('[data-chat-pane] [data-command-pill="explain"]').waitFor();
+  await page.locator('[data-chat-pane] [data-chat-composer] [data-command-pill="explain"]').waitFor(); // the composer's pill, not the sent line's
   await box.fill('why a heap is a complete tree');
   await box.press('Enter');
   const job = await newJob(2);

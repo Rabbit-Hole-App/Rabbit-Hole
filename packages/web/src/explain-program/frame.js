@@ -62,15 +62,13 @@ export function readableScale(scene, legible = legibleFrame(scene)) {
 // Focus: the drawing's box inside the room the pane leaves for it (CSS px), aspect kept: the legible box scaled by the smaller
 // of the width and height scales, so a wide frame never grows taller than the room and a tall one never wider (owner,
 // 2026-10-28: a 16:9 frame in 500 px of height is about 889 px wide, not the full width). It shrinks to fit while that scale
-// stays at or above minScale (readableScale); below it the drawing is drawn at minScale and scrolls inside a viewport `view` px
-// high (the room's height, at least FOCUS_MIN_VIEW), so the readouts and controls under it stay on screen (owner, 2026-10-28:
-// "controls must be reachable with the chat panel open"). Generic: the legible box, the room and the text floor only.
-export const FOCUS_MIN_VIEW = 160;
+// stays at or above minScale (readableScale); below it the drawing is drawn whole at minScale and `scroll` says the Focus content
+// (drawing, controls and Notes together) scrolls as one surface, never the drawing inside a box of its own (owner, 2026-10-29).
+// Generic: the legible box, the room and the text floor only.
 export function focusFrameBox(legible, room, minScale = 1) {
   const fit = Math.min(room.w / legible.w, room.h / legible.h);
-  if (fit >= minScale) return { w: Math.round(legible.w * fit), h: Math.round(legible.h * fit), scroll: false };
-  const w = Math.round(legible.w * minScale), h = Math.round(legible.h * minScale);
-  return { w, h, scroll: true, view: Math.min(h, Math.max(FOCUS_MIN_VIEW, Math.floor(room.h))) };
+  const scale = fit >= minScale ? fit : minScale;
+  return { w: Math.round(legible.w * scale), h: Math.round(legible.h * scale), scroll: fit < minScale };
 }
 
 const readoutText = (definition, value) => `${value.toFixed(definition.decimals)}${definition.unit ? ` ${definition.unit}` : ''}`;

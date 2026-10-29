@@ -169,8 +169,8 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   }, [onControlsHeight, drawn]);
   // Focus (focus-adapter-explanation.js gives the card the whole pane): the drawing takes the room the pane leaves after the
   // card's own chrome and rows (collapsed Notes included), fitted by the smaller of the width and height scales and centred; it
-  // shrinks to fit down to its readable scale (frame.js readableScale), and only under that scrolls inside a viewport as high as
-  // that room, so the rows stay on screen. The fixed part (chrome, gaps, padding, both axes) is measured once on entering, while
+  // shrinks to fit down to its readable scale (frame.js readableScale), and only under that is it drawn whole at that scale while
+  // the focused card scrolls as one surface (index.css [data-focus-host]:has([data-program-viewport])). The fixed part (chrome, gaps, padding, both axes) is measured once on entering, while
   // the viewport still fills the leftover, so setting the box never feeds back into the room. Open Notes are not counted:
   // opening them grows the content, it never shrinks the drawing.
   useLayoutEffect(() => {
@@ -184,7 +184,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       const rowsHeight = rowsEl.offsetHeight - (notes?.offsetHeight ?? 0);
       if (fixed === null) fixed = { w: card.clientWidth - viewport.clientWidth, h: card.clientHeight - viewport.clientHeight - rowsHeight };
       const next = focusFrameBox(box, { w: card.clientWidth - fixed.w, h: card.clientHeight - fixed.h - rowsHeight }, box.minScale);
-      setFocusBox(prev => (prev && prev.w === next.w && prev.h === next.h && prev.scroll === next.scroll && prev.view === next.view ? prev : next));
+      setFocusBox(prev => (prev && prev.w === next.w && prev.h === next.h && prev.scroll === next.scroll ? prev : next));
     };
     const observer = new ResizeObserver(measure);
     observer.observe(card);
@@ -233,7 +233,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
       onPointerDown={event => event.stopPropagation()}>
       <div data-program-viewport className="flex min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white"
-        style={focusBox ? { flex: 'none', height: (focusBox.scroll ? focusBox.view : focusBox.h) + 2, overflow: focusBox.scroll ? 'auto' : 'hidden', ...(focusBox.scroll ? {} : { width: focusBox.w + 2, alignSelf: 'center' }) } : undefined}>
+        style={focusBox ? { flex: 'none', width: focusBox.w + 2, height: focusBox.h + 2, overflow: 'hidden', alignSelf: 'safe center' } : undefined}>
         <div data-program-frame role="group" aria-label={manifest.description} className="flex-1" style={focusBox ? { flex: 'none', width: focusBox.w, height: focusBox.h, margin: '0 auto' } : { minWidth: legible.w, minHeight: legible.h }}>{picture}</div>
       </div>
       <p className="sr-only">{manifest.summary}</p>

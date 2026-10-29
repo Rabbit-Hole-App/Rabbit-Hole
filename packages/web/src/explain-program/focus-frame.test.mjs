@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FOCUS_MIN_VIEW, focusFrameBox, legibleFrame, readableScale } from './frame.js';
+import { focusFrameBox, legibleFrame, readableScale } from './frame.js';
 
 // Focus on an Explanation program (owner screenshot 2026-10-28: a wide drawing in a short box, its lower half and x-axis behind
 // an internal scrollbar). The box is the legible box fitted into the room by the smaller of the two scales, shrunk to fit down
@@ -44,24 +44,24 @@ test('width-limited: a tall frame, or a wide one in a narrow deep room, fills th
   assert.deepEqual(focusFrameBox(tall, { w: 540, h: 720 }, min), { w: 540, h: 720, scroll: false }, 'exactly legible fits');
 });
 
-// Owner, 2026-10-28: "controls must be reachable with the chat panel open"; "on genuinely small screens, preserve readable
-// content with a scrolling fallback; do not make labels microscopic merely to remove a scrollbar". Under the readable scale the
-// drawing is drawn at that scale and scrolls in a viewport as high as the room, so the rows below it stay on screen.
-test('under the readable scale the drawing is drawn at it and scrolls in a viewport as high as the room, never past its own height', () => {
-  assert.deepEqual(focusFrameBox(wide, { w: 812, h: 250 }, min), { w: 768, h: 432, scroll: true, view: 250 }, '1280 x 720 with Chat: too short to fit readably');
-  assert.deepEqual(focusFrameBox(wide, { w: 330, h: 600 }, min), { w: 768, h: 432, scroll: true, view: 432 }, 'a phone: too narrow, no taller than the drawing');
-  assert.deepEqual(focusFrameBox(wide, { w: 350, h: 40 }, min), { w: 768, h: 432, scroll: true, view: FOCUS_MIN_VIEW }, 'no room at all: a minimum window, the card scrolls');
-  assert.deepEqual(focusFrameBox(wide, { w: 1216, h: 380 }), { w: 960, h: 540, scroll: true, view: 380 }, 'without a readable scale the legible box is the floor');
+// Owner, 2026-10-29: "reclaim space first, preserve readable text, avoid a separate scrollbar inside the animation"; "if the
+// complete readable content genuinely cannot fit, scroll the whole Focus content as ONE surface". Under the readable scale the
+// drawing is drawn whole at that scale and the focused card scrolls; the drawing never has a box or scrollbar of its own.
+test('under the readable scale the drawing is drawn whole at it and the Focus content scrolls as one surface', () => {
+  assert.deepEqual(focusFrameBox(wide, { w: 710, h: 394 }, min), { w: 768, h: 432, scroll: true }, '1280 x 720 app with Chat open: too small to fit readably');
+  assert.deepEqual(focusFrameBox(wide, { w: 330, h: 600 }, min), { w: 768, h: 432, scroll: true }, 'a phone: too narrow');
+  assert.deepEqual(focusFrameBox(wide, { w: 1216, h: 380 }), { w: 960, h: 540, scroll: true }, 'without a readable scale the legible box is the floor');
   const scene = readFileSync(new URL('./ProgramScene.jsx', import.meta.url), 'utf8');
-  assert.match(scene, /height: \(focusBox\.scroll \? focusBox\.view : focusBox\.h\) \+ 2, overflow: focusBox\.scroll \? 'auto' : 'hidden'/, 'the viewport scrolls the drawing, not the rows');
-  assert.match(scene, /focusBox\.scroll \? \{\} : \{ width: focusBox\.w \+ 2, alignSelf: 'center' \}/, 'a fitted drawing is centred at its own width');
+  assert.match(scene, /style=\{focusBox \? \{ flex: 'none', width: focusBox\.w \+ 2, height: focusBox\.h \+ 2, overflow: 'hidden', alignSelf: 'safe center' \} : undefined\}/, 'the drawing is whole and centred, never scrolled inside its own box');
   assert.match(scene, /focusFrameBox\(box, \{ w: card\.clientWidth - fixed\.w, h: card\.clientHeight - fixed\.h - rowsHeight \}, box\.minScale\)/, 'the room is the card less its fixed chrome and rows, never the sized viewport');
+  const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
+  assert.match(css, /@media \(max-height: 800px\) \{\s*\[data-focus-host\] \[data-program-card\], \[data-focus-host\] \[data-program-card\] > div:last-child \{ gap: 0\.25rem; \}/, 'a short window closes up the rows first');
 });
 
 test('Focus shows one title (the card hides its own kicker and title) and the canvas draws its maps and Curious through focusWidgets', () => {
   const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
   assert.match(css, /\[data-focus-host\] \[data-focus-hide\] \{ display: none; \}/);
-  assert.match(css, /\[data-focus-host\]:has\(\[data-program-viewport\]\) \{ overflow: auto !important; \}/);
+  assert.match(css, /\[data-focus-host\]:has\(\[data-program-viewport\]\) \{ overflow: auto !important; overscroll-behavior: contain; \}/, 'one surface scrolls, and its end never scrolls the page under it');
   assert.match(readFileSync(new URL('../LearningBlocks.jsx', import.meta.url), 'utf8'), /<div data-focus-hide><Kicker>/);
   assert.match(readFileSync(new URL('../LearningBlocks.jsx', import.meta.url), 'utf8'), /<div data-focus-hide>\{!block\.anchor && <Kicker>Explanation<\/Kicker>\}/, 'a text Explanation too');
   const canvas = readFileSync(new URL('../AdaptiveCanvas.jsx', import.meta.url), 'utf8');

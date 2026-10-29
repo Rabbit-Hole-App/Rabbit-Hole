@@ -171,8 +171,10 @@ reading (680-840 px asked; 760 used). Notebook and PDF: wide (960-1200 px where 
 contain. CAD, 3D model and table: fill. An Explanation program (`animation` with `program`) fills the pane, and its drawing
 is fitted inside by `frame.js` `focusFrameBox`: the legible box scaled by the smaller of the width and height scales after the
 header, the rows and the collapsed Notes row, centred at its own width, shrinking down to `readableScale` (the scale where the
-frame's smallest text reaches the 12 px `LEGIBILITY_FLOORS.metadata` floor; 0.8 for body text) and only under that scrolling
-inside a viewport as high as the room, so the controls stay on screen. Quiz and flashcards stay without a Focus control (row
+frame's smallest text reaches the 12 px `LEGIBILITY_FLOORS.metadata` floor; 0.8 for body text). Under that it is drawn whole
+at that scale and the focused card scrolls as one surface (drawing, controls and Notes together), never the drawing inside a box
+of its own (owner, 2026-10-29). On a window 800 px high or less the card's rows close up first (index.css). Opening Notes grows
+the content; it never shrinks the drawing. Quiz and flashcards stay without a Focus control (row
 below); adding one is a separate decision.
 
 Reveal on ready (owner, 2026-10-28): an Explanation this canvas's own request placed (`placeExplain`) opens in Focus once,
