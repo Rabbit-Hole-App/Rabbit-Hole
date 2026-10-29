@@ -50,6 +50,16 @@ export function programCardSize(box, { chrome, minWidth = 0 }) {
   return { width, height: Math.round((width - chrome.w) * box.h / box.w + chrome.h) };
 }
 
+// Focus: the drawing's box inside the room the pane leaves for it (CSS px), aspect kept: the legible box scaled by the smaller
+// of the width and height scales, so a wide frame never grows taller than the room and a tall one never wider. Below the legible
+// box (scale under 1) it is not shrunk: the legible box is kept and scroll says the Focus content scrolls instead. Generic: the
+// legible box and the room only.
+export function focusFrameBox(legible, room) {
+  const scale = Math.min(room.w / legible.w, room.h / legible.h);
+  if (!(scale >= 1)) return { w: legible.w, h: legible.h, scroll: true };
+  return { w: Math.floor(legible.w * scale), h: Math.floor(legible.h * scale), scroll: false };
+}
+
 const readoutText = (definition, value) => `${value.toFixed(definition.decimals)}${definition.unit ? ` ${definition.unit}` : ''}`;
 
 // Result: { ok: true, scene, state, readouts: [{ id, label, text }] } or { ok: false, error: RuntimeError, issue }.

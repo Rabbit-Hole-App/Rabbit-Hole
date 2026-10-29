@@ -1200,8 +1200,9 @@ function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPract
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
       {/* A card that is one step of a sequence says so, quietly, where the
           block kind would be: "Self-attention · 2 of 3". A label, not navigation. */}
-      <Kicker>{block.sequence ? <span data-card-sequence>{block.sequence.name} · {block.sequence.position} of {block.sequence.of}</span> : 'Explanation'}</Kicker>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      {/* Focus's own header names the card: its kicker and title hide there (index.css [data-focus-hide]). */}
+      <div data-focus-hide><Kicker>{block.sequence ? <span data-card-sequence>{block.sequence.name} · {block.sequence.position} of {block.sequence.of}</span> : 'Explanation'}</Kicker>
+      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p></div>
       <div className="mt-2 flex min-h-0 flex-1 flex-col">
         {/* An /explain v2 job still making this card (EXP-T20): its stage until the result attaches here. */}
         {block.explainEdit && <ExplainEditBar block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onPreview={setCandidate} />}

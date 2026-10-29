@@ -31,7 +31,7 @@ test('the top-left corner goes Back (owner, 2026-10-04: no longer a jump to Home
 // "move the 3 hooks options window to the bottom right aligned with the lower of the chat composer".
 test('the bottom strip: the minimap above the zoom row at lower left, the hooks lower right beside the composer', () => {
   const strip = canvas.slice(canvas.indexOf('<div data-canvas-bottom'));
-  assert.match(strip, /<div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">\n\s+\{minimap && <div data-canvas-minimap>\n\s+<CanvasMinimap [\s\S]*?<\/div>\}\n\s+<div data-zoom /, 'one group: the minimap, then the zoom row, stretched to one outer width (owner brief 2026-10-16 item 8)');
+  assert.match(strip, /<div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">\n\s+\{drawnWidgets.minimap && <div data-canvas-minimap>\n\s+<CanvasMinimap [\s\S]*?<\/div>\}\n\s+<div data-zoom /, 'one group: the minimap, then the zoom row, stretched to one outer width (owner brief 2026-10-16 item 8)');
   assert.ok(strip.indexOf('data-canvas-minimap') < strip.indexOf('data-canvas-composer') && strip.indexOf('data-canvas-composer') < strip.indexOf('data-canvas-lower-right'), 'minimap left, composer, hooks right');
   assert.match(strip, /md:flex-row md:items-end/, 'one lower edge: the hooks\' bottom is the composer\'s');
   // On a phone the hooks sit above the composer, at the right.
@@ -139,7 +139,7 @@ test('UI-19: the minimap is floating chrome for fit, reveal and placement (a gra
   const column = strip.slice(strip.indexOf('\n') + 1, strip.indexOf('<div data-zoom-stack'));
   assert.match(column, /^\s+<div className="flex items-end gap-2 md:min-w-fit md:flex-1 md:basis-0">\n/, 'the strip\'s first column opens first');
   assert.equal((column.match(/<div\b/g) || []).length, 1, 'the zoom stack is a direct child of that column (a strip grandchild)');
-  assert.match(strip, /<div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">\n\s+\{minimap && <div data-canvas-minimap>/, 'the minimap is inside the zoom stack, so its box is the stack\'s');
+  assert.match(strip, /<div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">\n\s+\{drawnWidgets.minimap && <div data-canvas-minimap>/, 'the minimap is inside the zoom stack, so its box is the stack\'s');
   assert.match(canvas, /const chromeTop = \(x0, x1\) => \{[\s\S]*?querySelectorAll\('\[data-canvas-bottom\] > \* > \*'\)/, 'fit, focus and reveal stop above every strip grandchild');
   assert.match(canvas, /const placementChrome = \(\) => \{[\s\S]*?strip\.querySelectorAll\(':scope > \* > \*'\)/, 'a card placed in view keeps clear of every strip grandchild');
 });
@@ -159,7 +159,7 @@ test('the Rabbit Hole navigator sits at the top of the tools gutter on either si
   // Important (!): the tools column's own `[&>*]:pointer-events-auto` also matches this slot, at the same specificity and emitted later
   // than a plain pointer-events-none, so without it the slot's padding stayed a band (gate 39830037683 and 39834718527, 4 of 39 probes).
   assert.match(canvas, /<div data-gutter-top className=\{`pointer-events-none! mb-auto [^\n]*\[&>\*\]:pointer-events-auto /);
-  assert.match(canvas, /<div data-gutter-top [^\n]*>\n(?:[^\n]*\n){2}\s+\{gutterTop && <div className=\{holeMap \? undefined : 'hidden'\}>\{gutterTop\}<\/div>\}/);
+  assert.match(canvas, /<div data-gutter-top [^\n]*>\n(?:[^\n]*\n){2}\s+\{gutterTop && <div className=\{drawnWidgets\.holeMap \? undefined : 'hidden'\}>\{gutterTop\}<\/div>\}/);
   assert.match(page, /gutterTop=\{dive\.tree \? <DiveNavigator \{\.\.\.dive\.navigator\} \/> : null\}/);
 });
 

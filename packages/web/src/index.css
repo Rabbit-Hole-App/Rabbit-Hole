@@ -1029,3 +1029,8 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
   transform: var(--focus-transform) !important; transform-origin: 0 0; z-index: 40; transition: none;
 }
 [data-focus-host] > :is([data-drag-handle], [data-card-chrome-row], [data-node-tool]) { display: none; }
+/* Focus names the card in its own header, so a card's own kicker and title marked data-focus-hide are not drawn twice. An
+   Explanation program sizes its drawing to the pane (ProgramScene focusFrameBox); when the pane is under its legible box, the
+   whole focused card scrolls, never the drawing alone. */
+[data-focus-host] [data-focus-hide] { display: none; }
+[data-focus-host]:has([data-program-viewport]) { overflow: auto !important; }
