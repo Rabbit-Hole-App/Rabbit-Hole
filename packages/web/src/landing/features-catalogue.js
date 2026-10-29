@@ -4,11 +4,15 @@
 // Pictures live in src/landing/features/ so Vite emits only the ones this HTML references: an entry left out of a
 // production build never ships its picture. Conventions: C:/s/spec/landing-features/CAPTURE-CONVENTIONS.md.
 
+import { PAGE_ORDER } from './features-data.js';
+
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export const anchorOf = id => id.replace(/^\d+-/, '');
 
-// Entries a build shows, in order: published ones (staged ones too in a preview build), only with a picture.
-export const visibleFeatures = (features, images, preview) => features.filter(f => (f.published || preview) && images[f.id]);
+// Entries a build shows: the page selection in its order (PAGE_ORDER), then published ones (staged ones too in a preview
+// build), only with a picture.
+export const visibleFeatures = (features, images, preview, order = PAGE_ORDER) => order.map(id => features.find(f => f.id === id))
+  .filter(f => f && (f.published || preview) && images[f.id]);
 
 const url = src => `../src/landing/features/${src}`;
 function picture(part, alt, eager) {

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FEATURES } from './features-data.js';
-import { renderCatalogue } from './features-catalogue.js';
+import { FEATURES, PAGE_ORDER } from './features-data.js';
+import { renderCatalogue, visibleFeatures } from './features-catalogue.js';
 
 const pic = (id, mobile = true) => ({ desktop: { src: `${id}-desktop.webp`, w: 1760, h: 1100 }, ...(mobile ? { mobile: { src: `${id}-mobile.webp`, w: 760, h: 980 } } : {}) });
 
@@ -12,13 +12,13 @@ test('the catalogue has the 26 brief entries in order with unique ids', () => {
 });
 
 test('production shows only published entries with a picture; preview adds staged ones; no picture is never shown', () => {
-  const images = { '01-ai-tutor': pic('01-ai-tutor'), '02-interactive-explanations': pic('02'), '06-notebooks': pic('06', false) };
+  const images = { '01-ai-tutor': pic('01-ai-tutor'), '09-interactive-graphs': pic('09'), '06-notebooks': pic('06', false) };
   const prod = renderCatalogue(FEATURES, images);
   assert.match(prod, /id="ai-tutor"/);
   assert.match(prod, /id="notebooks"/);
-  assert.doesNotMatch(prod, /interactive-explanations/); // staged (published: false)
+  assert.doesNotMatch(prod, /interactive-graphs/); // staged (published: false)
   assert.doesNotMatch(prod, /github-code-graph/); // published, but no picture yet
-  assert.match(renderCatalogue(FEATURES, images, { preview: true }), /id="interactive-explanations"/);
+  assert.match(renderCatalogue(FEATURES, images, { preview: true }), /id="interactive-graphs"/);
   assert.equal(renderCatalogue(FEATURES, {}), '');
 });
 
@@ -32,7 +32,7 @@ test('first picture eager, the rest lazy; phone source only where a phone crop e
 });
 
 test('every entry is framed: Rabbit Hole header, picture before the copy, composite parts captioned in one frame', () => {
-  const images = { '01-ai-tutor': pic('01-ai-tutor'), '12-bidirectional-links': [{ caption: 'Outgoing link', ...pic('12a', false) }, { caption: 'Backlink', ...pic('12b', false) }] };
+  const images = { '01-ai-tutor': pic('01-ai-tutor'), '16-sharing-forking': [{ caption: 'Outgoing link', ...pic('16a', false) }, { caption: 'Backlink', ...pic('16b', false) }] };
   const html = renderCatalogue(FEATURES, images);
   assert.equal((html.match(/<article /g) || []).length, 2);
   assert.equal((html.match(/class="feature-demo"><div class="demo-window"><div class="demo-toolbar" aria-hidden="true"><span class="demo-brand">Rabbit Hole<\/span>/g) || []).length, 2);
@@ -49,4 +49,14 @@ test('one sticky stack for the visible entries: no index row, frame count in --f
   assert.equal((html.match(/data-feature-step/g) || []).length, 3);
   assert.equal((html.match(/is-active/g) || []).length, 1);
   assert.match(html, /<article class="feature is-active" id="ai-tutor"/);
+});
+
+test('the page shows only its 12 selected entries, in PAGE_ORDER, in preview and production alike', () => {
+  assert.equal(PAGE_ORDER.length, 12);
+  for (const id of PAGE_ORDER) assert.ok(FEATURES.some(f => f.id === id), id);
+  const all = Object.fromEntries(FEATURES.map(f => [f.id, pic(f.id)]));
+  assert.deepEqual(visibleFeatures(FEATURES, all, true).map(f => f.id), PAGE_ORDER);
+  const prod = visibleFeatures(FEATURES, all, false).map(f => f.id);
+  assert.deepEqual(prod, PAGE_ORDER.filter(id => FEATURES.find(f => f.id === id).published));
+  assert.doesNotMatch(renderCatalogue(FEATURES, all, { preview: true }), /id="(bidirectional-links|ask-about-selection|comments)"/);
 });

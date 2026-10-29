@@ -31,3 +31,9 @@ export const FEATURES = [
   { id: '25-canvas-search', title: 'Canvas search', subtitle: 'Find what you added.', description: 'Search canvas content and jump to the relevant result.', alt: 'Canvas search finding a softmax card and showing the selected result.', published: true },
   { id: '26-photo-search', title: 'Photo search', subtitle: 'Find a photo for your idea.', description: 'Search for existing photos and keep their attribution with them.', alt: 'Photo-search results with a selected photograph and its attribution.', published: false },
 ];
+
+// The page's selection and order (owner, 2026-10-28): which catalogue entries get a section on /features, in priority order.
+// The full catalogue above stays (ids, pictures, demo canvases); entries left out here lose only their standalone section.
+// Production availability (published) is a separate filter applied after this one.
+export const PAGE_ORDER = ['01-ai-tutor', '05-pdf-reader', '04-github-code-graph', '06-notebooks', '08-practice', '07-pin-study',
+  '09-interactive-graphs', '03-animated-explainer-videos', '10-cad-generation', '11-rabbit-holes', '14-edit-with-ai', '16-sharing-forking'];
