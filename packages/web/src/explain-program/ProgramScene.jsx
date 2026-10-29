@@ -11,7 +11,7 @@ import { createProgramHost, programStamps } from './host.js';
 import { createFrameScheduler } from './playback.js';
 import ProgramNotes from './ProgramNotes.jsx';
 import {
-  clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programInputs, programTime, resetProgram, resolveProgram,
+  clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programInputs, programTime, rememberProgram, resetProgram, resolveProgram,
   setProgramInput, shownProgram,
 } from './program-card.js';
 
@@ -81,7 +81,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       const client = token ? sharedProgramClient(token) : boardId ? explainClient(api, boardId) : null;
       const out = await resolveProgram(current, { client, fixtures: fixturesAdmitted(import.meta.env), stamps: await programStamps() });
       if (!live) return;
-      if (out.ok) setArtifact(out.artifact); else setFailure(out.error);
+      if (out.ok) { rememberProgram(current, out.artifact.manifest); setArtifact(out.artifact); } else setFailure(out.error);
     })();
     return () => { live = false; };
   }, [block.id, block.program?.bundleHash, block.program?.fixtureId, block.explain?.resultId, attempt, token]);
@@ -110,7 +110,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       evaluate: job => target.evaluate(evaluateRequestFor(manifest, { ...latest.current, inputs: job.inputs }, job.time, ++counter.current)),
       show: (reply, job) => {
         const out = normalizeFrame(reply.frame, manifest);
-        if (out.ok) { setView({ ...out, time: job.time }); setFailure(null); } else stop(out.error);
+        if (out.ok) { rememberProgram(latest.current, manifest, { inputs: job.inputs, time: job.time, readouts: out.readouts }); setView({ ...out, time: job.time }); setFailure(null); } else stop(out.error);
       },
       fail: stop,
     });

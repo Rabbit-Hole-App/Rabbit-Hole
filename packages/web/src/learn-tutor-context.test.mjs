@@ -40,3 +40,20 @@ test('learner intent: request, question, explanation', () => {
   assert.equal(intent('Is it the same mask in every layer?').kind, 'question');
   assert.equal(intent('Each position reads itself and all earlier positions.').kind, 'explanation');
 });
+
+// Task 9.3: a program card the learner asks the Tutor about rides as what this page loaded for it (manifest, settings, drawn
+// readouts), never its source and never a second fetch; before it is loaded, as an honest partial description.
+test('the Tutor\'s card context for a program card is its loaded explanation and controls, never source', async () => {
+  const { cardContext } = await import('./learn-tutor.js');
+  const { rememberProgram } = await import('./explain-program/program-card.js');
+  const { parseManifest } = await import('./explain-program/contract.js');
+  const { growthFixture } = await import('./explain-program/fixtures.js');
+  const manifest = parseManifest(growthFixture.manifest).value;
+  const block = { id: 'card-tutor-93', type: 'animation', title: 'Balance', program: { bundleHash: 'bh-t' }, explain: { resultId: 'er-t', revision: 'xr-t' }, inputs: { rate: 7 } };
+  assert.match(cardContext(block), /not loaded on this page yet/);
+  rememberProgram(block, manifest);
+  const text = cardContext(block);
+  assert.match(text, /Yearly rate: 7 %/);
+  assert.ok(text.includes(manifest.summary));
+  assert.equal(text.includes(growthFixture.source.slice(0, 40)), false);
+});

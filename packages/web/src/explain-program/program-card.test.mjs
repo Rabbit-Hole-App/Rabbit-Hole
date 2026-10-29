@@ -214,3 +214,28 @@ test('the error fixtures end in the fixed messages: the loop is sealed and then 
   assert.equal(blocked.error.code, 'unsupported_capability');
   assert.equal(blocked.error.message, 'This explanation needs a capability that is not available yet.');
 });
+
+// Task 9.3: the Tutor's and composer's context for a program card comes from what this page already loaded for that exact card:
+// no fetch, no source, readouts only from a frame drawn at the card's current settings, and an honest partial description otherwise.
+test('describeProgram uses the loaded manifest and drawn readouts of this exact card, and says what it does not know', async () => {
+  const { rememberProgram, loadedProgram, PROGRAM_DESCRIPTION } = await import('./program-card.js');
+  const saved = card({ id: 'card-93', program: { bundleHash: 'bh1' }, explain: { resultId: 'er1', revision: 'xr1' }, inputs: { rate: 8, mode: 'simple' }, time: 2 });
+  const before = describeProgram(saved).text;
+  assert.match(before, /not loaded on this page yet; do not state their values/);
+  assert.doesNotMatch(before, /Yearly rate/);
+  rememberProgram(saved, manifest);
+  const loadedText = describeProgram(saved).text;
+  assert.match(loadedText, /Yearly rate: 8 %/);
+  assert.match(loadedText, /Interest: Simple/, 'a select reads as the option label the learner sees');
+  assert.match(loadedText, /Paused at 2.0s of 4s/);
+  assert.match(loadedText, /Its readouts \(Balance\) are not drawn for these settings yet; do not state their values/);
+  rememberProgram(saved, manifest, { inputs: programInputs(manifest, saved), time: 2, readouts: [{ id: 'balance', label: 'Balance', text: '1469' }] });
+  assert.match(describeProgram(saved).text, /Shown now: Balance 1469/);
+  assert.doesNotMatch(describeProgram({ ...saved, inputs: { rate: 9, mode: 'simple' } }).text, /Shown now/, 'a frame drawn at other settings is never reported');
+  assert.match(describeProgram({ ...saved, time: 3 }).text, /not drawn for these settings yet/);
+  // Another revision of the card (an applied Edit: new result and bundle) is a different identity: nothing carried over.
+  assert.equal(loadedProgram({ ...saved, program: { bundleHash: 'bh2' }, explain: { resultId: 'er2', revision: 'xr2' } }), null);
+  assert.match(describeProgram({ ...saved, program: { bundleHash: 'bh2' }, explain: { resultId: 'er2', revision: 'xr2' } }).text, /not loaded on this page yet/);
+  assert.equal(describeProgram(saved).text.includes(growthFixture.source.slice(0, 40)), false, 'never source');
+  assert.ok(describeProgram(saved).text.length <= PROGRAM_DESCRIPTION);
+});
