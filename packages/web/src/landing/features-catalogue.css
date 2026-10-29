@@ -1,0 +1,33 @@
+/* The static Features catalogue (features-catalogue.js). Pictures are plain images: no hover, cursor or tab stop. */
+.features-index{max-width:1280px;margin:56px auto 96px;padding:0 28px;display:flex;flex-wrap:wrap;gap:8px}
+.features-index a{display:inline-block;padding:8px 13px;border:1px solid #c7d2c0;border-radius:999px;background:#fff;color:#173d2a;font:500 13px/1.2 var(--ui);text-decoration:none;transition:border-color 150ms ease,background-color 150ms ease}
+.features-index a:hover{border-color:#173d2a}
+.features-index a:active{background:#eef2ea}
+.features-index a:focus-visible{outline:2px solid #173d2a;outline-offset:2px}
+.features-catalogue{max-width:1280px;margin:0 auto;padding:0 28px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:112px 56px}
+.feature{min-width:0;scroll-margin-top:104px}
+.feature-full{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,3fr) minmax(0,7fr);gap:56px;align-items:center}
+.feature-grid{display:flex;flex-direction:column;gap:28px}
+.feature-grid .feature-media{order:-1}
+.features-page #below .feature h2{font:500 clamp(30px,2.6vw,40px)/1.05 var(--display);letter-spacing:-.05em;margin:0 0 14px}
+.feature-copy p{font:400 17px/1.6 var(--ui);color:#4a5847;margin:0;max-width:440px}
+.feature-copy .feature-subtitle{font-weight:500;color:#173d2a;margin-bottom:8px}
+.feature-media{min-width:0}
+.feature-media img{display:block;width:100%;height:auto}
+.feature-parts{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:20px;align-items:start}
+.feature-parts figure{margin:0;min-width:0}
+.feature-parts figcaption{font:500 13px/1.4 var(--ui);color:#54684e;margin-top:10px}
+@media(max-width:900px){
+  .features-index{margin:40px auto 72px;padding:0 8px}
+  .features-catalogue{grid-template-columns:minmax(0,1fr);gap:80px;padding:0 8px}
+  .feature-full{display:flex;flex-direction:column;align-items:stretch;gap:24px}
+  .feature-grid{gap:24px}
+  .feature-grid .feature-media{order:0}
+}
+@media(max-width:600px){
+  .features-index{margin:32px auto 56px;padding:0 2px}
+  .features-catalogue{gap:64px;padding:0 2px}
+  .features-page #below .feature h2{font-size:30px}
+  .feature-copy p{font-size:16px}
+  .feature-parts{grid-auto-flow:row}
+}
