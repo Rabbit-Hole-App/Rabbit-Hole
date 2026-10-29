@@ -9,6 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { chatProposalFetch } from '../src/chat-proposal-route.js';
 import { artifactFetch } from '../src/learn-artifact.js';
+import { canvasesFetch } from '../src/canvases.js';
 import { PROPOSAL_TOOL, proposalRecord, validateProposalInput } from '../src/generation-proposal.js';
 import { proposalView } from '../../web/src/generation-confirmation-schema.js';
 import { BRIEF_COMMANDS, generationArgs, materialBrief } from '../../web/src/material-brief.js';
@@ -19,11 +20,12 @@ const APP = 'demo-app', THREAD = 'canvaschat-11111111-2222-3333-4444-55555555555
 function stack(t) {
   const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
   sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
+  let beforeBatch = null; // a competing request that lands between this request's checks and its batch (race)
   const db = { prepare(text) {
     let args = []; const statement = () => sqlite.prepare(text);
     return { bind(...v) { args = v; return this; }, first: async () => statement().get(...args) || null, all: async () => ({ results: statement().all(...args) }),
       run: async () => ({ meta: { changes: statement().run(...args).changes } }), now: () => ({ meta: { changes: statement().run(...args).changes } }) };
-  }, async batch(statements) { sqlite.exec('BEGIN'); try { const out = statements.map(s => s.now()); sqlite.exec('COMMIT'); return out; } catch (error) { sqlite.exec('ROLLBACK'); throw error; } } };
+  }, async batch(statements) { const other = beforeBatch; beforeBatch = null; if (other) await other(); sqlite.exec('BEGIN'); try { const out = statements.map(s => s.now()); sqlite.exec('COMMIT'); return out; } catch (error) { sqlite.exec('ROLLBACK'); throw error; } } };
   // The app lookup authorizedBoardApp makes for a non-canvas app (the Small control plane): this owner's app.
   const env = { SMALL_ENV: 'dev', LEARN_DB: db, INLINE_DECISION_KEY: 'fixture-signing-key',
     CONTROL_PLANE: { fetch: async () => Response.json({ name: APP, org: OWNER.org, email: OWNER.email }) } };
@@ -40,7 +42,11 @@ function stack(t) {
   };
   const rows = () => sqlite.prepare('SELECT m.role, m.content, mm.meta_json FROM messages m LEFT JOIN chat_message_meta mm ON mm.message_id = m.id ORDER BY m.id').all();
   const state = async p => (await proposalRecord(db, OWNER.email, APP, p.proposal_id)).state;
-  return { env, post, generate, calls, rows, state };
+  // An ordinary Chat save (canvases.js saveChatMessage) on the same database, in a canvas chat: message ids are global.
+  const chat = content => canvasesFetch(new Request('https://app/api/learn/chat/threads/canvaschat-00000000-0000-4000-8000-000000000001/messages', { method: 'POST',
+    body: JSON.stringify({ app: 'canvas-0a1b2c3d', client_id: `c-${content.length}`, role: 'user', content }) }), { LEARN_DB: db, CONTROL_PLANE: { fetch: async () => Response.json({ org: OWNER.org, email: OWNER.email, user_id: OWNER.userId, apps: [] }) } });
+  const orphans = () => sqlite.prepare('SELECT count(*) AS n FROM chat_message_meta mm LEFT JOIN messages m ON m.id = mm.message_id WHERE m.id IS NULL').get().n;
+  return { env, post, generate, calls, rows, state, chat, orphans, race: fn => { beforeBatch = fn; } };
 }
 
 test('the compact brief: built from the words and the selected card, never the answer, never a model call', () => {
@@ -123,6 +129,24 @@ test('conversational Edit: the next revision of exactly the named one, with the 
   assert.equal((await h.generate(v1)).body.code, 'proposal_stale');
   assert.equal((await h.generate(v2, { result: 'artifact', primitive: 'interactive_graph', block: { type: 'graph' } })).res.status, 200);
   assert.equal(h.calls.at(-1).args, 'y = sin(x)\nChange: add cos(x) on the same axes');
+});
+
+test('an Edit that loses its race to Generate or another Edit stores no message and no meta row; the next Chat message still saves', async t => {
+  for (const winner of ['generate', 'edit']) {
+    const h = stack(t);
+    const v1 = (await h.post({ command: 'quiz', request: "Newton's second law" })).body.proposal;
+    const before = h.rows().length;
+    let won;
+    h.race(async () => { won = winner === 'generate' ? await h.generate(v1) : await h.post({ revise: { proposal: v1 }, change: 'use a falling apple' }); });
+    const lost = await h.post({ revise: { proposal: v1 }, change: 'make it two questions' });
+    assert.equal(won.res.status, winner === 'generate' ? 200 : 201, `${winner}: ${JSON.stringify(won.body)}`);
+    assert.equal(lost.res.status, 409, `${winner}: ${JSON.stringify(lost.body)}`);
+    assert.equal(lost.body.code, 'proposal_edit_stale');
+    assert.equal(h.rows().length, before + (winner === 'edit' ? 2 : 0), `${winner}: only the winner's rows`);
+    assert.equal(h.orphans(), 0, `${winner}: no meta row without its message`);
+    const saved = await h.chat(`next ordinary message after ${winner}`);
+    assert.equal(saved.status, 201, `${winner}: ${await saved.text()}`);
+  }
 });
 
 test('the route refuses what is not a brief: another command, no subject, a bad selection', async t => {

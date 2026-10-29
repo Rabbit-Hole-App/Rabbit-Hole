@@ -139,14 +139,15 @@ async function createMaterialProposal(req, env, deps) {
   const at = new Date().toISOString();
   const meta = { version: 1, mode: 'ask', kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, proposal: p, ...(record ? {} : { proposalState: proposalState(p) }) };
   // A revision's rows exist only when its compare-and-swap lands: each insert is conditioned on the root now holding this revision.
+  // HAVING: an aggregate with no matching row is still one row (max(id) NULL), which would store a meta row under a fresh id.
   const landed = record ? ' WHERE EXISTS (SELECT 1 FROM chat_message_meta r WHERE r.message_id = ? AND json_extract(r.meta_json, \'$.proposalState.sig\') = ?)' : '';
   const gate = record ? [record.root.messageId, p.sig] : [];
   const results = await db.batch([
     ...(record ? [publishStatement(db, record, p)] : [db.prepare("INSERT OR IGNORE INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,'',?)").bind(body.thread_id, user.org, user.email, body.app, (p.title || 'Brief').slice(0, 120))]),
     db.prepare(`INSERT INTO messages(thread_id,role,content) SELECT ?,?,?${landed}`).bind(body.thread_id, 'user', line.slice(0, 4000), ...gate),
-    db.prepare(`INSERT INTO chat_message_meta(message_id,thread_id,role,meta_json) SELECT max(id),?,?,? FROM messages WHERE thread_id=?${landed.replace(' WHERE ', ' AND ')}`).bind(body.thread_id, 'user', JSON.stringify({ mode: 'auto', command: p.command, contextRefs: [] }), body.thread_id, ...gate),
+    db.prepare(`INSERT INTO chat_message_meta(message_id,thread_id,role,meta_json) SELECT max(id),?,?,? FROM messages WHERE thread_id=?${landed.replace(' WHERE ', ' AND ')} HAVING max(id) IS NOT NULL`).bind(body.thread_id, 'user', JSON.stringify({ mode: 'auto', command: p.command, contextRefs: [] }), body.thread_id, ...gate),
     db.prepare(`INSERT INTO messages(thread_id,role,content) SELECT ?,?,?${landed}`).bind(body.thread_id, 'assistant', record ? BRIEF_REVISED : BRIEF_REPLY, ...gate),
-    db.prepare(`INSERT INTO chat_message_meta(message_id,thread_id,role,meta_json) SELECT max(id),?,?,? FROM messages WHERE thread_id=?${landed.replace(' WHERE ', ' AND ')}`).bind(body.thread_id, 'assistant', JSON.stringify(meta), body.thread_id, ...gate),
+    db.prepare(`INSERT INTO chat_message_meta(message_id,thread_id,role,meta_json) SELECT max(id),?,?,? FROM messages WHERE thread_id=?${landed.replace(' WHERE ', ' AND ')} HAVING max(id) IS NOT NULL`).bind(body.thread_id, 'assistant', JSON.stringify(meta), body.thread_id, ...gate),
     db.prepare('INSERT INTO chat_thread_state(thread_id,last_activity_at,updated_at) VALUES(?,?,?) ON CONFLICT(thread_id) DO UPDATE SET last_activity_at=excluded.last_activity_at, updated_at=excluded.updated_at').bind(body.thread_id, at, at),
   ]);
   if (record && results[0]?.meta?.changes !== 1) {
