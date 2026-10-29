@@ -128,7 +128,7 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   assert.equal(pricedRows, 8, 'every ready combination is priced: eight, Sunburst editing included');
   assert.equal(app.vars.EXPLAIN_V2_ENABLED, 'true'); // R1 switch-on (owner production GO, 2026-10-22)
   assert.equal(app.vars.EXPLAIN_PROGRAM_ENABLED, 'true'); // generated programs on (owner production GO, 2026-10-28)
-  assert.equal(app.vars.EXPLAIN_PROGRAM_EXECUTION_KILL, 'false'); // the kill switch is present and off
+  assert.equal(app.vars.EXPLAIN_PROGRAM_EXECUTION_KILL, 'true'); // rollback: the kill switch is on, no program card runs
   assert.equal('EXPLAIN_DIAGNOSTICS' in app.vars, false); // owner diagnostics are never configured in production
   assert.deepEqual(JSON.parse(app.vars.EXPLAIN_BRIEF_THRESHOLDS), { components: 12, credits: 400 });
   // dev-worker.js bundles its HTML from ./dist-dev, so the directory keeps that name.
