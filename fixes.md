@@ -1,0 +1,80 @@
+# Fixes log
+
+One list of every known fix: blocking and nonblocking bugs, optional improvements and deferred items, with evidence.
+Owner instruction 2026-10-29: kept by the integrator (Parallel) and updated with each relevant hand-back; ChatGPT reviews it against the code.
+Times are PT. "Pushed" never means deployed: Deployed says where the fix actually runs.
+
+Classes: **blocking** (holds its release), **nonblocking** (a real bug that does not hold a release), **optional** (improvement), **deferred** (recorded, not scheduled).
+Task IDs (T8.1, T9.2, ...) refer to [docs/superpowers/plans/2026-10-29-explain-tasks-8-11.md](docs/superpowers/plans/2026-10-29-explain-tasks-8-11.md) and the [/explain checklist](docs/features/explain-sandbox-checklist.md).
+
+Production at the last update (2026-10-29 ~11:50 AM PT): main `7fe96729d9ff6d3ed68ac8026c36697c21ac6a9a` (release 8-r1), released by the owner's launcher.
+
+## Open
+
+| ID | Feature | Actual / expected | Class | Status | Owner | Next action | Branch / SHA | Checks | Deployed |
+|---|---|---|---|---|---|---|---|---|---|
+| FX-05 | Ctrl+K brief | The brief request's `selection.title` is a JSON string (`{"title":"Photo...`); expected the plain card title, with the structured selection payload kept | nonblocking | in progress | slash lane | root-cause fix where the selection object is serialized into the title; one assertion in ctrlk-handoff-check | `fix/ctrlk-selection-title` (from 90a0008bf) | pending | no |
+| FX-08 | /explain Tutor context (T9.3) | Tutor is told "Paused at 0.0s" from saved `block.time` while Play shows 5 s, and loses the visible readouts; expected the displayed time and playback state, keeping stale-input protection (ChatGPT review of e8f1bd0b2) | blocking for R2 | in progress | context lane | fix + one regression failing on the reviewed SHA | `feat/explain-tutor-context`, reviewed `e8f1bd0b2` | pending | no |
+| FX-12 | /explain state (T8.2) | ProgramScene saves inputs at once while use-program-state validates a finished transition against the latest inputs: two quick changes validate state 1 against inputs 2, fail and drop the queued change; a refused dispatch still saves the input. Expected: matching input snapshot through validation and commit; refused dispatch saves nothing (ChatGPT review of 1370186043) | blocking for enabling stateful generation | in progress with T8.3 | runtime lane | fix + regression failing on 1370186 | `feat/explain-actions` | pending | no |
+| FX-13 | /explain state (T8.2) | interaction.js initializes/resets and publishes state without its frame check; expected check-before-commit, a failed reset keeps the last good state and its saved form (ChatGPT review of 1370186043) | blocking for enabling stateful generation | in progress with T8.3 | runtime lane | fix + regression + one stateful browser check (rapid inputs, actions, Reset, reload) | `feat/explain-actions` | pending | no |
+| FX-14 | Canvas header band | Cards under the opaque header band could not be clicked (round 1-3 e2e failures); expected cards open below the band's reserved strip | nonblocking (owner request, own release) | fixed, release ready (launcher 9-band) | owner | run `C:\s\spec\release-queue\release.cmd 9-band` | `fix/header-band-2` `b7f6ee3286ab058aebc180dd6c95f5439e23e1d5` (root fix 566cc5f79); released as chain `release/chain-overrun` `f676fd95ceaf9ad69e9051a93b32efa949e3f550` (with FX-10) | branch: verify 40922072317 ok, fast-e2e 40922072308 ok (80/80); gate on 566cc5f79 failed canvas-toolbar (stale expectation, fixed in b7f6ee328); chain-band fast-e2e 40926982735 failed `dive` (FX-15), rerun ok; gate on f676fd95c 40933689544 ok; launcher --check ok 11:59 AM | no |
+| FX-15 | dive e2e check | `dive` failed on R1's gate 40925212785 attempt 1 (30 s timeout waiting for the "Rename this Rabbit Hole" textbox after shot 09-rename) and on chain-band fast-e2e 40926982735 (exit 1 with 3/3 counted); reruns passed, which does not establish a cause. It also failed on R1 without the band, so it does not hold the band release | nonblocking until classified (a demonstrated app bug would become blocking) | diagnosing from logs | dive-diagnosis agent | classify check bug / app bug / environment with evidence; fix if clear | `fix/dive-flake` if a fix is needed | pending | no |
+| FX-27 | CAD generation (Features entry 10 published) | Unknown whether new CAD generation works in production: `CAD_MODEL_ENABLED` / `CAD_PRODUCTION_ENABLED` are secrets (values unreadable); docs say authorized-not-activated | open (verification) | owner | owner | one CAD generation on digrabbithole.com settles it | — | — | infra unchanged |
+| FX-28 | Interactive graphs (Features entry 09 published) | `DESMOS_API_KEY` is bound in production; no one has confirmed a graph renders there | open (verification) | owner | owner | one look at a graph card on digrabbithole.com | — | — | — |
+| FX-30 | /explain production receipt | Read-only receipt for the owner's gravity request not collected | open (verification) | owner | owner | `C:\s\spec\explain-sandbox\prod\explain-prod-verify.cmd`; no new generation | — | — | — |
+| FX-31 | /explain rollback | Generation-off and execution-kill commits were cut on f421cc5de; main has moved | nonblocking | open | integrator | re-cut on the final main before use | `release/explain-rel5-off` 7319d063a, `release/explain-rel5-kill` c137bd27f (local only) | prod-config test 11/11 on both | no |
+| FX-34 | /explain R0 | Pending card, brief before Generate and conversational Edit not checked on the deployed preview (need generation) | open (verification) | covered by CI only | integrator | genuine check when a paid run is authorized for it | — | CI checks explain-proposal-card, explain-entry on f421cc5de | production since 09:26 AM |
+| FX-40 | Release gate harness | `templates/transients.json` pins a file hash for canvas-chrome-check, which FX-14 edits | nonblocking (may fail the header-band gate) | open | integrator | watch the chain-band gate; update the pin only if the gate reports it | — | — | — |
+
+## Fixed (pushed, not yet deployed)
+
+| ID | Feature | Actual / expected | Class | Status | Branch / SHA | Checks | Deployed |
+|---|---|---|---|---|---|---|---|
+| FX-06 | /explain evidence (T9.2) | Recorded the requested lines (25-30) although fileContext returned a larger chunk (21-40); now the actual range (ChatGPT review of 4c402a022) | blocking for R2 | fixed, review accepted | `feat/explain-material-evidence` `b41daa214` | ChatGPT: both fixes addressed | no |
+| FX-07 | /explain evidence (T9.2) | Inherited Edit sources plus new attachments could pass the 20-reference limit and reject an Edit; Generate could accumulate 21 sources; now inherited refs are read apart within the limits and omissions reported | blocking for R2 | fixed, review accepted | `feat/explain-material-evidence` `b41daa214` | ChatGPT: addressed | no |
+| FX-10 | /explain frame deadline | One frame over 50 ms stopped the card (R0 deployed check: 3 of 6 Play runs); owner option A: skip recoverable overruns, keep the last frame, reset after success, stop on the 3rd consecutive; other errors stop at once | nonblocking | fixed, ChatGPT: no actionable issue | `fix/explain-frame-overrun` `3648d595bb384c75b013b48b86176dcc837eb959`; chain `release/chain-overrun` f676fd95c, `release/chain-next` | verify 40928928251 ok, fast-e2e 40928928237 ok; explain-program 25/25, explain-program-card 14/14 locally | no |
+| FX-11 | /explain Focus | On the owner's View only page a program card saved without dx/dy got a NaN box, so a click selected nothing and Focus never appeared; now a missing offset counts as 0 | nonblocking | fixed, ChatGPT: no actionable issue | `fix/explain-viewonly-focus` `56af3889ca742a0c8ac18b488ff77d7097abee74` | verify 40929583443 ok, fast-e2e 40929583420 ok (2nd attempt); explain-program-card 15/15 incl. new 13b (failed on old bundle) | no |
+| FX-25 | Features page pictures | Most pictures were about regularization; Pin Study cramped; owner: diverse, a mix of AI/ML and other fields, no two the same, not cramped | nonblocking | fixed | `release/features-diverse` `903af190f` | verify ok, fast-e2e ok | no (preview only) |
+| FX-26 | Features page | Entries 03 Motion, 09 graphs, 10 CAD were staged; owner B: publish all three | nonblocking | fixed | `release/features-publish` `a2361af81f57660edcff6575e8486fb835c79314` (inside features-diverse) | verify 40911447181 ok, fast-e2e 40911447347 ok, gate 40912782943 ok | no |
+| FX-09 | Buy credits | A very long numeric input became Infinity and enabled Buy; now `purchaseAmount` also requires `Number.isFinite` (ChatGPT review of 80a77f44d) | nonblocking | fixed | `release/buy-credits` `c3d49ac7ea045b6e515298f0c58d6958efcc30cd` | unit case ('9'x400 rejected); verify 40935199557 ok, fast-e2e 40935199453 ok, credits-meter 7/7 | no (preview https://rabbit-hole-web-dev-buy-credits.tryrabbithole.workers.dev) |
+| FX-46 | Buy credits (feature) | Owner request: one dialog and one handler from Settings > AI usage and the usage gauge; Buy only says "Credit purchases are coming soon." | owner request | fixed | `release/buy-credits` `80a77f44d` + c3d49ac7e | as FX-09 | no |
+| FX-35 | Ctrl+K hand-off check | Coverage note: the check covers saved-card context, a restored context chip and the armed Edit target; not every uploaded-file or @-mention path | verification scope | recorded | `test/ctrlk-handoff-check` `90a0008bf893fdf3f9ae99f5038d99c4fd493b6c` | ctrlk-handoff 13/13 locally and in CI (verify 40929848551, fast-e2e 40929848549); fails on old code for both bugs | no |
+
+## Done and deployed
+
+| ID | Feature | Actual / expected | Class | Fix SHA | Checks | Deployed |
+|---|---|---|---|---|---|---|
+| FX-01 | Brief Edit/Generate (Chat) | A losing revision inserted orphan `chat_message_meta` rows, then "UNIQUE constraint failed: chat_message_meta.message_id" broke later Chat writes; now it inserts nothing and returns the stale-revision response | blocking (high) | `2585ee38c` in `a99bd1beee39d003a191cf5e12982e68057c7b0e` | real-SQLite regression (Edit/Generate, Edit/Edit) failed before; gate 40923105567 ok | production 11:19 AM (7-slashfix) |
+| FX-02 | Material brief | Accepted edits were silently truncated to 1,000 characters before generation; now an over-long revision is refused before approval (`brief_too_long`), nothing cut after approval | blocking | `5746a6901` in a99bd1bee | regression failed before; gate ok | production 11:19 AM |
+| FX-03 | Ctrl+K | Ctrl+K closed before Chat accepted; a busy Chat dropped the command; now it stays open with its command and selection and shows the busy text | blocking | `a99bd1bee` | unit regression; e2e check in FX-35 | production 11:19 AM |
+| FX-04 | Ctrl+K | Ctrl+K cleared and consumed Chat's attachment/context; now a hand-off never reads or clears Chat's draft, chips, attachment, image, armed card or Edit target | blocking | `a99bd1bee` | unit regression; e2e check in FX-35 | production 11:19 AM |
+| FX-16a | /explain 9.1 | A program Edit's Proposed tab kept the accepted program on screen; now the candidate program previews (never saved), Apply/Discard unchanged | T9.1 | `50c1356516791294a31e6ce75cf205ee7edf625c` in `7fe96729d` | explain-program-card 15/15; gate 40929943002 ok; ChatGPT static review: no blocking issue | production (8-r1). Genuine Edit verification still outstanding |
+| FX-36 | Manifesto | Consolidated sections per owner (Finish Line into Old Shape, AI-Native Shape into What We Are Building, Continuity renamed The New Era) | owner request | `1ffdea49346374dfcd51b5c6953650ea3a8d615a` in 7fe96729d | verify/fast-e2e ok; gate 40929559958 (chain-manifesto) ok | production (8-r1) |
+| FX-37 | Landing FAQ | Answers shortened to 2-4 sentences | owner request | `38a28eb89a30231fde8d6a4b6e28ab8bd9940aef` in 7fe96729d | verify/fast-e2e ok | production (8-r1) |
+| FX-38 | Release launcher (operator file, outside git) | Re-running after a failed production run skipped the release and would have printed DONE; now it re-runs the failed release job once | blocking (was) | `C:\s\spec\release-queue\release.sh` | used for release 5's recovery | n/a |
+| FX-39 | Production release 5 | Cloudflare assets-upload error (code 10013) failed run 40909329910 and rolled back | external | rerun attempt 2 | success | production 09:26 AM |
+| FX-41 | Review excerpt limit (T9.2) | Reviewer read 1,500 characters per excerpt while the author read more; owner: 4,000 per excerpt, 24,000 total, 16 records unchanged | decision recorded | in `b41daa214` | — | no |
+
+## Intermittent CI failures (watch; a passing rerun is not a diagnosis)
+
+| ID | Check | Seen | Note |
+|---|---|---|---|
+| FX-17 | credits-meter (fast-e2e shard 6) | 9.1 50c13565 ("no test session"), view-only 56af3889c ("SocketError: other side closed") | passed on rerun both times; not diagnosed |
+| FX-18 | pinned-study-kernel | chain-faq fast-e2e 40926824840 ("kernel was not idle within 180 s") | rerun passed; not diagnosed |
+| FX-19 | canvas-editing | 8.2 1370186 (3 whiteboard text-box undo/redo asserts) | rerun 294/294 |
+| FX-20 | pdf-excerpt | header-band 566cc5f79 attempt 1: new Rabbit Hole still `hole_pending` when Open source was pressed | a race also visible on d54dd6a1f; deferred |
+| FX-21 | control-plane subscription.test.js "deadline launcher" | several local runs | timing test; not in CI failures |
+| FX-22 | web genuine-card.test.mjs 50 ms budget; control-plane image-jobs "boundary 2" | local runs under load | timing tests |
+
+## Deferred / optional
+
+| ID | Feature | Item | Class |
+|---|---|---|---|
+| FX-29 | /explain review capture | The review capture player (render/program-render.jsx) still fails a capture on one frame overrun | deferred (T10) |
+| FX-32 | Canvas header band | Saved boards open with content 36 px lower (saved coordinates unchanged) | nonblocking consequence of FX-14, recorded |
+| FX-33 | Rabbit Hole map | Dive.jsx clamp measures the header's children (4 px short of the band) | optional |
+| FX-42 | /explain evidence (T9.2) | Refs attached at job creation are not re-checked for access at Generate (pinned by hash/commit); an Edit that skips the brief shows the learner no unread-source note; `learnerCitation` has no plain name for attachment records | deferred to T9.4 |
+| FX-43 | Manifesto staircase | ResizeObserver watches only the art element; a late article-only height change would not re-measure | optional |
+| FX-44 | Docs | packages/web/design/rabbit-hole-landing.md FAQ section is out of date | optional |
+| FX-47 | Buy credits dialog | Focus is not trapped inside the dialog (shared ConfirmDialog has no trap), so Tab can reach Settings behind it; focus moves in on open and back on close | nonblocking (accessibility; shared component change, not in this release) |
+| FX-45 | /explain 8.3 notes | Reset hidden after button-only state changes; a full action queue must grey its control | in scope of T8.3 |
