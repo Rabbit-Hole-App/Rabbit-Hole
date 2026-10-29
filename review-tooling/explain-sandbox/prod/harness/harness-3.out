@@ -1,0 +1,87 @@
+== isolation proof ==
+  PASS PATH is /usr/bin only
+  PASS git is a stub (/usr/bin/git)
+  PASS gh is a stub (/usr/bin/gh)
+  PASS node is a stub (/usr/bin/node)
+  PASS curl is a stub (/usr/bin/curl)
+  PASS wrangler is a stub (/usr/bin/wrangler)
+  PASS ssh is a refusing stub
+  PASS npx is a refusing stub
+  PASS fly is a refusing stub
+  PASS powershell is a refusing stub
+  PASS cmd is a refusing stub
+  PASS python is a refusing stub
+  PASS no real git/curl/node/ssh in this root
+  PASS no credential-like variable in the environment (MSYSTEM PWD HOME SYSTEMROOT SHLVL PATH WINDIR _ )
+  PASS harness copy differs from production in exactly 2 lines (HERE, TTY)
+  PASS production: one read, only from TTY=/dev/tty (no env/file/flag source)
+== release ==
+  PASS PENDING pin refuses with a one-line fix (rc 1)
+  PASS pending: no mutation, no forbidden or unexpected call
+  PASS release --check passes (rc 0)
+  PASS release --check: no mutation, no forbidden or unexpected call
+  PASS --check wrote no state (pins/state checksums unchanged)
+  PASS --check shows the rollback point it would record
+  PASS release run completes (rc 0)
+  PASS mutation recorded: git push rabbit-hole c59bae9627bb0f531641ffcd3173fb60827a76d6:refs/heads/dev
+  PASS mutation recorded: git push rabbit-hole c59bae9627bb0f531641ffcd3173fb60827a76d6:refs/heads/main
+  PASS mutation recorded: MUTATION git notes
+  PASS rollback point recorded before the push
+  PASS probes, next step and rollback commands printed
+  PASS rerun after success resumes without pushing (rc 0)
+  PASS resume: no mutation, no forbidden or unexpected call
+  PASS main moved: stale pin refuses (rc 1)
+  PASS stale: no mutation, no forbidden or unexpected call
+  PASS failed gate refuses (rc 1)
+  PASS gate: no mutation, no forbidden or unexpected call
+  PASS missing fast-e2e refuses (rc 1)
+  PASS fast-e2e: no mutation, no forbidden or unexpected call
+  PASS dirty worktree refuses (rc 1)
+  PASS dirty: no mutation, no forbidden or unexpected call
+  PASS production not on main refuses (rc 1)
+  PASS outside: no mutation, no forbidden or unexpected call
+  PASS dev not an ancestor refuses (rc 1)
+  PASS dev: no mutation, no forbidden or unexpected call
+  PASS wrong config at the candidate refuses (rc 1)
+  PASS read-back mismatch stops with the rollback options (rc 1)
+  PASS rollback commands printed on failure
+  PASS an EXPLAIN_DIAGNOSTICS binding of any type fails the read-back (rc 1)
+  PASS bad probes stop (rc 1)
+  PASS BASH_ENV override refused (rc 1)
+  PASS bash_env: no mutation, no forbidden or unexpected call
+== generation-off / kill ==
+  PASS generation-off --check passes without a prompt (rc 0)
+  PASS generation-off --check: no mutation, no forbidden or unexpected call
+  PASS no terminal: refuses before any push (rc 1)
+  PASS no tty: no mutation, no forbidden or unexpected call
+  PASS wrong phrase refuses (rc 1)
+  PASS wrong phrase: no mutation, no forbidden or unexpected call
+  PASS generation-off run, read-back ENABLED false KILL false (rc 0)
+  PASS mutation recorded: git push rabbit-hole 9f7060d475d9ee803db5d15236eaf7b3f2678cf3:refs/heads/main
+  PASS generation-off does not overwrite the emergency rollback point
+  PASS flip not a child of the released commit refuses (rc 1)
+  PASS flip touching other files refuses (rc 1)
+  PASS kill run, read-back ENABLED true KILL true (rc 0)
+  PASS the other rollback's phrase does not answer kill (rc 1)
+  PASS kill phrase: no mutation, no forbidden or unexpected call
+== emergency ==
+  PASS no recorded point refuses (rc 1)
+  PASS no point: no mutation, no forbidden or unexpected call
+  PASS emergency --check (rc 0)
+  PASS emergency --check: no mutation, no forbidden or unexpected call
+  PASS emergency --check changed no file
+  PASS emergency wrong phrase refuses (rc 1)
+  PASS emergency wrong: no mutation, no forbidden or unexpected call
+  PASS emergency rollback completes with read-back (rc 0)
+  PASS app rolled back first, then the control plane
+  PASS each rollback runs from its Worker's package
+  PASS rollback message names 'release <sha12>' (the next release sees a named pair)
+  PASS emergency rerun resumes (rc 0)
+  PASS emergency resume: no mutation, no forbidden or unexpected call
+  PASS generation-off after an emergency rollback is allowed (fix forward) (rc 0)
+== prompt cannot be answered by stdin, env or flag ==
+  PASS an extra flag is rejected (rc 2)
+  PASS piped stdin and env variables do not answer the prompt (TTY is assigned in the script) (rc 1)
+  PASS stdin/env: no mutation, no forbidden or unexpected call
+RESULT: 80 passed, 0 failed
+RESULT rc=0

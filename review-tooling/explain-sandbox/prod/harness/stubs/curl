@@ -1,0 +1,5 @@
+#!/usr/bin/bash
+# STUB curl (harness only): fixed public-probe codes, nothing leaves the machine.
+echo "curl $*" >> "$HS/calls.log"
+u=${@: -1}; [ -f "$HS/probe-fail" ] && { printf 500; exit 0; }
+case "$u" in */sign-in|*.com/) printf 200;; */api/learn/usage|*/api/apps) printf 401;; */api/learn/tutor/plan) printf 405;; *) printf 000;; esac

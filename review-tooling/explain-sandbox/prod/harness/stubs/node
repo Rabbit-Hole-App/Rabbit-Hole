@@ -1,0 +1,11 @@
+#!/usr/bin/bash
+# STUB node (harness only): answers the three read-only Cloudflare helpers from $HS files; a wrangler rollback is recorded as MUTATION and simulated.
+echo "node $*" >> "$HS/calls.log"
+case "$*" in
+  *explain-worker-vars.mjs*) cat "$HS/vars";;
+  *explain-bindings.mjs*) cat "$HS/binds";;
+  *cp-served.mjs*) cat "$HS/cp";;
+  *"wrangler rollback"*) echo "MUTATION wrangler rollback $5 (cwd $PWD)" >> "$HS/calls.log"
+     grep -q "\"app_version\":\"$5\"" "$HS/vars-prev" && cp "$HS/vars-prev" "$HS/vars"; grep -q "\"cp_version\":\"$5\"" "$HS/cp-prev" && cp "$HS/cp-prev" "$HS/cp"; exit 0;;
+  *) echo "UNEXPECTED node $*" >> "$HS/calls.log"; exit 97;;
+esac

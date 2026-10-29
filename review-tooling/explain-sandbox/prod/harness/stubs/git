@@ -1,0 +1,20 @@
+#!/usr/bin/bash
+# STUB git (harness only): local answers from $HS files; push/notes are recorded as MUTATION and simulated; anything unknown fails loudly.
+echo "git $*" >> "$HS/calls.log"
+[ "$1" = -C ] && shift 2
+case "$1" in
+  rev-parse) case "$2" in
+      HEAD) cat "$HS/head";; 'HEAD^{tree}') echo tree0000;; --short=8) cut -c1-8 "$HS/head";;
+      rabbit-hole/main) cat "$HS/main";; rabbit-hole/dev) cat "$HS/dev";; *^) cat "$HS/parent";;
+      *) echo "UNEXPECTED git $*" >> "$HS/calls.log"; exit 97;; esac;;
+  status) cat "$HS/status" 2>/dev/null; exit 0;;
+  show) cat "$HS/cfg";;
+  diff) cat "$HS/diff";;
+  fetch) exit 0;;
+  merge-base) grep -qx "$3 $4" "$HS/notanc" 2>/dev/null && exit 1; exit 0;;
+  notes) [ "$3" = show ] && exit 0; echo "MUTATION git $*" >> "$HS/calls.log";;
+  push) echo "MUTATION git $*" >> "$HS/calls.log"; ref=${3:-}
+      case "$ref" in *:refs/heads/main) echo "${ref%%:*}" > "$HS/main"; cp "$HS/vars-after" "$HS/vars"; cp "$HS/cp-after" "$HS/cp"; echo "To rabbit-hole main";;
+                     *:refs/heads/dev) echo "${ref%%:*}" > "$HS/dev"; echo "To rabbit-hole dev";; *) echo "pushed $ref";; esac;;
+  *) echo "UNEXPECTED git $*" >> "$HS/calls.log"; exit 97;;
+esac

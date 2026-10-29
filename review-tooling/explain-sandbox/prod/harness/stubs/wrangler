@@ -1,0 +1,2 @@
+#!/usr/bin/bash
+echo "FORBIDDEN wrangler $*" >> "${HS:-/tmp}/calls.log"; exit 99

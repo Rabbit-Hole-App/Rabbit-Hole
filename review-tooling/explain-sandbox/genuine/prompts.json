@@ -1,0 +1,48 @@
+{
+  "note": "Chosen 2026-10-28 by Agent C, before any genuine run. Ordinary learner phrasing. None matches a fixture (compound interest 'fixture-growth', binary search 'fixture-search'), the landing pendulum, gears, TCP/UDP, heap, dynamic array, rain or the test rate-times-time bar. Structures differ on purpose so the same runtime must be composed differently each time. Run ex1 first, inspect it, then the rest.",
+  "prompts": [
+    {
+      "id": "ex1-cooling",
+      "runId": "sandbox-ex1-a",
+      "structure": "continuous simulation over time with one scalar control",
+      "expects": "playback over time (manifest.duration), one number input (room temperature), a falling curve and a readout of the current temperature",
+      "prompt": "I put a cup of hot coffee in a cold room. Show me how it cools down over time, and let me change the temperature of the room to see how that changes things."
+    },
+    {
+      "id": "ex2-sorting",
+      "runId": "sandbox-ex2-a",
+      "structure": "discrete step-through of an algorithm with a select",
+      "expects": "a select input (which sort), step-by-step playback over a short list of numbers, a readout of comparisons so far",
+      "prompt": "Walk me through how bubble sort and selection sort each put the same short list of numbers in order, one step at a time. I want a way to switch between the two and see which one needs more comparisons."
+    },
+    {
+      "id": "ex3-waves",
+      "runId": "sandbox-ex3-a",
+      "structure": "a graph of a function with two numeric parameters, no time",
+      "expects": "a plotted curve with two number inputs (amplitude, frequency), readouts of the period and the peak value, no playback needed",
+      "prompt": "Draw the graph of y = a sin(b x) for me and let me change a and b myself, so I can see what each one does to the wave."
+    },
+    {
+      "id": "ex4-supply-demand",
+      "runId": "sandbox-ex4-a",
+      "structure": "non-physics (economics): two curves, a computed intersection, two controls",
+      "expects": "supply and demand lines, two number inputs (a demand shift, a tax or cost), a computed equilibrium price and quantity as readouts",
+      "prompt": "Explain supply and demand with a picture where I can make people want more of something, or make it cost more to produce, and see what happens to the price and how much gets sold."
+    },
+    {
+      "id": "ex5-cooling-reworded",
+      "runId": "sandbox-ex5-a",
+      "structure": "the SAME topic as ex1, worded differently, to check the composition is generated and not tied to one wording",
+      "expects": "again a cooling curve with a room-temperature control, but whatever layout, units and readouts the model chooses this time",
+      "prompt": "Why does a mug of tea go cold faster in winter than in summer? I'd like to play with the room temperature and watch the tea's temperature fall."
+    },
+    {
+      "id": "ex6-predator-prey",
+      "runId": "sandbox-ex6-a",
+      "structure": "non-physics (biology): coupled quantities over time, optional extra",
+      "expects": "two population curves over time and a control for how fast the predators multiply",
+      "prompt": "Show me why the number of foxes and the number of rabbits in a forest keep rising and falling in cycles, and let me change how fast the foxes have babies.",
+      "optional": true
+    }
+  ]
+}

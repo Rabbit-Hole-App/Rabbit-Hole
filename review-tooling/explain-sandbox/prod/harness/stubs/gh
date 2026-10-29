@@ -1,0 +1,13 @@
+#!/usr/bin/bash
+# STUB gh (harness only): run states from $HS files; nothing leaves the machine.
+echo "gh $*" >> "$HS/calls.log"
+a="$*"
+case "$1 $2" in
+  "run view") id=$3
+    case "$a" in *"--json status"*) echo completed;; *"--json conclusion"*) cat "$HS/run-$id" 2>/dev/null || echo success;; *"--json jobs"*) echo "gate:success";; *--log*) echo "✓ released $(cat "$HS/main")";; *) exit 97;; esac;;
+  "run list") case "$a" in *verify.yml*) cat "$HS/verify-n";; *fast-e2e.yml*) cat "$HS/fe2e-n";; *deploy-dev.yml*) echo 9001;; *workflowName*) echo 9002;; *) exit 97;; esac;;
+  "run download") D=; S=; while [ $# -gt 0 ]; do case "$1" in -D) D=$2; shift;; -p) S=$2; shift;; esac; shift; done
+    sha=${S#r36-windows-gate-}; sha=${sha%-\*}; mkdir -p "$D/r36-windows-gate-$sha-1/r36/artifacts"
+    printf 'gate for index tree0000\nline\nline\n-DONE\n' > "$D/r36-windows-gate-$sha-1/r36/artifacts/gate.log";;
+  *) echo "UNEXPECTED gh $*" >> "$HS/calls.log"; exit 97;;
+esac
