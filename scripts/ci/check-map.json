@@ -503,6 +503,7 @@
     "packages/web/src/SlashCommandPreview.jsx": ["slash-sheet-check.mjs","slash-3d-check.mjs","motion-command-check.mjs"],
     "packages/web/src/slash-sheet.js": ["slash-sheet-check.mjs","composer-plus-check.mjs","motion-command-check.mjs","slash-3d-check.mjs"],
     "packages/web/src/agent/slash.js": ["slash-core-check.mjs","slash-sheet-check.mjs","composer-plus-check.mjs","dive-check.mjs","slash-cleanup-check.mjs","motion-command-check.mjs","goal-command-check.mjs"],
+    "packages/web/src/material-brief.js": ["slash-cleanup-check.mjs","slash-core-check.mjs","explain-proposal-card-check.mjs"],
     "packages/web/src/learn-slash.js": ["slash-cleanup-check.mjs","slash-core-check.mjs","slash-sheet-check.mjs","motion-command-check.mjs","explain-scene-check.mjs","goal-command-check.mjs"],
     "packages/web/src/GenerationProposalCard.jsx": ["motion-command-check.mjs","cad-controls-check.mjs","explain-proposal-card-check.mjs", "chat-generation-check.mjs"],
     "packages/web/src/cad-review-view.js": ["cad-controls-check.mjs"],

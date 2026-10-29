@@ -4,6 +4,12 @@ Owner brief, 2026-10-12. Implement this spec; don't expand it.
 
 ## Implementation status
 
+**Owner spec 2026-10-29 (slash commands cleanup):** an explicit / command in Ctrl+K is no longer run here. The editor lists Chat's 18
+commands and hands the typed line, about its selection as it is at Send, to Chat's dispatcher (`inline-ai-command.js submission`
+`{ handoff }`, LearnPage `handoff`); Ctrl+K closes and Chat asks, prepares the brief or acts. Nothing is checked, generated or
+staged inline for it, so the explicit `/diagram` native-shapes alias is not reached by a command. Source searches keep this editor's
+finder; plain words (Explain and Edit, automatic routing, native diagrams from words) are unchanged.
+
 **Shipped c044b86a, 2026-10-13** (production, digrabbithole.com), with learn migration 0018. In production the inline
 routes run in rabbit-hole-app (app-worker.js runs dev-worker.js), under that worker's own secrets: TYPESAFE_API_KEY
 for JEV routing and the Anthropic keys for notes and edits. Spend is enforced there, so every paid call, routing

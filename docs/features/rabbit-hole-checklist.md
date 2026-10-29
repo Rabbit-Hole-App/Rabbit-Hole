@@ -320,6 +320,19 @@ on Learn; desktop, mobile, dark; no production-visible mutation from the review
 copy; all browser checks green; final Figma; final whole-branch review; the
 user's visual approval.
 
+## Slash commands cleanup (owner spec 2026-10-29)
+
+Three separate states; a passing unit run or build is not owner testing.
+
+- **Implemented:** yes, on branch `release/slash-cleanup` (18 commands, one Chat/Ctrl+K dispatcher, compact briefs for the seven
+  simple generators, View > Slash Commands; docs/features/rabbit-hole-commands.md "The 18 commands").
+- **Deployed:** no. It needs the full gate (control-plane code changed: chat-proposal-route.js, learn-artifact.js,
+  generation-proposal.js, chat-answer-meta.js) and the release path.
+- **Owner-tested:** no. The owner's 18 per-command checks (spec section 14) are pending after deployment.
+- Known gaps: CAD and Image briefs have no conversational Edit (no chat revision endpoint; they keep their settings controls);
+  a topic-only Rabbit Hole (old `/dive <topic>`) has no entry point; the e2e checks that typed /dive to open a hole need a
+  Start Rabbit Hole rewrite.
+
 ## Deferred
 
 Public Explore backend; real source-owner and fork fields; ranking by forks;

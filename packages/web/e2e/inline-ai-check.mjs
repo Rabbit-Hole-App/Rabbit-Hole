@@ -415,81 +415,52 @@ await run('malicious words inside the selection are data: no command runs, the c
   await context.close();
 });
 
-// MOT-20b: Ctrl+K's /motion is the Chat's /motion turn (proposed on the shared card there): nothing is staged or confirmed here.
-await run('Motion: off is said and never substituted; /motion hands off to the Chat with nothing staged, confirmed or started', async () => {
-  const off = await open('motion-off', both(), { query: '&motion=0' });
-  await clickShape(off.page, 'n23');
-  await ctrlK(off.page);
-  await submitPrompt(off.page, '/motion explain this tree in 20s');
-  await off.page.waitForSelector('[data-inline-decision="unsupported"]');
-  check('Motion off: a plain message, and no other generator ran', /not available/.test(await off.page.locator('[data-inline-decision]').innerText()) && (await calls(off.page, 'artifact')).length === 0 && (await calls(off.page, 'generate')).length === 0);
-  await off.context.close();
+// Owner spec 2026-10-29 4.2: Ctrl+K is another way into Chat's command flow. An explicit command (/motion included) is handed to
+// Chat as its typed line (LearnPage chat.ask, recorded here as the Chat would take it), about this selection, and Ctrl+K closes:
+// nothing is staged, confirmed, checked or generated here. Availability (Motion off) is Chat's to say.
+await run('Motion: /motion is handed to Chat as its typed line about the selection; nothing is staged, confirmed or started here', async () => {
   const { page, context, saved, shot, posts } = await open('motion-on');
   await clickShape(page, 'n23');
   await ctrlK(page);
   await submitPrompt(page, '/motion explain this tree in 20s');
-  await page.locator('[data-inline-notice]').getByText('Sent to Chat: review the proposal there, then Generate.').waitFor({ timeout: 10000 });
-  const handed = await calls(page, 'propose');
-  check('handed to the Chat once: the command, its words and the selection it is about', handed.length === 1 && handed[0].command === 'motion' && handed[0].args === 'explain this tree in 20s' && handed[0].about?.selection?.id === 'n23', JSON.stringify(handed));
-  check('no model call, no ghost card and no confirmation here', (await calls(page, 'generate')).length === 0 && (await calls(page, 'artifact')).length === 0 && await page.locator('[data-ghost-kind="card"], [data-inline-paid], [data-paid-generate]').count() === 0);
+  await page.locator('[data-inline-ai]').waitFor({ state: 'detached', timeout: 10000 });
+  const handed = await calls(page, 'handoff');
+  check('handed to Chat once: the typed line and the selection it is about', handed.length === 1 && handed[0].line === '/motion explain this tree in 20s' && handed[0].about?.selection?.id === 'n23', JSON.stringify(handed));
+  check('no check, no model call, no ghost card and no confirmation here', (await calls(page, 'decide')).length === 0 && (await calls(page, 'generate')).length === 0 && (await calls(page, 'artifact')).length === 0 && await page.locator('[data-ghost-kind="card"], [data-inline-paid], [data-paid-generate]').count() === 0);
   await page.waitForTimeout(800);
   check('nothing on the board and no job request', !(await saved()).blocks.some(block => block.type === 'video') && posts.length === 0, posts.join(','));
   await shot('10-motion-handoff');
   await context.close();
 });
 
-await run('every artifact handler (mocked, real schemas): the preview is that handler\'s card; paid ones wait for Generate', async () => {
+await run('every explicit command is handed to Chat once as its typed line; removed commands are said and sent nowhere', async () => {
   const { page, context } = await open('handlers');
-  // /diagram is the native diagram inline (owner brief 2026-10-13 §5): editable shapes and arrows, not a card. /compare is
-  // not a Ctrl+K command (owner decision 1A, 2026-10-16); /flashcards is, by its command only. /walkthrough is removed (owner,
-  // 2026-10-20): plain words still route to a walkthrough.
-  // /animate is removed too (owner, 2026-10-20: /motion is the animation command, checked below).
-  const expect = { explain: 'explanation', flashcards: 'flashcards', code: 'snippet', diagram: 'diagram', graph: 'graph', image: 'image', video: 'video', '3d': 'scene' };
-  for (const [command, type] of Object.entries(expect)) {
+  // The 18 public commands this canvas offers (image generation is off here, Motion is checked above); /photos is id image.
+  for (const typed of ['explain', 'practice', 'quiz', 'flashcards', 'goal', 'code', 'graph', 'diagram', 'notebook', 'cad', '3d', 'browser', 'photos']) {
+    const before = (await calls(page, 'handoff')).length;
     await clickShape(page, 'n4');
     await ctrlK(page);
-    await submitPrompt(page, `/${command === 'image' ? 'photos' : command} about this`); // the photo search (id image) is typed /photos (owner, 2026-10-26)
-    await waitStatus(page, ['preview', 'proposal']);
-    const kind = await status(page);
-    const got = await page.locator('[data-inline-preview]').first().evaluate(node => node.dataset.cardType || node.dataset.inlinePreview);
-    const paid = ['video', '3d'].includes(command);
-    check(`/${command === 'image' ? 'photos' : command} inline: ${type === 'diagram' ? 'a native diagram' : `a ${type} card`} ${paid ? 'proposal (paid)' : 'preview'}`, got === type && kind === (paid ? 'proposal' : 'preview'), `${kind} ${got}`);
-    await page.locator(paid ? '[data-paid-cancel]' : '[data-inline-reject]').click();
+    await submitPrompt(page, `/${typed} about this`);
+    await page.locator('[data-inline-ai]').waitFor({ state: 'detached', timeout: 10000 });
+    const handed = await calls(page, 'handoff');
+    check(`/${typed}: handed to Chat once with its line and the selection`, handed.length === before + 1 && handed.at(-1).line === `/${typed} about this` && handed.at(-1).about?.selection?.id === 'n4', JSON.stringify(handed.at(-1)));
   }
-  const sent = (await calls(page, 'artifact')).filter(call => call.command !== 'image');
-  check('each handler got the selection and its context', sent.every(call => call.context.target.ids.includes('n4')));
-  for (const [answer, selector] of [['clarification', '[data-inline-clarify]'], ['unsupported', '[data-inline-clarify]'], ['validation', '[data-inline-error]']]) {
-    await clickShape(page, 'n4');
-    await ctrlK(page);
-    await page.evaluate(a => { window.__inlineMock.artifactAnswer = a; }, answer);
-    await submitPrompt(page, '/code this');
-    await page.waitForSelector(selector);
-    check(`a ${answer} answer from the handler is shown as ${selector}, never as a card`, (await page.locator('[data-inline-preview]').count()) === 0);
-    await page.keyboard.press('Escape');
-  }
-  // Typed commands Ctrl+K does not offer (owner decision 1A, 2026-10-16): said in the editor, nothing sent, nothing run.
-  const before = (await calls(page, 'decide')).length;
-  for (const name of ['dive', 'notebook', 'quiz']) {
+  check('no explicit command was checked or generated inline', (await calls(page, 'decide')).length === 0 && (await calls(page, 'artifact')).length === 0 && (await calls(page, 'generate')).length === 0);
+  // The removed commands (owner, 2026-10-20; owner spec 2026-10-29: /dive, /whiteboard, /video): each says it is no longer
+  // available, and nothing is sent or run.
+  const handed = (await calls(page, 'handoff')).length;
+  for (const name of ['dive', 'whiteboard', 'video', 'walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper']) {
     await clickShape(page, 'n4');
     await ctrlK(page);
     await submitPrompt(page, `/${name} x`);
     await page.waitForSelector(`[data-inline-unsupported="${name}"]`);
-    check(`/${name} is not available in Ctrl+K: the editor says so, nothing runs`, (await page.locator('[data-inline-unsupported]').innerText()) === `/${name} isn't available in Ctrl+K.` && (await calls(page, 'decide')).length === before);
-    await page.keyboard.press('Escape');
-  }
-  // The 17 removed commands (owner, 2026-10-20): each says it is no longer available, and nothing is sent or run.
-  for (const name of ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper']) {
-    await clickShape(page, 'n4');
-    await ctrlK(page);
-    await submitPrompt(page, `/${name} x`);
-    await page.waitForSelector(`[data-inline-unsupported="${name}"]`);
-    check(`removed /${name} is unavailable in Ctrl+K: the editor says so, nothing runs`, (await page.locator('[data-inline-unsupported]').innerText()) === `/${name} is no longer available. Type / to see the commands, or ask in your own words.` && (await calls(page, 'decide')).length === before);
+    check(`removed /${name} is unavailable in Ctrl+K: the editor says so, nothing runs`, (await page.locator('[data-inline-unsupported]').innerText()) === `/${name} is no longer available. Type / to see the commands, or ask in your own words.` && (await calls(page, 'decide')).length === 0 && (await calls(page, 'handoff')).length === handed);
     await page.keyboard.press('Escape');
   }
   await context.close();
 });
 
-// ---- Release B (contract B4; owner decisions 1A, 2A, 4A, 2026-10-16): the Ctrl+K / picker, pills, modes, source finder ----
+// ---- Release B (contract B4; owner decisions 1A, 2A, 4A, 2026-10-16; owner spec 2026-10-29): the Ctrl+K / picker, pills, modes, source finder ----
 await run('Ctrl+K / commands: the registry list, keys, typed = picked, pill removal, Edit clears, /explain, source finder keeps the draft', async () => {
   const { page, context } = await open('ctrlk-commands');
   await page.route('**/api/learn/search**', route => route.fulfill({ json: { results: [{ key: 'r1', title: 'Attention heads explained', subtitle: 'A result', why: 'It fits.', item: { id: 'r1' } }] } }));
@@ -497,6 +468,8 @@ await run('Ctrl+K / commands: the registry list, keys, typed = picked, pill remo
   const options = () => page.locator('[data-inline-command-option]').evaluateAll(nodes => nodes.map(node => node.dataset.inlineCommandOption));
   const chosen = () => page.locator('[data-inline-command-option][aria-selected="true"]').getAttribute('data-inline-command-option');
   const lastDecide = async () => { const call = (await calls(page, 'decide')).at(-1); return call && { mode: call.request.mode, prompt: call.request.prompt, kind: call.request.kind, targetIds: call.request.targetIds }; };
+  const lastHandoff = async () => { const call = (await calls(page, 'handoff')).at(-1); return call && { line: call.line, id: call.about?.selection?.id ?? null }; };
+  const closed = () => page.locator('[data-inline-ai]').waitFor({ state: 'detached', timeout: 10000 });
   const focused = () => page.evaluate(() => !!document.activeElement?.matches('[data-inline-prompt]'));
   const fresh = async () => {
     if (await popover(page).count()) { await page.keyboard.press('Escape'); await popover(page).waitFor({ state: 'detached' }); }
@@ -508,7 +481,8 @@ await run('Ctrl+K / commands: the registry list, keys, typed = picked, pill remo
   await page.keyboard.type('/');
   await page.locator('[data-inline-picker]').waitFor();
   const all = await options();
-  check('"/" opens the list: exactly the registry\'s Ctrl+K commands this canvas runs', JSON.stringify(all) === JSON.stringify(['explain', 'flashcards', 'code', 'graph', 'diagram', 'image', 'video', '3d', 'motion', 'youtube', 'arxiv', 'wikipedia']), JSON.stringify(all));
+  // Owner spec 2026-10-29: Chat's 18 commands in its order (image generation is off on this canvas).
+  check('"/" opens the list: exactly Chat\'s commands, in its order', JSON.stringify(all) === JSON.stringify(['explain', 'practice', 'quiz', 'flashcards', 'goal', 'code', 'graph', 'diagram', 'notebook', 'motion', 'cad', '3d', 'browser', 'image', 'youtube', 'arxiv', 'wikipedia']), JSON.stringify(all));
   await page.keyboard.type('gr');
   check('typing filters the list; the first match is highlighted', JSON.stringify(await options()) === '["graph","diagram"]' && await chosen() === 'graph');
   await page.keyboard.press('ArrowDown');
@@ -524,27 +498,27 @@ await run('Ctrl+K / commands: the registry list, keys, typed = picked, pill remo
   await page.keyboard.press('Tab');
   check('Tab picks: the /code pill, the line cleared for its words, Edit switched to Explain, focus kept', (await page.locator('[data-inline-ai] [data-command-pill="code"]').count()) === 1 && await field.inputValue() === '' && await modeOf(page) === 'explain' && await focused());
   await page.keyboard.type('keep these words');
-  await page.getByRole('button', { name: 'Remove Code' }).click();
+  await page.getByRole('button', { name: 'Remove Code example' }).click();
   check('removing the pill keeps the words, the mode and the focus; no command is left', (await page.locator('[data-command-pill]').count()) === 0 && await field.inputValue() === 'keep these words' && await modeOf(page) === 'explain'
     && (await popover(page).getAttribute('data-inline-command')) === null && await focused());
-  // Typed and picked: the same request reaches the check (each in its own editor, so neither reuses the other's result).
+  // Typed and picked: the same line is handed to Chat (each from its own editor), never checked or generated here.
   await field.fill('/code the leaves');
   await page.keyboard.press('Enter');
-  await waitStatus(page, ['preview']);
-  const typed = await lastDecide();
+  await closed();
+  const typed = await lastHandoff();
   await fresh();
   await field.focus();
   await page.keyboard.type('/');
   await page.locator('[data-inline-command-option="code"]').click();
   await page.keyboard.type('the leaves');
   await page.locator('[data-inline-submit]').click();
-  await waitStatus(page, ['preview']);
-  const picked = await lastDecide();
-  check('typed "/code the leaves" and picked /code + "the leaves" (mouse) send the same request', JSON.stringify(typed) === JSON.stringify(picked) && picked.prompt === '/code the leaves' && picked.mode === 'explain', JSON.stringify({ typed, picked }));
+  await closed();
+  const picked = await lastHandoff();
+  check('typed "/code the leaves" and picked /code + "the leaves" (mouse) hand Chat the same line', JSON.stringify(typed) === JSON.stringify(picked) && picked.line === '/code the leaves' && picked.id === 'n23' && (await calls(page, 'decide')).length === 0, JSON.stringify({ typed, picked }));
   // Switching to Edit clears a generation command from the editor and from what is sent.
   await fresh();
   await field.focus();
-  await page.keyboard.type('/graph');
+  await page.keyboard.type('/gra'); // a partial word: Enter picks the highlighted /graph (a full /graph would be sent)
   await page.keyboard.press('Enter');
   await page.keyboard.type('shorter words');
   await pickMode(page, 'edit');
@@ -561,8 +535,8 @@ await run('Ctrl+K / commands: the registry list, keys, typed = picked, pill remo
   check('/explain selects Explain with no pill', (await page.locator('[data-command-pill]').count()) === 0 && (await popover(page).getAttribute('data-inline-command')) === 'explain' && await modeOf(page) === 'explain');
   await page.keyboard.type('why it is a leaf');
   await page.keyboard.press('Enter');
-  await waitStatus(page, ['preview']);
-  check('/explain is still sent to the check', (await lastDecide()).prompt === '/explain why it is a leaf');
+  await closed();
+  check('/explain is handed to Chat as its line', (await lastHandoff()).line === '/explain why it is a leaf');
   // Source search: the finder opens with its query and runs it; no check, no model; the draft and selection survive Esc.
   await fresh();
   const decides = (await calls(page, 'decide')).length, made = (await calls(page, 'generate')).length + (await calls(page, 'artifact')).length;
@@ -933,40 +907,22 @@ await run('prompt limit: the count shows the supported limit; over it nothing is
 });
 
 // ---- Inline command input (review of cf9216b2..5b3552a5): failed on 5b3552a5 ----
-await run('command input: bare /photos, /diagram and /motion use the selection; a routed photo searches it; no subject asks', async () => {
-  const { page, context, saved } = await open('command-input');
+// Owner spec 2026-10-29 4.2 and 5.2: a bare explicit command is handed to Chat with the selection it is about (Chat uses that
+// card as the subject, or asks for one); a routed sentence (no slash) keeps the inline path and searches the selection's words.
+await run('command input: bare /photos, /diagram and /motion are handed to Chat with the selection; a routed photo searches it', async () => {
+  const { page, context } = await open('command-input');
   await page.evaluate(() => { window.__inlineMock.routeAnswers = { 'Show me a real photo of this': { choice: 'image', confidence: 0.95, probabilities: { image: 0.95, note: 0.05 } } }; });
-  // A bare /name: Enter picks it from the open list (its pill), Enter again sends it - the same request the typed line was.
-  const send = async words => { await clickShape(page, 'n23'); await ctrlK(page); await submitPrompt(page, words); if (words.startsWith('/')) await page.keyboard.press('Enter'); await waitStatus(page, ['preview', 'proposal', 'clarify']); };
-  await send('/photos');
-  check('a bare /photos searches the node\'s words, never "/photos"', (await calls(page, 'artifact')).at(-1).args === '23', JSON.stringify((await calls(page, 'artifact')).at(-1).args));
-  await page.locator('[data-inline-reject]').click();
-  await send('Show me a real photo of this');
-  check('a routed photo request searches the node\'s words, not the sentence', (await calls(page, 'artifact')).at(-1).args === '23', JSON.stringify((await calls(page, 'artifact')).at(-1).args));
-  await page.locator('[data-inline-reject]').click();
-  await send('/diagram');
-  check('a bare /diagram draws the selection natively: the shapes route, the selection in its context, never "/diagram" as words', (await calls(page, 'generate')).at(-1).route === 'shapes' && (await calls(page, 'generate')).at(-1).prompt === '' && (await calls(page, 'generate')).at(-1).context.target.ids.includes('n23'));
-  await page.locator('[data-inline-reject]').click();
-  // A bare /motion is handed to the Chat (MOT-20b) about the selection, its concept the selection, never the board title.
-  await clickShape(page, 'n23'); await ctrlK(page); await submitPrompt(page, '/motion'); await page.keyboard.press('Enter');
-  await page.locator('[data-inline-notice]').waitFor({ timeout: 10000 });
-  const handed = (await calls(page, 'propose')).at(-1);
-  check('a bare /motion asks for a video of the selection, its concept the selection, never the board title', handed?.args === 'explain the selected canvas material' && handed.about?.concept === '23'
-    && handed.about?.selection?.id === 'n23' && handed.about.selection.text === '23', JSON.stringify(handed));
-  await context.close();
-  const blank = await open('command-input-blank', { shapes: [{ id: 'blank1', kind: 'rect', x1: 600, y1: 300, x2: 760, y2: 380, color: '#2383e2', width: 2, dash: 'solid', fill: null, opacity: 1, round: true, text: '' }] });
-  for (const [command, asks] of [['/photos', /What should the photo show\?/], ['/diagram', /What should the diagram show\?/], ['/motion', /What should the video explain\?/]]) {
-    await clickShape(blank.page, 'blank1');
-    await ctrlK(blank.page);
-    await submitPrompt(blank.page, command);
-    await blank.page.keyboard.press('Enter');
-    await waitStatus(blank.page, ['clarify']);
-    check(`${command} on a shape with no words asks for the missing input`, asks.test(await blank.page.locator('[data-inline-clarify]').innerText()));
-    await blank.page.keyboard.press('Escape');
-    await blank.page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+  for (const line of ['/photos', '/diagram', '/motion']) {
+    await clickShape(page, 'n23'); await ctrlK(page); await submitPrompt(page, line);
+    await page.locator('[data-inline-ai]').waitFor({ state: 'detached', timeout: 10000 });
+    const handed = (await calls(page, 'handoff')).at(-1);
+    check(`a bare ${line} is handed to Chat as typed, about the node and its words, never the board title`, handed?.line === line && handed.about?.selection?.id === 'n23' && handed.about.selection.text === '23' && handed.about.concept === '23', JSON.stringify(handed));
   }
-  check('nothing was asked of a handler for the shape with no words', (await calls(blank.page, 'artifact')).length === 0 && (await blank.page.locator('[data-paid-generate]').count()) === 0);
-  await blank.context.close();
+  check('no bare command was checked or generated here', (await calls(page, 'artifact')).length === 0 && (await calls(page, 'generate')).length === 0);
+  await clickShape(page, 'n23'); await ctrlK(page); await submitPrompt(page, 'Show me a real photo of this'); await waitStatus(page, ['preview', 'proposal', 'clarify']);
+  check('a routed photo request searches the node\'s words, not the sentence', (await calls(page, 'artifact')).at(-1)?.args === '23', JSON.stringify((await calls(page, 'artifact')).at(-1)?.args));
+  await page.locator('[data-inline-reject]').click();
+  await context.close();
 });
 
 // ---- B1 (review of 2bdeb288..f862f826): words typed in a text box and not saved, then Ctrl+K. Failed on f862f826 ----
@@ -1188,10 +1144,12 @@ await run('A7 edit ghost: the new words pale in place, removed struck through, a
 // ---- A7 ghost preview, cards (owner 2026-10-13: beside the selection, nothing moves). Failed before the card ghost ----
 await run('A7 card ghost: the card pale beside the selection, clear of everything, no card moves; Accept lands it on the ghost', async () => {
   const { page, context, saved } = await open('a7-card');
+  // An explicit /explain goes to Chat now (owner spec 2026-10-29 4.2); the inline card is the automatic route's, so the words are routed.
+  await page.evaluate(() => { window.__inlineMock.routeAnswers = { ...Object.fromEntries(['Make a card about this', 'Make a card about this, again', 'Make a card about this, once more'].map(p => [p, { choice: 'explain', confidence: 0.95, probabilities: { explain: 0.95, note: 0.05 } }])) }; });
   const other = page.locator('[data-block-id="img1"]').first();
   await clickShape(page, 'n4');
   await ctrlK(page);
-  await submitPrompt(page, '/explain about this');
+  await submitPrompt(page, 'Make a card about this');
   await waitStatus(page, ['preview']);
   const ghost = page.locator('[data-ghost-kind="card"]');
   await ghost.waitFor({ timeout: 5000 });
@@ -1228,7 +1186,7 @@ await run('A7 card ghost: the card pale beside the selection, clear of everythin
   // Reject removes a card's ghost.
   await clickShape(page, 'n4');
   await ctrlK(page);
-  await submitPrompt(page, '/explain about this, again');
+  await submitPrompt(page, 'Make a card about this, again');
   await waitStatus(page, ['preview']);
   await page.locator('[data-ghost-kind="card"]').waitFor({ timeout: 5000 });
   await page.locator('[data-inline-reject]').click();
@@ -1236,7 +1194,7 @@ await run('A7 card ghost: the card pale beside the selection, clear of everythin
   check('A7: Reject removes the card ghost', (await page.locator('[data-inline-card-ghost], [data-inline-ghost]').count()) === 0);
   await clickShape(page, 'n4');
   await ctrlK(page);
-  await submitPrompt(page, '/explain about this, once more');
+  await submitPrompt(page, 'Make a card about this, once more');
   await waitStatus(page, ['preview']);
   await page.locator('[data-ghost-kind="card"]').waitFor({ timeout: 5000 });
   await page.keyboard.press('Escape');

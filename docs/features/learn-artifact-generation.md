@@ -119,6 +119,15 @@ server. `drawExplanation` now also refuses a plan with an unknown kind
 `LearnSlash.jsx` and `learn-slash.js` provide the picker in the Learn dock
 composer.
 
+**Owner spec 2026-10-29 (supersedes the More learning tools and per-surface notes below):** `/` lists the 18 commands in three
+sections (Learn, Create, Search; `LEARN_MENU`), each row its typed name and description; there is no More section. The explicit
+brief/Generate boundary: on a Chat canvas an explicit /practice, /quiz, /flashcards, /code, /graph, /diagram or /3d answers with a
+chat turn that prepares its compact brief (`material-brief.js`, no model call); `/api/learn/artifact` runs the same generator, with
+the same primitives, schemas, validators and outputs (Practice keeps challenge, explain_back and quiz; Code makes a Python snippet;
+Notebook stays an empty insert), only at the brief's Generate, from the signed brief's words. The Tutor's create_material and
+Ctrl+K's automatic routing call the route as before, with no brief. /dive, /whiteboard and /video are removed (`REMOVED_COMMANDS`);
+the Tutor keeps whiteboard and video as material tools.
+
 - `/` opens LEARN, then CREATE, in `LEARN_MENU` order.
 - Below them sits a collapsible **More learning tools** section listing every
   other available command. `/more` is a way to reach tools, not a tool, so it

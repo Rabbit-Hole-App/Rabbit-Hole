@@ -2,6 +2,12 @@
 
 Owner rule, 2026-10-06. This is UI only: Tutor routing and Learning behaviour do not read it.
 
+**Display names (owner spec 2026-10-29):** a mark (`CommandMark`) and a pill (`CommandPill`) show the command's typed name without
+the slash (`explain`, `photos` for id image, `image` for id generate-image, `3d`) in the command's tint; the x is named by its title
+(Remove Photo search). The slash stays in typed syntax, copyable examples and saved user lines. /browser takes the purple family the
+removed /whiteboard had (`--cmd-browser-*`); the /dive and /video tokens are gone with their commands, and a saved message naming a
+removed command draws a neutral pill.
+
 | Command | Family |
 |---|---|
 | `/ask` | cyan |

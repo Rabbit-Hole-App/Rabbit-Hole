@@ -55,9 +55,9 @@ test('the same command looks the same everywhere: the / picker, the composer pil
   assert.match(source, /export const COMMAND_TONES = SLASH\.map\(\(command\) => command\.name\);/, 'every command in the registry is toned');
   if (commandTone) { assert.equal(commandTone('explain'), 'explain'); assert.equal(commandTone('quiz'), 'quiz'); assert.equal(commandTone('auto'), null); assert.equal(commandTone('simplify'), null); }
   assert.match(read('./LearnSlash.jsx'), /<CommandMark name=\{item\.name\} className="text-ink" \/>/);
-  // CommandList.jsx draws the same mark (the Agent Bar has none since 2026-10-20). The Slash Commands window draws its own rows (its
-  // search reads Find a command, and below 900px it is a selector: owner spec 2026-10-29 section 7) with the same mark.
-  assert.match(read('./CommandList.jsx'), /<CommandMark name=\{item\.name\} \/>/);
+  // The Slash Commands window draws its own rows (its search reads Find a command, and below 900px it is a selector: owner spec
+  // 2026-10-29 section 7) with the same mark; CommandList.jsx keeps only the palette's search field (the Agent Bar has none).
+  assert.doesNotMatch(read('./CommandList.jsx'), /export default/);
   assert.match(read('./SlashCommandsSheet.jsx'), /<CommandMark name=\{item\.name\} className="text-\[13px\]" \/>/);
   const ask = read('./ask.jsx');
   // The composer pill is the shared CommandPill (Release B: the Chat composer's and Ctrl+K's).

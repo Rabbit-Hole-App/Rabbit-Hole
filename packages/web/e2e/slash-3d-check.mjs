@@ -284,14 +284,15 @@ for (const theme of ['light', 'dark']) {
   });
   const dock = page.locator('[data-chat-pane]');
   const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
-  await step('the selected /3d pill reads 3D, and its x is Remove 3D', async () => {
+  // Owner spec 2026-10-29: the pill reads the typed name (3d); its x is named by the title.
+  await step('the selected /3d pill reads 3d, and its x is Remove 3D scene', async () => {
     await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 20000 });
     await composer().click();
     await composer().fill('/3d ');
     const pill = dock.locator('[data-command-pill="3d"]');
     await pill.waitFor();
-    assert.equal((await pill.innerText()).trim(), '3D');
-    assert.equal(await dock.getByRole('button', { name: 'Remove 3D', exact: true }).count(), 1);
+    assert.equal((await pill.innerText()).trim(), '3d');
+    assert.equal(await dock.getByRole('button', { name: 'Remove 3D scene', exact: true }).count(), 1);
     await dock.screenshot({ path: `${OUT}/light-8-pill.png` });
   });
   await step('a real /3d card on the canvas has the preview\'s card width, body size and DOM, on the same renderer', async () => {

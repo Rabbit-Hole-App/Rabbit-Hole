@@ -5,7 +5,7 @@
 //   0. saved /animate work still renders, first on a fresh page: a maths-animation video card made by /animate and an animation
 //      scene card, nothing regenerated;
 //   1. discovery: the Chat picker lists /motion under Create, "Create an animated explainer video", and no /animate;
-//   2. the selected pill reads Motion (no /) with Remove Motion, picked or typed;
+//   2. the selected pill reads motion (no /; owner spec 2026-10-29: the typed name) with Remove Animated explainer, picked or typed;
 //   3. typed /motion (MOT-20/UI-15, owner messages 39 and 40) is a chat turn: the chat answer (MOCKED /api/learn/ask, a proposal
 //      in answer_meta) draws the generation proposal card: title, Duration, Audio Off with On disabled, the server's credits line
 //      and one Generate, no Cancel; a duration change saves version 2 (MOCKED PUT .../proposal); Duration offers exactly 5 to 60 in
@@ -243,12 +243,12 @@ for (const theme of ['light', 'dark']) {
   const pickerRows = async () => {
     await composer().click(); await composer().fill('/');
     await picker.waitFor();
-    await picker.locator('[data-slash-more]').click();
+    // Owner spec 2026-10-29: three sections hold every command; there is no More section to open.
     return picker.locator('[data-slash-command]').evaluateAll(nodes => nodes.map(node => node.dataset.slashCommand));
   };
   const openWindow = async () => {
-    await openSlashHelp(page); // // Owner brief 2026-10-22: Slash commands left View for the chat composer's slash palette
-    const sheet = page.getByRole('dialog', { name: 'Slash commands' });
+    await openSlashHelp(page); // View > Slash Commands (owner spec 2026-10-29)
+    const sheet = page.getByRole('dialog', { name: 'Slash Commands' });
     await sheet.waitFor();
     return sheet;
   };
@@ -332,11 +332,12 @@ for (const theme of ['light', 'dark']) {
   await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 });
   await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 30000 });
 
-  await step(`${theme}: discovery: /motion is under Create with "Create an animated explainer video"; no /animate`, async () => {
+  await step(`${theme}: discovery: /motion is under Create with its description; no /animate`, async () => {
     const rows = await pickerRows();
     assert.ok(rows.includes('motion') && !rows.includes('animate'), rows.join(' '));
-    assert.ok(rows.indexOf('diagram') < rows.indexOf('motion') && rows.indexOf('motion') < rows.indexOf('flashcards'), `Create order: ${rows.join(' ')}`);
-    assert.equal((await picker.locator('[data-slash-command="motion"]').innerText()).replace(/\s+/g, ' ').trim(), '/motion Create an animated explainer video');
+    // Owner spec 2026-10-29: Create is code, graph, diagram, notebook, image, motion, cad, 3d, browser.
+    assert.ok(rows.indexOf('diagram') < rows.indexOf('motion') && rows.indexOf('motion') < rows.indexOf('cad'), `Create order: ${rows.join(' ')}`);
+    assert.equal((await picker.locator('[data-slash-command="motion"]').innerText()).replace(/\s+/g, ' ').trim(), 'motion Turn a topic into an animated explainer video after reviewing its plan.');
     await picker.locator('[data-slash-command="motion"]').scrollIntoViewIfNeeded();
     await shot('01-picker');
     await composer().fill('/anim');
@@ -346,18 +347,18 @@ for (const theme of ['light', 'dark']) {
     await composer().fill('');
   });
 
-  await step(`${theme}: the selected pill reads Motion, never /motion, picked or typed`, async () => {
+  await step(`${theme}: the selected pill reads motion, never /motion, picked or typed`, async () => {
     await composer().fill('/');
     await picker.locator('[data-slash-command="motion"]').click();
     await pill.waitFor();
-    assert.deepEqual([await pill.getAttribute('data-command-pill'), (await pill.innerText()).trim()], ['motion', 'Motion']);
-    assert.equal(await dock.getByRole('button', { name: 'Remove Motion', exact: true }).count(), 1);
+    assert.deepEqual([await pill.getAttribute('data-command-pill'), (await pill.innerText()).trim()], ['motion', 'motion']);
+    assert.equal(await dock.getByRole('button', { name: 'Remove Animated explainer', exact: true }).count(), 1);
     await shot('02-pill-picked');
-    await dock.getByRole('button', { name: 'Remove Motion', exact: true }).click();
+    await dock.getByRole('button', { name: 'Remove Animated explainer', exact: true }).click();
     await composer().fill('/motion ');
     await pill.waitFor();
-    assert.deepEqual([await pill.getAttribute('data-command-pill'), (await pill.innerText()).trim()], ['motion', 'Motion']);
-    await dock.getByRole('button', { name: 'Remove Motion', exact: true }).click();
+    assert.deepEqual([await pill.getAttribute('data-command-pill'), (await pill.innerText()).trim()], ['motion', 'motion']);
+    await dock.getByRole('button', { name: 'Remove Animated explainer', exact: true }).click();
     await composer().fill('');
   });
 
@@ -700,18 +701,18 @@ for (const theme of ['light', 'dark']) {
     try {
     const listed = await sheet.locator('[data-slash-help]').evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp));
     assert.ok(listed.includes('motion') && !listed.includes('animate'), listed.join(' '));
-    await sheet.locator('[data-slash-help="motion"]').click();
+    await sheet.locator('button[data-slash-help="motion"]').click();
     const card = sheet.locator('[data-slash-card="videoGenerate"]');
     const video = card.locator('video[data-lesson-video]');
     await video.waitFor();
     // The committed clip, fetched once as a plain GET and played from memory.
     assert.ok((await video.getAttribute('src')).startsWith('blob:'), await video.getAttribute('src'));
     assert.deepEqual(seen.slice(before).filter(r => r.path === CLIP).map(r => r.method), ['GET']);
-    assert.equal((await sheet.locator('[data-slash-label]').innerText()).trim(), 'Create an animated explainer video');
-    assert.equal((await sheet.locator('[data-slash-media]').innerText()).trim(), 'AI-generated');
-    assert.match(await sheet.locator('[data-slash-about]').innerText(), /^Creates an animated explainer video card/);
-    assert.match(await sheet.innerText(), new RegExp(`e\\.g\\. ${LINE}`));
-    assert.match(await sheet.locator('[data-slash-sample]').innerText(), /^A real Motion video, made from this example\./);
+    // Owner spec 2026-10-29 section 8.11: the title, description and example, and the sample note.
+    assert.equal((await sheet.locator('[data-slash-label]').innerText()).trim(), 'Animated explainer');
+    assert.match(await sheet.locator('[data-slash-about]').innerText(), /^Turn a topic into an animated explainer video after reviewing its plan\./);
+    assert.equal((await sheet.locator('[data-slash-example]').innerText()).trim(), LINE);
+    assert.match(await sheet.locator('[data-slash-sample]').innerText(), /^Example preview\. Nothing is generated or saved here\. A real Motion video, made from this example\./);
     // Owner message 31: no meta line; the title and sources stay.
     assert.match(await card.innerText(), new RegExp(`${TITLE}[\\s\\S]*Sources: model\\.py:44–45, model\\.py:48–50, model\\.py:62–64, model\\.py:65–71`));
     assert.doesNotMatch(await card.innerText(), /Motion explainer|Not grounded/);

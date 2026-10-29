@@ -6,7 +6,7 @@
 //      explanation and the board saves its result identity, and does not open in Focus (a reload never reveals);
 //   Owner, 2026-10-28: a job this canvas started opens its card in Focus once when ready; Back to canvas dismisses it for good
 //      (steps 3-6 and 8). A job finishing on another canvas opens nothing there or on return (step 7);
-//   3. the picker (Add explanation pill + words) is the same job path;
+//   3. the picker (explain pill + words) is the same job path;
 //   4. Use example (a submitted suggestion) only fills the composer; its Send makes one job;
 //   5. natural language the server routes to explain (chat route, flow direct) is the same job path;
 //   6. a command-bearing Ctrl+K /explain on a selected card: one job (source command) with the card's words as context;
@@ -156,7 +156,7 @@ await step('a reload while it waits shows the same card, creates nothing; ready,
   await page.screenshot({ path: `${OUT}/2-ready.png` });
 });
 
-await step('the picker: the Add explanation pill and its words make the same job', async () => {
+await step('the picker: the explain pill and its words make the same job', async () => {
   const box = composerOf(page);
   await box.click(); await box.fill('/expl');
   await page.locator('[data-slash-command="explain"]').click();

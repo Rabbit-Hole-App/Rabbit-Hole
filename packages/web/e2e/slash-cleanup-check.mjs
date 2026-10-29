@@ -1,18 +1,19 @@
 // The slash-command cleanup (owner, 2026-10-20; docs/features/rabbit-hole-commands.md "Slash-command cleanup"), against the
 // LOCAL stack only, in light and in dark. No model is called: /api/learn/artifact answers one fixed explanation card, photo
 // search answers one fixed photo, the paper's PDF is a fixture, and every other model or Ctrl+K route is aborted and counted.
-//   1. Chat: the picker lists the retained commands (no removed one), /explain and /dive read "Add explanation" and "Open
-//      Rabbit Hole" as menu labels and as pills (no /), picked and typed alike;
+// Owner spec 2026-10-29 (slash commands cleanup): 18 public commands, the same in Chat and Ctrl+K; /dive, /whiteboard and /video
+// are removed and /browser added; rows read the typed name and its description, pills the typed name without the slash.
+//   1. Chat: the picker lists the retained commands (no removed one), and the explain, photos, 3d and browser pills read their typed
+//      names (no /), picked and typed alike;
 //   2. typed /explain makes an explanation card; /photos searches real photos and the card says Sourced;
-//   3. each of the 17 removed commands typed in Chat says it is unavailable and runs nothing; /image and /generate-image too (off);
-//   4. Ctrl+K: its list has no removed command, pills read their labels with no /, /photos is Search photos, and each removed
-//      command typed there says it is unavailable and sends nothing;
-//   5. the Slash commands window lists every retained command, says what each does, and Use example prepares an editable
-//      draft without sending;
+//   3. each removed command typed in Chat says it is unavailable and runs nothing; /image and /generate-image too (off);
+//   4. Ctrl+K: its list is Chat's, pills read their typed names with no /, and each removed command typed there says it is
+//      unavailable and sends nothing;
+//   5. the Slash Commands window (View) lists every retained command and Use example prepares an editable draft without sending
+//      (its previews are slash-sheet-check.mjs's);
 //   6. a saved conversation with old /simplify and /deeper lines opens and shows them as text; cards made by removed commands
 //      (a /compare table, a /walkthrough card) and a paper card with its PDF still open; Sources & evidence opens on its card;
-//   7. the Library bar has no slash commands: no picker, no Auto, a removed one says so;
-//   8. (light only, last) typed /dive <topic> opens a Rabbit Hole about it.
+//   7. the Library bar has no slash commands: no picker, no Auto, a removed one says so.
 // Usage: BASE=http://127.0.0.1:9231 SMALL_CP=http://127.0.0.1:9233 VARS=C:/s/toc-uislash/.dev.vars node e2e/slash-cleanup-check.mjs [shotsDir]
 import { openSlashHelp } from './canvas-menu-helpers.mjs';
 import { chromium } from '@playwright/test';
@@ -40,9 +41,10 @@ const api = async (path, init = {}) => {
 // Owner, 2026-10-26: /photos is the photo search (id image, what /image was), /image the paid generation (id generate-image, off here).
 // Ids stay the data-* attributes; TYPED is what a person types for an id that differs.
 const TYPED = { image: 'photos' };
-const RETAINED = ['dive', 'practice', 'quiz', 'goal', 'explain', 'code', 'graph', 'diagram', 'motion', 'flashcards', 'notebook', 'image', 'youtube', 'arxiv', 'wikipedia', 'whiteboard', 'video', 'cad', '3d'];
-const REMOVED = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper', 'animate'];
-const CTRLK = ['explain', 'flashcards', 'code', 'graph', 'diagram', 'motion', 'image', 'video', 'cad', '3d', 'youtube', 'arxiv', 'wikipedia'];
+const RETAINED = ['explain', 'practice', 'quiz', 'flashcards', 'goal', 'code', 'graph', 'diagram', 'notebook', 'motion', 'cad', '3d', 'browser', 'image', 'youtube', 'arxiv', 'wikipedia'];
+const REMOVED = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper', 'animate', 'dive', 'whiteboard', 'video'];
+// Owner spec 2026-10-29: Ctrl+K offers exactly Chat's commands (it hands each to Chat's dispatcher).
+const CTRLK = RETAINED;
 const removedText = name => `/${name} is no longer available. Type / to see the commands, or ask in your own words.`;
 
 // A small PDF (the paper card's bytes), so the paper opens with no arXiv call.
@@ -113,42 +115,29 @@ async function pass(theme) {
   // (The dark pass may restore a newer thread the light pass made: then a settle wait.)
   await dock.getByText('/simplify the masking step').first().waitFor({ timeout: 10000 }).catch(() => {});
   await page.waitForTimeout(1500);
-  // 1. The Chat picker: retained commands only, every one reachable (More learning tools opened), menu labels.
+  // 1. The Chat picker: the retained commands in their three sections (no More section), rows with the typed name and description.
   await composer().click();
   await composer().fill('/');
   await picker.waitFor();
-  // More learning tools opens on a click, or by itself when the list is scrolled to the end: open it once, either way.
-  // (Clicking scrolls the list, and reaching its end opens the section too, so the click may close it again: retry.)
-  const more = picker.locator('[data-slash-more]');
-  for (let i = 0; i < 4 && !await picker.locator('[data-slash-command="video"]').isVisible(); i += 1) {
-    if (await more.getAttribute('aria-expanded') !== 'true') await more.click();
-    await page.waitForTimeout(400);
-  }
   const rows = await picker.locator('[data-slash-command]').evaluateAll(nodes => nodes.map(node => node.dataset.slashCommand));
   ok(`${theme}: the Chat picker lists every retained command and no removed one`, RETAINED.every(name => rows.includes(name)) && REMOVED.every(name => !rows.includes(name)) && !rows.includes('generate-image'), rows.join(' '));
-  ok(`${theme}: menu labels read Add explanation, Open Rabbit Hole, Search photos, Generate video, Add 3D scene`,
-    (await picker.locator('[data-slash-command="explain"]').innerText()).includes('Add explanation') && (await picker.locator('[data-slash-command="dive"]').innerText()).includes('Open Rabbit Hole')
-    && (await picker.locator('[data-slash-command="image"]').innerText()).includes('Search photos') && (await picker.locator('[data-slash-command="video"]').innerText()).includes('Generate video')
-    && (await picker.locator('[data-slash-command="3d"]').innerText()).includes('Add 3D scene'));
+  ok(`${theme}: rows read explain, photos and 3d with their descriptions, never a /name`,
+    (await picker.locator('[data-slash-command="explain"]').innerText()).startsWith('explain') && (await picker.locator('[data-slash-command="explain"]').innerText()).includes('Understand an idea')
+    && (await picker.locator('[data-slash-command="image"]').innerText()).startsWith('photos') && (await picker.locator('[data-slash-command="3d"]').innerText()).startsWith('3d')
+    && !(await picker.innerText()).includes('More learning tools'));
   await shot('01-chat-picker');
-  // Picked: the pill is the label, never a /name.
+  // Picked: the pill is the typed name, never a /name; its x is named by the title.
   await picker.locator('[data-slash-command="explain"]').click();
   await pill.waitFor();
-  ok(`${theme}: picked /explain is the Add explanation pill`, (await pill.innerText()).trim() === 'Add explanation' && !(await pill.innerText()).includes('/') && await dock.getByRole('button', { name: 'Remove Add explanation', exact: true }).count() === 1);
+  ok(`${theme}: picked /explain is the explain pill`, (await pill.innerText()).trim() === 'explain' && await dock.getByRole('button', { name: 'Remove Explanation', exact: true }).count() === 1);
   await shot('02-pill-explain');
-  await dock.getByRole('button', { name: 'Remove Add explanation', exact: true }).click();
-  await composer().fill('/');
-  await picker.locator('[data-slash-command="dive"]').click();
-  await pill.waitFor();
-  ok(`${theme}: picked /dive is the Open Rabbit Hole pill`, (await pill.innerText()).trim() === 'Open Rabbit Hole' && !(await pill.innerText()).includes('/'));
-  await shot('03-pill-dive');
-  await dock.getByRole('button', { name: 'Remove Open Rabbit Hole', exact: true }).click();
+  await dock.getByRole('button', { name: 'Remove Explanation', exact: true }).click();
   // Typed: the same pills.
-  for (const [name, label] of [['explain', 'Add explanation'], ['dive', 'Open Rabbit Hole'], ['image', 'Search photos'], ['video', 'Generate video'], ['3d', '3D']]) {
+  for (const [name, title] of [['explain', 'Explanation'], ['image', 'Photo search'], ['3d', '3D scene'], ['browser', 'Browser']]) {
     await composer().fill(`/${TYPED[name] || name} `);
     await pill.waitFor();
-    ok(`${theme}: typed /${TYPED[name] || name} is the ${label} pill, no slash`, await pill.getAttribute('data-command-pill') === name && (await pill.innerText()).trim() === label);
-    await dock.getByRole('button', { name: `Remove ${label}`, exact: true }).click();
+    ok(`${theme}: typed /${TYPED[name] || name} is the ${TYPED[name] || name} pill, no slash`, await pill.getAttribute('data-command-pill') === name && (await pill.innerText()).trim() === (TYPED[name] || name));
+    await dock.getByRole('button', { name: `Remove ${title}`, exact: true }).click();
   }
   await composer().fill('');
 
@@ -206,15 +195,15 @@ async function pass(theme) {
   await openCtrlK();
   await field.fill('/');
   const options = await page.locator('[data-inline-command-option]').evaluateAll(nodes => nodes.map(node => node.dataset.inlineCommandOption));
-  ok(`${theme}: Ctrl+K lists its retained commands, no removed one`, CTRLK.every(name => options.includes(name)) && options.every(name => CTRLK.includes(name) || name === 'motion'), options.join(' '));
+  ok(`${theme}: Ctrl+K lists exactly Chat's commands, no removed one`, CTRLK.every(name => options.includes(name)) && options.every(name => CTRLK.includes(name)), options.join(' '));
   await shot('08-ctrlk-list');
-  for (const [name, label] of [['code', 'Code'], ['image', 'Search photos'], ['video', 'Generate video'], ['3d', '3D']]) {
+  for (const [name, title] of [['code', 'Code example'], ['image', 'Photo search'], ['3d', '3D scene'], ['notebook', 'Notebook']]) {
     await field.fill(`/${TYPED[name] || name}`);
     await page.locator(`[data-inline-command-option="${name}"]`).click();
     const chosen = editor.locator(`[data-command-pill="${name}"]`);
-    ok(`${theme}: Ctrl+K /${name} pill reads ${label}, no slash`, await chosen.waitFor({ timeout: 5000 }).then(() => true).catch(() => false) && (await chosen.innerText()).trim() === label);
+    ok(`${theme}: Ctrl+K /${TYPED[name] || name} pill reads ${TYPED[name] || name}, no slash`, await chosen.waitFor({ timeout: 5000 }).then(() => true).catch(() => false) && (await chosen.innerText()).trim() === (TYPED[name] || name));
     if (name === 'image') await shot('09-ctrlk-pill-image');
-    await editor.getByRole('button', { name: `Remove ${label}`, exact: true }).click();
+    await editor.getByRole('button', { name: `Remove ${title}`, exact: true }).click();
   }
   const refused = [];
   const sent = model.length;
@@ -230,32 +219,23 @@ async function pass(theme) {
   ok(`${theme}: and Ctrl+K sends nothing for them`, model.length === sent, model.slice(sent).join(' '));
   await page.keyboard.press('Escape');
 
-  // 5. The Slash commands window.
-  await openSlashHelp(page); // // Owner brief 2026-10-22: Slash commands left View for the chat composer's slash palette
-  const sheet = page.getByRole('dialog', { name: 'Slash commands' });
+  // 5. The Slash Commands window (View): its list and Use example. Its previews are slash-sheet-check.mjs's.
+  await openSlashHelp(page);
+  const sheet = page.getByRole('dialog', { name: 'Slash Commands' });
   await sheet.waitFor();
-  const listed = await sheet.locator('[data-slash-help]').evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp));
+  const listed = [...new Set(await sheet.locator('[data-slash-help]').evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp)))];
   ok(`${theme}: the window lists every retained command and no removed one`, RETAINED.every(name => listed.includes(name)) && REMOVED.every(name => !listed.includes(name)), listed.join(' '));
-  await sheet.locator('[data-slash-help="dive"]').click();
-  ok(`${theme}: /dive says Open Rabbit Hole, opens, and what it needs selected`, (await sheet.locator('[data-slash-label]').innerText()) === 'Open Rabbit Hole' && (await sheet.locator('[data-slash-effect]').innerText()) === 'Opens a Rabbit Hole'
-    && /selected card/.test(await sheet.locator('[data-slash-about]').innerText()));
-  await shot('11-window-dive');
-  await sheet.locator('[data-slash-help="image"]').click();
-  ok(`${theme}: /photos says Search photos, Searches, Sourced`, (await sheet.locator('[data-slash-label]').innerText()) === 'Search photos' && (await sheet.locator('[data-slash-effect]').innerText()) === 'Searches' && (await sheet.locator('[data-slash-media]').innerText()) === 'Sourced');
-  await shot('12-window-image');
-  await sheet.locator('[data-slash-help="video"]').click();
-  ok(`${theme}: /video says Generate video, AI-generated, with its example`, (await sheet.locator('[data-slash-media]').innerText()) === 'AI-generated' && await sheet.getByText('e.g. /video raindrops falling into a pond').count() === 1);
-  await sheet.locator('[data-slash-help="explain"]').click();
+  await sheet.locator('button[data-slash-help="explain"]').click();
   await shot('13-window-explain');
   const posts = model.length + artifacts.length;
   await sheet.locator('[data-slash-use-example="explain"]').click();
   await sheet.waitFor({ state: 'detached', timeout: 5000 });
   await pill.waitFor({ timeout: 5000 });
-  ok(`${theme}: Use example prepares an editable draft (pill and words) and sends nothing`, (await pill.innerText()).trim() === 'Add explanation' && await composer().inputValue() === 'how binary search works' && model.length + artifacts.length === posts);
+  ok(`${theme}: Use example prepares an editable draft (pill and words) and sends nothing`, (await pill.innerText()).trim() === 'explain' && await composer().inputValue() === 'how binary search works' && model.length + artifacts.length === posts);
   await shot('14-use-example-draft');
   await composer().fill('how merge sort works');
   ok(`${theme}: the draft is editable before sending`, await composer().inputValue() === 'how merge sort works' && model.length + artifacts.length === posts);
-  await dock.getByRole('button', { name: 'Remove Add explanation', exact: true }).click();
+  await dock.getByRole('button', { name: 'Remove Explanation', exact: true }).click();
   await composer().fill('');
 
   // 6. Saved content made before the cleanup still opens.
@@ -287,19 +267,7 @@ async function pass(theme) {
   ok(`${theme}: the Library has no bar, no composer and so no slash picker, Auto or command pill`, await page.locator('[data-agent-bar], main textarea, main [data-chat-composer], [role="listbox"]').count() === 0);
   await shot('19-library-no-bar');
 
-  // 8. /dive <topic> opens a Rabbit Hole about it (light only: it leaves the canvas).
-  if (theme === 'light') {
-    await page.goto(`${BASE}/apps/${canvas.name}`);
-    await composer().waitFor({ timeout: 30000 });
-    await page.keyboard.press('Escape');
-    // The hole tree loads after the canvas: /dive runs once the Rabbit Holes Map is there.
-    await page.locator('[data-dive-navigator]').waitFor({ timeout: 30000 });
-    await composer().fill('/dive how cells produce ATP');
-    await composer().press('Enter');
-    ok('light: typed /dive <topic> opens a Rabbit Hole about it', await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 15000 }).then(() => true).catch(() => false), page.url());
-    await page.waitForTimeout(1200);
-    await shot('20-dive-topic');
-  }
+  // (Owner spec 2026-10-29: /dive left the commands; typed, it is refused in step 3 and opens no Rabbit Hole.)
   ok(`${theme}: no page errors`, errors.length === 0, errors.join(' | '));
   await context.close();
 }

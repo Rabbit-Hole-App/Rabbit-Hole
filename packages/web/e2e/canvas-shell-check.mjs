@@ -85,13 +85,13 @@ await page.screenshot({ path: `${OUT}/shell-1-root.png` });
 
 await slash('/dive explain softmax'); await page.waitForFunction(() => location.search.includes('hole=')); await settle();
 await checkShell('pending child');
-await slash('/whiteboard Softmax sketch'); await persisted(); await page.waitForTimeout(600);
+await slash('/notebook'); await persisted(); await page.waitForTimeout(600); // /whiteboard left the commands (owner spec 2026-10-29)
 await checkShell('child'); await stillUsable('child');
 await page.screenshot({ path: `${OUT}/shell-2-child.png` });
 
 const child = new URL(page.url()).pathname;
 await slash('/dive numerical stability'); await page.waitForFunction(() => location.search.includes('hole=')); await settle();
-await slash('/whiteboard Stability sketch'); await persisted(); await page.waitForTimeout(600);
+await slash('/notebook'); await persisted(); await page.waitForTimeout(600);
 await checkShell('grandchild'); await stillUsable('grandchild');
 assert.equal(await page.locator('[data-dive-navigator] [data-dive-level]').count(), 3, 'root, child, grandchild in the navigator');
 await page.screenshot({ path: `${OUT}/shell-3-grandchild.png` });

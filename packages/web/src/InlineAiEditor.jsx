@@ -620,7 +620,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         if (matches.length) setActive(index => (index + (event.key === 'ArrowDown' ? 1 : matches.length - 1)) % matches.length);
         return;
       }
-      if ((event.key === 'Enter' || event.key === 'Tab') && !event.shiftKey && !event.ctrlKey && !event.metaKey && matches.length) { event.preventDefault(); choose(matches[Math.min(active, matches.length - 1)]); return; }
+      // A command typed in full (/notebook) is sent by this Enter, as in Chat (owner spec 2026-10-29 5.3); a partial word is picked.
+      const exact = event.key === 'Enter' && offered.some(command => typedOf(command.name) === query || command.aliases?.includes(query));
+      if ((event.key === 'Enter' || event.key === 'Tab') && !exact && !event.shiftKey && !event.ctrlKey && !event.metaKey && matches.length) { event.preventDefault(); choose(matches[Math.min(active, matches.length - 1)]); return; }
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setPickerShut(true); return; }
     }
     const what = composerKey(event.nativeEvent);

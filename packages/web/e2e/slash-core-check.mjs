@@ -1,6 +1,7 @@
 // Release B lane B1 (C:/s/spec/rel-b.md; owner decisions 1A, 2A, 4A and A4, 2026-10-16), the canvas Chat composer against
 // the LOCAL stack only: the / picker lists the shared registry (a Search section with /youtube, /arxiv and /wikipedia; no
-// /paper row; /video "Generate video"), a typed and a picked command become the same CommandPill, the pill's x keeps the
+// /paper or /video row; owner spec 2026-10-29: each row reads its description and each pill its typed name without the slash),
+// a fully typed /notebook runs on one Enter, a typed and a picked command become the same CommandPill, the pill's x keeps the
 // text, and a source command opens the source finder with its query while the composer keeps its draft: closed with
 // nothing added, the draft and focus come back; after a result is added the command line clears. A typed /paper is a
 // removed command (owner, 2026-10-20): it says so and opens nothing. Search answers come from a route in this check: no Exa
@@ -57,37 +58,48 @@ await picker.waitFor();
 const rows = await picker.locator('[data-slash-command]').evaluateAll(nodes => nodes.map(node => node.dataset.slashCommand));
 ok('the picker has a Search section with /youtube, /arxiv and /wikipedia, in that order', await picker.getByText('Search', { exact: true }).count() === 1
   && rows.indexOf('youtube') >= 0 && rows.indexOf('youtube') < rows.indexOf('arxiv') && rows.indexOf('arxiv') < rows.indexOf('wikipedia'), rows.join(' '));
-ok('their lines read Search YouTube, Search arXiv, Search Wikipedia', await picker.locator('[data-slash-command="youtube"]').innerText().then(t => t.includes('Search YouTube'))
-  && await picker.locator('[data-slash-command="arxiv"]').innerText().then(t => t.includes('Search arXiv')) && await picker.locator('[data-slash-command="wikipedia"]').innerText().then(t => t.includes('Search Wikipedia')));
+ok('their rows read youtube, arxiv, wikipedia with their descriptions', await picker.locator('[data-slash-command="youtube"]').innerText().then(t => t.startsWith('youtube') && t.includes('Find an existing YouTube video'))
+  && await picker.locator('[data-slash-command="arxiv"]').innerText().then(t => t.startsWith('arxiv') && t.includes('Find a research paper')) && await picker.locator('[data-slash-command="wikipedia"]').innerText().then(t => t.startsWith('wikipedia') && t.includes('Find a Wikipedia article')));
+ok('the picker lists the 18 commands this build offers, none removed', ['explain', 'practice', 'quiz', 'flashcards', 'goal', 'code', 'graph', 'diagram', 'notebook', 'cad', '3d', 'browser', 'image', 'youtube', 'arxiv', 'wikipedia'].every(name => rows.includes(name))
+  && !['dive', 'whiteboard', 'video'].some(name => rows.includes(name)), rows.join(' '));
 ok('no /paper row: /arxiv is the one listed paper search', !rows.includes('paper'));
 await page.screenshot({ path: `${OUT}/01-picker-search-section.png` });
 await composer().fill('/vid');
-ok('/video reads Generate video', await picker.locator('[data-slash-command="video"]').innerText().then(t => t.includes('Generate video')));
+ok('/video is gone from the picker (owner spec 2026-10-29)', await picker.locator('[data-slash-command="video"]').count() === 0);
 await composer().fill('/pa');
 ok('typing /pa offers no /paper', await picker.locator('[data-slash-command="paper"]').count() === 0);
+await composer().fill('');
+
+// 1b. Owner spec 2026-10-29 5.3: a command typed in full runs on one Enter (no second "accept the suggestion" step).
+const cards = () => page.locator('[data-block-id]:not([data-chat-block])').count();
+const cardsBefore = await cards();
+await composer().fill('/notebook');
+await composer().press('Enter');
+await page.waitForFunction(n => document.querySelectorAll('[data-block-id]:not([data-chat-block])').length > n, cardsBefore, { timeout: 10000 }).catch(() => {});
+ok('/notebook + one Enter adds an empty notebook', await cards() === cardsBefore + 1 && await composer().inputValue() === '', `${cardsBefore} -> ${await cards()}`);
 await composer().fill('');
 
 // 2. Picked and typed commands are the same pill; its x keeps the text.
 await composer().fill('why softmax');
 await dock.getByRole('button', { name: 'Commands' }).click();
-await dock.locator('[data-slash-search]').pressSequentially('add expl');
+await dock.locator('[data-slash-search]').pressSequentially('explan');
 await dock.locator('[data-slash-search]').press('Enter');
 await pill.waitFor();
-// The pill reads the command's label, never /name: /explain is "Add explanation" (owner, 2026-10-20).
-ok('picking /explain shows the Add explanation pill and keeps the text', await pill.getAttribute('data-command-pill') === 'explain' && (await pill.innerText()).trim() === 'Add explanation' && await composer().inputValue() === 'why softmax', `${await pill.getAttribute('data-command-pill')} ${JSON.stringify(await pill.innerText())} / ${await composer().inputValue()}`);
+// Owner spec 2026-10-29: the pill reads the typed name without the slash (explain); its x is named by the title.
+ok('picking /explain shows the explain pill and keeps the text', await pill.getAttribute('data-command-pill') === 'explain' && (await pill.innerText()).trim() === 'explain' && await composer().inputValue() === 'why softmax', `${await pill.getAttribute('data-command-pill')} ${JSON.stringify(await pill.innerText())} / ${await composer().inputValue()}`);
 await page.screenshot({ path: `${OUT}/02-explain-pill.png` });
-await dock.getByRole('button', { name: 'Remove Add explanation', exact: true }).click();
-ok('Remove Add explanation drops the pill and keeps the text', await pill.count() === 0 && await composer().inputValue() === 'why softmax');
+await dock.getByRole('button', { name: 'Remove Explanation', exact: true }).click();
+ok('Remove Explanation drops the pill and keeps the text', await pill.count() === 0 && await composer().inputValue() === 'why softmax');
 await composer().fill('/explain ');
 await pill.waitFor();
-ok('typing /explain makes the same pill', await pill.getAttribute('data-command-pill') === 'explain' && (await pill.innerText()).trim() === 'Add explanation' && await dock.getByRole('button', { name: 'Remove Add explanation', exact: true }).count() === 1);
-await dock.getByRole('button', { name: 'Remove Add explanation', exact: true }).click();
+ok('typing /explain makes the same pill', await pill.getAttribute('data-command-pill') === 'explain' && (await pill.innerText()).trim() === 'explain' && await dock.getByRole('button', { name: 'Remove Explanation', exact: true }).count() === 1);
+await dock.getByRole('button', { name: 'Remove Explanation', exact: true }).click();
 await composer().fill('');
 
 // 3. A source command opens the finder with its query; the draft waits for the finder.
 await composer().fill('/youtube ');
 await pill.waitFor();
-ok('typing /youtube makes its pill, Search YouTube, Remove Search YouTube', await pill.getAttribute('data-command-pill') === 'youtube' && (await pill.innerText()).trim() === 'Search YouTube' && await dock.getByRole('button', { name: 'Remove Search YouTube', exact: true }).count() === 1);
+ok('typing /youtube makes its pill, youtube, Remove YouTube search', await pill.getAttribute('data-command-pill') === 'youtube' && (await pill.innerText()).trim() === 'youtube' && await dock.getByRole('button', { name: 'Remove YouTube search', exact: true }).count() === 1);
 await composer().fill('attention');
 await composer().press('Enter');
 await finder.waitFor({ timeout: 10000 });
