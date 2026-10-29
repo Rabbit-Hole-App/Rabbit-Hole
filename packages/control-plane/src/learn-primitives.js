@@ -13,6 +13,7 @@ import { VIDEO_SCHEMA, validateVideo } from './learn-video-schema.js';
 import { SCENE_SCHEMA, validateScene } from './learn-scene-schema.js';
 import { validateMathAnimation } from './learn-math-schema.js';
 import { validateToolInput as validateSchema } from './learn-validation.js';
+import { MATH_FORMAT } from './agents/math-format.js';
 import MATH_SCHEMA from '../../math-renderer/math-schema.json' with { type: 'json' };
 
 const text = (maxLength, minLength = 1) => ({ type: 'string', minLength, maxLength });
@@ -41,7 +42,7 @@ const graphSpec = (renderer, spec) => {
 export const PRIMITIVES = {
   explanation: {
     ready: true,
-    about: 'A titled explanation in Markdown with optional folded extras (worked example, misconception). Use $...$ for maths.',
+    about: `A titled explanation in Markdown with optional folded extras (worked example, misconception). ${MATH_FORMAT}`,
     schema: shape({ title: text(120), body: text(2000), more: list(shape({ label: text(40), text: text(800) }), 0, 3) }, ['title', 'body']),
     block: spec => ({ type: 'explanation', title: spec.title, body: spec.body, ...(spec.more?.length ? { more: spec.more } : {}) }),
   },
@@ -70,13 +71,13 @@ export const PRIMITIVES = {
   },
   challenge: {
     ready: true,
-    about: 'A predict-first challenge: the learner commits a guess before the material. expects lists the key ideas a good answer contains; reveal is shown after.',
+    about: 'A predict-first challenge: the learner commits a guess before the material. expects is a JSON array of 2 to 6 short strings, one key idea each, for example "expects": ["First key idea", "Second key idea"], never one string; it lists the key ideas a good answer contains. reveal is shown after.',
     schema: shape({ prompt: text(600), hint: text(300), expects: list(text(200), 2, 6), reveal: text(800) }),
     block: spec => ({ type: 'challenge', prompt: spec.prompt, hint: spec.hint, expects: spec.expects, reveal: spec.reveal, answer: null }),
   },
   explain_back: {
     ready: true,
-    about: 'Ask the learner to explain the idea back in their own words; expects lists the key ideas a good explanation covers.',
+    about: 'Ask the learner to explain the idea back in their own words; expects is a JSON array of 2 to 6 short strings, one key idea each, for example "expects": ["First key idea", "Second key idea"], never one string; it lists the key ideas a good explanation covers.',
     schema: shape({ prompt: text(600), hint: text(300), expects: list(text(200), 2, 6) }),
     block: spec => ({ type: 'challenge', mode: 'explain_back', prompt: spec.prompt, hint: spec.hint, expects: spec.expects, reveal: '', answer: null }),
   },

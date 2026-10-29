@@ -113,6 +113,36 @@ test('a malformed spec gets exactly one repair', async () => {
   assert.equal(stuck.seen.length, 2);
 });
 
+// Replay of the reported failure ("explain_back.expects: expected array"): the model sent expects as one string.
+const explainBack = { prompt: 'Explain softmax in your own words.', hint: 'Think about probabilities.', expects: ['scores become probabilities', 'the outputs sum to 1'] };
+const oneString = { ...explainBack, expects: 'scores become probabilities; the outputs sum to 1' };
+
+test('explain_back states the expects array shape in its tool description, and a valid one is a card with no repair', async () => {
+  const ok = scripted(['make_explain_back', explainBack]);
+  const out = await generateArtifact({}, { command: 'practice', args: 'softmax', allowedPrimitives: ['explain_back'] }, ok);
+  assert.match(ok.seen[0].tools.find(tool => tool.name === 'make_explain_back').description, /"expects": \["First key idea", "Second key idea"\], never one string/);
+  assert.equal(out.result, 'artifact');
+  assert.equal(out.repaired, false);
+  assert.deepEqual([out.block.type, out.block.mode, out.block.answer, out.block.expects], ['challenge', 'explain_back', null, explainBack.expects]);
+  assert.equal(ok.seen.length, 1);
+});
+
+test('expects sent as a string gets the exact field, expected shape and received type in its one repair, which can succeed', async () => {
+  const fixed = scripted(['make_explain_back', oneString], ['make_explain_back', explainBack], ['make_explain_back', explainBack]);
+  const out = await generateArtifact({}, { command: 'practice', args: 'softmax', allowedPrimitives: ['explain_back'] }, fixed);
+  assert.equal(out.result, 'artifact');
+  assert.equal(out.repaired, true);
+  assert.equal(fixed.seen.length, 2, 'one correction, no more');
+  assert.match(fixed.seen[1].messages.at(-1).content[0].content, /explain_back\.expects: expected an array of 2 to 6 strings, got string/);
+});
+
+test('expects still a string after the repair is a validation_error that keeps the precise detail, with no third call', async () => {
+  const stuck = scripted(['make_explain_back', oneString], ['make_explain_back', oneString], ['make_explain_back', explainBack]);
+  const out = await generateArtifact({}, { command: 'practice', args: 'softmax', allowedPrimitives: ['explain_back'] }, stuck);
+  assert.deepEqual([out.result, out.primitive, out.error], ['validation_error', 'explain_back', 'explain_back.expects: expected an array of 2 to 6 strings, got string']);
+  assert.equal(stuck.seen.length, 2);
+});
+
 test('an underspecified request comes back as a clarifying question, not a card', async () => {
   const out = await generateArtifact({}, { command: 'compare', args: 'these' }, scripted(['ask_clarifying_question', { question: 'What would you like to compare?' }]));
   assert.deepEqual(out, { result: 'clarification', question: 'What would you like to compare?' });

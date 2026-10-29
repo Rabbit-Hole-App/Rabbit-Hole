@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { MdInline } from './Md.jsx';
 import { InputWidget } from './SceneControls.jsx';
 import { applyCheck, applyNewAttempt, checkStatus, enterPractice, isPracticing, leavePractice, setActivityAnswer } from './scene-activity.js';
 import { describeInputForLearner } from './scene-inputs.js';
@@ -51,7 +52,7 @@ export default function SceneActivity({ block, onChange, onHeight = null }) {
           Back to explore
         </button>
       </div>
-      <p className="mt-1 text-sm text-ink">{activity.prompt}</p>
+      <p className="mt-1 text-sm text-ink"><MdInline text={activity.prompt} /></p>
       {/* The declared practice state, in the same words the locked controls
           use (describeInputForLearner) - generated from the task's own
           fixedInputs against the scene's input declarations. While practising
@@ -88,7 +89,7 @@ export default function SceneActivity({ block, onChange, onHeight = null }) {
       {submitted && (
         <p data-activity-feedback data-activity-result={status.result}
           className={`mt-2 text-sm ${status.result === 'passed' ? 'text-pass' : 'text-fail'}`}>
-          {status.result === 'passed' ? activity.feedbackPass : activity.feedbackFail}
+          <MdInline text={status.result === 'passed' ? activity.feedbackPass : activity.feedbackFail} />
         </p>
       )}
       {/* Attempt history and New attempt: their own row under the feedback,
