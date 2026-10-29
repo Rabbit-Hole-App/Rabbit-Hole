@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { FEATURES, PAGE_GROUPS } from './features-data.js';
 import { renderCatalogue, visibleFeatures } from './features-catalogue.js';
 
+// Every entry on the page is published, so tests that need a staged one stage a copy of the catalogue.
+const staged = (...ids) => FEATURES.map(f => (ids.includes(f.id) ? { ...f, published: false } : f));
 const pic = (id, mobile = true) => ({ desktop: { src: `${id}-desktop.webp`, w: 1760, h: 1100 }, ...(mobile ? { mobile: { src: `${id}-mobile.webp`, w: 760, h: 980 } } : {}) });
 
 test('the catalogue has the 26 brief entries in order with unique ids', () => {
@@ -13,12 +15,13 @@ test('the catalogue has the 26 brief entries in order with unique ids', () => {
 
 test('production shows only published entries with a picture; preview adds staged ones; no picture is never shown', () => {
   const images = { '01-ai-tutor': pic('01-ai-tutor'), '09-interactive-graphs': pic('09'), '06-notebooks': pic('06', false) };
-  const prod = renderCatalogue(FEATURES, images);
+  const features = staged('09-interactive-graphs');
+  const prod = renderCatalogue(features, images);
   assert.match(prod, /id="ai-tutor"/);
   assert.match(prod, /id="notebooks"/);
   assert.doesNotMatch(prod, /interactive-graphs/); // staged (published: false)
   assert.doesNotMatch(prod, /github-code-graph/); // published, but no picture yet
-  assert.match(renderCatalogue(FEATURES, images, { preview: true }), /id="interactive-graphs"/);
+  assert.match(renderCatalogue(features, images, { preview: true }), /id="interactive-graphs"/);
   assert.equal(renderCatalogue(FEATURES, {}), '');
 });
 
@@ -86,8 +89,8 @@ test('the page shows its 13 entries in section order; production drops staged en
   assert.deepEqual([...preview.matchAll(/<h2 class="feature-group-title">([^<]+)</g)].map(m => m[1]), PAGE_GROUPS.map(g => g.title));
   assert.doesNotMatch(preview, /id="(bidirectional-links|ask-about-selection|canvas-search|edit-with-ai)"/);
   // A section whose entries are all staged renders nothing in production, not an empty heading.
-  const staged = { '09-interactive-graphs': pic('09'), '03-animated-explainer-videos': pic('03'), '01-ai-tutor': pic('01') };
-  const html = renderCatalogue(FEATURES, staged);
+  const explore = PAGE_GROUPS.find(g => g.title === 'Explore ideas in action.').ids;
+  const html = renderCatalogue(staged(...explore), { '09-interactive-graphs': pic('09'), '03-animated-explainer-videos': pic('03'), '01-ai-tutor': pic('01') });
   assert.doesNotMatch(html, /Explore ideas in action/);
   assert.match(html, /Learn from your material/);
 });

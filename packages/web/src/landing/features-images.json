@@ -2,7 +2,7 @@
   "01-ai-tutor": {
     "desktop": {
       "src": "01-ai-tutor-desktop.webp",
-      "w": 1396,
+      "w": 1424,
       "h": 1160
     },
     "mobile": {
@@ -33,34 +33,39 @@
   "05-pdf-reader": {
     "desktop": {
       "src": "05-pdf-reader-desktop.webp",
-      "w": 1232,
-      "h": 1240
+      "w": 1400,
+      "h": 920
     }
   },
   "06-notebooks": {
     "desktop": {
       "src": "06-notebooks-desktop.webp",
-      "w": 1938,
-      "h": 1440
+      "w": 1800,
+      "h": 2069
     }
   },
   "07-pin-study": {
     "desktop": {
       "src": "07-pin-study-desktop.webp",
-      "w": 2060,
-      "h": 1280
+      "w": 1800,
+      "h": 1016
+    },
+    "mobile": {
+      "src": "07-pin-study-mobile.webp",
+      "w": 800,
+      "h": 941
     }
   },
   "08-practice": {
     "desktop": {
       "src": "08-practice-desktop.webp",
-      "w": 1302,
-      "h": 1025
+      "w": 1250,
+      "h": 1052
     },
     "mobile": {
       "src": "08-practice-mobile.webp",
       "w": 800,
-      "h": 1001
+      "h": 1225
     }
   },
   "09-interactive-graphs": {
@@ -104,27 +109,22 @@
   "16-sharing-forking": {
     "desktop": {
       "src": "16-sharing-forking-desktop.webp",
-      "w": 1600,
-      "h": 1409
+      "w": 1800,
+      "h": 1585
     }
   },
   "23-table-of-contents": {
     "desktop": {
       "src": "23-table-of-contents-desktop.webp",
-      "w": 1188,
-      "h": 1380
-    },
-    "mobile": {
-      "src": "23-table-of-contents-mobile.webp",
-      "w": 638,
-      "h": 784
+      "w": 798,
+      "h": 1306
     }
   },
   "24-comments": {
     "desktop": {
       "src": "24-comments-desktop.webp",
       "w": 976,
-      "h": 1270
+      "h": 1286
     }
   }
 }
