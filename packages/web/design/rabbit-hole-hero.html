@@ -84,7 +84,6 @@
     </div>
   </section>
 
-  <div class="cloud-strip" aria-hidden="true"></div>
   <div id="pink-cloud" role="region" aria-labelledby="cloud-title">
     <img id="cloud-motion" src="/landing/typesafe-pink-cloud-loop.gif" width="1440" height="540" alt="" aria-hidden="true" loading="lazy" decoding="async">
     <img id="cloud-still" src="/landing/typesafe-pink-cloud-still.png" width="1440" height="540" alt="" aria-hidden="true" loading="lazy" decoding="async" hidden>
@@ -209,6 +208,7 @@
   const cv = document.getElementById('shaft');
   const bar = document.getElementById('bar');
   const track = document.getElementById('shaft-track');
+  const manifesto = document.getElementById('manifesto-preview');
   const ctx = cv.getContext('2d');
   const wall = document.createElement('canvas');
   wall.width = 520; wall.height = 260;
@@ -355,10 +355,15 @@
     ctx.restore();
   }
 
-  function frame(t, open, titleScale, titleAlpha) {
+  // `under` is how many CSS px of the canvas the black manifesto covers. It rises over the shaft before the
+  // wall has closed (the hole only goes black at ENTER), so the wall dissolves into it over 4x that depth instead
+  // of meeting it at a straight edge. 0 until the manifesto enters, so the opening itself is unchanged.
+  function frame(t, open, titleScale, titleAlpha, under = 0) {
     const K = open * 1.2;                                  // hoisted out of the inner loop
+    const edge = H * (1 - under / cv.clientHeight), fade = 4 * under * H / cv.clientHeight;   // buffer rows
     for (let y = 0, p = 0; y < H; y++) {
       const brow = (y & 3) * 4;
+      const keep = fade > 0 ? clamp((edge - y) / fade) : 1;   // share of wall pixels left lit in this row
       for (let x = 0; x < W; x++, p++) {
         const v = zTab[p] + t;
         const ring  = SIN[(v * RING_K) & SIN_MASK];        // courses of earth rushing past
@@ -367,7 +372,8 @@
         const lum = sTab[p] * K * (0.62 + 0.38 * (0.5 + (tex - 0.5) * dTab[p]));
         // no clamp: the thresholds below already bucket anything outside 0..1
         const lit = lum + (BAYER[brow + (x & 3)] - 0.5) * 0.16;
-        buf32[p] = lit < 0.30 ? C_INK : lit < 0.50 ? C_SLATE : lit < 0.74 ? C_GREY : C_WHITE;
+        const gone = BAYER[(brow + 8 + (x + 2 & 3)) & 15] >= keep;   // ordered dissolve, offset from the grain dither
+        buf32[p] = lit < 0.30 || gone ? C_INK : lit < 0.50 ? C_SLATE : lit < 0.74 ? C_GREY : C_WHITE;
       }
     }
     wctx.putImageData(img, 0, 0);
@@ -393,7 +399,8 @@
     // The camera closes on the title: it grows, then slips past us.
     const near = still ? 1 : 1 / (1 - enter * 0.94);
     const alpha = still ? 1 : 1 - clamp((enter - 0.22) / 0.28);
-    frame(still ? 0.8 : (performance.now() - t0) * 0.00016 + sm * 0.0022, open, near, alpha);
+    const under = cv.getBoundingClientRect().bottom - manifesto.getBoundingClientRect().top;
+    frame(still ? 0.8 : (performance.now() - t0) * 0.00016 + sm * 0.0022, open, near, alpha, under);
     // The title is a fixed object in the shaft: the browser pins it and a scroll-driven
     // CSS animation grows it. Nothing here touches it — driving position or scale from
     // rAF lands a frame behind the scroll, which is exactly what makes type jiggle.
