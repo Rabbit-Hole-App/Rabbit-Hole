@@ -27,7 +27,7 @@ test('first picture eager, the rest lazy; phone source only where a phone crop e
   assert.equal((html.match(/loading="eager"/g) || []).length, 1);
   assert.equal((html.match(/loading="lazy"/g) || []).length, 2);
   assert.equal((html.match(/<source /g) || []).length, 2);
-  assert.match(html, /GitHub repository import &amp; code graph/);
+  assert.match(html, /GitHub import &amp; code graph/);
   assert.match(html, /alt="Tutor discussing a learner's pendulum/);
 });
 
