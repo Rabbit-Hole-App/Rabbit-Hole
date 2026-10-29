@@ -16,6 +16,16 @@
   // Paths come from the parent; keep them relative and inside the workspace.
   const safePath = path => (typeof path === 'string' && path && !path.startsWith('/') && !path.split('/').includes('..') ? path : null);
 
+  // No focus taken from the canvas until the learner presses or types in here. Jupyter focuses its first cell as it opens the
+  // notebook, which took focus from the canvas field being typed in (a Rabbit Hole rename was dropped: dive-check, fast-e2e
+  // 40942008743, focus moved into this frame 30 ms before `loaded`). Blurring afterwards came too late, so script focus is a
+  // no-op until then.
+  const focus = HTMLElement.prototype.focus;
+  HTMLElement.prototype.focus = function () {};
+  const release = () => { HTMLElement.prototype.focus = focus; removeEventListener('pointerdown', release, true); removeEventListener('keydown', release, true); };
+  addEventListener('pointerdown', release, true);
+  addEventListener('keydown', release, true);
+
   // One browser database per card: the files of one notebook card are never in
   // another's. The name is set after config-utils.js writes the page config and
   // before the app bundle (appended by it, loaded async) reads it. This script

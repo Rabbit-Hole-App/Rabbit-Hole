@@ -155,9 +155,7 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
           <p className="mt-2 text-xs text-ink-2">Add code, then run a cell.</p>
         </div>
       ) : <div className="relative min-h-0 flex-1 overflow-hidden rounded-b-xl border-t border-line">
-        {/* Inert until the notebook has started: Jupyter focuses its first cell while it starts, which took focus from
-            whatever the learner was typing in (a Rabbit Hole rename was dropped on blur, CI fast-e2e 40926982735). */}
-        <iframe key={attempt} ref={frame} data-notebook-frame title="Jupyter notebook" src={notebookUrl(workspaceIdFor(block.notebook_id))} className="h-full w-full bg-white" inert={!loaded}
+        <iframe key={attempt} ref={frame} data-notebook-frame title="Jupyter notebook" src={notebookUrl(workspaceIdFor(block.notebook_id))} className="h-full w-full bg-white"
           sandbox="allow-scripts allow-same-origin allow-downloads" allow="clipboard-write"
           onLoad={open} />
         {!loaded && !stalled && <p className="pointer-events-none absolute inset-0 grid place-items-center bg-white text-sm text-ink-2">Starting Python</p>}

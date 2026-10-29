@@ -381,8 +381,9 @@ console.log('flow H ok');
 // ---- F: double-click a level name to rename; Enter saves ----
 // The rename opens as soon as the hole's notebook card is drawn, so usually while it is still starting, and keeps its focus and text
 // through that start-up: Jupyter focuses its first cell as it starts, which blurred the field and dropped the rename (gate 40925212785,
-// fast-e2e 40926982735). NotebookCard keeps the frame inert until the notebook has started. A notebook site that never answers
-// (data-notebook-stalled) leaves nothing to start, so the rename is checked as before.
+// fast-e2e 40926982735). The notebook site's bridge (notebook-canvas/canvas-bridge.js) makes script focus a no-op until the learner
+// presses or types in it; an inert frame did not stop it (fast-e2e 40940868103). This step passes only once the canvas notebook site
+// this build points at carries that bridge. A notebook site that never answers (data-notebook-stalled) leaves nothing to start.
 await page.locator('[data-notebook-frame]').waitFor();
 // What happens to the field, in order (fast-e2e 40940868103: the field was gone with the frame inert): focus moves, the window's blur,
 // the notebook's bridge messages, and the node whose removal took the field (the field itself, or an ancestor that remounted).
