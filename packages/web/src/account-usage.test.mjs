@@ -204,5 +204,9 @@ test('Buy credits (owner, 2026-10-29): Other amount is a positive USD number wit
   for (const [text, amount] of [['20', 20], ['0.5', 0.5], ['12.34', 12.34], [' 7 ', 7]]) assert.equal(purchaseAmount(text), amount, JSON.stringify(text));
   for (const text of ['', '0', '-1', '1.234', 'abc', '1e3', ' ', 'Infinity', '0.00', '12.', '+5', '1,000', 'NaN'])
     assert.equal(purchaseAmount(text), null, JSON.stringify(text));
+  // Owner review of 80a77f44d: 400 digits match the pattern but are Infinity, which must not enable Buy (BuyCreditsDialog
+  // disables Buy while purchaseAmount is null).
+  assert.equal(Number('9'.repeat(400)), Infinity);
+  assert.equal(purchaseAmount('9'.repeat(400)), null);
   assert.equal(checkoutCredits(50), 'Credit purchases are coming soon.');
 });

@@ -82,7 +82,8 @@ export const unknownLine = count => (count > 0 ? `${count} AI request${count ===
 // decimal places ("20", "0.5", "12.34"), else null. No exponent, sign, Infinity or blank.
 export function purchaseAmount(text) {
   const value = String(text).trim();
-  return /^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/.test(value) && Number(value) > 0 ? Number(value) : null;
+  const amount = Number(value); // a very long digit string is Infinity: not an amount
+  return /^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/.test(value) && Number.isFinite(amount) && amount > 0 ? amount : null;
 }
 // The one checkout handler, for both entry points. ponytail: no payment provider yet (Stripe comes later); it charges nothing,
 // adds no credits and never reports a purchase.
