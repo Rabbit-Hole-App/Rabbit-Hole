@@ -1,1 +1,125 @@
-{}
+{
+  "06-notebooks": {
+    "desktop": {
+      "src": "06-notebooks-desktop.webp",
+      "w": 1788,
+      "h": 1848
+    },
+    "mobile": {
+      "src": "06-notebooks-mobile.webp",
+      "w": 800,
+      "h": 594
+    }
+  },
+  "07-pin-study": {
+    "desktop": {
+      "src": "07-pin-study-desktop.webp",
+      "w": 1800,
+      "h": 888
+    }
+  },
+  "08-practice": [
+    {
+      "caption": "Quiz",
+      "desktop": {
+        "src": "08-practice-a-desktop.webp",
+        "w": 1392,
+        "h": 1269
+      },
+      "mobile": {
+        "src": "08-practice-a-mobile.webp",
+        "w": 800,
+        "h": 956
+      }
+    },
+    {
+      "caption": "Flashcards, front then back",
+      "desktop": {
+        "src": "08-practice-b-desktop.webp",
+        "w": 1392,
+        "h": 1734
+      }
+    }
+  ],
+  "09-interactive-graphs": {
+    "desktop": {
+      "src": "09-interactive-graphs-desktop.webp",
+      "w": 1800,
+      "h": 900
+    },
+    "mobile": {
+      "src": "09-interactive-graphs-mobile.webp",
+      "w": 800,
+      "h": 1189
+    }
+  },
+  "10-cad-generation": {
+    "desktop": {
+      "src": "10-cad-generation-desktop.webp",
+      "w": 1740,
+      "h": 1635
+    },
+    "mobile": {
+      "src": "10-cad-generation-mobile.webp",
+      "w": 800,
+      "h": 1092
+    }
+  },
+  "11-rabbit-holes": {
+    "desktop": {
+      "src": "11-rabbit-holes-desktop.webp",
+      "w": 1800,
+      "h": 1573
+    }
+  },
+  "12-bidirectional-links": [
+    {
+      "caption": "Outgoing link",
+      "desktop": {
+        "src": "12-bidirectional-links-a-desktop.webp",
+        "w": 1242,
+        "h": 525
+      }
+    },
+    {
+      "caption": "Backlink on the other canvas",
+      "desktop": {
+        "src": "12-bidirectional-links-b-desktop.webp",
+        "w": 1140,
+        "h": 624
+      }
+    }
+  ],
+  "13-ask-about-selection": {
+    "desktop": {
+      "src": "13-ask-about-selection-desktop.webp",
+      "w": 1800,
+      "h": 407
+    }
+  },
+  "14-edit-with-ai": {
+    "desktop": {
+      "src": "14-edit-with-ai-desktop.webp",
+      "w": 1800,
+      "h": 819
+    }
+  },
+  "16-sharing-forking": [
+    {
+      "caption": "Shared canvas",
+      "desktop": {
+        "src": "16-sharing-forking-a-desktop.webp",
+        "w": 1578,
+        "h": 1242
+      }
+    },
+    {
+      "caption": "The copy in Library",
+      "desktop": {
+        "src": "16-sharing-forking-b-desktop.webp",
+        "w": 1800,
+        "h": 603
+      }
+    }
+  ]
+}
