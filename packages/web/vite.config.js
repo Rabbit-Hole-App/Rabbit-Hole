@@ -4,6 +4,9 @@ import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { AUTH_PATHS } from './src/landing/auth-routes.js';
 import { SUPPORT_PATHS } from './src/landing/support-routes.js';
+import { readFileSync } from 'node:fs';
+import { FEATURES } from './src/landing/features-data.js';
+import { renderCatalogue } from './src/landing/features-catalogue.js';
 
 // Dev proxies /api (and the login pages) to the Rabbit Hole dev control plane so the
 // session cookie lands on localhost (docs/features/rabbit-hole-dev.md). Never production small-cp:
@@ -28,6 +31,16 @@ export default defineConfig({
         if (SUPPORT_PATHS.includes(req.url?.split('?')[0].replace(/\/$/, ''))) req.url = '/design/rabbit-hole-support.html';
         next();
       });
+    },
+  }, {
+    // The static Features catalogue, rendered into its page at build time (src/landing/features-catalogue.js). A preview
+    // build (VITE_COACHING_DEV: dev clones, review builds) also shows staged entries; production (scripts/prod-release.mjs
+    // BUILD_ENV, which never sets it) shows only published ones.
+    name: 'rabbit-hole-features-catalogue',
+    transformIndexHtml: {
+      order: 'pre',
+      handler: (html, ctx) => !ctx.filename.replace(/\\/g, '/').endsWith('/design/rabbit-hole-features.html') ? html
+        : html.replace('<!-- features-catalogue -->', renderCatalogue(FEATURES, JSON.parse(readFileSync(new URL('./src/landing/features-images.json', import.meta.url), 'utf8')), { preview: process.env.VITE_COACHING_DEV === 'true' })),
     },
   }],
   // /assets/* is cache-poisoned on workers.dev (stale edge entries that outlive deploys); /static is virgin
