@@ -61,8 +61,8 @@ FieldDefinition   = { key, label, type: 'text'|'textarea'|'number'|'integer'|'se
 ```
 
 - `review_policy` is separate from settings: an empty `settings: []` never means "no confirmation". `always`: every request is
-  approved. `conditional`: the SERVER decides per request and says why in `review.reasons` (Explain's brief thresholds, CAD's
-  brief-first flag). `none`: a free immediate card. A command with no definition is `always` (fail closed), and a conditional
+  approved. `conditional`: the SERVER decides per request and says why in `review.reasons` (CAD's brief-first flag; Explain was
+  conditional on its brief thresholds until 2026-10-29, when every new Explain request became reviewed). `none`: a free immediate card. A command with no definition is `always` (fail closed), and a conditional
   command with no server answer is required. A model's output can never change any of this (`reviewFor`).
 - Field validation derived from the declarations (`validateSettings`, `fieldProblem`) is the common rule set: type, required,
   min, max, step, options, length, unavailable. Deeper capability checks stay in the existing handler (a CAD parameter's
@@ -74,7 +74,7 @@ FieldDefinition   = { key, label, type: 'text'|'textarea'|'number'|'integer'|'se
 | Command | review_policy | Settings declared | Sections | Notes |
 |---|---|---|---|---|
 | motion | always | aspect_ratio (disabled until the renderer reports its ratios), duration_seconds (select, 5 to 60 in steps of 5, seconds, required), audio (disabled, Narration coming soon) | references, usage | no Cancel (an unanswered proposal starts nothing) |
-| explain | conditional | presentation: static, steps, time, experiment | references, assumptions, usage | no duration or audio |
+| explain | always (owner, 2026-10-29) | presentation: static, steps, time, experiment | references, assumptions, limitations (read only, titled Limitations), usage | no duration or audio; heading Review explanation; Cancel stops the waiting job |
 | cad | conditional | units (read only), parameters (parameter_group) | references, requirements, assumptions, missing_information, limitations, usage | units and the parameter list need a new brief; values do not |
 | generate-image | always, flag IMAGE_GENERATION (off) | model (four, below), then only what that model supports: quality, aspect_ratio, resolution | references, usage | adoption stubs only |
 | video, 3d, animate | always | none | usage (and references) | confirmation migrates later |
@@ -188,7 +188,7 @@ different key is `proposal_used`. Allowance admission, reservations and the job 
 | Command | Old confirmation | New path (Release 1) | Signature or hash | Review policy | Flag |
 |---|---|---|---|---|---|
 | motion | proposal card (v2) | shared card, v3 envelope, schema fields; Edit details saves prompt, title, references; settings save as they change | proposal `sig` (v3, own HMAC label); consumed once by `consumeProposal`; `approvedProposal` = signed title, duration and the pill-free prompt | always | VITE_MOTION as before |
-| explain | proposal card posted by the brief stage; Generate was never enabled (it required Motion's output-card adapter) | shared card, v3; Generate enabled by `startAdapter` = 'job' and approves the existing job; after consume the job authors from the approved title, prompt, assumptions and presentation and from the references the route read | proposal `sig` and `brief_hash` unchanged; the job's `briefHash` is recomputed over the executed brief and the approval records the `review_hash` | conditional (the server's briefDecision) | EXPLAIN_V2_ENABLED as before |
+| explain | proposal card posted by the brief stage; Generate was never enabled (it required Motion's output-card adapter) | shared card, v3; Generate enabled by `startAdapter` = 'job' and approves the existing job; after consume the job authors from the approved title, prompt, assumptions and presentation and from the references the route read | proposal `sig` and `brief_hash` unchanged; the job's `briefHash` is recomputed over the executed brief and the approval records the `review_hash` | always (2026-10-29; the server's briefDecision always requires the brief) | EXPLAIN_V2_ENABLED as before |
 | cad | `PaidConfirm` consent (raw line), then `CadReview` when CAD_BRIEF_FIRST | the consent stays (it authorizes the paid brief); the brief renders through the shared card (`cad-review-view.js` adapter, `settingsMode: 'form'`) with the job's own state, units fixed, parameter values, requirements, assumptions, missing information, limitations and context | the job's `briefHash` approve, revalidation on every brief edit and the 409 re-read are unchanged | conditional (CAD_BRIEF_FIRST, server) | CAD_BRIEF_FIRST as before |
 | generate-image | none (flag off) | declared in the schema with four models; Generate is `generate-image.js` (image/int): posts the signed proposal to the ImageJobs route, polls, places the stored image as the file image card | v3 proposal made by the server (`POST /api/learn/chat/image-proposals`), server quote, `readiness` allowlist (image-jobs.md 6b) | always | IMAGE_GENERATION, off |
 | video, 3d, animate (maths) | `PaidConfirm` with the raw line | deferred, unchanged | job-side only | always | as before |
@@ -225,8 +225,8 @@ tests are deleted only then, in the cleanup commit, with the matrix in the hand-
 - Chat (`generation-proposal-chat.js`): `startAdapter(proposal, ops)` says how a proposal starts ('output', 'job' or null).
 
 Open items: Motion duration above 30 seconds and the aspect ratio options need `feat/motion-settings`; OpenAI and Gemini pricing, the OpenAI
-reference maximum and the other limits listed in section 3 are unresolved; Explain's Cancel needs the job cancel wired to the card's
-`onCancel`; the pill editor replaces the default description editor.
+reference maximum and the other limits listed in section 3 are unresolved; the pill editor replaces the default description editor.
+Explain's Cancel is wired to the job's cancel action (2026-10-29).
 
 ## 13. What the Chat shows around and after Generate (chat generation UX, owner brief 2026-10-25)
 
