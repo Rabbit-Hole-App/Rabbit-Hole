@@ -4643,7 +4643,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // so a viewer can start a Rabbit Hole from that card (docs/features/shared-canvas-rabbit-hole.md). Nothing else
     // of selection is offered there: no pills, no handles, no keys.
     if (tool === 'hand' && readOnly) {
-      // A card control a viewer may operate (index.css [data-view-only]) keeps its press: no pan, no pointer capture.
+      // A card control a viewer may operate (index.css [data-view-only-cards]) keeps its press: no pan, no pointer capture.
       if (event.target.closest?.(VIEW_ONLY_CONTROLS)) return;
       const at = local(event);
       // A lesson card, a chat card or a note: each gets the pill above the shared composer (owner, 2026-10-08). Only a
@@ -5681,7 +5681,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             })}
           </svg>
         )}
-        <div ref={column} data-view-only={readOnly || undefined} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
+        <div ref={column} data-view-only-cards={readOnly || undefined} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
           {/* An answer to a red box, or to a card asked about (float, LearnPage), lives beside it: out of the column flow (no height, no gap), so asking never pushes the slides, the cards or the box down. */}
           {exchanges.map(exchange => (String(exchange.linkFrom).startsWith('area:') || (exchange.linkFrom && exchange.float)
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
