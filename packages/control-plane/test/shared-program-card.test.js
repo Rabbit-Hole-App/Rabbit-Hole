@@ -243,10 +243,10 @@ test('the owner\'s result answer lists its sources per revision, with what was r
   const before = await ownerRead('er_a');
   assert.deepEqual(before.sources, [
     { kind: 'code', repo: 'octo/heat', revision: COMMIT, path: 'sim/cool.py', lines: [21, 40], note: 'Read for this explanation.' },
-    { kind: 'file', title: 'Lab notes.pdf', note: 'Not available to you when this explanation was made. Attach it again, or ask its owner for access.' }]);
+    { kind: 'file', title: 'Lab notes.pdf', sourceId: FILE, range: { page: 2 }, note: 'Not available to you when this explanation was made. Attach it again, or ask its owner for access.' }]);
   assert.equal(JSON.stringify(before.sources).includes('Notes card'), false, 'only the kinds an explanation reads');
   // Apply: the card now names er_a2 and reads its sources; Discard: it still names er_a and reads the base's, after any reload.
-  assert.deepEqual((await ownerRead(edited.identity.resultId)).sources, [{ kind: 'file', title: 'Lab notes.pdf', note: 'Attached, but not read for this explanation.' }]);
+  assert.deepEqual((await ownerRead(edited.identity.resultId)).sources, [{ kind: 'file', title: 'Lab notes.pdf', sourceId: FILE, range: { page: 2 }, note: 'Attached, but not read for this explanation.' }]);
   assert.deepEqual((await ownerRead(a.identity.resultId)).sources, before.sources);
   const link = await f.read(token, 'card-a');
   assert.equal(link.status, 200);

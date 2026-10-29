@@ -1,6 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, ChevronRight, FileCode2 } from 'lucide-react';
 import { groupSources, sourceLabel, sourceTarget } from './card-sources.js';
+import { useChatWorkspace } from './chat-workspace.jsx';
+import { addFileToCanvas, canvasFamilyOf } from './file-to-canvas.js';
+import { wsHeaders } from './api.js';
 
 // The evidence behind a card, one collapsed row under it: "Sources & evidence
 // (N)". Open, it lists the declared sources by type. A code citation opens the
@@ -46,13 +49,19 @@ export default function SourcesDisclosure({ sources, onFile = null, onHeight = n
 function SourceItem({ source, onFile }) {
   const target = sourceTarget(source);
   const label = sourceLabel(source);
+  // A canvas file opens through the Context pane's own opener: the authorized route at its exact revision, revealing its card.
+  const chat = useChatWorkspace(), [failed, setFailed] = useState('');
+  const openFile = target.open === 'source' && canvasFamilyOf(target.ref) && chat?.canvasOps?.insertCard
+    ? () => addFileToCanvas({ ref: target.ref, app: chat.canvas, ops: chat.canvasOps, headers: wsHeaders() }).then(() => setFailed(''), error => setFailed(`Could not open it: ${error.message}. Attach it again, or ask its owner for access.`)) : null;
   const link = 'inline-flex items-center gap-1 text-left text-sm text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent';
   let head;
   if (target.open === 'file' && onFile) {
     head = <button type="button" data-source-file={`${target.path}:${target.line}-${target.lineEnd}`} title="Open in the source panel"
       onClick={() => onFile(target.path, target.line, target.lineEnd, { commit: target.commit, repo: target.repo })}
       className={`${link} font-mono`}><FileCode2 size={13} aria-hidden="true" />{label}</button>;
-  } else if (target.open === 'detail') {
+  } else if (openFile) {
+    head = <button type="button" data-source-open-file={target.ref.sourceId} title="Show this file on the canvas" onClick={openFile} className={link}>{label}</button>;
+  } else if (target.open === 'detail' || target.open === 'source') {
     head = <span className="text-sm">{source.status && <span className="mr-1.5 rounded bg-hover px-1.5 py-0.5 text-xs text-ink-2">{source.status}</span>}{label}</span>;
   } else {
     // Real links: the lesson page intercepts arXiv and Wikipedia ones into its
@@ -67,6 +76,7 @@ function SourceItem({ source, onFile }) {
       {head}
       {source.kind === 'code' && <span className="ml-2 text-xs text-ink-2">{source.repo} @ {source.revision.slice(0, 7)}</span>}
       {source.note && <p className="mt-0.5 text-xs text-ink-2">{source.note}</p>}
+      {failed && <p role="alert" data-source-open-error className="mt-0.5 text-xs text-danger">{failed}</p>}
       {source.sha256 && <p className="mt-0.5 font-mono text-[11px] text-ink-2">sha256 {source.sha256}</p>}
       {source.reproduce && <p className="mt-0.5 text-xs text-ink-2">Reproduce: <code className="font-mono">{source.reproduce}</code></p>}
     </li>
