@@ -149,11 +149,13 @@ test('chips and pane: nothing outside a Learn canvas; This canvas first; an empt
   assert.match(inCanvas(C.ContextChips), /^<div data-context-chips="true"><ul aria-label="Context for this chat"[^>]*><li data-canvas-context="true"/);
   assert.equal(text(inCanvas(C.ContextChips)), 'This canvas');
   const pane = text(inCanvas(C.SourcesPane));
-  // UI-26: no Sources or Materials heading, and Upload sits in the Context header (ContextUpload), never between the files.
-  assert.match(pane, /^No sources yet/);
+  // UI-26: no Sources or Materials heading, and Add context (owner brief 2026-10-29: was Upload) sits in the Context header
+  // (ContextUpload), never between the files. The empty list says a web page URL can be added too.
+  assert.equal(pane, 'No sources yet. Add a PDF, .txt or .md file or a web page URL, or add cards from the canvas to the chat.');
   assert.doesNotMatch(pane, /\d+ files?\b/, 'no count in an empty list');
-  assert.equal(text(inCanvas(C.ContextUpload)), 'Upload');
-  assert.equal(C.renderToStaticMarkup(C.createElement(C.ContextUpload)), '', 'no Upload outside a Learn canvas');
+  assert.equal(text(inCanvas(C.ContextUpload)), 'Add context');
+  assert.match(inCanvas(C.ContextUpload), /^<button [^>]*aria-haspopup="dialog"[^>]*>/, 'it opens the Add context dialog');
+  assert.equal(C.renderToStaticMarkup(C.createElement(C.ContextUpload)), '', 'no Add context outside a Learn canvas');
 });
 
 // materials-remove.md: Remove from Materials. A whole-document chip of a removed document is stale (it would keep
@@ -188,21 +190,23 @@ test('Context rows: Use in this chat, then File options with the full name, Incl
   const { readFileSync } = await import('node:fs');
   const source = readFileSync(new URL('./SourcesPane.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n'); // a Windows checkout has CRLF
   assert.match(source, /<li key=\{key\} data-material-row data-source-id=\{ref\.sourceId\}/, 'one row per file, named by its own source id');
-  assert.match(source, /<span data-material-name title=\{name\} className=\{`min-w-0 truncate/, 'a long name truncates, with the full name as its tooltip');
+  assert.match(source, /<span data-material-name title=\{name\} className=\{`min-w-0 \$\{web \? 'break-words' : 'truncate'\}/, 'a long file name truncates, with the full name as its tooltip; a web page title wraps');
   assert.match(source, /data-material-actions className="flex shrink-0 items-center gap-1 pb-1 pl-7 @\[30rem\]:pb-0 @\[30rem\]:pl-0"/, 'narrow rows put the actions on their own line');
   // Use in this chat: the conversation's attachment, a labelled checkbox.
   assert.match(source, /<input type="checkbox" data-material-action="chat" checked=\{!!item\.attached\} disabled=\{disabled\} onChange=\{onChange\}\s+aria-label=\{`Use \$\{name\} in this chat`\} className=\{BOX\} \/>Use in this chat/);
   assert.match(source, /const toggleChat = item => \{ if \(!item\.attached\) return context\.attach\(item\.ref\); context\.detach\(item\.ref\); onSwitchOff\?\.\(item\.ref\); \};/);
   // File options: the visible label, a popover beside its button (ui.jsx Menu: bounds, outside press, Escape back to the button).
-  assert.match(source, /<button type="button" \{\.\.\.m\.buttonProps\} aria-haspopup="dialog" data-material-action="more" disabled=\{pending\}\s+aria-label=\{`File options for \$\{name\}`\}/);
-  assert.match(source, /<MoreHorizontal size=\{13\} aria-hidden \/>\}File options\r?\n/);
+  // A web page's are Source options (owner brief 2026-10-29).
+  assert.match(source, /const doc = item\.doc, onCanvas = !!doc\?\.attached, page = !!doc\?\.capture, label = page \? 'Source options' : 'File options';/);
+  assert.match(source, /<button type="button" \{\.\.\.m\.buttonProps\} aria-haspopup="dialog" data-material-action="more" disabled=\{pending\}\s+aria-label=\{`\$\{label\} for \$\{name\}`\}/);
+  assert.match(source, /<MoreHorizontal size=\{13\} aria-hidden \/>\}\{label\}\r?\n/);
   assert.match(source, /<Menu portal anchor=\{m\.button\.current\} open onClose=\{m\.onClose\} style=\{style\} className="w-72">/);
   assert.match(source, /setAbove\(r\.bottom \+ 4 \+ h > window\.innerHeight - 8 && r\.top - 4 - h >= 8 \? h : null\);/, 'above its button when there is no room below');
   const order = ['data-material-menu-name', 'data-material-action="context"', 'data-material-action="canvas"', 'data-material-action="remove"'].map(at => source.indexOf(at));
   assert.ok(order.every(at => at > 0) && order.every((at, i) => !i || at > order[i - 1]), `the popover: name, new chats, Add to canvas, Remove (${order})`);
   // Include in new chats: the canvas default, its own setting apart from this chat.
   assert.match(source, /data-material-action="context" checked=\{onCanvas\} disabled=\{pending\} onChange=\{\(\) => onContext\(!onCanvas\)\}/);
-  assert.match(source, />Include in new chats<\/span>\s+<span data-material-menu-note [^>]*>New chats on this canvas start with this file\. Your current chat stays unchanged\.<\/span>/);
+  assert.match(source, />Include in new chats<\/span>\s+<span data-material-menu-note [^>]*>New chats on this canvas start with this \{page \? 'page' : 'file'\}\. Your current chat stays unchanged\.<\/span>/);
   assert.match(source, /onContext=\{on => run\(item, 'context', \(\) => context\.canvasContext\(item\.doc, on\)\)\}/);
   // Add to canvas: this row's PDF (or imported file), a neutral button in the reader, a popover item in the list.
   assert.match(source, /if \(ready && !!pdfKeyOfRef\(ref\) && \(ref\.kind !== 'doc' \|\| doc\?\.kind === 'pdf'\)\) return \(\) => addToCanvas\(ref\);/);

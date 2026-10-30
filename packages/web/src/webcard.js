@@ -104,6 +104,11 @@ export function applyResult(block, result, now = Date.now()) {
 // A Refresh (or a first capture, or Retry of a stopped capture) as the card holds it until the server answers.
 export const startPending = (block, now = Date.now()) => ({ ...block, pending: { manifestId: null, lineage: block.capture?.lineage || block.pending?.lineage || null, status: 'capturing', reason: null, startedAt: now }, failure: null });
 export const lineageOf = block => block.capture?.lineage || block.pending?.lineage || null;
+// Add to canvas from a Context web page (owner brief 2026-10-29 section 4): the card of its saved, approved capture - the status
+// route's Result, never a new capture or screening - and the test for that page's card already on the canvas (its lineage, so a
+// refreshed card counts): revealed, never added twice.
+export const webpageCard = (result, url) => applyResult({ type: 'webpage', url, title: result?.title || url, pending: null, failure: null, scrollTop: 0, scrollLocked: false }, result);
+export const sameWebpageCard = lineage => block => block?.type === 'webpage' && !!lineage && lineageOf(block) === lineage;
 
 // What the highlights route returned, for the capture on show: its own highlights, and how many sit on earlier versions. A
 // list for another version (the route answered for a capture this card does not show) shows nothing and counts it all.

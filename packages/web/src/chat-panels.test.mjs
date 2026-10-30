@@ -42,12 +42,14 @@ test('the page mounts the companion LEFT of Chat, every view mounted while hidde
   assert.doesNotMatch(page, /data-learn-open-map/, 'no Map page to link to');
   assert.match(page, /if \(files\) window\.addEventListener\('small:open-files', showFiles\);\n\s+if \(graph\) window\.addEventListener\('small:open-graph', showGraph\);/);
   // Owner brief 2026-10-16 item 6: the composer has no Explore codebase or Open Context shortcut; the + menu's upload entry is
-  // "Upload Context" with the upload icon, and the Context tab's own button says "Upload".
+  // "Upload Context" with the upload icon. Owner brief 2026-10-29: it and the Context tab's own button ("Add context", was
+  // "Upload") open the one Add context dialog.
   const ask = read('./ask.jsx');
   assert.doesNotMatch(ask, /data-chat-sources|data-explore-codebase|Explore codebase|Open Context|onExploreCodebase/);
-  assert.match(ask, /<MenuItem icon=\{Upload\} data-upload-context onClick=\{\(\) => \{ setPlusOpen\(false\); fileRef\.current\?\.click\(\); \}\}>Upload Context<\/MenuItem>/);
-  // UI-26: the Context header holds the one blue Upload beside Close (CompanionHeader actions), never between the files.
-  assert.match(read('./SourcesPane.jsx'), /<Button variant="action" size="sm" data-materials-upload onClick=\{\(\) => picker\.current\?\.click\(\)\}><Upload size=\{14\} aria-hidden \/> Upload<\/Button>/);
+  assert.match(ask, /<MenuItem icon=\{Upload\} data-upload-context onClick=\{\(\) => \{ setPlusOpen\(false\); setAddContext\(true\); \}\}>Upload Context<\/MenuItem>/);
+  assert.match(ask, /\{addContext && chat && <AddContextDialog onClose=/);
+  // UI-26: the Context header holds the one blue Add context beside Close (CompanionHeader actions), never between the files.
+  assert.match(read('./SourcesPane.jsx'), /<Button variant="action" size="sm" data-materials-upload aria-haspopup="dialog" onClick=\{\(\) => setOpen\(true\)\}><Plus size=\{14\} aria-hidden \/> Add context<\/Button>\r?\n\s+\{open && <AddContextDialog onClose=/);
   assert.match(page, /<CompanionHeader [^\n]*actions=\{companionView === 'context' \? <ContextUpload \/> : null\} \/>/);
   assert.doesNotMatch(page, /data-companion-return|Back to \{/, 'no Back to graph or Back to files');
   const header = read('./PanelHeader.jsx');

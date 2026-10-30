@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { repositoryUrl } from './card-sources.js';
-import { removeContextDoc, toggleContextDoc, uploadContextDoc, useContextDocs } from './context-docs.js';
+import { addContextUrl, removeContextDoc, toggleContextDoc, uploadContextDoc, useContextDocs } from './context-docs.js';
 // ui.jsx's toast, by its event: importing the JSX kit would keep this module out of plain-node tests (selection-ref.test.mjs).
 const toast = message => window.dispatchEvent(new CustomEvent('small:toast', { detail: { message: String(message) } }));
 
@@ -11,7 +11,9 @@ const toast = message => window.dispatchEvent(new CustomEvent('small:toast', { d
 //        flight; doc is the context-docs row { id, name, kind: 'pdf' | 'text', size, created_at } behind a doc:<id> ref),
 //     attached: ContextRef[] (this conversation's; sent as context_refs), attach(ref), detach(ref), isAttached(ref), upload(file),
 //     remove(doc) (Remove from Materials, materials-remove.md: throws the server's reason),
-//     canvasContext(doc, on) (the row's canvas-level switch; never attaches to this chat; throws the server's reason) }
+//     canvasContext(doc, on) (the row's canvas-level switch; never attaches to this chat; throws the server's reason),
+//     addUrl(url) (Add context with a web address: a row in flight, then its document; resolves with it, throws the reason),
+//     refresh(doc) (a web page's explicit Refresh; throws the reason, the last good version stays) }
 // One store: the canvas context documents behind /api/learn/context (context-docs.js). attached is per conversation:
 // a restored thread keeps its own thread.restore.contextRefs; a New chat (thread id null) starts from the docs switched on
 // in the Files panel, the current canvas context (lead, 2026-10-14), and nothing else of the previous thread. Detaching
@@ -134,6 +136,7 @@ export function useChatContext(canvas, thread) {
   useEffect(() => {
     for (const ref of attached) if (staleRef(ref, removed)) dispatch({ type: 'detach', ref });
   }, [removed, attached]);
+  // Uploads and pages in flight, each on the canvas it started on: a late answer never shows on another canvas.
   const [uploads, setUploads] = useState([]);
   const attach = useCallback(ref => edit({ type: 'attach', ref }), [edit]);
   const detach = useCallback(ref => edit({ type: 'detach', ref }), [edit]);
@@ -168,12 +171,34 @@ export function useChatContext(canvas, thread) {
     const id = `upload:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
     const ref = { sourceId: id, kind: 'doc', name: file.name.slice(0, 120), version: '', range: null };
     const dismiss = () => setUploads(previous => previous.filter(item => item.id !== id));
-    setUploads(previous => [{ id, ref, state: 'uploading', retry: () => send(file, id), dismiss }, ...previous]);
+    setUploads(previous => [{ id, canvas, ref, state: 'uploading', retry: () => send(file, id), dismiss }, ...previous]);
     await send(file, id);
-  }, [send]);
+  }, [send, canvas]);
+  // Add context with a web address (owner brief 2026-10-29): the row reads processing while the page is captured and checked,
+  // then becomes its document, which rides this chat as an upload does - only if the learner is still in the conversation that
+  // asked. A failure stays on the row with Retry. Closing the dialog cancels nothing.
+  const addUrl = useCallback(async url => {
+    const startedIn = key.current, id = `url:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+    const ref = { sourceId: id, kind: 'web', name: String(url).trim().slice(0, 120), version: '', range: null };
+    const run = async () => {
+      setUploads(previous => previous.map(item => (item.id === id ? { ...item, state: 'processing', error: undefined } : item)));
+      try {
+        const doc = await addContextUrl(canvas, url);
+        setUploads(previous => previous.filter(item => item.id !== id));
+        if (doc && sameChat(startedIn)) { offered.current.add(`doc:${doc.id}`); edit({ type: 'attach', ref: docRef(doc) }); }
+        return doc;
+      } catch (error) {
+        setUploads(previous => previous.map(item => (item.id === id ? { ...item, state: 'failed', error: error.message } : item)));
+        throw error;
+      }
+    };
+    setUploads(previous => [{ id, canvas, url, ref, state: 'processing', retry: () => run().catch(() => {}), dismiss: () => setUploads(rest => rest.filter(item => item.id !== id)) }, ...previous]);
+    return run();
+  }, [canvas, edit, sameChat]);
+  const refresh = useCallback(doc => addContextUrl(canvas, doc.capture.url, { id: doc.id, lineage: doc.capture.lineage }), [canvas]);
   return useMemo(() => ({
-    items: contextItems(docs, attached, uploads, removing), attached, detach, upload, remove, canvasContext,
+    items: contextItems(docs, attached, uploads.filter(item => item.canvas === canvas), removing), attached, detach, upload, addUrl, refresh, remove, canvasContext,
     attach: ref => { if (attached.length >= MAX_REFS && !attached.some(item => sameRef(item, ref))) toast(`✗ A chat holds up to ${MAX_REFS} attachments. Remove one first.`); else attach(ref); },
     isAttached: ref => attached.some(item => sameRef(item, ref)),
-  }), [docs, attached, uploads, removing, attach, detach, upload, remove, canvasContext]);
+  }), [docs, attached, uploads, removing, attach, detach, upload, addUrl, refresh, remove, canvasContext, canvas]);
 }
