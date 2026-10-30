@@ -22,6 +22,7 @@ import { validateCoachingRecord } from '../../web/src/learn-coaching-contract.js
 import { EXPLAIN_BACK_KIND, answerReadiness, priorFeedbackRefs, validateExplainBackAnswer } from '../../web/src/explain-back-contract.js';
 import { CITATION_MAX, REPOSITORY_SOURCE, citationRef, citationsOverlap, isRepositorySource } from '../../web/src/learn-codebase-goals.js';
 import { sha256Hex } from './learn-grade-jev.js';
+import { freezeSnapshots, ownAttemptAssets } from './learn-attempt-assets.js';
 
 export class AttemptError extends Error {
   constructor(code, status = 409, detail = null) { super(`attempt: ${code}`); this.name = 'AttemptError'; this.code = code; this.status = status; this.detail = detail; }
@@ -84,7 +85,7 @@ const operations = async (env, attemptId) => (await env.LEARN_DB.prepare('SELECT
 const handle = (attempt, op, replayed) => ({ attemptId: attempt.id, assessmentId: op.id, status: op.status, replayed });
 
 /** Save one submission before anything evaluates it. @returns {Promise<{attemptId: string, assessmentId: string, status: string, replayed: boolean}>} */
-export async function acceptAttempt(env, actor, submission, { now = () => new Date().toISOString() } = {}) {
+export async function acceptAttempt(env, actor, submission, { now = () => new Date().toISOString(), snapshots = null } = {}) {
   const shape = validateCoachingRecord('SubmitAttempt', submission);
   if (!shape.ok) throw invalid('invalid_submission', shape.errors.slice(0, 3));
   const { activityId, activityRevision, submissionKey, submittedContent: content, sourceRefs, assistanceRefs } = submission;
@@ -98,8 +99,13 @@ export async function acceptAttempt(env, actor, submission, { now = () => new Da
     if (row.content_hash !== hash) throw new AttemptError('submission_key_conflict', 409);
     return handle(row, (await operations(env, row.id)).at(-1), true);
   };
+  // Explain-back: the board-held inputs' frozen copies, kept before the attempt (and so before any dispatch); content-addressed,
+  // so a replay or a refused submission leaves nothing a later attempt could not have stored itself.
+  const keepSnapshots = async () => {
+    try { return await freezeSnapshots(env, actor, content, snapshots); } catch (error) { if (error instanceof TypeError) throw invalid('invalid_snapshots', error.message); throw error; }
+  };
   const existing = await byKey(env, actor, submissionKey);
-  if (existing) return replay(existing);
+  if (existing) { if (existing.content_hash === hash) await keepSnapshots(); return replay(existing); }
 
   const activity = await ownActivity(env, actor, activityId);
   if (!activity) throw new AttemptError('unknown_activity', 404);
@@ -108,6 +114,8 @@ export async function acceptAttempt(env, actor, submission, { now = () => new Da
   const kind = activity.response_kind;
   if (!isObj(content) || (CONTENT[kind] && !CONTENT[kind](content))) throw invalid('invalid_content', `a ${kind} answer needs ${kind === 'text' ? 'text' : kind === 'choice' ? 'optionId' : 'a JSON object'}`);
   const serverHelp = kind === EXPLAIN_BACK_KIND ? await explainBackAnswer(env, actor, activity, content) : [];
+  if (kind === EXPLAIN_BACK_KIND) await keepSnapshots();
+  else if (snapshots != null) throw invalid('invalid_snapshots', 'only an Explain-back answer freezes board inputs');
   // The criterion versions the activity names, frozen on the attempt; each must be one of the goal's criteria.
   const criterionRefs = JSON.parse(activity.criterion_refs_json);
   const known = new Set((await env.LEARN_DB.prepare('SELECT criterion_id, version FROM learn_goal_criteria WHERE goal_id = ?').bind(activity.goal_id).all())
@@ -348,7 +356,7 @@ export async function bindExplainBackCard(env, actor, { cardId, prompt, expects 
       env.LEARN_DB.prepare('UPDATE learn_goals SET scope_version = ?, activity_id = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND org = ? AND owner_user_id = ? AND scope_version = ?')
         .bind(scope, activityId, at, goalId, actor.org, actor.userId, from),
       ...criteria.map((c, i) => env.LEARN_DB.prepare(`INSERT INTO learn_goal_criteria (goal_id, scope_version, criterion_id, version, position, label, requirement, requires_reasoning, requires_transfer, rubric_version, skill_key, created_at)
-        SELECT ?, ?, ?, 1, ?, ?, ?, 0, 0, ?, NULL, ? WHERE ${mine} ON CONFLICT DO NOTHING`)
+        SELECT ?, ?, ?, 1, ?, ?, ?, 1, 0, ?, NULL, ? WHERE ${mine} ON CONFLICT DO NOTHING`)
         .bind(goalId, scope, c.criterionId, i, c.label, c.requirement, EB_RUBRIC, at, goalId, scope, activityId)),
       env.LEARN_DB.prepare(`INSERT INTO learn_activities (id, goal_id, org, owner_user_id, revision, status, objective, prompt, response_kind, criterion_refs_json, source_refs_json, checkpoint_json, created_at, updated_at)
         SELECT ?, ?, ?, ?, 1, 'in_progress', 'Explain back', ?, ?, ?, '[]', ?, ?, ? WHERE ${mine} ON CONFLICT (id) DO NOTHING`)
@@ -358,15 +366,19 @@ export async function bindExplainBackCard(env, actor, { cardId, prompt, expects 
   throw new AttemptError('card_busy', 409);
 }
 
+// An answer's shape and scope, with the refusal a learner can act on.
+function answerShape(answer, actor, cardId, code) {
+  const shape = validateExplainBackAnswer(answer, { board: actor.board, cardId });
+  if (shape.ok) return;
+  if (shape.errors.some(e => e.includes('cross_scope_evidence'))) throw new AttemptError('cross_scope_evidence', 403);
+  if (shape.errors.some(e => e.includes('self_reference'))) throw invalid('self_reference');
+  throw invalid(code, shape.errors.slice(0, 3));
+}
+
 // Explain-back answer rules at submission, after the generic ones. Returns the help the server records itself.
 async function explainBackAnswer(env, actor, activity, content) {
   const cardId = (activity.checkpoint_json ? JSON.parse(activity.checkpoint_json) : null)?.explainBack?.cardId ?? null;
-  const shape = validateExplainBackAnswer(content, { board: actor.board, cardId });
-  if (!shape.ok) {
-    if (shape.errors.some(e => e.includes('cross_scope_evidence'))) throw new AttemptError('cross_scope_evidence', 403);
-    if (shape.errors.some(e => e.includes('self_reference'))) throw invalid('self_reference');
-    throw invalid('invalid_content', shape.errors.slice(0, 3));
-  }
+  answerShape(content, actor, cardId, 'invalid_content');
   const ready = answerReadiness(content);
   if (!ready.ready) throw invalid(ready.reason);
   await ownAssets(env, actor, content);
@@ -376,9 +388,16 @@ async function explainBackAnswer(env, actor, activity, content) {
   return priorFeedbackRefs(content);
 }
 
-// ponytail: private answer media (voice, Sketch, recording) are refused until attempt assets land (EB-02 slice 2).
+// Private answer media must be the learner's own attempt assets on this canvas, of the right kind, with the hash the answer
+// names (learn-attempt-assets.js). Anything else, another learner's id included, is unknown_asset.
+const ASSET_KIND = { voice: 'audio', sketch: 'image', recording: 'video' };
 async function ownAssets(env, actor, content) {
-  if (content.voice.length || content.sketch || content.recording) throw new AttemptError('unknown_asset', 404);
+  const refs = [...content.voice, ...(content.sketch ? [content.sketch] : []), ...(content.recording ? [content.recording] : [])];
+  const own = await ownAttemptAssets(env, actor, [...new Set(refs.map(r => r.assetId))]);
+  for (const r of refs) {
+    const row = own.get(r.assetId);
+    if (!row || row.kind !== ASSET_KIND[r.role] || row.sha256 !== r.hash) throw new AttemptError('unknown_asset', 404, { evidenceId: r.evidenceId });
+  }
 }
 
 // A revision's parent: this learner's own submitted Explain-back attempt of the same card on this canvas, and the review the
@@ -409,4 +428,37 @@ export async function listAttempts(env, actor, cardId, { limit = 50 } = {}) {
       assessment: op ? { assessmentId: op.id, status: op.status, rating: JSON.parse(op.provenance_json).review?.rating ?? null } : null,
     };
   }));
+}
+
+// --- Explain-back drafts (learn 0034): the learner's unsubmitted answer for one card, server-side so it never rides a board
+// save, a share or a fork. Every write names the revision it was made on; another tab's newer save is 409 draft_conflict with
+// that draft, and nothing is overwritten. Submitting does not clear it; the client clears it (answer null) once it has moved on.
+const draftOf = r => (r ? { cardId: r.card_id, revision: r.revision, answer: JSON.parse(r.content_json), updatedAt: r.updated_at } : null);
+const draftRow = (env, actor, cardId) => env.LEARN_DB.prepare('SELECT * FROM learn_explain_drafts WHERE org = ? AND owner_user_id = ? AND app = ? AND board = ? AND card_id = ?')
+  .bind(actor.org, actor.userId, actor.app, actor.board, cardId).first();
+
+export async function readDraft(env, actor, cardId) {
+  if (typeof cardId !== 'string' || !CARD.test(cardId)) throw invalid('invalid_card');
+  return draftOf(await draftRow(env, actor, cardId));
+}
+
+export async function saveDraft(env, actor, { cardId, expectedRevision, answer }, { now = () => new Date().toISOString() } = {}) {
+  if (typeof cardId !== 'string' || !CARD.test(cardId)) throw invalid('invalid_card');
+  if (!Number.isInteger(expectedRevision) || expectedRevision < 0) throw invalid('invalid_draft', ['expectedRevision: the draft revision you saw, 0 for none']);
+  const where = 'org = ? AND owner_user_id = ? AND app = ? AND board = ? AND card_id = ?', key = [actor.org, actor.userId, actor.app, actor.board, cardId];
+  let changed;
+  if (answer === null) {
+    changed = (await env.LEARN_DB.prepare(`DELETE FROM learn_explain_drafts WHERE ${where} AND revision = ?`).bind(...key, expectedRevision).run()).meta.changes || (expectedRevision === 0 && !(await draftRow(env, actor, cardId)));
+  } else {
+    // A draft may hold evidence still uploading; only its shape and scope are checked, and it is bounded like an attempt.
+    answerShape(answer, actor, cardId, 'invalid_draft');
+    checkSize(answer);
+    const content = canonical(answer), at = now();
+    changed = (await (expectedRevision === 0
+      ? env.LEARN_DB.prepare('INSERT INTO learn_explain_drafts (org, owner_user_id, app, board, card_id, revision, content_json, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?) ON CONFLICT DO NOTHING').bind(...key, content, at)
+      : env.LEARN_DB.prepare(`UPDATE learn_explain_drafts SET revision = revision + 1, content_json = ?, updated_at = ? WHERE ${where} AND revision = ?`).bind(content, at, ...key, expectedRevision)).run()).meta.changes;
+  }
+  const current = draftOf(await draftRow(env, actor, cardId));
+  if (!changed) throw new AttemptError('draft_conflict', 409, { draft: current });
+  return current;
 }
