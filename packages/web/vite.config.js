@@ -59,6 +59,7 @@ export default defineConfig({
         auth: fileURLToPath(new URL('./design/rabbit-hole-auth.html', import.meta.url)),
         support: fileURLToPath(new URL('./design/rabbit-hole-support.html', import.meta.url)),
         render: fileURLToPath(new URL('./render/scene.html', import.meta.url)), // /explain render entry (EXP-T18)
+        animation3dRender: fileURLToPath(new URL('./render/animation3d.html', import.meta.url)), // /animation review capture entry (AN-05)
       } },
     } : {}),
   },

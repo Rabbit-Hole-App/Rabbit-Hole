@@ -31,12 +31,14 @@ for (const name of names) {
   for (const marker of DEV_MARKERS) if (text.includes(marker)) failures.push(`${name}: contains dev-only "${marker}"`);
   for (const marker of LEGACY_MARKERS) if (text.includes(marker)) failures.push(`${name}: contains retired CLI/BYOC copy "${marker}"`);
 }
-// The /explain render entry (EXP-T18): explain-render.js loads it from this build's assets and its interception serves only
-// /render/scene.html and /static/<file>.(js|css|woff2?|ttf), so the entry must exist and reference nothing else.
-const renderEntry = new URL(`../${process.env.DIST || 'dist-dev'}/render/scene.html`, import.meta.url);
-if (!existsSync(renderEntry)) failures.push('missing the /explain render entry render/scene.html');
-else for (const [, ref] of readFileSync(renderEntry, 'utf8').matchAll(/(?:src|href)="([^"]+)"/g)) {
-  if (!/^\/static\/[A-Za-z0-9._-]+\.(js|css|woff2?|ttf)$/.test(ref)) failures.push(`render/scene.html references ${ref}, which the render interception would block`);
+// The /explain render entry (EXP-T18) and the /animation one (AN-05): explain-render.js / animation-render.js load them from this
+// build's assets and their interception serves only the entry and /static/<file>.(js|css|woff2?|ttf), so each must exist and reference nothing else.
+for (const entry of ['render/scene.html', 'render/animation3d.html']) {
+  const renderEntry = new URL(`../${process.env.DIST || 'dist-dev'}/${entry}`, import.meta.url);
+  if (!existsSync(renderEntry)) failures.push(`missing the render entry ${entry}`);
+  else for (const [, ref] of readFileSync(renderEntry, 'utf8').matchAll(/(?:src|href)="([^"]+)"/g)) {
+    if (!/^\/static\/[A-Za-z0-9._-]+\.(js|css|woff2?|ttf)$/.test(ref)) failures.push(`${entry} references ${ref}, which the render interception would block`);
+  }
 }
 // The tab names Rabbit Hole in the BUILT HTML, so the brand never waits for JavaScript (main.jsx also sets it, too late for a cold load or a
 // failed bundle): the app shell is exactly "Rabbit Hole" and every landing, auth, support and docs page names it, none the legacy "small deploy".
