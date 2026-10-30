@@ -7,8 +7,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { attemptRoute } from '../src/learn-attempt-routes.js';
-import { readAttemptAsset, transcriptStore } from '../src/learn-attempt-assets.js';
-import { ANA, call, never, world } from './learn-attempt-fixture.js';
+import { readAttemptAsset, readFrozenSnapshot, transcriptStore } from '../src/learn-attempt-assets.js';
+import { canonical, readAttempt } from '../src/learn-attempt-store.js';
+import { ANA, BEN, call, never, world } from './learn-attempt-fixture.js';
 import { dataOf, replying } from './learn-rich-fixtures.js';
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -132,4 +133,133 @@ test('voice only: uploaded through the asset route, transcribed once per audio h
     submittedContent: answer({ voice: [voice], baseline: { parentAttemptId: first.body.attempt.attemptId, parentAssessmentId: first.body.assessment.assessmentId } }) }, deps(s2));
   assert.equal(second.status, 200, JSON.stringify(second.body));
   assert.deepEqual([heard.length, s2.calls.length], [1, 1]);
+});
+
+// --- EB-09.4 server matrix -----------------------------------------------------------------------------------------------
+const OGG = tag => { const b = new Uint8Array(600); b.set([...'OggS'].map(c => c.charCodeAt(0))); b[4] = tag; for (let i = 5; i < b.length; i += 1) b[i] = (i * tag) % 251; return b; };
+const PNG = (() => { const b = new Uint8Array(400); b.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]); for (let i = 8; i < b.length; i += 1) b[i] = i % 199; return b; })();
+const TIMELINE = { v: 1, kind: 'sketch-timeline', startedAt: '2026-10-30T00:00:00.000Z', durationMs: 20000, limitMs: 120000, narration: true, start: { strokes: [], shapes: [], items: [] },
+  ops: [{ t: 1000, k: 'shapes', keep: 0, add: [{ kind: 'arrow', x1: 200, y1: 100, x2: 120, y2: 100, label: 'F outward' }] }, { t: 9000, k: 'shapes', keep: 0, add: [{ kind: 'arrow', x1: 200, y1: 100, x2: 120, y2: 100, label: 'F to the centre' }] }], pauses: [] };
+const NOTE_SNAP = { id: 'note-1', type: 'note', text: 'Tension in the string pulls the ball toward the centre.' };
+const NB_SNAP = { notebook: 'nb-1', path: null, cells: [{ id: 'c1', type: 'code', source: 'v = 2 * 3.14 * r / T', outputs: [{ output_type: 'stream', text: '6.28' }], executionCount: 1 }] };
+const SAID = { 1: 'The velocity is tangent to the circle at every point.', 2: 'No wait, now the arrow points to the centre because the string pulls the ball in.' };
+
+async function mixedWorld(t) {
+  const w = setup(t);
+  const bound = (await call(w.env, ANA, 'POST', '/api/learn/tutor/attempts/bind', { cardId: 'card_circle', prompt: PROMPT, expects: IDEAS })).body;
+  const up = async (bytes, kind, durationMs) => (await raw(w.env, 'PUT', '/api/learn/tutor/attempts/assets', { kind, sha256: sha(bytes), ...(durationMs ? { durationMs: String(durationMs) } : {}) }, { body: bytes, headers: { 'Content-Length': String(bytes.byteLength) } })).body.asset;
+  const voiceA = await up(OGG(1), 'audio', 4000), narrA = await up(OGG(2), 'audio', 20000), png = await up(PNG, 'image');
+  const timeline = await up(new TextEncoder().encode(JSON.stringify(TIMELINE)), 'timeline', 20000);
+  await raw(w.env, 'PUT', `/api/learn/tutor/attempts/assets/${png.assetId}`, {}, { body: JSON.stringify({ app: ANA.app, board: ANA.board, marks: 2, text: 'F to the centre' }), headers: { 'Content-Type': 'application/json' } });
+  const ref = (a, role, media, evidenceId, extra = {}) => ({ evidenceId, role, media, state: 'ready', assetId: a.assetId, revision: 1, hash: a.sha256, mime: a.mime, bytes: a.bytes, ...extra });
+  const narration = ref(narrA, 'voice', 'audio', 'ev_narr', { durationMs: 20000 });
+  const noteHash = sha(canonical(NOTE_SNAP)), nbHash = sha(canonical(NB_SNAP));
+  const content = answer({
+    text: A2,
+    voice: [ref(voiceA, 'voice', 'audio', 'ev_voice', { durationMs: 4000 })],
+    sketch: ref(png, 'sketch', 'image', 'ev_sketch'),
+    recording: ref(timeline, 'recording', 'sketch_timeline', 'ev_rec', { durationMs: 20000, narration }),
+    resources: [
+      { evidenceId: 'ev_note', role: 'resource', media: 'card', state: 'ready', sourceKind: 'card', assetId: 'note-1', revision: noteHash, hash: noteHash, board: ANA.board, label: 'Tension note' },
+      { evidenceId: 'ev_group', role: 'resource', media: 'group', state: 'ready', sourceKind: 'group', assetId: 'grp-1', revision: 1, board: ANA.board, label: 'Forces',
+        members: [{ sourceKind: 'card', sourceId: 'note-1', revision: noteHash, hash: noteHash, board: ANA.board, media: 'card', state: 'ready' },
+          { sourceKind: 'notebook', sourceId: 'nb-1', revision: nbHash, hash: nbHash, board: ANA.board, media: 'notebook', state: 'ready' }] },
+    ],
+  });
+  const heard = [];
+  const transcriber = { provider: 'openai', model: 'gpt-4o-transcribe', transcribe: async ({ bytes }) => { heard.push(bytes[4]); return { text: SAID[bytes[4]], segments: [{ start: 0, end: 4, text: SAID[bytes[4]] }] }; } };
+  const deps = (callModel, extra = {}) => ({ ...never, callModel, transcriber, ...extra });
+  const submit = (c, key, d, snapshots = [NOTE_SNAP, NB_SNAP]) => call(w.env, ANA, 'POST', '/api/learn/tutor/attempts', { activityId: bound.activityId, activityRevision: 1, submissionKey: key, submittedContent: c, snapshots }, d);
+  return { w, bound, content, heard, deps, submit, assets: { voiceA, narrA, png, timeline } };
+}
+const MIXED_REPLY = {
+  criteria: [j(F, 'met', ['The net force points toward the centre: without it the ball would keep going straight']), j(V, 'met', ['The velocity is tangent to the circle'])],
+  feedback: { strengths: { text: 'You explain both directions.', evidence: ['The velocity is tangent to the circle'] }, revisit: null, next: 'What if the speed doubles?' }, priorCorrections: [], notes: [],
+};
+
+test('mixed answer: every selected input reaches the request or explicit coverage; narration once; direct and Group links read once', async t => {
+  const { w, content, heard, deps, submit } = await mixedWorld(t);
+  const stub = replying(MIXED_REPLY);
+  const r = await submit(content, 'eb-mixed-0001', deps(stub.callModel));
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(stub.calls.length, 1, 'one coordinated assessment');
+  assert.deepEqual(heard.sort(), [1, 2], 'the voice note and the narration, each transcribed once');
+  const evidence = dataOf(stub.calls[0].body).current.evidence;
+  const byId = Object.fromEntries(evidence.map(p => [p.id, p]));
+  assert.equal(byId.text.text, A2);
+  assert.deepEqual([byId.ev_voice.kind, byId.ev_voice.text], ['voice_transcript', SAID[1]]);
+  assert.deepEqual([byId.ev_sketch.kind, byId.ev_sketch.labels], ['sketch', 'F to the centre']);
+  assert.equal(byId.ev_rec.kind, 'sketch_recording');
+  assert.equal(byId.ev_rec.narration.text, SAID[2], 'narration rides the recording');
+  assert.ok(!evidence.some(p => p.id === 'ev_narr'), 'and is not sent again as a voice note');
+  assert.ok(evidence.some(p => p.kind === 'resource' && JSON.stringify(p).includes(NOTE_SNAP.text)), 'the frozen note');
+  assert.ok(evidence.some(p => p.kind === 'resource' && JSON.stringify(p).includes('2 * 3.14')), 'the frozen Notebook cell');
+  assert.equal(evidence.filter(p => JSON.stringify(p).includes(NOTE_SNAP.text)).length, 1, 'the note linked directly and through the Group is read once');
+  const content0 = stub.calls[0].body.messages[0].content;
+  assert.ok(Array.isArray(content0) && content0.some(b => b.type === 'image' && b.source.media_type === 'image/png'), 'the Sketch image itself');
+  const review = r.body.assessment.provenance.review;
+  assert.equal(r.body.assessment.status, 'completed', JSON.stringify(r.body.assessment.reason));
+  const coverage = Object.fromEntries(review.coverage.map(c => [c.memberId ? `${c.evidenceId}/${c.memberId}` : c.evidenceId, c]));
+  for (const id of ['text', 'ev_voice', 'ev_sketch', 'ev_rec', 'ev_narr', 'ev_note', 'ev_group', 'ev_group/note-1', 'ev_group/nb-1']) assert.ok(coverage[id], `coverage for ${id}`);
+  assert.match(coverage.ev_narr.note, /^same_as:ev_rec/);
+  assert.match(coverage['ev_group/note-1'].note, /^same_as:ev_note/);
+  assert.equal(coverage['ev_group/nb-1'].inspected.codeRun, false, 'code was read, never run');
+  assert.equal(r.body.attempt.submittedContent.text, A2, 'no transcript in the typed answer');
+});
+
+test('privacy: another learner, board or fork reads no attempt, history, asset, draft or frozen snapshot', async t => {
+  const { w, content, deps, submit, assets } = await mixedWorld(t);
+  const r = await submit(content, 'eb-mixed-0002', deps(replying(MIXED_REPLY).callModel));
+  const attemptId = r.body.attempt.attemptId;
+  await raw(w.env, 'PUT', '/api/learn/tutor/attempts/drafts', {}, { body: JSON.stringify({ app: ANA.app, board: ANA.board, cardId: 'card_circle', expectedRevision: 0, answer: answer({ text: 'draft' }) }), headers: { 'Content-Type': 'application/json' } });
+  const { attempt } = await readAttempt(w.env, ANA, attemptId);
+  for (const other of [BEN, { ...ANA, board: 'side' }, { ...ANA, app: 'canvas-fork-0001' }]) {
+    const as = async (method, path, query = {}) => {
+      const res = await attemptRoute(path, new Request(`https://app.test${path}?${new URLSearchParams({ app: other.app, board: other.board, ...query })}`, { method }), w.env, { authorize: async () => ({ kind: 'canvas', org: other.org, user_id: other.userId }) });
+      return { status: res.status, body: await res.json() };
+    };
+    const tag = JSON.stringify(other);
+    assert.equal((await as('GET', `/api/learn/tutor/attempts/${attemptId}`)).status, 404, tag);
+    assert.deepEqual((await as('GET', '/api/learn/tutor/attempts', { cardId: 'card_circle' })).body, { attempts: [] }, tag);
+    for (const a of Object.values(assets)) assert.equal((await as('GET', `/api/learn/tutor/attempts/assets/${a.assetId}`)).status, 404, tag);
+    assert.deepEqual((await as('GET', '/api/learn/tutor/attempts/drafts', { cardId: 'card_circle' })).body, { draft: null }, tag);
+    assert.equal(await readFrozenSnapshot(w.env, other, attempt, content.resources[0]), null, tag);
+    assert.equal(await readAttemptAsset(w.env, other, attempt, content.sketch), null, tag);
+  }
+  // the owner still reads all of it
+  assert.deepEqual(await readFrozenSnapshot(w.env, ANA, attempt, content.resources[0]), { snapshot: NOTE_SNAP });
+});
+
+test('recovery: a lost response replays; a timeout or slow preparation calls nothing more; reassessment and revision are distinct', async t => {
+  const { w, content, heard, deps, submit } = await mixedWorld(t);
+  const text = answer({ text: A2 });
+  // the evaluator never answers: the operation ends unknown, and nothing calls it again on its own
+  let hung = 0;
+  const hang = async () => { hung += 1; return new Promise(() => {}); };
+  const timedOut = await submit(text, 'eb-rec-0001', deps(hang, { timeoutMs: 20 }), undefined);
+  assert.deepEqual([timedOut.status, timedOut.body.assessment.status, timedOut.body.assessment.reason, hung], [200, 'unknown', 'completion_unknown', 1]);
+  // the response was lost: the same key returns the same attempt and operation, and calls nothing
+  const replay = await submit(text, 'eb-rec-0001', deps(hang, { timeoutMs: 20 }), undefined);
+  assert.deepEqual([replay.body.replayed, replay.body.attempt.attemptId, replay.body.assessment.assessmentId, hung], [true, timedOut.body.attempt.attemptId, timedOut.body.assessment.assessmentId, 1]);
+  assert.equal((await call(w.env, ANA, 'GET', `/api/learn/tutor/attempts/${timedOut.body.attempt.attemptId}`)).body.assessment.status, 'unknown', 'reading calls nothing');
+  assert.equal(hung, 1);
+
+  // slow preparation: under 15 s of the claim left after reading the evidence, no evaluator call
+  let ticks = 0, slowCalls = 0;
+  const now = () => (ticks++ === 0 ? 1_000_000 : 1_046_000);
+  const slow = await submit(content, 'eb-rec-0002', deps(async (...a) => { slowCalls += 1; return replying(MIXED_REPLY).callModel(...a); }, { now }));
+  assert.deepEqual([slow.body.assessment.status, slow.body.assessment.reason, slowCalls], ['failed', 'preparation_slow', 0]);
+  const transcribed = heard.length;
+
+  // an explicit reassessment: a new operation on the same attempt (the stored transcripts are reused)
+  const s = replying(MIXED_REPLY);
+  const re = await call(w.env, ANA, 'POST', `/api/learn/tutor/attempts/${slow.body.attempt.attemptId}/reassess`, { requestKey: 'eb-rec-reassess-1' }, deps(s.callModel));
+  assert.equal(re.status, 200, JSON.stringify(re.body));
+  assert.deepEqual([re.body.attempt.attemptId, re.body.assessments.length, re.body.assessment.status, s.calls.length, heard.length], [slow.body.attempt.attemptId, 2, 'completed', 1, transcribed]);
+  // a new revision: a new attempt with its own key and a baseline, the reassessed attempt untouched
+  const rev = await submit(answer({ text: `${A2} Revised.`, baseline: { parentAttemptId: slow.body.attempt.attemptId, parentAssessmentId: re.body.assessment.assessmentId } }), 'eb-rec-0003', deps(replying(MIXED_REPLY).callModel), undefined);
+  assert.equal(rev.status, 200, JSON.stringify(rev.body));
+  assert.notEqual(rev.body.attempt.attemptId, slow.body.attempt.attemptId);
+  const list = await raw(w.env, 'GET', '/api/learn/tutor/attempts', { cardId: 'card_circle' });
+  assert.deepEqual(list.body.attempts.map(a => a.attemptId), [rev.body.attempt.attemptId, slow.body.attempt.attemptId, timedOut.body.attempt.attemptId]);
 });

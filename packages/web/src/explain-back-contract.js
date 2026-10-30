@@ -77,7 +77,6 @@ const explainBackKind = v => v === EXPLAIN_BACK_KIND;
 const reviewVersion = v => v === REVIEW_VERSION;
 const transcriptText = v => typeof v === 'string' && v.length <= 20000;
 const uncertainty = v => (typeof v === 'number' && v >= 0 && v <= 1) || isObj(v);
-const seconds = v => typeof v === 'number' && Number.isFinite(v) && v >= 0;
 const nullableId = v => v === null || (typeof v === 'string' && v.length > 0 && v.length <= 200);
 
 export const EB_SHAPES = {
@@ -95,8 +94,8 @@ export const EB_SHAPES = {
   AssistanceRef: { kind: ASSISTANCE_KINDS, id: 'id' },
   // A transcript derivative of one retained audio asset (worker M produces it; D stores it immutable, keyed by audio hash).
   // It is assessment and accessibility data only: never inserted into the typed answer.
-  // seconds on the audio's clock, as the transcriber returns them (learn-media.js transcriptParts)
-  TranscriptSegment: { start: seconds, end: seconds, text: shortText },
+  // milliseconds on the audio's clock (P ruling; learn-media.js transcriptParts converts the provider's seconds)
+  TranscriptSegment: { startMs: 'int', endMs: 'int', text: shortText },
   Transcript: {
     transcriptId: 'id', assetId: attemptAsset, hash: sha256, text: transcriptText, segments: { opt: ['TranscriptSegment'] },
     provider: 'id', model: 'id', uncertainty: { opt: uncertainty }, version: 'ver', status: TRANSCRIPT_STATUS,
