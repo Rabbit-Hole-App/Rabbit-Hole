@@ -49,8 +49,9 @@ const json = (body, status = 200) => Response.json(body, { status, headers: { 'C
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/; // learn-boards.js board names
 const PATH = /^\/api\/learn\/tutor\/attempts(?:\/(bind|drafts|assets)(?:\/(aa_[A-Za-z0-9_-]{8,80}))?|\/([A-Za-z0-9_-]{1,100})(\/reassess)?)?$/;
 // The raw body is bounded before parsing. It holds the 16 KB submission plus its refs, and an Explain-back answer's frozen
-// board-held inputs (snapshots, at most SNAPSHOT_LIMITS.totalChars).
-export const ATTEMPT_BODY_CHARS = 65536 + SNAPSHOT_LIMITS.totalChars;
+// board-held inputs (snapshots), bounded separately by SNAPSHOT_LIMITS.totalChars.
+export const ATTEMPT_BODY_CHARS = 65536;
+const tooLarge = (max, actual) => json({ error: 'submission_too_large', detail: { field: 'body', unit: 'characters', max, actual } }, 413);
 const log = (event, error) => console.error(JSON.stringify({ event, error: error?.name || 'Error', message: String(error?.message || '').slice(0, 120) }));
 
 export async function attemptRoute(path, req, env, deps = {}) {
@@ -70,9 +71,14 @@ export async function attemptRoute(path, req, env, deps = {}) {
     body = { app: query.get('app'), board: query.get('board'), cardId: query.get('cardId') };
   } else {
     const raw = await req.text();
-    if (raw.length > ATTEMPT_BODY_CHARS) return json({ error: 'submission_too_large', detail: { field: 'body', unit: 'characters', max: ATTEMPT_BODY_CHARS, actual: raw.length } }, 413);
+    if (raw.length > ATTEMPT_BODY_CHARS + SNAPSHOT_LIMITS.totalChars) return tooLarge(ATTEMPT_BODY_CHARS, raw.length);
     try { body = JSON.parse(raw); } catch { return json({ error: 'Invalid JSON' }, 400); }
     if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'Invalid JSON' }, 400);
+    // Everything but the snapshots keeps the original bound; the snapshots have their own.
+    const { snapshots, ...rest } = body;
+    const restChars = JSON.stringify(rest).length, snapChars = snapshots === undefined ? 0 : JSON.stringify(snapshots).length;
+    if (restChars > ATTEMPT_BODY_CHARS) return tooLarge(ATTEMPT_BODY_CHARS, restChars);
+    if (snapChars > SNAPSHOT_LIMITS.totalChars) return json({ error: 'submission_too_large', detail: { field: 'snapshots', unit: 'characters', max: SNAPSHOT_LIMITS.totalChars, actual: snapChars } }, 413);
   }
   const access = await (deps.authorize || authorizedBoardApp)(req, env, body.app, null);
   if (access instanceof Response) return access;
