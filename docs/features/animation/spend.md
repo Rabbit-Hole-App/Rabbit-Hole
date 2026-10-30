@@ -13,4 +13,9 @@ calls running concurrently; at the cap, stop paid calls and continue unpaid work
 | 4 | 2:53 PM | G acceptance.mjs | experiment: failed | claude-opus-5-5 | 4 calls, repairs 1 | US$1.9549 | US$0.2417 (ledger; 6 unsettled counted at their reserve) | - | US$1.0513 |
 | 5 | 2:56 PM | G acceptance.mjs | game: ready | claude-opus-5-5 | 5 calls, repairs 1 | US$1.9549 | US$0.3325 (ledger; 12 unsettled counted at their reserve) | `ff4c8c09c716c842` | US$1.3838 |
 
-Total actual: US$1.3838. Reserved in flight: US$0.00. Remaining: US$8.6162.
+From 2026-10-30 (acceptance.next.mjs): provider charges and ledger counts are separate columns. The earlier rows' provider total is US$1.2622.
+
+| # | Time (PT) | Agent | Case / outcome | Model | Calls | Worst case | Provider US$ | Ledger US$ (incl. reserves) | Artifact hash | Running provider total | Running ledger total |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+
+Total provider: US$1.2622. Total ledger (incl. reserves): US$1.3838. Reserved in flight: US$0.00. Remaining: US$8.6162.
