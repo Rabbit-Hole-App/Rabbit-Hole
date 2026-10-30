@@ -740,21 +740,6 @@ await check('the numbers change and a winner emerges', async () => {
   if (tallest !== 7) throw new Error(`the winning score is bar ${tallest}, expected the one labelled l`);
 });
 
-// speaking an answer: the mic is offered next to the input and the transcript
-// route is wired, so a spoken answer reaches the same grading path
-await check('an answer can be spoken', async () => {
-  await page.locator('[aria-label="Insert lesson block"]').click();
-  await page.getByRole('menuitem', { name: 'Explain back' }).click();
-  const node = canvas.locator('[data-block-id]').last();
-  await node.locator('[data-speak-answer]').waitFor({ timeout: 5000 });
-  const wired = await page.evaluate(async () => {
-    const response = await fetch('/api/learn/transcribe', { method: 'POST', body: new FormData() });
-    return { status: response.status, error: (await response.json()).error };
-  });
-  if (wired.status === 404) throw new Error('the transcribe route is not deployed');
-  if (wired.status !== 400) throw new Error(`empty recording should be refused, got HTTP ${wired.status}: ${wired.error}`);
-});
-
 // the whiteboard block: tldraw's own tools, saved with the block
 await check('the sigmoid board asks, draws and saves', async () => {
   await page.locator('[aria-label="Insert lesson block"]').click();

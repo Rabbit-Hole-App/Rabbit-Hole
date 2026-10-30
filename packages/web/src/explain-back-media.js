@@ -34,7 +34,7 @@ export async function formatOf(blob) {
 
 export const clock = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
-// ---- one microphone owner. The voice note, Sketch narration and Speak answer each claim it before getUserMedia, so two
+// ---- one microphone owner. The voice note and Sketch narration each claim it before getUserMedia, so two
 // recorders on one page never compete for the microphone. { id, label } -> true when it is free or already this owner's.
 let holder = null;
 export const microphoneHolder = () => holder;

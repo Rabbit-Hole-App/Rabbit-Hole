@@ -19,7 +19,6 @@ import { runPython } from './pyodide-runner.js';
 import { describeGraphError, graphRenderers } from './graph-renderers.js';
 import { validateGraph } from '../../control-plane/src/learn-graph-schema.js';
 import { parseVerdict, stripVerdict } from '../../control-plane/src/agents/learn-grade.js';
-import SpeakAnswer from './SpeakAnswer.jsx';
 import LearnPaper from './LearnPaper.jsx';
 import RepositoryGraph from './RepositoryGraph.jsx';
 import FlowDiagram from './FlowDiagram.jsx';
@@ -1320,7 +1319,6 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
         <div onPointerDown={e => e.stopPropagation()}>
           <p className="mt-1 text-xs text-ink-2 italic"><MdInline text={block.hint} /></p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <SpeakAnswer appName={appName} onText={text => setDraft(current => (current ? `${current} ${text}` : text))} />
             <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') commit(); }}
               placeholder="Your guess in one sentence" className="h-8 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm outline-none focus:border-ink-3" />
             <button type="button" disabled={!ready} onClick={commit}

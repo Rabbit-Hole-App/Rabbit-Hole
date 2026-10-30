@@ -450,7 +450,6 @@
     "packages/web/src/learn-video-*.js": ["video-check.mjs","learn-handoff-check.mjs","search-files-check.mjs","slash-sheet-check.mjs","inline-ai-check.mjs","motion-command-check.mjs"],
     "packages/web/src/learn-video-*.js": ["video-check.mjs","learn-handoff-check.mjs","search-files-check.mjs","slash-sheet-check.mjs","inline-ai-check.mjs", "chat-generation-check.mjs"],
     "packages/web/src/VoiceMode.jsx": ["voice-check.mjs","voice-tts-stream-check.mjs","tutor-entry-check.mjs","production-bundle-check.mjs"],
-    "packages/web/src/SpeakAnswer.jsx": ["voice-check.mjs","voice-tts-stream-check.mjs","tutor-entry-check.mjs","production-bundle-check.mjs","chat-block-check.mjs","explain-back-media-check.mjs"],
     "packages/web/src/explain-back-media.js": ["explain-back-media-check.mjs","explain-back-sketch-check.mjs"],
     "packages/web/src/explain-back-assets.js": ["explain-back-media-check.mjs"],
     "packages/web/src/explain-back-drafts.js": ["explain-back-media-check.mjs","explain-back-sketch-check.mjs"],

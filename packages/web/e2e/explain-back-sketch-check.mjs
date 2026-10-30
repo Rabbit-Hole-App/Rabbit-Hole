@@ -187,11 +187,11 @@ await page.goto(`${BASE}/apps/${canvas.name}`);
 await page.waitForSelector('[data-tool-gutter]', { timeout: 30000 });
 await page.waitForTimeout(1500);
 
-// ---- 12. a challenge card is unchanged: no sketch offered, Speak answer kept, Commit grades the text alone ----
+// ---- 12. a challenge card: no sketch offered, no microphone (FX-EB-04, owner 2026-10-30), Commit grades the text alone ----
 const challenge = await insert('Challenge');
 await check('12 challenge card unchanged', async () => {
   assert.equal(await challenge.locator('[data-sketch-toggle]').count(), 0, 'a challenge offers no sketch');
-  assert.equal(await challenge.locator('[data-speak-answer]').count(), 1, 'a challenge keeps Speak answer');
+  assert.equal(await challenge.locator('[data-speak-answer]').count(), 0, 'a challenge offers no microphone');
   await challenge.locator('input').fill('the ids pick embedding rows');
   await challenge.getByRole('button', { name: 'Commit', exact: true }).click();
   await challenge.locator('[data-answer][data-grade="partial"]').waitFor({ timeout: 10000 });
