@@ -18,7 +18,7 @@ import { Button, CodeBlock } from './ui.jsx';
 import { runPython } from './pyodide-runner.js';
 import { describeGraphError, graphRenderers } from './graph-renderers.js';
 import { validateGraph } from '../../control-plane/src/learn-graph-schema.js';
-import { parseVerdict, stripVerdict } from '../../control-plane/src/agents/learn-grade.js';
+import { stripVerdict } from '../../control-plane/src/agents/learn-grade.js';
 import LearnPaper from './LearnPaper.jsx';
 import RepositoryGraph from './RepositoryGraph.jsx';
 import FlowDiagram from './FlowDiagram.jsx';
@@ -44,7 +44,7 @@ import { useChatWorkspace } from './chat-workspace.jsx';
 import { describeNotebook } from './learn-notebook.js';
 import { describeYouTube } from './learn-ask-target.js';
 import { afterPaint, usePerf } from './learn-perf.js';
-import { canSubmit, hasMarks, sketchText } from './explain-sketch.js';
+import { hasMarks, sketchText } from './explain-sketch.js';
 import { disposeVoiceNote } from './explain-back-media.js';
 import { disposeSketchRecording } from './sketch-recording.js';
 import { AnswerView, AttemptBar, ExplainBackService, FeedbackTabs, FeedbackView, InputPicker, InputPills, SketchPanel, SketchRecorder, VoiceNote, sketchCapture, useDraftMedia, usePanelOwner } from './ExplainBackPanel.jsx';
@@ -87,8 +87,10 @@ export const EXPLAIN_PENDING_SIZE = { width: 440, height: undefined };
 // measured at 1440x900 on 2026-10-04. typicalRows (animation): the controls, practice and sources rows a card
 // grows by below the frame sizeFor sizes - the median over the NanoGPT Tutor slice, measured the same day.
 export const BLOCK_TYPES = {
+  // One Practice card (owner 2026-10-30: Explain-back = Challenge = Practice): every challenge block, with or without
+  // mode 'explain_back', renders as ExplainBackCard. The Insert menu offers explainBack only; this entry sizes saved cards.
   challenge: {
-    label: 'Challenge',
+    label: 'Practice',
     typicalHeight: 220,
     // fitContent (card-layout.js fitFrame, FX-EB-10): a text card is never taller than its content; a resize only sets a ceiling.
     fitContent: true,
@@ -101,16 +103,15 @@ export const BLOCK_TYPES = {
       dx: 0,
       dy: 0,
       prompt: 'nanoGPT receives token IDs — plain integers like `42`. What has to happen between these integers and next-token predictions?',
-      hint: 'Commit a guess before we look — the tutor reads it and says what you already have.',
+      hint: 'Answer before we look — the tutor reads it and says what you already have.',
       expects: ['each token id selects a learned embedding row', 'position information is added to the token vector', 'transformer blocks mix the vectors', 'a final linear layer scores every vocabulary token'],
       reveal: 'Hold that thought. The next blocks walk the real path: token IDs pick embedding rows, positions add where each token sits, the transformer tower mixes them, and the LM head scores every vocabulary token.',
       answer: null,
     }),
   },
   explainBack: {
-    // The other half of a challenge: evidence of understanding, judged after
-    // the learner has worked through the material.
-    label: 'Explain back',
+    // The Practice card the Insert menu and /practice make (new cards keep mode 'explain_back' in their saved data).
+    label: 'Practice',
     width: 440,
     autoMax: 560,
     sample: () => ({
@@ -948,8 +949,13 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
   const service = useContext(ExplainBackService);
   const latest = useRef(block);
   latest.current = block;
-  const view = service ? serviceView(service.card(block.id)) : legacyView(block, { strip: stripVerdict, inPage: id => gradingAttempts.has(id) });
+  // Answers saved on the block itself (an old Challenge's guess and verdict, or an answer made before the durable store)
+  // come first, read-only, so turning on the store hides none of them (owner 2026-10-30: one Practice card).
+  const onBlock = legacyView(block, { strip: stripVerdict, inPage: id => gradingAttempts.has(id) });
+  const view = service ? serviceView(service.card(block.id), onBlock.attempts) : onBlock;
   const { attempts } = view;
+  // The attempt the server knows as a revision's parent: an answer saved on the block is not one.
+  const parentOf = id => (attempts.find(attempt => attempt.id === id)?.legacy ? null : id);
   // The durable path's open revision: the attempt it was copied from (null: none open). The legacy path is editing
   // whenever its block holds no submitted answer. It and the draft number outlive a remount, as the text does.
   const [revising, setRevising] = useState(() => recallDraft(memoryKey)?.revising ?? null);
@@ -973,7 +979,7 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
   // The server draft (EB-02.3, explain-back-drafts.js through service.drafts): what the field starts from after a reload,
   // in another tab or on another device. Its conflict and offline states are the card's to show.
   const sync = service?.drafts?.for(block.id) ?? null;
-  const draftState = useSyncExternalStore(sync ? sync.subscribe : noSubscribe, sync ? sync.get : noDraft);
+  const draftState = useSyncExternalStore(sync ? sync.subscribe : noSubscribe, sync ? sync.get : noDraft, sync ? sync.get : noDraft);
   const draftReady = !draftState || draftState.status !== 'loading';
   const seeded = useRef(false);
   const seed = answer => {
@@ -984,9 +990,9 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
   useEffect(() => { if (draftState && draftReady && !seeded.current) seed(draftState.answer); }, [draftReady]);
   useEffect(() => {
     if (!sync || !seeded.current) return;
-    const stored = draftState.answer || {}, parentAttempt = attempts.find(attempt => attempt.id === revising);
-    if ((stored.text || '') === draft && (stored.baseline?.parentAttemptId || null) === revising) return;
-    sync.patch({ text: draft, baseline: revising ? { parentAttemptId: revising, parentAssessmentId: parentAttempt?.assessmentId ?? null } : undefined });
+    const parent = parentOf(revising), stored = draftState.answer || {}, parentAttempt = attempts.find(attempt => attempt.id === parent);
+    if ((stored.text || '') === draft && (stored.baseline?.parentAttemptId || null) === parent) return;
+    sync.patch({ text: draft, baseline: parent ? { parentAttemptId: parent, parentAssessmentId: parentAttempt?.assessmentId ?? null } : undefined });
   }, [draft, revising]);
   // The Sketch recording (EB-06 06.5), gated like the voice note; its controls sit in the panel under the drawing.
   const recordingStore = service?.recording?.upload ? service.recording : null;
@@ -1087,7 +1093,7 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
       // The connected inputs frozen at this moment (their revisions, scopes and private copies of board-held content), so a
       // later edit cannot change the attempt.
       const { resources = [], snapshots = [] } = await sketchHost?.inputSubmission?.(block.id, { board: service.board }) ?? {};
-      await service.submit({ block: latest.current, text: draft, sketch: shot ? { image: shot.image, text: shot.text ?? sketchText(block.sketch) } : null, voice: voiceStore && voice?.ready ? voice.saved : null, recording: recordingStore && recording?.ready ? recording.saved : null, resources, snapshots, parentAttemptId: revising });
+      await service.submit({ block: latest.current, text: draft, sketch: shot ? { image: shot.image, text: shot.text ?? sketchText(block.sketch) } : null, voice: voiceStore && voice?.ready ? voice.saved : null, recording: recordingStore && recording?.ready ? recording.saved : null, resources, snapshots, parentAttemptId: parentOf(revising) });
       // The submitted note and recording belong to the attempt now; the next draft starts without them.
       disposeVoiceNote(draftKey); disposeSketchRecording(draftKey);
       voiceStore?.onSaved?.(block.id, null); recordingStore?.onSaved?.(block.id, null);
@@ -1149,7 +1155,7 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
   const ownerTitle = String(block.prompt || '').replace(/[`*_$#>]/g, '').replace(/\s+/g, ' ').trim();
   return (
     <div ref={cardRef} data-scroll data-explain-back data-sketch-owner={open ? '' : undefined} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker>Explain back</Kicker>
+      <Kicker>Practice</Kicker>
       <div data-eb-question className="text-[20px] leading-[1.35] font-medium"><Md text={block.prompt} onFile={onFile} /></div>
       {block.hint && (
         <div data-eb-hint className="mt-2">
@@ -1170,7 +1176,7 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
                 className="mt-1 block w-full resize-y rounded-lg border border-line bg-surface px-3 py-2 text-sm leading-normal text-ink outline-none focus:border-ink-3 pointer-coarse:text-base" />
               {(inputs.length > 0 || canConnect) && (
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  {inputs.length > 0 && <InputPills inputs={inputs} onRemove={input => sketchHost.disconnectInput(input.id)} onOpen={sketchHost.openInput ? openInput : null} />}
+                  {inputs.length > 0 && <InputPills inputs={inputs} onRemove={sketchable ? input => sketchHost.disconnectInput(input.id) : null} onOpen={sketchHost.openInput ? openInput : null} />}
                   {canConnect && <InputPicker list={() => sketchHost.inputCandidates(block.id)} onConnect={connectInput} />}
                 </div>
               )}
@@ -1193,6 +1199,8 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
               {selected.status === 'submitted' && <p className="mt-3 text-xs text-ink-2">Submitted. No Tutor review is available on this card.</p>}
             </div>
           )}
+          {/* An old Challenge's reveal, shown once an answer is in, as that card showed it. */}
+          {!selected.draft && block.reveal && <div data-eb-reveal className="mt-3 border-t border-line pt-3 text-sm"><Md text={block.reveal} onFile={onFile} /></div>}
           </div>
           <div style={live} className="mt-3 flex flex-wrap items-center gap-2" onPointerDown={e => e.stopPropagation()}>
             {sketchable && (selected.draft || selected.answer.sketched) && (
@@ -1205,7 +1213,7 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
               </button>
             )}
             <span className="ml-auto flex items-center gap-2">
-              {service && selected.status === 'failed' && <button type="button" data-eb-retry onClick={() => service.retry({ block, attemptId: selected.id })} className="h-9 cursor-pointer rounded-lg border border-line px-3 text-[13px] text-ink hover:bg-hover">Try again</button>}
+              {service && selected.status === 'failed' && !selected.legacy && <button type="button" data-eb-retry onClick={() => service.retry({ block, attemptId: selected.id })} className="h-9 cursor-pointer rounded-lg border border-line px-3 text-[13px] text-ink hover:bg-hover">Try again</button>}
               {selected.draft ? (
                 <button type="button" data-eb-submit disabled={!gate.ready} onClick={submit} title={gate.reason || undefined}
                   className="h-9 cursor-pointer rounded-lg bg-primary-fill px-3.5 text-[13px] font-medium text-white hover:bg-primary-fill-hover disabled:cursor-default disabled:opacity-40 pointer-coarse:h-11">Submit answer</button>
@@ -1245,26 +1253,27 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
 }
 
 function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
-  // An Explain-back draft outlives a remount of this card (explain-back-view.js recallDraft), keyed by app, board and card.
+  // Every challenge block is one Practice card (owner 2026-10-30: Explain-back = Challenge = Practice), whatever its mode.
+  // Its draft outlives a remount of this card (explain-back-view.js recallDraft), keyed by app, board and card.
   const explainService = useContext(ExplainBackService);
-  const memoryKey = block.mode === 'explain_back' ? draftMemoryKey(explainService?.app ?? appName, explainService?.board ?? '', block.id) : null;
-  const [draft, setDraft] = useState(() => (memoryKey && recallDraft(memoryKey)?.text) || '');
-  useEffect(() => { if (memoryKey) rememberDraft(memoryKey, { text: draft }); }, [memoryKey, draft]);
-  // Explain-back: a capture problem, shown under its footer; nothing was submitted and the work stays.
+  const memoryKey = draftMemoryKey(explainService?.app ?? appName, explainService?.board ?? '', block.id);
+  const [draft, setDraft] = useState(() => recallDraft(memoryKey)?.text || '');
+  useEffect(() => { rememberDraft(memoryKey, { text: draft }); }, [memoryKey, draft]);
+  // A capture problem, shown under its footer; nothing was submitted and the work stays.
   const [notice, setNotice] = useState('');
   const latest = useRef(block);
   latest.current = block;
-  // Explain Back may carry a sketch, drawn with the canvas's own toolbar in its Sketch panel.
+  // The answer may carry a sketch, drawn with the canvas's own toolbar in its Sketch panel (never on a view-only canvas).
   const sketchHost = useContext(SketchHost);
-  const sketchable = block.mode === 'explain_back' && !!sketchHost && !sketchHost.readOnly;
+  const sketchable = !!sketchHost && !sketchHost.readOnly;
   // Closing the panel is presentation only: marks in the card's sketch are part of the answer, shown or hidden. Only
   // clearing the sketch takes them out.
   const sketchMarked = sketchable && hasMarks(block.sketch);
-  const ready = canSubmit(draft, sketchable ? block.sketch : null);
+  // The card's own single-attempt grade, used when the durable store is not wired (a view-only canvas, a preview).
   // One attempt id per committed answer (docs/features/jev-grading.md): it is
   // stored on the block, so re-sends, remounts and reloads reuse it, and the
   // side-by-side grader records each attempt once. The in-flight guard stops a
-  // same-tick double click; Answer again releases it and clears the id.
+  // same-tick double click; Revise answer releases it and clears the id.
   const inFlight = useRef(false);
   const commit = async () => {
     const answer = draft.trim();
@@ -1280,15 +1289,15 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
     // Keep `latest` in step with every write: a stream that lands in one tick
     // must not let the closing write replace the verdict with a stale block.
     const change = next => { latest.current = next; onChange(next); };
-    const committed = { ...latest.current, answer, attemptId: crypto.randomUUID(), verdict: '', grading: !!onGrade, ...(block.mode === 'explain_back' ? { sketchSubmitted: sketched, reviewFailed: false } : {}) };
-    // Only the attempt still on the block writes to it: after Answer again, a
+    const committed = { ...latest.current, answer, attemptId: crypto.randomUUID(), verdict: '', grading: !!onGrade, sketchSubmitted: sketched, reviewFailed: false };
+    // Only the attempt still on the block writes to it: after Revise answer, a
     // late reply from the old attempt is dropped.
     const current = () => latest.current.attemptId === committed.attemptId;
     gradingAttempts.add(committed.attemptId);
     try {
       change(committed);
       if (!onGrade) return;
-      // The tutor reads the challenge, the expected ideas and this answer, then
+      // The tutor reads the question, the expected ideas and this answer, then
       // streams a short verdict back into the block.
       try {
         await onGrade(committed, answer, delta => {
@@ -1296,8 +1305,8 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
         }, sketch);
         if (current()) change({ ...latest.current, grading: false });
       } catch (error) {
-        // A verdict that already arrived stays; the error fills only an empty one (an Explain-back card marks it failed).
-        if (current()) change({ ...latest.current, grading: false, verdict: latest.current.verdict || `Could not reach the tutor: ${error.message}`, ...(latest.current.mode === 'explain_back' && !latest.current.verdict ? { reviewFailed: true } : {}) });
+        // A verdict that already arrived stays; with none, the review is marked failed with the error.
+        if (current()) change({ ...latest.current, grading: false, verdict: latest.current.verdict || `Could not reach the tutor: ${error.message}`, ...(!latest.current.verdict ? { reviewFailed: true } : {}) });
       }
     } finally {
       gradingAttempts.delete(committed.attemptId);
@@ -1306,47 +1315,9 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
       if (current() || !gradingAttempts.has(latest.current.attemptId)) inFlight.current = false;
     }
   };
-  // Answer again (Revise answer) keeps everything the learner made: the text comes back to the field and the sketch stays, editable, as the start of the next attempt (a new attempt id on Submit); an Explain-back answer and its review stay selectable in the card's history.
-  const retry = () => { inFlight.current = false; setDraft(block.answer || ''); onChange({ ...block, answer: null, attemptId: null, verdict: '', grading: false, ...(block.mode === 'explain_back' ? { sketchSubmitted: false, reviewFailed: false, history: [...(block.history || []), pastAttempt(block)].slice(-HISTORY_KEPT) } : {}) }); };
-  if (block.mode === 'explain_back') return <ExplainBackCard memoryKey={memoryKey} block={block} onChange={onChange} onFile={onFile} draft={draft} setDraft={setDraft} commit={commit} revise={retry} notice={notice} setNotice={setNotice} sketchHost={sketchHost} sketchable={sketchable} sketchMarked={sketchMarked} />;
-  const answered = !!block.answer;
-  // The tutor opens with "VERDICT: good|partial"; it tints the answer and is
-  // stripped from what the learner reads.
-  const grade = parseVerdict(block.verdict);
-  const verdictText = stripVerdict(block.verdict);
-  const waiting = block.grading && !verdictText ? (gradingAttempts.has(block.attemptId) ? 'Reading your answer' : 'Grading was interrupted. Answer again to retry.') : null;
-  const tint = grade === 'good' ? 'border-green-700/30 bg-green-700/10 text-green-800' : grade === 'partial' ? 'border-amber-600/40 bg-amber-500/10 text-amber-800' : 'border-line bg-hover text-ink';
-  return (
-    <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker>Challenge</Kicker>
-      <div className="text-sm"><Md text={block.prompt} onFile={onFile} /></div>
-      {!answered ? (
-        <div onPointerDown={e => e.stopPropagation()}>
-          <p className="mt-1 text-xs text-ink-2 italic"><MdInline text={block.hint} /></p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') commit(); }}
-              placeholder="Your guess in one sentence" className="h-8 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm outline-none focus:border-ink-3" />
-            <button type="button" disabled={!ready} onClick={commit}
-              className="h-8 shrink-0 rounded-lg bg-ink px-3.5 text-sm font-medium text-white disabled:opacity-40">Commit</button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="mt-2 flex justify-end"><span data-answer data-grade={grade || 'pending'} className={`max-w-[85%] rounded-xl border px-3 py-1.5 text-sm whitespace-pre-wrap ${tint}`}><MdInline text={block.answer} mathOnly /></span></div>
-          {(verdictText || block.grading) && (
-            <div data-verdict className="mt-3 border-t border-line pt-3 text-sm">
-              <p className="mb-1 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">Tutor</p>
-              {verdictText ? <Md text={verdictText} onFile={onFile} /> : <p className="text-ink-2 italic">{waiting}</p>}
-            </div>
-          )}
-          {block.reveal && <div className="mt-3 border-t border-line pt-3 text-sm"><Md text={block.reveal} onFile={onFile} /></div>}
-          <div className="mt-2 flex justify-end" onPointerDown={e => e.stopPropagation()}>
-            <button type="button" data-challenge-retry onClick={retry} className="rounded px-2 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">Answer again</button>
-          </div>
-        </>
-      )}
-    </div>
-  );
+  // Revise answer keeps everything the learner made: the text comes back to the field and the sketch stays, editable, as the start of the next attempt (a new attempt id on Submit); the answer and its review stay selectable in the card's history.
+  const retry = () => { inFlight.current = false; setDraft(block.answer || ''); onChange({ ...block, answer: null, attemptId: null, verdict: '', grading: false, sketchSubmitted: false, reviewFailed: false, history: [...(block.history || []), pastAttempt(block)].slice(-HISTORY_KEPT) }); };
+  return <ExplainBackCard memoryKey={memoryKey} block={block} onChange={onChange} onFile={onFile} draft={draft} setDraft={setDraft} commit={commit} revise={retry} notice={notice} setNotice={setNotice} sketchHost={sketchHost} sketchable={sketchable} sketchMarked={sketchMarked} />;
 }
 
 function QuizBody({ block, onChange, onFile }) {
@@ -2268,9 +2239,9 @@ export function describeBlock(block) {
   if (block.type === 'snippet') return { kind: 'Code sample', title: block.title, text: `Code sample: ${block.title}\n${block.brief || ''}\nCode:\n${block.code}\nOutput:\n${block.output || '(none shown)'}` };
   if (block.type === 'quiz') return { kind: 'Quiz', title: block.question, text: `Quiz question: ${block.question}\nOptions:\n${block.options.map(option => `${option.key}. ${option.text}${option.correct ? ' (correct answer)' : ''}`).join('\n')}\nLearner's current choice: ${block.choice || 'none yet'}` };
   if (block.type === 'flashcards') return { kind: 'Flashcards', title: `${block.cards.length} cards`, text: `Flashcards:\n${block.cards.map((card, index) => `- ${card.front} → ${card.back} (learner self-rated: ${(block.marks || {})[index] || 'unrated'})`).join('\n')}` };
-  if (block.type === 'challenge' && block.mode === 'explain_back') return { kind: 'Explain back', title: block.prompt, text: [`Explain-back prompt: ${block.prompt}`, `Key ideas expected: ${(block.expects || []).join('; ')}`, `Learner's explanation: ${block.answer || (block.sketchSubmitted ? 'given as a sketch only' : 'not given yet')}`, block.sketchSubmitted ? `Learner's sketch (part of the same explanation): ${sketchText(block.sketch)}` : '', block.verdict ? `Understanding evidence: ${block.verdict}` : ''].join(NEWLINE) };
+  // One Practice card (owner 2026-10-30), whatever its saved mode: an old Challenge's guess and verdict read the same way.
+  if (block.type === 'challenge') return { kind: 'Practice', title: block.prompt, text: [`Practice prompt (explain in your own words): ${block.prompt}`, `Key ideas expected: ${(block.expects || []).join('; ')}`, `Learner's explanation: ${block.answer || (block.sketchSubmitted ? 'given as a sketch only' : 'not given yet')}`, block.sketchSubmitted ? `Learner's sketch (part of the same explanation): ${sketchText(block.sketch)}` : '', block.verdict ? `Understanding evidence: ${block.verdict}` : ''].join(NEWLINE) };
   if (block.type === 'slide') return { kind: 'Slide', title: `${block.label || 'PDF'}, page ${block.number}`, text: `Page ${block.number} of the PDF ${block.label || ''} on the canvas.` };
-  if (block.type === 'challenge') return { kind: 'Challenge', title: block.prompt, text: [`Challenge: ${block.prompt}`, `Learner's committed answer: ${block.answer || 'none yet'}`, block.verdict ? `Tutor verdict: ${block.verdict}` : ''].join(NEWLINE) };
   return null;
 }
 

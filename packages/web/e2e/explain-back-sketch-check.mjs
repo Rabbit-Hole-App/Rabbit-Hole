@@ -1,12 +1,13 @@
 // Explain-back card and its one Sketch panel, against a LOCAL stack only, on a dev-flag build (the Insert lesson block menu).
 // That build takes the durable attempt path (VITE_COACHING_DEV turns ExplainBackService on, explain-back-service.js): the
 // attempt routes are stubbed in the page with contract-valid reviews (explain-back-contract.js validates each one), so no
-// model is called and every attempt the page saves is recorded and checked. An ordinary Challenge keeps the legacy grade.
+// model is called and every attempt the page saves is recorded and checked. Owner 2026-10-30 (one Practice card): every
+// challenge block is this card; the Insert menu offers it once, as Practice.
 // Spec: docs/superpowers/plans/2026-10-30-explain-back.md (v1.6) sections 3, 5 and 9, which replace the inline sketch of
 // docs/features/explain-back-sketch.md. The owner's decisions retire the in-card drawing area, the Add/Hide sketch toggle,
 // the "Included in your answer" badge and the card growing to hold a sketch (plan section 3, "Approved UI revision"), and
-// the single-line field with Speak answer writing into it (section 5, "Owner correction"). The original cases stay: an
-// ordinary Challenge is unchanged, the one canvas toolbar draws in the sketch, the stores never cross, reload keeps the
+// the single-line field with Speak answer writing into it (section 5, "Owner correction"). The original cases stay: the
+// one canvas toolbar draws in the sketch, the stores never cross, reload keeps the
 // sketch, text + sketch is one attempt, a revision keeps the work and is a new attempt, sketch alone is an answer, and
 // closing is presentation only while Clear sketch takes a drawing out.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/explain-back-sketch-check.mjs [outDir]
@@ -191,20 +192,18 @@ await page.goto(`${BASE}/apps/${canvas.name}`);
 await page.waitForSelector('[data-tool-gutter]', { timeout: 30000 });
 await page.waitForTimeout(1500);
 
-// ---- 12. a challenge card: no sketch offered, no microphone (FX-EB-04, owner 2026-10-30), Commit grades the text alone ----
-const challenge = await insert('Challenge');
-await check('12 challenge card unchanged', async () => {
-  assert.equal(await challenge.locator('[data-sketch-toggle]').count(), 0, 'a challenge offers no sketch');
-  assert.equal(await challenge.locator('[data-speak-answer]').count(), 0, 'a challenge offers no microphone');
-  await challenge.locator('input').fill('the ids pick embedding rows');
-  await challenge.getByRole('button', { name: 'Commit', exact: true }).click();
-  await challenge.locator('[data-answer][data-grade="partial"]').waitFor({ timeout: 10000 });
-  assert.deepEqual(Object.keys(grades.at(-1)).sort(), ['answer', 'app', 'expects', 'mode', 'prompt']);
-  assert.equal(grades.at(-1).mode, 'challenge');
+// ---- 12. one Practice entry (owner 2026-10-30: Explain-back = Challenge = Practice; it replaces "challenge card unchanged") ----
+await check('12 the Insert menu offers one Practice entry, no Challenge or Explain back', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  const named = name => page.getByRole('menuitem', { name, exact: true }).count();
+  assert.deepEqual([await named('Practice'), await named('Challenge'), await named('Explain back')], [1, 0, 0]);
+  await page.locator('[aria-label="Insert lesson block"]').click(); // the button toggles the menu shut
+  await page.waitForTimeout(300);
+  assert.equal(await page.getByRole('menu', { name: 'Lesson blocks' }).count(), 0);
 });
 
 // ---- the first draft (plan section 3): question and Details & hint visible, multiline field, Open sketch + Submit ----
-const textOnly = await insert('Explain back');
+const textOnly = await insert('Practice');
 await shot('01-first-draft');
 await check('3a first draft layout', async () => {
   assert.match(await textOnly.locator('[data-eb-question]').innerText(), /token id/);
@@ -259,7 +258,7 @@ await check('11 Tutor feedback: three sections, the blue rating, citations open 
 await shot('02-feedback');
 
 // ---- 2 and 3. Open sketch: one panel at the workspace's right edge, the card unchanged, the one toolbar draws there ----
-const card = await insert('Explain back');
+const card = await insert('Practice');
 const cardId = await card.getAttribute('data-block-id');
 await reveal(card);
 const cardBefore = await box(card);
@@ -483,7 +482,7 @@ await check('10 the revision is a new attempt pinned to attempt 1 and its review
 });
 
 // ---- 5. sketch only, and one panel across questions ----
-const sketchOnly = await insert('Explain back');
+const sketchOnly = await insert('Practice');
 const sketchOnlyId = await sketchOnly.getAttribute('data-block-id');
 await check('5 a pinned panel is not taken by another question; once free, Open sketch retargets the one panel; sketch alone is an answer', async () => {
   await reveal(sketchOnly);
@@ -517,7 +516,7 @@ await check('5 a pinned panel is not taken by another question; once free, Open 
 await shot('07-sketch-only');
 
 // ---- Clear sketch is the one way to take a drawing out; a closed sketch is still in the attempt ----
-const hiding = await insert('Explain back');
+const hiding = await insert('Practice');
 const hidingId = await hiding.getAttribute('data-block-id');
 const drawIn = async () => {
   const area = await box(panelOf(hidingId).locator(`[data-sketch="${hidingId}"]`));
@@ -553,7 +552,7 @@ await check('draw, close, submit: the closed sketch is still in the combined att
 });
 
 // ---- an unpinned panel closes on a canvas press; below 720 px it stacks under the card (plan section 3) ----
-const narrow = await insert('Explain back');
+const narrow = await insert('Practice');
 const narrowId = await narrow.getAttribute('data-block-id');
 await check('an unpinned panel closes on a press elsewhere on the canvas', async () => {
   await reveal(narrow);
@@ -587,7 +586,8 @@ assert.equal(await panels().count(), 0, 'the Sketch is put away');
 
 // ---- EB-05: resource inputs (plan 2026-10-30-explain-back.md section 4). Click-click from a card's or a Group's port to
 // the green Input makes one semantic link; the other port of the same source is the same input; undo removes it; an
-// ordinary connector stays ordinary. Challenge cards stand in for any source card: every card has the same port pair.
+// ordinary connector stays ordinary. Explanation cards stand in for any source card: every card has the same port pair
+// (a challenge is the Practice card itself since owner 2026-10-30, never a source).
 const port = (owner, side) => page.locator(`[data-port="${side}"][data-owner="${owner}"]`);
 const boardState = id => page.evaluate(card => Object.values(localStorage).map(v => { try { return JSON.parse(v); } catch { return null; } })
   .find(state => (state?.blocks || []).some(block => block.id === card)) || null, id);
@@ -596,10 +596,10 @@ const settleLinks = (id, count) => page.waitForFunction(([card, n]) => Object.va
   .find(state => (state?.blocks || []).some(block => block.id === card))?.links?.filter(link => link.kind === 'explain-input' && link.to === card).length === n, [id, count], { timeout: 10000 });
 const clickClick = async (first, second) => { await first.click(); await page.waitForTimeout(150); await second.click(); await page.waitForTimeout(300); };
 // Each card by its own id: insert() returns cards().last(), a live locator that is always the newest card, so after the
-// second Challenge every one of these named that card (run 41044854928: the Shift-click selected only it; nothing grouped).
-const answerId = await (await insert('Explain back')).getAttribute('data-block-id');
-const sourceAId = await (await insert('Challenge')).getAttribute('data-block-id');
-const sourceBId = await (await insert('Challenge')).getAttribute('data-block-id');
+// second source every one of these named that card (run 41044854928: the Shift-click selected only it; nothing grouped).
+const answerId = await (await insert('Practice')).getAttribute('data-block-id');
+const sourceAId = await (await insert('Explanation')).getAttribute('data-block-id');
+const sourceBId = await (await insert('Explanation')).getAttribute('data-block-id');
 const byId = id => page.locator(`[data-block-id="${id}"]`);
 const answerCard = byId(answerId), sourceA = byId(sourceAId), sourceB = byId(sourceBId);
 await check('EB-05 the Input is a green port at the upper-left header edge', async () => {
@@ -610,7 +610,7 @@ await check('EB-05 the Input is a green port at the upper-left header edge', asy
   const at = await box(input), cardBox = await box(answerCard);
   assert.ok(Math.abs(at.x + at.width / 2 - cardBox.x) <= 2, 'on the left edge');
   assert.ok(at.y + at.height / 2 - cardBox.y < 60, 'beside the header, not the midpoint');
-  assert.equal(await port(sourceAId, 'input').count(), 0, 'an ordinary Challenge has no Input');
+  assert.equal(await port(sourceAId, 'input').count(), 0, 'an Explanation has no Input');
 });
 await check('EB-05 a source port to the Input makes one link; its other port is the same input; undo removes it', async () => {
   await reveal(sourceA);
@@ -640,7 +640,7 @@ await check('EB-05 a Group connects from its frame ports, bound to its id', asyn
   await shot('14-group-input-connected');
 });
 await check('EB-05 an ordinary connector between cards stays ordinary', async () => {
-  // The Group step left both Challenges selected, so the canvas's style panel (it follows the selection, from the tools
+  // The Group step left both sources selected, so the canvas's style panel (it follows the selection, from the tools
   // column) lies over their ports (run 41047132278, FAIL-EB-05.png). A learner dismisses it with a press on empty canvas
   // first, as here. ponytail: the style panel covering selected cards is the canvas's own placement, not Explain-back's.
   const surface = await box(page.locator('[data-canvas-surface]'));
@@ -686,7 +686,7 @@ await shot('15-input-pills');
 const generated = [];
 page.on('request', request => { if (/^\/api\/(learn\/assess|explain|motion)(\/|$)/.test(new URL(request.url()).pathname)) generated.push(request.url()); });
 const explanationId = await (await insert('Explanation')).getAttribute('data-block-id');
-const aidCard = await insert('Explain back');
+const aidCard = await insert('Practice');
 const aidCardId = await aidCard.getAttribute('data-block-id');
 await check('EB-08.4 teaching aids: the existing Explanation is offered and opened on the canvas, never made again', async () => {
   await reveal(aidCard);

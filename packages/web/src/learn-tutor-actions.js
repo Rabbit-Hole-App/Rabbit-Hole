@@ -3,13 +3,14 @@
 // history and the decision trace both read these fields and never recompute them. Pure; it imports no course module.
 import { HANDOFF_ACTION, REASON_CODES } from '../../control-plane/src/agents/learn-tutor.js';
 import { insertsWithoutModel } from './learn-slash.js';
+import { isExplainBackCard } from './explain-back-private.js';
 
-// A card's modality is its block type; an Explain Back challenge is explain_back (describeBlock names it the same way).
-export const blockModality = block => (!block ? null : block.type === 'challenge' && block.mode === 'explain_back' ? 'explain_back' : block.type ?? null);
+// A card's modality is its block type; every challenge is the one Practice card, explain_back (owner 2026-10-30).
+export const blockModality = block => (!block ? null : isExplainBackCard(block) ? 'explain_back' : block.type ?? null);
 
 // The block a Learn command's card is inserted as, where that differs from its palette name (learn-slash.js CARD_OF):
 // the control plane's learn-primitives.js builders and runLearnCommand's own inserts (learn-slash.test.mjs checks each).
-const INSERTED = { explainBack: 'explain_back', plot: 'graph', walkthrough: 'scene', videoGenerate: 'video', mathAnimation: 'video' };
+const INSERTED = { challenge: 'explain_back', explainBack: 'explain_back', plot: 'graph', walkthrough: 'scene', videoGenerate: 'video', mathAnimation: 'video' };
 const OF_TYPE = { respond_text: 'text', [HANDOFF_ACTION]: 'text', suggest_depth: 'depth', suggest_practice: 'practice', suggest_dive: 'rabbit_hole', open_dive: 'rabbit_hole', return_from_dive: 'rabbit_hole', suggest_avatar_clip: 'avatar' };
 
 // domain.cardType(card): the block modality of a card it can show. materials: the turn's available_materials; a made card

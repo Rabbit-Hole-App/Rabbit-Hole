@@ -5,16 +5,18 @@
 // The relationship is a canvas link { id, kind: 'explain-input', from: sourceId, fromSide: 'top'|'bottom', to: cardId,
 // toSide: 'input', scope }: undo, save, delete and reload treat it like any link, and pills are derived from it, never
 // stored apart. `world` is { blocks, groups, exchanges, items, shapes, board }: the canvas as it is now.
+import { isExplainBackCard as isExplainBack } from './explain-back-private.js';
 
 export const INPUT_LINK = 'explain-input';
 export const INPUT_SIDE = 'input';
 export const isInputLink = link => link?.kind === INPUT_LINK;
-export const isExplainBack = entry => entry?.type === 'challenge' && entry?.mode === 'explain_back';
+// Every challenge block is a Practice card with an Input (owner 2026-10-30): explain-back-private.js holds the one test.
+export { isExplainBack };
 export const GROUP_MEMBER_LIMIT = 30; // ANSWER_LIMITS.groupMembers
 export const INPUT_LIMIT = 20; // ANSWER_LIMITS.evidence, shared with voice and sketch: the server refuses past it
 
 export const INPUT_PROBLEMS = {
-  'not-explain-back': 'Only an Explain-back answer has an Input.',
+  'not-explain-back': 'Only a Practice card has an Input.',
   self: 'An answer cannot be its own input.',
   missing: 'That source is no longer on the canvas.',
   unsupported: 'This kind of card cannot be an input yet.',

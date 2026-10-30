@@ -38,15 +38,17 @@ test('the softmax formula typesets in a challenge prompt and its hint: fraction,
   assert.match(html, /<span class="mop"><span class="mord mathrm">softmax<\/span><\/span>/, '\operatorname sets upright softmax');
   const text = visible(html);
   assert.doesNotMatch(text, /\$|\\frac|\\operatorname|\\sum/, 'no delimiter or TeX command on screen');
-  // The hint stays inside its italic paragraph: MdInline adds no block element there.
-  const hint = html.match(/<p class="mt-1 text-xs text-ink-2 italic">([\s\S]*?)<\/p>/)[1];
+  // The hint stays inside its paragraph under Details & hint: MdInline adds no block element there (owner 2026-10-30: one
+  // Practice card, so a challenge renders the Practice card's hint).
+  const hint = html.match(/<div data-eb-hint[^>]*>[\s\S]*?<p class="text-\[13px\] text-ink-2">([\s\S]*?)<\/p>/)[1];
   assert.match(hint, /^Think of <span data-chat-math="inline"[^>]*><span class="katex">/);
   assert.doesNotMatch(hint, /<(div|p)[ >]/);
 });
 
 test('a submitted answer is typeset where the learner wrote math; currency and prose stay as typed', () => {
   const html = card({ id: 'c2', type: 'challenge', prompt: 'p', hint: 'h', expects: ['a', 'b'], answer: `It becomes ${SOFTMAX}, about $5 or $10 and my_var * 2`, verdict: 'VERDICT: partial\nClose.' });
-  const answer = html.match(/<span data-answer[\s\S]*?<\/span><\/div>/)?.[0] || '';
+  // A saved answer on the block is the Practice card's first attempt (owner 2026-10-30: one Practice card).
+  const answer = html.match(/<p data-answer[^>]*>[\s\S]*?<\/p>/)?.[0] || '';
   assert.match(answer, /class="katex"/);
   assert.match(visible(answer), /about \$5 or \$10 and my_var \* 2/);
   assert.doesNotMatch(answer, /<em>/, 'a learner\'s asterisks are not emphasis');

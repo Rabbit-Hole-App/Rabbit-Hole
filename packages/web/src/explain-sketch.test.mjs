@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { canSubmit, hasMarks, roundPoint, sketchMarks, sketchText } from './explain-sketch.js';
+import { hasMarks, roundPoint, sketchMarks, sketchText } from './explain-sketch.js';
 import { assessBody, explainBackPrompt } from '../../control-plane/src/agents/learn-grade.js';
 
 const block = { id: 'b1', type: 'challenge', mode: 'explain_back', prompt: 'What happens to token id 2?', expects: ['the id selects an embedding row', 'a position embedding is added'], attemptId: 'attempt-0001' };
@@ -30,13 +30,6 @@ test('the grader reads the marks by kind, then every written word top to bottom,
   assert.equal(sketchText({ items: [{ kind: 'text', x: 0, y: 0, text: 'x'.repeat(5000) }] }).length, 2000);
 });
 
-test('Submit opens on typed words or on marks in the sketch, shown or hidden; text is never required', () => {
-  assert.equal(canSubmit('  ', null), false);
-  assert.equal(canSubmit('the id picks a row', null), true);
-  assert.equal(canSubmit('', drawn), true, 'sketch only - hiding it does not take it out');
-  assert.equal(canSubmit('', { strokes: [], shapes: [], items: [] }), false, 'a cleared sketch is not an answer');
-});
-
 // The grading fixtures (tests/evals/explain-back-sketch/fixtures.json): what the grader reads beside each picture.
 const { expects, fixtures } = JSON.parse(readFileSync(new URL('../../../tests/evals/explain-back-sketch/fixtures.json', import.meta.url), 'utf8'));
 const fixture = id => fixtures.find(entry => entry.id === id);
@@ -49,7 +42,7 @@ test('the fixtures: a correct sketch names every key idea, an irrelevant one non
   assert.ok(hasMarks(fixture('sketch-only-irrelevant').sketch), 'it is a real drawing');
   assert.doesNotMatch(irrelevant, /embedding|position|transformer|LM head|score|token/i);
   assert.match(sketchText(fixture('sketch-only-incorrect').sketch), /multiply by 2.*4 is the next token/);
-  for (const entry of fixtures) assert.equal(canSubmit(entry.answer, entry.sketch), true, `${entry.id} is an answer`);
+  for (const entry of fixtures) assert.ok(String(entry.answer || '').trim() || hasMarks(entry.sketch), `${entry.id} is an answer`);
 });
 
 test('text + sketch is one grade request: the complementary fixture carries both, the control the text alone', () => {

@@ -6,7 +6,7 @@ import { hasMarks, sketchText } from './explain-sketch.js';
 import { HISTORY_KEPT, legacyView, pastAttempt } from './explain-back-view.js';
 
 // LearningBlocks.jsx cannot load under node, so these run ChallengeBody's real
-// commit, retry and status line from its source (grading-8, grading-9,
+// commit and retry from its source (grading-8, grading-9,
 // lifecycle-7 in docs/features/learn-cleanup.md). Each render re-reads the
 // block, as React does after onChange.
 const source = readFileSync(new URL('./LearningBlocks.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -16,7 +16,6 @@ const piece = start => {
   assert.ok(at >= 0, start);
   return line.endsWith('};') ? line : body.slice(at, body.indexOf('\n  };\n', at) + 5);
 };
-const statusLine = body.match(/\n  const waiting = [^\n]*\n/)?.[0] || '';
 const moduleSets = (source.match(/^const gradingAttempts = new Set\(\);$/m) || [''])[0];
 
 // ExplainBackPanel.jsx's capture adapter cannot load under node either: its source, run as it is.
@@ -35,16 +34,14 @@ function card(block, onGrade, host = null) {
       const setDraft = next => { state.draft = typeof next === 'function' ? next(state.draft) : next; };
       const render = () => {
         const block = state.block, draft = state.draft;
-        const sketchable = !!sketchHost && block.mode === 'explain_back';
+        const sketchable = !!sketchHost;
         const sketchMarked = sketchable && hasMarks(block.sketch);
         latest.current = block;
-        const verdictText = stripVerdict(block.verdict);
         ${piece('  const commit = async () => {')}
         ${piece('  const retry = () =>')}
-        ${statusLine}
-        return { commit, retry, waiting: typeof waiting === 'undefined' ? null : waiting };
+        return { commit, retry };
       };
-      return { state, render, type: text => { state.draft = text; } };
+      return { state, render, type: text => { state.draft = text; }, inPage: id => gradingAttempts.has(id) };
     };`);
   return make(null, parseVerdict, stripVerdict, hasMarks, sketchText, host, sketchCapture, pastAttempt, HISTORY_KEPT)(block, onGrade);
 }
@@ -81,14 +78,17 @@ test('an error after a streamed verdict keeps the verdict; an error with none sh
   assert.equal(failed.state.block.verdict, 'Could not reach the tutor: Tutor down');
 });
 
-test('a grade in flight reads as reading; a saved grading state with no request reads as interrupted', async () => {
+// Owner 2026-10-30: one Practice card. The old Challenge's own status line is gone; its states are the Practice card's
+// (legacyView): a grade running in this page is reviewing, a saved grading state with no request is interrupted.
+test('a grade in flight reads as reviewing; a saved grading state with no request reads as interrupted', async () => {
   const wait = held();
   const c = card(challenge, async () => { await wait.promise; });
   c.type('an answer');
   const running = c.render().commit();
-  assert.equal(c.render().waiting, 'Reading your answer');
-  const reloaded = card({ ...challenge, answer: 'an answer', attemptId: 'a-saved-attempt', verdict: '', grading: true });
-  assert.equal(reloaded.render().waiting, 'Grading was interrupted. Answer again to retry.');
+  const { inPage } = c;
+  assert.equal(legacyView(c.state.block, { strip: stripVerdict, inPage }).attempts[0].status, 'reviewing');
+  const reloaded = { ...challenge, answer: 'an answer', attemptId: 'a-saved-attempt', verdict: '', grading: true };
+  assert.equal(legacyView(reloaded, { strip: stripVerdict, inPage }).attempts[0].status, 'interrupted');
   wait.release();
   await running;
 });
@@ -211,9 +211,9 @@ test('an Explain-back review that fails is marked failed, not shown as feedback'
   assert.deepEqual([c.state.block.reviewFailed, c.state.block.grading], [true, false]);
   const [attempt] = legacyView(c.state.block, { strip: stripVerdict }).attempts;
   assert.deepEqual([attempt.status, attempt.feedback, attempt.error], ['failed', null, 'Could not reach the tutor: Tutor down']);
-  // An ordinary challenge keeps its old error text and no flag.
+  // Owner 2026-10-30: one Practice card - an old challenge (no mode) is marked failed the same way.
   const plain = card(challenge, async () => { throw new Error('Tutor down'); });
   plain.type('x');
   await plain.render().commit();
-  assert.equal(plain.state.block.reviewFailed, undefined);
+  assert.deepEqual([plain.state.block.reviewFailed, plain.state.block.verdict], [true, 'Could not reach the tutor: Tutor down']);
 });

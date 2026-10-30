@@ -1,6 +1,7 @@
 import { createContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { FileText, Group, ImageIcon, Maximize2, MessageSquareText, Minimize2, NotebookPen, Pin, X } from 'lucide-react';
 import { Md } from './ask.jsx';
+import { MdInline } from './Md.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { selectionRef } from './selection-ref.js';
 import VoiceNote from './VoiceNote.jsx';
@@ -58,11 +59,11 @@ export const PANEL_LOCKED = {
 };
 export function usePanelOwner(root) {
   const store = ownerStore(root);
-  const owner = useSyncExternalStore(listener => { if (!store) return () => {}; store.listeners.add(listener); return () => store.listeners.delete(listener); }, () => store?.owner ?? null);
+  const owner = useSyncExternalStore(listener => { if (!store) return () => {}; store.listeners.add(listener); return () => store.listeners.delete(listener); }, () => store?.owner ?? null, () => null);
   const setOwner = id => { if (!store || store.owner === id) return; store.owner = id; store.lock = null; for (const listener of [...store.listeners]) listener(); };
   // A question that goes away (deleted, undone) gives the panel up; closing keeps it, so the owner never flickers.
   const releaseOwner = id => { if (store?.owner === id) setOwner(null); };
-  const setLock = (id, lock) => { if (store?.owner === id) store.lock = lock; };
+  const setLock = (id, lock) => { if (store && store.owner === id) store.lock = lock; };
   // Why `id` may not take the panel now (a learner-readable reason), or null.
   const lockedFor = id => (store && store.owner !== null && store.owner !== id && store.lock ? PANEL_LOCKED[store.lock] : null);
   return [owner, setOwner, releaseOwner, setLock, lockedFor];
@@ -76,8 +77,9 @@ const noMedia = { subscribe: () => () => {}, get: () => null };
 export function useDraftMedia({ draftKey, voiceStore, recordingStore, blockId, initial = undefined }) {
   const note = voiceStore ? voiceNoteFor(draftKey, { upload: voiceStore.upload, load: voiceStore.load, saved: initial !== undefined ? initial : voiceStore.saved?.(blockId) ?? null, onSaved: saved => voiceStore.onSaved?.(blockId, saved) }) : null;
   const take = recordingStore ? sketchRecordingFor(draftKey, { upload: recordingStore.upload, uploadAudio: recordingStore.uploadAudio, load: recordingStore.load, onSaved: saved => recordingStore.onSaved?.(blockId, saved) }) : null;
-  const noteState = useSyncExternalStore((note || noMedia).subscribe, (note || noMedia).get);
-  const takeState = useSyncExternalStore((take || noMedia).subscribe, (take || noMedia).get);
+  // The third getter lets the card render to static markup too (math-typeset.test.mjs).
+  const noteState = useSyncExternalStore((note || noMedia).subscribe, (note || noMedia).get, (note || noMedia).get);
+  const takeState = useSyncExternalStore((take || noMedia).subscribe, (take || noMedia).get, (take || noMedia).get);
   return {
     note, take,
     voice: note ? { ...voiceSubmitState(noteState), saved: noteState?.saved ?? null } : null,
@@ -239,7 +241,8 @@ export function AnswerView({ attempt, cited = null, VoicePlayer = null }) {
   return (
     <div data-answer-view={attempt.id} className="space-y-2 text-sm">
       {words ? (
-        <p data-answer className="whitespace-pre-wrap break-words">{at < 0 ? words : <>{words.slice(0, at)}<mark data-cited className="rounded-sm bg-primary-fill/15 text-ink">{highlight}</mark>{words.slice(at + highlight.length)}</>}</p>
+        // Math the learner wrote is typeset, as the old Challenge answer was (owner brief 2026-10-28); a cited passage is marked in the plain text.
+        <p data-answer className="whitespace-pre-wrap break-words">{at < 0 ? <MdInline text={words} mathOnly /> : <>{words.slice(0, at)}<mark data-cited className="rounded-sm bg-primary-fill/15 text-ink">{highlight}</mark>{words.slice(at + highlight.length)}</>}</p>
       ) : <p className="text-ink-2 italic">No written text in this answer.</p>}
       {highlight && at < 0 && <p role="status" className="text-xs text-ink-2">The cited passage is not in this answer.</p>}
       {attempt.answer.sketched && <p data-answer-sketched className="text-xs text-ink-2">This answer includes a sketch.</p>}
@@ -261,7 +264,7 @@ export function FeedbackView({ attempt, question, blockId, onCite, onFile, aids 
   if (!feedback) return <p className="text-sm text-ink-2">No feedback for this attempt.</p>;
   const ask = () => {
     const content = askTutorText(question, attempt);
-    chat.composer.prepare({ mode: 'tutor', text: `Help me with what to revisit in my attempt ${attempt.number}.`, contextRefs: [selectionRef({ ids: [blockId], kind: 'card', name: `Explain back: ${question}`.slice(0, 120), content })] });
+    chat.composer.prepare({ mode: 'tutor', text: `Help me with what to revisit in my attempt ${attempt.number}.`, contextRefs: [selectionRef({ ids: [blockId], kind: 'card', name: `Practice: ${question}`.slice(0, 120), content })] });
   };
   return (
     <div data-feedback-view={attempt.id} className="space-y-3 text-sm">
