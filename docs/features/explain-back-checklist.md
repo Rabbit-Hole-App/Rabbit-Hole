@@ -62,7 +62,7 @@ has run.
 | EB-05 resource Input, Notebook, Group | R | implemented, tested, browser-checked |
 | EB-06 retained voice, then Sketch recording | M | implemented, tested, browser-checked with fake audio; real speech not yet transcribed |
 | EB-07 coordinated assessment and revision comparison | A | implemented, tested; every live eval case has passed on the final code (runs 3-4) |
-| EB-08 blue rating, feedback, teaching links | A + U | rating and feedback done; teaching-aid links not built (FX-EB-05) |
+| EB-08 blue rating, feedback, teaching links | A + U | rating and feedback done; teaching-aid links to existing cards built (FX-EB-05, c4a950cae), awaiting CI and the live eval case |
 | EB-09 integration and regression | P | done for the candidate; independent server and client reviews, every finding fixed or recorded |
 | EB-10 push, preview, receipts, release prep | P | preview deployed; release prepared; needs the owner's GO |
 | UI-29 generation-prompt visibility | U | in the Explain-back card; other card types not audited |
