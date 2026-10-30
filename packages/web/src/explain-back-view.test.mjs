@@ -1,5 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+// The canvas's drawing, move and resize gestures finish on window pointermove/pointerup (AdaptiveCanvas drawGesture
+// listen, startDrag). A React stopPropagation on those events inside the Sketch panel also stops them before window, so a
+// docked stroke never ended (fast-e2e run 41032431618). The panel may stop pointerdown, click and the menus, never these.
+test('the Sketch panel never stops pointerup or pointermove on their way to window', () => {
+  const source = readFileSync(new URL('./ExplainBackPanel.jsx', import.meta.url), 'utf8');
+  const panel = source.slice(source.indexOf('export function SketchPanel('), source.indexOf('\nexport function RatingBadge('));
+  assert.ok(panel.length > 1000, 'found the SketchPanel source');
+  assert.doesNotMatch(panel, /onPointer(Up|Move)(Capture)?=\{stop\}/);
+  assert.doesNotMatch(panel, /onPointer(Up|Move)(Capture)?=\{[^}]*stopPropagation/);
+});
 import { ANSWER_PLACEHOLDER, PANEL, STOP_TO_SUBMIT, askTutorText, attemptLabel, connectionsOf, draftMemoryKey, inputPillsOf, legacyView, recallDraft, rememberDraft, reviseSketchPlan, locatorText, optionText, panelLayout, ratingBadge, serviceView, stackTop, submitState } from './explain-back-view.js';
 
 // Plan 2026-10-30-explain-back.md sections 3, 7H, 8 and 9: what the Explain-back card shows, from either data path.

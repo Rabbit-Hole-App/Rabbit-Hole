@@ -149,7 +149,9 @@ export function SketchPanel({ portal, surface, ownerId, ownerTitle, status, widt
     : { left: PANEL.edge, right: PANEL.edge, top: stackTop(cardBottom), height: `max(${PANEL.floor}px, min(440px, calc(100% - ${stackTop(cardBottom) + PANEL.edge}px)))` };
   return portal(
     <section ref={panel} data-explain-sketch-panel={ownerId} data-panel-mode={expanded ? 'expanded' : layout.mode} data-thumbnail-hide aria-label="Sketch" style={style}
-      onPointerDown={stop} onPointerUp={stop} onClick={stop} onDoubleClick={stop} onContextMenu={stop}
+      // No pointerup stop: React's stopPropagation also stops the native event before window, where the canvas's drawing
+      // gesture waits for its pointerup (a docked stroke or shape would never finish; fast-e2e run 41032431618).
+      onPointerDown={stop} onClick={stop} onDoubleClick={stop} onContextMenu={stop}
       className="absolute z-30 flex flex-col rounded-xl border border-line bg-surface text-ink shadow-lg">
       {side && <div role="separator" aria-label="Resize Sketch panel" aria-orientation="vertical" aria-valuemin={layout.min} aria-valuemax={layout.max} aria-valuenow={layout.width} tabIndex={0}
         data-sketch-resize title="Drag to resize"
