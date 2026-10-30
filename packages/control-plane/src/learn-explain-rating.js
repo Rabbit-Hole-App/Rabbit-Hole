@@ -5,7 +5,8 @@
 //
 // The rating summarizes one assessment's validated criterion judgements; it is never a model's own number.
 //   * Credit per criterion: met = 1, partial = 0.5, not_met = 0. A criterion that requires reasoning earns at most its
-//     reasoning credit (supported = 1, partial = 0.5, missing = 0).
+//     reasoning credit (supported = 1, partial = 0.5, missing = 0; not_applicable = 1, which the assessment gives only to a
+//     plain factual statement idea, with a justification: P ruling 2026-10-30, eb-rating-v2).
 //   * Weights: equal (1) unless the versioned rubric defines one on the criterion. A weight must be a finite number > 0.
 //   * score = round(10 x sum(weight x credit) / sum(weight)) over the scored criteria.
 //   * Any required criterion below full credit caps the score at 9: 10/10 needs every required criterion met.
@@ -14,10 +15,10 @@
 //   * Unscored criteria (scored: false) are reported but never enter the denominator, and their state never unrates.
 // Criterion fields read: criterionId, version, weight?, required? (default true), scored? (default true), requiresReasoning?.
 
-export const RATING_CALCULATION = 'eb-rating-v1';
+export const RATING_CALCULATION = 'eb-rating-v2'; // v2: not_applicable reasoning credit; v1 ratings are not comparable
 export const RATING_OUT_OF = 10;
 const FIT_CREDIT = { met: 1, partial: 0.5, not_met: 0 };
-const REASONING_CREDIT = { supported: 1, partial: 0.5, missing: 0 };
+const REASONING_CREDIT = { supported: 1, partial: 0.5, missing: 0, not_applicable: 1 };
 
 const keyOf = (id, version) => `${id}@${version}`;
 

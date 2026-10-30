@@ -613,3 +613,87 @@ test('slow preparation: with under 15 s of the claim left, no evaluator is calle
     } else assert.equal(r.body.assessment.status, 'completed');
   }
 });
+
+// eval-live-1 (P, 2026-10-30, tests/evals/explain-back): the live replies of the failing cases, rebuilt from the stored reviews
+// (the run kept reviews, not raw text): each quote is the cited span of the submitted text, each note the stored note.
+const LIVE_CONTRA_TEXT = 'The velocity is tangent to the circle, and the net force points toward the centre because it keeps turning the ball.';
+const liveContraReply = conflict => ({
+  sketchReadable: true,
+  criteria: [
+    { ...look(F, 'ambiguous', 'met', { reasoning: 'supported', evidence: [LIVE_CONTRA_TEXT.slice(43, 115)], question: 'In your sketch, the arrow at the ball points straight away from the centre. Is that arrow meant to be the net force F? If so, which way should it point to match your sentence?', explanation: 'The typed text says the net force points toward the centre. The sketch shows an arrow pointing radially outward from the ball.' }), ...(conflict ? { conflict: true } : {}) },
+    look(V, null, 'met', { reasoning: 'missing', evidence: [LIVE_CONTRA_TEXT.slice(0, 37)], explanation: 'States the velocity is tangent; does not explain why.' }),
+  ],
+  feedback: { strengths: { text: 'Your sentence gets both directions right.', evidence: [LIVE_CONTRA_TEXT.slice(0, 37)] }, revisit: null, next: 'Redraw the sketch so it matches your sentence.' },
+});
+
+test('eval-live-1 contradictory modalities: met without required reasoning is partly demonstrated; a flagged conflict is never credited', async t => {
+  const w = await ebWorld(t);
+  const sketch = await storeSketch(w);
+  // The live reply as it came: no conflict flag, so the words carry the force; the velocity's missing reason now shows.
+  const live = await send(w, { text: LIVE_CONTRA_TEXT, sketch }, { callModel: replying(liveContraReply(false)).callModel });
+  assert.deepEqual(reviewOf(live).judgments.map(j => [j.criterionId, j.judgment, j.fit, j.reasoning]), [[F, 'demonstrated', 'met', 'supported'], [V, 'partly_demonstrated', 'partial', 'missing']], 'the label agrees with the rating credit');
+  assert.equal(reviewOf(live).rating.score, 5, 'unchanged: force 1, velocity 0');
+  // The prompt now asks for the flag; with it, neither version is credited and the question is kept.
+  const stub = replying(liveContraReply(true));
+  const flagged = await send(w, { text: `${LIVE_CONTRA_TEXT} `, sketch }, { callModel: stub.callModel });
+  assert.match(stub.calls[0].body.system, /set "conflict": true, describe the discrepancy, and ask which they mean/);
+  const force = reviewOf(flagged).judgments[0], obs = flagged.body.assessment.observations.find(o => o.criterionId === F);
+  assert.deepEqual([force.judgment, force.fit, obs.conflict, obs.reason], ['unassessed', 'unclear', true, 'evidence_conflict']);
+  assert.match(force.question, /which way should it point/);
+  assert.deepEqual([reviewOf(flagged).rating.status, reviewOf(flagged).rating.reason], ['unrated', 'criteria_unassessed']);
+  valid(flagged, { text: `${LIVE_CONTRA_TEXT} `, sketch });
+});
+
+test('eval-live-1 wrong prior review: the live reply judges the current answer on its own; partial velocity is the reasoning rule, not anchoring', async t => {
+  const w = await ebWorld(t);
+  const text = 'The velocity is tangent to the circle. The net force points toward the centre: without it the ball would keep going straight, so the inward pull keeps changing its direction.';
+  const wrongPrior = { criteria: [j(F, 'not_met', [], { contradicted: true, explanation: 'Claims an outward force: the outward-force misconception.' }), j(V, 'met', ['The velocity is tangent to the circle'])], feedback: { strengths: { text: '', evidence: [] }, revisit: null, next: null } };
+  const first = await send(w, { text }, { callModel: replying(wrongPrior).callModel });
+  const current = `${text} I kept my answer because I think it was right.`;
+  const liveReply = {
+    criteria: [j(F, 'met', [current.slice(39, 77), current.slice(79, 173)], { reasoning: 'supported' }), j(V, 'partial', [current.slice(0, 38)], { reasoning: 'missing' })],
+    feedback: { strengths: { text: 'You were right to keep your answer.', evidence: [current.slice(79, 173)] }, revisit: { criterionId: V, version: 1, text: "You state that the velocity is tangent but don't explain why.", evidence: [current.slice(0, 38)] }, next: 'Add one sentence explaining why the velocity is tangent.' },
+    priorCorrections: [
+      { criterionId: F, version: 1, explanation: 'The previous review said the answer claimed an outward force; it did not.' },
+      { criterionId: V, version: 1, explanation: 'The previous review marked the reasoning as supported; the earlier answer gave no reason.' },
+    ],
+  };
+  const r = await send(w, { text: current, baseline: baselineOf(first) }, { callModel: replying(liveReply).callModel });
+  assert.deepEqual(reviewOf(r).judgments.map(x => [x.criterionId, x.judgment]), [[F, 'demonstrated'], [V, 'partly_demonstrated']]);
+  assert.deepEqual(changes(r), { [F]: 'prior_feedback_corrected', [V]: 'prior_feedback_corrected' });
+  assert.equal(reviewOf(r).rating.score, 5, 'force 1, velocity min(partial 0.5, reasoning missing 0) = 0');
+  valid(r, { text: current, baseline: baselineOf(first) });
+});
+
+test('eval-live-1 unreadable recording reply: prose with braces around the JSON is still read; an unreadable one keeps only its shape', async t => {
+  const w = await ebWorld(t);
+  const json = JSON.stringify(reply2);
+  const wrapped = await send(w, { text: A2 }, { callModel: replying(null, { text: `Looking at the steps {t: 1500} and {t: 9000}:\n${json}\nThat covers it {done}.` }).callModel });
+  assert.equal(wrapped.body.assessment.status, 'completed');
+  const broken = await send(w, { text: `${A2} ` }, { callModel: replying(null, { text: '```json\n{"criteria":[{"criterionId":"x","evidence":["the "ball" turns"]}]}\n```' }).callModel });
+  assert.deepEqual([broken.body.assessment.status, broken.body.assessment.reason], ['failed', 'malformed_evaluation']);
+  const shape = broken.body.assessment.provenance.reply;
+  assert.deepEqual(Object.keys(shape).sort(), ['chars', 'errorAt', 'fenced', 'objectAt']);
+  assert.equal(shape.fenced, true);
+  assert.equal(JSON.stringify(broken.body.assessment.provenance).includes('ball'), false, 'never the reply text');
+});
+
+test('a plain statement idea may have no reasoning to give (not_applicable, justified); a causal idea may not', async t => {
+  const w = await ebWorld(t);
+  const na = (extra = {}) => ({ ...j(V, 'met', ['The velocity is tangent to the circle']), reasoning: 'not_applicable', reasoningJustification: 'The idea is a statement of direction; it asks for no reason.', ...extra });
+  const stub = replying({ criteria: [j(F, 'met', ['The net force points toward the centre: without it the ball would keep going straight']), na()] });
+  const r = await send(w, { text: A2 }, { callModel: stub.callModel });
+  assert.match(stub.calls[0].body.system, /Use "not_applicable" only when the requirement itself is a plain factual statement/);
+  const v = reviewOf(r).judgments[1];
+  assert.deepEqual([v.judgment, v.fit, v.reasoning, v.reasoningBasis], ['demonstrated', 'met', 'not_required', 'not_applicable']);
+  assert.match(v.reasoningJustification, /asks for no reason/);
+  assert.deepEqual([reviewOf(r).rating.score, reviewOf(r).rating.calculationVersion], [10, 'eb-rating-v2'], 'a fully correct answer reaches 10/10');
+  valid(r, { text: A2 });
+  // The force idea asks why: not_applicable there is unclear reasoning, so the attempt is Not rated.
+  const causal = await send(w, { text: `${A2} ` }, { callModel: replying({ criteria: [{ ...j(F, 'met', ['The net force points toward the centre']), reasoning: 'not_applicable', reasoningJustification: 'no reason needed' }, na()] }).callModel });
+  assert.deepEqual([reviewOf(causal).judgments[0].reasoning, reviewOf(causal).judgments[0].reasoningBasis], ['unclear', undefined]);
+  assert.deepEqual([reviewOf(causal).rating.status, reviewOf(causal).rating.unknown[0].reason], ['unrated', 'reasoning_unclear']);
+  // Without a justification the claim is not accepted either.
+  const bare = await send(w, { text: `${A2}  ` }, { callModel: replying({ criteria: [j(F, 'met', ['The net force points toward the centre']), na({ reasoningJustification: null })] }).callModel });
+  assert.equal(reviewOf(bare).rating.status, 'unrated');
+});

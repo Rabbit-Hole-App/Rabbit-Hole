@@ -146,12 +146,26 @@ export function readRubricReply(reply, { criteria, fields, sources = [], citatio
   return { ...read, factualClaims, notes: notesOf(reply), citations: verdicts };
 }
 
-// The first JSON object in a text reply, or null.
+// The JSON object of a text reply, or null: from the first '{' to the last '}', else the first balanced object (string-aware)
+// that parses, so prose with braces before or after the object does not lose the reply.
 export function parseJsonReply(text) {
   if (typeof text !== 'string') return null;
   const start = text.indexOf('{'), end = text.lastIndexOf('}');
   if (start < 0 || end <= start) return null;
-  try { const value = JSON.parse(text.slice(start, end + 1)); return isObj(value) ? value : null; } catch { return null; }
+  const parse = s => { try { const value = JSON.parse(s); return isObj(value) ? value : null; } catch { return null; } };
+  const whole = parse(text.slice(start, end + 1));
+  if (whole) return whole;
+  for (let i = start, tries = 0; i >= 0 && tries < 20; i = text.indexOf('{', i + 1), tries++) {
+    let depth = 0, inString = false, escaped = false;
+    for (let k = i; k < text.length; k++) {
+      const ch = text[k];
+      if (inString) { if (escaped) escaped = false; else if (ch === '\\') escaped = true; else if (ch === '"') inString = false; continue; }
+      if (ch === '"') inString = true;
+      else if (ch === '{') depth++;
+      else if (ch === '}' && --depth === 0) { const value = parse(text.slice(i, k + 1)); if (value) return value; break; }
+    }
+  }
+  return null;
 }
 
 export const RUBRIC_SYSTEM = `You assess one learner submission against an agreed rubric. You are an evaluator, not a teacher: you judge only what was submitted.
