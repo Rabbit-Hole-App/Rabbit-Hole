@@ -172,7 +172,7 @@ export const CITATION_RULES = `
 Citations: "citations" lists lines of the code the learner selected as evidence for the answer, read at the cited commit. For each citation id, judge whether those lines support what the answer says, contradict it (the code there says otherwise), or are not relevant to it. Add to your JSON object:
 "citations":[{"citationId":string,"verdict":"supports"|"contradicts"|"not_relevant","explanation":string}]`;
 
-const rubricOf = criteria => criteria.map(c => ({ criterionId: c.criterionId, version: c.version, label: c.label, requirement: c.requirement, reasoningRequired: c.requiresReasoning }));
+export const rubricOf = criteria => criteria.map(c => ({ criterionId: c.criterionId, version: c.version, label: c.label, requirement: c.requirement, reasoningRequired: c.requiresReasoning }));
 
 /** The bounded request: the exact submitted version, the frozen rubric, the authorized sources and the learner's citations. Pure. */
 export function rubricRequest({ attempt, criteria, activity, sources = [], citations = [] }) {
