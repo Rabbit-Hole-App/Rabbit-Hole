@@ -1,8 +1,8 @@
 // What an Animation card shows (plan section 4, AN-03). Pure: no React, no DOM except detectWebGL's injected document.
 // The card reads a validated artifact (contract.js validateAnimationArtifact's value) only through cardModel and a frame only
 // through frameView. The block's saved fields are read and written only through the block helpers below.
-// ponytail: the block field names (animationJob, artifactRef, fixtureId, snapshot, camera, poster) are proposed until lane A's
-// storage.js lands; swap these helpers for its functions then.
+// The saved envelope (block.animation3d: ref, sim, view) and a job in flight (block.animation3dJob) are lane A's (storage.js); a
+// built-in example card names its fixture (block.fixtureId) and keeps its state in this page only.
 import { ANIMATION_CAPABILITIES } from './capabilities.js';
 import { resolveAnimationInputs } from './contract.js';
 
@@ -12,14 +12,10 @@ export const FIXTURE_LABEL = 'Example';
 export const FIXTURE_NOTE = 'Built-in example scene for trying the controls. It was not generated from a request.';
 export const INTERACT_LEGEND = 'Drag to orbit · Scroll to zoom · Right-drag to pan · Esc to finish';
 
-// --- The block's saved fields (one place) ---
-export const jobOf = block => block?.animationJob ?? null;
-export const artifactRefOf = block => block?.artifactRef ?? null;
+// --- The block's fields the card reads ---
+export const jobOf = block => block?.animation3dJob ?? null;
+export const artifactRefOf = block => block?.animation3d?.ref ?? null;
 export const fixtureIdOf = block => block?.fixtureId ?? null;
-export const savedSnapshot = block => block?.snapshot ?? null;
-export const savedCamera = block => block?.camera ?? null;
-export const posterOf = block => block?.poster ?? null;
-export const withSaved = (block, { snapshot, camera } = {}) => ({ ...block, ...(snapshot !== undefined ? { snapshot } : {}), ...(camera !== undefined ? { camera } : {}) });
 
 const finite = value => typeof value === 'number' && Number.isFinite(value);
 
@@ -83,9 +79,11 @@ const FAILURES = {
   renderer: ['The 3D view could not load. The scene description and readouts still work.', 'Retry 3D view'],
 };
 const clip = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
-export const failureText = failure => (failure?.message && failure.stage !== 'runtime' ? `${FAILURES[failure.stage]?.[0] ?? 'Something went wrong.'} ${failure.message}` : FAILURES[failure?.stage]?.[0] ?? 'Something went wrong.');
+// A saved card's own words (storage.js MESSAGES, by hydration status) stand alone; unavailable, invalid and missing offer no Retry.
+const SAVED = new Set(['unavailable', 'invalid', 'missing', 'mismatch', 'error']);
+export const failureText = failure => (SAVED.has(failure?.code) ? failure.message : failure?.message && failure.stage !== 'runtime' ? `${FAILURES[failure.stage]?.[0] ?? 'Something went wrong.'} ${failure.message}` : FAILURES[failure?.stage]?.[0] ?? 'Something went wrong.');
 export const retryLabel = failure => FAILURES[failure?.stage]?.[1] ?? 'Retry';
-export const failureOf = (stage, error) => ({ stage, code: error?.code ?? null, message: clip(error?.message ?? (typeof error === 'string' ? error : ''), 160) });
+export const failureOf = (stage, error) => ({ stage, code: error?.code ?? null, message: clip(error?.message ?? (typeof error === 'string' ? error : ''), 300), retry: error?.retry !== false });
 // A contract refusal of the artifact, as one failure: its first issue names where.
 export const invalidArtifact = issues => Object.assign(new Error(`This scene did not pass its checks (${issues?.[0]?.code ?? 'invalid'} at ${issues?.[0]?.path || 'the root'}).`), { code: 'invalid_artifact' });
 export const WEBGL_UNAVAILABLE = 'Interactive 3D is not available in this browser, so the scene cannot be turned or played here. Its description and readouts are below.';

@@ -5,12 +5,15 @@ import { Pill } from './ui.jsx';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { claimViewer, releaseViewer } from './viewer-slots.js';
 import { watchSeen } from './explain-program/playback.js';
-import { animationClient, animationResultBlock, animationRetry, animationRunning, animationStage } from './animation3d/client.js';
+import { animationClient, animationRetry, animationRunning, animationStage } from './animation3d/client.js';
 import {
   artifactRefOf, cardPhase, detectWebGL, EXPERIENCE_LABELS, failureText, FIXTURE_LABEL, FIXTURE_NOTE, fixtureIdOf, INTERACT_LEGEND,
-  jobOf, posterOf, retryLabel, visibleControls, WEBGL_UNAVAILABLE, withSaved,
+  jobOf, retryLabel, visibleControls, WEBGL_UNAVAILABLE,
 } from './animation3d/card.js';
 import { ANIMATION_FIXTURES } from './animation3d/fixtures.js';
+import { cancelAnimationJob, createAnimationSaver, hydrateAnimation, landHydration, nextView, settleAnimationJob } from './animation3d/storage.js';
+import { createAnimationRuntime } from './animation3d/runtime.js';
+import { createAnimationRenderer } from './animation3d/renderer.js';
 import { createCardSession } from './animation3d/session.js';
 import { useSceneInteraction } from './animation3d/interaction.js';
 import { Actions, buttonClass, GamePanel, Parameters, Readouts, Toolbar } from './animation3d/Controls.jsx';
@@ -18,29 +21,38 @@ import { Actions, buttonClass, GamePanel, Parameters, Readouts, Toolbar } from '
 // The Animation card (`animation3d` block; plan section 4, AN-03): a live 3D scene a learner can watch, inspect, adjust or
 // play, in the shared card shell. Header (Animation, title, experience, prompt), a working viewport that fills the card
 // (never the text-card natural-height clamp), the toolbar, the local parameter/action area, and the footer (Interact, Reset,
-// Edit, Ask). The scene runs through the injected runtime and renderer (lane R's runtime.js and renderer.js); this file only
-// draws and relays. Nothing here calls a model: playing, adjusting and resetting are local to the accepted artifact.
+// Edit, Ask). The scene runs in runtime.js and draws through renderer.js (both injectable for tests); this file only draws and
+// relays. Nothing here calls a model: playing, adjusting and resetting are local to the accepted artifact.
 //
 // Props beyond the canvas's usual block/onChange/onChangeQuiet/selected/readOnly:
-//   createRuntime(options)  createRenderer(options)  lane R's factories (P wires the real ones); loadArtifact(block, { signal })
-//   defaults to loadAnimationArtifact below
+//   context   { kind: 'owner' | 'share' | 'publication' | 'embed' | 'fork', boardId } (storage.js hydrateAnimation); a saved
+//             card shows its honest placeholder without it
+//   readArtifact(ref, { signal })  the durable result read (default: client.js result route)
 //   onEdit()  the reviewed refinement path (proposal)     onAsk()  Ask Tutor with this card as context
-//   webgl     override the browser check (tests)          fetchJson  the app's api() (tests inject a stub)
+//   createRuntime / createRenderer / webgl / fetchJson  tests inject stand-ins
 const OFFSCREEN_RELEASE_MS = 2000;
+const aborted = () => Object.assign(new Error('aborted'), { name: 'AbortError' });
 
-// The default artifact source: a fixture card's built-in example by its name (fixtures.js), else the accepted result through the
-// owner's result route (client.js). The session validates whatever comes back before anything runs or draws it.
-// ponytail: artifactRef { id, boardId } and the { artifact } answer are proposed until lanes A and G hand back.
-export const loadAnimationArtifact = fetchJson => async (block, { signal }) => {
+// The scene a card shows: a built-in example by its fixture name (its state kept in this page only), else the saved envelope
+// hydrated by storage.js (owner only in the MVP; the artifact read through the result route, checked against its reference) and
+// landed on the card as it is now, so edits made while it loaded win.
+export const sceneLoader = ({ context, readArtifact, latest }) => async (block, { signal }) => {
   const name = fixtureIdOf(block);
   if (name) {
     const fixture = ANIMATION_FIXTURES.find(entry => entry.name === name);
-    if (!fixture) throw new Error('This example is not available.');
-    return structuredClone(fixture.artifact);
+    if (!fixture) throw Object.assign(new Error('This example is not available.'), { retry: false });
+    return { artifact: structuredClone(fixture.artifact), sim: null, view: null };
   }
-  const ref = artifactRefOf(block);
-  if (!ref?.id || !ref.boardId) throw new Error('This card has no saved scene.');
-  return (await animationClient(fetchJson, ref.boardId).result(ref.id, { signal })).artifact;
+  const result = await hydrateAnimation(block, { context, readArtifact, signal });
+  if (result.status === 'aborted') throw aborted();
+  if (result.status !== 'ready') throw Object.assign(new Error(result.message || 'The animation could not be loaded.'), { code: result.status, retry: result.retry });
+  const landed = landHydration(latest(), result, { boardId: context?.boardId });
+  if (!landed.ok) throw aborted();
+  return { artifact: result.artifact, sim: landed.sim, view: landed.view };
+};
+const defaultReadArtifact = fetchJson => async (ref, { signal }) => {
+  const answer = await animationClient(fetchJson, ref.boardId).result(ref.artifactId, { signal });
+  return answer?.artifact ?? null;
 };
 
 function Header({ title, experience, fixture }) {
@@ -61,25 +73,26 @@ function Header({ title, experience, fixture }) {
   );
 }
 
-// A confirmed job still making this card: the server's stage until the result attaches here, Stop while it works, and the
-// job's own Retry when it failed (one targeted action; a double press sends one).
+// A job still making this card's first version: the server's stage until its result lands here (storage.js settleAnimationJob binds
+// it to this card, board, request and sources), Stop while it works, and the job's own Retry when it failed.
 function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson }) {
   const waiting = jobOf(block);
   const [job, setJob] = useState(null), [problem, setProblem] = useState(''), [busy, setBusy] = useState(false);
   const latest = useRef(block); latest.current = block;
   const client = useMemo(() => animationClient(fetchJson, waiting.boardId), [fetchJson, waiting.boardId]);
   const apply = data => {
-    setJob(data.job);
-    const next = data.result ? animationResultBlock(latest.current, data.job, data.result) : null;
-    if (next) { onChange(next); return; }
+    const polled = data?.job ?? null;
+    setJob(polled);
+    const out = settleAnimationJob(latest.current, polled, { boardId: waiting.boardId });
+    if (out.action === 'apply') { latest.current = out.block; onChange(out.block); return; }
     // The stage rides on the card quietly so a reload shows where it was; not an undo step.
-    if (data.job?.stage && data.job.stage !== latest.current.animationJob?.stage) (onChangeQuiet || onChange)({ ...latest.current, animationJob: { ...latest.current.animationJob, stage: data.job.stage } });
+    if ((out.action === 'progress' || out.action === 'keep') && out.block !== latest.current) { latest.current = out.block; (onChangeQuiet || onChange)(out.block); }
   };
   useEffect(() => {
-    if (readOnly) return undefined;
+    if (readOnly || ['failed', 'cancelled'].includes(waiting.stage)) return undefined;
     let live = true, timer;
     const poll = async () => {
-      try { const data = await client.get(waiting.id); if (!live) return; setProblem(''); apply(data); if (animationRunning(data.job)) timer = setTimeout(poll, 2000); }
+      try { const data = await client.get(waiting.id); if (!live) return; setProblem(''); apply(data); if (animationRunning(data?.job)) timer = setTimeout(poll, 2000); }
       catch (error) { if (live) setProblem(error.message); }
     };
     poll();
@@ -89,9 +102,13 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
   const act = async (name, body) => {
     if (acting.current) return;
     acting.current = true; setBusy(true); setProblem('');
-    try { apply(await client.action(waiting.id, name, body)); } catch (error) { setProblem(error.message); } finally { acting.current = false; setBusy(false); }
+    try {
+      const data = await client.action(waiting.id, name, body);
+      // Stop: the card stops waiting at once; a later result is refused (storage.js cancelAnimationJob).
+      if (name === 'cancel') { const next = cancelAnimationJob(latest.current); latest.current = next; (onChangeQuiet || onChange)(next); setJob(data?.job ?? null); } else apply(data);
+    } catch (error) { setProblem(error.message); } finally { acting.current = false; setBusy(false); }
   };
-  const shown = job || { stage: waiting.stage };
+  const shown = job || { stage: waiting.stage, ...(waiting.message ? { failure: { message: waiting.message } } : {}) };
   const running = animationRunning(shown), retry = animationRetry(shown), failed = shown.stage === 'failed';
   const request = String(block.promptUsed || '').trim();
   return (
@@ -113,22 +130,36 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
   );
 }
 
-function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, onEdit, onAsk, loadArtifact, createRuntime, createRenderer, webgl, fetchJson }) {
+function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, onEdit, onAsk, context, readArtifact, createRuntime, createRenderer, webgl, fetchJson }) {
   const latest = useRef(block); latest.current = block;
   const root = useRef(null), scene = useRef(null), host = useRef(null), press = useRef(null);
   const viewerId = useRef(null); viewerId.current ||= `animation3d:${block.id}:${Math.random().toString(36).slice(2)}`;
   const descriptionId = useId();
   const webglOk = useMemo(() => webgl ?? detectWebGL(), [webgl]);
   const [view, setView] = useState(null), [hintOpen, setHintOpen] = useState(false), [visible, setVisible] = useState(false), [slot, setSlot] = useState(false);
+  // Settled changes of the owner's saved card: storage.js's saver (bounded debounce, flushed with the board). A fixture card, a
+  // read-only viewer and a share link keep theirs in this page only.
+  const ref = artifactRefOf(block), refKey = ref ? `${ref.boardId}:${ref.artifactId}:${ref.revision}` : '';
+  const saver = useRef(null);
+  useEffect(() => {
+    if (!ref || readOnly || context?.kind !== 'owner') return undefined;
+    const write = apply => { const next = apply(latest.current); if (next !== latest.current) { latest.current = next; (onChangeQuiet || onChange)(next); } };
+    const created = createAnimationSaver({ boardId: ref.boardId, cardId: block.id, write });
+    saver.current = created;
+    return () => { created.dispose(); if (saver.current === created) saver.current = null; };
+  }, [refKey, block.id, readOnly, context?.kind]); // eslint-disable-line react-hooks/exhaustive-deps
   const session = useRef(null);
   session.current ||= createCardSession({
-    loadArtifact: loadArtifact ?? loadAnimationArtifact(fetchJson), createRuntime, createRenderer: webglOk ? createRenderer : null, onUpdate: setView,
-    // A share-link visitor or read-only viewer keeps the scene's state in memory only; the owner's settled changes save quietly.
-    save: saved => { if (!readOnly) (onChangeQuiet || onChange)(withSaved(latest.current, saved)); },
+    loadScene: sceneLoader({ context, readArtifact: readArtifact ?? defaultReadArtifact(fetchJson), latest: () => latest.current }),
+    createRuntime, createRenderer: webglOk ? createRenderer : null, onUpdate: setView,
+    persist: {
+      simulation: sim => saver.current?.simulation(sim),
+      view: ({ camera, selection }) => saver.current?.view(nextView(latest.current, { camera, selection })),
+    },
   });
   const live = session.current;
   const state = view ?? live.state();
-  const sourceKey = JSON.stringify([artifactRefOf(block), fixtureIdOf(block)]);
+  const sourceKey = `${refKey}|${fixtureIdOf(block) ?? ''}`;
   useEffect(() => { live.start(latest.current); }, [block.id, sourceKey]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => live.dispose(), [live]);
 
@@ -156,8 +187,8 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
   const interaction = useSceneInteraction({
     id: viewerId.current, root, surface: scene, ready,
     onEnter: () => live.interact(true),
-    onExit: () => { live.releaseGestures(); live.interact(false); },
-    onRelease: () => live.releaseGestures(),
+    onExit: () => live.interact(false),
+    onRelease: () => live.releaseGestures(interaction.active),
   });
   // Losing the selection ends the interaction, as on the CAD viewer.
   useEffect(() => { if (!selected && interaction.active) interaction.exit('outside'); }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -165,7 +196,8 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
   const phase = cardPhase({ block, artifact: state.artifact, failure: state.failure, webgl: webglOk, renderer: state.renderer });
   const model = state.model;
   const show = model ? visibleControls(model, { webgl: webglOk, readOnly }) : null;
-  const poster = state.poster || posterOf(block);
+  const fixture = model?.fixture || !!fixtureIdOf(block);
+  const poster = state.poster;
   const runtimeReady = state.runtime === 'ready';
   const values = state.pending ?? state.inputs;
   // A click (not the end of a drag across the card) enters the scene; a card without a slot asks for one first.
@@ -183,15 +215,20 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
     const observer = new ResizeObserver(check); observer.observe(element); check();
     return () => observer.disconnect();
   }, [model]);
+  const title = model?.title || block.title || 'Animation';
 
   return (
-    <div ref={root} data-animation3d-card data-animation-phase={phase} data-animation-experience={model?.experience} className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3">
-      <Header title={model?.title || block.title || 'Animation'} experience={model?.experience} fixture={model?.fixture || !!fixtureIdOf(block)} />
-      {(model?.fixture || fixtureIdOf(block)) && <p data-animation-fixture-note className="text-xs text-ink-2">{FIXTURE_NOTE}</p>}
+    <div ref={root} data-animation3d-card data-animation-phase={phase} data-animation-experience={model?.experience}
+      data-animation-time={model ? state.time.toFixed(3) : undefined} data-animation-duration={model?.loop?.duration}
+      className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3">
+      <Header title={title} experience={model?.experience} fixture={fixture} />
+      {fixture && <p data-animation-fixture-note className="text-xs text-ink-2">{FIXTURE_NOTE}</p>}
       {/* The viewport: before Interact every press, drag and wheel here belongs to the canvas (it moves and selects the card);
-          after it, they turn the scene until Esc, Done, a press outside or focus leaving. */}
+          after it, they turn the scene until Esc, Done, a press outside or focus leaving. data-animation-frame: the last applied
+          frame, for the browser checks. */}
       <div ref={scene} data-animation-viewport data-viewer-live={ready || undefined} data-viewer-active={interaction.active || undefined} tabIndex={-1}
-        role="group" aria-label={interaction.active ? `${model?.title || 'Animation'} 3D scene, interacting` : `${model?.title || 'Animation'} 3D scene`} aria-describedby={descriptionId}
+        data-animation-frame={state.frame ? JSON.stringify(state.frame) : undefined}
+        role="group" aria-label={interaction.active ? `${title} 3D scene, interacting` : `${title} 3D scene`} aria-describedby={descriptionId}
         {...interaction.handlers}
         className={`relative min-h-[180px] flex-1 overflow-hidden rounded-lg border bg-surface outline-none ${interaction.active ? 'border-ink' : 'border-line'}`}>
         <div ref={host} data-animation-host className="absolute inset-0" style={{ pointerEvents: interaction.active ? 'auto' : 'none' }} />
@@ -201,7 +238,7 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
         {phase === 'recovery' && (
           <div role="alert" data-animation-failure={state.failure.stage} className="absolute inset-x-0 bottom-0 flex flex-col gap-2 border-t border-line bg-white p-2 text-xs text-ink-2" onPointerDown={event => event.stopPropagation()}>
             <p>{failureText(state.failure)}{poster && state.failure.stage === 'renderer' ? ' The last captured view is shown.' : ''}</p>
-            <div><button type="button" data-animation-retry onClick={() => live.retry()} className={buttonClass}><RefreshCw size={13} aria-hidden />{retryLabel(state.failure)}</button></div>
+            {state.failure.retry && <div><button type="button" data-animation-retry onClick={() => live.retry()} className={buttonClass}><RefreshCw size={13} aria-hidden />{retryLabel(state.failure)}</button></div>}
           </div>
         )}
         {webglOk && state.artifact && !interaction.active && phase !== 'recovery' && (
@@ -240,10 +277,10 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
   );
 }
 
-export default function Animation3DCard({ block, onChange, onChangeQuiet, selected = true, readOnly = false, onEdit = null, onAsk = null,
-  loadArtifact = null, createRuntime, createRenderer = null, webgl = undefined, fetchJson = api }) {
-  const pending = !!jobOf(block) && !artifactRefOf(block) && !fixtureIdOf(block);
-  if (pending) {
+export default function Animation3DCard({ block, onChange, onChangeQuiet, selected = true, readOnly = false, onEdit = null, onAsk = null, context = null, readArtifact = null,
+  createRuntime = createAnimationRuntime, createRenderer = createAnimationRenderer, webgl = undefined, fetchJson = api }) {
+  // Waiting on its first version: no saved scene and no example yet.
+  if (jobOf(block) && !artifactRefOf(block) && !fixtureIdOf(block)) {
     return (
       <div data-animation3d-card data-animation-phase={cardPhase({ block })} className="flex min-h-0 flex-1 flex-col px-4 pb-3">
         <Header title={block.title || 'Animation'} experience={null} fixture={false} />
@@ -251,6 +288,7 @@ export default function Animation3DCard({ block, onChange, onChangeQuiet, select
       </div>
     );
   }
+  // ponytail: a regeneration in flight on a card that already has a scene shows the scene only; its status line comes with AN-14's revisions.
   return <AnimationScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} selected={selected} readOnly={readOnly} onEdit={onEdit} onAsk={onAsk}
-    loadArtifact={loadArtifact} createRuntime={createRuntime} createRenderer={createRenderer} webgl={webgl} fetchJson={fetchJson} />;
+    context={context} readArtifact={readArtifact} createRuntime={createRuntime} createRenderer={createRenderer} webgl={webgl} fetchJson={fetchJson} />;
 }

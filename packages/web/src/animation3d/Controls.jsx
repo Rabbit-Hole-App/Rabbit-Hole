@@ -17,7 +17,7 @@ export function Toolbar({ show, playing = false, speed = 1, speeds = [], live = 
   return (
     <div role="toolbar" aria-label="Scene playback" data-animation-toolbar className="flex flex-wrap items-center gap-1.5">
       {show.transport && <>
-        <button type="button" data-animation-play aria-pressed={playing} disabled={disabled} onClick={playing ? onPause : onPlay} className={buttonClass}>
+        <button type="button" data-animation3d-play aria-pressed={playing} disabled={disabled} onClick={playing ? onPause : onPlay} className={buttonClass}>
           {playing ? <Pause size={14} aria-hidden /> : <Play size={14} aria-hidden />}{playing ? 'Pause' : 'Play'}
         </button>
         <button type="button" data-animation-restart disabled={disabled} onClick={onRestart} className={buttonClass}><RotateCcw size={14} aria-hidden />Restart</button>
@@ -125,7 +125,7 @@ export function Readouts({ readouts }) {
   if (!readouts.length) return null;
   return (
     <dl data-animation-readouts aria-label="Readouts" className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
-      {readouts.map(item => <div key={item.id} className="contents"><dt className="text-ink-2">{item.label}</dt><dd data-animation-readout={item.id} className="text-ink tabular-nums">{readoutText(item)}</dd></div>)}
+      {readouts.map(item => <div key={item.id} className="contents"><dt className="text-ink-2">{item.label}</dt><dd data-animation-readout={item.id} data-value={item.value} className="text-ink tabular-nums">{readoutText(item)}</dd></div>)}
     </dl>
   );
 }

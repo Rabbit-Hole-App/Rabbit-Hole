@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   cardModel, cardPhase, defaultInputs, detectWebGL, eventFor, failureOf, failureText, formatValue, frameView, invalidArtifact, outcomeText, parameterInput,
-  readoutText, retryLabel, visibleControls, WEBGL_UNAVAILABLE, withSaved, FIXTURE_NOTE, INTERACT_LEGEND,
+  readoutText, retryLabel, visibleControls, WEBGL_UNAVAILABLE, FIXTURE_NOTE, INTERACT_LEGEND, jobOf, artifactRefOf,
 } from './card.js';
 import { validateAnimationEvent } from './contract.js';
 import { experimentArtifact, gameArtifact, inspectArtifact, validated, watchArtifact } from './testdata/ui-stubs.mjs';
@@ -79,18 +79,21 @@ test('events the card sends are the contract\'s', () => {
 });
 
 test('phase: pending and failed jobs, loading, recovery, unavailable and ready', () => {
-  const job = { animationJob: { id: 'j', stage: 'authoring' } };
+  const job = { animation3dJob: { id: 'j', stage: 'authoring' } };
   assert.equal(cardPhase({ block: job }), 'pending');
   assert.equal(cardPhase({ block: job, job: { stage: 'failed' } }), 'failed');
-  assert.equal(cardPhase({ block: { animationJob: { stage: 'cancelled' } } }), 'failed');
-  assert.equal(cardPhase({ block: { artifactRef: { id: 'a' } } }), 'loading');
-  assert.equal(cardPhase({ block: { artifactRef: { id: 'a' } }, failure: failureOf('artifact', new Error('x')) }), 'recovery');
+  assert.equal(cardPhase({ block: { animation3dJob: { stage: 'cancelled' } } }), 'failed');
+  const saved = { animation3d: { v: 1, ref: { artifactId: 'a' } } };
+  assert.equal(cardPhase({ block: saved }), 'loading');
+  assert.equal(cardPhase({ block: { ...saved, animation3dJob: { stage: 'authoring' } } }), 'loading', 'a regeneration keeps the saved scene');
+  assert.equal(cardPhase({ block: saved, failure: failureOf('artifact', new Error('x')) }), 'recovery');
   const artifact = validated(watchArtifact());
   assert.equal(cardPhase({ block: {}, artifact, renderer: 'loading' }), 'loading');
   assert.equal(cardPhase({ block: {}, artifact, renderer: 'ready' }), 'ready');
   assert.equal(cardPhase({ block: {}, artifact, webgl: false }), 'unavailable');
   assert.equal(cardPhase({ block: {}, artifact, renderer: 'ready', failure: failureOf('runtime', new Error('x')) }), 'recovery');
-  assert.equal(cardPhase({ block: { fixtureId: 'orbit-watch', animationJob: { stage: 'authoring' } } }), 'loading', 'a fixture card never waits on a job');
+  assert.equal(cardPhase({ block: { fixtureId: 'orbit-watch', animation3dJob: { stage: 'authoring' } } }), 'loading', 'a fixture card never waits on a job');
+  assert.deepEqual([jobOf({ animation3dJob: { id: 'j' } }), artifactRefOf(saved)], [{ id: 'j' }, { artifactId: 'a' }], 'storage.js field names');
 });
 
 test('typed numbers: only finite values in range, snapped to the step; toggles and selects by declared value', () => {
@@ -133,9 +136,11 @@ test('failure words name what failed and what Retry repeats; no ellipsis anywher
   for (const value of [WEBGL_UNAVAILABLE, FIXTURE_NOTE, INTERACT_LEGEND, failureText({ stage: 'artifact' }), failureText(null), retryLabel(null)]) noEllipsis(value);
 });
 
-test('saved fields and the WebGL check', () => {
-  assert.deepEqual(withSaved({ id: 'c', snapshot: 1 }, { camera: { a: 1 } }), { id: 'c', snapshot: 1, camera: { a: 1 } });
-  assert.deepEqual(withSaved({ id: 'c' }, { snapshot: { inputs: {} } }), { id: 'c', snapshot: { inputs: {} } });
+test('a saved card\'s own words stand alone, and only retryable ones offer Retry; the WebGL check', () => {
+  const missing = failureOf('artifact', Object.assign(new Error('This animation\'s saved scene is no longer available.'), { code: 'missing', retry: false }));
+  assert.equal(failureText(missing), 'This animation\'s saved scene is no longer available.');
+  assert.equal(missing.retry, false);
+  assert.equal(failureOf('renderer', new Error('x')).retry, true);
   assert.equal(detectWebGL({ createElement: () => ({ getContext: kind => (kind === 'webgl' ? {} : null) }) }), true);
   assert.equal(detectWebGL({ createElement: () => ({ getContext: () => null }) }), false);
   assert.equal(detectWebGL({ createElement: () => { throw new Error('blocked'); } }), false);
