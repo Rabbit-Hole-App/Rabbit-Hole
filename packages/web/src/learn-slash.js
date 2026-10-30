@@ -58,7 +58,9 @@ export const EXAMPLES = {
   notebook: '/notebook', 'generate-image': '/image a small red lighthouse on a rock at dusk, flat illustration',
   // The exact request that made the window's real Motion clip (job 8a2015a4, slash-sheet.js MOTION_CLIP).
   motion: '/motion 15s explain me softmax func',
-  cad: '/cad a 60 x 40 x 5 mm plate with four 4 mm through holes and a centred 20 x 10 mm pocket, 3 mm deep', '3d': '/3d perspective projection: a camera frustum with a cube inside it and a ray',
+  cad: '/cad a 60 x 40 x 5 mm plate with four 4 mm through holes and a centred 20 x 10 mm pocket, 3 mm deep',
+  // The window's /animation preview is the beam-balance example scene (animation3d/fixtures.js), the subject of this line.
+  animation: '/animation a beam balance where I can change each mass and its distance and see the moments', '3d': '/3d perspective projection: a camera frustum with a cube inside it and a ray',
   browser: '/browser https://jalammar.github.io/illustrated-transformer/',
   image: '/photos cat', youtube: '/youtube attention in transformers step by step 3blue1brown', arxiv: '/arxiv 1706.03762',
   wikipedia: '/wikipedia https://en.wikipedia.org/wiki/Transformer_(deep_learning_architecture)',
@@ -102,7 +104,7 @@ export const isLearnCommand = name => commandsFor('learn').some(command => comma
 // user message either way (UI changes brief 1; bug lane 3aba249a: /motion and /image were recorded by both paths). The commands that
 // prompt the chat are /image where the server offers it and every proposal capability (the declaration's flow, reviewRequired), each
 // with words: the same two tests runLearnCommand makes. chat-turn-owner.test.mjs holds this to runLearnCommand.
-const RUN_ACTIONS = new Set(['cad', 'open_source', 'insert_notebook', 'insert_whiteboard', 'insert_webpage', 'goal']);
+const RUN_ACTIONS = new Set(['cad', 'animation', 'open_source', 'insert_notebook', 'insert_whiteboard', 'insert_webpage', 'goal']);
 // A simple material brief (material-brief.js) is a chat turn too: the brief route saves the line with its brief, so it is never recorded twice.
 export const promptsChat = name => (name === 'generate-image' && imageGenerationLive()) || reviewRequired(name) || isBriefCommand(name);
 // selected: whether the line is about a selected card (a bare brief command then prepares its brief from it).
@@ -244,6 +246,16 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   if (name === 'generate-image' && imageGenerationLive()) {
     if (!args) return { notice: { tone: 'question', text: 'What should the image show? Describe it after /image.' }, keep: '/image ' };
     return { prompt: args };
+  }
+  // /animation (plan 2026-10-30-animation.md section 3; control-plane animation-job.js): like /explain v2, a durable job whose card is
+  // placed at once; the server posts its scene plan as the reviewed proposal and nothing is generated before that plan's Generate.
+  // A bare /animation asks what to show and keeps the line (no paid blank generation). The selected card's text is its context.
+  if (name === 'animation') {
+    if (!args.trim()) return { notice: { tone: 'question', text: `${toolOf('animation').placeholder} Add it after /animation.` }, keep: '/animation ' };
+    if (!canvas.startAnimation) return { notice: { tone: 'info', text: '3D animations are not available on this canvas.' } };
+    const started = await canvas.startAnimation(args.trim(), { context: target?.text ? String(target.text).slice(0, 8000) : null, promptUsed });
+    return started ? { notice: { tone: 'done', text: 'Preparing the scene plan. Review it above the chat box.', ...(started.blockId ? { blockId: started.blockId } : {}) } }
+      : { notice: { tone: 'error', text: 'The 3D animation could not be started. Try again.' }, keep: `/animation ${args}` };
   }
   if (reviewRequired(name)) {
     // Missing information is asked for inside the command's own flow, and the line is kept (owner, 2026-10-24: the Tutor never answers it).

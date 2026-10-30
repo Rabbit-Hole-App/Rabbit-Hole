@@ -47,7 +47,7 @@ export const NOT_INLINE = Object.freeze({
 // Routes reached only by their explicit command, never by automatic routing: they are not in ROUTES, so no routing
 // question or validator lists them (Release B lead ruling, 2026-10-16: owner 1A puts /flashcards in Ctrl+K; Auto decides
 // exactly as before). Each runs its own handler, as the Chat command does.
-export const EXPLICIT_ROUTES = Object.freeze({ flashcards: { tool: 'create_learning_artifact', label: 'Flashcards' }, cad: { label: 'CAD' } });
+export const EXPLICIT_ROUTES = Object.freeze({ flashcards: { tool: 'create_learning_artifact', label: 'Flashcards' }, cad: { label: 'CAD' }, animation: { label: '3D animation' } });
 export const routeLabel = route => ROUTES[route]?.label || EXPLICIT_ROUTES[route]?.label || route;
 // Every Learn command has exactly one inline status - checked against the registry by the tests.
 export const inlineStatus = name => (ROUTES[name] ? 'route' : EXPLICIT_ROUTES[name] ? 'explicit' : NOT_INLINE[name] ? 'n/a' : 'unknown');
