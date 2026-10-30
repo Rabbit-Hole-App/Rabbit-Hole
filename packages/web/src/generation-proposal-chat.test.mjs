@@ -267,7 +267,7 @@ test('Edit: the target is the clicked revision with its routing fields, which co
 test('the source pins it: an Edit target takes precedence over the implicit latest proposal, per command, and is never routed or sent to the Tutor', async () => {
   const { readFileSync } = await import('node:fs');
   const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
-  assert.ok(ask.includes("const brief = edit ? (edit.command === 'explain' && workspace?.canvasOps?.refineExplain ? edit.proposal : null)"), 'Explain: the target brief, never the latest one');
+  assert.ok(ask.includes("const brief = edit ? ((edit.command === 'explain' || edit.command === 'animation') && workspace?.canvasOps?.refineExplain ? edit.proposal : null)"), 'Explain and Animation (AN-03): the target brief, never the latest one');
   assert.ok(ask.includes('refineExplain(brief, message, edit ? { proposal_id: edit.proposalId, version: edit.version } : undefined)'), 'Explain: the refine names the revision');
   assert.ok(ask.includes("edit?.command === 'motion' ? edit.proposal : currentProposal(msgs, canvasOps.proposalMade), about?.concept, edit?.command === 'motion')"), 'Motion: the target revision, marked as an Edit');
   assert.ok(ask.includes('const fileTurn = !!edit || ['), 'never a Tutor turn');
