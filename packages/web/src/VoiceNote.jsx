@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { AudioLines, Loader2, Mic, Pause, Play, RotateCcw, Square, Trash2, X } from 'lucide-react';
-import { LIMIT_WARNING_MS, clock } from './explain-back-media.js';
+import { LIMIT_WARNING_MS, clock, createVoiceNote } from './explain-back-media.js';
 
 // The retained voice note row on the Explain-back answer card (plan section 5). Record voice -> Recording, elapsed time,
 // Pause/Resume, Stop -> a replayable note with play/pause, a neutral progress track (no invented waveform), elapsed and
@@ -13,14 +13,25 @@ import { LIMIT_WARNING_MS, clock } from './explain-back-media.js';
 //   transcript  optional { status: 'ready' | 'pending' | 'failed', text } shown read-only under the player; it is never
 //               put into the answer field.
 //   disabled    greys Record voice (for example while the answer is being submitted).
+//   seekMs      a citation's time: each new value moves the playhead there and plays.
 // The card's Submit uses voiceSubmitState(useVoiceNote(note)) for its disabled label.
 export const useVoiceNote = note => useSyncExternalStore(note.subscribe, note.get, note.get);
+
+// A submitted attempt's voice note (its voice EvidenceRef), playback only; bytes load through `load` when Play asks.
+// seekMs: a citation's time in the note; each new value moves the playhead there and plays from it.
+export function SavedVoice({ note, load, seekMs = null }) {
+  const [player] = useState(() => createVoiceNote({ saved: note, load }));
+  useEffect(() => () => player.dispose(), [player]);
+  return <VoiceNote note={player} readOnly seekMs={seekMs} />;
+}
+// The `assets` object useExplainBackService takes (explain-back-assets.js) plus the submitted note's player.
+export const withVoicePlayer = assets => ({ ...assets, VoicePlayer: ({ note, seekMs }) => <SavedVoice note={note} seekMs={seekMs} load={assets.voice.load} /> });
 
 const ACTIVE = new Set(['requesting', 'recording', 'paused', 'stopping']);
 const button = 'flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 text-xs font-medium text-ink hover:bg-hover disabled:opacity-40';
 const icon = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40';
 
-export default function VoiceNote({ note, readOnly = false, transcript = null, disabled = false }) {
+export default function VoiceNote({ note, readOnly = false, transcript = null, disabled = false, seekMs = null }) {
   const state = useVoiceNote(note);
   const { status, error, notice, take, saved, limitMs, progress } = state;
   const has = !!(take || saved);
@@ -28,7 +39,7 @@ export default function VoiceNote({ note, readOnly = false, transcript = null, d
   if (ACTIVE.has(status)) return <Recorder note={note} state={state} />;
   return (
     <div data-voice-note={status} className="mt-2 text-sm">
-      {has ? <Player note={note} state={state} readOnly={readOnly} disabled={disabled} /> : !readOnly && (
+      {has ? <Player note={note} state={state} readOnly={readOnly} disabled={disabled} seekMs={seekMs} /> : !readOnly && (
         <div className="flex items-center gap-2">
           <button type="button" data-voice-record disabled={disabled} onClick={note.start} className={button}>
             <Mic size={14} />Record voice
@@ -83,7 +94,7 @@ function Recorder({ note, state }) {
   );
 }
 
-function Player({ note, state, readOnly, disabled }) {
+function Player({ note, state, readOnly, disabled, seekMs }) {
   const audio = useRef(null);
   const [src, setSrc] = useState(null);
   const [playing, setPlaying] = useState(false);
@@ -115,6 +126,21 @@ function Player({ note, state, readOnly, disabled }) {
     el.play().catch(() => setLoadError('This voice note could not be played.'));
   };
   const seek = ms => { if (audio.current && src) audio.current.currentTime = ms / 1000; setAt(ms); };
+  // A citation into the note (Tutor feedback): load if needed, move to its time and play from there.
+  useEffect(() => {
+    if (seekMs == null) return;
+    (async () => {
+      const el = audio.current;
+      if (!el) return;
+      if (!el.src) {
+        const next = await note.source().catch(() => null);
+        if (!next) { setLoadError('This voice note cannot be played here.'); return; }
+        setSrc(next); el.src = next;
+      }
+      el.currentTime = seekMs / 1000; setAt(seekMs);
+      el.play().catch(() => {});
+    })();
+  }, [seekMs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-line px-2 py-1">

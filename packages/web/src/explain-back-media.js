@@ -285,3 +285,16 @@ export function voiceNoteFor(key, options = {}) {
   return notes.get(key);
 }
 export function disposeVoiceNote(key) { notes.get(key)?.dispose(); notes.delete(key); }
+
+// Leaving the canvas (unmount, another board or canvas): stop every voice note and Sketch recording still capturing, so no
+// microphone stays live or claimed. keep: true (the default) keeps each take, as Stop does; keep: false discards it, as cancel.
+const stoppers = new Set();
+export const onStopAllCaptures = fn => { stoppers.add(fn); return () => stoppers.delete(fn); };
+export function stopAllExplainBackCaptures({ keep = true } = {}) {
+  for (const note of notes.values()) {
+    const { status } = note.get();
+    if (status === 'requesting' || (!keep && (status === 'recording' || status === 'paused'))) note.cancel();
+    else if (status === 'recording' || status === 'paused') note.stop();
+  }
+  for (const stop of stoppers) stop({ keep });
+}

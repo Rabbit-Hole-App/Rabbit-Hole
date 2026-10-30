@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { claimMicrophone, microphoneHolder, releaseMicrophone } from './explain-back-media.js';
-import { createSketchRecording, diffMarks, recordingSubmitState, stateAt, timelineSteps } from './sketch-recording.js';
+import { claimMicrophone, disposeVoiceNote, microphoneHolder, releaseMicrophone, stopAllExplainBackCaptures, voiceNoteFor } from './explain-back-media.js';
+import { createSketchRecording, diffMarks, disposeSketchRecording, recordingSubmitState, sketchRecordingFor, stateAt, timelineSteps } from './sketch-recording.js';
+import { validateExplainBackAnswer } from './explain-back-contract.js';
+const answerWith = recording => validateExplainBackAnswer({ v: 1, kind: 'explain_back', text: '', voice: [], recording, resources: [], assistance: [] });
 
 const OGG_OPUS = (() => { const b = new Uint8Array(47); b.set([...'OggS'].map(c => c.charCodeAt(0))); b[26] = 1; b[27] = 19; b.set([...'OpusHead'].map(c => c.charCodeAt(0)), 28); return b; })();
 function fakeMedia() {
@@ -61,7 +63,8 @@ test('silent recording: no microphone, a starting snapshot and every change on a
   assert.deepEqual(stateAt(timeline, 4000), third);
   assert.deepEqual(stateAt(timeline), fourth);
   const saved = rec.get().saved;
-  assert.deepEqual([saved.role, saved.state, saved.assetId, saved.mime, saved.durationMs, saved.narration], ['recording', 'ready', 'aa_rec00000001', 'application/json', 5000, null]);
+  assert.deepEqual([saved.role, saved.media, saved.state, saved.assetId, saved.mime, saved.durationMs, 'narration' in saved], ['recording', 'sketch_timeline', 'ready', 'aa_rec00000001', 'application/json', 5000, false]);
+  assert.deepEqual(answerWith(saved).errors, [], 'an EB-01 recording EvidenceRef');
   assert.deepEqual(recordingSubmitState(rec.get()), { ready: true, blocked: null });
 });
 
@@ -88,6 +91,8 @@ test('narrated recording: one clock for marks and sound, Pause pauses both, Stop
   assert.equal(saved.durationMs, 5000);
   assert.equal(saved.narration.durationMs, 5000, 'the narration has the same length as the timeline');
   assert.deepEqual([saved.narration.role, saved.narration.assetId], ['voice', 'aa_aud00000001']);
+  assert.match(saved.narration.evidenceId, /^ev_narration_/);
+  assert.deepEqual(answerWith(saved).errors, [], 'a narrated recording EvidenceRef');
   assert.equal(rec.get().take.timeline.narration, true);
 });
 
@@ -142,4 +147,60 @@ test('two recordings with the same final sketch but different reasoning give dif
   assert.equal(b[1].t, 2000);
   assert.match(b[2].text, /force inward/);
   assert.equal(b[2].t, 9000, 'the self-correction keeps its time');
+});
+
+test('a saved recording restores read-only for replay: timeline and narration load only when asked', async () => {
+  const fake = fakeMedia();
+  const time = fakeTime();
+  const rec = createSketchRecording({ media: fake.media, time, upload: uploader('rec'), uploadAudio: uploader('aud') });
+  rec.setAudio(true);
+  await rec.start({ sketch: { strokes: [] } });
+  time.advance(1000); rec.observe({ strokes: [stroke(0, 0)] });
+  time.advance(1000); rec.stop();
+  await until(() => rec.get().status === 'saved', 'saved');
+  const saved = rec.get().saved;
+  const bytes = { [saved.assetId]: rec.get().take.blob, [saved.narration.assetId]: new Blob([OGG_OPUS], { type: 'audio/ogg' }) };
+  const loads = [];
+  const load = async id => { loads.push(id); return bytes[id]; };
+  const replay = createSketchRecording({ saved, load });
+  assert.deepEqual([replay.get().status, replay.get().saved, replay.get().elapsedMs], ['saved', saved, 2000]);
+  assert.deepEqual(recordingSubmitState(replay.get()), { ready: true, blocked: null }, 'a revision carries it as ready evidence');
+  assert.equal(loads.length, 0);
+  const timeline = await replay.timeline();
+  assert.deepEqual(stateAt(timeline), { strokes: [stroke(0, 0)], shapes: [], items: [] });
+  assert.match(await replay.audioSource(), /^blob:/);
+  assert.deepEqual(loads, [saved.assetId, saved.narration.assetId]);
+  assert.equal(createSketchRecording({ saved: { ...saved, assetId: 'fs_board_file' } }).get().status, 'idle', 'only a private attempt asset restores');
+});
+
+test('leaving the canvas stops every capture, keeps each take and releases the microphone', async () => {
+  const fake = fakeMedia();
+  const time = fakeTime();
+  const note = voiceNoteFor('leave:q1', { media: fake.media, time, upload: uploader('voc') });
+  const silent = sketchRecordingFor('leave:q2', { media: fake.media, time, upload: uploader('rec') });
+  await note.start(); await silent.start({ sketch: {} });
+  time.advance(3000);
+  assert.equal(microphoneHolder()?.id, 'voice-note:leave:q1');
+  stopAllExplainBackCaptures({ keep: true });
+  assert.equal(microphoneHolder(), null, 'the microphone is released at once');
+  assert.ok(fake.tracks.every(track => track.stopped >= 1));
+  await until(() => note.get().status === 'saved' && silent.get().status === 'saved', 'kept takes');
+  assert.equal(note.get().saved.durationMs, 3000);
+  // Narration still waiting for the browser's permission is cancelled when it answers; nothing records.
+  const narrated = sketchRecordingFor('leave:q3', { media: fake.media, time, upload: uploader('rec'), uploadAudio: uploader('aud') });
+  narrated.setAudio(true);
+  const starting = narrated.start({ sketch: {} });
+  assert.equal(narrated.get().status, 'requesting');
+  stopAllExplainBackCaptures();
+  await starting;
+  await until(() => narrated.get().status === 'idle', 'start abandoned');
+  assert.equal(microphoneHolder(), null);
+  assert.ok(fake.tracks.every(track => track.stopped >= 1));
+  // keep: false discards a running take.
+  const discard = voiceNoteFor('leave:q4', { media: fake.media, time, upload: uploader('voc') });
+  await discard.start(); time.advance(1000);
+  stopAllExplainBackCaptures({ keep: false });
+  await until(() => discard.get().status === 'idle', 'discarded');
+  for (const key of ['leave:q1', 'leave:q4']) disposeVoiceNote(key);
+  for (const key of ['leave:q2', 'leave:q3']) disposeSketchRecording(key);
 });
