@@ -6,6 +6,18 @@ name the fixing commit.
 Entry format: **ID · task · status (open / resolved)** — evidence or error; attempted fixes; remaining work; owner;
 exact action needed from the owner (if any).
 
+## Owner actions at final delivery
+
+Collected here so they block nothing else (owner 2026-10-30: finish and push everything first).
+
+1. Release 24-eb (the one Practice card, card heights, teaching links, the criterion fix, the microphone removal; it
+   supersedes 23-eb, which must not be run): `C:\s\spec\release-queue\release.cmd 24-eb`. It is ready only once its pins
+   carry a passing gate; the final handoff says when.
+2. Production check, **deferred until final delivery and still unverified**: on digrabbithole.com answer one Practice card
+   (typed, then a voice note), then run `C:\s\spec\explain-back\prod\eb-prod-verify.cmd` (read only; it asks for the session
+   cookie in its own window).
+3. FX-EB-07: decide whether the style-panel overlap gets its own task.
+
 ## Open
 
 **FX-EB-02 · EB-09 · open, not blocking** — Timing tests under full-suite load fail intermittently in worker and
@@ -62,6 +74,14 @@ own task. Owner action: decide whether to open one.
 **FX-EB-08 · process · resolved in practice** — Each push to a worker branch runs its own verify + fast-e2e; worker
 branches that equalled the integration SHA doubled runner minutes. Duplicate runs were cancelled (41044776909/41, 41047053473/511,
 41049082261/317, 41051073532/377, 41051369789/770) and workers now push only new commits on request.
+
+**FX-EB-11 · EB-08 · fix committed, browser check pending CI** — A card that already had a reviewed attempt opened on
+Tutor feedback every time the board loaded and announced "Tutor feedback is ready" for that old review (found by the
+text-card-height-check screenshots, fast-e2e 41108024288). Cause: ExplainBackCard took its baseline of seen reviews on the
+first render, while its saved attempts were still loading, so every saved review then counted as new. Fix: the baseline waits
+until the attempts have loaded (`view.loading`); a review that arrives after that (a submit or re-review) still opens
+Tutor feedback and is announced. The height check's step 5 now asserts a reloaded card opens on Your answer with no
+announcement. In production since 22-eb; fixed by the 24-eb release.
 
 ## Resolved
 

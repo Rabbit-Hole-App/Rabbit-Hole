@@ -1011,12 +1011,13 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
   const gate = submitState({ text: draft, sketched: sketchMarked, voice: voiceStore ? voice : null, recording: recordingStore ? recording : null, inputs });
   const fieldId = useId();
 
-  // A finished review is announced once and opens on Tutor feedback when it is the attempt on screen.
+  // A finished review is announced once and opens on Tutor feedback when it is the attempt on screen. Reviews already saved
+  // when the card's attempts finish loading are not new: the baseline waits for that load (FX-EB-11).
   const [announce, setAnnounce] = useState('');
   const seen = useRef(null);
   useEffect(() => {
     const reviewed = attempts.filter(attempt => attempt.status === 'reviewed');
-    if (seen.current === null) { seen.current = new Set(reviewed.map(attempt => attempt.id)); return; }
+    if (seen.current === null) { if (!view.loading) seen.current = new Set(reviewed.map(attempt => attempt.id)); return; }
     const fresh = reviewed.find(attempt => !seen.current.has(attempt.id));
     for (const attempt of reviewed) seen.current.add(attempt.id);
     if (fresh) { setAnnounce(`Tutor feedback is ready for attempt ${fresh.number}`); if (selected.id === fresh.id) setTab('feedback'); }

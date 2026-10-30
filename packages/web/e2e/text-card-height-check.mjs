@@ -232,8 +232,10 @@ await check('4 narrow and wide: at 280 px the text wraps and the card may open t
 
 await check('5 Explain-back feedback and history: Tutor feedback grows the card, Your answer shrinks it, Revise answer (a draft in the history) and back to the attempt, never with blank space', async () => {
   const eb = card('eb');
-  // A review that arrives after the card mounts opens it on Tutor feedback (ExplainBackCard's announce effect; the stubbed list
-  // loads after the first render), so the card starts there (fast-e2e 41108024288 screenshots): start from Your answer.
+  // A review already saved when the board loads is not new (FX-EB-11): the card opens on Your answer and announces nothing.
+  // Before the fix the late-loading attempt list counted as a fresh review and opened Tutor feedback (fast-e2e 41108024288).
+  assert.equal(await eb.locator('[data-feedback-tab="answer"]').getAttribute('aria-selected'), 'true', 'a saved review does not open Tutor feedback on load');
+  assert.equal((await eb.locator('p.sr-only[role="status"]').textContent()).trim(), '', 'no "Tutor feedback is ready" announcement for a saved review');
   await eb.locator('[data-feedback-tab="answer"]').click(); await page.waitForTimeout(300);
   assert.equal(await eb.locator('[data-feedback-tab="answer"]').getAttribute('aria-selected'), 'true', 'Your answer is shown');
   const answerTab = await fitted('eb', 'Your answer');
