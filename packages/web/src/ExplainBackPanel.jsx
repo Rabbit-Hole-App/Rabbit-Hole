@@ -102,7 +102,10 @@ export function SketchPanel({ portal, surface, ownerId, ownerTitle, status, widt
   const [expanded, setExpanded] = useState(false);
   useLayoutEffect(() => { setDock(panel.current?.parentElement || null); });
   useLayoutEffect(() => {
-    if (!dock || typeof ResizeObserver === 'undefined') return undefined;
+    if (!dock) return undefined;
+    // Measured before the first paint, then on every resize: an opening panel never shows the side layout on a phone.
+    setSize({ w: dock.clientWidth });
+    if (typeof ResizeObserver === 'undefined') return undefined;
     const observer = new ResizeObserver(([entry]) => setSize({ w: entry.contentRect.width }));
     observer.observe(dock);
     return () => observer.disconnect();

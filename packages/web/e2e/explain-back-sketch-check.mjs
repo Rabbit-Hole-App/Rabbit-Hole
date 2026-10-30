@@ -564,8 +564,8 @@ await check('phone width: the panel stacks under the card and the question stays
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(600);
   await narrow.locator('[data-sketch-toggle]').click();
-  await panelOf(narrowId).waitFor();
-  assert.equal(await panelOf(narrowId).getAttribute('data-panel-mode'), 'stack');
+  // The layout follows the dock's width once the resize has settled (run 41049170532 read it a moment early).
+  await page.locator(`[data-explain-sketch-panel="${narrowId}"][data-panel-mode="stack"]`).waitFor({ timeout: 5000 });
   assert.equal(await narrow.locator('[data-eb-question]').count(), 1);
   const panel = await box(panelOf(narrowId)), surface = await box(page.locator('[data-canvas-surface]'));
   assert.ok(panel.x >= surface.x - 1 && panel.x + panel.width <= surface.x + surface.width + 1, 'no horizontal clipping');
@@ -653,8 +653,14 @@ await check('EB-05 an ordinary connector between cards stays ordinary', async ()
 });
 
 await check('EB-05 pills: one Group pill with its count; × disconnects; the picker makes the same link', async () => {
+  // The connector step leaves its cards selected: the style panel and the selection bar follow that selection and can lie
+  // over the answer card. A learner clears it with a press on empty canvas before using the card's own controls.
+  const surface = await box(page.locator('[data-canvas-surface]'));
+  await page.mouse.click(surface.x + surface.width * 0.6, surface.y + surface.height * 0.5);
+  await page.waitForTimeout(300);
   await reveal(answerCard);
   const pills = answerCard.locator('[data-input-pill]');
+  await pills.first().waitFor();
   assert.equal(await pills.count(), 1, 'one pill for one semantic link');
   assert.equal(await pills.first().getAttribute('data-input-kind'), 'group');
   assert.match(await pills.first().innerText(), /· 2 items/);
@@ -662,7 +668,8 @@ await check('EB-05 pills: one Group pill with its count; × disconnects; the pic
   await settleLinks(answerId, 0);
   assert.equal(await pills.count(), 0);
   const picker = answerCard.locator('[data-input-picker]');
-  await picker.focus();
+  await picker.focus(); // the picker reads the canvas's sources when it takes focus
+  await picker.locator(`option[value="${sourceBId}"]:not([disabled])`).waitFor({ state: 'attached' });
   await picker.selectOption(sourceBId);
   await settleLinks(answerId, 1);
   const [link] = await inputLinks(answerId);
