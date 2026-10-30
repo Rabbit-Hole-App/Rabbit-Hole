@@ -154,9 +154,9 @@ These are four separate controls. Each needs exact-SHA `verify` and `fast-e2e`, 
 
 | Control | Effect | Current pin | State |
 |---|---|---|---|
-| Generation off | `EXPLAIN_PROGRAM_ENABLED=false`. No new programs, and Edit of a program card is refused. Accepted cards keep running. | local branch `release/explain-rel5-off` `7319d063a` (flag + pinning test) | Cut on `f421cc5de`. `main` is now `70b7425ed`, so it must be re-cut on the final main before use. Not pushed. |
-| Execution kill | `EXPLAIN_PROGRAM_EXECUTION_KILL=true`. A card that loads afterwards refuses to run. A card already open keeps running until it is reloaded (the check runs at result load; `retention.test.mjs` pins this). Generation and charges continue. | local branch `release/explain-rel5-kill` `c137bd27f` | Cut on `f421cc5de`. Re-cut on the final main. Not pushed. |
-| Stateful generation off | `EXPLAIN_PROGRAM_STATEFUL` unset or false. New requests author schema 1 only. Accepted schema 2 cards keep running, because execution does not read this switch. | revert `b6caa951c` alone (it is in `d3d50986e`) | Live since R3 (3:11 PM PT). Same checks as the others. |
+| Generation off | `EXPLAIN_PROGRAM_ENABLED=false`. No new programs, and Edit of a program card is refused. Accepted cards keep running. | `9859c2406` (cut on `d3d50986e`) | **Stale after R4**; the integrator re-cuts it on the final main. |
+| Execution kill | `EXPLAIN_PROGRAM_EXECUTION_KILL=true`. A card that loads afterwards refuses to run. A card already open keeps running until it is reloaded (the check runs at result load; `retention.test.mjs` pins this). Generation and charges continue. | `c0dc41daa` (cut on `d3d50986e`) | **Stale after R4**; re-cut on the final main. |
+| Stateful generation off | `EXPLAIN_PROGRAM_STATEFUL` unset or false. New requests author schema 1 only. Accepted schema 2 cards keep running, because execution does not read this switch. | `4105d5023` (cut on `d3d50986e`; it reverts `b6caa951c`) | Live control since R3. The cut is **stale after R4**; re-cut on the final main. |
 | Emergency Worker rollback | Both production Workers go back to the recorded pre-release pair. This also stops new generation. | `C:/s/spec/explain-sandbox/prod/state/prev-worker.txt` | Stale: it records the pair from before `fc31f723a`. It must be re-recorded at the next release, or it would roll back every release since. |
 
 `C:/s/spec/explain-sandbox/prod/generation-off.pins` and `kill.pins` still name the pre-MVP cuts `9f7060d47` and
@@ -296,14 +296,14 @@ Not tested:
 
 | Gap | Owner | Next step |
 |---|---|---|
-| Card check steps 14 and 17 timing fix not released | integrator | Offscreen pause shipped in R4 `d92cc18d5`; the check fix `2c8be1452` (fix/explain-offscreen-check) is not in it and goes into the next candidate |
+| Card check steps 14 and 17 timing fix not released | integrator | Offscreen pause is released in R4 `d92cc18d5`; the check fix `2c8be1452` is in the R5 candidate `2aaa8744b` (in its gate) |
 | Two interaction tests (`interaction.test.mjs`, the reset cases) failed once under the full web suite on a local merge of R3 and offscreen; both passed alone twice | runtime lane | Treat as intermittent and unresolved; recheck on the next candidate |
-| The stateful author's first draft omits `manifest.targets` when a card has none (t811-c5-a, t811-c6-a), costing a repair round each time | runtime/author lane | Default an absent `targets` to none, or state it in the author contract; then check one genuine run |
-| Review still samples a number input at one value only, and one step of a sequence (t811-c6-a minor findings) | runtime/review lane | Decide whether the six captures should include an input's minimum and maximum |
-| 10.4: one genuine card per schema 2 shape; none with targets or drag | qualification lane | One targets case and one drag case after 8.4 ships, inside the remaining US$3.79 |
+| Optional improvement, not a closeout requirement: the stateful author's first draft omits `manifest.targets` when a card has none (t811-c5-a, t811-c6-a), costing one repair round | runtime/author lane | Deferred: default an absent `targets` to none, or state it in the author contract |
+| LIMITATION: review samples a number input at one value only, and one step of a sequence (t811-c6-a minor findings) | runtime/review lane | Stated as a limitation; widening the sampling is optional |
+| LIMITATION: no genuine card with selectable targets or a drag; one genuine card per schema 2 shape | qualification lane | Optional coverage, not a closeout requirement; no further generation planned. The failed pH case t811-c5-a and its diagnostics stay as recorded evidence. |
 | Three playing cards on two Workers trade Workers on almost every frame (59 Worker starts in the unit run). Correct, but each trade is a cold boot. Offscreen pause removes most real contention. | runtime lane | Measure in the browser before changing eviction |
 | Execution kill does not stop already-open cards | integrator | Accepted as documented; an immediate stop needs a new mechanism (not planned) |
 | Rollback pins stale (above) | integrator | Re-cut generation-off and kill on the final main; re-record the emergency pair at release |
 | Gravity: request text, model identity and interaction evidence not recorded | owner | None needed unless 10.4 counts gravity as an interaction case |
-| 10.2: Focus placement after a played, scrubbed card (cause not isolated); keyboard focus under the minimap | card/Focus lane | Reproduce from the matrix sequence above; pan or scroll the focused control clear of canvas chrome |
+| 10.2 FAILED cells: Focus placement after a played, scrubbed card; keyboard focus under the minimap | card/Focus lane | `fix/explain-focus-matrix` in progress; the cells stay FAILED until it is deployed and re-verified |
 | 10.2 rows still not tested (above) | qualification lane | Rerun `matrix-check.mjs` when the preview serves R4; the rows not tested need a signed-in viewer, real devices or other engines |
