@@ -155,8 +155,11 @@
     "EXPLAIN_DIAGNOSTICS": "true",
     // IMG-01 image generation (docs/features/image-jobs.md): off, as in production. Only "true" accepts new jobs.
     "IMAGE_GENERATE_ENABLED": "false",
-    // Speech to text for spoken answers (/api/learn/transcribe): off even when OPENAI_API_KEY exists; only "true" enables it (owner decision O-8 is open).
-    "TRANSCRIBE_ENABLED": "false",
+    // Speech to text for retained Explain-back voice notes (owner decision O-8 resolved 2026-10-29: approved for dev and production). It runs
+    // only at submission/assessment through the priced, capped transcribeSpendTransport (learn-paid-transport.js) and needs the OPENAI_API_KEY
+    // secret and USAGE_PLATFORM_DAY_USD. The legacy Speak answer route /api/learn/transcribe stays refused (fail-closed spend admission);
+    // live Voice Mode (FX-71) stays paused. Rollback: "false".
+    "TRANSCRIBE_ENABLED": "true",
     // A simple request within these goes straight to authoring; missing thresholds would review every request (explain-brief.js).
     "EXPLAIN_BRIEF_THRESHOLDS": "{\"components\":12,\"credits\":400}",
     "LEARN_VIDEO_PROVIDER": "fal-seedance-lite",

@@ -377,7 +377,8 @@ The production acceptance and its receipt: `C:/s/spec/image-activation/activatio
   dev and parallel set neither. Secrets `OPENAI_API_KEY` and `GEMINI_API_KEY` are installed on `rabbit-hole-app` by the owner command
   `C:/s/spec/image-activation/prod-image-secrets.mjs` (never in a config). `/api/learn/transcribe` (dev-worker.js) is NO LONGER enabled by the key alone: it also needs
   `TRANSCRIBE_ENABLED` exactly `"true"` (default `"false"` in the dev, parallel and production configs, 2026-10-26), so installing the key for image work
-  does not switch on spoken-answer transcription. Whether to enable it (key plus flag) or remove the mic is owner decision O-8 and stays open.
+  does not switch on spoken-answer transcription by itself. Owner decision O-8 was resolved 2026-10-29: the flag is `"true"` for retained Explain-back voice notes,
+  transcribed through the priced `transcribeSpendTransport`; the legacy `/api/learn/transcribe` dictation route stays refused (docs/features/transcription-migration.md).
 - The tag is applied by the normal `wrangler deploy` of each worker (the release flow); it is the only irreversible step, and with
   the flag off nothing calls the class.
 

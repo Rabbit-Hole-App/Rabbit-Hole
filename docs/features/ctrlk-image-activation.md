@@ -28,7 +28,7 @@ Not needed: any new DO class, D1 migration (tables exist), `worker_loaders`, or 
 
 | Feature | Gate | Effect of installing the key |
 |---|---|---|
-| `/api/learn/transcribe` (spoken answers, `dev-worker.js`) | Was the key alone. Now also `TRANSCRIBE_ENABLED` exactly `true` (commit 13147839, default `"false"` in dev, parallel and production configs) | **Release that commit BEFORE installing the key.** Without it, installing the key switches paid transcription on for every signed-in user. With it, nothing changes until the flag is set. Owner decision O-8 (key or remove the mic) stays open |
+| `/api/learn/transcribe` (spoken answers, `dev-worker.js`) | Was the key alone. Now also `TRANSCRIBE_ENABLED` exactly `true` (commit 13147839, default `"false"` in dev, parallel and production configs) | **Release that commit BEFORE installing the key.** Without it, installing the key switches paid transcription on for every signed-in user. With it, nothing changes until the flag is set. Owner decision O-8 resolved 2026-10-29: transcription is approved for retained Explain-back voice notes (flag `"true"` in all three configs, priced `transcribeSpendTransport`); this legacy route stays refused |
 | IMG-01 `/image` generation with OpenAI models | `IMAGE_GENERATE_ENABLED` is `false` | Only the controlled owner acceptance path (`IMAGE_ACCEPTANCE_EMAILS`: two named identities) can then run OpenAI image jobs, under the ordinary hold and settlement rules (paid) |
 | Planning model (`planModel`, `learn-models.js:102`) | needs `LEARN_PLAN_MODEL` as well; not set in production | None |
 | Legacy `/api/learn/image` | `LEGACY_IMAGE_GENERATION` exactly `true`; set in no config | None |
@@ -89,4 +89,4 @@ The complete ordered list, including the loader probe, is in [ctrlk-completion.m
 | Settle from provider usage | decided 2026-10-26: yes, min(priced usage, reservation) | built on `feat/ctrlk-complete` |
 | Reservation `INLINE_IMAGE_EDIT_RESERVED_USD` | A `0.03` (3 credits); B `0.05`; C `0.20` (the IMG-01 hold) | A (on the activation branch); raise only if the acceptance run shows real cost near it |
 | Who may use it | A every signed-in user with credits (what the code does: there is no allow-list for this route); B add an owner-only window first (code change) | A, because the reservation and the clip cap the exposure; B only if the owner wants a private soak |
-| O-8 recorded-answer transcription | A install the key and set `TRANSCRIBE_ENABLED=true`; B remove the mic | Open; independent of this feature |
+| O-8 recorded-answer transcription | A install the key and set `TRANSCRIBE_ENABLED=true`; B remove the mic | Resolved 2026-10-29: on for retained Explain-back voice notes only (docs/features/transcription-migration.md); independent of this feature |

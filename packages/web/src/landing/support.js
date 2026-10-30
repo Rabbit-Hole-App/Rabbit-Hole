@@ -31,7 +31,7 @@ const documents = {
       ['providers', 'AI processing and service providers', 'When you use a feature, the information it needs is sent to the provider that does the work. The keys for AI providers stay on our servers; your browser never receives them.', [
         '<strong>Cloudflare</strong>: hosting, databases, file storage, request logs, web page capture and page-performance measurement.',
         '<strong>Anthropic</strong> (Claude API): Chat and Tutor messages, the canvas context and files you include, and requests to generate explanations, CAD models and videos. Signed-in searches of Explore send the titles, descriptions and handles of published canvases.',
-        '<strong>OpenAI</strong> (API): image prompts and reference images when you generate an image with an OpenAI model, and the image and selected area when you edit an image.',
+        '<strong>OpenAI</strong> (API): image prompts and reference images when you generate an image with an OpenAI model, the image and selected area when you edit an image, and the audio of an Explain-back voice note, transcribed when you submit the answer.',
         '<strong>Google</strong> (Gemini API): image prompts and reference images when you generate an image with a Gemini model.',
         '<strong>Fly.io</strong>: runs our services for repository lessons (the repository name and commit), CAD models, generated videos and converting some uploaded files, such as documents, slides, audio and 3D models.',
         '<strong>TypeSafe</strong>: a practice question and your answer, to check the answer; and, when you add a web page card, screenshots of the captured page, its extracted text, its title and its web address, to screen the page for sexually explicit or graphic content.',
