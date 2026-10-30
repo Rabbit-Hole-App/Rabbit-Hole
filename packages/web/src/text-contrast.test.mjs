@@ -596,10 +596,12 @@ test('a card draws no line of text in tertiary ink', () => {
   assert.deepEqual(hits, [], 'informational card text is secondary ink (text-ink-2)');
 });
 
-// Rabbit Holes are green (owner r29): the two hole tokens flip in .dark; a kept hole's text clears 4.5:1 on the card and
-// a pending mark 3:1 (marks only, never text), in both themes; and every hole mark reads a token - no red hex is left on
-// a portal tab or outline, the overview's holes or the map's markers (its delete buttons and its error stay red).
-test('Rabbit Hole marks are the green hole tokens, readable in both themes', () => {
+// Rabbit Holes are RH blue (owner, Rabbit Hole and reference navigation design 2026-10-29; green before, owner r29): the two
+// hole tokens flip in .dark; a kept hole's text clears 4.5:1 on the card and a pending mark 3:1 (marks only, never text), in
+// both themes; and every hole mark reads a token - no red hex is left on the overview's holes or the map's markers (its
+// delete buttons and its error stay red), and no green hex either.
+test('Rabbit Hole marks are the blue hole tokens, readable in both themes', () => {
+  assert.deepEqual(THEMES.map(theme => [token(theme, '--color-hole'), token(theme, '--color-hole-pending')]), [['#1b6fc2', '#2383e2'], ['#6bb4ff', '#2383e2']]);
   for (const [name, bar] of [['--color-hole', 4.5], ['--color-hole-pending', 3]]) {
     assert.ok(declared(BLOCKS.light, name) && declared(BLOCKS.dark, name), `${name} is a theme token in index.css (light and .dark)`);
     for (const theme of THEMES) {
@@ -616,4 +618,19 @@ test('Rabbit Hole marks are the green hole tokens, readable in both themes', () 
     ...reds('Dive.jsx', line => !/Trash2|role="alert"/.test(line)),
     ...reds('AdaptiveCanvas.jsx', line => /portal/.test(line)),
   ], [], 'hole marks use the hole tokens (text-hole, bg-hole, border-hole, outline-hole, fill-hole and their -pending forms)');
+});
+// The Rabbit Holes Map's filled current-level label is the primary fill with white text in both themes, never the hole token:
+// white on the lighter dark-theme hole blue would fall under 4.5:1 (owner 2026-10-29).
+test('the current Rabbit Hole level is a primary-fill label with white text, readable in both themes', () => {
+  const dive = readFileSync(`${here}Dive.jsx`, 'utf8');
+  assert.match(dive, /\$\{active \? 'bg-primary-fill px-1\.5 text-white'/);
+  assert.doesNotMatch(dive, /bg-hole[^']*text-white/);
+  for (const theme of THEMES) {
+    const ratio = contrast(rgb('#ffffff'), rgb(token(theme, '--color-primary-fill')));
+    assert.ok(ratio >= 4.5, `${theme}: white on the label ${ratio.toFixed(2)}:1`);
+    assert.ok(contrast(rgb('#ffffff'), rgb(token(theme, '--color-hole'))) < 4.5 || theme === 'light', `${theme}: the reason it is not bg-hole`);
+  }
+  for (const file of ['Dive.jsx', 'CanvasMinimap.jsx', 'AdaptiveCanvas.jsx', 'DestinationRow.jsx', 'CanvasRefChips.jsx']) {
+    assert.doesNotMatch(readFileSync(`${here}${file}`, 'utf8'), /#(067647|47cd89|079455|16a34a)/i, `${file}: no Rabbit Hole green left`);
+  }
 });

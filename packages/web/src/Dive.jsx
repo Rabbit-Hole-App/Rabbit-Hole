@@ -14,7 +14,7 @@ import { claimChord } from './shortcut-owner.js';
 import { markGuidedEntry } from './learn-opening.js';
 import { anchorBlock, clampSpot, diveRecord, discardHole, dropPending, holeHref, holeRows, keepMapSpot, keepPending, levelHref, mapSpot, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
 
-// The green portal outline on an originating card, read by the canvas's card chrome.
+// The Rabbit Hole footer row and stacked layers on an originating card or group, read by the canvas's chrome.
 export const DivePortals = createContext(null);
 
 // A pending hole lives only while the learner is inside it. Leaving it while it is still empty,
@@ -303,7 +303,7 @@ function Name({ level, className, onOpen, onRename, active = false }) {
   // One line, never wrapped: the full name is in the tooltip.
   return <Tip label={level.title} info={renamable ? 'Double-click to rename' : level.kind === 'shared' ? 'Shared canvas this hole started from (view only)' : null} align="end">
     <button type="button" data-dive-level={level.app} onClick={onOpen} onDoubleClick={renamable ? () => setDraft(level.title) : undefined}
-      className={`block max-w-full truncate rounded-sm py-0.5 ${active ? 'bg-hole px-1.5 text-white' : 'px-0.5 hover:bg-hover'} ${className}`}>{level.title}</button>
+      className={`block max-w-full truncate rounded-sm py-0.5 ${active ? 'bg-primary-fill px-1.5 text-white' : 'px-0.5 hover:bg-hover'} ${className}`}>{level.title}</button>
   </Tip>;
 }
 
@@ -409,7 +409,7 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
         {row.role === 'fold' && <span title={`${row.count} more levels`} className="px-1 text-ink-3">⋯ {row.count}</span>}
         {row.role === 'ancestor' && <Name level={row} className="text-ink-3 hover:text-ink" onOpen={() => climb(tree.path.findIndex(level => level.app === row.app && level.board === row.board))} onRename={rename} />}
         {row.role === 'current' && <div className="group relative flex w-full flex-col items-center" aria-current="location">
-          {/* The hole you are in: a green square (dashed while it is not kept yet) and a green label with white text. */}
+          {/* The hole you are in: a blue square (dashed while it is not kept yet) and a primary-fill label with white text. */}
           <span aria-hidden="true" title={pending ? 'Empty: kept once you add something' : undefined}
             className={`mb-1 h-2 w-2 ${pending ? 'border border-dashed border-hole-pending' : 'bg-hole'}`} />
           <Name level={current} active className={`font-semibold ${pending ? 'italic' : ''}`} onOpen={() => {}} onRename={rename} />
