@@ -6,7 +6,7 @@
 // fit their roles' limits. Problems are repairable, one sentence each; the job allows one repair (animation-job.js).
 import { ANIMATION_PROGRAM_VERSIONS, SCENE_SCHEMA, hashProgramSource, validateAnimationArtifact } from '../../web/src/animation3d/contract.js';
 import { canonicalJson, sha256Hex } from '../../web/src/explain-program/contract.js';
-import { ANIMATION_AUTHOR_SYSTEM, AUTHOR_TOOL } from './agents/animation-author.js';
+import { ANIMATION_AUTHOR_SYSTEM, authorTool } from './agents/animation-author.js';
 import { enabledCapabilities } from './animation-brief.js';
 import { AnimationPolicyError } from './animation-policy.js';
 import { fitProblems } from './animation-repair.js';
@@ -19,7 +19,7 @@ export const authorCapabilities = (caps = enabledCapabilities()) => ({ phase: ca
 // The author stage. -> { draft } | { gap }
 export async function authorStage(job, ctx) {
   const content = JSON.stringify({ request: job.prompt, plan: job.plan, context: job.context?.refText ? { refText: job.context.refText } : null, evidence: modelEvidence(job.evidence), capabilities: authorCapabilities() });
-  const { input } = await ctx.call('author', { system: ANIMATION_AUTHOR_SYSTEM, tool: AUTHOR_TOOL, content });
+  const { input } = await ctx.call('author', { system: ANIMATION_AUTHOR_SYSTEM, tool: authorTool(job.plan), content });
   if (input.kind === 'capability_gap') {
     if (!input.gap?.reason) throw new AnimationPolicyError('invalid_turn', 'The author reported a gap without saying what is needed.');
     return { gap: { capability: 'animation', needs: ['other'], source: 'author', reason: String(input.gap.reason).slice(0, 300), message: 'This animation needs something that is not available yet, so edit the request.' } };

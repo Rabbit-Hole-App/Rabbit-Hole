@@ -3,7 +3,7 @@
 // nothing, or that is not allowed for the failure, stops the job instead of spending. Also the request-fit preflight: an artifact the
 // review or the repair could not receive within their roles' limits is a problem found before any review is spent.
 import { canonicalJson } from '../../web/src/explain-program/contract.js';
-import { ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM, REPAIR_TOOL } from './agents/animation-author.js';
+import { ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM, planNeedsProgram, repairTool } from './agents/animation-author.js';
 import { REVIEW_TOOL } from './explain-review.js';
 import { ANIMATION_ROLES, animationRequest } from './animation-policy.js';
 import { ANIMATION_REVIEW_LIMITS, artifactView, buildReviewContent, loadCaptures, repairableFindings } from './animation-review.js';
@@ -45,7 +45,7 @@ export async function repairStage(job, ctx) {
   if (!plain(current)) return { progress: false, rejected: 'There is no artifact to repair.' };
   const named = new Set((failure.findings || []).map(f => f.target?.capture).filter(Boolean));
   const images = (await loadCaptures(ctx.env, (job.captures || []).filter(c => named.has(c.id)))).filter(c => typeof c.data === 'string').slice(0, ANIMATION_ROLES.repair.maxImages);
-  const { input } = await ctx.call('repair', { system: ANIMATION_REPAIR_SYSTEM, tool: REPAIR_TOOL, content: repairContent(job, failure, current, images) });
+  const { input } = await ctx.call('repair', { system: ANIMATION_REPAIR_SYSTEM, tool: repairTool({ program: !!current.program || planNeedsProgram(job.plan) }), content: repairContent(job, failure, current, images) });
   const reason = typeof input.reason === 'string' ? input.reason.slice(0, 300) : null;
   if (input.operation === 'none') return { progress: false, reason };
   if (input.operation !== 'artifact' || !plain(input.artifact)) return { progress: false, rejected: 'The repair returned no artifact.' };
@@ -67,7 +67,7 @@ export function fitProblems(env, artifact, job, tasks) {
   } catch (error) { if (error?.code === 'input_too_large') tooBig('review'); else throw error; }
   try {
     const failure = { problems: Array(REPAIR_FORWARD.problems).fill('p'.repeat(REPAIR_FORWARD.text)), findings: Array(REPAIR_FORWARD.findings).fill({ category: 'spec', severity: 'major', target: { capture: 'v0', object: 'o'.repeat(64) }, message: 'm'.repeat(REPAIR_FORWARD.text) }) };
-    animationRequest(env, 'repair', { system: ANIMATION_REPAIR_SYSTEM, tool: REPAIR_TOOL, content: repairContent(job, failure, draftOf(artifact), fake(ANIMATION_ROLES.repair.maxImages)) }, tasks);
+    animationRequest(env, 'repair', { system: ANIMATION_REPAIR_SYSTEM, tool: repairTool({ program: true }), content: repairContent(job, failure, draftOf(artifact), fake(ANIMATION_ROLES.repair.maxImages)) }, tasks);
   } catch (error) { if (error?.code === 'input_too_large') tooBig('repair'); else throw error; }
   return out;
 }

@@ -33,7 +33,7 @@ export function provider(t, { reply = () => ({}), status = () => 200 } = {}) {
   t.after(() => { globalThis.fetch = original; });
   globalThis.fetch = async (url, options = {}) => {
     const body = JSON.parse(options.body), role = TOOL_ROLES[body.tools[0].name] || body.system[0]?.text || body.system;
-    calls.push({ host: new URL(url).host, model: body.model, role, toolChoice: body.tool_choice, maxTokens: body.max_tokens, images: body.messages[0].content.filter(b => b.type === 'image').length });
+    calls.push({ host: new URL(url).host, model: body.model, role, toolChoice: body.tool_choice, maxTokens: body.max_tokens, images: body.messages[0].content.filter(b => b.type === 'image').length, tool: body.tools[0], system: body.system[0]?.text ?? body.system });
     if (gate) { const wait = gate; gate = null; await wait.promise; }
     const code = status(role, calls.filter(c => c.role === role).length);
     if (code !== 200) return Response.json({ type: 'error', error: { type: code === 529 ? 'overloaded_error' : 'api_error', message: 'x' } }, { status: code });
