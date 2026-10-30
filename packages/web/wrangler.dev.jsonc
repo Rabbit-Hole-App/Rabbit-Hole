@@ -36,6 +36,11 @@
         "name": "EXPLAIN_JOBS",
         "class_name": "ExplainJobs"
       },
+      // /animation jobs, one object per canvas (control-plane/src/animation-job.js, AN-05); routes off unless ANIMATION_ENABLED.
+      {
+        "name": "ANIMATION_JOBS",
+        "class_name": "AnimationJobs"
+      },
       // IMG-01 image generation jobs, one object per generation (control-plane/src/image-jobs.js); same binding as production.
       {
         "name": "IMAGE_JOBS",
@@ -78,6 +83,12 @@
       "tag": "image-jobs-1",
       "new_sqlite_classes": [
         "ImageJobs"
+      ]
+    },
+    {
+      "tag": "animation-jobs-1",
+      "new_sqlite_classes": [
+        "AnimationJobs"
       ]
     }
   ],

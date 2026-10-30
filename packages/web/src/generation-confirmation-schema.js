@@ -29,6 +29,9 @@ const seconds = Array.from({ length: 12 }, (_, i) => ({ value: (i + 1) * 5, labe
 export const MOTION_RATIOS = Object.freeze(['9:16', '1:1', '16:9', '3:4', '4:3', '2:3', '3:2', '4:5', '5:4']);
 export const MOTION_DEFAULT_RATIO = '16:9';
 const motionRatios = ratiosFor(MOTION_RATIOS).map(r => ({ value: r.id, label: r.label }));
+// /animation's supported experiences (AN-05): the MVP phase of animation3d/capabilities.js ANIMATION_CAPABILITIES.experiences, which a
+// control-plane test keeps equal (this file imports nothing). The planner recommends one; the person may choose another before Generate.
+const ANIMATION_EXPERIENCES = [{ value: 'inspect', label: 'Inspect' }, { value: 'watch', label: 'Watch' }, { value: 'experiment', label: 'Experiment' }, { value: 'game', label: 'Mini-game' }];
 const PRESENTATIONS = [{ value: 'static', label: 'Static' }, { value: 'steps', label: 'Steps' }, { value: 'time', label: 'Over time' }, { value: 'experiment', label: 'Experiment' }];
 
 // review_policy: 'always' (a person approves every request), 'conditional' (the SERVER decides per request and says why in
@@ -102,6 +105,14 @@ export const GENERATION_COMMANDS = Object.freeze({
     label: 'Explanation', noun: 'explanation', review_policy: 'always', settings_noun: 'an explanation setting', cancel: true,
     settings: [field('presentation', 'Presentation', 'select', { options: PRESENTATIONS })],
     sections: ['references', 'assumptions', 'limitations', 'usage'], section_titles: { limitations: 'Limitations' }, editable_fields: ['title', 'description', 'references', 'assumptions', 'presentation'],
+  }),
+  // Animation (AN-05): the server's plan (animation-job.js), always reviewed. Its one setting is the experience; the plan's recommendation,
+  // reason, behavior, controls and parameters are its requirements, read only; limitations are the planner's and the server's own.
+  animation: define({
+    label: 'Animation', noun: 'animation', review_policy: 'always', settings_noun: 'an animation setting', cancel: true,
+    settings: [field('experience', 'Experience', 'select', { required: true, options: ANIMATION_EXPERIENCES })],
+    sections: ['references', 'requirements', 'assumptions', 'limitations', 'usage'], section_titles: { requirements: 'Plan', limitations: 'Limitations' },
+    editable_fields: ['title', 'description', 'references', 'assumptions', 'experience'],
   }),
   // CAD: the job's own brief (cad-jobs.js), approved by its exact hash. Units are fixed by the brief; the parameter VALUES change
   // without a new brief, the parameter list does not (structuralChange in the job); requirements, assumptions, missing information
