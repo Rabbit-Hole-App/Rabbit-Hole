@@ -18,7 +18,7 @@ import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
 import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock } from './LearningBlocks.jsx';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
-import { CAPTURE_MAX_BYTES, SketchCaptureError, captureProblem, captureResult, captureSize, pixelRatios, sketchDraftOf } from './sketch-host.js';
+import { CAPTURE_MAX_BYTES, SketchCaptureError, captureProblem, captureResult, captureSize, fitZoom, pixelRatios, sketchDraftOf } from './sketch-host.js';
 import { gapsFrom, nearestGap, nudgeBy } from './learn-gap-rail.js';
 import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, reorderStep, headsOf, copyStyle, pasteStyle, strokePatch, strokeOf, TEXT_LEVELS, ARROW_KINDS } from './learn-style-panel.js';
 import RichText, { measureHeight, offsetsOf, readRuns } from './RichText.jsx';
@@ -2913,15 +2913,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   boundsRef.current = bounds;
   // Move the camera only if the card is not in the visible area - one in view stays put - and never the zoom.
   const bringIntoView = id => showBox(boundsRef.current[id]);
-  const showBox = (box, smooth = false, centre = false) => {
+  // zoom: a new zoom to show the box at (revealOnCanvas zooming out to fit); otherwise the zoom stays.
+  const showBox = (box, smooth = false, centre = false, zoom = null) => {
     if (!box || !surface.current) return false;
     // Both axes: after a sideways pan the column is off to one side, and a
     // card inserted into it landed off screen.
-    const current = viewRef.current, area = visibleArea(), first = panInto(box, current, area, centre);
+    const was = viewRef.current, current = zoom ? { ...was, z: zoom } : was, area = visibleArea(), first = panInto(box, current, area, centre);
     // The floating bottom chrome over the card's span is a floor too (24: freeArea's margin).
     const floor = chromeTop(first.x + box.x * current.z, first.x + (box.x + box.w) * current.z) - 24;
     const next = floor < area.bottom ? panInto(box, current, { ...area, bottom: Math.max(area.top + 1, floor) }, centre) : first;
-    if (next.x === current.x && next.y === current.y) return true;
+    if (next.x === was.x && next.y === was.y && next.z === was.z) return true;
     if (smooth) setGlide(true);
     autoView.current = next;
     setView(next);
@@ -4868,9 +4869,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       onContextMenu={event => event.stopPropagation()}>{children}</div>, sketchDock) : null);
   // Bring a card (or a Group's frame) into the view beside the Sketch panel: after the panel's own render, so the area
   // it measures already leaves the panel out. The camera moves only when the card is not already in view; never the zoom.
+  // A card larger than the room the panel leaves (a narrow workspace, a phone, a zoomed-in canvas) is zoomed out just enough to
+  // fit whole there, never in (sketch-host.js fitZoom; plan section 3: both areas visible, the question readable).
   const revealOnCanvas = id => {
-    requestAnimationFrame(() => requestAnimationFrame(() => showBox(boundsRef.current[id] || groupFrameOf(id), true)));
-    return !!(boundsRef.current[id] || groupFrameOf(id));
+    const target = () => boundsRef.current[id] || groupFrameOf(id);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const box = target();
+      if (!box || !surface.current) return;
+      const z = fitZoom(box, visibleArea(), viewRef.current.z);
+      showBox(box, true, false, z === viewRef.current.z ? null : z);
+    }));
+    return !!target();
   };
   // A pill's name: the source itself, selected and in view; a PDF, paper or wiki card also opens in its reader, at the
   // input's first page. Never an upload, a model call or a new Rabbit Hole. Returns 'reader', 'revealed' or null (gone).

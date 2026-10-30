@@ -72,3 +72,14 @@ export const captureResult = ({ questionId, draftId, block, image, size }) => ({
   questionId, draftId: draftId || sketchDraftOf(block.sketch), image, width: size.w, height: size.h,
   marks: sketchMarks(block.sketch), text: sketchText(block.sketch),
 });
+
+// The zoom that shows a card (`box`, world px) whole inside `area` (surface px: what the docked Sketch panel and the floating
+// chrome leave): the current zoom when it already fits, else just small enough, never larger than now and never below the
+// canvas's own floor (zoomAt's 0.25). An empty area keeps the zoom.
+export const FIT_MIN_ZOOM = 0.25;
+export function fitZoom(box, area, z, min = FIT_MIN_ZOOM) {
+  const w = area.right - area.left, h = area.bottom - area.top;
+  if (!box || !(box.w > 0) || !(box.h > 0) || w <= 0 || h <= 0) return z;
+  const need = Math.min(w / box.w, h / box.h);
+  return need >= z ? z : Math.max(min, need);
+}

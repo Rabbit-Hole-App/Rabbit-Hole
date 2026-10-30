@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { SketchCaptureError, captureProblem, captureResult, captureSize, pixelRatios, sketchDraftOf, sketchExtent } from './sketch-host.js';
+import { FIT_MIN_ZOOM, SketchCaptureError, captureProblem, captureResult, captureSize, fitZoom, pixelRatios, sketchDraftOf, sketchExtent } from './sketch-host.js';
 
 const marks = { strokes: [{ tool: 'pen', width: 2, points: [{ x: 10, y: 10 }, { x: 500, y: 300 }] }], shapes: [], items: [] };
 const card = (sketch, extra = {}) => ({ id: 'q1', type: 'challenge', mode: 'explain_back', prompt: 'Why?', sketch, ...extra });
@@ -70,4 +70,21 @@ test('drawing and dragging end on a release inside the docked Sketch panel: thei
   assert.ok(startDrag.includes("window.addEventListener('pointerup', up, true)") && !startDrag.includes("window.addEventListener('pointerup', up);"), 'startDrag ends on a captured pointerup');
   assert.ok(drawing.includes("window.addEventListener('pointerup', finish, true)") && drawing.includes("window.addEventListener('pointerup', up, true)"), 'strokes, shapes and the eraser end on a captured pointerup');
   assert.ok(!/addEventListener\('pointerup', (up|finish)\)/.test(drawing), 'no bubbling pointerup listener left in drawGesture');
+});
+
+test('reveal zooms out just enough for the whole question card to fit beside or above the panel, never in', () => {
+  const card = { x: 0, y: 0, w: 380, h: 600 };
+  // Fits at the current zoom: unchanged, even when it would fit larger.
+  assert.equal(fitZoom(card, { left: 0, top: 0, right: 800, bottom: 900 }, 1), 1);
+  assert.equal(fitZoom(card, { left: 0, top: 0, right: 2000, bottom: 2000 }, 0.5), 0.5);
+  // Beside a docked panel at a 736 px workspace (about 340 px free): the width decides.
+  assert.equal(fitZoom(card, { left: 24, top: 24, right: 364, bottom: 900 }, 1), 340 / 380);
+  // A phone above a stacked panel, zoomed in to 195%: the height decides, and the result is below the old zoom.
+  const z = fitZoom(card, { left: 24, top: 24, right: 366, bottom: 400 }, 1.95);
+  assert.equal(z, 376 / 600);
+  assert.ok(card.w * z <= 342 && card.h * z <= 376);
+  // Never below the canvas's floor, and an empty or unknown area keeps the zoom.
+  assert.equal(fitZoom({ x: 0, y: 0, w: 4000, h: 4000 }, { left: 0, top: 0, right: 300, bottom: 300 }, 1), FIT_MIN_ZOOM);
+  assert.equal(fitZoom(card, { left: 10, top: 10, right: 10, bottom: 400 }, 1.2), 1.2);
+  assert.equal(fitZoom(null, { left: 0, top: 0, right: 100, bottom: 100 }, 1), 1);
 });
