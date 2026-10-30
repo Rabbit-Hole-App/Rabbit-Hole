@@ -278,3 +278,28 @@ test('the dev render probe renders a fixture through the review capture path, on
   const crash = await post(env, { fixture: 'grid-robot-game' }, { render: { browser: fakeBrowser({ result: () => ({ ok: false, error: 'webgl_unavailable' }) }).browser } });
   assert.deepEqual([crash.status, /webgl_unavailable/.test((await crash.json()).error)], [502, true]);
 });
+
+// accept-3: the experiment's repair returned the artifact without its program, and the candidate died at validation (missing_program).
+test('a repair must return the program: the tool requires it and the prompt says so; one returned without it is refused at validation', { skip: NEEDS_PROPOSAL }, async t => {
+  const noProgram = () => { const { program: _p, ...rest } = draftOf(experimentFixture.artifact); return { operation: 'artifact', artifact: { ...rest, title: 'Fixed' } }; };
+  const s = stack(t, { reviews: [false, true], repair: noProgram });
+  const { done } = await s.generated();
+  const call = s.model.calls.find(c => c.role === 'repair');
+  assert.ok(call.tool.input_schema.properties.artifact.required.includes('program'), 'the repair tool requires the program');
+  assert.match(call.system, /Return the COMPLETE artifact every time[^.]*the program/);
+  assert.deepEqual([done.stage, done.stopReason], ['failed', 'rounds']);
+  assert.match(done.findings.at(-1).problems.join(' '), /missing_program/);
+  // The author's tool requires it too for a scene that needs one; a static inspect plan does not.
+  assert.ok(s.model.calls.find(c => c.role === 'author').tool.input_schema.properties.artifact.required.includes('program'));
+  const { authorTool } = await import('../src/agents/animation-author.js');
+  assert.equal(authorTool({ experience: 'inspect', parameters: [] }).input_schema.properties.artifact.required.includes('program'), false);
+  // With the program returned, the same repair is sealed, rendered and accepted.
+  const withProgram = () => ({ operation: 'artifact', artifact: { ...draftOf(experimentFixture.artifact), title: 'Fixed' } });
+  const ok = stack(t, { reviews: [false, true], repair: withProgram });
+  assert.equal((await ok.generated()).done.stage, 'ready');
+});
+
+test('author and repair are told to carry a rate change in state instead of absolute time', async () => {
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js');
+  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /accumulate the phase in state[^;]*; never compute it as 2\*pi\*time\/period/);
+});
