@@ -17,6 +17,10 @@ import { learnMedia } from './learn-storage.js';
 import { ANIMATION_REVIEW_LIMITS } from './animation-review.js';
 
 export const ANIMATION_RENDER_ENTRY = '/render/animation3d.html';
+// Loop sample times as fractions of the duration, chosen so a motion repeating k = 1..12 times per loop is never back at the same phase:
+// every k x fraction (and k x their difference) is at least 0.076 of a cycle from a whole number. Simple fractions (1/2, 1/3) alias:
+// a 12 s loop with 3 turns sampled at 0, 4 and 8 s looked still (accept-2, 2026-10-30).
+export const LOOP_FRACTIONS = Object.freeze([0.538, 0.769]);
 export const ANIMATION_CAPTURE = Object.freeze({ width: 960, height: 540, dpr: 1, theme: 'light', maxEvents: 4, maxTicks: 90, traceKeys: ['inputs', 'time', 'events', 'ticks', 'readouts', 'goal', 'selection', 'stateHash'] });
 
 const blocker = (code, message) => Object.assign(new Error(message), { status: 503, code, category: 'renderer' });
@@ -34,7 +38,7 @@ const highOf = p => (p.type === 'number' ? p.max : p.type === 'toggle' ? !p.defa
 //   actions, selectable or draggable nodes: the initial state, one action, then a short sequence (bounded events);
 //   stepped: the same with the host's steps advanced (bounded ticks).
 export function captureStates(artifact) {
-  const inputs = resolveAnimationInputs(artifact, {}), d = artifact.timeline?.duration ?? 0, mid = Number((d / 2).toFixed(3));
+  const inputs = resolveAnimationInputs(artifact, {}), d = artifact.timeline?.duration ?? 0, mid = Number((d * LOOP_FRACTIONS[0]).toFixed(3));
   const at = (label, extra = {}) => ({ label, inputs, time: 0, events: [], ticks: 0, ...extra });
   const out = [at('initial')];
   const actions = artifact.actions || [], nodes = artifact.scene.nodes, pick = nodes.find(n => n.selectable), drag = nodes.find(n => n.drag);
@@ -49,7 +53,7 @@ export function captureStates(artifact) {
     const low = Object.fromEntries(artifact.parameters.map(p => [p.id, lowOf(p)])), high = Object.fromEntries(artifact.parameters.map(p => [p.id, highOf(p)]));
     out.push(at('every parameter at its low end', { inputs: { ...inputs, ...low }, time: mid }), at('every parameter at its high end', { inputs: { ...inputs, ...high }, time: mid }));
   }
-  if (d) out.push(at('a third of the loop', { time: Number((d / 3).toFixed(3)) }), at('two thirds of the loop', { time: Number((2 * d / 3).toFixed(3)) }));
+  if (d) out.push(...LOOP_FRACTIONS.map(f => at(`${Math.round(f * 100)}% of the loop`, { time: Number((d * f).toFixed(3)) })));
   const seen = new Set(), unique = out.filter(s => { const k = canonicalJson([s.inputs, s.time, s.events, s.ticks]); if (seen.has(k)) return false; seen.add(k); return true; });
   return { sampled: unique.slice(0, ANIMATION_LIMITS.render.states), omitted: unique.slice(ANIMATION_LIMITS.render.states).map(s => s.label) };
 }
