@@ -218,6 +218,9 @@ await check('item 8: after the target\'s owner removes access, the outgoing refe
   const chip = pageB.locator('[data-block-id="p1"] [data-ref-chips] [data-unavailable]').first();
   await chip.waitFor({ timeout: 15000 });
   assert.ok((await chip.innerText()).includes('Unavailable'), 'the chip does not read Unavailable');
+  // No working Open (owner, Rabbit Hole and reference navigation design 2026-10-29): no link at all, and Open is disabled.
+  assert.equal(await chip.locator('a[href]').count(), 0, 'an unavailable reference keeps a link');
+  assert.deepEqual(await chip.locator('button', { hasText: 'Open' }).evaluateAll(nodes => nodes.map(node => node.disabled)), [true], 'an unavailable reference offers a working Open');
   assert.ok(!(await pageB.content()).includes(T.title), 'B\'s page HTML contains T\'s title');
   await shot(pageB, '03-unavailable-chip');
 });
