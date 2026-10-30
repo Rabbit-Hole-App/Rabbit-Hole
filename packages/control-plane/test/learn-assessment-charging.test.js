@@ -88,9 +88,9 @@ const ROUTES = {
     return { activity, content: { text: CODE_ANSWER }, deps: { ...never, callModel: stub.callModel }, providerCalls: () => stub.calls.length };
   },
   explain_back: async w => {
-    const { activity } = await coachingActivity(w.env, { criteria: WRITING });
+    const { activity } = await coachingActivity(w.env, { criteria: WRITING, responseKind: 'explain_back' });
     const stub = replying(WRITING_CASES.proposalA.reply);
-    return { activity, content: { kind: 'explain_back', text: WRITING_CASES.proposalA.text }, deps: { ...never, callModel: stub.callModel }, providerCalls: () => stub.calls.length };
+    return { activity, content: { v: 1, kind: 'explain_back', text: WRITING_CASES.proposalA.text, voice: [], resources: [], assistance: [] }, deps: { ...never, callModel: stub.callModel }, providerCalls: () => stub.calls.length };
   },
   visual: async w => {
     w.env.LEARN_MEDIA = { store: new Map(), async put(key, value) { this.store.set(key, new Uint8Array(value)); }, async get(key) { const b = this.store.get(key); return b ? { key, size: b.length, arrayBuffer: async () => b.slice().buffer, httpMetadata: { contentType: 'image/png' } } : null; } };
