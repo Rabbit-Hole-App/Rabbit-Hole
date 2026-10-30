@@ -47,9 +47,10 @@ export function explainBackPrompt(block, answer, sketch = null) {
 // The fields POST /api/learn/assess grades, from a challenge block: the
 // browser and the benchmark send the same request. An Explain Back attempt with
 // a sketch adds its attempt id and the sketch ({ image, text }); every other
-// body is unchanged.
+// body is unchanged. A canvas challenge block is the one Practice card (owner 2026-10-30), judged as an explain-back
+// whatever its saved mode; a bare benchmark item ({ mode, prompt, expects }, no type) keeps its own mode.
 export const assessBody = (block, answer, sketch = null) => ({
-  mode: block.mode === 'explain_back' ? 'explain_back' : 'challenge', prompt: block.prompt, expects: block.expects || [], answer,
+  mode: block.type === 'challenge' || block.mode === 'explain_back' ? 'explain_back' : 'challenge', prompt: block.prompt, expects: block.expects || [], answer,
   ...(sketch ? { attempt_id: block.attemptId, sketch } : {}),
 });
 

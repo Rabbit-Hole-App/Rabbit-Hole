@@ -8,7 +8,8 @@
 export const ACTIONS = new Set(['notebook', 'youtube']);
 
 export const INSERT_GROUPS = [
-  { title: 'Check understanding', items: ['challenge', 'explainBack', 'quiz', 'flashcards'] },
+  // One Practice entry (owner 2026-10-30): explainBack inserts the Practice card; a saved 'challenge' block renders the same.
+  { title: 'Check understanding', items: ['explainBack', 'quiz', 'flashcards'] },
   { title: 'Explain', items: ['explanation', 'table'] },
   { title: 'Code', items: ['snippet', 'code', 'notebook'] },
   { title: 'Visualize', items: ['graph', 'plot', 'flow', 'walkthrough', 'animation'] },

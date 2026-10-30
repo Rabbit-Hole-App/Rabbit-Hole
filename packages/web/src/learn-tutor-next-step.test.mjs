@@ -258,7 +258,8 @@ test('modalityOf: the product names; a card is the block type it is shown or ins
   const stamp = id => ({ journey_id: 'lj_t', section_id: 's1', step_id: id, claims: [] });
   const blocks = [{ id: 'e1', type: 'challenge', mode: 'explain_back', prompt: 'Say it back', journey: stamp('e1') }, { id: 'c1', type: 'challenge', prompt: 'Guess', journey: stamp('c1') }, { id: 's2', type: 'scene', title: 'Steps', journey: stamp('s2') }];
   const d = journeyDomain({ journey: J, path: PATH, blocks });
-  assert.deepEqual(['e1', 'c1', 's2', 'gone'].map(card => modalityOf({ type: 'show_authored_card', card }, { domain: d })), ['explain_back', 'challenge', 'scene', null]);
+  // Owner 2026-10-30: one Practice card - an old challenge without a mode is explain_back too.
+  assert.deepEqual(['e1', 'c1', 's2', 'gone'].map(card => modalityOf({ type: 'show_authored_card', card }, { domain: d })), ['explain_back', 'explain_back', 'scene', null]);
   assert.equal(modalityOf({ type: 'focus_part', card: NANOGPT.cards[0], part_id: 'p' }, { domain: NANOGPT }), 'animation', 'an authored card is inserted as an animation block');
 });
 
@@ -313,11 +314,12 @@ test('expected_evidence: a shown and a made card of the same block type expect t
     assert.deepEqual(made.expected_evidence, via ? [{ claim_id: IDS[1], via }] : [], card);
   }
   assert.deepEqual(actionContract({ type: 'respond_text', text: 'x' }, ctx).expected_evidence, []);
-  // Task 5 re-review: a plain challenge (the practice command's first card, as materialCommands lists it) expects interaction too.
+  // Task 5 re-review, then owner 2026-10-30 (one Practice card): a plain challenge, shown or made from an older material list
+  // whose first practice card is 'challenge', is the Practice card and expects an explanation.
   const plain = { domain: journeyDomain({ journey: J, path: PATH, blocks: [{ id: 'c1', type: 'challenge', prompt: 'Guess', journey: stamp('c1') }] }), materials: [{ command: 'practice', cards: ['challenge', 'explainBack', 'quiz'], paid: false }], claims: [IDS[1]] };
   const shown = actionContract({ type: 'show_authored_card', card: 'c1', mode: 'suggest' }, plain), made = actionContract({ type: 'create_material', command: 'practice', request: 'x' }, plain);
-  assert.deepEqual([shown.modality, made.modality], ['challenge', 'challenge']);
-  assert.deepEqual([shown.expected_evidence, made.expected_evidence], [[{ claim_id: IDS[1], via: 'interaction' }], [{ claim_id: IDS[1], via: 'interaction' }]]);
+  assert.deepEqual([shown.modality, made.modality], ['explain_back', 'explain_back']);
+  assert.deepEqual([shown.expected_evidence, made.expected_evidence], [[{ claim_id: IDS[1], via: 'explain_back' }], [{ claim_id: IDS[1], via: 'explain_back' }]]);
 });
 
 // Review fix 3: contract metadata never fails a turn - a domain without its optional members gives null or [] for that field.

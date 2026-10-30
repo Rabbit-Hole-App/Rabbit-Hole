@@ -133,6 +133,25 @@ test('history lists only this learner\'s attempts at this card, newest first, wi
   assert.equal((await callList(w.env, ANA, 'bad id!')).body.error, 'invalid_card');
 });
 
+// Owner 2026-10-30: one Practice card. An old Challenge saved without mode 'explain_back' binds from the board like any
+// Practice card; one saved without key ideas binds its prompt as the one idea (nothing invented); a quiz is still refused.
+test('an old saved Challenge binds as a Practice card; without key ideas its prompt is the one criterion', async t => {
+  const w = world(t);
+  const { boardWith } = await import('./learn-rich-fixtures.js');
+  boardWith(w.sqlite, [{ id: 'card-old-1', type: 'challenge', prompt: PROMPT, hint: 'h', expects: EXPECTS, reveal: 'r', answer: 'a guess', verdict: 'VERDICT: partial\nok' },
+    { id: 'card-old-2', type: 'challenge', prompt: PROMPT, answer: null }, { id: 'card-quiz', type: 'quiz', question: 'q', options: [] }]);
+  const old = await bind(w.env, ANA, { cardId: 'card-old-1', expects: ['say anything'] });
+  assert.equal(old.status, 200, JSON.stringify(old.body));
+  assert.equal(old.body.criterionRefs.length, 2, 'the saved key ideas, not the client words');
+  const bare = await bind(w.env, ANA, { cardId: 'card-old-2', expects: [] });
+  assert.equal(bare.status, 200, JSON.stringify(bare.body));
+  assert.equal(bare.body.criterionRefs.length, 1);
+  const crit = w.sqlite.prepare('SELECT requirement FROM learn_goal_criteria WHERE goal_id = ?').all(bare.body.goalId);
+  assert.deepEqual(crit.map(row => row.requirement), [PROMPT]);
+  assert.equal((await bind(w.env, ANA, { cardId: 'card-quiz' })).body.error, 'invalid_card');
+  assert.equal((await submit(w.env, old.body, answer())).status, 200);
+});
+
 test('review findings: a saved card binds its own rubric; a replay survives bad snapshots; an oversize declared body is refused unread', async t => {
   const w = world(t);
   const { boardWith } = await import('./learn-rich-fixtures.js');

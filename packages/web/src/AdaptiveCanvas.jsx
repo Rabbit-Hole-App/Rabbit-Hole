@@ -4866,7 +4866,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // caller copies or clears marks for a new draft before opening it; open never discards marks.
   const openSketch = (questionId, { draftId = null } = {}) => {
     const block = blocksRef.current.find(entry => entry.id === questionId);
-    if (readOnly || !block || block.type !== 'challenge' || block.mode !== 'explain_back') return false;
+    if (readOnly || !isExplainBack(block)) return false;
     if (draftId && sketchDraftOf(block.sketch) !== draftId) {
       setBlocks(previous => previous.map(entry => (entry.id === questionId ? { ...entry, sketch: { strokes: [], shapes: [], items: [], ...entry.sketch, draftId } } : entry)));
     }
@@ -6258,7 +6258,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             <GripHorizontal size={13} />
           </div>
           {/* The same tools, drawing into an Explain Back sketch: one toolbar, and it says where it draws. */}
-          {drawTarget && <div data-sketch-badge title="These tools draw in the Explain Back sketch. Press the canvas or Esc to draw on the canvas again."
+          {drawTarget && <div data-sketch-badge title="These tools draw in the Practice sketch. Press the canvas or Esc to draw on the canvas again."
             className="col-span-2 rounded-md bg-[#2383e2]/10 py-0.5 text-center text-[10px] font-semibold tracking-wide text-[#2383e2] uppercase">Sketch</div>}
           {NAV_TOOLS.map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => setTool(value)} />)}
           <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />

@@ -74,6 +74,20 @@ const review = (over = {}) => ({
   ...over,
 });
 
+// Owner 2026-10-30: one Practice card. An old Challenge saved with a one-line guess, a "VERDICT:" review and a reveal shows
+// that guess and review as attempt 1 (read-only, Not rated) ahead of the store's attempts, which number on after it.
+test('an old Challenge\'s saved guess and verdict lead the durable attempts, numbered first, never sent as a parent', () => {
+  const old = { id: 'c1', type: 'challenge', prompt: 'Why exp?', expects: ['positive'], reveal: 'It keeps scores positive.', answer: 'it makes them positive', attemptId: 'old-1', verdict: 'VERDICT: partial\nYou have one idea.' };
+  const strip = value => String(value || '').replace(/VERDICT:\s*(good|partial)\s*/i, '').trim();
+  const earlier = legacyView(old, { strip }).attempts;
+  assert.deepEqual(earlier.map(a => [a.id, a.number, a.status, a.legacy, a.answer.text, a.feedback.text, a.answer.resources]), [['old-1', 1, 'reviewed', true, 'it makes them positive', 'You have one idea.', []]]);
+  assert.equal(ratingBadge(earlier[0]).text, 'Not rated', 'no number is invented for an old review');
+  const view = serviceView({ attempts: [{ attemptId: 'a1', submittedContent: { v: 1, kind: 'explain_back', text: 'exp keeps them positive', voice: [], resources: [], assistance: [] }, assessment: { status: 'completed', provenance: { review: review({ attemptId: 'a1', comparison: { parentAttemptId: 'a0', parentAssessmentId: null, comparable: false, reason: 'no_parent', items: [] } }) } } }] }, earlier);
+  assert.deepEqual(view.attempts.map(a => [a.id, a.number, !!a.legacy]), [['old-1', 1, true], ['a1', 2, false]]);
+  assert.deepEqual(serviceView(undefined, earlier), { attempts: [], draft: null, loading: true }, 'still loading: nothing shown twice');
+  assert.deepEqual(serviceView({ attempts: [] }, []).attempts, [], 'a card with nothing saved has no attempts');
+});
+
 test('the durable store, read in the EB-01 contract names: states, feedback, comparison, citations, rating', () => {
   const raw = {
     attempts: [
