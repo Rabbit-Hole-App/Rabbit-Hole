@@ -194,8 +194,8 @@ test('inputs that were not read are reported, never judged wrong; an answer with
   const w = await ebWorld(t);
   const stub = replying(reply1);
   const r = await send(w, { text: A1, voice: [VOICE] }, { callModel: stub.callModel });
-  assert.deepEqual(dataOf(stub.calls[0].body).current.notInspected, [{ id: 'ev_voice_1', status: 'unsupported', note: 'adapter_pending' }]);
-  assert.deepEqual(reviewOf(r).coverage.map(c => [c.evidenceId, c.status]), [['text', 'read'], ['ev_voice_1', 'unsupported']]);
+  assert.deepEqual(dataOf(stub.calls[0].body).current.notInspected, [{ id: 'ev_voice_1', status: 'unavailable', note: 'transcript_unavailable' }]);
+  assert.deepEqual(reviewOf(r).coverage.map(c => [c.evidenceId, c.status]), [['text', 'read'], ['ev_voice_1', 'unavailable']]);
   const force = r.body.assessment.observations.find(o => o.criterionId === 'force');
   assert.deepEqual([force.fit, force.reason], ['unclear', 'evidence_unread'], 'not met on partial evidence is not a misconception');
   assert.equal(reviewOf(r).judgments[0].judgment, 'unassessed');
@@ -306,4 +306,74 @@ test('a missing, altered or unreadable sketch is explicit unassessed coverage, n
   assert.deepEqual(reviewOf(unreadable).coverage.map(c => [c.status, c.note]), [['partial', 'sketch_unreadable']]);
   assert.equal(reviewOf(unreadable).rating.status, 'unrated');
   valid(unreadable, { sketch: SKETCH });
+});
+
+// Voice transcript (slice 3b). D's asset read and derivative store are injected; M's ensureTranscript is the real one, over a
+// transcriber double that records each provider call.
+const AUDIO = new Uint8Array([79, 103, 103, 83, 1, 2, 3, 4, 5, 6, 7, 8]);
+const AUDIO_SHA = createHash('sha256').update(AUDIO).digest('hex');
+const NOTE = { ...VOICE, hash: AUDIO_SHA, mime: 'audio/ogg' };
+const SPOKEN = 'The net force points toward the centre because without it the ball would keep going straight. The velocity is tangent to the circle.';
+function voiceDeps({ heard = { text: SPOKEN }, fail = null, configured = true } = {}) {
+  const store = new Map(), heardCalls = [];
+  return {
+    heardCalls, store,
+    readAttemptAsset: async (_env, _actor, _attempt, e) => (e.assetId === NOTE.assetId ? { bytes: AUDIO, mime: 'audio/ogg' } : null),
+    transcriptStore: { get: async id => store.get(id) ?? null, put: async record => { store.set(record.transcriptId, record); } },
+    transcriber: configured ? { provider: 'openai', model: 'gpt-4o-transcribe', transcribe: async ({ bytes, mime }) => { heardCalls.push({ bytes: bytes.length, mime }); if (fail) throw Object.assign(new Error('x'), { code: fail }); return heard; } } : null,
+  };
+}
+const spokenReply = { criteria: [j('force', 'met', ['The net force points toward the centre because without it the ball would keep going straight']), j('velocity', 'met', ['The velocity is tangent to the circle'])], feedback: { strengths: { text: 'You explain the inward force.', evidence: ['without it the ball would keep going straight'] }, revisit: null, next: 'What if the speed doubles?' } };
+
+test('voice only: the transcript, not the audio, is assessed; coverage says transcript only; text stays empty; one transcription per clip', async t => {
+  const w = await ebWorld(t);
+  const v = voiceDeps(), stub = replying(spokenReply);
+  const r = await send(w, { voice: [NOTE] }, { ...v, callModel: stub.callModel });
+  assert.deepEqual(v.heardCalls, [{ bytes: AUDIO.length, mime: 'audio/ogg' }], 'the exact stored note, transcribed once');
+  assert.equal(stub.calls.length, 1);
+  const body = stub.calls[0].body;
+  assert.match(body.system, /you were not given the audio/);
+  assert.deepEqual(dataOf(body).current.evidence, [{ id: 'ev_voice_1', kind: 'voice_transcript', text: SPOKEN }]);
+  assert.equal(r.body.attempt.submittedContent.text, '', 'the typed answer is untouched');
+  const review = reviewOf(r), [record] = [...v.store.values()];
+  valid(r, { voice: [NOTE] });
+  assert.deepEqual(review.coverage, [{ evidenceId: 'ev_voice_1', status: 'partial', inspected: { transcriptOnly: true, audio: false }, derivative: { derivativeId: record.transcriptId, hash: record.derivativeHash, converterVersion: 'openai:gpt-4o-transcribe:v1' }, note: 'Transcript only: the audio itself was not inspected.' }]);
+  assert.equal(review.judgments[0].citations[0].evidenceId, 'ev_voice_1');
+  assert.deepEqual(review.judgments[0].citations[0].locator, { start: 0, end: SPOKEN.indexOf(' going straight') + ' going straight'.length }, 'no timing is invented without segments');
+  assert.deepEqual([review.rating.status, review.rating.score], ['rated', 10], 'a transcript-only review is a full review, labelled as such');
+  // A revision that keeps the same note reuses its transcript: no second provider call.
+  await send(w, { voice: [NOTE], baseline: baselineOf(r) }, { ...v, callModel: replying(spokenReply).callModel });
+  assert.equal(v.heardCalls.length, 1);
+});
+
+test('segments give citation times; uncertain words reach the evaluator', async t => {
+  const w = await ebWorld(t);
+  const [first, second] = ['The net force points toward the centre because without it the ball would keep going straight.', 'The velocity is tangent to the circle.'];
+  const v = voiceDeps({ heard: { text: `${first} ${second}`, segments: [{ start: 0, end: 4.2, text: first }, { start: 4.2, end: 6.5, text: second }], logprobs: [{ token: 'tangent', logprob: Math.log(0.3) }, { token: 'velocity', logprob: Math.log(0.99) }] } });
+  const stub = replying(spokenReply);
+  const r = await send(w, { voice: [NOTE] }, { ...v, callModel: stub.callModel });
+  const part = dataOf(stub.calls[0].body).current.evidence[0];
+  assert.deepEqual([part.uncertainWords, part.segments.length], [['tangent'], 2]);
+  const [force, velocity] = reviewOf(r).judgments.map(x => x.citations[0].locator);
+  assert.deepEqual([force.startMs, force.endMs, velocity.startMs, velocity.endMs], [0, 4200, 4200, 6500]);
+  valid(r, { voice: [NOTE] });
+});
+
+test('a failed or unconfigured transcription is unassessed, never an empty or wrong answer', async t => {
+  const w = await ebWorld(t);
+  for (const [deps, note] of [[voiceDeps({ fail: 'provider_failed' }), 'transcript_provider_failed'], [voiceDeps({ fail: 'spend_refused' }), 'transcript_spend_refused'], [voiceDeps({ configured: false }), 'transcript_not_configured'], [{}, 'transcript_unavailable'], [voiceDeps({ heard: { text: '   ' } }), 'transcript_no_speech']]) {
+    const only = await send(w, { voice: [NOTE] }, deps);
+    assert.deepEqual([only.body.assessment.status, only.body.assessment.reason], ['unavailable', 'no_readable_evidence'], note);
+    assert.deepEqual(only.body.assessment.provenance.coverage, [{ evidenceId: 'ev_voice_1', status: 'unavailable', note }]);
+    assert.equal(only.body.assessment.observations.length, 0, 'no observation, so Progress keeps its last state');
+    const stub = replying(reply1);
+    const withText = await send(w, { text: A1, voice: [NOTE] }, { ...deps, callModel: stub.callModel });
+    assert.equal(fits(withText).force, 'unclear', `${note}: the unread note might hold it`);
+    assert.equal(reviewOf(withText).rating.reason, 'evidence_incomplete');
+  }
+  // A failed transcript is kept and not retried by a later assessment: no provider call repeats on its own.
+  const v = voiceDeps({ fail: 'provider_failed' });
+  await send(w, { voice: [NOTE] }, v);
+  await send(w, { voice: [NOTE] }, v);
+  assert.equal(v.heardCalls.length, 1);
 });
