@@ -29,7 +29,7 @@ const ROLE_MEDIA = { voice: ['audio'], sketch: ['image'], recording: ['video'], 
 export const EVIDENCE_STATES = ['uploading', 'ready', 'failed', 'unavailable', 'unsupported'];
 // Review coverage of one input: what the evaluator actually read.
 export const COVERAGE_STATES = ['read', 'partial', 'unavailable', 'unsupported', 'processing'];
-export const ASSISTANCE_KINDS = ['hint', 'tutor_feedback', 'material', 'chat', 'other'];
+export const ASSISTANCE_KINDS = ['hint', 'saw_prior_feedback', 'material', 'chat', 'other'];
 // Criterion judgment -> the existing Observation fit (the rating's credit comes from fit + reasoning, learn-explain-rating.js).
 // not_established: the evidence was read and the idea is absent (fit not_met, so a fully read answer can score 0);
 // contradicted: specific evidence states the opposite (also not_met; the review keeps which one, so missing evidence is never
@@ -190,10 +190,12 @@ export function answerReadiness(answer, { recording = false, paused = false } = 
 }
 
 // The SubmitAttempt envelope for an answer: assistance ids derive from the answer's own provenance list, so the two never
-// drift. The server adds help its checkpoint records and freezes everything at submission.
+// drift. A revision of a reviewed parent was made after seeing that feedback (P ruling, plan 7F): saw_prior_feedback is
+// always recorded. The server repeats that rule, adds help its checkpoint records and freezes everything at submission.
+export const priorFeedbackRefs = answer => (answer?.baseline?.parentAssessmentId ? [`saw_prior_feedback:${answer.baseline.parentAssessmentId}`] : []);
 export const submitEnvelope = ({ activityId, activityRevision, submissionKey, answer }) => ({
   activityId, activityRevision, submissionKey, submittedContent: answer, sourceRefs: [],
-  assistanceRefs: [...new Set(answer.assistance.map(r => `${r.kind}:${r.id}`))],
+  assistanceRefs: [...new Set([...answer.assistance.map(r => `${r.kind}:${r.id}`), ...priorFeedbackRefs(answer)])],
 });
 
 /** A stored review, checked against the answer it reviews. @returns {{ok: boolean, errors: string[]}} */

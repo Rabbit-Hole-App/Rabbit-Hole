@@ -31,7 +31,7 @@ export const VALID = {
   combined: answer({
     text: 'Force inward, velocity tangent.', voice: [voice()], sketch: sketch(),
     recording: { evidenceId: 'ev_rec_1', role: 'recording', media: 'video', state: 'ready', assetId: 'aa_record0000001', revision: 1, hash: h('e'), durationMs: 64000 },
-    resources: [notebook()], assistance: [{ kind: 'tutor_feedback', id: 'as_prev' }], baseline: { parentAttemptId: 'at_parent', parentAssessmentId: 'as_prev' },
+    resources: [notebook()], assistance: [{ kind: 'chat', id: 'chat_7' }], baseline: { parentAttemptId: 'at_parent', parentAssessmentId: 'as_prev' },
   }),
   revisionNoParentReview: answer({ text: 'Second try.', baseline: { parentAttemptId: 'at_parent', parentAssessmentId: null } }),
 };
