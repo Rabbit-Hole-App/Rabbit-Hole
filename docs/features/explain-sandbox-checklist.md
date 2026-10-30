@@ -84,7 +84,7 @@ Exact-SHA CI, success:
 | 5 Author and persist via V2 | MVP `fc31f723a` | control-plane explain suites | MVP | genuine runs ex1-b, ex2-a, and gravity on production | done and verified |
 | 6 Review, repair, accounting | MVP `fc31f723a` | explain-review, repair and budget suites | MVP | the genuine runs' review rounds, repairs and settled spend | done and verified |
 | 7 Genuine MVP | MVP `fc31f723a` | n/a | MVP | ex1-b cooling and ex2-a sorting on dev, each with a deployed interaction check. Gravity: production job, artifact and spend in the receipt (below); no gravity interaction evidence exists anywhere in `C:/s/spec/explain-sandbox`. | done and verified; gravity receipt re-run pending |
-| R0 Focus/pending/Notes, brief before Generate, conversational Edit | `240509a59`, `4735e1f1e`, `7da255a95`, `2b98f4f5a` | exact-head verify and fast-e2e per lane; `explain-proposal-card-check.mjs` | R0 `f421cc5de` | deployed check `C:/s/spec/explain-sandbox/r0-deployed/out-pass4/r0-deployed.json` (preview at `f421cc5de`, 10:15 AM PT): 103 of 109 ok. The 6 failures are sorting-card Focus at 1440 and 1280 (owner): Focus opens; drawing whole; keeps toolbar and Chat. The 10.4 genuine runs went through brief-before-Generate on the dev preview. | done; deployed check partly FAILED (sorting Focus), same Focus follow-up as 10.2 |
+| R0 Focus/pending/Notes, brief before Generate, conversational Edit | `240509a59`, `4735e1f1e`, `7da255a95`, `2b98f4f5a` | exact-head verify and fast-e2e per lane; `explain-proposal-card-check.mjs` | R0 `f421cc5de` | Same deployed check `C:/s/spec/explain-sandbox/r0-deployed/r0-deployed.mjs`, run twice. At `f421cc5de` (10:15 AM PT, `out-pass4/`): 103 of 109; the 6 failures were sorting-card owner Focus at 1440 and 1280, a NaN Focus box for a card saved without dx/dy (FX-11, fixed by `56af3889c`, released at 1:07 PM PT and in R4). Re-run on the dev preview at `d92cc18d5` (5:23-5:27 PM PT; served SHA read before and after): **109 of 109**, shared board unchanged (`r0-deployed/out-d92cc18d5/r0-deployed.json`; sorting Focus screenshot inspected). The 10.4 genuine runs went through brief-before-Generate on the dev preview. | done and verified |
 | 8.1 Schema 2 state/event contract with v1 compatibility | `86d746e0d` | contract and host unit tests; `retention.test.mjs` 6/6 on main and on local merges of `86d746e0d` and R3 | R3 `d3d50986e`; on main in R4 `d92cc18d5` | genuine schema 2 cards t811-c4-b and t811-c6-a sealed, verified and run; the saved v1 cooling card still runs (matrix) | done and verified |
 | 8.2 Ordered transitions and programState persistence | `137018604` | `interaction.test.mjs` (12), `use-program-state.test.mjs` | R3; R4 | deployed: owner reload restores a changed committed state; viewer presses stay local (t811-c4-b and t811-c6-a checks) | done and verified |
 | 8.3 Stateful buttons/selections through author, render and review | `0ee34e70c` + `649732a07`, `462b54977`, `ecb42a47d`, `2a7588f0b`; switch `b6caa951c`; review inputs `d92cc18d5` | `explain-program-state-check.mjs` (9), `explain-program-render-check.mjs` (35), `explain-stateful.test.js` | R3; R4 | genuine t811-c4-b (buttons) and t811-c6-a (buttons and a slider) accepted, deployed checks 16 and 17 ok, 0 failed. t811-c5-a failed review on R3; the record is kept. | done and verified for buttons and number inputs; selectable targets fixture-only (limitation) |
@@ -106,9 +106,9 @@ Exact-SHA CI, success:
 
 | State | Tasks | Number |
 |---|---|---|
-| Done and verified | 0, 1, 2, 3, 4, 5, 6, 7, 8.1, 8.2, 8.3, 8.5, 10.4, 11.1 (0 and 8.5 are records) | 14 |
+| Done and verified | 0, 1, 2, 3, 4, 5, 6, 7, R0, 8.1, 8.2, 8.3, 8.5, 10.4, 11.1 (0 and 8.5 are records) | 15 |
 | Done, not verified | 8.4, 9.1, 9.2, 9.3, 9.4, 10.1, 10.3, 11.2 | 8 |
-| Failed | 10.2 (two cells); R0 (its deployed check's 6 sorting-Focus failures) | 2 |
+| Failed | 10.2 (two cells) | 1 |
 | Open | 11.3 | 1 |
 | Deferred among agreed tasks | — | 0 |
 
@@ -124,8 +124,8 @@ The optional and deferred coverage is listed below.
 
 **Not yet released (follow-ups):**
 - R5 candidate `2aaa8744b` (slash pills, and the card check timing fix `2c8be1452`): in its gate, not deployed.
-- `fix/explain-focus-matrix`: the Focus placement and keyboard-under-minimap fixes, in progress. The 10.2 cells and R0's
-  sorting Focus stay FAILED until it is deployed and re-verified.
+- `fix/explain-focus-matrix`: the Focus placement and keyboard-under-minimap fixes, in progress. The 10.2 cells stay
+  FAILED until it is deployed and re-verified.
 - `feat/explain-brief-clarity` `81e578d37` (FX-60/61, FX-79): CI green, not released.
 - `fix/ci-shard-balance` `421422fa2` (FX-75): not released.
 
