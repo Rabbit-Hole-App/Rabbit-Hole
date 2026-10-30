@@ -4,6 +4,7 @@
 // receives or returns the typed answer, so recording, stopping, transcription, removal and re-recording cannot change it.
 // A transcript is separate server-side data (control-plane learn-media.js), never part of this state.
 import { mediaInfo } from './media-formats.js';
+import { validateExplainBackAnswer } from './explain-back-contract.js';
 
 // Owner decision 2026-10-29: two minutes per recording, visibly enforced with a clean stop.
 export const RECORDING_LIMIT_MS = 2 * 60 * 1000;
@@ -64,18 +65,22 @@ const defaultTime = {
 };
 const sha256Hex = async blob => [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].map(b => b.toString(16).padStart(2, '0')).join('');
 
-// What a draft persists for its voice note: { v: 1, asset, type, ext, codec, durationMs, size, sha256 }. `asset` is the
-// opaque reference the attempt-asset upload returned. ponytail: field names follow D's EB-01 contract once it lands; this
-// pair is the one place they are mapped.
-export const toSavedVoice = (take, asset) => ({ v: 1, asset, type: take.type, ext: take.ext, codec: take.codec, durationMs: take.durationMs, size: take.size, sha256: take.sha256 });
-export const fromSavedVoice = saved => (saved && saved.v === 1 && saved.asset ? saved : null);
+// What a draft persists for its voice note: the EB-01 EvidenceRef (explain-back-contract.js) of the stored take, which goes
+// into ExplainBackAnswer.voice as it is. The upload resolves the attempt-private asset: { assetId: 'aa_...', revision? }
+// or the bare assetId. This pair is the one place the take and the contract meet.
+export function toSavedVoice(take, asset, evidenceId = `ev_voice_${take.sha256.slice(0, 16)}`) {
+  const assetId = typeof asset === 'string' ? asset : asset?.assetId;
+  return { evidenceId, role: 'voice', media: 'audio', state: 'ready', assetId, revision: asset?.revision ?? 1, hash: take.sha256, mime: take.type, bytes: take.size, durationMs: take.durationMs };
+}
+// The contract's own answer rules decide (aa_ private asset, voice role and media, hash when ready).
+export const fromSavedVoice = saved => (saved?.state === 'ready' && validateExplainBackAnswer({ v: 1, kind: 'explain_back', text: '', voice: [saved], resources: [], assistance: [] }).ok ? saved : null);
 
 // createVoiceNote(options) -> controller. Options, all injectable for tests:
 //   owner      { id, label } for the microphone lease (label names it to another recorder: "The voice note").
 //   upload     (file, { sha256, durationMs, onProgress({ sent, total }) }) -> Promise<asset>: the private attempt-asset
 //              upload (D). Without it a take stays local and Submit stays blocked with the reason.
-//   load       (asset) -> Promise<Blob | string>: the saved note's bytes or URL for playback after a reload.
-//   saved      a persisted voice note (fromSavedVoice) to start from.
+//   load       (assetId, saved) -> Promise<Blob | string>: the saved note's bytes or URL for playback after a reload.
+//   saved      a persisted voice EvidenceRef (fromSavedVoice) to start from.
 //   onSaved    (saved | null) called when the note to persist changes (stored, removed).
 //   media      { getUserMedia, MediaRecorder }; time { now, every(fn, ms) -> stop }; limitMs.
 // State (get / subscribe): { status, elapsedMs, limitMs, take, saved, progress, error, notice }.
@@ -238,7 +243,7 @@ export function createVoiceNote({ owner = { id: 'voice-note', label: 'The voice 
   async function source() {
     if (state.take) { if (!url) url = URL.createObjectURL(state.take.blob); return url; }
     if (!state.saved || !load) return null;
-    const got = await load(state.saved.asset);
+    const got = await load(state.saved.assetId, state.saved);
     if (typeof got === 'string' || got == null) return got ?? null;
     if (url) URL.revokeObjectURL?.(url);
     url = URL.createObjectURL(got);

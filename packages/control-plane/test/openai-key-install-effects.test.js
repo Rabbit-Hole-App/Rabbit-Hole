@@ -82,6 +82,7 @@ test('tripwire: exactly these server files read OPENAI_API_KEY; a new reader fai
     'control-plane/src/ask.js', // planModel only, behind planUsesOpenAI (LEARN_PLAN_MODEL)
     'control-plane/src/image-providers.js', // IMG-01 OpenAI models, behind IMAGE_GENERATE_ENABLED / the acceptance emails
     'control-plane/src/inline-image-jobs.js', // Ctrl+K image edit, behind INLINE_IMAGE_EDIT_ENABLED
+    'control-plane/src/learn-media.js', // Explain-back voice transcript (openaiTranscriber), behind TRANSCRIBE_ENABLED (O-8 resolved 2026-10-29)
     'control-plane/src/learn-models.js', // planUsesOpenAI
     'control-plane/src/pricing-registry.js', // a comment
     'web/dev-worker.js', // legacy /api/learn/image (LEGACY_IMAGE_GENERATION) and /api/learn/transcribe (TRANSCRIBE_ENABLED)

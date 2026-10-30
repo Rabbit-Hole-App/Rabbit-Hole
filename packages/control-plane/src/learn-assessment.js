@@ -142,7 +142,7 @@ function probeOf(journey, ref) {
   return probe?.key ? probe : null;
 }
 
-async function assess(env, actor, attempt, deps) {
+async function assess(env, actor, attempt, deps, assessmentId) {
   const criteria = await criteriaOf(env, attempt);
   const rubricVersion = [...new Set(criteria.map(c => c.rubricVersion))].join(',').slice(0, 200) || null;
   const none = (status, reason, extra = {}) => ({ status, reason, rubricVersion, provenance: { route: null, calls: [], ...extra } });
@@ -151,7 +151,7 @@ async function assess(env, actor, attempt, deps) {
   const answer = explainBackOf(attempt);
   if (answer) {
     if (env.TUTOR_EXPLAIN_BACK_ENABLED !== 'true') return none('unavailable', 'explain_back_disabled', { gate: 'disabled' });
-    return { rubricVersion, ...await assessExplainBack(env, actor, attempt, answer, criteria, deps) };
+    return { rubricVersion, ...await assessExplainBack(env, actor, attempt, answer, criteria, deps, assessmentId) };
   }
   const kind = attempt.responseKind;
   const rich = richRoute(env, kind, criteria, attempt.sourceRefs);
@@ -265,7 +265,7 @@ export async function assessAttempt(env, actor, attemptId, deps = {}) {
   if (token) {
     const { attempt } = await readAttempt(env, actor, attemptId);
     let result;
-    try { result = await assess(env, actor, attempt, deps); }
+    try { result = await assess(env, actor, attempt, deps, op.id); }
     catch (error) {
       // ids only, never learner text or the account id
       console.error(JSON.stringify({ event: 'learn_assessment_error', assessment: op.id, error: error?.name || 'Error', message: String(error?.message || '').slice(0, 120) }));
