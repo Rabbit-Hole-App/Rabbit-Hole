@@ -377,3 +377,25 @@ test('a failed or unconfigured transcription is unassessed, never an empty or wr
   await send(w, { voice: [NOTE] }, v);
   assert.equal(v.heardCalls.length, 1);
 });
+
+test('longer histories: the direct parent stays full; earlier attempts are a bounded, pinned criterion summary', async t => {
+  const w = await ebWorld(t);
+  const chain = [await send(w, { text: A1 }, { callModel: replying(reply1).callModel })];
+  for (let i = 1; i < 6; i++) chain.push(await send(w, { text: `${i === 1 ? A1 : A2} (${i})`, baseline: baselineOf(chain.at(-1)) }, { callModel: replying(i === 1 ? reply1 : reply2).callModel }));
+  const stub = replying(reply2);
+  const last = await send(w, { text: A2, baseline: baselineOf(chain.at(-1)) }, { callModel: stub.callModel });
+  const prev = dataOf(stub.calls[0].body).previousAttempt;
+  assert.equal(prev.answer.text, `${A2} (5)`, 'the direct parent in full');
+  // Newest first, at most HISTORY_LIMIT (4) of the five earlier attempts, each with the review its own child pinned.
+  assert.deepEqual(prev.earlierAttempts.map(e => [e.attemptId, e.assessmentId]), [4, 3, 2, 1].map(i => [chain[i].body.attempt.attemptId, chain[i].body.assessment.assessmentId]));
+  assert.deepEqual(prev.earlierAttempts.at(-1).criteria, [{ criterionId: 'force', version: 1, judgment: 'contradicted' }, { criterionId: 'velocity', version: 1, judgment: 'demonstrated' }]);
+  assert.equal(prev.earlierAttempts.at(-1).rating, 5);
+  assert.equal(JSON.stringify(prev.earlierAttempts).includes(A1), false, 'earlier answers are summarized, not resent');
+  assert.deepEqual(reviewOf(last).provenance.history, prev.earlierAttempts.map(e => ({ attemptId: e.attemptId, assessmentId: e.assessmentId })));
+  assert.match(EXPLAIN_SYSTEM, /"earlierAttempts", when present, summarizes the attempts before that one/);
+  // Attempt 2 has only its parent: no summary at all.
+  const second = replying(reply2);
+  await send(w, { text: `${A2} again`, baseline: baselineOf(chain[0]) }, { callModel: second.callModel });
+  assert.equal(dataOf(second.calls[0].body).previousAttempt.earlierAttempts, undefined);
+  valid(last, { text: A2, baseline: baselineOf(chain.at(-1)) });
+});
