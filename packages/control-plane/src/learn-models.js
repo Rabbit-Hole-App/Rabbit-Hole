@@ -96,7 +96,7 @@ export const LEARN_TASKS = Object.freeze({
   // author and repair raised from /explain's 10,000 and 6,000 (accept-5, 2026-10-30: an author spent all 10,000 output tokens, thinking
   // included, before its tool call). The build worst case (animation-policy.js animationReservation) follows these values.
   animation_author: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 16000 }),
-  animation_review: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 3000 }),
+  animation_review: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 6000 }),
   animation_repair: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 12000 }),
   // Slash-command cards (/api/learn/artifact).
   artifact: Object.freeze({ provider: 'plan', model: ASK_MODELS.auto, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'any', maxTokens: 4000 }),
