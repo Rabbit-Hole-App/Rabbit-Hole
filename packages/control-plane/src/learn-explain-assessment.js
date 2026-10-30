@@ -21,6 +21,7 @@
 //     validateExplainBackReview before it is stored; an invalid one is stored as failed, with no observation.
 import { EXPLAIN_BACK_KIND, REVIEW_VERSION, answerEvidence, validateExplainBackReview } from '../../web/src/explain-back-contract.js';
 import { ownActivity, readAttempt } from './learn-attempt-store.js';
+import { readAttemptAsset, readFrozenSnapshot, transcriptStore } from './learn-attempt-assets.js';
 import { RATING_CALCULATION, rateAttempt, ratingsComparable } from './learn-explain-rating.js';
 import { ensureTranscript, openaiTranscriber } from './learn-media.js';
 import { evidenceParts, resolveExplainEvidence } from './learn-explain-evidence.js';
@@ -39,10 +40,9 @@ export function explainBackOf(attempt) {
   return { ...c, text: typeof c.text === 'string' ? c.text : '', voice: Array.isArray(c.voice) ? c.voice : [], resources: Array.isArray(c.resources) ? c.resources : [], assistance: Array.isArray(c.assistance) ? c.assistance : [] };
 }
 
-// The authorized bytes of an attempt-private asset (EB-02). deps.readAttemptAsset(env, actor, attempt, evidence) ->
-// {bytes: Uint8Array, mime, marks?, text?} | null; marks and text are the Sketch capture's structure (web/src/sketch-host.js).
-// ponytail: D's private asset reader is not merged yet; without it every asset is unavailable, never guessed.
-const noAssetReader = async () => null;
+// The authorized bytes of an attempt-private asset: D's readAttemptAsset(env, actor, attempt, evidence) -> {bytes: Uint8Array,
+// mime, marks?, text?} | null (learn-attempt-assets.js; deps.readAttemptAsset replaces it in tests). marks and text are the
+// Sketch capture's structure (web/src/sketch-host.js).
 export const SKETCH_MIME = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 export const SKETCH_MAX_BYTES = 600000; // the capture's own bound (sketch-host.js CAPTURE_MAX_BYTES)
 const hex = async bytes => [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -51,7 +51,7 @@ const base64 = bytes => { let out = ''; for (let i = 0; i < bytes.length; i += 0
 // A static Sketch: its exact submitted image (hash-checked) as an image block, and its marks and written words as a part.
 async function readSketch(e, { env, actor, attempt, deps }) {
   let got = null;
-  try { got = await (deps.readAttemptAsset || noAssetReader)(env, actor, attempt, e); } catch { got = null; }
+  try { got = await (deps.readAttemptAsset || readAttemptAsset)(env, actor, attempt, e); } catch { got = null; }
   if (!(got?.bytes instanceof Uint8Array)) return { coverage: { evidenceId: e.evidenceId, status: 'unavailable', note: 'asset_unavailable' } };
   const mime = got.mime ?? e.mime;
   if (!SKETCH_MIME.includes(mime) || got.bytes.length > SKETCH_MAX_BYTES) return { coverage: { evidenceId: e.evidenceId, status: 'unsupported', note: 'image_not_supported' } };
@@ -73,11 +73,10 @@ async function readVoice(e, { env, actor, attempt, deps }) {
   // attempts route's free usage context: a refusal makes no call and stores nothing, so it reads as transcript_spend_refused.
   const transcriber = deps.transcriber !== undefined ? deps.transcriber : openaiTranscriber(env);
   const unavailable = note => ({ coverage: { evidenceId: e.evidenceId, status: 'unavailable', note } });
-  // ponytail: D's private asset read and derivative store are not merged yet; without them a voice note is unavailable.
-  if (!deps.readAttemptAsset || !deps.transcriptStore) return unavailable('transcript_unavailable');
+  const read = deps.readAttemptAsset || readAttemptAsset, store = deps.transcriptStore || transcriptStore(env, actor);
   let t;
   try {
-    t = await ensureTranscript({ assetId: e.assetId, hash: e.hash, mime: e.mime, store: deps.transcriptStore, transcriber, read: () => deps.readAttemptAsset(env, actor, attempt, e) });
+    t = await ensureTranscript({ assetId: e.assetId, hash: e.hash, mime: e.mime, store, transcriber, read: () => read(env, actor, attempt, e) });
   } catch { return unavailable('transcript_error'); }
   if (t.status !== 'ready' || !t.text.trim()) return unavailable(`transcript_${t.error || 'failed'}`);
   const low = (t.uncertainty?.low || []).map(w => w.text).filter(Boolean).slice(0, 20);
@@ -106,7 +105,7 @@ async function readRecording(e, ctx) {
   const { env, actor, attempt, deps } = ctx;
   const no = (status, note) => ({ coverage: { evidenceId: e.evidenceId, status, note } });
   let got = null;
-  try { got = await (deps.readAttemptAsset || noAssetReader)(env, actor, attempt, e); } catch { got = null; }
+  try { got = await (deps.readAttemptAsset || readAttemptAsset)(env, actor, attempt, e); } catch { got = null; }
   if (!(got?.bytes instanceof Uint8Array)) return no('unavailable', 'asset_unavailable');
   if (await hex(got.bytes) !== e.hash) return no('unavailable', 'hash_mismatch');
   let timeline = null;
@@ -121,7 +120,7 @@ async function readRecording(e, ctx) {
     part: {
       id: e.evidenceId, kind: 'sketch_recording', durationMs: timeline.durationMs ?? e.durationMs ?? null, ...(timeline.pauses?.length ? { pausedAtMs: timeline.pauses } : {}),
       steps: steps.map(step => ({ t: step.t, marks: step.marks, text: step.text })), ...(sampled ? { sampled: true, totalSteps: all.length } : {}),
-      ...(heard ? { narration: { text: heard.text, timing: !!heard.segments, ...(heard.segments ? { segments: heard.segments.map(g => ({ startMs: Math.round(g.start * 1000), endMs: Math.round(g.end * 1000), text: g.text })) } : {}), ...(heard.uncertainWords ? { uncertainWords: heard.uncertainWords } : {}) } } : {}),
+      ...(heard ? { narration: { text: heard.text, timing: !!heard.segments, ...(heard.segments ? { segments: heard.segments.map(g => ({ ...msOf(g), text: g.text })) } : {}), ...(heard.uncertainWords ? { uncertainWords: heard.uncertainWords } : {}) } } : {}),
     },
     field: heard ? { ...voice.field, field: e.evidenceId } : null,
     stepTimes: steps.map(step => step.t),
@@ -177,7 +176,7 @@ export async function readEvidence(answer, ctx) {
   if (resources.length) {
     const { env, actor, attempt, deps, pins = {} } = ctx;
     let resolved;
-    try { resolved = await resolveExplainEvidence(env, actor, attempt, resources, deps.evidenceDeps ?? {}, { pins }); }
+    try { resolved = await resolveExplainEvidence(env, actor, attempt, resources, { readFrozenSnapshot, ...deps.evidenceDeps }, { pins }); }
     catch { resolved = { items: [], coverage: resources.map(r => ({ evidenceId: r.evidenceId, status: 'unavailable', note: 'resolver_failed' })) }; }
     const got = evidenceParts(resolved);
     coverage.push(...resolved.coverage);
@@ -321,15 +320,17 @@ export function compareWithBaseline({ judgments, baseline, corrections = [] }) {
     if (corrections.some(k => k.criterionId === now.criterionId && k.version === now.criterionVersion)) return item('prior_feedback_corrected');
     if (!Object.hasOwn(RANK, before.fit)) return item('not_comparable', 'previous_unassessed');
     const [a, b] = [RANK[before.fit], RANK[now.fit]];
-    if (b > a) return now.fit === 'met' ? item('resolved') : item('persisting', 'improved_to_partial');
+    if (b > a) return now.fit === 'met' ? item('resolved') : item('improved');
     if (b < a) return item('regressed');
-    if (now.fit === 'met') return []; // still met: nothing changed to report
+    if (now.fit === 'met') return item('still_met');
     return now.judgment === 'contradicted' && before.judgment !== 'contradicted' ? item('new', 'new_misconception') : item('persisting');
   });
   return { ...head, comparable: true, items };
 }
 
-// The time a transcript span covers, from the provider's segments (seconds) when it returned them; never invented.
+// A transcript segment's times in ms: the contract's {startMs, endMs}, or the provider's {start, end} in seconds.
+const msOf = g => (Number.isFinite(g.startMs) ? { startMs: g.startMs, endMs: g.endMs } : { startMs: Math.round(g.start * 1000), endMs: Math.round(g.end * 1000) });
+// The time a transcript span covers, from the provider's segments when it returned them; never invented.
 function timeOf(span, fields) {
   const segments = fields.find(f => f.field === span.field)?.segments;
   if (!segments) return {};
@@ -338,7 +339,7 @@ function timeOf(span, fields) {
     const from = fields.find(f => f.field === span.field).text.indexOf(seg.text, at);
     if (from < 0) return {};
     at = from + seg.text.length;
-    if (from < span.end && at > span.start) { startMs ??= Math.round(seg.start * 1000); endMs = Math.round(seg.end * 1000); }
+    if (from < span.end && at > span.start) { startMs ??= msOf(seg).startMs; endMs = msOf(seg).endMs; }
   }
   return startMs == null ? {} : { startMs, endMs };
 }
