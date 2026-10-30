@@ -5,6 +5,20 @@ Entry format: plan section 13. Resolved entries keep their history and name the 
 
 ## Open
 
+### FX-AN-009 — Anthropic workspace API usage limit reached (blocks all real generation)
+- Task / phase: AN-07, MVP acceptance
+- First observed: 2026-10-30 ~3:05 PM PT, preview at `c84c0c51a7fddee65bb9cf9562d905fee24df828` (accept-4): every call was
+  refused before processing (`provider_unavailable`, US$0 provider charge)
+- Evidence: one direct 5-token request with the small-deploy/.env key (key read by name, never printed): HTTP 400
+  `invalid_request_error` "You have reached your specified workspace API usage limits. You will regain access on
+  2026-11-01 at 00:00 UTC." (request_id req_011CgZBb4zSk7L499LbTpfo4). Not the $10 /animation cap: ledger total US$1.53.
+- Severity: blocks real-generation acceptance (watch, experiment, fresh prompt) until access returns or the limit is
+  raised; every other feature using the same Anthropic workspace is affected too (possibly production, if production's
+  key is in the same workspace — not verifiable from here, secrets are write-only)
+- Owner action needed: raise the workspace usage limit in the Anthropic Console (or supply a key from a workspace with
+  headroom), or wait until 2026-10-31 5:00 PM PT
+- Status: open (owner)
+
 ### FX-AN-005 — repair output dropped the behavior program
 - Task / phase: AN-05, MVP
 - First observed at full SHA / environment: feat/animation `a006319c994a0981b487169b49231a120b2839cf`, preview

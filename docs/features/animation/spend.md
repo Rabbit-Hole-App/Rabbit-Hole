@@ -17,5 +17,8 @@ From 2026-10-30 (acceptance.next.mjs): provider charges and ledger counts are se
 
 | # | Time (PT) | Agent | Case / outcome | Model | Calls | Worst case | Provider US$ | Ledger US$ (incl. reserves) | Artifact hash | Running provider total | Running ledger total |
 |---|---|---|---|---|---|---|---|---|---|---|---|
+| 6 | 3:06 PM | G acceptance.mjs | watch: failed | claude-opus-5-5 | 3 calls, repairs 0 | US$1.9549 | US$0.1452 | US$0.1452 (3 model call(s); 6 render(s), platform, US$0) | - | US$1.4074 | US$1.5290 |
+| 7 | 3:06 PM | G acceptance.mjs | experiment: failed (the plan stage ended failed: preparing/provider_unavailable: Animations are temp) | claude-opus-5-5 | 1 calls, repairs 0 | US$1.9549 | US$0.0000 | US$0.0000 (1 model call(s)) | - | US$1.4074 | US$1.5290 |
+| 8 | 3:06 PM | G acceptance.mjs | fresh: failed (the plan stage ended failed: preparing/provider_unavailable: Animations are temp) | claude-opus-5-5 | 1 calls, repairs 0 | US$1.9549 | US$0.0000 | US$0.0000 (1 model call(s)) | - | US$1.4074 | US$1.5290 |
 
-Total provider: US$1.2622. Total ledger (incl. reserves): US$1.3838. Reserved in flight: US$0.00. Remaining: US$8.6162.
+Total provider: US$1.4074. Total ledger (incl. reserves): US$1.5290. Reserved in flight: US$0.00. Remaining: US$8.4710.
