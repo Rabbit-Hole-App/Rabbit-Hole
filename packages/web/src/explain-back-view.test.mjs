@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ANSWER_PLACEHOLDER, PANEL, STOP_TO_SUBMIT, askTutorText, attemptLabel, connectionsOf, inputPillsOf, legacyView, locatorText, optionText, panelLayout, ratingBadge, serviceView, submitState } from './explain-back-view.js';
+import { ANSWER_PLACEHOLDER, PANEL, STOP_TO_SUBMIT, askTutorText, attemptLabel, connectionsOf, draftMemoryKey, inputPillsOf, legacyView, recallDraft, rememberDraft, reviseSketchPlan, locatorText, optionText, panelLayout, ratingBadge, serviceView, submitState } from './explain-back-view.js';
 
 // Plan 2026-10-30-explain-back.md sections 3, 7H, 8 and 9: what the Explain-back card shows, from either data path.
 
@@ -140,6 +140,30 @@ test('a Sketch recording blocks Submit while it runs or saves and is an answer o
   assert.deepEqual(submitState({ text: '', recording: { ready: false, blocked: 'Saving Sketch recording' } }), { ready: false, code: 'upload_in_progress', reason: 'Saving Sketch recording' });
   assert.equal(submitState({ text: '', recording: { ready: true, blocked: null } }).ready, true, 'a recording alone is an answer');
   assert.equal(submitState({ text: 'x', recording: { ready: false, blocked: 'Sketch recording not saved' } }).ready, false);
+});
+
+test('an unsent draft is remembered per app, board and card, so a fork never shows another canvas\'s draft', () => {
+  const a = draftMemoryKey('app', 'board-a', 'card-1'), fork = draftMemoryKey('app', 'board-b', 'card-1');
+  assert.notEqual(a, fork);
+  assert.equal(recallDraft(a), null);
+  rememberDraft(a, { text: 'half an answer' });
+  rememberDraft(a, { revising: 'at_1', seq: 2 });
+  assert.deepEqual(recallDraft(a), { text: 'half an answer', revising: 'at_1', seq: 2 });
+  assert.equal(recallDraft(fork), null, 'the fork starts empty');
+  rememberDraft(a, { text: '', revising: null, seq: 3 });
+  assert.deepEqual(recallDraft(a), { text: '', revising: null, seq: 3 }, 'a submit clears it');
+});
+
+test('revising keeps the newest attempt\'s marks only; an older attempt\'s draft starts empty and says why', () => {
+  const sketched = n => ({ number: n, answer: { sketched: true } }), plain = n => ({ number: n, answer: { sketched: false } });
+  const newest = sketched(2);
+  assert.deepEqual(reviseSketchPlan({ attempt: newest, newest, marked: true }), { clear: false, notice: null });
+  const older = reviseSketchPlan({ attempt: sketched(1), newest, marked: true });
+  assert.equal(older.clear, true);
+  assert.match(older.notice, /attempt 1 cannot be edited again here[\s\S]*Ctrl\+Z/);
+  assert.deepEqual(reviseSketchPlan({ attempt: plain(1), newest, marked: true }), { clear: true, notice: null }, 'an attempt without a sketch starts without one');
+  assert.deepEqual(reviseSketchPlan({ attempt: plain(2), newest: plain(2), marked: true }), { clear: true, notice: null });
+  assert.deepEqual(reviseSketchPlan({ attempt: sketched(1), newest, marked: false }), { clear: false, notice: null }, 'nothing to clear');
 });
 
 test('Ask Tutor fills the composer with the exercise, the attempt and its feedback', () => {

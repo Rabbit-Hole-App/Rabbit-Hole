@@ -443,8 +443,14 @@ await check('10 the revision is a new attempt pinned to attempt 1 and its review
 // ---- 5. sketch only, and one panel across questions ----
 const sketchOnly = await insert('Explain back');
 const sketchOnlyId = await sketchOnly.getAttribute('data-block-id');
-await check('5 sketch-only submission; opening another question retargets the one panel', async () => {
+await check('5 a pinned panel is not taken by another question; once free, Open sketch retargets the one panel; sketch alone is an answer', async () => {
   await reveal(sketchOnly);
+  // The first question's panel is still open and pinned (check 4): this question's Open sketch says why and leaves it.
+  assert.equal(await panelOf(cardId).count(), 1);
+  await sketchOnly.locator('[data-sketch-toggle]').click();
+  assert.match(await sketchOnly.locator('[data-eb-notice]').innerText(), /pinned to another question/);
+  assert.equal(await panelOf(sketchOnlyId).count(), 0);
+  await panelOf(cardId).locator('[data-sketch-pin]').click(); // unpinned: the explicit retarget is allowed
   await sketchOnly.locator('[data-sketch-toggle]').click();
   await panelOf(sketchOnlyId).waitFor();
   assert.equal(await panels().count(), 1, 'the other question\'s panel closed');

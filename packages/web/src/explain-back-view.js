@@ -171,6 +171,23 @@ export function inputPillsOf(pills = [], message = () => null) {
   }));
 }
 
+// The unsent draft of one card ({ text, revising, seq }), kept above the card so a remount (narrow layout, history,
+// navigation within the page) never loses it. Keyed by app, board and card: a fork keeps card ids, never a draft.
+// shortcut: memory only, so a reload still loses it; M's server draft sync (explain-back-drafts.js) replaces this.
+const drafts = new Map();
+export const draftMemoryKey = (app, board, cardId) => `${app || ''}\u0000${board || ''}\u0000${cardId}`;
+export const recallDraft = key => drafts.get(key) || null;
+export const rememberDraft = (key, patch) => { drafts.set(key, { text: '', revising: null, seq: 0, ...drafts.get(key), ...patch }); };
+
+// What Revise answer does with the Sketch marks on the card (which are the newest attempt's, or a draft's). Revising the
+// newest attempt keeps them when that attempt had a sketch; any other case clears them for the draft, saying why when an
+// older attempt's sketch cannot be brought back. ponytail: an older attempt's marks are not restored from its asset.
+export function reviseSketchPlan({ attempt, newest, marked }) {
+  if (attempt === newest && attempt.answer.sketched) return { clear: false, notice: null };
+  if (!marked) return { clear: false, notice: null };
+  return { clear: true, notice: attempt.answer.sketched ? `The sketch from attempt ${attempt.number} cannot be edited again here, so this draft starts with an empty sketch. Ctrl+Z brings back the drawing that was there.` : null };
+}
+
 // The Sketch panel's size in its workspace (section 3, responsive table). Side by side it keeps 16 px from the right edge,
 // 20 px from the question, about 326 px for the question and 44 px for its Input; below 720 px it stacks under the card.
 export const PANEL = Object.freeze({ edge: 16, between: 20, question: 326, input: 44, min: 296, max: 700, initial: 460, stack: 720, step: 24 });

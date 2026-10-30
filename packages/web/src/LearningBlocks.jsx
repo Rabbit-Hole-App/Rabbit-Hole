@@ -49,7 +49,7 @@ import { canSubmit, hasMarks, sketchText } from './explain-sketch.js';
 import { disposeVoiceNote } from './explain-back-media.js';
 import { disposeSketchRecording } from './sketch-recording.js';
 import { AnswerView, AnswerVoice, AttemptBar, ExplainBackService, FeedbackTabs, FeedbackView, InputPicker, InputPills, RecordingState, SketchPanel, SketchRecording, sketchCapture, usePanelOwner } from './ExplainBackPanel.jsx';
-import { ANSWER_LABEL, ANSWER_PLACEHOLDER, HISTORY_KEPT, SKETCH_CONTENT_LABEL, attemptLabel, connectionsOf, inputPillsOf, legacyView, pastAttempt, serviceView, submitState } from './explain-back-view.js';
+import { ANSWER_LABEL, ANSWER_PLACEHOLDER, HISTORY_KEPT, SKETCH_CONTENT_LABEL, attemptLabel, connectionsOf, draftMemoryKey, inputPillsOf, legacyView, recallDraft, rememberDraft, reviseSketchPlan, pastAttempt, serviceView, submitState } from './explain-back-view.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { describeExcerpt, isExcerpt } from './pdf-excerpt.js';
 import { ExcerptNote, ExcerptSource } from './ExcerptCard.jsx';
@@ -939,15 +939,17 @@ const gradingAttempts = new Set();
 // from ExplainBackService when the durable store is wired, else from the card's own single-attempt grade (`commit`).
 const EMPTY_SKETCH = { strokes: [], shapes: [], items: [] };
 
-function ExplainBackCard({ block, onChange, onFile, draft, setDraft, commit, revise, notice, setNotice, sketchHost, sketchable, sketchMarked }) {
+function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, commit, revise, notice, setNotice, sketchHost, sketchable, sketchMarked }) {
   const service = useContext(ExplainBackService);
   const latest = useRef(block);
   latest.current = block;
   const view = service ? serviceView(service.card(block.id)) : legacyView(block, { strip: stripVerdict, inPage: id => gradingAttempts.has(id) });
   const { attempts } = view;
   // The durable path's open revision: the attempt it was copied from (null: none open). The legacy path is editing
-  // whenever its block holds no submitted answer.
-  const [revising, setRevising] = useState(null);
+  // whenever its block holds no submitted answer. It and the draft number outlive a remount, as the text does.
+  const [revising, setRevising] = useState(() => recallDraft(memoryKey)?.revising ?? null);
+  const [draftSeq, setDraftSeq] = useState(() => recallDraft(memoryKey)?.seq ?? 0);
+  useEffect(() => { rememberDraft(memoryKey, { revising, seq: draftSeq }); }, [memoryKey, revising, draftSeq]);
   const editing = service ? !attempts.length || revising !== null : block.answer == null && !block.sketchSubmitted;
   const parent = editing ? (service ? attempts.find(attempt => attempt.id === revising) : attempts.at(-1)) || null : null;
   const entries = editing ? [...attempts, { draft: true, id: 'draft', parentNumber: parent?.number ?? null }] : attempts;
@@ -958,8 +960,8 @@ function ExplainBackCard({ block, onChange, onFile, draft, setDraft, commit, rev
   // The retained voice note (EB-06): offered only when the store can keep it (service.voice.upload); one controller per
   // draft key, so a recording outlives the panel and the card's renders. It never reads or writes the typed answer.
   const voiceStore = service?.voice?.upload ? service.voice : null;
-  const [draftSeq, setDraftSeq] = useState(0);
-  const draftKey = `${block.id}:${service ? view.draft?.id || `draft-${draftSeq}` : 'legacy'}`;
+  // The recorders' registry key: app, board and card (a fork keeps card ids), then the draft.
+  const draftKey = `${memoryKey}\u0000${service ? view.draft?.id || `draft-${draftSeq}` : 'legacy'}`;
   const [voice, setVoice] = useState(null);
   const [carried, setCarried] = useState(null); // the voice EvidenceRef a revision carries from its attempt
   // The Sketch recording (EB-06 06.5), gated like the voice note; its controls sit in the panel under the drawing.
@@ -991,8 +993,10 @@ function ExplainBackCard({ block, onChange, onFile, draft, setDraft, commit, rev
   const cardRef = useRef(null), openButton = useRef(null);
   const [surface, setSurface] = useState(null);
   useLayoutEffect(() => { setSurface(cardRef.current?.closest('[data-canvas-surface]') || null); }, []);
-  const [owner, setOwner, releaseOwner] = usePanelOwner(surface);
+  const [owner, setOwner, releaseOwner, setLock, lockedFor] = usePanelOwner(surface);
   const open = sketchable && !!block.sketchOpen && owner === block.id;
+  // While this question's panel records or is pinned, another question's Open sketch does not take it (it says why).
+  useEffect(() => { setLock(block.id, open ? (recording?.recording ? 'recording' : block.sketchPinned ? 'pinned' : null) : null); }, [open, recording?.recording, block.sketchPinned, owner]);
   const draftId = service ? view.draft?.id ?? null : null;
   useEffect(() => {
     if (!sketchable || !block.sketchOpen || !surface) return;
@@ -1001,8 +1005,14 @@ function ExplainBackCard({ block, onChange, onFile, draft, setDraft, commit, rev
     else if (owner !== block.id) onChange({ ...latest.current, sketchOpen: false });
   }, [owner, block.sketchOpen, surface, sketchable]);
   useEffect(() => () => releaseOwner(block.id), [surface]);
-  const openSketch = () => {
+  const takePanel = () => {
+    const locked = lockedFor(block.id);
+    if (locked) { setNotice(locked); return false; }
     setOwner(block.id);
+    return true;
+  };
+  const openSketch = () => {
+    if (!takePanel()) return;
     if (!block.sketchOpen) onChange({ ...block, sketchOpen: true, sketch: block.sketch || EMPTY_SKETCH });
     // The toolbar draws in the draft's sketch; a submitted attempt's sketch is shown read-only.
     if (selected.draft) sketchHost.open(block.id, { draftId });
@@ -1050,7 +1060,9 @@ function ExplainBackCard({ block, onChange, onFile, draft, setDraft, commit, rev
       // later edit cannot change the attempt.
       const { resources = [], snapshots = [] } = await sketchHost?.inputSubmission?.(block.id, { board: service.board }) ?? {};
       await service.submit({ block: latest.current, text: draft, sketch: shot ? { image: shot.image, text: shot.text ?? sketchText(block.sketch) } : null, voice: voiceStore && voice?.ready ? voice.saved : null, recording: recordingStore && recording?.ready ? recording.saved : null, resources, snapshots, parentAttemptId: revising });
+      // The submitted note and recording belong to the attempt now; the next draft starts without them.
       disposeVoiceNote(draftKey); disposeSketchRecording(draftKey);
+      voiceStore?.onSaved?.(block.id, null); recordingStore?.onSaved?.(block.id, null);
       setDraft(''); setRevising(null); setChosen(null); setVoice(null); setRecording(null); setCarried(null); setTab('answer'); setDraftSeq(n => n + 1);
     } catch (error) {
       setNotice(`Your answer was not submitted: ${error?.message || 'try again'}. Your work is kept.`);
@@ -1064,20 +1076,32 @@ function ExplainBackCard({ block, onChange, onFile, draft, setDraft, commit, rev
     if (!sketchHost?.connectInput || !sketchHost.inputs) return;
     const wanted = connectionsOf(attempt.answer.resources);
     const keep = new Set(wanted.map(connection => connection.sourceId));
-    for (const pill of sketchHost.inputs(block.id)) if (!keep.has(pill.sourceId)) sketchHost.disconnectInput(pill.linkId);
+    const dropped = sketchHost.inputs(block.id).filter(pill => !keep.has(pill.sourceId));
+    for (const pill of dropped) sketchHost.disconnectInput(pill.linkId);
     const lost = wanted.filter(connection => { const made = sketchHost.connectInput(block.id, connection.sourceId, { port: connection.port, scope: connection.scope }); return made?.problem && !made.duplicate; });
-    if (lost.length) setNotice(`${lost.length === 1 ? 'One input' : `${lost.length} inputs`} from attempt ${attempt.number} could not be connected again: ${lost.map(connection => connection.label || 'a removed source').join(', ')}.`);
+    return [
+      dropped.length ? `Disconnected ${dropped.map(pill => pill.label || 'an input').join(', ')}, which attempt ${attempt.number} did not use.` : '',
+      lost.length ? `Could not connect again from attempt ${attempt.number}: ${lost.map(connection => connection.label || 'a removed source').join(', ')}.` : '',
+    ].filter(Boolean);
   };
   const startRevision = () => {
     setNotice(''); setTab('answer'); setChosen(null); setCited(null);
-    if (service) { setDraft(selected.answer.text); setRevising(selected.id); setCarried(selected.answer.voice[0] || null); restoreInputs(selected); return; }
+    if (service) {
+      setDraft(selected.answer.text); setRevising(selected.id); setCarried(selected.answer.voice[0] || null);
+      // The card's marks are the newest attempt's: an older attempt's draft starts without them (undoable).
+      const plan = reviseSketchPlan({ attempt: selected, newest: attempts.at(-1), marked: hasMarks(block.sketch) });
+      if (plan.clear) onChange({ ...latest.current, sketch: { ...EMPTY_SKETCH } });
+      const notes = [plan.notice, ...(restoreInputs(selected) || [])].filter(Boolean);
+      if (notes.length) setNotice(notes.join(' '));
+      return;
+    }
     revise();
   };
   // A citation opens the submitted attempt it points into: the passage marked in Your answer, the attempt's Sketch in the
   // panel, a voice note at its time, an input at its submitted revision (when the store can open it).
   const cite = target => {
     setChosen(target.attemptId); setTab('answer'); setCited(target);
-    if ((target.kind === 'sketch' || target.kind === 'recording') && sketchable) { setOwner(block.id); if (!block.sketchOpen) onChange({ ...latest.current, sketchOpen: true }); }
+    if ((target.kind === 'sketch' || target.kind === 'recording') && sketchable && takePanel() && !block.sketchOpen) onChange({ ...latest.current, sketchOpen: true });
     if (target.kind === 'resource' && service?.openEvidence) {
       const attempt = attempts.find(entry => entry.id === target.attemptId);
       service.openEvidence({ attemptId: target.attemptId, evidence: attempt?.answer.resources.find(ref => ref.evidenceId === target.evidenceId) || null, memberId: target.memberId, locator: target.locator });
@@ -1111,7 +1135,7 @@ function ExplainBackCard({ block, onChange, onFile, draft, setDraft, commit, rev
                 </div>
               )}
               {recordingStore && <RecordingState key={draftKey} recKey={draftKey} store={recordingStore} blockId={block.id} onState={setRecording} />}
-              {voiceStore && <div data-eb-voice className="mt-2"><AnswerVoice key={draftKey} draftKey={draftKey} store={voiceStore} blockId={block.id} initial={carried} onState={setVoice} /></div>}
+              {voiceStore && <div data-eb-voice className="mt-2"><AnswerVoice key={draftKey} draftKey={draftKey} store={voiceStore} blockId={block.id} initial={revising !== null ? carried : undefined} onState={setVoice} /></div>}
             </div>
           ) : selected.status === 'reviewed' ? (
             <>
@@ -1166,7 +1190,11 @@ function ExplainBackCard({ block, onChange, onFile, draft, setDraft, commit, rev
 }
 
 function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
-  const [draft, setDraft] = useState('');
+  // An Explain-back draft outlives a remount of this card (explain-back-view.js recallDraft), keyed by app, board and card.
+  const explainService = useContext(ExplainBackService);
+  const memoryKey = block.mode === 'explain_back' ? draftMemoryKey(explainService?.app ?? appName, explainService?.board ?? '', block.id) : null;
+  const [draft, setDraft] = useState(() => (memoryKey && recallDraft(memoryKey)?.text) || '');
+  useEffect(() => { if (memoryKey) rememberDraft(memoryKey, { text: draft }); }, [memoryKey, draft]);
   // Explain-back: a capture problem, shown under its footer; nothing was submitted and the work stays.
   const [notice, setNotice] = useState('');
   const latest = useRef(block);
@@ -1225,7 +1253,7 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
   };
   // Answer again (Revise answer) keeps everything the learner made: the text comes back to the field and the sketch stays, editable, as the start of the next attempt (a new attempt id on Submit); an Explain-back answer and its review stay selectable in the card's history.
   const retry = () => { inFlight.current = false; setDraft(block.answer || ''); onChange({ ...block, answer: null, attemptId: null, verdict: '', grading: false, ...(block.mode === 'explain_back' ? { sketchSubmitted: false, reviewFailed: false, history: [...(block.history || []), pastAttempt(block)].slice(-HISTORY_KEPT) } : {}) }); };
-  if (block.mode === 'explain_back') return <ExplainBackCard block={block} onChange={onChange} onFile={onFile} draft={draft} setDraft={setDraft} commit={commit} revise={retry} notice={notice} setNotice={setNotice} sketchHost={sketchHost} sketchable={sketchable} sketchMarked={sketchMarked} />;
+  if (block.mode === 'explain_back') return <ExplainBackCard memoryKey={memoryKey} block={block} onChange={onChange} onFile={onFile} draft={draft} setDraft={setDraft} commit={commit} revise={retry} notice={notice} setNotice={setNotice} sketchHost={sketchHost} sketchable={sketchable} sketchMarked={sketchMarked} />;
   const answered = !!block.answer;
   // The tutor opens with "VERDICT: good|partial"; it tints the answer and is
   // stripped from what the learner reads.
