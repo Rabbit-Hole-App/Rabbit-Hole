@@ -140,17 +140,24 @@ const handleOf = id => page.evaluate(sel => {
   return { x, y, hit: !!top && button.contains(top) };
 }, `[data-block-id="${id}"] button[title="Resize block"]`);
 // Press a card's corner handle and move it by (dx, dy) screen px; `during` runs with the button still down. While the corner is
-// off screen or covered, the camera zooms out with the zoom control (study-resize-persist-check's way).
-const drag = async (id, dx, dy, during = null) => {
-  let at;
-  for (let step = 0; step < 6; step++) {
+// off screen or covered, the camera zooms out with the zoom control (study-resize-persist-check's way). The camera zooms about
+// the canvas centre, so a card below it never rises far: the vertical move is shortened to the room left in the viewport, and
+// must keep at least `least` px (any move past the content tests the clamp; a working surface needs a real change). The press
+// always uses the handle position read at the camera it is made at (fast-e2e 41108024288: a position read before the last
+// zoom-out pressed the Flow card instead of the Explain-back corner).
+const VIEW_BOTTOM = 985, VIEW_TOP = 15;
+const drag = async (id, dx, dy, during = null, least = 60) => {
+  let at, move = dy;
+  for (let step = 0; ; step++) {
     assert.ok(await atRest(), 'the canvas camera is still moving after 10 s');
     at = await handleOf(id);
     assert.ok(!at.missing, `${id} has no corner handle`);
-    if (at.hit && at.y + dy < 990 && at.y + dy > 10) break;
+    move = dy > 0 ? Math.min(dy, VIEW_BOTTOM - at.y) : dy < 0 ? Math.max(dy, VIEW_TOP - at.y) : 0;
+    if (at.hit && (dy === 0 || Math.abs(move) >= Math.min(least, Math.abs(dy)))) break;
+    assert.ok(step < 6, `${id}: no pressable corner with ${least} px of room after 6 zoom-outs: ${JSON.stringify(at)}`);
     await page.locator('[data-zoom] button[title="Zoom out"]').click();
   }
-  assert.ok(at.hit, `${id}: the corner handle is not pressable: ${JSON.stringify(at)}`);
+  dy = move;
   await page.mouse.move(at.x, at.y); await page.mouse.down();
   await page.mouse.move(at.x + dx / 2, at.y + dy / 2, { steps: 4 }); await page.mouse.move(at.x + dx, at.y + dy, { steps: 4 });
   await page.waitForTimeout(150);
@@ -225,6 +232,10 @@ await check('4 narrow and wide: at 280 px the text wraps and the card may open t
 
 await check('5 Explain-back feedback and history: Tutor feedback grows the card, Your answer shrinks it, Revise answer (a draft in the history) and back to the attempt, never with blank space', async () => {
   const eb = card('eb');
+  // A review that arrives after the card mounts opens it on Tutor feedback (ExplainBackCard's announce effect; the stubbed list
+  // loads after the first render), so the card starts there (fast-e2e 41108024288 screenshots): start from Your answer.
+  await eb.locator('[data-feedback-tab="answer"]').click(); await page.waitForTimeout(300);
+  assert.equal(await eb.locator('[data-feedback-tab="answer"]').getAttribute('aria-selected'), 'true', 'Your answer is shown');
   const answerTab = await fitted('eb', 'Your answer');
   await eb.locator('[data-feedback-tab="feedback"]').click(); await page.waitForTimeout(300);
   const feedback = await fitted('eb', 'Tutor feedback');
@@ -273,7 +284,7 @@ await check('7 after a reload in the dark theme, at zoom ~50 %, 100 % and ~200 %
 
 await check('8 a working surface (Flow) keeps the taller frame it is dragged to; no model call and no page error', async () => {
   const before = (await fit('fl')).h;
-  await drag('fl', 0, 200);
+  await drag('fl', 0, 200, null, 80);
   await until(async () => (await saved('fl'))?.h != null, 'the Flow resize was not saved');
   const after = (await fit('fl')).h;
   assert.ok(after > before + 60, `the Flow frame did not keep its dragged height: ${before} -> ${after}`);
