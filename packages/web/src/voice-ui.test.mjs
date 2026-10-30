@@ -59,7 +59,9 @@ test('r36: with listening paused, the mic says so, is disabled and cannot start 
   assert.doesNotMatch(paused, /aria-pressed/, 'not a toggle while paused');
   assert.equal(entered, 0);
   const voice = read('LearnVoice.jsx');
-  assert.match(voice, /const LISTENING_PAUSED = true;/);
+  // FX-71: one switch, shared with the token route.
+  assert.match(voice, /import \{ LISTENING_PAUSED \} from '\.\.\/\.\.\/control-plane\/src\/voice-availability\.js';/);
+  assert.match(read('../../control-plane/src/voice-availability.js'), /export const LISTENING_PAUSED = true;/);
   assert.match(voice, /paused: LISTENING_PAUSED && !scripted\.current \}/, 'only the scripted adapters stay available');
   // From the review-build flag, never window.__voiceFake: production must not name the harness (production-bundle-check, gate 38343974325).
   assert.match(voice, /const fake = reviewTools && [^\n]+\n\s+scripted\.current = fake;/);
