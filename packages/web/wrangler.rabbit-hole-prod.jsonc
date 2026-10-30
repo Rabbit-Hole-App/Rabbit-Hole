@@ -65,7 +65,7 @@
     "EXPLAIN_V2_ENABLED": "true",
     // Generated interactive programs (generic /explain, docs/features/explain-sandbox-checklist.md): switched on once the accepted cooling and sorting examples pass on dev (owner production GO, 2026-10-28).
     // The execution kill switch stays off: set EXPLAIN_PROGRAM_EXECUTION_KILL to "true" to stop every program card from running (saved cards are kept). EXPLAIN_DIAGNOSTICS is never set here.
-    "EXPLAIN_PROGRAM_ENABLED": "true",
+    "EXPLAIN_PROGRAM_ENABLED": "false",
     "EXPLAIN_PROGRAM_EXECUTION_KILL": "false",
     // Stateful programs (buttons, selections and remembered state; Task 8.3, explain-program.js statefulEnabled): on with R3 (owner decision 2026-10-29, "C: turn it on in production with R3").
     "EXPLAIN_PROGRAM_STATEFUL": "true",
