@@ -11,6 +11,13 @@ import { enabledCapabilities } from './animation-brief.js';
 import { modelEvidence } from './explain-evidence.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
+// The artifact with its program wherever the reply put it (accept-5: the repair, shown the program in its own block, returned it beside the
+// artifact, and the candidate failed missing_program). Inside the artifact wins; a bare source string is a program's source. Never invented.
+export function withProgram(input) {
+  const program = input.artifact.program ?? input.program;
+  if (program === undefined) return input.artifact;
+  return { ...input.artifact, program: typeof program === 'string' ? { source: program } : program };
+}
 // The fields only the host sets: never shown back to the model as something it may write.
 const HOST_FIELDS = ['schema', 'artifactId', 'revision', 'planHash', 'capabilityVersion', 'sourceRefs', 'provenance'];
 export function draftOf(artifact) {
@@ -31,8 +38,8 @@ export function repairContent(job, failure, current, images = []) {
   const caps = enabledCapabilities();
   return [
     { type: 'text', text: JSON.stringify({ request: job.prompt, plan: job.plan, problems, findings, ...(omitted ? { omitted } : {}), capabilities: { phase: caps.phase, geometry: caps.geometry, features: caps.features, limits: caps.limits }, ...(job.evidence?.length ? { evidence: modelEvidence(job.evidence) } : {}) }) },
-    { type: 'text', text: `Current artifact (JSON, untrusted):\n${JSON.stringify(rest)}` },
-    ...(program ? [{ type: 'text', text: `Current program source (untrusted text):\n${program.source}` }] : []),
+    { type: 'text', text: `Current artifact (JSON, untrusted; its program is shown in the next block, return it as artifact.program.source):\n${JSON.stringify(rest)}` },
+    ...(program ? [{ type: 'text', text: `Current artifact.program.source (untrusted text):\n${program.source}` }] : []),
     ...images.flatMap(c => [{ type: 'text', text: `capture ${c.id}` }, { type: 'image', source: { type: 'base64', media_type: c.mediaType || 'image/png', data: c.data } }]),
   ];
 }
@@ -48,9 +55,10 @@ export async function repairStage(job, ctx) {
   const { input } = await ctx.call('repair', { system: ANIMATION_REPAIR_SYSTEM, tool: repairTool({ program: !!current.program || planNeedsProgram(job.plan) }), content: repairContent(job, failure, current, images) });
   const reason = typeof input.reason === 'string' ? input.reason.slice(0, 300) : null;
   if (input.operation === 'none') return { progress: false, reason };
-  if (input.operation !== 'artifact' || !plain(input.artifact)) return { progress: false, rejected: 'The repair returned no artifact.' };
-  if (canonicalJson(input.artifact) === canonicalJson(current)) return { progress: false, reason: 'The repair changed nothing.' };
-  return { draft: input.artifact, progress: true, operation: 'artifact', reason };
+  if (input.operation !== 'artifact' || !plain(input.artifact)) return { progress: false, rejected: 'The repair returned no artifact.', inputKeys: Object.keys(input) };
+  const draft = withProgram(input);
+  if (canonicalJson(draft) === canonicalJson(current)) return { progress: false, reason: 'The repair changed nothing.' };
+  return { draft, progress: true, operation: 'artifact', reason, inputKeys: Object.keys(input), artifactKeys: Object.keys(input.artifact) };
 }
 
 // -> problems (one sentence each), [] when the real review and repair requests for this artifact fit their roles at worst-case

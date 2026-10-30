@@ -157,6 +157,12 @@ export async function callAnimationRole(env, role, { system, tool, content }, { 
   const response = await loggedModel(animationRole(role, tasks).task, callModel)(env, body, animationModel(role, undefined, tasks), null);
   if (!response.ok) throw await roleFailure(role, response, tasks);
   const result = await response.json().catch(() => null);
-  const identity = servedIdentity(role, result, tasks);
-  return { input: animationToolInput(role, result, tool), identity, usage: result?.usage ?? null, stopReason: result?.stop_reason ?? null };
+  // The provider answered, so it billed: a reply refused below still carries its usage, which the job records (cost and tokens).
+  const billed = { usage: result?.usage ?? null, stopReason: result?.stop_reason ?? null, served: typeof result?.model === 'string' ? result.model : null };
+  try {
+    const identity = servedIdentity(role, result, tasks);
+    // accept-5: the author spent all 10,000 output tokens and never finished its tool call. That is the output limit, not a malformed turn.
+    if (result?.stop_reason === 'max_tokens') throw new AnimationPolicyError('output_limit', `/animation ${role} reached its output limit (${animationRole(role, tasks).maxTokens} tokens) before finishing its ${tool.name} call.`);
+    return { input: animationToolInput(role, result, tool), identity, ...billed };
+  } catch (error) { throw Object.assign(error, { billed }); }
 }

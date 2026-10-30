@@ -303,3 +303,40 @@ test('author and repair are told to carry a rate change in state instead of abso
   const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js');
   for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /accumulate the phase in state[^;]*; never compute it as 2\*pi\*time\/period/);
 });
+
+// accept-5 experiment: the repair answered in the shape it was shown (the artifact without its program, the program beside it), and the
+// candidate failed missing_program. The program is now taken wherever the reply put it, never invented.
+test('a repair that returns the program beside the artifact, or as a bare source string, keeps its program', { skip: NEEDS_PROPOSAL }, async t => {
+  const { program, ...rest } = draftOf(experimentFixture.artifact);
+  for (const placed of [{ program }, { program: program.source }]) {
+    const s = stack(t, { reviews: [false, true], repair: () => ({ operation: 'artifact', artifact: { ...rest, title: 'Fixed' }, ...placed }) });
+    const { done } = await s.generated();
+    assert.equal(done.stage, 'ready', JSON.stringify(done.findings.at(-1)));
+    assert.equal(done.artifact.program.source, program.source);
+    assert.deepEqual([done.candidates[0].hasProgram, done.candidates[0].inputKeys.includes('program'), done.candidates[0].artifactKeys.includes('program')], [true, true, false]);
+  }
+  // Nowhere at all: still refused at validation (no program is invented).
+  const none = stack(t, { reviews: [false, true], repair: () => ({ operation: 'artifact', artifact: { ...rest, title: 'Fixed' } }) });
+  assert.deepEqual([(await none.generated()).done.stopReason], ['rounds']);
+});
+
+// accept-5 fresh: the author spent all 10,000 output tokens (dev ledger: output_tokens 10000) and made no tool call.
+test('an author reply cut off at its output limit is output_limit, and its billed usage is recorded', { skip: NEEDS_PROPOSAL }, async t => {
+  const real = globalThis.fetch;
+  t.after(() => { globalThis.fetch = real; });
+  const s = stack(t);
+  const inner = globalThis.fetch;
+  globalThis.fetch = async (url, options = {}) => {
+    const body = JSON.parse(options.body);
+    if (body.tools[0].name !== 'animation_artifact') return inner(url, options);
+    return Response.json({ model: body.model, content: [{ type: 'text', text: 'Planning the scene' }], stop_reason: 'max_tokens', usage: { input_tokens: 1307, output_tokens: body.max_tokens } });
+  };
+  const { id, done } = await s.generated();
+  const author = done.calls.find(c => c.role === 'author');
+  assert.deepEqual([done.stage, done.failure.stage, done.findings.at(-1).error], ['failed', 'authoring', 'output_limit']);
+  assert.match(done.findings.at(-1).message, /reached its output limit \(\d+ tokens\) before finishing its animation_artifact call/);
+  assert.deepEqual([author.status, author.stopReason, author.outputTokens > 0, author.costMicros > 0], ['failed', 'max_tokens', true, true]);
+  assert.ok((await s.job(id)).job.usage.credits > 0, 'the learner\'s usage includes the billed call');
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js');
+  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /fixed output limit: decide briefly, then make the tool call/);
+});
