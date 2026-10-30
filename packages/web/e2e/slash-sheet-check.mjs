@@ -35,7 +35,7 @@ const browser = await chromium.launch();
 const canvasName = LOCAL && (await (await fetch(`${BASE}/api/canvases`, { method: 'POST', headers: { 'Content-Type': 'application/json', cookie: `small_session=${session}` }, body: JSON.stringify({ title: 'Slash sheet check' }) })).json()).name;
 const errors = [], live = [];
 // Anything that would generate, search, capture, grade, transcribe or save from the window.
-const LIVE = /\/api\/(learn\/(artifact|image|video|scene|tts|search|photos|transcribe|coaching|webcard|explain|cad|motion)|ask)\b/;
+const LIVE = /\/api\/(learn\/(artifact|image|video|scene|tts|search|photos|transcribe|coaching|webcard|explain|cad|motion|animation)|ask)\b/;
 const VIEWPORTS = [{ width: 1440, height: 900 }, { width: 1280, height: 720 }, { width: 390, height: 844 }];
 const draftText = 'a question I am still writing';
 
@@ -62,7 +62,8 @@ for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
     ? await sheet.locator('[data-slash-select] option[data-slash-help]').evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp))
     : await sheet.locator('button[data-slash-help]').evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp));
   const offered = SLASH.map(command => command.name);
-  ok(`${tag}: lists only registry commands, at least the 16 always offered, none removed`, listed.length >= 16 && listed.length <= 18 && listed.every(name => offered.includes(name)) && !listed.some(name => REMOVED_COMMANDS.includes(name)), listed.join(' '));
+  // Owner, 2026-10-30 (docs/superpowers/plans/2026-10-30-animation.md sections 3 and 17): /animation is added, so 17 always offered of 19.
+  ok(`${tag}: lists only registry commands, at least the 17 always offered, none removed`, listed.length >= 17 && listed.length <= 19 && listed.every(name => offered.includes(name)) && !listed.some(name => REMOVED_COMMANDS.includes(name)), listed.join(' '));
   const choose = async name => {
     if (narrow) await sheet.locator('[data-slash-select]').selectOption(name);
     else await sheet.locator(`button[data-slash-help="${name}"]`).click();
@@ -89,7 +90,7 @@ for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
     ok(`${tag}: /${name} shows its title, description and example`, copy);
     const shown = pane.locator('[data-slash-card], [data-slash-brief], [data-slash-goal], [data-slash-finder], [data-slash-unavailable]').first();
     await shown.waitFor({ timeout: 20000 });
-    await page.waitForTimeout(name === 'graph' || name === 'diagram' || name === '3d' || name === 'explain' ? 1500 : 400);
+    await page.waitForTimeout(name === 'graph' || name === 'diagram' || name === '3d' || name === 'explain' || name === 'animation' ? 1500 : 400);
     const measure = async () => pane.evaluate(node => {
       const stage = node.querySelector('[data-slash-stage]'), item = stage.firstElementChild;
       const s = stage.getBoundingClientRect(), c = item.getBoundingClientRect(), d = node.closest('[role="dialog"]').getBoundingClientRect();
@@ -114,6 +115,9 @@ for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
       await pane.locator('img[src^="https://images.pexels.com/"]').count() === 1 && await pane.getByText(/Photo by .+ on Pexels/).count() === 1
       && !(await pane.locator('[data-image-generate]').isVisible()) && await pane.locator('[data-image-generate-unavailable]').filter({ visible: true }).count() === 0);
     if (name === 'cad') ok(`${tag}: /cad shows the real model in the CAD viewer with its Interact tools`, await pane.locator('[data-cad-viewer]').count() === 1 && await pane.locator('[data-cad-interact]').count() === 1);
+    if (name === 'animation') ok(`${tag}: /animation shows the built-in beam-balance example card, labelled as an example, with its four parameters`,
+      await pane.locator('[data-animation3d-card][data-animation-experience="experiment"]').count() === 1 && await pane.locator('[data-animation-fixture-note]').isVisible()
+      && await pane.locator('input[data-animation-number]').count() === 4);
     if (name === 'notebook') ok(`${tag}: /notebook opens the notebook card's JupyterLab frame`, await pane.locator('iframe[data-notebook-frame][data-notebook-preview]').count() === 1);
     if (name === 'youtube') ok(`${tag}: /youtube shows the 3Blue1Brown video in YouTube's player`, await pane.locator('iframe[src^="https://www.youtube-nocookie.com/embed/eMlx5fFNoYc"]').count() === 1 && await pane.getByText('Sourced · YouTube · 3Blue1Brown').count() === 1);
     if (name === 'wikipedia') ok(`${tag}: /wikipedia shows the Transformer article's opening and its source`, await pane.getByRole('heading', { name: 'Transformer (deep learning architecture)' }).count() === 1 && await pane.getByRole('link', { name: 'Open on Wikipedia' }).count() === 1);
