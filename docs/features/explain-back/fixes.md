@@ -18,20 +18,20 @@ Browser tier, same class: fast-e2e round 9 (run 41051664753) failed `docs-remove
 page timed out at 30 s) and `explain-program-state-check` ("the handle did not settle at 540"); both passed in rounds 4-8 on
 the same code paths and neither file is touched by this work. Recorded as intermittent, unclassified.
 
-**FX-EB-03 · EB-02 / EB-10 · open (owner action at release)** — Production `LEARN_DB` (`rabbit-hole-learn-prod`) needs
-migration `learn-migrations/0034-explain-back.sql` (3 tables, 2 indexes; additive) before the Explain-back code reaches
-production: `purgeTutorRows` deletes from these tables, so a permanent canvas delete would fail without them. Dev is
-applied and verified (2026-10-30 1:05 AM PT). Launcher prepared and tested in an isolated harness (9/9 scenarios):
-`C:\s\spec\explain-back\apply-prod-migration-0034.cmd` (`--check` is read-only; apply asks for `APPLY PROD`). The
-coordinator's attempt to run `--check` was refused by the session's production-read guard, so the production state is
-unverified. Owner action: at release, run `C:\s\spec\explain-back\apply-prod-migration-0034.cmd --check`, then the same
-command without `--check`, typing `APPLY PROD`. Keep the `eb-data` worktree until then (the launcher uses its config).
-
-**FX-EB-04 · EB-06 · open (owner decision, not blocking)** — The ordinary Challenge card still offers Speak answer, which
+**FX-EB-04 · EB-06 · fixed on branch, release pending** — The ordinary Challenge card still offers Speak answer, which
 answers "Speech to text is not configured on this environment." after recording (unchanged since 2026-10-26; O-8 now
-covers Explain-back voice notes only, so the legacy dictation route stays refused). Options: (A) remove the microphone
-from ordinary Challenge (recommended; it is a dead control); (B) give ordinary Challenge the retained voice note too.
-Owner action: choose A or B; nothing is changed until then.
+covers Explain-back voice notes only, so the legacy dictation route stays refused). Owner chose (A) on 2026-10-30: remove
+the microphone from ordinary Challenge, which keeps its text box; Explain-back keeps its voice note. Fixed by 9880092d0 on
+`fix/challenge-mic-removal` (SpeakAnswer.jsx deleted; the browser checks assert no microphone on Challenge). It ships with
+the next release; production still shows the dead microphone until then. The legacy `/api/learn/transcribe` route stays
+and keeps answering not configured; nothing calls it now.
+
+**FX-EB-09 · EB-07 · open (fix in progress)** — A real review dropped a criterion. Preview acceptance 2026-10-30 10:30 AM
+PT, voice-only answer (real speech), 2 criteria: the evaluator returned one criterion and wrote the other into its notes
+("the criteria array has only one entry. It should also include the entry for k_2f2f99245d28ecd1 (velocity tangent),
+judged met"). The missing criterion was stored as `not_returned`, so a correct voice-only answer was Not rated while its
+feedback praised that idea. Same family as the eval run-3 reply-format failures; it can reach production users. Fix
+assigned with FX-EB-05 (same assessment owner); a live eval rerun follows.
 
 **FX-EB-05 · EB-08.4 · open (scope gap)** — "Open on canvas" for teaching aids is wired in the card but the stored review
 carries no teaching-card references, so no teaching aid is ever listed. Building it needs a review field naming existing
@@ -47,6 +47,12 @@ branches that equalled the integration SHA doubled runner minutes. Duplicate run
 41049082261/317, 41051073532/377, 41051369789/770) and workers now push only new commits on request.
 
 ## Resolved
+
+**FX-EB-03 · EB-02 / EB-10 · resolved 2026-10-30** — Production `LEARN_DB` (`rabbit-hole-learn-prod`) needed migration
+`learn-migrations/0034-explain-back.sql` (3 tables, 2 indexes; additive) before the Explain-back code reached production:
+`purgeTutorRows` deletes from these tables, so a permanent canvas delete would fail without them. The owner ran
+`C:\s\spec\explain-back\apply-prod-migration-0034.cmd` before release 22-eb; it reported `RESULT OK applied and verified
+5/5`. Release 22-eb (`a3376817f`) followed at 9:57 AM PT.
 
 **FX-EB-01 · EB-06 / EB-07 (voice notes) · resolved** — Transcription was refused before the provider in every
 environment: `paidSubmissionRefusal(env)` is the fail-closed guard for unpriced transports. Fixed by a priced, bounded

@@ -46,6 +46,9 @@ Decision: transcription is approved for dev and production, for retained Explain
 `docs/superpowers/plans/2026-10-30-explain-back.md` section 5). The transcript is separate data and is never inserted into the typed answer. Each call is
 admitted before the call for the longer of two minutes and the stored clip's 16 kbps duration, at OpenAI's per-minute figure, and settled at the usage the
 response reports (platform spend; the learner is not charged for Explain-back assessment). The legacy Speak answer dictation route below stays refused.
+Speak answer itself: the owner chose B on 2026-10-30 (FX-EB-04), so the ordinary Challenge card no longer shows the microphone.
+The first real transcription ran on the dev preview on 2026-10-30 and was settled on `gpt-4o-transcribe` (the configured model), so the
+February 2027 shutdown below still applies to Explain-back voice notes until `TRANSCRIBE_MODEL` moves to `gpt-transcribe`.
 The options as they were weighed before the decision:
 
 The mic in Speak answer exists in the shipped UI. Today it records, then shows "Speech to text is not configured on this environment." Installing the OpenAI key for image editing no longer changes that.
