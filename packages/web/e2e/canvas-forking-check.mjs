@@ -205,6 +205,15 @@ await shot(viewerPage, '07-original-unavailable');
 const refused = await fetch(`${BASE}/api/learn/boards/fork`, { method: 'POST', headers: { cookie: `small_session=${viewer.session}`, 'content-type': 'application/json' }, body: JSON.stringify({ source: { canvas: source.name }, key: `refuse-${run}` }) });
 check('a private canvas of someone else is refused', refused.status === 404 || refused.status === 403, String(refused.status));
 
+// ---- EB-02.4 on a public link: a signed-out visitor's view of a shared Explain-back card is the exercise and its Input
+// link, never the learner's answer, attempts, drafts, Sketch or store binding (the same rule as the fork above) ----
+const ebPublic = await api(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: 'Explain-back public (fork check)' }) });
+const ebShare = await api(owner, `/api/learn/boards/${ebPublic.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true, state: { ...SEED, blocks: EB_BLOCKS, links: EB_LINKS } }) });
+const ebSignedOut = await fetch(`${BASE}/api/learn/boards/shared/${ebShare.sharing.view}`);
+const ebPublicView = await ebSignedOut.text();
+check('EB-02.4 signed out, a public link shows the Explain-back exercise and its Input link, none of the learner state',
+  ebSignedOut.ok && ebPublicView.includes('Why does softmax exponentiate the scores?') && ebPublicView.includes('seed-input') && !ebPublicView.includes(EB_PRIVATE), `${ebSignedOut.status}`);
+
 // ---- SHARE-02 (owner brief 2026-10-22 sections 3 and 9): signed out, a visitor edits a temporary copy; the source never
 // changes; Fork goes through sign-in with the copy kept, and the fork holds the visitor's edit ----
 const guestSource = await api(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: 'Guest draft (fork check)' }) });
