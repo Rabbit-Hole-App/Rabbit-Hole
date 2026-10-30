@@ -64,6 +64,7 @@ import { BAND_ROOM, cardBox, chromeObstacles, columnEntries, fillSlot, freeArea,
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { areaTarget, cropBinding } from './area-crop.js';
 import { flushBoard, lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
+import { withFlushedAnimations } from './animation3d/storage.js';
 import { waitingText } from './waiting-text.js';
 import { isWebUrl, looksLikeCode, pasteKind } from './canvas-paste.js';
 import { copiedCode } from './map-files.js';
@@ -1867,7 +1868,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const flushBoardNow = () => {
       const key = storageKeyRef.current;
       if (retired.current || (!key && !onSaveRef.current)) return;
-      const state = savedShape(boardRef.current);
+      // An Animation card's settled change still inside its own debounce rides along (animation3d/storage.js withFlushedAnimations).
+      const state = savedShape({ ...boardRef.current, blocks: withFlushedAnimations(boardRef.current.blocks) });
       const result = flushBoard({ state, lastWritten: lastWritten.current, storageKey: key, storage: () => localStorage, onSave: onSaveRef.current });
       if (result?.wrote) { docWritten.current = JSON.stringify(state.doc ?? null); lastWritten.current = result.text; }
     };
@@ -2579,7 +2581,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         const live = liveDoc();
         clearTimeout(docTimer.current); docTimer.current = null;
         if (live) { docWritten.current = JSON.stringify(live); setDoc(live); }
-        return persistBoard({ state: { ...boardRef.current, ...(live ? { doc: live } : {}) }, storageKey, storage: () => localStorage, onSave: onSaveRef.current });
+        return persistBoard({ state: { ...boardRef.current, blocks: withFlushedAnimations(boardRef.current.blocks), ...(live ? { doc: live } : {}) }, storageKey, storage: () => localStorage, onSave: onSaveRef.current });
       },
       toggleLock: () => setLock(previous => !previous),
       // `base`: the board the work is counted from - the server's copy before a 409 (conflictBaseKey), else the mounted one.
