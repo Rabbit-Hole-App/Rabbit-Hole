@@ -123,6 +123,7 @@ export function useExplainBackService({ app, board, enabled = explainBackEnabled
       },
       voice: assets?.voice || null,
       recording: assets?.recording || null,
+      drafts: assets?.drafts || null,
       VoicePlayer: assets?.VoicePlayer,
       // A cited input: focus the source it came from on this canvas (its submitted revision is what the review read).
       openEvidence({ evidence }) {
