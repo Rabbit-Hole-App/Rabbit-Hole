@@ -128,17 +128,18 @@ test('voice-only and Sketch-only answers submit with the learner\'s own assets; 
   assert.equal(await readAttemptAsset(w.env, ANA, attempt, attempt.submittedContent.sketch), null, 'changed bytes are never a substitute');
 });
 
-test('transcripts are immutable per id; a failed one is replaced only by an explicit retry; only the owner\'s audio', async t => {
+test('ready transcripts are immutable per id; a failed one can be replaced; only the owner\'s audio', async t => {
   const w = setup(t);
   const voice = (await upload(w.env, ANA, WEBM)).body.asset;
   const store = transcriptStore(w.env, ANA);
   const base = { transcriptId: 'tr_1', assetId: voice.assetId, hash: voice.sha256, provider: 'fixture', model: 'stt-1', version: 1, converterVersion: 'stt-v1' };
   const failed = await store.put({ ...base, text: '', status: 'failed', error: 'provider_timeout' });
   assert.equal(failed.status, 'failed');
-  assert.equal((await store.put({ ...base, text: 'force inward', status: 'ready', derivativeHash: 'd'.repeat(64) })).status, 'failed', 'not without an explicit retry');
-  const ready = await store.put({ ...base, text: 'force inward', status: 'ready', derivativeHash: 'd'.repeat(64) }, { retry: true });
+  // ensureTranscript puts over a failed record only on the learner's explicit retry; the store lets that replace it
+  const ready = await store.put({ ...base, text: 'force inward', status: 'ready', derivativeHash: 'd'.repeat(64) });
   assert.deepEqual([ready.status, ready.text], ['ready', 'force inward']);
-  const again = await store.put({ ...base, text: 'something else', status: 'ready', derivativeHash: 'e'.repeat(64) }, { retry: true });
+  const again = await store.put({ ...base, text: 'something else', status: 'ready', derivativeHash: 'e'.repeat(64) });
+  assert.equal((await store.put({ ...base, text: '', status: 'failed', error: 'late_failure', derivativeHash: undefined })).status, 'ready', 'a failure never replaces a ready transcript');
   assert.equal(again.text, 'force inward', 'a ready transcript never changes');
   assert.deepEqual(await store.get('tr_1'), ready);
   assert.equal(await transcriptStore(w.env, BEN).get('tr_1'), null);
@@ -223,4 +224,16 @@ test('a Sketch recording timeline (JSON, at most 2 MiB) is a private asset; a ti
   const { attempt } = await readAttempt(w.env, ANA, ok.body.attempt.attemptId);
   assert.deepEqual([...(await readAttemptAsset(w.env, ANA, attempt, recording.narration)).bytes], [...OGG]);
   assert.equal((await submit({ ...recording, media: 'video' }, 'timeline-key-2')).body.error, 'unknown_asset', 'a timeline asset is not a video');
+});
+
+test('the owner reads a Sketch snapshot\'s capture data back to revise it; anyone else gets 404', async t => {
+  const w = setup(t);
+  const png = (await upload(w.env, ANA, PNG, 'image')).body.asset, voice = (await upload(w.env, ANA, WEBM)).body.asset;
+  const get = (actor, id) => route(w.env, actor, 'GET', `/api/learn/tutor/attempts/assets/${id}/meta`);
+  assert.deepEqual((await get(ANA, png.assetId)).body, { marks: null, text: null }, 'not set yet');
+  await route(w.env, ANA, 'PUT', `/api/learn/tutor/attempts/assets/${png.assetId}`, { json: { marks: [{ kind: 'arrow', label: 'v' }], text: 'v tangent' } });
+  assert.deepEqual((await get(ANA, png.assetId)).body, { marks: [{ kind: 'arrow', label: 'v' }], text: 'v tangent' });
+  for (const other of [BEN, { ...ANA, board: 'side' }, { ...ANA, app: 'canvas-fork-0001' }]) assert.equal((await get(other, png.assetId)).status, 404, JSON.stringify(other));
+  assert.equal((await get(ANA, voice.assetId)).status, 404, 'audio has no capture data');
+  assert.equal((await route(w.env, ANA, 'PUT', `/api/learn/tutor/attempts/assets/${png.assetId}/meta`, { json: { text: 'x' } })).status, 405);
 });

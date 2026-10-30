@@ -7,8 +7,9 @@
 //   ownAttemptAssets(env, actor, ids) -> Map id -> row: the actor's own assets among ids
 //   putAttemptAsset(env, actor, {bytes, mime, marks?, text?, durationMs?}) -> {...asset, hash}: server/test seeding, upload's checks
 //   setAssetMeta(env, actor, assetId, {marks, text}) -> the Sketch snapshot's capture data, set once
+//   readAssetMeta(env, actor, assetId) -> {marks, text} | null: the owner's read of it (revising restores the marks)
 //   readAttemptAsset(env, actor, attempt, evidence) -> {bytes, mime, marks?, text?} | null: assessment's hash-checked read
-//   transcriptStore(env, actor) -> {get(transcriptId), put(record, {retry})}: immutable transcripts (failed: explicit retry)
+//   transcriptStore(env, actor) -> {get(transcriptId), put(record)}: immutable ready transcripts; a failed one may be replaced
 //   transcriptsOf(env, actor, assetId) -> transcripts of the actor's own audio
 //   freezeSnapshots(env, actor, content, snapshots) / readFrozenSnapshot(env, actor, attempt, ref): board-held inputs as submitted
 //
@@ -147,6 +148,14 @@ export async function setAssetMeta(env, actor, assetId, meta) {
   return JSON.parse(stored);
 }
 
+/** The owner's Sketch snapshot capture data, to restore its marks in a revision: {marks, text}, or null when the asset is not theirs or not an image. */
+export async function readAssetMeta(env, actor, assetId) {
+  const row = (await ownAttemptAssets(env, actor, [assetId])).get(assetId);
+  if (!row || row.kind !== 'image') return null;
+  const meta = row.meta_json ? JSON.parse(row.meta_json) : {};
+  return { marks: meta.marks ?? null, text: meta.text ?? null };
+}
+
 /**
  * Assessment's read of one submitted piece of evidence: the attempt's own voice, Sketch or recording asset, whole, checked
  * against the hash the attempt froze. Only evidence the attempt names, owned by its learner on its canvas; anything else, a
@@ -169,10 +178,11 @@ export async function readAttemptAsset(env, actor, attempt, evidence) {
 
 /**
  * The owner's transcript store for one audio asset family (worker M's ensureTranscript). Records are the contract's Transcript
- * (explain-back-contract.js validateTranscript). Immutable: put of an existing id returns the stored record unchanged, except
- * that a failed record is replaced when the caller passes {retry: true}, the learner's explicit retry.
+ * (explain-back-contract.js validateTranscript). A ready record is immutable: put of its id returns it unchanged. A failed
+ * record is replaced by the next put of its id: ensureTranscript (learn-media.js) reaches put for an existing failed record
+ * only on the learner's explicit retry, so the retry decision stays in one place.
  *   get(transcriptId) -> record | null
- *   put(record, {retry}) -> the stored record
+ *   put(record) -> the stored record
  */
 export function transcriptStore(env, actor) {
   const key = [actor.org, actor.userId];
@@ -182,7 +192,7 @@ export function transcriptStore(env, actor) {
       : null;
     return row ? JSON.parse(row.record_json) : null;
   };
-  const put = async (record, { retry = false } = {}) => {
+  const put = async record => {
     const checked = validateTranscript(record);
     if (!checked.ok) throw new TypeError(`transcript: ${checked.errors.slice(0, 3).join('; ')}`);
     const asset = (await ownAttemptAssets(env, actor, [record.assetId])).get(record.assetId);
@@ -190,8 +200,8 @@ export function transcriptStore(env, actor) {
     const stored = { ...record, createdAt: record.createdAt ?? new Date().toISOString() };
     await env.LEARN_DB.prepare(`INSERT INTO learn_attempt_transcripts (org, owner_user_id, id, asset_id, audio_sha256, status, record_json, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (org, owner_user_id, id) DO UPDATE SET status = excluded.status, record_json = excluded.record_json,
-      created_at = excluded.created_at WHERE learn_attempt_transcripts.status = 'failed' AND ?`)
-      .bind(...key, record.transcriptId, asset.id, asset.sha256, record.status, JSON.stringify(stored), stored.createdAt, retry ? 1 : 0).run();
+      created_at = excluded.created_at WHERE learn_attempt_transcripts.status = 'failed'`)
+      .bind(...key, record.transcriptId, asset.id, asset.sha256, record.status, JSON.stringify(stored), stored.createdAt).run();
     return get(record.transcriptId);
   };
   return { get, put };
@@ -214,6 +224,8 @@ export const SNAPSHOT_LIMITS = Object.freeze({ count: 50, totalChars: 1024 * 102
 const snapshotKey = async (actor, hash) => `learn-attempt-snapshots/${await sha256Hex(canonical(scope(actor)))}/${hash}`;
 const frozenHashes = content => new Set((content?.resources ?? []).flatMap(r => [r.sourceKind !== 'file' && r.hash, ...(r.members ?? []).map(m => m.sourceKind !== 'file' && m.hash)]).filter(Boolean));
 
+// ponytail: a frozen snapshot is checked against the answer's hash, not against the saved board (R review finding 7, accepted):
+// a client could freeze content it never saved, as it could type it; assessment reads it as that learner's own submission.
 /** Keep the snapshots the answer names by hash. -> {stored: hash[], ignored: number} (ignored: not named or not matching). */
 export async function freezeSnapshots(env, actor, content, snapshots) {
   if (snapshots == null) return { stored: [], ignored: 0 };

@@ -105,7 +105,12 @@ export async function acceptAttempt(env, actor, submission, { now = () => new Da
     try { return await freezeSnapshots(env, actor, content, snapshots); } catch (error) { if (error instanceof TypeError) throw invalid('invalid_snapshots', error.message); throw error; }
   };
   const existing = await byKey(env, actor, submissionKey);
-  if (existing) { if (existing.content_hash === hash) await keepSnapshots(); return replay(existing); }
+  if (existing) {
+    const replayed = await replay(existing);
+    // A retry still finds its saved attempt; its snapshots are kept if they can be, and a problem with them never fails it.
+    await freezeSnapshots(env, actor, content, snapshots).catch(() => {});
+    return replayed;
+  }
 
   const activity = await ownActivity(env, actor, activityId);
   if (!activity) throw new AttemptError('unknown_activity', 404);
@@ -321,6 +326,16 @@ const CARD = /^[A-Za-z0-9_-]{1,100}$/;
 export const EB_RUBRIC = 'eb-v1';
 const MAX_IDEAS = 20;
 
+// The card on the learner's own saved board (learn_boards, as learn-boards.js ownerRow reads it): the block, false when that id
+// is not an Explain-back card, null when the board or the card is not saved (or the owner's email is not known here).
+async function savedCard(env, actor, email, cardId) {
+  if (!email) return null;
+  const row = await env.LEARN_DB.prepare('SELECT state_json FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = ?').bind(actor.org, email, actor.app, actor.board).first();
+  const block = row ? (JSON.parse(row.state_json || '{}').blocks || []).find(b => b?.id === cardId) : null;
+  if (!block) return null;
+  return block.type === 'challenge' && block.mode === 'explain_back' && typeof block.prompt === 'string' ? block : false;
+}
+
 // Card-scoped private ids: the same learner, canvas and card always name the same goal; nothing else can.
 const cardHash = async (actor, cardId) => (await sha256Hex(canonical([actor.org, actor.userId, actor.app, actor.board, cardId]))).slice(0, 40);
 
@@ -329,8 +344,14 @@ const cardHash = async (actor, cardId) => (await sha256Hex(canonical([actor.org,
  * Idempotent: the same wording returns the same activity; a changed wording gets a new activity, earlier attempts keep theirs.
  * @returns {Promise<{goalId: string, activityId: string, activityRevision: number, criterionRefs: {criterionId: string, version: number}[], rubricVersion: string}>}
  */
-export async function bindExplainBackCard(env, actor, { cardId, prompt, expects = [] } = {}, { now = () => new Date().toISOString() } = {}) {
+export async function bindExplainBackCard(env, actor, { cardId, prompt, expects = [] } = {}, { now = () => new Date().toISOString(), email = null } = {}) {
   if (typeof cardId !== 'string' || !CARD.test(cardId)) throw invalid('invalid_card', 'cardId: 1-100 letters, digits, _ or -');
+  // The rubric is the card as saved on the learner's board, never what the client says, so a learner cannot bind easy
+  // criteria to a saved card. Only a card not saved yet binds from the client's words, and the binding records that.
+  const saved = await savedCard(env, actor, email, cardId);
+  if (saved === false) throw invalid('invalid_card', 'not an Explain-back card');
+  const source = saved ? 'board' : 'client';
+  if (saved) ({ prompt, expects } = { prompt: saved.prompt, expects: Array.isArray(saved.expects) ? saved.expects : [] });
   if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > ATTEMPT_LIMITS.textChars) throw invalid('invalid_card', `prompt: 1-${ATTEMPT_LIMITS.textChars} characters`);
   if (!Array.isArray(expects) || expects.length > MAX_IDEAS || expects.some(e => typeof e !== 'string' || !e.trim() || e.length > 1000)) throw invalid('invalid_card', `expects: at most ${MAX_IDEAS} key ideas of 1-1000 characters`);
   // A card without key ideas is judged against its prompt as one idea.
@@ -360,7 +381,7 @@ export async function bindExplainBackCard(env, actor, { cardId, prompt, expects 
         .bind(goalId, scope, c.criterionId, i, c.label, c.requirement, EB_RUBRIC, at, goalId, scope, activityId)),
       env.LEARN_DB.prepare(`INSERT INTO learn_activities (id, goal_id, org, owner_user_id, revision, status, objective, prompt, response_kind, criterion_refs_json, source_refs_json, checkpoint_json, created_at, updated_at)
         SELECT ?, ?, ?, ?, 1, 'in_progress', 'Explain back', ?, ?, ?, '[]', ?, ?, ? WHERE ${mine} ON CONFLICT (id) DO NOTHING`)
-        .bind(activityId, goalId, actor.org, actor.userId, prompt, EXPLAIN_BACK_KIND, JSON.stringify(criterionRefs), JSON.stringify({ explainBack: { cardId } }), at, at, goalId, scope, activityId),
+        .bind(activityId, goalId, actor.org, actor.userId, prompt, EXPLAIN_BACK_KIND, JSON.stringify(criterionRefs), JSON.stringify({ explainBack: { cardId, source } }), at, at, goalId, scope, activityId),
     ]);
   }
   throw new AttemptError('card_busy', 409);

@@ -94,6 +94,7 @@ export const EB_SHAPES = {
   AssistanceRef: { kind: ASSISTANCE_KINDS, id: 'id' },
   // A transcript derivative of one retained audio asset (worker M produces it; D stores it immutable, keyed by audio hash).
   // It is assessment and accessibility data only: never inserted into the typed answer.
+  // milliseconds on the audio's clock (P ruling; learn-media.js transcriptParts converts the provider's seconds)
   TranscriptSegment: { startMs: 'int', endMs: 'int', text: shortText },
   Transcript: {
     transcriptId: 'id', assetId: attemptAsset, hash: sha256, text: transcriptText, segments: { opt: ['TranscriptSegment'] },
