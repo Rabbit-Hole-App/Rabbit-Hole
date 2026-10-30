@@ -82,6 +82,22 @@ C:/s/spec/pdfctx/contract-pdf-status.md.
 | `PATCH /api/learn/context/<id>` `{ app, attached }` | toggles it; switching on an eleventh, or one past the budget, is refused (409) |
 | `DELETE /api/learn/context/<id>?app=` | removes the row and the bytes |
 
+## Web pages (Add context, owner brief 2026-10-29)
+
+- The Context header's **Add context** (was Upload) and the composer's **+ > Upload Context** open one dialog
+  (`AddContextDialog.jsx`): **Browse files** (the upload above, unchanged) or a **Web address** with **Add URL**.
+- arXiv, Wikipedia and YouTube links keep their note (`learn-context-link.js`: the abstract, the introduction, or only the
+  address, and the note says which). Any other public `https://` page is captured and screened by the webpage-card pipeline
+  (`webpage-capture.js`) with `context: true`: on no board, so no `file_source_refs` row, no board, share link or fork reads it.
+- `POST /api/learn/context/link { app, manifest[, id] }` links an approved (stored) capture: the document (`kind: 'webpage'`)
+  holds the page's bounded text under its title, URL, capture time and revision, so the reader and the chat read it as text;
+  `canvas_context_captures` (learn 0033) holds its URL, manifest id, revision, lineage, status and capture time, and keeps that
+  version from the webpage sweep while the document is in Context. `id`: **Refresh page** (Source options) of that document,
+  same lineage only; a version that did not pass leaves the last good one in use.
+- **Add to canvas** reads the saved capture (`GET /api/learn/webpages/<manifest>?app=&context=1`) and inserts the webpage card:
+  no second capture or screening; a card of the same lineage is revealed instead. The board save indexes it like any card.
+- Not done: favicons (a Globe icon stands in: fetching a favicon would reach the site from the learner's browser).
+
 ## Where the documents go
 
 - Chat (`/api/learn/ask` on a canvas): the switched-on documents join the request's extra blocks.

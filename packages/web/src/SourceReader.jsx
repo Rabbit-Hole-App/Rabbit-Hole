@@ -55,13 +55,14 @@ function TextView({ text, quote, position, save }) {
 
 // A canvas context document (doc:<id>), read once through GET /api/learn/context/<id> (A4a's route): a PDF opens in the paper
 // view at its page from those same bytes, a .txt or .md as text. Anything else, or a failed read, says it can't preview here.
-function DocReader({ app, sourceRef, position, save, startPage, startZoom, startRotation, plainChat, unavailable, picked, presentation }) {
+// revision: a web page's capture revision; a Refresh while it is open reads and shows the new text.
+function DocReader({ app, sourceRef, revision, position, save, startPage, startZoom, startRotation, plainChat, unavailable, picked, presentation }) {
   const [doc, setDoc] = useState(null);
   const id = sourceRef.sourceId.slice('doc:'.length);
   useEffect(() => {
     const controller = new AbortController();
     let url = null;
-    fetch(docUrl(app, id), { headers: wsHeaders(), signal: controller.signal })
+    fetch(docUrl(app, id, revision), { headers: wsHeaders(), signal: controller.signal })
       .then(async response => {
         if (!response.ok) { if (!controller.signal.aborted) { setDoc({ refused: true }); unavailable.current?.(); } return; }
         const type = response.ok ? response.headers.get('content-type') || '' : '';
@@ -70,7 +71,7 @@ function DocReader({ app, sourceRef, position, save, startPage, startZoom, start
       })
       .catch(() => { if (!controller.signal.aborted) { setDoc({}); unavailable.current?.(); } });
     return () => { controller.abort(); if (url) URL.revokeObjectURL(url); };
-  }, [app, id]);
+  }, [app, id, revision]);
   const range = sourceRef.range || {};
   if (!doc) return <p role="status" className="p-3 text-sm text-ink-2">Opening {sourceRef.name}</p>;
   if (doc.pdf) return <PaperReader app={app} id={sourceRef.sourceId} src={doc.pdf} title={sourceRef.name} presentation={presentation} startPage={startPage} startZoom={startZoom} startRotation={startRotation} quote={range.quote} quotePage={range.page || 1} save={save}
@@ -78,7 +79,7 @@ function DocReader({ app, sourceRef, position, save, startPage, startZoom, start
   return doc.text == null ? <Unavailable sourceRef={sourceRef} refused={!!doc.refused} /> : <TextView text={doc.text} quote={range.quote} position={position} save={save} />;
 }
 
-function Reader({ sourceRef, position, onPosition, onUnavailable, onSelection, chat, presentation }) {
+function Reader({ sourceRef, revision, position, onPosition, onUnavailable, onSelection, chat, presentation }) {
   const app = chat?.canvas, reader = readerFor(sourceRef), range = sourceRef.range || {};
   // Where the reader is now; every report also goes to the session position store (chat-sources.js).
   // The memoized reader below outlives renders, so it reaches the latest workspace and onPosition through refs.
@@ -121,7 +122,7 @@ function Reader({ sourceRef, position, onPosition, onUnavailable, onSelection, c
         companion={{ key, home: key ? sourceRef.home || app : null, anchor: range.excerpt || null, plainChat, onUnavailable: () => unavailable.current?.(), onSelection: draft => picked.current?.(draft) }} />;
     }
     if (reader === 'wiki') return <LearnWiki app={app} article={{ title: sourceRef.sourceId.slice('wiki:'.length), section: position?.section || 0 }} onSection={section => save({ section })} />;
-    if (reader === 'doc') return <DocReader app={app} sourceRef={sourceRef} position={position} save={save} presentation={presentation} startPage={here.current.page} startZoom={here.current.zoom} startRotation={here.current.rotation} plainChat={plainChat} unavailable={unavailable} picked={picked} />;
+    if (reader === 'doc') return <DocReader app={app} sourceRef={sourceRef} revision={revision} position={position} save={save} presentation={presentation} startPage={here.current.page} startZoom={here.current.zoom} startRotation={here.current.rotation} plainChat={plainChat} unavailable={unavailable} picked={picked} />;
     if (reader === 'text') return <TextView text={sourceRef.text} quote={range.quote} position={position} save={save} />;
     if (reader === 'code') {
       const code = codeSource(sourceRef), owned = /^[\w.-]+\/[\w.-]+$/.test(code.repo);
@@ -135,7 +136,7 @@ function Reader({ sourceRef, position, onPosition, onUnavailable, onSelection, c
         </div> : undefined} />;
     }
     return <Unavailable sourceRef={sourceRef} />;
-  }, [app, sourceRef, presentation]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [app, sourceRef, presentation, revision]); // eslint-disable-line react-hooks/exhaustive-deps
   return <div ref={box} data-source-reader={reader || 'none'} onMouseUp={reader === 'code' ? undefined : pick} onKeyUp={reader === 'code' ? undefined : pick} className="flex min-h-0 flex-1 flex-col">
     {reader === 'code' ? <SourceSelectionContext.Provider value={codeSelection}>{body}</SourceSelectionContext.Provider> : body}
     {passage && chat && <div className="flex shrink-0 justify-end border-t border-line pt-2">{passage.length > QUOTE_MAX
@@ -156,8 +157,9 @@ function PaperReader({ app, id, home = null, src = null, title, startPage, start
 // onUnavailable (Pinned Study): called when a document's or paper's bytes are refused to this learner or cannot be read.
 // onSelection(draft): the text selected in a PDF, as the excerpt draft its own toolbar would send, or null.
 // presentation: 'study' (the Pinned Study pane) draws a PDF's controls as one compact row (LearnPaper); omitted, as before.
-export default function SourceReader({ sourceRef, position, onPosition, onUnavailable, onSelection, presentation }) {
+// revision: a context web page's capture revision (SourcesPane), so its open reader follows a Refresh.
+export default function SourceReader({ sourceRef, revision = null, position, onPosition, onUnavailable, onSelection, presentation }) {
   const chat = useChatWorkspace();
   if (!sourceRef) return null;
-  return <Reader key={`${sourceRef.sourceId} ${JSON.stringify(sourceRef.range ?? null)} ${sourceRef.opened ?? ''}`} sourceRef={sourceRef} position={position} onPosition={onPosition} onUnavailable={onUnavailable} onSelection={onSelection} chat={chat} presentation={presentation} />;
+  return <Reader key={`${sourceRef.sourceId} ${JSON.stringify(sourceRef.range ?? null)} ${sourceRef.opened ?? ''}`} sourceRef={sourceRef} position={position} onPosition={onPosition} onUnavailable={onUnavailable} onSelection={onSelection} chat={chat} presentation={presentation} revision={revision} />;
 }

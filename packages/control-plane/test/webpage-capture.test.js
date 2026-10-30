@@ -10,6 +10,7 @@ import { filesFetch } from '../src/learn-files.js';
 import { NOT_AVAILABLE, pdfExcerptsFetch } from '../src/pdf-excerpts.js';
 import { checkUrl, isPrivateIp } from '../src/url-guard.js';
 import { WEBPAGE_LIMITS, capturePage, sweepWebpageSources, tilePlan, webpagesFetch } from '../src/webpage-capture.js';
+import { contextDocsFetch } from '../src/learn-context-docs.js';
 
 // Idle Browser Run time is billed; 10 s keeps a session for a capture then a quick Refresh (integrator decision 2026-10-22,
 // measured launch about 1-2 s of a 4-6.6 s capture). A longer value multiplies billed idle time per capture.
@@ -416,4 +417,56 @@ test('GET /api/learn/pdf-source with a web:<lineage> key is the one 404, not a c
   const response = await pdfExcerptsFetch(new Request(`https://dev.test/api/learn/pdf-source?app=demo-app&key=web:${v1.body.lineage}&manifest=${v1.body.capture.manifestId}`, { headers: { cookie: 'small_session=owner' } }), env);
   assert.equal(response.status, 404);
   assert.deepEqual(await response.json(), { error: NOT_AVAILABLE });
+});
+
+// Add context with a web page (owner brief 2026-10-29): a capture with { context: true } is the canvas owner's alone. No board
+// references it, so no board, share link or fork reads it; its Context document (learn-context-docs.js, canvas_context_captures)
+// keeps it through board saves and cleanup while it is in Context. Add to canvas is an ordinary card: the board save indexes it.
+test('a Context capture: no board reference, unreachable through a share link or a fork; kept while in Context; Add to canvas shares it like any card', async t => {
+  const { capture, route, board, file, sqlite, env, screened } = await setup(t);
+  const CANVAS = { org: 'team', name: 'canvas-0a1b2c3d', email: 'owner@test' };
+  const link = async (method, path, body) => {
+    const response = await contextDocsFetch(new Request(`https://dev.test${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) }), env,
+      { authorize: async (_req, _env, name) => (name === CANVAS.name ? CANVAS : Response.json({ error: 'no' }, { status: 404 })) });
+    return { status: response.status, body: await response.json() };
+  };
+  const refs = () => sqlite.prepare('SELECT count(*) AS n FROM file_source_refs').get().n;
+  const status = id => sqlite.prepare('SELECT status FROM file_sources WHERE id = ?').get(id).status;
+  assert.equal((await capture('friend', { url: 'https://example.com/', context: true })).status, 404, 'only the canvas owner captures for its Context');
+  const out = await capture('owner', { url: 'https://example.com/', context: true });
+  assert.equal(out.body.status, 'ready', JSON.stringify(out.body));
+  assert.equal(screened.length, 1, 'screened once, like any capture');
+  assert.equal(refs(), 0, 'no board references a Context capture');
+  const ids = [out.body.fileRef.source.id, ...out.body.fileRef.bundle.map(b => b.source.id)];
+  const links = (await board('POST', `${OWN}/share`, 'owner', { shared: true, view: true })).body.sharing;
+  const forked = await board('POST', '/api/learn/boards/fork', 'friend', { source: { token: links.view } });
+  for (const id of ids) {
+    assert.equal(await file(id, 'owner'), 200, 'its owner reads it');
+    assert.equal(await file(id, 'owner', '?app=demo-app&board=main'), 404, 'not through a board that has no card of it');
+    assert.equal(await file(id, 'friend', `?share=${links.view}`), 404, 'a shared-board viewer never reads a Context capture');
+    assert.equal(await file(id, 'friend', `?app=${forked.body.name}&board=main`), 404, 'nor a fork');
+  }
+  assert.equal((await route('GET', `/api/learn/webpages/${out.body.manifestId}?app=demo-app&context=1`, 'owner')).body.status, 'ready');
+  assert.equal((await route('GET', `/api/learn/webpages/${out.body.manifestId}?app=demo-app&context=1`, 'friend')).status, 404);
+  const doc = (await link('POST', '/api/learn/context/link', { app: CANVAS.name, manifest: out.body.manifestId })).body.document;
+  assert.equal(doc.capture.manifestId, out.body.manifestId);
+  // Reload, board saves and cleanup: the Context capture stays, and still no board references it.
+  await board('PUT', OWN, 'owner', { state: STATE, version: 1 });
+  assert.equal(refs(), 0);
+  const owner = PEOPLE.owner, later = Date.now() + 31 * 86_400_000;
+  assert.equal(await sweepWebpageSources(env, owner, later), 0, 'kept while in Context');
+  assert.ok(ids.every(id => status(id) === 'stored'));
+  assert.equal((await link('GET', `/api/learn/context?app=${CANVAS.name}`)).body.documents[0].capture.manifestId, out.body.manifestId);
+  // Add to canvas: the card's fileRef, saved like any card; now the board, its share link and a new fork read it.
+  await board('PUT', OWN, 'owner', { state: { ...STATE, blocks: [webCard(out.body.fileRef)] }, version: 2 });
+  for (const id of ids) assert.equal(await file(id, 'friend', `?share=${links.view}`), 200, 'the card is on the shared board');
+  // Remove from context: the card keeps working; a Context-only capture that was removed is cleaned up after 30 days.
+  const other = await capture('owner', { url: 'https://example.com/', context: true, lineage: out.body.lineage });
+  const otherDoc = (await link('POST', '/api/learn/context/link', { app: CANVAS.name, manifest: other.body.manifestId, id: doc.id })).body.document;
+  assert.equal(otherDoc.capture.manifestId, other.body.manifestId, 'Refresh: the Context document reads the new version');
+  assert.equal((await link('DELETE', `/api/learn/context/${doc.id}?app=${CANVAS.name}`)).status, 200);
+  assert.equal(await sweepWebpageSources(env, owner, later), 4, 'the removed Context capture (manifest, two tiles, text) on no card');
+  assert.equal(status(other.body.manifestId), 'deleted');
+  assert.ok(ids.every(id => status(id) === 'stored'), 'the version on the card stays');
+  for (const id of ids) assert.equal(await file(id, 'friend', `?share=${links.view}`), 200);
 });

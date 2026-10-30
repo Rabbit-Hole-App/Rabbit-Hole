@@ -4,6 +4,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { wsHeaders } from './api.js';
 import { PDF_UPLOAD_LIMIT, openPdf, processing, readPageTexts } from './context-doc-pages.js';
+import { classifyLink } from './link-kind.js';
+import { capturePage, readCapture } from './webcard-api.js';
 // ui.jsx's toast, by its event: importing the JSX kit would keep this module out of plain-node tests (selection-ref.test.mjs).
 const toast = message => window.dispatchEvent(new CustomEvent('small:toast', { detail: { message: String(message) } }));
 
@@ -54,6 +56,31 @@ export async function uploadContextLink(app, url) {
   const data = await request('POST', '/api/learn/context/link', { app, url });
   window.dispatchEvent(new CustomEvent(EVENT, { detail: { app } }));
   return data.document;
+}
+
+// Add context with a web address (owner brief 2026-10-29): resolves with the Context document; throws the reason, said plainly.
+// arXiv, Wikipedia and YouTube keep their note (uploadContextLink: the abstract, the introduction, or only the address, and the
+// note says which). Any other public HTTPS page is captured and screened by the webpage-card pipeline for this canvas's Context
+// (context: true: on no board), then its approved capture is linked as a Context document (learn-context-docs.js linkCapture).
+// { id, lineage }: Refresh of that document - a version that did not pass leaves the last good one in use. The same address on
+// the same canvas while one is in flight waits on that one (a double submit captures once). A reply still screening is polled.
+const adding = new Map();
+const POLL_MS = 3000, POLLS = 80; // the server calls a screening that ran past 3 minutes an error, so the polls end before this
+export function addContextUrl(app, url, { id = null, lineage = null, wait = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
+  const link = classifyLink(url);
+  if (!link.ok) return Promise.reject(new Error(link.error));
+  if (!id && link.type !== 'webpage') return uploadContextLink(app, link.url);
+  if (!id && !/^https:/i.test(link.url)) return Promise.reject(new Error('Add an https:// address.'));
+  const key = `${app}|${id || link.url}`;
+  if (!adding.has(key)) adding.set(key, (async () => {
+    let reply = await capturePage({ app, context: true, url: link.url, ...(lineage ? { lineage } : {}) });
+    for (let n = 0; reply.status === 'screening' && reply.manifestId && n < POLLS; n += 1) { await wait(POLL_MS); reply = await readCapture(reply.manifestId, { app, context: true }); }
+    if (reply.status !== 'ready') throw new Error(reply.reason || 'This page could not be captured. Try again.');
+    const data = await request('POST', '/api/learn/context/link', { app, manifest: reply.manifestId, ...(id ? { id } : {}) });
+    window.dispatchEvent(new CustomEvent(EVENT, { detail: { app, data } }));
+    return data.document;
+  })().finally(() => adding.delete(key)));
+  return adding.get(key);
 }
 
 // A stored file source (file-source-client.js uploadSource) made context without sending its bytes again: the server copies it

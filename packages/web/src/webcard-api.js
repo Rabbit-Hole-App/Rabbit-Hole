@@ -22,12 +22,14 @@ async function result(url, init, fetchImpl) {
 }
 
 // lineage: present for a Refresh (or a Retry of a capture that stopped), so the new version joins the same highlights namespace.
-export const capturePage = ({ app, board, url, lineage = null }, fetchImpl = globalThis.fetch) =>
-  result('/api/learn/webpages', { method: 'POST', body: JSON.stringify({ app, board, url, ...(lineage ? { lineage } : {}) }) }, fetchImpl);
+// context: a capture for the canvas's Context (Add context), on no board, so no board reads it (webpage-capture.js).
+const where = ({ app, board, context }) => (context ? { app, context: true } : { app, board });
+export const capturePage = ({ app, board, url, lineage = null, context = false }, fetchImpl = globalThis.fetch) =>
+  result('/api/learn/webpages', { method: 'POST', body: JSON.stringify({ ...where({ app, board, context }), url, ...(lineage ? { lineage } : {}) }) }, fetchImpl);
 export const rescreen = (manifestId, { app, board }, fetchImpl = globalThis.fetch) =>
   result(`/api/learn/webpages/${encodeURIComponent(manifestId)}/screen`, { method: 'POST', body: JSON.stringify({ app, board }) }, fetchImpl);
-export const readCapture = (manifestId, { app, board }, fetchImpl = globalThis.fetch) =>
-  result(`/api/learn/webpages/${encodeURIComponent(manifestId)}?${new URLSearchParams({ app, board })}`, {}, fetchImpl);
+export const readCapture = (manifestId, { app, board, context = false }, fetchImpl = globalThis.fetch) =>
+  result(`/api/learn/webpages/${encodeURIComponent(manifestId)}?${new URLSearchParams(context ? { app, context: '1' } : { app, board })}`, {}, fetchImpl);
 
 // A capture file (manifest, tile, text runs) through this page's scope. A version that just passed is indexed to its board
 // by the server, but a board save already on its way with the old card can drop that index; the card's own save of the new

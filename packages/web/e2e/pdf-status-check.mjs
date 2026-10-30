@@ -186,12 +186,14 @@ await check('reload keeps the failed document failed (message and Retry) and the
   await shot('04-reload');
 });
 
-await check(`uploading a ${BIG.count}-page PDF through the header Upload shows "Reading pages N of ${BIG.count}" on its row while this tab reads, counting up`, async () => {
+await check(`uploading a ${BIG.count}-page PDF through the header Add context shows "Reading pages N of ${BIG.count}" on its row while this tab reads, counting up`, async () => {
   const cdp = await context.newCDPSession(page);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 }); // the reading takes long enough to be seen mid-way
   const seen = [];
   try {
-    await page.locator('[data-companion-header] input[type="file"]').first().setInputFiles({ name: BIG.name, mimeType: 'application/pdf', buffer: BIG.bytes });
+    // The header's Add context opens the Add context dialog; its Browse files is the upload input (owner brief 2026-10-29).
+    await page.locator('[data-companion-header] [data-materials-upload]').click();
+    await page.locator('[data-add-context] input[type="file"]').setInputFiles({ name: BIG.name, mimeType: 'application/pdf', buffer: BIG.bytes });
     await waitFor(async () => {
       const meta = await rowByName(BIG.name).locator('[data-material-meta]').first().innerText({ timeout: 200 }).catch(() => '');
       const m = /Reading pages (\d+) of (\d+)/.exec(meta);

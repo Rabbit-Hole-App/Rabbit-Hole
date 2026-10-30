@@ -10,6 +10,7 @@ import { turnHasPage, turnPaper, tutorPage } from './pdf-source.js';
 import { chatHistory, refIds } from './chat-canvas-context.js';
 import { VoiceField, VoiceToggle } from './VoiceMode.jsx';
 import ContextDocs from './ContextDocs.jsx';
+import AddContextDialog from './AddContextDialog.jsx';
 import { CONTEXT_ACCEPT, useContextDocs } from './context-docs.js';
 import RepositorySource, { SourceSelectionContext } from './RepositorySource.jsx';
 import { codeRef } from './chat-sources.js';
@@ -368,6 +369,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // "Mention a canvas" (the canvas Chat's + menu, in place of Mention an app): its picker; a pick attaches a canvas ref only
   // (canvas-mention-ref.js) - no navigation, no send, no model call.
   const [mentionPick, setMentionPick] = useState(false);
+  const [addContext, setAddContext] = useState(false); // the Add context dialog (AddContextDialog.jsx), shared with the Context header
   const canvasMentioned = attachedRefs.filter(ref => ref.kind === 'canvas');
   // Canvas context documents (canvas-context-docs.md): the composer's Context button and list.
   const contextDocs = useContextDocs(scope?.app);
@@ -1342,8 +1344,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
               <Plus size={chat ? 16 : 14} strokeWidth={1.5} />
             </button>
             <Menu open={plusOpen} onClose={() => setPlusOpen(false)} className={chat ? 'bottom-10 left-0 w-64' : dock ? 'bottom-11 left-0 w-64' : 'bottom-8 left-0 w-64'}>
-              {/* The Chat pane uploads into the canvas's one context collection (chat.context.upload: the context-docs upload). */}
-              {chat ? <MenuItem icon={Upload} data-upload-context onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>Upload Context</MenuItem> : <MenuItem icon={Paperclip} disabled={privateChat || canvasChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : canvasChat ? 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
+              {/* The Chat pane adds to the canvas's one context collection through the Context header's own Add context dialog: a file
+                  (chat.context.upload, the context-docs upload) or a web address (owner brief 2026-10-29). */}
+              {chat ? <MenuItem icon={Upload} data-upload-context onClick={() => { setPlusOpen(false); setAddContext(true); }}>Upload Context</MenuItem> : <MenuItem icon={Paperclip} disabled={privateChat || canvasChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : canvasChat ? 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
                 Add images, PDFs, or CSVs
               </MenuItem>}
               {chat ? <MenuItem icon={AtSign} data-mention-canvas disabled={privateChat || canvasMentioned.length >= CANVAS_MENTIONS} onClick={() => { setPlusOpen(false); setMentionPick(true); }}>
@@ -1353,6 +1356,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
               </MenuItem>}
             </Menu>
             {/* On document.body: inside the composer's form, the picker's buttons would submit (send) the chat. */}
+            {addContext && chat && <AddContextDialog onClose={() => { setAddContext(false); inputRef.current?.focus(); }} />}
             {mentionPick && chat && createPortal(<CanvasRefPicker mention exclude={null} linked={canvasMentioned.map(ref => canvasBoardId(ref.sourceId))} returnFocus={() => inputRef.current}
               onPick={canvas => { const ref = canvasMentionRef(canvas.id); if (chat.context.isAttached(ref)) return { ok: false, reason: 'exists' }; rememberCanvas(canvas); chat.context.attach(ref); return { ok: true }; }}
               onClose={() => setMentionPick(false)} />, document.body)}

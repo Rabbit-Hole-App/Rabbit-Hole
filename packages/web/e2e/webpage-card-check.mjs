@@ -10,6 +10,10 @@
 // PDF reader's .textLayer. The card scrolls by a CSS translateY on its column and its tiles are blob URLs, so the scroll
 // position is read from the transform and the version on show from the tile pixels (each fixture tile is one colour). Prints `ok <label>` per step, ids and counts only (no cookies); `N/total passed`; exit 1 on
 // any failure. Evidence: OUT/results.json and *.png.
+// Add context (owner brief 2026-10-29): the Context dialog's web address on canvas D, the whole path - Add URL, the capture
+// (answered here like the card's, with a context: true body and no board), the Context row, its reader, the chat request's doc
+// ref and the server's text of it, the explicit browser card from the saved capture (no second capture), a failed and a passed
+// Refresh, Remove from context with the card kept, light, dark and 320 px; and the Start dialog's context-only link note.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 PERSIST=<stack>/local D1_CONFIG=<stack>/integ-local-cp.jsonc
 //   [VARS=<cp .dev.vars>] [WRANGLER_BIN=<wrangler.js>] [OUT=<dir>] node e2e/webpage-card-check.mjs
 import { chromium } from '@playwright/test';
@@ -20,7 +24,7 @@ import assert from 'node:assert/strict';
 import { chatRouteAnswer } from './dev-cp.mjs';
 import { tileJpegs, makeCapture, readyResult, heldResult, webpageBlock, sourceId, COLORS, TILE_W, TILE_H } from './webpage-card-fixtures.mjs';
 
-const total = 31; // the number of check() steps below; keep it equal
+const total = 42; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('webpage-card-check runs against the local stack only');
@@ -71,21 +75,25 @@ const V1 = makeCapture({ jpegs, tiles: ['red', 'green', 'blue'], url: URL_A, tit
 // Refresh: the same lineage, new bytes, and different words in the same place as RUN_1 (an old highlight must not land on them).
 const V2 = makeCapture({ jpegs, tiles: ['amber', 'green', 'grey'], url: URL_A, title: TITLE_A, lineage: V1.lineage, runs: [{ text: RUN_NEW, x: 80, y: 200, w: 900, h: 28 }, { text: RUN_2, x: 80, y: TILE_H + 200, w: 860, h: 28 }] });
 const V3 = makeCapture({ jpegs, tiles: ['grey'], url: 'https://example.org/unscreened', title: 'Unscreened', runs: [{ text: 'Unscreened words.', x: 40, y: 100, w: 400, h: 24 }] });
+// Add context: a page captured for canvas D's Context (V4), and its Refresh (V5, the same lineage, new words).
+const URL_D = 'https://example.com/estuaries', TITLE_D = 'Estuaries and tides', RUN_D = 'Estuaries mix river water with the sea.', RUN_D_NEW = 'Refreshed: salt wedges move with the tide.';
+const V4 = makeCapture({ jpegs, tiles: ['blue', 'green'], url: URL_D, title: TITLE_D, runs: [{ text: RUN_D, x: 80, y: 200, w: 900, h: 28 }, { text: 'Mud flats line the shore.', x: 80, y: TILE_H + 200, w: 700, h: 28 }] });
+const V5 = makeCapture({ jpegs, tiles: ['amber'], url: URL_D, title: TITLE_D, lineage: V4.lineage, runs: [{ text: RUN_D_NEW, x: 80, y: 200, w: 900, h: 28 }] });
 const wrangler = args => (process.env.WRANGLER_BIN
   ? execFileSync(process.execPath, [process.env.WRANGLER_BIN, ...args, '--local', '--persist-to', PERSIST, '--config', D1_CONFIG], { cwd: root, stdio: ['ignore', 'ignore', 'inherit'], windowsHide: true })
   : execFileSync(`npx wrangler ${args.map(a => `"${a}"`).join(' ')} --local --persist-to "${PERSIST}" -c "${D1_CONFIG}"`, { cwd: root, shell: true, stdio: ['ignore', 'ignore', 'inherit'] }));
 const sql = statements => wrangler(['d1', 'execute', 'rabbit-hole-learn-dev', '--command', statements.join('; ').replace(/\s+/g, ' ')]);
 const catalog = (await call('/api/apps')).body;
 const canvasOf = async title => { const c = (await call('/api/canvases', { method: 'POST', body: { title } })).body; if (!/^canvas-[a-f0-9]{8}$/.test(c?.name || '')) throw Error(`no canvas: ${JSON.stringify(c).slice(0, 160)}`); return c.name; };
-const A = await canvasOf(`Webpage card ${run}`), B = await canvasOf(`Webpage states ${run}`), C = await canvasOf(`Webpage refusal ${run}`);
+const A = await canvasOf(`Webpage card ${run}`), B = await canvasOf(`Webpage states ${run}`), C = await canvasOf(`Webpage refusal ${run}`), D = await canvasOf(`Add context ${run}`);
 {
   const now = Date.now(), rows = [];
-  for (const [cap, state] of [[V1, 'stored'], [V2, 'stored'], [V3, 'uploading']]) for (const f of cap.files) {
+  for (const [cap, state, app = A] of [[V1, 'stored'], [V2, 'stored'], [V3, 'uploading'], [V4, 'stored', D], [V5, 'stored', D]]) for (const f of cap.files) {
     const key = `file-sources/${f.id}/original/${f.sha256}`, file = `${OUT}/${f.id}.bin`;
     writeFileSync(file, f.bytes);
     wrangler(['r2', 'object', 'put', `rabbit-hole-dev-learn-media/${key}`, '--file', file, '--content-type', f.type]);
     rows.push(`INSERT INTO file_sources (id, org, owner_email, app, board_id, family, name, media_type, declared_type, bytes, sha256, r2_key, status, created_at, stored_at)
-      VALUES ('${f.id}', '${catalog.org}', '${catalog.email}', '${A}', NULL, 'webpage', '${f.role}${f.index ?? ''}', '${f.type}', '${f.declared}', ${f.bytes.length}, '${f.sha256}', '${key}', '${state}', ${now}, ${state === 'stored' ? now : 'NULL'})`);
+      VALUES ('${f.id}', '${catalog.org}', '${catalog.email}', '${app}', NULL, 'webpage', '${f.role}${f.index ?? ''}', '${f.type}', '${f.declared}', ${f.bytes.length}, '${f.sha256}', '${key}', '${state}', ${now}, ${state === 'stored' ? now : 'NULL'})`);
   }
   sql(rows);
 }
@@ -118,8 +126,9 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
 // (webpage-capture.js finishScreen: file_source_refs, the board's next save keeps it), so the card can read its files through
 // ?app=&board= before its own save. The mocked replies do the same here, at the moment they answer.
 const q1 = v => `'${String(v).replace(/'/g, "''")}'`;
-const indexReady = (reply, { app, board = 'main' } = {}) => {
-  if (reply?.status === 'ready' && reply.fileRef && app) {
+// A Context capture (context: true, Add context) is on no board, so nothing is indexed (webpage-capture.js).
+const indexReady = (reply, { app, board = 'main', context } = {}) => {
+  if (reply?.status === 'ready' && reply.fileRef && app && !context) {
     const ids = [reply.fileRef.source.id, ...reply.fileRef.bundle.map(b => b.source.id)].map(q1).join(', ');
     sql([`INSERT OR IGNORE INTO file_source_refs (source_id, board_id) SELECT s.id, b.id FROM file_sources s, learn_boards b
       WHERE s.id IN (${ids}) AND s.status = 'stored' AND b.app = ${q1(app)} AND b.board = ${q1(board)} AND b.owner_email = ${q1(catalog.email)} AND b.org = ${q1(catalog.org)}`]);
@@ -131,7 +140,7 @@ const router = async route => {
   if (!['data:', 'blob:'].includes(url.protocol) && url.origin !== BASE) { outside.push(url.hostname); return route.abort(); }
   let body = {};
   try { body = JSON.parse(request.postData() || '{}'); } catch { body = {}; }
-  if (path === '/api/learn/webpages' && method === 'POST') { captures.push({ phase, body }); paid.push({ phase, path }); return route.fulfill({ json: indexReady(nextCapture?.(body) ?? heldResult('unavailable', { reason: 'Fixture: no capture queued.' }), body) }); }
+  if (path === '/api/learn/webpages' && method === 'POST') { captures.push({ phase, body }); paid.push({ phase, path }); return route.fulfill({ json: indexReady(await nextCapture?.(body) ?? heldResult('unavailable', { reason: 'Fixture: no capture queued.' }), body) }); }
   if (/^\/api\/learn\/webpages\/fs_[0-9a-f]{24}\/screen$/.test(path) && method === 'POST') { screens.push({ phase, id: path.split('/')[4], body }); paid.push({ phase, path }); return route.fulfill({ json: indexReady(nextScreen?.(body) ?? heldResult('error', { reason: 'Fixture: no screening queued.' }), body) }); }
   if (/^\/api\/learn\/webpages\/fs_[0-9a-f]{24}$/.test(path) && method === 'GET') { const id = path.split('/').pop(); polls.push({ phase, id }); return route.fulfill({ json: indexReady(pollReplies.get(id) ?? heldResult('screening', { manifestId: id }), Object.fromEntries(url.searchParams)) }); }
   if (path.startsWith('/api/learn/files/') && method === 'GET') fileGets.push({ phase, id: path.split('/').pop(), query: url.search });
@@ -759,12 +768,292 @@ await check('the refusal is the screening gate: the same tile is served once its
   await call(`${boardPath(C)}/share`, { method: 'POST', body: { shared: false } });
 });
 
+// ================================================================ canvas D: Add context with a web page (owner brief 2026-10-29)
+const sourcesPane = () => page.locator('[data-sources-pane]');
+const dialog = () => page.locator('[data-add-context]');
+const urlBox = () => dialog().locator('[data-add-context-url]');
+const note = () => dialog().locator('[data-add-context-note]');
+const pageRow = () => sourcesPane().locator('[data-material-row]').filter({ has: page.locator('[data-material-name]', { hasText: TITLE_D }) }).first();
+const contextShown = () => page.evaluate(() => (document.querySelector('aside[data-companion]')?.getBoundingClientRect().width || 0) > 50 && (document.querySelector('[data-sources-pane]')?.getBoundingClientRect().width || 0) > 50);
+const openContext = async () => {
+  if (!(await page.evaluate(() => (document.querySelector('aside[data-companion]')?.getBoundingClientRect().width || 0) > 50))) await page.locator('[data-panel-companion]').click({ timeout: 5000 });
+  if (!(await contextShown())) await page.locator('[data-companion-view="context"]').click({ timeout: 5000 });
+  await waitFor(contextShown, 10000, 'the Context panel did not open');
+  if (await page.locator('[data-back-to-files]').isVisible().catch(() => false)) await page.locator('[data-back-to-files]').click();
+};
+const docText = async (id, who = OWNER) => { const r = await fetch(`${BASE}/api/learn/context/${encodeURIComponent(id)}?app=${D}`, { headers: { cookie: who } }); return { status: r.status, text: await r.text() }; };
+const contextDocs = async () => (await call(`/api/learn/context?app=${D}`)).body?.documents || [];
+const pageDoc = async () => (await contextDocs()).find(d => d.capture?.lineage === V4.lineage);
+const sourceOptions = async () => { await pageRow().locator('[data-material-action="more"]').click(); await page.locator('[data-material-menu]').waitFor({ timeout: 3000 }); };
+const webCards = () => page.locator('[aria-label="Lesson canvas"] [data-webcard]');
+const tabOrder = async n => { const seen = []; for (let i = 0; i < n; i += 1) { await page.keyboard.press('Tab'); seen.push(await page.evaluate(() => { const a = document.activeElement; return a?.closest('[data-add-context]') ? (Object.keys(a.dataset).find(k => k.startsWith('addContext')) || a.tagName) : 'outside'; })); } return seen; };
+let DOC = null;
+await open(D);
+
+await check('Add context: the Context header and the composer + menu open the same dialog; keyboard: focus in the address, Tab stays inside, Escape closes and returns focus', async () => {
+  await noAi('add context dialog', async () => {
+    await openContext();
+    const head = page.locator('[data-materials-upload]');
+    assert.equal(norm(await head.innerText()), 'Add context');
+    await head.focus();
+    await page.keyboard.press('Enter');
+    await dialog().waitFor({ timeout: 5000 });
+    assert.equal(await dialog().getAttribute('aria-modal'), 'true');
+    assert.equal(norm(await dialog().locator('h2').innerText()), 'Add context');
+    assert.deepEqual(await dialog().evaluate(el => ['[data-add-context-browse]', '[data-add-context-divider]', 'label', '[data-add-context-submit]'].map(s => el.querySelector(s)?.innerText.replace(/\s+/g, ' ').trim())),
+      ['Browse files', 'or add a web page', 'Web address', 'Add URL'], 'the labels');
+    const order = await dialog().evaluate(el => [...el.querySelectorAll('h2, [data-add-context-browse], [data-add-context-divider], label, [data-add-context-url], [data-add-context-submit]')].map(e => e.matches('h2') ? 'title' : e.matches('[data-add-context-browse]') ? 'browse' : e.matches('label') ? 'label' : e.matches('[data-add-context-url]') ? 'url' : e.matches('[data-add-context-submit]') ? 'add' : 'divider'));
+    assert.deepEqual(order, ['title', 'browse', 'divider', 'label', 'url', 'add'], 'title, Browse files, the divider, Web address, the box, Add URL');
+    assert.equal(await urlBox().getAttribute('placeholder'), 'https://');
+    assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-add-context-url')), true, 'focus starts in the address');
+    assert.deepEqual(await tabOrder(4), ['addContextSubmit', 'addContextClose', 'addContextBrowse', 'addContextUrl'], 'Tab walks the dialog and stays inside');
+    await page.keyboard.press('Escape');
+    await dialog().waitFor({ state: 'detached', timeout: 3000 });
+    assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-materials-upload')), true, 'Escape hands the focus back to Add context');
+    await pane().locator('button[aria-label="Add"]').first().click();
+    await page.locator('[data-upload-context]').click();
+    await dialog().waitFor({ timeout: 5000 });
+    assert.equal(await page.locator('[data-add-context]').count(), 1, 'the composer opens the same dialog');
+    await dialog().locator('[data-add-context-close]').click();
+    await dialog().waitFor({ state: 'detached', timeout: 3000 });
+  });
+});
+
+await check('Add context: Browse files is the existing upload: a .txt chosen there is listed in Context', async () => {
+  await noAi('browse files', async () => {
+    await page.locator('[data-materials-upload]').click();
+    await dialog().locator('input[type=file]').setInputFiles({ name: 'estuary-notes.txt', mimeType: 'text/plain', buffer: Buffer.from('Notes on estuaries.') });
+    await dialog().waitFor({ state: 'detached', timeout: 3000 });
+    await waitFor(async () => (await contextDocs()).some(d => d.name === 'estuary-notes.txt' && d.kind === 'text'), 15000, 'the file was not stored');
+    await sourcesPane().locator('[data-material-name]', { hasText: 'estuary-notes.txt' }).waitFor({ timeout: 10000 });
+  });
+});
+
+await check('Add context: Add URL captures once for Context (no board): a refusal says why and keeps the address; Add URL again succeeds; a double press is one capture; the row shows globe, title and address; no card', async () => {
+  await page.locator('[data-materials-upload]').click();
+  await dialog().waitFor({ timeout: 5000 });
+  let n = captures.length;
+  nextCapture = () => heldResult('login_required', { reason: 'This page needs a sign-in, so it cannot be captured.', url: URL_D });
+  await urlBox().fill(URL_D);
+  await dialog().locator('[data-add-context-submit]').click();
+  await waitFor(async () => (await note().getAttribute('data-add-context-note')) === 'error', 15000, 'no error shown');
+  assert.equal(await note().getAttribute('role'), 'alert', 'the reason is announced');
+  assert.match(await note().innerText(), /needs a sign-in/);
+  assert.equal(await urlBox().inputValue(), URL_D, 'the address stays for another try');
+  assert.equal(await urlBox().getAttribute('aria-invalid'), 'true');
+  assert.deepEqual(captures.slice(n).map(c => c.body), [{ app: D, context: true, url: URL_D }], 'one capture, for Context, on no board');
+  await shot('20-add-context-error');
+  // Add URL again (the retry), pressed twice: one capture; Adding while it runs.
+  n = captures.length;
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
+  nextCapture = async () => { await held; return readyResult(V4); }; // held until the in-flight state is checked
+  await urlBox().press('Enter');
+  await urlBox().press('Enter');
+  await waitFor(async () => norm(await dialog().locator('[data-add-context-submit]').innerText()) === 'Adding', 5000, 'the button did not say Adding');
+  assert.equal(await dialog().locator('[data-add-context-submit]').isDisabled(), true, 'Add URL is disabled while adding');
+  await waitFor(async () => (await sourcesPane().locator('[data-material-row][aria-busy="true"]').count()) > 0, 5000, 'no row in flight');
+  assert.match(norm(await sourcesPane().locator('[data-material-row][aria-busy="true"] [data-material-meta]').first().innerText()), /^Capturing and checking the page$/);
+  await shot('21-add-context-adding');
+  release();
+  await waitFor(async () => (await note().getAttribute('data-add-context-note')) === 'ready', 20000, 'the page was not added');
+  assert.equal(captures.length - n, 1, 'a double press made one capture');
+  assert.equal(norm(await note().innerText()), `Added ${TITLE_D} to Context.`);
+  assert.equal(await urlBox().inputValue(), '', 'the box empties once added');
+  assert.equal(await sourcesPane().locator('[data-material-row] [role="alert"]').count(), 0, 'the refused try is replaced by the one that worked');
+  DOC = await waitFor(pageDoc, 10000, 'no Context document for the page');
+  assert.deepEqual([DOC.kind, DOC.name, DOC.capture.manifestId, DOC.capture.url], ['webpage', TITLE_D, V4.manifestId, URL_D]);
+  await shot('22-add-context-added');
+  await dialog().locator('[data-add-context-close]').click();
+  await pageRow().waitFor({ timeout: 10000 });
+  assert.equal(norm(await pageRow().locator('[data-material-meta]').innerText()), URL_D, 'the HTTPS address under the title');
+  assert.equal(await pageRow().locator('svg.lucide-globe').count(), 1, 'a globe, not a file icon');
+  assert.equal(norm(await pageRow().locator('[data-material-action="more"]').innerText()), 'Source options');
+  assert.equal(await pageRow().locator('[data-material-action="chat"]').isChecked(), true, 'added from this chat, it is used in this chat');
+  assert.equal(await webCards().count(), 0, 'no card on the canvas');
+  assert.equal(((await saved(D)).blocks || []).filter(b => b.type === 'webpage').length, 0, 'none saved either');
+  await shot('23-url-row');
+});
+
+await check('Add context: the title opens the reader in place of the list with the captured text; opening it sends nothing', async () => {
+  await noAi('reader', async () => {
+    const n = turns.length;
+    await pageRow().locator('button', { has: page.locator('[data-material-name]') }).first().click();
+    const reader = page.locator('[data-source-reader] [data-source-text-view]');
+    await waitFor(async () => (await reader.innerText().catch(() => '')).includes(RUN_D), 15000, 'the reader did not show the page text');
+    const text = await reader.innerText();
+    assert.match(text, new RegExp(`^Web page: ${TITLE_D}\\nURL: ${URL_D.replace(/[.]/g, '\\.')}\\nCaptured: .+ \\(revision ${V4.sha256.slice(0, 12)}\\)`));
+    assert.equal(await page.locator('[data-back-to-files]').count(), 1, 'Back to Files');
+    assert.equal(await sourcesPane().locator('[data-context-files]').count(), 0, 'the reader replaces the list');
+    assert.equal(norm(await page.locator('[data-context-title]').innerText()), TITLE_D, 'the title once');
+    assert.equal(turns.length, n, 'nothing sent');
+    await shot('24-url-reader');
+    await page.locator('[data-back-to-files]').click();
+  });
+});
+
+await check('a deliberate Send with the Context web page carries its doc ref; the server reads it as the page text with title, URL and revision, owner only', async () => {
+  const n = turns.length;
+  // Ask: the turn that carries context_refs (Auto may plan with the Tutor first).
+  if (await pane().locator('[data-chat-mode]').getAttribute('data-chat-mode') !== 'ask') { await pane().getByRole('button', { name: 'Mode', exact: true }).click(); await page.locator('[data-chat-mode-option="ask"]').click(); }
+  await composer().fill('What do estuaries do?');
+  await pane().locator('[data-chat-composer] button[aria-label="Send"]').click();
+  const turn = await waitFor(() => turns[n], 20000, 'no turn was sent');
+  facts.add_context_send = { path: turn.path, refs: turn.body.context_refs || null };
+  assert.ok(bodyHas(turn.body, `doc:${DOC.id}`), `the turn names the page document (${JSON.stringify(turn.body.context_refs)})`);
+  assert.ok(!bodyHas(turn.body, '"runs"'), 'no capture JSON in the request');
+  const read = await docText(DOC.id);
+  assert.equal(read.status, 200);
+  for (const want of [`Web page: ${TITLE_D}`, `URL: ${URL_D}`, `revision ${V4.sha256.slice(0, 12)}`, RUN_D]) assert.ok(read.text.includes(want), `the document text has "${want}"`);
+  assert.equal((await docText(DOC.id, OTHER)).status, 404, 'another account cannot read it');
+  for (const f of V4.files) assert.equal(await status(`/api/learn/files/${f.id}?app=${D}&board=main`, OTHER), 404, `${f.role}: not to another account through the board`);
+});
+
+await check('Add context: for the page, Include in new chats (Source options, from the keyboard) changes only new chats; Use in this chat only this one', async () => {
+  await noAi('separate settings', async () => {
+    await openContext();
+    const use = () => pageRow().locator('[data-material-action="chat"]');
+    assert.equal(await use().isChecked(), true, 'used in this chat');
+    assert.equal((await pageDoc()).attached, true, 'on for new chats');
+    await pageRow().locator('[data-material-action="more"]').focus();
+    await page.keyboard.press('Enter');
+    const box = page.locator('[data-material-menu] [data-material-action="context"]');
+    await waitFor(() => box.evaluate(el => el === document.activeElement).catch(() => false), 3000, 'Enter did not focus Include in new chats');
+    assert.equal(norm(await page.locator('[data-material-menu-note]').innerText()), 'New chats on this canvas start with this page. Your current chat stays unchanged.');
+    await page.keyboard.press('Space');
+    await waitFor(async () => (await pageDoc()).attached === false, 8000, 'the canvas default did not switch off');
+    await page.keyboard.press('Escape');
+    assert.equal(await use().isChecked(), true, 'this chat keeps the page');
+    await use().click();
+    await waitFor(async () => !(await use().isChecked()), 3000, 'Use in this chat did not switch off');
+    assert.equal((await pageDoc()).attached, false, 'this chat never changes the canvas default');
+    await pane().locator('[data-chat-new]').click();
+    await page.waitForTimeout(800);
+    assert.equal(await use().isChecked(), false, 'a new chat follows the default: off');
+    await call(`/api/learn/context/${encodeURIComponent(DOC.id)}`, { method: 'PATCH', body: { app: D, attached: true } });
+  });
+});
+
+await check('Add context: Add to canvas (Source options) makes the browser card from the saved capture, no capture or check; again reveals the same card', async () => {
+  pollReplies.set(V4.manifestId, readyResult(V4));
+  await noAi('add to canvas', async () => {
+    await sourceOptions();
+    await page.locator('[data-material-menu] [data-material-action="canvas"]').click();
+    await waitFor(async () => (await webCards().count()) === 1, 10000, 'no browser card');
+    const id = await webBlockId();
+    await waitFor(async () => shows(await tilesShown(id), V4), 30000, 'the card did not show the saved capture');
+    assert.ok(polls.some(p => p.phase === phase && p.id === V4.manifestId), 'the saved capture was read');
+    await sourceOptions();
+    await page.locator('[data-material-menu] [data-material-action="canvas"]').click();
+    await page.waitForTimeout(1200);
+    assert.equal(await webCards().count(), 1, 'the second Add to canvas reveals the card, never a second one');
+    await waitFor(async () => ((await saved(D)).blocks || []).filter(b => b.type === 'webpage').length === 1, 10000, 'the card was not saved');
+    const block = await savedBlock(D, b => b.type === 'webpage');
+    assert.deepEqual([block.capture.manifestId, block.fileRef.source.id, block.url], [V4.manifestId, V4.manifestId, URL_D]);
+    await shot('25-url-card');
+  });
+});
+
+await check('Add context: Refresh page - a refused one keeps the last good text, a passed one replaces it, the card keeps its version', async () => {
+  let n = captures.length;
+  nextCapture = () => heldResult('blocked', { lineage: V4.lineage, manifestId: sourceId(), reason: 'Hidden: this page did not pass content screening.', url: URL_D });
+  await sourceOptions();
+  await page.locator('[data-material-menu] [data-material-action="refresh"]').click();
+  const error = pageRow().locator('[data-material-error]');
+  await error.waitFor({ timeout: 15000 });
+  assert.equal(norm(await error.innerText()), `Could not refresh ${TITLE_D}: Hidden: this page did not pass content screening. The last captured version stays in use.`);
+  assert.deepEqual(captures.slice(n).map(c => c.body), [{ app: D, context: true, url: URL_D, lineage: V4.lineage }], 'one capture, the same lineage');
+  assert.ok((await docText(DOC.id)).text.includes(RUN_D), 'the last good text is still read');
+  n = captures.length;
+  nextCapture = () => readyResult(V5);
+  await sourceOptions();
+  await page.locator('[data-material-menu] [data-material-action="refresh"]').click();
+  await waitFor(async () => (await pageDoc())?.capture?.manifestId === V5.manifestId, 15000, 'the refreshed version was not linked');
+  assert.equal(captures.length - n, 1);
+  const read = (await docText(DOC.id)).text;
+  assert.ok(read.includes(RUN_D_NEW) && !read.includes(RUN_D), 'the new text replaced the old');
+  assert.equal((await savedBlock(D, b => b.type === 'webpage')).capture.manifestId, V4.manifestId, 'the card keeps the version it shows');
+  // REVIEW-CTX-REFRESH-01: the reader reopened after the Refresh shows the new text, never a cached copy of the old.
+  await pageRow().locator('button', { has: page.locator('[data-material-name]') }).first().click();
+  const reader = page.locator('[data-source-reader] [data-source-text-view]');
+  await waitFor(async () => (await reader.innerText().catch(() => '')).includes(RUN_D_NEW), 15000, 'the reopened reader shows an older revision');
+  assert.ok(!(await reader.innerText()).includes(RUN_D), 'not the old text');
+  await page.locator('[data-back-to-files]').click();
+});
+
+await check('Add context: light and dark, a 320 px panel and a 320 px window - the dialog, the URL row and its reader fit with no sideways scroll', async () => {
+  await noAi('themes', async () => {
+    for (const theme of ['light', 'dark']) {
+      await open(D, theme); // the theme rides each load (open's init script)
+      await page.evaluate(() => localStorage.setItem('rh.companion.width', '320'));
+      await reload();
+      await openContext();
+      await pageRow().waitFor({ timeout: 10000 });
+      assert.equal(await page.evaluate(() => document.documentElement.classList.contains('dark')), theme === 'dark', `${theme}: the theme applied`);
+      const fits = await sourcesPane().evaluate(el => el.scrollWidth <= el.clientWidth + 1);
+      assert.ok(fits, `${theme}: the list does not scroll sideways`);
+      const meta = await pageRow().locator('[data-material-meta]').evaluate(el => { const r = el.getBoundingClientRect(), p = el.closest('[data-sources-pane]').getBoundingClientRect(); return { inside: r.right <= p.right + 1, whole: el.scrollWidth <= el.clientWidth + 1 }; });
+      assert.deepEqual(meta, { inside: true, whole: true }, `${theme}: the address wraps inside the panel`);
+      await page.locator('aside[data-companion]').first().screenshot({ path: `${OUT}/30-url-row-${theme}-320.png` });
+      await pageRow().locator('button', { has: page.locator('[data-material-name]') }).first().click();
+      await page.locator('[data-source-reader] [data-source-text-view]').waitFor({ timeout: 10000 });
+      assert.ok(await sourcesPane().evaluate(el => el.scrollWidth <= el.clientWidth + 1), `${theme}: the reader does not scroll sideways`);
+      await page.locator('aside[data-companion]').first().screenshot({ path: `${OUT}/31-url-reader-${theme}-320.png` });
+      await page.locator('[data-back-to-files]').click();
+      // The dialog opens from the header, then the window narrows under it to 320 px.
+      await page.locator('[data-materials-upload]').click();
+      await dialog().waitFor({ timeout: 5000 });
+      await urlBox().fill('https://example.com/a-very-long-address/that/keeps/going/and/going/on/a/narrow/window');
+      for (const width of [1600, 320]) {
+        await page.setViewportSize({ width, height: width === 320 ? 700 : 1000 });
+        await page.waitForTimeout(400);
+        const box = await dialog().evaluate(el => { const r = el.getBoundingClientRect(), add = el.querySelector('[data-add-context-submit]').getBoundingClientRect(), url = el.querySelector('[data-add-context-url]').getBoundingClientRect(), bg = getComputedStyle(el).backgroundColor;
+          return { left: r.left, right: r.right, width: r.width, radius: getComputedStyle(el).borderTopLeftRadius, stacked: add.top >= url.bottom - 1, addH: add.height, urlH: url.height, scroll: document.documentElement.scrollWidth, bg }; });
+        assert.ok(box.width <= 440 && box.left >= 15 && box.right <= width - 15, `${theme} ${width}: inside 16 px gutters, at most 440 px (${JSON.stringify(box)})`);
+        assert.equal(box.radius, '10px');
+        assert.equal(box.stacked, width <= 420, `${theme} ${width}: the box and Add URL ${width <= 420 ? 'stack' : 'sit side by side'}`);
+        assert.ok(width <= 420 ? box.addH >= 44 && box.urlH >= 44 : box.addH === 40 && box.urlH === 40, `${theme} ${width}: heights ${box.urlH}/${box.addH}`);
+        assert.ok(box.scroll <= width, `${theme} ${width}: no sideways scroll`);
+        await page.screenshot({ path: `${OUT}/32-dialog-${theme}-${width}.png` });
+      }
+      await page.keyboard.press('Escape');
+      await dialog().waitFor({ state: 'detached', timeout: 3000 });
+    }
+    await page.evaluate(() => localStorage.removeItem('rh.companion.width'));
+    await open(D);
+  });
+});
+
+await check('Add context: Remove from context keeps the browser card, also after a reload; the page leaves the list and the next chat', async () => {
+  await noAi('remove', async () => {
+    await openContext();
+    await sourceOptions();
+    await page.locator('[data-material-menu] [data-material-action="remove"]').click();
+    await page.locator('[data-material-remove-yes]').click();
+    await waitFor(async () => (await pageRow().count()) === 0, 10000, 'the row stayed');
+    assert.equal(await pageDoc(), undefined, 'gone from the Context list');
+    await reload();
+    await waitFor(async () => (await webCards().count()) === 1, 15000, 'the card is gone');
+    const id = await webBlockId();
+    await waitFor(async () => shows(await tilesShown(id), V4), 30000, 'the card no longer shows its capture');
+  });
+});
+
+await check('Start-source regression: a context-only link from Start still becomes a note, with no capture', async () => {
+  const n = captures.length;
+  const note = await call('/api/learn/context/link', { method: 'POST', body: { app: D, url: 'https://example.com/start-note' } });
+  assert.equal(note.status, 200, JSON.stringify(note.body).slice(0, 200));
+  assert.deepEqual([note.body.document.kind, note.body.document.name, note.body.document.capture], ['text', 'example.com/start-note', undefined]);
+  assert.match((await docText(note.body.document.id)).text, /The page itself has not been read/);
+  assert.equal(captures.length, n, 'Start captures nothing');
+});
+
 await check('no AI request outside the one deliberate Send, no capture or screening request outside paste, Refresh and Retry, no request to a captured site, no page error', async () => {
   facts.ai = ai.map(a => `${a.phase.slice(0, 40)}: ${a.path}`);
   facts.outside_hosts = [...new Set(outside)]; // the app shell's own outside hosts (aborted here) are recorded, not judged
-  const sendPhase = results.find(r => r.label.startsWith('a deliberate Send'))?.label;
-  assert.deepEqual(ai.filter(a => a.phase !== sendPhase).map(a => a.path), [], 'AI requests outside the Send');
-  const allowed = p => /^"Add webpage card"|^a failed Refresh|^Refresh makes|^inconclusive and error/.test(p);
+  const sendPhases = results.filter(r => r.label.startsWith('a deliberate Send')).map(r => r.label);
+  assert.deepEqual(ai.filter(a => !sendPhases.includes(a.phase)).map(a => a.path), [], 'AI requests outside the Sends');
+  const allowed = p => /^"Add webpage card"|^a failed Refresh|^Refresh makes|^inconclusive and error|^Add context: Add URL|^Add context: Refresh/.test(p);
   assert.deepEqual(paid.filter(p => !allowed(p.phase)).map(p => `${p.phase}: ${p.path}`), [], 'capture or screening requests elsewhere');
   assert.deepEqual([...new Set(outside)].filter(h => /(^|\.)example\.(com|org)$/.test(h)), [], 'the card fetched the live page instead of its capture');
   assert.deepEqual(errors, [], 'page errors');

@@ -1,9 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowLeft, CircleAlert, CornerUpLeft, ExternalLink, Loader2, MoreHorizontal, Pin, RotateCw, SquarePlus, Trash2, Upload, X } from 'lucide-react';
+import { ArrowLeft, CircleAlert, CornerUpLeft, ExternalLink, Globe, Loader2, MoreHorizontal, Pin, Plus, RotateCw, SquarePlus, Trash2, X } from 'lucide-react';
 import { Button, Menu, MenuItem, useMenuButton } from './ui.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { externalUrl, paneSections, rangeLabel } from './chat-context.js';
-import { CONTEXT_ACCEPT, retryContextDoc } from './context-docs.js';
+import { retryContextDoc } from './context-docs.js';
+import AddContextDialog from './AddContextDialog.jsx';
+import { readCapture } from './webcard-api.js';
+import { sameWebpageCard, webpageCard } from './webcard.js';
 import { useContextProcessing } from './context-doc-pages.js';
 import { RefIcon } from './ContextChips.jsx';
 import SourceReader from './SourceReader.jsx';
@@ -13,7 +16,7 @@ import { wsHeaders } from './api.js';
 import { studyReaderPin } from './study-state.js';
 
 // The Context panel (UI-26, owner brief 2026-10-22 sections 1-4): the companion column's Context view. Its header (PanelHeader
-// CompanionHeader) holds "Context", the one blue Upload (ContextUpload below) and Close. The body is either the file list or
+// CompanionHeader) holds "Context", the one blue Add context (ContextUpload below; owner brief 2026-10-29) and Close. The body is either the file list or
 // one file's reader, never both: a filename opens its reader in place of the list, "Back to Files" returns. Each row: file icon,
 // the name (the full name as tooltip and in File options), its metadata, then "Use in this chat" (this conversation's
 // attachment) and File options (a popover: the full name, Include in new chats - the canvas default, a setting apart from this
@@ -30,6 +33,7 @@ const KINDS = { pdf: 'PDF', text: 'Text', markdown: 'Markdown', md: 'Markdown', 
 const bytes = n => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : n >= 1e3 ? `${Math.round(n / 1e3)} KB` : `${n} B`);
 export const docMeta = doc => {
   if (!doc) return '';
+  if (doc.capture) return doc.capture.url; // a web page: its address under its title
   const day = doc.created_at ? new Date(`${String(doc.created_at).replace(' ', 'T')}${/Z|[+-]\d\d:?\d\d$/.test(doc.created_at) ? '' : 'Z'}`) : null;
   return [KINDS[doc.kind] || (doc.kind ? String(doc.kind).toUpperCase() : ''), Number.isInteger(doc.pages) && doc.pages > 0 ? `${doc.pages} page${doc.pages === 1 ? '' : 's'}` : '',
     Number.isFinite(doc.size) && doc.size > 0 ? bytes(doc.size) : '', day && !Number.isNaN(day.getTime()) ? day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''].filter(Boolean).join(' · ');
@@ -42,15 +46,18 @@ export const docNote = doc => [doc?.reads === 'pages' && doc?.status !== 'failed
 // Reading a PDF's pages in this tab (context-doc-pages.js): "Reading pages 120 of 312", or Uploading before the count is known.
 const readingLabel = job => (job?.total ? `Reading pages ${job.done} of ${job.total}` : '');
 
-// Upload, in the Context header beside Close (LearnPage passes it to CompanionHeader while Context shows).
+// Add context, in the Context header beside Close (LearnPage passes it to CompanionHeader while Context shows): the Add context
+// dialog (AddContextDialog.jsx), a file or a web address. Same place and blue action style as the Upload it replaces.
 export function ContextUpload() {
-  const chat = useChatWorkspace(), picker = useRef(null);
+  const chat = useChatWorkspace(), [open, setOpen] = useState(false);
   if (!chat) return null;
   return <>
-    <input ref={picker} type="file" accept={CONTEXT_ACCEPT} className="hidden" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; chat.context.upload(file); }} />
-    <Button variant="action" size="sm" data-materials-upload onClick={() => picker.current?.click()}><Upload size={14} aria-hidden /> Upload</Button>
+    <Button variant="action" size="sm" data-materials-upload aria-haspopup="dialog" onClick={() => setOpen(true)}><Plus size={14} aria-hidden /> Add context</Button>
+    {open && <AddContextDialog onClose={() => setOpen(false)} />}
   </>;
 }
+// A Context row that is a captured web page (learn-context-docs.js: kind 'webpage' with its capture) or one being added.
+const pageOf = item => item.doc?.capture?.url || item.url || null;
 
 // Use in this chat: this conversation's attachment, the same state as its composer chip and the refs the next message sends.
 function UseInChat({ item, name, disabled, onChange }) {
@@ -63,9 +70,10 @@ function UseInChat({ item, name, disabled, onChange }) {
 // File options: a small popover beside its button (ui.jsx Menu: kept inside the window, closed by a press outside, by Escape -
 // which hands focus back to the button - or when a scroll moves the button). It opens below the button, or above it when the
 // window has no room below. Nothing is inserted into the list.
-function FileOptions({ item, name, pending, canAdd, onAdd, onContext, onRemove }) {
+// A web page's are Source options (its Refresh among them); a file's stay File options.
+function FileOptions({ item, name, pending, canAdd, onAdd, onContext, onRemove, onRefresh }) {
   const m = useMenuButton(), panel = useRef(null), [confirming, setConfirming] = useState(false), [above, setAbove] = useState(null);
-  const doc = item.doc, onCanvas = !!doc?.attached;
+  const doc = item.doc, onCanvas = !!doc?.attached, page = !!doc?.capture, label = page ? 'Source options' : 'File options';
   useEffect(() => { if (!m.open) setConfirming(false); }, [m.open]);
   useLayoutEffect(() => {
     if (!m.open) { setAbove(null); return; }
@@ -78,21 +86,23 @@ function FileOptions({ item, name, pending, canAdd, onAdd, onContext, onRemove }
   const style = r ? { top: above != null ? r.top - 4 - above : r.bottom + 4, left: Math.max(8, r.right - POPOVER_WIDTH) } : undefined;
   return <>
     <button type="button" {...m.buttonProps} aria-haspopup="dialog" data-material-action="more" disabled={pending}
-      aria-label={`File options for ${name}`} title={`File options for ${name}`} className={OPTIONS}>
-      {pending ? <Loader2 size={13} aria-hidden className="animate-spin" /> : <MoreHorizontal size={13} aria-hidden />}File options
+      aria-label={`${label} for ${name}`} title={`${label} for ${name}`} className={OPTIONS}>
+      {pending ? <Loader2 size={13} aria-hidden className="animate-spin" /> : <MoreHorizontal size={13} aria-hidden />}{label}
     </button>
     {m.open && <Menu portal anchor={m.button.current} open onClose={m.onClose} style={style} className="w-72">
-      <div ref={panel} role="dialog" aria-label={`File options for ${name}`} data-material-menu data-menu-button-open>
+      <div ref={panel} role="dialog" aria-label={`${label} for ${name}`} data-material-menu data-menu-button-open>
         <p data-material-menu-name className="px-2 pt-1.5 text-sm font-medium break-words text-ink">{name}</p>
-        {docMeta(doc) && <p className="px-2 pb-1.5 text-xs text-ink-3">{docMeta(doc)}</p>}
+        {docMeta(doc) && <p className="px-2 pb-1.5 text-xs break-all text-ink-3">{docMeta(doc)}</p>}
         <div className="my-1 border-t border-line" />
         {/* The canvas default: what NEW chats on this canvas start with. The open chat's own attachment is Use in this chat. */}
         <label className="flex cursor-pointer items-start gap-2 rounded-sm px-2 py-1.5 hover:bg-hover">
           <input type="checkbox" autoFocus data-material-action="context" checked={onCanvas} disabled={pending} onChange={() => onContext(!onCanvas)} className={`${BOX} mt-0.5`} />
           <span className="min-w-0"><span className="block text-sm text-ink">Include in new chats</span>
-            <span data-material-menu-note className="block text-xs text-ink-3">New chats on this canvas start with this file. Your current chat stays unchanged.</span></span>
+            <span data-material-menu-note className="block text-xs text-ink-3">New chats on this canvas start with this {page ? 'page' : 'file'}. Your current chat stays unchanged.</span></span>
         </label>
         {canAdd && <MenuItem icon={SquarePlus} data-material-action="canvas" onClick={() => { m.close(); onAdd(); }} className="focus-visible:outline-2 focus-visible:outline-accent/35">Add to canvas</MenuItem>}
+        {/* Refresh: capture the page again; the new version replaces this one only once it passed the check. */}
+        {page && <MenuItem icon={RotateCw} data-material-action="refresh" disabled={pending} onClick={() => { m.close(); onRefresh(); }} className="focus-visible:outline-2 focus-visible:outline-accent/35">Refresh page</MenuItem>}
         <div className="my-1 border-t border-line" />
         {confirming
           ? <div data-material-remove-confirm role="group" aria-label={`Remove ${name} from context`} className="px-2 py-1.5">
@@ -134,7 +144,8 @@ export default function SourcesPane({ onSwitchOff = null }) {
     try { await work(); setRows(({ [key]: _, ...rest }) => rest); }
     catch (error) {
       setRows(state => ({ ...state, [key]: { error: action === 'remove' ? `Could not remove ${item.ref.name} from context: ${error.message}. Try again from File options.`
-        : action === 'retry' ? `Could not read the pages of ${item.ref.name}: ${error.message}` : `Could not change ${item.ref.name}: ${error.message}` } }));
+        : action === 'retry' ? `Could not read the pages of ${item.ref.name}: ${error.message}`
+        : action === 'refresh' ? `Could not refresh ${item.ref.name}: ${error.message.replace(/\.?$/, '.')} The last captured version stays in use.` : `Could not change ${item.ref.name}: ${error.message}` } }));
     }
   };
   // Remove from context: membership only - excerpt cards, pages and the file they read stay. On success (context.remove applies
@@ -156,16 +167,23 @@ export default function SourcesPane({ onSwitchOff = null }) {
     const ready = item.state === 'ready', doc = item.doc;
     if (ready && !!pdfKeyOfRef(ref) && (ref.kind !== 'doc' || doc?.kind === 'pdf')) return () => addToCanvas(ref);
     if (ready && !!canvasFamilyOf(ref) && !!chat.canvasOps?.insertCard) return () => run(item, 'canvas', () => addFileToCanvas({ ref, app: chat.canvas, ops: chat.canvasOps, headers: wsHeaders() }));
+    // A web page (owner brief 2026-10-29 section 4): the browser card of its saved, approved capture - read, never captured or
+    // checked again; its card already on the canvas (the same lineage) is revealed instead.
+    if (ready && item.doc?.capture && !!chat.canvasOps?.insertCard) return () => run(item, 'canvas', async () => {
+      const { capture } = item.doc, reply = await readCapture(capture.manifestId, { app: chat.canvas, context: true });
+      if (reply.status !== 'ready') throw Error(reply.reason || 'its saved capture is not available');
+      chat.canvasOps.insertCard(webpageCard(reply, capture.url), { same: sameWebpageCard(capture.lineage) });
+    });
     return null;
   };
   const toggleChat = item => { if (!item.attached) return context.attach(item.ref); context.detach(item.ref); onSwitchOff?.(item.ref); };
   const options = (item, name, add) => item.doc && <FileOptions item={item} name={name} pending={!!item.removing || rows[item.ref.sourceId]?.busy === 'remove'} canAdd={!!add} onAdd={add}
-    onContext={on => run(item, 'context', () => context.canvasContext(item.doc, on))} onRemove={() => remove(item)} />;
+    onContext={on => run(item, 'context', () => context.canvasContext(item.doc, on))} onRemove={() => remove(item)} onRefresh={() => run(item, 'refresh', () => context.refresh(item.doc))} />;
   const errorOf = item => { const row = rows[item.ref.sourceId] || {}; return row.error && <p role="alert" data-material-error className="px-3 pb-1.5 text-xs text-danger">{row.error}</p>; };
   const reading = sections.find(section => section.active && folded !== active);
 
   if (reading) {
-    const { item, ref } = reading, name = ref.name, add = adder(item, ref), ready = item.state === 'ready';
+    const { item, ref } = reading, name = ref.name, add = adder(item, ref), ready = item.state === 'ready', href = url || item.doc?.capture?.url;
     // Pin for study (UI-27): the same pin as the PDF card's menu, offered only when exactly one card on this canvas is this PDF.
     const study = studyReaderPin(), pinTarget = study?.target(ref.sourceId) || null;
     return (
@@ -176,16 +194,16 @@ export default function SourcesPane({ onSwitchOff = null }) {
               <ArrowLeft size={15} aria-hidden />Back to Files</button>
             <span className="flex-1" />
             {sources.canBack && <button type="button" onClick={sources.back} aria-label="Back to the previous source" title="Back to the previous source" className={ICON_BUTTON}><CornerUpLeft size={15} aria-hidden /></button>}
-            {url && <span className="relative">
+            {href && <span className="relative">
               <button type="button" onClick={() => setMenu(open => !open)} aria-label="Source actions" title="Source actions" aria-haspopup="menu" aria-expanded={menu} className={ICON_BUTTON}><MoreHorizontal size={16} aria-hidden /></button>
               <Menu open={menu} onClose={() => setMenu(false)} className="top-9 right-0 w-52">
-                <MenuItem icon={ExternalLink} onClick={() => { setMenu(false); window.open(url, '_blank', 'noopener'); }}>Open externally</MenuItem>
+                <MenuItem icon={ExternalLink} onClick={() => { setMenu(false); window.open(href, '_blank', 'noopener'); }}>Open externally</MenuItem>
               </Menu>
             </span>}
           </div>
           {/* The document's title, once: the reader below shows its pages, not the name again. */}
           <div className="flex min-w-0 items-center gap-1.5 px-1">
-            <RefIcon kind={active.kind} size={16} className="shrink-0 text-ink-2" />
+            {item.doc?.capture ? <Globe size={16} strokeWidth={1.5} aria-hidden className="shrink-0 text-ink-2" /> : <RefIcon kind={active.kind} size={16} className="shrink-0 text-ink-2" />}
             <h2 data-context-title className="min-w-0 truncate text-sm font-medium text-ink" title={name}>{name}</h2>
             {rangeLabel(active.range) && <span className="shrink-0 text-xs text-ink-3">{rangeLabel(active.range)}</span>}
           </div>
@@ -202,7 +220,7 @@ export default function SourcesPane({ onSwitchOff = null }) {
           {errorOf(item)}
         </div>
         <div ref={list} tabIndex={-1} data-source-reader className="flex min-h-0 flex-1 flex-col px-2 pt-1 outline-none">
-          <SourceReader key={ref.sourceId} sourceRef={ref} position={sources.position(ref.sourceId)} onPosition={position => sources.savePosition(ref.sourceId, position)} />
+          <SourceReader key={ref.sourceId} sourceRef={ref} revision={item.doc?.capture?.rev ?? null} position={sources.position(ref.sourceId)} onPosition={position => sources.savePosition(ref.sourceId, position)} />
         </div>
       </div>
     );
@@ -212,15 +230,16 @@ export default function SourcesPane({ onSwitchOff = null }) {
     <div data-sources-pane className="flex min-h-0 flex-1 flex-col">
       <div ref={list} tabIndex={-1} data-context-files className="flex min-h-0 flex-1 flex-col overflow-y-auto py-1 outline-none">
         {sections.length > 0 && <p data-context-count aria-live="polite" className="px-3 pt-1 pb-1.5 text-xs text-ink-3">{fileCount(sections.length)}</p>}
-        {!sections.length && <p data-context-empty aria-live="polite" className="px-3 py-2 text-xs text-ink-3">No sources yet. Upload a PDF, .txt or .md file, or add cards from the canvas to the chat.</p>}
+        {!sections.length && <p data-context-empty aria-live="polite" className="px-3 py-2 text-xs text-ink-3">No sources yet. Add a PDF, .txt or .md file or a web page URL, or add cards from the canvas to the chat.</p>}
         <ul aria-label="Files" className="flex flex-col">
           {sections.map(({ key, item, ref, active: isActive }) => {
             const ready = item.state === 'ready', busy = item.state === 'uploading' || item.state === 'processing', failed = item.state === 'failed';
-            const name = ref.name, add = adder(item, ref), pending = !!item.removing || rows[ref.sourceId]?.busy === 'remove';
+            const name = ref.name, add = adder(item, ref), pending = !!item.removing || rows[ref.sourceId]?.busy === 'remove', web = !!pageOf(item);
             // A retry reads its pages on this row; an upload's reading shows on its upload row (same name, no id yet).
             const job = item.doc ? jobs.find(entry => entry.id === item.doc.id) : busy ? jobs.find(entry => !entry.id && entry.name === name) : null;
-            const reading = !!(item.doc && job) || rows[ref.sourceId]?.busy === 'retry';
-            const meta = busy ? readingLabel(job) || (item.state === 'processing' ? 'Processing' : 'Uploading') : pending ? 'Removing' : reading ? readingLabel(job) || 'Reading pages' : docMeta(item.doc);
+            const reading = !!(item.doc && job) || rows[ref.sourceId]?.busy === 'retry' || rows[ref.sourceId]?.busy === 'refresh';
+            const meta = busy ? readingLabel(job) || (item.url ? 'Capturing and checking the page' : item.state === 'processing' ? 'Processing' : 'Uploading') : pending ? 'Removing'
+              : rows[ref.sourceId]?.busy === 'refresh' ? 'Refreshing: capturing and checking the page' : reading ? readingLabel(job) || 'Reading pages' : docMeta(item.doc);
             const range = rangeLabel(ref.kind === 'excerpt' ? null : ref.range);
             return (
               <li key={key} data-material-row data-source-id={ref.sourceId} data-source-section={isActive ? 'active' : ''} aria-busy={pending || busy || reading || undefined}
@@ -229,10 +248,11 @@ export default function SourcesPane({ onSwitchOff = null }) {
                 <div className="flex flex-col px-2 py-1 @[30rem]:flex-row @[30rem]:items-center @[30rem]:gap-2">
                   <button type="button" disabled={!ready} onClick={() => (isActive ? setFolded(null) : chat.openSource(ref))} title={item.error || name}
                     className="flex min-h-9 min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35 disabled:cursor-default disabled:hover:bg-transparent">
-                    {busy || pending || reading ? <Loader2 size={15} aria-hidden className="shrink-0 animate-spin text-ink-3" /> : failed || item.doc?.status === 'failed' ? <CircleAlert size={15} aria-hidden className="shrink-0 text-danger" /> : <RefIcon kind={ref.kind} size={15} className="shrink-0 text-ink-2" />}
+                    {busy || pending || reading ? <Loader2 size={15} aria-hidden className="shrink-0 animate-spin text-ink-3" /> : failed || item.doc?.status === 'failed' ? <CircleAlert size={15} aria-hidden className="shrink-0 text-danger" /> : web ? <Globe size={15} strokeWidth={1.5} aria-hidden className="shrink-0 text-ink-2" /> : <RefIcon kind={ref.kind} size={15} className="shrink-0 text-ink-2" />}
                     <span className={`flex min-w-0 flex-1 flex-col leading-tight ${pending ? 'opacity-60' : ''}`}>
-                      <span data-material-name title={name} className={`min-w-0 truncate text-sm text-ink ${isActive ? 'font-medium' : ''}`}>{name}</span>
-                      {(meta || range) && <span data-material-meta className="truncate text-xs text-ink-3">{[meta, range].filter(Boolean).join(' · ')}</span>}
+                      {/* A web page's title and address wrap (owner brief 2026-10-29 section 5); a file's name truncates with its tooltip. */}
+                      <span data-material-name title={name} className={`min-w-0 ${web ? 'break-words' : 'truncate'} text-sm text-ink ${isActive ? 'font-medium' : ''}`}>{name}</span>
+                      {(meta || range) && <span data-material-meta className={`${web ? 'break-all' : 'truncate'} text-xs text-ink-3`}>{[meta, range].filter(Boolean).join(' · ')}</span>}
                     </span>
                   </button>
                   <div data-material-actions className="flex shrink-0 items-center gap-1 pb-1 pl-7 @[30rem]:pb-0 @[30rem]:pl-0">
@@ -243,7 +263,7 @@ export default function SourcesPane({ onSwitchOff = null }) {
                     {ready && !item.doc && add && <Button variant="secondary" size="sm" data-material-action="canvas" disabled={!!rows[ref.sourceId]?.busy} onClick={add}
                       aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className="gap-1 px-2 text-xs">{rows[ref.sourceId]?.busy === 'canvas' ? <Loader2 size={13} aria-hidden className="animate-spin" /> : <SquarePlus size={13} aria-hidden />}Add to canvas</Button>}
                     {failed && <>
-                      <button type="button" onClick={item.retry} aria-label={`Retry uploading ${name}`} title="Retry" className={ICON_BUTTON}><RotateCw size={14} aria-hidden /></button>
+                      <button type="button" onClick={item.retry} aria-label={`Retry ${item.url ? 'adding' : 'uploading'} ${name}`} title="Retry" className={ICON_BUTTON}><RotateCw size={14} aria-hidden /></button>
                       <button type="button" onClick={item.dismiss} aria-label={`Dismiss ${name}`} title="Dismiss" className={ICON_BUTTON}><X size={14} aria-hidden /></button>
                     </>}
                   </div>

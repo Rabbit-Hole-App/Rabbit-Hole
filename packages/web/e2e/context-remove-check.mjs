@@ -2,7 +2,8 @@
 // fresh browser profile. No model is ever called: /api/learn/ask is answered here with canned text and its request bodies
 // CAPTURED; every other model-capable route is aborted and counted, and none may happen.
 // Setup: a canvas with two context PDFs (remove-me.pdf, 3 pages, and one with a long name); remove-me.pdf's pages are added to
-// the canvas from its File options. Covered: the header (Context, Upload, Close) and the file count; File options as a popover
+// the canvas from its File options. Covered: the header (Context, Add context - Upload until the owner brief of 2026-10-29 -,
+// Close) and the file count; File options as a popover
 // beside its button, inside the window (also in a short window), leaving the rows where they were, closed by a press outside
 // and by Escape (focus back on its button), keyboard order inside it; Include in new chats apart from Use in this chat; the
 // rows at rest in light and dark at a narrow and a wide panel; the reader replacing the list and Back to Files by keyboard;
@@ -198,15 +199,16 @@ const send = async text => {
 // ================================================================ the run
 await openCanvas();
 
-await check('setup: the header reads Context, Upload and Close; two files listed and counted; their chips ride the new chat; the pages are added from File options', async () => {
+await check('setup: the header reads Context, Add context and Close; two files listed and counted; their chips ride the new chat; the pages are added from File options', async () => {
   await waitFor(async () => (await chip(NAME).count()) > 0 && (await chip(LONG).count()) > 0, 15000, 'the new chat has no chips for the two documents');
   await openSources();
   await waitFor(async () => (await row(KEY).count()) === 1 && (await row(LONG_KEY).count()) === 1, 10000, 'the two rows did not show');
   assert.equal((await header().locator('[data-companion-view="context"]').innerText()).trim(), 'Context');
-  assert.equal(await header().locator('[data-materials-upload]').count(), 1, 'Upload in the header');
+  assert.equal(await header().locator('[data-materials-upload]').count(), 1, 'Add context in the header');
+  assert.equal((await header().locator('[data-materials-upload]').innerText()).trim(), 'Add context', 'named Add context (owner brief 2026-10-29)');
   assert.equal(await sources().locator('[data-materials-upload]').count(), 0, 'never between the files');
   const order = await header().evaluate(el => [...el.querySelectorAll('[data-companion-view], [data-materials-upload], [data-companion-close]')].map(e => (e.matches('[data-materials-upload]') ? 'upload' : e.matches('[data-companion-close]') ? 'close' : 'view')));
-  assert.deepEqual(order.slice(-2), ['upload', 'close'], 'Upload then Close on the right');
+  assert.deepEqual(order.slice(-2), ['upload', 'close'], 'Add context then Close on the right');
   assert.equal((await count().innerText()).trim(), '2 files');
   assert.equal(await useInChat(KEY).isChecked(), true, 'Use in this chat: checked for an attached file');
   await options(KEY).click();
@@ -322,7 +324,7 @@ await check('rows at rest: light and dark, narrow and wide: the name truncates, 
     const second = actions[0].y >= name.bottom - 1;
     assert.equal(second, width < 480, `${theme} ${width}: the actions take ${width < 480 ? 'their own line' : 'the name line'}`);
     const upload = await box(header().locator('[data-materials-upload]')), head = await box(header());
-    assert.ok(upload.right <= head.right && upload.left >= head.left, `${theme} ${width}: Upload whole in the header`);
+    assert.ok(upload.right <= head.right && upload.left >= head.left, `${theme} ${width}: Add context whole in the header`);
     await options(LONG_KEY).click();
     await popover().waitFor({ timeout: 3000 });
     const surface = await popover().evaluate(el => getComputedStyle(el.parentElement).backgroundColor);
@@ -412,6 +414,7 @@ await check('removing the open, unattached, last file: back to Files and the emp
   await options(LONG_KEY).click();
   await (await removeFromPopover()).click();
   await sources().locator('[data-context-empty]').waitFor({ timeout: 8000 });
+  assert.equal((await sources().locator('[data-context-empty]').innerText()).trim(), 'No sources yet. Add a PDF, .txt or .md file or a web page URL, or add cards from the canvas to the chat.', 'the empty list names files and web pages');
   assert.equal(await sources().locator('[data-back-to-files]').count(), 0, 'its reader went back to Files');
   assert.equal(await count().count(), 0, 'no count over an empty list');
   assert.equal(await sources().locator('[data-material-row]').count(), 0);

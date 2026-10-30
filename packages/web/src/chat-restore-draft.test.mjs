@@ -25,7 +25,7 @@ await esbuild.build({
     build.onResolve({ filter: /^react$/ }, () => ({ path: 'react', namespace: 'fake-react' }));
     build.onLoad({ filter: /.*/, namespace: 'fake-react' }, () => ({ contents: FAKE_REACT, loader: 'js' }));
     build.onResolve({ filter: /context-docs\.js$/ }, () => ({ path: 'context-docs', namespace: 'stub' })); // the canvas's documents and their network calls
-    build.onLoad({ filter: /.*/, namespace: 'stub' }, () => ({ contents: 'export const useContextDocs = () => globalThis.__ctx; export const uploadContextDoc = (...a) => globalThis.__upload(...a); export const removeContextDoc = (...a) => globalThis.__remove(...a); export const toggleContextDoc = async () => {};', loader: 'js' }));
+    build.onLoad({ filter: /.*/, namespace: 'stub' }, () => ({ contents: 'export const useContextDocs = () => globalThis.__ctx; export const uploadContextDoc = (...a) => globalThis.__upload(...a); export const removeContextDoc = (...a) => globalThis.__remove(...a); export const toggleContextDoc = async () => {}; export const addContextUrl = (...a) => globalThis.__addUrl(...a);', loader: 'js' }));
   } }],
 });
 const H = createRequire(import.meta.url)(outfile);
@@ -422,6 +422,60 @@ test('CONTEXT: an upload started while the restore is pending joins the restored
   assert.deepEqual([view.current.main.id, ids(view.current.context.attached)], [null, []], 'a late upload never attaches to a different conversation');
   await close(view);
   assert.deepEqual(s.states(), []);
+});
+
+// Add context with a web address (owner brief 2026-10-29): the row is in flight on the canvas it started on; the page joins the
+// conversation that asked when its capture lands, never another conversation or canvas; a failure stays on its row with Retry.
+test('CONTEXT: a web page added, then New chat or another canvas while it is captured: it joins only the conversation that asked', async () => {
+  const doc = { id: 'ctx:0123456789aa', name: 'Rivers', kind: 'webpage', created_at: '2026-10-29 01:00:00' };
+  let s = server(saved({ contextRefs: [A1] }));
+  let finish, fail;
+  globalThis.__addUrl = () => new Promise((done, reject) => { finish = done; fail = reject; });
+  let view = await open();
+  await s.release('canvaschat-saved');
+  const added = view.current.context.addUrl('https://example.com/rivers');
+  await settle();
+  assert.deepEqual(view.current.context.items.filter(item => item.url).map(item => [item.state, item.ref.kind]), [['processing', 'web']], 'one row, capturing');
+  finish(doc);
+  assert.equal(await added, doc);
+  await settle();
+  assert.deepEqual(ids(view.current.context.attached), ['card:A1', 'doc:ctx:0123456789aa'], 'rides the chat that asked');
+  assert.equal(view.current.context.items.some(item => item.url), false, 'the row became the document');
+  await close(view);
+
+  s = server(saved({ contextRefs: [A1] }));
+  view = await open();
+  await s.release('canvaschat-saved');
+  view.current.context.addUrl('https://example.com/rivers').catch(() => {});
+  view.current.main.newChat();
+  await settle();
+  finish(doc);
+  await settle();
+  assert.deepEqual([view.current.main.id, ids(view.current.context.attached)], [null, []], 'a late page never attaches to a different conversation');
+  await close(view);
+
+  s = server(saved({ contextRefs: [A1] }), { [A]: 'canvaschat-saved', [B]: 'canvaschat-b' });
+  view = await open();
+  await s.release('canvaschat-saved');
+  view.current.context.addUrl('https://example.com/rivers').catch(() => {});
+  view.rerender({ canvas: B });
+  await settle();
+  assert.equal(view.current.context.items.some(item => item.url), false, 'the row stays on the canvas it started on');
+  finish(doc);
+  await settle();
+  await close(view);
+
+  s = server(saved({ contextRefs: [A1] }));
+  view = await open();
+  await s.release('canvaschat-saved');
+  const failing = view.current.context.addUrl('https://example.com/private');
+  fail(new Error('This page needs a sign-in, so it cannot be captured.'));
+  await assert.rejects(failing, /needs a sign-in/);
+  await settle();
+  const [row] = view.current.context.items.filter(item => item.url);
+  assert.deepEqual([row.state, row.error, typeof row.retry], ['failed', 'This page needs a sign-in, so it cannot be captured.', 'function'], 'the reason stays on the row, with Retry');
+  assert.deepEqual(ids(view.current.context.attached), ['card:A1']);
+  await close(view);
 });
 
 test('CONTEXT: removing a document from context while the restore is pending detaches its chip from the restored conversation', async () => {
