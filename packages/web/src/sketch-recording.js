@@ -6,6 +6,7 @@
 // registry keyed by question and draft, above any panel mount; closing the panel stops cleanly and keeps the take.
 import { RECORDING_LIMIT_MS, clock, createVoiceNote } from './explain-back-media.js';
 import { sketchMarks, sketchText } from './explain-sketch.js';
+import { validateExplainBackAnswer } from './explain-back-contract.js';
 
 export const TIMELINE_VERSION = 1;
 const KEYS = ['strokes', 'shapes', 'items'];
@@ -62,26 +63,32 @@ const defaultTime = {
 };
 const sha256Hex = async blob => [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].map(b => b.toString(16).padStart(2, '0')).join('');
 
-// What a draft persists for its recording. ponytail: EB-01 allows a recording EvidenceRef only with media 'video'; this is a
-// sketch timeline (JSON) plus optional narration audio, requested from D through P. Until the contract names it, this is
-// the one place it is mapped: { evidenceId, role: 'recording', media: 'video', state, assetId, revision, hash, mime, bytes,
-// durationMs, narration: voice EvidenceRef | null }.
+// What a draft persists for its recording: the EB-01 recording EvidenceRef (media sketch_timeline, the timeline JSON as an aa_
+// asset) with its narration as a voice EvidenceRef of its own when there is one.
 export function toSavedRecording(take, asset, narration = null) {
   const assetId = typeof asset === 'string' ? asset : asset?.assetId;
-  return { evidenceId: `ev_rec_${take.sha256.slice(0, 16)}`, role: 'recording', media: 'video', state: 'ready', assetId, revision: asset?.revision ?? 1, hash: take.sha256, mime: 'application/json', bytes: take.size, durationMs: take.durationMs, narration };
+  return {
+    evidenceId: `ev_rec_${take.sha256.slice(0, 16)}`, role: 'recording', media: 'sketch_timeline', state: 'ready', assetId, revision: asset?.revision ?? 1,
+    hash: take.sha256, mime: 'application/json', bytes: take.size, durationMs: take.durationMs,
+    ...(narration ? { narration: { ...narration, evidenceId: `ev_narration_${narration.hash.slice(0, 16)}` } } : {}),
+  };
 }
+// A persisted recording to start from (a revision carrying it over, a submitted attempt's replay); the contract decides.
+export const fromSavedRecording = saved => (saved?.state === 'ready' && validateExplainBackAnswer({ v: 1, kind: 'explain_back', text: '', voice: [], recording: saved, resources: [], assistance: [] }).ok ? saved : null);
 
 // createSketchRecording(options) -> controller.
 //   upload(file, { sha256, durationMs, onProgress }) -> asset; the timeline JSON goes up as one private attempt asset.
 //   uploadAudio (same shape) for the narration; load(assetId) for replay after a reload; media / time as createVoiceNote.
+//   saved: a persisted recording EvidenceRef (fromSavedRecording) to start from; it replays through load.
 //   owner { id, label } for the microphone lease while narrating.
 // State: { status, audio, elapsedMs, limitMs, take, saved, narration, progress, error, notice }
 //   status idle | requesting | recording | paused | saving | saved | error; audio: narration on for the next recording.
 //   take: { timeline, blob, sha256, size, durationMs } of the last recording; narration: the narration voice note's state.
-export function createSketchRecording({ owner = { id: 'sketch-recording', label: 'The Sketch recording' }, upload = null, uploadAudio = null, load = null, onSaved = null, media, time = defaultTime, limitMs = RECORDING_LIMIT_MS } = {}) {
+export function createSketchRecording({ owner = { id: 'sketch-recording', label: 'The Sketch recording' }, upload = null, uploadAudio = null, load = null, saved = null, onSaved = null, media, time = defaultTime, limitMs = RECORDING_LIMIT_MS } = {}) {
+  const restored = fromSavedRecording(saved);
   // The narration's own limit sits a second later: the timeline's limit stops both, together.
-  const voice = createVoiceNote({ owner, upload: uploadAudio, load, media, time, limitMs: limitMs + 1000 });
-  let state = { status: 'idle', audio: false, elapsedMs: 0, limitMs, take: null, saved: null, narration: voice.get(), progress: null, error: null, notice: null };
+  const voice = createVoiceNote({ owner, upload: uploadAudio, load, media, time, limitMs: limitMs + 1000, saved: restored?.narration ?? null });
+  let state = { status: restored ? 'saved' : 'idle', audio: false, elapsedMs: restored?.durationMs ?? 0, limitMs, take: null, saved: restored, narration: voice.get(), progress: null, error: null, notice: null };
   const listeners = new Set();
   let session = null, run = 0, disposed = false;
   const set = patch => { state = { ...state, ...patch }; for (const fn of [...listeners]) fn(state); };
