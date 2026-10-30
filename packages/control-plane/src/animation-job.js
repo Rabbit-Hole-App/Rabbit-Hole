@@ -35,7 +35,7 @@ import { artifactIntact, authorStage, validateStage } from './animation-author.j
 import { renderStage } from './animation-render.js';
 import { reviewStage } from './animation-review.js';
 import { repairStage } from './animation-repair.js';
-import { ANIMATION_LIMITS, ANIMATION_POLICY_VERSION, AnimationPolicyError, animationRequest, animationReservation, callAnimationRole, checkAnimationRequest } from './animation-policy.js';
+import { ANIMATION_LIMITS, ANIMATION_POLICY_VERSION, AnimationPolicyError, animationModelConfigured, modelNotConfigured, animationRequest, animationReservation, callAnimationRole, checkAnimationRequest } from './animation-policy.js';
 
 export const ANIMATION_PREFIX = '/api/learn/animation/jobs';
 export const ANIMATION_COMMAND = 'animation';
@@ -402,6 +402,8 @@ export class AnimationJobs {
   // One paid role call. Under the lock: the job is still this stage and attempt, not stopped, nothing else in flight, within the
   // role's call ceiling, the phase's summed worst case and the deadline; the intent is stored before anything is sent.
   async paidCall(job, role, spec) {
+    // Refused before admission: no provider key here means nothing could be sent, so nothing is reserved or recorded as spent.
+    if (!animationModelConfigured(this.env)) throw modelNotConfigured();
     const body = animationRequest(this.env, role, spec, this.tasks), { boundMicros, images } = checkAnimationRequest(this.env, role, body, this.tasks);
     const phase = role === 'brief' ? 'preparation' : 'generation';
     const key = await this.locked(async () => {
@@ -587,7 +589,9 @@ export class AnimationJobs {
       Object.assign(current, { stage: 'failed', stopReason: error.stopReason || (refused ? 'budget' : 'error'),
         failure: { stage: current.stage, category: refused ? 'budget' : policy ? 'transport' : error.category || 'internal', ...(error.code ? { code: error.code } : {}),
           message: error.status || policy ? error.message : 'The animation stopped unexpectedly.', retryable: !error.stopReason && error.code !== 'model_unavailable' && error.code !== 'task_unconfigured' } });
-      current.findings.push({ repairs: current.repairs, stage: current.failure.stage, error: error.code || error.name || 'error' });
+      // The underlying code and message, bounded (FX: a bare "Error" hid a missing provider key). Messages are ours or the provider's
+      // error text; no request, key or cookie is ever part of one.
+      current.findings.push({ repairs: current.repairs, stage: current.failure.stage, error: error.code || error.name || 'error', message: String(error.message || '').replace(/\s+/g, ' ').slice(0, 300) });
       await this.save(current); await this.finishUsage(current, 'failed');
     });
   }

@@ -10,7 +10,7 @@
 // admit child calls against it (the same gap explain-job.js names); until then the worst case is checked, never shown as held.
 //
 // Stage timing reuses explain-policy.js's record (same stages, same summary), so both features report alike.
-import { LEARN_TASKS, MODEL_PRICES, loggedModel } from './learn-models.js';
+import { LEARN_TASKS, MODEL_NOT_CONFIGURED, MODEL_PRICES, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { providerUnavailable, requestSpendBound } from './learn-spend.js';
 import { modelFailure } from './learn-research.js';
 import { normalizeToolInput } from './tool-input.js';
@@ -129,7 +129,13 @@ export function animationToolInput(role, result, tool) {
   return input;
 }
 
+// No provider key on this deployment (ask.js anthropic() answers its not-configured 503 and sends nothing): a named refusal, so the job
+// says so instead of an anonymous error. Checked again before admission (animationModelConfigured), so no ledger row is made for it.
+export const animationModelConfigured = env => env.SUBSCRIPTION_ONLY === 'true' || !!env.ANTHROPIC_API_KEY;
+export const modelNotConfigured = () => new AnimationPolicyError('model_not_configured', MODEL_NOT_CONFIGURED, { status: 503 });
+
 async function roleFailure(role, response, tasks) {
+  if (await notConfiguredMessage(response)) return modelNotConfigured();
   if ([429, 503].includes(response.status)) {
     const body = await response.clone().json().catch(() => null);
     if (['allowance_limited', 'spend_limited'].includes(body?.code)) return new AnimationPolicyError('spend_refused', body.error || 'AI is not available right now.', { status: response.status, reason: body.reason ?? null });
@@ -139,7 +145,8 @@ async function roleFailure(role, response, tasks) {
     const body = await response.clone().json().catch(() => null);
     if (body?.error?.type === 'not_found_error') return new AnimationPolicyError('model_unavailable', `${animationModel(role, undefined, tasks)} is not available for /animation right now. Nothing else was used.`);
   }
-  return modelFailure(response, `/animation ${role} is unavailable`);
+  // Any other HTTP failure keeps the provider's own reason (modelFailure) and gets a code naming the status.
+  return Object.assign(await modelFailure(response, `/animation ${role} is unavailable`), { code: `model_http_${response.status}` });
 }
 
 // One role call: build and check the request, send it through the injected (admitted) callModel, check the served model and the
