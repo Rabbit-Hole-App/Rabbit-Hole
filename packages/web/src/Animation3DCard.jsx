@@ -5,7 +5,7 @@ import { Pill } from './ui.jsx';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { claimViewer, releaseViewer } from './viewer-slots.js';
 import { watchSeen } from './explain-program/playback.js';
-import { animationClient, animationRetry, animationRunning, animationStage } from './animation3d/client.js';
+import { ANIMATION_JOB_EVENT, animationClient, animationRetry, animationRunning, animationStage, readyResult } from './animation3d/client.js';
 import {
   artifactRefOf, cardPhase, detectWebGL, EXPERIENCE_LABELS, failureText, FIXTURE_LABEL, FIXTURE_NOTE, fixtureIdOf, INTERACT_LEGEND,
   jobOf, retryLabel, visibleControls, WEBGL_UNAVAILABLE,
@@ -43,8 +43,11 @@ export const sceneLoader = ({ context, readArtifact, latest }) => async (block, 
     if (!fixture) throw Object.assign(new Error('This example is not available.'), { retry: false });
     return { artifact: structuredClone(fixture.artifact), sim: null, view: null };
   }
-  const result = await hydrateAnimation(block, { context, readArtifact, signal });
+  let off = false; // lane G's kill switch (results route execution.allowed false): the artifact is never run
+  const read = async (ref, options) => { try { return await readArtifact(ref, options); } catch (error) { off = error?.code === EXECUTION_OFF; throw error; } };
+  const result = await hydrateAnimation(block, { context, readArtifact: read, signal });
   if (result.status === 'aborted') throw aborted();
+  if (off) throw Object.assign(new Error('3D animations are turned off right now. Your saved scene is kept.'), { code: EXECUTION_OFF, retry: true });
   if (result.status !== 'ready') throw Object.assign(new Error(result.message || 'The animation could not be loaded.'), { code: result.status, retry: result.retry });
   const landed = landHydration(latest(), result, { boardId: context?.boardId });
   if (!landed.ok) throw aborted();
@@ -52,8 +55,10 @@ export const sceneLoader = ({ context, readArtifact, latest }) => async (block, 
 };
 const defaultReadArtifact = fetchJson => async (ref, { signal }) => {
   const answer = await animationClient(fetchJson, ref.boardId).result(ref.artifactId, { signal });
+  if (answer?.execution?.allowed === false) throw Object.assign(new Error('execution off'), { code: EXECUTION_OFF });
   return answer?.artifact ?? null;
 };
+const EXECUTION_OFF = 'execution_off';
 
 function Header({ title, experience, fixture }) {
   const slot = useContext(PromptSlot);
@@ -80,10 +85,13 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
   const [job, setJob] = useState(null), [problem, setProblem] = useState(''), [busy, setBusy] = useState(false);
   const latest = useRef(block); latest.current = block;
   const client = useMemo(() => animationClient(fetchJson, waiting.boardId), [fetchJson, waiting.boardId]);
-  const apply = data => {
+  // A ready job's result is read once and mapped onto the board's reference (client.js readyResult) before it may land.
+  const apply = async data => {
     const polled = data?.job ?? null;
     setJob(polled);
-    const out = settleAnimationJob(latest.current, polled, { boardId: waiting.boardId });
+    const settled = polled?.stage === 'ready' ? await readyResult(polled, id => client.result(id)) : polled;
+    if (!settled) { setProblem('The finished scene could not be read. Try again in a moment.'); return; }
+    const out = settleAnimationJob(latest.current, settled, { boardId: waiting.boardId });
     if (out.action === 'apply') { latest.current = out.block; onChange(out.block); return; }
     // The stage rides on the card quietly so a reload shows where it was; not an undo step.
     if ((out.action === 'progress' || out.action === 'keep') && out.block !== latest.current) { latest.current = out.block; (onChangeQuiet || onChange)(out.block); }
@@ -92,11 +100,14 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
     if (readOnly || ['failed', 'cancelled'].includes(waiting.stage)) return undefined;
     let live = true, timer;
     const poll = async () => {
-      try { const data = await client.get(waiting.id); if (!live) return; setProblem(''); apply(data); if (animationRunning(data?.job)) timer = setTimeout(poll, 2000); }
+      try { const data = await client.get(waiting.id); if (!live) return; setProblem(''); await apply(data); if (animationRunning(data?.job)) timer = setTimeout(poll, 2000); }
       catch (error) { if (live) setProblem(error.message); }
     };
     poll();
-    return () => { live = false; clearTimeout(timer); };
+    // Generate, a refinement or Stop moved the job on from the chat: observe it again (a GET; it never advances the job).
+    const again = event => { if (event.detail?.jobId === waiting.id) { clearTimeout(timer); poll(); } };
+    window.addEventListener(ANIMATION_JOB_EVENT, again);
+    return () => { live = false; clearTimeout(timer); window.removeEventListener(ANIMATION_JOB_EVENT, again); };
   }, [waiting.id, client, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
   const acting = useRef(false);
   const act = async (name, body) => {
@@ -105,7 +116,7 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
     try {
       const data = await client.action(waiting.id, name, body);
       // Stop: the card stops waiting at once; a later result is refused (storage.js cancelAnimationJob).
-      if (name === 'cancel') { const next = cancelAnimationJob(latest.current); latest.current = next; (onChangeQuiet || onChange)(next); setJob(data?.job ?? null); } else apply(data);
+      if (name === 'cancel') { const next = cancelAnimationJob(latest.current); latest.current = next; (onChangeQuiet || onChange)(next); setJob(data?.job ?? null); } else await apply(data);
     } catch (error) { setProblem(error.message); } finally { acting.current = false; setBusy(false); }
   };
   const shown = job || { stage: waiting.stage, ...(waiting.message ? { failure: { message: waiting.message } } : {}) };
