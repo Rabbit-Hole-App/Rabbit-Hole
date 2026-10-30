@@ -19,6 +19,7 @@
 //     only an explicit reassessment makes another call.
 //   * An attempt row is never updated.
 import { validateCoachingRecord } from '../../web/src/learn-coaching-contract.js';
+import { EXPLAIN_BACK_KIND, answerReadiness, priorFeedbackRefs, validateExplainBackAnswer } from '../../web/src/explain-back-contract.js';
 import { CITATION_MAX, REPOSITORY_SOURCE, citationRef, citationsOverlap, isRepositorySource } from '../../web/src/learn-codebase-goals.js';
 import { sha256Hex } from './learn-grade-jev.js';
 
@@ -106,6 +107,7 @@ export async function acceptAttempt(env, actor, submission, { now = () => new Da
   if (activity.revision !== activityRevision) throw new AttemptError('stale_activity', 409, { activityRevision: activity.revision });
   const kind = activity.response_kind;
   if (!isObj(content) || (CONTENT[kind] && !CONTENT[kind](content))) throw invalid('invalid_content', `a ${kind} answer needs ${kind === 'text' ? 'text' : kind === 'choice' ? 'optionId' : 'a JSON object'}`);
+  const serverHelp = kind === EXPLAIN_BACK_KIND ? await explainBackAnswer(env, actor, activity, content) : [];
   // The criterion versions the activity names, frozen on the attempt; each must be one of the goal's criteria.
   const criterionRefs = JSON.parse(activity.criterion_refs_json);
   const known = new Set((await env.LEARN_DB.prepare('SELECT criterion_id, version FROM learn_goal_criteria WHERE goal_id = ?').bind(activity.goal_id).all())
@@ -135,7 +137,7 @@ export async function acceptAttempt(env, actor, submission, { now = () => new Da
   // server's own record, so it cannot be dropped by the client. Any help makes the attempt assisted.
   const checkpoint = activity.checkpoint_json ? JSON.parse(activity.checkpoint_json) : null;
   const recorded = Array.isArray(checkpoint?.assistanceRefs) ? checkpoint.assistanceRefs.filter(r => typeof r === 'string' && r.length > 0 && r.length <= 200) : [];
-  const help = [...new Set([...assistanceRefs, ...recorded])];
+  const help = [...new Set([...assistanceRefs, ...recorded, ...serverHelp])];
 
   const attemptId = `at_${crypto.randomUUID()}`, assessmentId = `as_${crypto.randomUUID()}`, at = now();
   await env.LEARN_DB.batch([
@@ -301,3 +303,110 @@ export async function goalEvidence(env, actor, goalId) {
   };
 }
 
+
+// --- Explain-back (docs/superpowers/plans/2026-10-30-explain-back.md, EB-02/EB-04) -------------------------------------
+// One Explain-back card is one internal goal (lg_eb_<card hash>) with one activity per card wording (la_eb_<card>_<wording>).
+// Each key idea is a criterion whose id is a hash of its text at version 1, so an unchanged idea keeps its identity across
+// card edits and revisions compare it directly. These goals are bindings, not learner goals: the coaching state hides them.
+export const EXPLAIN_BACK_GOAL = 'lg_eb_';
+const CARD = /^[A-Za-z0-9_-]{1,100}$/;
+export const EB_RUBRIC = 'eb-v1';
+const MAX_IDEAS = 20;
+
+// Card-scoped private ids: the same learner, canvas and card always name the same goal; nothing else can.
+const cardHash = async (actor, cardId) => (await sha256Hex(canonical([actor.org, actor.userId, actor.app, actor.board, cardId]))).slice(0, 40);
+
+/**
+ * Bind an Explain-back card (legacy or new) to its server-owned goal, activity and criteria before its first submission.
+ * Idempotent: the same wording returns the same activity; a changed wording gets a new activity, earlier attempts keep theirs.
+ * @returns {Promise<{goalId: string, activityId: string, activityRevision: number, criterionRefs: {criterionId: string, version: number}[], rubricVersion: string}>}
+ */
+export async function bindExplainBackCard(env, actor, { cardId, prompt, expects = [] } = {}, { now = () => new Date().toISOString() } = {}) {
+  if (typeof cardId !== 'string' || !CARD.test(cardId)) throw invalid('invalid_card', 'cardId: 1-100 letters, digits, _ or -');
+  if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > ATTEMPT_LIMITS.textChars) throw invalid('invalid_card', `prompt: 1-${ATTEMPT_LIMITS.textChars} characters`);
+  if (!Array.isArray(expects) || expects.length > MAX_IDEAS || expects.some(e => typeof e !== 'string' || !e.trim() || e.length > 1000)) throw invalid('invalid_card', `expects: at most ${MAX_IDEAS} key ideas of 1-1000 characters`);
+  // A card without key ideas is judged against its prompt as one idea.
+  const ideas = [...new Set(expects.length ? expects.map(e => e.trim()) : [prompt.trim().slice(0, 1000)])];
+  const card = await cardHash(actor, cardId);
+  const wording = (await sha256Hex(canonical({ prompt, ideas }))).slice(0, 16);
+  const goalId = `${EXPLAIN_BACK_GOAL}${card}`, activityId = `la_eb_${card}_${wording}`;
+  const criteria = await Promise.all(ideas.map(async idea => ({ criterionId: `k_${(await sha256Hex(idea)).slice(0, 16)}`, label: idea.slice(0, 200), requirement: idea })));
+  const criterionRefs = criteria.map(c => ({ criterionId: c.criterionId, version: 1 }));
+  const result = { goalId, activityId, activityRevision: 1, criterionRefs, rubricVersion: EB_RUBRIC };
+  for (let tries = 0; tries < 3; tries += 1) {
+    const goal = await env.LEARN_DB.prepare('SELECT scope_version, activity_id FROM learn_goals WHERE id = ? AND org = ? AND owner_user_id = ? AND app = ? AND board = ?')
+      .bind(goalId, actor.org, actor.userId, actor.app, actor.board).first();
+    if (goal?.activity_id === activityId) return result;
+    const at = now(), from = goal?.scope_version ?? 0, scope = from + 1;
+    // Everything below holds only once the goal names this scope and activity (a concurrent bind of the same wording
+    // satisfies it too; ON CONFLICT then writes nothing twice).
+    const mine = 'EXISTS (SELECT 1 FROM learn_goals WHERE id = ? AND scope_version = ? AND activity_id = ?)';
+    await env.LEARN_DB.batch([
+      env.LEARN_DB.prepare(`INSERT INTO learn_goals (id, org, owner_user_id, app, board, label, outcome, origin, scope_version, lifecycle, revision, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, '', 'coaching', 0, 'open', 0, ?, ?) ON CONFLICT (id) DO NOTHING`)
+        .bind(goalId, actor.org, actor.userId, actor.app, actor.board, `Explain back: ${prompt.trim().slice(0, 180)}`, at, at),
+      env.LEARN_DB.prepare('UPDATE learn_goals SET scope_version = ?, activity_id = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND org = ? AND owner_user_id = ? AND scope_version = ?')
+        .bind(scope, activityId, at, goalId, actor.org, actor.userId, from),
+      ...criteria.map((c, i) => env.LEARN_DB.prepare(`INSERT INTO learn_goal_criteria (goal_id, scope_version, criterion_id, version, position, label, requirement, requires_reasoning, requires_transfer, rubric_version, skill_key, created_at)
+        SELECT ?, ?, ?, 1, ?, ?, ?, 0, 0, ?, NULL, ? WHERE ${mine} ON CONFLICT DO NOTHING`)
+        .bind(goalId, scope, c.criterionId, i, c.label, c.requirement, EB_RUBRIC, at, goalId, scope, activityId)),
+      env.LEARN_DB.prepare(`INSERT INTO learn_activities (id, goal_id, org, owner_user_id, revision, status, objective, prompt, response_kind, criterion_refs_json, source_refs_json, checkpoint_json, created_at, updated_at)
+        SELECT ?, ?, ?, ?, 1, 'in_progress', 'Explain back', ?, ?, ?, '[]', ?, ?, ? WHERE ${mine} ON CONFLICT (id) DO NOTHING`)
+        .bind(activityId, goalId, actor.org, actor.userId, prompt, EXPLAIN_BACK_KIND, JSON.stringify(criterionRefs), JSON.stringify({ explainBack: { cardId } }), at, at, goalId, scope, activityId),
+    ]);
+  }
+  throw new AttemptError('card_busy', 409);
+}
+
+// Explain-back answer rules at submission, after the generic ones. Returns the help the server records itself.
+async function explainBackAnswer(env, actor, activity, content) {
+  const cardId = (activity.checkpoint_json ? JSON.parse(activity.checkpoint_json) : null)?.explainBack?.cardId ?? null;
+  const shape = validateExplainBackAnswer(content, { board: actor.board, cardId });
+  if (!shape.ok) {
+    if (shape.errors.some(e => e.includes('cross_scope_evidence'))) throw new AttemptError('cross_scope_evidence', 403);
+    if (shape.errors.some(e => e.includes('self_reference'))) throw invalid('self_reference');
+    throw invalid('invalid_content', shape.errors.slice(0, 3));
+  }
+  const ready = answerReadiness(content);
+  if (!ready.ready) throw invalid(ready.reason);
+  await ownAssets(env, actor, content);
+  // ponytail: resource access (files, Notebook, Group members) is authorized when the frozen resolver reads it (worker R);
+  // acceptance checks only shape and canvas scope.
+  if (content.baseline) await pinnedBaseline(env, actor, activity, content.baseline);
+  return priorFeedbackRefs(content);
+}
+
+// ponytail: private answer media (voice, Sketch, recording) are refused until attempt assets land (EB-02 slice 2).
+async function ownAssets(env, actor, content) {
+  if (content.voice.length || content.sketch || content.recording) throw new AttemptError('unknown_asset', 404);
+}
+
+// A revision's parent: this learner's own submitted Explain-back attempt of the same card on this canvas, and the review the
+// learner saw must still be its latest completed one (null only when it has none). The pin is part of the hashed content, so a
+// later reassessment of the parent cannot change what this attempt is compared with.
+async function pinnedBaseline(env, actor, activity, { parentAttemptId, parentAssessmentId }) {
+  const parent = await env.LEARN_DB.prepare('SELECT id, goal_id, response_kind FROM learn_attempts WHERE id = ? AND org = ? AND owner_user_id = ? AND app = ? AND board = ?')
+    .bind(parentAttemptId, actor.org, actor.userId, actor.app, actor.board).first();
+  if (!parent || parent.goal_id !== activity.goal_id || parent.response_kind !== EXPLAIN_BACK_KIND) throw new AttemptError('baseline_not_found', 404);
+  const latest = (await operations(env, parent.id)).filter(op => op.status === 'completed').at(-1)?.id ?? null;
+  if (latest !== parentAssessmentId) throw new AttemptError('stale_baseline', 409, { parentAssessmentId: latest });
+}
+
+/**
+ * The learner's own attempts at one Explain-back card on this canvas, newest first, with each attempt's latest operation and
+ * its stored rating. Reads only; calls no model. Another learner's card lists nothing.
+ */
+export async function listAttempts(env, actor, cardId, { limit = 50 } = {}) {
+  if (typeof cardId !== 'string' || !CARD.test(cardId)) throw invalid('invalid_card');
+  const goalId = `${EXPLAIN_BACK_GOAL}${await cardHash(actor, cardId)}`;
+  const { results } = await env.LEARN_DB.prepare(`SELECT ${ATTEMPT_COLS} FROM learn_attempts WHERE org = ? AND owner_user_id = ? AND goal_id = ? AND app = ? AND board = ?
+    ORDER BY submitted_at DESC, rowid DESC LIMIT ?`).bind(actor.org, actor.userId, goalId, actor.app, actor.board, Math.min(limit, 100)).all();
+  return Promise.all(results.map(async row => {
+    const content = JSON.parse(row.content_json), op = (await operations(env, row.id)).at(-1);
+    return {
+      attemptId: row.id, activityId: row.activity_id, activityRevision: row.activity_revision, submittedAt: row.submitted_at,
+      parentAttemptId: content.baseline?.parentAttemptId ?? null, parentAssessmentId: content.baseline?.parentAssessmentId ?? null,
+      assessment: op ? { assessmentId: op.id, status: op.status, rating: JSON.parse(op.provenance_json).review?.rating ?? null } : null,
+    };
+  }));
+}
