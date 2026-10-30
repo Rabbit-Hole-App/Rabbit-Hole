@@ -19,7 +19,7 @@ const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify
 const token = 'a'.repeat(24);
 const SHELL = ['/apps', '/dash', '/library', '/explore', '/chat', `/apps/${canvas.name}`, '/c/00000000-0000-4000-8000-000000000000', `/b/${token}`, `/e/${token}`, `/embed/b/${token}`, '/@someone'];
 // Landing, sign-in, support and the 404 page carry their own titles; each must name Rabbit Hole too.
-const PAGES = ['/', '/blog', '/features', '/pricing', '/manifesto', '/team', '/sign-in', '/sign-up', '/check-email', '/privacy', '/terms', '/404', '/no-such-page'];
+const PAGES = ['/', '/blog', '/features', '/pricing', '/manifesto', '/sign-in', '/sign-up', '/check-email', '/privacy', '/terms', '/404', '/no-such-page'];
 const named = title => /Rabbit Hole/.test(title) && !/small/i.test(title);
 const tab = async (page, path) => { await page.goto(`${BASE}${path}`, { waitUntil: 'domcontentloaded' }); return page.title(); };
 

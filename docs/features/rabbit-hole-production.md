@@ -73,7 +73,7 @@ Merging them into one Worker would be new architecture.
 
 | Path | Served by | Notes |
 |---|---|---|
-| `/`, `/blog`, `/features`, `/pricing`, `/manifesto`, `/team`, `/docs*`, `/privacy`, `/terms`, unknown pages | app | Bundled Landing pages; HTML 404 page |
+| `/`, `/blog`, `/features`, `/pricing`, `/manifesto`, `/privacy`, `/terms`, `/docs*`, `/team`, unknown pages | app | Bundled Landing pages; HTML 404 page (`/docs*`, `/team` and unknown pages) |
 | `/sign-in`, `/sign-up`, `/check-email` | app | Landing auth page; its JS calls `/auth/*` |
 | `/login` (GET, HEAD) | app | 302 to `/sign-in?<same query>`. Auth errors, logout and the SPA's 401 handler all land here. |
 | `/apps`, `/apps/*`, `/library`, `/explore`, `/b/<token>`, `/dash`, `/chat`, `/members` | app | SPA shell (`dist-dev/index.html`) |

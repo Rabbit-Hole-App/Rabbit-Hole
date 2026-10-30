@@ -12,7 +12,7 @@ const inputs = async (env, tag) => {
 };
 // render: the /explain review render entry (render/scene.html, EXP-T18), loaded only by explain-render.js.
 // explainProgram: the generated-program runtime Worker and its WASM (src/explain-program/host.js, /explain sandbox plan Task 1/3); not a page, and nothing in the app imports it yet.
-const PAGES = ['app', 'landing', 'blog', 'features', 'pricing', 'manifesto', 'auth', 'team', 'support', 'render', 'explainProgram'];
+const PAGES = ['app', 'landing', 'blog', 'features', 'pricing', 'manifesto', 'auth', 'support', 'render', 'explainProgram'];
 
 test('a build without VITE_COACHING_DEV still emits Landing, the auth page and the support pages', async () => {
   const input = await inputs({}, 'plain');
