@@ -58,7 +58,8 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
       return;
     }
     await runtimeStage(mine);
-    if (container && createRenderer) rendererStage(mine);
+    // A newer start (a new block, the board's context arriving) owns the card now: this one must not touch its renderer.
+    if (!stale(mine) && container && createRenderer) rendererStage(mine);
   }
 
   async function runtimeStage(mine) {
@@ -83,6 +84,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
   function rendererFailed(error) { if (renderer) set({ renderer: 'off', failure: failureOf('renderer', error) }); dropRenderer(); }
 
   async function rendererStage(mine) {
+    if (stale(mine)) return; // never drop the current renderer for a superseded start (CI fast-e2e 41141201411)
     dropRenderer();
     const abort = abortRenderer = new AbortController(), mineRenderer = ++rendererGeneration;
     const own = () => !stale(mine) && renderer === created && mineRenderer === rendererGeneration;
@@ -176,8 +178,14 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
     },
     // The viewport element while the card holds a WebGL slot; detach hands the slot back, keeping a poster and the camera.
     attach(element) { container = element; if (state.artifact && createRenderer && !renderer && state.failure?.stage !== 'renderer') return rendererStage(generation); return undefined; },
-    async detach() {
-      if (renderer) { const camera = (() => { try { return renderer.getCamera(); } catch { return null; } })(); if (camera) set({ camera }); await poster(); }
+    // Synchronous: the viewport is cleared at once, so an attach right after (the slot taken again) always rebuilds the 3D view.
+    detach() {
+      if (renderer) {
+        const camera = (() => { try { return renderer.getCamera(); } catch { return null; } })();
+        const image = (() => { try { return renderer.capturePoster(); } catch { return null; } })();
+        if (camera) set({ camera });
+        Promise.resolve(image).then(still => { if (still && !dead) set({ poster: still }); }, () => {});
+      }
       container = null; dropRenderer(); if (!dead) set({ renderer: 'off' });
     },
     // Retry repeats only the stage that failed: never a page reload, never a new generation request.
