@@ -22,6 +22,7 @@ const KEY = 'org = ? AND owner_user_id = ? AND app = ? AND board = ?';
 const key = a => [a.org, a.userId, a.app, a.board];
 const GUARD = `EXISTS (SELECT 1 FROM learn_coaching_state WHERE ${KEY} AND revision = ?)`;
 const parse = text => (text == null ? null : JSON.parse(text));
+const NOT_CARD_GOAL = "substr(g.id, 1, 6) != 'lg_eb_'";
 
 // The learner's row, made on first use (owner decision 5a backfill): pointing at the board's live journey, whose goal row
 // is made in the same batch. Deterministic goal ids and DO NOTHING make two first requests agree.
@@ -54,7 +55,8 @@ const goalStatus = (g, activeId) => (g.lifecycle === 'archived' || g.journey_arc
 // current activity. A missing table or a failed read throws: it never becomes an empty history.
 export async function readCoachingState(env, actor) {
   const row = await ensureState(env, actor);
-  const scoped = 'g.org = ? AND g.owner_user_id = ? AND g.app = ? AND g.board = ?';
+  // Explain-back card bindings (learn-attempt-store.js bindExplainBackCard) are not the learner's goals: never listed here.
+  const scoped = `g.org = ? AND g.owner_user_id = ? AND g.app = ? AND g.board = ? AND ${NOT_CARD_GOAL}`;
   const [goals, criteria, activities] = await Promise.all([
     env.LEARN_DB.prepare(`SELECT g.*, j.archived_at AS journey_archived_at FROM learn_goals g LEFT JOIN learning_journeys j ON j.id = g.journey_id WHERE ${scoped} ORDER BY g.created_at, g.id`).bind(...key(actor)).all(),
     env.LEARN_DB.prepare(`SELECT c.* FROM learn_goal_criteria c JOIN learn_goals g ON g.id = c.goal_id AND c.scope_version = g.scope_version WHERE ${scoped} ORDER BY c.goal_id, c.position`).bind(...key(actor)).all(),
@@ -155,7 +157,7 @@ const PLANS = {
     if (!sized(payload.label, 200)) throw invalid('label must be 1-200 characters');
     if (payload.outcome != null && (typeof payload.outcome !== 'string' || payload.outcome.length > 1000)) throw invalid('outcome must be at most 1000 characters');
     const criteria = criteriaFrom(payload.criteria ?? []);
-    const open = await env.LEARN_DB.prepare(`SELECT COUNT(*) AS n FROM learn_goals WHERE ${KEY} AND lifecycle = 'open'`).bind(...key(actor)).first();
+    const open = await env.LEARN_DB.prepare(`SELECT COUNT(*) AS n FROM learn_goals g WHERE ${KEY} AND lifecycle = 'open' AND ${NOT_CARD_GOAL}`).bind(...key(actor)).first();
     if (open.n >= MAX_OPEN_GOALS) throw new CoachingConflict('goal_limit');
     const id = `lg_${crypto.randomUUID()}`, scope = criteria.length ? 1 : 0, g = [...key(actor), rev];
     return {
