@@ -25,7 +25,7 @@ import WEBPAGE from './slash-examples/webpage-transformer.json' with { type: 'js
 
 // The generators (spec section 6): their preview shows the finished result, and View brief shows their brief in the shared
 // confirmation card (GenerationProposalCard.jsx) with nothing it can generate or save.
-export const BRIEF_COMMANDS = ['explain', 'practice', 'quiz', 'flashcards', 'code', 'graph', 'diagram', 'generate-image', 'motion', 'cad', '3d'];
+export const BRIEF_COMMANDS = ['explain', 'practice', 'quiz', 'flashcards', 'code', 'graph', 'diagram', 'generate-image', 'motion', 'cad', 'animation', '3d'];
 export const SAMPLE_NOTE = 'Example preview. Nothing is generated or saved here.';
 
 // /motion's example is a real Motion video, committed so it never expires and opening the window generates nothing: the
@@ -132,6 +132,8 @@ export const PREVIEWS = {
     alt: IMAGE_EXAMPLE.prompt, caption: '', credit: { photographer: 'generated illustration', url: '' } }, note: 'A real image made by /image from this prompt, saved.' },
   motion: { kind: 'card', card: 'videoGenerate', block: SAMPLES.motion.videoGenerate, note: 'A real Motion video, made from this example.' },
   cad: { kind: 'card', card: 'cad', block: CAD_PLATE.block, note: 'A real model made by /cad. Interact to orbit and zoom it.' },
+  // /animation: the built-in beam-balance example (animation3d/fixtures.js), labelled on the card as an example, never as a result.
+  animation: { kind: 'card', card: 'animation3d', block: { type: 'animation3d', title: 'Beam balance', fixtureId: 'beam-balance-experiment' }, note: 'A built-in example scene, not generated from this request. Change the masses and distances to try it.' },
   '3d': { kind: 'card', card: 'scene', block: SAMPLES['3d'].scene, viewer: true },
   browser: { kind: 'webpage', block: { type: 'webpage', id: 'slash-help-browser', url: WEBPAGE.manifest.url, title: WEBPAGE.result.title, capture: WEBPAGE.result.capture, fileRef: WEBPAGE.result.fileRef, scrollTop: 1480 },
     // scrollTop: opens at the article's first section, "A High-Level Look", and its first diagram (capture px 1480); the title stays in
@@ -164,6 +166,7 @@ export const BRIEFS = {
   cad: { title: CAD_PLATE.brief.title, description: 'A 60 × 40 × 5 mm plate with four 4 mm through holes and a centred 20 × 10 mm pocket, 3 mm deep, cut from the top face.',
     settings: { units: CAD_PLATE.brief.units, parameters: CAD_PLATE.brief.parameters },
     groups: { parameters: { legend: 'Parameters', defs: Object.entries(CAD_PLATE.brief.parameters).map(([id, value]) => ({ id, label: id.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase()), unit: 'mm', display: `${value} mm`, tag: 'Requested' })) } } },
+  animation: { title: 'Beam balance', description: 'A beam on a pivot with one weight on each side; change masses and distances and watch it tilt.', settings: { experience: 'experiment' } },
   '3d': { title: 'Perspective projection', description: 'A camera frustum, a cube inside it and a ray showing their spatial relationship.' },
 };
 

@@ -25,10 +25,10 @@ const asset = path => existsSync(new URL(`../public${path}`, import.meta.url));
 const sheet = read('./SlashCommandsSheet.jsx'), stage = read('./SlashCommandPreview.jsx');
 const argsOf = name => parseSlash(EXAMPLES[name]).args;
 
-test('the window reads the picker sections: 18 commands, each with an example and exactly one preview of its own', () => {
+test('the window reads the picker sections: 19 commands, each with an example and exactly one preview of its own', () => {
   assert.deepEqual(all.map(section => section.title), ['Learn', 'Create', 'Search']);
   const listed = names(all);
-  assert.equal(listed.length, 18);
+  assert.equal(listed.length, 19, 'owner, 2026-10-30: /animation added');
   assert.deepEqual(Object.keys(PREVIEWS).sort(), [...listed].sort(), 'one preview per listed command, and none for anything else');
   assert.deepEqual(SLASH.map(command => command.name).sort(), [...listed].sort(), 'the registry, the picker and the window agree');
   for (const name of listed) {
@@ -60,14 +60,14 @@ test('copy: title, subtitle, search, Use example, View brief / View result and t
   assert.doesNotMatch(sheet + stage, /…|\.\.\.['"`<]/, 'no ellipsis in the window\'s words');
 });
 
-test('the 11 generators each have a brief on the example\'s subject; the brief card can neither generate nor save', () => {
-  assert.deepEqual(BRIEF_COMMANDS, ['explain', 'practice', 'quiz', 'flashcards', 'code', 'graph', 'diagram', 'generate-image', 'motion', 'cad', '3d']);
+test('the 12 generators each have a brief on the example\'s subject; the brief card can neither generate nor save', () => {
+  assert.deepEqual(BRIEF_COMMANDS, ['explain', 'practice', 'quiz', 'flashcards', 'code', 'graph', 'diagram', 'generate-image', 'motion', 'cad', 'animation', '3d']);
   assert.deepEqual(Object.keys(BRIEFS).sort(), [...BRIEF_COMMANDS].sort());
   const titles = Object.fromEntries(BRIEF_COMMANDS.map(name => [name, BRIEFS[name].title]));
   // Owner, 2026-10-29 (C:/s/spec/slash-window/BRIEF-EXAMPLES.md): /explain and /cad briefs match their saved results.
   assert.deepEqual(titles, { explain: 'How a hot coffee cools in a room', practice: 'Explain why the sky is blue', quiz: "Newton's second law", flashcards: 'Spanish verbs for travel',
     code: 'Reverse a linked list', graph: 'Sine and cosine', diagram: 'A request and response', 'generate-image': 'A red lighthouse at dusk',
-    motion: 'How softmax turns scores into weights', cad: 'Plate with four through holes and a top pocket', '3d': 'Perspective projection' });
+    motion: 'How softmax turns scores into weights', cad: 'Plate with four through holes and a top pocket', animation: 'Beam balance', '3d': 'Perspective projection' });
   assert.equal(BRIEFS.quiz.description, 'One multiple-choice question about force, mass and acceleration, with feedback after you answer.');
   assert.equal(BRIEFS.cad.description, 'A 60 × 40 × 5 mm plate with four 4 mm through holes and a centred 20 × 10 mm pocket, 3 mm deep, cut from the top face.');
   for (const name of BRIEF_COMMANDS) {
