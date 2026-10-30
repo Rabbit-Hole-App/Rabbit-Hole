@@ -132,6 +132,16 @@ function comparisonText(comparison, numbers) {
   return comparison.items.map(item => `${CHANGE_WORDS[item.change] || item.change}: ${item.note || item.criterionId}`).join('\n\n');
 }
 
+// The canvas's input pills (sketchHost.inputs, explain-inputs.js inputPills) as the card shows them: one per link, a Group
+// as one pill with its member count, a problem in the learner's words (sketchHost.inputMessage).
+export function inputPillsOf(pills = [], message = () => null) {
+  return pills.map(pill => ({
+    id: pill.linkId, kind: pill.kind === 'group' || pill.kind === 'missing' ? pill.kind : pill.media, name: text(pill.label) || 'Input',
+    scope: text(pill.scopeLabel), count: pill.count, members: (pill.members || []).map(member => text(member.label) || text(member.name)).filter(Boolean),
+    problem: pill.problem ? message(pill.problem) || 'This input is not available.' : '',
+  }));
+}
+
 // The Sketch panel's size in its workspace (section 3, responsive table). Side by side it keeps 16 px from the right edge,
 // 20 px from the question, about 326 px for the question and 44 px for its Input; below 720 px it stacks under the card.
 export const PANEL = Object.freeze({ edge: 16, between: 20, question: 326, input: 44, min: 296, max: 700, initial: 460, stack: 720, step: 24 });

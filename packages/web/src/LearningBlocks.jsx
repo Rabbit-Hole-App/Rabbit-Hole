@@ -47,8 +47,8 @@ import { describeYouTube } from './learn-ask-target.js';
 import { afterPaint, usePerf } from './learn-perf.js';
 import { canSubmit, hasMarks, sketchText } from './explain-sketch.js';
 import { disposeVoiceNote } from './explain-back-media.js';
-import { AnswerView, AnswerVoice, AttemptBar, ExplainBackService, FeedbackTabs, FeedbackView, InputPills, SketchPanel, sketchCapture, usePanelOwner } from './ExplainBackPanel.jsx';
-import { ANSWER_LABEL, ANSWER_PLACEHOLDER, HISTORY_KEPT, SKETCH_CONTENT_LABEL, attemptLabel, legacyView, pastAttempt, serviceView, submitState } from './explain-back-view.js';
+import { AnswerView, AnswerVoice, AttemptBar, ExplainBackService, FeedbackTabs, FeedbackView, InputPicker, InputPills, SketchPanel, sketchCapture, usePanelOwner } from './ExplainBackPanel.jsx';
+import { ANSWER_LABEL, ANSWER_PLACEHOLDER, HISTORY_KEPT, SKETCH_CONTENT_LABEL, attemptLabel, inputPillsOf, legacyView, pastAttempt, serviceView, submitState } from './explain-back-view.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { describeExcerpt, isExcerpt } from './pdf-excerpt.js';
 import { ExcerptNote, ExcerptSource } from './ExcerptCard.jsx';
@@ -912,13 +912,12 @@ function Progress({ seconds, expected, label }) {
 // hidden at rest, drawn on hover, focus or touch selection in a slot reserved beside the actions so nothing jumps) and, only for
 // a card with a real source badge (tutor, learner, PDF), that badge on hover as before. The generic "course" pill is gone
 // (owner correction 2026-10-23): a card by default has no top-right label at all.
-// `lead`: the Explain-back card's Input connector, drawn by the canvas at the header's upper-left edge (plan 2026-10-30 section 3).
-function Kicker({ author = null, action = null, lead = null, children }) {
+function Kicker({ author = null, action = null, children }) {
   const slot = useContext(PromptSlot);
   useLayoutEffect(() => { slot?.claim(true); return () => slot?.claim(false); }, [slot?.claim]);
   return (
     <div data-drag-zone className="-mx-4 -mt-3 mb-2 flex cursor-grab items-center justify-between px-4 pt-3 pb-1 active:cursor-grabbing">
-      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">{lead && <span data-input-slot className="relative">{lead}</span>}<span className="h-1.5 w-1.5 rounded-full bg-ink" />{children}</span>
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-ink-2 uppercase"><span className="h-1.5 w-1.5 rounded-full bg-ink" />{children}</span>
       <span className="flex items-center gap-1">
         {action}
         {slot?.text && <span className="relative inline-block h-[17px] w-[3.25rem]"><CardPromptControl text={slot.text} selected={slot.selected} className="absolute top-1/2 right-0 -translate-y-1/2" /></span>}
@@ -961,7 +960,14 @@ function ExplainBackCard({ block, onChange, onFile, draft, setDraft, commit, rev
   const [draftSeq, setDraftSeq] = useState(0);
   const draftKey = `${block.id}:${service ? view.draft?.id || `draft-${draftSeq}` : 'legacy'}`;
   const [voice, setVoice] = useState(null);
-  const inputs = (selected.draft && sketchHost?.inputs?.(block.id)) || [];
+  // Connected inputs (EB-05): each Input connection on the canvas, shown as a pill under the field; the picker is the keyboard and touch
+  // way to make the same link a port drag makes.
+  const inputs = selected.draft && sketchHost?.inputs ? inputPillsOf(sketchHost.inputs(block.id), sketchHost.inputMessage) : [];
+  const canConnect = selected.draft && sketchable && !!sketchHost.inputCandidates && !!sketchHost.connectInput;
+  const connectInput = sourceId => {
+    const made = sketchHost.connectInput(block.id, sourceId, {});
+    setNotice(made?.problem ? sketchHost.inputMessage?.(made.problem) || 'That input could not be connected.' : '');
+  };
   const gate = submitState({ text: draft, sketched: sketchMarked, voice: voiceStore ? voice : null, inputs });
   const fieldId = useId();
 
@@ -1045,7 +1051,7 @@ function ExplainBackCard({ block, onChange, onFile, draft, setDraft, commit, rev
   const ownerTitle = String(block.prompt || '').replace(/[`*_$#>]/g, '').replace(/\s+/g, ' ').trim();
   return (
     <div ref={cardRef} data-scroll data-explain-back data-sketch-owner={open ? '' : undefined} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker lead={sketchHost?.inputPort?.(block) ?? null}>Explain back</Kicker>
+      <Kicker>Explain back</Kicker>
       <div data-eb-question className="text-[20px] leading-[1.35] font-medium"><Md text={block.prompt} onFile={onFile} /></div>
       {block.hint && (
         <div data-eb-hint className="mt-2">
@@ -1061,7 +1067,12 @@ function ExplainBackCard({ block, onChange, onFile, draft, setDraft, commit, rev
               <label htmlFor={fieldId} className="text-xs font-medium text-ink-2">{ANSWER_LABEL}</label>
               <textarea id={fieldId} data-eb-answer rows={4} value={draft} onChange={e => setDraft(e.target.value)} placeholder={ANSWER_PLACEHOLDER}
                 className="mt-1 block w-full resize-y rounded-lg border border-line bg-surface px-3 py-2 text-sm leading-normal text-ink outline-none focus:border-ink-3 pointer-coarse:text-base" />
-              {inputs.length > 0 && <div className="mt-2"><InputPills inputs={inputs} onRemove={input => sketchHost.disconnect?.(block.id, input.id)} onOpen={sketchHost.openInput ? input => sketchHost.openInput(input) : null} /></div>}
+              {(inputs.length > 0 || canConnect) && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {inputs.length > 0 && <InputPills inputs={inputs} onRemove={input => sketchHost.disconnectInput(input.id)} />}
+                  {canConnect && <InputPicker list={() => sketchHost.inputCandidates(block.id)} onConnect={connectInput} />}
+                </div>
+              )}
               {voiceStore && <div data-eb-voice className="mt-2"><AnswerVoice key={draftKey} draftKey={draftKey} store={voiceStore} blockId={block.id} onState={setVoice} /></div>}
             </div>
           ) : selected.status === 'reviewed' ? (

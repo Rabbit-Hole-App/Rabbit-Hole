@@ -418,6 +418,8 @@ await check('phone width: the panel stacks under the card and the question stays
   assert.ok(panel.x >= surface.x - 1 && panel.x + panel.width <= surface.x + surface.width + 1, 'no horizontal clipping');
 });
 await shot('08-phone-stacked');
+await page.setViewportSize({ width: 1600, height: 1000 });
+await page.waitForTimeout(600);
 
 // ---- EB-05: resource inputs (plan 2026-10-30-explain-back.md section 4). Click-click from a card's or a Group's port to
 // the green Input makes one semantic link; the other port of the same source is the same input; undo removes it; an
@@ -480,6 +482,25 @@ await check('EB-05 an ordinary connector between cards stays ordinary', async ()
   assert.ok(plain && !plain.kind, 'a plain link, no semantic kind');
   assert.equal((await inputLinks(answerId)).length, 1);
 });
+
+await check('EB-05 pills: one Group pill with its count; × disconnects; the picker makes the same link', async () => {
+  await reveal(answerCard);
+  const pills = answerCard.locator('[data-input-pill]');
+  assert.equal(await pills.count(), 1, 'one pill for one semantic link');
+  assert.equal(await pills.first().getAttribute('data-input-kind'), 'group');
+  assert.match(await pills.first().innerText(), /· 2 items/);
+  await pills.first().getByRole('button', { name: /^Remove / }).click();
+  await settleLinks(answerId, 0);
+  assert.equal(await pills.count(), 0);
+  const picker = answerCard.locator('[data-input-picker]');
+  await picker.focus();
+  await picker.selectOption(sourceBId);
+  await settleLinks(answerId, 1);
+  const [link] = await inputLinks(answerId);
+  assert.equal(link.from, sourceBId, 'the picker made the link to the chosen source');
+  assert.equal(await pills.count(), 1);
+});
+await shot('15-input-pills');
 
 await check('no page errors', async () => assert.deepEqual(errors, []));
 console.log(`${results.length}/${results.length} checks passed`);

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ANSWER_PLACEHOLDER, PANEL, STOP_TO_SUBMIT, askTutorText, attemptLabel, legacyView, optionText, panelLayout, ratingBadge, serviceView, submitState } from './explain-back-view.js';
+import { ANSWER_PLACEHOLDER, PANEL, STOP_TO_SUBMIT, askTutorText, attemptLabel, inputPillsOf, legacyView, optionText, panelLayout, ratingBadge, serviceView, submitState } from './explain-back-view.js';
 
 // Plan 2026-10-30-explain-back.md sections 3, 7H, 8 and 9: what the Explain-back card shows, from either data path.
 
@@ -100,6 +100,20 @@ test('the Sketch panel keeps the question beside it at 736, 800 and 1024 px and 
   assert.equal(panelLayout(1024, 900).width, 1024 - 16 - 20 - 326 - 44, 'never over the question');
   assert.deepEqual(panelLayout(390), { mode: 'stack', width: 358, min: 0, max: 0 });
   assert.equal(panelLayout(719).mode, 'stack');
+});
+
+test('input pills: a Group is one pill with its count and members; a problem is in the learner\'s words', () => {
+  const pills = inputPillsOf([
+    { linkId: 'l1', sourceId: 'g', port: 'bottom', kind: 'group', media: 'group', label: 'Pendulum', scope: null, scopeLabel: '', state: 'ready', count: 2, members: [{ id: 'a', label: 'Notes' }, { id: 'b', label: 'Plot' }] },
+    { linkId: 'l2', sourceId: 'n', port: 'top', kind: 'source', media: 'notebook', label: 'Run 1', scope: { cells: ['c1'] }, scopeLabel: 'Cell 1', state: 'ready' },
+    { linkId: 'l3', sourceId: 'x', port: 'top', kind: 'missing', media: 'card', label: 'Removed source', state: 'unavailable', problem: 'missing' },
+  ], problem => ({ missing: 'That source is no longer on the canvas.' })[problem]);
+  assert.deepEqual(pills, [
+    { id: 'l1', kind: 'group', name: 'Pendulum', scope: '', count: 2, members: ['Notes', 'Plot'], problem: '' },
+    { id: 'l2', kind: 'notebook', name: 'Run 1', scope: 'Cell 1', count: undefined, members: [], problem: '' },
+    { id: 'l3', kind: 'missing', name: 'Removed source', scope: '', count: undefined, members: [], problem: 'That source is no longer on the canvas.' },
+  ]);
+  assert.equal(submitState({ text: 'x', inputs: [{ state: 'unavailable' }] }).ready, false, 'an unavailable input blocks Submit until removed');
 });
 
 test('Ask Tutor fills the composer with the exercise, the attempt and its feedback', () => {

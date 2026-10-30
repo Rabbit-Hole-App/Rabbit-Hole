@@ -247,17 +247,34 @@ export function InputPills({ inputs, onRemove = null, onOpen = null }) {
       {inputs.map(input => {
         const Icon = INPUT_ICONS[input.kind] || FileText;
         const detail = [input.kind === 'group' && Number.isInteger(input.count) ? `${input.count} items` : '', input.scope || ''].filter(Boolean).join(' · ');
-        const full = detail ? `${input.name} · ${detail}` : input.name;
+        const members = input.members?.length ? `Items: ${input.members.join(', ')}` : '';
+        const full = [detail ? `${input.name} · ${detail}` : input.name, members, input.problem].filter(Boolean).join('. ');
+        const name = <>{input.name}{detail && <span className="text-ink-2"> · {detail}</span>}{input.problem && <span className="text-danger"> · Not available</span>}</>;
         return (
-          <li key={input.id} data-input-pill={input.id} className="flex h-7 max-w-full items-center gap-1 rounded-md border border-line bg-surface pr-0.5 pl-2 text-xs text-ink">
+          <li key={input.id} data-input-pill={input.id} data-input-kind={input.kind} className={`flex h-7 max-w-full items-center gap-1 rounded-md border bg-surface pr-0.5 pl-2 text-xs text-ink ${input.problem ? 'border-danger/50' : 'border-line'}`}>
             <Icon size={14} className="shrink-0 text-ink-2" aria-hidden="true" />
-            <button type="button" title={full} aria-label={`Open ${full}`} disabled={!onOpen} onClick={() => onOpen?.(input)} className="min-w-0 cursor-pointer truncate text-left disabled:cursor-default">
-              {input.name}{detail && <span className="text-ink-2"> · {detail}</span>}
-            </button>
+            {/* ponytail: opening the source from its pill waits for a canvas reveal by link id; the full name, members and any problem are in the title. */}
+            {onOpen ? <button type="button" title={full} aria-label={`Open ${full}`} onClick={() => onOpen(input)} className="min-w-0 cursor-pointer truncate text-left">{name}</button>
+              : <span tabIndex={0} title={full} aria-label={full} className="min-w-0 truncate">{name}</span>}
             {onRemove ? <button type="button" aria-label={`Remove ${input.name}`} onClick={() => onRemove(input)} className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-ink-2 hover:bg-hover hover:text-ink"><X size={13} /></button> : <span className="w-1.5" />}
           </li>
         );
       })}
     </ul>
+  );
+}
+
+// The Input picker (section 4, accessible path): the same link a port drag makes, from a native list of the canvas's
+// sources read when it opens. A source that cannot be an input is listed, disabled, with its reason.
+export function InputPicker({ list, onConnect }) {
+  const [rows, setRows] = useState([]);
+  const load = () => setRows(list());
+  return (
+    <select aria-label="Connect an input" data-input-picker value="" onFocus={load} onPointerDown={load}
+      onChange={event => { if (event.target.value) onConnect(event.target.value); }}
+      className="h-7 max-w-full min-w-0 rounded-md border border-dashed border-line bg-surface px-1.5 text-xs text-ink-2 outline-none focus-visible:border-ink-3 pointer-coarse:text-base">
+      <option value="">Connect an input</option>
+      {rows.map(row => <option key={row.id} value={row.id} disabled={!!row.problem}>{row.kind === 'group' ? `Group: ${row.label}` : row.label}{row.problem ? ' (not available)' : ''}</option>)}
+    </select>
   );
 }
