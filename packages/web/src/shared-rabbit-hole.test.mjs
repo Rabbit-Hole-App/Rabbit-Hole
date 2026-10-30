@@ -111,3 +111,14 @@ test('every Start Rabbit Hole on someone else\'s canvas opens the choice first: 
   assert.match(cards, /data-card-start-rabbit-hole onClick=\{stop\(\(\) => setStarting\(card\)\)\}/);
   assert.match(cards, /onPick=\{\(origin\) => \{ setStarting\(null\); go\(startHref\(starting\.url, origin\)\); \}\}/);
 });
+
+// Rule (gate 41008524157, 0 !== 1): on /b/ the header renders with the board, before the lazy AdaptiveCanvas chunk; until
+// then CanvasChromeLoading draws a placeholder toolbar with no role. A check counts canvas chrome only after a card shows.
+test('the shared-page check counts the visitor\'s toolbar only once the lazy canvas has mounted', () => {
+  const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const page = read('./SharedBoardPage.jsx'), check = read('../e2e/shared-rabbit-hole-check.mjs');
+  assert.match(page, /const AdaptiveCanvas = lazy\(\(\) => import\('\.\/AdaptiveCanvas\.jsx'\)\);/);
+  assert.match(page, /<Suspense fallback=\{<CanvasChromeLoading tools=\{localCopy\} \/>\}>/);
+  const step = check.slice(check.indexOf("await page.locator('[data-shared-title]').waitFor();"), check.indexOf("'tools for the visitor copy'"));
+  assert.match(step, /\[data-block-id="k-exp"\]'\)\.waitFor\(/, 'a canvas card is waited for before the toolbar count');
+});
