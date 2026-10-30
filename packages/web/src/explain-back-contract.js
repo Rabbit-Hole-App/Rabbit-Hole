@@ -71,6 +71,8 @@ const outOf = v => v === RATING_OUT_OF;
 const answerVersion = v => v === ANSWER_VERSION;
 const explainBackKind = v => v === EXPLAIN_BACK_KIND;
 const reviewVersion = v => v === REVIEW_VERSION;
+const transcriptText = v => typeof v === 'string' && v.length <= 20000;
+const uncertainty = v => (typeof v === 'number' && v >= 0 && v <= 1) || isObj(v);
 const nullableId = v => v === null || (typeof v === 'string' && v.length > 0 && v.length <= 200);
 
 export const EB_SHAPES = {
@@ -78,12 +80,19 @@ export const EB_SHAPES = {
   GroupMember: { sourceKind: 'id', sourceId: 'id', revision: 'ver', board: 'id?', hash: { opt: sha256 }, media: MEDIA_KINDS, scope: 'obj?', state: EVIDENCE_STATES },
   EvidenceRef: {
     evidenceId: 'id', role: EVIDENCE_ROLES, media: MEDIA_KINDS, state: EVIDENCE_STATES,
-    assetId: 'id', revision: 'ver', hash: { opt: sha256 }, mime: 'id?', bytes: 'int?', durationMs: 'int?',
+    assetId: 'id', revision: 'ver', hash: { opt: sha256 }, mime: 'id?', codec: 'id?', bytes: 'int?', durationMs: 'int?',
     // resources only: where it came from and what part was selected
     sourceKind: 'id?', board: 'id?', label: 'str?', scope: 'obj?', locators: 'obj?', derivative: { opt: 'DerivativeRef' },
     members: { opt: ['GroupMember'] }, connection: 'obj?',
   },
   AssistanceRef: { kind: ASSISTANCE_KINDS, id: 'id' },
+  // A transcript derivative of one retained audio asset (worker M produces it; D stores it immutable, keyed by audio hash).
+  // It is assessment and accessibility data only: never inserted into the typed answer.
+  TranscriptSegment: { startMs: 'int', endMs: 'int', text: shortText },
+  Transcript: {
+    transcriptId: 'id', assetId: attemptAsset, hash: sha256, text: transcriptText, segments: { opt: ['TranscriptSegment'] },
+    provider: 'id', model: 'id', uncertainty: { opt: uncertainty },
+  },
   Baseline: { parentAttemptId: 'id', parentAssessmentId: nullableId },
   ExplainBackAnswer: {
     v: answerVersion, kind: explainBackKind, text: answerText,
@@ -116,6 +125,14 @@ export const EB_SHAPES = {
 
 const allEvidence = a => [...(a.voice ?? []), ...(a.sketch ? [a.sketch] : []), ...(a.recording ? [a.recording] : []), ...(a.resources ?? [])];
 export const answerEvidence = a => (isObj(a) ? allEvidence(a) : []);
+
+// Worker M's stopped voice note {v, asset, type, ext, codec, durationMs, size, sha256} as a ready voice EvidenceRef.
+// asset is the aa_ id the attempt-asset upload returned; ext is not kept (the server names the container from the bytes).
+export const voiceEvidence = (note, evidenceId) => ({
+  evidenceId, role: 'voice', media: 'audio', state: 'ready', assetId: note.asset, revision: 1, hash: note.sha256,
+  mime: note.type, ...(note.codec ? { codec: note.codec } : {}), bytes: note.size, durationMs: note.durationMs,
+});
+export const validateTranscript = t => { const errors = validateShape(EB_SHAPES, 'Transcript', t); return { ok: !errors.length, errors }; };
 
 // Rules the field specs cannot say. ctx (all optional): board, the canvas the attempt is on; cardId, the Explain-back card
 // itself (it may not be its own input). The server repeats every authorization check; these are shape and scope only.

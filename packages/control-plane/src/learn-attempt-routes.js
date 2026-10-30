@@ -9,6 +9,10 @@
 //        The activity steps to awaiting_feedback, then to feedback_ready once the assessment is final (coaching store).
 //   GET  /api/learn/tutor/attempts/:id?app=&board= -> {attempt, assessment, assessments}
 //        Reconciles stale operations. It makes no model call.
+//   GET  /api/learn/tutor/attempts?app=&board=&cardId= -> {attempts}: the learner's own attempts at one Explain-back card,
+//        newest first, each with its latest operation and stored rating. No model call.
+//   POST /api/learn/tutor/attempts/bind {app, board, cardId, prompt, expects?} -> {goalId, activityId, activityRevision,
+//        criterionRefs, rubricVersion}: the card's server-owned activity and criteria (Explain-back, EB-02). Idempotent.
 //   POST /api/learn/tutor/attempts/:id/reassess {app, board, requestKey, dispute?} -> {attempt, assessment, assessments, replayed}
 //        A deliberate review. It supersedes the last completed assessment; the original attempt and result are kept.
 //        dispute: true is the learner's "Question this feedback" (Task 10): the questioned result is labelled disputed.
@@ -18,6 +22,8 @@
 //   404 unknown_activity, unknown_attempt (also for another learner's ids)
 //   409 submission_key_conflict, stale_activity {activityRevision}, goal_closed, criteria_unavailable, assessment_in_progress
 //   413 submission_too_large {field, unit, max, actual}. Nothing is truncated.
+//   Explain-back: 400 invalid_card, self_reference, empty_answer, upload_in_progress, evidence_unavailable, text_too_long;
+//   403 cross_scope_evidence; 404 baseline_not_found, unknown_asset; 409 stale_baseline {parentAssessmentId}, card_busy.
 //   503 attempts_unavailable. The response never claims a save that did not happen.
 //   After a save, a failure later in the request still answers with the saved attempt (202 when it cannot be read back).
 //
@@ -25,13 +31,13 @@
 // open, a canvas, and the account's users.id (never an email, never taken from the body).
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
-import { AttemptError, acceptAttempt, readAttempt, requestReassessment } from './learn-attempt-store.js';
+import { AttemptError, acceptAttempt, bindExplainBackCard, listAttempts, readAttempt, requestReassessment } from './learn-attempt-store.js';
 import { assessAttempt } from './learn-assessment.js';
 import { advanceActivity } from './learn-coaching-store.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/; // learn-boards.js board names
-const PATH = /^\/api\/learn\/tutor\/attempts(?:\/([A-Za-z0-9_-]{1,100})(\/reassess)?)?$/;
+const PATH = /^\/api\/learn\/tutor\/attempts(?:\/(bind)|\/([A-Za-z0-9_-]{1,100})(\/reassess)?)?$/;
 // The raw body is bounded before parsing. It holds the 16 KB submission plus its refs.
 export const ATTEMPT_BODY_CHARS = 65536;
 const log = (event, error) => console.error(JSON.stringify({ event, error: error?.name || 'Error', message: String(error?.message || '').slice(0, 120) }));
@@ -39,13 +45,14 @@ const log = (event, error) => console.error(JSON.stringify({ event, error: error
 export async function attemptRoute(path, req, env, deps = {}) {
   const match = PATH.exec(path);
   if (!match) return null;
-  const [, id, reassess] = match;
-  const method = id && !reassess ? 'GET' : 'POST';
+  const [, bind, id, reassess] = match;
+  const query = new URL(req.url).searchParams;
+  const list = !bind && !id && req.method === 'GET' && query.has('cardId');
+  const method = list || (id && !reassess) ? 'GET' : 'POST';
   if (req.method !== method) return json({ error: `${method} required` }, 405);
   let body;
   if (method === 'GET') {
-    const query = new URL(req.url).searchParams;
-    body = { app: query.get('app'), board: query.get('board') };
+    body = { app: query.get('app'), board: query.get('board'), cardId: query.get('cardId') };
   } else {
     const raw = await req.text();
     if (raw.length > ATTEMPT_BODY_CHARS) return json({ error: 'submission_too_large', detail: { field: 'body', unit: 'characters', max: ATTEMPT_BODY_CHARS, actual: raw.length } }, 413);
@@ -63,7 +70,9 @@ export async function attemptRoute(path, req, env, deps = {}) {
   const actor = { org: access.org, userId: access.user_id, app: body.app, board: body.board };
   let handle;
   try {
+    if (list) return json({ attempts: await listAttempts(env, actor, body.cardId) });
     if (method === 'GET') return json(await readAttempt(env, actor, id));
+    if (bind) return json(await bindExplainBackCard(env, actor, { cardId: body.cardId, prompt: body.prompt, expects: body.expects ?? [] }));
     handle = reassess
       ? await requestReassessment(env, actor, id, body.requestKey, { dispute: body.dispute === true })
       : await acceptAttempt(env, actor, {
