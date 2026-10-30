@@ -573,6 +573,13 @@ await check('phone width: the panel stacks under the card and the question stays
 await shot('08-phone-stacked');
 await page.setViewportSize({ width: 1600, height: 1000 });
 await page.waitForTimeout(600);
+// Done with the Sketch, the learner puts it away before wiring inputs on the canvas (plan section 3: Close releases the
+// drawing target, and the canvas hands Select back for a tool picked while drawing in it). Run 41042459055 reached the
+// port step with this panel still open and the pen armed.
+if (await panels().count()) await panels().first().locator('[data-sketch-close]').click();
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
+assert.equal(await panels().count(), 0, 'the Sketch is put away');
 
 // ---- EB-05: resource inputs (plan 2026-10-30-explain-back.md section 4). Click-click from a card's or a Group's port to
 // the green Input makes one semantic link; the other port of the same source is the same input; undo removes it; an
