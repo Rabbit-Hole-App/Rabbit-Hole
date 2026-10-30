@@ -47,7 +47,7 @@ await page.route('**/api/learn/grade**', async route => { if (new URL(route.requ
 // runs inside it), list, read and the private asset upload. Each review is the EB-01 fixture reshaped to this answer: a
 // typed answer is rated (8/10; a revision that fixes the gap 10/10, with its comparison), a sketch alone is Not rated
 // (its second criterion unassessed), so both badge states are exercised.
-const posts = [], assetPuts = [], bound = new Map(), stored = new Map(); // stored: attemptId -> { cardId, content, assessment }
+const posts = [], assetPuts = [], bound = new Map(), stored = new Map(), serverDrafts = new Map(); // stored: attemptId -> { cardId, content, assessment }
 const sha = body => createHash('sha256').update(body || '').digest('hex');
 const stubReview = (attemptId, assessmentId, content) => {
   const typed = content.text || '';
@@ -88,6 +88,18 @@ await page.route('**/api/learn/tutor/attempts**', async route => {
     const { cardId } = JSON.parse(request.postData());
     bound.set(`act_${cardId}`, cardId);
     return json(route, 200, { goalId: 'goal_eb', activityId: `act_${cardId}`, activityRevision: 1, criterionRefs: ['c_row@1', 'c_position@1'], rubricVersion: 'r1' });
+  }
+  // The server draft (explain-back-drafts.js): one per card, its revision checked; a cleared draft is gone.
+  if (path === '/drafts') {
+    const cardId = request.method() === 'GET' ? url.searchParams.get('cardId') : JSON.parse(request.postData()).cardId;
+    if (request.method() === 'GET') return json(route, 200, { draft: serverDrafts.get(cardId) || null });
+    const { expectedRevision, answer } = JSON.parse(request.postData());
+    const current = serverDrafts.get(cardId);
+    if ((current?.revision || 0) !== expectedRevision) return json(route, 409, { error: 'draft_conflict', detail: { draft: current || null } });
+    if (answer === null) { serverDrafts.delete(cardId); return json(route, 200, { draft: null }); }
+    const draft = { cardId, revision: (current?.revision || 0) + 1, answer, updatedAt: new Date().toISOString() };
+    serverDrafts.set(cardId, draft);
+    return json(route, 200, { draft });
   }
   if (request.method() === 'PUT' && path.startsWith('/assets')) {
     const body = request.postDataBuffer() || Buffer.alloc(0);
@@ -428,6 +440,18 @@ await check('9 Revise answer keeps the text and the drawing for editing; history
   assert.equal(await reloaded.locator('textarea[data-eb-answer]').inputValue(), 'the id picks a row; a position embedding is added', 'the draft survived history browsing');
 });
 await shot('09-revision-draft');
+await check('9b the unsent revision is a server draft: a reload brings back its text and its parent', async () => {
+  await page.waitForTimeout(1500); // the draft saves after a pause in typing (explain-back-drafts.js SAVE_DELAY_MS)
+  assert.equal(serverDrafts.get(cardId)?.answer.text, 'the id picks a row; a position embedding is added');
+  assert.equal(serverDrafts.get(cardId)?.answer.baseline?.parentAttemptId, firstAttempt);
+  await page.reload();
+  await page.waitForSelector('[data-tool-gutter]', { timeout: 30000 });
+  await reloaded.locator('textarea[data-eb-answer]').waitFor({ timeout: 10000 });
+  await page.waitForFunction(id => document.querySelector(`[data-block-id="${id}"] textarea[data-eb-answer]`)?.value, cardId, { timeout: 10000 });
+  assert.equal(await reloaded.locator('textarea[data-eb-answer]').inputValue(), 'the id picks a row; a position embedding is added');
+  assert.deepEqual(await reloaded.locator('[data-attempt-select] option').allInnerTexts(), ['Attempt 1 · Reviewed · 8/10', 'Draft · revising attempt 1']);
+  assert.equal(postsFor(cardId).length, 1, 'restoring a draft submits nothing');
+});
 await check('10 the revision is a new attempt pinned to attempt 1 and its review; attempt 1 stays', async () => {
   await submitOf(reloaded).click();
   await reloaded.locator('[data-feedback-comparison]').waitFor({ timeout: 10000 });
@@ -443,8 +467,14 @@ await check('10 the revision is a new attempt pinned to attempt 1 and its review
 // ---- 5. sketch only, and one panel across questions ----
 const sketchOnly = await insert('Explain back');
 const sketchOnlyId = await sketchOnly.getAttribute('data-block-id');
-await check('5 sketch-only submission; opening another question retargets the one panel', async () => {
+await check('5 a pinned panel is not taken by another question; once free, Open sketch retargets the one panel; sketch alone is an answer', async () => {
   await reveal(sketchOnly);
+  // The first question's panel is still open and pinned (check 4): this question's Open sketch says why and leaves it.
+  assert.equal(await panelOf(cardId).count(), 1);
+  await sketchOnly.locator('[data-sketch-toggle]').click();
+  assert.match(await sketchOnly.locator('[data-eb-notice]').innerText(), /pinned to another question/);
+  assert.equal(await panelOf(sketchOnlyId).count(), 0);
+  await panelOf(cardId).locator('[data-sketch-pin]').click(); // unpinned: the explicit retarget is allowed
   await sketchOnly.locator('[data-sketch-toggle]').click();
   await panelOf(sketchOnlyId).waitFor();
   assert.equal(await panels().count(), 1, 'the other question\'s panel closed');
