@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { AudioLines, Loader2, Mic, Pause, Play, RotateCcw, Square, Trash2, X } from 'lucide-react';
-import { LIMIT_WARNING_MS, clock } from './explain-back-media.js';
+import { LIMIT_WARNING_MS, clock, createVoiceNote } from './explain-back-media.js';
 
 // The retained voice note row on the Explain-back answer card (plan section 5). Record voice -> Recording, elapsed time,
 // Pause/Resume, Stop -> a replayable note with play/pause, a neutral progress track (no invented waveform), elapsed and
@@ -15,6 +15,15 @@ import { LIMIT_WARNING_MS, clock } from './explain-back-media.js';
 //   disabled    greys Record voice (for example while the answer is being submitted).
 // The card's Submit uses voiceSubmitState(useVoiceNote(note)) for its disabled label.
 export const useVoiceNote = note => useSyncExternalStore(note.subscribe, note.get, note.get);
+
+// A submitted attempt's voice note (its voice EvidenceRef), playback only; bytes load through `load` when Play asks.
+export function SavedVoice({ note, load }) {
+  const [player] = useState(() => createVoiceNote({ saved: note, load }));
+  useEffect(() => () => player.dispose(), [player]);
+  return <VoiceNote note={player} readOnly />;
+}
+// The `assets` object useExplainBackService takes (explain-back-assets.js) plus the submitted note's player.
+export const withVoicePlayer = assets => ({ ...assets, VoicePlayer: ({ note }) => <SavedVoice note={note} load={assets.voice.load} /> });
 
 const ACTIVE = new Set(['requesting', 'recording', 'paused', 'stopping']);
 const button = 'flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 text-xs font-medium text-ink hover:bg-hover disabled:opacity-40';
