@@ -2324,6 +2324,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       enterFocus: id => {
         const adapter = adapterFor(objectById(id), { view: viewRef.current, readOnly: readOnlyRef.current });
         if (!adapter || !surface.current) return false;
+        adoptScroll(); // a surface left scrolled by a native reveal would put the focused card off the pane by that scroll (Task 10.2)
         dispatchFocus({ type: 'enter', id, kind: adapter.kind, saved: commandsRef.current.captureNavigation(), frame: focusWorkspace() });
         setSelection([]);
         return true;
@@ -2947,6 +2948,39 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // window resize (the canvas narrowed by the browser, not a panel) is left alone; nothing moves while the width holds.
   const keepRef = useRef(null);
   keepRef.current = id => showBox(boundsRef.current[id], true);
+  // A native reveal's scroll of the surface (a control scrolled into view; the surface clips but still scrolls), as the camera move it
+  // stands for, the surface back at 0. Not on every scroll: a click retry's scrollIntoView then walked a card under the tools
+  // (15c53e5e6). Taken where something is placed in surface pixels from the camera: Focus, a keyboard reveal.
+  const adoptScroll = () => {
+    const element = surface.current, dx = element?.scrollLeft, dy = element?.scrollTop;
+    if (!dx && !dy) return;
+    element.scrollLeft = 0; element.scrollTop = 0;
+    const next = { ...viewRef.current, x: viewRef.current.x - dx, y: viewRef.current.y - dy };
+    viewRef.current = autoView.current = next; setView(next); // the ref at once: what is measured next in this event uses it
+  };
+  // A card's control that takes the keyboard focus under what floats over the surface (the minimap, the zoom row, the tools) is
+  // revealed through the camera, clear of it (showBox): the browser's own reveal knows only the surface's edges (Task 10.2 support
+  // matrix: a stack card's Add focused under the minimap). Only when it is covered, so a focus in view never moves the camera.
+  const revealFocusRef = useRef(null);
+  revealFocusRef.current = target => {
+    const element = surface.current, frame = element.getBoundingClientRect(), rect = target.getBoundingClientRect();
+    const at = { left: rect.left - frame.left, top: rect.top - frame.top, right: rect.right - frame.left, bottom: rect.bottom - frame.top };
+    const floating = [...[...(shell.current?.querySelectorAll('[data-canvas-bottom] > * > *') || [])].flatMap(boxesIn).filter(box => box.width && box.height)
+      .map(box => ({ left: box.left - frame.left, top: box.top - frame.top, right: box.right - frame.left, bottom: box.bottom - frame.top })), ...controlRects()];
+    if (!floating.some(box => box.left < at.right && box.right > at.left && box.top < at.bottom && box.bottom > at.top)) return;
+    // In world units through the camera as drawn (less any scroll the surface holds), then that scroll taken into the camera.
+    const v = viewRef.current, x = v.x - element.scrollLeft, y = v.y - element.scrollTop;
+    const box = { x: (at.left - x) / v.z, y: (at.top - y) / v.z, w: rect.width / v.z, h: rect.height / v.z };
+    adoptScroll();
+    showBox(box);
+  };
+  useEffect(() => {
+    const element = surface.current;
+    if (!element) return undefined;
+    const focused = event => { const target = event.target; if (!focusRef.current && target?.matches?.(':focus-visible') && target.closest('[data-block]')) revealFocusRef.current(target); };
+    element.addEventListener('focusin', focused);
+    return () => element.removeEventListener('focusin', focused);
+  }, []);
   useEffect(() => {
     const element = surface.current;
     if (!element) return undefined;
