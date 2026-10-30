@@ -5,7 +5,7 @@ import { Pill } from './ui.jsx';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { claimViewer, releaseViewer } from './viewer-slots.js';
 import { watchSeen } from './explain-program/playback.js';
-import { animationClient, animationRetry, animationRunning, animationStage } from './animation3d/client.js';
+import { ANIMATION_JOB_EVENT, animationClient, animationRetry, animationRunning, animationStage, readyResult } from './animation3d/client.js';
 import {
   artifactRefOf, cardPhase, detectWebGL, EXPERIENCE_LABELS, failureText, FIXTURE_LABEL, FIXTURE_NOTE, fixtureIdOf, INTERACT_LEGEND,
   jobOf, retryLabel, visibleControls, WEBGL_UNAVAILABLE,
@@ -14,6 +14,8 @@ import { ANIMATION_FIXTURES } from './animation3d/fixtures.js';
 import { cancelAnimationJob, createAnimationSaver, hydrateAnimation, landHydration, nextView, settleAnimationJob } from './animation3d/storage.js';
 import { createAnimationRuntime } from './animation3d/runtime.js';
 import { createAnimationRenderer } from './animation3d/renderer.js';
+import { AnimationBoard } from './animation3d/board-context.js';
+import { EXPLAIN_BRIEF_EVENT } from './explain-client.js';
 import { createCardSession } from './animation3d/session.js';
 import { useSceneInteraction } from './animation3d/interaction.js';
 import { Actions, buttonClass, GamePanel, Parameters, Readouts, Toolbar } from './animation3d/Controls.jsx';
@@ -25,8 +27,8 @@ import { Actions, buttonClass, GamePanel, Parameters, Readouts, Toolbar } from '
 // relays. Nothing here calls a model: playing, adjusting and resetting are local to the accepted artifact.
 //
 // Props beyond the canvas's usual block/onChange/onChangeQuiet/selected/readOnly:
-//   context   { kind: 'owner' | 'share' | 'publication' | 'embed' | 'fork', boardId } (storage.js hydrateAnimation); a saved
-//             card shows its honest placeholder without it
+//   context   { kind: 'owner' | 'share' | 'publication' | 'embed' | 'fork', boardId } (storage.js hydrateAnimation); default: the
+//             AnimationBoard context the owner's canvas provides. A saved card shows its honest placeholder without either
 //   readArtifact(ref, { signal })  the durable result read (default: client.js result route)
 //   onEdit()  the reviewed refinement path (proposal)     onAsk()  Ask Tutor with this card as context
 //   createRuntime / createRenderer / webgl / fetchJson  tests inject stand-ins
@@ -36,15 +38,19 @@ const aborted = () => Object.assign(new Error('aborted'), { name: 'AbortError' }
 // The scene a card shows: a built-in example by its fixture name (its state kept in this page only), else the saved envelope
 // hydrated by storage.js (owner only in the MVP; the artifact read through the result route, checked against its reference) and
 // landed on the card as it is now, so edits made while it loaded win.
-export const sceneLoader = ({ context, readArtifact, latest }) => async (block, { signal }) => {
+export const sceneLoader = ({ context: contextOf, readArtifact, latest }) => async (block, { signal }) => {
+  const context = contextOf(); // read at load time: the canvas's board id can arrive after the card mounts
   const name = fixtureIdOf(block);
   if (name) {
     const fixture = ANIMATION_FIXTURES.find(entry => entry.name === name);
     if (!fixture) throw Object.assign(new Error('This example is not available.'), { retry: false });
     return { artifact: structuredClone(fixture.artifact), sim: null, view: null };
   }
-  const result = await hydrateAnimation(block, { context, readArtifact, signal });
+  let off = false; // lane G's kill switch (results route execution.allowed false): the artifact is never run
+  const read = async (ref, options) => { try { return await readArtifact(ref, options); } catch (error) { off = error?.code === EXECUTION_OFF; throw error; } };
+  const result = await hydrateAnimation(block, { context, readArtifact: read, signal });
   if (result.status === 'aborted') throw aborted();
+  if (off) throw Object.assign(new Error('3D animations are turned off right now. Your saved scene is kept.'), { code: EXECUTION_OFF, retry: true });
   if (result.status !== 'ready') throw Object.assign(new Error(result.message || 'The animation could not be loaded.'), { code: result.status, retry: result.retry });
   const landed = landHydration(latest(), result, { boardId: context?.boardId });
   if (!landed.ok) throw aborted();
@@ -52,8 +58,10 @@ export const sceneLoader = ({ context, readArtifact, latest }) => async (block, 
 };
 const defaultReadArtifact = fetchJson => async (ref, { signal }) => {
   const answer = await animationClient(fetchJson, ref.boardId).result(ref.artifactId, { signal });
+  if (answer?.execution?.allowed === false) throw Object.assign(new Error('execution off'), { code: EXECUTION_OFF });
   return answer?.artifact ?? null;
 };
+const EXECUTION_OFF = 'execution_off';
 
 function Header({ title, experience, fixture }) {
   const slot = useContext(PromptSlot);
@@ -80,10 +88,15 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
   const [job, setJob] = useState(null), [problem, setProblem] = useState(''), [busy, setBusy] = useState(false);
   const latest = useRef(block); latest.current = block;
   const client = useMemo(() => animationClient(fetchJson, waiting.boardId), [fetchJson, waiting.boardId]);
-  const apply = data => {
+  // A ready job's result is read once and mapped onto the board's reference (client.js readyResult) before it may land.
+  const apply = async data => {
     const polled = data?.job ?? null;
     setJob(polled);
-    const out = settleAnimationJob(latest.current, polled, { boardId: waiting.boardId });
+    // A plan ready for review: the chat showing its thread reloads it, so the plan and its Generate appear (as /explain's brief).
+    if (polled?.stage === 'awaiting_approval' && latest.current.animation3dJob?.stage !== 'awaiting_approval' && waiting.threadId) window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId: waiting.threadId, jobId: waiting.id } }));
+    const settled = polled?.stage === 'ready' ? await readyResult(polled, id => client.result(id)) : polled;
+    if (!settled) { setProblem('The finished scene could not be read. Try again in a moment.'); return; }
+    const out = settleAnimationJob(latest.current, settled, { boardId: waiting.boardId });
     if (out.action === 'apply') { latest.current = out.block; onChange(out.block); return; }
     // The stage rides on the card quietly so a reload shows where it was; not an undo step.
     if ((out.action === 'progress' || out.action === 'keep') && out.block !== latest.current) { latest.current = out.block; (onChangeQuiet || onChange)(out.block); }
@@ -92,11 +105,14 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
     if (readOnly || ['failed', 'cancelled'].includes(waiting.stage)) return undefined;
     let live = true, timer;
     const poll = async () => {
-      try { const data = await client.get(waiting.id); if (!live) return; setProblem(''); apply(data); if (animationRunning(data?.job)) timer = setTimeout(poll, 2000); }
+      try { const data = await client.get(waiting.id); if (!live) return; setProblem(''); await apply(data); if (animationRunning(data?.job)) timer = setTimeout(poll, 2000); }
       catch (error) { if (live) setProblem(error.message); }
     };
     poll();
-    return () => { live = false; clearTimeout(timer); };
+    // Generate, a refinement or Stop moved the job on from the chat: observe it again (a GET; it never advances the job).
+    const again = event => { if (event.detail?.jobId === waiting.id) { clearTimeout(timer); poll(); } };
+    window.addEventListener(ANIMATION_JOB_EVENT, again);
+    return () => { live = false; clearTimeout(timer); window.removeEventListener(ANIMATION_JOB_EVENT, again); };
   }, [waiting.id, client, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
   const acting = useRef(false);
   const act = async (name, body) => {
@@ -105,7 +121,7 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
     try {
       const data = await client.action(waiting.id, name, body);
       // Stop: the card stops waiting at once; a later result is refused (storage.js cancelAnimationJob).
-      if (name === 'cancel') { const next = cancelAnimationJob(latest.current); latest.current = next; (onChangeQuiet || onChange)(next); setJob(data?.job ?? null); } else apply(data);
+      if (name === 'cancel') { const next = cancelAnimationJob(latest.current); latest.current = next; (onChangeQuiet || onChange)(next); setJob(data?.job ?? null); } else await apply(data);
     } catch (error) { setProblem(error.message); } finally { acting.current = false; setBusy(false); }
   };
   const shown = job || { stage: waiting.stage, ...(waiting.message ? { failure: { message: waiting.message } } : {}) };
@@ -148,9 +164,10 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
     saver.current = created;
     return () => { created.dispose(); if (saver.current === created) saver.current = null; };
   }, [refKey, block.id, readOnly, context?.kind]); // eslint-disable-line react-hooks/exhaustive-deps
+  const contextRef = useRef(context); contextRef.current = context;
   const session = useRef(null);
   session.current ||= createCardSession({
-    loadScene: sceneLoader({ context, readArtifact: readArtifact ?? defaultReadArtifact(fetchJson), latest: () => latest.current }),
+    loadScene: sceneLoader({ context: () => contextRef.current, readArtifact: readArtifact ?? defaultReadArtifact(fetchJson), latest: () => latest.current }),
     createRuntime, createRenderer: webglOk ? createRenderer : null, onUpdate: setView,
     persist: {
       simulation: sim => saver.current?.simulation(sim),
@@ -160,7 +177,7 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
   const live = session.current;
   const state = view ?? live.state();
   const sourceKey = `${refKey}|${fixtureIdOf(block) ?? ''}`;
-  useEffect(() => { live.start(latest.current); }, [block.id, sourceKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { live.start(latest.current); }, [block.id, sourceKey, context?.kind, context?.boardId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => live.dispose(), [live]);
 
   // On screen (with a margin) asks for one of the shared WebGL slots (viewer-slots.js MAX_LIVE); off screen for a while gives it
@@ -295,6 +312,7 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
 export default function Animation3DCard({ block, onChange, onChangeQuiet, selected = true, readOnly = false, onEdit = null, onAsk = null, context = null, readArtifact = null,
   createRuntime = createAnimationRuntime, createRenderer = createAnimationRenderer, webgl = undefined, fetchJson = api }) {
   // Waiting on its first version: no saved scene and no example yet.
+  const board = useContext(AnimationBoard); // the owner's canvas (LearnPage); a prop wins (tests, the Slash Commands window)
   if (jobOf(block) && !artifactRefOf(block) && !fixtureIdOf(block)) {
     return (
       <div data-animation3d-card data-animation-phase={cardPhase({ block })} className="flex min-h-0 flex-1 flex-col px-4 pb-3">
@@ -305,5 +323,5 @@ export default function Animation3DCard({ block, onChange, onChangeQuiet, select
   }
   // ponytail: a regeneration in flight on a card that already has a scene shows the scene only; its status line comes with AN-14's revisions.
   return <AnimationScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} selected={selected} readOnly={readOnly} onEdit={onEdit} onAsk={onAsk}
-    context={context} readArtifact={readArtifact} createRuntime={createRuntime} createRenderer={createRenderer} webgl={webgl} fetchJson={fetchJson} />;
+    context={context ?? board} readArtifact={readArtifact} createRuntime={createRuntime} createRenderer={createRenderer} webgl={webgl} fetchJson={fetchJson} />;
 }

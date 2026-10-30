@@ -2295,6 +2295,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       },
       // An /explain v2 job's card (EXP-T20): placed once under the job's own card id, so a resent press or a reload finds it
       // instead of adding a second card; the result attaches to it later (ExplainPending).
+      // /animation (AN-05): its pending card (storage.js withJob) placed where the learner looks, once per card id.
+      placeAnimation: (card, { into = null } = {}) => {
+        if (!alive.current || readOnlyRef.current || !card?.id || card.type !== 'animation3d') return null;
+        if (blocksRef.current.some(block => block.id === card.id)) return card.id;
+        snapshot();
+        const added = { ...card, dx: 0, dy: 0 };
+        blocksRef.current = [...blocksRef.current, added];
+        return insertAtView(added, into);
+      },
       placeExplain: (card, { into = null } = {}) => {
         if (!alive.current || readOnlyRef.current || !card?.id || card.type !== 'animation') return null;
         if (blocksRef.current.some(block => block.id === card.id)) return card.id;
