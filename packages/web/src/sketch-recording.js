@@ -4,7 +4,7 @@
 // card, the board or the screen. Silent mode never asks for the microphone. Pause/Resume stops the clock for the timeline
 // and the narration together, so a time t means the same moment in both. Like the voice note, the controller lives in a
 // registry keyed by question and draft, above any panel mount; closing the panel stops cleanly and keeps the take.
-import { RECORDING_LIMIT_MS, clock, createVoiceNote } from './explain-back-media.js';
+import { RECORDING_LIMIT_MS, clock, createVoiceNote, onStopAllCaptures } from './explain-back-media.js';
 import { sketchMarks, sketchText } from './explain-sketch.js';
 import { validateExplainBackAnswer } from './explain-back-contract.js';
 
@@ -90,7 +90,7 @@ export function createSketchRecording({ owner = { id: 'sketch-recording', label:
   const voice = createVoiceNote({ owner, upload: uploadAudio, load, media, time, limitMs: limitMs + 1000, saved: restored?.narration ?? null });
   let state = { status: restored ? 'saved' : 'idle', audio: false, elapsedMs: restored?.durationMs ?? 0, limitMs, take: null, saved: restored, narration: voice.get(), progress: null, error: null, notice: null };
   const listeners = new Set();
-  let session = null, run = 0, disposed = false;
+  let session = null, run = 0, disposed = false, abortStart = false;
   const set = patch => { state = { ...state, ...patch }; for (const fn of [...listeners]) fn(state); };
   const persist = next => { try { onSaved?.(next); } catch { /* the draft's save reports its own failure */ } };
   const active = () => state.status === 'recording' || state.status === 'paused';
@@ -116,8 +116,11 @@ export function createSketchRecording({ owner = { id: 'sketch-recording', label:
     set({ error: null, notice: null, elapsedMs: 0 });
     if (s.audio) {
       set({ status: 'requesting' });
+      abortStart = false;
       await voice.start();
       const heard = voice.get();
+      // Cancelled (or the canvas left) while the browser asked for the microphone: release it and start nothing.
+      if (abortStart || disposed) { if (['recording', 'requesting'].includes(heard.status)) voice.cancel(); set({ status: s.previous.status }); return; }
       if (heard.status !== 'recording') {
         if (heard.status === 'requesting') voice.cancel();
         set({ status: s.previous.status, error: heard.error || { kind: 'unavailable', message: 'The microphone could not start. Try again, or turn Audio off.', retryable: true } });
@@ -161,6 +164,7 @@ export function createSketchRecording({ owner = { id: 'sketch-recording', label:
   }
 
   async function stop(reason = 'stop') {
+    if (state.status === 'requesting' && reason !== 'stop') { abortStart = true; return; }
     const s = session;
     if (!s || !active()) return;
     session = null;
@@ -263,3 +267,11 @@ export function sketchRecordingFor(key, options = {}) {
   return recordings.get(key);
 }
 export function disposeSketchRecording(key) { recordings.get(key)?.dispose(); recordings.delete(key); }
+// stopAllExplainBackCaptures (explain-back-media.js) reaches the Sketch recordings through this.
+onStopAllCaptures(({ keep }) => {
+  for (const rec of recordings.values()) {
+    const { status } = rec.get();
+    if (status === 'requesting') rec.cancel();
+    else if (status === 'recording' || status === 'paused') { if (keep) rec.stop(); else rec.cancel(); }
+  }
+});

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { claimMicrophone, microphoneHolder, releaseMicrophone } from './explain-back-media.js';
-import { createSketchRecording, diffMarks, recordingSubmitState, stateAt, timelineSteps } from './sketch-recording.js';
+import { claimMicrophone, disposeVoiceNote, microphoneHolder, releaseMicrophone, stopAllExplainBackCaptures, voiceNoteFor } from './explain-back-media.js';
+import { createSketchRecording, diffMarks, disposeSketchRecording, recordingSubmitState, sketchRecordingFor, stateAt, timelineSteps } from './sketch-recording.js';
 import { validateExplainBackAnswer } from './explain-back-contract.js';
 const answerWith = recording => validateExplainBackAnswer({ v: 1, kind: 'explain_back', text: '', voice: [], recording, resources: [], assistance: [] });
 
@@ -171,4 +171,36 @@ test('a saved recording restores read-only for replay: timeline and narration lo
   assert.match(await replay.audioSource(), /^blob:/);
   assert.deepEqual(loads, [saved.assetId, saved.narration.assetId]);
   assert.equal(createSketchRecording({ saved: { ...saved, assetId: 'fs_board_file' } }).get().status, 'idle', 'only a private attempt asset restores');
+});
+
+test('leaving the canvas stops every capture, keeps each take and releases the microphone', async () => {
+  const fake = fakeMedia();
+  const time = fakeTime();
+  const note = voiceNoteFor('leave:q1', { media: fake.media, time, upload: uploader('voc') });
+  const silent = sketchRecordingFor('leave:q2', { media: fake.media, time, upload: uploader('rec') });
+  await note.start(); await silent.start({ sketch: {} });
+  time.advance(3000);
+  assert.equal(microphoneHolder()?.id, 'voice-note:leave:q1');
+  stopAllExplainBackCaptures({ keep: true });
+  assert.equal(microphoneHolder(), null, 'the microphone is released at once');
+  assert.ok(fake.tracks.every(track => track.stopped >= 1));
+  await until(() => note.get().status === 'saved' && silent.get().status === 'saved', 'kept takes');
+  assert.equal(note.get().saved.durationMs, 3000);
+  // Narration still waiting for the browser's permission is cancelled when it answers; nothing records.
+  const narrated = sketchRecordingFor('leave:q3', { media: fake.media, time, upload: uploader('rec'), uploadAudio: uploader('aud') });
+  narrated.setAudio(true);
+  const starting = narrated.start({ sketch: {} });
+  assert.equal(narrated.get().status, 'requesting');
+  stopAllExplainBackCaptures();
+  await starting;
+  await until(() => narrated.get().status === 'idle', 'start abandoned');
+  assert.equal(microphoneHolder(), null);
+  assert.ok(fake.tracks.every(track => track.stopped >= 1));
+  // keep: false discards a running take.
+  const discard = voiceNoteFor('leave:q4', { media: fake.media, time, upload: uploader('voc') });
+  await discard.start(); time.advance(1000);
+  stopAllExplainBackCaptures({ keep: false });
+  await until(() => discard.get().status === 'idle', 'discarded');
+  for (const key of ['leave:q1', 'leave:q4']) disposeVoiceNote(key);
+  for (const key of ['leave:q2', 'leave:q3']) disposeSketchRecording(key);
 });

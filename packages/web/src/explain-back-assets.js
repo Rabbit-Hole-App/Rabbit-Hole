@@ -7,6 +7,7 @@
 import { wsHeaders } from './api.js';
 import { mediaInfo } from './media-formats.js';
 import { sketchMarks } from './explain-sketch.js';
+import { createDraftSync } from './explain-back-drafts.js';
 
 export const ASSETS_PATH = '/api/learn/tutor/attempts/assets';
 
@@ -46,7 +47,7 @@ export function pngFromDataUrl(url) {
   return new Blob([Uint8Array.from(atob(match[1]), c => c.charCodeAt(0))], { type: 'image/png' });
 }
 
-export function createExplainBackAssets({ app, board = 'main', fetchImpl = (...args) => globalThis.fetch(...args), storage = globalThis.localStorage }) {
+export function createExplainBackAssets({ app, board = 'main', fetchImpl = (...args) => globalThis.fetch(...args), timers = globalThis }) {
   const scope = new URLSearchParams({ app, board });
   const headers = () => { try { return wsHeaders(); } catch { return {}; } };
   const fail = async response => { const body = await response.json().catch(() => ({})); throw new AssetError(body.error || `http_${response.status}`, response.status); };
@@ -74,13 +75,16 @@ export function createExplainBackAssets({ app, board = 'main', fetchImpl = (...a
     return response.blob();
   }
 
-  // The voice note's draft reference, per card, in this browser until the server draft carries it (D's drafts route).
-  // ponytail: localStorage, so another device does not see an unsubmitted note; the server draft replaces this.
-  const draftKey = blockId => `rh.explain-back.voice:${app}:${board}:${blockId}`;
-  const saved = blockId => { try { return JSON.parse(storage?.getItem(draftKey(blockId)) || 'null'); } catch { return null; } };
-  const onSaved = (blockId, ref) => { try { if (ref) storage?.setItem(draftKey(blockId), JSON.stringify(ref)); else storage?.removeItem(draftKey(blockId)); } catch { /* a full or blocked store keeps the note in memory only */ } };
+  // Each card's server draft (explain-back-drafts.js), loaded once per card on first use. The voice note and Sketch recording
+  // references live in it, beside the card's text and inputs.
+  const drafts = new Map();
+  const draftFor = cardId => {
+    if (!drafts.has(cardId)) { const sync = createDraftSync({ app, board, cardId, fetchImpl, timers }); drafts.set(cardId, sync); sync.load(); }
+    return drafts.get(cardId);
+  };
 
   return {
+    drafts: { for: draftFor },
     // The Sketch capture { image: PNG data URL, text, marks? } -> its sketch EvidenceRef, with marks and text stored beside it.
     async uploadSketch({ block, sketch }) {
       const png = pngFromDataUrl(sketch.image);
@@ -95,14 +99,17 @@ export function createExplainBackAssets({ app, board = 'main', fetchImpl = (...a
     // createVoiceNote's options (explain-back-media.js): upload resolves the asset, which toSavedVoice maps to the EvidenceRef.
     voice: {
       upload: (file, { durationMs, onProgress }) => put(file, { kind: 'audio', durationMs, onProgress }),
-      load, saved, onSaved,
+      load,
+      saved: blockId => draftFor(blockId).get().answer.voice?.[0] ?? null,
+      onSaved: (blockId, ref) => draftFor(blockId).patch({ voice: ref ? [ref] : [] }),
     },
-    // createSketchRecording's options (sketch-recording.js). The timeline JSON needs the store to take kind 'timeline'
-    // (requested from D); until then its upload is refused with the store's own reason and the take is kept.
+    // createSketchRecording's options (sketch-recording.js); the timeline JSON is kind 'timeline'.
     recording: {
       upload: (file, { durationMs, onProgress }) => put(file, { kind: 'timeline', durationMs, onProgress }),
       uploadAudio: (file, { durationMs, onProgress }) => put(file, { kind: 'audio', durationMs, onProgress }),
       load,
+      saved: blockId => draftFor(blockId).get().answer.recording ?? null,
+      onSaved: (blockId, ref) => draftFor(blockId).patch({ recording: ref ?? undefined }),
     },
   };
 }

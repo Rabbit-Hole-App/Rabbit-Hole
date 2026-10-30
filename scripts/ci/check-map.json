@@ -453,6 +453,7 @@
     "packages/web/src/SpeakAnswer.jsx": ["voice-check.mjs","voice-tts-stream-check.mjs","tutor-entry-check.mjs","production-bundle-check.mjs","chat-block-check.mjs","explain-back-media-check.mjs"],
     "packages/web/src/explain-back-media.js": ["explain-back-media-check.mjs","explain-back-sketch-check.mjs"],
     "packages/web/src/explain-back-assets.js": ["explain-back-media-check.mjs"],
+    "packages/web/src/explain-back-drafts.js": ["explain-back-media-check.mjs","explain-back-sketch-check.mjs"],
     "packages/web/src/VoiceNote.jsx": ["explain-back-media-check.mjs","explain-back-sketch-check.mjs"],
     "packages/web/src/sketch-recording.js": ["explain-back-media-check.mjs","explain-back-sketch-check.mjs"],
     "packages/web/src/SketchRecorder.jsx": ["explain-back-media-check.mjs","explain-back-sketch-check.mjs"],
