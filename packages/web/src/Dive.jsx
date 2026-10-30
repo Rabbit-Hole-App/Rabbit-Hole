@@ -14,7 +14,7 @@ import { claimChord } from './shortcut-owner.js';
 import { markGuidedEntry } from './learn-opening.js';
 import { anchorBlock, clampSpot, diveRecord, discardHole, dropPending, holeHref, holeRows, keepMapSpot, keepPending, levelHref, mapSpot, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
 
-// The green portal outline on an originating card, read by the canvas's card chrome.
+// The Rabbit Hole footer row and stacked layers on an originating card or group, read by the canvas's chrome.
 export const DivePortals = createContext(null);
 
 // A pending hole lives only while the learner is inside it. Leaving it while it is still empty,
@@ -303,7 +303,7 @@ function Name({ level, className, onOpen, onRename, active = false }) {
   // One line, never wrapped: the full name is in the tooltip.
   return <Tip label={level.title} info={renamable ? 'Double-click to rename' : level.kind === 'shared' ? 'Shared canvas this hole started from (view only)' : null} align="end">
     <button type="button" data-dive-level={level.app} onClick={onOpen} onDoubleClick={renamable ? () => setDraft(level.title) : undefined}
-      className={`block max-w-full truncate rounded-sm py-0.5 ${active ? 'bg-hole px-1.5 text-white' : 'px-0.5 hover:bg-hover'} ${className}`}>{level.title}</button>
+      className={`block max-w-full truncate rounded-sm py-0.5 ${active ? 'bg-primary-fill px-1.5 text-white' : 'px-0.5 hover:bg-hover'} ${className}`}>{level.title}</button>
   </Tip>;
 }
 
@@ -389,11 +389,15 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
   if (!tree) return null;
   const rows = navigatorRows({ path: tree.path, children: [] });
   const current = tree.path.at(-1), children = tree.children, up = tree.path.length > 1;
-  const down = () => (children.length === 1 ? enter(children[0].name) : setPicking(open => !open));
+  // The picker (w-56, 224 px) opens toward the side with room, so it stays inside the window wherever the map sits (its home
+  // is the gutter's left edge, where a right-anchored picker ran off screen): picking is false, 'left' or 'right'. While it is
+  // open the map rises over the toolbar below it (z-40), so the picker's rows are never under the tools.
+  const side = () => { const box = map.ref.current?.getBoundingClientRect(); return !box || box.left + 224 <= window.innerWidth - 8 ? 'left' : 'right'; };
+  const down = () => (children.length === 1 ? enter(children[0].name) : setPicking(open => (open ? false : side())));
   return (
     <nav data-dive-navigator aria-label="Rabbit Hole levels" className="w-[76px] text-[11px] leading-[14px] select-none">
       {/* Moved off its gutter it floats over the canvas, so it takes the toolbar's white card to stay readable. */}
-      <div ref={map.ref} data-dive-map className="relative z-20 flex w-full flex-col items-center text-center data-[moved]:w-[92px] data-[moved]:rounded-xl data-[moved]:bg-white data-[moved]:px-2 data-[moved]:pb-1.5 data-[moved]:shadow-md data-[moved]:ring-1 data-[moved]:ring-line">
+      <div ref={map.ref} data-dive-map className={`relative ${picking ? 'z-40' : 'z-20'} flex w-full flex-col items-center text-center data-[moved]:w-[92px] data-[moved]:rounded-xl data-[moved]:bg-white data-[moved]:px-2 data-[moved]:pb-1.5 data-[moved]:shadow-md data-[moved]:ring-1 data-[moved]:ring-line`}>
       {/* The six dots, styled as the toolbar's handle: drag anywhere over the canvas, arrows step it, double-click puts it back. */}
       <button type="button" data-dive-grip aria-label="Move Rabbit Holes Map" title="Drag to move · double-click to put it back" {...map.grip}
         className="flex h-5 w-full cursor-grab touch-none items-center justify-center rounded-lg text-ink-3 hover:bg-hover hover:text-ink active:cursor-grabbing">
@@ -409,7 +413,7 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
         {row.role === 'fold' && <span title={`${row.count} more levels`} className="px-1 text-ink-3">⋯ {row.count}</span>}
         {row.role === 'ancestor' && <Name level={row} className="text-ink-3 hover:text-ink" onOpen={() => climb(tree.path.findIndex(level => level.app === row.app && level.board === row.board))} onRename={rename} />}
         {row.role === 'current' && <div className="group relative flex w-full flex-col items-center" aria-current="location">
-          {/* The hole you are in: a green square (dashed while it is not kept yet) and a green label with white text. */}
+          {/* The hole you are in: a blue square (dashed while it is not kept yet) and a primary-fill label with white text. */}
           <span aria-hidden="true" title={pending ? 'Empty: kept once you add something' : undefined}
             className={`mb-1 h-2 w-2 ${pending ? 'border border-dashed border-hole-pending' : 'bg-hole'}`} />
           <Name level={current} active className={`font-semibold ${pending ? 'italic' : ''}`} onOpen={() => {}} onRename={rename} />
@@ -419,9 +423,10 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
       </div>)}
       {children.length > 0 && <>
         <Root />
-        {/* Several holes below: the tooltip names them all before the picker opens. */}
-        <Tip label={children.length === 1 ? children[0].title : `${children.length} holes below`} info={children.length > 1 ? children.map(child => child.title).join(' · ') : null} align="end">
-          <button type="button" data-dive-down aria-label="Down into a hole" aria-expanded={children.length > 1 ? picking : undefined}
+        {/* Several holes below: the tooltip names them all before the picker opens; while it is open the picker lists them, so
+            no tooltip lies over it (Tip off keeps the button's DOM node, so a keyboard user keeps the focus on it). */}
+        <Tip off={!!picking} label={children.length === 1 ? children[0].title : `${children.length} holes below`} info={children.length > 1 ? children.map(child => child.title).join(' · ') : null} align="end">
+          <button type="button" data-dive-down aria-label="Down into a hole" aria-expanded={children.length > 1 ? !!picking : undefined}
             onClick={down} className="flex max-w-full items-center gap-0.5 rounded-sm px-1 py-0.5 whitespace-nowrap text-ink-2 hover:bg-hover hover:text-ink">
             <Arrow size={11} />
             <span className="truncate">{children.length === 1 ? children[0].title : `${children.length} holes`}</span>
@@ -430,7 +435,7 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
       </>}
       {error && <p role="alert" className="mt-1.5 text-[10px] leading-3 text-[#b42318]">{error}</p>}
       {picking && children.length > 1 && (
-        <div data-dive-picker role="menu" aria-label="Holes below" className="absolute top-full right-0 z-30 mt-1 w-56 rounded-md border border-line bg-white p-1 text-left shadow-pop">
+        <div data-dive-picker role="menu" aria-label="Holes below" className={`absolute top-full ${picking === 'left' ? 'left-0' : 'right-0'} z-30 mt-1 w-56 rounded-md border border-line bg-white p-1 text-left shadow-pop`}>
           <p className="px-2 pt-1 pb-1.5 text-[11px] text-ink-3">Below {current.title}</p>
           {children.map(child => <div key={child.name} className="group flex items-center rounded-sm hover:bg-hover">
             <button type="button" role="menuitem" onClick={() => { setPicking(false); enter(child.name); }} className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-sm text-ink">
