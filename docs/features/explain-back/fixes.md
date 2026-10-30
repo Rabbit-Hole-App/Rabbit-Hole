@@ -11,8 +11,8 @@ exact action needed from the owner (if any).
 Collected here so they block nothing else (owner 2026-10-30: finish and push everything first).
 
 1. Release 24-eb (the one Practice card, card heights, teaching links, the criterion fix, the microphone removal; it
-   supersedes 23-eb, which must not be run): `C:\s\spec\release-queue\release.cmd 24-eb`. It is ready only once its pins
-   carry a passing gate; the final handoff says when.
+   supersedes 23-eb, which must not be run): `C:\s\spec\release-queue\release.cmd 24-eb`. Ready since 12:55 PM PT:
+   candidate `ff0fff36ad919785d1924a2f5780b2f5838e7fa8`, gate 41117086543 passed and pinned, `release.sh 24-eb --check` OK.
 2. Production check, **deferred until final delivery and still unverified**: on digrabbithole.com answer one Practice card
    (typed, then a voice note), then run `C:\s\spec\explain-back\prod\eb-prod-verify.cmd` (read only; it asks for the session
    cookie in its own window).
@@ -30,7 +30,7 @@ Browser tier, same class: fast-e2e round 9 (run 41051664753) failed `docs-remove
 page timed out at 30 s) and `explain-program-state-check` ("the handle did not settle at 540"); both passed in rounds 4-8 on
 the same code paths and neither file is touched by this work. Recorded as intermittent, unclassified.
 
-**FX-EB-04 · EB-06 · fixed on branch, release pending** — The ordinary Challenge card still offers Speak answer, which
+**FX-EB-04 · EB-06 · fixed and CI-verified, release pending (24-eb)** — The ordinary Challenge card still offers Speak answer, which
 answers "Speech to text is not configured on this environment." after recording (unchanged since 2026-10-26; O-8 now
 covers Explain-back voice notes only, so the legacy dictation route stays refused). Owner chose (A) on 2026-10-30: remove
 the microphone from ordinary Challenge, which keeps its text box; Explain-back keeps its voice note. Fixed by 9880092d0 on
@@ -49,7 +49,7 @@ No extra call. Parsing stays strict: a judgement only in `notes` is never credit
 this reply shape). Remaining: the live eval case `voice-only-every-criterion` (tests/evals/explain-back) has not been run;
 the coordinator runs live evals. Owner action: none.
 
-**FX-EB-10 · TUT-16 · fix committed, browser check pending CI** — Owner screenshot 2026-10-30: a Challenge resized tall
+**FX-EB-10 · TUT-16 · fixed and CI-verified, release pending (24-eb)** — Owner screenshot 2026-10-30: a Challenge resized tall
 kept its question and answer controls in the top half with a large blank area below. Cause: CanvasNode's corner handle
 allowed any height up to 1000 px (`clampBox`), saved it as the block's `h`, and drew it as a fixed `height`, so the card's
 flex body stretched to it whatever the content needed (reproduced in `card-layout.test.mjs`, "the screenshot case").
@@ -64,7 +64,8 @@ Full/Scrollable card layouts keep fixed frames. Browser check `text-card-height-
 (fast-e2e 41108024288 on d871512aa) passed steps 1-4 and 7 and failed 5, 6 and 8 on check faults, not the product: step 5
 assumed the card opens on Your answer (a review loaded after mount opens on Tutor feedback), and steps 6 and 8 pressed a
 corner position read before the last zoom-out (the press selected the Flow card). Fixed in 1fb0e89cd
-(`fix/text-card-height-2`); rerun pending. Owner action: none.
+(`fix/text-card-height-2`); the final candidate ff0fff36a passed text-card-height-check 8/8 (fast-e2e 41114692403)
+and the release gate 41117086543. Ships with 24-eb. Owner action: none.
 
 **FX-EB-07 · EB-09 · open (pre-existing, owner rule)** — The canvas style panel opens out of the tools column over the
 cards it styles: with two grouped cards selected at 68% zoom it covered their ports (round 7, check fixed by deselecting
@@ -75,7 +76,7 @@ own task. Owner action: decide whether to open one.
 branches that equalled the integration SHA doubled runner minutes. Duplicate runs were cancelled (41044776909/41, 41047053473/511,
 41049082261/317, 41051073532/377, 41051369789/770) and workers now push only new commits on request.
 
-**FX-EB-11 · EB-08 · fix committed, browser check pending CI** — A card that already had a reviewed attempt opened on
+**FX-EB-11 · EB-08 · fixed and CI-verified, release pending (24-eb)** — A card that already had a reviewed attempt opened on
 Tutor feedback every time the board loaded and announced "Tutor feedback is ready" for that old review (found by the
 text-card-height-check screenshots, fast-e2e 41108024288). Cause: ExplainBackCard took its baseline of seen reviews on the
 first render, while its saved attempts were still loading, so every saved review then counted as new. Fix: the baseline waits
