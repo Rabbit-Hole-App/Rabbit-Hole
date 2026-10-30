@@ -9,8 +9,7 @@ export const stories=[
       <p>Imagine arriving with a small curiosity: why does a shadow change shape? One useful explanation leads to light, perspective, and the way we make sense of space. The page becomes an invitation to keep looking.</p>
       <h2>Leave room for curiosity</h2>
       <p>That is the idea behind Rabbit Hole's unfolding pages and open-ended paths. The design should give a visitor room to explore while keeping the next step clear.</p>
-      <blockquote>A little understanding can be the start of a much bigger question.</blockquote>
-      <p>This sample story shows how a longer note from the team could sit alongside the experience: a clear title, a few ideas, and space to follow a thought.</p>`
+      <blockquote>A little understanding can be the start of a much bigger question.</blockquote>`
   }
 ];
 
