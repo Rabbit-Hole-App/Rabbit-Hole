@@ -8,7 +8,7 @@
 // maximum and default moves both the scene's geometry and its readouts to the oracle's values; the mini-game's wrong and winning
 // moves, hint, moves counter, a move after winning, reload (an example's state lives in the page only: it comes back at its start)
 // and Reset; the dev Insert palette's More > 3D animation example and its example picker; narrow and wide cards in light and dark
-// keep every control inside the card; before Interact the wheel pans the canvas and leaves the scene; Interact turns the scene,
+// keep every control inside the card; before Interact the wheel and a drag go to the canvas and leave the scene; Interact turns the scene,
 // not the canvas; Escape ends it; window blur drops a held drag; a press in Chat ends it and every typed key reaches the composer;
 // a browser without WebGL keeps the description and says so; no page or console error, no model request.
 // Hooks: the card's data-animation-* / data-animation3d-* attributes (Animation3DCard.jsx, animation3d/Controls.jsx; lane U hand-back).
@@ -112,17 +112,22 @@ const live = async p => {
   await until(isLive, 'the scene never drew its first frame', 30000);
 };
 // The scene's pixels: identical when its camera and frame have not changed (the experiment scene is static between inputs).
-const pixels = p => p.viewport.screenshot();
+const pixels = p => p.card.locator('[data-animation-host]').screenshot(); // inside the viewport's border, which darkens while interacting
 const shot = async (page, name) => { await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
-const sameNodes = (got, want, label) => { for (const [id, t] of Object.entries(want)) for (const k of Object.keys(t)) assert.ok(close(got?.[id]?.[k], t[k]), `${label}: node ${id} ${k} ${JSON.stringify(got?.[id]?.[k])}, oracle ${JSON.stringify(t[k])}`); };
+// The watch card shows its time to 3 decimals (data-animation-time), so the frame's own time is within 0.5 ms of it: at the orbit's
+// speeds that moves the moon at most 0.0012, the spin quaternion 0.0004 and the angle 0.0225 degrees. WATCH allows that, no more
+// (a 6 s instead of 8 s period is 15 degrees off at 1 s).
+const WATCH = { nodes: 0.002, readouts: 0.03 };
+const sameNodes = (got, want, label, tol) => { for (const [id, t] of Object.entries(want)) for (const k of Object.keys(t)) assert.ok(close(got?.[id]?.[k], t[k], tol), `${label}: node ${id} ${k} ${JSON.stringify(got?.[id]?.[k])}, oracle ${JSON.stringify(t[k])}`); };
 // The readouts three ways: the shown element's raw value, its text at the declared decimals, and the applied frame's value.
-const sameReadouts = async (p, kind, want, label) => {
+const sameReadouts = async (p, kind, want, label, tol) => {
   const applied = (await frame(p)).readouts || {};
   for (const [rid, value] of Object.entries(want)) {
     const shown = Number(await p.readout(rid).getAttribute('data-value')), decimals = FIXTURES[kind].readouts.find(r => r.id === rid)?.decimals;
-    assert.ok(close(shown, value), `${label}: readout ${rid} shows ${shown}, oracle ${value}`);
-    assert.ok(close(applied[rid], value), `${label}: frame readout ${rid} ${applied[rid]}, oracle ${value}`);
-    if (decimals !== undefined) assert.ok((await p.readout(rid).innerText()).includes(value.toFixed(decimals)), `${label}: readout ${rid} text ${await p.readout(rid).innerText()} lacks ${value.toFixed(decimals)}`);
+    assert.ok(close(shown, value, tol), `${label}: readout ${rid} shows ${shown}, oracle ${value}`);
+    assert.ok(close(applied[rid], value, tol), `${label}: frame readout ${rid} ${applied[rid]}, oracle ${value}`);
+    // The text is the shown value at the declared decimals (the value itself is held to the oracle above).
+    if (decimals !== undefined) assert.ok((await p.readout(rid).innerText()).includes(shown.toFixed(decimals)), `${label}: readout ${rid} text ${await p.readout(rid).innerText()} lacks ${shown.toFixed(decimals)}`);
   }
 };
 const barePoint = page => page.evaluate(() => { // a point on the bare canvas (explain-program-card-check barePoint)
@@ -197,8 +202,8 @@ try {
     await W.play.click();
     await page.waitForTimeout(300);
     const t = await time(W);
-    sameNodes((await frame(W)).nodes, expectedNodes('watch', {}, t), `paused at ${t}s`);
-    await sameReadouts(W, 'watch', expectedReadouts('watch', {}, t), `paused at ${t}s`);
+    sameNodes((await frame(W)).nodes, expectedNodes('watch', {}, t), `paused at ${t}s`, WATCH.nodes);
+    await sameReadouts(W, 'watch', expectedReadouts('watch', {}, t), `paused at ${t}s`, WATCH.readouts);
   });
   await step('watch: Pause keeps the visible moment (time and frame unchanged while paused)', async () => {
     const [t, f] = [await time(W), await W.viewport.getAttribute('data-animation-frame')];
@@ -224,7 +229,7 @@ try {
     await page.waitForTimeout(300);
     const t = await time(W);
     assert.ok(t < 0.3, `near zero after Restart: ${t}`);
-    sameNodes((await frame(W)).nodes, expectedNodes('watch', {}, t), 'after Restart');
+    sameNodes((await frame(W)).nodes, expectedNodes('watch', {}, t), 'after Restart', WATCH.nodes);
     assert.equal(await W.speed.inputValue(), '2');
     await shot(page, 'C-watch');
   });
@@ -306,26 +311,33 @@ try {
   });
 
   // ---- Focus and gestures (AN-03; plan section 4 "Stable control profiles", interaction.js) ----
-  await step('before Interact the wheel over the scene pans the canvas and leaves the scene; a drag on the bare canvas pans it', async () => {
-    await live(X);
-    assert.equal(await active(X), false);
+  // Each gesture step starts from the same place: nothing interacting, the canvas fitted (a failed step must not move the next).
+  const settle = async () => { if (await active(X)) { await page.keyboard.press('Escape'); await until(async () => !(await active(X)), 'Escape did not end the interaction'); } await fit(page); await live(X); };
+  const enter = async () => { await X.interact.click(); await until(() => active(X), 'Interact did not start'); assert.equal(await X.interact.getAttribute('aria-pressed'), 'true'); };
+  await step('before Interact the wheel and a drag over the scene go to the canvas and leave the scene; a middle-button drag on the bare canvas pans it', async () => {
+    await settle();
     const [start, at] = [await pixels(X), await box(X.viewport)];
     await page.mouse.move(at.x + at.width / 2, at.y + at.height / 2);
     await page.mouse.wheel(0, 240);
     await page.waitForTimeout(500);
     assert.ok(Math.abs((await box(X.viewport)).y - at.y) > 20, 'the wheel panned the canvas');
     assert.ok((await pixels(X)).equals(start), 'the wheel left the scene camera');
+    // A left drag on the idle scene is the canvas's (it may move or select the card): it neither turns the scene nor enters it.
+    const c = await centre(X.viewport);
+    await page.mouse.move(c.x, c.y); await page.mouse.down(); await page.mouse.move(c.x + 60, c.y + 20, { steps: 8 }); await page.mouse.up();
+    await page.waitForTimeout(400);
+    assert.equal(await active(X), false, 'a drag on the idle scene entered it');
+    assert.ok((await pixels(X)).equals(start), 'a drag on the idle scene turned it');
+    // The canvas pans with the middle button (AdaptiveCanvas: a left press on empty canvas starts a marquee instead).
     const bare = await barePoint(page), from = await box(X.viewport);
     assert.ok(bare, 'a bare canvas point');
-    await page.mouse.move(bare.x, bare.y); await page.mouse.down(); await page.mouse.move(bare.x + 120, bare.y + 60, { steps: 8 }); await page.mouse.up();
+    await page.mouse.move(bare.x, bare.y); await page.mouse.down({ button: 'middle' }); await page.mouse.move(bare.x + 120, bare.y + 60, { steps: 8 }); await page.mouse.up({ button: 'middle' });
     await page.waitForTimeout(400);
-    assert.ok(Math.abs((await box(X.viewport)).x - from.x) > 40, 'a drag on the bare canvas pans it');
-    await fit(page);
+    assert.ok(Math.abs((await box(X.viewport)).x - from.x) > 40, 'a middle-button drag on the bare canvas pans it');
   });
-  await step('Interact: a drag turns the scene, not the canvas; Escape ends it and leaves the card where it was', async () => {
-    await X.interact.click();
-    await until(() => active(X), 'Interact did not start');
-    assert.equal(await X.interact.getAttribute('aria-pressed'), 'true');
+  await step('Interact: a drag turns the scene, not the canvas; Escape ends it and the card stays', async () => {
+    await settle();
+    await enter();
     const [start, at] = [await pixels(X), await centre(X.viewport)], from = await box(X.viewport);
     await page.mouse.move(at.x, at.y); await page.mouse.down(); await page.mouse.move(at.x + 80, at.y + 20, { steps: 10 }); await page.mouse.up();
     await page.waitForTimeout(400);
@@ -337,8 +349,8 @@ try {
     assert.equal(await page.locator('[data-block-id="a-exp"]').count(), 1, 'the card is still on the canvas after Escape');
   });
   await step('window blur drops a held drag: moving on after it does not turn the scene', async () => {
-    await X.interact.click();
-    await until(() => active(X), 'Interact did not start');
+    await settle();
+    await enter();
     const at = await centre(X.viewport);
     await page.mouse.move(at.x, at.y); await page.mouse.down(); await page.mouse.move(at.x + 30, at.y, { steps: 4 });
     await page.evaluate(() => window.dispatchEvent(new Event('blur')));
@@ -351,10 +363,11 @@ try {
     assert.ok(after.equals(held), 'the scene kept turning after the window lost focus');
   });
   await step('a press in Chat ends the interaction, and every typed key reaches the composer, none the scene', async () => {
-    if (!(await active(X))) { await X.interact.click(); await until(() => active(X), 'Interact did not start'); }
-    const start = await pixels(X);
+    await settle();
+    await enter();
     await composer(page).click();
     await until(async () => !(await active(X)), 'a press outside did not end the interaction');
+    const start = await pixels(X); // after the exit: its legend is gone
     const words = 'wasd and arrows typed here';
     await page.keyboard.type(words);
     await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowRight');
