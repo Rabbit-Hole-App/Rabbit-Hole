@@ -1,9 +1,11 @@
 // packages/control-plane/test/learn-explain-assessment.test.js
 // Explain-back assessment and revision comparison (plan 2026-10-30-explain-back.md EB-07, EB-08) through the real attempt
-// route, store, claim/commit and spend admission on node:sqlite. The evaluator is a stub (deps.callModel) that records the
-// actual request; no provider is reached. Stubs prove wiring and validation, never assessment quality.
+// route, store, claim/commit and spend admission on node:sqlite. Answers and reviews are the EB-01 contract. The evaluator
+// is a stub (deps.callModel) that records the actual request; no provider is reached. Stubs prove wiring and validation,
+// never assessment quality.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { validateExplainBackReview } from '../../web/src/explain-back-contract.js';
 import { readAttempt } from '../src/learn-attempt-store.js';
 import { assessAttempt } from '../src/learn-assessment.js';
 import { EXPLAIN_SYSTEM, compareWithBaseline, explainBackOf } from '../src/learn-explain-assessment.js';
@@ -19,42 +21,43 @@ const PROMPT = 'A ball on a string moves in a horizontal circle at constant spee
 const A1 = 'The ball moves along the circle, so the velocity is tangent to the circle. The force pushes the ball outward, which is why the string is tight.';
 const A2 = 'The velocity is tangent to the circle. The net force points toward the centre: without it the ball would keep going straight, so the inward pull keeps changing its direction.';
 const A2_INWARD = 'The net force points toward the centre: without it the ball would keep going straight, so the inward pull keeps changing its direction. The velocity also points inward toward the centre.';
+const VOICE = { evidenceId: 'ev_voice_1', role: 'voice', media: 'audio', state: 'ready', assetId: 'aa_voice00000001', revision: 1, hash: 'a'.repeat(64), mime: 'audio/webm', durationMs: 31500 };
 
-const j = (criterionId, fit, evidence = [], extra = {}) => ({ criterionId, version: 1, fit, reasoning: extra.reasoning ?? (fit === 'met' ? (criterionId === 'force' ? 'supported' : 'not_required') : criterionId === 'force' ? 'missing' : 'not_required'), evidence, alternative: false, uncertain: false, explanation: extra.explanation ?? `${criterionId} ${fit}` });
+const j = (criterionId, fit, evidence = [], extra = {}) => ({ criterionId, version: 1, fit, reasoning: extra.reasoning ?? (fit === 'met' ? (criterionId === 'force' ? 'supported' : 'not_required') : criterionId === 'force' ? 'missing' : 'not_required'), evidence, contradicted: extra.contradicted ?? false, alternative: false, uncertain: false, question: null, explanation: extra.explanation ?? `${criterionId} ${fit}` });
 const reply1 = {
-  criteria: [j('force', 'not_met', [], { explanation: 'Says the force pushes outward: the outward-force misconception.' }), j('velocity', 'met', ['the velocity is tangent to the circle'])],
+  criteria: [j('force', 'not_met', ['The force pushes the ball outward'], { contradicted: true, explanation: 'Says the force pushes outward: the outward-force misconception.' }), j('velocity', 'met', ['the velocity is tangent to the circle'])],
   feedback: {
-    explainedWell: [
-      { criterionId: 'velocity', version: 1, text: 'You correctly say the velocity is tangent.', evidence: ['the velocity is tangent to the circle'] },
-      { criterionId: 'force', version: 1, text: 'Invented strength.', evidence: ['words the learner never wrote'] },
-    ],
+    strengths: { text: 'You correctly say the velocity is tangent.', evidence: ['the velocity is tangent to the circle', 'words the learner never wrote'] },
     revisit: { criterionId: 'force', version: 1, text: 'Which way must the force point to keep turning the ball?', evidence: ['The force pushes the ball outward'] },
-    tryNext: 'Imagine the string breaks: which way does the ball go?',
+    next: 'Imagine the string breaks: which way does the ball go?',
   },
   priorCorrections: [], notes: [],
 };
 const reply2 = {
   criteria: [j('force', 'met', ['The net force points toward the centre: without it the ball would keep going straight']), j('velocity', 'met', ['The velocity is tangent to the circle'])],
   feedback: {
-    explainedWell: [{ criterionId: 'force', version: 1, text: 'You now explain why the force points inward.', evidence: ['without it the ball would keep going straight'] }],
+    strengths: { text: 'You now explain why the force points inward.', evidence: ['without it the ball would keep going straight'] },
     revisit: { criterionId: 'force', version: 1, text: 'Repeated resolved nudge.', evidence: [] },
-    tryNext: 'Predict what happens to the force if the speed doubles.',
+    next: 'Predict what happens to the force if the speed doubles.',
   },
   priorCorrections: [], notes: [],
 };
 
 const ON = { TUTOR_EXPLAIN_BACK_ENABLED: 'true' };
-async function ebWorld(t, env = ON, opts = {}) {
+async function ebWorld(t, env = ON) {
   const w = world(t, env);
-  const { activity, goalId } = await coachingActivity(w.env, { label: 'Circular motion', criteria: CIRCULAR, prompt: PROMPT, ...opts });
+  const { activity, goalId } = await coachingActivity(w.env, { label: 'Circular motion', criteria: CIRCULAR, prompt: PROMPT, responseKind: 'explain_back' });
   return { ...w, activity, goalId };
 }
+const answerOf = (content = {}) => ({ v: 1, kind: 'explain_back', text: '', voice: [], resources: [], assistance: [], ...content });
 let n = 0;
 const send = (w, content, deps, key = `eb-${++n}-${Math.random().toString(36).slice(2, 10)}`) =>
-  submit(w.env, ANA, w.activity, { submissionKey: key, submittedContent: { kind: 'explain_back', ...content } }, { ...never, ...deps });
+  submit(w.env, ANA, w.activity, { submissionKey: key, submittedContent: answerOf(content) }, { ...never, ...deps });
+const baselineOf = r => ({ parentAttemptId: r.body.attempt.attemptId, parentAssessmentId: r.body.assessment.assessmentId });
 const reviewOf = r => r.body.assessment.provenance.review;
 const fits = r => Object.fromEntries(r.body.assessment.observations.map(o => [o.criterionId, o.fit]));
-const changes = r => Object.fromEntries(reviewOf(r).comparison.criteria.map(c => [c.criterionId, c.change]));
+const changes = r => Object.fromEntries(reviewOf(r).comparison.items.map(c => [c.criterionId, c.change]));
+const valid = (r, content) => assert.deepEqual(validateExplainBackReview(reviewOf(r), answerOf(content)), { ok: true, errors: [] });
 
 test('the general rubric switch does not open Explain-back, and its own switch off makes no call', async t => {
   const w = await ebWorld(t, { TUTOR_RUBRIC_ASSESSMENT_ENABLED: 'true' });
@@ -64,7 +67,7 @@ test('the general rubric switch does not open Explain-back, and its own switch o
   assert.equal(explainBackOf({ submittedContent: { text: A1 } }), null);
 });
 
-test('attempt 1: one call with the exact answer and rubric; validated feedback, citations, coverage and rating', async t => {
+test('attempt 1: one call with the exact answer and rubric; a contract review with validated citations, coverage and rating', async t => {
   const w = await ebWorld(t);
   const stub = replying(reply1);
   const r = await send(w, { text: A1 }, { callModel: stub.callModel });
@@ -74,24 +77,26 @@ test('attempt 1: one call with the exact answer and rubric; validated feedback, 
   const data = dataOf(stub.calls[0].body);
   assert.deepEqual(Object.keys(data).sort(), ['current', 'rubric', 'task']);
   assert.equal(data.task, PROMPT);
-  assert.deepEqual(data.current.evidence, [{ id: 'text', kind: 'typed_text', text: A1 }]);
-  assert.deepEqual(data.current.notInspected, []);
+  assert.deepEqual(data.current, { evidence: [{ id: 'text', kind: 'typed_text', text: A1 }], notInspected: [] });
   assert.deepEqual(data.rubric.map(c => [c.criterionId, c.version]), [['force', 1], ['velocity', 1]]);
   const a = r.body.assessment;
   assert.deepEqual([a.status, a.route, a.provenance.route, a.rubricVersion], ['completed', 'larger', 'explain_back', RV]);
   assert.deepEqual(fits(r), { force: 'not_met', velocity: 'met' });
+  assert.ok(a.observations.every(o => o.assistance === 'none'), 'a first attempt is unaided');
   const review = reviewOf(r);
-  // A strength citing words not in the answer is dropped: no invented strength, no unfound citation.
-  assert.deepEqual(review.feedback.explainedWell.map(e => e.criterionId), ['velocity']);
-  const span = review.feedback.explainedWell[0].spans[0];
-  assert.equal(A1.slice(span.start, span.end), 'the velocity is tangent to the circle');
-  assert.equal(review.feedback.revisit.criterionId, 'force');
-  assert.equal(review.feedback.tryNext, reply1.feedback.tryNext);
-  assert.deepEqual(a.provenance.coverage, [{ id: 'text', kind: 'typed_text', state: 'read' }]);
-  // force: not met (0, weight 1, required); velocity met (1): round(10 x 1/2) = 5, capped at 9 anyway.
+  valid(r, { text: A1 });
+  assert.deepEqual([review.v, review.attemptId, review.assessmentId, review.status], [1, a.attemptId, a.assessmentId, 'completed']);
+  assert.deepEqual(review.judgments.map(x => [x.criterionId, x.judgment, x.fit]), [['force', 'contradicted', 'not_met'], ['velocity', 'demonstrated', 'met']]);
+  // Only citations found in the answer survive; each is a span of the typed text.
+  const [cite] = review.feedback.strengths.citations;
+  assert.equal(review.feedback.strengths.citations.length, 1);
+  assert.equal(A1.slice(cite.locator.start, cite.locator.end), 'the velocity is tangent to the circle');
+  assert.equal(review.feedback.revisit.text, reply1.feedback.revisit.text);
+  assert.equal(review.feedback.next.text, reply1.feedback.next);
+  assert.deepEqual(review.coverage, [{ evidenceId: 'text', status: 'read' }]);
+  // force not met (0), velocity met (1): round(10 x 1/2) = 5.
   assert.deepEqual([review.rating.status, review.rating.score, review.rating.outOf, review.rating.rubricVersion], ['rated', 5, 10, RV]);
   assert.equal(review.comparison, undefined, 'a first attempt has no comparison');
-  assert.equal(a.provenance.baseline, undefined);
 });
 
 test('attempt 2: the request carries the exact parent answer and pinned review; a corrected misconception is resolved; attempt 1 is unchanged', async t => {
@@ -99,95 +104,114 @@ test('attempt 2: the request carries the exact parent answer and pinned review; 
   const first = await send(w, { text: A1 }, { callModel: replying(reply1).callModel });
   const before = await readAttempt(w.env, ANA, first.body.attempt.attemptId);
   const stub = replying(reply2);
-  const second = await send(w, { text: A2, baseline: { attemptId: first.body.attempt.attemptId } }, { callModel: stub.callModel });
+  const second = await send(w, { text: A2, baseline: baselineOf(first) }, { callModel: stub.callModel });
   assert.equal(stub.calls.length, 1, 'one call covers judging and comparing');
   const data = dataOf(stub.calls[0].body);
   assert.deepEqual(Object.keys(data), ['task', 'rubric', 'current', 'previousAttempt'], 'current evidence comes before the previous attempt');
   assert.equal(data.current.evidence[0].text, A2);
   assert.equal(data.previousAttempt.answer.text, A1, 'the exact parent answer');
-  assert.deepEqual(data.previousAttempt.review.criteria.map(c => [c.criterionId, c.fit, c.explanation]), [
-    ['force', 'not_met', 'Says the force pushes outward: the outward-force misconception.'], ['velocity', 'met', 'velocity met']]);
-  assert.deepEqual(data.previousAttempt.review.feedback, reviewOf(first).feedback, 'the exact previous feedback');
+  assert.deepEqual(data.previousAttempt.review.criteria.map(c => [c.criterionId, c.judgment, c.note]), [
+    ['force', 'contradicted', 'Says the force pushes outward: the outward-force misconception.'], ['velocity', 'demonstrated', 'velocity met']]);
+  assert.deepEqual(data.previousAttempt.review.feedback, { strengths: 'You correctly say the velocity is tangent.', revisit: reply1.feedback.revisit.text, next: reply1.feedback.next }, 'the exact previous feedback');
   assert.match(EXPLAIN_SYSTEM, /not evidence for the current answer, and the previous review may be wrong/);
   const review = reviewOf(second);
-  assert.deepEqual(second.body.assessment.provenance.baseline, { parentAttemptId: first.body.attempt.attemptId, assessmentId: first.body.assessment.assessmentId, available: true });
-  assert.deepEqual(changes(second), { force: 'resolved', velocity: 'still_met' });
-  assert.equal(review.feedback.revisit, null, 'a resolved criticism is not repeated');
+  valid(second, { text: A2, baseline: baselineOf(first) });
+  assert.deepEqual([review.comparison.parentAttemptId, review.comparison.parentAssessmentId, review.comparison.comparable], [first.body.attempt.attemptId, first.body.assessment.assessmentId, true]);
+  assert.deepEqual(changes(second), { force: 'resolved' }, 'velocity was met and still is: nothing to report');
+  assert.equal(review.comparison.items[0].baselineCitations[0].evidenceId, 'text');
+  assert.equal(review.feedback.revisit.text, '', 'a resolved criticism is not repeated');
   assert.deepEqual([review.rating.score, review.comparison.rating], [10, { comparable: true, reason: null, previous: 5, current: 10 }]);
-  // A later reassessment of the parent never changes what attempt 2 compared against, and attempt 1 is unchanged.
-  assert.deepEqual(await readAttempt(w.env, ANA, first.body.attempt.attemptId), before);
+  // Made after seeing the parent's review: assisted, and the review says why.
+  assert.ok(second.body.assessment.observations.every(o => o.assistance === 'assisted'));
+  assert.deepEqual(review.provenance.assistance, [{ kind: 'saw_prior_feedback', id: first.body.assessment.assessmentId }]);
+  assert.deepEqual(await readAttempt(w.env, ANA, first.body.attempt.attemptId), before, 'attempt 1 is unchanged');
 });
 
-test('persisting and regressed gaps, and no improvement for the same answer', async t => {
+test('persisting, improved, regressed and new gaps, and no improvement for the same answer', async t => {
   const w = await ebWorld(t);
-  const first = await send(w, { text: A1 }, { callModel: replying(reply1).callModel });
-  const parent = { attemptId: first.body.attempt.attemptId };
-  const regressed = await send(w, { text: A2_INWARD, baseline: parent }, { callModel: replying({ ...reply2, criteria: [j('force', 'partial', ['The net force points toward the centre'], { reasoning: 'partial' }), j('velocity', 'not_met')] }).callModel });
-  assert.deepEqual(changes(regressed), { force: 'improved', velocity: 'regressed' });
-  assert.ok(reviewOf(regressed).rating.score < reviewOf(first).rating.score + 1, 'the score may fall; no bonus for a second attempt');
-  const same = await send(w, { text: A1, baseline: parent }, { callModel: replying(reply1).callModel });
-  assert.deepEqual(changes(same), { force: 'persisting', velocity: 'still_met' });
+  const first = await send(w, { text: A1 }, { callModel: replying({ ...reply1, criteria: [j('force', 'not_met'), j('velocity', 'met', ['the velocity is tangent to the circle'])] }).callModel });
+  const regressed = await send(w, { text: A2_INWARD, baseline: baselineOf(first) }, { callModel: replying({ ...reply2, criteria: [j('force', 'partial', ['The net force points toward the centre'], { reasoning: 'partial' }), j('velocity', 'not_met', ['The velocity also points inward toward the centre'], { contradicted: true })] }).callModel });
+  assert.deepEqual(changes(regressed), { force: 'persisting', velocity: 'regressed' });
+  assert.equal(reviewOf(regressed).comparison.items[0].note, 'improved_to_partial');
+  assert.ok(reviewOf(regressed).rating.score <= reviewOf(first).rating.score, 'the score may fall; no bonus for a second attempt');
+  const misconception = await send(w, { text: A1, baseline: baselineOf(first) }, { callModel: replying(reply1).callModel });
+  assert.deepEqual(changes(misconception), { force: 'new' }, 'not established before, contradicted now: a new misconception');
+  const same = await send(w, { text: `${A1} `, baseline: baselineOf(first) }, { callModel: replying({ ...reply1, criteria: [j('force', 'not_met'), j('velocity', 'met', ['the velocity is tangent to the circle'])] }).callModel });
+  assert.deepEqual(changes(same), { force: 'persisting' });
   assert.equal(reviewOf(same).rating.score, reviewOf(first).rating.score, 'same evidence, same number');
 });
 
 test('an intentionally wrong prior review: the current answer is judged on its own and the correction is not learner improvement', async t => {
   const w = await ebWorld(t);
   // The first review wrongly calls a correct force explanation the outward-force misconception.
-  const wrong = { ...reply1, criteria: [j('force', 'not_met', [], { explanation: 'Outward-force misconception.' }), j('velocity', 'met', ['The velocity is tangent to the circle'])], feedback: { explainedWell: [], revisit: null, tryNext: null } };
+  const wrong = { ...reply1, criteria: [j('force', 'not_met', [], { explanation: 'Outward-force misconception.' }), j('velocity', 'met', ['The velocity is tangent to the circle'])], feedback: { strengths: { text: '', evidence: [] }, revisit: null, next: null } };
   const first = await send(w, { text: A2 }, { callModel: replying(wrong).callModel });
   const stub = replying({ ...reply2, priorCorrections: [{ criterionId: 'force', version: 1, explanation: 'The earlier answer already said the net force points toward the centre.' }, { criterionId: 'made-up', version: 1, explanation: 'x' }] });
-  const second = await send(w, { text: `${A2} `, baseline: { attemptId: first.body.attempt.attemptId } }, { callModel: stub.callModel });
+  const second = await send(w, { text: `${A2} `, baseline: baselineOf(first) }, { callModel: stub.callModel });
   assert.equal(dataOf(stub.calls[0].body).previousAttempt.review.criteria[0].fit, 'not_met', 'the evaluator sees the prior judgement as data');
   assert.deepEqual(fits(second), { force: 'met', velocity: 'met' }, 'current judgement is not anchored to the wrong prior');
-  assert.deepEqual(changes(second), { force: 'prior_corrected', velocity: 'still_met' });
-  assert.deepEqual(reviewOf(second).priorCorrections.map(k => k.criterionId), ['force'], 'an unknown criterion is dropped');
+  assert.deepEqual(changes(second), { force: 'prior_feedback_corrected' });
+  assert.deepEqual(reviewOf(second).provenance.priorCorrections.map(k => k.criterionId), ['force'], 'an unknown criterion is dropped');
   assert.equal(reviewOf(second).rating.score, 10);
-  // The historical record keeps the wrong review as it was.
-  assert.equal(fits(first).force, 'not_met');
+  assert.equal(fits(first).force, 'not_met', 'the historical record keeps the wrong review as it was');
 });
 
 test('missing or foreign baselines: the current answer is still assessed, comparison unavailable, nothing foreign is read', async t => {
   const w = await ebWorld(t);
   const failed = await send(w, { text: A1 }, { callModel: replying(reply1, { status: 500 }).callModel });
   assert.equal(failed.body.assessment.status, 'failed');
-  const stub = replying(reply2);
-  const r = await send(w, { text: A2, baseline: { attemptId: failed.body.attempt.attemptId } }, { callModel: stub.callModel });
-  assert.equal(dataOf(stub.calls[0].body).previousAttempt, undefined);
-  assert.deepEqual(reviewOf(r).comparison, { available: false, reason: 'no_baseline_review', parentAttemptId: failed.body.attempt.attemptId });
-  assert.equal(reviewOf(r).rating.score, 10);
-  // Another learner's attempt, and a made-up id, are both unavailable; another activity's attempt is a mismatch.
   const { activity: benActivity } = await journeyActivity(w.env, BEN);
-  const ben = await submit(w.env, BEN, benActivity, { submissionKey: 'eb-ben-00001', submittedContent: { kind: 'explain_back', text: A1 } }, { ...never, callModel: replying(reply1).callModel });
-  const other = await coachingActivity(w.env, { label: 'Other', criteria: CIRCULAR.map(c => ({ ...c })), prompt: 'Another task' });
-  const foreign = await submit(w.env, ANA, other.activity, { submissionKey: 'eb-foreign-0001', submittedContent: { kind: 'explain_back', text: A1 } }, { ...never, callModel: replying(reply1).callModel });
-  for (const [attemptId, reason] of [['at_does-not-exist', 'parent_unavailable'], [ben.body.attempt.attemptId, 'parent_unavailable'], [foreign.body.attempt.attemptId, 'parent_mismatch']]) {
+  const ben = await submit(w.env, BEN, benActivity, { submissionKey: 'eb-ben-00001', submittedContent: { text: A1 } }, { ...never, ask: async () => ({ body: { answers: {} } }) });
+  const other = await coachingActivity(w.env, { label: 'Other', criteria: CIRCULAR, prompt: 'Another task', responseKind: 'explain_back' });
+  const foreign = await submit(w.env, ANA, other.activity, { submissionKey: 'eb-foreign-0001', submittedContent: answerOf({ text: A1 }) }, { ...never, callModel: replying(reply1).callModel });
+  for (const [baseline, reason] of [
+    [baselineOf(failed), 'no_baseline_review'],
+    [{ parentAttemptId: failed.body.attempt.attemptId, parentAssessmentId: null }, 'no_baseline_review'],
+    [{ parentAttemptId: 'at_does-not-exist', parentAssessmentId: 'as_x' }, 'parent_unavailable'],
+    [baselineOf(ben), 'parent_unavailable'],
+    [baselineOf(foreign), 'parent_mismatch'],
+  ]) {
     const s = replying(reply2);
-    const x = await send(w, { text: `${A2} ${reason}`, baseline: { attemptId } }, { callModel: s.callModel });
+    const x = await send(w, { text: `${A2} ${reason}`, baseline }, { callModel: s.callModel });
     assert.equal(dataOf(s.calls[0].body).previousAttempt, undefined, reason);
-    assert.equal(reviewOf(x).comparison.reason, reason);
+    assert.deepEqual(reviewOf(x).comparison, { ...baseline, comparable: false, reason, items: [] }, reason);
+    assert.equal(reviewOf(x).rating.score, 10, 'the current answer is still assessed and rated');
+    assert.ok(x.body.assessment.observations.every(o => o.assistance === 'none'), 'no reviewed parent, so no feedback was seen');
+    valid(x, { text: `${A2} ${reason}`, baseline });
   }
 });
 
 test('changed question or rubric versions are not comparable', () => {
-  const criteria = [{ criterionId: 'force', version: 2 }, { criterionId: 'velocity', version: 1 }, { criterionId: 'new', version: 1 }];
-  const observations = criteria.map(c => ({ criterionId: c.criterionId, criterionVersion: c.version, fit: 'met' }));
-  const baseline = { available: true, parentAttemptId: 'at_1', assessmentId: 'as_1', rubricVersion: RV, questionChanged: false, previous: [{ criterionId: 'force', version: 1, fit: 'not_met' }, { criterionId: 'velocity', version: 1, fit: 'unclear' }] };
-  assert.deepEqual(compareWithBaseline({ criteria, observations, baseline }).criteria.map(c => [c.change, c.reason]), [['not_comparable', 'criterion_changed'], ['not_comparable', 'previous_unclear'], ['not_comparable', 'not_in_baseline']]);
-  assert.ok(compareWithBaseline({ criteria, observations, baseline: { ...baseline, questionChanged: true } }).criteria.every(c => c.reason === 'question_changed'));
-  assert.equal(compareWithBaseline({ criteria, observations, baseline: null }), null);
+  const judgments = [{ criterionId: 'force', criterionVersion: 2, judgment: 'demonstrated', fit: 'met', citations: [] }, { criterionId: 'velocity', criterionVersion: 1, judgment: 'demonstrated', fit: 'met', citations: [] }, { criterionId: 'new', criterionVersion: 1, judgment: 'demonstrated', fit: 'met', citations: [] }];
+  const baseline = { available: true, parentAttemptId: 'at_1', parentAssessmentId: 'as_1', questionChanged: false, judgments: [{ criterionId: 'force', criterionVersion: 1, fit: 'not_met' }, { criterionId: 'velocity', criterionVersion: 1, fit: 'unclear' }] };
+  assert.deepEqual(compareWithBaseline({ judgments, baseline }).items.map(c => [c.change, c.note]), [['not_comparable', 'criterion_changed'], ['not_comparable', 'previous_unassessed'], ['not_comparable', 'not_in_baseline']]);
+  assert.deepEqual(compareWithBaseline({ judgments, baseline: { ...baseline, questionChanged: true } }), { parentAttemptId: 'at_1', parentAssessmentId: 'as_1', comparable: false, reason: 'question_changed', items: [] });
+  assert.equal(compareWithBaseline({ judgments, baseline: null }), null);
 });
 
-test('inputs without an adapter are reported, never read or judged as wrong; an answer with nothing readable makes no call', async t => {
-  const w = await ebWorld(t, ON, { responseKind: 'drawing' }); // ponytail: an object-content kind until D's combined kind lands
+test('inputs that were not read are reported, never judged wrong; an answer with nothing readable makes no call', async t => {
+  const w = await ebWorld(t);
   const stub = replying(reply1);
-  const r = await send(w, { text: A1, voice: { assetId: 'vn_1' } }, { callModel: stub.callModel });
-  assert.deepEqual(dataOf(stub.calls[0].body).current.notInspected, [{ id: 'voice', kind: 'voice', reason: 'adapter_pending' }]);
-  assert.deepEqual(r.body.assessment.provenance.coverage.map(c => [c.id, c.state]), [['text', 'read'], ['voice', 'unsupported']]);
+  const r = await send(w, { text: A1, voice: [VOICE] }, { callModel: stub.callModel });
+  assert.deepEqual(dataOf(stub.calls[0].body).current.notInspected, [{ id: 'ev_voice_1', status: 'unsupported', note: 'adapter_pending' }]);
+  assert.deepEqual(reviewOf(r).coverage.map(c => [c.evidenceId, c.status]), [['text', 'read'], ['ev_voice_1', 'unsupported']]);
   const force = r.body.assessment.observations.find(o => o.criterionId === 'force');
   assert.deepEqual([force.fit, force.reason], ['unclear', 'evidence_unread'], 'not met on partial evidence is not a misconception');
+  assert.equal(reviewOf(r).judgments[0].judgment, 'unassessed');
   assert.deepEqual([reviewOf(r).rating.status, reviewOf(r).rating.reason, reviewOf(r).rating.score], ['unrated', 'evidence_incomplete', undefined]);
-  const empty = await send(w, { text: '', voice: { assetId: 'vn_2' } }, {});
+  valid(r, { text: A1, voice: [VOICE] });
+  const empty = await send(w, { voice: [VOICE] }, {});
   assert.deepEqual([empty.body.assessment.status, empty.body.assessment.reason], ['unavailable', 'no_readable_evidence']);
+});
+
+test('uncertain or malformed replies never become a number or an observation', async t => {
+  const w = await ebWorld(t);
+  const r = await send(w, { text: A1 }, { callModel: replying({ criteria: [j('force', 'unclear'), j('velocity', 'met', ['the velocity is tangent to the circle'])] }).callModel });
+  assert.equal(r.body.assessment.status, 'completed');
+  assert.deepEqual([reviewOf(r).rating.status, reviewOf(r).rating.reason], ['unrated', 'criteria_unassessed']);
+  assert.deepEqual(reviewOf(r).feedback, { strengths: { text: '', citations: [] }, revisit: { text: '', citations: [] }, next: { text: '', citations: [] } }, 'no feedback is invented');
+  const junk = await send(w, { text: A2 }, { callModel: replying(null, { text: 'not json' }).callModel });
+  assert.deepEqual([junk.body.assessment.status, junk.body.assessment.reason, junk.body.assessment.observations.length], ['failed', 'malformed_evaluation', 0]);
 });
 
 test('no duplicate calls: a replayed submission and a re-read never call again; a timeout is unknown and never retried', async t => {
