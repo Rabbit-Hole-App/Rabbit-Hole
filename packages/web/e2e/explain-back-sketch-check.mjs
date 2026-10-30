@@ -1,12 +1,13 @@
 // Explain-back card and its one Sketch panel, against a LOCAL stack only, on a dev-flag build (the Insert lesson block menu).
 // That build takes the durable attempt path (VITE_COACHING_DEV turns ExplainBackService on, explain-back-service.js): the
 // attempt routes are stubbed in the page with contract-valid reviews (explain-back-contract.js validates each one), so no
-// model is called and every attempt the page saves is recorded and checked. An ordinary Challenge keeps the legacy grade.
+// model is called and every attempt the page saves is recorded and checked. Owner 2026-10-30 (one Practice card): every
+// challenge block is this card; the Insert menu offers it once, as Practice.
 // Spec: docs/superpowers/plans/2026-10-30-explain-back.md (v1.6) sections 3, 5 and 9, which replace the inline sketch of
 // docs/features/explain-back-sketch.md. The owner's decisions retire the in-card drawing area, the Add/Hide sketch toggle,
 // the "Included in your answer" badge and the card growing to hold a sketch (plan section 3, "Approved UI revision"), and
-// the single-line field with Speak answer writing into it (section 5, "Owner correction"). The original cases stay: an
-// ordinary Challenge is unchanged, the one canvas toolbar draws in the sketch, the stores never cross, reload keeps the
+// the single-line field with Speak answer writing into it (section 5, "Owner correction"). The original cases stay: the
+// one canvas toolbar draws in the sketch, the stores never cross, reload keeps the
 // sketch, text + sketch is one attempt, a revision keeps the work and is a new attempt, sketch alone is an answer, and
 // closing is presentation only while Clear sketch takes a drawing out.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/explain-back-sketch-check.mjs [outDir]
@@ -49,7 +50,8 @@ await page.route('**/api/learn/grade**', async route => { if (new URL(route.requ
 // (its second criterion unassessed), so both badge states are exercised.
 const posts = [], assetPuts = [], assetMeta = new Map(), bound = new Map(), stored = new Map(), serverDrafts = new Map(); // stored: attemptId -> { cardId, content, assessment }
 const sha = body => createHash('sha256').update(body || '').digest('hex');
-const stubReview = (attemptId, assessmentId, content) => {
+// teachingAids: the existing teaching cards the review names (FX-EB-05), from the candidates the page sent.
+const stubReview = (attemptId, assessmentId, content, teachingAids = []) => {
   const typed = content.text || '';
   const evidence = [...content.voice, ...(content.sketch ? [content.sketch] : []), ...(content.recording ? [content.recording] : []), ...content.resources];
   const cites = typed.trim() ? [{ evidenceId: 'text', locator: { start: 0, end: Math.min(6, typed.length) } }]
@@ -75,6 +77,7 @@ const stubReview = (attemptId, assessmentId, content) => {
       ? { ...base.rating, score: fixed ? 10 : 8, criteria: [{ ...base.rating.criteria[0], criterionId: 'c_row' }, { ...base.rating.criteria[1], criterionId: 'c_position', credit: second[3] }] }
       : { status: 'unrated', outOf: 10, reason: 'sketch_unreadable', unknown: [{ criterionId: 'c_position' }], calculationVersion: 'eb-rating-v1', rubricVersion: 'r1',
         criteria: [{ ...base.rating.criteria[0], criterionId: 'c_row' }, { ...base.rating.criteria[1], criterionId: 'c_position', credit: null }] },
+    ...(teachingAids.length ? { teachingAids } : {}),
   };
   const valid = validateExplainBackReview(result, content);
   if (!valid.ok) throw Error(`stub review is not contract-valid: ${valid.errors.join('; ')}`);
@@ -122,7 +125,9 @@ await page.route('**/api/learn/tutor/attempts**', async route => {
     const sent = JSON.parse(request.postData());
     posts.push(sent);
     const attemptId = `at_${posts.length}`, assessmentId = `as_${posts.length}`;
-    const assessment = { assessmentId, status: 'completed', provenance: { review: stubReview(attemptId, assessmentId, sent.submittedContent) } };
+    // A review names the first teaching card the page offered, and one a learner has since removed (shown unavailable).
+    const aids = (sent.teachingCards || []).slice(0, 1).flatMap(card => [{ cardId: card.id, title: card.title, kind: card.kind, reason: 'It explains what each id looks up.' }, { cardId: 'removed-card', title: 'Position embeddings', kind: 'explanation', reason: 'An earlier explanation of the position.' }]);
+    const assessment = { assessmentId, status: 'completed', provenance: { review: stubReview(attemptId, assessmentId, sent.submittedContent, aids) } };
     stored.set(attemptId, { cardId: bound.get(sent.activityId), content: sent.submittedContent, assessment });
     return json(route, 201, view(attemptId));
   }
@@ -187,20 +192,18 @@ await page.goto(`${BASE}/apps/${canvas.name}`);
 await page.waitForSelector('[data-tool-gutter]', { timeout: 30000 });
 await page.waitForTimeout(1500);
 
-// ---- 12. a challenge card is unchanged: no sketch offered, Speak answer kept, Commit grades the text alone ----
-const challenge = await insert('Challenge');
-await check('12 challenge card unchanged', async () => {
-  assert.equal(await challenge.locator('[data-sketch-toggle]').count(), 0, 'a challenge offers no sketch');
-  assert.equal(await challenge.locator('[data-speak-answer]').count(), 1, 'a challenge keeps Speak answer');
-  await challenge.locator('input').fill('the ids pick embedding rows');
-  await challenge.getByRole('button', { name: 'Commit', exact: true }).click();
-  await challenge.locator('[data-answer][data-grade="partial"]').waitFor({ timeout: 10000 });
-  assert.deepEqual(Object.keys(grades.at(-1)).sort(), ['answer', 'app', 'expects', 'mode', 'prompt']);
-  assert.equal(grades.at(-1).mode, 'challenge');
+// ---- 12. one Practice entry (owner 2026-10-30: Explain-back = Challenge = Practice; it replaces "challenge card unchanged") ----
+await check('12 the Insert menu offers one Practice entry, no Challenge or Explain back', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  const named = name => page.getByRole('menuitem', { name, exact: true }).count();
+  assert.deepEqual([await named('Practice'), await named('Challenge'), await named('Explain back')], [1, 0, 0]);
+  await page.locator('[aria-label="Insert lesson block"]').click(); // the button toggles the menu shut
+  await page.waitForTimeout(300);
+  assert.equal(await page.getByRole('menu', { name: 'Lesson blocks' }).count(), 0);
 });
 
 // ---- the first draft (plan section 3): question and Details & hint visible, multiline field, Open sketch + Submit ----
-const textOnly = await insert('Explain back');
+const textOnly = await insert('Practice');
 await shot('01-first-draft');
 await check('3a first draft layout', async () => {
   assert.match(await textOnly.locator('[data-eb-question]').innerText(), /token id/);
@@ -255,7 +258,7 @@ await check('11 Tutor feedback: three sections, the blue rating, citations open 
 await shot('02-feedback');
 
 // ---- 2 and 3. Open sketch: one panel at the workspace's right edge, the card unchanged, the one toolbar draws there ----
-const card = await insert('Explain back');
+const card = await insert('Practice');
 const cardId = await card.getAttribute('data-block-id');
 await reveal(card);
 const cardBefore = await box(card);
@@ -479,7 +482,7 @@ await check('10 the revision is a new attempt pinned to attempt 1 and its review
 });
 
 // ---- 5. sketch only, and one panel across questions ----
-const sketchOnly = await insert('Explain back');
+const sketchOnly = await insert('Practice');
 const sketchOnlyId = await sketchOnly.getAttribute('data-block-id');
 await check('5 a pinned panel is not taken by another question; once free, Open sketch retargets the one panel; sketch alone is an answer', async () => {
   await reveal(sketchOnly);
@@ -513,7 +516,7 @@ await check('5 a pinned panel is not taken by another question; once free, Open 
 await shot('07-sketch-only');
 
 // ---- Clear sketch is the one way to take a drawing out; a closed sketch is still in the attempt ----
-const hiding = await insert('Explain back');
+const hiding = await insert('Practice');
 const hidingId = await hiding.getAttribute('data-block-id');
 const drawIn = async () => {
   const area = await box(panelOf(hidingId).locator(`[data-sketch="${hidingId}"]`));
@@ -549,7 +552,7 @@ await check('draw, close, submit: the closed sketch is still in the combined att
 });
 
 // ---- an unpinned panel closes on a canvas press; below 720 px it stacks under the card (plan section 3) ----
-const narrow = await insert('Explain back');
+const narrow = await insert('Practice');
 const narrowId = await narrow.getAttribute('data-block-id');
 await check('an unpinned panel closes on a press elsewhere on the canvas', async () => {
   await reveal(narrow);
@@ -583,7 +586,8 @@ assert.equal(await panels().count(), 0, 'the Sketch is put away');
 
 // ---- EB-05: resource inputs (plan 2026-10-30-explain-back.md section 4). Click-click from a card's or a Group's port to
 // the green Input makes one semantic link; the other port of the same source is the same input; undo removes it; an
-// ordinary connector stays ordinary. Challenge cards stand in for any source card: every card has the same port pair.
+// ordinary connector stays ordinary. Explanation cards stand in for any source card: every card has the same port pair
+// (a challenge is the Practice card itself since owner 2026-10-30, never a source).
 const port = (owner, side) => page.locator(`[data-port="${side}"][data-owner="${owner}"]`);
 const boardState = id => page.evaluate(card => Object.values(localStorage).map(v => { try { return JSON.parse(v); } catch { return null; } })
   .find(state => (state?.blocks || []).some(block => block.id === card)) || null, id);
@@ -592,10 +596,10 @@ const settleLinks = (id, count) => page.waitForFunction(([card, n]) => Object.va
   .find(state => (state?.blocks || []).some(block => block.id === card))?.links?.filter(link => link.kind === 'explain-input' && link.to === card).length === n, [id, count], { timeout: 10000 });
 const clickClick = async (first, second) => { await first.click(); await page.waitForTimeout(150); await second.click(); await page.waitForTimeout(300); };
 // Each card by its own id: insert() returns cards().last(), a live locator that is always the newest card, so after the
-// second Challenge every one of these named that card (run 41044854928: the Shift-click selected only it; nothing grouped).
-const answerId = await (await insert('Explain back')).getAttribute('data-block-id');
-const sourceAId = await (await insert('Challenge')).getAttribute('data-block-id');
-const sourceBId = await (await insert('Challenge')).getAttribute('data-block-id');
+// second source every one of these named that card (run 41044854928: the Shift-click selected only it; nothing grouped).
+const answerId = await (await insert('Practice')).getAttribute('data-block-id');
+const sourceAId = await (await insert('Explanation')).getAttribute('data-block-id');
+const sourceBId = await (await insert('Explanation')).getAttribute('data-block-id');
 const byId = id => page.locator(`[data-block-id="${id}"]`);
 const answerCard = byId(answerId), sourceA = byId(sourceAId), sourceB = byId(sourceBId);
 await check('EB-05 the Input is a green port at the upper-left header edge', async () => {
@@ -606,7 +610,7 @@ await check('EB-05 the Input is a green port at the upper-left header edge', asy
   const at = await box(input), cardBox = await box(answerCard);
   assert.ok(Math.abs(at.x + at.width / 2 - cardBox.x) <= 2, 'on the left edge');
   assert.ok(at.y + at.height / 2 - cardBox.y < 60, 'beside the header, not the midpoint');
-  assert.equal(await port(sourceAId, 'input').count(), 0, 'an ordinary Challenge has no Input');
+  assert.equal(await port(sourceAId, 'input').count(), 0, 'an Explanation has no Input');
 });
 await check('EB-05 a source port to the Input makes one link; its other port is the same input; undo removes it', async () => {
   await reveal(sourceA);
@@ -627,16 +631,20 @@ await check('EB-05 a Group connects from its frame ports, bound to its id', asyn
   await page.keyboard.press('Control+g');
   await page.locator('[data-group-box]').first().waitFor();
   const groupId = await page.locator('[data-group-box]').first().getAttribute('data-group-box');
-  const frame = await box(page.locator(`[data-group-box="${groupId}"]`)), bottom = await box(port(groupId, 'bottom'));
+  const frame = await box(page.locator(`[data-group-box="${groupId}"]`)), bottom = await box(port(groupId, 'bottom')), top = await box(port(groupId, 'top'));
   assert.ok(Math.abs(bottom.y + bottom.height / 2 - (frame.y + frame.height)) <= 2, 'the bottom port sits on the rendered frame');
-  await clickClick(port(groupId, 'bottom'), port(answerId, 'input'));
+  assert.ok(Math.abs(top.y + top.height / 2 - frame.y) <= 2, 'the top port sits on the rendered frame');
+  // Connect from the top frame port: with two Explanation sources (taller than the old Challenge sources, owner 2026-10-30
+  // one Practice card) the bottom port lies under the canvas overview at 68% (fast-e2e 41111771895, FAIL-EB-05.png) and the
+  // answer's Input cannot share the screen with it. The previous step proves a source's two ports are the same input.
+  await clickClick(port(groupId, 'top'), port(answerId, 'input'));
   await settleLinks(answerId, 1);
   const [link] = await inputLinks(answerId);
-  assert.deepEqual([link.from, link.fromSide], [groupId, 'bottom']);
+  assert.deepEqual([link.from, link.fromSide], [groupId, 'top']);
   await shot('14-group-input-connected');
 });
 await check('EB-05 an ordinary connector between cards stays ordinary', async () => {
-  // The Group step left both Challenges selected, so the canvas's style panel (it follows the selection, from the tools
+  // The Group step left both sources selected, so the canvas's style panel (it follows the selection, from the tools
   // column) lies over their ports (run 41047132278, FAIL-EB-05.png). A learner dismisses it with a press on empty canvas
   // first, as here. ponytail: the style panel covering selected cards is the canvas's own placement, not Explain-back's.
   const surface = await box(page.locator('[data-canvas-surface]'));
@@ -677,6 +685,35 @@ await check('EB-05 pills: one Group pill with its count; × disconnects; the pic
   assert.equal(await pills.count(), 1);
 });
 await shot('15-input-pills');
+
+// ---- FX-EB-05 (plan section 9, EB-08.4): Tutor feedback offers existing teaching cards; Open on canvas only reveals one ----
+const generated = [];
+page.on('request', request => { if (/^\/api\/(learn\/assess|explain|motion)(\/|$)/.test(new URL(request.url()).pathname)) generated.push(request.url()); });
+const explanationId = await (await insert('Explanation')).getAttribute('data-block-id');
+const aidCard = await insert('Practice');
+const aidCardId = await aidCard.getAttribute('data-block-id');
+await check('EB-08.4 teaching aids: the existing Explanation is offered and opened on the canvas, never made again', async () => {
+  await reveal(aidCard);
+  await aidCard.locator('textarea[data-eb-answer]').fill('the id picks a row of the embedding table');
+  await submitOf(aidCard).click();
+  await aidCard.locator('[data-teaching-aids]').waitFor({ timeout: 10000 });
+  const sent = posts.at(-1);
+  assert.deepEqual(sent.teachingCards.find(card => card.id === explanationId), { id: explanationId, title: 'An id is an index, not a meaning', kind: 'explanation' }, 'the existing Explanation is offered');
+  assert.ok(!sent.teachingCards.some(card => card.id === aidCardId), 'never the Explain-back card itself');
+  assert.equal(sent.submittedContent.teachingCards, undefined, 'not part of the saved answer');
+  assert.equal(await aidCard.locator('[data-teaching-aid]').count(), 2);
+  assert.match(await aidCard.locator(`[data-teaching-aid="${explanationId}"]`).innerText(), /An id is an index, not a meaning[\s\S]*It explains what each id looks up\./);
+  assert.match(await aidCard.locator('[data-teaching-aid="removed-card"]').innerText(), /Position embeddings \(unavailable\)/);
+  assert.ok(await aidCard.locator('[data-open-aid="removed-card"]').isDisabled(), 'a card no longer on the canvas is unavailable, never a substitute');
+  const before = { cards: await cards().count(), posts: posts.length };
+  await reveal(aidCard); // the feedback made the card taller; bring its controls above the floating composer
+  await aidCard.locator(`[data-open-aid="${explanationId}"]`).click();
+  await page.locator(`[data-block-id="${explanationId}"][aria-current="true"]`).waitFor({ timeout: 5000 });
+  assert.equal(await cards().count(), before.cards, 'no new card');
+  assert.equal(posts.length, before.posts, 'no new attempt or assessment');
+  assert.deepEqual(generated, [], 'no generation or grading request');
+});
+await shot('16-teaching-aids');
 
 await check('no page errors', async () => assert.deepEqual(errors, []));
 console.log(`${results.length}/${results.length} checks passed`);

@@ -2,7 +2,7 @@
 // list only what has results (or is picked); Other always lists its rows, Links only where the page shows links.
 export const SEARCH_FILTER_GROUPS = [
   { title: 'Content types', items: [['video', 'Video'], ['pdf', 'PDF'], ['paper', 'Paper'], ['notebook', 'Notebook'], ['code', 'Code'], ['image', 'Image'],
-    ['whiteboard', 'Whiteboard'], ['diagram', 'Diagram'], ['graph', 'Graph'], ['quiz', 'Quiz'], ['flashcards', 'Flashcards'], ['challenge', 'Challenge'],
+    ['whiteboard', 'Whiteboard'], ['diagram', 'Diagram'], ['graph', 'Graph'], ['quiz', 'Quiz'], ['flashcards', 'Flashcards'], ['challenge', 'Practice'],
     ['explanation', 'Explanation'], ['table', 'Table'], ['cad', '3D/CAD'], ['animation', 'Animation'], ['audio', 'Audio'], ['slides', 'Slides'],
     ['document', 'Document'], ['other-cards', 'Other cards']] },
   { title: 'Sources', items: [['arxiv', 'arXiv'], ['wikipedia', 'Wikipedia'], ['youtube', 'YouTube'], ['web', 'Web'], ['repository', 'Repository']] },

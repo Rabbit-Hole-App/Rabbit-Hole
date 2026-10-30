@@ -20,6 +20,24 @@ export const RATING_OUT_OF = 10;
 // Bounded like the attempt store (ATTEMPT_LIMITS: 4000 text units, 20 refs, 16 KiB content); members and voice notes are
 // the contract's own bounds so one Group cannot fill the content budget.
 export const ANSWER_LIMITS = Object.freeze({ textChars: 4000, evidence: 20, voiceNotes: 3, groupMembers: 30, citations: 12 });
+// Teaching aids (plan section 9, "Open on canvas"; FX-EB-05): teaching cards that already exist on the learner's canvas.
+// The browser sends a bounded candidate list with a submission (private canvas content stays browser-side until submitted);
+// the review may name up to `picks` of them for "What to revisit". Nothing is generated. The block types: /explain's
+// explanation, animation (an explain program) and scene cards, /motion's and other video cards, and notebooks.
+export const TEACHING_KINDS = ['explanation', 'animation', 'scene', 'video', 'notebook'];
+export const TEACHING_LIMITS = Object.freeze({ candidates: 12, picks: 2, title: 120 });
+// [{id, title, kind}] -> the same, bounded: teaching kinds only, distinct ids, titles clipped, at most `candidates`. Applied
+// by the browser before sending and again by the server to whatever arrived.
+export function teachingCards(list) {
+  const seen = new Set(), out = [];
+  for (const c of Array.isArray(list) ? list : []) {
+    if (out.length >= TEACHING_LIMITS.candidates) break;
+    if (!isObj(c) || typeof c.id !== 'string' || !c.id || c.id.length > 200 || seen.has(c.id) || !TEACHING_KINDS.includes(c.kind)) continue;
+    seen.add(c.id);
+    out.push({ id: c.id, title: typeof c.title === 'string' ? c.title.slice(0, TEACHING_LIMITS.title) : '', kind: c.kind });
+  }
+  return out;
+}
 
 export const EVIDENCE_ROLES = ['voice', 'sketch', 'recording', 'resource'];
 // What the bytes are. A resource is any canvas source; 'group' is the only media with members.
@@ -125,10 +143,13 @@ export const EB_SHAPES = {
     status: RATING_STATUS, score: { opt: ratingScore }, outOf, capped: 'bool?', reason: 'id?', unknown: { opt: ['obj'] },
     criteria: ['RatingRow'], rubricVersion: nullableId, calculationVersion: 'id',
   },
+  // One existing teaching card the review names for "What to revisit", as it was when submitted (title and kind kept, so a
+  // card removed later still reads as what it was, shown unavailable).
+  TeachingAid: { cardId: 'id', title: 'str', kind: TEACHING_KINDS, reason: shortText },
   ExplainBackReview: {
     v: reviewVersion, attemptId: 'id', assessmentId: 'id', status: ASSESSMENT_STATUS, rubricVersion: 'id',
     judgments: ['CriterionJudgment'], coverage: ['CoverageEntry'], feedback: { opt: 'Feedback' }, comparison: { opt: 'Comparison' },
-    rating: 'Rating', provenance: 'obj',
+    rating: 'Rating', teachingAids: { opt: ['TeachingAid'] }, provenance: 'obj',
   },
   ExplainBackDraft: { draftId: 'id', cardId: 'id', activityId: 'id?', revision: 'int', answer: 'ExplainBackAnswer', updatedAt: 'id?' },
 };
@@ -259,6 +280,7 @@ export function validateExplainBackReview(review, answer) {
   if (review.comparison) for (const i of review.comparison.items) cite(i.currentCitations, `comparison.${i.criterionId}`);
   // comparison belongs to the baseline the answer named
   const b = answer?.baseline;
+  if ((review.teachingAids?.length ?? 0) > TEACHING_LIMITS.picks) errors.push(`teachingAids: at most ${TEACHING_LIMITS.picks}`);
   if (review.comparison && (!b || b.parentAttemptId !== review.comparison.parentAttemptId || b.parentAssessmentId !== review.comparison.parentAssessmentId)) errors.push('comparison: not the answer baseline');
   const r = review.rating;
   const rated = r.status === 'rated';

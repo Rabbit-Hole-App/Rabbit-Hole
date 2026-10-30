@@ -14,7 +14,8 @@ export function createShadowGrader({ fetchImpl = (...args) => fetch(...args), he
           attempt_id: block.attemptId,
           board,
           block_id: block.id ?? null,
-          mode: block.mode === 'explain_back' ? 'explain_back' : 'challenge',
+          // Every canvas challenge block is the one Practice card (owner 2026-10-30).
+          mode: block.type === 'challenge' || block.mode === 'explain_back' ? 'explain_back' : 'challenge',
           prompt: block.prompt,
           expects: block.expects,
           answer,
@@ -48,5 +49,5 @@ export function createShadowGrader({ fetchImpl = (...args) => fetch(...args), he
   return { shadowGrade, recordBaseline };
 }
 
-// The tutor's verdict token, read the same way ChallengeBody reads it.
+// The tutor's verdict token, as LearnPage's legacy single-attempt grade reads it for the Jev baseline.
 export { parseVerdict } from '../../control-plane/src/agents/learn-grade.js';

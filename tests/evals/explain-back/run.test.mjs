@@ -22,6 +22,12 @@ test('dry run: every case reaches the evaluator with its own evidence, at an est
   assert.ok(kinds('reference-only').includes('resource'));
   assert.equal(byCase['wrong-prior-review'].previousAttempt.review.criteria.find(c => c.judgment === 'contradicted') != null, true, 'the wrong prior review is in the request');
   for (const i of [4, 5]) assert.equal(seen.calls[i].body.messages[0].content.filter(b => b.type === 'image').length, 1);
+  assert.deepEqual(byCase['teaching-aid-reuse'].teachingCards.map(c => c.id), ['card_inward_force', 'card_pendulum'], 'existing teaching cards go in as data');
+  assert.equal(byCase['text-correct'].teachingCards, undefined, 'and only when the browser sent some');
+  // FX-EB-09: every request names each rubric criterion's own entry, in order, for the reply to fill.
+  const voiceOnly = seen.calls[CASES.cases.findIndex(c => c.id === 'voice-only-every-criterion')].body;
+  assert.match(voiceOnly.system, /This rubric has 2, so "criteria" has exactly 2 entries/);
+  assert.deepEqual([...voiceOnly.system.matchAll(/\{"criterionId":"(k_[0-9a-f]{16})","version":1,/g)].map(m => m[1]), byCase['voice-only-every-criterion'].rubric.map(c => c.criterionId));
 });
 
 test('the run stops before a case whose worst cost could pass the cap', async () => {
@@ -39,5 +45,8 @@ test('the scorer: allowed judgments, questions, coverage, comparison and rating 
   assert.deepEqual(s.checks.filter(x => !x.ok).map(x => x.what), ['comparison force']);
   review.comparison.items[0].change = 'prior_feedback_corrected';
   assert.equal(score(c, card, review).pass, true);
+  const t = CASES.cases.find(x => x.id === 'teaching-aid-reuse');
+  const aids = ids => score(t, card, { judgments: [{ criterionId: id('force'), judgment: 'contradicted' }, { criterionId: id('velocity'), judgment: 'demonstrated' }], teachingAids: ids.map(cardId => ({ cardId })) }).pass;
+  assert.deepEqual([aids(['card_inward_force']), aids([]), aids(['card_inward_force', 'card_pendulum'])], [true, false, false], 'the relevant card, and only it');
 });
 

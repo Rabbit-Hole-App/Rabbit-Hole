@@ -12,7 +12,7 @@ test('the Sketch panel never stops pointerup or pointermove on their way to wind
   assert.doesNotMatch(panel, /onPointer(Up|Move)(Capture)?=\{stop\}/);
   assert.doesNotMatch(panel, /onPointer(Up|Move)(Capture)?=\{[^}]*stopPropagation/);
 });
-import { ANSWER_PLACEHOLDER, PANEL, STOP_TO_SUBMIT, askTutorText, attemptLabel, connectionsOf, draftMemoryKey, inputPillsOf, legacyView, recallDraft, rememberDraft, reviseSketchPlan, locatorText, optionText, panelLayout, ratingBadge, serviceView, stackTop, submitState } from './explain-back-view.js';
+import { ANSWER_PLACEHOLDER, PANEL, STOP_TO_SUBMIT, askTutorText, attemptLabel, connectionsOf, draftMemoryKey, inputPillsOf, legacyView, recallDraft, rememberDraft, reviseSketchPlan, locatorText, optionText, panelLayout, ratingBadge, serviceView, stackTop, submitState, teachingAidsOf } from './explain-back-view.js';
 
 // Plan 2026-10-30-explain-back.md sections 3, 7H, 8 and 9: what the Explain-back card shows, from either data path.
 
@@ -72,6 +72,20 @@ const review = (over = {}) => ({
   comparison: { parentAttemptId: 'a1', parentAssessmentId: 's1', comparable: true, items: [{ criterionId: 'c1', change: 'resolved', baselineCitations: [], currentCitations: [], note: 'You now explain why the force points inward.' }, { criterionId: 'c2', change: 'persisting', baselineCitations: [], currentCitations: [], note: 'The velocity arrow still points inward.' }] },
   rating: { status: 'rated', score: 8, outOf: 10, criteria: [], rubricVersion: 'r1', calculationVersion: 'v1' }, provenance: {},
   ...over,
+});
+
+// Owner 2026-10-30: one Practice card. An old Challenge saved with a one-line guess, a "VERDICT:" review and a reveal shows
+// that guess and review as attempt 1 (read-only, Not rated) ahead of the store's attempts, which number on after it.
+test('an old Challenge\'s saved guess and verdict lead the durable attempts, numbered first, never sent as a parent', () => {
+  const old = { id: 'c1', type: 'challenge', prompt: 'Why exp?', expects: ['positive'], reveal: 'It keeps scores positive.', answer: 'it makes them positive', attemptId: 'old-1', verdict: 'VERDICT: partial\nYou have one idea.' };
+  const strip = value => String(value || '').replace(/VERDICT:\s*(good|partial)\s*/i, '').trim();
+  const earlier = legacyView(old, { strip }).attempts;
+  assert.deepEqual(earlier.map(a => [a.id, a.number, a.status, a.legacy, a.answer.text, a.feedback.text, a.answer.resources]), [['old-1', 1, 'reviewed', true, 'it makes them positive', 'You have one idea.', []]]);
+  assert.equal(ratingBadge(earlier[0]).text, 'Not rated', 'no number is invented for an old review');
+  const view = serviceView({ attempts: [{ attemptId: 'a1', submittedContent: { v: 1, kind: 'explain_back', text: 'exp keeps them positive', voice: [], resources: [], assistance: [] }, assessment: { status: 'completed', provenance: { review: review({ attemptId: 'a1', comparison: { parentAttemptId: 'a0', parentAssessmentId: null, comparable: false, reason: 'no_parent', items: [] } }) } } }] }, earlier);
+  assert.deepEqual(view.attempts.map(a => [a.id, a.number, !!a.legacy]), [['old-1', 1, true], ['a1', 2, false]]);
+  assert.deepEqual(serviceView(undefined, earlier), { attempts: [], draft: null, loading: true }, 'still loading: nothing shown twice');
+  assert.deepEqual(serviceView({ attempts: [] }, []).attempts, [], 'a card with nothing saved has no attempts');
 });
 
 test('the durable store, read in the EB-01 contract names: states, feedback, comparison, citations, rating', () => {
@@ -188,4 +202,11 @@ test('revising keeps the newest attempt\'s marks only; an older attempt\'s draft
 test('Ask Tutor fills the composer with the exercise, the attempt and its feedback', () => {
   const text = askTutorText('Why does the bob swing?', attempt({ number: 2, answer: { text: 'gravity', voice: [], inputs: [] }, feedback: { sections: { well: 'Good.', revisit: 'Tension.', next: '' } } }));
   assert.equal(text, 'Explain-back question: Why does the bob swing?\nMy attempt 2: gravity\nWhat you explained well: Good.\nWhat to revisit: Tension.');
+});
+
+test('teaching aids: each named card opens while it exists and is unavailable once removed; an older review lists none', () => {
+  const review = { teachingAids: [{ cardId: 'e1', title: 'Centripetal force', kind: 'explanation', reason: 'Shows the inward force.' }, { cardId: 'n1', title: '', kind: 'notebook', reason: 'Try it.' }] };
+  assert.deepEqual(teachingAidsOf(review, id => id === 'e1').map(a => [a.id, a.title, a.available, a.reason]), [['e1', 'Centripetal force', true, 'Shows the inward force.'], ['n1', 'Notebook', false, 'Try it.']]);
+  assert.deepEqual(teachingAidsOf({}), []);
+  assert.deepEqual(teachingAidsOf(null), []);
 });

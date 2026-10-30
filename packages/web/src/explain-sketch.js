@@ -42,7 +42,3 @@ export function sketchText(sketch) {
     words.length ? `Written in the sketch: ${words.map(word => word.text).join('; ')}.` : 'Nothing is written in the sketch.',
   ].join(' ').slice(0, 2000);
 }
-
-// Submit is open with words typed, or with marks in the card's sketch - shown or hidden, since hiding is presentation
-// only; text is never required. Only clearing the sketch takes it out of the answer.
-export const canSubmit = (text, sketch) => !!said(text) || hasMarks(sketch);

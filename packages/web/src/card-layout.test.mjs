@@ -36,3 +36,55 @@ test('sizes are clamped to the corner handle limits',()=>{
  assert.deepEqual(clampBox(10,10),{w:280,h:140});assert.deepEqual(clampBox(5000,5000),{w:1200,h:1000});assert.deepEqual(clampBox(640,540),{w:640,h:540});
  assert.deepEqual(setBlockSize([book('a')],'a',5000,10)[0].w,1200);
 });
+
+// FX-EB-10 (owner 2026-10-30): a text card resized taller than its content kept that height and stood mostly blank (a Challenge's
+// question and controls filled about half of it). A content-fitted card's height follows its content; a saved or dragged
+// height is only a ceiling, and a drag or commit never stores more than the content needs.
+import {fitFrame,naturalHeight} from './card-layout.js';
+import {readFileSync} from 'node:fs';
+// A card as the browser lays it out: a fixed height wins; otherwise its content's, up to max-height, and the rest scrolls in its body.
+const laidOut=({height,maxHeight},content,extra=0)=>{const offsetHeight=height??Math.min(content+extra,maxHeight??Infinity),clientHeight=offsetHeight-extra-24;
+ return {offsetHeight,querySelector:sel=>sel==='[data-scroll]'?{clientHeight,scrollHeight:Math.max(clientHeight,content-24)}:null};};
+test('the screenshot case: a Challenge saved at 1000 px renders at its content height and a commit stores that height, not 1000',()=>{
+ const content=310,saved=1000;
+ const before=laidOut(fitFrame(saved,undefined,false),content);
+ assert.equal(before.offsetHeight,1000,'reproduction: a fixed height leaves ~690 px blank under the controls');
+ const style=fitFrame(saved,undefined,true);assert.deepEqual(style,{height:undefined,maxHeight:1000});
+ const card=laidOut(style,content);assert.equal(card.offsetHeight,310,'reopened: no blank space');
+ assert.equal(naturalHeight(card),310,'the natural height is read from an unstretched card');
+ assert.deepEqual(clampBox(440,saved,naturalHeight(card)),{w:440,h:310},'the commit never stores more than the content needs');
+});
+test('the natural height includes content scrolled under a lower ceiling, and leaves out the rows under the body',()=>{
+ const card=laidOut(fitFrame(260,undefined,true),500);assert.equal(card.offsetHeight,260);assert.equal(naturalHeight(card),500);
+ assert.equal(clampBox(440,220,naturalHeight(card)).h,220,'dragging smaller than the content is allowed: it scrolls');
+ assert.equal(naturalHeight(laidOut(fitFrame(900,undefined,true),300,40),40),300,'Sources or reference rows (extra) are not body height');
+ assert.equal(naturalHeight({offsetHeight:180,querySelector:()=>null}),180);
+});
+test('the required height follows the content: wrapping at a narrower width, or feedback appearing, moves the limit',()=>{
+ const wide=naturalHeight(laidOut(fitFrame(undefined,760,true),280)),narrow=naturalHeight(laidOut(fitFrame(undefined,760,true),460));
+ assert.deepEqual([clampBox(700,900,wide).h,clampBox(320,900,narrow).h],[280,460]);
+ const feedback=laidOut(fitFrame(280,undefined,true),640);assert.equal(feedback.offsetHeight,280,'feedback after a commit scrolls inside the committed height');
+ assert.equal(clampBox(440,900,naturalHeight(feedback)).h,640,'and a new drag may open the card to the feedback\'s full height');
+ assert.equal(laidOut(fitFrame(640,undefined,true),300).offsetHeight,300,'a section closed again: the card shrinks back, no blank space');
+});
+test('content limits stay inside the corner handle limits; no content measure keeps the old limits',()=>{
+ assert.equal(clampBox(400,900,90).h,140);assert.equal(clampBox(400,5000,2000).h,1000);assert.equal(clampBox(400,900,undefined).h,900);assert.equal(clampBox(400,900,NaN).h,900);assert.equal(clampBox(400,900,0).h,900);
+ assert.deepEqual(clampBox(5000,10,300),{w:1200,h:140},'width resizing is unchanged');
+});
+test('working surfaces keep their frames: without fitContent the height stays fixed and a dragged height is kept',()=>{
+ assert.deepEqual(fitFrame(540,undefined,false),{height:540,maxHeight:undefined});assert.deepEqual(fitFrame(undefined,420,false),{height:undefined,maxHeight:420});
+ assert.deepEqual(fitFrame(undefined,760,true),{height:undefined,maxHeight:760},'a never-resized text card keeps its type cap');
+ assert.equal(setBlockSize([book('a')],'a',700,900)[0].h,900,'a notebook keeps the height it was dragged to');
+});
+test('a text card commit patches the block as it is now: an answer given during the drag survives, only w and h change',()=>{
+ const atPress={id:'c',type:'challenge',mode:'explain_back',dx:5,dy:6,prompt:'Why?',answer:null},now=[{...atPress,answer:'Because',verdict:'VERDICT: good'}];
+ const next=patchBlock(now,'c',clampBox(480,1000,330));
+ assert.deepEqual(next[0],{...now[0],w:480,h:330});assert.equal(now[0].h,undefined,'not mutated');
+});
+test('the sizing policy is per card type: text cards fit their content; notebooks, Sketch, media and interactive cards keep their frames',()=>{
+ const body=readFileSync(new URL('./LearningBlocks.jsx',import.meta.url),'utf8').split('export const BLOCK_TYPES = {')[1];
+ const heads=[...body.matchAll(/^  ([A-Za-z0-9_]+): \{/gm)],entry=type=>{const at=heads.findIndex(m=>m[1]===type);return at<0?null:body.slice(heads[at].index,heads[at+1]?.index);};
+ const fits=heads.map(m=>m[1]).filter(type=>/^    fitContent: true,/m.test(entry(type)));
+ assert.deepEqual(fits.sort(),['challenge','explanation','flashcards','quiz']);
+ for(const type of ['code','snippet','table','graph','plot','flow','whiteboard','animation','image','video','cad','paper','scene']) assert.ok(entry(type)&&!fits.includes(type),type);
+});

@@ -4,8 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RESPONSE_KINDS, validateCoachingRecord } from './learn-coaching-contract.js';
 import {
-  ANSWER_LIMITS, ERROR_CODES, JUDGMENT_FIT, answerReadiness, attemptState, fromLegacyAnswer, submitEnvelope,
-  validateExplainBackAnswer, validateExplainBackReview, validateTranscript, voiceEvidence,
+  ANSWER_LIMITS, ERROR_CODES, JUDGMENT_FIT, TEACHING_LIMITS, answerReadiness, attemptState, fromLegacyAnswer, submitEnvelope,
+  teachingCards, validateExplainBackAnswer, validateExplainBackReview, validateTranscript, voiceEvidence,
 } from './explain-back-contract.js';
 import { BOARD, CARD, INVALID, LEGACY, READINESS, REVIEWED_ANSWER, VALID, review } from './explain-back-contract.fixtures.mjs';
 
@@ -134,4 +134,21 @@ test('a Sketch recording may be a JSON timeline with its narration as a private 
   fails({ ...base, recording: { ...recording, narration: { ...voice, role: 'sketch', media: 'image' } } }, 'narration is one voice ref');
   fails({ ...base, sketch: { ...recording, role: 'sketch', media: 'image' } }, 'narration is one voice ref');
   assert.equal(answerReadiness({ ...base, recording: { ...recording, narration: { ...voice, state: 'uploading', hash: undefined } } }).reason, 'upload_in_progress');
+});
+
+test('teaching aids (FX-EB-05): candidates are bounded teaching cards; a review names at most two, and older reviews need none', () => {
+  const sent = [
+    { id: 'e1', title: 'x'.repeat(300), kind: 'explanation' }, { id: 'e1', title: 'again', kind: 'explanation' }, { id: 'q1', title: 'Quiz', kind: 'quiz' },
+    { id: '', kind: 'notebook' }, 'junk', { id: 'v1', kind: 'video', title: 7 },
+    ...Array.from({ length: 20 }, (_, i) => ({ id: `n${i}`, title: `Notebook ${i}`, kind: 'notebook' })),
+  ];
+  const out = teachingCards(sent);
+  assert.equal(out.length, TEACHING_LIMITS.candidates);
+  assert.deepEqual(out.slice(0, 2), [{ id: 'e1', title: 'x'.repeat(TEACHING_LIMITS.title), kind: 'explanation' }, { id: 'v1', title: '', kind: 'video' }]);
+  assert.deepEqual(teachingCards(undefined), []);
+  const aid = { cardId: 'e1', title: 'Centripetal force', kind: 'explanation', reason: 'Shows the inward force.' };
+  assert.deepEqual(validateExplainBackReview(review({ teachingAids: [aid] }), REVIEWED_ANSWER), { ok: true, errors: [] });
+  assert.ok(validateExplainBackReview(review({ teachingAids: [aid, { ...aid, cardId: 'e2' }, { ...aid, cardId: 'e3' }] }), REVIEWED_ANSWER).errors.some(e => e.includes('teachingAids: at most 2')));
+  assert.equal(validateExplainBackReview(review({ teachingAids: [{ ...aid, kind: 'quiz' }] }), REVIEWED_ANSWER).ok, false);
+  assert.equal(validateExplainBackReview(review(), REVIEWED_ANSWER).ok, true, 'a review without the field is valid');
 });

@@ -70,7 +70,8 @@ const FAMILIES = {
   graph: ['interactive_graph', 'data_plot', 'knowledge_graph'], diagram: ['flow_diagram', 'mermaid_diagram'], walkthrough: ['walkthrough'],
   animate: ['reference_attention', 'maths_animation'], whiteboard: ['whiteboard'], image: ['image'], 'generate-image': ['image_generate'],
   video: ['video_generate'], '3d': ['3d_model', 'blender_scene'], notebook: ['notebook'],
-  practice: ['challenge', 'explain_back', 'quiz', 'code_exercise'], quiz: ['quiz'],
+  // Owner 2026-10-30: one Practice card - /practice offers explain_back (the Practice card), never the challenge primitive.
+  practice: ['explain_back', 'quiz', 'code_exercise'], quiz: ['quiz'],
   compare: ['table', 'interactive_graph', 'data_plot', 'flow_diagram', 'mermaid_diagram'],
 };
 
@@ -186,7 +187,7 @@ test('/practice subtype words narrow the family; plain /practice leaves the whol
   assert.deepEqual(learnRequest('practice', { args: 'explain it back' }).allowedPrimitives, ['explain_back']);
   assert.deepEqual(learnRequest('practice', { args: 'coding' }).allowedPrimitives, ['code_exercise']);
   assert.deepEqual(learnRequest('practice', { args: 'multiple choice on softmax' }).allowedPrimitives, ['quiz']);
-  assert.deepEqual(learnRequest('practice').allowedPrimitives, ['challenge', 'explain_back', 'quiz', 'code_exercise']);
+  assert.deepEqual(learnRequest('practice').allowedPrimitives, ['explain_back', 'quiz', 'code_exercise']); // owner 2026-10-30: one Practice card
   assert.equal(learnRequest('practice', { args: 'coding' }).family, 'practice');
 });
 

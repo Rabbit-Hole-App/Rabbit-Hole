@@ -6,6 +6,18 @@ name the fixing commit.
 Entry format: **ID · task · status (open / resolved)** — evidence or error; attempted fixes; remaining work; owner;
 exact action needed from the owner (if any).
 
+## Owner actions at final delivery
+
+Collected here so they block nothing else (owner 2026-10-30: finish and push everything first).
+
+1. Release 24-eb (the one Practice card, card heights, teaching links, the criterion fix, the microphone removal; it
+   supersedes 23-eb, which must not be run): `C:\s\spec\release-queue\release.cmd 24-eb`. It is ready only once its pins
+   carry a passing gate; the final handoff says when.
+2. Production check, **deferred until final delivery and still unverified**: on digrabbithole.com answer one Practice card
+   (typed, then a voice note), then run `C:\s\spec\explain-back\prod\eb-prod-verify.cmd` (read only; it asks for the session
+   cookie in its own window).
+3. FX-EB-07: decide whether the style-panel overlap gets its own task.
+
 ## Open
 
 **FX-EB-02 · EB-09 · open, not blocking** — Timing tests under full-suite load fail intermittently in worker and
@@ -18,24 +30,41 @@ Browser tier, same class: fast-e2e round 9 (run 41051664753) failed `docs-remove
 page timed out at 30 s) and `explain-program-state-check` ("the handle did not settle at 540"); both passed in rounds 4-8 on
 the same code paths and neither file is touched by this work. Recorded as intermittent, unclassified.
 
-**FX-EB-03 · EB-02 / EB-10 · open (owner action at release)** — Production `LEARN_DB` (`rabbit-hole-learn-prod`) needs
-migration `learn-migrations/0034-explain-back.sql` (3 tables, 2 indexes; additive) before the Explain-back code reaches
-production: `purgeTutorRows` deletes from these tables, so a permanent canvas delete would fail without them. Dev is
-applied and verified (2026-10-30 1:05 AM PT). Launcher prepared and tested in an isolated harness (9/9 scenarios):
-`C:\s\spec\explain-back\apply-prod-migration-0034.cmd` (`--check` is read-only; apply asks for `APPLY PROD`). The
-coordinator's attempt to run `--check` was refused by the session's production-read guard, so the production state is
-unverified. Owner action: at release, run `C:\s\spec\explain-back\apply-prod-migration-0034.cmd --check`, then the same
-command without `--check`, typing `APPLY PROD`. Keep the `eb-data` worktree until then (the launcher uses its config).
-
-**FX-EB-04 · EB-06 · open (owner decision, not blocking)** — The ordinary Challenge card still offers Speak answer, which
+**FX-EB-04 · EB-06 · fixed on branch, release pending** — The ordinary Challenge card still offers Speak answer, which
 answers "Speech to text is not configured on this environment." after recording (unchanged since 2026-10-26; O-8 now
-covers Explain-back voice notes only, so the legacy dictation route stays refused). Options: (A) remove the microphone
-from ordinary Challenge (recommended; it is a dead control); (B) give ordinary Challenge the retained voice note too.
-Owner action: choose A or B; nothing is changed until then.
+covers Explain-back voice notes only, so the legacy dictation route stays refused). Owner chose (A) on 2026-10-30: remove
+the microphone from ordinary Challenge, which keeps its text box; Explain-back keeps its voice note. Fixed by 9880092d0 on
+`fix/challenge-mic-removal` (SpeakAnswer.jsx deleted; the browser checks assert no microphone on Challenge). It ships with
+the next release; production still shows the dead microphone until then. The legacy `/api/learn/transcribe` route stays
+and keeps answering not configured; nothing calls it now.
 
-**FX-EB-05 · EB-08.4 · open (scope gap)** — "Open on canvas" for teaching aids is wired in the card but the stored review
-carries no teaching-card references, so no teaching aid is ever listed. Building it needs a review field naming existing
-linked teaching cards (no generation). Not started; recorded so it is not mistaken for done.
+**FX-EB-09 · EB-07 / EB-08 · fix committed, live check pending** — A real provider reply dropped a criterion (dev preview,
+live acceptance 2026-10-30 ~10:30 AM PT, voice-only answer, attempt at_fa3ff4ec, 2 criteria): `provenance.unassessed` =
+`[{criterionId: "k_2f2f99245d28ecd1", version: 1, reason: "not_returned"}]`, `rejected` = `[]`. The reply's `criteria` held
+one entry and its `notes` said the velocity criterion should be added, judged met; the correct answer was Not rated
+(`criteria_unassessed`) while its feedback praised that idea. Same family as eval-live-3. Fix (c4a950cae,
+feat/eb-teaching-aids): the reply format now writes one entry per rubric criterion with its criterionId and version
+filled in, in rubric order, states the exact count, and says a judgement written elsewhere (such as in `notes`) is ignored.
+No extra call. Parsing stays strict: a judgement only in `notes` is never credited (test "FX-EB-09 dropped criterion" uses
+this reply shape). Remaining: the live eval case `voice-only-every-criterion` (tests/evals/explain-back) has not been run;
+the coordinator runs live evals. Owner action: none.
+
+**FX-EB-10 · TUT-16 · fix committed, browser check pending CI** — Owner screenshot 2026-10-30: a Challenge resized tall
+kept its question and answer controls in the top half with a large blank area below. Cause: CanvasNode's corner handle
+allowed any height up to 1000 px (`clampBox`), saved it as the block's `h`, and drew it as a fixed `height`, so the card's
+flex body stretched to it whatever the content needed (reproduced in `card-layout.test.mjs`, "the screenshot case").
+Fix (4e9633cb9, `fix/text-card-height`): an explicit per-type policy, `fitContent` on the BLOCK_TYPES entries `challenge`
+(every mode, so Explain-back and the Practice card too), `explanation`, `quiz` and `flashcards`. For those cards
+(`card-layout.js` `fitFrame`) the saved, dragged or type height is a `max-height` ceiling and the height follows the content:
+text wrapping, feedback tabs, the attempt history and an opened section grow or shrink the card, content above the ceiling
+scrolls in the body. The drag and its commit are clamped to `naturalHeight` (the unstretched card's height plus its body's
+scrolled overflow), so no more than the content needs is stored. Saved oversized heights are clamped when drawn and are
+not rewritten until the learner next resizes the card. Notebooks, Sketch, media, diagrams, graphs, code and the
+Full/Scrollable card layouts keep fixed frames. Browser check `text-card-height-check.mjs` (runner fork): first run
+(fast-e2e 41108024288 on d871512aa) passed steps 1-4 and 7 and failed 5, 6 and 8 on check faults, not the product: step 5
+assumed the card opens on Your answer (a review loaded after mount opens on Tutor feedback), and steps 6 and 8 pressed a
+corner position read before the last zoom-out (the press selected the Flow card). Fixed in 1fb0e89cd
+(`fix/text-card-height-2`); rerun pending. Owner action: none.
 
 **FX-EB-07 · EB-09 · open (pre-existing, owner rule)** — The canvas style panel opens out of the tools column over the
 cards it styles: with two grouped cards selected at 68% zoom it covered their ports (round 7, check fixed by deselecting
@@ -46,7 +75,31 @@ own task. Owner action: decide whether to open one.
 branches that equalled the integration SHA doubled runner minutes. Duplicate runs were cancelled (41044776909/41, 41047053473/511,
 41049082261/317, 41051073532/377, 41051369789/770) and workers now push only new commits on request.
 
+**FX-EB-11 · EB-08 · fix committed, browser check pending CI** — A card that already had a reviewed attempt opened on
+Tutor feedback every time the board loaded and announced "Tutor feedback is ready" for that old review (found by the
+text-card-height-check screenshots, fast-e2e 41108024288). Cause: ExplainBackCard took its baseline of seen reviews on the
+first render, while its saved attempts were still loading, so every saved review then counted as new. Fix: the baseline waits
+until the attempts have loaded (`view.loading`); a review that arrives after that (a submit or re-review) still opens
+Tutor feedback and is announced. The height check's step 5 now asserts a reloaded card opens on Your answer with no
+announcement. In production since 22-eb; fixed by the 24-eb release.
+
 ## Resolved
+
+**FX-EB-03 · EB-02 / EB-10 · resolved 2026-10-30** — Production `LEARN_DB` (`rabbit-hole-learn-prod`) needed migration
+`learn-migrations/0034-explain-back.sql` (3 tables, 2 indexes; additive) before the Explain-back code reached production:
+`purgeTutorRows` deletes from these tables, so a permanent canvas delete would fail without them. The owner ran
+`C:\s\spec\explain-back\apply-prod-migration-0034.cmd` before release 22-eb; it reported `RESULT OK applied and verified
+5/5`. Release 22-eb (`a3376817f`) followed at 9:57 AM PT.
+
+**FX-EB-05 · EB-08.4 · resolved (c4a950cae, feat/eb-teaching-aids)** — "Open on canvas" was wired in the card but the
+stored review carried no teaching-card references, so no teaching aid was ever listed. Now the browser sends a bounded list
+of the canvas's existing teaching cards (explanation, animation, scene, video, notebook; at most 12; never the Explain-back
+card or a card still being made) with each submission or reassessment, outside the saved answer. The one assessment call
+reads it as data; the review keeps at most 2 picks whose ids were in that list, only beside a gap to revisit, with a short
+reason (`review.teachingAids`; unknown or malformed picks are dropped and never fail the assessment). Open on canvas
+selects and frames the existing card: no request, no model call, no new card. A card later removed shows unavailable, not a
+substitute. Reviews stored before the field render as before. Browser wiring is covered by `explain-back-sketch-check`
+("EB-08.4 teaching aids"); whether a real evaluator picks sensibly is the live eval case `teaching-aid-reuse` (not run).
 
 **FX-EB-01 · EB-06 / EB-07 (voice notes) · resolved** — Transcription was refused before the provider in every
 environment: `paidSubmissionRefusal(env)` is the fail-closed guard for unpriced transports. Fixed by a priced, bounded
