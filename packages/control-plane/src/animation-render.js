@@ -25,10 +25,18 @@ export const ANIMATION_CAPTURE = Object.freeze({ width: 960, height: 540, dpr: 1
 
 const blocker = (code, message) => Object.assign(new Error(message), { status: 503, code, category: 'renderer' });
 
-// The two views: the artifact's own camera, and the same camera turned a quarter around its target's vertical axis.
+// The two views: the artifact's own camera, and that camera orbited SIDE_VIEW about its own target (55 degrees round, 15 degrees higher,
+// same distance and field of view), so the review checks a nearby angle of what the learner sees. A quarter turn (the earlier second
+// view) saw a planar drivetrain edge-on and failed a good scene twice (accept-8).
+export const SIDE_VIEW = Object.freeze({ azimuthDeg: 55, elevationDeg: 15, maxElevationDeg: 75 });
 export function captureViews(artifact) {
-  const { position: [px, py, pz], target: [tx, ty, tz], fov = 50 } = artifact.camera;
-  return [{ name: 'default', position: [px, py, pz], target: [tx, ty, tz], fov }, { name: 'side', position: [tx - (pz - tz), py, tz + (px - tx)], target: [tx, ty, tz], fov }].slice(0, ANIMATION_LIMITS.render.views);
+  const { position, target, fov = 50 } = artifact.camera, [tx, ty, tz] = target;
+  const [dx, dy, dz] = position.map((v, i) => v - target[i]), r = Math.hypot(dx, dy, dz), rad = Math.PI / 180;
+  const az = Math.atan2(dx, dz) + SIDE_VIEW.azimuthDeg * rad;
+  const el = Math.min(SIDE_VIEW.maxElevationDeg * rad, Math.max(-SIDE_VIEW.maxElevationDeg * rad, Math.atan2(dy, Math.hypot(dx, dz)) + SIDE_VIEW.elevationDeg * rad));
+  const round = v => Number(v.toFixed(4));
+  const side = [tx + r * Math.cos(el) * Math.sin(az), ty + r * Math.sin(el), tz + r * Math.cos(el) * Math.cos(az)].map(round);
+  return [{ name: 'default', position: [...position], target: [...target], fov }, { name: 'side', position: side, target: [...target], fov }].slice(0, ANIMATION_LIMITS.render.views);
 }
 const lowOf = p => (p.type === 'number' ? p.min : p.type === 'toggle' ? !p.default : p.options[0].value);
 const highOf = p => (p.type === 'number' ? p.max : p.type === 'toggle' ? !p.default : p.options.at(-1).value);

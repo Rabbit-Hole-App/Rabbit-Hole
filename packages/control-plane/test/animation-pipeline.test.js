@@ -375,3 +375,22 @@ test('the plan correction is inside the call bound and the worst case', async t 
   assert.deepEqual([waiting.stage, waiting.counts.brief, s.model.roles()], ['awaiting_approval', 2, ['brief', 'brief']]);
   assert.ok(waiting.bounds.preparation <= waiting.reservation.preparationMicros);
 });
+
+// accept-8: the second review view was the camera turned a quarter round, which saw a planar drivetrain edge-on and failed it twice.
+test('the second review view is the artifact\'s own camera orbited 55 degrees about its target and 15 degrees higher', async () => {
+  const { captureViews, SIDE_VIEW } = await import('../src/animation-render.js');
+  const deg = (a, b) => Math.acos(a.reduce((n, v, i) => n + v * b[i], 0) / (Math.hypot(...a) * Math.hypot(...b))) * 180 / Math.PI;
+  for (const camera of [{ position: [0, 0, 10], target: [0, 0, 0] }, { position: [4, 3, 6], target: [1, 0.5, -1], fov: 40 }, { position: [0, 9, 0.001], target: [0, 0, 0] }]) {
+    const [main, side] = captureViews({ camera });
+    const a = main.position.map((v, i) => v - camera.target[i]), b = side.position.map((v, i) => v - camera.target[i]);
+    assert.deepEqual([main.position, side.target, side.fov], [camera.position, camera.target, camera.fov ?? 50]);
+    assert.ok(Math.abs(Math.hypot(...a) - Math.hypot(...b)) < 1e-3, 'same distance');
+    const angle = deg(a, b);
+    assert.ok(angle > 10 && angle < 70, `a nearby angle, never a quarter turn: ${angle.toFixed(1)}`);
+    assert.ok(Math.atan2(b[1], Math.hypot(b[0], b[2])) * 180 / Math.PI <= SIDE_VIEW.maxElevationDeg + 1e-6);
+  }
+  // Straight ahead along z: 55 degrees round and 15 up, not along the x axis.
+  assert.deepEqual(captureViews({ camera: { position: [0, 0, 10], target: [0, 0, 0] } })[1].position, [7.9124, 2.5882, 5.5403]);
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js');
+  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /two views: your camera, and the same target seen from about 55 degrees to the side and slightly higher/);
+});
