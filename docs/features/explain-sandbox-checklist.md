@@ -101,27 +101,28 @@ Exact-SHA CI, success:
 | 8.3 Stateful buttons/selections through author, render and review | `0ee34e70c` + `649732a07`, `462b54977`, `ecb42a47d`, `2a7588f0b`; switch `b6caa951c`; review inputs `d92cc18d5` | `explain-program-state-check.mjs` (9), `explain-program-render-check.mjs` (35), `explain-stateful.test.js` | R3; R4 | genuine t811-c4-b (buttons) and t811-c6-a (buttons and a slider) accepted, deployed checks 16 and 17 ok, 0 failed. t811-c5-a failed review on R3; the record is kept. | done and verified for buttons and number inputs; selectable targets fixture-only (limitation) |
 | 8.4 Generic drag targets | `dfd154521` + `897cf66fe` | lane checks (`feat/explain-drag` hand-back) | R4 `d92cc18d5` | no genuine drag card (limitation) | done, not verified on a genuine card |
 | 8.5 Task 8 evidence record | this table and `explain-program-support.md` | n/a | docs | n/a | done |
-| 9.1 Program Proposed preview | `50c135651` | `explain-program-card-check.mjs` step 17 (fixture candidate) 21/21 on R7 (fast-e2e 40995614801); unit tests (`explain-client`, `program-card`, `shared-program-card`) | R1 `7fe96729d`; in R7 | dev preview at R7 (E8, 8:47-8:50 PM PT), one paid Edit (t811-c7-b, US$0.18): Current kept the accepted card, Proposed read its own result and drew the candidate, preview changes were never saved, Apply made one new revision (baseRevision = the accepted one), reload kept it, no source in canvas JSON; `chain-r7-ui.mjs apply` 13 ok / 0 failed (`C:/s/spec/explain-sandbox/genuine/runs/t811-c7/`). Discard is not deployed-verified (see limitations). | done and verified (Discard: tested only) |
+| 9.1 Program Proposed preview | `50c135651` | `explain-program-card-check.mjs` step 17 (fixture candidate: Proposed, Current, Discard) 21/21 on R7 (fast-e2e 40995614801); unit tests (`explain-client`, `program-card`, `shared-program-card`) | R1 `7fe96729d`; in R7 | Deployed evidence covers the Proposed preview, Apply and reload only: dev preview at R7 (E8, 8:47-8:50 PM PT), one paid Edit (t811-c7-b, US$0.18). Current kept the accepted card; Proposed read its own result and drew the candidate; preview changes were never saved; Apply made one new revision (baseRevision = the accepted one); reload kept it; no source in canvas JSON (`chain-r7-ui.mjs apply` 13 ok / 0 failed, `C:/s/spec/explain-sandbox/genuine/runs/t811-c7/`). Discard: CI-tested; deployed verification missing. | done, verified with limitation |
 | 9.2 Material context as evidence | `4c402a022` + `b41daa214` | control-plane context and evidence suites | R3 `d3d50986e`; in R7 | dev preview at R7 (E6): t811-c7-a with an attached markdown file; the brief cites evidence from the read file; the result's sources list the file, lines 1-21; US$0.26 (`genuine/runs/t811-c7/`) | done and verified |
-| 9.3 Tutor program context | `e8f1bd0b2` + `ffb3680d4` | tutor-context unit tests | R3; in R7 | dev preview at R7 (E10): the Tutor request (captured and aborted before the server, no model call) carries the card's description, its paused time and the displayed readouts, and no source (`genuine/runs/t811-c7/ui-e10/`) | done and verified |
+| 9.3 Tutor program context | `e8f1bd0b2` + `ffb3680d4` | tutor-context unit tests | R3; in R7 | Deployed-client request verification only: dev preview at R7 (E10). The Tutor request was captured and aborted before it reached the server (no model call): it carries the card's description, its paused time and the displayed readouts, and no source (`genuine/runs/t811-c7/ui-e10/`). It does not establish a completed Tutor response. | done, verified with limitation |
 | 9.4 Source links and revision persistence | `d7a722e2d` + `1d429b37a` | lane checks | R3; in R7 | dev preview at R7 (E7, E9): Sources & evidence lists the file with an access-checked opener, unchanged after reload; after Apply and reload the card lists the new revision's own sources (`genuine/runs/t811-c7/ui-e7/`, `ui-apply/`) | done and verified |
 | 10.1 Offscreen pause and lifecycle | `35410272d`; check timing fix `2c8be1452` (R5) | `playback.test.mjs` (15), `lifecycle.test.mjs` (1), card check steps 14-16 (21/21 on R7) | R4 `d92cc18d5`; in R7 | dev preview at R7 (E5, probe canvas with fixtures): paused at 0.9 s when panned out, no frame drawn while away, back at 0.9 s paused; deleting a probe card closed a Worker (`C:/s/spec/explain-sandbox/r7/fe9a7a0a4/`) | done and verified |
 | 10.2 Support matrix | matrix run on `d3d50986e`; fixes `c4f7ae5ca` (R6) and `7ebb816d7` (R7) | `matrix-check.mjs` on `d3d50986e`: 65 ok, 2 failed, 1 not testable; card check 18 (Focus after Play/Pause/scrub/slider/Notes) and 19 (keyboard under the minimap), both failing on `d92cc18d5`, pass on R7 | R6; R7 | dev preview at R7 (E2-E4, `r7-probes.mjs` 23 ok / 0 failed): Focus after the matrix sequence is whole on the pane and Back keeps the state; a keyboard-focused button under the minimap is revealed; a click into a text field near the minimap does not pan (`C:/s/spec/explain-sandbox/r7/fe9a7a0a4/`). The two failed cells were closed by these targeted re-runs; the full matrix was not re-run. | done and verified |
-| 10.3 Version retention, revocation, rollback | `516b72541` (tests); rollback cuts on `37153f9c7` | `retention.test.mjs` 6/6; `rabbit-hole-prod-config.test.js` 11/11 on each rollback cut | tests in R4-R7; rollbacks not deployed (by design) | not exercised in production (by design); the rollback references are below | done, not verified (rollbacks not exercised) |
+| 10.3 Version retention, revocation, rollback | `516b72541` (tests); rollback commits cut on the final promoted head | `retention.test.mjs` 6/6; `rabbit-hole-prod-config.test.js` on each rollback commit | tests in R4-R7; rollbacks not deployed (by design) | not exercised in production (by design); see Rollback commits (final) below | done, not verified (rollbacks not exercised) |
 | 10.4 Five-subject transfer | genuine runs | per run, below | dev preview `d3d50986e`, `d92cc18d5` and R7; gravity in production | five qualifying subjects: cooling, sorting, gravity (schema 1); stack/queue t811-c4-b and cold spread t811-c6-a (schema 2), both checked deployed for owner and viewer (dev preview). t811-c7-a/b (dev preview, R7) add a subject with attached material and its Edit. The failed pH case t811-c5-a is kept. Tasks 8-11 spend US$1.65 of US$5.00. | done and verified |
 | 11.1 Small reviewable releases | R0, R1, R3, R4, R5, R6, R7 slices | exact-SHA CI above | releases above | release runs succeeded; served SHA read back (R7 in production at 8:46 and 8:50 PM PT) | done and verified |
 | 11.2 Docs from receipts | `explain-program-support.md` and this checklist (docs/explain-qualification) | n/a | partly on main (merged in the R4 chain at `77df6f34b`); this update is on docs/explain-qualification | n/a | done (this update); merge to main pending |
-| 11.3 Operational closeout | — | — | — | rollback refs re-cut on `37153f9c7` (E11); gravity receipt pinned to R7 passed in production (E12) | open: worktree, dev-clone and local-stack cleanup |
+| 11.3 Operational closeout | — | — | — | gravity receipt pinned to R7 passed in production (E12); rollback commits recorded at closeout | open (integrator) |
 
 **Count:**
 
 | State | Tasks | Number |
 |---|---|---|
-| Done and verified | 0, 1, 2, 3, 4, 5, 6, 7, R0, 8.1, 8.2, 8.3, 8.5, 9.1 (Discard tested only), 9.2, 9.3, 9.4, 10.1, 10.2, 10.4, 11.1 (0 and 8.5 are records) | 21 |
+| Done and verified | 0, 1, 2, 3, 4, 5, 6, 7, R0, 8.1, 8.2, 8.3, 8.5, 9.2, 9.4, 10.1, 10.2, 10.4, 11.1 (0 and 8.5 are records) | 19 |
+| Done, verified with limitation | 9.1 (Discard: CI-tested; deployed verification missing), 9.3 (deployed-client request verification; no completed Tutor response) | 2 |
 | Done, not verified | 8.4 (no genuine drag card), 10.3 (rollbacks not exercised) | 2 |
 | Done, merge pending | 11.2 | 1 |
 | Failed | — | 0 |
-| Open | 11.3 | 1 |
+| Open | 11.3 (integrator) | 1 |
 | Deferred among agreed tasks | — | 0 |
 
 The optional and deferred coverage is listed below.
@@ -141,9 +142,12 @@ log `C:/s/spec/logs/explain-prod-verify-20261029-205047.log`, 8:50 PM PT):
 `2c8be1452` are in R6.
 
 **Limitations (kept visible):**
-- 9.1 Discard is not deployed-verified: tested in CI and locally (card check step 17, 21/21 on R7 fast-e2e 40995614801;
-  `explain-client` unit tests). A second paid Edit's worst-case reservation would have exceeded the US$5.00 cap. A stale
-  Apply is covered by unit tests only.
+- 9.1 Discard: CI-tested; deployed verification missing. The deployed evidence is the Proposed preview, Apply and reload
+  only (E8). Discard is covered by the card check step 17 (21/21 on R7 fast-e2e 40995614801) and `explain-client` unit
+  tests; a second paid Edit's worst-case reservation would have exceeded the US$5.00 cap. A stale Apply is covered by unit
+  tests only.
+- 9.3: deployed-client request verification only (E10). The Tutor request was captured and aborted before the server, so no
+  completed Tutor response was observed.
 - 8.4: no genuine card with a drag; 8.3: no genuine card with selectable targets (fixture-only).
 - 10.3: the rollback controls were cut and pin-tested, not exercised in production (by design).
 - 10.2: the two failed matrix cells were closed by targeted re-runs on the dev preview at R7 (E2-E4); the full matrix was
@@ -160,11 +164,19 @@ log `C:/s/spec/logs/explain-prod-verify-20261029-205047.log`, 8:50 PM PT):
 - A signed-in shared viewer.
 - Dark theme at 1280 and 390.
 
-**Rollback references (E11):** cut on `37153f9c7` (R7 + blog + legal pages; contains R7), each a direct child of it:
-stateful-off `d3f8cd015`, generation-off `be19f2ba0`, execution-kill `27ea98b72`; `rabbit-hole-prod-config.test.js` 11/11 on
-each. The emergency Worker pair is the one recorded from the R7 release receipt (C:/s/spec/explain-8-11/r7-rollback.md). They
-are usable only once `37153f9c7` is main (main was `fe9a7a0a4` at 8:52 PM PT; the launcher refuses a stale parent; re-cut if
-main moves past it). The references on `d3d50986e` are superseded.
+**Rollback references (E11):** cut on the final promoted head (recorded in the release receipt at closeout): stateful off,
+generation off, execution kill, and the emergency Worker pair. The earlier references on `d3d50986e` are superseded.
+
+### Rollback commits (final)
+
+PLACEHOLDER: the integrator adds the final full SHAs and launcher references after the release.
+
+| Rollback | Commit (full SHA) | Parent (final promoted head) | Launcher reference |
+|---|---|---|---|
+| Stateful off | (pending) | (pending) | (pending) |
+| Generation off | (pending) | (pending) | (pending) |
+| Execution kill | (pending) | (pending) | (pending) |
+| Emergency Worker pair | (pending) | n/a | (pending) |
 
 ## Deferred (tracked, not complete)
 
