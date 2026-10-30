@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sidePoint, nearestSide, shapeBox, elbowPoints, routePath, polylineMid, freeElbow, INPUT_PORT_Y, inputPoint, routeSide, groupFrame } from './learn-connectors.js';
+import { sidePoint, nearestSide, shapeBox, elbowPoints, routePath, polylineMid, freeElbow, INPUT_PORT_Y, inputPoint, routeSide, groupFrame, memberPorts } from './learn-connectors.js';
 
 const box = { x: 0, y: 0, w: 100, h: 60 };
 
@@ -85,4 +85,14 @@ test('a Group frame is its members padded, grown by its footer; its ports follow
   // A member moved down moves the bottom port with it.
   assert.equal(groupFrame([{ x: 10, y: 20, w: 100, h: 50 }, { x: 200, y: 400, w: 80, h: 40 }], 12).h, 444);
   assert.equal(groupFrame([], 12), null);
+});
+
+test('a grouped card keeps its own ports, drawn above the Group at the points connections route to', () => {
+  const card = { x: 10, y: 100, w: 380, h: 300 };
+  assert.deepEqual(memberPorts(card), [{ side: 'top', x: 200, y: 100 }, { side: 'bottom', x: 200, y: 400 }]);
+  // The same points a card's connection routes to: top and bottom centres of its outer box, and the Input.
+  assert.deepEqual(memberPorts(card).map(p => ({ x: p.x, y: p.y })), [sidePoint(card, 'top'), sidePoint(card, 'bottom')]);
+  assert.deepEqual(memberPorts(card, { input: true }).at(-1), { side: 'input', ...inputPoint(card) });
+  // A comment pin at the top centre takes the top port's place, as on a card.
+  assert.deepEqual(memberPorts(card, { top: false }).map(p => p.side), ['bottom']);
 });

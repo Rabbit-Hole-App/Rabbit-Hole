@@ -121,3 +121,15 @@ export function groupFrame(boxes, pad, footer = 0) {
   const right = Math.max(...boxes.map(box => box.x + box.w)), bottom = Math.max(...boxes.map(box => box.y + box.h));
   return { x: left - pad, y: top - pad, w: right - left + pad * 2, h: bottom - top + pad * 2 + footer, inner: bottom - top + pad * 2 };
 }
+
+// A grouped card's own ports, drawn in the Group's layer (a Group's box lies over its member cards, which each paint inside
+// their own transform, so ports drawn in the card could never take a press). Positions are on the card's outer box, the
+// same points portPosition routes to: top and bottom centres, and an Explain-back card's Input. top: false while a comment
+// pin holds the top centre, as on a card.
+export function memberPorts(box, { top = true, input = false } = {}) {
+  return [
+    ...(top ? [{ side: 'top', x: box.x + box.w / 2, y: box.y }] : []),
+    { side: 'bottom', x: box.x + box.w / 2, y: box.y + box.h },
+    ...(input ? [{ side: 'input', ...inputPoint(box) }] : []),
+  ];
+}

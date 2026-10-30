@@ -50,7 +50,7 @@ import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 import NotebookBody from './NotebookCard.jsx';
 import { activePath, newNotebookBlock, notebookFromCode, notebookWriteBack } from './learn-notebook.js';
 import { paletteSections, insertName } from './learn-insert-palette.js';
-import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow, INPUT_PORT_Y, inputPoint, routeSide, groupFrame } from './learn-connectors.js';
+import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow, INPUT_PORT_Y, inputPoint, routeSide, groupFrame, memberPorts } from './learn-connectors.js';
 import { publicExplainBack } from './explain-back-private.js';
 import { INPUT_PROBLEMS, INPUT_SIDE, addInput, describeSource, inputEvidence, inputPills, inputProblem, inputSubmission, isExplainBack, isInputLink } from './explain-inputs.js';
 import { ComposerHide, DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
@@ -427,14 +427,15 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
       {portal && <HoleStack pending={portal.pending} />}
       {/* A card's comment pin sits at its top centre (owner, 2026-10-21), over the top port: that port steps aside while it
           shows, and links still reach the top by dropping on the card's top half or near its top centre (snapPort). */}
-      {['top', 'bottom'].filter(side => side !== 'top' || !edit.hasPin?.(id)).map(side => <button key={side} type="button" data-port={side} data-owner={id} aria-label={`Connect ${side}`} title="Drag to connect blocks"
+      {/* A card inside a drawn Group has its ports in the Group's layer instead (memberPorts): the Group's box lies over it. */}
+      {!edit.inFrame?.(id) && ['top', 'bottom'].filter(side => side !== 'top' || !edit.hasPin?.(id)).map(side => <button key={side} type="button" data-port={side} data-owner={id} aria-label={`Connect ${side}`} title="Drag to connect blocks"
         data-node-tool
         className={`absolute left-1/2 z-20 h-4 w-4 -translate-x-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white focus:opacity-100 ${connected?.[side] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} ${side === 'top' ? '-top-2' : '-bottom-2'}`}
         onPointerDown={event => onConnect(event, id, side)} />)}
       {/* The Explain-back Input (plan 2026-10-30-explain-back.md section 4): a filled green port on the left edge beside the
           header, its hit area larger than its 12 px mark. Drag to a source, or click it and then the source; the picker on
           the card is the keyboard and touch path to the same connection. */}
-      {inputPort && <button type="button" data-port={INPUT_SIDE} data-owner={id} data-node-tool aria-label="Input: connect a Notebook, Group or file"
+      {inputPort && !edit.inFrame?.(id) && <button type="button" data-port={INPUT_SIDE} data-owner={id} data-node-tool aria-label="Input: connect a Notebook, Group or file"
         title="Input: drag to a Notebook, Group or file, or click here and then the source"
         // An absolute child is placed from the card's padding edge, inside its 1 px border; the route anchor (inputPoint) is on the
         // card's outer box (cardBox: offsetLeft/offsetTop). One px back puts the mark's centre on the anchor at every zoom.
@@ -5617,6 +5618,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setHoverGap(found ? found.index : null);
   };
   // Ports with a live connection stay visible on both ends of the link.
+  // Cards inside a drawn Group (two or more members): the Group's layer draws their ports (memberPorts).
+  const framedIds = new Set(groups.flatMap(group => (groupFrameOf(group.id) ? [...blocks, ...exchanges].filter(entry => entry.groupId === group.id).map(entry => entry.id) : [])));
   const portsInUse = {};
   for (const link of links) {
     (portsInUse[link.from] = portsInUse[link.from] || {})[link.fromSide] = true;
@@ -5815,7 +5818,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // the field it belongs to is left alone, so typing still works.
     // account (CanvasEdit): whose viewing preferences this browser keeps (a CAD card's Show dimensions); storageKey is
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
-    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, resizeCard, patchBlock: patchBlockNow, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
+    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, inFrame: id => framedIds.has(id), resizeCard, patchBlock: patchBlockNow, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
     <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
@@ -6117,6 +6120,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                 style={{ left: frame.x + frame.w / 2, top: frame.y + (side === 'bottom' ? frame.h : 0) }}
                 className={`absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white focus:opacity-100 pointer-coarse:h-6 pointer-coarse:w-6 ${portsInUse[group.id]?.[side] || connecting ? 'opacity-100' : 'opacity-0 hover:opacity-100'}`}
                 onPointerDown={event => connect(event, group.id, side)} />)}
+              {/* Its member cards' own ports, above the box (the box would cover them in the cards): a grouped card connects
+                  from its own top, bottom or Input like any card, and a press elsewhere on it still moves the Group. */}
+              {!readOnly && members.filter(member => bounds[member.id]).flatMap(member => memberPorts(bounds[member.id], { top: !hasPin?.(member.id), input: isExplainBack(member) }).map(at => (at.side === INPUT_SIDE
+                ? <button key={`${member.id}:input`} type="button" data-port={INPUT_SIDE} data-owner={member.id} data-node-tool aria-label="Input: connect a Notebook, Group or file"
+                  title="Input: drag to a Notebook, Group or file, or click here and then the source" style={{ left: at.x, top: at.y }}
+                  className="absolute z-20 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 cursor-crosshair items-center justify-center rounded-full pointer-coarse:h-11 pointer-coarse:w-11 focus-visible:outline-2 focus-visible:outline-select"
+                  onPointerDown={event => connect(event, member.id, INPUT_SIDE)}><span aria-hidden="true" className="h-3 w-3 rounded-full bg-success ring-2 ring-surface" /></button>
+                : <button key={`${member.id}:${at.side}`} type="button" data-port={at.side} data-owner={member.id} data-node-tool aria-label={`Connect ${at.side}`} title="Drag to connect blocks"
+                  style={{ left: at.x, top: at.y }}
+                  className={`absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white focus:opacity-100 pointer-coarse:h-6 pointer-coarse:w-6 ${portsInUse[member.id]?.[at.side] || connecting || isSelected(member.id) ? 'opacity-100' : 'opacity-0 hover:opacity-100'}`}
+                  onPointerDown={event => connect(event, member.id, at.side)} />)))}
               <div style={{ left: frame.x, top: frame.y - GROUP_CHIP_UP }} className="absolute z-20 flex items-center gap-1">
                 <GroupChip group={group} editOn={chipEdit === group.id}
                   onSelect={() => setSelection(membersOf(group.id))}
