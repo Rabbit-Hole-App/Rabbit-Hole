@@ -51,6 +51,7 @@ import NotebookBody from './NotebookCard.jsx';
 import { activePath, newNotebookBlock, notebookFromCode, notebookWriteBack } from './learn-notebook.js';
 import { paletteSections, insertName } from './learn-insert-palette.js';
 import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow, INPUT_PORT_Y, inputPoint, routeSide, groupFrame } from './learn-connectors.js';
+import { publicExplainBack } from './explain-back-private.js';
 import { INPUT_PROBLEMS, INPUT_SIDE, addInput, describeSource, inputEvidence, inputPills, inputProblem, isExplainBack, isInputLink } from './explain-inputs.js';
 import { ComposerHide, DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
 import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
@@ -2651,7 +2652,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     }
     const groupFor = entry => wholeGroups.get(entry.groupId)?.id;
     // A copied notebook card gets its own workspace, seeded from the copy of its notebook; a card's references get new ids.
-    const copyNode = node => ({ ...node, ...(localCopyRef.current ? { copyOf: node.copyOf || node.id } : {}), id: newId(node.id), groupId: groupFor(node), locked: undefined, dx: node.dx + step, dy: node.dy + step, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
+    // An Explain-back copy is a fresh exercise: the learner's answer, attempts and Sketch stay on the original.
+    const copyNode = node => ({ ...publicExplainBack(node), ...(localCopyRef.current ? { copyOf: node.copyOf || node.id } : {}), id: newId(node.id), groupId: groupFor(node), locked: undefined, dx: node.dx + step, dy: node.dy + step, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
     const blocksCopy = pickedBlocks.map(copyNode);
     // A card copied mid-answer would never receive its stream: deltas are
     // routed by id and the copy has a new one. Settle it instead.
@@ -4468,6 +4470,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const cancel = () => { cleanup(); setConnecting(null); };
     const up = e => {
       const hit = connectorTarget(e, fixed, anchor);
+      if (hit?.side === INPUT_SIDE) toast('To use a source as input, connect from its own top or bottom port to the green Input.');
       if (hit && hit.side !== INPUT_SIDE) {
         snapshot();
         setLinks(previous => previous.map(entry => entry.id !== link.id ? entry : end === 'to' ? { ...entry, to: hit.id, toSide: hit.side } : { ...entry, from: hit.id, fromSide: hit.side }));
