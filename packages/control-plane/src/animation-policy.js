@@ -35,6 +35,8 @@ export const ANIMATION_LIMITS = Object.freeze({
   // Preparation: one brief call per admitted preparation, at most `refinements` more (each a learner's own edit). Generation: the graph above.
   calls: Object.freeze({ brief: 1, author: 1, review: 2, repair: 1 }),
   refinements: 5,
+  // A plan the contract refuses gets ONE correction call carrying the validator's issues (accept-6: step with an analytical behavior).
+  planCorrections: 1,
   // Review captures: up to 2 declared views at up to 3 parameter/time states per round, one browser per job, platform-paid.
   render: Object.freeze({ views: 2, states: 3, capturesPerRound: 6, rounds: 2 }),
   deadlines: Object.freeze({ callMs: 120000, preparationMs: 180000, jobMs: 600000 }),
@@ -75,7 +77,7 @@ const sum = (calls, roles, tasks) => roles.reduce((total, role) => total + calls
 // The prior price: one preparation (a brief call), and the full generation graph, checked before Generate and each paid Retry.
 export const animationReservation = (tasks = LEARN_TASKS) => ({
   version: ANIMATION_POLICY_VERSION,
-  preparationMicros: sum(ANIMATION_LIMITS.calls, ['brief'], tasks),
+  preparationMicros: sum(ANIMATION_LIMITS.calls, ['brief'], tasks) * (1 + ANIMATION_LIMITS.planCorrections), // a plan call and its one correction
   generationMicros: sum(ANIMATION_LIMITS.calls, ['author', 'review', 'repair'], tasks),
   calls: { ...ANIMATION_LIMITS.calls },
 });

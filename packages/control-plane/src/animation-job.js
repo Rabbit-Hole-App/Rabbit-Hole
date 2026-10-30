@@ -59,6 +59,8 @@ const SOURCES = ['explicit', 'picker', 'command', 'suggestion', 'classified', 't
 const KIND = { brief: 'generation', author: 'generation', review: 'evaluation', repair: 'repair' };
 const JOBS_KEPT = 50;
 const jobKey = id => `job:${id}`;
+// Plan calls: one per preparation plus its one correction, for the first plan and each refinement.
+const briefLimit = ANIMATION_LIMITS.calls.brief * (1 + ANIMATION_LIMITS.planCorrections) * (1 + ANIMATION_LIMITS.refinements);
 const hex = () => crypto.randomUUID().replaceAll('-', '');
 const hash16 = async value => (await sha256Hex(canonicalJson(value ?? null))).slice(0, 16);
 const clean = (value, max) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
@@ -353,7 +355,7 @@ export class AnimationJobs {
       const record = job.pendingProposal ? await proposalRecord(this.env.LEARN_DB, job.owner.email, job.app, job.pendingProposal.id).catch(() => null) : null;
       if (!record?.current || record.state?.used || payload.proposal?.proposal_id !== job.pendingProposal.id || payload.proposal?.version !== record.current.version) throw fail('This plan changed since you chose Edit. Review the latest version, then press Edit on it.', 409, 'plan_stale');
     }
-    if (job.counts.brief >= ANIMATION_LIMITS.calls.brief * (1 + ANIMATION_LIMITS.refinements)) throw fail('This plan reached its change limit. Start a new request.', 429);
+    if (job.counts.brief >= briefLimit) throw fail('This plan reached its change limit. Start a new request.', 429);
     endStage(job.timing, 'refined');
     Object.assign(job, { refinement: message, approval: null, stage: 'preparing' });
     beginStage(job.timing, 'preparing');
@@ -434,7 +436,7 @@ export class AnimationJobs {
     const key = await this.locked(async () => {
       const current = await this.get(job.id);
       if (!current || current.stopped || current.attempt !== job.attempt || current.stage !== job.stage || current.inFlight) return null;
-      const limit = role === 'brief' ? ANIMATION_LIMITS.calls.brief * (1 + ANIMATION_LIMITS.refinements) : ANIMATION_LIMITS.calls[role];
+      const limit = role === 'brief' ? briefLimit : ANIMATION_LIMITS.calls[role];
       if (current.counts[role] + 1 > limit) throw Object.assign(fail(`This animation reached its ${role} limit.`, 429), { stopReason: 'budget' });
       const ceiling = phase === 'generation' ? current.reservation.generationMicros : current.reservation.preparationMicros * (1 + ANIMATION_LIMITS.refinements);
       if (current.bounds[phase] + boundMicros > ceiling) throw Object.assign(fail('This animation reached its spending limit.', 429), { stopReason: 'budget' });
