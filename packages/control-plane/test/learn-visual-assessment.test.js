@@ -68,7 +68,8 @@ test('visual_bytes_reach_correct_route: the authorized image bytes, not an id or
   const stub = replying(VISUAL_CASES.labelledSigmoid.reply);
   const r = await drawing(w, card(w.rev), { ...never, callModel: stub.callModel });
   assert.equal(r.status, 200, JSON.stringify(r.body));
-  const a = r.body.assessment;
+  // stored: the route drops provenance diagnostics (calls, models, usage, latency) from the learner's response
+  const a = (await readAttempt(w.env, ANA, r.body.attempt.attemptId)).assessment;
   assert.equal(stub.calls.length, 1);
   assert.equal(stub.calls[0].model, 'claude-opus-5-5');
   const images = sentImages(stub.calls[0].body);

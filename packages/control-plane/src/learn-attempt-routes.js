@@ -48,9 +48,13 @@ import { advanceActivity } from './learn-coaching-store.js';
 
 // Learners see AI credits only (CLAUDE.md): dollar amounts, provider prices and other cost fields stay in the stored
 // provenance for the spend ledger and telemetry, and are dropped from every response these routes send to the browser.
+// Model names, token usage and latency are internal diagnostics too (P ruling, 2026-10-30): an assessment's provenance loses
+// its calls and every such key of its own. What the browser reads (review, route, coverage, unassessed, citations) stays.
 const PRICED = /usd|cost|price|micros|margin/i;
-export const learnerSafe = value => (Array.isArray(value) ? value.map(learnerSafe)
-  : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).filter(([k]) => !PRICED.test(k)).map(([k, v]) => [k, learnerSafe(v)])) : value);
+const DIAGNOSTIC = /model|requested|served|tokens|usage|latency|^ms$|Ms$/;
+const keep = (key, parent) => !PRICED.test(key) && !(parent === 'provenance' && (key === 'calls' || DIAGNOSTIC.test(key)));
+export const learnerSafe = (value, parent = null) => (Array.isArray(value) ? value.map(v => learnerSafe(v, parent))
+  : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).filter(([k]) => keep(k, parent)).map(([k, v]) => [k, learnerSafe(v, k)])) : value);
 const json = (body, status = 200) => Response.json(learnerSafe(body), { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/; // learn-boards.js board names
 const PATH = /^\/api\/learn\/tutor\/attempts(?:\/(bind|drafts|assets)(?:\/(aa_[A-Za-z0-9_-]{8,80})(\/meta)?)?|\/([A-Za-z0-9_-]{1,100})(\/reassess)?)?$/;
