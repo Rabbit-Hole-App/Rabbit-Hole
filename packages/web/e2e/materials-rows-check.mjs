@@ -287,7 +287,7 @@ const P = await profile('A');
 page = P.page;
 await openCanvas(page);
 
-await check('Context lists every document as its own row with Use in this chat then File options; Upload is a labelled button in the header; no header Add to canvas', async () => {
+await check('Context lists every document as its own row with Use in this chat then File options; Add context is a labelled button in the header; no header Add to canvas', async () => {
   await openSources();
   for (const doc of [A, B, C1, C2, R, L]) {
     assert.equal(await row(doc).count(), 1, `one row for ${doc.name} (${doc.id})`);
@@ -297,7 +297,7 @@ await check('Context lists every document as its own row with Use in this chat t
   assert.equal(await page.locator('[data-materials-upload]').count(), 1, 'one Upload button');
   assert.equal(await page.locator('[data-companion-header] [data-materials-upload]').count(), 1, 'Upload sits in the Context header');
   assert.equal(await sourcesPane().locator('[data-materials-upload]').count(), 0, 'never between the files');
-  assert.match((await page.locator('[data-materials-upload]').innerText()).trim(), /^Upload$/, 'Upload is labelled');
+  assert.match((await page.locator('[data-materials-upload]').innerText()).trim(), /^Add context$/, 'Add context is labelled (was Upload; owner brief 2026-10-29)');
   // Owner brief 2026-10-16 item 4: the rows show directly (no Sources or Materials heading), Upload is the blue filled button
   // with a white label, and a document row says its kind.
   assert.doesNotMatch(await page.locator('[data-sources-pane]').innerText(), /^(Sources|Materials)$/m, 'no Sources or Materials heading');

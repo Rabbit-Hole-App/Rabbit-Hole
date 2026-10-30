@@ -202,12 +202,12 @@ for (const theme of ['light', 'dark']) {
     await states(page, add, 'Add goal', theme, PRIMARY);
   }, page);
 
-  await check(`${theme}: Upload (the Context header) clears 4.5:1 at rest, hovered, focused and pressed, with a focus ring`, async () => {
+  await check(`${theme}: Add context (the Context header; was Upload) clears 4.5:1 at rest, hovered, focused and pressed, with a focus ring`, async () => {
     await openCanvas(page);
     const open = () => page.evaluate(() => ['aside[data-companion]', '[data-context-panel]'].every(s => (document.querySelector(s)?.getBoundingClientRect().width || 0) > 50));
     if (!(await open())) await page.locator('[data-panel-companion]').click({ timeout: 5000 });
     await page.locator('[data-sources-pane]').waitFor({ state: 'visible', timeout: 10000 });
-    await states(page, page.locator('[data-companion-header] [data-materials-upload]'), 'Upload', theme, theme === 'dark' ? PRIMARY : 'rgb(23, 108, 206)');
+    await states(page, page.locator('[data-companion-header] [data-materials-upload]'), 'Add context', theme, theme === 'dark' ? PRIMARY : 'rgb(23, 108, 206)');
   }, page);
 
   await check(`${theme}: Publish to Explore (Share) clears 4.5:1 at rest, hovered, focused and pressed, with a focus ring`, async () => {

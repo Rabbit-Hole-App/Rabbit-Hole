@@ -3,7 +3,9 @@
 // the composer chip and the refs the next message sends; the canvas default (Include in new chats) sits apart in the row's File
 // options popover and never changes this chat; a source open but not used says "Not attached"; the reader replaces the list
 // (UI-26), a short text shows whole and a long one scrolls inside the pane; Add to canvas is neutral (never the inverse ink
-// fill), Upload blue, Remove from context red. A code card
+// fill), Add context (was Upload; owner brief 2026-10-29) blue, Remove from context red. The Add context dialog: one dialog from
+// the header and from the composer's + menu, walked by keyboard; a web address the capture refuses (POST /api/learn/webpages,
+// answered here: nothing is captured or checked) is announced, kept in its box and adds no row. A code card
 // added from the canvas is its code-card.js ref (an uploaded card with its stored text, a repository card with its file, commit
 // and lines). The sends that compare refs to pills are answered here with canned text; every other model-capable route is
 // aborted and counted, and none may happen.
@@ -95,7 +97,8 @@ await context.route('**/api/**', route => {
       + frame('done', { ok: true, threadId: body.thread_id || `ca-${run}-${n}`, userMessageId: `u-${n}`, messageId: `m-${n}` }) });
   }
   if (/^\/api\/learn\/chat\/(threads|messages)\/ca-/.test(path)) return route.fulfill({ json: { ok: true } });
-  if (MODEL.test(path) && !(path === '/api/learn/journey' && request.method() === 'GET')) { model.push(`${request.method()} ${path}`); return route.abort(); }
+  // GET /api/learn/image-jobs is the canvas's availability read for /image (image-first-load-check.mjs), never a generation.
+  if (MODEL.test(path) && !(['/api/learn/journey', '/api/learn/image-jobs'].includes(path) && request.method() === 'GET')) { model.push(`${request.method()} ${path}`); return route.abort(); }
   return route.continue();
 });
 // CR-1: a Chat line (any mode) asks POST /api/learn/chat/route first; a contract-valid answer decision (dev-cp.mjs), registered last so it wins. CI has no JEV key.
@@ -298,7 +301,7 @@ await check('reader previews: the reader replaces the list; a short one shows wh
   await backToFiles();
 });
 
-await check('shared actions: Add to canvas is neutral (never the inverse ink fill), Upload stays blue, Remove from context is red; narrow panel fits', async () => {
+await check('shared actions: Add to canvas is neutral (never the inverse ink fill), Add context stays blue, Remove from context is red; narrow panel fits', async () => {
   const seen = {};
   for (const [theme, width] of [['light', 480], ['dark', 480], ['dark', 320], ['light', 320]]) {
     await page.evaluate(([t, w]) => { localStorage.setItem('small.theme', t); localStorage.setItem('rh.companion.width', String(w)); }, [theme, width]);
@@ -310,7 +313,7 @@ await check('shared actions: Add to canvas is neutral (never the inverse ink fil
     const tokens = await page.evaluate(() => { const probe = (cls, prop) => { const el = document.createElement('span'); el.className = cls; document.body.append(el); const value = getComputedStyle(el)[prop]; el.remove(); return value; }; return { ink: probe('bg-ink', 'backgroundColor'), danger: probe('text-danger', 'color') }; });
     // The --action-blue token: rgb(23, 108, 206) in light, its own dark-theme blue in dark.
     const blue = await page.evaluate(() => { const el = document.createElement('span'); el.style.backgroundColor = 'var(--action-blue)'; document.body.append(el); const value = getComputedStyle(el).backgroundColor; el.remove(); return value; });
-    assert.equal(await page.locator('[data-materials-upload]').evaluate(el => getComputedStyle(el).backgroundColor), blue, `${theme}: Upload stays blue (${blue})`);
+    assert.equal(await page.locator('[data-materials-upload]').evaluate(el => getComputedStyle(el).backgroundColor), blue, `${theme}: Add context stays blue (${blue})`);
     if (theme === 'light') assert.equal(blue, 'rgb(23, 108, 206)');
     const fit = await sourcesPane().evaluate(el => { const box = el.getBoundingClientRect(); return { overflow: el.scrollWidth - el.clientWidth, outside: [...el.querySelectorAll('[data-material-action]')].filter(a => { const r = a.getBoundingClientRect(); return r.left < box.left - 1 || r.right > box.right + 1; }).length }; });
     assert.deepEqual(fit, { overflow: 0, outside: 0 }, `${theme} ${width}: the row actions fit`);
@@ -344,6 +347,47 @@ await check('shared actions: Add to canvas is neutral (never the inverse ink fil
   await confirm.getByRole('button', { name: 'Cancel' }).click();
   assert.equal(await row(SHORT).count(), 1, 'Cancel keeps the file');
   await page.keyboard.press('Escape');
+});
+
+await check('Add context: the + menu and the header open one dialog; keyboard only; a refused address is announced and kept, and adds no row', async () => {
+  const captures = [];
+  await page.route('**/api/learn/webpages', route => { captures.push(JSON.parse(route.request().postData() || '{}')); return route.fulfill({ json: { status: 'blocked', reason: 'This address cannot be captured.', lineage: null, manifestId: null, capture: null, fileRef: null } }); });
+  try {
+    await open();
+    await chatTab();
+    const dialog = page.locator('[data-add-context]'), url = dialog.locator('[data-add-context-url]'), rows = () => sourcesPane().locator('[data-material-row]').count();
+    await pane().locator('button[aria-label="Add"]').first().click();
+    await page.locator('[data-upload-context]').click();
+    await dialog.waitFor({ timeout: 5000 });
+    assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-add-context-url')), true, 'the address box takes the focus');
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({ state: 'detached', timeout: 3000 });
+    await openSources();
+    const before = await rows();
+    await page.locator('[data-materials-upload]').focus();
+    await page.keyboard.press('Enter');
+    await dialog.waitFor({ timeout: 5000 });
+    assert.equal(await page.locator('[data-add-context]').count(), 1, 'one dialog');
+    await page.keyboard.type('https://intranet.example.com/notes');
+    await page.keyboard.press('Enter');
+    const note = dialog.locator('[data-add-context-note="error"]');
+    await note.waitFor({ timeout: 10000 });
+    assert.equal(await note.getAttribute('role'), 'alert');
+    assert.equal((await note.innerText()).trim(), 'This address cannot be captured.');
+    assert.equal(await url.inputValue(), 'https://intranet.example.com/notes', 'the address stays for another try');
+    assert.deepEqual(captures, [{ app: canvas.name, context: true, url: 'https://intranet.example.com/notes' }], 'one capture request, for Context');
+    await page.keyboard.press('Shift+Tab');
+    assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-add-context-browse')), true, 'Shift+Tab walks back to Browse files');
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Shift+Tab');
+    assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-add-context-submit')), true, 'and wraps inside the dialog');
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({ state: 'detached', timeout: 3000 });
+    assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-materials-upload')), true, 'Escape hands the focus back');
+    assert.equal(await sourcesPane().locator('[data-material-row] [role="alert"]').count(), 1, 'the refusal stays on its row, with Retry');
+    await sourcesPane().locator('[data-material-row]').filter({ has: page.locator('[role="alert"]') }).getByRole('button', { name: /^Dismiss / }).click();
+    await waitFor(async () => (await rows()) === before, 3000, 'Dismiss did not clear the refused row');
+  } finally { await page.unroute('**/api/learn/webpages'); }
 });
 
 await check('no model route was called outside the canned sends, and no page error', async () => {

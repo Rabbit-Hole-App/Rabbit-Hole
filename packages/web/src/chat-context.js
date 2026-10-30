@@ -192,7 +192,9 @@ export function useChatContext(canvas, thread) {
         throw error;
       }
     };
-    setUploads(previous => [{ id, canvas, url, ref, state: 'processing', retry: () => run().catch(() => {}), dismiss: () => setUploads(rest => rest.filter(item => item.id !== id)) }, ...previous]);
+    // A new try of an address replaces its earlier failed row on this canvas.
+    setUploads(previous => [{ id, canvas, url, ref, state: 'processing', retry: () => run().catch(() => {}), dismiss: () => setUploads(rest => rest.filter(item => item.id !== id)) },
+      ...previous.filter(item => !(item.url === url && item.canvas === canvas && item.state === 'failed'))]);
     return run();
   }, [canvas, edit, sameChat]);
   const refresh = useCallback(doc => addContextUrl(canvas, doc.capture.url, { id: doc.id, lineage: doc.capture.lineage }), [canvas]);

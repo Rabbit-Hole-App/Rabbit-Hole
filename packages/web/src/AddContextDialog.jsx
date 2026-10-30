@@ -71,8 +71,8 @@ export default function AddContextDialog({ onClose }) {
         <input ref={picker} type="file" accept={CONTEXT_ACCEPT} className="hidden" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) { chat.context.upload(file); onClose(); } }} />
         <Button variant="secondary" data-add-context-browse onClick={() => picker.current?.click()} className="h-[46px] w-full justify-center text-sm">
           <FolderOpen size={16} strokeWidth={1.5} aria-hidden />Browse files</Button>
-        <div className="flex items-center gap-3 py-4 text-xs leading-[18px] text-ink-3" aria-hidden>
-          <span className="h-px flex-1 bg-line" />or add a web page<span className="h-px flex-1 bg-line" />
+        <div data-add-context-divider className="flex items-center gap-3 py-4 text-xs leading-[18px] text-ink-3">
+          <span aria-hidden className="h-px flex-1 bg-line" />or add a web page<span aria-hidden className="h-px flex-1 bg-line" />
         </div>
         <form onSubmit={submit} noValidate>
           <label htmlFor={inputId} className="block pb-1.5 text-[13px] leading-[18px] text-ink-2">Web address</label>
@@ -80,7 +80,7 @@ export default function AddContextDialog({ onClose }) {
             <input ref={input} id={inputId} type="url" inputMode="url" autoComplete="off" spellCheck={false} placeholder="https://" value={url} data-add-context-url
               onChange={event => { setUrl(event.target.value); if (state.status === 'error' || state.status === 'ready') setState({ status: 'idle' }); }}
               aria-invalid={state.status === 'error' || undefined} aria-describedby={noteId}
-              className="h-10 min-w-0 flex-1 rounded-lg border border-line-strong bg-surface px-3 text-base leading-6 text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:shadow-[0_0_0_2px_rgba(35,131,226,0.2)] aria-invalid:border-danger max-[420px]:h-11" />
+              className="h-10 min-w-0 flex-1 rounded-lg border border-line-strong bg-surface px-3 text-base leading-6 text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:shadow-[0_0_0_2px_rgba(35,131,226,0.2)] aria-invalid:border-danger max-[420px]:h-11 max-[420px]:flex-none" />
             <Button type="submit" variant="action" data-add-context-submit disabled={adding} className="h-10 shrink-0 justify-center px-3 max-[420px]:h-11">
               <Globe size={16} strokeWidth={1.5} aria-hidden />{adding ? 'Adding' : 'Add URL'}</Button>
           </div>
