@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { RESPONSE_KINDS, validateCoachingRecord } from './learn-coaching-contract.js';
 import {
   ANSWER_LIMITS, ERROR_CODES, JUDGMENT_FIT, answerReadiness, attemptState, fromLegacyAnswer, submitEnvelope,
-  validateExplainBackAnswer, validateExplainBackReview,
+  validateExplainBackAnswer, validateExplainBackReview, validateTranscript, voiceEvidence,
 } from './explain-back-contract.js';
 import { BOARD, CARD, INVALID, LEGACY, READINESS, REVIEWED_ANSWER, VALID, review } from './explain-back-contract.fixtures.mjs';
 
@@ -92,7 +92,8 @@ test('a review validates against its answer: citations, coverage, comparison and
   assert.deepEqual(validateExplainBackReview(review({ judgments: [base.judgments[0], unassessed], rating: notRated }), REVIEWED_ANSWER), { ok: true, errors: [] });
   assert.equal(attemptState({ status: 'completed', provenance: { review: review({ rating: notRated }) } }), 'not_rated');
   // a comparison must name the baseline the answer carried
-  const comparison = { parentAttemptId: 'at_parent', parentAssessmentId: 'as_prev', comparable: true, items: [{ criterionId: 'c_force', change: 'resolved', baselineCitations: [], currentCitations: [] }] };
+  const comparison = { parentAttemptId: 'at_parent', parentAssessmentId: 'as_prev', comparable: true, items: [{ criterionId: 'c_force', change: 'resolved', baselineCitations: [], currentCitations: [] }, { criterionId: 'c_velocity', change: 'improved', baselineCitations: [], currentCitations: [] }],
+    rating: { comparable: true, reason: null, previous: 5, current: 8 } };
   fails(review({ comparison }), REVIEWED_ANSWER, 'not the answer baseline');
   assert.equal(validateExplainBackReview(review({ comparison }), { ...REVIEWED_ANSWER, baseline: { parentAttemptId: 'at_parent', parentAssessmentId: 'as_prev' } }).ok, true);
 });
@@ -103,4 +104,34 @@ test('attempt state follows the latest operation and its stored rating', () => {
   assert.equal(attemptState({ status: 'unknown' }), 'unknown');
   assert.equal(attemptState({ status: 'failed' }), 'failed');
   assert.equal(attemptState({ status: 'completed', provenance: { review: review() } }), 'reviewed');
+});
+
+test('a voice note from the recorder maps to a ready voice ref; transcripts are bounded, private and hash-keyed', () => {
+  const note = { v: 1, asset: 'aa_voice00000009', type: 'audio/webm', ext: 'webm', codec: 'opus', durationMs: 12000, size: 9000, sha256: 'a'.repeat(64) };
+  const ref = voiceEvidence(note, 'ev_v9');
+  assert.equal(validateExplainBackAnswer({ v: 1, kind: 'explain_back', text: '', voice: [ref], resources: [], assistance: [] }).ok, true);
+  assert.equal(ref.ext, undefined);
+  const t = { transcriptId: 'tr_1', assetId: 'aa_voice00000009', hash: 'a'.repeat(64), text: 'the force points inward', segments: [{ startMs: 0, endMs: 2100, text: 'the force points inward' }], provider: 'fixture', model: 'fixture-stt', uncertainty: 0.1, version: 1, status: 'ready', converterVersion: 'stt-v1', derivativeHash: 'b'.repeat(64) };
+  assert.deepEqual(validateTranscript(t), { ok: true, errors: [] });
+  assert.equal(validateTranscript({ ...t, assetId: 'fs_board_file' }).ok, false);
+  assert.equal(validateTranscript({ ...t, hash: 'x' }).ok, false);
+  assert.equal(validateTranscript({ ...t, text: 'x'.repeat(20001) }).ok, false);
+  assert.equal(validateTranscript({ ...t, derivativeHash: undefined }).ok, false, 'ready names its derivative');
+  assert.equal(validateTranscript({ ...t, status: 'failed', text: '', derivativeHash: undefined }).ok, false, 'failed says why');
+  assert.equal(validateTranscript({ ...t, status: 'failed', text: '', derivativeHash: undefined, error: 'provider_timeout' }).ok, true);
+});
+
+test('a Sketch recording may be a JSON timeline with its narration as a private voice ref', () => {
+  const voice = { evidenceId: 'ev_n', role: 'voice', media: 'audio', state: 'ready', assetId: 'aa_narration0001', revision: 1, hash: 'a'.repeat(64) };
+  const recording = { evidenceId: 'ev_r', role: 'recording', media: 'sketch_timeline', state: 'ready', assetId: 'aa_timeline00001', revision: 1, hash: 'b'.repeat(64), mime: 'application/json', durationMs: 42000, narration: voice };
+  const base = { v: 1, kind: 'explain_back', text: '', voice: [], resources: [], assistance: [] };
+  assert.deepEqual(validateExplainBackAnswer({ ...base, recording }), { ok: true, errors: [] });
+  assert.equal(answerReadiness({ ...base, recording }).ready, true);
+  assert.equal(validateExplainBackAnswer({ ...base, recording: { ...recording, media: 'video' } }).ok, true, 'video stays allowed');
+  const fails = (a, text) => { const r = validateExplainBackAnswer(a); assert.ok(!r.ok && r.errors.some(e => e.includes(text)), r.errors.join('; ')); };
+  fails({ ...base, recording: { ...recording, narration: { ...voice, assetId: 'fs_board' } } }, 'asset_not_private');
+  fails({ ...base, recording: { ...recording, narration: { ...voice, evidenceId: 'ev_r' } } }, 'duplicate');
+  fails({ ...base, recording: { ...recording, narration: { ...voice, role: 'sketch', media: 'image' } } }, 'narration is one voice ref');
+  fails({ ...base, sketch: { ...recording, role: 'sketch', media: 'image' } }, 'narration is one voice ref');
+  assert.equal(answerReadiness({ ...base, recording: { ...recording, narration: { ...voice, state: 'uploading', hash: undefined } } }).reason, 'upload_in_progress');
 });
