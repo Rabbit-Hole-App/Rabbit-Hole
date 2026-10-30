@@ -643,7 +643,9 @@ await check('EB-05 an ordinary connector between cards stays ordinary', async ()
   await page.mouse.click(surface.x + surface.width * 0.6, surface.y + surface.height * 0.5);
   await page.waitForTimeout(300);
   await clickClick(port(sourceAId, 'bottom'), port(sourceBId, 'top'));
-  await page.waitForTimeout(800);
+  // The board saves 400 ms after a change: wait for the save that holds the new connector, not a fixed time.
+  await page.waitForFunction(([card, from, to]) => Object.values(localStorage).map(v => { try { return JSON.parse(v); } catch { return null; } })
+    .find(state => (state?.blocks || []).some(block => block.id === card))?.links?.some(link => link.from === from && link.to === to), [answerId, sourceAId, sourceBId], { timeout: 10000 });
   const links = (await boardState(answerId))?.links || [];
   const plain = links.find(link => link.from === sourceAId && link.to === sourceBId);
   assert.ok(plain && !plain.kind, 'a plain link, no semantic kind');
