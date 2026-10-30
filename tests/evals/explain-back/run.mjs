@@ -176,6 +176,11 @@ export function score(c, card, review) {
   if (r?.status) checks.push({ what: 'rating status', ok: rating?.status === r.status, got: rating?.status ?? null, want: r.status });
   if (r?.min != null) checks.push({ what: 'rating min', ok: rating?.score >= r.min, got: rating?.score ?? null, want: `>= ${r.min}` });
   if (r?.max != null) checks.push({ what: 'rating max', ok: rating?.score != null && rating.score <= r.max, got: rating?.score ?? null, want: `<= ${r.max}` });
+  // Teaching aids (FX-EB-05): at least one existing card is offered, and only an allowed one.
+  if (c.expect.teachingAids) {
+    const got = (review?.teachingAids ?? []).map(a => a.cardId);
+    checks.push({ what: 'teaching aids', ok: got.length > 0 && got.every(id => c.expect.teachingAids.includes(id)), got, want: c.expect.teachingAids });
+  }
   return { pass: checks.every(x => x.ok), checks };
 }
 
@@ -206,7 +211,8 @@ export async function runCases({ cases = CASES.cases, live = false, maxUsd = MAX
     const replies = [];
     const stub = live ? { calls: [], callModel: async (env, body, model, org) => { const res = await loggedModel('tutor_rubric', anthropic)(env, body, model, org); replies.push(await res.clone().json().then(m => (m.content || []).filter(b => b.type === 'text').map(b => b.text).join(String.fromCharCode(10))).catch(() => null)); return res; } }
       : callModel ? { callModel, calls: [] } : standIn();
-    const r = await submit(w.env, ANA, activity, { submissionKey: key, submittedContent: content }, { ...deps, callModel: stub.callModel });
+    // teachingCards: the existing teaching cards a browser would send with this submission (FX-EB-05), when the case has them.
+    const r = await submit(w.env, ANA, activity, { submissionKey: key, submittedContent: content, ...(c.teachingCards ? { teachingCards: c.teachingCards } : {}) }, { ...deps, callModel: stub.callModel });
     const usd = (spentMicros(w) - before) / 1e6;
     const review = r.body.assessment?.provenance?.review ?? null;
     const sent = stub?.calls?.[0];

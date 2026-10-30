@@ -25,7 +25,8 @@ import { FEEDBACK_SECTIONS, PANEL, askTutorText, attemptLabel, optionText, panel
 //                                                    (sketch-recording.js); without upload no recorder is shown.
 //   VoicePlayer                                      a submitted note's player ({ note: EvidenceRef, seekMs }), or absent.
 //   openEvidence({ attemptId, evidence, memberId, locator })   opens a cited input at the submitted revision, or absent.
-//   teachingAids(attemptId) -> [{ id, title, kind, cardId }]    the attempt's linked teaching cards, or absent.
+//   teachingAids(attemptId) -> [{ id, title, kind, cardId, reason, available }]   existing canvas cards the attempt's review
+//                                                    named (explain-back-view.js teachingAidsOf); available false once removed.
 //   openTeachingAid(aid)                             reveals the existing card on the canvas (no new generation).
 export const ExplainBackService = createContext(null);
 
@@ -291,10 +292,13 @@ export function FeedbackView({ attempt, question, blockId, onCite, onFile, aids 
           <h3 className="mb-1 text-xs font-semibold text-ink-2">Teaching material</h3>
           <ul className="space-y-1">
             {aids.map(aid => (
-              <li key={aid.id} className="flex items-center justify-between gap-2">
-                <span className="min-w-0 truncate text-[13px]" title={aid.title}>{aid.title}</span>
-                {/* Open on canvas reveals the card already made for this feedback; it never generates another. */}
-                <button type="button" data-open-aid={aid.id} onClick={() => onOpenAid(aid)} className="h-7 shrink-0 cursor-pointer rounded-md border border-line px-2 text-xs text-ink hover:bg-hover">Open on canvas</button>
+              <li key={aid.id} data-teaching-aid={aid.id} className="flex items-center justify-between gap-2">
+                <span className="min-w-0">
+                  <span className="block truncate text-[13px]" title={aid.title}>{aid.title}{aid.available === false ? ' (unavailable)' : ''}</span>
+                  {aid.reason && <span className="block text-xs text-ink-2">{aid.reason}</span>}
+                </span>
+                {/* Open on canvas reveals the card already on the canvas; it never generates another. A removed card is unavailable. */}
+                <button type="button" data-open-aid={aid.id} disabled={aid.available === false} onClick={() => onOpenAid(aid)} className="h-7 shrink-0 cursor-pointer rounded-md border border-line px-2 text-xs text-ink hover:bg-hover disabled:cursor-default disabled:text-ink-3 disabled:hover:bg-transparent">Open on canvas</button>
               </li>
             ))}
           </ul>

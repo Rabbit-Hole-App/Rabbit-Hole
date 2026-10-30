@@ -12,7 +12,7 @@ test('the Sketch panel never stops pointerup or pointermove on their way to wind
   assert.doesNotMatch(panel, /onPointer(Up|Move)(Capture)?=\{stop\}/);
   assert.doesNotMatch(panel, /onPointer(Up|Move)(Capture)?=\{[^}]*stopPropagation/);
 });
-import { ANSWER_PLACEHOLDER, PANEL, STOP_TO_SUBMIT, askTutorText, attemptLabel, connectionsOf, draftMemoryKey, inputPillsOf, legacyView, recallDraft, rememberDraft, reviseSketchPlan, locatorText, optionText, panelLayout, ratingBadge, serviceView, stackTop, submitState } from './explain-back-view.js';
+import { ANSWER_PLACEHOLDER, PANEL, STOP_TO_SUBMIT, askTutorText, attemptLabel, connectionsOf, draftMemoryKey, inputPillsOf, legacyView, recallDraft, rememberDraft, reviseSketchPlan, locatorText, optionText, panelLayout, ratingBadge, serviceView, stackTop, submitState, teachingAidsOf } from './explain-back-view.js';
 
 // Plan 2026-10-30-explain-back.md sections 3, 7H, 8 and 9: what the Explain-back card shows, from either data path.
 
@@ -188,4 +188,11 @@ test('revising keeps the newest attempt\'s marks only; an older attempt\'s draft
 test('Ask Tutor fills the composer with the exercise, the attempt and its feedback', () => {
   const text = askTutorText('Why does the bob swing?', attempt({ number: 2, answer: { text: 'gravity', voice: [], inputs: [] }, feedback: { sections: { well: 'Good.', revisit: 'Tension.', next: '' } } }));
   assert.equal(text, 'Explain-back question: Why does the bob swing?\nMy attempt 2: gravity\nWhat you explained well: Good.\nWhat to revisit: Tension.');
+});
+
+test('teaching aids: each named card opens while it exists and is unavailable once removed; an older review lists none', () => {
+  const review = { teachingAids: [{ cardId: 'e1', title: 'Centripetal force', kind: 'explanation', reason: 'Shows the inward force.' }, { cardId: 'n1', title: '', kind: 'notebook', reason: 'Try it.' }] };
+  assert.deepEqual(teachingAidsOf(review, id => id === 'e1').map(a => [a.id, a.title, a.available, a.reason]), [['e1', 'Centripetal force', true, 'Shows the inward force.'], ['n1', 'Notebook', false, 'Try it.']]);
+  assert.deepEqual(teachingAidsOf({}), []);
+  assert.deepEqual(teachingAidsOf(null), []);
 });

@@ -26,16 +26,16 @@ the microphone from ordinary Challenge, which keeps its text box; Explain-back k
 the next release; production still shows the dead microphone until then. The legacy `/api/learn/transcribe` route stays
 and keeps answering not configured; nothing calls it now.
 
-**FX-EB-09 · EB-07 · open (fix in progress)** — A real review dropped a criterion. Preview acceptance 2026-10-30 10:30 AM
-PT, voice-only answer (real speech), 2 criteria: the evaluator returned one criterion and wrote the other into its notes
-("the criteria array has only one entry. It should also include the entry for k_2f2f99245d28ecd1 (velocity tangent),
-judged met"). The missing criterion was stored as `not_returned`, so a correct voice-only answer was Not rated while its
-feedback praised that idea. Same family as the eval run-3 reply-format failures; it can reach production users. Fix
-assigned with FX-EB-05 (same assessment owner); a live eval rerun follows.
-
-**FX-EB-05 · EB-08.4 · open (scope gap)** — "Open on canvas" for teaching aids is wired in the card but the stored review
-carries no teaching-card references, so no teaching aid is ever listed. Building it needs a review field naming existing
-linked teaching cards (no generation). Not started; recorded so it is not mistaken for done.
+**FX-EB-09 · EB-07 / EB-08 · fix committed, live check pending** — A real provider reply dropped a criterion (dev preview,
+live acceptance 2026-10-30 ~10:30 AM PT, voice-only answer, attempt at_fa3ff4ec, 2 criteria): `provenance.unassessed` =
+`[{criterionId: "k_2f2f99245d28ecd1", version: 1, reason: "not_returned"}]`, `rejected` = `[]`. The reply's `criteria` held
+one entry and its `notes` said the velocity criterion should be added, judged met; the correct answer was Not rated
+(`criteria_unassessed`) while its feedback praised that idea. Same family as eval-live-3. Fix (c4a950cae,
+feat/eb-teaching-aids): the reply format now writes one entry per rubric criterion with its criterionId and version
+filled in, in rubric order, states the exact count, and says a judgement written elsewhere (such as in `notes`) is ignored.
+No extra call. Parsing stays strict: a judgement only in `notes` is never credited (test "FX-EB-09 dropped criterion" uses
+this reply shape). Remaining: the live eval case `voice-only-every-criterion` (tests/evals/explain-back) has not been run;
+the coordinator runs live evals. Owner action: none.
 
 **FX-EB-07 · EB-09 · open (pre-existing, owner rule)** — The canvas style panel opens out of the tools column over the
 cards it styles: with two grouped cards selected at 68% zoom it covered their ports (round 7, check fixed by deselecting
@@ -53,6 +53,16 @@ branches that equalled the integration SHA doubled runner minutes. Duplicate run
 `purgeTutorRows` deletes from these tables, so a permanent canvas delete would fail without them. The owner ran
 `C:\s\spec\explain-back\apply-prod-migration-0034.cmd` before release 22-eb; it reported `RESULT OK applied and verified
 5/5`. Release 22-eb (`a3376817f`) followed at 9:57 AM PT.
+
+**FX-EB-05 · EB-08.4 · resolved (c4a950cae, feat/eb-teaching-aids)** — "Open on canvas" was wired in the card but the
+stored review carried no teaching-card references, so no teaching aid was ever listed. Now the browser sends a bounded list
+of the canvas's existing teaching cards (explanation, animation, scene, video, notebook; at most 12; never the Explain-back
+card or a card still being made) with each submission or reassessment, outside the saved answer. The one assessment call
+reads it as data; the review keeps at most 2 picks whose ids were in that list, only beside a gap to revisit, with a short
+reason (`review.teachingAids`; unknown or malformed picks are dropped and never fail the assessment). Open on canvas
+selects and frames the existing card: no request, no model call, no new card. A card later removed shows unavailable, not a
+substitute. Reviews stored before the field render as before. Browser wiring is covered by `explain-back-sketch-check`
+("EB-08.4 teaching aids"); whether a real evaluator picks sensibly is the live eval case `teaching-aid-reuse` (not run).
 
 **FX-EB-01 · EB-06 / EB-07 (voice notes) · resolved** — Transcription was refused before the provider in every
 environment: `paidSubmissionRefusal(env)` is the fail-closed guard for unpriced transports. Fixed by a priced, bounded

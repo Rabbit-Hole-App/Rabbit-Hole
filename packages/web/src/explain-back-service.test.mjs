@@ -27,7 +27,8 @@ rmSync(dir, { recursive: true, force: true });
 globalThis.localStorage ??= { getItem: () => null, setItem() {}, removeItem() {} };
 
 // The attempts route as the service sees it. lose: submission keys whose first save lands but whose answer is lost.
-function server({ lose = [] } = {}) {
+// review: the stored review every assessment carries (absent: none, as the older tests had).
+function server({ lose = [], review = null } = {}) {
   const attempts = [], calls = [], byKey = new Map();
   globalThis.fetch = async (path, options = {}) => {
     const url = new URL(path, 'http://local'), method = options.method || 'GET', body = options.body ? JSON.parse(options.body) : null;
@@ -38,7 +39,7 @@ function server({ lose = [] } = {}) {
     if (method === 'GET') { const a = attempts.find(x => url.pathname.endsWith(x.attemptId)); return reply({ attempt: { submittedContent: a.content }, assessment: a.assessment }); }
     const held = byKey.get(body.submissionKey);
     if (held && JSON.stringify(held.content) !== JSON.stringify(body.submittedContent)) return reply({ error: 'submission_key_conflict' }, 409);
-    if (!held) { const a = { attemptId: `a${attempts.length + 1}`, content: body.submittedContent, assessment: { assessmentId: `s${attempts.length + 1}`, status: 'completed' } }; attempts.push(a); byKey.set(body.submissionKey, a); }
+    if (!held) { const a = { attemptId: `a${attempts.length + 1}`, content: body.submittedContent, assessment: { assessmentId: `s${attempts.length + 1}`, status: 'completed', ...(review ? { provenance: { review } } : {}) } }; attempts.push(a); byKey.set(body.submissionKey, a); }
     if (lose.includes(calls.filter(c => c.method === 'POST' && !c.path.endsWith('/bind')).length)) return reply({ error: 'attempts_unavailable' }, 503);
     return reply({ attempt: { attemptId: byKey.get(body.submissionKey).attemptId } });
   };
@@ -79,4 +80,36 @@ test('an edited answer after a lost response gets a fresh key; a sketch without 
 test('off unless enabled and a board is known', () => {
   const hook = S.mount(props => S.useExplainBackService(props), { app: 'demo', board: 'main', enabled: false });
   assert.equal(hook.current, null);
+});
+
+test('teaching aids (FX-EB-05): the canvas\'s existing teaching cards go with the submission; Open on canvas only reveals them', async () => {
+  const review = { teachingAids: [{ cardId: 'exp-1', title: 'Centripetal force', kind: 'explanation', reason: 'It shows why the force points inward.' }] };
+  const { calls } = server({ review });
+  const blocks = [
+    { id: 'exp-1', type: 'explanation', title: 'Centripetal force' },
+    { id: 'quiz-1', type: 'quiz', title: 'Not teaching material' },
+    { id: 'pending', type: 'animation', title: 'Still generating', scene: null },
+    { id: 'nb-1', type: 'notebook', active_path: 'orbit.ipynb' },
+    { id: block.id, type: 'challenge', title: 'The Explain-back card itself' },
+  ];
+  const focused = [];
+  const canvasApi = { current: { blocks: () => blocks, block: id => blocks.find(b => b.id === id) || null, focusBlock: id => focused.push(id) } };
+  const hook = S.mount(props => S.useExplainBackService(props), { app: 'demo', board: 'main', enabled: true, canvasApi });
+  await settle();
+  await hook.current.submit({ block, text: 'the force points outward' });
+  const sent = calls.find(c => c.method === 'POST' && !c.path.endsWith('/bind')).body;
+  assert.deepEqual(sent.teachingCards, [{ id: 'nb-1', title: 'orbit.ipynb', kind: 'notebook' }, { id: 'exp-1', title: 'Centripetal force', kind: 'explanation' }], 'newest first; teaching kinds only; never the card itself or a card still being made');
+  assert.equal(sent.submittedContent.teachingCards, undefined, 'not part of the saved answer');
+  await settle();
+  const [aid] = hook.current.teachingAids('a1');
+  assert.deepEqual(aid, { id: 'exp-1', cardId: 'exp-1', title: 'Centripetal force', kind: 'explanation', reason: 'It shows why the force points inward.', available: true });
+  const before = calls.length;
+  assert.equal(hook.current.openTeachingAid(aid), true);
+  assert.equal(hook.current.openTeachingAid(aid), true);
+  assert.deepEqual(focused, ['exp-1', 'exp-1'], 'the same existing card each time');
+  assert.equal(calls.length, before, 'opening makes no request: no model call, no new card');
+  blocks.splice(0, 1);
+  assert.equal(hook.current.teachingAids('a1')[0].available, false, 'a removed card shows unavailable');
+  assert.equal(hook.current.openTeachingAid(aid), false);
+  assert.deepEqual(hook.current.teachingAids('unknown'), []);
 });
