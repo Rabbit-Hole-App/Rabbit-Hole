@@ -5,9 +5,9 @@ import { explainProposedBlock } from './explain-client.js';
 import { cadContext } from './cad-client.js';
 import { dropView, publishView } from './cad-viewer-store.js';
 import { holdViewerGestures } from './content-gestures.js';
-import { createContext, Suspense, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, Suspense, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
-import { Check, ChevronLeft, ChevronRight, Code, Loader2, PenLine, Play, RotateCcw, Search, Volume2, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Code, Loader2, PanelRightOpen, Play, RotateCcw, Search, Trash2, Volume2, X } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { MdInline } from './Md.jsx';
 import { api, wsHeaders } from './api.js';
@@ -46,6 +46,9 @@ import { describeNotebook } from './learn-notebook.js';
 import { describeYouTube } from './learn-ask-target.js';
 import { afterPaint, usePerf } from './learn-perf.js';
 import { canSubmit, hasMarks, sketchText } from './explain-sketch.js';
+import { disposeVoiceNote } from './explain-back-media.js';
+import { AnswerView, AnswerVoice, AttemptBar, ExplainBackService, FeedbackTabs, FeedbackView, InputPicker, InputPills, SketchPanel, sketchCapture, usePanelOwner } from './ExplainBackPanel.jsx';
+import { ANSWER_LABEL, ANSWER_PLACEHOLDER, HISTORY_KEPT, SKETCH_CONTENT_LABEL, attemptLabel, inputPillsOf, legacyView, pastAttempt, serviceView, submitState } from './explain-back-view.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { describeExcerpt, isExcerpt } from './pdf-excerpt.js';
 import { ExcerptNote, ExcerptSource } from './ExcerptCard.jsx';
@@ -87,9 +90,9 @@ export const BLOCK_TYPES = {
   challenge: {
     label: 'Challenge',
     typicalHeight: 220,
-    // An Explain Back sketch (docs/features/explain-back-sketch.md) grows the card to hold it, only while shown or
-    // submitted; every other challenge keeps the canvas's default height cap.
-    autoMaxFor: block => (block.sketchOpen || block.sketchSubmitted ? 760 : undefined),
+    // An Explain-back card holds a multiline answer, its feedback and history (its Sketch is a separate panel, plan
+    // 2026-10-30 section 3); every other challenge keeps the canvas's default height cap.
+    autoMaxFor: block => (block.mode === 'explain_back' ? 760 : undefined),
     sample: () => ({
       id: crypto.randomUUID(),
       type: 'challenge',
@@ -928,15 +931,212 @@ function Kicker({ author = null, action = null, children }) {
 // grading (a reload, an undo) has no request here and reads as interrupted.
 const gradingAttempts = new Set();
 
-function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
-  const [draft, setDraft] = useState('');
+// The Explain-back card (plan docs/superpowers/plans/2026-10-30-explain-back.md sections 3, 5, 8 and 9; it replaces the
+// inline sketch of docs/features/explain-back-sketch.md). The question and Details & hint stay visible; the answer is a
+// multiline field, any connected inputs, a voice note when the store offers one, and one Sketch panel at the
+// workspace's right edge. Submitted attempts are immutable; Revise answer opens a new draft. Its submit and data come
+// from ExplainBackService when the durable store is wired, else from the card's own single-attempt grade (`commit`).
+const EMPTY_SKETCH = { strokes: [], shapes: [], items: [] };
+
+function ExplainBackCard({ block, onChange, onFile, draft, setDraft, commit, revise, notice, setNotice, sketchHost, sketchable, sketchMarked }) {
+  const service = useContext(ExplainBackService);
   const latest = useRef(block);
   latest.current = block;
-  // Explain Back may carry a sketch (docs/features/explain-back-sketch.md), drawn with the canvas's own toolbar.
+  const view = service ? serviceView(service.card(block.id)) : legacyView(block, { strip: stripVerdict, inPage: id => gradingAttempts.has(id) });
+  const { attempts } = view;
+  // The durable path's open revision: the attempt it was copied from (null: none open). The legacy path is editing
+  // whenever its block holds no submitted answer.
+  const [revising, setRevising] = useState(null);
+  const editing = service ? !attempts.length || revising !== null : block.answer == null && !block.sketchSubmitted;
+  const parent = editing ? (service ? attempts.find(attempt => attempt.id === revising) : attempts.at(-1)) || null : null;
+  const entries = editing ? [...attempts, { draft: true, id: 'draft', parentNumber: parent?.number ?? null }] : attempts;
+  const [chosen, setChosen] = useState(null);
+  const selected = entries.find(entry => entry.id === chosen) || entries.at(-1);
+  const [tab, setTab] = useState('answer');
+  const [cited, setCited] = useState('');
+  // The retained voice note (EB-06): offered only when the store can keep it (service.voice.upload); one controller per
+  // draft key, so a recording outlives the panel and the card's renders. It never reads or writes the typed answer.
+  const voiceStore = service?.voice?.upload ? service.voice : null;
+  const [draftSeq, setDraftSeq] = useState(0);
+  const draftKey = `${block.id}:${service ? view.draft?.id || `draft-${draftSeq}` : 'legacy'}`;
+  const [voice, setVoice] = useState(null);
+  // Connected inputs (EB-05): each Input connection on the canvas, shown as a pill under the field; the picker is the keyboard and touch
+  // way to make the same link a port drag makes.
+  const inputs = selected.draft && sketchHost?.inputs ? inputPillsOf(sketchHost.inputs(block.id), sketchHost.inputMessage) : [];
+  const canConnect = selected.draft && sketchable && !!sketchHost.inputCandidates && !!sketchHost.connectInput;
+  const connectInput = sourceId => {
+    const made = sketchHost.connectInput(block.id, sourceId, {});
+    setNotice(made?.problem ? sketchHost.inputMessage?.(made.problem) || 'That input could not be connected.' : '');
+  };
+  const gate = submitState({ text: draft, sketched: sketchMarked, voice: voiceStore ? voice : null, inputs });
+  const fieldId = useId();
+
+  // A finished review is announced once and opens on Tutor feedback when it is the attempt on screen.
+  const [announce, setAnnounce] = useState('');
+  const seen = useRef(null);
+  useEffect(() => {
+    const reviewed = attempts.filter(attempt => attempt.status === 'reviewed');
+    if (seen.current === null) { seen.current = new Set(reviewed.map(attempt => attempt.id)); return; }
+    const fresh = reviewed.find(attempt => !seen.current.has(attempt.id));
+    for (const attempt of reviewed) seen.current.add(attempt.id);
+    if (fresh) { setAnnounce(`Tutor feedback is ready for attempt ${fresh.number}`); if (selected.id === fresh.id) setTab('feedback'); }
+  });
+
+  // The one Sketch panel: in the canvas's dock (sketchHost.portal), owned by this question while it holds it.
+  const cardRef = useRef(null), openButton = useRef(null);
+  const [surface, setSurface] = useState(null);
+  useLayoutEffect(() => { setSurface(cardRef.current?.closest('[data-canvas-surface]') || null); }, []);
+  const [owner, setOwner, releaseOwner] = usePanelOwner(surface);
+  const open = sketchable && !!block.sketchOpen && owner === block.id;
+  const draftId = service ? view.draft?.id ?? null : null;
+  useEffect(() => {
+    if (!sketchable || !block.sketchOpen || !surface) return;
+    if (owner === null) setOwner(block.id);
+    // Another question opened its Sketch: this one closes, its marks kept.
+    else if (owner !== block.id) onChange({ ...latest.current, sketchOpen: false });
+  }, [owner, block.sketchOpen, surface, sketchable]);
+  useEffect(() => () => releaseOwner(block.id), [surface]);
+  const openSketch = () => {
+    setOwner(block.id);
+    if (!block.sketchOpen) onChange({ ...block, sketchOpen: true, sketch: block.sketch || EMPTY_SKETCH });
+    // The toolbar draws in the draft's sketch; a submitted attempt's sketch is shown read-only.
+    if (selected.draft) sketchHost.open(block.id, { draftId });
+  };
+  // Close is presentation only: the marks, the draft and the content dot stay.
+  const closeSketch = ({ outside } = {}) => {
+    sketchHost.release(block.id);
+    onChange({ ...latest.current, sketchOpen: false });
+    if (!outside) openButton.current?.focus();
+  };
+  // ponytail: focuses the question; panning it into view needs a canvas reveal the host does not offer yet.
+  const focusOwner = () => cardRef.current?.closest('[data-block]')?.focus({ preventScroll: true });
+  const sketchShown = selected.draft ? sketchMarked : !!selected.answer.sketched;
+  const latestSubmitted = !service && block.sketchSubmitted && selected === attempts.at(-1);
+  const panelBody = selected.draft ? sketchHost.render(block, { docked: true })
+    : latestSubmitted ? sketchHost.render(block, { docked: true, still: true })
+      : selected.answer.sketchImage ? <img src={selected.answer.sketchImage} alt="The sketch submitted with this attempt" className="h-full w-full rounded-lg border border-line object-contain" />
+        : <p className="text-sm text-ink-2">{selected.answer.sketched ? 'This attempt\'s sketch is not available here.' : 'This attempt has no sketch.'}</p>;
+  // The explicit way to take a drawing out of the draft (Ctrl+Z brings it back); Close never does.
+  const clearSketch = selected.draft && sketchMarked ? (
+    <button type="button" data-sketch-clear onClick={() => onChange({ ...latest.current, sketch: { ...EMPTY_SKETCH, ...(latest.current.sketch?.draftId ? { draftId: latest.current.sketch.draftId } : {}) } })}
+      className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-2 text-[13px] text-ink-2 hover:bg-hover hover:text-ink"><Trash2 size={15} />Clear sketch</button>
+  ) : null;
+
+  const busy = useRef(false);
+  const submit = async () => {
+    if (!service) { setNotice(''); await commit(); return; }
+    if (!gate.ready || busy.current) return;
+    busy.current = true;
+    setNotice('');
+    try {
+      const shot = sketchMarked ? await sketchCapture(sketchHost, block.id, draftId) : null;
+      if (shot?.error) { setNotice(shot.error); return; }
+      await service.submit({ block: latest.current, text: draft, sketch: shot ? { image: shot.image, text: shot.text ?? sketchText(block.sketch) } : null, voice: voiceStore && voice?.ready ? voice.saved : null, parentAttemptId: revising });
+      disposeVoiceNote(draftKey);
+      setDraft(''); setRevising(null); setChosen(null); setVoice(null); setTab('answer'); setDraftSeq(n => n + 1);
+    } catch (error) {
+      setNotice(`Your answer was not submitted: ${error?.message || 'try again'}. Your work is kept.`);
+    } finally { busy.current = false; }
+  };
+  // Revise answer: a new draft copied from the selected attempt (no badge, no feedback); the old attempt stays as it was.
+  const canRevise = !editing && !selected.draft && selected.status !== 'reviewing' && (service || selected === attempts.at(-1));
+  const startRevision = () => {
+    setNotice(''); setTab('answer'); setChosen(null); setCited('');
+    if (service) { setDraft(selected.answer.text); setRevising(selected.id); return; }
+    revise();
+  };
+  const cite = target => { setChosen(target.attemptId); setTab('answer'); setCited(target.quote || ''); };
+  // A drawing tool leaves every card inert on the canvas; with a sketch in play the card's own controls stay live.
+  const live = open || sketchMarked ? { pointerEvents: 'auto' } : undefined;
+  const ownerTitle = String(block.prompt || '').replace(/[`*_$#>]/g, '').replace(/\s+/g, ' ').trim();
+  return (
+    <div ref={cardRef} data-scroll data-explain-back data-sketch-owner={open ? '' : undefined} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+      <Kicker>Explain back</Kicker>
+      <div data-eb-question className="text-[20px] leading-[1.35] font-medium"><Md text={block.prompt} onFile={onFile} /></div>
+      {block.hint && (
+        <div data-eb-hint className="mt-2">
+          <p className="text-[11px] font-semibold text-ink-2">Details &amp; hint</p>
+          <p className="text-[13px] text-ink-2"><MdInline text={block.hint} /></p>
+        </div>
+      )}
+      {view.loading ? <p role="status" className="mt-3 text-sm text-ink-2">Loading your answers</p> : (
+        <>
+          {attempts.length > 0 && <AttemptBar entries={entries} selected={selected} onSelect={id => { setChosen(id); setTab('answer'); setCited(''); }} />}
+          {selected.draft ? (
+            <div style={live} className="mt-3" onPointerDown={e => e.stopPropagation()}>
+              <label htmlFor={fieldId} className="text-xs font-medium text-ink-2">{ANSWER_LABEL}</label>
+              <textarea id={fieldId} data-eb-answer rows={4} value={draft} onChange={e => setDraft(e.target.value)} placeholder={ANSWER_PLACEHOLDER}
+                className="mt-1 block w-full resize-y rounded-lg border border-line bg-surface px-3 py-2 text-sm leading-normal text-ink outline-none focus:border-ink-3 pointer-coarse:text-base" />
+              {(inputs.length > 0 || canConnect) && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {inputs.length > 0 && <InputPills inputs={inputs} onRemove={input => sketchHost.disconnectInput(input.id)} />}
+                  {canConnect && <InputPicker list={() => sketchHost.inputCandidates(block.id)} onConnect={connectInput} />}
+                </div>
+              )}
+              {voiceStore && <div data-eb-voice className="mt-2"><AnswerVoice key={draftKey} draftKey={draftKey} store={voiceStore} blockId={block.id} onState={setVoice} /></div>}
+            </div>
+          ) : selected.status === 'reviewed' ? (
+            <>
+              <FeedbackTabs tab={tab} onTab={key => { setTab(key); if (key === 'feedback') setCited(''); }} idBase={`${fieldId}-tabs`} />
+              <div role="tabpanel" id={`${fieldId}-tabs-panel`} aria-labelledby={`${fieldId}-tabs-${tab}`} className="mt-3">
+                {tab === 'answer' ? <AnswerView attempt={selected} highlight={cited} VoicePlayer={service?.VoicePlayer || null} />
+                  : <FeedbackView attempt={selected} question={ownerTitle} blockId={block.id} onCite={cite} onFile={onFile} />}
+              </div>
+            </>
+          ) : (
+            <div className="mt-3">
+              <AnswerView attempt={selected} VoicePlayer={service?.VoicePlayer || null} />
+              {selected.status === 'reviewing' && <p data-eb-reviewing className="mt-3 flex items-center gap-1.5 text-sm text-ink-2"><Loader2 size={14} className="animate-spin" />Reviewing your answer</p>}
+              {selected.status === 'failed' && <p data-eb-failed className="mt-3 text-sm text-danger">{selected.error}</p>}
+              {selected.status === 'interrupted' && <p data-eb-interrupted className="mt-3 text-sm text-ink-2">The review was interrupted. Revise answer to submit it again.</p>}
+              {selected.status === 'submitted' && <p className="mt-3 text-xs text-ink-2">Submitted. No Tutor review is available on this card.</p>}
+            </div>
+          )}
+          <div style={live} className="mt-3 flex flex-wrap items-center gap-2" onPointerDown={e => e.stopPropagation()}>
+            {sketchable && (selected.draft || selected.answer.sketched) && (
+              <button ref={openButton} type="button" data-sketch-toggle aria-expanded={open} aria-label={sketchShown ? SKETCH_CONTENT_LABEL : 'Open sketch'} onClick={openSketch}
+                // Live under a drawing tool too: it is the way into drawing with the tool already picked.
+                style={{ pointerEvents: 'auto' }}
+                className="relative flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-line px-3 text-[13px] text-ink hover:bg-hover pointer-coarse:h-11">
+                <PanelRightOpen size={16} />Open sketch
+                {sketchShown && <span data-sketch-dot aria-hidden="true" className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full border-2 border-surface bg-ink" />}
+              </button>
+            )}
+            <span className="ml-auto flex items-center gap-2">
+              {service && selected.status === 'failed' && <button type="button" data-eb-retry onClick={() => service.retry({ block, attemptId: selected.id })} className="h-9 cursor-pointer rounded-lg border border-line px-3 text-[13px] text-ink hover:bg-hover">Try again</button>}
+              {selected.draft ? (
+                <button type="button" data-eb-submit disabled={!gate.ready} onClick={submit} title={gate.reason || undefined}
+                  className="h-9 cursor-pointer rounded-lg bg-primary-fill px-3.5 text-[13px] font-medium text-white hover:bg-primary-fill-hover disabled:cursor-default disabled:opacity-40 pointer-coarse:h-11">Submit answer</button>
+              ) : canRevise && (
+                <button type="button" data-challenge-retry onClick={startRevision}
+                  className="h-9 cursor-pointer rounded-lg border border-line px-3.5 text-[13px] font-medium text-ink hover:bg-hover pointer-coarse:h-11">Revise answer</button>
+              )}
+            </span>
+          </div>
+          {selected.draft && gate.reason && <p data-eb-submit-reason className="mt-1 text-right text-xs text-ink-2">{gate.reason}</p>}
+          {notice && <p role="alert" data-eb-notice className="mt-2 text-xs text-danger">{notice}</p>}
+        </>
+      )}
+      <p role="status" className="sr-only">{announce}</p>
+      {open && (
+        <SketchPanel portal={sketchHost.portal} surface={surface} ownerId={block.id} ownerTitle={ownerTitle} status={attemptLabel(selected)} width={block.sketchWidth}
+          onWidth={width => onChange({ ...latest.current, sketchWidth: width })} pinned={!!block.sketchPinned}
+          onPin={pinned => onChange({ ...latest.current, sketchPinned: pinned })} onClose={closeSketch} onFocusOwner={focusOwner} media={clearSketch}>{panelBody}</SketchPanel>
+      )}
+    </div>
+  );
+}
+
+function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
+  const [draft, setDraft] = useState('');
+  // Explain-back: a capture problem, shown under its footer; nothing was submitted and the work stays.
+  const [notice, setNotice] = useState('');
+  const latest = useRef(block);
+  latest.current = block;
+  // Explain Back may carry a sketch, drawn with the canvas's own toolbar in its Sketch panel.
   const sketchHost = useContext(SketchHost);
   const sketchable = block.mode === 'explain_back' && !!sketchHost && !sketchHost.readOnly;
-  const sketchShown = sketchable && !!block.sketchOpen;
-  // Hide sketch is presentation only: marks in the card's sketch are part of the answer, shown or hidden. Only
+  // Closing the panel is presentation only: marks in the card's sketch are part of the answer, shown or hidden. Only
   // clearing the sketch takes them out.
   const sketchMarked = sketchable && hasMarks(block.sketch);
   const ready = canSubmit(draft, sketchable ? block.sketch : null);
@@ -951,14 +1151,15 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
     const sketched = sketchMarked;
     if ((!answer && !sketched) || inFlight.current) return;
     inFlight.current = true;
-    // The picture is taken before the card turns to the answer, from the sketch on screen or, when hidden, from
-    // its unseen copy.
-    const image = sketched ? await sketchHost.capture(block.id) : null;
-    const sketch = sketched ? { image, text: sketchText(block.sketch) } : null;
+    // The picture is taken before the card turns to the answer, by the canvas's one Sketch host, panel open or closed.
+    const shot = sketched ? await sketchCapture(sketchHost, block.id) : null;
+    // A sketch that could not be pictured is never sent as a text-only answer (plan 2026-10-30, EB-01 UI boundaries).
+    if (shot?.error) { inFlight.current = false; setNotice(shot.error); return; }
+    const sketch = sketched ? { image: shot.image, text: sketchText(block.sketch) } : null;
     // Keep `latest` in step with every write: a stream that lands in one tick
     // must not let the closing write replace the verdict with a stale block.
     const change = next => { latest.current = next; onChange(next); };
-    const committed = { ...latest.current, answer, attemptId: crypto.randomUUID(), verdict: '', grading: !!onGrade, ...(block.mode === 'explain_back' ? { sketchSubmitted: sketched } : {}) };
+    const committed = { ...latest.current, answer, attemptId: crypto.randomUUID(), verdict: '', grading: !!onGrade, ...(block.mode === 'explain_back' ? { sketchSubmitted: sketched, reviewFailed: false } : {}) };
     // Only the attempt still on the block writes to it: after Answer again, a
     // late reply from the old attempt is dropped.
     const current = () => latest.current.attemptId === committed.attemptId;
@@ -974,8 +1175,8 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
         }, sketch);
         if (current()) change({ ...latest.current, grading: false });
       } catch (error) {
-        // A verdict that already arrived stays; the error fills only an empty one.
-        if (current()) change({ ...latest.current, grading: false, verdict: latest.current.verdict || `Could not reach the tutor: ${error.message}` });
+        // A verdict that already arrived stays; the error fills only an empty one (an Explain-back card marks it failed).
+        if (current()) change({ ...latest.current, grading: false, verdict: latest.current.verdict || `Could not reach the tutor: ${error.message}`, ...(latest.current.mode === 'explain_back' && !latest.current.verdict ? { reviewFailed: true } : {}) });
       }
     } finally {
       gradingAttempts.delete(committed.attemptId);
@@ -984,89 +1185,43 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
       if (current() || !gradingAttempts.has(latest.current.attemptId)) inFlight.current = false;
     }
   };
-  // Explain again keeps everything the learner made: the text comes back to the field, and a submitted sketch
-  // opens again, editable, as the start of the next attempt (a new attempt id on Submit).
-  const retry = () => { inFlight.current = false; setDraft(block.answer || ''); onChange({ ...block, answer: null, attemptId: null, verdict: '', grading: false, ...(block.sketchSubmitted ? { sketchOpen: true, sketchSubmitted: false } : {}) }); };
-  const showSketch = () => { onChange({ ...block, sketchOpen: true, sketch: block.sketch || { strokes: [], shapes: [], items: [] } }); sketchHost.hold(block.id); };
-  // Hiding only folds the drawing away: the marks stay on the block and in the answer (Show sketch brings them back).
-  const hideSketch = () => { sketchHost.release(block.id); onChange({ ...block, sketchOpen: false }); };
-  // The explicit way to take a drawing out of the answer (Ctrl+Z brings it back).
-  const clearSketch = () => onChange({ ...block, sketch: { strokes: [], shapes: [], items: [] } });
-  // A sketch-only answer is '' with sketchSubmitted; a text answer is non-empty, as it always was.
-  const answered = !!block.answer || !!block.sketchSubmitted;
+  // Answer again (Revise answer) keeps everything the learner made: the text comes back to the field and the sketch stays, editable, as the start of the next attempt (a new attempt id on Submit); an Explain-back answer and its review stay selectable in the card's history.
+  const retry = () => { inFlight.current = false; setDraft(block.answer || ''); onChange({ ...block, answer: null, attemptId: null, verdict: '', grading: false, ...(block.mode === 'explain_back' ? { sketchSubmitted: false, reviewFailed: false, history: [...(block.history || []), pastAttempt(block)].slice(-HISTORY_KEPT) } : {}) }); };
+  if (block.mode === 'explain_back') return <ExplainBackCard block={block} onChange={onChange} onFile={onFile} draft={draft} setDraft={setDraft} commit={commit} revise={retry} notice={notice} setNotice={setNotice} sketchHost={sketchHost} sketchable={sketchable} sketchMarked={sketchMarked} />;
+  const answered = !!block.answer;
   // The tutor opens with "VERDICT: good|partial"; it tints the answer and is
   // stripped from what the learner reads.
   const grade = parseVerdict(block.verdict);
   const verdictText = stripVerdict(block.verdict);
   const waiting = block.grading && !verdictText ? (gradingAttempts.has(block.attemptId) ? 'Reading your answer' : 'Grading was interrupted. Answer again to retry.') : null;
   const tint = grade === 'good' ? 'border-green-700/30 bg-green-700/10 text-green-800' : grade === 'partial' ? 'border-amber-600/40 bg-amber-500/10 text-amber-800' : 'border-line bg-hover text-ink';
-  // A drawing tool leaves every card inert on the canvas; while this card has a sketch in play (open, or hidden with
-  // marks) its own controls stay live, so the learner can type, Submit or Hide sketch straight after drawing.
-  const live = sketchShown || sketchMarked ? { pointerEvents: 'auto' } : undefined;
-  const submit = (
-    <button type="button" disabled={!ready} onClick={commit}
-      className="h-8 shrink-0 rounded-lg bg-ink px-3.5 text-sm font-medium text-white disabled:opacity-40">{block.mode === 'explain_back' ? 'Submit' : 'Commit'}</button>
-  );
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker>{block.mode === 'explain_back' ? 'Explain back' : 'Challenge'}</Kicker>
+      <Kicker>Challenge</Kicker>
       <div className="text-sm"><Md text={block.prompt} onFile={onFile} /></div>
       {!answered ? (
-        <>
-          <div style={live} onPointerDown={e => e.stopPropagation()}>
-            <p className="mt-1 text-xs text-ink-2 italic"><MdInline text={block.hint} /></p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <SpeakAnswer appName={appName} onText={text => setDraft(current => (current ? `${current} ${text}` : text))} />
-              <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') commit(); }}
-                placeholder={block.mode === 'explain_back' ? 'Explain it in your own words' : 'Your guess in one sentence'} className="h-8 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm outline-none focus:border-ink-3" />
-              {!sketchShown && submit}
-            </div>
-            {sketchable && !sketchShown && (
-              <div className="mt-1.5 flex items-center gap-1.5">
-                {/* Live under a drawing tool too: it is the way into drawing with the tool already picked. */}
-                <button type="button" data-sketch-toggle onClick={showSketch} style={{ pointerEvents: 'auto' }}
-                  className="flex items-center gap-1 rounded px-1.5 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">
-                  <PenLine size={12} />{sketchMarked ? 'Show sketch' : 'Add sketch'}
-                </button>
-                {sketchMarked && <span data-sketch-included className="text-xs text-ink-2">Included in your answer</span>}
-              </div>
-            )}
+        <div onPointerDown={e => e.stopPropagation()}>
+          <p className="mt-1 text-xs text-ink-2 italic"><MdInline text={block.hint} /></p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <SpeakAnswer appName={appName} onText={text => setDraft(current => (current ? `${current} ${text}` : text))} />
+            <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') commit(); }}
+              placeholder="Your guess in one sentence" className="h-8 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm outline-none focus:border-ink-3" />
+            <button type="button" disabled={!ready} onClick={commit}
+              className="h-8 shrink-0 rounded-lg bg-ink px-3.5 text-sm font-medium text-white disabled:opacity-40">Commit</button>
           </div>
-          {/* A hidden sketch with marks is still the answer's; this unseen copy is what Submit pictures for the grader. */}
-          {sketchMarked && !sketchShown && <div aria-hidden="true" className="pointer-events-none relative h-0 overflow-hidden">{sketchHost.render(block, { still: true })}</div>}
-          {sketchShown && (
-            <div data-sketch-panel>
-              <p className="mt-3 mb-1 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">Sketch</p>
-              {sketchHost.render(block)}
-              <div style={live} className="mt-2 flex items-center justify-between" onPointerDown={e => e.stopPropagation()}>
-                <span className="flex items-center gap-1">
-                  <button type="button" data-sketch-toggle onClick={hideSketch} className="rounded px-1.5 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">Hide sketch</button>
-                  {sketchMarked && <button type="button" data-sketch-clear onClick={clearSketch} className="rounded px-1.5 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">Clear sketch</button>}
-                </span>
-                {submit}
-              </div>
-            </div>
-          )}
-        </>
+        </div>
       ) : (
         <>
-          {block.answer && <div className="mt-2 flex justify-end"><span data-answer data-grade={grade || 'pending'} className={`max-w-[85%] rounded-xl border px-3 py-1.5 text-sm whitespace-pre-wrap ${tint}`}><MdInline text={block.answer} mathOnly /></span></div>}
-          {/* The submitted sketch, read-only at three quarters size; it carries the grade's tint when it is the whole answer. */}
-          {block.sketchSubmitted && (sketchHost ? (
-            <div data-answer-sketch {...(!block.answer ? { 'data-answer': true, 'data-grade': grade || 'pending' } : {})}
-              className={`mt-2 overflow-hidden rounded-lg ${!block.answer && grade ? `border ${tint}` : ''}`} style={{ height: 180 }}>
-              <div style={{ width: '133.333%', transform: 'scale(0.75)', transformOrigin: 'top left' }}>{sketchHost.render(block, { still: true })}</div>
-            </div>
-          ) : <p className="mt-2 text-right text-xs text-ink-2">Sketch submitted with this answer</p>)}
+          <div className="mt-2 flex justify-end"><span data-answer data-grade={grade || 'pending'} className={`max-w-[85%] rounded-xl border px-3 py-1.5 text-sm whitespace-pre-wrap ${tint}`}><MdInline text={block.answer} mathOnly /></span></div>
           {(verdictText || block.grading) && (
             <div data-verdict className="mt-3 border-t border-line pt-3 text-sm">
-              <p className="mb-1 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">{block.mode === 'explain_back' ? 'Understanding evidence' : 'Tutor'}</p>
+              <p className="mb-1 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">Tutor</p>
               {verdictText ? <Md text={verdictText} onFile={onFile} /> : <p className="text-ink-2 italic">{waiting}</p>}
             </div>
           )}
           {block.reveal && <div className="mt-3 border-t border-line pt-3 text-sm"><Md text={block.reveal} onFile={onFile} /></div>}
           <div className="mt-2 flex justify-end" onPointerDown={e => e.stopPropagation()}>
-            <button type="button" data-challenge-retry onClick={retry} className="rounded px-2 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">{block.mode === 'explain_back' ? 'Explain again' : 'Answer again'}</button>
+            <button type="button" data-challenge-retry onClick={retry} className="rounded px-2 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">Answer again</button>
           </div>
         </>
       )}
