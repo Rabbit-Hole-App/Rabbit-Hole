@@ -184,7 +184,9 @@ test('one paid gate for every provider: no confirmed flag, no request', async ()
   const worker = (await import('node:fs')).readFileSync(new URL('../../web/dev-worker.js', import.meta.url), 'utf8');
   for (const route of ['/api/learn/image', '/api/learn/tts']) {
     const handler = worker.slice(worker.indexOf(`path === '${route}'`));
-    assert.ok(handler.indexOf('paidRefusal(body)') < handler.indexOf('await fetch('), `${route} checks confirmation before the provider`);
+    // The provider call is the route's own request to an https provider (TTS wraps it in fishSpendTransport, so no 'await fetch(').
+    const provider = handler.indexOf("fetch('https://");
+    assert.ok(provider > 0 && handler.indexOf('paidRefusal(body)') < provider, `${route} checks confirmation before the provider`);
   }
 });
 
