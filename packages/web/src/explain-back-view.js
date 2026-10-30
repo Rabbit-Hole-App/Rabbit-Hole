@@ -122,7 +122,7 @@ export function serviceView(raw) {
     return {
       id: entry.attemptId, number: index + 1, assessmentId: entry.assessment?.assessmentId || null, parentId: content.baseline?.parentAttemptId || null, status,
       answer: {
-        text: typed, sketched: !!content.sketch || !!content.recording, sketchImage: text(entry.sketchUrl) || null, voice: content.voice || [], recording: content.recording || null,
+        text: typed, sketched: !!content.sketch || !!content.recording, sketchImage: text(entry.sketchUrl) || null, sketchAssetId: text(content.sketch?.assetId) || null, voice: content.voice || [], recording: content.recording || null,
         resources: content.resources || [],
         inputs: (content.resources || []).map(item => ({ id: item.evidenceId, kind: item.media, name: text(item.label) || item.sourceKind || 'Input', count: item.members?.length, scope: '' })),
       },

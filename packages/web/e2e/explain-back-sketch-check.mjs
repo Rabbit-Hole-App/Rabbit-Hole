@@ -297,9 +297,11 @@ await check('4 main canvas and sketch never cross', async () => {
   const drawn = await counts();
   assert.deepEqual(drawn.sketches[cardId], { strokes: 1, shapes: 2, items: 1 }, 'pen, rectangle, arrow and text landed in the sketch');
   assert.deepEqual(drawn.canvas, { strokes: 0, shapes: 0 }, 'nothing leaked onto the canvas');
-  // A pen stroke on empty canvas (below the question, left of the panel) lands on the canvas and hands the toolbar back.
-  const question = await box(card), surface = await box(page.locator('[data-canvas-surface]'));
-  const free = { x: question.x + 20, y: Math.min(question.y + question.height + 60, surface.y + surface.height - 200) };
+  // A pen stroke on empty canvas lands on the canvas and hands the toolbar back. The empty canvas is under the docked
+  // panel: the revealed card can reach the bottom of the view (fast-e2e run 41028919464 drew into its answer field).
+  const panelBox = await box(panelOf(cardId)), surface = await box(page.locator('[data-canvas-surface]'));
+  const free = { x: panelBox.x + 20, y: Math.min(panelBox.y + panelBox.height + 30, surface.y + surface.height - 200) };
+  assert.ok(await page.evaluate(([x, y]) => !document.elementFromPoint(x, y)?.closest('[data-block-id], [data-explain-sketch-panel]'), [free.x, free.y]), 'the stroke starts on empty canvas');
   await tool('Pen').click();
   await drag(free, { x: free.x + 120, y: free.y + 50 });
   assert.equal(await target(), 'canvas');

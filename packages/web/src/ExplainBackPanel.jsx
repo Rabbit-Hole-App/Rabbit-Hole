@@ -3,9 +3,9 @@ import { FileText, Group, ImageIcon, Maximize2, MessageSquareText, Minimize2, No
 import { Md } from './ask.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { selectionRef } from './selection-ref.js';
-import VoiceNote, { useVoiceNote } from './VoiceNote.jsx';
+import VoiceNote from './VoiceNote.jsx';
 import { voiceNoteFor, voiceSubmitState } from './explain-back-media.js';
-import SketchRecorder, { useSketchRecording } from './SketchRecorder.jsx';
+import SketchRecorder from './SketchRecorder.jsx';
 import { recordingSubmitState, sketchRecordingFor } from './sketch-recording.js';
 import { FEEDBACK_SECTIONS, PANEL, askTutorText, attemptLabel, optionText, panelLayout, ratingBadge, stackTop } from './explain-back-view.js';
 
@@ -67,32 +67,23 @@ export function usePanelOwner(root) {
   return [owner, setOwner, releaseOwner, setLock, lockedFor];
 }
 
-// The retained voice note on the answer card (EB-06, VoiceNote.jsx): its controller outlives this component (keyed by the
-// draft); its submit state goes up to the card's Submit. It never sees the typed answer.
-// `initial` (a revision only): the voice EvidenceRef carried from the attempt it started from, or null for none. A revision
-// never falls back to the store's saved note, so an old note cannot return into a later draft. Used when the controller is new.
-export function AnswerVoice({ draftKey, store, blockId, initial = undefined, onState }) {
-  const note = voiceNoteFor(draftKey, { upload: store.upload, load: store.load, saved: initial !== undefined ? initial : store.saved?.(blockId) ?? null, onSaved: saved => store.onSaved?.(blockId, saved) });
-  const state = useVoiceNote(note);
-  const gate = voiceSubmitState(state);
-  const saved = state?.saved ?? null;
-  useEffect(() => { onState({ ...gate, saved }); }, [gate.ready, gate.blocked, saved]);
-  return <VoiceNote note={note} />;
+// The draft's retained voice note and Sketch recording (EB-06): one controller each per draft key, above any panel or card
+// mount. The card reads their state in its own render (useDraftMedia), so Submit never lags what the controls show; they
+// never see the typed answer. `initial` (a revision only): the voice EvidenceRef carried from the attempt it started from,
+// or null for none; a revision never falls back to the store's saved note, so an old note cannot return into a later draft.
+const noMedia = { subscribe: () => () => {}, get: () => null };
+export function useDraftMedia({ draftKey, voiceStore, recordingStore, blockId, initial = undefined }) {
+  const note = voiceStore ? voiceNoteFor(draftKey, { upload: voiceStore.upload, load: voiceStore.load, saved: initial !== undefined ? initial : voiceStore.saved?.(blockId) ?? null, onSaved: saved => voiceStore.onSaved?.(blockId, saved) }) : null;
+  const take = recordingStore ? sketchRecordingFor(draftKey, { upload: recordingStore.upload, uploadAudio: recordingStore.uploadAudio, load: recordingStore.load, onSaved: saved => recordingStore.onSaved?.(blockId, saved) }) : null;
+  const noteState = useSyncExternalStore((note || noMedia).subscribe, (note || noMedia).get);
+  const takeState = useSyncExternalStore((take || noMedia).subscribe, (take || noMedia).get);
+  return {
+    note, take,
+    voice: note ? { ...voiceSubmitState(noteState), saved: noteState?.saved ?? null } : null,
+    recording: take ? { ...recordingSubmitState(takeState), saved: takeState?.saved ?? null, recording: ['requesting', 'recording', 'paused'].includes(takeState?.status) } : null,
+  };
 }
-
-// The draft's Sketch recording (EB-06 06.5): one controller per draft key, above any panel mount, so Submit sees it with
-// the panel closed. RecordingState reports it to the card; SketchRecording is the controls in the panel.
-const recordingOf = (recKey, store, blockId) => sketchRecordingFor(recKey, { upload: store.upload, uploadAudio: store.uploadAudio, load: store.load, onSaved: saved => store.onSaved?.(blockId, saved) });
-export function RecordingState({ recKey, store, blockId, onState }) {
-  const state = useSketchRecording(recordingOf(recKey, store, blockId));
-  const gate = recordingSubmitState(state);
-  const saved = state?.saved ?? null, recording = ['requesting', 'recording', 'paused'].includes(state?.status);
-  useEffect(() => { onState({ ...gate, saved, recording }); }, [gate.ready, gate.blocked, saved, recording]);
-  return null;
-}
-export const SketchRecording = ({ recKey, store, blockId, sketch, renderReplay }) => (
-  <SketchRecorder recording={recordingOf(recKey, store, blockId)} sketch={sketch} renderReplay={renderReplay} />
-);
+export { VoiceNote, SketchRecorder };
 
 const stop = event => event.stopPropagation(); // a portal's events bubble through React to the card: never select, drag or open it
 const iconButton = 'flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent pointer-coarse:h-11 pointer-coarse:w-11';
