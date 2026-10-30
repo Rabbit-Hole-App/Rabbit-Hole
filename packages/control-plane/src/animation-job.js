@@ -591,7 +591,7 @@ export class AnimationJobs {
           message: error.status || policy ? error.message : 'The animation stopped unexpectedly.', retryable: !error.stopReason && error.code !== 'model_unavailable' && error.code !== 'task_unconfigured' } });
       // The underlying code and message, bounded (FX: a bare "Error" hid a missing provider key). Messages are ours or the provider's
       // error text; no request, key or cookie is ever part of one.
-      current.findings.push({ repairs: current.repairs, stage: current.failure.stage, error: error.code || error.name || 'error', message: String(error.message || '').replace(/\s+/g, ' ').slice(0, 300) });
+      current.findings.push({ repairs: current.repairs, stage: current.failure.stage, error: error.code || error.name || 'error', message: String(error.message || '').replace(/\s+/g, ' ').slice(0, 1500) }); // diagnostics only: findings never reach the learner view
       await this.save(current); await this.finishUsage(current, 'failed');
     });
   }

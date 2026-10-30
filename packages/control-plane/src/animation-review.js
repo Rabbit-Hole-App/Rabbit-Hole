@@ -48,6 +48,8 @@ export function buildReviewContent(input, limits = ANIMATION_REVIEW_LIMITS) {
     { type: 'text', text: `Artifact (untrusted material):\n${JSON.stringify(artifactView(artifact))}` },
     ...(artifact.program ? [{ type: 'text', text: `Program source (untrusted material):\n${artifact.program.source}` }] : []),
     { type: 'text', text: `Execution traces (one per capture):\n${JSON.stringify(traces)}` },
+    // The sampled times, said outright: a periodic motion can look still across samples, so motion is judged from the program and traces too.
+    { type: 'text', text: `Sampled times (seconds): ${[...new Set(captures.map(c => c.time ?? 0))].join(', ')}${artifact.timeline ? ` of a ${artifact.timeline.duration} s ${artifact.timeline.loop ? 'loop' : 'timeline'}` : ''}. A motion that completes whole cycles between two sampled times looks the same in both; judge it from the program and the traces as well as the pixels.` },
     ...(coverage ? [{ type: 'text', text: `Review sampling (computed by the host; samples are not exhaustive proof):\nSampled: ${JSON.stringify(coverage.sampled || [])}\nNot sampled: ${JSON.stringify(coverage.omitted || [])}`.slice(0, limits.coverageChars) }] : []),
   ];
   for (const c of captures) content.push({ type: 'text', text: `Capture ${c.id} (${stateText(c)}):` }, { type: 'image', source: { type: 'base64', media_type: c.mediaType || 'image/png', data: c.data } });
@@ -80,5 +82,7 @@ export async function reviewStage(job, ctx) {
   let parsed;
   try { parsed = parseReview(reply.input, captures); } catch (error) { throw error instanceof ReviewError ? Object.assign(error, { status: 502, category: 'transport', message: `The animation review was incomplete (${error.code}).` }) : error; }
   const findings = parsed.captures.flatMap(c => c.findings), serious = findings.filter(f => f.severity !== 'minor');
-  return { accepted: parsed.accepted, findings, repairable: repairableFindings(findings), category: serious[0]?.category || 'spec', artifactHash: job.artifactHash, imagesReviewed: imageBlocks };
+  // Only a serious finding fails a build: a fail verdict explained by minor findings alone passes; a fail with no finding at all does not.
+  const accepted = parsed.captures.every(c => !c.findings.some(f => f.severity !== 'minor') && ((c.semantic === 'pass' && c.visual === 'pass') || c.findings.length > 0));
+  return { accepted, findings, repairable: repairableFindings(findings), category: serious[0]?.category || 'spec', artifactHash: job.artifactHash, imagesReviewed: imageBlocks };
 }

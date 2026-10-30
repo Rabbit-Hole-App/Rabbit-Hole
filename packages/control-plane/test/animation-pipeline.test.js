@@ -9,7 +9,7 @@ import { animationPipeline } from '../src/animation-job.js';
 import { approvedPlan, prepareStage, unsupportedRequests } from '../src/animation-brief.js';
 import { artifactHashOf, artifactIntact, planProblems, sealArtifact, validateStage } from '../src/animation-author.js';
 import { captureManifest, allowedAsset, interceptor, renderStage } from '../src/animation-render.js';
-import { buildReviewContent } from '../src/animation-review.js';
+import { buildReviewContent, reviewStage } from '../src/animation-review.js';
 import { draftOf, fitProblems, repairStage } from '../src/animation-repair.js';
 import { NEEDS_PROPOSAL, TASKS, animationStack, postedProposal } from './animation-fixture.js';
 
@@ -106,7 +106,15 @@ test('the capture manifest samples at most 2 views x 3 states and says what it l
   const game = captureManifest(gameFixture.artifact);
   assert.deepEqual(game.coverage.sampled.map(s => s.events), [0, 1, 4]);
   const watch = captureManifest(watchFixture.artifact);
-  assert.deepEqual(watch.coverage.sampled.map(s => s.time), [0, Number((8 / 3).toFixed(3)), Number((16 / 3).toFixed(3))]);
+  assert.deepEqual(watch.coverage.sampled.map(s => s.time), [0, 4.304, 6.152]);
+  // accept-2: a 12 s loop turning 3 times was sampled at 0, 4 and 8 s and looked still. No motion repeating 1 to 12 times per loop returns
+  // to the same phase at any two sampled times.
+  const loop = { ...watchFixture.artifact, timeline: { duration: 12, loop: true } };
+  const times = captureManifest(loop).coverage.sampled.map(s => s.time);
+  for (let k = 1; k <= 12; k++) for (const [a, b] of [[times[0], times[1]], [times[0], times[2]], [times[1], times[2]]]) {
+    const cycles = (k * (b - a)) / 12;
+    assert.ok(Math.abs(cycles - Math.round(cycles)) > 0.07, `k=${k}: ${a}s and ${b}s alias`);
+  }
   const experiment = captureManifest(experimentFixture.artifact);
   assert.deepEqual(experiment.coverage.sampled.map(s => s.label), ['initial', 'every parameter at its low end', 'every parameter at its high end']);
   // Interception admits only the entry and hashed build files; a generated URL is refused.
@@ -222,4 +230,26 @@ test('Generate on a plan whose experience the learner changed builds that experi
   const p = postedProposal(s.sqlite, body.job.id);
   assert.equal(p.settings.experience, 'watch');
   assert.ok(p.limitations.includes('Sizes and distances are not to scale.'));
+});
+
+test('the review is told the sampled times, and a fail verdict explained only by minor findings does not fail the build', async () => {
+  const artifact = watchFixture.artifact, artifactHash = await artifactHashOf(artifact);
+  const captures = [0, 4.304].map((time, i) => ({ id: `v0-s${i}`, artifactHash, data: 'AAAA', view: 'default', time, events: [] }));
+  const { content } = buildReviewContent({ request: 'r', plan: watchFixture.plan, artifact, artifactHash, captures });
+  assert.ok(content.some(b => b.type === 'text' && b.text.startsWith('Sampled times (seconds): 0, 4.304 of a 8 s loop.')));
+  const job = { prompt: 'r', plan: watchFixture.plan, artifact, artifactHash, captures, evidence: [] };
+  const review = verdicts => reviewStage(job, { env: {}, call: async () => ({ input: { captures: captures.map((c, i) => ({ id: c.id, ...verdicts[i] })) } }) });
+  const minor = { verdict: 'visual', category: 'spec', severity: 'minor', message: 'a label could sit closer', repairable: true };
+  const major = { ...minor, severity: 'major', message: 'labels unreadable' };
+  // A reviewer that says fail but reports only minor problems: accepted, the findings kept.
+  const a = await review([{ semantic: 'pass', visual: 'fail', findings: [minor] }, { semantic: 'pass', visual: 'pass', findings: [] }]);
+  assert.deepEqual([a.accepted, a.findings.length], [true, 1]);
+  // A serious finding fails, whatever the verdict says; a fail with no finding at all is not explained, so it fails too.
+  assert.equal((await review([{ semantic: 'pass', visual: 'pass', findings: [major] }, { semantic: 'pass', visual: 'pass', findings: [] }])).accepted, false);
+  assert.equal((await review([{ semantic: 'fail', visual: 'pass', findings: [] }, { semantic: 'pass', visual: 'pass', findings: [] }])).accepted, false);
+});
+
+test('author and repair are told how to place labels', async () => {
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js');
+  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /beside the object it names[^.]*never over the object, over another label or floating in empty space/);
 });
