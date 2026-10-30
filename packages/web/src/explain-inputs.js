@@ -188,3 +188,32 @@ export async function inputEvidence(world, links, to, { sha256 = subtleSha } = {
   }
   return refs;
 }
+
+// What a submission sends for its inputs (control-plane learn-attempt-assets.js freezeSnapshots): the `resources` above and
+// `snapshots`, the content of each board-held input (a card, note or Notebook selection, direct or a Group member) whose hash
+// the resources name, so the server keeps that copy privately as submitted. Files are immutable stored sources and send none.
+// Bounded like the server (SNAPSHOT_LIMITS): at most 50 snapshots and 1 MiB; one past either is left out and is then read from
+// the saved board only while it is unchanged.
+export const SNAPSHOT_LIMITS = Object.freeze({ count: 50, totalChars: 1024 * 1024 });
+export async function inputSubmission(world, links, to, { sha256 = subtleSha } = {}) {
+  const resources = await inputEvidence(world, links, to, { sha256 });
+  const snapshots = [], kept = new Set();
+  let chars = 0;
+  const keep = async (id, scope, hash) => {
+    if (!hash || kept.has(hash) || snapshots.length >= SNAPSHOT_LIMITS.count) return;
+    const source = describeSource(world, id);
+    if (!source || source.sourceKind === 'file' || source.sourceKind === 'group') return;
+    const snapshot = snapshotOf(source.entry, scope);
+    const text = canonicalJson(snapshot);
+    if (chars + text.length > SNAPSHOT_LIMITS.totalChars || await sha256(text) !== hash) return;
+    chars += text.length;
+    kept.add(hash);
+    snapshots.push(snapshot);
+  };
+  for (const ref of resources) {
+    if (ref.state !== 'ready') continue;
+    if (ref.members) { for (const m of ref.members) if (m.state === 'ready') await keep(m.sourceId, null, m.hash); }
+    else await keep(ref.assetId, ref.scope || null, ref.hash);
+  }
+  return { resources, snapshots };
+}

@@ -301,7 +301,6 @@ export function InputPills({ inputs, onRemove = null, onOpen = null, cited = nul
           <li key={input.id} data-input-pill={input.id} data-input-kind={input.kind} {...(cited === input.id ? { 'data-cited': '' } : {})}
             className={`flex h-7 max-w-full items-center gap-1 rounded-md border bg-surface pr-0.5 pl-2 text-xs text-ink ${input.problem ? 'border-danger/50' : 'border-line'} ${cited === input.id ? 'ring-2 ring-primary-fill/40' : ''}`}>
             <Icon size={14} className="shrink-0 text-ink-2" aria-hidden="true" />
-            {/* ponytail: opening the source from its pill waits for a canvas reveal by link id; the full name, members and any problem are in the title. */}
             {onOpen ? <button type="button" title={full} aria-label={`Open ${full}`} onClick={() => onOpen(input)} className="min-w-0 cursor-pointer truncate text-left">{name}</button>
               : <span tabIndex={0} title={full} aria-label={full} className="min-w-0 truncate">{name}</span>}
             {onRemove ? <button type="button" aria-label={`Remove ${input.name}`} onClick={() => onRemove(input)} className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-ink-2 hover:bg-hover hover:text-ink"><X size={13} /></button> : <span className="w-1.5" />}

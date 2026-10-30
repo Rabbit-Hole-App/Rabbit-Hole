@@ -1,5 +1,7 @@
 // Explain-back card and its one Sketch panel, against a LOCAL stack only, on a dev-flag build (the Insert lesson block menu).
-// The grade is stubbed in the page, so no model is called; every grade request the page makes is recorded and checked.
+// That build takes the durable attempt path (VITE_COACHING_DEV turns ExplainBackService on, explain-back-service.js): the
+// attempt routes are stubbed in the page with contract-valid reviews (explain-back-contract.js validates each one), so no
+// model is called and every attempt the page saves is recorded and checked. An ordinary Challenge keeps the legacy grade.
 // Spec: docs/superpowers/plans/2026-10-30-explain-back.md (v1.6) sections 3, 5 and 9, which replace the inline sketch of
 // docs/features/explain-back-sketch.md. The owner's decisions retire the in-card drawing area, the Add/Hide sketch toggle,
 // the "Included in your answer" badge and the card growing to hold a sketch (plan section 3, "Approved UI revision"), and
@@ -11,7 +13,10 @@
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { chromeFloor } from './canvas-reveal.mjs';
+import { validateExplainBackReview } from '../src/explain-back-contract.js';
+import { review as fixtureReview } from '../src/explain-back-contract.fixtures.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(BASE)) throw Error('explain-back-sketch-check runs against a local stack only');
@@ -37,6 +42,74 @@ await page.route('**/api/learn/assess', async route => {
 });
 // Only the attempt row counts; its baseline follow-up (/grade/<id>/baseline) is the same attempt.
 await page.route('**/api/learn/grade**', async route => { if (new URL(route.request().url()).pathname === '/api/learn/grade') shadows.push(route.request().url()); await route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ grade_id: shadows.length }) }); });
+
+// The durable attempt store (packages/control-plane/src/learn-attempt-routes.js), stubbed: bind, submit (the assessment
+// runs inside it), list, read and the private asset upload. Each review is the EB-01 fixture reshaped to this answer: a
+// typed answer is rated (8/10; a revision that fixes the gap 10/10, with its comparison), a sketch alone is Not rated
+// (its second criterion unassessed), so both badge states are exercised.
+const posts = [], assetPuts = [], bound = new Map(), stored = new Map(); // stored: attemptId -> { cardId, content, assessment }
+const sha = body => createHash('sha256').update(body || '').digest('hex');
+const stubReview = (attemptId, assessmentId, content) => {
+  const typed = content.text || '';
+  const evidence = [...content.voice, ...(content.sketch ? [content.sketch] : []), ...(content.recording ? [content.recording] : []), ...content.resources];
+  const cites = typed.trim() ? [{ evidenceId: 'text', locator: { start: 0, end: Math.min(6, typed.length) } }]
+    : content.sketch ? [{ evidenceId: content.sketch.evidenceId, locator: { region: [0, 0, 60, 60] } }] : [];
+  const rated = !!typed.trim(), fixed = rated && !!content.baseline;
+  const second = fixed ? ['demonstrated', 'met', 'supported', 1] : rated ? ['partly_demonstrated', 'partial', 'partial', 0.5] : ['unassessed', 'unclear', 'unclear', null];
+  const base = fixtureReview();
+  const result = {
+    ...base, attemptId, assessmentId,
+    judgments: [
+      { ...base.judgments[0], criterionId: 'c_row', citations: cites },
+      { ...base.judgments[1], criterionId: 'c_position', judgment: second[0], fit: second[1], reasoning: second[2], citations: [] },
+    ],
+    coverage: [...evidence.map(item => ({ evidenceId: item.evidenceId, status: 'read' })), ...(typed.trim() ? [{ evidenceId: 'text', status: 'read' }] : [])],
+    feedback: {
+      strengths: { text: 'You say the id picks a row of the embedding table.', citations: cites },
+      revisit: { text: fixed ? 'Nothing important is missing now.' : 'What adds the position?', citations: [] },
+      next: { text: 'Say what the transformer blocks do with the vectors.', citations: [] },
+    },
+    ...(content.baseline ? { comparison: { parentAttemptId: content.baseline.parentAttemptId, parentAssessmentId: content.baseline.parentAssessmentId, comparable: true,
+      items: [{ criterionId: 'c_position', change: 'resolved', baselineCitations: [], currentCitations: [], note: 'You now say what adds the position.' }] } } : {}),
+    rating: rated
+      ? { ...base.rating, score: fixed ? 10 : 8, criteria: [{ ...base.rating.criteria[0], criterionId: 'c_row' }, { ...base.rating.criteria[1], criterionId: 'c_position', credit: second[3] }] }
+      : { status: 'unrated', outOf: 10, reason: 'sketch_unreadable', unknown: [{ criterionId: 'c_position' }], calculationVersion: 'eb-rating-v1', rubricVersion: 'r1',
+        criteria: [{ ...base.rating.criteria[0], criterionId: 'c_row' }, { ...base.rating.criteria[1], criterionId: 'c_position', credit: null }] },
+  };
+  const valid = validateExplainBackReview(result, content);
+  if (!valid.ok) throw Error(`stub review is not contract-valid: ${valid.errors.join('; ')}`);
+  return result;
+};
+const json = (route, status, body) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+await page.route('**/api/learn/tutor/attempts**', async route => {
+  const request = route.request(), url = new URL(request.url()), path = url.pathname.replace(/^\/api\/learn\/tutor\/attempts/, '');
+  const view = id => { const it = stored.get(id); return { attempt: { attemptId: id, submittedContent: it.content }, assessment: it.assessment }; };
+  if (request.method() === 'POST' && path === '/bind') {
+    const { cardId } = JSON.parse(request.postData());
+    bound.set(`act_${cardId}`, cardId);
+    return json(route, 200, { goalId: 'goal_eb', activityId: `act_${cardId}`, activityRevision: 1, criterionRefs: ['c_row@1', 'c_position@1'], rubricVersion: 'r1' });
+  }
+  if (request.method() === 'PUT' && path.startsWith('/assets')) {
+    const body = request.postDataBuffer() || Buffer.alloc(0);
+    assetPuts.push({ path, bytes: body.length, type: request.headers()['content-type'] || '' });
+    return json(route, 200, { assetId: `aa_stub${String(assetPuts.length).padStart(9, '0')}`, revision: 1, hash: sha(body), bytes: body.length, mime: request.headers()['content-type'] || 'application/octet-stream' });
+  }
+  if (request.method() === 'POST' && path === '') {
+    const sent = JSON.parse(request.postData());
+    posts.push(sent);
+    const attemptId = `at_${posts.length}`, assessmentId = `as_${posts.length}`;
+    const assessment = { assessmentId, status: 'completed', provenance: { review: stubReview(attemptId, assessmentId, sent.submittedContent) } };
+    stored.set(attemptId, { cardId: bound.get(sent.activityId), content: sent.submittedContent, assessment });
+    return json(route, 201, view(attemptId));
+  }
+  if (request.method() === 'GET' && path === '') {
+    const cardId = url.searchParams.get('cardId');
+    return json(route, 200, { attempts: [...stored].filter(([, it]) => it.cardId === cardId).map(([attemptId]) => ({ attemptId })).reverse() });
+  }
+  if (request.method() === 'GET' && stored.has(decodeURIComponent(path.slice(1)))) return json(route, 200, view(decodeURIComponent(path.slice(1))));
+  return json(route, 404, { error: 'unknown_attempt' });
+});
+const postsFor = id => posts.filter(sent => sent.activityId === `act_${id}`);
 
 const results = [];
 const check = async (label, fn) => {
@@ -85,7 +158,6 @@ const counts = () => page.evaluate(() => {
 const panels = () => page.locator('[data-explain-sketch-panel]');
 const panelOf = id => page.locator(`[data-explain-sketch-panel="${id}"]`);
 const submitOf = card => card.getByRole('button', { name: 'Submit answer', exact: true });
-const storedBlock = id => page.evaluate(key => Object.values(localStorage).map(v => { try { return JSON.parse(v); } catch { return null; } }).flatMap(state => state?.blocks || []).find(block => block.id === key), id);
 
 await page.goto(`${BASE}/apps/${canvas.name}`);
 await page.waitForSelector('[data-tool-gutter]', { timeout: 30000 });
@@ -123,24 +195,36 @@ await check('3a first draft layout', async () => {
   await page.keyboard.press('Enter');
   await page.keyboard.type('of the embedding table');
   assert.equal(await field.inputValue(), 'the id picks a row\nof the embedding table');
-  assert.equal(grades.filter(sent => sent.mode === 'explain_back').length, 0);
+  assert.equal(posts.length, 0, 'typing saves no attempt');
 });
-await check('1 text-only Explain Back: one request, then Tutor feedback', async () => {
-  const before = grades.length, shadowBefore = shadows.length;
+const textOnlyId = await textOnly.getAttribute('data-block-id');
+await check('1 text-only Explain Back: one saved attempt, reviewed in the card, no legacy grade', async () => {
+  const before = posts.length, gradesBefore = grades.length, shadowBefore = shadows.length;
   await submitOf(textOnly).click();
-  await textOnly.locator('[data-feedback-view]').getByText('What adds the position?').waitFor({ timeout: 10000 });
-  assert.equal(grades.length, before + 1);
-  assert.deepEqual(grades.at(-1), { app: canvas.name, mode: 'explain_back', prompt: grades.at(-1).prompt, expects: grades.at(-1).expects, answer: 'the id picks a row\nof the embedding table' });
-  assert.equal(shadows.length, shadowBefore + 1, 'Jev still records a text-only attempt');
+  await textOnly.locator('[data-feedback-section="well"]').waitFor({ timeout: 10000 });
+  assert.equal(posts.length, before + 1, 'one attempt saved');
+  const sent = posts.at(-1);
+  assert.equal(sent.activityId, `act_${textOnlyId}`, 'bound to this card');
+  assert.match(sent.submissionKey, /^eb_/);
+  assert.deepEqual(sent.submittedContent, { v: 1, kind: 'explain_back', text: 'the id picks a row\nof the embedding table', voice: [], resources: [], assistance: [] });
+  assert.deepEqual([grades.length, shadows.length], [gradesBefore, shadowBefore], 'the legacy grade and Jev shadow are not called');
 });
-await check('11 feedback tabs keep the question; a review without a stored rating is Not rated', async () => {
+await check('11 Tutor feedback: three sections, the blue rating, citations open the submitted answer', async () => {
   assert.match(await textOnly.locator('[data-eb-question]').innerText(), /token id/);
   assert.equal(await textOnly.locator('[data-attempt-label]').innerText(), 'Attempt 1 · Reviewed');
-  assert.equal(await textOnly.locator('[data-rating-badge]').getAttribute('data-rating-badge'), 'neutral', 'no number without a stored rating (plan 7H)');
-  assert.match(await textOnly.locator('[data-rating-badge]').innerText(), /Not rated/);
+  const badge = textOnly.locator('[data-rating-badge]');
+  assert.equal(await badge.getAttribute('data-rating-badge'), 'rated');
+  assert.equal(await badge.locator('[aria-hidden="true"]').innerText(), '8/10');
+  assert.equal(await badge.locator('.sr-only').innerText(), 'Tutor rating: 8 out of 10 for attempt 1');
+  assert.equal(await badge.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(27, 111, 194)', '--color-primary-fill');
   assert.equal(await textOnly.locator('[data-feedback-tab="feedback"]').getAttribute('aria-selected'), 'true');
-  assert.doesNotMatch(await textOnly.innerText(), /VERDICT:/);
-  await textOnly.locator('[data-feedback-tab="answer"]').click();
+  const view = textOnly.locator('[data-feedback-view]');
+  assert.match(await view.locator('[data-feedback-section="well"]').innerText(), /What you explained well[\s\S]*picks a row/);
+  assert.match(await view.locator('[data-feedback-section="revisit"]').innerText(), /What to revisit[\s\S]*What adds the position\?/);
+  assert.match(await view.locator('[data-feedback-section="next"]').innerText(), /Try this next/);
+  await view.locator('[data-citation]').first().click();
+  assert.equal(await textOnly.locator('[data-feedback-tab="answer"]').getAttribute('aria-selected'), 'true', 'a citation opens Your answer');
+  assert.equal(await textOnly.locator('[data-answer-view] mark[data-cited]').innerText(), 'the id', 'the cited passage is marked');
   assert.equal(await textOnly.locator('[data-answer-view] [data-answer]').innerText(), 'the id picks a row\nof the embedding table');
   assert.equal(await textOnly.locator('[data-challenge-retry]').innerText(), 'Revise answer');
 });
@@ -160,8 +244,9 @@ await check('2 Open sketch opens one right-side panel beside the question', asyn
   assert.equal(await panelOf(cardId).getAttribute('data-panel-mode'), 'side', 'Open sketch never expands the panel');
   assert.equal(await card.locator('[data-sketch-toggle]').getAttribute('aria-expanded'), 'true');
   assert.equal(await card.locator('[data-sketch]').count(), 0, 'nothing drawn inside the card');
+  await page.waitForTimeout(400); // sketchHost.reveal may pan the camera so the question clears the panel
   const after = await box(card), panel = await box(panelOf(cardId)), surface = await box(page.locator('[data-canvas-surface]'));
-  assert.deepEqual([after.x, after.y, after.width, after.height], [cardBefore.x, cardBefore.y, cardBefore.width, cardBefore.height], 'the question did not move or grow');
+  assert.deepEqual([after.width, after.height], [cardBefore.width, cardBefore.height], 'the question did not grow');
   assert.ok(panel.x >= after.x + after.width + 20, `the panel sits right of the question (${after.x + after.width} -> ${panel.x})`);
   assert.ok(panel.x + panel.width <= surface.x + surface.width - 14, 'docked inside the workspace\'s right edge');
   assert.equal(Math.round(panel.width), 460, 'initial width');
@@ -285,33 +370,38 @@ await check('8 reload preserves the sketch', async () => {
   assert.equal(await target(), 'canvas', 'a reload starts on the canvas');
 });
 
-// ---- 6 and 7. text + sketch: one submission, one request, one attempt id ----
+// ---- 6 and 7. text + sketch: one submission, one saved attempt with its pictured sketch ----
 await reveal(reloaded);
 let firstAttempt;
+// The sketch evidence a submission carries: a private attempt asset (aa_), uploaded once, never board bytes.
+const sketchRef = content => content.sketch && { role: content.sketch.role, media: content.sketch.media, state: content.sketch.state, asset: /^aa_/.test(content.sketch.assetId) };
 await check('6 text + sketch submission', async () => {
-  const before = grades.length, shadowBefore = shadows.length;
+  const before = postsFor(cardId).length, uploads = assetPuts.length;
   await reloaded.locator('textarea[data-eb-answer]').fill('the id picks a row; the position is added');
   await submitOf(reloaded).click();
-  await reloaded.locator('[data-feedback-view]').getByText('What adds the position?').waitFor({ timeout: 10000 });
-  assert.equal(grades.length, before + 1, 'one grade request');
-  const sent = grades.at(-1);
-  assert.equal(sent.answer, 'the id picks a row; the position is added');
-  assert.match(sent.sketch.image, /^data:image\/png;base64,iVBORw0KGgo/);
-  assert.ok(sent.sketch.image.length < 600000);
+  await reloaded.locator('[data-feedback-section="well"]').waitFor({ timeout: 10000 });
+  assert.equal(postsFor(cardId).length, before + 1, 'one saved attempt');
+  const sent = postsFor(cardId).at(-1).submittedContent;
+  assert.equal(sent.text, 'the id picks a row; the position is added');
+  assert.deepEqual(sketchRef(sent), { role: 'sketch', media: 'image', state: 'ready', asset: true });
+  assert.equal(assetPuts.length, uploads + 1, 'the pictured sketch is uploaded once');
+  assert.ok(assetPuts.at(-1).bytes > 0);
   // EB-03.2: the picture comes from the host's own off-screen render, which is gone once captured.
   assert.equal(await page.locator('[data-sketch-capture-root]').count(), 0, 'the capture render is removed after Submit');
-  assert.match(sent.sketch.text, /Marks: 1 freehand stroke, 1 box, 1 arrow\. Written in the sketch: .*text: "position added"/);
-  assert.equal(shadows.length, shadowBefore, 'Jev records no half-answer');
-  firstAttempt = sent.attempt_id;
+  assert.equal(await reloaded.locator('[data-rating-badge] [aria-hidden="true"]').innerText(), '8/10');
+  firstAttempt = [...stored].find(([, it]) => it.content === sent)?.[0];
   assert.equal(await panelOf(cardId).locator('[data-sketch-host]').count(), 0, 'a submitted sketch is read-only');
 });
 await shot('06-text-and-sketch-reviewed');
-await check('7 one attempt id per combined submission', async () => {
-  const stored = await storedBlock(cardId);
-  assert.match(firstAttempt, /^[0-9a-f-]{36}$/);
-  assert.equal(stored.attemptId, firstAttempt, 'the block and the request carry the same attempt id');
-  assert.equal(stored.sketchSubmitted, true);
-  assert.equal(grades.filter(sent => sent.attempt_id === firstAttempt).length, 1);
+await check('7 one attempt per combined submission; a reload reads the same history', async () => {
+  assert.equal(firstAttempt, `at_${posts.length}`);
+  assert.equal(new Set(posts.map(sent => sent.submissionKey)).size, posts.length, 'each submission has its own key');
+  await page.reload();
+  await page.waitForSelector('[data-tool-gutter]', { timeout: 30000 });
+  await reloaded.locator('[data-attempt-label]').waitFor({ timeout: 10000 });
+  assert.equal(await reloaded.locator('[data-attempt-label]').innerText(), 'Attempt 1 · Reviewed');
+  assert.equal(await reloaded.locator('[data-rating-badge] [aria-hidden="true"]').innerText(), '8/10', 'the stored rating, not a new review');
+  assert.equal(postsFor(cardId).length, 1, 'reading never submits');
 });
 
 // ---- 9 and 10. Revise answer keeps text and drawing in a new draft; attempt 1 and its feedback stay selectable ----
@@ -319,7 +409,7 @@ await check('9 Revise answer keeps the text and the drawing for editing; history
   await reveal(reloaded);
   await reloaded.locator('[data-challenge-retry]').click();
   assert.equal(await reloaded.locator('textarea[data-eb-answer]').inputValue(), 'the id picks a row; the position is added');
-  assert.deepEqual(await reloaded.locator('[data-attempt-select] option').allInnerTexts(), ['Attempt 1 · Reviewed · Not rated', 'Draft · revising attempt 1']);
+  assert.deepEqual(await reloaded.locator('[data-attempt-select] option').allInnerTexts(), ['Attempt 1 · Reviewed · 8/10', 'Draft · revising attempt 1']);
   assert.equal(await reloaded.locator('[data-rating-badge]').count(), 0, 'a draft has no badge');
   await reloaded.locator('[data-sketch-toggle]').click();
   await panelOf(cardId).locator('[data-sketch-host]').waitFor();
@@ -328,21 +418,26 @@ await check('9 Revise answer keeps the text and the drawing for editing; history
   await tool('Pen').click();
   await drag({ x: s.x + 250, y: s.y + 120 }, { x: s.x + 330, y: s.y + 160 });
   assert.equal((await counts()).sketches[cardId].strokes, 2, 'the learner revises the drawing');
-  // Viewing attempt 1 keeps the draft.
-  await reloaded.locator('[data-attempt-select]').selectOption({ label: 'Attempt 1 · Reviewed · Not rated' });
+  await reloaded.locator('textarea[data-eb-answer]').fill('the id picks a row; a position embedding is added');
+  // Viewing attempt 1 keeps the draft, and attempt 1 keeps its own badge and feedback.
+  await reloaded.locator('[data-attempt-select]').selectOption({ label: 'Attempt 1 · Reviewed · 8/10' });
+  assert.equal(await reloaded.locator('[data-rating-badge] [aria-hidden="true"]').innerText(), '8/10');
   await reloaded.locator('[data-feedback-tab="feedback"]').click();
   assert.match(await reloaded.locator('[data-feedback-view]').innerText(), /What adds the position\?/);
   await reloaded.locator('[data-attempt-select]').selectOption({ label: 'Draft · revising attempt 1' });
-  assert.equal(await reloaded.locator('textarea[data-eb-answer]').inputValue(), 'the id picks a row; the position is added', 'the draft survived history browsing');
+  assert.equal(await reloaded.locator('textarea[data-eb-answer]').inputValue(), 'the id picks a row; a position embedding is added', 'the draft survived history browsing');
 });
 await shot('09-revision-draft');
-await check('10 the revision is a new attempt id; attempt 1 stays', async () => {
+await check('10 the revision is a new attempt pinned to attempt 1 and its review; attempt 1 stays', async () => {
   await submitOf(reloaded).click();
-  await reloaded.locator('[data-feedback-view]').getByText('What adds the position?').waitFor({ timeout: 10000 });
-  const sent = grades.at(-1);
-  assert.notEqual(sent.attempt_id, firstAttempt);
-  assert.match(sent.sketch.text, /2 freehand strokes/);
-  assert.deepEqual(await reloaded.locator('[data-attempt-select] option').allInnerTexts(), ['Attempt 1 · Reviewed · Not rated', 'Attempt 2 · Reviewed · Not rated']);
+  await reloaded.locator('[data-feedback-comparison]').waitFor({ timeout: 10000 });
+  const [first, second] = postsFor(cardId);
+  assert.deepEqual(second.submittedContent.baseline, { parentAttemptId: firstAttempt, parentAssessmentId: stored.get(firstAttempt).assessment.assessmentId }, 'the exact parent and its review');
+  assert.notEqual(second.submissionKey, first.submissionKey);
+  assert.deepEqual(stored.get(firstAttempt).content, first.submittedContent, 'attempt 1 is unchanged');
+  assert.match(await reloaded.locator('[data-feedback-comparison]').innerText(), /Compared with your earlier attempt[\s\S]*Resolved: You now say what adds the position\./);
+  assert.deepEqual(await reloaded.locator('[data-attempt-select] option').allInnerTexts(), ['Attempt 1 · Reviewed · 8/10', 'Attempt 2 · Reviewed · 10/10']);
+  assert.equal(await reloaded.locator('[data-rating-badge] .sr-only').innerText(), 'Tutor rating: 10 out of 10 for attempt 2');
 });
 
 // ---- 5. sketch only, and one panel across questions ----
@@ -360,10 +455,14 @@ await check('5 sketch-only submission; opening another question retargets the on
   assert.ok(!(await submitOf(sketchOnly).isDisabled()), 'a mark is enough; no text needed');
   await submitOf(sketchOnly).click();
   await sketchOnly.locator('[data-feedback-view]').getByText('What adds the position?').waitFor({ timeout: 10000 });
-  const sent = grades.at(-1);
-  assert.equal(sent.answer, '');
-  assert.match(sent.sketch.text, /Marks: 1 ellipse\. Nothing is written in the sketch\./);
-  assert.ok(sent.attempt_id);
+  const sent = postsFor(sketchOnlyId).at(-1).submittedContent;
+  assert.equal(sent.text, '', 'no text required');
+  assert.deepEqual(sketchRef(sent), { role: 'sketch', media: 'image', state: 'ready', asset: true });
+  // The review could not judge one scored criterion from the sketch: Not rated, never a number (plan 7H).
+  const badge = sketchOnly.locator('[data-rating-badge]');
+  assert.equal(await badge.getAttribute('data-rating-badge'), 'neutral');
+  assert.equal(await badge.locator('[aria-hidden="true"]').innerText(), 'Not rated');
+  assert.match(await badge.locator('.sr-only').innerText(), /not rated\. sketch_unreadable/);
   await sketchOnly.locator('[data-feedback-tab="answer"]').click();
   assert.equal(await sketchOnly.locator('[data-answer-sketched]').count(), 1, 'the answer says it carried a sketch');
 });
@@ -396,17 +495,13 @@ await check('draw, close, submit: the closed sketch is still in the combined att
   await panelOf(hidingId).locator('[data-sketch-close]').click();
   assert.equal(await hiding.locator('[data-sketch-toggle]').getAttribute('aria-label'), 'Open sketch — contains content', 'the marks are kept');
   await hiding.locator('textarea[data-eb-answer]').fill('the id picks a row of the embedding table');
-  const before = grades.length;
+  const before = postsFor(hidingId).length;
   await submitOf(hiding).click();
   await hiding.locator('[data-feedback-view]').getByText('What adds the position?').waitFor({ timeout: 10000 });
-  assert.equal(grades.length, before + 1, 'one grade request');
-  const sent = grades.at(-1);
-  assert.equal(sent.answer, 'the id picks a row of the embedding table');
-  assert.match(sent.sketch.image, /^data:image\/png;base64,iVBORw0KGgo/, 'the closed drawing is pictured for the grader');
-  assert.match(sent.sketch.text, /Marks: 1 freehand stroke\./);
-  // The board saves itself a moment after the change: wait for the attempt to be on the stored block.
-  const stored = await (await page.waitForFunction(([id, attempt]) => Object.values(localStorage).map(v => { try { return JSON.parse(v); } catch { return null; } }).flatMap(state => state?.blocks || []).find(block => block.id === id && block.attemptId === attempt) || null, [hidingId, sent.attempt_id], { timeout: 10000 })).jsonValue();
-  assert.deepEqual([stored.attemptId, stored.sketchSubmitted], [sent.attempt_id, true]);
+  assert.equal(postsFor(hidingId).length, before + 1, 'one saved attempt');
+  const sent = postsFor(hidingId).at(-1).submittedContent;
+  assert.equal(sent.text, 'the id picks a row of the embedding table');
+  assert.deepEqual(sketchRef(sent), { role: 'sketch', media: 'image', state: 'ready', asset: true }, 'the closed drawing is in the attempt');
 });
 
 // ---- an unpinned panel closes on a canvas press; below 720 px it stacks under the card (plan section 3) ----
