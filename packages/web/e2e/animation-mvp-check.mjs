@@ -57,9 +57,14 @@ const MODEL = /^\/api\/(ask$|learn\/(ask|selection|tutor\/|assess|grade|home-ask
 const stray = [], offOrigin = [], errors = [], consoleErrors = [];
 const NOTEBOOK_ORIGIN = 'https://small-learn-canvas-notebook-dev.tryrabbithole.workers.dev'; // the app page's own notebook frame (explain-program-card-check)
 const results = [];
+let current = null; // the page the latest open() made, for failure evidence
+const glNotes = []; // console lines about WebGL contexts (Chromium warns, not errors, when it drops one)
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
-  catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message}`); }
+  catch (error) {
+    results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message}`);
+    await current?.screenshot({ path: `${SHOTS}/fail-${results.length}.png` }).catch(() => {});
+  }
 };
 const until = async (fn, label, ms = 15000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn().catch(() => false)) return; await new Promise(r => setTimeout(r, 100)); } throw Error(label); };
 
@@ -91,6 +96,8 @@ const open = async ({ theme = 'light', canvas = main, first = 'a-watch', webgl =
   page.on('pageerror', error => errors.push(`${tag}: ${error.message}`));
   // Aborted model routes log "Failed to load resource" (counted in stray instead). Without WebGL, three.js may report the refused
   // context as a console error: that refusal is the case under test there, so that context's console is not collected.
+  current = page;
+  page.on('console', message => { if (/webgl|context lost|too many active/i.test(message.text())) glNotes.push(`${message.type()}: ${message.text().slice(0, 200)}`); });
   page.on('console', message => { if (webgl && message.type() === 'error' && !/Failed to load resource/.test(message.text())) consoleErrors.push(`${tag}: ${message.text().slice(0, 300)}`); });
   await page.goto(`${BASE}/apps/${canvas.name}`);
   await (first ? page.locator(`[data-block-id="${first}"] [data-animation3d-card]`) : page.getByRole('menubar', { name: 'Canvas menu' })).waitFor({ timeout: 60000 });
@@ -116,7 +123,13 @@ const active = p => p.viewport.evaluate(node => node.hasAttribute('data-viewer-a
 const live = async p => {
   const isLive = () => p.viewport.evaluate(node => node.hasAttribute('data-viewer-live'));
   if (!(await isLive()) && await p.card.locator('[data-animation-click-surface]').count()) { await p.root.scrollIntoViewIfNeeded(); await p.card.locator('[data-animation-click-surface]').click(); }
-  await until(isLive, 'the scene never drew its first frame', 30000);
+  // On failure, every card's state on the page: which hold a live scene, which wait for a click, which failed (a viewer budget or a
+  // lost context reads differently from a renderer that never drew).
+  await until(isLive, 'the scene never drew its first frame', 30000).catch(async error => {
+    const cards = await p.root.page().locator('[data-animation3d-card]').evaluateAll(nodes => nodes.map(n => { const v = n.querySelector('[data-animation-viewport]'), r = n.getBoundingClientRect();
+      return `${n.closest('[data-block-id]')?.dataset.blockId} phase=${n.dataset.animationPhase} live=${!!v?.hasAttribute('data-viewer-live')} click=${!!n.querySelector('[data-animation-click-surface]')} failure=${n.querySelector('[data-animation-failure]')?.dataset.animationFailure ?? '-'} status="${v?.querySelector('[role="status"]')?.textContent.trim() ?? ''}" box=${Math.round(r.x)},${Math.round(r.y)},${Math.round(r.width)}x${Math.round(r.height)}`; })).catch(() => []);
+    throw Error(`${error.message}; cards: ${cards.join(' | ')}; WebGL notes: ${glNotes.slice(-5).join(' | ') || 'none'}`);
+  });
 };
 // The scene's pixels: identical when its camera and frame have not changed (the experiment scene is static between inputs).
 const pixels = p => p.card.locator('[data-animation-host]').screenshot(); // inside the viewport's border, which darkens while interacting
@@ -317,7 +330,7 @@ try {
 
   // ---- Focus and gestures (AN-03; plan section 4 "Stable control profiles", interaction.js) ----
   // Each gesture step starts from the same place: nothing interacting, the canvas fitted (a failed step must not move the next).
-  const settle = async () => { if (await active(X)) { await page.keyboard.press('Escape'); await until(async () => !(await active(X)), 'Escape did not end the interaction'); } await fit(page); await live(X); };
+  const settle = async () => { if (await active(X)) { await page.keyboard.press('Escape'); await until(async () => !(await active(X)), 'Escape did not end the interaction'); } await live(X); await fit(page); await live(X); };
   const enter = async () => { await X.interact.click(); await until(() => active(X), 'Interact did not start'); assert.equal(await X.interact.getAttribute('aria-pressed'), 'true'); };
   await step('before Interact the wheel and a drag over the scene go to the canvas and leave the scene; a middle-button drag on the bare canvas pans it', async () => {
     await settle();
