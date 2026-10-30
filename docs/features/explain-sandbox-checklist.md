@@ -2,7 +2,7 @@
 
 Plan: [docs/superpowers/plans/2026-10-28-explain-sandbox.md](../superpowers/plans/2026-10-28-explain-sandbox.md). Times are PT. Updated 2026-10-29 after the MVP release. Shipped, verified and deferred work are listed separately below; "shipped" never implies "verified".
 
-Continuation (Tasks 8-11 and the R0 closeout): [docs/superpowers/plans/2026-10-29-explain-tasks-8-11.md](../superpowers/plans/2026-10-29-explain-tasks-8-11.md). R0 (Focus/pending/Notes, brief before Generate, conversational proposal Edit) is production-deployed in release 5 `f421cc5de` since 2026-10-29 09:26 AM PT; its deployed check is open. Later production releases on main: `a99bd1bee` (run 40929134650, 11:15 AM PT) and `7fe96729d` (run 40933538699, 11:43 AM PT; contains Task 9.1, the Proposed preview of a program Edit, `50c135651`); both runs succeeded, no deployed check of 9.1 is recorded here. Then `7978f39a0` (1:04 PM PT) and `70b7425ed` (2:39 PM PT, contains the frame-overrun fix `3648d595b`). R3 (stateful) is not among them.
+Continuation (Tasks 8-11 and the R0 closeout): [docs/superpowers/plans/2026-10-29-explain-tasks-8-11.md](../superpowers/plans/2026-10-29-explain-tasks-8-11.md). R0 (Focus/pending/Notes, brief before Generate, conversational proposal Edit) is production-deployed in release 5 `f421cc5de` since 2026-10-29 09:26 AM PT; its deployed check is open. Later production releases on main: `a99bd1bee` (run 40929134650, 11:15 AM PT) and `7fe96729d` (run 40933538699, 11:43 AM PT; contains Task 9.1, the Proposed preview of a program Edit, `50c135651`); both runs succeeded. Then `7978f39a0` (1:04 PM PT) and `70b7425ed` (2:39 PM PT, contains the frame-overrun fix `3648d595b`). Later releases R3 to R7 and the deployed evidence for every task, 9.1 included, are in the completion reconciliation below; production now serves R7 `fe9a7a0a4`.
 
 Support, limits, recovery, rollback pins, the Task 10.4 evidence inventory and the 10.1/10.2 test plan: [explain-program-support.md](explain-program-support.md).
 
@@ -37,7 +37,7 @@ Owners: integrator = Parallel; Agent A runtime (Tasks 1, 3); Agent B card/render
 - On phone, a viewer or guest Focus keeps the tools palette, which narrows the time slider (about 106 px); keeping the toolbar in Focus is intentional.
 - On an owner canvas that is not a shared page, the minimap can overlap the lower controls of a card.
 
-## Completion reconciliation (as of 2026-10-29, 5:50 PM PT)
+## Completion reconciliation (as of 2026-10-29, 8:52 PM PT, after R7)
 
 This section covers every agreed /explain task: the original plan's Tasks 0-7, and the continuation plan's R0 and Tasks
 8.1-11.3. It is the record for the final audit. The columns are kept separate on purpose:
@@ -46,12 +46,17 @@ This section covers every agreed /explain task: the original plan's Tasks 0-7, a
 - **Deployed**: the production release run and SHA.
 - **Verified**: evidence taken from the deployed build: genuine runs, deployed checks, the matrix.
 
-A task is "done and verified" only when it has deployed evidence.
+A task is "done and verified" only when it has deployed evidence. Every piece of deployed evidence names where it was taken:
+the **dev preview** (preview.digrabbithole.com) or **production** (digrabbithole.com), with the SHA it served at the time.
+The working record for this section is C:/s/spec/explain-8-11/FINAL-TABLE.md and FINAL-EVIDENCE.md (E1-E13).
 
-Production now: main `d92cc18d59c2d6b5a91884774023b254b46de1f0` (R4).
-- Release run 40977367647 succeeded and finished at 5:07 PM PT.
-- The app and the control plane serve `d92cc18d59c2`.
+Production now: main `fe9a7a0a449c1ef9589c3c93d371be75d00fb730` (R7 = R6 `143ef9a04` + the text-field reveal fix `7ebb816d7`).
+- Release run 40998757928 (launcher 16-r7, push to main) succeeded and finished at 8:43 PM PT.
+- The control plane serves `fe9a7a0a449c`, the newest successful release: read-only verifier at 8:46 PM PT, and the E12
+  receipt at 8:50 PM PT (control-plane version `abdf25ec-5741-41a1-a3af-95b0a494206a`).
 - `EXPLAIN_PROGRAM_STATEFUL=true`.
+- The verification of Tasks 9 and 10 (E2-E10) ran on the dev preview serving the same SHA `fe9a7a0a449c`, 8:40-8:50 PM PT.
+- Paid validation, Tasks 8-11: US$1.65 of US$5.00 (t811-c7-a US$0.26, its Edit t811-c7-b US$0.18).
 
 Release runs referred to below (production, all success; times PT):
 
@@ -63,6 +68,9 @@ Release runs referred to below (production, all success; times PT):
 | `70b7425ed` | 40959595425 | 2:41 PM |
 | R3 `d3d50986e` | 40963907299 | 3:12 PM |
 | R4 `d92cc18d5` | 40977367647 | 5:07 PM |
+| R5 `2aaa8744b` | 40980568461 | 5:36 PM |
+| R6 `143ef9a04` | 40994574017 | 8:05 PM |
+| R7 `fe9a7a0a4` | 40998757928 | 8:43 PM |
 
 Exact-SHA CI, success:
 
@@ -73,6 +81,9 @@ Exact-SHA CI, success:
 | `7fe96729d` | 40932963807 | 40926904584 |
 | `d3d50986e` | 40963563287 | 40959340201 |
 | `d92cc18d5` | 40977040318 | 40974731401 |
+| `2aaa8744b` | 40980336024 | 40976343503 |
+| `143ef9a04` | 40992626503 | 40988435210 |
+| `fe9a7a0a4` | 40995614758 | 40995614801 (release gate 40997067809, `APP_SHA` = R7; deploy-dev 40998540013) |
 
 | Task | Implemented (SHA) | Tested | Deployed | Verified (deployed evidence) | State |
 |---|---|---|---|---|---|
@@ -80,70 +91,80 @@ Exact-SHA CI, success:
 | 1 Interpreter boundary (QuickJS/WASM 0.32.0) | MVP `fc31f723a` | runtime/host unit tests; `explain-program-check.mjs` 25/25 (CI); `receipts/task1-runtime.md` | MVP | cooling, sorting and gravity cards run on production builds | done and verified |
 | 2 Artifact and render contract | MVP `fc31f723a` | contract unit tests; `explain-program-render-check.mjs` | MVP | genuine artifacts' hashes re-verified (ex1-b, ex2-a, the gravity receipt) | done and verified |
 | 3 Host and responsiveness | MVP `fc31f723a` | host/playback unit tests | MVP | deployed cooling and sorting checks; the matrix's Play/Pause/scrub cells | done and verified |
-| 4 Program inside the card | MVP `fc31f723a` | `explain-program-card-check.mjs` | MVP | deployed shared-page check at `fc31f723a` (owner and simulated signed-out, 1440 and 390); matrix at `d3d50986e` | done and verified, except the Focus matrix cell (FAILED, Task 10.2) |
+| 4 Program inside the card | MVP `fc31f723a`; Focus fixes `56af3889c` (R4), `c4f7ae5ca` (R6), `7ebb816d7` (R7) | `explain-program-card-check.mjs` 21/21 on R7 (fast-e2e 40995614801) | MVP; fixes in R4, R6, R7 | dev preview: shared-page check at `fc31f723a`; R0 check 109/109 at `d92cc18d5`; E2-E4 at R7 (`C:/s/spec/explain-sandbox/r7/fe9a7a0a4/`) | done and verified |
 | 5 Author and persist via V2 | MVP `fc31f723a` | control-plane explain suites | MVP | genuine runs ex1-b, ex2-a, and gravity on production | done and verified |
 | 6 Review, repair, accounting | MVP `fc31f723a` | explain-review, repair and budget suites | MVP | the genuine runs' review rounds, repairs and settled spend | done and verified |
-| 7 Genuine MVP | MVP `fc31f723a` | n/a | MVP | ex1-b cooling and ex2-a sorting on dev, each with a deployed interaction check. Gravity: production job, artifact and spend in the receipt (below); no gravity interaction evidence exists anywhere in `C:/s/spec/explain-sandbox`. | done and verified; gravity receipt re-run pending |
+| 7 Genuine MVP | MVP `fc31f723a` | n/a | MVP | dev preview: ex1-b cooling and ex2-a sorting, each with a deployed interaction check. **Production**: gravity receipt pinned to R7 (E12, 8:50 PM PT, owner run, 15/15, EXPLAIN VERIFY PASS, `C:/s/spec/explain-sandbox/prod/receipts/explain-prod-receipt-20261029-205047.json`); it proves read-only that R7 is the newest successful release and is served, and that the gravity job is ready/accepted at round 0 with 21 credits charged, the hold released, hashes matching and execution allowed; it does not prove interaction or which model served that job (never recorded). | done and verified |
 | R0 Focus/pending/Notes, brief before Generate, conversational Edit | `240509a59`, `4735e1f1e`, `7da255a95`, `2b98f4f5a` | exact-head verify and fast-e2e per lane; `explain-proposal-card-check.mjs` | R0 `f421cc5de` | Same deployed check `C:/s/spec/explain-sandbox/r0-deployed/r0-deployed.mjs`, run twice. At `f421cc5de` (10:15 AM PT, `out-pass4/`): 103 of 109; the 6 failures were sorting-card owner Focus at 1440 and 1280, a NaN Focus box for a card saved without dx/dy (FX-11, fixed by `56af3889c`, released at 1:07 PM PT and in R4). Re-run on the dev preview at `d92cc18d5` (5:23-5:27 PM PT; served SHA read before and after): **109 of 109**, shared board unchanged (`r0-deployed/out-d92cc18d5/r0-deployed.json`; sorting Focus screenshot inspected). The 10.4 genuine runs went through brief-before-Generate on the dev preview. | done and verified |
 | 8.1 Schema 2 state/event contract with v1 compatibility | `86d746e0d` | contract and host unit tests; `retention.test.mjs` 6/6 on main and on local merges of `86d746e0d` and R3 | R3 `d3d50986e`; on main in R4 `d92cc18d5` | genuine schema 2 cards t811-c4-b and t811-c6-a sealed, verified and run; the saved v1 cooling card still runs (matrix) | done and verified |
 | 8.2 Ordered transitions and programState persistence | `137018604` | `interaction.test.mjs` (12), `use-program-state.test.mjs` | R3; R4 | deployed: owner reload restores a changed committed state; viewer presses stay local (t811-c4-b and t811-c6-a checks) | done and verified |
 | 8.3 Stateful buttons/selections through author, render and review | `0ee34e70c` + `649732a07`, `462b54977`, `ecb42a47d`, `2a7588f0b`; switch `b6caa951c`; review inputs `d92cc18d5` | `explain-program-state-check.mjs` (9), `explain-program-render-check.mjs` (35), `explain-stateful.test.js` | R3; R4 | genuine t811-c4-b (buttons) and t811-c6-a (buttons and a slider) accepted, deployed checks 16 and 17 ok, 0 failed. t811-c5-a failed review on R3; the record is kept. | done and verified for buttons and number inputs; selectable targets fixture-only (limitation) |
 | 8.4 Generic drag targets | `dfd154521` + `897cf66fe` | lane checks (`feat/explain-drag` hand-back) | R4 `d92cc18d5` | no genuine drag card (limitation) | done, not verified on a genuine card |
 | 8.5 Task 8 evidence record | this table and `explain-program-support.md` | n/a | docs | n/a | done |
-| 9.1 Program Proposed preview | `50c135651` | `explain-program-card-check.mjs` Proposed/Current/Discard step (fixture candidate; 18/18 in CI on `35410272d`, 19/19 locally on `9846cc0a5`); unit tests | R1 `7fe96729d` | none deployed. The card check cannot target the deployed preview: it refuses any non-local BASE, and it seeds its test session and canvases through the local stack's `/test/session` and `.dev.vars`. No deployed Proposed/Apply/Discard evidence exists. A real Edit job (paid) was not exercised. | tested, not verified deployed |
-| 9.2 Material context as evidence | `4c402a022` + `b41daa214` | control-plane context and evidence suites (lane hand-back) | R3 `d3d50986e` | no deployed check recorded | done, not verified |
-| 9.3 Tutor program context | `e8f1bd0b2` + `ffb3680d4` | tutor-context unit tests (lane hand-back) | R3 | no deployed check recorded | done, not verified |
-| 9.4 Source links and revision persistence | `d7a722e2d` + `1d429b37a` | lane checks | R3 | no deployed check recorded | done, not verified |
-| 10.1 Offscreen pause and lifecycle | `35410272d` | `playback.test.mjs` (15), `lifecycle.test.mjs` (1), card check steps 14-16 (CI 18/18 on `35410272d`; 19/19 twice locally on `9846cc0a5` with the timing fix) | R4 `d92cc18d5` (released). The check's timing fix `2c8be1452` is in the R5 candidate `2aaa8744b`, in its gate, not deployed. | measured locally and in CI only; no deployed run on R4 | done, not verified deployed |
-| 10.2 Support matrix | matrix run on `d3d50986e` | `matrix-check.mjs`: 65 ok, 0 failed, 1 not testable | n/a | **two cells FAILED**: 1440 owner cooling Focus placement; 1440 keyboard stack focus hidden by the minimap | **FAILED** until `fix/explain-focus-matrix` is deployed and the matrix is re-run |
-| 10.3 Version retention, revocation, rollback | `516b72541` (tests) | `retention.test.mjs` 6/6 | R4 (the tests ride along) | rollback controls not exercised on production; refs below are stale after R4 | done, not verified |
-| 10.4 Five-subject transfer | genuine runs | per run, below | dev preview `d3d50986e` and `d92cc18d5`; gravity on production | five qualifying subjects: cooling, sorting, gravity (schema 1); stack/queue t811-c4-b and cold spread t811-c6-a (schema 2), both checked deployed for owner and viewer. The failed pH case t811-c5-a and its diagnostics are kept as recorded evidence. Tasks 8-11 spend US$1.21 of US$5.00. | done and verified |
-| 11.1 Small reviewable releases | R0, R1, R3, R4 slices | exact-SHA CI above | releases above | release runs succeeded; served SHA read back | done and verified |
-| 11.2 Docs from receipts | `explain-program-support.md` and this checklist (docs/explain-qualification) | n/a | partly on main (merged in the R4 chain at `77df6f34b`); later docs commits not yet on main | n/a | done, not verified (latest docs not deployed) |
-| 11.3 Operational closeout | — | — | — | rollback refs stale after R4 and to be re-cut on the final main; gravity receipt re-run pending; worktree cleanup not done | open |
+| 9.1 Program Proposed preview | `50c135651` | `explain-program-card-check.mjs` step 17 (fixture candidate) 21/21 on R7 (fast-e2e 40995614801); unit tests (`explain-client`, `program-card`, `shared-program-card`) | R1 `7fe96729d`; in R7 | dev preview at R7 (E8, 8:47-8:50 PM PT), one paid Edit (t811-c7-b, US$0.18): Current kept the accepted card, Proposed read its own result and drew the candidate, preview changes were never saved, Apply made one new revision (baseRevision = the accepted one), reload kept it, no source in canvas JSON; `chain-r7-ui.mjs apply` 13 ok / 0 failed (`C:/s/spec/explain-sandbox/genuine/runs/t811-c7/`). Discard is not deployed-verified (see limitations). | done and verified (Discard: tested only) |
+| 9.2 Material context as evidence | `4c402a022` + `b41daa214` | control-plane context and evidence suites | R3 `d3d50986e`; in R7 | dev preview at R7 (E6): t811-c7-a with an attached markdown file; the brief cites evidence from the read file; the result's sources list the file, lines 1-21; US$0.26 (`genuine/runs/t811-c7/`) | done and verified |
+| 9.3 Tutor program context | `e8f1bd0b2` + `ffb3680d4` | tutor-context unit tests | R3; in R7 | dev preview at R7 (E10): the Tutor request (captured and aborted before the server, no model call) carries the card's description, its paused time and the displayed readouts, and no source (`genuine/runs/t811-c7/ui-e10/`) | done and verified |
+| 9.4 Source links and revision persistence | `d7a722e2d` + `1d429b37a` | lane checks | R3; in R7 | dev preview at R7 (E7, E9): Sources & evidence lists the file with an access-checked opener, unchanged after reload; after Apply and reload the card lists the new revision's own sources (`genuine/runs/t811-c7/ui-e7/`, `ui-apply/`) | done and verified |
+| 10.1 Offscreen pause and lifecycle | `35410272d`; check timing fix `2c8be1452` (R5) | `playback.test.mjs` (15), `lifecycle.test.mjs` (1), card check steps 14-16 (21/21 on R7) | R4 `d92cc18d5`; in R7 | dev preview at R7 (E5, probe canvas with fixtures): paused at 0.9 s when panned out, no frame drawn while away, back at 0.9 s paused; deleting a probe card closed a Worker (`C:/s/spec/explain-sandbox/r7/fe9a7a0a4/`) | done and verified |
+| 10.2 Support matrix | matrix run on `d3d50986e`; fixes `c4f7ae5ca` (R6) and `7ebb816d7` (R7) | `matrix-check.mjs` on `d3d50986e`: 65 ok, 2 failed, 1 not testable; card check 18 (Focus after Play/Pause/scrub/slider/Notes) and 19 (keyboard under the minimap), both failing on `d92cc18d5`, pass on R7 | R6; R7 | dev preview at R7 (E2-E4, `r7-probes.mjs` 23 ok / 0 failed): Focus after the matrix sequence is whole on the pane and Back keeps the state; a keyboard-focused button under the minimap is revealed; a click into a text field near the minimap does not pan (`C:/s/spec/explain-sandbox/r7/fe9a7a0a4/`). The two failed cells were closed by these targeted re-runs; the full matrix was not re-run. | done and verified |
+| 10.3 Version retention, revocation, rollback | `516b72541` (tests); rollback cuts on `37153f9c7` | `retention.test.mjs` 6/6; `rabbit-hole-prod-config.test.js` 11/11 on each rollback cut | tests in R4-R7; rollbacks not deployed (by design) | not exercised in production (by design); the rollback references are below | done, not verified (rollbacks not exercised) |
+| 10.4 Five-subject transfer | genuine runs | per run, below | dev preview `d3d50986e`, `d92cc18d5` and R7; gravity in production | five qualifying subjects: cooling, sorting, gravity (schema 1); stack/queue t811-c4-b and cold spread t811-c6-a (schema 2), both checked deployed for owner and viewer (dev preview). t811-c7-a/b (dev preview, R7) add a subject with attached material and its Edit. The failed pH case t811-c5-a is kept. Tasks 8-11 spend US$1.65 of US$5.00. | done and verified |
+| 11.1 Small reviewable releases | R0, R1, R3, R4, R5, R6, R7 slices | exact-SHA CI above | releases above | release runs succeeded; served SHA read back (R7 in production at 8:46 and 8:50 PM PT) | done and verified |
+| 11.2 Docs from receipts | `explain-program-support.md` and this checklist (docs/explain-qualification) | n/a | partly on main (merged in the R4 chain at `77df6f34b`); this update is on docs/explain-qualification | n/a | done (this update); merge to main pending |
+| 11.3 Operational closeout | — | — | — | rollback refs re-cut on `37153f9c7` (E11); gravity receipt pinned to R7 passed in production (E12) | open: worktree, dev-clone and local-stack cleanup |
 
 **Count:**
 
 | State | Tasks | Number |
 |---|---|---|
-| Done and verified | 0, 1, 2, 3, 4, 5, 6, 7, R0, 8.1, 8.2, 8.3, 8.5, 10.4, 11.1 (0 and 8.5 are records) | 15 |
-| Done, not verified | 8.4, 9.1, 9.2, 9.3, 9.4, 10.1, 10.3, 11.2 | 8 |
-| Failed | 10.2 (two cells) | 1 |
+| Done and verified | 0, 1, 2, 3, 4, 5, 6, 7, R0, 8.1, 8.2, 8.3, 8.5, 9.1 (Discard tested only), 9.2, 9.3, 9.4, 10.1, 10.2, 10.4, 11.1 (0 and 8.5 are records) | 21 |
+| Done, not verified | 8.4 (no genuine drag card), 10.3 (rollbacks not exercised) | 2 |
+| Done, merge pending | 11.2 | 1 |
+| Failed | — | 0 |
 | Open | 11.3 | 1 |
 | Deferred among agreed tasks | — | 0 |
 
 The optional and deferred coverage is listed below.
 
-**Gravity receipt** (`C:/s/spec/explain-sandbox/prod/receipts/explain-prod-receipt-20261029-094422.json`, 09:44 AM PT):
-- 14 of 15 checks pass. The one failure is the old stale release pin.
-- **Owner re-run pending.** `C:\s\spec\explain-sandbox\prod\explain-prod-verify.cmd` needs the owner's session cookie. It now
-  reads the release that is serving instead of a fixed pin.
-- The re-run will add a passing served-release check against the current production release, and a fresh read-only
-  receipt of the same job, result, hashes and settled usage.
-- It will not add interaction evidence or model identity, because the read-only routes carry neither.
+**Gravity receipt (E12, production)** (`C:/s/spec/explain-sandbox/prod/receipts/explain-prod-receipt-20261029-205047.json`,
+log `C:/s/spec/logs/explain-prod-verify-20261029-205047.log`, 8:50 PM PT):
+- The owner ran `explain-prod-verify.cmd` pinned to `EXPECT_SHA=fe9a7a0a449c1ef9589c3c93d371be75d00fb730`: 15 of 15, EXPLAIN VERIFY PASS.
+- It proves, read-only: the newest successful production release is R7 and the control plane serves it; gravity card
+  `a300e67c` "Gravity on Earth and on the Moon", job `ej_0fd327abd3ee4f958d654cde7d7731ab` ready and accepted at round 0,
+  21 credits charged and known, the hold released, source, manifest and bundle hashes equal (stored, recomputed, card,
+  identity), execution allowed.
+- It does not prove interaction, or which model served that job (never recorded for that run).
+- The earlier receipt (09:44 AM PT, 14 of 15, stale release pin) is superseded.
 
-**Not yet released (follow-ups):**
-- R5 candidate `2aaa8744b` (slash pills, and the card check timing fix `2c8be1452`): in its gate, not deployed.
-- `fix/explain-focus-matrix`: the Focus placement and keyboard-under-minimap fixes, in progress. The 10.2 cells stay
-  FAILED until it is deployed and re-verified.
-- `feat/explain-brief-clarity` `81e578d37` (FX-60/61, FX-79): CI green, not released.
-- `fix/ci-shard-balance` `421422fa2` (FX-75): not released.
+**Not yet released (follow-ups):** none of the agreed /explain work. `fix/explain-focus-matrix` shipped as `c4f7ae5ca` (R6) and
+`7ebb816d7` (R7); `feat/explain-brief-clarity` `81e578d37`, `fix/ci-shard-balance` `421422fa2` and the check timing fix
+`2c8be1452` are in R6.
 
 **Limitations (kept visible):**
-- No genuine card with selectable targets or with a drag.
+- 9.1 Discard is not deployed-verified: tested in CI and locally (card check step 17, 21/21 on R7 fast-e2e 40995614801;
+  `explain-client` unit tests). A second paid Edit's worst-case reservation would have exceeded the US$5.00 cap. A stale
+  Apply is covered by unit tests only.
+- 8.4: no genuine card with a drag; 8.3: no genuine card with selectable targets (fixture-only).
+- 10.3: the rollback controls were cut and pin-tested, not exercised in production (by design).
+- 10.2: the two failed matrix cells were closed by targeted re-runs on the dev preview at R7 (E2-E4); the full matrix was
+  not re-run on R7.
 - Review samples a slider at one value.
 - 390 px is a Chromium viewport, not an iPhone or WebKit test.
+- Observed on the dev preview, not failures: an opened file card read "This file is not in this browser or saved with the
+  board yet." until the board saved (the probe uploaded over HTTP); the E10 Tutor question, captured and aborted, stays in
+  that test canvas's chat history.
 
 **Untested:**
 - Real devices.
 - WebKit and Firefox.
 - A signed-in shared viewer.
 - Dark theme at 1280 and 390.
-- Deployed 9.1 and 9.2-9.4 flows.
 
-**Rollback references:** on `d3d50986e`, stateful-off `4105d5023`, generation-off `9859c2406`, execution-kill
-`c0dc41daa`. They are **stale after R4**; the integrator will re-cut them on the final main. The emergency Worker pair must
-be re-recorded at that release too.
+**Rollback references (E11):** cut on `37153f9c7` (R7 + blog + legal pages; contains R7), each a direct child of it:
+stateful-off `d3f8cd015`, generation-off `be19f2ba0`, execution-kill `27ea98b72`; `rabbit-hole-prod-config.test.js` 11/11 on
+each. The emergency Worker pair is the one recorded from the R7 release receipt (C:/s/spec/explain-8-11/r7-rollback.md). They
+are usable only once `37153f9c7` is main (main was `fe9a7a0a4` at 8:52 PM PT; the launcher refuses a stale parent; re-cut if
+main moves past it). The references on `d3d50986e` are superseded.
 
 ## Deferred (tracked, not complete)
 
