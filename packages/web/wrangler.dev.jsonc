@@ -180,7 +180,9 @@
     "CAD_BRIEF_FIRST": "false",
     // Codebase assessment (owner production GO 2026-10-21): the rubric route for the five codebase goals only, against the cited
     // repository revision. The general TUTOR_RUBRIC_ASSESSMENT_ENABLED and TUTOR_VISUAL_ASSESSMENT_ENABLED stay off.
-    "TUTOR_CODEBASE_ASSESSMENT_ENABLED": "true"
+    "TUTOR_CODEBASE_ASSESSMENT_ENABLED": "true",
+    // Explain-back assessment (plan 2026-10-30 EB-07.5): its own switch; the general rubric/visual switches stay off.
+    "TUTOR_EXPLAIN_BACK_ENABLED": "true"
   },
   "services": [
     {

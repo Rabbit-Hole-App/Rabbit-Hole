@@ -40,6 +40,8 @@ export const BUILD_ENV = {
   VITE_RABBIT_HOLE: 'true',
   // /motion (owner activation GO, 2026-10-21): the production orchestrator and renderer serve it.
   VITE_MOTION: 'true',
+  // Explain-back durable attempts, voice notes, Sketch panel and Tutor review (owner GO required to release; plan 2026-10-30).
+  VITE_EXPLAIN_BACK: 'true',
   VITE_NOTEBOOK_ORIGIN: 'https://rabbit-hole-canvas-notebook.tryrabbithole.workers.dev',
   VITE_LESSON_NOTEBOOK_ORIGIN: 'https://rabbit-hole-notebook.tryrabbithole.workers.dev',
 };
