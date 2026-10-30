@@ -13,9 +13,9 @@ const Y = [0, 1, 0], Z = [0, 0, 1];
 
 // Facts the checks need about each fixture: the learner-settable inputs and the declared readouts (ids, decimals), never its outputs.
 export const FIXTURES = {
-  watch: { id: watchFixture.artifact.artifactId, title: watchFixture.artifact.title, parameters: watchFixture.artifact.parameters, readouts: watchFixture.artifact.readouts, duration: watchFixture.artifact.timeline.duration, playable: true },
-  experiment: { id: experimentFixture.artifact.artifactId, title: experimentFixture.artifact.title, parameters: experimentFixture.artifact.parameters, readouts: experimentFixture.artifact.readouts, playable: false },
-  game: { id: gameFixture.artifact.artifactId, title: gameFixture.artifact.title, parameters: [], readouts: gameFixture.artifact.readouts, actions: gameFixture.artifact.actions.map(a => a.id), playable: false,
+  watch: { name: watchFixture.name, id: watchFixture.artifact.artifactId, title: watchFixture.artifact.title, parameters: watchFixture.artifact.parameters, readouts: watchFixture.artifact.readouts, duration: watchFixture.artifact.timeline.duration, playable: true },
+  experiment: { name: experimentFixture.name, id: experimentFixture.artifact.artifactId, title: experimentFixture.artifact.title, parameters: experimentFixture.artifact.parameters, readouts: experimentFixture.artifact.readouts, playable: false },
+  game: { name: gameFixture.name, id: gameFixture.artifact.artifactId, title: gameFixture.artifact.title, parameters: [], readouts: gameFixture.artifact.readouts, actions: gameFixture.artifact.actions.map(a => a.id), playable: false,
     // A move into the north edge from the start: blocked, still counted (the stated rule). Then the shortest route to the target.
     wrongAction: 'north', winningRoute: ['east', 'east', 'east', 'south', 'south'] },
 };

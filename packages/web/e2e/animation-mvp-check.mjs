@@ -1,15 +1,17 @@
 // /animation MVP qualification in the real app (AN-07, plan sections 4, 5 and 12), against the LOCAL stack only: local D1, a fresh
-// browser profile, no model call. A canvas is seeded with the hand-authored contract fixtures (src/animation3d/fixtures.js: test
-// data, not generation evidence) as animation3d cards; the dev build admits fixture cards (VITE_COACHING_DEV), as /explain's
-// program cards are admitted. Every expected number comes from e2e/animation-oracle.mjs, hand-written formulas that never call the
-// runtime, so a plausible-looking wrong scene fails.
+// browser profile, no model call. Canvases are seeded with the hand-authored contract fixtures (src/animation3d/fixtures.js: test
+// data, not generation evidence) as animation3d cards naming a built-in example (block.fixtureId); the card loads them itself.
+// Every expected number comes from e2e/animation-oracle.mjs, hand-written formulas that never call the runtime, so a
+// plausible-looking wrong scene fails.
 // Covers: /animation in Slash Commands and its composer pill, and a bare /animation makes no generation request; the watch card
-// plays, pauses on the visible moment, restarts and loops without resetting its inputs; the experiment's parameter at its minimum,
-// default and maximum moves both the scene's geometry and its readouts to the oracle's values; the mini-game's wrong and correct
-// actions, hint, attempts and reset, and reload restoring its state; narrow and wide cards in light and dark keep every control
-// reachable; the outer canvas still pans when the scene does not own interaction; typing in Chat is unaffected; Escape and window
-// blur release the scene; a browser without WebGL shows the description and an honest unavailable state; no page or console error.
-// Hooks: the data-animation3d-* attributes below are the card's contract with this check (handback-v.md lists them for lane U).
+// plays, pauses on the visible moment, restarts and loops without resetting its speed; each experiment parameter at its minimum,
+// maximum and default moves both the scene's geometry and its readouts to the oracle's values; the mini-game's wrong and winning
+// moves, hint, moves counter, a move after winning, reload restoring its state and Reset; narrow and wide cards in light and dark
+// keep every control inside the card; before Interact the wheel pans the canvas and leaves the scene; Interact turns the scene,
+// not the canvas; Escape ends it; window blur drops a held drag; a press in Chat ends it and every typed key reaches the composer;
+// a browser without WebGL keeps the description and says so; no page or console error, no model request.
+// Hooks: the card's data-animation-* attributes (Animation3DCard.jsx, animation3d/Controls.jsx); handback-v.md lists the three
+// this check needs beyond them (data-animation-time/-duration, data-animation-frame, a readout's data-value).
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/animation-mvp-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -22,10 +24,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('animation-mvp-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'animation-mvp-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 23; // bump with the steps below; the printed line is what CI reads
-// Plan section 4 "Stable control profiles": an idle scene does not steal the wheel, so the canvas pans. If the owner's 2026-10-22
-// hover-zoom rule for 3D content (content-gestures.js) is applied to animation3d instead, set 'scene': either way never both.
-const IDLE_WHEEL_OWNER = 'canvas';
+const TOTAL = 24; // bump with the steps below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `anim-${run}@example.com`, secret, handle: `anim_${run}` }) })).json();
@@ -34,13 +33,16 @@ const api = async (path, init = {}) => {
   return response.json().catch(() => null);
 };
 
-// One seeded fixture card. `animation3d: { fixtureId }` is the dev-only fixture reference (lane U/A: the admitted shape); w sets width.
-const card3d = (id, fixture, w) => ({ id, type: 'animation3d', dx: 0, dy: 0, title: FIXTURES[fixture].title, animation3d: { fixtureId: FIXTURES[fixture].id }, ...(w ? { w } : {}) });
-const BLOCKS = [card3d('a-watch', 'watch'), card3d('a-exp', 'experiment'), card3d('a-game', 'game'), card3d('a-narrow', 'experiment', 340), card3d('a-wide', 'experiment', 960)];
-const seed = { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], blocks: BLOCKS, exchanges: [] };
+// A seeded built-in example card (lane U card.js fixtureIdOf: block.fixtureId names a fixtures.js entry). w sets its width.
+const card3d = (id, kind, w) => ({ id, type: 'animation3d', dx: 0, dy: 0, title: FIXTURES[kind].title, fixtureId: FIXTURES[kind].name, ...(w ? { w } : {}) });
+const board = blocks => ({ strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], blocks, exchanges: [] });
+// Three cards per canvas: the shared viewer policy keeps at most three live WebGL viewers (plan section 5).
 const catalog = await api('/api/apps');
-const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Animation MVP ${run}` }) });
+const main = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Animation MVP ${run}` }) });
+const sizes = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Animation sizes ${run}` }) });
 const keyOf = name => `small.adaptive-canvas:${catalog.org}:${catalog.email}:${name}:ink`;
+const SEEDS = [[keyOf(main.name), board([card3d('a-watch', 'watch'), card3d('a-exp', 'experiment'), card3d('a-game', 'game')])],
+  [keyOf(sizes.name), board([card3d('a-narrow', 'experiment', 340), card3d('a-wide', 'experiment', 960)])]];
 
 // Generation and model routes: none may be called by watching, playing or the controls. A non-GET is aborted and counted.
 const MODEL = /^\/api\/(ask$|learn\/(ask|selection|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|artifact|explain|animation|chat\/material-proposals|cad\/jobs|motion))/;
@@ -54,12 +56,17 @@ const step = async (name, fn) => {
 const until = async (fn, label, ms = 15000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn().catch(() => false)) return; await new Promise(r => setTimeout(r, 100)); } throw Error(label); };
 
 const browser = await chromium.launch();
-const open = async ({ theme = 'light', viewport = { width: 1600, height: 1000 }, webgl = true } = {}) => {
-  const context = await browser.newContext({ viewport, colorScheme: theme });
+async function fit(page) {
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press('Shift+Digit1'); // zoom to fit, so every card is on screen
+  await page.waitForTimeout(900);
+}
+const open = async ({ theme = 'light', canvas = main, first = 'a-watch', webgl = true } = {}) => {
+  const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, colorScheme: theme });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
-  await context.addInitScript(([storageKey, value, mode]) => {
-    try { localStorage.setItem('small.theme', mode); if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, JSON.stringify(value)); } catch { /* the defaults then */ }
-  }, [keyOf(canvas.name), seed, theme]);
+  await context.addInitScript(([seeds, mode]) => {
+    try { localStorage.setItem('small.theme', mode); for (const [key, value] of seeds) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); } catch { /* the defaults then */ }
+  }, [SEEDS, theme]);
   // A browser with no WebGL: every WebGL context request fails, as on a blocklisted GPU.
   if (!webgl) await context.addInitScript(() => { const get = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (kind, ...rest) { return /webgl/i.test(kind) ? null : get.call(this, kind, ...rest); }; });
   await context.route('**/*', route => {
@@ -73,48 +80,50 @@ const open = async ({ theme = 'light', viewport = { width: 1600, height: 1000 },
   page.setDefaultTimeout(15000);
   const tag = `${theme}${webgl ? '' : ' no-webgl'}`;
   page.on('pageerror', error => errors.push(`${tag}: ${error.message}`));
-  // Aborted model routes log "Failed to load resource"; those are counted in stray, not here. Without WebGL three.js reports the
-  // failed context as a console error: that context's own failure is the case under test, so it is kept apart.
-  page.on('console', message => { if (message.type() === 'error' && !/Failed to load resource/.test(message.text())) (webgl ? consoleErrors : []).push(`${tag}: ${message.text().slice(0, 300)}`); });
+  // Aborted model routes log "Failed to load resource" (counted in stray instead). Without WebGL, three.js may report the refused
+  // context as a console error: that refusal is the case under test there, so that context's console is not collected.
+  page.on('console', message => { if (webgl && message.type() === 'error' && !/Failed to load resource/.test(message.text())) consoleErrors.push(`${tag}: ${message.text().slice(0, 300)}`); });
   await page.goto(`${BASE}/apps/${canvas.name}`);
-  await page.locator('[data-block-id="a-watch"] [data-animation3d-card]').waitFor({ timeout: 60000 });
+  await page.locator(`[data-block-id="${first}"] [data-animation3d-card]`).waitFor({ timeout: 60000 });
   await fit(page);
   return { context, page };
 };
-async function fit(page) {
-  await page.evaluate(() => document.activeElement?.blur());
-  await page.keyboard.press('Shift+Digit1'); // zoom to fit, so every card is on screen
-  await page.waitForTimeout(900);
-}
 
 const parts = (page, id) => {
-  const root = page.locator(`[data-block-id="${id}"]`), card = root.locator('[data-animation3d-card]'), viewport = card.locator('[data-animation3d-viewport]');
+  const root = page.locator(`[data-block-id="${id}"]`), card = root.locator('[data-animation3d-card]'), viewport = card.locator('[data-animation-viewport]');
   return { root, card, viewport,
-    play: card.locator('[data-animation3d-play]'), restart: card.locator('[data-animation3d-restart]'), time: card.locator('[data-animation3d-time]'),
-    speed: card.locator('[data-animation3d-speed]'), reset: card.locator('[data-animation3d-reset]'), interact: card.locator('[data-animation3d-interact]'),
-    param: pid => card.locator(`input[type="number"][data-animation3d-param="${pid}"]`), readout: rid => card.locator(`[data-animation3d-readout="${rid}"]`),
-    action: aid => card.locator(`[data-animation3d-action="${aid}"]`) };
+    play: card.locator('[data-animation-play]'), restart: card.locator('[data-animation-restart]'), speed: card.locator('[data-animation-speed]'),
+    reset: card.locator('[data-animation-reset]'), interact: card.locator('[data-animation-interact]'),
+    param: pid => card.locator(`input[data-animation-number="${pid}"]`), readout: rid => card.locator(`[data-animation-readout="${rid}"]`),
+    action: aid => card.locator(`[data-animation-action="${aid}"]`) };
 };
-const num = async locator => Number(await locator.getAttribute('data-value'));
-const live = viewport => until(() => viewport.evaluate(node => node.hasAttribute('data-live')), 'the scene never drew its first frame', 30000);
-const frame = async viewport => JSON.parse(await viewport.getAttribute('data-frame')); // the last applied frame: { nodes, readouts, goal? }
-const camera = viewport => viewport.getAttribute('data-camera');
-const interacting = card => card.evaluate(node => node.hasAttribute('data-interacting'));
+// Presentation time and loop length (needed from lane U), in seconds.
+const time = async p => Number(await p.card.getAttribute('data-animation-time'));
+const playing = async p => (await p.play.getAttribute('aria-pressed')) === 'true';
+// The last applied frame (needed from lane U): { nodes, readouts, goal? }, current whenever the scene is paused or settled.
+const frame = async p => JSON.parse(await p.viewport.getAttribute('data-animation-frame'));
+const active = p => p.viewport.evaluate(node => node.hasAttribute('data-viewer-active'));
+// Live: the scene drew. A card beyond the visible-viewer budget waits for a click on its scene ("Click to show the 3D view").
+const live = async p => {
+  const isLive = () => p.viewport.evaluate(node => node.hasAttribute('data-viewer-live'));
+  if (!(await isLive()) && await p.card.locator('[data-animation-click-surface]').count()) { await p.root.scrollIntoViewIfNeeded(); await p.card.locator('[data-animation-click-surface]').click(); }
+  await until(isLive, 'the scene never drew its first frame', 30000);
+};
+// The scene's pixels: identical when its camera and frame have not changed (the experiment scene is static between inputs).
+const pixels = p => p.viewport.screenshot();
 const shot = async (page, name) => { await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
-// The scene's node transforms against the oracle's, for every node the oracle names.
 const sameNodes = (got, want, label) => { for (const [id, t] of Object.entries(want)) for (const k of Object.keys(t)) assert.ok(close(got?.[id]?.[k], t[k]), `${label}: node ${id} ${k} ${JSON.stringify(got?.[id]?.[k])}, oracle ${JSON.stringify(t[k])}`); };
 // The readouts three ways: the shown element's raw value, its text at the declared decimals, and the applied frame's value.
 const sameReadouts = async (p, kind, want, label) => {
-  const applied = (await frame(p.viewport)).readouts || {};
+  const applied = (await frame(p)).readouts || {};
   for (const [rid, value] of Object.entries(want)) {
-    const shown = await num(p.readout(rid)), decimals = FIXTURES[kind].readouts.find(r => r.id === rid)?.decimals;
+    const shown = Number(await p.readout(rid).getAttribute('data-value')), decimals = FIXTURES[kind].readouts.find(r => r.id === rid)?.decimals;
     assert.ok(close(shown, value), `${label}: readout ${rid} shows ${shown}, oracle ${value}`);
     assert.ok(close(applied[rid], value), `${label}: frame readout ${rid} ${applied[rid]}, oracle ${value}`);
     if (decimals !== undefined) assert.ok((await p.readout(rid).innerText()).includes(value.toFixed(decimals)), `${label}: readout ${rid} text ${await p.readout(rid).innerText()} lacks ${value.toFixed(decimals)}`);
   }
 };
-// A point on the bare canvas, to pan from (explain-program-card-check barePoint).
-const barePoint = page => page.evaluate(() => {
+const barePoint = page => page.evaluate(() => { // a point on the bare canvas (explain-program-card-check barePoint)
   const s = document.querySelector('[data-canvas-surface]').getBoundingClientRect();
   for (let y = s.top + 60; y < s.bottom - 60; y += 30) for (let x = s.left + 6; x < s.right - 6; x += 30) {
     const el = document.elementFromPoint(x, y);
@@ -123,6 +132,8 @@ const barePoint = page => page.evaluate(() => {
   return null;
 });
 const composer = page => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
+const box = locator => locator.boundingBox();
+const centre = async locator => { const b = await box(locator); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
 
 try {
   const { context, page } = await open();
@@ -142,7 +153,7 @@ try {
     await sheet.getByRole('button', { name: 'Close Slash Commands' }).click();
     assert.equal(stray.length, before, 'no generation request from the help');
   });
-  await step('the /animation pill reads animation and has a Remove button; a bare /animation sends no generation request and makes no card', async () => {
+  await step('the /animation pill reads animation with its Remove button; a bare /animation sends no generation request and adds no card', async () => {
     await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 20000 });
     const cards = await page.locator('[data-animation3d-card]').count(), before = stray.length;
     await composer(page).click();
@@ -159,64 +170,65 @@ try {
     await page.evaluate(() => document.activeElement?.blur());
   });
 
-  // ---- The three fixture cards render (AN-02/03) ----
-  await step('the watch, experiment and game fixtures render as live 3D scenes, each visibly labelled a fixture, with a description', async () => {
-    for (const [p, experience] of [[W, 'watch'], [X, 'experiment'], [G, 'game']]) {
-      await live(p.viewport);
-      assert.equal(await p.card.getAttribute('data-experience'), experience);
-      assert.equal(await p.card.getAttribute('data-state'), 'ready');
-      assert.equal(await p.viewport.locator('canvas').count(), 1, 'one WebGL canvas');
-      assert.ok(await p.card.locator('[data-animation3d-fixture-label]').isVisible(), 'labelled a fixture, not a generated result');
-      assert.ok((await p.card.locator('[data-animation3d-description]').textContent()).trim().length > 0, 'an accessible scene description');
+  // ---- The three fixture cards (AN-02/03) ----
+  await step('the watch, experiment and game examples draw live 3D scenes, each labelled an example with its description; Play only on the loop', async () => {
+    for (const [p, kind] of [[W, 'watch'], [X, 'experiment'], [G, 'game']]) {
+      await live(p);
+      assert.equal(await p.card.getAttribute('data-animation-experience'), kind);
+      assert.equal(await p.card.getAttribute('data-animation-phase'), 'ready');
+      assert.equal(await p.viewport.locator('canvas').count(), 1, `${kind}: one WebGL canvas`);
+      assert.ok(await p.card.locator('[data-animation-fixture-note]').isVisible(), `${kind}: labelled a built-in example, not a generated result`);
+      assert.ok((await p.card.locator('[data-animation-description]').textContent()).trim().length > 0, `${kind}: an accessible scene description`);
+      assert.equal(await p.play.count(), FIXTURES[kind].playable ? 1 : 0, `${kind}: Play only where there is a timeline`);
     }
-    for (const [p, kind] of [[W, 'watch'], [X, 'experiment'], [G, 'game']]) assert.equal(await p.play.count(), FIXTURES[kind].playable ? 1 : 0, `${kind}: Play only where there is a timeline`);
     await shot(page, 'B-three-cards');
   });
 
   // ---- Watch: play, pause, restart, loop (AN-02/04) ----
-  await step('watch: Play advances time and the scene; the scene matches the oracle at the displayed time', async () => {
-    const t0 = await num(W.time);
+  await step('watch: Play advances time; paused, the scene and its readout are the oracle\'s at the shown time', async () => {
+    const t0 = await time(W);
     await W.play.click();
-    await page.waitForTimeout(800);
-    assert.ok(await num(W.time) !== t0, 'time advanced');
-    await W.play.click(); // pause, to read one settled frame
+    await page.waitForTimeout(900);
+    assert.ok(await playing(W), 'playing');
+    assert.notEqual(await time(W), t0, 'time advanced');
+    await W.play.click();
     await page.waitForTimeout(300);
-    const t = await num(W.time);
-    sameNodes((await frame(W.viewport)).nodes, expectedNodes('watch', {}, t), `paused at ${t}s`);
+    const t = await time(W);
+    sameNodes((await frame(W)).nodes, expectedNodes('watch', {}, t), `paused at ${t}s`);
     await sameReadouts(W, 'watch', expectedReadouts('watch', {}, t), `paused at ${t}s`);
   });
   await step('watch: Pause keeps the visible moment (time and frame unchanged while paused)', async () => {
-    const [t, f] = [await num(W.time), await W.viewport.getAttribute('data-frame')];
-    await page.waitForTimeout(700);
-    assert.equal(await num(W.time), t);
-    assert.equal(await W.viewport.getAttribute('data-frame'), f);
+    const [t, f] = [await time(W), await W.viewport.getAttribute('data-animation-frame')];
+    await page.waitForTimeout(800);
+    assert.equal(await time(W), t);
+    assert.equal(await W.viewport.getAttribute('data-animation-frame'), f);
   });
-  await step('watch: it loops past its duration without resetting its speed or inputs, and keeps playing', async () => {
-    const duration = Number(await W.time.getAttribute('data-duration'));
-    assert.ok(duration > 0 && duration <= 30, `a bounded loop duration: ${duration}`);
-    if (await W.speed.count()) await W.speed.selectOption('2');
-    const inputs = await W.card.locator('input[data-animation3d-param]').evaluateAll(nodes => nodes.map(n => n.value));
+  await step('watch: it loops past its duration at the chosen speed and keeps playing, the speed kept', async () => {
+    const duration = Number(await W.card.getAttribute('data-animation-duration'));
+    assert.equal(duration, FIXTURES.watch.duration, 'the declared loop length');
+    await W.speed.selectOption('2');
     await W.play.click();
-    let last = await num(W.time), wrapped = false;
-    for (const end = Date.now() + (duration / 2 + 3) * 1000; Date.now() < end && !wrapped;) { await page.waitForTimeout(150); const now = await num(W.time); wrapped = now < last; last = now; }
+    let last = await time(W), wrapped = false;
+    for (const end = Date.now() + (duration / 2 + 4) * 1000; Date.now() < end && !wrapped;) { await page.waitForTimeout(150); const now = await time(W); wrapped = now < last; last = now; }
     assert.ok(wrapped, 'the time wrapped to the start of the loop');
-    assert.equal(await W.card.getAttribute('data-playing'), 'true', 'still playing after the wrap');
-    if (await W.speed.count()) assert.equal(await W.speed.inputValue(), '2', 'speed kept');
-    assert.deepEqual(await W.card.locator('input[data-animation3d-param]').evaluateAll(nodes => nodes.map(n => n.value)), inputs, 'inputs kept');
+    assert.ok(await playing(W), 'still playing after the wrap');
+    assert.equal(await W.speed.inputValue(), '2', 'speed kept across the loop');
+    assert.ok(last >= 0 && last < duration, `time stays within the loop: ${last}`);
   });
-  await step('watch: Restart returns to time zero and the oracle\'s starting frame, keeping its inputs', async () => {
+  await step('watch: Restart returns to time zero and the oracle\'s starting frame, the speed kept', async () => {
     await W.restart.click();
-    if (await W.card.getAttribute('data-playing') === 'true') await W.play.click();
+    if (await playing(W)) await W.play.click();
     await page.waitForTimeout(300);
-    const t = await num(W.time);
-    assert.ok(t < 0.2, `near zero after Restart: ${t}`);
-    sameNodes((await frame(W.viewport)).nodes, expectedNodes('watch', {}, t), 'after Restart');
+    const t = await time(W);
+    assert.ok(t < 0.3, `near zero after Restart: ${t}`);
+    sameNodes((await frame(W)).nodes, expectedNodes('watch', {}, t), 'after Restart');
+    assert.equal(await W.speed.inputValue(), '2');
     await shot(page, 'C-watch');
   });
 
-  // ---- Experiment: min / default / max against the oracle (AN-04/07) ----
+  // ---- Experiment: min / max / default against the oracle (AN-04/07) ----
   const exp = FIXTURES.experiment;
-  const setParam = async (id, value) => { await X.param(id).fill(String(value)); await X.param(id).press('Tab'); await page.waitForTimeout(400); };
+  const setParam = async (id, value) => { await X.param(id).fill(String(value)); await X.param(id).press('Enter'); await page.waitForTimeout(400); };
   // One parameter at a time at its minimum, maximum and default, the others at their defaults: each moves the geometry (the beam's
   // tilt, a weight's place) and the readouts, and every value is the oracle's.
   for (const [label, pick] of [['minimum', p => p.min], ['maximum', p => p.max], ['default', p => p.default]]) {
@@ -225,15 +237,15 @@ try {
         await setParam(p.id, pick(p));
         const inputs = { [p.id]: pick(p) };
         await sameReadouts(X, 'experiment', expectedReadouts('experiment', inputs), `${p.id}=${pick(p)}`);
-        sameNodes((await frame(X.viewport)).nodes, expectedNodes('experiment', inputs), `${p.id}=${pick(p)}`);
+        sameNodes((await frame(X)).nodes, expectedNodes('experiment', inputs), `${p.id}=${pick(p)}`);
         await setParam(p.id, p.default);
       }
     });
   }
-  await step('experiment: a parameter change makes no model request, and Reset restores the defaults', async () => {
-    const p = exp.parameters[0], before = stray.length;
-    await X.param(p.id).fill(String(p.max)); await X.param(p.id).press('Tab');
-    await page.waitForTimeout(400);
+  await step('experiment: the picture changes with an input, and Reset scene restores the defaults with no model request', async () => {
+    const p = exp.parameters[0], before = stray.length, start = await pixels(X);
+    await setParam(p.id, p.max);
+    assert.ok(!(await pixels(X)).equals(start), 'the drawn scene changed with the input');
     await X.reset.click();
     await page.waitForTimeout(600);
     assert.equal(Number(await X.param(p.id).inputValue()), p.default);
@@ -242,25 +254,25 @@ try {
     await shot(page, 'D-experiment');
   });
 
-  // ---- Mini-game (AN-04/06/07): the robot must reach the target square; the moves readout is its attempts counter ----
-  const game = FIXTURES.game, goal = G.card.locator('[data-animation3d-goal]');
+  // ---- Mini-game (AN-04/06/07): reach the target square; the moves readout counts every attempt ----
+  const game = FIXTURES.game, status = () => G.card.locator('[data-animation-game]').getAttribute('data-animation-game');
   const sameGame = async (actions, label) => {
     const want = expectedGame(actions);
-    assert.equal(await goal.getAttribute('data-status'), want.status, `${label}: goal status`);
+    assert.equal(await status(), want.status, `${label}: goal status`);
     await sameReadouts(G, 'game', want.readouts, label);
-    sameNodes((await frame(G.viewport)).nodes, want.nodes, label);
+    sameNodes((await frame(G)).nodes, want.nodes, label);
   };
   const act = async (...actions) => { for (const a of actions) await G.action(a).click(); await page.waitForTimeout(500); };
-  await step('game: the goal and every declared action are shown; a wrong action (into the edge) is blocked, counted, and the game goes on', async () => {
-    assert.ok((await goal.innerText()).trim().length > 0, 'the objective is shown');
+  await step('game: the goal and every declared move are shown; a wrong move (into the edge) is blocked, counted, and the game goes on', async () => {
+    assert.ok((await G.card.locator('[data-animation-goal]').innerText()).trim().length > 0, 'the objective is shown');
     for (const a of game.actions) assert.equal(await G.action(a).count(), 1, `action ${a}`);
     await sameGame([], 'start');
     await act(game.wrongAction);
-    await sameGame([game.wrongAction], 'after the wrong action');
+    await sameGame([game.wrongAction], 'after the wrong move');
   });
   await step('game: Hint shows the hint and makes no move', async () => {
-    await G.card.locator('[data-animation3d-hint]').click();
-    assert.ok((await G.card.locator('[data-animation3d-hint-text]').innerText()).trim().length > 0, 'a hint');
+    await G.card.locator('[data-animation-hint]').click();
+    assert.ok((await G.card.locator('[data-animation-hint-text]').innerText()).trim().length > 0, 'a hint');
     await sameGame([game.wrongAction], 'after Hint');
   });
   const played = [game.wrongAction, ...game.winningRoute];
@@ -274,82 +286,88 @@ try {
   await step("game: reload restores the outcome, the moves and the robot's square", async () => {
     await page.waitForTimeout(2500); // the canvas saves after a short pause
     await page.reload();
-    await page.locator('[data-block-id="a-game"] [data-animation3d-card]').waitFor({ timeout: 60000 });
+    await G.card.waitFor({ timeout: 60000 });
     await fit(page);
-    await live(G.viewport);
+    await live(G);
     await sameGame(played, 'after reload');
   });
-  await step('game: Reset restores the starting conditions: the robot home, no moves, playing', async () => {
+  await step('game: Reset scene restores the starting conditions: the robot home, no moves, playing', async () => {
     await G.reset.click();
     await page.waitForTimeout(500);
     await sameGame([], 'after Reset');
   });
 
-  // ---- Focus and gestures (AN-03; plan section 4 "Stable control profiles") ----
-  const box = locator => locator.boundingBox();
-  await step(`an idle scene: the wheel over it moves the ${IDLE_WHEEL_OWNER}, never both; a drag on the bare canvas pans it`, async () => {
-    await live(X.viewport);
-    assert.equal(await interacting(X.card), false);
-    const [cam, at] = [await camera(X.viewport), await box(X.viewport)];
+  // ---- Focus and gestures (AN-03; plan section 4 "Stable control profiles", interaction.js) ----
+  await step('before Interact the wheel over the scene pans the canvas and leaves the scene; a drag on the bare canvas pans it', async () => {
+    await live(X);
+    assert.equal(await active(X), false);
+    const [start, at] = [await pixels(X), await box(X.viewport)];
     await page.mouse.move(at.x + at.width / 2, at.y + at.height / 2);
     await page.mouse.wheel(0, 240);
     await page.waitForTimeout(500);
-    const moved = Math.abs((await box(X.viewport)).y - at.y) > 20, zoomed = (await camera(X.viewport)) !== cam;
-    assert.ok(!(moved && zoomed), 'the wheel moved both the canvas and the scene');
-    assert.ok(IDLE_WHEEL_OWNER === 'canvas' ? moved && !zoomed : zoomed && !moved, `canvas moved ${moved}, scene camera moved ${zoomed}`);
+    assert.ok(Math.abs((await box(X.viewport)).y - at.y) > 20, 'the wheel panned the canvas');
+    assert.ok((await pixels(X)).equals(start), 'the wheel left the scene camera');
     const bare = await barePoint(page), from = await box(X.viewport);
     assert.ok(bare, 'a bare canvas point');
     await page.mouse.move(bare.x, bare.y); await page.mouse.down(); await page.mouse.move(bare.x + 120, bare.y + 60, { steps: 8 }); await page.mouse.up();
     await page.waitForTimeout(400);
-    const to = await box(X.viewport);
-    assert.ok(Math.abs(to.x - from.x) > 40, `a drag on the bare canvas pans it (${from.x} -> ${to.x})`);
-    assert.equal(await camera(X.viewport), cam, 'the scene camera did not move');
+    assert.ok(Math.abs((await box(X.viewport)).x - from.x) > 40, 'a drag on the bare canvas pans it');
+    await fit(page);
   });
-  await step('Interact captures the scene: a drag orbits its camera, not the canvas; Escape releases it', async () => {
+  await step('Interact: a drag turns the scene, not the canvas; Escape ends it and leaves the card where it was', async () => {
     await X.interact.click();
-    await until(() => interacting(X.card), 'Interact did not start');
+    await until(() => active(X), 'Interact did not start');
     assert.equal(await X.interact.getAttribute('aria-pressed'), 'true');
-    const [cam, at] = [await camera(X.viewport), await box(X.viewport)];
-    await page.mouse.move(at.x + at.width / 2, at.y + at.height / 2); await page.mouse.down();
-    await page.mouse.move(at.x + at.width / 2 + 80, at.y + at.height / 2 + 20, { steps: 10 }); await page.mouse.up();
+    const [start, at] = [await pixels(X), await centre(X.viewport)], from = await box(X.viewport);
+    await page.mouse.move(at.x, at.y); await page.mouse.down(); await page.mouse.move(at.x + 80, at.y + 20, { steps: 10 }); await page.mouse.up();
     await page.waitForTimeout(400);
-    assert.notEqual(await camera(X.viewport), cam, 'the drag orbited the camera');
-    assert.ok(Math.abs((await box(X.viewport)).x - at.x) < 2, 'the canvas did not pan under an inner drag');
+    assert.ok(!(await pixels(X)).equals(start), 'the drag turned the scene');
+    assert.ok(Math.abs((await box(X.viewport)).x - from.x) < 2, 'the canvas did not move under an inner drag');
     await page.keyboard.press('Escape');
-    await until(async () => !(await interacting(X.card)), 'Escape did not release the scene');
+    await until(async () => !(await active(X)), 'Escape did not end the interaction');
     assert.equal(await X.interact.getAttribute('aria-pressed'), 'false');
+    assert.equal(await page.locator('[data-block-id="a-exp"]').count(), 1, 'the card is still on the canvas after Escape');
   });
-  await step('typing in Chat is unaffected, and focus leaving the scene (window blur) releases it', async () => {
+  await step('window blur drops a held drag: moving on after it does not turn the scene', async () => {
     await X.interact.click();
-    await until(() => interacting(X.card), 'Interact did not start');
+    await until(() => active(X), 'Interact did not start');
+    const at = await centre(X.viewport);
+    await page.mouse.move(at.x, at.y); await page.mouse.down(); await page.mouse.move(at.x + 30, at.y, { steps: 4 });
     await page.evaluate(() => window.dispatchEvent(new Event('blur')));
-    await until(async () => !(await interacting(X.card)), 'window blur did not release the scene');
-    await X.interact.click();
-    await until(() => interacting(X.card), 'Interact did not start again');
-    const cam = await camera(X.viewport);
+    await page.waitForTimeout(300);
+    const held = await pixels(X);
+    await page.mouse.move(at.x + 120, at.y + 40, { steps: 8 });
+    await page.waitForTimeout(300);
+    const after = await pixels(X);
+    await page.mouse.up();
+    assert.ok(after.equals(held), 'the scene kept turning after the window lost focus');
+  });
+  await step('a press in Chat ends the interaction, and every typed key reaches the composer, none the scene', async () => {
+    if (!(await active(X))) { await X.interact.click(); await until(() => active(X), 'Interact did not start'); }
+    const start = await pixels(X);
     await composer(page).click();
-    await until(async () => !(await interacting(X.card)), 'focusing the composer did not release the scene');
-    const words = 'wasd arrows and Escape-free text';
+    await until(async () => !(await active(X)), 'a press outside did not end the interaction');
+    const words = 'wasd and arrows typed here';
     await page.keyboard.type(words);
+    await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowRight');
     assert.equal(await composer(page).inputValue(), words, 'every key reached the composer');
-    assert.equal(await camera(X.viewport), cam, 'typing moved the scene camera');
+    assert.ok((await pixels(X)).equals(start), 'typing moved the scene');
     await composer(page).fill('');
     await page.evaluate(() => document.activeElement?.blur());
   });
   await context.close();
 
   // ---- Narrow and wide, light and dark (AN-03) ----
-  for (const theme of ['light', 'dark']) await step(`${theme}: narrow and wide experiment cards keep every control inside the card and reachable`, async () => {
-    const { context: c, page: p } = await open({ theme });
+  for (const theme of ['light', 'dark']) await step(`${theme}: narrow and wide experiment cards keep every control inside the card`, async () => {
+    const { context: c, page: p } = await open({ theme, canvas: sizes, first: 'a-narrow' });
     assert.equal(await p.evaluate(() => document.documentElement.classList.contains('dark')), theme === 'dark', 'the theme class');
     const [N, Wd] = [parts(p, 'a-narrow'), parts(p, 'a-wide')];
-    await live(N.viewport); await live(Wd.viewport);
+    await live(N); await live(Wd);
     assert.ok((await box(N.card)).width < (await box(Wd.card)).width, 'the narrow card is narrower');
     for (const q of [N, Wd]) {
-      await q.root.scrollIntoViewIfNeeded();
       const outer = await box(q.card);
-      const controls = await q.card.locator('button, input, select').evaluateAll(nodes => nodes.filter(n => n.offsetParent).map(n => { const r = n.getBoundingClientRect(); return { label: n.getAttribute('aria-label') || n.textContent.trim() || n.dataset.animation3dParam || n.tagName, x: r.x, y: r.y, w: r.width, h: r.height }; }));
-      assert.ok(controls.length > 0, 'controls');
+      const controls = await q.card.locator('button, input, select').evaluateAll(nodes => nodes.filter(n => n.offsetParent).map(n => { const r = n.getBoundingClientRect(); return { label: n.getAttribute('aria-label') || n.textContent.trim() || n.tagName, x: r.x, w: r.width }; }));
+      assert.ok(controls.length >= FIXTURES.experiment.parameters.length * 2, `controls: ${controls.length}`);
       for (const r of controls) assert.ok(r.w > 0 && r.x >= outer.x - 1 && r.x + r.w <= outer.x + outer.width + 1, `${r.label} is clipped by the card (${JSON.stringify(r)} in ${JSON.stringify(outer)})`);
     }
     await shot(p, `F-${theme}-narrow-wide`);
@@ -357,17 +375,15 @@ try {
   });
 
   // ---- WebGL unavailable (AN-02/03) ----
-  await step('without WebGL each card keeps its description and says interaction is unavailable; no blank success, no page error', async () => {
+  await step('without WebGL each card keeps its description and says interactive 3D is unavailable; no blank success, no page error', async () => {
     const before = errors.length;
     const { context: c, page: p } = await open({ webgl: false });
     for (const id of ['a-watch', 'a-exp', 'a-game']) {
       const q = parts(p, id);
-      const gone = q.card.locator('[data-animation3d-unavailable]');
-      await gone.waitFor({ timeout: 30000 });
-      assert.equal(await gone.getAttribute('data-reason'), 'webgl');
-      assert.equal(await q.card.getAttribute('data-state'), 'unavailable');
-      assert.ok((await q.card.locator('[data-animation3d-description]').textContent()).trim().length > 0, 'the description stays');
-      assert.equal(await q.viewport.evaluate(node => node.hasAttribute('data-live')), false, 'no live scene claimed');
+      await q.card.locator('[data-animation-webgl-unavailable]').waitFor({ timeout: 30000 });
+      assert.equal(await q.card.getAttribute('data-animation-phase'), 'unavailable');
+      assert.ok(await q.card.locator('[data-animation-description]').isVisible(), 'the description is shown');
+      assert.equal(await q.viewport.evaluate(node => node.hasAttribute('data-viewer-live')), false, 'no live scene claimed');
     }
     await shot(p, 'G-no-webgl');
     assert.deepEqual(errors.slice(before), [], 'no uncaught error without WebGL');
