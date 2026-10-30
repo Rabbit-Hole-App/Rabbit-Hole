@@ -22,6 +22,7 @@ import { assetKeysOf } from '../../web/src/learn-board-assets.js';
 import { boardFileLimit, formatBytes } from '../../web/src/file-capabilities.js';
 import { retainedFileSources } from '../../web/src/file-context-manifest.js';
 import { linkAccess, sharedState } from './shared-privacy.js';
+import { publicExplainBack } from '../../web/src/explain-back-private.js';
 import { fileRefSources, fileRefStatements, inheritFileRefs } from './file-refs.js';
 import { clientMismatch, uploadBody } from './upload-body.js';
 import { redactRepositoryCards, restoreRedactedCards, sharedCardSource } from './repository-cards.js';
@@ -480,7 +481,10 @@ export function forkState(state, canvas = null) {
   if (out.exchanges) out.exchanges = out.exchanges.map(exchange => ({ ...exchange, status: 'done' }));
   // A copied CAD artifact is an immutable snapshot, not control of the source
   // canvas's durable job. Retain its indexed file references for authorized reads.
+  // An Explain-back card is copied as its exercise: the answer, attempts, Sketch and store binding stay with the source's
+  // learner (plan 2026-10-30-explain-back.md section 9), even in the owner's own duplicate.
   if (out.blocks) out.blocks = out.blocks.map(block => {
+    block = publicExplainBack(block);
     if (block?.type !== 'cad') return block;
     const { jobId, modelId, manifestUrl, proposedRevisionId, ...copy } = block;
     return { ...copy, cadDetached: true, status: copy.manifest ? 'ready' : 'failed' };

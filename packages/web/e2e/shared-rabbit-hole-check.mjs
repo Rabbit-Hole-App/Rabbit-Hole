@@ -35,6 +35,28 @@ const kitchen = await shareCanvas('Kitchen chemistry', [
 const bridges = await shareCanvas('Bridge loads', [
   { id: 'b-cards', type: 'flashcards', dx: 0, dy: 0, cards: [{ front: 'What is a truss?', back: 'A frame of triangles that carries load as tension and compression.' }, { front: 'Where is the bending moment largest?', back: 'At mid-span, for a simply supported beam under a uniform load.' }] },
 ]);
+// EB-02.4: a third shared canvas holds an Explain-back card with its learner's own state and an Input link to a note. The
+// public link answers the exercise and the wiring, never the answer, attempts, drafts, Sketch or store binding.
+const EB_PRIVATE = 'EB-PRIVATE';
+const pendulum = await (async () => {
+  const canvas = (await api(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: 'Pendulum explain-back' }) })).body;
+  const blocks = [
+    { id: 'p-eb', type: 'challenge', mode: 'explain_back', dx: 0, dy: 0, prompt: 'Why does the period not depend on the amplitude?', hint: 'Small angles.', expects: ['restoring force'],
+      answer: `${EB_PRIVATE}-answer`, attemptId: `${EB_PRIVATE}-attempt`, verdict: `${EB_PRIVATE}-verdict`, history: [{ answer: `${EB_PRIVATE}-old` }], draft: `${EB_PRIVATE}-draft`,
+      voice: [{ assetId: `aa_${EB_PRIVATE}` }], sketch: { draftId: `${EB_PRIVATE}-sketch`, strokes: [], shapes: [], items: [] }, sketchSubmitted: true, sketchPinned: true },
+    { id: 'p-note', type: 'explanation', dx: 0, dy: 0, title: 'Pendulum', body: 'T = 2 pi sqrt(L / g) for small swings.' },
+  ];
+  const links = [{ id: 'p-input', kind: 'explain-input', from: 'p-note', fromSide: 'bottom', to: 'p-eb', toSide: 'input' }];
+  const state = { strokes: [], shapes: [], items: [], links, groups: [], areas: [], blocks, exchanges: [] };
+  const shared = (await api(owner, `/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true, state }) })).body;
+  return { canvas, token: shared.sharing.view };
+})();
+{
+  const view = JSON.stringify((await api(null, `/api/learn/boards/shared/${pendulum.token}`)).body);
+  assert.ok(view.includes('Why does the period not depend on the amplitude?') && view.includes('p-input'), 'EB-02.4 the shared view keeps the exercise and its Input link');
+  assert.ok(!view.includes(EB_PRIVATE), 'EB-02.4 the shared view carries none of the learner Explain-back state');
+  console.log('ok EB-02.4 a shared Explain-back card shows its exercise and Input link only');
+}
 const ownerBoard = async source => JSON.stringify((await api(owner, `/api/learn/boards/${source.canvas.name}/main`)).body);
 const sharedView = async source => (await api(null, `/api/learn/boards/shared/${source.token}`)).body;
 const ownerThreads = async source => ((await api(owner, `/api/ask/threads?scope=learn&ref=${source.canvas.name}`)).body?.threads || []).length;
