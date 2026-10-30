@@ -185,7 +185,7 @@ test('resolveReferences: files and code are read under the asker\'s access, anyt
   assert.equal((await resolveReferences(env, motion, ctx, { read: async () => { called++; return { refs: [] }; } })).states[0].state, 'unsupported');
   assert.equal(called, 0);
   assert.deepEqual(await resolveReferences(env, await v3(), ctx, { read }), { states: [], blocked: [], text: '', refs: [], evidence: [] });
-  assert.deepEqual(CONSUMES, { motion: [], explain: ['file', 'code'] });
+  assert.deepEqual(CONSUMES, { motion: [], explain: ['file', 'code'], animation: ['file', 'code'] });
   assert.equal(referencesKey([FILE, CODE]), `r1|${FILE.sourceId}|${sha},r2|code:repo/main.js|abc123`);
 });
 
