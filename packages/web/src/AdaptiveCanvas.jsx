@@ -247,7 +247,7 @@ function startDrag(event, origin, apply, scale = 1, snap = null) {
   const stop = () => {
     gestureLive = false;
     document.body.classList.remove('canvas-dragging');
-    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('keydown', key, true); window.removeEventListener('keyup', key, true);
+    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up, true); window.removeEventListener('keydown', key, true); window.removeEventListener('keyup', key, true);
     apply.done?.(); snap?.done?.();
   };
   const up = () => stop();
@@ -263,7 +263,9 @@ function startDrag(event, origin, apply, scale = 1, snap = null) {
     if (dragging && last) at(last, e);
   };
   window.addEventListener('pointermove', move);
-  window.addEventListener('pointerup', up);
+  // Capture: a release over UI that stops its own events (the docked Sketch panel's React handlers stop pointerup at the
+  // React root, so a bubbling window listener never heard it) still ends the drag.
+  window.addEventListener('pointerup', up, true);
   window.addEventListener('keydown', key, true);
   window.addEventListener('keyup', key, true);
 }
@@ -4593,14 +4595,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // Esc cancels an unfinished stroke or shape: nothing is added, nothing is undoable (docs/features/canvas-editing.md).
     const listen = (move, up, key) => {
       gestureLive = true;
-      const stop = () => { gestureLive = false; window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', finish); window.removeEventListener('keydown', keys, true); window.removeEventListener('keyup', keys, true); };
+      const stop = () => { gestureLive = false; window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', finish, true); window.removeEventListener('keydown', keys, true); window.removeEventListener('keyup', keys, true); };
       const finish = e => { stop(); up(e); };
       const keys = e => {
         if (e.type === 'keydown' && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); stop(); key('cancel'); return; }
         if (e.key === 'Shift' || e.key === 'Alt') { if (e.key === 'Alt') e.preventDefault(); key(e); }
       };
       window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', finish);
+      // Capture, as startDrag: releasing inside the docked Sketch panel (which stops pointerup) must still end the stroke or
+      // shape, not leave it following the pointer until the next release elsewhere (fast-e2e run 41032431618).
+      window.addEventListener('pointerup', finish, true);
       window.addEventListener('keydown', keys, true);
       window.addEventListener('keyup', keys, true);
     };
@@ -4654,9 +4658,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         }));
       };
       erase(event);
-      const up = () => { window.removeEventListener('pointermove', erase); window.removeEventListener('pointerup', up); };
+      const up = () => { window.removeEventListener('pointermove', erase); window.removeEventListener('pointerup', up, true); };
       window.addEventListener('pointermove', erase);
-      window.addEventListener('pointerup', up);
+      window.addEventListener('pointerup', up, true);
     } else if (tool === 'sticky' || tool === 'text') {
       // preventDefault keeps the click from blurring the fresh editable note.
       event.preventDefault();
