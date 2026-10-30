@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "about": "Explain-back assessment quality corpus (plan 2026-10-30-explain-back.md section 12, Quality fixtures). Synthetic learner answers only. Each case states the judgment(s) a sound assessment may give per key idea; anything else fails the case. Transcripts are fixed text: speech recognition is not evaluated here. Key ideas are bound with reasoning required (D, EB-02): an idea stated without its reason is partly demonstrated, so expectations for the velocity idea accept that wherever the answer gives no reason.",
+  "about": "Explain-back assessment quality corpus (plan 2026-10-30-explain-back.md section 12, Quality fixtures). Synthetic learner answers only. Each case states the judgment(s) a sound assessment may give per key idea; anything else fails the case. Transcripts are fixed text: speech recognition is not evaluated here. Key ideas are bound with reasoning required (D, EB-02); a plain factual statement idea (velocity here) may be judged with reasoning not_applicable for full credit (P ruling, eb-rating-v2), so a fully correct answer can reach 10/10.",
   "cards": {
     "circle": {
       "prompt": "A ball on a string moves in a horizontal circle at constant speed. Explain which way the net force and the velocity point, and why.",
@@ -30,13 +30,12 @@
             "demonstrated"
           ],
           "velocity": [
-            "demonstrated",
-            "partly_demonstrated"
+            "demonstrated"
           ]
         },
         "rating": {
           "status": "rated",
-          "min": 7
+          "min": 10
         }
       }
     },
@@ -54,8 +53,7 @@
             "not_established"
           ],
           "velocity": [
-            "demonstrated",
-            "partly_demonstrated"
+            "demonstrated"
           ]
         },
         "rating": {
@@ -102,15 +100,15 @@
             "demonstrated"
           ],
           "velocity": [
-            "demonstrated",
-            "partly_demonstrated"
+            "demonstrated"
           ]
         },
         "coverage": {
           "voice": "transcriptOnly"
         },
         "rating": {
-          "status": "rated"
+          "status": "rated",
+          "min": 8
         }
       }
     },
@@ -219,8 +217,7 @@
             "partly_demonstrated"
           ],
           "velocity": [
-            "demonstrated",
-            "partly_demonstrated"
+            "demonstrated"
           ]
         },
         "question": [
@@ -407,8 +404,7 @@
             "demonstrated"
           ],
           "velocity": [
-            "demonstrated",
-            "partly_demonstrated"
+            "demonstrated"
           ]
         },
         "comparison": {
@@ -416,7 +412,7 @@
             "prior_feedback_corrected"
           ]
         },
-        "note": "eval-live-1: velocity was partly_demonstrated because the answer states the direction without a reason and the bound idea requires reasoning; the evaluator also corrected the prior review's reasoning claim. That is the rubric, not anchoring; the force judgment and prior_feedback_corrected are the anchoring checks."
+        "note": "eval-live-1: velocity was partly_demonstrated only because a statement idea had no way to say no reason applies; with not_applicable (eb-rating-v2) it is demonstrated again. The anchoring checks are the force judgment and prior_feedback_corrected."
       }
     }
   ]

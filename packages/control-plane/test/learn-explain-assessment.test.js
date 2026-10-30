@@ -677,3 +677,23 @@ test('eval-live-1 unreadable recording reply: prose with braces around the JSON 
   assert.equal(shape.fenced, true);
   assert.equal(JSON.stringify(broken.body.assessment.provenance).includes('ball'), false, 'never the reply text');
 });
+
+test('a plain statement idea may have no reasoning to give (not_applicable, justified); a causal idea may not', async t => {
+  const w = await ebWorld(t);
+  const na = (extra = {}) => ({ ...j(V, 'met', ['The velocity is tangent to the circle']), reasoning: 'not_applicable', reasoningJustification: 'The idea is a statement of direction; it asks for no reason.', ...extra });
+  const stub = replying({ criteria: [j(F, 'met', ['The net force points toward the centre: without it the ball would keep going straight']), na()] });
+  const r = await send(w, { text: A2 }, { callModel: stub.callModel });
+  assert.match(stub.calls[0].body.system, /Use "not_applicable" only when the requirement itself is a plain factual statement/);
+  const v = reviewOf(r).judgments[1];
+  assert.deepEqual([v.judgment, v.fit, v.reasoning, v.reasoningBasis], ['demonstrated', 'met', 'not_required', 'not_applicable']);
+  assert.match(v.reasoningJustification, /asks for no reason/);
+  assert.deepEqual([reviewOf(r).rating.score, reviewOf(r).rating.calculationVersion], [10, 'eb-rating-v2'], 'a fully correct answer reaches 10/10');
+  valid(r, { text: A2 });
+  // The force idea asks why: not_applicable there is unclear reasoning, so the attempt is Not rated.
+  const causal = await send(w, { text: `${A2} ` }, { callModel: replying({ criteria: [{ ...j(F, 'met', ['The net force points toward the centre']), reasoning: 'not_applicable', reasoningJustification: 'no reason needed' }, na()] }).callModel });
+  assert.deepEqual([reviewOf(causal).judgments[0].reasoning, reviewOf(causal).judgments[0].reasoningBasis], ['unclear', undefined]);
+  assert.deepEqual([reviewOf(causal).rating.status, reviewOf(causal).rating.unknown[0].reason], ['unrated', 'reasoning_unclear']);
+  // Without a justification the claim is not accepted either.
+  const bare = await send(w, { text: `${A2}  ` }, { callModel: replying({ criteria: [j(F, 'met', ['The net force points toward the centre']), na({ reasoningJustification: null })] }).callModel });
+  assert.equal(reviewOf(bare).rating.status, 'unrated');
+});

@@ -102,3 +102,11 @@ test('same evidence gives the same number; comparability needs the same calculat
   assert.equal(ratingsComparable(one, { ...two, calculationVersion: 'eb-rating-v0' }).reason, 'calculation_changed');
   assert.equal(ratingsComparable(one, rate(obs.slice(0, 3))).reason, 'not_rated');
 });
+
+test('eb-rating-v2: not_applicable reasoning earns full credit on a reasoning-required criterion; v1 ratings are not comparable', () => {
+  const crit = [C('fact', { requiresReasoning: true }), C('cause', { requiresReasoning: true })];
+  const r = rate([O('fact', 'met', 'not_applicable'), O('cause', 'met', 'supported')], crit);
+  assert.deepEqual([r.status, r.score, r.calculationVersion, r.criteria[0].credit], ['rated', 10, 'eb-rating-v2', 1]);
+  assert.equal(rate([O('fact', 'met', 'not_required'), O('cause', 'met', 'supported')], crit).unknown[0].reason, 'reasoning_unclear', 'not_required is still not a reason');
+  assert.equal(ratingsComparable({ ...r, calculationVersion: 'eb-rating-v1' }, r).reason, 'calculation_changed');
+});
