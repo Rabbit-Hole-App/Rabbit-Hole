@@ -9,5 +9,8 @@ calls running concurrently; at the cap, stop paid calls and continue unpaid work
 |---|---|---|---|---|---|---|---|---|---|
 | 1 | 2:32 PM | G acceptance.mjs | watch: failed (the plan stage ended failed: preparing/internal: The animation stopped unexpecte) | claude-opus-5-5 | 1 calls, repairs 0 | US$1.9549 | US$0.1216 (ledger; 1 unsettled counted at their reserve) | - | US$0.1216 |
 | 2 | 2:43 PM | G acceptance.mjs | watch: failed | claude-opus-5-5 | 5 calls, repairs 1 | US$1.9549 | US$0.4767 (ledger; 12 unsettled counted at their reserve) | - | US$0.5983 |
+| 3 | 2:51 PM | G acceptance.mjs | watch: awaiting_approval (GET /api/learn/animation/jobs/aj_384a51628e4041508745cf2648583eb8: fetch failed) | claude-opus-5-5 | 1 calls, repairs 0 | US$1.9549 | US$0.2113 (ledger; 6 unsettled counted at their reserve) | - | US$0.8096 |
+| 4 | 2:53 PM | G acceptance.mjs | experiment: failed | claude-opus-5-5 | 4 calls, repairs 1 | US$1.9549 | US$0.2417 (ledger; 6 unsettled counted at their reserve) | - | US$1.0513 |
+| 5 | 2:56 PM | G acceptance.mjs | game: ready | claude-opus-5-5 | 5 calls, repairs 1 | US$1.9549 | US$0.3325 (ledger; 12 unsettled counted at their reserve) | `ff4c8c09c716c842` | US$1.3838 |
 
-Total actual: US$0.5983. Reserved in flight: US$0.00. Remaining: US$9.4017.
+Total actual: US$1.3838. Reserved in flight: US$0.00. Remaining: US$8.6162.
