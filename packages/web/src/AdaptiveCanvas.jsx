@@ -2977,7 +2977,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   useEffect(() => {
     const element = surface.current;
     if (!element) return undefined;
-    const focused = event => { const target = event.target; if (!focusRef.current && target?.matches?.(':focus-visible') && target.closest('[data-block]')) revealFocusRef.current(target); };
+    // A control (a button, a slider, a choice), never a text field: a field shows :focus-visible on a click too, and its caret has
+    // its own reveal (docCaret); moving the camera under a learner's typing is not this rule's job.
+    const typing = target => target.isContentEditable || target.tagName === 'TEXTAREA' || (target.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'submit', 'color'].includes(target.type));
+    const focused = event => { const target = event.target; if (!focusRef.current && target?.matches?.(':focus-visible') && !typing(target) && target.closest('[data-block]')) revealFocusRef.current(target); };
     element.addEventListener('focusin', focused);
     return () => element.removeEventListener('focusin', focused);
   }, []);
