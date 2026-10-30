@@ -22,7 +22,8 @@ test('keyed_answer_uses_no_provider: a keyed choice is graded in code; a correct
   const { activity } = await choice(w.env);
   const right = await submit(w.env, ANA, activity, { submissionKey: 'sub-key-right', submittedContent: { optionId: 'y' } }, never);
   assert.equal(right.status, 200, JSON.stringify(right.body));
-  const a = right.body.assessment;
+  // stored: the route drops provenance diagnostics (calls, models, usage, latency) from the learner's response
+  const a = (await readAttempt(w.env, ANA, right.body.attempt.attemptId)).assessment;
   assert.deepEqual([a.status, a.route, a.provenance.calls, a.provenance.checker], ['completed', 'keyed', [], 'journey_probe_key']);
   assert.deepEqual(a.observations.map(o => [o.criterionId, o.fit, o.reasoning, o.assistance, o.reason]), [['mech', 'met', 'missing', 'none', 'correct_option']]);
   assert.equal(summaryOf(right.body).status, 'practising', 'reasoning is required, so a right option is not demonstrated');
@@ -80,7 +81,7 @@ test('refused_escalation_keeps_unresolved_evidence: the spend guard refuses the 
   const { activity } = await journeyActivity(w.env);
   const blocked = larger();
   const r = await submit(w.env, ANA, activity, {}, { ask: jev(CONTESTED).ask, callModel: blocked.callModel });
-  const a = r.body.assessment;
+  const a = (await readAttempt(w.env, ANA, r.body.attempt.attemptId)).assessment; // stored: the route drops provenance diagnostics
   assert.equal(blocked.calls.length, 0, 'refused before transport');
   assert.deepEqual([a.status, a.route, a.reason, a.provenance.escalation.outcome], ['completed', 'jev', 'escalation_refused', 'refused']);
   assert.deepEqual(a.provenance.calls.at(-1).outcome, 'refused');
@@ -95,7 +96,7 @@ test('refused_escalation_keeps_unresolved_evidence: the spend guard refuses the 
   const capped = world(t);
   const { activity: third } = await journeyActivity(capped.env);
   const refusedJev = await submit(capped.env, ANA, third, {}, { ask: async () => { throw Object.assign(new JevError('daily_cap_reached', 'Jev refused by the daily spend guard.'), { called: false }); }, callModel: never.callModel });
-  assert.deepEqual([refusedJev.body.assessment.status, refusedJev.body.assessment.reason, refusedJev.body.assessment.provenance.calls[0].outcome], ['unavailable', 'allowance_refused', 'refused']);
+  assert.deepEqual([refusedJev.body.assessment.status, refusedJev.body.assessment.reason, (await readAttempt(capped.env, ANA, refusedJev.body.attempt.attemptId)).assessment.provenance.calls[0].outcome], ['unavailable', 'allowance_refused', 'refused']);
 });
 
 test('malformed_evaluation_does_not_update_counts: malformed output or a provider error is failed and observes nothing; the confirmed summary stays', async t => {

@@ -609,7 +609,8 @@ test('slow preparation: with under 15 s of the claim left, no evaluator is calle
     assert.equal(calls > 0, called, String(elapsed));
     if (!called) {
       assert.deepEqual([r.body.assessment.status, r.body.assessment.reason, r.body.assessment.observations.length], ['failed', 'preparation_slow', 0]);
-      assert.equal(r.body.assessment.provenance.preparationMs, elapsed);
+      // stored: the route drops provenance diagnostics (calls, models, usage, latency) from the learner's response
+      assert.equal((await readAttempt(w.env, ANA, r.body.attempt.attemptId)).assessment.provenance.preparationMs, elapsed);
     } else assert.equal(r.body.assessment.status, 'completed');
   }
 });

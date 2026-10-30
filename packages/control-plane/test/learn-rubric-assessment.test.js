@@ -147,7 +147,9 @@ test('failed_rubric_call_does_not_mark_wrong: error, malformed output, timeout, 
   for (const [key, deps, expected] of cases) {
     const r = await review(key, deps);
     assert.deepEqual([r.body.assessment.status, r.body.assessment.reason, r.body.assessment.observations], [...expected, []], key);
-    assert.equal(r.body.assessment.provenance.calls.length, 1, key);
+    // stored: the route drops provenance diagnostics (calls, models, usage, latency) from the learner's response
+    assert.equal((await readAttempt(w.env, ANA, id)).assessments.find(x => x.assessmentId === r.body.assessment.assessmentId).provenance.calls.length, 1, key);
+    assert.equal(r.body.assessment.provenance.calls, undefined, key);
     assert.deepEqual(statusOf(r.body), confirmed, `${key}: the confirmed summary stays`);
   }
   assert.equal(hang.calls, 1);
@@ -155,7 +157,7 @@ test('failed_rubric_call_does_not_mark_wrong: error, malformed output, timeout, 
   const capped = await writingWorld(t, { env: { SMALL_ENV: 'dev' } });
   const blocked = replying(WRITING_CASES.proposalA.reply);
   const refused = await send(capped, WRITING_CASES.proposalA.text, { ...never, callModel: blocked.callModel });
-  assert.deepEqual([refused.body.assessment.status, refused.body.assessment.reason, refused.body.assessment.provenance.calls[0].outcome, blocked.calls.length], ['unavailable', 'allowance_refused', 'refused', 0]);
+  assert.deepEqual([refused.body.assessment.status, refused.body.assessment.reason, (await readAttempt(capped.env, ANA, refused.body.attempt.attemptId)).assessment.provenance.calls[0].outcome, blocked.calls.length], ['unavailable', 'allowance_refused', 'refused', 0]);
   // No key and no injected transport: the real anthropic() says not configured; nothing is sent anywhere.
   const bare = await writingWorld(t);
   const unkeyed = await send(bare, WRITING_CASES.proposalA.text, { ask: never.ask });

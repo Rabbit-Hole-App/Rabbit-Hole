@@ -264,7 +264,7 @@ test('recovery: a lost response replays; a timeout or slow preparation calls not
   assert.deepEqual(list.body.attempts.map(a => a.attemptId), [rev.body.attempt.attemptId, slow.body.attempt.attemptId, timedOut.body.attempt.attemptId]);
 });
 
-test('learners see no dollar amounts: no response from the attempt routes has a cost, usd or micros key; the store keeps the cost', async t => {
+test('learners see no dollar amounts or diagnostics: no response from the attempt routes has a cost, usd, micros, model, usage or latency key; the store keeps them', async t => {
   const { w, content, deps, submit } = await mixedWorld(t);
   const keys = (value, out = []) => { if (Array.isArray(value)) value.forEach(v => keys(v, out)); else if (value && typeof value === 'object') for (const [k, v] of Object.entries(value)) { out.push(k); keys(v, out); } return out; };
   const priced = body => keys(body).filter(k => /cost|usd|micros|price|margin/i.test(k));
@@ -277,7 +277,12 @@ test('learners see no dollar amounts: no response from the attempt routes has a 
     list: (await raw(w.env, 'GET', '/api/learn/tutor/attempts', { cardId: 'card_circle' })).body,
     reassess: (await call(w.env, ANA, 'POST', `/api/learn/tutor/attempts/${id}/reassess`, { requestKey: 'eb-cost-reassess' }, deps(replying(MIXED_REPLY).callModel))).body,
   };
-  for (const [name, body] of Object.entries(responses)) assert.deepEqual(priced(body), [], name);
+  for (const [name, body] of Object.entries(responses)) {
+    assert.deepEqual(priced(body), [], name);
+    // and no internal diagnostics: provider calls, model names, token usage or latency (P ruling, 2026-10-30)
+    assert.deepEqual(keys(body).filter(k => k === 'calls' || /model|tokens|usage|latency/i.test(k)), [], name);
+  }
+  assert.ok(responses.read.assessment.provenance.review, 'what the card reads stays');
   const stored = (await readAttempt(w.env, ANA, id)).assessments;
   assert.ok(stored.some(a => a.provenance.calls?.some(c => typeof c.costUsd === 'number')), 'the stored provenance keeps the cost for the ledger');
 });
