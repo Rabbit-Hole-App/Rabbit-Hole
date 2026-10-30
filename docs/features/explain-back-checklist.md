@@ -44,7 +44,7 @@ States are kept separate: implemented (pushed) / unit-tested / browser-checked i
 | M3 Notebook, Group, attachments | implemented, unit-tested; browser checks registered, not yet run | Input/Group ports 85f131c87; frozen resolver e029c1777; inputSubmission 01f0927c7 |
 | M4 silent + narrated Sketch recording | implemented, unit-tested; live eval case failed (fix in progress) | sketch-recording a9145ca74, fd560c1d9; assessment adapter 7ba98bb3e |
 | M5 complete mixed answer + release | not started (release prep) | |
-| Supporting: shared-canvas check fix | pushed, verify + fast-e2e green; rides the next release gate |  |
+| Supporting: shared-canvas check fix | pushed, verify + fast-e2e green; rides the next release gate | `54f3d3fe20457a4b006669d1552a254a0f7817fd` |
 
 ## Tasks
 
