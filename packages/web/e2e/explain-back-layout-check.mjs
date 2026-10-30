@@ -16,7 +16,7 @@ import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
-const total = 9; // the number of check() steps below; keep it equal
+const total = 10; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(BASE)) throw Error('explain-back-layout-check runs against a local stack only');
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
@@ -126,6 +126,8 @@ await check('1 the Input mark, its hit area and the anchor of a connection to it
   await page.locator('[title="Reset zoom"]').click();
   await page.waitForTimeout(500);
   const seen = [];
+  // The later steps start from 100%, whether this one passes or not (fast-e2e run 41036157402 left them at 195%).
+  try {
   for (const [steps, button] of [[0, null], [3, 'Zoom out'], [6, 'Zoom in']]) {
     for (let i = 0; i < steps; i++) { await page.locator(`[title="${button}"]`).click(); await page.waitForTimeout(120); }
     await page.waitForTimeout(400);
@@ -138,8 +140,10 @@ await check('1 the Input mark, its hit area and the anchor of a connection to it
   }
   assert.ok(seen.length === 3, seen.join(', '));
   console.log(`   zooms: ${seen.join(' | ')}`);
-  await page.locator('[title="Reset zoom"]').click();
-  await page.waitForTimeout(500);
+  } finally {
+    await page.locator('[title="Reset zoom"]').click();
+    await page.waitForTimeout(500);
+  }
 });
 
 // ---- one panel, and the content dot only for real content ----
@@ -214,6 +218,28 @@ for (const [n, target] of [[8, 390], [9, 320]]) {
     await closeSketch();
   });
 }
+
+// ---- zoomed in on a phone: Open sketch zooms the canvas out just enough that the whole card fits above the panel ----
+await check('10 zoomed in to ~195% on a 390 px phone, Open sketch zooms out until the whole question card fits above the panel', async () => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(600);
+  await page.locator('[title="Reset zoom"]').click();
+  for (let i = 0; i < 3; i++) { await page.locator('[title="Zoom in"]').click(); await page.waitForTimeout(120); }
+  await page.waitForTimeout(400);
+  const before = await page.locator('[title="Reset zoom"]').innerText();
+  try {
+    await openSketch(card);
+    await shot('fit-zoomed-phone');
+    const after = await page.locator('[title="Reset zoom"]').innerText(), c = await box(card), p = await box(panels().first()), area = await box(dock());
+    assert.ok(parseInt(after, 10) < parseInt(before, 10), `the zoom stayed at ${after} (was ${before})`);
+    assert.ok(c.y >= area.y - 1 && c.y + c.height <= p.y + 1, `the card (${Math.round(c.y)}-${Math.round(c.y + c.height)}) is not whole above the panel (top ${Math.round(p.y)})`);
+    assert.ok(c.x >= -0.5 && c.x + c.width <= 390.5, 'the card runs off the screen sideways');
+    assert.ok(await uncovered(card.locator('[data-eb-question]')), 'the question is covered or off screen');
+  } finally {
+    await closeSketch();
+    await page.locator('[title="Reset zoom"]').click();
+  }
+});
 
 await browser.close();
 if (errors.length) { console.log(`page errors: ${errors.join(' | ')}`); failures.push('no page errors'); }
