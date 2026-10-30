@@ -104,6 +104,23 @@ test('watch fixture: header, Watch badge, labelled as an example; Play, Restart,
   noEllipsis();
 });
 
+test('an example card switches among the three built-in examples; the saved card then shows the new one', async () => {
+  const { changes } = await mount({ runtimes: stubRuntimes(), block: { id: 'x2', type: 'animation3d', fixtureId: 'orbit-watch' } });
+  const picker = $('[data-animation3d-example]');
+  assert.deepEqual([...picker.querySelectorAll('option')].map(option => option.value), ['orbit-watch', 'beam-balance-experiment', 'grid-robot-game']);
+  assert.equal(picker.value, 'orbit-watch');
+  // linkedom's select.value is read-only: choose the option itself, as a person's pick does.
+  for (const option of picker.querySelectorAll('option')) option.toggleAttribute('selected', option.value === 'grid-robot-game');
+  await B.act(async () => { picker.dispatchEvent(new window.Event('change', { bubbles: true })); });
+  const [kind, next] = changes.at(-1);
+  assert.equal(kind, 'change');
+  assert.deepEqual([next.fixtureId, next.title], ['grid-robot-game', 'Grid robot']);
+  await mount({ runtimes: stubRuntimes(), block: next });
+  assert.equal($('[data-animation-badge]').textContent, 'Mini-game');
+  await mount({ runtimes: stubRuntimes(), readOnly: true, block: next });
+  assert.equal($('[data-animation3d-example]').disabled, true, 'a read-only viewer sees it greyed, named');
+});
+
 test('experiment fixture: number rows with units and typed alternatives; a change moves geometry and readouts together; Reset scene restores them', async () => {
   const { renderers, changes } = await mount({ block: { id: 'e1', type: 'animation3d', fixtureId: 'beam-balance-experiment' } });
   assert.equal($('[data-animation-badge]').textContent, 'Experiment');

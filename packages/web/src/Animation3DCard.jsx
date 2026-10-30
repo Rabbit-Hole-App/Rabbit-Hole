@@ -222,7 +222,22 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
       data-animation-time={model ? state.time.toFixed(3) : undefined} data-animation-duration={model?.loop?.duration}
       className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3">
       <Header title={title} experience={model?.experience} fixture={fixture} />
-      {fixture && <p data-animation-fixture-note className="text-xs text-ink-2">{FIXTURE_NOTE}</p>}
+      {fixture && (
+        <div data-animation-fixture-note className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-2" onPointerDown={event => event.stopPropagation()}>
+          <span>{FIXTURE_NOTE}</span>
+          {/* An example card switches among the built-in examples (M1 try-it path); a saved generated card never shows this. */}
+          {fixtureIdOf(block) && (
+            <label className="inline-flex items-center gap-1.5">
+              <span>Example</span>
+              <select data-animation3d-example value={fixtureIdOf(block)} disabled={readOnly}
+                onChange={event => { const next = ANIMATION_FIXTURES.find(entry => entry.name === event.target.value); if (next) onChange({ ...latest.current, fixtureId: next.name, title: next.artifact.title }); }}
+                className="h-7 rounded-lg border border-line bg-white px-1.5 text-xs text-ink disabled:text-ink-3">
+                {ANIMATION_FIXTURES.map(entry => <option key={entry.name} value={entry.name}>{entry.artifact.title}</option>)}
+              </select>
+            </label>
+          )}
+        </div>
+      )}
       {/* The viewport: before Interact every press, drag and wheel here belongs to the canvas (it moves and selects the card);
           after it, they turn the scene until Esc, Done, a press outside or focus leaving. data-animation-frame: the last applied
           frame, for the browser checks. */}
