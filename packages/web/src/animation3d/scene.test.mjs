@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { triangleCost, validateAnimationArtifact } from './contract.js';
 import { ANIMATION_FIXTURES, INVALID_ANIMATION_FIXTURES, watchFixture } from './fixtures.js';
-import { buildAnimationScene } from './scene.js';
+import { buildAnimationScene, LABEL_PIXELS, labelPixels } from './scene.js';
 
 // Real Three.js objects, no WebGL: labels get a plain Texture in place of the browser's canvas texture.
 const labels = [];
@@ -74,4 +74,25 @@ test('dispose frees every geometry, material and texture exactly once', () => {
   assert.equal(freed, resources.size);
   assert.equal(scene.owned(), 0);
   assert.equal(scene.root.children.length, 0);
+});
+
+test('labels keep a constant, bounded screen size, face the camera over the scene and sit beside their point', () => {
+  const big = structuredClone(watchFixture.artifact);
+  big.scene.nodes.find(node => node.id === 'system').scale = [4, 4, 4]; // a scaled-up scene
+  big.scene.geometries.find(g => g.id === 'moonText').placement = 'right';
+  for (const artifact of [watchFixture.artifact, big]) {
+    const { scene } = buildAnimationScene(artifact, { labelTexture });
+    const sprite = scene.objects.get('moonTag').children[0];
+    assert.equal(sprite.material.sizeAttenuation, false);
+    assert.equal(sprite.material.depthTest, false);
+    for (const [height, fov] of [[540, 50], [300, 30]]) {
+      scene.layoutLabels({ height, fov });
+      const world = sprite.getWorldScale(new THREE.Vector3()), f = 1 / Math.tan(fov * Math.PI / 360);
+      assert.ok(Math.abs(world.y * f / 2 * height - labelPixels(0.3)) < 1e-9, 'plate height in CSS pixels');
+      assert.ok(Math.abs(world.x / world.y - 2) < 1e-9, 'the text aspect is kept');
+    }
+    assert.deepEqual(sprite.center.toArray(), artifact === big ? [-0.06, 0.5] : [0.5, -0.2]);
+    scene.dispose();
+  }
+  assert.deepEqual([labelPixels(0.3), labelPixels(0.01), labelPixels(50)], [LABEL_PIXELS.base, LABEL_PIXELS.min, LABEL_PIXELS.max]);
 });

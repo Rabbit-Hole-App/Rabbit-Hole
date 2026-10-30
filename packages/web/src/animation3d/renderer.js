@@ -42,7 +42,9 @@ export function createAnimationRenderer({
   let shown = null, loads = 0, disposed = false, lost = false, frame = 0, drag = null, press = null;
   const raycaster = new THREE.Raycaster();
 
-  const draw = () => { frame = 0; if (!disposed && !lost) renderer.render(view, camera); };
+  // Labels keep a constant screen size (scene.js layoutLabels), so they are sized for this viewport and camera before every draw.
+  const render = () => { shown?.layoutLabels({ height: container.clientHeight || 1, fov: camera.fov }); renderer.render(view, camera); };
+  const draw = () => { frame = 0; if (!disposed && !lost) render(); };
   const schedule = () => { if (!disposed && !lost && !frame) frame = globalThis.requestAnimationFrame ? requestAnimationFrame(draw) : (draw(), 0); };
   const cameraState = () => ({ position: camera.position.toArray(), target: controls.target.toArray(), fov: camera.fov });
   const resize = () => {
@@ -155,7 +157,7 @@ export function createAnimationRenderer({
     // Drawn and read in one task, so no preserveDrawingBuffer is needed.
     capturePoster() {
       if (!shown || lost || disposed) return null;
-      try { renderer.render(view, camera); return canvas.toDataURL('image/webp', 0.8); } catch { return null; }
+      try { render(); return canvas.toDataURL('image/webp', 0.8); } catch { return null; }
     },
     dispose() {
       if (disposed) return;
