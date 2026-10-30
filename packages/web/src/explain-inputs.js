@@ -139,7 +139,8 @@ export function snapshotOf(entry, scope = null) {
     const cells = (entry.ipynb?.cells || []).filter(cell => !scope?.cells || scope.cells.includes(cell.id));
     return { notebook: entry.notebook_id || entry.id, path: entry.active_path || null, cells: cells.map(cell => ({ id: cell.id, type: cell.cell_type, source: Array.isArray(cell.source) ? cell.source.join('') : String(cell.source ?? ''), outputs: cell.outputs || [], executionCount: cell.execution_count ?? null })) };
   }
-  return Object.fromEntries(Object.entries(entry || {}).filter(([key]) => !LAYOUT.has(key)));
+  // An inline data: image is dropped from the saved board past 120 KB (canvas-persist.js lightBlocks): never part of the hash.
+  return Object.fromEntries(Object.entries(entry || {}).filter(([key, value]) => !LAYOUT.has(key) && !(key === 'src' && typeof value === 'string' && value.startsWith('data:'))));
 }
 const subtleSha = async text => [...new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))].map(byte => byte.toString(16).padStart(2, '0')).join('');
 export const snapshotHash = (entry, scope, sha256 = subtleSha) => sha256(canonicalJson(snapshotOf(entry, scope)));
