@@ -14,6 +14,9 @@ integration runs: `packages/web/src/explain-program/genuine-card.test.mjs`, `hos
 `image-jobs.test.js` ("boundary 2"). Every one passed when rerun alone (e.g. 38/38, 36/36, 18/18), and none is in files
 this work changed. Pre-existing on main 05c1221fe; cause unclassified (several agents ran suites concurrently on one
 machine). No rerun policy change. Owner action: none.
+Browser tier, same class: fast-e2e round 9 (run 41051664753) failed `docs-removed-check` step 1 (`page.goto` of the landing
+page timed out at 30 s) and `explain-program-state-check` ("the handle did not settle at 540"); both passed in rounds 4-8 on
+the same code paths and neither file is touched by this work. Recorded as intermittent, unclassified.
 
 **FX-EB-03 · EB-02 / EB-10 · open (owner action at release)** — Production `LEARN_DB` (`rabbit-hole-learn-prod`) needs
 migration `learn-migrations/0034-explain-back.sql` (3 tables, 2 indexes; additive) before the Explain-back code reaches
@@ -33,6 +36,15 @@ Owner action: choose A or B; nothing is changed until then.
 **FX-EB-05 · EB-08.4 · open (scope gap)** — "Open on canvas" for teaching aids is wired in the card but the stored review
 carries no teaching-card references, so no teaching aid is ever listed. Building it needs a review field naming existing
 linked teaching cards (no generation). Not started; recorded so it is not mistaken for done.
+
+**FX-EB-07 · EB-09 · open (pre-existing, owner rule)** — The canvas style panel opens out of the tools column over the
+cards it styles: with two grouped cards selected at 68% zoom it covered their ports (round 7, check fixed by deselecting
+first). Possibly conflicts with the owner rule that canvas utilities never cover content. Not Explain-back code; needs its
+own task. Owner action: decide whether to open one.
+
+**FX-EB-08 · process · resolved in practice** — Each push to a worker branch runs its own verify + fast-e2e; worker
+branches that equalled the integration SHA doubled runner minutes. Duplicate runs were cancelled (41044776909/41, 41047053473/511,
+41049082261/317, 41051073532/377, 41051369789/770) and workers now push only new commits on request.
 
 ## Resolved
 
