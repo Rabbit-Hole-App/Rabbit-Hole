@@ -369,7 +369,7 @@
     "packages/web/e2e/card-scroll-fixtures.mjs": ["card-scroll-check.mjs"],
     "packages/web/e2e/webpage-card-fixtures.mjs": ["webpage-card-check.mjs","webpage-card-perf-check.mjs"],
     "packages/web/src/Webpage*.jsx": ["webpage-card-check.mjs","webpage-card-perf-check.mjs"],
-    "packages/web/src/AddContextDialog.jsx": ["webpage-card-check.mjs","context-remove-check.mjs","context-actions-check.mjs","materials-rows-check.mjs","primary-button-contrast-check.mjs"],
+    "packages/web/src/AddContextDialog.jsx": ["webpage-card-check.mjs","context-remove-check.mjs","context-actions-check.mjs","materials-rows-check.mjs","primary-button-contrast-check.mjs","pdf-long-check.mjs","pdf-status-check.mjs"],
     "packages/web/src/webpage-*.js": ["webpage-card-check.mjs","webpage-card-perf-check.mjs"],
     "packages/web/src/file-doc-read.js": ["canvas-search-files-check.mjs", "file-doc-cards-check.mjs"],
     "packages/web/src/canvas-search-content.js": ["canvas-search-check.mjs", "canvas-search-viewers-check.mjs", "canvas-search-files-check.mjs"],
