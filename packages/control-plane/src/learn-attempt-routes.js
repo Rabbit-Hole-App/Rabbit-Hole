@@ -46,7 +46,12 @@ import { SNAPSHOT_LIMITS, readAssetMeta, serveAttemptAsset, setAssetMeta, upload
 import { assessAttempt } from './learn-assessment.js';
 import { advanceActivity } from './learn-coaching-store.js';
 
-const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
+// Learners see AI credits only (CLAUDE.md): dollar amounts, provider prices and other cost fields stay in the stored
+// provenance for the spend ledger and telemetry, and are dropped from every response these routes send to the browser.
+const PRICED = /usd|cost|price|micros|margin/i;
+export const learnerSafe = value => (Array.isArray(value) ? value.map(learnerSafe)
+  : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).filter(([k]) => !PRICED.test(k)).map(([k, v]) => [k, learnerSafe(v)])) : value);
+const json = (body, status = 200) => Response.json(learnerSafe(body), { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/; // learn-boards.js board names
 const PATH = /^\/api\/learn\/tutor\/attempts(?:\/(bind|drafts|assets)(?:\/(aa_[A-Za-z0-9_-]{8,80})(\/meta)?)?|\/([A-Za-z0-9_-]{1,100})(\/reassess)?)?$/;
 // The raw body is bounded before parsing. It holds the 16 KB submission plus its refs, and an Explain-back answer's frozen

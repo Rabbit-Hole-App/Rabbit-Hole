@@ -7,6 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { askJev } from '../src/learn-grade-jev.js';
+import { readAttempt } from '../src/learn-attempt-store.js';
 import { noteUsageIdentity, payerOf, periodOf, toMicros, usageFeature, usageTotals, withUsage } from '../src/learn-usage.js';
 import { readCoachingState } from '../src/learn-coaching-store.js';
 import { codebaseActivity, learningSourceMap } from '../src/learn-codebase-source-map.js';
@@ -135,8 +136,9 @@ test('item 4: with the learner\'s allowance used up, every assessment route stil
       const ops = w.sqlite.prepare('SELECT * FROM usage_operations ORDER BY rowid').all();
       assert.deepEqual(ops.map(o => o.op_id).sort(), attempts.map(a => a.attempt_id).sort(), route);
       assert.ok(ops.every(o => o.status === 'settled' && o.cost_usd > 0), route);
-      // The cost the assessment's own provenance reports is the cost recorded (where the route reports one).
-      const reported = r.body.assessment.provenance.calls.map(c => c.costUsd).filter(v => v != null);
+      // The cost the assessment's stored provenance reports is the cost recorded; the learner's response carries no cost field.
+      assert.ok(!/costUsd|usd|micros/i.test(JSON.stringify(r.body)), `${route}: no cost reaches the browser`);
+      const reported = (await readAttempt(w.env, ANA, r.body.attempt.attemptId)).assessment.provenance.calls.map(c => c.costUsd).filter(v => v != null);
       for (const usd of reported) assert.ok(attempts.some(a => a.cost_micros === toMicros(usd)), `${route}: provenance cost ${usd} is recorded`);
     }
     assert.deepEqual(await usageTotals(w.env.LEARN_DB, ANA.userId, PERIOD), before, `${route}: the learner's balance does not move`);
