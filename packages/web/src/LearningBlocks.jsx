@@ -1155,6 +1155,9 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
       )}
       {view.loading ? <p role="status" className="mt-3 text-sm text-ink-2">Loading your answers</p> : (
         <>
+          {/* The attempt bar and the submitted views stay live under a drawing tool too (a learner who drew in the Sketch can
+              still switch attempts and read feedback; fast-e2e 41039862114), without starting a canvas stroke there. */}
+          <div style={live} onPointerDown={live ? e => e.stopPropagation() : undefined}>
           {attempts.length > 0 && <AttemptBar entries={entries} selected={selected} onSelect={id => { setChosen(id); setTab('answer'); setCited(null); }} />}
           {selected.draft ? (
             <div style={live} className="mt-3" onPointerDown={e => e.stopPropagation()}>
@@ -1186,6 +1189,7 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
               {selected.status === 'submitted' && <p className="mt-3 text-xs text-ink-2">Submitted. No Tutor review is available on this card.</p>}
             </div>
           )}
+          </div>
           <div style={live} className="mt-3 flex flex-wrap items-center gap-2" onPointerDown={e => e.stopPropagation()}>
             {sketchable && (selected.draft || selected.answer.sketched) && (
               <button ref={openButton} type="button" data-sketch-toggle aria-expanded={open} aria-label={sketchShown ? SKETCH_CONTENT_LABEL : 'Open sketch'} onClick={openSketch}
