@@ -83,7 +83,8 @@ export async function uploadedMediaAsImage(env, identity, id) {
 //
 // Record: { transcriptId, version, status: 'ready' | 'failed', assetId, hash, text, segments?, provider, model,
 //   converterVersion, derivativeHash, uncertainty?, error?, createdAt }
-//   segments    [{ start, end, text }] in seconds, only when the provider returned them (gpt-4o-transcribe does not; no
+//   segments    [{ startMs, endMs, text }] (EB-01 TranscriptSegment), converted from the provider's seconds, only when the
+//               provider returned them (gpt-4o-transcribe does not; no
 //               timing is invented).
 //   uncertainty { meanLogprob, low: [{ text, p }] } from the provider's token logprobs, when returned.
 //   EB-01 DerivativeRef for coverage: { derivativeId: transcriptId, hash: derivativeHash, converterVersion }.
@@ -97,7 +98,7 @@ export const transcriptIdFor = (hash, provider, model) => `tr_${hash.slice(0, 32
 export function transcriptParts(heard) {
   const text = String(heard?.text ?? '').trim();
   const segments = Array.isArray(heard?.segments)
-    ? heard.segments.filter(s => Number.isFinite(s?.start) && Number.isFinite(s?.end)).map(s => ({ start: s.start, end: s.end, text: String(s.text ?? '').trim() }))
+    ? heard.segments.filter(s => Number.isFinite(s?.start) && Number.isFinite(s?.end)).map(s => ({ startMs: Math.round(s.start * 1000), endMs: Math.round(s.end * 1000), text: String(s.text ?? '').trim().slice(0, 1200) }))
     : null;
   const probs = Array.isArray(heard?.logprobs) ? heard.logprobs.filter(t => Number.isFinite(t?.logprob)) : [];
   const uncertainty = probs.length ? {
@@ -109,7 +110,8 @@ export function transcriptParts(heard) {
 
 // ensureTranscript({ assetId, hash, mime, read, store, transcriber, retry }) -> record.
 //   read()        -> { bytes } of the stored note (D's attempt-asset read, owner-authorized).
-//   store         { get(transcriptId), put(record) } (D's derivative store, scoped to the attempt owner).
+//   store         { get(transcriptId), put(record, { retry }) } (D's transcriptStore, scoped to the attempt owner; a failed record
+//                 is replaced only with retry).
 //   transcriber   openaiTranscriber(env) or a test double: { provider, model, transcribe({ bytes, mime }) -> heard }; null when
 //                 transcription is not configured here (the result is a failed record, not stored, so it runs once it is).
 // ponytail: two concurrent preparations of the same clip can both call the provider; the assessment operation's claim is
@@ -121,7 +123,7 @@ export async function ensureTranscript({ assetId, hash, mime = '', read, store, 
   const base = { transcriptId, version: TRANSCRIPT_VERSION, assetId, hash, provider, model, converterVersion: `${provider}:${model}:v${TRANSCRIPT_VERSION}` };
   const failed = async (error, keep = true) => {
     const record = { ...base, status: 'failed', text: '', derivativeHash: await hexDigest(new TextEncoder().encode(JSON.stringify(['failed', error]))), error, createdAt: now() };
-    if (keep) await store.put(record);
+    if (keep) await store.put(record, { retry });
     return record;
   };
   if (!transcriber) return failed('not_configured', false);
@@ -137,7 +139,7 @@ export async function ensureTranscript({ assetId, hash, mime = '', read, store, 
   const parts = transcriptParts(heard);
   if (!parts.text) return failed('no_speech');
   const record = { ...base, status: 'ready', ...parts, derivativeHash: await hexDigest(new TextEncoder().encode(JSON.stringify([parts.text, parts.segments ?? null]))), createdAt: now() };
-  await store.put(record);
+  await store.put(record, { retry });
   return record;
 }
 
