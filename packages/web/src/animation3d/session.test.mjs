@@ -318,3 +318,44 @@ test('interaction reaches the renderer: interact on enter and exit; a release dr
   h.session.interact(false);
   assert.deepEqual(h.renderers.made[0].interactive, [true, false, true, false]);
 });
+
+// CI fast-e2e 41141201411 (animation-mvp steps 17-20): after a reload the board's context arrives after mount, so the card starts a
+// second time; a runtime of the first start that settles late (it was waiting for one of the two animation Workers) let that old
+// start go on to build a renderer, which dropped the new start's ready one and never reported ready itself: the card stayed at
+// "Preparing the scene" with its poster showing. A superseded start must stop once its runtime settles.
+test('a superseded start whose runtime settles late never replaces the current renderer', async () => {
+  const late = deferred();
+  let made = 0;
+  const base = stubRuntimes();
+  const runtimes = { made: base.made, factory: options => {
+    const runtime = base.factory(options);
+    if (++made === 1) runtime.ready = late.promise; // the first start's runtime waits (no Worker yet)
+    return runtime;
+  } };
+  const h = harness({ runtimes });
+  h.session.attach({ tag: 'host' });
+  const first = h.session.start(h.block);
+  await settle();
+  await h.session.start({ ...h.block }); // the board context arrived: start again
+  await settle();
+  assert.equal(h.state().renderer, 'ready');
+  const shown = h.renderers.made.filter(r => !r.disposed);
+  assert.equal(shown.length, 1);
+  late.reject(Object.assign(new Error('disposed'), { code: 'disposed' })); // the old runtime finally settles
+  await first;
+  await settle();
+  assert.equal(h.state().renderer, 'ready', 'still ready');
+  assert.deepEqual(h.renderers.made.filter(r => !r.disposed), shown, 'the current renderer was kept, and no stale one was built');
+  assert.equal(h.state().failure, null);
+});
+
+test('detach clears the viewport at once, so a slot given back and taken again restarts the 3D view', async () => {
+  const h = harness({ runtimes: stubRuntimes() });
+  await started(h);
+  const detaching = h.session.detach();
+  const again = h.session.attach({ tag: 'host-2' });
+  await detaching; await again; await settle();
+  assert.equal(h.state().renderer, 'ready');
+  assert.deepEqual(h.renderers.made.at(-1).options.container, { tag: 'host-2' });
+  assert.ok(h.state().poster);
+});
