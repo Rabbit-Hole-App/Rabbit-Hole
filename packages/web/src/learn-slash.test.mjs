@@ -206,7 +206,8 @@ test('/practice: an explain-back that failed its checks says so plainly, keeps t
   const out = await failed.run('/practice explain softmax');
   assert.ok(!failed.did.some(entry => entry[0] === 'block'));
   assert.equal(out.notice.tone, 'error');
-  assert.equal(out.notice.text, 'An explain-back could not be made: it failed its checks, so nothing was added. Send the line again to retry.');
+  // Owner 2026-10-30: one Practice card, named so in notices.
+  assert.equal(out.notice.text, 'A practice card could not be made: it failed its checks, so nothing was added. Send the line again to retry.');
   assert.doesNotMatch(out.notice.text, /expected array|expects/);
   assert.equal(out.notice.detail, 'explain_back.expects: expected an array of 2 to 6 strings, got string');
   assert.equal(out.keep, '/practice explain softmax');
@@ -218,7 +219,7 @@ test('a command finished in the same conversation shows its result; one finished
   const { did, run } = harness({ result: 'artifact', primitive: 'challenge', block: { type: 'challenge', prompt: 'p' } });
   const out = await run('/practice softmax');
   assert.equal(did.filter(entry => entry[0] === 'block').length, 1, 'the card is inserted by the command itself, whatever the conversation');
-  assert.equal(out.notice.text, 'Added a challenge.');
+  assert.equal(out.notice.text, 'Added a practice card.'); // owner 2026-10-30: one Practice card
   const same = commandUi(out, { raw: '/practice softmax', started: 'canvas:t1:0', current: 'canvas:t1:0' });
   assert.deepEqual(same.notice, out.notice);
   assert.equal(commandUi(out, { raw: '/practice softmax', started: 'canvas:t1:0', current: 'canvas:new:1' }), null);
@@ -253,7 +254,7 @@ test('the sheet previews the cards each command can make; chat commands make non
   const { cardsFor } = await import('./learn-slash.js');
   assert.deepEqual(cardsFor('graph').map(entry => entry.card), ['graph', 'plot']);
   assert.deepEqual(cardsFor('diagram').map(entry => entry.card), ['flow', 'mermaid']);
-  assert.deepEqual(cardsFor('practice').map(entry => entry.card), ['challenge', 'explainBack', 'quiz']);
+  assert.deepEqual(cardsFor('practice').map(entry => entry.card), ['explainBack', 'quiz']); // owner 2026-10-30: one Practice card
   assert.deepEqual(cardsFor('notebook').map(entry => entry.card), ['notebook']);
   assert.deepEqual(cardsFor('deeper'), []);
   // The Tutor's material tools still make their cards (owner, 2026-10-20).
@@ -415,7 +416,8 @@ test('materialCommands: the Learn commands that can make a card now, from the re
   const tool = name => list.find(m => m.command === name);
   assert.deepEqual(tool('compare')?.cards, ['table', 'graph', 'plot', 'flow', 'mermaid']);
   assert.deepEqual(tool('walkthrough')?.cards, ['walkthrough']);
-  assert.ok(['challenge', 'explainBack'].every(card => tool('practice')?.cards.includes(card)));
+  // Owner 2026-10-30: one Practice card - /practice makes it as explainBack, never a separate challenge.
+  assert.ok(tool('practice')?.cards.includes('explainBack') && !tool('practice')?.cards.includes('challenge'));
 });
 
 // The Tutor's own create_material runs its material tools through the internal path, with a stubbed model, and makes the
@@ -430,7 +432,8 @@ test('runMaterials makes comparison tables, challenges, explain-backs and walkth
   const results = await runMaterials(actions, { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {} });
   assert.deepEqual(posts, ['compare', 'practice', 'quiz', 'walkthrough']);
   // A walkthrough card is the walkthrough_v1 interactive scene (learn-primitives.js).
-  assert.deepEqual(inserted.map(blockModality), ['table', 'challenge', 'explain_back', 'scene']);
+  // Owner 2026-10-30: one Practice card - a challenge block (any mode) is the explain_back modality.
+  assert.deepEqual(inserted.map(blockModality), ['table', 'explain_back', 'explain_back', 'scene']);
   assert.equal(inserted[3].spec.behaviorId, 'walkthrough_v1');
   assert.ok(results.every(result => result.notice?.tone === 'done'), JSON.stringify(results));
   for (const name of ['compare', 'walkthrough']) {

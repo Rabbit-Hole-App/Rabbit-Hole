@@ -15,7 +15,9 @@ test('a capture is keyed to the question and the draft its sketch was opened for
   assert.equal(captureProblem(card(marks), { questionId: 'q1', draftId: 'd2' }), null);
   assert.equal(captureProblem(card(marks), { questionId: 'q2' }), 'question-missing');
   assert.equal(captureProblem(null, { questionId: 'q1' }), 'question-missing');
-  assert.equal(captureProblem(card(marks, { mode: undefined }), { questionId: 'q1' }), 'not-explain-back');
+  // Owner 2026-10-30: one Practice card - an old challenge without mode 'explain_back' captures too; any other card does not.
+  assert.equal(captureProblem(card(marks, { mode: undefined }), { questionId: 'q1' }), null);
+  assert.equal(captureProblem(card(marks, { type: 'quiz' }), { questionId: 'q1' }), 'not-explain-back');
   assert.equal(captureProblem(card({ strokes: [], shapes: [], items: [] }), { questionId: 'q1' }), 'sketch-empty');
   assert.equal(sketchDraftOf({ draftId: 'd9' }), 'd9');
   assert.equal(sketchDraftOf({ draftId: 7 }), null);

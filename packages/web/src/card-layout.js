@@ -54,8 +54,19 @@ export function preserveCardEditLayout(block, box) {
 }
 
 // The corner handle's limits for a card that keeps its own w and h (CanvasNode), in one place so a committed size is clamped
-// the way the drag was.
-export const clampBox = (w, h) => ({ w: Math.min(1200, Math.max(280, w)), h: Math.min(1000, Math.max(140, h)) });
+// the way the drag was. `most`: a content-fitted card's natural height (naturalHeight), so neither the drag nor the commit
+// sizes it taller than its content needs (FX-EB-10).
+export const clampBox = (w, h, most = 1000) => ({ w: Math.min(1200, Math.max(280, w)), h: Math.min(Math.max(140, Math.min(1000, positive(most) ? most : 1000)), Math.max(140, h)) });
+// FX-EB-10: a content-fitted card (BLOCK_TYPES fitContent: a text card) is never taller than its content. The height it would be
+// held at (saved, dragged or its type's cap) is only a ceiling: its height follows the content as text wraps, feedback appears or
+// a section opens, content above the ceiling scrolls inside, and a saved height above the content leaves no blank space.
+export const fitFrame = (height, maxHeight, fit) => (fit ? { height: undefined, maxHeight: height ?? maxHeight } : { height, maxHeight });
+// That card's natural height without the rows under its body (`extra`). It reads a card fitFrame leaves unstretched, so the
+// card's own height is its content's (never a stretched flex box's), plus whatever its scroll body hides above the ceiling.
+export function naturalHeight(card, extra = 0) {
+ const body = card.querySelector('[data-scroll]');
+ return card.offsetHeight - extra + (body ? Math.max(0, body.scrollHeight - body.clientHeight) : 0);
+}
 // A committed size or a report from inside a card patches the block as the canvas holds it now, never the copy a drag or a
 // frame message started from: that copy replaced the whole block and put back whatever changed since (a resize reverted a
 // notebook's newer save, a notebook save reverted the new size).

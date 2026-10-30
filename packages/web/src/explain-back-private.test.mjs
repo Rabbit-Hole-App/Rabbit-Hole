@@ -19,9 +19,10 @@ test('the public exercise stays; every private field goes', () => {
   assert.ok(EXPLAIN_BACK_PRIVATE.every(key => key in card), 'the fixture carries every private key');
 });
 
-test('other cards, a plain Challenge included, come back as they were', () => {
-  const plain = { id: 'c1', type: 'challenge', prompt: 'Guess', answer: 'kept here; sharedState drops it by its own list', draft: 'x' };
-  assert.equal(publicExplainBack(plain), plain);
+test('an old Challenge is a Practice card too: its answer, verdict and history stay with its learner; other cards come back as they were', () => {
+  // Owner 2026-10-30: one Practice card (Explain-back = Challenge = Practice), whatever the saved mode.
+  const plain = { id: 'c1', type: 'challenge', prompt: 'Guess', hint: 'h', expects: ['e'], reveal: 'r', answer: 'PRIVATE guess', verdict: 'VERDICT: good\nPRIVATE', history: [], draft: 'x' };
+  assert.deepEqual(publicExplainBack(plain), { id: 'c1', type: 'challenge', prompt: 'Guess', hint: 'h', expects: ['e'], reveal: 'r' });
   const code = { id: 'k1', type: 'code', draft: 'print(1)' };
   assert.equal(publicExplainBack(code), code);
   const bare = { id: 'eb2', type: 'challenge', mode: 'explain_back', prompt: 'Q' };

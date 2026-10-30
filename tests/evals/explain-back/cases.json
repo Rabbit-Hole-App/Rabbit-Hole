@@ -414,6 +414,66 @@
         },
         "note": "eval-live-1: velocity was partly_demonstrated only because a statement idea had no way to say no reason applies; with not_applicable (eb-rating-v2) it is demonstrated again. The anchoring checks are the force judgment and prior_feedback_corrected."
       }
+    },
+    {
+      "id": "teaching-aid-reuse",
+      "card": "circle",
+      "what": "The outward-force misconception, with existing teaching cards on the canvas: the review may point only to the relevant one (FX-EB-05)",
+      "teachingCards": [
+        {
+          "id": "card_inward_force",
+          "title": "Why the net force on a ball moving in a circle points to the centre",
+          "kind": "explanation"
+        },
+        {
+          "id": "card_pendulum",
+          "title": "Pendulum period for small swings",
+          "kind": "animation"
+        }
+      ],
+      "answer": {
+        "text": "The velocity is tangent to the circle. The ball is flung outward, so the net force on it points away from the centre."
+      },
+      "expect": {
+        "judgments": {
+          "force": [
+            "contradicted"
+          ],
+          "velocity": [
+            "demonstrated"
+          ]
+        },
+        "teachingAids": [
+          "card_inward_force"
+        ]
+      }
+    },
+    {
+      "id": "voice-only-every-criterion",
+      "card": "circle",
+      "what": "FX-EB-09: a correct voice-only answer whose velocity idea is a plain fact; the reply must judge every criterion in its own entry (live 2026-10-30, attempt at_fa3ff4ec, returned one entry and put the other judgement in notes)",
+      "answer": {
+        "voice": {
+          "transcript": "The velocity of the ball is always tangent to the circle. The net force on it points toward the centre, because without that inward pull the ball would carry on in a straight line instead of turning."
+        }
+      },
+      "expect": {
+        "judgments": {
+          "force": [
+            "demonstrated"
+          ],
+          "velocity": [
+            "demonstrated"
+          ]
+        },
+        "coverage": {
+          "voice": "transcriptOnly"
+        },
+        "rating": {
+          "status": "rated",
+          "min": 8
+        }
+      }
     }
   ]
 }

@@ -5,6 +5,8 @@
 //   POST /api/learn/tutor/attempts {app, board, activityId, activityRevision, submissionKey, submittedContent, sourceRefs?, assistanceRefs?, snapshots?}
 //        snapshots (Explain-back): snapshotOf(entry, scope) of each connected card, note or Notebook selection; only those whose
 //        canonical hash the answer names are kept, privately, for the frozen-evidence resolver. Not part of the content hash.
+//        teachingCards (Explain-back, FX-EB-05): [{id, title, kind}] existing teaching cards on the canvas this review may
+//        name for "What to revisit" (explain-back-contract.js teachingCards). Assessment input only: never stored as the answer.
 //        -> {attempt, assessment, assessments, replayed}
 //        The attempt is saved first. Its one assessment is then dispatched. A retry with the same key and content replays
 //        the attempt, and never dispatches a second time.
@@ -23,7 +25,7 @@
 //   GET  /api/learn/tutor/attempts/drafts?app=&board=&cardId= -> {draft|null}
 //   PUT  /api/learn/tutor/attempts/drafts {app, board, cardId, expectedRevision, answer|null} -> {draft|null}; 409
 //        draft_conflict {draft} when another tab saved first (nothing is overwritten). answer null clears the draft.
-//   POST /api/learn/tutor/attempts/:id/reassess {app, board, requestKey, dispute?} -> {attempt, assessment, assessments, replayed}
+//   POST /api/learn/tutor/attempts/:id/reassess {app, board, requestKey, dispute?, teachingCards?} -> {attempt, assessment, assessments, replayed}
 //        A deliberate review. It supersedes the last completed assessment; the original attempt and result are kept.
 //        dispute: true is the learner's "Question this feedback" (Task 10): the questioned result is labelled disputed.
 //
@@ -137,7 +139,8 @@ export async function attemptRoute(path, req, env, deps = {}) {
   // shortcut: a replay of a request that died before this step leaves the activity in_progress; step it on replay too if that shows up.
   if (activityId && !handle.replayed) await step(activityId, 'awaiting_feedback');
   // access lets the rubric and visual routes read the learner's own sources and image under this request's identity.
-  try { await assessAttempt(env, actor, handle.attemptId, { ...deps, access }); } catch (error) { log('learn_assessment_dispatch_error', error); }
+  // teachingCards: the learner's existing teaching cards the browser offers for this review (bounded and checked there).
+  try { await assessAttempt(env, actor, handle.attemptId, { ...deps, access, teachingCards: body.teachingCards }); } catch (error) { log('learn_assessment_dispatch_error', error); }
   const view = await readAttempt(env, actor, handle.attemptId).catch(() => null);
   const latest = view?.assessment;
   if (activityId && latest && latest.status !== 'pending') await step(activityId, 'feedback_ready', { attemptId: handle.attemptId, status: latest.status, reason: latest.reason ?? null });

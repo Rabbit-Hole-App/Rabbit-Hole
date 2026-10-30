@@ -159,7 +159,7 @@ const ARTIFACT_TIMEOUT_MS = 120000;
 // After the next paint: a slot reserved this tick is only in the canvas once it has rendered (outside a
 // browser, at once).
 const afterPaint = run => (globalThis.requestAnimationFrame ? requestAnimationFrame(() => requestAnimationFrame(run)) : run());
-const NAMES = { explanation: 'an explanation', quiz: 'a quiz', challenge: 'a challenge', explain_back: 'an explain-back', flashcards: 'flashcards', table: 'a table', code_sample: 'a code sample', flow_diagram: 'a flow diagram', mermaid_diagram: 'a diagram', walkthrough: 'a walkthrough', interactive_graph: 'a graph', data_plot: 'a plot', animation: 'an interactive explanation' };
+const NAMES = { explanation: 'an explanation', quiz: 'a quiz', challenge: 'a practice card', explain_back: 'a practice card', flashcards: 'flashcards', table: 'a table', code_sample: 'a code sample', flow_diagram: 'a flow diagram', mermaid_diagram: 'a diagram', walkthrough: 'a walkthrough', interactive_graph: 'a graph', data_plot: 'a plot', animation: 'an interactive explanation' };
 
 // MOT-20b: /motion has no proposal of its own here: every entry point is the Chat's /motion turn (generation-proposal-chat.js).
 

@@ -49,9 +49,10 @@ export const SLASH = [
   // request never gets a scene, and an interactive one never gets text instead (a scene that fails says so).
   { name: 'explain', kind: 'generate', group: 'learn', places: CTRLK, label: 'Explanation', desc: 'Explanation', about: 'Understand an idea with a visual explanation you can play and explore.', placeholder: 'What would you like to understand?', family: ['explanation', 'table', 'animation', 'narration'],
     narrow: [[PLAIN_WORDS, 'explanation'], [INTERACTIVE_WORDS, 'animation']] },
-  // Explain Back is a mode of the Practice card reached through /practice, never a command of its own (owner spec 2026-10-29).
+  // Explain-back = Challenge = Practice (owner 2026-10-30): /practice makes the one Practice card (primitive explain_back);
+  // quiz and code_exercise stay their own cards. The challenge primitive is no longer offered here.
   { name: 'practice', kind: 'prompt', group: 'learn', places: CTRLK, label: 'Practice', desc: 'Practice', about: 'Try a task or explain an idea in your own words, then get feedback on your answer.', placeholder: 'What would you like to practise?', prompt: 'Give me one practice task on {target} and wait for my answer.',
-    family: ['challenge', 'explain_back', 'quiz', 'code_exercise'],
+    family: ['explain_back', 'quiz', 'code_exercise'],
     narrow: [[/explain(ing)? it back/i, 'explain_back'], [/\bcoding\b/i, 'code_exercise'], [/multiple[- ]choice/i, 'quiz']] },
   { name: 'quiz', kind: 'prompt', group: 'learn', places: CTRLK, label: 'Quiz', desc: 'Quiz', about: 'Check your understanding with a multiple-choice question and feedback.', placeholder: 'What should the question test?', prompt: 'Ask me one short question on {target}, then wait for my answer.', family: ['quiz'] },
   { name: 'flashcards', kind: 'generate', group: 'learn', places: CTRLK, label: 'Flashcards', desc: 'Flashcards', about: 'Review a topic with question-and-answer cards you can flip through.', placeholder: 'What would you like to remember?', family: ['flashcards'] },

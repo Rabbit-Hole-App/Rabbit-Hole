@@ -148,28 +148,33 @@ await check('ctrl+z restores deleted block', async () => {
   if ((await canvas.locator('[data-chat-block]').count()) !== count + 1) throw new Error('block not restored');
 });
 
-// challenge lesson block: insert from the dev menu, commit a guess, reveal
-await check('challenge block commits and reveals', async () => {
+// Practice (owner 2026-10-30: Explain-back = Challenge = Practice, one card): the Insert menu has one Practice entry; its
+// answer is one saved attempt the Tutor reviews in the card (the old Challenge's one-line guess, Commit and data-grade tint are gone).
+await check('Insert offers one Practice entry, no Challenge or Explain back', async () => {
   await page.locator('[aria-label="Insert lesson block"]').click();
-  await page.getByRole('menuitem', { name: 'Challenge' }).click();
-  await canvas.getByText('Commit a guess before we look', { exact: false }).waitFor({ timeout: 5000 });
-  await page.locator('input[placeholder^="Your guess"]').fill('each id picks an embedding row, positions are added, the blocks mix them and a final layer scores every token');
-  await page.getByRole('button', { name: 'Commit', exact: true }).click();
-  await canvas.getByText('Hold that thought.', { exact: false }).waitFor({ timeout: 5000 });
+  const named = name => page.getByRole('menuitem', { name, exact: true }).count();
+  if ((await named('Practice')) !== 1) throw new Error(`Practice entries: ${await named('Practice')}`);
+  if ((await named('Challenge')) + (await named('Explain back'))) throw new Error('a Challenge or Explain back entry is still offered');
+  await page.getByRole('menuitem', { name: 'Practice', exact: true }).click();
+  await canvas.locator('[data-block-id]').last().getByText('In your own words', { exact: false }).waitFor({ timeout: 5000 });
 });
-
-// the tutor reads the committed answer and tints it green or orange
-await check('challenge answer gets a tutor verdict', async () => {
-  const verdict = canvas.locator('[data-verdict]');
-  await verdict.waitFor({ timeout: 20000 });
-  await canvas.locator('[data-answer][data-grade="good"], [data-answer][data-grade="partial"]').first().waitFor({ timeout: 90000 });
-  const text = await verdict.innerText();
+await check('practice answer is saved and reviewed in the card', async () => {
+  const node = canvas.locator('[data-block-id]').last();
+  await node.locator('textarea[data-eb-answer]').fill('each id picks an embedding row, positions are added, the blocks mix them and a final layer scores every token');
+  await node.getByRole('button', { name: 'Submit answer', exact: true }).click();
+  await node.locator('[data-attempt-label]').waitFor({ timeout: 20000 });
+  await node.locator('[data-feedback-view], [data-eb-failed]').first().waitFor({ timeout: 90000 });
+  if (await node.locator('[data-eb-failed]').count()) throw new Error(`review failed: ${await node.locator('[data-eb-failed]').innerText()}`);
+  const text = await node.innerText();
   if (/VERDICT:/i.test(text)) throw new Error('verdict token leaked into the text');
-  if (text.replace('Tutor', '').trim().length < 20) throw new Error('verdict too short');
+  if (/Hold that thought/.test(text)) throw new Error('the Practice card must not reveal an answer it has none for');
 });
-await check('challenge block survives reload', async () => {
+await check('practice card survives reload', async () => {
   await page.waitForTimeout(700);
   await page.reload();
+  const tab = canvas.locator('[data-feedback-tab="answer"]').last();
+  await tab.waitFor({ timeout: 30000 });
+  await tab.click();
   await canvas.getByText('each id picks an embedding row', { exact: false }).waitFor({ timeout: 20000 });
 });
 
@@ -600,21 +605,6 @@ await check('vector state survives a reload and resets', async () => {
   await node.locator('[data-projection]').getByText('proj_b(a) = 2', { exact: false }).waitFor({ timeout: 5000 });
 });
 
-// explain back: evidence of understanding, judged against the key ideas
-await check('explain back is judged, not revealed', async () => {
-  await page.locator('[aria-label="Insert lesson block"]').click();
-  await page.getByRole('menuitem', { name: 'Explain back' }).click();
-  const node = canvas.locator('[data-block-id]').last();
-  await node.getByText('In your own words', { exact: false }).waitFor({ timeout: 5000 });
-  await node.locator('input[placeholder^="Explain it in your own words"]').fill('the id picks a row of the embedding table');
-  await node.getByRole('button', { name: 'Submit', exact: true }).click();
-  await node.getByText('Understanding evidence', { exact: false }).waitFor({ timeout: 20000 });
-  await node.locator('[data-answer][data-grade="partial"], [data-answer][data-grade="good"]').waitFor({ timeout: 90000 });
-  const text = await node.innerText();
-  if (/VERDICT:/i.test(text)) throw new Error('verdict token leaked');
-  if (/Hold that thought/.test(text)) throw new Error('explain back must not reveal an answer');
-});
-
 // the animation engine: deterministic playback, scrub, pause and ask
 await check('animation plays and scrubs', async () => {
   await page.locator('[aria-label="Insert lesson block"]').click();
@@ -738,21 +728,6 @@ await check('the numbers change and a winner emerges', async () => {
   const bars = await node.locator('[data-animation-object="next-token-scores"] rect').evaluateAll(rects => rects.map(rect => Number(rect.getAttribute('height'))));
   const tallest = bars.indexOf(Math.max(...bars));
   if (tallest !== 7) throw new Error(`the winning score is bar ${tallest}, expected the one labelled l`);
-});
-
-// speaking an answer: the mic is offered next to the input and the transcript
-// route is wired, so a spoken answer reaches the same grading path
-await check('an answer can be spoken', async () => {
-  await page.locator('[aria-label="Insert lesson block"]').click();
-  await page.getByRole('menuitem', { name: 'Explain back' }).click();
-  const node = canvas.locator('[data-block-id]').last();
-  await node.locator('[data-speak-answer]').waitFor({ timeout: 5000 });
-  const wired = await page.evaluate(async () => {
-    const response = await fetch('/api/learn/transcribe', { method: 'POST', body: new FormData() });
-    return { status: response.status, error: (await response.json()).error };
-  });
-  if (wired.status === 404) throw new Error('the transcribe route is not deployed');
-  if (wired.status !== 400) throw new Error(`empty recording should be refused, got HTTP ${wired.status}: ${wired.error}`);
 });
 
 // the whiteboard block: tldraw's own tools, saved with the block

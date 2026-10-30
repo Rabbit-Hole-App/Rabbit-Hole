@@ -2,11 +2,12 @@
 // drawing target and the capture; the card UI (LearningBlocks / ExplainBackPanel) owns where the panel shows. Pure, so
 // Node tests import it.
 import { SKETCH_HEIGHT, hasMarks, sketchMarks, sketchText } from './explain-sketch.js';
+import { isExplainBackCard } from './explain-back-private.js';
 
 // Why a capture did not produce a picture. A missing capture is an error the caller shows, never a silent null visual.
 export const CAPTURE_ERRORS = {
   'question-missing': 'This question is no longer on the canvas.',
-  'not-explain-back': 'Only an Explain-back answer has a sketch.',
+  'not-explain-back': 'Only a Practice card has a sketch.',
   'draft-mismatch': 'The sketch belongs to a different draft of this answer.',
   'sketch-empty': 'The sketch has no marks to include.',
   'capture-failed': 'The sketch could not be pictured. Try again, or clear the sketch to submit without it.',
@@ -29,7 +30,7 @@ export const sketchDraftOf = sketch => (sketch && typeof sketch.draftId === 'str
 // Why `block` cannot give a capture for (questionId, draftId), or null when it can.
 export function captureProblem(block, { questionId, draftId = null } = {}) {
   if (!block || block.id !== questionId) return 'question-missing';
-  if (block.type !== 'challenge' || block.mode !== 'explain_back') return 'not-explain-back';
+  if (!isExplainBackCard(block)) return 'not-explain-back';
   const bound = sketchDraftOf(block.sketch);
   if (draftId && bound && bound !== draftId) return 'draft-mismatch';
   if (!hasMarks(block.sketch)) return 'sketch-empty';

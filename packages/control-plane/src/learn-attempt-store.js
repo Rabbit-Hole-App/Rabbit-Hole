@@ -20,6 +20,7 @@
 //   * An attempt row is never updated.
 import { validateCoachingRecord } from '../../web/src/learn-coaching-contract.js';
 import { EXPLAIN_BACK_KIND, answerReadiness, priorFeedbackRefs, validateExplainBackAnswer } from '../../web/src/explain-back-contract.js';
+import { isExplainBackCard } from '../../web/src/explain-back-private.js';
 import { CITATION_MAX, REPOSITORY_SOURCE, citationRef, citationsOverlap, isRepositorySource } from '../../web/src/learn-codebase-goals.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { freezeSnapshots, ownAttemptAssets } from './learn-attempt-assets.js';
@@ -333,7 +334,8 @@ async function savedCard(env, actor, email, cardId) {
   const row = await env.LEARN_DB.prepare('SELECT state_json FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = ?').bind(actor.org, email, actor.app, actor.board).first();
   const block = row ? (JSON.parse(row.state_json || '{}').blocks || []).find(b => b?.id === cardId) : null;
   if (!block) return null;
-  return block.type === 'challenge' && block.mode === 'explain_back' && typeof block.prompt === 'string' ? block : false;
+  // Every challenge block is the one Practice card (owner 2026-10-30), an old Challenge without mode 'explain_back' included.
+  return isExplainBackCard(block) && typeof block.prompt === 'string' ? block : false;
 }
 
 // Card-scoped private ids: the same learner, canvas and card always name the same goal; nothing else can.

@@ -279,7 +279,7 @@ test('previews are isolated: no live search, capture, grading, save, kernel or p
   assert.equal((notebook.match(/if \(preview\) return undefined;/g) || []).length, 1, 'no workspace export');
   assert.match(notebook, /useEffect\(\(\)=>preview\?undefined:registerNotebookEditor/);
   // Controls that would reach a provider are inert; the photo card never searches on Enter.
-  for (const control of ['data-speak-answer', 'data-photo-search', 'data-image-generate', 'data-generate-video', 'data-generate-scene', 'data-paid-generate']) assert.ok(stage.includes(`[${control}]`), control);
+  for (const control of ['data-photo-search', 'data-image-generate', 'data-generate-video', 'data-generate-scene', 'data-paid-generate']) assert.ok(stage.includes(`[${control}]`), control);
   assert.match(stage, /\{\.\.\.\(type === 'image' \? noEnter : \{\}\)\}/);
   // Practice's feedback is canned and local, labelled as an example, never a grade of the answer.
   assert.match(PREVIEWS.practice.feedback, /^VERDICT: partial\nExample feedback, not a grade of what you wrote:/);
