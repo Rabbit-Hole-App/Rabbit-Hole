@@ -1,0 +1,145 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { claimMicrophone, microphoneHolder, releaseMicrophone } from './explain-back-media.js';
+import { createSketchRecording, diffMarks, recordingSubmitState, stateAt, timelineSteps } from './sketch-recording.js';
+
+const OGG_OPUS = (() => { const b = new Uint8Array(47); b.set([...'OggS'].map(c => c.charCodeAt(0))); b[26] = 1; b[27] = 19; b.set([...'OpusHead'].map(c => c.charCodeAt(0)), 28); return b; })();
+function fakeMedia() {
+  const tracks = [], calls = { getUserMedia: 0 };
+  class Recorder {
+    static isTypeSupported(type) { return type === 'audio/ogg;codecs=opus'; }
+    constructor(stream, options) { this.mimeType = options?.mimeType || ''; this.state = 'inactive'; Recorder.last = this; }
+    start() { this.state = 'recording'; }
+    pause() { this.state = 'paused'; }
+    resume() { this.state = 'recording'; }
+    stop() { this.state = 'inactive'; this.ondataavailable?.({ data: new Blob([OGG_OPUS]) }); queueMicrotask(() => this.onstop?.()); }
+  }
+  const media = { MediaRecorder: Recorder, getUserMedia: async () => { calls.getUserMedia++; const track = { stopped: 0, stop() { this.stopped++; }, addEventListener() {} }; tracks.push(track); return { getTracks: () => [track] }; } };
+  return { media, tracks, calls, Recorder };
+}
+function fakeTime() {
+  const t = { at: 0, tickers: new Set() };
+  t.now = () => t.at;
+  t.every = fn => { t.tickers.add(fn); return () => t.tickers.delete(fn); };
+  t.advance = ms => { t.at += ms; for (const fn of [...t.tickers]) fn(); };
+  return t;
+}
+const until = async (check, what) => { for (let i = 0; i < 200; i++) { if (check()) return; await new Promise(r => setTimeout(r, 0)); } assert.fail(`timed out waiting for ${what}`); };
+const uploader = prefix => { let n = 0; return async (file, info) => { info.onProgress({ sent: file.size, total: file.size }); return { assetId: `aa_${prefix}${String(++n).padStart(8, '0')}` }; }; };
+
+const stroke = (x, y) => ({ tool: 'pen', width: 3, points: [{ x, y }, { x: x + 40, y }] });
+const arrow = (id, x1, x2, label = '') => ({ id, kind: 'arrow', x1, y1: 50, x2, y2: 50, label });
+
+test('silent recording: no microphone, a starting snapshot and every change on a clock that pauses', async () => {
+  const fake = fakeMedia();
+  const time = fakeTime();
+  const rec = createSketchRecording({ media: fake.media, time, upload: uploader('rec') });
+  const first = { strokes: [stroke(0, 0)], shapes: [], items: [] };
+  await rec.start({ sketch: first });
+  assert.equal(fake.calls.getUserMedia, 0, 'silent mode never asks for the microphone');
+  assert.equal(microphoneHolder(), null);
+  time.advance(1000);
+  const second = { ...first, shapes: [arrow('a1', 10, 90)] };
+  rec.observe(second);
+  time.advance(2000); rec.pause(); time.advance(30_000);
+  const third = { ...second, strokes: [...first.strokes, stroke(5, 100)] };
+  rec.observe(third); // drawn while paused: it lands at the paused moment
+  rec.resume(); time.advance(1500);
+  const fourth = { ...third, shapes: [] }; // the arrow erased
+  rec.observe(fourth);
+  rec.observe(fourth); // no change, no op
+  time.advance(500); rec.stop();
+  await until(() => rec.get().status === 'saved', 'saved');
+  const { timeline, durationMs } = rec.get().take;
+  assert.equal(durationMs, 5000, 'paused time is not on the clock');
+  assert.deepEqual(timeline.start, first);
+  assert.deepEqual(timeline.ops.map(op => [op.t, op.k, op.keep, op.add.length]), [[1000, 'shapes', 0, 1], [3000, 'strokes', 1, 1], [4500, 'shapes', 0, 0]]);
+  assert.deepEqual(timeline.pauses, [3000]);
+  assert.equal(timeline.narration, false);
+  assert.deepEqual(stateAt(timeline, 999), first);
+  assert.deepEqual(stateAt(timeline, 1000), second);
+  assert.deepEqual(stateAt(timeline, 4000), third);
+  assert.deepEqual(stateAt(timeline), fourth);
+  const saved = rec.get().saved;
+  assert.deepEqual([saved.role, saved.state, saved.assetId, saved.mime, saved.durationMs, saved.narration], ['recording', 'ready', 'aa_rec00000001', 'application/json', 5000, null]);
+  assert.deepEqual(recordingSubmitState(rec.get()), { ready: true, blocked: null });
+});
+
+test('narrated recording: one clock for marks and sound, Pause pauses both, Stop releases the microphone', async () => {
+  const fake = fakeMedia();
+  const time = fakeTime();
+  const rec = createSketchRecording({ media: fake.media, time, upload: uploader('rec'), uploadAudio: uploader('aud') });
+  rec.setAudio(true);
+  await rec.start({ sketch: null });
+  assert.equal(rec.get().status, 'recording');
+  assert.equal(fake.calls.getUserMedia, 1);
+  assert.equal(microphoneHolder()?.label, 'The Sketch recording');
+  assert.deepEqual(recordingSubmitState(rec.get()).blocked, 'Stop recording to submit');
+  time.advance(2000); rec.observe({ strokes: [stroke(0, 0)] });
+  rec.pause();
+  assert.equal(fake.Recorder.last.state, 'paused', 'the narration pauses with the timeline');
+  time.advance(10_000); rec.resume();
+  assert.equal(fake.Recorder.last.state, 'recording');
+  time.advance(3000); rec.stop();
+  assert.ok(fake.tracks.every(track => track.stopped >= 1));
+  assert.equal(microphoneHolder(), null);
+  await until(() => rec.get().status === 'saved', 'saved with narration');
+  const saved = rec.get().saved;
+  assert.equal(saved.durationMs, 5000);
+  assert.equal(saved.narration.durationMs, 5000, 'the narration has the same length as the timeline');
+  assert.deepEqual([saved.narration.role, saved.narration.assetId], ['voice', 'aa_aud00000001']);
+  assert.equal(rec.get().take.timeline.narration, true);
+});
+
+test('the two-minute limit stops marks and narration together; closing the panel keeps the take', async () => {
+  const fake = fakeMedia();
+  const time = fakeTime();
+  const rec = createSketchRecording({ media: fake.media, time, upload: uploader('rec'), uploadAudio: uploader('aud') });
+  rec.setAudio(true);
+  await rec.start({ sketch: { strokes: [] } });
+  for (let i = 0; i < 125; i++) time.advance(1000);
+  await until(() => rec.get().status === 'saved', 'limit save');
+  assert.equal(rec.get().notice, 'Stopped at the 2:00 limit.');
+  assert.equal(rec.get().saved.durationMs, 120_000);
+  assert.ok(fake.tracks.every(track => track.stopped >= 1));
+
+  const silent = createSketchRecording({ media: fake.media, time, upload: uploader('rec') });
+  await silent.start({ sketch: { strokes: [stroke(1, 1)] } });
+  time.advance(4000);
+  silent.close();
+  await until(() => silent.get().status === 'saved', 'closed save');
+  assert.equal(silent.get().notice, 'The Sketch was closed, so the recording stopped; it was kept.');
+});
+
+test('one microphone: narration waits for a voice note, silent recording does not need it', async () => {
+  const fake = fakeMedia();
+  const time = fakeTime();
+  const voiceNote = { id: 'voice-note:d1', label: 'The voice note' };
+  assert.equal(claimMicrophone(voiceNote), true);
+  const rec = createSketchRecording({ media: fake.media, time, upload: uploader('rec'), uploadAudio: uploader('aud') });
+  rec.setAudio(true);
+  await rec.start({ sketch: {} });
+  assert.deepEqual([rec.get().status, rec.get().error.kind, rec.get().error.message], ['idle', 'busy', 'The voice note is using the microphone. Stop it first.']);
+  assert.equal(fake.calls.getUserMedia, 0);
+  rec.setAudio(false);
+  await rec.start({ sketch: {} });
+  assert.equal(rec.get().status, 'recording');
+  rec.cancel();
+  releaseMicrophone(voiceNote);
+});
+
+test('two recordings with the same final sketch but different reasoning give different step evidence', () => {
+  const right = arrow('a1', 10, 90, 'force inward');
+  const wrong = arrow('a0', 90, 10, 'force outward');
+  const direct = { v: 1, start: {}, ops: diffMarks({ strokes: [], shapes: [], items: [] }, { strokes: [], shapes: [right], items: [] }, 2000) };
+  const startMarks = { strokes: [], shapes: [], items: [] };
+  const withWrong = { ...startMarks, shapes: [wrong] };
+  const corrected = { v: 1, start: {}, ops: [...diffMarks(startMarks, withWrong, 2000), ...diffMarks(withWrong, { ...startMarks, shapes: [right] }, 9000)] };
+  assert.deepEqual(stateAt(direct), stateAt(corrected), 'same final picture');
+  const a = timelineSteps(direct), b = timelineSteps(corrected);
+  assert.notDeepEqual(a, b);
+  assert.match(b[1].text, /force outward/);
+  assert.equal(b[1].t, 2000);
+  assert.match(b[2].text, /force inward/);
+  assert.equal(b[2].t, 9000, 'the self-correction keeps its time');
+});
