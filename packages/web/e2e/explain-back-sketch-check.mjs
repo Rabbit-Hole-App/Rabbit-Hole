@@ -651,8 +651,14 @@ await check('EB-05 an ordinary connector between cards stays ordinary', async ()
 });
 
 await check('EB-05 pills: one Group pill with its count; × disconnects; the picker makes the same link', async () => {
+  // The connector step leaves its cards selected: the style panel and the selection bar follow that selection and can lie
+  // over the answer card. A learner clears it with a press on empty canvas before using the card's own controls.
+  const surface = await box(page.locator('[data-canvas-surface]'));
+  await page.mouse.click(surface.x + surface.width * 0.6, surface.y + surface.height * 0.5);
+  await page.waitForTimeout(300);
   await reveal(answerCard);
   const pills = answerCard.locator('[data-input-pill]');
+  await pills.first().waitFor();
   assert.equal(await pills.count(), 1, 'one pill for one semantic link');
   assert.equal(await pills.first().getAttribute('data-input-kind'), 'group');
   assert.match(await pills.first().innerText(), /· 2 items/);
@@ -660,7 +666,8 @@ await check('EB-05 pills: one Group pill with its count; × disconnects; the pic
   await settleLinks(answerId, 0);
   assert.equal(await pills.count(), 0);
   const picker = answerCard.locator('[data-input-picker]');
-  await picker.focus();
+  await picker.focus(); // the picker reads the canvas's sources when it takes focus
+  await picker.locator(`option[value="${sourceBId}"]:not([disabled])`).waitFor({ state: 'attached' });
   await picker.selectOption(sourceBId);
   await settleLinks(answerId, 1);
   const [link] = await inputLinks(answerId);
