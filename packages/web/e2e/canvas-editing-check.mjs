@@ -1058,16 +1058,19 @@ await run('narrow', async () => {
 await run('explain back sketch', async () => {
   const block = { id: 'eb1', type: 'challenge', mode: 'explain_back', title: 'Explain softmax', prompt: 'Explain it back, with a sketch.', sketchOpen: true, sketch: { strokes: [], shapes: [], items: [] }, dx: 0, dy: 0 };
   const { page, context, saved, shot } = await open('explain-back', { blocks: [block] });
-  const area = page.locator('[data-sketch="eb1"]');
+  // The sketch is drawn in the one Sketch panel docked beside the card (plan 2026-10-30-explain-back.md section 3), which
+  // sizes itself to the dock after it mounts: measure it once it has stopped moving (CI run 41028919464 read it mid-layout).
+  const area = page.locator('[data-explain-sketch-panel] [data-sketch="eb1"]');
   await area.waitFor();
-  const box = await area.boundingBox();
+  let box = await area.boundingBox();
+  for (let i = 0; i < 30; i++) { await page.waitForTimeout(100); const next = await area.boundingBox(); if (JSON.stringify(next) === JSON.stringify(box)) break; box = next; }
   await page.mouse.click(box.x + box.width - 30, box.y + box.height - 20); // make the sketch the draw target
   await page.getByRole('button', { name: /^Rectangle/ }).click();
   await page.keyboard.down('Shift');
   await page.mouse.move(box.x + 40, box.y + 40); await page.mouse.down();
   await page.mouse.move(box.x + 140, box.y + 80, { steps: 5 }); await page.mouse.up();
   await page.keyboard.up('Shift');
-  let marks = (await saved()).blocks[0].sketch.shapes;
+  let marks = (await saved(board => board.blocks?.[0]?.sketch?.shapes?.length > 0)).blocks[0].sketch.shapes;
   const s = marks[0];
   check('Shift draws a square inside an Explain Back sketch too', marks.length === 1 && Math.abs(Math.abs(s.x2 - s.x1) - Math.abs(s.y2 - s.y1)) < 1, JSON.stringify(s));
   await page.getByRole('button', { name: /^Ellipse/ }).click();

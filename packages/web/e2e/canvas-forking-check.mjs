@@ -51,7 +51,9 @@ const EB_BLOCKS = [
 ];
 const EB_LINKS = [{ id: 'seed-input', kind: 'explain-input', from: 'seed-note', fromSide: 'bottom', to: 'seed-eb', toSide: 'input', color: 'var(--color-success)' }];
 const CHAT = [{ id: 'seed-q', question: 'Why exponentiate?', answer: 'Scores become positive weights that add to 1.', status: 'done', dx: 0, dy: 0 }];
-const ownerPage = await pageFor(owner, { fn: ([key, seed, chat]) => { if (localStorage.getItem(`${key}:ink`)) return; localStorage.setItem(`${key}:ink`, JSON.stringify(seed)); localStorage.setItem(`${key}:chat`, JSON.stringify(chat)); }, arg: [base, SEED, CHAT] });
+// The owner's browser holds the Explain-back card too: its board save is the canvas's content, so a share made after it
+// carries the card (CI run 41028919464: seeded without it, the owner's save left the shared board with no card).
+const ownerPage = await pageFor(owner, { fn: ([key, seed, chat]) => { if (localStorage.getItem(`${key}:ink`)) return; localStorage.setItem(`${key}:ink`, JSON.stringify(seed)); localStorage.setItem(`${key}:chat`, JSON.stringify(chat)); }, arg: [base, { ...SEED, blocks: EB_BLOCKS, links: EB_LINKS }, CHAT] });
 await ownerPage.goto(`${BASE}/apps/${source.name}`);
 await ownerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
 await ownerPage.waitForTimeout(1200);
@@ -105,7 +107,8 @@ const viewerFork = new URL(viewerPage.url()).pathname.split('/').pop();
 await viewerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 30000 });
 const sharedBody = JSON.stringify(await api(viewer, `/api/learn/boards/shared/${shared.sharing.view}`));
 check('EB-02.4 the shared view carries the Explain-back exercise and its Input link, not the learner answer, attempts, drafts or Sketch',
-  sharedBody.includes('Why does softmax exponentiate the scores?') && sharedBody.includes('seed-input') && !sharedBody.includes(EB_PRIVATE));
+  sharedBody.includes('Why does softmax exponentiate the scores?') && sharedBody.includes('seed-input') && !sharedBody.includes(EB_PRIVATE),
+  JSON.stringify({ question: sharedBody.includes('Why does softmax exponentiate the scores?'), link: sharedBody.includes('seed-input'), private: sharedBody.includes(EB_PRIVATE) }));
 const forkBoard = (await api(viewer, `/api/learn/boards/${viewerFork}/main`)).state || {};
 check('EB-02.4 the fork copies the Explain-back exercise and its Input link only',
   forkBoard.blocks?.find(block => block.id === 'seed-eb')?.prompt === 'Why does softmax exponentiate the scores?' && forkBoard.links?.some(link => link.kind === 'explain-input' && link.to === 'seed-eb')
