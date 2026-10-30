@@ -1,12 +1,17 @@
 import { useRef, useState } from 'react';
 import { Loader2, Mic, Square } from 'lucide-react';
 import { wsHeaders } from './api.js';
+import { claimMicrophone, microphoneHolder, releaseMicrophone } from './explain-back-media.js';
 
 // Say the answer instead of typing it. The transcript lands in the same input
 // the learner would have typed into, so it is visible and editable before it
 // is graded - a misheard word is not a wrong answer.
 // ponytail: MediaRecorder + server transcription; the browser SpeechRecognition
 // API is Chrome-only and mishears technical words like "logits".
+
+// One microphone owner per page (explain-back-media.js): an Explain-back voice note or Sketch narration in progress refuses
+// dictation by name instead of competing for the microphone.
+const OWNER = { id: 'speak-answer', label: 'Speak answer' };
 
 export default function SpeakAnswer({ appName, onText, disabled }) {
   const recorder = useRef(null);
@@ -16,14 +21,16 @@ export default function SpeakAnswer({ appName, onText, disabled }) {
   const stop = () => { recorder.current?.stop(); setRecording(false); };
   const start = async () => {
     setError('');
+    if (!claimMicrophone(OWNER)) { setError(`${microphoneHolder()?.label || 'Another recording'} is using the microphone. Stop it first.`); return; }
     let stream;
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
-    catch { setError('Microphone permission is needed to speak your answer.'); return; }
+    catch { releaseMicrophone(OWNER); setError('Microphone permission is needed to speak your answer.'); return; }
     const chunks = [];
     const media = new MediaRecorder(stream);
     media.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
     media.onstop = async () => {
       stream.getTracks().forEach(track => track.stop());
+      releaseMicrophone(OWNER);
       setWorking(true);
       try {
         const form = new FormData();
