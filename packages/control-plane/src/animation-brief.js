@@ -40,7 +40,19 @@ export async function prepareStage(job, ctx) {
     context: job.context ? { refText: job.context.refText ?? null, refs: (job.context.refs || []).map(({ name, kind, status, note }) => ({ name, kind, status, ...(note ? { note } : {}) })) } : null,
     evidence: modelEvidence(job.evidence),
     capabilities: { phase: caps.phase, experiences: caps.experiences, behaviors: caps.behaviors, controlProfiles: caps.controlProfiles, features: caps.features, limits: { parameters: caps.limits.parameters, actions: caps.limits.actions, nodes: caps.limits.nodes } } });
-  const { input } = await ctx.call('brief', { system: ANIMATION_BRIEF_SYSTEM, tool: PLAN_TOOL, content });
+  const first = await planFrom(await ctx.call('brief', { system: ANIMATION_BRIEF_SYSTEM, tool: PLAN_TOOL, content }), caps);
+  if (first.gap || first.plan) return first;
+  // One bounded correction (ANIMATION_LIMITS.planCorrections, counted in the plan call bound and the worst case): the planner gets its
+  // own plan back with the contract's issues and returns the whole plan again. Its answer is checked like the first; never rewritten here.
+  const issues = first.issues.map(i => `${i.path || 'plan'}: ${i.message} (${i.code})`);
+  const again = await planFrom(await ctx.call('brief', { system: ANIMATION_BRIEF_SYSTEM, tool: PLAN_TOOL,
+    content: JSON.stringify({ ...JSON.parse(content), correction: { previousPlan: first.input, issues, instruction: 'Your plan was refused by these checks. Return the whole plan again with them fixed; keep everything else the same.' } }) }), caps);
+  if (again.gap || again.plan) return again;
+  throw new AnimationPolicyError('invalid_turn', `The plan was not buildable after one correction: ${issuesText(again.issues)}.`, { issues: again.issues });
+}
+
+// One planner reply as a checked plan. -> { plan } | { gap } | { issues, input }
+function planFrom({ input }, caps) {
   if (input.gap?.reason) return { gap: { capability: 'animation', needs: ['other'], source: 'brief', reason: String(input.gap.reason).slice(0, 300), message: 'This animation needs something that is not available yet, so edit the request.' } };
   const draft = { schema: PLAN_SCHEMA, title: input.title, description: input.description, experience: input.experience, reason: input.reason, behavior: input.behavior,
     controlProfile: input.controlProfile, sourceRefs: [], parameters: Array.isArray(input.parameters) ? input.parameters : [], interactions: listOf(input.interactions, 8),
@@ -49,8 +61,7 @@ export async function prepareStage(job, ctx) {
   // The server's limitations first, then the planner's, within the contract's eight.
   draft.limitations = [...unsupportedRequests(input.requested, draft, caps), ...listOf(input.limitations, 8)].slice(0, 8);
   const checked = validateAnimationPlan(draft, caps);
-  if (!checked.ok) throw new AnimationPolicyError('invalid_turn', `The plan was not buildable: ${issuesText(checked.issues)}.`, { issues: checked.issues });
-  return { plan: checked.value };
+  return checked.ok ? { plan: checked.value } : { issues: checked.issues, input };
 }
 
 // The executed plan at Generate: the learner's reviewed title, description, assumptions and experience over the prepared plan, checked

@@ -34,7 +34,7 @@ test('the admission check is the bounded build graph: one author, two reviews, o
   assert.equal(ANIMATION_LIMITS.repairs, 1);
   const r = animationReservation(TASKS);
   assert.equal(r.generationMicros, roleBoundMicros('author', TASKS) + 2 * roleBoundMicros('review', TASKS) + roleBoundMicros('repair', TASKS));
-  assert.equal(r.preparationMicros, roleBoundMicros('brief', TASKS));
+  assert.equal(r.preparationMicros, 2 * roleBoundMicros('brief', TASKS), 'a plan call and its one correction');
   // A review round's images are its captures: at most 2 views x 3 states.
   assert.equal(ANIMATION_ROLES.review.maxImages, ANIMATION_LIMITS.render.views * ANIMATION_LIMITS.render.states);
 });

@@ -340,3 +340,38 @@ test('an author reply cut off at its output limit is output_limit, and its bille
   const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js');
   for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /fixed output limit: decide briefly, then make the tool call/);
 });
+
+// accept-6 fresh: the plan asked for "step" with an analytical behavior and the request died at planning (invalid_turn).
+test('a plan the contract refuses gets one correction turn with the issues; a second refusal ends it; the rule is in the prompt', async () => {
+  const { PLAN_RULES, PLAN_TOOL, ANIMATION_BRIEF_SYSTEM } = await import('../src/agents/animation-brief.js');
+  assert.equal(PLAN_RULES, '"seek" only with behavior prescribed or analytical; "step" only with behavior rules');
+  assert.ok(ANIMATION_BRIEF_SYSTEM.includes(PLAN_RULES) && PLAN_TOOL.input_schema.properties.requiredCapabilities.description.includes(PLAN_RULES));
+  const job = { prompt: 'Show how the gears on a bicycle change how far the back wheel turns for one turn of the pedals.', evidence: [], context: null };
+  const bad = planReply(experimentFixture, { requiredCapabilities: ['parameters', 'readouts', 'step'] });
+  const sent = [];
+  const call = replies => async (role, spec) => { sent.push(JSON.parse(spec.content)); return { input: replies[sent.length - 1] }; };
+  const fixed = await prepareStage(job, { call: call([bad, planReply(experimentFixture)]) });
+  assert.deepEqual([sent.length, fixed.plan.requiredCapabilities.includes('step'), fixed.plan.behavior], [2, false, 'analytical']);
+  assert.deepEqual(sent[1].correction.issues, ['requiredCapabilities: step needs behavior rules (unsupported_capability)']);
+  assert.deepEqual(sent[1].correction.previousPlan.requiredCapabilities, ['parameters', 'readouts', 'step']);
+  assert.equal(sent[1].request, job.prompt, 'the correction carries the whole original input');
+  sent.length = 0;
+  await assert.rejects(prepareStage(job, { call: call([bad, bad, bad]) }), { code: 'invalid_turn', message: /after one correction: requiredCapabilities: step needs behavior rules/ });
+  assert.equal(sent.length, 2, 'never a third plan call');
+  // A valid first plan costs one call.
+  sent.length = 0;
+  await prepareStage(job, { call: call([planReply(experimentFixture)]) });
+  assert.equal(sent.length, 1);
+});
+
+test('the plan correction is inside the call bound and the worst case', async t => {
+  const { animationReservation, roleBoundMicros, ANIMATION_LIMITS } = await import('../src/animation-policy.js');
+  assert.equal(animationReservation(TASKS).preparationMicros, 2 * roleBoundMicros('brief', TASKS));
+  assert.equal(ANIMATION_LIMITS.planCorrections, 1);
+  // In the real job: a refused plan, its correction, then a third plan call is impossible within one preparation.
+  const s = stack(t, { brief: n => planReply(experimentFixture, n === 1 ? { requiredCapabilities: ['step'] } : {}) });
+  const { body } = await s.create();
+  const waiting = await s.run(body.job.id);
+  assert.deepEqual([waiting.stage, waiting.counts.brief, s.model.roles()], ['awaiting_approval', 2, ['brief', 'brief']]);
+  assert.ok(waiting.bounds.preparation <= waiting.reservation.preparationMicros);
+});
