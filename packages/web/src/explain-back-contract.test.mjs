@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { RESPONSE_KINDS, validateCoachingRecord } from './learn-coaching-contract.js';
 import {
   ANSWER_LIMITS, ERROR_CODES, JUDGMENT_FIT, answerReadiness, attemptState, fromLegacyAnswer, submitEnvelope,
-  validateExplainBackAnswer, validateExplainBackReview,
+  validateExplainBackAnswer, validateExplainBackReview, validateTranscript, voiceEvidence,
 } from './explain-back-contract.js';
 import { BOARD, CARD, INVALID, LEGACY, READINESS, REVIEWED_ANSWER, VALID, review } from './explain-back-contract.fixtures.mjs';
 
@@ -103,4 +103,16 @@ test('attempt state follows the latest operation and its stored rating', () => {
   assert.equal(attemptState({ status: 'unknown' }), 'unknown');
   assert.equal(attemptState({ status: 'failed' }), 'failed');
   assert.equal(attemptState({ status: 'completed', provenance: { review: review() } }), 'reviewed');
+});
+
+test('a voice note from the recorder maps to a ready voice ref; transcripts are bounded, private and hash-keyed', () => {
+  const note = { v: 1, asset: 'aa_voice00000009', type: 'audio/webm', ext: 'webm', codec: 'opus', durationMs: 12000, size: 9000, sha256: 'a'.repeat(64) };
+  const ref = voiceEvidence(note, 'ev_v9');
+  assert.equal(validateExplainBackAnswer({ v: 1, kind: 'explain_back', text: '', voice: [ref], resources: [], assistance: [] }).ok, true);
+  assert.equal(ref.ext, undefined);
+  const t = { transcriptId: 'tr_1', assetId: 'aa_voice00000009', hash: 'a'.repeat(64), text: 'the force points inward', segments: [{ startMs: 0, endMs: 2100, text: 'the force points inward' }], provider: 'fixture', model: 'fixture-stt', uncertainty: 0.1 };
+  assert.deepEqual(validateTranscript(t), { ok: true, errors: [] });
+  assert.equal(validateTranscript({ ...t, assetId: 'fs_board_file' }).ok, false);
+  assert.equal(validateTranscript({ ...t, hash: 'x' }).ok, false);
+  assert.equal(validateTranscript({ ...t, text: 'x'.repeat(20001) }).ok, false);
 });
