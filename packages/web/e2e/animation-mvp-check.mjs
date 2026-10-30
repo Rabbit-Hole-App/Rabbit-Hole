@@ -6,12 +6,12 @@
 // Covers: /animation in Slash Commands and its composer pill, and a bare /animation makes no generation request; the watch card
 // plays, pauses on the visible moment, restarts and loops without resetting its speed; each experiment parameter at its minimum,
 // maximum and default moves both the scene's geometry and its readouts to the oracle's values; the mini-game's wrong and winning
-// moves, hint, moves counter, a move after winning, reload restoring its state and Reset; narrow and wide cards in light and dark
+// moves, hint, moves counter, a move after winning, reload (an example's state lives in the page only: it comes back at its start)
+// and Reset; the dev Insert palette's More > 3D animation example and its example picker; narrow and wide cards in light and dark
 // keep every control inside the card; before Interact the wheel pans the canvas and leaves the scene; Interact turns the scene,
 // not the canvas; Escape ends it; window blur drops a held drag; a press in Chat ends it and every typed key reaches the composer;
 // a browser without WebGL keeps the description and says so; no page or console error, no model request.
-// Hooks: the card's data-animation-* attributes (Animation3DCard.jsx, animation3d/Controls.jsx); handback-v.md lists the three
-// this check needs beyond them (data-animation-time/-duration, data-animation-frame, a readout's data-value).
+// Hooks: the card's data-animation-* / data-animation3d-* attributes (Animation3DCard.jsx, animation3d/Controls.jsx; lane U hand-back).
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/animation-mvp-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -24,7 +24,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('animation-mvp-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'animation-mvp-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 24; // bump with the steps below; the printed line is what CI reads
+const TOTAL = 25; // bump with the steps below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `anim-${run}@example.com`, secret, handle: `anim_${run}` }) })).json();
@@ -34,15 +34,17 @@ const api = async (path, init = {}) => {
 };
 
 // A seeded built-in example card (lane U card.js fixtureIdOf: block.fixtureId names a fixtures.js entry). w sets its width.
+const BADGE = { watch: 'Watch', experiment: 'Experiment', game: 'Mini-game' }; // card.js EXPERIENCE_LABELS
 const card3d = (id, kind, w) => ({ id, type: 'animation3d', dx: 0, dy: 0, title: FIXTURES[kind].title, fixtureId: FIXTURES[kind].name, ...(w ? { w } : {}) });
 const board = blocks => ({ strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], blocks, exchanges: [] });
 // Three cards per canvas: the shared viewer policy keeps at most three live WebGL viewers (plan section 5).
 const catalog = await api('/api/apps');
 const main = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Animation MVP ${run}` }) });
 const sizes = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Animation sizes ${run}` }) });
+const entry = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Animation insert ${run}` }) }); // left empty: the Insert palette fills it
 const keyOf = name => `small.adaptive-canvas:${catalog.org}:${catalog.email}:${name}:ink`;
 const SEEDS = [[keyOf(main.name), board([card3d('a-watch', 'watch'), card3d('a-exp', 'experiment'), card3d('a-game', 'game')])],
-  [keyOf(sizes.name), board([card3d('a-narrow', 'experiment', 340), card3d('a-wide', 'experiment', 960)])]];
+  [keyOf(sizes.name), board([card3d('a-narrow', 'experiment', 360), card3d('a-wide', 'experiment', 960)])]];
 
 // Generation and model routes: none may be called by watching, playing or the controls. A non-GET is aborted and counted.
 const MODEL = /^\/api\/(ask$|learn\/(ask|selection|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|artifact|explain|animation|chat\/material-proposals|cad\/jobs|motion))/;
@@ -84,7 +86,7 @@ const open = async ({ theme = 'light', canvas = main, first = 'a-watch', webgl =
   // context as a console error: that refusal is the case under test there, so that context's console is not collected.
   page.on('console', message => { if (webgl && message.type() === 'error' && !/Failed to load resource/.test(message.text())) consoleErrors.push(`${tag}: ${message.text().slice(0, 300)}`); });
   await page.goto(`${BASE}/apps/${canvas.name}`);
-  await page.locator(`[data-block-id="${first}"] [data-animation3d-card]`).waitFor({ timeout: 60000 });
+  await (first ? page.locator(`[data-block-id="${first}"] [data-animation3d-card]`) : page.getByRole('menubar', { name: 'Canvas menu' })).waitFor({ timeout: 60000 });
   await fit(page);
   return { context, page };
 };
@@ -92,7 +94,7 @@ const open = async ({ theme = 'light', canvas = main, first = 'a-watch', webgl =
 const parts = (page, id) => {
   const root = page.locator(`[data-block-id="${id}"]`), card = root.locator('[data-animation3d-card]'), viewport = card.locator('[data-animation-viewport]');
   return { root, card, viewport,
-    play: card.locator('[data-animation-play]'), restart: card.locator('[data-animation-restart]'), speed: card.locator('[data-animation-speed]'),
+    play: card.locator('[data-animation3d-play]'), restart: card.locator('[data-animation-restart]'), speed: card.locator('[data-animation-speed]'),
     reset: card.locator('[data-animation-reset]'), interact: card.locator('[data-animation-interact]'),
     param: pid => card.locator(`input[data-animation-number="${pid}"]`), readout: rid => card.locator(`[data-animation-readout="${rid}"]`),
     action: aid => card.locator(`[data-animation-action="${aid}"]`) };
@@ -175,6 +177,7 @@ try {
     for (const [p, kind] of [[W, 'watch'], [X, 'experiment'], [G, 'game']]) {
       await live(p);
       assert.equal(await p.card.getAttribute('data-animation-experience'), kind);
+      assert.equal((await p.card.locator('[data-animation-badge]').innerText()).trim(), BADGE[kind], `${kind}: its experience badge`);
       assert.equal(await p.card.getAttribute('data-animation-phase'), 'ready');
       assert.equal(await p.viewport.locator('canvas').count(), 1, `${kind}: one WebGL canvas`);
       assert.ok(await p.card.locator('[data-animation-fixture-note]').isVisible(), `${kind}: labelled a built-in example, not a generated result`);
@@ -283,13 +286,18 @@ try {
     await sameGame([...played, 'west'], 'a move after the win');
     await shot(page, 'E-game-won');
   });
-  await step("game: reload restores the outcome, the moves and the robot's square", async () => {
+  // Lane U (handback-u.md, decisions): a built-in example keeps its state in the page only and never writes the board, so a reload
+  // brings the example back at its declared start. Restoring a saved generated card's state is storage.js's envelope, not reachable
+  // with an example (handback-v.md: not covered here).
+  await step('game: after reload the example card is still there and starts again from its declared start', async () => {
     await page.waitForTimeout(2500); // the canvas saves after a short pause
     await page.reload();
     await G.card.waitFor({ timeout: 60000 });
     await fit(page);
     await live(G);
-    await sameGame(played, 'after reload');
+    await sameGame([], 'after reload');
+    await act(...played); // back to the won state, for Reset
+    await sameGame(played, 'played again after reload');
   });
   await step('game: Reset scene restores the starting conditions: the robot home, no moves, playing', async () => {
     await G.reset.click();
@@ -371,6 +379,32 @@ try {
       for (const r of controls) assert.ok(r.w > 0 && r.x >= outer.x - 1 && r.x + r.w <= outer.x + outer.width + 1, `${r.label} is clipped by the card (${JSON.stringify(r)} in ${JSON.stringify(outer)})`);
     }
     await shot(p, `F-${theme}-narrow-wide`);
+    await c.close();
+  });
+
+  // ---- Entry for examples (dev build only: VITE_COACHING_DEV, as fast-e2e's dist-dev is built) ----
+  await step("the dev Insert palette's More > 3D animation example places an example card; its picker switches it to the watch loop, kept on reload", async () => {
+    const { context: c, page: p } = await open({ canvas: entry, first: null });
+    assert.equal(await p.locator('[data-animation3d-card]').count(), 0, 'an empty canvas');
+    await p.getByRole('button', { name: 'Insert lesson block' }).click();
+    await p.getByRole('menu', { name: 'Lesson blocks' }).getByRole('group', { name: 'More' }).getByRole('menuitem', { name: '3D animation example', exact: true }).click();
+    const placed = p.locator('[data-animation3d-card]');
+    await placed.waitFor({ timeout: 30000 });
+    assert.equal(await placed.count(), 1, 'one card placed');
+    const id = await placed.evaluate(node => node.closest('[data-block-id]').dataset.blockId), q = parts(p, id);
+    await until(async () => (await q.card.getAttribute('data-animation-experience')) === 'experiment', 'the inserted example is not the beam balance');
+    assert.ok(await q.card.locator('[data-animation-fixture-note]').isVisible(), 'labelled a built-in example');
+    await q.card.locator('select[data-animation3d-example]').selectOption(FIXTURES.watch.name);
+    await until(async () => (await q.card.getAttribute('data-animation-experience')) === 'watch', 'the picker did not switch to the watch example');
+    await live(q);
+    assert.equal((await q.card.locator('[data-animation-badge]').innerText()).trim(), 'Watch');
+    assert.equal(await q.play.count(), 1, 'the watch example has Play');
+    await shot(p, 'H-inserted-watch');
+    await p.waitForTimeout(2500); // the canvas saves after a short pause
+    await p.reload();
+    await q.card.waitFor({ timeout: 60000 });
+    assert.equal(await q.card.getAttribute('data-animation-experience'), 'watch', 'the chosen example survives a reload');
+    assert.equal(await q.card.locator('select[data-animation3d-example]').inputValue(), FIXTURES.watch.name);
     await c.close();
   });
 
