@@ -106,7 +106,18 @@ export function createAnimationRenderer({
       drag.started = true;
       onGesture({ type: 'drag_start', node: drag.id, value: axisValue(event, drag) });
     }
-    onGesture({ type: 'drag_move', node: drag.id, value: axisValue(event, drag) });
+    drag.last = axisValue(event, drag);
+    onGesture({ type: 'drag_move', node: drag.id, value: drag.last });
+  };
+  // A cancelled gesture (pointercancel, or interaction turned off by Escape, blur, a hidden tab) is not a release: it carries no
+  // usable pointer position, so a started drag ends where its last move put it (the object does not move) and nothing is selected.
+  // Moves after it do nothing until a new pointerdown.
+  const cancel = () => {
+    if (drag) {
+      if (drag.started) onGesture({ type: 'drag_end', node: drag.id, value: drag.last });
+      controls.enabled = true;
+    }
+    drag = press = null;
   };
   const up = event => {
     if (drag) {
@@ -120,7 +131,7 @@ export function createAnimationRenderer({
   canvas.addEventListener('pointerdown', down);
   canvas.addEventListener('pointermove', move);
   canvas.addEventListener('pointerup', up);
-  canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener('pointercancel', cancel);
   // Pointers held on the canvas, so turning interaction off (Escape, window blur, a hidden tab) ends OrbitControls' gesture too:
   // disabling it alone leaves its pointer tracked and a held drag orbits again once it is re-enabled (fast-e2e 41143743749).
   const held = new Set();
@@ -161,7 +172,9 @@ export function createAnimationRenderer({
     },
     setCamera,
     getCamera: () => (shown && !lost ? cameraState() : null),
-    interact(on) { if (!on) cancelHeld(); controls.enabled = !!on; if (!on) { drag = press = null; } },
+    // Off: end this renderer's own gesture first (cancel), then OrbitControls' held pointers (cancelHeld's synthetic pointercancel
+    // then finds no drag to end).
+    interact(on) { if (!on) { cancel(); cancelHeld(); } controls.enabled = !!on; },
     // Drawn and read in one task, so no preserveDrawingBuffer is needed.
     capturePoster() {
       if (!shown || lost || disposed) return null;
@@ -172,7 +185,7 @@ export function createAnimationRenderer({
       disposed = true;
       if (frame && globalThis.cancelAnimationFrame) cancelAnimationFrame(frame);
       resizeObserver?.disconnect();
-      for (const [type, handler] of [['webglcontextlost', lose], ['webglcontextrestored', restore], ['pointerdown', down], ['pointermove', move], ['pointerup', up], ['pointercancel', up], ['pointerdown', hold], ['pointerup', unhold], ['pointercancel', unhold]]) canvas.removeEventListener(type, handler);
+      for (const [type, handler] of [['webglcontextlost', lose], ['webglcontextrestored', restore], ['pointerdown', down], ['pointermove', move], ['pointerup', up], ['pointercancel', cancel], ['pointerdown', hold], ['pointerup', unhold], ['pointercancel', unhold]]) canvas.removeEventListener(type, handler);
       controls.dispose();
       shown?.dispose();
       shown = null;
