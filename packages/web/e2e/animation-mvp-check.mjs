@@ -10,13 +10,18 @@
 // and Reset; the dev Insert palette's More > 3D animation example and its example picker; narrow and wide cards in light and dark
 // keep every control inside the card; before Interact the wheel and a drag go to the canvas and leave the scene; Interact turns the scene,
 // not the canvas; Escape ends it; window blur drops a held drag; a press in Chat ends it and every typed key reaches the composer;
-// a browser without WebGL keeps the description and says so; no page or console error, no model request.
+// the real request path with a fake job server in the page: /animation in Chat, its plan (title, experience, reason), an experience
+// change saving version 2, Generate pressed twice making one approve and one card from the served artifact, a working control, and a
+// reload restoring it with no job or model request; a browser without WebGL keeps the description and says so; no page or console
+// error, no model request.
 // Hooks: the card's data-animation-* / data-animation3d-* attributes (Animation3DCard.jsx, animation3d/Controls.jsx; lane U hand-back).
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/animation-mvp-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { openSlashHelp } from './canvas-menu-helpers.mjs';
+import { experimentFixture } from '../src/animation3d/fixtures.js';
 import { FIXTURES, expectedReadouts, expectedNodes, expectedGame, close, within, WATCH_ALLOWANCE as WATCH } from './animation-oracle.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
@@ -24,7 +29,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('animation-mvp-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'animation-mvp-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 25; // bump with the steps below; the printed line is what CI reads
+const TOTAL = 28; // bump with the steps below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `anim-${run}@example.com`, secret, handle: `anim_${run}` }) })).json();
@@ -42,6 +47,7 @@ const catalog = await api('/api/apps');
 const main = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Animation MVP ${run}` }) });
 const sizes = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Animation sizes ${run}` }) });
 const entry = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Animation insert ${run}` }) }); // left empty: the Insert palette fills it
+const gen = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Animation request ${run}` }) }); // left empty: /animation fills it
 const keyOf = name => `small.adaptive-canvas:${catalog.org}:${catalog.email}:${name}:ink`;
 const SEEDS = [[keyOf(main.name), board([card3d('a-watch', 'watch'), card3d('a-exp', 'experiment'), card3d('a-game', 'game')])],
   [keyOf(sizes.name), board([card3d('a-narrow', 'experiment', 360), card3d('a-wide', 'experiment', 960)])]];
@@ -63,7 +69,7 @@ async function fit(page) {
   await page.keyboard.press('Shift+Digit1'); // zoom to fit, so every card is on screen
   await page.waitForTimeout(900);
 }
-const open = async ({ theme = 'light', canvas = main, first = 'a-watch', webgl = true } = {}) => {
+const open = async ({ theme = 'light', canvas = main, first = 'a-watch', webgl = true, extra = null } = {}) => {
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, colorScheme: theme });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.addInitScript(([seeds, mode]) => {
@@ -78,6 +84,7 @@ const open = async ({ theme = 'light', canvas = main, first = 'a-watch', webgl =
     if (MODEL.test(url.pathname) && request.method() !== 'GET') { stray.push(`${request.method()} ${url.pathname}`); return route.abort(); }
     return route.fallback();
   });
+  if (extra) await context.route('**/*', extra); // registered last, so it answers first; what it does not handle falls back to the above
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
   const tag = `${theme}${webgl ? '' : ' no-webgl'}`;
@@ -418,6 +425,146 @@ try {
     assert.equal(await q.card.locator('select[data-animation3d-example]').inputValue(), FIXTURES.watch.name);
     await c.close();
   });
+
+  // ---- The real request path (AN-03/05/06): /animation in Chat, its plan, Generate, the result card, reload ----
+  // The /animation job API is a fake job server in this browser (as explain-proposal-card-check): the job prepares a plan, posts it on
+  // the line's thread (mocked into that thread's restore, its saves answered here), waits for Generate, then is ready with an artifact
+  // the results route serves. That artifact is the beam-balance contract fixture under a generated id: wiring evidence, not generation.
+  const REQUEST = 'a beam balance where I can change each mass and its distance';
+  const REASON = 'Changing mass and distance directly shows that balance depends on their product.';
+  const ARTIFACT = { ...structuredClone(experimentFixture.artifact), artifactId: `art_${run}`, provenance: { origin: 'generated' } };
+  const sha16 = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
+  const flow = { jobs: new Map(), creates: [], approves: [], puts: [], reads: [], writes: [], proposals: new Map(), briefs: [] };
+  const viewOf = job => ({ id: job.id, version: 1, boardId: job.boardId, cardId: job.cardId, stage: job.stage, attempt: 1, terminal: ['ready', 'failed', 'cancelled'].includes(job.stage),
+    repairs: 0, stopReason: null, failure: null, recovery: [], usage: { credits: 0, unknown: false }, createdAt: 0, updatedAt: 0,
+    result: job.stage === 'ready' ? { jobId: job.id, resultId: ARTIFACT.artifactId, cardId: job.cardId, canvas: { boardId: job.boardId }, requestRef: sha16(`${job.requestId}|${job.prompt}`), revision: 1, planHash: ARTIFACT.planHash } : null });
+  const planOf = job => ({ proposal_id: `${run}000000000000`.replace(/[^0-9a-f]/g, '0').slice(0, 16), version: 1, command: 'animation', title: 'Beam balance',
+    description: 'A beam on a pivot with one weight on each side; change masses and distances and watch it tilt.', settings: { experience: 'watch' }, source_refs: [], references: [],
+    assumptions: ['Rigid, massless beam.'], limitations: ['The tilt is illustrative.'], requirements: [`Recommended: watch. ${REASON}`, 'Behavior: analytical', 'Controls: manipulate'],
+    input: { org: 'w', app: gen.name, job: job.id, plan_hash: ARTIFACT.planHash, request: job.prompt }, original_request: `/animation ${job.prompt}`,
+    expires_at: Math.floor(Date.now() / 1000) + 3600, sig: `v3.${'a'.repeat(64)}`, usage: { max_credits: 120, reserve_credits: null } });
+  const genRouter = async route => {
+    const request = route.request(), url = new URL(request.url()), method = request.method(), path = url.pathname;
+    if (path.startsWith('/api/learn/animation/') && method !== 'GET') flow.writes.push(`${method} ${path}`);
+    const result = path.match(/^\/api\/learn\/animation\/jobs\/results\/([^/]+)$/);
+    if (result) {
+      flow.reads.push(result[1]);
+      return decodeURIComponent(result[1]) === ARTIFACT.artifactId ? route.fulfill({ json: { artifact: ARTIFACT, execution: { allowed: true } } }) : route.fulfill({ status: 404, json: { error: 'Not available' } });
+    }
+    if (path === '/api/learn/animation/jobs' && method === 'POST') {
+      const body = request.postDataJSON();
+      let job = [...flow.jobs.values()].find(entry => entry.requestId === body.requestId);
+      if (!job) {
+        flow.creates.push(body);
+        job = { id: `aj_${run}${flow.jobs.size + 1}`, requestId: body.requestId, boardId: body.boardId, cardId: body.cardId, prompt: body.prompt, stage: 'preparing' };
+        flow.jobs.set(job.id, job);
+        const messageId = String(800001 + flow.briefs.length);
+        flow.proposals.set(messageId, planOf(job));
+        flow.briefs.push({ messageId, threadId: body.threadId, jobId: job.id });
+        const answer = viewOf(job);
+        job.stage = 'awaiting_approval'; // the card's first read sees the plan waiting, so its thread is shown again
+        return route.fulfill({ status: 202, json: { job: answer } });
+      }
+      return route.fulfill({ status: 202, json: { job: viewOf(job) } });
+    }
+    const one = path.match(/^\/api\/learn\/animation\/jobs\/([^/]+)(?:\/(\w+))?$/);
+    if (one) {
+      const job = flow.jobs.get(decodeURIComponent(one[1]));
+      if (!job || (method === 'GET' && url.searchParams.get('board') !== job.boardId)) return route.fulfill({ status: 404, json: { error: 'Not available' } });
+      if (one[2] === 'approve') {
+        flow.approves.push({ jobId: job.id, body: request.postDataJSON() });
+        const answer = viewOf({ ...job, stage: 'authoring' });
+        job.stage = 'ready'; // the card's next read finds it built
+        return route.fulfill({ status: 202, json: { job: answer } });
+      }
+      return route.fulfill({ json: { job: viewOf(job) } });
+    }
+    const thread = path.match(/^\/api\/ask\/threads\/([^/]+)$/);
+    if (thread && method === 'GET') {
+      const id = decodeURIComponent(thread[1]), mine = flow.briefs.filter(b => b.threadId === id);
+      if (!mine.length) return route.fallback();
+      const real = await route.fetch().catch(() => null);
+      const base = real?.ok ? await real.json() : { id, title: 'Animation request', mode: 'auto', contextRefs: [], draft: null, messages: [] };
+      const message = b => ({ role: 'assistant', content: 'Here is the plan for your animation. Generate makes it.', messageId: b.messageId, kind: 'answer', status: 'done',
+        meta: { version: 1, mode: 'ask', kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, proposal: flow.proposals.get(b.messageId), alternatives: [b.messageId] } });
+      return route.fulfill({ json: { ...base, messages: [...(base.messages || []), ...mine.map(message)] } });
+    }
+    const saved = path.match(/^\/api\/learn\/chat\/messages\/(\d+)\/proposal$/);
+    if (saved && flow.proposals.has(saved[1])) {
+      const id = saved[1], current = flow.proposals.get(id);
+      if (method === 'GET') return route.fulfill({ json: { proposal: current, message_id: id, used: false, references: [] } });
+      const sent = request.postDataJSON();
+      flow.puts.push({ id, body: sent });
+      if (sent.expected_version !== current.version) return route.fulfill({ status: 409, json: { error: 'This proposal changed meanwhile.', code: 'proposal_stale', current, current_message_id: id } });
+      const { expected_version: _version, ...change } = sent, next = { ...current, ...change, version: current.version + 1 };
+      flow.proposals.set(id, next);
+      return route.fulfill({ json: { proposal: next, references: [] } });
+    }
+    if (path === '/api/learn/chat/route' && method === 'POST') return route.fulfill({ status: 404, json: { error: 'Not found' } });
+    if (path === '/api/learn/tutor/plan') return route.fulfill({ json: { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Canned Tutor reply.' }] } });
+    return route.fallback();
+  };
+  const genSession = await open({ canvas: gen, first: null, extra: genRouter });
+  const { page: g } = genSession, gDock = g.locator('[data-chat-pane]');
+  const plan = () => gDock.locator('[data-generation-proposal="animation"]').last();
+  let job = null;
+  await step('/animation with a request in Chat: one job, its plan in the review area (title, recommended experience and its reason) and the canvas card waiting; nothing approved', async () => {
+    await g.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 20000 });
+    await composer(g).click(); await composer(g).fill(`/animation ${REQUEST}`); await g.waitForTimeout(150); await composer(g).press('Enter');
+    await until(async () => flow.creates.length === 1, 'one job for the /animation line');
+    job = [...flow.jobs.values()][0];
+    assert.equal(job.prompt, REQUEST, 'the request words, without the command');
+    await plan().waitFor({ timeout: 20000 });
+    assert.equal((await plan().locator('h3').innerText()).trim(), 'Beam balance');
+    assert.equal(await plan().locator('[data-proposal-select="experience"]').inputValue(), 'watch', 'the recommended experience');
+    assert.ok((await plan().locator('[data-proposal-section="requirements"]').innerText()).includes(REASON), "the recommendation's reason");
+    await g.locator(`[data-block-id="${job.cardId}"] [data-animation-pending]`).waitFor({ state: 'attached', timeout: 20000 });
+    assert.equal(flow.approves.length, 0, 'nothing approved');
+    await plan().screenshot({ path: `${SHOTS}/I-plan.png` });
+  });
+  await step('changing the experience saves version 2; Generate pressed twice sends one approve with it and makes one card, drawn from the served artifact', async () => {
+    await plan().locator('[data-proposal-select="experience"]').selectOption('experiment');
+    await until(async () => (await plan().getAttribute('data-proposal-version')) === '2', 'version 2 after the experience change');
+    assert.deepEqual(flow.puts.map(p => p.body), [{ expected_version: 1, settings: { experience: 'experiment' } }]);
+    assert.equal(flow.approves.length, 0, 'a settings change approves nothing');
+    await plan().locator('[data-proposal-generate]:not([disabled])').waitFor({ timeout: 10000 });
+    await plan().locator('[data-proposal-generate]').dblclick();
+    await until(async () => flow.approves.length >= 1, 'an approve request');
+    await g.waitForTimeout(800);
+    assert.equal(flow.approves.length, 1, 'two presses, one approve');
+    const { body } = flow.approves[0];
+    assert.deepEqual([body.boardId, body.proposal.version, body.proposal.settings.experience], [job.boardId, 2, 'experiment']);
+    await plan().locator('[data-proposal-made]').waitFor({ timeout: 10000 });
+    const q = parts(g, job.cardId);
+    await until(async () => (await q.card.getAttribute('data-animation-experience')) === 'experiment', 'the result card', 30000);
+    await fit(g);
+    await live(q);
+    assert.equal(await g.locator('[data-animation3d-card]').count(), 1, 'one card');
+    assert.equal(await q.card.locator('[data-animation-fixture-note]').count(), 0, 'a result, not labelled an example');
+    assert.equal(flow.creates.length, 1, 'still one job');
+    await sameReadouts(q, 'experiment', expectedReadouts('experiment', {}), 'the result at its defaults');
+    await shot(g, 'J-result');
+  });
+  await step("the result card works (a mass changes the readouts to the oracle's) and reload restores that state with no job or model request", async () => {
+    const q = parts(g, job.cardId);
+    await q.param('leftMass').fill('7'); await q.param('leftMass').press('Enter'); await g.waitForTimeout(400);
+    await sameReadouts(q, 'experiment', expectedReadouts('experiment', { leftMass: 7 }), 'leftMass=7');
+    await g.waitForTimeout(3500); // the card's saver (bounded debounce) and the canvas save
+    const [writes, strays, creates, approves] = [flow.writes.length, stray.length, flow.creates.length, flow.approves.length];
+    await g.reload();
+    await q.card.waitFor({ timeout: 60000 });
+    await fit(g);
+    await live(q);
+    assert.equal(await q.card.locator('[data-animation-pending]').count(), 0, 'no job waiting after reload');
+    assert.equal(Number(await q.param('leftMass').inputValue()), 7, 'the saved input');
+    await sameReadouts(q, 'experiment', expectedReadouts('experiment', { leftMass: 7 }), 'after reload');
+    await g.waitForTimeout(1500);
+    assert.deepEqual(flow.writes.slice(writes), [], 'no job request after reload');
+    assert.deepEqual(stray.slice(strays), [], 'no model request after reload');
+    assert.deepEqual([flow.creates.length, flow.approves.length], [creates, approves]);
+    console.log(`   request path: ${flow.creates.length} create, ${flow.approves.length} approve, ${flow.puts.length} plan save, ${flow.reads.length} result reads`);
+  });
+  await genSession.context.close();
 
   // ---- WebGL unavailable (AN-02/03) ----
   await step('without WebGL each card keeps its description and says interactive 3D is unavailable; no blank success, no page error', async () => {
