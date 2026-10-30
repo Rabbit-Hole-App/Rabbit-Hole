@@ -28,7 +28,7 @@ introduction; the image scrolls normally with the heading. Existing article
 layout and interactions remain in `blog-stories.{js,css}`.
 Tablet and phone crops favor the quiet aqua title area while retaining a
 fragment of the new diagrams at the right edge; desktop shows the whole atlas.
-The six sample cards use three, two and one columns at desktop, tablet and
+The blog cards use three, two and one columns at desktop, tablet and
 phone widths. On pointer hover, the card lifts 3px, its two cover layers part
 slightly, and a circular arrow fills plum while moving diagonally 2px. A
 reserved “Read story” label fades in without shifting the date or reading time.
@@ -37,9 +37,12 @@ Touch screens show the label continuously. Keyboard focus uses a visible outline
 and immediate action emphasis. Reduced motion keeps the feedback without moving
 the card, cover layers or arrow. Pricing shares the arrow presentation.
 
-## Sample stories
+## Published stories
 
-The six original local sample stories and their content are unchanged.
+Published posts live in the `stories` array in `src/landing/blog-posts.js`; the
+cards and the story count above them ("1 story", "2 stories") both render from
+it (owner, 2026-10-29: only `a-page-that-teaches` is published). A removed or
+unknown slug shows the story-not-found view.
 Each full card is a keyboard-accessible link to `/blog?post=<slug>`.
 The reader keeps its sample label and top/bottom links to `/blog#stories`.
 Direct links, refresh, browser back and unknown-slug recovery remain.

@@ -140,7 +140,7 @@ views at `/blog?post=<slug>`. Story content, keyboard navigation, reader links,
 responsive grids and the shared static footer remain.
 
 Selected artwork: `public/landing/blog-atlas-v4.png`.
-Placement: `src/landing/blog-art.css`; cards/readers: `blog-stories.{js,css}`.
+Placement: `src/landing/blog-art.css`; cards/readers: `blog-stories.{js,css}`; posts: `blog-posts.js`.
 See `blog-art-direction.md` and `blog-collage-{prompt.md,assets.json}`.
 Features retains its green scroll descent and the landing art is unchanged.
 
