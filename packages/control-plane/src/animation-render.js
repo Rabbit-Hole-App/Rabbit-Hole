@@ -131,6 +131,23 @@ export async function renderAnimation(env, candidate, manifest, deps = {}) {
   }
 }
 
+// The dev render probe (no model call): one artifact through exactly the review capture path above (same manifest, page, interception and
+// screenshot target), with the PNGs returned instead of stored. -> { ok, error?, program?, coverage, captures: [{ id, label, view, time,
+// events, ticks, bytes, sha256, pngBase64, trace }], requests: { served, blocked } }
+const pngBase64 = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(s); };
+export async function renderProbe(env, artifact, artifactHash, deps = {}) {
+  if (!env?.BROWSER && !deps.launch && !deps.browser) return { ok: false, error: 'render_unavailable: no BROWSER binding on this deployment' };
+  if (!env?.ASSETS?.fetch) return { ok: false, error: 'render_unavailable: no ASSETS binding on this deployment' };
+  const manifest = captureManifest(artifact);
+  try {
+    const out = await renderAnimation(env, { artifact, artifactHash }, manifest, deps);
+    return { ok: true, artifactHash, coverage: manifest.coverage, requests: out.requests,
+      captures: out.captures.map(c => ({ id: c.id, label: c.label, view: c.view, time: c.time, events: c.events, ticks: c.ticks, bytes: c.png.length, sha256: c.sha256, pngBase64: pngBase64(c.png), trace: c.trace })) };
+  } catch (error) {
+    return { ok: false, artifactHash, coverage: manifest.coverage, error: `${error.code || 'render_failed'}: ${String(error.message).slice(0, 500)}`, ...(error.program ? { program: error.program } : {}) };
+  }
+}
+
 // The render stage. -> { captures, renders, coverage } | { problems, category, repairable, renders? }
 export const renderStage = (deps = {}) => async (job, ctx) => {
   if (!ctx.env?.BROWSER && !deps.launch && !deps.browser) throw blocker('render_unavailable', 'Rendering animations for review is not available here. Your animation is kept; retry rendering once it is.');

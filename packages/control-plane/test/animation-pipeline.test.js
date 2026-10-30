@@ -253,3 +253,28 @@ test('author and repair are told how to place labels', async () => {
   const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js');
   for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /beside the object it names[^.]*never over the object, over another label or floating in empty space/);
 });
+
+test('the dev render probe renders a fixture through the review capture path, only when enabled with diagnostics', async () => {
+  const { animationRoute, ANIMATION_PROBE_PATH } = await import('../src/animation-job.js');
+  const browser = fakeBrowser();
+  const env = { ANIMATION_ENABLED: 'true', ANIMATION_DIAGNOSTICS: 'true', ASSETS, BROWSER: {} };
+  const deps = { identity: async () => ({ org: 'acme', email: 'dev@example.com' }), render: { browser: browser.browser } };
+  const post = (e, body, extra = {}) => animationRoute(ANIMATION_PROBE_PATH, new Request(`https://dev.test${ANIMATION_PROBE_PATH}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), e, { ...deps, ...extra });
+  for (const off of [{ ANIMATION_ENABLED: 'false' }, { ANIMATION_DIAGNOSTICS: undefined }, { ANIMATION_DIAGNOSTICS: 'false' }]) assert.equal((await post({ ...env, ...off }, { fixture: 'orbit-watch' })).status, 404);
+  assert.equal((await animationRoute(ANIMATION_PROBE_PATH, new Request(`https://dev.test${ANIMATION_PROBE_PATH}`), env, deps)).status, 405);
+  assert.equal((await post(env, { fixture: 'nope' })).status, 400);
+  assert.equal((await post(env, { fixture: 'orbit-watch' }, { identity: async () => Response.json({ error: 'Sign in' }, { status: 401 }) })).status, 401);
+  for (const fixture of ANIMATION_FIXTURES) {
+    const res = await post(env, { fixture: fixture.name });
+    const out = await res.json();
+    assert.deepEqual([res.status, out.ok, out.fixture], [200, true, fixture.name], JSON.stringify(out).slice(0, 300));
+    assert.deepEqual(out.captures.map(c => c.id), captureManifest(fixture.artifact).entries.map(e => e.id), 'the same views and states as a review round');
+    assert.ok(out.captures.every(c => c.bytes === Buffer.from(c.pngBase64, 'base64').length && c.bytes > 0 && c.trace && c.label && c.view));
+  }
+  assert.deepEqual(browser.state.gotos.at(-1), 'https://render.invalid/render/animation3d.html');
+  // The model is never called; a missing binding is an explicit error, never a pass.
+  const none = await post({ ...env, BROWSER: undefined }, { fixture: 'orbit-watch' }, { render: {} });
+  assert.deepEqual([none.status, (await none.json()).error], [502, 'render_unavailable: no BROWSER binding on this deployment']);
+  const crash = await post(env, { fixture: 'grid-robot-game' }, { render: { browser: fakeBrowser({ result: () => ({ ok: false, error: 'webgl_unavailable' }) }).browser } });
+  assert.deepEqual([crash.status, /webgl_unavailable/.test((await crash.json()).error)], [502, true]);
+});

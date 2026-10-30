@@ -32,7 +32,10 @@ import { beginStage, countStage, endStage, markTiming, newTiming, timingSummary 
 import { hashAnimationPlan } from '../../web/src/animation3d/contract.js';
 import { approvedPlan, prepareStage } from './animation-brief.js';
 import { artifactIntact, authorStage, validateStage } from './animation-author.js';
-import { renderStage } from './animation-render.js';
+import { renderProbe, renderStage } from './animation-render.js';
+import { ANIMATION_FIXTURES } from '../../web/src/animation3d/fixtures.js';
+import { validateAnimationArtifact } from '../../web/src/animation3d/contract.js';
+import { artifactHashOf } from './animation-author.js';
 import { reviewStage } from './animation-review.js';
 import { repairStage } from './animation-repair.js';
 import { ANIMATION_LIMITS, ANIMATION_POLICY_VERSION, AnimationPolicyError, animationModelConfigured, modelNotConfigured, animationRequest, animationReservation, callAnimationRole, checkAnimationRequest } from './animation-policy.js';
@@ -107,8 +110,30 @@ export function planLines(plan) {
   return lines.map(l => clean(l, 300)).filter(Boolean).slice(0, 20);
 }
 
+// Dev-only render probe (owner priority, 2026-10-30): a contract fixture rendered through the real review capture path, with no model call
+// and no job. Live only when ANIMATION_ENABLED and ANIMATION_DIAGNOSTICS are both 'true' (production never sets the second), for any
+// signed-in user, same origin. POST { fixture: <fixtures.js name> } -> renderProbe's JSON (200 ok, 502 failed).
+export const ANIMATION_PROBE_PATH = '/api/learn/animation/diagnostics/render-fixture';
+async function renderProbeRoute(req, env, deps) {
+  if (!animationEnabled(env) || env.ANIMATION_DIAGNOSTICS !== 'true') return json({ error: 'Not found' }, 404);
+  if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
+  if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
+  const user = await (deps.identity || repositoryIdentity)(req, env);
+  if (user instanceof Response) return user;
+  let body;
+  try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+  const fixture = ANIMATION_FIXTURES.find(f => f.name === body?.fixture);
+  if (!fixture) return json({ error: `fixture must be one of ${ANIMATION_FIXTURES.map(f => f.name).join(', ')}` }, 400);
+  // The validated value, as a job's artifact is, so the page hashes exactly what a review round sends.
+  const checked = validateAnimationArtifact(fixture.artifact);
+  if (!checked.ok) return json({ ok: false, error: `fixture_invalid: ${checked.issues.map(i => `${i.path}: ${i.message}`).join('; ')}` }, 500);
+  const out = await renderProbe(env, checked.value, await artifactHashOf(checked.value), deps.render);
+  return json({ fixture: fixture.name, ...out }, out.ok ? 200 : 502);
+}
+
 // The route: owner-only, same origin, behind ANIMATION_ENABLED. Off, it answers 404 as if absent.
 export async function animationRoute(path, req, env, deps = {}) {
+  if (path === ANIMATION_PROBE_PATH) return renderProbeRoute(req, env, deps);
   if (path !== ANIMATION_PREFIX && !path.startsWith(`${ANIMATION_PREFIX}/`)) return null;
   if (!animationEnabled(env)) return json({ error: ANIMATION_DISABLED, code: 'animation_disabled' }, 404);
   if (!env.ANIMATION_JOBS || !env.LEARN_DB) return json({ error: 'Animations are not configured on this preview.' }, 503);
