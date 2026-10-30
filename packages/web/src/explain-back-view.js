@@ -134,6 +134,12 @@ export function serviceView(raw) {
   const draft = raw.draft ? { id: raw.draft.draftId, parentId: raw.draft.answer?.baseline?.parentAttemptId || null, text: text(raw.draft.answer?.text) } : null;
   return { attempts, draft, loading: false };
 }
+// The existing teaching cards a review named (FX-EB-05), as FeedbackView lists them. exists(cardId) says whether the card
+// is still on this canvas: a removed one shows unavailable, never a substitute. A review stored before the field lists none.
+const KIND_NAMES = { explanation: 'Explanation', animation: 'Explanation', scene: 'Interactive explanation', video: 'Video', notebook: 'Notebook' };
+export const teachingAidsOf = (review, exists = () => false) => (Array.isArray(review?.teachingAids) ? review.teachingAids : [])
+  .map(aid => ({ id: aid.cardId, cardId: aid.cardId, title: text(aid.title) || KIND_NAMES[aid.kind] || 'Teaching card', kind: aid.kind, reason: text(aid.reason), available: !!exists(aid.cardId) }));
+
 const clockOf = ms => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 // Where in a piece of evidence a citation points, in words: a time, a page, a cell or a Sketch region.
 export function locatorText(locator = {}) {

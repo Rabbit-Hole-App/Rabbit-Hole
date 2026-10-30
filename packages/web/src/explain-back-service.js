@@ -4,7 +4,8 @@
 // attempt and its one assessment runs inside that request (learn-attempt-routes.js).
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AttemptRequestError, bindCard, listAttempts, newSubmissionKey, readAttempt, readSketchMeta, reassessAttempt, submitAnswer } from './explain-back-client.js';
-import { EXPLAIN_BACK_KIND, ANSWER_VERSION } from './explain-back-contract.js';
+import { EXPLAIN_BACK_KIND, ANSWER_VERSION, teachingCards } from './explain-back-contract.js';
+import { teachingAidsOf } from './explain-back-view.js';
 
 // On in dev and CI builds (VITE_COACHING_DEV) and when VITE_EXPLAIN_BACK is set; production builds set neither until release.
 export const explainBackEnabled = () => import.meta.env?.VITE_EXPLAIN_BACK === 'true' || import.meta.env?.VITE_COACHING_DEV === 'true';
@@ -47,6 +48,12 @@ async function loadCard({ app, board, cardId }) {
   }));
   return { attempts };
 }
+
+// The canvas's existing teaching cards a review may point to (FX-EB-05), newest first and bounded by the contract. A card still
+// waiting to be made (a pending /explain or an unmade video) is not teaching material yet. Read from this browser's canvas only.
+export const teachingCandidates = (blocks, cardId) => teachingCards((blocks || [])
+  .filter(b => b.id !== cardId && !(b.type === 'animation' && !b.scene && !b.program) && !(b.type === 'video' && !b.src && !b.videoId))
+  .map(b => ({ id: b.id, title: b.title || b.active_path || '', kind: b.type })).reverse());
 
 /** @returns the ExplainBackService value, or null when the durable path is off or the board is unknown. */
 export function useExplainBackService({ app, board, enabled = explainBackEnabled(), assets = null, canvasApi = null }) {
@@ -96,7 +103,7 @@ export function useExplainBackService({ app, board, enabled = explainBackEnabled
           };
           // One key per card until a submission saves, so a lost response replays instead of saving twice. A key the
           // server already holds for other content (the learner edited after a lost response) gets a fresh key once.
-          const send = () => submitAnswer({ app, board, binding, submissionKey: keyOf(block.id), answer, snapshots });
+          const send = () => submitAnswer({ app, board, binding, submissionKey: keyOf(block.id), answer, snapshots, teachingCards: teachingCandidates(canvasApi?.current?.blocks?.(), block.id) });
           if (!keyOf(block.id)) setKey(block.id, newSubmissionKey());
           try { await send(); } catch (error) {
             if (!(error instanceof AttemptRequestError && error.code === 'submission_key_conflict')) throw error;
@@ -115,7 +122,7 @@ export function useExplainBackService({ app, board, enabled = explainBackEnabled
         if (retrying.current.has(attemptId)) return retrying.current.get(attemptId);
         const slot = `retry:${attemptId}`;
         if (!keyOf(slot)) setKey(slot, newSubmissionKey());
-        const run = reassessAttempt({ app, board, attemptId, requestKey: keyOf(slot) })
+        const run = reassessAttempt({ app, board, attemptId, requestKey: keyOf(slot), teachingCards: teachingCandidates(canvasApi?.current?.blocks?.(), block.id) })
           .then(() => { keys.current.delete(slot); saved.clear(slot); })
           .finally(() => { retrying.current.delete(attemptId); return refresh(block.id); });
         retrying.current.set(attemptId, run);
@@ -130,6 +137,20 @@ export function useExplainBackService({ app, board, enabled = explainBackEnabled
       openEvidence({ evidence }) {
         const source = evidence?.connection?.links?.[0]?.from || evidence?.sourceId;
         return source ? !!canvasApi?.current?.focusBlock?.(source) : false;
+      },
+      // The existing teaching cards the attempt's latest completed review named; each is unavailable once gone from the canvas.
+      teachingAids(attemptId) {
+        for (const raw of cardsRef.current.values()) {
+          const entry = raw.attempts?.find(item => item.attemptId === attemptId);
+          if (entry) return entry.assessment?.status === 'completed' ? teachingAidsOf(entry.assessment.provenance?.review, id => !!canvasApi?.current?.block?.(id)) : [];
+        }
+        return [];
+      },
+      // Open on canvas: select and frame the card that already exists. No model call, no new card.
+      openTeachingAid(aid) {
+        if (!canvasApi?.current?.block?.(aid?.cardId)) return false;
+        canvasApi.current.focusBlock(aid.cardId);
+        return true;
       },
     };
   }, [enabled, app, board, assets, canvasApi, cards]);

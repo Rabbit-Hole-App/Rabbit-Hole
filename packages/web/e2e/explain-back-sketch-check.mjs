@@ -49,7 +49,8 @@ await page.route('**/api/learn/grade**', async route => { if (new URL(route.requ
 // (its second criterion unassessed), so both badge states are exercised.
 const posts = [], assetPuts = [], assetMeta = new Map(), bound = new Map(), stored = new Map(), serverDrafts = new Map(); // stored: attemptId -> { cardId, content, assessment }
 const sha = body => createHash('sha256').update(body || '').digest('hex');
-const stubReview = (attemptId, assessmentId, content) => {
+// teachingAids: the existing teaching cards the review names (FX-EB-05), from the candidates the page sent.
+const stubReview = (attemptId, assessmentId, content, teachingAids = []) => {
   const typed = content.text || '';
   const evidence = [...content.voice, ...(content.sketch ? [content.sketch] : []), ...(content.recording ? [content.recording] : []), ...content.resources];
   const cites = typed.trim() ? [{ evidenceId: 'text', locator: { start: 0, end: Math.min(6, typed.length) } }]
@@ -75,6 +76,7 @@ const stubReview = (attemptId, assessmentId, content) => {
       ? { ...base.rating, score: fixed ? 10 : 8, criteria: [{ ...base.rating.criteria[0], criterionId: 'c_row' }, { ...base.rating.criteria[1], criterionId: 'c_position', credit: second[3] }] }
       : { status: 'unrated', outOf: 10, reason: 'sketch_unreadable', unknown: [{ criterionId: 'c_position' }], calculationVersion: 'eb-rating-v1', rubricVersion: 'r1',
         criteria: [{ ...base.rating.criteria[0], criterionId: 'c_row' }, { ...base.rating.criteria[1], criterionId: 'c_position', credit: null }] },
+    ...(teachingAids.length ? { teachingAids } : {}),
   };
   const valid = validateExplainBackReview(result, content);
   if (!valid.ok) throw Error(`stub review is not contract-valid: ${valid.errors.join('; ')}`);
@@ -122,7 +124,9 @@ await page.route('**/api/learn/tutor/attempts**', async route => {
     const sent = JSON.parse(request.postData());
     posts.push(sent);
     const attemptId = `at_${posts.length}`, assessmentId = `as_${posts.length}`;
-    const assessment = { assessmentId, status: 'completed', provenance: { review: stubReview(attemptId, assessmentId, sent.submittedContent) } };
+    // A review names the first teaching card the page offered, and one a learner has since removed (shown unavailable).
+    const aids = (sent.teachingCards || []).slice(0, 1).flatMap(card => [{ cardId: card.id, title: card.title, kind: card.kind, reason: 'It explains what each id looks up.' }, { cardId: 'removed-card', title: 'Position embeddings', kind: 'explanation', reason: 'An earlier explanation of the position.' }]);
+    const assessment = { assessmentId, status: 'completed', provenance: { review: stubReview(attemptId, assessmentId, sent.submittedContent, aids) } };
     stored.set(attemptId, { cardId: bound.get(sent.activityId), content: sent.submittedContent, assessment });
     return json(route, 201, view(attemptId));
   }
@@ -677,6 +681,35 @@ await check('EB-05 pills: one Group pill with its count; × disconnects; the pic
   assert.equal(await pills.count(), 1);
 });
 await shot('15-input-pills');
+
+// ---- FX-EB-05 (plan section 9, EB-08.4): Tutor feedback offers existing teaching cards; Open on canvas only reveals one ----
+const generated = [];
+page.on('request', request => { if (/^\/api\/(learn\/assess|explain|motion)(\/|$)/.test(new URL(request.url()).pathname)) generated.push(request.url()); });
+const explanationId = await (await insert('Explanation')).getAttribute('data-block-id');
+const aidCard = await insert('Explain back');
+const aidCardId = await aidCard.getAttribute('data-block-id');
+await check('EB-08.4 teaching aids: the existing Explanation is offered and opened on the canvas, never made again', async () => {
+  await reveal(aidCard);
+  await aidCard.locator('textarea[data-eb-answer]').fill('the id picks a row of the embedding table');
+  await submitOf(aidCard).click();
+  await aidCard.locator('[data-teaching-aids]').waitFor({ timeout: 10000 });
+  const sent = posts.at(-1);
+  assert.deepEqual(sent.teachingCards.find(card => card.id === explanationId), { id: explanationId, title: 'An id is an index, not a meaning', kind: 'explanation' }, 'the existing Explanation is offered');
+  assert.ok(!sent.teachingCards.some(card => card.id === aidCardId), 'never the Explain-back card itself');
+  assert.equal(sent.submittedContent.teachingCards, undefined, 'not part of the saved answer');
+  assert.equal(await aidCard.locator('[data-teaching-aid]').count(), 2);
+  assert.match(await aidCard.locator(`[data-teaching-aid="${explanationId}"]`).innerText(), /An id is an index, not a meaning[\s\S]*It explains what each id looks up\./);
+  assert.match(await aidCard.locator('[data-teaching-aid="removed-card"]').innerText(), /Position embeddings \(unavailable\)/);
+  assert.ok(await aidCard.locator('[data-open-aid="removed-card"]').isDisabled(), 'a card no longer on the canvas is unavailable, never a substitute');
+  const before = { cards: await cards().count(), posts: posts.length };
+  await reveal(aidCard); // the feedback made the card taller; bring its controls above the floating composer
+  await aidCard.locator(`[data-open-aid="${explanationId}"]`).click();
+  await page.locator(`[data-block-id="${explanationId}"][aria-current="true"]`).waitFor({ timeout: 5000 });
+  assert.equal(await cards().count(), before.cards, 'no new card');
+  assert.equal(posts.length, before.posts, 'no new attempt or assessment');
+  assert.deepEqual(generated, [], 'no generation or grading request');
+});
+await shot('16-teaching-aids');
 
 await check('no page errors', async () => assert.deepEqual(errors, []));
 console.log(`${results.length}/${results.length} checks passed`);

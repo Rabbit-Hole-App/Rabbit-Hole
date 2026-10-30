@@ -26,8 +26,9 @@ export const bindCard = ({ app, board, cardId, prompt, expects = [] }) =>
 
 /** Submit one combined answer. The same submissionKey replays the saved attempt instead of submitting twice. */
 // snapshots: private copies of board-held inputs (explain-inputs.js snapshotOf); the server keeps only those the answer names.
-export const submitAnswer = ({ app, board, binding, submissionKey, answer, snapshots = [] }) =>
-  call(BASE, { method: 'POST', body: JSON.stringify({ app, board, ...submitEnvelope({ activityId: binding.activityId, activityRevision: binding.activityRevision, submissionKey, answer }), ...(snapshots.length ? { snapshots } : {}) }) });
+// teachingCards: existing teaching cards on the canvas the review may point to (explain-back-contract.js teachingCards).
+export const submitAnswer = ({ app, board, binding, submissionKey, answer, snapshots = [], teachingCards = [] }) =>
+  call(BASE, { method: 'POST', body: JSON.stringify({ app, board, ...submitEnvelope({ activityId: binding.activityId, activityRevision: binding.activityRevision, submissionKey, answer }), ...(snapshots.length ? { snapshots } : {}), ...(teachingCards.length ? { teachingCards } : {}) }) });
 
 /** Read one attempt with its assessment(s). Reconciles stale operations; no model call. */
 export const readAttempt = ({ app, board, attemptId }) => call(`${BASE}/${encodeURIComponent(attemptId)}?${query({ app, board })}`);
@@ -36,8 +37,8 @@ export const readAttempt = ({ app, board, attemptId }) => call(`${BASE}/${encode
 export const listAttempts = ({ app, board, cardId }) => call(`${BASE}?${query({ app, board, cardId })}`).then(data => data.attempts || []);
 
 /** A deliberate re-review of an existing attempt (not a new learner revision). */
-export const reassessAttempt = ({ app, board, attemptId, requestKey }) =>
-  call(`${BASE}/${encodeURIComponent(attemptId)}/reassess`, { method: 'POST', body: JSON.stringify({ app, board, requestKey }) });
+export const reassessAttempt = ({ app, board, attemptId, requestKey, teachingCards = [] }) =>
+  call(`${BASE}/${encodeURIComponent(attemptId)}/reassess`, { method: 'POST', body: JSON.stringify({ app, board, requestKey, ...(teachingCards.length ? { teachingCards } : {}) }) });
 
 /** A submitted Sketch's capture data ({marks, text}), owner only; restores an older attempt's drawing on Revise. */
 export const readSketchMeta = ({ app, board, assetId }) => call(`${BASE}/assets/${encodeURIComponent(assetId)}/meta?${query({ app, board })}`);

@@ -738,3 +738,48 @@ test('eval-live-3 recording: a criterion the reply leaves out is unassessed, nev
   assert.doesNotMatch(system, /Add to each criterion/);
   valid(r, content);
 });
+
+test('teaching aids (FX-EB-05): existing cards the browser sent go in as data; the review keeps only valid picks beside a gap', async t => {
+  const w = await ebWorld(t);
+  const cards = [{ id: 'exp-1', title: 'Centripetal force', kind: 'explanation' }, { id: 'quiz-1', title: 'A quiz', kind: 'quiz' }, { id: 'nb-1', title: 'Orbit notebook', kind: 'notebook' }];
+  const picks = [{ id: 'exp-1', reason: 'It shows why the net force points to the centre.' }, { id: 'invented', reason: 'Not on the canvas.' }, { id: 'exp-1', reason: 'Twice.' }, { id: 'quiz-1', reason: 'Not a teaching card.' }, { id: 'nb-1' }];
+  const stub = replying({ ...reply1, teachingAids: picks });
+  const sendWith = (key, text, teachingCards, callModel) => submit(w.env, ANA, w.activity, { submissionKey: key, submittedContent: answerOf({ text }), teachingCards }, { ...never, callModel });
+  const r = await sendWith('eb-teach-0001', A1, cards, stub.callModel);
+  assert.equal(stub.calls.length, 1, 'one assessment call; naming a card generates nothing');
+  assert.deepEqual(dataOf(stub.calls[0].body).teachingCards, [cards[0], cards[2]], 'teaching kinds only');
+  assert.match(stub.calls[0].body.system, /"teachingCards" lists cards that already exist on the learner's canvas/);
+  assert.match(stub.calls[0].body.system, /"teachingAids":\[\{"id":string,"reason":string\}\]/);
+  assert.deepEqual(reviewOf(r).teachingAids, [{ cardId: 'exp-1', title: 'Centripetal force', kind: 'explanation', reason: picks[0].reason }], 'unknown, duplicate, non-teaching and unexplained picks are dropped');
+  valid(r, { text: A1 });
+  const saved = await readAttempt(w.env, ANA, r.body.attempt.attemptId);
+  assert.equal(saved.attempt.submittedContent.teachingCards, undefined, 'the candidates are assessment input, never the saved answer');
+  // Nothing to revisit: no aid, whatever the reply names. A malformed field never fails the assessment.
+  const met = await sendWith('eb-teach-0002', A2, cards, replying({ ...reply2, teachingAids: picks }).callModel);
+  assert.equal(reviewOf(met).feedback.revisit.text, '');
+  assert.equal(reviewOf(met).teachingAids, undefined);
+  const junk = await sendWith('eb-teach-0003', A1, 'junk', replying({ ...reply1, teachingAids: 'exp-1' }).callModel);
+  assert.equal(junk.body.assessment.status, 'completed');
+  assert.equal(reviewOf(junk).teachingAids, undefined);
+});
+
+test('FX-EB-09 dropped criterion: the request prefills one entry per criterion; a judgement left only in notes is never read as one', async t => {
+  const w = await ebWorld(t);
+  const note = await storeNote(w), v = voiceDeps();
+  // The live reply's shape (dev preview, attempt at_fa3ff4ec): one criterion entry, the other judgement written into notes.
+  const dropped = { ...spokenReply, criteria: [spokenReply.criteria[0]], notes: [`Rubric correction: the criteria array has only one entry. It should also include the entry for ${V} (velocity tangent), judged met, with reasoning not_applicable and evidence "The velocity is tangent to the circle."`] };
+  const stub = replying(dropped);
+  const r = await send(w, { voice: [note] }, { ...v, callModel: stub.callModel });
+  const system = stub.calls[0].body.system;
+  assert.match(system, /This rubric has 2, so "criteria" has exactly 2 entries, with the criterionId and version written below/);
+  assert.match(system, /A judgement written anywhere else, such as in "notes", is ignored/);
+  assert.ok(system.includes(`{"criteria":[{"criterionId":"${F}","version":1,"fit":`) && system.includes(`},{"criterionId":"${V}","version":1,"fit":`), 'each criterion has its own prefilled entry, in rubric order');
+  // Parsing stays strict: the notes judgement is not credited, so the attempt is honestly Not rated and the gap is recorded.
+  assert.equal(r.body.assessment.status, 'completed');
+  assert.deepEqual(r.body.assessment.provenance.unassessed, [{ criterionId: V, version: 1, reason: 'not_returned' }]);
+  assert.deepEqual(reviewOf(r).judgments.map(x => [x.criterionId, x.judgment]), [[F, 'demonstrated'], [V, 'unassessed']]);
+  assert.deepEqual([reviewOf(r).rating.status, reviewOf(r).rating.reason], ['unrated', 'criteria_unassessed']);
+  // The same answer with a reply that fills both prefilled entries is rated.
+  const full = await send(w, { voice: [note] }, { ...v, callModel: replying(spokenReply).callModel });
+  assert.deepEqual([reviewOf(full).rating.status, reviewOf(full).rating.score], ['rated', 10]);
+});
