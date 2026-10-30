@@ -7,6 +7,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { inlineImageJobsRoute } from '../src/inline-image-jobs.js';
 import { imageJobsRoute, imageJobsAllowed } from '../src/image-jobs.js';
 import { planUsesOpenAI } from '../src/learn-models.js';
+import { isPaidSpendReply, paidSubmissionRefusal } from '../src/learn-paid-transport.js';
 
 const read = relative => readFileSync(new URL(relative, import.meta.url), 'utf8');
 // A wrangler .jsonc: whole-line comments only (a "//" inside a string, such as https://, must survive).
@@ -25,20 +26,28 @@ function inlineRoute(path, end) {
 const callRoute = (route, path, body) => route(new Request(`https://app${path}`, { method: 'POST', body }), env, path, async () => ({ email: 'fixture' }), // authorization runs before the gate
    untouched('paidRefusal'), untouched('paidSubmissionRefusal'), untouched('fishSpendTransport'), untouched('isPaidSpendReply'), untouched('fetch'), untouched('recordMedia'), 6000, 4500, {});
 
-test('the committed production configuration has every OPENAI_API_KEY consumer off except public image generation (held flip, owner GO)', () => {
-  assert.equal(prodVars.TRANSCRIBE_ENABLED, 'false');
+test('the committed production configuration has every OPENAI_API_KEY consumer off except the authorized ones', () => {
+  // O-8 resolved 2026-10-29: transcription on for retained Explain-back voice notes (learn-media.js openaiTranscriber, priced transcribeSpendTransport).
+  assert.equal(prodVars.TRANSCRIBE_ENABLED, 'true');
   assert.equal(prodVars.IMAGE_GENERATE_ENABLED, 'true'); // public image generation is on (owner GO 2026-10-29); its gate and acceptance are docs/features/image-jobs.md 6d
   // The other authorized consumer (owner activation, ctrlk-completion.md): Ctrl+K image edit, with its 3-credit hold.
   assert.deepEqual([prodVars.INLINE_IMAGE_EDIT_ENABLED, prodVars.INLINE_IMAGE_EDIT_RESERVED_USD], ['true', '0.03']);
   for (const name of ['LEGACY_IMAGE_GENERATION', 'LEARN_PLAN_MODEL']) assert.equal(name in prodVars, false, `${name} must stay absent until its own activation`);
 });
 
-test('spoken-answer transcription stays 503 with the key present (dev-worker.js /api/learn/transcribe, gate TRANSCRIBE_ENABLED)', async () => {
-  const body = new FormData();
-  body.set('audio', new Blob(['x'], { type: 'audio/webm' }), 'a.webm'); body.set('app', 'fixture');
-  const response = await callRoute(inlineRoute('/api/learn/transcribe', '    // Voice Mode:'), '/api/learn/transcribe', body);
-  assert.equal(response.status, 503);
-  assert.deepEqual(await response.json(), { error: 'Speech to text is not configured on this environment.' });
+// O-8 resolved for Explain-back voice notes only: with the committed flag on and the key present, the legacy Speak answer route still never
+// reaches the provider or records usage; its fail-closed spend admission (paidSubmissionRefusal) refuses every call while spend is enforced.
+test('legacy Speak answer transcription stays refused with the flag on and the key present (dev-worker.js /api/learn/transcribe)', async () => {
+  const route = inlineRoute('/api/learn/transcribe', '    // Voice Mode:');
+  const spent = { prepare: () => ({ bind: () => ({ first: async () => ({ spent: 0 }) }) }) };
+  for (const settings of [env, { ...env, USAGE_PLATFORM_DAY_USD: '10', LEARN_DB: spent }]) {
+    const body = new FormData();
+    body.set('audio', new Blob(['x'], { type: 'audio/webm' }), 'a.webm'); body.set('app', 'fixture');
+    const response = await route(new Request('https://app/api/learn/transcribe', { method: 'POST', body }), settings, '/api/learn/transcribe', async () => ({ email: 'fixture' }),
+      untouched('paidRefusal'), paidSubmissionRefusal, untouched('fishSpendTransport'), isPaidSpendReply, untouched('fetch'), untouched('recordMedia'), 6000, 4500, {});
+    assert.equal(response.status, 503);
+    assert.ok(['cap_unset', 'spend_bound_unavailable'].includes((await response.json()).code));
+  }
 });
 
 test('legacy image generation stays off with the key present (dev-worker.js /api/learn/image, gate LEGACY_IMAGE_GENERATION)', async () => {

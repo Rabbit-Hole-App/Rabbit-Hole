@@ -69,8 +69,9 @@ Not claimed, because the source does not settle it:
 Production secrets were read by name (Cloudflare `workers/scripts/<name>/settings`, 2026-10-29): `rabbit-hole-app` has
 `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `TYPESAFE_API_KEY`, `FISH_AUDIO_API_KEY`, `ELEVENLABS_API_KEY`,
 `DESMOS_API_KEY`, `PEXELS_API_KEY`, `CONVERT_TOKEN` (with `CONVERT_URL` set); `rabbit-hole-cp` has `RESEND_API_KEY`,
-`GOOGLE_*` and `GITHUB_*`. No `EXA_API_KEY`, so Exa (and FAL, HeyGen) are not listed. `TRANSCRIBE_ENABLED=false`, so
-OpenAI transcription is not listed.
+`GOOGLE_*` and `GITHUB_*`. No `EXA_API_KEY`, so Exa (and FAL, HeyGen) are not listed. Transcription: owner decision O-8 (resolved
+2026-10-29) turns `TRANSCRIBE_ENABLED` on for retained Explain-back voice notes, so the OpenAI entry in `packages/web/src/landing/support.js` must name
+voice-note transcription before that release (pending in the Explain-back release; the legacy dictation route stays refused).
 
 ## Design and integration
 

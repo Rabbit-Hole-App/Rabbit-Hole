@@ -65,10 +65,12 @@ no config sets it), and never in `SUBSCRIPTION_ONLY` mode (`planModel` in `ask.j
 - `challenge` with `mode: 'explain_back'` — understanding evidence: the tutor judges the explanation
   and names what is missing instead of revealing. Artifact completion and understanding evidence are
   kept separate on purpose.
-- Both accept a spoken answer: the mic records, `/api/learn/transcribe` returns the text into the
-  same input, and the learner can correct a misheard word before submitting. The graded answer is
+- A Challenge accepts a spoken answer: the mic records, `/api/learn/transcribe` returns the text into the
+  same input, and the learner can correct a misheard word before submitting. Explain back no longer dictates into its field: it keeps a retained voice
+  note instead (plan 2026-10-30-explain-back.md section 5). The graded answer is
   tinted green (good) or amber (partial) with a retry. The route answers 503 "Speech to text is not configured on this environment." (the mic shows that
-  message) unless `OPENAI_API_KEY` is set AND `TRANSCRIBE_ENABLED` is exactly `"true"` (off by default everywhere; owner decision O-8 open).
+  message) unless `OPENAI_API_KEY` is set AND `TRANSCRIBE_ENABLED` is exactly `"true"`. Owner decision O-8 (resolved 2026-10-29) turned the flag on for
+  retained Explain-back voice notes only; this dictation route stays refused by its fail-closed spend admission (docs/features/transcription-migration.md).
 
 ## Everything else
 

@@ -74,8 +74,11 @@
     // is listed in IMAGE_ACCEPTANCE_EMAILS may use it under the ordinary admission, hold, settlement and readiness rules, so the
     // production acceptance runs through the real Worker, storage and accounting. It needs OPENAI_API_KEY / GEMINI_API_KEY (secrets).
     "IMAGE_GENERATE_ENABLED": "true",
-    // Speech to text for spoken answers (/api/learn/transcribe): off even when OPENAI_API_KEY exists; only "true" enables it (owner decision O-8 is open).
-    "TRANSCRIBE_ENABLED": "false",
+    // Speech to text for retained Explain-back voice notes (owner decision O-8 resolved 2026-10-29: approved for dev and production). It runs
+    // only at submission/assessment through the priced, capped transcribeSpendTransport (learn-paid-transport.js) and needs the OPENAI_API_KEY
+    // secret and USAGE_PLATFORM_DAY_USD. The legacy Speak answer route /api/learn/transcribe stays refused (fail-closed spend admission);
+    // live Voice Mode (FX-71) stays paused. Rollback: "false".
+    "TRANSCRIBE_ENABLED": "true",
     // Ctrl+K background removal and regional image edit (docs/features/ctrlk-image-activation.md, ctrlk-completion.md): ON at the owner's activation release.
     // It also needs the OPENAI_API_KEY secret and the FILE_JOBS binding above; without either the route answers "not available". The per-edit hold is
     // 3 credits (US$0.03, about 3x the measured edit); the person is charged the priced usage, never more than this.

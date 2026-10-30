@@ -1,8 +1,11 @@
 # Spoken-answer transcription: default-off flag and the gpt-transcribe migration
 
 Written 2026-10-26. Route: `POST /api/learn/transcribe` in `packages/web/dev-worker.js` (the production Worker `rabbit-hole-app` reuses it); UI: the mic in
-`packages/web/src/SpeakAnswer.jsx` (Explain back and similar blocks). **State: implemented but OFF everywhere. Never run against the real provider through this route in production.
-Owner decision O-8 is open.**
+`packages/web/src/SpeakAnswer.jsx` (Explain back and similar blocks). **State: owner decision O-8 resolved 2026-10-29: transcription is approved for dev and
+production for retained Explain-back voice notes only. `TRANSCRIBE_ENABLED` is `"true"` in the dev, parallel and production configs (rides the full gate and the
+owner's release). Explain-back voice notes are transcribed at submission/assessment through `ensureTranscript` and the priced, capped
+`transcribeSpendTransport` (`packages/control-plane/src/learn-media.js`, `learn-paid-transport.js`). This legacy route (Speak answer dictation into the field)
+stays refused: it still admits through the fail-closed `paidSubmissionRefusal`. Live Voice Mode (FX-71) stays paused.**
 
 ## What is in the code (this branch)
 
@@ -37,7 +40,13 @@ Cost: two clips of at most 3 minutes, one per model: 3 x 0.006 + 3 x 0.0045 = US
 6. Delete the clone. Success: both runs transcribe correctly, estimates recorded as above, the billed figure matches the per-minute rate.
 Rollback at any step: set `TRANSCRIBE_ENABLED` to `false`.
 
-## Owner decision O-8: recorded-answer transcription
+## Owner decision O-8: recorded-answer transcription (resolved 2026-10-29)
+
+Decision: transcription is approved for dev and production, for retained Explain-back voice notes (plan
+`docs/superpowers/plans/2026-10-30-explain-back.md` section 5). The transcript is separate data and is never inserted into the typed answer. Each call is
+admitted before the call for the longer of two minutes and the stored clip's 16 kbps duration, at OpenAI's per-minute figure, and settled at the usage the
+response reports (platform spend; the learner is not charged for Explain-back assessment). The legacy Speak answer dictation route below stays refused.
+The options as they were weighed before the decision:
 
 The mic in Speak answer exists in the shipped UI. Today it records, then shows "Speech to text is not configured on this environment." Installing the OpenAI key for image editing no longer changes that.
 
