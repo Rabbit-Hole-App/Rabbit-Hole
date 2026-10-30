@@ -492,3 +492,76 @@ test('resources: a changed or unreadable source is reported per input and leaves
   assert.equal(broken.body.assessment.status, 'completed');
   assert.ok(reviewOf(broken).coverage.filter(c => c.evidenceId !== 'text').every(c => c.status !== 'read'));
 });
+
+// Sketch recording (M4). A timeline as M's recorder stores it (sketch-recording.js), read through the injected asset reader.
+const arrow = (label, y = 100) => ({ kind: 'arrow', x1: 200, y1: y, x2: 120, y2: y, label });
+const timelineOf = (ops, narration = false) => ({ v: 1, kind: 'sketch-timeline', startedAt: '2026-10-30T00:00:00.000Z', durationMs: 20000, limitMs: 120000, narration, start: { strokes: [], shapes: [], items: [] }, ops, pauses: [] });
+// Draws "F outward", then replaces it with "F to the centre": an explicit self-correction.
+const CORRECTED = timelineOf([{ t: 1000, k: 'shapes', keep: 0, add: [arrow('F outward')] }, { t: 9000, k: 'shapes', keep: 0, add: [arrow('F to the centre')] }]);
+// Draws "F to the centre" straight away: the same final picture, different steps.
+const DIRECT = timelineOf([{ t: 1000, k: 'shapes', keep: 0, add: [arrow('F to the centre')] }]);
+const bytesOf = timeline => new TextEncoder().encode(JSON.stringify(timeline));
+const recordingRef = (timeline, narration = null) => ({ evidenceId: 'ev_rec_1', role: 'recording', media: 'video', state: 'ready', assetId: 'aa_record0000001', revision: 1,
+  hash: createHash('sha256').update(bytesOf(timeline)).digest('hex'), mime: 'application/json', durationMs: timeline.durationMs, narration });
+function recordingDeps(timeline, voice = null) {
+  const v = voice ?? voiceDeps();
+  return { ...v, readAttemptAsset: async (env, actor, attempt, e) => (e.assetId === 'aa_record0000001' ? { bytes: bytesOf(timeline), mime: 'application/json' } : v.readAttemptAsset(env, actor, attempt, e)) };
+}
+const stepReply = (t, extra = {}) => ({ criteria: [{ ...j(F, 'met', [], { reasoning: 'supported' }), recordingEvidence: [{ t, what: 'arrow relabelled toward the centre' }, { t: 4321, what: 'a time that was never sent' }], ...extra }, { ...j(V, 'unclear'), question: 'Where is the velocity in your drawing?' }] });
+
+test('recording: the timed steps go to the one call; two recordings with the same final picture differ; steps are cited by time', async t => {
+  const w = await ebWorld(t);
+  const stub = replying(stepReply(9000));
+  const r = await send(w, { recording: recordingRef(CORRECTED) }, { ...recordingDeps(CORRECTED), callModel: stub.callModel });
+  const body = stub.calls[0].body, part = dataOf(body).current.evidence[0];
+  assert.match(body.system, /A clear later self-correction in the recording supersedes the earlier claim/);
+  assert.match(body.system, /Relate "this", "here" and "now" in the narration to the step at that time/);
+  assert.deepEqual(part.steps.map(s => [s.t, s.text.includes('F outward'), s.text.includes('F to the centre')]), [[0, false, false], [1000, true, false], [9000, false, true]], 'the mistaken step and its later correction, in order');
+  const direct = replying(stepReply(1000));
+  await send(w, { recording: recordingRef(DIRECT) }, { ...recordingDeps(DIRECT), callModel: direct.callModel });
+  assert.notDeepEqual(dataOf(direct.calls[0].body).current.evidence[0].steps, part.steps, 'not reduced to the final screenshot');
+  const review = reviewOf(r);
+  valid(r, { recording: recordingRef(CORRECTED) });
+  assert.deepEqual(review.judgments[0].citations, [{ evidenceId: 'ev_rec_1', locator: { ms: 9000, what: 'arrow relabelled toward the centre' } }], 'only a step that was sent is cited');
+  assert.deepEqual(review.coverage, [{ evidenceId: 'ev_rec_1', status: 'read', inspected: { steps: 3, sentSteps: 3, sampled: false, intervalMs: [0, 20000], geometry: false, narration: 'none', audio: false }, note: 'steps_read' }]);
+});
+
+test('narrated recording: narration is transcribed once, counted once, and its timing is on the step clock', async t => {
+  const w = await ebWorld(t);
+  const said = 'This arrow points outward. No wait, now it points to the centre because the string pulls the ball in.';
+  const v = voiceDeps({ heard: { text: said, segments: [{ start: 1, end: 3, text: 'This arrow points outward.' }, { start: 9, end: 14, text: 'No wait, now it points to the centre because the string pulls the ball in.' }] } });
+  const timeline = { ...CORRECTED, narration: true };
+  const content = { recording: recordingRef(timeline, NOTE), voice: [NOTE] }; // the same clip also attached as a voice note
+  const stub = replying({ criteria: [{ ...j(F, 'met', ['now it points to the centre because the string pulls the ball in'], { reasoning: 'supported' }), recordingEvidence: [{ t: 9000, what: 'relabelled arrow' }] }, j(V, 'unclear')] });
+  const r = await send(w, content, { ...recordingDeps(timeline, v), callModel: stub.callModel });
+  assert.equal(v.heardCalls.length, 1, 'one transcription for the narration');
+  const evidence = dataOf(stub.calls[0].body).current.evidence;
+  assert.deepEqual(evidence.map(p => p.kind), ['sketch_recording'], 'the voice note that is the narration is not sent again');
+  assert.deepEqual(evidence[0].narration.segments.map(g => [g.startMs, g.endMs]), [[1000, 3000], [9000, 14000]]);
+  const review = reviewOf(r);
+  valid(r, content);
+  assert.deepEqual(review.coverage.map(c => [c.evidenceId, c.status, c.note]), [['ev_voice_1', 'partial', 'same_as:ev_rec_1'], ['ev_rec_1', 'partial', 'Narration transcript only: the audio itself was not inspected.']]);
+  assert.equal(review.coverage[1].inspected.transcriptOnly, true);
+  const quote = review.judgments[0].citations.find(c => c.locator.start != null);
+  assert.deepEqual([quote.evidenceId, quote.locator.startMs, quote.locator.endMs], ['ev_rec_1', 9000, 14000]);
+  assert.equal(review.rating.status, 'unrated', 'velocity unclear');
+});
+
+test('recording: sampling and missing narration are disclosed and never become a wrong judgement', async t => {
+  const w = await ebWorld(t);
+  const many = timelineOf(Array.from({ length: 60 }, (_, i) => ({ t: (i + 1) * 1500, k: 'items', keep: i, add: [{ kind: 'text', x: 10, y: i * 40, text: `step ${i}` }] })));
+  const stub = replying({ criteria: [j(F, 'not_met'), j(V, 'not_met')] });
+  const r = await send(w, { recording: recordingRef(many) }, { ...recordingDeps(many), callModel: stub.callModel });
+  const part = dataOf(stub.calls[0].body).current.evidence[0], cov = reviewOf(r).coverage[0];
+  assert.ok(part.sampled && part.steps.length <= 40 && part.steps[0].t === 0 && part.steps.at(-1).t === 90000, 'first and last kept');
+  assert.deepEqual([cov.status, cov.note, cov.inspected.sampled, cov.inspected.stepTimesMs.length], ['partial', 'steps_sampled', true, part.steps.length]);
+  assert.ok(r.body.assessment.observations.every(o => o.fit === 'unclear'), 'missing intervals: unassessed, never not met');
+  assert.equal(reviewOf(r).rating.reason, 'evidence_incomplete');
+  // Narration recorded but not transcribable: the steps are read, the narration is reported missing.
+  const narrated = { ...CORRECTED, narration: true };
+  const failed = await send(w, { recording: recordingRef(narrated, NOTE) }, { ...recordingDeps(narrated, voiceDeps({ fail: 'provider_failed' })), callModel: replying(stepReply(9000)).callModel });
+  assert.deepEqual([reviewOf(failed).coverage[0].status, reviewOf(failed).coverage[0].note], ['partial', 'narration_transcript_provider_failed']);
+  // A timeline that is not the stored one, or not a timeline: nothing is read.
+  const other = await send(w, { text: A1, recording: recordingRef(CORRECTED) }, { ...recordingDeps(DIRECT), callModel: replying(reply1).callModel });
+  assert.deepEqual([reviewOf(other).coverage[1].status, reviewOf(other).coverage[1].note], ['unavailable', 'hash_mismatch']);
+});
