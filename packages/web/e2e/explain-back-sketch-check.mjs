@@ -591,12 +591,13 @@ const inputLinks = async id => ((await boardState(id))?.links || []).filter(link
 const settleLinks = (id, count) => page.waitForFunction(([card, n]) => Object.values(localStorage).map(v => { try { return JSON.parse(v); } catch { return null; } })
   .find(state => (state?.blocks || []).some(block => block.id === card))?.links?.filter(link => link.kind === 'explain-input' && link.to === card).length === n, [id, count], { timeout: 10000 });
 const clickClick = async (first, second) => { await first.click(); await page.waitForTimeout(150); await second.click(); await page.waitForTimeout(300); };
-const answerCard = await insert('Explain back');
-const answerId = await answerCard.getAttribute('data-block-id');
-const sourceA = await insert('Challenge');
-const sourceAId = await sourceA.getAttribute('data-block-id');
-const sourceB = await insert('Challenge');
-const sourceBId = await sourceB.getAttribute('data-block-id');
+// Each card by its own id: insert() returns cards().last(), a live locator that is always the newest card, so after the
+// second Challenge every one of these named that card (run 41044854928: the Shift-click selected only it; nothing grouped).
+const answerId = await (await insert('Explain back')).getAttribute('data-block-id');
+const sourceAId = await (await insert('Challenge')).getAttribute('data-block-id');
+const sourceBId = await (await insert('Challenge')).getAttribute('data-block-id');
+const byId = id => page.locator(`[data-block-id="${id}"]`);
+const answerCard = byId(answerId), sourceA = byId(sourceAId), sourceB = byId(sourceBId);
 await check('EB-05 the Input is a green port at the upper-left header edge', async () => {
   await reveal(answerCard);
   const input = port(answerId, 'input');
