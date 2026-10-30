@@ -2,10 +2,10 @@
 // Private Explain-back answer media (docs/superpowers/plans/2026-10-30-explain-back.md EB-02, learn-migrations/0034): a
 // retained voice note or a static Sketch snapshot, and the transcripts of a voice note.
 //
-//   putAttemptAsset(env, actor, req, {kind, sha256, durationMs}) -> Response {asset} (201 new, 200 the same bytes again)
+//   uploadAttemptAsset(env, actor, req, {kind, sha256, durationMs}) -> Response {asset} (201 new, 200 the same bytes again)
 //   serveAttemptAsset(env, actor, req, assetId) -> Response: the bytes, whole or one range
 //   ownAttemptAssets(env, actor, ids) -> Map id -> row: the actor's own assets among ids
-//   storeAttemptAsset(env, actor, {bytes, mime, marks?, text?, durationMs?}) -> asset: server/test seeding, upload's checks
+//   putAttemptAsset(env, actor, {bytes, mime, marks?, text?, durationMs?}) -> {...asset, hash}: server/test seeding, upload's checks
 //   setAssetMeta(env, actor, assetId, {marks, text}) -> the Sketch snapshot's capture data, set once
 //   readAttemptAsset(env, actor, attempt, evidence) -> {bytes, mime, marks?, text?} | null: assessment's hash-checked read
 //   transcriptStore(env, actor) -> {get(transcriptId), put(record, {retry})}: immutable transcripts (failed: explicit retry)
@@ -26,11 +26,13 @@ import { validateTranscript } from '../../web/src/explain-back-contract.js';
 // Byte caps (P, 2026-10-30): a voice note at most 2 MiB and a Sketch PNG at most 600 KiB (R's capture limit), refused before
 // storage. The stored size is the asset's `bytes`, which bounds transcription cost. shortcut: audioMs is provisional (plan
 // section 5: two minutes per recording, not finalized).
-export const ATTEMPT_ASSET_LIMITS = Object.freeze({ audio: 2 * 1024 * 1024, image: 600 * 1024, audioMs: 10 * 60 * 1000 });
+export const ATTEMPT_ASSET_LIMITS = Object.freeze({ audio: 2 * 1024 * 1024, image: 600 * 1024, timeline: 2 * 1024 * 1024, audioMs: 10 * 60 * 1000 });
 // ponytail: video (Sketch recordings, EB-06 M4) is not accepted yet; add it with its codec decision.
 const CONTAINERS = {
   audio: [['webm', 'audio/webm', FORMATS.webm], ['ogg', 'audio/ogg', FORMATS.ogg], ['m4a', 'audio/mp4', FORMATS.mp4]],
   image: [['png', 'image/png', FORMATS.png]],
+  // a Sketch recording's drawing timeline (worker M): a JSON object
+  timeline: [['json', 'application/json', FORMATS.ipynb]],
 };
 const SHA = /^[0-9a-f]{64}$/;
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -50,12 +52,13 @@ export const publicAsset = r => ({ assetId: r.id, kind: r.kind, mime: r.mime, ex
 const objectKey = async (actor, sha256) => `learn-attempt-assets/${await sha256Hex(canonical(scope(actor)))}/${sha256}`;
 const byHash = (env, actor, sha256) => env.LEARN_DB.prepare(`SELECT * FROM learn_attempt_assets WHERE ${SCOPE} AND sha256 = ?`).bind(...scope(actor), sha256).first();
 
-export async function putAttemptAsset(env, actor, req, { kind, sha256, durationMs = null }) {
-  if (!CONTAINERS[kind]) return json({ error: 'invalid_asset', detail: 'kind must be audio or image' }, 400);
+export async function uploadAttemptAsset(env, actor, req, { kind, sha256, durationMs = null }) {
+  if (!CONTAINERS[kind]) return json({ error: 'invalid_asset', detail: 'kind must be audio, image or timeline' }, 400);
   if (typeof sha256 !== 'string' || !SHA.test(sha256)) return json({ error: 'invalid_asset', detail: 'sha256 must be 64 lower-case hex characters' }, 400);
   const ms = durationMs == null || durationMs === '' ? null : Number(durationMs);
-  if (kind === 'audio' ? !(Number.isInteger(ms) && ms > 0 && ms <= ATTEMPT_ASSET_LIMITS.audioMs) : ms !== null) {
-    return json({ error: 'invalid_asset', detail: kind === 'audio' ? `durationMs: 1-${ATTEMPT_ASSET_LIMITS.audioMs}` : 'an image has no duration' }, 400);
+  const timed = kind !== 'image';
+  if (timed ? !(Number.isInteger(ms) && ms > 0 && ms <= ATTEMPT_ASSET_LIMITS.audioMs) : ms !== null) {
+    return json({ error: 'invalid_asset', detail: timed ? `durationMs: 1-${ATTEMPT_ASSET_LIMITS.audioMs}` : 'an image has no duration' }, 400);
   }
   // The same bytes again (a retried or resumed upload): the asset already stored, body unread.
   const same = await byHash(env, actor, sha256);
@@ -64,7 +67,7 @@ export async function putAttemptAsset(env, actor, req, { kind, sha256, durationM
   if (got.refused === 'over') return json({ error: 'asset_too_large', detail: { max: ATTEMPT_ASSET_LIMITS[kind] } }, 413);
   if (got.refused === 'length') return json({ error: 'asset_length_required' }, 411);
   const container = sniffAttemptAsset(kind, got.head);
-  if (!container) { await got.body.cancel?.().catch(() => {}); return json({ error: 'unsupported_asset', detail: kind === 'audio' ? 'audio must be WebM, Ogg or MP4' : 'a Sketch snapshot must be PNG' }, 415); }
+  if (!container) { await got.body.cancel?.().catch(() => {}); return json({ error: 'unsupported_asset', detail: { audio: 'audio must be WebM, Ogg or MP4', image: 'a Sketch snapshot must be PNG', timeline: 'a timeline must be a JSON object' }[kind] }, 415); }
   if (!got.streamed && hex(await crypto.subtle.digest('SHA-256', got.body)) !== sha256) return json({ error: 'asset_hash_mismatch' }, 400);
   try {
     // R2 verifies the declared sha256 as it stores a streamed body; a mismatch stores nothing.
@@ -84,21 +87,21 @@ export async function putAttemptAsset(env, actor, req, { kind, sha256, durationM
 /**
  * Store bytes as the actor's attempt asset without a request: the same checks as an upload (container by bytes, kind caps,
  * dedup by hash), for server code and test fixtures (A's assessment tests seed voice and Sketch evidence with it).
- * @returns {Promise<{assetId, kind, mime, ext, bytes, sha256, durationMs}>} publicAsset; use sha256 as the evidence hash
+ * @returns {Promise<{assetId, hash, kind, mime, ext, bytes, sha256, durationMs}>} hash is the evidence hash
  */
-export async function storeAttemptAsset(env, actor, { bytes, mime, marks, text, durationMs = null }) {
-  const kind = /^audio\//.test(mime) ? 'audio' : /^image\//.test(mime) ? 'image' : null;
+export async function putAttemptAsset(env, actor, { bytes, mime, marks, text, durationMs = null }) {
+  const kind = /^audio\//.test(mime) ? 'audio' : /^image\//.test(mime) ? 'image' : mime === 'application/json' ? 'timeline' : null;
   const container = kind && sniffAttemptAsset(kind, bytes.subarray(0, HEAD_BYTES));
-  if (!container) throw new TypeError('storeAttemptAsset: unsupported bytes');
-  if (bytes.byteLength > ATTEMPT_ASSET_LIMITS[kind]) throw new TypeError('storeAttemptAsset: over the cap');
+  if (!container) throw new TypeError('putAttemptAsset: unsupported bytes');
+  if (bytes.byteLength > ATTEMPT_ASSET_LIMITS[kind]) throw new TypeError('putAttemptAsset: over the cap');
   const sha256 = hex(await crypto.subtle.digest('SHA-256', bytes));
   await learnMedia(env).put(await objectKey(actor, sha256), bytes, { httpMetadata: { contentType: container.mime }, sha256 });
   await env.LEARN_DB.prepare(`INSERT INTO learn_attempt_assets (id, org, owner_user_id, app, board, kind, mime, ext, bytes, sha256, duration_ms, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (org, owner_user_id, app, board, sha256) DO NOTHING`)
-    .bind(`aa_${crypto.randomUUID()}`, ...scope(actor), kind, container.mime, container.ext, bytes.byteLength, sha256, kind === 'audio' ? durationMs ?? 1000 : null, new Date().toISOString()).run();
+    .bind(`aa_${crypto.randomUUID()}`, ...scope(actor), kind, container.mime, container.ext, bytes.byteLength, sha256, kind !== 'image' ? durationMs ?? 1000 : null, new Date().toISOString()).run();
   const row = await byHash(env, actor, sha256);
   if (kind === 'image' && (marks != null || text != null) && !row.meta_json) await setAssetMeta(env, actor, row.id, { marks, text });
-  return publicAsset(row);
+  return { ...publicAsset(row), hash: row.sha256 };
 }
 
 export async function ownAttemptAssets(env, actor, ids) {
@@ -151,7 +154,7 @@ export async function setAssetMeta(env, actor, assetId, meta) {
  */
 export async function readAttemptAsset(env, actor, attempt, evidence) {
   const content = attempt?.submittedContent;
-  const named = [...(content?.voice ?? []), ...(content?.sketch ? [content.sketch] : []), ...(content?.recording ? [content.recording] : [])]
+  const named = [...(content?.voice ?? []), ...(content?.sketch ? [content.sketch] : []), ...(content?.recording ? [content.recording] : []), ...(content?.recording?.narration ? [content.recording.narration] : [])]
     .some(e => e.evidenceId === evidence?.evidenceId && e.assetId === evidence.assetId && e.hash === evidence.hash);
   if (!named) return null;
   const row = (await ownAttemptAssets(env, actor, [evidence.assetId])).get(evidence.assetId);

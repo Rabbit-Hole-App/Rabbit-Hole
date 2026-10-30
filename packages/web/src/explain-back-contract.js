@@ -23,8 +23,9 @@ export const ANSWER_LIMITS = Object.freeze({ textChars: 4000, evidence: 20, voic
 
 export const EVIDENCE_ROLES = ['voice', 'sketch', 'recording', 'resource'];
 // What the bytes are. A resource is any canvas source; 'group' is the only media with members.
-export const MEDIA_KINDS = ['audio', 'image', 'video', 'pdf', 'document', 'notebook', 'data', 'code', 'web', 'card', 'group'];
-const ROLE_MEDIA = { voice: ['audio'], sketch: ['image'], recording: ['video'], resource: ['image', 'video', 'pdf', 'document', 'notebook', 'data', 'code', 'web', 'card', 'group'] };
+// sketch_timeline: a Sketch recording as a JSON timeline of drawing events (worker M), an aa_ asset of application/json.
+export const MEDIA_KINDS = ['audio', 'image', 'video', 'sketch_timeline', 'pdf', 'document', 'notebook', 'data', 'code', 'web', 'card', 'group'];
+const ROLE_MEDIA = { voice: ['audio'], sketch: ['image'], recording: ['video', 'sketch_timeline'], resource: ['image', 'video', 'pdf', 'document', 'notebook', 'data', 'code', 'web', 'card', 'group'] };
 // Asset state in the draft. Only 'ready' can be submitted; 'unsupported' is allowed for a Group member, reported in coverage.
 export const EVIDENCE_STATES = ['uploading', 'ready', 'failed', 'unavailable', 'unsupported'];
 // Review coverage of one input: what the evaluator actually read.
@@ -87,6 +88,8 @@ export const EB_SHAPES = {
     // resources only: where it came from and what part was selected
     sourceKind: 'id?', board: 'id?', label: 'str?', scope: 'obj?', locators: 'obj?', derivative: { opt: 'DerivativeRef' },
     members: { opt: ['GroupMember'] }, connection: 'obj?',
+    // recording only: its narration, a voice EvidenceRef (an aa_ audio asset) with its own evidenceId
+    narration: { opt: 'EvidenceRef' },
   },
   AssistanceRef: { kind: ASSISTANCE_KINDS, id: 'id' },
   // A transcript derivative of one retained audio asset (worker M produces it; D stores it immutable, keyed by audio hash).
@@ -129,7 +132,7 @@ export const EB_SHAPES = {
   ExplainBackDraft: { draftId: 'id', cardId: 'id', activityId: 'id?', revision: 'int', answer: 'ExplainBackAnswer', updatedAt: 'id?' },
 };
 
-const allEvidence = a => [...(a.voice ?? []), ...(a.sketch ? [a.sketch] : []), ...(a.recording ? [a.recording] : []), ...(a.resources ?? [])];
+const allEvidence = a => [...(a.voice ?? []), ...(a.sketch ? [a.sketch] : []), ...(a.recording ? [a.recording] : []), ...(a.recording?.narration ? [a.recording.narration] : []), ...(a.resources ?? [])];
 export const answerEvidence = a => (isObj(a) ? allEvidence(a) : []);
 
 // Worker M's stopped voice note {v, asset, type, ext, codec, durationMs, size, sha256} as a ready voice EvidenceRef.
@@ -156,6 +159,7 @@ function answerRules(a, { board, cardId } = {}) {
   const ids = new Set();
   const slot = { voice: a.voice, sketch: a.sketch ? [a.sketch] : [], recording: a.recording ? [a.recording] : [], resource: a.resources };
   for (const [role, list] of Object.entries(slot)) for (const e of list) if (e.role !== role) errors.push(`${e.evidenceId}: role ${e.role} in ${role}`);
+  for (const e of ev) if (e.narration != null && (e !== a.recording || e.narration.role !== 'voice' || e.narration.narration != null)) errors.push(`${e.evidenceId}: narration is one voice ref on the recording`);
   for (const e of ev) {
     const at = e.evidenceId;
     if (at === 'text' || ids.has(at)) errors.push(`${at}: duplicate or reserved evidenceId`);

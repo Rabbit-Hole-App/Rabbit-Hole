@@ -390,13 +390,13 @@ async function explainBackAnswer(env, actor, activity, content) {
 
 // Private answer media must be the learner's own attempt assets on this canvas, of the right kind, with the hash the answer
 // names (learn-attempt-assets.js). Anything else, another learner's id included, is unknown_asset.
-const ASSET_KIND = { voice: 'audio', sketch: 'image', recording: 'video' };
+const ASSET_KIND = { audio: 'audio', image: 'image', video: 'video', sketch_timeline: 'timeline' };
 async function ownAssets(env, actor, content) {
-  const refs = [...content.voice, ...(content.sketch ? [content.sketch] : []), ...(content.recording ? [content.recording] : [])];
+  const refs = [...content.voice, ...(content.sketch ? [content.sketch] : []), ...(content.recording ? [content.recording] : []), ...(content.recording?.narration ? [content.recording.narration] : [])];
   const own = await ownAttemptAssets(env, actor, [...new Set(refs.map(r => r.assetId))]);
   for (const r of refs) {
     const row = own.get(r.assetId);
-    if (!row || row.kind !== ASSET_KIND[r.role] || row.sha256 !== r.hash) throw new AttemptError('unknown_asset', 404, { evidenceId: r.evidenceId });
+    if (!row || row.kind !== ASSET_KIND[r.media] || row.sha256 !== r.hash) throw new AttemptError('unknown_asset', 404, { evidenceId: r.evidenceId });
   }
 }
 

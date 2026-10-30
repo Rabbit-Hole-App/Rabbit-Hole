@@ -120,3 +120,18 @@ test('a voice note from the recorder maps to a ready voice ref; transcripts are 
   assert.equal(validateTranscript({ ...t, status: 'failed', text: '', derivativeHash: undefined }).ok, false, 'failed says why');
   assert.equal(validateTranscript({ ...t, status: 'failed', text: '', derivativeHash: undefined, error: 'provider_timeout' }).ok, true);
 });
+
+test('a Sketch recording may be a JSON timeline with its narration as a private voice ref', () => {
+  const voice = { evidenceId: 'ev_n', role: 'voice', media: 'audio', state: 'ready', assetId: 'aa_narration0001', revision: 1, hash: 'a'.repeat(64) };
+  const recording = { evidenceId: 'ev_r', role: 'recording', media: 'sketch_timeline', state: 'ready', assetId: 'aa_timeline00001', revision: 1, hash: 'b'.repeat(64), mime: 'application/json', durationMs: 42000, narration: voice };
+  const base = { v: 1, kind: 'explain_back', text: '', voice: [], resources: [], assistance: [] };
+  assert.deepEqual(validateExplainBackAnswer({ ...base, recording }), { ok: true, errors: [] });
+  assert.equal(answerReadiness({ ...base, recording }).ready, true);
+  assert.equal(validateExplainBackAnswer({ ...base, recording: { ...recording, media: 'video' } }).ok, true, 'video stays allowed');
+  const fails = (a, text) => { const r = validateExplainBackAnswer(a); assert.ok(!r.ok && r.errors.some(e => e.includes(text)), r.errors.join('; ')); };
+  fails({ ...base, recording: { ...recording, narration: { ...voice, assetId: 'fs_board' } } }, 'asset_not_private');
+  fails({ ...base, recording: { ...recording, narration: { ...voice, evidenceId: 'ev_r' } } }, 'duplicate');
+  fails({ ...base, recording: { ...recording, narration: { ...voice, role: 'sketch', media: 'image' } } }, 'narration is one voice ref');
+  fails({ ...base, sketch: { ...recording, role: 'sketch', media: 'image' } }, 'narration is one voice ref');
+  assert.equal(answerReadiness({ ...base, recording: { ...recording, narration: { ...voice, state: 'uploading', hash: undefined } } }).reason, 'upload_in_progress');
+});
