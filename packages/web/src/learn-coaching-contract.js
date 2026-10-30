@@ -8,7 +8,7 @@
 // @typedef {{mode: 'auto'|'ask'|'tutor', tutorEnabled: boolean, suggestionsPaused: boolean, revision: number}} TutorControls
 // @typedef {{goalId: string, scopeVersion: number}} GoalRef
 // @typedef {{criterionId: string, version: number}} CriterionRef
-// @typedef {{criterionId: string, version: number, label: string, requirement: string, requiresReasoning: boolean, requiresTransfer?: boolean, rubricVersion: string, skillKey?: string}} Criterion
+// @typedef {{criterionId: string, version: number, label: string, requirement: string, requiresReasoning: boolean, requiresTransfer?: boolean, rubricVersion: string, skillKey?: string, weight?: number, required?: boolean, scored?: boolean}} Criterion
 //   requiresTransfer (integrator ruling Q1, 2026-10-20): demonstrated only with a valid transfer (application) observation
 // @typedef {{goalId: string, label: string, outcome?: string, scopeVersion: number, lifecycle: 'open'|'completed'|'archived',
 //   status: 'active'|'paused'|'completed'|'archived', criteria: Criterion[], activityId?: string, journeyId?: string,
@@ -39,7 +39,8 @@ export const MODES = ['auto', 'ask', 'tutor'];
 export const GOAL_LIFECYCLE = ['open', 'completed', 'archived'];
 export const GOAL_STATUS = ['active', 'paused', 'completed', 'archived'];
 export const ACTIVITY_STATUS = ['in_progress', 'awaiting_feedback', 'feedback_ready', 'completed', 'paused', 'skipped'];
-export const RESPONSE_KINDS = ['text', 'choice', 'numeric', 'drawing', 'code'];
+// explain_back: the combined Explain-back answer (explain-back-contract.js); every earlier kind and record stays valid.
+export const RESPONSE_KINDS = ['text', 'choice', 'numeric', 'drawing', 'code', 'explain_back'];
 export const ASSESSMENT_STATUS = ['pending', 'completed', 'unavailable', 'failed', 'unknown'];
 export const FIT = ['met', 'partial', 'not_met', 'unclear'];
 export const REASONING = ['supported', 'partial', 'missing', 'unclear', 'not_required'];
@@ -85,7 +86,11 @@ export const SHAPES = {
   TutorControls: { mode: MODES, tutorEnabled: 'bool', suggestionsPaused: 'bool', revision: 'int' },
   GoalRef: { goalId: 'id', scopeVersion: 'int' },
   CriterionRef: { criterionId: 'id', version: 'int' },
-  Criterion: { criterionId: 'id', version: 'int', label: 'text', requirement: 'text', requiresReasoning: 'bool', requiresTransfer: 'bool?', rubricVersion: 'id', skillKey: 'id?' },
+  // weight/required/scored (Explain-back rating, learn-explain-rating.js): optional; absent means weight 1, required, scored.
+  Criterion: {
+    criterionId: 'id', version: 'int', label: 'text', requirement: 'text', requiresReasoning: 'bool', requiresTransfer: 'bool?', rubricVersion: 'id', skillKey: 'id?',
+    weight: { opt: function positiveWeight(v) { return typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= 100; } }, required: 'bool?', scored: 'bool?',
+  },
   Goal: {
     goalId: 'id', label: 'text', outcome: 'str?', scopeVersion: 'int', lifecycle: GOAL_LIFECYCLE, status: GOAL_STATUS,
     criteria: ['Criterion'], activityId: 'id?', journeyId: 'id?', revision: 'int', createdAt: 'id', updatedAt: 'id',
@@ -120,22 +125,33 @@ export const SHAPES = {
 };
 
 const MAX_ITEMS = 200;
-function check(spec, value, path, errors) {
-  if (isObj(spec) && 'opt' in spec) { if (value != null) check(spec.opt, value, path, errors); return; }
-  if (typeof spec === 'string' && spec.endsWith('?')) { if (value != null) check(spec.slice(0, -1), value, path, errors); return; }
+// reg is the shape registry: SHAPES here, or another module's (explain-back-contract.js) through validateShape. A function
+// spec is a predicate named by its function name in errors.
+function check(spec, value, path, errors, reg = SHAPES) {
+  if (isObj(spec) && 'opt' in spec) { if (value != null) check(spec.opt, value, path, errors, reg); return; }
+  if (typeof spec === 'string' && spec.endsWith('?')) { if (value != null) check(spec.slice(0, -1), value, path, errors, reg); return; }
+  if (typeof spec === 'function') { if (!spec(value)) errors.push(`${path}: ${spec.name || 'invalid'}`); return; }
   if (Array.isArray(spec) && spec.every(s => typeof s === 'string') && spec.length !== 1) {
     if (!spec.includes(value)) errors.push(`${path}: one of ${spec.join('|')}`); return;
   }
   if (Array.isArray(spec)) {
     if (!Array.isArray(value) || value.length > MAX_ITEMS) { errors.push(`${path}: array of at most ${MAX_ITEMS}`); return; }
-    value.forEach((item, i) => check(spec[0], item, `${path}[${i}]`, errors)); return;
+    value.forEach((item, i) => check(spec[0], item, `${path}[${i}]`, errors, reg)); return;
   }
-  if (SHAPES[spec]) { shape(spec, value, path, errors); return; }
+  if (reg[spec]) { shape(spec, value, path, errors, reg); return; }
   if (!BASE[spec](value)) errors.push(`${path}: ${spec}`);
 }
-function shape(kind, value, path, errors) {
+function shape(kind, value, path, errors, reg = SHAPES) {
   if (!isObj(value)) { errors.push(`${path}: ${kind} object`); return; }
-  for (const [field, spec] of Object.entries(SHAPES[kind])) check(spec, value[field], path ? `${path}.${field}` : field, errors);
+  for (const [field, spec] of Object.entries(reg[kind])) check(spec, value[field], path ? `${path}.${field}` : field, errors, reg);
+}
+
+/** The same field-spec engine over another module's registry. @returns {string[]} errors, empty when valid */
+export function validateShape(registry, kind, value) {
+  if (!registry[kind]) return [`unknown kind ${kind}`];
+  const errors = [];
+  shape(kind, value, '', errors, registry);
+  return errors;
 }
 
 // Cross-field rules the field specs cannot say.
