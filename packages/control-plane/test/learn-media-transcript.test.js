@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
-import { TRANSCRIBE_MAX_SECONDS, transcribeEstimate, transcribeUsagePrice } from '../src/learn-paid-transport.js';
+import { TRANSCRIBE_MAX_SECONDS, transcribeEstimate, transcribeSeconds, transcribeUsagePrice } from '../src/learn-paid-transport.js';
 import { admitSpend } from '../src/learn-spend-ledger.js';
 import { priceUsage } from '../src/pricing-registry.js';
 import { withSystemUsage } from '../src/learn-usage.js';
@@ -104,8 +104,11 @@ test('transcription is admitted at the two-minute bound and settled at the repor
   assert.equal((await tx.transcribe({ bytes: AUDIO, mime: 'audio/webm' })).text, 'the bob swings');
   await tx.transcribe({ bytes: AUDIO, mime: 'audio/webm' });
   await assert.rejects(tx.transcribe({ bytes: AUDIO, mime: 'audio/webm' }), error => error.code === 'provider_failed');
-  const reserve = transcribeEstimate('gpt-4o-transcribe').micros;
-  assert.equal(reserve, (TRANSCRIBE_MAX_SECONDS / 60) * 6000, 'two minutes at $0.006 a minute');
+  const reserve = transcribeEstimate('gpt-4o-transcribe', AUDIO.byteLength).micros;
+  assert.equal(reserve, (TRANSCRIBE_MAX_SECONDS / 60) * 6000, 'a short clip reserves two minutes at $0.006 a minute');
+  assert.equal(transcribeSeconds(240_000), 120, '240 kB at 16 kbps is two minutes');
+  assert.equal(transcribeSeconds(2_000_000), 1000, 'a 2 MB clip could be 1000 s at 16 kbps: it reserves that, not two minutes');
+  assert.equal(transcribeEstimate('gpt-4o-transcribe', 2_000_000).micros, 100_000);
   const tokens = priceUsage({ provider: 'openai', model: 'gpt-4o-transcribe', quantities: { input: 330, output: 80 } }).micros;
   assert.equal(tokens, 1625, '330 x $2.50 + 80 x $10 per million');
   assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.provider, a.model, a.reserved_micros, a.cost_micros, a.cost_state, a.status]), [
@@ -114,6 +117,13 @@ test('transcription is admitted at the two-minute bound and settled at the repor
     ['openai', 'gpt-4o-transcribe', reserve, null, 'unknown', 'failed'],
   ]);
   assert.equal(calls, 3);
+  // A forged long clip: the stored bytes, not the recorder, size the reservation, so its real usage stays within it.
+  const big = new Uint8Array(1_200_000);
+  await openaiTranscriber(env, { fetchImpl: async () => Response.json({ text: 'long', usage: { type: 'tokens', input_tokens: 6000, output_tokens: 1500 } }) }).transcribe({ bytes: big, mime: 'audio/webm' });
+  const last = rows(sqlite, 'usage_attempts').at(-1);
+  assert.deepEqual([last.reserved_micros, last.cost_micros], [transcribeEstimate('gpt-4o-transcribe', big.byteLength).micros, 30_000]);
+  assert.ok(last.cost_micros <= last.reserved_micros);
+  assert.equal(rows(sqlite, 'usage_operations').filter(o => o.error === 'spend_bound_exceeded').length, 0, 'never trips the platform guard');
   assert.deepEqual(transcribeUsagePrice('gpt-transcribe', { type: 'duration', seconds: 30 }).micros, 2250, 'gpt-transcribe settles per second of audio');
   assert.equal(transcribeUsagePrice('gpt-transcribe', { type: 'tokens', input_tokens: 5, output_tokens: 5 }), null, 'no token rows: the estimate stands');
 });

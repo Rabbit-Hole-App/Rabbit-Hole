@@ -72,25 +72,27 @@ export async function admitTool(env, { category, reservedMicros, provider, model
 }
 
 // OpenAI speech to text (Explain-back voice notes; transcription approved for dev and production, O-8 resolved 2026-10-29).
-// Admitted before the call for the longest clip a voice note can be (the two-minute recording limit) at OpenAI's per-minute
-// figure (pricing-registry.js audio_minute, quantity in seconds), and settled with the usage the response reports (tokens for
+// Admitted before the call for the longer of the two-minute recording limit and the duration the stored bytes could hold at
+// 16 kbps (bytes are the server's own count of the stored asset, so a forged long clip reserves enough), at OpenAI's per-minute
+// figure (pricing-registry.js audio_minute, quantity in seconds); settled with the usage the response reports (tokens for
 // gpt-4o-transcribe, seconds for gpt-transcribe), else at the reservation. The reservation must bound the call: a settled cost
 // above it marks spend_bound_exceeded and the platform guard stops every paid call, so the recorder's own duration (an
-// untrusted, smaller figure) is not used. Who pays is the caller's usage context: Explain-back assessment runs it under the
+// untrusted figure) is never used. Who pays is the caller's usage context: Explain-back assessment runs it under the
 // assessment's platform-funded context, never a learner's credits.
-// shortcut: a clip longer than two minutes (a forged upload within the stored-asset byte cap) can exceed the bound and pause
-// paid calls until reviewed; read the duration from the bytes before transcribing if that cap ever allows long audio.
+// shortcut: audio below 16 kbps (Opus can go to 6) could still outrun the bound; the 2 MB voice-asset cap keeps that small.
 export const TRANSCRIBE_MAX_SECONDS = 120;
-export const transcribeEstimate = model => priceUsage({ provider: 'openai', model, quantities: { audio_minute: TRANSCRIBE_MAX_SECONDS } });
+export const TRANSCRIBE_FLOOR_BITS_PER_SECOND = 16_000;
+export const transcribeSeconds = bytes => Math.max(TRANSCRIBE_MAX_SECONDS, Math.ceil(((Number(bytes) || 0) * 8) / TRANSCRIBE_FLOOR_BITS_PER_SECOND));
+export const transcribeEstimate = (model, bytes) => priceUsage({ provider: 'openai', model, quantities: { audio_minute: transcribeSeconds(bytes) } });
 // The response's usage priced at the registry's rows; null when it reports none (or none this model has rows for).
 export function transcribeUsagePrice(model, usage) {
   const price = usage?.type === 'tokens' ? priceUsage({ provider: 'openai', model, quantities: { input: usage.input_tokens || 0, output: usage.output_tokens || 0 } })
     : usage?.type === 'duration' ? priceUsage({ provider: 'openai', model, quantities: { audio_minute: usage.seconds || 0 } }) : null;
   return price?.micros > 0 ? price : null;
 }
-export async function transcribeSpendTransport(env, { model }, transport) {
+export async function transcribeSpendTransport(env, { model, bytes }, transport) {
   if (!spendEnforced(env)) return transport();
-  const estimate = transcribeEstimate(model);
+  const estimate = transcribeEstimate(model, bytes);
   if (!estimate) return paidSpendReply('spend_bound_unavailable');
   const opId = operationId('transcribe');
   const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: 'provider:platform', org: 'platform', category: 'transcribe', reservedUsd: estimate.micros / 1e6, kind: 'media', provider: 'openai', model });
