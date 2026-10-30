@@ -124,7 +124,7 @@ test('the hook: presses reach the canvas until Interact; after it they stay in t
   const exits = [];
   const a = hook({ id: 'card-a', onExit: why => exits.push(['a', why]) });
   const before = event();
-  a.handlers.onPointerDownCapture(before);
+  a.handlers.onPointerDown(before);
   assert.equal(before.seen.stopped, 0, 'the canvas moves and selects the card');
   const menu = event({ button: 2 });
   a.handlers.onContextMenu(menu);
@@ -132,10 +132,10 @@ test('the hook: presses reach the canvas until Interact; after it they stay in t
   a.enter();
   assert.equal(H.activeViewer(), 'card-a');
   const inside = event();
-  a.handlers.onPointerDownCapture(inside);
+  a.handlers.onPointerDown(inside);
   assert.equal(inside.seen.stopped, 1, 'the canvas neither pans nor drags the card');
   const right = event({ button: 2, pointerId: 2 });
-  a.handlers.onPointerDownCapture(right);
+  a.handlers.onPointerDown(right);
   const after = event();
   a.handlers.onContextMenu(after);
   assert.equal(after.seen.prevented, 1, 'the right-drag\'s menu is suppressed');
@@ -147,7 +147,7 @@ test('the hook: presses reach the canvas until Interact; after it they stay in t
   assert.equal(H.activeViewer(), 'card-b');
   assert.deepEqual(exits, [['a', 'exit']], 'one card owns inner interaction at a time');
   const now = event();
-  a.handlers.onPointerDownCapture(now);
+  a.handlers.onPointerDown(now);
   assert.equal(now.seen.stopped, 0, 'card A is back to the canvas');
   b.exit('escape');
   assert.equal(H.activeViewer(), null);
@@ -159,6 +159,15 @@ test('the hook: Interact is not entered while the scene is not ready', () => {
   a.enter();
   assert.equal(H.activeViewer(), null);
   const press = event();
-  a.handlers.onPointerDownCapture(press);
+  a.handlers.onPointerDown(press);
   assert.equal(press.seen.stopped, 0);
+});
+
+// fast-e2e 41143743749 step 18: a capture-phase stop runs at React's root before the native press reaches the WebGL canvas, so
+// OrbitControls (a native listener on that canvas) never saw a press and Interact could not orbit. The stop is bubble-phase only.
+test('the hook stops a press in the bubble phase only, so the scene canvas still receives it', () => {
+  H.resetViewers();
+  const a = hook({ id: 'card-d' });
+  assert.equal(typeof a.handlers.onPointerDown, 'function');
+  assert.equal(a.handlers.onPointerDownCapture, undefined, 'no capture-phase press handler');
 });

@@ -97,7 +97,7 @@ export function createSceneInteraction({ onRelease = () => {}, onExit = () => {}
 // it ends the interaction. surface: the viewport, which takes focus, the wheel and pinch while interacting (default root).
 // id: this card's viewer-slots identity. ready: a scene that can be interacted with (Interact is offered only then).
 //   useSceneInteraction({ id, root, surface, ready, onRelease, onEnter, onExit })
-//     -> { active, enter(), exit(reason), handlers: { onPointerDownCapture, onPointerUpCapture, onPointerCancelCapture, onContextMenu, onKeyDown, onKeyUp } }
+//     -> { active, enter(), exit(reason), handlers: { onPointerDown, onPointerUpCapture, onPointerCancelCapture, onContextMenu, onKeyDown, onKeyUp } }
 export function useSceneInteraction({ id, root, surface = root, ready = true, onRelease = () => {}, onEnter = () => {}, onExit = () => {} }) {
   const [active, setActive] = useState(false);
   const calls = useRef(null);
@@ -149,8 +149,10 @@ export function useSceneInteraction({ id, root, surface = root, ready = true, on
   }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
   const handlers = {
     // While interacting every press inside the scene is the scene's (arbitrate never answers 'canvas' then), so the canvas
-    // neither pans nor drags the card; before Interact the press goes on to the canvas untouched.
-    onPointerDownCapture: event => {
+    // neither pans nor drags the card; before Interact the press goes on to the canvas untouched. Bubble phase, never capture:
+    // React runs capture handlers from its root before the native event reaches the WebGL canvas, so a stop there kept every
+    // press from OrbitControls' and the renderer's own listeners and Interact could not orbit (fast-e2e 41143743749, step 18).
+    onPointerDown: event => {
       const decision = scene.pointerDown({ pointerId: event.pointerId, button: event.button, pointerType: event.pointerType, hit: null });
       if (decision.owner !== 'canvas') event.stopPropagation();
     },

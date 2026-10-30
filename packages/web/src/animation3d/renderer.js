@@ -121,6 +121,14 @@ export function createAnimationRenderer({
   canvas.addEventListener('pointermove', move);
   canvas.addEventListener('pointerup', up);
   canvas.addEventListener('pointercancel', up);
+  // Pointers held on the canvas, so turning interaction off (Escape, window blur, a hidden tab) ends OrbitControls' gesture too:
+  // disabling it alone leaves its pointer tracked and a held drag orbits again once it is re-enabled (fast-e2e 41143743749).
+  const held = new Set();
+  const hold = event => held.add(event.pointerId), unhold = event => held.delete(event.pointerId);
+  canvas.addEventListener('pointerdown', hold);
+  canvas.addEventListener('pointerup', unhold);
+  canvas.addEventListener('pointercancel', unhold);
+  const cancelHeld = () => { for (const pointerId of [...held]) { held.delete(pointerId); try { if (globalThis.PointerEvent) canvas.dispatchEvent(new PointerEvent('pointercancel', { pointerId })); } catch { /* already released */ } } };
 
   function setCamera({ position, target, fov }) {
     camera.position.fromArray(position);
@@ -153,7 +161,7 @@ export function createAnimationRenderer({
     },
     setCamera,
     getCamera: () => (shown && !lost ? cameraState() : null),
-    interact(on) { controls.enabled = !!on; if (!on) { drag = press = null; } },
+    interact(on) { if (!on) cancelHeld(); controls.enabled = !!on; if (!on) { drag = press = null; } },
     // Drawn and read in one task, so no preserveDrawingBuffer is needed.
     capturePoster() {
       if (!shown || lost || disposed) return null;
@@ -164,7 +172,7 @@ export function createAnimationRenderer({
       disposed = true;
       if (frame && globalThis.cancelAnimationFrame) cancelAnimationFrame(frame);
       resizeObserver?.disconnect();
-      for (const [type, handler] of [['webglcontextlost', lose], ['webglcontextrestored', restore], ['pointerdown', down], ['pointermove', move], ['pointerup', up], ['pointercancel', up]]) canvas.removeEventListener(type, handler);
+      for (const [type, handler] of [['webglcontextlost', lose], ['webglcontextrestored', restore], ['pointerdown', down], ['pointermove', move], ['pointerup', up], ['pointercancel', up], ['pointerdown', hold], ['pointerup', unhold], ['pointercancel', unhold]]) canvas.removeEventListener(type, handler);
       controls.dispose();
       shown?.dispose();
       shown = null;
