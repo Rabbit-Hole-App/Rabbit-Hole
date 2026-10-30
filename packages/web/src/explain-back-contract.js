@@ -37,7 +37,10 @@ export const ASSISTANCE_KINDS = ['hint', 'saw_prior_feedback', 'material', 'chat
 // makes the attempt Not rated, never 0).
 export const JUDGMENTS = ['demonstrated', 'partly_demonstrated', 'contradicted', 'not_established', 'unassessed'];
 export const JUDGMENT_FIT = Object.freeze({ demonstrated: 'met', partly_demonstrated: 'partial', contradicted: 'not_met', not_established: 'not_met', unassessed: 'unclear' });
-export const COMPARISON_CHANGES = ['resolved', 'persisting', 'new', 'regressed', 'prior_feedback_corrected', 'not_comparable'];
+// improved: better but not yet met (not_met -> partial); still_met: met before and now.
+export const COMPARISON_CHANGES = ['resolved', 'improved', 'persisting', 'still_met', 'new', 'regressed', 'prior_feedback_corrected', 'not_comparable'];
+// A stored transcript is ready (text from the audio) or failed (kept with its error; replaced only by an explicit retry).
+export const TRANSCRIPT_STATUS = ['ready', 'failed'];
 export const RATING_STATUS = ['rated', 'unrated'];
 // Assessment operations: 'submit' is the learner's new answer (a new attempt); 'reassess' re-runs one attempt's assessment
 // (same attempt, new operation, learn_assessments.request_key 'reassess:*'). A reassessment is never a new revision.
@@ -91,7 +94,8 @@ export const EB_SHAPES = {
   TranscriptSegment: { startMs: 'int', endMs: 'int', text: shortText },
   Transcript: {
     transcriptId: 'id', assetId: attemptAsset, hash: sha256, text: transcriptText, segments: { opt: ['TranscriptSegment'] },
-    provider: 'id', model: 'id', uncertainty: { opt: uncertainty },
+    provider: 'id', model: 'id', uncertainty: { opt: uncertainty }, version: 'ver', status: TRANSCRIPT_STATUS,
+    converterVersion: 'id', derivativeHash: { opt: sha256 }, error: { opt: shortText }, createdAt: 'id?',
   },
   Baseline: { parentAttemptId: 'id', parentAssessmentId: nullableId },
   ExplainBackAnswer: {
@@ -109,7 +113,9 @@ export const EB_SHAPES = {
   FeedbackSection: { text: shortText, citations: ['Citation'] },
   Feedback: { strengths: 'FeedbackSection', revisit: 'FeedbackSection', next: 'FeedbackSection' },
   ComparisonItem: { criterionId: 'id', change: COMPARISON_CHANGES, baselineCitations: ['Citation'], currentCitations: ['Citation'], note: { opt: shortText } },
-  Comparison: { parentAttemptId: 'id', parentAssessmentId: nullableId, comparable: 'bool', reason: 'id?', items: ['ComparisonItem'] },
+  // rating: ratingsComparable's verdict (learn-explain-rating.js) with both scores when shown as a numeric change
+  ComparisonRating: { comparable: 'bool', reason: nullableId, previous: { opt: ratingScore }, current: { opt: ratingScore } },
+  Comparison: { parentAttemptId: 'id', parentAssessmentId: nullableId, comparable: 'bool', reason: 'id?', items: ['ComparisonItem'], rating: { opt: 'ComparisonRating' } },
   RatingRow: { criterionId: 'id', version: 'int', weight, required: 'bool', credit, reason: 'id?' },
   Rating: {
     status: RATING_STATUS, score: { opt: ratingScore }, outOf, capped: 'bool?', reason: 'id?', unknown: { opt: ['obj'] },
@@ -132,7 +138,12 @@ export const voiceEvidence = (note, evidenceId) => ({
   evidenceId, role: 'voice', media: 'audio', state: 'ready', assetId: note.asset, revision: 1, hash: note.sha256,
   mime: note.type, ...(note.codec ? { codec: note.codec } : {}), bytes: note.size, durationMs: note.durationMs,
 });
-export const validateTranscript = t => { const errors = validateShape(EB_SHAPES, 'Transcript', t); return { ok: !errors.length, errors }; };
+export function validateTranscript(t) {
+  const errors = validateShape(EB_SHAPES, 'Transcript', t);
+  if (!errors.length && t.status === 'ready' && !t.derivativeHash) errors.push('derivativeHash: a ready transcript names its derivative');
+  if (!errors.length && t.status === 'failed' && !t.error) errors.push('error: a failed transcript says why');
+  return { ok: !errors.length, errors };
+}
 
 // Rules the field specs cannot say. ctx (all optional): board, the canvas the attempt is on; cardId, the Explain-back card
 // itself (it may not be its own input). The server repeats every authorization check; these are shape and scope only.

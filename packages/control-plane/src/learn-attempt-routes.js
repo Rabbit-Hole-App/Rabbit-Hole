@@ -13,6 +13,13 @@
 //        newest first, each with its latest operation and stored rating. No model call.
 //   POST /api/learn/tutor/attempts/bind {app, board, cardId, prompt, expects?} -> {goalId, activityId, activityRevision,
 //        criterionRefs, rubricVersion}: the card's server-owned activity and criteria (Explain-back, EB-02). Idempotent.
+//   PUT  /api/learn/tutor/attempts/assets?app=&board=&kind=audio|image&sha256=&durationMs= <raw bytes> -> {asset} (201; 200 when
+//        the same bytes were stored before). Audio WebM/Ogg/MP4 or a PNG Sketch snapshot, checked by bytes and by sha256.
+//   GET  /api/learn/tutor/attempts/assets/:aa_id?app=&board= -> the bytes (Range supported). Owner only: 404 for anyone else.
+//   PUT  /api/learn/tutor/attempts/assets/:aa_id {app, board, marks, text} -> {meta}: a Sketch snapshot's capture data, set once.
+//   GET  /api/learn/tutor/attempts/drafts?app=&board=&cardId= -> {draft|null}
+//   PUT  /api/learn/tutor/attempts/drafts {app, board, cardId, expectedRevision, answer|null} -> {draft|null}; 409
+//        draft_conflict {draft} when another tab saved first (nothing is overwritten). answer null clears the draft.
 //   POST /api/learn/tutor/attempts/:id/reassess {app, board, requestKey, dispute?} -> {attempt, assessment, assessments, replayed}
 //        A deliberate review. It supersedes the last completed assessment; the original attempt and result are kept.
 //        dispute: true is the learner's "Question this feedback" (Task 10): the questioned result is labelled disputed.
@@ -31,13 +38,14 @@
 // open, a canvas, and the account's users.id (never an email, never taken from the body).
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
-import { AttemptError, acceptAttempt, bindExplainBackCard, listAttempts, readAttempt, requestReassessment } from './learn-attempt-store.js';
+import { AttemptError, acceptAttempt, bindExplainBackCard, listAttempts, readAttempt, readDraft, requestReassessment, saveDraft } from './learn-attempt-store.js';
+import { putAttemptAsset, serveAttemptAsset, setAssetMeta } from './learn-attempt-assets.js';
 import { assessAttempt } from './learn-assessment.js';
 import { advanceActivity } from './learn-coaching-store.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/; // learn-boards.js board names
-const PATH = /^\/api\/learn\/tutor\/attempts(?:\/(bind)|\/([A-Za-z0-9_-]{1,100})(\/reassess)?)?$/;
+const PATH = /^\/api\/learn\/tutor\/attempts(?:\/(bind|drafts|assets)(?:\/(aa_[A-Za-z0-9_-]{8,80}))?|\/([A-Za-z0-9_-]{1,100})(\/reassess)?)?$/;
 // The raw body is bounded before parsing. It holds the 16 KB submission plus its refs.
 export const ATTEMPT_BODY_CHARS = 65536;
 const log = (event, error) => console.error(JSON.stringify({ event, error: error?.name || 'Error', message: String(error?.message || '').slice(0, 120) }));
@@ -45,13 +53,17 @@ const log = (event, error) => console.error(JSON.stringify({ event, error: error
 export async function attemptRoute(path, req, env, deps = {}) {
   const match = PATH.exec(path);
   if (!match) return null;
-  const [, bind, id, reassess] = match;
+  const [, named, assetId, id, reassess] = match;
+  if (assetId && named !== 'assets') return null;
   const query = new URL(req.url).searchParams;
-  const list = !bind && !id && req.method === 'GET' && query.has('cardId');
-  const method = list || (id && !reassess) ? 'GET' : 'POST';
-  if (req.method !== method) return json({ error: `${method} required` }, 405);
+  const list = !named && !id && req.method === 'GET' && query.has('cardId');
+  const allowed = named === 'assets' ? (assetId ? ['GET', 'HEAD', 'PUT'] : ['PUT']) : named === 'drafts' ? ['GET', 'PUT']
+    : list || (id && !reassess) ? ['GET'] : ['POST'];
+  if (!allowed.includes(req.method)) return json({ error: `${allowed.join(' or ')} required` }, 405);
+  const method = req.method;
   let body;
-  if (method === 'GET') {
+  // GET and HEAD, and an asset upload (raw bytes), name the canvas in the query.
+  if (method === 'GET' || method === 'HEAD' || (named === 'assets' && !assetId)) {
     body = { app: query.get('app'), board: query.get('board'), cardId: query.get('cardId') };
   } else {
     const raw = await req.text();
@@ -70,9 +82,16 @@ export async function attemptRoute(path, req, env, deps = {}) {
   const actor = { org: access.org, userId: access.user_id, app: body.app, board: body.board };
   let handle;
   try {
+    if (named === 'assets' && assetId && method === 'PUT') {
+      const meta = await setAssetMeta(env, actor, assetId, body).catch(error => { if (error instanceof TypeError) throw new AttemptError('invalid_asset_meta', 400, error.message); throw error; });
+      return meta ? json({ meta }) : json({ error: 'unknown_asset' }, 404);
+    }
+    if (named === 'assets') return assetId ? await serveAttemptAsset(env, actor, req, assetId)
+      : await putAttemptAsset(env, actor, req, { kind: query.get('kind'), sha256: query.get('sha256'), durationMs: query.get('durationMs') });
+    if (named === 'drafts') return json({ draft: method === 'GET' ? await readDraft(env, actor, body.cardId) : await saveDraft(env, actor, body) });
     if (list) return json({ attempts: await listAttempts(env, actor, body.cardId) });
     if (method === 'GET') return json(await readAttempt(env, actor, id));
-    if (bind) return json(await bindExplainBackCard(env, actor, { cardId: body.cardId, prompt: body.prompt, expects: body.expects ?? [] }));
+    if (named === 'bind') return json(await bindExplainBackCard(env, actor, { cardId: body.cardId, prompt: body.prompt, expects: body.expects ?? [] }));
     handle = reassess
       ? await requestReassessment(env, actor, id, body.requestKey, { dispute: body.dispute === true })
       : await acceptAttempt(env, actor, {
