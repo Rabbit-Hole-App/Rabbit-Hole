@@ -24,7 +24,8 @@ import { ANA, call, submit, world } from '../../../packages/control-plane/test/l
 import { explainEvidenceFixture } from '../../../packages/control-plane/test/learn-explain-evidence-fixture.js';
 import { bindExplainBackCard } from '../../../packages/control-plane/src/learn-attempt-store.js';
 import { putAttemptAsset } from '../../../packages/control-plane/src/learn-attempt-assets.js';
-import { LEARN_TASKS, costUsd } from '../../../packages/control-plane/src/learn-models.js';
+import { LEARN_TASKS, costUsd, loggedModel } from '../../../packages/control-plane/src/learn-models.js';
+import { anthropic } from '../../../packages/control-plane/src/ask.js';
 import { noteUsageIdentity, usageFeature, withUsage } from '../../../packages/control-plane/src/learn-usage.js';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -38,7 +39,9 @@ const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const idOf = idea => `k_${sha(idea).slice(0, 16)}`;
 
 // ---- a tiny grayscale PNG for the Sketch cases (circle, dots, arrows; labels travel as the capture's text) ----------------
-export function sketchPng({ width, height, circle = null, dots = [], arrows = [] }) {
+// Letters drawn into the image, so a label is visible where the learner wrote it (5 x 7 cells, scaled 3x).
+const GLYPHS = { F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'], v: ['00000', '00000', '10001', '10001', '10001', '01010', '00100'] };
+export function sketchPng({ width, height, circle = null, dots = [], arrows = [], texts = [] }) {
   const px = new Uint8Array(width * height).fill(255);
   const set = (x, y) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && y >= 0 && x < width && y < height) px[y * width + x] = 0; };
   const line = (x1, y1, x2, y2) => { const n = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1), 1); for (let i = 0; i <= n; i++) for (const d of [-1, 0, 1]) { set(x1 + ((x2 - x1) * i) / n + d, y1 + ((y2 - y1) * i) / n); set(x1 + ((x2 - x1) * i) / n, y1 + ((y2 - y1) * i) / n + d); } };
@@ -49,6 +52,9 @@ export function sketchPng({ width, height, circle = null, dots = [], arrows = []
     const a = Math.atan2(y2 - y1, x2 - x1);
     for (const s of [-0.5, 0.5]) line(x2, y2, x2 - 14 * Math.cos(a + s), y2 - 14 * Math.sin(a + s));
   }
+  for (const [x, y, word] of texts) [...word].forEach((ch, n) => (GLYPHS[ch] || []).forEach((row, r) => [...row].forEach((bit, k) => {
+    if (bit === '1') for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) set(x + n * 18 + k * 3 + a, y + r * 3 + b);
+  })));
   const rows = Buffer.alloc((width + 1) * height);
   for (let y = 0; y < height; y++) { rows[y * (width + 1)] = 0; Buffer.from(px.buffer, y * width, width).copy(rows, y * (width + 1) + 1); }
   const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const body = Buffer.concat([Buffer.from(type), data]); const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(body)); return Buffer.concat([len, body, crc]); };
@@ -195,8 +201,12 @@ export async function runCases({ cases = CASES.cases, live = false, maxUsd = MAX
     // Bound before spending: never start a case that could take the run past the cap.
     const spent = spentMicros(w) / 1e6;
     if (spent + WORST_CASE_USD > maxUsd) { stopped = { before: c.id, spentUsd: spent, worstNextUsd: WORST_CASE_USD }; break; }
-    const stub = live ? null : callModel ? { callModel, calls: [] } : standIn();
-    const r = await submit(w.env, ANA, activity, { submissionKey: key, submittedContent: content }, { ...deps, ...(stub ? { callModel: stub.callModel } : {}) });
+    // Live: the default admitted transport, with each raw reply kept in the operator's results file (eval-live-1 lost the text of
+    // an unreadable reply).
+    const replies = [];
+    const stub = live ? { calls: [], callModel: async (env, body, model, org) => { const res = await loggedModel('tutor_rubric', anthropic)(env, body, model, org); replies.push(await res.clone().json().then(m => (m.content || []).filter(b => b.type === 'text').map(b => b.text).join(String.fromCharCode(10))).catch(() => null)); return res; } }
+      : callModel ? { callModel, calls: [] } : standIn();
+    const r = await submit(w.env, ANA, activity, { submissionKey: key, submittedContent: content }, { ...deps, callModel: stub.callModel });
     const usd = (spentMicros(w) - before) / 1e6;
     const review = r.body.assessment?.provenance?.review ?? null;
     const sent = stub?.calls?.[0];
@@ -204,7 +214,7 @@ export async function runCases({ cases = CASES.cases, live = false, maxUsd = MAX
       id: c.id, what: c.what, status: r.body.assessment?.status ?? r.body.error, reason: r.body.assessment?.reason ?? null,
       costUsd: Number(usd.toFixed(6)), model: r.body.assessment?.provenance?.calls?.at(-1)?.servedModel ?? null,
       ...(sent ? { requestChars: JSON.stringify(sent.body).length, inputTokensEstimate: sent.input, images: Array.isArray(sent.body.messages[0].content) ? sent.body.messages[0].content.filter(b => b.type === 'image').length : 0 } : {}),
-      ...(live ? { score: score(c, card, review), review } : {}),
+      ...(live ? { score: score(c, card, review), review, reply: replies.at(-1)?.slice(0, 20000) ?? null, provenance: review ? null : r.body.assessment?.provenance ?? null } : {}),
     };
     results.push(result);
     log(result);

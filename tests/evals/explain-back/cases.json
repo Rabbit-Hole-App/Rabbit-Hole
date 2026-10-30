@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "about": "Explain-back assessment quality corpus (plan 2026-10-30-explain-back.md section 12, Quality fixtures). Synthetic learner answers only. Each case states the judgment(s) a sound assessment may give per key idea; anything else fails the case. Transcripts are fixed text: speech recognition is not evaluated here.",
+  "about": "Explain-back assessment quality corpus (plan 2026-10-30-explain-back.md section 12, Quality fixtures). Synthetic learner answers only. Each case states the judgment(s) a sound assessment may give per key idea; anything else fails the case. Transcripts are fixed text: speech recognition is not evaluated here. Key ideas are bound with reasoning required (D, EB-02): an idea stated without its reason is partly demonstrated, so expectations for the velocity idea accept that wherever the answer gives no reason.",
   "cards": {
     "circle": {
       "prompt": "A ball on a string moves in a horizontal circle at constant speed. Explain which way the net force and the velocity point, and why.",
@@ -18,87 +18,406 @@
   },
   "cases": [
     {
-      "id": "text-correct", "card": "circle", "what": "Correct typed explanation of both ideas",
-      "answer": { "text": "The velocity is always tangent to the circle, along the path. The net force points toward the centre, because without an inward force the ball would carry on in a straight line; the inward pull keeps turning its velocity." },
-      "expect": { "judgments": { "force": ["demonstrated"], "velocity": ["demonstrated"] }, "rating": { "status": "rated", "min": 8 } }
+      "id": "text-correct",
+      "card": "circle",
+      "what": "Correct typed explanation of both ideas",
+      "answer": {
+        "text": "The velocity is always tangent to the circle, along the path. The net force points toward the centre, because without an inward force the ball would carry on in a straight line; the inward pull keeps turning its velocity."
+      },
+      "expect": {
+        "judgments": {
+          "force": [
+            "demonstrated"
+          ],
+          "velocity": [
+            "demonstrated",
+            "partly_demonstrated"
+          ]
+        },
+        "rating": {
+          "status": "rated",
+          "min": 7
+        }
+      }
     },
     {
-      "id": "text-partial", "card": "circle", "what": "Force direction stated without the reason",
-      "answer": { "text": "The ball's velocity is tangent to the circle. There is a force on the ball toward the middle." },
-      "expect": { "judgments": { "force": ["partly_demonstrated", "not_established"], "velocity": ["demonstrated"] }, "rating": { "status": "rated", "max": 9 } }
+      "id": "text-partial",
+      "card": "circle",
+      "what": "Force direction stated without the reason",
+      "answer": {
+        "text": "The ball's velocity is tangent to the circle. There is a force on the ball toward the middle."
+      },
+      "expect": {
+        "judgments": {
+          "force": [
+            "partly_demonstrated",
+            "not_established"
+          ],
+          "velocity": [
+            "demonstrated",
+            "partly_demonstrated"
+          ]
+        },
+        "rating": {
+          "status": "rated",
+          "max": 9
+        }
+      }
     },
     {
-      "id": "text-mistaken", "card": "circle", "what": "The outward-force misconception and an inward velocity",
-      "answer": { "text": "The ball is flung outward, so the net force on it points away from the centre. Its velocity points toward the centre." },
-      "expect": { "judgments": { "force": ["contradicted"], "velocity": ["contradicted", "not_established"] }, "rating": { "status": "rated", "max": 2 } }
+      "id": "text-mistaken",
+      "card": "circle",
+      "what": "The outward-force misconception and an inward velocity",
+      "answer": {
+        "text": "The ball is flung outward, so the net force on it points away from the centre. Its velocity points toward the centre."
+      },
+      "expect": {
+        "judgments": {
+          "force": [
+            "contradicted"
+          ],
+          "velocity": [
+            "contradicted",
+            "not_established"
+          ]
+        },
+        "rating": {
+          "status": "rated",
+          "max": 2
+        }
+      }
     },
     {
-      "id": "voice-only", "card": "circle", "what": "A voice note alone, typed text empty; transcript-only coverage",
-      "answer": { "voice": { "transcript": "So the ball goes round, and its velocity is always along the circle, tangent to it. The net force is toward the centre, because if nothing pulled it in, it would just go off in a straight line." } },
-      "expect": { "judgments": { "force": ["demonstrated"], "velocity": ["demonstrated"] }, "coverage": { "voice": "transcriptOnly" }, "rating": { "status": "rated", "min": 8 } }
+      "id": "voice-only",
+      "card": "circle",
+      "what": "A voice note alone, typed text empty; transcript-only coverage",
+      "answer": {
+        "voice": {
+          "transcript": "So the ball goes round, and its velocity is always along the circle, tangent to it. The net force is toward the centre, because if nothing pulled it in, it would just go off in a straight line."
+        }
+      },
+      "expect": {
+        "judgments": {
+          "force": [
+            "demonstrated"
+          ],
+          "velocity": [
+            "demonstrated",
+            "partly_demonstrated"
+          ]
+        },
+        "coverage": {
+          "voice": "transcriptOnly"
+        },
+        "rating": {
+          "status": "rated"
+        }
+      }
     },
     {
-      "id": "text-sketch-complementary", "card": "circle", "what": "Text explains the force; only the sketch shows the tangent velocity",
+      "id": "text-sketch-complementary",
+      "card": "circle",
+      "what": "Text explains the force; only the sketch shows the tangent velocity",
       "answer": {
         "text": "The net force points toward the centre: without it the ball would go straight on, so the inward pull keeps changing its direction.",
-        "sketch": { "width": 320, "height": 240, "circle": [160, 120, 80], "dots": [[160, 120], [240, 120]], "arrows": [[240, 120, 240, 40]], "marks": 3, "labels": "Marks: 1 ellipse, 1 arrow. Written in the sketch: arrow label: \"v\"." }
+        "sketch": {
+          "width": 320,
+          "height": 240,
+          "circle": [
+            160,
+            120,
+            80
+          ],
+          "dots": [
+            [
+              160,
+              120
+            ],
+            [
+              240,
+              120
+            ]
+          ],
+          "arrows": [
+            [
+              240,
+              120,
+              240,
+              40
+            ]
+          ],
+          "marks": 3,
+          "labels": "Marks: 1 ellipse, 1 arrow. Written in the sketch: arrow label: \"v\".",
+          "texts": [
+            [
+              250,
+              56,
+              "v"
+            ]
+          ]
+        }
       },
-      "expect": { "judgments": { "force": ["demonstrated"], "velocity": ["demonstrated", "partly_demonstrated"] } }
+      "expect": {
+        "judgments": {
+          "force": [
+            "demonstrated"
+          ],
+          "velocity": [
+            "demonstrated",
+            "partly_demonstrated"
+          ]
+        }
+      }
     },
     {
-      "id": "contradictory-modalities", "card": "circle", "what": "Text says the force points inward; the sketch draws it outward",
+      "id": "contradictory-modalities",
+      "card": "circle",
+      "what": "Text says the force points inward; the sketch draws it outward",
       "answer": {
         "text": "The velocity is tangent to the circle, and the net force points toward the centre because it keeps turning the ball.",
-        "sketch": { "width": 320, "height": 240, "circle": [160, 120, 80], "dots": [[160, 120], [240, 120]], "arrows": [[240, 120, 310, 120]], "marks": 3, "labels": "Marks: 1 ellipse, 1 arrow. Written in the sketch: arrow label: \"F\"." }
+        "sketch": {
+          "width": 320,
+          "height": 240,
+          "circle": [
+            160,
+            120,
+            80
+          ],
+          "dots": [
+            [
+              160,
+              120
+            ],
+            [
+              240,
+              120
+            ]
+          ],
+          "arrows": [
+            [
+              240,
+              120,
+              310,
+              120
+            ]
+          ],
+          "marks": 3,
+          "labels": "Marks: 1 ellipse, 1 arrow. Written in the sketch: arrow label: \"F\".",
+          "texts": [
+            [
+              272,
+              96,
+              "F"
+            ]
+          ]
+        }
       },
-      "expect": { "judgments": { "force": ["unassessed", "partly_demonstrated"], "velocity": ["demonstrated"] }, "question": ["force"] }
+      "expect": {
+        "judgments": {
+          "force": [
+            "unassessed",
+            "partly_demonstrated"
+          ],
+          "velocity": [
+            "demonstrated",
+            "partly_demonstrated"
+          ]
+        },
+        "question": [
+          "force"
+        ],
+        "note": "eval-live-1 credited the force from the text; the sketch PNG then carried no visible letter. The label is now drawn, and the evaluator must flag the disagreement (conflict) rather than credit either version."
+      }
     },
     {
-      "id": "recording-self-correction", "card": "circle", "what": "A narrated recording that first draws the force outward, then corrects it",
+      "id": "recording-self-correction",
+      "card": "circle",
+      "what": "A narrated recording that first draws the force outward, then corrects it",
       "answer": {
         "recording": {
           "durationMs": 20000,
           "steps": [
-            { "t": 1500, "add": { "kind": "arrow", "x1": 240, "y1": 120, "x2": 310, "y2": 120, "label": "F outward" } },
-            { "t": 9000, "replace": { "kind": "arrow", "x1": 240, "y1": 120, "x2": 170, "y2": 120, "label": "F toward centre" } },
-            { "t": 14000, "add": { "kind": "arrow", "x1": 240, "y1": 120, "x2": 240, "y2": 40, "label": "v" } }
+            {
+              "t": 1500,
+              "add": {
+                "kind": "arrow",
+                "x1": 240,
+                "y1": 120,
+                "x2": 310,
+                "y2": 120,
+                "label": "F outward"
+              }
+            },
+            {
+              "t": 9000,
+              "replace": {
+                "kind": "arrow",
+                "x1": 240,
+                "y1": 120,
+                "x2": 170,
+                "y2": 120,
+                "label": "F toward centre"
+              }
+            },
+            {
+              "t": 14000,
+              "add": {
+                "kind": "arrow",
+                "x1": 240,
+                "y1": 120,
+                "x2": 240,
+                "y2": 40,
+                "label": "v"
+              }
+            }
           ],
           "narration": {
             "text": "This arrow is the force, pointing outward. No wait, that is wrong: the net force points toward the centre, because without it the ball would fly off in a straight line. And this one is the velocity, along the circle, tangent to it.",
             "segments": [
-              { "startMs": 1000, "endMs": 4000, "text": "This arrow is the force, pointing outward." },
-              { "startMs": 8500, "endMs": 13000, "text": "No wait, that is wrong: the net force points toward the centre, because without it the ball would fly off in a straight line." },
-              { "startMs": 13500, "endMs": 18000, "text": "And this one is the velocity, along the circle, tangent to it." }
+              {
+                "startMs": 1000,
+                "endMs": 4000,
+                "text": "This arrow is the force, pointing outward."
+              },
+              {
+                "startMs": 8500,
+                "endMs": 13000,
+                "text": "No wait, that is wrong: the net force points toward the centre, because without it the ball would fly off in a straight line."
+              },
+              {
+                "startMs": 13500,
+                "endMs": 18000,
+                "text": "And this one is the velocity, along the circle, tangent to it."
+              }
             ]
           }
         }
       },
-      "expect": { "judgments": { "force": ["demonstrated"], "velocity": ["demonstrated", "partly_demonstrated"] } }
-    },
-    {
-      "id": "unclear-speech", "card": "circle", "what": "The key word was misheard with low confidence",
-      "answer": { "voice": { "transcript": "The velocity is tangle to the circle. The net force points to the centre, because otherwise the ball would go off in a straight line.", "lowConfidence": [{ "text": "tangle", "p": 0.12 }] } },
-      "expect": { "judgments": { "force": ["demonstrated"], "velocity": ["unassessed", "partly_demonstrated"] }, "question": ["velocity"] }
-    },
-    {
-      "id": "reference-only", "card": "pendulum", "what": "Only an imported PDF page states the idea; the learner explains nothing",
-      "answer": { "text": "My answer is in the connected notes.", "resources": "pdf-page-2" },
-      "expect": { "judgments": { "amplitude": ["not_established", "unassessed"] } }
-    },
-    {
-      "id": "wrong-prior-review", "card": "circle", "what": "Attempt 2 after a review that wrongly called a correct force explanation a misconception",
-      "parent": {
-        "answer": { "text": "The velocity is tangent to the circle. The net force points toward the centre: without it the ball would keep going straight, so the inward pull keeps changing its direction." },
-        "review": {
-          "criteria": [
-            { "idea": "force", "fit": "not_met", "reasoning": "missing", "contradicted": true, "evidence": ["The net force points toward the centre"], "explanation": "Claims an outward force: the outward-force misconception." },
-            { "idea": "velocity", "fit": "met", "reasoning": "supported", "evidence": ["The velocity is tangent to the circle"], "explanation": "Velocity tangent." }
+      "expect": {
+        "judgments": {
+          "force": [
+            "demonstrated"
           ],
-          "feedback": { "strengths": { "text": "You say the velocity is tangent.", "evidence": ["The velocity is tangent to the circle"] }, "revisit": { "idea": "force", "text": "The force does not point outward; think again about its direction.", "evidence": [] }, "next": "Which way does the string pull?" }
+          "velocity": [
+            "demonstrated",
+            "partly_demonstrated"
+          ]
+        }
+      }
+    },
+    {
+      "id": "unclear-speech",
+      "card": "circle",
+      "what": "The key word was misheard with low confidence",
+      "answer": {
+        "voice": {
+          "transcript": "The velocity is tangle to the circle. The net force points to the centre, because otherwise the ball would go off in a straight line.",
+          "lowConfidence": [
+            {
+              "text": "tangle",
+              "p": 0.12
+            }
+          ]
         }
       },
-      "answer": { "text": "The velocity is tangent to the circle. The net force points toward the centre: without it the ball would keep going straight, so the inward pull keeps changing its direction. I kept my answer because I think it was right." },
-      "expect": { "judgments": { "force": ["demonstrated"], "velocity": ["demonstrated"] }, "comparison": { "force": ["prior_feedback_corrected"] } }
+      "expect": {
+        "judgments": {
+          "force": [
+            "demonstrated"
+          ],
+          "velocity": [
+            "unassessed",
+            "partly_demonstrated"
+          ]
+        },
+        "question": [
+          "velocity"
+        ]
+      }
+    },
+    {
+      "id": "reference-only",
+      "card": "pendulum",
+      "what": "Only an imported PDF page states the idea; the learner explains nothing",
+      "answer": {
+        "text": "My answer is in the connected notes.",
+        "resources": "pdf-page-2"
+      },
+      "expect": {
+        "judgments": {
+          "amplitude": [
+            "not_established",
+            "unassessed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "wrong-prior-review",
+      "card": "circle",
+      "what": "Attempt 2 after a review that wrongly called a correct force explanation a misconception",
+      "parent": {
+        "answer": {
+          "text": "The velocity is tangent to the circle. The net force points toward the centre: without it the ball would keep going straight, so the inward pull keeps changing its direction."
+        },
+        "review": {
+          "criteria": [
+            {
+              "idea": "force",
+              "fit": "not_met",
+              "reasoning": "missing",
+              "contradicted": true,
+              "evidence": [
+                "The net force points toward the centre"
+              ],
+              "explanation": "Claims an outward force: the outward-force misconception."
+            },
+            {
+              "idea": "velocity",
+              "fit": "met",
+              "reasoning": "supported",
+              "evidence": [
+                "The velocity is tangent to the circle"
+              ],
+              "explanation": "Velocity tangent."
+            }
+          ],
+          "feedback": {
+            "strengths": {
+              "text": "You say the velocity is tangent.",
+              "evidence": [
+                "The velocity is tangent to the circle"
+              ]
+            },
+            "revisit": {
+              "idea": "force",
+              "text": "The force does not point outward; think again about its direction.",
+              "evidence": []
+            },
+            "next": "Which way does the string pull?"
+          }
+        }
+      },
+      "answer": {
+        "text": "The velocity is tangent to the circle. The net force points toward the centre: without it the ball would keep going straight, so the inward pull keeps changing its direction. I kept my answer because I think it was right."
+      },
+      "expect": {
+        "judgments": {
+          "force": [
+            "demonstrated"
+          ],
+          "velocity": [
+            "demonstrated",
+            "partly_demonstrated"
+          ]
+        },
+        "comparison": {
+          "force": [
+            "prior_feedback_corrected"
+          ]
+        },
+        "note": "eval-live-1: velocity was partly_demonstrated because the answer states the direction without a reason and the bound idea requires reasoning; the evaluator also corrected the prior review's reasoning claim. That is the rubric, not anchoring; the force judgment and prior_feedback_corrected are the anchoring checks."
+      }
     }
   ]
 }
