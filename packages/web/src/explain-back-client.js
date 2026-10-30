@@ -25,8 +25,9 @@ export const bindCard = ({ app, board, cardId, prompt, expects = [] }) =>
   call(`${BASE}/bind`, { method: 'POST', body: JSON.stringify({ app, board, cardId, prompt, expects }) });
 
 /** Submit one combined answer. The same submissionKey replays the saved attempt instead of submitting twice. */
-export const submitAnswer = ({ app, board, binding, submissionKey, answer }) =>
-  call(BASE, { method: 'POST', body: JSON.stringify({ app, board, ...submitEnvelope({ activityId: binding.activityId, activityRevision: binding.activityRevision, submissionKey, answer }) }) });
+// snapshots: private copies of board-held inputs (explain-inputs.js snapshotOf); the server keeps only those the answer names.
+export const submitAnswer = ({ app, board, binding, submissionKey, answer, snapshots = [] }) =>
+  call(BASE, { method: 'POST', body: JSON.stringify({ app, board, ...submitEnvelope({ activityId: binding.activityId, activityRevision: binding.activityRevision, submissionKey, answer }), ...(snapshots.length ? { snapshots } : {}) }) });
 
 /** Read one attempt with its assessment(s). Reconciles stale operations; no model call. */
 export const readAttempt = ({ app, board, attemptId }) => call(`${BASE}/${encodeURIComponent(attemptId)}?${query({ app, board })}`);

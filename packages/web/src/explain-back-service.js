@@ -6,7 +6,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AttemptRequestError, bindCard, listAttempts, newSubmissionKey, readAttempt, reassessAttempt, submitAnswer } from './explain-back-client.js';
 import { EXPLAIN_BACK_KIND, ANSWER_VERSION } from './explain-back-contract.js';
 
-export const explainBackEnabled = () => import.meta.env?.VITE_EXPLAIN_BACK === 'true';
+// On in dev and CI builds (VITE_COACHING_DEV) and when VITE_EXPLAIN_BACK is set; production builds set neither until release.
+export const explainBackEnabled = () => import.meta.env?.VITE_EXPLAIN_BACK === 'true' || import.meta.env?.VITE_COACHING_DEV === 'true';
 
 const MESSAGES = {
   stale_baseline: 'the attempt you are revising was reviewed again; open it and revise once more',
@@ -32,7 +33,7 @@ async function loadCard({ app, board, cardId }) {
 }
 
 /** @returns the ExplainBackService value, or null when the durable path is off or the board is unknown. */
-export function useExplainBackService({ app, board, enabled = explainBackEnabled(), assets = null }) {
+export function useExplainBackService({ app, board, enabled = explainBackEnabled(), assets = null, canvasApi = null }) {
   const [cards, setCards] = useState(() => new Map());
   const cardsRef = useRef(cards); cardsRef.current = cards;
   const bindings = useRef(new Map());
@@ -60,22 +61,21 @@ export function useExplainBackService({ app, board, enabled = explainBackEnabled
         if (!raw && !pending.current.has(blockId)) { pending.current.add(blockId); queueMicrotask(() => refresh(blockId)); }
         return raw || null;
       },
-      async submit({ block, text = '', sketch = null, voice = null, parentAttemptId = null, resources = [] }) {
+      async submit({ block, text = '', sketch = null, voice = null, recording = null, parentAttemptId = null, resources = [], snapshots = [] }) {
         try {
           const binding = await bind(block);
-          // ponytail: Sketch answers wait for the private attempt-asset upload (worker D); until it lands they are refused
-          // with a clear message instead of being sent as text only.
-          if (sketch && !assets?.uploadSketch) throw new Error('Sketch answers are not available yet on this build');
+          // A sketch is never sent as text only: without the private asset store it is refused with a reason.
+          if (sketch && !assets?.uploadSketch) throw new Error('Sketch answers are not available on this build');
           const sketchRef = sketch ? await assets.uploadSketch({ block, sketch }) : null;
           const parent = parentAttemptId ? cardsRef.current.get(block.id)?.attempts.find(entry => entry.attemptId === parentAttemptId) : null;
           const baseline = parentAttemptId ? { parentAttemptId, parentAssessmentId: parent?.assessment?.status === 'completed' ? parent.assessment.assessmentId : null } : null;
           const answer = {
             v: ANSWER_VERSION, kind: EXPLAIN_BACK_KIND, text, voice: voice ? [voice] : [], resources, assistance: [],
-            ...(sketchRef ? { sketch: sketchRef } : {}), ...(baseline ? { baseline } : {}),
+            ...(sketchRef ? { sketch: sketchRef } : {}), ...(recording ? { recording } : {}), ...(baseline ? { baseline } : {}),
           };
           // One key per card until a submission saves, so a lost response replays instead of saving twice. A key the
           // server already holds for other content (the learner edited after a lost response) gets a fresh key once.
-          const send = () => submitAnswer({ app, board, binding, submissionKey: keys.current.get(block.id), answer });
+          const send = () => submitAnswer({ app, board, binding, submissionKey: keys.current.get(block.id), answer, snapshots });
           if (!keys.current.has(block.id)) keys.current.set(block.id, newSubmissionKey());
           try { await send(); } catch (error) {
             if (!(error instanceof AttemptRequestError && error.code === 'submission_key_conflict')) throw error;
@@ -93,7 +93,13 @@ export function useExplainBackService({ app, board, enabled = explainBackEnabled
         try { await reassessAttempt({ app, board, attemptId, requestKey: newSubmissionKey() }); } finally { await refresh(block.id); }
       },
       voice: assets?.voice || null,
+      recording: assets?.recording || null,
       VoicePlayer: assets?.VoicePlayer,
+      // A cited input: focus the source it came from on this canvas (its submitted revision is what the review read).
+      openEvidence({ evidence }) {
+        const source = evidence?.connection?.links?.[0]?.from || evidence?.sourceId;
+        return source ? !!canvasApi?.current?.focusBlock?.(source) : false;
+      },
     };
-  }, [enabled, app, board, assets, cards]);
+  }, [enabled, app, board, assets, canvasApi, cards]);
 }
