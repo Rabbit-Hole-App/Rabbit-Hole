@@ -472,7 +472,8 @@ function inlinePaidRoute(path) {
   const code = inlineWorker.slice(start, inlineWorker.indexOf(end, start));
   return new (Object.getPrototypeOf(async function () {}).constructor)('req', 'env', 'path', 'authorizedBoardApp', 'paidRefusal', 'paidSubmissionRefusal', 'fishSpendTransport', 'isPaidSpendReply', 'fetch', code);
 }
-for (const path of ['/api/learn/image', '/api/learn/tts', '/api/learn/transcribe']) test(`${path} actual route refuses caps after authorization/configuration`, async t => {
+// /api/learn/transcribe is not here: Speak answer dictation always answers not configured (O-8 covers Explain-back voice notes only).
+for (const path of ['/api/learn/image', '/api/learn/tts']) test(`${path} actual route refuses caps after authorization/configuration`, async t => {
   const { LEARN_DB } = ledger(t);
   const env = platform({ LEARN_DB, OPENAI_API_KEY: 'fixture', TRANSCRIBE_ENABLED: 'true', FISH_AUDIO_API_KEY: 'fixture', LEGACY_IMAGE_GENERATION: 'true' }); // the image route runs only with the flag on (test below)
   let calls = 0;
