@@ -52,7 +52,7 @@ import { activePath, newNotebookBlock, notebookFromCode, notebookWriteBack } fro
 import { paletteSections, insertName } from './learn-insert-palette.js';
 import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow, INPUT_PORT_Y, inputPoint, routeSide, groupFrame } from './learn-connectors.js';
 import { publicExplainBack } from './explain-back-private.js';
-import { INPUT_PROBLEMS, INPUT_SIDE, addInput, describeSource, inputEvidence, inputPills, inputProblem, isExplainBack, isInputLink } from './explain-inputs.js';
+import { INPUT_PROBLEMS, INPUT_SIDE, addInput, describeSource, inputEvidence, inputPills, inputProblem, inputSubmission, isExplainBack, isInputLink } from './explain-inputs.js';
 import { ComposerHide, DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
 import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
 import LaserPointer from './LaserPointer.jsx';
@@ -4891,6 +4891,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     inputs: cardId => inputPills(inputWorld(), links, cardId, entry => (entry.type ? describeBlock(entry)?.title : null) || entry.label || entry.question || entry.text || 'Item'),
     inputCandidates, connectInput, disconnectInput, openInput, reveal: revealOnCanvas,
     inputEvidence: (cardId, { board = null } = {}) => inputEvidence(inputWorld(board), present.current.links, cardId),
+    // Submit's inputs: { resources, snapshots } (the server keeps each snapshot privately as the submitted copy).
+    inputSubmission: (cardId, { board = null } = {}) => inputSubmission(inputWorld(board), present.current.links, cardId),
     inputMessage: problem => INPUT_PROBLEMS[problem] || null,
   };
   // A target whose card is gone (deleted, undone away) hands the toolbar back; one whose editable host unmounted (closed,

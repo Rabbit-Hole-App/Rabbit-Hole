@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { addInput, canonicalJson, describeSource, inputEvidence, inputPills, inputProblem, scopeKey, snapshotHash } from './explain-inputs.js';
+import { addInput, canonicalJson, describeSource, inputEvidence, inputPills, inputProblem, inputSubmission, scopeKey, snapshotHash } from './explain-inputs.js';
 import { validateExplainBackAnswer } from './explain-back-contract.js';
 
 const sha256 = async text => createHash('sha256').update(text).digest('hex');
@@ -111,4 +111,20 @@ test('a source still uploading, a removed source and an oversize or self-holding
   assert.ok(!refs[1].members.some(m => m.sourceId === 'eb1'), 'the answer itself is never a listed member');
   assert.deepEqual(refs[1].members.map(m => [m.sourceId, m.state]), [['eb2', 'unsupported'], ['i1', 'ready']]);
   assert.equal(describeSource(w, 'up1').state, 'uploading');
+});
+
+test('a submission sends a snapshot for every board-held input the resources name, and none for files', async () => {
+  const w = world({ blocks: [card, notebook, pdf, { id: 'note1', type: 'explanation', title: 'Note', text: 'T = 2 pi sqrt(L/g)', groupId: 'g1' }] });
+  const links = [
+    { id: 'L1', kind: 'explain-input', from: 'g1', fromSide: 'bottom', to: 'eb1', toSide: 'input' },
+    { id: 'L2', kind: 'explain-input', from: 'nb1', fromSide: 'top', to: 'eb1', toSide: 'input', scope: { cells: ['c1'] } },
+    { id: 'L3', kind: 'explain-input', from: 'pdf1', fromSide: 'top', to: 'eb1', toSide: 'input' },
+  ];
+  const { resources, snapshots } = await inputSubmission(w, links, 'eb1', { sha256 });
+  assert.deepEqual(resources, await inputEvidence(w, links, 'eb1', { sha256 }), 'the same resources inputEvidence gives');
+  const hashes = await Promise.all(snapshots.map(snapshot => sha256(canonicalJson(snapshot))));
+  // Group members nb1 (whole) and note1, and the scoped nb1 cells; the PDF (a stored file) sends none.
+  const named = [...resources[0].members.filter(m => m.sourceKind !== 'file').map(m => m.hash), resources[1].hash];
+  assert.deepEqual(hashes.sort(), named.sort());
+  assert.deepEqual(snapshots.find(snapshot => snapshot.cells?.length === 1).cells.map(cell => cell.id), ['c1']);
 });
