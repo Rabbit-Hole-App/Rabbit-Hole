@@ -631,12 +631,16 @@ await check('EB-05 a Group connects from its frame ports, bound to its id', asyn
   await page.keyboard.press('Control+g');
   await page.locator('[data-group-box]').first().waitFor();
   const groupId = await page.locator('[data-group-box]').first().getAttribute('data-group-box');
-  const frame = await box(page.locator(`[data-group-box="${groupId}"]`)), bottom = await box(port(groupId, 'bottom'));
+  const frame = await box(page.locator(`[data-group-box="${groupId}"]`)), bottom = await box(port(groupId, 'bottom')), top = await box(port(groupId, 'top'));
   assert.ok(Math.abs(bottom.y + bottom.height / 2 - (frame.y + frame.height)) <= 2, 'the bottom port sits on the rendered frame');
-  await clickClick(port(groupId, 'bottom'), port(answerId, 'input'));
+  assert.ok(Math.abs(top.y + top.height / 2 - frame.y) <= 2, 'the top port sits on the rendered frame');
+  // Connect from the top frame port: with two Explanation sources (taller than the old Challenge sources, owner 2026-10-30
+  // one Practice card) the bottom port lies under the canvas overview at 68% (fast-e2e 41111771895, FAIL-EB-05.png) and the
+  // answer's Input cannot share the screen with it. The previous step proves a source's two ports are the same input.
+  await clickClick(port(groupId, 'top'), port(answerId, 'input'));
   await settleLinks(answerId, 1);
   const [link] = await inputLinks(answerId);
-  assert.deepEqual([link.from, link.fromSide], [groupId, 'bottom']);
+  assert.deepEqual([link.from, link.fromSide], [groupId, 'top']);
   await shot('14-group-input-connected');
 });
 await check('EB-05 an ordinary connector between cards stays ordinary', async () => {
