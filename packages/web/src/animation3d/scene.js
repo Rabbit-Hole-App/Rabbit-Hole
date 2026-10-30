@@ -21,6 +21,38 @@ export const labelPixels = size => Math.round(Math.min(LABEL_PIXELS.max, Math.ma
 // label beside the point it names does not cover it.
 const PLACEMENT = Object.freeze({ above: [0.5, -0.2], below: [0.5, 1.2], left: [1.06, 0.5], right: [-0.06, 0.5], center: [0.5, 0.5] });
 
+// Screen-space declutter (review 2026-10-30: one label hid another in a particular view). plates: [{ x, y, w, h, placement }] in CSS
+// pixels (x, y the top-left corner, y down), in scene order. Each plate that intersects an earlier, already placed one is pushed by
+// the overlap, at most `steps` pushes, along its placement direction, then its two sides, then the opposite way; the first
+// direction that clears every placed plate wins, and with none it stays where it was. Deterministic, O(n^2) for <= 24 labels.
+// -> [{ dx, dy }] per plate, in order.
+export const DECLUTTER = Object.freeze({ gap: 4, steps: 4 });
+const DIRECTIONS = Object.freeze({ above: [0, -1], below: [0, 1], left: [-1, 0], right: [1, 0], center: [0, -1] });
+export function declutterLabels(plates, { gap = DECLUTTER.gap, steps = DECLUTTER.steps } = {}) {
+  const placed = [];
+  const at = (plate, dx, dy) => ({ x: plate.x + dx, y: plate.y + dy, w: plate.w, h: plate.h });
+  const blocker = r => placed.find(p => r.x < p.x + p.w + gap && p.x < r.x + r.w + gap && r.y < p.y + p.h + gap && p.y < r.y + r.h + gap);
+  const clearAlong = (plate, [ux, uy]) => {
+    let t = 0;
+    for (let i = 0; i < steps; i += 1) {
+      const r = at(plate, ux * t, uy * t), p = blocker(r);
+      if (!p) return t;
+      t += ux > 0 ? p.x + p.w + gap - r.x : ux < 0 ? r.x + r.w + gap - p.x : uy > 0 ? p.y + p.h + gap - r.y : r.y + r.h + gap - p.y;
+    }
+    return blocker(at(plate, ux * t, uy * t)) ? null : t;
+  };
+  return plates.map(plate => {
+    const [px, py] = DIRECTIONS[plate.placement] ?? DIRECTIONS.above;
+    let offset = { dx: 0, dy: 0 };
+    for (const [ux, uy] of [[px, py], [py, px], [-py, -px], [-px, -py]]) {
+      const t = clearAlong(plate, [ux, uy]);
+      if (t !== null) { offset = { dx: ux * t + 0, dy: uy * t + 0 }; break; } // + 0: no -0
+    }
+    placed.push(at(plate, offset.dx, offset.dy));
+    return offset;
+  });
+}
+
 // A label's texture: dark text on a light rounded plate with a thin edge, readable on light and dark scenes. Browser only (a 2D canvas).
 export function canvasLabelTexture(text) {
   const canvas = document.createElement('canvas'), context = canvas.getContext('2d'), height = 64, font = '600 36px system-ui, sans-serif';
@@ -93,7 +125,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
     own(texture);
     const sprite = new THREE.Sprite(own(new THREE.SpriteMaterial({ map: texture, sizeAttenuation: false, depthTest: false, depthWrite: false, transparent: true })));
     sprite.center.fromArray(PLACEMENT[g.placement]);
-    sprite.userData.label = { aspect, pixels: labelPixels(g.size) };
+    sprite.userData.label = { aspect, pixels: labelPixels(g.size), placement: g.placement };
     sprite.renderOrder = 10; // after every mesh, over the scene
     return sprite;
   };
@@ -156,17 +188,32 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
         }
         return checked;
       },
-      // Size every label for a viewport of `height` CSS pixels and a camera of `fov` degrees, cancelling its parents' world scale:
-      // without size attenuation a sprite's scale is a fraction of the view, so plate pixels = scale.y x f / 2 x height.
-      // The renderer calls this before every draw (a frame may rescale a parent).
-      layoutLabels({ height, fov }) {
-        const f = 1 / Math.tan(fov * Math.PI / 360), world = new THREE.Vector3();
+      // Size every label for a viewport of width x height CSS pixels and this camera, cancelling its parents' world scale (without
+      // size attenuation a sprite's scale is a fraction of the view: plate pixels = scale.y x f / 2 x height), then declutter the
+      // plates on screen by shifting each sprite's center (its point stays where the scene put it). A hidden label, or one behind
+      // the camera or off screen, takes no part and keeps its placement. The renderer calls this before every draw.
+      layoutLabels({ width, height, camera }) {
+        const f = 1 / Math.tan(camera.fov * Math.PI / 360), world = new THREE.Vector3(), point = new THREE.Vector3();
         root.updateWorldMatrix(true, true);
+        camera.updateMatrixWorld();
+        const plates = [];
         for (const { drawable } of labels.values()) {
-          const { aspect, pixels } = drawable.userData.label, tall = 2 * pixels / (f * Math.max(1, height));
+          const { aspect, pixels, placement } = drawable.userData.label, tall = 2 * pixels / (f * Math.max(1, height));
           drawable.parent.getWorldScale(world);
           drawable.scale.set(tall * aspect / (world.x || 1), tall / (world.y || 1), 1);
+          const [cx, cy] = PLACEMENT[placement];
+          drawable.center.set(cx, cy);
+          let shown = true;
+          drawable.traverseAncestors(ancestor => { if (!ancestor.visible) shown = false; });
+          drawable.getWorldPosition(point).project(camera);
+          if (!shown || point.z < -1 || point.z > 1 || Math.abs(point.x) > 1 || Math.abs(point.y) > 1) continue;
+          const w = pixels * aspect, h = pixels, sx = (point.x + 1) / 2 * width, sy = (1 - point.y) / 2 * height;
+          plates.push({ drawable, x: sx - cx * w, y: sy - (1 - cy) * h, w, h, placement });
         }
+        declutterLabels(plates).forEach(({ dx, dy }, index) => {
+          const { drawable, w, h } = plates[index];
+          drawable.center.set(drawable.center.x - dx / w, drawable.center.y + dy / h); // right/down on screen
+        });
       },
       dispose() { root.removeFromParent(); root.clear(); [...owned].forEach(release); },
       owned: () => owned.size,

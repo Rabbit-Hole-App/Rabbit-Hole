@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { triangleCost, validateAnimationArtifact } from './contract.js';
 import { ANIMATION_FIXTURES, INVALID_ANIMATION_FIXTURES, watchFixture } from './fixtures.js';
-import { buildAnimationScene, LABEL_PIXELS, labelPixels } from './scene.js';
+import { buildAnimationScene, declutterLabels, LABEL_PIXELS, labelPixels } from './scene.js';
 
 // Real Three.js objects, no WebGL: labels get a plain Texture in place of the browser's canvas texture.
 const labels = [];
@@ -86,7 +86,10 @@ test('labels keep a constant, bounded screen size, face the camera over the scen
     assert.equal(sprite.material.sizeAttenuation, false);
     assert.equal(sprite.material.depthTest, false);
     for (const [height, fov] of [[540, 50], [300, 30]]) {
-      scene.layoutLabels({ height, fov });
+      const camera = new THREE.PerspectiveCamera(fov, 960 / height, 0.05, 2000);
+      camera.position.set(0, 6, 8);
+      camera.lookAt(0, 0, 0);
+      scene.layoutLabels({ width: 960, height, camera });
       const world = sprite.getWorldScale(new THREE.Vector3()), f = 1 / Math.tan(fov * Math.PI / 360);
       assert.ok(Math.abs(world.y * f / 2 * height - labelPixels(0.3)) < 1e-9, 'plate height in CSS pixels');
       assert.ok(Math.abs(world.x / world.y - 2) < 1e-9, 'the text aspect is kept');
@@ -95,4 +98,51 @@ test('labels keep a constant, bounded screen size, face the camera over the scen
     scene.dispose();
   }
   assert.deepEqual([labelPixels(0.3), labelPixels(0.01), labelPixels(50)], [LABEL_PIXELS.base, LABEL_PIXELS.min, LABEL_PIXELS.max]);
+});
+
+const intersects = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+const moved = (plates, offsets) => plates.map((plate, i) => ({ ...plate, x: plate.x + offsets[i].dx, y: plate.y + offsets[i].dy }));
+
+test('declutter pushes a later overlapping plate by the overlap along its placement, then its sides, then the opposite way', () => {
+  const plate = (x, y, placement = 'above') => ({ x, y, w: 100, h: 28, placement });
+  assert.deepEqual(declutterLabels([plate(0, 0), plate(300, 0)]), [{ dx: 0, dy: 0 }, { dx: 0, dy: 0 }], 'apart: untouched');
+  assert.deepEqual(declutterLabels([plate(0, 100), plate(10, 110)]), [{ dx: 0, dy: 0 }, { dx: 0, dy: -(110 + 28 + 4 - 100) }], 'up until clear of the first, plus the gap');
+  assert.deepEqual(declutterLabels([plate(0, 100), plate(10, 110, 'right')])[1], { dx: 100 - 10 + 4, dy: 0 });
+  // Two pushes up clear both plates above; with a single push allowed, up is blocked and the side (left first for "above") wins.
+  assert.deepEqual(declutterLabels([plate(0, 100), plate(0, 60), plate(0, 100)])[2], { dx: 0, dy: -72 });
+  assert.deepEqual(declutterLabels([plate(0, 100), plate(0, 60), plate(0, 100)], { steps: 1 })[2], { dx: -104, dy: 0 });
+  // Many labels on one point: bounded, finite, the same every time, and whatever was placed does not overlap.
+  const crowd = Array.from({ length: 24 }, () => plate(400, 300));
+  const once = declutterLabels(crowd), again = declutterLabels(crowd);
+  assert.deepEqual(once, again);
+  assert.ok(once.every(({ dx, dy }) => Number.isFinite(dx) && Number.isFinite(dy)));
+  const placed = moved(crowd, once).slice(0, 5);
+  assert.ok(placed.every((a, i) => placed.every((b, j) => i === j || !intersects(a, b))), 'the first labels all find room');
+});
+
+test('the scene declutters labels on screen; hidden, off-screen and behind-camera labels keep their placement', () => {
+  const crowded = structuredClone(watchFixture.artifact);
+  crowded.scene.geometries.push({ id: 'otherText', kind: 'label', text: 'Moon orbit' });
+  crowded.scene.nodes.push({ id: 'orbitTag', parent: 'moon', geometry: 'otherText', position: [0, 0.6, 0] }); // the same point as moonTag
+  const { scene } = buildAnimationScene(crowded, { labelTexture });
+  const camera = new THREE.PerspectiveCamera(50, 960 / 540, 0.05, 2000);
+  camera.position.set(0, 6, 8);
+  camera.lookAt(0, 0, 0);
+  const rect = id => {
+    const sprite = scene.objects.get(id).children[0], { aspect, pixels } = sprite.userData.label, p = sprite.getWorldPosition(new THREE.Vector3()).project(camera);
+    const w = pixels * aspect, sx = (p.x + 1) / 2 * 960, sy = (1 - p.y) / 2 * 540;
+    return { x: sx - sprite.center.x * w, y: sy - (1 - sprite.center.y) * pixels, w, h: pixels };
+  };
+  scene.layoutLabels({ width: 960, height: 540, camera });
+  assert.ok(!intersects(rect('moonTag'), rect('orbitTag')), 'the second label moved clear of the first');
+  assert.deepEqual(scene.objects.get('moonTag').children[0].center.toArray(), [0.5, -0.2], 'the first keeps its placement');
+  scene.apply({ nodes: { moonTag: { visible: false } } });
+  scene.layoutLabels({ width: 960, height: 540, camera });
+  assert.deepEqual(scene.objects.get('orbitTag').children[0].center.toArray(), [0.5, -0.2], 'nothing to avoid once the first is hidden');
+  camera.position.set(0, 0.6, -20);
+  camera.lookAt(0, 0.6, -40); // looking away: both behind the camera
+  scene.apply({ nodes: { moonTag: { visible: true } } });
+  scene.layoutLabels({ width: 960, height: 540, camera });
+  assert.deepEqual(scene.objects.get('orbitTag').children[0].center.toArray(), [0.5, -0.2]);
+  scene.dispose();
 });

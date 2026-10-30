@@ -43,7 +43,7 @@ export function createAnimationRenderer({
   const raycaster = new THREE.Raycaster();
 
   // Labels keep a constant screen size (scene.js layoutLabels), so they are sized for this viewport and camera before every draw.
-  const render = () => { shown?.layoutLabels({ height: container.clientHeight || 1, fov: camera.fov }); renderer.render(view, camera); };
+  const render = () => { shown?.layoutLabels({ width: container.clientWidth || 1, height: container.clientHeight || 1, camera }); renderer.render(view, camera); };
   const draw = () => { frame = 0; if (!disposed && !lost) render(); };
   const schedule = () => { if (!disposed && !lost && !frame) frame = globalThis.requestAnimationFrame ? requestAnimationFrame(draw) : (draw(), 0); };
   const cameraState = () => ({ position: camera.position.toArray(), target: controls.target.toArray(), fov: camera.fov });
