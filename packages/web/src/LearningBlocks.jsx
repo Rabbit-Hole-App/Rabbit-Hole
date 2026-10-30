@@ -1006,6 +1006,7 @@ function ExplainBackCard({ block, onChange, onFile, draft, setDraft, commit, rev
     if (!block.sketchOpen) onChange({ ...block, sketchOpen: true, sketch: block.sketch || EMPTY_SKETCH });
     // The toolbar draws in the draft's sketch; a submitted attempt's sketch is shown read-only.
     if (selected.draft) sketchHost.open(block.id, { draftId });
+    sketchHost.reveal?.(block.id); // the question pans clear of the docked panel
   };
   // Close is presentation only: the marks, the draft and the content dot stay.
   const closeSketch = ({ outside } = {}) => {
@@ -1013,8 +1014,11 @@ function ExplainBackCard({ block, onChange, onFile, draft, setDraft, commit, rev
     onChange({ ...latest.current, sketchOpen: false });
     if (!outside) openButton.current?.focus();
   };
-  // ponytail: focuses the question; panning it into view needs a canvas reveal the host does not offer yet.
-  const focusOwner = () => cardRef.current?.closest('[data-block]')?.focus({ preventScroll: true });
+  const focusOwner = () => { sketchHost.reveal?.(block.id); cardRef.current?.closest('[data-block]')?.focus({ preventScroll: true }); };
+  // A pill's name opens its source (selected and in view, a reader at its page); a source that is gone says so.
+  const openInput = input => {
+    if (sketchHost.openInput(input.id) === null) setNotice(`${input.name} is no longer on the canvas.`);
+  };
   const sketchShown = selected.draft ? sketchMarked || !!recording?.saved : !!selected.answer.sketched;
   const latestSubmitted = !service && block.sketchSubmitted && selected === attempts.at(-1);
   const panelBody = selected.draft ? sketchHost.render(block, { docked: true })
@@ -1042,9 +1046,10 @@ function ExplainBackCard({ block, onChange, onFile, draft, setDraft, commit, rev
     try {
       const shot = sketchMarked ? await sketchCapture(sketchHost, block.id, draftId) : null;
       if (shot?.error) { setNotice(shot.error); return; }
-      // The connected inputs frozen at this moment (their revisions and scopes), so a later edit cannot change the attempt.
-      const resources = await sketchHost?.inputEvidence?.(block.id, { board: service.board }) ?? [];
-      await service.submit({ block: latest.current, text: draft, sketch: shot ? { image: shot.image, text: shot.text ?? sketchText(block.sketch) } : null, voice: voiceStore && voice?.ready ? voice.saved : null, recording: recordingStore && recording?.ready ? recording.saved : null, resources, parentAttemptId: revising });
+      // The connected inputs frozen at this moment (their revisions, scopes and private copies of board-held content), so a
+      // later edit cannot change the attempt.
+      const { resources = [], snapshots = [] } = await sketchHost?.inputSubmission?.(block.id, { board: service.board }) ?? {};
+      await service.submit({ block: latest.current, text: draft, sketch: shot ? { image: shot.image, text: shot.text ?? sketchText(block.sketch) } : null, voice: voiceStore && voice?.ready ? voice.saved : null, recording: recordingStore && recording?.ready ? recording.saved : null, resources, snapshots, parentAttemptId: revising });
       disposeVoiceNote(draftKey); disposeSketchRecording(draftKey);
       setDraft(''); setRevising(null); setChosen(null); setVoice(null); setRecording(null); setCarried(null); setTab('answer'); setDraftSeq(n => n + 1);
     } catch (error) {
@@ -1101,7 +1106,7 @@ function ExplainBackCard({ block, onChange, onFile, draft, setDraft, commit, rev
                 className="mt-1 block w-full resize-y rounded-lg border border-line bg-surface px-3 py-2 text-sm leading-normal text-ink outline-none focus:border-ink-3 pointer-coarse:text-base" />
               {(inputs.length > 0 || canConnect) && (
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  {inputs.length > 0 && <InputPills inputs={inputs} onRemove={input => sketchHost.disconnectInput(input.id)} />}
+                  {inputs.length > 0 && <InputPills inputs={inputs} onRemove={input => sketchHost.disconnectInput(input.id)} onOpen={sketchHost.openInput ? openInput : null} />}
                   {canConnect && <InputPicker list={() => sketchHost.inputCandidates(block.id)} onConnect={connectInput} />}
                 </div>
               )}
