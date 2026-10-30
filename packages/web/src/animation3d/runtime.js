@@ -3,12 +3,14 @@
 // this file owns admission, deadlines, ordering and the atomic commit. explain_program admission (host.js) is not used or widened:
 // an animation artifact is admitted here by the animation contract, its exact program tuple and its recomputed sourceHash.
 //
-//   createAnimationRuntime({ artifact, workerFactory?, onFrame(frame, { time, stamp }), onError(error), saved?, clock? }) ->
+//   createAnimationRuntime({ artifact, workerFactory?, onFrame(frame, { time, stamp }), onError(error), saved?, inputs?, clock? }) ->
+//     (inputs: the starting parameter values, invalid ones replaced by defaults; reset always returns to the defaults)
 //     ready: Promise          admitted, initial (or hydrated) state committed and its frame published; rejects an AnimationRuntimeError
 //     dispatch(event)         -> Promise<{ accepted: true, snapshot } | { accepted: false, reason, issues? }>
 //     play() / pause()        -> { accepted, reason? }   a timeline (watch) loops or stops; a stepped rules scene ticks at 1/30 s
 //     reset()                 -> Promise<result>         defaults + initialState again; a failed reset keeps the last good state
 //     seek(time)              -> Promise<result>         prescribed/analytical with a timeline only
+//     advance(ticks)          -> Promise<result>         stepped scenes only: the host runs `ticks` fixed steps now (review capture)
 //     setSpeed(speed)         -> { accepted, reason? }   prescribed/analytical with a timeline only; a capabilities.speeds value
 //     snapshot()              -> the committed snapshot (contract.js SNAPSHOT_SCHEMA) with the live time and paused flag, or null
 //     dispose()
@@ -25,7 +27,8 @@ import { commitAnimationStep } from './state.js';
 export const QUEUE_CAP = 16;
 export const MAX_STEPS_PER_FRAME = 2;
 export const OVERLOAD_STEPS = 15; // half a second of simulation owed: sustained overload, pause instead of catching up
-export const MAX_OVERRUNS = 3; // playback frames skipped in a row for the program's own deadline before the scene stops
+export const MAX_OVERRUNS = 3;
+export const MAX_ADVANCE_TICKS = 120; // advance(): four seconds of steps, above the review's 90 // playback frames skipped in a row for the program's own deadline before the scene stops
 const MAX_ELAPSED_MS = 250; // one displayed frame never owes more than this (a long frame is clamped, not replayed)
 
 const MESSAGES = Object.freeze({
@@ -39,12 +42,14 @@ const MESSAGES = Object.freeze({
 });
 // The learner sees the fixed message for the code; diagnostic (bounded, non-enumerable) is for logs only.
 export class AnimationRuntimeError extends Error {
-  constructor(code, diagnostic) {
+  // phase: where a program failure happened (load, setup, initialize, reduce, evaluate, engine), for review and repair; never shown.
+  constructor(code, diagnostic, phase) {
     const known = Object.hasOwn(MESSAGES, code) ? code : 'runtime_error';
     super(MESSAGES[known]);
     this.name = 'AnimationRuntimeError';
     this.code = known;
     Object.defineProperty(this, 'diagnostic', { value: typeof diagnostic === 'string' ? diagnostic.slice(0, 500) : undefined, enumerable: false });
+    Object.defineProperty(this, 'phase', { value: phase, enumerable: false });
   }
 }
 const frameOverrun = error => error?.code === 'runtime_limit' && error.diagnostic === 'time limit'; // runProgram's own 50 ms deadline
@@ -96,13 +101,13 @@ function createChannel({ workerFactory, limits, source }) {
     const id = `a${++count}`;
     const done = (outcome, value) => { clearTimeout(timer); pending = null; outcome(value); };
     pending = error => done(reject, error);
-    const timer = setTimeout(() => { if (worker === target) stop(); done(reject, new AnimationRuntimeError('runtime_limit', 'host watchdog: Worker terminated')); }, limits.watchdogMs);
-    target.onerror = () => { if (worker === target) stop(); done(reject, new AnimationRuntimeError('runtime_error', 'Worker failed')); };
+    const timer = setTimeout(() => { if (worker === target) stop(); done(reject, new AnimationRuntimeError('runtime_limit', 'host watchdog: Worker terminated', operation)); }, limits.watchdogMs);
+    target.onerror = () => { if (worker === target) stop(); done(reject, new AnimationRuntimeError('runtime_error', 'Worker failed', 'engine')); };
     target.onmessage = ({ data }) => {
       if (data?.id !== id || data.operation !== operation) return; // a late or foreign message
       if (data.phase === 'engine' && worker === target) stop(); // the Worker closed itself
       if (data.ok) done(resolve, data.value);
-      else done(reject, new AnimationRuntimeError(data.code, data.detail));
+      else done(reject, new AnimationRuntimeError(data.code, data.detail, data.phase === 'serialize' ? operation : data.phase));
     };
     target.postMessage({ id, operation, source, request });
   });
@@ -127,7 +132,7 @@ function createChannel({ workerFactory, limits, source }) {
 // ---- runtime --------------------------------------------------------------------------------------------------------------------
 
 export function createAnimationRuntime({
-  artifact: raw, workerFactory = defaultWorker, onFrame = () => {}, onError = () => {}, saved = null,
+  artifact: raw, workerFactory = defaultWorker, onFrame = () => {}, onError = () => {}, saved = null, inputs: initialInputs = {},
   capabilities = ANIMATION_CAPABILITIES, limits = LIMITS, clock = defaultClock,
 }) {
   let artifact = null, channel = null, committed = null, dead = false, generation = 0, stateful = false;
@@ -143,7 +148,7 @@ export function createAnimationRuntime({
   const newState = async (operation, request) => {
     const state = await call(operation, request);
     const problem = stateProblem(state);
-    if (problem) throw new AnimationRuntimeError('invalid_output', problem);
+    if (problem) throw new AnimationRuntimeError('invalid_output', problem, operation);
     return state;
   };
   const evaluate = (inputs, time, state) => call('evaluate', { inputs, time, state });
@@ -195,8 +200,8 @@ export function createAnimationRuntime({
         if (commit({ artifact, snapshot: saved, frame }, null, gen).ok) { reanchor(committed.snapshot.time); return; }
       } catch (error) { if (error?.code === 'disposed') throw error; }
     }
-    const result = commit({ artifact, ...(await initialCandidate(resolveAnimationInputs(artifact))) }, null, gen);
-    if (!result.ok) throw new AnimationRuntimeError(result.reason === 'stale' ? 'disposed' : 'invalid_output', JSON.stringify(result.issues ?? []));
+    const result = commit({ artifact, ...(await initialCandidate(resolveAnimationInputs(artifact, initialInputs))) }, null, gen);
+    if (!result.ok) throw new AnimationRuntimeError(result.reason === 'stale' ? 'disposed' : 'invalid_output', JSON.stringify(result.issues ?? []), 'evaluate');
   })().finally(() => pump());
   ready.catch(error => { channel?.dispose(); report(error); }); // a runtime that never got ready holds no Worker; the card makes a new one to retry
 
@@ -210,12 +215,12 @@ export function createAnimationRuntime({
     try {
       if (job.kind === 'frame') {
         const frame = validateAnimationFrame(await evaluate(base.snapshot.inputs, job.time, base.snapshot.state), artifact);
-        if (!frame.ok) throw new AnimationRuntimeError('invalid_output', JSON.stringify(frame.issues.slice(0, 3)));
+        if (!frame.ok) throw new AnimationRuntimeError('invalid_output', JSON.stringify(frame.issues.slice(0, 3)), 'evaluate');
         if (!dead && gen === generation && committed === base) { overruns = 0; onFrame(frame.value, { time: job.time, stamp: base.snapshot.stamp }); }
       } else {
         const result = commit(await job.compute(base), base, gen);
         settle(job, result.ok ? { accepted: true, snapshot: snapshot() } : { accepted: false, reason: result.reason, issues: result.issues });
-        if (result.reason === 'invalid') { stopPlayback(); report(new AnimationRuntimeError('invalid_output', JSON.stringify(result.issues.slice(0, 3)))); }
+        if (result.reason === 'invalid') { stopPlayback(); report(new AnimationRuntimeError('invalid_output', JSON.stringify(result.issues.slice(0, 3)), 'evaluate')); }
       }
     } catch (error) {
       settle(job, refused(error?.code ?? 'runtime_error'));
@@ -328,6 +333,16 @@ export function createAnimationRuntime({
       if (!(typeof time === 'number' && time >= 0 && time <= artifact.timeline.duration)) return Promise.resolve(refused('invalid_time'));
       reanchor(time);
       return enqueue('seek', async base => ({ snapshot: { ...base.snapshot, time }, frame: await evaluate(base.snapshot.inputs, time, base.snapshot.state) }));
+    },
+    // The host advancing a stepped scene by `ticks` fixed steps, in order, outside playback (the review capture uses it).
+    // -> the last step's result; stops at the first refusal.
+    async advance(ticks) {
+      if (dead || !committed) return refused('not_ready');
+      if (!artifact.stepped) return refused('unsupported');
+      if (!(Number.isInteger(ticks) && ticks >= 0 && ticks <= MAX_ADVANCE_TICKS)) return refused('invalid_ticks');
+      let result = { accepted: true, snapshot: snapshot() };
+      for (let i = 0; i < ticks && result.accepted; i += 1) result = await enqueue('step', stepCandidate);
+      return result;
     },
     setSpeed(next) {
       if (dead || !committed) return refused('not_ready');
