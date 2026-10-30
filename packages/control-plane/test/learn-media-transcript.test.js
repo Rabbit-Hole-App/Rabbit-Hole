@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { DatabaseSync } from 'node:sqlite';
+import { readFileSync } from 'node:fs';
+import { TRANSCRIBE_MAX_SECONDS, transcribeEstimate, transcribeUsagePrice } from '../src/learn-paid-transport.js';
+import { admitSpend } from '../src/learn-spend-ledger.js';
+import { priceUsage } from '../src/pricing-registry.js';
+import { withSystemUsage } from '../src/learn-usage.js';
 import { TRANSCRIPT_VERSION, ensureTranscript, openaiTranscriber, transcriptIdFor, transcriptParts } from '../src/learn-media.js';
 
 const AUDIO = new TextEncoder().encode('OggS fake opus voice note');
@@ -60,20 +66,71 @@ test('segments are kept only when the provider returns timing', () => {
   assert.deepEqual(transcriptParts({ text: 'a' }), { text: 'a' });
 });
 
-test('openaiTranscriber: off unless enabled; names the real container; admission and spend recording wrap the call', async () => {
+test('openaiTranscriber: off unless enabled; names the real container and asks for logprobs', async () => {
   assert.equal(openaiTranscriber({ OPENAI_API_KEY: 'k' }), null);
   assert.equal(openaiTranscriber({ TRANSCRIBE_ENABLED: 'true' }), null);
-  const sent = [], logged = [];
-  const fetchImpl = async (url, init) => { sent.push({ url, init }); return new Response(JSON.stringify({ text: 'hi' }), { status: 200 }); };
-  const tx = openaiTranscriber({ OPENAI_API_KEY: 'k', TRANSCRIBE_ENABLED: 'true' }, { fetchImpl, record: async entry => logged.push(entry) });
+  const sent = [];
+  const fetchImpl = async (url, init) => { sent.push({ url, init }); return Response.json({ text: 'hi' }); };
+  const tx = openaiTranscriber({ OPENAI_API_KEY: 'k', TRANSCRIBE_ENABLED: 'true', SMALL_ENV: 'test' }, { fetchImpl });
   assert.deepEqual([tx.provider, tx.model], ['openai', 'gpt-4o-transcribe']);
   assert.deepEqual(await tx.transcribe({ bytes: AUDIO, mime: 'audio/mp4;codecs=mp4a.40.2' }), { text: 'hi' });
   const form = sent[0].init.body;
   assert.equal(form.get('file').name, 'voice-note.m4a');
   assert.equal(form.get('model'), 'gpt-4o-transcribe');
   assert.deepEqual(form.getAll('include[]'), ['logprobs']);
-  assert.deepEqual(logged, [{ ok: true, model: 'gpt-4o-transcribe' }]);
-  const refused = openaiTranscriber({ OPENAI_API_KEY: 'k', TRANSCRIBE_ENABLED: 'true' }, { fetchImpl, admit: async () => new Response('', { status: 402 }) });
-  await assert.rejects(refused.transcribe({ bytes: AUDIO, mime: 'audio/webm' }), error => error.code === 'spend_refused');
-  assert.equal(sent.length, 1, 'a refused admission makes no call');
+});
+
+// The priced admission (learn-paid-transport.js transcribeSpendTransport) on a real ledger schema.
+const sql = name => readFileSync(new URL(`../learn-migrations/${name}`, import.meta.url), 'utf8');
+function ledger(t) {
+  const sqlite = new DatabaseSync(':memory:');
+  t.after(() => sqlite.close());
+  for (const name of ['0016-usage-operations.sql', '0022-usage-accounting.sql', '0027-usage-grants.sql']) sqlite.exec(sql(name));
+  const LEARN_DB = { prepare: text => { let args = []; const statement = sqlite.prepare(text); return { bind(...values) { args = values; return this; },
+    first: async () => statement.get(...args) || null, all: async () => ({ results: statement.all(...args) }), run: async () => ({ meta: { changes: statement.run(...args).changes } }),
+    runNow: () => ({ meta: { changes: statement.run(...args).changes } }) }; },
+    batch: async statements => { sqlite.exec('BEGIN'); try { const out = statements.map(s => s.runNow()); sqlite.exec('COMMIT'); return out; } catch (error) { sqlite.exec('ROLLBACK'); throw error; } } };
+  return { sqlite, LEARN_DB };
+}
+const rows = (sqlite, table) => sqlite.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all().map(row => ({ ...row }));
+
+test('transcription is admitted at the two-minute bound and settled at the reported token usage; a failure keeps it unknown', async t => {
+  const { sqlite, LEARN_DB } = ledger(t);
+  const env = withSystemUsage({ LEARN_DB, USAGE_PLATFORM_DAY_USD: '1', OPENAI_API_KEY: 'k', TRANSCRIBE_ENABLED: 'true' }, 'explain_back');
+  const usage = { type: 'tokens', input_tokens: 330, output_tokens: 80, input_token_details: { audio_tokens: 320, text_tokens: 10 } };
+  const replies = [Response.json({ text: 'the bob swings', usage }), Response.json({ text: 'no usage' }), new Response('no', { status: 500 })];
+  let calls = 0;
+  const tx = openaiTranscriber(env, { fetchImpl: async () => { calls++; return replies.shift(); } });
+  assert.equal((await tx.transcribe({ bytes: AUDIO, mime: 'audio/webm' })).text, 'the bob swings');
+  await tx.transcribe({ bytes: AUDIO, mime: 'audio/webm' });
+  await assert.rejects(tx.transcribe({ bytes: AUDIO, mime: 'audio/webm' }), error => error.code === 'provider_failed');
+  const reserve = transcribeEstimate('gpt-4o-transcribe').micros;
+  assert.equal(reserve, (TRANSCRIBE_MAX_SECONDS / 60) * 6000, 'two minutes at $0.006 a minute');
+  const tokens = priceUsage({ provider: 'openai', model: 'gpt-4o-transcribe', quantities: { input: 330, output: 80 } }).micros;
+  assert.equal(tokens, 1625, '330 x $2.50 + 80 x $10 per million');
+  assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.provider, a.model, a.reserved_micros, a.cost_micros, a.cost_state, a.status]), [
+    ['openai', 'gpt-4o-transcribe', reserve, tokens, 'settled', 'settled'],
+    ['openai', 'gpt-4o-transcribe', reserve, reserve, 'settled', 'settled'],
+    ['openai', 'gpt-4o-transcribe', reserve, null, 'unknown', 'failed'],
+  ]);
+  assert.equal(calls, 3);
+  assert.deepEqual(transcribeUsagePrice('gpt-transcribe', { type: 'duration', seconds: 30 }).micros, 2250, 'gpt-transcribe settles per second of audio');
+  assert.equal(transcribeUsagePrice('gpt-transcribe', { type: 'tokens', input_tokens: 5, output_tokens: 5 }), null, 'no token rows: the estimate stands');
+});
+
+test('at the daily cap transcription is refused before any call, and ensureTranscript does not record the refusal', async t => {
+  const { LEARN_DB } = ledger(t);
+  const env = withSystemUsage({ LEARN_DB, USAGE_PLATFORM_DAY_USD: '0.01', OPENAI_API_KEY: 'k', TRANSCRIBE_ENABLED: 'true' }, 'explain_back');
+  await admitSpend(LEARN_DB, env, { opId: 'full', userId: 'fixture', org: 'platform', category: 'fixture', reservedUsd: 0.01 });
+  let calls = 0;
+  const transcriber = openaiTranscriber(env, { fetchImpl: async () => { calls++; return Response.json({ text: 'x' }); } });
+  await assert.rejects(transcriber.transcribe({ bytes: AUDIO, mime: 'audio/ogg' }), error => error.code === 'daily_cap_reached' && error.spendRefused);
+  const store = memoryStore();
+  const record = await ensureTranscript({ assetId: 'aa_voice00000001', hash: HASH, mime: 'audio/ogg', read, store, transcriber, now: at });
+  assert.deepEqual([record.status, record.error], ['failed', 'daily_cap_reached']);
+  assert.equal(store.rows.size, 0, 'a refusal made no call, so the next preparation tries again');
+  assert.equal(calls, 0);
+  const unset = openaiTranscriber({ ...env, USAGE_PLATFORM_DAY_USD: '' }, { fetchImpl: async () => { calls++; return Response.json({}); } });
+  await assert.rejects(unset.transcribe({ bytes: AUDIO, mime: 'audio/ogg' }), error => error.code === 'cap_unset');
+  assert.equal(calls, 0);
 });

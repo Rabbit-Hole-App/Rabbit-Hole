@@ -70,3 +70,41 @@ export async function admitTool(env, { category, reservedMicros, provider, model
     },
   };
 }
+
+// OpenAI speech to text (Explain-back voice notes; transcription approved for dev and production, O-8 resolved 2026-10-29).
+// Admitted before the call for the longest clip a voice note can be (the two-minute recording limit) at OpenAI's per-minute
+// figure (pricing-registry.js audio_minute, quantity in seconds), and settled with the usage the response reports (tokens for
+// gpt-4o-transcribe, seconds for gpt-transcribe), else at the reservation. The reservation must bound the call: a settled cost
+// above it marks spend_bound_exceeded and the platform guard stops every paid call, so the recorder's own duration (an
+// untrusted, smaller figure) is not used. Who pays is the caller's usage context: Explain-back assessment runs it under the
+// assessment's platform-funded context, never a learner's credits.
+// shortcut: a clip longer than two minutes (a forged upload within the stored-asset byte cap) can exceed the bound and pause
+// paid calls until reviewed; read the duration from the bytes before transcribing if that cap ever allows long audio.
+export const TRANSCRIBE_MAX_SECONDS = 120;
+export const transcribeEstimate = model => priceUsage({ provider: 'openai', model, quantities: { audio_minute: TRANSCRIBE_MAX_SECONDS } });
+// The response's usage priced at the registry's rows; null when it reports none (or none this model has rows for).
+export function transcribeUsagePrice(model, usage) {
+  const price = usage?.type === 'tokens' ? priceUsage({ provider: 'openai', model, quantities: { input: usage.input_tokens || 0, output: usage.output_tokens || 0 } })
+    : usage?.type === 'duration' ? priceUsage({ provider: 'openai', model, quantities: { audio_minute: usage.seconds || 0 } }) : null;
+  return price?.micros > 0 ? price : null;
+}
+export async function transcribeSpendTransport(env, { model }, transport) {
+  if (!spendEnforced(env)) return transport();
+  const estimate = transcribeEstimate(model);
+  if (!estimate) return paidSpendReply('spend_bound_unavailable');
+  const opId = operationId('transcribe');
+  const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: 'provider:platform', org: 'platform', category: 'transcribe', reservedUsd: estimate.micros / 1e6, kind: 'media', provider: 'openai', model });
+  if (gate.refused) return paidSpendReply(gate.reason, usageRefusal(env)?.period);
+  let response;
+  try { response = await transport(); }
+  catch (error) {
+    await settleSpend(env.LEARN_DB, opId, { status: 'failed', calls: 1, provider: 'openai', model, error: 'transport' });
+    await settleAttempt(env, gate.attemptId, { status: 'failed' });
+    throw error;
+  }
+  // A failed reply keeps the reservation as unknown cost: no refund is assumed.
+  const price = response.ok ? transcribeUsagePrice(model, (await response.clone().json().catch(() => null))?.usage) || estimate : null;
+  await settleSpend(env.LEARN_DB, opId, { status: response.ok ? 'settled' : 'failed', calls: 1, costUsd: price ? price.micros / 1e6 : null, provider: 'openai', model, error: response.ok ? null : `http_${response.status}` });
+  await settleAttempt(env, gate.attemptId, { status: response.ok ? 'settled' : 'failed', costMicros: price?.micros ?? null, price });
+  return response;
+}

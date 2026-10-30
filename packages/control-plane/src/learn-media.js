@@ -8,6 +8,7 @@
 // measured.
 import { sha256, randomHex, base64 } from './token.js';
 import { learnMedia } from './learn-storage.js';
+import { isPaidSpendReply, transcribeSpendTransport } from './learn-paid-transport.js';
 
 // Same ceiling as PDFs, for the same reason: the bytes are base64'd into every
 // turn that asks about them.
@@ -109,7 +110,7 @@ export function transcriptParts(heard) {
 // ensureTranscript({ assetId, hash, mime, read, store, transcriber, retry }) -> record.
 //   read()        -> { bytes } of the stored note (D's attempt-asset read, owner-authorized).
 //   store         { get(transcriptId), put(record) } (D's derivative store, scoped to the attempt owner).
-//   transcriber   openaiTranscriber(env, ...) or a test double: { provider, model, transcribe({ bytes, mime }) -> heard }; null when
+//   transcriber   openaiTranscriber(env) or a test double: { provider, model, transcribe({ bytes, mime }) -> heard }; null when
 //                 transcription is not configured here (the result is a failed record, not stored, so it runs once it is).
 // ponytail: two concurrent preparations of the same clip can both call the provider; the assessment operation's claim is
 // what keeps one attempt to one preparation.
@@ -131,7 +132,8 @@ export async function ensureTranscript({ assetId, hash, mime = '', read, store, 
   if (await hexDigest(audio.bytes) !== hash) return failed('hash_mismatch', false);
   let heard;
   try { heard = await transcriber.transcribe({ bytes: audio.bytes, mime: mime || audio.mime || '' }); }
-  catch (problem) { return failed(problem?.code || 'provider_failed'); }
+  // A spend refusal made no call: it is not recorded, so the next preparation tries again once the cap allows.
+  catch (problem) { return failed(problem?.code || 'provider_failed', !problem?.spendRefused); }
   const parts = transcriptParts(heard);
   if (!parts.text) return failed('no_speech');
   const record = { ...base, status: 'ready', ...parts, derivativeHash: await hexDigest(new TextEncoder().encode(JSON.stringify([parts.text, parts.segments ?? null]))), createdAt: now() };
@@ -141,15 +143,14 @@ export async function ensureTranscript({ assetId, hash, mime = '', read, store, 
 
 const AUDIO_EXT = { 'audio/ogg': 'ogg', 'audio/mp4': 'm4a', 'audio/webm': 'webm', 'audio/mpeg': 'mp3', 'audio/wav': 'wav' };
 // The OpenAI transcription call for a stored note, or null when this environment has transcription off (OPENAI_API_KEY and
-// TRANSCRIBE_ENABLED === 'true', the same switch as /api/learn/transcribe). Spend stays the caller's: admit() returns a
-// refusal (truthy) to stop before the call, record({ ok }) logs it after (paidSubmissionRefusal / recordMedia in dev-worker).
-export function openaiTranscriber(env, { fetchImpl = globalThis.fetch, admit = async () => null, record = async () => {} } = {}) {
+// TRANSCRIBE_ENABLED === 'true', the same switch as /api/learn/transcribe). Each call is admitted and settled by
+// transcribeSpendTransport (learn-paid-transport.js) under env's usage context.
+export function openaiTranscriber(env, { fetchImpl = globalThis.fetch } = {}) {
   if (!env?.OPENAI_API_KEY || env.TRANSCRIBE_ENABLED !== 'true') return null;
   const model = env.TRANSCRIBE_MODEL === 'gpt-transcribe' ? 'gpt-transcribe' : 'gpt-4o-transcribe';
   return {
     provider: 'openai', model,
     async transcribe({ bytes, mime }) {
-      if (await admit()) throw Object.assign(new Error('Spend admission refused'), { code: 'spend_refused' });
       const type = String(mime).split(';')[0];
       const form = new FormData();
       // OpenAI picks the decoder by the file name, so it carries the real container.
@@ -158,9 +159,9 @@ export function openaiTranscriber(env, { fetchImpl = globalThis.fetch, admit = a
       form.set('response_format', 'json');
       form.append('include[]', 'logprobs');
       let response;
-      try { response = await fetchImpl('https://api.openai.com/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` }, body: form }); }
-      catch { await record({ ok: false, model }); throw Object.assign(new Error('Transcription unreachable'), { code: 'provider_unreachable' }); }
-      await record({ ok: response.ok, model });
+      try { response = await transcribeSpendTransport(env, { model }, () => fetchImpl('https://api.openai.com/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` }, body: form })); }
+      catch { throw Object.assign(new Error('Transcription unreachable'), { code: 'provider_unreachable' }); }
+      if (isPaidSpendReply(response)) { const { code } = await response.json().catch(() => ({})); throw Object.assign(new Error(`Spend admission refused (${code})`), { code: code || 'spend_refused', spendRefused: true }); }
       if (!response.ok) throw Object.assign(new Error(`Transcription failed (${response.status})`), { code: 'provider_failed' });
       return response.json();
     },

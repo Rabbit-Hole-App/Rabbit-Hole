@@ -81,6 +81,8 @@ row('google', 'gemini-3-pro-image', 'standard', 'output_image', 120, PER.mtok, V
 // gpt-4o-transcribe is billed per audio/text token ($2.50 in, $10 out per million, official page); the server does not see the
 // token counts, so a call is an estimate from OpenAI's own "estimated cost $0.006 / minute" at the one minute the route allows.
 // OpenAI marks the model deprecated (shutdown 2027-02-26, speech-to-text guide).
+// Re-read on the official page 2026-10-30 for Explain-back voice notes (transcribeSpendTransport): unchanged, gpt-4o-transcribe
+// $2.50 / $10.00 per million and "$0.006 / minute" estimated, gpt-transcribe "$0.0045 / minute". Those calls reserve two minutes.
 row('openai', 'gpt-4o-transcribe', 'standard', 'audio_minute', 0.006, PER.minute, ESTIMATE, 'OpenAI estimated cost per minute of audio; the bill is per token', OPENAI_PRICING);
 row('openai', 'gpt-4o-transcribe', 'standard', 'input', 2.5, PER.mtok, VERIFIED, 'audio and text input tokens', OPENAI_PRICING);
 row('openai', 'gpt-4o-transcribe', 'standard', 'output', 10, PER.mtok, VERIFIED, null, OPENAI_PRICING);
