@@ -436,8 +436,10 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
           the card is the keyboard and touch path to the same connection. */}
       {inputPort && <button type="button" data-port={INPUT_SIDE} data-owner={id} data-node-tool aria-label="Input: connect a Notebook, Group or file"
         title="Input: drag to a Notebook, Group or file, or click here and then the source"
-        style={{ top: INPUT_PORT_Y }}
-        className="absolute left-0 z-20 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 cursor-crosshair items-center justify-center rounded-full pointer-coarse:h-11 pointer-coarse:w-11 focus-visible:outline-2 focus-visible:outline-select"
+        // An absolute child is placed from the card's padding edge, inside its 1 px border; the route anchor (inputPoint) is on the
+        // card's outer box (cardBox: offsetLeft/offsetTop). One px back puts the mark's centre on the anchor at every zoom.
+        style={{ top: INPUT_PORT_Y - 1, left: -1 }}
+        className="absolute z-20 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 cursor-crosshair items-center justify-center rounded-full pointer-coarse:h-11 pointer-coarse:w-11 focus-visible:outline-2 focus-visible:outline-select"
         onPointerDown={event => onConnect(event, id, INPUT_SIDE)}>
         <span aria-hidden="true" className="h-3 w-3 rounded-full bg-success ring-2 ring-surface" />
       </button>}
