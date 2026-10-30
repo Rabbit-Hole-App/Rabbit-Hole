@@ -395,6 +395,12 @@ const second = url().pathname.split('/').pop();
 await up();
 await nav().locator('[data-dive-down]').click();
 await page.locator('[data-dive-picker]').waitFor();
+// The picker opens toward the side with room: wholly inside the window with the map at its home on the gutter's left edge.
+const pickerBox = await page.locator('[data-dive-picker]').evaluate(node => { const r = node.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, w: innerWidth, h: innerHeight }; });
+assert.ok(pickerBox.left >= 0 && pickerBox.right <= pickerBox.w && pickerBox.bottom <= pickerBox.h, `the child picker is inside the window: ${JSON.stringify(pickerBox)}`);
+// Nothing lies over its rows (the down button's tooltip, the toolbar): each row's marker and title start are the picker's own.
+const covered = await page.locator('[data-dive-picker] [role="menuitem"]').evaluateAll(rows => rows.map(row => { const r = row.getBoundingClientRect(); return [row.textContent.trim(), !!document.elementFromPoint(r.left + 12, r.top + r.height / 2)?.closest('[data-dive-picker]'), !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('[data-dive-picker]')]; }).filter(([, a, b]) => !a || !b));
+assert.deepEqual(covered, [], 'the child picker rows are uncovered');
 await shot('08-child-picker');
 await page.locator('[data-dive-picker]').getByRole('menuitem', { name: softmaxTitle }).click();
 await page.waitForFunction(name => location.pathname.endsWith(name), softmax);
