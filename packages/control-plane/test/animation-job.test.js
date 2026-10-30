@@ -272,3 +272,24 @@ test('the source set a result is bound to changes with what was read', { skip },
   const two = await b.run(body.job.id);
   assert.notEqual(one.done.result.sources, two.result.sources);
 });
+
+// FX (first preview run, 2026-10-30): the clone had no ANTHROPIC_API_KEY; anthropic() answered its not-configured 503 and the job
+// recorded a bare "Error" after an admitted, unsettled ledger row. Now: refused before admission, named, with the message kept.
+test('no provider key: the plan stage fails named and explained, before any admission or send', async t => {
+  const s = animationStack(t, { env: { ANTHROPIC_API_KEY: undefined } });
+  const { body } = await s.create();
+  const failed = await s.run(body.job.id);
+  assert.deepEqual([failed.stage, failed.failure.stage, failed.failure.category, failed.failure.message], ['failed', 'preparing', 'transport', 'AI answers aren’t configured on this preview.']);
+  assert.deepEqual(failed.findings.at(-1), { repairs: 0, stage: 'preparing', error: 'model_not_configured', message: 'AI answers aren’t configured on this preview.' });
+  assert.deepEqual([s.model.calls.length, failed.calls.length, rows(s.sqlite, 'usage_operations').length], [0, 0, 0]);
+});
+
+test('a provider HTTP failure keeps its status code and the provider\'s reason in the findings', async t => {
+  const s = animationStack(t, { status: () => 400 });
+  const { body } = await s.create();
+  const failed = await s.run(body.job.id);
+  const finding = failed.findings.at(-1);
+  assert.deepEqual([failed.stage, finding.error], ['failed', 'model_http_400']);
+  assert.match(finding.message, /\/animation brief is unavailable \(model HTTP 400: x\)/);
+  assert.deepEqual(failed.calls.map(c => [c.role, c.status, c.error]), [['brief', 'failed', 'model_http_400']]);
+});
