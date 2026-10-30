@@ -37,6 +37,20 @@ No extra call. Parsing stays strict: a judgement only in `notes` is never credit
 this reply shape). Remaining: the live eval case `voice-only-every-criterion` (tests/evals/explain-back) has not been run;
 the coordinator runs live evals. Owner action: none.
 
+**FX-EB-10 · TUT-16 · fix committed, browser check pending CI** — Owner screenshot 2026-10-30: a Challenge resized tall
+kept its question and answer controls in the top half with a large blank area below. Cause: CanvasNode's corner handle
+allowed any height up to 1000 px (`clampBox`), saved it as the block's `h`, and drew it as a fixed `height`, so the card's
+flex body stretched to it whatever the content needed (reproduced in `card-layout.test.mjs`, "the screenshot case").
+Fix (4e9633cb9, `fix/text-card-height`): an explicit per-type policy, `fitContent` on the BLOCK_TYPES entries `challenge`
+(every mode, so Explain-back and the Practice card too), `explanation`, `quiz` and `flashcards`. For those cards
+(`card-layout.js` `fitFrame`) the saved, dragged or type height is a `max-height` ceiling and the height follows the content:
+text wrapping, feedback tabs, the attempt history and an opened section grow or shrink the card, content above the ceiling
+scrolls in the body. The drag and its commit are clamped to `naturalHeight` (the unstretched card's height plus its body's
+scrolled overflow), so no more than the content needs is stored. Saved oversized heights are clamped when drawn and are
+not rewritten until the learner next resizes the card. Notebooks, Sketch, media, diagrams, graphs, code and the
+Full/Scrollable card layouts keep fixed frames. Remaining: `text-card-height-check.mjs` (runner fork) runs in fast-e2e;
+not yet run. Owner action: none.
+
 **FX-EB-07 · EB-09 · open (pre-existing, owner rule)** — The canvas style panel opens out of the tools column over the
 cards it styles: with two grouped cards selected at 68% zoom it covered their ports (round 7, check fixed by deselecting
 first). Possibly conflicts with the owner rule that canvas utilities never cover content. Not Explain-back code; needs its
