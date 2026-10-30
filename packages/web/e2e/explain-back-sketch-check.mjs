@@ -157,6 +157,7 @@ await check('2 Open sketch opens one right-side panel beside the question', asyn
   await card.locator('[data-sketch-toggle]').click(); // a second press never mounts a second panel
   assert.equal(await panels().count(), 1, 'one Sketch panel');
   assert.equal(await page.locator('[data-sketch-dock]').count(), 1, 'one Sketch panel dock');
+  assert.equal(await panelOf(cardId).getAttribute('data-panel-mode'), 'side', 'Open sketch never expands the panel');
   assert.equal(await card.locator('[data-sketch-toggle]').getAttribute('aria-expanded'), 'true');
   assert.equal(await card.locator('[data-sketch]').count(), 0, 'nothing drawn inside the card');
   const after = await box(card), panel = await box(panelOf(cardId)), surface = await box(page.locator('[data-canvas-surface]'));
@@ -241,6 +242,19 @@ await check('3b keyboard resize changes only the panel', async () => {
   assert.equal(Math.round(after.width - before.width), 48, 'two 24 px steps wider');
   assert.deepEqual(await box(card), question, 'the question did not move');
   assert.deepEqual((await counts()).sketches[cardId], { strokes: 1, shapes: 2, items: 1 }, 'resizing kept every mark');
+});
+await check('3d Expand gives the Sketch the workspace; Restore puts both areas back with the same content', async () => {
+  const before = await box(panelOf(cardId)), question = await box(card);
+  await panelOf(cardId).locator('[data-sketch-expand]').click();
+  assert.equal(await panelOf(cardId).getAttribute('data-panel-mode'), 'expanded');
+  assert.ok((await box(panelOf(cardId))).width > before.width, 'the panel grew');
+  assert.deepEqual((await counts()).sketches[cardId], { strokes: 1, shapes: 2, items: 1 });
+  await shot('05a-expanded');
+  await panelOf(cardId).locator('[data-sketch-restore]').click();
+  assert.equal(await panelOf(cardId).getAttribute('data-panel-mode'), 'side');
+  assert.equal(Math.round((await box(panelOf(cardId))).width), Math.round(before.width), 'the same width');
+  assert.deepEqual(await box(card), question, 'the question did not move');
+  assert.deepEqual((await counts()).sketches[cardId], { strokes: 1, shapes: 2, items: 1 });
 });
 await check('3c close keeps the marks and shows the content dot; reopen is the same panel and content', async () => {
   await panelOf(cardId).locator('[data-sketch-close]').click();
