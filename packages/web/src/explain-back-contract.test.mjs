@@ -53,7 +53,8 @@ test('legacy records stay valid and read as text answers without invented eviden
 test('the envelope is a valid SubmitAttempt whose assistance ids come from the answer', () => {
   const env = submitEnvelope({ activityId: 'act_1', activityRevision: 2, submissionKey: 'sub_12345678', answer: VALID.combined });
   assert.equal(validateCoachingRecord('SubmitAttempt', env).ok, true);
-  assert.deepEqual(env.assistanceRefs, ['tutor_feedback:as_prev']);
+  assert.deepEqual(env.assistanceRefs, ['chat:chat_7', 'saw_prior_feedback:as_prev'], 'a revision of a reviewed parent records the feedback it saw');
+  assert.deepEqual(submitEnvelope({ activityId: 'a', activityRevision: 1, submissionKey: 'sub_12345678', answer: VALID.revisionNoParentReview }).assistanceRefs, []);
   assert.deepEqual(env.sourceRefs, [], 'learner evidence rides the answer; sourceRefs stay the activity task sources');
 });
 
