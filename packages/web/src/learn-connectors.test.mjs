@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sidePoint, nearestSide, shapeBox, elbowPoints, routePath, polylineMid, freeElbow } from './learn-connectors.js';
+import { sidePoint, nearestSide, shapeBox, elbowPoints, routePath, polylineMid, freeElbow, INPUT_PORT_Y, inputPoint, routeSide, groupFrame } from './learn-connectors.js';
 
 const box = { x: 0, y: 0, w: 100, h: 60 };
 
@@ -65,4 +65,24 @@ test('an elbow to a shape behind its port detours instead of crossing either sha
   assert.ok(!crosses(mixed, source) && !crosses(mixed, target), JSON.stringify(mixed));
   const across = elbowPoints(sidePoint(source, 'right'), 'right', sidePoint({ x: -300, y: 200, w: 100, h: 60 }, 'top'), 'top');
   assert.ok(!crosses(across, source), JSON.stringify(across));
+});
+
+test('the Explain-back Input sits on the left edge beside the header, and routes as a left side', () => {
+  const card = { x: 100, y: 200, w: 390, h: 500 };
+  assert.deepEqual(inputPoint(card), { x: 100, y: 200 + INPUT_PORT_Y });
+  assert.notDeepEqual(inputPoint(card), sidePoint(card, 'left'), 'not the midpoint left anchor');
+  assert.deepEqual(inputPoint({ x: 0, y: 0, w: 100, h: 30 }), { x: 0, y: 15 }, 'a very short card keeps it on its edge');
+  assert.equal(routeSide('input'), 'left');
+  assert.equal(routeSide('bottom'), 'bottom');
+  assert.match(routePath({ x: 0, y: 0 }, 'bottom', inputPoint(card), routeSide('input'), 'curved').d, /^M0 0 C/);
+});
+
+test('a Group frame is its members padded, grown by its footer; its ports follow members and footer', () => {
+  const frame = groupFrame([{ x: 10, y: 20, w: 100, h: 50 }, { x: 200, y: 100, w: 80, h: 40 }], 12);
+  assert.deepEqual(frame, { x: -2, y: 8, w: 294, h: 144, inner: 144 });
+  const footed = groupFrame([{ x: 10, y: 20, w: 100, h: 50 }, { x: 200, y: 100, w: 80, h: 40 }], 12, 36);
+  assert.deepEqual([footed.h, footed.inner], [180, 144]);
+  // A member moved down moves the bottom port with it.
+  assert.equal(groupFrame([{ x: 10, y: 20, w: 100, h: 50 }, { x: 200, y: 400, w: 80, h: 40 }], 12).h, 444);
+  assert.equal(groupFrame([], 12), null);
 });

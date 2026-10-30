@@ -88,6 +88,7 @@ const READERS = {
   'web/src/canvas-semantics.js': 'the shared snapshot: kind annotation is source annotation, never a connector (its own tests)',
   'web/src/curious-context.js': 'recent edits: a new or changed link marks its two ends as edited; no structure',
   'web/src/canvas-persist.js': 'saves them as one of the board lists',
+  'web/src/explain-inputs.js': 'Explain-back resource inputs: only kind explain-input links (edge, pill, frozen evidence); annotations and other connectors ignored',
   'web/src/learn-style-panel.js': 'styles selected links',
   'control-plane/src/learn-boards.js': 'copies the list on fork; no reading',
   'control-plane/src/shared-privacy.js': 'keeps the list on what a link shows (sharedState); no reading',

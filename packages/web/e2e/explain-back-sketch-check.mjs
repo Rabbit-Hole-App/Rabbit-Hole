@@ -216,6 +216,10 @@ await check('6 text + sketch submission', async () => {
   assert.equal(sent.answer, 'the id picks a row; the position is added');
   assert.match(sent.sketch.image, /^data:image\/png;base64,iVBORw0KGgo/);
   assert.ok(sent.sketch.image.length < 600000);
+  // EB-03.2: the picture comes from the host's own off-screen render, which is gone once captured, and the page has
+  // one Sketch panel dock.
+  assert.equal(await page.locator('[data-sketch-capture-root]').count(), 0, 'the capture render is removed after Submit');
+  assert.equal(await page.locator('[data-sketch-dock]').count(), 1, 'one Sketch panel dock');
   assert.match(sent.sketch.text, /Marks: 1 freehand stroke, 1 box, 1 arrow\. Written in the sketch: .*text: "position added"/);
   assert.equal(shadows.length, shadowBefore, 'Jev records no half-answer');
   firstAttempt = sent.attempt_id;
@@ -323,6 +327,68 @@ await check('draw, hide, submit: the hidden sketch is still in the combined atte
   assert.equal(await hiding.locator('[data-answer-sketch]').count(), 1, 'the answer shows the sketch it carried');
 });
 await shot('11-hidden-sketch-submitted');
+
+// ---- EB-05: resource inputs (plan 2026-10-30-explain-back.md section 4). Click-click from a card's or a Group's port to
+// the green Input makes one semantic link; the other port of the same source is the same input; undo removes it; an
+// ordinary connector stays ordinary. Challenge cards stand in for any source card: every card has the same port pair.
+const port = (owner, side) => page.locator(`[data-port="${side}"][data-owner="${owner}"]`);
+const boardState = id => page.evaluate(card => Object.values(localStorage).map(v => { try { return JSON.parse(v); } catch { return null; } })
+  .find(state => (state?.blocks || []).some(block => block.id === card)) || null, id);
+const inputLinks = async id => ((await boardState(id))?.links || []).filter(link => link.kind === 'explain-input' && link.to === id);
+const settleLinks = (id, count) => page.waitForFunction(([card, n]) => Object.values(localStorage).map(v => { try { return JSON.parse(v); } catch { return null; } })
+  .find(state => (state?.blocks || []).some(block => block.id === card))?.links?.filter(link => link.kind === 'explain-input' && link.to === card).length === n, [id, count], { timeout: 10000 });
+const clickClick = async (first, second) => { await first.click(); await page.waitForTimeout(150); await second.click(); await page.waitForTimeout(300); };
+const answerCard = await insert('Explain back');
+const answerId = await answerCard.getAttribute('data-block-id');
+const sourceA = await insert('Challenge');
+const sourceAId = await sourceA.getAttribute('data-block-id');
+const sourceB = await insert('Challenge');
+const sourceBId = await sourceB.getAttribute('data-block-id');
+await check('EB-05 the Input is a green port at the upper-left header edge', async () => {
+  await reveal(answerCard);
+  const input = port(answerId, 'input');
+  assert.equal(await input.count(), 1);
+  assert.equal(await input.locator('span').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(68, 131, 97)');
+  const at = await box(input), cardBox = await box(answerCard);
+  assert.ok(Math.abs(at.x + at.width / 2 - cardBox.x) <= 2, 'on the left edge');
+  assert.ok(at.y + at.height / 2 - cardBox.y < 60, 'beside the header, not the midpoint');
+  assert.equal(await port(sourceAId, 'input').count(), 0, 'an ordinary Challenge has no Input');
+});
+await check('EB-05 a source port to the Input makes one link; its other port is the same input; undo removes it', async () => {
+  await reveal(sourceA);
+  await clickClick(port(sourceAId, 'bottom'), port(answerId, 'input'));
+  await settleLinks(answerId, 1);
+  const [link] = await inputLinks(answerId);
+  assert.deepEqual([link.from, link.fromSide, link.toSide], [sourceAId, 'bottom', 'input']);
+  await clickClick(port(sourceAId, 'top'), port(answerId, 'input'));
+  await page.waitForTimeout(800);
+  assert.equal((await inputLinks(answerId)).length, 1, 'no duplicate through the top port');
+  await page.keyboard.press('Control+z');
+  await settleLinks(answerId, 0);
+});
+await check('EB-05 a Group connects from its frame ports, bound to its id', async () => {
+  await sourceA.locator('[data-drag-handle]').click();
+  await sourceB.locator('[data-drag-handle]').click({ modifiers: ['Shift'] });
+  await page.waitForTimeout(150);
+  await page.keyboard.press('Control+g');
+  await page.locator('[data-group-box]').first().waitFor();
+  const groupId = await page.locator('[data-group-box]').first().getAttribute('data-group-box');
+  const frame = await box(page.locator(`[data-group-box="${groupId}"]`)), bottom = await box(port(groupId, 'bottom'));
+  assert.ok(Math.abs(bottom.y + bottom.height / 2 - (frame.y + frame.height)) <= 2, 'the bottom port sits on the rendered frame');
+  await clickClick(port(groupId, 'bottom'), port(answerId, 'input'));
+  await settleLinks(answerId, 1);
+  const [link] = await inputLinks(answerId);
+  assert.deepEqual([link.from, link.fromSide], [groupId, 'bottom']);
+  await shot('14-group-input-connected');
+});
+await check('EB-05 an ordinary connector between cards stays ordinary', async () => {
+  await clickClick(port(sourceAId, 'bottom'), port(sourceBId, 'top'));
+  await page.waitForTimeout(800);
+  const links = (await boardState(answerId))?.links || [];
+  const plain = links.find(link => link.from === sourceAId && link.to === sourceBId);
+  assert.ok(plain && !plain.kind, 'a plain link, no semantic kind');
+  assert.equal((await inputLinks(answerId)).length, 1);
+});
 
 await check('no page errors', async () => assert.deepEqual(errors, []));
 console.log(`${results.length}/${results.length} checks passed`);
