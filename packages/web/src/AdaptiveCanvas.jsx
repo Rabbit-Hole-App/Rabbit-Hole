@@ -2973,7 +2973,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Voice caption, the page's contents rail (edgeInset), the floating controls - and a margin (canvas-slots.js freeArea).
   const visibleArea = () => {
     const frame = surface.current.getBoundingClientRect();
-    const overlays = [...(shell.current?.querySelectorAll('[data-chat-sheet], [data-voice-rail] > *') || [])]
+    // The Explain-back Sketch panel docked over the canvas counts too (sketchHost.portal), so a reveal lands beside it.
+    const overlays = [...(shell.current?.querySelectorAll('[data-chat-sheet], [data-voice-rail] > *, [data-sketch-docked] > *') || [])]
       .map(node => node.getBoundingClientRect()).filter(rect => rect.width && rect.height)
       .map(rect => ({ left: rect.left - frame.left, top: rect.top - frame.top, right: rect.right - frame.left, bottom: rect.bottom - frame.top }));
     overlays.push(...controlRects());
@@ -4859,6 +4860,28 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     <div data-sketch-docked className="pointer-events-none absolute inset-0 [&>*]:pointer-events-auto"
       onPointerDown={event => event.stopPropagation()} onDoubleClick={event => event.stopPropagation()}
       onContextMenu={event => event.stopPropagation()}>{children}</div>, sketchDock) : null);
+  // Bring a card (or a Group's frame) into the view beside the Sketch panel: after the panel's own render, so the area
+  // it measures already leaves the panel out. The camera moves only when the card is not already in view; never the zoom.
+  const revealOnCanvas = id => {
+    requestAnimationFrame(() => requestAnimationFrame(() => showBox(boundsRef.current[id] || groupFrameOf(id), true)));
+    return !!(boundsRef.current[id] || groupFrameOf(id));
+  };
+  // A pill's name: the source itself, selected and in view; a PDF, paper or wiki card also opens in its reader, at the
+  // input's first page. Never an upload, a model call or a new Rabbit Hole. Returns 'reader', 'revealed' or null (gone).
+  const openInput = linkId => {
+    const link = present.current.links.find(entry => entry.id === linkId && isInputLink(entry));
+    if (!link) return null;
+    const group = groupsRef.current.find(entry => entry.id === link.from);
+    if (group) { const members = membersOf(group.id); if (members.length < 2) return null; setSelection(members); return revealOnCanvas(group.id) ? 'revealed' : null; }
+    if (!boundsRef.current[link.from]) return null;
+    setSelection([link.from]);
+    revealOnCanvas(link.from);
+    const target = opensFor(link.from);
+    if (target?.kind !== 'reader') return 'revealed';
+    const page = link.scope?.pages?.[0];
+    onCardActionRef.current(target.action, page && target.payload.page != null ? { ...target.payload, page } : target.payload);
+    return 'reader';
+  };
   const sketchHost = {
     render: renderSketch, hold: holdSketch, release: id => { if (drawTargetRef.current === id) releaseSketch(); },
     capture: captureSketch, readOnly,
@@ -4866,7 +4889,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // Resource inputs (EB-05): pills derived from the links; one connect and one disconnect operation; the frozen
     // EvidenceRefs (explain-back-contract.js resources) a submission carries.
     inputs: cardId => inputPills(inputWorld(), links, cardId, entry => (entry.type ? describeBlock(entry)?.title : null) || entry.label || entry.question || entry.text || 'Item'),
-    inputCandidates, connectInput, disconnectInput,
+    inputCandidates, connectInput, disconnectInput, openInput, reveal: revealOnCanvas,
     inputEvidence: (cardId, { board = null } = {}) => inputEvidence(inputWorld(board), present.current.links, cardId),
     inputMessage: problem => INPUT_PROBLEMS[problem] || null,
   };
