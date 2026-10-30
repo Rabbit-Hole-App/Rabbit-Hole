@@ -9,7 +9,7 @@ import { chromium } from '@playwright/test';
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync } from 'node:fs';
 
-const total = 3; // the number of check() steps below; keep it equal
+const total = 4; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878', CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 const approvedDev = new Set(['https://rabbit-hole-cp-dev.tryrabbithole.workers.dev']);
 for (const origin of [BASE, CP]) assert.ok(/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin) || approvedDev.has(origin) || /^https:\/\/rabbit-hole-web-dev-[a-z0-9-]+\.tryrabbithole\.workers\.dev$/.test(origin), 'Only a dev clone or the local integration stack');
@@ -21,6 +21,9 @@ const run = Date.now().toString(36);
 const NOTEBOOK = { id: 'nb', type: 'notebook', notebook_id: crypto.randomUUID(), dx: 0, dy: 0, language: 'python', active_path: 'notebook.ipynb', ipynb_path: 'notebook.ipynb', files: ['notebook.ipynb'],
   ipynb: { nbformat: 4, nbformat_minor: 5, metadata: { kernelspec: { name: 'python', display_name: 'Python (Pyodide)', language: 'python' } },
     cells: [{ id: 'a', cell_type: 'code', source: 'n = globals().get("n", 0) + 1\nprint(n * 42)', metadata: {}, execution_count: null, outputs: [] }] } };
+// An Explain-back card beside it (plan 2026-10-30-explain-back.md section 12): connecting the notebook to its Input and opening
+// and resizing its Sketch panel must leave the notebook's page, kernel and unsaved edit as they were.
+const EXPLAIN = { id: 'eb', type: 'challenge', mode: 'explain_back', dx: 0, dy: 0, prompt: 'Why does the cell print 42?', hint: 'Look at n.', expects: ['n counts the runs'] };
 
 const results = [], failures = [], errors = [], model = [];
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|artifact|assess|grade|home-ask|image|inline\/|journey|scene|transcribe|tts|voice\/|tutor\/|dive|explore|next-steps|selection|plan|course))/;
@@ -37,7 +40,7 @@ try {
   const { session } = await auth.json();
   const api = async (path, method, body) => { const r = await fetch(BASE + path, { method, headers: { cookie: `small_session=${session}`, origin: BASE, 'content-type': 'application/json' }, body: JSON.stringify(body) }); assert.ok(r.ok, `${method} ${path}: ${r.status}`); return r.json(); };
   const canvas = await api('/api/canvases', 'POST', { title: `Run all ${run}` });
-  await api(`/api/learn/boards/${canvas.name}/main`, 'PUT', { state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [NOTEBOOK] } });
+  await api(`/api/learn/boards/${canvas.name}/main`, 'PUT', { state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [NOTEBOOK, EXPLAIN] } });
   browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
@@ -85,6 +88,43 @@ try {
     await until(async () => ['42', '84'].includes(await printed()), 'no output after Run all on the restarted kernel', 60000);
     assert.equal(await printed(), '42', 'the cell ran on a fresh kernel (84: Restart left the old kernel running)');
     await page.screenshot({ path: `${SHOTS}/restart.png` });
+  });
+
+  await check('4 connecting the notebook to an Explain-back Input and opening and resizing its Sketch panel keep the notebook page, its kernel and an unsaved edit', async () => {
+    const panelOf = () => frame.locator('body').evaluate(() => {
+      const panel = [...window.jupyterapp.shell.widgets('main')].find(widget => widget.sessionContext);
+      return { kernel: panel.sessionContext.session?.kernel?.id ?? null, status: panel.sessionContext.kernelDisplayStatus, source: panel.content.widgets[0].model.sharedModel.getSource(), dirty: panel.context.model.dirty, mark: window.__ebMark ?? null };
+    });
+    // An unsaved edit, a mark on the notebook page's own window (gone if the page reloads) and the kernel the cell ran on.
+    await frame.locator('body').evaluate(() => {
+      const panel = [...window.jupyterapp.shell.widgets('main')].find(widget => widget.sessionContext);
+      const cell = panel.content.widgets[0].model.sharedModel;
+      cell.setSource(`${cell.getSource()}\n# unsaved explain-back edit`);
+      window.__ebMark = 'same page';
+      window.__statuses = [];
+    });
+    const before = await panelOf();
+    // The edit is the learner's in-progress work: whether the notebook has autosaved it yet does not matter, only that it stays.
+    assert.ok(before.kernel && /unsaved explain-back edit/.test(before.source), `a running kernel and the edit before connecting (${JSON.stringify(before)})`);
+    const card = page.locator('[data-block-id="eb"]');
+    await card.locator('[data-port="input"]').waitFor({ state: 'attached', timeout: 30000 });
+    // The picker is the Input's accessible path: the same link a port drag makes.
+    const picker = card.locator('[data-input-picker]');
+    await picker.focus();
+    await picker.selectOption('nb');
+    await until(() => page.evaluate(() => Object.values(localStorage).some(v => { try { return (JSON.parse(v)?.links || []).some(link => link.kind === 'explain-input' && link.from === 'nb' && link.to === 'eb'); } catch { return false; } })), 'no Explain-back input link from the notebook was saved', 10000);
+    await card.locator('[data-sketch-toggle]').evaluate(button => button.click());
+    const resize = page.locator('[data-explain-sketch-panel] [data-sketch-resize]');
+    await resize.waitFor({ timeout: 10000 });
+    await resize.focus();
+    for (const key of ['ArrowLeft', 'ArrowLeft', 'ArrowRight']) await page.keyboard.press(key);
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: `${SHOTS}/explain-back-input.png` });
+    await page.locator('[data-explain-sketch-panel] [data-sketch-close]').click();
+    await page.waitForTimeout(500);
+    const after = await panelOf();
+    assert.deepEqual({ kernel: after.kernel, source: after.source, mark: after.mark }, { kernel: before.kernel, source: before.source, mark: 'same page' }, 'the same page, kernel and edit');
+    assert.ok(!(await frame.locator('body').evaluate(() => window.__statuses)).some(status => /restarting|starting|dead/.test(status)), 'the kernel never restarted');
   });
 } catch (error) {
   console.log(`FAIL setup: ${String(error.message).split('\n')[0]}`);

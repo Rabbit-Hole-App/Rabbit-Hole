@@ -40,6 +40,16 @@ const catalog = await api(owner, '/api/apps');
 const base = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${source.name}`;
 const style = { color: '#37352f', width: 2, dash: 'solid', fill: null, opacity: 1, round: false };
 const SEED = { strokes: [], links: [], items: [], blocks: [], shapes: [{ id: 'seed-rect', kind: 'rect', x1: 80, y1: 140, x2: 320, y2: 240, ...style, text: 'Softmax', roughness: 2, seed: 4242 }] };
+// EB-02.4: an Explain-back card carrying its learner's own state, wired to a note through its Input. A share and a fork carry
+// the exercise and the wiring, never the answer, attempts, drafts, Sketch or store binding.
+const EB_PRIVATE = 'EB-PRIVATE';
+const EB_BLOCKS = [
+  { id: 'seed-eb', type: 'challenge', mode: 'explain_back', dx: 0, dy: 0, prompt: 'Why does softmax exponentiate the scores?', hint: 'Think about signs.', expects: ['positive weights'],
+    answer: `${EB_PRIVATE}-answer`, attemptId: `${EB_PRIVATE}-attempt`, verdict: `${EB_PRIVATE}-verdict`, history: [{ answer: `${EB_PRIVATE}-old` }], draft: `${EB_PRIVATE}-draft`,
+    sketch: { draftId: `${EB_PRIVATE}-sketch`, strokes: [], shapes: [], items: [] }, sketchSubmitted: true, sketchPinned: true, sketchWidth: 460 },
+  { id: 'seed-note', type: 'explanation', dx: 0, dy: 0, title: 'Softmax', body: 'Exponentials are positive and keep the order.' },
+];
+const EB_LINKS = [{ id: 'seed-input', kind: 'explain-input', from: 'seed-note', fromSide: 'bottom', to: 'seed-eb', toSide: 'input', color: 'var(--color-success)' }];
 const CHAT = [{ id: 'seed-q', question: 'Why exponentiate?', answer: 'Scores become positive weights that add to 1.', status: 'done', dx: 0, dy: 0 }];
 const ownerPage = await pageFor(owner, { fn: ([key, seed, chat]) => { if (localStorage.getItem(`${key}:ink`)) return; localStorage.setItem(`${key}:ink`, JSON.stringify(seed)); localStorage.setItem(`${key}:chat`, JSON.stringify(chat)); }, arg: [base, SEED, CHAT] });
 await ownerPage.goto(`${BASE}/apps/${source.name}`);
@@ -55,7 +65,7 @@ check('no content card carries a fork control', await ownerPage.locator('[data-b
 await shot(ownerPage, '01-source-top-bar');
 
 // ---- a shared canvas: another person forks it through the link, after the confirm-and-rename dialog ----
-const shared = await api(owner, `/api/learn/boards/${source.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state: { ...SEED, exchanges: CHAT } }) });
+const shared = await api(owner, `/api/learn/boards/${source.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state: { ...SEED, blocks: EB_BLOCKS, links: EB_LINKS, exchanges: CHAT } }) });
 const viewerPage = await pageFor(viewer);
 await viewerPage.goto(`${BASE}/b/${shared.sharing.view}`);
 await viewerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
@@ -93,6 +103,13 @@ await dialog(viewerPage).getByRole('button', { name: 'Fork', exact: true }).dblc
 await viewerPage.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 20000 });
 const viewerFork = new URL(viewerPage.url()).pathname.split('/').pop();
 await viewerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 30000 });
+const sharedBody = JSON.stringify(await api(viewer, `/api/learn/boards/shared/${shared.sharing.view}`));
+check('EB-02.4 the shared view carries the Explain-back exercise and its Input link, not the learner answer, attempts, drafts or Sketch',
+  sharedBody.includes('Why does softmax exponentiate the scores?') && sharedBody.includes('seed-input') && !sharedBody.includes(EB_PRIVATE));
+const forkBoard = (await api(viewer, `/api/learn/boards/${viewerFork}/main`)).state || {};
+check('EB-02.4 the fork copies the Explain-back exercise and its Input link only',
+  forkBoard.blocks?.find(block => block.id === 'seed-eb')?.prompt === 'Why does softmax exponentiate the scores?' && forkBoard.links?.some(link => link.kind === 'explain-input' && link.to === 'seed-eb')
+  && !JSON.stringify(forkBoard).includes(EB_PRIVATE), JSON.stringify(forkBoard.blocks?.find(block => block.id === 'seed-eb')));
 check('the fork keeps the level and the seed, and draws the same strokes', await lookOf(viewerPage) === ownerLook && (await api(viewer, `/api/learn/boards/${viewerFork}/main`)).state?.shapes?.find(shape => shape.id === 'seed-rect')?.seed === 4242);
 // The fork's origin is the header's fork-history button (decisions 1A and 4A, C:/s/spec/hdr-provenance.md): the label beside the
 // title is gone; the button names the source, and its popover links each ancestor this viewer may open, in a new tab.
