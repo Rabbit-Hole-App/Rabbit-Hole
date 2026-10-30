@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { validateTranscript } from '../../web/src/explain-back-contract.js';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { TRANSCRIBE_MAX_SECONDS, transcribeEstimate, transcribeSeconds, transcribeUsagePrice } from '../src/learn-paid-transport.js';
@@ -11,7 +12,15 @@ import { TRANSCRIPT_VERSION, ensureTranscript, openaiTranscriber, transcriptIdFo
 
 const AUDIO = new TextEncoder().encode('OggS fake opus voice note');
 const HASH = createHash('sha256').update(AUDIO).digest('hex');
-const memoryStore = () => { const rows = new Map(); return { rows, get: async id => rows.get(id) ?? null, put: async record => { rows.set(record.transcriptId, structuredClone(record)); } }; };
+// D's transcriptStore semantics: every record must pass the contract's validateTranscript; a stored record is immutable
+// except a failed one replaced on an explicit retry.
+const memoryStore = () => { const rows = new Map(); return { rows, get: async id => rows.get(id) ?? null, put: async (record, { retry = false } = {}) => {
+  const checked = validateTranscript(record);
+  if (!checked.ok) throw new TypeError(`transcript: ${checked.errors.join('; ')}`);
+  const had = rows.get(record.transcriptId);
+  if (!had || (had.status === 'failed' && retry)) rows.set(record.transcriptId, structuredClone(record));
+  return rows.get(record.transcriptId);
+} }; };
 const fakeTranscriber = (answers) => {
   const calls = [];
   return { calls, provider: 'openai', model: 'gpt-4o-transcribe', transcribe: async audio => { calls.push(audio); const next = answers.shift(); if (next instanceof Error) throw next; return next; } };
@@ -61,8 +70,13 @@ test('not configured, unreadable, mismatched or silent audio yields an honest fa
   await assert.rejects(ensureTranscript({ assetId: 'aa_x', hash: 'nothex', read, store, transcriber }), /sha256/);
 });
 
-test('segments are kept only when the provider returns timing', () => {
-  assert.deepEqual(transcriptParts({ text: 'a b', segments: [{ start: 0, end: 1.5, text: ' a ' }, { start: 'x', end: 2 }] }), { text: 'a b', segments: [{ start: 0, end: 1.5, text: 'a' }] });
+test('segments are kept only when the provider returns timing, in contract milliseconds', async () => {
+  assert.deepEqual(transcriptParts({ text: 'a b', segments: [{ start: 0, end: 1.5, text: ' a ' }, { start: 'x', end: 2 }] }), { text: 'a b', segments: [{ startMs: 0, endMs: 1500, text: 'a' }] });
+  const store = memoryStore();
+  const timed = await ensureTranscript({ assetId: 'aa_voice00000001', hash: HASH, read, store, transcriber: fakeTranscriber([{ text: 'this arrow then that one', segments: [{ start: 0.24, end: 2.7, text: 'this arrow' }, { start: 2.7, end: 4.05, text: 'then that one' }] }]), now: at });
+  assert.deepEqual(timed.segments, [{ startMs: 240, endMs: 2700, text: 'this arrow' }, { startMs: 2700, endMs: 4050, text: 'then that one' }]);
+  assert.deepEqual(validateTranscript(timed).errors, [], 'the contract validator accepts a timed record');
+  assert.equal(store.rows.size, 1, 'and the store kept it');
   assert.deepEqual(transcriptParts({ text: 'a' }), { text: 'a' });
 });
 
