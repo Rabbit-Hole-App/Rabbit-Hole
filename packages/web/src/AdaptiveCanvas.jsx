@@ -50,7 +50,8 @@ import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 import NotebookBody from './NotebookCard.jsx';
 import { activePath, newNotebookBlock, notebookFromCode, notebookWriteBack } from './learn-notebook.js';
 import { paletteSections, insertName } from './learn-insert-palette.js';
-import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow } from './learn-connectors.js';
+import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow, INPUT_PORT_Y, inputPoint, routeSide, groupFrame } from './learn-connectors.js';
+import { INPUT_PROBLEMS, INPUT_SIDE, addInput, describeSource, inputEvidence, inputPills, inputProblem, isExplainBack, isInputLink } from './explain-inputs.js';
 import { ComposerHide, DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
 import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
 import LaserPointer from './LaserPointer.jsx';
@@ -160,6 +161,8 @@ const SHAPE_TOOLS = [
 // default writing reads as dark gray on a dark canvas. Only the default maps;
 // deliberate colors stay themselves (connections brighten via a dark: filter).
 const inkAware = color => (color === '#37352f' ? 'var(--learn-canvas-ink)' : color);
+// An Explain-back resource input's edge: the Input's own green (--color-success), in both themes.
+const INPUT_COLOR = 'var(--color-success)';
 // A divider is a plain rule, wider than the card column so it reads as a
 // break across the page rather than another card.
 const DIVIDER_W = 1040;
@@ -292,7 +295,7 @@ const CanvasEdit = createContext({ locked: new Set(), altDrag: null });
 // Shared node chrome for everything card-shaped on the canvas: drag with
 // lift, corner resize, selection ring, top/bottom connection ports, and the
 // layout observer that keeps connector geometry fresh. Content is children.
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, autoMax = 420, width = 380, height = undefined, extraHeight = 0, saved = null, cardLayout = null, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, saved = null, cardLayout = null, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, children }) {
   const [lifted, setLifted] = useState(false);
   // A card with a Rabbit Hole under it (docs/features/dive-v1.md): derived from the dive link, never stored on the card.
   const dive = useContext(DivePortals), portal = dive?.portals?.[id];
@@ -425,6 +428,16 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         data-node-tool
         className={`absolute left-1/2 z-20 h-4 w-4 -translate-x-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white focus:opacity-100 ${connected?.[side] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} ${side === 'top' ? '-top-2' : '-bottom-2'}`}
         onPointerDown={event => onConnect(event, id, side)} />)}
+      {/* The Explain-back Input (plan 2026-10-30-explain-back.md section 4): a filled green port on the left edge beside the
+          header, its hit area larger than its 12 px mark. Drag to a source, or click it and then the source; the picker on
+          the card is the keyboard and touch path to the same connection. */}
+      {inputPort && <button type="button" data-port={INPUT_SIDE} data-owner={id} data-node-tool aria-label="Input: connect a Notebook, Group or file"
+        title="Input: drag to a Notebook, Group or file, or click here and then the source"
+        style={{ top: INPUT_PORT_Y }}
+        className="absolute left-0 z-20 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 cursor-crosshair items-center justify-center rounded-full pointer-coarse:h-11 pointer-coarse:w-11 focus-visible:outline-2 focus-visible:outline-select"
+        onPointerDown={event => onConnect(event, id, INPUT_SIDE)}>
+        <span aria-hidden="true" className="h-3 w-3 rounded-full bg-success ring-2 ring-surface" />
+      </button>}
       {full && !locked && edit.selectionCount <= 1 && ['left','right'].map(side => <button key={side} type="button" role="slider" aria-orientation="horizontal" aria-label={`Resize card width from ${side}`} aria-valuemin={limits.min} aria-valuemax={limits.max} aria-valuenow={Math.round(displayWidth)} data-node-tool className={`absolute top-6 bottom-2 z-20 w-2 cursor-ew-resize focus-visible:bg-accent/30 ${side === 'left' ? '-left-1' : '-right-1'}`} onPointerDown={event => resizeWidth(event, side)} onKeyDown={event => resizeWidthKey(event, side)} />)}
       {!full && !locked && resizable && <button type="button" aria-label="Resize chat block" title="Resize block" className="absolute right-0 bottom-0 z-10 cursor-nwse-resize p-1 text-ink-3 opacity-0 group-hover:opacity-100 hover:text-ink-2 focus:opacity-100"
         data-node-tool onPointerDown={resize}><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg></button>}
@@ -923,6 +936,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   const sized = BLOCK_TYPES[block.type]?.sizeFor?.(block, programFrame);
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
+      inputPort={isExplainBack(block)}
       autoMax={BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
       width={sized?.width ?? BLOCK_TYPES[block.type]?.width}
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
@@ -4279,9 +4293,51 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     else if (key === 'Enter') onCommentPin?.(pickedPin.id);
     else if (onPinDelete) { if (pickedPin.can.delete && pickedPin.comments > 1) setPinAsk({ replies: pickedPin.comments - 1 }); else deletePin(pickedPin.id); }
   } : null;
+  // A Group member's box, measured for a card, from its corners for a shape, estimated for a text or sticky.
+  const memberBox = member => bounds[member.id]
+    || (member.x1 !== undefined ? { x: Math.min(member.x1, member.x2), y: Math.min(member.y1, member.y2), w: Math.abs(member.x2 - member.x1), h: Math.abs(member.y2 - member.y1) } : null)
+    || (member.x !== undefined ? { x: member.x, y: member.y, w: member.w || (member.kind === 'sticky' ? 160 : 220), h: member.h || (member.kind === 'sticky' ? 160 : 40) } : null);
+  // A Group's frame as rendered: its members' padded box plus the Rabbit Hole footer (groupRoom). null under two members:
+  // such a Group draws no frame and offers no ports.
+  const groupFrameOf = id => {
+    if (!groups.some(group => group.id === id)) return null;
+    const members = [...blocks, ...items, ...shapes, ...exchanges].filter(entry => entry.groupId === id);
+    if (members.length < 2) return null;
+    return groupFrame(members.map(memberBox).filter(Boolean), GROUP_PAD, divePortals?.portals?.[id] ? groupRoom[id] || 0 : 0);
+  };
+  // ---------- Explain-back resource inputs (explain-inputs.js; plan section 4, EB-05) ----------
+  // The canvas as explain-inputs.js reads it. One link is the relationship, the edge and the pill.
+  const inputWorld = (board = null) => ({ board, blocks: blocksRef.current, groups: groupsRef.current, exchanges: exchangesRef.current, items: itemsRef.current, shapes: shapesRef.current });
+  // The one connect operation (drag, click-click and the card's picker): { link, duplicate, problem }. A source already
+  // connected with the same scope, through either port, is that link again; a refusal changes nothing.
+  const connectInput = (cardId, sourceId, { port = 'bottom', scope = null } = {}) => {
+    if (readOnlyRef.current) return { link: null, duplicate: false, problem: 'read-only' };
+    const made = addInput(inputWorld(), present.current.links, { id: crypto.randomUUID(), to: cardId, from: sourceId, fromSide: port, scope });
+    if (made.link && !made.duplicate) { snapshot(); setLinks(previous => [...previous, { ...made.link, color: INPUT_COLOR }]); }
+    return made;
+  };
+  // Pill x, the edge's Delete and its menu all end here or in the shared delete: the link goes, its source stays; undo brings
+  // the same link back.
+  const disconnectInput = linkId => {
+    if (readOnlyRef.current || !present.current.links.some(link => link.id === linkId && isInputLink(link))) return false;
+    snapshot();
+    setLinks(previous => previous.filter(link => link.id !== linkId));
+    setSelection(previous => previous.filter(id => id !== linkId));
+    return true;
+  };
+  // What the picker offers for card `cardId`: every Group and source card, each with why it cannot connect (null: it can).
+  const inputCandidates = cardId => {
+    const world = inputWorld();
+    return [...world.groups.map(group => group.id), ...world.blocks.filter(block => block.id !== cardId).map(block => block.id)]
+      .map(id => { const source = describeSource(world, id); return { id, kind: source.sourceKind === 'group' ? 'group' : 'source', media: source.media, label: source.sourceKind === 'group' ? (source.entry.label || 'Group') : (describeBlock(source.entry)?.title || source.entry.type), problem: inputProblem(world, present.current.links, { to: cardId, from: id }) }; });
+  };
   const portPosition = (id, side) => {
     const shape = shapesRef.current.find(entry => entry.id === id);
     if (shape) return sidePoint(shapeBox(shape), side);
+    // A Group's ports are its rendered frame's top and bottom centres, footer included (groupFrameOf).
+    const frame = groupFrameOf(id);
+    if (frame) return { x: frame.x + frame.w / 2, y: frame.y + (side === 'bottom' ? frame.h : 0) };
+    if (side === INPUT_SIDE) return bounds[id] ? inputPoint(bounds[id]) : null;
     // An asked-about area is a link end too: its answer card hangs from it.
     const area = areaById(id);
     const box = bounds[id] || (area && areaBox(area));
@@ -4307,7 +4363,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // port nearby or the card it is over. Nothing: the end follows the pointer.
   // Only card ports snap from a distance - a shape's would swallow small shapes
   // whole and pull the arrow away from the mouse.
-  const connectorTarget = (e, exclude, anchor) => {
+  const connectorTarget = (e, exclude, anchor, inputEnd = false) => {
     const point = local(e);
     const under = document.elementFromPoint(e.clientX, e.clientY);
     const portHit = under?.closest('[data-port]');
@@ -4319,7 +4375,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (snap) return { id: snap.id, side: snap.side };
     const blockId = under?.closest('[data-block-id]')?.dataset.blockId;
     const box = blockId && blockId !== exclude ? boundsRef.current[blockId] : null;
-    return box ? { id: blockId, side: point.y < box.y + box.h / 2 ? 'top' : 'bottom' } : null;
+    if (box) return { id: blockId, side: point.y < box.y + box.h / 2 ? 'top' : 'bottom' };
+    const groupId = inputEnd && under?.closest('[data-group-box]')?.dataset.groupBox;
+    const frame = groupId && groupId !== exclude ? groupFrameOf(groupId) : null;
+    return frame ? { id: groupId, side: point.y < frame.y + frame.h / 2 ? 'top' : 'bottom' } : null;
   };
   const connect = (event, from, fromSide) => {
     if (event.button !== 0) return;
@@ -4334,13 +4393,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const route = fromShape ? connectorRoute : undefined;
     const start = { x: event.clientX, y: event.clientY };
     const anchor = portPosition(from, fromSide);
+    const fromInput = fromSide === INPUT_SIDE;
     const trace = e => {
-      const hit = connectorTarget(e, from, anchor);
+      const hit = connectorTarget(e, from, anchor, fromInput);
       const at = hit ? portPosition(hit.id, hit.side) : local(e);
-      setConnecting({ from, fromSide, toPoint: at, toSide: hit?.side, snap: hit ? { at } : null, color: linkColor, route, head: fromShape });
+      const input = fromInput || hit?.side === INPUT_SIDE;
+      setConnecting({ from, fromSide, toPoint: at, toSide: hit?.side, snap: hit ? { at } : null, color: input ? INPUT_COLOR : linkColor, route: input ? 'curved' : route, head: fromShape });
     };
     // Connectors touching a shape are diagram arrows: routed, with a head.
     const addLink = (to, toSide) => {
+      // Either end on an Explain-back Input: the resource-input relationship, through the same operation as the picker.
+      if (fromInput || toSide === INPUT_SIDE) {
+        const [card, source, port] = fromInput ? [from, to, toSide] : [to, from, fromSide];
+        if (!source || port === INPUT_SIDE) return;
+        const made = connectInput(card, source, { port: port === 'top' ? 'top' : 'bottom' });
+        if (made.problem) toast(INPUT_PROBLEMS[made.problem]);
+        return;
+      }
       if (!to || to === from || present.current.links.some(link => link.from === from && link.fromSide === fromSide && link.to === to && link.toSide === toSide)) return;
       const diagram = fromShape || shapesRef.current.some(shape => shape.id === to);
       snapshot();
@@ -4364,7 +4433,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         window.addEventListener('pointerdown', finish, true);
         return;
       }
-      const hit = connectorTarget(e, from, anchor);
+      const hit = connectorTarget(e, from, anchor, fromInput);
       if (hit) addLink(hit.id, hit.side);
       cancel();
     };
@@ -4373,7 +4442,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const finish = e => {
       e.preventDefault(); e.stopPropagation();
       if (e.button !== 0) { cancel(); return; }
-      const hit = connectorTarget(e, from, anchor);
+      const hit = connectorTarget(e, from, anchor, fromInput);
       if (hit) addLink(hit.id, hit.side);
       cancel();
     };
@@ -4399,7 +4468,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const cancel = () => { cleanup(); setConnecting(null); };
     const up = e => {
       const hit = connectorTarget(e, fixed, anchor);
-      if (hit) {
+      if (hit && hit.side !== INPUT_SIDE) {
         snapshot();
         setLinks(previous => previous.map(entry => entry.id !== link.id ? entry : end === 'to' ? { ...entry, to: hit.id, toSide: hit.side } : { ...entry, from: hit.id, fromSide: hit.side }));
       }
@@ -4416,7 +4485,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const linkRoute = link => {
     const a = portPosition(link.from, link.fromSide), b = link.toPoint || portPosition(link.to, link.toSide);
     if (!a || !b) return null;
-    if (link.route) return { ...routePath(a, link.fromSide, b, link.toSide || null, link.route), tip: b };
+    if (link.route || link.toSide === INPUT_SIDE || link.fromSide === INPUT_SIDE) return { ...routePath(a, routeSide(link.fromSide), b, link.toSide ? routeSide(link.toSide) : null, link.route || 'curved'), tip: b };
     const bend = Math.max(60, Math.abs(b.y - a.y) / 2);
     const c1 = { x: a.x, y: a.y + (link.fromSide === 'bottom' ? bend : -bend) }, c2 = { x: b.x, y: b.y + (link.toSide === 'bottom' ? bend : -bend) };
     return { d: `M${a.x} ${a.y} C${c1.x} ${c1.y},${c2.x} ${c2.y},${b.x} ${b.y}`, mid: { x: 0.125 * a.x + 0.375 * c1.x + 0.375 * c2.x + 0.125 * b.x, y: 0.125 * a.y + 0.375 * c1.y + 0.375 * c2.y + 0.125 * b.y }, from: c2, tip: b };
@@ -4791,6 +4860,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     render: renderSketch, hold: holdSketch, release: id => { if (drawTargetRef.current === id) releaseSketch(); },
     capture: captureSketch, readOnly,
     open: openSketch, captureFor, portal: portalSketch, target: drawTarget,
+    // Resource inputs (EB-05): pills derived from the links; one connect and one disconnect operation; the frozen
+    // EvidenceRefs (explain-back-contract.js resources) a submission carries.
+    inputs: cardId => inputPills(inputWorld(), links, cardId, entry => (entry.type ? describeBlock(entry)?.title : null) || entry.label || entry.question || entry.text || 'Item'),
+    inputCandidates, connectInput, disconnectInput,
+    inputEvidence: (cardId, { board = null } = {}) => inputEvidence(inputWorld(board), present.current.links, cardId),
+    inputMessage: problem => INPUT_PROBLEMS[problem] || null,
   };
   // A target whose card is gone (deleted, undone away) hands the toolbar back; one whose editable host unmounted (closed,
   // hidden, submitted, read-only attempt) does so through sketchHostRef.
@@ -5861,7 +5936,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             new connection from that port. */}
         {tool === 'select' && (
           <svg width="1" height="1" className="pointer-events-none absolute top-0 left-0 z-20 overflow-visible">
-            {links.filter(link => isSelected(link.id) && connecting?.hide !== link.id).flatMap(link => {
+            {links.filter(link => isSelected(link.id) && connecting?.hide !== link.id && !isInputLink(link)).flatMap(link => {
               const path = linkRoute(link);
               return path ? [['from', portPosition(link.from, link.fromSide)], ['to', path.tip]].map(([end, at]) => at && (
                 <circle key={`${link.id}-${end}`} data-link-for={link.id} data-link-end={end} cx={at.x} cy={at.y} r={6 / view.z} fill="white" strokeWidth={1.5 / view.z}
@@ -5945,18 +6020,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         )}
         {presenting === null && groups.map(group => {
           const members = [...blocks, ...items, ...shapes, ...exchanges].filter(entry => entry.groupId === group.id);
-          if (members.length < 2) return null;
-          let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
-          const grow = (x, y, w, h) => { left = Math.min(left, x); top = Math.min(top, y); right = Math.max(right, x + w); bottom = Math.max(bottom, y + h); };
-          for (const member of members) {
-            const box = bounds[member.id];
-            if (box) { grow(box.x, box.y, box.w, box.h); continue; }
-            if (member.x1 !== undefined) { grow(Math.min(member.x1, member.x2), Math.min(member.y1, member.y2), Math.abs(member.x2 - member.x1), Math.abs(member.y2 - member.y1)); continue; }
-            // Text and stickies: state carries no measured height, so estimate.
-            if (member.x !== undefined) grow(member.x, member.y, member.w || (member.kind === 'sticky' ? 160 : 220), member.h || (member.kind === 'sticky' ? 160 : 40));
-          }
-          if (!Number.isFinite(left)) return null;
-          const pad = GROUP_PAD;
+          const frame = groupFrameOf(group.id);
+          if (!frame) return null;
           const active = members.some(member => selection.includes(member.id));
           const portal = divePortals?.portals?.[group.id];
           return (
@@ -5970,7 +6035,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   the box beneath the members' area, which keeps its size (so the members never move and are never covered), and
                   two layers stack under it. The footer is the only Enter: its presses never drag, select or open the group. */}
               <div data-group-box={group.id}
-                style={{ left: left - pad, top: top - pad, width: right - left + pad * 2, ...(portal ? {} : { height: bottom - top + pad * 2 }) }}
+                style={{ left: frame.x, top: frame.y, width: frame.w, ...(portal ? {} : { height: frame.inner }) }}
                 className={`absolute flex flex-col rounded-xl border ${active ? 'border-select bg-select/[0.03]' : 'border-line-strong'} cursor-grab active:cursor-grabbing`}
                 onDoubleClick={divePortals ? () => (portal ? divePortals.enter(portal.name) : divePortals.open?.(group.id, group.label || `${members.length} items`)) : undefined}
                 onPointerDown={event => {
@@ -5982,7 +6047,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   startDrag(event, last, (x, y) => { shift(x - last.x, y - last.y, targets); last = { x, y }; }, view.z);
                 }}>
                 {portal && <>
-                  <div className="shrink-0" style={{ height: bottom - top + pad * 2 - 2 }} />
+                  <div className="shrink-0" style={{ height: frame.inner - 2 }} />
                   <div data-group-footer data-own-pointer className="pointer-events-auto cursor-default" onPointerDown={event => event.stopPropagation()} onDoubleClick={event => event.stopPropagation()}
                     ref={element => { const h = element?.offsetHeight; if (h) setGroupRoom(previous => (previous[group.id] === h ? previous : { ...previous, [group.id]: h })); }}>
                     <HoleRow hole={{ ...portal, enter: () => divePortals.enter(portal.name) }} />
@@ -5990,7 +6055,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   <HoleStack pending={portal.pending} />
                 </>}
               </div>
-              <div style={{ left: left - pad, top: top - pad - GROUP_CHIP_UP }} className="absolute z-20 flex items-center gap-1">
+              {/* The Group's top and bottom ports, bound to its id on its frame (footer included): the same ports as a card's,
+                  so either can connect to an Explain-back Input. A press here starts a connection, never a Group drag. */}
+              {!readOnly && ['top', 'bottom'].map(side => <button key={side} type="button" data-port={side} data-owner={group.id} aria-label={`Connect Group ${side}`} title="Drag to connect this Group"
+                style={{ left: frame.x + frame.w / 2, top: frame.y + (side === 'bottom' ? frame.h : 0) }}
+                className={`absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white focus:opacity-100 pointer-coarse:h-6 pointer-coarse:w-6 ${portsInUse[group.id]?.[side] || connecting ? 'opacity-100' : 'opacity-0 hover:opacity-100'}`}
+                onPointerDown={event => connect(event, group.id, side)} />)}
+              <div style={{ left: frame.x, top: frame.y - GROUP_CHIP_UP }} className="absolute z-20 flex items-center gap-1">
                 <GroupChip group={group} editOn={chipEdit === group.id}
                   onSelect={() => setSelection(membersOf(group.id))}
                   onLabel={label => { setChipEdit(null); if (label === null || label === (group.label || '')) return; snapshot(); setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry)); }} />
