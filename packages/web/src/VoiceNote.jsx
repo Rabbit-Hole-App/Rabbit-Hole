@@ -102,8 +102,10 @@ function Player({ note, state, readOnly, disabled, seekMs }) {
   const [loadError, setLoadError] = useState('');
   const known = (state.take || state.saved)?.durationMs || 0;
   const [mediaMs, setMediaMs] = useState(0);
-  // MediaRecorder WebM and fragmented MP4 report no duration until played through, so the recorded length stands in.
-  const total = mediaMs || known;
+  // The duration shown is the recorded length: the same figure the recorder counted against the limit and the note's
+  // evidence carries (durationMs). MediaRecorder WebM and fragmented MP4 often report no or a wrong duration until played
+  // through, so the element's own figure is used only for a note without one.
+  const total = known || mediaMs;
   const identity = state.take?.sha256 || state.saved?.sha256 || null;
 
   // A new take is a new source: forget the old one and the playhead.
