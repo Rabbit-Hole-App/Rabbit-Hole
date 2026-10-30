@@ -122,7 +122,7 @@ Owner decision 2026-10-29, option A: `fix/explain-frame-overrun` `3648d595b`, on
 
 ## Offscreen and lifecycle (Task 10.1)
 
-On `feat/explain-offscreen-pause` `35410272d` (based on `release/chain-overrun` `f676fd95c`), not on `main` and not in R3; it goes into the candidate after R3, together with 8.4:
+On `feat/explain-offscreen-pause` `35410272d` (based on `release/chain-overrun` `f676fd95c`), released in R4 `d92cc18d5` (production run 40977367647); the card check timing fix `2c8be1452` is not in it yet:
 - A playing card pauses when its tab is hidden or the card leaves the viewport (`playback.js watchSeen`, an
   IntersectionObserver). A card in Focus counts as seen wherever its canvas position is.
 - While paused, no frame is requested. Coming back shows the same moment, paused, with no fast-forward. Play intent is not
@@ -174,11 +174,22 @@ never from an agent's claim. Spend is in the ledger `C:/s/spec/budget/budget-exp
 | 3 | Gravity, physics, schema 1 (owner, production) | Not recorded (the receipt keeps only `promptRef a4e6dab2...`). Card title: "Gravity on Earth and on the Moon". | not exposed: the read-only routes carry no model identity | `3ed2d2ab...` (stored, recomputed, card and identity all match) | accepted, round 0, 2 calls, result `er_0f9a7032...` | none in the receipt (read-only). The owner's own check is not written down. | 21 credits on the owner's production account (US$0.21 at the 1 credit = US$0.01 rate the dev runs show; not in the sandbox ledger) | 67.9 s processing | Receipt `C:/s/spec/explain-sandbox/prod/receipts/explain-prod-receipt-20261029-094422.json` (09:44 AM): 14 of 15 checks pass. The verdict is FAIL only because the script's release pin was stale (expected `fc31f723a`, served `f421cc5de`, release 5 from 09:26). Correction to the 8-11 brief: this receipt exists. |
 | 4 | Stack versus queue, computing (non-physics), schema 2, chosen after R3 was implemented (t811-c4-b, dev preview `d3d50986e`, 2026-10-29) | "Help me understand how a stack and a queue are different. Give me buttons to add a new item and to take one out, and show me which item comes out of each one every time I press." | brief, author, repair, review: requested and served `claude-opus-5-5` | `7ea95f64...` (hashes re-verified on `d3d50986e`); 3 actions (Add next item, Remove one item, Start over), no targets or inputs | accepted, round 1 (one repair), result `er_55ab7c30...` | Deployed owner board: each button changes the drawing and the Notes values; a non-initial state survives reload; Reset returns to the initial state; only the board's own save was written. Phone: drawn, controls visible. Shared viewer: a press changes only the viewer's drawing, reload returns to the saved card, the shared board is unchanged. 16 ok, 0 failed, 2 not testable (no number input; Restart appears only on the failure view) | US$0.36 (36 credits) | job 120.7 s | The first attempt t811-c4-a (US$0.02) stopped at the brief because the driver had no Generate step. The driver's poll lost one GET ('fetch failed'), and the evidence was collected afterwards with GET-only calls. |
 | 5 | pH of water, chemistry, a slider together with buttons under schema 2, chosen after R3 was implemented (t811-c5-a, dev preview `d3d50986e`) | "Show me how the pH of a glass of water changes as I add drops of vinegar or baking soda. Let me add drops with buttons, and let me slide how strong the vinegar is to see how that changes things." | brief, author, repair, review: requested and served `claude-opus-5-5` | none accepted (the author's draft omitted `manifest.targets`; the repaired candidate was `d52567be...`) | **failed**: review rejected round 1, `unsupported_repair` (category spec); not retried | none (no card) | US$0.41 (41 credits) | job 129 s | All 9 findings were minor: crowded axis labels, and spaces collapsed in one text line (5 findings). Two findings were about review coverage, not the program: the sampled captures never moved the slider (rf3), and Reset was sampled only from the initial state (rf9). This matches R3's capture plan: each button once, each target once, then a run of the first button, and no input. Continuous control under schema 2 is therefore not reviewed. |
+| 6 | A cold spreading through a class, biology/epidemiology (non-physics, non-chemistry), a slider together with buttons under schema 2, chosen after R4 was implemented (t811-c6-a, dev preview `d92cc18d5`, 2026-10-29 5:07 PM PT) | "Show me how a cold spreads through a class of 30 pupils. Give me a button to vaccinate a few pupils at a time and a button to move on to the next day, and let me slide how easily the cold passes from one pupil to another." | brief, author, repair, review: requested and served `claude-opus-5-5` | `647f0bca...` (hashes re-verified on `d92cc18d5`); 3 actions (Vaccinate 3 pupils, Next day, Start again), one number input, no targets | accepted, round 1 (one repair: the author's draft again omitted `manifest.targets`), result `er_840b01b6...` | Deployed owner board: each button changes the values (for example Vaccinate: Healthy 29 to 26, Vaccinated 0 to 3; Next day: day 1, Sick 4); the slider changes the drawing; a non-initial state survives reload; Reset returns to the start; only the board's own save was written. Phone: drawn, controls visible. Shared viewer: presses stay local, reload returns to the saved card, the shared board is unchanged. 17 ok, 0 failed, 1 not testable (Restart appears only on the failure view) | US$0.42 (42 credits) | job 128 s | The review accepted it with 3 minor findings, including two coverage notes: the slider's minimum and maximum were not sampled, and only one day of spread was sampled. |
 
-Cases 1-3 prove schema 1 transfer. Case 4 proves one stateful-action transfer under schema 2: non-physics, chosen after
-implementation, with deployed owner and viewer interaction. Case 5, a continuous control under schema 2, failed review. So
-four qualifying subjects exist, not five, and there is no qualifying continuous-control example under schema 2 yet. Tasks
-8-11 spend so far is US$0.79 of US$5.00 (t811-c4-a 0.02, t811-c4-b 0.36, t811-c5-a 0.41).
+Five qualifying subjects:
+- Cooling, sorting and gravity are schema 1.
+- Stack/queue (case 4, buttons) and the spreading cold (case 6, a slider together with buttons) are schema 2.
+- Both schema 2 cases are non-physics, were chosen after implementation, and were checked deployed for owner and viewer.
+
+Case 5 (pH) failed review on R3 and was not retried. Its two coverage findings were then fixed in R4 `d92cc18d5`, where
+review moves every number input and samples Reset from a changed state; case 6 ran on R4.
+
+Tasks 8-11 spend is US$1.21 of US$5.00: t811-c4-a 0.02, t811-c4-b 0.36, t811-c5-a 0.41, t811-c6-a 0.42.
+
+Limits of this evidence:
+- One genuine card per schema 2 shape.
+- No genuine card with selectable targets or with a drag.
+- Both schema 2 authors omitted `manifest.targets` on their first draft, so each needed one repair round.
 
 Budget (owner, 2026-10-29; recorded in `C:/s/spec/budget/ledger.md`):
 - The cap is US$5.00 for Tasks 8-11 runs only. The earlier US$1.2061 does not count.
@@ -285,10 +296,11 @@ Not tested:
 
 | Gap | Owner | Next step |
 |---|---|---|
-| Offscreen pause not on main | integrator | In the R4 candidate `9846cc0a5`; its card check step 14 timing fix is on fix/explain-offscreen-check |
+| Card check steps 14 and 17 timing fix not released | integrator | Offscreen pause shipped in R4 `d92cc18d5`; the check fix `2c8be1452` (fix/explain-offscreen-check) is not in it and goes into the next candidate |
 | Two interaction tests (`interaction.test.mjs`, the reset cases) failed once under the full web suite on a local merge of R3 and offscreen; both passed alone twice | runtime lane | Treat as intermittent and unresolved; recheck on the next candidate |
-| Stateful review does not sample number inputs or Reset from a changed state (t811-c5-a findings rf3 and rf9), so continuous control under schema 2 is unreviewed | runtime/review lane | Add input and changed-state Reset sequences to the capture plan within the six captures, then run one more continuous-control case (cap room: US$4.21) |
-| 10.4: four qualifying subjects, not five | qualification lane | One continuous-control case after the review sampling gap is fixed; results and evidence paths in `C:/s/spec/explain-sandbox/genuine/t811-plan.md` |
+| The stateful author's first draft omits `manifest.targets` when a card has none (t811-c5-a, t811-c6-a), costing a repair round each time | runtime/author lane | Default an absent `targets` to none, or state it in the author contract; then check one genuine run |
+| Review still samples a number input at one value only, and one step of a sequence (t811-c6-a minor findings) | runtime/review lane | Decide whether the six captures should include an input's minimum and maximum |
+| 10.4: one genuine card per schema 2 shape; none with targets or drag | qualification lane | One targets case and one drag case after 8.4 ships, inside the remaining US$3.79 |
 | Three playing cards on two Workers trade Workers on almost every frame (59 Worker starts in the unit run). Correct, but each trade is a cold boot. Offscreen pause removes most real contention. | runtime lane | Measure in the browser before changing eviction |
 | Execution kill does not stop already-open cards | integrator | Accepted as documented; an immediate stop needs a new mechanism (not planned) |
 | Rollback pins stale (above) | integrator | Re-cut generation-off and kill on the final main; re-record the emergency pair at release |
