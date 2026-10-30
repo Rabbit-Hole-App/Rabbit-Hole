@@ -94,6 +94,13 @@ test('link results name their canvas and cards, open in a new tab, and an unavai
   assert.match(html, /aria-label="Open Graph basics in new tab"/); assert.match(html, /aria-label="Open Depth in new tab"/);
   assert.doesNotMatch(html, /aria-label="Open Unavailable canvas in new tab"/);
   assert.match(html, /data-search-result="link:from:x" data-links-direction="from" data-unavailable="true"/);
+  // The backlink (owner 2026-10-29): a Linked from row naming the card, with the real link, its new tab and Open to the same card.
+  const row = html.slice(html.indexOf('data-search-result="link:to:s"'), html.indexOf('data-search-result="link:from:x"'));
+  assert.match(row, />Linked from</);
+  assert.match(row, /<a href="\/apps\/canvas-2\?card=b1" aria-label="Open Depth in Trees" title="Open Depth in Trees" class="[^"]*bg-primary-fill[^"]*">Open<svg/);
+  assert.match(row, />Open<svg[^>]*lucide-arrow-right/, 'Open has the right arrow');
+  assert.match(row, /aria-label="Open Depth in new tab"[^>]*><svg[^>]*lucide-external-link/, 'the external-link icon is for the new-tab action');
+  assert.doesNotMatch(html.slice(html.indexOf('data-search-result="link:from:t"'), html.indexOf('data-search-result="link:to:s"')), />Linked from</, 'a forward link has no backlink row');
 });
 test('unavailable source metadata is never displayed; explicit source and child actions are separate', () => {
   const html = render({ results: [{ id: 'card:a', objectId: 'a', title: 'Card', kind: 'card', references: [{ id: 'private', unavailable: true }, { id: 'paper', title: 'Known paper', kind: 'paper' }], rabbitHoles: [{ name: 'child-a', title: 'Existing child' }] }] });
@@ -121,6 +128,12 @@ test('row heights follow the compact layout', () => {
   assert.equal(searchRowHeight({ id: 'a', preview: { kind: 'code', lines: [] } }), ROW.base, 'code with no loaded text falls back to the text row');
   assert.equal(searchRowHeight({ id: 'a', references: [{ id: 'r' }], availability: { status: 'partial', message: 'Only the file name' } }), ROW.base + ROW.notice + ROW.actions);
   assert.equal(searchRowHeight({ id: 'l', kind: 'link', link: { cards: [] } }), ROW.base + ROW.actions);
+  // A backlink adds one destination row per originating card it can open (owner 2026-10-29); 8px more each on touch (44px Open).
+  const back = { id: 'l', kind: 'link', link: { direction: 'to', cards: [{ id: 'a', href: '/apps/x?card=a' }, { id: 'b', href: '/apps/x?card=b' }, { id: 'c' }] } };
+  assert.equal(searchRowHeight(back), ROW.base + ROW.actions + 2 * ROW.backlink);
+  assert.equal(searchRowHeight(back, true), ROW.base + ROW.actions + 2 * (ROW.backlink + ROW.touch));
+  assert.equal(searchRowHeight({ ...back, link: { ...back.link, direction: 'from' } }), ROW.base + ROW.actions, 'forward links keep their chips');
+  assert.equal(ROW.backlink, 1 + 14 * 2 + 36, 'the row: its divider, its padding and the 36px Open');
 });
 test('code marks keep their colour runs and mark every occurrence', () => {
   const runs = [{ t: 'opt', color: '#111', dark: '#eee' }, { t: 'imizer.step()' }];

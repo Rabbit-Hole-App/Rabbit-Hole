@@ -6,6 +6,7 @@ import { Button, Menu, MenuItem, useMenuButton } from './ui.jsx';
 import { menuKeys } from './TitleHoles.jsx';
 import { SEARCH_DRAG, searchDrag, searchDragPayload } from './search-drag.js';
 import { searchFilterGroups, searchFilterLabel, searchWindow, searchKeyIndex, searchEmptyMessage, searchLocation, searchRowHeight, markRuns, lineRuns } from './canvas-search-panel.js';
+import { DestinationRow, OpenLink } from './DestinationRow.jsx';
 
 const button = 'rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-40';
 const labelOf = value => value.title || value.name || value.path || value.label || value.kind || 'Source';
@@ -94,9 +95,8 @@ export function SearchFilterRows({ groups, filters, onToggle, onClear }) {
   </div>;
 }
 
-// A link result's own controls (the former Links tab): Open in a new tab for its canvas; its cards - on this canvas, Show
-// frames the origin card; on another canvas (a backlink), a link that opens that canvas at the card, with its own new tab.
-// A plain click stays in this tab through onOpenAction (the page saves first); modifier and middle clicks stay native.
+// A link result's own controls (the former Links tab): Open in a new tab for its canvas; on this canvas, its cards' Show frames
+// the origin card. A plain click stays in this tab through onOpenAction (the page saves first); modifier and middle clicks stay native.
 const chip = `${button} flex max-w-full shrink-0 items-center gap-1 bg-hover px-1.5 py-1 text-[10px] leading-3 text-ink-2 hover:text-ink`;
 function NewTab({ href, name }) {
   return <button type="button" aria-label={`Open ${name} in new tab`} title={`Open ${name} in new tab`} onClick={() => openInNewTab(href)} className={`${button} flex h-6 w-6 shrink-0 items-center justify-center text-ink-3 hover:bg-hover hover:text-ink`}><ExternalLink size={12} strokeWidth={1.8} aria-hidden /></button>;
@@ -105,12 +105,20 @@ function LinkActions({ result, onOpenAction }) {
   const { direction, href, cards } = result.link;
   return <>
     {href && <NewTab href={href} name={result.title} />}
-    {cards.map(card => direction === 'from'
-      ? <button key={card.id} type="button" data-links-origin={card.object} title={`Show ${card.title} on this canvas`} onClick={() => onOpenAction?.(result, { kind: 'link-card', objectId: card.object })} className={chip}><Shapes size={11} aria-hidden /><span className="max-w-28 truncate">{card.title}</span></button>
-      : card.href && <span key={card.id} className="flex shrink-0 items-center">
-        <a href={card.href} data-links-backlink={card.object} title={`Open ${card.title} in ${result.title}`} onClick={event => { if (plainClick(event)) { event.preventDefault(); onOpenAction?.(result, { kind: 'link-open', href: card.href }); } }} className={chip}><Shapes size={11} aria-hidden /><span className="max-w-28 truncate">{card.title}</span></a>
-        <NewTab href={card.href} name={card.title} /></span>)}
+    {direction === 'from' && cards.map(card => <button key={card.id} type="button" data-links-origin={card.object} title={`Show ${card.title} on this canvas`} onClick={() => onOpenAction?.(result, { kind: 'link-card', objectId: card.object })} className={chip}><Shapes size={11} aria-hidden /><span className="max-w-28 truncate">{card.title}</span></button>)}
   </>;
+}
+// A backlink's originating cards (owner, Rabbit Hole and reference navigation design 2026-10-29): under their source canvas's
+// result, one destination row each - Linked from, the card (a real link to that canvas at that card), its new tab and Open -
+// full width, one line (searchRowHeight counts ROW.backlink per row).
+function Backlinks({ result, onOpenAction }) {
+  const go = href => onOpenAction?.(result, { kind: 'link-open', href });
+  return <div className="-mx-2 mt-2 -mb-2 flex shrink-0 flex-col">
+    {result.link.cards.filter(card => card.href).map(card => <DestinationRow key={card.id} label="Linked from" clamp="truncate" round="last:rounded-b-[7px]"
+      actions={<span className="flex shrink-0 items-center gap-1"><NewTab href={card.href} name={card.title} /><OpenLink href={card.href} name={`${card.title} in ${result.title}`} onGo={go} /></span>}>
+      <a href={card.href} data-links-backlink={card.object} title={`Open ${card.title} in ${result.title}`} onClick={event => { if (plainClick(event)) { event.preventDefault(); go(card.href); } }} className="hover:underline">{card.title}</a>
+    </DestinationRow>)}
+  </div>;
 }
 
 export default function CanvasSearchPanel({ canvasKey, hidden, showLinks = false, inputRef, scrollPositions, query = '', onQueryChange, filters = [], onFiltersChange,
@@ -119,7 +127,9 @@ export default function CanvasSearchPanel({ canvasKey, hidden, showLinks = false
   const scroller = useRef(null), fallbackPositions = useRef(new Map()), pendingFocus = useRef(null);
   const positions = scrollPositions || fallbackPositions.current;
   const [viewport, setViewport] = useState({ width: 320, height: 400, scrollTop: 0 });
-  const heights = useMemo(() => results.map(searchRowHeight), [results]);
+  // A touch pointer gets the 44px Open (DestinationRow.jsx), so a backlink row is taller there.
+  const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  const heights = useMemo(() => results.map(result => searchRowHeight(result, coarse)), [results, coarse]);
   const layout = searchWindow({ heights, ...viewport });
   const current = results.findIndex(result => result.id === activeId);
   const state = status.state || status.status || 'ready';
@@ -209,6 +219,7 @@ export default function CanvasSearchPanel({ canvasKey, hidden, showLinks = false
                 {refs.map((reference, at) => <button key={`ref:${reference.id || at}`} type="button" disabled={reference.unavailable} title={reference.unavailable ? 'Source unavailable' : `Open ${labelOf(reference)}`} onClick={() => onOpenAction?.(result, { kind: 'reference', reference })} className={`${button} flex max-w-full shrink-0 items-center gap-1 bg-hover px-1.5 py-1 text-[10px] leading-3 text-ink-2`}><Link2 size={11} aria-hidden /><span className="max-w-24 truncate">{reference.unavailable ? 'Unavailable' : `Open ${labelOf(reference)}`}</span></button>)}
                 {children.map((rabbitHole, at) => <button key={`child:${rabbitHole.name || at}`} type="button" title={rabbitHole.title || rabbitHole.name} onClick={() => onOpenAction?.(result, { kind: 'rabbit-hole', rabbitHole })} className={`${button} shrink-0 bg-hover px-1.5 py-1 text-[10px] leading-3 text-ink-2`}>Open Rabbit Hole</button>)}
               </div>}
+              {link?.direction === 'to' && <Backlinks result={result} onOpenAction={onOpenAction} />}
             </div>
           </li>;
         })}

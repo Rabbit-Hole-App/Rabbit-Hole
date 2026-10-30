@@ -51,3 +51,23 @@ test('the accent token is unchanged (#2383e2, not redefined in dark), and the pr
   // The focus ring stays on the shared Button base.
   assert.match(read('ui.jsx'), /'inline-flex items-center gap-1\.5 rounded-lg[^']*focus-visible:outline-2 focus-visible:outline-accent\/35/);
 });
+
+// The destination rows' Enter and Open (owner, Rabbit Hole and reference navigation design 2026-10-29): the primary fill and
+// hover, white text, the shared focus and disabled treatments; at least 76x36 with a 6px radius and 12/16 medium text, 44px
+// high on touch; the row 14/16 padded on the side surface under a 1px divider, hover on the hover surface.
+test('Enter and Open are the primary button at the destination size; the row uses the shared surface tokens', () => {
+  const row = read('DestinationRow.jsx');
+  const action = row.match(/export const ACTION_CLASS = '([^']+)'/)[1].split(' ');
+  for (const cls of ['bg-primary-fill', 'text-white', 'hover:bg-primary-fill-hover', 'min-h-9', 'min-w-[76px]', 'rounded-[6px]', 'text-xs', 'leading-4', 'font-medium',
+    'focus-visible:outline-2', 'focus-visible:outline-accent/35', 'disabled:opacity-50', 'pointer-coarse:min-h-11']) assert.ok(action.includes(cls), cls);
+  assert.ok(!action.includes('bg-accent'), 'not the accent fill');
+  const rowClass = row.match(/export const ROW_CLASS = '([^']+)'/)[1].split(' ');
+  for (const cls of ['border-t', 'border-line', 'bg-side', 'hover:bg-hover', 'px-4', 'py-3.5', 'gap-3']) assert.ok(rowClass.includes(cls), cls);
+  assert.match(row, /text-\[11px\] leading-\[14px\] text-ink-2/, 'the relationship label');
+  assert.match(row, /text-\[13px\] leading-\[18px\] font-medium/, 'the destination');
+  assert.match(row, /<ArrowDownRight \{\.\.\.ICON\} \/>/); assert.match(row, /<ArrowRight \{\.\.\.ICON\} \/>/);
+  assert.match(row, /const ICON = \{ size: 14, strokeWidth: 1\.8/);
+  // Every Enter and Open on a card, a group and in Search uses it.
+  for (const file of ['CanvasRefChips.jsx', 'CanvasRefCard.jsx', 'CanvasSearchPanel.jsx', 'AdaptiveCanvas.jsx']) assert.match(read(file), /from '\.\/DestinationRow\.jsx'/, file);
+  for (const theme of ['light', 'dark']) for (const bg of [token(theme, '--color-primary-fill'), token(theme, '--color-primary-fill-hover')]) assert.ok(ratio('#ffffff', bg) >= 4.5, `${theme} ${bg}`);
+});
