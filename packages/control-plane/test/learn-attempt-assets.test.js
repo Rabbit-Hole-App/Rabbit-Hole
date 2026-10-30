@@ -225,3 +225,15 @@ test('a Sketch recording timeline (JSON, at most 2 MiB) is a private asset; a ti
   assert.deepEqual([...(await readAttemptAsset(w.env, ANA, attempt, recording.narration)).bytes], [...OGG]);
   assert.equal((await submit({ ...recording, media: 'video' }, 'timeline-key-2')).body.error, 'unknown_asset', 'a timeline asset is not a video');
 });
+
+test('the owner reads a Sketch snapshot\'s capture data back to revise it; anyone else gets 404', async t => {
+  const w = setup(t);
+  const png = (await upload(w.env, ANA, PNG, 'image')).body.asset, voice = (await upload(w.env, ANA, WEBM)).body.asset;
+  const get = (actor, id) => route(w.env, actor, 'GET', `/api/learn/tutor/attempts/assets/${id}/meta`);
+  assert.deepEqual((await get(ANA, png.assetId)).body, { marks: null, text: null }, 'not set yet');
+  await route(w.env, ANA, 'PUT', `/api/learn/tutor/attempts/assets/${png.assetId}`, { json: { marks: [{ kind: 'arrow', label: 'v' }], text: 'v tangent' } });
+  assert.deepEqual((await get(ANA, png.assetId)).body, { marks: [{ kind: 'arrow', label: 'v' }], text: 'v tangent' });
+  for (const other of [BEN, { ...ANA, board: 'side' }, { ...ANA, app: 'canvas-fork-0001' }]) assert.equal((await get(other, png.assetId)).status, 404, JSON.stringify(other));
+  assert.equal((await get(ANA, voice.assetId)).status, 404, 'audio has no capture data');
+  assert.equal((await route(w.env, ANA, 'PUT', `/api/learn/tutor/attempts/assets/${png.assetId}/meta`, { json: { text: 'x' } })).status, 405);
+});

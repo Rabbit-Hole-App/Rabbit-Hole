@@ -7,6 +7,7 @@
 //   ownAttemptAssets(env, actor, ids) -> Map id -> row: the actor's own assets among ids
 //   putAttemptAsset(env, actor, {bytes, mime, marks?, text?, durationMs?}) -> {...asset, hash}: server/test seeding, upload's checks
 //   setAssetMeta(env, actor, assetId, {marks, text}) -> the Sketch snapshot's capture data, set once
+//   readAssetMeta(env, actor, assetId) -> {marks, text} | null: the owner's read of it (revising restores the marks)
 //   readAttemptAsset(env, actor, attempt, evidence) -> {bytes, mime, marks?, text?} | null: assessment's hash-checked read
 //   transcriptStore(env, actor) -> {get(transcriptId), put(record)}: immutable ready transcripts; a failed one may be replaced
 //   transcriptsOf(env, actor, assetId) -> transcripts of the actor's own audio
@@ -145,6 +146,14 @@ export async function setAssetMeta(env, actor, assetId, meta) {
   const stored = (await ownAttemptAssets(env, actor, [assetId])).get(assetId).meta_json;
   if (stored !== json) throw new TypeError('setAssetMeta: this snapshot already has its capture data');
   return JSON.parse(stored);
+}
+
+/** The owner's Sketch snapshot capture data, to restore its marks in a revision: {marks, text}, or null when the asset is not theirs or not an image. */
+export async function readAssetMeta(env, actor, assetId) {
+  const row = (await ownAttemptAssets(env, actor, [assetId])).get(assetId);
+  if (!row || row.kind !== 'image') return null;
+  const meta = row.meta_json ? JSON.parse(row.meta_json) : {};
+  return { marks: meta.marks ?? null, text: meta.text ?? null };
 }
 
 /**
