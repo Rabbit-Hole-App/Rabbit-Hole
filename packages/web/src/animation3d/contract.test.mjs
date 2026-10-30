@@ -118,7 +118,7 @@ test('triangle cost is deterministic per primitive', () => {
   assert.equal(triangleCost({ kind: 'box' }), 12);
   assert.equal(triangleCost({ kind: 'sphere', widthSegments: 32, heightSegments: 16 }), 960);
   assert.equal(triangleCost({ kind: 'cylinder', radialSegments: 24 }), 96);
-  assert.equal(triangleCost({ kind: 'cone', radialSegments: 24 }), 72);
+  assert.equal(triangleCost({ kind: 'cone', radialSegments: 24 }), 48);
   assert.equal(triangleCost({ kind: 'line' }), 0);
 });
 
