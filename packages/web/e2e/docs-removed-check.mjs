@@ -9,8 +9,8 @@ import { SUPPORT_PATHS } from '../src/landing/support-routes.js';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(BASE)) throw Error('docs-removed-check runs against the local stack only');
-// Every public page the Worker serves (dev-worker.js: Landing and its five siblings, the support pages and the sign-in pages).
-const PAGES = ['/', '/blog', '/features', '/pricing', '/manifesto', '/team', ...SUPPORT_PATHS, ...AUTH_PATHS];
+// Every public page the Worker serves (dev-worker.js: Landing and its four siblings, the support pages and the sign-in pages).
+const PAGES = ['/', '/blog', '/features', '/pricing', '/manifesto', ...SUPPORT_PATHS, ...AUTH_PATHS];
 // The nine chapters the old /docs had, then names it never had: all are the not-found page now.
 const REMOVED = ['/docs', '/docs/', '/docs/quickstart', '/docs/cli', '/docs/configuration', '/docs/api', '/docs/api/runs', '/docs/byoc',
   '/docs/byoc/private', '/docs/byoc/permissions', '/docs/anything', '/docs/a/b/c', '/Docs', '/DOCS/cli'];

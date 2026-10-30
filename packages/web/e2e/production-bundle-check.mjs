@@ -43,11 +43,13 @@ else for (const [, ref] of readFileSync(renderEntry, 'utf8').matchAll(/(?:src|hr
 const built = new URL(`../${process.env.DIST || 'dist-dev'}/`, import.meta.url);
 const titleOf = file => existsSync(new URL(file, built)) ? readFileSync(new URL(file, built), 'utf8').match(/<title[^>]*>([^<]*)<\/title>/)?.[1] : undefined;
 if (titleOf('index.html') !== 'Rabbit Hole') failures.push(`index.html is titled ${JSON.stringify(titleOf('index.html'))}, not "Rabbit Hole"`);
-for (const page of ['hero', 'blog', 'features', 'pricing', 'manifesto', 'auth', 'team', 'support']) {
+for (const page of ['hero', 'blog', 'features', 'pricing', 'manifesto', 'auth', 'support']) {
   const title = titleOf(`design/rabbit-hole-${page}.html`);
   if (!/^(.+ \| )?Rabbit Hole$/.test(title || '')) failures.push(`design/rabbit-hole-${page}.html is titled ${JSON.stringify(title)}`);
 }
 // The public Docs are removed (owner 2026-10-26): the page must not ship in any build.
 if (existsSync(new URL('design/rabbit-hole-docs.html', built))) failures.push('design/rabbit-hole-docs.html ships, but the public Docs are removed');
+// The public Team page is removed (owner 2026-10-29): /team is the 404 page, so its entry must not ship either.
+if (existsSync(new URL('design/rabbit-hole-team.html', built))) failures.push('design/rabbit-hole-team.html ships, but the public Team page is removed');
 if (failures.length) { console.log(failures.join('\n')); process.exit(1); }
 console.log('ok: the production build ships the Learn app and no dev-only tools');
