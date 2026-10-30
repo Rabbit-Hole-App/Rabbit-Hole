@@ -564,8 +564,8 @@ await check('phone width: the panel stacks under the card and the question stays
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(600);
   await narrow.locator('[data-sketch-toggle]').click();
-  await panelOf(narrowId).waitFor();
-  assert.equal(await panelOf(narrowId).getAttribute('data-panel-mode'), 'stack');
+  // The layout follows the dock's width once the resize has settled (run 41049170532 read it a moment early).
+  await page.locator(`[data-explain-sketch-panel="${narrowId}"][data-panel-mode="stack"]`).waitFor({ timeout: 5000 });
   assert.equal(await narrow.locator('[data-eb-question]').count(), 1);
   const panel = await box(panelOf(narrowId)), surface = await box(page.locator('[data-canvas-surface]'));
   assert.ok(panel.x >= surface.x - 1 && panel.x + panel.width <= surface.x + surface.width + 1, 'no horizontal clipping');
