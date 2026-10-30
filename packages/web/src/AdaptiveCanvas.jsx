@@ -2,7 +2,7 @@ import { equationTransaction } from './inline-equation-apply.js';
 import { CAD_DOWNLOADS, CadViewerTools, cadCanMutate, cadPersistenceChanged, downloadCadArtifact } from './CadCard.jsx';
 import { cadArtifact, cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
 import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock } from './card-layout.js';
@@ -18,6 +18,7 @@ import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
 import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock } from './LearningBlocks.jsx';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
+import { CAPTURE_MAX_BYTES, SketchCaptureError, captureProblem, captureResult, captureSize, pixelRatios, sketchDraftOf } from './sketch-host.js';
 import { gapsFrom, nearestGap, nudgeBy } from './learn-gap-rail.js';
 import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, reorderStep, headsOf, copyStyle, pasteStyle, strokePatch, strokeOf, TEXT_LEVELS, ARROW_KINDS } from './learn-style-panel.js';
 import RichText, { measureHeight, offsetsOf, readRuns } from './RichText.jsx';
@@ -4567,7 +4568,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     } else if (tool === 'eraser') {
       event.preventDefault();
       snapshot();
-      const radius = 12 / view.z;
+      const radius = 12 / (store.zoom || view.z);
       const erase = e => {
         const point = store.local(e);
         store.setStrokes(previous => previous.filter(stroke => !stroke.points.some(q => Math.hypot(q.x - point.x, q.y - point.y) < radius)));
@@ -4611,8 +4612,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // with the card and are never canvas objects.
   const editSketch = (id, key, change) => setBlocks(previous => previous.map(block => (block.id === id
     ? { ...block, sketch: { strokes: [], shapes: [], items: [], ...block.sketch, [key]: change(block.sketch?.[key] || []) } } : block)));
-  const sketchStore = (id, element) => ({
-    local: event => { const box = element.getBoundingClientRect(); return roundPoint({ x: (event.clientX - box.left) / view.z, y: (event.clientY - box.top) / view.z }); },
+  // A sketch in the card scales with the canvas (z = view.z); one docked in the Sketch panel is screen-sized (z = 1).
+  const sketchStore = (id, element, z = view.z) => ({
+    zoom: z,
+    local: event => { const box = element.getBoundingClientRect(); return roundPoint({ x: (event.clientX - box.left) / z, y: (event.clientY - box.top) / z }); },
     setStrokes: change => editSketch(id, 'strokes', change),
     setShapes: change => editSketch(id, 'shapes', change),
     setItems: change => editSketch(id, 'items', change),
@@ -4635,11 +4638,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setDrawTarget(id); setSketchSel([]); setSketchEdit(null); setSelection([]); setMenuAt(null);
   };
   const releaseSketch = () => { drawTargetRef.current = null; setDrawTarget(null); setSketchSel([]); setSketchEdit(null); };
-  const pressSketch = (event, id) => {
+  const pressSketch = (event, id, z = view.z) => {
     // Hand pans the canvas under the card, as it does over any card.
     if (event.button !== 0 || tool === 'hand') return;
     event.stopPropagation();
-    if (drawGesture(event, sketchStore(id, event.currentTarget))) return;
+    if (drawGesture(event, sketchStore(id, event.currentTarget, z))) return;
     setSketchSel([]);
   };
   const selectInSketch = (markId, event = null) => setSketchSel(previous => (event && (event.ctrlKey || event.metaKey || event.shiftKey)
@@ -4656,36 +4659,58 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const releaseSketchRef = useRef(releaseSketch);
   releaseSketchRef.current = releaseSketch;
   // ponytail: a press drags only the shape under it; a multi-mark drag inside a sketch can come later.
-  const moveSketchShape = (event, id, shape) => {
+  const moveSketchShape = (event, id, shape, z = view.z) => {
     snapshot();
     startDrag(event, { x: shape.x1, y: shape.y1 }, (x, y) => {
       const dx = x - shape.x1, dy = y - shape.y1;
       editSketch(id, 'shapes', marks => marks.map(mark => (mark.id === shape.id ? { ...mark, x1: shape.x1 + dx, y1: shape.y1 + dy, x2: shape.x2 + dx, y2: shape.y2 + dy } : mark)));
-    }, view.z);
+    }, z);
   };
   const patchSketch = (id, key, markId, patch) => editSketch(id, key, marks => marks.map(mark => (mark.id === markId ? { ...mark, ...patch } : mark)));
+  // Editable sketch hosts by question id. A stable ref per id (React 19 ref cleanup) counts mounts; when the last
+  // editable host of the toolbar's target unmounts - Close, retarget, a read-only attempt, a submitted answer - the
+  // toolbar draws on the canvas again. A remount in the same commit (inline to docked) registers before the check.
+  const sketchHosts = useRef(new Map());
+  const sketchHostRefs = useRef(new Map());
+  const sketchHostRef = id => {
+    if (!sketchHostRefs.current.has(id)) sketchHostRefs.current.set(id, node => {
+      if (!node) return undefined;
+      const hosts = sketchHosts.current;
+      hosts.set(id, (hosts.get(id) || 0) + 1);
+      return () => {
+        const left = (hosts.get(id) || 1) - 1;
+        if (left) hosts.set(id, left); else hosts.delete(id);
+        queueMicrotask(() => { if (!hosts.has(id) && drawTargetRef.current === id) releaseSketchRef.current(); });
+      };
+    });
+    return sketchHostRefs.current.get(id);
+  };
   // The drawing area an Explain Back card shows (ChallengeBody, through SketchHost): no tools of its own. A press
   // in the capture phase makes it the target before any mark or gesture handles the press. `still` renders a
-  // submitted sketch read-only.
-  const renderSketch = (block, { still = false } = {}) => {
+  // submitted sketch read-only. `docked` renders it for the Sketch panel (plan 2026-10-30-explain-back.md section 3):
+  // screen-sized marks (no canvas zoom), filling the panel's height, live under the hand tool too. Only an editable
+  // render registers as the question's host; the toolbar lets go when the last one unmounts.
+  const renderSketch = (block, { still = false, docked = false, capture = false } = {}) => {
     const { strokes = [], shapes = [], items = [] } = block.sketch || {};
-    const id = block.id, mine = sketchLive?.id === id ? sketchLive : null;
-    const fixed = still || readOnly;
+    const id = block.id, mine = !capture && sketchLive?.id === id ? sketchLive : null;
+    const fixed = still || readOnly || capture;
+    const z = docked || capture ? 1 : view.z;
     const active = !fixed && drawTarget === id;
     const markTool = fixed ? 'none' : tool;
     const marked = markId => active && sketchSel.includes(markId);
     return (
-      <div data-sketch={id} data-sketch-active={active ? '' : undefined}
-        style={{ height: SKETCH_HEIGHT, pointerEvents: fixed || tool === 'hand' ? 'none' : 'auto' }}
+      <div ref={fixed ? undefined : sketchHostRef(id)} {...(capture ? { 'data-sketch-capture': id } : { 'data-sketch': id })} data-sketch-active={active ? '' : undefined}
+        data-sketch-host={fixed ? undefined : docked ? 'docked' : 'inline'}
+        style={{ height: docked || capture ? '100%' : SKETCH_HEIGHT, pointerEvents: fixed || (!docked && tool === 'hand') ? 'none' : 'auto' }}
         className={`relative w-full overflow-hidden rounded-lg border bg-white ${active ? 'border-[#2383e2] ring-2 ring-[#2383e2]/25' : 'border-line'} ${!fixed && (tool === 'pen' || tool === 'highlighter' || tool === 'eraser' || shapeTool) ? 'cursor-crosshair' : ''}`}
         onPointerDownCapture={fixed ? undefined : event => { if (event.button === 0 && tool !== 'hand') holdSketch(id); }}
-        onPointerDown={fixed ? undefined : event => pressSketch(event, id)}
+        onPointerDown={fixed ? undefined : event => pressSketch(event, id, z)}
         // A double-click edits a mark here; it must not open the card's Rabbit Hole.
         onDoubleClick={event => event.stopPropagation()}>
         <svg aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
-          {[...shapes, ...(mine?.shape ? [mine.shape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={markTool} zoom={view.z} selected={marked(shape.id)}
+          {[...shapes, ...(mine?.shape ? [mine.shape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={markTool} zoom={z} selected={marked(shape.id)}
             editing={sketchEdit?.kind === 'text' && sketchEdit.id === shape.id} editPoint={sketchEdit?.point || null} labelEditing={sketchEdit?.kind === 'label' && sketchEdit.id === shape.id}
-            onSelect={selectInSketch} onMoveStart={(event, pressed) => moveSketchShape(event, id, pressed)} onGesture={snapshot} onGestureCancel={cancelGesture}
+            onSelect={selectInSketch} onMoveStart={(event, pressed) => moveSketchShape(event, id, pressed, z)} onGesture={snapshot} onGestureCancel={cancelGesture}
             onResize={(markId, patch) => patchSketch(id, 'shapes', markId, patch)} onDelete={markId => dropFromSketch(id, [markId])}
             onEdit={(markId, point) => setSketchEdit({ id: markId, kind: 'text', point })} onEditorApi={onEditorApi}
             onGrow={(markId, height) => editSketch(id, 'shapes', marks => marks.map(mark => { if (mark.id !== markId || Math.abs(mark.y2 - mark.y1) >= height) return mark; const top = Math.min(mark.y1, mark.y2); return mark.y2 >= mark.y1 ? { ...mark, y2: top + height } : { ...mark, y1: top + height }; }))}
@@ -4694,7 +4719,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             onLabelDone={(markId, runs) => { setSketchEdit(null); snapshot(); const { text, runs: kept } = textPatch(runs); patchSketch(id, 'shapes', markId, { label: text, runs: kept }); }} />)}
           {[...strokes, ...(mine?.stroke ? [mine.stroke] : [])].map(inkPath)}
         </svg>
-        {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={markTool} selected={marked(item.id)} onSelect={selectInSketch} onGesture={snapshot} onEditorApi={onEditorApi}
+        {items.map(item => <CanvasItem key={item.id} item={item} zoom={z} tool={markTool} selected={marked(item.id)} onSelect={selectInSketch} onGesture={snapshot} onEditorApi={onEditorApi}
           onCommit={(markId, runs) => { const before = items.find(mark => mark.id === markId); const patch = textPatch(runs); if (before && !before.fresh && (before.text || '') !== patch.text) snapshot(); patchSketch(id, 'items', markId, { ...patch, fresh: false }); }}
           onMove={(markId, x, y) => patchSketch(id, 'items', markId, { x, y })}
           onResize={(markId, w, h) => patchSketch(id, 'items', markId, { w, h })}
@@ -4704,24 +4729,73 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       </div>
     );
   };
-  // The sketch as the learner sees it, for the grader: a PNG at most 900 px on its long side and 600 KB, or null
-  // (the sketch's words still go with the attempt).
-  const captureSketch = async id => {
-    const node = surface.current?.querySelector(`[data-sketch="${CSS.escape(id)}"]`);
-    if (!node) return null;
-    try {
-      const { toPng } = await import('html-to-image');
-      for (const ratio of [2, 1]) {
-        const png = await toPng(node, { pixelRatio: Math.min(ratio, 900 / Math.max(node.offsetWidth, node.offsetHeight)), cacheBust: false, filter: el => !(el.nodeType === 1 && el.hasAttribute?.('data-sketch-chrome')) });
-        if (png.length <= 600000) return png;
-      }
-    } catch { /* no picture: the words still go */ }
-    return null;
-  };
-  const sketchHost = { render: renderSketch, hold: holdSketch, release: id => { if (drawTargetRef.current === id) releaseSketch(); }, capture: captureSketch, readOnly };
-  // A target whose sketch is gone - hidden, submitted, its card deleted or undone away - hands the toolbar back.
+  // The single host's capture (EB-03.2): the sketch of (questionId, draftId) rendered once, off screen, at the size its
+  // marks need - never whatever [data-sketch] happens to be first on the page, and the same picture whether the panel is
+  // open, closed, resized or docked anywhere. It resolves { image, width, height, marks, text, questionId, draftId } or
+  // rejects with a SketchCaptureError (sketch-host.js) the caller shows; a missing picture is never a silent null.
+  const [captureJob, setCaptureJob] = useState(null); // { block, size, resolve } while one capture renders
+  const captureRoot = useRef(null);
+  const captureQueue = useRef(Promise.resolve());
   useEffect(() => {
-    if (drawTarget && !blocks.some(block => block.id === drawTarget && block.sketchOpen && !block.answer && !block.sketchSubmitted)) releaseSketch();
+    if (!captureJob) return undefined;
+    let second = 0;
+    const first = requestAnimationFrame(() => { second = requestAnimationFrame(() => captureJob.resolve(captureRoot.current?.firstElementChild || null)); });
+    // An unmount mid-capture resolves with no node, so the caller gets capture-busy instead of waiting forever.
+    return () => { cancelAnimationFrame(first); cancelAnimationFrame(second); captureJob.resolve(null); };
+  }, [captureJob]);
+  const captureFor = ({ questionId, draftId = null } = {}) => {
+    const run = async () => {
+      const block = blocksRef.current.find(entry => entry.id === questionId);
+      const problem = captureProblem(block, { questionId, draftId });
+      if (problem) throw new SketchCaptureError(problem, { questionId, draftId });
+      const size = captureSize(block.sketch);
+      const node = await new Promise(resolve => setCaptureJob({ block, size, resolve }));
+      try {
+        if (!node) throw new SketchCaptureError('capture-busy', { questionId, draftId });
+        const { toPng } = await import('html-to-image');
+        for (const pixelRatio of pixelRatios(size)) {
+          const image = await toPng(node, { pixelRatio, cacheBust: false, width: size.w, height: size.h });
+          if (image.length <= CAPTURE_MAX_BYTES) return captureResult({ questionId, draftId, block, image, size });
+        }
+        throw new SketchCaptureError('capture-too-large', { questionId, draftId });
+      } catch (error) {
+        throw error instanceof SketchCaptureError ? error : new SketchCaptureError('capture-failed', { questionId, draftId, cause: error });
+      } finally { setCaptureJob(null); }
+    };
+    // One capture at a time: a second waits for the first's render to finish.
+    const next = captureQueue.current.then(run, run);
+    captureQueue.current = next.catch(() => {});
+    return next;
+  };
+  // The inline (legacy) card's capture: the same picture, or null so its words still go (explain-back-sketch.md).
+  const captureSketch = id => captureFor({ questionId: id }).then(result => result.image, () => null);
+  // Opening the panel for (questionId, draftId) stamps the draft on the sketch and makes it the toolbar's target. The
+  // caller copies or clears marks for a new draft before opening it; open never discards marks.
+  const openSketch = (questionId, { draftId = null } = {}) => {
+    const block = blocksRef.current.find(entry => entry.id === questionId);
+    if (readOnly || !block || block.type !== 'challenge' || block.mode !== 'explain_back') return false;
+    if (draftId && sketchDraftOf(block.sketch) !== draftId) {
+      setBlocks(previous => previous.map(entry => (entry.id === questionId ? { ...entry, sketch: { strokes: [], shapes: [], items: [], ...entry.sketch, draftId } } : entry)));
+    }
+    holdSketch(questionId);
+    return true;
+  };
+  // The panel's mount point: over the canvas, outside its zoom, clear of the tools gutter. A press inside the panel's
+  // chrome stays in the panel (it neither drags the owning card nor gives the toolbar back to the canvas).
+  const [sketchDock, setSketchDock] = useState(null);
+  const portalSketch = children => (sketchDock ? createPortal(
+    <div data-sketch-docked className="pointer-events-none absolute inset-0 [&>*]:pointer-events-auto"
+      onPointerDown={event => event.stopPropagation()} onDoubleClick={event => event.stopPropagation()}
+      onContextMenu={event => event.stopPropagation()}>{children}</div>, sketchDock) : null);
+  const sketchHost = {
+    render: renderSketch, hold: holdSketch, release: id => { if (drawTargetRef.current === id) releaseSketch(); },
+    capture: captureSketch, readOnly,
+    open: openSketch, captureFor, portal: portalSketch, target: drawTarget,
+  };
+  // A target whose card is gone (deleted, undone away) hands the toolbar back; one whose editable host unmounted (closed,
+  // hidden, submitted, read-only attempt) does so through sketchHostRef.
+  useEffect(() => {
+    if (drawTarget && !blocks.some(block => block.id === drawTarget)) releaseSketch();
   }, [blocks, drawTarget]);
   const down = event => {
     // A press on the canvas makes it the drawing target again (an Explain Back sketch stops its own presses).
@@ -5976,6 +6050,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             onBlur={() => done(true, false)} />;
         })()}
       </div>
+      {/* The Explain-back Sketch panel's dock (sketchHost.portal): over the surface, outside its zoom, clear of the tools'
+          column and the contents rail. It takes no pointer itself; only the panel does. */}
+      <div ref={setSketchDock} data-sketch-dock className="pointer-events-none absolute top-[var(--canvas-top,0px)] bottom-0 z-20"
+        style={{ left: toolSide === 'left' ? 84 : 0, right: (edgeInset || 0) + (toolSide === 'right' ? 84 : 0) }} />
+      {/* One sketch pictured for its answer (captureFor), off screen at the size its marks need. */}
+      {captureJob && <div ref={captureRoot} aria-hidden="true" data-sketch-capture-root
+        style={{ position: 'fixed', left: -100000, top: 0, width: captureJob.size.w, height: captureJob.size.h, pointerEvents: 'none' }}>
+        {renderSketch(captureJob.block, { capture: true })}
+      </div>}
       {/* The tools' column: 84px at the side the toolbar docks (left by default; drag the grip to move it), floating over
           the surface from below the page header (--canvas-top) down to the bottom strip's column. Owner, 2026-10-22: it
           is no gutter - it clips nothing and takes no pointer; only its controls do, and the canvas pans, draws and

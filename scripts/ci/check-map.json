@@ -583,6 +583,7 @@
     "packages/web/src/CanvasRefCard.jsx": ["canvas-refs-check.mjs","card-context-menu-check.mjs"],
     "packages/web/src/LinksPanel.jsx": ["canvas-refs-check.mjs","canvas-refs-permissions-check.mjs","panel-header-check.mjs","hide-right-panel-check.mjs","toc-links-search-check.mjs"],
     "packages/web/src/explain-sketch.js": ["explain-back-sketch-check.mjs","canvas-editing-check.mjs"],
+    "packages/web/src/sketch-host.js": ["explain-back-sketch-check.mjs","canvas-editing-check.mjs"],
     "packages/web/src/project-canvases.js": ["project-canvases-check.mjs","project-menu-check.mjs","explore-check.mjs","rabbit-hole-check.mjs"],
     "packages/web/src/RepositoryGraph.jsx": ["repo-browser-check.mjs","workspace-check.mjs","project-menu-check.mjs","project-canvases-check.mjs","shared-canvas-ask-check.mjs","rabbit-hole-check.mjs","next-steps-check.mjs","card-sources-check.mjs","chat-block-check.mjs","scene-graph-check.mjs"],
     "packages/web/src/GraphPanel.jsx": ["repo-browser-check.mjs","workspace-check.mjs","project-menu-check.mjs","project-canvases-check.mjs","shared-canvas-ask-check.mjs","rabbit-hole-check.mjs","next-steps-check.mjs","card-sources-check.mjs","chat-block-check.mjs","scene-graph-check.mjs","repo-canvas-graph-check.mjs","repo-canvas-cards-check.mjs","live-bundle-check.mjs"],
