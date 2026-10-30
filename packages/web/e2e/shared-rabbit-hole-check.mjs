@@ -62,7 +62,9 @@ const sharedView = async source => (await api(null, `/api/learn/boards/shared/${
 const ownerThreads = async source => ((await api(owner, `/api/ask/threads?scope=learn&ref=${source.canvas.name}`)).body?.threads || []).length;
 // The owner's canvases as a viewer could affect them: updated_at is left out, because the owner's own board edit below
 // ("Later addition") is a meaningful change that moves it (docs/features/canvas-metadata.md).
-const ownerCanvases = async () => JSON.stringify((await api(owner, '/api/canvases')).body.canvases.map(({ updated_at, ...canvas }) => canvas));
+// In id order: the list is newest-edit first, so the owner's own later edit reorders it (gate 41056382706: with a third shared
+// canvas the edited one moved ahead of it); what must not change is each canvas, not their order.
+const ownerCanvases = async () => JSON.stringify((await api(owner, '/api/canvases')).body.canvases.map(({ updated_at, ...canvas }) => canvas).sort((a, b) => a.id - b.id));
 const before = { kitchen: await ownerBoard(kitchen), bridges: await ownerBoard(bridges), threads: await ownerThreads(kitchen), canvases: await ownerCanvases() };
 
 // The proof that nothing reached a model provider: a missing API key is not isolation (a keyless worker still calls the
