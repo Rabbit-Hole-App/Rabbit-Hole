@@ -394,3 +394,30 @@ test('the second review view is the artifact\'s own camera orbited 55 degrees ab
   const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js');
   for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /two views: your camera, and the same target seen from about 55 degrees to the side and slightly higher/);
 });
+
+test('the result probe renders a stored accepted result for its owner, through the authorized read and its hash check', { skip: NEEDS_PROPOSAL }, async t => {
+  const { animationRoute, ANIMATION_RESULT_PROBE_PATH } = await import('../src/animation-job.js');
+  const { OWNER, BOARD } = await import('./animation-fixture.js');
+  const s = stack(t, { fixture: gameFixture });
+  const { done } = await s.generated();
+  assert.equal(done.stage, 'ready');
+  const probe = fakeBrowser();
+  const env = { ...s.env, ANIMATION_DIAGNOSTICS: 'true', ANIMATION_JOBS: { idFromName: name => name, get: () => ({ fetch: (url, init) => s.actor.fetch(new Request(url, init)) }) } };
+  const post = (body, who = OWNER, e = env) => animationRoute(ANIMATION_RESULT_PROBE_PATH, new Request(`https://dev.test${ANIMATION_RESULT_PROBE_PATH}`, { method: 'POST', body: JSON.stringify(body) }), e, { identity: async () => who, render: { browser: probe.browser } });
+  const res = await post({ boardId: BOARD.id, resultId: done.resultId });
+  const out = await res.json();
+  assert.deepEqual([res.status, out.ok, out.identity.artifactHash, out.artifact.artifactId], [200, true, done.artifactHash, done.resultId]);
+  assert.deepEqual(out.captures.map(c => c.id), captureManifest(done.artifact).entries.map(e => e.id));
+  assert.ok(probe.state.evaluated.every(r => r.artifactHash === done.artifactHash), 'the page was asked for exactly the stored hash');
+  assert.equal(s.model.calls.length, 3, 'no model call');
+  // Owner-only, own canvas, and off without diagnostics.
+  assert.equal((await post({ boardId: BOARD.id, resultId: done.resultId }, { ...OWNER, email: 'other@example.com' })).status, 404);
+  assert.equal((await post({ boardId: 'board-2', resultId: done.resultId })).status, 404);
+  assert.equal((await post({ boardId: BOARD.id, resultId: done.resultId }, OWNER, { ...env, ANIMATION_DIAGNOSTICS: undefined })).status, 404);
+  assert.equal((await post({ boardId: BOARD.id })).status, 400);
+  // A stored artifact that no longer matches its hash is refused by the read, never rendered.
+  const saved = s.state.data.get(`result:${done.resultId}`);
+  s.state.data.set(`result:${done.resultId}`, { ...saved, artifact: { ...saved.artifact, title: 'Tampered' } });
+  const tampered = await post({ boardId: BOARD.id, resultId: done.resultId });
+  assert.deepEqual([tampered.status, (await tampered.json()).code], [409, 'version_unavailable']);
+});
