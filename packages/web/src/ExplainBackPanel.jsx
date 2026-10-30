@@ -109,7 +109,7 @@ export function SketchPanel({ portal, surface, ownerId, ownerTitle, status, widt
   }, [dock]);
   // The owning question as it is on screen now (its width at the canvas zoom, its bottom while stacked).
   const ownerRect = () => surface?.querySelector(`[data-block-id="${CSS.escape(ownerId)}"]`)?.getBoundingClientRect() || null;
-  const layout = panelLayout(size.w, dragWidth ?? savedWidth, ownerRect()?.width);
+  const layout = panelLayout(size.w, dragWidth ?? savedWidth);
   // Stacked, the panel sits under the whole card and follows it as the canvas pans or zooms (one frame read while stacked).
   const [cardBottom, setCardBottom] = useState(null);
   useEffect(() => {
