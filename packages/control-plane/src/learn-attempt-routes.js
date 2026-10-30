@@ -70,6 +70,9 @@ export async function attemptRoute(path, req, env, deps = {}) {
   if (method === 'GET' || method === 'HEAD' || (named === 'assets' && !assetId)) {
     body = { app: query.get('app'), board: query.get('board'), cardId: query.get('cardId') };
   } else {
+    // A declared length that cannot fit (UTF-8 is at most 3 bytes per UTF-16 unit) is refused before anything is read.
+    const declared = Number(req.headers.get('content-length'));
+    if (declared > 3 * (ATTEMPT_BODY_CHARS + SNAPSHOT_LIMITS.totalChars)) return tooLarge(ATTEMPT_BODY_CHARS, declared);
     const raw = await req.text();
     if (raw.length > ATTEMPT_BODY_CHARS + SNAPSHOT_LIMITS.totalChars) return tooLarge(ATTEMPT_BODY_CHARS, raw.length);
     try { body = JSON.parse(raw); } catch { return json({ error: 'Invalid JSON' }, 400); }
@@ -100,7 +103,7 @@ export async function attemptRoute(path, req, env, deps = {}) {
     if (named === 'drafts') return json({ draft: method === 'GET' ? await readDraft(env, actor, body.cardId) : await saveDraft(env, actor, body) });
     if (list) return json({ attempts: await listAttempts(env, actor, body.cardId) });
     if (method === 'GET') return json(await readAttempt(env, actor, id));
-    if (named === 'bind') return json(await bindExplainBackCard(env, actor, { cardId: body.cardId, prompt: body.prompt, expects: body.expects ?? [] }));
+    if (named === 'bind') return json(await bindExplainBackCard(env, actor, { cardId: body.cardId, prompt: body.prompt, expects: body.expects ?? [] }, { email: access.email ?? null }));
     handle = reassess
       ? await requestReassessment(env, actor, id, body.requestKey, { dispute: body.dispute === true })
       : await acceptAttempt(env, actor, {

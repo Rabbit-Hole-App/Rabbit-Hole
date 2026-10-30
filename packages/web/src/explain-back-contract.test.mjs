@@ -111,7 +111,7 @@ test('a voice note from the recorder maps to a ready voice ref; transcripts are 
   const ref = voiceEvidence(note, 'ev_v9');
   assert.equal(validateExplainBackAnswer({ v: 1, kind: 'explain_back', text: '', voice: [ref], resources: [], assistance: [] }).ok, true);
   assert.equal(ref.ext, undefined);
-  const t = { transcriptId: 'tr_1', assetId: 'aa_voice00000009', hash: 'a'.repeat(64), text: 'the force points inward', segments: [{ startMs: 0, endMs: 2100, text: 'the force points inward' }], provider: 'fixture', model: 'fixture-stt', uncertainty: 0.1, version: 1, status: 'ready', converterVersion: 'stt-v1', derivativeHash: 'b'.repeat(64) };
+  const t = { transcriptId: 'tr_1', assetId: 'aa_voice00000009', hash: 'a'.repeat(64), text: 'the force points inward', segments: [{ start: 0, end: 2.1, text: 'the force points inward' }], provider: 'fixture', model: 'fixture-stt', uncertainty: 0.1, version: 1, status: 'ready', converterVersion: 'stt-v1', derivativeHash: 'b'.repeat(64) };
   assert.deepEqual(validateTranscript(t), { ok: true, errors: [] });
   assert.equal(validateTranscript({ ...t, assetId: 'fs_board_file' }).ok, false);
   assert.equal(validateTranscript({ ...t, hash: 'x' }).ok, false);

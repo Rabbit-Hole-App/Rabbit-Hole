@@ -132,3 +132,28 @@ test('history lists only this learner\'s attempts at this card, newest first, wi
   assert.deepEqual((await callList(w.env, BEN, CARD)).body.attempts, []);
   assert.equal((await callList(w.env, ANA, 'bad id!')).body.error, 'invalid_card');
 });
+
+test('review findings: a saved card binds its own rubric; a replay survives bad snapshots; an oversize declared body is refused unread', async t => {
+  const w = world(t);
+  const { boardWith } = await import('./learn-rich-fixtures.js');
+  boardWith(w.sqlite, [{ id: CARD, type: 'challenge', mode: 'explain_back', prompt: PROMPT, expects: EXPECTS }, { id: 'card-note', type: 'note', text: 'x' }]);
+  const easy = await bind(w.env, ANA, { expects: ['say anything'] });
+  const real = await bind(w.env, ANA, { expects: EXPECTS });
+  assert.deepEqual(easy.body, real.body, 'the client cannot replace the saved rubric');
+  assert.equal(easy.body.criterionRefs.length, 2);
+  const row = w.sqlite.prepare('SELECT checkpoint_json FROM learn_activities WHERE id = ?').get(easy.body.activityId);
+  assert.deepEqual(JSON.parse(row.checkpoint_json).explainBack, { cardId: CARD, source: 'board' });
+  assert.equal((await bind(w.env, ANA, { cardId: 'card-note' })).body.error, 'invalid_card');
+  const unsaved = await bind(w.env, ANA, { cardId: 'card-new-1' });
+  assert.equal(JSON.parse(w.sqlite.prepare('SELECT checkpoint_json FROM learn_activities WHERE id = ?').get(unsaved.body.activityId).checkpoint_json).explainBack.source, 'client');
+
+  const first = await submit(w.env, real.body, answer(), ANA, 'eb-replay-snap-1');
+  const again = await call(w.env, ANA, 'POST', '/api/learn/tutor/attempts', { activityId: real.body.activityId, activityRevision: 1, submissionKey: 'eb-replay-snap-1', submittedContent: answer(), snapshots: 'not a list' }, never);
+  assert.deepEqual([again.status, again.body.replayed, again.body.attempt.attemptId], [200, true, first.body.attempt.attemptId]);
+
+  let read = false;
+  const req = new Request('https://app.test/api/learn/tutor/attempts', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': String(10 * 1024 * 1024) }, body: '{}' });
+  Object.defineProperty(req, 'text', { value: async () => { read = true; return '{}'; } });
+  const res = await attemptRoute('/api/learn/tutor/attempts', req, w.env, { authorize: async () => ({ kind: 'canvas', org: ANA.org, user_id: ANA.userId }) });
+  assert.deepEqual([res.status, (await res.json()).error, read], [413, 'submission_too_large', false]);
+});
