@@ -20,7 +20,7 @@
 //   * The rating is learn-explain-rating.js over the current, validated judgements only. The whole review is checked with
 //     validateExplainBackReview before it is stored; an invalid one is stored as failed, with no observation.
 import { EXPLAIN_BACK_KIND, REVIEW_VERSION, answerEvidence, validateExplainBackReview } from '../../web/src/explain-back-contract.js';
-import { ownActivity, readAttempt } from './learn-attempt-store.js';
+import { CLAIM_TTL_MS, ownActivity, readAttempt } from './learn-attempt-store.js';
 import { readAttemptAsset, readFrozenSnapshot, transcriptStore } from './learn-attempt-assets.js';
 import { RATING_CALCULATION, rateAttempt, ratingsComparable } from './learn-explain-rating.js';
 import { ensureTranscript, openaiTranscriber } from './learn-media.js';
@@ -29,6 +29,7 @@ import { TIMELINE_VERSION, timelineSteps } from '../../web/src/sketch-recording.
 import { EVALUATOR_TIMEOUT_MS, LIMITS, callEvaluator, clip, parseJsonReply, readCriteria, rubricOf, settle, spansOf } from './learn-rubric-assessment.js';
 
 export const EXPLAIN_EVALUATOR = 'tutor-explain-back-v1';
+export const PREPARATION_MARGIN_MS = 15000, COMMIT_MARGIN_MS = 10000; // of the attempt store's CLAIM_TTL_MS (60 s)
 const isObj = v => v != null && typeof v === 'object' && !Array.isArray(v);
 const RANK = { not_met: 0, partial: 1, met: 2 };
 const JUDGMENT = { met: 'demonstrated', partial: 'partly_demonstrated', unclear: 'unassessed' };
@@ -182,10 +183,10 @@ export async function readEvidence(answer, ctx) {
     coverage.push(...resolved.coverage);
     parts.push(...got.parts);
     blocks.push(...got.blocks);
-    // A quote in a resource cites that input (and Group member) at the excerpt's own locator: page, cell, range.
-    for (const f of got.fields) {
-      const item = resolved.items.find(i => (i.memberId ? `${i.evidenceId}/${i.memberId}` : i.evidenceId) === f.field);
-      fields.push({ ...f, resource: true, excerpts: item?.excerpts ?? [] });
+    // Each excerpt is its own quotable field, so a quote cites one unit (page, cell, range) at offsets into that unit's text.
+    // A quote that crosses units or includes a unit's label is found in none, so it is not evidence and is never cited.
+    for (const item of resolved.items) {
+      item.excerpts.forEach((ex, i) => fields.push({ field: `${item.evidenceId}${item.memberId ? `/${item.memberId}` : ''}#${i}`, text: ex.text, resource: { evidenceId: item.evidenceId, memberId: item.memberId, locator: ex.locator } }));
     }
   }
   return { parts, fields, blocks, coverage, sketchId, recording };
@@ -346,9 +347,8 @@ function timeOf(span, fields) {
 function citeSpan(s, fields) {
   const f = fields.find(x => x.field === s.field);
   if (!f?.resource) return { evidenceId: s.field, locator: { start: s.start, end: s.end, ...timeOf(s, fields) } };
-  const [evidenceId, memberId] = s.field.split('/');
-  const excerpt = f.excerpts.find(e => e.text.includes(s.quote));
-  return { evidenceId, ...(memberId ? { memberId } : {}), locator: { start: s.start, end: s.end, ...(excerpt?.locator ?? {}) } };
+  const { evidenceId, memberId, locator } = f.resource;
+  return { evidenceId, ...(memberId ? { memberId } : {}), locator: { ...locator, start: s.start, end: s.end } };
 }
 // spans: quotes found in a field; marks: citations of non-quoted evidence (a Sketch part, a recording step), already checked.
 const citationsOf = (spans, marks = [], fields = []) => [...spans.map(s => citeSpan(s, fields)), ...marks];
@@ -400,7 +400,7 @@ export function readExplainReply(reply, { criteria, fields, assistance, baseline
 
 /** Assess a saved Explain-back attempt. answer is explainBackOf(attempt). Never throws past a failed call. */
 export async function assessExplainBack(env, actor, attempt, answer, criteria, deps = {}, assessmentId = null) {
-  const started = Date.now();
+  const clock = deps.now ?? Date.now, started = clock();
   // A reassessment reads the same extractions its attempt's last review read (R's resolver pins).
   const last = (await readAttempt(env, actor, attempt.attemptId)).assessments.findLast(a => a.status === 'completed' && a.provenance?.review)?.provenance.review;
   const pins = Object.fromEntries((last?.coverage ?? []).filter(c => c.derivative).map(c => [c.memberId ? `${c.evidenceId}/${c.memberId}` : c.evidenceId, c.derivative]));
@@ -412,9 +412,13 @@ export async function assessExplainBack(env, actor, attempt, answer, criteria, d
   if (!parts.length) return { ...base, status: 'unavailable', reason: 'no_readable_evidence', provenance };
   const request = explainRequest({ criteria, activity: activity?.revision === attempt.activityRevision ? activity : null, parts, coverage, baseline, blocks });
   // One call either way: the visual role when an image goes with the words, the rubric role otherwise.
-  // Preparation (transcription) spends part of the claim: the evaluator gets what is left of its bound, so the operation
-  // still settles before the claim expires to unknown.
-  const timeoutMs = deps.timeoutMs ?? Math.max(5000, EVALUATOR_TIMEOUT_MS - (Date.now() - started));
+  // Preparation (transcription, resource reads) spends part of the claim. With less than PREPARATION_MARGIN_MS of the claim
+  // left, no evaluator is called: the claim would expire to unknown while it ran and its paid result would be dropped. The
+  // operation fails as preparation_slow (the transcript is stored, so a deliberate retry does not repeat it). Otherwise the
+  // evaluator gets what is left, less a margin to commit.
+  const left = CLAIM_TTL_MS - (clock() - started);
+  if (left < PREPARATION_MARGIN_MS) return { ...base, status: 'failed', reason: 'preparation_slow', provenance: { ...provenance, preparationMs: clock() - started } };
+  const timeoutMs = deps.timeoutMs ?? Math.min(EVALUATOR_TIMEOUT_MS, left - COMMIT_MARGIN_MS);
   const out = await callEvaluator(env, actor, blocks.length ? 'tutor_visual' : 'tutor_rubric', request, 'explain_back', { ...deps, timeoutMs });
   provenance.calls.push(out.call);
   if (out.status) return { ...base, status: out.status, reason: out.reason, provenance };

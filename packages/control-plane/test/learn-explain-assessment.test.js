@@ -14,6 +14,7 @@ import { ANA, BEN, call, never, submit, world } from './learn-attempt-fixture.js
 import { dataOf, replying } from './learn-rich-fixtures.js';
 import { DERIVATIVE, explainEvidenceFixture } from './learn-explain-evidence-fixture.js';
 import { putAttemptAsset } from '../src/learn-attempt-assets.js';
+import { locLabel } from '../src/file-context.js';
 
 // The card's key ideas; D's binding (bindExplainBackCard) makes each one a criterion k_<sha256(idea)>, version 1, rubric eb-v1.
 const RV = EB_RUBRIC;
@@ -580,4 +581,35 @@ test('recording: sampling and missing narration are disclosed and never become a
   const recording = await storeRecording(w, CORRECTED);
   const other = await send(w, { text: A1, recording }, { readAttemptAsset: async () => ({ bytes: bytesOf(DIRECT), mime: 'application/json' }), callModel: replying(reply1).callModel });
   assert.deepEqual([reviewOf(other).coverage[1].status, reviewOf(other).coverage[1].note], ['unavailable', 'hash_mismatch']);
+});
+
+test('resource citations: offsets are into one unit; a quote with a unit label or across units is not evidence', async t => {
+  const w = await resourceWorld(t);
+  const page2 = 'For small angles the period is T = 2*pi*sqrt(L/g), independent of amplitude.';
+  const withLabel = `[${locLabel({ page: 2 })}] For small angles`;
+  const stub = replying({ criteria: [
+    { ...j(F, 'met', ['independent of amplitude']), referenceOnly: false },
+    { ...j(V, 'met', [withLabel, 'swings under gravity. For small angles']), referenceOnly: false },
+  ] });
+  const r = await send(w, w.content, { callModel: stub.callModel, evidenceDeps: w.fx.deps });
+  assert.ok(JSON.stringify(dataOf(stub.calls[0].body).current.evidence).includes(withLabel), 'the label is in what the evaluator saw');
+  const [cite] = reviewOf(r).judgments.find(x => x.criterionId === F).citations;
+  assert.equal(cite.locator.page, 2);
+  assert.equal(page2.slice(cite.locator.start, cite.locator.end), 'independent of amplitude', 'offsets into that page');
+  assert.deepEqual(r.body.assessment.provenance.rejected.map(x => [x.criterionId, x.reason]), [[V, 'unsupported_evidence']], 'a quote found in no single unit is not evidence');
+  valid(r, w.content);
+});
+
+test('slow preparation: with under 15 s of the claim left, no evaluator is called and the operation fails as preparation_slow', async t => {
+  const w = await ebWorld(t);
+  for (const [elapsed, called] of [[46000, false], [44000, true]]) {
+    let calls = 0, ticks = 0;
+    const now = () => (ticks++ === 0 ? 1_000_000 : 1_000_000 + elapsed); // the first reading starts the clock
+    const r = await send(w, { text: `${A2} ${elapsed}` }, { now, callModel: async (...a) => { calls += 1; return replying(reply2).callModel(...a); } });
+    assert.equal(calls > 0, called, String(elapsed));
+    if (!called) {
+      assert.deepEqual([r.body.assessment.status, r.body.assessment.reason, r.body.assessment.observations.length], ['failed', 'preparation_slow', 0]);
+      assert.equal(r.body.assessment.provenance.preparationMs, elapsed);
+    } else assert.equal(r.body.assessment.status, 'completed');
+  }
 });
