@@ -5,6 +5,7 @@
 // never assessment quality.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { validateExplainBackReview } from '../../web/src/explain-back-contract.js';
 import { readAttempt } from '../src/learn-attempt-store.js';
 import { assessAttempt } from '../src/learn-assessment.js';
@@ -230,4 +231,79 @@ test('no duplicate calls: a replayed submission and a re-read never call again; 
   assert.equal(reread.body.assessment.status, 'unknown');
   await assessAttempt(w.env, ANA, slow.body.attempt.attemptId, { callModel: hang });
   assert.equal(calls, 1);
+});
+
+// Static Sketch (slice 3a). The asset reader stands in for D's private attempt-asset read; it returns R's capture structure.
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+const PNG_SHA = createHash('sha256').update(PNG).digest('hex');
+const SKETCH = { evidenceId: 'ev_sketch_1', role: 'sketch', media: 'image', state: 'ready', assetId: 'aa_sketch0000001', revision: 1, hash: PNG_SHA, mime: 'image/png', bytes: PNG.length };
+const LABELS = 'arrow label: "F"\ntext: "centre"';
+const reader = (over = {}) => {
+  const reads = [];
+  return { reads, readAttemptAsset: async (_env, actor, attempt, e) => { reads.push({ actor, attemptId: attempt.attemptId, assetId: e.assetId }); return e.assetId === SKETCH.assetId ? { bytes: PNG, mime: 'image/png', marks: 3, text: LABELS, ...over } : null; } };
+};
+const look = (criterionId, perception, fit, extra = {}) => ({ ...j(criterionId, fit, extra.evidence ?? [], extra), perception, sketchEvidence: extra.sketchEvidence ?? [], question: extra.question ?? null });
+
+test('sketch only: the exact hash-checked image and its marks go to one visual call; perception gates judgement', async t => {
+  const w = await ebWorld(t);
+  const r0 = reader();
+  const stub = replying({ sketchReadable: true, criteria: [
+    look('force', 'clear', 'met', { reasoning: 'supported', sketchEvidence: ['arrow labelled F pointing to the centre'], evidence: ['centre'] }),
+    look('velocity', 'ambiguous', 'not_met', { question: 'Which arrow shows the velocity?' }),
+  ], feedback: { strengths: { text: 'Your force arrow points to the centre.', evidence: ['arrow label: "F"'] }, revisit: { criterionId: 'velocity', version: 1, text: 'Add the velocity arrow.', evidence: [] }, next: 'Draw where the ball goes if the string breaks.' } });
+  const r = await send(w, { sketch: SKETCH }, { callModel: stub.callModel, readAttemptAsset: r0.readAttemptAsset });
+  assert.equal(stub.calls.length, 1);
+  assert.deepEqual(r0.reads.map(x => x.assetId), [SKETCH.assetId], 'read once');
+  const body = stub.calls[0].body;
+  assert.match(body.system, /An unreadable or ambiguous sketch is never evidence of a misconception/);
+  const image = body.messages[0].content.find(b => b.type === 'image');
+  assert.deepEqual(image.source, { type: 'base64', media_type: 'image/png', data: PNG.toString('base64') }, 'the exact submitted bytes');
+  assert.deepEqual(dataOf(body).current.evidence, [{ id: 'ev_sketch_1', kind: 'sketch', image: 'attached below', marks: 3, labels: LABELS }]);
+  const review = reviewOf(r);
+  valid(r, { sketch: SKETCH });
+  assert.deepEqual(review.coverage, [{ evidenceId: 'ev_sketch_1', status: 'read', inspected: { image: true, sha256: PNG_SHA, bytes: PNG.length } }]);
+  assert.deepEqual(review.judgments.map(x => [x.criterionId, x.judgment, x.question ?? null]), [['force', 'demonstrated', null], ['velocity', 'unassessed', 'Which arrow shows the velocity?']]);
+  assert.deepEqual(review.judgments[0].citations, [{ evidenceId: 'ev_sketch_1', locator: { start: LABELS.indexOf('centre'), end: LABELS.indexOf('centre') + 6 } }, { evidenceId: 'ev_sketch_1', locator: { part: 'arrow labelled F pointing to the centre' } }]);
+  assert.equal(r.body.assessment.observations.find(o => o.criterionId === 'velocity').reason, 'perception_ambiguous', 'never not met or a misconception');
+  assert.deepEqual([review.rating.status, review.rating.reason], ['unrated', 'criteria_unassessed']);
+});
+
+test('text and sketch: one call; words can meet a criterion the sketch leaves ambiguous; marks alone earn nothing', async t => {
+  const w = await ebWorld(t);
+  const r0 = reader(), stub = replying({ criteria: [
+    look('force', 'clear', 'met', { reasoning: 'supported', evidence: ['The net force points toward the centre: without it the ball would keep going straight'], sketchEvidence: ['arrow labelled F'] }),
+    look('velocity', 'ambiguous', 'met', { evidence: ['The velocity is tangent to the circle'] }),
+  ], feedback: reply2.feedback });
+  const r = await send(w, { text: A2, sketch: SKETCH }, { callModel: stub.callModel, readAttemptAsset: r0.readAttemptAsset });
+  assert.equal(stub.calls.length, 1);
+  assert.deepEqual(dataOf(stub.calls[0].body).current.evidence.map(p => p.id), ['text', 'ev_sketch_1']);
+  assert.deepEqual(fits(r), { force: 'met', velocity: 'met' });
+  assert.deepEqual(reviewOf(r).judgments[1].citations.map(c => c.evidenceId), ['text'], 'an unclear sketch part is not cited');
+  assert.equal(reviewOf(r).rating.score, 10);
+  valid(r, { text: A2, sketch: SKETCH });
+  // A met judgement that names no evidence at all is rejected: marks alone earn nothing.
+  const bare = await send(w, { sketch: SKETCH }, { callModel: replying({ criteria: [look('force', 'clear', 'met', { reasoning: 'supported' }), look('velocity', 'clear', 'met')] }).callModel, readAttemptAsset: r0.readAttemptAsset });
+  assert.deepEqual(bare.body.assessment.provenance.rejected.map(x => x.reason), ['unsupported_evidence', 'unsupported_evidence']);
+});
+
+test('a missing, altered or unreadable sketch is explicit unassessed coverage, never a judgement', async t => {
+  const w = await ebWorld(t);
+  // No reader (D's asset read not wired), other bytes than submitted, an unsupported type: the image is never sent.
+  for (const [deps, status, note] of [[{}, 'unavailable', 'asset_unavailable'], [reader({ bytes: new Uint8Array([1, 2, 3]) }), 'unavailable', 'hash_mismatch'], [reader({ mime: 'image/svg+xml' }), 'unsupported', 'image_not_supported']]) {
+    const only = await send(w, { sketch: SKETCH }, { readAttemptAsset: deps.readAttemptAsset });
+    assert.deepEqual([only.body.assessment.status, only.body.assessment.reason], ['unavailable', 'no_readable_evidence'], note);
+    assert.equal(only.body.assessment.provenance.coverage[0].note, note);
+    const stub = replying(reply1);
+    const withText = await send(w, { text: A1, sketch: SKETCH }, { callModel: stub.callModel, readAttemptAsset: deps.readAttemptAsset });
+    assert.equal(typeof stub.calls[0].body.messages[0].content, 'string', 'text-only request, no image');
+    assert.deepEqual(dataOf(stub.calls[0].body).current.notInspected, [{ id: 'ev_sketch_1', status, note }]);
+    assert.equal(reviewOf(withText).rating.reason, 'evidence_incomplete');
+    assert.equal(fits(withText).force, 'unclear', 'the unread sketch might hold it');
+  }
+  // The evaluator cannot read the image at all: every sketch-only judgement is unassessed, coverage partial.
+  const unreadable = await send(w, { sketch: SKETCH }, { callModel: replying({ sketchReadable: false, criteria: [look('force', 'clear', 'not_met', { contradicted: true }), look('velocity', 'clear', 'met', { sketchEvidence: ['an arrow'] })] }).callModel, readAttemptAsset: reader().readAttemptAsset });
+  assert.deepEqual(Object.values(fits(unreadable)), ['unclear', 'unclear']);
+  assert.deepEqual(reviewOf(unreadable).coverage.map(c => [c.status, c.note]), [['partial', 'sketch_unreadable']]);
+  assert.equal(reviewOf(unreadable).rating.status, 'unrated');
+  valid(unreadable, { sketch: SKETCH });
 });
