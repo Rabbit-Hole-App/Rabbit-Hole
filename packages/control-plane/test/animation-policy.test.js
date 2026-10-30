@@ -13,7 +13,9 @@ test('each role is its own task on /explain\'s pinned model and token ceilings; 
   for (const [role, explain] of [['brief', 'explain_brief'], ['author', 'explain_author'], ['review', 'explain_review'], ['repair', 'explain_repair']]) {
     const r = animationRole(role, TASKS);
     assert.equal(r.task, `animation_${role}`);
-    assert.deepEqual([r.model, r.maxTokens, r.fallback, r.picker], [LEARN_TASKS[explain].model, LEARN_TASKS[explain].maxTokens, 'none', false]);
+    // The same pinned model as /explain; ceilings at least /explain's (author and repair raised after accept-5's output-limit stop).
+    assert.deepEqual([r.model, r.maxTokens, r.fallback, r.picker], [LEARN_TASKS[explain].model, TASKS[`animation_${role}`].maxTokens, 'none', false]);
+    assert.ok(r.maxTokens >= LEARN_TASKS[explain].maxTokens);
   }
   const body = animationRequest({}, 'review', { system: 's', tool, content: 'x' }, TASKS);
   assert.deepEqual([body.max_tokens, body.tool_choice, 'model' in body, 'thinking' in body], [3000, { type: 'auto' }, false, false]);

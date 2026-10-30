@@ -453,11 +453,12 @@ export class AnimationJobs {
     try { out = await callAnimationRole(this.env, role, spec, { callModel: this.transport(job, role), tasks: this.tasks }); } catch (e) { error = e; } finally { this.active.delete(job.id); }
     await this.locked(async () => {
       const current = await this.get(job.id), call = current.calls.find(c => c.key === key);
-      const usage = out?.usage, cost = usage ? costUsd({ model: out.identity.served || out.identity.requested, ...usage }) : null;
+      // A reply refused after the provider answered (invalid turn, output limit) was billed: its usage is recorded like a settled call's.
+      const usage = out?.usage ?? error?.billed?.usage, cost = usage ? costUsd({ model: out?.identity.served || error?.billed?.served || out?.identity.requested || 'claude-opus-5-5', ...usage }) : null;
       // A refusal (provider cap or overload, our own admission) ran nothing and cost nothing: it does not use the ceiling.
       const refused = ['provider_unavailable', 'spend_refused'].includes(error?.code);
       if (refused) { current.counts[role]--; current.bounds[phase] -= call.boundMicros; }
-      Object.assign(call, { requested: out?.identity.requested ?? null, served: out?.identity.served ?? error?.served ?? null, status: refused ? 'refused' : error ? 'failed' : 'settled',
+      Object.assign(call, { requested: out?.identity.requested ?? null, served: out?.identity.served ?? error?.served ?? error?.billed?.served ?? null, status: refused ? 'refused' : error ? 'failed' : 'settled', stopReason: out?.stopReason ?? error?.billed?.stopReason ?? null,
         costMicros: refused ? 0 : toMicros(cost), inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: error?.code || (error ? 'failed' : null) });
       if (current.inFlight?.key === key) current.inFlight = null;
       countStage(current.timing, { calls: 1, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens, images });
@@ -556,7 +557,7 @@ export class AnimationJobs {
       if (out.accepted === true) return this.accept(job);
       return this.repairOrStop(job, out);
     } else if (stage === 'repairing') {
-      job.candidates.push({ repairs: job.repairs, operation: out.operation || null, progress: out.progress !== false, ...(out.draft ? { draftHash: await hash16(out.draft) } : {}), ...(out.rejected ? { rejected: out.rejected } : {}) });
+      job.candidates.push({ repairs: job.repairs, operation: out.operation || null, progress: out.progress !== false, ...(out.draft ? { draftHash: await hash16(out.draft), hasProgram: !!out.draft.program } : {}), ...(out.inputKeys ? { inputKeys: out.inputKeys } : {}), ...(out.artifactKeys ? { artifactKeys: out.artifactKeys } : {}), ...(out.rejected ? { rejected: out.rejected } : {}) });
       if (out.rejected) return this.stopWith(job, 'unsupported_repair', 'spec', 'This animation needs a change the repair step cannot make. Edit the request and try again.');
       if (out.progress === false || !out.draft) return this.stopWith(job, 'no_progress', 'spec', 'The animation could not be repaired. Edit the request and try again.');
       Object.assign(job, { draft: out.draft, artifact: null, artifactHash: null, captures: null, coverage: null });

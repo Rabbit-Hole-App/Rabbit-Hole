@@ -9,7 +9,7 @@ import { canonicalJson, sha256Hex } from '../../web/src/explain-program/contract
 import { ANIMATION_AUTHOR_SYSTEM, authorTool } from './agents/animation-author.js';
 import { enabledCapabilities } from './animation-brief.js';
 import { AnimationPolicyError } from './animation-policy.js';
-import { fitProblems } from './animation-repair.js';
+import { fitProblems, withProgram } from './animation-repair.js';
 import { modelEvidence } from './explain-evidence.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -25,7 +25,7 @@ export async function authorStage(job, ctx) {
     return { gap: { capability: 'animation', needs: ['other'], source: 'author', reason: String(input.gap.reason).slice(0, 300), message: 'This animation needs something that is not available yet, so edit the request.' } };
   }
   if (input.kind !== 'artifact' || !plain(input.artifact)) throw new AnimationPolicyError('invalid_turn', 'The author returned no artifact.');
-  return { draft: input.artifact };
+  return { draft: withProgram(input) };
 }
 
 // The host's seal: the draft's own fields, with every binding field set here. A draft's own value for one of them is replaced.
