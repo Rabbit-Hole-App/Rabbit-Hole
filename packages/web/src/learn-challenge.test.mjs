@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseVerdict, stripVerdict } from '../../control-plane/src/agents/learn-grade.js';
 import { hasMarks, sketchText } from './explain-sketch.js';
+import { HISTORY_KEPT, legacyView, pastAttempt } from './explain-back-view.js';
 
 // LearningBlocks.jsx cannot load under node, so these run ChallengeBody's real
 // commit, retry and status line from its source (grading-8, grading-9,
@@ -18,11 +19,17 @@ const piece = start => {
 const statusLine = body.match(/\n  const waiting = [^\n]*\n/)?.[0] || '';
 const moduleSets = (source.match(/^const gradingAttempts = new Set\(\);$/m) || [''])[0];
 
-// host stands in for the canvas's SketchHost (docs/features/explain-back-sketch.md); null is a card with no sketch.
+// ExplainBackPanel.jsx's capture adapter cannot load under node either: its source, run as it is.
+const panelSource = readFileSync(new URL('./ExplainBackPanel.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const adapter = panelSource.slice(panelSource.indexOf('export const CAPTURE_FAILED'), panelSource.indexOf('\n}\n', panelSource.indexOf('export async function sketchCapture')) + 3).replace(/^export /gm, '');
+const { sketchCapture } = new Function(`${adapter}\nreturn { sketchCapture };`)();
+
+// host stands in for the canvas's SketchHost (packages/web/src/sketch-host.js); null is a card with no sketch.
 function card(block, onGrade, host = null) {
-  const make = new Function('React', 'parseVerdict', 'stripVerdict', 'hasMarks', 'sketchText', 'sketchHost', `${moduleSets}
+  const make = new Function('React', 'parseVerdict', 'stripVerdict', 'hasMarks', 'sketchText', 'sketchHost', 'sketchCapture', 'pastAttempt', 'HISTORY_KEPT', `${moduleSets}
     return function mount(initial, onGrade) {
-      const state = { block: initial, draft: '' };
+      const state = { block: initial, draft: '', notice: '' };
+      const setNotice = value => { state.notice = value; };
       const latest = { current: initial }, inFlight = { current: false };
       const onChange = next => { state.block = next; latest.current = next; };
       const setDraft = next => { state.draft = typeof next === 'function' ? next(state.draft) : next; };
@@ -39,7 +46,7 @@ function card(block, onGrade, host = null) {
       };
       return { state, render, type: text => { state.draft = text; } };
     };`);
-  return make(null, parseVerdict, stripVerdict, hasMarks, sketchText, host)(block, onGrade);
+  return make(null, parseVerdict, stripVerdict, hasMarks, sketchText, host, sketchCapture, pastAttempt, HISTORY_KEPT)(block, onGrade);
 }
 const challenge = { id: 'c1', type: 'challenge', prompt: 'Why exp?', expects: ['positive'], answer: null };
 const held = () => { let release; const promise = new Promise(resolve => { release = resolve; }); return { promise, release }; };
@@ -122,7 +129,7 @@ test('a sketch alone is submitted: one grade call with the picture and its words
   assert.deepEqual([c.state.block.answer, c.state.block.sketchSubmitted, c.state.block.grading], ['', true, false]);
 });
 
-test('text and a sketch are one submission; Explain again keeps both and the resubmit is a new attempt', async () => {
+test('text and a sketch are one submission; Revise answer keeps both, files the first attempt in history, and the resubmit is a new attempt', async () => {
   const calls = [], h = host();
   const c = card(sketchCard, async (committed, answer, onDelta, sketch) => { calls.push({ id: committed.attemptId, answer, sketch }); onDelta('VERDICT: partial\nCloser.'); }, h);
   c.type('the id picks a row');
@@ -132,8 +139,12 @@ test('text and a sketch are one submission; Explain again keeps both and the res
   assert.ok(calls[0].sketch);
   c.render().retry();
   assert.equal(c.state.draft, 'the id picks a row', 'the text comes back to the field');
-  assert.deepEqual([c.state.block.sketchOpen, c.state.block.sketchSubmitted, c.state.block.answer], [true, false, null], 'the sketch opens again, editable');
+  // Plan 2026-10-30 section 9: the submitted attempt and its review stay selectable; the Sketch panel is not forced open.
+  assert.deepEqual([c.state.block.sketchOpen, c.state.block.sketchSubmitted, c.state.block.answer], [sketchCard.sketchOpen, false, null], 'the sketch stays, editable');
   assert.deepEqual(c.state.block.sketch, sketchCard.sketch, 'nothing of the drawing is erased');
+  assert.deepEqual(c.state.block.history, [{ attemptId: calls[0].id, answer: 'the id picks a row', verdict: 'VERDICT: partial\nCloser.', sketchSubmitted: true, reviewFailed: false }]);
+  const shown = legacyView(c.state.block, { strip: stripVerdict });
+  assert.deepEqual(shown.attempts.map(a => [a.number, a.status, a.answer.text, a.feedback.text]), [[1, 'reviewed', 'the id picks a row', 'Closer.']]);
   await c.render().commit();
   assert.equal(calls.length, 2);
   assert.notEqual(calls[1].id, calls[0].id);
@@ -170,4 +181,39 @@ test('a cleared (empty) sketch or a card with no sketch host submits text only, 
   const nothing = card({ ...sketchCard, sketch: empty }, grade, host());
   await nothing.render().commit();
   assert.equal(nothing.state.block.attemptId, undefined, 'no words and no marks: nothing is submitted');
+});
+
+test('an Explain-back sketch that cannot be pictured is not submitted: the learner is told and the work stays', async () => {
+  const calls = [];
+  const blank = { captured: [], capture(id) { this.captured.push(id); return Promise.resolve(null); } };
+  const c = card(sketchCard, async (...args) => { calls.push(args); }, blank);
+  c.type('the id picks a row');
+  await c.render().commit();
+  assert.equal(calls.length, 0, 'no grade request');
+  assert.equal(c.state.block.attemptId, undefined, 'no attempt');
+  assert.match(c.state.notice, /could not be captured/);
+  // The canvas's keyed capture rejects with its own learner-readable reason (sketch-host.js SketchCaptureError).
+  const keyed = { captureFor: () => Promise.reject(Object.assign(new Error('The sketch is too detailed to picture.'), { code: 'capture-too-large' })) };
+  const k = card(sketchCard, async (...args) => { calls.push(args); }, keyed);
+  await k.render().commit();
+  assert.deepEqual([calls.length, k.state.notice], [0, 'The sketch is too detailed to picture.']);
+  // A keyed capture that works is what the grade receives.
+  const good = { captureFor: ({ questionId }) => Promise.resolve({ image: PNG, text: 'x', questionId }) };
+  const g = card(sketchCard, async (committed, answer, onDelta, sketch) => { calls.push(sketch); onDelta('VERDICT: good\nYes.'); }, good);
+  await g.render().commit();
+  assert.deepEqual(calls.at(-1), { image: PNG, text: sketchText(sketchCard.sketch) });
+});
+
+test('an Explain-back review that fails is marked failed, not shown as feedback', async () => {
+  const c = card({ ...sketchCard, sketch: { strokes: [], shapes: [], items: [] } }, async () => { throw new Error('Tutor down'); }, host());
+  c.type('words');
+  await c.render().commit();
+  assert.deepEqual([c.state.block.reviewFailed, c.state.block.grading], [true, false]);
+  const [attempt] = legacyView(c.state.block, { strip: stripVerdict }).attempts;
+  assert.deepEqual([attempt.status, attempt.feedback, attempt.error], ['failed', null, 'Could not reach the tutor: Tutor down']);
+  // An ordinary challenge keeps its old error text and no flag.
+  const plain = card(challenge, async () => { throw new Error('Tutor down'); });
+  plain.type('x');
+  await plain.render().commit();
+  assert.equal(plain.state.block.reviewFailed, undefined);
 });
