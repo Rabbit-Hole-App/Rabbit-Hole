@@ -105,3 +105,19 @@ export const freeElbow = ({ x1, y1, x2, y2 }) => {
   const mx = (x1 + x2) / 2;
   return [{ x: x1, y: y1 }, { x: mx, y: y1 }, { x: mx, y: y2 }, { x: x2, y: y2 }].filter((point, i, all) => i === 0 || point.x !== all[i - 1].x || point.y !== all[i - 1].y);
 };
+
+// ---- Explain-back Input and Group ports (plan 2026-10-30-explain-back.md section 4) ----
+// The green Input sits on a card's left edge beside its header, not at the midpoint left anchor; routes leave and enter it
+// as a left side does. INPUT_PORT_Y is card pixels from the card's top edge.
+export const INPUT_PORT_Y = 40;
+export const routeSide = side => (side === 'input' ? 'left' : side);
+export const inputPoint = box => ({ x: box.x, y: box.y + Math.min(INPUT_PORT_Y, box.h / 2) });
+
+// A Group's rendered frame from its members' boxes: the padded union, and below it the footer the frame grows by
+// (groupRoom). null with no measurable member. Its ports are the frame's top and bottom centres.
+export function groupFrame(boxes, pad, footer = 0) {
+  if (!boxes.length) return null;
+  const left = Math.min(...boxes.map(box => box.x)), top = Math.min(...boxes.map(box => box.y));
+  const right = Math.max(...boxes.map(box => box.x + box.w)), bottom = Math.max(...boxes.map(box => box.y + box.h));
+  return { x: left - pad, y: top - pad, w: right - left + pad * 2, h: bottom - top + pad * 2 + footer, inner: bottom - top + pad * 2 };
+}
