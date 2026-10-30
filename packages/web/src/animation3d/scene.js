@@ -12,20 +12,32 @@ import { validateAnimationArtifact, validateAnimationFrame } from './contract.js
 
 const ARROW_RADIAL = 8; // contract.js triangleCost: an arrow is 4 x 8 (shaft) + 2 x 8 (head) triangles
 
-// A label's texture: dark text on a light rounded plate, readable on light and dark scenes. Browser only (a 2D canvas).
+// Labels are drawn at a constant on-screen size whatever the scene's scale or the camera distance (review 2026-10-30: world-sized
+// labels were unreadably small in one view and covered objects in another). A label's plate is LABEL_PIXELS tall at the default
+// size hint 0.3, scaled by size / 0.3 and clamped to [min, max] CSS pixels; it always faces the camera and draws over the scene.
+export const LABEL_PIXELS = Object.freeze({ base: 28, min: 22, max: 40 });
+export const labelPixels = size => Math.round(Math.min(LABEL_PIXELS.max, Math.max(LABEL_PIXELS.min, LABEL_PIXELS.base * size / 0.3)));
+// Where the plate sits relative to its node's origin (Sprite.center: the plate point placed on the origin), with a small gap, so a
+// label beside the point it names does not cover it.
+const PLACEMENT = Object.freeze({ above: [0.5, -0.2], below: [0.5, 1.2], left: [1.06, 0.5], right: [-0.06, 0.5], center: [0.5, 0.5] });
+
+// A label's texture: dark text on a light rounded plate with a thin edge, readable on light and dark scenes. Browser only (a 2D canvas).
 export function canvasLabelTexture(text) {
-  const canvas = document.createElement('canvas'), context = canvas.getContext('2d'), height = 64, font = '500 36px system-ui, sans-serif';
+  const canvas = document.createElement('canvas'), context = canvas.getContext('2d'), height = 64, font = '600 36px system-ui, sans-serif';
   context.font = font;
-  canvas.width = Math.ceil(context.measureText(text).width) + 32;
+  canvas.width = Math.ceil(context.measureText(text).width) + 36;
   canvas.height = height;
   context.font = font; // resizing the canvas reset it
-  context.fillStyle = 'rgba(255, 255, 255, 0.88)';
+  context.fillStyle = 'rgba(255, 255, 255, 0.92)';
+  context.strokeStyle = 'rgba(31, 35, 40, 0.28)';
+  context.lineWidth = 2;
   context.beginPath();
-  context.roundRect(0, 0, canvas.width, height, 14);
+  context.roundRect(1, 1, canvas.width - 2, height - 2, 14);
   context.fill();
+  context.stroke();
   context.fillStyle = '#1f2328';
   context.textBaseline = 'middle';
-  context.fillText(text, 16, height / 2);
+  context.fillText(text, 18, height / 2);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return { texture, aspect: canvas.width / height };
@@ -79,9 +91,10 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
   const label = (node, g, text) => {
     const { texture, aspect } = labelTexture(text);
     own(texture);
-    const sprite = new THREE.Sprite(own(new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true })));
-    sprite.scale.set(g.size * aspect, g.size, 1);
-    sprite.renderOrder = 1;
+    const sprite = new THREE.Sprite(own(new THREE.SpriteMaterial({ map: texture, sizeAttenuation: false, depthTest: false, depthWrite: false, transparent: true })));
+    sprite.center.fromArray(PLACEMENT[g.placement]);
+    sprite.userData.label = { aspect, pixels: labelPixels(g.size) };
+    sprite.renderOrder = 10; // after every mesh, over the scene
     return sprite;
   };
   for (const node of scene.nodes) {
@@ -142,6 +155,18 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
           }
         }
         return checked;
+      },
+      // Size every label for a viewport of `height` CSS pixels and a camera of `fov` degrees, cancelling its parents' world scale:
+      // without size attenuation a sprite's scale is a fraction of the view, so plate pixels = scale.y x f / 2 x height.
+      // The renderer calls this before every draw (a frame may rescale a parent).
+      layoutLabels({ height, fov }) {
+        const f = 1 / Math.tan(fov * Math.PI / 360), world = new THREE.Vector3();
+        root.updateWorldMatrix(true, true);
+        for (const { drawable } of labels.values()) {
+          const { aspect, pixels } = drawable.userData.label, tall = 2 * pixels / (f * Math.max(1, height));
+          drawable.parent.getWorldScale(world);
+          drawable.scale.set(tall * aspect / (world.x || 1), tall / (world.y || 1), 1);
+        }
       },
       dispose() { root.removeFromParent(); root.clear(); [...owned].forEach(release); },
       owned: () => owned.size,

@@ -114,6 +114,14 @@ test('snapshots bind to one artifact revision with a complete, valid input set',
   assert.ok(issueAt(validateAnimationPresentation({ revision: 0, camera: game.camera, selection: 'robot' }, game), 'not_declared', 'selection'));
 });
 
+test('label placement is optional, defaults to above and is a closed set', () => {
+  const placed = validateAnimationArtifact(watchFixture.artifact).value.scene.geometries.find(g => g.kind === 'label');
+  assert.equal(placed.placement, 'above');
+  const bad = structuredClone(watchFixture.artifact);
+  bad.scene.geometries.find(g => g.kind === 'label').placement = 'floating';
+  assert.ok(issueAt(validateAnimationArtifact(bad), 'invalid_value', 'scene.geometries.3.placement'));
+});
+
 test('triangle cost is deterministic per primitive', () => {
   assert.equal(triangleCost({ kind: 'box' }), 12);
   assert.equal(triangleCost({ kind: 'sphere', widthSegments: 32, heightSegments: 16 }), 960);

@@ -30,6 +30,7 @@ export const CONTROL_PROFILES = Object.freeze(['inspect', 'manipulate', 'walk'])
 export const GEOMETRY_KINDS = Object.freeze(['box', 'sphere', 'cylinder', 'cone', 'plane', 'line', 'curve', 'arrow', 'label']);
 export const FEATURES = Object.freeze(['loop', 'speed', 'seek', 'parameters', 'actions', 'select', 'drag', 'step', 'labels', 'readouts',
   'physics', 'assembly', 'walkthrough', 'attached_models', 'image_reference']);
+export const LABEL_PLACEMENTS = Object.freeze(['above', 'below', 'left', 'right', 'center']);
 export const GOAL_STATUSES = Object.freeze(['playing', 'won', 'lost']);
 export const ISSUE_CODES = Object.freeze(['invalid_value', 'unknown_field', 'unsupported_schema', 'over_limit', 'duplicate_id', 'unknown_id',
   'hierarchy_cycle', 'not_normalized', 'not_declared', 'unsupported_capability', 'capability_version', 'missing_program', 'artifact_mismatch']);
@@ -43,6 +44,7 @@ export const ANIMATION_PROGRAM_VERSIONS = Object.freeze({
 export const ANIMATION_PROGRAM_CONTRACT = Object.freeze({
   exports: 'export function evaluate({ inputs, time, seed, state }) -> frame; when the artifact declares actions, selectable or draggable nodes, or stepped: also export function initialState({ inputs, seed }) -> state and export function reduce({ state, event, inputs, time, seed }) -> state',
   frame: '{ nodes?: { <node id>: { position?, quaternion?, scale?, visible?, text? } }, materials?: { <material id>: { color?, opacity? } }, readouts?: { <readout id>: number }, selection?: <node id> | null, goal?: { status: "playing" | "won" | "lost", message? } }',
+  labels: 'A label is drawn facing the camera, over the scene, at a constant readable screen size whatever the camera distance or scene scale; size is only a relative hint (0.3 is normal). Make each label a child node of the object it names, positioned at the edge of that object (for example its top), and choose placement (above, below, left, right or center; default above) so the plate sits beside that point instead of covering the object. Use few, short labels.',
   rules: 'One ES module, no imports, no Three.js, no DOM. All functions pure and deterministic; evaluate never advances state. time is seconds inside the declared timeline. Quaternions are [x, y, z, w] and normalized.',
 });
 
@@ -93,7 +95,9 @@ const geometry = z.discriminatedUnion('kind', [
   z.object({ id, kind: z.literal('line'), points: z.array(vec3).min(2) }).strict(),
   z.object({ id, kind: z.literal('curve'), points: z.array(vec3).min(2).max(64), segments: segments(2, 512, 64), closed: z.boolean().default(false) }).strict(), // Catmull-Rom through points
   z.object({ id, kind: z.literal('arrow'), length: size }).strict(), // along local +Y from the node origin
-  z.object({ id, kind: z.literal('label'), text: text(80), size: size.default(0.3) }).strict(), // camera-facing text, world height
+  // Camera-facing text drawn over the scene at a constant readable screen size: size is a relative hint (0.3 normal, clamped by the
+  // renderer), placement puts the plate beside its node's origin (added after AN-01; optional, so older artifacts still validate).
+  z.object({ id, kind: z.literal('label'), text: text(80), size: size.default(0.3), placement: z.enum(LABEL_PLACEMENTS).default('above') }).strict(),
 ]);
 const material = z.object({ id, color, opacity: z.number().min(0).max(1).default(1) }).strict();
 const node = z.object({
