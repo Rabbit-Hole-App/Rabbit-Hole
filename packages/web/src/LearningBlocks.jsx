@@ -94,9 +94,9 @@ export const BLOCK_TYPES = {
     typicalHeight: 220,
     // fitContent (card-layout.js fitFrame, FX-EB-10): a text card is never taller than its content; a resize only sets a ceiling.
     fitContent: true,
-    // An Explain-back card holds a multiline answer, its feedback and history (its Sketch is a separate panel, plan
-    // 2026-10-30 section 3); every other challenge keeps the canvas's default height cap.
-    autoMaxFor: block => (block.mode === 'explain_back' ? 760 : undefined),
+    // The Practice card holds a multiline answer, its feedback and history (its Sketch is a separate panel, plan
+    // 2026-10-30 section 3); saved challenges without a mode render the same card, so they get the same cap.
+    autoMax: 760,
     sample: () => ({
       id: crypto.randomUUID(),
       type: 'challenge',
