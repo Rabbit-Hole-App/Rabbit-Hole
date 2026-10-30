@@ -4,6 +4,8 @@ import {
   RECORDING_LIMIT_MS, claimMicrophone, clock, createVoiceNote, disposeVoiceNote, formatOf, microphoneHolder, pickRecorderType,
   releaseMicrophone, voiceNoteFor, voiceSubmitState,
 } from './explain-back-media.js';
+import { EB_SHAPES, validateExplainBackAnswer } from './explain-back-contract.js';
+import { validateShape } from './learn-coaching-contract.js';
 
 // An Ogg page whose payload is an OpusHead: what Firefox's MediaRecorder writes first.
 const OGG_OPUS = (() => { const b = new Uint8Array(27 + 1 + 19); b.set([...'OggS'].map(c => c.charCodeAt(0))); b[26] = 1; b[27] = 19; b.set([...'OpusHead'].map(c => c.charCodeAt(0)), 28); return b; })();
@@ -55,7 +57,7 @@ function fakeTime() {
 const until = async (check, what) => { for (let i = 0; i < 200; i++) { if (check()) return; await new Promise(r => setTimeout(r, 0)); } assert.fail(`timed out waiting for ${what}`); };
 const okUpload = () => {
   const sent = [];
-  const upload = async (file, info) => { sent.push({ file, info }); info.onProgress({ sent: file.size, total: file.size }); return { assetId: `asset-${sent.length}` }; };
+  const upload = async (file, info) => { sent.push({ file, info }); info.onProgress({ sent: file.size, total: file.size }); return { assetId: `aa_voicetest${sent.length}` }; };
   return { sent, upload };
 };
 
@@ -80,7 +82,7 @@ test('typed text is byte-for-byte unchanged through record, pause, stop, save, t
     assert.deepEqual(Buffer.from(draft.text, 'utf8'), before);
     assert.equal(draft.text, typed);
     if (typed.trim()) assert.ok(seen.every(line => !line.includes('Pendulum')), 'no state ever carries the typed answer');
-    assert.equal(persisted.at(-1).asset.assetId, 'asset-2');
+    assert.equal(persisted.at(-1).assetId, 'aa_voicetest2');
     assert.ok(persisted.every(saved => saved === null || !('text' in saved)), 'the persisted note has no text');
   }
 });
@@ -105,7 +107,9 @@ test('Stop releases every microphone track and the lease, and saves the take wit
   assert.match(take.sha256, /^[0-9a-f]{64}$/);
   assert.equal(sent[0].file.name, 'voice-note.ogg');
   assert.equal(sent[0].info.sha256, take.sha256);
-  assert.deepEqual(saved, { v: 1, asset: { assetId: 'asset-1' }, type: 'audio/ogg', ext: 'ogg', codec: 'opus', durationMs: 3200, size: OGG_OPUS.length, sha256: take.sha256 });
+  assert.deepEqual(saved, { evidenceId: `ev_voice_${take.sha256.slice(0, 16)}`, role: 'voice', media: 'audio', state: 'ready', assetId: 'aa_voicetest1', revision: 1, hash: take.sha256, mime: 'audio/ogg', bytes: OGG_OPUS.length, durationMs: 3200 });
+  assert.deepEqual(validateShape(EB_SHAPES, 'EvidenceRef', saved), [], 'an EB-01 EvidenceRef');
+  assert.deepEqual(validateExplainBackAnswer({ v: 1, kind: 'explain_back', text: '', voice: [saved], resources: [], assistance: [] }).errors, [], 'a voice-only answer');
   assert.deepEqual(voiceSubmitState(note.get()), { ready: true, blocked: null });
 });
 
@@ -228,9 +232,10 @@ test('re-record replaces the note only once a new take exists; cancel or denial 
 });
 
 test('a stored note restores after reload and plays through load; dispose mid-recording releases everything', async () => {
-  const saved = { v: 1, asset: { assetId: 'a1' }, type: 'audio/ogg', ext: 'ogg', codec: 'opus', durationMs: 4000, size: 10, sha256: 'f'.repeat(64) };
+  const saved = { evidenceId: 'ev_voice_1', role: 'voice', media: 'audio', state: 'ready', assetId: 'aa_voice00000001', revision: 1, hash: 'f'.repeat(64), mime: 'audio/ogg', bytes: 10, durationMs: 4000 };
   const loads = [];
   const restored = createVoiceNote({ saved, load: async asset => { loads.push(asset); return 'https://example.invalid/a1'; } });
+  assert.equal(createVoiceNote({ saved: { ...saved, assetId: 'fs_board_file' } }).get().status, 'idle', 'a board file is not a private voice note');
   assert.equal(restored.get().status, 'saved');
   assert.deepEqual(voiceSubmitState(restored.get()), { ready: true, blocked: null });
   assert.equal(loads.length, 0, 'nothing loads until playback asks');
