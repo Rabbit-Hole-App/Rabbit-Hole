@@ -65,14 +65,14 @@ export function expectedReadouts(kind, inputs = {}, time = 0) { return kind === 
 export function expectedGame(actions) { return game(actions); }
 export const oracle = { watch, experiment, game };
 
-// Equality for oracle comparisons: numbers within 1e-6 (relative above 1); arrays element-wise; a four-element value is a
-// quaternion, equal to its negation (q and -q are the same rotation).
-const near = (a, b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b));
-export function close(got, want) {
-  if (typeof want === 'number') return near(got, want);
+// Equality for oracle comparisons: numbers within tol (default 1e-6; relative above 1); arrays element-wise; a four-element value
+// is a quaternion, equal to its negation (q and -q are the same rotation).
+const near = (a, b, tol) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= tol * Math.max(1, Math.abs(b));
+export function close(got, want, tol = 1e-6) {
+  if (typeof want === 'number') return near(got, want, tol);
   if (!Array.isArray(want) || !Array.isArray(got) || got.length !== want.length) return false;
-  if (want.length === 4) return want.every((v, i) => near(got[i], v)) || want.every((v, i) => near(got[i], -v));
-  return want.every((v, i) => near(got[i], v));
+  if (want.length === 4) return want.every((v, i) => near(got[i], v, tol)) || want.every((v, i) => near(got[i], -v, tol));
+  return want.every((v, i) => near(got[i], v, tol));
 }
 // Rotates a point by a unit quaternion (for physical sanity checks: which end of the beam is down).
 export function rotate([x, y, z], [qx, qy, qz, qw]) {

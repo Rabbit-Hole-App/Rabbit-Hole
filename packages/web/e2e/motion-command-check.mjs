@@ -340,7 +340,10 @@ for (const theme of ['light', 'dark']) {
     assert.equal((await picker.locator('[data-slash-command="motion"]').innerText()).replace(/\s+/g, ' ').trim(), 'motion Turn a topic into an animated explainer video after reviewing its plan.');
     await picker.locator('[data-slash-command="motion"]').scrollIntoViewIfNeeded();
     await shot('01-picker');
+    // Owner 2026-10-30: /anim now finds the 3D /animation command (plan 2026-10-30-animation.md); the removed /animate stays gone.
     await composer().fill('/anim');
+    assert.deepEqual(await picker.locator('[data-slash-command]').evaluateAll(nodes => nodes.map(node => node.dataset.slashCommand)), ['animation']);
+    await composer().fill('/animate');
     await dock.locator('[data-slash-none]').waitFor({ timeout: 5000 });
     await composer().fill('/mot');
     assert.deepEqual(await picker.locator('[data-slash-command]').evaluateAll(nodes => nodes.map(node => node.dataset.slashCommand)), ['motion']);
