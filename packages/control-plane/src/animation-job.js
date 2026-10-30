@@ -116,14 +116,36 @@ export function planLines(plan) {
 // and no job. Live only when ANIMATION_ENABLED and ANIMATION_DIAGNOSTICS are both 'true' (production never sets the second), for any
 // signed-in user, same origin. POST { fixture: <fixtures.js name> } -> renderProbe's JSON (200 ok, 502 failed).
 export const ANIMATION_PROBE_PATH = '/api/learn/animation/diagnostics/render-fixture';
-async function renderProbeRoute(req, env, deps) {
-  if (!animationEnabled(env) || env.ANIMATION_DIAGNOSTICS !== 'true') return json({ error: 'Not found' }, 404);
-  if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
-  if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
+// The same probe for a STORED accepted result: POST { boardId, resultId }, for the owner of that canvas only, read through the normal
+// authorized result read (owner, canvas and artifact hash checked by the job object), then the same capture path. 404 as any other.
+export const ANIMATION_RESULT_PROBE_PATH = '/api/learn/animation/diagnostics/render-result';
+async function probeGuard(req, env, deps) {
+  if (!animationEnabled(env) || env.ANIMATION_DIAGNOSTICS !== 'true') return { refused: json({ error: 'Not found' }, 404) };
+  if (req.method !== 'POST') return { refused: json({ error: 'POST required' }, 405) };
+  if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return { refused: json({ error: 'Invalid origin' }, 403) };
   const user = await (deps.identity || repositoryIdentity)(req, env);
-  if (user instanceof Response) return user;
-  let body;
-  try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+  if (user instanceof Response) return { refused: user };
+  try { return { user, body: await req.json() }; } catch { return { refused: json({ error: 'Invalid JSON' }, 400) }; }
+}
+async function resultProbeRoute(req, env, deps) {
+  const { refused, user, body } = await probeGuard(req, env, deps);
+  if (refused) return refused;
+  if (!env.ANIMATION_JOBS || !env.LEARN_DB) return json({ error: 'Animations are not configured on this preview.' }, 503);
+  if (typeof body?.boardId !== 'string' || typeof body?.resultId !== 'string') return json({ error: 'boardId and resultId are required' }, 400);
+  const board = await env.LEARN_DB.prepare('SELECT id, app, board FROM learn_boards WHERE id = ? AND org = ? AND owner_email = ?').bind(body.boardId, user.org, user.email).first();
+  if (!board) return json({ error: 'Not available' }, 404);
+  const stub = env.ANIMATION_JOBS.get(env.ANIMATION_JOBS.idFromName(board.id));
+  const read = await stub.fetch('https://animation/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'result', id: body.resultId, payload: {}, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null } }) });
+  const saved = await read.json().catch(() => null);
+  if (!read.ok) return json({ ok: false, read: read.status, error: saved?.error || 'the result could not be read', ...(saved?.code ? { code: saved.code } : {}) }, read.status);
+  // The read already checked the stored artifact against its hash; the capture echoes that same hash.
+  const out = await renderProbe(env, saved.artifact, saved.identity.artifactHash, deps.render);
+  return json({ resultId: body.resultId, identity: saved.identity, artifact: saved.artifact, ...out }, out.ok ? 200 : 502);
+}
+async function renderProbeRoute(req, env, deps) {
+  const { refused, body } = await probeGuard(req, env, deps);
+  if (refused) return refused;
   const fixture = ANIMATION_FIXTURES.find(f => f.name === body?.fixture);
   if (!fixture) return json({ error: `fixture must be one of ${ANIMATION_FIXTURES.map(f => f.name).join(', ')}` }, 400);
   // The validated value, as a job's artifact is, so the page hashes exactly what a review round sends.
@@ -136,6 +158,7 @@ async function renderProbeRoute(req, env, deps) {
 // The route: owner-only, same origin, behind ANIMATION_ENABLED. Off, it answers 404 as if absent.
 export async function animationRoute(path, req, env, deps = {}) {
   if (path === ANIMATION_PROBE_PATH) return renderProbeRoute(req, env, deps);
+  if (path === ANIMATION_RESULT_PROBE_PATH) return resultProbeRoute(req, env, deps);
   if (path !== ANIMATION_PREFIX && !path.startsWith(`${ANIMATION_PREFIX}/`)) return null;
   if (!animationEnabled(env)) return json({ error: ANIMATION_DISABLED, code: 'animation_disabled' }, 404);
   if (!env.ANIMATION_JOBS || !env.LEARN_DB) return json({ error: 'Animations are not configured on this preview.' }, 503);
