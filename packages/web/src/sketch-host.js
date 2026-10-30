@@ -83,3 +83,8 @@ export function fitZoom(box, area, z, min = FIT_MIN_ZOOM) {
   const need = Math.min(w / box.w, h / box.h);
   return need >= z ? z : Math.max(min, need);
 }
+
+// The canvas tool once the sketch is put away (panel closed, a read-only attempt shown, the card gone; plan section 3): a
+// drawing tool the learner picked while drawing in the sketch gives way to Select, so the cards take a click again. A tool
+// picked on the canvas, Select and Hand stay as they are.
+export const releasedTool = (tool, { pickedInSketch = false, drawingTools = new Set() } = {}) => (pickedInSketch && drawingTools.has(tool) ? 'select' : tool);

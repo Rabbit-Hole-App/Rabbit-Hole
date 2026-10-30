@@ -18,7 +18,7 @@ import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
 import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock } from './LearningBlocks.jsx';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
-import { CAPTURE_MAX_BYTES, SketchCaptureError, captureProblem, captureResult, captureSize, fitZoom, pixelRatios, sketchDraftOf } from './sketch-host.js';
+import { CAPTURE_MAX_BYTES, SketchCaptureError, captureProblem, captureResult, captureSize, fitZoom, pixelRatios, releasedTool, sketchDraftOf } from './sketch-host.js';
 import { gapsFrom, nearestGap, nudgeBy } from './learn-gap-rail.js';
 import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, reorderStep, headsOf, copyStyle, pasteStyle, strokePatch, strokeOf, TEXT_LEVELS, ARROW_KINDS } from './learn-style-panel.js';
 import RichText, { measureHeight, offsetsOf, readRuns } from './RichText.jsx';
@@ -1736,7 +1736,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setAreas(previous => { const next = previous.filter(area => keep.includes(area.id) || exchanges.some(exchange => exchange.linkFrom === area.id)); return next.length === previous.length ? previous : next; });
   };
   const setSelected = value => { setSelection(value == null ? [] : [value]); releaseHighlights(value == null ? [] : [value]); };
-  const pickTool = value => { setTool(value); if (DRAWING_TOOLS.has(value)) setSelection([]); };
+  // pickedInSketch: the armed tool was picked while the toolbar drew in an Explain-back sketch (closeSketch hands Select back).
+  const pickedInSketch = useRef(false);
+  const pickTool = value => { setTool(value); pickedInSketch.current = !!drawTargetRef.current; if (DRAWING_TOOLS.has(value)) setSelection([]); };
   // Selecting on the canvas takes the keyboard away from the composer so
   // Delete acts on the selection; editable notes keep their own focus.
   const select = (id, event = null) => {
@@ -4718,6 +4720,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setDrawTarget(id); setSketchSel([]); setSketchEdit(null); setSelection([]); setMenuAt(null);
   };
   const releaseSketch = () => { drawTargetRef.current = null; setDrawTarget(null); setSketchSel([]); setSketchEdit(null); };
+  // The sketch put away (its panel closed, a read-only attempt shown, the card gone): a drawing tool picked for it gives way to
+  // Select, so the canvas's cards take a click again (sketch-host.js releasedTool). A press on the canvas keeps the tool.
+  const closeSketch = () => {
+    releaseSketch();
+    const picked = pickedInSketch.current;
+    pickedInSketch.current = false;
+    setTool(current => releasedTool(current, { pickedInSketch: picked, drawingTools: DRAWING_TOOLS }));
+  };
+  const closeSketchRef = useRef(closeSketch);
+  closeSketchRef.current = closeSketch;
   const pressSketch = (event, id, z = view.z) => {
     // Hand pans the canvas under the card, as it does over any card.
     if (event.button !== 0 || tool === 'hand') return;
@@ -4760,7 +4772,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       return () => {
         const left = (hosts.get(id) || 1) - 1;
         if (left) hosts.set(id, left); else hosts.delete(id);
-        queueMicrotask(() => { if (!hosts.has(id) && drawTargetRef.current === id) releaseSketchRef.current(); });
+        queueMicrotask(() => { if (!hosts.has(id) && drawTargetRef.current === id) closeSketchRef.current(); });
       };
     });
     return sketchHostRefs.current.get(id);
@@ -4898,7 +4910,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     return 'reader';
   };
   const sketchHost = {
-    render: renderSketch, hold: holdSketch, release: id => { if (drawTargetRef.current === id) releaseSketch(); },
+    render: renderSketch, hold: holdSketch, release: id => { if (drawTargetRef.current === id) closeSketch(); },
     capture: captureSketch, readOnly,
     open: openSketch, captureFor, portal: portalSketch, target: drawTarget,
     // Resource inputs (EB-05): pills derived from the links; one connect and one disconnect operation; the frozen
@@ -4913,11 +4925,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // A target whose card is gone (deleted, undone away) hands the toolbar back; one whose editable host unmounted (closed,
   // hidden, submitted, read-only attempt) does so through sketchHostRef.
   useEffect(() => {
-    if (drawTarget && !blocks.some(block => block.id === drawTarget)) releaseSketch();
+    if (drawTarget && !blocks.some(block => block.id === drawTarget)) closeSketch();
   }, [blocks, drawTarget]);
   const down = event => {
     // A press on the canvas makes it the drawing target again (an Explain Back sketch stops its own presses).
-    if (drawTargetRef.current) releaseSketch();
+    // The tool then draws on the canvas: it is the canvas's now, and putting the sketch away later leaves it armed.
+    if (drawTargetRef.current) { releaseSketch(); pickedInSketch.current = false; }
     // A press on the canvas dismisses the floating chrome - the style island
     // and the dev insert menu - the way it already dismisses a menubar menu.
     if (showStyle) setStyleOpen(false);

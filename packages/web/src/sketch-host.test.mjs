@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FIT_MIN_ZOOM, SketchCaptureError, captureProblem, captureResult, captureSize, fitZoom, pixelRatios, sketchDraftOf, sketchExtent } from './sketch-host.js';
+import { FIT_MIN_ZOOM, SketchCaptureError, captureProblem, captureResult, captureSize, fitZoom, pixelRatios, releasedTool, sketchDraftOf, sketchExtent } from './sketch-host.js';
 
 const marks = { strokes: [{ tool: 'pen', width: 2, points: [{ x: 10, y: 10 }, { x: 500, y: 300 }] }], shapes: [], items: [] };
 const card = (sketch, extra = {}) => ({ id: 'q1', type: 'challenge', mode: 'explain_back', prompt: 'Why?', sketch, ...extra });
@@ -87,4 +87,21 @@ test('reveal zooms out just enough for the whole question card to fit beside or 
   assert.equal(fitZoom({ x: 0, y: 0, w: 4000, h: 4000 }, { left: 0, top: 0, right: 300, bottom: 300 }, 1), FIT_MIN_ZOOM);
   assert.equal(fitZoom(card, { left: 10, top: 10, right: 10, bottom: 400 }, 1.2), 1.2);
   assert.equal(fitZoom(null, { left: 0, top: 0, right: 100, bottom: 100 }, 1), 1);
+});
+
+test('putting the sketch away hands Select back only for a drawing tool picked while drawing in it', () => {
+  const drawingTools = new Set(['pen', 'highlighter', 'eraser', 'rect', 'ellipse', 'arrow', 'text', 'sticky']);
+  assert.equal(releasedTool('pen', { pickedInSketch: true, drawingTools }), 'select');
+  assert.equal(releasedTool('rect', { pickedInSketch: true, drawingTools }), 'select');
+  // Picked on the canvas: the learner meant to draw there; it stays.
+  assert.equal(releasedTool('pen', { pickedInSketch: false, drawingTools }), 'pen');
+  // Select and Hand are never changed.
+  assert.equal(releasedTool('hand', { pickedInSketch: true, drawingTools }), 'hand');
+  assert.equal(releasedTool('select', { pickedInSketch: true, drawingTools }), 'select');
+  assert.equal(releasedTool('pen'), 'pen');
+  // The canvas wires it to every put-away path: Close, an unmounted (read-only or hidden) sketch and a removed card.
+  const source = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  assert.ok(source.includes("release: id => { if (drawTargetRef.current === id) closeSketch(); }"), 'sketchHost.release closes');
+  assert.ok(source.includes('drawTargetRef.current === id) closeSketchRef.current();'), 'an unmounted host closes');
+  assert.ok(source.includes('block.id === drawTarget)) closeSketch();'), 'a removed card closes');
 });
