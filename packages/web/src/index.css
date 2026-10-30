@@ -270,6 +270,9 @@ html {
   --cmd-goal-bg: #fdf8e8;
   --cmd-goal-fg: #6b4e0a;
   --cmd-goal-line: #f0dfa8;
+  --cmd-animation-bg: #f1ecfd;
+  --cmd-animation-fg: #3f1e76;
+  --cmd-animation-line: #ccb5f2;
 }
 [data-command-tone] { background-color: var(--cmd-bg); color: var(--cmd-fg); border-color: var(--cmd-line); }
 [data-command-tone="motion"] { --cmd-bg: var(--cmd-motion-bg); --cmd-fg: var(--cmd-motion-fg); --cmd-line: var(--cmd-motion-line); }
@@ -290,6 +293,7 @@ html {
 [data-command-tone="arxiv"] { --cmd-bg: var(--cmd-arxiv-bg); --cmd-fg: var(--cmd-arxiv-fg); --cmd-line: var(--cmd-arxiv-line); }
 [data-command-tone="wikipedia"] { --cmd-bg: var(--cmd-wikipedia-bg); --cmd-fg: var(--cmd-wikipedia-fg); --cmd-line: var(--cmd-wikipedia-line); }
 [data-command-tone="goal"] { --cmd-bg: var(--cmd-goal-bg); --cmd-fg: var(--cmd-goal-fg); --cmd-line: var(--cmd-goal-line); }
+[data-command-tone="animation"] { --cmd-bg: var(--cmd-animation-bg); --cmd-fg: var(--cmd-animation-fg); --cmd-line: var(--cmd-animation-line); }
 
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
    so one override block re-skins every token - including bg-white surfaces via
@@ -406,6 +410,9 @@ html {
   --cmd-goal-bg: #33280e;
   --cmd-goal-fg: #f5dfa0;
   --cmd-goal-line: #7a5f1f;
+  --cmd-animation-bg: #1f1434;
+  --cmd-animation-fg: #c9b4f9;
+  --cmd-animation-line: #4a2682;
   --shadow-pop: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 3px 6px rgba(0, 0, 0, 0.3), 0 9px 24px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 
