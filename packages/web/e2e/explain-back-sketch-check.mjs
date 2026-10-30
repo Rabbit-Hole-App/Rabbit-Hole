@@ -47,7 +47,7 @@ await page.route('**/api/learn/grade**', async route => { if (new URL(route.requ
 // runs inside it), list, read and the private asset upload. Each review is the EB-01 fixture reshaped to this answer: a
 // typed answer is rated (8/10; a revision that fixes the gap 10/10, with its comparison), a sketch alone is Not rated
 // (its second criterion unassessed), so both badge states are exercised.
-const posts = [], assetPuts = [], bound = new Map(), stored = new Map(), serverDrafts = new Map(); // stored: attemptId -> { cardId, content, assessment }
+const posts = [], assetPuts = [], assetMeta = new Map(), bound = new Map(), stored = new Map(), serverDrafts = new Map(); // stored: attemptId -> { cardId, content, assessment }
 const sha = body => createHash('sha256').update(body || '').digest('hex');
 const stubReview = (attemptId, assessmentId, content) => {
   const typed = content.text || '';
@@ -101,10 +101,22 @@ await page.route('**/api/learn/tutor/attempts**', async route => {
     serverDrafts.set(cardId, draft);
     return json(route, 200, { draft });
   }
-  if (request.method() === 'PUT' && path.startsWith('/assets')) {
-    const body = request.postDataBuffer() || Buffer.alloc(0);
-    assetPuts.push({ path, bytes: body.length, type: request.headers()['content-type'] || '' });
-    return json(route, 200, { assetId: `aa_stub${String(assetPuts.length).padStart(9, '0')}`, revision: 1, hash: sha(body), bytes: body.length, mime: request.headers()['content-type'] || 'application/octet-stream' });
+  // The private asset upload answers as the real route does (learn-attempt-assets.js uploadAttemptAsset: 201
+  // { asset: publicAsset(row) } = { assetId, kind, mime, ext, bytes, sha256, durationMs }).
+  // A Sketch's marks and words go beside its picture (PUT /assets/:id, explain-back-assets.js uploadSketch); kept for /meta.
+  if (request.method() === 'PUT' && path.startsWith('/assets/')) {
+    assetMeta.set(decodeURIComponent(path.slice('/assets/'.length)), JSON.parse(request.postData() || '{}'));
+    return json(route, 200, { ok: true });
+  }
+  if (request.method() === 'GET' && path.startsWith('/assets/') && path.endsWith('/meta')) {
+    const meta = assetMeta.get(decodeURIComponent(path.slice('/assets/'.length, -'/meta'.length)));
+    return meta ? json(route, 200, { marks: meta.marks, text: meta.text }) : json(route, 404, { error: 'unknown_asset' });
+  }
+  if (request.method() === 'PUT' && path === '/assets') {
+    const body = request.postDataBuffer() || Buffer.alloc(0), mime = request.headers()['content-type'] || 'application/octet-stream';
+    assetPuts.push({ path, bytes: body.length, type: mime });
+    const kind = url.searchParams.get('kind') || (/png|image/.test(mime) ? 'image' : /json/.test(mime) ? 'timeline' : 'audio');
+    return json(route, 201, { asset: { assetId: `aa_stub${String(assetPuts.length).padStart(9, '0')}`, kind, mime, ext: { image: 'png', timeline: 'json', audio: 'webm' }[kind], bytes: body.length, sha256: url.searchParams.get('sha256') || sha(body), durationMs: null } });
   }
   if (request.method() === 'POST' && path === '') {
     const sent = JSON.parse(request.postData());

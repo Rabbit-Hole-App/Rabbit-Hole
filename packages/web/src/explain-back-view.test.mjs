@@ -112,10 +112,9 @@ test('the Sketch panel keeps the question beside it at 736, 800 and 1024 px and 
   assert.equal(panelLayout(1024, 900).width, 1024 - 16 - 20 - 326 - 44, 'never over the question');
   assert.deepEqual(panelLayout(390), { mode: 'stack', width: 358, min: 0, max: 0 });
   assert.equal(panelLayout(719).mode, 'stack');
-  // Sized from the question's real width: a 380 px card at 736 px leaves the panel 276 px beside it, not 330 over it.
-  assert.deepEqual(panelLayout(736, 460, 380), { mode: 'side', width: 276, min: 276, max: 276 });
-  assert.equal(panelLayout(800, 460, 380).width, 340);
-  assert.equal(panelLayout(736, 460, 440).mode, 'stack', 'too little left to read both side by side');
+  // From the workspace alone (fast-e2e 41036157402: a zoomed card must never force a stack at 736, 800 or 1024 px).
+  for (const width of [736, 800, 1024]) assert.equal(panelLayout(width).mode, 'side', `side by side at ${width}`);
+  assert.deepEqual(panelLayout(720), { mode: 'side', width: 314, min: 296, max: 314 }, 'a readable panel still fits at the breakpoint');
   // Stacked under the whole card, never above the dock's top margin.
   assert.equal(stackTop(500), 512);
   assert.equal(stackTop(-80), 16);
