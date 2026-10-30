@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { posix } from 'node:path';
-import { classify, select } from './affected.mjs';
+import { classify, parts, select } from './affected.mjs';
 const map = JSON.parse(readFileSync(new URL('./check-map.json', import.meta.url), 'utf8'));
 test('tool handoff component stays a manual fixture and never grants automatic runtime coverage',()=>{
  for(const file of ['packages/web/src/inline-tool-action.js','packages/web/e2e/inline-evidence-handoff-component.mjs'])assert.equal(classify(file,map),'mapped');
@@ -144,5 +144,14 @@ test('source page and derivative browser check remains explicit manual fixture c
 });
 
 test('native image replacement remains manual intercepted extraction coverage',()=>{assert.deepEqual(map.mapped['packages/web/src/inline-image-replacement.js'],['ctrlk-image-replacement-check.mjs']);assert.equal(map.checks['ctrlk-image-replacement-check.mjs'].runner,'windows-only');});
+
+// The planner balances the six fast-e2e parts on these seconds, and a part's job stops at 20 minutes (fast-e2e.yml timeout-minutes),
+// install and build included. Run 40969234666 hit that limit twice: three checks recorded far under their real times landed on one
+// part beside others recorded far over theirs. So on a broad selection no part's estimate may pass 15 minutes, which leaves room for
+// the job's own setup; a new or slower check that would break this needs its seconds measured and recorded.
+test('a broad selection splits into six parts whose estimated check time each stays under 15 minutes', () => {
+  const totals = parts(select([], map, true).checks, map, 6).map(part => part.reduce((sum, check) => sum + map.checks[check].seconds, 0));
+  assert.ok(Math.max(...totals) <= 15 * 60, `per part seconds: ${totals.join(', ')}`);
+});
 
 test('clipboard fork and trash persistence remains manual browser coverage',()=>{assert.ok(map.mapped['packages/web/src/CodeBoxEditor.jsx'].includes('code-box-persistence-check.mjs'));assert.equal(map.checks['code-box-persistence-check.mjs'].runner,'windows-only');assert.deepEqual(map.mapped['packages/web/e2e/code-box-persistence-check.mjs'],['code-box-persistence-check.mjs']);});
