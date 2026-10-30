@@ -22,6 +22,7 @@ import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { openSlashHelp } from './canvas-menu-helpers.mjs';
 import { experimentFixture } from '../src/animation3d/fixtures.js';
+import { hashProgramSource } from '../src/animation3d/contract.js';
 import { FIXTURES, expectedReadouts, expectedNodes, expectedGame, close, within, WATCH_ALLOWANCE as WATCH } from './animation-oracle.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
@@ -29,7 +30,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('animation-mvp-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'animation-mvp-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 28; // bump with the steps below; the printed line is what CI reads
+const TOTAL = 31; // bump with the steps below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `anim-${run}@example.com`, secret, handle: `anim_${run}` }) })).json();
@@ -446,15 +447,34 @@ try {
   const REQUEST = 'a beam balance where I can change each mass and its distance';
   const REASON = 'Changing mass and distance directly shows that balance depends on their product.';
   const ARTIFACT = { ...structuredClone(experimentFixture.artifact), artifactId: `art_${run}`, provenance: { origin: 'generated' } };
+  // Test-only (owner review 2026-10-30, a cancelled object drag): a bead draggable along x, the second job's artifact.
+  const DRAG_REQUEST = 'a bead I can slide along a rail';
+  const DRAG_SOURCE = `export function initialState() { return { x: 0 }; }
+export function reduce({ state, event }) {
+  if ((event.type === 'drag_move' || event.type === 'drag_end') && event.node === 'bead') return { x: event.value };
+  return state;
+}
+export function evaluate({ state }) {
+  const x = (state || initialState()).x;
+  return { nodes: { bead: { position: [x, 0, 0] } }, readouts: { x } };
+}
+`;
+  const DRAG_ARTIFACT = { schema: ARTIFACT.schema, artifactId: `art_drag_${run}`, revision: 1, planHash: 'b'.repeat(64), capabilityVersion: ARTIFACT.capabilityVersion, sourceRefs: [],
+    provenance: { origin: 'generated' }, title: 'Bead on a rail', description: 'A red bead you can slide along a grey rail.', experience: 'experiment', behavior: 'rules', controlProfile: 'manipulate',
+    scene: { materials: [{ id: 'red', color: '#d64545' }, { id: 'grey', color: '#8a94a6' }], geometries: [{ id: 'ball', kind: 'sphere', radius: 0.5 }, { id: 'bar', kind: 'box', size: [5, 0.08, 0.08] }],
+      nodes: [{ id: 'rail', geometry: 'bar', material: 'grey' }, { id: 'bead', geometry: 'ball', material: 'red', selectable: true, drag: { axis: 'x', min: -2, max: 2 } }] },
+    parameters: [], actions: [], readouts: [{ id: 'x', label: 'Position', unit: 'm', decimals: 2 }],
+    program: { ...ARTIFACT.program, source: DRAG_SOURCE, sourceHash: await hashProgramSource(DRAG_SOURCE) }, seed: 1, camera: { position: [0, 0, 6], target: [0, 0, 0] }, assumptions: [] };
+  const SERVED = new Map([[ARTIFACT.artifactId, ARTIFACT], [DRAG_ARTIFACT.artifactId, DRAG_ARTIFACT]]);
   const sha16 = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
   const flow = { jobs: new Map(), creates: [], approves: [], puts: [], reads: [], writes: [], proposals: new Map(), briefs: [] };
   const viewOf = job => ({ id: job.id, version: 1, boardId: job.boardId, cardId: job.cardId, stage: job.stage, attempt: 1, terminal: ['ready', 'failed', 'cancelled'].includes(job.stage),
     repairs: 0, stopReason: null, failure: null, recovery: [], usage: { credits: 0, unknown: false }, createdAt: 0, updatedAt: 0,
-    result: job.stage === 'ready' ? { jobId: job.id, resultId: ARTIFACT.artifactId, cardId: job.cardId, canvas: { boardId: job.boardId }, requestRef: sha16(`${job.requestId}|${job.prompt}`), revision: 1, planHash: ARTIFACT.planHash } : null });
-  const planOf = job => ({ proposal_id: `${run}000000000000`.replace(/[^0-9a-f]/g, '0').slice(0, 16), version: 1, command: 'animation', title: 'Beam balance',
+    result: job.stage === 'ready' ? { jobId: job.id, resultId: job.artifact.artifactId, cardId: job.cardId, canvas: { boardId: job.boardId }, requestRef: sha16(`${job.requestId}|${job.prompt}`), revision: 1, planHash: job.artifact.planHash } : null });
+  const planOf = job => ({ proposal_id: sha16(job.id), version: 1, command: 'animation', title: job.artifact.title,
     description: 'A beam on a pivot with one weight on each side; change masses and distances and watch it tilt.', settings: { experience: 'watch' }, source_refs: [], references: [],
     assumptions: ['Rigid, massless beam.'], limitations: ['The tilt is illustrative.'], requirements: [`Recommended: watch. ${REASON}`, 'Behavior: analytical', 'Controls: manipulate'],
-    input: { org: 'w', app: gen.name, job: job.id, plan_hash: ARTIFACT.planHash, request: job.prompt }, original_request: `/animation ${job.prompt}`,
+    input: { org: 'w', app: gen.name, job: job.id, plan_hash: job.artifact.planHash, request: job.prompt }, original_request: `/animation ${job.prompt}`,
     expires_at: Math.floor(Date.now() / 1000) + 3600, sig: `v3.${'a'.repeat(64)}`, usage: { max_credits: 120, reserve_credits: null } });
   const genRouter = async route => {
     const request = route.request(), url = new URL(request.url()), method = request.method(), path = url.pathname;
@@ -462,14 +482,16 @@ try {
     const result = path.match(/^\/api\/learn\/animation\/jobs\/results\/([^/]+)$/);
     if (result) {
       flow.reads.push(result[1]);
-      return decodeURIComponent(result[1]) === ARTIFACT.artifactId ? route.fulfill({ json: { artifact: ARTIFACT, execution: { allowed: true } } }) : route.fulfill({ status: 404, json: { error: 'Not available' } });
+      const served = SERVED.get(decodeURIComponent(result[1]));
+      return served ? route.fulfill({ json: { artifact: served, execution: { allowed: true } } }) : route.fulfill({ status: 404, json: { error: 'Not available' } });
     }
     if (path === '/api/learn/animation/jobs' && method === 'POST') {
       const body = request.postDataJSON();
       let job = [...flow.jobs.values()].find(entry => entry.requestId === body.requestId);
       if (!job) {
         flow.creates.push(body);
-        job = { id: `aj_${run}${flow.jobs.size + 1}`, requestId: body.requestId, boardId: body.boardId, cardId: body.cardId, prompt: body.prompt, stage: 'preparing' };
+        job = { id: `aj_${run}${flow.jobs.size + 1}`, requestId: body.requestId, boardId: body.boardId, cardId: body.cardId, prompt: body.prompt, stage: 'preparing', artifact: flow.next || ARTIFACT };
+        flow.next = null;
         flow.jobs.set(job.id, job);
         const messageId = String(800001 + flow.briefs.length);
         flow.proposals.set(messageId, planOf(job));
@@ -577,6 +599,77 @@ try {
     assert.deepEqual([flow.creates.length, flow.approves.length], [creates, approves]);
     console.log(`   request path: ${flow.creates.length} create, ${flow.approves.length} approve, ${flow.puts.length} plan save, ${flow.reads.length} result reads`);
   });
+  // ---- An object drag cancelled mid-gesture (owner review 2026-10-30: a cancel must not move the object) ----
+  // A second request on the same canvas through the same path; its job serves DRAG_ARTIFACT, a test-only scene (not a contract
+  // fixture): a red bead on a grey rail, draggable along x in [-2, 2], at the centre of a straight-on camera, so a press at the
+  // viewport's centre lands on it. Its program commits the dragged position (drag_move / drag_end) and draws the bead there.
+  let D = null;
+  const bead = async () => (await frame(D)).nodes?.bead?.position?.[0];
+  const selection = async () => (await frame(D)).selection ?? null;
+  const enterD = async () => { if (!(await active(D))) { await D.interact.click(); await until(() => active(D), 'Interact did not start'); } };
+  // Back to x = 0 (the bead under the viewport's centre) and out of Interact, then in again.
+  const homeD = async () => {
+    if (await active(D)) { await g.keyboard.press('Escape'); await until(async () => !(await active(D)), 'Escape did not end the interaction'); }
+    if ((await bead()) !== 0) { await D.reset.click(); await until(async () => (await bead()) === 0, 'Reset did not bring the bead home'); }
+    await enterD();
+  };
+  // Press on the bead and drag it right a little; -> the position the scene showed last, before any cancel.
+  const pressAndDrag = async () => {
+    const c = await centre(D.viewport);
+    await g.mouse.move(c.x, c.y); await g.mouse.down(); await g.mouse.move(c.x + 12, c.y, { steps: 6 });
+    await until(async () => (await bead()) > 0, 'the drag did not move the bead');
+    await g.waitForTimeout(300);
+    return { c, x: await bead() };
+  };
+  // After a cancel: the bead stays where it was last shown (not at the origin or at a position from (0, 0)), the selection is
+  // unchanged, and moving on with the button still down, then letting go, moves nothing.
+  const heldStill = async ({ c, x }, before, label) => {
+    await g.waitForTimeout(400);
+    assert.equal(await bead(), x, `${label}: the bead stays where it was shown`);
+    assert.equal(await selection(), before, `${label}: the selection is unchanged`);
+    await g.mouse.move(c.x + 40, c.y + 10, { steps: 6 });
+    await g.waitForTimeout(400);
+    assert.equal(await bead(), x, `${label}: moving on after the cancel moved the bead`);
+    await g.mouse.up();
+    await g.waitForTimeout(400);
+    assert.equal(await bead(), x, `${label}: letting go after the cancel moved the bead`);
+  };
+  await step('an object drag cancelled by Escape keeps the object where it was shown, keeps the selection, and ignores the rest of the gesture', async () => {
+    flow.next = DRAG_ARTIFACT;
+    await composer(g).click(); await composer(g).fill(`/animation ${DRAG_REQUEST}`); await g.waitForTimeout(150); await composer(g).press('Enter');
+    await until(async () => flow.creates.length === 2, 'a second job for the second /animation line');
+    const second = [...flow.jobs.values()][1];
+    await plan().locator('[data-proposal-generate]:not([disabled])').waitFor({ timeout: 20000 });
+    await plan().locator('[data-proposal-generate]').click();
+    D = parts(g, second.cardId);
+    await until(async () => (await D.card.getAttribute('data-animation-experience')) === 'experiment', 'the bead card', 30000);
+    await fit(g);
+    await live(D);
+    await homeD();
+    const before = await selection(), held = await pressAndDrag();
+    assert.ok(held.x > 0 && held.x < 2, `the bead moved within its rail: ${held.x}`);
+    await g.keyboard.press('Escape');
+    await until(async () => !(await active(D)), 'Escape did not end the interaction');
+    await heldStill(held, before, 'Escape');
+  });
+  await step('an object drag cancelled by window blur keeps the object where it was shown, keeps the selection, and ignores the rest of the gesture', async () => {
+    await homeD();
+    const before = await selection(), held = await pressAndDrag();
+    await g.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await heldStill(held, before, 'blur');
+  });
+  await step('after the cancels a fresh press, drag and release still moves the object, and it stays there with its readout', async () => {
+    await homeD();
+    const { x } = await pressAndDrag();
+    await g.mouse.up();
+    await g.waitForTimeout(500);
+    assert.ok(x > 0, `moved: ${x}`);
+    assert.equal(await bead(), x, 'the released position stays');
+    assert.ok(close(Number(await D.readout('x').getAttribute('data-value')), x), 'the readout is the bead\'s position');
+    await g.keyboard.press('Escape');
+    await shot(g, 'K-drag');
+  });
+
   await genSession.context.close();
 
   // ---- WebGL unavailable (AN-02/03) ----
