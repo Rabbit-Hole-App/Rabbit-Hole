@@ -636,6 +636,12 @@ await check('EB-05 a Group connects from its frame ports, bound to its id', asyn
   await shot('14-group-input-connected');
 });
 await check('EB-05 an ordinary connector between cards stays ordinary', async () => {
+  // The Group step left both Challenges selected, so the canvas's style panel (it follows the selection, from the tools
+  // column) lies over their ports (run 41047132278, FAIL-EB-05.png). A learner dismisses it with a press on empty canvas
+  // first, as here. ponytail: the style panel covering selected cards is the canvas's own placement, not Explain-back's.
+  const surface = await box(page.locator('[data-canvas-surface]'));
+  await page.mouse.click(surface.x + surface.width * 0.6, surface.y + surface.height * 0.5);
+  await page.waitForTimeout(300);
   await clickClick(port(sourceAId, 'bottom'), port(sourceBId, 'top'));
   await page.waitForTimeout(800);
   const links = (await boardState(answerId))?.links || [];
