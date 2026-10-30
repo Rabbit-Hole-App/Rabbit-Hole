@@ -60,3 +60,14 @@ test('the canvas captures from its own off-screen render, never the first [data-
   assert.ok(!/querySelector\(`\[data-sketch="/.test(source), 'no capture by querying the page for the first sketch');
   assert.ok(/captureFor/.test(source), 'the host exposes captureFor');
 });
+
+test('drawing and dragging end on a release inside the docked Sketch panel: their pointerup listeners capture', () => {
+  // The panel's React handlers stop pointerup at the React root, so a bubbling window listener never hears a release there
+  // and a stroke or shape kept following the pointer (fast-e2e run 41032431618). Every gesture end listens in capture.
+  const source = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  const startDrag = source.slice(source.indexOf('function startDrag('), source.indexOf('function startDrag(') + 3000);
+  const drawing = source.slice(source.indexOf('const drawGesture = '), source.indexOf("} else if (tool === 'sticky'"));
+  assert.ok(startDrag.includes("window.addEventListener('pointerup', up, true)") && !startDrag.includes("window.addEventListener('pointerup', up);"), 'startDrag ends on a captured pointerup');
+  assert.ok(drawing.includes("window.addEventListener('pointerup', finish, true)") && drawing.includes("window.addEventListener('pointerup', up, true)"), 'strokes, shapes and the eraser end on a captured pointerup');
+  assert.ok(!/addEventListener\('pointerup', (up|finish)\)/.test(drawing), 'no bubbling pointerup listener left in drawGesture');
+});

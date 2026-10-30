@@ -98,10 +98,11 @@ const workspace = async (target, height = 1000) => {
 await page.goto(`${BASE}/apps/${canvas.name}`);
 await page.waitForSelector('[data-tool-gutter]', { timeout: 30000 });
 await page.waitForTimeout(1500);
-const card = await insert('Explain back');
-const cardId = await card.getAttribute('data-block-id');
-const source = await insert('Challenge');
-const sourceId = await source.getAttribute('data-block-id');
+// Each card by its own id: insert() hands back cards().last(), a live locator that is the newest card at every use (fast-e2e
+// run 41032431618: after the Challenge was inserted, every step looked for the Explain-back controls inside the Challenge).
+const cardId = await (await insert('Explain back')).getAttribute('data-block-id');
+const sourceId = await (await insert('Challenge')).getAttribute('data-block-id');
+const card = page.locator(`[data-block-id="${cardId}"]`);
 
 // ---- the green Input: mark, hit area and route anchor agree at every zoom ----
 await check('1 the Input mark, its hit area and the anchor of a connection to it agree at zoom ~0.5, 1 and ~2', async () => {
