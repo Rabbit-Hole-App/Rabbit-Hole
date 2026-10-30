@@ -1,10 +1,12 @@
 import { createContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { FileText, Group, ImageIcon, MessageSquareText, NotebookPen, Pin, X } from 'lucide-react';
+import { FileText, Group, ImageIcon, Maximize2, MessageSquareText, Minimize2, NotebookPen, Pin, X } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { selectionRef } from './selection-ref.js';
 import VoiceNote, { useVoiceNote } from './VoiceNote.jsx';
 import { voiceNoteFor, voiceSubmitState } from './explain-back-media.js';
+import SketchRecorder, { useSketchRecording } from './SketchRecorder.jsx';
+import { recordingSubmitState, sketchRecordingFor } from './sketch-recording.js';
 import { FEEDBACK_SECTIONS, PANEL, askTutorText, attemptLabel, optionText, panelLayout, ratingBadge } from './explain-back-view.js';
 
 // Explain-back card pieces (plan docs/superpowers/plans/2026-10-30-explain-back.md sections 3, 7H, 8 and 9): the one
@@ -19,7 +21,12 @@ import { FEEDBACK_SECTIONS, PANEL, askTutorText, attemptLabel, optionText, panel
 //   voice: { upload, load, saved(blockId), onSaved(blockId, saved) }   the retained voice note's private storage
 //                                                    (explain-back-media.js createVoiceNote options); without upload no
 //                                                    voice entry is shown. submit's `voice` is the saved note or null.
-//   VoicePlayer                                      a submitted note's player ({ note: EvidenceRef }), or absent.
+//   recording: { upload, uploadAudio, load, onSaved(blockId, saved) }   the Sketch recording's private storage
+//                                                    (sketch-recording.js); without upload no recorder is shown.
+//   VoicePlayer                                      a submitted note's player ({ note: EvidenceRef, seekMs }), or absent.
+//   openEvidence({ attemptId, evidence, memberId, locator })   opens a cited input at the submitted revision, or absent.
+//   teachingAids(attemptId) -> [{ id, title, kind, cardId }]    the attempt's linked teaching cards, or absent.
+//   openTeachingAid(aid)                             reveals the existing card on the canvas (no new generation).
 export const ExplainBackService = createContext(null);
 
 // The one place the card reads the canvas's capture seam (EB-01 UI boundaries; AdaptiveCanvas captureFor, sketch-host.js):
@@ -54,14 +61,29 @@ export function usePanelOwner(root) {
 
 // The retained voice note on the answer card (EB-06, VoiceNote.jsx): its controller outlives this component (keyed by the
 // draft); its submit state goes up to the card's Submit. It never sees the typed answer.
-export function AnswerVoice({ draftKey, store, blockId, onState }) {
-  const note = voiceNoteFor(draftKey, { upload: store.upload, load: store.load, saved: store.saved?.(blockId) ?? null, onSaved: saved => store.onSaved?.(blockId, saved) });
+// `initial`: a voice EvidenceRef carried from the attempt a revision started from; used only when the controller is new.
+export function AnswerVoice({ draftKey, store, blockId, initial = null, onState }) {
+  const note = voiceNoteFor(draftKey, { upload: store.upload, load: store.load, saved: initial ?? store.saved?.(blockId) ?? null, onSaved: saved => store.onSaved?.(blockId, saved) });
   const state = useVoiceNote(note);
   const gate = voiceSubmitState(state);
   const saved = state?.saved ?? null;
   useEffect(() => { onState({ ...gate, saved }); }, [gate.ready, gate.blocked, saved]);
   return <VoiceNote note={note} />;
 }
+
+// The draft's Sketch recording (EB-06 06.5): one controller per draft key, above any panel mount, so Submit sees it with
+// the panel closed. RecordingState reports it to the card; SketchRecording is the controls in the panel.
+const recordingOf = (recKey, store, blockId) => sketchRecordingFor(recKey, { upload: store.upload, uploadAudio: store.uploadAudio, load: store.load, onSaved: saved => store.onSaved?.(blockId, saved) });
+export function RecordingState({ recKey, store, blockId, onState }) {
+  const state = useSketchRecording(recordingOf(recKey, store, blockId));
+  const gate = recordingSubmitState(state);
+  const saved = state?.saved ?? null, recording = ['requesting', 'recording', 'paused'].includes(state?.status);
+  useEffect(() => { onState({ ...gate, saved, recording }); }, [gate.ready, gate.blocked, saved, recording]);
+  return null;
+}
+export const SketchRecording = ({ recKey, store, blockId, sketch, renderReplay }) => (
+  <SketchRecorder recording={recordingOf(recKey, store, blockId)} sketch={sketch} renderReplay={renderReplay} />
+);
 
 const stop = event => event.stopPropagation(); // a portal's events bubble through React to the card: never select, drag or open it
 const iconButton = 'flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent pointer-coarse:h-11 pointer-coarse:w-11';
@@ -76,6 +98,8 @@ export function SketchPanel({ portal, surface, ownerId, ownerTitle, status, widt
   const [size, setSize] = useState({ w: 1200 });
   const [dragWidth, setDragWidth] = useState(null);
   const [dock, setDock] = useState(null);
+  // Expand gives the Sketch the whole dock for a while; Restore puts both areas back. Open sketch never starts expanded.
+  const [expanded, setExpanded] = useState(false);
   useLayoutEffect(() => { setDock(panel.current?.parentElement || null); });
   useLayoutEffect(() => {
     if (!dock || typeof ResizeObserver === 'undefined') return undefined;
@@ -103,13 +127,13 @@ export function SketchPanel({ portal, surface, ownerId, ownerTitle, status, widt
     document.addEventListener('pointerdown', outside, true);
     return () => document.removeEventListener('pointerdown', outside, true);
   }, [pinned, busy, surface, ownerId, onClose]);
-  const side = layout.mode === 'side';
+  const side = layout.mode === 'side' && !expanded;
   const resize = value => Math.max(layout.min, Math.min(layout.max, Math.round(value)));
-  const style = side
+  const style = expanded ? { inset: PANEL.edge } : side
     ? { top: PANEL.edge, right: PANEL.edge, width: layout.width, height: `min(560px, calc(100% - ${2 * PANEL.edge}px))` }
     : { left: PANEL.edge, right: PANEL.edge, bottom: PANEL.edge, height: 'min(440px, 55%)' };
   return portal(
-    <section ref={panel} data-explain-sketch-panel={ownerId} data-panel-mode={layout.mode} data-thumbnail-hide aria-label="Sketch" style={style}
+    <section ref={panel} data-explain-sketch-panel={ownerId} data-panel-mode={expanded ? 'expanded' : layout.mode} data-thumbnail-hide aria-label="Sketch" style={style}
       onPointerDown={stop} onPointerUp={stop} onClick={stop} onDoubleClick={stop} onContextMenu={stop}
       className="absolute z-30 flex flex-col rounded-xl border border-line bg-surface text-ink shadow-lg">
       {side && <div role="separator" aria-label="Resize Sketch panel" aria-orientation="vertical" aria-valuemin={layout.min} aria-valuemax={layout.max} aria-valuenow={layout.width} tabIndex={0}
@@ -126,7 +150,9 @@ export function SketchPanel({ portal, surface, ownerId, ownerTitle, status, widt
         <h2 className="text-[14px] font-medium">Sketch</h2>
         {status && <span data-sketch-status className="min-w-0 truncate text-xs text-ink-2">{status}</span>}
         <span className="ml-auto flex items-center gap-0.5">
-          {/* ponytail: the optional expand/restore focus action is not built; Open sketch never enters a focus mode. */}
+          {expanded
+            ? <button type="button" data-sketch-restore aria-label="Restore Sketch panel" title="Restore" onClick={() => setExpanded(false)} className={iconButton}><Minimize2 size={16} /></button>
+            : <button type="button" data-sketch-expand aria-label="Expand Sketch panel" title="Expand" onClick={() => setExpanded(true)} className={iconButton}><Maximize2 size={16} /></button>}
           <button type="button" data-sketch-pin aria-pressed={!!pinned} aria-label="Pin Sketch panel" title={pinned ? 'Unpin' : 'Pin to this question'}
             onClick={() => onPin(!pinned)} className={`${iconButton} ${pinned ? 'bg-hover text-ink' : ''}`}><Pin size={16} fill={pinned ? 'currentColor' : 'none'} /></button>
           <button type="button" data-sketch-close aria-label="Close Sketch" title="Close" onClick={() => onClose({ outside: false })} className={iconButton}><X size={16} /></button>
@@ -184,8 +210,11 @@ export function FeedbackTabs({ tab, onTab, idBase }) {
 }
 
 // A submitted answer as it was sent (immutable): its words, a cited passage marked, its sketch, voice notes and inputs.
-export function AnswerView({ attempt, highlight = '', VoicePlayer = null }) {
+// `cited`: the citation being shown ({ evidenceId, quote, locator }); its passage, voice note or input is marked.
+export function AnswerView({ attempt, cited = null, VoicePlayer = null }) {
+  const highlight = cited?.quote || '';
   const words = attempt.answer.text, at = highlight ? words.indexOf(highlight) : -1;
+  const mark = id => (cited?.evidenceId === id ? 'rounded-md ring-2 ring-primary-fill/40' : '');
   return (
     <div data-answer-view={attempt.id} className="space-y-2 text-sm">
       {words ? (
@@ -193,15 +222,19 @@ export function AnswerView({ attempt, highlight = '', VoicePlayer = null }) {
       ) : <p className="text-ink-2 italic">No written text in this answer.</p>}
       {highlight && at < 0 && <p role="status" className="text-xs text-ink-2">The cited passage is not in this answer.</p>}
       {attempt.answer.sketched && <p data-answer-sketched className="text-xs text-ink-2">This answer includes a sketch.</p>}
-      {attempt.answer.voice.length > 0 && (VoicePlayer ? attempt.answer.voice.map(note => <VoicePlayer key={note.id || note.assetId} note={note} />) : <p className="text-xs text-ink-2">This answer includes a voice note.</p>)}
-      {attempt.answer.inputs.length > 0 && <InputPills inputs={attempt.answer.inputs} />}
+      {attempt.answer.voice.map(note => (
+        <div key={note.evidenceId || note.assetId} data-answer-voice={note.evidenceId} {...(cited?.evidenceId === note.evidenceId ? { 'data-cited': '' } : {})} className={mark(note.evidenceId)}>
+          {VoicePlayer ? <VoicePlayer note={note} seekMs={cited?.evidenceId === note.evidenceId ? cited.locator?.startMs ?? null : null} /> : <p className="text-xs text-ink-2">This answer includes a voice note.</p>}
+        </div>
+      ))}
+      {attempt.answer.inputs.length > 0 && <InputPills inputs={attempt.answer.inputs} cited={cited?.evidenceId} />}
     </div>
   );
 }
 
 // Tutor feedback (section 8): the three elements, the revision comparison, evidence citations that open the submitted
 // answer, and Ask Tutor, which fills the Chat composer without sending. A legacy review is shown as the Tutor wrote it.
-export function FeedbackView({ attempt, question, blockId, onCite, onFile }) {
+export function FeedbackView({ attempt, question, blockId, onCite, onFile, aids = [], onOpenAid = null }) {
   const chat = useChatWorkspace();
   const feedback = attempt.feedback;
   if (!feedback) return <p className="text-sm text-ink-2">No feedback for this attempt.</p>;
@@ -233,6 +266,20 @@ export function FeedbackView({ attempt, question, blockId, onCite, onFile }) {
           </ul>
         </section>
       )}
+      {aids.length > 0 && onOpenAid && (
+        <section data-teaching-aids>
+          <h3 className="mb-1 text-xs font-semibold text-ink-2">Teaching material</h3>
+          <ul className="space-y-1">
+            {aids.map(aid => (
+              <li key={aid.id} className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-[13px]" title={aid.title}>{aid.title}</span>
+                {/* Open on canvas reveals the card already made for this feedback; it never generates another. */}
+                <button type="button" data-open-aid={aid.id} onClick={() => onOpenAid(aid)} className="h-7 shrink-0 cursor-pointer rounded-md border border-line px-2 text-xs text-ink hover:bg-hover">Open on canvas</button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {chat && <button type="button" data-ask-tutor onClick={ask} className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-line px-2.5 text-[13px] text-ink hover:bg-hover"><MessageSquareText size={15} />Ask Tutor</button>}
     </div>
   );
@@ -241,7 +288,7 @@ export function FeedbackView({ attempt, question, blockId, onCite, onFile }) {
 const INPUT_ICONS = { notebook: NotebookPen, group: Group, image: ImageIcon };
 // Connected inputs under the answer field (section 4): one wrapping pill per connection, a Group as one pill with its
 // member count; × disconnects through the canvas's own operation. Read-only pills (a submitted answer) have no ×.
-export function InputPills({ inputs, onRemove = null, onOpen = null }) {
+export function InputPills({ inputs, onRemove = null, onOpen = null, cited = null }) {
   return (
     <ul data-input-pills className="flex flex-wrap gap-1.5">
       {inputs.map(input => {
@@ -251,7 +298,8 @@ export function InputPills({ inputs, onRemove = null, onOpen = null }) {
         const full = [detail ? `${input.name} · ${detail}` : input.name, members, input.problem].filter(Boolean).join('. ');
         const name = <>{input.name}{detail && <span className="text-ink-2"> · {detail}</span>}{input.problem && <span className="text-danger"> · Not available</span>}</>;
         return (
-          <li key={input.id} data-input-pill={input.id} data-input-kind={input.kind} className={`flex h-7 max-w-full items-center gap-1 rounded-md border bg-surface pr-0.5 pl-2 text-xs text-ink ${input.problem ? 'border-danger/50' : 'border-line'}`}>
+          <li key={input.id} data-input-pill={input.id} data-input-kind={input.kind} {...(cited === input.id ? { 'data-cited': '' } : {})}
+            className={`flex h-7 max-w-full items-center gap-1 rounded-md border bg-surface pr-0.5 pl-2 text-xs text-ink ${input.problem ? 'border-danger/50' : 'border-line'} ${cited === input.id ? 'ring-2 ring-primary-fill/40' : ''}`}>
             <Icon size={14} className="shrink-0 text-ink-2" aria-hidden="true" />
             {/* ponytail: opening the source from its pill waits for a canvas reveal by link id; the full name, members and any problem are in the title. */}
             {onOpen ? <button type="button" title={full} aria-label={`Open ${full}`} onClick={() => onOpen(input)} className="min-w-0 cursor-pointer truncate text-left">{name}</button>

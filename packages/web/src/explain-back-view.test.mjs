@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ANSWER_PLACEHOLDER, PANEL, STOP_TO_SUBMIT, askTutorText, attemptLabel, inputPillsOf, legacyView, optionText, panelLayout, ratingBadge, serviceView, submitState } from './explain-back-view.js';
+import { ANSWER_PLACEHOLDER, PANEL, STOP_TO_SUBMIT, askTutorText, attemptLabel, connectionsOf, inputPillsOf, legacyView, locatorText, optionText, panelLayout, ratingBadge, serviceView, submitState } from './explain-back-view.js';
 
 // Plan 2026-10-30-explain-back.md sections 3, 7H, 8 and 9: what the Explain-back card shows, from either data path.
 
@@ -114,6 +114,32 @@ test('input pills: a Group is one pill with its count and members; a problem is 
     { id: 'l3', kind: 'missing', name: 'Removed source', scope: '', count: undefined, members: [], problem: 'That source is no longer on the canvas.' },
   ]);
   assert.equal(submitState({ text: 'x', inputs: [{ state: 'unavailable' }] }).ready, false, 'an unavailable input blocks Submit until removed');
+});
+
+test('citations carry their kind and locator; a missing Group member is unavailable', () => {
+  const content = { v: 1, kind: 'explain_back', text: 'abc', voice: [{ evidenceId: 'ev-v', role: 'voice', media: 'audio' }], resources: [{ evidenceId: 'ev-p', role: 'resource', media: 'group', label: 'Notes', members: [{ sourceId: 'm1' }] }], assistance: [] };
+  const cites = [{ evidenceId: 'ev-v', locator: { startMs: 42000, endMs: 45000 } }, { evidenceId: 'ev-p', memberId: 'm1', locator: { page: 3 } }, { evidenceId: 'ev-p', memberId: 'gone', locator: { cell: 2 } }];
+  const view = serviceView({ attempts: [{ attemptId: 'a1', submittedContent: content, assessment: { status: 'completed', provenance: { review: review({ attemptId: 'a1', comparison: undefined, feedback: { strengths: { text: 'x', citations: cites }, revisit: { text: 'y', citations: [] }, next: { text: 'z', citations: [] } } }) } } }] });
+  assert.deepEqual(view.attempts[0].feedback.citations.map(c => [c.kind, c.label, c.available, c.locator]), [
+    ['voice', 'Voice note, at 0:42', true, { startMs: 42000, endMs: 45000 }],
+    ['resource', 'Notes, page 3', true, { page: 3 }],
+    ['resource', 'Notes, cell 2', false, { cell: 2 }],
+  ]);
+  assert.equal(locatorText({}), '');
+});
+
+test('a revision makes the attempt\'s connections again from their recorded source, port and scope', () => {
+  assert.deepEqual(connectionsOf([
+    { evidenceId: 'e1', assetId: 'file-1', scope: { pages: [2] }, label: 'Paper', connection: { port: 'top', linkId: 'l1', links: [{ linkId: 'l1', port: 'top', sourceId: 'card-1' }] } },
+    { evidenceId: 'e2', assetId: 'group-1', label: 'Group' },
+  ]), [{ sourceId: 'card-1', port: 'top', scope: { pages: [2] }, label: 'Paper' }, { sourceId: 'group-1', port: 'bottom', scope: null, label: 'Group' }]);
+});
+
+test('a Sketch recording blocks Submit while it runs or saves and is an answer once saved', () => {
+  assert.deepEqual(submitState({ text: 'x', recording: { ready: false, blocked: STOP_TO_SUBMIT } }), { ready: false, code: 'recording_active', reason: STOP_TO_SUBMIT });
+  assert.deepEqual(submitState({ text: '', recording: { ready: false, blocked: 'Saving Sketch recording' } }), { ready: false, code: 'upload_in_progress', reason: 'Saving Sketch recording' });
+  assert.equal(submitState({ text: '', recording: { ready: true, blocked: null } }).ready, true, 'a recording alone is an answer');
+  assert.equal(submitState({ text: 'x', recording: { ready: false, blocked: 'Sketch recording not saved' } }).ready, false);
 });
 
 test('Ask Tutor fills the composer with the exercise, the attempt and its feedback', () => {

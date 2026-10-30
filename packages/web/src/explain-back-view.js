@@ -43,12 +43,15 @@ export function optionText(entry) {
 // voice note or a ready input are each a complete answer. voice: voiceSubmitState's { ready, blocked } (explain-back-media.js),
 // whose words are shown as they are; inputs: the connected pills ({ state }). reason: the words beside a disabled Submit.
 const READINESS_WORDS = { recording_active: STOP_TO_SUBMIT, upload_in_progress: 'Saving voice note', evidence_unavailable: 'An input is not available. Remove it to submit.', text_too_long: `Shorten your answer to ${ANSWER_LIMITS.textChars.toLocaleString('en-US')} characters to submit.`, empty_answer: null };
-export function submitState({ text: typed = '', sketched = false, voice = null, inputs = [] }) {
-  const recording = voice?.blocked === STOP_TO_SUBMIT;
-  const voiceState = voice?.ready ? 'ready' : voice?.blocked === 'Saving voice note' ? 'uploading' : voice?.blocked ? 'failed' : null;
-  const answer = { text: String(typed), voice: voiceState ? [{ state: voiceState }] : [], sketch: sketched ? { state: 'ready' } : null, resources: inputs.map(input => ({ state: input.state || 'ready', members: input.members })) };
-  const { ready, reason } = answerReadiness(answer, { recording });
-  return { ready, code: reason, reason: ready ? null : voice?.blocked || READINESS_WORDS[reason] || null };
+// recording: the Sketch recording's recordingSubmitState ({ ready, blocked }, sketch-recording.js), read the same way.
+const SAVING = ['Saving voice note', 'Saving Sketch recording'];
+const mediaState = media => (media?.ready ? 'ready' : SAVING.includes(media?.blocked) ? 'uploading' : media?.blocked && media.blocked !== STOP_TO_SUBMIT ? 'failed' : null);
+export function submitState({ text: typed = '', sketched = false, voice = null, recording = null, inputs = [] }) {
+  const capturing = voice?.blocked === STOP_TO_SUBMIT || recording?.blocked === STOP_TO_SUBMIT;
+  const voiceState = mediaState(voice), recordingState = mediaState(recording);
+  const answer = { text: String(typed), voice: voiceState ? [{ state: voiceState }] : [], sketch: sketched ? { state: 'ready' } : null, recording: recordingState ? { state: recordingState } : null, resources: inputs.map(input => ({ state: input.state || 'ready', members: input.members })) };
+  const { ready, reason } = answerReadiness(answer, { recording: capturing });
+  return { ready, code: reason, reason: ready ? null : (capturing ? STOP_TO_SUBMIT : voice?.blocked || recording?.blocked) || READINESS_WORDS[reason] || null };
 }
 
 // The Explain-back card's own block (the legacy single-attempt path, before the durable store is wired): earlier
@@ -93,14 +96,20 @@ export function serviceView(raw) {
     const status = state === 'reviewed' || state === 'not_rated' ? 'reviewed' : state === 'failed' || state === 'unknown' ? 'failed' : 'reviewing';
     const evidence = new Map([...(content.voice || []), ...(content.sketch ? [content.sketch] : []), ...(content.recording ? [content.recording] : []), ...(content.resources || [])].map(item => [item.evidenceId, item]));
     const typed = text(content.text);
+    // A citation points into this submitted attempt: a text range, or one piece of its evidence (a Group member) at a
+    // locator. One that does not resolve is shown unavailable, never as another version.
     const citation = (cite, at) => {
+      const base = { id: `${at}:${cite.evidenceId}`, attemptId: entry.attemptId, evidenceId: cite.evidenceId, memberId: cite.memberId || null, locator: cite.locator || {}, quote: '' };
       if (cite.evidenceId === 'text') {
         const { start, end } = cite.locator || {};
         const ok = Number.isInteger(start) && Number.isInteger(end) && start >= 0 && start < end && end <= typed.length;
-        return { id: `${at}:text:${start}-${end}`, attemptId: entry.attemptId, label: ok ? typed.slice(start, end) : 'Your answer', quote: ok ? typed.slice(start, end) : '', available: ok };
+        return { ...base, kind: 'text', label: ok ? typed.slice(start, end) : 'Your answer', quote: ok ? typed.slice(start, end) : '', available: ok };
       }
       const item = evidence.get(cite.evidenceId);
-      return { id: `${at}:${cite.evidenceId}`, attemptId: entry.attemptId, label: item ? text(item.label) || EVIDENCE_NAMES[item.role] || 'Your answer' : 'Your answer', quote: '', available: !!item };
+      const member = item && cite.memberId ? (item.members || []).find(m => m.sourceId === cite.memberId) : null;
+      const where = locatorText(cite.locator);
+      const name = item ? text(item.label) || EVIDENCE_NAMES[item.role] || 'Your answer' : 'Your answer';
+      return { ...base, kind: item?.role || 'missing', label: where ? `${name}, ${where}` : name, available: !!item && (!cite.memberId || !!member) };
     };
     const feedback = review && status === 'reviewed' ? {
       text: '',
@@ -113,7 +122,8 @@ export function serviceView(raw) {
     return {
       id: entry.attemptId, number: index + 1, parentId: content.baseline?.parentAttemptId || null, status,
       answer: {
-        text: typed, sketched: !!content.sketch, sketchImage: text(entry.sketchUrl) || null, voice: content.voice || [],
+        text: typed, sketched: !!content.sketch || !!content.recording, sketchImage: text(entry.sketchUrl) || null, voice: content.voice || [], recording: content.recording || null,
+        resources: content.resources || [],
         inputs: (content.resources || []).map(item => ({ id: item.evidenceId, kind: item.media, name: text(item.label) || item.sourceKind || 'Input', count: item.members?.length, scope: '' })),
       },
       feedback,
@@ -124,6 +134,25 @@ export function serviceView(raw) {
   const draft = raw.draft ? { id: raw.draft.draftId, parentId: raw.draft.answer?.baseline?.parentAttemptId || null, text: text(raw.draft.answer?.text) } : null;
   return { attempts, draft, loading: false };
 }
+const clockOf = ms => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+// Where in a piece of evidence a citation points, in words: a time, a page, a cell or a Sketch region.
+export function locatorText(locator = {}) {
+  if (Number.isInteger(locator.startMs) && locator.startMs >= 0) return `at ${clockOf(locator.startMs)}`;
+  if (Number.isInteger(locator.page)) return `page ${locator.page}`;
+  if (locator.cellId || Number.isInteger(locator.cell)) return `cell ${locator.cell ?? locator.cellId}`;
+  if (locator.region || locator.markId) return 'the marked part';
+  return '';
+}
+
+// Revise answer carries the selected attempt's evidence into the new draft (plan section 9): its voice EvidenceRef is the
+// voice note's saved form as it is (explain-back-media.js); each resource's canvas connection is made again: the source
+// on the canvas, the port it came from and its scope.
+export const connectionsOf = resources => resources.flatMap(ref => {
+  const via = ref.connection?.links?.[0];
+  const sourceId = via?.sourceId || ref.assetId;
+  return sourceId ? [{ sourceId, port: ref.connection?.port || via?.port || 'bottom', scope: ref.scope || null, label: text(ref.label) }] : [];
+});
+
 function comparisonText(comparison, numbers) {
   if (!comparison) return '';
   const earlier = numbers.get(comparison.parentAttemptId);

@@ -159,7 +159,7 @@ export function openaiTranscriber(env, { fetchImpl = globalThis.fetch } = {}) {
       form.set('response_format', 'json');
       form.append('include[]', 'logprobs');
       let response;
-      try { response = await transcribeSpendTransport(env, { model }, () => fetchImpl('https://api.openai.com/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` }, body: form })); }
+      try { response = await transcribeSpendTransport(env, { model, bytes: bytes.byteLength }, () => fetchImpl('https://api.openai.com/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` }, body: form })); }
       catch { throw Object.assign(new Error('Transcription unreachable'), { code: 'provider_unreachable' }); }
       if (isPaidSpendReply(response)) { const { code } = await response.json().catch(() => ({})); throw Object.assign(new Error(`Spend admission refused (${code})`), { code: code || 'spend_refused', spendRefused: true }); }
       if (!response.ok) throw Object.assign(new Error(`Transcription failed (${response.status})`), { code: 'provider_failed' });
