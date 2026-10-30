@@ -7,7 +7,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { inlineImageJobsRoute } from '../src/inline-image-jobs.js';
 import { imageJobsRoute, imageJobsAllowed } from '../src/image-jobs.js';
 import { planUsesOpenAI } from '../src/learn-models.js';
-import { isPaidSpendReply, paidSubmissionRefusal } from '../src/learn-paid-transport.js';
+import { openaiTranscriber } from '../src/learn-media.js';
 
 const read = relative => readFileSync(new URL(relative, import.meta.url), 'utf8');
 // A wrangler .jsonc: whole-line comments only (a "//" inside a string, such as https://, must survive).
@@ -35,19 +35,15 @@ test('the committed production configuration has every OPENAI_API_KEY consumer o
   for (const name of ['LEGACY_IMAGE_GENERATION', 'LEARN_PLAN_MODEL']) assert.equal(name in prodVars, false, `${name} must stay absent until its own activation`);
 });
 
-// O-8 resolved for Explain-back voice notes only: with the committed flag on and the key present, the legacy Speak answer route still never
-// reaches the provider or records usage; its fail-closed spend admission (paidSubmissionRefusal) refuses every call while spend is enforced.
-test('legacy Speak answer transcription stays refused with the flag on and the key present (dev-worker.js /api/learn/transcribe)', async () => {
-  const route = inlineRoute('/api/learn/transcribe', '    // Voice Mode:');
-  const spent = { prepare: () => ({ bind: () => ({ first: async () => ({ spent: 0 }) }) }) };
-  for (const settings of [env, { ...env, USAGE_PLATFORM_DAY_USD: '10', LEARN_DB: spent }]) {
-    const body = new FormData();
-    body.set('audio', new Blob(['x'], { type: 'audio/webm' }), 'a.webm'); body.set('app', 'fixture');
-    const response = await route(new Request('https://app/api/learn/transcribe', { method: 'POST', body }), settings, '/api/learn/transcribe', async () => ({ email: 'fixture' }),
-      untouched('paidRefusal'), paidSubmissionRefusal, untouched('fishSpendTransport'), isPaidSpendReply, untouched('fetch'), untouched('recordMedia'), 6000, 4500, {});
-    assert.equal(response.status, 503);
-    assert.ok(['cap_unset', 'spend_bound_unavailable'].includes((await response.json()).code));
-  }
+// O-8 resolved for Explain-back voice notes only (P ruling 2026-10-30: Speak answer dictation is outside that scope). With the committed flag on and
+// the key present, the legacy route keeps its reply: 503 not configured, before any spend check, provider call or usage record.
+test('legacy Speak answer transcription stays 503 not configured with the flag on and the key present (dev-worker.js /api/learn/transcribe)', async () => {
+  assert.equal(env.TRANSCRIBE_ENABLED, 'true');
+  const body = new FormData();
+  body.set('audio', new Blob(['x'], { type: 'audio/webm' }), 'a.webm'); body.set('app', 'fixture');
+  const response = await callRoute(inlineRoute('/api/learn/transcribe', '    // Voice Mode:'), '/api/learn/transcribe', body);
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: 'Speech to text is not configured on this environment.' });
 });
 
 test('legacy image generation stays off with the key present (dev-worker.js /api/learn/image, gate LEGACY_IMAGE_GENERATION)', async () => {
@@ -98,18 +94,16 @@ test('tripwire: exactly these server files read OPENAI_API_KEY; a new reader fai
   ]);
 });
 
-// Transcription migration (gpt-4o-transcribe shuts down 2027-02-26): only the route's model choice and its estimate change; the flag gate is unchanged.
-test('TRANSCRIBE_MODEL picks the model sent and recorded: default and any unknown value stay gpt-4o-transcribe, gpt-transcribe is explicit', async () => {
-  const route = inlineRoute('/api/learn/transcribe', '    // Voice Mode:');
-  for (const [value, model, estimate] of [[undefined, 'gpt-4o-transcribe', 6000], ['', 'gpt-4o-transcribe', 6000], ['gpt-5-transcribe', 'gpt-4o-transcribe', 6000], ['gpt-transcribe', 'gpt-transcribe', 4500]]) {
-    const sent = [], recorded = [];
-    const body = new FormData();
-    body.set('audio', new Blob(['x'], { type: 'audio/webm' }), 'a.webm'); body.set('app', 'fixture');
-    const response = await route(new Request('https://app/api/learn/transcribe', { method: 'POST', body }), { OPENAI_API_KEY: 'fixture', TRANSCRIBE_ENABLED: 'true', ...(value === undefined ? {} : { TRANSCRIBE_MODEL: value }) }, '/api/learn/transcribe',
-      async () => ({ email: 'fixture' }), untouched('paidRefusal'), async () => null, untouched('fishSpendTransport'), untouched('isPaidSpendReply'),
-      async (url, init) => { sent.push([url, init.body.get('model')]); return Response.json({ text: ' heard ' }); }, async (_env, entry) => { recorded.push(entry); }, 6000, 4500, {});
-    assert.deepEqual(await response.json(), { text: 'heard' });
+// Transcription migration (gpt-4o-transcribe shuts down 2027-02-26). Since O-8 the one transcription caller is learn-media.js openaiTranscriber
+// (Explain-back voice notes; the legacy route answers not configured), so the model rule is checked there: same flag gate, same model choice.
+test('TRANSCRIBE_MODEL picks the model sent: default and any unknown value stay gpt-4o-transcribe, gpt-transcribe is explicit', async () => {
+  for (const [value, model] of [[undefined, 'gpt-4o-transcribe'], ['', 'gpt-4o-transcribe'], ['gpt-5-transcribe', 'gpt-4o-transcribe'], ['gpt-transcribe', 'gpt-transcribe']]) {
+    const sent = [];
+    const fetchImpl = async (url, init) => { sent.push([url, init.body.get('model')]); return Response.json({ text: ' heard ' }); };
+    const transcriber = openaiTranscriber({ OPENAI_API_KEY: 'fixture', TRANSCRIBE_ENABLED: 'true', SMALL_ENV: 'test', ...(value === undefined ? {} : { TRANSCRIBE_MODEL: value }) }, { fetchImpl });
+    assert.equal(transcriber.model, model, String(value));
+    assert.deepEqual(await transcriber.transcribe({ bytes: new Uint8Array([1]), mime: 'audio/webm' }), { text: ' heard ' });
     assert.deepEqual(sent, [['https://api.openai.com/v1/audio/transcriptions', model]], String(value));
-    assert.deepEqual([recorded[0].model, recorded[0].estimateMicros], [model, estimate]);
   }
+  assert.equal(openaiTranscriber({ OPENAI_API_KEY: 'fixture', TRANSCRIBE_ENABLED: 'false' }), null, 'the flag still gates it');
 });
