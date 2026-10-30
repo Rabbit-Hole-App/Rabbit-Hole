@@ -893,14 +893,15 @@ export function SettingsRow({ title, desc, children }) {
 
 // Hover/focus tooltip, Notion-style inverted chrome: bold label line, plain info under it.
 // align 'end' pins the tooltip to the trigger's right edge, for triggers at the screen's right edge.
-export function Tip({ label, info, children, align = 'center' }) {
+// off: no tooltip for now, with the same element tree, so the wrapped control keeps its DOM node (and its focus).
+export function Tip({ label, info, children, align = 'center', off = false }) {
   return (
     <span className="group/tip relative inline-flex min-w-0 max-w-full">
       {children}
-      <span role="tooltip" className={`pointer-events-none absolute top-full z-50 mt-1.5 hidden w-max max-w-60 flex-col ${align === 'end' ? 'right-0' : 'left-1/2 -translate-x-1/2'} rounded-md bg-ink px-2.5 py-1.5 text-left whitespace-normal shadow-pop group-hover/tip:flex group-focus-within/tip:flex`}>
+      {!off && <span role="tooltip" className={`pointer-events-none absolute top-full z-50 mt-1.5 hidden w-max max-w-60 flex-col ${align === 'end' ? 'right-0' : 'left-1/2 -translate-x-1/2'} rounded-md bg-ink px-2.5 py-1.5 text-left whitespace-normal shadow-pop group-hover/tip:flex group-focus-within/tip:flex`}>
         <span className="text-xs font-semibold text-white">{label}</span>
         {info && <span className="pt-0.5 text-xs font-normal text-white/75">{info}</span>}
-      </span>
+      </span>}
     </span>
   );
 }

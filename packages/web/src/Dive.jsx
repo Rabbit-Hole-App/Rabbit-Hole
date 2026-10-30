@@ -424,13 +424,14 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
       {children.length > 0 && <>
         <Root />
         {/* Several holes below: the tooltip names them all before the picker opens; while it is open the picker lists them, so
-            no tooltip lies over it. */}
-        {(button => (picking ? button : <Tip label={children.length === 1 ? children[0].title : `${children.length} holes below`} info={children.length > 1 ? children.map(child => child.title).join(' · ') : null} align="end">{button}</Tip>))(
+            no tooltip lies over it (Tip off keeps the button's DOM node, so a keyboard user keeps the focus on it). */}
+        <Tip off={!!picking} label={children.length === 1 ? children[0].title : `${children.length} holes below`} info={children.length > 1 ? children.map(child => child.title).join(' · ') : null} align="end">
           <button type="button" data-dive-down aria-label="Down into a hole" aria-expanded={children.length > 1 ? !!picking : undefined}
             onClick={down} className="flex max-w-full items-center gap-0.5 rounded-sm px-1 py-0.5 whitespace-nowrap text-ink-2 hover:bg-hover hover:text-ink">
             <Arrow size={11} />
             <span className="truncate">{children.length === 1 ? children[0].title : `${children.length} holes`}</span>
-          </button>)}
+          </button>
+        </Tip>
       </>}
       {error && <p role="alert" className="mt-1.5 text-[10px] leading-3 text-[#b42318]">{error}</p>}
       {picking && children.length > 1 && (

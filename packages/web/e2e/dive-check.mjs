@@ -404,6 +404,29 @@ assert.deepEqual(covered, [], 'the child picker rows are uncovered');
 await shot('08-child-picker');
 await page.locator('[data-dive-picker]').getByRole('menuitem', { name: softmaxTitle }).click();
 await page.waitForFunction(name => location.pathname.endsWith(name), softmax);
+// The same by keyboard (owner finding on 1d30cecf: opening the picker swapped the trigger's DOM node and dropped its focus).
+// Focus "Down into a hole" without a click, open it with Enter and with Space: the focus stays on the trigger (or moves into the
+// menu); Tab reaches a hole and Enter goes there.
+await up();
+const down = nav().locator('[data-dive-down]');
+const focusAt = () => page.evaluate(() => { const at = document.activeElement; return at?.matches('[data-dive-down]') ? 'trigger' : at?.closest('[data-dive-picker]') ? 'menu' : at ? `${at.tagName} ${at.getAttribute('aria-label') || at.textContent.trim().slice(0, 40)}` : 'none'; });
+await down.focus();
+assert.equal(await focusAt(), 'trigger', 'the trigger has the keyboard focus');
+for (const key of ['Enter', 'Space']) {
+  await page.keyboard.press(key);
+  await page.locator('[data-dive-picker]').waitFor({ timeout: 3000 });
+  assert.ok(['trigger', 'menu'].includes(await focusAt()), `${key} opens the picker and the focus stays on the trigger or in the menu (${await focusAt()})`);
+  assert.equal(await down.getAttribute('aria-expanded'), 'true', `${key}: the trigger says it is open`);
+  if (key === 'Enter') { await page.keyboard.press('Enter'); await page.locator('[data-dive-picker]').waitFor({ state: 'detached', timeout: 3000 }); assert.equal(await focusAt(), 'trigger', 'Enter again closes it; the focus stays on the trigger'); }
+}
+let reached = null;
+for (let i = 0; i < 8 && !reached; i++) {
+  await page.keyboard.press('Tab');
+  reached = await page.evaluate(title => { const at = document.activeElement; return at?.closest('[data-dive-picker]') && at.getAttribute('role') === 'menuitem' && at.textContent.includes(title) ? at.textContent.trim() : null; }, softmaxTitle);
+}
+assert.ok(reached, 'Tab reaches the hole in the picker');
+await page.keyboard.press('Enter');
+await page.waitForFunction(name => location.pathname.endsWith(name), softmax, { timeout: 15000 }); await page.waitForTimeout(1200);
 console.log('flow H ok');
 
 // ---- F: double-click a level name to rename; Enter saves ----
