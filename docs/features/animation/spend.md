@@ -23,5 +23,7 @@ From 2026-10-30 (acceptance.next.mjs): provider charges and ledger counts are se
 | 9 | 3:46 PM | G acceptance.mjs | watch: ready | claude-opus-5-5 | 3 calls, repairs 0 | US$1.9549 | US$0.1971 | US$0.1971 (3 model call(s); 6 render(s), platform, US$0) | `1e1e25e715157251` | US$1.6045 | US$1.7261 |
 | 10 | 3:48 PM | G acceptance.mjs | experiment: failed | claude-opus-5-5 | 4 calls, repairs 1 | US$1.9549 | US$0.2564 | US$0.2564 (4 model call(s); 6 render(s), platform, US$0) | - | US$1.8609 | US$1.9825 |
 | 11 | 3:50 PM | G acceptance.mjs | fresh: failed | claude-opus-5-5 | 2 calls, repairs 0 | US$1.9549 | US$0.2315 | US$0.2315 (2 model call(s); job diagnostics say US$0.0254) | - | US$2.0924 | US$2.2140 |
+| 12 | 3:58 PM | G acceptance.mjs | experiment: ready | claude-opus-5-5 | 5 calls, repairs 1 | US$2.1949 | US$0.3396 | US$0.3396 (5 model call(s); 12 render(s), platform, US$0) | `da7d7f0ed8fa2e96` | US$2.4320 | US$2.5536 |
+| 13 | 3:58 PM | G acceptance.mjs | fresh: failed (the plan stage ended failed: preparing/transport/invalid_turn: The plan was not ) | claude-opus-5-5 | 1 calls, repairs 0 | US$2.1949 | US$0.0263 | US$0.0263 (1 model call(s)) | - | US$2.4583 | US$2.5799 |
 
-Total provider: US$2.0924. Total ledger (incl. reserves): US$2.2140. Reserved in flight: US$0.00. Remaining: US$7.7860.
+Total provider: US$2.4583. Total ledger (incl. reserves): US$2.5799. Reserved in flight: US$0.00. Remaining: US$7.4201.
