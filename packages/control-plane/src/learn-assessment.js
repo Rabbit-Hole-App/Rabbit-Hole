@@ -16,6 +16,8 @@
 //          code cannot be read now is unavailable: source_unavailable, with no call (owner finding 5B).
 //   visual A drawing whose criteria carry a rubric: its authorized image bytes go to one admitted call to
 //          LEARN_TASKS.tutor_visual (learn-visual-assessment.js, Task 14).
+//   explain_back  A combined Explain-back answer (explainBackOf): one admitted call judging every frozen criterion, with the
+//          parent attempt and its pinned review for a revision, under TUTOR_EXPLAIN_BACK_ENABLED alone.
 //   none   Otherwise a drawing is unavailable: visual_not_supported. Code and numeric answers are unavailable:
 //          rubric_not_supported. Text with no registered claim is unavailable: no_registered_claims.
 //
@@ -48,6 +50,7 @@ import { JourneyConflict, appendJourneyEvidence, loadJourneyById } from './learn
 import { claimAssessment, commitAssessment, ownActivity, pendingOperation, readAttempt } from './learn-attempt-store.js';
 import { assessRubricAttempt, carriesRubric, rubricSources } from './learn-rubric-assessment.js';
 import { assessVisualAttempt, resolveDrawing } from './learn-visual-assessment.js';
+import { assessExplainBack, explainBackOf } from './learn-explain-assessment.js';
 import { CODEBASE_RUBRIC, REPOSITORY_SOURCE, isRepositorySource } from '../../web/src/learn-codebase-goals.js';
 
 export const KEYED_VERSION = 'journey-probe-key-v1';
@@ -139,11 +142,17 @@ function probeOf(journey, ref) {
   return probe?.key ? probe : null;
 }
 
-async function assess(env, actor, attempt, deps) {
+async function assess(env, actor, attempt, deps, assessmentId) {
   const criteria = await criteriaOf(env, attempt);
   const rubricVersion = [...new Set(criteria.map(c => c.rubricVersion))].join(',').slice(0, 200) || null;
   const none = (status, reason, extra = {}) => ({ status, reason, rubricVersion, provenance: { route: null, calls: [], ...extra } });
   if (!criteria.length) return none('unavailable', 'no_criteria');
+  // An Explain-back answer (learn-explain-assessment.js) has its own switch, so it never opens the general rubric or visual routes.
+  const answer = explainBackOf(attempt);
+  if (answer) {
+    if (env.TUTOR_EXPLAIN_BACK_ENABLED !== 'true') return none('unavailable', 'explain_back_disabled', { gate: 'disabled' });
+    return { rubricVersion, ...await assessExplainBack(env, actor, attempt, answer, criteria, deps, assessmentId) };
+  }
   const kind = attempt.responseKind;
   const rich = richRoute(env, kind, criteria, attempt.sourceRefs);
   if (rich) return assessRich(env, actor, attempt, criteria, rich, deps);
@@ -256,7 +265,7 @@ export async function assessAttempt(env, actor, attemptId, deps = {}) {
   if (token) {
     const { attempt } = await readAttempt(env, actor, attemptId);
     let result;
-    try { result = await assess(env, actor, attempt, deps); }
+    try { result = await assess(env, actor, attempt, deps, op.id); }
     catch (error) {
       // ids only, never learner text or the account id
       console.error(JSON.stringify({ event: 'learn_assessment_error', assessment: op.id, error: error?.name || 'Error', message: String(error?.message || '').slice(0, 120) }));

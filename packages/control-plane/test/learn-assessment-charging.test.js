@@ -22,9 +22,9 @@ const PERIOD = periodOf(Math.floor(Date.now() / 1000));
 const ATTEMPTS = '/api/learn/tutor/attempts';
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
-// Spend enforced (SMALL_ENV dev), the platform cap given, both rich routes on for this test only, and ANA's allowance used up.
+// Spend enforced (SMALL_ENV dev), the platform cap given, the rich and Explain-back routes on for this test only, and ANA's allowance used up.
 function paidWorld(t, { platformUsd = '100' } = {}) {
-  const w = world(t, { SMALL_ENV: 'dev', USAGE_PLATFORM_DAY_USD: platformUsd, AI_MONTHLY_ALLOWANCE_USD: (ALLOWANCE / 1e6).toFixed(6), TUTOR_RUBRIC_ASSESSMENT_ENABLED: 'true', TUTOR_VISUAL_ASSESSMENT_ENABLED: 'true' });
+  const w = world(t, { SMALL_ENV: 'dev', USAGE_PLATFORM_DAY_USD: platformUsd, AI_MONTHLY_ALLOWANCE_USD: (ALLOWANCE / 1e6).toFixed(6), TUTOR_RUBRIC_ASSESSMENT_ENABLED: 'true', TUTOR_VISUAL_ASSESSMENT_ENABLED: 'true', TUTOR_EXPLAIN_BACK_ENABLED: 'true' });
   w.sqlite.prepare("INSERT INTO usage_actions (action_id, user_id, payer, payer_reason, feature, charge_class, period, status, started_at) VALUES ('seed', ?, 'user', 'signed_in', 'ask', 'would_charge', ?, 'completed', 1)").run(ANA.userId, PERIOD);
   w.sqlite.prepare("INSERT INTO usage_attempts (attempt_id, action_id, kind, reserved_micros, cost_micros, cost_state, status, started_at) VALUES ('seed-a', 'seed', 'generation', ?, ?, 'settled', 'settled', 1)").run(ALLOWANCE, ALLOWANCE);
   return w;
@@ -86,6 +86,11 @@ const ROUTES = {
   codebase: async w => {
     const activity = await codebaseWorld(w), stub = replying(CODE_REPLY);
     return { activity, content: { text: CODE_ANSWER }, deps: { ...never, callModel: stub.callModel }, providerCalls: () => stub.calls.length };
+  },
+  explain_back: async w => {
+    const { activity } = await coachingActivity(w.env, { criteria: WRITING, responseKind: 'explain_back' });
+    const stub = replying(WRITING_CASES.proposalA.reply);
+    return { activity, content: { v: 1, kind: 'explain_back', text: WRITING_CASES.proposalA.text, voice: [], resources: [], assistance: [] }, deps: { ...never, callModel: stub.callModel }, providerCalls: () => stub.calls.length };
   },
   visual: async w => {
     w.env.LEARN_MEDIA = { store: new Map(), async put(key, value) { this.store.set(key, new Uint8Array(value)); }, async get(key) { const b = this.store.get(key); return b ? { key, size: b.length, arrayBuffer: async () => b.slice().buffer, httpMetadata: { contentType: 'image/png' } } : null; } };
