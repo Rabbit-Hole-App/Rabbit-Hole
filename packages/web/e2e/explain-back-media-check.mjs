@@ -238,8 +238,14 @@ await check('silent Sketch recording records the drawing without the microphone'
   const s = await box(surface);
   await tool('Pen').click();
   await drag({ x: s.x + 30, y: s.y + 80 }, { x: s.x + 140, y: s.y + 120 });
+  // A pen stroke is a mark of the draft once the mouse is released inside the panel (the content dot is committed marks only;
+  // the recording has no saved take yet). Run 41032431618 showed the stroke still live until the next press outside it.
+  await sketchCard.locator('[data-sketch-dot]').waitFor({ timeout: 3000 }).catch(() => {
+    throw Error('a pen stroke drawn in the docked Sketch panel was not committed on mouse up, so the recording could not see it');
+  });
   await page.waitForTimeout(700);
   await drag({ x: s.x + 40, y: s.y + 160 }, { x: s.x + 160, y: s.y + 170 });
+  await page.waitForTimeout(300);
   await panel.locator('[data-sketch-record-stop]').click();
   await panel.locator('[data-sketch-recorder="saved"]').waitFor({ timeout: 15000 });
   assert.equal(await gum(), before, 'silent mode never called getUserMedia');
