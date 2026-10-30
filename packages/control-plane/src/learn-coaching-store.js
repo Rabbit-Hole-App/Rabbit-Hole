@@ -312,6 +312,11 @@ export async function advanceActivity(env, actor, activityId, to, assessment = n
 export const purgeTutorRows = (db, org, app) => {
   const goals = 'SELECT id FROM learn_goals WHERE org = ? AND app = ?', attempts = 'SELECT id FROM learn_attempts WHERE org = ? AND app = ?';
   return [
+    // Explain-back (learn 0034): transcripts of this canvas's answer audio, its answer media rows and drafts.
+    // ponytail: the R2 objects of purged attempt assets stay (as learn-media and papers do) until a storage sweep exists.
+    db.prepare("DELETE FROM learn_attempt_transcripts WHERE asset_id IN (SELECT id FROM learn_attempt_assets WHERE org = ? AND app = ?)").bind(org, app),
+    db.prepare('DELETE FROM learn_attempt_assets WHERE org = ? AND app = ?').bind(org, app),
+    db.prepare('DELETE FROM learn_explain_drafts WHERE org = ? AND app = ?').bind(org, app),
     db.prepare(`DELETE FROM learn_observations WHERE attempt_id IN (${attempts})`).bind(org, app),
     db.prepare(`DELETE FROM learn_assessments WHERE attempt_id IN (${attempts})`).bind(org, app),
     db.prepare('DELETE FROM learn_attempts WHERE org = ? AND app = ?').bind(org, app),
