@@ -48,8 +48,11 @@ text wrapping, feedback tabs, the attempt history and an opened section grow or 
 scrolls in the body. The drag and its commit are clamped to `naturalHeight` (the unstretched card's height plus its body's
 scrolled overflow), so no more than the content needs is stored. Saved oversized heights are clamped when drawn and are
 not rewritten until the learner next resizes the card. Notebooks, Sketch, media, diagrams, graphs, code and the
-Full/Scrollable card layouts keep fixed frames. Remaining: `text-card-height-check.mjs` (runner fork) runs in fast-e2e;
-not yet run. Owner action: none.
+Full/Scrollable card layouts keep fixed frames. Browser check `text-card-height-check.mjs` (runner fork): first run
+(fast-e2e 41108024288 on d871512aa) passed steps 1-4 and 7 and failed 5, 6 and 8 on check faults, not the product: step 5
+assumed the card opens on Your answer (a review loaded after mount opens on Tutor feedback), and steps 6 and 8 pressed a
+corner position read before the last zoom-out (the press selected the Flow card). Fixed in 1fb0e89cd
+(`fix/text-card-height-2`); rerun pending. Owner action: none.
 
 **FX-EB-07 · EB-09 · open (pre-existing, owner rule)** — The canvas style panel opens out of the tools column over the
 cards it styles: with two grouped cards selected at 68% zoom it covered their ports (round 7, check fixed by deselecting
