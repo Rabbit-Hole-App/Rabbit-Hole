@@ -15,7 +15,7 @@
 //        newest first, each with its latest operation and stored rating. No model call.
 //   POST /api/learn/tutor/attempts/bind {app, board, cardId, prompt, expects?} -> {goalId, activityId, activityRevision,
 //        criterionRefs, rubricVersion}: the card's server-owned activity and criteria (Explain-back, EB-02). Idempotent.
-//   PUT  /api/learn/tutor/attempts/assets?app=&board=&kind=audio|image&sha256=&durationMs= <raw bytes> -> {asset} (201; 200 when
+//   PUT  /api/learn/tutor/attempts/assets?app=&board=&kind=audio|image|timeline&sha256=&durationMs= <raw bytes> -> {asset} (201; 200 when
 //        the same bytes were stored before). Audio WebM/Ogg/MP4 or a PNG Sketch snapshot, checked by bytes and by sha256.
 //   GET  /api/learn/tutor/attempts/assets/:aa_id?app=&board= -> the bytes (Range supported). Owner only: 404 for anyone else.
 //   PUT  /api/learn/tutor/attempts/assets/:aa_id {app, board, marks, text} -> {meta}: a Sketch snapshot's capture data, set once.
@@ -41,7 +41,7 @@
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { AttemptError, acceptAttempt, bindExplainBackCard, listAttempts, readAttempt, readDraft, requestReassessment, saveDraft } from './learn-attempt-store.js';
-import { SNAPSHOT_LIMITS, putAttemptAsset, serveAttemptAsset, setAssetMeta } from './learn-attempt-assets.js';
+import { SNAPSHOT_LIMITS, serveAttemptAsset, setAssetMeta, uploadAttemptAsset } from './learn-attempt-assets.js';
 import { assessAttempt } from './learn-assessment.js';
 import { advanceActivity } from './learn-coaching-store.js';
 
@@ -96,7 +96,7 @@ export async function attemptRoute(path, req, env, deps = {}) {
       return meta ? json({ meta }) : json({ error: 'unknown_asset' }, 404);
     }
     if (named === 'assets') return assetId ? await serveAttemptAsset(env, actor, req, assetId)
-      : await putAttemptAsset(env, actor, req, { kind: query.get('kind'), sha256: query.get('sha256'), durationMs: query.get('durationMs') });
+      : await uploadAttemptAsset(env, actor, req, { kind: query.get('kind'), sha256: query.get('sha256'), durationMs: query.get('durationMs') });
     if (named === 'drafts') return json({ draft: method === 'GET' ? await readDraft(env, actor, body.cardId) : await saveDraft(env, actor, body) });
     if (list) return json({ attempts: await listAttempts(env, actor, body.cardId) });
     if (method === 'GET') return json(await readAttempt(env, actor, id));

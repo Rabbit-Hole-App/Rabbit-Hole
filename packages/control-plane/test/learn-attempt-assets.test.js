@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { attemptRoute } from '../src/learn-attempt-routes.js';
 import { readAttempt } from '../src/learn-attempt-store.js';
-import { readAttemptAsset, readFrozenSnapshot, storeAttemptAsset, transcriptStore, transcriptsOf } from '../src/learn-attempt-assets.js';
+import { readAttemptAsset, readFrozenSnapshot, putAttemptAsset, transcriptStore, transcriptsOf } from '../src/learn-attempt-assets.js';
 import { canonical } from '../src/learn-attempt-store.js';
 import { purgeTutorRows } from '../src/learn-coaching-store.js';
 import { ANA, BEN, call, never, world } from './learn-attempt-fixture.js';
@@ -176,12 +176,12 @@ test('a permanent canvas delete takes its answer media rows, transcripts and dra
   for (const table of ['learn_attempt_assets', 'learn_attempt_transcripts', 'learn_explain_drafts']) assert.equal(w.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n, 0, table);
 });
 
-test('storeAttemptAsset seeds a fixture asset with the upload checks, and assessment reads it back', async t => {
+test('putAttemptAsset seeds a fixture asset with the upload checks, and assessment reads it back', async t => {
   const w = setup(t);
-  const png = await storeAttemptAsset(w.env, ANA, { bytes: PNG, mime: 'image/png', marks: [1], text: 'arrow' });
-  assert.deepEqual([png.kind, png.sha256, png.bytes], ['image', sha(PNG), PNG.byteLength]);
+  const png = await putAttemptAsset(w.env, ANA, { bytes: PNG, mime: 'image/png', marks: [1], text: 'arrow' });
+  assert.deepEqual([png.kind, png.hash, png.bytes], ['image', sha(PNG), PNG.byteLength]);
   assert.equal((await upload(w.env, ANA, PNG, 'image')).body.asset.assetId, png.assetId, 'the same bytes are the same asset');
-  await assert.rejects(storeAttemptAsset(w.env, ANA, { bytes: MP3, mime: 'audio/mpeg' }), /unsupported/);
+  await assert.rejects(putAttemptAsset(w.env, ANA, { bytes: MP3, mime: 'audio/mpeg' }), /unsupported/);
   const attempt = { submittedContent: { sketch: { evidenceId: 'ev_s', assetId: png.assetId, hash: png.sha256 }, voice: [] } };
   assert.equal((await readAttemptAsset(w.env, ANA, attempt, attempt.submittedContent.sketch)).text, 'arrow');
 });
@@ -205,4 +205,22 @@ test('board-held inputs are frozen at submission: only snapshots the answer name
   assert.equal(await readFrozenSnapshot(w.env, ANA, attempt, { hash: sha(canonical({ type: 'note', text: 'not connected' })) }), null, 'not an input of this attempt');
   const bad = await call(w.env, ANA, 'POST', '/api/learn/tutor/attempts', { activityId: bound.activityId, activityRevision: 1, submissionKey: 'snap-key-0002', submittedContent: { ...content, text: 'x' }, snapshots: 'nope' }, never);
   assert.deepEqual([bad.status, bad.body.error], [400, 'invalid_snapshots']);
+});
+
+test('a Sketch recording timeline (JSON, at most 2 MiB) is a private asset; a timeline answer with narration submits', async t => {
+  const w = setup(t);
+  const timeline = new TextEncoder().encode(JSON.stringify({ v: 1, events: [{ t: 0, kind: 'stroke' }] }));
+  const up = await upload(w.env, ANA, timeline, 'timeline', { durationMs: '42000' });
+  assert.deepEqual([up.status, up.body.asset.mime, up.body.asset.ext], [201, 'application/json', 'json'], JSON.stringify(up.body));
+  assert.equal((await upload(w.env, ANA, new TextEncoder().encode('[1,2]'), 'timeline', { durationMs: '10' })).status, 415);
+  const narration = await putAttemptAsset(w.env, ANA, { bytes: OGG, mime: 'audio/ogg', durationMs: 42000 });
+  const bound = (await call(w.env, ANA, 'POST', '/api/learn/tutor/attempts/bind', { cardId: 'card-1', prompt: 'Why?', expects: ['because'] })).body;
+  const recording = { evidenceId: 'ev_r', role: 'recording', media: 'sketch_timeline', state: 'ready', assetId: up.body.asset.assetId, revision: 1, hash: up.body.asset.sha256, mime: 'application/json', durationMs: 42000,
+    narration: { evidenceId: 'ev_n', role: 'voice', media: 'audio', state: 'ready', assetId: narration.assetId, revision: 1, hash: narration.hash } };
+  const submit = (rec, key) => call(w.env, ANA, 'POST', '/api/learn/tutor/attempts', { activityId: bound.activityId, activityRevision: 1, submissionKey: key, submittedContent: { v: 1, kind: 'explain_back', text: '', voice: [], recording: rec, resources: [], assistance: [] } }, never);
+  const ok = await submit(recording, 'timeline-key-1');
+  assert.equal(ok.status, 200, JSON.stringify(ok.body));
+  const { attempt } = await readAttempt(w.env, ANA, ok.body.attempt.attemptId);
+  assert.deepEqual([...(await readAttemptAsset(w.env, ANA, attempt, recording.narration)).bytes], [...OGG]);
+  assert.equal((await submit({ ...recording, media: 'video' }, 'timeline-key-2')).body.error, 'unknown_asset', 'a timeline asset is not a video');
 });
