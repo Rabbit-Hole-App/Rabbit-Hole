@@ -1,9 +1,10 @@
 // One command's preview in View > Slash Commands (owner spec 2026-10-29 sections 7.4 and 9): a stage measured from the space the
 // window leaves it (ResizeObserver), and in it one example at a time - the command's finished card drawn by the canvas's own card
-// body, the shared brief card, Learning Goals, the source finder, or a plain statement that no matching saved result exists. The
-// card is sized to the stage, never at its canvas size inside a scroller: its width and height are capped by the stage, and a card
-// whose content keeps an aspect (an explanation's scene, a video) is narrowed until the whole card fits. Fixtures come from
-// slash-sheet.js; nothing here generates, searches, captures, grades, runs code or saves.
+// body, the shared brief card, Learning Goals, the source finder, the notebook, YouTube, Wikipedia or webpage card, or a plain
+// statement that no matching saved result exists. The card sits just under the command's details, sized to the stage, never at its
+// canvas size inside a scroller: its width and height are capped by the stage, and a card whose content keeps an aspect (an
+// explanation's scene, a video) is narrowed until the whole card fits. Fixtures come from slash-sheet.js; nothing here generates,
+// searches, captures, grades or saves (the notebook's own in-browser Python runs only what the visitor runs).
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BLOCK_TYPES, LearningBlockBody } from './LearningBlocks.jsx';
 import NotebookBody from './NotebookCard.jsx';
@@ -11,6 +12,10 @@ import GoalManager from './GoalManager.jsx';
 import GenerationProposalCard from './GenerationProposalCard.jsx';
 import { FinderPanel } from './SearchBar.jsx';
 import { CadViewerTools } from './CadCard.jsx';
+import { YouTubeMoment } from './AdaptiveCanvas.jsx';
+import LearnWiki from './LearnWiki.jsx';
+import WebpageCard from './WebpageCard.jsx';
+import { CardSourceScope } from './use-card-source.js';
 import { BRIEFS, briefView, previewBlock } from './slash-sheet.js';
 
 // Controls that would reach a provider or the account from inside a card: in the window a press on one does nothing (Speak an
@@ -20,6 +25,8 @@ const swallow = event => { event.preventDefault(); event.stopPropagation(); };
 const guard = { onClickCapture: event => { if (event.target.closest?.(LIVE)) swallow(event); } };
 // The photo card searches on Enter in its field: the window's copy never does.
 const noEnter = { onKeyDownCapture: event => { if (event.key === 'Enter' && event.target.tagName === 'INPUT') swallow(event); } };
+// An image card shows its picture, not the card's Generate offer or its availability line (owner, 2026-10-29).
+const IMAGE_RESULT = '[&_[data-image-generate]]:hidden [&_[data-image-generate-unavailable]]:hidden';
 const reducedMotion = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
 
 // The stage's size: what is left of the pane under the command's details.
@@ -40,11 +47,14 @@ export default function SlashCommandPreview({ name, preview, view, example, appN
   const stage = useRef(null);
   const size = useSize(stage);
   return (
-    <div ref={stage} data-slash-stage data-stage-size={size ? `${size.w}x${size.h}` : undefined} className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden">
+    <div ref={stage} data-slash-stage data-stage-size={size ? `${size.w}x${size.h}` : undefined} className="relative flex min-h-0 min-w-0 flex-1 items-start justify-center overflow-hidden">
       {size && size.w > 0 && size.h > 0 && (view === 'brief'
         ? <BriefPreview key={`brief:${name}`} name={name} example={example} stage={size} />
         : preview.kind === 'card' ? <CardPreview key={`card:${name}:${narrow}`} preview={preview} stage={size} appName={appName} narrow={narrow} />
-        : preview.kind === 'notebook' ? <NotebookPreview stage={size} />
+        : preview.kind === 'notebook' ? <NotebookPreview block={preview.block} stage={size} />
+        : preview.kind === 'youtube' ? <YouTubePreview block={preview.block} stage={size} appName={appName} />
+        : preview.kind === 'wiki' ? <WikiPreview preview={preview} stage={size} appName={appName} />
+        : preview.kind === 'webpage' ? <WebpagePreview preview={preview} stage={size} appName={appName} />
         : preview.kind === 'goal' ? <GoalPreview key={name} draft={preview.draft} stage={size} />
         : preview.kind === 'finder' ? <FinderPreview key={name} preview={preview} stage={size} />
         : <p data-slash-unavailable className="max-w-md rounded-xl border border-dashed border-line px-4 py-3 text-sm text-ink-2">{preview.reason}</p>)}
@@ -70,7 +80,9 @@ function CardPreview({ preview, stage, appName, narrow }) {
   const clip = useSeekableClip(block.src);
   const spec = BLOCK_TYPES[type] || {};
   const own = preview.size?.(narrow) || spec.sizeFor?.(block) || {};
-  const viewKey = block.type === 'scene' && block.modelUrl ? 'slash-sheet:scene' : null;
+  const viewKey = block.type === 'scene' && block.modelUrl ? 'slash-sheet:scene' : block.type === 'cad' ? block.id : null;
+  // /explain's saved result answers ProgramScene's result read from the bundled fixture (ProgramScene programExample).
+  const [scope] = useState(() => (preview.program ? { programExample: { client: { result: async () => structuredClone(preview.program) } } } : null));
   // The 3D view's Interact and Fit view sit above the card, as on the canvas's selected-card toolbar: the toolbar row and its 8 px
   // gap take 46 px (CI fast-e2e 40853008983 measured the card 4 px over its stage with 40 reserved), so 48 keeps the whole card in.
   const room = { w: stage.w - 2, h: stage.h - 2 - (viewKey ? 48 : 0) };
@@ -125,7 +137,7 @@ function CardPreview({ preview, stage, appName, narrow }) {
   const grade = preview.feedback ? async (committed, answer, push) => { push(preview.feedback); } : undefined;
   const body = (
     <div ref={card} data-slash-card={type} style={{ width, height, maxHeight }} {...guard} {...(type === 'image' ? noEnter : {})}
-      className={`group relative flex shrink-0 cursor-default flex-col rounded-xl border select-text ${spec.ghost ? 'border-line bg-surface' : 'border-line bg-surface shadow-sm'}`}>
+      className={`group relative flex shrink-0 cursor-default flex-col rounded-xl border select-text ${spec.ghost ? 'border-line bg-surface' : 'border-line bg-surface shadow-sm'} ${type === 'image' ? IMAGE_RESULT : ''}`}>
       <div aria-hidden className="flex h-6 shrink-0 items-center justify-center rounded-t-xl"><span className="h-1 w-12 rounded-full bg-line" /></div>
       {clip === null
         ? <p data-slash-clip-loading className="px-4 py-3 text-xs text-ink-2">Loading the example video</p>
@@ -133,9 +145,10 @@ function CardPreview({ preview, stage, appName, narrow }) {
             appName={appName} selected viewKey={viewKey} onGrade={grade} />}
     </div>
   );
+  const shown = scope ? <CardSourceScope.Provider value={scope}>{body}</CardSourceScope.Provider> : body;
   return viewKey
-    ? <div data-slash-viewer-preview className="flex shrink-0 flex-col items-end gap-2"><CadViewerTools viewKey={viewKey} cardId={block.id} ruler={false} />{body}</div>
-    : body;
+    ? <div data-slash-viewer-preview className="flex shrink-0 flex-col items-end gap-2"><CadViewerTools viewKey={viewKey} cardId={block.id} ruler={type === 'cad'} />{shown}</div>
+    : shown;
 }
 
 // A committed sample clip (/motion's real Motion video) plays from memory. Static assets are served without byte ranges, so a
@@ -154,15 +167,71 @@ function useSeekableClip(src) {
   return url;
 }
 
-// The notebook card's own header with one empty cell: no notebook site, kernel, run or save (NotebookBody preview).
-function NotebookPreview({ stage }) {
+// The notebook card itself on a saved notebook (NotebookBody preview): JupyterLab from the notebook site, its workspace replaced by
+// the saved notebook each time it opens, nothing saved or reported back.
+function NotebookPreview({ block, stage }) {
   return (
-    <div data-slash-card="notebook" style={{ width: Math.min(640, stage.w - 2) }} className="flex shrink-0 flex-col rounded-xl border border-line bg-surface shadow-sm">
+    <Shell kind="notebook" width={Math.min(640, stage.w - 2)} height={Math.min(600, stage.h - 2)}>
+      <NotebookBody preview block={block} onSelect={() => {}} onDocument={() => {}} onManifest={() => {}} />
+    </Shell>
+  );
+}
+
+// A canvas card's frame for the bodies that draw their own header (notebook, YouTube, Wikipedia, webpage): the card's border and
+// drag strip, at a size capped by the stage.
+function Shell({ kind, width, height, children }) {
+  return (
+    <div data-slash-card={kind} style={{ width, height }} {...guard} className="flex shrink-0 flex-col rounded-xl border border-line bg-surface shadow-sm">
       <div aria-hidden className="flex h-6 shrink-0 items-center justify-center rounded-t-xl"><span className="h-1 w-12 rounded-full bg-line" /></div>
-      <NotebookBody preview block={{ id: 'slash-help-notebook', type: 'notebook', notebook_id: 'slash-help-notebook' }} onSelect={() => {}} onDocument={() => {}} onManifest={() => {}} />
+      {children}
     </div>
   );
 }
+
+// The YouTube card's body (AdaptiveCanvas YouTubeMoment): YouTube's own player, which plays only when Play is pressed. A seek on
+// its bar stays in this card.
+function YouTubePreview({ block: saved, stage, appName }) {
+  const [block, setBlock] = useState(saved);
+  return (
+    <Shell kind="youtube" width={Math.min(560, stage.w - 2)} height={Math.min(420, stage.h - 2)}>
+      <YouTubeMoment block={block} selected appName={appName} onChange={setBlock} />
+    </Shell>
+  );
+}
+
+// The Wikipedia card's reader on the stored article (LearnWiki saved): its title, opening, source link and licence.
+function WikiPreview({ preview, stage, appName }) {
+  return (
+    <Shell kind="wiki" width={Math.min(560, stage.w - 2)} height={Math.min(520, stage.h - 2)}>
+      <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
+        <span className="h-1.5 w-1.5 rounded-full bg-ink" />Wikipedia
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl border-t border-line px-4 pt-2">
+        <LearnWiki app={appName} compact article={{ title: preview.block.title, section: 0 }} saved={preview.saved} onSelect={() => {}} />
+      </div>
+    </Shell>
+  );
+}
+
+// The webpage card on the /browser example's committed capture (WebpageCard readFile), read-only: no Refresh, highlight or Ask;
+// scrolling and Copy work as on the canvas.
+function WebpagePreview({ preview, stage, appName }) {
+  const [block, setBlock] = useState(preview.block);
+  const [read] = useState(() => capturedFile(preview));
+  return (
+    <Shell kind="webpage" width={Math.min(620, stage.w - 2)} height={Math.min(560, stage.h - 2)}>
+      <WebpageCard block={block} appName={appName} selected readOnly readFile={read} onChange={setBlock} onChangeQuiet={setBlock} />
+    </Shell>
+  );
+}
+// Each capture file by its id: the manifest from the fixture, the text runs and tiles from their copies under /lesson-assets.
+const capturedFile = preview => async (id, { as = 'json', signal } = {}) => {
+  if (id === preview.block.fileRef.source.id) return structuredClone(preview.manifest);
+  const name = preview.files[id];
+  const response = name ? await fetch(`/lesson-assets/slash-webpage/${name}`, { signal }) : null;
+  if (!response?.ok) throw Object.assign(new Error('This capture is not available.'), { status: response?.status ?? 404 });
+  return as === 'blob' ? response.blob() : response.json();
+};
 
 // Progress's Learning Goals on state of its own: the example's words in New goal, unsaved. Add goal says nothing is saved here;
 // no request is made (GoalManager saves only through the coaching it is given).

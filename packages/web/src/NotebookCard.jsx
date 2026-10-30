@@ -11,8 +11,9 @@ import { registerNotebookEditor, notebookCellRequest } from './notebook-inline-c
 // header, then the card's Jupyter workspace in an iframe on the isolated
 // notebook origin. The workspace keeps its own files; the card keeps the
 // manifest and a copy of the active notebook, reported over the bridge.
-// preview: the Slash Commands window's /notebook example (owner spec 2026-10-29 sections 8.9 and 9): the same header with one empty
-// cell in place of the workspace, so no notebook site loads, no kernel starts, nothing runs and nothing is saved or registered.
+// preview: the Slash Commands window's /notebook example (owner, 2026-10-29: the real JupyterLab notebook): the same header and
+// notebook site, its workspace replaced by the block's saved notebook every time it opens (`fresh`), so an edit there lasts only
+// while the window is open. Nothing is reported back, saved, exported or registered with the canvas.
 export default function NotebookBody({ block, onSelect, onDocument, onManifest, onEditCells, preview = false }) {
   const frame = useRef(null);
   const [loaded, setLoaded] = useState(false);
@@ -22,7 +23,7 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
   const [stalled, setStalled] = useState(false);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    if (loaded || preview) return;
+    if (loaded) return;
     setStalled(false);
     const timer = setTimeout(() => setStalled(true), 30000);
     return () => clearTimeout(timer);
@@ -77,16 +78,17 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
     return () => { window.removeEventListener(EXPORT_WORKSPACES, onRequest); clearTimeout(exportTimer.current); };
   }, []);
   const open = async () => {
+    if (preview) { send('init', { ...initial.current, workspace: { [initial.current.ipynb_path]: { type: 'notebook', format: 'json', content: block.ipynb } }, fresh: true }); return; }
     const store = workspaceStore();
     const workspace = store?.load ? await store.load(block.notebook_id).catch(() => null) : null;
     send('init', { ...initial.current, workspace, fresh: !!store?.fresh && !!workspace });
   };
 
   useEffect(() => {
-    if (preview) return undefined;
     const receive = event => {
       if (event.source !== frame.current?.contentWindow || event.origin !== NOTEBOOK_ORIGIN || event.data?.protocol !== NOTEBOOK_PROTOCOL) return;
       const { type } = event.data;
+      if (preview) { if (type === 'loaded') { ready.current = true; setLoaded(true); } return; }
       if(type==='edit-selection'&&event.data.result){const result=event.data.result;frameRevision.current=result.revision;latest.current.onDocument(result.path,result.ipynb);onEditCells?.({...result,id:block.id,notebookId:block.notebook_id});return;}
       if(type==='cell-error'){toast(event.data.error||'The selected notebook cells could not be read.');return;}
       if(type==='cells-result'){
@@ -146,16 +148,8 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
           </div>
         )}
       </div>
-      {preview ? (
-        <div data-notebook-preview className="min-h-0 flex-1 rounded-b-xl border-t border-line bg-surface px-4 py-3">
-          <div className="flex items-start gap-2 font-mono text-[13px] leading-5">
-            <span aria-hidden="true" className="pt-1.5 text-ink-3">[ ]:</span>
-            <div aria-label="Empty code cell" className="h-8 min-w-0 flex-1 rounded border border-line bg-hover/40" />
-          </div>
-          <p className="mt-2 text-xs text-ink-2">Add code, then run a cell.</p>
-        </div>
-      ) : <div className="relative min-h-0 flex-1 overflow-hidden rounded-b-xl border-t border-line">
-        <iframe key={attempt} ref={frame} data-notebook-frame title="Jupyter notebook" src={notebookUrl(workspaceIdFor(block.notebook_id))} className="h-full w-full bg-white"
+      <div className="relative min-h-0 flex-1 overflow-hidden rounded-b-xl border-t border-line">
+        <iframe key={attempt} ref={frame} data-notebook-frame data-notebook-preview={preview || undefined} title="Jupyter notebook" src={notebookUrl(preview ? block.notebook_id : workspaceIdFor(block.notebook_id))} className="h-full w-full bg-white"
           sandbox="allow-scripts allow-same-origin allow-downloads" allow="clipboard-write"
           onLoad={open} />
         {!loaded && !stalled && <p className="pointer-events-none absolute inset-0 grid place-items-center bg-white text-sm text-ink-2">Starting Python</p>}
@@ -168,7 +162,7 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
             </div>
           </div>
         )}
-      </div>}
+      </div>
     </>
   );
 }

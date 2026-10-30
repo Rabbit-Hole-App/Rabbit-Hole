@@ -135,8 +135,8 @@ export default function SlashCommandsSheet({ appName, onClose, onUseExample = nu
               </div>
               <p data-slash-about className="mt-1 shrink-0 text-sm text-ink-2">{command.about}</p>
               <div className="mt-2 flex shrink-0 flex-wrap items-center gap-2">
-                <code data-slash-example className="min-w-0 font-mono text-[13px] leading-[18px] break-words text-ink-2">{example}</code>
-                <span className="flex-1" />
+                {/* The example takes the row's free width beside its buttons (wrapping inside it), so the preview starts right below. */}
+                <code data-slash-example className="min-w-0 flex-[1_1_16rem] font-mono text-[13px] leading-[18px] break-words text-ink-2">{example}</code>
                 {generator && (
                   <Button type="button" variant="secondary" data-slash-view={showing === 'brief' ? 'result' : 'brief'} disabled={resultless}
                     onClick={() => setView(showing === 'brief' ? 'result' : 'brief')} className="max-sm:h-11">{showing === 'brief' ? 'View result' : 'View brief'}</Button>

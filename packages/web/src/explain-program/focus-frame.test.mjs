@@ -53,9 +53,12 @@ test('under the readable scale the drawing is drawn whole at it and the Focus co
   assert.deepEqual(focusFrameBox(wide, { w: 1216, h: 380 }), { w: 960, h: 540, scroll: true }, 'without a readable scale the legible box is the floor');
   const scene = readFileSync(new URL('./ProgramScene.jsx', import.meta.url), 'utf8');
   assert.match(scene, /style=\{focusBox \? \{ flex: 'none', width: focusBox\.w \+ 2, height: focusBox\.h \+ 2, overflow: 'hidden', alignSelf: 'safe center' \} : undefined\}/, 'the drawing is whole and centred, never scrolled inside its own box');
-  assert.match(scene, /focusFrameBox\(box, \{ w: card\.clientWidth - fixed\.w, h: card\.clientHeight - fixed\.h - rowsHeight \}, box\.minScale\)/, 'the room is the card less its fixed chrome and rows, never the sized viewport');
+  // The Slash Commands window's /explain example (owner, 2026-10-29: about 660 px wide, the whole drawing visible) is fitted the
+  // same way inside its own card, with no readable-scale floor.
+  assert.match(scene, /focusFrameBox\(box, \{ w: card\.clientWidth - fixed\.w, h: card\.clientHeight - fixed\.h - rowsHeight \}, example \? 0 : box\.minScale\)/, 'the room is the card less its fixed chrome and rows, never the sized viewport');
+  assert.match(scene, /root\.current\?\.closest\(example \? '\[data-slash-card\]' : '\[data-block\]'\)/);
   const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
-  assert.match(css, /@media \(max-height: 800px\) \{\s*\[data-focus-host\] \[data-program-card\], \[data-focus-host\] \[data-program-card\] > div:last-child \{ gap: 0\.25rem; \}/, 'a short window closes up the rows first');
+  assert.match(css, /@media \(max-height: 800px\) \{\s*:is\(\[data-focus-host\], \[data-slash-card\]\) \[data-program-card\], :is\(\[data-focus-host\], \[data-slash-card\]\) \[data-program-card\] > div:last-child \{ gap: 0\.25rem; \}/, 'a short window closes up the rows first');
 });
 
 test('Focus shows one title (the card hides its own kicker and title) and the canvas draws its maps and Curious through focusWidgets', () => {
