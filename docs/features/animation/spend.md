@@ -7,5 +7,6 @@ calls running concurrently; at the cap, stop paid calls and continue unpaid work
 
 | # | Time (PT) | Agent | Purpose / case | Model | Stage calls | Estimate (worst case) | Actual | Artifact hash | Running total |
 |---|---|---|---|---|---|---|---|---|---|
+| 1 | 2:32 PM | G acceptance.mjs | watch: failed (the plan stage ended failed: preparing/internal: The animation stopped unexpecte) | claude-opus-5-5 | 1 calls, repairs 0 | US$1.9549 | US$0.1216 (ledger; 1 unsettled counted at their reserve) | - | US$0.1216 |
 
-Total actual: US$0.00. Reserved in flight: US$0.00. Remaining: US$10.00.
+Total actual: US$0.1216. Reserved in flight: US$0.00. Remaining: US$9.8784.
