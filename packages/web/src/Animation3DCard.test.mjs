@@ -30,7 +30,7 @@ globalThis.MessageChannel = class { constructor() { const port1 = { onmessage: n
 
 const dir = mkdtempSync(join(tmpdir(), 'animation-card-')), outfile = join(dir, 'card.cjs');
 await esbuild.build({
-  stdin: { contents: "export { default as Card } from './Animation3DCard.jsx'; export { resetViewers } from './viewer-slots.js'; export { createElement, act } from 'react'; export { createRoot } from 'react-dom/client';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { default as Card } from './Animation3DCard.jsx'; export { resetViewers } from './viewer-slots.js'; export { AnimationBoard } from './animation3d/board-context.js'; export { createElement, act } from 'react'; export { createRoot } from 'react-dom/client';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'error',
   loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty', '.wasm': 'empty', '.woff2': 'empty', '.ttf': 'empty' },
   plugins: [{ name: 'assets', setup(build) {
@@ -262,4 +262,55 @@ test('a failed job: its message and the job\'s own retry', async () => {
   assert.equal($('[data-animation-stage]').textContent, 'The scene could not be checked.');
   assert.match(card().textContent, /Your request: \/animation a lever/);
   assert.equal($('[data-animation-job-retry]').textContent.trim(), 'Try again');
+});
+
+test('a ready job lands on its card once (the artifact read and mapped to the board reference); the saved card then plays it', async () => {
+  const art = structuredClone(experimentFixture.artifact);
+  const answers = { job: { id: 'j3', boardId: 'b1', cardId: 'p3', stage: 'ready', terminal: true, result: { resultId: art.artifactId, cardId: 'p3', canvas: { boardId: 'b1' }, requestRef: 'rr', planHash: art.planHash } } };
+  const calls = [];
+  const fetchJson = async path => { calls.push(path); return path.includes('/results/') ? { artifact: structuredClone(art), execution: { allowed: true } } : answers; };
+  const waiting = { id: 'j3', boardId: 'b1', cardId: 'p3', requestId: 'r3', sourceKey: 'rr', baseRevision: null, stage: 'reviewing' };
+  const { changes } = await mount({ fetchJson, block: { id: 'p3', type: 'animation3d', title: 'Lever', animation3dJob: waiting } });
+  const landed = changes.filter(([kind]) => kind === 'change').map(([, block]) => block);
+  assert.equal(landed.length, 1, 'one undo step: the new scene');
+  assert.equal(landed[0].animation3d.ref.artifactId, 'fixture-beam-balance');
+  assert.equal(landed[0].animation3dJob, undefined);
+  assert.deepEqual(calls, ['/api/learn/animation/jobs/j3?board=b1', '/api/learn/animation/jobs/results/fixture-beam-balance?board=b1']);
+  // The owner's canvas provides its board (LearnPage, AnimationBoard): the saved card reads its scene and runs it.
+  root && await B.act(async () => root.unmount());
+  B.resetViewers();
+  document.getElementById('app').innerHTML = '';
+  root = B.createRoot(document.getElementById('app'));
+  const runtimes = realRuntimes(), renderers = stubRenderers();
+  await B.act(async () => { root.render(B.createElement(B.AnimationBoard.Provider, { value: { kind: 'owner', boardId: 'b1' } },
+    B.createElement(B.Card, { block: landed[0], onChange: () => {}, onChangeQuiet: () => {}, fetchJson, createRuntime: runtimes.factory, createRenderer: renderers.factory, webgl: true }))); });
+  await settle();
+  assert.equal(card().getAttribute('data-animation-phase'), 'ready');
+  assert.deepEqual(raw(), { leftMoment: 6, rightMoment: 4, tilt: 10 });
+});
+
+test('the kill switch (execution not allowed): the saved card never runs and says so, with Retry', async () => {
+  const fetchJson = async () => ({ artifact: structuredClone(experimentFixture.artifact), execution: { allowed: false } });
+  const runtimes = stubRuntimes();
+  await mount({ runtimes, fetchJson, block: savedCard(), context: { kind: 'owner', boardId: 'b1' } });
+  assert.equal(card().getAttribute('data-animation-phase'), 'recovery');
+  assert.match($('[data-animation-failure]').textContent, /turned off right now/);
+  assert.ok($('[data-animation-retry]'));
+  assert.equal(runtimes.made.length, 0, 'nothing ran');
+});
+
+// AdaptiveCanvas placeAnimation, read from its source as explain-client.test.mjs reads placeExplain: one card per job card id.
+test('the canvas places an /animation job\'s card once under its own id, never on a read-only canvas, and only an animation3d card', async () => {
+  const { readFileSync } = await import('node:fs');
+  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  const body = canvas.match(/placeAnimation: ([\s\S]*?),\r?\n      placeExplain:/)[1];
+  const factory = new Function('alive', 'readOnlyRef', 'blocksRef', 'snapshot', 'insertAtView', `return (${body})`);
+  const blocks = { current: [] }, inserted = [];
+  const place = (readOnly = false) => factory({ current: true }, { current: readOnly }, blocks, () => {}, block => { inserted.push(block); return block.id; });
+  const pending = { id: 'a1', type: 'animation3d', title: 'Lever', animation3dJob: { id: 'j1', stage: 'queued' } };
+  assert.equal(place()(pending), 'a1');
+  assert.equal(place()(pending), 'a1', 'a resent press finds the same card');
+  assert.deepEqual(inserted.map(block => block.id), ['a1']);
+  assert.equal(place(true)({ ...pending, id: 'a2' }), null);
+  assert.equal(place()({ ...pending, type: 'animation', id: 'a3' }), null);
 });

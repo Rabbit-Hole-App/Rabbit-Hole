@@ -17,8 +17,9 @@ const q = value => encodeURIComponent(value);
 export function animationClient(fetchJson, boardId) {
   const post = (path, body = {}) => fetchJson(path, { method: 'POST', body: JSON.stringify({ boardId, ...body }) });
   return {
-    // One /animation request starts one job (its plan is then reviewed); requestId makes a repeat return that same job.
-    create: ({ requestId, cardId, prompt, context = null, threadId = null }) => post(ANIMATION_ROUTES.jobs, { requestId, cardId, prompt, ...(context ? { context } : {}), ...(threadId ? { threadId } : {}) }),
+    // One /animation request starts one job (its plan is then reviewed): { requestId, cardId, prompt, context?, context_refs?,
+    // threadId?, source? }; requestId makes a repeat return that same job.
+    create: body => post(ANIMATION_ROUTES.jobs, body),
     get: jobId => fetchJson(`${ANIMATION_ROUTES.jobs}/${q(jobId)}?board=${q(boardId)}`),
     // approve | refine | cancel | retry: one targeted action on this job; expectedAttempt makes a double press one Retry.
     action: (jobId, name, body = {}) => post(`${ANIMATION_ROUTES.jobs}/${q(jobId)}/${q(name)}`, body),

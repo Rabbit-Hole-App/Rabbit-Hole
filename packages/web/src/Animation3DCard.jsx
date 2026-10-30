@@ -14,6 +14,8 @@ import { ANIMATION_FIXTURES } from './animation3d/fixtures.js';
 import { cancelAnimationJob, createAnimationSaver, hydrateAnimation, landHydration, nextView, settleAnimationJob } from './animation3d/storage.js';
 import { createAnimationRuntime } from './animation3d/runtime.js';
 import { createAnimationRenderer } from './animation3d/renderer.js';
+import { AnimationBoard } from './animation3d/board-context.js';
+import { EXPLAIN_BRIEF_EVENT } from './explain-client.js';
 import { createCardSession } from './animation3d/session.js';
 import { useSceneInteraction } from './animation3d/interaction.js';
 import { Actions, buttonClass, GamePanel, Parameters, Readouts, Toolbar } from './animation3d/Controls.jsx';
@@ -25,8 +27,8 @@ import { Actions, buttonClass, GamePanel, Parameters, Readouts, Toolbar } from '
 // relays. Nothing here calls a model: playing, adjusting and resetting are local to the accepted artifact.
 //
 // Props beyond the canvas's usual block/onChange/onChangeQuiet/selected/readOnly:
-//   context   { kind: 'owner' | 'share' | 'publication' | 'embed' | 'fork', boardId } (storage.js hydrateAnimation); a saved
-//             card shows its honest placeholder without it
+//   context   { kind: 'owner' | 'share' | 'publication' | 'embed' | 'fork', boardId } (storage.js hydrateAnimation); default: the
+//             AnimationBoard context the owner's canvas provides. A saved card shows its honest placeholder without either
 //   readArtifact(ref, { signal })  the durable result read (default: client.js result route)
 //   onEdit()  the reviewed refinement path (proposal)     onAsk()  Ask Tutor with this card as context
 //   createRuntime / createRenderer / webgl / fetchJson  tests inject stand-ins
@@ -36,7 +38,8 @@ const aborted = () => Object.assign(new Error('aborted'), { name: 'AbortError' }
 // The scene a card shows: a built-in example by its fixture name (its state kept in this page only), else the saved envelope
 // hydrated by storage.js (owner only in the MVP; the artifact read through the result route, checked against its reference) and
 // landed on the card as it is now, so edits made while it loaded win.
-export const sceneLoader = ({ context, readArtifact, latest }) => async (block, { signal }) => {
+export const sceneLoader = ({ context: contextOf, readArtifact, latest }) => async (block, { signal }) => {
+  const context = contextOf(); // read at load time: the canvas's board id can arrive after the card mounts
   const name = fixtureIdOf(block);
   if (name) {
     const fixture = ANIMATION_FIXTURES.find(entry => entry.name === name);
@@ -89,6 +92,8 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
   const apply = async data => {
     const polled = data?.job ?? null;
     setJob(polled);
+    // A plan ready for review: the chat showing its thread reloads it, so the plan and its Generate appear (as /explain's brief).
+    if (polled?.stage === 'awaiting_approval' && latest.current.animation3dJob?.stage !== 'awaiting_approval' && waiting.threadId) window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId: waiting.threadId, jobId: waiting.id } }));
     const settled = polled?.stage === 'ready' ? await readyResult(polled, id => client.result(id)) : polled;
     if (!settled) { setProblem('The finished scene could not be read. Try again in a moment.'); return; }
     const out = settleAnimationJob(latest.current, settled, { boardId: waiting.boardId });
@@ -159,9 +164,10 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
     saver.current = created;
     return () => { created.dispose(); if (saver.current === created) saver.current = null; };
   }, [refKey, block.id, readOnly, context?.kind]); // eslint-disable-line react-hooks/exhaustive-deps
+  const contextRef = useRef(context); contextRef.current = context;
   const session = useRef(null);
   session.current ||= createCardSession({
-    loadScene: sceneLoader({ context, readArtifact: readArtifact ?? defaultReadArtifact(fetchJson), latest: () => latest.current }),
+    loadScene: sceneLoader({ context: () => contextRef.current, readArtifact: readArtifact ?? defaultReadArtifact(fetchJson), latest: () => latest.current }),
     createRuntime, createRenderer: webglOk ? createRenderer : null, onUpdate: setView,
     persist: {
       simulation: sim => saver.current?.simulation(sim),
@@ -171,7 +177,7 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
   const live = session.current;
   const state = view ?? live.state();
   const sourceKey = `${refKey}|${fixtureIdOf(block) ?? ''}`;
-  useEffect(() => { live.start(latest.current); }, [block.id, sourceKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { live.start(latest.current); }, [block.id, sourceKey, context?.kind, context?.boardId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => live.dispose(), [live]);
 
   // On screen (with a margin) asks for one of the shared WebGL slots (viewer-slots.js MAX_LIVE); off screen for a while gives it
@@ -306,6 +312,7 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
 export default function Animation3DCard({ block, onChange, onChangeQuiet, selected = true, readOnly = false, onEdit = null, onAsk = null, context = null, readArtifact = null,
   createRuntime = createAnimationRuntime, createRenderer = createAnimationRenderer, webgl = undefined, fetchJson = api }) {
   // Waiting on its first version: no saved scene and no example yet.
+  const board = useContext(AnimationBoard); // the owner's canvas (LearnPage); a prop wins (tests, the Slash Commands window)
   if (jobOf(block) && !artifactRefOf(block) && !fixtureIdOf(block)) {
     return (
       <div data-animation3d-card data-animation-phase={cardPhase({ block })} className="flex min-h-0 flex-1 flex-col px-4 pb-3">
@@ -316,5 +323,5 @@ export default function Animation3DCard({ block, onChange, onChangeQuiet, select
   }
   // ponytail: a regeneration in flight on a card that already has a scene shows the scene only; its status line comes with AN-14's revisions.
   return <AnimationScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} selected={selected} readOnly={readOnly} onEdit={onEdit} onAsk={onAsk}
-    context={context} readArtifact={readArtifact} createRuntime={createRuntime} createRenderer={createRenderer} webgl={webgl} fetchJson={fetchJson} />;
+    context={context ?? board} readArtifact={readArtifact} createRuntime={createRuntime} createRenderer={createRenderer} webgl={webgl} fetchJson={fetchJson} />;
 }
