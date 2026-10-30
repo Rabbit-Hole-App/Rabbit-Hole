@@ -6,20 +6,22 @@
 //
 //   block = { id, type: 'animation3d', title, ...layout,
 //     animation3d: { v: 1,
-//       ref:  { artifactId, revision, hash, boardId, cardId, stamps },         the accepted artifact, immutable
-//       sim:  { revision, artifactRevision, inputs, state, seed, time } | null, one atomic simulation snapshot, always paused when saved
-//       view: { revision, camera, selected } | null },                        presentation, merged independently of sim
+//       ref:  { artifactId, revision, planHash, sourceHash, boardId, cardId, stamps },   the accepted artifact, immutable
+//       sim:  contract.js snapshot { schema, artifactId, revision, inputs, state, seed, time, tick, stamp, paused } | null
+//       view: contract.js presentation { revision, camera, selection } | null },          merged independently of sim
 //     animation3dJob: { id, boardId, cardId, requestId, sourceKey, baseRevision, stage, message? } }   a generation in flight
 //
-// sim null: initialize from the artifact's defaults. view null: the artifact's camera preset, nothing selected.
+// sim null: initialize from the artifact's defaults. view null: the artifact's camera, nothing selected.
+// This module imports nothing at load: the canvas's flush (withFlushedAnimations) runs on every board save, so the contract (zod) is
+// loaded only by hydration.
 
 export const ANIMATION3D = 'animation3d';
 export const ENVELOPE_VERSION = 1;
-// Bounded (plan section 5 limits): program state keeps QuickJS's 32 KiB rule; the whole envelope a little more for inputs and camera.
-export const STATE_LIMIT = 32 * 1024;
+export const SNAPSHOT_SCHEMA = 'animation-snapshot/1'; // contract.js SNAPSHOT_SCHEMA; storage.test.mjs fails on drift
+// Bounded: the snapshot keeps the contract's 40 KiB (CONTRACT_LIMITS.snapshotBytes), a presentation 2 KiB.
+export const SNAPSHOT_LIMIT = 40 * 1024;
 export const VIEW_LIMIT = 2 * 1024;
 export const ENVELOPE_LIMIT = 48 * 1024;
-export const INPUT_LIMIT = 16;
 // The card's own debounce: a settled change reaches the board within SAVE_DELAY of the last one, and never later than SAVE_MAX_WAIT
 // after the first unsaved one, however continuous the input. The canvas then saves the board on its own 400 ms (AdaptiveCanvas).
 export const SAVE_DELAY = 400;
@@ -30,40 +32,40 @@ export const isAnimation3dBlock = block => block?.type === ANIMATION3D;
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[A-Za-z0-9_.:-]{1,160}$/;
 const id = v => typeof v === 'string' && ID.test(v);
+const HASH = /^[0-9a-f]{64}$/;
 const count = v => Number.isInteger(v) && v >= 0;
 const size = v => { try { return JSON.stringify(v).length; } catch { return Infinity; } };
 const finiteJson = v => (typeof v === 'number' ? Number.isFinite(v) : Array.isArray(v) ? v.every(finiteJson) : plain(v) ? Object.values(v).every(finiteJson) : v === null || typeof v === 'string' || typeof v === 'boolean');
 const keysOnly = (v, keys) => Object.keys(v).every(key => keys.includes(key));
 
 // ---- the envelope -----------------------------------------------------------------------------------------------------
+// The checks here are structural (shape, size, binding to the reference); the contract's full rules (declared parameters, selectable
+// nodes, camera ranges) need the artifact and run at hydration.
 
-// Stamps are the artifact's runtime tuple (proposed: kind animation_program, schema 1, animation-sdk-1, animation-renderer-1,
-// animation-policy-1, engine). Flat strings and integers only, compared whole (as explain-program/stamps.js SUPPORTED_PROGRAM_TUPLES).
-const stampsProblem = s => (!plain(s) || !Object.keys(s).length || Object.keys(s).length > 8 || !Object.entries(s).every(([k, v]) => id(k) && (count(v) || (typeof v === 'string' && v.length <= 160))) ? 'stamps' : null);
-const REF_KEYS = ['artifactId', 'revision', 'hash', 'boardId', 'cardId', 'stamps'];
+// Stamps: the artifact's scene schema, capability version and program tuple (artifactIdentity below), compared whole.
+const stampsProblem = s => (!plain(s) || !Object.keys(s).length || Object.keys(s).length > 10 || !Object.entries(s).every(([k, v]) => id(k) && (count(v) || (typeof v === 'string' && v.length <= 160))) ? 'stamps' : null);
+const REF_KEYS = ['artifactId', 'revision', 'planHash', 'sourceHash', 'boardId', 'cardId', 'stamps'];
 export function refProblem(ref) {
-  if (!plain(ref) || !keysOnly(ref, REF_KEYS)) return 'ref must be { artifactId, revision, hash, boardId, cardId, stamps }';
-  for (const key of ['artifactId', 'revision', 'hash', 'boardId', 'cardId']) if (!id(ref[key])) return `ref.${key}`;
+  if (!plain(ref) || !keysOnly(ref, REF_KEYS)) return 'ref must be { artifactId, revision, planHash, sourceHash, boardId, cardId, stamps }';
+  for (const key of ['artifactId', 'boardId', 'cardId']) if (!id(ref[key])) return `ref.${key}`;
+  if (!Number.isInteger(ref.revision) || ref.revision < 1) return 'ref.revision';
+  if (typeof ref.planHash !== 'string' || !HASH.test(ref.planHash)) return 'ref.planHash';
+  if (ref.sourceHash !== null && (typeof ref.sourceHash !== 'string' || !HASH.test(ref.sourceHash))) return 'ref.sourceHash'; // null: a static inspect scene has no program
   return stampsProblem(ref.stamps) && 'ref.stamps';
 }
-const SIM_KEYS = ['revision', 'artifactRevision', 'inputs', 'state', 'seed', 'time'];
-const inputValue = v => (typeof v === 'number' ? Number.isFinite(v) : typeof v === 'boolean' || (typeof v === 'string' && v.length <= 200));
+const SIM_KEYS = ['schema', 'artifactId', 'revision', 'inputs', 'state', 'seed', 'time', 'tick', 'stamp', 'paused'];
 export function simProblem(sim) {
-  if (!plain(sim) || !keysOnly(sim, SIM_KEYS)) return 'sim must be { revision, artifactRevision, inputs, state, seed, time }';
-  if (!count(sim.revision)) return 'sim.revision';
-  if (!id(sim.artifactRevision)) return 'sim.artifactRevision';
-  if (!plain(sim.inputs) || Object.keys(sim.inputs).length > INPUT_LIMIT || !Object.entries(sim.inputs).every(([k, v]) => id(k) && inputValue(v))) return 'sim.inputs';
-  if (sim.state !== undefined && (!finiteJson(sim.state) || size(sim.state) > STATE_LIMIT)) return 'sim.state';
-  if (!count(sim.seed) || sim.seed > 0xffffffff) return 'sim.seed';
-  return Number.isFinite(sim.time) && sim.time >= 0 ? null : 'sim.time';
+  if (!plain(sim) || !keysOnly(sim, SIM_KEYS) || sim.schema !== SNAPSHOT_SCHEMA) return 'sim must be an animation-snapshot/1';
+  if (!count(sim.stamp) || !count(sim.tick) || !count(sim.seed) || sim.seed > 0xffffffff) return 'sim.stamp, tick or seed';
+  if (!plain(sim.inputs) || !Number.isFinite(sim.time) || sim.time < 0 || typeof sim.paused !== 'boolean') return 'sim.inputs, time or paused';
+  return finiteJson(sim) && size(sim) <= SNAPSHOT_LIMIT ? null : 'sim is not finite JSON within 40 KiB';
 }
-const VIEW_KEYS = ['revision', 'camera', 'selected'];
 export function viewProblem(view) {
-  if (!plain(view) || !keysOnly(view, VIEW_KEYS)) return 'view must be { revision, camera, selected }';
-  if (!count(view.revision)) return 'view.revision';
-  if (view.camera !== null && (!plain(view.camera) || !finiteJson(view.camera) || size(view.camera) > VIEW_LIMIT)) return 'view.camera';
-  return view.selected === null || id(view.selected) ? null : 'view.selected';
+  if (!plain(view) || !keysOnly(view, ['revision', 'camera', 'selection']) || !count(view.revision)) return 'view must be { revision, camera, selection }';
+  if (!plain(view.camera) || !finiteJson(view.camera) || size(view.camera) > VIEW_LIMIT) return 'view.camera';
+  return view.selection === null || id(view.selection) ? null : 'view.selection';
 }
+const sameArtifact = (sim, ref) => sim.artifactId === ref.artifactId && sim.revision === ref.revision;
 
 // The saved envelope, checked: { ok: true, envelope } or { ok: false, issue }. Strict keys, so a scene, program or source a
 // pasted or tampered block carries is refused, never handed to the player.
@@ -75,23 +77,21 @@ export function readEnvelope(block) {
   return issue ? { ok: false, issue } : { ok: true, envelope: { v: env.v, ref: env.ref, sim: env.sim ?? null, view: env.view ?? null } };
 }
 
-// A newly accepted artifact's envelope: its own camera preset and initial state (sim and view null).
+// A newly accepted artifact's envelope: its own camera and initial state (sim and view null).
 export const freshEnvelope = ref => ({ v: ENVELOPE_VERSION, ref, sim: null, view: null });
 
-// One atomic simulation snapshot onto the block: applied only when it belongs to the saved artifact revision and is newer than the
-// saved one (revisions only grow: a late or repeated commit never goes back). A reset is the same call with the runtime's reset
-// snapshot, so the camera stays. -> { block, applied, reason? }; a refused one returns the block unchanged.
+// One atomic simulation snapshot (state.js commitAnimationStep's accepted one) onto the block: applied only when it belongs to the
+// saved artifact revision and its stamp is newer than the saved one's (a late or repeated commit never goes back). A Scene Reset is the
+// same call with the runtime's reset snapshot, so the camera stays. -> { block, applied, reason? }; a refused one returns the block.
 export function withSimulation(block, sim) {
   const read = readEnvelope(block);
   if (!read.ok) return { block, applied: false, reason: 'no_envelope' };
   const { envelope } = read;
   const problem = simProblem(sim);
   if (problem) return { block, applied: false, reason: `invalid: ${problem}` };
-  if (sim.artifactRevision !== envelope.ref.revision) return { block, applied: false, reason: 'other_artifact' };
-  if (envelope.sim && sim.revision <= envelope.sim.revision) return { block, applied: false, reason: 'stale' };
-  const next = { ...envelope, sim: { revision: sim.revision, artifactRevision: sim.artifactRevision, inputs: sim.inputs, ...(sim.state !== undefined ? { state: sim.state } : {}), seed: sim.seed, time: sim.time } };
-  if (size(next) > ENVELOPE_LIMIT) return { block, applied: false, reason: 'too_large' };
-  return { block: { ...block, animation3d: next }, applied: true };
+  if (!sameArtifact(sim, envelope.ref)) return { block, applied: false, reason: 'other_artifact' };
+  if (envelope.sim && sim.stamp <= envelope.sim.stamp) return { block, applied: false, reason: 'stale' };
+  return { block: { ...block, animation3d: { ...envelope, sim } }, applied: true };
 }
 
 // Presentation onto the block, beside the simulation: only a newer view revision lands, so a worker reply computed against an older
@@ -102,15 +102,16 @@ export function withView(block, view) {
   const problem = viewProblem(view);
   if (problem) return { block, applied: false, reason: `invalid: ${problem}` };
   if (read.envelope.view && view.revision <= read.envelope.view.revision) return { block, applied: false, reason: 'stale' };
-  return { block: { ...block, animation3d: { ...read.envelope, view: { revision: view.revision, camera: view.camera, selected: view.selected } } }, applied: true };
+  return { block: { ...block, animation3d: { ...read.envelope, view: { revision: view.revision, camera: view.camera, selection: view.selection } } }, applied: true };
 }
-// The next view revision from the saved one, for a camera or selection change made on this card.
+// The next presentation from the saved one, for a camera or selection change made on this card. With nothing saved, the card passes
+// the shown camera (the artifact's) in `change`.
 export const nextView = (block, change) => {
   const saved = readEnvelope(block).envelope?.view;
-  return { revision: (saved?.revision ?? -1) + 1, camera: saved?.camera ?? null, selected: saved?.selected ?? null, ...change };
+  return { revision: (saved?.revision ?? -1) + 1, camera: saved?.camera ?? null, selection: saved?.selection ?? null, ...change };
 };
-// Reset view: only the camera goes back to the artifact's preset (camera null); the selection and the simulation stay.
-export const resetView = block => withView(block, nextView(block, { camera: null }));
+// Reset view: only the camera goes back (to the artifact's own, which the card passes); the selection and the simulation stay.
+export const resetView = (block, camera) => withView(block, nextView(block, { camera }));
 
 // ---- saving: bounded debounce, explicit flush ------------------------------------------------------------------------
 
@@ -118,9 +119,9 @@ export const resetView = block => withView(block, nextView(block, { camera: null
 // yet into the board it is about to save. A card's own unmount runs after its canvas's, so it cannot be relied on for this.
 const savers = new Set();
 
-// One per mounted card. simulation(sim) / view(view) queue a settled change (the latest of each wins; both re-check their revision
-// rule when written, so a write never goes back); flush() writes now. write(apply) hands the card an updater (block -> block) to run
-// on its latest block, the canvas's quiet change; it is never called with a whole stale block, so a move or resize is never undone.
+// One per mounted owner card. simulation(sim) / view(view) queue a settled change (the latest of each wins; both re-check their rule
+// when written, so a write never goes back); flush() writes now. write(apply) hands the card an updater (block -> block) to run on its
+// latest block, the canvas's quiet change; it is never called with a whole stale block, so a move or resize is never undone.
 //   createAnimationSaver({ boardId, cardId, write, delay, maxWait, timers })
 //     -> { simulation(sim), view(view), flush() -> boolean, pending() -> boolean, dispose() }
 export function createAnimationSaver({ boardId, cardId, write, delay = SAVE_DELAY, maxWait = SAVE_MAX_WAIT, timers = { set: (fn, ms) => setTimeout(fn, ms), clear: t => clearTimeout(t), now: () => Date.now() } }) {
@@ -167,9 +168,10 @@ export function createAnimationSaver({ boardId, cardId, write, delay = SAVE_DELA
 export function withFlushedAnimations(blocks) {
   let out = blocks;
   for (const entry of savers) {
-    if (!entry.pending() || !out.some(block => block?.id === entry.cardId && block.animation3d?.ref?.boardId === entry.boardId)) continue;
+    const mine = block => block?.id === entry.cardId && block.animation3d?.ref?.boardId === entry.boardId;
+    if (!entry.pending() || !out.some(mine)) continue;
     const apply = entry.take();
-    out = out.map(block => (block?.id === entry.cardId && block.animation3d?.ref?.boardId === entry.boardId ? apply(block) : block));
+    out = out.map(block => (mine(block) ? apply(block) : block));
     entry.write(apply);
   }
   return out;
@@ -192,17 +194,39 @@ export const MESSAGES = Object.freeze({
 // placeholder (AN-14 enables them) and never reaches an owner route.
 const OWNER = 'owner';
 
+// The identity the card pins, from an artifact (contract.js field names): the reference's stamps are its scene schema, capability
+// version and, when it has a program, the program's whole version tuple.
+export function artifactIdentity(artifact) {
+  const { source: _source, sourceHash = null, ...tuple } = artifact.program ?? {};
+  return { artifactId: artifact.artifactId, revision: artifact.revision, planHash: artifact.planHash, sourceHash, stamps: { scene: artifact.schema, capabilityVersion: artifact.capabilityVersion, ...tuple } };
+}
+const sameStamps = (a, b) => plain(a) && plain(b) && Object.keys(a).length === Object.keys(b).length && Object.entries(a).every(([k, v]) => b[k] === v);
+
+// The contract's rules (loaded only here): the artifact passes validateAnimationArtifact under a registry this build has (which also
+// pins the program tuple), its source still hashes to its sourceHash, and a saved snapshot and presentation pass their validators.
+async function contractChecks() {
+  const contract = await import('./contract.js');
+  const { CAPABILITY_REGISTRIES } = await import('./capabilities.js');
+  return {
+    check: async artifact => {
+      const parsed = CAPABILITY_REGISTRIES.map(caps => contract.validateAnimationArtifact(artifact, caps)).find(result => result.ok);
+      if (!parsed) return null;
+      const program = parsed.value.program;
+      if (program && (await contract.hashProgramSource(program.source)) !== program.sourceHash) return null;
+      return parsed.value;
+    },
+    checkSnapshot: (sim, artifact) => { const out = contract.validateAnimationSnapshot(sim, artifact); return out.ok ? null : out.issues[0]?.message || 'snapshot'; },
+    checkView: (view, artifact) => contract.validateAnimationPresentation(view, artifact).ok,
+  };
+}
+
 // The card's saved artifact made runnable, paused at the saved moment. The only read is readArtifact(ref, { signal }), the durable
 // result by its immutable id under this canvas's authorization: no job record, no model, no generation. Never throws.
 //   context: { kind: 'owner' | 'share' | 'publication' | 'embed' | 'fork', boardId }
 //   readArtifact(ref, { signal }) -> artifact, or null / a { status: 404 | 410 } throw when it is gone
-//   identify(artifact) -> { artifactId, revision, hash, stamps }   the artifact's own identity (contract.js field names)
-//   verify(artifact) -> boolean | Promise<boolean>   its content still matches its hash (the contract's hash check)
-//   supported: the stamp tuples this build runs, each compared whole
-//   checkSnapshot(sim, artifact) -> null | issue   the contract's snapshot rule (validateAnimationSnapshot)
 // -> { status: 'ready', artifact, sim, view, playing: false, dropped? } | { status: 'unavailable' | 'invalid' | 'missing' | 'mismatch' |
 //    'error' | 'aborted', message, retry } ; every result carries binding (what it was asked for) for landHydration.
-export async function hydrateAnimation(block, { context, readArtifact, identify, verify = () => true, supported = [], checkSnapshot = () => null, signal } = {}) {
+export async function hydrateAnimation(block, { context, readArtifact, signal } = {}) {
   const read = readEnvelope(block);
   const binding = { boardId: context?.boardId ?? null, cardId: block?.id ?? null, revision: read.envelope?.ref.revision ?? null };
   const out = (status, extra = {}) => ({ status, binding, message: MESSAGES[status === 'unavailable' ? extra.reason : status] ?? null, retry: status === 'mismatch' || status === 'error', ...extra });
@@ -212,28 +236,31 @@ export async function hydrateAnimation(block, { context, readArtifact, identify,
   // A card copied onto another canvas (a fork, a duplicate, a paste) still names the canvas it was made on; that canvas's result route
   // is not this one's to call.
   if (ref.boardId !== context.boardId) return out('unavailable', { reason: 'copied' });
-  let artifact;
-  try { artifact = await readArtifact(ref, { signal }); } catch (problem) {
+  let raw;
+  try { raw = await readArtifact(ref, { signal }); } catch (problem) {
     if (signal?.aborted || problem?.name === 'AbortError') return out('aborted');
     return out(problem?.status === 404 || problem?.status === 410 ? 'missing' : 'error');
   }
   if (signal?.aborted) return out('aborted');
-  if (!artifact) return out('missing');
-  let same;
+  if (!raw) return out('missing');
+  let artifact = null, rules;
   try {
-    const own = identify(artifact);
-    same = own?.artifactId === ref.artifactId && own.revision === ref.revision && own.hash === ref.hash && sameStamps(own.stamps, ref.stamps)
-      && supported.some(tuple => sameStamps(tuple, ref.stamps)) && (await verify(artifact)) === true;
-  } catch { same = false; }
+    rules = await contractChecks();
+    artifact = await rules.check(raw);
+    const own = artifact && artifactIdentity(artifact);
+    if (own && !(own.artifactId === ref.artifactId && own.revision === ref.revision && own.planHash === ref.planHash && own.sourceHash === ref.sourceHash && sameStamps(own.stamps, ref.stamps))) artifact = null;
+  } catch { artifact = null; }
   if (signal?.aborted) return out('aborted');
-  if (!same) return out('mismatch');
+  if (!artifact) return out('mismatch');
   // A saved state the contract refuses, or one made by another revision, is dropped (the card initializes again from its defaults, as
-  // program-card.js programStateFor); the artifact itself is still good.
-  let issue = sim && sim.artifactRevision !== ref.revision ? 'other_artifact' : null;
-  if (sim && !issue) { try { issue = checkSnapshot(sim, artifact); } catch { issue = 'snapshot'; } }
-  return out('ready', { artifact, sim: issue ? null : sim, view, playing: false, ...(issue ? { dropped: String(issue) } : {}), message: null, retry: false });
+  // program-card.js programStateFor); the artifact itself is still good. A presentation it refuses falls back to the artifact's camera.
+  // Restored paused, whatever was saved.
+  let issue = sim && !sameArtifact(sim, ref) ? 'other_artifact' : null;
+  if (sim && !issue) { try { issue = rules.checkSnapshot(sim, artifact); } catch { issue = 'snapshot'; } }
+  let shown = view;
+  if (view) { try { if (!rules.checkView(view, artifact)) shown = null; } catch { shown = null; } }
+  return out('ready', { artifact, sim: issue ? null : { ...sim, paused: true }, view: shown, playing: false, ...(issue ? { dropped: String(issue) } : {}), message: null, retry: false });
 }
-const sameStamps = (a, b) => plain(a) && plain(b) && Object.keys(a).length === Object.keys(b).length && Object.entries(a).every(([k, v]) => b[k] === v);
 
 // A hydration result landing on the card as it is now. Refused when the card was deleted, replaced, given another artifact, or the
 // canvas switched. The learner's edits made while it loaded win: the live block's sim and view are used whenever they are newer
@@ -241,12 +268,17 @@ const sameStamps = (a, b) => plain(a) && plain(b) && Object.keys(a).length === O
 export function landHydration(live, result, { boardId }) {
   const b = result?.binding;
   if (!live) return { ok: false, reason: 'card_deleted' };
-  if (!b || b.cardId !== live.id || b.boardId !== boardId) return { ok: false, reason: b?.boardId !== boardId ? 'board_switched' : 'other_card' };
+  if (!b || b.boardId !== boardId) return { ok: false, reason: 'board_switched' };
+  if (b.cardId !== live.id) return { ok: false, reason: 'other_card' };
   const read = readEnvelope(live);
   if (!read.ok || read.envelope.ref.revision !== b.revision) return { ok: false, reason: 'replaced' };
   if (result.status !== 'ready') return { ok: true, sim: null, view: null };
-  const newer = (mine, theirs) => (mine && (!theirs || mine.revision > theirs.revision) ? mine : theirs);
-  return { ok: true, sim: newer(read.envelope.sim, result.sim), view: newer(read.envelope.view, result.view) };
+  const { sim, view } = read.envelope;
+  return {
+    ok: true,
+    sim: sim && (!result.sim || sim.stamp > result.sim.stamp) ? { ...sim, paused: true } : result.sim,
+    view: view && (!result.view || view.revision > result.view.revision) ? view : result.view,
+  };
 }
 
 // ---- generation and regeneration jobs ----------------------------------------------------------------------------------
@@ -261,8 +293,9 @@ export const withJob = (block, { job, boardId, requestId, sourceKey, baseRevisio
 export const cancelAnimationJob = block => (block?.animation3dJob ? { ...block, animation3dJob: { ...block.animation3dJob, stage: 'cancelled' } } : block);
 const TERMINAL = new Set(['cancelled', 'failed']);
 
-// The accepted result's reference (lane G's job result: resultId, revision, hash, stamps, as /explain's job.result).
-export const refFromResult = (result, binding) => ({ artifactId: result.resultId, revision: result.revision, hash: result.hash, boardId: binding.boardId, cardId: binding.cardId, stamps: result.stamps });
+// The accepted result's reference. Lane G's job result names the accepted artifact by the contract's fields (artifactId, revision,
+// planHash, sourceHash or null) and the stamps artifactIdentity gives it.
+export const refFromResult = (result, binding) => ({ artifactId: result.artifactId, revision: result.revision, planHash: result.planHash, sourceHash: result.sourceHash ?? null, boardId: binding.boardId, cardId: binding.cardId, stamps: result.stamps });
 
 // A polled job meets the card as it is now (card null: deleted). Mirrors explain-client.js explainResultBlock / applyExplainEdit.
 // -> { action: 'ignore', reason } | { action: 'progress' | 'keep' | 'apply', block }
@@ -286,7 +319,8 @@ export function settleAnimationJob(card, job, { boardId }) {
     return { action: 'ignore', reason: 'other_result' };
   }
   const ref = refFromResult(result, waiting);
-  if (refProblem(ref)) return { action: 'ignore', reason: `invalid_result: ${refProblem(ref)}` };
+  const problem = refProblem(ref);
+  if (problem) return { action: 'ignore', reason: `invalid_result: ${problem}` };
   const { animation3dJob: _job, ...rest } = card;
   return { action: 'apply', block: { ...rest, type: ANIMATION3D, animation3d: freshEnvelope(ref) } };
 }
