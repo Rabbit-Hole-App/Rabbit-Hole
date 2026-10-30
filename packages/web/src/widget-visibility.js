@@ -26,7 +26,7 @@ export function widgetToggle({ mode, name, on }) {
   return { store: 'canvas', name, on };
 }
 
-// While a card is focused (focus-controller.js) the canvas draws its content and its toolbar, not its maps or Curious. A view of
+// While a card is focused (focus-controller.js) the canvas draws its content and its toolbar (but see toolbarDrawn), not its maps or Curious. A view of
 // what is shown, never written back: the three come back exactly as they were (hidden ones stay hidden) when Focus ends.
 export const FOCUS_HIDDEN = Object.freeze(['minimap', 'holeMap', 'curious']);
 export function focusWidgets(shown, focused) {
@@ -35,3 +35,8 @@ export function focusWidgets(shown, focused) {
   for (const name of FOCUS_HIDDEN) if (name in out) out[name] = false;
   return out;
 }
+
+// The drawing toolbar is drawn as View > Toolbar says, except over a pinned Study's notebook in Focus (owner, 2026-10-29): there it
+// stands down too. A view, never written back: Canvas or unpinning shows the saved choice again, a hidden toolbar still hidden.
+export const toolbarDrawn = (toolbar, { studying = false, pinned = false, focusKind = null } = {}) =>
+  !!toolbar && !(studying && pinned && focusKind === 'notebook');

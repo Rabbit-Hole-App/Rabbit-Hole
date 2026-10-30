@@ -67,6 +67,7 @@ const until = async (fn, what, ms = 15000) => { const end = Date.now() + ms; for
 const same = (actual, expected, what) => assert.ok(JSON.stringify(actual) === JSON.stringify(expected), `${what}: ${JSON.stringify(actual)} vs ${JSON.stringify(expected)}`);
 const view = async label => { const panel = await openMenu(page, 'View'); await panel.getByRole('menuitemradio', { name: label, exact: true }).first().click(); await closeMenus(page); };
 const work = option => page.locator(`[data-study-work-option="${option}"]`);
+const TOOLS = '[role="toolbar"][aria-label="Canvas tools"]';
 const inWork = name => until(async () => (await page.locator('[data-study-work]').getAttribute('data-study-work').catch(() => null)) === name, `Study shows ${name} as the work`);
 // A card's width and height on the canvas, in world units: its CSS size (the camera only scales it on screen), whole numbers.
 const size = id => page.evaluate(sel => { const node = document.querySelector(sel); return node && { w: Math.round(parseFloat(node.style.width)), h: node.offsetHeight }; }, `[data-block-id="${id}"]`);
@@ -148,9 +149,12 @@ await check('3 a Notebook visit and back (Focus: a temporary size, no resize cor
   await work('notebook').click();
   await inWork('notebook');
   await until(async () => (await handleOf('nb')).hidden === true, 'Focus draws no resize corner on the notebook');
+  // Owner 2026-10-29: no Canvas tools over the pinned Study notebook; back on Canvas.
+  await until(async () => (await page.locator(TOOLS).count()) === 0, 'no Canvas tools over the notebook');
   await work('canvas').click();
   await inWork('canvas');
   await until(async () => (await handleOf('nb')).x > 0, 'the notebook has its resize corner again');
+  await until(async () => (await page.locator(TOOLS).count()) === 1, 'the Canvas tools are back on Canvas');
   same(await saved('nb'), kept, 'the stored notebook size after Notebook and back');
   await until(async () => JSON.stringify(await size('nb')) === JSON.stringify(kept), `the notebook is drawn at its stored size after Notebook and back: ${JSON.stringify(kept)} (now ${JSON.stringify(await size('nb'))})`);
 });

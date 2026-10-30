@@ -11,7 +11,7 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { closeMenus, menubar, openMenu, setShown } from './canvas-menu-helpers.mjs';
 
-const total = 16; // the number of check() steps below; keep it equal
+const total = 19; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('pinned-study-check runs against the local stack only');
@@ -219,6 +219,12 @@ const where = id => page.evaluate(sel => { const round = r => r && [r.left, r.to
 const inView = async id => { const { card, frame } = await where(id); return !!card && !!frame && card[2] > frame[0] && card[0] < frame[2] && card[3] > frame[1] && card[1] < frame[3]; };
 // A card brought into the working pane, or a failure that says where the card and the pane were.
 const shown = async (id, what) => { try { await until(() => inView(id), what); } catch { throw Error(`${what}: ${JSON.stringify(await where(id))}`); } };
+// The drawing toolbar (owner 2026-10-29): over the pinned Study notebook it is not drawn at all, so it leaves no pointer or
+// keyboard target; on Canvas it is drawn as View > Show / hide > Toolbar says.
+const TOOLS = '[role="toolbar"][aria-label="Canvas tools"]';
+const tools = () => page.locator(TOOLS).count();
+const toolsAre = (n, what) => until(async () => (await tools()) === n, `${what}: ${n ? 'the Canvas tools are shown' : 'no Canvas tools'} (${n})`);
+const backToCanvas = () => page.getByRole('button', { name: 'Back to canvas', exact: true });
 
 await page.goto(`${BASE}/apps/${canvas.name}`);
 await page.locator('[data-block-id="ex"]').waitFor({ timeout: 60000 });
@@ -327,6 +333,51 @@ await check('5 the divider is a labelled separator: keyboard Arrow, Home and End
   await until(async () => Number(await divider.getAttribute('aria-valuenow')) > 40, 'a drag widens the pane');
   await sameFrame('divider');
   await quiet('divider', before);
+});
+
+await check('5b over the pinned notebook the Canvas tools stand down and the notebook takes their room; the switch, Back to canvas, the reference and Chat stay; Canvas brings the tools back; the same notebook through the divider and every switch', async () => {
+  const before = counts();
+  await toolsAre(1, 'Study on Canvas');
+  const bar = await box(TOOLS);
+  await work('notebook').click();
+  await until(async () => (await page.locator('[data-study-work]').getAttribute('data-study-work')) === 'notebook', 'Notebook is the work');
+  await toolsAre(0, 'Notebook');
+  // The focused notebook is framed in the room the tools left: with them it would start right of their right edge.
+  const fills = async what => { try { await until(async () => (await box('[data-block-id="nb"]'))?.x < bar.right, what, 5000); } catch { throw Error(`${what}: the notebook starts at ${JSON.stringify(await box('[data-block-id="nb"]'))}, the tools ended at ${bar.right}`); } };
+  await fills('the notebook takes the tools\' room');
+  for (const [what, node] of [['the Notebook / Canvas switch', work('canvas')], ['Back to canvas', backToCanvas()], ['the pinned reference', pane()], ['Chat', page.locator('[data-chat-pane]')]]) assert.ok(await node.isVisible(), `${what} stays`);
+  await shot('05b-notebook-no-tools');
+  const divider = page.getByRole('separator', { name: 'Resize pinned reference' });
+  await divider.focus(); await page.keyboard.press('ArrowRight');
+  await fills('divider right');
+  await page.keyboard.press('ArrowLeft');
+  await fills('divider left');
+  assert.equal(await tools(), 0, 'no Canvas tools after the divider');
+  await sameFrame('Notebook without tools, divider');
+  await backToCanvas().click();
+  await until(async () => (await page.locator('[data-study-work]').getAttribute('data-study-work')) === 'canvas', 'Back to canvas: Canvas is the work');
+  await toolsAre(1, 'Back to canvas');
+  await work('notebook').click();
+  await toolsAre(0, 'Notebook again');
+  await work('canvas').click();
+  await toolsAre(1, 'Study > Canvas');
+  await sameFrame('Notebook, Back to canvas, Notebook, Canvas');
+  await quiet('toolbar in Study', before);
+});
+
+await check('5c a toolbar hidden with View > Show / hide > Toolbar stays hidden through Notebook and Canvas, and shows only when chosen again', async () => {
+  await setShown(page, 'Toolbar', false); await closeMenus(page);
+  await toolsAre(0, 'hidden by the learner');
+  await work('notebook').click();
+  await until(async () => (await page.locator('[data-study-work]').getAttribute('data-study-work')) === 'notebook', 'Notebook is the work');
+  assert.equal(await tools(), 0, 'Notebook');
+  await work('canvas').click();
+  await until(async () => (await page.locator('[data-study-work]').getAttribute('data-study-work')) === 'canvas', 'Canvas is the work');
+  await page.waitForTimeout(500);
+  assert.equal(await tools(), 0, 'a hidden toolbar stays hidden on Canvas');
+  await setShown(page, 'Toolbar', true); await closeMenus(page);
+  await toolsAre(1, 'shown again by the learner');
+  await sameFrame('toolbar preference');
 });
 
 await check('6 Change reference replaces the pin only when chosen; selecting another card never retargets it', async () => {
@@ -510,6 +561,21 @@ await check('14 Unpin returns to Canvas and clears the pin; the source card and 
   assert.equal((await page.evaluate(key => JSON.parse(localStorage.getItem(key)), STUDY)).pin, null);
   await sameFrame('unpin');
   await quiet('unpin', before);
+  assert.deepEqual(model, [], 'no model-capable request');
+  assert.deepEqual(errors.filter(error => !/ResizeObserver/.test(error)), []);
+});
+
+await check('15 Unpin from the pinned notebook brings the Canvas tools back; the same notebook; no page error', async () => {
+  await press('[data-block-id="ex"]', { button: 'right' }); await menu().waitFor();
+  await menu().locator('[data-menu-pin-study]').click();
+  await until(async () => (await pane().getAttribute('data-pin').catch(() => null)) === 'ex', 'ex is pinned again');
+  await work('notebook').click();
+  await until(async () => (await page.locator('[data-study-work]').getAttribute('data-study-work')) === 'notebook', 'Notebook is the work');
+  await toolsAre(0, 'Notebook');
+  await (await option('Unpin')).click();
+  await pane().waitFor({ state: 'detached', timeout: 10000 });
+  await toolsAre(1, 'Unpin');
+  await sameFrame('unpin from Notebook');
   assert.deepEqual(model, [], 'no model-capable request');
   assert.deepEqual(errors.filter(error => !/ResizeObserver/.test(error)), []);
 });

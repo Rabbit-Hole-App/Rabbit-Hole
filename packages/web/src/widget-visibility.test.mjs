@@ -2,7 +2,7 @@
 // otherwise in Study, and the two stores never write each other.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FOCUS_HIDDEN, effectiveWidgets, focusWidgets, widgetToggle } from './widget-visibility.js';
+import { FOCUS_HIDDEN, effectiveWidgets, focusWidgets, toolbarDrawn, widgetToggle } from './widget-visibility.js';
 import { defaultStudy, readStudy, studyReducer, writeStudy } from './study-state.js';
 import { readUiPrefs, saveUiPref, UI_PREF_DEFAULTS } from './ui-prefs.js';
 
@@ -76,5 +76,18 @@ test('focus hides the minimap, Rabbit Hole map and Curious, keeps the toolbar, a
     assert.deepEqual(focusWidgets(shown, true), { minimap: false, holeMap: false, curious: false, toolbar: shown.toolbar });
     assert.deepEqual(shown, before, 'the choices are never written');
     assert.equal(focusWidgets(shown, false), shown, 'out of Focus: exactly what was shown, already-hidden ones still hidden');
+  }
+});
+
+// Owner, 2026-10-29: a pinned Study with its notebook in Focus hides the drawing toolbar; Canvas or unpinning shows the saved choice.
+test('toolbarDrawn: hidden over the pinned Study notebook only, otherwise the saved choice (hidden stays hidden)', () => {
+  assert.equal(toolbarDrawn(true, { studying: true, pinned: true, focusKind: 'notebook' }), false);
+  assert.equal(toolbarDrawn(false, { studying: true, pinned: true, focusKind: 'notebook' }), false);
+  for (const saved of [true, false]) {
+    assert.equal(toolbarDrawn(saved, { studying: true, pinned: true, focusKind: null }), saved, 'Study on Canvas');
+    assert.equal(toolbarDrawn(saved, { studying: true, pinned: true, focusKind: 'card' }), saved, 'another card in Focus');
+    assert.equal(toolbarDrawn(saved, { studying: false, pinned: false, focusKind: 'notebook' }), saved, 'unpinned, notebook in Focus');
+    assert.equal(toolbarDrawn(saved, { studying: true, pinned: false, focusKind: 'notebook' }), saved, 'Study with no pin');
+    assert.equal(toolbarDrawn(saved), saved);
   }
 });
