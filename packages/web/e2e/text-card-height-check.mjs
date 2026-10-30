@@ -174,7 +174,7 @@ const anchorGap = () => page.evaluate(() => {
 });
 const anchored = async what => { await page.waitForTimeout(400); const gap = await anchorGap(); assert.ok(gap != null && gap <= 4, `${what}: the connector starts ${gap == null ? 'nowhere' : `${gap.toFixed(1)} px`} from the Challenge's bottom edge`); };
 const zoomTo = async (out, steps) => { await page.locator('[title="Reset zoom"]').click(); for (let i = 0; i < steps; i++) { await page.locator(`[data-zoom] button[title="${out ? 'Zoom out' : 'Zoom in'}"]`).click(); await page.waitForTimeout(120); } await page.waitForTimeout(500); };
-const open = async () => { for (const id of ['ch', 'ex', 'eb', 'fl']) await card(id).waitFor({ timeout: 60000 }); await card('eb').locator('[data-feedback-tab]').first().waitFor({ timeout: 20000 }); await page.waitForTimeout(800); };
+const open = async () => { for (const id of ['ch', 'ex', 'eb', 'fl']) await card(id).waitFor({ timeout: 60000 }); await card('eb').locator('[data-feedback-tab], [data-attempt-select], [data-attempt-label]').first().waitFor({ timeout: 20000 }); await page.waitForTimeout(800); };
 // The card's own answer control: Commit on the one-line Challenge, Submit answer on the Explain-back design.
 const submitOf = id => card(id).locator('[data-eb-submit], button:text-is("Commit")').first();
 
@@ -257,6 +257,10 @@ await check('6 the Explain-back card and an Explanation dragged taller open no b
   const after = await fitted('eb', 'Explain-back after release');
   await until(async () => (await saved('eb')).h !== 1000, 'the Explain-back resize was not saved');
   assert.ok(Math.abs((await saved('eb')).h - after.h) <= 2, `stored ${(await saved('eb')).h}, drawn ${after.h}`);
+  // The Explain-back drag leaves that card selected; its selection bar sits on the Explanation's corner just above it
+  // (fast-e2e 41111771895 fail-1.png). Escape clears the canvas selection first, as a learner would.
+  await page.evaluate(() => document.activeElement?.blur?.()); await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+  assert.equal(await page.locator('[aria-roledescription="card"][aria-current="true"]').count(), 0, 'nothing is selected before the Explanation drag');
   await drag('ex', 0, 300);
   const closed = await fitted('ex', 'Explanation dragged taller');
   await card('ex').locator('[data-explain-more]').click(); await page.waitForTimeout(300);
