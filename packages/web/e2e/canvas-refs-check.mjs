@@ -139,6 +139,15 @@ const chips = (id, p = page) => p.locator(`[data-block-id="${id}"] [data-ref-chi
 const chipFor = (id, title, p = page) => chips(id, p).filter({ hasText: title }).first();
 const chipLink = (id, title, p = page) => chipFor(id, title, p).locator('a[href]').first();
 const newTab = (id, title, p = page) => chipFor(id, title, p).getByRole('button', { name: 'Open canvas in new tab', exact: true });
+// The row's Open (owner, Rabbit Hole and reference navigation design 2026-10-29): a real link to the same canvas, primary blue.
+const openLink = (id, title, p = page) => chipFor(id, title, p).getByRole('link', { name: `Open ${title}`, exact: true });
+// What a destination row shows and how its Open looks: the relationship label, the destination, Open's colours and icon.
+const rowLook = el => el.evaluate(node => {
+  const open = node.querySelector('a[aria-label^="Open "]') || [...node.querySelectorAll('button')].find(button => button.textContent.trim() === 'Open');
+  const style = open && getComputedStyle(open), box = open?.getBoundingClientRect();
+  return { label: node.querySelector('span > span')?.textContent, open: open && { tag: open.tagName, href: open.getAttribute('href'), bg: style.backgroundColor, color: style.color, w: box.width, h: box.height,
+    arrow: !!open.querySelector('svg.lucide-arrow-right'), external: !!open.querySelector('svg.lucide-external-link'), disabled: open.disabled === true } };
+});
 const refCards = (p = page) => p.locator('[data-canvas-ref-card]');
 const selected = (p = page) => p.$$eval('[data-block-id][aria-current="true"]', nodes => nodes.map(node => node.dataset.blockId));
 const inkOf = (name, p = page) => p.evaluate(key => { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } }, `${keyOf(name)}:ink`);
@@ -274,6 +283,14 @@ await check('2 empty-canvas menu: a reference card near the right-click, selecte
   assert.deepEqual(await selected(), [menuCard], 'the new card is the selection');
   assert.ok(await cardEl.locator('svg').count() > 0, 'no canvas icon');
   assert.equal(await cardEl.getByRole('button', { name: 'Open canvas in new tab', exact: true }).count(), 1, 'no new-tab button');
+  // The destination row's alignment: Linked canvas and the title once on the left, Open on the right (owner 2026-10-29).
+  const look = await rowLook(cardEl);
+  assert.equal(look.label, 'Linked canvas', 'the reference card names the relationship');
+  assert.equal((await cardEl.innerText()).split(C.title).length - 1, 1, 'the title shows once');
+  assert.deepEqual([look.open?.tag, look.open?.bg, look.open?.color, look.open?.arrow, look.open?.external], ['A', 'rgb(27, 111, 194)', 'rgb(255, 255, 255)', true, false], `the card's Open: ${JSON.stringify(look.open)}`);
+  assert.equal(new URL(look.open.href, BASE).pathname, `/apps/${C.name}`, 'Open links the target');
+  const frame = await cardEl.evaluate(el => { const card = el.closest('[data-block-id]').getBoundingClientRect(), body = el.getBoundingClientRect(); return { card: card.height, overflow: el.scrollHeight > el.clientHeight + 1 || body.bottom > card.bottom + 0.5 }; });
+  assert.ok(!frame.overflow, `the card's content fits its frame: ${JSON.stringify(frame)}`);
   await shot('03-standalone-card', cardEl);
   const saved = await waitFor(async () => (await boardOf(A.name))?.state?.blocks?.find(b => b.id === menuCard), 15000, 'the reference card never reached the server');
   assert.equal(saved.type, 'canvas-ref');
@@ -336,8 +353,14 @@ await check('3 forward: a same-tab click on a chip title opens the target; its L
   assert.ok(text.includes(A.title), `the backlink does not name its source canvas: ${JSON.stringify(text.slice(0, 200))}`);
   assert.ok(text.includes(A1) && text.includes(A2), `the backlinks lack the origin cards: ${JSON.stringify(text.slice(0, 200))}`);
   assert.equal((await backlinkRefs(T, A)).length, 2, 'the server does not count 2 references from A');
+  // Each originating card is a Linked from row whose Open is a real link to that card (owner 2026-10-29).
+  const fromRow = to.locator('[data-links-backlink="a1"]').locator('xpath=ancestor::div[contains(@class, "border-t")][1]');
+  const look = await rowLook(fromRow);
+  assert.equal(look.label, 'Linked from', 'the backlink row names the relationship');
+  assert.deepEqual([look.open?.tag, look.open?.bg, look.open?.arrow, look.open?.external], ['A', 'rgb(27, 111, 194)', true, false], `the backlink's Open: ${JSON.stringify(look.open)}`);
+  assert.equal(new URL(look.open.href, BASE).searchParams.get('card'), 'a1', 'Open names the originating card');
   await shot('04-backlinks-grouped', linksPanel());
-  await to.getByRole('link', { name: new RegExp(A1) }).first().click();
+  await to.getByRole('link', { name: `Open ${A1} in ${A.title}`, exact: true }).click();
   await page.waitForURL(url => url.pathname === `/apps/${A.name}`, { timeout: 30000 });
   await loaded(page, 'a1');
   await waitFor(async () => (await selected()).join() === 'a1', 8000, `the backlink did not select the origin card (${(await selected()).join(',')})`);
@@ -387,6 +410,12 @@ await check('4 chip links: the new-tab button, Ctrl-click and middle-click open 
   await opens('the new-tab button', () => newTab('a1', T.title).click());
   await opens('Ctrl-click', () => link.click({ modifiers: ['Control'] }));
   await opens('middle-click', () => link.click({ button: 'middle' }));
+  // The row's Open is the same real link: Ctrl-click and middle-click open a tab, the external-link icon stays the new-tab button's.
+  const open = openLink('a1', T.title);
+  assert.equal(await open.getAttribute('href'), await link.getAttribute('href'), 'Open and the title link the same canvas');
+  await opens('Ctrl-click on Open', () => open.click({ modifiers: ['Control'] }));
+  await opens('middle-click on Open', () => open.click({ button: 'middle' }));
+  assert.equal(await open.locator('svg.lucide-external-link').count(), 0, 'Open uses the right arrow, not the new-tab icon');
   // Read after dispatch, so a handler that stops propagation still cannot hide a cancelled menu.
   await page.evaluate(() => { window.__menuPrevented = null; window.addEventListener('contextmenu', event => { setTimeout(() => { window.__menuPrevented = event.defaultPrevented; }); }, { once: true, capture: true }); });
   await link.click({ button: 'right' });
@@ -481,6 +510,11 @@ await check('7 several references: two chips, "+1 more" opens the rest; the Link
   assert.equal(await chips('a3').count(), 2, `${await chips('a3').count()} chips shown, not two`);
   const more = page.locator('[data-block-id="a3"] [data-ref-more]');
   assert.equal((await more.innerText()).trim(), '+1 more');
+  for (const row of await chips('a3').all()) {
+    const look = await rowLook(row);
+    assert.equal(look.label, 'Linked canvas', 'a reference row names the relationship');
+    assert.ok(look.open && look.open.tag === 'A' && look.open.w >= 76 && look.open.h >= 36 && look.open.bg === 'rgb(27, 111, 194)', `a reference row's Open: ${JSON.stringify(look.open)}`);
+  }
   await shot('05-chips-more', blockEl('a3'));
   const shown = await chips('a3').allInnerTexts();
   const rest = [C, D, E].find(x => !shown.some(text => text.includes(x.title)));

@@ -237,7 +237,8 @@ assert.equal(await nav().getByRole('button', { name: 'Up to the parent hole' }).
 assert.equal(await nav().locator('[data-dive-down]').count(), 0, 'no ↓ without children');
 assert.doesNotMatch(await nav().innerText(), /none yet/);
 const activeLabel = () => nav().locator('[aria-current="location"] [data-dive-level]').evaluate(node => { const style = getComputedStyle(node); return [style.backgroundColor, style.color]; });
-assert.deepEqual(await activeLabel(), ['rgb(6, 118, 71)', 'rgb(255, 255, 255)'], 'the current level is a green label with white text');
+// Owner, Rabbit Hole and reference navigation design 2026-10-29: RH blue replaces green; the filled current level is the primary fill.
+assert.deepEqual(await activeLabel(), ['rgb(27, 111, 194)', 'rgb(255, 255, 255)'], 'the current level is a primary-fill label with white text');
 await select(card1);
 await shot('02-selected-card');
 
@@ -267,7 +268,7 @@ await up();
 const discarded = async (name, label) => {
   assert.equal(await page.evaluate(n => !!JSON.parse(sessionStorage.getItem('small.dive.pending') || '{}')[n], name), false, `${label}: no pending record`);
   assert.equal(await page.evaluate(n => Object.keys(localStorage).filter(key => key.includes(n)).length, name), 0, `${label}: no local keys`);
-  assert.equal(await page.locator(`[data-block-id="${card1}"]`).first().evaluate(node => node.className.includes('outline-hole-pending')), false, `${label}: no hole portal on the card`);
+  assert.equal(await page.locator(`[data-block-id="${card1}"] [data-hole-stack], [data-block-id="${card1}"] [data-hole-row]`).count(), 0, `${label}: no hole stack or footer row on the card`);
   assert.equal(await page.locator('[data-dive-portal]').count(), 0, `${label}: no portal`);
   assert.equal(await nav().locator('[data-dive-down]').count(), 0, `${label}: nothing below the root on the map`);
 };
@@ -289,8 +290,28 @@ const tree = (app, board = 'main') => get(`/api/canvases/dives?app=${app}&board=
 const addObject = async () => { await slash('/notebook'); await waitPersisted(); }; // the hole's first object
 const firstCard = async () => (await blocks())[0];
 const selectedRing = id => page.locator(`[data-block-id="${id}"]`).first().evaluate(node => node.className.includes('ring-2'));
+// The approved look of an element that owns a Rabbit Hole (owner, Rabbit Hole and reference navigation design 2026-10-29): no
+// outline and no floating chip; a footer row spanning it - "Rabbit Hole", its title, Enter in the primary fill with white
+// text, at least 76x36 - and two decorative layers peeking out 6 and 12 px below it, 5 and 10 px in, under nothing clickable.
+const holeLook = async (selector, name, title, label) => {
+  const owner = selector.startsWith('[') ? selector : `[data-block-id="${selector}"]`;
+  const look = await page.locator(owner).first().evaluate((node, hole) => {
+    const box = node.getBoundingClientRect(), style = getComputedStyle(node), enter = node.querySelector(`[data-dive-portal="${hole}"]`);
+    const row = enter?.closest('[data-hole-row]'), r = row?.getBoundingClientRect(), e = enter?.getBoundingClientRect(), es = enter && getComputedStyle(enter);
+    const layers = [...node.querySelectorAll(':scope > [data-hole-stack]')].map(layer => { const l = layer.getBoundingClientRect(); return { n: layer.dataset.holeStack, left: Math.round(l.left - box.left), right: Math.round(box.right - l.right), below: Math.round(l.bottom - box.bottom), pointer: getComputedStyle(layer).pointerEvents, hidden: layer.getAttribute('aria-hidden') }; });
+    return { outline: style.outlineStyle, outlineWidth: style.outlineWidth, chips: node.querySelectorAll('[data-dive-portal]').length, text: row?.innerText.split(String.fromCharCode(10)).map(line => line.trim()).filter(Boolean),
+      row: r && { left: Math.round(r.left - box.left), right: Math.round(box.right - r.right), bottom: Math.round(box.bottom - r.bottom) }, enter: e && { w: e.width, h: e.height, bg: es.backgroundColor, color: es.color, radius: es.borderRadius, inRow: e.top >= r.top && e.bottom <= r.bottom && e.right <= r.right }, layers };
+  }, name);
+  assert.ok(look.outline === 'none' || look.outlineWidth === '0px', `${label}: no outline (${look.outline} ${look.outlineWidth})`);
+  assert.equal(look.chips, 1, `${label}: one Enter, in the footer`);
+  assert.deepEqual(look.text, ['Rabbit Hole', title, 'Enter'], `${label}: the row reads Rabbit Hole, the title, Enter`);
+  assert.ok(look.row && look.row.left <= 1 && look.row.right <= 1 && look.row.bottom <= 1, `${label}: the footer spans the bottom: ${JSON.stringify(look.row)}`);
+  assert.ok(look.enter && look.enter.w >= 76 && look.enter.h >= 36 && look.enter.inRow, `${label}: Enter at least 76x36 inside its row: ${JSON.stringify(look.enter)}`);
+  assert.deepEqual([look.enter.bg, look.enter.color, look.enter.radius], ['rgb(27, 111, 194)', 'rgb(255, 255, 255)', '6px'], `${label}: Enter is the primary fill`);
+  assert.deepEqual(look.layers.map(layer => [layer.n, layer.left, layer.right, layer.below, layer.pointer, layer.hidden]), [['2', 10, 10, 12, 'none', 'true'], ['1', 5, 5, 6, 'none', 'true']], `${label}: two stacked layers, 6/12 px down and 5/10 px in, decorative: ${JSON.stringify(look.layers)}`);
+};
 
-// ---- B + D: Start Rabbit Hole from a card; the first object keeps it; the parent card gets the green hole outline ----
+// ---- B + D: Start Rabbit Hole from a card; the first object keeps it; the parent card gets the stacked layers and the Rabbit Hole footer ----
 await diveFrom(card1);
 await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1000);
 await addObject();
@@ -313,6 +334,7 @@ await nav().locator('[data-dive-level]').first().click(); // the root, from the 
 await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1500);
 assert.equal(url().pathname + url().search, ROOT_URL);
 assert.equal(await page.locator(`[data-dive-portal="${softmax}"]`).count(), 1, 'the originating card is a portal');
+await holeLook(card1, softmax, softmaxTitle, 'the originating card');
 assert.equal(await selectedRing(card1), true, 'climbing back selects the originating card');
 near(await mapAt(), holeSpot, 'the parent shows the map where the learner put it');
 await shot('holes-map-05-parent-same-spot');
@@ -454,7 +476,8 @@ await page.getByRole('dialog').getByRole('button', { name: 'Yes, delete', exact:
 await page.waitForTimeout(1200);
 rootTree = await tree(root.name, BOARD);
 assert.deepEqual(rootTree.children.map(child => child.name), [second], 'only the second card\'s hole stays');
-assert.equal(await page.locator(`[data-dive-portal="${softmax}"]`).count(), 0, 'the outline goes with the hole');
+assert.equal(await page.locator(`[data-dive-portal="${softmax}"]`).count(), 0, 'the footer row goes with the hole');
+assert.equal(await page.locator(`[data-block-id="${card1}"] [data-hole-stack]`).count(), 0, 'the stacked layers go with the hole');
 console.log('flow I ok');
 
 // ---- the agent-suggested dive (structure only) ----
@@ -637,6 +660,71 @@ await viewer.locator('[data-title-holes-menu] [data-hole-option]').nth(2).click(
 await viewer.waitForURL(`${BASE}/b/${bLink}`);
 await viewer.context().close();
 console.log('flow K ok');
+
+// ---- L (owner, Rabbit Hole and reference navigation design 2026-10-29): a group and a card inside it each own a different hole.
+// Both get the footer and the stacked layers (a plain member none); the group's footer spans it under its members, which keep
+// their places, and the column keeps its room, so the card below is never covered; pressing the footer never selects or moves
+// the group; each Enter (pointer and keyboard) goes to its own hole; the overview marks the card's hole in RH blue. ----
+const groupRoot = await post('/api/canvases', { title: 'Groups and holes' });
+{
+  const path = `/api/learn/boards/${groupRoot.name}/main`, now = await get(path);
+  const card = (id, title, groupId) => ({ id, type: 'explanation', dx: 0, dy: 0, title, body: `${title}: a short body.`, ...(groupId ? { groupId } : {}) });
+  const state = { strokes: [], shapes: [], items: [], links: [], areas: [], groups: [{ id: 'grp', label: 'Pair' }],
+    blocks: [card('g1', 'Grouped with a hole', 'grp'), card('g2', 'Grouped plain', 'grp'), card('g3', 'Below the group')] };
+  const saved = await (await fetch(`${BASE}${path}`, { method: 'PUT', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ state, version: now.exists === false ? 0 : now.version ?? 0 }) })).json();
+  assert.ok(saved?.version, `the group board was seeded: ${JSON.stringify(saved).slice(0, 120)}`);
+}
+const seedOn = async (origin, title) => {
+  const name = `canvas-${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}`;
+  const made = await post('/api/canvases/dives', { name, title, parent: { app: groupRoot.name, board: 'main' }, origin_block_id: origin, dive: { concept: title, created_by: 'learner_slash' } });
+  assert.equal(made.name, name, `seeded ${title}: ${JSON.stringify(made).slice(0, 120)}`);
+  return name;
+};
+const groupHole = await seedOn('grp', 'The pair, together'), cardHole = await seedOn('g1', 'Just the first card');
+const GROUP_URL = `/apps/${groupRoot.name}`;
+await open(GROUP_URL);
+await page.locator(`[data-dive-portal="${groupHole}"]`).waitFor({ timeout: 15000 });
+await holeLook('[data-group-box="grp"]', groupHole, 'The pair, together', 'the group');
+await holeLook('g1', cardHole, 'Just the first card', 'the card in the group');
+assert.equal(await page.locator('[data-block-id="g2"] [data-hole-stack], [data-block-id="g2"] [data-hole-row], [data-block-id="g3"] [data-hole-stack]').count(), 0, 'a card without a hole has no stack and no row');
+assert.equal(await page.locator('[data-group-chip="grp"]').locator('xpath=..').locator('[data-dive-portal]').count(), 0, 'the group name keeps no Enter; Enter is in the footer only');
+const groupGeometry = () => page.evaluate(() => {
+  const r = s => document.querySelector(s).getBoundingClientRect();
+  const box = r('[data-group-box="grp"]'), foot = r('[data-group-box="grp"] [data-group-footer]'), g1 = r('[data-block-id="g1"]'), g2 = r('[data-block-id="g2"]'), g3 = r('[data-block-id="g3"]');
+  return { box: { top: box.top, bottom: box.bottom, left: box.left, right: box.right }, foot: { top: foot.top, bottom: foot.bottom, left: foot.left, right: foot.right }, members: [g1, g2].map(m => ({ x: Math.round(m.left), y: Math.round(m.top), bottom: m.bottom })), below: g3.top };
+});
+const g = await groupGeometry();
+const membersBottom = Math.max(...g.members.map(m => m.bottom));
+assert.ok(g.foot.top >= membersBottom + 11 && Math.abs(g.foot.bottom - (g.box.bottom - 1)) <= 1 && Math.abs(g.foot.left - (g.box.left + 1)) <= 1 && Math.abs(g.foot.right - (g.box.right - 1)) <= 1, `the group footer spans the box beneath its members: ${JSON.stringify(g)}`);
+assert.ok(g.below >= g.box.bottom + 12, `the card below the group stays clear of its footer and layers: ${JSON.stringify(g)}`);
+await shot('16-group-and-card-holes');
+// A press and a drag on the group footer select nothing and move nothing.
+const footRow = page.locator('[data-group-box="grp"] [data-hole-row]');
+const fr = await footRow.boundingBox();
+await page.mouse.move(fr.x + 30, fr.y + fr.height / 2); await page.mouse.down(); await page.mouse.move(fr.x + 130, fr.y + fr.height / 2 + 60, { steps: 8 }); await page.mouse.up();
+await page.waitForTimeout(300);
+assert.deepEqual((await groupGeometry()).members.map(m => [m.x, m.y]), g.members.map(m => [m.x, m.y]), 'a drag on the footer moved no member');
+assert.equal(await page.locator('[data-block-id][aria-current="true"]').count(), 0, 'a press on the footer selected nothing');
+await page.locator('[data-group-box="grp"] [data-hole-row]').dblclick({ position: { x: 30, y: 20 } });
+await page.waitForTimeout(800);
+assert.equal(url().pathname, GROUP_URL, 'a double-click on the footer opens nothing');
+// Each Enter goes to its own hole: the group's by pointer, the card's by keyboard; Up returns.
+await page.locator(`[data-dive-portal="${groupHole}"]`).click();
+await page.waitForFunction(name => location.pathname.endsWith(name), groupHole); await page.waitForTimeout(1000);
+await up();
+await page.locator(`[data-dive-portal="${cardHole}"]`).focus();
+await page.keyboard.press('Enter');
+await page.waitForFunction(name => location.pathname.endsWith(name), cardHole); await page.waitForTimeout(1000);
+await up();
+assert.equal(url().pathname, GROUP_URL, 'Up returns to the canvas');
+// The overview marks the card's hole in RH blue; its viewport stays an outline.
+const marks = await page.locator('[data-canvas-minimap] [data-minimap-hole]').evaluateAll(nodes => nodes.map(node => getComputedStyle(node).fill));
+assert.ok(marks.length >= 1 && marks.every(fill => fill === 'rgb(27, 111, 194)'), `the overview's hole marks are RH blue: ${marks}`);
+// A narrow window: the footer's Enter stays whole inside the group, and the long title wraps rather than pushing it out.
+await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(600);
+assert.ok(await page.locator(`[data-dive-portal="${groupHole}"]`).evaluate(node => { const e = node.getBoundingClientRect(), box = node.closest('[data-group-box]').getBoundingClientRect(); return e.width >= 76 * 0.2 && e.right <= box.right + 0.5; }), 'narrow: Enter stays inside the group');
+await page.setViewportSize({ width: 1600, height: 1000 }); await page.waitForTimeout(400);
+console.log('flow L ok');
 // On a tripwire stack (e2e/provider-tripwire.js) nothing reached a model or paid-AI provider.
 for (const origin of [BASE, CP]) {
   const wire = await fetch(`${origin}/__provider-tripwire`).catch(() => null);
