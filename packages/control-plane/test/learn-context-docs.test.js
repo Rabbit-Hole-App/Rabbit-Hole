@@ -13,9 +13,10 @@ const PDF = new TextEncoder().encode('%PDF-1.4\n1 0 obj << >> endobj\ntrailer <<
 
 function fixture(t) {
   const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close()); sqlite.exec(schema); sqlite.exec(migration);
-  const db = { prepare: sql => { let args = []; const stmt = sqlite.prepare(sql); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => stmt.run(...args) }; } };
+  const db = { prepare: sql => { let args = []; const stmt = sqlite.prepare(sql); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => stmt.run(...args) }; },
+    batch: async statements => { sqlite.exec('BEGIN'); try { for (const s of statements) await s.run(); sqlite.exec('COMMIT'); } catch (error) { sqlite.exec('ROLLBACK'); throw error; } } };
   const objects = new Map();
-  const media = { put: async (key, bytes) => { objects.set(key, new Uint8Array(bytes)); }, get: async key => (objects.has(key) ? { body: objects.get(key), arrayBuffer: async () => objects.get(key).buffer } : null), delete: async key => { objects.delete(key); } };
+  const media = { put: async (key, bytes) => { objects.set(key, new Uint8Array(bytes)); }, get: async key => (objects.has(key) ? { body: objects.get(key), arrayBuffer: async () => objects.get(key).buffer, text: async () => new TextDecoder().decode(objects.get(key)) } : null), delete: async key => { objects.delete(key); } };
   const live = { prepare() { throw Error('live D1 touched'); } };
   const env = { LEARN_DB: db, LEARN_MEDIA: media, DB: live, RUNS: { put() { throw Error('live R2 touched'); } } };
   const canvas = { org: 'team', name: 'canvas-0a1b2c3d', email: 'owner@test' };
@@ -242,6 +243,72 @@ test('a link is kept as context without a card: a note stored like any text file
   assert.match(failed.body.error, /could not be read: arXiv metadata unavailable/);
 });
 
+// Add context with a web page (owner brief 2026-10-29): an approved capture (webpage-capture.js, context: true) seeded here as
+// stored file_sources rows and their bytes, as screening would leave them. Nothing is captured or screened in this test.
+const LINEAGE = `wc_${'1'.repeat(24)}`;
+function seedCapture({ env, objects }, { n = 1, status = 'stored', email = 'owner@test', lineage = LINEAGE, url = 'https://example.com/rivers', title = 'Rivers and deltas', runs = ['Rivers carry sediment.', 'Deltas record the tide.'], truncated = {} } = {}) {
+  const id = kind => `fs_${String(n).padStart(2, '0')}${kind}${'0'.repeat(21)}`;
+  const ids = { manifest: id('a'), tile: id('b'), text: id('c') };
+  const put = (key, value) => objects.set(`file-sources/${key}/original/x`, new TextEncoder().encode(JSON.stringify(value)));
+  const manifest = { v: 1, lineage, url, finalUrl: url, title, fetchedAt: `2026-10-29T0${n}:00:00.000Z`, width: 1280, height: 1400, tiles: [{ index: 0, y: 0, h: 1400, key: ids.tile, sha256: 't' }], text: { key: ids.text, sha256: 'r' }, truncated };
+  put(ids.manifest, manifest);
+  put(ids.text, { runs: runs.map((text, i) => ({ text, x: 0, y: i * 30, w: 100, h: 20 })) });
+  const insert = env.LEARN_DB.prepare("INSERT INTO file_sources (id, org, owner_email, app, family, name, media_type, declared_type, bytes, sha256, r2_key, status, created_at) VALUES (?, 'team', ?, 'canvas-0a1b2c3d', 'webpage', ?, 'application/json', ?, 1, ?, ?, ?, 1)");
+  for (const [kind, key] of Object.entries(ids)) insert.bind(key, email, kind, `webpage-${kind}`, `${'ab'.repeat(30)}${n}${kind}`, `file-sources/${key}/original/x`, status).run();
+  return ids;
+}
+
+test('a captured web page becomes a Context document: its text, title, URL and revision ride the request; never twice; unscreened or another person\'s never', async t => {
+  const f = fixture(t), { env, canvas, call } = f;
+  const v1 = seedCapture(f);
+  const added = await call('POST', '/api/learn/context/link', { body: { app: canvas.name, manifest: v1.manifest } });
+  assert.equal(added.status, 200, JSON.stringify(added.body));
+  const doc = added.body.document;
+  assert.deepEqual({ kind: doc.kind, name: doc.name, attached: doc.attached, status: doc.status }, { kind: 'webpage', name: 'Rivers and deltas', attached: true, status: 'ready' });
+  assert.deepEqual(doc.capture, { url: 'https://example.com/rivers', manifestId: v1.manifest, rev: `${'ab'.repeat(30)}1manifest`, lineage: LINEAGE, status: 'ready', capturedAt: Date.parse('2026-10-29T01:00:00.000Z') });
+  // The model reads the extracted text with its title, URL, capture time and revision; never the capture's JSON.
+  const [block] = await contextDocumentBlocks(env, canvas, new Set([doc.id]));
+  assert.equal(block.title, 'Rivers and deltas');
+  assert.equal(block.source.type, 'text');
+  assert.equal(block.source.data, `Web page: Rivers and deltas\nURL: https://example.com/rivers\nCaptured: 2026-10-29T01:00:00.000Z (revision ${'ab'.repeat(6)})\n\nRivers carry sediment.\nDeltas record the tide.`);
+  assert.doesNotMatch(block.source.data, /"runs"|"tiles"|fs_/, 'no raw capture JSON');
+  // The reader reads the same text, owner only (the document's GET).
+  const bytes = await contextDocsFetch(new Request(`https://dev.test/api/learn/context/${doc.id}?app=${canvas.name}`), env, f.deps);
+  assert.match(new TextDecoder().decode(await new Response(bytes.body).arrayBuffer()), /^Web page: Rivers and deltas/);
+  // The same page again (a double submit, or its URL added twice) is the one document.
+  const again = await call('POST', '/api/learn/context/link', { body: { app: canvas.name, manifest: seedCapture(f, { n: 2, lineage: `wc_${'2'.repeat(24)}` }).manifest } });
+  assert.deepEqual([again.body.reused, again.body.document.id, again.body.documents.length], [true, doc.id, 1]);
+  // Unscreened, failed or another person's capture: not available. A capture with no text: said so.
+  assert.equal((await call('POST', '/api/learn/context/link', { body: { app: canvas.name, manifest: seedCapture(f, { n: 3, status: 'uploading', url: 'https://example.com/3', lineage: `wc_${'3'.repeat(24)}` }).manifest } })).status, 404, 'unscreened');
+  assert.equal((await call('POST', '/api/learn/context/link', { body: { app: canvas.name, manifest: seedCapture(f, { n: 4, email: 'friend@test', url: 'https://example.com/4', lineage: `wc_${'4'.repeat(24)}` }).manifest } })).status, 404, 'another person\'s');
+  const empty = await call('POST', '/api/learn/context/link', { body: { app: canvas.name, manifest: seedCapture(f, { n: 5, runs: [' '], url: 'https://example.com/5', lineage: `wc_${'5'.repeat(24)}` }).manifest } });
+  assert.equal(empty.status, 422);
+  assert.match(empty.body.error, /no text to read/);
+  assert.equal((await call('POST', '/api/learn/context/link', { body: { app: canvas.name, manifest: 'fs_nope' } })).status, 400);
+  assert.equal((await call('POST', '/api/learn/context/link', { body: { app: 'canvas-ffffffff', manifest: v1.manifest } })).status, 404, 'not the owner');
+  // A truncated capture says so in its text.
+  const cut = await call('POST', '/api/learn/context/link', { body: { app: canvas.name, manifest: seedCapture(f, { n: 6, url: 'https://example.com/long', lineage: `wc_${'6'.repeat(24)}`, truncated: { height: true } }).manifest } });
+  const [long] = await contextDocumentBlocks(env, canvas, new Set([cut.body.document.id]));
+  assert.match(long.source.data, /\nOnly the first part of this page was captured\.\n\nRivers carry/);
+});
+
+test('Refresh of a Context web page: the new version replaces the old only once linked, within its lineage; a failed Refresh leaves the last good one', async t => {
+  const f = fixture(t), { env, canvas, call } = f;
+  const v1 = seedCapture(f);
+  const doc = (await call('POST', '/api/learn/context/link', { body: { app: canvas.name, manifest: v1.manifest } })).body.document;
+  // A Refresh that did not pass screening leaves its rows unstored: linking it is refused and the document reads version 1.
+  const held = seedCapture(f, { n: 2, status: 'uploading', runs: ['Unscreened words.'] });
+  assert.equal((await call('POST', '/api/learn/context/link', { body: { app: canvas.name, manifest: held.manifest, id: doc.id } })).status, 404);
+  assert.match((await contextDocumentBlocks(env, canvas, new Set([doc.id])))[0].source.data, /Rivers carry sediment/);
+  assert.equal((await call('POST', '/api/learn/context/link', { body: { app: canvas.name, manifest: seedCapture(f, { n: 3, lineage: `wc_${'3'.repeat(24)}` }).manifest, id: doc.id } })).status, 409, 'another page\'s capture');
+  const v2 = seedCapture(f, { n: 4, title: 'Rivers, revised', runs: ['Refreshed words.'] });
+  const refreshed = await call('POST', '/api/learn/context/link', { body: { app: canvas.name, manifest: v2.manifest, id: doc.id } });
+  assert.equal(refreshed.status, 200);
+  assert.deepEqual([refreshed.body.document.id, refreshed.body.document.name, refreshed.body.document.capture.manifestId, refreshed.body.documents.length], [doc.id, 'Rivers, revised', v2.manifest, 1]);
+  const [block] = await contextDocumentBlocks(env, canvas, new Set([doc.id]));
+  assert.match(block.source.data, /^Web page: Rivers, revised\n[^]*\nRefreshed words\.$/);
+});
+
 test('the link note says what was read: the abstract for arXiv, the introduction for Wikipedia, only the address for a page or a video', async () => {
   const { linkNote } = await import('../src/learn-context-link.js');
   const arxiv = await linkNote('https://arxiv.org/abs/1706.03762', { readPaper: async id => ({ id, title: 'Attention Is All You Need', authors: ['Vaswani', 'Shazeer'], abstract: 'The dominant sequence transduction models.' }) });
@@ -284,4 +351,13 @@ test('a repository project holds context documents on its Main canvas, and only 
   assert.equal((await call('GET', '/api/learn/context?app=repo-x')).status, 400);
   assert.equal((await call('GET', '/api/learn/context?app=repo-0a1b2c3d-')).status, 400);
   assert.equal(contextDocsRoute(new URL('https://dev.test/api/learn/context/link')), true);
+});
+
+test('0033 is additive, re-runnable and exactly what repository-schema.sql applies', t => {
+  const captures = readFileSync(new URL('../learn-migrations/0033-context-captures.sql', import.meta.url), 'utf8');
+  const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
+  sqlite.exec(captures); sqlite.exec(captures);
+  assert.ok(schema.replace(/\r/g, '').includes(captures.replace(/\r/g, '').trim()));
+  assert.doesNotMatch(captures, /^\s*(DROP|ALTER|DELETE|UPDATE|INSERT)\b/im);
+  assert.deepEqual(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(r => r.name), ['canvas_context_captures']);
 });

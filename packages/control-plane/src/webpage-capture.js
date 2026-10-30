@@ -7,6 +7,10 @@
 //   POST /api/learn/webpages                      { app, board, url, lineage? }  capture (lineage: Refresh)
 //   POST /api/learn/webpages/<manifest id>/screen { app, board }                 Retry screening
 //   GET  /api/learn/webpages/<manifest id>?app=&board=                           status
+// Add context (owner brief 2026-10-29): { app, context: true } in place of a board (GET: ?app=&context=1) captures for the
+// canvas owner's Context with no board at all - no board row needed, and no file_source_refs row on passing, so no board,
+// share link or fork reads it. learn-context-docs.js links the approved version to its Context document
+// (canvas_context_captures, learn 0033), which keeps it from the sweep below; Add to canvas indexes it like any card.
 import { boardOwner, ownerRow } from './learn-boards.js';
 import { learnMedia } from './learn-storage.js';
 import { checkRequest, checkUrl } from './url-guard.js';
@@ -181,7 +185,7 @@ function result({ status, reason = null, lineage, manifest = null, manifestRow =
 }
 
 // Stores one ready capture as 'uploading' rows; returns { manifest, manifestRow, ids }.
-async function store(env, owner, app, boardRow, lineage, url, page, now) {
+async function store(env, owner, app, boardRow, lineage, url, page, now) { // boardRow null: a Context capture
   const bucket = learnMedia(env), db = env.LEARN_DB;
   const rows = [];
   const put = async (bytes, type, kind, name) => {
@@ -201,7 +205,7 @@ async function store(env, owner, app, boardRow, lineage, url, page, now) {
     truncated: page.truncated, blockedRequests: page.blockedRequests || 0, screening: { status: 'pending', reason: null } };
   const saved = await put(encode(manifest), 'application/json', 'webpage-manifest', `${page.title} (webpage capture).json`);
   await db.batch(rows.map(r => db.prepare(`INSERT INTO file_sources (id, org, owner_email, app, board_id, family, name, media_type, declared_type, bytes, sha256, r2_key, status, created_at)
-    VALUES (?, ?, ?, ?, ?, 'webpage', ?, ?, ?, ?, ?, ?, 'uploading', ?)`).bind(r.id, owner.org, owner.email, app, boardRow.id, r.name.slice(0, 200), r.type, r.kind, r.bytes, r.sha, r.key, now)));
+    VALUES (?, ?, ?, ?, ?, 'webpage', ?, ?, ?, ?, ?, ?, 'uploading', ?)`).bind(r.id, owner.org, owner.email, app, boardRow?.id ?? null, r.name.slice(0, 200), r.type, r.kind, r.bytes, r.sha, r.key, now)));
   const manifestRow = await db.prepare('SELECT * FROM file_sources WHERE id = ?').bind(saved.id).first();
   return { manifest, manifestRow };
 }
@@ -243,10 +247,10 @@ async function finishScreen(env, owner, boardRow, manifestRow, manifest, verdict
   if (verdict.status === 'passed') {
     // Index the version to the board it was captured on, as that board's next save would: the card reads its tiles through
     // ?app=&board= at once (learn-files.js admits only what the board references), before its save lands. The save keeps
-    // these while the card names them and drops them when it does not (file-refs.js).
+    // these while the card names them and drops them when it does not (file-refs.js). A Context capture (no board) indexes none.
     await db.batch([db.prepare(`UPDATE file_sources SET status = 'stored', stored_at = ? WHERE ${mine}`).bind(now, JSON.stringify(ids), owner.org, owner.email),
-      db.prepare(`INSERT OR IGNORE INTO file_source_refs (source_id, board_id) SELECT id, ? FROM file_sources WHERE id IN (SELECT value FROM json_each(?)) AND org = ? AND owner_email = ? AND status = 'stored'`)
-        .bind(boardRow.id, JSON.stringify(ids), owner.org, owner.email)]);
+      ...(boardRow ? [db.prepare(`INSERT OR IGNORE INTO file_source_refs (source_id, board_id) SELECT id, ? FROM file_sources WHERE id IN (SELECT value FROM json_each(?)) AND org = ? AND owner_email = ? AND status = 'stored'`)
+        .bind(boardRow.id, JSON.stringify(ids), owner.org, owner.email)] : [])]);
     const row = await db.prepare('SELECT * FROM file_sources WHERE id = ?').bind(manifestRow.id).first();
     return result({ status: 'ready', manifest, manifestRow: row, screening });
   }
@@ -260,14 +264,18 @@ async function finishScreen(env, owner, boardRow, manifestRow, manifest, verdict
 }
 
 // Unreferenced webpage files of this owner: stored ones after 30 days (an undo or an offline save may still name them),
-// unscreened ones after a day. Forks and shared boards hold their own file_source_refs rows, so they keep theirs.
+// unscreened ones after a day. Forks and shared boards hold their own file_source_refs rows, so they keep theirs; a version a
+// Context document reads (canvas_context_captures, while the document is in Context) is kept too.
+const unreferenced = id => `NOT EXISTS (SELECT 1 FROM file_source_refs r WHERE r.source_id = ${id})
+  AND NOT EXISTS (SELECT 1 FROM canvas_context_captures c, json_each(c.files_json) j JOIN canvas_context_documents d ON d.org = c.org AND d.owner_email = c.owner_email
+    AND d.app = c.app AND d.id = c.id WHERE j.value = ${id} AND d.attached >= 0)`;
 export async function sweepWebpageSources(env, owner, now = Date.now()) {
   const db = env.LEARN_DB, bucket = learnMedia(env);
   const rows = (await db.prepare(`SELECT id, r2_key, declared_type FROM file_sources s WHERE org = ? AND owner_email = ? AND family = 'webpage'
     AND ((status = 'stored' AND created_at < ?) OR (status = 'uploading' AND created_at < ?))
-    AND NOT EXISTS (SELECT 1 FROM file_source_refs r WHERE r.source_id = s.id) LIMIT 200`).bind(owner.org, owner.email, now - L.keepUnreferencedMs, now - L.keepUploadingMs).all()).results;
+    AND ${unreferenced('s.id')} LIMIT 200`).bind(owner.org, owner.email, now - L.keepUnreferencedMs, now - L.keepUploadingMs).all()).results;
   if (!rows.length) return 0;
-  await db.prepare(`UPDATE file_sources SET status = 'deleted', deleted_at = ? WHERE id IN (SELECT value FROM json_each(?)) AND NOT EXISTS (SELECT 1 FROM file_source_refs r WHERE r.source_id = file_sources.id)`)
+  await db.prepare(`UPDATE file_sources SET status = 'deleted', deleted_at = ? WHERE id IN (SELECT value FROM json_each(?)) AND ${unreferenced('file_sources.id')}`)
     .bind(now, JSON.stringify(rows.map(r => r.id))).run();
   const gone = new Set((await db.prepare(`SELECT id FROM file_sources WHERE status = 'deleted' AND id IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(rows.map(r => r.id))).all()).results.map(r => r.id));
   await Promise.allSettled(rows.filter(r => gone.has(r.id)).flatMap(r => [bucket.delete(r.r2_key), ...(r.declared_type === 'webpage-manifest' ? [bucket.delete(statusKey(r.id))] : [])]));
@@ -295,10 +303,11 @@ async function launchBrowser(env) {
   }
 }
 
-async function ownerBoard(req, env, app, board, deps) {
-  if (typeof app !== 'string' || !BOARD.test(String(board))) return json({ error: 'Name the canvas (app) and board' }, 400);
+async function ownerBoard(req, env, app, board, deps, context = false) {
+  if (typeof app !== 'string' || (!context && !BOARD.test(String(board)))) return json({ error: 'Name the canvas (app) and board' }, 400);
   const owner = await (deps.boardOwner || boardOwner)(req, env, app);
   if (owner instanceof Response) return owner;
+  if (context) return { owner, row: null }; // a Context capture belongs to the canvas owner, on no board
   const row = await ownerRow(env, owner, app, board);
   if (!row) return json({ error: 'Save this board first.' }, 404);
   return { owner, row };
@@ -323,9 +332,9 @@ export async function webpagesFetch(req, env, deps = {}) {
     if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
     let body;
     try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
-    const { app, board = 'main', url: raw, lineage: given } = body || {};
+    const { app, board = 'main', url: raw, lineage: given, context = false } = body || {};
     if (given !== undefined && !(typeof given === 'string' && LINEAGE.test(given))) return json({ error: 'Bad capture lineage' }, 400);
-    const access = await ownerBoard(req, env, app, board, deps);
+    const access = await ownerBoard(req, env, app, board, deps, context === true);
     if (access instanceof Response) return access;
     const { owner, row } = access, lineage = given || `wc_${randomHex(12)}`;
     const checked = await checkUrl(raw, { fetcher: deps.fetcher });
@@ -355,7 +364,7 @@ export async function webpagesFetch(req, env, deps = {}) {
   if (isScreen ? req.method !== 'POST' : req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
   let params = Object.fromEntries(url.searchParams);
   if (isScreen) { try { params = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); } }
-  const access = await ownerBoard(req, env, params?.app, params?.board || 'main', deps);
+  const access = await ownerBoard(req, env, params?.app, params?.board || 'main', deps, params?.context === true || params?.context === '1');
   if (access instanceof Response) return access;
   const found = await readManifest(env, access.owner, id);
   if (!found) return json({ error: 'Not available' }, 404);

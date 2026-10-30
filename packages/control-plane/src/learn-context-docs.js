@@ -21,10 +21,11 @@ const mb = bytes => `${(Math.ceil(bytes / (1024 * 1024) * 10) / 10).toFixed(1)} 
 const sent = doc => (doc.reads === 'pages' ? SEND_CHARS : doc.size);
 const sum = docs => docs.reduce((total, doc) => total + sent(doc), 0);
 // Why `doc` cannot join the switched-on `on` - the budget it breaks and the largest documents to switch off - or null.
+// A captured web page (kind 'webpage') is text and shares the text budget.
 function budgetRefusal(on, doc) {
   for (const [limit, label, kind] of [[ATTACHED_BYTES, 'documents'], [ATTACHED_TEXT_BYTES, 'text', 'text']]) {
-    const same = kind ? on.filter(d => d.kind === kind) : on;
-    const after = sum(same) + (!kind || doc.kind === kind ? sent(doc) : 0);
+    const same = kind ? on.filter(d => d.kind !== 'pdf') : on;
+    const after = sum(same) + (!kind || doc.kind !== 'pdf' ? sent(doc) : 0);
     if (after <= limit) continue;
     const off = [];
     for (const d of same.toSorted((a, b) => b.size - a.size)) { if (after - sum(off) <= limit) break; off.push(d); }
@@ -68,8 +69,12 @@ const homeOf = (who, doc) => (doc.home ? { ...who, app: doc.home } : who);
 const withStatus = async (env, who, doc) => (doc.kind === 'pdf'
   ? { ...doc, ...pdfStatus(doc.size, await readPageMeta(learnMedia(env), await objectKey(homeOf(who, doc), doc.id))) }
   : { ...doc, pages: null, status: 'ready', reads: null, noText: 0, error: null });
-const list = async (env, who) => Promise.all((await env.LEARN_DB.prepare('SELECT id, name, kind, size, attached, created_at FROM canvas_context_documents WHERE org=? AND owner_email=? AND app=? AND attached >= 0 ORDER BY created_at DESC, rowid DESC')
-  .bind(who.org, who.email, who.app).all()).results.map(row => withStatus(env, who, { ...row, attached: !!row.attached })));
+// A captured web page also carries its capture (canvas_context_captures, learn 0033): { url, manifestId, rev, lineage, status, capturedAt }.
+const captureOf = ({ url, source_id, source_rev, lineage, capture_status, captured_at, ...row }) => ({ ...row, ...(source_id ? { capture: { url, manifestId: source_id, rev: source_rev, lineage, status: capture_status, capturedAt: captured_at } } : {}) });
+const list = async (env, who) => Promise.all((await env.LEARN_DB.prepare(`SELECT d.id, d.name, d.kind, d.size, d.attached, d.created_at, c.url, c.source_id, c.source_rev, c.lineage, c.status AS capture_status, c.captured_at
+  FROM canvas_context_documents d LEFT JOIN canvas_context_captures c ON c.org = d.org AND c.owner_email = d.owner_email AND c.app = d.app AND c.id = d.id
+  WHERE d.org=? AND d.owner_email=? AND d.app=? AND d.attached >= 0 ORDER BY d.created_at DESC, d.rowid DESC`)
+  .bind(who.org, who.email, who.app).all()).results.map(row => withStatus(env, who, captureOf({ ...row, attached: !!row.attached }))));
 const removedIds = async (db, who) => (await db.prepare('SELECT id FROM canvas_context_documents WHERE org=? AND owner_email=? AND app=? AND attached < 0')
   .bind(who.org, who.email, who.app).all()).results.map(row => row.id);
 // A PDF card or page copied to another canvas (a Duplicate or a fork: pdf-to-canvas.md) still names its
@@ -114,6 +119,57 @@ async function storeText(env, who, name, bytes, { reuse = false } = {}) {
   return json({ document: doc, documents: await list(env, who) });
 }
 
+// Add context with a web page (owner brief 2026-10-29): the owner's approved capture (webpage-capture.js, captured with
+// context: true, so no board references it) becomes a Context document. Its bounded page text, under its title, URL, capture
+// time and revision, is the document's bytes, so the reader and contextDocumentBlocks read it like any text document; the raw
+// capture JSON never rides a request. `id`: Refresh of that document - the new version replaces the old only here, once it has
+// passed screening (only a stored, that is screened, capture links), and only within the same lineage. The same page again (its
+// lineage or URL already in this canvas's Context) answers as itself. Nothing is captured or screened here.
+const FS_ID = /^fs_[0-9a-f]{24}$/;
+export const PAGE_TEXT_CHARS = 200_000; // webpage-capture.js WEBPAGE_LIMITS.chars: what one capture reads at most
+async function linkCapture(env, who, body) {
+  const db = env.LEARN_DB, media = learnMedia(env), owned = "org = ? AND owner_email = ? AND family = 'webpage' AND status = 'stored'";
+  if (!FS_ID.test(String(body.manifest)) || (body.id !== undefined && !ID.test(String(body.id)))) return json({ error: 'Name a capture' }, 400);
+  const row = await db.prepare(`SELECT * FROM file_sources WHERE id = ? AND declared_type = 'webpage-manifest' AND ${owned}`).bind(body.manifest, who.org, who.email).first();
+  const object = row && await media.get(row.r2_key);
+  if (!object) return json({ error: 'That capture is not available. Add the page again.' }, 404);
+  const manifest = JSON.parse(await object.text());
+  const textRow = await db.prepare(`SELECT r2_key FROM file_sources WHERE id = ? AND ${owned}`).bind(manifest.text?.key ?? '', who.org, who.email).first();
+  const runs = textRow && await media.get(textRow.r2_key);
+  const text = runs ? (JSON.parse(await runs.text()).runs || []).map(run => run.text).join('\n').slice(0, PAGE_TEXT_CHARS) : '';
+  if (!text.trim()) return json({ error: 'This page has no text to read. Add it to the canvas to see it, or add a file instead.' }, 422);
+  const cut = Object.values(manifest.truncated || {}).some(Boolean) ? ['Only the first part of this page was captured.'] : [];
+  const bytes = new TextEncoder().encode([`Web page: ${manifest.title}`, `URL: ${manifest.finalUrl || manifest.url}`, `Captured: ${manifest.fetchedAt} (revision ${row.sha256.slice(0, 12)})`, ...cut, '', text].join('\n'));
+  const capture = { url: manifest.url, source_id: row.id, source_rev: row.sha256, lineage: manifest.lineage, captured_at: Date.parse(manifest.fetchedAt) || Date.now(),
+    files_json: JSON.stringify([row.id, ...manifest.tiles.map(t => t.key), manifest.text.key]) };
+  const linkage = 'org = ? AND owner_email = ? AND app = ? AND id = ?';
+  const current = await list(env, who);
+  if (body.id) {
+    const doc = current.find(d => d.id === body.id);
+    if (!doc?.capture) return json({ error: 'That page is not in this canvas\'s Context' }, 404);
+    if (doc.capture.lineage !== capture.lineage) return json({ error: 'That capture is of another page' }, 409);
+    await media.put(await objectKey(who, doc.id), bytes, { httpMetadata: { contentType: 'text/plain; charset=utf-8' } });
+    await db.batch([db.prepare(`UPDATE canvas_context_documents SET name = ?, size = ? WHERE ${linkage}`).bind(documentName(manifest.title), bytes.length, who.org, who.email, who.app, doc.id),
+      db.prepare(`UPDATE canvas_context_captures SET url = ?, source_id = ?, source_rev = ?, files_json = ?, captured_at = ? WHERE ${linkage}`)
+        .bind(capture.url, capture.source_id, capture.source_rev, capture.files_json, capture.captured_at, who.org, who.email, who.app, doc.id)]);
+    const documents = await list(env, who);
+    return json({ document: documents.find(d => d.id === doc.id), documents });
+  }
+  const same = current.find(d => d.capture && (d.capture.lineage === capture.lineage || d.capture.url === capture.url));
+  if (same) return json({ document: same, documents: current, reused: true });
+  if (current.length >= DOCUMENTS_PER_CANVAS) return json({ error: `A canvas holds at most ${DOCUMENTS_PER_CANVAS} context documents` }, 409);
+  const doc = { id: `ctx:${randomHex(6)}`, name: documentName(manifest.title), kind: 'webpage', size: bytes.length };
+  await media.put(await objectKey(who, doc.id), bytes, { httpMetadata: { contentType: 'text/plain; charset=utf-8' } });
+  const on = current.filter(d => d.attached);
+  doc.attached = on.length < ATTACHED_LIMIT && !budgetRefusal(on, doc);
+  await db.batch([db.prepare('INSERT INTO canvas_context_documents (org, owner_email, app, id, name, kind, size, attached) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(who.org, who.email, who.app, doc.id, doc.name, doc.kind, doc.size, doc.attached ? 1 : 0),
+  db.prepare("INSERT INTO canvas_context_captures (org, owner_email, app, id, url, source_id, source_rev, lineage, files_json, status, captured_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?)")
+    .bind(who.org, who.email, who.app, doc.id, capture.url, capture.source_id, capture.source_rev, capture.lineage, capture.files_json, capture.captured_at)]);
+  const documents = await list(env, who);
+  return json({ document: documents.find(d => d.id === doc.id), documents });
+}
+
 export async function contextDocsFetch(req, env, deps = {}) {
   const url = new URL(req.url);
   const db = env.LEARN_DB;
@@ -135,8 +191,10 @@ export async function contextDocsFetch(req, env, deps = {}) {
   const who = owner(app);
 
   // A link kept as context without a card: resolved into a small text note (learn-context-link.js), stored like any text file.
+  // { manifest }: an approved webpage capture instead (linkCapture).
   if (linkRoute) {
     if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+    if (body.manifest !== undefined) return linkCapture(env, who, body);
     let note;
     try { note = await (deps.linkNote || linkNote)(body.url); } catch (error) { return json({ error: `This link could not be read: ${error.message}` }, 502); }
     return storeText(env, who, `${note.name}`, new TextEncoder().encode(note.text), { reuse: true });
