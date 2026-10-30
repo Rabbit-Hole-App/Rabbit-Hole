@@ -216,6 +216,10 @@ await check('6 text + sketch submission', async () => {
   assert.equal(sent.answer, 'the id picks a row; the position is added');
   assert.match(sent.sketch.image, /^data:image\/png;base64,iVBORw0KGgo/);
   assert.ok(sent.sketch.image.length < 600000);
+  // EB-03.2: the picture comes from the host's own off-screen render, which is gone once captured, and the page has
+  // one Sketch panel dock.
+  assert.equal(await page.locator('[data-sketch-capture-root]').count(), 0, 'the capture render is removed after Submit');
+  assert.equal(await page.locator('[data-sketch-dock]').count(), 1, 'one Sketch panel dock');
   assert.match(sent.sketch.text, /Marks: 1 freehand stroke, 1 box, 1 arrow\. Written in the sketch: .*text: "position added"/);
   assert.equal(shadows.length, shadowBefore, 'Jev records no half-answer');
   firstAttempt = sent.attempt_id;
