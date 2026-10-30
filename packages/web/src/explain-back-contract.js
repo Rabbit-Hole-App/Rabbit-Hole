@@ -23,8 +23,9 @@ export const ANSWER_LIMITS = Object.freeze({ textChars: 4000, evidence: 20, voic
 
 export const EVIDENCE_ROLES = ['voice', 'sketch', 'recording', 'resource'];
 // What the bytes are. A resource is any canvas source; 'group' is the only media with members.
-export const MEDIA_KINDS = ['audio', 'image', 'video', 'pdf', 'document', 'notebook', 'data', 'code', 'web', 'card', 'group'];
-const ROLE_MEDIA = { voice: ['audio'], sketch: ['image'], recording: ['video'], resource: ['image', 'video', 'pdf', 'document', 'notebook', 'data', 'code', 'web', 'card', 'group'] };
+// sketch_timeline: a Sketch recording as a JSON timeline of drawing events (worker M), an aa_ asset of application/json.
+export const MEDIA_KINDS = ['audio', 'image', 'video', 'sketch_timeline', 'pdf', 'document', 'notebook', 'data', 'code', 'web', 'card', 'group'];
+const ROLE_MEDIA = { voice: ['audio'], sketch: ['image'], recording: ['video', 'sketch_timeline'], resource: ['image', 'video', 'pdf', 'document', 'notebook', 'data', 'code', 'web', 'card', 'group'] };
 // Asset state in the draft. Only 'ready' can be submitted; 'unsupported' is allowed for a Group member, reported in coverage.
 export const EVIDENCE_STATES = ['uploading', 'ready', 'failed', 'unavailable', 'unsupported'];
 // Review coverage of one input: what the evaluator actually read.
@@ -37,7 +38,10 @@ export const ASSISTANCE_KINDS = ['hint', 'saw_prior_feedback', 'material', 'chat
 // makes the attempt Not rated, never 0).
 export const JUDGMENTS = ['demonstrated', 'partly_demonstrated', 'contradicted', 'not_established', 'unassessed'];
 export const JUDGMENT_FIT = Object.freeze({ demonstrated: 'met', partly_demonstrated: 'partial', contradicted: 'not_met', not_established: 'not_met', unassessed: 'unclear' });
-export const COMPARISON_CHANGES = ['resolved', 'persisting', 'new', 'regressed', 'prior_feedback_corrected', 'not_comparable'];
+// improved: better but not yet met (not_met -> partial); still_met: met before and now.
+export const COMPARISON_CHANGES = ['resolved', 'improved', 'persisting', 'still_met', 'new', 'regressed', 'prior_feedback_corrected', 'not_comparable'];
+// A stored transcript is ready (text from the audio) or failed (kept with its error; replaced only by an explicit retry).
+export const TRANSCRIPT_STATUS = ['ready', 'failed'];
 export const RATING_STATUS = ['rated', 'unrated'];
 // Assessment operations: 'submit' is the learner's new answer (a new attempt); 'reassess' re-runs one attempt's assessment
 // (same attempt, new operation, learn_assessments.request_key 'reassess:*'). A reassessment is never a new revision.
@@ -71,6 +75,8 @@ const outOf = v => v === RATING_OUT_OF;
 const answerVersion = v => v === ANSWER_VERSION;
 const explainBackKind = v => v === EXPLAIN_BACK_KIND;
 const reviewVersion = v => v === REVIEW_VERSION;
+const transcriptText = v => typeof v === 'string' && v.length <= 20000;
+const uncertainty = v => (typeof v === 'number' && v >= 0 && v <= 1) || isObj(v);
 const nullableId = v => v === null || (typeof v === 'string' && v.length > 0 && v.length <= 200);
 
 export const EB_SHAPES = {
@@ -78,12 +84,22 @@ export const EB_SHAPES = {
   GroupMember: { sourceKind: 'id', sourceId: 'id', revision: 'ver', board: 'id?', hash: { opt: sha256 }, media: MEDIA_KINDS, scope: 'obj?', state: EVIDENCE_STATES },
   EvidenceRef: {
     evidenceId: 'id', role: EVIDENCE_ROLES, media: MEDIA_KINDS, state: EVIDENCE_STATES,
-    assetId: 'id', revision: 'ver', hash: { opt: sha256 }, mime: 'id?', bytes: 'int?', durationMs: 'int?',
+    assetId: 'id', revision: 'ver', hash: { opt: sha256 }, mime: 'id?', codec: 'id?', bytes: 'int?', durationMs: 'int?',
     // resources only: where it came from and what part was selected
     sourceKind: 'id?', board: 'id?', label: 'str?', scope: 'obj?', locators: 'obj?', derivative: { opt: 'DerivativeRef' },
     members: { opt: ['GroupMember'] }, connection: 'obj?',
+    // recording only: its narration, a voice EvidenceRef (an aa_ audio asset) with its own evidenceId
+    narration: { opt: 'EvidenceRef' },
   },
   AssistanceRef: { kind: ASSISTANCE_KINDS, id: 'id' },
+  // A transcript derivative of one retained audio asset (worker M produces it; D stores it immutable, keyed by audio hash).
+  // It is assessment and accessibility data only: never inserted into the typed answer.
+  TranscriptSegment: { startMs: 'int', endMs: 'int', text: shortText },
+  Transcript: {
+    transcriptId: 'id', assetId: attemptAsset, hash: sha256, text: transcriptText, segments: { opt: ['TranscriptSegment'] },
+    provider: 'id', model: 'id', uncertainty: { opt: uncertainty }, version: 'ver', status: TRANSCRIPT_STATUS,
+    converterVersion: 'id', derivativeHash: { opt: sha256 }, error: { opt: shortText }, createdAt: 'id?',
+  },
   Baseline: { parentAttemptId: 'id', parentAssessmentId: nullableId },
   ExplainBackAnswer: {
     v: answerVersion, kind: explainBackKind, text: answerText,
@@ -100,7 +116,9 @@ export const EB_SHAPES = {
   FeedbackSection: { text: shortText, citations: ['Citation'] },
   Feedback: { strengths: 'FeedbackSection', revisit: 'FeedbackSection', next: 'FeedbackSection' },
   ComparisonItem: { criterionId: 'id', change: COMPARISON_CHANGES, baselineCitations: ['Citation'], currentCitations: ['Citation'], note: { opt: shortText } },
-  Comparison: { parentAttemptId: 'id', parentAssessmentId: nullableId, comparable: 'bool', reason: 'id?', items: ['ComparisonItem'] },
+  // rating: ratingsComparable's verdict (learn-explain-rating.js) with both scores when shown as a numeric change
+  ComparisonRating: { comparable: 'bool', reason: nullableId, previous: { opt: ratingScore }, current: { opt: ratingScore } },
+  Comparison: { parentAttemptId: 'id', parentAssessmentId: nullableId, comparable: 'bool', reason: 'id?', items: ['ComparisonItem'], rating: { opt: 'ComparisonRating' } },
   RatingRow: { criterionId: 'id', version: 'int', weight, required: 'bool', credit, reason: 'id?' },
   Rating: {
     status: RATING_STATUS, score: { opt: ratingScore }, outOf, capped: 'bool?', reason: 'id?', unknown: { opt: ['obj'] },
@@ -114,8 +132,21 @@ export const EB_SHAPES = {
   ExplainBackDraft: { draftId: 'id', cardId: 'id', activityId: 'id?', revision: 'int', answer: 'ExplainBackAnswer', updatedAt: 'id?' },
 };
 
-const allEvidence = a => [...(a.voice ?? []), ...(a.sketch ? [a.sketch] : []), ...(a.recording ? [a.recording] : []), ...(a.resources ?? [])];
+const allEvidence = a => [...(a.voice ?? []), ...(a.sketch ? [a.sketch] : []), ...(a.recording ? [a.recording] : []), ...(a.recording?.narration ? [a.recording.narration] : []), ...(a.resources ?? [])];
 export const answerEvidence = a => (isObj(a) ? allEvidence(a) : []);
+
+// Worker M's stopped voice note {v, asset, type, ext, codec, durationMs, size, sha256} as a ready voice EvidenceRef.
+// asset is the aa_ id the attempt-asset upload returned; ext is not kept (the server names the container from the bytes).
+export const voiceEvidence = (note, evidenceId) => ({
+  evidenceId, role: 'voice', media: 'audio', state: 'ready', assetId: note.asset, revision: 1, hash: note.sha256,
+  mime: note.type, ...(note.codec ? { codec: note.codec } : {}), bytes: note.size, durationMs: note.durationMs,
+});
+export function validateTranscript(t) {
+  const errors = validateShape(EB_SHAPES, 'Transcript', t);
+  if (!errors.length && t.status === 'ready' && !t.derivativeHash) errors.push('derivativeHash: a ready transcript names its derivative');
+  if (!errors.length && t.status === 'failed' && !t.error) errors.push('error: a failed transcript says why');
+  return { ok: !errors.length, errors };
+}
 
 // Rules the field specs cannot say. ctx (all optional): board, the canvas the attempt is on; cardId, the Explain-back card
 // itself (it may not be its own input). The server repeats every authorization check; these are shape and scope only.
@@ -128,6 +159,7 @@ function answerRules(a, { board, cardId } = {}) {
   const ids = new Set();
   const slot = { voice: a.voice, sketch: a.sketch ? [a.sketch] : [], recording: a.recording ? [a.recording] : [], resource: a.resources };
   for (const [role, list] of Object.entries(slot)) for (const e of list) if (e.role !== role) errors.push(`${e.evidenceId}: role ${e.role} in ${role}`);
+  for (const e of ev) if (e.narration != null && (e !== a.recording || e.narration.role !== 'voice' || e.narration.narration != null)) errors.push(`${e.evidenceId}: narration is one voice ref on the recording`);
   for (const e of ev) {
     const at = e.evidenceId;
     if (at === 'text' || ids.has(at)) errors.push(`${at}: duplicate or reserved evidenceId`);

@@ -283,7 +283,7 @@ const routes = {
       const form = await req.formData().catch(() => null);
       const clip = form?.get('audio');
       if (!clip || typeof clip === 'string') return Response.json({ error: 'Attach a recording to transcribe.' }, { status: 400 });
-      if (clip.size > 20 * 1024 * 1024) return Response.json({ error: 'That recording is too long; keep it under a minute.' }, { status: 400 });
+      if (clip.size > 20 * 1024 * 1024) return Response.json({ error: 'That recording is too long; keep it under two minutes.' }, { status: 400 });
       const access = await authorizedBoardApp(req, env, form.get('app'));
       if (access instanceof Response) return access;
       // Off unless TRANSCRIBE_ENABLED is exactly 'true', so installing OPENAI_API_KEY for image editing never switches transcription on (O-8 stays open).
@@ -291,7 +291,8 @@ const routes = {
       // gpt-4o-transcribe shuts down 2027-02-26; TRANSCRIBE_MODEL=gpt-transcribe moves to its replacement once one real recording has been accepted. Anything else is the current model.
       const model = env.TRANSCRIBE_MODEL === 'gpt-transcribe' ? 'gpt-transcribe' : 'gpt-4o-transcribe';
       const upload = new FormData();
-      upload.set('file', clip, 'answer.webm');
+      // Name the file from the recorder's container (Safari records MP4/AAC); OpenAI reads the format from the extension.
+      upload.set('file', clip, /\.(ogg|m4a|mp4|webm)$/.test(clip.name || '') ? clip.name : 'answer.webm');
       upload.set('model', model);
       const spendRefused = await paidSubmissionRefusal(env); if (spendRefused) return spendRefused;
       const upstream = await fetch('https://api.openai.com/v1/audio/transcriptions', {

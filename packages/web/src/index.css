@@ -1030,3 +1030,10 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
   :is([data-focus-host], [data-slash-card]) [data-program-card] [data-scene-controls] > p { margin: 0; }
   :is([data-focus-host], [data-slash-card]) [data-program-card] [data-program-notes-toggle] { min-height: 2rem; }
 }
+
+/* Explain-back (plan docs/superpowers/plans/2026-10-30-explain-back.md section 3): while its Sketch panel is open, the
+   owning question carries a subtle selection outline instead of a connector to the panel. */
+[data-block]:has([data-sketch-owner]) {
+  outline: 2px solid color-mix(in srgb, var(--color-select) 35%, transparent);
+  outline-offset: 2px;
+}
