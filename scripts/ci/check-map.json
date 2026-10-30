@@ -412,7 +412,7 @@
     "packages/web/src/pdf-excerpt.js": ["pdf-long-check.mjs","pdf-excerpt-check.mjs","pdf-excerpt-chat-state-check.mjs"],
     "packages/web/src/study-attach.js": ["pinned-study-attach-check.mjs"],
     "packages/web/src/study-state.js": ["pinned-study-check.mjs", "pinned-study-attach-check.mjs", "pinned-study-kernel-check.mjs", "study-maps-check.mjs"],
-    "packages/web/src/widget-visibility.js": ["study-maps-check.mjs"],
+    "packages/web/src/widget-visibility.js": ["study-maps-check.mjs", "pinned-study-check.mjs"],
     "packages/web/src/focus-controller.js": ["focus-chrome-check.mjs", "focus-cad-check.mjs", "explain-entry-check.mjs", "explain-proposal-card-check.mjs"],
     "packages/web/src/focus-adapter-notebook.js": ["pinned-study-kernel-check.mjs", "pinned-study-check.mjs", "focus-chrome-check.mjs"],
     "packages/web/src/focus-host.js": ["focus-adapters-check.mjs", "focus-chrome-check.mjs", "focus-cad-check.mjs"],

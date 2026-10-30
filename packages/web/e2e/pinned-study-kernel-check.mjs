@@ -116,6 +116,8 @@ const sameFrame = async label => {
 };
 const view = async label => { const panel = await openMenu(page, 'View'); await panel.getByRole('menuitemradio', { name: label, exact: true }).first().click(); await closeMenus(page); };
 const work = option => page.locator(`[data-study-work-option="${option}"]`);
+// The drawing toolbar (owner 2026-10-29): not drawn over the pinned Study notebook (no pointer or keyboard target left), drawn on Canvas.
+const tools = n => until(async () => (await page.locator('[role="toolbar"][aria-label="Canvas tools"]').count()) === n, `${n ? 'the Canvas tools are shown' : 'no Canvas tools'}`, 5000);
 // Focus (focus-adapter-notebook.js): the notebook's own host carries data-focus-host; its iframe lies inside the canvas, takes
 // most of its width, and is drawn at its CSS size (scale 1: normal text size) whatever the camera's zoom.
 const focusView = () => page.evaluate(() => {
@@ -251,6 +253,8 @@ try {
     await page.locator('[data-study-work="notebook"]').waitFor(); // step 3 ended on Notebook
     await inFocus('Study > Notebook');
     assert.ok(await page.locator('[data-study-pane][data-pin="ex"]').isVisible(), 'the pinned reference stays beside the focused notebook');
+    await tools(0);
+    for (const [what, node] of [['the Notebook / Canvas switch', work('canvas')], ['Back to canvas', page.getByRole('button', { name: 'Back to canvas', exact: true })], ['Chat', page.locator('[data-chat-pane]')]]) assert.ok(await node.isVisible(), `${what} stays`);
     await sameFrame('Focus');
   });
 
@@ -260,16 +264,19 @@ try {
     await page.getByRole('button', { name: 'Back to canvas', exact: true }).click();
     await page.locator('[data-study-work="canvas"]').waitFor();
     await outOfFocus('Back to canvas');
+    await tools(1);
     await sameFrame('Back to canvas');
     await work('notebook').click();
     await page.locator('[data-study-work="notebook"]').waitFor();
     await inFocus('Study > Notebook again');
+    await tools(0);
     await sameFrame('Focus again');
     const divider = page.getByRole('separator', { name: 'Resize pinned reference' });
     await divider.focus(); await page.keyboard.press('ArrowRight');
     await inFocus('divider right');
     await page.keyboard.press('ArrowLeft');
     await inFocus('divider left');
+    await tools(0);
     await sameFrame('divider in Focus');
     await page.getByRole('button', { name: 'Hide the right panel', exact: true }).click();
     await inFocus('right panel hidden');
@@ -279,6 +286,7 @@ try {
     await work('canvas').click();
     await page.locator('[data-study-work="canvas"]').waitFor();
     await outOfFocus('Study > Canvas');
+    await tools(1);
     await sameFrame('Study > Canvas');
     assert.match(await prompt(1), /\[\*\]/, 'the cell is still running across every Focus switch');
     await page.screenshot({ path: `${SHOTS}/5b-running-through-focus.png` });
@@ -313,6 +321,7 @@ try {
   await check('6b Unpin ended the Focus Study > Notebook started (coordinator ruling P7): the plain canvas is not left in Focus; the same iframe', async () => {
     await outOfFocus('Unpin');
     assert.equal(await page.getByRole('button', { name: 'Back to canvas', exact: true }).count(), 0, 'no Focus frame is left');
+    await tools(1);
     await sameFrame('Unpin ended Focus');
   });
 

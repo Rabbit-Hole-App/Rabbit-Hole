@@ -10,7 +10,7 @@ import { renamable, renameBlock, groupEditText, groupLabelFrom } from './card-re
 import './card-layout.css';
 import { IconBtn, toast } from './ui.jsx';
 import { saveUiPref, uiPrefs } from './ui-prefs.js';
-import { effectiveWidgets, focusWidgets, widgetToggle } from './widget-visibility.js';
+import { effectiveWidgets, focusWidgets, toolbarDrawn, widgetToggle } from './widget-visibility.js';
 import { notebookEditor } from './notebook-inline-client.js';
 import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
@@ -1895,6 +1895,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // is shown (render, footprint, onState checkmarks); the Canvas preferences above are never written by Study.
   const widgetMode = study?.mode === 'study' ? 'study' : 'canvas';
   const { minimap, holeMap } = effectiveWidgets({ mode: widgetMode, canvas: { minimap: minimapPref, holeMap: holeMapPref }, study: study?.state?.maps });
+  // Focus (docs/features/focus-study.md): one card alone in the working pane, through focus-controller.js. Presentation only:
+  // no board write, no undo entry (snapshot is never called for it), no model call. The adapter restyles the card's own host.
+  const [focus, dispatchFocus] = useReducer(focusReducer, null);
+  // The toolbar drawn: View > Toolbar, except over a pinned Study's notebook in Focus (widget-visibility.js toolbarDrawn); `toolbar`
+  // stays the saved choice (View menu checkmark, onState).
+  const toolbarShown = toolbarDrawn(toolbar, { studying: widgetMode === 'study', pinned: !!study?.state?.pin, focusKind: focus?.kind });
   const showWidget = (name, on) => {
     const route = widgetToggle({ mode: widgetMode, name, on });
     if (!route) return;
@@ -1931,7 +1937,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const slot = bar.parentElement.querySelector('[data-gutter-top]');
     if (slot) observer.observe(slot);
     return () => observer.disconnect();
-  }, [presenting, !!gutterTop, toolbar]);
+  }, [presenting, !!gutterTop, toolbarShown]);
   const itemsLayer = useRef(null);
   const worldRef = useRef(null); // the camera layer, which the card thumbnail draws
   const [level, setLevel] = useState('body');
@@ -2030,11 +2036,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // here rather than lifting the canvas's own state out of it.
   // The same table serves the keyboard, so a shortcut and its menu row can
   // never drift apart.
-  // Focus (docs/features/focus-study.md): one card alone in the working pane, through focus-controller.js. Presentation only:
-  // no board write, no undo entry (snapshot is never called for it), no model call. The adapter restyles the card's own host.
-  const [focus, dispatchFocus] = useReducer(focusReducer, null);
   // What is drawn: while a card is focused the minimap, the Rabbit Hole map and Curious stand down (focusWidgets); the widget choices
-  // are untouched, so Back to canvas shows exactly what was shown before. The toolbar stays.
+  // are untouched, so Back to canvas shows exactly what was shown before. The toolbar stays (except toolbarShown above).
   const drawnWidgets = focusWidgets({ minimap, holeMap, curious }, !!focus);
   const focusRef = useRef(null), focusShown = useRef(null);
   focusRef.current = focus;
@@ -2052,8 +2055,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     return () => { observer.disconnect(); window.removeEventListener('resize', measure); cancelAnimationFrame(tick); };
   }, [focus?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // The minimap, Rabbit Hole map and Curious hide while focused: the pane is measured again without them before the first paint,
-  // so the focused card never changes size a frame after entering (focus-chrome-check step 4 compares two entries).
-  useLayoutEffect(() => { if (focus?.id && surface.current) dispatchFocus({ type: 'workspace-changed', frame: focusWorkspace() }); }, [focus?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // so the focused card never changes size a frame after entering (focus-chrome-check step 4 compares two entries). So for the
+  // toolbar standing down or coming back while focused (pinned Study notebook, unpin).
+  useLayoutEffect(() => { if (focus?.id && surface.current) dispatchFocus({ type: 'workspace-changed', frame: focusWorkspace() }); }, [focus?.id, toolbarShown]); // eslint-disable-line react-hooks/exhaustive-deps
   // Deleted, or no longer focusable (read-only now, failed): a clean exit.
   useEffect(() => { const id = focusRef.current?.id; if (id && !adapterFor(objectById(id), { view: viewRef.current, readOnly })) dispatchFocus({ type: 'content-gone', id }); }, [blocks, exchanges, items, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
   // This canvas's own /explain cards (placeExplain): each opens in Focus once when ready, unless another card is focused then.
@@ -5966,7 +5970,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             {insertOpen && <BlockMenu className={`top-0 ${toolSide === 'left' ? 'left-10' : 'right-10'}`} filter={insertFilter} onFilter={setInsertFilter} onPick={type => (type === 'notebook' ? (snapshot(), insertAtView(newNotebookBlock()), setInsertOpen(false)) : type === 'youtube' ? (setInsertOpen(false), onSearch?.('youtube')) : insertBlock(type))} />}
           </div>
         )}
-        {!readOnly && toolbar && <div ref={toolbarRef} role="toolbar" aria-label="Canvas tools" data-draw-target={drawTarget ? 'sketch' : 'canvas'}
+        {!readOnly && toolbarShown && <div ref={toolbarRef} role="toolbar" aria-label="Canvas tools" data-draw-target={drawTarget ? 'sketch' : 'canvas'}
           style={toolDrag ? { position: 'absolute', left: toolDrag.x, top: toolDrag.y } : toolCap != null ? { maxHeight: toolCap } : undefined}
           className={`z-20 grid max-h-full shrink-0 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md`}>
           {/* The handle: drag the palette and it parks on whichever edge you let

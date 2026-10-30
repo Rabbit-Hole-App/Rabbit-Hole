@@ -67,5 +67,5 @@ test('Focus shows one title (the card hides its own kicker and title) and the ca
   const canvas = readFileSync(new URL('../AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   assert.match(canvas, /const drawnWidgets = focusWidgets\(\{ minimap, holeMap, curious \}, !!focus\);/);
   assert.match(canvas, /\{drawnWidgets\.minimap && <div data-canvas-minimap>/);
-  assert.match(canvas, /!readOnly && toolbar && <div ref=\{toolbarRef\}/, 'the toolbar stays in Focus');
+  assert.match(canvas, /!readOnly && toolbarShown && <div ref=\{toolbarRef\}/, 'the toolbar stays in Focus, except over a pinned Study notebook (toolbarDrawn)');
 });

@@ -13,6 +13,10 @@ coordinator instead of making a local variant.
   `mode` is `'canvas'` or `'study'`; `canvas` is the Canvas preferences in force (AdaptiveCanvas state seeded from
   `ui-prefs.js`); `study` is the Study arrangement's `maps`. In Study a map is shown only with an explicit
   `study[name] === true`; with no Study choice both maps are hidden. Curious and the toolbar follow Canvas in both modes.
+- `toolbarDrawn(toolbar, { studying, pinned, focusKind })` (owner, 2026-10-29): the drawing toolbar is not drawn while a
+  pinned Study has a notebook in Focus (Study > Notebook); everywhere else it is the saved View > Toolbar choice, which this
+  never writes, so Canvas or Unpin brings it back as it was (a hidden toolbar stays hidden). Unmounted, not merely hidden,
+  and the Focus frame is measured again without it.
 - `widgetToggle({ mode, name, on })` routes an explicit View > Show / hide toggle:
   `{ store: 'study', action: { type: 'setMap', name, on } }` (Study map, dispatch to the Study reducer) or
   `{ store: 'canvas', name, on }` (set the AdaptiveCanvas state and `saveUiPref`). `null` for an unknown name.

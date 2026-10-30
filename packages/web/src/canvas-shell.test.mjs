@@ -186,7 +186,8 @@ test('View > Show / hide: checked rows for the toolbar, minimap, Rabbit Hole Map
   assert.ok(bar.includes("if (kind === 'menuitemcheckbox') { item.onToggle(!item.check); return; }"), 'a check row flips in place and keeps the menu open');
   assert.match(canvas, /const \[minimapPref, setMinimapPref\] = useState\(\(\) => uiPrefs\(\)\.minimap\);\n\s+const \[holeMapPref, setHoleMapPref\] = useState\(\(\) => uiPrefs\(\)\.holeMap\);\n\s+const \[curious, setCurious\] = useState\(\(\) => uiPrefs\(\)\.curious\);/);
   assert.ok(canvas.includes('const [toolbar, setToolbar] = useState(() => uiPrefs().toolbar);'));
-  assert.ok(canvas.includes('{!readOnly && toolbar && <div ref={toolbarRef} role="toolbar"'), 'the toolbar draws only while it is on');
+  assert.ok(canvas.includes('{!readOnly && toolbarShown && <div ref={toolbarRef} role="toolbar"'), 'the toolbar draws only while it is on');
+  assert.ok(canvas.includes('const toolbarShown = toolbarDrawn(toolbar, '), 'drawn from the saved choice, never written by Study or Focus');
   assert.match(canvas, /try \{ saveUiPref\(name, on\); \}/);
 });
 
