@@ -99,8 +99,8 @@ for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
     });
     const result = await measure();
     fit.push(`${name} ${result.item} in ${result.stage}`);
-    // A notebook or an article scrolls in its own reader (owner, 2026-10-29); every other card shows all it holds.
-    const reader = name === 'notebook' || name === 'wikipedia';
+    // A notebook, an article or a captured page scrolls in its own reader (owner, 2026-10-29); every other card shows all it holds.
+    const reader = name === 'notebook' || name === 'wikipedia' || name === 'browser';
     ok(`${tag}: /${name} preview fits its stage (whole card, no outer scroll${reader ? '' : ', nothing hidden inside'})`, result.inside && result.page && (reader || !result.overflow), JSON.stringify(result));
     // Owner, 2026-10-29: no empty gap between the example and its preview; the title, description and Use example stay visible.
     ok(`${tag}: /${name} preview starts right under its example`, result.gap <= 2, String(result.gap));
@@ -117,6 +117,11 @@ for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
     if (name === 'notebook') ok(`${tag}: /notebook opens the notebook card's JupyterLab frame`, await pane.locator('iframe[data-notebook-frame][data-notebook-preview]').count() === 1);
     if (name === 'youtube') ok(`${tag}: /youtube shows the 3Blue1Brown video in YouTube's player`, await pane.locator('iframe[src^="https://www.youtube-nocookie.com/embed/eMlx5fFNoYc"]').count() === 1 && await pane.getByText('Sourced · YouTube · 3Blue1Brown').count() === 1);
     if (name === 'wikipedia') ok(`${tag}: /wikipedia shows the Transformer article's opening and its source`, await pane.getByRole('heading', { name: 'Transformer (deep learning architecture)' }).count() === 1 && await pane.getByRole('link', { name: 'Open on Wikipedia' }).count() === 1);
+    if (name === 'browser') ok(`${tag}: /browser shows the saved Illustrated Transformer capture in the webpage card with its source link`,
+      /^The Illustrated Transformer/.test(await pane.locator('[data-webcard] h3').innerText()) && await pane.locator('[data-webcard-tile][data-loaded]').count() > 0
+      && (await pane.locator('a[data-webcard-source]').getAttribute('href')) === 'https://jalammar.github.io/illustrated-transformer/');
+    if (name === 'generate-image') ok(`${tag}: /image shows the saved generated lighthouse image, labelled AI-generated, with no Generate offer`,
+      await pane.locator('img[src="/lesson-assets/slash-image-lighthouse-9bffc47d.png"]').count() === 1 && await pane.locator('[data-media-provenance="ai"]').count() === 1 && !(await pane.locator('[data-image-generate]').isVisible()));
     if (name === 'arxiv') ok(`${tag}: /arxiv shows the paper with its authors and abstract opening`, await pane.getByText('Ashish Vaswani, Noam Shazeer, Niki Parmar et al. · arXiv:1706.03762v7').count() === 1 && await pane.getByText(/The dominant sequence transduction models/).count() === 1);
     await page.screenshot({ path: `${SHOTS}/${tag}-${name}.png` });
     if (BRIEF_COMMANDS.includes(name) && PREVIEWS[name].kind !== 'none') {

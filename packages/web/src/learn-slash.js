@@ -55,7 +55,7 @@ export const EXAMPLES = {
   explain: '/explain how a hot coffee cools in a cold room, and let me change the room temperature', practice: '/practice explain it back: why the sky is blue', quiz: "/quiz Newton's second law",
   flashcards: '/flashcards Spanish verbs for travel', goal: '/goal read a balance sheet with confidence',
   code: '/code a function that reverses a linked list', graph: '/graph y = sin(x) and y = cos(x)', diagram: '/diagram an HTTP request from browser to server',
-  notebook: '/notebook', 'generate-image': '/image a watercolor mountain landscape',
+  notebook: '/notebook', 'generate-image': '/image a small red lighthouse on a rock at dusk, flat illustration',
   // The exact request that made the window's real Motion clip (job 8a2015a4, slash-sheet.js MOTION_CLIP).
   motion: '/motion 15s explain me softmax func',
   cad: '/cad a 60 x 40 x 5 mm plate with four 4 mm through holes and a centred 20 x 10 mm pocket, 3 mm deep', '3d': '/3d perspective projection: a camera frustum with a cube inside it and a ray',

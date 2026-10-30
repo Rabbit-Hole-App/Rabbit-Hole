@@ -34,7 +34,7 @@ const measure = (text, height) => {
 
 // One tile: its picture loads while it is on screen (within the card's window and the browser's) and is released 2 s after it
 // leaves, so a long page or many cards hold only what is visible. The placeholder keeps its height.
-function Tile({ tile, page, onSeen }) {
+function Tile({ tile, page, onSeen, read }) {
   const box = useRef(null), [url, setUrl] = useState(null), [seen, setSeen] = useState(false);
   useEffect(() => {
     let timer = 0;
@@ -49,7 +49,7 @@ function Tile({ tile, page, onSeen }) {
     if (!seen) return undefined;
     const controller = new AbortController();
     let made = null;
-    captureFile(tile.key, { as: 'blob', signal: controller.signal }).then(blob => { made = URL.createObjectURL(blob); setUrl(made); }, () => {});
+    read(tile.key, { as: 'blob', signal: controller.signal }).then(blob => { made = URL.createObjectURL(blob); setUrl(made); }, () => {});
     return () => { controller.abort(); if (made) URL.revokeObjectURL(made); setUrl(null); };
   }, [seen, tile.key]);
   return <div ref={box} data-webcard-tile={tile.index} data-loaded={url ? '' : undefined} className="absolute inset-x-0 bg-hover/40"
@@ -58,7 +58,8 @@ function Tile({ tile, page, onSeen }) {
   </div>;
 }
 
-export default function WebpageCard({ block, appName, selected, zoom = 1, readOnly = false, onChange, onChangeQuiet, onRemove }) {
+// readFile: where the capture's files are read (the Slash Commands window's /browser example reads its committed capture).
+export default function WebpageCard({ block, appName, selected, zoom = 1, readOnly = false, onChange, onChangeQuiet, onRemove, readFile = captureFile }) {
   const latest = useRef(block);
   latest.current = block;
   const save = next => { latest.current = next; onChangeQuiet(next); };
@@ -110,9 +111,9 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
     if (!shown || !sourceId) { setManifest(null); setRuns([]); return undefined; }
     const controller = new AbortController();
     setError('');
-    captureFile(sourceId, { signal: controller.signal }).then(async found => {
+    readFile(sourceId, { signal: controller.signal }).then(async found => {
       setManifest(found);
-      const text = found.text?.key ? await captureFile(found.text.key, { signal: controller.signal }).catch(() => ({ runs: [] })) : { runs: [] };
+      const text = found.text?.key ? await readFile(found.text.key, { signal: controller.signal }).catch(() => ({ runs: [] })) : { runs: [] };
       if (!controller.signal.aborted) setRuns(text.runs || []);
     }, problem => { if (!controller.signal.aborted) setError(problem.message); });
     return () => controller.abort();
@@ -301,7 +302,7 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
       <div ref={frame} data-webcard-frame data-scroll={locked ? undefined : ''} tabIndex={0} role="group" aria-label={`${title}, captured page`} onKeyDown={keys}
         className="absolute inset-0 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-[#2383e2]/40">
         <div ref={column} data-webcard-column className="relative" style={{ width: page.width * drawn, height: page.height * drawn, transform: `translateX(${-offsetX * drawn}px) translateY(${-offset * drawn}px)` }}>
-          {tiles.map(tile => <Tile key={tile.key} tile={tile} page={page} onSeen={seen} />)}
+          {tiles.map(tile => <Tile key={tile.key} tile={tile} page={page} onSeen={seen} read={readFile} />)}
           {highlights.length > 0 && <div className="pointer-events-none absolute inset-0 z-[2]">
             {highlights.map(h => <Boxes key={h.id} as="button" type="button" data-webcard-highlight data-highlight-id={h.id} parts={toViewport(h, viewport)}
               aria-label={`Highlight: ${(h.quote?.exact || '').slice(0, 60)}`} aria-haspopup="menu" aria-expanded={menu?.h.id === h.id}

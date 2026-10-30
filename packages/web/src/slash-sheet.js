@@ -12,6 +12,8 @@
 //   { kind: 'finder', source, query, results }  the source finder's presentation (SearchBar.jsx FinderPanel) on fixture results
 //   { kind: 'youtube', block }      the YouTube card (AdaptiveCanvas.jsx YouTubeMoment): YouTube's own player, playing only on Play
 //   { kind: 'wiki', block, saved }  the Wikipedia card's reader (LearnWiki.jsx) on a stored answer of the wiki route
+//   { kind: 'webpage', block, files } the webpage card (WebpageCard.jsx) on a committed capture: files maps each capture file id
+//                                   to its copy under /lesson-assets/slash-webpage/ (the manifest itself is in WEBPAGE.manifest)
 //   { kind: 'none', reason }        no matching saved result exists: said plainly (a generator then shows its brief)
 // note: one line under the preview, where the preview needs one.
 import COOLING from './slash-examples/explain-cooling.json' with { type: 'json' };
@@ -19,6 +21,7 @@ import NOTEBOOK from './slash-examples/notebook-cooling.json' with { type: 'json
 import CAD_PLATE from './slash-examples/cad-plate.json' with { type: 'json' };
 import WIKI from './slash-examples/wiki-transformer.json' with { type: 'json' };
 import PHOTOS from './slash-examples/photos-cat.json' with { type: 'json' };
+import WEBPAGE from './slash-examples/webpage-transformer.json' with { type: 'json' };
 
 // The generators (spec section 6): their preview shows the finished result, and View brief shows their brief in the shared
 // confirmation card (GenerationProposalCard.jsx) with nothing it can generate or save.
@@ -60,6 +63,17 @@ export const CAD_EXAMPLE = CAD_PLATE;
 // /wikipedia's example: the wiki route's answer for the article (fetched once from the dev worker, 2026-10-29), its HTML cut to the
 // lead section (revision in WIKI.revision). Text CC BY-SA 4.0, credited in the card's own footer.
 export const WIKI_EXAMPLE = WIKI;
+// /image's example (owner, 2026-10-29: reuse an accepted generated image): the output of the production /image acceptance run
+// imgacc-flare-20261027150151 (2026-10-27, verdict PASS, card placed and persisted; receipt in C:/s/spec/image-activate/receipts):
+// job img-gp-f02c94e1e592f12e, GPT Image 2.5 Flare, low quality, 1:1, 1K, prompt "A small red lighthouse on a rock at dusk, flat
+// illustration.". Its PNG was read once, read-only, from that run's R2 object and committed byte for byte (sha256 9bffc47d...7333).
+export const IMAGE_EXAMPLE = { job: 'img-gp-f02c94e1e592f12e', date: '2026-10-27', model: 'gpt-image-2.5-flare', sha256: '9bffc47d6de1a7b820621a98f60526c0a75ac2b394823eecd4d05996fc487333',
+  bytes: 1043426, prompt: 'A small red lighthouse on a rock at dusk, flat illustration.', src: '/lesson-assets/slash-image-lighthouse-9bffc47d.png' };
+// /browser's example (owner, 2026-10-29): one capture of the page through the webpage card's own route and its safety screen
+// (passed, policy webcard-mod-p1), on the session dev clone on 2026-10-30 03:28 UTC: manifest fs_ac80f64f, 15 tiles, text runs.
+// The capture stops at 20,000 of the page's 28,756 px (the route's limit), so the card says Truncated, as on the canvas.
+export const WEBPAGE_EXAMPLE = WEBPAGE;
+const WEBPAGE_FILES = { ...Object.fromEntries(WEBPAGE.manifest.tiles.map(tile => [tile.key, `tile-${tile.index}.jpg`])), [WEBPAGE.manifest.text.key]: 'text.json' };
 // /youtube's example: 3Blue1Brown's video as the YouTube card holds it; title, channel and length from YouTube's oEmbed and watch
 // page (2026-10-28, C:/s/spec/landing-rabbit-holes/sources.json). The card embeds YouTube's own player: nothing plays until Play.
 export const YOUTUBE_EXAMPLE = { type: 'video', id: 'slash-help-youtube', videoId: 'eMlx5fFNoYc', title: 'Attention in transformers, step-by-step | Deep Learning Chapter 6',
@@ -114,11 +128,15 @@ export const PREVIEWS = {
     edges: [{ source: 'send', target: 'handle' }, { source: 'handle', target: 'respond' }, { source: 'respond', target: 'render' }] } }) },
   notebook: { kind: 'notebook', block: { id: 'slash-help-notebook', type: 'notebook', notebook_id: 'slash-help-notebook', active_path: 'notebook.ipynb', ipynb_path: 'notebook.ipynb', ipynb: NOTEBOOK },
     note: 'An example notebook. /notebook itself starts an empty one.' },
-  'generate-image': { kind: 'none', reason: 'No saved image matches this example, so only its brief is shown. The window never generates one.' },
+  'generate-image': { kind: 'card', card: 'image', block: { type: 'image', mode: 'generate', title: 'A red lighthouse at dusk', src: IMAGE_EXAMPLE.src, prompt: IMAGE_EXAMPLE.prompt,
+    alt: IMAGE_EXAMPLE.prompt, caption: '', credit: { photographer: 'generated illustration', url: '' } }, note: 'A real image made by /image from this prompt, saved.' },
   motion: { kind: 'card', card: 'videoGenerate', block: SAMPLES.motion.videoGenerate, note: 'A real Motion video, made from this example.' },
   cad: { kind: 'card', card: 'cad', block: CAD_PLATE.block, note: 'A real model made by /cad. Interact to orbit and zoom it.' },
   '3d': { kind: 'card', card: 'scene', block: SAMPLES['3d'].scene, viewer: true },
-  browser: { kind: 'none', reason: 'No saved capture of this page ships with the window, and it never captures one. On the canvas, the command captures the page as a webpage card you can read, highlight and ask about.' },
+  browser: { kind: 'webpage', block: { type: 'webpage', id: 'slash-help-browser', url: WEBPAGE.manifest.url, title: WEBPAGE.result.title, capture: WEBPAGE.result.capture, fileRef: WEBPAGE.result.fileRef, scrollTop: 1480 },
+    // scrollTop: opens at the article's first section, "A High-Level Look", and its first diagram (capture px 1480); the title stays in
+    // the card's header, and scrolling up shows the page's top.
+    manifest: WEBPAGE.manifest, files: WEBPAGE_FILES, note: 'A saved capture of the page, made by /browser. Scroll to read it.' },
   // The photo card after /photos cat, its first result chosen; the arrows step through the other two.
   image: { kind: 'card', card: 'image', block: { type: 'image', mode: 'search', title: 'Cat', caption: '', prompt: 'cat', ...CAT[0], variants: CAT, variant: 0 },
     note: 'Real Pexels results for this search, saved. This window does not search again.' },
@@ -140,7 +158,7 @@ export const BRIEFS = {
   code: { title: 'Reverse a linked list', description: 'A short Python function that reverses a linked list, with a brief explanation of the pointer updates.' },
   graph: { title: 'Sine and cosine', description: 'Plot sine and cosine on the same axes so their shapes and phase difference can be compared.' },
   diagram: { title: 'A request and response', description: 'Show a browser sending a request, the server handling it and the browser receiving and displaying the response.' },
-  'generate-image': { title: 'Watercolor mountain landscape', description: 'A watercolor landscape with mountains, a soft sky and visible paint texture.', settings: { model: 'gpt-image-2.5-sunburst' } },
+  'generate-image': { title: 'A red lighthouse at dusk', description: IMAGE_EXAMPLE.prompt, settings: { model: IMAGE_EXAMPLE.model, quality: 'low', aspect_ratio: '1:1', resolution: '1K' } },
   motion: { title: 'How softmax turns scores into weights', description: 'Show scores being transformed into positive weights that add up to one.', settings: { aspect_ratio: '16:9', duration_seconds: 15, audio: false } },
   // The real job's own brief (cr_9a3fa75c, slash-examples/cad-plate.json): its title, units and parameters.
   cad: { title: CAD_PLATE.brief.title, description: 'A 60 × 40 × 5 mm plate with four 4 mm through holes and a centred 20 × 10 mm pocket, 3 mm deep, cut from the top face.',

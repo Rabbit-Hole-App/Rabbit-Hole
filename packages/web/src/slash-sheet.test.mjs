@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { EXAMPLES, parseSlash, pickerSections } from './learn-slash.js';
-import { BRIEFS, BRIEF_COMMANDS, CAD_EXAMPLE, COOLING_EXAMPLE, MOTION_CLIP, NOTEBOOK_EXAMPLE, PREVIEWS, SAMPLES, SAMPLE_NOTE, WIKI_EXAMPLE, YOUTUBE_EXAMPLE, briefView, previewBlock, previewOf } from './slash-sheet.js';
+import { BRIEFS, BRIEF_COMMANDS, CAD_EXAMPLE, COOLING_EXAMPLE, IMAGE_EXAMPLE, MOTION_CLIP, NOTEBOOK_EXAMPLE, PREVIEWS, SAMPLES, SAMPLE_NOTE, WEBPAGE_EXAMPLE, WIKI_EXAMPLE, YOUTUBE_EXAMPLE, briefView, previewBlock, previewOf } from './slash-sheet.js';
 import { resolveProgram } from './explain-program/program-card.js';
 import { cadArtifact } from './cad-client.js';
 import { inspectGlb as inspectModel } from './three-d-asset.js';
@@ -33,7 +33,7 @@ test('the window reads the picker sections: 18 commands, each with an example an
   assert.deepEqual(SLASH.map(command => command.name).sort(), [...listed].sort(), 'the registry, the picker and the window agree');
   for (const name of listed) {
     assert.ok(EXAMPLES[name] === `/${typedOf(name)}` || EXAMPLES[name].startsWith(`/${typedOf(name)} `), `/${typedOf(name)} example: ${EXAMPLES[name]}`);
-    assert.ok(['card', 'notebook', 'goal', 'finder', 'youtube', 'wiki', 'none'].includes(previewOf(name).kind), name);
+    assert.ok(['card', 'notebook', 'goal', 'finder', 'youtube', 'wiki', 'webpage', 'none'].includes(previewOf(name).kind), name);
   }
   assert.match(sheet, /const sections = pickerSections\('\/'\);/, 'the window lists what this build offers, from the picker');
 });
@@ -66,7 +66,7 @@ test('the 11 generators each have a brief on the example\'s subject; the brief c
   const titles = Object.fromEntries(BRIEF_COMMANDS.map(name => [name, BRIEFS[name].title]));
   // Owner, 2026-10-29 (C:/s/spec/slash-window/BRIEF-EXAMPLES.md): /explain and /cad briefs match their saved results.
   assert.deepEqual(titles, { explain: 'How a hot coffee cools in a room', practice: 'Explain why the sky is blue', quiz: "Newton's second law", flashcards: 'Spanish verbs for travel',
-    code: 'Reverse a linked list', graph: 'Sine and cosine', diagram: 'A request and response', 'generate-image': 'Watercolor mountain landscape',
+    code: 'Reverse a linked list', graph: 'Sine and cosine', diagram: 'A request and response', 'generate-image': 'A red lighthouse at dusk',
     motion: 'How softmax turns scores into weights', cad: 'Plate with four through holes and a top pocket', '3d': 'Perspective projection' });
   assert.equal(BRIEFS.quiz.description, 'One multiple-choice question about force, mass and acceleration, with feedback after you answer.');
   assert.equal(BRIEFS.cad.description, 'A 60 × 40 × 5 mm plate with four 4 mm through holes and a centred 20 × 10 mm pocket, 3 mm deep, cut from the top face.');
@@ -126,8 +126,8 @@ test('each preview shows the example\'s subject', () => {
     assert.ok(photo.credit.photographer && /cat/i.test(photo.alt), photo.alt);
   }
   assert.equal(block('image').src, block('image').variants[0].src);
-  assert.match(stage, /const PHOTO_ONLY = '\[&_\[data-image-generate\]\]:hidden \[&_\[data-image-generate-unavailable\]\]:hidden';/);
-  assert.match(stage, /\$\{block\.mode === 'search' \? PHOTO_ONLY : ''\}/);
+  assert.match(stage, /const IMAGE_RESULT = '\[&_\[data-image-generate\]\]:hidden \[&_\[data-image-generate-unavailable\]\]:hidden';/);
+  assert.match(stage, /\$\{type === 'image' \? IMAGE_RESULT : ''\}/);
   // /youtube: 3Blue1Brown's video in the YouTube card, YouTube's own player (nothing plays until Play).
   assert.match(EXAMPLES.youtube, /attention in transformers.*3blue1brown/i);
   assert.deepEqual([YOUTUBE_EXAMPLE.videoId, YOUTUBE_EXAMPLE.channel, YOUTUBE_EXAMPLE.title], ['eMlx5fFNoYc', '3Blue1Brown', 'Attention in transformers, step-by-step | Deep Learning Chapter 6']);
@@ -143,9 +143,42 @@ test('each preview shows the example\'s subject', () => {
   assert.equal(WIKI_EXAMPLE.licence.url, 'https://creativecommons.org/licenses/by-sa/4.0/deed.en');
   assert.ok(WIKI_EXAMPLE.html.includes('data-mw-section-id="0"') && !WIKI_EXAMPLE.html.includes('data-mw-section-id="1"'), 'the lead section only');
   assert.match(stage, /<LearnWiki app=\{appName\} compact article=\{\{ title: preview\.block\.title, section: 0 \}\} saved=\{preview\.saved\}/);
-  // /browser: no saved capture of its page yet, said plainly; /image: no saved generated image (none is generated here).
   assert.equal(EXAMPLES.browser, '/browser https://jalammar.github.io/illustrated-transformer/');
-  for (const name of ['generate-image', 'browser']) assert.equal(PREVIEWS[name].kind, 'none', name);
+  // Every listed command now shows a saved result (owner, 2026-10-29): no "no saved result" statement is left.
+  assert.deepEqual(Object.keys(PREVIEWS).filter(name => PREVIEWS[name].kind === 'none'), []);
+});
+
+// Owner, 2026-10-29: /image reuses an accepted generated image with its provenance; nothing is generated for the window.
+test('/image shows the accepted acceptance image byte for byte, with its job, prompt and model', () => {
+  const block = previewBlock(PREVIEWS['generate-image']);
+  assert.deepEqual([block.type, block.mode, block.src, block.prompt], ['image', 'generate', IMAGE_EXAMPLE.src, 'A small red lighthouse on a rock at dusk, flat illustration.']);
+  assert.equal(block.credit.url, '', 'labelled AI-generated by the card, never as a found photo');
+  const bytes = readFileSync(new URL(`../public${IMAGE_EXAMPLE.src}`, import.meta.url));
+  assert.equal(bytes.length, IMAGE_EXAMPLE.bytes);
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), IMAGE_EXAMPLE.sha256);
+  assert.equal(IMAGE_EXAMPLE.sha256, '9bffc47d6de1a7b820621a98f60526c0a75ac2b394823eecd4d05996fc487333');
+  assert.deepEqual([IMAGE_EXAMPLE.job, IMAGE_EXAMPLE.date, IMAGE_EXAMPLE.model], ['img-gp-f02c94e1e592f12e', '2026-10-27', 'gpt-image-2.5-flare']);
+  assert.match(EXAMPLES['generate-image'], /^\/image a small red lighthouse on a rock at dusk, flat illustration$/);
+  assert.deepEqual(BRIEFS['generate-image'].settings, { model: 'gpt-image-2.5-flare', quality: 'low', aspect_ratio: '1:1', resolution: '1K' });
+});
+
+// Owner, 2026-10-29: /browser shows the real Illustrated Transformer capture (made through the webpage card's route and its safety
+// screen) in the webpage card, every committed file the one the capture's manifest names.
+test('/browser shows the screened Illustrated Transformer capture in the webpage card, every file matching its manifest', () => {
+  const { result, manifest } = WEBPAGE_EXAMPLE;
+  assert.equal(manifest.url, 'https://jalammar.github.io/illustrated-transformer/');
+  assert.match(result.title, /^The Illustrated Transformer/);
+  assert.equal(result.screening.status, 'passed');
+  assert.equal(result.fileRef.source.id, result.capture.manifestId);
+  const preview = PREVIEWS.browser;
+  assert.deepEqual([preview.block.url, preview.block.capture, preview.block.fileRef], [manifest.url, result.capture, result.fileRef]);
+  const hash = file => createHash('sha256').update(readFileSync(new URL(`../public/lesson-assets/slash-webpage/${file}`, import.meta.url))).digest('hex');
+  assert.equal(manifest.tiles.length, 15);
+  for (const tile of manifest.tiles) assert.equal(hash(preview.files[tile.key]), tile.sha256, `tile ${tile.index}`);
+  assert.equal(hash(preview.files[manifest.text.key]), manifest.text.sha256, 'text runs');
+  assert.equal(result.capture.truncated.height, true, 'the capture stops at the route limit; the card says Truncated');
+  assert.match(stage, /<WebpageCard block=\{block\} appName=\{appName\} selected readOnly readFile=\{read\}/);
+  assert.match(stage, /fetch\(`\/lesson-assets\/slash-webpage\/\$\{name\}`, \{ signal \}\)/);
 });
 
 // Owner, 2026-10-29: /explain shows the saved cooling explanation's real accepted program. The window's copy is the genuine
