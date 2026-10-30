@@ -8,7 +8,8 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { attemptRoute } from '../src/learn-attempt-routes.js';
 import { readAttempt } from '../src/learn-attempt-store.js';
-import { readAttemptAsset, storeAttemptAsset, transcriptStore, transcriptsOf } from '../src/learn-attempt-assets.js';
+import { readAttemptAsset, readFrozenSnapshot, storeAttemptAsset, transcriptStore, transcriptsOf } from '../src/learn-attempt-assets.js';
+import { canonical } from '../src/learn-attempt-store.js';
 import { purgeTutorRows } from '../src/learn-coaching-store.js';
 import { ANA, BEN, call, never, world } from './learn-attempt-fixture.js';
 
@@ -24,7 +25,7 @@ function media() {
   const objects = new Map();
   return {
     objects,
-    put: async (key, body, { sha256 } = {}) => { const bytes = new Uint8Array(body instanceof ReadableStream ? await new Response(body).arrayBuffer() : body); if (sha256 && sha(bytes) !== sha256) throw new Error('put: The SHA-256 checksum you specified did not match what we received.'); objects.set(key, bytes); },
+    put: async (key, body, { sha256 } = {}) => { const bytes = new Uint8Array(body instanceof ReadableStream || typeof body === 'string' ? await new Response(body).arrayBuffer() : body); if (sha256 && sha(bytes) !== sha256) throw new Error('put: The SHA-256 checksum you specified did not match what we received.'); objects.set(key, bytes); },
     get: async (key, options) => {
       const bytes = objects.get(key);
       if (!bytes) return null;
@@ -183,4 +184,25 @@ test('storeAttemptAsset seeds a fixture asset with the upload checks, and assess
   await assert.rejects(storeAttemptAsset(w.env, ANA, { bytes: MP3, mime: 'audio/mpeg' }), /unsupported/);
   const attempt = { submittedContent: { sketch: { evidenceId: 'ev_s', assetId: png.assetId, hash: png.sha256 }, voice: [] } };
   assert.equal((await readAttemptAsset(w.env, ANA, attempt, attempt.submittedContent.sketch)).text, 'arrow');
+});
+
+test('board-held inputs are frozen at submission: only snapshots the answer names by hash are kept, privately', async t => {
+  const w = setup(t);
+  const bound = (await call(w.env, ANA, 'POST', '/api/learn/tutor/attempts/bind', { cardId: 'card-1', prompt: 'Why?', expects: ['because'] })).body;
+  const note = { type: 'note', text: 'Tension points to the pivot.' };
+  const cells = { notebook: 'nb_1', path: null, cells: [{ id: 'c2', type: 'code', source: 'print(2)', outputs: [], executionCount: 1 }] };
+  const ref = (evidenceId, snapshot, over = {}) => ({ evidenceId, role: 'resource', media: 'card', state: 'ready', sourceKind: 'card', assetId: evidenceId, revision: 1, hash: sha(canonical(snapshot)), ...over });
+  const group = { evidenceId: 'ev_g', role: 'resource', media: 'group', state: 'ready', sourceKind: 'group', assetId: 'grp_1', revision: 1,
+    members: [{ sourceKind: 'notebook', sourceId: 'nb_1', revision: 1, hash: sha(canonical(cells)), media: 'notebook', state: 'ready' }] };
+  const content = { v: 1, kind: 'explain_back', text: '', voice: [], resources: [ref('ev_note', note), group], assistance: [] };
+  const r = await call(w.env, ANA, 'POST', '/api/learn/tutor/attempts', { activityId: bound.activityId, activityRevision: 1, submissionKey: 'snap-key-0001', submittedContent: content, snapshots: [note, cells, { type: 'note', text: 'not connected' }] }, never);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal([...w.media.objects.keys()].filter(k => k.startsWith('learn-attempt-snapshots/')).length, 2, 'the unnamed snapshot is not kept');
+  const { attempt } = await readAttempt(w.env, ANA, r.body.attempt.attemptId);
+  assert.deepEqual(await readFrozenSnapshot(w.env, ANA, attempt, content.resources[0]), { snapshot: note });
+  assert.deepEqual(await readFrozenSnapshot(w.env, ANA, attempt, group.members[0]), { snapshot: cells });
+  assert.equal(await readFrozenSnapshot(w.env, BEN, attempt, content.resources[0]), null, 'another learner');
+  assert.equal(await readFrozenSnapshot(w.env, ANA, attempt, { hash: sha(canonical({ type: 'note', text: 'not connected' })) }), null, 'not an input of this attempt');
+  const bad = await call(w.env, ANA, 'POST', '/api/learn/tutor/attempts', { activityId: bound.activityId, activityRevision: 1, submissionKey: 'snap-key-0002', submittedContent: { ...content, text: 'x' }, snapshots: 'nope' }, never);
+  assert.deepEqual([bad.status, bad.body.error], [400, 'invalid_snapshots']);
 });

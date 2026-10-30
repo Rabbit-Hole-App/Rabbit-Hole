@@ -22,7 +22,7 @@ import { validateCoachingRecord } from '../../web/src/learn-coaching-contract.js
 import { EXPLAIN_BACK_KIND, answerReadiness, priorFeedbackRefs, validateExplainBackAnswer } from '../../web/src/explain-back-contract.js';
 import { CITATION_MAX, REPOSITORY_SOURCE, citationRef, citationsOverlap, isRepositorySource } from '../../web/src/learn-codebase-goals.js';
 import { sha256Hex } from './learn-grade-jev.js';
-import { ownAttemptAssets } from './learn-attempt-assets.js';
+import { freezeSnapshots, ownAttemptAssets } from './learn-attempt-assets.js';
 
 export class AttemptError extends Error {
   constructor(code, status = 409, detail = null) { super(`attempt: ${code}`); this.name = 'AttemptError'; this.code = code; this.status = status; this.detail = detail; }
@@ -85,7 +85,7 @@ const operations = async (env, attemptId) => (await env.LEARN_DB.prepare('SELECT
 const handle = (attempt, op, replayed) => ({ attemptId: attempt.id, assessmentId: op.id, status: op.status, replayed });
 
 /** Save one submission before anything evaluates it. @returns {Promise<{attemptId: string, assessmentId: string, status: string, replayed: boolean}>} */
-export async function acceptAttempt(env, actor, submission, { now = () => new Date().toISOString() } = {}) {
+export async function acceptAttempt(env, actor, submission, { now = () => new Date().toISOString(), snapshots = null } = {}) {
   const shape = validateCoachingRecord('SubmitAttempt', submission);
   if (!shape.ok) throw invalid('invalid_submission', shape.errors.slice(0, 3));
   const { activityId, activityRevision, submissionKey, submittedContent: content, sourceRefs, assistanceRefs } = submission;
@@ -99,8 +99,13 @@ export async function acceptAttempt(env, actor, submission, { now = () => new Da
     if (row.content_hash !== hash) throw new AttemptError('submission_key_conflict', 409);
     return handle(row, (await operations(env, row.id)).at(-1), true);
   };
+  // Explain-back: the board-held inputs' frozen copies, kept before the attempt (and so before any dispatch); content-addressed,
+  // so a replay or a refused submission leaves nothing a later attempt could not have stored itself.
+  const keepSnapshots = async () => {
+    try { return await freezeSnapshots(env, actor, content, snapshots); } catch (error) { if (error instanceof TypeError) throw invalid('invalid_snapshots', error.message); throw error; }
+  };
   const existing = await byKey(env, actor, submissionKey);
-  if (existing) return replay(existing);
+  if (existing) { if (existing.content_hash === hash) await keepSnapshots(); return replay(existing); }
 
   const activity = await ownActivity(env, actor, activityId);
   if (!activity) throw new AttemptError('unknown_activity', 404);
@@ -109,6 +114,8 @@ export async function acceptAttempt(env, actor, submission, { now = () => new Da
   const kind = activity.response_kind;
   if (!isObj(content) || (CONTENT[kind] && !CONTENT[kind](content))) throw invalid('invalid_content', `a ${kind} answer needs ${kind === 'text' ? 'text' : kind === 'choice' ? 'optionId' : 'a JSON object'}`);
   const serverHelp = kind === EXPLAIN_BACK_KIND ? await explainBackAnswer(env, actor, activity, content) : [];
+  if (kind === EXPLAIN_BACK_KIND) await keepSnapshots();
+  else if (snapshots != null) throw invalid('invalid_snapshots', 'only an Explain-back answer freezes board inputs');
   // The criterion versions the activity names, frozen on the attempt; each must be one of the goal's criteria.
   const criterionRefs = JSON.parse(activity.criterion_refs_json);
   const known = new Set((await env.LEARN_DB.prepare('SELECT criterion_id, version FROM learn_goal_criteria WHERE goal_id = ?').bind(activity.goal_id).all())

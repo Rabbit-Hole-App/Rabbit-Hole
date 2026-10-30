@@ -10,6 +10,7 @@
 //   readAttemptAsset(env, actor, attempt, evidence) -> {bytes, mime, marks?, text?} | null: assessment's hash-checked read
 //   transcriptStore(env, actor) -> {get(transcriptId), put(record, {retry})}: immutable transcripts (failed: explicit retry)
 //   transcriptsOf(env, actor, assetId) -> transcripts of the actor's own audio
+//   freezeSnapshots(env, actor, content, snapshots) / readFrozenSnapshot(env, actor, attempt, ref): board-held inputs as submitted
 //
 // Access: only the learner who uploaded it, on the canvas and board it was uploaded to (actor = {org, userId, app, board},
 // resolved by the route). There is no board fileRef, share token, member or fork path: a viewer of a shared or forked canvas
@@ -200,4 +201,38 @@ export async function transcriptsOf(env, actor, assetId) {
   const { results } = await env.LEARN_DB.prepare('SELECT record_json FROM learn_attempt_transcripts WHERE org = ? AND owner_user_id = ? AND audio_sha256 = ? ORDER BY created_at, rowid')
     .bind(actor.org, actor.userId, asset.sha256).all();
   return results.map(r => JSON.parse(r.record_json));
+}
+
+// --- Frozen board-held resources (R's resolver, learn-explain-evidence.js deps.readFrozenSnapshot) ---------------------------
+// A card, note or Notebook selection lives in the board, which keeps changing. At submission the client sends each connected
+// one's snapshotOf(entry, scope) (explain-inputs.js); the server keeps only those whose canonical hash is a hash the answer
+// froze, as private objects under the owner scope keyed by that hash (no table: the hash is the identity). Nothing else reads them.
+export const SNAPSHOT_LIMITS = Object.freeze({ count: 50, totalChars: 1024 * 1024 });
+const snapshotKey = async (actor, hash) => `learn-attempt-snapshots/${await sha256Hex(canonical(scope(actor)))}/${hash}`;
+const frozenHashes = content => new Set((content?.resources ?? []).flatMap(r => [r.sourceKind !== 'file' && r.hash, ...(r.members ?? []).map(m => m.sourceKind !== 'file' && m.hash)]).filter(Boolean));
+
+/** Keep the snapshots the answer names by hash. -> {stored: hash[], ignored: number} (ignored: not named or not matching). */
+export async function freezeSnapshots(env, actor, content, snapshots) {
+  if (snapshots == null) return { stored: [], ignored: 0 };
+  if (!Array.isArray(snapshots) || snapshots.length > SNAPSHOT_LIMITS.count) throw new TypeError(`snapshots: at most ${SNAPSHOT_LIMITS.count}`);
+  const wanted = frozenHashes(content), stored = [];
+  let ignored = 0;
+  for (const snapshot of snapshots) {
+    let text;
+    try { text = canonical(snapshot); } catch { ignored += 1; continue; }
+    const hash = await sha256Hex(text);
+    if (!wanted.has(hash) || stored.includes(hash)) { ignored += 1; continue; }
+    await learnMedia(env).put(await snapshotKey(actor, hash), text, { httpMetadata: { contentType: 'application/json' }, sha256: hash });
+    stored.push(hash);
+  }
+  return { stored, ignored };
+}
+
+/** The frozen copy of a board-held input this attempt submitted (a resource or Group member, by its hash). -> {snapshot} | null */
+export async function readFrozenSnapshot(env, actor, attempt, ref) {
+  if (!ref?.hash || !frozenHashes(attempt?.submittedContent).has(ref.hash)) return null;
+  const object = await learnMedia(env).get(await snapshotKey(actor, ref.hash));
+  if (!object) return null;
+  const text = await new Response(object.body).text();
+  return (await sha256Hex(text)) === ref.hash ? { snapshot: JSON.parse(text) } : null;
 }

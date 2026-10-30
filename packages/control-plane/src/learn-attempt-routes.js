@@ -2,7 +2,9 @@
 // Submitted attempts (C:/s/spec/tutor-workflow/draft.md Tasks 05 and 06).
 //
 // Endpoints:
-//   POST /api/learn/tutor/attempts {app, board, activityId, activityRevision, submissionKey, submittedContent, sourceRefs?, assistanceRefs?}
+//   POST /api/learn/tutor/attempts {app, board, activityId, activityRevision, submissionKey, submittedContent, sourceRefs?, assistanceRefs?, snapshots?}
+//        snapshots (Explain-back): snapshotOf(entry, scope) of each connected card, note or Notebook selection; only those whose
+//        canonical hash the answer names are kept, privately, for the frozen-evidence resolver. Not part of the content hash.
 //        -> {attempt, assessment, assessments, replayed}
 //        The attempt is saved first. Its one assessment is then dispatched. A retry with the same key and content replays
 //        the attempt, and never dispatches a second time.
@@ -39,15 +41,16 @@
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { AttemptError, acceptAttempt, bindExplainBackCard, listAttempts, readAttempt, readDraft, requestReassessment, saveDraft } from './learn-attempt-store.js';
-import { putAttemptAsset, serveAttemptAsset, setAssetMeta } from './learn-attempt-assets.js';
+import { SNAPSHOT_LIMITS, putAttemptAsset, serveAttemptAsset, setAssetMeta } from './learn-attempt-assets.js';
 import { assessAttempt } from './learn-assessment.js';
 import { advanceActivity } from './learn-coaching-store.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/; // learn-boards.js board names
 const PATH = /^\/api\/learn\/tutor\/attempts(?:\/(bind|drafts|assets)(?:\/(aa_[A-Za-z0-9_-]{8,80}))?|\/([A-Za-z0-9_-]{1,100})(\/reassess)?)?$/;
-// The raw body is bounded before parsing. It holds the 16 KB submission plus its refs.
-export const ATTEMPT_BODY_CHARS = 65536;
+// The raw body is bounded before parsing. It holds the 16 KB submission plus its refs, and an Explain-back answer's frozen
+// board-held inputs (snapshots, at most SNAPSHOT_LIMITS.totalChars).
+export const ATTEMPT_BODY_CHARS = 65536 + SNAPSHOT_LIMITS.totalChars;
 const log = (event, error) => console.error(JSON.stringify({ event, error: error?.name || 'Error', message: String(error?.message || '').slice(0, 120) }));
 
 export async function attemptRoute(path, req, env, deps = {}) {
@@ -97,7 +100,7 @@ export async function attemptRoute(path, req, env, deps = {}) {
       : await acceptAttempt(env, actor, {
         activityId: body.activityId, activityRevision: body.activityRevision, submissionKey: body.submissionKey,
         submittedContent: body.submittedContent, sourceRefs: body.sourceRefs ?? [], assistanceRefs: body.assistanceRefs ?? [],
-      });
+      }, { snapshots: body.snapshots ?? null });
   } catch (error) {
     if (error instanceof AttemptError) return json({ error: error.code, ...(error.detail != null ? { detail: error.detail } : {}) }, error.status);
     log('learn_attempt_error', error);
