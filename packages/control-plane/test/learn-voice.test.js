@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { voiceRoute } from '../src/learn-voice-routes.js';
+import { LISTENING_PAUSED } from '../src/voice-availability.js';
 
 const KEY = 'xi-secret-key-never-shown';
 const env = { SMALL_ENV: 'test', ELEVENLABS_API_KEY: KEY, FISH_AUDIO_API_KEY: 'fish-secret-key-never-shown' };
@@ -17,6 +18,7 @@ const handlers = () => {
   return {
     calls,
     authorize: allow,
+    listeningPaused: false, // the gate order with listening on; the pause has its own test below
     scribeToken: async (env, deps) => { calls.push(['scribe']); return Response.json({ token: 'single-use' }); },
     voiceSpeech: async (env, body) => { calls.push(['tts', body]); return new Response('mp3', { headers: { 'Content-Type': 'audio/mpeg' } }); },
   };
@@ -60,16 +62,37 @@ test('voice routes: the Scribe token response never carries the API key; no key 
   const sent = [];
   const fetch = async (url, init) => { sent.push({ url, key: init.headers['xi-api-key'] }); return Response.json({ token: 'single-use' }); };
   const path = '/api/learn/voice/scribe-token';
-  const ok = await voiceRoute(path, request(path), env, { authorize: allow, fetch });
+  const on = { authorize: allow, listeningPaused: false };
+  const ok = await voiceRoute(path, request(path), env, { ...on, fetch });
   const text = await ok.text();
   assert.equal(ok.status, 200);
   assert.deepEqual(JSON.parse(text), { token: 'single-use' });
   assert.ok(!text.includes(KEY));
   assert.deepEqual(sent, [{ url: 'https://api.elevenlabs.io/v1/single-use-token/realtime_scribe', key: KEY }]);
-  const missing = await voiceRoute(path, request(path), {}, { authorize: allow, fetch });
+  const missing = await voiceRoute(path, request(path), {}, { ...on, fetch });
   assert.equal(missing.status, 503);
   assert.equal(sent.length, 1, 'no provider call without a key');
-  const failed = await voiceRoute(path, request(path), env, { authorize: allow, fetch: async () => new Response(`bad key ${KEY}`, { status: 401 }) });
+  const failed = await voiceRoute(path, request(path), env, { ...on, fetch: async () => new Response(`bad key ${KEY}`, { status: 401 }) });
   assert.equal(failed.status, 502);
   assert.ok(!(await failed.text()).includes(KEY), 'the provider body is never forwarded');
+});
+
+// FX-71 (owner, 2026-10-29): the server enforces the listening pause on direct requests too, with the shared switch.
+test('FX-71: while listening is paused (the default switch) the token route mints nothing and never calls ElevenLabs', async () => {
+  assert.equal(LISTENING_PAUSED, true, 'listening is paused in this build (voice-availability.js)');
+  const path = '/api/learn/voice/scribe-token';
+  let fetched = 0;
+  const fetch = async () => { fetched++; return Response.json({ token: 'single-use' }); };
+  for (const body of [{ app: 'canvas-0a1b2c3d', confirmed: true }, { app: 'canvas-0a1b2c3d' }]) {
+    const paused = await voiceRoute(path, request(path, { body }), env, { authorize: allow, fetch });
+    assert.equal(paused.status, 503);
+    assert.equal(paused.headers.get('Cache-Control'), 'no-store');
+    assert.deepEqual(await paused.json(), { error: 'Voice is currently unavailable' });
+  }
+  assert.equal(fetched, 0, 'no provider call while paused');
+  // Narration (Fish) is not listening: the pause leaves it alone.
+  const deps = { ...handlers(), listeningPaused: undefined };
+  const speech = await voiceRoute('/api/learn/voice/tts', request('/api/learn/voice/tts', { body: { app: 'canvas-0a1b2c3d', text: 'Hi.', confirmed: true } }), env, deps);
+  assert.equal(speech.headers.get('content-type'), 'audio/mpeg');
+  assert.deepEqual(deps.calls.map(([kind]) => kind), ['tts']);
 });

@@ -9,14 +9,13 @@ import { createVoiceSession } from './voice-session.js';
 import { createFakeStt, createScribeStt } from './voice-stt.js';
 import { createFakeTts, createFishTts } from './voice-tts.js';
 import { voiceEvent } from './voice-telemetry.js';
+import { LISTENING_PAUSED } from '../../control-plane/src/voice-availability.js';
 
 // Going down or back up a Rabbit Hole remounts the Learn surface (LearnPage.jsx keys it by hole), which
 // ends its voice session; Voice Mode stays the learner's choice, so the next surface turns it back on.
 let onAcrossMove = false;
-// Owner, 2026-10-12 (r36): new Scribe listening sessions are paused until a provider-confirmed billable session bound
-// exists, and the token route refuses them too (spend_bound_unavailable). Metered Fish narration is unchanged. The
-// scripted ?voice=fake adapters make no provider call, so the voice checks keep running.
-const LISTENING_PAUSED = true;
+// LISTENING_PAUSED (r36) pauses new Scribe listening sessions; the token route refuses them on the same switch (FX-71).
+// Metered Fish narration is unchanged. The scripted ?voice=fake adapters make no provider call, so the voice checks keep running.
 
 // -> { state, caption: { current, previous, error }, enter, exit, interrupt } | null without the Tutor.
 // onTargetUsed: the armed card rides one voice turn and is then cleared, as a typed turn clears it (ask.jsx).

@@ -8,6 +8,7 @@ import { paidRefusal } from './learn-paid.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { scribeToken } from './learn-voice-scribe.js';
 import { voiceSpeech } from './learn-voice-tts.js';
+import { LISTENING_PAUSED } from './voice-availability.js';
 
 const json = (body, status) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const ROUTES = ['/api/learn/voice/scribe-token', '/api/learn/voice/tts'];
@@ -22,6 +23,8 @@ export async function voiceRoute(path, req, env, deps = {}) {
   if (access instanceof Response) return access;
   const ownerRefused = subscriptionOwnerRefusal(env, access);
   if (ownerRefused) return ownerRefused;
+  // FX-71 (owner, 2026-10-29): while listening is paused no token is minted and ElevenLabs is never called, even on a direct request.
+  if (path === '/api/learn/voice/scribe-token' && (deps.listeningPaused ?? LISTENING_PAUSED)) return json({ error: 'Voice is currently unavailable' }, 503);
   // Both providers are paid; turning Voice Mode on is the learner's confirmation, and the client sends it.
   const refused = paidRefusal(body); if (refused) return refused;
   if (path === '/api/learn/voice/scribe-token') return (deps.scribeToken || scribeToken)(env, deps);
