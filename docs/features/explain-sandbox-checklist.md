@@ -2,7 +2,7 @@
 
 Plan: [docs/superpowers/plans/2026-10-28-explain-sandbox.md](../superpowers/plans/2026-10-28-explain-sandbox.md). Times are PT. Updated 2026-10-29 after the MVP release. Shipped, verified and deferred work are listed separately below; "shipped" never implies "verified".
 
-Continuation (Tasks 8-11 and the R0 closeout): [docs/superpowers/plans/2026-10-29-explain-tasks-8-11.md](../superpowers/plans/2026-10-29-explain-tasks-8-11.md). R0 (Focus/pending/Notes, brief before Generate, conversational proposal Edit) is production-deployed in release 5 `f421cc5de` since 2026-10-29 09:26 AM PT; its deployed check is open. Later production releases on main: `a99bd1bee` (run 40929134650, 11:15 AM PT) and `7fe96729d` (run 40933538699, 11:43 AM PT; contains Task 9.1, the Proposed preview of a program Edit, `50c135651`); both runs succeeded, no deployed check of 9.1 is recorded here. Then `7978f39a0` (1:04 PM PT) and `70b7425ed` (2:39 PM PT, contains the frame-overrun fix `3648d595b`). R3 (stateful) is not among them.
+Continuation (Tasks 8-11 and the R0 closeout): [docs/superpowers/plans/2026-10-29-explain-tasks-8-11.md](../superpowers/plans/2026-10-29-explain-tasks-8-11.md). R0 (Focus/pending/Notes, brief before Generate, conversational proposal Edit) is production-deployed in release 5 `f421cc5de` since 2026-10-29 09:26 AM PT; its deployed check is open. Later production releases on main: `a99bd1bee` (run 40929134650, 11:15 AM PT) and `7fe96729d` (run 40933538699, 11:43 AM PT; contains Task 9.1, the Proposed preview of a program Edit, `50c135651`); both runs succeeded. Then `7978f39a0` (1:04 PM PT) and `70b7425ed` (2:39 PM PT, contains the frame-overrun fix `3648d595b`). Later releases R3 to R7 and the deployed evidence for every task, 9.1 included, are in the completion reconciliation below; production now serves R7 `fe9a7a0a4`.
 
 Support, limits, recovery, rollback pins, the Task 10.4 evidence inventory and the 10.1/10.2 test plan: [explain-program-support.md](explain-program-support.md).
 
@@ -32,38 +32,168 @@ Owners: integrator = Parallel; Agent A runtime (Tasks 1, 3); Agent B card/render
 
 - In Focus at smaller heights the drawing keeps a minimum size and scrolls inside its viewport, so the lower part can sit behind an internal scrollbar (follow-up branch feat/focus-sizing).
 - A frame that misses the 50 ms program deadline is skipped and the last frame stays (owner decision 2026-10-29, option A; branch fix/explain-frame-overrun, playback.js); a completed frame resets the count and the third overrun in a row stops the card with the Restart message. Every other error (host watchdog, boot deadline, memory, output, version) still stops it at once, and all limits are unchanged. The review capture player (render/program-render.jsx) does not use this scheduler and still fails a capture on one overrun.
-- The pending card is large and has no activity indicator (follow-up branch fix/explain-pending-card).
-- The automatic numerical readouts are printed under the drawing and can repeat values the drawing already shows (planned: move them into Notes under "Values").
+- Resolved in R0 `f421cc5de`: the pending card was large and had no activity indicator (fix/explain-pending-card).
+- Resolved in R0 `f421cc5de`: the automatic readouts moved from under the drawing into Notes under "Values".
 - On phone, a viewer or guest Focus keeps the tools palette, which narrows the time slider (about 106 px); keeping the toolbar in Focus is intentional.
 - On an owner canvas that is not a shared page, the minimap can overlap the lower controls of a card.
 
-## Task status
+## Completion reconciliation (as of 2026-10-29, 8:52 PM PT, after R7)
 
-| Task | State | Notes |
+This section covers every agreed /explain task: the original plan's Tasks 0-7, and the continuation plan's R0 and Tasks
+8.1-11.3. It is the record for the final audit. The columns are kept separate on purpose:
+- **Implemented**: the commit that implemented the task.
+- **Tested**: checks and counts as reported on that SHA or its release.
+- **Deployed**: the production release run and SHA.
+- **Verified**: evidence taken from the deployed build: genuine runs, deployed checks, the matrix.
+
+A task is "done and verified" only when it has deployed evidence. Every piece of deployed evidence names where it was taken:
+the **dev preview** (preview.digrabbithole.com) or **production** (digrabbithole.com), with the SHA it served at the time.
+The working record for this section is C:/s/spec/explain-8-11/FINAL-TABLE.md and FINAL-EVIDENCE.md (E1-E13).
+
+Production now: main `fe9a7a0a449c1ef9589c3c93d371be75d00fb730` (R7 = R6 `143ef9a04` + the text-field reveal fix `7ebb816d7`).
+- Release run 40998757928 (launcher 16-r7, push to main) succeeded and finished at 8:43 PM PT.
+- The control plane serves `fe9a7a0a449c`, the newest successful release: read-only verifier at 8:46 PM PT, and the E12
+  receipt at 8:50 PM PT (control-plane version `abdf25ec-5741-41a1-a3af-95b0a494206a`).
+- `EXPLAIN_PROGRAM_STATEFUL=true`.
+- The verification of Tasks 9 and 10 (E2-E10) ran on the dev preview serving the same SHA `fe9a7a0a449c`, 8:40-8:50 PM PT.
+- Paid validation, Tasks 8-11: US$1.65 of US$5.00 (t811-c7-a US$0.26, its Edit t811-c7-b US$0.18).
+
+Release runs referred to below (production, all success; times PT):
+
+| Release | Production run | Finished |
 |---|---|---|
-| 0 Plan and baseline | done | plan and checklist on main |
-| 1 Interpreter boundary | shipped | QuickJS/WASM 0.32.0; abuse-case receipts in receipts/task1-runtime.md |
-| 2 Artifact and render contract | shipped | strict artifact and frame validation, generic polyline |
-| 3 Host and responsiveness | shipped | one request in flight, newest wins; hidden-tab pause only (offscreen-card suspension deferred) |
-| 4 Program inside the card | shipped | Play, scrub, inputs, reload, Notes, Focus |
-| 5 Author and persist via V2 | shipped | program artifacts stored behind canvas ownership, loaded through the durable result route |
-| 6 Review, repair, accounting | shipped | six-capture sampling; traces over the review limit go to bounded repair; completed captures recorded as platform renders; sampling beyond six captures deferred |
-| 7 Genuine MVP | shipped, production receipt pending | two genuine examples on the same runtime (cooling, sorting); production verification awaits the owner's receipt run |
-| 8 Interactions and time | in progress, none on main | 8.1 schema 2 contract (`86d746e0d`), 8.2 ordered state (`137018604`) and 8.3 stateful buttons and selections (`0ee34e70c`, owner-review fixes `649732a07` `462b54977` `ecb42a47d` `2a7588f0b`) and the switch `EXPLAIN_PROGRAM_STATEFUL=true` (`b6caa951c`; revert that commit alone to turn it off): implemented and pushed on release/chain-r3 `6b52ee7ea` (verify success, fast-e2e failure on that SHA); NOT on main, NOT deployed; 8.4 drag not on any release branch |
-| 9 Context, Tutor, edits | in progress | 9.1 Proposed program preview: on main, production-released in `7fe96729d`, no deployed check recorded; 9.2-9.4 (`9968f5087`, `ec89b730b`): pushed in release/chain-r3, not on main, not deployed |
-| 10 Quality and compatibility | in progress | frame overrun (option A, `3648d595b`): on main and production-released in `70b7425ed` (2:39 PM PT); 10.1 offscreen pause feat/explain-offscreen-pause `35410272d`: implemented, pushed, not on main (goes into the candidate after R3, with 8.4); 10.3 retention tests on docs/explain-qualification (also pass on a local merge of R3 `6b52ee7ea`); 10.2 matrix not started; 10.4 cases 4 and 5 planned (C:/s/spec/explain-sandbox/genuine/t811-plan.md), not run |
-| 11 Rollout and docs | in progress | explain-program-support.md on docs/explain-qualification (not on main), updated for R3; rollback pins need re-cutting on the final main; the stateful switch reverts with `b6caa951c`; the MVP release is NOT Task 11 and does not close it |
+| MVP `fc31f723a` | 40828037255 | 2026-10-28 11:16 PM |
+| R0 (release 5) `f421cc5de` | 40909329910 | 9:26 AM |
+| R1 `7fe96729d` | 40933538699 | 11:45 AM |
+| `70b7425ed` | 40959595425 | 2:41 PM |
+| R3 `d3d50986e` | 40963907299 | 3:12 PM |
+| R4 `d92cc18d5` | 40977367647 | 5:07 PM |
+| R5 `2aaa8744b` | 40980568461 | 5:36 PM |
+| R6 `143ef9a04` | 40994574017 | 8:05 PM |
+| R7 `fe9a7a0a4` | 40998757928 | 8:43 PM |
+
+Exact-SHA CI, success:
+
+| SHA | verify | fast-e2e |
+|---|---|---|
+| `fc31f723a` | 40822150990 | 40822151054 (release gate 40824102275) |
+| `f421cc5de` | 40908844298 | 40861664384 |
+| `7fe96729d` | 40932963807 | 40926904584 |
+| `d3d50986e` | 40963563287 | 40959340201 |
+| `d92cc18d5` | 40977040318 | 40974731401 |
+| `2aaa8744b` | 40980336024 | 40976343503 |
+| `143ef9a04` | 40992626503 | 40988435210 |
+| `fe9a7a0a4` | 40995614758 | 40995614801 (release gate 40997067809, `APP_SHA` = R7; deploy-dev 40998540013) |
+
+| Task | Implemented (SHA) | Tested | Deployed | Verified (deployed evidence) | State |
+|---|---|---|---|---|---|
+| 0 Plan and baseline | plan and checklist | n/a | on main | n/a | done |
+| 1 Interpreter boundary (QuickJS/WASM 0.32.0) | MVP `fc31f723a` | runtime/host unit tests; `explain-program-check.mjs` 25/25 (CI); `receipts/task1-runtime.md` | MVP | cooling, sorting and gravity cards run on production builds | done and verified |
+| 2 Artifact and render contract | MVP `fc31f723a` | contract unit tests; `explain-program-render-check.mjs` | MVP | genuine artifacts' hashes re-verified (ex1-b, ex2-a, the gravity receipt) | done and verified |
+| 3 Host and responsiveness | MVP `fc31f723a` | host/playback unit tests | MVP | deployed cooling and sorting checks; the matrix's Play/Pause/scrub cells | done and verified |
+| 4 Program inside the card | MVP `fc31f723a`; Focus fixes `56af3889c` (R4), `c4f7ae5ca` (R6), `7ebb816d7` (R7) | `explain-program-card-check.mjs` 21/21 on R7 (fast-e2e 40995614801) | MVP; fixes in R4, R6, R7 | dev preview: shared-page check at `fc31f723a`; R0 check 109/109 at `d92cc18d5`; E2-E4 at R7 (`C:/s/spec/explain-sandbox/r7/fe9a7a0a4/`) | done and verified |
+| 5 Author and persist via V2 | MVP `fc31f723a` | control-plane explain suites | MVP | genuine runs ex1-b, ex2-a, and gravity on production | done and verified |
+| 6 Review, repair, accounting | MVP `fc31f723a` | explain-review, repair and budget suites | MVP | the genuine runs' review rounds, repairs and settled spend | done and verified |
+| 7 Genuine MVP | MVP `fc31f723a` | n/a | MVP | dev preview: ex1-b cooling and ex2-a sorting, each with a deployed interaction check. **Production**: gravity receipt pinned to R7 (E12, 8:50 PM PT, owner run, 15/15, EXPLAIN VERIFY PASS, `C:/s/spec/explain-sandbox/prod/receipts/explain-prod-receipt-20261029-205047.json`); it proves read-only that R7 is the newest successful release and is served, and that the gravity job is ready/accepted at round 0 with 21 credits charged, the hold released, hashes matching and execution allowed; it does not prove interaction or which model served that job (never recorded). | done and verified |
+| R0 Focus/pending/Notes, brief before Generate, conversational Edit | `240509a59`, `4735e1f1e`, `7da255a95`, `2b98f4f5a` | exact-head verify and fast-e2e per lane; `explain-proposal-card-check.mjs` | R0 `f421cc5de` | Same deployed check `C:/s/spec/explain-sandbox/r0-deployed/r0-deployed.mjs`, run twice. At `f421cc5de` (10:15 AM PT, `out-pass4/`): 103 of 109; the 6 failures were sorting-card owner Focus at 1440 and 1280, a NaN Focus box for a card saved without dx/dy (FX-11, fixed by `56af3889c`, released at 1:07 PM PT and in R4). Re-run on the dev preview at `d92cc18d5` (5:23-5:27 PM PT; served SHA read before and after): **109 of 109**, shared board unchanged (`r0-deployed/out-d92cc18d5/r0-deployed.json`; sorting Focus screenshot inspected). The 10.4 genuine runs went through brief-before-Generate on the dev preview. | done and verified |
+| 8.1 Schema 2 state/event contract with v1 compatibility | `86d746e0d` | contract and host unit tests; `retention.test.mjs` 6/6 on main and on local merges of `86d746e0d` and R3 | R3 `d3d50986e`; on main in R4 `d92cc18d5` | genuine schema 2 cards t811-c4-b and t811-c6-a sealed, verified and run; the saved v1 cooling card still runs (matrix) | done and verified |
+| 8.2 Ordered transitions and programState persistence | `137018604` | `interaction.test.mjs` (12), `use-program-state.test.mjs` | R3; R4 | deployed: owner reload restores a changed committed state; viewer presses stay local (t811-c4-b and t811-c6-a checks) | done and verified |
+| 8.3 Stateful buttons/selections through author, render and review | `0ee34e70c` + `649732a07`, `462b54977`, `ecb42a47d`, `2a7588f0b`; switch `b6caa951c`; review inputs `d92cc18d5` | `explain-program-state-check.mjs` (9), `explain-program-render-check.mjs` (35), `explain-stateful.test.js` | R3; R4 | genuine t811-c4-b (buttons) and t811-c6-a (buttons and a slider) accepted, deployed checks 16 and 17 ok, 0 failed. t811-c5-a failed review on R3; the record is kept. | done and verified for buttons and number inputs; selectable targets fixture-only (limitation) |
+| 8.4 Generic drag targets | `dfd154521` + `897cf66fe` | lane checks (`feat/explain-drag` hand-back) | R4 `d92cc18d5` | no genuine drag card (limitation) | done, not verified on a genuine card |
+| 8.5 Task 8 evidence record | this table and `explain-program-support.md` | n/a | docs | n/a | done |
+| 9.1 Program Proposed preview | `50c135651` | `explain-program-card-check.mjs` step 17 (fixture candidate: Proposed, Current, Discard) 21/21 on R7 (fast-e2e 40995614801); unit tests (`explain-client`, `program-card`, `shared-program-card`) | R1 `7fe96729d`; in R7 | Deployed evidence covers the Proposed preview, Apply and reload only: dev preview at R7 (E8, 8:47-8:50 PM PT), one paid Edit (t811-c7-b, US$0.18). Current kept the accepted card; Proposed read its own result and drew the candidate; preview changes were never saved; Apply made one new revision (baseRevision = the accepted one); reload kept it; no source in canvas JSON (`chain-r7-ui.mjs apply` 13 ok / 0 failed, `C:/s/spec/explain-sandbox/genuine/runs/t811-c7/`). Discard: CI-tested; deployed verification missing. | done, verified with limitation |
+| 9.2 Material context as evidence | `4c402a022` + `b41daa214` | control-plane context and evidence suites | R3 `d3d50986e`; in R7 | dev preview at R7 (E6): t811-c7-a with an attached markdown file; the brief cites evidence from the read file; the result's sources list the file, lines 1-21; US$0.26 (`genuine/runs/t811-c7/`) | done and verified |
+| 9.3 Tutor program context | `e8f1bd0b2` + `ffb3680d4` | tutor-context unit tests | R3; in R7 | Deployed-client request verification only: dev preview at R7 (E10). The Tutor request was captured and aborted before it reached the server (no model call): it carries the card's description, its paused time and the displayed readouts, and no source (`genuine/runs/t811-c7/ui-e10/`). It does not establish a completed Tutor response. | done, verified with limitation |
+| 9.4 Source links and revision persistence | `d7a722e2d` + `1d429b37a` | lane checks | R3; in R7 | dev preview at R7 (E7, E9): Sources & evidence lists the file with an access-checked opener, unchanged after reload; after Apply and reload the card lists the new revision's own sources (`genuine/runs/t811-c7/ui-e7/`, `ui-apply/`) | done and verified |
+| 10.1 Offscreen pause and lifecycle | `35410272d`; check timing fix `2c8be1452` (R5) | `playback.test.mjs` (15), `lifecycle.test.mjs` (1), card check steps 14-16 (21/21 on R7) | R4 `d92cc18d5`; in R7 | dev preview at R7 (E5, probe canvas with fixtures): paused at 0.9 s when panned out, no frame drawn while away, back at 0.9 s paused; deleting a probe card closed a Worker (`C:/s/spec/explain-sandbox/r7/fe9a7a0a4/`) | done and verified |
+| 10.2 Support matrix | matrix run on `d3d50986e`; fixes `c4f7ae5ca` (R6) and `7ebb816d7` (R7) | `matrix-check.mjs` on `d3d50986e`: 65 ok, 2 failed, 1 not testable; card check 18 (Focus after Play/Pause/scrub/slider/Notes) and 19 (keyboard under the minimap), both failing on `d92cc18d5`, pass on R7 | R6; R7 | dev preview at R7 (E2-E4, `r7-probes.mjs` 23 ok / 0 failed): Focus after the matrix sequence is whole on the pane and Back keeps the state; a keyboard-focused button under the minimap is revealed; a click into a text field near the minimap does not pan (`C:/s/spec/explain-sandbox/r7/fe9a7a0a4/`). The two failed cells were closed by these targeted re-runs; the full matrix was not re-run. | done and verified |
+| 10.3 Version retention, revocation, rollback | `516b72541` (tests); rollback commits cut on the final promoted head | `retention.test.mjs` 6/6; `rabbit-hole-prod-config.test.js` on each rollback commit | tests in R4-R7; rollbacks not deployed (by design) | not exercised in production (by design); see Rollback commits (final) below | done, not verified (rollbacks not exercised) |
+| 10.4 Five-subject transfer | genuine runs | per run, below | dev preview `d3d50986e`, `d92cc18d5` and R7; gravity in production | five qualifying subjects: cooling, sorting, gravity (schema 1); stack/queue t811-c4-b and cold spread t811-c6-a (schema 2), both checked deployed for owner and viewer (dev preview). t811-c7-a/b (dev preview, R7) add a subject with attached material and its Edit. The failed pH case t811-c5-a is kept. Tasks 8-11 spend US$1.65 of US$5.00. | done and verified |
+| 11.1 Small reviewable releases | R0, R1, R3, R4, R5, R6, R7 slices | exact-SHA CI above | releases above | release runs succeeded; served SHA read back (R7 in production at 8:46 and 8:50 PM PT) | done and verified |
+| 11.2 Docs from receipts | `explain-program-support.md` and this checklist (docs/explain-qualification) | n/a | partly on main (merged in the R4 chain at `77df6f34b`); this update is on docs/explain-qualification | n/a | done (this update); merge to main pending |
+| 11.3 Operational closeout | — | — | — | gravity receipt pinned to R7 passed in production (E12); rollback commits recorded at closeout | open (integrator) |
+
+**Count:**
+
+| State | Tasks | Number |
+|---|---|---|
+| Done and verified | 0, 1, 2, 3, 4, 5, 6, 7, R0, 8.1, 8.2, 8.3, 8.5, 9.2, 9.4, 10.1, 10.2, 10.4, 11.1 (0 and 8.5 are records) | 19 |
+| Done, verified with limitation | 9.1 (Discard: CI-tested; deployed verification missing), 9.3 (deployed-client request verification; no completed Tutor response) | 2 |
+| Done, not verified | 8.4 (no genuine drag card), 10.3 (rollbacks not exercised) | 2 |
+| Done, merge pending | 11.2 | 1 |
+| Failed | — | 0 |
+| Open | 11.3 (integrator) | 1 |
+| Deferred among agreed tasks | — | 0 |
+
+The optional and deferred coverage is listed below.
+
+**Gravity receipt (E12, production)** (`C:/s/spec/explain-sandbox/prod/receipts/explain-prod-receipt-20261029-205047.json`,
+log `C:/s/spec/logs/explain-prod-verify-20261029-205047.log`, 8:50 PM PT):
+- The owner ran `explain-prod-verify.cmd` pinned to `EXPECT_SHA=fe9a7a0a449c1ef9589c3c93d371be75d00fb730`: 15 of 15, EXPLAIN VERIFY PASS.
+- It proves, read-only: the newest successful production release is R7 and the control plane serves it; gravity card
+  `a300e67c` "Gravity on Earth and on the Moon", job `ej_0fd327abd3ee4f958d654cde7d7731ab` ready and accepted at round 0,
+  21 credits charged and known, the hold released, source, manifest and bundle hashes equal (stored, recomputed, card,
+  identity), execution allowed.
+- It does not prove interaction, or which model served that job (never recorded for that run).
+- The earlier receipt (09:44 AM PT, 14 of 15, stale release pin) is superseded.
+
+**Not yet released (follow-ups):** none of the agreed /explain work. `fix/explain-focus-matrix` shipped as `c4f7ae5ca` (R6) and
+`7ebb816d7` (R7); `feat/explain-brief-clarity` `81e578d37`, `fix/ci-shard-balance` `421422fa2` and the check timing fix
+`2c8be1452` are in R6.
+
+**Limitations (kept visible):**
+- 9.1 Discard: CI-tested; deployed verification missing. The deployed evidence is the Proposed preview, Apply and reload
+  only (E8). Discard is covered by the card check step 17 (21/21 on R7 fast-e2e 40995614801) and `explain-client` unit
+  tests; a second paid Edit's worst-case reservation would have exceeded the US$5.00 cap. A stale Apply is covered by unit
+  tests only.
+- 9.3: deployed-client request verification only (E10). The Tutor request was captured and aborted before the server, so no
+  completed Tutor response was observed.
+- 8.4: no genuine card with a drag; 8.3: no genuine card with selectable targets (fixture-only).
+- 10.3: the rollback controls were cut and pin-tested, not exercised in production (by design).
+- 10.2: the two failed matrix cells were closed by targeted re-runs on the dev preview at R7 (E2-E4); the full matrix was
+  not re-run on R7.
+- Review samples a slider at one value.
+- 390 px is a Chromium viewport, not an iPhone or WebKit test.
+- Observed on the dev preview, not failures: an opened file card read "This file is not in this browser or saved with the
+  board yet." until the board saved (the probe uploaded over HTTP); the E10 Tutor question, captured and aborted, stays in
+  that test canvas's chat history.
+
+**Untested:**
+- Real devices.
+- WebKit and Firefox.
+- A signed-in shared viewer.
+- Dark theme at 1280 and 390.
+
+**Rollback references (E11):** cut on the final promoted head (recorded in the release receipt at closeout): stateful off,
+generation off, execution kill, and the emergency Worker pair. The earlier references on `d3d50986e` are superseded.
+
+### Rollback commits (final)
+
+PLACEHOLDER: the integrator adds the final full SHAs and launcher references after the release.
+
+| Rollback | Commit (full SHA) | Parent (final promoted head) | Launcher reference |
+|---|---|---|---|
+| Stateful off | (pending) | (pending) | (pending) |
+| Generation off | (pending) | (pending) | (pending) |
+| Execution kill | (pending) | (pending) | (pending) |
+| Emergency Worker pair | (pending) | n/a | (pending) |
 
 ## Deferred (tracked, not complete)
 
 | Item | Plan source | State |
 |---|---|---|
-| Offscreen-card suspension (only hidden-tab pause exists on main) | Task 3, 10.1 | implemented on feat/explain-offscreen-pause, not on main |
+| Offscreen-card suspension | Task 3, 10.1 | released in R4 `d92cc18d5` |
 | Focus for PDF, notebook, video and CAD cards; dark theme; real mobile browser in CI | Tasks 4, 10 | not verified |
 | Sampling manifest for continuous multi-control cards beyond the six-capture budget | Task 6 review coverage | open |
 | Renders of a candidate whose capture timed out are not counted (the blocked capture never finished) | Task 6 accounting | by design |
 | Frame-deadline policy (skip one late frame instead of stopping the card) | Task 3 | decided (owner option A, 2026-10-29); on main and production-released in `70b7425ed` |
-| Event API, context/Tutor/edits, qualification, rollout docs | Tasks 8-11 | in progress, see Task status |
+| Event API, context/Tutor/edits, qualification, rollout docs | Tasks 8-11 | see Completion reconciliation |
+| Drawing ideas FX-62/63 | owner feedback | deferred |
+| Plan enforcement FX-69 | owner | deferred by the owner |
+| Retention policy for offscreen cards (whether a paused card keeps its Worker beyond the existing 30 s idle eviction) | Task 10.1 | deferred; the idle eviction applies |
+| Genuine selectable-target and drag runs (optional coverage; no further generation planned) | Task 10.4 | deferred, optional; the absence is a stated limitation |
+| Default an absent `manifest.targets` to none (saves one repair round; t811-c5-a, t811-c6-a) | Task 8.3 author | deferred, optional improvement |
+| Review sampling of a slider at its minimum and maximum | Task 8.3 review | deferred, optional; one-value sampling is a stated limitation |
 
 ## Brief approval (owner decision 2026-10-29)
 
