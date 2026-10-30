@@ -7,12 +7,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { validateExplainBackReview } from '../../web/src/explain-back-contract.js';
-import { EB_RUBRIC, bindExplainBackCard, canonical, readAttempt } from '../src/learn-attempt-store.js';
+import { EB_RUBRIC, bindExplainBackCard, readAttempt } from '../src/learn-attempt-store.js';
 import { assessAttempt } from '../src/learn-assessment.js';
 import { EXPLAIN_SYSTEM, compareWithBaseline, explainBackOf, loadBaseline } from '../src/learn-explain-assessment.js';
 import { ANA, BEN, call, never, submit, world } from './learn-attempt-fixture.js';
 import { dataOf, replying } from './learn-rich-fixtures.js';
 import { DERIVATIVE, explainEvidenceFixture } from './learn-explain-evidence-fixture.js';
+import { putAttemptAsset } from '../src/learn-attempt-assets.js';
+import { locLabel } from '../src/file-context.js';
 
 // The card's key ideas; D's binding (bindExplainBackCard) makes each one a criterion k_<sha256(idea)>, version 1, rubric eb-v1.
 const RV = EB_RUBRIC;
@@ -23,9 +25,20 @@ const PROMPT = 'A ball on a string moves in a horizontal circle at constant spee
 const A1 = 'The ball moves along the circle, so the velocity is tangent to the circle. The force pushes the ball outward, which is why the string is tight.';
 const A2 = 'The velocity is tangent to the circle. The net force points toward the centre: without it the ball would keep going straight, so the inward pull keeps changing its direction.';
 const A2_INWARD = 'The net force points toward the centre: without it the ball would keep going straight, so the inward pull keeps changing its direction. The velocity also points inward toward the centre.';
-const VOICE = { evidenceId: 'ev_voice_1', role: 'voice', media: 'audio', state: 'ready', assetId: 'aa_voice00000001', revision: 1, hash: 'a'.repeat(64), mime: 'audio/webm', durationMs: 31500 };
+// Private answer media stored through D's real asset store (learn-attempt-assets.js putAttemptAsset), on an in-memory bucket.
+function media() {
+  const objects = new Map();
+  return {
+    put: async (key, body) => { objects.set(key, new Uint8Array(typeof body === 'string' ? new TextEncoder().encode(body) : body)); },
+    get: async key => (objects.has(key) ? { body: objects.get(key).slice(), size: objects.get(key).byteLength } : null),
+  };
+}
+const AUDIO = new Uint8Array([79, 103, 103, 83, 1, 2, 3, 4, 5, 6, 7, 8]); // an Ogg page header and a few bytes
+const AUDIO_SHA = createHash('sha256').update(AUDIO).digest('hex');
+const noteRef = asset => ({ evidenceId: 'ev_voice_1', role: 'voice', media: 'audio', state: 'ready', assetId: asset.assetId, revision: 1, hash: asset.sha256, mime: asset.mime, bytes: asset.bytes, durationMs: 31500 });
+const storeNote = async w => noteRef(await putAttemptAsset(w.env, ANA, { bytes: AUDIO, mime: 'audio/ogg', durationMs: 31500 }));
 
-const j = (criterionId, fit, evidence = [], extra = {}) => ({ criterionId, version: 1, fit, reasoning: extra.reasoning ?? (fit === 'met' ? (criterionId === F ? 'supported' : 'not_required') : criterionId === F ? 'missing' : 'not_required'), evidence, contradicted: extra.contradicted ?? false, alternative: false, uncertain: false, question: null, explanation: extra.explanation ?? `${criterionId} ${fit}` });
+const j = (criterionId, fit, evidence = [], extra = {}) => ({ criterionId, version: 1, fit, reasoning: extra.reasoning ?? { met: 'supported', partial: 'partial', not_met: 'missing', unclear: 'unclear' }[fit], evidence, contradicted: extra.contradicted ?? false, alternative: false, uncertain: false, question: null, explanation: extra.explanation ?? `${criterionId} ${fit}` });
 const reply1 = {
   criteria: [j(F, 'not_met', ['The force pushes the ball outward'], { contradicted: true, explanation: 'Says the force pushes outward: the outward-force misconception.' }), j(V, 'met', ['the velocity is tangent to the circle'])],
   feedback: {
@@ -52,31 +65,14 @@ const bind = async (env, actor, cardId, prompt = PROMPT) => {
   return { activityId: b.activityId, revision: b.activityRevision, goalId: b.goalId };
 };
 async function ebWorld(t, env = ON) {
-  const w = world(t, env);
+  const w = world(t, { LEARN_MEDIA: media(), ...env });
   const activity = await bind(w.env, ANA, 'card_circle');
   return { ...w, activity, goalId: activity.goalId };
 }
 const answerOf = (content = {}) => ({ v: 1, kind: 'explain_back', text: '', voice: [], resources: [], assistance: [], ...content });
 let n = 0;
-// ponytail: D's acceptAttempt refuses every private asset (unknown_asset) until its attempt-asset slice lands, so an answer
-// with voice/Sketch/recording is saved here as acceptAttempt saves it (attempt + pending operation) and dispatched through the
-// real assessAttempt claim/commit. Switch to the real upload + submit once D's putAttemptAsset exists.
-async function seed(w, content, deps, key) {
-  const id = `at_${crypto.randomUUID()}`, op = `as_${crypto.randomUUID()}`, at = new Date().toISOString();
-  const refs = [{ criterionId: F, version: 1 }, { criterionId: V, version: 1 }];
-  w.sqlite.prepare(`INSERT INTO learn_attempts (id, org, owner_user_id, app, board, goal_id, activity_id, activity_revision, submission_key, response_kind, content_json, content_hash,
-      criterion_refs_json, source_refs_json, assistance, assistance_refs_json, submitted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'explain_back', ?, ?, ?, '[]', ?, ?, ?)`)
-    .run(id, ANA.org, ANA.userId, ANA.app, ANA.board, w.goalId, w.activity.activityId, w.activity.revision, key, canonical(content), createHash('sha256').update(canonical(content)).digest('hex'),
-      JSON.stringify(refs), content.baseline?.parentAssessmentId ? 'assisted' : 'none', JSON.stringify(content.baseline?.parentAssessmentId ? [`saw_prior_feedback:${content.baseline.parentAssessmentId}`] : []), at);
-  w.sqlite.prepare("INSERT INTO learn_assessments (id, attempt_id, org, owner_user_id, request_key, status, created_at, updated_at) VALUES (?, ?, ?, ?, 'submit', 'pending', ?, ?)").run(op, id, ANA.org, ANA.userId, at, at);
-  await assessAttempt(w.env, ANA, id, { ...never, ...deps });
-  return { status: 200, body: await readAttempt(w.env, ANA, id) };
-}
-const send = (w, content, deps, key = `eb-${++n}-${Math.random().toString(36).slice(2, 10)}`) => {
-  const answer = answerOf(content);
-  if (answer.voice.length || answer.sketch || answer.recording) return seed(w, answer, deps, key);
-  return submit(w.env, ANA, w.activity, { submissionKey: key, submittedContent: answer }, { ...never, ...deps });
-};
+const send = (w, content, deps, key = `eb-${++n}-${Math.random().toString(36).slice(2, 10)}`) =>
+  submit(w.env, ANA, w.activity, { submissionKey: key, submittedContent: answerOf(content) }, { ...never, ...deps });
 const baselineOf = r => ({ parentAttemptId: r.body.attempt.attemptId, parentAssessmentId: r.body.assessment.assessmentId });
 const reviewOf = r => r.body.assessment.provenance.review;
 const fits = r => Object.fromEntries(r.body.assessment.observations.map(o => [o.criterionId, o.fit]));
@@ -141,7 +137,7 @@ test('attempt 2: the request carries the exact parent answer and pinned review; 
   const review = reviewOf(second);
   valid(second, { text: A2, baseline: baselineOf(first) });
   assert.deepEqual([review.comparison.parentAttemptId, review.comparison.parentAssessmentId, review.comparison.comparable], [first.body.attempt.attemptId, first.body.assessment.assessmentId, true]);
-  assert.deepEqual(changes(second), { [F]: 'resolved' }, 'velocity was met and still is: nothing to report');
+  assert.deepEqual(changes(second), { [F]: 'resolved', [V]: 'still_met' });
   assert.equal(review.comparison.items[0].baselineCitations[0].evidenceId, 'text');
   assert.equal(review.feedback.revisit.text, '', 'a resolved criticism is not repeated');
   assert.deepEqual([review.rating.score, review.comparison.rating], [10, { comparable: true, reason: null, previous: 5, current: 10 }]);
@@ -155,13 +151,12 @@ test('persisting, improved, regressed and new gaps, and no improvement for the s
   const w = await ebWorld(t);
   const first = await send(w, { text: A1 }, { callModel: replying({ ...reply1, criteria: [j(F, 'not_met'), j(V, 'met', ['the velocity is tangent to the circle'])] }).callModel });
   const regressed = await send(w, { text: A2_INWARD, baseline: baselineOf(first) }, { callModel: replying({ ...reply2, criteria: [j(F, 'partial', ['The net force points toward the centre'], { reasoning: 'partial' }), j(V, 'not_met', ['The velocity also points inward toward the centre'], { contradicted: true })] }).callModel });
-  assert.deepEqual(changes(regressed), { [F]: 'persisting', [V]: 'regressed' });
-  assert.equal(reviewOf(regressed).comparison.items[0].note, 'improved_to_partial');
+  assert.deepEqual(changes(regressed), { [F]: 'improved', [V]: 'regressed' }, 'better but not yet met is improved, not resolved');
   assert.ok(reviewOf(regressed).rating.score <= reviewOf(first).rating.score, 'the score may fall; no bonus for a second attempt');
   const misconception = await send(w, { text: A1, baseline: baselineOf(first) }, { callModel: replying(reply1).callModel });
-  assert.deepEqual(changes(misconception), { [F]: 'new' }, 'not established before, contradicted now: a new misconception');
+  assert.deepEqual(changes(misconception), { [F]: 'new', [V]: 'still_met' }, 'not established before, contradicted now: a new misconception');
   const same = await send(w, { text: `${A1} `, baseline: baselineOf(first) }, { callModel: replying({ ...reply1, criteria: [j(F, 'not_met'), j(V, 'met', ['the velocity is tangent to the circle'])] }).callModel });
-  assert.deepEqual(changes(same), { [F]: 'persisting' });
+  assert.deepEqual(changes(same), { [F]: 'persisting', [V]: 'still_met' });
   assert.equal(reviewOf(same).rating.score, reviewOf(first).rating.score, 'same evidence, same number');
 });
 
@@ -174,7 +169,7 @@ test('an intentionally wrong prior review: the current answer is judged on its o
   const second = await send(w, { text: `${A2} `, baseline: baselineOf(first) }, { callModel: stub.callModel });
   assert.equal(dataOf(stub.calls[0].body).previousAttempt.review.criteria[0].fit, 'not_met', 'the evaluator sees the prior judgement as data');
   assert.deepEqual(fits(second), { [F]: 'met', [V]: 'met' }, 'current judgement is not anchored to the wrong prior');
-  assert.deepEqual(changes(second), { [F]: 'prior_feedback_corrected' });
+  assert.deepEqual(changes(second), { [F]: 'prior_feedback_corrected', [V]: 'still_met' });
   assert.deepEqual(reviewOf(second).provenance.priorCorrections.map(k => k.criterionId), [F], 'an unknown criterion is dropped');
   assert.equal(reviewOf(second).rating.score, 10);
   assert.equal(fits(first)[F], 'not_met', 'the historical record keeps the wrong review as it was');
@@ -218,17 +213,29 @@ test('changed question or rubric versions are not comparable', () => {
 
 test('inputs that were not read are reported, never judged wrong; an answer with nothing readable makes no call', async t => {
   const w = await ebWorld(t);
+  const note = await storeNote(w), off = { transcriber: null }; // a stored note in an environment without transcription
   const stub = replying(reply1);
-  const r = await send(w, { text: A1, voice: [VOICE] }, { callModel: stub.callModel });
-  assert.deepEqual(dataOf(stub.calls[0].body).current.notInspected, [{ id: 'ev_voice_1', status: 'unavailable', note: 'transcript_unavailable' }]);
+  const r = await send(w, { text: A1, voice: [note] }, { ...off, callModel: stub.callModel });
+  assert.deepEqual(dataOf(stub.calls[0].body).current.notInspected, [{ id: 'ev_voice_1', status: 'unavailable', note: 'transcript_not_configured' }]);
   assert.deepEqual(reviewOf(r).coverage.map(c => [c.evidenceId, c.status]), [['text', 'read'], ['ev_voice_1', 'unavailable']]);
   const force = r.body.assessment.observations.find(o => o.criterionId === F);
   assert.deepEqual([force.fit, force.reason], ['unclear', 'evidence_unread'], 'not met on partial evidence is not a misconception');
   assert.equal(reviewOf(r).judgments[0].judgment, 'unassessed');
   assert.deepEqual([reviewOf(r).rating.status, reviewOf(r).rating.reason, reviewOf(r).rating.score], ['unrated', 'evidence_incomplete', undefined]);
-  valid(r, { text: A1, voice: [VOICE] });
-  const empty = await send(w, { voice: [VOICE] }, {});
+  valid(r, { text: A1, voice: [note] });
+  const empty = await send(w, { voice: [note] }, off);
   assert.deepEqual([empty.body.assessment.status, empty.body.assessment.reason], ['unavailable', 'no_readable_evidence']);
+});
+
+test('bound key ideas require reasoning: a met idea with partial or missing reasoning earns partial or no credit', async t => {
+  const w = await ebWorld(t);
+  const crit = w.sqlite.prepare('SELECT criterion_id, requires_reasoning FROM learn_goal_criteria WHERE goal_id = ? ORDER BY position').all(w.goalId);
+  assert.deepEqual(crit.map(c => [c.criterion_id, c.requires_reasoning]), [[F, 1], [V, 1]], 'D binds every key idea with reasoning required');
+  const r = await send(w, { text: A2 }, { callModel: replying({ criteria: [j(F, 'met', ['The net force points toward the centre'], { reasoning: 'partial' }), j(V, 'met', ['The velocity is tangent to the circle'], { reasoning: 'missing' })] }).callModel });
+  const rating = reviewOf(r).rating;
+  // force: min(met 1, reasoning 0.5) = 0.5; velocity: min(1, missing 0) = 0 -> round(10 x 0.5 / 2) = 3 (rounded 2.5 up).
+  assert.deepEqual(rating.criteria.map(c => [c.criterionId, c.credit, c.required, c.weight]), [[F, 0.5, true, 1], [V, 0, true, 1]]);
+  assert.deepEqual([rating.status, rating.score], ['rated', 3]);
 });
 
 test('uncertain or malformed replies never become a number or an observation', async t => {
@@ -259,34 +266,35 @@ test('no duplicate calls: a replayed submission and a re-read never call again; 
   assert.equal(calls, 1);
 });
 
-// Static Sketch (slice 3a). The asset reader stands in for D's private attempt-asset read; it returns R's capture structure.
-const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+// Static Sketch (slice 3a), stored and read through D's real asset store with R's capture structure (marks, text).
+const PNG = new Uint8Array([...Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')]);
 const PNG_SHA = createHash('sha256').update(PNG).digest('hex');
-const SKETCH = { evidenceId: 'ev_sketch_1', role: 'sketch', media: 'image', state: 'ready', assetId: 'aa_sketch0000001', revision: 1, hash: PNG_SHA, mime: 'image/png', bytes: PNG.length };
 const LABELS = 'arrow label: "F"\ntext: "centre"';
-const reader = (over = {}) => {
-  const reads = [];
-  return { reads, readAttemptAsset: async (_env, actor, attempt, e) => { reads.push({ actor, attemptId: attempt.attemptId, assetId: e.assetId }); return e.assetId === SKETCH.assetId ? { bytes: PNG, mime: 'image/png', marks: 3, text: LABELS, ...over } : null; } };
+const storeSketch = async w => {
+  const a = await putAttemptAsset(w.env, ANA, { bytes: PNG, mime: 'image/png', marks: 3, text: LABELS });
+  return { evidenceId: 'ev_sketch_1', role: 'sketch', media: 'image', state: 'ready', assetId: a.assetId, revision: 1, hash: a.sha256, mime: a.mime, bytes: a.bytes };
 };
+// A stand-in reader for what the real store cannot produce (other bytes, another type, nothing at all).
+const reader = over => ({ readAttemptAsset: async () => (over === null ? null : { bytes: PNG, mime: 'image/png', marks: 3, text: LABELS, ...over }) });
 const look = (criterionId, perception, fit, extra = {}) => ({ ...j(criterionId, fit, extra.evidence ?? [], extra), perception, sketchEvidence: extra.sketchEvidence ?? [], question: extra.question ?? null });
 
-test('sketch only: the exact hash-checked image and its marks go to one visual call; perception gates judgement', async t => {
+test('sketch only: the exact stored image and its marks go to one visual call; perception gates judgement', async t => {
   const w = await ebWorld(t);
-  const r0 = reader();
+  const sketch = await storeSketch(w);
   const stub = replying({ sketchReadable: true, criteria: [
     look(F, 'clear', 'met', { reasoning: 'supported', sketchEvidence: ['arrow labelled F pointing to the centre'], evidence: ['centre'] }),
     look(V, 'ambiguous', 'not_met', { question: 'Which arrow shows the velocity?' }),
   ], feedback: { strengths: { text: 'Your force arrow points to the centre.', evidence: ['arrow label: "F"'] }, revisit: { criterionId: V, version: 1, text: 'Add the velocity arrow.', evidence: [] }, next: 'Draw where the ball goes if the string breaks.' } });
-  const r = await send(w, { sketch: SKETCH }, { callModel: stub.callModel, readAttemptAsset: r0.readAttemptAsset });
+  const r = await send(w, { sketch }, { callModel: stub.callModel });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.equal(stub.calls.length, 1);
-  assert.deepEqual(r0.reads.map(x => x.assetId), [SKETCH.assetId], 'read once');
   const body = stub.calls[0].body;
   assert.match(body.system, /An unreadable or ambiguous sketch is never evidence of a misconception/);
   const image = body.messages[0].content.find(b => b.type === 'image');
-  assert.deepEqual(image.source, { type: 'base64', media_type: 'image/png', data: PNG.toString('base64') }, 'the exact submitted bytes');
+  assert.deepEqual(image.source, { type: 'base64', media_type: 'image/png', data: Buffer.from(PNG).toString('base64') }, 'the exact submitted bytes');
   assert.deepEqual(dataOf(body).current.evidence, [{ id: 'ev_sketch_1', kind: 'sketch', image: 'attached below', marks: 3, labels: LABELS }]);
   const review = reviewOf(r);
-  valid(r, { sketch: SKETCH });
+  valid(r, { sketch });
   assert.deepEqual(review.coverage, [{ evidenceId: 'ev_sketch_1', status: 'read', inspected: { image: true, sha256: PNG_SHA, bytes: PNG.length } }]);
   assert.deepEqual(review.judgments.map(x => [x.criterionId, x.judgment, x.question ?? null]), [[F, 'demonstrated', null], [V, 'unassessed', 'Which arrow shows the velocity?']]);
   assert.deepEqual(review.judgments[0].citations, [{ evidenceId: 'ev_sketch_1', locator: { start: LABELS.indexOf('centre'), end: LABELS.indexOf('centre') + 6 } }, { evidenceId: 'ev_sketch_1', locator: { part: 'arrow labelled F pointing to the centre' } }]);
@@ -296,111 +304,114 @@ test('sketch only: the exact hash-checked image and its marks go to one visual c
 
 test('text and sketch: one call; words can meet a criterion the sketch leaves ambiguous; marks alone earn nothing', async t => {
   const w = await ebWorld(t);
-  const r0 = reader(), stub = replying({ criteria: [
+  const sketch = await storeSketch(w);
+  const stub = replying({ criteria: [
     look(F, 'clear', 'met', { reasoning: 'supported', evidence: ['The net force points toward the centre: without it the ball would keep going straight'], sketchEvidence: ['arrow labelled F'] }),
     look(V, 'ambiguous', 'met', { evidence: ['The velocity is tangent to the circle'] }),
   ], feedback: reply2.feedback });
-  const r = await send(w, { text: A2, sketch: SKETCH }, { callModel: stub.callModel, readAttemptAsset: r0.readAttemptAsset });
+  const r = await send(w, { text: A2, sketch }, { callModel: stub.callModel });
   assert.equal(stub.calls.length, 1);
   assert.deepEqual(dataOf(stub.calls[0].body).current.evidence.map(p => p.id), ['text', 'ev_sketch_1']);
   assert.deepEqual(fits(r), { [F]: 'met', [V]: 'met' });
   assert.deepEqual(reviewOf(r).judgments[1].citations.map(c => c.evidenceId), ['text'], 'an unclear sketch part is not cited');
   assert.equal(reviewOf(r).rating.score, 10);
-  valid(r, { text: A2, sketch: SKETCH });
+  valid(r, { text: A2, sketch });
   // A met judgement that names no evidence at all is rejected: marks alone earn nothing.
-  const bare = await send(w, { sketch: SKETCH }, { callModel: replying({ criteria: [look(F, 'clear', 'met', { reasoning: 'supported' }), look(V, 'clear', 'met')] }).callModel, readAttemptAsset: r0.readAttemptAsset });
+  const bare = await send(w, { sketch }, { callModel: replying({ criteria: [look(F, 'clear', 'met', { reasoning: 'supported' }), look(V, 'clear', 'met')] }).callModel });
   assert.deepEqual(bare.body.assessment.provenance.rejected.map(x => x.reason), ['unsupported_evidence', 'unsupported_evidence']);
 });
 
 test('a missing, altered or unreadable sketch is explicit unassessed coverage, never a judgement', async t => {
   const w = await ebWorld(t);
-  // No reader (D's asset read not wired), other bytes than submitted, an unsupported type: the image is never sent.
-  for (const [deps, status, note] of [[{}, 'unavailable', 'asset_unavailable'], [reader({ bytes: new Uint8Array([1, 2, 3]) }), 'unavailable', 'hash_mismatch'], [reader({ mime: 'image/svg+xml' }), 'unsupported', 'image_not_supported']]) {
-    const only = await send(w, { sketch: SKETCH }, { readAttemptAsset: deps.readAttemptAsset });
+  const sketch = await storeSketch(w);
+  for (const [deps, status, note] of [[reader(null), 'unavailable', 'asset_unavailable'], [reader({ bytes: new Uint8Array([1, 2, 3]) }), 'unavailable', 'hash_mismatch'], [reader({ mime: 'image/svg+xml' }), 'unsupported', 'image_not_supported']]) {
+    const only = await send(w, { sketch }, deps);
     assert.deepEqual([only.body.assessment.status, only.body.assessment.reason], ['unavailable', 'no_readable_evidence'], note);
     assert.equal(only.body.assessment.provenance.coverage[0].note, note);
     const stub = replying(reply1);
-    const withText = await send(w, { text: A1, sketch: SKETCH }, { callModel: stub.callModel, readAttemptAsset: deps.readAttemptAsset });
+    const withText = await send(w, { text: A1, sketch }, { ...deps, callModel: stub.callModel });
     assert.equal(typeof stub.calls[0].body.messages[0].content, 'string', 'text-only request, no image');
     assert.deepEqual(dataOf(stub.calls[0].body).current.notInspected, [{ id: 'ev_sketch_1', status, note }]);
     assert.equal(reviewOf(withText).rating.reason, 'evidence_incomplete');
     assert.equal(fits(withText)[F], 'unclear', 'the unread sketch might hold it');
   }
   // The evaluator cannot read the image at all: every sketch-only judgement is unassessed, coverage partial.
-  const unreadable = await send(w, { sketch: SKETCH }, { callModel: replying({ sketchReadable: false, criteria: [look(F, 'clear', 'not_met', { contradicted: true }), look(V, 'clear', 'met', { sketchEvidence: ['an arrow'] })] }).callModel, readAttemptAsset: reader().readAttemptAsset });
+  const unreadable = await send(w, { sketch }, { callModel: replying({ sketchReadable: false, criteria: [look(F, 'clear', 'not_met', { contradicted: true }), look(V, 'clear', 'met', { sketchEvidence: ['an arrow'] })] }).callModel });
   assert.deepEqual(Object.values(fits(unreadable)), ['unclear', 'unclear']);
   assert.deepEqual(reviewOf(unreadable).coverage.map(c => [c.status, c.note]), [['partial', 'sketch_unreadable']]);
   assert.equal(reviewOf(unreadable).rating.status, 'unrated');
-  valid(unreadable, { sketch: SKETCH });
+  valid(unreadable, { sketch });
 });
 
-// Voice transcript (slice 3b). D's asset read and derivative store are injected; M's ensureTranscript is the real one, over a
-// transcriber double that records each provider call.
-const AUDIO = new Uint8Array([79, 103, 103, 83, 1, 2, 3, 4, 5, 6, 7, 8]);
-const AUDIO_SHA = createHash('sha256').update(AUDIO).digest('hex');
-const NOTE = { ...VOICE, hash: AUDIO_SHA, mime: 'audio/ogg' };
+// Voice transcript (slice 3b): D's real asset read and transcript store; M's real ensureTranscript over a transcriber double
+// that records each provider call.
 const SPOKEN = 'The net force points toward the centre because without it the ball would keep going straight. The velocity is tangent to the circle.';
 function voiceDeps({ heard = { text: SPOKEN }, fail = null, configured = true } = {}) {
-  const store = new Map(), heardCalls = [];
+  const heardCalls = [];
   return {
-    heardCalls, store,
-    readAttemptAsset: async (_env, _actor, _attempt, e) => (e.assetId === NOTE.assetId ? { bytes: AUDIO, mime: 'audio/ogg' } : null),
-    transcriptStore: { get: async id => store.get(id) ?? null, put: async record => { store.set(record.transcriptId, record); } },
+    heardCalls,
     transcriber: configured ? { provider: 'openai', model: 'gpt-4o-transcribe', transcribe: async ({ bytes, mime }) => { heardCalls.push({ bytes: bytes.length, mime }); if (fail) throw Object.assign(new Error('x'), { code: fail }); return heard; } } : null,
   };
 }
+// An in-memory transcript store, for transcript shapes D's store does not accept yet (provider segments; see the hand-back).
+const mapStore = () => { const m = new Map(); return { get: async id => m.get(id) ?? null, put: async r => { m.set(r.transcriptId, r); return r; } }; };
 const spokenReply = { criteria: [j(F, 'met', ['The net force points toward the centre because without it the ball would keep going straight']), j(V, 'met', ['The velocity is tangent to the circle'])], feedback: { strengths: { text: 'You explain the inward force.', evidence: ['without it the ball would keep going straight'] }, revisit: null, next: 'What if the speed doubles?' } };
 
 test('voice only: the transcript, not the audio, is assessed; coverage says transcript only; text stays empty; one transcription per clip', async t => {
   const w = await ebWorld(t);
-  const v = voiceDeps(), stub = replying(spokenReply);
-  const r = await send(w, { voice: [NOTE] }, { ...v, callModel: stub.callModel });
+  const note = await storeNote(w), v = voiceDeps(), stub = replying(spokenReply);
+  const r = await send(w, { voice: [note] }, { ...v, callModel: stub.callModel });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.deepEqual(v.heardCalls, [{ bytes: AUDIO.length, mime: 'audio/ogg' }], 'the exact stored note, transcribed once');
   assert.equal(stub.calls.length, 1);
   const body = stub.calls[0].body;
   assert.match(body.system, /you were not given the audio/);
   assert.deepEqual(dataOf(body).current.evidence, [{ id: 'ev_voice_1', kind: 'voice_transcript', text: SPOKEN }]);
   assert.equal(r.body.attempt.submittedContent.text, '', 'the typed answer is untouched');
-  const review = reviewOf(r), [record] = [...v.store.values()];
-  valid(r, { voice: [NOTE] });
+  const [record] = await Promise.all([w.sqlite.prepare('SELECT record_json FROM learn_attempt_transcripts').get()]).then(([row]) => [JSON.parse(row.record_json)]);
+  const review = reviewOf(r);
+  valid(r, { voice: [note] });
   assert.deepEqual(review.coverage, [{ evidenceId: 'ev_voice_1', status: 'partial', inspected: { transcriptOnly: true, audio: false }, derivative: { derivativeId: record.transcriptId, hash: record.derivativeHash, converterVersion: 'openai:gpt-4o-transcribe:v1' }, note: 'Transcript only: the audio itself was not inspected.' }]);
   assert.equal(review.judgments[0].citations[0].evidenceId, 'ev_voice_1');
   assert.deepEqual(review.judgments[0].citations[0].locator, { start: 0, end: SPOKEN.indexOf(' going straight') + ' going straight'.length }, 'no timing is invented without segments');
   assert.deepEqual([review.rating.status, review.rating.score], ['rated', 10], 'a transcript-only review is a full review, labelled as such');
-  // A revision that keeps the same note reuses its transcript: no second provider call.
-  await send(w, { voice: [NOTE], baseline: baselineOf(r) }, { ...v, callModel: replying(spokenReply).callModel });
+  // A revision that keeps the same note reuses its stored transcript: no second provider call.
+  await send(w, { voice: [note], baseline: baselineOf(r) }, { ...v, callModel: replying(spokenReply).callModel });
   assert.equal(v.heardCalls.length, 1);
 });
 
 test('segments give citation times; uncertain words reach the evaluator', async t => {
   const w = await ebWorld(t);
   const [first, second] = ['The net force points toward the centre because without it the ball would keep going straight.', 'The velocity is tangent to the circle.'];
-  const v = voiceDeps({ heard: { text: `${first} ${second}`, segments: [{ start: 0, end: 4.2, text: first }, { start: 4.2, end: 6.5, text: second }], logprobs: [{ token: 'tangent', logprob: Math.log(0.3) }, { token: V, logprob: Math.log(0.99) }] } });
-  const stub = replying(spokenReply);
-  const r = await send(w, { voice: [NOTE] }, { ...v, callModel: stub.callModel });
+  const v = voiceDeps({ heard: { text: `${first} ${second}`, segments: [{ start: 0, end: 4.2, text: first }, { start: 4.2, end: 6.5, text: second }], logprobs: [{ token: 'tangent', logprob: Math.log(0.3) }, { token: 'velocity', logprob: Math.log(0.99) }] } });
+  const stub = replying(spokenReply), note = await storeNote(w);
+  const r = await send(w, { voice: [note] }, { ...v, transcriptStore: mapStore(), callModel: stub.callModel });
   const part = dataOf(stub.calls[0].body).current.evidence[0];
   assert.deepEqual([part.uncertainWords, part.segments.length], [['tangent'], 2]);
   const [force, velocity] = reviewOf(r).judgments.map(x => x.citations[0].locator);
   assert.deepEqual([force.startMs, force.endMs, velocity.startMs, velocity.endMs], [0, 4200, 4200, 6500]);
-  valid(r, { voice: [NOTE] });
+  valid(r, { voice: [note] });
 });
 
 test('a failed or unconfigured transcription is unassessed, never an empty or wrong answer', async t => {
   const w = await ebWorld(t);
-  for (const [deps, note] of [[voiceDeps({ fail: 'provider_failed' }), 'transcript_provider_failed'], [voiceDeps({ fail: 'spend_refused' }), 'transcript_spend_refused'], [voiceDeps({ configured: false }), 'transcript_not_configured'], [{}, 'transcript_unavailable'], [voiceDeps({ heard: { text: '   ' } }), 'transcript_no_speech']]) {
-    const only = await send(w, { voice: [NOTE] }, deps);
-    assert.deepEqual([only.body.assessment.status, only.body.assessment.reason], ['unavailable', 'no_readable_evidence'], note);
-    assert.deepEqual(only.body.assessment.provenance.coverage, [{ evidenceId: 'ev_voice_1', status: 'unavailable', note }]);
+  const note = await storeNote(w);
+  for (const [deps, note2] of [[voiceDeps({ fail: 'provider_failed' }), 'transcript_provider_failed'], [voiceDeps({ configured: false }), 'transcript_not_configured'], [voiceDeps({ heard: { text: '   ' } }), 'transcript_no_speech']]) {
+    // Each case starts from a fresh transcript store, so a stored failure of one case is not read by the next.
+    const fresh = { ...deps, transcriptStore: mapStore() };
+    const only = await send(w, { voice: [note] }, fresh);
+    assert.deepEqual([only.body.assessment.status, only.body.assessment.reason], ['unavailable', 'no_readable_evidence'], note2);
+    assert.deepEqual(only.body.assessment.provenance.coverage, [{ evidenceId: 'ev_voice_1', status: 'unavailable', note: note2 }]);
     assert.equal(only.body.assessment.observations.length, 0, 'no observation, so Progress keeps its last state');
     const stub = replying(reply1);
-    const withText = await send(w, { text: A1, voice: [NOTE] }, { ...deps, callModel: stub.callModel });
-    assert.equal(fits(withText)[F], 'unclear', `${note}: the unread note might hold it`);
+    const withText = await send(w, { text: A1, voice: [note] }, { ...fresh, callModel: stub.callModel });
+    assert.equal(fits(withText)[F], 'unclear', `${note2}: the unread note might hold it`);
     assert.equal(reviewOf(withText).rating.reason, 'evidence_incomplete');
   }
-  // A failed transcript is kept and not retried by a later assessment: no provider call repeats on its own.
+  // With D's real store, a failed transcript is kept and not retried by a later assessment: no provider call repeats.
   const v = voiceDeps({ fail: 'provider_failed' });
-  await send(w, { voice: [NOTE] }, v);
-  await send(w, { voice: [NOTE] }, v);
+  await send(w, { voice: [note] }, v);
+  await send(w, { voice: [note] }, v);
   assert.equal(v.heardCalls.length, 1);
 });
 
@@ -491,4 +502,114 @@ test('resources: a changed or unreadable source is reported per input and leaves
   const broken = await send(w, w.content, { callModel: replying(reply1).callModel, evidenceDeps: { ...w.fx.deps, loadBoard: async () => { throw new Error('down'); } } });
   assert.equal(broken.body.assessment.status, 'completed');
   assert.ok(reviewOf(broken).coverage.filter(c => c.evidenceId !== 'text').every(c => c.status !== 'read'));
+});
+
+// Sketch recording (M4). A timeline as M's recorder stores it (sketch-recording.js), stored through D's real asset store
+// (kind timeline) with its narration as a voice EvidenceRef on the recording.
+const arrow = (label, y = 100) => ({ kind: 'arrow', x1: 200, y1: y, x2: 120, y2: y, label });
+const timelineOf = (ops, narration = false) => ({ v: 1, kind: 'sketch-timeline', startedAt: '2026-10-30T00:00:00.000Z', durationMs: 20000, limitMs: 120000, narration, start: { strokes: [], shapes: [], items: [] }, ops, pauses: [] });
+// Draws "F outward", then replaces it with "F to the centre": an explicit self-correction.
+const CORRECTED = timelineOf([{ t: 1000, k: 'shapes', keep: 0, add: [arrow('F outward')] }, { t: 9000, k: 'shapes', keep: 0, add: [arrow('F to the centre')] }]);
+// Draws "F to the centre" straight away: the same final picture, different steps.
+const DIRECT = timelineOf([{ t: 1000, k: 'shapes', keep: 0, add: [arrow('F to the centre')] }]);
+const bytesOf = timeline => new TextEncoder().encode(JSON.stringify(timeline));
+async function storeRecording(w, timeline, narration = null) {
+  const a = await putAttemptAsset(w.env, ANA, { bytes: bytesOf(timeline), mime: 'application/json' });
+  return { evidenceId: 'ev_rec_1', role: 'recording', media: 'sketch_timeline', state: 'ready', assetId: a.assetId, revision: 1, hash: a.sha256, mime: a.mime, bytes: a.bytes, durationMs: timeline.durationMs, ...(narration ? { narration } : {}) };
+}
+const narrationOf = async w => ({ ...(await storeNote(w)), evidenceId: 'ev_narration_1' });
+const stepReply = (t, extra = {}) => ({ criteria: [{ ...j(F, 'met', [], { reasoning: 'supported' }), recordingEvidence: [{ t, what: 'arrow relabelled toward the centre' }, { t: 4321, what: 'a time that was never sent' }], ...extra }, { ...j(V, 'unclear'), question: 'Where is the velocity in your drawing?' }] });
+
+test('recording: the timed steps go to the one call; two recordings with the same final picture differ; steps are cited by time', async t => {
+  const w = await ebWorld(t);
+  const recording = await storeRecording(w, CORRECTED), stub = replying(stepReply(9000));
+  const r = await send(w, { recording }, { callModel: stub.callModel });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const body = stub.calls[0].body, part = dataOf(body).current.evidence[0];
+  assert.match(body.system, /A clear later self-correction in the recording supersedes the earlier claim/);
+  assert.match(body.system, /Relate "this", "here" and "now" in the narration to the step at that time/);
+  assert.deepEqual(part.steps.map(s => [s.t, s.text.includes('F outward'), s.text.includes('F to the centre')]), [[0, false, false], [1000, true, false], [9000, false, true]], 'the mistaken step and its later correction, in order');
+  const direct = replying(stepReply(1000));
+  await send(w, { recording: await storeRecording(w, DIRECT) }, { callModel: direct.callModel });
+  assert.notDeepEqual(dataOf(direct.calls[0].body).current.evidence[0].steps, part.steps, 'not reduced to the final screenshot');
+  const review = reviewOf(r);
+  valid(r, { recording });
+  assert.deepEqual(review.judgments[0].citations, [{ evidenceId: 'ev_rec_1', locator: { ms: 9000, what: 'arrow relabelled toward the centre' } }], 'only a step that was sent is cited');
+  assert.deepEqual(review.coverage, [{ evidenceId: 'ev_rec_1', status: 'read', inspected: { steps: 3, sentSteps: 3, sampled: false, intervalMs: [0, 20000], geometry: false, narration: 'none', audio: false }, note: 'steps_read' }]);
+});
+
+test('narrated recording: narration is transcribed once, counted once, and its timing is on the step clock', async t => {
+  const w = await ebWorld(t);
+  const said = 'This arrow points outward. No wait, now it points to the centre because the string pulls the ball in.';
+  const v = voiceDeps({ heard: { text: said, segments: [{ start: 1, end: 3, text: 'This arrow points outward.' }, { start: 9, end: 14, text: 'No wait, now it points to the centre because the string pulls the ball in.' }] } });
+  const timeline = { ...CORRECTED, narration: true };
+  // The same clip is also attached as a separate voice note.
+  const content = { recording: await storeRecording(w, timeline, await narrationOf(w)), voice: [await storeNote(w)] };
+  const stub = replying({ criteria: [{ ...j(F, 'met', ['now it points to the centre because the string pulls the ball in'], { reasoning: 'supported' }), recordingEvidence: [{ t: 9000, what: 'relabelled arrow' }] }, j(V, 'unclear')] });
+  // ponytail: an in-memory transcript store while M still stores provider segments in seconds (contract: ms; P ruling).
+  const r = await send(w, content, { ...v, transcriptStore: mapStore(), callModel: stub.callModel });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(v.heardCalls.length, 1, 'one transcription for the narration');
+  const evidence = dataOf(stub.calls[0].body).current.evidence;
+  assert.deepEqual(evidence.map(p => p.kind), ['sketch_recording'], 'neither the narration ref nor the identical voice note is sent again');
+  assert.deepEqual(evidence[0].narration.segments.map(g => [g.startMs, g.endMs]), [[1000, 3000], [9000, 14000]]);
+  const review = reviewOf(r);
+  valid(r, content);
+  assert.deepEqual(review.coverage.map(c => [c.evidenceId, c.status, c.note]), [
+    ['ev_voice_1', 'partial', 'same_as:ev_rec_1'], ['ev_rec_1', 'partial', 'Narration transcript only: the audio itself was not inspected.'], ['ev_narration_1', 'partial', 'same_as:ev_rec_1']]);
+  assert.equal(review.coverage[1].inspected.transcriptOnly, true);
+  const quote = review.judgments[0].citations.find(c => c.locator.start != null);
+  assert.deepEqual([quote.evidenceId, quote.locator.startMs, quote.locator.endMs], ['ev_rec_1', 9000, 14000]);
+  assert.equal(review.rating.status, 'unrated', 'velocity unclear');
+});
+
+test('recording: sampling and missing narration are disclosed and never become a wrong judgement', async t => {
+  const w = await ebWorld(t);
+  const many = timelineOf(Array.from({ length: 60 }, (_, i) => ({ t: (i + 1) * 1500, k: 'items', keep: i, add: [{ kind: 'text', x: 10, y: i * 40, text: `step ${i}` }] })));
+  const stub = replying({ criteria: [j(F, 'not_met'), j(V, 'not_met')] });
+  const r = await send(w, { recording: await storeRecording(w, many) }, { callModel: stub.callModel });
+  const part = dataOf(stub.calls[0].body).current.evidence[0], cov = reviewOf(r).coverage[0];
+  assert.ok(part.sampled && part.steps.length <= 40 && part.steps[0].t === 0 && part.steps.at(-1).t === 90000, 'first and last kept');
+  assert.deepEqual([cov.status, cov.note, cov.inspected.sampled, cov.inspected.stepTimesMs.length], ['partial', 'steps_sampled', true, part.steps.length]);
+  assert.ok(r.body.assessment.observations.every(o => o.fit === 'unclear'), 'missing intervals: unassessed, never not met');
+  assert.equal(reviewOf(r).rating.reason, 'evidence_incomplete');
+  // Narration recorded but not transcribable: the steps are read, the narration is reported missing.
+  const narrated = { ...CORRECTED, narration: true };
+  const failed = await send(w, { recording: await storeRecording(w, narrated, await narrationOf(w)) }, { ...voiceDeps({ fail: 'provider_failed' }), callModel: replying(stepReply(9000)).callModel });
+  assert.deepEqual([reviewOf(failed).coverage[0].status, reviewOf(failed).coverage[0].note], ['partial', 'narration_transcript_provider_failed']);
+  // Bytes other than the submitted timeline (a stand-in reader: the real store never returns them): nothing is read.
+  const recording = await storeRecording(w, CORRECTED);
+  const other = await send(w, { text: A1, recording }, { readAttemptAsset: async () => ({ bytes: bytesOf(DIRECT), mime: 'application/json' }), callModel: replying(reply1).callModel });
+  assert.deepEqual([reviewOf(other).coverage[1].status, reviewOf(other).coverage[1].note], ['unavailable', 'hash_mismatch']);
+});
+
+test('resource citations: offsets are into one unit; a quote with a unit label or across units is not evidence', async t => {
+  const w = await resourceWorld(t);
+  const page2 = 'For small angles the period is T = 2*pi*sqrt(L/g), independent of amplitude.';
+  const withLabel = `[${locLabel({ page: 2 })}] For small angles`;
+  const stub = replying({ criteria: [
+    { ...j(F, 'met', ['independent of amplitude']), referenceOnly: false },
+    { ...j(V, 'met', [withLabel, 'swings under gravity. For small angles']), referenceOnly: false },
+  ] });
+  const r = await send(w, w.content, { callModel: stub.callModel, evidenceDeps: w.fx.deps });
+  assert.ok(JSON.stringify(dataOf(stub.calls[0].body).current.evidence).includes(withLabel), 'the label is in what the evaluator saw');
+  const [cite] = reviewOf(r).judgments.find(x => x.criterionId === F).citations;
+  assert.equal(cite.locator.page, 2);
+  assert.equal(page2.slice(cite.locator.start, cite.locator.end), 'independent of amplitude', 'offsets into that page');
+  assert.deepEqual(r.body.assessment.provenance.rejected.map(x => [x.criterionId, x.reason]), [[V, 'unsupported_evidence']], 'a quote found in no single unit is not evidence');
+  valid(r, w.content);
+});
+
+test('slow preparation: with under 15 s of the claim left, no evaluator is called and the operation fails as preparation_slow', async t => {
+  const w = await ebWorld(t);
+  for (const [elapsed, called] of [[46000, false], [44000, true]]) {
+    let calls = 0, ticks = 0;
+    const now = () => (ticks++ === 0 ? 1_000_000 : 1_000_000 + elapsed); // the first reading starts the clock
+    const r = await send(w, { text: `${A2} ${elapsed}` }, { now, callModel: async (...a) => { calls += 1; return replying(reply2).callModel(...a); } });
+    assert.equal(calls > 0, called, String(elapsed));
+    if (!called) {
+      assert.deepEqual([r.body.assessment.status, r.body.assessment.reason, r.body.assessment.observations.length], ['failed', 'preparation_slow', 0]);
+      assert.equal(r.body.assessment.provenance.preparationMs, elapsed);
+    } else assert.equal(r.body.assessment.status, 'completed');
+  }
 });

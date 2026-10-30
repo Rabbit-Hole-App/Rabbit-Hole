@@ -105,6 +105,7 @@ const READERS = {
   'web/src/LinksPanel.jsx': 'canvas references (links between canvases), not board links',
   'web/src/canvas-search-panel.js': 'the Search Links filter id',
   'web/src/explain-back-view.js': 'the recorded connection of a submitted input (EvidenceRef.connection), not board links',
+  'web/src/explain-back-service.js': 'focuses the source named by the recorded connection of a cited input (EvidenceRef.connection), not board links',
   'web/src/comments/MemberBoardPage.jsx': 'canvas references, not board links',
 };
 test('annotation: every reader of board links is known; the Tutor, map and shared Ask readers are not among them', () => {

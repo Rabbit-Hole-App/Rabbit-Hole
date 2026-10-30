@@ -126,6 +126,7 @@ function test:unit {
     # Relative glob: node --test does not expand an absolute /c/... glob under Git Bash and would run 0 tests, exiting 0.
     (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/learn-grade/*.test.mjs")
     (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/explain-review/*.test.mjs")
+    (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/explain-back/*.test.mjs")
     (cd "$THIS_DIR" && nonzero-tests node --test --test-timeout=180000 "packages/learn-render/motion/*.test.mjs" "packages/learn-render/motion/service/*.test.mjs")
     (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/tutor-session/*.test.mjs")
     # The file converter and its production activation commands (stub tools, no network, no production credential).

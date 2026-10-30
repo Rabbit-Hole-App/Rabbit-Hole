@@ -110,6 +110,9 @@ import { explainMaterial } from './learn-coaching-materials.js';
 import { describeBlock } from './LearningBlocks.jsx';
 import { ExplainBackService } from './ExplainBackPanel.jsx';
 import { explainBackEnabled, useExplainBackService } from './explain-back-service.js';
+import { createExplainBackAssets } from './explain-back-assets.js';
+import { withVoicePlayer } from './VoiceNote.jsx';
+import { stopAllExplainBackCaptures } from './explain-back-media.js';
 import { registeredCourse } from './learn-tutor-domains.js';
 import { inJourneySetup, journeyDiveContext, useJourney } from './LearnJourney.jsx';
 import { pathEntries } from './learn-journey.js';
@@ -1729,7 +1732,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // ponytail: Jev grades text only, so an Explain Back attempt with a sketch skips the shadow row instead of
   // recording a verdict on half the answer; feed it the sketch's words once Jev is benchmarked on them.
   // Explain-back attempts, history and Tutor review (EB-04.3): only on a canvas the learner can edit; a shared view keeps the legacy card.
-  const explainBack = useExplainBackService({ app: app.name, board: boardName, enabled: explainBackEnabled() && canEditCanvas });
+  const explainBackAssets = useMemo(() => withVoicePlayer(createExplainBackAssets({ app: app.name, board: boardName })), [app.name, boardName]);
+  // Leaving the canvas stops any voice note or Sketch recording still capturing, keeps the take and releases the microphone.
+  useEffect(() => () => stopAllExplainBackCaptures({ keep: true }), [app.name, boardName]);
+  const explainBack = useExplainBackService({ app: app.name, board: boardName, enabled: explainBackEnabled() && canEditCanvas, assets: explainBackAssets, canvasApi });
   const gradeCanvasAnswer = async (block, answer, onDelta, sketch = null) => {
     const pending = sketch ? Promise.resolve(null) : shadowGrade({ app, board, block, answer });
     const started = performance.now();
