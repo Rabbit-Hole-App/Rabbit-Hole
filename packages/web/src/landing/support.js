@@ -34,7 +34,7 @@ const documents = {
         '<strong>OpenAI</strong> (API): image prompts and reference images when you generate an image with an OpenAI model, and the image and selected area when you edit an image.',
         '<strong>Google</strong> (Gemini API): image prompts and reference images when you generate an image with a Gemini model.',
         '<strong>Fly.io</strong>: runs our services for repository lessons (the repository name and commit), CAD models, generated videos and converting some uploaded files, such as documents, slides, audio and 3D models.',
-        '<strong>TypeSafe</strong>: a practice question and your answer, to check the answer.',
+        '<strong>TypeSafe</strong>: a practice question and your answer, to check the answer; and, when you add a web page card, screenshots of the captured page, its extracted text, its title and its web address, to screen the page for sexually explicit or graphic content.',
         '<strong>Fish Audio</strong>: text that Rabbit Hole reads aloud.',
         '<strong>ElevenLabs</strong>: voice input, which is currently paused. When it is on, your browser sends your microphone audio directly to ElevenLabs for transcription.',
         '<strong>Resend</strong>: your email address and the content of sign-in and invitation emails.',
@@ -95,7 +95,8 @@ const documents = {
       ['ai', 'AI limitations', 'AI-generated explanations, answers, marks and images can be incomplete or wrong. Generated cards list the sources they drew on: check important claims against them, and use your own judgment before relying on what you learn.', 'Rabbit Hole is a learning aid. Generated material is not a guarantee of accuracy.'],
       ['credits', 'Credits and payments', 'Early access is free and needs no credit card.', [
         'Every account receives 2,500 AI credits each month, renewed at the start of each month (UTC).',
-        'AI work uses credits, such as Chat and Tutor answers and generated material. Reading, editing and checking your practice answers are free.',
+        'AI work uses credits: Chat and Tutor answers, generated material, and changes made by AI, such as editing an explanation with /explain or editing an image with Ctrl+K.',
+        'Reading, checking your practice answers and editing a canvas yourself (typing, moving and arranging cards) are free.',
         'Larger generations show a review card first; nothing runs until you press Generate.',
         'Without enough credits, a request is refused before any AI runs.',
       ], 'Your balance and renewal time are in Settings &gt; AI usage.', 'Credits cannot be bought yet. The Buy credits option only shows “Credit purchases are coming soon.” and takes no payment. The paid plans on the <a href="/pricing">Pricing</a> page are planned, not available.'],
