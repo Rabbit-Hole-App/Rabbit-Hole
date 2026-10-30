@@ -5,7 +5,7 @@ import { explainProposedBlock } from './explain-client.js';
 import { cadContext } from './cad-client.js';
 import { dropView, publishView } from './cad-viewer-store.js';
 import { holdViewerGestures } from './content-gestures.js';
-import { createContext, Suspense, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, Suspense, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { Check, ChevronLeft, ChevronRight, Code, Loader2, PanelRightOpen, Play, RotateCcw, Search, Trash2, Volume2, X } from 'lucide-react';
 import { Md } from './ask.jsx';
@@ -938,6 +938,7 @@ const gradingAttempts = new Set();
 // workspace's right edge. Submitted attempts are immutable; Revise answer opens a new draft. Its submit and data come
 // from ExplainBackService when the durable store is wired, else from the card's own single-attempt grade (`commit`).
 const EMPTY_SKETCH = { strokes: [], shapes: [], items: [] };
+const noSubscribe = () => () => {}, noDraft = () => null;
 
 function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, commit, revise, notice, setNotice, sketchHost, sketchable, sketchMarked }) {
   const service = useContext(ExplainBackService);
@@ -963,7 +964,27 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
   // The recorders' registry key: app, board and card (a fork keeps card ids), then the draft.
   const draftKey = `${memoryKey}\u0000${service ? view.draft?.id || `draft-${draftSeq}` : 'legacy'}`;
   const [voice, setVoice] = useState(null);
-  const [carried, setCarried] = useState(null); // the voice EvidenceRef a revision carries from its attempt
+  // The voice EvidenceRef (or null) a revision started in this mount carries from its attempt; undefined: the note comes
+  // from the saved draft as usual.
+  const [carried, setCarried] = useState(undefined);
+  // The server draft (EB-02.3, explain-back-drafts.js through service.drafts): what the field starts from after a reload,
+  // in another tab or on another device. Its conflict and offline states are the card's to show.
+  const sync = service?.drafts?.for(block.id) ?? null;
+  const draftState = useSyncExternalStore(sync ? sync.subscribe : noSubscribe, sync ? sync.get : noDraft);
+  const draftReady = !draftState || draftState.status !== 'loading';
+  const seeded = useRef(false);
+  const seed = answer => {
+    seeded.current = true;
+    setDraft(answer?.text || '');
+    setRevising(answer?.baseline?.parentAttemptId || null);
+  };
+  useEffect(() => { if (draftState && draftReady && !seeded.current) seed(draftState.answer); }, [draftReady]);
+  useEffect(() => {
+    if (!sync || !seeded.current) return;
+    const stored = draftState.answer || {}, parentAttempt = attempts.find(attempt => attempt.id === revising);
+    if ((stored.text || '') === draft && (stored.baseline?.parentAttemptId || null) === revising) return;
+    sync.patch({ text: draft, baseline: revising ? { parentAttemptId: revising, parentAssessmentId: parentAttempt?.assessmentId ?? null } : undefined });
+  }, [draft, revising]);
   // The Sketch recording (EB-06 06.5), gated like the voice note; its controls sit in the panel under the drawing.
   const recordingStore = service?.recording?.upload ? service.recording : null;
   const [recording, setRecording] = useState(null);
@@ -1042,7 +1063,7 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
   ) : null;
   const panelMedia = selected.draft && (recordingStore || clearSketch) ? (
     <div className="space-y-2">
-      {recordingStore && <SketchRecording recKey={draftKey} store={recordingStore} blockId={block.id} sketch={block.sketch} renderReplay={sketch => sketchHost.render({ ...block, sketch }, { still: true, docked: true })} />}
+      {recordingStore && draftReady && <SketchRecording recKey={draftKey} store={recordingStore} blockId={block.id} sketch={block.sketch} renderReplay={sketch => sketchHost.render({ ...block, sketch }, { still: true, docked: true })} />}
       {clearSketch}
     </div>
   ) : null;
@@ -1063,7 +1084,8 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
       // The submitted note and recording belong to the attempt now; the next draft starts without them.
       disposeVoiceNote(draftKey); disposeSketchRecording(draftKey);
       voiceStore?.onSaved?.(block.id, null); recordingStore?.onSaved?.(block.id, null);
-      setDraft(''); setRevising(null); setChosen(null); setVoice(null); setRecording(null); setCarried(null); setTab('answer'); setDraftSeq(n => n + 1);
+      setDraft(''); setRevising(null); setChosen(null); setVoice(null); setRecording(null); setCarried(undefined); setTab('answer'); setDraftSeq(n => n + 1);
+      if (sync) await sync.clear(); // a conflict here (another tab kept working) is shown, not overwritten
     } catch (error) {
       setNotice(`Your answer was not submitted: ${error?.message || 'try again'}. Your work is kept.`);
     } finally { busy.current = false; }
@@ -1088,6 +1110,7 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
     setNotice(''); setTab('answer'); setChosen(null); setCited(null);
     if (service) {
       setDraft(selected.answer.text); setRevising(selected.id); setCarried(selected.answer.voice[0] || null);
+      sync?.patch({ voice: selected.answer.voice.slice(0, 1) }); // the carried note is the draft's until removed
       // The card's marks are the newest attempt's: an older attempt's draft starts without them (undoable).
       const plan = reviseSketchPlan({ attempt: selected, newest: attempts.at(-1), marked: hasMarks(block.sketch) });
       if (plan.clear) onChange({ ...latest.current, sketch: { ...EMPTY_SKETCH } });
@@ -1134,8 +1157,8 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
                   {canConnect && <InputPicker list={() => sketchHost.inputCandidates(block.id)} onConnect={connectInput} />}
                 </div>
               )}
-              {recordingStore && <RecordingState key={draftKey} recKey={draftKey} store={recordingStore} blockId={block.id} onState={setRecording} />}
-              {voiceStore && <div data-eb-voice className="mt-2"><AnswerVoice key={draftKey} draftKey={draftKey} store={voiceStore} blockId={block.id} initial={revising !== null ? carried : undefined} onState={setVoice} /></div>}
+              {recordingStore && draftReady && <RecordingState key={draftKey} recKey={draftKey} store={recordingStore} blockId={block.id} onState={setRecording} />}
+              {voiceStore && draftReady && <div data-eb-voice className="mt-2"><AnswerVoice key={draftKey} draftKey={draftKey} store={voiceStore} blockId={block.id} initial={carried} onState={setVoice} /></div>}
             </div>
           ) : selected.status === 'reviewed' ? (
             <>
@@ -1177,6 +1200,21 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
           </div>
           {selected.draft && gate.reason && <p data-eb-submit-reason className="mt-1 text-right text-xs text-ink-2">{gate.reason}</p>}
           {notice && <p role="alert" data-eb-notice className="mt-2 text-xs text-danger">{notice}</p>}
+          {draftState?.status === 'conflict' && (
+            <div role="alert" data-eb-draft-conflict className="mt-2 rounded-lg border border-line bg-hover p-2 text-xs text-ink" onPointerDown={e => e.stopPropagation()}>
+              <p>This answer was changed in another tab or device.</p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                <button type="button" data-eb-keep-mine onClick={() => sync.resolve('mine')} className="h-7 cursor-pointer rounded-md border border-line bg-surface px-2 hover:bg-hover">Keep this version</button>
+                <button type="button" data-eb-use-theirs onClick={() => { sync.resolve('theirs'); seed(sync.get().answer); }} className="h-7 cursor-pointer rounded-md border border-line bg-surface px-2 hover:bg-hover">Use the other version</button>
+              </div>
+            </div>
+          )}
+          {(draftState?.status === 'offline' || draftState?.status === 'error') && (
+            <p role="alert" data-eb-draft-error className="mt-2 flex flex-wrap items-center gap-2 text-xs text-danger" onPointerDown={e => e.stopPropagation()}>
+              {draftState.error?.message || 'Your draft is not saved yet.'}
+              <button type="button" data-eb-draft-retry onClick={() => sync.retry()} className="h-7 cursor-pointer rounded-md border border-line px-2 text-ink hover:bg-hover">Retry</button>
+            </p>
+          )}
         </>
       )}
       <p role="status" className="sr-only">{announce}</p>

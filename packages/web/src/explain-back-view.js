@@ -120,7 +120,7 @@ export function serviceView(raw) {
     if (feedback && !feedback.sections) feedback.text = 'The Tutor has no written feedback for this attempt.';
     const rating = review?.rating || null;
     return {
-      id: entry.attemptId, number: index + 1, parentId: content.baseline?.parentAttemptId || null, status,
+      id: entry.attemptId, number: index + 1, assessmentId: entry.assessment?.assessmentId || null, parentId: content.baseline?.parentAttemptId || null, status,
       answer: {
         text: typed, sketched: !!content.sketch || !!content.recording, sketchImage: text(entry.sketchUrl) || null, voice: content.voice || [], recording: content.recording || null,
         resources: content.resources || [],
