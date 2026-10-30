@@ -210,34 +210,67 @@ cell passed, failed or not tested, with the build SHA.
   - Saved cards only: cooling (sandbox-ex1-b, schema 1), sorting (sandbox-ex2-a, schema 1) and stack/queue (t811-c4-b,
     schema 2). No generation call was made.
   - Browser: headless Google Chrome under Playwright on a Windows 11 workstation.
-  - Script `C:/s/spec/explain-sandbox/genuine/matrix-check.mjs` (65 ok, 0 failed, 1 not testable). Log
+  - Script `C:/s/spec/explain-sandbox/genuine/matrix-check.mjs`. Overall: 2 cells FAILED on visual findings; the automated checks were 65 ok, 0 failed, 1 not testable. Log
     `C:/s/spec/explain-sandbox/matrix-d3d50986e.out`; measured facts in `C:/s/spec/explain-sandbox/matrix/d3d50986e/matrix.json`. I looked at the screenshots myself.
   - A control counts as "reachable" when its centre is on screen and on top after panning the canvas to it, as a learner would.
   - **390x844 is a Chromium viewport with touch emulation. It is not an iPhone, Safari or WebKit test.**
 
-| Cell | Result | What was checked | Screenshots (`C:/s/spec/explain-sandbox/matrix/d3d50986e/`) |
-|---|---|---|---|
-| 1440x900, owner, light | passed | Cooling: Play advances the time and the drawing; Pause holds it; scrubbing to 15 s redraws and the label reads 15.0s; the room slider changes the curve; Notes opens with the drawing at the same height (545 px before and after); Focus and Back keep the time, the room setting and the drawing. Sorting: the step slider and the algorithm select redraw. Stack: Add twice redraws, and Reset returns to the initial drawing. | `d1440-owner-light-*` |
-| 1440x900, owner, keyboard only | passed, with one accessibility failure (below) | Enter plays, Space pauses, Tab goes from Play to the time slider, arrow keys move both sliders, Enter on Reset, Enter on a sorting option presses it, Enter and Space on the stack's Add both act, Tab goes from Add to Remove. Selectable targets: not tested on a genuine card (stack declares none); the fixture check `explain-program-state-check.mjs` covers them. | `d1440-owner-keyboard-*` |
-| 1440x900, owner, dark | passed (inspected) | Axes, labels, curves, cells and buttons are readable in dark theme on all three cards. | `d1440-owner-dark-*` |
-| 1440x900, owner, reduced motion | passed | Play jumps straight to the end (20.0 s) and the button reads Replay; no animation. | `d1440-owner-reduced-motion-*` |
-| 1280x720, owner, Chat open | passed | The first control of each card is reachable beside Chat after panning. A card wider than the canvas needs panning to see its right side. | `d1280-owner-chat-*` |
-| 390x844, owner, light | passed (Chromium only) | The first control of each card is reachable after panning, and it acts. The cards keep their legible width, so a learner pans to see each side. | `m390-owner-light-*` |
-| 1440x900, shared, signed-out (simulated) | passed | Controls are reachable and act. A visitor writes nothing (only the app's own RUM and Curious next-steps calls, which were aborted). | `d1440-shared-signedout-*` |
-| 390x844, shared, signed-out (simulated) | passed (Chromium only) | Same as the row above. | `m390-shared-signedout-*` |
+Results by cell. **Panning** says whether the card's first control was reachable at the view the page opened with
+(`C:/s/spec/explain-sandbox/genuine/pan-probe.mjs`, run at 5:03 PM PT, preview still at `d3d50986e`). The opening view is
+the canvas camera saved at that moment, so "needed" means a learner had to pan before using the control.
 
-Failures reported to the integrator (functional or accessibility; nothing cosmetic):
-- **Focus placement.** In the 1440x900 owner run, the focused cooling card was drawn shifted left: the y-axis, its labels
-  and the left end of the controls were off-screen (`d1440-owner-light-cooling-05-focus.png`).
-  - It reproduced in 2 of 2 full matrix runs, after the pass's sequence: Play, Pause, scrub to 15 s, room slider to maximum,
-    Notes open, then Focus from the card's menu.
-  - It did not reproduce in two shorter probes, which placed the card fully in view: Focus from zoom-to-fit, and Focus
-    from a panned view with Notes open (`focus-1440x900-fit-settled.png`, `focus-1440x900-panned-settled.png`).
-  - Back to canvas kept the state every time.
-  - Cause not isolated.
-- **Keyboard focus hidden by the minimap.** A keyboard-focused control can sit under the canvas minimap: the stack's
-  focused Add button was covered (`d1440-owner-keyboard-stack-01-add-focused.png`), because the canvas does not pan to the
-  focused control. This is the known minimap overlap; for keyboard users it fails "focus not obscured".
+| Cell | Card | Result | Panning | Screenshots (`C:/s/spec/explain-sandbox/matrix/d3d50986e/`) |
+|---|---|---|---|---|
+| 1440x900, owner, light | cooling | **FAILED**: Focus placement (visual finding 1) | not needed | `d1440-owner-light-cooling-*` |
+| 1440x900, owner, light | sorting | passed | needed (off-screen) | `d1440-owner-light-sorting-*` |
+| 1440x900, owner, light | stack | passed | needed (off-screen) | `d1440-owner-light-stack-*` |
+| 1440x900, owner, keyboard only | cooling | passed | not needed | `d1440-owner-keyboard-cooling-*` |
+| 1440x900, owner, keyboard only | sorting | passed | needed (off-screen) | `d1440-owner-keyboard-sorting-*` |
+| 1440x900, owner, keyboard only | stack | **FAILED**: focused Add hidden by the minimap (visual finding 2) | needed (off-screen) | `d1440-owner-keyboard-stack-*` |
+| 1440x900, owner, dark | all three | passed | as the light rows | `d1440-owner-dark-*` |
+| 1440x900, owner, reduced motion | cooling | passed | not needed | `d1440-owner-reduced-motion-*` |
+| 1280x720, owner, Chat open | all three | passed | needed for all three (off-screen) | `d1280-owner-chat-*` |
+| 390x844, owner, light (Chromium only) | all three | passed | needed for all three (off-screen) | `m390-owner-light-*` |
+| 1440x900, shared, signed-out (simulated) | cooling | passed | not needed | `d1440-shared-signedout-*` |
+| 1440x900, shared, signed-out (simulated) | sorting, stack | passed | needed (off-screen) | `d1440-shared-signedout-*` |
+| 390x844, shared, signed-out (simulated, Chromium only) | cooling | passed | needed (covered by the canvas Find control) | `m390-shared-signedout-*` |
+| 390x844, shared, signed-out (simulated, Chromium only) | sorting, stack | passed | needed (off-screen) | `m390-shared-signedout-*` |
+
+**Automated check results** (`matrix-check.mjs`; 65 ok, 0 failed, 1 not testable; every control was checked after panning to it):
+- 1440 owner light:
+  - Cooling: Play advances the time and the drawing; Pause holds it; scrubbing to 15 s redraws and the label reads 15.0s;
+    the room slider changes the curve; Notes opens with the drawing at 545 px tall before and after; Focus and Back keep the
+    time, the room setting and the drawing.
+  - Sorting: the step slider and the algorithm select redraw.
+  - Stack: Add twice redraws, and Reset returns to the initial drawing.
+- 1440 keyboard:
+  - Cooling: Enter plays, Space pauses, Tab goes from Play to the time slider, arrow keys move both sliders, Enter on Reset
+    works.
+  - Sorting: Enter on an option presses it.
+  - Stack: Enter and Space on Add both act, and Tab goes from Add to Remove.
+  - Not testable: selectable targets. No genuine card has them; the fixture check `explain-program-state-check.mjs`
+    covers them.
+- 1440 dark: the page is in dark theme. 1440 reduced motion: Play jumps to 20.0 s and the button reads Replay.
+- 1280 with Chat open, 390 owner, and the 1440 and 390 signed-out shares: the first control of each card is reachable and
+  acts. A signed-out visitor writes nothing; only the app's own RUM and Curious next-steps calls were made, and they were
+  aborted.
+- Every cell: no generation call and no page error.
+
+**Visual findings** (from the screenshots; the automated checks do not see these):
+1. **Focus placement** (1440 owner light, cooling): **FAILED**.
+   - The focused card was drawn shifted left. The y-axis, its labels and the left end of the controls were off-screen
+     (`d1440-owner-light-cooling-05-focus.png`).
+   - It happened in 2 of 2 full runs, after: Play, Pause, scrub to 15 s, room slider to maximum, Notes open, then Focus from
+     the card menu.
+   - It did not happen in two shorter probes: Focus from zoom-to-fit, and Focus from a panned view with Notes open
+     (`focus-1440x900-fit-settled.png`, `focus-1440x900-panned-settled.png`). Back kept the state every time.
+   - Cause not isolated.
+2. **Keyboard focus obscured** (1440 keyboard, stack): **FAILED**.
+   - The keyboard-focused Add button was covered by the canvas minimap
+     (`d1440-owner-keyboard-stack-01-add-focused.png`). The canvas does not pan to a focused control.
+   - This fails "focus not obscured" for keyboard users.
+3. Cosmetic, not counted as failures: a card wider than the canvas needs panning to see its right side (with Chat open,
+   and at 390 px); the canvas map label sits over a card's title at some pan positions.
 
 Not tested:
 - Signed-in shared viewer, as opposed to the simulated signed-out visitor.
