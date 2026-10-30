@@ -17,7 +17,7 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { openSlashHelp } from './canvas-menu-helpers.mjs';
-import { FIXTURES, expectedReadouts, expectedNodes, expectedGame, close } from './animation-oracle.mjs';
+import { FIXTURES, expectedReadouts, expectedNodes, expectedGame, close, within, WATCH_ALLOWANCE as WATCH } from './animation-oracle.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
@@ -114,18 +114,16 @@ const live = async p => {
 // The scene's pixels: identical when its camera and frame have not changed (the experiment scene is static between inputs).
 const pixels = p => p.card.locator('[data-animation-host]').screenshot(); // inside the viewport's border, which darkens while interacting
 const shot = async (page, name) => { await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
-// The watch card shows its time to 3 decimals (data-animation-time), so the frame's own time is within 0.5 ms of it: at the orbit's
-// speeds that moves the moon at most 0.0012, the spin quaternion 0.0004 and the angle 0.0225 degrees. WATCH allows that, no more
-// (a 6 s instead of 8 s period is 15 degrees off at 1 s).
-const WATCH = { nodes: 0.002, readouts: 0.03 };
-const sameNodes = (got, want, label, tol) => { for (const [id, t] of Object.entries(want)) for (const k of Object.keys(t)) assert.ok(close(got?.[id]?.[k], t[k], tol), `${label}: node ${id} ${k} ${JSON.stringify(got?.[id]?.[k])}, oracle ${JSON.stringify(t[k])}`); };
+// abs: an absolute allowance (the watch card's 3-decimal time, oracle WATCH_ALLOWANCE); without it, exact to float noise.
+const eq = (got, want, abs) => (abs === undefined ? close(got, want) : within(got, want, abs));
+const sameNodes = (got, want, label, abs) => { for (const [id, t] of Object.entries(want)) for (const k of Object.keys(t)) assert.ok(eq(got?.[id]?.[k], t[k], abs), `${label}: node ${id} ${k} ${JSON.stringify(got?.[id]?.[k])}, oracle ${JSON.stringify(t[k])}`); };
 // The readouts three ways: the shown element's raw value, its text at the declared decimals, and the applied frame's value.
-const sameReadouts = async (p, kind, want, label, tol) => {
+const sameReadouts = async (p, kind, want, label, abs) => {
   const applied = (await frame(p)).readouts || {};
   for (const [rid, value] of Object.entries(want)) {
     const shown = Number(await p.readout(rid).getAttribute('data-value')), decimals = FIXTURES[kind].readouts.find(r => r.id === rid)?.decimals;
-    assert.ok(close(shown, value, tol), `${label}: readout ${rid} shows ${shown}, oracle ${value}`);
-    assert.ok(close(applied[rid], value, tol), `${label}: frame readout ${rid} ${applied[rid]}, oracle ${value}`);
+    assert.ok(eq(shown, value, abs), `${label}: readout ${rid} shows ${shown}, oracle ${value}`);
+    assert.ok(eq(applied[rid], value, abs), `${label}: frame readout ${rid} ${applied[rid]}, oracle ${value}`);
     // The text is the shown value at the declared decimals (the value itself is held to the oracle above).
     if (decimals !== undefined) assert.ok((await p.readout(rid).innerText()).includes(shown.toFixed(decimals)), `${label}: readout ${rid} text ${await p.readout(rid).innerText()} lacks ${shown.toFixed(decimals)}`);
   }

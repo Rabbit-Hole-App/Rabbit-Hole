@@ -65,15 +65,28 @@ export function expectedReadouts(kind, inputs = {}, time = 0) { return kind === 
 export function expectedGame(actions) { return game(actions); }
 export const oracle = { watch, experiment, game };
 
-// Equality for oracle comparisons: numbers within tol (default 1e-6; relative above 1); arrays element-wise; a four-element value
-// is a quaternion, equal to its negation (q and -q are the same rotation).
-const near = (a, b, tol) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= tol * Math.max(1, Math.abs(b));
-export function close(got, want, tol = 1e-6) {
-  if (typeof want === 'number') return near(got, want, tol);
+// Equality for oracle comparisons: numbers within 1e-6 (relative above 1, for floating-point noise only); arrays element-wise; a
+// four-element value is a quaternion, equal to its negation (q and -q are the same rotation).
+const near = (a, b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b));
+const nearBy = abs => (a, b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= abs;
+const same = (got, want, eq) => {
+  if (typeof want === 'number') return eq(got, want);
   if (!Array.isArray(want) || !Array.isArray(got) || got.length !== want.length) return false;
-  if (want.length === 4) return want.every((v, i) => near(got[i], v, tol)) || want.every((v, i) => near(got[i], -v, tol));
-  return want.every((v, i) => near(got[i], v, tol));
-}
+  if (want.length === 4) return want.every((v, i) => eq(got[i], v)) || want.every((v, i) => eq(got[i], -v));
+  return want.every((v, i) => eq(got[i], v));
+};
+export const close = (got, want) => same(got, want, near);
+// Absolute equality: |got - want| <= abs for every element, never scaled by the value's size.
+export const within = (got, want, abs) => same(got, want, nearBy(abs));
+
+// The watch card shows its time to 3 decimals, so the frame it drew is up to TIME_ROUNDING seconds from the shown time. The oracle's
+// own fastest rates turn that into absolute allowances (plus 1e-6 for float noise): the moon moves 2 pi r / period units per second,
+// a spin quaternion component changes at most pi / spin per second, the angle readout 360 / period degrees per second.
+export const TIME_ROUNDING = 0.0005;
+export const WATCH_ALLOWANCE = Object.freeze({
+  nodes: Math.max(2 * PI * ORBIT.radius / ORBIT.period, PI / ORBIT.spin) * TIME_ROUNDING + 1e-6,
+  readouts: 360 / ORBIT.period * TIME_ROUNDING + 1e-6,
+});
 // Rotates a point by a unit quaternion (for physical sanity checks: which end of the beam is down).
 export function rotate([x, y, z], [qx, qy, qz, qw]) {
   const tx = 2 * (qy * z - qz * y), ty = 2 * (qz * x - qx * z), tz = 2 * (qx * y - qy * x);
