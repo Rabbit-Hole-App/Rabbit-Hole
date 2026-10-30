@@ -6,7 +6,7 @@
 import { ANIMATION_CAPABILITIES } from './capabilities.js';
 import { resolveAnimationInputs } from './contract.js';
 
-export const EXPERIENCE_LABELS = Object.freeze({ inspect: 'Inspect', watch: 'Loop', experiment: 'Experiment', game: 'Mini-game' });
+export const EXPERIENCE_LABELS = Object.freeze({ inspect: 'Inspect', watch: 'Watch', experiment: 'Experiment', game: 'Mini-game' });
 // A fixture card is a built-in example, never presented as a generated result (AN-03 acceptance).
 export const FIXTURE_LABEL = 'Example';
 export const FIXTURE_NOTE = 'Built-in example scene for trying the controls. It was not generated from a request.';

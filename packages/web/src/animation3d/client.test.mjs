@@ -6,10 +6,11 @@ import { ANIMATION_ROUTES, animationClient, animationRetry, animationRunning, an
 
 const recorder = () => { const calls = []; const fetchJson = async (path, options = {}) => { calls.push({ path, ...options, body: options.body ? JSON.parse(options.body) : undefined }); return { ok: true }; }; return { calls, fetchJson }; };
 
-test('request shapes: create, get, action and result, scoped to the board, ids encoded', async () => {
+test('request shapes (lane G routes): create, get, action and result, scoped to the board, ids encoded', async () => {
+  assert.deepEqual(ANIMATION_ROUTES, { jobs: '/api/learn/animation/jobs', results: '/api/learn/animation/jobs/results' });
   const { calls, fetchJson } = recorder();
   const client = animationClient(fetchJson, 'board 1');
-  await client.create({ proposalId: 'gp-1', version: 3, cardId: 'card-1', requestId: 'req-1' });
+  await client.create({ requestId: 'req-1', cardId: 'card-1', prompt: 'a lever', context: 'selected text' });
   await client.get('job/1');
   await client.action('job/1', 'retry', { expectedAttempt: 2 });
   await client.action('job/1', 'cancel');
@@ -17,7 +18,7 @@ test('request shapes: create, get, action and result, scoped to the board, ids e
   await client.result('res 1', { signal });
   await client.result('res2');
   assert.deepEqual(calls, [
-    { path: ANIMATION_ROUTES.jobs, method: 'POST', body: { boardId: 'board 1', proposalId: 'gp-1', version: 3, cardId: 'card-1', requestId: 'req-1' } },
+    { path: ANIMATION_ROUTES.jobs, method: 'POST', body: { boardId: 'board 1', requestId: 'req-1', cardId: 'card-1', prompt: 'a lever', context: 'selected text' } },
     { path: `${ANIMATION_ROUTES.jobs}/job%2F1?board=board%201`, body: undefined },
     { path: `${ANIMATION_ROUTES.jobs}/job%2F1/retry`, method: 'POST', body: { boardId: 'board 1', expectedAttempt: 2 } },
     { path: `${ANIMATION_ROUTES.jobs}/job%2F1/cancel`, method: 'POST', body: { boardId: 'board 1' } },

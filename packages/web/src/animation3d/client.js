@@ -4,20 +4,20 @@
 // throws an Error carrying { status, data } on a refusal.
 //
 // As with /explain (explain-client.js): the card is placed before the job runs and polling only observes the job.
-// ponytail: route paths are proposed until lane G hands back its route table; align ANIMATION_ROUTES then.
+// Lane G's route table (control-plane animation-job.js): jobs, their actions, and results under the jobs root.
 export const ANIMATION_ROUTES = Object.freeze({
   jobs: '/api/learn/animation/jobs',
-  results: '/api/learn/animation/results',
+  results: '/api/learn/animation/jobs/results',
 });
 const q = value => encodeURIComponent(value);
 
 export function animationClient(fetchJson, boardId) {
   const post = (path, body = {}) => fetchJson(path, { method: 'POST', body: JSON.stringify({ boardId, ...body }) });
   return {
-    // A confirmed proposal starts one job; requestId makes a repeated press return that same job (server idempotency).
-    create: ({ proposalId, version, cardId, requestId }) => post(ANIMATION_ROUTES.jobs, { proposalId, version, cardId, requestId }),
+    // One /animation request starts one job (its plan is then reviewed); requestId makes a repeat return that same job.
+    create: ({ requestId, cardId, prompt, context = null, threadId = null }) => post(ANIMATION_ROUTES.jobs, { requestId, cardId, prompt, ...(context ? { context } : {}), ...(threadId ? { threadId } : {}) }),
     get: jobId => fetchJson(`${ANIMATION_ROUTES.jobs}/${q(jobId)}?board=${q(boardId)}`),
-    // cancel | retry: one targeted action on this job; expectedAttempt makes a double press one action.
+    // approve | refine | cancel | retry: one targeted action on this job; expectedAttempt makes a double press one Retry.
     action: (jobId, name, body = {}) => post(`${ANIMATION_ROUTES.jobs}/${q(jobId)}/${q(name)}`, body),
     // An accepted artifact by its immutable id, read independently of the job record (kept when the job is pruned).
     result: (artifactId, { signal } = {}) => fetchJson(`${ANIMATION_ROUTES.results}/${q(artifactId)}?board=${q(boardId)}`, signal ? { signal } : {}),

@@ -72,11 +72,11 @@ const type = async (field, value) => {
 };
 test.after(async () => { if (root) await B.act(async () => root.unmount()); });
 
-test('watch fixture: header, Loop badge, labelled as an example; Play, Restart, Speed, Reset view; time and frame hooks follow playback', async () => {
+test('watch fixture: header, Watch badge, labelled as an example; Play, Restart, Speed, Reset view; time and frame hooks follow playback', async () => {
   const { runtimes } = await mount({ block: { id: 'w1', type: 'animation3d', fixtureId: 'orbit-watch' } });
   assert.equal(card().getAttribute('data-animation-phase'), 'ready');
   assert.match(card().textContent, /Animation/);
-  assert.equal($('[data-animation-badge]').textContent, 'Loop');
+  assert.equal($('[data-animation-badge]').textContent, 'Watch', 'the proposal\'s word for it');
   assert.equal($('[data-animation-fixture]').textContent, 'Example');
   assert.match($('[data-animation-fixture-note]').textContent, /not generated from a request/);
   assert.equal($('[data-animation-play]'), null, 'not /explain\'s play hook');
@@ -117,7 +117,7 @@ test('experiment fixture: number rows with units and typed alternatives; a chang
   assert.equal($('[data-animation-reset]').textContent.trim(), 'Reset scene');
   await type(field, '2');
   assert.deepEqual(raw(), { leftMoment: 3, rightMoment: 4, tilt: -5 });
-  const frame = renderers.made[0].frames.at(-1);
+  const frame = renderers.made.find(made => !made.disposed).frames.at(-1);
   assert.equal(frame.readouts.tilt, -5, 'the renderer got the same frame the readouts came from');
   assert.deepEqual(frame.nodes.leftWeight.position, [-1.5, 0.25, 0]);
   assert.equal($('[data-animation-reset]').disabled, false);
