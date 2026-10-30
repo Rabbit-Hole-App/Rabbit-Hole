@@ -12,12 +12,21 @@ const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const dataUrl = bytes => `data:image/png;base64,${Buffer.from(bytes).toString('base64')}`;
 
 function fakeStore({ refuse = null } = {}) {
-  const calls = [], blobs = new Map();
+  const calls = [], blobs = new Map(), drafts = new Map();
   let n = 0;
   const fetchImpl = async (url, init = {}) => {
     const parsed = new URL(url, 'https://app.test');
-    const body = init.body instanceof Blob ? new Uint8Array(await init.body.arrayBuffer()) : init.body ?? null;
+    const raw = init.body instanceof Blob ? new Uint8Array(await init.body.arrayBuffer()) : init.body ?? null;
+    const body = parsed.pathname.endsWith('/drafts') && raw ? JSON.parse(raw) : raw;
     calls.push({ method: init.method || 'GET', path: parsed.pathname, query: Object.fromEntries(parsed.searchParams), type: init.headers?.['Content-Type'] ?? null, body });
+    if (parsed.pathname.endsWith('/drafts')) {
+      if ((init.method || 'GET') === 'GET') return Response.json({ draft: drafts.get(parsed.searchParams.get('cardId')) ?? null });
+      const current = drafts.get(body.cardId);
+      if ((current?.revision ?? 0) !== body.expectedRevision) return Response.json({ error: 'draft_conflict', detail: { draft: current ?? null } }, { status: 409 });
+      const draft = { cardId: body.cardId, revision: (current?.revision ?? 0) + 1, answer: body.answer };
+      drafts.set(body.cardId, draft);
+      return Response.json({ draft });
+    }
     if (refuse) return Response.json({ error: refuse.code }, { status: refuse.status });
     if (init.method === 'PUT' && parsed.pathname === ASSETS_PATH) {
       const assetId = `aa_test${String(++n).padStart(8, '0')}`;
@@ -28,9 +37,8 @@ function fakeStore({ refuse = null } = {}) {
     const id = parsed.pathname.split('/').pop();
     return blobs.has(id) ? new Response(blobs.get(id)) : Response.json({ error: 'unknown_asset' }, { status: 404 });
   };
-  return { calls, fetchImpl };
+  return { calls, drafts, fetchImpl };
 }
-const memory = () => { const map = new Map(); return { map, getItem: k => map.get(k) ?? null, setItem: (k, v) => map.set(k, v), removeItem: k => map.delete(k) }; };
 
 test('the type comes from the bytes', async () => {
   assert.equal(await mimeOf(new Blob([PNG])), 'image/png');
@@ -42,7 +50,7 @@ test('the type comes from the bytes', async () => {
 
 test('a voice note uploads its bytes with their hash, kind and duration, and becomes a valid voice EvidenceRef', async () => {
   const store = fakeStore();
-  const assets = createExplainBackAssets({ app: 'canvas-0123abcd', board: 'main', fetchImpl: store.fetchImpl, storage: memory() });
+  const assets = createExplainBackAssets({ app: 'canvas-0123abcd', board: 'main', fetchImpl: store.fetchImpl });
   const progress = [];
   const file = new File([OGG], 'voice-note.ogg', { type: 'audio/ogg' });
   const asset = await assets.voice.upload(file, { durationMs: 3200.4, onProgress: p => progress.push(p) });
@@ -59,23 +67,38 @@ test('a voice note uploads its bytes with their hash, kind and duration, and bec
   assert.equal(store.calls.at(-1).query.app, 'canvas-0123abcd', 'reads name the canvas too');
 });
 
-test('the voice controller saves through the store end to end, and the draft reference is kept per card', async () => {
+test('voice and recording references live in the card\'s server draft, so a reload finds them', async () => {
   const store = fakeStore();
-  const storage = memory();
-  const assets = createExplainBackAssets({ app: 'canvas-0123abcd', board: 'main', fetchImpl: store.fetchImpl, storage });
+  let id = 0;
+  const timers = { pending: new Map(), setTimeout(fn) { this.pending.set(++id, fn); return id; }, clearTimeout(key) { this.pending.delete(key); } };
+  const fire = async () => { const fns = [...timers.pending.values()]; timers.pending.clear(); for (const fn of fns) fn(); for (let i = 0; i < 5; i++) await new Promise(r => setTimeout(r, 0)); };
+  const assets = createExplainBackAssets({ app: 'canvas-0123abcd', board: 'main', fetchImpl: store.fetchImpl, timers });
   assert.equal(assets.voice.saved('q1'), null);
+  await fire();
   const ref = { evidenceId: 'ev_voice_1', role: 'voice', media: 'audio', state: 'ready', assetId: 'aa_voice00000001', revision: 1, hash: 'a'.repeat(64), mime: 'audio/ogg', bytes: 10, durationMs: 1000 };
   assets.voice.onSaved('q1', ref);
   assert.deepEqual(assets.voice.saved('q1'), ref);
-  assert.equal(assets.voice.saved('q2'), null, 'another card has its own');
-  assert.equal(createVoiceNote({ saved: assets.voice.saved('q1'), load: assets.voice.load }).get().status, 'saved', 'a reload starts from the kept note');
-  assets.voice.onSaved('q1', null);
-  assert.equal(assets.voice.saved('q1'), null);
+  const rec = { evidenceId: 'ev_rec_1', role: 'recording', media: 'sketch_timeline', state: 'ready', assetId: 'aa_rec000000001', revision: 1, hash: 'b'.repeat(64), mime: 'application/json', bytes: 99, durationMs: 4000 };
+  assets.recording.onSaved('q1', rec);
+  await fire();
+  assert.deepEqual(store.drafts.get('q1').answer.voice, [ref]);
+  assert.deepEqual(store.drafts.get('q1').answer.recording, rec);
+  assert.equal(store.calls.filter(c => c.path.endsWith('/drafts') && c.method === 'PUT').length, 1, 'one debounced save for both');
+  // A reload: a new assets object reads the server draft.
+  const reloaded = createExplainBackAssets({ app: 'canvas-0123abcd', board: 'main', fetchImpl: store.fetchImpl, timers });
+  await reloaded.drafts.for('q1').load();
+  assert.deepEqual(reloaded.voice.saved('q1'), ref);
+  assert.deepEqual(reloaded.recording.saved('q1'), rec);
+  assert.equal(createVoiceNote({ saved: reloaded.voice.saved('q1'), load: reloaded.voice.load }).get().status, 'saved');
+  assets.voice.onSaved('q1', null); assets.recording.onSaved('q1', null);
+  await fire();
+  assert.deepEqual(store.drafts.get('q1').answer.voice, []);
+  assert.equal('recording' in store.drafts.get('q1').answer, false);
 });
 
 test('a Sketch capture uploads its PNG and then its marks and text, and becomes a sketch EvidenceRef', async () => {
   const store = fakeStore();
-  const assets = createExplainBackAssets({ app: 'canvas-0123abcd', board: 'b2', fetchImpl: store.fetchImpl, storage: memory() });
+  const assets = createExplainBackAssets({ app: 'canvas-0123abcd', board: 'b2', fetchImpl: store.fetchImpl });
   const block = { sketch: { strokes: [{ points: [{ x: 0, y: 0 }, { x: 4, y: 4 }] }], shapes: [], items: [] } };
   const ref = await assets.uploadSketch({ block, sketch: { image: dataUrl(PNG), text: 'Marks: 1 freehand stroke' } });
   const [png, meta] = store.calls;
@@ -90,13 +113,13 @@ test('a Sketch capture uploads its PNG and then its marks and text, and becomes 
 
 test('the store\'s refusals surface with their code, a learner reason and whether Retry can help', async () => {
   for (const [code, status, retryable, words] of [['asset_too_large', 413, false, /larger/], ['unsupported_asset', 415, false, /format/], ['asset_hash_mismatch', 400, true, /damaged/], ['attempts_unavailable', 503, true, /Retry/]]) {
-    const assets = createExplainBackAssets({ app: 'canvas-0123abcd', fetchImpl: fakeStore({ refuse: { code, status } }).fetchImpl, storage: memory() });
+    const assets = createExplainBackAssets({ app: 'canvas-0123abcd', fetchImpl: fakeStore({ refuse: { code, status } }).fetchImpl });
     await assert.rejects(assets.voice.upload(new File([OGG], 'v.ogg'), { durationMs: 1000 }), error => {
       assert.deepEqual([error.code, error.status, error.retryable], [code, status, retryable]);
       assert.match(error.message, words);
       return true;
     });
   }
-  const offline = createExplainBackAssets({ app: 'canvas-0123abcd', fetchImpl: async () => { throw new TypeError('Failed to fetch'); }, storage: memory() });
+  const offline = createExplainBackAssets({ app: 'canvas-0123abcd', fetchImpl: async () => { throw new TypeError('Failed to fetch'); } });
   await assert.rejects(offline.voice.load('aa_voice00000001'), error => error.code === 'network' && error.retryable);
 });
