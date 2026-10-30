@@ -3,7 +3,7 @@
 // 'true'; otherwise the card keeps its legacy single-attempt grade. Reads never call a model; submit saves one immutable
 // attempt and its one assessment runs inside that request (learn-attempt-routes.js).
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AttemptRequestError, bindCard, listAttempts, newSubmissionKey, readAttempt, reassessAttempt, submitAnswer } from './explain-back-client.js';
+import { AttemptRequestError, bindCard, listAttempts, newSubmissionKey, readAttempt, readSketchMeta, reassessAttempt, submitAnswer } from './explain-back-client.js';
 import { EXPLAIN_BACK_KIND, ANSWER_VERSION } from './explain-back-contract.js';
 
 // On in dev and CI builds (VITE_COACHING_DEV) and when VITE_EXPLAIN_BACK is set; production builds set neither until release.
@@ -124,6 +124,7 @@ export function useExplainBackService({ app, board, enabled = explainBackEnabled
       voice: assets?.voice || null,
       recording: assets?.recording || null,
       drafts: assets?.drafts || null,
+      sketchMeta: assetId => readSketchMeta({ app, board, assetId }),
       VoicePlayer: assets?.VoicePlayer,
       // A cited input: focus the source it came from on this canvas (its submitted revision is what the review read).
       openEvidence({ evidence }) {

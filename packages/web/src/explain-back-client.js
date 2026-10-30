@@ -39,4 +39,7 @@ export const listAttempts = ({ app, board, cardId }) => call(`${BASE}?${query({ 
 export const reassessAttempt = ({ app, board, attemptId, requestKey }) =>
   call(`${BASE}/${encodeURIComponent(attemptId)}/reassess`, { method: 'POST', body: JSON.stringify({ app, board, requestKey }) });
 
+/** A submitted Sketch's capture data ({marks, text}), owner only; restores an older attempt's drawing on Revise. */
+export const readSketchMeta = ({ app, board, assetId }) => call(`${BASE}/assets/${encodeURIComponent(assetId)}/meta?${query({ app, board })}`);
+
 export const newSubmissionKey = () => `eb_${crypto.randomUUID()}`;
