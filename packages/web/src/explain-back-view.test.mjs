@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ANSWER_PLACEHOLDER, PANEL, STOP_TO_SUBMIT, askTutorText, attemptLabel, connectionsOf, draftMemoryKey, inputPillsOf, legacyView, recallDraft, rememberDraft, reviseSketchPlan, locatorText, optionText, panelLayout, ratingBadge, serviceView, submitState } from './explain-back-view.js';
+import { ANSWER_PLACEHOLDER, PANEL, STOP_TO_SUBMIT, askTutorText, attemptLabel, connectionsOf, draftMemoryKey, inputPillsOf, legacyView, recallDraft, rememberDraft, reviseSketchPlan, locatorText, optionText, panelLayout, ratingBadge, serviceView, stackTop, submitState } from './explain-back-view.js';
 
 // Plan 2026-10-30-explain-back.md sections 3, 7H, 8 and 9: what the Explain-back card shows, from either data path.
 
@@ -100,6 +100,14 @@ test('the Sketch panel keeps the question beside it at 736, 800 and 1024 px and 
   assert.equal(panelLayout(1024, 900).width, 1024 - 16 - 20 - 326 - 44, 'never over the question');
   assert.deepEqual(panelLayout(390), { mode: 'stack', width: 358, min: 0, max: 0 });
   assert.equal(panelLayout(719).mode, 'stack');
+  // Sized from the question's real width: a 380 px card at 736 px leaves the panel 276 px beside it, not 330 over it.
+  assert.deepEqual(panelLayout(736, 460, 380), { mode: 'side', width: 276, min: 276, max: 276 });
+  assert.equal(panelLayout(800, 460, 380).width, 340);
+  assert.equal(panelLayout(736, 460, 440).mode, 'stack', 'too little left to read both side by side');
+  // Stacked under the whole card, never above the dock's top margin.
+  assert.equal(stackTop(500), 512);
+  assert.equal(stackTop(-80), 16);
+  assert.equal(stackTop(null), 16);
 });
 
 test('input pills: a Group is one pill with its count and members; a problem is in the learner\'s words', () => {

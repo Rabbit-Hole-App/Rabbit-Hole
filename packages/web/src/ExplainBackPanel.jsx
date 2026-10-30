@@ -7,7 +7,7 @@ import VoiceNote, { useVoiceNote } from './VoiceNote.jsx';
 import { voiceNoteFor, voiceSubmitState } from './explain-back-media.js';
 import SketchRecorder, { useSketchRecording } from './SketchRecorder.jsx';
 import { recordingSubmitState, sketchRecordingFor } from './sketch-recording.js';
-import { FEEDBACK_SECTIONS, PANEL, askTutorText, attemptLabel, optionText, panelLayout, ratingBadge } from './explain-back-view.js';
+import { FEEDBACK_SECTIONS, PANEL, askTutorText, attemptLabel, optionText, panelLayout, ratingBadge, stackTop } from './explain-back-view.js';
 
 // Explain-back card pieces (plan docs/superpowers/plans/2026-10-30-explain-back.md sections 3, 7H, 8 and 9): the one
 // right-side Sketch panel, the attempt selector and blue rating, and the Your answer / Tutor feedback views. The card
@@ -116,7 +116,22 @@ export function SketchPanel({ portal, surface, ownerId, ownerTitle, status, widt
     observer.observe(dock);
     return () => observer.disconnect();
   }, [dock]);
-  const layout = panelLayout(size.w, dragWidth ?? savedWidth);
+  // The owning question as it is on screen now (its width at the canvas zoom, its bottom while stacked).
+  const ownerRect = () => surface?.querySelector(`[data-block-id="${CSS.escape(ownerId)}"]`)?.getBoundingClientRect() || null;
+  const layout = panelLayout(size.w, dragWidth ?? savedWidth, ownerRect()?.width);
+  // Stacked, the panel sits under the whole card and follows it as the canvas pans or zooms (one frame read while stacked).
+  const [cardBottom, setCardBottom] = useState(null);
+  useEffect(() => {
+    if (layout.mode !== 'stack' || expanded || !dock) return undefined;
+    let frame = 0, last = null;
+    const follow = () => {
+      const rect = ownerRect(), bottom = rect ? Math.round(rect.bottom - dock.getBoundingClientRect().top) : null;
+      if (bottom !== last) { last = bottom; setCardBottom(bottom); }
+      frame = requestAnimationFrame(follow);
+    };
+    follow();
+    return () => cancelAnimationFrame(frame);
+  }, [layout.mode, expanded, dock]);
   // The canvas pans on a wheel anywhere on its surface; over the panel the wheel belongs to the panel.
   useEffect(() => {
     const element = panel.current;
@@ -140,7 +155,7 @@ export function SketchPanel({ portal, surface, ownerId, ownerTitle, status, widt
   const resize = value => Math.max(layout.min, Math.min(layout.max, Math.round(value)));
   const style = expanded ? { inset: PANEL.edge } : side
     ? { top: PANEL.edge, right: PANEL.edge, width: layout.width, height: `min(560px, calc(100% - ${2 * PANEL.edge}px))` }
-    : { left: PANEL.edge, right: PANEL.edge, bottom: PANEL.edge, height: 'min(440px, 55%)' };
+    : { left: PANEL.edge, right: PANEL.edge, top: stackTop(cardBottom), height: `max(${PANEL.floor}px, min(440px, calc(100% - ${stackTop(cardBottom) + PANEL.edge}px)))` };
   return portal(
     <section ref={panel} data-explain-sketch-panel={ownerId} data-panel-mode={expanded ? 'expanded' : layout.mode} data-thumbnail-hide aria-label="Sketch" style={style}
       onPointerDown={stop} onPointerUp={stop} onClick={stop} onDoubleClick={stop} onContextMenu={stop}

@@ -189,15 +189,21 @@ export function reviseSketchPlan({ attempt, newest, marked }) {
 }
 
 // The Sketch panel's size in its workspace (section 3, responsive table). Side by side it keeps 16 px from the right edge,
-// 20 px from the question, about 326 px for the question and 44 px for its Input; below 720 px it stacks under the card.
-export const PANEL = Object.freeze({ edge: 16, between: 20, question: 326, input: 44, min: 296, max: 700, initial: 460, stack: 720, step: 24 });
-export function panelLayout(workspace, wanted = PANEL.initial) {
-  if (workspace < PANEL.stack) return { mode: 'stack', width: Math.max(0, workspace - 2 * PANEL.edge), min: 0, max: 0 };
-  const room = workspace - PANEL.edge - PANEL.between - PANEL.question - PANEL.input;
-  const max = Math.max(1, Math.min(PANEL.max, room));
+// 20 px from the question, the question's own on-screen width (`question`, about 326 px when unknown) and 44 px for its
+// Input. At compact widths the panel takes what the question leaves, down to a readable floor; when both cannot be read
+// side by side (below 720 px, or less than `floor` left) it stacks under the card.
+export const PANEL = Object.freeze({ edge: 16, between: 20, question: 326, input: 44, min: 296, floor: 240, max: 700, initial: 460, stack: 720, step: 24 });
+export function panelLayout(workspace, wanted = PANEL.initial, question = PANEL.question) {
+  const room = workspace - PANEL.edge - PANEL.between - (Number(question) || PANEL.question) - PANEL.input;
+  if (workspace < PANEL.stack || room < PANEL.floor) return { mode: 'stack', width: Math.max(0, workspace - 2 * PANEL.edge), min: 0, max: 0 };
+  const max = Math.min(PANEL.max, Math.floor(room));
   const min = Math.min(PANEL.min, max);
   return { mode: 'side', width: Math.round(Math.max(min, Math.min(Number(wanted) || PANEL.initial, max))), min, max };
 }
+
+// Where a stacked panel goes in its dock: right under the whole answer card (its bottom, `cardBottom`, in dock pixels),
+// never over it, at least `PANEL.floor` tall; the canvas pans to reach it when the card is tall.
+export const stackTop = cardBottom => Math.max(PANEL.edge, Math.round((Number(cardBottom) || 0) + 12));
 
 // What Ask Tutor puts in the Chat composer (section 8): the exercise, the selected attempt and its feedback, as data the
 // learner can read before sending. Nothing is sent.
