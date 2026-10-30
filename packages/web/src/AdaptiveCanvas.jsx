@@ -75,6 +75,7 @@ import { REF_CARD, refCardSpot, reIdRefs, withRef, withoutRef } from './canvas-r
 import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.js';
 import { semanticReader } from './curious-context.js';
 import CanvasRefChips, { CanvasRefs } from './CanvasRefChips.jsx';
+import { HoleRow, HoleStack } from './DestinationRow.jsx';
 import CanvasRefCard from './CanvasRefCard.jsx';
 import { GRAPH_CARD } from './graph-card.js';
 import CodeCard from './CodeCard.jsx';
@@ -307,7 +308,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   // A resized node keeps its size in its own data, so a reload restores it.
   const [size, setSize] = useState({ w: saved?.w || null, h: saved?.h || null });
   const [cornerDrag, setCornerDrag] = useState(null);
-  const [refsHeight, setRefsHeight] = useState(0); // the canvas-reference chips under the content (CanvasRefChips)
+  const [refsHeight, setRefsHeight] = useState(0); // the footer under the content: Rabbit Hole and reference rows (CanvasRefChips)
   const card = useRef(null);
   useEffect(() => { setSize({ w: saved?.w || null, h: saved?.h || null }); }, [saved?.w, saved?.h]);
   const displayWidth = full ? fitWidth(layoutDrag?.w ?? cardLayout.fullWidth, limits) : cornerDrag?.w || cardLayout?.scrollableSize?.w || size.w || width;
@@ -386,7 +387,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         opener.open(id, 'learner_dblclick');
       } : undefined}
       style={{ transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(cardLayout?.slot ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, height: full ? undefined : (cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), maxHeight: full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight }}
-      className={`group relative ${selected ? 'z-[5]' : ''} ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 ${portal ? '' : 'outline-none'} ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-select' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-hole-pending/40' : 'outline-8 outline-offset-1 outline-hole/80') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
+      className={`group relative ${selected ? 'z-[5]' : ''} ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 outline-none ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-select' : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* The selected card's controls above it are ONE row (owner finding 2026-10-23: Open at the left edge and the CAD controls with
           Add to chat / Quick Edit from the right edge were anchored apart and met when the card was narrow). Open leads, `tools`
           follow right-aligned; one gap, one height (34px, the old selection bar's; 38px when the CAD tools are in it); the 8px gap above the card is the first-row
@@ -413,10 +414,10 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         <span className="h-1 w-12 rounded-full bg-line" />
       </div>
       {children}
-      <CanvasRefChips id={id} onHeight={setRefsHeight} />
-      {portal && <button type="button" data-dive-portal={portal.name} title={`Enter the Rabbit Hole: ${portal.title}`} onPointerDown={event => event.stopPropagation()} onClick={() => dive.enter(portal.name)}
-        className={`pointer-events-auto absolute -top-3 left-4 z-20 flex max-w-60 items-center gap-1 rounded-sm border bg-white px-2 py-0.5 text-[11px] shadow-sm ${portal.pending ? 'border-dashed border-hole-pending text-hole hover:bg-hole/10' : 'border-hole/40 text-hole hover:bg-hole/10'}`}>
-        <svg aria-hidden="true" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter" className="shrink-0"><path d="M6 1.5V10M2.5 6.5 6 10l3.5-3.5" /></svg><span className="truncate">{portal.title}</span></button>}
+      {/* The footer (owner, Rabbit Hole and reference navigation design 2026-10-29): the card's Rabbit Hole row, then its
+          references; measured into refsHeight. A card that owns a hole shows two layers stacked under it (HoleStack). */}
+      <CanvasRefChips id={id} onHeight={setRefsHeight} hole={portal && { ...portal, enter: () => dive.enter(portal.name) }} />
+      {portal && <HoleStack pending={portal.pending} />}
       {/* A card's comment pin sits at its top centre (owner, 2026-10-21), over the top port: that port steps aside while it
           shows, and links still reach the top by dropping on the card's top half or near its top centre (snapPort). */}
       {['top', 'bottom'].filter(side => side !== 'top' || !edit.hasPin?.(id)).map(side => <button key={side} type="button" data-port={side} data-owner={id} aria-label={`Connect ${side}`} title="Drag to connect blocks"
@@ -1595,6 +1596,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   menuOpenRef.current = !!menuAt;
   // The menu's placement, keyboard, outside-click and focus return live in CanvasMenu.jsx (UI-25); its rows in canvas-actions.js.
   const [chipEdit, setChipEdit] = useState(null); // group id whose chip should open for renaming
+  // A Rabbit Hole group's footer height by group id (owner, Rabbit Hole and reference navigation design 2026-10-29): the column
+  // keeps that much room after the group's last column card, so the cards below move down as a card's own footer moves them,
+  // and the footer never covers them. The members keep their places.
+  const [groupRoom, setGroupRoom] = useState({});
   // The tool palette hangs on the right by default; a drag on its handle can
   // park it on either edge. While dragging it follows the pointer.
   // Left by default, as Parallel shipped it (caca1c2b); the grip still docks it right.
@@ -1994,7 +1999,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Frame everything on the canvas. An infinite surface you can pan forever needs
   // a way back to your own work.
   // Notes and text boxes count too - a board of only stickies has to fit.
-  const zoomFit = () => frame([...Object.values(boundsRef.current), ...boxesOf([...shapesRef.current, ...itemsRef.current].map(entry => entry.id))]);
+  // Group frames count too: a Rabbit Hole group's footer sits below its members (owner 2026-10-29).
+  const zoomFit = () => frame([...Object.values(boundsRef.current), ...boxesOf([...shapesRef.current, ...itemsRef.current].map(entry => entry.id)), ...inlineScreenBoxes('[data-group-box]')]);
   // Stepping frames one section at a time; nothing re-renders, the camera just
   // lands somewhere else, so ink and notes drawn over a section come with it.
   const stepsRef = useRef([]);
@@ -3106,7 +3112,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   shapesRef.current = shapes;
   onAddRef.current = onAdd;
-  useLayoutEffect(measureBlocks, [exchanges, blocks, slots, measureBlocks]);
+  useLayoutEffect(measureBlocks, [exchanges, blocks, slots, groupRoom, measureBlocks]);
   // What Edit and Arrange can act on right now, so their rows grey out
   // instead of doing nothing.
   const selectedCount = selection.length;
@@ -5368,6 +5374,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         0,
       ), COLUMN, pages === 'landscape')
     : [];
+  // The column room each Rabbit Hole group's footer keeps (groupRoom), after the group's last column card.
+  const roomAfter = {};
+  for (const group of groups) {
+    const last = divePortals?.portals?.[group.id] && groupRoom[group.id] && blocks.findLast(block => block.groupId === group.id);
+    if (last) roomAfter[last.id] = groupRoom[group.id];
+  }
   const minimapBoxes = [
     ...(docBox ? [{ ...docBox, doc: true }] : []),
     ...Object.entries(bounds).map(([id, box]) => (divePortals?.portals?.[id] ? { ...box, hole: true } : box)),
@@ -5778,7 +5790,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; } }}>
-            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />)}
+            {columnEntries(blocks, slots).flatMap(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : [<LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />, roomAfter[block.id] ? <div key={`room:${block.id}`} data-group-room aria-hidden="true" style={{ height: roomAfter[block.id] }} /> : null])}
           </CanvasRefs.Provider></CardOpen.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its
@@ -5868,9 +5880,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   and the whole group moves. It sits under the members (no
                   z-index), so their own handlers still win on top of them.
                   Ctrl presses and non-select tools fall through to the canvas. */}
+              {/* A group that owns a Rabbit Hole (owner, Rabbit Hole and reference navigation design 2026-10-29): its footer spans
+                  the box beneath the members' area, which keeps its size (so the members never move and are never covered), and
+                  two layers stack under it. The footer is the only Enter: its presses never drag, select or open the group. */}
               <div data-group-box={group.id}
-                style={{ left: left - pad, top: top - pad, width: right - left + pad * 2, height: bottom - top + pad * 2 }}
-                className={`absolute rounded-xl border ${active ? 'border-select bg-select/[0.03]' : 'border-line-strong'} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-hole-pending/40' : 'outline-8 outline-offset-1 outline-hole/80') : ''} cursor-grab active:cursor-grabbing`}
+                style={{ left: left - pad, top: top - pad, width: right - left + pad * 2, ...(portal ? {} : { height: bottom - top + pad * 2 }) }}
+                className={`absolute flex flex-col rounded-xl border ${active ? 'border-select bg-select/[0.03]' : 'border-line-strong'} cursor-grab active:cursor-grabbing`}
                 onDoubleClick={divePortals ? () => (portal ? divePortals.enter(portal.name) : divePortals.open?.(group.id, group.label || `${members.length} items`)) : undefined}
                 onPointerDown={event => {
                   if (event.button !== 0 || tool !== 'select' || event.ctrlKey || event.metaKey) return;
@@ -5879,14 +5894,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   setSelection(targets);
                   let last = local(event);
                   startDrag(event, last, (x, y) => { shift(x - last.x, y - last.y, targets); last = { x, y }; }, view.z);
-                }} />
+                }}>
+                {portal && <>
+                  <div className="shrink-0" style={{ height: bottom - top + pad * 2 - 2 }} />
+                  <div data-group-footer data-own-pointer className="pointer-events-auto cursor-default" onPointerDown={event => event.stopPropagation()} onDoubleClick={event => event.stopPropagation()}
+                    ref={element => { const h = element?.offsetHeight; if (h) setGroupRoom(previous => (previous[group.id] === h ? previous : { ...previous, [group.id]: h })); }}>
+                    <HoleRow hole={{ ...portal, enter: () => divePortals.enter(portal.name) }} />
+                  </div>
+                  <HoleStack pending={portal.pending} />
+                </>}
+              </div>
               <div style={{ left: left - pad, top: top - pad - GROUP_CHIP }} className="absolute z-20 flex items-center gap-1">
                 <GroupChip group={group} editOn={chipEdit === group.id}
                   onSelect={() => setSelection(membersOf(group.id))}
                   onLabel={label => { setChipEdit(null); if (label === null || label === (group.label || '')) return; snapshot(); setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry)); }} />
-                {portal && <button type="button" data-dive-portal={portal.name} title={`Enter the Rabbit Hole: ${portal.title}`} onPointerDown={event => event.stopPropagation()} onClick={() => divePortals.enter(portal.name)}
-                  className={`pointer-events-auto flex max-w-60 items-center gap-1 rounded-sm border bg-white px-2 py-0.5 text-[11px] text-hole shadow-sm hover:bg-hole/10 ${portal.pending ? 'border-dashed border-hole-pending' : 'border-hole/40'}`}>
-                  <svg aria-hidden="true" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter" className="shrink-0"><path d="M6 1.5V10M2.5 6.5 6 10l3.5-3.5" /></svg><span className="truncate">{portal.title}</span></button>}
               </div>
             </div>
           );

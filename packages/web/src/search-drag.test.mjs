@@ -25,7 +25,7 @@ test('an existing card is repositioned, never copied; the drop point is its top 
 });
 test('a linked canvas adds one link card at the drop; one already here is moved instead of duplicated', () => {
   const fresh = searchDropPlan({ kind: 'link', target: 'board-new' }, canvas());
-  assert.equal(fresh.action, 'link'); assert.deepEqual(fresh.size, { w: 320, h: 72 });
+  assert.equal(fresh.action, 'link'); assert.deepEqual(fresh.size, { w: 320, h: 86 });
   const inserted = [];
   assert.deepEqual(applySearchDrop({ insertRefCard: (target, point, at) => { inserted.push([target, point, at]); return 'new-id'; } }, fresh, { x: 500, y: 100 }), { id: 'new-id', message: null });
   assert.deepEqual(inserted, [['board-new', null, { x: 340, y: 100 }]]);

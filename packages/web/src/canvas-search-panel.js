@@ -21,12 +21,15 @@ export const searchFilterLabel = selected => selected.length ? `Filter (${select
 // Compact preview rows (UI-12, owner brief 2026-10-21 message 21 item 1): one column, each row as tall as its layout - a text
 // or picture row, a code row by its excerpt's lines, plus the action row when it has one. Heights are fixed per result, so
 // the virtual window stays proportional to the viewport, not the board.
-export const ROW = { base: 92, line: 16, code: 14, snippet: 34, notice: 12, actions: 38 };
-export function searchRowHeight(result) {
+// backlink: one backlink destination row (DestinationRow.jsx, owner 2026-10-29) - its divider, 14px padding twice and the
+// 36px Open; touch: its Open is 44px.
+export const ROW = { base: 92, line: 16, code: 14, snippet: 34, notice: 12, actions: 38, backlink: 65, touch: 8 };
+export function searchRowHeight(result, coarse = false) {
   const lines = result.preview?.kind === 'code' ? result.preview.lines?.length || 0 : 0;
   const actions = !!(result.link || result.references?.length || result.rabbitHoles?.length);
   const notice = result.availability?.status !== 'ready' && !!result.availability?.message;
-  return ROW.base + (lines ? lines * ROW.line + ROW.code - ROW.snippet : 0) + (notice ? ROW.notice : 0) + (actions ? ROW.actions : 0);
+  const backlinks = result.link?.direction === 'to' ? result.link.cards.filter(card => card.href).length : 0;
+  return ROW.base + (lines ? lines * ROW.line + ROW.code - ROW.snippet : 0) + (notice ? ROW.notice : 0) + (actions ? ROW.actions : 0) + backlinks * (ROW.backlink + (coarse ? ROW.touch : 0));
 }
 export function searchWindow({ heights, height = 400, scrollTop = 0 }) {
   const offsets = new Array(heights.length);

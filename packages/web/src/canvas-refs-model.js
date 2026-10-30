@@ -6,7 +6,8 @@ import { freeSpot, placeNote } from './inline-ai-apply.js';
 // The server's bound per card (it answers 413 too_many_refs beyond it).
 export const MAX_REFS = 20;
 // A standalone reference card's box for placement; the Toolbar's canvas-ref card renders at this width.
-export const REF_CARD = { w: 320, h: 72 };
+// h: the drag strip (24) + Linked canvas, its title and path (48) + the row's 14px bottom padding (DestinationRow.jsx, owner 2026-10-29).
+export const REF_CARD = { w: 320, h: 86 };
 export const CARD_GONE = 'That card is no longer on this canvas.';
 
 // The card's refs with one more to `target`, or why not: only a lesson or file card (a block) holds refs - a

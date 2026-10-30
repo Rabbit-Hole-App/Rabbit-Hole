@@ -72,7 +72,7 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
 - **No card selected, bare `/dive`.** It uses the conversation's last question as the request. With
   none, it asks "What do you want to go deeper into?" and never makes an empty "Dive" card.
 - **The anchor lives on the parent.** It does not persist the child: an abandoned child leaves the
-  anchor with no outline, and the child's first object gives the anchor the green hole outline.
+  anchor with no hole mark, and the child's first object gives the anchor its Rabbit Hole footer row and stacked layers.
 - **Ctrl+K without a card** stays on the canvas as Quick Edit, and Ctrl+K outside Learn does nothing: Search is Ctrl/Cmd+Shift+F
   since 2026-10-13 (selection-action-bar.md, `shortcut-owner.js`; `Search.jsx`).
 - **Stabilization (2026-09-30):**
@@ -89,7 +89,7 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
     Ctrl/Cmd+K on a selected portal card opens the inline AI editor, not the hole; double-click enters.
   - **Navigator:**
     - No ↑ at the root, and no ↓ when there is nothing below.
-    - The current level is a green square and a green label with white text (dark text on the lighter dark-mode green).
+    - The current level is a blue square and a primary-fill label with white text in both themes (owner 2026-10-29; green before).
   - **Anchor cards** show no "Explanation" kicker, and a body only when it adds to the title
     (`/dive softmax` is just "Softmax").
 - **Pending hole.**
@@ -105,16 +105,20 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
   Before r29 the count left chat cards out, so a hole whose only object was a chat card added from the
   sheet kept its hint over the card and was discarded, card and all, on leaving; shapes, text and
   strokes always counted. The URL then moves in place without a remount.
-- **Portal.** The green outline and the "↓ title" tab on the originating card are derived from the
-  parent's `children`, through the `DivePortals` context read by `CanvasNode`. No card data changes.
-  Every hole mark (portal tab and outline, minimap holes, the map's level and markers) reads two theme
-  tokens in `index.css`, never a hex (owner r29, green not red): `--color-hole` for a kept hole and
-  `--color-hole-pending`, lighter and dashed, for one not kept yet; both flip in `.dark`.
+- **Portal.** The Rabbit Hole and reference navigation design (owner, 2026-10-29; it replaces the green outline and the
+  "↓ title" tab): a card or group that owns a hole shows two neutral layers stacked under it and a footer row - "Rabbit
+  Hole", the hole's title, and Enter ↘ in the primary blue (`DestinationRow.jsx`). A group's footer spans it beneath its
+  members, and the column keeps room for it so the cards below are never covered; the group's name stays above it with no
+  Enter of its own. A group and a card inside it can each own a different hole. Derived from the parent's `children`,
+  through the `DivePortals` context read by `CanvasNode` and the group renderer. No card data changes. The minimap's holes
+  and the map's markers read two theme tokens in `index.css`, never a hex: `--color-hole` (RH blue: #1b6fc2, #6bb4ff in
+  dark) for a kept hole and `--color-hole-pending` (#2383e2), dashed, for one not kept yet; the map's filled current-level
+  label is `bg-primary-fill` with white text in both themes.
 - **Navigator.**
   - It sits at the top of the tools' gutter and never covers content.
   - It reads top to bottom: the parent above, the deeper level below. Levels are joined by straight
     connectors with a ▾ head, and the arrows are square-capped (geometric, not rounded or chevrons).
-    The current level has a small green square, dashed while the hole is pending. Paths deeper than five levels fold their middle into "⋯ n".
+    The current level has a small blue square, dashed while the hole is pending. Paths deeper than five levels fold their middle into "⋯ n".
   - ↑ goes to the parent. ↓ goes to the only child, or opens a compact picker when there are several.
   - Click a level to go there. Double-click a name to rename it (Enter saves, Esc cancels).
   - A six-dot grip on top moves the map (owner, 2026-10-08). Only the grip drags; levels, ↑/↓, rename and the picker work
@@ -150,7 +154,7 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
 
 ## Shared map (owner, 2026-10-08)
 
-A shared (`/b/<token>`) or published (`/e/<token>`) canvas shows its Rabbit Holes Map read-only: the navigator in the gutter, and the green outline and "↓ title" tab on each hole's origin card.
+A shared (`/b/<token>`) or published (`/e/<token>`) canvas shows its Rabbit Holes Map read-only: the navigator in the gutter, and the stacked layers and Rabbit Hole footer row on each hole's origin card.
 
 **What a token covers.** A share link or publication covers exactly one board: its `learn_boards` row, its files and its notebooks. It never covers the holes below it or the canvas above it. Each hole is its own canvas with its own main board and its own Share settings; a hole cannot be published on its own.
 
