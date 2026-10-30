@@ -20,23 +20,24 @@ export const TASKS = LEARN_TASKS.animation_brief ? LEARN_TASKS : Object.freeze({
 export const INTEGRATED = SIGNABLE.includes('animation');
 export const NEEDS_PROPOSAL = INTEGRATED ? false : 'needs C:/s/spec/animation/patches/g-proposal.patch (P integration)';
 
-const hash16 = async value => (await sha256Hex(canonicalJson(value))).slice(0, 16);
+const hash64 = value => sha256Hex(canonicalJson(value));
 export const PLAN = Object.freeze({ schema: 'animation-plan/1', title: 'Lever balance', description: 'A beam balances two masses on a pivot. Moving a mass changes which side tips. The readout shows both torques.',
   experience: 'experiment', reason: 'Changing the masses shows the torque rule directly.', behavior: 'analytical', controlProfile: 'inspect', sourceRefs: [],
   parameters: [{ id: 'mass', label: 'Left mass', type: 'number', unit: 'kg', min: 1, max: 5, step: 1, default: 2 }], interactions: ['Change the left mass.'], assumptions: ['The beam is massless.'], limitations: [], requiredCapabilities: ['parameters', 'readouts'] });
 
-// The provider: replies to each request with one call of the offered tool. role is the system text the stub stages send.
+// The provider: replies to each request with one call of the offered tool. role: the real stages' tool names, else the stub stages' system text.
+const TOOL_ROLES = { animation_plan: 'brief', animation_artifact: 'author', report_review: 'review', repair_animation: 'repair' };
 export function provider(t, { reply = () => ({}), status = () => 200 } = {}) {
   const calls = [], original = globalThis.fetch;
   let gate = null;
   t.after(() => { globalThis.fetch = original; });
   globalThis.fetch = async (url, options = {}) => {
-    const body = JSON.parse(options.body), role = body.system[0]?.text || body.system;
+    const body = JSON.parse(options.body), role = TOOL_ROLES[body.tools[0].name] || body.system[0]?.text || body.system;
     calls.push({ host: new URL(url).host, model: body.model, role, toolChoice: body.tool_choice, maxTokens: body.max_tokens, images: body.messages[0].content.filter(b => b.type === 'image').length });
     if (gate) { const wait = gate; gate = null; await wait.promise; }
     const code = status(role, calls.filter(c => c.role === role).length);
     if (code !== 200) return Response.json({ type: 'error', error: { type: code === 529 ? 'overloaded_error' : 'api_error', message: 'x' } }, { status: code });
-    const input = { n: calls.length, ...reply(role, calls.filter(c => c.role === role).length) };
+    const input = { n: calls.length, ...reply(role, calls.filter(c => c.role === role).length, body) };
     return Response.json({ model: body.model, content: [{ type: 'tool_use', id: `t${calls.length}`, name: body.tools[0].name, input }], stop_reason: 'tool_use', usage: { input_tokens: 1000, output_tokens: 500 } });
   };
   return { calls, roles: () => calls.map(c => c.role), hold() { let release; const promise = new Promise(r => { release = r; }); gate = { promise }; return () => release(); } };
@@ -49,14 +50,14 @@ export const STUB_PIPELINE = (over = {}) => ({
   prepare: async (job, ctx) => { await ctx.call('brief', { system: 'brief', tool, content: job.prompt }); return { plan: { ...PLAN, ...(job.refinement ? { title: `Lever balance (${job.refinement})` } : {}) } }; },
   approvedPlan: (plan, p) => ({ ...plan, title: p.title, description: p.description, experience: p.settings.experience }),
   author: async (job, ctx) => ({ draft: { scene: 'beam', from: (await ctx.call('author', { system: 'author', tool, content: job.prompt })).input.n } }),
-  validate: async job => ({ artifact: { schema: 'animation-scene/1', title: job.plan.title, draft: job.draft, planHash: job.planHash, capabilityVersion: 'animation-capabilities/1', artifactHash: await hash16(job.draft) } }),
-  render: async job => ({ captures: [{ id: 'v0-s0', artifactHash: job.artifact.artifactHash, key: 'k' }], renders: [{ ok: true }] }),
+  validate: async job => { const artifact = { schema: 'animation-scene/1', title: job.plan.title, draft: job.draft, planHash: job.planHash, capabilityVersion: 'animation-capabilities/1' }; return { artifact, artifactHash: await hash64(artifact) }; },
+  render: async job => ({ captures: [{ id: 'v0-s0', artifactHash: job.artifactHash, key: 'k' }], renders: [{ ok: true }] }),
   review: async (job, ctx) => {
     const verdict = (await ctx.call('review', { system: 'review', tool, content: 'artifact' })).input;
-    return { accepted: verdict.accepted === true, findings: verdict.accepted ? [] : [{ category: 'spec', severity: 'major', message: 'wrong' }], repairable: verdict.repairable !== false, artifactHash: job.artifact.artifactHash };
+    return { accepted: verdict.accepted === true, findings: verdict.accepted ? [] : [{ category: 'spec', severity: 'major', message: 'wrong' }], repairable: verdict.repairable !== false, artifactHash: job.artifactHash };
   },
   repair: async (job, ctx) => ({ draft: { ...job.draft, repaired: (await ctx.call('repair', { system: 'repair', tool, content: 'fix' })).input.n }, progress: true, operation: 'artifact' }),
-  intact: async artifact => !!artifact?.artifactHash && artifact.artifactHash === await hash16(artifact.draft),
+  intact: async (artifact, artifactHash) => !!artifact && artifactHash === await hash64(artifact),
   ...over,
 });
 

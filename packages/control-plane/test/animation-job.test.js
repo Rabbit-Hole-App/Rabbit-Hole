@@ -47,7 +47,7 @@ test('Generate runs author -> validate -> render -> review to one result bound t
   assert.ok(s.model.calls.every(c => c.model === 'claude-opus-5-5' && c.toolChoice.type === 'auto'));
   const view = await s.job(id);
   const r = view.job.result;
-  assert.deepEqual([r.cardId, r.canvas.boardId, r.planHash, r.artifactHash, typeof r.sources, r.experience], ['card-0001', BOARD.id, done.planHash, done.artifact.artifactHash, 'string', 'experiment']);
+  assert.deepEqual([r.cardId, r.canvas.boardId, r.planHash, r.artifactHash, typeof r.sources, r.experience], ['card-0001', BOARD.id, done.planHash, done.artifactHash, 'string', 'experiment']);
   // The card keeps a reference only: no draft, program or scene on the canvas.
   assert.deepEqual(view.block, { type: 'animation3d', id: 'card-0001', title: 'Lever balance', animation3d: { resultId: r.resultId, artifactHash: r.artifactHash, revision: r.revision, experience: 'experiment' } });
   assert.equal(JSON.stringify(view).includes('Show why a lever balances'), false, 'the prompt stays private to the job');
@@ -66,7 +66,7 @@ test('the result is read only by its owner on its canvas, and only while its art
   const { done } = await s.generated();
   const read = await s.send('result', {}, done.resultId);
   assert.equal(read.status, 200);
-  assert.deepEqual([read.body.artifact.artifactHash, read.body.execution], [done.artifact.artifactHash, { allowed: true }]);
+  assert.deepEqual([read.body.identity.artifactHash, read.body.execution], [done.artifactHash, { allowed: true }]);
   assert.equal((await s.send('result', {}, done.resultId, OTHER)).status, 404);
   assert.equal((await s.send('result', {}, done.resultId, OWNER, s.actor, { ...BOARD, id: 'board-2' })).status, 404);
   assert.equal((await s.send('result', {}, 'ar_unknown')).status, 404);
@@ -89,7 +89,7 @@ test('a rejected review gets exactly one repair, and the repaired artifact is ac
   const reviews = done.findings.filter(f => f.stage === 'reviewing');
   assert.deepEqual(reviews.map(f => f.accepted), [false, true]);
   assert.ok(done.artifact.draft.repaired, 'the accepted artifact is the repaired one');
-  assert.equal(done.result.artifactHash, done.artifact.artifactHash);
+  assert.equal(done.result.artifactHash, done.artifactHash);
   assert.equal(done.repairs, 1);
 });
 
@@ -230,7 +230,7 @@ test('a malformed author reply fails the build with no silent fallback and no re
 });
 
 test('the summed per-call bounds of a build can never exceed its worst case: a third review is refused', { skip }, async t => {
-  const s = animationStack(t, { pipeline: STUB_PIPELINE({ review: async (job, ctx) => { for (let i = 0; i < 3; i++) await ctx.call('review', { system: 'review', tool: { name: 'x', input_schema: { type: 'object' } }, content: 'x' }); return { accepted: true, artifactHash: job.artifact.artifactHash }; } }) });
+  const s = animationStack(t, { pipeline: STUB_PIPELINE({ review: async (job, ctx) => { for (let i = 0; i < 3; i++) await ctx.call('review', { system: 'review', tool: { name: 'x', input_schema: { type: 'object' } }, content: 'x' }); return { accepted: true, artifactHash: job.artifactHash }; } }) });
   const { done } = await s.generated();
   assert.deepEqual([done.stage, done.stopReason, done.counts.review], ['failed', 'budget', 2]);
   assert.ok(done.bounds.generation <= done.reservation.generationMicros);

@@ -29,6 +29,12 @@ import { blockedBody, referencesKey, resolveReferences } from './generation-revi
 import { isReviewProposal } from '../../web/src/generation-review.js';
 import { canonicalJson } from './explain-render.js';
 import { beginStage, countStage, endStage, markTiming, newTiming, timingSummary } from './explain-policy.js';
+import { hashAnimationPlan } from '../../web/src/animation3d/contract.js';
+import { approvedPlan, prepareStage } from './animation-brief.js';
+import { artifactIntact, authorStage, validateStage } from './animation-author.js';
+import { renderStage } from './animation-render.js';
+import { reviewStage } from './animation-review.js';
+import { repairStage } from './animation-repair.js';
 import { ANIMATION_LIMITS, ANIMATION_POLICY_VERSION, AnimationPolicyError, animationRequest, animationReservation, callAnimationRole, checkAnimationRequest } from './animation-policy.js';
 
 export const ANIMATION_PREFIX = '/api/learn/animation/jobs';
@@ -37,6 +43,10 @@ export const animationEnabled = env => env.ANIMATION_ENABLED === 'true';
 export const ANIMATION_DISABLED = 'Animations are not available here yet.';
 // Server-owned execution eligibility of an accepted artifact, separate from generation (kill switch ANIMATION_EXECUTION_KILL=true).
 export const animationExecution = env => ({ allowed: env.ANIMATION_EXECUTION_KILL !== 'true' });
+
+// The stage work: plan (animation-brief.js), author and validate (animation-author.js), render (animation-render.js, the env.BROWSER
+// seam), review (animation-review.js), repair (animation-repair.js); approvedPlan applies the reviewed proposal; intact checks a stored result.
+export const animationPipeline = Object.freeze({ prepare: prepareStage, approvedPlan, author: authorStage, validate: validateStage, render: renderStage(), review: reviewStage, repair: repairStage, intact: artifactIntact });
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const fail = (message, status = 400, code = null) => Object.assign(new Error(message), { status, ...(code ? { code } : {}) });
@@ -62,7 +72,7 @@ export function publicAnimationJob(job) {
     timing: timingSummary(job.timing), createdAt: job.createdAt, updatedAt: job.updatedAt,
   };
 }
-const diagnostics = job => ({ plan: job.plan, draft: job.draft, artifact: job.artifact && { ...job.artifact, program: job.artifact.program ? { bytes: JSON.stringify(job.artifact.program).length } : undefined },
+const diagnostics = job => ({ plan: job.plan, draft: job.draft, artifactHash: job.artifactHash, artifact: job.artifact && { ...job.artifact, program: job.artifact.program ? { bytes: job.artifact.program.source.length, sourceHash: job.artifact.program.sourceHash } : undefined },
   findings: job.findings, candidates: job.candidates, calls: job.calls, captures: (job.captures || []).map(({ data: _bytes, ...capture }) => capture), coverage: job.coverage ?? null, counts: job.counts, bounds: job.bounds, timing: job.timing });
 
 // Only the actions that can run now. retry_render: the retained validated artifact, rendered again (no reauthoring). new_attempt:
@@ -142,9 +152,8 @@ export async function animationRoute(path, req, env, deps = {}) {
 }
 
 export class AnimationJobs {
-  // pipeline: the stage work (animation-pipeline defaults, injected by tests). options.tasks: the model task table (LEARN_TASKS).
-  constructor(state, env, pipeline, { tasks = LEARN_TASKS } = {}) {
-    if (!pipeline) throw new Error('AnimationJobs needs its pipeline.');
+  // pipeline: the stage work (animationPipeline; tests inject stubs). options.tasks: the model task table (LEARN_TASKS).
+  constructor(state, env, pipeline = animationPipeline, { tasks = LEARN_TASKS } = {}) {
     this.state = state; this.env = env; this.pipeline = pipeline; this.tasks = tasks; this.active = new Set();
   }
   async locked(fn) {
@@ -191,7 +200,7 @@ export class AnimationJobs {
   async readResult(resultId, board, user) {
     const saved = typeof resultId === 'string' && await this.state.storage.get(`result:${resultId}`);
     if (!saved || saved.owner?.email !== user.email || saved.boardId !== board.id) throw fail('Not available', 404);
-    if (!await this.pipeline.intact(saved.artifact)) throw fail('This animation could not be opened. Your saved version is kept.', 409, 'version_unavailable');
+    if (!await this.pipeline.intact(saved.artifact, saved.identity?.artifactHash)) throw fail('This animation could not be opened. Your saved version is kept.', 409, 'version_unavailable');
     return json({ artifact: saved.artifact, identity: saved.identity, execution: animationExecution(this.env) });
   }
 
@@ -214,7 +223,7 @@ export class AnimationJobs {
       stage: 'queued', attempt: 1, repairs: 0, stopped: false, stopReason: null, failure: null, inFlight: null,
       counts: { brief: 0, author: 0, review: 0, repair: 0 }, bounds: { preparation: 0, generation: 0 }, calls: [], renders: 0,
       prepKey: `ap${hex()}`, actionKey: `ag${hex()}`, resultId: `ar_${hex()}`, revision: `av_${hex()}`,
-      plan: null, planHash: null, approval: null, draft: null, artifact: null, captures: null, coverage: null, findings: [], candidates: [], result: null,
+      plan: null, planHash: null, approval: null, draft: null, artifact: null, artifactHash: null, captures: null, coverage: null, findings: [], candidates: [], result: null,
       timing: newTiming('simple', now), createdAt: now, updatedAt: now, deadline: now + ANIMATION_LIMITS.deadlines.jobMs,
       reservation: animationReservation(this.tasks),
     };
@@ -354,7 +363,7 @@ export class AnimationJobs {
       job.context = { ...(job.context && typeof job.context === 'object' ? job.context : {}), refs: bounded.refs, refText: [job.context?.refText, payload.approved_refs.text].filter(Boolean).join('\n\n').slice(0, 24000) };
       job.evidence = bounded.evidence;
     }
-    job.plan = executed; job.planHash = await hash16(executed);
+    job.plan = executed; job.planHash = await hashAnimationPlan(executed);
     markTiming(job.timing, 'generate');
     Object.assign(job, { approval: { planHash: job.planHash, proposal: job.proposal, ...(isReviewProposal(p) ? { reviewHash: p.review_hash } : {}), sources: await this.sourcesKey(job), at: Date.now() },
       stage: 'authoring', deadline: Date.now() + ANIMATION_LIMITS.deadlines.jobMs });
@@ -368,7 +377,7 @@ export class AnimationJobs {
   // What the card keeps on the canvas: a reference to the accepted artifact, never its program or scene (read through the result route).
   async block(job) {
     const saved = await this.state.storage.get(`result:${job.resultId}`);
-    return saved && { type: 'animation3d', id: job.cardId, title: saved.artifact.title ?? job.plan?.title ?? null,
+    return saved && { type: 'animation3d', id: job.cardId, title: saved.artifact.title,
       animation3d: { resultId: job.resultId, artifactHash: saved.identity.artifactHash, revision: saved.identity.revision, experience: saved.identity.experience } };
   }
 
@@ -460,7 +469,7 @@ export class AnimationJobs {
     if (job.inFlight) { if (!this.active.has(job.id)) await this.locked(async () => { const current = await this.get(job.id); if (current.inFlight && !this.active.has(job.id)) await this.reconcile(current); }); return; }
     if (Date.now() > job.deadline) throw Object.assign(fail('This animation reached its time limit.', 409), { stopReason: 'deadline' });
     if (job.stage === 'queued') return this.move(job, job.approval ? 'authoring' : 'preparing');
-    const ctx = { env: this.env, call: (role, spec) => this.paidCall(job, role, spec), limits: ANIMATION_LIMITS };
+    const ctx = { env: this.env, call: (role, spec) => this.paidCall(job, role, spec), limits: ANIMATION_LIMITS, tasks: this.tasks };
     const stage = job.stage, attempt = job.attempt;
     const run = { preparing: 'prepare', authoring: 'author', validating: 'validate', rendering: 'render', reviewing: 'review', repairing: 'repair' }[stage];
     const out = await this.pipeline[run](structuredClone(job), ctx);
@@ -484,20 +493,23 @@ export class AnimationJobs {
     // A capability the enabled phase lacks ends the job with what is missing: no repair, no simpler substitute scene.
     if (out.gap) { await this.stopWith(job, 'capability_gap', 'capability', out.gap.message); job.failure.gap = out.gap; return this.save(job); }
     if (stage === 'preparing') {
-      job.plan = out.plan; job.planHash = await hash16(out.plan); job.approval = null; job.refinement = null;
+      job.plan = out.plan; job.planHash = await hashAnimationPlan(out.plan); job.approval = null; job.refinement = null;
       await this.finishUsage({ ...job, actionKey: null }, 'completed');
       // A prepared plan always waits for the learner's Generate; only approve() moves it on.
       endStage(job.timing, 'done'); job.stage = 'awaiting_approval'; beginStage(job.timing, 'awaiting_approval'); markTiming(job.timing, 'proposalReady');
       job.threadId ??= await this.planThread(job);
       await this.postPlan(job);
     } else if (stage === 'authoring') {
-      Object.assign(job, { draft: out.draft, artifact: null, captures: null, coverage: null });
+      Object.assign(job, { draft: out.draft, artifact: null, artifactHash: null, captures: null, coverage: null });
       next('validating');
     } else if (stage === 'validating') {
       if (out.problems?.length) { job.findings.push({ repairs: job.repairs, stage, problems: out.problems }); return this.repairOrStop(job, out); }
       // The artifact is the host's: sealed from the approved plan and sources, its hash computed here, never taken from the model.
       if (out.artifact?.planHash !== job.planHash) throw Object.assign(fail('The animation was built from another plan.', 409), { category: 'internal' });
-      job.artifact = out.artifact;
+      if (!/^[0-9a-f]{64}$/.test(out.artifactHash || '')) throw Object.assign(fail('The animation was not sealed.', 500), { category: 'internal' });
+      // A repair whose sealed result is the candidate it was asked to fix made no progress: stop rather than render and review it again.
+      if (job.repairs && out.artifactHash === job.repairedFrom) return this.stopWith(job, 'no_progress', 'spec', 'The animation could not be repaired. Edit the request and try again.');
+      job.artifact = out.artifact; job.artifactHash = out.artifactHash;
       next('rendering');
     } else if (stage === 'rendering') {
       if (out.problems?.length) {
@@ -505,14 +517,14 @@ export class AnimationJobs {
         if (out.renders?.length) { job.renders += out.renders.length; await this.recordRenders(job, out.renders); }
         return this.repairOrStop(job, out);
       }
-      if (!out.captures?.length || out.captures.some(c => c.artifactHash !== job.artifact.artifactHash)) throw Object.assign(fail('The animation could not be rendered for review (captures_missing). Retry rendering.', 503, 'captures_missing'), { category: 'renderer' });
+      if (!out.captures?.length || out.captures.some(c => c.artifactHash !== job.artifactHash)) throw Object.assign(fail('The animation could not be rendered for review (captures_missing). Retry rendering.', 503, 'captures_missing'), { category: 'renderer' });
       job.captures = out.captures; job.coverage = out.coverage ?? null; job.renders += out.renders?.length || 0;
       countStage(job.timing, { captures: job.captures.length });
       await this.recordRenders(job, out.renders || []);
       next('reviewing');
     } else if (stage === 'reviewing') {
       // A verdict counts only for exactly the artifact under review: a stale or unbound one is never an acceptance.
-      if (out.artifactHash !== job.artifact?.artifactHash) throw Object.assign(fail('The review was not of this animation.', 409, 'review_stale'), { category: 'internal' });
+      if (!job.artifactHash || out.artifactHash !== job.artifactHash) throw Object.assign(fail('The review was not of this animation.', 409, 'review_stale'), { category: 'internal' });
       job.findings.push({ repairs: job.repairs, stage, accepted: out.accepted === true, findings: out.findings || [] });
       if (out.accepted === true) return this.accept(job);
       return this.repairOrStop(job, out);
@@ -520,7 +532,7 @@ export class AnimationJobs {
       job.candidates.push({ repairs: job.repairs, operation: out.operation || null, progress: out.progress !== false, ...(out.draft ? { draftHash: await hash16(out.draft) } : {}), ...(out.rejected ? { rejected: out.rejected } : {}) });
       if (out.rejected) return this.stopWith(job, 'unsupported_repair', 'spec', 'This animation needs a change the repair step cannot make. Edit the request and try again.');
       if (out.progress === false || !out.draft) return this.stopWith(job, 'no_progress', 'spec', 'The animation could not be repaired. Edit the request and try again.');
-      Object.assign(job, { draft: out.draft, artifact: null, captures: null, coverage: null });
+      Object.assign(job, { draft: out.draft, artifact: null, artifactHash: null, captures: null, coverage: null });
       next('validating');
     }
     await this.save(job);
@@ -528,7 +540,7 @@ export class AnimationJobs {
   async repairOrStop(job, out) {
     if (job.repairs >= ANIMATION_LIMITS.repairs) return this.stopWith(job, 'rounds', out.category || 'spec', 'The animation did not pass its checks after one correction. Edit the request and try again.');
     if (out.repairable === false) return this.stopWith(job, 'unsupported_repair', out.category || 'spec', out.message || 'This animation needs a change the repair step cannot make. Edit the request.');
-    job.repairs++; endStage(job.timing, 'rejected'); job.stage = 'repairing'; beginStage(job.timing, 'repairing');
+    job.repairs++; job.repairedFrom = job.artifactHash; endStage(job.timing, 'rejected'); job.stage = 'repairing'; beginStage(job.timing, 'repairing');
     await this.save(job);
   }
   async stopWith(job, stopReason, category, message, retryable = false) {
@@ -541,7 +553,7 @@ export class AnimationJobs {
   async accept(job) {
     const artifact = job.artifact, author = job.calls.filter(c => c.role === 'author' && c.status === 'settled').at(-1);
     job.result = { jobId: job.id, resultId: job.resultId, cardId: job.cardId, canvas: { boardId: job.boardId }, requestRef: (await sha256Hex(`${job.requestId}|${job.prompt}`)).slice(0, 16),
-      revision: job.revision, planHash: job.planHash, sources: job.approval?.sources ?? null, artifactHash: artifact.artifactHash, experience: job.plan?.experience ?? null,
+      revision: job.revision, planHash: job.planHash, sources: job.approval?.sources ?? null, artifactHash: job.artifactHash, experience: job.plan?.experience ?? null,
       capabilityVersion: artifact.capabilityVersion ?? null, policyVersion: job.policyVersion };
     await this.state.storage.put(`result:${job.resultId}`, { kind: 'animation3d', artifact, identity: job.result, owner: { org: job.owner.org, email: job.owner.email }, boardId: job.boardId, cardId: job.cardId,
       authoredBy: author ? { requested: author.requested, served: author.served } : null,
