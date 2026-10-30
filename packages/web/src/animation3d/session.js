@@ -1,6 +1,6 @@
 // One Animation card's live session (plan section 5 "State and recovery rules", AN-03/AN-04 UI half). No React: the card
 // (Animation3DCard.jsx) mirrors its state. Three stages, each failing on its own and retried on its own:
-//   artifact  loadArtifact(block, { signal })                              the accepted scene (or a fixture)
+//   artifact  loadArtifact(block, { signal })                              the accepted scene (or a fixture), validated here
 //   runtime   createRuntime({ artifact, snapshot, onFrame, onError })      lane R's runtime.js: behavior, inputs, frames
 //   renderer  createRenderer({ container, onSelect, onGesture, onCameraChange }).load(artifact, { signal, generation })
 // The renderer exists only while the card holds a WebGL slot (attach/detach); the runtime keeps the scene's state, inputs and
@@ -13,7 +13,8 @@
 // - Scene Reset restores simulation defaults and keeps the camera; Reset view changes only the camera.
 // - Saves are the settled snapshot and the camera, debounced, flushed on dispose; never per frame, and camera saves never ask
 //   the runtime for anything.
-import { accepted, cardModel, defaultInputs, eventFor, failureOf, frameView, savedCamera, savedSnapshot } from './card.js';
+import { validateAnimationArtifact } from './contract.js';
+import { accepted, cardModel, defaultInputs, eventFor, failureOf, frameView, invalidArtifact, savedCamera, savedSnapshot } from './card.js';
 
 export const SAVE_DELAY_MS = 800;
 
@@ -45,7 +46,7 @@ export function createCardSession({ loadArtifact, createRuntime, createRenderer 
   const settled = () => { const snap = snapshot(); if (snap) saver.queue({ snapshot: snap }); return snap; };
 
   function showFrame(frame) {
-    const view = frameView(frame);
+    const view = frameView(frame, state.model);
     try { renderer?.applyFrame(frame); } catch (error) { rendererFailed(error); }
     set({ frame, readouts: view.readouts, goal: view.goal });
   }
@@ -54,9 +55,12 @@ export function createCardSession({ loadArtifact, createRuntime, createRenderer 
     abortArtifact?.abort();
     const abort = abortArtifact = new AbortController();
     try {
-      const artifact = await loadArtifact(block, { signal: abort.signal });
+      const loaded = await loadArtifact(block, { signal: abort.signal });
       if (stale(mine)) return;
-      set({ artifact, model: cardModel(artifact) });
+      // Malformed output never reaches the runtime or renderer: the contract checks it first.
+      const checked = validateAnimationArtifact(loaded);
+      if (!checked.ok) throw invalidArtifact(checked.issues);
+      set({ artifact: checked.value, model: cardModel(checked.value) });
     } catch (error) {
       if (!stale(mine) && error?.name !== 'AbortError') set({ failure: failureOf('artifact', error) });
       return;
@@ -78,7 +82,7 @@ export function createCardSession({ loadArtifact, createRuntime, createRenderer 
     try {
       await created.ready;
       if (!own()) return;
-      set({ runtime: 'ready', inputs: snapshot()?.inputs ?? defaultInputs(state.model), pending: null, changed: !!savedSnapshot(block) });
+      set({ runtime: 'ready', inputs: snapshot()?.inputs ?? defaultInputs(state.artifact), pending: null, changed: !!savedSnapshot(block) });
     } catch (error) {
       if (own()) set({ runtime: 'failed', failure: failureOf('runtime', error) });
     }
@@ -139,7 +143,7 @@ export function createCardSession({ loadArtifact, createRuntime, createRenderer 
     try { await from.reset(); } catch { if (runtime === from && !dead) set({ notice: 'Reset did not complete. The last good state is kept.' }); return false; }
     if (runtime !== from || dead) return false;
     const snap = settled();
-    set({ inputs: snap?.inputs ?? defaultInputs(state.model), pending: null, changed: false, notice: '', selected: null });
+    set({ inputs: snap?.inputs ?? defaultInputs(state.artifact), pending: null, changed: false, notice: '', selected: null });
     return true;
   }
 

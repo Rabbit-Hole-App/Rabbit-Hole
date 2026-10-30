@@ -10,6 +10,7 @@ import {
   artifactRefOf, cardPhase, detectWebGL, EXPERIENCE_LABELS, failureText, FIXTURE_LABEL, FIXTURE_NOTE, fixtureIdOf, INTERACT_LEGEND,
   jobOf, posterOf, retryLabel, visibleControls, WEBGL_UNAVAILABLE, withSaved,
 } from './animation3d/card.js';
+import { ANIMATION_FIXTURES } from './animation3d/fixtures.js';
 import { createCardSession } from './animation3d/session.js';
 import { useSceneInteraction } from './animation3d/interaction.js';
 import { Actions, buttonClass, GamePanel, Parameters, Readouts, Toolbar } from './animation3d/Controls.jsx';
@@ -21,10 +22,26 @@ import { Actions, buttonClass, GamePanel, Parameters, Readouts, Toolbar } from '
 // draws and relays. Nothing here calls a model: playing, adjusting and resetting are local to the accepted artifact.
 //
 // Props beyond the canvas's usual block/onChange/onChangeQuiet/selected/readOnly:
-//   loadArtifact(block, { signal }) -> artifact   createRuntime(options)   createRenderer(options)   (P wires the real ones)
+//   createRuntime(options)  createRenderer(options)  lane R's factories (P wires the real ones); loadArtifact(block, { signal })
+//   defaults to loadAnimationArtifact below
 //   onEdit()  the reviewed refinement path (proposal)     onAsk()  Ask Tutor with this card as context
 //   webgl     override the browser check (tests)          fetchJson  the app's api() (tests inject a stub)
 const OFFSCREEN_RELEASE_MS = 2000;
+
+// The default artifact source: a fixture card's built-in example by its name (fixtures.js), else the accepted result through the
+// owner's result route (client.js). The session validates whatever comes back before anything runs or draws it.
+// ponytail: artifactRef { id, boardId } and the { artifact } answer are proposed until lanes A and G hand back.
+export const loadAnimationArtifact = fetchJson => async (block, { signal }) => {
+  const name = fixtureIdOf(block);
+  if (name) {
+    const fixture = ANIMATION_FIXTURES.find(entry => entry.name === name);
+    if (!fixture) throw new Error('This example is not available.');
+    return structuredClone(fixture.artifact);
+  }
+  const ref = artifactRefOf(block);
+  if (!ref?.id || !ref.boardId) throw new Error('This card has no saved scene.');
+  return (await animationClient(fetchJson, ref.boardId).result(ref.id, { signal })).artifact;
+};
 
 function Header({ title, experience, fixture }) {
   const slot = useContext(PromptSlot);
@@ -96,7 +113,7 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
   );
 }
 
-function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, onEdit, onAsk, loadArtifact, createRuntime, createRenderer, webgl }) {
+function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, onEdit, onAsk, loadArtifact, createRuntime, createRenderer, webgl, fetchJson }) {
   const latest = useRef(block); latest.current = block;
   const root = useRef(null), scene = useRef(null), host = useRef(null), press = useRef(null);
   const viewerId = useRef(null); viewerId.current ||= `animation3d:${block.id}:${Math.random().toString(36).slice(2)}`;
@@ -105,7 +122,7 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
   const [view, setView] = useState(null), [hintOpen, setHintOpen] = useState(false), [visible, setVisible] = useState(false), [slot, setSlot] = useState(false);
   const session = useRef(null);
   session.current ||= createCardSession({
-    loadArtifact, createRuntime, createRenderer: webglOk ? createRenderer : null, onUpdate: setView,
+    loadArtifact: loadArtifact ?? loadAnimationArtifact(fetchJson), createRuntime, createRenderer: webglOk ? createRenderer : null, onUpdate: setView,
     // A share-link visitor or read-only viewer keeps the scene's state in memory only; the owner's settled changes save quietly.
     save: saved => { if (!readOnly) (onChangeQuiet || onChange)(withSaved(latest.current, saved)); },
   });
@@ -197,7 +214,7 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
         <div ref={below} data-scroll={scrolls || undefined} data-animation-controls className="-mx-1 flex min-h-0 shrink flex-col gap-2 overflow-y-auto px-1" onPointerDown={event => event.stopPropagation()}>
           <Toolbar show={show} playing={state.playing} speed={state.speed} speeds={model.loop?.speeds ?? []} live={ready} disabled={!runtimeReady}
             onPlay={live.play} onPause={live.pause} onRestart={() => live.restart()} onSpeed={live.setSpeed} onResetView={live.resetView} />
-          {show.game && <GamePanel goal={model.goal} status={state.goal} disabled={!runtimeReady} hintOpen={hintOpen} onHint={() => setHintOpen(open => !open)} onCheck={() => live.action(model.goal.check)} />}
+          {show.game && <GamePanel goal={model.goal} status={state.goal} hintOpen={hintOpen} onHint={() => setHintOpen(open => !open)} />}
           <Parameters parameters={model.parameters} values={values} disabled={!runtimeReady} onChange={(id, value) => live.setParameter(id, value)} />
           <Actions actions={model.actions} disabled={!runtimeReady} onAction={id => live.action(id)} />
           <Readouts readouts={state.readouts} />
@@ -224,7 +241,7 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
 }
 
 export default function Animation3DCard({ block, onChange, onChangeQuiet, selected = true, readOnly = false, onEdit = null, onAsk = null,
-  loadArtifact, createRuntime, createRenderer = null, webgl = undefined, fetchJson = api }) {
+  loadArtifact = null, createRuntime, createRenderer = null, webgl = undefined, fetchJson = api }) {
   const pending = !!jobOf(block) && !artifactRefOf(block) && !fixtureIdOf(block);
   if (pending) {
     return (
@@ -235,5 +252,5 @@ export default function Animation3DCard({ block, onChange, onChangeQuiet, select
     );
   }
   return <AnimationScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} selected={selected} readOnly={readOnly} onEdit={onEdit} onAsk={onAsk}
-    loadArtifact={loadArtifact} createRuntime={createRuntime} createRenderer={createRenderer} webgl={webgl} />;
+    loadArtifact={loadArtifact} createRuntime={createRuntime} createRenderer={createRenderer} webgl={webgl} fetchJson={fetchJson} />;
 }

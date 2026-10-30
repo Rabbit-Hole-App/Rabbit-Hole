@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { CircleCheck, Lightbulb, Pause, Play, RotateCcw, Scan } from 'lucide-react';
+import { Lightbulb, Pause, Play, RotateCcw, Scan } from 'lucide-react';
 import { Tip } from '../ui.jsx';
-import { attemptsText, decimals, formatValue, outcomeText, parameterInput, readoutText } from './card.js';
+import { decimals, formatValue, outcomeText, parameterInput, readoutText, sliderStep } from './card.js';
 
 // The Animation card's local controls (plan section 4, AN-03): the toolbar under the viewport, the compact parameter rows,
 // the scene's actions, the mini-game panel and the readouts. Each renders only what its card declares; nothing here runs the
@@ -43,18 +43,18 @@ export function Toolbar({ show, playing = false, speed = 1, speeds = [], live = 
 // A number parameter: the range slider, and a number field for typing an exact value (the keyboard alternative). A typed value
 // outside the declared range is not sent; leaving the field puts the accepted value back.
 function NumberRow({ parameter, value, disabled, onChange }) {
-  const shown = Number(value).toFixed(decimals(parameter.step));
+  const step = sliderStep(parameter), shown = Number(value).toFixed(decimals(step));
   const [draft, setDraft] = useState(shown);
   useEffect(() => { setDraft(shown); }, [shown]);
   const send = raw => { const next = parameterInput(parameter, raw); if (next !== null && next !== value) onChange(parameter.id, next); };
   return (
     <div role="group" aria-label={parameter.label} data-animation-parameter={parameter.id} className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
       <span className={`${label} w-full sm:w-auto sm:min-w-24`}>{parameter.label}</span>
-      <input type="range" min={parameter.min} max={parameter.max} step={parameter.step} value={value} disabled={disabled}
+      <input type="range" min={parameter.min} max={parameter.max} step={step} value={value} disabled={disabled}
         aria-label={parameter.label} aria-valuetext={formatValue(parameter, value)}
         onChange={event => send(event.target.value)} className="h-8 min-w-24 flex-1 accent-accent disabled:opacity-50" />
       <span className="inline-flex items-center gap-1">
-        <input type="number" inputMode="decimal" data-animation-number={parameter.id} min={parameter.min} max={parameter.max} step={parameter.step} value={draft} disabled={disabled}
+        <input type="number" inputMode="decimal" data-animation-number={parameter.id} min={parameter.min} max={parameter.max} step={step} value={draft} disabled={disabled}
           aria-label={`${parameter.label}${parameter.unit ? ` in ${parameter.unit}` : ''}`}
           onChange={event => { setDraft(event.target.value); send(event.target.value); }}
           onBlur={() => setDraft(shown)}
@@ -67,8 +67,8 @@ function NumberRow({ parameter, value, disabled, onChange }) {
 }
 
 export function ParameterRow({ parameter, value, disabled = false, onChange }) {
-  if (parameter.kind === 'number') return <NumberRow parameter={parameter} value={value} disabled={disabled} onChange={onChange} />;
-  if (parameter.kind === 'toggle') {
+  if (parameter.type === 'number') return <NumberRow parameter={parameter} value={value} disabled={disabled} onChange={onChange} />;
+  if (parameter.type === 'toggle') {
     return (
       <label data-animation-parameter={parameter.id} className="flex items-center gap-2">
         <input type="checkbox" checked={!!value} disabled={disabled} onChange={event => onChange(parameter.id, event.target.checked)} className="h-4 w-4 accent-accent" />
@@ -105,19 +105,17 @@ export function Actions({ actions, disabled = false, onAction }) {
   );
 }
 
-// The mini-game: its goal, attempts and outcome from the scene's own state, Check when the scene declares one, and the hint
-// on request. The outcome is announced politely when it changes.
-export function GamePanel({ goal, status, disabled = false, hintOpen = false, onHint, onCheck }) {
+// The mini-game: its goal and the outcome from the scene's own frame (its moves or attempts are the scene's readouts), and the
+// hint on request. The scene's actions are its moves. The outcome is announced politely when it changes.
+// ponytail: no Check/Submit control: the contract declares no check action (hand-back contract gap).
+export function GamePanel({ goal, status, hintOpen = false, onHint }) {
   return (
     <div data-animation-game={status?.status ?? 'playing'} className="flex flex-col gap-1.5 rounded-lg border border-line px-3 py-2">
       {goal.objective && <p data-animation-goal className="text-xs text-ink"><span className="font-semibold">Goal: </span>{goal.objective}</p>}
-      <p role="status" aria-live="polite" data-animation-outcome className={`text-xs ${status?.status === 'success' ? 'text-pass' : 'text-ink-2'}`}>
-        {outcomeText(status)} · {attemptsText(status)}
+      <p role="status" aria-live="polite" data-animation-outcome className={`text-xs ${status?.status === 'won' ? 'text-pass' : status?.status === 'lost' ? 'text-fail' : 'text-ink-2'}`}>
+        {outcomeText(status)}
       </p>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {goal.check && <button type="button" data-animation-check disabled={disabled} onClick={onCheck} className={buttonClass}><CircleCheck size={14} aria-hidden />Check</button>}
-        {goal.hint && <button type="button" data-animation-hint aria-expanded={hintOpen} onClick={onHint} className={buttonClass}><Lightbulb size={14} aria-hidden />{hintOpen ? 'Hide hint' : 'Hint'}</button>}
-      </div>
+      {goal.hint && <div><button type="button" data-animation-hint aria-expanded={hintOpen} onClick={onHint} className={buttonClass}><Lightbulb size={14} aria-hidden />{hintOpen ? 'Hide hint' : 'Hint'}</button></div>}
       {goal.hint && hintOpen && <p data-animation-hint-text className="text-xs text-ink-2">{goal.hint}</p>}
     </div>
   );
