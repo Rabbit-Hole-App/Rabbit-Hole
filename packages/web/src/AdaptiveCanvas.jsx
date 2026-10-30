@@ -1496,8 +1496,11 @@ function ToolButton({ value, Icon, label, hint, active, onPick }) {
   );
 }
 
-// A group's outline sits GROUP_PAD outside its members; its name chip's row starts GROUP_CHIP above the outline.
-const GROUP_PAD = 12, GROUP_CHIP = 28;
+// A group's outline sits GROUP_PAD outside its members; GROUP_CHIP above the outline is the room the selection bar keeps for
+// the name chip. The chip itself (20 px) sits on the outline's top edge, GROUP_CHIP_UP above it: it ends where the members'
+// area begins, and in the column (20 px gaps) it starts where the card above ends, so it covers neither a member nor the card
+// above, its footer included (owner design 2026-10-29 follow-up).
+const GROUP_PAD = 12, GROUP_CHIP = 28, GROUP_CHIP_UP = 8;
 
 // The name tag of a group, floating just above its top-left corner. Click
 // selects the whole group; double-click renames it in place.
@@ -1528,7 +1531,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
   const finish = cancel => { cancelled.current = cancel; body.current?.blur(); chip.current?.focus(); };
   return (
     <div ref={chip} tabIndex={-1} data-group-chip={group.id}
-      className="flex cursor-pointer items-center rounded-md border border-line bg-white/90 px-1.5 py-0.5 text-[11px] whitespace-nowrap text-ink-2 shadow-sm backdrop-blur-sm outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent"
+      className="flex h-5 cursor-pointer items-center rounded-md border border-line bg-white/90 px-1.5 text-[11px] leading-4 whitespace-nowrap text-ink-2 shadow-sm backdrop-blur-sm outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent"
       onPointerDown={event => { event.stopPropagation(); if (!editing) onSelect(); }}
       onDoubleClick={() => setEditing(true)}>
       <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder="Group"
@@ -5904,7 +5907,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   <HoleStack pending={portal.pending} />
                 </>}
               </div>
-              <div style={{ left: left - pad, top: top - pad - GROUP_CHIP }} className="absolute z-20 flex items-center gap-1">
+              <div style={{ left: left - pad, top: top - pad - GROUP_CHIP_UP }} className="absolute z-20 flex items-center gap-1">
                 <GroupChip group={group} editOn={chipEdit === group.id}
                   onSelect={() => setSelection(membersOf(group.id))}
                   onLabel={label => { setChipEdit(null); if (label === null || label === (group.label || '')) return; snapshot(); setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry)); }} />

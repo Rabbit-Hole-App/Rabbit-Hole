@@ -676,7 +676,7 @@ const groupRoot = await post('/api/canvases', { title: 'Groups and holes' });
   const path = `/api/learn/boards/${groupRoot.name}/main`, now = await get(path);
   const card = (id, title, groupId) => ({ id, type: 'explanation', dx: 0, dy: 0, title, body: `${title}: a short body.`, ...(groupId ? { groupId } : {}) });
   const state = { strokes: [], shapes: [], items: [], links: [], areas: [], groups: [{ id: 'grp', label: 'Pair' }],
-    blocks: [card('g1', 'Grouped with a hole', 'grp'), card('g2', 'Grouped plain', 'grp'), card('g3', 'Below the group')] };
+    blocks: [card('g0', 'Above the group'), card('g1', 'Grouped with a hole', 'grp'), card('g2', 'Grouped plain', 'grp'), card('g3', 'Below the group')] };
   const saved = await (await fetch(`${BASE}${path}`, { method: 'PUT', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ state, version: now.exists === false ? 0 : now.version ?? 0 }) })).json();
   assert.ok(saved?.version, `the group board was seeded: ${JSON.stringify(saved).slice(0, 120)}`);
 }
@@ -687,6 +687,7 @@ const seedOn = async (origin, title) => {
   return name;
 };
 const groupHole = await seedOn('grp', 'The pair, together'), cardHole = await seedOn('g1', 'Just the first card');
+await seedOn('g0', 'The card above'); // a footer right above the group: its name chip must not cover it
 const GROUP_URL = `/apps/${groupRoot.name}`;
 await open(GROUP_URL);
 await page.locator(`[data-dive-portal="${groupHole}"]`).waitFor({ timeout: 15000 });
@@ -703,6 +704,16 @@ const g = await groupGeometry();
 const membersBottom = Math.max(...g.members.map(m => m.bottom));
 assert.ok(g.foot.top >= membersBottom + 11 && Math.abs(g.foot.bottom - (g.box.bottom - 1)) <= 1 && Math.abs(g.foot.left - (g.box.left + 1)) <= 1 && Math.abs(g.foot.right - (g.box.right - 1)) <= 1, `the group footer spans the box beneath its members: ${JSON.stringify(g)}`);
 assert.ok(g.below >= g.box.bottom + 12, `the card below the group stays clear of its footer and layers: ${JSON.stringify(g)}`);
+// The group's name sits on its top edge (owner design 2026-10-29 follow-up): across the outline, ending where the members begin,
+// and clear of the card above and its footer.
+const chipAt = await page.evaluate(() => {
+  const r = s => document.querySelector(s).getBoundingClientRect();
+  const chip = r('[data-group-chip="grp"]'), box = r('[data-group-box="grp"]'), above = r('[data-block-id="g0"]'), aboveFoot = r('[data-block-id="g0"] [data-hole-row]');
+  return { top: chip.top, bottom: chip.bottom, h: chip.height, boxTop: box.top, membersTop: Math.min(r('[data-block-id="g1"]').top, r('[data-block-id="g2"]').top), aboveBottom: above.bottom, footBottom: aboveFoot.bottom };
+});
+assert.ok(chipAt.top < chipAt.boxTop && chipAt.bottom > chipAt.boxTop, `the group name crosses the group's top edge: ${JSON.stringify(chipAt)}`);
+assert.ok(chipAt.bottom <= chipAt.membersTop + 0.5, `the group name covers no member: ${JSON.stringify(chipAt)}`);
+assert.ok(chipAt.top >= chipAt.aboveBottom - 0.5 && chipAt.top >= chipAt.footBottom - 0.5, `the group name covers neither the card above nor its footer: ${JSON.stringify(chipAt)}`);
 await shot('16-group-and-card-holes');
 // A press and a drag on the group footer select nothing and move nothing.
 const footRow = page.locator('[data-group-box="grp"] [data-hole-row]');
