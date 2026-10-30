@@ -12,7 +12,7 @@ import { watchFixture, experimentFixture, gameFixture } from './fixtures.js';
 import { validateAnimationArtifact, validateAnimationFrame } from './contract.js';
 import { loadEngine, runProgram } from '../explain-program/runtime.js';
 import { LIMITS } from '../explain-program/limits.js';
-import { FIXTURES, oracle, close, rotate } from '../../e2e/animation-oracle.mjs';
+import { FIXTURES, oracle, close, rotate, within, WATCH_ALLOWANCE, TIME_ROUNDING } from '../../e2e/animation-oracle.mjs';
 
 // Termination is not under test here, so the 250 ms watchdog bounds each call rather than the 50 ms interrupt (as runtime.test.mjs
 // does for its non-termination cases: a loaded machine can take over 50 ms for a 2 ms program).
@@ -129,4 +129,17 @@ test('the oracle\'s own physics: heavier side down, level when balanced, the moo
   }
   assert.equal(oracle.game(FIXTURES.game.winningRoute).status, 'won');
   assert.deepEqual(oracle.game([FIXTURES.game.wrongAction]).nodes.robot.position, [0, 0.3, 0], 'the wrong action is blocked at the edge');
+});
+
+// The browser check holds the watch card to the oracle within the card's 3-decimal time (owner report 2026-10-30: a relative 0.03
+// became a 3% allowance for large values). The allowance is absolute: a rounding-sized difference passes at any magnitude, 3% fails.
+test('the watch allowance is absolute: rounding-sized differences pass, a 3% error at large magnitude fails', () => {
+  const t = 7.5, at = oracle.watch(t), late = oracle.watch(t + TIME_ROUNDING);
+  assert.ok(within(late.readouts.angle, at.readouts.angle, WATCH_ALLOWANCE.readouts), 'the angle half a millisecond later');
+  assert.ok(within(late.nodes.moon.position, at.nodes.moon.position, WATCH_ALLOWANCE.nodes), 'the moon half a millisecond later');
+  assert.ok(within(late.nodes.planet.quaternion, at.nodes.planet.quaternion, WATCH_ALLOWANCE.nodes), 'the spin half a millisecond later');
+  assert.equal(within(at.readouts.angle * 1.03, at.readouts.angle, WATCH_ALLOWANCE.readouts), false, `3% off ${at.readouts.angle} deg passed`);
+  assert.equal(within(at.nodes.moon.position.map(v => v * 1.03), at.nodes.moon.position, WATCH_ALLOWANCE.nodes), false, '3% off the moon passed');
+  assert.equal(within(oracle.watch(t + 4 * TIME_ROUNDING).readouts.angle, at.readouts.angle, WATCH_ALLOWANCE.readouts), false, 'four roundings off passed');
+  assert.ok(WATCH_ALLOWANCE.readouts < 0.03 && WATCH_ALLOWANCE.nodes < 0.002, JSON.stringify(WATCH_ALLOWANCE));
 });
