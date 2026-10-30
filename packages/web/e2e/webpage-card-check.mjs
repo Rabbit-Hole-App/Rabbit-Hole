@@ -973,6 +973,12 @@ await check('Add context: Refresh page - a refused one keeps the last good text,
   const read = (await docText(DOC.id)).text;
   assert.ok(read.includes(RUN_D_NEW) && !read.includes(RUN_D), 'the new text replaced the old');
   assert.equal((await savedBlock(D, b => b.type === 'webpage')).capture.manifestId, V4.manifestId, 'the card keeps the version it shows');
+  // REVIEW-CTX-REFRESH-01: the reader reopened after the Refresh shows the new text, never a cached copy of the old.
+  await pageRow().locator('button', { has: page.locator('[data-material-name]') }).first().click();
+  const reader = page.locator('[data-source-reader] [data-source-text-view]');
+  await waitFor(async () => (await reader.innerText().catch(() => '')).includes(RUN_D_NEW), 15000, 'the reopened reader shows an older revision');
+  assert.ok(!(await reader.innerText()).includes(RUN_D), 'not the old text');
+  await page.locator('[data-back-to-files]').click();
 });
 
 await check('Add context: light and dark, a 320 px panel and a 320 px window - the dialog, the URL row and its reader fit with no sideways scroll', async () => {

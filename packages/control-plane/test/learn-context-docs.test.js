@@ -307,6 +307,14 @@ test('Refresh of a Context web page: the new version replaces the old only once 
   assert.deepEqual([refreshed.body.document.id, refreshed.body.document.name, refreshed.body.document.capture.manifestId, refreshed.body.documents.length], [doc.id, 'Rivers, revised', v2.manifest, 1]);
   const [block] = await contextDocumentBlocks(env, canvas, new Set([doc.id]));
   assert.match(block.source.data, /^Web page: Rivers, revised\n[^]*\nRefreshed words\.$/);
+  // REVIEW-CTX-REFRESH-01: the page's text changes in place, so its GET is never cached (an hour-old copy would show version 1
+  // after the Refresh); a reopened reader reads the new text. An uploaded file never changes and keeps its hour.
+  const read = await contextDocsFetch(new Request(`https://dev.test/api/learn/context/${doc.id}?app=${canvas.name}&rev=${refreshed.body.document.capture.rev}`), env, f.deps);
+  assert.equal(read.headers.get('cache-control'), 'private, no-cache');
+  assert.match(new TextDecoder().decode(await new Response(read.body).arrayBuffer()), /\nRefreshed words\.$/);
+  const file = (await f.upload('notes.txt', new TextEncoder().encode('fixed'))).body.document;
+  const cached = await contextDocsFetch(new Request(`https://dev.test/api/learn/context/${file.id}?app=${canvas.name}`), env, f.deps);
+  assert.equal(cached.headers.get('cache-control'), 'private, max-age=3600');
 });
 
 test('the link note says what was read: the abstract for arXiv, the introduction for Wikipedia, only the address for a page or a video', async () => {

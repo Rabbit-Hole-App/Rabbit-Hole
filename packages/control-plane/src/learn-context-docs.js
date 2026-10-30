@@ -239,11 +239,14 @@ export async function contextDocsFetch(req, env, deps = {}) {
   const row = current.find(d => d.id === id) ?? (req.method === 'GET' ? await ownDocument(env, who, id) : null);
   if (!row) return json({ error: req.method === 'GET' ? NOT_YOURS : 'That document is not on this canvas' }, 404);
   // The bytes, for the Chat's Sources reader (web chat-context.js docUrl). Owner only, like PATCH and DELETE; nosniff so
-  // an uploaded .txt or .md is never rendered as a page.
+  // an uploaded .txt or .md is never rendered as a page. An uploaded file never changes, so it is cached an hour; a web page's
+  // text is replaced in place by Refresh (linkCapture), so the browser must ask again every time (no-cache): an hour-old copy
+  // would show the previous revision after a Refresh.
   if (req.method === 'GET') {
     const object = await learnMedia(env).get(await objectKey(homeOf(who, row), id));
     if (!object) return json({ error: NOT_YOURS }, 404);
-    return new Response(object.body, { headers: { 'Content-Type': row.kind === 'pdf' ? 'application/pdf' : 'text/plain; charset=utf-8', 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' } });
+    return new Response(object.body, { headers: { 'Content-Type': row.kind === 'pdf' ? 'application/pdf' : 'text/plain; charset=utf-8',
+      'Cache-Control': row.kind === 'webpage' ? 'private, no-cache' : 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' } });
   }
   if (req.method === 'PATCH') {
     if (typeof body.attached !== 'boolean') return json({ error: 'attached must be true or false' }, 400);

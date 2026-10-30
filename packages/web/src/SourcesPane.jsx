@@ -220,7 +220,7 @@ export default function SourcesPane({ onSwitchOff = null }) {
           {errorOf(item)}
         </div>
         <div ref={list} tabIndex={-1} data-source-reader className="flex min-h-0 flex-1 flex-col px-2 pt-1 outline-none">
-          <SourceReader key={ref.sourceId} sourceRef={ref} position={sources.position(ref.sourceId)} onPosition={position => sources.savePosition(ref.sourceId, position)} />
+          <SourceReader key={ref.sourceId} sourceRef={ref} revision={item.doc?.capture?.rev ?? null} position={sources.position(ref.sourceId)} onPosition={position => sources.savePosition(ref.sourceId, position)} />
         </div>
       </div>
     );

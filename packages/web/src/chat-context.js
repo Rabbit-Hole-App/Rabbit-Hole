@@ -23,8 +23,9 @@ export const sameRef = (a, b) => a.sourceId === b.sourceId && rangeKey(a.range) 
 export const refKey = ref => `${ref.sourceId}|${rangeKey(ref.range)}`; // a React key that sameRef refs share
 export const MAX_REFS = 20; // the server's per-request limit (contract A2)
 
-// Where a context doc's bytes are read (GET /api/learn/context/<id>, owner only), for A4b's reader.
-export const docUrl = (canvas, id) => `/api/learn/context/${encodeURIComponent(id)}?app=${encodeURIComponent(canvas)}`;
+// Where a context doc's bytes are read (GET /api/learn/context/<id>, owner only), for A4b's reader. rev: a web page's capture
+// revision (doc.capture.rev), so a Refresh is a new address the reader reads again.
+export const docUrl = (canvas, id, rev = null) => `/api/learn/context/${encodeURIComponent(id)}?app=${encodeURIComponent(canvas)}${rev ? `&rev=${encodeURIComponent(rev)}` : ''}`;
 export const docRef = doc => ({ sourceId: `doc:${doc.id}`, kind: 'doc', name: String(doc.name || 'Document').slice(0, 120), version: String(doc.created_at ?? ''), range: null });
 const validRefs = refs => (Array.isArray(refs) ? refs.filter(ref => ref && typeof ref.sourceId === 'string' && typeof ref.kind === 'string') : []);
 
