@@ -37,7 +37,9 @@ test('short_explanation_uses_one_jev_batch: one JEV request on the registered cl
   const { activity } = await journeyActivity(w.env);
   const stub = jev(STATED);
   const r = await submit(w.env, ANA, activity, {}, { ask: stub.ask, callModel: never.callModel });
-  const a = r.body.assessment;
+  // The stored provenance keeps every call's cost for the ledger; the route never sends a cost field to the browser.
+  const a = (await readAttempt(w.env, ANA, r.body.attempt.attemptId)).assessment;
+  assert.ok(!JSON.stringify(r.body).includes('costUsd'));
   assert.equal(stub.asked.length, 1);
   assert.deepEqual(stub.asked[0].state.card_claims, [REG.claims[MECH].statement], 'the claim comes from the journey registry');
   assert.equal(stub.asked[0].state.tutor_question, activity.prompt, 'the prompt the learner answered');
@@ -54,7 +56,8 @@ test('confident_conflict_cannot_return_clean_pass: a confident contradiction esc
   const { activity } = await journeyActivity(w.env);
   const resolve = larger(['c0_idea0']);
   const r = await submit(w.env, ANA, activity, {}, { ask: jev(CONTESTED).ask, callModel: resolve.callModel });
-  const a = r.body.assessment;
+  const a = (await readAttempt(w.env, ANA, r.body.attempt.attemptId)).assessment; // stored: the route strips cost fields
+  assert.ok(!JSON.stringify(r.body).includes('costUsd'));
   assert.equal(resolve.calls.length, 1, 'one escalation');
   assert.equal(resolve.calls[0].model, 'claude-opus-5-5', 'the configured larger evaluator, never a fallback');
   assert.deepEqual([a.route, a.provenance.escalation.reason, a.provenance.escalation.outcome], ['larger', 'contradiction', 'completed']);

@@ -263,3 +263,21 @@ test('recovery: a lost response replays; a timeout or slow preparation calls not
   const list = await raw(w.env, 'GET', '/api/learn/tutor/attempts', { cardId: 'card_circle' });
   assert.deepEqual(list.body.attempts.map(a => a.attemptId), [rev.body.attempt.attemptId, slow.body.attempt.attemptId, timedOut.body.attempt.attemptId]);
 });
+
+test('learners see no dollar amounts: no response from the attempt routes has a cost, usd or micros key; the store keeps the cost', async t => {
+  const { w, content, deps, submit } = await mixedWorld(t);
+  const keys = (value, out = []) => { if (Array.isArray(value)) value.forEach(v => keys(v, out)); else if (value && typeof value === 'object') for (const [k, v] of Object.entries(value)) { out.push(k); keys(v, out); } return out; };
+  const priced = body => keys(body).filter(k => /cost|usd|micros|price|margin/i.test(k));
+  const r = await submit(content, 'eb-cost-0001', deps(replying(MIXED_REPLY).callModel));
+  const id = r.body.attempt.attemptId;
+  const legacy = await call(w.env, ANA, 'POST', '/api/learn/tutor/attempts', { activityId: (await call(w.env, ANA, 'POST', '/api/learn/tutor/attempts/bind', { cardId: 'card_text', prompt: PROMPT, expects: IDEAS })).body.activityId, activityRevision: 1, submissionKey: 'eb-cost-0002', submittedContent: answer({ text: A1 }) }, deps(replying(REPLY1).callModel));
+  const responses = {
+    submit: r.body, legacySubmit: legacy.body,
+    read: (await call(w.env, ANA, 'GET', `/api/learn/tutor/attempts/${id}`)).body,
+    list: (await raw(w.env, 'GET', '/api/learn/tutor/attempts', { cardId: 'card_circle' })).body,
+    reassess: (await call(w.env, ANA, 'POST', `/api/learn/tutor/attempts/${id}/reassess`, { requestKey: 'eb-cost-reassess' }, deps(replying(MIXED_REPLY).callModel))).body,
+  };
+  for (const [name, body] of Object.entries(responses)) assert.deepEqual(priced(body), [], name);
+  const stored = (await readAttempt(w.env, ANA, id)).assessments;
+  assert.ok(stored.some(a => a.provenance.calls?.some(c => typeof c.costUsd === 'number')), 'the stored provenance keeps the cost for the ledger');
+});
