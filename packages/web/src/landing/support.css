@@ -7,8 +7,7 @@
 .support-button svg{height:21px;width:21px;transition:transform .18s ease}
 .legal-header{max-width:860px;margin-bottom:52px}
 .legal-header .support-lead{color:var(--fg)}
-.legal-draft{display:flex;align-items:flex-start;gap:18px;border-top:1px solid #ddd;border-bottom:1px solid #ddd;padding:20px 0;margin-top:34px;font:400 14px/1.65 var(--ui);color:var(--fg)}
-.legal-draft strong{flex:none;color:#111;font-weight:500}
+.legal-effective{font:500 15px/1.5 var(--ui);color:var(--fg);margin-top:18px}
 .legal-layout{display:grid;grid-template-columns:220px minmax(0,680px);gap:80px}
 .legal-contents{align-self:start;position:sticky;top:112px}
 .legal-contents h2{font:500 14px/1.5 var(--ui);margin-bottom:16px}
@@ -44,8 +43,6 @@
   .support-title{font-size:50px}
   .support-lead{font-size:16px;margin-top:20px}
   .legal-header{margin-bottom:32px}
-  .legal-draft{display:block;margin-top:28px;font-size:13px}
-  .legal-draft strong{display:block;margin-bottom:7px}
   .legal-layout{grid-template-columns:1fr;gap:38px}
   .legal-contents{position:static}
   .legal-contents ol{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;padding-left:14px}

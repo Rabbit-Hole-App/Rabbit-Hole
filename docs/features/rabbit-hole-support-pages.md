@@ -24,12 +24,16 @@ Titles "Privacy Policy" / "Terms of Use", subtitles "How Rabbit Hole handles you
 information." / "The terms for using Rabbit Hole." Present-tense statements of
 what the product does now, each checked against the code and production config
 on `main`; short paragraphs and bullet lists (a section block that is an array
-renders as a list); body text in `--fg`. Each page keeps a **Not yet final**
-notice naming what is missing (legal operator and address; for Terms also
-eligibility) until the owner supplies it; the effective date is added when the
-final content is published. Never invent an age requirement, refund rule,
-governing law, liability provision, deletion deadline, security guarantee or
-"never used for training".
+renders as a list); body text in `--fg`.
+
+**Published as final (owner approval, 2026-10-29).** Operator: Yudhisteer Chintaram, an individual (no company name or
+incorporation is claimed), 16595 Redmond Way, Redmond, WA 98052, United States; privacy requests to
+hello@digrabbithole.com; primary market the United States (not an access restriction); minimum age 18; effective date
+November 1, 2026. No separately negotiated provider agreements; standard provider terms apply. Licence, suspension and
+closure, retention (no automatic schedules yet; manual deletion on request) and legal-bases/transfers wording follow
+`C:/s/spec/legal-pages/POLICY-WORDING.md`. Sign-up has no age gate; whether to add one is a separate owner decision.
+No governing law, dispute or liability provision was supplied, so none is written. Never invent a refund rule,
+deletion deadline, security guarantee or "never used for training".
 
 Provider practices are quoted only where the provider's official page states
 them (read 2026-10-29):
@@ -118,6 +122,5 @@ skip links work. Unknown public pages and `/contact` return the branded 404;
 HEAD has no body. Existing email login, API errors and static failures are intact.
 Evidence: `tmp/support-pages/deployed/results.json` and adjacent screenshots.
 
-X/LinkedIn destinations are pending user input. Legal
-documents are not final until the operator details and effective date are added. The email link opens the visitor's mail client; no
+X/LinkedIn destinations are pending user input. The email link opens the visitor's mail client; no
 mail delivery service was built or tested.
