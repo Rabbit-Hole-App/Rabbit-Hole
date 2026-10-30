@@ -161,9 +161,9 @@ export function triangleCost(g) {
     case 'box': return 12;
     case 'sphere': return 2 * g.widthSegments * (g.heightSegments - 1);
     case 'cylinder': return 4 * g.radialSegments; // side quads plus both caps
-    case 'cone': return 3 * g.radialSegments; // side quads (apex row degenerate) plus the base cap
+    case 'cone': return 2 * g.radialSegments; // one triangle per side segment (three skips the degenerate apex half) plus the base cap
     case 'plane': case 'label': return 2;
-    case 'arrow': return 4 * ARROW_RADIAL + 3 * ARROW_RADIAL;
+    case 'arrow': return 4 * ARROW_RADIAL + 2 * ARROW_RADIAL; // shaft cylinder plus head cone
     default: return 0; // line, curve: no triangles; their points count against linePoints
   }
 }

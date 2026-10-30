@@ -19,9 +19,9 @@ import { CardSourceScope } from './use-card-source.js';
 import { ExplainBackService } from './ExplainBackPanel.jsx';
 import { BRIEFS, briefView, previewBlock } from './slash-sheet.js';
 
-// Controls that would reach a provider or the account from inside a card: in the window a press on one does nothing (Speak an
-// answer, Find and Generate on the photo card, Generate on a video or scene, a paid Generate).
-const LIVE = '[data-speak-answer], [data-sketch-toggle], [data-photo-search], [data-image-generate], [data-photo-result], [data-generate-video], [data-generate-scene], [data-paid-generate], [data-recovery-action]';
+// Controls that would reach a provider or the account from inside a card: in the window a press on one does nothing (Find and
+// Generate on the photo card, Generate on a video or scene, a paid Generate).
+const LIVE = '[data-sketch-toggle], [data-photo-search], [data-image-generate], [data-photo-result], [data-generate-video], [data-generate-scene], [data-paid-generate], [data-recovery-action]';
 const swallow = event => { event.preventDefault(); event.stopPropagation(); };
 const guard = { onClickCapture: event => { if (event.target.closest?.(LIVE)) swallow(event); } };
 // The photo card searches on Enter in its field: the window's copy never does.

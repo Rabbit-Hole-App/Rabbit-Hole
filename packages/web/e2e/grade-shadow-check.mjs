@@ -1,190 +1,136 @@
 import { chromium } from '@playwright/test';
 
-// Jev side by side (docs/features/jev-grading.md): the learner sees exactly
-// what Opus says, whatever the shadow path does; the shadow request carries
-// the attempt, and a baseline follows.
+// Owner 2026-10-30, "one Practice card" (Explain-back = Challenge = Practice): a saved challenge block WITHOUT mode
+// 'explain_back' (an old Challenge) is the Practice card. On this dev-flag build (dist-dev, VITE_COACHING_DEV) an editable
+// canvas has the durable attempt store, so its answer is one saved attempt and the legacy grade (/api/learn/assess) and the
+// Jev side-by-side shadow (/api/learn/grade, docs/features/jev-grading.md) are no longer called from it. This check used to
+// drive the old one-line Challenge (Commit, data-grade tint, Answer again) through that legacy grade; that card is gone. The
+// shadow client itself stays covered by learn-grade-shadow.test.mjs and the legacy commit path (a view-only canvas, where
+// the store is off) by learn-challenge.test.mjs.
+// 1. an old Challenge renders as the Practice card and submits one durable attempt, no legacy grade, no shadow;
+// 2. an old Challenge already answered shows its guess, the Tutor's verdict (no VERDICT token) and its reveal as attempt 1,
+//    Not rated; Revise answer starts a draft from the guess, and the new attempt is attempt 2 with no server parent.
 
 const app = { name: 'nanogpt', org: 'example-team', orgName: 'Example team', kind: 'repository', repo: 'karpathy/nanoGPT', description: '', owner_email: 'b@e.test', deployed_at: '2026-09-08T09:16:00Z', created_at: '2026-09-07T16:20:00Z', visibility: 'domain', members: [], teams: [], observations: [], canEdit: true, email: 'b@e.test', schedule: null, commit_sha: 'abc123' };
-const replies = { '/api/apps': { org: app.org, orgName: app.orgName, email: app.email, apps: [app], folders: [] }, '/api/apps/nanogpt': app, '/api/apps/nanogpt/learn-course': { course: null, canAuthor: true }, '/api/repositories/nanogpt': { ...app, status: 'ready' }, '/api/repositories/nanogpt/snapshot': { commit: 'abc123', graph: { nodes: [], edges: [] }, files: [], skipped: [] }, '/api/workspaces': { active: app.org, email: app.email, workspaces: [{ slug: app.org, name: app.orgName, role: 'owner', kind: 'custom' }] } };
+const replies = { '/api/apps': { org: app.org, orgName: app.orgName, email: app.email, apps: [app], folders: [] }, '/api/apps/nanogpt': app, '/api/apps/nanogpt/learn-course': { course: null, canAuthor: true }, '/api/repositories/nanogpt': { ...app, status: 'ready' }, '/api/repositories/nanogpt/snapshot': { commit: 'abc123', graph: { nodes: [], edges: [] }, files: [], skipped: [] }, '/api/workspaces': { active: app.org, email: app.email, workspaces: [{ slug: app.org, name: app.orgName, role: 'owner', kind: 'custom' }] },
+  // A profile with a handle, so HandleGate lets the page through (session-display.js loadProfile).
+  '/api/profile': { name: 'B', avatar: null, handle: 'grade_shadow', description: '' } };
 const BOARD = 'grade-shadow-1';
 const KEY = `small.adaptive-canvas:example-team:b@e.test:nanogpt:${BOARD}:s0`;
-const CHALLENGE = { id: 'c1', type: 'challenge', dx: 0, dy: 0, prompt: 'Why does softmax use exp?', hint: '', expects: ['exp makes every score positive', 'dividing by the sum makes them add to one'], reveal: '', answer: null };
-const SSE = `event: chunk\ndata: ${JSON.stringify({ text: 'VERDICT: good\nYou have both ideas.' })}\n\nevent: done\ndata: {"ok":true}\n\n`;
-// A real AWS-hosted app's api_url is a lambda function URL (packages/cli/lib/byoc-client.mjs);
-// scenario 6 mocks that origin too, so the app loads the same way a real AWS-hosted app does.
-const LAMBDA_URL = 'https://gradeshadowcheck123.lambda-url.us-east-1.on.aws/';
+const CHALLENGE = { id: 'c1', type: 'challenge', dx: 0, dy: 0, prompt: 'Why does softmax use exp?', hint: 'Think about signs.', expects: ['exp makes every score positive', 'dividing by the sum makes them add to one'], reveal: 'Dividing by the sum turns the scores into shares of one whole.', answer: null };
+const ANSWERED = { ...CHALLENGE, answer: 'exp makes them positive', attemptId: 'old-attempt-1', verdict: 'VERDICT: good\nYou have both ideas.', grading: false };
 
 let failed = 0;
 const ok = (name, condition, extra = '') => { if (!condition) failed += 1; console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${extra ? `  (${extra})` : ''}`); };
+const total = 12;
 const browser = await chromium.launch();
+const json = (route, status, body) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
-// One fresh learner per scenario. `grade` decides the shadow reply, `baseline`
-// the baseline reply, `opus` the tutor reply.
-async function scenario({ grade = { status: 200 }, gradeDelay = 0, baseline = 200, opus = 'ok', extraRoutes = [] } = {}) {
+// One fresh learner per scenario, its board seeded with `block`. The durable attempt routes (learn-attempt-routes.js) are
+// stubbed: bind, the server draft, submit (its assessment left pending: no model), list and read.
+async function scenario(block) {
   const context = await browser.newContext({ viewport: { width: 1500, height: 950 } });
-  await context.addInitScript(([key, block]) => {
+  await context.addInitScript(([key, seeded]) => {
     if (sessionStorage.getItem('seeded')) return;
     sessionStorage.setItem('seeded', '1');
-    localStorage.setItem(key, JSON.stringify({ strokes: [], shapes: [], items: [], links: [], blocks: [block] }));
-  }, [KEY, CHALLENGE]);
+    localStorage.setItem(key, JSON.stringify({ strokes: [], shapes: [], items: [], links: [], blocks: [seeded] }));
+  }, [KEY, block]);
   const page = await context.newPage();
-  const seen = { grades: [], baselines: [], asks: 0 };
-  for (const { url, handler } of extraRoutes) await page.route(url, handler);
+  const seen = { asks: 0, grades: 0, binds: [], posts: [] };
+  const stored = new Map(), drafts = new Map();
   await page.route('**/api/**', async route => {
     const request = route.request();
     const url = new URL(request.url());
-    if (url.pathname === '/api/learn/assess') {
-      seen.asks += 1;
-      if (opus === 'error') return route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'Tutor down' }) });
-      return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: SSE });
-    }
-    if (url.pathname === '/api/learn/grade') {
-      seen.grades.push(JSON.parse(request.postData() || '{}'));
-      if (gradeDelay) await new Promise(resolve => setTimeout(resolve, gradeDelay));
-      if (grade === 'abort') return route.abort('failed');
-      return route.fulfill({ status: grade.status, contentType: 'application/json', body: JSON.stringify({ grade_id: 11, status: 'x' }) });
-    }
-    if (/^\/api\/learn\/grade\/\d+\/baseline$/.test(url.pathname)) {
-      seen.baselines.push(JSON.parse(request.postData() || '{}'));
-      return route.fulfill({ status: baseline, contentType: 'application/json', body: '{}' });
+    if (url.pathname === '/api/learn/assess') { seen.asks += 1; return json(route, 500, { error: 'the legacy grade must not be called' }); }
+    if (url.pathname.startsWith('/api/learn/grade')) { seen.grades += 1; return json(route, 500, { error: 'the Jev shadow must not be called' }); }
+    if (url.pathname.startsWith('/api/learn/tutor/attempts')) {
+      const path = url.pathname.slice('/api/learn/tutor/attempts'.length);
+      const view = id => ({ attempt: { attemptId: id, submittedContent: stored.get(id).content }, assessment: { assessmentId: `as_${id}`, status: 'pending' } });
+      if (request.method() === 'POST' && path === '/bind') {
+        const body = JSON.parse(request.postData() || '{}');
+        seen.binds.push(body);
+        return json(route, 200, { goalId: 'goal_eb', activityId: `act_${body.cardId}`, activityRevision: 1, criterionRefs: [{ criterionId: 'k_a', version: 1 }, { criterionId: 'k_b', version: 1 }], rubricVersion: 'eb-v1' });
+      }
+      if (path === '/drafts') {
+        const cardId = request.method() === 'GET' ? url.searchParams.get('cardId') : JSON.parse(request.postData() || '{}').cardId;
+        if (request.method() === 'GET') return json(route, 200, { draft: drafts.get(cardId) || null });
+        const { expectedRevision, answer } = JSON.parse(request.postData() || '{}');
+        const current = drafts.get(cardId);
+        if ((current?.revision || 0) !== expectedRevision) return json(route, 409, { error: 'draft_conflict', detail: { draft: current || null } });
+        if (answer === null) { drafts.delete(cardId); return json(route, 200, { draft: null }); }
+        const draft = { cardId, revision: (current?.revision || 0) + 1, answer, updatedAt: new Date().toISOString() };
+        drafts.set(cardId, draft);
+        return json(route, 200, { draft });
+      }
+      if (request.method() === 'POST' && path === '') {
+        const sent = JSON.parse(request.postData() || '{}');
+        seen.posts.push(sent);
+        const id = `at_${seen.posts.length}`;
+        stored.set(id, { cardId: sent.activityId.replace(/^act_/, ''), content: sent.submittedContent });
+        return json(route, 201, view(id));
+      }
+      if (request.method() === 'GET' && path === '') {
+        const cardId = url.searchParams.get('cardId');
+        return json(route, 200, { attempts: [...stored].filter(([, it]) => it.cardId === cardId).map(([attemptId]) => ({ attemptId })).reverse() });
+      }
+      const id = decodeURIComponent(path.slice(1));
+      if (request.method() === 'GET' && stored.has(id)) return json(route, 200, view(id));
+      return json(route, 404, { error: 'unknown_attempt' });
     }
     return route.fulfill({ json: replies[url.pathname] || {} });
   });
-  page.on('pageerror', error => console.log('PAGEERROR:', error.message));
+  const errors = [];
+  page.on('pageerror', error => { errors.push(error.message); console.log('PAGEERROR:', error.message); });
   await page.goto(`http://localhost:5189/apps/nanogpt?tab=learn&board=${BOARD}`);
   const card = page.locator('[data-block-id="c1"]');
-  await card.locator('input').waitFor({ timeout: 30000 });
-  const stored = () => page.evaluate(key => JSON.parse(localStorage.getItem(key) || '{}').blocks?.[0] || {}, KEY);
-  return { context, page, card, seen, stored };
-}
-const shown = async card => ({ grade: await card.locator('[data-answer]').getAttribute('data-grade'), text: (await card.locator('[data-verdict]').innerText()).trim() });
-
-// 1. The normal path: the verdict as today, a shadow request with the attempt, then a baseline.
-{
-  const s = await scenario();
-  await s.card.locator('input').fill('exp makes them positive and we divide by the sum');
-  await s.card.getByRole('button', { name: 'Commit' }).click();
-  await s.card.locator('[data-verdict]', { hasText: 'You have both ideas.' }).waitFor({ timeout: 10000 });
-  await s.page.waitForTimeout(800);
-  const reference = await shown(s.card);
-  ok('the learner sees the Opus verdict as today', reference.grade === 'good' && reference.text.includes('You have both ideas.'), JSON.stringify(reference));
-  const body = s.seen.grades[0] || {};
-  ok('one shadow request per commit', s.seen.grades.length === 1);
-  ok('it carries the attempt, mode, board, block, prompt, ideas, answer and app name - and no source',
-    typeof body.attempt_id === 'string' && body.attempt_id.length >= 8 && body.mode === 'challenge' && body.board === BOARD && body.block_id === 'c1'
-    && body.prompt === CHALLENGE.prompt && JSON.stringify(body.expects) === JSON.stringify(CHALLENGE.expects) && body.answer === 'exp makes them positive and we divide by the sum' && body.app === 'nanogpt' && !('source' in body), JSON.stringify(body));
-  const baseline = s.seen.baselines[0] || {};
-  ok('a baseline follows with the parsed verdict and a non-negative integer ms', baseline.verdict === 'good' && Number.isInteger(baseline.ms) && baseline.ms >= 0 && baseline.app === 'nanogpt', JSON.stringify(baseline));
-  const block = await s.stored();
-  ok('the committed block keeps its attempt id', block.attemptId === body.attempt_id);
-  await s.page.reload();
-  await s.card.locator('[data-answer]').waitFor({ timeout: 30000 });
-  await s.page.waitForTimeout(600);
-  ok('a reload keeps the same attempt id', (await s.stored()).attemptId === body.attempt_id);
-  await s.card.getByRole('button', { name: 'Answer again' }).click();
-  await s.page.waitForTimeout(600);
-  ok('Answer again clears the attempt id', (await s.stored()).attemptId === null);
-  await s.card.locator('input').fill('a second, different answer');
-  await s.card.getByRole('button', { name: 'Commit' }).click();
-  await s.card.locator('[data-verdict]', { hasText: 'You have both ideas.' }).waitFor({ timeout: 10000 });
-  await s.page.waitForTimeout(500);
-  ok('the next answer gets a new attempt id', s.seen.grades.length === 2 && s.seen.grades[1].attempt_id !== body.attempt_id);
-  await s.context.close();
-
-  // 2. Every shadow or baseline failure leaves the learner's view identical.
-  const cases = [
-    ['a slow shadow call', { gradeDelay: 4000 }],
-    ['a 503', { grade: { status: 503 } }],
-    ['a 202 pending duplicate', { grade: { status: 202 } }],
-    ['a 409 incomplete duplicate', { grade: { status: 409 } }],
-    ['a 500', { grade: { status: 500 } }],
-    ['a network error', { grade: 'abort' }],
-    ['a failed baseline post', { baseline: 500 }],
-    ['a 404 baseline (already recorded)', { baseline: 404 }],
-  ];
-  for (const [name, options] of cases) {
-    const t = await scenario(options);
-    await t.card.locator('input').fill('exp makes them positive and we divide by the sum');
-    const started = Date.now();
-    await t.card.getByRole('button', { name: 'Commit' }).click();
-    await t.card.locator('[data-verdict]', { hasText: 'You have both ideas.' }).waitFor({ timeout: 10000 });
-    const elapsed = Date.now() - started;
-    await t.page.waitForTimeout(options.gradeDelay ? 4500 : 800);
-    const view = await shown(t.card);
-    ok(`${name}: the learner's view is identical`, JSON.stringify(view) === JSON.stringify(reference), JSON.stringify(view));
-    if (options.gradeDelay) ok(`${name}: the verdict does not wait for it`, elapsed < 3000, `${elapsed} ms`);
-    await t.context.close();
-  }
+  await card.locator('[data-explain-back]').waitFor({ timeout: 30000 });
+  return { context, page, card, seen, errors };
 }
 
-// 3. An Opus failure shows exactly the Opus error, and still records a baseline with verdict null.
+// 1. A new answer on an old Challenge: the Practice card, one durable attempt, nothing legacy.
 {
-  const s = await scenario({ opus: 'error' });
-  await s.card.locator('input').fill('an answer');
-  await s.card.getByRole('button', { name: 'Commit' }).click();
-  await s.card.locator('[data-verdict]', { hasText: 'Could not reach the tutor: Tutor down' }).waitFor({ timeout: 10000 });
-  await s.page.waitForTimeout(800);
-  ok('the Opus error text is unchanged', (await s.card.locator('[data-verdict]').innerText()).includes('Could not reach the tutor: Tutor down'));
-  ok('a failed Opus call still records a baseline, with verdict null', s.seen.baselines.length === 1 && s.seen.baselines[0].verdict === null && Number.isInteger(s.seen.baselines[0].ms), JSON.stringify(s.seen.baselines));
+  const s = await scenario(CHALLENGE);
+  const field = s.card.locator('textarea[data-eb-answer]');
+  await field.waitFor({ timeout: 30000 });
+  const text = await s.card.innerText();
+  ok('1a an old Challenge renders as the Practice card: kicker Practice, its question and hint', /PRACTICE/i.test(text) && text.includes(CHALLENGE.prompt) && text.includes(CHALLENGE.hint) && !/challenge/i.test(text), text.slice(0, 200));
+  ok('1b no one-line guess field and no Commit button', await s.card.locator('input[placeholder="Your guess in one sentence"]').count() === 0 && await s.card.getByRole('button', { name: 'Commit', exact: true }).count() === 0);
+  ok('1c the reveal waits for an answer', await s.card.locator('[data-eb-reveal]').count() === 0);
+  await field.fill('exp makes them positive and we divide by the sum');
+  await s.card.getByRole('button', { name: 'Submit answer', exact: true }).click();
+  await s.card.locator('[data-eb-reviewing]').waitFor({ timeout: 15000 });
+  ok('1d one durable attempt, bound to this card with its saved prompt and key ideas', s.seen.posts.length === 1 && s.seen.binds[0]?.cardId === 'c1' && s.seen.binds[0]?.prompt === CHALLENGE.prompt && JSON.stringify(s.seen.binds[0]?.expects) === JSON.stringify(CHALLENGE.expects), JSON.stringify(s.seen.binds));
+  ok('1e the attempt carries the typed answer', s.seen.posts[0]?.submittedContent?.text === 'exp makes them positive and we divide by the sum', JSON.stringify(s.seen.posts[0]?.submittedContent));
+  ok('1f no legacy grade and no Jev shadow request', s.seen.asks === 0 && s.seen.grades === 0, `assess ${s.seen.asks}, grade ${s.seen.grades}`);
+  ok('1g after the answer the reveal shows', (await s.card.locator('[data-eb-reveal]').innerText()).includes('shares of one whole'));
+  ok('1h no page errors', s.errors.length === 0, s.errors.join(' | '));
   await s.context.close();
 }
 
-// 4. A double click in the same tick commits once.
+// 2. An old Challenge answered before: its guess and verdict are attempt 1; a revision is attempt 2 with no server parent.
 {
-  const s = await scenario();
-  await s.card.locator('input').fill('exp makes them positive');
-  await s.page.evaluate(() => {
-    const button = [...document.querySelectorAll('[data-block-id="c1"] button')].find(node => node.textContent === 'Commit');
-    button.click();
-    button.click();
-  });
-  await s.card.locator('[data-verdict]', { hasText: 'You have both ideas.' }).waitFor({ timeout: 10000 });
-  await s.page.waitForTimeout(800);
-  ok('a same-tick double click makes one shadow call and one Opus call', s.seen.grades.length === 1 && s.seen.asks === 1, `grades ${s.seen.grades.length}, asks ${s.seen.asks}`);
+  const s = await scenario(ANSWERED);
+  await s.card.locator('[data-attempt-label]').waitFor({ timeout: 30000 });
+  ok('2a the saved guess is attempt 1, reviewed and Not rated', (await s.card.locator('[data-attempt-label]').innerText()) === 'Attempt 1 · Reviewed'
+    && (await s.card.locator('[data-rating-badge]').innerText()).includes('Not rated') && (await s.card.locator('[data-answer-view] [data-answer]').innerText()) === 'exp makes them positive');
+  await s.card.locator('[data-feedback-tab="feedback"]').click();
+  const feedback = await s.card.locator('[data-feedback-view]').innerText();
+  ok('2b the Tutor verdict shows without its VERDICT token, with the reveal', feedback.includes('You have both ideas.') && !/VERDICT/.test(feedback) && (await s.card.locator('[data-eb-reveal]').innerText()).includes('shares of one whole'), feedback);
+  await s.card.getByRole('button', { name: 'Revise answer', exact: true }).click();
+  const field = s.card.locator('textarea[data-eb-answer]');
+  await field.waitFor({ timeout: 10000 });
+  const draft = await field.inputValue();
+  await field.fill('exp makes them positive; dividing by the sum makes them add to one');
+  await s.card.getByRole('button', { name: 'Submit answer', exact: true }).click();
+  await s.card.locator('[data-eb-reviewing]').waitFor({ timeout: 15000 });
+  const options = await s.card.locator('[data-attempt-select] option').allInnerTexts();
+  ok('2c Revise answer starts from the saved guess; the new attempt is attempt 2 and attempt 1 stays', draft === 'exp makes them positive' && options.length === 2 && options[0].startsWith('Attempt 1') && options[1].startsWith('Attempt 2'), `${draft} | ${options.join(' / ')}`);
+  ok('2d the revision is saved with no server parent (the old guess was never a stored attempt), and nothing legacy is called',
+    s.seen.posts.length === 1 && !('baseline' in (s.seen.posts[0]?.submittedContent || {})) && s.seen.asks === 0 && s.seen.grades === 0, JSON.stringify(s.seen.posts[0]?.submittedContent));
   await s.context.close();
 }
 
-// 6. An AWS-hosted app sends no shadow request (LearnPage passes the app object with .hosting).
-{
-  // A real AWS-hosted app always carries `aws_connection` (packages/web/src/app-data.js
-  // withAwsApp); app-data.js's appApi/awsClient read it to build the AWS job client
-  // before LearnPage ever mounts, so the mock needs one too, plus the grant + lambda
-  // endpoints that client calls. RepositoryPage also re-fetches /api/repositories/:name
-  // on mount and replaces its `app` state with that reply, so it needs `hosting` too,
-  // or the card would mount with a plain (non-AWS) app and the bail-out would never see it.
-  const saved = { app: replies['/api/apps/nanogpt'], list: replies['/api/apps'], repo: replies['/api/repositories/nanogpt'], grant: replies['/api/byoc/grant'] };
-  const connection = { state: 'connected', org: app.org, owner_email: app.owner_email, can_deploy: true, job_name: 'nanogpt', api_url: LAMBDA_URL, account_id: '000000000000', region: 'us-east-1' };
-  replies['/api/apps/nanogpt'] = { ...app, hosting: 'aws', app_chat: true, aws_connection: connection };
-  replies['/api/apps'] = { ...saved.list, apps: [{ ...app, hosting: 'aws', app_chat: true, aws_connection: connection }] };
-  replies['/api/repositories/nanogpt'] = { ...saved.repo, hosting: 'aws', app_chat: true, aws_connection: connection };
-  replies['/api/byoc/grant'] = { api_url: LAMBDA_URL, token: 'test-grant', expires_at: Date.now() / 1000 + 3600 };
-  const s = await scenario({ extraRoutes: [{ url: LAMBDA_URL + '**', handler: route => route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }) }] });
-  await s.card.locator('input').fill('an answer');
-  await s.card.getByRole('button', { name: 'Commit' }).click();
-  await s.card.locator('[data-verdict]', { hasText: 'You have both ideas.' }).waitFor({ timeout: 10000 });
-  await s.page.waitForTimeout(600);
-  ok('an AWS-hosted app sends no shadow request', s.seen.grades.length === 0);
-  await s.context.close();
-  replies['/api/apps/nanogpt'] = saved.app;
-  replies['/api/apps'] = saved.list;
-  replies['/api/repositories/nanogpt'] = saved.repo;
-  if (saved.grant === undefined) delete replies['/api/byoc/grant']; else replies['/api/byoc/grant'] = saved.grant;
-}
-
-// 5. A block without key ideas sends no shadow request.
-{
-  const s = await scenario();
-  await s.page.evaluate(([key, block]) => localStorage.setItem(key, JSON.stringify({ strokes: [], shapes: [], items: [], links: [], blocks: [{ ...block, expects: [] }] })), [KEY, CHALLENGE]);
-  await s.page.reload();
-  await s.card.locator('input').waitFor({ timeout: 30000 });
-  await s.card.locator('input').fill('an answer');
-  await s.card.getByRole('button', { name: 'Commit' }).click();
-  await s.card.locator('[data-verdict]', { hasText: 'You have both ideas.' }).waitFor({ timeout: 10000 });
-  await s.page.waitForTimeout(600);
-  ok('no key ideas, no shadow request', s.seen.grades.length === 0);
-  await s.context.close();
-}
-
-console.log(failed ? `${failed} failed` : 'all green');
+const passed = total - failed;
+console.log(failed ? `${failed} of ${total} failed` : `all green (${passed}/${total})`);
 await browser.close();
 process.exit(failed ? 1 : 0);

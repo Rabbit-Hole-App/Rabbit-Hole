@@ -66,8 +66,9 @@ export function legacyView(block, { strip = value => text(value), inPage = () =>
 function legacyAttempt(entry, verdictText, number, inPage) {
   const status = entry.reviewFailed ? 'failed' : verdictText ? 'reviewed' : entry.grading ? (inPage(entry.attemptId) ? 'reviewing' : 'interrupted') : 'submitted';
   return {
-    id: entry.attemptId || `legacy-${number}`, number, status,
-    answer: { text: text(entry.answer), sketched: !!entry.sketchSubmitted, voice: [], inputs: [] },
+    // legacy: saved on the block (fromLegacyAnswer's shape, read-only); the attempt store never knew it.
+    id: entry.attemptId || `legacy-${number}`, number, status, legacy: true,
+    answer: { text: text(entry.answer), sketched: !!entry.sketchSubmitted, voice: [], inputs: [], resources: [] },
     // A legacy review is the Tutor's own words, shown as they came; it has no sections and no stored rating.
     feedback: status === 'reviewed' ? { text: verdictText, sections: null, comparison: '', citations: [] } : null,
     rating: null,
@@ -86,9 +87,12 @@ export const pastAttempt = block => ({ attemptId: block.attemptId || null, answe
 // This function is the one place the card reads those names.
 const CHANGE_WORDS = { resolved: 'Resolved', persisting: 'Still to work on', new: 'New', regressed: 'Slipped back', prior_feedback_corrected: 'Earlier feedback corrected', not_comparable: 'Not comparable' };
 const EVIDENCE_NAMES = { voice: 'Voice note', sketch: 'Sketch', recording: 'Sketch recording' };
-export function serviceView(raw) {
+// earlier: legacyView's attempts for answers saved on the card itself (an old Challenge, or an answer made before the
+// store was wired, owner 2026-10-30: one Practice card). They come first, so the store's attempts number on after them.
+export function serviceView(raw, earlier = []) {
   if (!raw) return { attempts: [], draft: null, loading: true };
-  const numbers = new Map((raw.attempts || []).map((entry, index) => [entry.attemptId, index + 1]));
+  const offset = earlier.length;
+  const numbers = new Map((raw.attempts || []).map((entry, index) => [entry.attemptId, offset + index + 1]));
   const attempts = (raw.attempts || []).map((entry, index) => {
     const content = entry.submittedContent || {};
     const state = attemptState(entry.assessment || null);
@@ -120,7 +124,7 @@ export function serviceView(raw) {
     if (feedback && !feedback.sections) feedback.text = 'The Tutor has no written feedback for this attempt.';
     const rating = review?.rating || null;
     return {
-      id: entry.attemptId, number: index + 1, assessmentId: entry.assessment?.assessmentId || null, parentId: content.baseline?.parentAttemptId || null, status,
+      id: entry.attemptId, number: offset + index + 1, assessmentId: entry.assessment?.assessmentId || null, parentId: content.baseline?.parentAttemptId || null, status,
       answer: {
         text: typed, sketched: !!content.sketch || !!content.recording, sketchImage: text(entry.sketchUrl) || null, sketchAssetId: text(content.sketch?.assetId) || null, voice: content.voice || [], recording: content.recording || null,
         resources: content.resources || [],
@@ -132,8 +136,14 @@ export function serviceView(raw) {
     };
   });
   const draft = raw.draft ? { id: raw.draft.draftId, parentId: raw.draft.answer?.baseline?.parentAttemptId || null, text: text(raw.draft.answer?.text) } : null;
-  return { attempts, draft, loading: false };
+  return { attempts: [...earlier, ...attempts], draft, loading: false };
 }
+// The existing teaching cards a review named (FX-EB-05), as FeedbackView lists them. exists(cardId) says whether the card
+// is still on this canvas: a removed one shows unavailable, never a substitute. A review stored before the field lists none.
+const KIND_NAMES = { explanation: 'Explanation', animation: 'Explanation', scene: 'Interactive explanation', video: 'Video', notebook: 'Notebook' };
+export const teachingAidsOf = (review, exists = () => false) => (Array.isArray(review?.teachingAids) ? review.teachingAids : [])
+  .map(aid => ({ id: aid.cardId, cardId: aid.cardId, title: text(aid.title) || KIND_NAMES[aid.kind] || 'Teaching card', kind: aid.kind, reason: text(aid.reason), available: !!exists(aid.cardId) }));
+
 const clockOf = ms => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 // Where in a piece of evidence a citation points, in words: a time, a page, a cell or a Sketch region.
 export function locatorText(locator = {}) {

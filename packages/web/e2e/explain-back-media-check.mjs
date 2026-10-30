@@ -121,7 +121,7 @@ await load();
 
 // ---- no dictation into the answer field: typed text byte-for-byte unchanged through record, stop, replay, remove, re-record ----
 const TYPED = '  Pendulum: T = 2π√(L/g)\n\tthe bob swings — faster when L is short  ';
-const typed = await insert('Explain back');
+const typed = await insert('Practice');
 await reveal(typed);
 await check('voice offered on the card with Sketch closed', async () => {
   assert.equal(await typed.locator('[data-eb-voice]').count(), 1, 'Record voice is offered: the page wires ExplainBackService.voice.upload');
@@ -190,7 +190,7 @@ await check('Submit blocked while recording', async () => {
 });
 
 // ---- voice alone is a complete answer: empty text, Sketch never opened ----
-const voiceOnly = await insert('Explain back');
+const voiceOnly = await insert('Practice');
 await reveal(voiceOnly);
 await check('voice-only answer can be submitted with empty text and Sketch never opened', async () => {
   assert.equal(await field(voiceOnly).inputValue(), '');
@@ -219,7 +219,7 @@ await check('voice-only answer can be submitted with empty text and Sketch never
 await shot('02-voice-only');
 
 // ---- silent Sketch recording never asks for the microphone; one microphone owner ----
-const sketchCard = await insert('Explain back');
+const sketchCard = await insert('Practice');
 await reveal(sketchCard);
 const sketchId = await sketchCard.getAttribute('data-block-id');
 const panel = page.locator(`[data-explain-sketch-panel="${sketchId}"]`);
@@ -279,7 +279,7 @@ await page.context().close();
 page = await open();
 await page.clock.install();
 await load();
-const limited = await insert('Explain back');
+const limited = await insert('Practice');
 await reveal(limited);
 await check('the two-minute limit stops cleanly and says so', async () => {
   await field(limited).fill(TYPED);

@@ -26,12 +26,15 @@ test('a shared view and a link visitor\'s fork keep the exercise and its Input w
   assert.deepEqual(shown.links, board.links);
 });
 
-test('an owner\'s duplicate or fork copies the Explain-back exercise only; other cards keep their state as before', () => {
+test('an owner\'s duplicate or fork copies the Practice exercise only, an old Challenge included; other cards keep their state', () => {
   const copy = forkState(board);
   const eb = copy.blocks.find(block => block.id === 'eb1');
   assert.doesNotMatch(JSON.stringify(eb), new RegExp(SECRET));
   assert.equal(eb.prompt, board.blocks[0].prompt);
-  assert.equal(copy.blocks.find(block => block.id === 'c1').answer, `${SECRET}-plain`, 'a plain Challenge in an owner duplicate is unchanged');
+  // Owner 2026-10-30: one Practice card - an old Challenge (no mode) is copied as its exercise too, its guess left behind.
+  const plain = copy.blocks.find(block => block.id === 'c1');
+  assert.deepEqual([plain.prompt, 'answer' in plain], ['Plain challenge', false]);
+  assert.equal(copy.blocks.find(block => block.id === 'nb1').ipynb.cells.length, 0, 'a notebook is copied as it was');
   assert.deepEqual(copy.links, board.links);
   assert.equal(board.blocks[0].answer, `${SECRET}-answer`, 'the source board is not changed');
 });

@@ -16,6 +16,12 @@ Version 1.6 · 30 October 2026 UTC · Implementation handoff for Parallel
 
 **Global constraints:** recording never edits typed text; one owned Sketch host; private immutable attempts; attempt 2 receives its selected parent's answer and exact review; each reviewed attempt has its own blue `N/10` badge; assessment remains free to the learner; no fabricated evidence or rating; preserve ordinary Challenge and Notebook behavior.
 
+> **Owner decision 2026-10-30 (~11:10 AM PT), superseding "preserve ordinary Challenge" here and in the U row, 03.1, the 03
+> check and 09.3:** "Explain-back = Challenge = Practice" and "There is only one design: the new one." Every `type: 'challenge'`
+> block is one card, labelled Practice, rendered with this plan's Explain-back card; an old Challenge's saved answer, verdict
+> and reveal stay visible in it (task f3500c94, branch `feat/practice-one-card`, checklist row P2). Notebook behavior is
+> unchanged.
+
 **Review focus:** panel moves must not break capture or lose drafts (EB-03/06); board shares/forks must not expose private media/history (EB-02/05); uncertain evidence must not become a zero or fabricated review (EB-07/08); late results and retries must target the original attempt without duplicate calls (EB-02/04); a mistaken prior review must not distort the new score (EB-07/08).
 
 Canonical tasks: **TUT-16** (Explain-back update) and **UI-29** (generation-prompt visibility).

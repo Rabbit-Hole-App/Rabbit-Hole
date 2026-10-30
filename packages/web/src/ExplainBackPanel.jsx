@@ -1,6 +1,7 @@
 import { createContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { FileText, Group, ImageIcon, Maximize2, MessageSquareText, Minimize2, NotebookPen, Pin, X } from 'lucide-react';
 import { Md } from './ask.jsx';
+import { MdInline } from './Md.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { selectionRef } from './selection-ref.js';
 import VoiceNote from './VoiceNote.jsx';
@@ -25,7 +26,8 @@ import { FEEDBACK_SECTIONS, PANEL, askTutorText, attemptLabel, optionText, panel
 //                                                    (sketch-recording.js); without upload no recorder is shown.
 //   VoicePlayer                                      a submitted note's player ({ note: EvidenceRef, seekMs }), or absent.
 //   openEvidence({ attemptId, evidence, memberId, locator })   opens a cited input at the submitted revision, or absent.
-//   teachingAids(attemptId) -> [{ id, title, kind, cardId }]    the attempt's linked teaching cards, or absent.
+//   teachingAids(attemptId) -> [{ id, title, kind, cardId, reason, available }]   existing canvas cards the attempt's review
+//                                                    named (explain-back-view.js teachingAidsOf); available false once removed.
 //   openTeachingAid(aid)                             reveals the existing card on the canvas (no new generation).
 export const ExplainBackService = createContext(null);
 
@@ -57,11 +59,11 @@ export const PANEL_LOCKED = {
 };
 export function usePanelOwner(root) {
   const store = ownerStore(root);
-  const owner = useSyncExternalStore(listener => { if (!store) return () => {}; store.listeners.add(listener); return () => store.listeners.delete(listener); }, () => store?.owner ?? null);
+  const owner = useSyncExternalStore(listener => { if (!store) return () => {}; store.listeners.add(listener); return () => store.listeners.delete(listener); }, () => store?.owner ?? null, () => null);
   const setOwner = id => { if (!store || store.owner === id) return; store.owner = id; store.lock = null; for (const listener of [...store.listeners]) listener(); };
   // A question that goes away (deleted, undone) gives the panel up; closing keeps it, so the owner never flickers.
   const releaseOwner = id => { if (store?.owner === id) setOwner(null); };
-  const setLock = (id, lock) => { if (store?.owner === id) store.lock = lock; };
+  const setLock = (id, lock) => { if (store && store.owner === id) store.lock = lock; };
   // Why `id` may not take the panel now (a learner-readable reason), or null.
   const lockedFor = id => (store && store.owner !== null && store.owner !== id && store.lock ? PANEL_LOCKED[store.lock] : null);
   return [owner, setOwner, releaseOwner, setLock, lockedFor];
@@ -75,8 +77,9 @@ const noMedia = { subscribe: () => () => {}, get: () => null };
 export function useDraftMedia({ draftKey, voiceStore, recordingStore, blockId, initial = undefined }) {
   const note = voiceStore ? voiceNoteFor(draftKey, { upload: voiceStore.upload, load: voiceStore.load, saved: initial !== undefined ? initial : voiceStore.saved?.(blockId) ?? null, onSaved: saved => voiceStore.onSaved?.(blockId, saved) }) : null;
   const take = recordingStore ? sketchRecordingFor(draftKey, { upload: recordingStore.upload, uploadAudio: recordingStore.uploadAudio, load: recordingStore.load, onSaved: saved => recordingStore.onSaved?.(blockId, saved) }) : null;
-  const noteState = useSyncExternalStore((note || noMedia).subscribe, (note || noMedia).get);
-  const takeState = useSyncExternalStore((take || noMedia).subscribe, (take || noMedia).get);
+  // The third getter lets the card render to static markup too (math-typeset.test.mjs).
+  const noteState = useSyncExternalStore((note || noMedia).subscribe, (note || noMedia).get, (note || noMedia).get);
+  const takeState = useSyncExternalStore((take || noMedia).subscribe, (take || noMedia).get, (take || noMedia).get);
   return {
     note, take,
     voice: note ? { ...voiceSubmitState(noteState), saved: noteState?.saved ?? null } : null,
@@ -238,7 +241,8 @@ export function AnswerView({ attempt, cited = null, VoicePlayer = null }) {
   return (
     <div data-answer-view={attempt.id} className="space-y-2 text-sm">
       {words ? (
-        <p data-answer className="whitespace-pre-wrap break-words">{at < 0 ? words : <>{words.slice(0, at)}<mark data-cited className="rounded-sm bg-primary-fill/15 text-ink">{highlight}</mark>{words.slice(at + highlight.length)}</>}</p>
+        // Math the learner wrote is typeset, as the old Challenge answer was (owner brief 2026-10-28); a cited passage is marked in the plain text.
+        <p data-answer className="whitespace-pre-wrap break-words">{at < 0 ? <MdInline text={words} mathOnly /> : <>{words.slice(0, at)}<mark data-cited className="rounded-sm bg-primary-fill/15 text-ink">{highlight}</mark>{words.slice(at + highlight.length)}</>}</p>
       ) : <p className="text-ink-2 italic">No written text in this answer.</p>}
       {highlight && at < 0 && <p role="status" className="text-xs text-ink-2">The cited passage is not in this answer.</p>}
       {attempt.answer.sketched && <p data-answer-sketched className="text-xs text-ink-2">This answer includes a sketch.</p>}
@@ -260,7 +264,7 @@ export function FeedbackView({ attempt, question, blockId, onCite, onFile, aids 
   if (!feedback) return <p className="text-sm text-ink-2">No feedback for this attempt.</p>;
   const ask = () => {
     const content = askTutorText(question, attempt);
-    chat.composer.prepare({ mode: 'tutor', text: `Help me with what to revisit in my attempt ${attempt.number}.`, contextRefs: [selectionRef({ ids: [blockId], kind: 'card', name: `Explain back: ${question}`.slice(0, 120), content })] });
+    chat.composer.prepare({ mode: 'tutor', text: `Help me with what to revisit in my attempt ${attempt.number}.`, contextRefs: [selectionRef({ ids: [blockId], kind: 'card', name: `Practice: ${question}`.slice(0, 120), content })] });
   };
   return (
     <div data-feedback-view={attempt.id} className="space-y-3 text-sm">
@@ -291,10 +295,13 @@ export function FeedbackView({ attempt, question, blockId, onCite, onFile, aids 
           <h3 className="mb-1 text-xs font-semibold text-ink-2">Teaching material</h3>
           <ul className="space-y-1">
             {aids.map(aid => (
-              <li key={aid.id} className="flex items-center justify-between gap-2">
-                <span className="min-w-0 truncate text-[13px]" title={aid.title}>{aid.title}</span>
-                {/* Open on canvas reveals the card already made for this feedback; it never generates another. */}
-                <button type="button" data-open-aid={aid.id} onClick={() => onOpenAid(aid)} className="h-7 shrink-0 cursor-pointer rounded-md border border-line px-2 text-xs text-ink hover:bg-hover">Open on canvas</button>
+              <li key={aid.id} data-teaching-aid={aid.id} className="flex items-center justify-between gap-2">
+                <span className="min-w-0">
+                  <span className="block truncate text-[13px]" title={aid.title}>{aid.title}{aid.available === false ? ' (unavailable)' : ''}</span>
+                  {aid.reason && <span className="block text-xs text-ink-2">{aid.reason}</span>}
+                </span>
+                {/* Open on canvas reveals the card already on the canvas; it never generates another. A removed card is unavailable. */}
+                <button type="button" data-open-aid={aid.id} disabled={aid.available === false} onClick={() => onOpenAid(aid)} className="h-7 shrink-0 cursor-pointer rounded-md border border-line px-2 text-xs text-ink hover:bg-hover disabled:cursor-default disabled:text-ink-3 disabled:hover:bg-transparent">Open on canvas</button>
               </li>
             ))}
           </ul>

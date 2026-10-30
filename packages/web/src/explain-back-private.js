@@ -12,7 +12,9 @@ export const EXPLAIN_BACK_PRIVATE = Object.freeze([
   'sketch', 'sketchOpen', 'sketchSubmitted', 'sketchPinned', 'sketchWidth',
 ]);
 
-export const isExplainBackCard = block => block?.type === 'challenge' && block?.mode === 'explain_back';
+// The one test for a Practice card (owner 2026-10-30: Explain-back = Challenge = Practice): every challenge block, an old one
+// without mode 'explain_back' included. The canvas, its inputs, Sketch host and the control plane all ask this.
+export const isExplainBackCard = block => block?.type === 'challenge';
 
 // The card as anyone but its learner receives it; any other card unchanged (the same object).
 export function publicExplainBack(block) {

@@ -99,9 +99,10 @@ await page.goto(`${BASE}/apps/${canvas.name}`);
 await page.waitForSelector('[data-tool-gutter]', { timeout: 30000 });
 await page.waitForTimeout(1500);
 // Each card by its own id: insert() hands back cards().last(), a live locator that is the newest card at every use (fast-e2e
-// run 41032431618: after the Challenge was inserted, every step looked for the Explain-back controls inside the Challenge).
-const cardId = await (await insert('Explain back')).getAttribute('data-block-id');
-const sourceId = await (await insert('Challenge')).getAttribute('data-block-id');
+// run 41032431618: after the source was inserted, every step looked for the Explain-back controls inside the source). The
+// source is an Explanation: a challenge is the Practice card itself since owner 2026-10-30, never a source.
+const cardId = await (await insert('Practice')).getAttribute('data-block-id');
+const sourceId = await (await insert('Explanation')).getAttribute('data-block-id');
 const card = page.locator(`[data-block-id="${cardId}"]`);
 
 // ---- the green Input: mark, hit area and route anchor agree at every zoom ----
@@ -114,7 +115,7 @@ await check('1 the Input mark, its hit area and the anchor of a connection to it
   const measure = () => page.evaluate(([owner, from]) => {
     const port = document.querySelector(`[data-port="input"][data-owner="${owner}"]`), mark = port.querySelector('span');
     const centre = el => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }; };
-    // The input link the picker saved (one link of kind explain-input, from the Challenge to this card), and its real route:
+    // The input link the picker saved (one link of kind explain-input, from the Explanation to this card), and its real route:
     // the transparent hit path, which a Rough connector's redrawn stroke never replaces.
     const link = Object.values(localStorage).flatMap(v => { try { return JSON.parse(v)?.links || []; } catch { return []; } })
       .find(entry => entry.kind === 'explain-input' && entry.from === from && entry.to === owner);
