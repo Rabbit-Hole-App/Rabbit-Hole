@@ -2264,7 +2264,9 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'explanation') return <ExplanationBody block={block} onFile={onFile} />;
   if (block.type === 'table') return <TableBody block={block} onFile={onFile} />;
   if (block.type === 'cad') return <CadCard block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} appName={appName} selected={selected} readOnly={readOnly} onEdit={onCadEdit} account={cadAccount} />;
-  if (block.type === 'animation3d') return <Animation3DCard block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} selected={selected} readOnly={readOnly} />;
+  // Its own Suspense (as WhiteboardBlock): a lazy card inserted on a live canvas must not suspend the canvas, which unmounted the
+  // surface and threw in insertBlock's chromeTop (fast-e2e 41129301739, animation-mvp step 23).
+  if (block.type === 'animation3d') return <Suspense fallback={<p role="status" className="p-4 text-xs text-ink-2">Loading the 3D animation</p>}><Animation3DCard block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} selected={selected} readOnly={readOnly} /></Suspense>;
   if (block.type === 'model3d') return <ThreeDBody block={block} onChange={onChange} />;
   if (block.type === 'audio') return <AudioBody block={block} appName={appName} onChange={onChange} />;
   if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return <SceneActivityBody block={block} onChange={onChange} onAskScene={onAskScene} />;
