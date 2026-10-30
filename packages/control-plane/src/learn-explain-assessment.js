@@ -65,10 +65,11 @@ async function readSketch(e, { env, actor, attempt, deps }) {
 
 // A voice note: its transcript derivative (learn-media.js ensureTranscript), made once per audio hash during assessment
 // preparation and reused by revisions, reloads and reassessments. The audio itself is never sent: coverage says transcript
-// only. deps: readAttemptAsset (D), transcriptStore {get, put} (D), transcriber (default openaiTranscriber with the injected
-// admitTranscription/recordTranscription spend hooks). A failed or unconfigured transcript is unavailable, never empty text.
+// only. deps: readAttemptAsset (D), transcriptStore {get, put} (D), transcriber (default openaiTranscriber). A failed or unconfigured transcript is unavailable, never empty text.
 async function readVoice(e, { env, actor, attempt, deps }) {
-  const transcriber = deps.transcriber !== undefined ? deps.transcriber : openaiTranscriber(env, { admit: deps.admitTranscription, record: deps.recordTranscription });
+  // The real transcriber admits its own platform-funded spend (learn-paid-transport.js transcribeSpendTransport) under the
+  // attempts route's free usage context: a refusal makes no call and stores nothing, so it reads as transcript_spend_refused.
+  const transcriber = deps.transcriber !== undefined ? deps.transcriber : openaiTranscriber(env);
   const unavailable = note => ({ coverage: { evidenceId: e.evidenceId, status: 'unavailable', note } });
   // ponytail: D's private asset read and derivative store are not merged yet; without them a voice note is unavailable.
   if (!deps.readAttemptAsset || !deps.transcriptStore) return unavailable('transcript_unavailable');
