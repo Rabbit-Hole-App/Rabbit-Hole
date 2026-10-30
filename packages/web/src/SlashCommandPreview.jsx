@@ -16,6 +16,7 @@ import { YouTubeMoment } from './AdaptiveCanvas.jsx';
 import LearnWiki from './LearnWiki.jsx';
 import WebpageCard from './WebpageCard.jsx';
 import { CardSourceScope } from './use-card-source.js';
+import { ExplainBackService } from './ExplainBackPanel.jsx';
 import { BRIEFS, briefView, previewBlock } from './slash-sheet.js';
 
 // Controls that would reach a provider or the account from inside a card: in the window a press on one does nothing (Speak an
@@ -145,7 +146,9 @@ function CardPreview({ preview, stage, appName, narrow }) {
             appName={appName} selected viewKey={viewKey} onGrade={grade} />}
     </div>
   );
-  const shown = scope ? <CardSourceScope.Provider value={scope}>{body}</CardSourceScope.Provider> : body;
+  // An example card never saves an attempt: the Explain-back store is withheld, so /practice shows its canned local feedback.
+  const local = <ExplainBackService.Provider value={null}>{body}</ExplainBackService.Provider>;
+  const shown = scope ? <CardSourceScope.Provider value={scope}>{local}</CardSourceScope.Provider> : local;
   return viewKey
     ? <div data-slash-viewer-preview className="flex shrink-0 flex-col items-end gap-2"><CadViewerTools viewKey={viewKey} cardId={block.id} ruler={type === 'cad'} />{shown}</div>
     : shown;

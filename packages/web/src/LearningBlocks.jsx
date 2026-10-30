@@ -48,7 +48,7 @@ import { afterPaint, usePerf } from './learn-perf.js';
 import { canSubmit, hasMarks, sketchText } from './explain-sketch.js';
 import { disposeVoiceNote } from './explain-back-media.js';
 import { disposeSketchRecording } from './sketch-recording.js';
-import { AnswerView, AnswerVoice, AttemptBar, ExplainBackService, FeedbackTabs, FeedbackView, InputPicker, InputPills, RecordingState, SketchPanel, SketchRecording, sketchCapture, usePanelOwner } from './ExplainBackPanel.jsx';
+import { AnswerView, AttemptBar, ExplainBackService, FeedbackTabs, FeedbackView, InputPicker, InputPills, SketchPanel, SketchRecorder, VoiceNote, sketchCapture, useDraftMedia, usePanelOwner } from './ExplainBackPanel.jsx';
 import { ANSWER_LABEL, ANSWER_PLACEHOLDER, HISTORY_KEPT, SKETCH_CONTENT_LABEL, attemptLabel, connectionsOf, draftMemoryKey, inputPillsOf, legacyView, recallDraft, rememberDraft, reviseSketchPlan, pastAttempt, serviceView, submitState } from './explain-back-view.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { describeExcerpt, isExcerpt } from './pdf-excerpt.js';
@@ -963,7 +963,6 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
   const voiceStore = service?.voice?.upload ? service.voice : null;
   // The recorders' registry key: app, board and card (a fork keeps card ids), then the draft.
   const draftKey = `${memoryKey}\u0000${service ? view.draft?.id || `draft-${draftSeq}` : 'legacy'}`;
-  const [voice, setVoice] = useState(null);
   // The voice EvidenceRef (or null) a revision started in this mount carries from its attempt; undefined: the note comes
   // from the saved draft as usual.
   const [carried, setCarried] = useState(undefined);
@@ -987,7 +986,10 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
   }, [draft, revising]);
   // The Sketch recording (EB-06 06.5), gated like the voice note; its controls sit in the panel under the drawing.
   const recordingStore = service?.recording?.upload ? service.recording : null;
-  const [recording, setRecording] = useState(null);
+  // Both controllers exist only for a draft being written, once its server draft has loaded (they read their saved entry
+  // on creation); the card reads their state in the same render as their controls.
+  const media = useDraftMedia({ draftKey, blockId: block.id, initial: carried, voiceStore: editing && draftReady ? voiceStore : null, recordingStore: editing && draftReady ? recordingStore : null });
+  const { voice, recording } = media;
   // Connected inputs (EB-05): each Input connection on the canvas, shown as a pill under the field; the picker is the keyboard and touch
   // way to make the same link a port drag makes.
   const inputs = selected.draft && sketchHost?.inputs ? inputPillsOf(sketchHost.inputs(block.id), sketchHost.inputMessage) : [];
@@ -1052,7 +1054,8 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
   };
   const sketchShown = selected.draft ? sketchMarked || !!recording?.saved : !!selected.answer.sketched;
   const latestSubmitted = !service && block.sketchSubmitted && selected === attempts.at(-1);
-  const panelBody = selected.draft ? sketchHost.render(block, { docked: true })
+  // Built only while the panel is open: outside a canvas (the Slash Commands preview) there is no Sketch host at all.
+  const panelBody = !open ? null : selected.draft ? sketchHost.render(block, { docked: true })
     : latestSubmitted ? sketchHost.render(block, { docked: true, still: true })
       : selected.answer.sketchImage ? <img src={selected.answer.sketchImage} alt="The sketch submitted with this attempt" className="h-full w-full rounded-lg border border-line object-contain" />
         : <p className="text-sm text-ink-2">{selected.answer.sketched ? 'This attempt\'s sketch is not available here.' : 'This attempt has no sketch.'}</p>;
@@ -1061,9 +1064,9 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
     <button type="button" data-sketch-clear onClick={() => onChange({ ...latest.current, sketch: { ...EMPTY_SKETCH, ...(latest.current.sketch?.draftId ? { draftId: latest.current.sketch.draftId } : {}) } })}
       className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-2 text-[13px] text-ink-2 hover:bg-hover hover:text-ink"><Trash2 size={15} />Clear sketch</button>
   ) : null;
-  const panelMedia = selected.draft && (recordingStore || clearSketch) ? (
+  const panelMedia = selected.draft && (media.take || clearSketch) ? (
     <div className="space-y-2">
-      {recordingStore && draftReady && <SketchRecording recKey={draftKey} store={recordingStore} blockId={block.id} sketch={block.sketch} renderReplay={sketch => sketchHost.render({ ...block, sketch }, { still: true, docked: true })} />}
+      {media.take && <SketchRecorder recording={media.take} sketch={block.sketch} renderReplay={sketch => sketchHost.render({ ...block, sketch }, { still: true, docked: true })} />}
       {clearSketch}
     </div>
   ) : null;
@@ -1084,7 +1087,7 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
       // The submitted note and recording belong to the attempt now; the next draft starts without them.
       disposeVoiceNote(draftKey); disposeSketchRecording(draftKey);
       voiceStore?.onSaved?.(block.id, null); recordingStore?.onSaved?.(block.id, null);
-      setDraft(''); setRevising(null); setChosen(null); setVoice(null); setRecording(null); setCarried(undefined); setTab('answer'); setDraftSeq(n => n + 1);
+      setDraft(''); setRevising(null); setChosen(null); setCarried(undefined); setTab('answer'); setDraftSeq(n => n + 1);
       if (sync) await sync.clear(); // a conflict here (another tab kept working) is shown, not overwritten
     } catch (error) {
       setNotice(`Your answer was not submitted: ${error?.message || 'try again'}. Your work is kept.`);
@@ -1111,11 +1114,18 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
     if (service) {
       setDraft(selected.answer.text); setRevising(selected.id); setCarried(selected.answer.voice[0] || null);
       sync?.patch({ voice: selected.answer.voice.slice(0, 1) }); // the carried note is the draft's until removed
-      // The card's marks are the newest attempt's: an older attempt's draft starts without them (undoable).
+      // The card's marks are the newest attempt's: an older attempt's draft starts without them (undoable), then takes that
+      // attempt's own submitted marks when the store can read them (service.sketchMeta, the asset's /meta).
       const plan = reviseSketchPlan({ attempt: selected, newest: attempts.at(-1), marked: hasMarks(block.sketch) });
       if (plan.clear) onChange({ ...latest.current, sketch: { ...EMPTY_SKETCH } });
-      const notes = [plan.notice, ...(restoreInputs(selected) || [])].filter(Boolean);
-      if (notes.length) setNotice(notes.join(' '));
+      const notes = restoreInputs(selected) || [];
+      const show = extra => { const all = [extra, ...notes].filter(Boolean); if (all.length) setNotice(all.join(' ')); };
+      const assetId = selected.answer.sketchAssetId;
+      if (plan.clear && assetId && service.sketchMeta) {
+        service.sketchMeta(assetId)
+          .then(meta => { if (!hasMarks(meta?.marks)) throw Error('no marks'); onChange({ ...latest.current, sketch: { ...EMPTY_SKETCH, ...meta.marks } }); show(null); })
+          .catch(() => show(plan.notice));
+      } else show(plan.notice);
       return;
     }
     revise();
@@ -1157,8 +1167,7 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
                   {canConnect && <InputPicker list={() => sketchHost.inputCandidates(block.id)} onConnect={connectInput} />}
                 </div>
               )}
-              {recordingStore && draftReady && <RecordingState key={draftKey} recKey={draftKey} store={recordingStore} blockId={block.id} onState={setRecording} />}
-              {voiceStore && draftReady && <div data-eb-voice className="mt-2"><AnswerVoice key={draftKey} draftKey={draftKey} store={voiceStore} blockId={block.id} initial={carried} onState={setVoice} /></div>}
+              {media.note && <div data-eb-voice className="mt-2"><VoiceNote note={media.note} /></div>}
             </div>
           ) : selected.status === 'reviewed' ? (
             <>
