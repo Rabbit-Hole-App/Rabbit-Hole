@@ -7,6 +7,8 @@
 // owner's View only shared page a program card saved with no dx/dy (as an /explain job places it) selected by a click, with Focus,
 // and (Task 9.1) an Edit's Proposed program preview: its own player, never saved, Current back, Discard keeping the card. The edit
 // job's ready answer is a route stand-in whose candidate names a fixture program (wiring only; the result-route resolution is unit-tested).
+// Task 10.2 support matrix: Focus after Play, Pause, a scrub, a slider and Notes is placed on the pane (a native reveal had scrolled
+// the clipped surface), and a control taking the keyboard focus under the minimap is revealed clear of it.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/explain-program-card-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -18,7 +20,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('explain-program-card-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'explain-program-card-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 19; // bump with the checks below; the printed line is what CI reads
+const TOTAL = 21; // bump with the checks below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `prog-${run}@example.com`, secret, handle: `prog_${run}` }) })).json();
@@ -54,6 +56,10 @@ const { dx: _dx, dy: _dy, ...placed } = program('v-placed', 'Halving a sorted ro
 const viewCanvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Program view only ${run}` }) });
 const viewShare = await api(`/api/learn/boards/${viewCanvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true,
   state: { ...seed, blocks: [program('v-lead', 'Balance over time', 'fixture-growth'), placed] } }) });
+// Task 10.2: a fourth canvas for the support-matrix sequences (Focus after the learner's own changes; keyboard focus under the minimap).
+const focusCanvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Program focus ${run}` }) });
+const focusKey = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${focusCanvas.name}:ink`;
+const focusSeed = { ...seed, blocks: [program('f-growth', 'Balance over time', 'fixture-growth'), program('f-search', 'Halving a sorted row', 'fixture-search'), program('f-sort', 'Sorting by neighbour swaps', 'fixture-sort')] };
 const viewBoard = async () => JSON.stringify((await api(`/api/learn/boards/${viewCanvas.name}/main`))?.state ?? null);
 
 const browser = await chromium.launch();
@@ -66,6 +72,7 @@ try {
   await context.addInitScript(([storageKey, value]) => { if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, JSON.stringify(value)); }, [key, seed]);
   await context.addInitScript(([storageKey, value]) => { if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, JSON.stringify(value)); }, [editKey, editSeed]);
   await context.addInitScript(([storageKey, value]) => { if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, JSON.stringify(value)); }, [navKey, navSeed]);
+  await context.addInitScript(([storageKey, value]) => { if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, JSON.stringify(value)); }, [focusKey, focusSeed]);
   // Playing, scrubbing and controls are local: no model route may be called. Any such POST fails the run.
   await context.route(/\/api\/learn\/(ask|tutor|artifact|home-ask|journeys?|explain)\b/, route => {
     if (route.request().method() === 'GET' || new URL(route.request().url()).pathname === '/api/learn/tutor/next-steps') return route.fallback();
@@ -326,7 +333,53 @@ try {
     assert.match(await edit.locator('[data-input-readout="rate"]').innerText(), /^8/);
     assert.equal(await edit.locator('[data-program-error]').count(), 0);
   });
-  await check('18 no model route was called, no host other than the app and its own notebook frame was contacted, and no page error', async () => {
+  // Task 10.2, the support matrix's own sequence at its own size (1440x900, 100%): each control pressed as a learner does (Playwright
+  // scrolls a control into view the way the browser's own reveal does), then Focus from the card's menu.
+  const surfaceBox = () => page.locator('[data-canvas-surface]').boundingBox();
+  const panBy = async (dx, dy) => { const s = await surfaceBox(); await page.mouse.move(s.x + 8, s.y + s.height - 30); await page.mouse.wheel(dx, dy); await page.waitForTimeout(350); };
+  const bring = async target => { for (let i = 0; i < 6; i++) { const r = await target.boundingBox(), s = await surfaceBox(); const dx = r.x + Math.min(r.width, s.width - 40) / 2 - (s.x + s.width / 2), dy = r.height > s.height - 120 ? r.y - (s.y + 70) : r.y + r.height / 2 - (s.y + s.height / 2); if (Math.abs(dx) < 30 && Math.abs(dy) < 30) return; await panBy(dx, dy); } };
+  await check('18 Focus after Play, Pause, a scrub, the slider at its maximum and Notes open is placed whole on the pane', async () => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/apps/${focusCanvas.name}`);
+    const growth = card('f-growth');
+    await growth.locator('[data-program-frame] [data-animation-object]').first().waitFor({ state: 'attached', timeout: 60000 });
+    await page.waitForTimeout(1500);
+    await bring(growth);
+    const play = growth.locator('[data-animation-play]');
+    await bring(play); await play.click(); await page.waitForTimeout(1500); await play.click(); await page.waitForTimeout(600);
+    await growth.locator('input[aria-label="Explanation time"]').fill('3'); await page.waitForTimeout(900);
+    const rate = growth.locator('input[data-input-control="rate"]'); await rate.fill(await rate.getAttribute('max')); await page.waitForTimeout(900);
+    await growth.locator('[data-program-notes-toggle]').click(); await page.waitForTimeout(900);
+    await bring(growth);
+    await growth.click({ button: 'right', position: { x: 30, y: 10 } });
+    await page.locator('[data-menu-focus]').first().click();
+    await page.locator('[data-focus-host][data-block-id="f-growth"]').waitFor({ timeout: 10000 });
+    await page.waitForTimeout(1200);
+    await shot('G-focus-after-changes');
+    const s = await surfaceBox(), host = await growth.boundingBox(), drawing = await growth.locator('[data-program-frame]').boundingBox();
+    assert.ok(host.x >= s.x - 1 && host.x + host.width <= s.x + s.width + 1, `the focused card on the pane: ${JSON.stringify({ host, surface: s })}`);
+    assert.ok(drawing.x >= s.x - 1, `the drawing's left edge (its axis) on screen: ${JSON.stringify(drawing)}`);
+    await page.locator('[data-focus-back]').first().click(); await page.waitForTimeout(800);
+  });
+  await check('19 a card control that takes the keyboard focus under the minimap is revealed clear of it', async () => {
+    const button = card('f-sort').locator('[data-program-action="step"]');
+    await button.waitFor({ timeout: 30000 });
+    const map = await page.locator('[data-canvas-minimap]').boundingBox();
+    assert.ok(map, 'the minimap is shown');
+    // Pan the camera (wheel, as a learner) until the button sits in the middle of the minimap's box.
+    for (let i = 0; i < 6; i++) { const b = await button.boundingBox(); const dx = b.x + b.width / 2 - (map.x + map.width / 2), dy = b.y + b.height / 2 - (map.y + map.height / 2); if (Math.abs(dx) < 4 && Math.abs(dy) < 4) break; await panBy(dx, dy); }
+    const under = await button.evaluate(e => { const r = e.getBoundingClientRect(), t = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return !!t && !(t === e || e.contains(t)); });
+    assert.ok(under, 'set-up: the button is under the minimap');
+    await page.keyboard.press('Shift'); // a keyboard user: the focus that follows is :focus-visible
+    await button.focus();
+    await page.waitForTimeout(600);
+    assert.equal(await button.evaluate(e => e.matches(':focus-visible')), true);
+    const reachable = await button.evaluate(e => { const r = e.getBoundingClientRect(), t = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return !!t && (t === e || e.contains(t)); });
+    await shot('H-keyboard-focus-minimap');
+    assert.ok(reachable, 'the focused button is not covered by the minimap');
+    await page.setViewportSize({ width: 1600, height: 1000 });
+  });
+  await check('20 no model route was called, no host other than the app and its own notebook frame was contacted, and no page error', async () => {
     assert.deepEqual(stray, []);
     assert.deepEqual(offOrigin, []);
     assert.deepEqual(errors, []);
