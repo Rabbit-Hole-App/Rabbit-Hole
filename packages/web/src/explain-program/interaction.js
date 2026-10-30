@@ -11,7 +11,7 @@
 // - A result applies only to the state it was computed from and the generation (reset, dispose) it was asked in.
 // - Reset and a missing or incompatible saved state initialize again with the original seed. A saved state (programStateFor) is
 //   rehydrated as it is: a restart is not a replay and calls no initialize.
-//   createInteractionController({ host, bundleHash, seed, saved, publish(envelope, { initial }), persist(envelope, { reset }), fail(error), check(envelope, { inputs, time }) })
+//   createInteractionController({ host, bundleHash, seed, saved, publish(envelope, { initial, event? }), persist(envelope, { reset }), fail(error), check(envelope, { inputs, time }) })
 //     .start(inputs, { time })  .dispatch(event, { inputs, time }) -> boolean  .reset(inputs)  .current() -> envelope | null  .dispose()
 // The envelope is what the card keeps (block.programState): { bundleHash, state, revision, seed, inputs }. Never source.
 import { normalizeFrame } from './frame.js';
@@ -97,7 +97,7 @@ export function createInteractionController({ host, bundleHash, seed, saved = nu
       await check(next, { inputs, time });
       if (dead || mine !== generation) return;
       committed = next;
-      publish(next, { initial: false });
+      publish(next, { initial: false, event }); // event: the learner event this transition committed (Tutor context, FX-61)
       persist(next, { reset: false });
     } catch (error) { failed(error, mine); } finally { if (mine === generation) { busy = false; pump(); } }
   }

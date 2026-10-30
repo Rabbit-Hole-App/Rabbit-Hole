@@ -7,11 +7,12 @@ import { programInputs, programSeed, programStateFor } from './program-card.js';
 // scheduler, settled states saved through persist (the owner's board save, or a share-link visitor's or a Proposed preview's in-memory
 // copy). A schema 1 card gets { stateful: false, ready: true } and nothing else runs.
 //   useProgramState({ host, hostKey, artifact, block, time, persist(envelope, { reset }), fail })
-//     -> { stateful, envelope, changed, ready, full, dispatch(event, context) -> boolean, reset(inputs) }
+//     -> { stateful, envelope, changed, last, ready, full, dispatch(event, context) -> boolean, reset(inputs) }
 export function useProgramState({ host, hostKey, artifact, block, time, persist, fail }) {
   const stateful = artifact?.schemaVersion === STATEFUL_SCHEMA_VERSION;
   const [envelope, setEnvelope] = useState(null);
   const [pending, setPending] = useState(0);
+  const [last, setLast] = useState(null); // the learner event the latest committed transition came from (null after start or reset)
   const [changed, setChanged] = useState(false); // a transition since the last initialization (a rehydrated state counts as one)
   const controller = useRef(null);
   const latest = useRef(null);
@@ -20,13 +21,14 @@ export function useProgramState({ host, hostKey, artifact, block, time, persist,
     setEnvelope(null);
     setPending(0);
     setChanged(false);
+    setLast(null);
     if (!stateful || !host) return undefined;
     const { block: start, time: at } = latest.current;
     const saved = programStateFor(start, artifact);
     let checks = 0;
     const created = createInteractionController({
       host, bundleHash: artifact.bundleHash, seed: saved?.seed ?? programSeed(start), saved,
-      publish: (next, { initial }) => { setEnvelope(next); setChanged(!initial); setPending(created.pending()); },
+      publish: (next, { initial, event }) => { setEnvelope(next); setChanged(!initial); setLast(event ?? null); setPending(created.pending()); },
       persist: (next, how) => latest.current.persist(next, how),
       fail: error => { setPending(0); latest.current.fail(error); },
       // A new state is kept only if its frame is valid too, at the inputs and time it was computed for (never newer ones).
@@ -44,7 +46,7 @@ export function useProgramState({ host, hostKey, artifact, block, time, persist,
     return accepted;
   };
   return {
-    stateful, envelope, changed, ready: !stateful || !!envelope, full: pending >= ACTION_QUEUE_CAP, dispatch,
+    stateful, envelope, changed, last, ready: !stateful || !!envelope, full: pending >= ACTION_QUEUE_CAP, dispatch,
     reset: inputs => controller.current?.reset(inputs),
   };
 }
