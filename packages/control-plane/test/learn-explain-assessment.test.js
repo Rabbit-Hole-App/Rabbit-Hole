@@ -12,6 +12,7 @@ import { assessAttempt } from '../src/learn-assessment.js';
 import { EXPLAIN_SYSTEM, compareWithBaseline, explainBackOf, loadBaseline } from '../src/learn-explain-assessment.js';
 import { ANA, BEN, call, never, submit, world } from './learn-attempt-fixture.js';
 import { dataOf, replying } from './learn-rich-fixtures.js';
+import { DERIVATIVE, explainEvidenceFixture } from './learn-explain-evidence-fixture.js';
 
 // The card's key ideas; D's binding (bindExplainBackCard) makes each one a criterion k_<sha256(idea)>, version 1, rubric eb-v1.
 const RV = EB_RUBRIC;
@@ -423,4 +424,71 @@ test('longer histories: the direct parent stays full; earlier attempts are a bou
   await send(w, { text: `${A2} again`, baseline: baselineOf(chain[0]) }, { callModel: second.callModel });
   assert.equal(dataOf(second.calls[0].body).previousAttempt.earlierAttempts, undefined);
   valid(last, { text: A2, baseline: baselineOf(chain.at(-1)) });
+});
+
+// Files, Notebook and Group (slice 3d) through R's frozen resolver, with R's fixture loaders (learn-explain-evidence-fixture.js).
+const OWN_WORDS = 'The period only depends on length and gravity.';
+async function resourceWorld(t) {
+  const w = await ebWorld(t);
+  const fx = await explainEvidenceFixture();
+  return { ...w, fx, content: { text: OWN_WORDS, resources: fx.answer.resources } };
+}
+
+test('resources: frozen excerpts reach the one call with locators, Group and direct links deduped, a reference alone is not established', async t => {
+  const w = await resourceWorld(t);
+  const finds = [];
+  const evidenceDeps = { ...w.fx.deps, findDerivative: async (...args) => { finds.push(args[3] ?? null); return w.fx.deps.findDerivative(...args); } };
+  const stub = replying({ criteria: [
+    j(F, 'met', ['The period only depends on length and gravity.']),
+    // Supported only by the imported PDF: the learner explained nothing of it.
+    { ...j(V, 'met', ['independent of amplitude']), referenceOnly: true, question: 'In your own words, why does amplitude not change the period?' },
+  ], feedback: { strengths: { text: 'You name what the period depends on.', evidence: ['only depends on length and gravity'] }, revisit: { criterionId: V, version: 1, text: 'Explain the amplitude part yourself.', evidence: [] }, next: 'Predict T for L = 4 m.' } });
+  const r = await send(w, w.content, { callModel: stub.callModel, evidenceDeps });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(stub.calls.length, 1);
+  const body = stub.calls[0].body, data = dataOf(body);
+  assert.match(body.system, /A reference by itself does not show that the learner understands it/);
+  assert.doesNotMatch(body.system, /Sketch:/, 'no sketch rules without a sketch');
+  const resourceParts = data.current.evidence.filter(p => p.kind === 'resource');
+  assert.ok(resourceParts.length >= 2, JSON.stringify(data.current.evidence));
+  assert.ok(resourceParts.some(p => p.text?.includes('independent of amplitude')), 'the PDF page text itself, not just its id');
+  assert.ok(resourceParts.some(p => /code was not run/.test(p.note ?? '')), 'notebook cells are read, never run');
+  assert.ok(resourceParts.some(p => p.alsoConnectedAs?.length), 'one source connected twice is sent once, with both connections');
+  const review = reviewOf(r);
+  valid(r, w.content);
+  // Every input has coverage, Group members individually; a duplicate says which entry it repeats.
+  for (const e of w.content.resources) assert.ok(review.coverage.some(c => c.evidenceId === e.evidenceId), e.evidenceId);
+  assert.ok(review.coverage.some(c => String(c.note ?? '').startsWith('same_as:')));
+  const v = review.judgments.find(x => x.criterionId === V);
+  assert.deepEqual([v.judgment, v.fit, v.question], ['not_established', 'not_met', 'In your own words, why does amplitude not change the period?'], 'not established and asked, never contradicted');
+  assert.equal(r.body.assessment.observations.find(o => o.criterionId === V).reason, 'reference_only');
+  // A quote from a resource cites that input (and member) at the excerpt's own locator.
+  const cite = v.citations[0];
+  assert.ok(w.content.resources.some(e => e.evidenceId === cite.evidenceId), JSON.stringify(cite));
+  assert.equal(cite.locator.page, 2);
+  // A reassessment reads the same pinned extraction the first review read.
+  const before = finds.length;
+  const again = await call(w.env, ANA, 'POST', `/api/learn/tutor/attempts/${r.body.attempt.attemptId}/reassess`, { requestKey: 'reassess-0001' }, { ...never, callModel: replying({ criteria: [j(F, 'met', ['The period only depends on length and gravity.']), j(V, 'unclear')] }).callModel, evidenceDeps });
+  assert.equal(again.body.assessment.status, 'completed');
+  const pinned = finds.slice(before).filter(Boolean);
+  assert.ok(pinned.length && pinned.every(p => p.derivativeId === DERIVATIVE.derivativeId), 'the derivative the first review read');
+});
+
+test('resources: a changed or unreadable source is reported per input and leaves the attempt Not rated, never wrong', async t => {
+  const w = await resourceWorld(t);
+  // The board's notebook changed after submission: the resolver refuses the newer content.
+  const state = structuredClone(w.fx.state);
+  state.blocks.find(b => b.id === 'nb_pendulum').ipynb.cells[0].source = 'print("changed later")';
+  const stub = replying(reply1);
+  const r = await send(w, w.content, { callModel: stub.callModel, evidenceDeps: { ...w.fx.deps, loadBoard: async () => ({ row: { id: 'board_row_1' }, state }) } });
+  assert.equal(JSON.stringify(dataOf(stub.calls[0].body).current.evidence).includes('changed later'), false, 'never the newer content');
+  assert.ok(reviewOf(r).coverage.some(c => c.status === 'unavailable' && c.note === 'source_changed'), JSON.stringify(reviewOf(r).coverage));
+  assert.ok(dataOf(stub.calls[0].body).current.notInspected.length > 0);
+  assert.equal(reviewOf(r).rating.reason, 'evidence_incomplete');
+  assert.ok(!r.body.assessment.observations.some(o => o.fit === 'not_met'), 'nothing is marked wrong on partial evidence');
+  valid(r, w.content);
+  // The resolver itself failing: every resource unavailable, the typed words still assessed.
+  const broken = await send(w, w.content, { callModel: replying(reply1).callModel, evidenceDeps: { ...w.fx.deps, loadBoard: async () => { throw new Error('down'); } } });
+  assert.equal(broken.body.assessment.status, 'completed');
+  assert.ok(reviewOf(broken).coverage.filter(c => c.evidenceId !== 'text').every(c => c.status !== 'read'));
 });
