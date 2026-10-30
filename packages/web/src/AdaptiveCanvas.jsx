@@ -5,7 +5,7 @@ import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutE
 import { createPortal, flushSync } from 'react-dom';
 import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
 import { Md } from './ask.jsx';
-import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock } from './card-layout.js';
+import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock, fitFrame, naturalHeight } from './card-layout.js';
 import { renamable, renameBlock, groupEditText, groupLabelFrom } from './card-rename.js';
 import './card-layout.css';
 import { IconBtn, toast } from './ui.jsx';
@@ -298,7 +298,7 @@ const CanvasEdit = createContext({ locked: new Set(), altDrag: null });
 // Shared node chrome for everything card-shaped on the canvas: drag with
 // lift, corner resize, selection ring, top/bottom connection ports, and the
 // layout observer that keeps connector geometry fresh. Content is children.
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, saved = null, cardLayout = null, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, saved = null, cardLayout = null, fitContent = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, children }) {
   const [lifted, setLifted] = useState(false);
   // A card with a Rabbit Hole under it (docs/features/dive-v1.md): derived from the dive link, never stored on the card.
   const dive = useContext(DivePortals), portal = dive?.portals?.[id];
@@ -307,6 +307,8 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   const opens = !chat && opener ? opener.can(id) : null;
   const edit = useContext(CanvasEdit), locked = edit.readOnly || edit.locked.has(id);
   const full = cardLayout?.mode === 'full';
+  // A text card is never taller than its content (card-layout.js fitFrame, FX-EB-10); a Full/Scrollable card layout keeps its frame.
+  const fit = fitContent && !cardLayout;
   const [minimum, setMinimum] = useState(320), [layoutDrag, setLayoutDrag] = useState(null);
   const limits = widthLimits(minimum);
   // Whether the card was already selected when this double-click's first press landed: a selected PDF, video or
@@ -370,8 +372,11 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
     // it is saved, so releasing never grows the card by them. A card layout's saved height is its whole frame.
     const extra = cardLayout ? 0 : extraHeight + refsHeight;
     let last = null;
-    const apply = (w, h) => { last = clampBox(w, h); setSize(last); setCornerDrag(last); };
-    apply.done = () => { if (last) { if (cardLayout) edit.resizeCard?.(id, last.w, last.h); else if (onSize) onSize(id, last.w, last.h); else edit.patchBlock?.(id, last); } setCornerDrag(null); };
+    const apply = (w, h) => { last = clampBox(w, h, fit ? naturalHeight(element, extra) : undefined); setSize(last); setCornerDrag(last); };
+    apply.done = () => {
+      // The commit is limited as the drag was, measured at the released width (flushSync draws it first: its text may wrap).
+      if (last && fit) { flushSync(() => setCornerDrag(last)); last = clampBox(last.w, last.h, naturalHeight(element, extra)); setSize(last); }
+      if (last) { if (cardLayout) edit.resizeCard?.(id, last.w, last.h); else if (onSize) onSize(id, last.w, last.h); else edit.patchBlock?.(id, last); } setCornerDrag(null); };
     startDrag(event, { x: element.offsetWidth, y: element.offsetHeight - extra }, apply, zoom);
   };
   const node = (
@@ -393,7 +398,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         if (!opensFrom(event.target) || (selectedAtPress.current && event.target.closest('[data-pointer-body]'))) return;
         opener.open(id, 'learner_dblclick');
       } : undefined}
-      style={{ transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(cardLayout?.slot ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, height: full ? undefined : (cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), maxHeight: full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight }}
+      style={{ transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(cardLayout?.slot ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, ...fitFrame(full ? undefined : (cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight, fit) }}
       className={`group relative ${selected ? 'z-[5]' : ''} ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 outline-none ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-select' : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* The selected card's controls above it are ONE row (owner finding 2026-10-23: Open at the left edge and the CAD controls with
           Add to chat / Quick Edit from the right edge were anchored apart and met when the card was narrow). Open leads, `tools`
@@ -943,6 +948,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       inputPort={isExplainBack(block)}
+      fitContent={!!BLOCK_TYPES[block.type]?.fitContent}
       autoMax={BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
       width={sized?.width ?? BLOCK_TYPES[block.type]?.width}
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}

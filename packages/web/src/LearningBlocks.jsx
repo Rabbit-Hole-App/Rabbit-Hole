@@ -90,6 +90,8 @@ export const BLOCK_TYPES = {
   challenge: {
     label: 'Challenge',
     typicalHeight: 220,
+    // fitContent (card-layout.js fitFrame, FX-EB-10): a text card is never taller than its content; a resize only sets a ceiling.
+    fitContent: true,
     // An Explain-back card holds a multiline answer, its feedback and history (its Sketch is a separate panel, plan
     // 2026-10-30 section 3); every other challenge keeps the canvas's default height cap.
     autoMaxFor: block => (block.mode === 'explain_back' ? 760 : undefined),
@@ -129,6 +131,7 @@ export const BLOCK_TYPES = {
     typicalHeight: 330,
     width: 440,
     autoMax: 520,
+    fitContent: true,
     sample: () => ({
       id: crypto.randomUUID(),
       type: 'explanation',
@@ -147,6 +150,7 @@ export const BLOCK_TYPES = {
     label: 'Quiz',
     typicalHeight: 270,
     ghost: true,
+    fitContent: true,
     sample: () => ({
       id: crypto.randomUUID(),
       type: 'quiz',
@@ -166,6 +170,7 @@ export const BLOCK_TYPES = {
     label: 'Flashcards',
     typicalHeight: 240,
     ghost: true,
+    fitContent: true,
     sample: () => ({
       id: crypto.randomUUID(),
       type: 'flashcards',
