@@ -254,8 +254,8 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
     if (!args.trim()) return { notice: { tone: 'question', text: `${toolOf('animation').placeholder} Add it after /animation.` }, keep: '/animation ' };
     if (!canvas.startAnimation) return { notice: { tone: 'info', text: '3D animations are not available on this canvas.' } };
     const started = await canvas.startAnimation(args.trim(), { context: target?.text ? String(target.text).slice(0, 8000) : null, promptUsed });
-    return started ? { notice: { tone: 'done', text: 'Preparing the scene plan. Review it above the chat box.', ...(started.blockId ? { blockId: started.blockId } : {}) } }
-      : { notice: { tone: 'error', text: 'The 3D animation could not be started. Try again.' }, keep: `/animation ${args}` };
+    return started && !started.failed ? { notice: { tone: 'done', text: 'Preparing the scene plan. Review it above the chat box.', ...(started.blockId ? { blockId: started.blockId } : {}) } }
+      : { notice: { tone: 'error', text: `The 3D animation could not be started${started?.failed ? `: ${started.failed}` : ''}. Try again.` }, keep: `/animation ${args}` };
   }
   if (reviewRequired(name)) {
     // Missing information is asked for inside the command's own flow, and the line is kept (owner, 2026-10-24: the Tutor never answers it).

@@ -1099,14 +1099,16 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // A new, never-saved canvas has no board id yet: save it first so its first /animation can start.
     let board = commentBoard;
     if (!board && words) { await saveBoard({ force: true }).catch(() => null); board = commentBoardRef.current; }
-    if (!board || !words) return null;
+    if (!words) return null;
+    if (!board) return { failed: 'this canvas has not finished loading' };
     // shortcut: as startExplain, a line save slower than 5 s goes on without its thread.
     const threadId = (await Promise.race([Promise.resolve(thread).catch(() => null), new Promise(done => setTimeout(done, 5000, null))])) || chat?.thread?.id || null;
     const payload = { prompt: words, ...(context ? { context: { text: context } } : {}), ...(threadId ? { threadId } : {}), ...(refs?.length ? { context_refs: refs } : {}) };
     const client = animationClient(api, board);
     let result;
     try { result = await submitCadOnce(animationRequests.current, JSON.stringify({ board, ...payload }), async body => ({ ...(await client.create(body)), body }), payload); }
-    catch (error) { if (error?.status === 404) return null; throw error; }
+    // The server's own reason, so a refusal is never a bare "could not be started" (owner report 2026-10-30).
+    catch (error) { return { failed: `${error?.data?.error || error?.message || 'the request was refused'}${error?.status ? ` (${error.status})` : ''}` }; }
     const { job, body } = result;
     const card = withJob(withPrompt({ id: job.cardId, type: 'animation3d', title: words.slice(0, 200) }, promptUsed), { job, boardId: board, requestId: body.requestId, sourceKey: await requestRef(body.requestId, words) });
     const blockId = canvasApi.current?.placeAnimation(threadId ? { ...card, animation3dJob: { ...card.animation3dJob, threadId } } : card);
