@@ -688,7 +688,7 @@ export function evaluate({ state }) {
     if (request.method() === 'POST' && path === '/api/learn/animation/jobs') order.push({ kind: 'create', board: request.postDataJSON()?.boardId ?? null });
     return genRouter(route);
   };
-  await step('on a brand-new, never-saved canvas the first /animation saves the board once, then starts one job on that board and places its card', async () => {
+  await step('on a brand-new canvas the first /animation starts one job on that canvas board and places its card', async () => {
     const { context: c, page: p } = await open({ canvas: fresh, first: null, extra: freshRouter });
     const creates = flow.creates.length;
     await p.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 20000 });
@@ -697,12 +697,14 @@ export function evaluate({ state }) {
     const job = [...flow.jobs.values()].at(-1);
     await p.locator(`[data-block-id="${job.cardId}"] [data-animation3d-card]`).waitFor({ state: 'attached', timeout: 20000 });
     assert.equal(await p.getByText('could not be started', { exact: false }).count(), 0, 'no "could not be started" notice');
-    const at = order.findIndex(entry => entry.kind === 'create'), puts = order.slice(0, at).filter(entry => entry.kind === 'put');
+    // The board id may come from the canvas's load (a new canvas gets one there, fast-e2e 41152017714) or from a save made first
+    // (LearnPage startAnimation): what matters is one job on this canvas's real board, read back from the server.
+    const at = order.findIndex(entry => entry.kind === 'create');
     assert.ok(at >= 0, `the create was seen: ${JSON.stringify(order)}`);
-    assert.equal(puts.length, 1, `exactly one board PUT before the job create: ${JSON.stringify(order)}`);
-    assert.ok(puts[0].board, 'the PUT returned a board id');
-    assert.equal(order[at].board, puts[0].board, 'the job is created on the board that save returned');
-    assert.equal(job.boardId, puts[0].board);
+    const serverBoard = (await api(`/api/learn/boards/${fresh.name}/main`))?.board_id;
+    assert.ok(serverBoard, 'the new canvas has a board on the server');
+    assert.equal(order[at].board, serverBoard, `the job is created on this canvas's board: ${JSON.stringify(order)}`);
+    assert.equal(job.boardId, serverBoard);
     assert.equal(order.filter(entry => entry.kind === 'create').length, 1, 'one job create');
     await shot(p, 'L-fresh-canvas');
     await c.close();
