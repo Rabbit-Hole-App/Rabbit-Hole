@@ -30,7 +30,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('animation-mvp-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'animation-mvp-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 31; // bump with the steps below; the printed line is what CI reads
+const TOTAL = 32; // bump with the steps below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `anim-${run}@example.com`, secret, handle: `anim_${run}` }) })).json();
@@ -671,6 +671,43 @@ export function evaluate({ state }) {
   });
 
   await genSession.context.close();
+
+  // ---- /animation on a brand-new canvas never saved (owner report 2026-10-30, fixed in 3b53780be) ----
+  // A canvas made with no board PUT has no board id until its first save: the first /animation line must save the board once, then
+  // start its job on that board, never refuse with "could not be started". Same fake job server; every board PUT is answered by
+  // the real stack and recorded with the board id it returns, in order with the job create.
+  const fresh = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Animation fresh ${run}` }) }); // no board PUT
+  const order = [];
+  const freshRouter = async route => {
+    const request = route.request(), path = new URL(request.url()).pathname;
+    if (request.method() === 'PUT' && path.startsWith('/api/learn/boards/')) {
+      const response = await route.fetch(), json = await response.json().catch(() => null);
+      order.push({ kind: 'put', board: json?.board_id ?? null });
+      return route.fulfill({ response, json });
+    }
+    if (request.method() === 'POST' && path === '/api/learn/animation/jobs') order.push({ kind: 'create', board: request.postDataJSON()?.boardId ?? null });
+    return genRouter(route);
+  };
+  await step('on a brand-new, never-saved canvas the first /animation saves the board once, then starts one job on that board and places its card', async () => {
+    const { context: c, page: p } = await open({ canvas: fresh, first: null, extra: freshRouter });
+    const creates = flow.creates.length;
+    await p.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 20000 });
+    await composer(p).click(); await composer(p).fill(`/animation ${REQUEST}`); await p.waitForTimeout(150); await composer(p).press('Enter');
+    await until(async () => flow.creates.length === creates + 1, 'one job for the first /animation line on a new canvas', 20000);
+    const job = [...flow.jobs.values()].at(-1);
+    await p.locator(`[data-block-id="${job.cardId}"] [data-animation3d-card]`).waitFor({ state: 'attached', timeout: 20000 });
+    assert.equal(await p.getByText('could not be started', { exact: false }).count(), 0, 'no "could not be started" notice');
+    const at = order.findIndex(entry => entry.kind === 'create'), puts = order.slice(0, at).filter(entry => entry.kind === 'put');
+    assert.ok(at >= 0, `the create was seen: ${JSON.stringify(order)}`);
+    assert.equal(puts.length, 1, `exactly one board PUT before the job create: ${JSON.stringify(order)}`);
+    assert.ok(puts[0].board, 'the PUT returned a board id');
+    assert.equal(order[at].board, puts[0].board, 'the job is created on the board that save returned');
+    assert.equal(job.boardId, puts[0].board);
+    assert.equal(order.filter(entry => entry.kind === 'create').length, 1, 'one job create');
+    await shot(p, 'L-fresh-canvas');
+    await c.close();
+  });
+
 
   // ---- WebGL unavailable (AN-02/03) ----
   await step('without WebGL each card keeps its description and says interactive 3D is unavailable; no blank success, no page error', async () => {
