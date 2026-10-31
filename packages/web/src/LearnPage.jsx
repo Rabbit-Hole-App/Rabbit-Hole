@@ -1096,11 +1096,23 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const animationRequests = useRef(new Map());
   const startAnimation = async (prompt, { context = null, promptUsed = prompt, thread = null, refs = null } = {}) => {
     const words = String(prompt || '').trim();
-    // A new, never-saved canvas has no board id yet: save it first so its first /animation can start.
-    let board = commentBoard;
-    if (!board && words) { await saveBoard({ force: true }).catch(() => null); board = commentBoardRef.current; }
     if (!words) return null;
-    if (!board) return { failed: 'this canvas has not finished loading' };
+    // A canvas still loading has no board id yet, nor one the server never saved: wait for its board GET, then save it
+    // through the board push queue (pushBoard, with its loading and conflict guards) so it is never a second PUT racing autosave.
+    let board = commentBoardRef.current;
+    if (!board) {
+      await Promise.race([boardReady.current, new Promise(done => setTimeout(done, 10000))]);
+      board = commentBoardRef.current;
+    }
+    if (!board) {
+      saveError.current = null;
+      await pushBoard(null, { now: true });
+      board = commentBoardRef.current;
+    }
+    if (!board) {
+      const error = saveError.current;
+      return { failed: error ? `this canvas could not be saved: ${error.message}${error.status ? ` (${error.status})` : ''}` : boardStopped.current ? 'this canvas changed elsewhere; reload it, then try again' : 'this canvas has not finished loading' };
+    }
     // shortcut: as startExplain, a line save slower than 5 s goes on without its thread.
     const threadId = (await Promise.race([Promise.resolve(thread).catch(() => null), new Promise(done => setTimeout(done, 5000, null))])) || chat?.thread?.id || null;
     const payload = { prompt: words, ...(context ? { context: { text: context } } : {}), ...(threadId ? { threadId } : {}), ...(refs?.length ? { context_refs: refs } : {}) };
@@ -1371,6 +1383,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const boardLoaded = useRef(false), boardSynced = useRef(null), boardUnsynced = useRef(false), boardStopped = useRef(false), boardRefused = useRef(null);
   // After a 409: the board text the server held before it (conflictBaseKey), and the recoveries since the last save (refused).
   const conflictBase = useRef(null), recoveries = useRef(0);
+  // Settles once this canvas's board GET has answered (or failed); the last PUT refusal, so a caller can say why it failed.
+  const boardReady = useRef(null), saveError = useRef(null);
   // The canvas's document (docs/features/blocknote-canvas.md). Canvas or Editor, this browser's choice for this person and
   // canvas (owner decision B1); the save status of the board that holds it (Saving / Saved / Couldn't save, the server's
   // answer, never assumed); its size against the server's 1.9 MB; a 409 (this canvas changed elsewhere) and a document a
@@ -1467,10 +1481,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // an unreadable copy or version is never proof this browser's copy is current, so the server's copy decides.
     const storage = browserStorage();
     const unreadable = readBoardCopy(storage, boardStorageKey) === null || readBoardVersion(storage, versionKey) === null;
+    let ready;
+    boardReady.current = new Promise(done => { ready = done; });
     api(boardPath).then(data => {
       if (!live) return;
       setSharing(data.sharing);
-      setCommentBoard(data.board_id || null);
+      setCommentBoard(data.board_id || null); commentBoardRef.current = data.board_id || null;
       boardLoaded.current = true;
       // Empty keys are not a copy: the canvas writes them on mount, before a slow reply lands.
       const hasLocal = hasLocalContent(storage, { ink: boardStorageKey, chat: chatKey });
@@ -1542,7 +1558,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const startedFromShare = data.version === 1 && data.state?.blocks?.[0]?.anchor?.source === 'shared';
       toast(base ? CONFLICT_MERGED : data.forked ? 'Your fork is ready. It is yours to edit.' : startedFromShare ? 'Your Rabbit Hole is ready. It is private to you.' : 'You are seeing the latest saved version of this board.');
     }).catch(error => { if (live) setSharing(error.status === 404 ? (error.data?.sharing || { shared: false }) : { unavailable: error.message }); })
-      .finally(() => { if (live) setRestoredBoard(boardPath); });
+      .finally(() => { ready(); if (live) setRestoredBoard(boardPath); });
     return () => { live = false; };
   }, [boardPath, boardLoad]);
   // The journey's section materializer reads the canvas for a section an earlier visit drew (ruling C-3): only once the
@@ -1602,10 +1618,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // One PUT of this browser's board, run inside pushQueue: based on the version the server last answered, or 0 when it
   // had none (so a row made meanwhile elsewhere is a 409, never overwritten); none at all when the server already holds
   // this content. The board's first server copy asks the notebook cards for their workspaces, as sharing does.
-  const saveBoard = async ({ force = false } = {}) => {
+  const saveBoard = async () => {
     const state = boardSnapshot(), text = boardText(state), first = boardVersion.current == null;
     setBoardChars(text.length);
-    if (force || text !== boardSynced.current) {
+    if (text !== boardSynced.current) {
       const saved = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state, version: boardVersion.current ?? 0 }) });
       boardVersion.current = saved.version; setCanvasVersion(saved.version);
       if (saved.board_id) { setCommentBoard(saved.board_id); commentBoardRef.current = saved.board_id; }
@@ -1670,7 +1686,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     setSaveState(previous => (previous?.status === 409 ? previous : { state: 'saving' }));
     const put = () => pushQueue(async () => {
       if (boardStopped.current) return 'failed';
-      try { await saveBoard(); } catch (error) { refused(error); return 'failed'; }
+      try { await saveBoard(); } catch (error) { saveError.current = error; refused(error); return 'failed'; }
       if (now) return await syncAssets() ? 'ok' : 'failed';
       syncAssets();
       return 'ok';
