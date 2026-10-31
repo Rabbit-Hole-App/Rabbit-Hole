@@ -1,4 +1,6 @@
-# /animation receipt: M3 (MVP ready for owner decision) at 8ed7e52ed
+# /animation receipt: M3 (MVP ready for owner decision) at 81df661ba
+
+**Update 2026-10-30 ~6:25 PM PT — final candidate `81df661ba8599d9f66401aad43f23be3ec39347f`** (supersedes 8ed7e52ed, whose evidence below still holds). Added since: FX-AN-016 (a refused /animation start now says why; LearnPage saves a never-saved board before starting) and a browser step that starts /animation on a brand-new canvas through the real app. CI on 81df661ba8599d9f66401aad43f23be3ec39347f: verify 41153839402 success; fast-e2e 41153839322 success — animation-mvp 32/32, slash-sheet 593/593, motion-command 50/50, inline-ai 237/237. Preview redeployed from 81df661ba8599d9f66401aad43f23be3ec39347f with the same flags. Owner try-it launcher: `C:sspecanimationopen-preview.cmd` (dev clones refuse /login; the launcher opens the preview signed in).
 
 - Milestone: M3
 - Candidate: branch `feat/animation`, full SHA `8ed7e52edec5baccc08109310581cee325f3577a`
