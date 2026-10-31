@@ -1096,16 +1096,19 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const animationRequests = useRef(new Map());
   const startAnimation = async (prompt, { context = null, promptUsed = prompt, thread = null, refs = null } = {}) => {
     const words = String(prompt || '').trim();
-    if (!commentBoard || !words) return null;
+    // A new, never-saved canvas has no board id yet: save it first so its first /animation can start.
+    let board = commentBoard;
+    if (!board && words) { await saveBoard({ force: true }).catch(() => null); board = commentBoardRef.current; }
+    if (!board || !words) return null;
     // shortcut: as startExplain, a line save slower than 5 s goes on without its thread.
     const threadId = (await Promise.race([Promise.resolve(thread).catch(() => null), new Promise(done => setTimeout(done, 5000, null))])) || chat?.thread?.id || null;
     const payload = { prompt: words, ...(context ? { context: { text: context } } : {}), ...(threadId ? { threadId } : {}), ...(refs?.length ? { context_refs: refs } : {}) };
-    const client = animationClient(api, commentBoard);
+    const client = animationClient(api, board);
     let result;
-    try { result = await submitCadOnce(animationRequests.current, JSON.stringify({ board: commentBoard, ...payload }), async body => ({ ...(await client.create(body)), body }), payload); }
+    try { result = await submitCadOnce(animationRequests.current, JSON.stringify({ board, ...payload }), async body => ({ ...(await client.create(body)), body }), payload); }
     catch (error) { if (error?.status === 404) return null; throw error; }
     const { job, body } = result;
-    const card = withJob(withPrompt({ id: job.cardId, type: 'animation3d', title: words.slice(0, 200) }, promptUsed), { job, boardId: commentBoard, requestId: body.requestId, sourceKey: await requestRef(body.requestId, words) });
+    const card = withJob(withPrompt({ id: job.cardId, type: 'animation3d', title: words.slice(0, 200) }, promptUsed), { job, boardId: board, requestId: body.requestId, sourceKey: await requestRef(body.requestId, words) });
     const blockId = canvasApi.current?.placeAnimation(threadId ? { ...card, animation3dJob: { ...card.animation3dJob, threadId } } : card);
     return { blockId: blockId || job.cardId };
   };
@@ -1597,13 +1600,13 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // One PUT of this browser's board, run inside pushQueue: based on the version the server last answered, or 0 when it
   // had none (so a row made meanwhile elsewhere is a 409, never overwritten); none at all when the server already holds
   // this content. The board's first server copy asks the notebook cards for their workspaces, as sharing does.
-  const saveBoard = async () => {
+  const saveBoard = async ({ force = false } = {}) => {
     const state = boardSnapshot(), text = boardText(state), first = boardVersion.current == null;
     setBoardChars(text.length);
-    if (text !== boardSynced.current) {
+    if (force || text !== boardSynced.current) {
       const saved = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state, version: boardVersion.current ?? 0 }) });
       boardVersion.current = saved.version; setCanvasVersion(saved.version);
-      if (saved.board_id) setCommentBoard(saved.board_id);
+      if (saved.board_id) { setCommentBoard(saved.board_id); commentBoardRef.current = saved.board_id; }
       boardSynced.current = text;
       // The comments follow the saved board (owner decision 2026-10-23): useCanvasComments knows the server now has it.
       window.dispatchEvent(new Event('rh:board-saved'));
