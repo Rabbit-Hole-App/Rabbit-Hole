@@ -7,7 +7,20 @@ row in [spend.md](spend.md).
 
 ## Open
 
-None.
+### FX-AN-016 — owner's first /animation start failed ("could not be started"); not reproduced, cause unconfirmed
+- Task / phase: AN-03 / AN-06. First observed: owner on the preview at `8ed7e52edec5baccc08109310581cee325f3577a`
+  (~5:30 PM PT 2026-10-30): "The 3D animation could not be started. Try again" twice, on a fresh canvas
+- What is known: no job from the owner's browser reached the server (job list for the owner test user); the ~5:43 PM
+  attempt overlapped a preview redeploy. The exact start request, sent through the server API for the same test user and
+  canvas, was accepted (202). The owner was first handed a bare preview URL, which cannot be signed into (dev clones
+  refuse /login); the handoff now uses the signed-in launcher `C:\s\spec\animation\open-preview.cmd`.
+- Not established: the cause. The earlier entry here claimed "a never-saved canvas has no board id" as the cause; no
+  evidence connects that to the owner's failure. A fresh canvas's board GET already supplies a board id, and the
+  brand-new-canvas browser step (animation-mvp step 30) exercises that ordinary path, not a save fallback.
+- Mitigation: since `81df661ba8599d9f66401aad43f23be3ec39347f` a refused start shows its reason
+  ("could not be started: <reason> (status)"), so a repeat names its cause.
+- Severity: unknown; does not block MVP review. Status: not reproduced / cause unconfirmed. Next: the owner's reason line
+  from a repeat, if any.
 
 ## Deferred
 
@@ -21,16 +34,28 @@ None.
 
 ## Resolved
 
-### FX-AN-016 — /animation could not start on a new, never-saved canvas
-- Task / phase: AN-03 / AN-06. First observed: owner on the preview at `8ed7e52edec5baccc08109310581cee325f3577a`
-  (~5:30 PM PT): "The 3D animation could not be started. Try again" on a fresh canvas
-- Cause: `LearnPage.jsx` `startAnimation` returned null without a board id; a canvas has none until its first save, and an
-  empty canvas never saves on its own. CI missed it: the browser check's canvases were already saved. Also: the owner was
-  first handed a bare preview URL, which cannot be signed into (dev clones refuse /login); the handoff now uses a
-  signed-in launcher, `C:\s\spec\animation\open-preview.cmd`.
-- Fixing full SHA: `3b53780bed9e9e352cea086b6ab4a2edeeffa8b0` (`startAnimation` force-saves a never-saved canvas, then starts on its board id;
-  `animation3d/start-board.test.mjs`); web unit 4837 pass / 0 fail
-- Status: fixed (CI on `3b53780bed9e9e352cea086b6ab4a2edeeffa8b0` in the M3 receipt)
+### FX-AN-017 — /animation's forced board save raced the hydration autosave (self-inflicted 409)
+- Task / phase: AN-03 / AN-06, MVP (owner review of `bb23270a79214cd36c815ca50f91e874821b68d1`, 2026-10-31)
+- Actual / expected: `3b53780bed9e9e352cea086b6ab4a2edeeffa8b0` made `startAnimation` call `saveBoard({ force: true })`
+  directly, outside `pushQueue` and the loading/conflict guards of `pushBoard`, and swallowed its error
+  (`.catch(() => null)`, then "this canvas has not finished loading"). Started while the board GET was pending, the forced
+  PUT and the hydration's queued autosave both sent version 0 and one got a 409. Expected: one serialized save, the job
+  on the saved board, no duplicate job, and a refused save reported with its reason.
+- Evidence: owner's source-extracted reproduction; reproduced by the new regression on the old code (2 self-inflicted
+  409s). Not reproduced in the deployed browser.
+- Fix: `startAnimation` waits for the board GET (`boardReady`, max 10 s), then, only if there is still no board id, saves
+  through `pushBoard(null, { now: true })` (the push queue with its guards) and reads the board id after it; a refused
+  save returns "this canvas could not be saved: <server message> (status)", a stopped board "this canvas changed
+  elsewhere; reload it, then try again". `saveBoard` lost its `force` flag. The hydration GET now also sets
+  `commentBoardRef` directly so the id is readable before the next render.
+- Regression: `animation3d/start-board.test.mjs` runs LearnPage's own hydration effect, `saveBoard`, `refused`, `pushBoard`
+  and `startAnimation` against a fake board server (409 on a stale version): delayed GET + early autosave + two presses
+  gives one version-0 PUT, at most one PUT in flight, 0 conflicts, one job on the created board; an existing board starts
+  without a PUT; a 413 save says why. All three fail on `81df661ba8599d9f66401aad43f23be3ec39347f`.
+- Fixing full SHA: `622d17501be42899a0af78f373913ebcd8e1bbbb`; web unit 4840 pass / 0 fail
+- Validation: verify 41239541164 success; fast-e2e 41239541265 success on attempt 2 (attempt 1: every check passed except
+  credits-meter, which crashed after 3/7 on "SocketError: other side closed" from the local stack, unrelated; 7/7 on the
+  rerun of that job); animation-mvp 32/32. Deployed-browser repro of the race: not attempted. Status: fixed
 
 ### FX-AN-015 — a cancelled object drag can move the object to a position computed from (0, 0)
 - Task / phase: AN-03 / AN-04, MVP (owner review of `ef73e0e90b3ec697c65086e2611bc5e36485c355`)

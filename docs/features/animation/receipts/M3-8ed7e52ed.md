@@ -1,6 +1,27 @@
 # /animation receipt: M3 (MVP ready for owner decision) at 81df661ba
 
-**Update 2026-10-30 ~6:25 PM PT — final candidate `81df661ba8599d9f66401aad43f23be3ec39347f`** (supersedes 8ed7e52ed, whose evidence below still holds). Added since: FX-AN-016 (a refused /animation start now says why; LearnPage saves a never-saved board before starting) and a browser step that starts /animation on a brand-new canvas through the real app. CI on 81df661ba8599d9f66401aad43f23be3ec39347f: verify 41153839402 success; fast-e2e 41153839322 success — animation-mvp 32/32, slash-sheet 593/593, motion-command 50/50, inline-ai 237/237. Preview redeployed from 81df661ba8599d9f66401aad43f23be3ec39347f with the same flags. Owner try-it launcher: `C:sspecanimationopen-preview.cmd` (dev clones refuse /login; the launcher opens the preview signed in).
+**Update 2026-10-31 PT — corrected candidate `622d17501be42899a0af78f373913ebcd8e1bbbb`** (owner review of `bb23270a7`;
+supersedes 81df661ba, whose evidence below still holds).
+- FX-AN-017 fixed: `/animation` waits for the board GET and saves only through LearnPage's push queue (`pushBoard`),
+  never a forced PUT beside the hydration autosave; a refused save returns its server reason. Regression
+  `animation3d/start-board.test.mjs` (runs LearnPage's own hydration, saveBoard, refused, pushBoard and startAnimation
+  against a fake board server; fails on 81df661ba with two self-inflicted 409s); web unit 4840 pass / 0 fail.
+- FX-AN-016 (the owner's first failed start) is reopened as **not reproduced / cause unconfirmed**; the earlier
+  "never-saved canvas" cause had no evidence behind it. animation-mvp step 30 covers the ordinary fresh-canvas path,
+  where the board GET already supplies a board id, not the save fallback.
+- Where code runs: the generated scene program runs in the browser, in the pinned QuickJS interpreter inside a Web
+  Worker (`animation3d/runtime.js` → `explain-program/worker.js`: fresh context per operation, no host functions).
+  Planning, authoring, rendering for review (Browser Rendering) and review run server-side.
+- CI on `622d17501be42899a0af78f373913ebcd8e1bbbb`: verify 41239541164 success; fast-e2e 41239541265 success (attempt 2;
+  attempt 1 failed only credits-meter on a local-stack "SocketError: other side closed" after 3/7, 7/7 on rerun) —
+  animation-mvp 32/32, slash-sheet 593/593, motion-command 50/50, inline-ai 237/237, explain-program 25/25,
+  explain-program-card 21/21, explain-program-state 15/15, explain-program-render 38/38. Preview redeployed from it (version
+  `4cd64254-02d2-407a-89a8-2531297d74f5`, same flags). No paid generation since; the accepted artifacts below are reused.
+- Evidence tiers stay separate: (1) unit/fixture and the source-run save-race regression; (2) browser checks in CI
+  against a **mocked** job server; (3) **real-provider** acceptance through the deployed API (four accepted artifacts);
+  (4) the **real signed-in browser flow**: not run by Claude; owner try-it via `C:\s\spec\animation\open-preview.cmd`.
+
+**Update 2026-10-30 ~6:25 PM PT — final candidate `81df661ba8599d9f66401aad43f23be3ec39347f`** (supersedes 8ed7e52ed, whose evidence below still holds). Added since: FX-AN-016 mitigation (a refused /animation start now says why; its force-save fallback was later found to race autosave, FX-AN-017) and a browser step that starts /animation on a brand-new canvas through the real app. CI on 81df661ba8599d9f66401aad43f23be3ec39347f: verify 41153839402 success; fast-e2e 41153839322 success — animation-mvp 32/32, slash-sheet 593/593, motion-command 50/50, inline-ai 237/237. Preview redeployed from 81df661ba8599d9f66401aad43f23be3ec39347f with the same flags. Owner try-it launcher: `C:\s\spec\animation\open-preview.cmd` (dev clones refuse /login; the launcher opens the preview signed in).
 
 - Milestone: M3
 - Candidate: branch `feat/animation`, full SHA `8ed7e52edec5baccc08109310581cee325f3577a`
@@ -75,6 +96,7 @@ causes in fix.md (FX-AN-002, -004, -005, -009, -010, -011, -012).
 | Parameter experiment | AN-04/07 | pass: beam min/default/max vs oracle | pass: pendulum `da7d7f0e` (period formula at 3 lengths) | owner try-it |
 | Simple game | AN-04/06/07 | pass: grid game wrong/correct move, hint, reset, reload | pass: game `ff4c8c09` (won) | owner try-it |
 | Fresh prompt outside the fixtures | AN-07 | n/a | pass: bicycle gears `08315335` (contract + hash only) | owner try-it |
+| /animation while the board GET is slow, beside autosave, pressed twice (FX-AN-017) | AN-03/06 | pass: `start-board.test.mjs` (LearnPage source run on a fake board server: one serialized version-0 PUT, 0 conflicts, one job on the created board; fails on 81df661ba) | n/a | not reproduced in the deployed browser |
 | Late responses and rapid input | AN-04/06 | pass: runtime/state/session unit tests (stale worker messages, superseded starts FX-AN-013) | not covered by this tier | not covered |
 | Save / reload / cancel / board switch | AN-05/06 | pass: reload with zero job/model requests (mocked server); storage unit tests; races test | pass: accepted artifacts re-read through the authorized results route | owner try-it |
 | Gestures: outer canvas, Interact orbit, Escape/blur, typing | AN-03 | pass: animation-mvp steps 17-20 (outer canvas pan before Interact, orbit in Interact, Escape, blur, Chat typing) in 41147580048 | n/a | owner try-it |
