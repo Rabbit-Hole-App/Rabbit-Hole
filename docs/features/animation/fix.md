@@ -21,6 +21,17 @@ None.
 
 ## Resolved
 
+### FX-AN-016 — /animation could not start on a new, never-saved canvas
+- Task / phase: AN-03 / AN-06. First observed: owner on the preview at `8ed7e52edec5baccc08109310581cee325f3577a`
+  (~5:30 PM PT): "The 3D animation could not be started. Try again" on a fresh canvas
+- Cause: `LearnPage.jsx` `startAnimation` returned null without a board id; a canvas has none until its first save, and an
+  empty canvas never saves on its own. CI missed it: the browser check's canvases were already saved. Also: the owner was
+  first handed a bare preview URL, which cannot be signed into (dev clones refuse /login); the handoff now uses a
+  signed-in launcher, `C:\s\spec\animation\open-preview.cmd`.
+- Fixing full SHA: `3b53780bed9e9e352cea086b6ab4a2edeeffa8b0` (`startAnimation` force-saves a never-saved canvas, then starts on its board id;
+  `animation3d/start-board.test.mjs`); web unit 4837 pass / 0 fail
+- Status: fixed (CI on `3b53780bed9e9e352cea086b6ab4a2edeeffa8b0` in the M3 receipt)
+
 ### FX-AN-015 — a cancelled object drag can move the object to a position computed from (0, 0)
 - Task / phase: AN-03 / AN-04, MVP (owner review of `ef73e0e90b3ec697c65086e2611bc5e36485c355`)
 - Actual / expected: `renderer.js` `cancelHeld()` dispatches `PointerEvent('pointercancel', { pointerId })` without
