@@ -1,0 +1,517 @@
+{
+ "schema": "animation-scene/1",
+ "artifactId": "ar_dbc69eb33fd742468c3eb518201ee306",
+ "revision": 1,
+ "planHash": "6d6e0c7cbe6e09f2738895d4fba992d8883b3b59c386c7b106a29c9adf221640",
+ "capabilityVersion": "animation-capabilities/1",
+ "title": "Token to Goal: 3 by 3 Grid Challenge",
+ "description": "A flat dark board holds nine light tiles in a 3 by 3 grid. A blue round token starts on the near-left corner tile, and the far-right corner tile is green and labelled Goal. Up moves the token away from the viewer, Down toward the viewer, and Left and Right sideways, one tile per press. The token stops at the edges. A yellow arrow on the token shows the hint direction. A status line above the board gives instructions, hints and the success message. Readouts show the number of moves and how many steps remain to the goal.",
+ "experience": "game",
+ "behavior": "rules",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "scene": {
+  "materials": [
+   {
+    "id": "boardMat",
+    "color": "#3b3f46",
+    "opacity": 1
+   },
+   {
+    "id": "tileMat",
+    "color": "#d9dde3",
+    "opacity": 1
+   },
+   {
+    "id": "goalMat",
+    "color": "#3cb371",
+    "opacity": 1
+   },
+   {
+    "id": "tokenMat",
+    "color": "#2f6fd6",
+    "opacity": 1
+   },
+   {
+    "id": "hintMat",
+    "color": "#f2c230",
+    "opacity": 1
+   }
+  ],
+  "geometries": [
+   {
+    "id": "boardGeo",
+    "kind": "box",
+    "size": [
+     3.6,
+     0.2,
+     3.6
+    ]
+   },
+   {
+    "id": "tileGeo",
+    "kind": "box",
+    "size": [
+     1,
+     0.1,
+     1
+    ]
+   },
+   {
+    "id": "tokenGeo",
+    "kind": "cylinder",
+    "radius": 0.35,
+    "height": 0.25,
+    "radialSegments": 32
+   },
+   {
+    "id": "arrowGeo",
+    "kind": "arrow",
+    "length": 0.7
+   },
+   {
+    "id": "goalLabel",
+    "kind": "label",
+    "text": "Goal",
+    "size": 0.3,
+    "placement": "right"
+   },
+   {
+    "id": "statusLabel",
+    "kind": "label",
+    "text": "Reach the green Goal tile",
+    "size": 0.3,
+    "placement": "above"
+   }
+  ],
+  "nodes": [
+   {
+    "id": "board",
+    "name": "Board",
+    "parent": null,
+    "geometry": "boardGeo",
+    "material": "boardMat",
+    "position": [
+     0,
+     -0.1,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "t00",
+    "name": "Tile",
+    "parent": null,
+    "geometry": "tileGeo",
+    "material": "tileMat",
+    "position": [
+     -1.1,
+     0.05,
+     1.1
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "t10",
+    "name": "Tile",
+    "parent": null,
+    "geometry": "tileGeo",
+    "material": "tileMat",
+    "position": [
+     0,
+     0.05,
+     1.1
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "t20",
+    "name": "Tile",
+    "parent": null,
+    "geometry": "tileGeo",
+    "material": "tileMat",
+    "position": [
+     1.1,
+     0.05,
+     1.1
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "t01",
+    "name": "Tile",
+    "parent": null,
+    "geometry": "tileGeo",
+    "material": "tileMat",
+    "position": [
+     -1.1,
+     0.05,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "t11",
+    "name": "Tile",
+    "parent": null,
+    "geometry": "tileGeo",
+    "material": "tileMat",
+    "position": [
+     0,
+     0.05,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "t21",
+    "name": "Tile",
+    "parent": null,
+    "geometry": "tileGeo",
+    "material": "tileMat",
+    "position": [
+     1.1,
+     0.05,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "t02",
+    "name": "Tile",
+    "parent": null,
+    "geometry": "tileGeo",
+    "material": "tileMat",
+    "position": [
+     -1.1,
+     0.05,
+     -1.1
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "t12",
+    "name": "Tile",
+    "parent": null,
+    "geometry": "tileGeo",
+    "material": "tileMat",
+    "position": [
+     0,
+     0.05,
+     -1.1
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "t22",
+    "name": "Goal tile",
+    "parent": null,
+    "geometry": "tileGeo",
+    "material": "goalMat",
+    "position": [
+     1.1,
+     0.05,
+     -1.1
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "goalTag",
+    "name": "Goal label",
+    "parent": "t22",
+    "geometry": "goalLabel",
+    "position": [
+     0.55,
+     0.05,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "status",
+    "name": "Status",
+    "parent": "board",
+    "geometry": "statusLabel",
+    "position": [
+     0,
+     0.7,
+     -2.1
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "token",
+    "name": "Token",
+    "parent": null,
+    "geometry": "tokenGeo",
+    "material": "tokenMat",
+    "position": [
+     -1.1,
+     0.225,
+     1.1
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "hintArrow",
+    "name": "Hint arrow",
+    "parent": "token",
+    "geometry": "arrowGeo",
+    "material": "hintMat",
+    "position": [
+     0,
+     0.2,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": false,
+    "selectable": false
+   }
+  ]
+ },
+ "parameters": [],
+ "actions": [
+  {
+   "id": "up",
+   "label": "Up"
+  },
+  {
+   "id": "down",
+   "label": "Down"
+  },
+  {
+   "id": "left",
+   "label": "Left"
+  },
+  {
+   "id": "right",
+   "label": "Right"
+  },
+  {
+   "id": "hint",
+   "label": "Hint"
+  },
+  {
+   "id": "reset",
+   "label": "Reset"
+  }
+ ],
+ "readouts": [
+  {
+   "id": "moves",
+   "label": "Moves",
+   "decimals": 0
+  },
+  {
+   "id": "remaining",
+   "label": "Steps to goal",
+   "decimals": 0
+  }
+ ],
+ "stepped": false,
+ "game": {
+  "objective": "Move the blue token one tile at a time until it sits on the green Goal tile.",
+  "hint": "The goal is up and to the right. Any mix of two Up moves and two Right moves gets you there in four moves."
+ },
+ "program": {
+  "kind": "animation_program",
+  "schemaVersion": 1,
+  "runtimeVersion": "quickjs-release-sync@0.32.0",
+  "sdkVersion": "animation-sdk-1",
+  "rendererVersion": "animation-renderer-1",
+  "runtimePolicyVersion": "animation-policy-1",
+  "source": "const GC=2, GR=2;\nconst Q={up:[-0.7071068,0,0,0.7071068],down:[0.7071068,0,0,0.7071068],right:[0,0,-0.7071068,0.7071068],left:[0,0,0.7071068,0.7071068]};\nfunction start(){return {col:0,row:0,moves:0,hint:null,bump:false};}\nfunction hintDir(s){if(s.col<GC)return 'right';if(s.row<GR)return 'up';if(s.col>GC)return 'left';if(s.row>GR)return 'down';return null;}\nexport function initialState(){return start();}\nexport function reduce({state,event}){\n if(!event||event.type!=='action')return state;\n const id=event.action!==undefined?event.action:event.id;\n if(id==='reset')return start();\n const won=state.col===GC&&state.row===GR;\n if(id==='hint'){if(won)return state;return Object.assign({},state,{hint:hintDir(state),bump:false});}\n if(won)return state;\n let c=state.col,r=state.row;\n if(id==='up')r++;else if(id==='down')r--;else if(id==='left')c--;else if(id==='right')c++;else return state;\n if(c<0||c>2||r<0||r>2)return Object.assign({},state,{bump:true,hint:null});\n return {col:c,row:r,moves:state.moves+1,hint:null,bump:false};\n}\nexport function evaluate({state}){\n const s=state||start();\n const x=(s.col-1)*1.1, z=(1-s.row)*1.1;\n const won=s.col===GC&&s.row===GR;\n const rem=Math.abs(GC-s.col)+Math.abs(GR-s.row);\n let msg;\n if(won)msg='Goal reached in '+s.moves+' moves!'+(s.moves===4?' Perfect!':'');\n else if(s.hint)msg='Hint: press '+s.hint.charAt(0).toUpperCase()+s.hint.slice(1);\n else if(s.bump)msg='Edge of the board - try another way';\n else if(s.moves===0)msg='Reach the green Goal tile';\n else msg=rem+' steps to go';\n const nodes={token:{position:[x,0.225,z]},status:{text:msg},hintArrow:{visible:!!s.hint&&!won}};\n if(s.hint)nodes.hintArrow.quaternion=Q[s.hint];\n return {nodes,materials:{goalMat:{color:won?'#22c55e':'#3cb371'},tokenMat:{color:won?'#f2c230':'#2f6fd6'}},readouts:{moves:s.moves,remaining:rem},goal:won?{status:'won',message:'You reached the goal in '+s.moves+' moves.'}:{status:'playing'}};\n}\n",
+  "sourceHash": "b574fe4c58a0ae395e4d6967813f087cbad26368fa851765a4d186f90b11f98a"
+ },
+ "seed": 0,
+ "camera": {
+  "position": [
+   0,
+   5.2,
+   4.6
+  ],
+  "target": [
+   0,
+   0,
+   -0.2
+  ],
+  "fov": 50
+ },
+ "assumptions": [
+  "Up moves the token away from the viewer, Down toward the viewer, as seen from the starting camera view.",
+  "The token starts on the near-left corner and the goal is the far-right corner, so the shortest path is four moves.",
+  "Pressing into an edge does not count as a move.",
+  "Once the goal is reached, the move buttons do nothing until Reset is pressed."
+ ],
+ "provenance": {
+  "origin": "generated",
+  "model": "claude-opus-5-5",
+  "createdAt": "2026-10-30T21:53:54.761Z"
+ }
+}

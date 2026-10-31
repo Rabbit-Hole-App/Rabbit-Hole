@@ -1,0 +1,825 @@
+{
+ "schema": "animation-scene/1",
+ "artifactId": "ar_2b565f3d3aed4d1a853b11e1508c98a8",
+ "revision": 1,
+ "planHash": "4ddfe5d6e9324f33e12d462b39ebb67f108935545ac00147abaf529030a69c8c",
+ "capabilityVersion": "animation-capabilities/1",
+ "title": "Ceiling Fan Blades Turning with a Gently Swaying Pull Chain",
+ "description": "A ceiling fan hangs from a short rod under a flat ceiling. It has a round motor housing, five flat wooden-coloured blades and a thin pull chain with a small bead at its end, hanging from the bottom of the housing. The blades turn steadily around the vertical axis, making two full turns every 12 seconds. The chain swings slowly back and forth in a small arc, completing three swings in the same 12 seconds. The loop repeats seamlessly.",
+ "experience": "watch",
+ "behavior": "analytical",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "scene": {
+  "materials": [
+   {
+    "id": "ceilingMat",
+    "color": "#e8e4dc",
+    "opacity": 1
+   },
+   {
+    "id": "metal",
+    "color": "#9aa0a6",
+    "opacity": 1
+   },
+   {
+    "id": "housingMat",
+    "color": "#5f6368",
+    "opacity": 1
+   },
+   {
+    "id": "bladeMat",
+    "color": "#a0703c",
+    "opacity": 1
+   },
+   {
+    "id": "chainMat",
+    "color": "#c9a227",
+    "opacity": 1
+   }
+  ],
+  "geometries": [
+   {
+    "id": "ceilingGeo",
+    "kind": "box",
+    "size": [
+     6,
+     0.1,
+     6
+    ]
+   },
+   {
+    "id": "canopyGeo",
+    "kind": "cylinder",
+    "radius": 0.18,
+    "height": 0.1,
+    "radialSegments": 32
+   },
+   {
+    "id": "rodGeo",
+    "kind": "cylinder",
+    "radius": 0.035,
+    "height": 0.6,
+    "radialSegments": 16
+   },
+   {
+    "id": "housingGeo",
+    "kind": "cylinder",
+    "radius": 0.32,
+    "height": 0.26,
+    "radialSegments": 40
+   },
+   {
+    "id": "capGeo",
+    "kind": "sphere",
+    "radius": 0.12,
+    "widthSegments": 24,
+    "heightSegments": 12
+   },
+   {
+    "id": "bracketGeo",
+    "kind": "box",
+    "size": [
+     0.35,
+     0.04,
+     0.08
+    ]
+   },
+   {
+    "id": "bladeGeo",
+    "kind": "box",
+    "size": [
+     1.3,
+     0.025,
+     0.32
+    ]
+   },
+   {
+    "id": "chainGeo",
+    "kind": "line",
+    "points": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      -0.55,
+      0
+     ]
+    ]
+   },
+   {
+    "id": "beadGeo",
+    "kind": "sphere",
+    "radius": 0.035,
+    "widthSegments": 16,
+    "heightSegments": 10
+   },
+   {
+    "id": "bladeLabel",
+    "kind": "label",
+    "text": "Blade",
+    "size": 0.3,
+    "placement": "above"
+   },
+   {
+    "id": "chainLabel",
+    "kind": "label",
+    "text": "Pull chain",
+    "size": 0.3,
+    "placement": "right"
+   }
+  ],
+  "nodes": [
+   {
+    "id": "ceiling",
+    "parent": null,
+    "geometry": "ceilingGeo",
+    "material": "ceilingMat",
+    "position": [
+     0,
+     3.05,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "fan",
+    "parent": null,
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "canopy",
+    "parent": "fan",
+    "geometry": "canopyGeo",
+    "material": "metal",
+    "position": [
+     0,
+     2.95,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "rod",
+    "parent": "fan",
+    "geometry": "rodGeo",
+    "material": "metal",
+    "position": [
+     0,
+     2.6,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "housing",
+    "parent": "fan",
+    "geometry": "housingGeo",
+    "material": "housingMat",
+    "position": [
+     0,
+     2.2,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "cap",
+    "parent": "fan",
+    "geometry": "capGeo",
+    "material": "metal",
+    "position": [
+     0,
+     2.03,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "rotor",
+    "parent": "fan",
+    "position": [
+     0,
+     2.12,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "arm0",
+    "parent": "rotor",
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "arm1",
+    "parent": "rotor",
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0.587785,
+     0,
+     0.809017
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "arm2",
+    "parent": "rotor",
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0.951057,
+     0,
+     0.309017
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "arm3",
+    "parent": "rotor",
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0.951057,
+     0,
+     -0.309017
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "arm4",
+    "parent": "rotor",
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0.587785,
+     0,
+     -0.809017
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "bracket0",
+    "parent": "arm0",
+    "geometry": "bracketGeo",
+    "material": "metal",
+    "position": [
+     0.4,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "bracket1",
+    "parent": "arm1",
+    "geometry": "bracketGeo",
+    "material": "metal",
+    "position": [
+     0.4,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "bracket2",
+    "parent": "arm2",
+    "geometry": "bracketGeo",
+    "material": "metal",
+    "position": [
+     0.4,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "bracket3",
+    "parent": "arm3",
+    "geometry": "bracketGeo",
+    "material": "metal",
+    "position": [
+     0.4,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "bracket4",
+    "parent": "arm4",
+    "geometry": "bracketGeo",
+    "material": "metal",
+    "position": [
+     0.4,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "blade0",
+    "name": "Blade",
+    "parent": "arm0",
+    "geometry": "bladeGeo",
+    "material": "bladeMat",
+    "position": [
+     1.2,
+     -0.02,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "blade1",
+    "parent": "arm1",
+    "geometry": "bladeGeo",
+    "material": "bladeMat",
+    "position": [
+     1.2,
+     -0.02,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "blade2",
+    "parent": "arm2",
+    "geometry": "bladeGeo",
+    "material": "bladeMat",
+    "position": [
+     1.2,
+     -0.02,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "blade3",
+    "parent": "arm3",
+    "geometry": "bladeGeo",
+    "material": "bladeMat",
+    "position": [
+     1.2,
+     -0.02,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "blade4",
+    "parent": "arm4",
+    "geometry": "bladeGeo",
+    "material": "bladeMat",
+    "position": [
+     1.2,
+     -0.02,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "bladeLabelNode",
+    "parent": "blade0",
+    "geometry": "bladeLabel",
+    "position": [
+     0.5,
+     0.03,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "chainPivot",
+    "parent": "fan",
+    "position": [
+     0,
+     1.92,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "chain",
+    "name": "Pull chain",
+    "parent": "chainPivot",
+    "geometry": "chainGeo",
+    "material": "chainMat",
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "bead",
+    "parent": "chainPivot",
+    "geometry": "beadGeo",
+    "material": "chainMat",
+    "position": [
+     0,
+     -0.585,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "chainLabelNode",
+    "parent": "bead",
+    "geometry": "chainLabel",
+    "position": [
+     0.04,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   }
+  ]
+ },
+ "parameters": [],
+ "actions": [],
+ "readouts": [
+  {
+   "id": "bladeAngle",
+   "label": "Blade angle",
+   "unit": "°",
+   "decimals": 0
+  },
+  {
+   "id": "chainAngle",
+   "label": "Chain swing angle",
+   "unit": "°",
+   "decimals": 1
+  }
+ ],
+ "timeline": {
+  "duration": 12,
+  "loop": true
+ },
+ "stepped": false,
+ "program": {
+  "kind": "animation_program",
+  "schemaVersion": 1,
+  "runtimeVersion": "quickjs-release-sync@0.32.0",
+  "sdkVersion": "animation-sdk-1",
+  "rendererVersion": "animation-renderer-1",
+  "runtimePolicyVersion": "animation-policy-1",
+  "source": "const D=12;\nexport function evaluate({time}){\n  const t=((time%D)+D)%D;\n  const a=2*Math.PI*2*t/D;\n  const h=a/2;\n  const amp=0.15;\n  const c=amp*Math.sin(2*Math.PI*t/4);\n  const hc=c/2;\n  let deg=(a*180/Math.PI)%360;\n  return {\n    nodes:{\n      rotor:{quaternion:[0,Math.sin(h),0,Math.cos(h)]},\n      chainPivot:{quaternion:[0,0,Math.sin(hc),Math.cos(hc)]}\n    },\n    readouts:{bladeAngle:deg,chainAngle:c*180/Math.PI}\n  };\n}\n",
+  "sourceHash": "392e3b8df73b8cee910ee6a1262ac62e0c4fdd2edda250f23f4b8d191fd17c1b"
+ },
+ "seed": 0,
+ "camera": {
+  "position": [
+   3.2,
+   0.9,
+   3.4
+  ],
+  "target": [
+   0,
+   2,
+   0
+  ],
+  "fov": 50
+ },
+ "assumptions": [
+  "Blades turn at a constant speed: two full turns every 12 seconds.",
+  "The chain swings as one stiff piece in a small regular arc (±9°), three swings per 12-second loop, so blades and chain both return to their start when the loop repeats.",
+  "The swing is drawn motion only, not caused by air from the blades."
+ ],
+ "provenance": {
+  "origin": "generated",
+  "model": "claude-opus-5-5",
+  "createdAt": "2026-10-30T22:45:29.899Z"
+ }
+}

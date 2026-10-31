@@ -1,0 +1,628 @@
+{
+ "schema": "animation-scene/1",
+ "artifactId": "ar_3a801e5d1a4b4ec594f0229d4eb69393",
+ "revision": 1,
+ "planHash": "087ee012d9a27ecb67f1da20edca06df0d7f276c60a150973542b27a6d2ae74d",
+ "capabilityVersion": "animation-capabilities/1",
+ "title": "Bicycle gears: back-wheel turns per pedal turn",
+ "description": "Side view of a bicycle drivetrain. On the right, a blue front chainring with a pedal crank. On the left, an orange rear sprocket fixed to a large, see-through grey back wheel that has a red spoke marker. Two dark chain runs link the gears. As the pedals turn, the back wheel turns front teeth ÷ rear teeth times for each pedal turn. Readouts show the gear ratio, wheel turns per pedal turn, distance rolled per pedal turn, and running counts of pedal and wheel turns.",
+ "experience": "experiment",
+ "behavior": "analytical",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "scene": {
+  "materials": [
+   {
+    "id": "mRing",
+    "color": "#3b82f6",
+    "opacity": 1
+   },
+   {
+    "id": "mSpr",
+    "color": "#f59e0b",
+    "opacity": 1
+   },
+   {
+    "id": "mWheel",
+    "color": "#9ca3af",
+    "opacity": 0.35
+   },
+   {
+    "id": "mDark",
+    "color": "#333333",
+    "opacity": 1
+   },
+   {
+    "id": "mRed",
+    "color": "#ef4444",
+    "opacity": 1
+   }
+  ],
+  "geometries": [
+   {
+    "id": "cyl",
+    "kind": "cylinder",
+    "radius": 1,
+    "height": 1,
+    "radialSegments": 48
+   },
+   {
+    "id": "box",
+    "kind": "box",
+    "size": [
+     1,
+     1,
+     1
+    ]
+   },
+   {
+    "id": "lRing",
+    "kind": "label",
+    "text": "Front chainring",
+    "size": 0.3,
+    "placement": "right"
+   },
+   {
+    "id": "lSpr",
+    "kind": "label",
+    "text": "Rear sprocket",
+    "size": 0.3,
+    "placement": "below"
+   },
+   {
+    "id": "lWheel",
+    "kind": "label",
+    "text": "Back wheel",
+    "size": 0.3,
+    "placement": "above"
+   }
+  ],
+  "nodes": [
+   {
+    "id": "ring",
+    "name": "Chainring group",
+    "parent": null,
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "ringDisc",
+    "name": "Front chainring",
+    "parent": "ring",
+    "geometry": "cyl",
+    "material": "mRing",
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "quaternion": [
+     0.7071068,
+     0,
+     0,
+     0.7071068
+    ],
+    "scale": [
+     0.53,
+     0.06,
+     0.53
+    ],
+    "visible": true,
+    "selectable": true
+   },
+   {
+    "id": "crank",
+    "name": "Crank arm",
+    "parent": "ring",
+    "geometry": "box",
+    "material": "mDark",
+    "position": [
+     0,
+     -0.4,
+     0.1
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     0.08,
+     0.8,
+     0.05
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "pedal",
+    "name": "Pedal",
+    "parent": "ring",
+    "geometry": "box",
+    "material": "mRed",
+    "position": [
+     0,
+     -0.8,
+     0.18
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     0.25,
+     0.1,
+     0.12
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "wheel",
+    "name": "Wheel group",
+    "parent": null,
+    "position": [
+     -2.2,
+     0,
+     -0.15
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "wheelDisc",
+    "name": "Back wheel",
+    "parent": "wheel",
+    "geometry": "cyl",
+    "material": "mWheel",
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "quaternion": [
+     0.7071068,
+     0,
+     0,
+     0.7071068
+    ],
+    "scale": [
+     0.82,
+     0.03,
+     0.82
+    ],
+    "visible": true,
+    "selectable": true
+   },
+   {
+    "id": "spoke",
+    "name": "Wheel marker",
+    "parent": "wheel",
+    "geometry": "box",
+    "material": "mRed",
+    "position": [
+     0,
+     0.41,
+     0.03
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     0.04,
+     0.82,
+     0.03
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "spr",
+    "name": "Sprocket group",
+    "parent": null,
+    "position": [
+     -2.2,
+     0,
+     0.05
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "sprDisc",
+    "name": "Rear sprocket",
+    "parent": "spr",
+    "geometry": "cyl",
+    "material": "mSpr",
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "quaternion": [
+     0.7071068,
+     0,
+     0,
+     0.7071068
+    ],
+    "scale": [
+     0.26,
+     0.06,
+     0.26
+    ],
+    "visible": true,
+    "selectable": true
+   },
+   {
+    "id": "sprMark",
+    "name": "Sprocket marker",
+    "parent": "spr",
+    "geometry": "box",
+    "material": "mDark",
+    "position": [
+     0,
+     0.18,
+     0.04
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     0.04,
+     0.12,
+     0.02
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "chainTop",
+    "name": "Chain top",
+    "parent": null,
+    "geometry": "box",
+    "material": "mDark",
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     2.2,
+     0.03,
+     0.03
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "chainBot",
+    "name": "Chain bottom",
+    "parent": null,
+    "geometry": "box",
+    "material": "mDark",
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     2.2,
+     0.03,
+     0.03
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "aRing",
+    "parent": null,
+    "position": [
+     0.6,
+     0,
+     0.3
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "tRing",
+    "parent": "aRing",
+    "geometry": "lRing",
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "aSpr",
+    "parent": null,
+    "position": [
+     -2.2,
+     -0.3,
+     0.3
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "tSpr",
+    "parent": "aSpr",
+    "geometry": "lSpr",
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "aWheel",
+    "parent": null,
+    "position": [
+     -2.2,
+     0.85,
+     0.2
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "tWheel",
+    "parent": "aWheel",
+    "geometry": "lWheel",
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   }
+  ]
+ },
+ "parameters": [
+  {
+   "type": "number",
+   "id": "frontTeeth",
+   "label": "Front chainring teeth",
+   "min": 22,
+   "max": 53,
+   "step": 1,
+   "default": 44
+  },
+  {
+   "type": "number",
+   "id": "rearTeeth",
+   "label": "Rear sprocket teeth",
+   "min": 11,
+   "max": 34,
+   "step": 1,
+   "default": 22
+  },
+  {
+   "type": "number",
+   "id": "wheelDiameter",
+   "label": "Back wheel diameter",
+   "unit": "cm",
+   "min": 50,
+   "max": 75,
+   "step": 1,
+   "default": 68
+  },
+  {
+   "type": "number",
+   "id": "pedalRate",
+   "label": "Pedal speed",
+   "unit": "turns/min",
+   "min": 20,
+   "max": 90,
+   "step": 5,
+   "default": 40
+  },
+  {
+   "type": "toggle",
+   "id": "showLabels",
+   "label": "Show labels",
+   "default": true
+  }
+ ],
+ "actions": [],
+ "readouts": [
+  {
+   "id": "ratio",
+   "label": "Gear ratio (front ÷ rear)",
+   "decimals": 2
+  },
+  {
+   "id": "wheelPerPedal",
+   "label": "Wheel turns per pedal turn",
+   "decimals": 2
+  },
+  {
+   "id": "distPerPedal",
+   "label": "Distance per pedal turn",
+   "unit": "m",
+   "decimals": 2
+  },
+  {
+   "id": "pedalTurns",
+   "label": "Pedal turns so far",
+   "decimals": 2
+  },
+  {
+   "id": "wheelTurns",
+   "label": "Wheel turns so far",
+   "decimals": 2
+  }
+ ],
+ "timeline": {
+  "duration": 60,
+  "loop": true
+ },
+ "stepped": false,
+ "program": {
+  "kind": "animation_program",
+  "schemaVersion": 1,
+  "runtimeVersion": "quickjs-release-sync@0.32.0",
+  "sdkVersion": "animation-sdk-1",
+  "rendererVersion": "animation-renderer-1",
+  "runtimePolicyVersion": "animation-policy-1",
+  "source": "const ph=(s,t)=>s.p0+(t-s.t0)*s.rate/60;\nconst Q=a=>[0,0,Math.sin(a/2),Math.cos(a/2)];\nexport function initialState({inputs}){return {p0:0,t0:0,rate:inputs.pedalRate,sel:null};}\nexport function reduce({state,event,inputs,time}){\nif(event.type==='parameter'){if(inputs.pedalRate!==state.rate)return {...state,p0:ph(state,time),t0:time,rate:inputs.pedalRate};return state;}\nif(event.type==='select'){const id=event.nodeId??event.node??event.id??null;return {...state,sel:id};}\nreturn state;}\nexport function evaluate({inputs,time,state}){\nconst F=inputs.frontTeeth,R=inputs.rearTeeth,D=inputs.wheelDiameter;\nconst rf=F*0.012,rr=R*0.012,rw=D/100*1.2;\nconst turns=ph(state,time),ratio=F/R,wt=turns*ratio;\nconst ap=-2*Math.PI*turns,aw=-2*Math.PI*wt;\nconst dx=2.2,dy=rf-rr,len=Math.hypot(dx,dy),ang=Math.atan2(dy,dx);\nconst L=inputs.showLabels,s=state.sel;\nreturn {nodes:{\nring:{quaternion:Q(ap)},ringDisc:{scale:[rf,0.06,rf]},\nspr:{quaternion:Q(aw)},sprDisc:{scale:[rr,0.06,rr]},sprMark:{position:[0,rr*0.7,0.04]},\nwheel:{quaternion:Q(aw)},wheelDisc:{scale:[rw,0.03,rw]},spoke:{position:[0,rw/2,0.03],scale:[0.04,rw,0.03]},\nchainTop:{position:[-1.1,(rf+rr)/2,0],quaternion:Q(ang),scale:[len,0.03,0.03]},\nchainBot:{position:[-1.1,-(rf+rr)/2,0],quaternion:Q(-ang),scale:[len,0.03,0.03]},\naRing:{position:[rf+0.05,0,0.3],visible:L},tRing:{text:s==='ringDisc'?F+' teeth':'Front chainring',visible:L},\naSpr:{position:[-2.2,-rr-0.03,0.3],visible:L},tSpr:{text:s==='sprDisc'?R+' teeth':'Rear sprocket',visible:L},\naWheel:{position:[-2.2,rw+0.03,0.2],visible:L},tWheel:{text:s==='wheelDisc'?D+' cm wheel':'Back wheel',visible:L}},\nreadouts:{ratio:ratio,wheelPerPedal:ratio,distPerPedal:ratio*Math.PI*D/100,pedalTurns:turns,wheelTurns:wt},\nselection:s};}",
+  "sourceHash": "d1db90cd4f8faca1ec6cfac777f0e69808bea81062d3e78e77db92c052310146"
+ },
+ "seed": 0,
+ "camera": {
+  "position": [
+   -1.1,
+   0.4,
+   6
+  ],
+  "target": [
+   -1.1,
+   0,
+   0
+  ],
+  "fov": 45
+ },
+ "assumptions": [
+  "The chain does not slip or stretch, so the same number of teeth pass over each gear.",
+  "The rear sprocket and back wheel are locked together while pedaling.",
+  "Distance per pedal turn assumes the wheel rolls without slipping.",
+  "Gears are drawn as simple discs with a marker; gear and wheel sizes are scaled for viewing.",
+  "Select a gear or the wheel to see its tooth count or size on its label."
+ ],
+ "provenance": {
+  "origin": "generated",
+  "model": "claude-opus-5-5",
+  "createdAt": "2026-10-30T23:15:24.168Z"
+ }
+}
