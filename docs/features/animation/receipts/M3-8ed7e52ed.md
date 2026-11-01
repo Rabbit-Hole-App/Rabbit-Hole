@@ -1,5 +1,25 @@
 # /animation receipt: M3 (MVP ready for owner decision) at 81df661ba
 
+**Update 2026-11-01 PT — quality candidate `237964c54b398221fe9f16062214a4ccf6cfc563`** (owner reviews of 2026-10-31: plan
+review, card size, scene quality, zoom-aware labels, toolbar/resets/readout/labels toggle; supersedes 622d17501).
+- Plan review: short summary from the signed plan (FX-AN-020); no cost note; Chat link and pending card titled "3D animation",
+  then the plan title (FX-AN-022); a card with no scene fits its content (FX-AN-019).
+- Scene quality (FX-AN-023, FX-AN-024): sharp zoom-aware rendering and labels, Labels on/off, fitted camera (background sampler,
+  never evicting a card's Worker), studio lighting; one toolbar (Play/Pause, Restart, Speed, Playing/Paused, Reset view,
+  Labels, Interact/Done); Reset experiment/game/scene beside its settings; first parameter as the main control; prominent
+  first readout for experiments and games; generation standards, request values kept and checked, calibrated review with
+  one retry for a prose answer.
+- Evidence tiers: (1) unit: web 4871 pass / 0 fail, control-plane animation 55/55, build exit 0. (2) CI on the exact SHA:
+  verify 41277263740 success; fast-e2e 41277263748 success, animation-mvp 34/34 (screens incl. Z-camera-close/default/far,
+  Z-canvas-zoomed-in/out, Z-labels-off, I-plan, I-plan-details). (3) real provider on the deployed preview: accepted
+  game `d500849c` (accept-12, 1 repair), experiment (accept-13, 0 repairs), watch (accept-14, 0 repairs); before/after
+  Browser Rendering images of the earlier accepted artifacts in C:/s/spec/animation/before-quality and after-quality, new
+  generations in C:/s/spec/animation/new-gen. (4) the owner's signed-in browser try: owner's own.
+- Spend: provider US$5.3915 of US$10 (ledger US$5.5131), incl. the owner's two preview runs (US$0.5137).
+- Limits: on a board where both animation Workers are held by idle cards a card is fitted from its shown frame, not its
+  motion range; a wide parameter range leaves room below a short subject at its default (stable framing); FX-AN-018 open
+  (owner decision on planner/repair framing improvements); FX-AN-016 not reproduced.
+
 **Update 2026-10-31 PT — corrected candidate `622d17501be42899a0af78f373913ebcd8e1bbbb`** (owner review of `bb23270a7`;
 supersedes 81df661ba, whose evidence below still holds).
 - FX-AN-017 fixed: `/animation` waits for the board GET and saves only through LearnPage's push queue (`pushBoard`),
