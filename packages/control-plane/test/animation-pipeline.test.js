@@ -254,6 +254,42 @@ test('author and repair are told how to place labels', async () => {
   for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /beside the object it names[^.]*never over the object, over another label or floating in empty space/);
 });
 
+test('the artifact keeps the reviewed plan\'s parameter range, unit, default and order (owner 2026-10-31)', () => {
+  const { plan, artifact } = experimentFixture, p = plan.parameters[0], a = artifact.parameters.find(x => x.id === p.id);
+  const off = changed => planProblems({ ...artifact, parameters: artifact.parameters.map(x => (x.id === p.id ? { ...a, ...changed } : x)) }, plan);
+  assert.match(off({ max: p.max + 1 }).join(), /approved range is/);
+  assert.match(off({ unit: 'g' }).join(), new RegExp(`approved unit is "${p.unit}"`));
+  assert.match(off({ unit: undefined }).join(), /approved unit is/);
+  assert.match(off({ default: p.min }).join(), /approved default is/);
+  // A second planned parameter listed before the first: the card's main control would change.
+  const two = { ...plan, parameters: [p, { type: 'toggle', id: 'forces', label: 'Forces', default: true }] };
+  const extra = { type: 'toggle', id: 'forces', label: 'Forces', default: true };
+  assert.deepEqual(planProblems({ ...artifact, parameters: [a, extra] }, two), []);
+  assert.match(planProblems({ ...artifact, parameters: [extra, a] }, two).join(), new RegExp(`approved plan's parameters first and in its order \\(${p.id}, forces\\)`));
+  assert.match(planProblems({ ...artifact, parameters: [a, { ...extra, default: false }] }, two).join(), /forces: the approved default is true/);
+});
+
+test('every prompt carries the visual standard, the control order and the request\'s own values', async () => {
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM } = await import('../src/agents/animation-author.js');
+  const { ANIMATION_BRIEF_SYSTEM, PLAN_TOOL } = await import('../src/agents/animation-brief.js');
+  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) {
+    assert.match(system, /subject is large in frame/);
+    assert.match(system, /thin cylinder; a line only for a guide/);
+    assert.match(system, /the result the learner asked to see FIRST/);
+    assert.match(system, /must stay smaller than the subject it names/);
+  }
+  assert.match(ANIMATION_REPAIR_SYSTEM, /reframe[^.]*never shrink the subject/);
+  assert.match(ANIMATION_BRIEF_SYSTEM, /the one the learner asked to change FIRST/);
+  assert.match(ANIMATION_BRIEF_SYSTEM, /"between 0\.5 and 3 metres" is min 0\.5, max 3, unit m/);
+  assert.match(ANIMATION_BRIEF_SYSTEM, /extremes the scene can show legibly/);
+  assert.match(PLAN_TOOL.input_schema.properties.parameters.description, /asked to change FIRST/);
+  assert.match(ANIMATION_REVIEW_SYSTEM, /Every number, range, unit, default and named value the request states/);
+  assert.match(ANIMATION_REVIEW_SYSTEM, /subject small in the frame[^.]*control hierarchy/);
+  assert.match(ANIMATION_REVIEW_SYSTEM, /major for[^.]*a correct computation drawn poorly/);
+  // No subject is named in a prompt: the guidance is general (owner 2026-10-31).
+  for (const system of [ANIMATION_BRIEF_SYSTEM, ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM]) assert.doesNotMatch(system, /pendulum|\bbob\b/i);
+});
+
 test('the dev render probe renders a fixture through the review capture path, only when enabled with diagnostics', async () => {
   const { animationRoute, ANIMATION_PROBE_PATH } = await import('../src/animation-job.js');
   const browser = fakeBrowser();

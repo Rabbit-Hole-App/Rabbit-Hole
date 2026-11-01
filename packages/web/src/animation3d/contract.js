@@ -44,7 +44,7 @@ export const ANIMATION_PROGRAM_VERSIONS = Object.freeze({
 export const ANIMATION_PROGRAM_CONTRACT = Object.freeze({
   exports: 'export function evaluate({ inputs, time, seed, state }) -> frame; when the artifact declares actions, selectable or draggable nodes, or stepped: also export function initialState({ inputs, seed }) -> state and export function reduce({ state, event, inputs, time, seed }) -> state',
   frame: '{ nodes?: { <node id>: { position?, quaternion?, scale?, visible?, text? } }, materials?: { <material id>: { color?, opacity? } }, readouts?: { <readout id>: number }, selection?: <node id> | null, goal?: { status: "playing" | "won" | "lost", message? } }',
-  labels: 'A label is drawn facing the camera, over the scene, at a constant readable screen size whatever the camera distance or scene scale; size is only a relative hint (0.3 is normal). Make each label a child node of the object it names, positioned at the edge of that object (for example its top), and choose placement (above, below, left, right or center; default above) so the plate sits beside that point instead of covering the object. Use few, short labels.',
+  labels: 'A label is drawn facing the camera, over the scene, small and sharp; it shrinks as the scene looks smaller on screen and is hidden when there is no room for it (larger size hints and earlier labels are kept first). An object name can be switched off by the learner; a label whose text a frame updates, or one with no parent object, always shows. size is only a relative hint (0.3 is normal). Make each label a child node of the object it names, positioned at the edge of that object (for example its top), and choose placement (above, below, left, right or center; default above) so the plate sits beside that point instead of covering the object. Use few, short labels.',
   rules: 'One ES module, no imports, no Three.js, no DOM. All functions pure and deterministic; evaluate never advances state. time is seconds inside the declared timeline. Quaternions are [x, y, z, w] and normalized.',
 });
 
@@ -95,8 +95,8 @@ const geometry = z.discriminatedUnion('kind', [
   z.object({ id, kind: z.literal('line'), points: z.array(vec3).min(2) }).strict(),
   z.object({ id, kind: z.literal('curve'), points: z.array(vec3).min(2).max(64), segments: segments(2, 512, 64), closed: z.boolean().default(false) }).strict(), // Catmull-Rom through points
   z.object({ id, kind: z.literal('arrow'), length: size }).strict(), // along local +Y from the node origin
-  // Camera-facing text drawn over the scene at a constant readable screen size: size is a relative hint (0.3 normal, clamped by the
-  // renderer), placement puts the plate beside its node's origin (added after AN-01; optional, so older artifacts still validate).
+  // Camera-facing text drawn over the scene, sized by the scene's on-screen size within a legible range (scene.js): size is a relative
+  // hint (0.3 normal), placement puts the plate beside its node's origin (added after AN-01; optional, so older artifacts still validate).
   z.object({ id, kind: z.literal('label'), text: text(80), size: size.default(0.3), placement: z.enum(LABEL_PLACEMENTS).default('above') }).strict(),
 ]);
 const material = z.object({ id, color, opacity: z.number().min(0).max(1).default(1) }).strict();

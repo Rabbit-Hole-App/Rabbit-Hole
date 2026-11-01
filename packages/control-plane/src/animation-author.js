@@ -64,18 +64,26 @@ export function programProblems(artifact) {
 }
 
 // The approved plan is binding: the same experience, behavior and control profile, and every planned parameter with its type, range or
-// options. (The plan was what the learner reviewed; a different artifact is a repairable problem, never a silent change.)
+// options, unit and default, listed first and in the plan's order (the card's first parameter is the main control; owner 2026-10-31: the
+// learner's stated range, unit and default must reach the final control). The plan was what the learner reviewed; a different artifact is
+// a repairable problem, never a silent change. Checked on new drafts only: a stored artifact is served by artifactIntact, unchanged.
 export function planProblems(artifact, plan) {
   const out = [];
   for (const key of ['experience', 'behavior', 'controlProfile']) if (artifact[key] !== plan[key]) out.push(`${key}: the approved plan says ${plan[key]}, the artifact says ${String(artifact[key]).slice(0, 40)}`);
-  const params = new Map((Array.isArray(artifact.parameters) ? artifact.parameters : []).map(p => [p?.id, p]));
+  const list = Array.isArray(artifact.parameters) ? artifact.parameters : [];
+  const params = new Map(list.map(p => [p?.id, p]));
+  let missing = false;
   for (const p of plan.parameters || []) {
     const a = params.get(p.id);
-    if (!a) { out.push(`parameters: the approved plan's parameter ${p.id} (${p.label}) is missing`); continue; }
-    if (a.type !== p.type) out.push(`parameters.${p.id}: the approved plan makes it a ${p.type}`);
-    else if (p.type === 'number' && (a.min !== p.min || a.max !== p.max)) out.push(`parameters.${p.id}: the approved range is ${p.min} to ${p.max}`);
-    else if (p.type === 'select' && canonicalJson(p.options.map(o => o.value).sort()) !== canonicalJson((a.options || []).map(o => o?.value).sort())) out.push(`parameters.${p.id}: the approved options are ${p.options.map(o => o.value).join(', ')}`);
+    if (!a) { missing = true; out.push(`parameters: the approved plan's parameter ${p.id} (${p.label}) is missing`); continue; }
+    if (a.type !== p.type) { out.push(`parameters.${p.id}: the approved plan makes it a ${p.type}`); continue; }
+    if (p.type === 'number' && (a.min !== p.min || a.max !== p.max)) out.push(`parameters.${p.id}: the approved range is ${p.min} to ${p.max}`);
+    if (p.type === 'number' && (a.unit ?? '') !== (p.unit ?? '')) out.push(`parameters.${p.id}: the approved unit is ${p.unit ? `"${p.unit}"` : 'none'}`);
+    if (p.type === 'select' && canonicalJson(p.options.map(o => o.value).sort()) !== canonicalJson((a.options || []).map(o => o?.value).sort())) out.push(`parameters.${p.id}: the approved options are ${p.options.map(o => o.value).join(', ')}`);
+    if (a.default !== p.default) out.push(`parameters.${p.id}: the approved default is ${JSON.stringify(p.default)}`);
   }
+  const ids = (plan.parameters || []).map(p => p.id);
+  if (!missing && list.slice(0, ids.length).some((a, i) => a?.id !== ids[i])) out.push(`parameters: list the approved plan's parameters first and in its order (${ids.join(', ')})`);
   if (plan.experience === 'watch' && plan.duration && artifact.timeline && artifact.timeline.duration !== plan.duration) out.push(`timeline.duration: the approved loop is ${plan.duration} seconds`);
   return out;
 }

@@ -25,8 +25,9 @@ export const ANIMATION_CAPTURE = Object.freeze({ width: 960, height: 540, dpr: 1
 
 const blocker = (code, message) => Object.assign(new Error(message), { status: 503, code, category: 'renderer' });
 
-// The two views: the artifact's own camera, and that camera orbited SIDE_VIEW about its own target (55 degrees round, 15 degrees higher,
-// same distance and field of view), so the review checks a nearby angle of what the learner sees. A quarter turn (the earlier second
+// The two views: the artifact's own camera direction, and that camera orbited SIDE_VIEW about its own target (55 degrees round, 15 degrees
+// higher, same field of view); the capture page fits each to the scene and its movement range (web animation3d/framing.js), as the
+// learner's card does, so the review checks what the learner sees. A quarter turn (the earlier second
 // view) saw a planar drivetrain edge-on and failed a good scene twice (accept-8).
 export const SIDE_VIEW = Object.freeze({ azimuthDeg: 55, elevationDeg: 15, maxElevationDeg: 75 });
 export function captureViews(artifact) {

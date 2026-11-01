@@ -1,5 +1,5 @@
 import { useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, MessageCircle, Pencil, RefreshCw, RotateCcw, Rotate3d } from 'lucide-react';
+import { Loader2, MessageCircle, Pencil, RefreshCw } from 'lucide-react';
 import { api } from './api.js';
 import { Pill } from './ui.jsx';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
@@ -18,12 +18,13 @@ import { AnimationBoard } from './animation3d/board-context.js';
 import { EXPLAIN_BRIEF_EVENT } from './explain-client.js';
 import { createCardSession } from './animation3d/session.js';
 import { useSceneInteraction } from './animation3d/interaction.js';
-import { Actions, buttonClass, GamePanel, Parameters, Readouts, Toolbar } from './animation3d/Controls.jsx';
+import { Actions, buttonClass, GamePanel, leadControls, PrimaryReadout, Readouts, ResetState, Settings, Toolbar } from './animation3d/Controls.jsx';
 
 // The Animation card (`animation3d` block; plan section 4, AN-03): a live 3D scene a learner can watch, inspect, adjust or
-// play, in the shared card shell. Header (Animation, title, experience, prompt), a working viewport that fills the card
-// (never the text-card natural-height clamp), the toolbar, the local parameter/action area, and the footer (Interact, Reset,
-// Edit, Ask). The scene runs in runtime.js and draws through renderer.js (both injectable for tests); this file only draws and
+// play, in the shared card shell. Header (Animation, title, experience, prompt), a working viewport that takes most of the card
+// (never the text-card natural-height clamp) with an optional primary readout over it, the one toolbar right under it (playback,
+// Reset view, Labels, Interact), the primary control (a game's moves) with the rest collapsed and the state reset beside them, and
+// the footer (Edit, Ask). The scene runs in runtime.js and draws through renderer.js (both injectable for tests); this file only draws and
 // relays. Nothing here calls a model: playing, adjusting and resetting are local to the accepted artifact.
 //
 // Props beyond the canvas's usual block/onChange/onChangeQuiet/selected/readOnly:
@@ -213,10 +214,17 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
   const phase = cardPhase({ block, artifact: state.artifact, failure: state.failure, webgl: webglOk, renderer: state.renderer });
   const model = state.model;
   const show = model ? visibleControls(model, { webgl: webglOk, readOnly }) : null;
+  const lead = model ? leadControls(model) : null;
+  const primaryReadout = state.readouts.find(item => item.id === lead?.readout) ?? null;
+  const moves = model && show.game && !lead.primary; // a game's moves lead: drawn before any setting
+  const resetScene = () => { setHintOpen(false); live.reset(); };
   const fixture = model?.fixture || !!fixtureIdOf(block);
   const poster = state.poster;
   const runtimeReady = state.runtime === 'ready';
   const values = state.pending ?? state.inputs;
+  // The state reset sits beside the settings it affects, else with the moves, else on its own: one place, never twice.
+  const reset = show?.reset ? <ResetState experience={model.experience} disabled={!runtimeReady || !state.changed} onReset={resetScene} /> : null;
+  const resetWith = !model ? null : model.parameters.length ? 'settings' : model.actions.length ? 'actions' : 'alone';
   // A click (not the end of a drag across the card) enters the scene; a card without a slot asks for one first.
   const click = event => {
     const start = press.current; press.current = null;
@@ -262,9 +270,10 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
         data-animation-frame={state.frame ? JSON.stringify(state.frame) : undefined}
         role="group" aria-label={interaction.active ? `${title} 3D scene, interacting` : `${title} 3D scene`} aria-describedby={descriptionId}
         {...interaction.handlers}
-        className={`relative min-h-[180px] flex-1 overflow-hidden rounded-lg border bg-surface outline-none ${interaction.active ? 'border-ink' : 'border-line'}`}>
+        className={`relative min-h-[240px] flex-1 overflow-hidden rounded-lg border bg-surface outline-none ${interaction.active ? 'border-ink' : 'border-line'}`}>
         <div ref={host} data-animation-host className="absolute inset-0" style={{ pointerEvents: interaction.active ? 'auto' : 'none' }} />
         {poster && !ready && <img data-animation-poster src={poster} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-contain" />}
+        <PrimaryReadout item={primaryReadout} />
         {phase === 'loading' && <p role="status" className="pointer-events-none absolute inset-0 grid place-content-center p-4 text-center text-xs text-ink-2">{state.artifact && !slot && webglOk ? 'Click to show the 3D view' : 'Preparing the scene'}</p>}
         {phase === 'unavailable' && <p data-animation-webgl-unavailable role="status" className="absolute inset-x-0 bottom-0 border-t border-line bg-white p-2 text-xs text-ink-2">{WEBGL_UNAVAILABLE}</p>}
         {phase === 'recovery' && (
@@ -279,14 +288,24 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
         {interaction.active && <p data-animation-legend className="pointer-events-none absolute bottom-2 left-2 rounded bg-white/85 px-1.5 py-0.5 text-[11px] text-ink-2">{INTERACT_LEGEND}</p>}
       </div>
       <p id={descriptionId} data-animation-description className={phase === 'unavailable' ? 'text-xs text-ink' : 'sr-only'}>{model?.description || ''}</p>
+      {/* The main toolbar, directly under the viewport and outside the scrolling region, so it is always in reach. */}
+      {model && (
+        <div onPointerDown={event => event.stopPropagation()}>
+          <Toolbar show={show} seekable={!!model.loop?.seekable} playing={state.playing} status={runtimeReady && !state.failure} speed={state.speed} speeds={model.loop?.speeds ?? []}
+            disabled={!runtimeReady} live={ready} interacting={interaction.active} optionalLabels={state.optionalLabels} labels={state.labels}
+            onPlay={live.play} onPause={live.pause} onRestart={() => live.restart()} onSpeed={live.setSpeed} onResetView={live.resetView}
+            onInteract={() => (interaction.active ? interaction.exit('exit') : interaction.enter())} onLabels={live.setLabels} />
+        </div>
+      )}
       {model && (
         <div ref={below} data-scroll={scrolls || undefined} data-animation-controls className="-mx-1 flex min-h-0 shrink flex-col gap-2 overflow-y-auto px-1" onPointerDown={event => event.stopPropagation()}>
-          <Toolbar show={show} playing={state.playing} speed={state.speed} speeds={model.loop?.speeds ?? []} live={ready} disabled={!runtimeReady}
-            onPlay={live.play} onPause={live.pause} onRestart={() => live.restart()} onSpeed={live.setSpeed} onResetView={live.resetView} />
           {show.game && <GamePanel goal={model.goal} status={state.goal} hintOpen={hintOpen} onHint={() => setHintOpen(open => !open)} />}
-          <Parameters parameters={model.parameters} values={values} disabled={!runtimeReady} onChange={(id, value) => live.setParameter(id, value)} />
-          <Actions actions={model.actions} disabled={!runtimeReady} onAction={id => live.action(id)} />
-          <Readouts readouts={state.readouts} />
+          {moves && <Actions actions={model.actions} disabled={!runtimeReady} reset={resetWith === 'actions' ? reset : null} onAction={id => live.action(id)} />}
+          <Settings primary={lead.primary} secondary={lead.secondary} values={values} disabled={!runtimeReady} reset={resetWith === 'settings' ? reset : null}
+            onChange={(id, value) => live.setParameter(id, value)} />
+          {!moves && <Actions actions={model.actions} disabled={!runtimeReady} reset={resetWith === 'actions' ? reset : null} onAction={id => live.action(id)} />}
+          {resetWith === 'alone' && reset && <div className="flex justify-end">{reset}</div>}
+          <Readouts readouts={state.readouts.filter(item => item !== primaryReadout)} collapsed={!!primaryReadout} />
           {state.notice && <p role="status" data-animation-notice className="text-xs text-fail">{state.notice}</p>}
           {model.assumptions.length > 0 && (
             <details data-animation-assumptions className="text-xs text-ink-2">
@@ -296,11 +315,8 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
           )}
         </div>
       )}
-      {model && (
+      {model && ((show.edit && onEdit) || onAsk) && (
         <div data-animation-footer className="flex flex-wrap items-center gap-1.5" onPointerDown={event => event.stopPropagation()}>
-          {show.interact && <button type="button" data-animation-interact aria-pressed={interaction.active} disabled={!ready} onClick={() => (interaction.active ? interaction.exit('exit') : interaction.enter())} className={buttonClass}>
-            <Rotate3d size={14} aria-hidden />{interaction.active ? 'Done' : 'Interact'}</button>}
-          {show.reset && <button type="button" data-animation-reset disabled={!runtimeReady || !state.changed} onClick={() => { setHintOpen(false); live.reset(); }} className={buttonClass}><RotateCcw size={14} aria-hidden />Reset scene</button>}
           {show.edit && onEdit && <button type="button" data-animation-edit onClick={onEdit} className={buttonClass}><Pencil size={14} aria-hidden />Edit</button>}
           {onAsk && <button type="button" data-animation-ask onClick={onAsk} className={buttonClass}><MessageCircle size={14} aria-hidden />Ask Tutor</button>}
         </div>

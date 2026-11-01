@@ -30,7 +30,7 @@ globalThis.MessageChannel = class { constructor() { const port1 = { onmessage: n
 
 const dir = mkdtempSync(join(tmpdir(), 'animation-card-')), outfile = join(dir, 'card.cjs');
 await esbuild.build({
-  stdin: { contents: "export { default as Card } from './Animation3DCard.jsx'; export { resetViewers } from './viewer-slots.js'; export { AnimationBoard } from './animation3d/board-context.js'; export { createElement, act } from 'react'; export { createRoot } from 'react-dom/client';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { default as Card } from './Animation3DCard.jsx'; export { resetViewers } from './viewer-slots.js'; export { AnimationBoard } from './animation3d/board-context.js'; export { leadControls, Toolbar } from './animation3d/Controls.jsx'; export { createElement, act } from 'react'; export { createRoot } from 'react-dom/client';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'error',
   loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty', '.wasm': 'empty', '.woff2': 'empty', '.ttf': 'empty' },
   plugins: [{ name: 'assets', setup(build) {
@@ -89,9 +89,18 @@ test('watch fixture: header, Watch badge, labelled as an example; Play, Restart,
   assert.equal(card().getAttribute('data-animation-duration'), '8');
   assert.equal(card().getAttribute('data-animation-time'), '0.000');
   assert.deepEqual(readouts(), { angle: '0 deg' });
+  assert.equal($('[data-animation-primary-readout]'), null, 'a watch scene has no prominent readout');
+  assert.equal($('[data-animation-readout="angle"]').closest('details'), null, 'its readouts stay in the plain list');
+  assert.equal($('[data-animation-more]'), null, 'nothing collapsed');
+  assert.equal($('[data-animation-restart]').textContent.trim(), 'Restart', 'a seekable loop restarts keeping its settings');
+  // One toolbar under the viewport: playback, its status, then the view's own controls.
+  assert.deepEqual($$('[data-animation-toolbar] button').map(button => button.textContent.trim()), ['Play', 'Restart', 'Reset view', 'Interact']);
+  assert.equal($('[data-animation-playback-status]').textContent, 'Paused');
+  assert.equal($('[data-animation-labels]'), null, 'no optional labels declared by this renderer: no Labels toggle');
   assert.deepEqual(JSON.parse($('[data-animation-viewport]').getAttribute('data-animation-frame')).nodes.moon.position, [3, 0, 0]);
   await press($('[data-animation3d-play]'));
   assert.equal($('[data-animation3d-play]').getAttribute('aria-pressed'), 'true');
+  assert.equal($('[data-animation-playback-status]').textContent, 'Playing');
   await B.act(async () => { runtimes.clock.frame(2000); });
   await settle();
   assert.equal(card().getAttribute('data-animation-time'), '2.000');
@@ -121,7 +130,7 @@ test('an example card switches among the three built-in examples; the saved card
   assert.equal($('[data-animation3d-example]').disabled, true, 'a read-only viewer sees it greyed, named');
 });
 
-test('experiment fixture: number rows with units and typed alternatives; a change moves geometry and readouts together; Reset scene restores them', async () => {
+test('experiment fixture: number rows with units and typed alternatives; the first leads, the rest collapsed; a change moves geometry and readouts together; Reset experiment restores them', async () => {
   const { renderers, changes } = await mount({ block: { id: 'e1', type: 'animation3d', fixtureId: 'beam-balance-experiment' } });
   assert.equal($('[data-animation-badge]').textContent, 'Experiment');
   assert.equal($('[data-animation3d-play]'), null, 'no transport for an experiment without a timeline');
@@ -130,8 +139,23 @@ test('experiment fixture: number rows with units and typed alternatives; a chang
   assert.equal(field.getAttribute('aria-label'), 'Left mass in kg');
   assert.deepEqual(readouts(), { leftMoment: '6.00 kg m', rightMoment: '4.00 kg m', tilt: '10.0 deg' });
   assert.deepEqual(raw(), { leftMoment: 6, rightMoment: 4, tilt: 10 });
+  // The plan's first parameter and first readout lead; the rest wait collapsed under their own labels.
+  const more = $('[data-animation-more="settings"]');
+  assert.equal(field.closest('details'), null, 'the primary control is never collapsed');
+  assert.equal(more.hasAttribute('open'), false);
+  assert.equal(more.querySelector('summary').textContent, 'More settings');
+  assert.deepEqual([...more.querySelectorAll('[data-animation-parameter]')].map(node => node.getAttribute('data-animation-parameter')), ['leftDistance', 'rightMass', 'rightDistance']);
+  assert.ok($('[data-animation-viewport] [data-animation-readout="leftMoment"]'), 'the first readout over the scene');
+  const moreReadouts = $('[data-animation-more="readouts"]');
+  assert.equal(moreReadouts.hasAttribute('open'), false);
+  assert.equal(moreReadouts.querySelector('summary').textContent, 'More readouts');
+  assert.deepEqual([...moreReadouts.querySelectorAll('[data-animation-readout]')].map(node => node.getAttribute('data-animation-readout')), ['rightMoment', 'tilt']);
+  assert.equal($('[data-animation-playback-status]'), null, 'no playback, no status');
+  assert.equal($$('[data-animation-reset]').length, 1, 'one state reset');
   assert.equal($('[data-animation-reset]').disabled, true, 'nothing to reset yet; the name stays');
-  assert.equal($('[data-animation-reset]').textContent.trim(), 'Reset scene');
+  assert.equal($('[data-animation-reset]').textContent.trim(), 'Reset experiment');
+  assert.ok($('[data-animation-reset]').closest('[data-animation-parameters]'), 'beside the settings it affects');
+  assert.match(document.getElementById($('[data-animation-reset]').getAttribute('aria-describedby')).textContent, /starting value.*camera stays/);
   await type(field, '2');
   assert.deepEqual(raw(), { leftMoment: 3, rightMoment: 4, tilt: -5 });
   const frame = renderers.made.find(made => !made.disposed).frames.at(-1);
@@ -150,6 +174,13 @@ test('game fixture: goal, outcome from the program, its moves as buttons, hint o
   assert.match($('[data-animation-goal]').textContent, /Move the robot onto the target square/);
   assert.equal($('[data-animation-outcome]').textContent.trim(), 'Reach the target.');
   assert.deepEqual($$('[data-animation-action]').map(node => node.textContent), ['East', 'West', 'North', 'South']);
+  assert.ok($$('[data-animation-action]').every(node => !node.closest('details')), 'a game\'s moves are its primary controls, never collapsed');
+  assert.equal($('[data-animation-parameters]'), null, 'no parameters, no settings section');
+  assert.ok($('[data-animation-viewport] [data-animation-readout="moves"]'), 'its first readout (its moves) over the scene');
+  assert.equal($$('[data-animation-reset]').length, 1, 'one state reset');
+  assert.equal($('[data-animation-reset]').textContent.trim(), 'Reset game');
+  assert.ok($('[data-animation-reset]').closest('[data-animation-actions]'), 'no settings: beside the moves');
+  assert.equal($('[data-animation-restart]'), null, 'nothing to rewind');
   assert.equal($('[data-animation-hint-text]'), null, 'the hint waits until asked');
   await press($('[data-animation-hint]'));
   assert.match($('[data-animation-hint-text]').textContent, /3 squares east and 2 squares south/);
@@ -165,11 +196,61 @@ test('game fixture: goal, outcome from the program, its moves as buttons, hint o
   noEllipsis();
 });
 
-test('Interact: entered from the footer once the 3D view is live; Done hands it back; the renderer follows', async () => {
+// The primary/secondary split (owner 2026-10-31): the plan's first parameter leads (a game's moves instead); a prominent readout
+// only for an experiment (its first) or a game (its first, if any), never a watch or inspect scene.
+test('leadControls: first parameter primary, the rest secondary; a prominent readout by experience; none when empty', () => {
+  const p = id => ({ id, type: 'number', label: id, min: 0, max: 1, default: 0 });
+  const model = (experience, parameters, actions = [], readouts = []) => ({ experience, parameters, actions, readouts });
+  const a = p('a'), b = p('b'), c = p('c'), r = [{ id: 'r1' }, { id: 'r2' }];
+  assert.deepEqual(B.leadControls(model('experiment', [a, b, c], [], r)), { primary: a, secondary: [b, c], readout: 'r1' });
+  assert.deepEqual(B.leadControls(model('experiment', [])), { primary: null, secondary: [], readout: null }, 'no parameters, no readouts: nothing leads');
+  assert.deepEqual(B.leadControls(model('watch', [a], [], r)), { primary: a, secondary: [], readout: null }, 'a watch scene: no prominent readout');
+  assert.equal(B.leadControls(model('inspect', [], [], r)).readout, null, 'nor an inspect scene');
+  assert.deepEqual(B.leadControls(model('game', [a, b], [{ id: 'east' }], [{ id: 'moves' }])), { primary: null, secondary: [a, b], readout: 'moves' }, 'the moves lead, every setting waits');
+  assert.deepEqual(B.leadControls(model('game', [a, b])), { primary: a, secondary: [b], readout: null }, 'a game without moves or readouts');
+});
+
+// A loop that cannot rewind (a rule-based timeline): no Restart rather than one that resets the settings; the status is shown
+// only while the runtime is ready.
+test('Toolbar: Restart only where the loop can rewind; the playback status only once the runtime is ready', async () => {
+  const draw = async props => { if (root) await B.act(async () => root.unmount()); document.getElementById('app').innerHTML = ''; root = B.createRoot(document.getElementById('app'));
+    await B.act(async () => { root.render(B.createElement(B.Toolbar, { show: { transport: true, resetView: true, interact: true }, onLabels: () => {}, ...props })); }); };
+  await draw({ seekable: false, status: true });
+  assert.equal($('[data-animation-restart]'), null);
+  assert.ok($('[data-animation3d-play]'));
+  assert.equal($('[data-animation-playback-status]').textContent, 'Paused');
+  await draw({ seekable: true, status: false, playing: true });
+  assert.equal($('[data-animation-restart]').textContent.trim(), 'Restart');
+  assert.equal($('[data-animation-playback-status]'), null, 'loading or failed: no status');
+  await draw({ status: true, live: true, interacting: true, optionalLabels: true, labels: false });
+  assert.equal($('[data-animation-interact]').getAttribute('aria-pressed'), 'true');
+  assert.equal($('[data-animation-labels]').getAttribute('aria-pressed'), 'false');
+  await draw({ show: { transport: false, resetView: false, interact: false } });
+  assert.equal($('[data-animation-toolbar]'), null, 'a scene with nothing to play or turn has no toolbar');
+});
+
+test('optional labels: the toggle shows only when the scene has some; it reaches the renderer and holds through a change', async () => {
+  const renderers = stubRenderers({ optionalLabels: true });
+  await mount({ renderers, runtimes: stubRuntimes(), block: { id: 'l1', type: 'animation3d', fixtureId: 'beam-balance-experiment' } });
+  const toggle = $('[data-animation-labels]');
+  assert.equal(toggle.closest('[data-animation-toolbar]') !== null, true, 'with the view controls');
+  assert.equal(toggle.getAttribute('aria-pressed'), 'true');
+  assert.deepEqual(renderers.made[0].labels, [true], 'applied once the scene loaded');
+  await press(toggle);
+  assert.equal($('[data-animation-labels]').getAttribute('aria-pressed'), 'false');
+  await type($('[data-animation-number="leftMass"]'), '2');
+  assert.equal($('[data-animation-labels]').getAttribute('aria-pressed'), 'false', 'a parameter change keeps the choice');
+  assert.deepEqual(renderers.made[0].labels, [true, false]);
+});
+
+test('Interact: in the toolbar once the 3D view is live; pressed and named Done while active; Done hands it back; the renderer follows', async () => {
   const { renderers } = await mount({ runtimes: stubRuntimes(), block: { id: 'i1', type: 'animation3d', fixtureId: 'orbit-watch' } });
+  assert.ok($('[data-animation-interact]').closest('[data-animation-toolbar]'));
   assert.equal($('[data-animation-interact]').textContent.trim(), 'Interact');
+  assert.equal($('[data-animation-interact]').getAttribute('aria-pressed'), 'false');
   await press($('[data-animation-interact]'));
   assert.equal($('[data-animation-interact]').textContent.trim(), 'Done');
+  assert.equal($('[data-animation-interact]').getAttribute('aria-pressed'), 'true');
   assert.equal($('[data-animation-viewport]').getAttribute('data-viewer-active'), 'true');
   assert.ok($('[data-animation-legend]'));
   assert.equal($('[data-animation-click-surface]'), null);

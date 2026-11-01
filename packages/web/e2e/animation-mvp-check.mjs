@@ -10,6 +10,7 @@
 // and Reset; the dev Insert palette's More > 3D animation example and its example picker; narrow and wide cards in light and dark
 // keep every control inside the card; before Interact the wheel and a drag go to the canvas and leave the scene; Interact turns the scene,
 // not the canvas; Escape ends it; window blur drops a held drag; a press in Chat ends it and every typed key reaches the composer;
+// the beam scene at its default view, near and far through its own camera and the canvas zoom (Z-* shots, judged by a person);
 // the real request path with a fake job server in the page: /animation in Chat, its plan (title, experience, reason), an experience
 // change saving version 2, Generate pressed twice making one approve and one card from the served artifact, a working control, and a
 // reload restoring it with no job or model request; a browser without WebGL keeps the description and says so; no page or console
@@ -30,7 +31,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('animation-mvp-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'animation-mvp-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 32; // bump with the steps below; the printed line is what CI reads
+const TOTAL = 34; // bump with the steps below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `anim-${run}@example.com`, secret, handle: `anim_${run}` }) })).json();
@@ -134,6 +135,9 @@ const live = async p => {
 };
 // The scene's pixels: identical when its camera and frame have not changed (the experiment scene is static between inputs).
 const pixels = p => p.card.locator('[data-animation-host]').screenshot(); // inside the viewport's border, which darkens while interacting
+// Opens a card's More settings and More readouts (lane U, owner 2026-10-31: past the plan's first parameter and first readout,
+// settings and readouts start collapsed), so a step reaches every one of them.
+const more = p => p.card.locator('details[data-animation-more]:not([open]) > summary').evaluateAll(nodes => nodes.forEach(node => node.click()));
 const shot = async (page, name) => { await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
 // abs: an absolute allowance (the watch card's 3-decimal time, oracle WATCH_ALLOWANCE); without it, exact to float noise.
 const eq = (got, want, abs) => (abs === undefined ? close(got, want) : within(got, want, abs));
@@ -209,6 +213,9 @@ try {
       assert.equal(await p.play.count(), FIXTURES[kind].playable ? 1 : 0, `${kind}: Play only where there is a timeline`);
     }
     await shot(page, 'B-three-cards');
+    assert.equal(await X.card.locator('details[data-animation-more]:not([open])').count(), 2, 'experiment: More settings and More readouts start collapsed');
+    assert.ok(await X.card.locator('[data-animation-primary-readout]').isVisible(), 'experiment: its first readout over the scene');
+    await more(X);
   });
 
   // ---- Watch: play, pause, restart, loop (AN-02/04) ----
@@ -217,9 +224,11 @@ try {
     await W.play.click();
     await page.waitForTimeout(900);
     assert.ok(await playing(W), 'playing');
+    assert.equal((await W.card.locator('[data-animation-playback-status]').innerText()).trim(), 'Playing', 'the playback status');
     assert.notEqual(await time(W), t0, 'time advanced');
     await W.play.click();
     await page.waitForTimeout(300);
+    assert.equal((await W.card.locator('[data-animation-playback-status]').innerText()).trim(), 'Paused', 'the playback status');
     const t = await time(W);
     sameNodes((await frame(W)).nodes, expectedNodes('watch', {}, t), `paused at ${t}s`, WATCH.nodes);
     await sameReadouts(W, 'watch', expectedReadouts('watch', {}, t), `paused at ${t}s`, WATCH.readouts);
@@ -269,7 +278,7 @@ try {
       }
     });
   }
-  await step('experiment: the picture changes with an input, and Reset scene restores the defaults with no model request', async () => {
+  await step('experiment: the picture changes with an input, and Reset experiment restores the defaults with no model request', async () => {
     const p = exp.parameters[0], before = stray.length, start = await pixels(X);
     await setParam(p.id, p.max);
     assert.ok(!(await pixels(X)).equals(start), 'the drawn scene changed with the input');
@@ -323,7 +332,7 @@ try {
     await act(...played); // back to the won state, for Reset
     await sameGame(played, 'played again after reload');
   });
-  await step('game: Reset scene restores the starting conditions: the robot home, no moves, playing', async () => {
+  await step('game: Reset game restores the starting conditions: the robot home, no moves, playing', async () => {
     await G.reset.click();
     await page.waitForTimeout(500);
     await sameGame([], 'after Reset');
@@ -395,6 +404,55 @@ try {
     await composer(page).fill('');
     await page.evaluate(() => document.activeElement?.blur());
   });
+
+  // ---- The same labelled scene near and far (owner 2026-10-31: in-scene labels judged by a person from these shots) ----
+  // The beam experiment (its labelled weights) at its default view, then closer and further with the scene's own camera (the wheel
+  // inside Interact), then with the canvas's own zoom (Ctrl+wheel over the card, which zooms at the pointer). Only robust facts are
+  // asserted (the wheel changed the picture, the view stays live); each step ends back at the fitted canvas and the default camera.
+  const cardShot = name => X.card.screenshot({ path: `${SHOTS}/${name}.png` });
+  const wheelIn = async (dy, times) => { await enter(); const c = await centre(X.viewport); await page.mouse.move(c.x, c.y); for (let i = 0; i < times; i++) { await page.mouse.wheel(0, dy); await page.waitForTimeout(120); } await page.keyboard.press('Escape'); await until(async () => !(await active(X)), 'Escape did not end the interaction'); await page.waitForTimeout(300); };
+  await step('camera zoom: the labelled beam scene at its default view, close up and far out with the wheel inside Interact; the view stays live', async () => {
+    await settle();
+    await X.card.locator('[data-animation-reset-view]').click();
+    await page.waitForTimeout(300);
+    const start = await pixels(X);
+    await cardShot('Z-camera-default');
+    // Optional labels off and on again, where the scene has any (the Labels toggle shows only then): the person compares the shots.
+    const labels = X.card.locator('[data-animation-labels]');
+    if (await labels.count()) {
+      await labels.click();
+      assert.equal(await labels.getAttribute('aria-pressed'), 'false', 'Labels off');
+      await page.waitForTimeout(300);
+      await cardShot('Z-labels-off');
+      await labels.click();
+      assert.equal(await labels.getAttribute('aria-pressed'), 'true', 'Labels on again');
+      await page.waitForTimeout(300);
+    }
+    await wheelIn(-240, 4);
+    assert.ok(!(await pixels(X)).equals(start), 'the wheel brought the camera closer');
+    await cardShot('Z-camera-close');
+    await wheelIn(240, 10);
+    assert.ok(!(await pixels(X)).equals(start), 'the wheel took the camera further out');
+    await cardShot('Z-camera-far');
+    await live(X);
+    await X.card.locator('[data-animation-reset-view]').click();
+    await page.waitForTimeout(300);
+  });
+  await step('canvas zoom: the same card with the canvas zoomed out and zoomed in (Ctrl+wheel at the card); the view stays live', async () => {
+    await settle();
+    const canvasZoom = async dy => { const c = await centre(X.viewport); await page.mouse.move(c.x, c.y); await page.keyboard.down('Control'); await page.mouse.wheel(0, dy); await page.keyboard.up('Control'); await page.waitForTimeout(600); };
+    const fitted = (await box(X.card)).width;
+    await canvasZoom(350); // about x0.5 (AdaptiveCanvas: exp(-deltaY * 0.002) per event)
+    assert.ok((await box(X.card)).width < fitted * 0.8, 'the canvas zoomed out');
+    await live(X);
+    await cardShot('Z-canvas-zoomed-out');
+    await canvasZoom(-585); // about x1.6 of the fitted zoom
+    assert.ok((await box(X.card)).width > fitted * 1.2, 'the canvas zoomed in');
+    await live(X);
+    await cardShot('Z-canvas-zoomed-in');
+    await fit(page);
+    await live(X);
+  });
   await context.close();
 
   // ---- Narrow and wide, light and dark (AN-03) ----
@@ -403,6 +461,7 @@ try {
     assert.equal(await p.evaluate(() => document.documentElement.classList.contains('dark')), theme === 'dark', 'the theme class');
     const [N, Wd] = [parts(p, 'a-narrow'), parts(p, 'a-wide')];
     await live(N); await live(Wd);
+    await more(N); await more(Wd); // every control, the collapsed ones opened
     assert.ok((await box(N.card)).width < (await box(Wd.card)).width, 'the narrow card is narrower');
     for (const q of [N, Wd]) {
       const outer = await box(q.card);
@@ -585,6 +644,7 @@ export function evaluate({ state }) {
     await until(async () => (await q.card.getAttribute('data-animation-experience')) === 'experiment', 'the result card', 30000);
     await fit(g);
     await live(q);
+    await more(q);
     assert.equal(await g.locator('[data-animation3d-card]').count(), 1, 'one card');
     assert.equal(await q.card.locator('[data-animation-fixture-note]').count(), 0, 'a result, not labelled an example');
     assert.equal(flow.creates.length, 1, 'still one job');
@@ -601,6 +661,7 @@ export function evaluate({ state }) {
     await q.card.waitFor({ timeout: 60000 });
     await fit(g);
     await live(q);
+    await more(q);
     assert.equal(await q.card.locator('[data-animation-pending]').count(), 0, 'no job waiting after reload');
     assert.equal(Number(await q.param('leftMass').inputValue()), 7, 'the saved input');
     await sameReadouts(q, 'experiment', expectedReadouts('experiment', { leftMass: 7 }), 'after reload');

@@ -8,6 +8,7 @@
 // { ok: false, error: 'webgl_unavailable' } (a structured render blocker, never a blank pass). A capture whose canvas cannot be read
 // back after drawing (a lost context) answers the same.
 import { pageWorkerFactory } from '../src/explain-program/page-worker.js';
+import { animationSubject, fitCameraToPoints } from '../src/animation3d/framing.js';
 import { createAnimationRenderer } from '../src/animation3d/renderer.js';
 import { runReviewProgram } from '../src/animation3d/review.js';
 
@@ -15,7 +16,7 @@ const frameElement = document.querySelector('[data-animation3d-frame]');
 const frames = count => new Promise(resolve => { const step = left => (left ? requestAnimationFrame(() => step(left - 1)) : resolve()); step(count); });
 const THEMES = { light: { background: '#ffffff', ink: '#1f2328', panel: 'rgba(255, 255, 255, 0.9)' }, dark: { background: '#16181d', ink: '#e6e8eb', panel: 'rgba(22, 24, 29, 0.9)' } };
 
-let renderer = null, lost = false, unavailable = null, workerFactory = null;
+let renderer = null, lost = false, unavailable = null, workerFactory = null, fitted = { artifactHash: null, points: null };
 const probe = document.createElement('canvas');
 if (!(probe.getContext('webgl2') || probe.getContext('webgl'))) unavailable = 'webgl_unavailable';
 else {
@@ -47,7 +48,11 @@ window.__renderAnimation3d = async request => {
   document.body.style.background = THEMES[theme].background;
   const loaded = await renderer.load(ran.artifact, { generation: request.artifactHash });
   if (!loaded.ok) return { ok: false, error: `scene ${loaded.code}` };
-  renderer.setCamera(request.view);
+  // The learner's card frames the scene over its sampled movement range (framing.js); every capture of one artifact uses that one
+  // sample, fitted along its own view's direction, so the review sees what the learner sees. Nothing drawable: the view as asked.
+  if (fitted.artifactHash !== request.artifactHash) fitted = { artifactHash: request.artifactHash, points: await animationSubject({ artifact: request.artifact, workerFactory }) };
+  const view = { ...request.view, fov: request.view.fov ?? ran.artifact.camera.fov };
+  renderer.setCamera(fitted.points ? fitCameraToPoints(fitted.points, view, request.width / request.height) : view);
   const applied = renderer.applyFrame(ran.frame);
   if (!applied.ok) return { ok: false, error: `frame refused: ${JSON.stringify(applied.issues.slice(0, 3))}` };
   showOverlay(ran.artifact, ran.frame, theme);

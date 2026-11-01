@@ -87,19 +87,22 @@ export function stubRuntimes({ reject = [], hold = false, evaluate = () => ({}) 
   return { factory, made, log, release: () => { for (const gate of waiting.splice(0)) gate.resolve(); }, waiting };
 }
 
-// renderer.js's interface, recording what it was asked. options.load: what load resolves or rejects with.
-export function stubRenderers({ load = null, poster = 'data:image/webp;base64,AAAA' } = {}) {
+// renderer.js's interface, recording what it was asked. options.load: what load resolves or rejects with; optionalLabels: what
+// hasOptionalLabels() answers (renderer.js: the scene has object names or annotations to hide).
+export function stubRenderers({ load = null, poster = 'data:image/webp;base64,AAAA', optionalLabels = false } = {}) {
   const made = [];
   const factory = options => {
     let camera = null;
     const renderer = {
-      options, frames: [], cameras: [], interactive: [], disposed: false,
+      options, frames: [], cameras: [], interactive: [], labels: [], disposed: false,
       load: (artifact, how) => { renderer.loaded = { artifact, ...how }; return load ? load(renderer) : Promise.resolve({ ok: true }); },
       applyFrame(frame) { renderer.frames.push(frame); return { ok: true }; },
       setCamera(next) { camera = next; renderer.cameras.push(next); },
       getCamera: () => camera ?? { position: [1, 2, 3], target: [0, 0, 0], fov: 50 },
       capturePoster: () => poster,
       interact(on) { renderer.interactive.push(!!on); },
+      hasOptionalLabels: () => optionalLabels,
+      setOptionalLabels(visible) { renderer.labels.push(visible); },
       dispose() { renderer.disposed = true; },
     };
     made.push(renderer);

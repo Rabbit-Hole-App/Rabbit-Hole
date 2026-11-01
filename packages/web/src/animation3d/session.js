@@ -10,11 +10,16 @@
 //   came from: a late scene, runtime or renderer answer never replaces newer state.
 // - Inputs shown while a change is pending are the learner's; the accepted inputs are the runtime's own snapshot, so a refused
 //   change returns the control to the last accepted value and a newer pending change is never undone by an older answer.
-// - Scene Reset restores simulation defaults and keeps the camera; Reset view changes only the camera.
+// - Scene Reset restores simulation defaults and keeps the camera; Reset view changes only the camera, back to the fitted view
+//   (framing.js fitAnimationView, once per scene when no camera was saved) or else the authored one.
+// - Restart only rewinds a seekable loop (its inputs kept); a scene that cannot rewind has no Restart, never a hidden reset.
+// - Optional labels (object names, annotations, their callouts): the learner's choice lives here and is applied to every renderer
+//   the card builds, so it holds through playback, parameter changes, camera moves and a lost and retaken slot.
 // - Settled snapshots and the presentation go to persist (the card hands them to storage.js createAnimationSaver, which debounces
 //   and flushes); camera saves never ask the runtime for anything.
 import { resolveAnimationInputs, validateAnimationArtifact } from './contract.js';
 import { accepted, cardModel, eventFor, failureOf, frameView, invalidArtifact } from './card.js';
+import { fitAnimationView } from './framing.js';
 
 export const DRAG_END_RETRIES = 20; // a drag end the runtime refused as busy is resent (runtime.js keeps no slot for it)
 const RETRY_MS = 50;
@@ -22,10 +27,12 @@ const RETRY_MS = 50;
 const INITIAL = Object.freeze({
   artifact: null, model: null, failure: null, notice: '', runtime: 'off', renderer: 'off', frame: null, time: 0, readouts: [], goal: null,
   playing: false, speed: 1, inputs: null, pending: null, changed: false, camera: null, poster: null, selected: null,
+  labels: true, optionalLabels: false,
 });
 
-export function createCardSession({ loadScene, createRuntime, createRenderer = null, onUpdate = () => {}, persist = {}, timers = globalThis }) {
-  let state = INITIAL, block = null, saved = null, generation = 0, dead = false;
+// fitView: framing.js fitAnimationView (tests inject a stand-in).
+export function createCardSession({ loadScene, createRuntime, createRenderer = null, onUpdate = () => {}, persist = {}, timers = globalThis, fitView = fitAnimationView }) {
+  let state = INITIAL, block = null, saved = null, generation = 0, dead = false, fitted = null; // fitted: this scene's fitted camera
   let runtime = null, renderer = null, container = null, abortScene = null, abortRenderer = null, rendererGeneration = 0, ticket = 0;
   const set = patch => { state = { ...state, ...patch }; if (!dead) onUpdate(state); };
   const stale = mine => dead || mine !== generation;
@@ -39,7 +46,9 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
   function showFrame(frame, meta) {
     const view = frameView(frame, state.model);
     try { renderer?.applyFrame(frame); } catch (error) { rendererFailed(error); }
-    set({ frame, time: Number.isFinite(meta?.time) ? meta.time : state.time, readouts: view.readouts, goal: view.goal });
+    // A loop that ran to its end stopped itself (runtime.js): the shown play state follows the runtime's own.
+    const stopped = state.playing && snapshot()?.paused === true;
+    set({ frame, time: Number.isFinite(meta?.time) ? meta.time : state.time, readouts: view.readouts, goal: view.goal, ...(stopped ? { playing: false } : {}) });
   }
 
   async function loadStage(mine) {
@@ -102,8 +111,15 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
       if (!own() || out?.code === 'aborted') return;
       if (out && out.ok === false) throw Object.assign(new Error(out.issues?.[0]?.message || 'The scene could not be drawn.'), { code: out.code });
       if (state.camera) created.setCamera(state.camera);
+      else if (fitted) created.setCamera(fitted);
+      else {
+        fitView({ artifact: state.artifact, aspect: container.clientWidth / container.clientHeight, createRuntime, signal: abort.signal })
+          .then(camera => { if (camera && own() && !state.camera) { fitted = camera; created.setCamera(camera); poster(); } }, () => {});
+      }
       if (state.frame) created.applyFrame(state.frame);
-      set({ renderer: 'ready' });
+      const optional = typeof created.hasOptionalLabels === 'function' && !!created.hasOptionalLabels();
+      if (optional && typeof created.setOptionalLabels === 'function') created.setOptionalLabels(state.labels);
+      set({ renderer: 'ready', optionalLabels: optional });
       poster();
     } catch (error) {
       if (own() && error?.name !== 'AbortError') rendererFailed(error);
@@ -170,7 +186,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
     // A new or changed saved scene: everything restarts from its saved state.
     start(next) {
       const mine = ++generation;
-      block = next; saved = null;
+      block = next; saved = null; fitted = null;
       abortScene?.abort(); dropRuntime(); dropRenderer();
       state = INITIAL;
       onUpdate(state);
@@ -206,10 +222,10 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
     select,
     play() { if (runtime && state.runtime === 'ready' && accepted(runtime.play())) set({ playing: true }); },
     pause() { if (runtime && state.playing) { runtime.pause(); set({ playing: false }); const snap = snapshot(); if (snap) saveSimulation(snap); } },
-    // Restart: a seekable loop goes back to its start keeping its inputs and play state; a rule-based scene has no rewind, so it resets.
+    // Restart: a seekable loop goes back to its start keeping its inputs and play state. A rule-based scene cannot rewind (runtime.js
+    // reset() always returns to the defaults), so it offers no Restart and this does nothing there.
     async restart() {
-      if (!runtime || state.runtime !== 'ready') return;
-      if (!state.model?.loop?.seekable) { await resetScene(); return; }
+      if (!runtime || state.runtime !== 'ready' || !state.model?.loop?.seekable) return;
       const result = await runtime.seek(0);
       if (!accepted(result)) set({ notice: 'Restart was not possible.' });
     },
@@ -219,7 +235,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
     },
     reset: resetScene,
     resetView() {
-      const camera = state.artifact?.camera ?? null;
+      const camera = fitted ?? state.artifact?.camera ?? null;
       if (!renderer || !camera) return;
       try { renderer.setCamera(camera); } catch (error) { rendererFailed(error); return; }
       set({ camera });
@@ -229,6 +245,11 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
     // (renderer.js interact(false) drops it) and hands control back only if the card still owns interaction.
     interact(active) { try { renderer?.interact(active); } catch (error) { rendererFailed(error); } },
     releaseGestures(active) { try { renderer?.interact(false); if (active) renderer?.interact(true); } catch { /* nothing held */ } },
+    // Optional labels on or off: the renderer's own toggle (renderer.js setOptionalLabels); measurements and instructions stay.
+    setLabels(visible) {
+      set({ labels: !!visible });
+      try { if (typeof renderer?.setOptionalLabels === 'function') renderer.setOptionalLabels(!!visible); } catch (error) { rendererFailed(error); }
+    },
     clearNotice() { if (state.notice) set({ notice: '' }); },
     dispose() {
       dead = true; generation += 1;

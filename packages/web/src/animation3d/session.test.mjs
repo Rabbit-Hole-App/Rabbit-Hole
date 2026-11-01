@@ -12,13 +12,14 @@ const settle = async (rounds = 40) => { for (let i = 0; i < rounds; i += 1) awai
 const DEFAULTS = { leftMass: 4, leftDistance: 1.5, rightMass: 2, rightDistance: 2 };
 const values = state => Object.fromEntries(state.readouts.map(r => [r.id, r.value]));
 
-function harness({ artifact = experimentArtifact(), runtimes = realRuntimes(), renderer = {}, loadScene = null, sim = null, view = null } = {}) {
+function harness({ artifact = experimentArtifact(), runtimes = realRuntimes(), renderer = {}, loadScene = null, sim = null, view = null, fitView = undefined } = {}) {
   const renderers = stubRenderers(renderer), sims = [], views = [], loads = [];
   const session = createCardSession({
     loadScene: loadScene ?? (async (block, how) => { loads.push({ block, signal: how.signal }); return { artifact: structuredClone(artifact), sim, view }; }),
     createRuntime: runtimes.factory, createRenderer: renderers.factory,
     persist: { simulation: s => sims.push(s), view: v => views.push(v) },
     timers: { setTimeout: (fn, ms) => setTimeout(fn, ms) },
+    ...(fitView ? { fitView } : {}),
   });
   const block = { id: 'c1', type: 'animation3d', fixtureId: 'beam-balance-experiment' };
   return { session, runtimes, renderers, sims, views, loads, block, state: () => session.state() };
@@ -233,7 +234,7 @@ test('watch (real runtime): play advances time from frames, pause holds it, a se
   h.session.dispose();
 });
 
-test('the grid game (real runtime): moves and outcome come from the program; a rule-based restart is a reset (no fake rewind)', async () => {
+test('the grid game (real runtime): moves and outcome come from the program; restart cannot rewind it and changes nothing; Reset does', async () => {
   const h = harness({ artifact: gameArtifact() });
   h.block = { id: 'g', fixtureId: 'grid-robot-game' };
   await started(h);
@@ -247,8 +248,88 @@ test('the grid game (real runtime): moves and outcome come from the program; a r
   assert.deepEqual(values(h.state()), { moves: 6 });
   await h.session.restart();
   await settle();
+  assert.deepEqual(values(h.state()), { moves: 6 }, 'no fake rewind and no hidden reset');
+  await h.session.reset();
+  await settle();
   assert.deepEqual(h.state().goal, { status: 'playing', message: 'Reach the target.' }, 'progress resets with the world');
   assert.deepEqual(values(h.state()), { moves: 0 });
+  h.session.dispose();
+});
+
+// The fitted view (framing.js, lane R2): asked once per scene when no camera was saved, with the viewport's aspect and the session's
+// own runtime factory; a saved camera wins; Reset view returns to the fitted camera, never to the authored one.
+const FIT = { position: [0, 1, 6], target: [0, 0.5, 0], fov: 40 };
+const box = { clientWidth: 600, clientHeight: 300 };
+test('fitted view: applied when no camera was saved; Reset view returns to it; a saved camera wins and nothing is fitted', async () => {
+  const asked = [];
+  const fitView = async options => { asked.push(options); return FIT; };
+  const h = harness({ runtimes: stubRuntimes(), fitView });
+  h.session.attach(box); await h.session.start(h.block); await settle();
+  assert.equal(asked.length, 1);
+  assert.equal(asked[0].aspect, 2);
+  assert.equal(asked[0].createRuntime, h.runtimes.factory);
+  assert.equal(asked[0].artifact.artifactId, validated(experimentArtifact()).artifactId);
+  const renderer = h.renderers.made[0];
+  assert.deepEqual(renderer.cameras, [FIT], 'the fitted camera, after load');
+  renderer.options.onCameraChange({ position: [9, 9, 9], target: [0, 0, 0], fov: 40 });
+  h.session.resetView();
+  assert.deepEqual(renderer.cameras.at(-1), FIT, 'Reset view: the fitted camera, not the authored one');
+  assert.notDeepEqual(FIT, validated(experimentArtifact()).camera);
+  h.session.dispose();
+
+  const saved = { position: [7, 7, 7], target: [0, 0, 0], fov: 50 }, again = [];
+  const s = harness({ runtimes: stubRuntimes(), view: { revision: 0, camera: saved, selection: null }, fitView: async options => { again.push(options); return FIT; } });
+  s.session.attach(box); await s.session.start(s.block); await settle();
+  assert.deepEqual(s.renderers.made[0].cameras, [saved], 'the saved camera wins');
+  assert.equal(again.length, 0, 'nothing fitted over a saved camera');
+  s.session.dispose();
+});
+
+test('fitted view: a camera the learner moved before the fit answered is kept; no fit keeps the authored camera', async () => {
+  const late = deferred();
+  const h = harness({ runtimes: stubRuntimes(), fitView: () => late.promise });
+  h.session.attach(box); await h.session.start(h.block); await settle();
+  const renderer = h.renderers.made[0];
+  renderer.options.onCameraChange({ position: [3, 3, 3], target: [0, 0, 0], fov: 50 });
+  late.resolve(FIT); await settle();
+  assert.deepEqual(renderer.cameras, [], 'the late fit never moves a camera the learner moved');
+  h.session.dispose();
+  const n = harness({ runtimes: stubRuntimes(), fitView: async () => null });
+  n.session.attach(box); await n.session.start(n.block); await settle();
+  n.session.resetView();
+  assert.deepEqual(n.renderers.made[0].cameras, [validated(experimentArtifact()).camera], 'Reset view: the authored camera');
+  n.session.dispose();
+});
+
+test('optional labels: the renderer says whether it has any; the choice is applied to it and to the next renderer', async () => {
+  const h = harness({ runtimes: stubRuntimes(), renderer: { optionalLabels: true } });
+  await started(h);
+  assert.equal(h.state().optionalLabels, true);
+  assert.deepEqual(h.renderers.made[0].labels, [true]);
+  h.session.setLabels(false);
+  assert.equal(h.state().labels, false);
+  assert.deepEqual(h.renderers.made[0].labels, [true, false]);
+  h.session.detach();
+  await h.session.attach({}); await settle();
+  assert.deepEqual(h.renderers.made[1].labels, [false], 'a retaken slot keeps the choice');
+  h.session.dispose();
+  const none = harness({ runtimes: stubRuntimes() });
+  await started(none);
+  assert.equal(none.state().optionalLabels, false);
+  assert.deepEqual(none.renderers.made[0].labels, [], 'nothing to toggle');
+  none.session.dispose();
+});
+
+test('a loop that plays to its end and stops itself shows as paused (the runtime\'s own play state)', async () => {
+  const runtimes = realRuntimes(), artifact = watchArtifact();
+  artifact.timeline.loop = false;
+  const h = harness({ artifact, runtimes });
+  h.block = { id: 'w2', fixtureId: 'orbit-watch' };
+  await started(h);
+  h.session.play();
+  assert.equal(h.state().playing, true);
+  for (let i = 0; i < 6; i++) { runtimes.clock.frame(2000); await settle(); }
+  assert.equal(h.state().playing, false, 'stopped at its end');
   h.session.dispose();
 });
 

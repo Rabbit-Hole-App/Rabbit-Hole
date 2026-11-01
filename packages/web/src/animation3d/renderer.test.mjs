@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { experimentFixture, watchFixture } from './fixtures.js';
-import { createAnimationRenderer } from './renderer.js';
+import { createAnimationRenderer, effectiveRatio, PIXEL_RATIO } from './renderer.js';
 
 // The renderer's bookkeeping with a stand-in WebGL renderer and canvas (no GPU in Node): load ordering, abort, frames, the
 // constrained drag math and disposal. Real WebGL drawing, context loss and posters are covered by the CI browser check.
@@ -25,10 +25,10 @@ function harness(options = {}) {
     remove() { canvas.removed = true; },
     dispatchEvent(event) { (listeners.get(event.type) ?? []).forEach(handler => handler(event)); return true; },
   };
-  const gl = { domElement: canvas, renders: 0, render() { gl.renders += 1; }, setSize() {}, dispose() { gl.disposed = true; }, forceContextLoss() {} };
+  const gl = { domElement: canvas, renders: 0, ratios: [], render(view) { gl.renders += 1; gl.view = view; }, setPixelRatio(value) { gl.ratios.push(value); }, setSize() {}, dispose() { gl.disposed = true; }, forceContextLoss() {} };
   const events = { select: [], gesture: [] };
   const renderer = createAnimationRenderer({
-    container: { clientWidth: 400, clientHeight: 300, appendChild() {} }, createRenderer: () => gl,
+    container: { clientWidth: 400, clientHeight: 300, appendChild() {}, getBoundingClientRect: () => ({ width: 400 * (options.zoom?.value ?? 1) }) }, createRenderer: () => gl,
     labelTexture: text => ({ texture: new THREE.Texture(), aspect: text.length / 2 }),
     onSelect: id => events.select.push(id), onGesture: gesture => events.gesture.push(gesture), ...options,
   });
@@ -172,4 +172,44 @@ test('cancelling a held orbit ends it: later pointer moves do not turn the camer
   assert.deepEqual(h.renderer.getCamera().position, turned, 'the released orbit no longer follows the pointer');
   assert.deepEqual(h.events.select, [], 'a cancelled orbit selects nothing');
   h.renderer.dispose();
+});
+
+test('the bitmap follows the on-screen size: devicePixelRatio x canvas zoom, stepped, capped by ratio and by total pixels', () => {
+  assert.equal(effectiveRatio({ devicePixelRatio: 1, scale: 1, width: 960, height: 540 }), 1);
+  assert.equal(effectiveRatio({ devicePixelRatio: 2, scale: 0.25, width: 960, height: 540 }), 1, 'zoomed out: never below 1');
+  assert.equal(effectiveRatio({ devicePixelRatio: 1.1, scale: 1, width: 960, height: 540 }), 1.25, 'rounded up to a step');
+  assert.equal(effectiveRatio({ devicePixelRatio: 1, scale: 2, width: 960, height: 540 }), 2, 'canvas zoom 2x');
+  assert.equal(effectiveRatio({ devicePixelRatio: 2, scale: 4, width: 400, height: 300 }), PIXEL_RATIO.max);
+  const big = effectiveRatio({ devicePixelRatio: 2, scale: 2, width: 1920, height: 1080 });
+  assert.ok(Math.abs(big * big * 1920 * 1080 - PIXEL_RATIO.pixels) < 1, `the backing store stays within ${PIXEL_RATIO.pixels} pixels (${big})`);
+});
+
+test('a canvas zoom with no resize sharpens the next draw', async () => {
+  const zoom = { value: 1 };
+  const { renderer, gl } = harness({ zoom });
+  await renderer.load(watchFixture.artifact, {});
+  assert.deepEqual(gl.ratios, [1]);
+  zoom.value = 2; // a CSS transform: no resize event
+  renderer.applyFrame({ nodes: { moon: { position: [0, 0, 3] } } });
+  assert.deepEqual(gl.ratios, [1, 2], 'the frame redrew at the zoomed ratio');
+  renderer.applyFrame({ nodes: { moon: { position: [0, 0, 2] } } });
+  assert.deepEqual(gl.ratios, [1, 2], 'unchanged zoom: no reallocation');
+  renderer.dispose();
+});
+
+test('the Labels choice is kept across loads and frames; hasOptionalLabels answers after a load', async () => {
+  const { renderer, gl } = harness();
+  assert.equal(renderer.hasOptionalLabels(), false, 'nothing loaded');
+  renderer.setOptionalLabels(false);
+  await renderer.load(watchFixture.artifact, {});
+  assert.equal(renderer.hasOptionalLabels(), true, 'the moon name is optional');
+  const moonName = () => gl.view.getObjectByName('moonTag').children[0].visible;
+  renderer.applyFrame({ nodes: { moon: { position: [0, 0, 3] } } });
+  assert.equal(moonName(), false, 'off, set before the load, holds through a frame');
+  await renderer.load(watchFixture.artifact, {});
+  renderer.applyFrame({ nodes: { moon: { position: [0, 0, 2] } } });
+  assert.equal(moonName(), false, 'and through a reload');
+  renderer.setOptionalLabels(true);
+  assert.equal(moonName(), true, 'toggling on redraws with it shown');
+  renderer.dispose();
 });

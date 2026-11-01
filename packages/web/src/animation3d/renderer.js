@@ -8,19 +8,35 @@
 //       otherwise everything it allocated is freed and the shown scene stays.
 //     applyFrame(frame) -> { ok, issues? }   an invalid frame changes nothing
 //     setCamera({ position, target, fov? }), getCamera() -> camera | null, interact(on), capturePoster() -> WebP data URL | null, dispose()
+//     setOptionalLabels(visible), hasOptionalLabels() -> boolean (after a load; false when every label is essential or there are none)
+//   The bitmap follows the card's on-screen size (effectiveRatio below), so it stays sharp at any canvas zoom.
 // Pointer: with interaction on, a click on a selectable node calls onSelect (empty space: null); a left drag on a draggable node
 // emits drag_start/drag_move/drag_end along its declared local axis, clamped to its range, and suspends orbit for that drag. The
 // node moves only when a frame says so (one transform authority: the runtime).
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildAnimationScene, canvasLabelTexture } from './scene.js';
 
 const CLICK_PIXELS = 4; // a press that moves less than this is a click, not a drag
+// Neutral tone mapping keeps declared colours' hue and brightness (ACES shifts and darkens them); sRGB output.
 const defaultRenderer = () => {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio || 1, 2));
+  renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
   return renderer;
 };
+
+// Sharpness (owner review 2026-10-31): the card sits on a zoomable canvas that CSS-scales it, so a backing bitmap of its layout size
+// is stretched (blurred) when zoomed in. The bitmap follows the on-screen size instead: devicePixelRatio x the container's CSS
+// scale (on-screen width / layout width), rounded up to `step` (a tiny zoom change does not reallocate), at least 1, at most `max`
+// and never past `pixels` backing pixels in all. A CSS transform fires no resize, so it is re-checked every `checkMs` and before
+// every draw.
+export const PIXEL_RATIO = Object.freeze({ max: 3, step: 0.25, pixels: 3840 * 2160, checkMs: 250 });
+export function effectiveRatio({ devicePixelRatio = 1, scale = 1, width, height }) {
+  const wanted = Math.max(1, (devicePixelRatio || 1) * (Number.isFinite(scale) && scale > 0 ? scale : 1));
+  return Math.min(PIXEL_RATIO.max, Math.sqrt(PIXEL_RATIO.pixels / (width * height)), Math.ceil(wanted / PIXEL_RATIO.step - 1e-6) * PIXEL_RATIO.step);
+}
 
 // ponytail: assetResolver is accepted for the post-MVP attached-source path (AN-09); MVP artifacts carry no sourceRefs, so it is unused.
 export function createAnimationRenderer({
@@ -32,35 +48,57 @@ export function createAnimationRenderer({
   const camera = new THREE.PerspectiveCamera(50, 1, 0.05, 2000);
   const renderer = createRenderer();
   const canvas = renderer.domElement;
+  Object.assign(canvas.style, { display: 'block', width: '100%', height: '100%' }); // CSS size = the container; the bitmap is set by fit()
   container.appendChild(canvas);
   const controls = new OrbitControls(camera, canvas);
   controls.enabled = false;
-  view.add(new THREE.HemisphereLight(0xffffff, 0x667788, 2));
-  const sun = new THREE.DirectionalLight(0xffffff, 2.5);
+  // Light for every scene: a soft studio environment (image-based, so physical materials show form and gentle highlights from every
+  // side), a dim sky fill and one key light from above for shape. No shadows: they would need per-scene bounds tuning.
+  view.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 0.5));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.5);
   sun.position.set(4, 8, 5);
   view.add(sun);
-  let shown = null, loads = 0, disposed = false, lost = false, frame = 0, drag = null, press = null;
+  let environment = null;
+  const light = () => { // again after a restored context: its render target's pixels are lost with the old one
+    if (!renderer.isWebGLRenderer) return; // the Node stand-in has no GL
+    const pmrem = new THREE.PMREMGenerator(renderer), room = new RoomEnvironment();
+    environment?.dispose();
+    environment = pmrem.fromScene(room, 0.04);
+    view.environment = environment.texture;
+    room.dispose();
+    pmrem.dispose();
+  };
+  light();
+  let shown = null, loads = 0, disposed = false, lost = false, frame = 0, drag = null, press = null, ratio = 0, size = '', optionalLabels = true;
   const raycaster = new THREE.Raycaster();
 
-  // Labels keep a constant screen size (scene.js layoutLabels), so they are sized for this viewport and camera before every draw.
-  const render = () => { shown?.layoutLabels({ width: container.clientWidth || 1, height: container.clientHeight || 1, camera }); renderer.render(view, camera); };
-  const draw = () => { frame = 0; if (!disposed && !lost) render(); };
-  const schedule = () => { if (!disposed && !lost && !frame) frame = globalThis.requestAnimationFrame ? requestAnimationFrame(draw) : (draw(), 0); };
-  const cameraState = () => ({ position: camera.position.toArray(), target: controls.target.toArray(), fov: camera.fov });
-  const resize = () => {
+  // The bitmap for the container's layout size at its effective pixel ratio; true when that changed (the caller redraws).
+  const fit = () => {
     const width = Math.max(1, container.clientWidth || 1), height = Math.max(1, container.clientHeight || 1);
+    const box = container.getBoundingClientRect?.();
+    const next = effectiveRatio({ devicePixelRatio: globalThis.devicePixelRatio, scale: box?.width ? box.width / width : 1, width, height });
+    if (next === ratio && `${width}x${height}` === size) return false;
+    ratio = next; size = `${width}x${height}`;
+    renderer.setPixelRatio(ratio);
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
-    schedule();
+    return true;
   };
+  // Labels follow the view (scene.js layoutLabels), so they are sized for this viewport, pixel ratio and camera before every draw.
+  const render = () => { fit(); shown?.layoutLabels({ width: container.clientWidth || 1, height: container.clientHeight || 1, camera, ratio }); renderer.render(view, camera); };
+  const draw = () => { frame = 0; if (!disposed && !lost) render(); };
+  const schedule = () => { if (!disposed && !lost && !frame) frame = globalThis.requestAnimationFrame ? requestAnimationFrame(draw) : (draw(), 0); };
+  const cameraState = () => ({ position: camera.position.toArray(), target: controls.target.toArray(), fov: camera.fov });
+  const resize = () => { fit(); schedule(); };
   const resizeObserver = globalThis.ResizeObserver ? new ResizeObserver(resize) : null;
   resizeObserver?.observe(container);
   resize();
+  const zoomCheck = setInterval(() => { if (!disposed && !lost && fit()) schedule(); }, PIXEL_RATIO.checkMs);
   controls.addEventListener('change', schedule);
   controls.addEventListener('end', () => onCameraChange(cameraState()));
   const lose = event => { event.preventDefault(); lost = true; onLost(); };
-  const restore = () => { lost = false; schedule(); }; // three re-uploads geometry and textures on the restored context
+  const restore = () => { lost = false; light(); schedule(); }; // three re-uploads geometry and textures on the restored context
   canvas.addEventListener('webglcontextlost', lose);
   canvas.addEventListener('webglcontextrestored', restore);
 
@@ -155,11 +193,12 @@ export function createAnimationRenderer({
       await null; // a load superseded or aborted before it starts allocates nothing
       const current = () => !disposed && mine === loads && !signal?.aborted;
       if (!current()) return { ok: false, code: 'aborted' };
-      const built = buildAnimationScene(artifact, { labelTexture });
+      const built = buildAnimationScene(artifact, { labelTexture, ratio });
       if (!built.ok) return { ok: false, code: 'invalid_artifact', issues: built.issues };
       if (!current()) { built.scene.dispose(); return { ok: false, code: 'aborted' }; }
       shown?.dispose();
       shown = Object.assign(built.scene, { generation });
+      shown.setOptionalLabels(optionalLabels);
       view.add(shown.root);
       setCamera(artifact.camera);
       return { ok: true };
@@ -172,18 +211,24 @@ export function createAnimationRenderer({
     },
     setCamera,
     getCamera: () => (shown && !lost ? cameraState() : null),
+    // The Labels toggle: object names on or off (scene.js keeps captions and live values); kept across frames and loads.
+    setOptionalLabels(visible) { optionalLabels = !!visible; shown?.setOptionalLabels(optionalLabels); schedule(); },
+    hasOptionalLabels: () => !!shown?.hasOptionalLabels(),
     // Off: end this renderer's own gesture first (cancel), then OrbitControls' held pointers (cancelHeld's synthetic pointercancel
     // then finds no drag to end).
     interact(on) { if (!on) { cancel(); cancelHeld(); } controls.enabled = !!on; },
-    // Drawn and read in one task, so no preserveDrawingBuffer is needed.
+    // Drawn and read in one task, so no preserveDrawingBuffer is needed. WebP 0.95 at the current pixel ratio: 0.8 visibly softened
+    // label text; the poster lives only in the card's memory (session.js state), never stored or uploaded.
     capturePoster() {
       if (!shown || lost || disposed) return null;
-      try { render(); return canvas.toDataURL('image/webp', 0.8); } catch { return null; }
+      try { render(); return canvas.toDataURL('image/webp', 0.95); } catch { return null; }
     },
     dispose() {
       if (disposed) return;
       disposed = true;
       if (frame && globalThis.cancelAnimationFrame) cancelAnimationFrame(frame);
+      clearInterval(zoomCheck);
+      environment?.dispose();
       resizeObserver?.disconnect();
       for (const [type, handler] of [['webglcontextlost', lose], ['webglcontextrestored', restore], ['pointerdown', down], ['pointermove', move], ['pointerup', up], ['pointercancel', cancel], ['pointerdown', hold], ['pointerup', unhold], ['pointercancel', unhold]]) canvas.removeEventListener(type, handler);
       controls.dispose();

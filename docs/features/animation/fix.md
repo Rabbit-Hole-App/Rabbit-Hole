@@ -48,6 +48,31 @@ row in [spend.md](spend.md).
 
 ## Resolved
 
+### FX-AN-023 — generated scenes worked but looked poor (owner review of the pendulum, 2026-10-31 PT)
+- Owner: tiny subject in empty space, blurry scene labels, cheap geometry/materials, labels larger than the geometry and not
+  shrinking on zoom-out, controls competing with the scene, Interact buried, unclear resets.
+- Before images: C:/s/spec/animation/before-quality/ (Browser Rendering captures of the accepted experiment, watch, game).
+- Fix (general, no subject rules):
+  - Sharpness (`renderer.js`): backing bitmap = devicePixelRatio x the card's on-screen scale (canvas zoom), 0.25 steps,
+    1..3, capped at 3840x2160, re-checked on resize, before draws and every 250 ms; canvas styled to its box; poster WebP 0.95.
+  - Labels (`scene.js`): 18-22 px plates sized by the scene's on-screen size, rasterized at device pixels and snapped, at most
+    20% of the scene footprint (larger hint, then order; the rest hidden), connectors when moved; Labels on/off for object
+    names (frame-updated text and parentless captions always shown).
+  - Look: studio environment light, key and fill, neutral tone mapping, roughness 0.55; contract unchanged.
+  - Framing (`framing.js`, card session and review capture page): camera fitted once per scene to the subject over sampled
+    motion and parameter extremes, authored direction kept, backdrops excluded, 10% margin; saved camera wins.
+  - Card (`Animation3DCard.jsx`, `Controls.jsx`, `session.js`): 640 px card; one toolbar under the viewport (Play/Pause,
+    Restart only where it can rewind, Speed, Playing/Paused, Reset view, Labels, Interact with a pressed Done state);
+    Reset experiment/game/scene beside its settings with help text; first parameter as the main control, secondary
+    settings and readouts collapsed; a prominent first readout for experiments and games only.
+  - Generation (`agents/animation-brief.js`, `agents/animation-author.js`, `animation-author.js`): authoring and review
+    standards for proportions, geometry, colour, framing and restrained labels; requested parameter first, requested result
+    first readout; stated ranges, units and defaults kept (server check now also refuses a changed unit, default or order);
+    the reviewer fails a visually poor scene as major; repair reframes instead of shrinking.
+- Regression: framing, scene, renderer, session, card and pipeline unit tests; animation-mvp steps for status, resets,
+  labels and zoom screenshots (Z-*.png). Web unit 4866 pass / 0 fail; control-plane animation 54/54.
+- Fixing full SHA: see the M3 receipt update for this candidate.
+
 ### FX-AN-022 — the Chat link under an /animation line repeated the request and said "Animation3d"
 - Task / phase: AN-03, MVP (owner try-it, 2026-10-31 PT on `57f585526`).
 - Cause: the pending card was titled with the request words (`LearnPage.jsx` startAnimation), the Chat output link shows
