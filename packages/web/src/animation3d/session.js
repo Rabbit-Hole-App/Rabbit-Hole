@@ -24,6 +24,9 @@ import { fitAnimationView } from './framing.js';
 
 export const DRAG_END_RETRIES = 20; // a drag end the runtime refused as busy is resent (runtime.js keeps no slot for it)
 const RETRY_MS = 50;
+// The learner sees the fixed message; which limit or phase failed (runtime.js diagnostic, never shown) goes to the console, the only
+// place a browser check can read it (CI fast-e2e 5a3c2e549 step 3 could not tell which deadline the card missed).
+const logRuntime = error => console.warn(`animation runtime: ${[error?.code, error?.diagnostic, error?.phase].filter(Boolean).join(' / ')}`);
 
 const INITIAL = Object.freeze({
   artifact: null, model: null, failure: null, notice: '', runtime: 'off', renderer: 'off', frame: null, time: 0, readouts: [], goal: null,
@@ -79,7 +82,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
     const created = createRuntime({
       artifact: state.artifact, saved,
       onFrame: (frame, meta) => { if (own()) showFrame(frame, meta); },
-      onError: error => { if (own()) set({ runtime: 'failed', playing: false, failure: failureOf('runtime', error) }); },
+      onError: error => { if (own()) { logRuntime(error); set({ runtime: 'failed', playing: false, failure: failureOf('runtime', error) }); } }, // a failed start too
     });
     runtime = created;
     try {

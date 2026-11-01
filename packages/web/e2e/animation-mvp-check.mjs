@@ -60,7 +60,8 @@ const stray = [], offOrigin = [], errors = [], consoleErrors = [];
 const NOTEBOOK_ORIGIN = 'https://small-learn-canvas-notebook-dev.tryrabbithole.workers.dev'; // the app page's own notebook frame (explain-program-card-check)
 const results = [];
 let current = null; // the page the latest open() made, for failure evidence
-const glNotes = []; // console lines about WebGL contexts (Chromium warns, not errors, when it drops one)
+const glNotes = []; // console lines about WebGL contexts (Chromium warns, not errors, when it drops one) and card runtime failures
+const runtimeNotes = () => glNotes.filter(note => /animation runtime/.test(note)).slice(-5).join(' | ') || 'none'; // session.js logRuntime
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
   catch (error) {
@@ -99,7 +100,7 @@ const open = async ({ theme = 'light', canvas = main, first = 'a-watch', webgl =
   // Aborted model routes log "Failed to load resource" (counted in stray instead). Without WebGL, three.js may report the refused
   // context as a console error: that refusal is the case under test there, so that context's console is not collected.
   current = page;
-  page.on('console', message => { if (/webgl|context lost|too many active/i.test(message.text())) glNotes.push(`${message.type()}: ${message.text().slice(0, 200)}`); });
+  page.on('console', message => { if (/webgl|context lost|too many active|animation runtime/i.test(message.text())) glNotes.push(`${message.type()}: ${message.text().slice(0, 200)}`); });
   page.on('console', message => { if (webgl && message.type() === 'error' && !/Failed to load resource/.test(message.text())) consoleErrors.push(`${tag}: ${message.text().slice(0, 300)}`); });
   await page.goto(`${BASE}/apps/${canvas.name}`);
   await (first ? page.locator(`[data-block-id="${first}"] [data-animation3d-card]`) : page.getByRole('menubar', { name: 'Canvas menu' })).waitFor({ timeout: 60000 });
@@ -134,7 +135,10 @@ const live = async p => {
   });
 };
 // The scene's pixels: identical when its camera and frame have not changed (the experiment scene is static between inputs).
-const pixels = p => p.card.locator('[data-animation-host]').screenshot(); // inside the viewport's border, which darkens while interacting
+// The primary readout is interface laid over the scene, not the scene: its rounded, shadowed plate is rasterized a little differently
+// once the card is selected (CI fast-e2e 5a3c2e549 step 17, where an idle drag selected the card: its unselected and selected shots
+// match pixel for pixel inside the viewport except the plate's corner), so it is masked out.
+const pixels = p => p.card.locator('[data-animation-host]').screenshot({ mask: [p.card.locator('[data-animation-primary-readout]')] }); // inside the viewport's border, which darkens while interacting
 // Opens a card's More settings and More readouts (lane U, owner 2026-10-31: past the plan's first parameter and first readout,
 // settings and readouts start collapsed), so a step reaches every one of them.
 const more = p => p.card.locator('details[data-animation-more]:not([open]) > summary').evaluateAll(nodes => nodes.forEach(node => node.click()));
@@ -207,7 +211,7 @@ try {
       await live(p);
       assert.equal(await p.card.getAttribute('data-animation-experience'), kind);
       assert.equal((await p.card.locator('[data-animation-badge]').innerText()).trim(), BADGE[kind], `${kind}: its experience badge`);
-      assert.equal(await p.card.getAttribute('data-animation-phase'), 'ready');
+      assert.equal(await p.card.getAttribute('data-animation-phase'), 'ready', `${kind}: phase; runtime notes: ${runtimeNotes()}`);
       assert.equal(await p.viewport.locator('canvas').count(), 1, `${kind}: one WebGL canvas`);
       assert.ok(await p.card.locator('[data-animation-fixture-note]').isVisible(), `${kind}: labelled a built-in example, not a generated result`);
       assert.ok((await p.card.locator('[data-animation-description]').textContent()).trim().length > 0, `${kind}: an accessible scene description`);
@@ -253,9 +257,13 @@ try {
     assert.ok(last >= 0 && last < duration, `time stays within the loop: ${last}`);
   });
   await step('watch: Restart returns to time zero and the oracle\'s starting frame, the speed kept', async () => {
+    // Restart seeks a seekable loop to 0 keeping its play state (session.js restart; it did before lane U too). Pressed while playing,
+    // the loop starts again and plays on; the start itself is read from a paused loop, since a pause after a playing Restart reads
+    // the time played meanwhile (CI fast-e2e 5a3c2e549: 0.386 s at 2x).
+    if (await playing(W)) { await W.restart.click(); assert.ok(await playing(W), 'Restart keeps a playing loop playing'); await W.play.click(); }
     await W.restart.click();
-    if (await playing(W)) await W.play.click();
     await page.waitForTimeout(300);
+    assert.equal(await playing(W), false, 'Restart keeps a paused loop paused');
     const t = await time(W);
     assert.ok(t < 0.3, `near zero after Restart: ${t}`);
     sameNodes((await frame(W)).nodes, expectedNodes('watch', {}, t), 'after Restart', WATCH.nodes);

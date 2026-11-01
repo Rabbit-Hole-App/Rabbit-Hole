@@ -8,6 +8,7 @@
 //     (background: framing.js's view sampler. It only takes a free engine and gives up at once when there is none; a card's runtime
 //      that needs an engine takes a background one's first, even mid-call, and that background runtime is finished)
 //     ready: Promise          admitted, initial (or hydrated) state committed and its frame published; rejects an AnimationRuntimeError
+//                             (a missed engine or program deadline is tried again first, START_RETRY_MS)
 //     dispatch(event)         -> Promise<{ accepted: true, snapshot } | { accepted: false, reason, issues? }>
 //     play() / pause()        -> { accepted, reason? }   a timeline (watch) loops or stops; a stepped rules scene ticks at 1/30 s
 //     reset()                 -> Promise<result>         defaults + initialState again; a failed reset keeps the last good state
@@ -32,6 +33,7 @@ export const OVERLOAD_STEPS = 15; // half a second of simulation owed: sustained
 export const MAX_OVERRUNS = 3;
 export const MAX_ADVANCE_TICKS = 120; // advance(): four seconds of steps, above the review's 90 // playback frames skipped in a row for the program's own deadline before the scene stops
 const MAX_ELAPSED_MS = 250; // one displayed frame never owes more than this (a long frame is clamped, not replayed)
+export const START_RETRY_MS = Object.freeze([500, 1500]); // the pauses before a card's start is tried again after a transient failure
 
 const MESSAGES = Object.freeze({
   invalid_artifact: 'This animation could not load.',
@@ -171,6 +173,20 @@ export function createAnimationRuntime({
   }
   const reanchor = time => { anchor = { now: clock.now(), time }; };
 
+  // A saved snapshot is restored as it is (paused, no initialize) when it still validates with its own frame; otherwise start fresh.
+  // An engine failure is not the snapshot's: it is thrown (ready tries again, then fails and the card's retry restores it) rather than
+  // replace the learner's saved state with the defaults (CI fast-e2e 5c79023f7 step 28: a slow boot reloaded a saved 7 as the default 4).
+  async function start(gen) {
+    if (saved) {
+      try {
+        const frame = await evaluate(saved.inputs, saved.time, saved.state);
+        if (commit({ artifact, snapshot: saved, frame }, null, gen).ok) { reanchor(committed.snapshot.time); return; }
+      } catch (error) { if (error?.code === 'disposed' || engineFailure(error)) throw error; }
+    }
+    const result = commit({ artifact, ...(await initialCandidate(resolveAnimationInputs(artifact, initialInputs))) }, null, gen);
+    if (!result.ok) throw new AnimationRuntimeError(result.reason === 'stale' ? 'disposed' : 'invalid_output', JSON.stringify(result.issues ?? []), 'evaluate');
+  }
+
   async function initialCandidate(inputs) {
     const state = stateful ? await newState('initialize', { inputs }) : null;
     return { snapshot: { inputs, state, seed: artifact.seed, time: 0, tick: 0, paused: true }, frame: await evaluate(inputs, 0, state) };
@@ -203,17 +219,17 @@ export function createAnimationRuntime({
       return;
     }
     channel = createChannel({ workerFactory, limits, source: program.source, background });
-    // A saved snapshot is restored as it is (paused, no initialize) when it still validates with its own frame; otherwise start fresh.
-    // An engine failure is not the snapshot's: ready fails (the card's retry restores it) rather than replace the learner's saved state
-    // with the defaults (CI fast-e2e 5c79023f7 step 28: a boot slowed by another Worker reloaded a saved 7 as the default 4).
-    if (saved) {
-      try {
-        const frame = await evaluate(saved.inputs, saved.time, saved.state);
-        if (commit({ artifact, snapshot: saved, frame }, null, gen).ok) { reanchor(committed.snapshot.time); return; }
-      } catch (error) { if (error?.code === 'disposed' || engineFailure(error)) throw error; }
+    // A card's start outlives a transient failure (CI fast-e2e 5a3c2e549 step 3: on a busy page load the last of three cards to get an
+    // engine never started and said "The scene stopped responding"; its program runs fine in Node): a missed boot, watchdog or program
+    // deadline, or a crashed Worker, is tried again after a pause, START_RETRY_MS.length times. A program that fails on its own
+    // (invalid output, a thrown error) fails at once, and a background runtime never waits.
+    for (let attempt = 0; ; attempt += 1) {
+      try { await start(gen); return; } catch (error) {
+        if (background || dead || attempt >= START_RETRY_MS.length || !(engineFailure(error) || frameOverrun(error))) throw error;
+        await new Promise(resolve => setTimeout(resolve, START_RETRY_MS[attempt]));
+        if (dead) throw new AnimationRuntimeError('disposed');
+      }
     }
-    const result = commit({ artifact, ...(await initialCandidate(resolveAnimationInputs(artifact, initialInputs))) }, null, gen);
-    if (!result.ok) throw new AnimationRuntimeError(result.reason === 'stale' ? 'disposed' : 'invalid_output', JSON.stringify(result.issues ?? []), 'evaluate');
   })().finally(() => pump());
   ready.catch(error => { channel?.dispose(); report(error); }); // a runtime that never got ready holds no Worker; the card makes a new one to retry
 

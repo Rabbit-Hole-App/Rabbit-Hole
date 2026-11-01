@@ -272,7 +272,9 @@ run('a saved snapshot restores paused without initialize; dispose settles pendin
 });
 
 // CI fast-e2e 5c79023f7 step 28: a restore whose engine missed its boot deadline started fresh, so a saved 7 came back as the default.
-run('an engine that fails while a saved state is restored fails ready; the saved state is never replaced by a fresh start', async () => {
+// CI fast-e2e 5a3c2e549 step 3: the third card's start missed a deadline while the page was busy, and the card stayed dead.
+const silent = () => ({ terminate() {}, postMessage() {} }); // a Worker that never says ready: the boot deadline
+run('a start that misses a deadline is tried again after a pause; a saved state is restored then, never replaced by a fresh start', async () => {
   const first = start(gameFixture.artifact, { workerFactory: workers().factory });
   await first.runtime.ready;
   await first.runtime.dispatch({ type: 'action', action: 'south' });
@@ -280,15 +282,20 @@ run('an engine that fails while a saved state is restored fails ready; the saved
   first.runtime.dispose();
   const good = workers();
   let made = 0;
-  const factory = () => (++made === 1 ? { terminate() {}, postMessage() {} } : good.factory()); // the first never says ready
-  const stuck = start(gameFixture.artifact, { workerFactory: factory, saved, limits: { ...LIMITS, bootMs: 20 } });
-  await assert.rejects(stuck.runtime.ready, { code: 'runtime_limit' });
-  assert.equal(good.log.started, 0, 'no fresh start');
+  const restored = start(gameFixture.artifact, { workerFactory: () => (++made === 1 ? silent() : good.factory()), saved, limits: { ...LIMITS, bootMs: 20 } });
+  await restored.runtime.ready;
+  assert.deepEqual(restored.runtime.snapshot().state, saved.state, 'restored on the second try');
+  assert.ok(!good.log.operations.includes('initialize'), 'never a fresh start');
+  assert.deepEqual(restored.errors, [], 'nothing reported for a start that got ready');
+  restored.runtime.dispose();
+
+  const stuck = start(gameFixture.artifact, { workerFactory: silent, saved, limits: { ...LIMITS, bootMs: 20 } });
+  await assert.rejects(stuck.runtime.ready, { code: 'runtime_limit' }); // every try missed it: the card's Restart scene restores later
   stuck.runtime.dispose();
-  const again = start(gameFixture.artifact, { workerFactory: good.factory, saved });
-  await again.runtime.ready;
-  assert.deepEqual(again.runtime.snapshot().state, saved.state, 'a retry restores it');
-  again.runtime.dispose();
+  const bad = await withSource(gameFixture.artifact, gameFixture.artifact.program.source.replace("status: 'playing' }; }", "status: 'playing' }.nope.x; }"));
+  const broken = workers();
+  await assert.rejects(start(bad, { workerFactory: broken.factory }).runtime.ready, { code: 'runtime_error' });
+  assert.equal(broken.log.operations.filter(operation => operation === 'initialize').length, 1, 'a program error is not tried again');
   assert.equal(liveAnimationWorkers(), 0);
 });
 
