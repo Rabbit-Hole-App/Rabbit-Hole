@@ -48,6 +48,15 @@ row in [spend.md](spend.md).
 
 ## Resolved
 
+### FX-AN-022 — the Chat link under an /animation line repeated the request and said "Animation3d"
+- Task / phase: AN-03, MVP (owner try-it, 2026-10-31 PT on `57f585526`).
+- Cause: the pending card was titled with the request words (`LearnPage.jsx` startAnimation), the Chat output link shows
+  the card title, and `ChatOutputs.jsx` had no label for the `animation3d` kind, so it printed the raw kind.
+- Fix: the pending card is titled "3D animation"; `storage.js` settleAnimationJob gives it the plan's title as soon as
+  the job has a plan (kept through ready and failure); `ChatOutputs.jsx` labels the kind "3D animation". A link saved
+  before the fix keeps its old label.
+- Regression: `animation3d/storage.test.mjs` (plan title through progress, ready and failure); web unit 4847 pass / 0 fail.
+
 ### FX-AN-021 — the try-it launcher opened a separate review board, so /animation said "not finished loading"
 - Task / phase: AN-07 owner try-it (2026-10-31, 8:21 PM PT on `57f585526`): "The 3D animation could not be started: this
   canvas has not finished loading."

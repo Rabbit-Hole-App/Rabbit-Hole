@@ -1122,7 +1122,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // The server's own reason, so a refusal is never a bare "could not be started" (owner report 2026-10-30).
     catch (error) { return { failed: `${error?.data?.error || error?.message || 'the request was refused'}${error?.status ? ` (${error.status})` : ''}` }; }
     const { job, body } = result;
-    const card = withJob(withPrompt({ id: job.cardId, type: 'animation3d', title: words.slice(0, 200) }, promptUsed), { job, boardId: board, requestId: body.requestId, sourceKey: await requestRef(body.requestId, words) });
+    // Titled by its kind until the scene's own title arrives: the request is already the Chat line above it (owner, 2026-10-31).
+    const card = withJob(withPrompt({ id: job.cardId, type: 'animation3d', title: '3D animation' }, promptUsed), { job, boardId: board, requestId: body.requestId, sourceKey: await requestRef(body.requestId, words) });
     const blockId = canvasApi.current?.placeAnimation(threadId ? { ...card, animation3dJob: { ...card.animation3dJob, threadId } } : card);
     return { blockId: blockId || job.cardId };
   };

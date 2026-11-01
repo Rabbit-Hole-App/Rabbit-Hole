@@ -310,6 +310,9 @@ export function settleAnimationJob(card, job, { boardId }) {
   if (TERMINAL.has(waiting.stage)) return { action: 'ignore', reason: waiting.stage };
   const current = readEnvelope(card).envelope?.ref.revision ?? null;
   if (current !== waiting.baseRevision) return { action: 'ignore', reason: 'stale_base' };
+  // The card (and its Chat link) takes the plan's title once there is one; until then it is titled by its kind (LearnPage).
+  const planTitle = typeof job.plan?.title === 'string' && job.plan.title.trim() ? job.plan.title.trim().slice(0, 200) : null;
+  if (planTitle && card.title !== planTitle) card = { ...card, title: planTitle };
   if (job.stage === 'failed' || job.stage === 'cancelled') {
     return { action: 'keep', block: { ...card, animation3dJob: { ...waiting, stage: job.stage, ...(job.failure?.message ? { message: String(job.failure.message).slice(0, 300) } : {}) } } };
   }

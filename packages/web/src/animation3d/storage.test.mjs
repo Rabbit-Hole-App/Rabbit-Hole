@@ -289,6 +289,17 @@ test('a regeneration result lands on its own card with the new version, its own 
   assert.equal(readEnvelope(out.block).ok, true);
 });
 
+test('the card takes the plan title once the job has a plan, and keeps it through ready and failure', () => {
+  const waiting = { ...regenerating(), title: '3D animation' };
+  const same = settleAnimationJob(waiting, { ...JOB, stage: 'authoring' }, { boardId: 'board_A' });
+  assert.equal(same.block, waiting, 'no plan yet: the card is unchanged');
+  const named = settleAnimationJob(waiting, { ...JOB, stage: 'authoring', plan: { title: '  Pendulum length and period ' } }, { boardId: 'board_A' });
+  assert.equal(named.action, 'progress');
+  assert.equal(named.block.title, 'Pendulum length and period');
+  assert.equal(settleAnimationJob(named.block, { ...JOB, stage: 'ready', result: RESULT, plan: { title: 'Pendulum length and period' } }, { boardId: 'board_A' }).block.title, 'Pendulum length and period');
+  assert.equal(settleAnimationJob(waiting, { ...JOB, stage: 'failed', plan: { title: 'Pendulum length and period' } }, { boardId: 'board_A' }).block.title, 'Pendulum length and period');
+});
+
 test('failed or cancelled regeneration keeps the current good version', () => {
   const failed = settleAnimationJob(regenerating(), { ...JOB, stage: 'failed', failure: { message: 'The scene could not be made.' } }, { boardId: 'board_A' });
   assert.equal(failed.action, 'keep');
