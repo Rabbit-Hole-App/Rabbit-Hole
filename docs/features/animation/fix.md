@@ -26,12 +26,15 @@ row in [spend.md](spend.md).
 - Task / phase: AN-05 / AN-07. First observed: owner try-it, 2026-10-31 PT, request "Let me change the length of a
   simple pendulum and see how its period changes, with the period shown as a number." (the request accepted once as
   accept-6). The job stopped with `stopReason: rounds` (animation-job.js: review still failing after the one repair).
-- What is known: no job is listed for the launcher's test user (`owner-animation-preview@example.com`) on the preview;
-  its two 2026-10-31 try-it canvases hold no jobs and no saved card (C:/s/spec/animation/owner-jobs.mjs, read-only).
-  So the run's diagnostics (review findings) cannot be read from here yet.
-- Not established: which review finding failed, and where the run happened. Generation is not deterministic: an
-  accepted prompt can fail a later run.
-- Severity: unknown. Status: open. Next: the URL or window the owner ran it in, then its job diagnostics.
+- Where: job `aj_4dbdc54c977348afb93ef5dfc98edb11` on the canvas's `review-main` board (FX-AN-021), 7:56 PM PT; 34
+  credits; brief, author, review, repair, review (C:/s/spec/animation/review-jobs.json, read-only diagnostics).
+- Cause: not physics. Every semantic finding agreed with T = 2π√(L/g) (2.01 s at 1 m, 0.634 s at 0.1 m, 7.29 s at 5 m on
+  Mars). Two major visual findings: at the plan's minimum length (0.1 m, against a 5 m maximum) the pendulum is too
+  small to see under the fixed camera, and the Bob label covers the support bar. The one repair shrank the bob instead
+  of reframing, so the second review found the same thing and the job stopped (`rounds`).
+- Severity: quality stop working as designed (a scene whose short swing cannot be seen is not accepted). Improvement
+  candidates, not done: a planner rule to keep a parameter range the camera can show (or a camera that follows a
+  length parameter), and a repair hint naming reframing. Status: open, for the owner's decision.
 
 ## Deferred
 
@@ -44,6 +47,17 @@ row in [spend.md](spend.md).
 - Severity: minor; does not block MVP. Status: deferred
 
 ## Resolved
+
+### FX-AN-021 — the try-it launcher opened a separate review board, so /animation said "not finished loading"
+- Task / phase: AN-07 owner try-it (2026-10-31, 8:21 PM PT on `57f585526`): "The 3D animation could not be started: this
+  canvas has not finished loading."
+- Cause: the launcher (C:/s/spec/animation/open-preview.mjs) opened `/apps/<canvas>?board=main`. On a preview build
+  (reviewTools) `?board=` opens a separate review board (`LearnPage.jsx` reviewBoard: `main` becomes `review-main`), which
+  is not saved to the server unless shared, so it had no board id and the start was refused. Before `622d17501` the
+  forced save created that review board, which is why the earlier pendulum job sits on `review-main` (FX-AN-018).
+  Learners never open `?board=`; the app is unchanged.
+- Fix: the launcher opens `/apps/<canvas>` (the canvas's own board, saved by the launcher first). Checked with
+  `open-preview.mjs --check`.
 
 ### FX-AN-019 — a card with no scene kept the full 560 px viewport (empty space under a failure)
 - Task / phase: AN-03, MVP (owner screenshot, 2026-10-31: a stopped card's text at the top of a mostly empty card).
