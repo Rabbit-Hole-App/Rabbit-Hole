@@ -31,7 +31,9 @@ export const MOTION_DEFAULT_RATIO = '16:9';
 const motionRatios = ratiosFor(MOTION_RATIOS).map(r => ({ value: r.id, label: r.label }));
 // /animation's supported experiences (AN-05): the MVP phase of animation3d/capabilities.js ANIMATION_CAPABILITIES.experiences, which a
 // control-plane test keeps equal (this file imports nothing). The planner recommends one; the person may choose another before Generate.
-const ANIMATION_EXPERIENCES = [{ value: 'inspect', label: 'Inspect' }, { value: 'watch', label: 'Watch' }, { value: 'experiment', label: 'Experiment' }, { value: 'game', label: 'Mini-game' }];
+// Each says in plain words what it is (the card shows the chosen one's hint beside the select).
+const ANIMATION_EXPERIENCES = [{ value: 'inspect', label: 'Inspect', hint: 'Look around a still scene.' }, { value: 'watch', label: 'Watch', hint: 'Watch a motion that loops.' },
+  { value: 'experiment', label: 'Experiment', hint: 'Change values and see what happens.' }, { value: 'game', label: 'Mini-game', hint: 'Reach a goal in a short challenge.' }];
 const PRESENTATIONS = [{ value: 'static', label: 'Static' }, { value: 'steps', label: 'Steps' }, { value: 'time', label: 'Over time' }, { value: 'experiment', label: 'Experiment' }];
 
 // review_policy: 'always' (a person approves every request), 'conditional' (the SERVER decides per request and says why in

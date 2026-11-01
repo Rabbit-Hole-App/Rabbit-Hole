@@ -13,9 +13,16 @@ import { plainPrompt } from '../../web/src/generation-review.js';
 // The phase this server builds in. The browser cannot choose another: the validators accept only registry objects.
 export const enabledCapabilities = () => ANIMATION_CAPABILITIES;
 const issuesText = issues => issues.slice(0, 6).map(i => `${i.path || 'plan'}: ${i.message}`).join('; ');
-const WORDS = { experience: 'experience', behavior: 'behavior', controlProfile: 'controls' };
+// What the plan uses instead, in the learner's words (no enum on the review card, owner 2026-10-31).
+const INSTEAD = {
+  experience: { inspect: 'makes a scene to look around', watch: 'makes a looping scene to watch', experiment: 'makes an experiment', game: 'makes a mini-game' },
+  behavior: { prescribed: 'uses set motion', analytical: 'uses motion computed from formulas', rules: 'uses step-by-step rules' },
+  controlProfile: { inspect: 'uses look-around controls', manipulate: 'uses controls you can change' },
+};
 const NAMES = { walkthrough: 'a walkthrough', assembly: 'an assembly', physics: 'real physics simulation', walk: 'walking controls', attached_models: 'attached models', image_reference: 'an image reference' };
 const named = value => NAMES[value] || `"${value}"`;
+// How each of the server's own limitation lines begins, so the review card keeps them in view (animation-job.js planScene).
+export const ASKED_FOR = 'You asked for ';
 
 // The server's own words for each explicitly requested capability the phase does not enable. -> [string]
 export function unsupportedRequests(requested, plan, caps = enabledCapabilities()) {
@@ -23,10 +30,10 @@ export function unsupportedRequests(requested, plan, caps = enabledCapabilities(
   const enabled = { experience: caps.experiences, behavior: caps.behaviors, controlProfile: caps.controlProfiles };
   for (const key of ['experience', 'behavior', 'controlProfile']) {
     const asked = requested?.[key];
-    if (typeof asked === 'string' && !enabled[key].includes(asked)) out.push(`You asked for ${named(asked)}, which is not available yet; this plan uses ${plan[key]} ${WORDS[key]} instead.`);
+    if (typeof asked === 'string' && !enabled[key].includes(asked)) out.push(`${ASKED_FOR}${named(asked)}, which is not available yet; this plan ${INSTEAD[key][plan[key]] ?? `uses ${plan[key]}`} instead.`);
   }
   for (const feature of Array.isArray(requested?.features) ? requested.features : []) {
-    if (!caps.features.includes(feature)) out.push(`You asked for ${named(feature)}, which is not available yet; this plan works without it.`);
+    if (!caps.features.includes(feature)) out.push(`${ASKED_FOR}${named(feature)}, which is not available yet; this plan works without it.`);
   }
   return [...new Set(out)];
 }

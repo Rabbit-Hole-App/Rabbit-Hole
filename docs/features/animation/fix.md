@@ -22,6 +22,17 @@ row in [spend.md](spend.md).
 - Severity: unknown; does not block MVP review. Status: not reproduced / cause unconfirmed. Next: the owner's reason line
   from a repeat, if any.
 
+### FX-AN-018 — owner's pendulum run stopped: "did not pass its checks after one correction"
+- Task / phase: AN-05 / AN-07. First observed: owner try-it, 2026-10-31 PT, request "Let me change the length of a
+  simple pendulum and see how its period changes, with the period shown as a number." (the request accepted once as
+  accept-6). The job stopped with `stopReason: rounds` (animation-job.js: review still failing after the one repair).
+- What is known: no job is listed for the launcher's test user (`owner-animation-preview@example.com`) on the preview;
+  its two 2026-10-31 try-it canvases hold no jobs and no saved card (C:/s/spec/animation/owner-jobs.mjs, read-only).
+  So the run's diagnostics (review findings) cannot be read from here yet.
+- Not established: which review finding failed, and where the run happened. Generation is not deterministic: an
+  accepted prompt can fail a later run.
+- Severity: unknown. Status: open. Next: the URL or window the owner ran it in, then its job diagnostics.
+
 ## Deferred
 
 ### FX-AN-008 — changing a rate mid-play restarts analytical motion
@@ -33,6 +44,27 @@ row in [spend.md](spend.md).
 - Severity: minor; does not block MVP. Status: deferred
 
 ## Resolved
+
+### FX-AN-019 — a card with no scene kept the full 560 px viewport (empty space under a failure)
+- Task / phase: AN-03, MVP (owner screenshot, 2026-10-31: a stopped card's text at the top of a mostly empty card).
+- Fix: `LearningBlocks.jsx` animation3d `sizeFor` gives the card its content's height until a scene is attached
+  (`animation3d.ref`) or it is a built-in example; with a scene it keeps 560 px. A learner's own resize still wins.
+- Fixing full SHA: see the M3 receipt update for this candidate.
+
+### FX-AN-020 — the plan review read like the internal model specification
+- Task / phase: AN-03 / AN-05, MVP usability (owner, 2026-10-31).
+- Fix: the server signs `input.scene` (animation-job.js `planScene`: parameters without ids, interaction text, its own
+  "you asked for" lines) beside the unchanged full plan lines; `animation3d/PlanSummary.jsx` draws, for any plan:
+  What you can change (ranges and units) and Starts at, How to play (game) or What you can do (no parameters), those
+  notices in view, the first assumption as the visible caveat, the rest under collapsed Model assumptions and
+  Limitations. The request echo, the plan lines (Behavior, Controls, Interaction, Parameter, Recommended) and the cost
+  note are gone from the card; Experience stays a select with a plain hint per option; Edit reads Edit plan. The
+  server's notices no longer name enums ("uses motion computed from formulas instead"). A plan without `input.scene`
+  (made before) keeps the full card. Generate still approves the signed plan hash with its reviewed edits.
+- Regression: `animation3d/plan-summary.test.mjs` (experiment, watch scene, mini-game, experience change, old plan);
+  control-plane `animation-job.test.js` (scene signed beside the plan lines; notice filter); animation-mvp step I asserts
+  the summary and saves I-plan.png and I-plan-details.png.
+- Fixing full SHA: see the M3 receipt update for this candidate.
 
 ### FX-AN-017 — /animation's forced board save raced the hydration autosave (self-inflicted 409)
 - Task / phase: AN-03 / AN-06, MVP (owner review of `bb23270a79214cd36c815ca50f91e874821b68d1`, 2026-10-31)

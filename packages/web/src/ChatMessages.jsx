@@ -24,6 +24,14 @@ import { mergeOutputs, openOutput, outputSink } from './chat-output-refs.js';
 import { cardStatus, imageProposalStatus, madeFromVersion, outputForProposal } from './generation-proposal-status.js';
 import { responseKind, turnIndex } from './chat-response-kind.js';
 import { briefHeading, isBriefCommand } from './material-brief.js';
+import PlanSummary, { planSummary } from './animation3d/PlanSummary.jsx';
+
+// An /animation plan with its scene (owner, 2026-10-31): the short summary in place of the plan lines, and Edit reads Edit plan.
+// A plan made before the server sent its scene keeps the full lists.
+const animationReview = p => {
+  const summary = p.command === 'animation' ? planSummary(p) : null;
+  return summary ? { summary: <PlanSummary summary={summary} />, editLabel: 'Edit plan' } : {};
+};
 
 // UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its
 // proposal that has not made its card yet. A settings change saves the next version over this message (chat-proposal-route.js);
@@ -191,7 +199,7 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
     <div className="mt-2">
       {/* A motion or image proposal draws its job's status on the card itself (status), so it no longer reads Added to the canvas. */}
       <GenerationProposalCard proposal={p} active={active} made={cardKind ? false : made} released={released} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
-        {...(explainJob ? { ...jobReviewCopy(p), onCancel } : isBriefCommand(p.command) ? { eyebrow: briefHeading(p.command) } : {})}
+        {...(explainJob ? { ...jobReviewCopy(p), onCancel, ...animationReview(p) } : isBriefCommand(p.command) ? { eyebrow: briefHeading(p.command) } : {})}
         status={status} startedAt={output?.startedAt || pressedAt} noun={cardKind === 'image' ? 'image' : 'video'} onGoToCard={goToCard}
         onStop={status?.canStop && ops?.stopGeneration ? () => ops.stopGeneration(status.cardId) : null} onStopFailed={setError}
         onEdit={onEdit} targeted={targeted} onGenerate={onGenerate} onSave={onSave} onOpenReference={ref => chat?.openSource?.({ sourceId: ref.sourceId, kind: ref.kind, name: ref.label, version: ref.revision, range: ref.range })} />

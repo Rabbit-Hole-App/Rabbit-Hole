@@ -473,8 +473,9 @@ export function evaluate({ state }) {
     result: job.stage === 'ready' ? { jobId: job.id, resultId: job.artifact.artifactId, cardId: job.cardId, canvas: { boardId: job.boardId }, requestRef: sha16(`${job.requestId}|${job.prompt}`), revision: 1, planHash: job.artifact.planHash } : null });
   const planOf = job => ({ proposal_id: sha16(job.id), version: 1, command: 'animation', title: job.artifact.title,
     description: 'A beam on a pivot with one weight on each side; change masses and distances and watch it tilt.', settings: { experience: 'watch' }, source_refs: [], references: [],
-    assumptions: ['Rigid, massless beam.'], limitations: ['The tilt is illustrative.'], requirements: [`Recommended: watch. ${REASON}`, 'Behavior: analytical', 'Controls: manipulate'],
-    input: { org: 'w', app: gen.name, job: job.id, plan_hash: job.artifact.planHash, request: job.prompt }, original_request: `/animation ${job.prompt}`,
+    assumptions: ['Rigid, massless beam.', 'The pivot has no friction.'], limitations: ['The tilt is illustrative.'], requirements: [`Recommended: watch. ${REASON}`, 'Behavior: analytical', 'Controls: manipulate'],
+    input: { org: 'w', app: gen.name, job: job.id, plan_hash: job.artifact.planHash, request: job.prompt,
+      scene: { parameters: [{ type: 'number', label: 'Left mass', unit: 'kg', min: 1, max: 10, default: 2 }, { type: 'select', label: 'Pivot', options: [{ value: 'c', label: 'Centre' }, { value: 'l', label: 'Left' }], default: 'c' }], interactions: [], notices: [] } }, original_request: `/animation ${job.prompt}`,
     expires_at: Math.floor(Date.now() / 1000) + 3600, sig: `v3.${'a'.repeat(64)}`, usage: { max_credits: 120, reserve_credits: null } });
   const genRouter = async route => {
     const request = route.request(), url = new URL(request.url()), method = request.method(), path = url.pathname;
@@ -543,7 +544,7 @@ export function evaluate({ state }) {
   const { page: g } = genSession, gDock = g.locator('[data-chat-pane]');
   const plan = () => gDock.locator('[data-generation-proposal="animation"]').last();
   let job = null;
-  await step('/animation with a request in Chat: one job, its plan in the review area (title, recommended experience and its reason) and the canvas card waiting; nothing approved', async () => {
+  await step('/animation with a request in Chat: one job, its short plan summary in the review area (title, recommended experience, what can change and where it starts, the caveat, collapsed limitations; no request echo or internal plan lines) and the canvas card waiting; nothing approved', async () => {
     await g.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 20000 });
     await composer(g).click(); await composer(g).fill(`/animation ${REQUEST}`); await g.waitForTimeout(150); await composer(g).press('Enter');
     await until(async () => flow.creates.length === 1, 'one job for the /animation line');
@@ -552,10 +553,20 @@ export function evaluate({ state }) {
     await plan().waitFor({ timeout: 20000 });
     assert.equal((await plan().locator('h3').innerText()).trim(), 'Beam balance');
     assert.equal(await plan().locator('[data-proposal-select="experience"]').inputValue(), 'watch', 'the recommended experience');
-    assert.ok((await plan().locator('[data-proposal-section="requirements"]').innerText()).includes(REASON), "the recommendation's reason");
+    assert.deepEqual(await plan().locator('[data-plan-changes] li').allInnerTexts(), ['Left mass: 1–10 kg', 'Pivot: Centre or Left'], 'what can change, from the plan');
+    assert.equal((await plan().locator('[data-plan-starts]').innerText()).trim(), 'Starts at 2 kg · Centre.');
+    assert.equal((await plan().locator('[data-plan-caveat]').innerText()).trim(), 'Rigid, massless beam.');
+    assert.equal(await plan().locator('[data-plan-disclosure="limitations"]').getAttribute('open'), null, 'limitations start collapsed');
+    assert.equal(await plan().locator('[data-proposal-section="requirements"], [data-proposal-request-block]').count(), 0, 'no internal plan lines, no request echo');
     await g.locator(`[data-block-id="${job.cardId}"] [data-animation-pending]`).waitFor({ state: 'attached', timeout: 20000 });
     assert.equal(flow.approves.length, 0, 'nothing approved');
     await plan().screenshot({ path: `${SHOTS}/I-plan.png` });
+    // The same plan with its details opened (owner 2026-10-31: before and after), then closed again.
+    for (const summary of await plan().locator('[data-plan-disclosure] > summary').all()) await summary.click();
+    assert.equal(await plan().locator('[data-plan-disclosure][open]').count(), 2, 'Model assumptions and Limitations open');
+    assert.ok((await plan().locator('[data-plan-disclosure="assumptions"]').innerText()).includes('The pivot has no friction.'));
+    await plan().screenshot({ path: `${SHOTS}/I-plan-details.png` });
+    for (const summary of await plan().locator('[data-plan-disclosure] > summary').all()) await summary.click();
   });
   await step('changing the experience saves version 2; Generate pressed twice sends one approve with it and makes one card, drawn from the served artifact', async () => {
     await plan().locator('[data-proposal-select="experience"]').selectOption('experiment');

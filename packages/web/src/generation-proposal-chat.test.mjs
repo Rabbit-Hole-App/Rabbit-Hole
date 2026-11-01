@@ -291,7 +291,7 @@ test('simple material briefs: their start adapter, their conversational Edit and
 
 // AN-05 (/animation): its plan is a job proposal like /explain's brief. Generate approves the waiting job (no card is added), Edit
 // refines it through the same path, and the review card says it is a 3D animation, never an explanation.
-test('an /animation plan approves its job like an /explain brief, with its own heading and cost note', async () => {
+test('an /animation plan approves its job like an /explain brief, with its own heading and no cost note', async () => {
   const { approvesJob, startAdapter, jobReviewCopy, EXPLAIN_REVIEW_HEADING } = await import('./generation-proposal-chat.js');
   const plan = { command: 'animation', proposal_id: 'gp-1', version: 1, input: { job: 'aj_1', plan_hash: 'h' } };
   assert.equal(approvesJob(plan), true);
@@ -299,9 +299,6 @@ test('an /animation plan approves its job like an /explain brief, with its own h
   assert.equal(startAdapter(plan, {}), null, 'no approve here, no Generate');
   assert.equal(editPath(plan, { refineExplain: () => {} }), 'explain', 'Edit refines the job (LearnPage routes it to the animation job)');
   assert.equal(approvesJob({ command: 'animation', input: {} }), false, 'no job, nothing to approve');
-  assert.deepEqual(Object.keys(jobReviewCopy(plan)), ['eyebrow', 'note']);
-  assert.equal(jobReviewCopy(plan).eyebrow, 'Review 3D animation');
-  assert.match(jobReviewCopy(plan).note, /building the scene/);
-  assert.doesNotMatch(jobReviewCopy(plan).note, /explanation|\$|\.\.\.|…/);
+  assert.deepEqual(jobReviewCopy(plan), { eyebrow: 'Review your scene' });
   assert.equal(jobReviewCopy({ command: 'explain' }).eyebrow, EXPLAIN_REVIEW_HEADING);
 });

@@ -154,8 +154,8 @@ test('the planner: an unsupported request gets the server\'s own limitation, a p
   const job = { prompt: 'Walk through a physics lab', evidence: [], context: null };
   const out = await prepareStage(job, { call: call(planReply(experimentFixture, { requested: { experience: 'walkthrough', behavior: 'physics', features: ['attached_models', 'parameters'] } })) });
   assert.deepEqual(out.plan.limitations.slice(0, 3), [
-    'You asked for a walkthrough, which is not available yet; this plan uses experiment experience instead.',
-    'You asked for real physics simulation, which is not available yet; this plan uses analytical behavior instead.',
+    'You asked for a walkthrough, which is not available yet; this plan makes an experiment instead.',
+    'You asked for real physics simulation, which is not available yet; this plan uses motion computed from formulas instead.',
     'You asked for attached models, which is not available yet; this plan works without it.']);
   assert.equal(out.plan.experience, 'experiment');
   await assert.rejects(prepareStage(job, { call: call(planReply(experimentFixture, { experience: 'walkthrough' })) }), { code: 'invalid_turn' });

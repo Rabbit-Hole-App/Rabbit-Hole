@@ -800,8 +800,9 @@ export const BLOCK_TYPES = {
   },
   cad: { label: 'CAD', width: 560, height: 480, autoMax: 900, sample: () => ({ id: crypto.randomUUID(), type: 'cad', title: 'CAD model', status: 'queued', dx: 0, dy: 0 }) },
   // /animation (AN-03): a working 3D viewport, never the text card's natural-height clamp; a fixed size the learner resizes.
-  // The sample is a built-in example (fixtures.js), shown as one on the card.
-  animation3d: { label: 'Animation', width: 560, height: 560, autoMax: 900, sample: () => ({ id: crypto.randomUUID(), type: 'animation3d', title: 'Beam balance', fixtureId: 'beam-balance-experiment', dx: 0, dy: 0 }) },
+  // The sample is a built-in example (fixtures.js), shown as one on the card. Until a scene is attached (a generation waiting, running,
+  // stopped or failed) the card is its content's height, not an empty viewport (owner, 2026-10-31).
+  animation3d: { label: 'Animation', width: 560, height: 560, autoMax: 900, sizeFor: block => (block.animation3d?.ref || block.fixtureId ? null : { width: 560, height: undefined }), sample: () => ({ id: crypto.randomUUID(), type: 'animation3d', title: 'Beam balance', fixtureId: 'beam-balance-experiment', dx: 0, dy: 0 }) },
   model3d: {
     label: '3D model',
     width: 560,

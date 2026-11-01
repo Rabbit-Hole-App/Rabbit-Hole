@@ -30,7 +30,7 @@ import { isReviewProposal } from '../../web/src/generation-review.js';
 import { canonicalJson } from './explain-render.js';
 import { beginStage, countStage, endStage, markTiming, newTiming, timingSummary } from './explain-policy.js';
 import { hashAnimationPlan } from '../../web/src/animation3d/contract.js';
-import { approvedPlan, prepareStage } from './animation-brief.js';
+import { ASKED_FOR, approvedPlan, prepareStage } from './animation-brief.js';
 import { artifactIntact, authorStage, validateStage } from './animation-author.js';
 import { renderProbe, renderStage } from './animation-render.js';
 import { ANIMATION_FIXTURES } from '../../web/src/animation3d/fixtures.js';
@@ -110,6 +110,16 @@ export function planLines(plan) {
     ...(plan.parameters || []).map(p => `Parameter: ${p.label}${p.unit ? ` (${p.unit})` : ''}${p.type === 'number' ? `, ${p.min} to ${p.max}, default ${p.default}` : p.options ? `, one of ${p.options.map(o => o.label ?? o.value ?? o).join(', ')}` : ''}`),
     ...(plan.learningGoal ? [`Goal: ${plan.learningGoal}`] : [])];
   return lines.map(l => clean(l, 300)).filter(Boolean).slice(0, 20);
+}
+// The plan's learner-facing parts for the review card's short summary (web animation3d/PlanSummary.jsx, owner 2026-10-31): its
+// parameters (label, unit, range or choices, starting value), what the learner can do, and the server's own "you asked for" lines,
+// which stay in view. planLines above stays the signed full plan; ids, behavior and control enums never reach this summary.
+export function planScene(plan) {
+  return {
+    parameters: (plan.parameters || []).map(({ id: _id, ...p }) => p),
+    interactions: (plan.interactions || []).map(i => clean(typeof i === 'string' ? i : i.label || i.description || '', 200)).filter(Boolean),
+    notices: (plan.limitations || []).filter(l => typeof l === 'string' && l.startsWith(ASKED_FOR)),
+  };
 }
 
 // Dev-only render probe (owner priority, 2026-10-30): a contract fixture rendered through the real review capture path, with no model call
@@ -345,7 +355,7 @@ export class AnimationJobs {
     const p = await signProposal(this.env, { command: ANIMATION_COMMAND, title: plan.title, description: plan.description, settings: { experience: plan.experience }, source_refs: [],
       assumptions: (plan.assumptions || []).map(a => clean(a, 300)).filter(Boolean).slice(0, 20),
       limitations: [...notes, ...(plan.limitations || [])].map(a => clean(a, 300)).filter(Boolean).slice(0, 20), requirements: planLines(plan),
-      input: { org: job.owner.org, app: job.app, job: job.id, plan_hash: job.planHash, request: job.prompt.slice(0, 500) } }, job.owner.email,
+      input: { org: job.owner.org, app: job.app, job: job.id, plan_hash: job.planHash, request: job.prompt.slice(0, 500), scene: planScene(plan) } }, job.owner.email,
     { envelope: envelopeFor(this.env, { org: job.owner.org, app: job.app }), ...(previous ? { id: previous.id, version: (record?.current?.version ?? previous.version) + 1 } : {}) });
     const row = await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?) RETURNING id').bind(job.threadId, 'assistant', 'Here is the plan for your animation. Generate makes it.').first();
     const meta = { version: 1, mode: 'ask', kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, proposal: p, ...(previous ? {} : { proposalState: proposalState(p) }) };

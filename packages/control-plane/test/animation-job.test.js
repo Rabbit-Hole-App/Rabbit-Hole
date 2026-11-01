@@ -3,7 +3,7 @@
 // (one repair, final re-review), stop/retry, late results and the admission check.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { animationRoute, planLines } from '../src/animation-job.js';
+import { animationRoute, planLines, planScene } from '../src/animation-job.js';
 import { animationReservation } from '../src/animation-policy.js';
 import { signProposal } from '../src/generation-proposal.js';
 import { BOARD, NEEDS_PROPOSAL, OWNER, PLAN, STUB_PIPELINE, TASKS, animationStack, postedProposal, rows } from './animation-fixture.js';
@@ -23,6 +23,10 @@ test('a request prepares one plan and waits: the signed proposal carries the rec
   assert.deepEqual([p.command, p.settings, p.input.job, p.input.plan_hash, p.sig.startsWith('v3.')], ['animation', { experience: 'experiment' }, body.job.id, waiting.planHash, true]);
   assert.deepEqual(p.requirements, planLines(PLAN));
   assert.match(p.requirements[0], /^Recommended: experiment\. Changing the masses/);
+  // The review card's short summary (owner 2026-10-31) is signed beside the full plan lines: parameters without ids, the actions.
+  assert.deepEqual(p.input.scene, planScene(PLAN));
+  assert.deepEqual(p.input.scene.parameters.map(x => x.label), PLAN.parameters.map(x => x.label));
+  assert.ok(p.input.scene.parameters.every(x => !('id' in x)), 'no ids on the summary');
   // The most it can cost is the build's worst case; nothing is shown as held.
   assert.deepEqual([p.usage.max_credits, p.usage.reserve_credits], [Math.ceil(animationReservation(TASKS).generationMicros / 10000), null]);
   for (let i = 0; i < 3; i++) await s.actor.alarm();
@@ -292,4 +296,11 @@ test('a provider HTTP failure keeps its status code and the provider\'s reason i
   assert.deepEqual([failed.stage, finding.error], ['failed', 'model_http_400']);
   assert.match(finding.message, /\/animation brief is unavailable \(model HTTP 400: x\)/);
   assert.deepEqual(failed.calls.map(c => [c.role, c.status, c.error]), [['brief', 'failed', 'model_http_400']]);
+});
+
+test('planScene keeps only the server-written "you asked for" lines in view, and plain interaction text', () => {
+  const plan = { parameters: [{ type: 'toggle', id: 'f', label: 'Forces', default: true }], interactions: ['Flip the forces on.', '  '],
+    limitations: ['You asked for a walkthrough, which is not available yet; this plan makes an experiment instead.', 'Not to scale.'] };
+  assert.deepEqual(planScene(plan), { parameters: [{ type: 'toggle', label: 'Forces', default: true }], interactions: ['Flip the forces on.'],
+    notices: ['You asked for a walkthrough, which is not available yet; this plan makes an experiment instead.'] });
 });
