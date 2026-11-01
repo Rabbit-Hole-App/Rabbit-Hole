@@ -270,3 +270,56 @@ run('a saved snapshot restores paused without initialize; dispose settles pendin
   assert.deepEqual(stale.runtime.snapshot().state, { x: 0, z: 0, moves: 0, status: 'playing' }, 'a snapshot of another revision starts fresh');
   stale.runtime.dispose();
 });
+
+// CI fast-e2e 5c79023f7 step 28: a restore whose engine missed its boot deadline started fresh, so a saved 7 came back as the default.
+run('an engine that fails while a saved state is restored fails ready; the saved state is never replaced by a fresh start', async () => {
+  const first = start(gameFixture.artifact, { workerFactory: workers().factory });
+  await first.runtime.ready;
+  await first.runtime.dispatch({ type: 'action', action: 'south' });
+  const saved = first.runtime.snapshot();
+  first.runtime.dispose();
+  const good = workers();
+  let made = 0;
+  const factory = () => (++made === 1 ? { terminate() {}, postMessage() {} } : good.factory()); // the first never says ready
+  const stuck = start(gameFixture.artifact, { workerFactory: factory, saved, limits: { ...LIMITS, bootMs: 20 } });
+  await assert.rejects(stuck.runtime.ready, { code: 'runtime_limit' });
+  assert.equal(good.log.started, 0, 'no fresh start');
+  stuck.runtime.dispose();
+  const again = start(gameFixture.artifact, { workerFactory: good.factory, saved });
+  await again.runtime.ready;
+  assert.deepEqual(again.runtime.snapshot().state, saved.state, 'a retry restores it');
+  again.runtime.dispose();
+  assert.equal(liveAnimationWorkers(), 0);
+});
+
+// CI fast-e2e 5c79023f7: framing.js's view samplers took engines from the cards (and from each other), so engines rebooted for nearly
+// every call and cards missed their boot deadline. A background runtime only takes a free engine; a card takes one back from it.
+run('a background runtime takes only a free engine, never a card\'s; a card that needs one takes it back mid-call', async () => {
+  const cards = workers(), first = workers();
+  const a = start(experimentFixture.artifact, { workerFactory: cards.factory });
+  const b = start(gameFixture.artifact, { workerFactory: cards.factory });
+  await Promise.all([a.runtime.ready, b.runtime.ready]);
+  const refused = start(experimentFixture.artifact, { workerFactory: first.factory, background: true });
+  await assert.rejects(refused.runtime.ready, { code: 'runtime_limit' });
+  assert.equal(first.log.started, 0, 'no engine taken from a card, and no waiting');
+  assert.equal(cards.log.started, 2);
+  refused.runtime.dispose();
+  b.runtime.dispose();
+
+  let evaluates = 0;
+  const held = workers({ tamper: (data, message) => (message.operation === 'evaluate' && ++evaluates === 2 ? null : data) }); // its second call hangs
+  const sampler = start(experimentFixture.artifact, { workerFactory: held.factory, background: true });
+  await sampler.runtime.ready; // the free engine
+  const inFlight = sampler.runtime.dispatch({ type: 'parameter', parameter: 'leftMass', value: 10 });
+  await flush();
+  const c = start(gameFixture.artifact, { workerFactory: cards.factory });
+  await c.runtime.ready;
+  assert.equal((await inFlight).reason, 'disposed', 'the card took the sampler\'s engine mid-call');
+  assert.equal((await sampler.runtime.dispatch({ type: 'parameter', parameter: 'leftMass', value: 9 })).reason, 'disposed', 'and it is finished');
+  assert.equal(held.log.started, 1, 'it never takes an engine again');
+  assert.equal((await a.runtime.dispatch({ type: 'parameter', parameter: 'leftMass', value: 5 })).accepted, true);
+  assert.equal(cards.log.started, 3, 'the other card kept its engine');
+  assert.deepEqual(sampler.errors, [], 'nothing reported for a background runtime taken back');
+  for (const item of [a, c, sampler]) item.runtime.dispose();
+  assert.equal(liveAnimationWorkers(), 0);
+});

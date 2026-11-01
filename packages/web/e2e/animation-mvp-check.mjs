@@ -144,6 +144,7 @@ const eq = (got, want, abs) => (abs === undefined ? close(got, want) : within(go
 const sameNodes = (got, want, label, abs) => { for (const [id, t] of Object.entries(want)) for (const k of Object.keys(t)) assert.ok(eq(got?.[id]?.[k], t[k], abs), `${label}: node ${id} ${k} ${JSON.stringify(got?.[id]?.[k])}, oracle ${JSON.stringify(t[k])}`); };
 // The readouts three ways: the shown element's raw value, its text at the declared decimals, and the applied frame's value.
 const sameReadouts = async (p, kind, want, label, abs) => {
+  await more(p); // a collapsed readout's text reads as empty (innerText); a reload collapses them again
   const applied = (await frame(p)).readouts || {};
   for (const [rid, value] of Object.entries(want)) {
     const shown = Number(await p.readout(rid).getAttribute('data-value')), decimals = FIXTURES[kind].readouts.find(r => r.id === rid)?.decimals;
@@ -264,7 +265,7 @@ try {
 
   // ---- Experiment: min / max / default against the oracle (AN-04/07) ----
   const exp = FIXTURES.experiment;
-  const setParam = async (id, value) => { await X.param(id).fill(String(value)); await X.param(id).press('Enter'); await page.waitForTimeout(400); };
+  const setParam = async (id, value) => { await more(X); await X.param(id).fill(String(value)); await X.param(id).press('Enter'); await page.waitForTimeout(400); };
   // One parameter at a time at its minimum, maximum and default, the others at their defaults: each moves the geometry (the beam's
   // tilt, a weight's place) and the readouts, and every value is the oracle's.
   for (const [label, pick] of [['minimum', p => p.min], ['maximum', p => p.max], ['default', p => p.default]]) {

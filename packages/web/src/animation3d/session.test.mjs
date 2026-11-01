@@ -256,8 +256,8 @@ test('the grid game (real runtime): moves and outcome come from the program; res
   h.session.dispose();
 });
 
-// The fitted view (framing.js, lane R2): asked once per scene when no camera was saved, with the viewport's aspect and the session's
-// own runtime factory; a saved camera wins; Reset view returns to the fitted camera, never to the authored one.
+// The fitted view (framing.js, lane R2): asked once per scene when no camera was saved, with the viewport's aspect, the shown frame
+// and the session's own runtime factory; a saved camera wins; Reset view returns to the fitted camera, never to the authored one.
 const FIT = { position: [0, 1, 6], target: [0, 0.5, 0], fov: 40 };
 const box = { clientWidth: 600, clientHeight: 300 };
 test('fitted view: applied when no camera was saved; Reset view returns to it; a saved camera wins and nothing is fitted', async () => {
@@ -269,6 +269,7 @@ test('fitted view: applied when no camera was saved; Reset view returns to it; a
   assert.equal(asked[0].aspect, 2);
   assert.equal(asked[0].createRuntime, h.runtimes.factory);
   assert.equal(asked[0].artifact.artifactId, validated(experimentArtifact()).artifactId);
+  assert.deepEqual(asked[0].frame, h.state().frame, 'the frame the card shows, the subject if the sampler gets none');
   const renderer = h.renderers.made[0];
   assert.deepEqual(renderer.cameras, [FIT], 'the fitted camera, after load');
   renderer.options.onCameraChange({ position: [9, 9, 9], target: [0, 0, 0], fov: 40 });
@@ -285,14 +286,38 @@ test('fitted view: applied when no camera was saved; Reset view returns to it; a
   s.session.dispose();
 });
 
-test('fitted view: a camera the learner moved before the fit answered is kept; no fit keeps the authored camera', async () => {
+// CI fast-e2e 5c79023f7: a fit that landed after the scene was shown moved an idle scene (steps 17 and 19), and a sampler started
+// beside the card's own runtime slowed the restore of its saved state (step 28).
+test('fitted view: asked only once the card\'s runtime is ready, and the scene is first drawn already fitted; once per scene', async () => {
+  const held = deferred(), asked = [], late = deferred();
+  const base = stubRuntimes();
+  const runtimes = { made: base.made, factory: options => { const runtime = base.factory(options); const shown = runtime.ready; runtime.ready = held.promise.then(() => shown); return runtime; } };
+  const h = harness({ runtimes, fitView: options => { asked.push(options); return late.promise; } });
+  h.session.attach(box);
+  const starting = h.session.start(h.block);
+  await settle();
+  assert.equal(asked.length, 0, 'no sampler while the card\'s own runtime starts');
+  held.resolve(); await starting; await settle();
+  assert.equal(asked.length, 1);
+  assert.equal(h.renderers.made.length, 0, 'nothing drawn while the fit is asked');
+  assert.notEqual(h.state().renderer, 'ready');
+  late.resolve(FIT); await settle();
+  assert.deepEqual(h.renderers.made[0].cameras, [FIT], 'the first camera shown is the fitted one');
+  assert.equal(h.state().renderer, 'ready');
+  h.renderers.made[0].options.onLost();
+  await h.session.retry(); await settle();
+  assert.deepEqual(h.renderers.made[1].cameras, [FIT], 'a rebuilt 3D view is fitted again');
+  assert.equal(asked.length, 1, 'without a new sample');
+  h.session.dispose();
+});
+
+test('fitted view: a fit given up on with the slot (detach) draws nothing; no fit keeps the authored camera', async () => {
   const late = deferred();
   const h = harness({ runtimes: stubRuntimes(), fitView: () => late.promise });
   h.session.attach(box); await h.session.start(h.block); await settle();
-  const renderer = h.renderers.made[0];
-  renderer.options.onCameraChange({ position: [3, 3, 3], target: [0, 0, 0], fov: 50 });
+  h.session.detach();
   late.resolve(FIT); await settle();
-  assert.deepEqual(renderer.cameras, [], 'the late fit never moves a camera the learner moved');
+  assert.equal(h.renderers.made.length, 0, 'the late fit builds no renderer for a slot given back');
   h.session.dispose();
   const n = harness({ runtimes: stubRuntimes(), fitView: async () => null });
   n.session.attach(box); await n.session.start(n.block); await settle();

@@ -3,8 +3,10 @@
 // this file owns admission, deadlines, ordering and the atomic commit. explain_program admission (host.js) is not used or widened:
 // an animation artifact is admitted here by the animation contract, its exact program tuple and its recomputed sourceHash.
 //
-//   createAnimationRuntime({ artifact, workerFactory?, onFrame(frame, { time, stamp }), onError(error), saved?, inputs?, clock? }) ->
+//   createAnimationRuntime({ artifact, workerFactory?, onFrame(frame, { time, stamp }), onError(error), saved?, inputs?, clock?, background? }) ->
 //     (inputs: the starting parameter values, invalid ones replaced by defaults; reset always returns to the defaults)
+//     (background: framing.js's view sampler. It only takes a free engine and gives up at once when there is none; a card's runtime
+//      that needs an engine takes a background one's first, even mid-call, and that background runtime is finished)
 //     ready: Promise          admitted, initial (or hydrated) state committed and its frame published; rejects an AnimationRuntimeError
 //     dispatch(event)         -> Promise<{ accepted: true, snapshot } | { accepted: false, reason, issues? }>
 //     play() / pause()        -> { accepted, reason? }   a timeline (watch) loops or stops; a stepped rules scene ticks at 1/30 s
@@ -53,6 +55,8 @@ export class AnimationRuntimeError extends Error {
   }
 }
 const frameOverrun = error => error?.code === 'runtime_limit' && error.diagnostic === 'time limit'; // runProgram's own 50 ms deadline
+// The engine failed (boot, load, host watchdog, a crashed Worker), not the program: it says nothing about a saved state.
+const engineFailure = error => error?.phase === 'engine' || /^(engine |host watchdog)/.test(error?.diagnostic ?? '');
 
 const defaultWorker = () => new Worker(new URL('../explain-program/worker.js', import.meta.url), { type: 'module' });
 const defaultClock = {
@@ -69,20 +73,25 @@ const waiters = [];
 const wake = () => waiters.splice(0).forEach(resolve => resolve());
 export const liveAnimationWorkers = () => live.size;
 
-function createChannel({ workerFactory, limits, source }) {
+// CI fast-e2e 5c79023f7: three cards' view samplers evicting each other's and the cards' idle Workers rebooted an engine for nearly
+// every call, so cards missed their boot deadline ("The scene stopped responding") and the page stalled. A background member never
+// evicts or waits, and is evicted first.
+function createChannel({ workerFactory, limits, source, background = false }) {
   let worker = null, booting = null, busy = false, dead = false, idleTimer, count = 0, pending = null;
-  const member = { busy: () => busy, release: () => stop() };
+  // Evicted: a card's member just stops its idle Worker (it boots again on its next call); a background member is finished.
+  const member = { busy: () => busy, background, release: () => { if (background) dead = true; stop(new AnimationRuntimeError('disposed')); } };
   function stop(error) {
     clearTimeout(idleTimer);
     if (worker) { worker.onmessage = worker.onerror = null; worker.terminate(); }
     worker = booting = null;
-    if (error && pending) pending(error);
+    if (error && pending) pending(error); // the call in flight, or the boot it waits for
     if (live.delete(member)) wake();
   }
   async function acquire() {
     while (!live.has(member) && live.size >= limits.activeRuntimes) {
-      const idle = [...live].find(other => !other.busy());
-      if (idle) idle.release();
+      if (background) throw new AnimationRuntimeError('runtime_limit', 'no free engine');
+      const other = [...live].find(item => item.background) ?? [...live].find(item => !item.busy()); // else the least recently used idle one
+      if (other) other.release();
       else await new Promise(resolve => waiters.push(resolve));
       if (dead) throw new AnimationRuntimeError('disposed');
     }
@@ -94,7 +103,8 @@ function createChannel({ workerFactory, limits, source }) {
     worker = started;
     const timer = setTimeout(() => { if (worker === started) stop(); reject(new AnimationRuntimeError('runtime_limit', 'engine boot deadline')); }, limits.bootMs);
     const failed = () => { clearTimeout(timer); if (worker === started) stop(); reject(new AnimationRuntimeError('invalid_program', 'engine did not load')); };
-    started.onmessage = ({ data }) => (data?.ready ? (clearTimeout(timer), resolve(started)) : failed());
+    pending = error => { clearTimeout(timer); pending = null; reject(error); };
+    started.onmessage = ({ data }) => (data?.ready ? (clearTimeout(timer), pending = null, resolve(started)) : failed());
     started.onerror = failed;
   });
   const send = (target, operation, request) => new Promise((resolve, reject) => {
@@ -133,7 +143,7 @@ function createChannel({ workerFactory, limits, source }) {
 
 export function createAnimationRuntime({
   artifact: raw, workerFactory = defaultWorker, onFrame = () => {}, onError = () => {}, saved = null, inputs: initialInputs = {},
-  capabilities = ANIMATION_CAPABILITIES, limits = LIMITS, clock = defaultClock,
+  capabilities = ANIMATION_CAPABILITIES, limits = LIMITS, clock = defaultClock, background = false,
 }) {
   let artifact = null, channel = null, committed = null, dead = false, generation = 0, stateful = false;
   let queue = [], busy = null, frameWanted = null, overruns = 0;
@@ -192,13 +202,15 @@ export function createAnimationRuntime({
       if (!result.ok) throw new AnimationRuntimeError('invalid_artifact', JSON.stringify(result.issues ?? result.reason));
       return;
     }
-    channel = createChannel({ workerFactory, limits, source: program.source });
+    channel = createChannel({ workerFactory, limits, source: program.source, background });
     // A saved snapshot is restored as it is (paused, no initialize) when it still validates with its own frame; otherwise start fresh.
+    // An engine failure is not the snapshot's: ready fails (the card's retry restores it) rather than replace the learner's saved state
+    // with the defaults (CI fast-e2e 5c79023f7 step 28: a boot slowed by another Worker reloaded a saved 7 as the default 4).
     if (saved) {
       try {
         const frame = await evaluate(saved.inputs, saved.time, saved.state);
         if (commit({ artifact, snapshot: saved, frame }, null, gen).ok) { reanchor(committed.snapshot.time); return; }
-      } catch (error) { if (error?.code === 'disposed') throw error; }
+      } catch (error) { if (error?.code === 'disposed' || engineFailure(error)) throw error; }
     }
     const result = commit({ artifact, ...(await initialCandidate(resolveAnimationInputs(artifact, initialInputs))) }, null, gen);
     if (!result.ok) throw new AnimationRuntimeError(result.reason === 'stale' ? 'disposed' : 'invalid_output', JSON.stringify(result.issues ?? []), 'evaluate');

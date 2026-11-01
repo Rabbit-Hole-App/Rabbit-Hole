@@ -48,6 +48,20 @@ row in [spend.md](spend.md).
 
 ## Resolved
 
+### FX-AN-024 — the camera-fit sampler starved learner runtimes (fast-e2e 41272196685: 16 of 34 animation steps failed)
+- Cause: each card's fit sampler took a slot of the 2-Worker animation pool and evicted idle cards' Workers, so calls re-booted
+  Workers (the check's route handler disables the HTTP cache, so each boot re-fetched and recompiled QuickJS) and cards missed
+  the 2 s boot deadline ("The scene stopped responding"); a late fit also moved an idle scene after a baseline. A restore that
+  hit an engine failure was silently restarted from the defaults (the saved input came back as the default).
+- Fix: `runtime.js` background mode (a sampler only takes a free Worker, never evicts or waits; a card preempts it; stopping
+  cancels a pending boot); an engine failure during a restore fails `ready` and Restart scene restores the saved state.
+  `framing.js` samples at most 12 frames in 1 s as a background runtime and otherwise fits the frame shown. `session.js` fits
+  before the first draw (no later jump). The check opens collapsed sections before reading readouts.
+- Also (control plane): a reviewer that answers in prose with no report_review call is asked once more within the build's
+  review calls (accept-11); the review judges size and layout in the default view, not side-view foreshortening, and accepts a
+  smaller subject at a parameter extreme while it stays visible; strings and rods must not be hairlines; no label on small parts.
+- Limit: on a board where both Workers are held by idle cards, a card is fitted from the frame it shows, not its motion range.
+
 ### FX-AN-023 — generated scenes worked but looked poor (owner review of the pendulum, 2026-10-31 PT)
 - Owner: tiny subject in empty space, blurry scene labels, cheap geometry/materials, labels larger than the geometry and not
   shrinking on zoom-out, controls competing with the scene, Interact buried, unclear resets.

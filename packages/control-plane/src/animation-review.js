@@ -6,7 +6,7 @@
 // (explain-review.js REVIEW_TOOL, parseReview): one semantic and one visual verdict per capture.
 import { REVIEW_LIMITS, REVIEW_TOOL, ReviewError, parseReview } from './explain-review.js';
 import { ANIMATION_REVIEW_SYSTEM } from './agents/animation-author.js';
-import { ANIMATION_ROLES } from './animation-policy.js';
+import { ANIMATION_ROLES, AnimationPolicyError } from './animation-policy.js';
 import { learnMedia } from './learn-storage.js';
 
 export const ANIMATION_REVIEW_LIMITS = Object.freeze({ ...REVIEW_LIMITS, maxImages: ANIMATION_ROLES.review.maxImages });
@@ -77,7 +77,14 @@ export async function reviewStage(job, ctx) {
   try { built = buildReviewContent({ request: job.prompt, plan: job.plan, artifact: job.artifact, artifactHash: job.artifactHash, captures, evidence: job.evidence || [], coverage: job.coverage }); }
   catch (error) { throw error instanceof ReviewError ? refuse(error) : error; }
   // The call's own failure (provider, budget, invalid turn) is the job's to record; an unparseable verdict is a failed review.
-  const reply = await ctx.call('review', { system: ANIMATION_REVIEW_SYSTEM, tool: REVIEW_TOOL, content: built.content });
+  let reply;
+  try { reply = await ctx.call('review', { system: ANIMATION_REVIEW_SYSTEM, tool: REVIEW_TOOL, content: built.content }); }
+  catch (error) {
+    // A reviewer that answered in prose with no report_review call (accept-11, stop end_turn) is asked once more, within the build's
+    // review calls. shortcut: it uses the second review, so a repair after it has no review left and stops as the limit says.
+    if (!(error instanceof AnimationPolicyError && error.code === 'invalid_turn' && error.calls === 0)) throw error;
+    reply = await ctx.call('review', { system: ANIMATION_REVIEW_SYSTEM, tool: REVIEW_TOOL, content: built.content });
+  }
   const imageBlocks = built.imageBlocks;
   let parsed;
   try { parsed = parseReview(reply.input, captures); } catch (error) { throw error instanceof ReviewError ? Object.assign(error, { status: 502, category: 'transport', message: `The animation review was incomplete (${error.code}).` }) : error; }

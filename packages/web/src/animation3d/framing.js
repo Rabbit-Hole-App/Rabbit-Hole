@@ -1,10 +1,13 @@
 // The fitted view of an /animation scene (quality correction 2026-10-31: generated scenes showed a tiny subject in a mostly empty
 // view, or a camera under a huge ceiling). The camera keeps the authored viewing direction and field of view and is moved to frame
 // the subject over its whole movement range, sampled ONCE per artifact by a short-lived runtime of its own (runtime.js over the
-// same engine as the card, never the learner's runtime), so the view never zooms during playback or a parameter change.
-//   fitAnimationView({ artifact, aspect, workerFactory?, createRuntime?, signal? }) -> Promise<{ position, target, fov } | null>
+// same engine as the card, never the learner's runtime), so the view never zooms during playback or a parameter change. That
+// runtime is a background one: it runs only on a free engine and yields to any card that needs it (runtime.js), so a board of
+// several cards frames each from the frame it shows instead.
+//   fitAnimationView({ artifact, aspect, frame?, workerFactory?, createRuntime?, signal? }) -> Promise<{ position, target, fov } | null>
+//     frame: the frame the card shows, the subject when the sampler gets no frame of its own.
 //     null: aborted, an invalid artifact or nothing drawable; keep the authored camera.
-//   animationSubject({ artifact, workerFactory?, createRuntime?, signal? }) -> Promise<Vector3[] | null>   the sampled subject
+//   animationSubject({ artifact, frame?, workerFactory?, createRuntime?, signal? }) -> Promise<Vector3[] | null>   the sampled subject
 //   fitCameraToPoints(points, camera, aspect) -> camera     that subject along one view's direction (the review page's two views)
 //   sampleAnimationFrames(...) -> Promise<frame[] | null>,  subjectPoints(scene, frames) -> Vector3[] | null   (the two halves)
 import * as THREE from 'three';
@@ -15,22 +18,26 @@ import { buildAnimationScene } from './scene.js';
 
 // fill: the subject spans this share of the view's height or width (a 10% margin each side, room for a label plate beside an
 // edge). sheet / dwarf: a backdrop is a flat mesh larger than sheet x, or any mesh larger than dwarf x, the rest of the scene.
-export const FRAMING = Object.freeze({ fill: 0.8, samples: 24, budgetMs: 1500, ticks: 30, sheet: 1.25, dwarf: 3 });
+// samples / budgetMs: the card waits for the fit before it first draws (session.js), so the sample is short.
+export const FRAMING = Object.freeze({ fill: 0.8, samples: 12, budgetMs: 1000, ticks: 30, sheet: 1.25, dwarf: 3 });
 
 const extent = box => { const size = box.getSize(new THREE.Vector3()); return Math.max(size.x, size.y, size.z); };
 
 // The frames of the movement range, in priority order (the sample cap and time budget cut from the end): the initial frame and a
 // seekable loop at 1/4, 1/2, 3/4; every number parameter at its max then its min (with the loop again); each number alone at
 // each end; every other select and toggle value; each drag range end; each action once; a stepped scene advanced three times.
-// Any refusal or error falls back to the initial frame only (none when the runtime never got ready); an abort answers null.
-export async function sampleAnimationFrames({ artifact, workerFactory, createRuntime = createAnimationRuntime, signal, now = () => performance.now() }) {
+// Any refusal or error (no free engine included) falls back to the initial frame only (`frame` when the runtime never got ready);
+// at the time budget the runtime is stopped and the frames already taken are kept; an abort answers null.
+export async function sampleAnimationFrames({ artifact, frame = null, workerFactory, createRuntime = createAnimationRuntime, signal, now = () => performance.now() }) {
   const parsed = validateAnimationArtifact(artifact);
   if (!parsed.ok) return null;
   const { parameters, actions, timeline, behavior, stepped, scene } = parsed.value;
   const frames = [], deadline = now() + FRAMING.budgetMs;
-  let latest = null;
-  const runtime = createRuntime({ artifact, workerFactory, onFrame: frame => { latest = frame; } });
+  let latest = null, late = false;
+  const runtime = createRuntime({ artifact, workerFactory, background: true, onFrame: next => { latest = next; } });
   signal?.addEventListener('abort', () => runtime.dispose(), { once: true }); // a closed card stops the sample at once (its Worker too)
+  const timer = setTimeout(() => { late = true; runtime.dispose(); }, FRAMING.budgetMs); // a slow boot or call never holds the card
+  const fallback = kept => (kept.length || !frame ? kept : [frame]);
   const room = () => frames.length < FRAMING.samples && now() < deadline && !signal?.aborted;
   const accept = async pending => { const result = await pending; if (!result.accepted) throw new Error(result.reason); };
   const send = event => accept(runtime.dispatch(event));
@@ -62,11 +69,12 @@ export async function sampleAnimationFrames({ artifact, workerFactory, createRun
     for (const action of actions) await capture(() => send({ type: 'action', action: action.id }));
     if (stepped) for (let i = 0; i < 3; i += 1) await capture(() => accept(runtime.advance(FRAMING.ticks)));
   } catch {
-    if (!signal?.aborted) return frames.slice(0, 1);
+    if (!signal?.aborted) return fallback(late ? frames : frames.slice(0, 1));
   } finally {
+    clearTimeout(timer);
     runtime.dispose();
   }
-  return signal?.aborted ? null : frames;
+  return signal?.aborted ? null : fallback(frames);
 }
 
 // The subject over every frame (applied in order to `scene`, a scene.js build the caller owns; with no frames, the authored scene),
@@ -141,17 +149,17 @@ export function fitCameraToPoints(points, { position, target, fov = 50 }, aspect
 
 const plainLabel = () => ({ texture: new THREE.Texture(), aspect: 1 }); // a measuring scene is never drawn
 
-export async function animationSubject({ artifact, workerFactory, createRuntime, signal }) {
-  const frames = await sampleAnimationFrames({ artifact, workerFactory, createRuntime, signal });
+export async function animationSubject({ artifact, frame, workerFactory, createRuntime, signal }) {
+  const frames = await sampleAnimationFrames({ artifact, frame, workerFactory, createRuntime, signal });
   if (!frames || signal?.aborted) return null;
   const built = buildAnimationScene(artifact, { labelTexture: plainLabel });
   if (!built.ok) return null;
   try { return subjectPoints(built.scene, frames); } finally { built.scene.dispose(); }
 }
 
-export async function fitAnimationView({ artifact, aspect, workerFactory, createRuntime, signal }) {
+export async function fitAnimationView({ artifact, aspect, frame, workerFactory, createRuntime, signal }) {
   const parsed = validateAnimationArtifact(artifact);
   if (!parsed.ok || !(Number.isFinite(aspect) && aspect > 0)) return null;
-  const points = await animationSubject({ artifact, workerFactory, createRuntime, signal });
+  const points = await animationSubject({ artifact, frame, workerFactory, createRuntime, signal });
   return points && !signal?.aborted ? fitCameraToPoints(points, parsed.value.camera, aspect) : null;
 }

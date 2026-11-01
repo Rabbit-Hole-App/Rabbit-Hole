@@ -29,4 +29,10 @@ From 2026-10-30 (acceptance.next.mjs): provider charges and ledger counts are se
 | 15 | 4:11 PM | G acceptance.mjs | fresh: failed | claude-opus-5-5 | 5 calls, repairs 1 | US$2.5949 | US$0.5059 | US$0.5059 (5 model call(s); 12 render(s), platform, US$0) | - | US$3.3811 | US$3.5027 |
 | 16 | 4:17 PM | G acceptance.mjs | fresh: ready | claude-opus-5-5 | 3 calls, repairs 0 | US$2.5949 | US$0.2735 | US$0.2735 (3 model call(s); 6 render(s), platform, US$0) | `0831533567091007` | US$3.6546 | US$3.7762 |
 
-Total provider: US$3.6546. Total ledger (incl. reserves): US$3.7762. Reserved in flight: US$0.00. Remaining: US$6.2238.
+| 17 | 2026-10-31 7:56 PM | owner try-it (preview, launcher user) | experiment (pendulum 0.1-5 m): failed (rounds, review: short swing not visible) | claude-opus-5-5 | 5 calls, repairs 1 | - | US$0.3303 | US$0.3303 (dev usage_attempts for the launcher user; 12 render(s), platform, US$0) | - | US$3.9849 | US$4.1065 |
+| 18 | 2026-10-31 8:31 PM | owner try-it (preview, launcher user) | experiment (pendulum 0.5-3 m): ready | claude-opus-5-5 | 3 calls, repairs 0 | - | US$0.1834 | US$0.1834 (dev usage_attempts for the launcher user; 6 render(s), platform, US$0) | (job aj_da0909b3) | US$4.1683 | US$4.2899 |
+| 19 | 9:22 PM | G acceptance.mjs | experiment: failed | claude-opus-5-5 | 5 calls, repairs 1 | US$2.5949 | US$0.4063 | US$0.4063 (5 model call(s); 12 render(s), platform, US$0) | - | US$4.5746 | US$4.6962 |
+| 20 | 9:23 PM | G acceptance.mjs | watch: failed | claude-opus-5-5 | 3 calls, repairs 0 | US$2.5949 | US$0.1701 | US$0.1701 (3 model call(s); 6 render(s), platform, US$0; job diagnostics say US$0.1028) | - | US$4.7447 | US$4.8663 |
+| 21 | 9:25 PM | G acceptance.mjs | game: ready | claude-opus-5-5 | 5 calls, repairs 1 | US$2.5949 | US$0.3015 | US$0.3015 (5 model call(s); 12 render(s), platform, US$0) | `d500849cd1b5ea2b` | US$5.0462 | US$5.1678 |
+
+Total provider: US$5.0462. Total ledger (incl. reserves): US$5.1678. Reserved in flight: US$0.00. Remaining: US$4.8322.

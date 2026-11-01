@@ -249,6 +249,24 @@ test('the review is told the sampled times, and a fail verdict explained only by
   assert.equal((await review([{ semantic: 'fail', visual: 'pass', findings: [] }, { semantic: 'pass', visual: 'pass', findings: [] }])).accepted, false);
 });
 
+test('a reviewer that answers in prose is asked once more; a second prose answer, or another refusal, is not retried', async () => {
+  const { AnimationPolicyError } = await import('../src/animation-policy.js');
+  const artifact = watchFixture.artifact, artifactHash = await artifactHashOf(artifact);
+  const captures = [0].map(time => ({ id: 'v0-s0', artifactHash, data: 'AAAA', view: 'default', time, events: [] }));
+  const job = { prompt: 'r', plan: watchFixture.plan, artifact, artifactHash, captures, evidence: [] };
+  const prose = () => new AnimationPolicyError('invalid_turn', '/animation review must return exactly one report_review call (got 0).', { calls: 0 });
+  const verdict = { input: { captures: [{ id: 'v0-s0', semantic: 'pass', visual: 'pass', findings: [] }] } };
+  let calls = 0;
+  const once = await reviewStage(job, { env: {}, call: async () => { calls += 1; if (calls === 1) throw prose(); return verdict; } });
+  assert.deepEqual([once.accepted, calls], [true, 2]);
+  calls = 0;
+  await assert.rejects(reviewStage(job, { env: {}, call: async () => { calls += 1; throw prose(); } }), { code: 'invalid_turn' });
+  assert.equal(calls, 2, 'one retry, not more');
+  calls = 0;
+  await assert.rejects(reviewStage(job, { env: {}, call: async () => { calls += 1; throw new AnimationPolicyError('invalid_turn', 'two calls', { calls: 2 }); } }), { code: 'invalid_turn' });
+  assert.equal(calls, 1, 'only a prose answer (no tool call) is retried');
+});
+
 test('author and repair are told how to place labels', async () => {
   const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js');
   for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /beside the object it names[^.]*never over the object, over another label or floating in empty space/);
@@ -274,7 +292,7 @@ test('every prompt carries the visual standard, the control order and the reques
   const { ANIMATION_BRIEF_SYSTEM, PLAN_TOOL } = await import('../src/agents/animation-brief.js');
   for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) {
     assert.match(system, /subject is large in frame/);
-    assert.match(system, /thin cylinder; a line only for a guide/);
+    assert.match(system, /never a hairline\); a line only for a guide/);
     assert.match(system, /the result the learner asked to see FIRST/);
     assert.match(system, /must stay smaller than the subject it names/);
   }

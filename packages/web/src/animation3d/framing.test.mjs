@@ -118,3 +118,30 @@ test('any refusal falls back to the initial frame only; an abort answers null; t
   assert.equal(await sampleAnimationFrames({ artifact: experimentFixture.artifact, createRuntime: fake(false), signal: abort.signal }), null);
   assert.equal(disposed, 2);
 });
+
+// CI fast-e2e 5c79023f7: the sampler must never take an engine from a card (runtime.js background), and the card waits for the fit
+// before it draws, so a sampler with no engine answers the card's shown frame and a slow one is cut at the budget.
+test('the sampler runs as a background runtime; with no engine of its own it answers the frame the card shows', async () => {
+  const asked = [], shown = { nodes: { leftWeight: { position: [-2, 0.25, 0] } } };
+  const noEngine = options => { asked.push(options); const ready = Promise.reject(Object.assign(new Error('no free engine'), { code: 'runtime_limit' })); ready.catch(() => {}); return { ready, dispose() {} }; };
+  assert.deepEqual(await sampleAnimationFrames({ artifact: experimentFixture.artifact, frame: shown, createRuntime: noEngine }), [shown]);
+  assert.equal(asked[0].background, true);
+  assert.deepEqual(await sampleAnimationFrames({ artifact: experimentFixture.artifact, createRuntime: noEngine }), [], 'nothing shown: the authored scene');
+});
+
+test('past its time budget the sampler stops its runtime and keeps the frames it finished', async () => {
+  const max = { nodes: { leftWeight: { position: [-3, 0.25, 0] } } };
+  let stop = null;
+  const slow = ({ onFrame }) => {
+    let calls = 0;
+    const stopped = new Promise(resolve => { stop = resolve; });
+    return {
+      ready: Promise.resolve().then(() => onFrame({ nodes: {} })),
+      dispatch: async () => { if (++calls <= 4) { onFrame(max); return { accepted: true }; } await stopped; return { accepted: false, reason: 'disposed' }; }, // the 4 maxima, then it hangs
+      dispose: () => stop(),
+    };
+  };
+  const started = Date.now();
+  assert.deepEqual(await sampleAnimationFrames({ artifact: experimentFixture.artifact, createRuntime: slow }), [{ nodes: {} }, max]);
+  assert.ok(Date.now() - started < FRAMING.budgetMs + 500, 'cut at the budget');
+});
