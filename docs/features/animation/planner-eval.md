@@ -3467,3 +3467,3465 @@ Specific problems: (a) A reset action.
 Overall (good / usable with changes / not usable): good, with (a) to fix in the shared rules
 
 <!-- /section:Baseline -->
+
+<!-- section:Tuned 1 (shared rules at 0075518378a1, not a comparison arm) status:complete -->
+
+## Tuned 1 (shared rules at 0075518378a1, not a comparison arm)
+
+**Status:** complete (10 of 10 cases).
+
+### Batch provenance
+
+| Field | Value |
+|---|---|
+| Deployed code SHA | `0075518378a1d57d72b3677402f039b29eb87c01` |
+| Clone | https://rabbit-hole-web-dev-animation.tryrabbithole.workers.dev |
+| Checkout HEAD when run | `0075518378a1d57d72b3677402f039b29eb87c01` |
+| Started | 2026-11-02T20:05:02.003Z |
+| Planner model / max tokens | claude-opus-5-5 / 4000 |
+| Planner task configuration | `{"provider":"anthropic","model":"claude-opus-5-5","picker":false,"fallback":"none","thinking":"model default","toolChoice":"auto (exactly one tool call)","maxTokens":4000}` |
+| Request shape | one tool (animation_plan) on tool_choice auto, no thinking, no fallback; system prompt as one cacheable block; one plan call and at most one correction call (ANIMATION_LIMITS.planCorrections) |
+| sha256(ANIMATION_BRIEF_SYSTEM) | `e5b71928500c68026138ddab1db0f17c77f2a5c88f833868e20e10ca130cfd7b` |
+| sha256(JSON.stringify(PLAN_TOOL)) | `1d972ea5e46e835dd76f7d7f44d819df7299616bd4a8ac0e45e6fd033e385e27` |
+| Capability version / phase | animation-capabilities/1 / mvp |
+| Policy version / plan schema | 1 / animation-plan/1 |
+| Test context | Each case: a new dev test user (an-acceptance-<id>@example.com), a new canvas with an empty board, no sources, no selected card, no chat thread or earlier conversation; the request body is { boardId, requestId, cardId, prompt, source: "explicit" } with prompt = the words after "/animation " (context null, evidence []). |
+| Worst case at start | US$0.56 per case, US$5.60 for 10 case(s); ledger available US$10.9324 |
+
+### Case 1: ML/SGD
+
+**User prompt (exact):** `/animation Show me how stochastic gradient descent works. Let me change the learning rate and batch size to see what happens.`
+
+Sent as `prompt`: `Show me how stochastic gradient descent works. Let me change the learning rate and batch size to see what happens.` · job `aj_49ea91e4584144c5997252a55cf37250` · fresh test user `an-acceptance-pe1xmvzou9x7@example.com` · fresh canvas `canvas-733ac704` · 2026-11-02T20:05:02.011Z
+
+**Outcome:** plan ready for review (awaiting_approval) on the first answer; then cancelled by the runner at review (Generate never pressed).
+
+#### Planner input
+
+User message content sha256 `f70e30fafd31b764b29e6b5e68aa0c0e5a937691f9a4a9ee96e49a5ef562d672`; request body sha256 `e1151ecf0b7a7635af3972eb5cfbc20d9dd900bf1bd41e761cab9958e1029530`. System prompt and tool: the batch hashes above.
+
+<details><summary>Exact planner input (the user message the server sends)</summary>
+
+```json
+{
+  "request": "Show me how stochastic gradient descent works. Let me change the learning rate and batch size to see what happens.",
+  "refinement": null,
+  "previous": null,
+  "context": null,
+  "evidence": [],
+  "capabilities": {
+    "phase": "mvp",
+    "experiences": [
+      "inspect",
+      "watch",
+      "experiment",
+      "game"
+    ],
+    "behaviors": [
+      "prescribed",
+      "analytical",
+      "rules"
+    ],
+    "controlProfiles": [
+      "inspect",
+      "manipulate"
+    ],
+    "features": [
+      "loop",
+      "speed",
+      "seek",
+      "parameters",
+      "actions",
+      "select",
+      "drag",
+      "step",
+      "labels",
+      "readouts"
+    ],
+    "limits": {
+      "parameters": 8,
+      "actions": 8,
+      "nodes": 256
+    }
+  }
+}
+```
+
+</details>
+
+#### Planner response (unedited)
+
+<details><summary>Planner answer 1 (accepted)</summary>
+
+```json
+{
+  "stage": "preparing",
+  "input": {
+    "title": "Stochastic Gradient Descent: Learning Rate and Batch Size",
+    "description": "A ball moves downhill on a 3D bowl-shaped surface showing the average error of a straight-line fit to 32 fixed data points, plotted for every choice of slope and intercept. At each step the scene draws a random batch of points, highlights them on a small scatter plot beside the surface, and moves the ball one step in the downhill direction measured on that batch only. It leaves a path behind. Change the learning rate and batch size to see the path go from smooth to jittery, or from slow to overshooting.",
+    "experience": "experiment",
+    "reason": "You want to change two settings and see what happens, so an experiment fits best. The path, the arrows and the error readouts all update with each step, so you can compare how noisy, how fast and how stable each setting is.",
+    "behavior": "rules",
+    "controlProfile": "inspect",
+    "parameters": [
+      {
+        "type": "number",
+        "id": "learningRate",
+        "label": "Learning rate",
+        "min": 0.1,
+        "max": 1.2,
+        "step": 0.05,
+        "default": 0.3
+      },
+      {
+        "type": "select",
+        "id": "batchSize",
+        "label": "Batch size (points per step)",
+        "options": [
+          {
+            "value": "1",
+            "label": "1 point"
+          },
+          {
+            "value": "4",
+            "label": "4 points"
+          },
+          {
+            "value": "8",
+            "label": "8 points"
+          },
+          {
+            "value": "32",
+            "label": "All 32 points (plain gradient descent)"
+          }
+        ],
+        "default": "4"
+      }
+    ],
+    "interactions": [
+      "Change the learning rate between 0.1 and 1.2 to see small slow steps, quick progress, or overshooting zigzags",
+      "Pick a batch size from 1 point up to all 32 points to see how much the path wobbles",
+      "Start a new run from the same starting point with your current settings, keeping the previous path as a faded line for comparison",
+      "Switch to the next of four fixed starting points on the surface",
+      "Use play, pause and step to watch one update at a time",
+      "Select the ball or an arrow to see its value"
+    ],
+    "assumptions": [
+      "The data are 32 made-up points scattered around a straight line, generated once from a fixed seed. The model is a two-number line fit, not a real neural network.",
+      "The surface shows the average squared error over all 32 points. Each step uses only the error on that step's batch.",
+      "Batches are drawn at random without replacement inside a pass through the data, using the scene's fixed seed. A new run continues the random sequence, so it is not an exact replay.",
+      "Each update is: new value = old value − learning rate × batch gradient. There is no momentum, decay or other optimizer trick.",
+      "Two arrows sit at the ball. A bright arrow shows the downhill direction measured on the batch, which is the direction the ball actually moves. A faint arrow shows the downhill direction measured on all 32 points, so the gap between them shows the batch noise.",
+      "A run stops after 200 steps, or earlier if the ball leaves the plotted area."
+    ],
+    "limitations": [
+      "Real problems have millions of parameters and bumpy surfaces with many valleys. This bowl has one lowest point, so it cannot show the ball getting stuck in a local valley.",
+      "With one point per batch, a single step can go uphill on the full error. Smaller batches only point downhill on average.",
+      "Above a learning rate of about 1, steps across the steep direction of the bowl tend to grow. The ball may then leave the plot and the run stops. How soon this happens depends on which points are drawn.",
+      "With a fixed learning rate and small batches, the ball keeps jittering near the bottom instead of settling exactly on it."
+    ],
+    "requiredCapabilities": [
+      "parameters",
+      "actions",
+      "step",
+      "readouts",
+      "labels",
+      "select",
+      "speed"
+    ],
+    "requested": {
+      "features": [
+        "parameters"
+      ],
+      "experience": "experiment"
+    },
+    "learningGoal": "Each step follows a noisy downhill direction taken from a batch of data. The learning rate sets how far each step goes, and the batch size sets how noisy the direction is. Together they decide whether the fit settles quickly, slowly or not at all."
+  },
+  "issues": []
+}
+```
+
+</details>
+
+#### Validation
+
+- Server: accepted by validateAnimationPlan against the enabled capabilities.
+- Correction: 1 plan call(s); no correction.
+- Local re-check of the final plan with the checkout's contract: valid.
+
+#### Final validated plan
+
+<details><summary>animation-plan/1 (diagnostics.plan)</summary>
+
+```json
+{
+  "schema": "animation-plan/1",
+  "title": "Stochastic Gradient Descent: Learning Rate and Batch Size",
+  "description": "A ball moves downhill on a 3D bowl-shaped surface showing the average error of a straight-line fit to 32 fixed data points, plotted for every choice of slope and intercept. At each step the scene draws a random batch of points, highlights them on a small scatter plot beside the surface, and moves the ball one step in the downhill direction measured on that batch only. It leaves a path behind. Change the learning rate and batch size to see the path go from smooth to jittery, or from slow to overshooting.",
+  "experience": "experiment",
+  "reason": "You want to change two settings and see what happens, so an experiment fits best. The path, the arrows and the error readouts all update with each step, so you can compare how noisy, how fast and how stable each setting is.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+    {
+      "type": "number",
+      "id": "learningRate",
+      "label": "Learning rate",
+      "min": 0.1,
+      "max": 1.2,
+      "step": 0.05,
+      "default": 0.3
+    },
+    {
+      "type": "select",
+      "id": "batchSize",
+      "label": "Batch size (points per step)",
+      "options": [
+        {
+          "value": "1",
+          "label": "1 point"
+        },
+        {
+          "value": "4",
+          "label": "4 points"
+        },
+        {
+          "value": "8",
+          "label": "8 points"
+        },
+        {
+          "value": "32",
+          "label": "All 32 points (plain gradient descent)"
+        }
+      ],
+      "default": "4"
+    }
+  ],
+  "interactions": [
+    "Change the learning rate between 0.1 and 1.2 to see small slow steps, quick progress, or overshooting zigzags",
+    "Pick a batch size from 1 point up to all 32 points to see how much the path wobbles",
+    "Start a new run from the same starting point with your current settings, keeping the previous path as a faded line for comparison",
+    "Switch to the next of four fixed starting points on the surface",
+    "Use play, pause and step to watch one update at a time",
+    "Select the ball or an arrow to see its value"
+  ],
+  "assumptions": [
+    "The data are 32 made-up points scattered around a straight line, generated once from a fixed seed. The model is a two-number line fit, not a real neural network.",
+    "The surface shows the average squared error over all 32 points. Each step uses only the error on that step's batch.",
+    "Batches are drawn at random without replacement inside a pass through the data, using the scene's fixed seed. A new run continues the random sequence, so it is not an exact replay.",
+    "Each update is: new value = old value − learning rate × batch gradient. There is no momentum, decay or other optimizer trick.",
+    "Two arrows sit at the ball. A bright arrow shows the downhill direction measured on the batch, which is the direction the ball actually moves. A faint arrow shows the downhill direction measured on all 32 points, so the gap between them shows the batch noise.",
+    "A run stops after 200 steps, or earlier if the ball leaves the plotted area."
+  ],
+  "limitations": [
+    "Real problems have millions of parameters and bumpy surfaces with many valleys. This bowl has one lowest point, so it cannot show the ball getting stuck in a local valley.",
+    "With one point per batch, a single step can go uphill on the full error. Smaller batches only point downhill on average.",
+    "Above a learning rate of about 1, steps across the steep direction of the bowl tend to grow. The ball may then leave the plot and the run stops. How soon this happens depends on which points are drawn.",
+    "With a fixed learning rate and small batches, the ball keeps jittering near the bottom instead of settling exactly on it."
+  ],
+  "learningGoal": "Each step follows a noisy downhill direction taken from a batch of data. The learning rate sets how far each step goes, and the batch size sets how noisy the direction is. Together they decide whether the fit settles quickly, slowly or not at all.",
+  "requiredCapabilities": [
+    "parameters",
+    "actions",
+    "step",
+    "readouts",
+    "labels",
+    "select",
+    "speed"
+  ]
+}
+```
+
+</details>
+
+#### Presented to the user
+
+- Chat message: "Here is the plan for your animation. Generate makes it."
+- Card heading: Review your scene
+- Title: Stochastic Gradient Descent: Learning Rate and Batch Size
+- Description: A ball moves downhill on a 3D bowl-shaped surface showing the average error of a straight-line fit to 32 fixed data points, plotted for every choice of slope and intercept. At each step the scene draws a random batch of points, highlights them on a small scatter plot beside the surface, and moves the ball one step in the downhill direction measured on that batch only. It leaves a path behind. Change the learning rate and batch size to see the path go from smooth to jittery, or from slow to overshooting.
+- Experience: Experiment
+- What you can change:
+  - Learning rate: 0.1–1.2
+  - Batch size (points per step): 1 point, 4 points, 8 points or All 32 points (plain gradient descent)
+- Starts with: Learning rate: 0.3 · Batch size (points per step): 4 points
+- Notices (kept in view):
+  - (none)
+- Caveat (shown, the first assumption): The data are 32 made-up points scattered around a straight line, generated once from a fixed seed. The model is a two-number line fit, not a real neural network.
+- Model assumptions (collapsed):
+  - The surface shows the average squared error over all 32 points. Each step uses only the error on that step's batch.
+  - Batches are drawn at random without replacement inside a pass through the data, using the scene's fixed seed. A new run continues the random sequence, so it is not an exact replay.
+  - Each update is: new value = old value − learning rate × batch gradient. There is no momentum, decay or other optimizer trick.
+  - Two arrows sit at the ball. A bright arrow shows the downhill direction measured on the batch, which is the direction the ball actually moves. A faint arrow shows the downhill direction measured on all 32 points, so the gap between them shows the batch noise.
+  - A run stops after 200 steps, or earlier if the ball leaves the plotted area.
+- Limitations (collapsed):
+  - Real problems have millions of parameters and bumpy surfaces with many valleys. This bowl has one lowest point, so it cannot show the ball getting stuck in a local valley.
+  - With one point per batch, a single step can go uphill on the full error. Smaller batches only point downhill on average.
+  - Above a learning rate of about 1, steps across the steep direction of the bowl tend to grow. The ball may then leave the plot and the run stops. How soon this happens depends on which points are drawn.
+  - With a fixed learning rate and small batches, the ball keeps jittering near the bottom instead of settling exactly on it.
+
+<details><summary>Signed proposal, learner-facing fields</summary>
+
+```json
+{
+  "command": "animation",
+  "version": 1,
+  "title": "Stochastic Gradient Descent: Learning Rate and Batch Size",
+  "description": "A ball moves downhill on a 3D bowl-shaped surface showing the average error of a straight-line fit to 32 fixed data points, plotted for every choice of slope and intercept. At each step the scene draws a random batch of points, highlights them on a small scatter plot beside the surface, and moves the ball one step in the downhill direction measured on that batch only. It leaves a path behind. Change the learning rate and batch size to see the path go from smooth to jittery, or from slow to overshooting.",
+  "settings": {
+    "experience": "experiment"
+  },
+  "assumptions": [
+    "The data are 32 made-up points scattered around a straight line, generated once from a fixed seed. The model is a two-number line fit, not a real neural network.",
+    "The surface shows the average squared error over all 32 points. Each step uses only the error on that step's batch.",
+    "Batches are drawn at random without replacement inside a pass through the data, using the scene's fixed seed. A new run continues the random sequence, so it is not an exact replay.",
+    "Each update is: new value = old value − learning rate × batch gradient. There is no momentum, decay or other optimizer trick.",
+    "Two arrows sit at the ball. A bright arrow shows the downhill direction measured on the batch, which is the direction the ball actually moves. A faint arrow shows the downhill direction measured on all 32 points, so the gap between them shows the batch noise.",
+    "A run stops after 200 steps, or earlier if the ball leaves the plotted area."
+  ],
+  "limitations": [
+    "Real problems have millions of parameters and bumpy surfaces with many valleys. This bowl has one lowest point, so it cannot show the ball getting stuck in a local valley.",
+    "With one point per batch, a single step can go uphill on the full error. Smaller batches only point downhill on average.",
+    "Above a learning rate of about 1, steps across the steep direction of the bowl tend to grow. The ball may then leave the plot and the run stops. How soon this happens depends on which points are drawn.",
+    "With a fixed learning rate and small batches, the ball keeps jittering near the bottom instead of settling exactly on it."
+  ],
+  "requirements": [
+    "Recommended: experiment. You want to change two settings and see what happens, so an experiment fits best. The path, the arrows and the error readouts all update with each step, so you can compare how noisy, how fast and how stable each setting is.",
+    "Behavior: rules",
+    "Controls: inspect",
+    "Interaction: Change the learning rate between 0.1 and 1.2 to see small slow steps, quick progress, or overshooting zigzags",
+    "Interaction: Pick a batch size from 1 point up to all 32 points to see how much the path wobbles",
+    "Interaction: Start a new run from the same starting point with your current settings, keeping the previous path as a faded line for comparison",
+    "Interaction: Switch to the next of four fixed starting points on the surface",
+    "Interaction: Use play, pause and step to watch one update at a time",
+    "Interaction: Select the ball or an arrow to see its value",
+    "Parameter: Learning rate, 0.1 to 1.2, default 0.3",
+    "Parameter: Batch size (points per step), one of 1 point, 4 points, 8 points, All 32 points (plain gradient descent)",
+    "Goal: Each step follows a noisy downhill direction taken from a batch of data. The learning rate sets how far each step goes, and the batch size sets how noisy the direction is. Together they decide whether the fit settles quickly, slowly or not at all."
+  ],
+  "input": {
+    "request": "Show me how stochastic gradient descent works. Let me change the learning rate and batch size to see what happens.",
+    "plan_hash": "49f15f321ed36b864e516c58d060b59a06df8d4e856f8a6706439a0262558b4e",
+    "scene": {
+      "parameters": [
+        {
+          "type": "number",
+          "label": "Learning rate",
+          "min": 0.1,
+          "max": 1.2,
+          "step": 0.05,
+          "default": 0.3
+        },
+        {
+          "type": "select",
+          "label": "Batch size (points per step)",
+          "options": [
+            {
+              "value": "1",
+              "label": "1 point"
+            },
+            {
+              "value": "4",
+              "label": "4 points"
+            },
+            {
+              "value": "8",
+              "label": "8 points"
+            },
+            {
+              "value": "32",
+              "label": "All 32 points (plain gradient descent)"
+            }
+          ],
+          "default": "4"
+        }
+      ],
+      "interactions": [
+        "Change the learning rate between 0.1 and 1.2 to see small slow steps, quick progress, or overshooting zigzags",
+        "Pick a batch size from 1 point up to all 32 points to see how much the path wobbles",
+        "Start a new run from the same starting point with your current settings, keeping the previous path as a faded line for comparison",
+        "Switch to the next of four fixed starting points on the surface",
+        "Use play, pause and step to watch one update at a time",
+        "Select the ball or an arrow to see its value"
+      ],
+      "notices": []
+    }
+  }
+}
+```
+
+</details>
+
+#### Calls, usage and cost
+
+| # | Role | Status | Input tokens | Output tokens | Stop reason | Error | Cost |
+|---|---|---|---|---|---|---|---|
+| 1 | brief | settled | 276 | 2733 | tool_use | - | US$0.0746 |
+
+Provider US$0.0746, ledger US$0.0746 (dev ledger: 1 model call(s)). Credits the learner would see: 8.
+
+#### Assessment (reviewer; not generated, not the planner's self-assessment)
+
+- [ ] 1. Understands the learning goal: 
+- [ ] 2. Chooses an appropriate supported experience, with a reason: 
+- [ ] 3. Describes a concrete, understandable scene: 
+- [ ] 4. Preserves the requested controls, with useful defaults and ranges: 
+- [ ] 5. Is accurate about the subject: 
+- [ ] 6. Discloses simulated data, conceptual models and meaningful simplifications: 
+- [ ] 7. Promises only effects its model and settings could produce: 
+- [ ] 8. Fits MVP capabilities without silently changing the request: 
+
+Specific problems: 
+
+Overall (good / usable with changes / not usable): 
+
+### Case 2: Neural networks
+
+**User prompt (exact):** `/animation Show me how a neural network learns.`
+
+Sent as `prompt`: `Show me how a neural network learns.` · job `aj_51b556cbef6447c98d75a11bf690f8db` · fresh test user `an-acceptance-pe2xmvzovddq@example.com` · fresh canvas `canvas-e642ed2c` · 2026-11-02T20:05:53.150Z
+
+**Outcome:** plan ready for review (awaiting_approval) on the first answer; then cancelled by the runner at review (Generate never pressed).
+
+#### Planner input
+
+User message content sha256 `0cc8e851986e34f7311f762e42225b774fedf6b5637edc3bbc799c7542f525f3`; request body sha256 `d8611c9a69ef0ae8b34f5549e0a316ad15c2c8fd55ddf295852725f9fa40daff`. System prompt and tool: the batch hashes above.
+
+<details><summary>Exact planner input (the user message the server sends)</summary>
+
+```json
+{
+  "request": "Show me how a neural network learns.",
+  "refinement": null,
+  "previous": null,
+  "context": null,
+  "evidence": [],
+  "capabilities": {
+    "phase": "mvp",
+    "experiences": [
+      "inspect",
+      "watch",
+      "experiment",
+      "game"
+    ],
+    "behaviors": [
+      "prescribed",
+      "analytical",
+      "rules"
+    ],
+    "controlProfiles": [
+      "inspect",
+      "manipulate"
+    ],
+    "features": [
+      "loop",
+      "speed",
+      "seek",
+      "parameters",
+      "actions",
+      "select",
+      "drag",
+      "step",
+      "labels",
+      "readouts"
+    ],
+    "limits": {
+      "parameters": 8,
+      "actions": 8,
+      "nodes": 256
+    }
+  }
+}
+```
+
+</details>
+
+#### Planner response (unedited)
+
+<details><summary>Planner answer 1 (accepted)</summary>
+
+```json
+{
+  "stage": "preparing",
+  "input": {
+    "title": "A Tiny Neural Network Learning XOR, Step by Step",
+    "description": "A small network of spheres (2 inputs, 3 hidden neurons, 1 output) is joined by rods. Each rod's thickness shows how strong its weight is, and its color shows the sign (blue for positive, red for negative). Next to it, four pairs of bars compare the network's answer with the correct answer for each of the four XOR examples, and a curve draws the error over time. Press play: on each step the weights are adjusted a little to reduce the error, so you can watch the rods change, the answer bars move toward their targets and the error curve usually fall.",
+    "experience": "experiment",
+    "reason": "To see learning, you need to watch the weights, the answers and the error change together as training goes on. Changing the learning rate shows how step size decides whether learning is slow, steady or jumpy.",
+    "behavior": "rules",
+    "controlProfile": "inspect",
+    "parameters": [
+      {
+        "type": "number",
+        "id": "learningRate",
+        "label": "Learning rate (step size)",
+        "min": 0.2,
+        "max": 2,
+        "default": 0.8,
+        "step": 0.1
+      },
+      {
+        "type": "toggle",
+        "id": "showValues",
+        "label": "Show weight numbers",
+        "default": false
+      }
+    ],
+    "interactions": [
+      "Play, pause or step through training one update at a time",
+      "Change the learning rate and compare how fast and how smoothly the error curve falls",
+      "Select a neuron or connection to see its current value",
+      "Start over with a different set of random starting weights (this also clears the error curve and the step count)"
+    ],
+    "assumptions": [
+      "This is a tiny toy network learning four hand-picked examples, not a real large network trained on real data.",
+      "Each step is one full gradient descent update using all four examples at once: the error is passed backward through the network and every weight moves a small amount against its own error slope.",
+      "Neurons use a smooth S-shaped activation, and the error is the average squared difference between the answers and the targets.",
+      "The starting weights come from a fixed seed, so the first run always looks the same.",
+      "Training stops when the error falls below 0.01 or after 3000 steps, whichever comes first."
+    ],
+    "limitations": [
+      "Each update lowers the error for small steps in most cases, but not always: at high learning rates the error can bounce or rise for a while.",
+      "Some starting weights can leave the network stuck with a high error, which is a real effect. Trying different starting weights shows it.",
+      "Real networks have millions of weights, many layers and train on random small batches of data. This shows the same idea at a scale small enough to see."
+    ],
+    "requiredCapabilities": [
+      "step",
+      "parameters",
+      "actions",
+      "readouts",
+      "labels",
+      "select"
+    ],
+    "requested": {
+      "features": []
+    },
+    "learningGoal": "A network learns by repeatedly nudging each weight in the direction that reduces its error on the examples, and the learning rate sets how big each nudge is."
+  },
+  "issues": []
+}
+```
+
+</details>
+
+#### Validation
+
+- Server: accepted by validateAnimationPlan against the enabled capabilities.
+- Correction: 1 plan call(s); no correction.
+- Local re-check of the final plan with the checkout's contract: valid.
+
+#### Final validated plan
+
+<details><summary>animation-plan/1 (diagnostics.plan)</summary>
+
+```json
+{
+  "schema": "animation-plan/1",
+  "title": "A Tiny Neural Network Learning XOR, Step by Step",
+  "description": "A small network of spheres (2 inputs, 3 hidden neurons, 1 output) is joined by rods. Each rod's thickness shows how strong its weight is, and its color shows the sign (blue for positive, red for negative). Next to it, four pairs of bars compare the network's answer with the correct answer for each of the four XOR examples, and a curve draws the error over time. Press play: on each step the weights are adjusted a little to reduce the error, so you can watch the rods change, the answer bars move toward their targets and the error curve usually fall.",
+  "experience": "experiment",
+  "reason": "To see learning, you need to watch the weights, the answers and the error change together as training goes on. Changing the learning rate shows how step size decides whether learning is slow, steady or jumpy.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+    {
+      "type": "number",
+      "id": "learningRate",
+      "label": "Learning rate (step size)",
+      "min": 0.2,
+      "max": 2,
+      "step": 0.1,
+      "default": 0.8
+    },
+    {
+      "type": "toggle",
+      "id": "showValues",
+      "label": "Show weight numbers",
+      "default": false
+    }
+  ],
+  "interactions": [
+    "Play, pause or step through training one update at a time",
+    "Change the learning rate and compare how fast and how smoothly the error curve falls",
+    "Select a neuron or connection to see its current value",
+    "Start over with a different set of random starting weights (this also clears the error curve and the step count)"
+  ],
+  "assumptions": [
+    "This is a tiny toy network learning four hand-picked examples, not a real large network trained on real data.",
+    "Each step is one full gradient descent update using all four examples at once: the error is passed backward through the network and every weight moves a small amount against its own error slope.",
+    "Neurons use a smooth S-shaped activation, and the error is the average squared difference between the answers and the targets.",
+    "The starting weights come from a fixed seed, so the first run always looks the same.",
+    "Training stops when the error falls below 0.01 or after 3000 steps, whichever comes first."
+  ],
+  "limitations": [
+    "Each update lowers the error for small steps in most cases, but not always: at high learning rates the error can bounce or rise for a while.",
+    "Some starting weights can leave the network stuck with a high error, which is a real effect. Trying different starting weights shows it.",
+    "Real networks have millions of weights, many layers and train on random small batches of data. This shows the same idea at a scale small enough to see."
+  ],
+  "learningGoal": "A network learns by repeatedly nudging each weight in the direction that reduces its error on the examples, and the learning rate sets how big each nudge is.",
+  "requiredCapabilities": [
+    "step",
+    "parameters",
+    "actions",
+    "readouts",
+    "labels",
+    "select"
+  ]
+}
+```
+
+</details>
+
+#### Presented to the user
+
+- Chat message: "Here is the plan for your animation. Generate makes it."
+- Card heading: Review your scene
+- Title: A Tiny Neural Network Learning XOR, Step by Step
+- Description: A small network of spheres (2 inputs, 3 hidden neurons, 1 output) is joined by rods. Each rod's thickness shows how strong its weight is, and its color shows the sign (blue for positive, red for negative). Next to it, four pairs of bars compare the network's answer with the correct answer for each of the four XOR examples, and a curve draws the error over time. Press play: on each step the weights are adjusted a little to reduce the error, so you can watch the rods change, the answer bars move toward their targets and the error curve usually fall.
+- Experience: Experiment
+- What you can change:
+  - Learning rate (step size): 0.2–2
+  - Show weight numbers: on or off
+- Starts with: Learning rate (step size): 0.8 · Show weight numbers: off
+- Notices (kept in view):
+  - (none)
+- Caveat (shown, the first assumption): This is a tiny toy network learning four hand-picked examples, not a real large network trained on real data.
+- Model assumptions (collapsed):
+  - Each step is one full gradient descent update using all four examples at once: the error is passed backward through the network and every weight moves a small amount against its own error slope.
+  - Neurons use a smooth S-shaped activation, and the error is the average squared difference between the answers and the targets.
+  - The starting weights come from a fixed seed, so the first run always looks the same.
+  - Training stops when the error falls below 0.01 or after 3000 steps, whichever comes first.
+- Limitations (collapsed):
+  - Each update lowers the error for small steps in most cases, but not always: at high learning rates the error can bounce or rise for a while.
+  - Some starting weights can leave the network stuck with a high error, which is a real effect. Trying different starting weights shows it.
+  - Real networks have millions of weights, many layers and train on random small batches of data. This shows the same idea at a scale small enough to see.
+
+<details><summary>Signed proposal, learner-facing fields</summary>
+
+```json
+{
+  "command": "animation",
+  "version": 1,
+  "title": "A Tiny Neural Network Learning XOR, Step by Step",
+  "description": "A small network of spheres (2 inputs, 3 hidden neurons, 1 output) is joined by rods. Each rod's thickness shows how strong its weight is, and its color shows the sign (blue for positive, red for negative). Next to it, four pairs of bars compare the network's answer with the correct answer for each of the four XOR examples, and a curve draws the error over time. Press play: on each step the weights are adjusted a little to reduce the error, so you can watch the rods change, the answer bars move toward their targets and the error curve usually fall.",
+  "settings": {
+    "experience": "experiment"
+  },
+  "assumptions": [
+    "This is a tiny toy network learning four hand-picked examples, not a real large network trained on real data.",
+    "Each step is one full gradient descent update using all four examples at once: the error is passed backward through the network and every weight moves a small amount against its own error slope.",
+    "Neurons use a smooth S-shaped activation, and the error is the average squared difference between the answers and the targets.",
+    "The starting weights come from a fixed seed, so the first run always looks the same.",
+    "Training stops when the error falls below 0.01 or after 3000 steps, whichever comes first."
+  ],
+  "limitations": [
+    "Each update lowers the error for small steps in most cases, but not always: at high learning rates the error can bounce or rise for a while.",
+    "Some starting weights can leave the network stuck with a high error, which is a real effect. Trying different starting weights shows it.",
+    "Real networks have millions of weights, many layers and train on random small batches of data. This shows the same idea at a scale small enough to see."
+  ],
+  "requirements": [
+    "Recommended: experiment. To see learning, you need to watch the weights, the answers and the error change together as training goes on. Changing the learning rate shows how step size decides whether learning is slow, steady or jumpy.",
+    "Behavior: rules",
+    "Controls: inspect",
+    "Interaction: Play, pause or step through training one update at a time",
+    "Interaction: Change the learning rate and compare how fast and how smoothly the error curve falls",
+    "Interaction: Select a neuron or connection to see its current value",
+    "Interaction: Start over with a different set of random starting weights (this also clears the error curve and the step count)",
+    "Parameter: Learning rate (step size), 0.2 to 2, default 0.8",
+    "Parameter: Show weight numbers",
+    "Goal: A network learns by repeatedly nudging each weight in the direction that reduces its error on the examples, and the learning rate sets how big each nudge is."
+  ],
+  "input": {
+    "request": "Show me how a neural network learns.",
+    "plan_hash": "ab0e01da56cb403886401b9b967b9270644a1ddef5af6ec7edd398df1d6b9b6a",
+    "scene": {
+      "parameters": [
+        {
+          "type": "number",
+          "label": "Learning rate (step size)",
+          "min": 0.2,
+          "max": 2,
+          "step": 0.1,
+          "default": 0.8
+        },
+        {
+          "type": "toggle",
+          "label": "Show weight numbers",
+          "default": false
+        }
+      ],
+      "interactions": [
+        "Play, pause or step through training one update at a time",
+        "Change the learning rate and compare how fast and how smoothly the error curve falls",
+        "Select a neuron or connection to see its current value",
+        "Start over with a different set of random starting weights (this also clears the error curve and the step count)"
+      ],
+      "notices": []
+    }
+  }
+}
+```
+
+</details>
+
+#### Calls, usage and cost
+
+| # | Role | Status | Input tokens | Output tokens | Stop reason | Error | Cost |
+|---|---|---|---|---|---|---|---|
+| 1 | brief | settled | 253 | 1750 | tool_use | - | US$0.0368 |
+
+Provider US$0.0368, ledger US$0.0368 (dev ledger: 1 model call(s)). Credits the learner would see: 4.
+
+#### Assessment (reviewer; not generated, not the planner's self-assessment)
+
+- [ ] 1. Understands the learning goal: 
+- [ ] 2. Chooses an appropriate supported experience, with a reason: 
+- [ ] 3. Describes a concrete, understandable scene: 
+- [ ] 4. Preserves the requested controls, with useful defaults and ranges: 
+- [ ] 5. Is accurate about the subject: 
+- [ ] 6. Discloses simulated data, conceptual models and meaningful simplifications: 
+- [ ] 7. Promises only effects its model and settings could produce: 
+- [ ] 8. Fits MVP capabilities without silently changing the request: 
+
+Specific problems: 
+
+Overall (good / usable with changes / not usable): 
+
+### Case 3: LLM attention
+
+**User prompt (exact):** `/animation Explain attention in an LLM.`
+
+Sent as `prompt`: `Explain attention in an LLM.` · job `aj_df4060cc42324fba95450ea5892b96f7` · fresh test user `an-acceptance-pe3xmvzovzv2@example.com` · fresh canvas `canvas-83dcca76` · 2026-11-02T20:06:22.286Z
+
+**Outcome:** plan ready for review (awaiting_approval) on the first answer; then cancelled by the runner at review (Generate never pressed).
+
+#### Planner input
+
+User message content sha256 `4994bf17d2e7b8f3fcc9c162a89a02520851c6acfcd94f3caf4bae00df678ec3`; request body sha256 `6933c4b2cbfc497b1cec5710b8562739d397e4e94388a4759d67ad6da1cd5367`. System prompt and tool: the batch hashes above.
+
+<details><summary>Exact planner input (the user message the server sends)</summary>
+
+```json
+{
+  "request": "Explain attention in an LLM.",
+  "refinement": null,
+  "previous": null,
+  "context": null,
+  "evidence": [],
+  "capabilities": {
+    "phase": "mvp",
+    "experiences": [
+      "inspect",
+      "watch",
+      "experiment",
+      "game"
+    ],
+    "behaviors": [
+      "prescribed",
+      "analytical",
+      "rules"
+    ],
+    "controlProfiles": [
+      "inspect",
+      "manipulate"
+    ],
+    "features": [
+      "loop",
+      "speed",
+      "seek",
+      "parameters",
+      "actions",
+      "select",
+      "drag",
+      "step",
+      "labels",
+      "readouts"
+    ],
+    "limits": {
+      "parameters": 8,
+      "actions": 8,
+      "nodes": 256
+    }
+  }
+}
+```
+
+</details>
+
+#### Planner response (unedited)
+
+<details><summary>Planner answer 1 (accepted)</summary>
+
+```json
+{
+  "stage": "preparing",
+  "input": {
+    "title": "Attention: how one word gathers meaning from the others",
+    "description": "The sentence \"The cat sat because it was tired\" appears as a row of word blocks. Each block has a small query arrow, key arrow and value arrow. Pick a focus word, and glowing lines run from it to every word it is allowed to look at. Each line's thickness and its percentage label show that word's attention weight, and all the weights add up to 100%. A combined arrow above the focus word shows its new meaning: the value arrows mixed in proportion to those weights. With the defaults, \"it\" puts most of its weight on \"cat\".",
+    "experience": "experiment",
+    "reason": "Attention is a calculation: compare one word with the others, turn the scores into percentages, then blend. Changing the focus word and the sharpness while the weights and the blended arrow update together makes each part of that calculation visible.",
+    "behavior": "analytical",
+    "controlProfile": "inspect",
+    "parameters": [
+      {
+        "type": "select",
+        "id": "focusWord",
+        "label": "Focus word (the one asking)",
+        "default": "it",
+        "options": [
+          {
+            "value": "The",
+            "label": "The"
+          },
+          {
+            "value": "cat",
+            "label": "cat"
+          },
+          {
+            "value": "sat",
+            "label": "sat"
+          },
+          {
+            "value": "because",
+            "label": "because"
+          },
+          {
+            "value": "it",
+            "label": "it"
+          },
+          {
+            "value": "was",
+            "label": "was"
+          },
+          {
+            "value": "tired",
+            "label": "tired"
+          }
+        ]
+      },
+      {
+        "type": "number",
+        "id": "sharpness",
+        "label": "Sharpness (inverse temperature)",
+        "min": 0.5,
+        "max": 4,
+        "default": 1.5,
+        "step": 0.1
+      },
+      {
+        "type": "toggle",
+        "id": "causalMask",
+        "label": "Only look at earlier words",
+        "default": true
+      }
+    ],
+    "interactions": [
+      "Choose which word is the focus and watch its attention lines and percentages change",
+      "Raise the sharpness to concentrate the weight on the best-matching word, or lower it to spread the weight more evenly",
+      "Turn off \"only look at earlier words\" to let a word also look at the words after it",
+      "Select any word block to read its match score with the focus word and its share of the attention"
+    ],
+    "learningGoal": "Understand that each word scores how well its query matches every visible word's key, turns those scores into weights that add up to 100%, and takes on a weighted blend of those words' values as its new meaning.",
+    "assumptions": [
+      "This is an illustration with hand-picked tiny word vectors, not a real trained model.",
+      "There is one attention head in one layer, and each word counts as one token.",
+      "Each word's query, key and value arrows are fixed and only three numbers long, so they can be drawn in 3D.",
+      "Match score = how much the query and key point the same way (their dot product), multiplied by the sharpness. The weights are the scores passed through softmax, which turns them into shares that add to 100%. These calculations are exact in this model.",
+      "With \"only look at earlier words\" on, a word sees itself and every word before it. Words after it are hidden and get 0%.",
+      "Word order is not encoded separately. The only effect of position is the earlier-words-only rule."
+    ],
+    "limitations": [
+      "Real models use hundreds or thousands of numbers per word, many heads and many stacked layers. Here, only the shape of the calculation is faithful.",
+      "Real query, key and value arrows are learned from data. The ones here were chosen so the example is easy to read, such as \"it\" matching \"cat\".",
+      "There is no next-word prediction, and the scene doesn't show how the blended meaning is used later."
+    ],
+    "requiredCapabilities": [
+      "parameters",
+      "select",
+      "labels",
+      "readouts"
+    ],
+    "requested": {
+      "features": []
+    }
+  },
+  "issues": []
+}
+```
+
+</details>
+
+#### Validation
+
+- Server: accepted by validateAnimationPlan against the enabled capabilities.
+- Correction: 1 plan call(s); no correction.
+- Local re-check of the final plan with the checkout's contract: valid.
+
+#### Final validated plan
+
+<details><summary>animation-plan/1 (diagnostics.plan)</summary>
+
+```json
+{
+  "schema": "animation-plan/1",
+  "title": "Attention: how one word gathers meaning from the others",
+  "description": "The sentence \"The cat sat because it was tired\" appears as a row of word blocks. Each block has a small query arrow, key arrow and value arrow. Pick a focus word, and glowing lines run from it to every word it is allowed to look at. Each line's thickness and its percentage label show that word's attention weight, and all the weights add up to 100%. A combined arrow above the focus word shows its new meaning: the value arrows mixed in proportion to those weights. With the defaults, \"it\" puts most of its weight on \"cat\".",
+  "experience": "experiment",
+  "reason": "Attention is a calculation: compare one word with the others, turn the scores into percentages, then blend. Changing the focus word and the sharpness while the weights and the blended arrow update together makes each part of that calculation visible.",
+  "behavior": "analytical",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+    {
+      "type": "select",
+      "id": "focusWord",
+      "label": "Focus word (the one asking)",
+      "options": [
+        {
+          "value": "The",
+          "label": "The"
+        },
+        {
+          "value": "cat",
+          "label": "cat"
+        },
+        {
+          "value": "sat",
+          "label": "sat"
+        },
+        {
+          "value": "because",
+          "label": "because"
+        },
+        {
+          "value": "it",
+          "label": "it"
+        },
+        {
+          "value": "was",
+          "label": "was"
+        },
+        {
+          "value": "tired",
+          "label": "tired"
+        }
+      ],
+      "default": "it"
+    },
+    {
+      "type": "number",
+      "id": "sharpness",
+      "label": "Sharpness (inverse temperature)",
+      "min": 0.5,
+      "max": 4,
+      "step": 0.1,
+      "default": 1.5
+    },
+    {
+      "type": "toggle",
+      "id": "causalMask",
+      "label": "Only look at earlier words",
+      "default": true
+    }
+  ],
+  "interactions": [
+    "Choose which word is the focus and watch its attention lines and percentages change",
+    "Raise the sharpness to concentrate the weight on the best-matching word, or lower it to spread the weight more evenly",
+    "Turn off \"only look at earlier words\" to let a word also look at the words after it",
+    "Select any word block to read its match score with the focus word and its share of the attention"
+  ],
+  "assumptions": [
+    "This is an illustration with hand-picked tiny word vectors, not a real trained model.",
+    "There is one attention head in one layer, and each word counts as one token.",
+    "Each word's query, key and value arrows are fixed and only three numbers long, so they can be drawn in 3D.",
+    "Match score = how much the query and key point the same way (their dot product), multiplied by the sharpness. The weights are the scores passed through softmax, which turns them into shares that add to 100%. These calculations are exact in this model.",
+    "With \"only look at earlier words\" on, a word sees itself and every word before it. Words after it are hidden and get 0%.",
+    "Word order is not encoded separately. The only effect of position is the earlier-words-only rule."
+  ],
+  "limitations": [
+    "Real models use hundreds or thousands of numbers per word, many heads and many stacked layers. Here, only the shape of the calculation is faithful.",
+    "Real query, key and value arrows are learned from data. The ones here were chosen so the example is easy to read, such as \"it\" matching \"cat\".",
+    "There is no next-word prediction, and the scene doesn't show how the blended meaning is used later."
+  ],
+  "learningGoal": "Understand that each word scores how well its query matches every visible word's key, turns those scores into weights that add up to 100%, and takes on a weighted blend of those words' values as its new meaning.",
+  "requiredCapabilities": [
+    "parameters",
+    "select",
+    "labels",
+    "readouts"
+  ]
+}
+```
+
+</details>
+
+#### Presented to the user
+
+- Chat message: "Here is the plan for your animation. Generate makes it."
+- Card heading: Review your scene
+- Title: Attention: how one word gathers meaning from the others
+- Description: The sentence "The cat sat because it was tired" appears as a row of word blocks. Each block has a small query arrow, key arrow and value arrow. Pick a focus word, and glowing lines run from it to every word it is allowed to look at. Each line's thickness and its percentage label show that word's attention weight, and all the weights add up to 100%. A combined arrow above the focus word shows its new meaning: the value arrows mixed in proportion to those weights. With the defaults, "it" puts most of its weight on "cat".
+- Experience: Experiment
+- What you can change:
+  - Focus word (the one asking): The, cat, sat, because, it, was or tired
+  - Sharpness (inverse temperature): 0.5–4
+  - Only look at earlier words: on or off
+- Starts with: Focus word (the one asking): it · Sharpness (inverse temperature): 1.5 · Only look at earlier words: on
+- Notices (kept in view):
+  - (none)
+- Caveat (shown, the first assumption): This is an illustration with hand-picked tiny word vectors, not a real trained model.
+- Model assumptions (collapsed):
+  - There is one attention head in one layer, and each word counts as one token.
+  - Each word's query, key and value arrows are fixed and only three numbers long, so they can be drawn in 3D.
+  - Match score = how much the query and key point the same way (their dot product), multiplied by the sharpness. The weights are the scores passed through softmax, which turns them into shares that add to 100%. These calculations are exact in this model.
+  - With "only look at earlier words" on, a word sees itself and every word before it. Words after it are hidden and get 0%.
+  - Word order is not encoded separately. The only effect of position is the earlier-words-only rule.
+- Limitations (collapsed):
+  - Real models use hundreds or thousands of numbers per word, many heads and many stacked layers. Here, only the shape of the calculation is faithful.
+  - Real query, key and value arrows are learned from data. The ones here were chosen so the example is easy to read, such as "it" matching "cat".
+  - There is no next-word prediction, and the scene doesn't show how the blended meaning is used later.
+
+<details><summary>Signed proposal, learner-facing fields</summary>
+
+```json
+{
+  "command": "animation",
+  "version": 1,
+  "title": "Attention: how one word gathers meaning from the others",
+  "description": "The sentence \"The cat sat because it was tired\" appears as a row of word blocks. Each block has a small query arrow, key arrow and value arrow. Pick a focus word, and glowing lines run from it to every word it is allowed to look at. Each line's thickness and its percentage label show that word's attention weight, and all the weights add up to 100%. A combined arrow above the focus word shows its new meaning: the value arrows mixed in proportion to those weights. With the defaults, \"it\" puts most of its weight on \"cat\".",
+  "settings": {
+    "experience": "experiment"
+  },
+  "assumptions": [
+    "This is an illustration with hand-picked tiny word vectors, not a real trained model.",
+    "There is one attention head in one layer, and each word counts as one token.",
+    "Each word's query, key and value arrows are fixed and only three numbers long, so they can be drawn in 3D.",
+    "Match score = how much the query and key point the same way (their dot product), multiplied by the sharpness. The weights are the scores passed through softmax, which turns them into shares that add to 100%. These calculations are exact in this model.",
+    "With \"only look at earlier words\" on, a word sees itself and every word before it. Words after it are hidden and get 0%.",
+    "Word order is not encoded separately. The only effect of position is the earlier-words-only rule."
+  ],
+  "limitations": [
+    "Real models use hundreds or thousands of numbers per word, many heads and many stacked layers. Here, only the shape of the calculation is faithful.",
+    "Real query, key and value arrows are learned from data. The ones here were chosen so the example is easy to read, such as \"it\" matching \"cat\".",
+    "There is no next-word prediction, and the scene doesn't show how the blended meaning is used later."
+  ],
+  "requirements": [
+    "Recommended: experiment. Attention is a calculation: compare one word with the others, turn the scores into percentages, then blend. Changing the focus word and the sharpness while the weights and the blended arrow update together makes each part of that calculation visible.",
+    "Behavior: analytical",
+    "Controls: inspect",
+    "Interaction: Choose which word is the focus and watch its attention lines and percentages change",
+    "Interaction: Raise the sharpness to concentrate the weight on the best-matching word, or lower it to spread the weight more evenly",
+    "Interaction: Turn off \"only look at earlier words\" to let a word also look at the words after it",
+    "Interaction: Select any word block to read its match score with the focus word and its share of the attention",
+    "Parameter: Focus word (the one asking), one of The, cat, sat, because, it, was, tired",
+    "Parameter: Sharpness (inverse temperature), 0.5 to 4, default 1.5",
+    "Parameter: Only look at earlier words",
+    "Goal: Understand that each word scores how well its query matches every visible word's key, turns those scores into weights that add up to 100%, and takes on a weighted blend of those words' values as its new meaning."
+  ],
+  "input": {
+    "request": "Explain attention in an LLM.",
+    "plan_hash": "e422e2f21e874d7729e93c5d641fb673de9ea66d04d7ae7ac3179153afadc57d",
+    "scene": {
+      "parameters": [
+        {
+          "type": "select",
+          "label": "Focus word (the one asking)",
+          "options": [
+            {
+              "value": "The",
+              "label": "The"
+            },
+            {
+              "value": "cat",
+              "label": "cat"
+            },
+            {
+              "value": "sat",
+              "label": "sat"
+            },
+            {
+              "value": "because",
+              "label": "because"
+            },
+            {
+              "value": "it",
+              "label": "it"
+            },
+            {
+              "value": "was",
+              "label": "was"
+            },
+            {
+              "value": "tired",
+              "label": "tired"
+            }
+          ],
+          "default": "it"
+        },
+        {
+          "type": "number",
+          "label": "Sharpness (inverse temperature)",
+          "min": 0.5,
+          "max": 4,
+          "step": 0.1,
+          "default": 1.5
+        },
+        {
+          "type": "toggle",
+          "label": "Only look at earlier words",
+          "default": true
+        }
+      ],
+      "interactions": [
+        "Choose which word is the focus and watch its attention lines and percentages change",
+        "Raise the sharpness to concentrate the weight on the best-matching word, or lower it to spread the weight more evenly",
+        "Turn off \"only look at earlier words\" to let a word also look at the words after it",
+        "Select any word block to read its match score with the focus word and its share of the attention"
+      ],
+      "notices": []
+    }
+  }
+}
+```
+
+</details>
+
+#### Calls, usage and cost
+
+| # | Role | Status | Input tokens | Output tokens | Stop reason | Error | Cost |
+|---|---|---|---|---|---|---|---|
+| 1 | brief | settled | 253 | 1834 | tool_use | - | US$0.0384 |
+
+Provider US$0.0384, ledger US$0.0384 (dev ledger: 1 model call(s)). Credits the learner would see: 4.
+
+#### Assessment (reviewer; not generated, not the planner's self-assessment)
+
+- [ ] 1. Understands the learning goal: 
+- [ ] 2. Chooses an appropriate supported experience, with a reason: 
+- [ ] 3. Describes a concrete, understandable scene: 
+- [ ] 4. Preserves the requested controls, with useful defaults and ranges: 
+- [ ] 5. Is accurate about the subject: 
+- [ ] 6. Discloses simulated data, conceptual models and meaningful simplifications: 
+- [ ] 7. Promises only effects its model and settings could produce: 
+- [ ] 8. Fits MVP capabilities without silently changing the request: 
+
+Specific problems: 
+
+Overall (good / usable with changes / not usable): 
+
+### Case 4: LLM sampling
+
+**User prompt (exact):** `/animation Show how temperature changes what an LLM writes.`
+
+Sent as `prompt`: `Show how temperature changes what an LLM writes.` · job `aj_c264a78a35fa469b8261b5a6e7ab11b6` · fresh test user `an-acceptance-pe4xmvzowkjq@example.com` · fresh canvas `canvas-f2aad855` · 2026-11-02T20:06:49.094Z
+
+**Outcome:** plan ready for review (awaiting_approval) on the first answer; then cancelled by the runner at review (Generate never pressed).
+
+#### Planner input
+
+User message content sha256 `3788bf0ee678f42fdbc751a725eaeb6e01e2e8467d624c5ad5a89abce27b9935`; request body sha256 `e7b331726ea7083784c469b868e6f341b88273bdb11e2c1b2f4984237bc4a36f`. System prompt and tool: the batch hashes above.
+
+<details><summary>Exact planner input (the user message the server sends)</summary>
+
+```json
+{
+  "request": "Show how temperature changes what an LLM writes.",
+  "refinement": null,
+  "previous": null,
+  "context": null,
+  "evidence": [],
+  "capabilities": {
+    "phase": "mvp",
+    "experiences": [
+      "inspect",
+      "watch",
+      "experiment",
+      "game"
+    ],
+    "behaviors": [
+      "prescribed",
+      "analytical",
+      "rules"
+    ],
+    "controlProfiles": [
+      "inspect",
+      "manipulate"
+    ],
+    "features": [
+      "loop",
+      "speed",
+      "seek",
+      "parameters",
+      "actions",
+      "select",
+      "drag",
+      "step",
+      "labels",
+      "readouts"
+    ],
+    "limits": {
+      "parameters": 8,
+      "actions": 8,
+      "nodes": 256
+    }
+  }
+}
+```
+
+</details>
+
+#### Planner response (unedited)
+
+<details><summary>Planner answer 1 (accepted)</summary>
+
+```json
+{
+  "stage": "preparing",
+  "input": {
+    "title": "Temperature and the Next Word: Reshaping an LLM's Choices",
+    "description": "A short prompt, \"The cat sat on the …\", floats above a row of eight candidate next words (mat, floor, sofa, bed, roof, chair, moon, keyboard). Each word has a bar whose height is its chance of being picked. As you move the temperature slider, the bars reshape right away: low temperature makes \"mat\" tower over the rest, and high temperature flattens the bars so odd words like \"moon\" get a real chance. You can draw sample words and watch a tally of the words actually picked build up beside each bar.",
+    "experience": "experiment",
+    "reason": "Temperature is a single dial whose effect only becomes clear when you change it and compare. Showing the bars and a growing tally of real picks side by side lets you see both the reshaped odds and what the model actually ends up writing.",
+    "behavior": "rules",
+    "controlProfile": "inspect",
+    "parameters": [
+      {
+        "type": "number",
+        "id": "temperature",
+        "label": "Temperature",
+        "min": 0.2,
+        "max": 2,
+        "default": 1,
+        "step": 0.1
+      }
+    ],
+    "interactions": [
+      "Drag the temperature slider and watch every word's chance update at once",
+      "Draw one next word to see which word gets picked at the current temperature",
+      "Draw ten words at once to build up the tally faster",
+      "Clear only the tally of picked words, keeping the current temperature, so you can compare temperatures fairly",
+      "Select a word's bar to see its raw score and its current chance"
+    ],
+    "assumptions": [
+      "The word scores are made up for illustration and do not come from a real language model.",
+      "Only eight candidate words are shown; a real model scores tens of thousands of possible pieces of text at every step.",
+      "Chances come from dividing each word's score by the temperature and turning the results into proportions that add to 100% (the standard softmax method). This rule is applied exactly.",
+      "Picks use a fixed repeatable random sequence, so after a reset the same draws come out in the same order.",
+      "Only the single next word is sampled; the prompt does not grow, so each draw starts again from the same prompt."
+    ],
+    "limitations": [
+      "Temperature 0 (always picking the top word) is not on the slider; at 0.2 the top word is chosen almost every time, but not strictly every time.",
+      "It shows one word choice, not a whole paragraph, so it cannot show how an early odd pick sends the rest of the text in a new direction.",
+      "Other sampling settings real tools use, such as top-k or top-p cut-offs, are not included.",
+      "With only a few draws the tally can differ a lot from the bars; it only matches them on average over many draws."
+    ],
+    "requiredCapabilities": [
+      "parameters",
+      "actions",
+      "select",
+      "labels",
+      "readouts"
+    ],
+    "requested": {
+      "features": []
+    },
+    "learningGoal": "Temperature doesn't change which words the model thinks are likely. It changes how sharply those preferences are followed: low temperature is predictable and repetitive, and high temperature is varied and more surprising."
+  },
+  "issues": []
+}
+```
+
+</details>
+
+#### Validation
+
+- Server: accepted by validateAnimationPlan against the enabled capabilities.
+- Correction: 1 plan call(s); no correction.
+- Local re-check of the final plan with the checkout's contract: valid.
+
+#### Final validated plan
+
+<details><summary>animation-plan/1 (diagnostics.plan)</summary>
+
+```json
+{
+  "schema": "animation-plan/1",
+  "title": "Temperature and the Next Word: Reshaping an LLM's Choices",
+  "description": "A short prompt, \"The cat sat on the …\", floats above a row of eight candidate next words (mat, floor, sofa, bed, roof, chair, moon, keyboard). Each word has a bar whose height is its chance of being picked. As you move the temperature slider, the bars reshape right away: low temperature makes \"mat\" tower over the rest, and high temperature flattens the bars so odd words like \"moon\" get a real chance. You can draw sample words and watch a tally of the words actually picked build up beside each bar.",
+  "experience": "experiment",
+  "reason": "Temperature is a single dial whose effect only becomes clear when you change it and compare. Showing the bars and a growing tally of real picks side by side lets you see both the reshaped odds and what the model actually ends up writing.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+    {
+      "type": "number",
+      "id": "temperature",
+      "label": "Temperature",
+      "min": 0.2,
+      "max": 2,
+      "step": 0.1,
+      "default": 1
+    }
+  ],
+  "interactions": [
+    "Drag the temperature slider and watch every word's chance update at once",
+    "Draw one next word to see which word gets picked at the current temperature",
+    "Draw ten words at once to build up the tally faster",
+    "Clear only the tally of picked words, keeping the current temperature, so you can compare temperatures fairly",
+    "Select a word's bar to see its raw score and its current chance"
+  ],
+  "assumptions": [
+    "The word scores are made up for illustration and do not come from a real language model.",
+    "Only eight candidate words are shown; a real model scores tens of thousands of possible pieces of text at every step.",
+    "Chances come from dividing each word's score by the temperature and turning the results into proportions that add to 100% (the standard softmax method). This rule is applied exactly.",
+    "Picks use a fixed repeatable random sequence, so after a reset the same draws come out in the same order.",
+    "Only the single next word is sampled; the prompt does not grow, so each draw starts again from the same prompt."
+  ],
+  "limitations": [
+    "Temperature 0 (always picking the top word) is not on the slider; at 0.2 the top word is chosen almost every time, but not strictly every time.",
+    "It shows one word choice, not a whole paragraph, so it cannot show how an early odd pick sends the rest of the text in a new direction.",
+    "Other sampling settings real tools use, such as top-k or top-p cut-offs, are not included.",
+    "With only a few draws the tally can differ a lot from the bars; it only matches them on average over many draws."
+  ],
+  "learningGoal": "Temperature doesn't change which words the model thinks are likely. It changes how sharply those preferences are followed: low temperature is predictable and repetitive, and high temperature is varied and more surprising.",
+  "requiredCapabilities": [
+    "parameters",
+    "actions",
+    "select",
+    "labels",
+    "readouts"
+  ]
+}
+```
+
+</details>
+
+#### Presented to the user
+
+- Chat message: "Here is the plan for your animation. Generate makes it."
+- Card heading: Review your scene
+- Title: Temperature and the Next Word: Reshaping an LLM's Choices
+- Description: A short prompt, "The cat sat on the …", floats above a row of eight candidate next words (mat, floor, sofa, bed, roof, chair, moon, keyboard). Each word has a bar whose height is its chance of being picked. As you move the temperature slider, the bars reshape right away: low temperature makes "mat" tower over the rest, and high temperature flattens the bars so odd words like "moon" get a real chance. You can draw sample words and watch a tally of the words actually picked build up beside each bar.
+- Experience: Experiment
+- What you can change:
+  - Temperature: 0.2–2
+- Starts with: Temperature: 1
+- Notices (kept in view):
+  - (none)
+- Caveat (shown, the first assumption): The word scores are made up for illustration and do not come from a real language model.
+- Model assumptions (collapsed):
+  - Only eight candidate words are shown; a real model scores tens of thousands of possible pieces of text at every step.
+  - Chances come from dividing each word's score by the temperature and turning the results into proportions that add to 100% (the standard softmax method). This rule is applied exactly.
+  - Picks use a fixed repeatable random sequence, so after a reset the same draws come out in the same order.
+  - Only the single next word is sampled; the prompt does not grow, so each draw starts again from the same prompt.
+- Limitations (collapsed):
+  - Temperature 0 (always picking the top word) is not on the slider; at 0.2 the top word is chosen almost every time, but not strictly every time.
+  - It shows one word choice, not a whole paragraph, so it cannot show how an early odd pick sends the rest of the text in a new direction.
+  - Other sampling settings real tools use, such as top-k or top-p cut-offs, are not included.
+  - With only a few draws the tally can differ a lot from the bars; it only matches them on average over many draws.
+
+<details><summary>Signed proposal, learner-facing fields</summary>
+
+```json
+{
+  "command": "animation",
+  "version": 1,
+  "title": "Temperature and the Next Word: Reshaping an LLM's Choices",
+  "description": "A short prompt, \"The cat sat on the …\", floats above a row of eight candidate next words (mat, floor, sofa, bed, roof, chair, moon, keyboard). Each word has a bar whose height is its chance of being picked. As you move the temperature slider, the bars reshape right away: low temperature makes \"mat\" tower over the rest, and high temperature flattens the bars so odd words like \"moon\" get a real chance. You can draw sample words and watch a tally of the words actually picked build up beside each bar.",
+  "settings": {
+    "experience": "experiment"
+  },
+  "assumptions": [
+    "The word scores are made up for illustration and do not come from a real language model.",
+    "Only eight candidate words are shown; a real model scores tens of thousands of possible pieces of text at every step.",
+    "Chances come from dividing each word's score by the temperature and turning the results into proportions that add to 100% (the standard softmax method). This rule is applied exactly.",
+    "Picks use a fixed repeatable random sequence, so after a reset the same draws come out in the same order.",
+    "Only the single next word is sampled; the prompt does not grow, so each draw starts again from the same prompt."
+  ],
+  "limitations": [
+    "Temperature 0 (always picking the top word) is not on the slider; at 0.2 the top word is chosen almost every time, but not strictly every time.",
+    "It shows one word choice, not a whole paragraph, so it cannot show how an early odd pick sends the rest of the text in a new direction.",
+    "Other sampling settings real tools use, such as top-k or top-p cut-offs, are not included.",
+    "With only a few draws the tally can differ a lot from the bars; it only matches them on average over many draws."
+  ],
+  "requirements": [
+    "Recommended: experiment. Temperature is a single dial whose effect only becomes clear when you change it and compare. Showing the bars and a growing tally of real picks side by side lets you see both the reshaped odds and what the model actually ends up writing.",
+    "Behavior: rules",
+    "Controls: inspect",
+    "Interaction: Drag the temperature slider and watch every word's chance update at once",
+    "Interaction: Draw one next word to see which word gets picked at the current temperature",
+    "Interaction: Draw ten words at once to build up the tally faster",
+    "Interaction: Clear only the tally of picked words, keeping the current temperature, so you can compare temperatures fairly",
+    "Interaction: Select a word's bar to see its raw score and its current chance",
+    "Parameter: Temperature, 0.2 to 2, default 1",
+    "Goal: Temperature doesn't change which words the model thinks are likely. It changes how sharply those preferences are followed: low temperature is predictable and repetitive, and high temperature is varied and more surprising."
+  ],
+  "input": {
+    "request": "Show how temperature changes what an LLM writes.",
+    "plan_hash": "694c8f0fe27b1c808b41c279f085786dab82307b8ddc47d79b352e8aea056622",
+    "scene": {
+      "parameters": [
+        {
+          "type": "number",
+          "label": "Temperature",
+          "min": 0.2,
+          "max": 2,
+          "step": 0.1,
+          "default": 1
+        }
+      ],
+      "interactions": [
+        "Drag the temperature slider and watch every word's chance update at once",
+        "Draw one next word to see which word gets picked at the current temperature",
+        "Draw ten words at once to build up the tally faster",
+        "Clear only the tally of picked words, keeping the current temperature, so you can compare temperatures fairly",
+        "Select a word's bar to see its raw score and its current chance"
+      ],
+      "notices": []
+    }
+  }
+}
+```
+
+</details>
+
+#### Calls, usage and cost
+
+| # | Role | Status | Input tokens | Output tokens | Stop reason | Error | Cost |
+|---|---|---|---|---|---|---|---|
+| 1 | brief | settled | 258 | 1622 | tool_use | - | US$0.0342 |
+
+Provider US$0.0342, ledger US$0.0342 (dev ledger: 1 model call(s)). Credits the learner would see: 4.
+
+#### Assessment (reviewer; not generated, not the planner's self-assessment)
+
+- [ ] 1. Understands the learning goal: 
+- [ ] 2. Chooses an appropriate supported experience, with a reason: 
+- [ ] 3. Describes a concrete, understandable scene: 
+- [ ] 4. Preserves the requested controls, with useful defaults and ranges: 
+- [ ] 5. Is accurate about the subject: 
+- [ ] 6. Discloses simulated data, conceptual models and meaningful simplifications: 
+- [ ] 7. Promises only effects its model and settings could produce: 
+- [ ] 8. Fits MVP capabilities without silently changing the request: 
+
+Specific problems: 
+
+Overall (good / usable with changes / not usable): 
+
+### Case 5: Reinforcement learning
+
+**User prompt (exact):** `/animation Show how an AI learns from rewards.`
+
+Sent as `prompt`: `Show how an AI learns from rewards.` · job `aj_88516c9643c7443db943870b8fb82013` · fresh test user `an-acceptance-pe5xmvzoxeuh@example.com` · fresh canvas `canvas-c6dcf8b6` · 2026-11-02T20:07:28.361Z
+
+**Outcome:** plan ready for review (awaiting_approval) on the first answer; then cancelled by the runner at review (Generate never pressed).
+
+#### Planner input
+
+User message content sha256 `c0590a93d74fc2ec97d57edcbfb1ea78b7c1d7ec9a98ee367636c39d9709305d`; request body sha256 `447c085fc6985bae597fca78328ba16c6deab833fc15f43f253ab9bbc44e431e`. System prompt and tool: the batch hashes above.
+
+<details><summary>Exact planner input (the user message the server sends)</summary>
+
+```json
+{
+  "request": "Show how an AI learns from rewards.",
+  "refinement": null,
+  "previous": null,
+  "context": null,
+  "evidence": [],
+  "capabilities": {
+    "phase": "mvp",
+    "experiences": [
+      "inspect",
+      "watch",
+      "experiment",
+      "game"
+    ],
+    "behaviors": [
+      "prescribed",
+      "analytical",
+      "rules"
+    ],
+    "controlProfiles": [
+      "inspect",
+      "manipulate"
+    ],
+    "features": [
+      "loop",
+      "speed",
+      "seek",
+      "parameters",
+      "actions",
+      "select",
+      "drag",
+      "step",
+      "labels",
+      "readouts"
+    ],
+    "limits": {
+      "parameters": 8,
+      "actions": 8,
+      "nodes": 256
+    }
+  }
+}
+```
+
+</details>
+
+#### Planner response (unedited)
+
+<details><summary>Planner answer 1 (accepted)</summary>
+
+```json
+{
+  "stage": "preparing",
+  "input": {
+    "title": "Learning from Rewards: A Robot Finds Its Way Through a Grid",
+    "description": "A small robot moves on a 5×5 grid with a green goal tile (+10 reward), a red pit tile (−10) and a cost of −1 for every move. Each step, the robot either tries a random move or takes the move it currently thinks is best, then updates how good it thinks that move was based on the reward it got. Tiles rise and change color as the robot's estimate of each spot's value changes, and an arrow on each tile shows the move it currently rates best. Over many attempts, the arrows usually line up into a short path to the goal that avoids the pit.",
+    "experience": "experiment",
+    "reason": "Learning from rewards is a process you have to watch unfold, and seeing how exploring more or learning faster changes it builds real understanding. Stepping move by move, with sliders and readouts, shows both of these.",
+    "behavior": "rules",
+    "controlProfile": "inspect",
+    "parameters": [
+      {
+        "type": "number",
+        "id": "exploration",
+        "label": "Exploration (chance of a random move)",
+        "min": 0.05,
+        "max": 0.5,
+        "default": 0.2,
+        "step": 0.05
+      },
+      {
+        "type": "number",
+        "id": "learningRate",
+        "label": "Learning rate (how much each reward changes the estimate)",
+        "min": 0.1,
+        "max": 0.9,
+        "default": 0.5,
+        "step": 0.1
+      }
+    ],
+    "interactions": [
+      "Play, pause or step one move at a time and change the speed to watch the estimates update",
+      "Raise exploration to see more random wandering, or lower it to see the robot stick to what it already rates best",
+      "Change the learning rate to see estimates jump quickly or creep slowly after each reward",
+      "Forget what was learned: clears all estimates and the attempt count but keeps your slider settings",
+      "Select a tile to read the robot's current estimate for each of its four moves"
+    ],
+    "assumptions": [
+      "This is a toy grid world showing the idea of reward-based learning, not a real AI system.",
+      "The robot uses a simple table of estimates, one for each tile and move, updated after every move from the reward plus the best estimate at the next tile (future rewards count 90% as much).",
+      "Reaching the goal or the pit ends the attempt, and the robot goes back to the start tile; the move into the goal or pit is counted in that attempt's reward.",
+      "Random choices follow a fixed seed, so a fresh start replays the same sequence of choices for the same settings.",
+      "Moves into the outer wall leave the robot where it is and still cost −1."
+    ],
+    "limitations": [
+      "Single attempts do not always do better than the previous one; the steps and total reward per attempt improve on average, and random moves keep causing some detours.",
+      "Real AI systems that learn from rewards usually use neural networks instead of a table and work with far larger worlds; this grid only shows the core update rule.",
+      "Because some moves are always random, the robot keeps occasionally stepping off the best path even after it has learned it."
+    ],
+    "requiredCapabilities": [
+      "step",
+      "speed",
+      "parameters",
+      "actions",
+      "readouts",
+      "labels",
+      "select"
+    ],
+    "requested": {
+      "features": []
+    },
+    "learningGoal": "See that an agent learns which actions are good by trying them, getting rewards, and nudging its estimates, and how exploring and the learning rate shape that process."
+  },
+  "issues": []
+}
+```
+
+</details>
+
+#### Validation
+
+- Server: accepted by validateAnimationPlan against the enabled capabilities.
+- Correction: 1 plan call(s); no correction.
+- Local re-check of the final plan with the checkout's contract: valid.
+
+#### Final validated plan
+
+<details><summary>animation-plan/1 (diagnostics.plan)</summary>
+
+```json
+{
+  "schema": "animation-plan/1",
+  "title": "Learning from Rewards: A Robot Finds Its Way Through a Grid",
+  "description": "A small robot moves on a 5×5 grid with a green goal tile (+10 reward), a red pit tile (−10) and a cost of −1 for every move. Each step, the robot either tries a random move or takes the move it currently thinks is best, then updates how good it thinks that move was based on the reward it got. Tiles rise and change color as the robot's estimate of each spot's value changes, and an arrow on each tile shows the move it currently rates best. Over many attempts, the arrows usually line up into a short path to the goal that avoids the pit.",
+  "experience": "experiment",
+  "reason": "Learning from rewards is a process you have to watch unfold, and seeing how exploring more or learning faster changes it builds real understanding. Stepping move by move, with sliders and readouts, shows both of these.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+    {
+      "type": "number",
+      "id": "exploration",
+      "label": "Exploration (chance of a random move)",
+      "min": 0.05,
+      "max": 0.5,
+      "step": 0.05,
+      "default": 0.2
+    },
+    {
+      "type": "number",
+      "id": "learningRate",
+      "label": "Learning rate (how much each reward changes the estimate)",
+      "min": 0.1,
+      "max": 0.9,
+      "step": 0.1,
+      "default": 0.5
+    }
+  ],
+  "interactions": [
+    "Play, pause or step one move at a time and change the speed to watch the estimates update",
+    "Raise exploration to see more random wandering, or lower it to see the robot stick to what it already rates best",
+    "Change the learning rate to see estimates jump quickly or creep slowly after each reward",
+    "Forget what was learned: clears all estimates and the attempt count but keeps your slider settings",
+    "Select a tile to read the robot's current estimate for each of its four moves"
+  ],
+  "assumptions": [
+    "This is a toy grid world showing the idea of reward-based learning, not a real AI system.",
+    "The robot uses a simple table of estimates, one for each tile and move, updated after every move from the reward plus the best estimate at the next tile (future rewards count 90% as much).",
+    "Reaching the goal or the pit ends the attempt, and the robot goes back to the start tile; the move into the goal or pit is counted in that attempt's reward.",
+    "Random choices follow a fixed seed, so a fresh start replays the same sequence of choices for the same settings.",
+    "Moves into the outer wall leave the robot where it is and still cost −1."
+  ],
+  "limitations": [
+    "Single attempts do not always do better than the previous one; the steps and total reward per attempt improve on average, and random moves keep causing some detours.",
+    "Real AI systems that learn from rewards usually use neural networks instead of a table and work with far larger worlds; this grid only shows the core update rule.",
+    "Because some moves are always random, the robot keeps occasionally stepping off the best path even after it has learned it."
+  ],
+  "learningGoal": "See that an agent learns which actions are good by trying them, getting rewards, and nudging its estimates, and how exploring and the learning rate shape that process.",
+  "requiredCapabilities": [
+    "step",
+    "speed",
+    "parameters",
+    "actions",
+    "readouts",
+    "labels",
+    "select"
+  ]
+}
+```
+
+</details>
+
+#### Presented to the user
+
+- Chat message: "Here is the plan for your animation. Generate makes it."
+- Card heading: Review your scene
+- Title: Learning from Rewards: A Robot Finds Its Way Through a Grid
+- Description: A small robot moves on a 5×5 grid with a green goal tile (+10 reward), a red pit tile (−10) and a cost of −1 for every move. Each step, the robot either tries a random move or takes the move it currently thinks is best, then updates how good it thinks that move was based on the reward it got. Tiles rise and change color as the robot's estimate of each spot's value changes, and an arrow on each tile shows the move it currently rates best. Over many attempts, the arrows usually line up into a short path to the goal that avoids the pit.
+- Experience: Experiment
+- What you can change:
+  - Exploration (chance of a random move): 0.05–0.5
+  - Learning rate (how much each reward changes the estimate): 0.1–0.9
+- Starts with: Exploration (chance of a random move): 0.2 · Learning rate (how much each reward changes the estimate): 0.5
+- Notices (kept in view):
+  - (none)
+- Caveat (shown, the first assumption): This is a toy grid world showing the idea of reward-based learning, not a real AI system.
+- Model assumptions (collapsed):
+  - The robot uses a simple table of estimates, one for each tile and move, updated after every move from the reward plus the best estimate at the next tile (future rewards count 90% as much).
+  - Reaching the goal or the pit ends the attempt, and the robot goes back to the start tile; the move into the goal or pit is counted in that attempt's reward.
+  - Random choices follow a fixed seed, so a fresh start replays the same sequence of choices for the same settings.
+  - Moves into the outer wall leave the robot where it is and still cost −1.
+- Limitations (collapsed):
+  - Single attempts do not always do better than the previous one; the steps and total reward per attempt improve on average, and random moves keep causing some detours.
+  - Real AI systems that learn from rewards usually use neural networks instead of a table and work with far larger worlds; this grid only shows the core update rule.
+  - Because some moves are always random, the robot keeps occasionally stepping off the best path even after it has learned it.
+
+<details><summary>Signed proposal, learner-facing fields</summary>
+
+```json
+{
+  "command": "animation",
+  "version": 1,
+  "title": "Learning from Rewards: A Robot Finds Its Way Through a Grid",
+  "description": "A small robot moves on a 5×5 grid with a green goal tile (+10 reward), a red pit tile (−10) and a cost of −1 for every move. Each step, the robot either tries a random move or takes the move it currently thinks is best, then updates how good it thinks that move was based on the reward it got. Tiles rise and change color as the robot's estimate of each spot's value changes, and an arrow on each tile shows the move it currently rates best. Over many attempts, the arrows usually line up into a short path to the goal that avoids the pit.",
+  "settings": {
+    "experience": "experiment"
+  },
+  "assumptions": [
+    "This is a toy grid world showing the idea of reward-based learning, not a real AI system.",
+    "The robot uses a simple table of estimates, one for each tile and move, updated after every move from the reward plus the best estimate at the next tile (future rewards count 90% as much).",
+    "Reaching the goal or the pit ends the attempt, and the robot goes back to the start tile; the move into the goal or pit is counted in that attempt's reward.",
+    "Random choices follow a fixed seed, so a fresh start replays the same sequence of choices for the same settings.",
+    "Moves into the outer wall leave the robot where it is and still cost −1."
+  ],
+  "limitations": [
+    "Single attempts do not always do better than the previous one; the steps and total reward per attempt improve on average, and random moves keep causing some detours.",
+    "Real AI systems that learn from rewards usually use neural networks instead of a table and work with far larger worlds; this grid only shows the core update rule.",
+    "Because some moves are always random, the robot keeps occasionally stepping off the best path even after it has learned it."
+  ],
+  "requirements": [
+    "Recommended: experiment. Learning from rewards is a process you have to watch unfold, and seeing how exploring more or learning faster changes it builds real understanding. Stepping move by move, with sliders and readouts, shows both of these.",
+    "Behavior: rules",
+    "Controls: inspect",
+    "Interaction: Play, pause or step one move at a time and change the speed to watch the estimates update",
+    "Interaction: Raise exploration to see more random wandering, or lower it to see the robot stick to what it already rates best",
+    "Interaction: Change the learning rate to see estimates jump quickly or creep slowly after each reward",
+    "Interaction: Forget what was learned: clears all estimates and the attempt count but keeps your slider settings",
+    "Interaction: Select a tile to read the robot's current estimate for each of its four moves",
+    "Parameter: Exploration (chance of a random move), 0.05 to 0.5, default 0.2",
+    "Parameter: Learning rate (how much each reward changes the estimate), 0.1 to 0.9, default 0.5",
+    "Goal: See that an agent learns which actions are good by trying them, getting rewards, and nudging its estimates, and how exploring and the learning rate shape that process."
+  ],
+  "input": {
+    "request": "Show how an AI learns from rewards.",
+    "plan_hash": "6f28bdf5d48b862cb7b7ce627bb2186e5c7937fb212abee3058dfa25c18702d3",
+    "scene": {
+      "parameters": [
+        {
+          "type": "number",
+          "label": "Exploration (chance of a random move)",
+          "min": 0.05,
+          "max": 0.5,
+          "step": 0.05,
+          "default": 0.2
+        },
+        {
+          "type": "number",
+          "label": "Learning rate (how much each reward changes the estimate)",
+          "min": 0.1,
+          "max": 0.9,
+          "step": 0.1,
+          "default": 0.5
+        }
+      ],
+      "interactions": [
+        "Play, pause or step one move at a time and change the speed to watch the estimates update",
+        "Raise exploration to see more random wandering, or lower it to see the robot stick to what it already rates best",
+        "Change the learning rate to see estimates jump quickly or creep slowly after each reward",
+        "Forget what was learned: clears all estimates and the attempt count but keeps your slider settings",
+        "Select a tile to read the robot's current estimate for each of its four moves"
+      ],
+      "notices": []
+    }
+  }
+}
+```
+
+</details>
+
+#### Calls, usage and cost
+
+| # | Role | Status | Input tokens | Output tokens | Stop reason | Error | Cost |
+|---|---|---|---|---|---|---|---|
+| 1 | brief | settled | 255 | 1783 | tool_use | - | US$0.0374 |
+
+Provider US$0.0374, ledger US$0.0374 (dev ledger: 1 model call(s)). Credits the learner would see: 4.
+
+#### Assessment (reviewer; not generated, not the planner's self-assessment)
+
+- [ ] 1. Understands the learning goal: 
+- [ ] 2. Chooses an appropriate supported experience, with a reason: 
+- [ ] 3. Describes a concrete, understandable scene: 
+- [ ] 4. Preserves the requested controls, with useful defaults and ranges: 
+- [ ] 5. Is accurate about the subject: 
+- [ ] 6. Discloses simulated data, conceptual models and meaningful simplifications: 
+- [ ] 7. Promises only effects its model and settings could produce: 
+- [ ] 8. Fits MVP capabilities without silently changing the request: 
+
+Specific problems: 
+
+Overall (good / usable with changes / not usable): 
+
+### Case 6: Pendulum
+
+**User prompt (exact):** `/animation Show how changing a pendulum's length affects its swing.`
+
+Sent as `prompt`: `Show how changing a pendulum's length affects its swing.` · job `aj_3c5aff9f829b4bf9bda4a4bda04dccb1` · fresh test user `an-acceptance-pe6xmvzoydt8@example.com` · fresh canvas `canvas-e8508dba` · 2026-11-02T20:08:13.676Z
+
+**Outcome:** plan ready for review (awaiting_approval) on the first answer; then cancelled by the runner at review (Generate never pressed).
+
+#### Planner input
+
+User message content sha256 `d8f43907d4543265711e92335f7105f1c828e3ba11cec39bd73ba7678198bcc3`; request body sha256 `099ebf4b0910d825043b199fb7235aacf2bb494f99559fb27880c721ef02fabc`. System prompt and tool: the batch hashes above.
+
+<details><summary>Exact planner input (the user message the server sends)</summary>
+
+```json
+{
+  "request": "Show how changing a pendulum's length affects its swing.",
+  "refinement": null,
+  "previous": null,
+  "context": null,
+  "evidence": [],
+  "capabilities": {
+    "phase": "mvp",
+    "experiences": [
+      "inspect",
+      "watch",
+      "experiment",
+      "game"
+    ],
+    "behaviors": [
+      "prescribed",
+      "analytical",
+      "rules"
+    ],
+    "controlProfiles": [
+      "inspect",
+      "manipulate"
+    ],
+    "features": [
+      "loop",
+      "speed",
+      "seek",
+      "parameters",
+      "actions",
+      "select",
+      "drag",
+      "step",
+      "labels",
+      "readouts"
+    ],
+    "limits": {
+      "parameters": 8,
+      "actions": 8,
+      "nodes": 256
+    }
+  }
+}
+```
+
+</details>
+
+#### Planner response (unedited)
+
+<details><summary>Planner answer 1 (accepted)</summary>
+
+```json
+{
+  "stage": "preparing",
+  "input": {
+    "title": "Pendulum Length and Swing Time",
+    "description": "A bob on a string swings from a fixed pivot. Next to it is a grey reference pendulum that is always 1 m long. When you change the length, the main pendulum's string and swing update right away, and readouts show its period (the time for one full back-and-forth swing) and how many swings it makes per second. Longer strings swing more slowly, and shorter ones swing faster.",
+    "experience": "experiment",
+    "reason": "You want to see what happens when the length changes. A slider for length, with a fixed 1 m pendulum swinging beside it, lets you see the change in swing speed and read the numbers behind it.",
+    "behavior": "analytical",
+    "controlProfile": "inspect",
+    "parameters": [
+      {
+        "type": "number",
+        "id": "length",
+        "label": "Pendulum length",
+        "min": 0.25,
+        "max": 2.5,
+        "default": 1.5,
+        "step": 0.05,
+        "unit": "m"
+      },
+      {
+        "type": "toggle",
+        "id": "showReference",
+        "label": "Show 1 m reference pendulum",
+        "default": true
+      }
+    ],
+    "interactions": [
+      "Drag the length slider from 0.25 m to 2.5 m and watch the swing slow down or speed up",
+      "Turn the 1 m reference pendulum on or off to compare swings side by side",
+      "Change the playback speed, or move to any moment in the swing",
+      "Orbit the camera to look at the swing from any side"
+    ],
+    "assumptions": [
+      "This is an idealized pendulum: it follows the small-swing formula rather than a real, physically simulated pendulum.",
+      "The string has no mass and doesn't stretch, and the bob is treated as a single point.",
+      "There is no air resistance or friction, so the swing never dies down.",
+      "Both pendulums start at the same 10° angle, and gravity is 9.81 m/s².",
+      "The period is computed as 2π times the square root of length divided by gravity. In the model this is exact, and for real pendulums it is very close at small angles."
+    ],
+    "limitations": [
+      "The swing angle stays fixed at 10°. The scene can't show the slight lengthening of the period that happens with large swings.",
+      "Changing the length restarts the swing timing smoothly from the current moment. It does not show how a real pendulum responds if its string is pulled in mid-swing.",
+      "The bob's mass is not a control, because in this model it has no effect on the period."
+    ],
+    "requiredCapabilities": [
+      "parameters",
+      "readouts",
+      "labels",
+      "loop",
+      "speed",
+      "seek"
+    ],
+    "requested": {
+      "features": [
+        "parameters"
+      ]
+    },
+    "learningGoal": "A pendulum's period grows with the square root of its length: four times the length gives twice the swing time."
+  },
+  "issues": []
+}
+```
+
+</details>
+
+#### Validation
+
+- Server: accepted by validateAnimationPlan against the enabled capabilities.
+- Correction: 1 plan call(s); no correction.
+- Local re-check of the final plan with the checkout's contract: valid.
+
+#### Final validated plan
+
+<details><summary>animation-plan/1 (diagnostics.plan)</summary>
+
+```json
+{
+  "schema": "animation-plan/1",
+  "title": "Pendulum Length and Swing Time",
+  "description": "A bob on a string swings from a fixed pivot. Next to it is a grey reference pendulum that is always 1 m long. When you change the length, the main pendulum's string and swing update right away, and readouts show its period (the time for one full back-and-forth swing) and how many swings it makes per second. Longer strings swing more slowly, and shorter ones swing faster.",
+  "experience": "experiment",
+  "reason": "You want to see what happens when the length changes. A slider for length, with a fixed 1 m pendulum swinging beside it, lets you see the change in swing speed and read the numbers behind it.",
+  "behavior": "analytical",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+    {
+      "type": "number",
+      "id": "length",
+      "label": "Pendulum length",
+      "unit": "m",
+      "min": 0.25,
+      "max": 2.5,
+      "step": 0.05,
+      "default": 1.5
+    },
+    {
+      "type": "toggle",
+      "id": "showReference",
+      "label": "Show 1 m reference pendulum",
+      "default": true
+    }
+  ],
+  "interactions": [
+    "Drag the length slider from 0.25 m to 2.5 m and watch the swing slow down or speed up",
+    "Turn the 1 m reference pendulum on or off to compare swings side by side",
+    "Change the playback speed, or move to any moment in the swing",
+    "Orbit the camera to look at the swing from any side"
+  ],
+  "assumptions": [
+    "This is an idealized pendulum: it follows the small-swing formula rather than a real, physically simulated pendulum.",
+    "The string has no mass and doesn't stretch, and the bob is treated as a single point.",
+    "There is no air resistance or friction, so the swing never dies down.",
+    "Both pendulums start at the same 10° angle, and gravity is 9.81 m/s².",
+    "The period is computed as 2π times the square root of length divided by gravity. In the model this is exact, and for real pendulums it is very close at small angles."
+  ],
+  "limitations": [
+    "The swing angle stays fixed at 10°. The scene can't show the slight lengthening of the period that happens with large swings.",
+    "Changing the length restarts the swing timing smoothly from the current moment. It does not show how a real pendulum responds if its string is pulled in mid-swing.",
+    "The bob's mass is not a control, because in this model it has no effect on the period."
+  ],
+  "learningGoal": "A pendulum's period grows with the square root of its length: four times the length gives twice the swing time.",
+  "requiredCapabilities": [
+    "parameters",
+    "readouts",
+    "labels",
+    "loop",
+    "speed",
+    "seek"
+  ]
+}
+```
+
+</details>
+
+#### Presented to the user
+
+- Chat message: "Here is the plan for your animation. Generate makes it."
+- Card heading: Review your scene
+- Title: Pendulum Length and Swing Time
+- Description: A bob on a string swings from a fixed pivot. Next to it is a grey reference pendulum that is always 1 m long. When you change the length, the main pendulum's string and swing update right away, and readouts show its period (the time for one full back-and-forth swing) and how many swings it makes per second. Longer strings swing more slowly, and shorter ones swing faster.
+- Experience: Experiment
+- What you can change:
+  - Pendulum length: 0.25–2.5 m
+  - Show 1 m reference pendulum: on or off
+- Starts with: Pendulum length: 1.5 m · Show 1 m reference pendulum: on
+- Notices (kept in view):
+  - (none)
+- Caveat (shown, the first assumption): This is an idealized pendulum: it follows the small-swing formula rather than a real, physically simulated pendulum.
+- Model assumptions (collapsed):
+  - The string has no mass and doesn't stretch, and the bob is treated as a single point.
+  - There is no air resistance or friction, so the swing never dies down.
+  - Both pendulums start at the same 10° angle, and gravity is 9.81 m/s².
+  - The period is computed as 2π times the square root of length divided by gravity. In the model this is exact, and for real pendulums it is very close at small angles.
+- Limitations (collapsed):
+  - The swing angle stays fixed at 10°. The scene can't show the slight lengthening of the period that happens with large swings.
+  - Changing the length restarts the swing timing smoothly from the current moment. It does not show how a real pendulum responds if its string is pulled in mid-swing.
+  - The bob's mass is not a control, because in this model it has no effect on the period.
+
+<details><summary>Signed proposal, learner-facing fields</summary>
+
+```json
+{
+  "command": "animation",
+  "version": 1,
+  "title": "Pendulum Length and Swing Time",
+  "description": "A bob on a string swings from a fixed pivot. Next to it is a grey reference pendulum that is always 1 m long. When you change the length, the main pendulum's string and swing update right away, and readouts show its period (the time for one full back-and-forth swing) and how many swings it makes per second. Longer strings swing more slowly, and shorter ones swing faster.",
+  "settings": {
+    "experience": "experiment"
+  },
+  "assumptions": [
+    "This is an idealized pendulum: it follows the small-swing formula rather than a real, physically simulated pendulum.",
+    "The string has no mass and doesn't stretch, and the bob is treated as a single point.",
+    "There is no air resistance or friction, so the swing never dies down.",
+    "Both pendulums start at the same 10° angle, and gravity is 9.81 m/s².",
+    "The period is computed as 2π times the square root of length divided by gravity. In the model this is exact, and for real pendulums it is very close at small angles."
+  ],
+  "limitations": [
+    "The swing angle stays fixed at 10°. The scene can't show the slight lengthening of the period that happens with large swings.",
+    "Changing the length restarts the swing timing smoothly from the current moment. It does not show how a real pendulum responds if its string is pulled in mid-swing.",
+    "The bob's mass is not a control, because in this model it has no effect on the period."
+  ],
+  "requirements": [
+    "Recommended: experiment. You want to see what happens when the length changes. A slider for length, with a fixed 1 m pendulum swinging beside it, lets you see the change in swing speed and read the numbers behind it.",
+    "Behavior: analytical",
+    "Controls: inspect",
+    "Interaction: Drag the length slider from 0.25 m to 2.5 m and watch the swing slow down or speed up",
+    "Interaction: Turn the 1 m reference pendulum on or off to compare swings side by side",
+    "Interaction: Change the playback speed, or move to any moment in the swing",
+    "Interaction: Orbit the camera to look at the swing from any side",
+    "Parameter: Pendulum length (m), 0.25 to 2.5, default 1.5",
+    "Parameter: Show 1 m reference pendulum",
+    "Goal: A pendulum's period grows with the square root of its length: four times the length gives twice the swing time."
+  ],
+  "input": {
+    "request": "Show how changing a pendulum's length affects its swing.",
+    "plan_hash": "5644ab20f8a0cc0f06bce56ec2708628cd6196878480f2176a1218053c05a930",
+    "scene": {
+      "parameters": [
+        {
+          "type": "number",
+          "label": "Pendulum length",
+          "unit": "m",
+          "min": 0.25,
+          "max": 2.5,
+          "step": 0.05,
+          "default": 1.5
+        },
+        {
+          "type": "toggle",
+          "label": "Show 1 m reference pendulum",
+          "default": true
+        }
+      ],
+      "interactions": [
+        "Drag the length slider from 0.25 m to 2.5 m and watch the swing slow down or speed up",
+        "Turn the 1 m reference pendulum on or off to compare swings side by side",
+        "Change the playback speed, or move to any moment in the swing",
+        "Orbit the camera to look at the swing from any side"
+      ],
+      "notices": []
+    }
+  }
+}
+```
+
+</details>
+
+#### Calls, usage and cost
+
+| # | Role | Status | Input tokens | Output tokens | Stop reason | Error | Cost |
+|---|---|---|---|---|---|---|---|
+| 1 | brief | settled | 260 | 1254 | tool_use | - | US$0.0269 |
+
+Provider US$0.0269, ledger US$0.0269 (dev ledger: 1 model call(s)). Credits the learner would see: 3.
+
+#### Assessment (reviewer; not generated, not the planner's self-assessment)
+
+- [ ] 1. Understands the learning goal: 
+- [ ] 2. Chooses an appropriate supported experience, with a reason: 
+- [ ] 3. Describes a concrete, understandable scene: 
+- [ ] 4. Preserves the requested controls, with useful defaults and ranges: 
+- [ ] 5. Is accurate about the subject: 
+- [ ] 6. Discloses simulated data, conceptual models and meaningful simplifications: 
+- [ ] 7. Promises only effects its model and settings could produce: 
+- [ ] 8. Fits MVP capabilities without silently changing the request: 
+
+Specific problems: 
+
+Overall (good / usable with changes / not usable): 
+
+### Case 7: Projectile game
+
+**User prompt (exact):** `/animation Make a game where I launch a ball at a target.`
+
+Sent as `prompt`: `Make a game where I launch a ball at a target.` · job `aj_182aac7646554abbadcdf74d602e3c12` · fresh test user `an-acceptance-pe7xmvzoz29u@example.com` · fresh canvas `canvas-9b75c35a` · 2026-11-02T20:08:45.378Z
+
+**Outcome:** plan ready for review (awaiting_approval) on the first answer; then cancelled by the runner at review (Generate never pressed).
+
+#### Planner input
+
+User message content sha256 `622f7f943425aee1b3a153d4e7a064d590a70f0cca3b830a6acf5352427545e8`; request body sha256 `98f6c61d44bf3061ab1292f8bf30bab7ba0b6c14b4ba9a2151c2095b5699e5aa`. System prompt and tool: the batch hashes above.
+
+<details><summary>Exact planner input (the user message the server sends)</summary>
+
+```json
+{
+  "request": "Make a game where I launch a ball at a target.",
+  "refinement": null,
+  "previous": null,
+  "context": null,
+  "evidence": [],
+  "capabilities": {
+    "phase": "mvp",
+    "experiences": [
+      "inspect",
+      "watch",
+      "experiment",
+      "game"
+    ],
+    "behaviors": [
+      "prescribed",
+      "analytical",
+      "rules"
+    ],
+    "controlProfiles": [
+      "inspect",
+      "manipulate"
+    ],
+    "features": [
+      "loop",
+      "speed",
+      "seek",
+      "parameters",
+      "actions",
+      "select",
+      "drag",
+      "step",
+      "labels",
+      "readouts"
+    ],
+    "limits": {
+      "parameters": 8,
+      "actions": 8,
+      "nodes": 256
+    }
+  }
+}
+```
+
+</details>
+
+#### Planner response (unedited)
+
+<details><summary>Planner answer 1 (accepted)</summary>
+
+```json
+{
+  "stage": "preparing",
+  "input": {
+    "title": "Projectile Challenge: Land the Ball on the Target",
+    "description": "A small launcher sits at the left end of a flat field, and a round target pad lies somewhere downrange. Set the launch angle and speed, then press Launch. The ball flies along a curved path, leaving a trail, until it lands. Readouts show where it landed and how far it missed by. Hit the pad to score, then move on to the next target at a new distance.",
+    "experience": "game",
+    "reason": "You asked for a game. A bounded aiming challenge lets you change angle and speed, see the flight, and adjust based on how far you missed, which builds a feel for how each setting changes the distance the ball travels.",
+    "behavior": "rules",
+    "controlProfile": "inspect",
+    "parameters": [
+      {
+        "type": "number",
+        "id": "angle",
+        "label": "Launch angle",
+        "min": 15,
+        "max": 75,
+        "default": 45,
+        "step": 1,
+        "unit": "°"
+      },
+      {
+        "type": "number",
+        "id": "speed",
+        "label": "Launch speed",
+        "min": 8,
+        "max": 20,
+        "default": 12,
+        "step": 0.5,
+        "unit": "m/s"
+      }
+    ],
+    "interactions": [
+      "Adjust the launch angle and launch speed before a shot",
+      "Press Launch to fire the ball. The flight plays out step by step and ends when the ball reaches the ground",
+      "Press Next target to move the pad to a new distance from a fixed sequence. Your hits and attempts are kept",
+      "Use the hint to see which way to change your settings after a miss",
+      "Orbit the camera to view the arc from the side or from above"
+    ],
+    "assumptions": [
+      "This is a simplified flight: there is no air resistance or spin, and the ground is flat.",
+      "The ball follows the ideal projectile path under constant gravity of 9.81 m/s², starting from ground height.",
+      "A shot counts as a hit when the ball lands within 1 m of the pad's centre, with exactly 1 m counting as a hit.",
+      "Targets sit between 10 m and 35 m from the launcher, in a fixed order, so they are all reachable within the slider ranges.",
+      "The previous shot's path stays visible faintly until the next launch, so you can compare shots."
+    ],
+    "limitations": [
+      "Real balls fall short of these distances because of air drag, and the best angle in real life is usually below 45°.",
+      "Only distance along the field matters. There is no sideways aim or wind.",
+      "While a shot is in the air, the settings apply only to the next launch."
+    ],
+    "requiredCapabilities": [
+      "actions",
+      "parameters",
+      "step",
+      "readouts",
+      "labels"
+    ],
+    "requested": {
+      "experience": "game",
+      "features": []
+    },
+    "learningGoal": "How launch angle and speed together set how far a projectile travels: range grows with speed, and for a given speed it is greatest near 45°."
+  },
+  "issues": []
+}
+```
+
+</details>
+
+#### Validation
+
+- Server: accepted by validateAnimationPlan against the enabled capabilities.
+- Correction: 1 plan call(s); no correction.
+- Local re-check of the final plan with the checkout's contract: valid.
+
+#### Final validated plan
+
+<details><summary>animation-plan/1 (diagnostics.plan)</summary>
+
+```json
+{
+  "schema": "animation-plan/1",
+  "title": "Projectile Challenge: Land the Ball on the Target",
+  "description": "A small launcher sits at the left end of a flat field, and a round target pad lies somewhere downrange. Set the launch angle and speed, then press Launch. The ball flies along a curved path, leaving a trail, until it lands. Readouts show where it landed and how far it missed by. Hit the pad to score, then move on to the next target at a new distance.",
+  "experience": "game",
+  "reason": "You asked for a game. A bounded aiming challenge lets you change angle and speed, see the flight, and adjust based on how far you missed, which builds a feel for how each setting changes the distance the ball travels.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+    {
+      "type": "number",
+      "id": "angle",
+      "label": "Launch angle",
+      "unit": "°",
+      "min": 15,
+      "max": 75,
+      "step": 1,
+      "default": 45
+    },
+    {
+      "type": "number",
+      "id": "speed",
+      "label": "Launch speed",
+      "unit": "m/s",
+      "min": 8,
+      "max": 20,
+      "step": 0.5,
+      "default": 12
+    }
+  ],
+  "interactions": [
+    "Adjust the launch angle and launch speed before a shot",
+    "Press Launch to fire the ball. The flight plays out step by step and ends when the ball reaches the ground",
+    "Press Next target to move the pad to a new distance from a fixed sequence. Your hits and attempts are kept",
+    "Use the hint to see which way to change your settings after a miss",
+    "Orbit the camera to view the arc from the side or from above"
+  ],
+  "assumptions": [
+    "This is a simplified flight: there is no air resistance or spin, and the ground is flat.",
+    "The ball follows the ideal projectile path under constant gravity of 9.81 m/s², starting from ground height.",
+    "A shot counts as a hit when the ball lands within 1 m of the pad's centre, with exactly 1 m counting as a hit.",
+    "Targets sit between 10 m and 35 m from the launcher, in a fixed order, so they are all reachable within the slider ranges.",
+    "The previous shot's path stays visible faintly until the next launch, so you can compare shots."
+  ],
+  "limitations": [
+    "Real balls fall short of these distances because of air drag, and the best angle in real life is usually below 45°.",
+    "Only distance along the field matters. There is no sideways aim or wind.",
+    "While a shot is in the air, the settings apply only to the next launch."
+  ],
+  "learningGoal": "How launch angle and speed together set how far a projectile travels: range grows with speed, and for a given speed it is greatest near 45°.",
+  "requiredCapabilities": [
+    "actions",
+    "parameters",
+    "step",
+    "readouts",
+    "labels"
+  ]
+}
+```
+
+</details>
+
+#### Presented to the user
+
+- Chat message: "Here is the plan for your animation. Generate makes it."
+- Card heading: Review your scene
+- Title: Projectile Challenge: Land the Ball on the Target
+- Description: A small launcher sits at the left end of a flat field, and a round target pad lies somewhere downrange. Set the launch angle and speed, then press Launch. The ball flies along a curved path, leaving a trail, until it lands. Readouts show where it landed and how far it missed by. Hit the pad to score, then move on to the next target at a new distance.
+- Experience: Mini-game
+- What you can change:
+  - Launch angle: 15–75°
+  - Launch speed: 8–20 m/s
+- Starts with: Launch angle: 45° · Launch speed: 12 m/s
+- How to play:
+  - Adjust the launch angle and launch speed before a shot
+  - Press Launch to fire the ball. The flight plays out step by step and ends when the ball reaches the ground
+  - Press Next target to move the pad to a new distance from a fixed sequence. Your hits and attempts are kept
+  - Use the hint to see which way to change your settings after a miss
+  - Orbit the camera to view the arc from the side or from above
+- Notices (kept in view):
+  - (none)
+- Caveat (shown, the first assumption): This is a simplified flight: there is no air resistance or spin, and the ground is flat.
+- Model assumptions (collapsed):
+  - The ball follows the ideal projectile path under constant gravity of 9.81 m/s², starting from ground height.
+  - A shot counts as a hit when the ball lands within 1 m of the pad's centre, with exactly 1 m counting as a hit.
+  - Targets sit between 10 m and 35 m from the launcher, in a fixed order, so they are all reachable within the slider ranges.
+  - The previous shot's path stays visible faintly until the next launch, so you can compare shots.
+- Limitations (collapsed):
+  - Real balls fall short of these distances because of air drag, and the best angle in real life is usually below 45°.
+  - Only distance along the field matters. There is no sideways aim or wind.
+  - While a shot is in the air, the settings apply only to the next launch.
+
+<details><summary>Signed proposal, learner-facing fields</summary>
+
+```json
+{
+  "command": "animation",
+  "version": 1,
+  "title": "Projectile Challenge: Land the Ball on the Target",
+  "description": "A small launcher sits at the left end of a flat field, and a round target pad lies somewhere downrange. Set the launch angle and speed, then press Launch. The ball flies along a curved path, leaving a trail, until it lands. Readouts show where it landed and how far it missed by. Hit the pad to score, then move on to the next target at a new distance.",
+  "settings": {
+    "experience": "game"
+  },
+  "assumptions": [
+    "This is a simplified flight: there is no air resistance or spin, and the ground is flat.",
+    "The ball follows the ideal projectile path under constant gravity of 9.81 m/s², starting from ground height.",
+    "A shot counts as a hit when the ball lands within 1 m of the pad's centre, with exactly 1 m counting as a hit.",
+    "Targets sit between 10 m and 35 m from the launcher, in a fixed order, so they are all reachable within the slider ranges.",
+    "The previous shot's path stays visible faintly until the next launch, so you can compare shots."
+  ],
+  "limitations": [
+    "Real balls fall short of these distances because of air drag, and the best angle in real life is usually below 45°.",
+    "Only distance along the field matters. There is no sideways aim or wind.",
+    "While a shot is in the air, the settings apply only to the next launch."
+  ],
+  "requirements": [
+    "Recommended: game. You asked for a game. A bounded aiming challenge lets you change angle and speed, see the flight, and adjust based on how far you missed, which builds a feel for how each setting changes the distance the ball travels.",
+    "Behavior: rules",
+    "Controls: inspect",
+    "Interaction: Adjust the launch angle and launch speed before a shot",
+    "Interaction: Press Launch to fire the ball. The flight plays out step by step and ends when the ball reaches the ground",
+    "Interaction: Press Next target to move the pad to a new distance from a fixed sequence. Your hits and attempts are kept",
+    "Interaction: Use the hint to see which way to change your settings after a miss",
+    "Interaction: Orbit the camera to view the arc from the side or from above",
+    "Parameter: Launch angle (°), 15 to 75, default 45",
+    "Parameter: Launch speed (m/s), 8 to 20, default 12",
+    "Goal: How launch angle and speed together set how far a projectile travels: range grows with speed, and for a given speed it is greatest near 45°."
+  ],
+  "input": {
+    "request": "Make a game where I launch a ball at a target.",
+    "plan_hash": "de5f1d5979950918f9f96b71acb9aecd022eadb18ee13943162c8b33bd5bd7d7",
+    "scene": {
+      "parameters": [
+        {
+          "type": "number",
+          "label": "Launch angle",
+          "unit": "°",
+          "min": 15,
+          "max": 75,
+          "step": 1,
+          "default": 45
+        },
+        {
+          "type": "number",
+          "label": "Launch speed",
+          "unit": "m/s",
+          "min": 8,
+          "max": 20,
+          "step": 0.5,
+          "default": 12
+        }
+      ],
+      "interactions": [
+        "Adjust the launch angle and launch speed before a shot",
+        "Press Launch to fire the ball. The flight plays out step by step and ends when the ball reaches the ground",
+        "Press Next target to move the pad to a new distance from a fixed sequence. Your hits and attempts are kept",
+        "Use the hint to see which way to change your settings after a miss",
+        "Orbit the camera to view the arc from the side or from above"
+      ],
+      "notices": []
+    }
+  }
+}
+```
+
+</details>
+
+#### Calls, usage and cost
+
+| # | Role | Status | Input tokens | Output tokens | Stop reason | Error | Cost |
+|---|---|---|---|---|---|---|---|
+| 1 | brief | settled | 257 | 1478 | tool_use | - | US$0.0313 |
+
+Provider US$0.0313, ledger US$0.0313 (dev ledger: 1 model call(s)). Credits the learner would see: 4.
+
+#### Assessment (reviewer; not generated, not the planner's self-assessment)
+
+- [ ] 1. Understands the learning goal: 
+- [ ] 2. Chooses an appropriate supported experience, with a reason: 
+- [ ] 3. Describes a concrete, understandable scene: 
+- [ ] 4. Preserves the requested controls, with useful defaults and ranges: 
+- [ ] 5. Is accurate about the subject: 
+- [ ] 6. Discloses simulated data, conceptual models and meaningful simplifications: 
+- [ ] 7. Promises only effects its model and settings could produce: 
+- [ ] 8. Fits MVP capabilities without silently changing the request: 
+
+Specific problems: 
+
+Overall (good / usable with changes / not usable): 
+
+### Case 8: Waves
+
+**User prompt (exact):** `/animation Show what happens when two waves meet. Let me change their frequency.`
+
+Sent as `prompt`: `Show what happens when two waves meet. Let me change their frequency.` · job `aj_4f902627f2ee4b89a76b7d612b9e22b9` · fresh test user `an-acceptance-pe8xmvzozrj5@example.com` · fresh canvas `canvas-af30d128` · 2026-11-02T20:09:18.113Z
+
+**Outcome:** plan ready for review (awaiting_approval) on the first answer; then cancelled by the runner at review (Generate never pressed).
+
+#### Planner input
+
+User message content sha256 `8ac0c4ed44dd10eb795f6088e20802e3ab0956358518c690fd0ce68af80813c6`; request body sha256 `4378c046c9f8bcbaab4bbd97c6471d5c6729ecdc22cbb0ca8fcece730c53f9fc`. System prompt and tool: the batch hashes above.
+
+<details><summary>Exact planner input (the user message the server sends)</summary>
+
+```json
+{
+  "request": "Show what happens when two waves meet. Let me change their frequency.",
+  "refinement": null,
+  "previous": null,
+  "context": null,
+  "evidence": [],
+  "capabilities": {
+    "phase": "mvp",
+    "experiences": [
+      "inspect",
+      "watch",
+      "experiment",
+      "game"
+    ],
+    "behaviors": [
+      "prescribed",
+      "analytical",
+      "rules"
+    ],
+    "controlProfiles": [
+      "inspect",
+      "manipulate"
+    ],
+    "features": [
+      "loop",
+      "speed",
+      "seek",
+      "parameters",
+      "actions",
+      "select",
+      "drag",
+      "step",
+      "labels",
+      "readouts"
+    ],
+    "limits": {
+      "parameters": 8,
+      "actions": 8,
+      "nodes": 256
+    }
+  }
+}
+```
+
+</details>
+
+#### Planner response (unedited)
+
+<details><summary>Planner answer 1 (accepted)</summary>
+
+```json
+{
+  "stage": "preparing",
+  "input": {
+    "title": "Two Waves Meeting on a String",
+    "description": "A blue wave enters a long string from the left and an orange wave enters from the right. They meet in the middle and then overlap. A third line below shows their sum, which is what the string actually does. When the two frequencies are equal, the sum settles into a standing wave with points that stay still. When the frequencies differ, the pattern drifts and keeps changing shape.",
+    "experience": "experiment",
+    "reason": "You want to change the frequencies and see the result. Seeing each wave and their sum update together shows how the frequencies shape the combined pattern.",
+    "behavior": "analytical",
+    "controlProfile": "inspect",
+    "duration": 12,
+    "parameters": [
+      {
+        "type": "number",
+        "id": "freqA",
+        "label": "Frequency of left wave (blue)",
+        "min": 0.5,
+        "max": 2,
+        "step": 0.1,
+        "unit": "Hz",
+        "default": 1
+      },
+      {
+        "type": "number",
+        "id": "freqB",
+        "label": "Frequency of right wave (orange)",
+        "min": 0.5,
+        "max": 2,
+        "step": 0.1,
+        "unit": "Hz",
+        "default": 1
+      },
+      {
+        "type": "toggle",
+        "id": "showParts",
+        "label": "Show the two separate waves",
+        "default": true
+      }
+    ],
+    "interactions": [
+      "Change the frequency of either wave with its slider and watch the combined wave change",
+      "Hide or show the two separate waves to focus on their sum",
+      "Pause, slow down or scrub through the loop to see the moment the waves first meet",
+      "Click the marked point on the string to read the height of each wave and their sum at that point"
+    ],
+    "assumptions": [
+      "This is an idealized string: both waves have the same height and travel at the same fixed speed without fading.",
+      "Where the waves overlap, the string's height is exactly the sum of the two wave heights.",
+      "The wave speed is fixed at 2 m/s, so a higher frequency gives a shorter wavelength (wavelength = speed ÷ frequency).",
+      "The string is 10 m long. Its ends do not reflect waves: each wave just leaves the string at the far end."
+    ],
+    "limitations": [
+      "Real strings lose energy and reflect waves at their ends. This scene leaves both out.",
+      "It shows waves on a string only. Sound or water waves in two or three dimensions are not shown.",
+      "With frequencies that differ only slightly, the slow change in the pattern may take longer than one 12 second loop to show fully."
+    ],
+    "requiredCapabilities": [
+      "loop",
+      "speed",
+      "seek",
+      "parameters",
+      "labels",
+      "readouts",
+      "select"
+    ],
+    "requested": {
+      "features": [
+        "parameters"
+      ]
+    },
+    "learningGoal": "When two waves overlap, their heights add. Equal frequencies moving in opposite directions make a standing wave with still points. Different frequencies make a pattern that keeps shifting."
+  },
+  "issues": []
+}
+```
+
+</details>
+
+#### Validation
+
+- Server: accepted by validateAnimationPlan against the enabled capabilities.
+- Correction: 1 plan call(s); no correction.
+- Local re-check of the final plan with the checkout's contract: valid.
+
+#### Final validated plan
+
+<details><summary>animation-plan/1 (diagnostics.plan)</summary>
+
+```json
+{
+  "schema": "animation-plan/1",
+  "title": "Two Waves Meeting on a String",
+  "description": "A blue wave enters a long string from the left and an orange wave enters from the right. They meet in the middle and then overlap. A third line below shows their sum, which is what the string actually does. When the two frequencies are equal, the sum settles into a standing wave with points that stay still. When the frequencies differ, the pattern drifts and keeps changing shape.",
+  "experience": "experiment",
+  "reason": "You want to change the frequencies and see the result. Seeing each wave and their sum update together shows how the frequencies shape the combined pattern.",
+  "behavior": "analytical",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+    {
+      "type": "number",
+      "id": "freqA",
+      "label": "Frequency of left wave (blue)",
+      "unit": "Hz",
+      "min": 0.5,
+      "max": 2,
+      "step": 0.1,
+      "default": 1
+    },
+    {
+      "type": "number",
+      "id": "freqB",
+      "label": "Frequency of right wave (orange)",
+      "unit": "Hz",
+      "min": 0.5,
+      "max": 2,
+      "step": 0.1,
+      "default": 1
+    },
+    {
+      "type": "toggle",
+      "id": "showParts",
+      "label": "Show the two separate waves",
+      "default": true
+    }
+  ],
+  "interactions": [
+    "Change the frequency of either wave with its slider and watch the combined wave change",
+    "Hide or show the two separate waves to focus on their sum",
+    "Pause, slow down or scrub through the loop to see the moment the waves first meet",
+    "Click the marked point on the string to read the height of each wave and their sum at that point"
+  ],
+  "assumptions": [
+    "This is an idealized string: both waves have the same height and travel at the same fixed speed without fading.",
+    "Where the waves overlap, the string's height is exactly the sum of the two wave heights.",
+    "The wave speed is fixed at 2 m/s, so a higher frequency gives a shorter wavelength (wavelength = speed ÷ frequency).",
+    "The string is 10 m long. Its ends do not reflect waves: each wave just leaves the string at the far end."
+  ],
+  "limitations": [
+    "Real strings lose energy and reflect waves at their ends. This scene leaves both out.",
+    "It shows waves on a string only. Sound or water waves in two or three dimensions are not shown.",
+    "With frequencies that differ only slightly, the slow change in the pattern may take longer than one 12 second loop to show fully."
+  ],
+  "learningGoal": "When two waves overlap, their heights add. Equal frequencies moving in opposite directions make a standing wave with still points. Different frequencies make a pattern that keeps shifting.",
+  "requiredCapabilities": [
+    "loop",
+    "speed",
+    "seek",
+    "parameters",
+    "labels",
+    "readouts",
+    "select"
+  ],
+  "duration": 12
+}
+```
+
+</details>
+
+#### Presented to the user
+
+- Chat message: "Here is the plan for your animation. Generate makes it."
+- Card heading: Review your scene
+- Title: Two Waves Meeting on a String
+- Description: A blue wave enters a long string from the left and an orange wave enters from the right. They meet in the middle and then overlap. A third line below shows their sum, which is what the string actually does. When the two frequencies are equal, the sum settles into a standing wave with points that stay still. When the frequencies differ, the pattern drifts and keeps changing shape.
+- Experience: Experiment
+- What you can change:
+  - Frequency of left wave (blue): 0.5–2 Hz
+  - Frequency of right wave (orange): 0.5–2 Hz
+  - Show the two separate waves: on or off
+- Starts with: Frequency of left wave (blue): 1 Hz · Frequency of right wave (orange): 1 Hz · Show the two separate waves: on
+- Notices (kept in view):
+  - (none)
+- Caveat (shown, the first assumption): This is an idealized string: both waves have the same height and travel at the same fixed speed without fading.
+- Model assumptions (collapsed):
+  - Where the waves overlap, the string's height is exactly the sum of the two wave heights.
+  - The wave speed is fixed at 2 m/s, so a higher frequency gives a shorter wavelength (wavelength = speed ÷ frequency).
+  - The string is 10 m long. Its ends do not reflect waves: each wave just leaves the string at the far end.
+- Limitations (collapsed):
+  - Real strings lose energy and reflect waves at their ends. This scene leaves both out.
+  - It shows waves on a string only. Sound or water waves in two or three dimensions are not shown.
+  - With frequencies that differ only slightly, the slow change in the pattern may take longer than one 12 second loop to show fully.
+
+<details><summary>Signed proposal, learner-facing fields</summary>
+
+```json
+{
+  "command": "animation",
+  "version": 1,
+  "title": "Two Waves Meeting on a String",
+  "description": "A blue wave enters a long string from the left and an orange wave enters from the right. They meet in the middle and then overlap. A third line below shows their sum, which is what the string actually does. When the two frequencies are equal, the sum settles into a standing wave with points that stay still. When the frequencies differ, the pattern drifts and keeps changing shape.",
+  "settings": {
+    "experience": "experiment"
+  },
+  "assumptions": [
+    "This is an idealized string: both waves have the same height and travel at the same fixed speed without fading.",
+    "Where the waves overlap, the string's height is exactly the sum of the two wave heights.",
+    "The wave speed is fixed at 2 m/s, so a higher frequency gives a shorter wavelength (wavelength = speed ÷ frequency).",
+    "The string is 10 m long. Its ends do not reflect waves: each wave just leaves the string at the far end."
+  ],
+  "limitations": [
+    "Real strings lose energy and reflect waves at their ends. This scene leaves both out.",
+    "It shows waves on a string only. Sound or water waves in two or three dimensions are not shown.",
+    "With frequencies that differ only slightly, the slow change in the pattern may take longer than one 12 second loop to show fully."
+  ],
+  "requirements": [
+    "Recommended: experiment. You want to change the frequencies and see the result. Seeing each wave and their sum update together shows how the frequencies shape the combined pattern.",
+    "Behavior: analytical",
+    "Controls: inspect",
+    "Interaction: Change the frequency of either wave with its slider and watch the combined wave change",
+    "Interaction: Hide or show the two separate waves to focus on their sum",
+    "Interaction: Pause, slow down or scrub through the loop to see the moment the waves first meet",
+    "Interaction: Click the marked point on the string to read the height of each wave and their sum at that point",
+    "Parameter: Frequency of left wave (blue) (Hz), 0.5 to 2, default 1",
+    "Parameter: Frequency of right wave (orange) (Hz), 0.5 to 2, default 1",
+    "Parameter: Show the two separate waves",
+    "Goal: When two waves overlap, their heights add. Equal frequencies moving in opposite directions make a standing wave with still points. Different frequencies make a pattern that keeps shifting."
+  ],
+  "input": {
+    "request": "Show what happens when two waves meet. Let me change their frequency.",
+    "plan_hash": "2f05af395aa123699f2686aadeaf6166831274ebf75ecdca5754cabc70cf9114",
+    "scene": {
+      "parameters": [
+        {
+          "type": "number",
+          "label": "Frequency of left wave (blue)",
+          "unit": "Hz",
+          "min": 0.5,
+          "max": 2,
+          "step": 0.1,
+          "default": 1
+        },
+        {
+          "type": "number",
+          "label": "Frequency of right wave (orange)",
+          "unit": "Hz",
+          "min": 0.5,
+          "max": 2,
+          "step": 0.1,
+          "default": 1
+        },
+        {
+          "type": "toggle",
+          "label": "Show the two separate waves",
+          "default": true
+        }
+      ],
+      "interactions": [
+        "Change the frequency of either wave with its slider and watch the combined wave change",
+        "Hide or show the two separate waves to focus on their sum",
+        "Pause, slow down or scrub through the loop to see the moment the waves first meet",
+        "Click the marked point on the string to read the height of each wave and their sum at that point"
+      ],
+      "notices": []
+    }
+  }
+}
+```
+
+</details>
+
+#### Calls, usage and cost
+
+| # | Role | Status | Input tokens | Output tokens | Stop reason | Error | Cost |
+|---|---|---|---|---|---|---|---|
+| 1 | brief | settled | 263 | 1727 | tool_use | - | US$0.0363 |
+
+Provider US$0.0363, ledger US$0.0363 (dev ledger: 1 model call(s)). Credits the learner would see: 4.
+
+#### Assessment (reviewer; not generated, not the planner's self-assessment)
+
+- [ ] 1. Understands the learning goal: 
+- [ ] 2. Chooses an appropriate supported experience, with a reason: 
+- [ ] 3. Describes a concrete, understandable scene: 
+- [ ] 4. Preserves the requested controls, with useful defaults and ranges: 
+- [ ] 5. Is accurate about the subject: 
+- [ ] 6. Discloses simulated data, conceptual models and meaningful simplifications: 
+- [ ] 7. Promises only effects its model and settings could produce: 
+- [ ] 8. Fits MVP capabilities without silently changing the request: 
+
+Specific problems: 
+
+Overall (good / usable with changes / not usable): 
+
+### Case 9: Electricity
+
+**User prompt (exact):** `/animation Show how resistance affects current in a simple circuit.`
+
+Sent as `prompt`: `Show how resistance affects current in a simple circuit.` · job `aj_306fb9e297c74e2d92f6661511bb1e33` · fresh test user `an-acceptance-pe9xmvzp0gmf@example.com` · fresh canvas `canvas-0c057246` · 2026-11-02T20:09:50.631Z
+
+**Outcome:** plan ready for review (awaiting_approval) on the first answer; then cancelled by the runner at review (Generate never pressed).
+
+#### Planner input
+
+User message content sha256 `a266159dc296befb7fd33166fc401dbb80cbca80a679f125f456c8553355002e`; request body sha256 `88db390162b235714170ab9e1af0df4f8ed65c0a79b34be8914dee65a729dc5c`. System prompt and tool: the batch hashes above.
+
+<details><summary>Exact planner input (the user message the server sends)</summary>
+
+```json
+{
+  "request": "Show how resistance affects current in a simple circuit.",
+  "refinement": null,
+  "previous": null,
+  "context": null,
+  "evidence": [],
+  "capabilities": {
+    "phase": "mvp",
+    "experiences": [
+      "inspect",
+      "watch",
+      "experiment",
+      "game"
+    ],
+    "behaviors": [
+      "prescribed",
+      "analytical",
+      "rules"
+    ],
+    "controlProfiles": [
+      "inspect",
+      "manipulate"
+    ],
+    "features": [
+      "loop",
+      "speed",
+      "seek",
+      "parameters",
+      "actions",
+      "select",
+      "drag",
+      "step",
+      "labels",
+      "readouts"
+    ],
+    "limits": {
+      "parameters": 8,
+      "actions": 8,
+      "nodes": 256
+    }
+  }
+}
+```
+
+</details>
+
+#### Planner response (unedited)
+
+<details><summary>Planner answer 1 (accepted)</summary>
+
+```json
+{
+  "stage": "preparing",
+  "input": {
+    "title": "Resistance and Current in a Simple Circuit",
+    "description": "A battery, a single resistor and a bulb sit on a closed wire loop. Small glowing dots travel along the wire to show the current: they move faster and glow brighter when more current flows. As you raise the resistance, the dots slow down, the bulb dims, and readouts show the current from Ohm's law (current = voltage ÷ total resistance).",
+    "experience": "experiment",
+    "reason": "Seeing the dot speed, the bulb brightness and the current reading change together as you set the resistance shows the inverse relationship directly: double the resistance and the current halves.",
+    "behavior": "analytical",
+    "controlProfile": "inspect",
+    "parameters": [
+      {
+        "type": "number",
+        "id": "resistance",
+        "label": "Resistor value",
+        "min": 2,
+        "max": 20,
+        "default": 6,
+        "step": 1,
+        "unit": "Ω"
+      },
+      {
+        "type": "number",
+        "id": "voltage",
+        "label": "Battery voltage",
+        "min": 3,
+        "max": 12,
+        "default": 6,
+        "step": 1.5,
+        "unit": "V"
+      }
+    ],
+    "interactions": [
+      "Drag the resistor slider and watch the current reading, the dot speed and the bulb brightness change",
+      "Change the battery voltage to see that current rises with voltage at a fixed resistance",
+      "Click the battery, resistor or bulb to see its own values"
+    ],
+    "assumptions": [
+      "This is a simplified picture: the moving dots stand for current. They are not real electrons, whose actual drift is far slower.",
+      "The wires and battery have no resistance, and the bulb is treated as a fixed 2 Ω resistor, so total resistance = resistor + 2 Ω.",
+      "The current is the same everywhere in the single loop and is computed exactly as battery voltage ÷ total resistance.",
+      "Dot speed and bulb brightness are drawn in proportion to the current. The readout also shows the power used by the bulb alone (current² × 2 Ω)."
+    ],
+    "limitations": [
+      "A real bulb's resistance increases as it heats up. Here it stays fixed, so the bulb's real brightness would change somewhat differently.",
+      "Only one resistor in a single loop is shown, so series and parallel combinations are not covered.",
+      "The dots move in the direction of conventional current, from the battery's + end around to its − end. Electrons actually flow the other way."
+    ],
+    "requiredCapabilities": [
+      "parameters",
+      "readouts",
+      "labels",
+      "loop",
+      "select"
+    ],
+    "requested": {
+      "features": []
+    },
+    "learningGoal": "At a fixed voltage, the current goes down as the total resistance goes up, in inverse proportion: current = voltage ÷ resistance."
+  },
+  "issues": []
+}
+```
+
+</details>
+
+#### Validation
+
+- Server: accepted by validateAnimationPlan against the enabled capabilities.
+- Correction: 1 plan call(s); no correction.
+- Local re-check of the final plan with the checkout's contract: valid.
+
+#### Final validated plan
+
+<details><summary>animation-plan/1 (diagnostics.plan)</summary>
+
+```json
+{
+  "schema": "animation-plan/1",
+  "title": "Resistance and Current in a Simple Circuit",
+  "description": "A battery, a single resistor and a bulb sit on a closed wire loop. Small glowing dots travel along the wire to show the current: they move faster and glow brighter when more current flows. As you raise the resistance, the dots slow down, the bulb dims, and readouts show the current from Ohm's law (current = voltage ÷ total resistance).",
+  "experience": "experiment",
+  "reason": "Seeing the dot speed, the bulb brightness and the current reading change together as you set the resistance shows the inverse relationship directly: double the resistance and the current halves.",
+  "behavior": "analytical",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+    {
+      "type": "number",
+      "id": "resistance",
+      "label": "Resistor value",
+      "unit": "Ω",
+      "min": 2,
+      "max": 20,
+      "step": 1,
+      "default": 6
+    },
+    {
+      "type": "number",
+      "id": "voltage",
+      "label": "Battery voltage",
+      "unit": "V",
+      "min": 3,
+      "max": 12,
+      "step": 1.5,
+      "default": 6
+    }
+  ],
+  "interactions": [
+    "Drag the resistor slider and watch the current reading, the dot speed and the bulb brightness change",
+    "Change the battery voltage to see that current rises with voltage at a fixed resistance",
+    "Click the battery, resistor or bulb to see its own values"
+  ],
+  "assumptions": [
+    "This is a simplified picture: the moving dots stand for current. They are not real electrons, whose actual drift is far slower.",
+    "The wires and battery have no resistance, and the bulb is treated as a fixed 2 Ω resistor, so total resistance = resistor + 2 Ω.",
+    "The current is the same everywhere in the single loop and is computed exactly as battery voltage ÷ total resistance.",
+    "Dot speed and bulb brightness are drawn in proportion to the current. The readout also shows the power used by the bulb alone (current² × 2 Ω)."
+  ],
+  "limitations": [
+    "A real bulb's resistance increases as it heats up. Here it stays fixed, so the bulb's real brightness would change somewhat differently.",
+    "Only one resistor in a single loop is shown, so series and parallel combinations are not covered.",
+    "The dots move in the direction of conventional current, from the battery's + end around to its − end. Electrons actually flow the other way."
+  ],
+  "learningGoal": "At a fixed voltage, the current goes down as the total resistance goes up, in inverse proportion: current = voltage ÷ resistance.",
+  "requiredCapabilities": [
+    "parameters",
+    "readouts",
+    "labels",
+    "loop",
+    "select"
+  ]
+}
+```
+
+</details>
+
+#### Presented to the user
+
+- Chat message: "Here is the plan for your animation. Generate makes it."
+- Card heading: Review your scene
+- Title: Resistance and Current in a Simple Circuit
+- Description: A battery, a single resistor and a bulb sit on a closed wire loop. Small glowing dots travel along the wire to show the current: they move faster and glow brighter when more current flows. As you raise the resistance, the dots slow down, the bulb dims, and readouts show the current from Ohm's law (current = voltage ÷ total resistance).
+- Experience: Experiment
+- What you can change:
+  - Resistor value: 2–20 Ω
+  - Battery voltage: 3–12 V
+- Starts with: Resistor value: 6 Ω · Battery voltage: 6 V
+- Notices (kept in view):
+  - (none)
+- Caveat (shown, the first assumption): This is a simplified picture: the moving dots stand for current. They are not real electrons, whose actual drift is far slower.
+- Model assumptions (collapsed):
+  - The wires and battery have no resistance, and the bulb is treated as a fixed 2 Ω resistor, so total resistance = resistor + 2 Ω.
+  - The current is the same everywhere in the single loop and is computed exactly as battery voltage ÷ total resistance.
+  - Dot speed and bulb brightness are drawn in proportion to the current. The readout also shows the power used by the bulb alone (current² × 2 Ω).
+- Limitations (collapsed):
+  - A real bulb's resistance increases as it heats up. Here it stays fixed, so the bulb's real brightness would change somewhat differently.
+  - Only one resistor in a single loop is shown, so series and parallel combinations are not covered.
+  - The dots move in the direction of conventional current, from the battery's + end around to its − end. Electrons actually flow the other way.
+
+<details><summary>Signed proposal, learner-facing fields</summary>
+
+```json
+{
+  "command": "animation",
+  "version": 1,
+  "title": "Resistance and Current in a Simple Circuit",
+  "description": "A battery, a single resistor and a bulb sit on a closed wire loop. Small glowing dots travel along the wire to show the current: they move faster and glow brighter when more current flows. As you raise the resistance, the dots slow down, the bulb dims, and readouts show the current from Ohm's law (current = voltage ÷ total resistance).",
+  "settings": {
+    "experience": "experiment"
+  },
+  "assumptions": [
+    "This is a simplified picture: the moving dots stand for current. They are not real electrons, whose actual drift is far slower.",
+    "The wires and battery have no resistance, and the bulb is treated as a fixed 2 Ω resistor, so total resistance = resistor + 2 Ω.",
+    "The current is the same everywhere in the single loop and is computed exactly as battery voltage ÷ total resistance.",
+    "Dot speed and bulb brightness are drawn in proportion to the current. The readout also shows the power used by the bulb alone (current² × 2 Ω)."
+  ],
+  "limitations": [
+    "A real bulb's resistance increases as it heats up. Here it stays fixed, so the bulb's real brightness would change somewhat differently.",
+    "Only one resistor in a single loop is shown, so series and parallel combinations are not covered.",
+    "The dots move in the direction of conventional current, from the battery's + end around to its − end. Electrons actually flow the other way."
+  ],
+  "requirements": [
+    "Recommended: experiment. Seeing the dot speed, the bulb brightness and the current reading change together as you set the resistance shows the inverse relationship directly: double the resistance and the current halves.",
+    "Behavior: analytical",
+    "Controls: inspect",
+    "Interaction: Drag the resistor slider and watch the current reading, the dot speed and the bulb brightness change",
+    "Interaction: Change the battery voltage to see that current rises with voltage at a fixed resistance",
+    "Interaction: Click the battery, resistor or bulb to see its own values",
+    "Parameter: Resistor value (Ω), 2 to 20, default 6",
+    "Parameter: Battery voltage (V), 3 to 12, default 6",
+    "Goal: At a fixed voltage, the current goes down as the total resistance goes up, in inverse proportion: current = voltage ÷ resistance."
+  ],
+  "input": {
+    "request": "Show how resistance affects current in a simple circuit.",
+    "plan_hash": "56b9cdb56832c524eeaa70aa0793b1f5f82017d91d2a31d2d022ad6eb241362a",
+    "scene": {
+      "parameters": [
+        {
+          "type": "number",
+          "label": "Resistor value",
+          "unit": "Ω",
+          "min": 2,
+          "max": 20,
+          "step": 1,
+          "default": 6
+        },
+        {
+          "type": "number",
+          "label": "Battery voltage",
+          "unit": "V",
+          "min": 3,
+          "max": 12,
+          "step": 1.5,
+          "default": 6
+        }
+      ],
+      "interactions": [
+        "Drag the resistor slider and watch the current reading, the dot speed and the bulb brightness change",
+        "Change the battery voltage to see that current rises with voltage at a fixed resistance",
+        "Click the battery, resistor or bulb to see its own values"
+      ],
+      "notices": []
+    }
+  }
+}
+```
+
+</details>
+
+#### Calls, usage and cost
+
+| # | Role | Status | Input tokens | Output tokens | Stop reason | Error | Cost |
+|---|---|---|---|---|---|---|---|
+| 1 | brief | settled | 259 | 1064 | tool_use | - | US$0.0231 |
+
+Provider US$0.0231, ledger US$0.0231 (dev ledger: 1 model call(s)). Credits the learner would see: 3.
+
+#### Assessment (reviewer; not generated, not the planner's self-assessment)
+
+- [ ] 1. Understands the learning goal: 
+- [ ] 2. Chooses an appropriate supported experience, with a reason: 
+- [ ] 3. Describes a concrete, understandable scene: 
+- [ ] 4. Preserves the requested controls, with useful defaults and ranges: 
+- [ ] 5. Is accurate about the subject: 
+- [ ] 6. Discloses simulated data, conceptual models and meaningful simplifications: 
+- [ ] 7. Promises only effects its model and settings could produce: 
+- [ ] 8. Fits MVP capabilities without silently changing the request: 
+
+Specific problems: 
+
+Overall (good / usable with changes / not usable): 
+
+### Case 10: Algorithms
+
+**User prompt (exact):** `/animation Show how binary search finds a number.`
+
+Sent as `prompt`: `Show how binary search finds a number.` · job `aj_28cb0b3cc68843eb9b6f5b25715b19c2` · fresh test user `an-acceptance-pe10xmvzp12kq@example.com` · fresh canvas `canvas-aa71159f` · 2026-11-02T20:10:19.082Z
+
+**Outcome:** plan ready for review (awaiting_approval) on the first answer; then cancelled by the runner at review (Generate never pressed).
+
+#### Planner input
+
+User message content sha256 `84ea413ec50307fcc9c3151426618a1f5bab4a78dff5121d9e5da83a73ffc0d4`; request body sha256 `e8505b2f90ee475d93fd67bf91b3a197c8f7f24d947eece2c1316c437a945508`. System prompt and tool: the batch hashes above.
+
+<details><summary>Exact planner input (the user message the server sends)</summary>
+
+```json
+{
+  "request": "Show how binary search finds a number.",
+  "refinement": null,
+  "previous": null,
+  "context": null,
+  "evidence": [],
+  "capabilities": {
+    "phase": "mvp",
+    "experiences": [
+      "inspect",
+      "watch",
+      "experiment",
+      "game"
+    ],
+    "behaviors": [
+      "prescribed",
+      "analytical",
+      "rules"
+    ],
+    "controlProfiles": [
+      "inspect",
+      "manipulate"
+    ],
+    "features": [
+      "loop",
+      "speed",
+      "seek",
+      "parameters",
+      "actions",
+      "select",
+      "drag",
+      "step",
+      "labels",
+      "readouts"
+    ],
+    "limits": {
+      "parameters": 8,
+      "actions": 8,
+      "nodes": 256
+    }
+  }
+}
+```
+
+</details>
+
+#### Planner response (unedited)
+
+<details><summary>Planner answer 1 (accepted)</summary>
+
+```json
+{
+  "stage": "preparing",
+  "input": {
+    "title": "Binary Search: Halving the List to Find a Number",
+    "description": "A row of numbered boxes holds a sorted list: 3, 6, 9 and so on. Each step highlights the middle box of the part still being searched and compares it with the target. Then it fades out the half that can't contain the target. Markers show the low end, the high end and the middle box. Readouts show the comparison and how many steps have been taken. The search ends when the target is found or no boxes are left to search.",
+    "experience": "experiment",
+    "reason": "You can set the target and list length, then step through the search one comparison at a time. This shows that each check throws away half of the remaining boxes and that even long lists need only a few steps.",
+    "behavior": "rules",
+    "controlProfile": "inspect",
+    "parameters": [
+      {
+        "type": "number",
+        "id": "target",
+        "label": "Number to find",
+        "min": 1,
+        "max": 96,
+        "default": 42,
+        "step": 1
+      },
+      {
+        "type": "number",
+        "id": "size",
+        "label": "Number of boxes in the list",
+        "min": 8,
+        "max": 32,
+        "default": 16,
+        "step": 1
+      }
+    ],
+    "interactions": [
+      "Step forward one comparison at a time, or let the steps play at your chosen speed and pause whenever you like",
+      "Change the number to find; the search starts over on the full list",
+      "Change the length of the list to see how the number of steps grows slowly as the list doubles",
+      "Click a box to see its position and value"
+    ],
+    "assumptions": [
+      "This is a simplified teaching example: the list is the multiples of 3 (3, 6, 9, …), already sorted.",
+      "When an even number of boxes remains, the middle is the left box of the two in the center.",
+      "One step means one comparison between the middle box and the target.",
+      "Both the low and high ends are included in the search range. The search stops when the low end passes the high end."
+    ],
+    "limitations": [
+      "Only sorted lists of 8 to 32 multiples of 3 are shown. You can't enter your own list.",
+      "Targets that aren't multiples of 3, or that are larger than the last box, end with 'not found'. This shows the empty-range case, but there is no separate comparison with checking each box one by one."
+    ],
+    "requiredCapabilities": [
+      "step",
+      "parameters",
+      "labels",
+      "readouts",
+      "select",
+      "speed"
+    ],
+    "requested": {
+      "features": []
+    },
+    "learningGoal": "Binary search checks the middle of the remaining sorted range and discards the half that cannot hold the target. A list of n items needs about log₂ n comparisons."
+  },
+  "issues": []
+}
+```
+
+</details>
+
+#### Validation
+
+- Server: accepted by validateAnimationPlan against the enabled capabilities.
+- Correction: 1 plan call(s); no correction.
+- Local re-check of the final plan with the checkout's contract: valid.
+
+#### Final validated plan
+
+<details><summary>animation-plan/1 (diagnostics.plan)</summary>
+
+```json
+{
+  "schema": "animation-plan/1",
+  "title": "Binary Search: Halving the List to Find a Number",
+  "description": "A row of numbered boxes holds a sorted list: 3, 6, 9 and so on. Each step highlights the middle box of the part still being searched and compares it with the target. Then it fades out the half that can't contain the target. Markers show the low end, the high end and the middle box. Readouts show the comparison and how many steps have been taken. The search ends when the target is found or no boxes are left to search.",
+  "experience": "experiment",
+  "reason": "You can set the target and list length, then step through the search one comparison at a time. This shows that each check throws away half of the remaining boxes and that even long lists need only a few steps.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+    {
+      "type": "number",
+      "id": "target",
+      "label": "Number to find",
+      "min": 1,
+      "max": 96,
+      "step": 1,
+      "default": 42
+    },
+    {
+      "type": "number",
+      "id": "size",
+      "label": "Number of boxes in the list",
+      "min": 8,
+      "max": 32,
+      "step": 1,
+      "default": 16
+    }
+  ],
+  "interactions": [
+    "Step forward one comparison at a time, or let the steps play at your chosen speed and pause whenever you like",
+    "Change the number to find; the search starts over on the full list",
+    "Change the length of the list to see how the number of steps grows slowly as the list doubles",
+    "Click a box to see its position and value"
+  ],
+  "assumptions": [
+    "This is a simplified teaching example: the list is the multiples of 3 (3, 6, 9, …), already sorted.",
+    "When an even number of boxes remains, the middle is the left box of the two in the center.",
+    "One step means one comparison between the middle box and the target.",
+    "Both the low and high ends are included in the search range. The search stops when the low end passes the high end."
+  ],
+  "limitations": [
+    "Only sorted lists of 8 to 32 multiples of 3 are shown. You can't enter your own list.",
+    "Targets that aren't multiples of 3, or that are larger than the last box, end with 'not found'. This shows the empty-range case, but there is no separate comparison with checking each box one by one."
+  ],
+  "learningGoal": "Binary search checks the middle of the remaining sorted range and discards the half that cannot hold the target. A list of n items needs about log₂ n comparisons.",
+  "requiredCapabilities": [
+    "step",
+    "parameters",
+    "labels",
+    "readouts",
+    "select",
+    "speed"
+  ]
+}
+```
+
+</details>
+
+#### Presented to the user
+
+- Chat message: "Here is the plan for your animation. Generate makes it."
+- Card heading: Review your scene
+- Title: Binary Search: Halving the List to Find a Number
+- Description: A row of numbered boxes holds a sorted list: 3, 6, 9 and so on. Each step highlights the middle box of the part still being searched and compares it with the target. Then it fades out the half that can't contain the target. Markers show the low end, the high end and the middle box. Readouts show the comparison and how many steps have been taken. The search ends when the target is found or no boxes are left to search.
+- Experience: Experiment
+- What you can change:
+  - Number to find: 1–96
+  - Number of boxes in the list: 8–32
+- Starts with: Number to find: 42 · Number of boxes in the list: 16
+- Notices (kept in view):
+  - (none)
+- Caveat (shown, the first assumption): This is a simplified teaching example: the list is the multiples of 3 (3, 6, 9, …), already sorted.
+- Model assumptions (collapsed):
+  - When an even number of boxes remains, the middle is the left box of the two in the center.
+  - One step means one comparison between the middle box and the target.
+  - Both the low and high ends are included in the search range. The search stops when the low end passes the high end.
+- Limitations (collapsed):
+  - Only sorted lists of 8 to 32 multiples of 3 are shown. You can't enter your own list.
+  - Targets that aren't multiples of 3, or that are larger than the last box, end with 'not found'. This shows the empty-range case, but there is no separate comparison with checking each box one by one.
+
+<details><summary>Signed proposal, learner-facing fields</summary>
+
+```json
+{
+  "command": "animation",
+  "version": 1,
+  "title": "Binary Search: Halving the List to Find a Number",
+  "description": "A row of numbered boxes holds a sorted list: 3, 6, 9 and so on. Each step highlights the middle box of the part still being searched and compares it with the target. Then it fades out the half that can't contain the target. Markers show the low end, the high end and the middle box. Readouts show the comparison and how many steps have been taken. The search ends when the target is found or no boxes are left to search.",
+  "settings": {
+    "experience": "experiment"
+  },
+  "assumptions": [
+    "This is a simplified teaching example: the list is the multiples of 3 (3, 6, 9, …), already sorted.",
+    "When an even number of boxes remains, the middle is the left box of the two in the center.",
+    "One step means one comparison between the middle box and the target.",
+    "Both the low and high ends are included in the search range. The search stops when the low end passes the high end."
+  ],
+  "limitations": [
+    "Only sorted lists of 8 to 32 multiples of 3 are shown. You can't enter your own list.",
+    "Targets that aren't multiples of 3, or that are larger than the last box, end with 'not found'. This shows the empty-range case, but there is no separate comparison with checking each box one by one."
+  ],
+  "requirements": [
+    "Recommended: experiment. You can set the target and list length, then step through the search one comparison at a time. This shows that each check throws away half of the remaining boxes and that even long lists need only a few steps.",
+    "Behavior: rules",
+    "Controls: inspect",
+    "Interaction: Step forward one comparison at a time, or let the steps play at your chosen speed and pause whenever you like",
+    "Interaction: Change the number to find; the search starts over on the full list",
+    "Interaction: Change the length of the list to see how the number of steps grows slowly as the list doubles",
+    "Interaction: Click a box to see its position and value",
+    "Parameter: Number to find, 1 to 96, default 42",
+    "Parameter: Number of boxes in the list, 8 to 32, default 16",
+    "Goal: Binary search checks the middle of the remaining sorted range and discards the half that cannot hold the target. A list of n items needs about log₂ n comparisons."
+  ],
+  "input": {
+    "request": "Show how binary search finds a number.",
+    "plan_hash": "2808558eb73987003db72c392db68aceee358f33ea5afed99ea82641e4ef3b8e",
+    "scene": {
+      "parameters": [
+        {
+          "type": "number",
+          "label": "Number to find",
+          "min": 1,
+          "max": 96,
+          "step": 1,
+          "default": 42
+        },
+        {
+          "type": "number",
+          "label": "Number of boxes in the list",
+          "min": 8,
+          "max": 32,
+          "step": 1,
+          "default": 16
+        }
+      ],
+      "interactions": [
+        "Step forward one comparison at a time, or let the steps play at your chosen speed and pause whenever you like",
+        "Change the number to find; the search starts over on the full list",
+        "Change the length of the list to see how the number of steps grows slowly as the list doubles",
+        "Click a box to see its position and value"
+      ],
+      "notices": []
+    }
+  }
+}
+```
+
+</details>
+
+#### Calls, usage and cost
+
+| # | Role | Status | Input tokens | Output tokens | Stop reason | Error | Cost |
+|---|---|---|---|---|---|---|---|
+| 1 | brief | settled | 253 | 1468 | tool_use | - | US$0.0311 |
+
+Provider US$0.0311, ledger US$0.0311 (dev ledger: 1 model call(s)). Credits the learner would see: 4.
+
+#### Assessment (reviewer; not generated, not the planner's self-assessment)
+
+- [ ] 1. Understands the learning goal: 
+- [ ] 2. Chooses an appropriate supported experience, with a reason: 
+- [ ] 3. Describes a concrete, understandable scene: 
+- [ ] 4. Preserves the requested controls, with useful defaults and ranges: 
+- [ ] 5. Is accurate about the subject: 
+- [ ] 6. Discloses simulated data, conceptual models and meaningful simplifications: 
+- [ ] 7. Promises only effects its model and settings could produce: 
+- [ ] 8. Fits MVP capabilities without silently changing the request: 
+
+Specific problems: 
+
+Overall (good / usable with changes / not usable): 
+
+<!-- /section:Tuned 1 (shared rules at 0075518378a1, not a comparison arm) -->
+
+## Planner comparison protocol (frozen 2026-11-02, before any comparison call)
+
+Fixed before the first paid call of the comparison. Nothing below changes during it; a change would start a new comparison.
+
+**Arms.** A: the sectioned planner prompt with no examples. B: exactly A plus the fixed examples block, in the order listed. The
+provisional winner then takes the four holdouts. Every other setting is the same across arms; the arm is set only by the dev var
+`ANIMATION_PLANNER_VARIANT` on the preview clone, and each recorded answer carries the variant that produced it (a mismatch stops the batch).
+
+| Setting | Value |
+|---|---|
+| Model / max tokens / effort | claude-opus-5-5 / 4000 / `output_config.effort: "medium"` |
+| Tool choice / thinking / fallback | auto, one tool / adaptive by model default (cannot be disabled on this model) / none |
+| Corrections | at most one (`planCorrections`), recorded; no other retries; a truncated answer is recorded, limits not raised |
+| sha256(variant A system prompt) | `90e8ab906a62c72e931e917b0de182e380f25029e569e92b96a93b8fa5b3f22a` |
+| sha256(variant B system prompt) | `23e351d22cc60232bef44a4109a5fdf6e38fea82b05297c1662756bd07d608de` |
+| sha256(JSON.stringify(PLANNER_EXAMPLES)) | `bbfcd416da03a8ab6755641a640c5146ec193ba20462f792fe990e3894a8238e` |
+| sha256(JSON.stringify(PLAN_TOOL)) | `a98018efadf0eb09f738be9a593d94fc4e909729f471ea5fb057cdaddb827a56` |
+| Context per case | a new dev test user and canvas, no sources or conversation |
+| Stops at | `awaiting_approval`, then cancelled; no Generate, authoring, rendering or scene review |
+| Worst case | US$0.56 per case (plan plus its correction); US$5.60 per ten-case arm; US$2.24 for the holdouts; reserved and reconciled one batch at a time |
+
+**Prompts.** The ten evaluation prompts listed under Baseline, unchanged, once each per arm. Holdouts, not used in the examples or any tuning:
+
+- heat pump: `/animation Show how a heat pump moves heat from a cold room to a warm one.`
+- DNA replication: `/animation Help me understand how DNA gets copied.`
+- compound interest: `/animation Show how compound interest grows my savings. Let me change the interest rate.`
+- unavailable capability: `/animation Import my CAD model of a gearbox and run a real physics simulation so I can see where it breaks.`
+
+**Example order (variant B).**
+
+1. `Why does the Moon have phases?` (watch): Choosing watch for a repeating process with nothing to change; disclosing what is not to scale.
+2. `Let me change a lens's focal length from 20 to 80 mm, starting at 50, and see where the image forms.` (experiment): Keeping a stated control, range and default exactly; saying which relationship each readout shows; separating the model from the real thing.
+3. `Make a game where I sort five numbered blocks by swapping neighbours.` (game): A game: an action that differs from the card's Reset gets its own exact meaning; the card's Reset is not re-declared.
+4. `Let me walk around inside a real physics simulation of a bridge collapsing.` (watch): What the phase cannot do: recording it in requested, planning the closest useful scene, and saying what differs.
+
+**Rubric.** The eight questions under Grading, for every case, judged separately from schema validity; the planner's own explanation is not evidence. Reported per arm: first-answer validity, correction rate, substantive defects, latency, tokens and cost.
+
+**Regression checks (evaluation expectations only; none is a production instruction about these subjects).** Where the case raises it:
+
+1. Reset: no promise beyond restoring the defaults and the initial state; distinct actions say what they do.
+2. Attention masking includes the current position and excludes only future positions.
+3. Component power and total circuit power are distinguished.
+4. The ideal pendulum's behavior is distinguished from a real pendulum's.
+5. The binary-search default shows repeated narrowing.
+6. Long processes advance through bounded operations.
+7. Proposed framing accounts for essential objects and parameter extremes.
+
+**Decision rule.** Prefer the simpler prompt (A) unless B shows a clear benefit in substantive defects across the ten cases. If the difference is within what one small run can show, the result is inconclusive and is reported as such. Passing this evaluation does not establish generation reliability.

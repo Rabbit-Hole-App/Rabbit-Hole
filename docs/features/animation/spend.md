@@ -56,6 +56,16 @@ From 2026-10-30 (acceptance.next.mjs): provider charges and ledger counts are se
 | 38 | 11/2, 11:26 AM | planner-eval run.mjs | planner case 8 Waves: awaiting_approval, cancelled at review (never generated) | claude-opus-5-5 | 1 plan call(s) | US$0.5600 | US$0.0357 | US$0.0357 (dev ledger: 1 model call(s)) | - | US$8.8961 | US$9.0177 |
 | 39 | 11/2, 11:26 AM | planner-eval run.mjs | planner case 9 Electricity: awaiting_approval, cancelled at review (never generated) | claude-opus-5-5 | 1 plan call(s) | US$0.5600 | US$0.0250 | US$0.0250 (dev ledger: 1 model call(s)) | - | US$8.9211 | US$9.0427 |
 | 40 | 11/2, 11:27 AM | planner-eval run.mjs | planner case 10 Algorithms: awaiting_approval, cancelled at review (never generated) | claude-opus-5-5 | 1 plan call(s) | US$0.5600 | US$0.0249 | US$0.0249 (dev ledger: 1 model call(s)) | - | US$8.9460 | US$9.0676 |
+| 41 | 11/2, 12:05 PM | planner-eval run.mjs | planner case 1 ML/SGD: awaiting_approval, cancelled at review (never generated) | claude-opus-5-5 | 1 plan call(s) | US$0.5600 | US$0.0746 | US$0.0746 (dev ledger: 1 model call(s)) | - | US$9.0206 | US$9.1422 |
+| 42 | 11/2, 12:06 PM | planner-eval run.mjs | planner case 2 Neural networks: awaiting_approval, cancelled at review (never generated) | claude-opus-5-5 | 1 plan call(s) | US$0.5600 | US$0.0368 | US$0.0368 (dev ledger: 1 model call(s)) | - | US$9.0574 | US$9.1790 |
+| 43 | 11/2, 12:06 PM | planner-eval run.mjs | planner case 3 LLM attention: awaiting_approval, cancelled at review (never generated) | claude-opus-5-5 | 1 plan call(s) | US$0.5600 | US$0.0384 | US$0.0384 (dev ledger: 1 model call(s)) | - | US$9.0958 | US$9.2174 |
+| 44 | 11/2, 12:07 PM | planner-eval run.mjs | planner case 4 LLM sampling: awaiting_approval, cancelled at review (never generated) | claude-opus-5-5 | 1 plan call(s) | US$0.5600 | US$0.0342 | US$0.0342 (dev ledger: 1 model call(s)) | - | US$9.1300 | US$9.2516 |
+| 45 | 11/2, 12:08 PM | planner-eval run.mjs | planner case 5 Reinforcement learning: awaiting_approval, cancelled at review (never generated) | claude-opus-5-5 | 1 plan call(s) | US$0.5600 | US$0.0374 | US$0.0374 (dev ledger: 1 model call(s)) | - | US$9.1674 | US$9.2890 |
+| 46 | 11/2, 12:08 PM | planner-eval run.mjs | planner case 6 Pendulum: awaiting_approval, cancelled at review (never generated) | claude-opus-5-5 | 1 plan call(s) | US$0.5600 | US$0.0269 | US$0.0269 (dev ledger: 1 model call(s)) | - | US$9.1943 | US$9.3159 |
+| 47 | 11/2, 12:09 PM | planner-eval run.mjs | planner case 7 Projectile game: awaiting_approval, cancelled at review (never generated) | claude-opus-5-5 | 1 plan call(s) | US$0.5600 | US$0.0313 | US$0.0313 (dev ledger: 1 model call(s)) | - | US$9.2256 | US$9.3472 |
+| 48 | 11/2, 12:09 PM | planner-eval run.mjs | planner case 8 Waves: awaiting_approval, cancelled at review (never generated) | claude-opus-5-5 | 1 plan call(s) | US$0.5600 | US$0.0363 | US$0.0363 (dev ledger: 1 model call(s)) | - | US$9.2619 | US$9.3835 |
+| 49 | 11/2, 12:10 PM | planner-eval run.mjs | planner case 9 Electricity: awaiting_approval, cancelled at review (never generated) | claude-opus-5-5 | 1 plan call(s) | US$0.5600 | US$0.0231 | US$0.0231 (dev ledger: 1 model call(s)) | - | US$9.2850 | US$9.4066 |
+| 50 | 11/2, 12:10 PM | planner-eval run.mjs | planner case 10 Algorithms: awaiting_approval, cancelled at review (never generated) | claude-opus-5-5 | 1 plan call(s) | US$0.5600 | US$0.0311 | US$0.0311 (dev ledger: 1 model call(s)) | - | US$9.3161 | US$9.4377 |
 
 "Exact" here is the dev ledger's settled cost: the provider's reported token usage at the list price (not an invoice). A reserve is
 an estimate held before a call and released when it settles.
@@ -65,4 +75,4 @@ calls, settled US$8.633597, plus one unsettled reserve of US$0.121590 (row 1, ne
 rounding (US$8.6336): rows 28-30
 were three owner preview runs that had not been logged. Renders are platform compute and are not in these totals.
 
-Total provider: US$8.9460. Total ledger (incl. reserves): US$9.0676. Reserved in flight: US$0.00. Remaining: US$10.9324.
+Total provider: US$9.3161. Total ledger (incl. reserves): US$9.4377. Reserved in flight: US$0.00. Remaining: US$10.5623.
