@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { LAUNCH_COPY, PREFILL_KEY, RANGES, TABS, analyticsCsv, analyticsUrl, followUpPrompt, hidden, hiddenReason, metricText, noAudience, periodText, takePrefill } from './creator-analytics.js';
+import { hasPrefill, takePrefill, LAUNCH_COPY, PREFILL_KEY, RANGES, TABS, analyticsCsv, analyticsUrl, followUpPrompt, hidden, hiddenReason, metricText, noAudience, periodText, takePrefill } from './creator-analytics.js';
 
 const HIDDEN = { value: null, reason: 'insufficient_cohort' };
 const parse = csv => csv.split('\r\n').map(line => [...line.matchAll(/"((?:[^"]|"")*)"/g)].map(m => m[1].replaceAll('""', '"')));
@@ -96,4 +96,14 @@ test('the export keeps formula characters as text and carries the revision compa
   assert.ok(csv.includes('"\'-cmd"'), 'a campaign tag cannot either');
   assert.ok(csv.includes('"Revision","before 2026-10-01 to 2026-10-02","visitors","","Hidden: fewer than 10 visitors"'));
   assert.ok(csv.includes('"Revision","before 2026-10-01 to 2026-10-02","avg_active_seconds","60",""'));
+});
+
+test('a waiting prompt is seen without being taken, then taken once', () => {
+  const held = new Map([[PREFILL_KEY('canvas-1'), 'words']]);
+  const storage = { getItem: k => held.get(k) ?? null, removeItem: k => held.delete(k) };
+  assert.equal(hasPrefill('canvas-1', storage), true);
+  assert.equal(hasPrefill('canvas-2', storage), false);
+  assert.equal(hasPrefill('canvas-1', { getItem: () => { throw new Error('blocked'); } }), false);
+  assert.equal(takePrefill('canvas-1', storage), 'words');
+  assert.equal(hasPrefill('canvas-1', storage), false);
 });

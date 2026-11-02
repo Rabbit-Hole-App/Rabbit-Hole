@@ -1,3 +1,4 @@
+import { hasPrefill } from './creator-analytics.js';
 import {createInlineCodeClient,inlineCodeTicketKey} from './inline-code-client.js';
 import { shareAccess, track } from './usage-analytics.js';
 import {readRegionalOriginal,regionalMaskBlob} from './inline-regional-mask.js';
@@ -2542,6 +2543,8 @@ function ChatHandle({ to }) {
     window.addEventListener('small:ask-focus', open);
     return () => window.removeEventListener('small:ask-focus', open);
   }, [to]);
+  // A follow-up board from Creator Analytics arrives with its prompt waiting: Chat opens, and its composer takes the words, unsent (ask.jsx).
+  useEffect(() => { if (hasPrefill(window.location.pathname.split('/').pop())) to.current?.panels.openChat(); }, [to]);
   return null;
 }
 // Professor Next Steps (docs/features/professor-next-steps.md §1.3, §1.7): useNextSteps mounts only where the page allows it
