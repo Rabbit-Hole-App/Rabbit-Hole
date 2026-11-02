@@ -80,7 +80,7 @@ export function publicAnimationJob(job) {
   };
 }
 const diagnostics = job => ({ plan: job.plan, draft: job.draft, artifactHash: job.artifactHash, artifact: job.artifact && { ...job.artifact, program: job.artifact.program ? { bytes: job.artifact.program.source.length, sourceHash: job.artifact.program.sourceHash } : undefined },
-  findings: job.findings, candidates: job.candidates, calls: job.calls, captures: (job.captures || []).map(({ data: _bytes, ...capture }) => capture), coverage: job.coverage ?? null, counts: job.counts, bounds: job.bounds, timing: job.timing });
+  findings: job.findings, reviews: job.reviews ?? [], candidates: job.candidates, calls: job.calls, captures: (job.captures || []).map(({ data: _bytes, ...capture }) => capture), coverage: job.coverage ?? null, counts: job.counts, bounds: job.bounds, timing: job.timing });
 
 // Only the actions that can run now. retry_render: the retained validated artifact, rendered again (no reauthoring). new_attempt:
 // a paid retry within this job's remaining ceiling (never a reset one). revise_plan: when this build cannot go on, a NEW job for the
@@ -107,6 +107,7 @@ const TOO_LARGE = /is too large for the (?:independent review|repair) request/;
 export function failureClass(job) {
   const f = job.failure || {}, last = job.findings?.at(-1);
   if (job.stopReason === 'capability_gap') return 'capability';
+  if (f.category === 'review_validation') return 'review_validation';
   if (f.category === 'size_limit' || CANDIDATE_STOPS.has(job.stopReason) && last?.problems?.length && last.problems.every(p => TOO_LARGE.test(p))) return 'size_limit';
   if (CANDIDATE_STOPS.has(job.stopReason)) return 'checks';
   if (job.stopReason === 'deadline') return 'deadline';
@@ -139,7 +140,7 @@ function reviewWords(found) {
 }
 export function failureText(job) {
   const kind = failureClass(job), f = job.failure || {}, action = recoveryOf(job).find(a => a !== 'edit_request');
-  const what = { size_limit: 'The scene was too large to check.', deadline: 'The build ran out of time.', limit: 'The build reached its spending limit.',
+  const what = { review_validation: 'The visual review returned an answer in the wrong form, and it could not be corrected within its limit, so this scene was neither accepted nor found faulty.', size_limit: 'The scene was too large to check.', deadline: 'The build ran out of time.', limit: 'The build reached its spending limit.',
     checks: f.stage === 'reviewing' ? reviewWords(job.findings?.filter(x => x.stage === 'reviewing').at(-1)) : CHECKS[f.stage] ?? 'The scene did not pass its checks.',
     transient: TRANSIENT[f.category] }[kind] ?? f.message ?? 'The animation could not be made.';
   const candidate = kind === 'checks' || kind === 'size_limit';
@@ -147,8 +148,8 @@ export function failureText(job) {
     : job.repairs ? `It was corrected automatically ${job.repairs === 1 ? 'once' : 'twice'}${candidate ? ', but it still did not pass' : ''}.` : '', job.autoRetried ? 'It was retried automatically.' : ''];
   const next = { retry_render: 'Render again renders the built scene again.', new_attempt: 'Try again continues from where it stopped.',
     revise_plan: `Revise plan prepares a simpler plan from your request for you to review, using up to ${credits(job.reservation?.preparationMicros)} AI credits; nothing is built until you press Generate.` }[action]
-    ?? (candidate || ['deadline', 'limit'].includes(kind) ? 'Edit the request to start a new animation.' : '');
-  return [what, ['transient', 'error'].includes(kind) ? chargeWords(job) : '', ...tried, next].filter(Boolean).join(' ');
+    ?? (candidate || ['deadline', 'limit', 'review_validation'].includes(kind) ? 'Edit the request to start a new animation.' : '');
+  return [what, ['transient', 'error', 'review_validation'].includes(kind) ? chargeWords(job) : '', ...tried, next].filter(Boolean).join(' ');
 }
 // The planner's instruction for a revised plan (prepareStage's refinement, with the approved plan as `previous`): server words only.
 const REVISE_WHY = { size_limit: 'was too large to check', checks: 'did not pass its checks', deadline: 'ran out of time', limit: 'reached its spending limit', transient: 'could not be finished' };
@@ -619,6 +620,18 @@ export class AnimationJobs {
     return out;
   }
 
+  // One review reply, kept beside the call that made it the moment it is known (diagnostics only: never in the learner view). Also what
+  // the shared review retry reads (reviewStage).
+  async noteReview(job, record) {
+    await this.locked(async () => {
+      const current = await this.get(job.id);
+      if (!current) return;
+      const call = current.calls.filter(c => c.role === 'review').at(-1);
+      (current.reviews ??= []).push({ ...record, call: call ? { key: call.key, status: call.status, costMicros: call.costMicros, served: call.served } : null });
+      await this.save(current);
+    });
+  }
+
   async alarm() {
     await this.state.storage.setAlarm(Date.now() + 30000); // re-armed first: a terminated isolate still gets a recovery turn
     let active = false;
@@ -650,7 +663,7 @@ export class AnimationJobs {
     if (Date.now() > job.deadline) throw Object.assign(fail('This animation reached its time limit.', 409), { stopReason: 'deadline' });
     if (job.resumeAt > Date.now()) return; // a transient failure waits before the same stage runs again (resumeLater)
     if (job.stage === 'queued') return this.move(job, job.approval ? 'authoring' : 'preparing');
-    const ctx = { env: this.env, call: (role, spec) => this.paidCall(job, role, spec), limits: ANIMATION_LIMITS, tasks: this.tasks };
+    const ctx = { env: this.env, call: (role, spec) => this.paidCall(job, role, spec), noteReview: record => this.noteReview(job, record), limits: ANIMATION_LIMITS, tasks: this.tasks };
     const stage = job.stage, attempt = job.attempt;
     const run = { preparing: 'prepare', authoring: 'author', validating: 'validate', rendering: 'render', reviewing: 'review', repairing: 'repair' }[stage];
     const out = await this.pipeline[run](structuredClone(job), ctx);

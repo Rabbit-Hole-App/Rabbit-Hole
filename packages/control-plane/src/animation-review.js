@@ -4,9 +4,9 @@
 // refused before the call: no pixels, captures of another artifact, too many or too large images, traces over their limit. A request
 // with no image is never an image review, and a failed call is never an acceptance. The verdict format and its parsing are /explain's
 // (explain-review.js REVIEW_TOOL, parseReview): one semantic and one visual verdict per capture.
-import { REVIEW_LIMITS, REVIEW_TOOL, ReviewError, parseReview } from './explain-review.js';
+import { REVIEW_LIMITS, REVIEW_TOOL, ReviewError, parseReview, reviewProblems } from './explain-review.js';
 import { ANIMATION_REVIEW_SYSTEM } from './agents/animation-author.js';
-import { ANIMATION_ROLES, AnimationPolicyError } from './animation-policy.js';
+import { ANIMATION_LIMITS, ANIMATION_ROLES, AnimationPolicyError } from './animation-policy.js';
 import { learnMedia } from './learn-storage.js';
 
 export const ANIMATION_REVIEW_LIMITS = Object.freeze({ ...REVIEW_LIMITS, maxImages: ANIMATION_ROLES.review.maxImages });
@@ -68,6 +68,14 @@ export async function loadCaptures(env, captures) {
 // A finding the one repair can act on: anything the artifact draws or computes. A renderer fault, or a failure with no finding, is not.
 export const repairableFindings = findings => { const serious = (findings || []).filter(f => f.severity !== 'minor'); return serious.length > 0 && serious.every(f => ['spec', 'source', 'component'].includes(f.category)); };
 
+const CORRECTION_CHARS = 1500;
+const invalidReview = problems => Object.assign(new ReviewError('invalid_review', `The review report broke its contract: ${problems.join('; ').slice(0, CORRECTION_CHARS)}`), { status: 502, category: 'review_validation', stopReason: 'review_invalid' });
+// One reviewer reply as it came: its tool arguments and own per-capture verdicts (parseReview hardens these), what was wrong with it, the
+// artifact it was about and its usage, for telling a malformed review from a defect of the scene.
+const reviewRecord = (job, { retry, reply, problems, error }) => ({ at: Date.now(), attempt: job.attempt, repairs: job.repairs, artifactHash: job.artifactHash, retry, raw: reply?.input ?? null,
+  verdicts: Array.isArray(reply?.input?.captures) ? reply.input.captures.map(c => ({ id: c?.id, semantic: c?.semantic, visual: c?.visual })) : [], problems,
+  usage: reply?.usage ?? error?.billed?.usage ?? null, stopReason: reply?.stopReason ?? error?.billed?.stopReason ?? null, error: error ? error.code || error.name || 'error' : null });
+
 // The review stage. -> { accepted, findings, repairable, category, artifactHash (of what was reviewed) }
 export async function reviewStage(job, ctx) {
   const captures = await loadCaptures(ctx.env, job.captures);
@@ -76,18 +84,26 @@ export async function reviewStage(job, ctx) {
   let built;
   try { built = buildReviewContent({ request: job.prompt, plan: job.plan, artifact: job.artifact, artifactHash: job.artifactHash, captures, evidence: job.evidence || [], coverage: job.coverage }); }
   catch (error) { throw error instanceof ReviewError ? refuse(error) : error; }
-  // The call's own failure (provider, budget, invalid turn) is the job's to record; an unparseable verdict is a failed review.
-  let reply;
-  try { reply = await ctx.call('review', { system: ANIMATION_REVIEW_SYSTEM, tool: REVIEW_TOOL, content: built.content }); }
-  catch (error) {
-    // A reviewer that answered in prose with no report_review call (accept-11, stop end_turn) is asked once more, within the build's
-    // review calls (ANIMATION_LIMITS.calls.review counts one such retry per job; a second one stops as the limit says).
-    if (!(error instanceof AnimationPolicyError && error.code === 'invalid_turn' && error.calls === 0)) throw error;
-    reply = await ctx.call('review', { system: ANIMATION_REVIEW_SYSTEM, tool: REVIEW_TOOL, content: built.content });
+  // The call's own failure (provider, budget, invalid turn) is the job's to record. One retry per job, within the build's review calls
+  // (ANIMATION_LIMITS.calls.review counts it), shared by a reviewer that answered in prose with no report_review call (accept-11, stop
+  // end_turn) and one whose report broke the contract, which is told what to correct. A malformed report is neither an acceptance nor a
+  // defect of the scene, and every reply is recorded as given (ctx.noteReview, diagnostics only).
+  let retryLeft = !job.reviews?.some(r => r.retry) && (job.counts?.review ?? 0) + 2 <= ANIMATION_LIMITS.calls.review;
+  let content = built.content, retry = false, reply;
+  for (;;) {
+    let problems = [], refused = null;
+    reply = null;
+    try { reply = await ctx.call('review', { system: ANIMATION_REVIEW_SYSTEM, tool: REVIEW_TOOL, content }); problems = reviewProblems(reply.input, captures); }
+    catch (error) { refused = error; }
+    await ctx.noteReview?.(reviewRecord(job, { retry, reply, problems, error: refused }));
+    if (refused && !(refused instanceof AnimationPolicyError && refused.code === 'invalid_turn' && refused.calls === 0)) throw refused;
+    if (reply && !problems.length) break;
+    if (!retryLeft) throw refused ?? invalidReview(problems);
+    retryLeft = false; retry = true;
+    content = refused ? built.content : [...built.content, { type: 'text', text: `Your report_review call could not be used:\n${problems.join('\n').slice(0, CORRECTION_CHARS)}\nReview again and call report_review once with a complete report. Every finding needs verdict, category, severity, message and repairable.` }];
   }
   const imageBlocks = built.imageBlocks;
-  let parsed;
-  try { parsed = parseReview(reply.input, captures); } catch (error) { throw error instanceof ReviewError ? Object.assign(error, { status: 502, category: 'transport', message: `The animation review was incomplete (${error.code}).` }) : error; }
+  const parsed = parseReview(reply.input, captures);
   const findings = parsed.captures.flatMap(c => c.findings), serious = findings.filter(f => f.severity !== 'minor');
   // Only a serious finding fails a build: a fail verdict explained by minor findings alone passes; a fail with no finding at all does not.
   const accepted = parsed.captures.every(c => !c.findings.some(f => f.severity !== 'minor') && ((c.semantic === 'pass' && c.visual === 'pass') || c.findings.length > 0));

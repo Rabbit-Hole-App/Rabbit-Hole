@@ -370,3 +370,19 @@ test('planScene keeps only the server-written "you asked for" lines in view, and
   assert.deepEqual(planScene(plan), { parameters: [{ type: 'toggle', label: 'Forces', default: true }], interactions: ['Flip the forces on.'],
     notices: ['You asked for a walkthrough, which is not available yet; this plan makes an experiment instead.'] });
 });
+
+test('an invalid review report fails as review validation in the learner words, keeps its replies in diagnostics only, and offers no paid revision', { skip }, async t => {
+  const raw = { captures: [{ id: 'v0-s0', semantic: 'pass', visual: 'pass', findings: [{ verdict: 'visual', category: 'spec', message: 'm', repairable: true }] }] };
+  const s = animationStack(t, { pipeline: STUB_PIPELINE({ review: async (job, ctx) => {
+    await ctx.call('review', { system: 'review', tool: { name: 'animation_stage', input_schema: { type: 'object' } }, content: 'artifact' });
+    await ctx.noteReview({ retry: false, raw, problems: ['severity is missing'], artifactHash: job.artifactHash, usage: { output_tokens: 1 } });
+    throw Object.assign(new Error('The review report broke its contract'), { code: 'invalid_review', status: 502, category: 'review_validation', stopReason: 'review_invalid' });
+  } }) });
+  const { id, done } = await s.generated();
+  assert.deepEqual([done.stage, done.failure.stage, done.failure.category, done.failure.retryable], ['failed', 'reviewing', 'review_validation', false]);
+  const view = (await s.job(id)).job;
+  assert.match(view.failure.message, /wrong form.*neither accepted nor found faulty.*Edit the request/);
+  assert.deepEqual(view.recovery, ['edit_request']);
+  assert.deepEqual([done.reviews.length, done.reviews[0].raw, done.reviews[0].call.status, done.reviews[0].problems], [1, raw, 'settled', ['severity is missing']]);
+  assert.equal(JSON.stringify(view).includes('severity is missing'), false, 'diagnostics never reach the learner view');
+});

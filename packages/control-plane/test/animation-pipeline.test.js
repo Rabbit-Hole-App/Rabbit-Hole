@@ -611,3 +611,67 @@ test('the result probe draws chosen settings in the default view, bounded, with 
   assert.throws(() => chosenManifest(artifact, Array(7).fill({})), /give 1 to/);
   assert.equal(chosenManifest(gameFixture.artifact, [{ events: Array(9).fill({ type: 'action', action: 'east' }) }]).entries[0].events.length <= 4, true);
 });
+
+const reviewFixture = async () => {
+  const artifact = watchFixture.artifact, artifactHash = await artifactHashOf(artifact);
+  const captures = ['v0-s0'].map(id => ({ id, artifactHash, data: 'AAAA', view: 'default', time: 0, events: [] }));
+  return { prompt: 'r', plan: watchFixture.plan, artifact, artifactHash, captures, evidence: [], attempt: 1, repairs: 0 };
+};
+const reviewFinding = over => ({ verdict: 'visual', category: 'spec', severity: 'minor', message: 'a label could sit closer', repairable: true, ...over });
+const reviewReport = (...findings) => ({ input: { captures: [{ id: 'v0-s0', semantic: 'pass', visual: 'pass', findings }] }, usage: { input_tokens: 5, output_tokens: 7 } });
+const noSeverity = () => { const f = reviewFinding(); delete f.severity; return f; };
+const runReview = async (job, replies) => {
+  const notes = [], sent = [];
+  const ctx = { env: {}, noteReview: async r => { notes.push(r); }, call: async (role, spec) => { sent.push(spec.content); const next = replies[sent.length - 1]; if (next instanceof Error) throw next; return next; } };
+  let out = null, error = null;
+  try { out = await reviewStage(job, ctx); } catch (e) { error = e; }
+  return { out, error, notes, sent };
+};
+
+test('a finding with a missing or invalid severity is sent back with its errors; the corrected report decides, and nothing is reclassified', async () => {
+  for (const bad of [noSeverity(), reviewFinding({ severity: 'moderate' })]) {
+    const { out, error, notes, sent } = await runReview(await reviewFixture(), [reviewReport(bad), reviewReport(reviewFinding())]);
+    assert.equal(error, null);
+    assert.deepEqual([out.accepted, sent.length, notes.map(n => n.retry)], [true, 2, [false, true]]);
+    assert.match(sent[1].at(-1).text, /finding 1 .*severity (is missing|is not allowed); it must be one of blocker, major, minor/);
+    assert.equal(sent[1].filter(b => b.type === 'image').length, 1, 'the correction sees the pixels again');
+    assert.deepEqual(out.findings.map(f => f.severity), ['minor'], 'only the corrected findings count');
+  }
+});
+
+test('a corrected report with a genuine major finding still rejects the scene, and major and blocker findings reject as before', async () => {
+  const { out } = await runReview(await reviewFixture(), [reviewReport(noSeverity()), reviewReport(reviewFinding({ severity: 'major' }))]);
+  assert.deepEqual([out.accepted, out.repairable], [false, true]);
+  for (const severity of ['major', 'blocker']) assert.equal((await runReview(await reviewFixture(), [reviewReport(reviewFinding({ severity }))])).out.accepted, false);
+});
+
+test('a report still invalid after its correction fails as a review-validation failure, and both replies are kept as given', async () => {
+  const bad = reviewReport(noSeverity()), job = await reviewFixture();
+  const { error, notes, sent } = await runReview(job, [bad, bad, reviewReport(reviewFinding())]);
+  assert.deepEqual([error.code, error.category, error.stopReason, sent.length], ['invalid_review', 'review_validation', 'review_invalid', 2]);
+  assert.deepEqual(notes.map(n => [n.retry, n.raw === bad.input, n.artifactHash === job.artifactHash, n.usage.output_tokens, n.problems.length, n.verdicts[0].visual]), [[false, true, true, 7, 1, 'pass'], [true, true, true, 7, 1, 'pass']]);
+});
+
+test('the review retry is shared per job and within the three review calls: a used or exhausted allowance fails without another call', async () => {
+  const bad = reviewReport(noSeverity());
+  for (const over of [{ reviews: [{ retry: true }] }, { counts: { review: 2 } }]) {
+    const { error, sent } = await runReview({ ...await reviewFixture(), ...over }, [bad, reviewReport(reviewFinding())]);
+    assert.deepEqual([error.code, sent.length], ['invalid_review', 1]);
+  }
+  const { AnimationPolicyError } = await import('../src/animation-policy.js');
+  const prose = new AnimationPolicyError('invalid_turn', 'no call', { calls: 0 });
+  const shared = await runReview(await reviewFixture(), [prose, bad, reviewReport(reviewFinding())]);
+  assert.deepEqual([shared.error.code, shared.sent.length, shared.notes.map(n => [n.retry, n.error])], ['invalid_review', 2, [[false, 'invalid_turn'], [true, null]]]);
+  const again = await runReview({ ...await reviewFixture(), reviews: [{ retry: true }] }, [prose]);
+  assert.deepEqual([again.error.code, again.sent.length], ['invalid_turn', 1]);
+});
+
+test('the review contract refuses every malformed report shape', async () => {
+  const { reviewProblems } = await import('../src/explain-review.js');
+  const caps = [{ id: 'a' }];
+  const of = (...findings) => ({ captures: [{ id: 'a', semantic: 'pass', visual: 'pass', findings }] });
+  assert.deepEqual(reviewProblems(of(reviewFinding()), caps), []);
+  assert.equal(reviewProblems(of(reviewFinding({ message: 'x'.repeat(900) })), caps).length, 0, 'a long message is bounded by parseReview, not refused');
+  for (const bad of [null, {}, { captures: [] }, { captures: [{ id: 'z', semantic: 'pass', visual: 'pass', findings: [] }] }, { captures: [{ id: 'a', visual: 'pass', findings: [] }] }, { captures: [{ id: 'a', semantic: 'pass', visual: 'pass' }] },
+    of(reviewFinding({ verdict: 'other' })), of(reviewFinding({ category: 'other' })), of(reviewFinding({ message: '' })), of(reviewFinding({ repairable: 'yes' })), of(reviewFinding({ object: 3 })), of(null)]) assert.ok(reviewProblems(bad, caps).length, JSON.stringify(bad));
+});
