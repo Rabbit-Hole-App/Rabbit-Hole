@@ -321,6 +321,14 @@ test('failed or cancelled regeneration keeps the current good version', () => {
   assert.equal(resumeAnimationJob(stopped, { ...JOB, stage: 'queued' }), stopped);
   assert.equal(resumeAnimationJob(failed.block, { ...JOB, cardId: 'other', stage: 'queued' }), failed.block);
   assert.equal(resumeAnimationJob(failed.block, { ...JOB, stage: 'failed' }), failed.block);
+  // Found later (a reload after a lost answer or another tab): the same job already ready is waited on, and its result then lands.
+  const ready = resumeAnimationJob(failed.block, { ...JOB, stage: 'ready', result: RESULT });
+  assert.deepEqual([ready.animation3dJob.id, ready.animation3dJob.stage], [JOB.id, 'ready']);
+  assert.equal(settleAnimationJob(ready, { ...JOB, stage: 'ready', result: RESULT }, { boardId: 'board_A' }).action, 'apply');
+  // Revise plan's job that failed in turn: bound with its own words, so the card's actions act on it. A cancelled job never resumes.
+  const next = resumeAnimationJob(failed.block, { ...JOB, id: 'job_next', stage: 'failed', failure: { message: 'The build ran out of time.' } });
+  assert.deepEqual([next.animation3dJob.id, next.animation3dJob.stage, next.animation3dJob.message], ['job_next', 'failed', 'The build ran out of time.']);
+  assert.equal(resumeAnimationJob(failed.block, { ...JOB, id: 'job_next', stage: 'cancelled' }), failed.block);
 });
 
 test('deleted or replaced card, board switch and foreign results are ignored', () => {

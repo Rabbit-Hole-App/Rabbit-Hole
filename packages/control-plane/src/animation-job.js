@@ -74,7 +74,8 @@ export function publicAnimationJob(job) {
     id: job.id, version: 1, boardId: job.boardId, cardId: job.cardId, stage: job.stage, attempt: job.attempt, terminal: TERMINAL.has(job.stage),
     repairs: job.repairs, stopReason: job.stopReason, failure: job.failure && { ...job.failure, message: failureText(job) }, recovery: recoveryOf(job),
     usage: { credits: credits(settled), unknown: job.calls.some(c => c.status === 'unknown') },
-    result: job.result, ...(job.plan ? { plan: job.plan, planHash: job.planHash } : {}),
+    // Revise plan's new job for the same card and request (revise): a card still bound to this one follows it (Animation3DCard reconcile).
+    result: job.result, ...(job.plan ? { plan: job.plan, planHash: job.planHash } : {}), ...(job.successor ? { successor: job.successor } : {}),
     timing: timingSummary(job.timing), createdAt: job.createdAt, updatedAt: job.updatedAt,
   };
 }

@@ -44,7 +44,8 @@ test('Revise plan: one new job for the same card and request, its revised plan r
   assert.equal(b.body.job.id, a.body.job.id, 'the same new job');
   const next = a.body.job.id;
   assert.equal([...s.state.data.keys()].filter(k => k.startsWith('job:')).length, 2);
-  assert.equal(s.state.data.get('request:req-00000001').id, next, 'the request now names the new job');  // The card's request repeated (a client retry of create) answers the new job, not a third.
+  assert.equal(s.state.data.get('request:req-00000001').id, next, 'the request now names the new job');
+  assert.equal((await s.job(id)).job.successor, next, 'a card still bound to the failed job (a lost answer, another tab) can follow it');  // The card's request repeated (a client retry of create) answers the new job, not a third.
   assert.equal((await s.create()).body.job.id, next);
   const waiting = await s.run(next);
   assert.equal(waiting.stage, 'awaiting_approval');

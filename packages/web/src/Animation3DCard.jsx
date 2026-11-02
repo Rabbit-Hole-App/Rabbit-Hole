@@ -103,12 +103,24 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
     // The stage rides on the card quietly so a reload shows where it was; not an undo step.
     if ((out.action === 'progress' || out.action === 'keep') && out.block !== latest.current) { latest.current = out.block; (onChangeQuiet || onChange)(out.block); }
   };
+  // A failed card reads its job, and the job Revise plan made in its place (successor, followed to the newest), for what the server
+  // has now. Still failed: its current recovery actions. Moved on (a Retry from another tab, or one whose answer was lost): the card
+  // waits on it again (storage.js resumeAnimationJob), and once the canvas renders that, the poll below observes it and a ready result
+  // lands through apply. GETs only: nothing is started, charged or posted again.
+  const reconcile = async (live = () => true) => {
+    let polled = (await client.get(waiting.id))?.job ?? null;
+    for (let hop = 0; polled?.successor && hop < 20; hop++) polled = (await client.get(polled.successor))?.job ?? null; // bounded: a chain is one per Revise plan
+    if (!live()) return;
+    setJob(polled);
+    const next = resumeAnimationJob(latest.current, polled);
+    if (next !== latest.current) { latest.current = next; (onChangeQuiet || onChange)(next); }
+  };
   const ended = ['failed', 'cancelled'].includes(waiting.stage);
   useEffect(() => {
     if (readOnly || waiting.stage === 'cancelled') return undefined;
     let live = true, timer;
-    // A failed card (also after a reload) reads its job once for the server's current recovery actions; it is not polled.
-    if (ended) { client.get(waiting.id).then(data => { if (live) setJob(data?.job ?? null); }, error => { if (live) setProblem(error.message); }); return () => { live = false; }; }
+    // A failed card (also after a reload) is reconciled once; it is not polled.
+    if (ended) { reconcile(() => live).catch(error => { if (live) setProblem(error.message); }); return () => { live = false; }; }
     const poll = async () => {
       try { const data = await client.get(waiting.id); if (!live) return; setProblem(''); await apply(data); if (animationRunning(data?.job)) timer = setTimeout(poll, 2000); }
       catch (error) { if (live) setProblem(error.message); }
@@ -132,8 +144,8 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
       else await apply(data);
     } catch (error) {
       setProblem(error.message);
-      // A refused Retry (the offer changed meanwhile): the card shows what the server offers now.
-      if (name === 'retry' && error.status === 409) client.get(waiting.id).then(data => setJob(data?.job ?? null), () => {});
+      // A refused Retry (the offer changed meanwhile) or a lost answer (it may have been accepted): the card shows what the server has now.
+      if (name === 'retry') reconcile().catch(() => {});
     } finally { acting.current = false; setBusy(false); }
   };
   const shown = job || { stage: waiting.stage, ...(waiting.message ? { failure: { message: waiting.message } } : {}) };

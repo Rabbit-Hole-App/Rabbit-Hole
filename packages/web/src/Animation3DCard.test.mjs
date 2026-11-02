@@ -569,6 +569,74 @@ test('Revise plan: one press, one request naming the action; the card waits on t
   assert.ok(!changes.some(([kind]) => kind === 'change'), 'never an undo step');
 });
 
+// Owner 2026-11-02: a saved card still says failed while its server job moved on (a Retry from another tab, a Retry whose answer was
+// lost, Revise plan's new job). The card follows it through the same resume, poll and ready paths, with GETs only.
+test('a stale saved failed card follows its job: running, awaiting review through Revise plan\'s new job, or ready; never a new job, one result', async () => {
+  const art = structuredClone(experimentFixture.artifact);
+  const saved = (id, over = {}) => ({ id: 'p8', type: 'animation3d', title: 'Lever', animation3dJob: job({ id, cardId: 'p8', stage: 'failed', message: 'Old words.', ...over }) });
+  const failedJob = (id, over = {}) => job({ id, cardId: 'p8', stage: 'failed', terminal: true, attempt: 1, failure: { message: 'An AI step was interrupted.' }, recovery: ['new_attempt', 'edit_request'], ...over });
+  // The canvas: each change is saved and the card rendered with it (AdaptiveCanvas).
+  const open = async (block, answer) => {
+    const calls = [], changes = [];
+    const fetchJson = async (path, options = {}) => {
+      calls.push([options.method || 'GET', path]);
+      if (path.includes('/results/')) return { artifact: structuredClone(art), execution: { allowed: true } };
+      return answer(path.match(/jobs\/([^/?]+)/)[1], options);
+    };
+    const runtimes = stubRuntimes(), renderers = stubRenderers();
+    const draw = next => root.render(B.createElement(B.Card, { block: next, fetchJson, webgl: true, createRuntime: runtimes.factory, createRenderer: renderers.factory,
+      onChange: n => { changes.push(['change', n]); draw(n); }, onChangeQuiet: n => { changes.push(['quiet', n]); draw(n); } }));
+    await mount({ block, fetchJson, onChange: n => { changes.push(['change', n]); draw(n); }, onChangeQuiet: n => { changes.push(['quiet', n]); draw(n); }, runtimes, renderers });
+    return { calls, changes, posts: () => calls.filter(([method]) => method === 'POST') };
+  };
+  const bound = changes => changes.filter(([kind]) => kind === 'quiet').at(0)?.[1].animation3dJob;
+
+  // Retried from another tab: the same job is building.
+  let s = await open(saved('j8'), () => ({ job: job({ id: 'j8', cardId: 'p8', stage: 'authoring', attempt: 2 }) }));
+  assert.deepEqual([bound(s.changes).id, bound(s.changes).stage, bound(s.changes).message], ['j8', 'authoring', undefined]);
+  assert.equal($('[data-animation-stage]').textContent, 'Building the scene');
+  assert.deepEqual(buttons(), ['Stop']);
+  assert.equal(s.calls.filter(([, path]) => path.includes('/j8?')).length, 2, 'read, then polled once rebound');
+  assert.deepEqual(s.posts(), []);
+
+  // Revise plan from another tab: the failed job names its successor, whose plan awaits review; the card waits on that job.
+  s = await open(saved('j9'), id => ({ job: id === 'j9' ? failedJob('j9', { successor: 'j10', recovery: ['revise_plan', 'edit_request'] }) : job({ id: 'j10', cardId: 'p8', stage: 'awaiting_approval' }) }));
+  assert.deepEqual([bound(s.changes).id, bound(s.changes).stage, bound(s.changes).requestId, bound(s.changes).sourceKey], ['j10', 'awaiting_approval', 'r1', 'k']);
+  assert.equal($('[data-animation-stage]').textContent, 'Review the scene plan above the chat box');
+  assert.equal($('[data-animation-job-retry]'), null, 'no Revise plan on the old job');
+  assert.deepEqual(s.posts(), []);
+  // Revise plan's job failed in turn: the card binds it, so its Retry acts on that job, not the old one.
+  s = await open(saved('j9'), id => ({ job: id === 'j9' ? failedJob('j9', { successor: 'j10' }) : failedJob('j10', { failure: { message: 'The build ran out of time.' } }) }));
+  assert.deepEqual([bound(s.changes).id, bound(s.changes).stage, bound(s.changes).message], ['j10', 'failed', 'The build ran out of time.']);
+  await press($('[data-animation-job-retry]'));
+  assert.deepEqual(s.posts().map(([, path]) => path), ['/api/learn/animation/jobs/j10/retry']);
+
+  // Render again whose answer was lost before the reload: the job is ready; its result is read and lands once.
+  const ready = job({ id: 'j11', cardId: 'p8', stage: 'ready', terminal: true, result: { resultId: art.artifactId, cardId: 'p8', canvas: { boardId: 'b1' }, requestRef: 'rr', planHash: art.planHash } });
+  s = await open(saved('j11', { sourceKey: 'rr' }), () => ({ job: ready }));
+  const landed = s.changes.filter(([kind]) => kind === 'change').map(([, block]) => block);
+  assert.equal(landed.length, 1, 'one result, one undo step');
+  assert.deepEqual([landed[0].animation3d.ref.artifactId, landed[0].animation3dJob], [art.artifactId, undefined]);
+  assert.equal(s.calls.filter(([, path]) => path.includes('/results/')).length, 1);
+  assert.deepEqual(s.posts(), []);
+
+  // A Retry in this tab whose answer is lost: the card reads the job and waits on it; no second Retry is sent.
+  let accepted = false;
+  s = await open(saved('j12'), (id, options) => {
+    if (options.method === 'POST') { accepted = true; throw new Error('Failed to fetch'); }
+    return { job: accepted ? job({ id: 'j12', cardId: 'p8', stage: 'authoring', attempt: 2 }) : failedJob('j12') };
+  });
+  await press($('[data-animation-job-retry]'));
+  assert.deepEqual([bound(s.changes).id, bound(s.changes).stage], ['j12', 'authoring']);
+  assert.deepEqual(buttons(), ['Stop']);
+  assert.equal(s.posts().length, 1);
+
+  // Stopped on this card: never read or resumed, whatever the server says.
+  s = await open(saved('j13', { stage: 'cancelled' }), () => ({ job: job({ id: 'j13', cardId: 'p8', stage: 'authoring', attempt: 2 }) }));
+  assert.deepEqual([s.calls, s.changes], [[], []]);
+  assert.equal($('[data-animation-stage]').textContent, 'Stopped');
+});
+
 test('a ready job lands on its card once (the artifact read and mapped to the board reference); the saved card then plays it', async () => {
   const art = structuredClone(experimentFixture.artifact);
   const answers = { job: { id: 'j3', boardId: 'b1', cardId: 'p3', stage: 'ready', terminal: true, result: { resultId: art.artifactId, cardId: 'p3', canvas: { boardId: 'b1' }, requestRef: 'rr', planHash: art.planHash } } };

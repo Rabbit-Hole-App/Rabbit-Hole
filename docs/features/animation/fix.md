@@ -51,6 +51,13 @@ row in [spend.md](spend.md).
   same card and request; its planner revises the approved plan from the failure class, dropped controls are listed on the
   review card, and Generate is admitted again). animationRetry no longer assumes Try again; a failed card reads its actions
   again after a reload.
+- Owner review follow-ups (2026-11-02, branch fix/animation-resume): (2) a saved card that still says failed reconciles
+  with the server after a reload, a lost Retry answer or a Retry from another tab: it follows Revise plan's new job
+  (`successor` on the job view), waits again on a job that moved on (running, awaiting review, ready) through the existing
+  resume, poll and result paths, with GETs only; a card stopped on itself is never resumed. (3) A billed reply the job
+  cannot use is "The AI answer could not be used.", no longer an interruption, and every charge sentence comes from the
+  failed stage run's call ledger: refused or no measured cost "You are not charged for it.", a measured cost "It used N AI
+  credits.", an unrecorded outcome "It may have used AI credits."
 - Status: implemented and fixture-tested; not live. Needs the integrator's measurement fix for this request to build, then a
   preview deploy for owner review.
 
