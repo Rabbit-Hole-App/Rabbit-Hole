@@ -37,6 +37,18 @@ const STAGES = {
 export const animationStage = job => (job?.stage === 'failed' ? job.failure?.message || 'The scene could not be made.' : STAGES[job?.stage] || 'Checking status');
 // Polled while the server works on it; a plan awaiting review waits on the learner, not a timer.
 export const animationRunning = job => !!job && !job.terminal && !['awaiting_approval', 'ready', 'failed', 'cancelled'].includes(job.stage);
+// The bar a pending card shows once the plan is approved and the scene is being made: Generate is behind it, these four are ahead.
+// -> null (keep the spinner: queued, preparing, awaiting_approval and every stage that is not running) or { steps, current, correcting }.
+// repairing is a correction under way: the job then goes back through checking, rendering and reviewing, so the bar starts over at
+// Build and says so; it never reads as progress past Review. No percentages, no time guesses.
+export const ANIMATION_PROGRESS_STEPS = Object.freeze(['Build', 'Check', 'Render', 'Review']);
+const PROGRESS_STAGES = ['authoring', 'validating', 'rendering', 'reviewing'];
+export function animationProgress(job) {
+  if (!animationRunning(job)) return null;
+  if (job.stage === 'repairing') return { steps: ANIMATION_PROGRESS_STEPS, current: 0, correcting: true };
+  const current = PROGRESS_STAGES.indexOf(job.stage);
+  return current < 0 ? null : { steps: ANIMATION_PROGRESS_STEPS, current, correcting: false };
+}
 // The one retry the job offers now (the server's recovery list), or null.
 export const animationRetry = job => job?.recovery?.find(action => action === 'retry_render' || action === 'new_attempt') ?? (job?.stage === 'failed' ? 'new_attempt' : null);
 // A job's result lands through storage.js (withJob, settleAnimationJob): bound to its card, board, request, source set and base revision.

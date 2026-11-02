@@ -5,7 +5,7 @@ import { Pill } from './ui.jsx';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { claimViewer, releaseViewer } from './viewer-slots.js';
 import { watchSeen } from './explain-program/playback.js';
-import { ANIMATION_JOB_EVENT, animationClient, animationRetry, animationRunning, animationStage, readyResult } from './animation3d/client.js';
+import { ANIMATION_JOB_EVENT, animationClient, animationProgress, animationRetry, animationRunning, animationStage, readyResult } from './animation3d/client.js';
 import {
   artifactRefOf, cardPhase, detectWebGL, EXPERIENCE_LABELS, failureText, FIXTURE_LABEL, FIXTURE_NOTE, fixtureIdOf, INTERACT_LEGEND,
   jobOf, retryLabel, visibleControls, WEBGL_UNAVAILABLE,
@@ -126,14 +126,15 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
     } catch (error) { setProblem(error.message); } finally { acting.current = false; setBusy(false); }
   };
   const shown = job || { stage: waiting.stage, ...(waiting.message ? { failure: { message: waiting.message } } : {}) };
-  const running = animationRunning(shown), retry = animationRetry(shown), failed = shown.stage === 'failed';
+  const running = animationRunning(shown), progress = animationProgress(shown), retry = animationRetry(shown), failed = shown.stage === 'failed';
   const request = String(block.promptUsed || '').trim();
   return (
     <div data-animation-pending={shown.stage} className="flex min-h-[125px] flex-col items-start gap-3 pt-2">
       <div className="flex items-center gap-2">
-        {running && <Loader2 aria-hidden size={16} className="shrink-0 text-ink-3 motion-safe:animate-spin" />}
+        {running && !progress && <Loader2 aria-hidden size={16} className="shrink-0 text-ink-3 motion-safe:animate-spin" />}
         <p data-animation-stage aria-live="polite" className={`text-sm ${failed ? 'text-fail' : running ? 'shimmer' : 'text-ink-2'}`}>{animationStage(shown)}</p>
       </div>
+      {progress && <StageProgress progress={progress} stage={animationStage(shown)} />}
       {request && failed && <p className="text-xs text-ink-2">Your request: {request}</p>}
       {problem && <p role="alert" className="text-xs text-fail">{problem}</p>}
       {!readOnly && (
@@ -143,6 +144,29 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
             <RefreshCw size={13} aria-hidden />{retry === 'retry_render' ? 'Render again' : 'Try again'}</button>}
         </div>
       )}
+    </div>
+  );
+}
+
+// Four segments after Generate: done are filled, the current one pulses (motion-safe), the rest are empty. A correction restarts at
+// Build and says "Correcting"; there are no percentages or time guesses.
+function StageProgress({ progress: { steps, current, correcting }, stage }) {
+  return (
+    <div className="flex w-full max-w-[260px] flex-col gap-1.5">
+      <p data-animation-progress-label className="text-xs text-ink-3">{correcting ? 'Correcting' : `Step ${current + 1} of ${steps.length}`}</p>
+      <div data-animation-progress role="progressbar" aria-label="Scene progress" aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={current + 1}
+        aria-valuetext={correcting ? `Correcting: ${stage}` : `Step ${current + 1} of ${steps.length}, ${steps[current]}: ${stage}`} className="flex gap-1">
+        {steps.map((name, index) => {
+          const state = index < current ? 'done' : index === current ? 'current' : 'todo';
+          return (
+            <div key={name} className="flex flex-1 flex-col gap-1">
+              <span data-animation-progress-step={state} data-step-name={name}
+                className={`h-1.5 rounded-full ${state === 'done' ? 'bg-ink' : state === 'current' ? 'bg-accent motion-safe:animate-pulse' : 'bg-line-strong'}`} />
+              <span aria-hidden className={`text-[11px] ${state === 'todo' ? 'text-ink-3' : 'text-ink-2'}`}>{name}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

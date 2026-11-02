@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { ANIMATION_ROUTES, animationClient, animationRetry, animationRunning, animationStage, readyResult, requestRef } from './client.js';
+import { ANIMATION_ROUTES, animationClient, animationProgress, animationRetry, animationRunning, animationStage, readyResult, requestRef } from './client.js';
 import { experimentFixture } from './fixtures.js';
 import { refProblem, settleAnimationJob, withJob } from './storage.js';
 
@@ -28,6 +28,17 @@ test('request shapes (lane G routes): create, get, action and result, scoped to 
     { path: `${ANIMATION_ROUTES.results}/res%201?board=board%201`, signal, body: undefined },
     { path: `${ANIMATION_ROUTES.results}/res2?board=board%201`, body: undefined },
   ]);
+});
+
+test('progress: Build, Check, Render, Review follow the running stages; a correction starts over and is named; everything else keeps the spinner', () => {
+  const steps = ['Build', 'Check', 'Render', 'Review'];
+  [['authoring', 0], ['validating', 1], ['rendering', 2], ['reviewing', 3]].forEach(([stage, current]) => {
+    assert.deepEqual(animationProgress({ stage }), { steps, current, correcting: false }, stage);
+  });
+  assert.deepEqual(animationProgress({ stage: 'repairing' }), { steps, current: 0, correcting: true }, 'never forward past Review');
+  for (const stage of ['queued', 'preparing', 'awaiting_approval', 'ready', 'failed', 'cancelled', 'unknown']) assert.equal(animationProgress({ stage }), null, stage);
+  assert.equal(animationProgress({ stage: 'authoring', terminal: true }), null);
+  assert.equal(animationProgress(null), null);
 });
 
 test('a refusal from fetchJson reaches the caller unchanged (status and data kept)', async () => {

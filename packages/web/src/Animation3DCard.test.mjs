@@ -329,6 +329,13 @@ test('a pending job: the server\'s stage and Stop; Stop asks the server and stop
   assert.equal($('[data-animation-pending]').getAttribute('data-animation-pending'), 'authoring');
   assert.equal($('[data-animation-stage]').textContent, 'Building the scene');
   assert.deepEqual(buttons(), ['Stop']);
+  const bar = $('[data-animation-progress]');
+  assert.equal(bar.getAttribute('role'), 'progressbar');
+  assert.deepEqual([bar.getAttribute('aria-valuemin'), bar.getAttribute('aria-valuemax'), bar.getAttribute('aria-valuenow')], ['1', '4', '1']);
+  assert.match(bar.getAttribute('aria-valuetext'), /Build.*Building the scene/);
+  assert.deepEqual([...document.querySelectorAll('[data-animation-progress-step]')].map(step => step.getAttribute('data-animation-progress-step')), ['current', 'todo', 'todo', 'todo']);
+  assert.match(card().textContent, /Step 1 of 4/);
+  assert.equal(document.querySelector('[data-animation-pending] svg.animate-spin, [data-animation-pending] svg[class*="animate-spin"]'), null, 'the bar replaces the spinner');
   assert.deepEqual(changes.at(-1)[0], 'quiet', 'the stage rides on the card quietly');
   answer = { job: job({ stage: 'ready', result: { cardId: 'other', canvas: { boardId: 'b1' }, sourceKey: 'k' } }) };
   await press($('[data-animation-stop]'));
