@@ -110,6 +110,11 @@ row in [spend.md](spend.md).
   request's size limit, so the run repair could not be sent. The pendulum request on the same run was accepted (row 27).
 - Status: open. The game request has now failed three times (US$2.00); no further paid game run without the owner.
 
+### FX-AN-027 — planner answers over the tool's length limits (tracked, not changed)
+- Task / phase: AN-05. Observed in the planner comparison (planner-eval.md): every refused first answer was over a length limit (variant A 1 of 10 and 1 of 4; variant B 5 of 10). Each correction succeeded, at about twice the cost of that plan.
+- Improvement to make separately: say the limits in the shared planner prompt. Also tracked: the server repeats "real physics simulation" when both a behavior and a feature name it. Owner 2026-11-02: track separately; do not restart the paid comparison for documentation corrections.
+- Status: open, not blocking. A prompt change needs its own measured run.
+
 ## Resolved
 
 ### FX-AN-024 — the camera-fit sampler starved learner runtimes (fast-e2e 41272196685: 16 of 34 animation steps failed)

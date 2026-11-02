@@ -6930,11 +6930,11 @@ provisional winner then takes the four holdouts. Every other setting is the same
 
 **Decision rule.** Prefer the simpler prompt (A) unless B shows a clear benefit in substantive defects across the ten cases. If the difference is within what one small run can show, the result is inconclusive and is reported as such. Passing this evaluation does not establish generation reliability.
 
-<!-- section:Arm A (variant A, ten prompts) status:partial -->
+<!-- section:Arm A (variant A, ten prompts) status:complete -->
 
 ## Arm A (variant A, ten prompts)
 
-**Status:** partial (10 of 14 cases).
+**Status:** complete (all 10 cases of this arm).
 
 ### Batch provenance
 
@@ -10727,11 +10727,11 @@ Overall (good / usable with changes / not usable):
 
 <!-- /section:Arm A (variant A, ten prompts) -->
 
-<!-- section:Arm B (variant B, ten prompts) status:partial -->
+<!-- section:Arm B (variant B, ten prompts) status:complete -->
 
 ## Arm B (variant B, ten prompts)
 
-**Status:** partial (10 of 14 cases).
+**Status:** complete (all 10 cases of this arm).
 
 ### Batch provenance
 
@@ -14394,11 +14394,11 @@ Overall (good / usable with changes / not usable):
 
 <!-- /section:Arm B (variant B, ten prompts) -->
 
-<!-- section:Holdouts (variant A) status:partial -->
+<!-- section:Holdouts (variant A) status:complete -->
 
 ## Holdouts (variant A)
 
-**Status:** partial (4 of 14 cases).
+**Status:** complete (all 4 holdouts).
 
 ### Batch provenance
 
@@ -16347,6 +16347,8 @@ Overall (good / usable with changes / not usable):
 <!-- /section:Holdouts (variant A) -->
 
 ## Planner comparison results (2026-11-02)
+
+**Decision (owner, 2026-11-02): variant A is the MVP default.** The switch and the examples were then removed from the code; the text above and git history keep them. "Partial" labels on the arms were a report generator error (it counted the holdouts against each arm) and are corrected; no evidence changed.
 
 Run on deployed `c9d0c5509126b277603a778fbcdc2b376a08ab42` (verify 41518212243, fast-e2e 41518212289, animation-mvp 36/36): variant A as preview
 version `48f96f60-7739-435d-9faa-aefb7c35ee97`, variant B as `7aadd705-e9c4-49c9-9eb0-bf79a428ab05`, then A again as
