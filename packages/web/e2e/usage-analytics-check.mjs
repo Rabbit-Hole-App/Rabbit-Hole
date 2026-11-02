@@ -180,12 +180,16 @@ try {
   });
 
   await check('a logout in another tab: this tab reports under the account it accrued in, and later input counts for the new visitor', async () => {
+    await run(61_000); // the last step's input window lapses, so the baseline holds
+    await pagehide(page);
+    await flushTimer();
+    const base = activeOf(B);
     await page.mouse.click(5, 5);
     await run(20_000);
     me = null;
     await second.goto(`${ORIGIN}/sign-in`);
     await new Promise(resolve => setTimeout(resolve, 300)); // real time for the storage event; the clock stays where the input left it
-    await until(async () => { await flushTimer(); return activeOf(B) === 50; }, 'the storage event settles B\'s 20 seconds without a hide');
+    await until(async () => { await flushTimer(); return activeOf(B) === base + 20; }, 'the storage event settles B\'s 20 seconds without a hide');
     await page.mouse.click(5, 5);
     await run(10_000);
     const before = named('rh_active_time').length;
@@ -195,7 +199,7 @@ try {
     assert.equal(event.active_seconds, 10);
     assert.ok(![A, B].includes(event.distinct_id), 'neither account');
     assert.equal(event.rh_internal, false);
-    assert.equal(activeOf(B), 50);
+    assert.equal(activeOf(B), base + 20);
   });
 
   await check('logout here with time accrued: it stays with the account, and the sign-in page leaves the next visitor anonymous', async () => {
