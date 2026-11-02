@@ -3,7 +3,8 @@
 // /explain's ExplainJobs (explain-job.js), and animation's own policy (animation-policy.js) and artifacts.
 //
 // Stages: queued -> preparing -> awaiting_approval -> authoring -> validating -> rendering -> reviewing -> ready, with at most ONE
-// repairing -> validating per confirmed build (ANIMATION_LIMITS.repairs), whatever failed; failed and cancelled are terminal. A
+// repairing -> validating per confirmed build for a candidate that fails to validate or run, and one for a review rejection
+// (ANIMATION_LIMITS.repairs); failed and cancelled are terminal. A
 // repaired artifact reaches ready only through validating, rendering and a final review of exactly that artifact (its hash).
 // The stage work (plan, author, validate, render, review, repair) is a pipeline injected at construction; the route is off unless
 // ANIMATION_ENABLED is 'true'.
@@ -566,7 +567,7 @@ export class AnimationJobs {
       Object.assign(job, { draft: out.draft, artifact: null, artifactHash: null, captures: null, coverage: null });
       next('validating');
     } else if (stage === 'validating') {
-      if (out.problems?.length) { job.findings.push({ repairs: job.repairs, stage, problems: out.problems }); return this.repairOrStop(job, out); }
+      if (out.problems?.length) { job.findings.push({ repairs: job.repairs, stage, problems: out.problems }); return this.repairOrStop(job, out, 'run'); }
       // The artifact is the host's: sealed from the approved plan and sources, its hash computed here, never taken from the model.
       if (out.artifact?.planHash !== job.planHash) throw Object.assign(fail('The animation was built from another plan.', 409), { category: 'internal' });
       if (!/^[0-9a-f]{64}$/.test(out.artifactHash || '')) throw Object.assign(fail('The animation was not sealed.', 500), { category: 'internal' });
@@ -578,7 +579,7 @@ export class AnimationJobs {
       if (out.problems?.length) {
         job.findings.push({ repairs: job.repairs, stage, problems: out.problems });
         if (out.renders?.length) { job.renders += out.renders.length; await this.recordRenders(job, out.renders); }
-        return this.repairOrStop(job, out);
+        return this.repairOrStop(job, out, 'run');
       }
       if (!out.captures?.length || out.captures.some(c => c.artifactHash !== job.artifactHash)) throw Object.assign(fail('The animation could not be rendered for review (captures_missing). Retry rendering.', 503, 'captures_missing'), { category: 'renderer' });
       job.captures = out.captures; job.coverage = out.coverage ?? null; job.renders += out.renders?.length || 0;
@@ -590,7 +591,7 @@ export class AnimationJobs {
       if (!job.artifactHash || out.artifactHash !== job.artifactHash) throw Object.assign(fail('The review was not of this animation.', 409, 'review_stale'), { category: 'internal' });
       job.findings.push({ repairs: job.repairs, stage, accepted: out.accepted === true, findings: out.findings || [] });
       if (out.accepted === true) return this.accept(job);
-      return this.repairOrStop(job, out);
+      return this.repairOrStop(job, out, 'review');
     } else if (stage === 'repairing') {
       job.candidates.push({ repairs: job.repairs, operation: out.operation || null, progress: out.progress !== false, ...(out.draft ? { draftHash: await hash16(out.draft), hasProgram: !!out.draft.program } : {}), ...(out.inputKeys ? { inputKeys: out.inputKeys } : {}), ...(out.artifactKeys ? { artifactKeys: out.artifactKeys } : {}), ...(out.rejected ? { rejected: out.rejected } : {}) });
       if (out.rejected) return this.stopWith(job, 'unsupported_repair', 'spec', 'This animation needs a change the repair step cannot make. Edit the request and try again.');
@@ -600,10 +601,12 @@ export class AnimationJobs {
     }
     await this.save(job);
   }
-  async repairOrStop(job, out) {
-    if (job.repairs >= ANIMATION_LIMITS.repairs) return this.stopWith(job, 'rounds', out.category || 'spec', 'The animation did not pass its checks after one correction. Edit the request and try again.');
+  // kind: 'run' (the candidate failed to validate or run) or 'review' (the review rejected it); each is repaired at most once.
+  async repairOrStop(job, out, kind) {
+    job.repairKinds ??= [];
+    if (job.repairs >= ANIMATION_LIMITS.repairs || job.repairKinds.includes(kind)) return this.stopWith(job, 'rounds', out.category || 'spec', 'The animation did not pass its checks, even after a correction. Edit the request and try again.');
     if (out.repairable === false) return this.stopWith(job, 'unsupported_repair', out.category || 'spec', out.message || 'This animation needs a change the repair step cannot make. Edit the request.');
-    job.repairs++; job.repairedFrom = job.artifactHash; endStage(job.timing, 'rejected'); job.stage = 'repairing'; beginStage(job.timing, 'repairing');
+    job.repairKinds.push(kind); job.repairs++; job.repairedFrom = job.artifactHash; endStage(job.timing, 'rejected'); job.stage = 'repairing'; beginStage(job.timing, 'repairing');
     await this.save(job);
   }
   async stopWith(job, stopReason, category, message, retryable = false) {

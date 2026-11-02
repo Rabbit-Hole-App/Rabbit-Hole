@@ -31,9 +31,11 @@ export const ANIMATION_ROLES = Object.freeze({
 });
 
 export const ANIMATION_LIMITS = Object.freeze({
-  repairs: 1, // at most one repair per confirmed build, whatever failed (validation, render or review)
+  // At most one repair of each kind per confirmed build: one for a candidate that fails to validate or run, one for a review
+  // rejection (aj_283c19f: the only repair went to a program that referenced undeclared nodes, leaving none for the review).
+  repairs: 2,
   // Preparation: one brief call per admitted preparation, at most `refinements` more (each a learner's own edit). Generation: the graph above.
-  calls: Object.freeze({ brief: 1, author: 1, review: 2, repair: 1 }),
+  calls: Object.freeze({ brief: 1, author: 1, review: 2, repair: 2 }),
   refinements: 5,
   // A plan the contract refuses gets ONE correction call carrying the validator's issues (accept-6: step with an analytical behavior).
   planCorrections: 1,

@@ -46,6 +46,20 @@ row in [spend.md](spend.md).
   scenes export initialState/reduce for parameter events (R).
 - Severity: minor; does not block MVP. Status: deferred
 
+### FX-AN-025 — owner's game run stopped: the one repair went to a crash, then the framing was rejected
+- Task / phase: AN-05. First observed: owner on the preview at `237964c54`, job aj_283c19f (7:44 PM PT 2026-11-01),
+  request "Make a short game where I launch a ball to hit a target by choosing the angle and speed."
+- What happened: the first candidate's program wrote nodes `d0`-`d3` it never declared (invalid_output at render). The
+  single repair fixed that; the review then rejected the default view (field, launcher and target in the bottom fifth
+  under empty sky) with no repair left: `stopReason: rounds`. US$0.4852 (spend row 24).
+- Cause of the framing: the scene put its result and hint labels 20.5 m and 23 m above a ground-level field, and the fit
+  (framing.js) counted every label anchor as subject, so it framed up to 23 m.
+- Fix (candidate, not yet verified by a real run): framing.js counts a label anchor only within 25% of the subject's size
+  beyond its box; the author and repair prompts say game status, result and hint text is frame.goal.message and the game
+  hint (the card shows them), never a scene label; a build gets one repair for a run or validation failure and one for a
+  review rejection (ANIMATION_LIMITS.repairs 2, calls.repair 2; the worst-case reservation grows by one repair bound).
+- Status: open until the owner's retry of the same request.
+
 ## Resolved
 
 ### FX-AN-024 — the camera-fit sampler starved learner runtimes (fast-e2e 41272196685: 16 of 34 animation steps failed)

@@ -75,6 +75,16 @@ test('a board a little larger than its tiles is subject, not backdrop, and a flo
   assert.ok(reach(onScreen(camera, points)) <= FRAMING.fill + 1e-9);
 });
 
+test('a label floating far from the subject does not widen the view (aj_283c19f: game text 20 m above a ground-level field)', () => {
+  const geometries = [{ id: 'fieldGeo', kind: 'box', size: [40, 1, 4] }, { id: 'note', kind: 'label', text: 'Hit!' }];
+  const field = [{ id: 'field', geometry: 'fieldGeo', position: [20, 0.5, 0] }];
+  const alone = fitOf(sceneArtifact(geometries, field), [{}]).camera;
+  const { points, camera } = fitOf(sceneArtifact(geometries, [...field, { id: 'result', geometry: 'note', position: [20, 23, 0] }, { id: 'tag', geometry: 'note', position: [20, 3, 0] }]), [{}]);
+  assert.ok(!points.some(point => point.y > 20), 'the far label is not subject');
+  assert.ok(points.some(point => Math.abs(point.y - 3) < 1e-9), 'the label beside the field still counts');
+  assert.ok(Math.abs(camera.target[1] - alone.target[1]) < 1.5, `aimed at the field, not the sky: ${camera.target[1]}`);
+});
+
 // ---- the sampler, on the real engine ----------------------------------------------------------------------------------------
 let engineModule = null;
 try { engineModule = await import('../explain-program/runtime.js'); } catch { engineModule = null; }

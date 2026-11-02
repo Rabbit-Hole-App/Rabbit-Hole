@@ -18,8 +18,10 @@ import { buildAnimationScene } from './scene.js';
 
 // fill: the subject spans this share of the view's height or width (a 10% margin each side, room for a label plate beside an
 // edge). sheet / dwarf: a backdrop is a flat mesh larger than sheet x, or any mesh larger than dwarf x, the rest of the scene.
-// samples / budgetMs: the card waits for the fit before it first draws (session.js), so the sample is short.
-export const FRAMING = Object.freeze({ fill: 0.8, samples: 12, budgetMs: 1000, ticks: 30, sheet: 1.25, dwarf: 3 });
+// samples / budgetMs: the card waits for the fit before it first draws (session.js), so the sample is short. caption: a label anchor
+// counts only within this share of the subject's size beyond its box (aj_283c19f: result and hint text 20 m above a ground-level game
+// framed the field into a thin strip under empty sky).
+export const FRAMING = Object.freeze({ fill: 0.8, samples: 12, budgetMs: 1000, ticks: 30, sheet: 1.25, dwarf: 3, caption: 0.25 });
 
 const extent = box => { const size = box.getSize(new THREE.Vector3()); return Math.max(size.x, size.y, size.z); };
 
@@ -80,7 +82,7 @@ export async function sampleAnimationFrames({ artifact, frame = null, workerFact
 // The subject over every frame (applied in order to `scene`, a scene.js build the caller owns; with no frames, the authored scene),
 // as world points: each shown mesh or line's own (oriented) box corners in every frame, so a part turning about a diagonal never
 // counts its axis-aligned box's empty corners. Never a label plate (constant screen size, no world size), but a label's anchor
-// point, so a floating caption stays in view. Backdrops (a floor, ceiling or wall: a flat mesh larger than sheet x the rest of the
+// point near the subject (FRAMING.caption), so a caption beside it stays in view; one floating far off never widens the view. Backdrops (a floor, ceiling or wall: a flat mesh larger than sheet x the rest of the
 // scene; anything larger than dwarf x it, by swept box) are context, not subject, and so are the labels on them. -> Vector3[] | null
 export function subjectPoints(scene, frames) {
   const swept = new Map(), anchors = [], sheets = new Set(), size = new THREE.Vector3(), scale = new THREE.Vector3();
@@ -124,7 +126,10 @@ export function subjectPoints(scene, frames) {
     return mine > FRAMING.dwarf * theirs || (sheets.has(id) && mine > FRAMING.sheet * theirs);
   }));
   const onContext = id => { for (let node = scene.nodes.get(id); node; node = scene.nodes.get(node.parent)) if (context.has(node.id)) return true; return false; };
-  const points = [...ids.filter(id => !context.has(id)).flatMap(id => swept.get(id).points), ...anchors.filter(({ id }) => !onContext(id)).map(({ point }) => point)];
+  const meshPoints = ids.filter(id => !context.has(id)).flatMap(id => swept.get(id).points);
+  const near = meshPoints.length ? new THREE.Box3().setFromPoints(meshPoints) : null;
+  if (near) near.expandByScalar(FRAMING.caption * extent(near));
+  const points = [...meshPoints, ...anchors.filter(({ id, point }) => !onContext(id) && (!near || near.containsPoint(point))).map(({ point }) => point)];
   return points.length && extent(new THREE.Box3().setFromPoints(points)) > 0 ? points : null;
 }
 

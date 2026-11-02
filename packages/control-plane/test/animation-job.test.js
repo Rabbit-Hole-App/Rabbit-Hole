@@ -103,11 +103,26 @@ test('a second failure after the one repair stops the job: no second repair, no 
   assert.deepEqual([done.stage, done.stopReason, done.result], ['failed', 'rounds', null]);
   assert.deepEqual(s.model.roles(), ['brief', 'author', 'review', 'repair', 'review']);
   assert.equal(s.state.data.has(`result:${done.resultId}`), false);
-  // Validation problems use the same single repair: a repaired draft that still fails validation stops before any review.
+  // A candidate that fails validation gets one repair of its own: a repaired draft that still fails stops before any review.
   const v = animationStack(t, { pipeline: STUB_PIPELINE({ validate: async () => ({ problems: ['node n1 is not declared'], repairable: true }) }) });
   const bad = await v.generated();
   assert.deepEqual([bad.done.stage, bad.done.stopReason], ['failed', 'rounds']);
   assert.deepEqual(v.model.roles(), ['brief', 'author', 'repair']);
+  assert.match(bad.done.failure.message, /even after a correction/);
+});
+
+// aj_283c19f: the first candidate's program referenced undeclared nodes; its repair ran, and the review then rejected the framing
+// with no repair left. A run failure and a review rejection now get one repair each.
+test('a run failure and a review rejection are repaired once each: crash, repair, review, repair, review', { skip }, async t => {
+  let validations = 0, reviews = 0;
+  const s = animationStack(t, { pipeline: STUB_PIPELINE({
+    validate: async (...a) => (validations++ === 0 ? { problems: ['nodes.d0 is not a node of this artifact'], repairable: true } : STUB_PIPELINE().validate(...a)),
+    review: async (...a) => ({ ...(await STUB_PIPELINE().review(...a)), accepted: reviews++ > 0 }),
+  }) });
+  const { done } = await s.generated();
+  assert.equal(done.stage, 'ready', JSON.stringify(done.failure));
+  assert.deepEqual(s.model.roles(), ['brief', 'author', 'repair', 'review', 'repair', 'review']);
+  assert.deepEqual([done.repairs, done.repairKinds], [2, ['run', 'review']]);
 });
 
 test('an unrepairable finding or a repair that changes nothing stops with its reason', { skip }, async t => {

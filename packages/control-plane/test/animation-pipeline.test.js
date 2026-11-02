@@ -341,7 +341,8 @@ test('a repair must return the program: the tool requires it and the prompt says
   const call = s.model.calls.find(c => c.role === 'repair');
   assert.ok(call.tool.input_schema.properties.artifact.required.includes('program'), 'the repair tool requires the program');
   assert.match(call.system, /Return the COMPLETE artifact every time[^.]*the program/);
-  assert.deepEqual([done.stage, done.stopReason], ['failed', 'rounds']);
+  // The review's repair dropped the program; the run failure's own repair returned the same program-less artifact: no progress.
+  assert.deepEqual([done.stage, done.stopReason], ['failed', 'no_progress']);
   assert.match(done.findings.at(-1).problems.join(' '), /missing_program/);
   // The author's tool requires it too for a scene that needs one; a static inspect plan does not.
   assert.ok(s.model.calls.find(c => c.role === 'author').tool.input_schema.properties.artifact.required.includes('program'));
@@ -371,7 +372,7 @@ test('a repair that returns the program beside the artifact, or as a bare source
   }
   // Nowhere at all: still refused at validation (no program is invented).
   const none = stack(t, { reviews: [false, true], repair: () => ({ operation: 'artifact', artifact: { ...rest, title: 'Fixed' } }) });
-  assert.deepEqual([(await none.generated()).done.stopReason], ['rounds']);
+  assert.deepEqual([(await none.generated()).done.stopReason], ['no_progress']);
 });
 
 // accept-5 fresh: the author spent all 10,000 output tokens (dev ledger: output_tokens 10000) and made no tool call.
@@ -474,4 +475,9 @@ test('the result probe renders a stored accepted result for its owner, through t
   s.state.data.set(`result:${done.resultId}`, { ...saved, artifact: { ...saved.artifact, title: 'Tampered' } });
   const tampered = await post({ boardId: BOARD.id, resultId: done.resultId });
   assert.deepEqual([tampered.status, (await tampered.json()).code], [409, 'version_unavailable']);
+});
+
+test('author and repair are told that game status text is the goal message, never a scene label', async () => {
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js');
+  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /status, result and hint text[^:]*is frame\.goal\.message[^:]*: never a scene label/);
 });
