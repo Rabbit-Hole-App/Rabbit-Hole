@@ -192,14 +192,15 @@ await check('10 keyboard: Tab stays inside, arrow keys move the tabs, Escape clo
     await page.keyboard.press('Tab');
     assert.equal(await page.evaluate(() => !!document.activeElement.closest('[data-analytics-dialog]')), true, `tab ${i}`);
   }
-  const selected = key => page.locator(`[data-analytics-tab="${key}"]`).getAttribute('aria-selected');
+  // Radix moves focus to the next tab on its next task and selects on focus, so the selection is awaited, not read at once.
+  const selected = key => page.locator(`[data-analytics-tab="${key}"][aria-selected="true"]`).waitFor({ timeout: 3000 });
   await page.locator('[data-analytics-tab="overview"]').focus();
   await page.keyboard.press('ArrowRight');
-  assert.equal(await selected('boards'), 'true');
+  await selected('boards');
   await page.keyboard.press('End');
-  assert.equal(await selected('sources'), 'true');
+  await selected('sources');
   await page.keyboard.press('Home');
-  assert.equal(await selected('overview'), 'true');
+  await selected('overview');
   await page.keyboard.press('Escape');
   await dialogOf(page).waitFor({ state: 'detached' });
   assert.deepEqual(await page.evaluate(() => [document.activeElement.getAttribute('title'), document.getElementById('root').inert]), ['Card options', false]);
