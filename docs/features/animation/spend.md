@@ -36,6 +36,9 @@ From 2026-10-30 (acceptance.next.mjs): provider charges and ledger counts are se
 | 21 | 9:25 PM | G acceptance.mjs | game: ready | claude-opus-5-5 | 5 calls, repairs 1 | US$2.5949 | US$0.3015 | US$0.3015 (5 model call(s); 12 render(s), platform, US$0) | `d500849cd1b5ea2b` | US$5.0462 | US$5.1678 |
 | 22 | 9:59 PM | G acceptance.mjs | experiment: ready | claude-opus-5-5 | 3 calls, repairs 0 | US$2.5949 | US$0.1779 | US$0.1779 (3 model call(s); 6 render(s), platform, US$0) | `718c0ff2f3acdf37` | US$5.2241 | US$5.3457 |
 | 23 | 10:01 PM | G acceptance.mjs | watch: ready | claude-opus-5-5 | 3 calls, repairs 0 | US$2.5949 | US$0.1674 | US$0.1674 (3 model call(s); 6 render(s), platform, US$0) | `9c31d0e86dfab505` | US$5.3915 | US$5.5131 |
-| 24 | 2026-11-01 7:44 PM | owner try-it (preview, launcher user) | game (launch a ball at a target): failed (rounds: crash repaired, then review rejected the framing) | claude-opus-5-5 | 4 calls, repairs 1 | - | US$0.4852 | US$0.4852 (job diagnostics, job aj_283c19f) | - | US$5.8767 | US$5.9983 |
+| 24 | 2026-11-01 7:44 PM | owner try-it (preview, launcher user) | game (launch a ball at a target): failed (rounds: crash repaired, then review rejected the framing) | claude-opus-5-5 | 4 calls, repairs 1 | - | US$0.4852 | US$0.4852 exact: dev usage_attempts for the launcher user, 4 settled calls (brief 43,040 + author 149,935 + repair 156,058 + review 136,148 micros = 485,181), the same as the job diagnostics; 6 render(s), platform, US$0 | (job aj_283c19f) | US$5.8767 | US$5.9983 |
+
+"Exact" here is the dev ledger's settled cost: the provider's reported token usage at the list price (not an invoice). A reserve is
+an estimate held before a call and released when it settles.
 
 Total provider: US$5.8767. Total ledger (incl. reserves): US$5.9983. Reserved in flight: US$0.00. Remaining: US$4.1233.

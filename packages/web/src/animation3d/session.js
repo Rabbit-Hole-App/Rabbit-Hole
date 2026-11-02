@@ -11,8 +11,12 @@
 // - Inputs shown while a change is pending are the learner's; the accepted inputs are the runtime's own snapshot, so a refused
 //   change returns the control to the last accepted value and a newer pending change is never undone by an older answer.
 // - Scene Reset restores simulation defaults and keeps the camera; Reset view changes only the camera, back to the fitted view
-//   (framing.js fitAnimationView, once per scene when no camera was saved) or else the authored one. The fit is asked after the
-//   card's own runtime is ready and answered before the renderer is made, so the scene is first drawn fitted and never jumps.
+//   (framing.js fitAnimationView of the current inputs; asked once per scene when no camera was saved) or else the authored one.
+//   The fit is asked after the card's own runtime is ready and answered before the renderer is made, so the scene is first drawn
+//   fitted and never jumps. A parameter change the runtime accepted is fitted again once the controls settle (REFIT_MS), and the
+//   camera moves only when the new bounds differ substantially (framing.js substantialRefit), so a drag never zooms continuously;
+//   an action asked meanwhile waits for that fit, so its motion is shown with a steady camera. Once the learner moves the camera
+//   (or a saved camera is shown) nothing is refitted until Reset view.
 // - Restart only rewinds a seekable loop (its inputs kept); a scene that cannot rewind has no Restart, never a hidden reset.
 // - Optional labels (object names, annotations, their callouts): the learner's choice lives here and is applied to every renderer
 //   the card builds, so it holds through playback, parameter changes, camera moves and a lost and retaken slot.
@@ -20,9 +24,10 @@
 //   and flushes); camera saves never ask the runtime for anything.
 import { resolveAnimationInputs, validateAnimationArtifact } from './contract.js';
 import { accepted, cardModel, eventFor, failureOf, frameView, invalidArtifact } from './card.js';
-import { fitAnimationView } from './framing.js';
+import { fitAnimationView, substantialRefit } from './framing.js';
 
 export const DRAG_END_RETRIES = 20; // a drag end the runtime refused as busy is resent (runtime.js keeps no slot for it)
+export const REFIT_MS = 300; // a parameter change is fitted once the controls are still this long
 const RETRY_MS = 50;
 // The learner sees the fixed message; which limit or phase failed (runtime.js diagnostic, never shown) goes to the console, the only
 // place a browser check can read it (CI fast-e2e 5a3c2e549 step 3 could not tell which deadline the card missed).
@@ -37,6 +42,7 @@ const INITIAL = Object.freeze({
 // fitView: framing.js fitAnimationView (tests inject a stand-in).
 export function createCardSession({ loadScene, createRuntime, createRenderer = null, onUpdate = () => {}, persist = {}, timers = globalThis, fitView = fitAnimationView }) {
   let state = INITIAL, block = null, saved = null, generation = 0, dead = false, fitted; // fitted: this scene's fitted camera, null: none, undefined: not asked
+  let follow = true, refitTimer = null, refitting = null, refitAbort = null; // follow: the shown camera is the fit (the learner has not moved it)
   let runtime = null, renderer = null, container = null, abortScene = null, abortRenderer = null, rendererGeneration = 0, ticket = 0;
   const set = patch => { state = { ...state, ...patch }; if (!dead) onUpdate(state); };
   const stale = mine => dead || mine !== generation;
@@ -65,6 +71,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
       const checked = validateAnimationArtifact(loaded.artifact);
       if (!checked.ok) throw invalidArtifact(checked.issues);
       saved = loaded.sim ?? null;
+      follow = !loaded.view?.camera;
       set({ artifact: checked.value, model: cardModel(checked.value), camera: loaded.view?.camera ?? null, selected: loaded.view?.selection ?? null });
     } catch (error) {
       if (!stale(mine) && error?.name !== 'AbortError') set({ failure: failureOf('artifact', error) });
@@ -106,7 +113,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
     if (!state.camera && fitted === undefined) {
       try { await runtime?.ready; } catch { /* the fit then has no shown frame */ }
       if (!current()) return;
-      const camera = await fitView({ artifact: state.artifact, aspect: container.clientWidth / container.clientHeight, frame: state.frame, createRuntime, signal: abort.signal }).catch(() => null);
+      const camera = await fitView({ artifact: state.artifact, aspect: container.clientWidth / container.clientHeight, inputs: state.inputs ?? undefined, frame: state.frame, createRuntime, signal: abort.signal }).catch(() => null);
       if (!current()) return;
       fitted = camera;
     }
@@ -115,7 +122,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
       container,
       onSelect: id => { if (own()) select(id); },
       onGesture: event => { if (own()) gesture(event); },
-      onCameraChange: camera => { if (own()) { state = { ...state, camera }; saveView(); } },
+      onCameraChange: camera => { if (own()) { follow = false; cancelRefit(); state = { ...state, camera }; saveView(); } },
       onLost: () => { if (own()) rendererFailed(Object.assign(new Error('The graphics context was lost.'), { code: 'context_lost' })); },
     });
     renderer = created;
@@ -136,6 +143,30 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
     }
   }
 
+  // The fit of the inputs just accepted, once the controls are still; only a substantial change moves the camera.
+  const clearTimer = id => (timers.clearTimeout ?? globalThis.clearTimeout)(id); // a test's timers may offer setTimeout only
+  function cancelRefit() { clearTimer(refitTimer); refitTimer = null; refitAbort?.abort(); refitAbort = null; refitting = null; }
+  function scheduleRefit() {
+    if (!follow || !renderer || !state.artifact) return;
+    clearTimer(refitTimer);
+    refitTimer = timers.setTimeout(() => { refitTimer = null; refit(); }, REFIT_MS);
+  }
+  function refit() {
+    refitAbort?.abort();
+    const abort = refitAbort = new AbortController(), from = renderer, mine = generation;
+    const run = (async () => {
+      const camera = await fitView({ artifact: state.artifact, aspect: container.clientWidth / container.clientHeight, inputs: state.inputs ?? undefined, frame: state.frame, createRuntime, signal: abort.signal }).catch(() => null);
+      if (abort.signal.aborted || stale(mine) || renderer !== from || !follow || !camera) return;
+      if (!substantialRefit(fitted, camera)) return;
+      fitted = camera;
+      try { from.setCamera(camera); } catch (error) { rendererFailed(error); }
+    })();
+    refitting = run.finally(() => { if (refitAbort === abort) { refitAbort = null; refitting = null; } });
+    return refitting;
+  }
+  // Before an action: a fit still waiting for the controls to settle runs now, and the action waits for it.
+  function settleView() { if (refitTimer !== null) { clearTimer(refitTimer); refitTimer = null; refit(); } return refitting ?? Promise.resolve(); }
+
   async function poster() {
     const from = renderer;
     try { const image = await from?.capturePoster(); if (image && from === renderer && !dead) set({ poster: image }); } catch { /* the previous poster stays */ }
@@ -151,6 +182,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
     if (ok) saveSimulation(snap);
     const patch = { inputs: snap?.inputs ?? state.inputs };
     if (ok) patch.changed = true;
+    if (ok && input) scheduleRefit();
     // Only the newest change decides what the controls show: an older answer never clears a newer pending value.
     if (mine === ticket) { patch.pending = null; patch.notice = ok ? '' : input ? 'That value was not accepted. The last accepted value is kept.' : 'That action was not accepted.'; }
     set(patch);
@@ -196,7 +228,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
     // A new or changed saved scene: everything restarts from its saved state.
     start(next) {
       const mine = ++generation;
-      block = next; saved = null; fitted = undefined;
+      block = next; saved = null; fitted = undefined; follow = true; cancelRefit();
       abortScene?.abort(); dropRuntime(); dropRenderer();
       state = INITIAL;
       onUpdate(state);
@@ -212,7 +244,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
         if (camera) set({ camera });
         Promise.resolve(image).then(still => { if (still && !dead) set({ poster: still }); }, () => {});
       }
-      container = null; dropRenderer(); if (!dead) set({ renderer: 'off' });
+      cancelRefit(); container = null; dropRenderer(); if (!dead) set({ renderer: 'off' });
     },
     // Retry repeats only the stage that failed: never a page reload, never a new generation request.
     retry() {
@@ -228,7 +260,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
       set({ pending: { ...(state.pending ?? state.inputs), [id]: value } });
       return dispatch(eventFor.parameter(id, value), { input: id });
     },
-    action: id => dispatch(eventFor.action(id)),
+    action: async id => { await settleView(); return dispatch(eventFor.action(id)); },
     select,
     play() { if (runtime && state.runtime === 'ready' && accepted(runtime.play())) set({ playing: true }); },
     pause() { if (runtime && state.playing) { runtime.pause(); set({ playing: false }); const snap = snapshot(); if (snap) saveSimulation(snap); } },
@@ -248,6 +280,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
       const camera = fitted ?? state.artifact?.camera ?? null;
       if (!renderer || !camera) return;
       try { renderer.setCamera(camera); } catch (error) { rendererFailed(error); return; }
+      follow = true;
       set({ camera });
       saveView();
     },
@@ -263,7 +296,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
     clearNotice() { if (state.notice) set({ notice: '' }); },
     dispose() {
       dead = true; generation += 1;
-      abortScene?.abort(); dropRuntime(); dropRenderer();
+      cancelRefit(); abortScene?.abort(); dropRuntime(); dropRenderer();
     },
   };
 }

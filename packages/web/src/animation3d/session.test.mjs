@@ -4,7 +4,7 @@
 // the accepted value, Reset keeps the camera and Reset view keeps the scene, settled snapshots and the presentation reach persist.
 import test, { before } from 'node:test';
 import assert from 'node:assert/strict';
-import { createCardSession } from './session.js';
+import { REFIT_MS, createCardSession } from './session.js';
 import { deferred, experimentArtifact, gameArtifact, loadEngine, realRuntimes, stubRenderers, stubRuntimes, validated, watchArtifact } from './testdata/ui-stubs.mjs';
 
 before(loadEngine);
@@ -324,6 +324,51 @@ test('fitted view: a fit given up on with the slot (detach) draws nothing; no fi
   n.session.resetView();
   assert.deepEqual(n.renderers.made[0].cameras, [validated(experimentArtifact()).camera], 'Reset view: the authored camera');
   n.session.dispose();
+});
+
+// Owner 2026-11-01 (aj_283c19f): the default view is fitted to the defaults; a parameter change is fitted again once the controls
+// settle and moves the camera only for a substantial change; an action waits for that fit; a camera the learner moved is kept.
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+test('fitted view: a settled parameter change is fitted again with its inputs; only a substantial change moves the camera', async () => {
+  const asked = [], FAR = { position: [0, 1, 12], target: [0, 0.5, 0], fov: 40 }, NEAR = { position: [0, 1, 6.3], target: [0, 0.5, 0], fov: 40 };
+  const fitView = async options => { asked.push(options); return options.inputs?.leftDistance === 3 ? FAR : options.inputs?.leftDistance === 1.6 ? NEAR : FIT; };
+  const h = harness({ runtimes: stubRuntimes(), fitView });
+  h.session.attach(box); await h.session.start(h.block); await settle();
+  const renderer = h.renderers.made[0];
+  assert.deepEqual(renderer.cameras, [FIT]);
+  await h.session.setParameter('leftDistance', 2); await h.session.setParameter('leftDistance', 3); await settle();
+  assert.equal(asked.length, 1, 'nothing fitted while the controls move');
+  await wait(REFIT_MS + 50); await settle();
+  assert.equal(asked.length, 2, 'one fit for the settled value');
+  assert.equal(asked[1].inputs.leftDistance, 3);
+  assert.deepEqual(renderer.cameras, [FIT, FAR], 'the wider bounds moved the camera once');
+  h.session.resetView();
+  assert.deepEqual(renderer.cameras.at(-1), FAR, 'Reset view: the fit of the current inputs');
+  h.session.dispose();
+  // A small change keeps the camera still.
+  const n = harness({ runtimes: stubRuntimes(), fitView });
+  n.session.attach(box); await n.session.start(n.block); await settle();
+  await n.session.setParameter('leftDistance', 1.6); await wait(REFIT_MS + 50); await settle();
+  assert.deepEqual(n.renderers.made[0].cameras, [FIT]);
+  n.session.dispose();
+});
+
+test('fitted view: an action waits for the pending fit; a camera the learner moved is never refitted until Reset view', async () => {
+  const FAR = { position: [0, 1, 12], target: [0, 0.5, 0], fov: 40 }, order = [];
+  const fitView = async options => { order.push('fit'); return options.inputs?.leftDistance === 3 ? FAR : FIT; };
+  const base = stubRuntimes();
+  const runtimes = { made: base.made, factory: options => { const runtime = base.factory(options); const dispatch = runtime.dispatch.bind(runtime); runtime.dispatch = event => { order.push(event.type); return dispatch(event); }; return runtime; } };
+  const h = harness({ runtimes, fitView });
+  h.session.attach(box); await h.session.start(h.block); await settle();
+  await h.session.setParameter('leftDistance', 3);
+  await h.session.action('noop'); await settle();
+  assert.deepEqual(order, ['fit', 'parameter', 'fit', 'action'], 'the fit ran before the action was sent');
+  assert.deepEqual(h.renderers.made[0].cameras, [FIT, FAR]);
+  const moved = { position: [9, 9, 9], target: [0, 0, 0], fov: 40 };
+  h.renderers.made[0].options.onCameraChange(moved);
+  await h.session.setParameter('leftDistance', 1.5); await wait(REFIT_MS + 50); await settle();
+  assert.equal(order.filter(step => step === 'fit').length, 2, 'no fit over a camera the learner moved');
+  h.session.dispose();
 });
 
 test('optional labels: the renderer says whether it has any; the choice is applied to it and to the next renderer', async () => {

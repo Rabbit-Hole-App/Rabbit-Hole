@@ -49,16 +49,35 @@ row in [spend.md](spend.md).
 ### FX-AN-025 — owner's game run stopped: the one repair went to a crash, then the framing was rejected
 - Task / phase: AN-05. First observed: owner on the preview at `237964c54`, job aj_283c19f (7:44 PM PT 2026-11-01),
   request "Make a short game where I launch a ball to hit a target by choosing the angle and speed."
-- What happened: the first candidate's program wrote nodes `d0`-`d3` it never declared (invalid_output at render). The
-  single repair fixed that; the review then rejected the default view (field, launcher and target in the bottom fifth
-  under empty sky) with no repair left: `stopReason: rounds`. US$0.4852 (spend row 24).
+- Stages: preparing (brief) ok; authoring ok; rendering failed: the program wrote nodes `d0`-`d3` it never declared
+  (invalid_output, phase evaluate); repairing (the job's single repair) fixed that; validating and rendering ok;
+  reviewing rejected the default view (field, launcher and target in the bottom fifth under empty sky, majors on all three
+  default captures) with no repair left: `stopReason: rounds`.
+- Spend: US$0.4852 exact (dev ledger, 4 settled calls; spend row 24); renders platform, US$0. Not an estimate.
 - Cause of the framing: the scene put its result and hint labels 20.5 m and 23 m above a ground-level field, and the fit
-  (framing.js) counted every label anchor as subject, so it framed up to 23 m.
-- Fix (candidate, not yet verified by a real run): framing.js counts a label anchor only within 25% of the subject's size
-  beyond its box; the author and repair prompts say game status, result and hint text is frame.goal.message and the game
-  hint (the card shows them), never a scene label; a build gets one repair for a run or validation failure and one for a
-  review rejection (ANIMATION_LIMITS.repairs 2, calls.repair 2; the worst-case reservation grows by one repair bound).
-- Status: open until the owner's retry of the same request.
+  (framing.js) counted every label anchor as subject, so it framed up to 23 m. It also fitted over every parameter extreme.
+- Relation to FX-AN-018: the same family (a view fitted for more than the default experience leaves the subject small; a
+  rejection with no repair left), a different trigger (floating labels, not a 0.1 m range) and a different scene (a game).
+- Other review findings, recorded, not blockers: "Landed vs target 0.0 m" before any shot (reads as a perfect hit;
+  major in kind, now an authoring and review rule); distance marks on the field's front edge, misaligned with the target by
+  perspective (minor); the ball at rest sunk inside the launcher base (minor cosmetic); the hint's leader crossing the result
+  text (minor). The flight itself was never sampled (the scene has no timeline and is not stepped, so its time stays 0).
+- Fix (owner approved 2026-11-01 as option A):
+  - Repairs: one for a run or validation failure and one for a review rejection, at most two per job, neither reset by
+    Retry; each repaired candidate is validated, rendered and reviewed again. Worst case: author 1, repair 2, review 3 (two
+    candidates reviewed plus one retry of a prose answer), render rounds 3; the admission check uses that worst case.
+  - Framing (framing.js, session.js, the review capture page): fitted to the motion at one set of parameter values (the
+    defaults first), never the extremes; a learner's parameter change is fitted again once the controls settle (300 ms)
+    and moves the camera only when the distance changes by more than 1.2x or the aim by 15% of the distance; an action
+    waits for that fit; a camera the learner moved is kept until Reset view; a label anchor counts only within 25% of the
+    subject's size beyond its box. Review captures are fitted per capture inputs, as the card is.
+  - Rules (author, repair, review): game status, result and hint text is the goal message, never a scene label; a
+    readout that measures an attempt is left out of the frame until the first attempt (the card already hides a readout a
+    frame leaves out), and a result shown before an attempt is a major review finding; marks and scales lie in the plane of
+    what they measure (minor); a resting object sits on its holder (minor).
+- Not done: no host-side check can tell which readout measures an attempt, so that rule is authoring and review only. An
+  analytical game with no timeline and no steps cannot show a flight (its time never advances); not addressed here.
+- Status: open until the owner's retry of the same request on the fixing preview.
 
 ## Resolved
 

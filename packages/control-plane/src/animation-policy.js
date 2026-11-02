@@ -33,14 +33,18 @@ export const ANIMATION_ROLES = Object.freeze({
 export const ANIMATION_LIMITS = Object.freeze({
   // At most one repair of each kind per confirmed build: one for a candidate that fails to validate or run, one for a review
   // rejection (aj_283c19f: the only repair went to a program that referenced undeclared nodes, leaving none for the review).
+  // Neither kind resets on Retry. Every repaired candidate is validated, rendered and reviewed again before it can be accepted.
   repairs: 2,
-  // Preparation: one brief call per admitted preparation, at most `refinements` more (each a learner's own edit). Generation: the graph above.
-  calls: Object.freeze({ brief: 1, author: 1, review: 2, repair: 2 }),
+  // Preparation: one brief call per admitted preparation, at most `refinements` more (each a learner's own edit). Generation: the graph
+  // above: one author, two repairs, and reviews of at most two candidates (a run repair's candidate was never reviewed) plus the one
+  // retry of a review answered in prose (animation-review.js).
+  calls: Object.freeze({ brief: 1, author: 1, review: 3, repair: 2 }),
   refinements: 5,
   // A plan the contract refuses gets ONE correction call carrying the validator's issues (accept-6: step with an analytical behavior).
   planCorrections: 1,
-  // Review captures: up to 2 declared views at up to 3 parameter/time states per round, one browser per job, platform-paid.
-  render: Object.freeze({ views: 2, states: 3, capturesPerRound: 6, rounds: 2 }),
+  // Review captures: up to 2 declared views at up to 3 parameter/time states per round, one browser per job, platform-paid; a round
+  // per candidate (the first and both repairs).
+  render: Object.freeze({ views: 2, states: 3, capturesPerRound: 6, rounds: 3 }),
   deadlines: Object.freeze({ callMs: 120000, preparationMs: 180000, jobMs: 600000 }),
 });
 

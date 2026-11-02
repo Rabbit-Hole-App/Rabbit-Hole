@@ -1,8 +1,8 @@
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { experimentFixture, watchFixture } from './fixtures.js';
-import { FRAMING, fitAnimationView, fitCameraToPoints, sampleAnimationFrames, subjectPoints } from './framing.js';
+import { experimentFixture, gameFixture, watchFixture } from './fixtures.js';
+import { FRAMING, fitAnimationView, fitCameraToPoints, sampleAnimationFrames, subjectPoints, substantialRefit } from './framing.js';
 import { buildAnimationScene } from './scene.js';
 
 // Real Three.js scenes built in Node (labels get a plain Texture), measured over hand-written frames; the sampler half runs on the
@@ -101,17 +101,30 @@ const workerFactory = () => {
   return worker;
 };
 
-run('the sampler covers the loop and every parameter range, and the fit is the same on every call', async () => {
+run('the sampler covers the loop and the motion at the given inputs, never the parameter extremes; the fit is the same on every call', async () => {
   const watch = await sampleAnimationFrames({ artifact: watchFixture.artifact, workerFactory });
   assert.deepEqual(watch.map(frame => frame.nodes.moon.position.map(v => Math.round(v * 1e6) / 1e6 + 0)), [[3, 0, 0], [0, 0, 3], [-3, 0, 0], [0, 0, -3]]);
-  const lever = await sampleAnimationFrames({ artifact: experimentFixture.artifact, workerFactory });
-  const reaches = lever.map(frame => frame.nodes.leftWeight.position[0]);
   const left = experimentFixture.artifact.parameters.find(p => p.id === 'leftDistance');
-  assert.ok(reaches.includes(-left.max) && reaches.includes(-left.min), `both ends of leftDistance: ${reaches}`);
-  assert.ok(lever.length <= FRAMING.samples);
+  const atDefault = (await sampleAnimationFrames({ artifact: experimentFixture.artifact, workerFactory })).map(frame => frame.nodes.leftWeight.position[0]);
+  assert.ok(atDefault.every(x => x === -left.default), `only the default reach: ${atDefault}`);
+  const atMax = (await sampleAnimationFrames({ artifact: experimentFixture.artifact, inputs: { leftDistance: left.max }, workerFactory })).map(frame => frame.nodes.leftWeight.position[0]);
+  assert.ok(atMax.every(x => x === -left.max), `the chosen reach: ${atMax}`);
   const first = await fitAnimationView({ artifact: experimentFixture.artifact, aspect: ASPECT, workerFactory });
   assert.ok(first);
   assert.deepEqual(await fitAnimationView({ artifact: experimentFixture.artifact, aspect: ASPECT, workerFactory }), first);
+  const wide = await fitAnimationView({ artifact: experimentFixture.artifact, aspect: ASPECT, inputs: { leftDistance: left.max }, workerFactory });
+  assert.notDeepEqual(wide, first, 'another reach is another fit');
+});
+
+test('a refit moves the camera only for a substantial change of distance or aim', () => {
+  const at = (distance, x = 0) => ({ position: [x, 0, distance], target: [x, 0, 0], fov: 50 });
+  assert.equal(substantialRefit(null, at(10)), true, 'nothing shown yet');
+  assert.equal(substantialRefit(at(10), null), false, 'no new fit');
+  assert.equal(substantialRefit(at(10), at(11)), false, 'a 10% change keeps the view still');
+  assert.equal(substantialRefit(at(10), at(13)), true);
+  assert.equal(substantialRefit(at(10), at(7)), true);
+  assert.equal(substantialRefit(at(10), at(10, 1)), false);
+  assert.equal(substantialRefit(at(10), at(10, 2)), true, 'the aim moved by a fifth of the distance');
 });
 
 test('any refusal falls back to the initial frame only; an abort answers null; the sampler disposes its own runtime', async () => {
@@ -140,18 +153,18 @@ test('the sampler runs as a background runtime; with no engine of its own it ans
 });
 
 test('past its time budget the sampler stops its runtime and keeps the frames it finished', async () => {
-  const max = { nodes: { leftWeight: { position: [-3, 0.25, 0] } } };
+  const moved = { nodes: { robot: { position: [1, 0, 0] } } };
   let stop = null;
   const slow = ({ onFrame }) => {
     let calls = 0;
     const stopped = new Promise(resolve => { stop = resolve; });
     return {
       ready: Promise.resolve().then(() => onFrame({ nodes: {} })),
-      dispatch: async () => { if (++calls <= 4) { onFrame(max); return { accepted: true }; } await stopped; return { accepted: false, reason: 'disposed' }; }, // the 4 maxima, then it hangs
+      dispatch: async () => { if (++calls <= 1) { onFrame(moved); return { accepted: true }; } await stopped; return { accepted: false, reason: 'disposed' }; }, // the first move, then it hangs
       dispose: () => stop(),
     };
   };
   const started = Date.now();
-  assert.deepEqual(await sampleAnimationFrames({ artifact: experimentFixture.artifact, createRuntime: slow }), [{ nodes: {} }, max]);
+  assert.deepEqual(await sampleAnimationFrames({ artifact: gameFixture.artifact, createRuntime: slow }), [{ nodes: {} }, moved]);
   assert.ok(Date.now() - started < FRAMING.budgetMs + 500, 'cut at the budget');
 });

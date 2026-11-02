@@ -234,6 +234,21 @@ test('provider overload pauses at its stage; Retry resumes there within the same
   assert.deepEqual(ready.calls.filter(c => c.role === 'review').map(c => [c.status, c.costMicros]), [['refused', 0], ['settled', ready.calls.at(-1).costMicros]]);
 });
 
+test('a Retry never resets either repair allowance: run repair, overload, Retry, review repair, then the limit', { skip }, async t => {
+  let validations = 0, down = true;
+  const s = animationStack(t, {
+    status: role => (role === 'review' && down ? 529 : 200), reply: role => (role === 'review' ? { accepted: false } : {}),
+    pipeline: STUB_PIPELINE({ validate: async (...a) => (validations++ === 0 ? { problems: ['nodes.d0 is not a node of this artifact'], repairable: true } : STUB_PIPELINE().validate(...a)) }),
+  });
+  const { id, done } = await s.generated();
+  assert.deepEqual([done.failure.category, done.repairs, done.repairKinds], ['provider_unavailable', 1, ['run']]);
+  down = false;
+  assert.equal((await s.send('retry', { expectedAttempt: 1 }, id)).status, 202);
+  const end = await s.run(id);
+  assert.deepEqual([end.stage, end.stopReason, end.repairs, end.repairKinds], ['failed', 'rounds', 2, ['run', 'review']]);
+  assert.deepEqual(s.model.roles(), ['brief', 'author', 'repair', 'review', 'review', 'repair', 'review']);
+});
+
 test('a malformed author reply fails the build with no silent fallback and no retry beyond the ceiling', { skip }, async t => {
   // A request the policy refuses (no tool offered) is never sent and uses no call.
   const bad = animationStack(t, { pipeline: STUB_PIPELINE({ author: async (job, ctx) => ctx.call('author', { system: 'author', tool: null, content: 'x' }) }) });
@@ -248,12 +263,12 @@ test('a malformed author reply fails the build with no silent fallback and no re
   assert.deepEqual((await s.job(id)).job.recovery, ['edit_request']);
 });
 
-test('the summed per-call bounds of a build can never exceed its worst case: a third review is refused', { skip }, async t => {
-  const s = animationStack(t, { pipeline: STUB_PIPELINE({ review: async (job, ctx) => { for (let i = 0; i < 3; i++) await ctx.call('review', { system: 'review', tool: { name: 'x', input_schema: { type: 'object' } }, content: 'x' }); return { accepted: true, artifactHash: job.artifactHash }; } }) });
+test('the summed per-call bounds of a build can never exceed its worst case: a fourth review is refused', { skip }, async t => {
+  const s = animationStack(t, { pipeline: STUB_PIPELINE({ review: async (job, ctx) => { for (let i = 0; i < 4; i++) await ctx.call('review', { system: 'review', tool: { name: 'x', input_schema: { type: 'object' } }, content: 'x' }); return { accepted: true, artifactHash: job.artifactHash }; } }) });
   const { done } = await s.generated();
-  assert.deepEqual([done.stage, done.stopReason, done.counts.review], ['failed', 'budget', 2]);
+  assert.deepEqual([done.stage, done.stopReason, done.counts.review], ['failed', 'budget', 3]);
   assert.ok(done.bounds.generation <= done.reservation.generationMicros);
-  assert.deepEqual(s.model.roles(), ['brief', 'author', 'review', 'review']);
+  assert.deepEqual(s.model.roles(), ['brief', 'author', 'review', 'review', 'review']);
 });
 
 test('the route is off unless ANIMATION_ENABLED, owner-only and same-origin; sources are read on the server, never taken from the client', async t => {

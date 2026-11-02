@@ -477,6 +477,16 @@ test('the result probe renders a stored accepted result for its owner, through t
   assert.deepEqual([tampered.status, (await tampered.json()).code], [409, 'version_unavailable']);
 });
 
+test('author, repair and review rules: no attempt result before an attempt; marks line up with what they measure', async () => {
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM } = await import('../src/agents/animation-author.js');
+  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) {
+    assert.match(system, /measures an attempt[^.]*is left out of frame\.readouts until the first attempt has finished; never a 0/);
+    assert.match(system, /Distance marks, scales and ticks lie on the same line and in the same plane as what they measure/);
+  }
+  assert.match(ANIMATION_REVIEW_SYSTEM, /A result shown before any attempt exists[^.]*is major/);
+  assert.match(ANIMATION_REVIEW_SYSTEM, /Marks or scales that do not line up with what they measure are minor, and so is an object slightly sunk into its holder/);
+});
+
 test('author and repair are told that game status text is the goal message, never a scene label', async () => {
   const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js');
   for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /status, result and hint text[^:]*is frame\.goal\.message[^:]*: never a scene label/);

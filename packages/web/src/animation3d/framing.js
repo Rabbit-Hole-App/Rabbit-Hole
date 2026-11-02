@@ -1,15 +1,18 @@
 // The fitted view of an /animation scene (quality correction 2026-10-31: generated scenes showed a tiny subject in a mostly empty
 // view, or a camera under a huge ceiling). The camera keeps the authored viewing direction and field of view and is moved to frame
-// the subject over its whole movement range, sampled ONCE per artifact by a short-lived runtime of its own (runtime.js over the
-// same engine as the card, never the learner's runtime), so the view never zooms during playback or a parameter change. That
-// runtime is a background one: it runs only on a free engine and yields to any card that needs it (runtime.js), so a board of
-// several cards frames each from the frame it shows instead.
-//   fitAnimationView({ artifact, aspect, frame?, workerFactory?, createRuntime?, signal? }) -> Promise<{ position, target, fov } | null>
-//     frame: the frame the card shows, the subject when the sampler gets no frame of its own.
-//     null: aborted, an invalid artifact or nothing drawable; keep the authored camera.
-//   animationSubject({ artifact, frame?, workerFactory?, createRuntime?, signal? }) -> Promise<Vector3[] | null>   the sampled subject
+// the subject as it moves at ONE set of parameter values (the defaults first: the default experience is the one made prominent),
+// sampled by a short-lived runtime of its own (runtime.js over the same engine as the card, never the learner's runtime). The card
+// fits again only when the learner changes a parameter and the bounds change substantially (session.js), never during playback or
+// an action's motion, so the view never zooms continuously (owner 2026-11-01, aj_283c19f). That runtime is a background one: it
+// runs only on a free engine and yields to any card that needs it (runtime.js), so a board of several cards frames each from the
+// frame it shows instead.
+//   fitAnimationView({ artifact, aspect, inputs?, frame?, workerFactory?, createRuntime?, signal? }) -> Promise<{ position, target, fov } | null>
+//     inputs: the parameter values to frame (invalid or missing ones are the defaults). frame: the frame the card shows, the subject
+//     when the sampler gets no frame of its own. null: aborted, an invalid artifact or nothing drawable; keep the authored camera.
+//   animationSubject({ artifact, inputs?, frame?, workerFactory?, createRuntime?, signal? }) -> Promise<Vector3[] | null>   the sampled subject
 //   fitCameraToPoints(points, camera, aspect) -> camera     that subject along one view's direction (the review page's two views)
 //   sampleAnimationFrames(...) -> Promise<frame[] | null>,  subjectPoints(scene, frames) -> Vector3[] | null   (the two halves)
+//   substantialRefit(current, next) -> boolean      whether a new fit differs enough from the shown one to move the camera
 import * as THREE from 'three';
 import { ANIMATION_CAPABILITIES } from './capabilities.js';
 import { validateAnimationArtifact } from './contract.js';
@@ -21,29 +24,31 @@ import { buildAnimationScene } from './scene.js';
 // samples / budgetMs: the card waits for the fit before it first draws (session.js), so the sample is short. caption: a label anchor
 // counts only within this share of the subject's size beyond its box (aj_283c19f: result and hint text 20 m above a ground-level game
 // framed the field into a thin strip under empty sky).
-export const FRAMING = Object.freeze({ fill: 0.8, samples: 12, budgetMs: 1000, ticks: 30, sheet: 1.25, dwarf: 3, caption: 0.25 });
+// refit: a new fit moves the camera only when its distance changes by more than this factor or its aim moves by more than this
+// share of the distance (a small change keeps the view still).
+export const FRAMING = Object.freeze({ fill: 0.8, samples: 12, budgetMs: 1000, ticks: 30, sheet: 1.25, dwarf: 3, caption: 0.25, refit: Object.freeze({ distance: 1.2, aim: 0.15 }) });
 
 const extent = box => { const size = box.getSize(new THREE.Vector3()); return Math.max(size.x, size.y, size.z); };
 
-// The frames of the movement range, in priority order (the sample cap and time budget cut from the end): the initial frame and a
-// seekable loop at 1/4, 1/2, 3/4; every number parameter at its max then its min (with the loop again); each number alone at
-// each end; every other select and toggle value; each drag range end; each action once; a stepped scene advanced three times.
-// Any refusal or error (no free engine included) falls back to the initial frame only (`frame` when the runtime never got ready);
-// at the time budget the runtime is stopped and the frames already taken are kept; an abort answers null.
-export async function sampleAnimationFrames({ artifact, frame = null, workerFactory, createRuntime = createAnimationRuntime, signal, now = () => performance.now() }) {
+// The frames of the motion at the given inputs, in priority order (the sample cap and time budget cut from the end): the initial
+// frame and a seekable loop at 1/4, 1/2, 3/4; each drag range end; each action, with the motion it starts (a stepped scene advanced
+// three times after it); a stepped scene with no action advanced three times. Parameter extremes are not sampled: each set of
+// values is fitted when the learner chooses it. Any refusal or error (no free engine included) falls back to the initial frame only
+// (`frame` when the runtime never got ready); at the time budget the runtime is stopped and the frames already taken are kept; an
+// abort answers null.
+export async function sampleAnimationFrames({ artifact, inputs = undefined, frame = null, workerFactory, createRuntime = createAnimationRuntime, signal, now = () => performance.now() }) {
   const parsed = validateAnimationArtifact(artifact);
   if (!parsed.ok) return null;
-  const { parameters, actions, timeline, behavior, stepped, scene } = parsed.value;
+  const { actions, timeline, behavior, stepped, scene } = parsed.value;
   const frames = [], deadline = now() + FRAMING.budgetMs;
   let latest = null, late = false;
-  const runtime = createRuntime({ artifact, workerFactory, background: true, onFrame: next => { latest = next; } });
+  const runtime = createRuntime({ artifact, workerFactory, background: true, ...(inputs ? { inputs } : {}), onFrame: next => { latest = next; } });
   signal?.addEventListener('abort', () => runtime.dispose(), { once: true }); // a closed card stops the sample at once (its Worker too)
   const timer = setTimeout(() => { late = true; runtime.dispose(); }, FRAMING.budgetMs); // a slow boot or call never holds the card
   const fallback = kept => (kept.length || !frame ? kept : [frame]);
   const room = () => frames.length < FRAMING.samples && now() < deadline && !signal?.aborted;
   const accept = async pending => { const result = await pending; if (!result.accepted) throw new Error(result.reason); };
   const send = event => accept(runtime.dispatch(event));
-  const set = (p, value) => send({ type: 'parameter', parameter: p.id, value });
   const capture = async step => { if (room()) { await step(); frames.push(latest); } };
   const times = timeline && ANIMATION_CAPABILITIES.seekBehaviors.includes(behavior) ? [0.25, 0.5, 0.75].map(f => f * timeline.duration) : [];
   const loop = async () => {
@@ -51,25 +56,16 @@ export async function sampleAnimationFrames({ artifact, frame = null, workerFact
     for (const time of times) await capture(() => accept(runtime.seek(time)));
     await accept(runtime.seek(0));
   };
-  const numbers = parameters.filter(p => p.type === 'number');
+  const motion = async () => { if (stepped) for (let i = 0; i < 3; i += 1) await capture(() => accept(runtime.advance(FRAMING.ticks))); };
   try {
     await runtime.ready;
     frames.push(latest);
     await loop();
-    if (numbers.length) {
-      for (const end of ['max', 'min']) { await capture(async () => { for (const p of numbers) await set(p, p[end]); }); await loop(); }
-      if (room()) for (const p of numbers) await set(p, p.default);
-    }
-    if (numbers.length > 1) for (const p of numbers) { for (const end of ['max', 'min']) await capture(() => set(p, p[end])); if (room()) await set(p, p.default); }
-    for (const p of parameters.filter(item => item.type !== 'number')) {
-      for (const value of p.type === 'toggle' ? [!p.default] : p.options.map(o => o.value).filter(value => value !== p.default)) await capture(() => set(p, value));
-      if (room()) await set(p, p.default);
-    }
     for (const node of scene.nodes.filter(item => item.drag)) {
       for (const value of [node.drag.min, node.drag.max]) await capture(async () => { await send({ type: 'drag_start', node: node.id, value }); await send({ type: 'drag_end', node: node.id, value }); });
     }
-    for (const action of actions) await capture(() => send({ type: 'action', action: action.id }));
-    if (stepped) for (let i = 0; i < 3; i += 1) await capture(() => accept(runtime.advance(FRAMING.ticks)));
+    for (const action of actions) { await capture(() => send({ type: 'action', action: action.id })); await motion(); }
+    if (!actions.length) await motion();
   } catch {
     if (!signal?.aborted) return fallback(late ? frames : frames.slice(0, 1));
   } finally {
@@ -154,17 +150,25 @@ export function fitCameraToPoints(points, { position, target, fov = 50 }, aspect
 
 const plainLabel = () => ({ texture: new THREE.Texture(), aspect: 1 }); // a measuring scene is never drawn
 
-export async function animationSubject({ artifact, frame, workerFactory, createRuntime, signal }) {
-  const frames = await sampleAnimationFrames({ artifact, frame, workerFactory, createRuntime, signal });
+export async function animationSubject({ artifact, inputs, frame, workerFactory, createRuntime, signal }) {
+  const frames = await sampleAnimationFrames({ artifact, inputs, frame, workerFactory, createRuntime, signal });
   if (!frames || signal?.aborted) return null;
   const built = buildAnimationScene(artifact, { labelTexture: plainLabel });
   if (!built.ok) return null;
   try { return subjectPoints(built.scene, frames); } finally { built.scene.dispose(); }
 }
 
-export async function fitAnimationView({ artifact, aspect, frame, workerFactory, createRuntime, signal }) {
+export async function fitAnimationView({ artifact, aspect, inputs, frame, workerFactory, createRuntime, signal }) {
   const parsed = validateAnimationArtifact(artifact);
   if (!parsed.ok || !(Number.isFinite(aspect) && aspect > 0)) return null;
-  const points = await animationSubject({ artifact, frame, workerFactory, createRuntime, signal });
+  const points = await animationSubject({ artifact, inputs, frame, workerFactory, createRuntime, signal });
   return points && !signal?.aborted ? fitCameraToPoints(points, parsed.value.camera, aspect) : null;
+}
+
+export function substantialRefit(current, next) {
+  if (!next) return false;
+  if (!current) return true;
+  const [a, b] = [current, next].map(c => ({ target: new THREE.Vector3().fromArray(c.target), distance: new THREE.Vector3().fromArray(c.position).distanceTo(new THREE.Vector3().fromArray(c.target)) }));
+  const ratio = b.distance / a.distance;
+  return ratio > FRAMING.refit.distance || ratio < 1 / FRAMING.refit.distance || a.target.distanceTo(b.target) > FRAMING.refit.aim * a.distance;
 }

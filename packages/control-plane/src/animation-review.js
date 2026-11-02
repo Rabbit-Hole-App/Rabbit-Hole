@@ -81,7 +81,7 @@ export async function reviewStage(job, ctx) {
   try { reply = await ctx.call('review', { system: ANIMATION_REVIEW_SYSTEM, tool: REVIEW_TOOL, content: built.content }); }
   catch (error) {
     // A reviewer that answered in prose with no report_review call (accept-11, stop end_turn) is asked once more, within the build's
-    // review calls. shortcut: it uses the second review, so a repair after it has no review left and stops as the limit says.
+    // review calls (ANIMATION_LIMITS.calls.review counts one such retry per job; a second one stops as the limit says).
     if (!(error instanceof AnimationPolicyError && error.code === 'invalid_turn' && error.calls === 0)) throw error;
     reply = await ctx.call('review', { system: ANIMATION_REVIEW_SYSTEM, tool: REVIEW_TOOL, content: built.content });
   }

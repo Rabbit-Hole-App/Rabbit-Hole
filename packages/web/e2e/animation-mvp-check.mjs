@@ -273,7 +273,9 @@ try {
 
   // ---- Experiment: min / max / default against the oracle (AN-04/07) ----
   const exp = FIXTURES.experiment;
-  const setParam = async (id, value) => { await more(X); await X.param(id).fill(String(value)); await X.param(id).press('Enter'); await page.waitForTimeout(400); };
+  // 1500 ms: the change is accepted, then the card fits the new inputs once the controls settle (session.js REFIT_MS, then a sample of
+  // at most framing.js FRAMING.budgetMs), so a later pixel comparison never catches the camera moving.
+  const setParam = async (id, value) => { await more(X); await X.param(id).fill(String(value)); await X.param(id).press('Enter'); await page.waitForTimeout(1500); };
   // One parameter at a time at its minimum, maximum and default, the others at their defaults: each moves the geometry (the beam's
   // tilt, a weight's place) and the readouts, and every value is the oracle's.
   for (const [label, pick] of [['minimum', p => p.min], ['maximum', p => p.max], ['default', p => p.default]]) {

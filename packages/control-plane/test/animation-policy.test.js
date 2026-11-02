@@ -29,11 +29,11 @@ test('a role with no configured task is refused before anything is sent: no defa
   assert.throws(() => animationRole('physics', TASKS), { code: 'unknown_role' });
 });
 
-test('the admission check is the bounded build graph: one author, two reviews, two repairs (one per kind); preparation apart', () => {
-  assert.deepEqual(ANIMATION_LIMITS.calls, { brief: 1, author: 1, review: 2, repair: 2 });
+test('the admission check is the bounded build graph: one author, three reviews, two repairs (one per kind); preparation apart', () => {
+  assert.deepEqual(ANIMATION_LIMITS.calls, { brief: 1, author: 1, review: 3, repair: 2 });
   assert.equal(ANIMATION_LIMITS.repairs, 2);
   const r = animationReservation(TASKS);
-  assert.equal(r.generationMicros, roleBoundMicros('author', TASKS) + 2 * roleBoundMicros('review', TASKS) + 2 * roleBoundMicros('repair', TASKS));
+  assert.equal(r.generationMicros, roleBoundMicros('author', TASKS) + 3 * roleBoundMicros('review', TASKS) + 2 * roleBoundMicros('repair', TASKS));
   assert.equal(r.preparationMicros, 2 * roleBoundMicros('brief', TASKS), 'a plan call and its one correction');
   // A review round's images are its captures: at most 2 views x 3 states.
   assert.equal(ANIMATION_ROLES.review.maxImages, ANIMATION_LIMITS.render.views * ANIMATION_LIMITS.render.states);
