@@ -77,7 +77,13 @@ row in [spend.md](spend.md).
     what they measure (minor); a resting object sits on its holder (minor).
 - Not done: no host-side check can tell which readout measures an attempt, so that rule is authoring and review only. An
   analytical game with no timeline and no steps cannot show a flight (its time never advances); not addressed here.
-- Status: open until the owner's retry of the same request on the fixing preview.
+- Retries: the owner's retry on `30eac64c6` (aj_9229023, US$0.7692 exact, spend row 25) failed the same way: the field a thin
+  strip across the middle of an along-the-ground view, and the ball never flew (analytical, no timeline, not stepped: time stays
+  0). `fc013d7b8` added the rules that an action-started motion is stepped and a ground layout is viewed from a raised angle and
+  kept compact. The coordinator's run of the same request on `fc013d7b8` (owner's request, launcher account, spend row 26)
+  failed again: framing major findings on the default view, then the repaired artifact (14,910 bytes) was over the repair
+  request's size limit, so the run repair could not be sent. The pendulum request on the same run was accepted (row 27).
+- Status: open. The game request has now failed three times (US$2.00); no further paid game run without the owner.
 
 ## Resolved
 
