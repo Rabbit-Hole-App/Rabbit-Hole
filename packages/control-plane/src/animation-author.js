@@ -101,6 +101,6 @@ export async function validateStage(job, ctx = {}) {
   if (problems.length) return { problems: [...new Set(problems)].slice(0, 20).map(p => p.slice(0, 400)), category: 'spec', repairable: true };
   // The review and the one repair must be able to read this artifact: measured now, before any review is spent.
   const fit = fitProblems(ctx.env ?? {}, checked.value, job, ctx.tasks, job.draft);
-  if (fit.length) return { problems: fit, category: 'spec', repairable: true };
+  if (fit.length) return { problems: fit, category: 'size_limit', repairable: true }; // animation-job.js failureClass: size_limit
   return { artifact: checked.value, artifactHash: await artifactHashOf(checked.value) };
 }
