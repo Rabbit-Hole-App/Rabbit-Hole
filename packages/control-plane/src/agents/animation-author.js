@@ -3,7 +3,7 @@
 // checks it (animation-author.js). The draft schema below is the contract's artifact (animation3d/contract.js) without the fields
 // only the host sets, so the model can never supply a hash, version, capability or plan binding.
 import { ANIMATION_PROGRAM_CONTRACT, GEOMETRY_KINDS, LABEL_PLACEMENTS } from '../../../web/src/animation3d/contract.js';
-import { MOTION_RULES, PLAN_PARAMETER } from './animation-brief.js';
+import { HONESTY_RULES, MOTION_RULES, PLAN_PARAMETER } from './animation-brief.js';
 
 const ID = { type: 'string', description: 'A letter, then up to 63 letters, digits, _ or -.' };
 const VEC3 = { type: 'array', minItems: 3, maxItems: 3, items: { type: 'number' } };
@@ -87,6 +87,7 @@ ${SCENE_RULES}
 ${CONTROL_RULES}
 ${LABEL_RULES}
 ${MOTION_RULES}
+${HONESTY_RULES} Compute every position, drawn marker, trail and readout from the same state in one evaluate, so the picture and the numbers always agree.
 ${RATE_RULES}
 ${COMPACT_RULES}
 ${VIEW_RULES}
@@ -108,6 +109,7 @@ ${SCENE_RULES}
 ${CONTROL_RULES}
 ${LABEL_RULES}
 ${MOTION_RULES}
+${HONESTY_RULES} Compute every position, drawn marker, trail and readout from the same state in one evaluate, so the picture and the numbers always agree.
 Return the COMPLETE artifact every time: every field, and the program (with its whole source) whenever the current artifact has one or the scene needs one; an artifact without its program is refused.
 ${COMPACT_RULES}
 ${VIEW_RULES}
@@ -122,6 +124,7 @@ For EVERY capture give two verdicts:
   Every number, range, unit, default and named value the request states must survive exactly in the plan and the artifact's controls; a changed one is a major spec finding.
 - visual: can a learner read it, and does it look like a careful teaching scene? Fail on important objects out of view or hidden, unreadable or overlapping labels, or a scene too cluttered to follow; also on a subject small in the frame with much empty space in the default view at the default state, blurry or illegible text, a label larger than what it names or covering an object, a physical part drawn as a hairline, a backdrop that dwarfs the subject, clashing or garish colour, or a control hierarchy that buries the request (the first parameter is not what the learner asked to change, or the first readout is not the result they asked to see).
 Calibration: the side capture is a nearby cross-check angle the learner does not start in; judge size, framing and layout in the default view, and in the side view fail only what is wrong in 3D (parts that intersect, float or are missing), not foreshortening. The camera is fitted to the motion at each capture's parameter values, so judge framing in every capture; at a parameter's extreme fail size only when the changing part or its motion can no longer be seen at all. A result shown before any attempt exists (a measured outcome reading 0 or any value before the first try) is major: it reads as a result that did not happen. Marks or scales that do not line up with what they measure are minor, and so is an object slightly sunk into its holder.
+Honesty: check the description, labels and readouts against the program: a claim the computation does not make (every step improves, an arrow named for the wrong quantity or direction), a promised control effect that does not happen within its range, or a picture that disagrees with the readouts is major; a meaningful simplification missing from the first assumption is major.
 Severity: blocker when the idea cannot be seen at all; major for anything that stops a learner seeing or reading the idea, including a correct computation drawn poorly (subject too small, label over the subject, wrong control order, a changed request value); minor only for polish that does not hinder reading. Only a scene with no blocker or major finding is shown.
 Use category spec for anything the artifact or program draws or computes (repairable by changing it), source for a claim the evidence contradicts, renderer only for a fault in the host's drawing that no change to the artifact could fix. Judge only what the captures and traces show; the samples are not exhaustive, so say in a finding when a promised behaviour was not sampled.
 Call report_review exactly once.`;

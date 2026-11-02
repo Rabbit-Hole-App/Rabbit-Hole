@@ -14,11 +14,12 @@ export function parameterRange(p) {
   if (p.type === 'select') return `${p.label}: ${or((p.options || []).map(o => o.label))}`;
   return `${p.label}: on or off`;
 }
-// Where a parameter starts: "1 m", "Earth", "Show forces off".
+// Where a parameter starts, named (owner 2026-11-01: "Learning rate: 0.05 · Batch size: 16"): "Length: 1 m", "Planet: Earth",
+// "Show forces: off".
 export function parameterStart(p) {
-  if (p.type === 'number') return `${p.default}${unit(p.unit)}`;
-  if (p.type === 'select') return optionLabel(p, p.default);
-  return `${p.label} ${p.default ? 'on' : 'off'}`;
+  if (p.type === 'number') return `${p.label}: ${p.default}${unit(p.unit)}`;
+  if (p.type === 'select') return `${p.label}: ${optionLabel(p, p.default)}`;
+  return `${p.label}: ${p.default ? 'on' : 'off'}`;
 }
 
 // -> the summary's parts; an empty part is not drawn. null for a proposal made before the server sent its scene.
@@ -60,7 +61,7 @@ export default function PlanSummary({ summary }) {
         <div data-plan-changes>
           <p className={heading}>What you can change</p>
           <ul className="list-disc pl-4 text-xs text-ink">{summary.changes.map((line, i) => <li key={i}>{line}</li>)}</ul>
-          {summary.starts && <p data-plan-starts className="mt-1 text-xs text-ink-2">Starts at <span className="font-medium text-ink">{summary.starts}</span>.</p>}
+          {summary.starts && <p data-plan-starts className="mt-1 text-xs text-ink-2">Starts with <span className="font-medium text-ink">{summary.starts}</span>.</p>}
         </div>
       )}
       {summary.actions && (

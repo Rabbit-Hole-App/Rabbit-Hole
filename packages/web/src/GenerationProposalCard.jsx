@@ -64,6 +64,21 @@ function SelectField({ f, value, settings, disabled, onChange }) {
   const options = selectOptions(f, value, settings);
   // An option may carry a plain-language hint (an animation experience): the chosen one's is said beside the select.
   const hint = options.find(o => o.value === value)?.hint;
+  // A short set of choices described in plain words (an animation experience) is shown as a visible choice, the chosen one marked,
+  // not hidden in a menu (owner 2026-11-01: make the chosen experience visibly selected).
+  if (options.length > 1 && options.length <= 4 && options.every(o => o.hint)) return (
+    <div data-proposal-field={f.key} className="flex flex-wrap items-center gap-2 text-[13px] text-ink-2">
+      <span id={`proposal-${f.key}-label`}>{f.label}</span>
+      <div role="radiogroup" aria-labelledby={`proposal-${f.key}-label`} data-proposal-select={f.key} data-value={String(value ?? '')} className="inline-flex flex-wrap gap-1">
+        {options.map(o => {
+          const on = o.value === value;
+          return <button key={String(o.value)} type="button" role="radio" aria-checked={on} data-proposal-option={o.value} disabled={disabled} onClick={() => !on && onChange(o.value)}
+            className={`h-7 rounded-md border px-2.5 text-[13px] focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50 ${on ? 'border-accent bg-accent font-medium text-white' : 'border-line bg-surface text-ink hover:bg-hover'}`}>{o.label}</button>;
+        })}
+      </div>
+      {hint && <span data-proposal-hint={f.key} className="text-xs text-ink-3">{hint}</span>}
+    </div>
+  );
   return (
     <>
       <label data-proposal-field={f.key} title={f.available === false ? f.unavailable_reason : undefined} className="flex items-center gap-2 text-[13px] text-ink-2">

@@ -47,14 +47,14 @@ const GAME = proposal('game', { parameters: [], interactions: ['Press the arrows
 test('an experiment shows what can change, with ranges, units and where it starts, plus the server notice and one caveat', () => {
   const s = B.planSummary(EXPERIMENT);
   assert.deepEqual(s.changes, ['Spring stiffness: 5–50 N/m', 'Tilt: 0–30°', 'Surface: Ice, Wood or Rubber', 'Show forces: on or off']);
-  assert.equal(s.starts, '20 N/m · 10° · Wood · Show forces off');
+  assert.equal(s.starts, 'Spring stiffness: 20 N/m · Tilt: 10° · Surface: Wood · Show forces: off');
   assert.equal(s.actions, null, 'its parameters say what changes; the interaction lines are not repeated');
   assert.equal(s.caveat, 'Uses an ideal spring with no friction loss.');
   assert.deepEqual(s.assumptions, ['The block is a point mass.']);
   assert.deepEqual(s.limitations, ['Large tilts are drawn, not simulated.'], 'the notice is shown in view, not again in Limitations');
   const html = draw(EXPERIMENT), t = text(html);
   for (const line of s.changes) assert.ok(t.includes(line), line);
-  assert.match(t, /Starts at 20 N\/m · 10° · Wood · Show forces off ?\./);
+  assert.match(t, /Starts with Spring stiffness: 20 N\/m · Tilt: 10° · Surface: Wood · Show forces: off ?\./);
   assert.match(html, /data-plan-notices[^>]*><li>You asked for real physics simulation/);
   assert.match(html, /<details data-plan-disclosure="assumptions"[^>]*><summary[^>]*>Model assumptions<\/summary>/);
   assert.match(html, /<details data-plan-disclosure="limitations"[^>]*><summary[^>]*>Limitations<\/summary>/);
