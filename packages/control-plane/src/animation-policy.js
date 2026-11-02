@@ -46,6 +46,9 @@ export const ANIMATION_LIMITS = Object.freeze({
   // per candidate (the first and both repairs).
   render: Object.freeze({ views: 2, states: 3, capturesPerRound: 6, rounds: 3 }),
   deadlines: Object.freeze({ callMs: 120000, preparationMs: 180000, jobMs: 600000 }),
+  // A transient failure (provider busy, a sample render failed) runs its stage once more after a pause, once per attempt, before the
+  // deadline. It adds no call to the ceiling: a refused call gave its count back, and renders are platform compute.
+  autoRetry: Object.freeze({ delayMs: 15000 }),
 });
 
 export const PROVIDER_UNAVAILABLE = 'Animations are temporarily unavailable. Your request is saved. Try again in a few minutes.';

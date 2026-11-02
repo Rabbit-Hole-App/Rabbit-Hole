@@ -84,6 +84,7 @@ export function animationStack(t, { pipeline = STUB_PIPELINE(), used = 0, env: e
     for (let i = 0; i < max; i++) {
       await on.alarm();
       const j = stored(id);
+      if (j.resumeAt > Date.now()) { j.resumeAt = 0; j.waited = (j.waited ?? 0) + 1; } // an automatic retry's pause passes without a wall-clock wait
       if (['ready', 'failed', 'cancelled', 'awaiting_approval'].includes(j.stage) && !j.inFlight) return j;
     }
     return stored(id);

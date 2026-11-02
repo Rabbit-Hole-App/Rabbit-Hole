@@ -223,15 +223,25 @@ test('provider overload pauses at its stage; Retry resumes there within the same
   let down = true;
   const s = animationStack(t, { status: role => (role === 'review' && down ? 529 : 200), reply: role => (role === 'review' ? { accepted: true } : {}) });
   const { id, done } = await s.generated();
-  assert.deepEqual([done.stage, done.failure.stage, done.failure.category, done.counts.review], ['failed', 'reviewing', 'provider_unavailable', 0]);
+  // One automatic retry of the stage after a pause (its refused call cost nothing), then the job stops, retryable.
+  assert.deepEqual([done.stage, done.failure.stage, done.failure.category, done.counts.review, done.waited, done.autoRetried], ['failed', 'reviewing', 'provider_unavailable', 0, 1, 1]);
   assert.deepEqual((await s.job(id)).job.recovery, ['new_attempt', 'edit_request']);
+  assert.equal((await s.job(id)).job.failure.message, 'The AI service was busy. It was retried automatically. Try again continues from where it stopped.');
   down = false;
   const [a, b] = [await s.send('retry', { expectedAttempt: 1 }, id), await s.send('retry', { expectedAttempt: 1 }, id)];
   assert.deepEqual([a.status, b.status, b.body.job.attempt], [202, 200, 2]);
   const ready = await s.run(id);
   assert.equal(ready.stage, 'ready');
+  assert.deepEqual(s.model.roles(), ['brief', 'author', 'review', 'review', 'review']);
+  assert.deepEqual(ready.calls.filter(c => c.role === 'review').map(c => [c.status, c.costMicros]), [['refused', 0], ['refused', 0], ['settled', ready.calls.at(-1).costMicros]]);
+});
+
+test('a transient overload recovers by itself: the stage runs once more after its pause and the build finishes', { skip }, async t => {
+  const s = animationStack(t, { status: (role, n) => (role === 'review' && n === 1 ? 529 : 200), reply: role => (role === 'review' ? { accepted: true } : {}) });
+  const { done } = await s.generated();
+  assert.deepEqual([done.stage, done.attempt, done.waited, done.reported], ['ready', 1, 1, undefined]);
   assert.deepEqual(s.model.roles(), ['brief', 'author', 'review', 'review']);
-  assert.deepEqual(ready.calls.filter(c => c.role === 'review').map(c => [c.status, c.costMicros]), [['refused', 0], ['settled', ready.calls.at(-1).costMicros]]);
+  assert.ok(!rows(s.sqlite, 'messages').some(m => /not finished/.test(m.content)), 'a recovered job posts no failure');
 });
 
 test('a Retry never resets either repair allowance: run repair, overload, Retry, review repair, then the limit', { skip }, async t => {
@@ -246,7 +256,7 @@ test('a Retry never resets either repair allowance: run repair, overload, Retry,
   assert.equal((await s.send('retry', { expectedAttempt: 1 }, id)).status, 202);
   const end = await s.run(id);
   assert.deepEqual([end.stage, end.stopReason, end.repairs, end.repairKinds], ['failed', 'rounds', 2, ['run', 'review']]);
-  assert.deepEqual(s.model.roles(), ['brief', 'author', 'repair', 'review', 'review', 'repair', 'review']);
+  assert.deepEqual(s.model.roles(), ['brief', 'author', 'repair', 'review', 'review', 'review', 'repair', 'review']);
 });
 
 test('a malformed author reply fails the build with no silent fallback and no retry beyond the ceiling', { skip }, async t => {
