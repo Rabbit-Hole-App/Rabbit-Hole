@@ -90,6 +90,7 @@ From 2026-10-30 (acceptance.next.mjs): provider charges and ledger counts are se
 | 72 | 11/2, 12:54 PM | planner-eval run.mjs | planner case 12 Holdout: DNA replication: awaiting_approval, cancelled at review (never generated) | claude-opus-5-5 | 1 plan call(s) | US$0.5600 | US$0.0293 | US$0.0293 (dev ledger: 1 model call(s)) | - | US$10.4971 | US$10.6187 |
 | 73 | 11/2, 12:54 PM | planner-eval run.mjs | planner case 13 Holdout: compound interest: awaiting_approval, cancelled at review (never generated) | claude-opus-5-5 | 1 plan call(s) | US$0.5600 | US$0.0386 | US$0.0386 (dev ledger: 1 model call(s)) | - | US$10.5357 | US$10.6573 |
 | 74 | 11/2, 12:55 PM | planner-eval run.mjs | planner case 14 Holdout: unavailable capability: awaiting_approval, cancelled at review (never generated) | claude-opus-5-5 | 1 plan call(s) | US$0.5600 | US$0.0584 | US$0.0584 (dev ledger: 1 model call(s)) | - | US$10.5941 | US$10.7157 |
+| 75 | 2:25 PM | G acceptance.mjs | ownergame: failed | claude-opus-5-5 | 6 calls, repairs 2 | US$3.5462 | US$0.8047 | US$0.8047 (6 model call(s); 12 render(s), platform, US$0) | - | US$11.3988 | US$11.5204 |
 
 "Exact" here is the dev ledger's settled cost: the provider's reported token usage at the list price (not an invoice). A reserve is
 an estimate held before a call and released when it settles.
@@ -99,4 +100,4 @@ calls, settled US$8.633597, plus one unsettled reserve of US$0.121590 (row 1, ne
 rounding (US$8.6336): rows 28-30
 were three owner preview runs that had not been logged. Renders are platform compute and are not in these totals.
 
-Total provider: US$10.5941. Total ledger (incl. reserves): US$10.7157. Reserved in flight: US$0.00. Remaining: US$9.2843.
+Total provider: US$11.3988. Total ledger (incl. reserves): US$11.5204. Reserved in flight: US$0.00. Remaining: US$8.4796.

@@ -115,6 +115,12 @@ row in [spend.md](spend.md).
 - Improvement to make separately: say the limits in the shared planner prompt. Also tracked: the server repeats "real physics simulation" when both a behavior and a feature name it. Owner 2026-11-02: track separately; do not restart the paid comparison for documentation corrections.
 - Status: open, not blocking. A prompt change needs its own measured run.
 
+### FX-AN-028 — a review finding with no severity fails the build as serious
+- Task / phase: AN-05. Observed in the owner's game acceptance request (job aj_54eec6a247f742159eb65ce8e47b306e, code e5e534637, preview version 3e985d75-4bd3-4e6e-a6d9-c3926f1b12f3, US$0.8047).
+- Cause: the last review returned four findings: two minor and two with no severity. `parseReview` (explain-review.js) copies `f.severity` unchecked, and animation-review.js counts anything not `minor` as serious, so the job stopped on "2 serious problems". The tool schema requires severity, but the reply was not held to it. The reviewer's raw per-capture verdicts are not retained, so it is not proven that the review would otherwise have passed.
+- Evidence: the last draft, rendered free through the candidate probe, launches, draws its arc and reads landing 22.96 m and peak 5.74 m at 15 m/s and 45 degrees, matching v^2 sin(2a)/g and v^2 sin^2(a)/2g. Parameter extremes were not rendered.
+- Status: open. FX-AN-025 stays open: this request did not succeed. FX-AN-026 stays open: the SGD request was not run, because the run stops at a failed request.
+
 ## Resolved
 
 ### FX-AN-024 — the camera-fit sampler starved learner runtimes (fast-e2e 41272196685: 16 of 34 animation steps failed)
