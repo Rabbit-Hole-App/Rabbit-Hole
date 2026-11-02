@@ -36,6 +36,24 @@ row in [spend.md](spend.md).
   candidates, not done: a planner rule to keep a parameter range the camera can show (or a camera that follows a
   length parameter), and a repair hint naming reframing. Status: open, for the owner's decision.
 
+### FX-AN-026 — owner's SGD run stopped with "Edit the request and try again" and no working action (MVP blocker)
+- Task / phase: AN-05. First observed: owner try-it, 2026-11-01 PT, `/animation Show me how stochastic gradient descent works.
+  Let me change the learning rate and batch size to see what happens.` Job `aj_41cfeaca81dd4d3785e8b86b8ef9a9a9`
+  (canvas-910b08d0), 45 credits: brief, author, repair; no render or review.
+- Cause: both candidates failed only validateStage's request-fit preflight ("too large for the repair request"); the review
+  request fit. Replayed offline on the saved last draft (C:/s/spec/animation/fx026/DIAGNOSIS.md): 9,338 B as drafted (its repair
+  request fits, 34,841 B), measured after the contract parse fills defaults (15,601 B sealed), over the repair bound. Same
+  measurement class as FX-AN-025's last failure, shown from SGD's own draft. The one run repair could not fix it; `rounds`.
+- Recovery flow (owner 2026-11-01, branch feat/animation-recovery): every failure is classed from recorded data (size limit,
+  checks, transient, deadline, build limit, credits, capability) and explained once in the canvas Chat and on the card in the
+  same plain words (no finding text). Transient stages (provider busy, a failed sample render) run once more by themselves
+  after a pause. The card offers only the server's recovery list: Render again, Try again, or Revise plan (a new job for the
+  same card and request; its planner revises the approved plan from the failure class, dropped controls are listed on the
+  review card, and Generate is admitted again). animationRetry no longer assumes Try again; a failed card reads its actions
+  again after a reload.
+- Status: implemented and fixture-tested; not live. Needs the integrator's measurement fix for this request to build, then a
+  preview deploy for owner review.
+
 ## Deferred
 
 ### FX-AN-008 — changing a rate mid-play restarts analytical motion
