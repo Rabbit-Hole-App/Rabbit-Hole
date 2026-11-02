@@ -499,3 +499,36 @@ test('brief, author and repair: a motion an action starts is stepped; a ground l
   for (const system of [ANIMATION_BRIEF_SYSTEM, ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /An action that starts a motion[^.]*needs behavior rules with stepped/);
   for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /spread along the ground[^.]*viewed from a raised three-quarter angle[^.]*never along it, and kept compact/);
 });
+
+// FX-AN-025 (aj_fac3ca4b, saved): validating measured the repair request with the contract-parsed artifact, whose filled defaults grew
+// the 10,172 B draft to 14,270 B, and refused the candidate as too large for the repair (489,945 vs 487,840 micros). The repair is
+// sent, and measured, as the draft the model wrote, its program whole.
+test('the saved FX-AN-025 game candidate fits its repair request as drafted; the repair is sent that draft with its whole program', async () => {
+  const { readFileSync } = await import('node:fs');
+  const saved = JSON.parse(readFileSync(new URL('../../web/src/animation3d/testdata/fx025-game-candidate.json', import.meta.url), 'utf8'));
+  const job = { prompt: saved.prompt, plan: saved.plan, planHash: saved.planHash, approval: { at: saved.createdAt }, resultId: `ar_${'0'.repeat(32)}`, evidence: [], calls: [], draft: saved.draft };
+  const out = await validateStage(job, { env: {} });
+  assert.ok(!(out.problems || []).some(p => /too large/.test(p)), JSON.stringify(out.problems));
+  assert.ok(out.artifact, 'the candidate validates');
+  // Before: measured from the parsed artifact, the same candidate was refused.
+  assert.match(fitProblems({}, out.artifact, job).join(' '), /too large for the repair request/);
+  // The repair stage sends the draft as written, with its program source unchanged.
+  let sent = null;
+  const ctx = { env: {}, call: async (role, request) => { sent = request; return { input: { operation: 'none', reason: 'test' } }; } };
+  await repairStage({ ...job, artifact: out.artifact, findings: [{ stage: 'reviewing', findings: [{ category: 'spec', severity: 'major', target: { capture: 'v0-s0' }, message: 'framing' }] }], captures: [] }, ctx);
+  const texts = sent.content.filter(b => b.type === 'text').map(b => b.text);
+  assert.ok(texts.some(t => t.endsWith(saved.draft.program.source)), 'the whole program source');
+  const { program: _p, ...rest } = saved.draft;
+  assert.ok(texts.some(t => t.endsWith(JSON.stringify(rest))), 'the artifact as drafted, no filled defaults');
+});
+
+// Owner 2026-11-01 (an SGD plan as the example; every subject): simplifications disclosed first, exact descriptions, promised control
+// effects that happen, picture and numbers from one state; the review checks the same.
+test('brief, author, repair and review share the honesty rules, with no subject named', async () => {
+  const { ANIMATION_BRIEF_SYSTEM, HONESTY_RULES } = await import('../src/agents/animation-brief.js');
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM } = await import('../src/agents/animation-author.js');
+  for (const system of [ANIMATION_BRIEF_SYSTEM, ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.ok(system.includes(HONESTY_RULES));
+  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /from the same state in one evaluate/);
+  assert.match(ANIMATION_REVIEW_SYSTEM, /a promised control effect that does not happen within its range, or a picture that disagrees with the readouts is major/);
+  assert.doesNotMatch(HONESTY_RULES, /gradient|SGD|learning rate|batch/i, 'no subject-specific words');
+});

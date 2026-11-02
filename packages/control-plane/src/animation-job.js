@@ -32,7 +32,7 @@ import { canonicalJson } from './explain-render.js';
 import { beginStage, countStage, endStage, markTiming, newTiming, timingSummary } from './explain-policy.js';
 import { hashAnimationPlan } from '../../web/src/animation3d/contract.js';
 import { ASKED_FOR, approvedPlan, prepareStage } from './animation-brief.js';
-import { artifactIntact, authorStage, validateStage } from './animation-author.js';
+import { artifactIntact, authorStage, sealArtifact, validateStage } from './animation-author.js';
 import { renderProbe, renderStage } from './animation-render.js';
 import { ANIMATION_FIXTURES } from '../../web/src/animation3d/fixtures.js';
 import { validateAnimationArtifact } from '../../web/src/animation3d/contract.js';
@@ -130,6 +130,10 @@ export const ANIMATION_PROBE_PATH = '/api/learn/animation/diagnostics/render-fix
 // The same probe for a STORED accepted result: POST { boardId, resultId }, for the owner of that canvas only, read through the normal
 // authorized result read (owner, canvas and artifact hash checked by the job object), then the same capture path. 404 as any other.
 export const ANIMATION_RESULT_PROBE_PATH = '/api/learn/animation/diagnostics/render-result';
+// The same probe for a job's LAST CANDIDATE (FX-AN-025: replay a failed scene with no model call): POST { boardId, jobId }, for the
+// owner of that canvas only. The job's own saved draft is sealed as validating seals it and drawn through the review capture path
+// (its states and views); nothing is stored and the job is not changed.
+export const ANIMATION_CANDIDATE_PROBE_PATH = '/api/learn/animation/diagnostics/render-candidate';
 async function probeGuard(req, env, deps) {
   if (!animationEnabled(env) || env.ANIMATION_DIAGNOSTICS !== 'true') return { refused: json({ error: 'Not found' }, 404) };
   if (req.method !== 'POST') return { refused: json({ error: 'POST required' }, 405) };
@@ -154,6 +158,25 @@ async function resultProbeRoute(req, env, deps) {
   const out = await renderProbe(env, saved.artifact, saved.identity.artifactHash, deps.render);
   return json({ resultId: body.resultId, identity: saved.identity, artifact: saved.artifact, ...out }, out.ok ? 200 : 502);
 }
+async function candidateProbeRoute(req, env, deps) {
+  const { refused, user, body } = await probeGuard(req, env, deps);
+  if (refused) return refused;
+  if (!env.ANIMATION_JOBS || !env.LEARN_DB) return json({ error: 'Animations are not configured on this preview.' }, 503);
+  if (typeof body?.boardId !== 'string' || typeof body?.jobId !== 'string') return json({ error: 'boardId and jobId are required' }, 400);
+  const board = await env.LEARN_DB.prepare('SELECT id, app, board FROM learn_boards WHERE id = ? AND org = ? AND owner_email = ?').bind(body.boardId, user.org, user.email).first();
+  if (!board) return json({ error: 'Not available' }, 404);
+  const stub = env.ANIMATION_JOBS.get(env.ANIMATION_JOBS.idFromName(board.id));
+  const read = await stub.fetch('https://animation/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'get', id: body.jobId, payload: {}, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null }, detail: true }) });
+  const saved = await read.json().catch(() => null);
+  const draft = saved?.diagnostics?.draft;
+  if (!read.ok || !draft) return json({ ok: false, error: read.ok ? 'this job has no saved candidate' : saved?.error || 'the job could not be read' }, read.ok ? 404 : read.status);
+  const artifact = await sealArtifact(draft, { artifactId: `ar_${body.jobId.replace(/^aj_/, '').slice(0, 32).padEnd(32, '0')}`, revision: 1, planHash: saved.job.planHash, createdAt: new Date(saved.job.createdAt ?? 0).toISOString() });
+  const checked = validateAnimationArtifact(artifact);
+  if (!checked.ok) return json({ ok: false, error: `candidate_invalid: ${checked.issues.slice(0, 5).map(i => `${i.path}: ${i.message}`).join('; ')}` }, 422);
+  const out = await renderProbe(env, checked.value, await artifactHashOf(checked.value), deps.render);
+  return json({ jobId: body.jobId, artifact: checked.value, ...out }, out.ok ? 200 : 502);
+}
 async function renderProbeRoute(req, env, deps) {
   const { refused, body } = await probeGuard(req, env, deps);
   if (refused) return refused;
@@ -170,6 +193,7 @@ async function renderProbeRoute(req, env, deps) {
 export async function animationRoute(path, req, env, deps = {}) {
   if (path === ANIMATION_PROBE_PATH) return renderProbeRoute(req, env, deps);
   if (path === ANIMATION_RESULT_PROBE_PATH) return resultProbeRoute(req, env, deps);
+  if (path === ANIMATION_CANDIDATE_PROBE_PATH) return candidateProbeRoute(req, env, deps);
   if (path !== ANIMATION_PREFIX && !path.startsWith(`${ANIMATION_PREFIX}/`)) return null;
   if (!animationEnabled(env)) return json({ error: ANIMATION_DISABLED, code: 'animation_disabled' }, 404);
   if (!env.ANIMATION_JOBS || !env.LEARN_DB) return json({ error: 'Animations are not configured on this preview.' }, 503);

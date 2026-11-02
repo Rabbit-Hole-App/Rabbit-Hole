@@ -25,21 +25,25 @@ import { buildAnimationScene } from './scene.js';
 // counts only within this share of the subject's size beyond its box (aj_283c19f: result and hint text 20 m above a ground-level game
 // framed the field into a thin strip under empty sky).
 // refit: a new fit moves the camera only when its distance changes by more than this factor or its aim moves by more than this
-// share of the distance (a small change keeps the view still).
-export const FRAMING = Object.freeze({ fill: 0.8, samples: 12, budgetMs: 1000, ticks: 30, sheet: 1.25, dwarf: 3, caption: 0.25, refit: Object.freeze({ distance: 1.2, aim: 0.15 }) });
+// share of the distance (a small change keeps the view still). focus / near: when the scene's static parts span more than focus x
+// what moves (aj_fac3ca4b: a 42 m floor and marks to 35 m around a 16 m flight), the subject is what moves at these inputs, what the
+// inputs move, and the static parts within near x its size beyond it (FX-AN-025). budgetMs: 2000, since 90 steps of a stepped scene take
+// about 1 s on the engine (aj_fac3ca4b: 320 ms per 30 steps, so a 1 s budget never saw the ball land).
+export const FRAMING = Object.freeze({ fill: 0.8, samples: 12, budgetMs: 2000, ticks: 30, sheet: 1.25, dwarf: 3, caption: 0.25, focus: 2, near: 0.25, refit: Object.freeze({ distance: 1.2, aim: 0.15 }) });
 
 const extent = box => { const size = box.getSize(new THREE.Vector3()); return Math.max(size.x, size.y, size.z); };
 
 // The frames of the motion at the given inputs, in priority order (the sample cap and time budget cut from the end): the initial
-// frame and a seekable loop at 1/4, 1/2, 3/4; each drag range end; each action, with the motion it starts (a stepped scene advanced
-// three times after it); a stepped scene with no action advanced three times. Parameter extremes are not sampled: each set of
-// values is fitted when the learner chooses it. Any refusal or error (no free engine included) falls back to the initial frame only
-// (`frame` when the runtime never got ready); at the time budget the runtime is stopped and the frames already taken are kept; an
-// abort answers null.
+// frame and a seekable loop at 1/4, 1/2, 3/4; each drag range end; the main (first) action, with the motion it starts (a stepped
+// scene advanced three times after it); a stepped scene with no action advanced three times. Parameter extremes are not sampled: each set of
+// values is fitted when the learner chooses it. With inputs other than the defaults, frames.reference is the initial frame at the
+// defaults (taken last, outside the sample cap), so subjectPoints can tell what the inputs moved. Any refusal or error (no free
+// engine included) falls back to the initial frame only (`frame` when the runtime never got ready); at the time budget the runtime
+// is stopped and the frames already taken are kept; an abort answers null.
 export async function sampleAnimationFrames({ artifact, inputs = undefined, frame = null, workerFactory, createRuntime = createAnimationRuntime, signal, now = () => performance.now() }) {
   const parsed = validateAnimationArtifact(artifact);
   if (!parsed.ok) return null;
-  const { actions, timeline, behavior, stepped, scene } = parsed.value;
+  const { actions, timeline, behavior, stepped, scene, parameters } = parsed.value;
   const frames = [], deadline = now() + FRAMING.budgetMs;
   let latest = null, late = false;
   const runtime = createRuntime({ artifact, workerFactory, background: true, ...(inputs ? { inputs } : {}), onFrame: next => { latest = next; } });
@@ -64,8 +68,15 @@ export async function sampleAnimationFrames({ artifact, inputs = undefined, fram
     for (const node of scene.nodes.filter(item => item.drag)) {
       for (const value of [node.drag.min, node.drag.max]) await capture(async () => { await send({ type: 'drag_start', node: node.id, value }); await send({ type: 'drag_end', node: node.id, value }); });
     }
-    for (const action of actions) { await capture(() => send({ type: 'action', action: action.id })); await motion(); }
-    if (!actions.length) await motion();
+    // The main action (the first declared) and the motion it starts; the other actions rearrange the scene (a new target, a reset),
+    // a change of state like a parameter, not the motion to keep in view (aj_fac3ca4b: New Target moved the target across the field).
+    if (actions.length) { await capture(() => send({ type: 'action', action: actions[0].id })); await motion(); }
+    else await motion();
+    const moved = parameters.filter(p => inputs && Object.hasOwn(inputs, p.id) && inputs[p.id] !== p.default);
+    if (moved.length && now() < deadline && !signal?.aborted) {
+      await accept(runtime.reset()); // the defaults and the initial state
+      frames.reference = latest;
+    }
   } catch {
     if (!signal?.aborted) return fallback(late ? frames : frames.slice(0, 1));
   } finally {
@@ -78,8 +89,12 @@ export async function sampleAnimationFrames({ artifact, inputs = undefined, fram
 // The subject over every frame (applied in order to `scene`, a scene.js build the caller owns; with no frames, the authored scene),
 // as world points: each shown mesh or line's own (oriented) box corners in every frame, so a part turning about a diagonal never
 // counts its axis-aligned box's empty corners. Never a label plate (constant screen size, no world size), but a label's anchor
-// point near the subject (FRAMING.caption), so a caption beside it stays in view; one floating far off never widens the view. Backdrops (a floor, ceiling or wall: a flat mesh larger than sheet x the rest of the
-// scene; anything larger than dwarf x it, by swept box) are context, not subject, and so are the labels on them. -> Vector3[] | null
+// point near the subject (FRAMING.caption), so a caption beside it stays in view; one floating far off never widens the view.
+// Backdrops (a floor, ceiling or wall: a flat mesh larger than sheet x the rest of the scene; anything larger than dwarf x it, by swept
+// box) are context, not subject, and so are the labels on them. Focus: a node moved when its box differs between the frames, or from
+// frames.reference (the defaults: the inputs moved it); when the static parts span more than FRAMING.focus x what moved (expanded by
+// FRAMING.near), the subject is what moved plus the static parts inside that expanded box, so the default action is what fills the
+// view, not a field laid out for every setting. -> Vector3[] | null
 export function subjectPoints(scene, frames) {
   const swept = new Map(), anchors = [], sheets = new Set(), size = new THREE.Vector3(), scale = new THREE.Vector3();
   const drawableOf = holder => holder.children.find(child => child.userData.nodeId === holder.userData.nodeId); // not a child node's holder, nor a label's leader
@@ -98,20 +113,25 @@ export function subjectPoints(scene, frames) {
     const [a, b, c] = mesh.geometry.boundingBox.getSize(size).multiply(mesh.getWorldScale(scale)).toArray().map(Math.abs).sort((p, q) => p - q);
     return a < 0.1 * b && b >= 0.5 * c;
   };
-  const measure = () => {
+  const boxes = new Map(); // id -> the box in each frame (null: hidden), to tell what moved
+  const measure = (record = true) => {
     scene.root.updateWorldMatrix(true, true);
+    const seen = new Map();
     for (const [id, holder] of scene.objects) {
       const drawable = drawableOf(holder);
       if (!drawable || !shown(drawable)) continue;
-      if (drawable.isSprite) { anchors.push({ id, point: drawable.getWorldPosition(new THREE.Vector3()) }); continue; }
+      if (drawable.isSprite) { if (record) anchors.push({ id, point: drawable.getWorldPosition(new THREE.Vector3()) }); continue; }
       const corners = cornersOf(drawable);
+      seen.set(id, new THREE.Box3().setFromPoints(corners));
+      if (!record) continue;
       if (!swept.has(id)) { swept.set(id, { box: new THREE.Box3(), points: [] }); if (drawable.isMesh && flat(drawable)) sheets.add(id); }
       const node = swept.get(id);
       for (const corner of corners) { node.box.expandByPoint(corner); node.points.push(corner); }
     }
+    return seen;
   };
-  if (!frames.length) measure();
-  for (const frame of frames) { scene.apply(frame); measure(); }
+  const shots = frames.length ? frames.map(frame => { scene.apply(frame); return measure(); }) : [measure()];
+  const reference = frames.reference ? (scene.apply(frames.reference), measure(false)) : null;
 
   const ids = [...swept.keys()].filter(id => !swept.get(id).box.isEmpty());
   const context = new Set(ids.filter(id => {
@@ -122,7 +142,17 @@ export function subjectPoints(scene, frames) {
     return mine > FRAMING.dwarf * theirs || (sheets.has(id) && mine > FRAMING.sheet * theirs);
   }));
   const onContext = id => { for (let node = scene.nodes.get(id); node; node = scene.nodes.get(node.parent)) if (context.has(node.id)) return true; return false; };
-  const meshPoints = ids.filter(id => !context.has(id)).flatMap(id => swept.get(id).points);
+  const same = (a, b) => (!a && !b) || (!!a && !!b && a.min.distanceTo(b.min) + a.max.distanceTo(b.max) < 1e-6 * (1 + extent(a)));
+  const subject = ids.filter(id => !context.has(id));
+  const moved = new Set(subject.filter(id => shots.some(shot => !same(shot.get(id), shots[0].get(id))) || (reference && !same(reference.get(id), shots[0].get(id)))));
+  const boxOf = list => list.reduce((box, id) => box.union(swept.get(id).box), new THREE.Box3());
+  let kept = subject;
+  if (moved.size && moved.size < subject.length) {
+    const focus = boxOf([...moved]), span = extent(focus);
+    focus.expandByScalar(FRAMING.near * span);
+    if (extent(boxOf(subject)) > FRAMING.focus * span) kept = subject.filter(id => moved.has(id) || focus.containsBox(swept.get(id).box));
+  }
+  const meshPoints = kept.flatMap(id => swept.get(id).points);
   const near = meshPoints.length ? new THREE.Box3().setFromPoints(meshPoints) : null;
   if (near) near.expandByScalar(FRAMING.caption * extent(near));
   const points = [...meshPoints, ...anchors.filter(({ id, point }) => !onContext(id) && (!near || near.containsPoint(point))).map(({ point }) => point)];

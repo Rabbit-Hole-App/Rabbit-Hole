@@ -48,7 +48,9 @@ export function repairContent(job, failure, current, images = []) {
 export async function repairStage(job, ctx) {
   const failure = job.findings.at(-1) || {};
   if (!failure.problems?.length && !repairableFindings(failure.findings)) return { progress: false, rejected: 'This failure needs a change the repair step cannot make.' };
-  const current = job.artifact ? draftOf(job.artifact) : job.draft;
+  // The candidate as the model wrote it (its draft), not the contract-parsed artifact: the parse fills every default and grew
+  // aj_fac3ca4b's 10,172 B draft to 14,270 B, past the repair request's bound (FX-AN-025). The program travels whole either way.
+  const current = plain(job.draft) ? job.draft : job.artifact ? draftOf(job.artifact) : null;
   if (!plain(current)) return { progress: false, rejected: 'There is no artifact to repair.' };
   const named = new Set((failure.findings || []).map(f => f.target?.capture).filter(Boolean));
   const images = (await loadCaptures(ctx.env, (job.captures || []).filter(c => named.has(c.id)))).filter(c => typeof c.data === 'string').slice(0, ANIMATION_ROLES.repair.maxImages);
@@ -62,8 +64,9 @@ export async function repairStage(job, ctx) {
 }
 
 // -> problems (one sentence each), [] when the real review and repair requests for this artifact fit their roles at worst-case
-// image, trace and finding sizes. tasks: the job's task table.
-export function fitProblems(env, artifact, job, tasks) {
+// image, trace and finding sizes. tasks: the job's task table. draft: the candidate as written, which is what a repair is sent
+// (repairStage); without one, the artifact's own draft form.
+export function fitProblems(env, artifact, job, tasks, draft = null) {
   const out = [], size = new TextEncoder().encode(JSON.stringify(artifactView(artifact))).length + new TextEncoder().encode(artifact.program?.source ?? '').length;
   const tooBig = role => out.push(`this artifact (${size} bytes with its program) is too large for the ${role === 'review' ? 'independent review' : 'repair'} request: use fewer nodes, shorter labels or a shorter program`);
   const fake = n => Array.from({ length: n }, (_, i) => ({ id: `v${i}`, artifactHash: 'h', data: 'AAAA', mediaType: 'image/png' }));
@@ -75,7 +78,7 @@ export function fitProblems(env, artifact, job, tasks) {
   } catch (error) { if (error?.code === 'input_too_large') tooBig('review'); else throw error; }
   try {
     const failure = { problems: Array(REPAIR_FORWARD.problems).fill('p'.repeat(REPAIR_FORWARD.text)), findings: Array(REPAIR_FORWARD.findings).fill({ category: 'spec', severity: 'major', target: { capture: 'v0', object: 'o'.repeat(64) }, message: 'm'.repeat(REPAIR_FORWARD.text) }) };
-    animationRequest(env, 'repair', { system: ANIMATION_REPAIR_SYSTEM, tool: repairTool({ program: true }), content: repairContent(job, failure, draftOf(artifact), fake(ANIMATION_ROLES.repair.maxImages)) }, tasks);
+    animationRequest(env, 'repair', { system: ANIMATION_REPAIR_SYSTEM, tool: repairTool({ program: true }), content: repairContent(job, failure, plain(draft) ? draft : draftOf(artifact), fake(ANIMATION_ROLES.repair.maxImages)) }, tasks);
   } catch (error) { if (error?.code === 'input_too_large') tooBig('repair'); else throw error; }
   return out;
 }

@@ -100,7 +100,7 @@ export async function validateStage(job, ctx = {}) {
   if (!checked.ok) problems.push(...checked.issues.map(i => `${i.path || 'artifact'}: ${i.message} (${i.code})`));
   if (problems.length) return { problems: [...new Set(problems)].slice(0, 20).map(p => p.slice(0, 400)), category: 'spec', repairable: true };
   // The review and the one repair must be able to read this artifact: measured now, before any review is spent.
-  const fit = fitProblems(ctx.env ?? {}, checked.value, job, ctx.tasks);
+  const fit = fitProblems(ctx.env ?? {}, checked.value, job, ctx.tasks, job.draft);
   if (fit.length) return { problems: fit, category: 'spec', repairable: true };
   return { artifact: checked.value, artifactHash: await artifactHashOf(checked.value) };
 }

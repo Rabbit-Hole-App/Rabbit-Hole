@@ -273,9 +273,9 @@ try {
 
   // ---- Experiment: min / max / default against the oracle (AN-04/07) ----
   const exp = FIXTURES.experiment;
-  // 1500 ms: the change is accepted, then the card fits the new inputs once the controls settle (session.js REFIT_MS, then a sample of
+  // 2600 ms: the change is accepted, then the card fits the new inputs once the controls settle (session.js REFIT_MS, then a sample of
   // at most framing.js FRAMING.budgetMs), so a later pixel comparison never catches the camera moving.
-  const setParam = async (id, value) => { await more(X); await X.param(id).fill(String(value)); await X.param(id).press('Enter'); await page.waitForTimeout(1500); };
+  const setParam = async (id, value) => { await more(X); await X.param(id).fill(String(value)); await X.param(id).press('Enter'); await page.waitForTimeout(2600); };
   // One parameter at a time at its minimum, maximum and default, the others at their defaults: each moves the geometry (the beam's
   // tilt, a weight's place) and the readouts, and every value is the oracle's.
   for (const [label, pick] of [['minimum', p => p.min], ['maximum', p => p.max], ['default', p => p.default]]) {
@@ -622,9 +622,10 @@ export function evaluate({ state }) {
     assert.equal(job.prompt, REQUEST, 'the request words, without the command');
     await plan().waitFor({ timeout: 20000 });
     assert.equal((await plan().locator('h3').innerText()).trim(), 'Beam balance');
-    assert.equal(await plan().locator('[data-proposal-select="experience"]').inputValue(), 'watch', 'the recommended experience');
+    assert.equal(await plan().locator('[data-proposal-select="experience"]').getAttribute('data-value'), 'watch', 'the recommended experience');
+    assert.equal(await plan().locator('[data-proposal-select="experience"] [role="radio"][aria-checked="true"]').getAttribute('data-proposal-option'), 'watch', 'shown selected');
     assert.deepEqual(await plan().locator('[data-plan-changes] li').allInnerTexts(), ['Left mass: 1–10 kg', 'Pivot: Centre or Left'], 'what can change, from the plan');
-    assert.equal((await plan().locator('[data-plan-starts]').innerText()).trim(), 'Starts at 2 kg · Centre.');
+    assert.equal((await plan().locator('[data-plan-starts]').innerText()).trim(), 'Starts with Left mass: 2 kg · Pivot: Centre.');
     assert.equal((await plan().locator('[data-plan-caveat]').innerText()).trim(), 'Rigid, massless beam.');
     assert.equal(await plan().locator('[data-plan-disclosure="limitations"]').getAttribute('open'), null, 'limitations start collapsed');
     assert.equal(await plan().locator('[data-proposal-section="requirements"], [data-proposal-request-block]').count(), 0, 'no internal plan lines, no request echo');
@@ -639,7 +640,7 @@ export function evaluate({ state }) {
     for (const summary of await plan().locator('[data-plan-disclosure] > summary').all()) await summary.click();
   });
   await step('changing the experience saves version 2; Generate pressed twice sends one approve with it and makes one card, drawn from the served artifact', async () => {
-    await plan().locator('[data-proposal-select="experience"]').selectOption('experiment');
+    await plan().locator('[data-proposal-select="experience"] [data-proposal-option="experiment"]').click();
     await until(async () => (await plan().getAttribute('data-proposal-version')) === '2', 'version 2 after the experience change');
     assert.deepEqual(flow.puts.map(p => p.body), [{ expected_version: 1, settings: { experience: 'experiment' } }]);
     assert.equal(flow.approves.length, 0, 'a settings change approves nothing');

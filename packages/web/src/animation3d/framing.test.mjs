@@ -168,3 +168,29 @@ test('past its time budget the sampler stops its runtime and keeps the frames it
   assert.deepEqual(await sampleAnimationFrames({ artifact: gameFixture.artifact, createRuntime: slow }), [{ nodes: {} }, moved]);
   assert.ok(Date.now() - started < FRAMING.budgetMs + 500, 'cut at the budget');
 });
+
+// FX-AN-025 (aj_fac3ca4b, saved): the launch game's 42 m floor and marks to 35 m set the fit around a 16 m flight, so the field was a
+// thin strip; and a 1 s sample budget never saw the ball land. On the real engine: the main action's whole flight is sampled, the view
+// frames the flight, launcher and target, and the far marks and the floor no longer set it.
+run('the saved FX-AN-025 game: the fit frames the launch, launcher and target, not the floor laid out for every setting', async () => {
+  const { readFileSync } = await import('node:fs');
+  const saved = JSON.parse(readFileSync(new URL('./testdata/fx025-game-candidate.json', import.meta.url), 'utf8'));
+  const { sealArtifact } = await import('../../../control-plane/src/animation-author.js');
+  const { validateAnimationArtifact } = await import('./contract.js');
+  const sealed = await sealArtifact(saved.draft, { artifactId: `ar_${'0'.repeat(32)}`, revision: 1, planHash: saved.planHash, createdAt: new Date(saved.createdAt).toISOString() });
+  const artifact = validateAnimationArtifact(sealed).value;
+  const frames = await sampleAnimationFrames({ artifact, workerFactory });
+  const landed = frames.map(frame => frame.nodes?.ballN?.position?.[0] ?? 0);
+  assert.ok(Math.max(...landed) > 16, `the flight is sampled to its landing: ${landed}`);
+  const built = buildAnimationScene(artifact, { labelTexture });
+  const points = subjectPoints(built.scene, frames);
+  built.scene.dispose();
+  const box = new THREE.Box3().setFromPoints(points);
+  assert.ok(box.max.x < 25 && box.min.x > -2, `the floor (x -2 to 40) does not set the bounds: ${box.min.x}..${box.max.x}`);
+  assert.ok(box.max.x >= 18.5, 'the target at 18 m stays in the subject');
+  const camera = fitCameraToPoints(points, artifact.camera, ASPECT);
+  const ndc = onScreen(camera, points);
+  assert.ok(reach(ndc) <= FRAMING.fill + 1e-9);
+  const height = Math.max(...ndc.map(p => p.y)) - Math.min(...ndc.map(p => p.y));
+  assert.ok(height > 0.6, `the action fills more of the height than the 21% strip it was: ${(height * 50).toFixed(0)}%`);
+});
