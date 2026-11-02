@@ -246,6 +246,22 @@ test('the production build env is the Rabbit Hole build, never the dev tools', (
   assert.throws(() => parseArgs(['release', '--sha']), /bad argument/);
 });
 
+// Usage analytics (docs/features/usage-analytics.md): the release build and the production control plane carry the same public PostHog
+// project token and US host; the browser build is tagged production; no personal API key (phx_) anywhere in the release config.
+test('the production release carries the PostHog project configuration, never a personal key', () => {
+  assert.match(BUILD_ENV.VITE_POSTHOG_TOKEN, /^phc_[A-Za-z0-9]{20,}$/);
+  assert.equal(BUILD_ENV.VITE_POSTHOG_HOST, 'https://us.i.posthog.com');
+  assert.equal(BUILD_ENV.VITE_ANALYTICS_ENV, 'production');
+  const cp = JSON.parse(readFileSync(new URL('../packages/control-plane/wrangler.rabbit-hole-prod.jsonc', import.meta.url), 'utf8').replace(/^\s*\/\/.*$/gm, ''));
+  assert.equal(cp.vars.POSTHOG_PROJECT_TOKEN, BUILD_ENV.VITE_POSTHOG_TOKEN);
+  assert.equal(cp.vars.POSTHOG_HOST, BUILD_ENV.VITE_POSTHOG_HOST);
+  assert.ok(cp.vars.ANALYTICS_INTERNAL_USER_IDS.split(',').every(id => /^[0-9a-f]{32}$/.test(id)), 'internal accounts are users.id values, never emails');
+  for (const file of ['prod-release.mjs', '../packages/control-plane/wrangler.rabbit-hole-prod.jsonc', '../packages/web/wrangler.rabbit-hole-prod.jsonc', '../.github/workflows/deploy-prod.yml'])
+    assert.doesNotMatch(readFileSync(new URL(file, import.meta.url), 'utf8'), /phx_[A-Za-z0-9]/, file);
+  // prepare runs the bundle check in its analytics mode, so the deployed build is proven to carry the configuration
+  assert.ok(readFileSync(new URL('prod-release.mjs', import.meta.url), 'utf8').includes("run('node', ['e2e/production-bundle-check.mjs'], WEB, { ...process.env, EXPECT_ANALYTICS: '1' })"));
+});
+
 test('the release preflight refuses the dev sign-in secrets on production, the Access bridge included', () => {
   for (const name of ['TEST_BYPASS_SECRET', 'OAUTH_MOCK', 'DEV_TEST_BYPASS', 'ACCESS_AUD']) assert.ok(NEVER_ON_PRODUCTION.includes(name), name);
 });

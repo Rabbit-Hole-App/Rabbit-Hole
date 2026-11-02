@@ -5,6 +5,7 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { sign, verify, randomHex, sha256 } from './token.js';
 import { normalizeHandle } from './handle.js';
+import { captureSignIn } from './product-analytics.js';
 
 export const SESSION_COOKIE = 'small_session';
 const SESSION_TTL = 7 * 24 * 3600;
@@ -58,12 +59,12 @@ const loginError = (code, next) => `/login?error=${code}${next === '/' ? '' : `&
 // address as both id and principal, so the web link and the CLI code reach the same user.
 // Google/GitHub identities get a fresh user with a per-user .invalid principal: a provider's email
 // and name are display metadata only (refreshed each sign-in), so a matching address never merges
-// into another account. The returned user carries the provider it signed in with.
+// into another account. The returned user carries the provider it signed in with, and created when this call made it.
 // ponytail: two first sign-ins racing on one Google/GitHub id can leave one orphan users row (never
 // reachable); wrap in a D1 batch if it matters.
 export async function userFor(env, provider, providerUserId, { email = null, name = null } = {}) {
   const find = () => env.DB.prepare(
-    'SELECT u.id, u.email, u.session_epoch FROM user_identities i JOIN users u ON u.id = i.user_id WHERE i.provider = ? AND i.provider_user_id = ?'
+    'SELECT u.id, u.email, u.session_epoch, u.created_at FROM user_identities i JOIN users u ON u.id = i.user_id WHERE i.provider = ? AND i.provider_user_id = ?'
   ).bind(provider, providerUserId).first();
   const t = now();
   let user = await find();
@@ -80,7 +81,7 @@ export async function userFor(env, provider, providerUserId, { email = null, nam
   ).bind(provider, providerUserId, email, name, t, t, principal).run();
   user = await find();
   if (!user) throw new Error('identity not stored');
-  return { ...user, provider };
+  return { ...user, provider, created: true };
 }
 
 const sessionFor = (env, user) =>
@@ -221,7 +222,7 @@ async function oauthStart(req, env, name, baseUrl) {
   return redirect(url.href, [setCookie(OAUTH_COOKIE, flow, '/auth/', 600)]);
 }
 
-async function oauthCallback(req, env, name, baseUrl) {
+async function oauthCallback(req, env, name, baseUrl, waitUntil) {
   const url = new URL(req.url);
   const clear = setCookie(OAUTH_COOKIE, '', '/auth/', 0);
   const flow = await verify(cookieValue(req, OAUTH_COOKIE), env.MASTER_KEY);
@@ -238,7 +239,9 @@ async function oauthCallback(req, env, name, baseUrl) {
   }
   try {
     const user = await userFor(env, name, profile.id, profile);
-    return redirect(next, [clear, await sessionCookie(env, user)]);
+    const cookie = await sessionCookie(env, user);
+    waitUntil?.(captureSignIn(env, user)); // a verified sign-in (product-analytics.js); never awaited
+    return redirect(next, [clear, cookie]);
   } catch {
     return redirect(loginError('unavailable', next), [clear]);
   }
@@ -278,7 +281,7 @@ async function emailLogin(env, email, next, baseUrl, sendEmail) {
 
 // GET only shows the address and a Continue button - mail scanners that open links must not spend
 // them. POST spends the link once and signs in.
-async function magicLink(req, env, html) {
+async function magicLink(req, env, html, waitUntil) {
   const expired = () => html('<h2>This sign-in link has expired</h2><p>Each link works once, for 15 minutes. <a href="/login">Get a new one</a>.</p>', 401);
   const t = now();
   try {
@@ -289,7 +292,10 @@ async function magicLink(req, env, html) {
         'UPDATE login_links SET used_at = ? WHERE id = ? AND used_at IS NULL AND expires_at > ? RETURNING email, next'
       ).bind(t, p.id, t).first();
       if (!row) return expired();
-      return redirect(safeNext(row.next), [await sessionCookie(env, await userFor(env, 'email', row.email, { email: row.email }))]);
+      const user = await userFor(env, 'email', row.email, { email: row.email });
+      const cookie = await sessionCookie(env, user);
+      waitUntil?.(captureSignIn(env, user));
+      return redirect(safeNext(row.next), [cookie]);
     }
     const token = new URL(req.url).searchParams.get('token');
     const p = await verify(token, env.MASTER_KEY);
@@ -349,8 +355,8 @@ async function mockAuthorize(req, env, baseUrl, html) {
 
 const FORM_POSTS = new Set(['/login', '/auth', '/auth/email/start', '/logout']);
 
-// The web sign-in routes; null for any other path. deps: { baseUrl, html, sendEmail } from index.js.
-export async function handleWebAuth(req, env, path, { baseUrl, html, sendEmail }) {
+// The web sign-in routes; null for any other path. deps: { baseUrl, html, sendEmail, waitUntil } from index.js.
+export async function handleWebAuth(req, env, path, { baseUrl, html, sendEmail, waitUntil }) {
   const url = new URL(req.url);
   // PUBLIC_ORIGIN (production: https://digrabbithole.com) is the one origin sign-in happens on. Cookies
   // are host-only and providers accept only registered callbacks, so a sign-in route reached on any other
@@ -385,10 +391,10 @@ export async function handleWebAuth(req, env, path, { baseUrl, html, sendEmail }
     if (r.status === 'dev') return json({ ok: true, devLink: r.link, warning: 'test instance - link echoed' });
     return r.status === 'limited' ? json({ error: WEB_LOGIN_LIMITED }, 429) : json({ error: WEB_LOGIN_UNAVAILABLE }, 503);
   }
-  if (path === '/auth' && (req.method === 'GET' || req.method === 'POST')) return magicLink(req, env, html);
+  if (path === '/auth' && (req.method === 'GET' || req.method === 'POST')) return magicLink(req, env, html, waitUntil);
   if (path === '/auth/session' && req.method === 'GET') return sessionDisplay(req, env);
   const oauth = path.match(/^\/auth\/(google|github)\/(start|callback)$/);
-  if (oauth && req.method === 'GET') return oauth[2] === 'start' ? oauthStart(req, env, oauth[1], baseUrl) : oauthCallback(req, env, oauth[1], baseUrl);
+  if (oauth && req.method === 'GET') return oauth[2] === 'start' ? oauthStart(req, env, oauth[1], baseUrl) : oauthCallback(req, env, oauth[1], baseUrl, waitUntil);
   if (path === '/logout') {
     // Signs out every session of this user (the epoch bump). Only this origin's own pages, or the person
     // typing the URL (none), may do it: a cross-site or sibling-subdomain (same-site) request does nothing.

@@ -1,4 +1,5 @@
 import {createInlineCodeClient,inlineCodeTicketKey} from './inline-code-client.js';
+import { shareAccess, track } from './usage-analytics.js';
 import {readRegionalOriginal,regionalMaskBlob} from './inline-regional-mask.js';
 import { createBackgroundRemovalController, createRegionalImageEditController } from './inline-background-removal.js';
 import { createImageJobClient } from './inline-image-job-client.js';
@@ -525,6 +526,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const boardId = commentBoardRef.current;
       if (!boardId || typeof proposal?.input?.job !== 'string') throw new Error('This explanation can be generated only on its own canvas.');
       const { job } = await explainClient(api, boardId).action(proposal.input.job, 'approve', { proposal });
+      track('rh_generation_requested', { feature: 'explain', action_id: proposal.input.job }, { once: `gen:${proposal.input.job}` });
       window.dispatchEvent(new CustomEvent(EXPLAIN_JOB_EVENT, { detail: { jobId: proposal.input.job } }));
       return job?.cardId || null;
     },
@@ -1075,6 +1077,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     let result;
     try { result = await submitCadOnce(explainRequests.current, JSON.stringify({ board: commentBoard, ...payload }), explainClient(api, commentBoard).create, payload); }
     catch (error) { if (explainDisabled(error)) { explainOff.current = true; return null; } throw error; }
+    // usage analytics: a new /explain request makes a brief first (a paid plan), never a generated result
+    track('rh_planning_requested', { feature: 'explain', action_id: result.job.id }, { once: `plan:${result.job.id}` });
     const blockId = canvasApi.current?.placeExplain({ ...withPrompt(explainPendingBlock({ job: result.job, prompt, threadId }), promptUsed), ...(stamp || {}) });
     return { blockId: blockId || result.job.cardId };
   };
@@ -1092,6 +1096,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     let result;
     try { result = await submitCadOnce(explainRequests.current, JSON.stringify({ board: commentBoard, ...payload }), explainClient(api, commentBoard).create, payload); }
     catch (error) { if (explainDisabled(error)) { explainOff.current = true; throw new Error(off); } throw error; }
+    track('rh_generation_requested', { feature: 'explain', action_id: result.job.id }, { once: `gen:${result.job.id}` }); // an edit has no brief
     canvasApi.current?.updateBlock(block.id, current => (explainEditProblem(current) ? null : explainEditing(current, result.job, instruction)));
     return result.job;
   };
@@ -1104,6 +1109,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     const payload={prompt,cardId,context:context || destination?.cadContext(prompt,askTarget?.id) || null,...(baseRevisionId?{baseRevisionId}:{})};
     const key=JSON.stringify({app:app.name,board:boardName,...payload});
     const result=await submitCadOnce(cadRequests.current,key,cadClient(api,app.name,boardName).start,payload);
+    // usage analytics: with the brief step on, this call only plans (awaiting_approval); otherwise it builds
+    const planned=result.job?.state==='awaiting_approval';
+    track(planned?'rh_planning_requested':'rh_generation_requested',{feature:'cad',action_id:result.block?.jobId},{once:`${planned?'plan':'gen'}:${result.block?.jobId}`});
     destination?.reconcileCad(cardId ? result.block : withPrompt(result.block, promptUsed));
     return result;
   };
@@ -1434,6 +1442,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       setSharing(data.sharing);
       setCommentBoard(data.board_id || null);
       boardLoaded.current = true;
+      track('rh_canvas_opened'); // usage analytics: once per canvas load
       // Empty keys are not a copy: the canvas writes them on mount, before a slow reply lands.
       const hasLocal = hasLocalContent(storage, { ink: boardStorageKey, chat: chatKey });
       if (!storage || blockedStorage.includes('localStorage')) toast(UNKEPT, { tone: 'error' });
@@ -1692,6 +1701,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     try {
       const data = await api(`${path}/share`, { method: 'POST', body: JSON.stringify({ ...next, state: boardSnapshot() }) });
       if (shareFor.current !== path) return;
+      track('rh_share_changed', { access: shareAccess(data.sharing) });
       boardVersion.current = data.version; setCanvasVersion(data.version);
       setSharing(data.sharing);
       // Sharing on: the server gets this browser's board as it is now, through the board push queue (review round 2), so

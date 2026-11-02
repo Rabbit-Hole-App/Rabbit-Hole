@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { track } from './usage-analytics.js';
 import { Loader2 } from 'lucide-react';
 import { api } from './api.js';
 import { EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainResultBlock, explainRetry, explainRunning, explainStage, explainUnavailable, explainWorking } from './explain-client.js';
@@ -17,6 +18,10 @@ export default function ExplainPending({ block, onChange, onChangeQuiet, readOnl
   const apply = data => {
     setJob(data.job);
     const next = data.block ? explainResultBlock(latest.current, data.job, data.block) : null;
+    // usage analytics: a generated explanation, or a failure after generation began (authoring or rendering); a brief that failed
+    // while planning is not a failed generation. once: a reload that sees the same job again does not count it twice.
+    if (next) track('rh_generation_completed', { feature: 'explain', action_id: waiting.id }, { once: `done:${waiting.id}` });
+    else if (['failed', 'cancelled'].includes(data.job?.stage) && ['authoring', 'rendering'].includes(latest.current.explainJob?.stage)) track('rh_generation_failed', { feature: 'explain', action_id: waiting.id, reason: data.job.stage }, { once: `done:${waiting.id}` });
     if (next) { onChange(next); return; }
     // The stage rides on the card quietly, so a reload shows where it was; it is not an undo step.
     if (data.job?.stage && data.job.stage !== latest.current.explainJob?.stage) {

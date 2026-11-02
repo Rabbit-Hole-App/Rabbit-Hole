@@ -81,7 +81,7 @@ const call = async (env, path, { method = 'GET', headers = {}, form, body, origi
   const init = { method, headers: { ...headers } };
   if (form) init.body = new URLSearchParams(form);
   if (body) { init.body = JSON.stringify(body); init.headers['Content-Type'] = 'application/json'; }
-  const res = await worker.fetch(new Request(`${origin}${path}`, init), env, { waitUntil() {} });
+  const res = await worker.fetch(new Request(`${origin}${path}`, init), env, { waitUntil(promise) { env.pending?.push(promise); } });
   const cookies = res.headers.getSetCookie();
   return { res, status: res.status, location: res.headers.get('Location'), cookies, text: await res.text(), cookie: (name) => cookies.find((c) => c.startsWith(`${name}=`)) };
 };
@@ -769,6 +769,76 @@ test('an app a Google/GitHub user cannot open says so without their .invalid pri
   const byEmail = await open(await emailSignIn(env, 'c@other.test', sent, '/apps', SITE));
   assert.equal(byEmail.status, 403);
   assert.ok(byEmail.text.includes('<b>c@other.test</b> does not have access'));
+});
+
+// ---------- Usage analytics: a verified sign-in, sent to PostHog under users.id (product-analytics.js) ----------
+
+test('analytics: each verified sign-in is one rh_signed_in under users.id; first sign-in is new_account; reloads, failures and the internal mark', async (t) => {
+  const POSTHOG = { POSTHOG_PROJECT_TOKEN: 'phc_test0000000000000000000000000000000000000000', POSTHOG_HOST: 'https://us.i.posthog.com' };
+  const captured = [];
+  let posthog = () => [200, { status: 'Ok' }];
+  const sent = [];
+  const env = withDb(t, { ...PROD, ...POSTHOG, RESEND_API_KEY: 're_fake' });
+  env.pending = [];
+  const routes = (google) => ({ ...google, ...RESEND, 'https://api.resend.com/emails': (b) => { sent.push(b); return [200, {}]; },
+    'https://us.i.posthog.com/batch/': (b) => { captured.push(b); return posthog(); } });
+  network(t, routes(await googleOk()));
+  const settle = async () => { await Promise.all(env.pending.splice(0)); };
+
+  // a first Google sign-in creates the account: new_account true, distinct_id users.id, never an email or principal
+  const first = await oauthSignIn(env, 'google');
+  assert.equal(first.cb.status, 302);
+  await settle();
+  const [user] = env.q('SELECT id, created_at FROM users');
+  assert.equal(captured.length, 1);
+  const [event] = captured[0].batch;
+  assert.equal(captured[0].api_key, POSTHOG.POSTHOG_PROJECT_TOKEN);
+  assert.deepEqual([event.event, event.properties.distinct_id, event.properties.provider, event.properties.new_account, event.properties.rh_env, event.properties.rh_internal],
+    ['rh_signed_in', user.id, 'google', true, 'production', false]);
+  assert.equal(event.properties.$set_once.rh_account_created_at, new Date(user.created_at * 1000).toISOString());
+  assert.match(event.uuid, /^[0-9a-f-]{36}$/);
+  for (const needle of ['a@corp.test', '.rabbithole.invalid', 'provider-code', first.session]) assert.ok(!JSON.stringify(captured).includes(needle), needle);
+
+  // reading the session (a reload, a restored tab) is not a sign-in
+  for (let i = 0; i < 3; i++) assert.equal((await display(env, first.session)).status, 200);
+  await settle();
+  assert.equal(captured.length, 1);
+
+  // the same Google account again: a later login, new_account false; marked internal by its users.id
+  env.ANALYTICS_INTERNAL_USER_IDS = `0123456789abcdef0123456789abcdef, ${user.id}`;
+  await oauthSignIn(env, 'google');
+  await settle();
+  assert.deepEqual([captured[1].batch[0].properties.distinct_id, captured[1].batch[0].properties.new_account, captured[1].batch[0].properties.rh_internal, captured[1].batch[0].properties.$set.rh_internal], [user.id, false, true, true]);
+
+  // an email sign-in with the same address is a separate account (no merge by email): its own users.id, new_account true
+  await emailSignIn(env, 'a@corp.test', sent);
+  await settle();
+  const emailUser = env.q("SELECT id FROM users WHERE email = 'a@corp.test'")[0].id;
+  assert.notEqual(emailUser, user.id);
+  assert.deepEqual([captured[2].batch[0].properties.distinct_id, captured[2].batch[0].properties.provider, captured[2].batch[0].properties.new_account, captured[2].batch[0].properties.rh_internal], [emailUser, 'email', true, false]);
+
+  // PostHog failing: bounded retries with the same uuid; sign-in itself is unaffected
+  posthog = () => [503, {}];
+  const before = captured.length;
+  const failed = await oauthSignIn(env, 'google');
+  assert.equal(failed.cb.status, 302);
+  assert.ok(failed.session);
+  await settle();
+  const retries = captured.slice(before);
+  assert.equal(retries.length, 3);
+  assert.equal(new Set(retries.map((b) => b.batch[0].uuid)).size, 1, 'a retry is the same event');
+  // PostHog unreachable: still signed in
+  posthog = () => { throw new TypeError('fetch failed'); };
+  assert.ok((await oauthSignIn(env, 'google')).session);
+  await settle();
+});
+
+test('analytics: with no PostHog configuration (dev, test, CI) sign-in sends nothing', async (t) => {
+  const env = withDb(t, PROD);
+  env.pending = [];
+  network(t, await googleOk()); // any PostHog call would fail as an unexpected network call
+  assert.ok((await oauthSignIn(env, 'google')).session);
+  await Promise.all(env.pending);
 });
 
 // Last on purpose: it leaves auth.js's per-isolate JWKS cache holding only the rotated key.

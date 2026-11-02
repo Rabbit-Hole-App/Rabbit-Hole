@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { shareAccess, track } from '../usage-analytics.js';
 import { AlignLeft, ArrowUpRight, BarChart3, Check, ChevronRight, CopyPlus, FolderInput, FolderMinus, FolderPlus, ImageUp, Link2, Network, PenLine, Pin, PinOff, Plus, Trash2 } from 'lucide-react';
 import { titleOf } from '../agent/catalog.js';
 import { folderInk } from '../library-folders.js';
@@ -254,7 +255,7 @@ function ShareDialog({ a, state, tab, canvases, stateOf, onClose, onChanged, onM
   return (
     <div data-share-dialog className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]">
       <SharePanel place="relative mt-[26vh] max-w-[90vw]" key={a.name} title={titleOf(a)} sharing={sharing} busy={busy || !sharing} error={error} onClose={onClose}
-        onChange={run((next) => post(`${base}/share`, { ...next, ...(state ? { state } : {}) }))}
+        onChange={run(async (next) => { const data = await post(`${base}/share`, { ...next, ...(state ? { state } : {}) }); track('rh_share_changed', { access: shareAccess(data?.sharing) }); })}
         privateUrl={`${window.location.origin}/apps/${a.name}`} startTab={tab}
         project={project ? { publicBlocked: !a.repo_public, canvases: <ProjectCanvases rows={rows || []} loading={!rows} publicBlocked={!a.repo_public} result={result} pending={applying} onApply={apply} onManage={(row) => onManage(canvases.find((x) => x.name === row.name))} /> } : null}
         // A project itself is never in Explore (its canvases are, one by one: the Canvases tab); a canvas publishes from its own tab.

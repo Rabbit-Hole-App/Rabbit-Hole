@@ -1,4 +1,5 @@
 import { SlidePanel, Tip } from './ui.jsx';
+import { track } from './usage-analytics.js';
 import { useEffect, useRef, useState } from 'react';
 import { Ban, Download, LoaderCircle, Maximize2, RefreshCw, Rotate3d, Ruler, Scan } from 'lucide-react';
 import { api, apiFetch } from './api.js';
@@ -232,6 +233,8 @@ export default function CadCard({block,onChange,onChangeQuiet,appName,selected=f
     if(result.job?.id===seen.current.id && version<seen.current.updatedAt)return;
     if(result.job)seen.current={id:result.job.id,updatedAt:version};
     if(result.job)setJob(result.job);
+    // usage analytics: a CAD build's outcome, once per job however often a card polls or reloads
+    if(result.job?.id && ['ready','failed','cancelled'].includes(result.job.state))track(result.job.state==='ready'?'rh_generation_completed':'rh_generation_failed',{feature:'cad',action_id:result.job.id,...(result.job.state==='ready'?{}:{reason:result.job.state})},{once:`done:${result.job.id}`});
     if(result.block && mutable){
       const previous=latest.current, next=mergeCadBlock(previous,result.block);
       if(result.job?.awaitingAccept && previous.revisionId){

@@ -1,4 +1,5 @@
 import { api, getTheme, navigate, setTheme, workspaceLabel } from '../api.js';
+import { track } from '../usage-analytics.js';
 import { openedNotice } from '../connections.js';
 import { aiReadsOnPreview, learnPreview } from '../flags.js';
 import { canvasKeys, deviceId, hasLocalContent } from '../home/canvas-local.js';
@@ -200,6 +201,7 @@ export const COMMANDS = {
     risk: 'undo', touchesLive: false, available: ok,
     run: async ({ title = 'Untitled canvas', project, open = false } = {}, ctx) => {
       const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title, ...(project ? { project } : {}), device_id: deviceId(ctx.storage) }) });
+      track('rh_canvas_created', { source: 'start' }); // usage analytics: the server made it
       const href = `/apps/${canvas.name}`;
       if (open) {
         navigate(href);

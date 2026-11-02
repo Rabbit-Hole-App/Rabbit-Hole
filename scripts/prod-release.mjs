@@ -44,6 +44,11 @@ export const BUILD_ENV = {
   VITE_EXPLAIN_BACK: 'true',
   VITE_NOTEBOOK_ORIGIN: 'https://rabbit-hole-canvas-notebook.tryrabbithole.workers.dev',
   VITE_LESSON_NOTEBOOK_ORIGIN: 'https://rabbit-hole-notebook.tryrabbithole.workers.dev',
+  // Usage analytics (docs/features/usage-analytics.md, owner brief 2026-11-02): PostHog project "Rabbit Hole Project" (644462), US
+  // ingestion. A project token is public and ingestion-only; a personal API key (phx_) never belongs in a build.
+  VITE_POSTHOG_TOKEN: 'phc_ykxvTux7kQCENNHPpbW9NqErJc57DkcW3YNs3f9jwqN2',
+  VITE_POSTHOG_HOST: 'https://us.i.posthog.com',
+  VITE_ANALYTICS_ENV: 'production',
 };
 // Stripped from the shell before the production build: the dev and review tools. Production offers /motion through its own
 // flag (VITE_MOTION, above), never the development ones.
@@ -233,7 +238,7 @@ function prepare(opts) {
   for (const k of DEV_ONLY_ENV) delete env[k];
   run('npm', ['run', 'build'], WEB, env);
   run('npm', ['run', 'build', '--', '--outDir', 'dist-dev'], WEB, env);
-  console.log(run('node', ['e2e/production-bundle-check.mjs'], WEB));
+  console.log(run('node', ['e2e/production-bundle-check.mjs'], WEB, { ...process.env, EXPECT_ANALYTICS: '1' }));
   const build = bundleHash(sha);
   const learn = SOURCES.learn();
   mkdirSync(stateDir(sha), { recursive: true });

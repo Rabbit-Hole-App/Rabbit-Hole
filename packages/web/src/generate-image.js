@@ -5,6 +5,7 @@
 // attempt is a new proposal. On only where the server offers it to this person (imageGenerationLive in agent/slash.js, set from
 // GET /api/learn/image-jobs; VITE_IMAGE_GENERATION is for a review build and grants nothing the server refuses).
 import { imageGenerationLive } from './agent/slash.js';
+import { track } from './usage-analytics.js';
 import { canvasFamilyOf, fileCardFromSource, sameFileCard } from './file-to-canvas.js';
 import { withPrompt } from './card-prompt.js';
 
@@ -63,6 +64,7 @@ export const retryImageSave = (api, jobId) => api(`/api/learn/image-jobs/${jobId
 export async function runImageJob({ api, proposal, app, ops, onStatus = () => {}, wait = ms => new Promise(resolve => setTimeout(resolve, ms)), now = Date.now, fault = injectedFault() }) {
   const generationId = imageGenerationId(proposal);
   let { job } = await api('/api/learn/image-jobs', { method: 'POST', body: JSON.stringify({ generationId, proposal, app, ...(fault ? { fault } : {}) }) });
+  track('rh_generation_requested', { feature: 'image', action_id: generationId }, { once: `gen:${generationId}` }); // a resume posts the same id again
   let stage = null, since = now(), lost = 0;
   const started = now();
   for (;;) {
@@ -73,9 +75,10 @@ export async function runImageJob({ api, proposal, app, ops, onStatus = () => {}
       const card = imageCard(job, proposal);
       if (!card || !ops?.insertCard) throw Object.assign(new Error('The image was made but cannot be placed on this canvas.'), { job });
       const placed = ops.insertCard(card, { same: sameFileCard(job.artifact.sourceId, job.artifact.sha256) });
+      track('rh_generation_completed', { feature: 'image', action_id: generationId }, { once: `done:${generationId}` });
       return { ...job, cardId: placed?.id ?? null };
     }
-    if (['refused', 'cancelled', 'failed', 'unknown'].includes(job.stage)) return job;
+    if (['refused', 'cancelled', 'failed', 'unknown'].includes(job.stage)) { track('rh_generation_failed', { feature: 'image', action_id: generationId, reason: job.stage }, { once: `done:${generationId}` }); return job; }
     if (now() - started > GIVE_UP_MS) throw Object.assign(new Error('This is taking much longer than expected. The image may still be made; reload to check.'), { job });
     await wait(POLL_MS);
     try { job = (await api(`/api/learn/image-jobs/${generationId}`)).job; lost = 0; }
