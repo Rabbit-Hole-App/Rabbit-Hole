@@ -3,7 +3,7 @@
 // checks it (animation-author.js). The draft schema below is the contract's artifact (animation3d/contract.js) without the fields
 // only the host sets, so the model can never supply a hash, version, capability or plan binding.
 import { ANIMATION_PROGRAM_CONTRACT, GEOMETRY_KINDS, LABEL_PLACEMENTS } from '../../../web/src/animation3d/contract.js';
-import { PLAN_PARAMETER } from './animation-brief.js';
+import { MOTION_RULES, PLAN_PARAMETER } from './animation-brief.js';
 
 const ID = { type: 'string', description: 'A letter, then up to 63 letters, digits, _ or -.' };
 const VEC3 = { type: 'array', minItems: 3, maxItems: 3, items: { type: 'number' } };
@@ -34,7 +34,7 @@ export const ARTIFACT_DRAFT = {
     actions: { type: 'array', maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: ID, label: { type: 'string', maxLength: 60 } } } },
     readouts: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: ID, label: { type: 'string', maxLength: 60 }, unit: { type: 'string', maxLength: 16 }, decimals: { type: 'integer', minimum: 0, maximum: 6 } } } },
     timeline: { type: 'object', additionalProperties: false, required: ['duration', 'loop'], properties: { duration: { type: 'number' }, loop: { type: 'boolean' } }, description: 'Required for watch.' },
-    stepped: { type: 'boolean', description: 'rules only: the host sends a step event every 1/30 s.' },
+    stepped: { type: 'boolean', description: 'rules only: the host sends a step event every 1/30 s. Required for a motion an action starts (a launch, a drop): without steps or a timeline time never advances.' },
     game: { type: 'object', additionalProperties: false, required: ['objective'], properties: { objective: { type: 'string', maxLength: 300 }, hint: { type: 'string', maxLength: 300 } }, description: 'Required for a game, allowed only there.' },
     program: { type: 'object', additionalProperties: false, required: ['source'], properties: { source: { type: 'string', description: ANIMATION_PROGRAM_CONTRACT.exports } }, description: 'The behavior program. Required unless the scene is a static inspect scene with no parameters or readouts.' },
     seed: { type: 'integer', minimum: 0 }, camera: { type: 'object', additionalProperties: false, required: ['position', 'target'], properties: { position: VEC3, target: VEC3, fov: { type: 'number' } } },
@@ -67,7 +67,7 @@ export const REPAIR_TOOL = {
 const LABEL_RULES = "Labels: use few (only what the learner must identify), each at most three or four words. Place each label beside the object it names, just off its edge and close to it, never over the object, over another label or floating in empty space; a moving object's label moves with it (parent it to the object). Prefer a readout to a label for a changing number. No label on an obvious object (a floor, a stand, a wall, a pivot pin); never put a label on a small part, where it would hide that part; a label plate on screen must stay smaller than the subject it names (frame the subject larger, or drop the label), and must not cross another object or label anywhere in the motion. A game's status, result and hint text (tries left, hit or miss, a hint) is frame.goal.message and the game hint, which the card shows beside the scene: never a scene label. " + ANIMATION_PROGRAM_CONTRACT.labels;
 // The visual standard of every scene (owner 2026-10-31: tiny subjects in empty space, 1 px strings, a giant backdrop, labels bigger than the
 // geometry). General, never subject-specific; the renderer may refit the camera's distance but keeps the authored direction.
-const SCENE_RULES = 'Visual standard: the subject is large in frame, with physically plausible proportions. A rod, string, cable or axle is a cylinder thick and dark enough to read at a glance against a light background (radius about 1 to 2 percent of the subject height, never a hairline); a line only for a guide, axis or trajectory. Give curved surfaces enough segments to look smooth (about 32 around, 24 to 32 on a sphere) within limits.triangles. No backdrop plane bigger than the subject needs: a modest floor just past its footprint, or none. Colour: a few harmonious colours, supports and floor muted, the subject the most saturated; matte mid-tones for most parts, a light neutral grey for metal parts; opacity below 1 only for guides. Depth: separate parts in depth and choose a clear three-quarter or side camera that shows the motion (the card fits its distance to the motion at each parameter setting the learner chooses). Distance marks, scales and ticks lie on the same line and in the same plane as what they measure, so perspective cannot shift them. A resting object sits on or in its holder as it would physically, not sunk through it.';
+const SCENE_RULES = 'Visual standard: the subject is large in frame, with physically plausible proportions. A rod, string, cable or axle is a cylinder thick and dark enough to read at a glance against a light background (radius about 1 to 2 percent of the subject height, never a hairline); a line only for a guide, axis or trajectory. Give curved surfaces enough segments to look smooth (about 32 around, 24 to 32 on a sphere) within limits.triangles. No backdrop plane bigger than the subject needs: a modest floor just past its footprint, or none. Colour: a few harmonious colours, supports and floor muted, the subject the most saturated; matte mid-tones for most parts, a light neutral grey for metal parts; opacity below 1 only for guides. Depth: separate parts in depth and choose a clear three-quarter or side camera that shows the motion (the card fits its distance to the motion at each parameter setting the learner chooses). A layout spread along the ground (a field, a track, a table) is viewed from a raised three-quarter angle, about 25 to 40 degrees above the ground, never along it, and kept compact: place targets and marks within the distances the default and nearby settings reach, so the default action fills the view. Distance marks, scales and ticks lie on the same line and in the same plane as what they measure, so perspective cannot shift them. A resting object sits on or in its holder as it would physically, not sunk through it.';
 // The card treats the first parameter as the main control and the first readout as the main result (owner 2026-10-31). A result of
 // an attempt shown before any attempt reads as an outcome (aj_283c19f: "Landed vs target 0.0 m" before the first shot); the card
 // shows no readout a frame leaves out (card.js frameView).
@@ -86,6 +86,7 @@ Build recognizable objects from the procedural shapes, grouped with parent nodes
 ${SCENE_RULES}
 ${CONTROL_RULES}
 ${LABEL_RULES}
+${MOTION_RULES}
 ${RATE_RULES}
 ${COMPACT_RULES}
 ${VIEW_RULES}
@@ -106,6 +107,7 @@ ${PROGRAM}
 ${SCENE_RULES}
 ${CONTROL_RULES}
 ${LABEL_RULES}
+${MOTION_RULES}
 Return the COMPLETE artifact every time: every field, and the program (with its whole source) whenever the current artifact has one or the scene needs one; an artifact without its program is refused.
 ${COMPACT_RULES}
 ${VIEW_RULES}

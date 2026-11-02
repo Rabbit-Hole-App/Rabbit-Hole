@@ -491,3 +491,11 @@ test('author and repair are told that game status text is the goal message, neve
   const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js');
   for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /status, result and hint text[^:]*is frame\.goal\.message[^:]*: never a scene label/);
 });
+
+// aj_9229023: a launch game with no steps never moved its ball, and its along-the-ground camera showed the field as a thin strip.
+test('brief, author and repair: a motion an action starts is stepped; a ground layout is viewed from a raised angle and kept compact', async () => {
+  const { ANIMATION_BRIEF_SYSTEM } = await import('../src/agents/animation-brief.js');
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js');
+  for (const system of [ANIMATION_BRIEF_SYSTEM, ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /An action that starts a motion[^.]*needs behavior rules with stepped/);
+  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /spread along the ground[^.]*viewed from a raised three-quarter angle[^.]*never along it, and kept compact/);
+});
