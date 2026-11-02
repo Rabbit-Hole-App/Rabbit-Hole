@@ -128,14 +128,19 @@ export function createAnalytics(target, { token, host, env = 'unknown', send = n
   // settled under its owner before a logout or account change, here or seen from another tab, and when its session has ended.
   let lastInput = -Infinity, lastTick = now(), activeMs = 0, owner = null, creditedAt = 0;
   const eligible = () => target.document?.visibilityState !== 'hidden' && target.document?.hasFocus?.() !== false;
+  let wasEligible = eligible();
   const storedSession = () => { try { return JSON.parse(s.get(KEY.session) || 'null'); } catch { return null; } };
   const identity = () => ({ distinct: distinctId(), account: s.get(KEY.account), internal: s.get(KEY.internal) === '1', session: storedSession()?.id || null });
   let seen = enabled ? identity() : null;
   // stale: the identity already changed elsewhere, so the time since the last step goes to the one it replaced, in that one's session.
-  function credit(t, stale = false) {
+  // leaving: the page is hiding or losing focus, and the browser has already changed the state, so the step just ended counts if it
+  // began eligible. A step must otherwise be eligible at both ends, so time before focus returned is not counted.
+  function credit(t, stale = false, leaving = false) {
     const until = Math.min(t, lastInput + IDLE_MS);
+    const counted = wasEligible && (leaving || eligible());
+    wasEligible = eligible();
     // A gap longer than two ticks means the page was not running (a suspended device): it earns nothing.
-    if (eligible() && until > lastTick && t - lastTick <= TICK_MS * 2) {
+    if (counted && until > lastTick && t - lastTick <= TICK_MS * 2) {
       owner ||= { ...seen, session: stale ? seen.session || uuidv7(t, random) : sessionId(t) };
       activeMs += until - lastTick;
       creditedAt = until;
@@ -239,8 +244,9 @@ export function createAnalytics(target, { token, host, env = 'unknown', send = n
     // Past the idle window nothing more can accrue, so the remainder goes out rather than waiting for a later visit or session.
     tick(t = now()) { sync(t); credit(t); reportActive(t - lastInput > IDLE_MS ? 1000 : ACTIVE_REPORT_MS); },
     // Hidden, frozen or leaving: count up to now, report what is left, send it with keepalive. Visible again starts a new span.
-    hide(t = now()) { sync(t); credit(t); reportActive(1000); return api.flush({ keepalive: true }); },
-    show(t = now()) { sync(t); lastTick = t; },
+    hide(t = now()) { sync(t); credit(t, false, true); reportActive(1000); return api.flush({ keepalive: true }); },
+    blur(t = now()) { sync(t); credit(t, false, true); },
+    show(t = now()) { sync(t); lastTick = t; wasEligible = eligible(); },
     async flush({ keepalive = false } = {}) {
       if (!enabled || stopped || !queue.length || (sending && !keepalive)) return;
       const batch = queue.slice(0, 50);
@@ -278,7 +284,7 @@ export function installUsageAnalytics(target, config, { signedOut = false } = {}
     target.setInterval(() => a.tick(), TICK_MS);
     target.document?.addEventListener('visibilitychange', () => (target.document.visibilityState === 'hidden' ? a.hide() : a.show()));
     target.addEventListener('pagehide', () => a.hide());
-    target.addEventListener('blur', () => a.tick());
+    target.addEventListener('blur', () => a.blur());
     target.addEventListener('storage', event => { if (event.key === null || event.key === KEY.account || event.key === KEY.anon) a.sync(); });
     return a;
   } catch { installed = noop; return noop; }

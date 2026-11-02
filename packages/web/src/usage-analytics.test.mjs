@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID, getRandomValues } from 'node:crypto';
 import { ATTEMPTS, IDLE_MS, INPUT_EVENTS, SESSION_IDLE_MS, personMark, TICK_MS, createAnalytics, pagePath, referrerOf, sanitize, uuidv7, optedOut } from './usage-analytics.js';
 
+const active = tab => tab.events().filter(e => e.event === 'rh_active_time').map(e => [e.properties.distinct_id, e.properties.active_seconds]);
 const TOKEN = 'phc_testtoken0000000000000000000000000000000000';
 const HOST = 'https://us.i.posthog.com';
 const ME = 'dda2350771a4066e3080c605ba092e0a', OTHER = 'edf6bd0c9cd0dcdcb7ef4c9f2c49f337';
@@ -147,6 +148,21 @@ test('only real input keeps someone active: a programmatic scroll (a streaming a
   assert.deepEqual(INPUT_EVENTS, ['pointerdown', 'keydown', 'wheel', 'touchstart', 'touchmove']);
 });
 
+// fast-e2e 41524993647: a browser changes visibilityState before visibilitychange fires, so the step in progress was dropped (39 of 40 seconds).
+test('hiding or losing focus keeps the step in progress, though the state has already changed; time before focus returned does not count', async () => {
+  const b = browser(), t = b.tab('/apps/x');
+  t.a.input(); b.clock.t += TICK_MS; t.a.tick(); b.clock.t += 2000;
+  t.doc.visibilityState = 'hidden'; await t.a.hide();
+  assert.deepEqual(active(t), [[t.a.stats().distinct, 7]]);
+  t.doc.visibilityState = 'visible'; t.a.show();
+  t.a.input(); b.clock.t += 3000;
+  t.doc.focused = false; t.a.blur();
+  assert.equal(t.a.stats().activeMs, 3000);
+  b.clock.t += TICK_MS; t.a.tick();
+  t.doc.focused = true; b.clock.t += TICK_MS; t.a.tick();
+  assert.equal(t.a.stats().activeMs, 3000, 'unfocused time is not earned when focus returns');
+});
+
 test('two tabs never double-count: only the focused one accrues', () => {
   const b = browser();
   const one = b.tab('/apps/x'), two = b.tab('/apps/y');
@@ -248,7 +264,7 @@ test('signed out: the sign-in page and a 401 from /api/me clear an identified ac
 });
 
 // Owner review of a7f9d946f: 40 seconds accrued under account A were emitted under account B after identify(B) and hide().
-const active = tab => tab.events().filter(e => e.event === 'rh_active_time').map(e => [e.properties.distinct_id, e.properties.active_seconds]);
+
 const accrue = (b, tab, ms) => { tab.a.input(); for (let i = 0; i < ms / TICK_MS; i++) { b.clock.t += TICK_MS; tab.a.tick(); } };
 
 test('accrued time stays with its account and session through identify(B) then hide; B earns nothing from A\'s input', async () => {

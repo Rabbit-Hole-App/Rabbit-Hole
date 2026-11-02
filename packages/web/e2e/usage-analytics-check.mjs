@@ -184,6 +184,7 @@ try {
     await run(20_000);
     me = null;
     await second.goto(`${ORIGIN}/sign-in`);
+    await new Promise(resolve => setTimeout(resolve, 300)); // real time for the storage event; the clock stays where the input left it
     await until(async () => { await flushTimer(); return activeOf(B) === 50; }, 'the storage event settles B\'s 20 seconds without a hide');
     await page.mouse.click(5, 5);
     await run(10_000);
