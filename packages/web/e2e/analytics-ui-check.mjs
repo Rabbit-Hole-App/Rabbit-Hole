@@ -312,12 +312,16 @@ await check('16 Draft a follow-up board: a new private canvas with the composer 
   page.on('request', request => { if (request.method() === 'POST' && /\/api\/(learn\/(ask|tutor|board$|chat)|ask)/.test(new URL(request.url()).pathname)) sent.push(request.url()); });
   await page.locator('[data-analytics-tab="learning"]').click();
   await page.locator('[data-draft-follow-up]').first().click();
-  await page.waitForURL(/\/apps\/canvas-[a-f0-9]+\?tab=learn/, { timeout: 30000 });
+  await page.waitForURL(/\/apps\/canvas-[a-f0-9]+$/, { timeout: 30000 });
   assert.equal(await dialogOf(page).count(), 0);
   const name = new URL(page.url()).pathname.split('/').pop();
   const COMPOSER = '[data-chat-pane] [data-chat-composer] :is(textarea, input:not([type="file"]))';
   const field = page.locator(COMPOSER).first();
-  await field.waitFor({ timeout: 60000 });
+  await field.waitFor({ timeout: 45000 }).catch(async error => {
+    const seen = await page.evaluate(() => ({ path: location.pathname, panes: document.querySelectorAll('[data-chat-pane]').length, forms: document.querySelectorAll('[data-chat-composer]').length, text: document.body.innerText.replace(/\s+/g, ' ').slice(0, 300) }));
+    console.log('composer not visible:', JSON.stringify(seen), JSON.stringify(errors));
+    throw error;
+  });
   await page.waitForFunction(selector => /^Create a short interactive learning board about .+, informed by what visitors explored in my /.test(document.querySelector(selector)?.value || ''), COMPOSER, { timeout: 30000 });
   await page.waitForTimeout(1000);
   assert.deepEqual(sent, [], 'no prompt submitted');

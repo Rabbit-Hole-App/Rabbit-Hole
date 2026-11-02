@@ -349,10 +349,10 @@ export function CreatorAnalyticsDialog({ canvas = null, opener: givenOpener = nu
       const made = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Next: ${insight.label}`.slice(0, 120), device_id: deviceId(localStorage) }) });
       try { sessionStorage.setItem(PREFILL_KEY(made.name), followUpPrompt(insight.label, board)); } catch { /* blocked storage: the canvas opens with an empty composer */ }
       onClose();
-      navigate(`/apps/${made.name}?tab=learn`);
+      navigate(`/apps/${made.name}`);
     } catch (problem) { toast(problem.message, { tone: 'error' }); }
   };
-  const review = insight => { onClose(); navigate(`/apps/${insight.canvas}?tab=learn`); };
+  const review = insight => { onClose(); navigate(`/apps/${insight.canvas}`); };
 
   const status = error ? 'failure' : !data ? 'checking' : data.collection?.status === 'active' ? 'active' : 'failure';
   const boards = scopes.length ? scopes : (data?.boards || []).map(b => ({ canvas: b.canvas, title: b.title }));
