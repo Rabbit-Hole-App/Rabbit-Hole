@@ -351,6 +351,9 @@ try {
   // Owner 2026-11-01: the game declares keys (up north, down south, left west, right east); while its card interacts WASD and the
   // arrows play the same moves as the buttons, one per press, and the canvas stays put; Escape hands the keys back.
   await step('game: inside Interact the arrow keys and WASD play the moves as the buttons do, one per press, the canvas still; Escape ends it', async () => {
+    // As every gesture step: start from a live scene (two cards hold the live slots at a time; fast-e2e 41510588122 found the game
+    // card waiting for its slot here and Interact never started).
+    await live(G);
     await G.interact.click();
     await until(() => active(G), 'Interact did not start');
     assert.equal((await G.card.locator('[data-animation-keys-hint]').innerText()).trim(), 'Move: WASD / arrow keys · Esc to exit');
