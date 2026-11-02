@@ -315,9 +315,10 @@ await check('16 Draft a follow-up board: a new private canvas with the composer 
   await page.waitForURL(/\/apps\/canvas-[a-f0-9]+\?tab=learn/, { timeout: 30000 });
   assert.equal(await dialogOf(page).count(), 0);
   const name = new URL(page.url()).pathname.split('/').pop();
-  const field = page.locator('[data-chat-composer] textarea').first();
+  const COMPOSER = '[data-chat-pane] [data-chat-composer] :is(textarea, input:not([type="file"]))';
+  const field = page.locator(COMPOSER).first();
   await field.waitFor({ timeout: 60000 });
-  await page.waitForFunction(() => /^Create a short interactive learning board about .+, informed by what visitors explored in my /.test(document.querySelector('[data-chat-composer] textarea')?.value || ''), null, { timeout: 30000 });
+  await page.waitForFunction(selector => /^Create a short interactive learning board about .+, informed by what visitors explored in my /.test(document.querySelector(selector)?.value || ''), COMPOSER, { timeout: 30000 });
   await page.waitForTimeout(1000);
   assert.deepEqual(sent, [], 'no prompt submitted');
   const made = (await api(owner, `/api/apps/${name}`)).body;
