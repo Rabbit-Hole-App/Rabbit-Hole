@@ -120,10 +120,12 @@ test('active time: heartbeats add nothing, a claim is capped by wall-clock time,
   await active(tabB, 10_000); // an inflated claim: 30 s of wall clock since the last credited second
   t.mock.timers.tick(30_000);
   await active(tabA, 90); // 30 more seconds of its own, inside the next half-minute of wall clock
+  t.mock.timers.tick(600_000);
+  await active(tabB, 10_001); // ten idle minutes later, one new second: the clipped seconds of its earlier reports do not come back
   const seconds = f.sqlite.prepare('SELECT sum(active_seconds) AS s FROM publication_learner_days').get().s;
-  assert.equal(seconds, 120, 'at most the 120 s of wall clock since the visit began, across both tabs');
+  assert.equal(seconds, 121, 'the 120 s of wall clock the tabs shared, plus the one new second');
   const sessions = f.sqlite.prepare('SELECT credited_active FROM publication_sessions ORDER BY credited_active').all().map(r => r.credited_active);
-  assert.deepEqual(sessions, [30, 90]);
+  assert.deepEqual(sessions, [31, 90]);
   // A heartbeat-only visit creates no activity row on a new day.
   t.mock.timers.tick(86400e3);
   await active(tabA, 90);
@@ -143,11 +145,14 @@ test('ten visitors make protected metrics visible; segments under ten stay hidde
   assert.deepEqual(body.overview.total_opens.value, 14);
   assert.deepEqual(body.learning.cards.find(c => c.material_id === 'b1').seen, { value: 12, reason: null });
   const sources = Object.fromEntries(body.sources.visitors.map(s => [s.source, s.visitors]));
-  assert.deepEqual(sources.linkedin, { value: 12, reason: null });
+  assert.deepEqual(sources.linkedin, { value: null, reason: 'complementary' }, '14 - 12 would reveal the two from Explore');
   assert.deepEqual(sources.explore, { value: null, reason: 'insufficient_cohort' });
   assert.deepEqual(body.sources.campaigns, [{ campaign: 'launch-post', visitors: { value: 12, reason: null }, start_rate: { value: 0, reason: null } }]);
-  // Signed in 0 and anonymous 14: one cell under ten, so its complement is hidden too.
-  assert.deepEqual([body.overview.signed_in_visitors.reason, body.overview.anonymous_visitors.reason], ['insufficient_cohort', 'complementary']);
+  // No one signed in: nothing small to recover, and the zero itself stays hidden.
+  assert.deepEqual([body.overview.signed_in_visitors, body.overview.anonymous_visitors], [{ value: null, reason: 'insufficient_cohort' }, { value: 14, reason: null }]);
+  await send(f, token, { as: 'ben', events: [ev('open', { source: 'direct' })] });
+  const one = (await read(f, `/api/analytics/publications/${canvas}?range=30d`, 'ana')).body.overview;
+  assert.deepEqual([one.signed_in_visitors.reason, one.anonymous_visitors.reason], ['insufficient_cohort', 'complementary'], 'one signed-in visitor cannot be worked out from 15 - 14');
 });
 
 test('a browser that signs in counts once, as the account; signed-in visits are deduplicated across boards and days', async t => {
@@ -330,6 +335,45 @@ test('a creator-scope interest insight names the board its concept came from, fo
   await crowd(f, token, 10, () => [ev('seen', { material_id: 'c1' }), ev('step_selected', { suggestion_id: 'ns_00000000.1', position: 1, concept_ids: ['learning-rate'] })]);
   const insight = (await read(f, '/api/analytics/creator?range=7d', 'ana')).body.insights.find(i => i.type === 'interest');
   assert.deepEqual([insight.canvas, insight.subject_id, insight.denominator], [canvas, 'learning-rate', 10]);
+});
+
+test('review regressions: Stars opens by the visit, a visit over midnight is not returning, the first answer stays first, hidden rows are absent, a bad id is ignored', async t => {
+  const f = setup(t);
+  const { canvas, token } = await board(f);
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-11-01T23:59:00Z') });
+  const browser = uuid(), late = uuid();
+  await send(f, token, { visitor: browser, session: late, events: [ev('open', { source: 'direct' })] });
+  t.mock.timers.tick(120_000);
+  await send(f, token, { visitor: browser, session: late, events: [ev('active', { active_seconds: 100 })] });
+  await send(f, token, { visitor: browser, events: [ev('open', { source: 'stars' })] });
+  await send(f, token, { visitor: browser, events: [ev('open', { source: 'direct' })] });
+  for (let i = 0; i < 9; i += 1) await send(f, token, { events: [ev('open', { source: 'stars' }), ev('quiz', { material_id: 'z1', choice: 'b' })] });
+  const before = (await read(f, `/api/analytics/publications/${canvas}?range=7d`, 'ana')).body;
+  assert.equal(before.stars.opens_from_stars.value, 10, 'the Stars visits only, whatever the day\'s first source');
+  assert.deepEqual(before.learning.friction, [], 'nine answers: no row at all');
+  const midnight = uuid(), oneVisit = uuid();
+  await send(f, token, { visitor: midnight, session: oneVisit, events: [ev('open', { source: 'direct' })] });
+  t.mock.timers.tick(86400e3);
+  assert.equal((await send(f, token, { visitor: midnight, session: oneVisit, events: [ev('active', { active_seconds: 60 })] })).body.accepted, 1);
+  assert.equal(f.sqlite.prepare("SELECT count(*) AS n FROM publication_learner_days WHERE opens = 0 AND active_seconds = 60").get().n, 1, 'the visit ran into a new day');
+  assert.equal((await read(f, `/api/analytics/publications/${canvas}?range=all`, 'ana')).body.overview.returning_visitors.value, 1, 'only the browser that opened on two days; one visit past midnight is not a return');
+  const quizzer = uuid();
+  await send(f, token, { visitor: quizzer, events: [ev('quiz', { material_id: 'z1', choice: 'b' })] });
+  t.mock.timers.tick(8 * 86400e3);
+  await send(f, token, { visitor: quizzer, events: [ev('quiz', { material_id: 'z1', choice: 'a' })] });
+  const week = await read(f, `/api/analytics/publications/${canvas}?range=7d`, 'ana');
+  assert.deepEqual(week.body.learning.friction, [], 'a retry in this range is not this range\'s first answer');
+  assert.deepEqual((await send(f, token, { events: [ev('step_selected', { position: 1 }), ev('steps_shown', { suggestions: [{ position: 1 }] })] })).body, { accepted: 0, ignored: 2 });
+  t.mock.timers.reset();
+});
+
+test('analytics never costs a start or a fork: if preparing its row fails, the action succeeds uncounted', async t => {
+  const f = setup(t);
+  const { token } = await board(f);
+  f.sqlite.exec('DROP TABLE publication_revisions');
+  assert.equal((await f.call('POST', `/api/learn/boards/shared/${token}/rabbit-hole`, { as: 'ben', body: { origin: null } })).status, 201);
+  assert.equal((await f.call('POST', '/api/learn/boards/fork', { as: 'cara', body: { source: { token }, key: 'fork-key-0010' } })).status, 201);
+  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM publication_learner_items').get().n, 0);
 });
 
 test('referrer hosts leave no small remainder of the other-referrer total', async t => {
