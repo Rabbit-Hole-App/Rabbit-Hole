@@ -549,7 +549,7 @@ async function forkSource(req, env, user, body) {
       if (checked.error) return json({ error: checked.error }, checked.status || 400);
       ({ state, dropped } = guestDraftState(state, draft));
     }
-    return { row, state, dropped, org: row.org, canvas: canvas?.name ?? null, owner: row.owner_email, title: sharedTitle(row, canvas?.title, pinned), share: source.token, sharePath: linkPath(found, source.token),
+    return { found, row, state, dropped, org: row.org, canvas: canvas?.name ?? null, owner: row.owner_email, title: sharedTitle(row, canvas?.title, pinned), share: source.token, sharePath: linkPath(found, source.token),
       revision: pinned && { id: pinned.id, commit: pinned.commit }, resource: canvas?.name || (row.app.startsWith('repo-') && !pinned?.allowed ? null : row.app) };
   }
   if (typeof source?.canvas !== 'string' || !CANVAS.test(source.canvas)) return json({ error: 'Choose a canvas or a share link to fork.' }, 400);
@@ -624,6 +624,9 @@ async function fork(req, env, body, { duplicate = false } = {}) {
   const id = crypto.randomUUID(), now = new Date().toISOString(), text = JSON.stringify(state);
   const forkedFrom = duplicate ? null : { resource_id: source.resource, board: source.row?.board || 'main', board_id: source.row?.id || null, title: sourceTitle, creator: null, share_url: source.share ? source.sharePath : null };
   // Copy first, then publish the canvas, board and lineage atomically. A failed copy cannot become a replayable fork.
+  // A fork through a public board by someone other than its owner is that board's audience conversion (creator analytics),
+  // written in the same batch as canvas_forks: a failed fork records nothing, and a replay returned above never gets here.
+  const converted = duplicate || !source.found ? [] : await (await import('./publication-analytics.js')).conversionStatements(db, { found: source.found, user, kind: 'fork', item: name });
   const bucket = learnMedia(env), copiedKeys = [];
   let files = 0, publishing = false;
   try {
@@ -648,6 +651,7 @@ async function fork(req, env, body, { duplicate = false } = {}) {
       ...(fileRefSources(state).length ? [...(source.row?.id ? [inheritFileRefs(db, id, source.row.id, state)] : []), ...fileRefStatements(db, id, text, 1, state, user)] : []),
       ...(duplicate ? [] : [db.prepare('INSERT INTO canvas_forks (org, canvas, owner_email, fork_key, forked_from_org, forked_from_canvas_id, root_org, root_canvas_id, forked_from_owner_id, forked_from_title, forked_from_share, forked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
         .bind(user.org, name, user.email, key, source.canvas ? source.org : null, source.canvas, root[0], root[1], source.owner, sourceTitle, source.share, now)]),
+      ...converted,
       // The repository revision the source was read at; the fork's share answers from it (docs/features/shared-canvas-ask.md).
       ...(source.revision ? [db.prepare('INSERT INTO board_repository_pins (board_id, repository_id, commit_sha, share_key, repo_access, pinned_at) VALUES (?, ?, ?, NULL, 0, ?)').bind(id, source.revision.id, source.revision.commit, now)] : []),
     ]);
@@ -770,6 +774,9 @@ async function startRabbitHole(req, env, token, body) {
   const anchor = { id: crypto.randomUUID(), type: 'explanation', dx: 0, dy: 0, title,
     body: origin.root ? `Started from the shared canvas "${sharedName}".` : `Started from "${from}" on the shared canvas "${sharedName}".${excerptSeedText(origin.entry)}`, anchor: { source: 'shared' } };
   const now = new Date().toISOString();
+  // A start through a public board by someone other than its owner (creator analytics), in the hole's own batch: a failure
+  // records nothing, and entering an existing hole (200 above) never counts again.
+  const converted = await (await import('./publication-analytics.js')).conversionStatements(db, { found, user, kind: 'start', item: name, materialId: origin.root || blank ? null : origin.id });
   try {
     await db.batch([
       db.prepare('INSERT INTO canvases(org,name,owner_email,title,project,device_id) VALUES(?,?,?,?,NULL,NULL)').bind(user.org, name, user.email, title),
@@ -777,6 +784,7 @@ async function startRabbitHole(req, env, token, body) {
       // Blank has no board yet: an empty canvas, whose first save is the viewer's own.
       ...(blank ? [] : [db.prepare('INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at, title) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)')
         .bind(crypto.randomUUID(), user.org, user.email, name, 'main', JSON.stringify({ blocks: [anchor] }), user.email, now, title)]),
+      ...converted,
     ]);
   } catch (error) {
     // A concurrent start from the same origin won the UNIQUE key: enter that one.
@@ -1038,6 +1046,9 @@ export async function learnBoardsRoute(path, req, env) {
   // Star / Unstar (docs/features/stars.md): PUT stars, DELETE unstars - desired state, never a toggle - and GET reads the state.
   const starring = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/star$/);
   if (starring) return starShared(req, env, decodeURIComponent(starring[1]));
+  // Creator analytics ingest (publication-analytics.js): a public board's visit events, from whoever views it, signed out too.
+  const eventing = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/events$/);
+  if (eventing) return (await import('./publication-analytics.js')).ingestEvents(req, env, await sharedRow(env, decodeURIComponent(eventing[1])));
   const hooking = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/next-steps$/);
   if (hooking) return req.method === 'POST' ? nextStepsAboutShared(req, env, decodeURIComponent(hooking[1])) : json({ error: 'Method not allowed' }, 405);
   // The read-only Rabbit Holes Map of a shared canvas: only holes this viewer could open by their own link.

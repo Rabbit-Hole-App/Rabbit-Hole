@@ -30,8 +30,15 @@ const NOT_COLLECTED = Object.freeze({ value: null, reason: 'not_collected' });
 
 export async function starAnalytics(db, viewer, range) {
   if (!Object.hasOwn(RANGES, range)) return json({ error: 'Use a range of 7d, 30d or all' }, 400);
+  const figures = await starFigures(db, viewer, range);
+  return json({ ...figures, canvases: figures.canvases.slice(0, 100) });
+}
+
+// The figures, for this route and for creator analytics (publication-analytics.js), which passes its own range start
+// (UTC days, 'YYYY-MM-DD HH:MM:SS.SSS') as sinceAt; every canvas, each with its canonical name.
+export async function starFigures(db, viewer, range, sinceAt = undefined) {
   const mine = `${PUBLISHED} AND c.owner_email = ?1 AND c.org = ?2`; // ?1 the creator's principal, ?2 their workspace
-  const sinceAt = RANGES[range] ? (await db.prepare("SELECT strftime('%Y-%m-%d %H:%M:%f', 'now', ?) AS t").bind(RANGES[range]).first()).t : null;
+  if (sinceAt === undefined) sinceAt = RANGES[range] ? (await db.prepare("SELECT strftime('%Y-%m-%d %H:%M:%f', 'now', ?) AS t").bind(RANGES[range]).first()).t : null;
   const inRange = sinceAt ? 'AND e.at >= ?3' : '';
   const binds = [viewer.email, viewer.org, ...(sinceAt ? [sinceAt] : [])];
   const { results: canvases } = await db.prepare(`SELECT c.org, c.name AS canvas, c.title, p.token,
@@ -50,14 +57,14 @@ export async function starAnalytics(db, viewer, range) {
   };
   const per = canvases.map(r => {
     const rows = events.filter(e => e.org === r.org && e.canvas === r.canvas);
-    return { title: r.title, url: `/e/${r.token}`, current_stars: r.current_stars,
+    return { canvas: r.canvas, title: r.title, url: `/e/${r.token}`, current_stars: r.current_stars,
       ...(period ? { additions: sum(rows, 'added'), voluntary_removals: sum(rows, 'removed'), net_change: sum(rows, 'added') - sum(rows, 'removed') } : {}) };
-  }).sort((a, b) => b.current_stars - a.current_stars || a.title.localeCompare(b.title)).slice(0, 100);
-  return json({
+  }).sort((a, b) => b.current_stars - a.current_stars || a.title.localeCompare(b.title));
+  return {
     scope: 'published', range, definitions: DEFINITIONS, collection_started_at: started ? `${started.replace(' ', 'T')}Z` : null,
     // A range that begins before collection did covers a partly uncollected period; 'all' starts where collection did.
     partial: !!(started && sinceAt && started > sinceAt),
     current: { stars: canvases.reduce((n, r) => n + r.current_stars, 0), by_owner: canvases.reduce((n, r) => n + r.owner_stars, 0), by_others: canvases.reduce((n, r) => n + r.current_stars - r.owner_stars, 0) },
     period: period ?? NOT_COLLECTED, opens_from_stars: NOT_COLLECTED, canvases: per,
-  });
+  };
 }
