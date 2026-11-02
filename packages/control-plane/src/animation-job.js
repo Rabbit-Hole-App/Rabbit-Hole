@@ -431,7 +431,7 @@ export class AnimationJobs {
     if (payload.expectedAttempt !== job.attempt) return json({ job: publicAnimationJob(job) });
     const actions = recoveryOf(job);
     if (payload.action === 'revise_plan' && job.successor) return this.revise(job);
-    if (payload.action != null && (payload.action === 'edit_request' || !actions.includes(payload.action))) throw fail('This choice is no longer available. Reload the card to see what you can do now.', 409, 'recovery_stale');
+    if (payload.action != null && (payload.action === 'edit_request' || !actions.includes(payload.action))) throw fail('This choice is no longer available. The card shows what you can do now.', 409, 'recovery_stale');
     if (payload.action === 'revise_plan') return this.revise(job);
     if (actions.includes('retry_render')) {
       Object.assign(job, { stage: 'rendering', failure: null, stopReason: null, attempt: job.attempt + 1, deadline: Date.now() + ANIMATION_LIMITS.deadlines.jobMs });

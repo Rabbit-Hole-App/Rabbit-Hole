@@ -130,7 +130,11 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
       // An accepted Retry or Revise plan: the card waits again on the job the server answered (polling restarts), quietly.
       else if (name === 'retry') { const next = resumeAnimationJob(latest.current, data?.job); setJob(data?.job ?? null); if (next !== latest.current) { latest.current = next; (onChangeQuiet || onChange)(next); } }
       else await apply(data);
-    } catch (error) { setProblem(error.message); } finally { acting.current = false; setBusy(false); }
+    } catch (error) {
+      setProblem(error.message);
+      // A refused Retry (the offer changed meanwhile): the card shows what the server offers now.
+      if (name === 'retry' && error.status === 409) client.get(waiting.id).then(data => setJob(data?.job ?? null), () => {});
+    } finally { acting.current = false; setBusy(false); }
   };
   const shown = job || { stage: waiting.stage, ...(waiting.message ? { failure: { message: waiting.message } } : {}) };
   const running = animationRunning(shown), progress = animationProgress(shown), retry = animationRetry(shown), failed = shown.stage === 'failed';

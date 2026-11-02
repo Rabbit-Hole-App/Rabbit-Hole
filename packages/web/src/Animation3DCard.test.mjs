@@ -511,6 +511,18 @@ test('a failed job: its message and the job\'s own retry', async () => {
   assert.equal($('[data-animation-job-retry]').textContent.trim(), 'Try again');
 });
 
+test('a Retry the server refuses (its offer changed): the server\'s reason, and the card shows the offer as it is now', async () => {
+  let offer = ['new_attempt', 'edit_request'];
+  const fetchJson = async (path, options = {}) => {
+    if (options.method === 'POST') { offer = ['edit_request']; throw Object.assign(new Error('This choice is no longer available. The card shows what you can do now.'), { status: 409, data: { code: 'recovery_stale' } }); }
+    return { job: job({ id: 'j7', cardId: 'p7', stage: 'failed', terminal: true, attempt: 1, failure: { message: 'The AI service was busy.' }, recovery: offer }) };
+  };
+  await mount({ fetchJson, block: { id: 'p7', type: 'animation3d', title: 'X', animation3dJob: job({ id: 'j7', cardId: 'p7', stage: 'failed' }) } });
+  await press($('[data-animation-job-retry]'));
+  assert.match($('[role="alert"]').textContent, /no longer available/);
+  assert.equal($('[data-animation-job-retry]'), null);
+});
+
 test('a failed job offering only Edit shows no retry; after a reload the card asks the server before offering one', async () => {
   let answer = null;
   const calls = [];
