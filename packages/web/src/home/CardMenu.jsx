@@ -16,7 +16,7 @@ import { cardModel } from './provenance.js';
 import { DESCRIPTION_MAX, descriptionLength } from '../../../control-plane/src/canvas-description.js';
 import ProjectCanvases from './ProjectCanvases.jsx';
 import { affected, applyToAll, loadRows } from './project-access.js';
-import { ExplainerAnalytics } from '../CreatorAnalytics.jsx';
+import { CreatorAnalyticsDialog } from '../CreatorAnalytics.jsx';
 import { bumpThumbnail, coverBlob, coverProblem, ownThumbnail } from '../card-thumbnail.js';
 
 // Review fixtures (home/review-fixtures.js) have no page and are never sent to an API.
@@ -123,7 +123,7 @@ export function useCardMenu({ org, email, apps = [], onChanged, folders = null }
     new_canvas: (a) => setDialog({ kind: 'new-canvas', a, value: newCanvasTitle(projectCanvases(a.name, apps)) }),
     share: (a, tab = 'share') => setDialog({ kind: 'share', a, state: local(a), tab }),
     thumbnail: (a) => setDialog({ kind: 'cover', a }),
-    analytics: (a) => setDialog({ kind: 'analytics', a }),
+    analytics: (a) => setDialog({ kind: 'analytics', a, opener: menu?.anchor }),
     trash: (a) => setDialog({ kind: 'trash', a }),
   };
   // A row's own condition: Pin needs a signed-in person, Move to folder the page's folders, Analytics (creator-analytics-
@@ -201,7 +201,7 @@ export function useCardMenu({ org, email, apps = [], onChanged, folders = null }
           </span>
         )} />
     )}
-    {dialog?.kind === 'analytics' && <ExplainerAnalytics a={dialog.a} onClose={() => setDialog(null)} />}
+    {dialog?.kind === 'analytics' && <CreatorAnalyticsDialog canvas={dialog.a.name} opener={dialog.opener} onClose={() => setDialog(null)} />}
     {dialog?.kind === 'share' && (
       <ShareDialog a={dialog.a} state={dialog.state} tab={dialog.tab} canvases={dialog.a.kind === 'repository' ? projectCanvasesOf(dialog.a) : []} stateOf={(x) => local(x)}
         onClose={() => setDialog(null)} onChanged={() => ctx.onForked?.()} onManage={(x) => setDialog({ kind: 'share', a: x, state: local(x) })} />
