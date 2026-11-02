@@ -29,6 +29,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CANVAS = /^canvas-[a-f0-9]{8}$/;
 export const SOURCES = ['linkedin', 'explore', 'creator_profile', 'stars', 'direct', 'other_referrer'];
 const TAG = /^[a-z0-9._-]{1,40}$/, HOST = /^(?=.{1,100}$)[a-z0-9-]+(\.[a-z0-9-]+)+$/, STEP = /^[A-Za-z0-9:_.-]{1,120}$/;
+const isStep = id => typeof id === 'string' && STEP.test(id);
 const RANGES = { '7d': 7, '30d': 30, all: null };
 
 const learnerKey = (kind, id) => sha256Hex(`publication-learner:${kind}:${id}`);
@@ -79,11 +80,18 @@ const itemStatement = (db, at, kind, id, extra = null, once = false) => db.prepa
 export async function conversionStatements(db, { found, user, kind, item, materialId = null }) {
   const row = found?.row;
   if (!found?.publication || !row || row.board !== 'main' || !CANVAS.test(row.app) || !user?.email || user.email === row.owner_email) return [];
-  const now = new Date().toISOString(), state = sharedState(JSON.parse(row.state_json));
-  const at = { org: row.org, canvas: row.app, learner: await userKey(user), day: now.slice(0, 10), segment: await segmentOf(db, row.org, row.app, row.version, state, now) };
-  const entry = materialId ? cardsOf(state).get(materialId) : null;
-  return [learnerStatement(db, at.org, at.canvas, at.learner, 1, 0, now), dayStatement(db, at), itemStatement(db, at, kind, item, null, true),
-    ...(entry ? cardConcepts(entry).map(c => itemStatement(db, at, 'concept_deeper', c)) : [])];
+  // Analytics never costs a visitor their hole or fork: if preparing the row fails (storage, or the tables are missing) the action
+  // goes ahead uncounted, and the failure is logged.
+  try {
+    const now = new Date().toISOString(), state = sharedState(JSON.parse(row.state_json));
+    const at = { org: row.org, canvas: row.app, learner: await userKey(user), day: now.slice(0, 10), segment: await segmentOf(db, row.org, row.app, row.version, state, now) };
+    const entry = materialId ? cardsOf(state).get(materialId) : null;
+    return [learnerStatement(db, at.org, at.canvas, at.learner, 1, 0, now), dayStatement(db, at), itemStatement(db, at, kind, item, null, true),
+      ...(entry ? cardConcepts(entry).map(c => itemStatement(db, at, 'concept_deeper', c)) : [])];
+  } catch (error) {
+    console.error('analytics conversion not recorded', error?.message);
+    return [];
+  }
 }
 
 // POST /api/learn/boards/shared/<token>/events. found: sharedRow's answer for the token (null when the link is dead).
@@ -145,7 +153,7 @@ export async function ingestEvents(req, env, found) {
           out.push(db.prepare('INSERT INTO publication_sessions (session_key, org, canvas, learner_key, started_at) VALUES (?, ?, ?, ?, ?)').bind(sessionKey, org, canvas, learner, now));
         }
         // Total opens are sessions: a reload or a return inside the visit adds no open.
-        return accept(index, 'open', [dayStatement(db, at, { opens: fresh ? 1 : 0, source, campaign, host })]);
+        return accept(index, 'open', [dayStatement(db, at, { opens: fresh ? 1 : 0, source, campaign, host }), ...(fresh ? [itemStatement(db, at, 'open_source', source)] : [])]);
       }
       case 'active': {
         // Cumulative visible, recently active seconds from the browser. Credited: the increase over what this visit already
@@ -155,10 +163,13 @@ export async function ingestEvents(req, env, found) {
         if (total === null || !session) return;
         const from = Math.max(Date.parse(session.started_at), creditedThrough ? Date.parse(creditedThrough) : 0);
         const credit = Math.min(total - session.reported_active, Math.floor((Date.parse(now) - from) / 1000), LIMITS.session_active - session.credited_active);
-        if (credit <= 0) return accept(index, 'active', []);
-        session.reported_active += credit; session.credited_active += credit; creditedThrough = now;
-        return accept(index, 'active', [dayStatement(db, at, { active: credit }),
-          db.prepare('UPDATE publication_sessions SET reported_active = ?, credited_active = ? WHERE session_key = ?').bind(session.reported_active, session.credited_active, sessionKey)]);
+        if (total <= session.reported_active) return accept(index, 'active', []);
+        // The report settles this total: seconds the wall clock refused are gone, never carried into a later report.
+        session.reported_active = total;
+        const settled = db.prepare('UPDATE publication_sessions SET reported_active = ?, credited_active = ? WHERE session_key = ?');
+        if (credit <= 0) return accept(index, 'active', [settled.bind(total, session.credited_active, sessionKey)]);
+        session.credited_active += credit; creditedThrough = now;
+        return accept(index, 'active', [dayStatement(db, at, { active: credit }), settled.bind(total, session.credited_active, sessionKey)]);
       }
       case 'seen': case 'acted':
         if (!card) return;
@@ -168,18 +179,18 @@ export async function ingestEvents(req, env, found) {
         if (!short(e.resource_id) || !sources.has(e.resource_id)) return;
         return accept(index, 'resource', [dayStatement(db, at), itemStatement(db, at, 'resource', e.resource_id)]);
       case 'steps_shown': {
-        const shown = Array.isArray(e.suggestions) ? e.suggestions.filter(s => STEP.test(s?.id) && Number.isInteger(s.position) && s.position >= 1 && s.position <= 3).slice(0, 3) : [];
+        const shown = Array.isArray(e.suggestions) ? e.suggestions.filter(s => isStep(s?.id) && Number.isInteger(s.position) && s.position >= 1 && s.position <= 3).slice(0, 3) : [];
         if (!shown.length) return;
         return accept(index, 'steps_shown', [dayStatement(db, at), ...shown.map(s => itemStatement(db, at, 'step_shown', s.id, s.position))]);
       }
       case 'step_selected': {
-        if (!STEP.test(e.suggestion_id) || !Number.isInteger(e.position) || e.position < 1 || e.position > 3) return;
+        if (!isStep(e.suggestion_id) || !Number.isInteger(e.position) || e.position < 1 || e.position > 3) return;
         const concepts = Array.isArray(e.concept_ids) ? e.concept_ids.filter(c => allConcepts.has(c)).slice(0, 32) : [];
         return accept(index, 'step_selected', [dayStatement(db, at), itemStatement(db, at, 'step_selected', e.suggestion_id, e.position), ...concepts.map(c => itemStatement(db, at, 'concept_deeper', c))]);
       }
       case 'quiz': {
         // The outcome is decided here from the published card's own answer key, never by the browser; the choice is not stored.
-        const option = card?.type === 'quiz' && Array.isArray(card.options) ? card.options.find(o => o?.key === e.choice) : null;
+        const option = card?.type === 'quiz' && Array.isArray(card.options) ? card.options.find(o => typeof e.choice === 'string' && o?.key === e.choice) : null;
         if (!option) return;
         return accept(index, 'quiz', [dayStatement(db, at), itemStatement(db, at, 'quiz', e.material_id, option.correct ? 1 : 0, true)]);
       }
@@ -209,11 +220,15 @@ const protect = (value, cohort) => (cohort >= THRESHOLD ? { value, reason: null 
 const ratio = (n, d) => (d ? Math.round((n / d) * 10000) / 10000 : 0);
 const rate = (n, d) => protect(ratio(n, d), d);
 const dayPlus = (day, n) => new Date(Date.parse(`${day}T00:00:00Z`) + n * 86400e3).toISOString().slice(0, 10);
-// Complementary suppression: in a partition whose total is shown, one hidden cell could be recovered by subtraction, so the
-// smallest shown cell is hidden too. cells: [{ value }] mutable, in place.
+// Complementary suppression: in a partition whose total is shown, the hidden cells' sum can be recovered by subtraction, so while
+// it is 1 to 9 the smallest shown cell is hidden too. cells: [{ metric, n }] with n the true count, changed in place.
 function complement(cells) {
-  const shown = cells.filter(c => c.metric.value !== null);
-  if (cells.length - shown.length === 1 && shown.length) shown.sort((a, b) => a.metric.value - b.metric.value)[0].metric = hidden('complementary');
+  for (;;) {
+    const shown = cells.filter(c => c.metric.value !== null).sort((a, b) => a.n - b.n);
+    const left = cells.filter(c => c.metric.value === null).reduce((sum, c) => sum + c.n, 0);
+    if (!shown.length || left === 0 || left >= THRESHOLD) return;
+    shown[0].metric = hidden('complementary');
+  }
 }
 
 export const DEFINITIONS = Object.freeze({
@@ -291,13 +306,13 @@ export async function readAnalytics(db, viewer, { range, canvas = null, syntheti
   // Audience
   const visitors = whoOf(days), signed = whoOf(days.filter(r => r.signed));
   const anonymous = [...visitors].filter(w => !signed.has(w)).length;
-  const split = [{ metric: protect(signed.size, signed.size) }, { metric: protect(anonymous, anonymous) }];
+  const split = [{ n: signed.size, metric: protect(signed.size, signed.size) }, { n: anonymous, metric: protect(anonymous, anonymous) }];
   if (visitors.size >= THRESHOLD) complement(split);
   const pairs = new Map(), perWho = new Map(), daysOf = new Map();
   for (const r of days) {
     pairs.set(`${r.who}|${r.canvas}`, (pairs.get(`${r.who}|${r.canvas}`) || 0) + r.active_seconds);
     perWho.set(r.who, (perWho.get(r.who) || 0) + r.active_seconds);
-    daysOf.set(r.who, (daysOf.get(r.who) || new Set()).add(r.day));
+    if (r.opens > 0) daysOf.set(r.who, (daysOf.get(r.who) || new Set()).add(r.day));
   }
   const avgActive = (rowsOf, cohort) => { const p = new Map(); for (const r of rowsOf) p.set(`${r.who}|${r.canvas}`, (p.get(`${r.who}|${r.canvas}`) || 0) + r.active_seconds); return protect(p.size ? Math.round([...p.values()].reduce((a, b) => a + b, 0) / p.size) : 0, cohort); };
   const starts = itemsOf('start'), forks = itemsOf('fork');
@@ -310,7 +325,7 @@ export async function readAnalytics(db, viewer, { range, canvas = null, syntheti
   const starOf = name => stars.canvases.find(c => c.canvas === name);
   const inScope = list => list.filter(c => names.has(c.canvas));
   const periodSum = key => (stars.period?.value === null ? hidden('not_collected') : pub(inScope(stars.canvases).reduce((n, c) => n + (c[key] || 0), 0)));
-  const opensFromStars = days.filter(r => r.source === 'stars').reduce((n, r) => n + r.opens, 0);
+  const opensFromStars = itemsOf('open_source', 'stars').reduce((n, r) => n + r.n, 0);
 
   // Boards
   const boardRows = boards.map(b => {
@@ -340,7 +355,7 @@ export async function readAnalytics(db, viewer, { range, canvas = null, syntheti
   const concepts = conceptIds.map(id => {
     const saw = whoOf(itemsOf('concept_seen', id));
     return { concept_id: id, label: id, seen: protect(saw.size, saw.size), explored_rate: rate(within(whoOf(itemsOf('concept_explored', id)), saw), saw.size), deeper_rate: rate(within(whoOf(itemsOf('concept_deeper', id)), saw), saw.size) };
-  });
+  }).filter(c => c.seen.value !== null); // a row that exists only after activity would itself reveal a small cohort
   const shown = itemsOf('step_shown'), chosen = itemsOf('step_selected'), stepCohort = whoOf(shown).size;
   const sumN = list => list.reduce((n, r) => n + r.n, 0);
   const nextSteps = { impressions: protect(sumN(shown), stepCohort), selections: protect(sumN(chosen), stepCohort),
@@ -348,11 +363,11 @@ export async function readAnalytics(db, viewer, { range, canvas = null, syntheti
   const resources = one ? boardSources(one).map(s => { const by = whoOf(itemsOf('resource', sourceKey(s))).size; return { resource_id: sourceKey(s), label: s.title, opens: protect(by, by) }; }) : null;
   // Friction: a visitor's first recorded answer on a quiz card (their earliest day), never a later retry.
   const firstTry = new Map();
-  for (const r of itemsOf('quiz').sort((a, b) => a.day.localeCompare(b.day))) { const k = `${r.canvas}|${r.item_id}|${r.who}`; if (!firstTry.has(k)) firstTry.set(k, r.extra); }
+  for (const r of allItems.filter(i => i.kind === 'quiz').sort((a, b) => a.day.localeCompare(b.day))) { const k = `${r.canvas}|${r.item_id}|${r.who}`; if (!firstTry.has(k)) firstTry.set(k, r); }
   const quizzes = new Map();
-  for (const [k, correct] of firstTry) { const [c, id] = k.split('|'); const q = quizzes.get(`${c}|${id}`) || { canvas: c, material_id: id, assessed: 0, incorrect: 0 }; q.assessed += 1; q.incorrect += correct ? 0 : 1; quizzes.set(`${c}|${id}`, q); }
+  for (const [k, first] of firstTry) { if (first.day < from) continue; const correct = first.extra; const [c, id] = k.split('|'); const q = quizzes.get(`${c}|${id}`) || { canvas: c, material_id: id, assessed: 0, incorrect: 0 }; q.assessed += 1; q.incorrect += correct ? 0 : 1; quizzes.set(`${c}|${id}`, q); }
   const friction = [...quizzes.values()].map(q => ({ canvas: q.canvas, material_id: q.material_id, label: cardName(cardsOf(states.get(q.canvas) || {}).get(q.material_id)),
-    assessed: protect(q.assessed, q.assessed), incorrect: protect(q.incorrect, q.assessed), incorrect_rate: rate(q.incorrect, q.assessed) }));
+    assessed: protect(q.assessed, q.assessed), incorrect: protect(q.incorrect, q.assessed), incorrect_rate: rate(q.incorrect, q.assessed) })).filter(q => q.assessed.value !== null);
 
   // Before / after a revision (one board): the latest card-set segment against the one before it, over two periods of
   // equal length meeting at the revision, each cohort suppressed on its own.
@@ -382,7 +397,7 @@ export async function readAnalytics(db, viewer, { range, canvas = null, syntheti
     if (r.source && !firstSource.has(r.who)) { firstSource.set(r.who, r.source); if (r.referrer_host) hostsOf.set(r.who, r.referrer_host); }
     if (r.campaign) (campaignsOf.get(r.campaign) || campaignsOf.set(r.campaign, new Set()).get(r.campaign)).add(r.who);
   }
-  const bySource = SOURCES.map(source => { const n = [...firstSource.values()].filter(s => s === source).length; return { source, metric: protect(n, n) }; });
+  const bySource = SOURCES.map(source => { const n = [...firstSource.values()].filter(s => s === source).length; return { source, n, metric: protect(n, n) }; });
   if (visitors.size >= THRESHOLD) complement(bySource);
   const hostCounts = new Map();
   for (const h of hostsOf.values()) hostCounts.set(h, (hostCounts.get(h) || 0) + 1);

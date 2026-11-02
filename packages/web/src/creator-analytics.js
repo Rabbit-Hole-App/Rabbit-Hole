@@ -46,6 +46,10 @@ export const dateText = iso => (iso ? `${new Date(iso).toLocaleString('en-US', {
 // The follow-up board's composer text (contract "Create next"): labels and the board title only, never learner text.
 export const followUpPrompt = (label, title) => `Create a short interactive learning board about ${label}, informed by what visitors explored in my ${title || 'learning'} board.`;
 export const PREFILL_KEY = name => `rh-composer-prefill:${name}`;
+// Whether a canvas has a prompt waiting, without taking it. A blocked storage has none.
+export function hasPrefill(name, storage) {
+  try { return !!(storage ?? globalThis.sessionStorage)?.getItem(PREFILL_KEY(name)); } catch { return false; }
+}
 // Take (and drop) a pending composer prefill for this canvas. Reading the storage may throw (a blocked one): no prefill then.
 export function takePrefill(name, storage) {
   try {

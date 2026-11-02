@@ -234,7 +234,7 @@ function Learning({ data, onDraft, onReview }) {
       <Section title="Assessment-backed friction" data-analytics-friction>
         {p.outcomes?.readiness === 'unavailable' ? <Unavailable producer={p.outcomes} />
           : l.friction?.length ? <Table head={[['Card'], ['Assessed', true], ['Incorrect first answer', true], ['Rate', true]]} rows={l.friction.map(f => [f.label, <Value metric={f.assessed} />, <Value metric={f.incorrect} />, <Value metric={f.incorrect_rate} kind="rate" />])} />
-          : <p className="text-xs text-ink-2">No recorded quiz answers in this range.</p>}
+          : <p className="text-xs text-ink-2">No quiz card has at least 10 answers in this range.</p>}
         {p.outcomes?.note && p.outcomes.readiness !== 'unavailable' && <Explain>{p.outcomes.note}</Explain>}
       </Section>
       {l.revisions && <Section title="Before / after a revision" data-analytics-revisions>
