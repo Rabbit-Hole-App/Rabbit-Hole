@@ -179,6 +179,8 @@ export const gameFixture = {
     },
     parameters: [],
     actions: [{ id: 'east', label: 'East' }, { id: 'west', label: 'West' }, { id: 'north', label: 'North' }, { id: 'south', label: 'South' }],
+    // The camera looks along -z (north) with +x (east) to the right, so screen up is north.
+    keys: { up: 'north', down: 'south', left: 'west', right: 'east' },
     readouts: [{ id: 'moves', label: 'Moves', decimals: 0 }],
     game: { objective: 'Move the robot onto the target square in at most 10 moves.', hint: 'The target is 3 squares east and 2 squares south of the start.' },
     program: program(gridSource, '604ac89a65e2aa469fbac1177a4cd7a8be21197af5108ebc57f16243e630c14b'),
@@ -226,6 +228,9 @@ export const INVALID_ANIMATION_FIXTURES = Object.freeze([
   { name: 'missing program', kind: 'artifact', value: edit(experimentFixture.artifact, a => { delete a.program; }), code: 'missing_program', path: 'program' },
   { name: 'foreign program tuple', kind: 'artifact', value: edit(experimentFixture.artifact, a => { a.program.sdkVersion = 'sdk-1'; }), code: 'invalid_value', path: 'program.sdkVersion' },
   { name: 'shader source field', kind: 'artifact', value: edit(watchFixture.artifact, a => { a.scene.materials[0].fragmentShader = 'void main(){}'; }), code: 'unknown_field', path: 'scene.materials.0.fragmentShader' },
+  { name: 'key bound to an undeclared action', kind: 'artifact', value: edit(gameFixture.artifact, a => { a.keys.up = 'jump'; }), code: 'unknown_id', path: 'keys.up' },
+  { name: 'key bound to a non-id', kind: 'artifact', value: edit(gameFixture.artifact, a => { a.keys.left = 3; }), code: 'invalid_value', path: 'keys.left' },
+  { name: 'key other than a direction', kind: 'artifact', value: edit(gameFixture.artifact, a => { a.keys.hold = 'east'; }), code: 'unknown_field', path: 'keys.hold' },
   { name: 'frame html field', kind: 'frame', artifact: experimentFixture.artifact, value: { nodes: { beam: { html: '<b>x</b>' } } }, code: 'unknown_field', path: 'nodes.beam.html' },
   { name: 'frame url field', kind: 'frame', artifact: experimentFixture.artifact, value: { texture: 'https://example.com/a.png' }, code: 'unknown_field', path: 'texture' },
   { name: 'frame unknown node', kind: 'frame', artifact: experimentFixture.artifact, value: { nodes: { ghost: { visible: false } } }, code: 'unknown_id', path: 'nodes.ghost' },

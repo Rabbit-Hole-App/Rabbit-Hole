@@ -115,6 +115,10 @@ const ArtifactSchema = z.object({
   experience: z.enum(EXPERIENCES), behavior: z.enum(BEHAVIORS), controlProfile: z.enum(CONTROL_PROFILES), sourceRefs: z.array(sourceRef),
   scene: z.object({ materials: z.array(material), geometries: z.array(geometry), nodes: z.array(node) }).strict(),
   parameters: z.array(parameter), actions: z.array(z.object({ id, label: text(60) }).strict()),
+  // Directional keys (owner 2026-11-01): the declared action each direction's keys press (up: W or ArrowUp, down: S or ArrowDown, left: A
+  // or ArrowLeft, right: D or ArrowRight), as seen from the scene's camera. Discrete only: one action per key press, a held key never
+  // repeats it. Continuous movement would need its own declared capability; this field never grants it. Optional, so older artifacts validate.
+  keys: z.object({ up: id.optional(), down: id.optional(), left: id.optional(), right: id.optional() }).strict().optional(),
   readouts: z.array(z.object({ id, label: text(60), unit: z.string().max(16).optional(), decimals: int(0, 6).default(2) }).strict()),
   timeline: z.object({ duration: z.number().positive().max(600), loop: z.boolean() }).strict().optional(),
   stepped: z.boolean().default(false), // rules scene advanced by host step events at capabilities.stepSeconds
@@ -287,6 +291,9 @@ export function validateAnimationArtifact(value, capabilities) {
     if (new Set(names.map(item => item.id)).size !== names.length) add('parameters', 'duplicate_id', 'parameter, action and readout ids must be unique together');
     checkParameters(artifact.parameters, limits.parameters, add);
     if (artifact.actions.length > limits.actions) add('actions', 'over_limit', `${artifact.actions.length} actions (at most ${limits.actions})`);
+    for (const [direction, action] of Object.entries(artifact.keys ?? {})) {
+      if (!artifact.actions.some(a => a.id === action)) add(`keys.${direction}`, 'unknown_id', `the ${direction} key names "${action}", which is not a declared action`);
+    }
 
     const geometryById = new Map(geometries.map(g => [g.id, g])), materialIds = new Set(materials.map(m => m.id));
     const parentOf = new Map(nodes.map(n => [n.id, n.parent]));

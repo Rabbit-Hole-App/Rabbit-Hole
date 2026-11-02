@@ -32,6 +32,7 @@ export const ARTIFACT_DRAFT = {
       geometries: { type: 'array', items: GEOMETRY }, nodes: { type: 'array', items: NODE } } },
     parameters: { type: 'array', maxItems: 8, items: PLAN_PARAMETER },
     actions: { type: 'array', maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: ID, label: { type: 'string', maxLength: 60 } } } },
+    keys: { type: 'object', additionalProperties: false, properties: { up: ID, down: ID, left: ID, right: ID }, description: 'Optional: for moves that go up, down, left or right as seen from the camera, the id of the declared action each direction presses; the learner then plays them with the arrow keys or WASD, one action per key press.' },
     readouts: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: ID, label: { type: 'string', maxLength: 60 }, unit: { type: 'string', maxLength: 16 }, decimals: { type: 'integer', minimum: 0, maximum: 6 } } } },
     timeline: { type: 'object', additionalProperties: false, required: ['duration', 'loop'], properties: { duration: { type: 'number' }, loop: { type: 'boolean' } }, description: 'Required for watch.' },
     stepped: { type: 'boolean', description: 'rules only: the host sends a step event every 1/30 s. Required for a motion an action starts (a launch, a drop): without steps or a timeline time never advances.' },
@@ -93,7 +94,7 @@ ${COMPACT_RULES}
 ${VIEW_RULES}
 - watch: a timeline {duration, loop}; evaluate draws the moment at time.
 - experiment: the plan's parameters; changing one changes geometry and readouts together.
-- game: game {objective, hint}, actions the learner presses (or selectable/draggable nodes), state from initialState and reduce, and frame.goal with the outcome derived from the state.
+- game: game {objective, hint}, actions the learner presses (or selectable/draggable nodes), state from initialState and reduce, and frame.goal with the outcome derived from the state. A scene whose moves go up, down, left or right on screen declares keys, binding each direction to its own action id.
 - inspect: a static scene; a program only if it has parameters or readouts.
 ${PROGRAM}
 Write it from the request, plan and evidence; do not reproduce a stock example. If the plan cannot be built within the capabilities, return kind capability_gap with the reason instead of a weaker substitute.

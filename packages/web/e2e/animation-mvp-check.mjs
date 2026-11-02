@@ -31,7 +31,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('animation-mvp-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'animation-mvp-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 34; // bump with the steps below; the printed line is what CI reads
+const TOTAL = 35; // bump with the steps below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `anim-${run}@example.com`, secret, handle: `anim_${run}` }) })).json();
@@ -347,6 +347,26 @@ try {
     await G.reset.click();
     await page.waitForTimeout(500);
     await sameGame([], 'after Reset');
+  });
+  // Owner 2026-11-01: the game declares keys (up north, down south, left west, right east); while its card interacts WASD and the
+  // arrows play the same moves as the buttons, one per press, and the canvas stays put; Escape hands the keys back.
+  await step('game: inside Interact the arrow keys and WASD play the moves as the buttons do, one per press, the canvas still; Escape ends it', async () => {
+    await G.interact.click();
+    await until(() => active(G), 'Interact did not start');
+    assert.equal((await G.card.locator('[data-animation-keys-hint]').innerText()).trim(), 'Move: WASD / arrow keys · Esc to exit');
+    const from = await box(G.viewport);
+    await page.keyboard.down('ArrowRight'); await page.keyboard.down('ArrowRight'); await page.keyboard.up('ArrowRight'); // the second is a repeat
+    for (const key of ['d', 'ArrowRight', 'ArrowDown', 's']) await page.keyboard.press(key);
+    await page.waitForTimeout(500);
+    await sameGame(game.winningRoute, 'after the winning route by keys');
+    assert.ok(Math.abs((await box(G.viewport)).y - from.y) < 2 && Math.abs((await box(G.viewport)).x - from.x) < 2, 'the keys neither scrolled the page nor moved the canvas');
+    await page.keyboard.press('Escape');
+    await until(async () => !(await active(G)), 'Escape did not end the interaction');
+    await G.reset.click();
+    await page.waitForTimeout(500);
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(300);
+    await sameGame([], 'a key after Escape moves nothing');
   });
 
   // ---- Focus and gestures (AN-03; plan section 4 "Stable control profiles", interaction.js) ----

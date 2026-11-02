@@ -8,7 +8,7 @@ import { watchSeen } from './explain-program/playback.js';
 import { ANIMATION_JOB_EVENT, animationClient, animationProgress, animationRetry, animationRunning, animationStage, readyResult } from './animation3d/client.js';
 import {
   artifactRefOf, cardPhase, detectWebGL, EXPERIENCE_LABELS, failureText, FIXTURE_LABEL, FIXTURE_NOTE, fixtureIdOf, INTERACT_LEGEND,
-  jobOf, retryLabel, visibleControls, WEBGL_UNAVAILABLE,
+  jobOf, keyAction, KEYS_HINT, retryLabel, visibleControls, WEBGL_UNAVAILABLE,
 } from './animation3d/card.js';
 import { ANIMATION_FIXTURES } from './animation3d/fixtures.js';
 import { cancelAnimationJob, createAnimationSaver, hydrateAnimation, landHydration, nextView, settleAnimationJob } from './animation3d/storage.js';
@@ -17,7 +17,7 @@ import { createAnimationRenderer } from './animation3d/renderer.js';
 import { AnimationBoard } from './animation3d/board-context.js';
 import { EXPLAIN_BRIEF_EVENT } from './explain-client.js';
 import { createCardSession } from './animation3d/session.js';
-import { useSceneInteraction } from './animation3d/interaction.js';
+import { editableTarget, useSceneInteraction } from './animation3d/interaction.js';
 import { Actions, buttonClass, GamePanel, leadControls, PrimaryReadout, Readouts, ResetState, Settings, Toolbar } from './animation3d/Controls.jsx';
 
 // The Animation card (`animation3d` block; plan section 4, AN-03): a live 3D scene a learner can watch, inspect, adjust or
@@ -265,11 +265,22 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
     return () => observer.disconnect();
   }, [model]);
   const title = model?.title || block.title || 'Animation';
+  // The scene's directional keys (artifact keys), only while this card interacts: the same validated path and disabled state as its
+  // move buttons (session.js action), one move per press (a held key's repeats are taken but never sent, so nothing is ever held), and
+  // never from a field, select, slider or dialog inside the card. A taken key goes no further: no page scroll, canvas nudge or camera move.
+  const keys = model && Object.keys(model.keys).length > 0;
+  const gameKey = event => {
+    const action = keys && interaction.active ? keyAction(model.keys, event) : null;
+    const dialog = action && event.target?.closest?.('[role="dialog"],[aria-modal="true"]');
+    if (!action || editableTarget(event.target) || (dialog && root.current?.contains(dialog))) return;
+    event.preventDefault(); event.stopPropagation();
+    if (!event.repeat && runtimeReady) live.action(action);
+  };
 
   return (
     <div ref={root} data-animation3d-card data-animation-phase={phase} data-animation-experience={model?.experience}
       data-animation-time={model ? state.time.toFixed(3) : undefined} data-animation-duration={model?.loop?.duration}
-      className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3">
+      onKeyDownCapture={gameKey} className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3">
       <Header title={title} experience={model?.experience} fixture={fixture} />
       {fixture && (
         <div data-animation-fixture-note className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-2" onPointerDown={event => event.stopPropagation()}>
@@ -309,7 +320,7 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
         {webglOk && state.artifact && !interaction.active && phase !== 'recovery' && (
           <div data-animation-click-surface onPointerDown={event => { press.current = { x: event.clientX, y: event.clientY }; }} onClick={click} className="absolute inset-0 cursor-pointer" />
         )}
-        {interaction.active && <p data-animation-legend className="pointer-events-none absolute bottom-2 left-2 rounded bg-white/85 px-1.5 py-0.5 text-[11px] text-ink-2">{INTERACT_LEGEND}</p>}
+        {interaction.active && <p data-animation-legend className="pointer-events-none absolute bottom-2 left-2 rounded bg-white/85 px-1.5 py-0.5 text-[11px] text-ink-2">{INTERACT_LEGEND}{keys && <span data-animation-keys-hint className="block">{KEYS_HINT}</span>}</p>}
       </div>
       <p id={descriptionId} data-animation-description className={phase === 'unavailable' ? 'text-xs text-ink' : 'sr-only'}>{model?.description || ''}</p>
       {/* The main toolbar, directly under the viewport and outside the scrolling region, so it is always in reach. */}

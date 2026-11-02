@@ -11,6 +11,7 @@ export const EXPERIENCE_LABELS = Object.freeze({ inspect: 'Inspect', watch: 'Wat
 export const FIXTURE_LABEL = 'Example';
 export const FIXTURE_NOTE = 'Built-in example scene for trying the controls. It was not generated from a request.';
 export const INTERACT_LEGEND = 'Drag to orbit · Scroll to zoom · Right-drag to pan · Esc to finish';
+export const KEYS_HINT = 'Move: WASD / arrow keys · Esc to exit';
 
 // --- The block's fields the card reads ---
 export const jobOf = block => block?.animation3dJob ?? null;
@@ -32,6 +33,7 @@ export function cardModel(artifact, capabilities = ANIMATION_CAPABILITIES) {
     goal: artifact.experience === 'game' && artifact.game ? { objective: artifact.game.objective, hint: artifact.game.hint ?? '' } : null,
     parameters: artifact.parameters,
     actions: artifact.actions,
+    keys: artifact.keys ?? {}, // direction -> declared action id (contract.js keys)
     readouts: artifact.readouts,
     assumptions: artifact.assumptions ?? [],
     camera: artifact.camera,
@@ -121,6 +123,11 @@ export const eventFor = {
   action: action => ({ type: 'action', action }),
   select: node => ({ type: 'select', node }),
 };
+// A key press as the scene's directional binding (owner 2026-11-01): the declared action its direction presses, else null. Never with
+// Ctrl, Alt or Meta held, so the browser's and the canvas's shortcuts stay theirs. Letters by their key, so Caps Lock still moves.
+const KEY_DIRECTIONS = Object.freeze({ arrowup: 'up', w: 'up', arrowdown: 'down', s: 'down', arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right' });
+export const keyAction = (keys, event) => (event.ctrlKey || event.altKey || event.metaKey ? null : keys?.[KEY_DIRECTIONS[String(event.key).toLowerCase()]] ?? null);
+
 // The runtime answers a dispatch with accepted-or-rejected.
 export const accepted = result => result === true || result?.accepted === true || result?.ok === true;
 

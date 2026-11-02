@@ -196,6 +196,145 @@ test('game fixture: goal, outcome from the program, its moves as buttons, hint o
   noEllipsis();
 });
 
+// Directional keys (owner 2026-11-01): a scene that declares keys (fixtures.js gameFixture: up north, down south, left west, right
+// east) is played with WASD or the arrow keys while its card interacts, through the buttons' own path.
+const keydown = async (target, key, over = {}) => {
+  const event = Object.assign(new window.Event('keydown', { bubbles: true, cancelable: true }), { key, repeat: false, ctrlKey: false, altKey: false, metaKey: false, shiftKey: false, ...over });
+  await B.act(async () => { target.dispatchEvent(event); });
+  await settle();
+  return event;
+};
+const gameState = (scope = document) => ({
+  robot: JSON.parse(scope.querySelector('[data-animation-viewport]').getAttribute('data-animation-frame')).nodes.robot.position,
+  moves: Number(scope.querySelector('[data-animation-readout="moves"]').getAttribute('data-value')),
+  status: scope.querySelector('[data-animation-game]').getAttribute('data-animation-game'),
+});
+const gameBlock = (id = 'k1') => ({ id, type: 'animation3d', fixtureId: 'grid-robot-game' });
+const actionsSent = log => log.filter(event => event?.type === 'action').map(event => event.action);
+const interacting = (scope = document) => scope.querySelector('[data-animation-viewport]').hasAttribute('data-viewer-active');
+const KEYS = ['w', 'ArrowUp', 'a', 'ArrowLeft', 'd', 'ArrowRight', 's', 'ArrowDown', 'D'];
+const MOVES = ['north', 'north', 'west', 'west', 'east', 'east', 'south', 'south', 'east'];
+
+test('game keys: WASD and the arrow keys press the declared moves on the buttons\' own path: the same events, frames, moves and win', async () => {
+  await mount({ block: gameBlock() });
+  const byButton = [];
+  for (const move of MOVES) { await press($(`[data-animation-action="${move}"]`)); byButton.push(gameState()); }
+  await mount({ block: gameBlock() });
+  await press($('[data-animation-interact]'));
+  const byKey = [];
+  for (const key of KEYS) { const event = await keydown($('[data-animation-viewport]'), key); assert.equal(event.defaultPrevented, true, `${key} is taken`); byKey.push(gameState()); }
+  assert.deepEqual(byKey, byButton, 'every key step matches the button step');
+  assert.deepEqual(byKey.at(-1), { robot: [3, 0.3, 2], moves: 9, status: 'won' });
+  assert.equal((await keydown($('[data-animation-viewport]'), 'ArrowLeft')).defaultPrevented, true);
+  assert.deepEqual(gameState(), byKey.at(-1), 'a move after winning is ignored by the rules, as a button press is');
+  // The runtime hears exactly what the buttons send.
+  const sent = async drive => { const runtimes = stubRuntimes(); await mount({ runtimes, block: gameBlock() }); await drive(); return actionsSent(runtimes.log); };
+  const buttons = await sent(async () => { for (const move of MOVES) await press($(`[data-animation-action="${move}"]`)); });
+  const keys = await sent(async () => { await press($('[data-animation-interact]')); for (const key of KEYS) await keydown($('[data-animation-viewport]'), key); });
+  assert.deepEqual(buttons, MOVES);
+  assert.deepEqual(keys, buttons);
+});
+
+test('game keys: only while interacting; a held key moves once; chords and other keys pass; nothing while the moves are disabled; the hint only with bindings', async () => {
+  const runtimes = stubRuntimes();
+  await mount({ runtimes, block: gameBlock() });
+  const viewport = () => $('[data-animation-viewport]');
+  assert.equal((await keydown(viewport(), 'ArrowRight')).defaultPrevented, false, 'before Interact the key is the page\'s');
+  assert.deepEqual(actionsSent(runtimes.log), []);
+  await press($('[data-animation-interact]'));
+  assert.equal($('[data-animation-keys-hint]').textContent, 'Move: WASD / arrow keys · Esc to exit');
+  assert.ok($('[data-animation-keys-hint]').closest('[data-animation-legend]'));
+  await keydown(viewport(), 'ArrowRight');
+  const held = await keydown(viewport(), 'ArrowRight', { repeat: true });
+  await keydown(viewport(), 'd', { repeat: true });
+  assert.equal(held.defaultPrevented, true, 'a repeat is still taken (no page scroll)');
+  assert.deepEqual(actionsSent(runtimes.log), ['east'], 'one move per press; auto-repeat sends nothing');
+  for (const [key, over] of [['ArrowRight', { ctrlKey: true }], ['d', { metaKey: true }], ['a', { altKey: true }], ['x', {}], [' ', {}], ['Enter', {}], ['PageDown', {}]]) {
+    assert.equal((await keydown(viewport(), key, over)).defaultPrevented, false, `${key} ${JSON.stringify(over)} passes`);
+  }
+  assert.deepEqual(actionsSent(runtimes.log), ['east']);
+  // The moves disabled (the runtime stopped): the keys send nothing either.
+  await B.act(async () => { runtimes.made[0].fail(Object.assign(new Error('stopped'), { code: 'timeout' })); });
+  await settle();
+  assert.equal($('[data-animation-action="east"]').disabled, true);
+  await keydown(viewport(), 'd');
+  assert.deepEqual(actionsSent(runtimes.log), ['east'], 'a disabled move is not sent by a key');
+  // A scene with no bindings: no hint, and the arrows stay the page's.
+  await mount({ runtimes: stubRuntimes(), block: { id: 'e1', type: 'animation3d', fixtureId: 'beam-balance-experiment' } });
+  await press($('[data-animation-interact]'));
+  assert.ok($('[data-animation-legend]'));
+  assert.equal($('[data-animation-keys-hint]'), null);
+  assert.equal((await keydown(viewport(), 'ArrowUp')).defaultPrevented, false);
+});
+
+test('game keys: fields, sliders, selects, editable text and dialogs inside the card keep their keys; a field outside never moves it', async () => {
+  const runtimes = stubRuntimes();
+  await mount({ runtimes, block: gameBlock() });
+  await press($('[data-animation-interact]'));
+  const make = html => { const holder = document.createElement('div'); holder.innerHTML = html; return holder.firstChild; };
+  const inside = [
+    ['<input type="text">'], ['<textarea></textarea>'], ['<select><option>a</option></select>'], ['<input type="range">'],
+    ['<div contenteditable="true"></div>', node => node], ['<div role="dialog"><button type="button">OK</button></div>', node => node.firstChild],
+    ['<div aria-modal="true"><button type="button">OK</button></div>', node => node.firstChild],
+  ];
+  for (const [html, pick = node => node] of inside) {
+    const node = make(html);
+    $('[data-animation-controls]').appendChild(node);
+    for (const key of ['ArrowLeft', 'd']) assert.equal((await keydown(pick(node), key)).defaultPrevented, false, `${html} keeps ${key}`);
+    node.remove();
+  }
+  const chat = document.createElement('textarea');
+  document.body.appendChild(chat);
+  await keydown(chat, 'ArrowRight');
+  chat.remove();
+  assert.deepEqual(actionsSent(runtimes.log), [], 'no key typed in a field moved the scene');
+  assert.equal(interacting(), true, 'still interacting');
+  await keydown($('[data-animation-action="east"]'), 'ArrowDown');
+  assert.deepEqual(actionsSent(runtimes.log), ['south'], 'a key with the focus on a move button still plays: the card is the one interacting');
+});
+
+test('game keys: two cards on one canvas: only the interacting card moves; switching cards, Escape, blur and a hidden tab leave nothing held', async () => {
+  if (root) await B.act(async () => root.unmount());
+  B.resetViewers();
+  document.getElementById('app').innerHTML = '';
+  root = B.createRoot(document.getElementById('app'));
+  const runtimes = realRuntimes(), renderers = stubRenderers();
+  const props = block => ({ key: block.id, block, onChange() {}, onChangeQuiet() {}, createRuntime: runtimes.factory, createRenderer: renderers.factory, webgl: true });
+  await B.act(async () => { root.render(B.createElement('div', null, B.createElement(B.Card, props(gameBlock('ka'))), B.createElement(B.Card, props(gameBlock('kb'))))); });
+  await settle();
+  const [a, b] = $$('[data-animation3d-card]');
+  const at = (card, selector) => card.querySelector(selector);
+  await press(at(a, '[data-animation-interact]'));
+  await keydown(at(a, '[data-animation-viewport]'), 'd');
+  assert.deepEqual([gameState(a).moves, gameState(b).moves], [1, 0]);
+  await press(at(b, '[data-animation-interact]'));
+  assert.deepEqual([interacting(a), interacting(b)], [false, true], 'entering one card ends the other');
+  assert.equal((await keydown(at(a, '[data-animation-viewport]'), 'd')).defaultPrevented, false, 'the card left behind takes no key');
+  await keydown(at(b, '[data-animation-viewport]'), 's');
+  assert.deepEqual([gameState(a).robot, gameState(b).robot], [[1, 0.3, 0], [0, 0.3, 1]], 'each card moved only by its own keys');
+  await B.act(async () => { window.dispatchEvent(Object.assign(new window.Event('keydown', { bubbles: true, cancelable: true }), { key: 'Escape' })); });
+  await settle();
+  assert.equal(interacting(b), false, 'Escape ends the interaction');
+  assert.equal((await keydown(at(b, '[data-animation-viewport]'), 's')).defaultPrevented, false, 'after Escape the keys are the page\'s again');
+  assert.equal(gameState(b).moves, 1);
+  // Window blur and a hidden tab while a key is down: the key's repeats after coming back move nothing; the next press moves once.
+  await press(at(b, '[data-animation-interact]'));
+  for (const lose of [() => window.dispatchEvent(new window.Event('blur')), () => {
+    Object.defineProperty(document, 'hidden', { value: true, configurable: true });
+    document.dispatchEvent(new window.Event('visibilitychange'));
+    delete document.hidden;
+  }]) {
+    const before = gameState(b).moves;
+    await B.act(async () => { lose(); });
+    await settle();
+    await keydown(at(b, '[data-animation-viewport]'), 'd', { repeat: true });
+    assert.equal(gameState(b).moves, before, 'a held key does not keep moving');
+    await keydown(at(b, '[data-animation-viewport]'), 'd');
+    assert.equal(gameState(b).moves, before + 1, 'a fresh press moves once');
+  }
+  assert.equal(gameState(a).moves, 1, 'the other card never moved');
+});
+
 // The primary/secondary split (owner 2026-10-31): the plan's first parameter leads (a game's moves instead); a prominent readout
 // only for an experiment (its first) or a game (its first, if any), never a watch or inspect scene.
 test('leadControls: first parameter primary, the rest secondary; a prominent readout by experience; none when empty', () => {
