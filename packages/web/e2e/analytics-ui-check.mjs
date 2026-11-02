@@ -380,40 +380,51 @@ await check('19 nobody else sees Analytics: not on the owner\'s Explore card, no
   await other.getByRole('button', { name: 'Rename', exact: true }).waitFor();
   assert.equal(await other.locator('[data-menu-analytics]').count(), 0, mine.name);
 });
-await check('20 a real visit: the signed-out page itself sends the open, its source and the card events; a reload adds no open; the owner\'s visit is dropped; an unlisted link sends nothing', async () => {
+await check('20 a real visit: the signed-out page itself sends the open, its source and the card events and the owner reads it; a reload adds no open; the owner\'s visit counts nothing; an unlisted link sends nothing', async () => {
   const visited = await canvas(owner, 'Browser visit');
   const visitedToken = await publish(owner, visited);
+  const opens = async () => (await read(owner, visited.name, '7d')).body.overview.total_opens.value;
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
+  // Keepalive fetches can lack a page-level response, so what was sent comes from the request and what it did from the owner's read.
+  const watch = (target, list) => target.on('request', request => { if (request.method() === 'POST' && request.url().endsWith(`/shared/${visitedToken}/events`)) list.push(request.postDataJSON()); });
   const sent = [];
-  const watch = (target, list, url) => target.on('response', async response => { if (response.request().method() === 'POST' && response.url().endsWith(url)) list.push({ body: response.request().postDataJSON(), answer: await response.json().catch(() => null) }); });
-  watch(page, sent, `/shared/${visitedToken}/events`);
-  const typesSent = () => sent.flatMap(batch => batch.body.events.map(event => event.type));
-  const until = async (ok, what, ms = 30000) => { const end = Date.now() + ms; while (!ok()) { if (Date.now() > end) throw Error(`${what}: sent ${JSON.stringify(typesSent())}`); await page.waitForTimeout(250); } };
+  watch(page, sent);
+  const typesSent = () => sent.flatMap(batch => batch.events.map(event => event.type));
+  const until = async (ok, what, ms = 30000) => {
+    const end = Date.now() + ms;
+    while (!(await ok())) {
+      if (Date.now() > end) {
+        const seen = await page.evaluate(token => ({ path: location.pathname, cards: document.querySelectorAll('[data-block-id]').length, visit: !!sessionStorage.getItem(`rh-pub:${token}`), browser: !!localStorage.getItem('rh-visitor-id') }), visitedToken).catch(() => null);
+        throw Error(`${what}: sent ${JSON.stringify(typesSent())}, opens ${await opens()}, page ${JSON.stringify(seen)}, errors ${JSON.stringify(errors)}`);
+      }
+      await page.waitForTimeout(250);
+    }
+  };
   await page.goto(`${BASE}/e/${visitedToken}?utm_source=linkedin&utm_campaign=Browser-Check&private=dropped`);
-  await until(() => typesSent().includes('open'), 'the open');
-  const open = sent.flatMap(batch => batch.body.events).find(event => event.type === 'open');
-  assert.deepEqual([open.source, open.campaign], ['linkedin', 'browser-check'], 'the source from the arrival, the tag sanitized');
+  await until(async () => (await opens()) === 1, 'the visit reaching the owner\'s read');
+  const open = sent.flatMap(batch => batch.events).find(event => event.type === 'open');
+  assert.deepEqual([open?.source, open?.campaign], ['linkedin', 'browser-check'], 'the source from the arrival, the tag sanitized');
   assert.ok(!JSON.stringify(sent).includes('private=dropped'), 'no other query is sent');
-  assert.match(sent[0].body.visitor_id, /^[0-9a-f-]{36}$/);
-  assert.equal(sent[0].answer.accepted >= 1, true, 'the server accepted it');
+  assert.match(sent[0].visitor_id, /^[0-9a-f-]{36}$/);
   const card = page.locator('[data-block-id]').first();
   await card.waitFor({ timeout: 60000 });
   await card.click();
   await until(() => typesSent().includes('acted') && typesSent().includes('seen') && typesSent().includes('active'), 'the card events and active time');
-  assert.equal((await read(owner, visited.name, '7d')).body.overview.total_opens.value, 1, 'the visit reached the owner\'s read');
   const before = sent.length;
   await page.reload();
   await until(() => sent.length > before, 'the reload\'s batch');
-  assert.equal((await read(owner, visited.name, '7d')).body.overview.total_opens.value, 1, 'a reload inside the visit adds no open');
+  await page.waitForTimeout(1000);
+  assert.equal(await opens(), 1, 'a reload inside the visit adds no open');
   await context.close();
   const mine = await contextFor(owner), ownSent = [];
-  watch(mine, ownSent, `/shared/${visitedToken}/events`);
+  watch(mine, ownSent);
   await mine.goto(`${BASE}/e/${visitedToken}`);
   for (let i = 0; i < 120 && !ownSent.length; i += 1) await mine.waitForTimeout(250);
-  assert.equal(ownSent[0]?.answer?.dropped, 'own_visit', 'the owner\'s own visit is dropped');
-  assert.equal((await read(owner, visited.name, '7d')).body.overview.total_opens.value, 1);
+  assert.ok(ownSent.length > 0, 'the owner\'s page reports too, and the server drops it');
+  await mine.waitForTimeout(1000);
+  assert.equal(await opens(), 1, 'the owner\'s own visit counts nothing');
   const shared = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const sharedPage = await shared.newPage(), sharedSent = [];
   sharedPage.on('request', request => { if (request.url().endsWith('/events')) sharedSent.push(request.url()); });
