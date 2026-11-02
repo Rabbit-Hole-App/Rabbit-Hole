@@ -7,8 +7,13 @@
 // another site's referrer, and no free text in any property. The account is users.id from GET /api/me (32 hex characters),
 // never an email, a handle or a .rabbithole.invalid principal. RH's accounting and operational telemetry stay authoritative;
 // this is an engagement view only. Every public function swallows its own failures: analytics never blocks the app.
+// Nothing runs without the visitor's acceptance (analytics-consent.js): before it, no identifier is created or read and nothing is
+// queued; every operation checks again, so a withdrawal stops it at once, whichever tab it came from.
 import { routeTemplate } from '../../control-plane/src/telemetry-contract.js';
 import { browserClass, hash16 } from './client-telemetry.js';
+import { CONSENT_EVENT, CONSENT_KEY, allowed, clearAnalyticsStorage, configured, consentOf, mirrorConsentCookie, optedOut } from './analytics-consent.js';
+
+export { optedOut };
 
 export const IDLE_MS = 60_000;                         // active time stops this long after the last input (estimate, not attention)
 export const SESSION_IDLE_MS = 30 * 60_000;            // PostHog's session rules: a new $session_id after 30 idle minutes
@@ -75,8 +80,6 @@ export function uuidv7(ms, random = globalThis.crypto) {
 // The person mark for an account. rh_internal is this code's own; $internal_or_test_user is the person property the PostHog project's
 // existing test-account filter reads (cohort 612497, exact true; PostHog's setInternalOrTestUser sets the same property).
 export const personMark = internal => ({ rh_internal: !!internal, $internal_or_test_user: !!internal });
-// Do Not Track and Global Privacy Control turn collection off for that browser (the Privacy Policy's analytics choice).
-export const optedOut = navigator => navigator?.globalPrivacyControl === true || navigator?.doNotTrack === '1' || navigator?.doNotTrack === 'yes';
 
 // Storage shared by every tab of the site, read on every use so a logout or account change in one tab reaches the others.
 // Unavailable storage (private mode, blocked) falls back to this page's memory.
@@ -90,16 +93,19 @@ function store(target) {
   };
 }
 
-// config: { token, host, env } from the build; no token or host, or an opted-out browser, and every method does nothing.
-export function createAnalytics(target, { token, host, env = 'unknown', send = null, now = () => Date.now(), schedule = (fn, ms) => setTimeout(fn, ms), random = target.crypto || globalThis.crypto } = {}) {
-  const enabled = typeof token === 'string' && token.startsWith('phc_') && /^https:\/\/[a-z0-9.-]+$/i.test(host || '') && !optedOut(target.navigator);
+// config: { token, host, env } from the build; no token or host, an opted-out browser or no accepted choice, and every method does nothing.
+export function createAnalytics(target, { token, host, env = 'unknown', send = null, now = () => Date.now(), schedule = (fn, ms) => setTimeout(fn, ms), cancel = clearTimeout, random = target.crypto || globalThis.crypto } = {}) {
+  const enabled = allowed(target, { token, host });
+  const sends = new AbortController();
   const s = store(target);
   const origin = target.location?.origin || '';
   const windowId = uuidv7(now(), random);
   const classes = browserClass(target.navigator?.userAgent);
-  const post = send || ((body, { keepalive }) => target.fetch(`${host}/batch/`, { method: 'POST', body, keepalive, headers: { 'Content-Type': 'text/plain' }, credentials: 'omit' }).then(r => r.status));
+  const post = send || ((body, { keepalive }) => target.fetch(`${host}/batch/`, { method: 'POST', body, keepalive, headers: { 'Content-Type': 'text/plain' }, credentials: 'omit', signal: sends.signal }).then(r => r.status));
   const queue = [];
   let timer = null, sending = false, stopped = false, lastPath = null;
+  // Checked by every operation: consent is read again, so this tab stops even before another tab's storage event arrives.
+  const on = () => enabled && !stopped && consentOf(target) === 'accepted';
 
   const anonId = () => s.get(KEY.anon) || (s.set(KEY.anon, random.randomUUID()), s.get(KEY.anon));
   const distinctId = () => s.get(KEY.account) || anonId();
@@ -177,7 +183,7 @@ export function createAnalytics(target, { token, host, env = 'unknown', send = n
     enabled,
     // One $pageview per change of the sanitized path (a reload is a new page load, so it counts again).
     pageview(pathname = target.location?.pathname) {
-      if (!enabled) return;
+      if (!on()) return;
       try {
         const path = pagePath(pathname);
         if (path === lastPath) return;
@@ -189,7 +195,7 @@ export function createAnalytics(target, { token, host, env = 'unknown', send = n
     // An allowlisted feature event. once: an id (job, generation) recorded per browser, so a poll that sees the same finished job
     // again after a reload does not count it twice.
     track(name, props = {}, { once = null } = {}) {
-      if (!enabled) return false;
+      if (!on()) return false;
       try {
         const clean = sanitize(name, props);
         if (!clean) return false;
@@ -205,7 +211,7 @@ export function createAnalytics(target, { token, host, env = 'unknown', send = n
     // The signed-in account. A different account than the one this browser last identified is never merged into it: its
     // identity is cleared first, so the new account starts from a fresh anonymous id.
     identify(accountId, { internal = false } = {}) {
-      if (!enabled || !ACCOUNT_ID.test(accountId || '')) return;
+      if (!on() || !ACCOUNT_ID.test(accountId || '')) return;
       try {
         const t = now();
         sync(t);
@@ -225,7 +231,7 @@ export function createAnalytics(target, { token, host, env = 'unknown', send = n
     },
     // Logout or a signed-out page: a fresh anonymous id and session, no account, no internal mark.
     reset() {
-      if (!enabled) return;
+      if (!on()) return;
       try {
         const t = now();
         sync(t);
@@ -237,18 +243,18 @@ export function createAnalytics(target, { token, host, env = 'unknown', send = n
     },
     // Signed out (the sign-in page every logout lands on, or GET /api/me answering 401): clear an identified account. An anonymous
     // visitor keeps their anonymous id, so the visit before sign-in joins the account it becomes.
-    signedOut() { if (enabled && s.get(KEY.account)) api.reset(); },
+    signedOut() { if (on() && s.get(KEY.account)) api.reset(); },
     // Another tab changed the identity (its storage event), so what this tab accrued is settled at once.
-    sync(t = now()) { if (enabled) sync(t); },
-    input(t = now()) { sync(t); credit(t); lastInput = t; },
+    sync(t = now()) { if (on()) sync(t); },
+    input(t = now()) { if (!on()) return; sync(t); credit(t); lastInput = t; },
     // Past the idle window nothing more can accrue, so the remainder goes out rather than waiting for a later visit or session.
-    tick(t = now()) { sync(t); credit(t); reportActive(t - lastInput > IDLE_MS ? 1000 : ACTIVE_REPORT_MS); },
+    tick(t = now()) { if (!on()) return; sync(t); credit(t); reportActive(t - lastInput > IDLE_MS ? 1000 : ACTIVE_REPORT_MS); },
     // Hidden, frozen or leaving: count up to now, report what is left, send it with keepalive. Visible again starts a new span.
-    hide(t = now()) { sync(t); credit(t, false, true); reportActive(1000); return api.flush({ keepalive: true }); },
-    blur(t = now()) { sync(t); credit(t, false, true); },
-    show(t = now()) { sync(t); lastTick = t; wasEligible = eligible(); },
+    hide(t = now()) { if (!on()) return undefined; sync(t); credit(t, false, true); reportActive(1000); return api.flush({ keepalive: true }); },
+    blur(t = now()) { if (on()) { sync(t); credit(t, false, true); } },
+    show(t = now()) { if (!on()) return; sync(t); lastTick = t; wasEligible = eligible(); },
     async flush({ keepalive = false } = {}) {
-      if (!enabled || stopped || !queue.length || (sending && !keepalive)) return;
+      if (!on() || !queue.length || (sending && !keepalive)) return;
       const batch = queue.slice(0, 50);
       sending = true;
       let status = 0;
@@ -256,38 +262,60 @@ export function createAnalytics(target, { token, host, env = 'unknown', send = n
       finally { sending = false; }
       const done = (status >= 200 && status < 300) || (status >= 400 && status < 500 && status !== 429);
       if (status === 401 || status === 403) stopped = true; // a refused token: stop for this page
+      if (!on()) { queue.length = 0; return; }
       for (const e of batch) e.attempts++;
       const keep = queue.filter(e => !batch.includes(e) || (!done && e.attempts < ATTEMPTS));
       queue.length = 0; queue.push(...keep);
       if (queue.length && !timer && !keepalive) timer = schedule(() => { timer = null; api.flush(); }, FLUSH_MS * (1 + Math.max(...queue.map(e => e.attempts))));
     },
-    stats: () => ({ queued: queue.length, activeMs, distinct: distinctId(), session: s.get(KEY.session) }),
+    // Withdrawal or a closed page: what is pending, in flight or accrued is dropped, never sent.
+    stop() { stopped = true; queue.length = 0; activeMs = 0; owner = null; if (timer) cancel(timer); timer = null; sends.abort(); },
+    stats: () => ({ queued: queue.length, activeMs, distinct: on() ? distinctId() : null, session: on() ? s.get(KEY.session) : null }),
     pending: () => queue.map(e => e.body),
   };
   return api;
 }
 
-let installed = null;
-const noop = { enabled: false, sync() {}, pageview() {}, track: () => false, identify() {}, reset() {}, signedOut() {}, flush: async () => {} };
-// Wires one instance into a window: the first pageview, navigation (navigate() and Back both fire popstate), input, the tick,
-// and hide/leave. options.signedOut: this page is signed out (the sign-in page, where every logout lands). Returns the instance.
-export function installUsageAnalytics(target, config, { signedOut = false } = {}) {
-  if (installed) return installed;
-  try {
+let installed = null, uninstall = null;
+const noop = { enabled: false, sync() {}, pageview() {}, track: () => false, identify() {}, reset() {}, signedOut() {}, stop() {}, flush: async () => {} };
+// Starts collection when it is allowed and stops it when it no longer is, for as long as the page lives: on load, on this tab's choice and on
+// another tab's. Not allowed: analytics storage is removed, and nothing else is touched. Running: the first pageview, navigation (navigate() and
+// Back both fire popstate), input, the tick and hide/leave. options.signedOut: this page is signed out (the sign-in page, where every logout
+// lands). options.account: ask /api/me who this is, each time collection starts. Returns the running instance, if any.
+export function installUsageAnalytics(target, config, { signedOut = false, account = false } = {}) {
+  if (uninstall) return installed || noop;
+  let stopRunning = null;
+  const start = () => {
     const a = createAnalytics(target, config);
+    if (!a.enabled) return;
+    const running = new AbortController(), on = { signal: running.signal };
     installed = a;
-    if (!a.enabled) return a;
     if (signedOut) a.signedOut();
     a.pageview();
-    target.addEventListener('popstate', () => a.pageview());
-    for (const type of INPUT_EVENTS) target.addEventListener(type, () => a.input(), { capture: true, passive: true });
-    target.setInterval(() => a.tick(), TICK_MS);
-    target.document?.addEventListener('visibilitychange', () => (target.document.visibilityState === 'hidden' ? a.hide() : a.show()));
-    target.addEventListener('pagehide', () => a.hide());
-    target.addEventListener('blur', () => a.blur());
-    target.addEventListener('storage', event => { if (event.key === null || event.key === KEY.account || event.key === KEY.anon) a.sync(); });
-    return a;
-  } catch { installed = noop; return noop; }
+    target.addEventListener('popstate', () => a.pageview(), on);
+    for (const type of INPUT_EVENTS) target.addEventListener(type, () => a.input(), { capture: true, passive: true, ...on });
+    const interval = target.setInterval(() => a.tick(), TICK_MS);
+    target.document?.addEventListener('visibilitychange', () => (target.document.visibilityState === 'hidden' ? a.hide() : a.show()), on);
+    target.addEventListener('pagehide', () => a.hide(), on);
+    target.addEventListener('blur', () => a.blur(), on);
+    target.addEventListener('storage', event => { if (event.key === null || event.key === KEY.account || event.key === KEY.anon) a.sync(); }, on);
+    stopRunning = () => { a.stop(); running.abort(); target.clearInterval?.(interval); installed = null; stopRunning = null; };
+    if (account) syncAnalyticsAccount();
+  };
+  const apply = () => {
+    try {
+      if (configured(config)) mirrorConsentCookie(target);
+      if (allowed(target, config)) { if (!stopRunning) start(); return; }
+      stopRunning?.();
+      clearAnalyticsStorage(target);
+    } catch { /* never blocks */ }
+  };
+  const listening = new AbortController();
+  target.addEventListener(CONSENT_EVENT, apply, { signal: listening.signal });
+  target.addEventListener('storage', event => { if (event.key === null || event.key === CONSENT_KEY) apply(); }, { signal: listening.signal });
+  uninstall = () => { stopRunning?.(); listening.abort(); uninstall = null; };
+  apply();
+  return installed || noop;
 }
 // The app's account, from GET /api/me (users.id and the internal mark the control plane sets): identify when signed in,
 // clear when the server says signed out. Any other failure leaves the identity as it was.
@@ -304,4 +332,5 @@ export async function syncAnalyticsAccount(fetcher = globalThis.fetch) {
 export const track = (name, props, options) => (installed ? installed.track(name, props, options) : false);
 // A canvas's sharing as one word for rh_share_changed: private, link (anyone with the link) or public (Explore).
 export const shareAccess = sharing => (!sharing?.shared ? 'private' : sharing.public_view ? 'public' : 'link');
-export const resetUsageAnalyticsForTests = () => { installed = null; };
+export const currentAnalytics = () => installed;
+export const resetUsageAnalyticsForTests = () => { uninstall?.(); installed = null; };

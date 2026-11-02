@@ -6,13 +6,15 @@ import { ATTEMPTS, IDLE_MS, INPUT_EVENTS, SESSION_IDLE_MS, personMark, TICK_MS, 
 const active = tab => tab.events().filter(e => e.event === 'rh_active_time').map(e => [e.properties.distinct_id, e.properties.active_seconds]);
 const TOKEN = 'phc_testtoken0000000000000000000000000000000000';
 const HOST = 'https://us.i.posthog.com';
+// These tests are about what happens once accepted; analytics-consent.test.mjs covers the choice itself.
+const acceptedStorage = (data = new Map([['rh_analytics_consent', 'accepted']])) => ({ getItem: k => (data.has(k) ? data.get(k) : null), setItem: (k, v) => data.set(k, String(v)), removeItem: k => data.delete(k), get length() { return data.size; }, key: i => [...data.keys()][i] ?? null });
 const ME = 'dda2350771a4066e3080c605ba092e0a', OTHER = 'edf6bd0c9cd0dcdcb7ef4c9f2c49f337';
 const random = { randomUUID, getRandomValues: a => getRandomValues(a) };
 
 // One browser: tabs share localStorage, each has its own document, location and transport log.
 function browser() {
-  const data = new Map();
-  const localStorage = { getItem: k => (data.has(k) ? data.get(k) : null), setItem: (k, v) => data.set(k, String(v)), removeItem: k => data.delete(k) };
+  const data = new Map([['rh_analytics_consent', 'accepted']]);
+  const localStorage = acceptedStorage(data);
   const clock = { t: Date.UTC(2026, 10, 2, 20) };
   const tab = (pathname = '/', { referrer = '', userAgent = 'Mozilla/5.0 Chrome/140.0' } = {}) => {
     const sent = [];
@@ -186,7 +188,7 @@ test('sessions follow PostHog rules: 30 idle minutes start a new $session_id; th
 
 test('blocked or failing analytics: bounded retries with the same event ids, nothing thrown, the app unaffected', async () => {
   const b = browser();
-  const target = { localStorage: undefined, document: { visibilityState: 'visible', hasFocus: () => true }, navigator: {}, location: { origin: 'https://digrabbithole.com', pathname: '/apps' } };
+  const target = { localStorage: acceptedStorage(), document: { visibilityState: 'visible', hasFocus: () => true }, navigator: {}, location: { origin: 'https://digrabbithole.com', pathname: '/apps' } };
   let calls = 0; const bodies = [];
   const a = createAnalytics(target, { token: TOKEN, host: HOST, random, now: () => b.clock.t, schedule: () => 0, send: async body => { calls++; bodies.push(body); throw new TypeError('Failed to fetch'); } });
   a.pageview(); a.identify(ME); a.track('rh_tutor_used');
@@ -243,7 +245,7 @@ test('signed out: the sign-in page and a 401 from /api/me clear an identified ac
   // the app: /api/me names the account (and the internal mark the control plane set); a later 401 clears it
   resetUsageAnalyticsForTests();
   const sent = [];
-  const target = { localStorage: undefined, document: { visibilityState: 'visible', hasFocus: () => true, addEventListener() {} }, navigator: {}, location: { origin: 'https://digrabbithole.com', host: 'digrabbithole.com', pathname: '/apps' },
+  const target = { localStorage: acceptedStorage(), document: { visibilityState: 'visible', hasFocus: () => true, addEventListener() {} }, navigator: {}, location: { origin: 'https://digrabbithole.com', host: 'digrabbithole.com', pathname: '/apps' },
     crypto: random, addEventListener() {}, setInterval() {}, fetch: async (url, init) => { sent.push(JSON.parse(init.body)); return { status: 200 }; } };
   const a = installUsageAnalytics(target, { token: TOKEN, host: HOST, env: 'production' });
   await syncAnalyticsAccount(async () => ({ ok: true, status: 200, json: async () => ({ email: 'user@x.rabbithole.invalid', user_id: ME, analytics_internal: true }) }));

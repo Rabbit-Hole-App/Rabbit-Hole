@@ -8,10 +8,12 @@
 export const internalAccount = (env, userId) => !!userId && String(env?.ANALYTICS_INTERNAL_USER_IDS || '').split(',').map(id => id.trim()).includes(userId);
 
 // user: userFor's result ({ id, provider, created, created_at }). A retry resends the same uuid and timestamp, so PostHog keeps one.
-// req: the sign-in request; Do Not Track or Global Privacy Control on it sends nothing, as in the browser adapter.
+// req: the sign-in request. It must carry the browser's acceptance (the consent cookie, analytics-consent.js); no signal means no event.
+// Do Not Track or Global Privacy Control on it sends nothing, as in the browser adapter.
 export async function captureSignIn(env, user, req, { fetcher = globalThis.fetch, attempts = 3 } = {}) {
   try {
     if (req?.headers?.get('Sec-GPC') === '1' || req?.headers?.get('DNT') === '1') return false;
+    if (!/(?:^|;\s*)rh_analytics_consent=accepted(?:;|$)/.test(req?.headers?.get('Cookie') || '')) return false;
     const token = env?.POSTHOG_PROJECT_TOKEN, host = env?.POSTHOG_HOST;
     if (!token?.startsWith('phc_') || !/^https:\/\/[a-z0-9.-]+$/i.test(host || '') || !/^[0-9a-f]{32}$/.test(user?.id || '')) return false;
     const internal = internalAccount(env, user.id);

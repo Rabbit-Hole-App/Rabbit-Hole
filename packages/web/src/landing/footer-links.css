@@ -15,3 +15,7 @@ footer .footer-links-row a:focus-visible{outline:2px solid currentColor;outline-
 @media(hover:hover){footer .footer-links-row a:hover{text-decoration:underline;text-underline-offset:4px}}
 @media(max-width:900px){.footer-links-row{flex-wrap:wrap}.footer-socials{gap:10px}}
 @media(max-width:600px){.footer-links-row{align-items:flex-start;gap:10px}.footer-socials{flex-wrap:wrap;gap:4px 10px}footer .footer-links-row .footer-secondary-nav{gap:4px 21px}.footer-social-icon{width:30px}footer .footer-links-row .footer-email{font-size:11px;gap:8px}}
+
+/* Only where the choice exists (analytics-banner.js marks the page). */
+[data-analytics-preferences]{display:none}
+html[data-analytics-choice] [data-analytics-preferences]{display:inline}

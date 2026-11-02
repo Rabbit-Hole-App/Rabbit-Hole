@@ -7,6 +7,22 @@ credits) and operational telemetry (`docs/features/telemetry.md`) stay authorita
 It answers: who signed up and signed in, and when; how often each account returns; estimated active minutes per account;
 which main features they use. No RH analytics UI is built; the views live in PostHog.
 
+## Consent
+
+Owner requirement 2026-11-02. Nothing optional happens before the visitor accepts: no identifier is created or read, no pageview, feature,
+active-time or identify event is sent or queued for later, and the server sends no `rh_signed_in`.
+
+- `src/analytics-consent.js` holds the choice per browser: `localStorage` `rh_analytics_consent` is `accepted` or `rejected`. Missing or
+  unreadable means off. Its storage event reaches other tabs. Do Not Track or Global Privacy Control overrides it.
+- A cookie `rh_analytics_consent=accepted` exists only while accepted. It holds no identifier and is how a sign-in request tells the
+  control plane; without it `captureSignIn` sends nothing. A sign-in in another browser, or before accepting, is therefore not recorded.
+- `src/analytics-banner.js` is plain DOM for the app and the public pages, bottom right, not modal, and takes focus only when opened from a
+  preferences link. It does not appear in a build without analytics, or for a browser sending DNT or GPC.
+- Change it with "Analytics preferences" in the public footer (`landing/footer-links.js`) or Settings > Privacy & security.
+- Withdrawal stops collection in every tab, drops queued and accrued data, aborts sends in flight, cancels retries, removes the `rh_ph_*` keys
+  and deletes the cookie. Nothing else is cleared: sign-in, drafts, recovery and accounting are untouched. It does not delete events already sent.
+- Internal accounts need Accept too: until the owner accepts in his browser, his activity is not collected and identify does not run.
+
 ## Where it runs
 
 - PostHog project "Rabbit Hole Project" (ID 644462), US ingestion `https://us.i.posthog.com`, public project token (`phc_`).
@@ -90,7 +106,7 @@ while still planning is not `rh_generation_failed`.
   become placeholders), queries and fragments are dropped, another site's referrer is reduced to its origin.
 - Every feature property is allowlisted per event and must be a lowercase word, a non-negative integer or a boolean.
 - Do Not Track or Global Privacy Control turns analytics off in that browser, and the server skips `rh_signed_in` when the
-  sign-in request carries either (the Privacy Policy says so).
+  sign-in request carries either.
 - Failures never block sign-in, the canvas or generation: every call is fire-and-forget and swallows its errors.
 
 ## Internal and test traffic

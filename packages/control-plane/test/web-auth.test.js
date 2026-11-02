@@ -79,6 +79,7 @@ const githubOk = (user = { id: 4242, login: 'octo', email: null }) => ({
 
 const call = async (env, path, { method = 'GET', headers = {}, form, body, origin = ORIGIN } = {}) => {
   const init = { method, headers: { ...headers } };
+  if (env.browserCookie) init.headers.Cookie = [init.headers.Cookie, env.browserCookie].filter(Boolean).join('; ');
   if (form) init.body = new URLSearchParams(form);
   if (body) { init.body = JSON.stringify(body); init.headers['Content-Type'] = 'application/json'; }
   const res = await worker.fetch(new Request(`${origin}${path}`, init), env, { waitUntil(promise) { env.pending?.push(promise); } });
@@ -780,6 +781,7 @@ test('analytics: each verified sign-in is one rh_signed_in under users.id; first
   const sent = [];
   const env = withDb(t, { ...PROD, ...POSTHOG, RESEND_API_KEY: 're_fake' });
   env.pending = [];
+  env.browserCookie = 'rh_analytics_consent=accepted'; // this browser accepted analytics (analytics-consent.js)
   const routes = (google) => ({ ...google, ...RESEND, 'https://api.resend.com/emails': (b) => { sent.push(b); return [200, {}]; },
     'https://us.i.posthog.com/batch/': (b) => { captured.push(b); return posthog(); } });
   network(t, routes(await googleOk()));
@@ -852,9 +854,30 @@ test('analytics: internal accounts match by exact users.id, never by email or a 
   assert.equal(internalAccount({}, 'aaaa'), false);
 });
 
+test('analytics: a sign-in without this browser\'s acceptance signs in and sends no event, whatever the cookie jar otherwise holds', async (t) => {
+  const POSTHOG = { POSTHOG_PROJECT_TOKEN: 'phc_test0000000000000000000000000000000000000000', POSTHOG_HOST: 'https://us.i.posthog.com' };
+  const captured = [], sent = [];
+  const env = withDb(t, { ...PROD, ...POSTHOG, RESEND_API_KEY: 're_fake' });
+  env.pending = [];
+  network(t, { ...await googleOk(), 'https://api.resend.com/emails': (b) => { sent.push(b); return [200, {}]; }, 'https://us.i.posthog.com/batch/': (b) => { captured.push(b); return [200, {}]; } });
+  let address = 0;
+  for (const cookie of [null, 'rh_analytics_consent=rejected', 'rh_analytics_consent=', 'x_rh_analytics_consent=accepted', 'rh_analytics_consent=accepted2']) {
+    env.browserCookie = cookie;
+    assert.ok((await oauthSignIn(env, 'google')).session, String(cookie));
+    await emailSignIn(env, `quiet${address++}@corp.test`, sent); // a new address each time: links are rate limited per address
+    await Promise.all(env.pending.splice(0));
+    assert.equal(captured.length, 0, String(cookie));
+  }
+  env.browserCookie = 'other=1; rh_analytics_consent=accepted; another=2';
+  assert.ok((await oauthSignIn(env, 'google')).session);
+  await Promise.all(env.pending.splice(0));
+  assert.equal(captured.length, 1, 'with it, the event is sent');
+});
+
 test('analytics: with no PostHog configuration (dev, test, CI) sign-in sends nothing', async (t) => {
   const env = withDb(t, PROD);
   env.pending = [];
+  env.browserCookie = 'rh_analytics_consent=accepted';
   network(t, await googleOk()); // any PostHog call would fail as an unexpected network call
   assert.ok((await oauthSignIn(env, 'google')).session);
   await Promise.all(env.pending);

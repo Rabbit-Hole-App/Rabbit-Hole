@@ -21,22 +21,23 @@ const APP = '\0usage-analytics-app';
 const bundled = await build({ configFile: false, root: web, logLevel: 'error',
   plugins: [{ name: 'usage-analytics-app', resolveId: id => (id === 'usage-analytics-app' ? APP : null), load: id => (id !== APP ? null : `
     import { startAppAnalytics } from '${web}src/analytics-config.js';
-    import { installUsageAnalytics, track } from '${web}src/usage-analytics.js';
+    import { currentAnalytics, track } from '${web}src/usage-analytics.js';
     startAppAnalytics();
-    window.__analytics = installUsageAnalytics(window, {});
+    Object.defineProperty(window, '__analytics', { get: currentAnalytics });
     window.__track = track;`) }],
   build: { write: false, minify: false, rolldownOptions: { input: { app: 'usage-analytics-app', landing: `${web}src/landing/analytics.js` }, output: { format: 'es', entryFileNames: '[name].js', chunkFileNames: '[name].js' } } } });
-const files = new Map([bundled].flat().flatMap(result => result.output).map(file => [file.fileName, file.code]));
+const files = new Map([bundled].flat().flatMap(result => result.output).map(file => [file.fileName, file.code ?? String(file.source)]));
+const styles = [...files.keys()].filter(name => name.endsWith('.css')).map(name => `<link rel="stylesheet" href="/static/${name}">`).join('');
 assert.ok(files.has('app.js') && files.has('landing.js'), 'both entries bundled');
 assert.ok([...files.values()].some(code => code.includes(TOKEN)), 'the configuration reached the bundle through VITE_*');
 if (process.env.BUNDLE_ONLY) { console.log(`bundled ${[...files.keys()].join(', ')}`); process.exit(0); }
 
 const LANDING = new Set(['/pricing', '/sign-in']);
-let me = null, blocked = false;
+let me = null, blocked = false, meCalls = 0;
 const requests = [], strays = [], pageErrors = [], deliveries = new Map();
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1000, height: 700 } });
-await context.route('**/*', route => {
+const respond = route => {
   const url = new URL(route.request().url());
   if (url.origin === HOST) {
     const body = JSON.parse(route.request().postData() || '{}');
@@ -46,17 +47,19 @@ await context.route('**/*', route => {
     return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: '{"status":"Ok"}' });
   }
   if (url.origin !== ORIGIN) { strays.push(url.href); return route.abort(); }
-  if (url.pathname.startsWith('/static/')) return route.fulfill({ status: 200, contentType: 'text/javascript', body: files.get(url.pathname.slice(8)) || '' });
+  if (url.pathname.startsWith('/static/')) return route.fulfill({ status: 200, contentType: url.pathname.endsWith('.css') ? 'text/css' : 'text/javascript', body: files.get(url.pathname.slice(8)) || '' });
+  if (url.pathname === '/api/me') meCalls++;
   if (url.pathname === '/api/me') return me ? route.fulfill({ json: { email: 'person@example.test', org: 'o', user_id: me.id, ...(me.internal ? { analytics_internal: true } : {}) } }) : route.fulfill({ status: 401, json: { error: 'sign in' } });
   if (url.pathname === '/api/poll') return route.fulfill({ json: { stage: 'rendering' } });
-  return route.fulfill({ status: 200, contentType: 'text/html', body: `<!doctype html><title>t</title><body style="height:4000px"><script type="module" src="/static/${LANDING.has(url.pathname) ? 'landing' : 'app'}.js"></script></body>` });
-});
+  return route.fulfill({ status: 200, contentType: 'text/html', body: `<!doctype html><title>t</title>${styles}<body style="height:4000px"><a href="/privacy#technical" data-analytics-preferences>Analytics preferences</a><script type="module" src="/static/${LANDING.has(url.pathname) ? 'landing' : 'app'}.js"></script></body>` });
+};
+await context.route('**/*', respond);
 const T0 = Date.UTC(2026, 10, 2, 20);
 await context.clock.install({ time: T0 });
 await context.clock.pauseAt(T0 + 1000);
 context.on('page', page => page.on('pageerror', error => pageErrors.push(error.message)));
 
-const total = 11;
+const total = 21;
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
 const until = async (fn, label, ms = 15000) => { const end = Date.now() + ms; for (;;) { const value = await fn(); if (value) return value; if (Date.now() > end) throw Error(`timed out: ${label}; sent ${JSON.stringify(sent().map(e => [e.event, e.properties.distinct_id?.slice(0, 4), e.properties.active_seconds]))}`); await new Promise(resolve => setTimeout(resolve, 50)); } };
@@ -69,15 +72,98 @@ const hidden = (page, on) => page.evaluate(value => { Object.defineProperty(docu
 const pagehide = page => page.evaluate(() => window.__analytics.hide());
 const appReady = page => until(() => page.evaluate(() => !!window.__analytics), 'the app entry ran');
 const pathsOf = () => named('$pageview').map(e => e.properties.$pathname);
+// Consent: what proves collection is off, not merely that a banner moved.
+const BANNER = '[data-analytics-banner]';
+const stored = page => page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('rh_ph_')));
+const consentCookie = page => page.evaluate(() => document.cookie.includes('rh_analytics_consent=accepted'));
+const choose = (page, choice) => page.locator(`[data-analytics-choose="${choice}"]`).evaluate(button => button.click());
+const assertOff = async (page, label) => {
+  await run(30_000);
+  await new Promise(resolve => setTimeout(resolve, 100));
+  assert.equal(requests.length, 0, `${label}: no /batch/ request`);
+  assert.deepEqual(await stored(page), [], `${label}: no identifier in storage`);
+  assert.equal(await consentCookie(page), false, `${label}: nothing for the server's sign-in event`);
+};
 
 try {
   const page = await context.newPage();
   let anon;
 
+  await check('first visit: the banner offers both choices and the policy, and nothing is collected, stored or asked before a choice', async () => {
+    await page.goto(`${ORIGIN}/pricing`);
+    await until(() => page.locator(BANNER).count(), 'the banner');
+    assert.equal(await page.locator(BANNER).getAttribute('aria-label'), 'Analytics choice');
+    assert.match(await page.locator(BANNER).innerText(), /PostHog analytics/);
+    assert.equal(await page.getByRole('button', { name: 'Accept analytics' }).count(), 1);
+    assert.equal(await page.getByRole('button', { name: 'Reject optional' }).count(), 1);
+    assert.equal(await page.locator(`${BANNER} a`).getAttribute('href'), '/privacy#technical');
+    await page.mouse.click(5, 300);
+    await page.mouse.wheel(0, 50);
+    await assertOff(page, 'first visit, public page');
+    me = { id: A, internal: true };
+    await page.goto(`${ORIGIN}/apps`); // signed in, no choice yet
+    await until(() => page.locator(BANNER).count(), 'the banner in the app');
+    await page.mouse.click(5, 300);
+    await assertOff(page, 'first visit, signed in');
+    assert.equal(meCalls, 0, 'no account lookup for analytics');
+    me = null;
+  });
+
+  await check('the banner works by keyboard and on a phone, and blocks nothing behind it', async () => {
+    await page.goto(`${ORIGIN}/pricing`);
+    await until(() => page.locator(BANNER).count(), 'the banner');
+    const focused = [];
+    for (let i = 0; i < 4; i++) { await page.keyboard.press('Tab'); focused.push(await page.evaluate(() => document.activeElement?.textContent)); }
+    assert.ok(focused.includes('Privacy Policy') && focused.includes('Accept analytics') && focused.includes('Reject optional'), focused.join(' | '));
+    assert.equal(await page.evaluate(() => { const b = document.querySelector('[data-analytics-banner]'); return getComputedStyle(b).position; }), 'fixed');
+    assert.equal(await page.evaluate(() => document.elementFromPoint(5, 5)?.closest('[data-analytics-banner]') ?? null), null, 'the page stays reachable');
+    await page.setViewportSize({ width: 360, height: 640 });
+    const box = await page.locator(BANNER).boundingBox();
+    assert.ok(box.x >= 0 && box.x + box.width <= 360 && box.y + box.height <= 640, JSON.stringify(box));
+    assert.ok(box.x + box.width > 180, 'not bottom left');
+    for (const name of ['Accept analytics', 'Reject optional']) assert.ok((await page.getByRole('button', { name }).boundingBox()).height >= 44, name);
+    await page.setViewportSize({ width: 1000, height: 700 });
+    assert.equal(await page.locator(BANNER).count(), 1, 'it stays until a choice');
+  });
+
+  await check('reject: remembered across a reload and tabs, sign-in and sign-out stay off, and the app\'s own storage is untouched', async () => {
+    await page.evaluate(() => localStorage.setItem('learn-draft', 'keep'));
+    await page.getByRole('button', { name: 'Reject optional' }).focus();
+    await page.keyboard.press('Enter');
+    await until(async () => (await page.locator(BANNER).count()) === 0, 'the banner closes');
+    await page.reload();
+    assert.equal(await page.locator(BANNER).count(), 0, 'remembered');
+    await assertOff(page, 'after rejecting');
+    me = { id: A, internal: true };
+    await page.goto(`${ORIGIN}/apps`);
+    await page.mouse.click(5, 300);
+    await assertOff(page, 'signed in after rejecting');
+    me = null;
+    await page.goto(`${ORIGIN}/sign-in`);
+    await assertOff(page, 'signed out after rejecting');
+    assert.equal(meCalls, 0);
+    assert.equal(await page.evaluate(() => localStorage.getItem('learn-draft')), 'keep');
+  });
+
+  await check('accept from the preferences link: collection starts at once, by keyboard, with nothing from before the choice', async () => {
+    await page.goto(`${ORIGIN}/pricing`);
+    await page.locator('[data-analytics-preferences]').focus();
+    await page.keyboard.press('Enter');
+    await until(() => page.locator(BANNER).count(), 'the preferences link opens the banner');
+    assert.equal(await page.getByRole('button', { name: 'Reject optional' }).getAttribute('aria-pressed'), 'true');
+    assert.equal(await page.evaluate(() => document.activeElement?.textContent), 'Accept analytics');
+    await page.keyboard.press('Enter');
+    await until(async () => { await flushTimer(); return named('$pageview').length === 1; }, 'the first pageview after accepting');
+    assert.deepEqual(sent().map(e => e.event), ['$pageview'], 'nothing queued before the choice');
+    assert.equal(sent()[0].properties.$pathname, '/pricing');
+    assert.equal(await consentCookie(page), true);
+    assert.equal(await page.locator(BANNER).count(), 0);
+  });
+
   await check('anonymous: a public page is one sanitized pageview, the referrer only its origin, nothing about an account', async () => {
     await page.goto(`${ORIGIN}/pricing?utm=private-query#magic-token`, { referer: 'https://news.example/item?id=private-query' });
-    await until(async () => { await flushTimer(); return named('$pageview').length === 1; }, 'the first pageview');
-    const { properties, ...rest } = named('$pageview')[0];
+    await until(async () => { await flushTimer(); return named('$pageview').length === 2; }, 'the pageview after reloading with a choice');
+    const { properties, ...rest } = named('$pageview')[1];
     anon = properties.distinct_id;
     assert.equal(properties.$current_url, `${ORIGIN}/pricing`);
     assert.equal(properties.$referrer, 'https://news.example');
@@ -232,8 +318,80 @@ try {
     for (const secret of SECRETS) assert.equal(text.includes(secret), false, secret);
     assert.deepEqual(strays.filter(url => !url.includes('fonts')), [], 'nothing else was contacted');
     assert.ok(requests.every(r => r.api_key === TOKEN));
-    assert.deepEqual(pageErrors, []);
   });
+
+  await check('withdrawal: pending and accrued data never leaves, in this tab or another open one, identifiers go, and the app\'s storage stays', async () => {
+    me = { id: A, internal: true };
+    await second.goto(`${ORIGIN}/apps/secret-canvas`);
+    await appReady(second);
+    await flushTimer();
+    await page.mouse.click(5, 300);
+    await run(20_000);                                              // time accrued
+    await page.evaluate(() => { window.__track('rh_tutor_used'); }); // and an event queued
+    const before = requests.length, active = activeOf(A);
+    assert.ok((await stored(page)).length > 0);
+    await page.locator('[data-analytics-preferences]').evaluate(link => link.click());
+    await choose(page, 'rejected');
+    await new Promise(resolve => setTimeout(resolve, 300));          // real time for the storage event
+    assert.equal(await second.evaluate(() => window.__analytics), null, 'the other tab stopped');
+    await second.mouse.click(5, 300);
+    await page.mouse.click(5, 300);
+    await run(5 * 60_000);
+    await new Promise(resolve => setTimeout(resolve, 200));
+    assert.equal(requests.length, before, 'no /batch/ request after withdrawal');
+    assert.equal(activeOf(A), active);
+    for (const tab of [page, second]) {
+      assert.deepEqual(await stored(tab), []);
+      assert.equal(await consentCookie(tab), false);
+      assert.equal(await tab.evaluate(() => window.__track('rh_tutor_used')), false);
+    }
+    assert.equal(await page.evaluate(() => localStorage.getItem('learn-draft')), 'keep');
+    await page.reload();
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await run(30_000);
+    assert.equal(requests.length, before, 'still off after a reload');
+    assert.deepEqual(await stored(page), []);
+  });
+
+  await check('a choice in another tab reaches this one: the banner goes and collection starts without a reload', async () => {
+    await page.evaluate(() => localStorage.removeItem('rh_analytics_consent')); // a storage event reaches the other tab only
+    await until(() => second.locator(BANNER).count(), 'a removed choice brings the banner back');
+    const before = requests.length;
+    await page.reload();
+    await until(() => page.locator(BANNER).count(), 'this tab asks');
+    await choose(second, 'accepted');
+    await until(async () => (await page.locator(BANNER).count()) === 0, 'this tab\'s banner goes');
+    await until(async () => { await flushTimer(); return requests.length > before; }, 'both tabs start');
+    assert.ok(await page.evaluate(() => !!window.__analytics));
+    assert.equal(await consentCookie(page), true);
+  });
+
+  const signal = async (init, label, after) => {
+    const other = await browser.newContext();
+    try {
+      await other.route('**/*', respond);
+      await other.addInitScript(init);
+      const tab = await other.newPage();
+      const before = requests.length;
+      me = { id: A, internal: true };
+      await tab.goto(`${ORIGIN}/apps`);
+      await tab.mouse.click(5, 300);
+      await new Promise(resolve => setTimeout(resolve, 5600)); // this context has a real clock: past the flush timer
+      assert.equal(requests.length, before, `${label}: no /batch/ request`);
+      assert.deepEqual(await tab.evaluate(() => { try { return Object.keys(localStorage).filter(key => key.startsWith('rh_ph_')); } catch { return []; } }), [], `${label}: no identifier`);
+      assert.equal(await tab.evaluate(() => document.cookie.includes('rh_analytics_consent=accepted')), false, `${label}: nothing for the server`);
+      await after(tab);
+    } finally { await other.close(); }
+  };
+  await check('Global Privacy Control over a saved acceptance: off, and no banner to answer', () => signal(`Object.defineProperty(navigator, 'globalPrivacyControl', { get: () => true }); localStorage.setItem('rh_analytics_consent', 'accepted');`, 'GPC', async tab => assert.equal(await tab.locator(BANNER).count(), 0)));
+  await check('Do Not Track over a saved acceptance: off, and no banner to answer', () => signal(`Object.defineProperty(navigator, 'doNotTrack', { get: () => '1' }); localStorage.setItem('rh_analytics_consent', 'accepted');`, 'DNT', async tab => assert.equal(await tab.locator(BANNER).count(), 0)));
+  await check('unreadable consent stays off, and choosing with blocked storage collects nothing and does not throw', () => signal(`Storage.prototype.getItem = () => { throw new Error('blocked'); }; Storage.prototype.setItem = () => { throw new Error('blocked'); };`, 'blocked storage', async tab => {
+    assert.equal(await tab.locator(BANNER).count(), 1);
+    await choose(tab, 'accepted');
+    assert.equal(await tab.locator(BANNER).count(), 0, 'the answer closes it for this page');
+    assert.equal(await tab.evaluate(() => window.__analytics), null);
+  }));
+  await check('no page error in any of it', () => assert.deepEqual(pageErrors, []));
 } finally {
   await browser.close();
 }
