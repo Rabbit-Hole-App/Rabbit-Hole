@@ -13,7 +13,7 @@ the evidence for review. It is an operator report: dollar figures appear only he
 - Each successful job stops at `awaiting_approval`. Generate, authoring, rendering and review are never called; the runner then cancels the job.
 - The planner keeps its single server-side correction. A case is never rerun: unsuccessful cases and their original outputs stay as recorded.
 - Runner and raw evidence: `C:/s/spec/animation/planner-eval/run.mjs` and `out/case-N.json` (outside the repository); `report.mjs` renders this file.
-- Raw planner answers: the server does not retain the planner's raw tool input, nor a refused first answer and its issues when the correction succeeds.
+- Raw planner answers: since 627ce9da6 the server keeps each planner reply as given, a refused one with the contract's issues (prepareStage answers, in the job diagnostics as candidates with stage `preparing`), including when the correction succeeds. The baseline was run at fa0f0fed7, which already had this, so each case's answer below is the reply as given.
   Each case says so where it applies. The final plan is the server's validated form.
 
 ## Grading
@@ -95,6 +95,32 @@ Observed plan calls in the dev ledger (settled, 5 calls): US$0.0169 to US$0.0457
   to check for regressions; keep 4, 6 and 9 out of the tuning examples.
 - Ten valid plans say nothing yet about generation reliability: no scene was built from them.
 
+### Corrections to this report (2026-11-02, after the owner's review)
+
+- The ten "Planner answer 1" headings read "(refused by the contract)" although each answer's issue list was empty and it
+  validated on the first call. That was the report generator's error (it tested an empty list as true); they now read
+  "(accepted)". The generator now labels each answer accepted, refused by the contract, or capability gap. No evidence changed.
+- The method's statement that raw planner answers were not retained was stale and is corrected above.
+
+### Revised assessment (owner review, 2026-11-02; the original assessments below are kept as written)
+
+| Case | Original | Revised | Why |
+|---|---|---|---|
+| 1 SGD | good, with (b) | good, with (b) | (b) restated: host Reset restores the defaults and the initial state, so "Reset ... keeping the trail" promises something Reset does not do; a trail kept for comparison would be a distinct, named action. |
+| 2 Neural network | good, with (b) | good, with (b) | (b) restated: Reset does not choose a new random start (the scene's seed is fixed), so "Restart from a new random starting point" is a distinct action with its own semantics, or is dropped. |
+| 3 Attention | good | usable with changes | Accuracy: a causal mask hides only later positions; the asking word sees itself and the earlier words. "Only look at earlier words" misstates that boundary ("Hide future words" is exact) and the mask must include the current position. |
+| 4 Temperature | good | good | "Clear tally" and "Draw 20 words" are distinct actions (not a full reset), each a bounded amount of work; they stay. |
+| 5 Rewards | usable with changes | usable with changes | Restated: the runtime limit is one operation within 50 ms (`interruptMs`, including overhead). "Run 20 attempts quickly" as one action is a workload risk that has NOT been measured; the earlier "near the node limits" was not established by any node budget (the contract's ceiling is 256 nodes) and is withdrawn. |
+| 6 Pendulum | good | good, with a wording fix | The model's period is exactly independent of amplitude (the small-angle formula); a real pendulum's period grows slightly with amplitude. "For small swings the period barely changes" mixes the two; the plan should say which is the model and which is the real thing. |
+| 7 Projectile | usable with changes | usable with changes | Unchanged. A wide physical extent does not by itself make a thin strip acceptable: when generation resumes, the default and extreme views must be readable with the target and trajectory visible. |
+| 8 Waves | good | good | Unchanged. |
+| 9 Circuit | good | usable with changes | Accuracy: with a resistor and a bulb in series, the current comes from the TOTAL resistance and the bulb's power is I^2 x R_bulb; "brightness follows the power, voltage times current" uses the total power for the bulb, and "the bulb's resistance is counted in the resistance setting" blurs component and total. Either compute per component or show a total-power indicator as such. |
+| 10 Binary search | good, with (a) | usable with changes | Default: target 23 is the first midpoint, so the default search ends on its first comparison and hides the repeated halving. A default that takes several comparisons teaches the idea; found and absent targets stay reachable. |
+
+These corrections are evaluation findings and test expectations. The planner changes they lead to are general (host controls
+and Reset, bounded work per operation, consistent quantities, exact boundaries, instructive defaults, model versus reality),
+not answers for these ten prompts.
+
 ### Case 1: ML/SGD
 
 **User prompt (exact):** `/animation Show me how stochastic gradient descent works. Let me change the learning rate and batch size to see what happens.`
@@ -158,7 +184,7 @@ User message content sha256 `f70e30fafd31b764b29e6b5e68aa0c0e5a937691f9a4a9ee96e
 
 #### Planner response (unedited)
 
-<details><summary>Planner answer 1 (refused by the contract)</summary>
+<details><summary>Planner answer 1 (accepted)</summary>
 
 ```json
 {
@@ -540,7 +566,7 @@ User message content sha256 `0cc8e851986e34f7311f762e42225b774fedf6b5637edc3bbc7
 
 #### Planner response (unedited)
 
-<details><summary>Planner answer 1 (refused by the contract)</summary>
+<details><summary>Planner answer 1 (accepted)</summary>
 
 ```json
 {
@@ -853,7 +879,7 @@ User message content sha256 `4994bf17d2e7b8f3fcc9c162a89a02520851c6acfcd94f3caf4
 
 #### Planner response (unedited)
 
-<details><summary>Planner answer 1 (refused by the contract)</summary>
+<details><summary>Planner answer 1 (accepted)</summary>
 
 ```json
 {
@@ -1243,7 +1269,7 @@ User message content sha256 `3788bf0ee678f42fdbc751a725eaeb6e01e2e8467d624c5ad5a
 
 #### Planner response (unedited)
 
-<details><summary>Planner answer 1 (refused by the contract)</summary>
+<details><summary>Planner answer 1 (accepted)</summary>
 
 ```json
 {
@@ -1537,7 +1563,7 @@ User message content sha256 `c0590a93d74fc2ec97d57edcbfb1ea78b7c1d7ec9a98ee36763
 
 #### Planner response (unedited)
 
-<details><summary>Planner answer 1 (refused by the contract)</summary>
+<details><summary>Planner answer 1 (accepted)</summary>
 
 ```json
 {
@@ -1869,7 +1895,7 @@ User message content sha256 `d8f43907d4543265711e92335f7105f1c828e3ba11cec39bd73
 
 #### Planner response (unedited)
 
-<details><summary>Planner answer 1 (refused by the contract)</summary>
+<details><summary>Planner answer 1 (accepted)</summary>
 
 ```json
 {
@@ -2187,7 +2213,7 @@ User message content sha256 `622f7f943425aee1b3a153d4e7a064d590a70f0cca3b830a6ac
 
 #### Planner response (unedited)
 
-<details><summary>Planner answer 1 (refused by the contract)</summary>
+<details><summary>Planner answer 1 (accepted)</summary>
 
 ```json
 {
@@ -2518,7 +2544,7 @@ User message content sha256 `8ac0c4ed44dd10eb795f6088e20802e3ab0956358518c690fd0
 
 #### Planner response (unedited)
 
-<details><summary>Planner answer 1 (refused by the contract)</summary>
+<details><summary>Planner answer 1 (accepted)</summary>
 
 ```json
 {
@@ -2903,7 +2929,7 @@ User message content sha256 `a266159dc296befb7fd33166fc401dbb80cbca80a679f125f45
 
 #### Planner response (unedited)
 
-<details><summary>Planner answer 1 (refused by the contract)</summary>
+<details><summary>Planner answer 1 (accepted)</summary>
 
 ```json
 {
@@ -3221,7 +3247,7 @@ User message content sha256 `84ea413ec50307fcc9c3151426618a1f5bab4a78dff5121d9e5
 
 #### Planner response (unedited)
 
-<details><summary>Planner answer 1 (refused by the contract)</summary>
+<details><summary>Planner answer 1 (accepted)</summary>
 
 ```json
 {
