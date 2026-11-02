@@ -68,6 +68,17 @@ test('every invalid fixture is rejected with its code at its path', () => {
   }
 });
 
+test('a new draft may not declare the card\'s own Reset or Reset view, by id or label; a stored artifact with one still validates', () => {
+  const withAction = action => { const copy = structuredClone(gameFixture.artifact); copy.actions.push(action); return copy; };
+  for (const action of [{ id: 'reset', label: 'Reset' }, { id: 'reset_game', label: 'Again' }, { id: 'startOver', label: 'Go' }, { id: 'again', label: 'Reset game!' },
+    { id: 'again', label: 'RESTART' }, { id: 'again', label: 'Reset view' }, { id: 'again', label: 'Reset-Experiment' }, { id: 'again', label: 'Start over' }]) {
+    assert.ok(issueAt(validateAnimationArtifact(withAction(action), undefined, { draft: true }), 'host_control', 'actions.4'), JSON.stringify(action));
+    assert.equal(validateAnimationArtifact(withAction(action)).ok, true, `stored: ${JSON.stringify(action)}`);
+  }
+  assert.equal(validateAnimationArtifact(withAction({ id: 'resetBall', label: 'Reset ball' }), undefined, { draft: true }).ok, true, 'a scene\'s own named move is not the card\'s reset');
+  assert.equal(validateAnimationArtifact(gameFixture.artifact, undefined, { draft: true }).ok, true);
+});
+
 test('wrong schema strings, oversized payloads and prototype keys are refused before rendering', () => {
   assert.ok(issueAt(validateAnimationPlan({ ...watchFixture.plan, schema: 'animation-plan/2' }), 'unsupported_schema', 'schema'));
   assert.ok(issueAt(validateAnimationArtifact({ ...watchFixture.artifact, capabilityVersion: 'animation-capabilities/9' }), 'capability_version', 'capabilityVersion'));

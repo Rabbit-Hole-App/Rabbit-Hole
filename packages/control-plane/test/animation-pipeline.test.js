@@ -181,6 +181,10 @@ test('validation: the host seals every binding field, holds the artifact to the 
   await bad({ ...d, program: { source: 'import x from "y";\nexport function evaluate() { return {}; }' } }, /no import/);
   await bad({ ...d, shader: 'void main(){}' }, /unknown_field/);
   await bad({ ...d, scene: { ...d.scene, nodes: [...d.scene.nodes, { id: 'ghost', parent: 'nobody' }] } }, /unknown_id/);
+  // Owner 2026-11-01: the card's own Reset is never redeclared by a new scene; a stored one with it is still served.
+  await bad({ ...d, actions: [{ id: 'restart', label: 'Restart' }] }, /host_control/);
+  const stored = { ...gameFixture.artifact, actions: [...gameFixture.artifact.actions, { id: 'reset', label: 'Reset' }] };
+  assert.equal(await artifactIntact(stored, await artifactHashOf(stored)), true);
   assert.deepEqual(planProblems(fixture.artifact, fixture.plan), []);
   // Too large for the review or repair request: told before any review is spent.
   const huge = { ...ok.artifact, description: ok.artifact.description, program: { ...ok.artifact.program, source: `${ok.artifact.program.source}\n//${'x'.repeat(15000)}` } };

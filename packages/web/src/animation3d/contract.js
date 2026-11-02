@@ -13,7 +13,8 @@ import { ANIMATION_CAPABILITIES, CAPABILITY_REGISTRIES } from './capabilities.js
 // throw on input; they throw a TypeError only for a capabilities object that is not a registry from capabilities.js.
 //
 //   validateAnimationPlan(value, capabilities?)          planner output, checked against the enabled phase
-//   validateAnimationArtifact(value, capabilities?)      a generated (or fixture) scene artifact
+//   validateAnimationArtifact(value, capabilities?, { draft? })  a generated (or fixture) scene artifact; draft: a new generation
+//                                                         (control-plane validateStage), also held to the rules a stored one predates
 //   validateAnimationFrame(value, artifact)              one evaluate result; artifact must already be validated
 //   validateAnimationEvent(value, artifact)              one learner/host event before reduce
 //   validateAnimationSnapshot(value, artifact)           the durable atomic simulation snapshot
@@ -33,7 +34,13 @@ export const FEATURES = Object.freeze(['loop', 'speed', 'seek', 'parameters', 'a
 export const LABEL_PLACEMENTS = Object.freeze(['above', 'below', 'left', 'right', 'center']);
 export const GOAL_STATUSES = Object.freeze(['playing', 'won', 'lost']);
 export const ISSUE_CODES = Object.freeze(['invalid_value', 'unknown_field', 'unsupported_schema', 'over_limit', 'duplicate_id', 'unknown_id',
-  'hierarchy_cycle', 'not_normalized', 'not_declared', 'unsupported_capability', 'capability_version', 'missing_program', 'artifact_mismatch']);
+  'hierarchy_cycle', 'not_normalized', 'not_declared', 'unsupported_capability', 'capability_version', 'missing_program', 'artifact_mismatch', 'host_control']);
+// The controls every card draws itself (owner 2026-11-01): Reset game / experiment / scene (session.js reset) and Reset view. A scene
+// action whose id or label is one of these, compared lower-case with spaces and punctuation removed, duplicates them.
+export const HOST_CONTROLS = Object.freeze(['reset', 'restart', 'reset game', 'restart game', 'reset scene', 'reset experiment', 'reset view', 'start over']);
+const hostKey = value => String(value).toLowerCase().replace(/[^a-z0-9]/g, '');
+const HOST_KEYS = new Set(HOST_CONTROLS.map(hostKey));
+export const isHostControl = action => HOST_KEYS.has(hostKey(action.id)) || HOST_KEYS.has(hostKey(action.label));
 
 // The behavior program's identity tuple. Distinct from explain_program (sdk-1/renderer-1/policy-1) on purpose; the same pinned engine.
 export const ANIMATION_PROGRAM_VERSIONS = Object.freeze({
@@ -276,7 +283,7 @@ export function validateAnimationPlan(value, capabilities) {
   });
 }
 
-export function validateAnimationArtifact(value, capabilities) {
+export function validateAnimationArtifact(value, capabilities, { draft = false } = {}) {
   const caps = resolveCapabilities(capabilities);
   return validate(value, { schema: ArtifactSchema, budget: CONTRACT_LIMITS.artifactBytes, expectSchema: SCENE_SCHEMA }, (artifact, add) => {
     const { limits } = caps;
@@ -291,6 +298,8 @@ export function validateAnimationArtifact(value, capabilities) {
     if (new Set(names.map(item => item.id)).size !== names.length) add('parameters', 'duplicate_id', 'parameter, action and readout ids must be unique together');
     checkParameters(artifact.parameters, limits.parameters, add);
     if (artifact.actions.length > limits.actions) add('actions', 'over_limit', `${artifact.actions.length} actions (at most ${limits.actions})`);
+    // A new draft only: a stored artifact with such an action still loads (the card hides it, card.js cardModel).
+    if (draft) artifact.actions.forEach((action, index) => { if (isHostControl(action)) add(`actions.${index}`, 'host_control', `"${action.label}" duplicates the card's own Reset or Reset view; remove the action (the card's Reset restores initialState)`); });
     for (const [direction, action] of Object.entries(artifact.keys ?? {})) {
       if (!artifact.actions.some(a => a.id === action)) add(`keys.${direction}`, 'unknown_id', `the ${direction} key names "${action}", which is not a declared action`);
     }

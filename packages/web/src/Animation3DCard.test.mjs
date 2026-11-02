@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { parseHTML } from 'linkedom';
 import { loadEngine, realRuntimes, stubRenderers, stubRuntimes } from './animation3d/testdata/ui-stubs.mjs';
-import { experimentFixture } from './animation3d/fixtures.js';
+import { experimentFixture, gameFixture } from './animation3d/fixtures.js';
 import { artifactIdentity, freshEnvelope } from './animation3d/storage.js';
 
 const { window, document } = parseHTML('<!doctype html><html><body><div id="app"></div></body></html>');
@@ -449,6 +449,26 @@ test('a saved card (owner): hydrated through storage.js, its settled change writ
   assert.ok(quiet.length >= 1, 'the change reached the board quietly');
   assert.equal(quiet.at(-1).animation3d.sim.inputs.leftMass, 2);
   assert.ok(!changes.some(([kind]) => kind === 'change'), 'never an undo step');
+});
+
+// Owner 2026-11-01: a game generated before the rule (C:/s/spec/animation/accepted game-* declare { id: 'reset', label: 'Reset' }) still
+// loads; its own Reset is not drawn and no key presses it, so the card shows one Reset game and Reset view.
+test('a saved game with its own Reset action: it loads, shows only the card\'s Reset game and Reset view, and no key reaches the hidden action', async () => {
+  const old = structuredClone(gameFixture.artifact);
+  old.artifactId = 'old-game'; old.provenance = { origin: 'generated' };
+  old.actions.push({ id: 'reset', label: 'Reset' }, { id: 'again', label: 'Start over' });
+  old.keys = { up: 'north', down: 'south', left: 'west', right: 'reset' };
+  const runtimes = stubRuntimes();
+  await mount({ runtimes, context: { kind: 'owner', boardId: 'b1' }, readArtifact: async () => structuredClone(old),
+    block: { id: 's2', type: 'animation3d', title: 'Old game', animation3d: freshEnvelope({ ...artifactIdentity(old), boardId: 'b1', cardId: 's2' }) } });
+  assert.equal(card().getAttribute('data-animation-phase'), 'ready');
+  assert.deepEqual($$('[data-animation-action]').map(node => node.textContent), ['East', 'West', 'North', 'South']);
+  assert.deepEqual(buttons().filter(name => /reset|start over|restart/i.test(name)), ['Reset view', 'Reset game']);
+  await press($('[data-animation-interact]'));
+  assert.equal((await keydown($('[data-animation-viewport]'), 'd')).defaultPrevented, false, 'right is bound only to the hidden action: not taken');
+  await keydown($('[data-animation-viewport]'), 'w');
+  assert.deepEqual(actionsSent(runtimes.log), ['north'], 'the shown bindings still play');
+  assert.ok(!runtimes.log.includes('reset'), 'no key reset the game');
 });
 
 test('a saved card on a share link: the honest placeholder, no owner read and no Retry', async () => {

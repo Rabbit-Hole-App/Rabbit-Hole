@@ -4,7 +4,7 @@
 // The saved envelope (block.animation3d: ref, sim, view) and a job in flight (block.animation3dJob) are lane A's (storage.js); a
 // built-in example card names its fixture (block.fixtureId) and keeps its state in this page only.
 import { ANIMATION_CAPABILITIES } from './capabilities.js';
-import { resolveAnimationInputs } from './contract.js';
+import { isHostControl, resolveAnimationInputs } from './contract.js';
 
 export const EXPERIENCE_LABELS = Object.freeze({ inspect: 'Inspect', watch: 'Watch', experiment: 'Experiment', game: 'Mini-game' });
 // A fixture card is a built-in example, never presented as a generated result (AN-03 acceptance).
@@ -23,6 +23,8 @@ const finite = value => typeof value === 'number' && Number.isFinite(value);
 // The UI model of a validated artifact: only what the card draws and dispatches. Seek and speed are capability-declared
 // (prescribed and analytical scenes only); a rule-based loop restarts instead of rewinding.
 export function cardModel(artifact, capabilities = ANIMATION_CAPABILITIES) {
+  // A stored scene's own reset or restart duplicates the card's Reset and Reset view (owner 2026-11-01): never drawn, never keyed.
+  const actions = artifact.actions.filter(action => !isHostControl(action));
   const seekable = capabilities.seekBehaviors.includes(artifact.behavior);
   const timeline = artifact.timeline ?? null;
   return {
@@ -32,8 +34,8 @@ export function cardModel(artifact, capabilities = ANIMATION_CAPABILITIES) {
     loop: timeline ? { duration: timeline.duration, repeat: !!timeline.loop, seekable, speeds: seekable ? [...capabilities.speeds] : [] } : null,
     goal: artifact.experience === 'game' && artifact.game ? { objective: artifact.game.objective, hint: artifact.game.hint ?? '' } : null,
     parameters: artifact.parameters,
-    actions: artifact.actions,
-    keys: artifact.keys ?? {}, // direction -> declared action id (contract.js keys)
+    actions,
+    keys: Object.fromEntries(Object.entries(artifact.keys ?? {}).filter(([, id]) => actions.some(action => action.id === id))), // direction -> shown action id
     readouts: artifact.readouts,
     assumptions: artifact.assumptions ?? [],
     camera: artifact.camera,

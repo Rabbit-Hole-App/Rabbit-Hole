@@ -96,7 +96,7 @@ export async function validateStage(job, ctx = {}) {
   // createdAt is the approval time, so the same draft always seals to the same artifact (and hash).
   const artifact = await sealArtifact(job.draft, { artifactId: job.resultId, revision: 1, planHash: job.planHash, model: made?.served ?? made?.requested ?? null, createdAt: new Date(job.approval?.at ?? 0).toISOString(), caps });
   const problems = [...programProblems(artifact), ...planProblems(artifact, job.plan)];
-  const checked = validateAnimationArtifact(artifact, caps);
+  const checked = validateAnimationArtifact(artifact, caps, { draft: true });
   if (!checked.ok) problems.push(...checked.issues.map(i => `${i.path || 'artifact'}: ${i.message} (${i.code})`));
   if (problems.length) return { problems: [...new Set(problems)].slice(0, 20).map(p => p.slice(0, 400)), category: 'spec', repairable: true };
   // The review and the one repair must be able to read this artifact: measured now, before any review is spent.
