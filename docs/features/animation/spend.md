@@ -40,8 +40,16 @@ From 2026-10-30 (acceptance.next.mjs): provider charges and ledger counts are se
 | 25 | 2026-11-01 9:00 PM | owner try-it (preview, launcher user) | game (launch a ball at a target, retry on 30eac64c6): failed (rounds: review rejected the framing, run repair restored a dropped program, review rejected again) | claude-opus-5-5 | 6 calls, repairs 2 | - | US$0.7692 | US$0.7692 exact: dev usage_attempts for the launcher user, 6 settled calls (brief 41,760 + author 193,027 + review 100,601 + repair 189,582 + repair 155,768 + review 88,482 micros = 769,220), the same as the job diagnostics | (job aj_9229023) | US$6.6459 | US$6.7675 |
 | 26 | 9:25 PM | G acceptance.mjs | ownergame: failed | claude-opus-5-5 | 5 calls, repairs 2 | US$3.5462 | US$0.7498 | US$0.7498 (5 model call(s); 6 render(s), platform, US$0) | - | US$7.3957 | US$7.5173 |
 | 27 | 9:27 PM | G acceptance.mjs | ownerpendulum: ready (the result could not be placed: invalid_result: ref.artifactId) | claude-opus-5-5 | 6 calls, repairs 2 | US$3.5462 | US$0.2807 | US$0.2807 (6 model call(s); 12 render(s), platform, US$0) | `18a064c972c47453` | US$7.6764 | US$7.7980 |
+| 28 | 2026-11-01 9:39 PM | owner try-it (preview, launcher user, canvas-910b08d0) | experiment (pendulum length and swing): ready (job aj_bd6fc64) | claude-opus-5-5 | 3 calls, repairs 0 | - | US$0.1788 | US$0.1788 exact: dev usage_attempts, 3 settled calls (brief 32,252 + author 77,515 + review 68,993 micros = 178,760); added 2026-11-02 in the ledger reconciliation | (job aj_bd6fc64) | US$7.8552 | US$7.9768 |
+| 29 | 2026-11-01 9:41 PM | owner try-it (preview, launcher user, canvas-910b08d0) | game (token on a 3 by 3 grid): ready after one repair (job aj_a11dc34) | claude-opus-5-5 | 5 calls, repairs 1 | - | US$0.3368 | US$0.3368 exact: dev usage_attempts, 5 settled calls (brief 16,860 + author 72,251 + review 65,890 + repair 124,850 + review 56,966 micros = 336,817); added 2026-11-02 in the ledger reconciliation | (job aj_a11dc34) | US$8.1920 | US$8.3136 |
+| 30 | 2026-11-01 9:52 PM | owner try-it (preview, launcher user, canvas-910b08d0) | experiment (SGD, the owner's prompt): failed (rounds: the repair-request size check twice, FX-AN-026) | claude-opus-5-5 | 3 calls, repairs 1 | - | US$0.4416 | US$0.4416 exact: dev usage_attempts, 3 settled calls (brief 45,712 + author 242,995 + repair 152,902 micros = 441,609); added 2026-11-02 in the ledger reconciliation | (job aj_41cfeac) | US$8.6336 | US$8.7552 |
 
 "Exact" here is the dev ledger's settled cost: the provider's reported token usage at the list price (not an invoice). A reserve is
 an estimate held before a call and released when it settles.
 
-Total provider: US$7.6764. Total ledger (incl. reserves): US$7.7980. Reserved in flight: US$0.00. Remaining: US$2.2020.
+Reconciliation 2026-11-02 (all /animation calls in the dev ledger, every user, attempt ids `animation-*`, since 2026-10-30): 108 model
+calls, settled US$8.633597, plus one unsettled reserve of US$0.121590 (row 1, never sent). Rows 1-30 sum to the same within
+rounding (US$8.6336): rows 28-30
+were three owner preview runs that had not been logged. Renders are platform compute and are not in these totals.
+
+Total provider: US$8.6336. Total ledger (incl. reserves): US$8.7552. Reserved in flight: US$0.00. Remaining: US$1.2448.
