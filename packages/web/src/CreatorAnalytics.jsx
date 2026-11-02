@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowRight, ArrowUpRight, CircleAlert, Download, GitFork, Info, Lock, PanelsTopLeft, Plus, ShieldCheck, Sprout, Star, X } from 'lucide-react';
 import { Button, Tabs, TabsList, TabsTrigger, toast } from './ui.jsx';
-import { api, apiFetch, navigate } from './api.js';
+import { api, apiFetch } from './api.js';
 import { deviceId } from './home/canvas-local.js';
 import { LAUNCH_COPY, PREFILL_KEY, RANGES, SOURCES, TABS, analyticsCsv, analyticsUrl, dateText, followUpPrompt, hidden, hiddenReason, metricText, noAudience, periodText } from './creator-analytics.js';
 
@@ -349,10 +349,10 @@ export function CreatorAnalyticsDialog({ canvas = null, opener: givenOpener = nu
       const made = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Next: ${insight.label}`.slice(0, 120), device_id: deviceId(localStorage) }) });
       try { sessionStorage.setItem(PREFILL_KEY(made.name), followUpPrompt(insight.label, board)); } catch { /* blocked storage: the canvas opens with an empty composer */ }
       onClose();
-      navigate(`/apps/${made.name}`);
+      window.location.assign(`/apps/${made.name}`); // a full load: the profile page does not follow in-app navigation
     } catch (problem) { toast(problem.message, { tone: 'error' }); }
   };
-  const review = insight => { onClose(); navigate(`/apps/${insight.canvas}`); };
+  const review = insight => { onClose(); window.location.assign(`/apps/${insight.canvas}`); };
 
   const status = error ? 'failure' : !data ? 'checking' : data.collection?.status === 'active' ? 'active' : 'failure';
   const boards = scopes.length ? scopes : (data?.boards || []).map(b => ({ canvas: b.canvas, title: b.title }));
