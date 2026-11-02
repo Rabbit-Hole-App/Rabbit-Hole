@@ -536,6 +536,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       window.dispatchEvent(new CustomEvent(event, { detail: { jobId: proposal.input.job } }));
       return job?.cardId || null;
     },
+    // An approved /animation plan's status in Chat: its job, and whether this canvas still holds its card (false only when the canvas is loaded).
+    readAnimationJob: async proposal => {
+      const boardId = commentBoardRef.current;
+      if (!boardId || typeof proposal?.input?.job !== 'string') throw new Error('Not on this canvas.');
+      const [client] = jobRoute(proposal, boardId);
+      return (await client.get(proposal.input.job))?.job ?? null;
+    },
+    hasCard: id => { const blocks = canvasApi.current?.blocks?.(); return blocks ? blocks.some(block => block.id === id) : undefined; },
     // Cancel on that brief: the job's own cancel action (Lane C stop); its waiting card observes the job again and says Stopped.
     cancelExplain: async proposal => {
       const boardId = commentBoardRef.current;

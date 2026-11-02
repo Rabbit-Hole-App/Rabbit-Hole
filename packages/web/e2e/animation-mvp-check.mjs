@@ -683,7 +683,7 @@ export function evaluate({ state }) {
     assert.equal(flow.approves.length, 1, 'two presses, one approve');
     const { body } = flow.approves[0];
     assert.deepEqual([body.boardId, body.proposal.version, body.proposal.settings.experience], [job.boardId, 2, 'experiment']);
-    await plan().locator('[data-proposal-made]').waitFor({ timeout: 10000 });
+    await plan().locator('[data-proposal-job-status]').waitFor({ timeout: 10000 });
     const q = parts(g, job.cardId);
     await until(async () => (await q.card.getAttribute('data-animation-experience')) === 'experiment', 'the result card', 30000);
     await fit(g);

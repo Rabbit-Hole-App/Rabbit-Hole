@@ -54,6 +54,18 @@ export function animationProgress(job) {
 const RECOVERIES = ['retry_render', 'new_attempt', 'revise_plan'];
 export const animationRetry = job => job?.recovery?.find(action => RECOVERIES.includes(action)) ?? null;
 export const RETRY_LABELS = Object.freeze({ retry_render: 'Render again', new_attempt: 'Try again', revise_plan: 'Revise plan' });
+// The status an approved /animation plan shows in Chat: its job's and its card's, never the press's ("Added to the canvas" under a job
+// that failed, or a card that is not there, was untrue; owner 2026-11-02). job null: not read yet (null, nothing claimed); unread: the
+// read failed. onCanvas false: this canvas has no card for it, so there is nothing to go to, and the words say so.
+export function animationProposalStatus({ job, unread = false, onCanvas = true, cardId = null }) {
+  if (unread) return { phase: 'unknown', label: null, active: false, spinner: false, detail: 'The status of this scene could not be read.', canStop: false, cardId: onCanvas ? cardId : null };
+  if (!job) return null;
+  const go = onCanvas ? cardId : null, missing = onCanvas ? '' : ' Its card is not on this canvas. Send the request again to make a new one.';
+  if (job.stage === 'ready') return { phase: onCanvas ? 'done' : 'unknown', label: onCanvas ? 'Added to the canvas' : null, active: false, spinner: false, detail: onCanvas ? 'Added to the canvas.' : `The scene was made.${missing}`, canStop: false, cardId: go };
+  if (job.stage === 'failed') return { phase: 'failed', label: null, active: false, spinner: false, detail: `${animationStage(job)}${missing}`, canStop: false, cardId: go };
+  if (job.stage === 'cancelled') return { phase: 'stopped', label: null, active: false, spinner: false, detail: `Stopped.${missing}`, canStop: false, cardId: go };
+  return { phase: 'running', label: 'Making the scene', active: true, spinner: true, detail: animationStage(job), canStop: false, cardId: go };
+}
 // A job's result lands through storage.js (withJob, settleAnimationJob): bound to its card, board, request, source set and base revision.
 
 // A job changed from outside its card (Generate approved its plan, Chat refined it, Stop): its card polls again.

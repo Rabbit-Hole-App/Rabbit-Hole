@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { ANIMATION_ROUTES, animationClient, animationProgress, animationRetry, animationRunning, animationStage, readyResult, requestRef } from './client.js';
+import { ANIMATION_ROUTES, animationClient, animationProgress, animationProposalStatus, animationRetry, animationRunning, animationStage, readyResult, requestRef } from './client.js';
 import { experimentFixture } from './fixtures.js';
 import { refProblem, settleAnimationJob, withJob } from './storage.js';
 
@@ -102,4 +102,18 @@ test('a ready job whose artifact is not the one it names, or no job result, maps
   assert.equal(await readyResult(readyJob({ stage: 'reviewing' }), async () => { reads += 1; return {}; }), null);
   assert.equal(await readyResult(readyJob({ result: null }), async () => { reads += 1; return {}; }), null);
   assert.equal(reads, 0);
+});
+
+test('an approved plan shows its job and card in Chat, never "Added to the canvas" for a failed job or a missing card', () => {
+  const failed = { stage: 'failed', failure: { message: 'The scene was too large to check.' } };
+  assert.equal(animationProposalStatus({ job: null }), null, 'nothing claimed before the read');
+  assert.deepEqual([animationProposalStatus({ job: failed, cardId: 'c' }).phase, animationProposalStatus({ job: failed, cardId: 'c' }).detail, animationProposalStatus({ job: failed, cardId: 'c' }).cardId, animationProposalStatus({ job: failed, cardId: 'c' }).label], ['failed', 'The scene was too large to check.', 'c', null]);
+  const gone = animationProposalStatus({ job: failed, onCanvas: false, cardId: 'c' });
+  assert.match(gone.detail, /too large to check\. Its card is not on this canvas\. Send the request again/);
+  assert.equal(gone.cardId, null, 'nothing to go to');
+  assert.deepEqual([animationProposalStatus({ job: { stage: 'ready' }, cardId: 'c' }).label, animationProposalStatus({ job: { stage: 'ready' }, cardId: 'c' }).cardId], ['Added to the canvas', 'c']);
+  assert.equal(animationProposalStatus({ job: { stage: 'ready' }, onCanvas: false, cardId: 'c' }).label, null, 'a made scene with no card is not "added"');
+  assert.deepEqual([animationProposalStatus({ job: { stage: 'reviewing' }, cardId: 'c' }).active, animationProposalStatus({ job: { stage: 'reviewing' }, cardId: 'c' }).detail], [true, 'Reviewing the render']);
+  assert.equal(animationProposalStatus({ job: { stage: 'cancelled' }, cardId: 'c' }).phase, 'stopped');
+  assert.equal(animationProposalStatus({ unread: true }).phase, 'unknown');
 });
