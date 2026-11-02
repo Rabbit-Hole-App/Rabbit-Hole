@@ -169,28 +169,47 @@ test('past its time budget the sampler stops its runtime and keeps the frames it
   assert.ok(Date.now() - started < FRAMING.budgetMs + 500, 'cut at the budget');
 });
 
-// FX-AN-025 (aj_fac3ca4b, saved): the launch game's 42 m floor and marks to 35 m set the fit around a 16 m flight, so the field was a
-// thin strip; and a 1 s sample budget never saw the ball land. On the real engine: the main action's whole flight is sampled, the view
-// frames the flight, launcher and target, and the far marks and the floor no longer set it.
-run('the saved FX-AN-025 game: the fit frames the launch, launcher and target, not the floor laid out for every setting', async () => {
+// FX-AN-025 (aj_fac3ca4b, saved) and the grid robot: the fit at a set of inputs keeps every essential object (targets, the play area,
+// reference marks) and the actual motion on screen, at the defaults and at the parameter extremes (owner 2026-11-02: 10 degrees at
+// 5 m/s cropped the target; the grid robot's first move cropped its target). On the real engine, through the card's own sampler.
+const onScreenAt = async (artifact, inputs, ids) => {
+  const frames = await sampleAnimationFrames({ artifact, inputs, workerFactory });
+  const built = buildAnimationScene(artifact, { labelTexture });
+  const points = subjectPoints(built.scene, frames);
+  const camera = fitCameraToPoints(points, artifact.camera, ASPECT);
+  const check = {};
+  for (const frame of frames) {
+    built.scene.apply(frame); built.scene.root.updateWorldMatrix(true, true);
+    for (const id of ids) {
+      const holder = built.scene.objects.get(id);
+      const box = new THREE.Box3().setFromObject(holder);
+      const corners = Array.from({ length: 8 }, (_, i) => new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z));
+      check[id] = Math.max(check[id] ?? 0, reach(onScreen(camera, corners)));
+    }
+  }
+  built.scene.dispose();
+  return { frames, check, camera };
+};
+const loadSavedGame = async () => {
   const { readFileSync } = await import('node:fs');
   const saved = JSON.parse(readFileSync(new URL('./testdata/fx025-game-candidate.json', import.meta.url), 'utf8'));
   const { sealArtifact } = await import('../../../control-plane/src/animation-author.js');
   const { validateAnimationArtifact } = await import('./contract.js');
   const sealed = await sealArtifact(saved.draft, { artifactId: `ar_${'0'.repeat(32)}`, revision: 1, planHash: saved.planHash, createdAt: new Date(saved.createdAt).toISOString() });
-  const artifact = validateAnimationArtifact(sealed).value;
-  const frames = await sampleAnimationFrames({ artifact, workerFactory });
-  const landed = frames.map(frame => frame.nodes?.ballN?.position?.[0] ?? 0);
-  assert.ok(Math.max(...landed) > 16, `the flight is sampled to its landing: ${landed}`);
-  const built = buildAnimationScene(artifact, { labelTexture });
-  const points = subjectPoints(built.scene, frames);
-  built.scene.dispose();
-  const box = new THREE.Box3().setFromPoints(points);
-  assert.ok(box.max.x < 25 && box.min.x > -2, `the floor (x -2 to 40) does not set the bounds: ${box.min.x}..${box.max.x}`);
-  assert.ok(box.max.x >= 18.5, 'the target at 18 m stays in the subject');
-  const camera = fitCameraToPoints(points, artifact.camera, ASPECT);
-  const ndc = onScreen(camera, points);
-  assert.ok(reach(ndc) <= FRAMING.fill + 1e-9);
-  const height = Math.max(...ndc.map(p => p.y)) - Math.min(...ndc.map(p => p.y));
-  assert.ok(height > 0.6, `the action fills more of the height than the 21% strip it was: ${(height * 50).toFixed(0)}%`);
+  return validateAnimationArtifact(sealed).value;
+};
+run('the saved FX-AN-025 game: target, launcher, marks and the flight stay on screen at the defaults and at every extreme', async () => {
+  const artifact = await loadSavedGame();
+  const essential = ['target', 'disc', 'flag', 'base', 'barrel', 't5', 't10', 't20', 't35', 'ballN'];
+  for (const inputs of [undefined, { angle: 10, speed: 5 }, { angle: 80, speed: 20 }, { angle: 45, speed: 20 }, { angle: 10, speed: 20 }]) {
+    const { frames, check } = await onScreenAt(artifact, inputs, essential);
+    if (!inputs) assert.ok(Math.max(...frames.map(f => f.nodes?.ballN?.position?.[0] ?? 0)) > 16, 'the default flight is sampled to its landing');
+    for (const [id, r] of Object.entries(check)) assert.ok(r <= 1, `${JSON.stringify(inputs ?? 'defaults')}: ${id} reaches ${r.toFixed(2)} of the view`);
+  }
+});
+run('the grid robot game: the target, the board and the robot\'s moves stay on screen', async () => {
+  const { gameFixture: grid } = await import('./fixtures.js');
+  const { check } = await onScreenAt(grid.artifact, undefined, grid.artifact.scene.nodes.filter(n => n.geometry).map(n => n.id));
+  for (const [id, r] of Object.entries(check)) assert.ok(r <= 1, `${id} reaches ${r.toFixed(2)} of the view`);
+  assert.ok(check.target <= 1, 'the target at [3, 0.03, 2]');
 });

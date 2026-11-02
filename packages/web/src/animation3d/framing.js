@@ -29,7 +29,10 @@ import { buildAnimationScene } from './scene.js';
 // what moves (aj_fac3ca4b: a 42 m floor and marks to 35 m around a 16 m flight), the subject is what moves at these inputs, what the
 // inputs move, and the static parts within near x its size beyond it (FX-AN-025). budgetMs: 2000, since 90 steps of a stepped scene take
 // about 1 s on the engine (aj_fac3ca4b: 320 ms per 30 steps, so a 1 s budget never saw the ball land).
-export const FRAMING = Object.freeze({ fill: 0.8, samples: 12, budgetMs: 2000, ticks: 30, sheet: 1.25, dwarf: 3, caption: 0.25, focus: 2, near: 0.25, refit: Object.freeze({ distance: 1.2, aim: 0.15 }) });
+// keep: every essential part (the whole subject: targets, play areas, reference marks; never a backdrop) stays inside this share of
+// the view even when the focus is narrower (owner 2026-11-02: a 10° / 5 m/s shot cropped the target out of aj_fac3ca4b, and the grid
+// robot's first move framed the robot without its target); the focus then fills as much of the view as that allows.
+export const FRAMING = Object.freeze({ fill: 0.8, keep: 0.96, samples: 12, budgetMs: 2000, ticks: 30, sheet: 1.25, dwarf: 3, caption: 0.25, focus: 2, near: 0.25, refit: Object.freeze({ distance: 1.2, aim: 0.15 }) });
 
 const extent = box => { const size = box.getSize(new THREE.Vector3()); return Math.max(size.x, size.y, size.z); };
 
@@ -94,7 +97,8 @@ export async function sampleAnimationFrames({ artifact, inputs = undefined, fram
 // box) are context, not subject, and so are the labels on them. Focus: a node moved when its box differs between the frames, or from
 // frames.reference (the defaults: the inputs moved it); when the static parts span more than FRAMING.focus x what moved (expanded by
 // FRAMING.near), the subject is what moved plus the static parts inside that expanded box, so the default action is what fills the
-// view, not a field laid out for every setting. -> Vector3[] | null
+// view, not a field laid out for every setting. points.keep: the whole subject (with its nearby label anchors), which the fit keeps
+// on screen (FRAMING.keep) whatever the focus. -> Vector3[] (with .keep) | null
 export function subjectPoints(scene, frames) {
   const swept = new Map(), anchors = [], sheets = new Set(), size = new THREE.Vector3(), scale = new THREE.Vector3();
   const drawableOf = holder => holder.children.find(child => child.userData.nodeId === holder.userData.nodeId); // not a child node's holder, nor a label's leader
@@ -152,30 +156,51 @@ export function subjectPoints(scene, frames) {
     focus.expandByScalar(FRAMING.near * span);
     if (extent(boxOf(subject)) > FRAMING.focus * span) kept = subject.filter(id => moved.has(id) || focus.containsBox(swept.get(id).box));
   }
-  const meshPoints = kept.flatMap(id => swept.get(id).points);
-  const near = meshPoints.length ? new THREE.Box3().setFromPoints(meshPoints) : null;
-  if (near) near.expandByScalar(FRAMING.caption * extent(near));
-  const points = [...meshPoints, ...anchors.filter(({ id, point }) => !onContext(id) && (!near || near.containsPoint(point))).map(({ point }) => point)];
-  return points.length && extent(new THREE.Box3().setFromPoints(points)) > 0 ? points : null;
+  const withAnchors = list => {
+    const meshPoints = list.flatMap(id => swept.get(id).points);
+    const near = meshPoints.length ? new THREE.Box3().setFromPoints(meshPoints) : null;
+    if (near) near.expandByScalar(FRAMING.caption * extent(near));
+    return [...meshPoints, ...anchors.filter(({ id, point }) => !onContext(id) && (!near || near.containsPoint(point))).map(({ point }) => point)];
+  };
+  const points = withAnchors(kept);
+  if (!points.length || !(extent(new THREE.Box3().setFromPoints(points)) > 0)) return null;
+  points.keep = kept === subject ? points : withAnchors(subject);
+  return points;
 }
 
 // The camera on the authored direction (position - target) that frames every point at FRAMING.fill of both the vertical and the
-// horizontal field of view, aimed at the points' box center, never inside their bounding sphere.
+// horizontal field of view, never inside their bounding sphere, and every points.keep point inside FRAMING.keep of it: aimed along
+// the line from the points' box center to the keep box center where that needs the shortest distance (11 steps).
 export function fitCameraToPoints(points, { position, target, fov = 50 }, aspect) {
-  const center = new THREE.Box3().setFromPoints(points).getCenter(new THREE.Vector3());
   const back = new THREE.Vector3().fromArray(position).sub(new THREE.Vector3().fromArray(target));
   if (back.lengthSq() === 0) back.set(0, 0, 1);
   const right = new THREE.Vector3(), up = new THREE.Vector3(), toward = new THREE.Vector3(), offset = new THREE.Vector3();
   new THREE.Matrix4().lookAt(back, new THREE.Vector3(), THREE.Object3D.DEFAULT_UP).extractBasis(right, up, toward); // the camera's own axes
-  const tanY = Math.tan(fov * Math.PI / 360) * FRAMING.fill, tanX = tanY * aspect;
-  let distance = 0;
-  for (const point of points) {
-    offset.subVectors(point, center);
-    const depth = offset.dot(toward); // toward the camera: a nearer point needs more room
-    distance = Math.max(distance, offset.length(), depth + Math.abs(offset.dot(right)) / tanX, depth + Math.abs(offset.dot(up)) / tanY);
+  const half = Math.tan(fov * Math.PI / 360);
+  const distanceFor = (list, center, fill) => {
+    const tanY = half * fill, tanX = tanY * aspect;
+    let distance = 0;
+    for (const point of list) {
+      offset.subVectors(point, center);
+      const depth = offset.dot(toward); // toward the camera: a nearer point needs more room
+      distance = Math.max(distance, offset.length(), depth + Math.abs(offset.dot(right)) / tanX, depth + Math.abs(offset.dot(up)) / tanY);
+    }
+    return distance;
+  };
+  const focus = new THREE.Box3().setFromPoints(points).getCenter(new THREE.Vector3());
+  const keep = points.keep && points.keep !== points ? points.keep : null;
+  let best = { center: focus, distance: distanceFor(points, focus, FRAMING.fill) };
+  if (keep) {
+    const whole = new THREE.Box3().setFromPoints(keep).getCenter(new THREE.Vector3());
+    best = null;
+    for (let i = 0; i <= 10; i += 1) {
+      const center = focus.clone().lerp(whole, i / 10);
+      const distance = Math.max(distanceFor(points, center, FRAMING.fill), distanceFor(keep, center, FRAMING.keep));
+      if (!best || distance < best.distance - 1e-9) best = { center, distance };
+    }
   }
   // ponytail: no far-plane check (renderer.js far = 2000); a subject that large keeps whatever the far plane clips.
-  return { position: center.clone().addScaledVector(toward, distance).toArray(), target: center.toArray(), fov };
+  return { position: best.center.clone().addScaledVector(toward, best.distance).toArray(), target: best.center.toArray(), fov };
 }
 
 const plainLabel = () => ({ texture: new THREE.Texture(), aspect: 1 }); // a measuring scene is never drawn
