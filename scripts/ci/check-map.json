@@ -472,6 +472,7 @@
     "packages/web/src/library-*.js": ["library-folders-check.mjs","card-redesign-check.mjs","project-menu-check.mjs","cross-device-check.mjs","card-thumbnails-check.mjs","visibility-check.mjs","sidebar-check.mjs","canvas-forking-check.mjs"],
     "packages/web/src/CreatorProfile.jsx": ["creator-profile-check.mjs","analytics-ui-check.mjs","explore-check.mjs","handle-check.mjs","shared-canvas-ask-check.mjs","explore-creators-check.mjs","stars-surfaces-check.mjs"],
     "packages/web/src/CreatorAnalytics.jsx": ["creator-profile-check.mjs","analytics-ui-check.mjs","explore-check.mjs","handle-check.mjs"],
+    "packages/web/src/publication-analytics.js": ["analytics-ui-check.mjs","explore-check.mjs","shared-canvas-ask-check.mjs"],
     "packages/web/src/creator-analytics.js": ["creator-profile-check.mjs","analytics-ui-check.mjs","explore-check.mjs","handle-check.mjs"],
     "packages/web/src/HandleGate.jsx": ["handle-check.mjs","creator-profile-check.mjs","explore-check.mjs","shared-rabbit-hole-check.mjs","canvas-loading-check.mjs"],
     "packages/web/src/home/WeeklyTop.jsx": ["explore-creators-check.mjs","card-size-check.mjs","explore-check.mjs"],
