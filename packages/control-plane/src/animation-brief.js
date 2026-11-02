@@ -5,7 +5,7 @@
 // capability the phase lacks is an invalid turn, never trimmed into something else.
 import { ANIMATION_CAPABILITIES } from '../../web/src/animation3d/capabilities.js';
 import { PLAN_SCHEMA, validateAnimationPlan } from '../../web/src/animation3d/contract.js';
-import { plannerSystem, plannerVariant, PLAN_TOOL } from './agents/animation-brief.js';
+import { ANIMATION_BRIEF_SYSTEM, PLAN_TOOL } from './agents/animation-brief.js';
 import { AnimationPolicyError } from './animation-policy.js';
 import { modelEvidence } from './explain-evidence.js';
 import { plainPrompt } from '../../web/src/generation-review.js';
@@ -49,9 +49,9 @@ export async function prepareStage(job, ctx) {
     context: job.context ? { refText: job.context.refText ?? null, refs: (job.context.refs || []).map(({ name, kind, status, note }) => ({ name, kind, status, ...(note ? { note } : {}) })) } : null,
     evidence: modelEvidence(job.evidence),
     capabilities: { phase: caps.phase, experiences: caps.experiences, behaviors: caps.behaviors, controlProfiles: caps.controlProfiles, features: caps.features, limits: { parameters: caps.limits.parameters, actions: caps.limits.actions, nodes: caps.limits.nodes } } });
-  const variant = plannerVariant(ctx.env), system = plannerSystem(variant);
+  const system = ANIMATION_BRIEF_SYSTEM;
   const answers = [];
-  const answer = reply => { const out = planFrom(reply, caps); answers.push({ variant, input: reply?.input ?? null, issues: (out.issues || []).map(i => `${i.path || 'plan'}: ${i.message} (${i.code})`) }); return out; };
+  const answer = reply => { const out = planFrom(reply, caps); answers.push({ input: reply?.input ?? null, issues: (out.issues || []).map(i => `${i.path || 'plan'}: ${i.message} (${i.code})`) }); return out; };
   const first = answer(await ctx.call('brief', { system, tool: PLAN_TOOL, content }));
   if (first.gap || first.plan) return { ...first, answers };
   // One bounded correction (ANIMATION_LIMITS.planCorrections, counted in the plan call bound and the worst case): the planner gets its

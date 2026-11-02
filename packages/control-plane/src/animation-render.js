@@ -144,10 +144,20 @@ export async function renderAnimation(env, candidate, manifest, deps = {}) {
 // screenshot target), with the PNGs returned instead of stored. -> { ok, error?, program?, coverage, captures: [{ id, label, view, time,
 // events, ticks, bytes, sha256, pngBase64, trace }], requests: { served, blocked } }
 const pngBase64 = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(s); };
-export async function renderProbe(env, artifact, artifactHash, deps = {}) {
+// states (the result probe only): chosen settings to draw in the default view instead of the review's own sample, for checking
+// framing at parameter extremes: [{ label, inputs, events?, ticks? }], at most capturesPerRound, bounded as the review's own.
+export function chosenManifest(artifact, states) {
+  if (!Array.isArray(states) || !states.length || states.length > ANIMATION_LIMITS.render.capturesPerRound) throw new RenderError('over_budget', `give 1 to ${ANIMATION_LIMITS.render.capturesPerRound} states`);
+  const view = captureViews(artifact)[0];
+  const entries = states.map((state, i) => ({ id: `chosen-${i}`, view, label: String(state.label ?? `state ${i}`).slice(0, 80), inputs: resolveAnimationInputs(artifact, state.inputs ?? {}), time: Number(state.time) || 0,
+    events: (state.events ?? []).slice(0, ANIMATION_CAPTURE.maxEvents), ticks: artifact.stepped ? Math.min(ANIMATION_CAPTURE.maxTicks, Math.max(0, Number(state.ticks) || 0)) : 0,
+    seed: artifact.seed, theme: ANIMATION_CAPTURE.theme, width: ANIMATION_CAPTURE.width, height: ANIMATION_CAPTURE.height, dpr: ANIMATION_CAPTURE.dpr }));
+  return { entries, coverage: { views: [view.name], sampled: entries.map(e => ({ label: e.label, time: e.time, events: e.events.length, ticks: e.ticks })), omitted: [] } };
+}
+export async function renderProbe(env, artifact, artifactHash, deps = {}, states = null) {
   if (!env?.BROWSER && !deps.launch && !deps.browser) return { ok: false, error: 'render_unavailable: no BROWSER binding on this deployment' };
   if (!env?.ASSETS?.fetch) return { ok: false, error: 'render_unavailable: no ASSETS binding on this deployment' };
-  const manifest = captureManifest(artifact);
+  const manifest = states ? chosenManifest(artifact, states) : captureManifest(artifact);
   try {
     const out = await renderAnimation(env, { artifact, artifactHash }, manifest, deps);
     return { ok: true, artifactHash, coverage: manifest.coverage, requests: out.requests,

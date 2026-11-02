@@ -582,30 +582,11 @@ test('the planner request pins medium effort on Opus 5.5 with 4,000 tokens, one 
   assert.equal('output_config' in animationRequest({}, 'review', { system: 's', tool: PLAN_TOOL, content: '{}' }), false);
   assert.equal(PLAN_TOOL.strict, undefined, 'strict tool use is tracked separately');
 });
-test('variant B is exactly variant A plus the fixed examples block; each example is a valid plan, and none is an evaluation prompt', async () => {
-  const { PLANNER_EXAMPLES, plannerSystem, plannerVariant } = await import('../src/agents/animation-brief.js');
-  const [a, b] = [plannerSystem('a'), plannerSystem('b')];
-  assert.ok(b.startsWith(`${a}\n\n<examples>`) && b.endsWith('</examples>'));
-  assert.deepEqual([plannerVariant({}), plannerVariant({ ANIMATION_PLANNER_VARIANT: 'b' }), plannerVariant({ ANIMATION_PLANNER_VARIANT: 'x' })], ['a', 'b', 'a']);
-  assert.deepEqual(PLANNER_EXAMPLES.map(e => e.plan.experience), ['watch', 'experiment', 'game', 'watch'], 'the fixed order');
-  const job = { prompt: 'x', evidence: [], context: null };
-  for (const example of PLANNER_EXAMPLES) {
-    const out = await prepareStage({ ...job, prompt: example.request }, { call: async () => ({ input: example.plan }) });
-    assert.ok(out.plan, `${example.request}: ${JSON.stringify(out)}`);
-    assert.deepEqual(out.answers[0].issues, []);
-    assert.ok(!b.split('<examples>')[1].includes('stochastic'), 'no evaluation subject');
-  }
-  // The stated control is kept exactly; the unavailable request reaches the server's own limitation.
-  assert.deepEqual([PLANNER_EXAMPLES[1].plan.parameters[0].min, PLANNER_EXAMPLES[1].plan.parameters[0].max, PLANNER_EXAMPLES[1].plan.parameters[0].default], [20, 80, 50]);
-  const missing = await prepareStage({ ...job, prompt: PLANNER_EXAMPLES[3].request }, { call: async () => ({ input: PLANNER_EXAMPLES[3].plan }) });
-  assert.ok(missing.plan.limitations.some(l => l.startsWith('You asked for ')), 'the server adds its limitation');
-  for (const example of PLANNER_EXAMPLES) assert.doesNotMatch(JSON.stringify(example.plan.interactions), /"(Reset|Restart)\b/, 'no duplicate of the card\'s Reset');
-});
-test('the configured variant is the one sent and recorded', async () => {
-  const { PLANNER_EXAMPLES, plannerSystem } = await import('../src/agents/animation-brief.js');
-  const sent = [];
-  const out = await prepareStage({ prompt: 'x', evidence: [], context: null }, { env: { ANIMATION_PLANNER_VARIANT: 'b' }, call: async (role, spec) => { sent.push(spec.system); return { input: PLANNER_EXAMPLES[0].plan }; } });
-  assert.deepEqual([sent[0] === plannerSystem('b'), out.answers[0].variant], [true, 'b']);
+test('variant A stays the default: the prompt is the one compared and frozen in planner-eval.md, with no switch and no examples', async () => {
+  const { createHash } = await import('node:crypto');
+  const brief = await import('../src/agents/animation-brief.js');
+  assert.equal(createHash('sha256').update(brief.ANIMATION_BRIEF_SYSTEM).digest('hex'), '90e8ab906a62c72e931e917b0de182e380f25029e569e92b96a93b8fa5b3f22a');
+  assert.deepEqual(['plannerSystem' in brief, 'plannerVariant' in brief, 'PLANNER_EXAMPLES' in brief, brief.ANIMATION_BRIEF_SYSTEM.includes('<examples>')], [false, false, false, false]);
 });
 test('a correction call that fails keeps the refused first answer and its issues, its own error, and sends no further call', async () => {
   const bad = planReply(experimentFixture, { requiredCapabilities: ['parameters', 'readouts', 'step'] });
@@ -618,4 +599,15 @@ test('a correction call that fails keeps the refused first answer and its issues
     return true;
   });
   assert.equal(calls, 2, 'no third call');
+});
+
+test('the result probe draws chosen settings in the default view, bounded, with invalid inputs falling back to the defaults', async () => {
+  const { chosenManifest } = await import('../src/animation-render.js');
+  const artifact = experimentFixture.artifact;
+  const p = artifact.parameters[0];
+  const m = chosenManifest(artifact, [{ label: 'low', inputs: { [p.id]: p.min } }, { label: 'bad', inputs: { [p.id]: 1e9 } }]);
+  assert.deepEqual(m.entries.map(e => [e.label, e.view.name, e.inputs[p.id]]), [['low', 'default', p.min], ['bad', 'default', p.default]]);
+  assert.throws(() => chosenManifest(artifact, []), /give 1 to/);
+  assert.throws(() => chosenManifest(artifact, Array(7).fill({})), /give 1 to/);
+  assert.equal(chosenManifest(gameFixture.artifact, [{ events: Array(9).fill({ type: 'action', action: 'east' }) }]).entries[0].events.length <= 4, true);
 });

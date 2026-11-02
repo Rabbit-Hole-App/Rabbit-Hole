@@ -221,7 +221,7 @@ async function resultProbeRoute(req, env, deps) {
   const saved = await read.json().catch(() => null);
   if (!read.ok) return json({ ok: false, read: read.status, error: saved?.error || 'the result could not be read', ...(saved?.code ? { code: saved.code } : {}) }, read.status);
   // The read already checked the stored artifact against its hash; the capture echoes that same hash.
-  const out = await renderProbe(env, saved.artifact, saved.identity.artifactHash, deps.render);
+  const out = await renderProbe(env, saved.artifact, saved.identity.artifactHash, deps.render, body.states ?? null);
   return json({ resultId: body.resultId, identity: saved.identity, artifact: saved.artifact, ...out }, out.ok ? 200 : 502);
 }
 async function candidateProbeRoute(req, env, deps) {
@@ -672,7 +672,7 @@ export class AnimationJobs {
   async apply(job, stage, out) {
     const next = to => { endStage(job.timing, 'done'); job.stage = to; beginStage(job.timing, to); };
     // The planner's own replies, as given, with the issues of a refused one (diagnostics only: candidates never reach the learner view).
-    if (stage === 'preparing' && Array.isArray(out.answers)) (job.candidates ??= []).push(...out.answers.map(a => ({ stage: 'preparing', variant: a.variant, input: a.input, issues: a.issues })));
+    if (stage === 'preparing' && Array.isArray(out.answers)) (job.candidates ??= []).push(...out.answers.map(a => ({ stage: 'preparing', input: a.input, issues: a.issues })));
     // A capability the enabled phase lacks ends the job with what is missing: no repair, no simpler substitute scene.
     if (out.gap) { await this.stopWith(job, 'capability_gap', 'capability', out.gap.message); job.failure.gap = out.gap; return this.save(job); }
     if (stage === 'preparing') {
@@ -783,7 +783,7 @@ export class AnimationJobs {
       const current = await this.get(job.id);
       if (!current || TERMINAL.has(current.stage) || current.inFlight || error.abandoned) return;
       // The planner's replies before the failure, on every failure route (diagnostics only: candidates never reach the learner view).
-      if (Array.isArray(error.answers)) (current.candidates ??= []).push(...error.answers.map(a => ({ stage: 'preparing', variant: a.variant, input: a.input, issues: a.issues })));
+      if (Array.isArray(error.answers)) (current.candidates ??= []).push(...error.answers.map(a => ({ stage: 'preparing', input: a.input, issues: a.issues })));
       if (await this.resumeLater(current, error)) return;
       endStage(current.timing, 'failed');
       // The calls this stage run made (job is the snapshot it started from): what its explanation may say about charges (chargeWords).
