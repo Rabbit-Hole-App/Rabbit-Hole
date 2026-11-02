@@ -18,6 +18,9 @@ export const FLUSH_MS = 5_000;
 export const ACTIVE_REPORT_MS = 60_000;                // one rh_active_time event per minute of active time, or on hide/leave
 export const QUEUE_MAX = 100;
 export const ATTEMPTS = 3;                             // a batch is sent at most this many times, always with the same event uuids
+// Real input only. Not 'scroll': it also fires for programmatic scrolling, such as a streaming answer following its text, and
+// generation must not keep someone active. Wheel, touch and the keyboard are how a person scrolls.
+export const INPUT_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart', 'touchmove'];
 const KEY = { anon: 'rh_ph_anon', account: 'rh_ph_account', internal: 'rh_ph_internal', session: 'rh_ph_session', once: 'rh_ph_once' };
 const ACCOUNT_ID = /^[0-9a-f]{32}$/;                   // users.id (auth.js randomHex(16))
 const TOKEN = /^[a-z0-9_]{1,40}$/;
@@ -224,7 +227,7 @@ export function installUsageAnalytics(target, config, { signedOut = false } = {}
     if (signedOut) a.signedOut();
     a.pageview();
     target.addEventListener('popstate', () => a.pageview());
-    for (const type of ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll']) target.addEventListener(type, () => a.input(), { capture: true, passive: true });
+    for (const type of INPUT_EVENTS) target.addEventListener(type, () => a.input(), { capture: true, passive: true });
     target.setInterval(() => a.tick(), TICK_MS);
     target.document?.addEventListener('visibilitychange', () => (target.document.visibilityState === 'hidden' ? a.hide() : a.show()));
     target.addEventListener('pagehide', () => a.hide());

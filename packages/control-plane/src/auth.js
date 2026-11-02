@@ -240,7 +240,7 @@ async function oauthCallback(req, env, name, baseUrl, waitUntil) {
   try {
     const user = await userFor(env, name, profile.id, profile);
     const cookie = await sessionCookie(env, user);
-    waitUntil?.(captureSignIn(env, user)); // a verified sign-in (product-analytics.js); never awaited
+    waitUntil?.(captureSignIn(env, user, req)); // a verified sign-in (product-analytics.js); never awaited
     return redirect(next, [clear, cookie]);
   } catch {
     return redirect(loginError('unavailable', next), [clear]);
@@ -294,7 +294,7 @@ async function magicLink(req, env, html, waitUntil) {
       if (!row) return expired();
       const user = await userFor(env, 'email', row.email, { email: row.email });
       const cookie = await sessionCookie(env, user);
-      waitUntil?.(captureSignIn(env, user));
+      waitUntil?.(captureSignIn(env, user, req));
       return redirect(safeNext(row.next), [cookie]);
     }
     const token = new URL(req.url).searchParams.get('token');

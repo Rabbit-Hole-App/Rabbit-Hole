@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID, getRandomValues } from 'node:crypto';
-import { ATTEMPTS, IDLE_MS, SESSION_IDLE_MS, TICK_MS, createAnalytics, pagePath, referrerOf, sanitize, uuidv7, optedOut } from './usage-analytics.js';
+import { ATTEMPTS, IDLE_MS, INPUT_EVENTS, SESSION_IDLE_MS, TICK_MS, createAnalytics, pagePath, referrerOf, sanitize, uuidv7, optedOut } from './usage-analytics.js';
 
 const TOKEN = 'phc_testtoken0000000000000000000000000000000000';
 const HOST = 'https://us.i.posthog.com';
@@ -141,6 +141,10 @@ test('active time: input within 60 s while visible and focused; idle, hidden and
   t.doc.focused = true;
   b.clock.t += 3 * 3600_000; t.a.input(); t.a.tick(b.clock.t);
   assert.ok(t.a.stats().activeMs <= TICK_MS * 2, 'a suspended device adds at most one capped tick');
+});
+
+test('only real input keeps someone active: a programmatic scroll (a streaming answer) is not input', () => {
+  assert.deepEqual(INPUT_EVENTS, ['pointerdown', 'keydown', 'wheel', 'touchstart', 'touchmove']);
 });
 
 test('two tabs never double-count: only the focused one accrues', () => {

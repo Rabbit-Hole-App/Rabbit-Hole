@@ -60,8 +60,9 @@ which main features they use. No RH analytics UI is built; the views live in Pos
 
 Common properties on browser events: `distinct_id`, `$session_id` (UUIDv7), `$window_id`, `$lib: rh-web`, `$browser`,
 `$device_type`, `rh_env`, `rh_internal`. `action_id` is a 16-hex hash of the job or generation id, never the raw id.
-Terminal job events carry a per-browser once-key, so a card that polls or reloads and sees the same finished job again
-does not count it twice. Event `uuid`s are fixed per event, so a delivery retry is the same event to PostHog.
+Job outcomes count only when the card last knew the job as running (Motion, CAD, Explain), so opening an old card reports
+nothing, and terminal job events carry a per-browser once-key (Motion: per attempt, so a retry counts again), so a card that polls or
+reloads and sees the same finished job again does not count it twice. Event `uuid`s are fixed per event, so a delivery retry is the same event to PostHog.
 
 Planning is never reported as generation: the /explain brief is `rh_planning_requested`, and an Explain job that fails
 while still planning is not `rh_generation_failed`.
@@ -72,7 +73,8 @@ while still planning is not `rh_generation_failed`.
   after 24 hours), shared by the tabs of one browser.
 - Session duration (first to last event of a session) and estimated active minutes are separate numbers.
 - Estimated active time: counted only while the tab is visible and focused, and only up to 60 seconds after the last
-  real input (pointer down, key, wheel, touch, scroll). Hidden, unfocused and idle time count nothing; network activity
+  real input (pointer down, key, wheel, touch). The `scroll` event is not input: it also fires when a streaming answer
+  scrolls itself, so dragging a scrollbar with no other input can go uncounted. Hidden, unfocused and idle time count nothing; network activity
   (heartbeats, model polling) is never input. Each counting step is capped at 10 seconds, so a suspended device adds
   nothing. Only the focused tab of a browser counts, so two tabs never double-count. It is an engagement estimate, not
   proof of attention or learning.
@@ -84,13 +86,14 @@ while still planning is not `rh_generation_failed`.
   share or invitation URLs, emails, handles, profile fields. Paths go through `routeTemplate` (ids, tokens and handles
   become placeholders), queries and fragments are dropped, another site's referrer is reduced to its origin.
 - Every feature property is allowlisted per event and must be a lowercase word, a non-negative integer or a boolean.
-- Do Not Track or Global Privacy Control turns analytics off in that browser (the Privacy Policy says so).
+- Do Not Track or Global Privacy Control turns analytics off in that browser, and the server skips `rh_signed_in` when the
+  sign-in request carries either (the Privacy Policy says so).
 - Failures never block sign-in, the canvas or generation: every call is fire-and-forget and swallows its errors.
 
 ## Internal and test traffic
 
-- `ANALYTICS_INTERNAL_USER_IDS` lists the owner's accounts by `users.id`. Read from `rabbit-hole-prod` (read-only) on
-  2026-11-02, the only two users: `dda2350771a4066e3080c605ba092e0a` (Google, his Gmail, created 2026-10-03) and
+- `ANALYTICS_INTERNAL_USER_IDS` lists accounts by `users.id`. Basis: the owner states he is the only user, and
+  `rabbit-hole-prod` (read-only, 2026-11-02) holds exactly two; the westcliff.edu one still needs his explicit confirmation: `dda2350771a4066e3080c605ba092e0a` (Google, his Gmail, created 2026-10-03) and
   `edf6bd0c9cd0dcdcb7ef4c9f2c49f337` (Google, westcliff.edu, created 2026-10-24). `/api/me` returns `analytics_internal: true`
   for them, so their browser events carry `rh_internal: true`, and the sign-in event sets the person property.
 - `rh_env` is `production` only on the production build and control plane; dev builds that opt in send `dev`.

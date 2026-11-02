@@ -3,13 +3,15 @@
 // (production's rabbit-hole-cp); anywhere else it sends nothing. Sign-in never waits for it: the caller hands the promise to
 // waitUntil, and every failure is swallowed.
 
-// The accounts the owner verified as his own (ANALYTICS_INTERNAL_USER_IDS, users.id, comma separated): marked internal, so the
-// customer view leaves them out. Never matched by email.
+// The owner's accounts (ANALYTICS_INTERNAL_USER_IDS, users.id, comma separated): marked internal, so the customer view leaves
+// them out. Never matched by email.
 export const internalAccount = (env, userId) => !!userId && String(env?.ANALYTICS_INTERNAL_USER_IDS || '').split(',').map(id => id.trim()).includes(userId);
 
 // user: userFor's result ({ id, provider, created, created_at }). A retry resends the same uuid and timestamp, so PostHog keeps one.
-export async function captureSignIn(env, user, { fetcher = globalThis.fetch, attempts = 3 } = {}) {
+// req: the sign-in request; Do Not Track or Global Privacy Control on it sends nothing, as in the browser adapter.
+export async function captureSignIn(env, user, req, { fetcher = globalThis.fetch, attempts = 3 } = {}) {
   try {
+    if (req?.headers?.get('Sec-GPC') === '1' || req?.headers?.get('DNT') === '1') return false;
     const token = env?.POSTHOG_PROJECT_TOKEN, host = env?.POSTHOG_HOST;
     if (!token?.startsWith('phc_') || !/^https:\/\/[a-z0-9.-]+$/i.test(host || '') || !/^[0-9a-f]{32}$/.test(user?.id || '')) return false;
     const internal = internalAccount(env, user.id);

@@ -817,6 +817,17 @@ test('analytics: each verified sign-in is one rh_signed_in under users.id; first
   assert.notEqual(emailUser, user.id);
   assert.deepEqual([captured[2].batch[0].properties.distinct_id, captured[2].batch[0].properties.provider, captured[2].batch[0].properties.new_account, captured[2].batch[0].properties.rh_internal], [emailUser, 'email', true, false]);
 
+  // Do Not Track or Global Privacy Control on the sign-in request: signed in, nothing sent
+  const quiet = captured.length;
+  for (const header of [{ 'Sec-GPC': '1' }, { DNT: '1' }]) {
+    const start = await call(env, '/auth/google/start?next=%2Fapps');
+    const state = new URL(start.location).searchParams.get('state');
+    const done = await call(env, `/auth/google/callback?code=c&state=${state}`, { headers: { ...header, Cookie: `rh_oauth=${cookieValue(start.cookie('rh_oauth'))}` } });
+    assert.ok(done.cookie('small_session'));
+  }
+  await settle();
+  assert.equal(captured.length, quiet);
+
   // PostHog failing: bounded retries with the same uuid; sign-in itself is unaffected
   posthog = () => [503, {}];
   const before = captured.length;
@@ -831,6 +842,13 @@ test('analytics: each verified sign-in is one rh_signed_in under users.id; first
   posthog = () => { throw new TypeError('fetch failed'); };
   assert.ok((await oauthSignIn(env, 'google')).session);
   await settle();
+});
+
+test('analytics: internal accounts match by exact users.id, never by email or a substring', async () => {
+  const { internalAccount } = await import('../src/product-analytics.js');
+  const env = { ANALYTICS_INTERNAL_USER_IDS: 'aaaa, bbbb' };
+  assert.deepEqual(['aaaa', 'bbbb', 'aaa', 'cccc', '', null].map((id) => internalAccount(env, id)), [true, true, false, false, false, false]);
+  assert.equal(internalAccount({}, 'aaaa'), false);
 });
 
 test('analytics: with no PostHog configuration (dev, test, CI) sign-in sends nothing', async (t) => {

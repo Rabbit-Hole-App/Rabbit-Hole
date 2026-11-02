@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 import { applyExplainEdit, discardExplainEdit, explainClient, explainRunning, explainStage } from './explain-client.js';
+import { track } from './usage-analytics.js';
 
 // A same-card Edit in progress or waiting (EXP-T20 slice 2, plan section 1.3): the job's stage, then the validated candidate
 // beside the accepted explanation (Current / Proposed) with Apply changes and Discard. Apply is one undoable change of this
@@ -22,6 +23,8 @@ export default function ExplainEditBar({ block, onChange, onChangeQuiet, onPrevi
         if (!live) return;
         setJob(data.job);
         setCandidate(data.block || null);
+        // usage analytics: the edit's outcome when the stage changes (a card reopened after it ended is not new activity), once per job
+        if (data.job?.stage !== latest.current.explainEdit?.stage && ['ready', 'failed', 'cancelled'].includes(data.job?.stage)) track(data.job.stage === 'ready' ? 'rh_generation_completed' : 'rh_generation_failed', { feature: 'explain', action_id: editing.id, ...(data.job.stage === 'ready' ? {} : { reason: data.job.stage }) }, { once: `done:${editing.id}` });
         if (data.job?.stage && data.job.stage !== latest.current.explainEdit?.stage) (onChangeQuiet || onChange)({ ...latest.current, explainEdit: { ...latest.current.explainEdit, stage: data.job.stage } });
         if (explainRunning(data.job)) timer = setTimeout(poll, 2000);
       } catch (error) { if (live) setProblem(error.message); }
