@@ -511,6 +511,10 @@ test('the saved FX-AN-025 game candidate fits its repair request as drafted; the
   const { readFileSync } = await import('node:fs');
   const saved = JSON.parse(readFileSync(new URL('../../web/src/animation3d/testdata/fx025-game-candidate.json', import.meta.url), 'utf8'));
   const job = { prompt: saved.prompt, plan: saved.plan, planHash: saved.planHash, approval: { at: saved.createdAt }, resultId: `ar_${'0'.repeat(32)}`, evidence: [], calls: [], draft: saved.draft };
+  // As saved, its only problem now is its own Reset action (refused for a new draft since 2026-11-01); never its size.
+  const asSaved = await validateStage(job, { env: {} });
+  assert.deepEqual(asSaved.problems?.map(p => /host_control/.test(p)), [true], JSON.stringify(asSaved.problems));
+  job.draft = { ...saved.draft, actions: saved.draft.actions.filter(a => a.id !== 'reset') }; // as a repair of that problem returns it
   const out = await validateStage(job, { env: {} });
   assert.ok(!(out.problems || []).some(p => /too large/.test(p)), JSON.stringify(out.problems));
   assert.ok(out.artifact, 'the candidate validates');
@@ -522,7 +526,7 @@ test('the saved FX-AN-025 game candidate fits its repair request as drafted; the
   await repairStage({ ...job, artifact: out.artifact, findings: [{ stage: 'reviewing', findings: [{ category: 'spec', severity: 'major', target: { capture: 'v0-s0' }, message: 'framing' }] }], captures: [] }, ctx);
   const texts = sent.content.filter(b => b.type === 'text').map(b => b.text);
   assert.ok(texts.some(t => t.endsWith(saved.draft.program.source)), 'the whole program source');
-  const { program: _p, ...rest } = saved.draft;
+  const { program: _p, ...rest } = job.draft;
   assert.ok(texts.some(t => t.endsWith(JSON.stringify(rest))), 'the artifact as drafted, no filled defaults');
 });
 
