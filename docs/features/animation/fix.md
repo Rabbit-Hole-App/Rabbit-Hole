@@ -122,6 +122,13 @@ row in [spend.md](spend.md).
 - Fix (owner 2026-11-02): `reviewProblems` (explain-review.js) checks a report against the report_review contract; /animation's review stage calls it before `parseReview`. Missing or invalid fields make the reply invalid, never minor and never a scene defect. One correction, carrying the validation errors, shares the per-job retry with the missing-tool-call retry inside the three review calls; a reply still invalid, or no allowance left, fails as `review_validation` and says the scene was neither accepted nor found faulty. Every reply is kept in `job.reviews` (raw tool arguments, original verdicts, problems, artifact hash, usage, call), diagnostics only. Explain still uses `parseReview` alone, unchanged: it has the same gap, not changed here.
 - Status: fix implemented. FX-AN-025 and FX-AN-026 stay open until their real runs succeed. The failed job and its report are kept and are not accepted by this fix.
 
+### FX-AN-029 — the SGD author call used its whole output limit (MVP blocker)
+- Task / phase: AN-05. Owner's SGD acceptance request, job aj_51ec6a0 on canvas-99bc896f, code 0ef240b02, preview version 4b622018-7300-4fff-a94d-0f39f0c7a9a0, US$0.4652 (author US$0.3582). The game request was not run: the run stops at a failed request.
+- Proven: the author call ended with stop_reason max_tokens at 16,000 output tokens (input 1,544), so no draft existed and there was nothing to repair or review. The review fix (FX-AN-028) was not reached.
+- Inferred, not proven: reasoning, not the scene, used most of the limit. Every saved draft of a comparable scene is 9 to 11 KB whatever its token count: draft bytes per output token fall from about 2.0 on simple scenes to 0.89 on the earlier SGD run. The author has no effort setting (the planner's is medium), and its reasoning counts against the limit. This plan asks more than the earlier SGD plan that fit (10,546 tokens): 64 data points with a surface for every slope and intercept, continuous batch size 1 to 64, learning rate to 1.2 with a diverged state, a kept comparison path, two arrows, and clicks on objects.
+- Gap: callAnimationRole discards the reply when it stops at the limit, so what the 16,000 tokens held cannot be read.
+- Status: open. FX-AN-025 and FX-AN-026 stay open.
+
 ## Resolved
 
 ### FX-AN-024 — the camera-fit sampler starved learner runtimes (fast-e2e 41272196685: 16 of 34 animation steps failed)
