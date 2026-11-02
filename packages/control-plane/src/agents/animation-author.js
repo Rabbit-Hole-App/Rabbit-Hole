@@ -3,7 +3,7 @@
 // checks it (animation-author.js). The draft schema below is the contract's artifact (animation3d/contract.js) without the fields
 // only the host sets, so the model can never supply a hash, version, capability or plan binding.
 import { ANIMATION_PROGRAM_CONTRACT, GEOMETRY_KINDS, LABEL_PLACEMENTS } from '../../../web/src/animation3d/contract.js';
-import { HONESTY_RULES, MOTION_RULES, PLAN_PARAMETER } from './animation-brief.js';
+import { ACCURACY_RULES, HONESTY_RULES, HOST_CONTROL_RULES, MOTION_RULES, PLAN_PARAMETER, WORK_RULES } from './animation-brief.js';
 
 const ID = { type: 'string', description: 'A letter, then up to 63 letters, digits, _ or -.' };
 const VEC3 = { type: 'array', minItems: 3, maxItems: 3, items: { type: 'number' } };
@@ -72,7 +72,7 @@ const SCENE_RULES = 'Visual standard: the subject is large in frame, with physic
 // The card treats the first parameter as the main control and the first readout as the main result (owner 2026-10-31). A result of
 // an attempt shown before any attempt reads as an outcome (aj_283c19f: "Landed vs target 0.0 m" before the first shot); the card
 // shows no readout a frame leaves out (card.js frameView).
-const CONTROL_RULES = "Controls: the plan's parameters in the plan's order, with its ranges, units and defaults exactly. Readouts: the result the learner asked to see FIRST, then at most two that support it; no extras that crowd it out. A readout that measures an attempt (where a shot landed, how far it missed, a time or score of a try) is left out of frame.readouts until the first attempt has finished; never a 0 or any placeholder number that reads as a result before one exists. The card provides Reset and Reset view, so a scene never declares its own reset or restart action; the program's initialState is the start the card's Reset restores.";
+const CONTROL_RULES = "Controls: the plan's parameters in the plan's order, with its ranges, units and defaults exactly. Readouts: the result the learner asked to see FIRST, then at most two that support it; no extras that crowd it out. A readout that measures an attempt (where a shot landed, how far it missed, a time or score of a try) is left out of frame.readouts until the first attempt has finished; never a 0 or any placeholder number that reads as a result before one exists.";
 // A rate a parameter controls (a period, frequency or speed) must not make the motion jump when it changes during play (accept-3 minor
 // finding: theta0*cos(2*pi*t/T) with absolute time jumps when T changes). Only a scene with state receives parameter events in reduce.
 const RATE_RULES = 'When a parameter changes a rate (a period, frequency or speed) of a motion: in a scene with state (it declares actions, selectable or draggable nodes, or stepped), accumulate the phase in state, so reduce on a parameter event keeps the current phase and continues from it at the new rate (phase = phase at the change + 2*pi*(time - time of the change) / newPeriod); never compute it as 2*pi*time/period from absolute time. A scene without state cannot carry the phase across a change: then say in assumptions that changing that parameter restarts the motion from its current time.';
@@ -86,6 +86,9 @@ export const ANIMATION_AUTHOR_SYSTEM = `You build one original interactive 3D sc
 Build recognizable objects from the procedural shapes, grouped with parent nodes; keep the scene restrained (no decoration) and within the limits. Place the camera so every important object is in view. Use labels and readouts for the quantities the learner should read.
 ${SCENE_RULES}
 ${CONTROL_RULES}
+${HOST_CONTROL_RULES}
+${WORK_RULES}
+${ACCURACY_RULES}
 ${LABEL_RULES}
 ${MOTION_RULES}
 ${HONESTY_RULES} Compute every position, drawn marker, trail and readout from the same state in one evaluate, so the picture and the numbers always agree.
@@ -108,6 +111,9 @@ export const ANIMATION_REPAIR_SYSTEM = `You correct one 3D animation that failed
 ${PROGRAM}
 ${SCENE_RULES}
 ${CONTROL_RULES}
+${HOST_CONTROL_RULES}
+${WORK_RULES}
+${ACCURACY_RULES}
 ${LABEL_RULES}
 ${MOTION_RULES}
 ${HONESTY_RULES} Compute every position, drawn marker, trail and readout from the same state in one evaluate, so the picture and the numbers always agree.

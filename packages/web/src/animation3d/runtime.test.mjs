@@ -330,3 +330,25 @@ run('a background runtime takes only a free engine, never a card\'s; a card that
   for (const item of [a, c, sampler]) item.runtime.dispose();
   assert.equal(liveAnimationWorkers(), 0);
 });
+
+// The planner's host-control rule (2026-11-02) states what Reset does: every setting back to its default and the program's
+// initialState again, so moves, tallies and trails are cleared and the same seeded start returns. Checked here on the real engine.
+run('Reset returns every setting to its default and the initial state, with the same seeded start (the rule the planner is given)', async () => {
+  const { factory } = workers();
+  let frame = null;
+  const game = createAnimationRuntime({ artifact: gameFixture.artifact, workerFactory: factory, onFrame: next => { frame = next; } });
+  await game.ready;
+  const start = structuredClone(frame), startState = structuredClone(game.snapshot().state);
+  assert.equal((await game.dispatch({ type: 'action', action: 'east' })).accepted, true);
+  assert.notDeepEqual(frame, start, 'a move changed the scene');
+  assert.equal((await game.reset()).accepted, true);
+  assert.deepEqual([frame, game.snapshot().state], [start, startState], 'the initial frame and state again');
+  game.dispose();
+  const lever = createAnimationRuntime({ artifact: experimentFixture.artifact, workerFactory: factory, onFrame: () => {} });
+  await lever.ready;
+  const defaults = structuredClone(lever.snapshot().inputs);
+  assert.equal((await lever.dispatch({ type: 'parameter', parameter: 'leftMass', value: 7 })).accepted, true);
+  assert.equal((await lever.reset()).accepted, true);
+  assert.deepEqual(lever.snapshot().inputs, defaults, 'changed settings are not kept');
+  lever.dispose();
+});

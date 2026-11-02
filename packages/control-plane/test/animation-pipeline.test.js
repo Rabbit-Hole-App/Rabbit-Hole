@@ -542,3 +542,20 @@ test('brief, author, repair and review share the honesty rules, with no subject 
   assert.match(ANIMATION_REVIEW_SYSTEM, /a promised control effect that does not happen within its range, or a picture that disagrees with the readouts is major/);
   assert.doesNotMatch(HONESTY_RULES, /gradient|SGD|learning rate|batch/i, 'no subject-specific words');
 });
+
+// Planner evaluation 2026-11-02 (owner review): what the card's Reset and Reset view really do, bounded work per operation, and
+// consistent quantities, exact boundaries and instructive defaults, shared by the planner, author and repair; no subject named.
+test('the shared host-control, work and accuracy rules reach the planner, author and repair, with the runtime limit and no subject', async () => {
+  const brief = await import('../src/agents/animation-brief.js');
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js');
+  const { LIMITS } = await import('../../web/src/explain-program/limits.js');
+  for (const rule of [brief.HOST_CONTROL_RULES, brief.WORK_RULES, brief.ACCURACY_RULES]) {
+    for (const system of [brief.ANIMATION_BRIEF_SYSTEM, ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.ok(system.includes(rule));
+    assert.doesNotMatch(rule, /gradient|attention|circuit|resistor|bulb|pendulum|projectile|binary search|temperature|reward/i, 'general, not subject-specific');
+  }
+  assert.match(brief.HOST_CONTROL_RULES, /Reset returns the scene to its starting state, every setting to its default and the program's initialState/);
+  assert.match(brief.HOST_CONTROL_RULES, /never promise that Reset keeps a trail, keeps changed settings or picks a new random start/);
+  assert.ok(brief.WORK_RULES.includes(`${LIMITS.interruptMs} ms`), 'the runtime operation limit, read from the runtime');
+  assert.match(brief.ACCURACY_RULES, /one part or to the whole/);
+  assert.match(brief.ACCURACY_RULES, /several steps of a process rather than a case that ends on its first step/);
+});
