@@ -22,13 +22,17 @@ controls are not product.
   linked once (first account wins): its anonymous rows count as that account at read time, and no row is rewritten. A browser the creator was seen
   signed in on never counts on their boards, including rows it wrote before that sign-in. Known limit: when the control plane cannot be reached,
   a signed-in visitor reads as signed out (`devIdentity` answers 401 for both), so such a visit by the creator on a browser not yet linked would count.
+- **Analytics never costs a start or fork:** if preparing the row fails, the action succeeds uncounted and the failure is logged.
+- **Rate limits are per client-chosen ids** (the contract never reads an IP), so a scripted client can inflate anonymous counts or use up a board's hourly cap; this is a known limit.
+- **Allowlisted campaign values** are read as a character allowlist (`[a-z0-9._-]`, 40 characters), not a fixed list of campaign names; a tag is shown only at 10 visitors or more.
 - **Synthetic checks:** a batch with `synthetic: true` (the page's `?rh_synthetic=1`) is stored apart, excluded from every reported number, counted
   as `collection.synthetic_excluded`, and readable by the owner alone with `&synthetic=only`. Marking a visit synthetic can only remove it from reports.
 - **Active time:** the browser sends cumulative visible, recently active seconds (60-second threshold). The server credits the increase over what that
   visit already credited, at most the wall-clock time since this learner's last credited second on this board, so overlapping tabs cannot double a second,
-  and at most 4 h a visit. A report with nothing new writes no activity.
-- **Privacy:** at least 10 visitors in the exact range and filter; a partition's lone hidden cell takes the next smallest with it (`complementary`);
-  signed-in and anonymous are hidden together; a referrer host is named only if it leaves no remainder of 1 to 9. Opens, successful starts, audience
+  and at most 4 h a visit. A report settles its total: seconds the clock refused are gone, never carried to a later report. A report with nothing new writes no activity.
+- **Privacy:** at least 10 visitors in the exact range and filter; in a partition (sources; signed-in and anonymous) the smallest shown cell is also hidden (`complementary`) while the hidden
+  cells sum to 1 to 9; a referrer host is named only if it leaves no remainder of 1 to 9; concept and friction rows are absent until their cohort is shown. Known limit: board
+  rows are not a partition (a visitor can open several boards), so a board's hidden count is not complemented against the creator total. Opens, successful starts, audience
   forks, canonical forks, current Stars and star additions and removals are counters shown at any count, as the Stars route already does.
 - **Freshness:** numbers are computed from storage at read time, so `collection.checked_at` is their freshness. `status: 'active'` is returned only when that
   read succeeded; it says nothing about learning outcomes, which have their own readiness. "Stale" is the modal keeping its last good read after a failed refetch.
@@ -46,7 +50,7 @@ Coverage for every collected metric starts at `collection.started_at` (`analytic
 | Signed-in / anonymous | session at ingest; visitor link | unique visitors | distinct, hidden together | live, protected |
 | Average active time | `active`, credited | visitor and board pairs | mean of pair totals | live, protected |
 | Engaged over 2 min | `active`, credited | unique visitors | visitors with 120 s or more | live, protected |
-| Returning visitors | any day row | unique visitors | visitors on 2+ days in range | live, protected |
+| Returning visitors | `open`, first in a visit | unique visitors | visitors who opened on 2+ days in range; one visit past midnight is not a return | live, protected |
 | Rabbit Holes started | `startRabbitHole` 201 | none | distinct holes | live, counter |
 | Start rate | same | unique visitors | distinct starters ÷ visitors | live, protected |
 | Canonical forks | `FORK_COUNT` | none | sum, all time | live, counter |
@@ -54,7 +58,7 @@ Coverage for every collected metric starts at `collection.started_at` (`analytic
 | Audience fork rate | same | unique visitors | distinct forkers ÷ visitors | live, protected |
 | Stars now, owner / audience | `canvas_stars` | none | current rows | live, counter |
 | Star additions, removals, net | `canvas_star_events` | none | gross actions in range; net = additions − voluntary removals | live from the first star event; null before |
-| Opens from Stars | `open` with source `stars` | none | sum of `opens` | live, counter |
+| Opens from Stars | `open`, first in a visit, with source `stars` | none | count of those visits (`open_source` rows) | live, counter |
 | Public boards | `canvas_publications` | none | current count | live, counter |
 | Card reach, interaction | `seen`, `acted` | none | distinct visitors per card | live, protected, one board |
 | Concepts explored, went deeper | `seen`/`acted` on a card carrying the concept; hole start; `step_selected` | visitors who saw the concept | rate | live for cards with concept ids; many generated boards carry none |
