@@ -269,8 +269,20 @@ test('the planner replies are kept in the job diagnostics as given, a refused on
   const id = body.job.id;
   await s.run(id);
   const read = await s.job(id);
-  assert.deepEqual(s.stored(id).candidates, answers.map(a => ({ stage: 'preparing', ...a })));
+  assert.deepEqual(s.stored(id).candidates, answers.map(a => ({ stage: 'preparing', variant: undefined, ...a })));
   assert.equal(JSON.stringify(read.job).includes('step needs behavior rules'), false, 'not in the public job');
+});
+
+test('the refused first answer stays in the diagnostics when the correction call fails, on the provider-busy and the plain failure routes', { skip }, async t => {
+  const answers = [{ variant: 'a', input: { title: 'first' }, issues: ['requiredCapabilities: step needs behavior rules (unsupported_capability)'] }];
+  for (const code of ['provider_unavailable', 'model_unavailable']) {
+    const s = animationStack(t, { pipeline: STUB_PIPELINE({ prepare: async () => { throw Object.assign(new Error('The provider is unavailable.'), { code, status: 503, answers }); } }) });
+    const { body } = await s.create();
+    const done = await s.run(body.job.id);
+    assert.equal(done.stage, 'failed', code);
+    assert.deepEqual(done.candidates.filter(c => c.stage === 'preparing').at(0), { stage: 'preparing', ...answers[0] }, code);
+    assert.equal(JSON.stringify((await s.job(body.job.id)).job).includes('step needs behavior rules'), false, 'not in the public job');
+  }
 });
 
 test('a malformed author reply fails the build with no silent fallback and no retry beyond the ceiling', { skip }, async t => {

@@ -5,7 +5,7 @@
 // capability the phase lacks is an invalid turn, never trimmed into something else.
 import { ANIMATION_CAPABILITIES } from '../../web/src/animation3d/capabilities.js';
 import { PLAN_SCHEMA, validateAnimationPlan } from '../../web/src/animation3d/contract.js';
-import { ANIMATION_BRIEF_SYSTEM, PLAN_TOOL } from './agents/animation-brief.js';
+import { plannerSystem, plannerVariant, PLAN_TOOL } from './agents/animation-brief.js';
 import { AnimationPolicyError } from './animation-policy.js';
 import { modelEvidence } from './explain-evidence.js';
 import { plainPrompt } from '../../web/src/generation-review.js';
@@ -49,15 +49,19 @@ export async function prepareStage(job, ctx) {
     context: job.context ? { refText: job.context.refText ?? null, refs: (job.context.refs || []).map(({ name, kind, status, note }) => ({ name, kind, status, ...(note ? { note } : {}) })) } : null,
     evidence: modelEvidence(job.evidence),
     capabilities: { phase: caps.phase, experiences: caps.experiences, behaviors: caps.behaviors, controlProfiles: caps.controlProfiles, features: caps.features, limits: { parameters: caps.limits.parameters, actions: caps.limits.actions, nodes: caps.limits.nodes } } });
+  const variant = plannerVariant(ctx.env), system = plannerSystem(variant);
   const answers = [];
-  const answer = reply => { const out = planFrom(reply, caps); answers.push({ input: reply?.input ?? null, issues: (out.issues || []).map(i => `${i.path || 'plan'}: ${i.message} (${i.code})`) }); return out; };
-  const first = answer(await ctx.call('brief', { system: ANIMATION_BRIEF_SYSTEM, tool: PLAN_TOOL, content }));
+  const answer = reply => { const out = planFrom(reply, caps); answers.push({ variant, input: reply?.input ?? null, issues: (out.issues || []).map(i => `${i.path || 'plan'}: ${i.message} (${i.code})`) }); return out; };
+  const first = answer(await ctx.call('brief', { system, tool: PLAN_TOOL, content }));
   if (first.gap || first.plan) return { ...first, answers };
   // One bounded correction (ANIMATION_LIMITS.planCorrections, counted in the plan call bound and the worst case): the planner gets its
   // own plan back with the contract's issues and returns the whole plan again. Its answer is checked like the first; never rewritten here.
   const issues = first.issues.map(i => `${i.path || 'plan'}: ${i.message} (${i.code})`);
-  const again = answer(await ctx.call('brief', { system: ANIMATION_BRIEF_SYSTEM, tool: PLAN_TOOL,
-    content: JSON.stringify({ ...JSON.parse(content), correction: { previousPlan: first.input, issues, instruction: 'Your plan was refused by these checks. Return the whole plan again with them fixed; keep everything else the same.' } }) }));
+  // A correction call that itself fails keeps its classification and carries the refused first answer with it (no further retry).
+  const corrected = await ctx.call('brief', { system, tool: PLAN_TOOL,
+    content: JSON.stringify({ ...JSON.parse(content), correction: { previousPlan: first.input, issues, instruction: 'Your plan was refused by these checks. Return the whole plan again with them fixed; keep everything else the same.' } }) })
+    .catch(error => { if (error && typeof error === 'object') error.answers = answers; throw error; });
+  const again = answer(corrected);
   if (again.gap || again.plan) return { ...again, answers };
   throw new AnimationPolicyError('invalid_turn', `The plan was not buildable after one correction: ${issuesText(again.issues)}.`, { issues: again.issues, answers });
 }

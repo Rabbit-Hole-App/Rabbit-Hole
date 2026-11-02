@@ -91,7 +91,7 @@ export const animationReservation = (tasks = LEARN_TASKS) => ({
   calls: { ...ANIMATION_LIMITS.calls },
 });
 
-// The request body for one role call: its model's max_tokens, one tool on auto, no thinking, effort, fallbacks or betas. The
+// The request body for one role call: its model's max_tokens, one tool on auto, its task's effort when pinned, no thinking setting, fallbacks or betas. The
 // system prompt goes as one cacheable block except under SUBSCRIPTION_ONLY.
 export function animationRequest(env, role, { system, tool, content }, tasks = LEARN_TASKS) {
   const r = animationRole(role, tasks);
@@ -99,6 +99,7 @@ export function animationRequest(env, role, { system, tool, content }, tasks = L
   const blocks = typeof content === 'string' ? [{ type: 'text', text: content }] : content;
   const body = {
     max_tokens: r.maxTokens,
+    ...(r.effort ? { output_config: { effort: r.effort } } : {}),
     system: env.SUBSCRIPTION_ONLY === 'true' ? system : [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
     tools: [tool],
     tool_choice: { type: 'auto' },
