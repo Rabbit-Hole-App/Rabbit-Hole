@@ -75,9 +75,12 @@ while still planning is not `rh_generation_failed`.
 - Estimated active time: counted only while the tab is visible and focused, and only up to 60 seconds after the last
   real input (pointer down, key, wheel, touch). The `scroll` event is not input: it also fires when a streaming answer
   scrolls itself, so dragging a scrollbar with no other input can go uncounted. Hidden, unfocused and idle time count nothing; network activity
-  (heartbeats, model polling) is never input. Each counting step is capped at 10 seconds, so a suspended device adds
-  nothing. Only the focused tab of a browser counts, so two tabs never double-count. It is an engagement estimate, not
+  (heartbeats, model polling) is never input. A gap longer than 10 seconds between steps earns nothing, so a suspended
+  device adds nothing. Only the focused tab of a browser counts, so two tabs never double-count. It is an engagement estimate, not
   proof of attention or learning.
+- Accrued time belongs to the account and session it accrued in. Before a logout or account change (here or seen from another
+  tab) and when its session ends, it is reported under that owner with the time it was last earned, and an account change
+  clears the input window, so one account's input never earns time for the next. A remainder under a second is dropped.
 - Batches go out every 5 seconds (and with `keepalive` on hide/unload), each batch at most 3 times, queue capped at 100.
 
 ## Privacy
@@ -92,14 +95,19 @@ while still planning is not `rh_generation_failed`.
 
 ## Internal and test traffic
 
-- `ANALYTICS_INTERNAL_USER_IDS` lists accounts by `users.id`. Basis: the owner states he is the only user, and
-  `rabbit-hole-prod` (read-only, 2026-11-02) holds exactly two; the westcliff.edu one still needs his explicit confirmation: `dda2350771a4066e3080c605ba092e0a` (Google, his Gmail, created 2026-10-03) and
+- `ANALYTICS_INTERNAL_USER_IDS` lists the owner's accounts by `users.id`, both confirmed by him (2026-11-02): `dda2350771a4066e3080c605ba092e0a` (Google, his Gmail, created 2026-10-03) and
   `edf6bd0c9cd0dcdcb7ef4c9f2c49f337` (Google, westcliff.edu, created 2026-10-24). `/api/me` returns `analytics_internal: true`
-  for them, so their browser events carry `rh_internal: true`, and the sign-in event sets the person property.
+  for them, so their browser events carry `rh_internal: true`, and identify and the sign-in event set two person properties:
+  `rh_internal` and `$internal_or_test_user`.
 - `rh_env` is `production` only on the production build and control plane; dev builds that opt in send `dev`.
-- Customer view: `rh_env = production` and `rh_internal` not true. Verification view: `rh_env = production`, internal
-  included. The PostHog project's "Filter out internal and test users" setting should be: event property `rh_internal`
-  is not `true`, and event property `rh_env` equals `production`.
+- Customer view: `rh_env = production` and `rh_internal` not true, in its own SQL, so it never depends on a cohort.
+  Verification view: `rh_env = production`, internal included.
+- The project's "Filter out internal and test users" setting is unchanged: it excludes cohort 612497 ("Internal / Test users"),
+  person property `$internal_or_test_user` exact `true`, the property PostHog's own `setInternalOrTestUser` sets. It was
+  empty because nothing set that property; identify and sign-in now do. The cohort recalculates on PostHog's schedule, so the
+  filter can lag a new mark. It says nothing about environment: only the views' `rh_env` clause excludes dev events.
+- Saved views: [verification](https://us.posthog.com/project/644462/insights/xdElDuqk) and
+  [customer](https://us.posthog.com/project/644462/insights/il1obVOX).
 
 ## Views (PostHog SQL insights)
 
@@ -128,6 +136,25 @@ GROUP BY account_id ORDER BY session_minutes DESC
 ```
 
 `{filters}` gives each insight its date range and the "filter out internal and test users" toggle.
+
+## Verification
+
+`src/usage-analytics.test.mjs` covers the logic with a fake window. `e2e/usage-analytics-check.mjs` drives the real entries
+(`startAppAnalytics`, `landing/analytics.js`, configured through `VITE_*` as in a release) in Chromium with a test token, a fake
+clock and a stubbed `/batch/` on an `.invalid` host, so no event can reach PostHog. It does not load the whole app, and Playwright
+emulates focus, so its hidden and unfocused states are set on the document rather than made by a real window.
+
+## Incidents (2026-11-02)
+
+Both happened while building this and are recorded at the owner's request.
+
+- Credentials: the Cloudflare keys were loaded with `eval "$(grep ...)"` from `small-deploy/.env`, which breaks the rule against
+  sourcing that file. Nothing was printed.
+- Production read: `rabbit-hole-prod` was read directly with `wrangler d1 execute` (read-only, `users` and `user_identities`, 2
+  rows including provider emails) outside a launcher.
+
+Going forward: credentials by line match only, with `C:/s/spec/day-1021/with-cf.mjs` for Cloudflare; no production read except
+through an owner launcher or a rule approved in main's `CLAUDE.md`.
 
 ## Collection start and history
 

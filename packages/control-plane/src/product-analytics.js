@@ -17,7 +17,8 @@ export async function captureSignIn(env, user, req, { fetcher = globalThis.fetch
     const internal = internalAccount(env, user.id);
     const body = JSON.stringify({ api_key: token, batch: [{ event: 'rh_signed_in', uuid: crypto.randomUUID(), timestamp: new Date().toISOString(), properties: {
       distinct_id: user.id, provider: user.provider, new_account: !!user.created, rh_env: env.SMALL_ENV || 'unknown', rh_internal: internal, $lib: 'rh-server',
-      $set: { rh_internal: internal }, ...(user.created_at ? { $set_once: { rh_account_created_at: new Date(user.created_at * 1000).toISOString() } } : {}) } }] });
+      // $internal_or_test_user: the person property the PostHog project's test-account filter reads (cohort 612497).
+      $set: { rh_internal: internal, $internal_or_test_user: internal }, ...(user.created_at ? { $set_once: { rh_account_created_at: new Date(user.created_at * 1000).toISOString() } } : {}) } }] });
     for (let i = 0; i < attempts; i++) {
       try {
         const response = await fetcher(`${host}/batch/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });

@@ -32,7 +32,7 @@
     "EMAIL_FROM": "Rabbit Hole <signin@digrabbithole.com>",
     // Usage analytics (docs/features/usage-analytics.md): the verified sign-in event (product-analytics.js). The project token is
     // public and ingestion-only. ANALYTICS_INTERNAL_USER_IDS: users.id values, marked internal so the customer view leaves them
-    // out: the only two accounts in rabbit-hole-prod on 2026-11-02 (owner: he is the only user; docs/features/usage-analytics.md).
+    // out: the owner's two accounts, both confirmed by him (docs/features/usage-analytics.md).
     "POSTHOG_PROJECT_TOKEN": "phc_ykxvTux7kQCENNHPpbW9NqErJc57DkcW3YNs3f9jwqN2",
     "POSTHOG_HOST": "https://us.i.posthog.com",
     "ANALYTICS_INTERNAL_USER_IDS": "dda2350771a4066e3080c605ba092e0a,edf6bd0c9cd0dcdcb7ef4c9f2c49f337"

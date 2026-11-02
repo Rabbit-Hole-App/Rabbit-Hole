@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID, getRandomValues } from 'node:crypto';
-import { ATTEMPTS, IDLE_MS, INPUT_EVENTS, SESSION_IDLE_MS, TICK_MS, createAnalytics, pagePath, referrerOf, sanitize, uuidv7, optedOut } from './usage-analytics.js';
+import { ATTEMPTS, IDLE_MS, INPUT_EVENTS, SESSION_IDLE_MS, personMark, TICK_MS, createAnalytics, pagePath, referrerOf, sanitize, uuidv7, optedOut } from './usage-analytics.js';
 
 const TOKEN = 'phc_testtoken0000000000000000000000000000000000';
 const HOST = 'https://us.i.posthog.com';
@@ -140,7 +140,7 @@ test('active time: input within 60 s while visible and focused; idle, hidden and
   assert.equal(t.a.stats().activeMs, 0, 'an unfocused window (the other of two side by side) counts nothing');
   t.doc.focused = true;
   b.clock.t += 3 * 3600_000; t.a.input(); t.a.tick(b.clock.t);
-  assert.ok(t.a.stats().activeMs <= TICK_MS * 2, 'a suspended device adds at most one capped tick');
+  assert.equal(t.a.stats().activeMs, 0, 'a suspended device adds nothing');
 });
 
 test('only real input keeps someone active: a programmatic scroll (a streaming answer) is not input', () => {
@@ -245,4 +245,105 @@ test('signed out: the sign-in page and a 401 from /api/me clear an identified ac
   resetUsageAnalyticsForTests();
 
   assert.deepEqual([shareAccess(null), shareAccess({ shared: false }), shareAccess({ shared: true, view: true }), shareAccess({ shared: true, public_view: true })], ['private', 'private', 'link', 'public']);
+});
+
+// Owner review of a7f9d946f: 40 seconds accrued under account A were emitted under account B after identify(B) and hide().
+const active = tab => tab.events().filter(e => e.event === 'rh_active_time').map(e => [e.properties.distinct_id, e.properties.active_seconds]);
+const accrue = (b, tab, ms) => { tab.a.input(); for (let i = 0; i < ms / TICK_MS; i++) { b.clock.t += TICK_MS; tab.a.tick(); } };
+
+test('accrued time stays with its account and session through identify(B) then hide; B earns nothing from A\'s input', async () => {
+  const b = browser(), t = b.tab('/apps');
+  t.a.identify(ME, { internal: true }); t.a.track('rh_canvas_opened');
+  accrue(b, t, 40_000);
+  await t.a.flush();
+  const sessionA = t.events().at(-1).properties.$session_id, earnedAt = b.clock.t;
+  assert.equal(t.a.stats().activeMs, 40_000);
+  t.a.identify(OTHER);
+  assert.equal(t.a.stats().activeMs, 0);
+  b.clock.t += 20_000; t.a.tick();  // still inside A's 60 s window: nothing for B
+  await t.a.hide();
+  assert.deepEqual(active(t), [[ME, 40]]);
+  const event = t.events().find(e => e.event === 'rh_active_time');
+  assert.equal(event.properties.$session_id, sessionA);
+  assert.equal(event.properties.rh_internal, true);
+  assert.equal(event.timestamp, new Date(earnedAt).toISOString());
+  const identify = t.events().find(e => e.event === '$identify' && e.properties.distinct_id === OTHER);
+  assert.notEqual(identify.properties.$session_id, sessionA);
+  accrue(b, t, 10_000); await t.a.hide();
+  assert.deepEqual(active(t), [[ME, 40], [OTHER, 10]], 'B counts from B\'s own input');
+});
+
+test('accrued time stays with its account through logout, and the signed-out visitor earns nothing from it', async () => {
+  const b = browser(), t = b.tab('/apps');
+  t.a.identify(ME);
+  accrue(b, t, 25_000);
+  t.a.signedOut();
+  b.clock.t += 20_000; t.a.tick();
+  await t.a.hide();
+  assert.deepEqual(active(t), [[ME, 25]]);
+});
+
+test('another tab\'s logout or account change: this tab settles under the account it accrued in, with or without the storage event', async () => {
+  for (const change of [other => other.a.signedOut(), other => other.a.identify(OTHER)]) for (const notified of [true, false]) {
+    const b = browser(), one = b.tab('/apps'), two = b.tab('/apps/x');
+    one.a.identify(ME); two.a.identify(ME); two.doc.focused = false;
+    one.a.track('rh_canvas_opened');
+    accrue(b, one, 30_000);
+    await one.a.flush();
+    const sessionA = one.events().at(-1).properties.$session_id;
+    change(two);
+    if (notified) one.a.sync();
+    b.clock.t += TICK_MS; one.a.tick(); // A's window is cleared either way
+    await one.a.hide();
+    assert.deepEqual(active(one), [[ME, notified ? 30 : 35]], 'unnotified, the change is seen at the next step, and at most that step goes to A');
+    assert.equal(one.events().find(e => e.event === 'rh_active_time').properties.$session_id, sessionA);
+    accrue(b, one, 10_000); await one.a.hide();
+    assert.notEqual(active(one).at(-1)[0], ME, 'new input counts for the new identity');
+    assert.equal(active(one).at(-1)[1], 10);
+  }
+});
+
+test('session rollover: time accrued in a session is reported in it, also after 30 hidden-free idle minutes or another tab rolling it', async () => {
+  const b = browser(), t = b.tab('/apps');
+  t.a.identify(ME); t.a.track('rh_canvas_opened');
+  accrue(b, t, 20_000);
+  await t.a.flush();
+  const first = t.events().at(-1).properties.$session_id;
+  b.clock.t += SESSION_IDLE_MS + 1000;
+  t.a.input();          // no tick ran (a throttled tab): the return must not carry the old time into the new session
+  t.a.track('rh_canvas_opened');
+  accrue(b, t, 10_000); await t.a.hide();
+  const events = t.events().filter(e => e.event === 'rh_active_time');
+  assert.deepEqual(events.map(e => e.properties.active_seconds), [20, 10]);
+  assert.equal(events[0].properties.$session_id, first);
+  assert.notEqual(events[1].properties.$session_id, first);
+  assert.ok(Date.parse(events[0].timestamp) < Date.parse(events[1].timestamp));
+  // idle past the window with ticks running: the remainder goes out without waiting for another visit
+  const c = browser(), u = c.tab('/apps');
+  accrue(c, u, 10_000);
+  for (let i = 0; i < 14; i++) { c.clock.t += TICK_MS; u.a.tick(); }
+  await u.a.flush();
+  assert.deepEqual(u.events().filter(e => e.event === 'rh_active_time').map(e => e.properties.active_seconds), [60]);
+});
+
+test('a batch queued under A keeps A when it is sent after the change, however it was queued', async () => {
+  const b = browser(), t = b.tab('/apps');
+  t.a.identify(ME, { internal: true }); t.a.pageview(); t.a.track('rh_tutor_used');
+  t.a.identify(OTHER);
+  t.a.track('rh_tutor_used');
+  await t.a.flush();
+  const tutor = t.events().filter(e => e.event === 'rh_tutor_used').map(e => [e.properties.distinct_id, e.properties.rh_internal]);
+  assert.deepEqual(tutor, [[ME, true], [OTHER, false]]);
+  assert.deepEqual(t.events().find(e => e.event === '$pageview').properties.distinct_id, ME);
+});
+
+test('the internal mark reaches the person property the project\'s test-account cohort reads', async () => {
+  assert.deepEqual(personMark(true), { rh_internal: true, $internal_or_test_user: true });
+  assert.deepEqual(personMark(false), { rh_internal: false, $internal_or_test_user: false });
+  const b = browser(), t = b.tab('/apps');
+  t.a.identify(ME, { internal: true });
+  t.a.identify(ME, { internal: false }); // a mark removed later reaches the person too
+  await t.a.flush();
+  assert.equal(t.events()[0].properties.$set.$internal_or_test_user, true);
+  assert.deepEqual([t.events()[1].event, t.events()[1].properties.$set.$internal_or_test_user], ['$set', false]);
 });

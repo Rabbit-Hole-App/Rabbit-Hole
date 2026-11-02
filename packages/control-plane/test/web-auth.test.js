@@ -809,6 +809,7 @@ test('analytics: each verified sign-in is one rh_signed_in under users.id; first
   await oauthSignIn(env, 'google');
   await settle();
   assert.deepEqual([captured[1].batch[0].properties.distinct_id, captured[1].batch[0].properties.new_account, captured[1].batch[0].properties.rh_internal, captured[1].batch[0].properties.$set.rh_internal], [user.id, false, true, true]);
+  assert.equal(captured[1].batch[0].properties.$set.$internal_or_test_user, true); // what the project's test-account cohort matches
 
   // an email sign-in with the same address is a separate account (no merge by email): its own users.id, new_account true
   await emailSignIn(env, 'a@corp.test', sent);

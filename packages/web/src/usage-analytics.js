@@ -72,6 +72,9 @@ export function uuidv7(ms, random = globalThis.crypto) {
   const h = Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
+// The person mark for an account. rh_internal is this code's own; $internal_or_test_user is the person property the PostHog project's
+// existing test-account filter reads (cohort 612497, exact true; PostHog's setInternalOrTestUser sets the same property).
+export const personMark = internal => ({ rh_internal: !!internal, $internal_or_test_user: !!internal });
 // Do Not Track and Global Privacy Control turn collection off for that browser (the Privacy Policy's analytics choice).
 export const optedOut = navigator => navigator?.globalPrivacyControl === true || navigator?.doNotTrack === '1' || navigator?.doNotTrack === 'yes';
 
@@ -107,30 +110,62 @@ export function createAnalytics(target, { token, host, env = 'unknown', send = n
     s.set(KEY.session, JSON.stringify({ ...session, last: t }));
     return session.id;
   }
-  function enqueue(event, properties, distinct = distinctId()) {
-    const t = now();
+  // owner: the identity and session an event belongs to when that is not the current one (accrued active time). Everything is fixed
+  // here at enqueue, so an event queued under one account keeps it whenever it is sent.
+  function enqueue(event, properties, distinct = distinctId(), owner = null) {
+    const t = owner?.at ?? now();
     if (queue.length >= QUEUE_MAX) queue.shift();
     queue.push({ attempts: 0, body: { event, uuid: random.randomUUID(), timestamp: new Date(t).toISOString(), properties: {
-      distinct_id: distinct, $session_id: sessionId(t), $window_id: windowId, $lib: 'rh-web', $browser: classes.browser, $device_type: classes.device,
-      rh_env: env, rh_internal: s.get(KEY.internal) === '1', ...properties } } });
+      distinct_id: distinct, $session_id: owner?.session ?? sessionId(t), $window_id: windowId, $lib: 'rh-web', $browser: classes.browser, $device_type: classes.device,
+      rh_env: env, rh_internal: owner ? owner.internal : s.get(KEY.internal) === '1', ...properties } } });
     if (!timer) timer = schedule(() => { timer = null; api.flush(); }, FLUSH_MS);
   }
   const pageProps = path => ({ $current_url: origin + path, $host: target.location?.host || '', $pathname: path });
 
   // Active time: counted only while this tab is visible and focused (one tab at a time) and within IDLE_MS of real input.
-  // Network activity (heartbeats, model polling) is never input. Ticks cap each step, so a suspended device adds nothing.
-  let lastInput = -Infinity, lastTick = now(), activeMs = 0;
+  // Network activity (heartbeats, model polling) is never input.
+  // Accrued time belongs to the identity and session it accrued in (owner), never to whoever is current when it is reported: it is
+  // settled under its owner before a logout or account change, here or seen from another tab, and when its session has ended.
+  let lastInput = -Infinity, lastTick = now(), activeMs = 0, owner = null, creditedAt = 0;
   const eligible = () => target.document?.visibilityState !== 'hidden' && target.document?.hasFocus?.() !== false;
-  function credit(t) {
+  const storedSession = () => { try { return JSON.parse(s.get(KEY.session) || 'null'); } catch { return null; } };
+  const identity = () => ({ distinct: distinctId(), account: s.get(KEY.account), internal: s.get(KEY.internal) === '1', session: storedSession()?.id || null });
+  let seen = enabled ? identity() : null;
+  // stale: the identity already changed elsewhere, so the time since the last step goes to the one it replaced, in that one's session.
+  function credit(t, stale = false) {
     const until = Math.min(t, lastInput + IDLE_MS);
-    if (eligible() && until > lastTick) activeMs += Math.min(until - lastTick, TICK_MS * 2);
+    // A gap longer than two ticks means the page was not running (a suspended device): it earns nothing.
+    if (eligible() && until > lastTick && t - lastTick <= TICK_MS * 2) {
+      owner ||= { ...seen, session: stale ? seen.session || uuidv7(t, random) : sessionId(t) };
+      activeMs += until - lastTick;
+      creditedAt = until;
+    }
     lastTick = t;
   }
   function reportActive(min) {
-    if (activeMs < min) return;
-    const seconds = Math.min(Math.floor(activeMs / 1000), 3600);
+    if (!owner || activeMs < min) return;
+    const seconds = Math.floor(activeMs / 1000);
     activeMs -= seconds * 1000;
-    if (seconds > 0) enqueue('rh_active_time', { active_seconds: seconds, idle_threshold_seconds: IDLE_MS / 1000 });
+    if (seconds > 0) enqueue('rh_active_time', { active_seconds: seconds, idle_threshold_seconds: IDLE_MS / 1000 }, owner.distinct, { ...owner, at: creditedAt });
+    if (!activeMs) owner = null;
+  }
+  // clearInput: an account's input never earns time for the next one. A remainder under a second is dropped.
+  function settle(t, { stale = false, clearInput = false } = {}) {
+    credit(t, stale);
+    reportActive(1);
+    activeMs = 0; owner = null;
+    if (clearInput) lastInput = -Infinity;
+  }
+  function sessionEnded(t) {
+    const session = storedSession();
+    return !!owner && (session?.id !== owner.session || t - session.last > SESSION_IDLE_MS || t - session.start > SESSION_MAX_MS);
+  }
+  // Notices what changed since this tab last looked: another tab's logout or sign-in, or the end of the session.
+  function sync(t) {
+    const current = identity();
+    if (current.distinct !== seen.distinct) { settle(t, { stale: true, clearInput: !!seen.account }); seen = identity(); return; }
+    if (sessionEnded(t)) { reportActive(1); activeMs = 0; owner = null; }
+    seen = current;
   }
 
   const api = {
@@ -167,33 +202,45 @@ export function createAnalytics(target, { token, host, env = 'unknown', send = n
     identify(accountId, { internal = false } = {}) {
       if (!enabled || !ACCOUNT_ID.test(accountId || '')) return;
       try {
+        const t = now();
+        sync(t);
         const current = s.get(KEY.account), flag = internal ? '1' : '';
         if (current === accountId) {
-          if ((s.get(KEY.internal) || '') !== flag) { s.set(KEY.internal, flag); enqueue('$set', { $set: { rh_internal: !!internal } }); }
+          if ((s.get(KEY.internal) || '') !== flag) { settle(t); s.set(KEY.internal, flag); seen = identity(); enqueue('$set', { $set: personMark(internal) }); }
           return;
         }
         if (current) api.reset();
+        else settle(t); // anonymous time stays on the anonymous id, which this identify joins to the account
         const anon = anonId();
         s.set(KEY.account, accountId);
         s.set(KEY.internal, flag);
-        enqueue('$identify', { $anon_distinct_id: anon, $set: { rh_internal: !!internal } }, accountId);
+        seen = identity();
+        enqueue('$identify', { $anon_distinct_id: anon, $set: personMark(internal) }, accountId);
       } catch { /* never blocks */ }
     },
     // Logout or a signed-out page: a fresh anonymous id and session, no account, no internal mark.
     reset() {
+      if (!enabled) return;
       try {
+        const t = now();
+        sync(t);
+        settle(t, { clearInput: true });
         for (const key of [KEY.account, KEY.internal, KEY.session]) s.remove(key);
         s.set(KEY.anon, random.randomUUID());
+        seen = identity();
       } catch { /* never blocks */ }
     },
     // Signed out (the sign-in page every logout lands on, or GET /api/me answering 401): clear an identified account. An anonymous
     // visitor keeps their anonymous id, so the visit before sign-in joins the account it becomes.
     signedOut() { if (enabled && s.get(KEY.account)) api.reset(); },
-    input(t = now()) { credit(t); lastInput = t; },
-    tick(t = now()) { credit(t); reportActive(ACTIVE_REPORT_MS); },
+    // Another tab changed the identity (its storage event), so what this tab accrued is settled at once.
+    sync(t = now()) { if (enabled) sync(t); },
+    input(t = now()) { sync(t); credit(t); lastInput = t; },
+    // Past the idle window nothing more can accrue, so the remainder goes out rather than waiting for a later visit or session.
+    tick(t = now()) { sync(t); credit(t); reportActive(t - lastInput > IDLE_MS ? 1000 : ACTIVE_REPORT_MS); },
     // Hidden, frozen or leaving: count up to now, report what is left, send it with keepalive. Visible again starts a new span.
-    hide(t = now()) { credit(t); reportActive(1000); return api.flush({ keepalive: true }); },
-    show(t = now()) { lastTick = t; },
+    hide(t = now()) { sync(t); credit(t); reportActive(1000); return api.flush({ keepalive: true }); },
+    show(t = now()) { sync(t); lastTick = t; },
     async flush({ keepalive = false } = {}) {
       if (!enabled || stopped || !queue.length || (sending && !keepalive)) return;
       const batch = queue.slice(0, 50);
@@ -215,7 +262,7 @@ export function createAnalytics(target, { token, host, env = 'unknown', send = n
 }
 
 let installed = null;
-const noop = { enabled: false, pageview() {}, track: () => false, identify() {}, reset() {}, signedOut() {}, flush: async () => {} };
+const noop = { enabled: false, sync() {}, pageview() {}, track: () => false, identify() {}, reset() {}, signedOut() {}, flush: async () => {} };
 // Wires one instance into a window: the first pageview, navigation (navigate() and Back both fire popstate), input, the tick,
 // and hide/leave. options.signedOut: this page is signed out (the sign-in page, where every logout lands). Returns the instance.
 export function installUsageAnalytics(target, config, { signedOut = false } = {}) {
@@ -232,6 +279,7 @@ export function installUsageAnalytics(target, config, { signedOut = false } = {}
     target.document?.addEventListener('visibilitychange', () => (target.document.visibilityState === 'hidden' ? a.hide() : a.show()));
     target.addEventListener('pagehide', () => a.hide());
     target.addEventListener('blur', () => a.tick());
+    target.addEventListener('storage', event => { if (event.key === null || event.key === KEY.account || event.key === KEY.anon) a.sync(); });
     return a;
   } catch { installed = noop; return noop; }
 }
