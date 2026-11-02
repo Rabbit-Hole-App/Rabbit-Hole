@@ -111,14 +111,27 @@ export function failureClass(job) {
   if (job.stopReason === 'deadline') return 'deadline';
   if (['spend_refused', 'spend_limited'].includes(f.code)) return 'credits';
   if (job.stopReason === 'budget') return 'limit';
-  if (['provider_unavailable', 'transport', 'renderer'].includes(f.category)) return 'transient';
+  if (['provider_unavailable', 'transport', 'model_output', 'renderer'].includes(f.category)) return 'transient';
   return 'error';
+}
+// What the failed step's AI calls cost, from the job's call ledger (paidCall) only, which follows the usage records' learner rule
+// (learn-usage.js, owner 2026-10-25): a refused call, and one that ended without a measured cost, charge nothing; a measured cost is
+// used. A call whose outcome was never recorded (the isolate died while it ran) may have been charged, so zero is never promised for
+// it. No call recorded for the step (or a record saved before callsFrom existed): nothing is said.
+function chargeWords(job) {
+  const from = job.failure?.callsFrom, ran = Number.isInteger(from) && from >= 0 ? job.calls.slice(from) : [];
+  if (!ran.length) return '';
+  if (ran.some(c => !['settled', 'failed', 'refused'].includes(c.status))) return 'It may have used AI credits.';
+  const used = credits(ran.reduce((t, c) => t + (c.costMicros || 0), 0));
+  return used ? `It used ${used} AI credit${used === 1 ? '' : 's'}.` : 'You are not charged for it.';
 }
 // The learner's words for a failure (card and Chat alike): what could not be done, what was tried, and the action offered now.
 // Mapped from the recorded class, stage and finding categories; raw findings, model text and logs are never quoted.
 const CHECKS = { validating: 'The scene did not pass its structure checks.', rendering: 'The scene failed when its program ran.' };
 const AREAS = { spec: 'how the scene is drawn or computed', source: 'how it matches your sources', component: 'the shared 3D drawing', renderer: 'the shared 3D drawing', budget: 'its size' };
-const TRANSIENT = { provider_unavailable: 'The AI service was busy.', transport: 'An AI step was interrupted. You are not charged for it.', renderer: 'The sample views could not be rendered.' };
+// transport: the service did not give a usable answer (interrupted, refused before sending); model_output: the model answered, and
+// that answer could not be used (an invalid turn, its output limit, an incomplete review). Whether either was charged is chargeWords'.
+const TRANSIENT = { provider_unavailable: 'The AI service was busy.', transport: 'An AI step was interrupted.', model_output: 'The AI answer could not be used.', renderer: 'The sample views could not be rendered.' };
 function reviewWords(found) {
   const serious = (found?.findings || []).filter(f => f.severity !== 'minor'), areas = [...new Set(serious.map(f => AREAS[f.category]).filter(Boolean))];
   return serious.length ? `The visual review found ${serious.length} serious problem${serious.length === 1 ? '' : 's'} with ${areas.join(' and ') || 'the scene'}.` : 'The visual review did not accept the scene.';
@@ -134,7 +147,7 @@ export function failureText(job) {
   const next = { retry_render: 'Render again renders the built scene again.', new_attempt: 'Try again continues from where it stopped.',
     revise_plan: `Revise plan prepares a simpler plan from your request for you to review, using up to ${credits(job.reservation?.preparationMicros)} AI credits; nothing is built until you press Generate.` }[action]
     ?? (candidate || ['deadline', 'limit'].includes(kind) ? 'Edit the request to start a new animation.' : '');
-  return [what, ...tried, next].filter(Boolean).join(' ');
+  return [what, ['transient', 'error'].includes(kind) ? chargeWords(job) : '', ...tried, next].filter(Boolean).join(' ');
 }
 // The planner's instruction for a revised plan (prepareStage's refinement, with the approved plan as `previous`): server words only.
 const REVISE_WHY = { size_limit: 'was too large to check', checks: 'did not pass its checks', deadline: 'ran out of time', limit: 'reached its spending limit', transient: 'could not be finished' };
@@ -619,12 +632,12 @@ export class AnimationJobs {
   // An in-flight call this object is not running was interrupted: whether the provider accepted it is unknown. Never resent; it
   // counts against the ceiling, and the job fails retryably.
   async reconcile(job) {
-    const call = job.calls.find(c => c.key === job.inFlight.key);
+    const at = job.calls.findIndex(c => c.key === job.inFlight.key), call = job.calls[at];
     if (call) Object.assign(call, { status: 'unknown', endedAt: Date.now() });
     job.inFlight = null;
     if (!TERMINAL.has(job.stage)) {
       endStage(job.timing, 'interrupted');
-      Object.assign(job, { stage: 'failed', stopReason: 'error', failure: { stage: call?.role === 'review' ? 'reviewing' : job.stage, category: 'transport', message: 'An AI step was interrupted. You are not charged for it.', retryable: true } });
+      Object.assign(job, { stage: 'failed', stopReason: 'error', failure: { stage: call?.role === 'review' ? 'reviewing' : job.stage, category: 'transport', message: 'An AI step was interrupted.', retryable: true, ...(call ? { callsFrom: at } : {}) } });
       await this.finishUsage(job, 'interrupted');
     }
     await this.save(job);
@@ -770,16 +783,21 @@ export class AnimationJobs {
       if (!current || TERMINAL.has(current.stage) || current.inFlight || error.abandoned) return;
       if (await this.resumeLater(current, error)) return;
       endStage(current.timing, 'failed');
+      // The calls this stage run made (job is the snapshot it started from): what its explanation may say about charges (chargeWords).
+      const callsFrom = job.calls.length;
       if (error.code === 'provider_unavailable') {
-        Object.assign(current, { stage: 'failed', stopReason: 'provider_unavailable', failure: { stage: current.stage, category: 'provider_unavailable', message: error.message, retryable: true } });
+        Object.assign(current, { stage: 'failed', stopReason: 'provider_unavailable', failure: { stage: current.stage, category: 'provider_unavailable', message: error.message, retryable: true, callsFrom } });
         await this.save(current); await this.finishUsage(current, 'failed'); await this.report(current);
         return;
       }
       const refused = ['spend_limited', 'spend_refused'].includes(error.code) || error.status === 429;
       const policy = error instanceof AnimationPolicyError;
+      // A model reply refused after the provider answered (billed, or its call settled before the stage refused what it said) is an
+      // unusable answer, not an interruption.
+      const answered = !!error.billed || current.calls.slice(callsFrom).at(-1)?.status === 'settled';
       // A missing capture binding or renderer is an explicit, structured blocker at rendering (Retry rendering keeps the artifact).
       Object.assign(current, { stage: 'failed', stopReason: error.stopReason || (refused ? 'budget' : 'error'),
-        failure: { stage: current.stage, category: refused ? 'budget' : policy ? 'transport' : error.category || 'internal', ...(error.code ? { code: error.code } : {}),
+        failure: { stage: current.stage, category: refused ? 'budget' : policy || error.category === 'transport' ? (answered ? 'model_output' : 'transport') : error.category || 'internal', ...(error.code ? { code: error.code } : {}), callsFrom,
           message: error.status || policy ? error.message : 'The animation stopped unexpectedly.', retryable: !error.stopReason && error.code !== 'model_unavailable' && error.code !== 'task_unconfigured' } });
       // The underlying code and message, bounded (FX: a bare "Error" hid a missing provider key). Messages are ours or the provider's
       // error text; no request, key or cookie is ever part of one.

@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { failureClass, failureText } from '../src/animation-job.js';
 import { sha256Hex } from '../src/learn-grade-jev.js';
+import { AnimationPolicyError } from '../src/animation-policy.js';
 import { NEEDS_PROPOSAL, PLAN, STUB_PIPELINE, animationStack, postedProposal, rows } from './animation-fixture.js';
 
 const skip = NEEDS_PROPOSAL;
@@ -43,8 +44,7 @@ test('Revise plan: one new job for the same card and request, its revised plan r
   assert.equal(b.body.job.id, a.body.job.id, 'the same new job');
   const next = a.body.job.id;
   assert.equal([...s.state.data.keys()].filter(k => k.startsWith('job:')).length, 2);
-  assert.equal(s.state.data.get('request:req-00000001').id, next, 'the request now names the new job');
-  // The card's request repeated (a client retry of create) answers the new job, not a third.
+  assert.equal(s.state.data.get('request:req-00000001').id, next, 'the request now names the new job');  // The card's request repeated (a client retry of create) answers the new job, not a third.
   assert.equal((await s.create()).body.job.id, next);
   const waiting = await s.run(next);
   assert.equal(waiting.stage, 'awaiting_approval');
@@ -143,8 +143,38 @@ test('an interrupted call is never resent by itself: Try again within the ceilin
   const done = await s.run(body.job.id, s.object());
   assert.deepEqual([done.stage, failureClass(done), done.autoRetried], ['failed', 'transient', undefined]);
   const { job } = await s.job(body.job.id);
-  assert.equal(job.failure.message, 'An AI step was interrupted. You are not charged for it. Try again continues from where it stopped.');
-  assert.equal(failures(s).length, 1);
+  // Uncertain settlement: the call's outcome was never recorded (status unknown), so its charge is not known and zero is not promised.
+  assert.equal(s.stored(body.job.id).calls.at(-1).status, 'unknown');
+  assert.equal(job.failure.message, 'An AI step was interrupted. It may have used AI credits. Try again continues from where it stopped.');
+  assert.deepEqual(failures(s).map(m => m.content), [`"${PLAN.title}" was not finished. ${job.failure.message} Your request and plan are kept.`]);
+});
+
+// Owner 2026-11-02: a billed reply the job cannot use (output limit, invalid turn) is not an interruption, and its credits stay used.
+test('a billed reply that cannot be used says so and names the credits its call settled, on the card and in Chat alike', { skip }, async t => {
+  const s = animationStack(t);
+  const inner = globalThis.fetch; // the fake provider; restored by its own t.after
+  globalThis.fetch = async (url, options) => {
+    const response = await inner(url, options), body = JSON.parse(options.body);
+    return (body.system[0]?.text ?? body.system) === 'author' ? Response.json({ ...(await response.json()), stop_reason: 'max_tokens' }) : response;
+  };
+  const { id, done } = await s.generated();
+  const call = done.calls.find(c => c.role === 'author');
+  assert.deepEqual([done.failure.category, done.failure.code, failureClass(done), call.status], ['model_output', 'output_limit', 'transient', 'failed']);
+  assert.ok(call.costMicros > 0, 'the reply was billed and its cost recorded');
+  // The usage record agrees: the learner's attempt settled at that cost, nothing refunded.
+  const attempt = rows(s.sqlite, 'usage_attempts').at(-1); // brief, then author
+  assert.deepEqual([attempt.cost_state, attempt.cost_micros], ['settled', call.costMicros]);
+  const used = Math.ceil(call.costMicros / 10000);
+  const { job } = await s.job(id);
+  assert.match(job.failure.message, new RegExp(`^The AI answer could not be used\\. It used ${used} AI credits?\\. Revise plan`));
+  assert.doesNotMatch(job.failure.message, /not charged|interrupted/);
+  assert.deepEqual(failures(s).map(m => m.content), [`"${PLAN.title}" was not finished. ${job.failure.message} Your request and plan are kept.`]);
+  // The same for a reply whose call settled and whose content the stage then refused (animation-author.js: no artifact).
+  const tool = { name: 'animation_out', input_schema: { type: 'object' } };
+  const a = animationStack(t, { pipeline: STUB_PIPELINE({ author: async (j, ctx) => { await ctx.call('author', { system: 'author', tool, content: 'x' }); throw new AnimationPolicyError('invalid_turn', 'The author returned no artifact.'); } }) });
+  const refused = (await a.generated()).done;
+  assert.deepEqual([refused.failure.category, refused.calls.at(-1).status], ['model_output', 'settled']);
+  assert.match(failureText(refused), /^The AI answer could not be used\. It used \d+ AI credits?\./);
 });
 
 test('failureText on saved records maps every class without quoting stored findings', () => {
@@ -152,7 +182,7 @@ test('failureText on saved records maps every class without quoting stored findi
   assert.equal(failureText({ ...base, stopReason: 'deadline', failure: { stage: 'reviewing', category: 'internal', message: 'This animation reached its time limit.' } }),
     'The build ran out of time. It was corrected automatically once. Revise plan prepares a simpler plan from your request for you to review, using up to 26 AI credits; nothing is built until you press Generate.');
   assert.equal(failureText({ ...base, approval: null, stopReason: 'error', failure: { stage: 'preparing', category: 'transport', message: 'No AI model is configured here.', retryable: false } }),
-    'An AI step was interrupted. You are not charged for it. It was corrected automatically once.');
+    'An AI step was interrupted. It was corrected automatically once.', 'no call recorded for the step: nothing is said about charges');
   assert.equal(failureText({ ...base, stopReason: 'no_progress', failure: { stage: 'validating', category: 'spec', message: 'x' } }).split('. ').slice(0, 2).join('. '),
     'The scene did not pass its structure checks. An automatic correction changed nothing');
 });

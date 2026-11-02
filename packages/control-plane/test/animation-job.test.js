@@ -226,7 +226,10 @@ test('provider overload pauses at its stage; Retry resumes there within the same
   // One automatic retry of the stage after a pause (its refused call cost nothing), then the job stops, retryable.
   assert.deepEqual([done.stage, done.failure.stage, done.failure.category, done.counts.review, done.waited, done.autoRetried], ['failed', 'reviewing', 'provider_unavailable', 0, 1, 1]);
   assert.deepEqual((await s.job(id)).job.recovery, ['new_attempt', 'edit_request']);
-  assert.equal((await s.job(id)).job.failure.message, 'The AI service was busy. It was retried automatically. Try again continues from where it stopped.');
+  // A zero-charge provider refusal: the call ledger records it refused at 0, so the card and Chat may say it was not charged.
+  const busy = 'The AI service was busy. You are not charged for it. It was retried automatically. Try again continues from where it stopped.';
+  assert.equal((await s.job(id)).job.failure.message, busy);
+  assert.deepEqual(rows(s.sqlite, 'messages').filter(m => /was not finished/.test(m.content)).map(m => m.content), [`"${PLAN.title}" was not finished. ${busy} Your request and plan are kept.`]);
   down = false;
   const [a, b] = [await s.send('retry', { expectedAttempt: 1 }, id), await s.send('retry', { expectedAttempt: 1 }, id)];
   assert.deepEqual([a.status, b.status, b.body.job.attempt], [202, 200, 2]);
