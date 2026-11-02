@@ -58,7 +58,13 @@ test('stage words: the server\'s stage, no ellipsis, a failure\'s own message; r
   assert.equal(animationRunning({ stage: 'authoring', terminal: true }), false);
   assert.equal(animationRunning(null), false);
   assert.equal(animationRetry({ stage: 'failed', recovery: ['retry_render'] }), 'retry_render');
-  assert.equal(animationRetry({ stage: 'failed' }), 'new_attempt');
+  // Only what the server offers (owner 2026-11-01: a failed job offering only edit_request, or not read yet, offered a Try again the
+  // server then refused).
+  assert.equal(animationRetry({ stage: 'failed' }), null);
+  assert.equal(animationRetry({ stage: 'failed', recovery: [] }), null);
+  assert.equal(animationRetry({ stage: 'failed', recovery: ['edit_request'] }), null);
+  assert.equal(animationRetry({ stage: 'failed', recovery: ['revise_plan', 'edit_request'] }), 'revise_plan');
+  assert.equal(animationRetry({ stage: 'failed', recovery: ['new_attempt', 'edit_request'] }), 'new_attempt');
   assert.equal(animationRetry({ stage: 'authoring' }), null);
 });
 

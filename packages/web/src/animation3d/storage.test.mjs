@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { SNAPSHOT_SCHEMA as CONTRACT_SNAPSHOT_SCHEMA, resolveAnimationInputs } from './contract.js';
 import { experimentFixture } from './fixtures.js';
 import {
-  ANIMATION3D, ENVELOPE_VERSION, MESSAGES, SAVE_DELAY, SAVE_MAX_WAIT, SNAPSHOT_SCHEMA, animationSavesPending, artifactIdentity, cancelAnimationJob,
+  ANIMATION3D, ENVELOPE_VERSION, MESSAGES, SAVE_DELAY, SAVE_MAX_WAIT, SNAPSHOT_SCHEMA, animationSavesPending, artifactIdentity, cancelAnimationJob, resumeAnimationJob,
   createAnimationSaver, freshEnvelope, hydrateAnimation, landHydration, nextView, readEnvelope, resetView, settleAnimationJob, withFlushedAnimations,
   withJob, withSimulation, withView,
 } from './storage.js';
@@ -313,6 +313,14 @@ test('failed or cancelled regeneration keeps the current good version', () => {
   assert.equal(late.action, 'ignore');
   assert.equal(late.reason, 'cancelled');
   assert.deepEqual(stopped.animation3d, card().animation3d);
+  // A Retry or Revise plan the server accepted: the failed card waits again on the job it answered (the same request binding),
+  // and that job's result then lands; a stopped card, another card's job or a job still failed changes nothing.
+  const resumed = resumeAnimationJob(failed.block, { ...JOB, id: 'job_next', stage: 'queued' });
+  assert.deepEqual([resumed.animation3dJob.id, resumed.animation3dJob.stage, resumed.animation3dJob.message, resumed.animation3dJob.requestId], ['job_next', 'queued', undefined, failed.block.animation3dJob.requestId]);
+  assert.equal(settleAnimationJob(resumed, { ...JOB, id: 'job_next', stage: 'ready', result: RESULT }, { boardId: 'board_A' }).action, 'apply');
+  assert.equal(resumeAnimationJob(stopped, { ...JOB, stage: 'queued' }), stopped);
+  assert.equal(resumeAnimationJob(failed.block, { ...JOB, cardId: 'other', stage: 'queued' }), failed.block);
+  assert.equal(resumeAnimationJob(failed.block, { ...JOB, stage: 'failed' }), failed.block);
 });
 
 test('deleted or replaced card, board switch and foreign results are ignored', () => {

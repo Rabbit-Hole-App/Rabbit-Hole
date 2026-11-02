@@ -292,6 +292,14 @@ export const withJob = (block, { job, boardId, requestId, sourceKey, baseRevisio
 // releases unused holds by its own billing rules). The good version stays.
 export const cancelAnimationJob = block => (block?.animation3dJob ? { ...block, animation3dJob: { ...block.animation3dJob, stage: 'cancelled' } } : block);
 const TERMINAL = new Set(['cancelled', 'failed']);
+// A Retry or Revise plan the server accepted: the failed card waits again, on the same job or on the new one that replaced it for
+// the same request (so the same sourceKey), and its old failure words go. Anything else leaves the card as it is.
+export function resumeAnimationJob(block, job) {
+  const waiting = block?.animation3dJob;
+  if (waiting?.stage !== 'failed' || !job?.id || job.cardId !== block.id || job.boardId !== waiting.boardId || TERMINAL.has(job.stage)) return block;
+  const { message: _old, ...kept } = waiting;
+  return { ...block, animation3dJob: { ...kept, id: job.id, stage: job.stage } };
+}
 
 // The accepted result's reference. Lane G's job result names the accepted artifact by the contract's fields (artifactId, revision,
 // planHash, sourceHash or null) and the stamps artifactIdentity gives it.

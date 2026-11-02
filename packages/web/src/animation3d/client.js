@@ -49,8 +49,11 @@ export function animationProgress(job) {
   const current = PROGRESS_STAGES.indexOf(job.stage);
   return current < 0 ? null : { steps: ANIMATION_PROGRESS_STEPS, current, correcting: false };
 }
-// The one retry the job offers now (the server's recovery list), or null.
-export const animationRetry = job => job?.recovery?.find(action => action === 'retry_render' || action === 'new_attempt') ?? (job?.stage === 'failed' ? 'new_attempt' : null);
+// The one recovery the job offers now, from the server's own list only (a job read before the list arrived, or one offering only
+// edit_request, offers none): retry_render, new_attempt or revise_plan, or null. Never assumed from the stage.
+const RECOVERIES = ['retry_render', 'new_attempt', 'revise_plan'];
+export const animationRetry = job => job?.recovery?.find(action => RECOVERIES.includes(action)) ?? null;
+export const RETRY_LABELS = Object.freeze({ retry_render: 'Render again', new_attempt: 'Try again', revise_plan: 'Revise plan' });
 // A job's result lands through storage.js (withJob, settleAnimationJob): bound to its card, board, request, source set and base revision.
 
 // A job changed from outside its card (Generate approved its plan, Chat refined it, Stop): its card polls again.

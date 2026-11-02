@@ -511,6 +511,52 @@ test('a failed job: its message and the job\'s own retry', async () => {
   assert.equal($('[data-animation-job-retry]').textContent.trim(), 'Try again');
 });
 
+test('a failed job offering only Edit shows no retry; after a reload the card asks the server before offering one', async () => {
+  let answer = null;
+  const calls = [];
+  const fetchJson = async (path, options = {}) => { calls.push([options.method || 'GET', path]); return answer; };
+  answer = { job: job({ id: 'j4', cardId: 'p4', stage: 'failed', terminal: true, attempt: 1, failure: { message: 'The scene was too large to check.' }, recovery: ['edit_request'] }) };
+  await mount({ fetchJson, block: { id: 'p4', type: 'animation3d', title: 'SGD', animation3dJob: job({ id: 'j4', cardId: 'p4', stage: 'failed', message: 'Old words.' }) } });
+  assert.deepEqual(calls, [['GET', '/api/learn/animation/jobs/j4?board=b1']], 'read once, not polled');
+  assert.equal($('[data-animation-stage]').textContent, 'The scene was too large to check.', 'the server\'s current words');
+  assert.equal($('[data-animation-job-retry]'), null);
+  // The read failing: the saved words stay, and no action is guessed.
+  answer = null;
+  const failing = async () => { throw Object.assign(new Error('Not available'), { status: 503 }); };
+  await mount({ fetchJson: failing, block: { id: 'p4', type: 'animation3d', title: 'SGD', animation3dJob: job({ id: 'j4', cardId: 'p4', stage: 'failed', message: 'Old words.' }) } });
+  assert.equal($('[data-animation-stage]').textContent, 'Old words.');
+  assert.equal($('[data-animation-job-retry]'), null);
+});
+
+test('Revise plan: one press, one request naming the action; the card waits on the new job the server answered and polls it', async () => {
+  const calls = [];
+  const failed = job({ id: 'j5', cardId: 'p5', stage: 'failed', terminal: true, attempt: 1, failure: { message: 'The scene was too large to check.' }, recovery: ['revise_plan', 'edit_request'] });
+  const fetchJson = async (path, options = {}) => {
+    calls.push([options.method || 'GET', path, options.body ? JSON.parse(options.body) : null]);
+    if (path.endsWith('/retry')) { await new Promise(resolve => setTimeout(resolve, 20)); return { job: job({ id: 'j6', cardId: 'p5', stage: 'queued', attempt: 1 }) }; }
+    return path.includes('/j6') ? { job: job({ id: 'j6', cardId: 'p5', stage: 'awaiting_approval' }) } : { job: failed };
+  };
+  const { changes } = await mount({ fetchJson, block: { id: 'p5', type: 'animation3d', title: 'SGD', promptUsed: '/animation sgd', animation3dJob: job({ id: 'j5', cardId: 'p5', stage: 'failed', message: 'x' }) } });
+  const button = $('[data-animation-job-retry]');
+  assert.equal(button.textContent.trim(), 'Revise plan');
+  assert.equal(button.getAttribute('data-animation-job-retry'), 'revise_plan');
+  await B.act(async () => { button.dispatchEvent(new window.Event('click', { bubbles: true })); button.dispatchEvent(new window.Event('click', { bubbles: true })); });
+  await settle();
+  const retries = calls.filter(([method]) => method === 'POST');
+  assert.deepEqual(retries, [['POST', '/api/learn/animation/jobs/j5/retry', { boardId: 'b1', expectedAttempt: 1, action: 'revise_plan' }]]);
+  const quiet = () => changes.filter(([kind]) => kind === 'quiet').map(([, block]) => block).at(-1);
+  const bound = quiet().animation3dJob;
+  assert.deepEqual([bound.id, bound.stage, bound.requestId, bound.sourceKey, bound.message], ['j6', 'queued', 'r1', 'k', undefined]);
+  assert.equal($('[data-animation-job-retry]'), null, 'no second press while the new job works');
+  // The canvas saves the rebound card and renders it: the card now observes the new job.
+  await B.act(async () => { root.render(B.createElement(B.Card, { block: quiet(), onChange: next => changes.push(['change', next]), onChangeQuiet: next => changes.push(['quiet', next]), fetchJson, webgl: true })); });
+  await settle();
+  assert.ok(calls.some(([method, path]) => method === 'GET' && path === '/api/learn/animation/jobs/j6?board=b1'), 'the new job is read');
+  assert.equal(quiet().animation3dJob.stage, 'awaiting_approval');
+  assert.equal(calls.filter(([method]) => method === 'POST').length, 1);
+  assert.ok(!changes.some(([kind]) => kind === 'change'), 'never an undo step');
+});
+
 test('a ready job lands on its card once (the artifact read and mapped to the board reference); the saved card then plays it', async () => {
   const art = structuredClone(experimentFixture.artifact);
   const answers = { job: { id: 'j3', boardId: 'b1', cardId: 'p3', stage: 'ready', terminal: true, result: { resultId: art.artifactId, cardId: 'p3', canvas: { boardId: 'b1' }, requestRef: 'rr', planHash: art.planHash } } };

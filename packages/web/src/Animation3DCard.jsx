@@ -5,13 +5,13 @@ import { Pill } from './ui.jsx';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { claimViewer, releaseViewer } from './viewer-slots.js';
 import { watchSeen } from './explain-program/playback.js';
-import { ANIMATION_JOB_EVENT, animationClient, animationProgress, animationRetry, animationRunning, animationStage, readyResult } from './animation3d/client.js';
+import { ANIMATION_JOB_EVENT, animationClient, animationProgress, animationRetry, animationRunning, animationStage, readyResult, RETRY_LABELS } from './animation3d/client.js';
 import {
   artifactRefOf, cardPhase, detectWebGL, EXPERIENCE_LABELS, failureText, FIXTURE_LABEL, FIXTURE_NOTE, fixtureIdOf, INTERACT_LEGEND,
   jobOf, keyAction, KEYS_HINT, retryLabel, visibleControls, WEBGL_UNAVAILABLE,
 } from './animation3d/card.js';
 import { ANIMATION_FIXTURES } from './animation3d/fixtures.js';
-import { cancelAnimationJob, createAnimationSaver, hydrateAnimation, landHydration, nextView, settleAnimationJob } from './animation3d/storage.js';
+import { cancelAnimationJob, createAnimationSaver, hydrateAnimation, landHydration, nextView, resumeAnimationJob, settleAnimationJob } from './animation3d/storage.js';
 import { createAnimationRuntime } from './animation3d/runtime.js';
 import { createAnimationRenderer } from './animation3d/renderer.js';
 import { AnimationBoard } from './animation3d/board-context.js';
@@ -93,8 +93,9 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
   const apply = async data => {
     const polled = data?.job ?? null;
     setJob(polled);
-    // A plan ready for review: the chat showing its thread reloads it, so the plan and its Generate appear (as /explain's brief).
-    if (polled?.stage === 'awaiting_approval' && latest.current.animation3dJob?.stage !== 'awaiting_approval' && waiting.threadId) window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId: waiting.threadId, jobId: waiting.id } }));
+    // A plan ready for review, or the job's failure explained: the chat showing its thread reloads it, so the plan and its Generate,
+    // or the server's one failure message, appear (as /explain's brief).
+    if (['awaiting_approval', 'failed'].includes(polled?.stage) && latest.current.animation3dJob?.stage !== polled.stage && waiting.threadId) window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId: waiting.threadId, jobId: waiting.id } }));
     const settled = polled?.stage === 'ready' ? await readyResult(polled, id => client.result(id)) : polled;
     if (!settled) { setProblem('The finished scene could not be read. Try again in a moment.'); return; }
     const out = settleAnimationJob(latest.current, settled, { boardId: waiting.boardId });
@@ -102,9 +103,12 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
     // The stage rides on the card quietly so a reload shows where it was; not an undo step.
     if ((out.action === 'progress' || out.action === 'keep') && out.block !== latest.current) { latest.current = out.block; (onChangeQuiet || onChange)(out.block); }
   };
+  const ended = ['failed', 'cancelled'].includes(waiting.stage);
   useEffect(() => {
-    if (readOnly || ['failed', 'cancelled'].includes(waiting.stage)) return undefined;
+    if (readOnly || waiting.stage === 'cancelled') return undefined;
     let live = true, timer;
+    // A failed card (also after a reload) reads its job once for the server's current recovery actions; it is not polled.
+    if (ended) { client.get(waiting.id).then(data => { if (live) setJob(data?.job ?? null); }, error => { if (live) setProblem(error.message); }); return () => { live = false; }; }
     const poll = async () => {
       try { const data = await client.get(waiting.id); if (!live) return; setProblem(''); await apply(data); if (animationRunning(data?.job)) timer = setTimeout(poll, 2000); }
       catch (error) { if (live) setProblem(error.message); }
@@ -114,7 +118,7 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
     const again = event => { if (event.detail?.jobId === waiting.id) { clearTimeout(timer); poll(); } };
     window.addEventListener(ANIMATION_JOB_EVENT, again);
     return () => { live = false; clearTimeout(timer); window.removeEventListener(ANIMATION_JOB_EVENT, again); };
-  }, [waiting.id, client, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [waiting.id, ended, client, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
   const acting = useRef(false);
   const act = async (name, body) => {
     if (acting.current) return;
@@ -122,7 +126,10 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
     try {
       const data = await client.action(waiting.id, name, body);
       // Stop: the card stops waiting at once; a later result is refused (storage.js cancelAnimationJob).
-      if (name === 'cancel') { const next = cancelAnimationJob(latest.current); latest.current = next; (onChangeQuiet || onChange)(next); setJob(data?.job ?? null); } else await apply(data);
+      if (name === 'cancel') { const next = cancelAnimationJob(latest.current); latest.current = next; (onChangeQuiet || onChange)(next); setJob(data?.job ?? null); }
+      // An accepted Retry or Revise plan: the card waits again on the job the server answered (polling restarts), quietly.
+      else if (name === 'retry') { const next = resumeAnimationJob(latest.current, data?.job); setJob(data?.job ?? null); if (next !== latest.current) { latest.current = next; (onChangeQuiet || onChange)(next); } }
+      else await apply(data);
     } catch (error) { setProblem(error.message); } finally { acting.current = false; setBusy(false); }
   };
   const shown = job || { stage: waiting.stage, ...(waiting.message ? { failure: { message: waiting.message } } : {}) };
@@ -140,8 +147,8 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
       {!readOnly && (
         <div className="flex gap-1.5">
           {running && <button type="button" data-animation-stop disabled={busy} onClick={() => act('cancel')} className={buttonClass}>Stop</button>}
-          {retry && <button type="button" data-animation-job-retry disabled={busy} onClick={() => act('retry', { expectedAttempt: shown.attempt })} className={buttonClass}>
-            <RefreshCw size={13} aria-hidden />{retry === 'retry_render' ? 'Render again' : 'Try again'}</button>}
+          {retry && <button type="button" data-animation-job-retry={retry} disabled={busy} onClick={() => act('retry', { expectedAttempt: shown.attempt, action: retry })} className={buttonClass}>
+            <RefreshCw size={13} aria-hidden />{RETRY_LABELS[retry]}</button>}
         </div>
       )}
     </div>

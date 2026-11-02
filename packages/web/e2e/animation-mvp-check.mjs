@@ -557,9 +557,9 @@ export function evaluate({ state }) {
     program: { ...ARTIFACT.program, source: DRAG_SOURCE, sourceHash: await hashProgramSource(DRAG_SOURCE) }, seed: 1, camera: { position: [0, 0, 6], target: [0, 0, 0] }, assumptions: [] };
   const SERVED = new Map([[ARTIFACT.artifactId, ARTIFACT], [DRAG_ARTIFACT.artifactId, DRAG_ARTIFACT]]);
   const sha16 = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
-  const flow = { jobs: new Map(), creates: [], approves: [], puts: [], reads: [], writes: [], proposals: new Map(), briefs: [] };
+  const flow = { jobs: new Map(), creates: [], approves: [], retries: [], puts: [], reads: [], writes: [], proposals: new Map(), briefs: [], fail: null };
   const viewOf = job => ({ id: job.id, version: 1, boardId: job.boardId, cardId: job.cardId, stage: job.stage, attempt: 1, terminal: ['ready', 'failed', 'cancelled'].includes(job.stage),
-    repairs: 0, stopReason: null, failure: null, recovery: [], usage: { credits: 0, unknown: false }, createdAt: 0, updatedAt: 0,
+    repairs: 0, stopReason: null, failure: job.failure ?? null, recovery: job.recovery ?? [], usage: { credits: 0, unknown: false }, createdAt: 0, updatedAt: 0,
     result: job.stage === 'ready' ? { jobId: job.id, resultId: job.artifact.artifactId, cardId: job.cardId, canvas: { boardId: job.boardId }, requestRef: sha16(`${job.requestId}|${job.prompt}`), revision: 1, planHash: job.artifact.planHash } : null });
   const planOf = job => ({ proposal_id: sha16(job.id), version: 1, command: 'animation', title: job.artifact.title,
     description: 'A beam on a pivot with one weight on each side; change masses and distances and watch it tilt.', settings: { experience: 'watch' }, source_refs: [], references: [],
@@ -589,6 +589,8 @@ export function evaluate({ state }) {
         flow.briefs.push({ messageId, threadId: body.threadId, jobId: job.id });
         const answer = viewOf(job);
         job.stage = 'awaiting_approval'; // the card's first read sees the plan waiting, so its thread is shown again
+        // A failure the server explained (flow.fail): the card's next read finds the job failed with the server's words and actions.
+        if (flow.fail) { Object.assign(job, { stage: 'failed', ...flow.fail }); flow.fail = null; }
         return route.fulfill({ status: 202, json: { job: answer } });
       }
       return route.fulfill({ status: 202, json: { job: viewOf(job) } });
@@ -597,6 +599,13 @@ export function evaluate({ state }) {
     if (one) {
       const job = flow.jobs.get(decodeURIComponent(one[1]));
       if (!job || (method === 'GET' && url.searchParams.get('board') !== job.boardId)) return route.fulfill({ status: 404, json: { error: 'Not available' } });
+      // Revise plan: the server answers the new job for the same card and request; its next read finds the revised plan waiting.
+      if (one[2] === 'retry') {
+        flow.retries.push({ jobId: job.id, body: request.postDataJSON() });
+        const next = { ...job, id: `${job.id}r`, stage: 'awaiting_approval', failure: null, recovery: [] };
+        flow.jobs.set(next.id, next);
+        return route.fulfill({ status: 202, json: { job: { ...viewOf(next), stage: 'queued' } } });
+      }
       if (one[2] === 'approve') {
         flow.approves.push({ jobId: job.id, body: request.postDataJSON() });
         const answer = viewOf({ ...job, stage: 'authoring' });
@@ -811,6 +820,31 @@ export function evaluate({ state }) {
     assert.equal(job.boardId, serverBoard);
     assert.equal(order.filter(entry => entry.kind === 'create').length, 1, 'one job create');
     await shot(p, 'L-fresh-canvas');
+    await c.close();
+  });
+  // Owner 2026-11-01 (FX-AN-026): a failed job offers only what the server offers, in the server's words, and its action works.
+  await step('a failed job shows the server explanation and only its offered action; Revise plan pressed twice asks once and the card waits on the new job', async () => {
+    const words = 'The scene was too large to check. It was corrected automatically once, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate.';
+    const { context: c, page: p } = await open({ canvas: fresh, first: null, extra: genRouter });
+    const creates = flow.creates.length;
+    flow.fail = { failure: { stage: 'validating', category: 'spec', message: words, retryable: false }, recovery: ['revise_plan', 'edit_request'] };
+    await p.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 20000 });
+    await composer(p).click(); await composer(p).fill(`/animation ${REQUEST}`); await p.waitForTimeout(150); await composer(p).press('Enter');
+    await until(async () => flow.creates.length === creates + 1, 'one job for the /animation line', 20000);
+    const failed = [...flow.jobs.values()].at(-1), root = p.locator(`[data-block-id="${failed.cardId}"]`);
+    await root.locator('[data-animation-pending="failed"]').waitFor({ timeout: 20000 });
+    assert.equal((await root.locator('[data-animation-stage]').innerText()).trim(), words);
+    const button = root.locator('[data-animation-job-retry]');
+    await button.waitFor({ timeout: 10000 });
+    assert.deepEqual([(await button.innerText()).trim(), await button.getAttribute('data-animation-job-retry')], ['Revise plan', 'revise_plan']);
+    await shot(p, 'M-failed-card');
+    await button.dblclick();
+    await until(async () => flow.retries.length >= 1, 'a retry request');
+    await p.waitForTimeout(800);
+    assert.deepEqual(flow.retries, [{ jobId: failed.id, body: { boardId: failed.boardId, expectedAttempt: 1, action: 'revise_plan' } }], 'two presses, one request naming the action');
+    await root.locator('[data-animation-pending="awaiting_approval"]').waitFor({ timeout: 20000 });
+    assert.equal(await root.locator('[data-animation-job-retry]').count(), 0, 'no retry while the new job waits');
+    await shot(p, 'M-revised-waiting');
     await c.close();
   });
 
