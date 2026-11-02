@@ -193,7 +193,9 @@ export async function ingestEvents(req, env, found) {
   try {
     await db.batch([...metaStatements(db, now), ...prune, ...(link ? [link] : []), learnerStatement(db, org, canvas, learner, viewer ? 1 : 0, synthetic, now), ...out, ...credited]);
   } catch {
-    // A concurrent copy of the same batch won an event id: nothing of this one was written; the browser retries.
+    // A concurrent copy of the same batch won an event id, or storage failed: nothing of this one was written; the browser retries.
+    // Recorded for the owner's status when it can be; the next good batch clears it.
+    await db.prepare("INSERT INTO analytics_meta (key, value) VALUES ('last_ingest_error_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(now).run().catch(() => {});
     return json({ error: 'Not recorded; retry.' }, 503);
   }
   return json({ accepted, ignored: events.length - accepted });
@@ -400,7 +402,7 @@ export async function readAnalytics(db, viewer, { range, canvas = null, syntheti
   // Insights: deterministic rules over shown aggregates only (contract "Insights"); none means no clear signal.
   const insights = [];
   const curious = concepts.filter(c => c.deeper_rate.value !== null && c.deeper_rate.value >= 0.2).sort((a, b) => b.deeper_rate.value - a.deeper_rate.value || b.seen.value - a.seen.value)[0];
-  if (curious) insights.push({ type: 'interest', canvas, subject_id: curious.concept_id, label: curious.label, numerator: Math.round(curious.deeper_rate.value * curious.seen.value), denominator: curious.seen.value, rate: curious.deeper_rate.value, material_id: null });
+  if (curious) insights.push({ type: 'interest', canvas: canvas ?? items.find(r => r.kind === 'concept_deeper' && r.item_id === curious.concept_id)?.canvas ?? null, subject_id: curious.concept_id, label: curious.label, numerator: Math.round(curious.deeper_rate.value * curious.seen.value), denominator: curious.seen.value, rate: curious.deeper_rate.value, material_id: null });
   const stuck = friction.filter(f => f.incorrect_rate.value !== null && f.incorrect_rate.value >= 0.3).sort((a, b) => b.incorrect_rate.value - a.incorrect_rate.value)[0];
   if (stuck) insights.push({ type: 'friction', canvas: stuck.canvas, subject_id: stuck.material_id, label: stuck.label, numerator: stuck.incorrect.value, denominator: stuck.assessed.value, rate: stuck.incorrect_rate.value, material_id: stuck.material_id });
 
@@ -409,7 +411,8 @@ export async function readAnalytics(db, viewer, { range, canvas = null, syntheti
   return {
     scope: { kind: canvas ? 'publication' : 'creator', canvas, title: canvas ? boards[0]?.title ?? null : null },
     range, period: { from, to: today, timezone: 'UTC', partial: from < startDay }, threshold: THRESHOLD,
-    collection: { status: 'active', started_at: started, last_ingest_at: meta.last_ingest_at ?? null, checked_at: now, own_visits_excluded: true, synthetic_excluded: syntheticCount },
+    // Active only when this read succeeded and the newest ingest did not fail after the newest success.
+    collection: { status: meta.last_ingest_error_at && !(meta.last_ingest_at > meta.last_ingest_error_at) ? 'degraded' : 'active', started_at: started, last_ingest_at: meta.last_ingest_at ?? null, checked_at: now, own_visits_excluded: true, synthetic_excluded: syntheticCount },
     producers: {
       visits: live(null), active_time: live(null), cards: live(null), concepts: live('Only cards that carry concept ids report concepts.'), resources: live(null),
       next_steps: live('Suggestions are shown only when a signed-in visitor asks for them.'), conversions: live(null), revisions: live(null), sources: live(null),
