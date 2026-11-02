@@ -8,8 +8,8 @@ States: `not_started`, `in_progress`, `blocked`, `pushed`, `tested`, `preview_re
 `owner_approved`, `deployed`, `enabled`, `production_verified`, `deferred`.
 
 Kickoff base: main `a3376817f003a9c41824fc5b76b644778bc9c6e3`; main `ff0fff36ad919785d1924a2f5780b2f5838e7fa8`
-(release 24-eb) merged in. Integration branch `feat/animation` (worktree `animation`), MVP candidate `237964c54b398221fe9f16062214a4ccf6cfc563`.
-Preview: https://rabbit-hole-web-dev-animation.tryrabbithole.workers.dev, built from `237964c54b398221fe9f16062214a4ccf6cfc563`, with
+(release 24-eb) merged in. Integration branch `feat/animation` (worktree `animation`), MVP candidate `c9d0c5509126b277603a778fbcdc2b376a08ab42`.
+Preview: https://rabbit-hole-web-dev-animation.tryrabbithole.workers.dev, built from `c9d0c5509126b277603a778fbcdc2b376a08ab42`, with
 `ANIMATION_ENABLED=true` and `ANIMATION_DIAGNOSTICS=true` set on this clone only (deploy flags; no config file sets
 them) and `ANTHROPIC_API_KEY` installed on this clone only. Production config is unchanged: /animation is not in
 production.
@@ -18,7 +18,7 @@ production.
 
 | Agent | Owns | Branch | Last merged SHA |
 |---|---|---|---|
-| P (Parallel) | shared registries, canvas, routes, packages, docs, candidates | `feat/animation` | `237964c54b398221fe9f16062214a4ccf6cfc563` |
+| P (Parallel) | shared registries, canvas, routes, packages, docs, candidates | `feat/animation` | `c9d0c5509126b277603a778fbcdc2b376a08ab42` |
 | R runtime/renderer | `animation3d/{contract,capabilities,fixtures,runtime,renderer,scene,state,review}.js`, review page | `feat/animation-r` | `8fc92fca9d2f84aed2540a45c8c14cf7756e58f8` |
 | G generation | server `animation-*.js`, `agents/animation-*.js`, acceptance runner | `feat/animation-g` | `c7c24b9d0f5ab14682da0cc6c490c220a5aea084` |
 | U UI/interaction | `Animation3DCard.jsx`, `animation3d/{Controls.jsx,interaction.js,client.js,session.js}`, M2 wiring | `feat/animation-u` | `8ebfeef330a68cc95baffd7f4aabcb62a2006fde` |
@@ -30,13 +30,13 @@ production.
 | Task/subtask | Phase | Owner | Branch | Implemented SHA (latest) | Focused test / CI | Preview | Status | Next action |
 |---|---|---|---|---|---|---|---|---|
 | AN-01 plan, checklist, fix log, spend ledger | MVP | P | feat/animation | `28c34c57f6a6cf8c99f64bce85e41085e0ac915f` | n/a (docs) | n/a | pushed | — |
-| AN-01 contract, capabilities, fixtures | MVP | R | feat/animation-r | `9a4d1f796cc31ad1c47e54ab7f4bb0e7a3751d98` (+ label placement `c0d450915`) | animation3d unit suites; oracle sweeps | `237964c54b398221fe9f16062214a4ccf6cfc563` | preview_ready | owner review |
-| AN-02 renderer, scene, review capture page | MVP | R | feat/animation-r | `8fc92fca9d2f84aed2540a45c8c14cf7756e58f8` | unit; fast-e2e animation-mvp; Browser Rendering probe (18 images inspected) | `237964c54b398221fe9f16062214a4ccf6cfc563` | preview_ready | owner review |
-| AN-03 card, /animation command, proposal, controls | MVP | U (+P) | feat/animation-u | `8ebfeef330a68cc95baffd7f4aabcb62a2006fde`; orbit/press fix `ef73e0e90` | unit; fast-e2e animation-mvp, slash-sheet, motion-command, inline-ai | `237964c54b398221fe9f16062214a4ccf6cfc563` | preview_ready | owner review |
-| AN-04 runtime and atomic state | MVP | R + U | feat/animation-r | `169c6b54a3fd2e321f4a3ae70e6e74103e6c8530`; session race `8ebfeef33` | real QuickJS runtime tests; fast-e2e reload steps | `237964c54b398221fe9f16062214a4ccf6cfc563` | preview_ready | owner review |
-| AN-05 planner, author, review, repair, job | MVP | G (+P) | feat/animation-g | `c7c24b9d0f5ab14682da0cc6c490c220a5aea084` | control-plane animation tests; 4 real accepted builds (receipt) | `237964c54b398221fe9f16062214a4ccf6cfc563` | preview_ready | owner review |
-| AN-06 persistence, cancel, hydration | MVP | A (+P) | feat/animation-a | `7ceb2b57e8ecd17d0f85e9a38bd4de15d1540cdf`; canvas flush on feat/animation | unit; fast-e2e reload with zero job/model requests (mocked job server); start-board save-race regression (FX-AN-017, `622d17501`) | `237964c54b398221fe9f16062214a4ccf6cfc563` | preview_ready | owner review |
-| AN-07 MVP qualification | MVP | V + P | feat/animation-v | `5a9d096558a821e584f5fe65474a944436f1233d` | receipt M3 | `237964c54b398221fe9f16062214a4ccf6cfc563` | ready_for_owner_review | owner decision |
+| AN-01 contract, capabilities, fixtures | MVP | R | feat/animation-r | `9a4d1f796cc31ad1c47e54ab7f4bb0e7a3751d98` (+ label placement `c0d450915`) | animation3d unit suites; oracle sweeps | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | preview_ready | owner review |
+| AN-02 renderer, scene, review capture page | MVP | R | feat/animation-r | `8fc92fca9d2f84aed2540a45c8c14cf7756e58f8` | unit; fast-e2e animation-mvp; Browser Rendering probe (18 images inspected) | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | preview_ready | owner review |
+| AN-03 card, /animation command, proposal, controls | MVP | U (+P) | feat/animation-u | `8ebfeef330a68cc95baffd7f4aabcb62a2006fde`; orbit/press fix `ef73e0e90` | unit; fast-e2e animation-mvp, slash-sheet, motion-command, inline-ai | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | preview_ready | owner review |
+| AN-04 runtime and atomic state | MVP | R + U | feat/animation-r | `169c6b54a3fd2e321f4a3ae70e6e74103e6c8530`; session race `8ebfeef33` | real QuickJS runtime tests; fast-e2e reload steps | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | preview_ready | owner review |
+| AN-05 planner, author, review, repair, job | MVP | G (+P) | feat/animation-g | `c7c24b9d0f5ab14682da0cc6c490c220a5aea084` | control-plane animation tests; 4 real accepted builds (receipt) | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | preview_ready | owner review |
+| AN-06 persistence, cancel, hydration | MVP | A (+P) | feat/animation-a | `7ceb2b57e8ecd17d0f85e9a38bd4de15d1540cdf`; canvas flush on feat/animation | unit; fast-e2e reload with zero job/model requests (mocked job server); start-board save-race regression (FX-AN-017, `622d17501`) | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | preview_ready | owner review |
+| AN-07 MVP qualification | MVP | V + P | feat/animation-v | `5a9d096558a821e584f5fe65474a944436f1233d` | receipt M3 | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | ready_for_owner_review | owner decision |
 | AN-08..AN-16 | post-MVP | — | — | — | — | — | blocked: owner MVP approval | none until approval |
 
 ## Milestones
@@ -46,7 +46,7 @@ production.
 | M0 kickoff contract | done | `28c34c57f6a6cf8c99f64bce85e41085e0ac915f` | n/a | — |
 | M1 first visible slice (fixtures) | done | `38918a481358517ae0708ebabcc6c709ab188c9b` | deployed 2026-10-30 | — |
 | M2 generated slice | done | first accepted real build on `a006319c994a0981b487169b49231a120b2839cf` (game) | deployed | M3 receipt covers it |
-| M3 MVP ready for decision | ready_for_owner_review | `237964c54b398221fe9f16062214a4ccf6cfc563` | deployed, enabled on the clone | [M3-8ed7e52ed](receipts/M3-8ed7e52ed.md) |
+| M3 MVP ready for decision | ready_for_owner_review | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | deployed, enabled on the clone | [M3-8ed7e52ed](receipts/M3-8ed7e52ed.md) |
 | APPROVAL GATE | not reached | | | |
 
 ## Owner approval record
