@@ -259,6 +259,17 @@ test('a Retry never resets either repair allowance: run repair, overload, Retry,
   assert.deepEqual(s.model.roles(), ['brief', 'author', 'repair', 'review', 'review', 'review', 'repair', 'review']);
 });
 
+test('the planner replies are kept in the job diagnostics as given, a refused one with its issues, and never in the learner view', { skip }, async t => {
+  const answers = [{ input: { title: 'first' }, issues: ['requiredCapabilities: step needs behavior rules (unsupported_capability)'] }, { input: { title: 'second' }, issues: [] }];
+  const s = animationStack(t, { pipeline: STUB_PIPELINE({ prepare: async (job, ctx) => ({ ...(await STUB_PIPELINE().prepare(job, ctx)), answers }) }) });
+  const { body } = await s.create();
+  const id = body.job.id;
+  await s.run(id);
+  const read = await s.job(id);
+  assert.deepEqual(s.stored(id).candidates, answers.map(a => ({ stage: 'preparing', ...a })));
+  assert.equal(JSON.stringify(read.job).includes('step needs behavior rules'), false, 'not in the public job');
+});
+
 test('a malformed author reply fails the build with no silent fallback and no retry beyond the ceiling', { skip }, async t => {
   // A request the policy refuses (no tool offered) is never sent and uses no call.
   const bad = animationStack(t, { pipeline: STUB_PIPELINE({ author: async (job, ctx) => ctx.call('author', { system: 'author', tool: null, content: 'x' }) }) });

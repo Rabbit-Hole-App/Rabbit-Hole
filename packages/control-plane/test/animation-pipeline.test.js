@@ -372,7 +372,7 @@ test('a repair that returns the program beside the artifact, or as a bare source
     const { done } = await s.generated();
     assert.equal(done.stage, 'ready', JSON.stringify(done.findings.at(-1)));
     assert.equal(done.artifact.program.source, program.source);
-    assert.deepEqual([done.candidates[0].hasProgram, done.candidates[0].inputKeys.includes('program'), done.candidates[0].artifactKeys.includes('program')], [true, true, false]);
+    assert.deepEqual([done.candidates.find(c => c.stage !== 'preparing').hasProgram, done.candidates.find(c => c.stage !== 'preparing').inputKeys.includes('program'), done.candidates.find(c => c.stage !== 'preparing').artifactKeys.includes('program')], [true, true, false]);
   }
   // Nowhere at all: still refused at validation (no program is invented).
   const none = stack(t, { reviews: [false, true], repair: () => ({ operation: 'artifact', artifact: { ...rest, title: 'Fixed' } }) });
@@ -414,8 +414,10 @@ test('a plan the contract refuses gets one correction turn with the issues; a se
   assert.deepEqual(sent[1].correction.issues, ['requiredCapabilities: step needs behavior rules (unsupported_capability)']);
   assert.deepEqual(sent[1].correction.previousPlan.requiredCapabilities, ['parameters', 'readouts', 'step']);
   assert.equal(sent[1].request, job.prompt, 'the correction carries the whole original input');
+  // Both replies are kept as given, the refused one with its issues (planner evaluation, owner 2026-11-02).
+  assert.deepEqual(fixed.answers.map(a => [a.input.requiredCapabilities, a.issues]), [[['parameters', 'readouts', 'step'], ['requiredCapabilities: step needs behavior rules (unsupported_capability)']], [planReply(experimentFixture).requiredCapabilities, []]]);
   sent.length = 0;
-  await assert.rejects(prepareStage(job, { call: call([bad, bad, bad]) }), { code: 'invalid_turn', message: /after one correction: requiredCapabilities: step needs behavior rules/ });
+  await assert.rejects(prepareStage(job, { call: call([bad, bad, bad]) }), error => error.code === 'invalid_turn' && /after one correction: requiredCapabilities: step needs behavior rules/.test(error.message) && error.answers.length === 2 && error.answers.every(a => a.issues.length === 1));
   assert.equal(sent.length, 2, 'never a third plan call');
   // A valid first plan costs one call.
   sent.length = 0;
