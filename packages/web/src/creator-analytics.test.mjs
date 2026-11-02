@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { hasPrefill, takePrefill, LAUNCH_COPY, PREFILL_KEY, RANGES, TABS, analyticsCsv, analyticsUrl, followUpPrompt, hidden, hiddenReason, metricText, noAudience, periodText, takePrefill } from './creator-analytics.js';
+import { hasPrefill, LAUNCH_COPY, PREFILL_KEY, RANGES, TABS, analyticsCsv, analyticsUrl, followUpPrompt, hidden, hiddenReason, metricText, noAudience, periodText, takePrefill } from './creator-analytics.js';
 
 const HIDDEN = { value: null, reason: 'insufficient_cohort' };
 const parse = csv => csv.split('\r\n').map(line => [...line.matchAll(/"((?:[^"]|"")*)"/g)].map(m => m[1].replaceAll('""', '"')));
