@@ -307,6 +307,31 @@ test('history is the canvas\'s: a republish keeps it under a new token; a perman
   for (const table of ['publication_events', 'publication_learners', 'publication_sessions', 'publication_learner_days', 'publication_revisions']) assert.equal(f.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n, 0, table);
 });
 
+test('collection status is verified: a failed ingest batch turns it degraded until a later batch succeeds', async t => {
+  const f = setup(t);
+  const { canvas, token } = await board(f);
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-11-02T10:00:00Z') });
+  const status = async () => (await read(f, `/api/analytics/publications/${canvas}?range=7d`, 'ana')).body.collection.status;
+  assert.equal(await status(), 'active');
+  const original = f.env.LEARN_DB.batch;
+  f.env.LEARN_DB.batch = async () => { throw new Error('D1 unavailable'); };
+  assert.equal((await send(f, token, { events: [ev('open')] })).status, 503);
+  f.env.LEARN_DB.batch = original;
+  assert.equal(await status(), 'degraded');
+  t.mock.timers.tick(1000);
+  assert.equal((await send(f, token, { events: [ev('open')] })).status, 200);
+  assert.equal(await status(), 'active');
+  t.mock.timers.reset();
+});
+
+test('a creator-scope interest insight names the board its concept came from, for the follow-up prompt', async t => {
+  const f = setup(t);
+  const { canvas, token } = await board(f);
+  await crowd(f, token, 10, () => [ev('seen', { material_id: 'c1' }), ev('step_selected', { suggestion_id: 'ns_00000000.1', position: 1, concept_ids: ['learning-rate'] })]);
+  const insight = (await read(f, '/api/analytics/creator?range=7d', 'ana')).body.insights.find(i => i.type === 'interest');
+  assert.deepEqual([insight.canvas, insight.subject_id, insight.denominator], [canvas, 'learning-rate', 10]);
+});
+
 test('referrer hosts leave no small remainder of the other-referrer total', async t => {
   const f = setup(t);
   const { canvas, token } = await board(f);

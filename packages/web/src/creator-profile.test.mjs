@@ -1,50 +1,22 @@
 // The creator profile and the Analytics UI in the browser (docs/features/creator-profile.md, creator-analytics-contract.md):
-// /@handle routed to anyone, Explore's search and creator row, the owner-only Analytics in its typed not_collected state,
-// and no number that is not a canonical public counter.
+// /@handle routed to anyone, Explore's search and creator row, and the owner-only Analytics entry points
+// (the dialog's helpers: creator-analytics.test.mjs).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { EXPLAINER_SECTIONS, INSUFFICIENT, NOT_COLLECTED, RANGES, TRAFFIC_SOURCES, counter, creatorAnalytics, explainerAnalytics, metricText } from './creator-analytics.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
-test('analytics: every behavior metric is not collected; the only numbers are FORK_COUNT and the public explainer count', () => {
-  const one = explainerAnalytics({ forkCount: 4 });
-  assert.equal(one.state, 'not_collected');
-  assert.deepEqual(one.insights, [], 'no insight without telemetry evidence');
-  for (const [key, metric] of Object.entries(one.metrics)) assert.deepEqual(metric, key === 'fork_count' ? { value: 4, suppressed: false } : NOT_COLLECTED, key);
-  for (const [, metric] of Object.entries(one.traffic)) assert.deepEqual(metric, NOT_COLLECTED);
-  assert.deepEqual(Object.keys(one.traffic), TRAFFIC_SOURCES.map(([key]) => key));
-  assert.deepEqual(one.revisions, NOT_COLLECTED);
-  assert.equal(EXPLAINER_SECTIONS.flatMap(s => s.rows).length, Object.keys(one.metrics).length);
-  const all = creatorAnalytics({ explainerCount: 2, forkCount: 5, explainers: [{ title: 'A', url: '/e/a', fork_count: 4 }, { title: 'B', url: '/e/b', fork_count: 1 }] });
-  assert.deepEqual([all.totals.fork_count.value, all.totals.explainer_count.value], [5, 2]);
-  for (const key of ['unique_learners', 'avg_active_seconds', 'rabbit_holes_started']) assert.deepEqual(all.totals[key], NOT_COLLECTED, key);
-  assert.deepEqual(all.explainers.map(e => [e.learners, e.avg_active_seconds, e.rabbit_hole_start_rate, e.fork_count.value]), [[NOT_COLLECTED, NOT_COLLECTED, NOT_COLLECTED, 4], [NOT_COLLECTED, NOT_COLLECTED, NOT_COLLECTED, 1]]);
-  for (const key of ['wants_next', 'friction', 'trend']) assert.deepEqual(all[key], NOT_COLLECTED, key);
-  assert.deepEqual(RANGES.map(r => r.id), ['7d', '30d', 'all']);
-});
-
-test('analytics: the typed states read as words, never 0 or an estimate', () => {
-  assert.equal(metricText(NOT_COLLECTED), 'Not collected yet');
-  assert.equal(metricText(INSUFFICIENT), 'Not enough learners yet (fewer than 10)');
-  assert.deepEqual(INSUFFICIENT, { value: null, suppressed: true, reason: 'insufficient_cohort' });
-  assert.equal(metricText(counter(1234)), '1,234');
-  assert.equal(metricText(counter(0)), '0', 'a public counter shows at any count');
-  assert.deepEqual(counter(undefined), NOT_COLLECTED, 'no canonical number, no number');
-});
-
-test('analytics: ⋮ → Analytics is in the owner\'s canvas menu only, for a public canvas only; the views fetch nothing', async () => {
+test('analytics: ⋮ → Analytics is in the owner\'s canvas menu only, for a public canvas only; the views hold no email', async () => {
   const library = read('./home/CardMenu.jsx'); // the card menu the Library and Home share (owner, 2026-10-08)
   // One card menu list since 2026-10-09 (home/card-menu-items.js): a canvas owner row, shown for a public canvas only.
   const { CARD_MENU } = await import('./home/card-menu-items.js');
   assert.deepEqual(CARD_MENU.find(i => i.id === 'analytics'), { id: 'analytics', label: 'Analytics', icon: 'BarChart3', types: ['canvas'], owner: true });
   assert.match(library, /id === 'analytics' \? a\.access === 'public'/);
   assert.equal(library.split('data-menu-analytics').length, 2, 'nowhere else');
-  const views = read('./CreatorAnalytics.jsx') + read('./creator-analytics.js');
-  assert.doesNotMatch(views, /fetch\(|api\(|email/, 'no analytics route exists yet (#62 storage awaits GO)');
+  assert.doesNotMatch(read('./CreatorAnalytics.jsx') + read('./creator-analytics.js'), /\.email\b/, 'no email in the views');
   const profile = read('./CreatorProfile.jsx');
-  assert.match(profile, /\{own && analytics && <CreatorDashboard profile=\{p\} /, 'the creator dashboard: your own profile only, beside it');
+  assert.match(profile, /\{own && analytics && <CreatorAnalyticsDialog onClose=/, 'the creator dialog: your own profile only');
 });
 
 test('/@handle: routed to anyone in Rabbit Hole, served by the dev worker, and the owner-only parts are only the owner\'s', () => {
@@ -208,8 +180,8 @@ test('rename: no Explore, creator profile or creator analytics string says expla
   const profile = read('./CreatorProfile.jsx'), analytics = read('./CreatorAnalytics.jsx');
   assert.match(profile, /plural\(p\.explainer_count, 'public learning board'\)/, '1 public learning board, 3 public learning boards');
   assert.match(profile, />Public Learning Boards<\/h2>/);
-  assert.match(analytics, /<Section title="Learning Board comparison"/);
-  assert.match(read('./creator-analytics.js'), /\['explainer_count', 'Public learning boards', 'all'\]/);
+  assert.match(analytics, /'Compare your public boards'/);
+  assert.match(analytics, /All public learning boards/);
   assert.match(read('./learn-video-label.js'), /Motion explainer/, 'the Motion explainer keeps its name');
 });
 
