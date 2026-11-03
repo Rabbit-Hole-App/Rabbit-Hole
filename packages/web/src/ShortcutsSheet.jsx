@@ -95,7 +95,7 @@ export default function ShortcutsSheet({ onClose, omit = [] }) {
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] max-sm:pt-0" onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}
       style={{ background: 'color-mix(in srgb, var(--color-ink) 18%, transparent)' }}>
       <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="shortcuts-title" data-shortcuts-sheet tabIndex={-1}
-        className="flex h-[min(84vh,640px)] w-[52rem] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-pop outline-none max-sm:h-dvh max-sm:max-w-none max-sm:w-screen max-sm:rounded-none max-sm:border-0">
+        className="flex max-h-[84vh] w-[52rem] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-pop outline-none max-sm:h-dvh max-sm:max-h-none max-sm:max-w-none max-sm:w-screen max-sm:rounded-none max-sm:border-0">
         <header className="shrink-0 px-5 pt-4 max-sm:px-3">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 id="shortcuts-title" className="text-[20px] leading-7 font-semibold text-ink">{TITLE}</h2>

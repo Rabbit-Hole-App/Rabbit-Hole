@@ -39,7 +39,7 @@ if (!session) throw Error('no test session');
 const made = await (await fetch(`${BASE}/api/canvases`, { method: 'POST', headers: { ...UA, 'Content-Type': 'application/json', origin: BASE, cookie: `small_session=${session}` }, body: JSON.stringify({ title: 'Shortcuts check' }) })).json();
 if (!made?.name) throw Error('no canvas');
 
-const total = 61;
+const total = 62;
 let passed = 0, failed = 0;
 const ok = (name, condition, extra = '') => { if (condition) passed += 1; else failed += 1; console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${extra ? `  (${extra})` : ''}`); };
 const browser = await ENGINE.launch();
@@ -142,6 +142,13 @@ const panelOn = async page => (await rowState(page, 'View', 'Right panel', 'Show
   ok('ArrowRight moves to the next tab and shows it', (await sheet(page).locator('[role="tab"][aria-selected="true"]').innerText()) === 'Navigation'
     && (await sheet(page).locator('[data-shortcuts-section]').evaluateAll(nodes => nodes.map(node => node.dataset.shortcutsSection))).join() === 'Canvas navigation'
     && await page.evaluate(() => document.activeElement?.textContent === 'Navigation'));
+  // Owner 2026-11-02 (third pass): the window fits its tab, up to the viewport cap; only the height changes between tabs.
+  const sizeOn = async title => { await tabTo(page, title); await page.waitForTimeout(150); return { ...(await sheet(page).boundingBox()), scrolls: await sheet(page).locator('[data-shortcuts-list]').evaluate(node => node.scrollHeight > node.clientHeight + 1) }; };
+  const [short, long] = [await sizeOn('Drawing'), await sizeOn('Selection, editing and arrangement')];
+  ok('the window fits the tab: shorter on Drawing than on Editing, the same width, no more than 84% of the viewport', short.height + 100 < long.height && short.width === long.width && long.height <= 900 * 0.84 + 1 && !short.scrolls, JSON.stringify({ short, long }));
+  await page.screenshot({ path: `${SHOTS}/win-light-editing.png` });
+  await tabTo(page, 'Drawing');
+  await page.screenshot({ path: `${SHOTS}/win-light-drawing.png` });
   await sheet(page).locator('[data-shortcuts-platform="mac"]').click();
   ok('Mac shows ⌘K and Delete ⌫', (await keysOf(page, 'quick-edit')).join() === '⌘K' && (await keysOf(page, 'delete')).join() === 'Delete ⌫' && (await sheet(page).locator('[data-shortcuts-platform="mac"]').getAttribute('aria-checked')) === 'true');
   await tabTo(page, 'Essentials');
@@ -274,6 +281,7 @@ const panelOn = async page => (await rowState(page, 'View', 'Right panel', 'Show
   await tabTo(page, 'Essentials');
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${SHOTS}/mac-dark-sheet.png` });
+  for (const [title, name] of [['Drawing', 'drawing'], ['Selection, editing and arrangement', 'editing']]) { await tabTo(page, title); await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/mac-dark-${name}.png` }); }
   await page.keyboard.press('Escape');
   const undo = await rowState(page, 'Edit', 'Undo');
   ok('Mac: the menubar reads ⌘Z with aria-keyshortcuts Meta+Z', undo.hint === '⌘Z' && undo.keys === 'Meta+Z', JSON.stringify(undo));
@@ -294,6 +302,7 @@ for (const scheme of ['dark', 'light']) {
   const row = await sheet(page).locator('[data-shortcuts-tabs]').evaluate(node => ({ scroll: node.scrollWidth, client: node.clientWidth, right: node.getBoundingClientRect().right }));
   ok(`narrow ${scheme}: the tab row scrolls sideways inside the window`, row.scroll > row.client && row.right <= 391, JSON.stringify(row));
   await page.screenshot({ path: `${SHOTS}/narrow-${scheme}-essentials.png` });
+  await tabTo(page, 'Drawing'); await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/narrow-${scheme}-drawing.png` });
   await tabTo(page, 'Mouse and trackpad');
   const last = await sheet(page).locator('[data-shortcuts-tab="Mouse and trackpad"]').boundingBox();
   ok(`narrow ${scheme}: the last tab scrolls into view and opens`, last && last.x >= 0 && last.x + last.width <= 391 && (await sheet(page).locator('[data-shortcuts-section]').getAttribute('data-shortcuts-section')) === 'Mouse and trackpad', JSON.stringify(last));

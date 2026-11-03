@@ -86,5 +86,8 @@ test('the window: titled Shortcuts, modal, search focused, Tab kept inside, Esc 
   assert.match(sheet, /<Tabs value=\{searching \? '' : tab\} onValueChange=\{next => \{ setQuery\(''\); setTab\(next\); \}\}/);
   assert.match(sheet, /const shown = searching \? sections : sections\.filter\(section => section\.title === tab\);/);
   assert.match(sheet, /data-shortcuts-tabs className="[^"]*overflow-x-auto/);
+  // Owner 2026-11-02 (third pass): no fixed height; the window fits its tab up to 84% of the viewport, full screen on a phone.
+  assert.match(sheet, /className="flex max-h-\[84vh\] w-\[52rem\][^"]*max-sm:h-dvh max-sm:max-h-none/);
+  assert.doesNotMatch(sheet, /h-\[min\(/);
   assert.doesNotMatch(sheet, /\.\.\.'|…/, 'no ellipsis');
 });
