@@ -31,6 +31,7 @@ import { isReviewProposal } from '../../web/src/generation-review.js';
 import { canonicalJson } from './explain-render.js';
 import { beginStage, countStage, endStage, markTiming, newTiming, timingSummary } from './explain-policy.js';
 import { hashAnimationPlan } from '../../web/src/animation3d/contract.js';
+import { ANIMATION_CLIENT_FEATURES } from '../../web/src/animation3d/capabilities.js';
 import { ASKED_FOR, approvedPlan, clientFeatures, prepareStage } from './animation-brief.js';
 import { artifactIntact, authorStage, sealArtifact, validateStage } from './animation-author.js';
 import { renderProbe, renderStage } from './animation-render.js';
@@ -251,6 +252,7 @@ async function probeGuard(req, env, deps) {
   if (user instanceof Response) return { refused: user };
   try { return { user, body: await req.json() }; } catch { return { refused: json({ error: 'Invalid JSON' }, 400) }; }
 }
+// The probe draws with this build, so it declares this build's features: a tube scene is read like any other, not refused as for an older browser.
 async function resultProbeRoute(req, env, deps) {
   const { refused, user, body } = await probeGuard(req, env, deps);
   if (refused) return refused;
@@ -260,7 +262,7 @@ async function resultProbeRoute(req, env, deps) {
   if (!board) return json({ error: 'Not available' }, 404);
   const stub = env.ANIMATION_JOBS.get(env.ANIMATION_JOBS.idFromName(board.id));
   const read = await stub.fetch('https://animation/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'result', id: body.resultId, payload: {}, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null } }) });
+    body: JSON.stringify({ action: 'result', id: body.resultId, payload: { features: [...ANIMATION_CLIENT_FEATURES] }, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null } }) });
   const saved = await read.json().catch(() => null);
   if (!read.ok) return json({ ok: false, read: read.status, error: saved?.error || 'the result could not be read', ...(saved?.code ? { code: saved.code } : {}) }, read.status);
   // The read already checked the stored artifact against its hash; the capture echoes that same hash.

@@ -182,3 +182,17 @@ test('sampler: an experiment varies its main control one setting at a time, comp
   const pick = picked.scene.nodes[1].id, middleState = captureManifest(picked).coverage.sampled[1];
   assert.deepEqual([middleState.label, middleState.events], [`${lever.id} at ${middleOf(lever)}, then select ${pick}`, 1], 'a selectable node is pressed in the middle state too');
 });
+
+test("client gating leaves the dev result probe working: it declares this build's features, so a tube result is read, not refused", async t => {
+  const { ANIMATION_RESULT_PROBE_PATH } = await import('../src/animation-job.js');
+  const s = animationStack(t);
+  const namespace = { idFromName: name => name, get: () => ({ fetch: (url, init) => s.actor.fetch(new Request(url, init)) }) };
+  const env = { ...s.env, ANIMATION_DIAGNOSTICS: 'true', ANIMATION_JOBS: namespace };
+  s.actor.pipeline = { ...s.actor.pipeline, intact: async () => true };
+  s.state.data.set('result:ar_tube', { owner: { email: OWNER.email }, boardId: BOARD.id, artifact: tubed(fixture.repairedArtifact), identity: {} });
+  const probe = await animationRoute(ANIMATION_RESULT_PROBE_PATH, new Request(`https://dev.test${ANIMATION_RESULT_PROBE_PATH}`, { method: 'POST', body: JSON.stringify({ boardId: BOARD.id, resultId: 'ar_tube' }) }), env, { identity: async () => OWNER });
+  const out = await probe.json();
+  // No browser on this stack: the read passed (a refused read answers 409 with read and code), and rendering is what is unavailable.
+  assert.deepEqual([probe.status, out.read, out.code], [502, undefined, undefined]);
+  assert.match(out.error, /render_unavailable/);
+});
