@@ -90,7 +90,7 @@ function checkPerceptron(example, source) {
     });
     // The drawn line: its point lies on w1 x1 + w2 x2 + b = 0 (world x = 3 x1, z = 3 x2) and its arrow points to the side answering 1.
     const size = Math.hypot(...want.w), off = size ? (1.5 * want.w[0] + 1.5 * want.w[1] + 3 * want.b) / size : Infinity;
-    assert.equal(frame.nodes.line.visible, Math.abs(off) <= 4.5, `${at} line shown`);
+    assert.equal(frame.nodes.line.visible, Math.abs(off) <= 3.5, `${at} line shown`);
     if (frame.nodes.line.visible) {
       const [px, , pz] = frame.nodes.line.position, q = frame.nodes.line.quaternion;
       eq(want.w[0] * px / 3 + want.w[1] * pz / 3 + want.b, 0, `${at} line point`);

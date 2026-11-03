@@ -50,18 +50,18 @@ export const temperatureExample = {
     scene: {
       materials: [{ id: 'top', color: '#2f6fe0' }, { id: 'rest', color: '#7f97bd' }, { id: 'axis', color: '#8a8f98' }],
       geometries: [
-        { id: 'bar', kind: 'box', size: [0.9, 1, 0.9] },
-        { id: 'baseline', kind: 'line', points: [[-4, 0, 0], [4, 0, 0]] },
-        { id: 'full', kind: 'line', points: [[-4, 4, 0], [4, 4, 0]] },
-        { id: 'uniform', kind: 'line', points: [[-4, 0.8, 0], [4, 0.8, 0]] },
-        { id: 'fullText', kind: 'label', text: '100%', placement: 'right' },
-        { id: 'uniformText', kind: 'label', text: 'Uniform 20%', placement: 'right' },
+        { id: 'bar', kind: 'box', size: [0.9, 1, 0.3] },
+        { id: 'baseline', kind: 'line', points: [[-5, 0, 0], [5, 0, 0]] },
+        { id: 'full', kind: 'line', points: [[-5, 4, 0], [5, 4, 0]] },
+        { id: 'uniform', kind: 'line', points: [[-5, 0.8, 0], [5, 0.8, 0]] },
+        { id: 'fullText', kind: 'label', text: '100%', placement: 'above' },
+        { id: 'uniformText', kind: 'label', text: 'Uniform 20%', placement: 'above' },
         { id: 'entropyText', kind: 'label', text: 'Entropy', placement: 'above' },
         ...WORDS.flatMap(([word, logit]) => [{ id: `${word}Word`, kind: 'label', text: `${word} (${logit.toFixed(1)})`, placement: 'below' }, { id: `${word}Percent`, kind: 'label', text: '0%', placement: 'above' }]),
       ],
       nodes: [
         { id: 'baseN', geometry: 'baseline', material: 'axis' }, { id: 'fullN', geometry: 'full', material: 'axis' }, { id: 'uniformN', geometry: 'uniform', material: 'axis' },
-        { id: 'fullNote', geometry: 'fullText', position: [4, 4, 0] }, { id: 'uniformNote', geometry: 'uniformText', position: [4, 0.8, 0] },
+        { id: 'fullNote', geometry: 'fullText', position: [4.3, 4, 0] }, { id: 'uniformNote', geometry: 'uniformText', position: [4.3, 0.8, 0] },
         { id: 'entropyNote', geometry: 'entropyText', position: [0, 4.3, 0] },
         ...WORDS.flatMap(([word], i) => [
           { id: word, geometry: 'bar', material: i ? 'rest' : 'top', position: [i * 1.5 - 3, 0.5, 0], name: word },
@@ -126,15 +126,15 @@ export const gradientExample = {
         { id: 'ball', kind: 'sphere', radius: 0.2, widthSegments: 20, heightSegments: 12 },
         { id: 'lowestDisc', kind: 'cylinder', radius: 0.14, height: 0.03 },
         { id: 'lowestText', kind: 'label', text: 'Minimum', placement: 'below' },
-        { id: 'shallowText', kind: 'label', text: 'Shallow weight w1', placement: 'right' },
-        { id: 'steepText', kind: 'label', text: 'Steep weight w2', placement: 'left' },
+        { id: 'shallowText', kind: 'label', text: 'Shallow weight w1', placement: 'left' },
+        { id: 'steepText', kind: 'label', text: 'Steep weight w2', placement: 'above' },
         { id: 'verdictText', kind: 'label', text: 'Good', placement: 'above' },
       ],
       nodes: [
         ...LOSS_RINGS.map(c => ({ id: `ring${c}`, geometry: 'ring', material: 'wire', position: [0, round(0.35 * c), 0], scale: [round(Math.sqrt(2 * c)), 1, round(Math.sqrt(c / 2))] })),
         { id: 'shallowN', geometry: 'shallowCut', material: 'wire' }, { id: 'steepN', geometry: 'steepCut', material: 'wire' },
         { id: 'lowestN', geometry: 'lowestDisc', material: 'lowest', name: 'Minimum' }, { id: 'lowestTag', parent: 'lowestN', geometry: 'lowestText' },
-        { id: 'shallowTag', geometry: 'shallowText', position: [4.9, 4.2, 0] }, { id: 'steepTag', geometry: 'steepText', position: [0, 4.2, 2.45] },
+        { id: 'shallowTag', geometry: 'shallowText', position: [3.5, 2.14, 0] }, { id: 'steepTag', geometry: 'steepText', position: [0, 4.2, -2.45] },
         { id: 'verdict', geometry: 'verdictText', position: [0, 5, 0] },
         ...Array.from({ length: 13 }, (_, i) => ({ id: `trail${i}`, geometry: 'dot', material: 'trailDot', position: [-3, 3.15, 1.5] })),
         { id: 'current', geometry: 'ball', material: 'now', position: [-3, 3.15, 1.5], name: 'Current weights' },
@@ -173,7 +173,7 @@ export function evaluate({ state }) {
   });
   nodes.weights = { text: 'w1 ' + s.w1 + ', w2 ' + s.w2 + ', bias ' + s.bias };
   const size = Math.hypot(s.w1, s.w2), off = size ? (1.5 * s.w1 + 1.5 * s.w2 + 3 * s.bias) / size : 0;
-  if (size && Math.abs(off) <= 4.5) {
+  if (size && Math.abs(off) <= 3.5) {
     const turn = Math.atan2(s.w1, s.w2) / 2;
     nodes.line = { visible: true, position: [1.5 - off * s.w1 / size, 0.06, 1.5 - off * s.w2 / size], quaternion: [0, Math.sin(turn), 0, Math.cos(turn)] };
   } else nodes.line = { visible: false };
@@ -196,14 +196,14 @@ export const perceptronExample = {
   plan: perceptronPlan,
   artifact: {
     ...base, artifactId: 'example-perceptron-and', planHash: '946ba7112a76febcd975b5864e8626760fbfee2af35cf57e34962f817dc958a2',
-    title: perceptronPlan.title, description: 'Four points on a square, one per input pair, green when the neuron answers correctly and red when it does not. A blue bar is the neuron\'s decision line, and an arrow points to the side it answers 1.',
+    title: perceptronPlan.title, description: 'Four points on a square, one per input pair, green when the neuron answers correctly and red when it does not. A blue bar is the neuron\'s decision line, shown while it is near the square, and an arrow points to the side it answers 1.',
     experience: 'game', behavior: 'rules', controlProfile: 'manipulate',
     scene: {
       materials: [{ id: 'board', color: '#9aa3ae', opacity: 0.3 }, { id: 'lineBlue', color: '#2f6fe0' }, ...EXAMPLES.map((_, i) => ({ id: `point${i}`, color: i === 3 ? '#d64545' : '#2f9e5b' }))],
       geometries: [
-        { id: 'boardPlane', kind: 'plane', width: 6, height: 6 },
+        { id: 'boardPlane', kind: 'plane', width: 4.4, height: 4.4 },
         { id: 'pointBall', kind: 'sphere', radius: 0.28, widthSegments: 24, heightSegments: 12 },
-        { id: 'lineBar', kind: 'box', size: [8, 0.06, 0.1] },
+        { id: 'lineBar', kind: 'box', size: [7, 0.06, 0.1] },
         { id: 'sideArrow', kind: 'arrow', length: 0.9 },
         { id: 'sideText', kind: 'label', text: 'Says 1', placement: 'right' },
         { id: 'weightText', kind: 'label', text: 'w1 0, w2 0, bias 0', placement: 'above' },
@@ -226,7 +226,7 @@ export const perceptronExample = {
     actions: EXAMPLES.map(([a, b], i) => ({ id: `train${i}`, label: `Train (${a},${b})` })),
     readouts: [{ id: 'updatesLeft', label: 'Updates left', decimals: 0 }, { id: 'wrong', label: 'Wrong answers', decimals: 0 }],
     game: { objective: 'Train the neuron until all four answers of AND are correct, within 7 updates.', hint: 'Training on a correct answer changes nothing and still costs an update. Begin with (1,1), then (0,0). The shortest win takes 5 updates.' },
-    program: program(perceptronSource, '327cf213830df2b052a6cb56c42e05d9bacd7f8bd447de891672c0982f453434'),
+    program: program(perceptronSource, '5fdfc4eb406034058c1a421dcac90751f3ad69c15e11097265f57f51ed4f3b1b'),
     camera: { position: [1.5, 8, 7.5], target: [1.5, 0, 1.5], fov: 40 },
     assumptions: ['One neuron answers 1 when w1 x1 + w2 x2 + bias > 0, so a point exactly on the line counts as 0. Perceptron rule, learning rate 1.', 'Real training visits examples automatically; here you choose the order.', 'One straight line cannot compute XOR: that needs more neurons.'],
   },
@@ -300,9 +300,9 @@ export const predatorPreyExample = {
         { id: 'preyCurve', kind: 'curve', points: ORBIT.map(([x], i) => [curveX(i), round(0.4 * x), 0]), segments: 160 },
         { id: 'predatorCurve', kind: 'curve', points: ORBIT.map(([, y], i) => [curveX(i), round(0.4 * y), 0]), segments: 160 },
         { id: 'timeAxis', kind: 'line', points: [[0, 0, 0], [11.3, 0, 0]] },
-        { id: 'head', kind: 'box', size: [0.03, 4.6, 0.03] },
+        { id: 'head', kind: 'box', size: [0.05, 4.6, 0.05] },
         { id: 'marker', kind: 'sphere', radius: 0.12, widthSegments: 16, heightSegments: 10 },
-        { id: 'bar', kind: 'box', size: [0.8, 1, 0.8] },
+        { id: 'bar', kind: 'box', size: [0.7, 1, 0.2] },
         { id: 'preyPeakText', kind: 'label', text: 'Prey peak', placement: 'above' },
         { id: 'predatorPeakText', kind: 'label', text: 'Predator peak follows', placement: 'above' },
         { id: 'yearsText', kind: 'label', text: 'One cycle: 10.2 years', placement: 'below' },
