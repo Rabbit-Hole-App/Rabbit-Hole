@@ -35,6 +35,7 @@ import { ASKED_FOR, approvedPlan, prepareStage } from './animation-brief.js';
 import { artifactIntact, authorStage, sealArtifact, validateStage } from './animation-author.js';
 import { renderProbe, renderStage } from './animation-render.js';
 import { ANIMATION_FIXTURES } from '../../web/src/animation3d/fixtures.js';
+import { LEARNING_EXAMPLES } from '../../web/src/animation3d/learning-examples.js';
 import { validateAnimationArtifact } from '../../web/src/animation3d/contract.js';
 import { artifactHashOf } from './animation-author.js';
 import { reviewStage } from './animation-review.js';
@@ -228,7 +229,7 @@ export function planScene(plan) {
 
 // Dev-only render probe (owner priority, 2026-10-30): a contract fixture rendered through the real review capture path, with no model call
 // and no job. Live only when ANIMATION_ENABLED and ANIMATION_DIAGNOSTICS are both 'true' (production never sets the second), for any
-// signed-in user, same origin. POST { fixture: <fixtures.js name> } -> renderProbe's JSON (200 ok, 502 failed).
+// signed-in user, same origin. POST { fixture: <a fixtures.js or learning-examples.js name> } -> renderProbe's JSON (200 ok, 502 failed).
 export const ANIMATION_PROBE_PATH = '/api/learn/animation/diagnostics/render-fixture';
 // The same probe for a STORED accepted result: POST { boardId, resultId }, for the owner of that canvas only, read through the normal
 // authorized result read (owner, canvas and artifact hash checked by the job object), then the same capture path. 404 as any other.
@@ -295,8 +296,9 @@ async function seedRoute(req, env, deps) {
 async function renderProbeRoute(req, env, deps) {
   const { refused, body } = await probeGuard(req, env, deps);
   if (refused) return refused;
-  const fixture = ANIMATION_FIXTURES.find(f => f.name === body?.fixture);
-  if (!fixture) return json({ error: `fixture must be one of ${ANIMATION_FIXTURES.map(f => f.name).join(', ')}` }, 400);
+  const fixtures = [...ANIMATION_FIXTURES, ...LEARNING_EXAMPLES];
+  const fixture = fixtures.find(f => f.name === body?.fixture);
+  if (!fixture) return json({ error: `fixture must be one of ${fixtures.map(f => f.name).join(', ')}` }, 400);
   // The validated value, as a job's artifact is, so the page hashes exactly what a review round sends.
   const checked = validateAnimationArtifact(fixture.artifact);
   if (!checked.ok) return json({ ok: false, error: `fixture_invalid: ${checked.issues.map(i => `${i.path}: ${i.message}`).join('; ')}` }, 500);

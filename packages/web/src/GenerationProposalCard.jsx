@@ -33,6 +33,7 @@ import { escapeText, isReviewProposal, promptSegments, removeReference } from '.
 import { announcement, elapsedText } from './generation-proposal-status.js';
 import { useSeconds } from './use-seconds.js';
 import { Button, Tip, cn } from './ui.jsx';
+import { MdInline } from './Md.jsx';
 
 const ICONS = { doc: FileText, card: StickyNote, group: Group, code: FileCode2, image: ImageIcon, media: Film, web: Globe, progress: ChartColumnIncreasing, canvas: Shapes, file: FileText, excerpt: FileText, graph: ChartColumnIncreasing };
 const fmt = n => Number(n).toLocaleString('en-US');
@@ -230,10 +231,11 @@ function RefPill({ reference, state, onOpen }) {
 
 function Description({ text, tokenized, references, states, onOpen, extra }) {
   const segments = tokenized ? promptSegments(text, references) : null;
-  if (!segments) return <p data-proposal-description {...extra} className="text-sm leading-relaxed break-words text-ink">{text}</p>;
+  // Delimited math ($...$, \(...\)) is typeset (MdInline mathOnly); any other text, plain formulas included, is shown as written.
+  if (!segments) return <p data-proposal-description {...extra} className="text-sm leading-relaxed break-words text-ink"><MdInline text={text} mathOnly /></p>;
   return (
     <p data-proposal-description {...extra} className="text-sm leading-relaxed break-words text-ink">
-      {segments.map((s, i) => (s.type === 'text' ? s.text : s.reference ? <RefPill key={i} reference={s.reference} state={states?.find(x => x.id === s.id)} onOpen={onOpen} /> : null))}
+      {segments.map((s, i) => (s.type === 'text' ? <MdInline key={i} text={s.text} mathOnly /> : s.reference ? <RefPill key={i} reference={s.reference} state={states?.find(x => x.id === s.id)} onOpen={onOpen} /> : null))}
     </p>
   );
 }
@@ -404,7 +406,7 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
         return (
           <div key={s} data-proposal-section={s}>
             <p className="text-[11px] font-semibold tracking-wide text-ink-3 uppercase">{def?.section_titles?.[s] ?? SECTION_TITLES[s]}</p>
-            <ul className={cn('list-disc pl-4 text-xs text-ink', TONES[s])} {...attrs('list', s)}>{shown[s].map((item, i) => <li key={i}>{item}</li>)}</ul>
+            <ul className={cn('list-disc pl-4 text-xs text-ink', TONES[s])} {...attrs('list', s)}>{shown[s].map((item, i) => <li key={i}><MdInline text={item} mathOnly /></li>)}</ul>
           </div>
         );
       })}

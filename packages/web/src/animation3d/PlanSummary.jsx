@@ -4,6 +4,8 @@
 // experience: nothing here knows a subject, a parameter name or a prompt. The full plan stays signed behind it for Generate.
 
 // A unit after a number: "5 m", but "20°" and "50%".
+import { MdInline } from '../Md.jsx';
+
 const unit = u => (!u ? '' : /^[°%]/.test(u) ? u : ` ${u}`);
 const or = items => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} or ${items.at(-1)}`);
 const optionLabel = (p, value) => p.options?.find(o => o.value === value)?.label ?? String(value);
@@ -47,7 +49,7 @@ function Disclosure({ name, title, items }) {
   return (
     <details data-plan-disclosure={name} className="group text-xs">
       <summary className="cursor-pointer text-ink-2 select-none hover:text-ink">{title}</summary>
-      <ul className="mt-1 list-disc pl-4 text-ink">{items.map((item, i) => <li key={i}>{item}</li>)}</ul>
+      <ul className="mt-1 list-disc pl-4 text-ink">{items.map((item, i) => <li key={i}><MdInline text={item} mathOnly /></li>)}</ul>
     </details>
   );
 }
@@ -60,18 +62,18 @@ export default function PlanSummary({ summary }) {
       {summary.changes.length > 0 && (
         <div data-plan-changes>
           <p className={heading}>What you can change</p>
-          <ul className="list-disc pl-4 text-xs text-ink">{summary.changes.map((line, i) => <li key={i}>{line}</li>)}</ul>
+          <ul className="list-disc pl-4 text-xs text-ink">{summary.changes.map((line, i) => <li key={i}><MdInline text={line} mathOnly /></li>)}</ul>
           {summary.starts && <p data-plan-starts className="mt-1 text-xs text-ink-2">Starts with <span className="font-medium text-ink">{summary.starts}</span>.</p>}
         </div>
       )}
       {summary.actions && (
         <div data-plan-actions>
           <p className={heading}>{summary.actions.title}</p>
-          <ul className="list-disc pl-4 text-xs text-ink">{summary.actions.items.map((line, i) => <li key={i}>{line}</li>)}</ul>
+          <ul className="list-disc pl-4 text-xs text-ink">{summary.actions.items.map((line, i) => <li key={i}><MdInline text={line} mathOnly /></li>)}</ul>
         </div>
       )}
-      {summary.notices.length > 0 && <ul data-plan-notices className="flex flex-col gap-0.5 text-xs text-warn">{summary.notices.map((n, i) => <li key={i}>{n}</li>)}</ul>}
-      {summary.caveat && <p data-plan-caveat className="text-xs text-ink-2 italic">{summary.caveat}</p>}
+      {summary.notices.length > 0 && <ul data-plan-notices className="flex flex-col gap-0.5 text-xs text-warn">{summary.notices.map((n, i) => <li key={i}><MdInline text={n} mathOnly /></li>)}</ul>}
+      {summary.caveat && <p data-plan-caveat className="text-xs text-ink-2 italic"><MdInline text={summary.caveat} mathOnly /></p>}
       <Disclosure name="assumptions" title="Model assumptions" items={summary.assumptions} />
       <Disclosure name="limitations" title="Limitations" items={summary.limitations} />
     </div>

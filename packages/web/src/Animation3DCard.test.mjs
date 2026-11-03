@@ -351,17 +351,17 @@ test('leadControls: first parameter primary, the rest secondary; a prominent rea
 
 // A loop that cannot rewind (a rule-based timeline): no Restart rather than one that resets the settings; the status is shown
 // only while the runtime is ready.
-test('Toolbar: Restart only where the loop can rewind; the playback status only once the runtime is ready', async () => {
+test('Toolbar: Restart only where the loop can rewind; the playback status is never beside Speed (it is the viewport badge, owner 2026-11-02)', async () => {
   const draw = async props => { if (root) await B.act(async () => root.unmount()); document.getElementById('app').innerHTML = ''; root = B.createRoot(document.getElementById('app'));
     await B.act(async () => { root.render(B.createElement(B.Toolbar, { show: { transport: true, resetView: true, interact: true }, onLabels: () => {}, ...props })); }); };
-  await draw({ seekable: false, status: true });
+  await draw({ seekable: false, playing: true });
   assert.equal($('[data-animation-restart]'), null);
   assert.ok($('[data-animation3d-play]'));
-  assert.equal($('[data-animation-playback-status]').textContent, 'Paused');
-  await draw({ seekable: true, status: false, playing: true });
+  assert.equal($('[data-animation-playback-status]'), null, 'no status text in the toolbar');
+  await draw({ seekable: true, playing: true });
   assert.equal($('[data-animation-restart]').textContent.trim(), 'Restart');
-  assert.equal($('[data-animation-playback-status]'), null, 'loading or failed: no status');
-  await draw({ status: true, live: true, interacting: true, optionalLabels: true, labels: false });
+  assert.equal($('[data-animation-playback-status]'), null, 'no status text in the toolbar');
+  await draw({ live: true, interacting: true, optionalLabels: true, labels: false });
   assert.equal($('[data-animation-interact]').getAttribute('aria-pressed'), 'true');
   assert.equal($('[data-animation-labels]').getAttribute('aria-pressed'), 'false');
   await draw({ show: { transport: false, resetView: false, interact: false } });
@@ -741,4 +741,78 @@ test('the Slash Commands demo: the saved pendulum runs, says it was made by /ani
   assert.match($('[data-animation-fixture-note]').textContent, /made by \/animation and saved/);
   assert.equal($('[data-animation3d-example]'), null);
   assert.equal(card().querySelector('[data-animation-failure]'), null);
+});
+
+test('the Slash Commands hand-written examples: each runs, is labelled not generated, and is not in the examples picker', async () => {
+  const { LEARNING_EXAMPLES } = await import('./animation3d/learning-examples.js');
+  for (const { name, artifact } of LEARNING_EXAMPLES) {
+    await mount({ block: { id: name, type: 'animation3d', title: artifact.title, fixtureId: name } });
+    assert.equal($('[data-animation-fixture]').textContent, 'Example', name);
+    assert.match($('[data-animation-fixture-note]').textContent, /not generated from a request/, name);
+    assert.equal($('[data-animation3d-example]'), null, name);
+    assert.equal(card().querySelector('[data-animation-failure]'), null, name);
+    assert.ok(Object.keys(raw()).length > 0, `${name} shows its readouts`);
+    noEllipsis();
+  }
+});
+
+
+test('the projectile game on the card: keys and buttons aim, Launch fires, the hint opens; win, ignored moves, loss and reset', async () => {
+  await mount({ block: { id: 'j1', type: 'animation3d', fixtureId: 'projectile-target-game' } });
+  assert.equal($('[data-animation-badge]').textContent, 'Mini-game');
+  assert.match($('[data-animation-goal]').textContent, /within 1\.5 m of the target at 30 m, in at most 5 launches/);
+  assert.deepEqual($$('[data-animation-action]').map(node => node.textContent), ['Angle up', 'Angle down', 'Slower', 'Faster', 'Launch']);
+  assert.deepEqual([raw().launchesLeft, raw().angle, raw().speed, 'landing' in raw()], [5, 30, 14, false]);
+  await press($('[data-animation-hint]'));
+  assert.ok($('[data-animation-hint-text] .katex'), 'the hint\'s range formula is typeset');
+  // The arrow keys while the card interacts: Up raises the angle, Right adds speed (contract keys: one press, one step).
+  await press($('[data-animation-interact]'));
+  for (const key of ['ArrowUp', 'ArrowUp', 'ArrowUp', 'ArrowRight', 'ArrowRight', 'ArrowRight']) await keydown($('[data-animation-viewport]'), key);
+  assert.deepEqual([raw().angle, raw().speed], [45, 17]);
+  await press($('[data-animation-action="launch"]'));
+  assert.equal($('[data-animation-game]').getAttribute('data-animation-game'), 'won');
+  assert.ok(Math.abs(raw().landing - 289 / 9.81) < 1e-9 && Math.abs(raw().miss - (289 / 9.81 - 30)) < 1e-9, JSON.stringify(raw()));
+  assert.match($('[data-animation-outcome]').textContent, /Hit: landed 29\.5 m, 0\.5 m from the centre/);
+  await press($('[data-animation-action="launch"]'));
+  assert.equal(raw().launchesLeft, 4, 'a launch after winning is ignored');
+  await press($('[data-animation-reset]'));
+  for (let i = 0; i < 5; i += 1) await press($('[data-animation-action="launch"]'));
+  assert.equal($('[data-animation-game]').getAttribute('data-animation-game'), 'lost');
+  assert.match($('[data-animation-outcome]').textContent, /Out of launches/);
+  await press($('[data-animation-reset]'));
+  assert.deepEqual([raw().launchesLeft, raw().angle, raw().speed], [5, 30, 14]);
+});
+
+// Owner 2026-11-02: what a learner reads has no raw TeX. KaTeX's MathML copy (.katex-mathml, visually hidden) keeps the source for
+// screen readers and copying, so the shown text is the card's text without it.
+const shownText = node => { const copy = node.cloneNode(true); copy.querySelectorAll('.katex-mathml').forEach(part => part.remove()); return copy.textContent; };
+test('the card typesets delimited math in its assumptions, goal and hint, and leaves plain text as written', async () => {
+  await mount({ block: { id: 'm1', type: 'animation3d', fixtureId: 'projectile-target-game' } });
+  await press($('[data-animation-hint]'));
+  for (const selector of ['[data-animation-assumptions] li', '[data-animation-hint-text]']) {
+    const node = $(selector);
+    assert.ok(node.querySelector('.katex'), `${selector} is typeset`);
+    assert.doesNotMatch(shownText(node), /[\\^$]|dfrac|theta|mathrm/, `${selector}: ${shownText(node)}`);
+  }
+  assert.match(shownText($('[data-animation-assumptions]')), /No air resistance/);
+  // A generated scene's plain-text formula is shown exactly as written.
+  await mount({ block: { id: 'm2', type: 'animation3d', fixtureId: 'beam-balance-experiment' } });
+  assert.equal($('[data-animation-assumptions] .katex'), null);
+  assert.equal($('[data-animation-assumptions] li').textContent, 'Rigid, massless beam.');
+  noEllipsis();
+});
+
+test('the playback badge sits in the viewport\'s top-right corner, follows the runtime, and is gone without playback', async () => {
+  await mount({ block: { id: 'b1', type: 'animation3d', fixtureId: 'predator-prey-cycle' } });
+  const badge = () => $('[data-animation-viewport] [data-animation-playback-status]');
+  assert.equal(badge().getAttribute('data-animation-playback-status'), 'paused');
+  assert.match(badge().className, /absolute top-2 right-2/);
+  assert.equal(badge().getAttribute('role'), 'status');
+  assert.ok(badge().querySelector('.bg-warn'), 'an orange dot');
+  assert.equal($('[data-animation-toolbar] [data-animation-playback-status]'), null, 'no status text beside Speed');
+  await press($('[data-animation3d-play]'));
+  assert.equal(badge().textContent, 'Playing');
+  assert.ok(badge().querySelector('.bg-pass'), 'a green dot');
+  await mount({ block: { id: 'b2', type: 'animation3d', fixtureId: 'projectile-target-game' } });
+  assert.equal(badge(), null, 'a game with no timeline has no playback badge');
 });

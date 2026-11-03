@@ -28,6 +28,8 @@ const guard = { onClickCapture: event => { if (event.target.closest?.(LIVE)) swa
 const noEnter = { onKeyDownCapture: event => { if (event.key === 'Enter' && event.target.tagName === 'INPUT') swallow(event); } };
 // An image card shows its picture, not the card's Generate offer or its availability line (owner, 2026-10-29).
 const IMAGE_RESULT = '[&_[data-image-generate]]:hidden [&_[data-image-generate-unavailable]]:hidden';
+// An animation card in the window: a short stage gives the scene less height, and the whole card scrolls rather than clip its controls.
+const ANIMATION_FIT = 'overflow-x-hidden overflow-y-auto [&_[data-animation3d-card]]:min-h-max [&_[data-animation-viewport]]:min-h-[160px]';
 const reducedMotion = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
 
 // The stage's size: what is left of the pane under the command's details.
@@ -50,7 +52,7 @@ export default function SlashCommandPreview({ name, preview, view, example, appN
   return (
     <div ref={stage} data-slash-stage data-stage-size={size ? `${size.w}x${size.h}` : undefined} className="relative flex min-h-0 min-w-0 flex-1 items-start justify-center overflow-hidden">
       {size && size.w > 0 && size.h > 0 && (view === 'brief'
-        ? <BriefPreview key={`brief:${name}`} name={name} example={example} stage={size} />
+        ? <BriefPreview key={`brief:${name}`} name={name} example={example} stage={size} override={preview.brief} />
         : preview.kind === 'card' ? <CardPreview key={`card:${name}:${narrow}`} preview={preview} stage={size} appName={appName} narrow={narrow} />
         : preview.kind === 'notebook' ? <NotebookPreview block={preview.block} stage={size} />
         : preview.kind === 'youtube' ? <YouTubePreview block={preview.block} stage={size} appName={appName} />
@@ -138,7 +140,7 @@ function CardPreview({ preview, stage, appName, narrow }) {
   const grade = preview.feedback ? async (committed, answer, push) => { push(preview.feedback); } : undefined;
   const body = (
     <div ref={card} data-slash-card={type} style={{ width, height, maxHeight }} {...guard} {...(type === 'image' ? noEnter : {})}
-      className={`group relative flex shrink-0 cursor-default flex-col rounded-xl border select-text ${spec.ghost ? 'border-line bg-surface' : 'border-line bg-surface shadow-sm'} ${type === 'image' ? IMAGE_RESULT : ''}`}>
+      className={`group relative flex shrink-0 cursor-default flex-col rounded-xl border select-text ${spec.ghost ? 'border-line bg-surface' : 'border-line bg-surface shadow-sm'} ${type === 'image' ? IMAGE_RESULT : ''} ${type === 'animation3d' ? ANIMATION_FIT : ''}`}>
       <div aria-hidden className="flex h-6 shrink-0 items-center justify-center rounded-t-xl"><span className="h-1 w-12 rounded-full bg-line" /></div>
       {clip === null
         ? <p data-slash-clip-loading className="px-4 py-3 text-xs text-ink-2">Loading the example video</p>
@@ -276,9 +278,9 @@ function FinderPreview({ preview, stage }) {
 
 // The command's brief in the shared confirmation card, with no action allowed: Generate is disabled, and there is no Edit, Save or
 // Cancel. A setting it declares can be changed here; the change stays in this window.
-function BriefPreview({ name, example, stage }) {
-  const [view, setView] = useState(() => briefView(name, example));
-  const brief = BRIEFS[name];
+function BriefPreview({ name, example, stage, override }) {
+  const brief = override ?? BRIEFS[name];
+  const [view, setView] = useState(() => briefView(name, example, brief));
   return (
     <div data-slash-brief={name} style={{ width: Math.min(576, stage.w - 2), maxHeight: stage.h - 2 }} className="flex shrink-0 overflow-hidden">
       <GenerationProposalCard view={view} isolate settingsMode={name === 'cad' ? 'form' : 'live'} groups={brief.groups || null}
