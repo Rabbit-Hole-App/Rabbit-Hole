@@ -13,6 +13,9 @@ import { COVERAGE_COPY, LAUNCH_COPY, PREFILL_KEY, RANGES, SOURCES, TABS, analyti
 
 const ICON = { size: 16, strokeWidth: 1.75 };
 const COARSE = '[@media(pointer:coarse)]:min-h-11';
+// Button's secondary variant asks for a border, but its base border-0 wins in the built CSS (clsx does not merge them), so it draws none.
+// shortcut: forced here only, as the owner asked for no app-wide change; remove this once Button itself is fixed.
+const SECONDARY = `border! ${COARSE}`;
 
 // A hidden value: the dash, with its reason for a screen reader and as a tooltip.
 function Value({ metric, kind }) {
@@ -159,7 +162,7 @@ function Overview({ data, onPick, onTab, onDraft, onReview }) {
         ? <div className="mb-6 rounded-[10px] border border-line p-4.5"><div className="mb-3 flex items-center justify-between gap-3"><h3 className="text-sm font-semibold">Audience visits over time</h3><span className="text-[11px] text-ink-2">Total opens · daily</span></div><Trend trend={data.trend} /><p className="mt-1.5 text-[11px] text-ink-2">Opens are visits by consenting visitors, not people. Visitor counts are deduplicated separately.</p></div>
         : <div data-trend-empty className="mb-6 rounded-[10px] border border-line bg-code px-4 py-8 text-center"><h3 className="text-sm font-semibold">No measured visits yet</h3><p className="mx-auto mt-2 max-w-[420px] text-xs text-ink-2">Visits from people who accept analytics will appear here. Others are not counted, so this does not mean nobody visited. Your own signed-in visits are excluded.</p></div>}
       <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-6 max-[900px]:grid-cols-1">
-        <Section title={data.scope.canvas ? 'This learning board' : 'Your learning boards'} action={<Button size="sm" variant="secondary" className={COARSE} data-analytics-details onClick={() => onTab('boards')}>View details<ArrowRight {...ICON} aria-hidden="true" /></Button>}>
+        <Section title={data.scope.canvas ? 'This learning board' : 'Your learning boards'} action={<Button size="sm" variant="secondary" className={SECONDARY} data-analytics-details onClick={() => onTab('boards')}>View details<ArrowRight {...ICON} aria-hidden="true" /></Button>}>
           <BoardsTable data={data} onPick={onPick} />
         </Section>
         <Section title="What to make next"><Insights data={data} compact onDraft={onDraft} onReview={onReview} /></Section>
@@ -355,7 +358,7 @@ export function CreatorAnalyticsDialog({ canvas = null, opener: givenOpener = nu
 
   const status = error ? 'failure' : !data ? 'checking' : data.collection?.status === 'active' ? 'active' : 'failure';
   const boards = scopes.length ? scopes : (data?.boards || []).map(b => ({ canvas: b.canvas, title: b.title }));
-  const retryButton = <Button variant="secondary" size="sm" className={COARSE} data-analytics-retry onClick={() => setRetry(n => n + 1)}>Retry</Button>;
+  const retryButton = <Button variant="secondary" size="sm" className={SECONDARY} data-analytics-retry onClick={() => setRetry(n => n + 1)}>Retry</Button>;
   const stop = event => event.stopPropagation();
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 sm:p-6" onClick={stop} onPointerDown={stop} onMouseDown={event => { stop(event); if (event.target === event.currentTarget) onClose(); }}>
@@ -369,7 +372,7 @@ export function CreatorAnalyticsDialog({ canvas = null, opener: givenOpener = nu
               <p id="analytics-description" className="mt-1.5 flex items-center gap-1.5 text-xs text-ink-2"><Lock size={13} strokeWidth={1.75} aria-hidden="true" />Private to you · aggregated audience activity</p>
             </div>
             <div className="flex shrink-0 items-center gap-2 max-[900px]:gap-0.5">
-              <Button variant="secondary" size="sm" className={COARSE} data-analytics-export disabled={!data || loading} onClick={exportCsv} aria-label="Export aggregate metrics as CSV"><Download {...ICON} aria-hidden="true" /><span className="max-[900px]:hidden">Export CSV</span></Button>
+              <Button variant="secondary" size="sm" className={SECONDARY} data-analytics-export disabled={!data || loading} onClick={exportCsv} aria-label="Export aggregate metrics as CSV"><Download {...ICON} aria-hidden="true" /><span className="max-[900px]:hidden">Export CSV</span></Button>
               <Button ref={close} variant="ghost" size="sm" className={`w-8 justify-center px-0 ${COARSE} [@media(pointer:coarse)]:min-w-11`} data-analytics-close aria-label="Close analytics" onClick={onClose}><X {...ICON} aria-hidden="true" /></Button>
             </div>
           </div>
