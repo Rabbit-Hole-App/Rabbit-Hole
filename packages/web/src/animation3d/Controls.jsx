@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import { Check, Lightbulb, Pause, Play, RotateCcw, Rotate3d, Scan, Tag } from 'lucide-react';
 import { Tip } from '../ui.jsx';
+import { MdInline } from '../Md.jsx';
 import { decimals, formatValue, outcomeText, parameterInput, readoutText, sliderStep } from './card.js';
 
 // The Animation card's local controls (plan section 4, AN-03): the toolbar under the viewport (playback and its status, then the
@@ -29,10 +30,10 @@ export function leadControls(model) {
 }
 
 // The one toolbar under the viewport. Playback for a loop: Play or Pause, Restart (only where the scene can rewind: session.js seeks
-// to 0 keeping the settings; a rule-based loop cannot, so it offers none rather than a hidden reset), Speed, and the status, which
-// is the runtime's (status: shown only while the runtime is ready, never loading or failed). Then the view: Reset view (camera
-// only), Labels (only when the scene has optional labels) and Interact, filled and named Done while the scene has the pointer.
-export function Toolbar({ show, seekable = false, playing = false, status = false, speed = 1, speeds = [], disabled = false, live = false,
+// to 0 keeping the settings; a rule-based loop cannot, so it offers none rather than a hidden reset) and Speed; the playback status is
+// the viewport's PlaybackBadge (owner 2026-11-02). Then the view: Reset view (camera only), Labels (only when the scene has optional
+// labels) and Interact, filled and named Done while the scene has the pointer.
+export function Toolbar({ show, seekable = false, playing = false, speed = 1, speeds = [], disabled = false, live = false,
   interacting = false, optionalLabels = false, labels = true, onPlay, onPause, onRestart, onSpeed, onResetView, onInteract, onLabels }) {
   if (!show.transport && !show.resetView && !show.interact) return null;
   return (
@@ -55,7 +56,6 @@ export function Toolbar({ show, seekable = false, playing = false, status = fals
             </select>
           </label>
         )}
-        {status && <span role="status" data-animation-playback-status className="text-xs text-ink-2">{playing ? 'Playing' : 'Paused'}</span>}
       </>}
       {/* The view's controls wrap together onto their own line on a narrow card. */}
       {(show.resetView || show.interact) && (
@@ -188,13 +188,24 @@ export function Actions({ actions, disabled = false, reset = null, onAction }) {
 export function GamePanel({ goal, status, hintOpen = false, onHint }) {
   return (
     <div data-animation-game={status?.status ?? 'playing'} className="flex flex-col gap-1.5 rounded-lg border border-line px-3 py-2">
-      {goal.objective && <p data-animation-goal className="text-xs text-ink"><span className="font-semibold">Goal: </span>{goal.objective}</p>}
+      {goal.objective && <p data-animation-goal className="text-xs text-ink"><span className="font-semibold">Goal: </span><MdInline text={goal.objective} mathOnly /></p>}
       <p role="status" aria-live="polite" data-animation-outcome className={`text-xs ${status?.status === 'won' ? 'text-pass' : status?.status === 'lost' ? 'text-fail' : 'text-ink-2'}`}>
         {outcomeText(status)}
       </p>
       {goal.hint && <div><button type="button" data-animation-hint aria-expanded={hintOpen} onClick={onHint} className={buttonClass}><Lightbulb size={14} aria-hidden />{hintOpen ? 'Hide hint' : 'Hint'}</button></div>}
-      {goal.hint && hintOpen && <p data-animation-hint-text className="text-xs text-ink-2">{goal.hint}</p>}
+      {goal.hint && hintOpen && <p data-animation-hint-text className="text-xs text-ink-2"><MdInline text={goal.hint} mathOnly /></p>}
     </div>
+  );
+}
+
+// The playback status over the scene's top-right corner (owner 2026-11-02): a green dot and Playing, an orange dot and Paused. The card
+// draws it only while the runtime is ready and has not failed, so it never says Playing while loading or stopped. It never takes a press.
+export function PlaybackBadge({ playing }) {
+  return (
+    <p role="status" data-animation-playback-status={playing ? 'playing' : 'paused'}
+      className="pointer-events-none absolute top-2 right-2 inline-flex items-center gap-1.5 rounded-md bg-white/90 px-2 py-0.5 text-[11px] font-medium text-ink shadow-sm">
+      <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${playing ? 'bg-pass' : 'bg-warn'}`} />{playing ? 'Playing' : 'Paused'}
+    </p>
   );
 }
 
@@ -203,7 +214,7 @@ export function GamePanel({ goal, status, hintOpen = false, onHint }) {
 export function PrimaryReadout({ item }) {
   if (!item) return null;
   return (
-    <dl data-animation-primary-readout className="pointer-events-none absolute top-2 left-2 max-w-[60%] rounded-md bg-white/90 px-2 py-1 shadow-sm">
+    <dl data-animation-primary-readout className="pointer-events-none absolute top-2 left-2 max-w-[min(60%,calc(100%-7rem))] rounded-md bg-white/90 px-2 py-1 shadow-sm">
       <dt className="text-[11px] font-medium text-ink-2">{item.label}</dt>
       <dd data-animation-readout={item.id} data-value={item.value} className="text-lg leading-tight font-semibold text-ink tabular-nums">{readoutText(item)}</dd>
     </dl>

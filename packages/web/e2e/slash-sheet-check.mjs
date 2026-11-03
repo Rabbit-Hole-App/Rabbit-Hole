@@ -149,6 +149,15 @@ for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
         ok(`${tag}: /animation ${option.id}: the choice shows which is selected`, narrow ? (await pane.locator('[data-slash-option-select]').inputValue()) === option.id
           : await pane.locator('[data-slash-option][aria-pressed="true"]').evaluateAll(nodes => nodes.map(node => node.dataset.slashOption).join()) === option.id);
         await page.screenshot({ path: `${SHOTS}/${tag}-animation-${option.id}.png` });
+        // Owner 2026-11-02: delimited math is typeset, and what is shown has no raw TeX (KaTeX's hidden MathML copy aside).
+        const shownTeX = selector => pane.locator(selector).first().evaluate(node => { const copy = node.cloneNode(true); copy.querySelectorAll('.katex-mathml').forEach(part => part.remove()); return { katex: node.querySelectorAll('.katex').length, text: copy.textContent }; });
+        if (option.id !== 'pendulum') {
+          await pane.locator('[data-animation-assumptions] summary').click();
+          const math = await shownTeX('[data-animation-assumptions]');
+          ok(`${tag}: /animation ${option.id}: its assumptions show typeset math and no raw TeX`, math.katex > 0 && !/[\\^$_]|dfrac|theta/.test(math.text), JSON.stringify(math).slice(0, 300));
+          await page.screenshot({ path: `${SHOTS}/${tag}-animation-${option.id}-assumptions.png` });
+          await pane.locator('[data-animation-assumptions] summary').click();
+        }
         if (option.id === 'projectile') {
           const game = () => pane.locator('[data-animation-game]').getAttribute('data-animation-game');
           const act = async (id, times = 1) => { for (let i = 0; i < times; i += 1) { await pane.locator(`[data-animation-action="${id}"]`).click(); await page.waitForTimeout(120); } };
@@ -189,12 +198,24 @@ for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
           await pane.locator('[data-animation3d-play]').click();
           await page.waitForFunction(() => Number(document.querySelector('[data-animation3d-card]')?.dataset.animationTime) > 1, null, { timeout: 15000 });
           ok(`${tag}: /animation predator and prey: playing moves the populations`, Math.abs(await value('prey') - 10) > 0.1);
+          const badge = pane.locator('[data-animation-viewport] [data-animation-playback-status]');
+          const corner = await pane.evaluate(node => { const v = node.querySelector('[data-animation-viewport]').getBoundingClientRect(), b = node.querySelector('[data-animation-viewport] [data-animation-playback-status]').getBoundingClientRect(); return { right: Math.round(v.right - b.right), top: Math.round(b.top - v.top) }; });
+          ok(`${tag}: /animation predator and prey: the Playing badge sits in the viewport's top-right corner, none beside Speed`, (await badge.innerText()).trim() === 'Playing' && corner.right <= 12 && corner.top <= 12
+            && await pane.locator('[data-animation-toolbar] [data-animation-playback-status]').count() === 0, JSON.stringify(corner));
+          await pane.locator('[data-animation-interact]').click();
+          ok(`${tag}: /animation predator and prey: the badge stays while the scene is in Interact`, await badge.isVisible());
+          await page.screenshot({ path: `${SHOTS}/${tag}-animation-predator-prey-playing-interact.png` });
+          await pane.locator('[data-animation-interact]').click();
           await pane.locator('[data-animation3d-play]').click();
+          ok(`${tag}: /animation predator and prey: Paused when paused`, (await badge.innerText()).trim() === 'Paused');
         }
         if (BRIEF_COMMANDS.includes(name)) {
           await pane.locator('[data-slash-view="brief"]').click();
           await pane.locator('[data-slash-brief="animation"]').waitFor({ timeout: 10000 });
           ok(`${tag}: /animation ${option.id}: its brief, Generate disabled`, (await pane.locator('[data-slash-brief="animation"]').innerText()).includes(option.brief.title) && await pane.locator('[data-proposal-generate]').isDisabled());
+          const described = await shownTeX('[data-proposal-description]');
+          ok(`${tag}: /animation ${option.id}: the brief's formula is typeset, no raw TeX`, described.katex > 0 && !/[\\^$_]|sqrt|theta|dot\{/.test(described.text), JSON.stringify(described).slice(0, 300));
+          await page.screenshot({ path: `${SHOTS}/${tag}-animation-${option.id}-brief.png` });
           await pane.locator('[data-slash-view="result"]').click();
           await settled();
         }

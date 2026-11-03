@@ -53,16 +53,16 @@ export function evaluate({ state }) {
 const projectilePlan = {
   schema: PLAN_SCHEMA, title: 'Projectile: hit the target', description: 'A launcher on flat ground and a target 30 m away. Set the launch angle and speed, launch, and use where each shot lands to correct the next one.',
   experience: 'game', reason: 'Correcting each shot from where the last one landed shows how angle and speed set the range.', behavior: 'rules', controlProfile: 'manipulate',
-  sourceRefs: [], parameters: [], interactions: ['Raise or lower the angle by 5 degrees (Up and Down keys).', 'Change the speed by 1 m/s (Left and Right keys).', 'Launch.'],
-  assumptions: ['R = v^2 sin(2 theta) / g with g = 9.81 m/s^2, launched from ground level on flat ground.', 'No air resistance; the projectile is a point.'],
+  sourceRefs: [], parameters: [], interactions: ['Raise or lower the angle by $5^\\circ$ (Up and Down keys).', 'Change the speed by $1\\ \\mathrm{m/s}$ (Left and Right keys).', 'Launch.'],
+  assumptions: ['$R = \\dfrac{v^2 \\sin 2\\theta}{g}$ with $g = 9.81\\ \\mathrm{m/s^2}$, launched from ground level on flat ground.', 'No air resistance; the projectile is a point.'],
   limitations: ['Real projectiles lose speed to drag and land shorter.', 'The angle and speed move in steps; holding a key does not change them continuously.'],
-  learningGoal: 'For a given speed 45 degrees goes farthest, complementary angles land at the same place, and range grows with the square of the speed.', requiredCapabilities: ['actions', 'readouts', 'labels'],
+  learningGoal: 'For a given speed $45^\\circ$ goes farthest, $\\theta$ and $90^\\circ - \\theta$ land at the same place, and the range grows as $v^2$.', requiredCapabilities: ['actions', 'readouts', 'labels'],
 };
 export const projectileExample = {
   name: 'projectile-target-game',
   plan: projectilePlan,
   artifact: {
-    ...base, artifactId: 'example-projectile-target', planHash: 'fa242f0b5554bf095ecc2e021b49fdd9abd8f0a36aef82f72cecbb942567b141',
+    ...base, artifactId: 'example-projectile-target', planHash: 'adfff8e8293c81ac77550ac2ff0ccad3937ee06fdd9ac0fe91dca701f0e44c7d',
     title: projectilePlan.title, description: 'Side view of flat ground marked to 50 m, a launcher at 0 m with an arrow showing the aim (longer is faster), and a target pad at 30 m. After a launch, dots trace the arc and a marker shows where it landed.',
     experience: 'game', behavior: 'rules', controlProfile: 'manipulate',
     scene: {
@@ -100,10 +100,10 @@ export const projectileExample = {
     keys: { up: 'angleUp', down: 'angleDown', left: 'slower', right: 'faster' },
     readouts: [{ id: 'launchesLeft', label: 'Launches left', decimals: 0 }, { id: 'angle', label: 'Angle', unit: 'deg', decimals: 0 }, { id: 'speed', label: 'Speed', unit: 'm/s', decimals: 0 },
       { id: 'landing', label: 'Landing distance', unit: 'm', decimals: 1 }, { id: 'miss', label: 'Miss (+ long, - short)', unit: 'm', decimals: 1 }],
-    game: { objective: 'Land within 1.5 m of the target at 30 m, in at most 5 launches.', hint: 'Range is v^2 sin(2 theta) / g: for one speed, 45 degrees goes farthest and 30 and 60 degrees land together. Range grows with the square of the speed, so scale it from your last landing.' },
+    game: { objective: 'Land within 1.5 m of the target at 30 m, in at most 5 launches.', hint: 'The range is $R = \\dfrac{v^2 \\sin 2\\theta}{g}$: for one speed, $45^\\circ$ goes farthest and $30^\\circ$ and $60^\\circ$ land together. The range grows as $v^2$, so scale the speed from your last landing.' },
     program: program(projectileSource, '41a22719d02168f2fbef75083352947c4c48dde424827df855e6c2895ce91605'),
     camera: { position: [24, 12, 62], target: [24, 10, 0], fov: 40 },
-    assumptions: ['R = v^2 sin(2 theta) / g with g = 9.81 m/s^2, launched from ground level on flat ground; the dots are the path x = v cos(theta) t, y = v sin(theta) t - g t^2 / 2.', 'No air resistance and a point projectile: real projectiles lose speed to drag and land shorter.', 'Angle steps of 5 degrees and speed steps of 1 m/s, one per press: holding a key or button does not charge the speed.'],
+    assumptions: ['Range $R = \\dfrac{v^2 \\sin 2\\theta}{g}$ with $g = 9.81\\ \\mathrm{m/s^2}$, launched from ground level on flat ground; the dots are the path $x = v t\\cos\\theta$, $y = v t\\sin\\theta - \\tfrac{1}{2} g t^2$.', 'No air resistance and a point projectile: real projectiles lose speed to drag and land shorter.', 'Angle steps of $5^\\circ$ and speed steps of $1\\ \\mathrm{m/s}$, one per press: holding a key or button does not charge the speed.'],
   },
 };
 
@@ -158,7 +158,7 @@ const predatorPreyPlan = {
   schema: PLAN_SCHEMA, title: 'Predator and prey cycle', description: 'One full Lotka-Volterra cycle: prey multiply, predators follow them up, prey collapse, then predators decline and the cycle repeats.',
   experience: 'watch', reason: 'The delay between the two peaks is easiest to see as one continuous loop.', behavior: 'analytical', controlProfile: 'inspect',
   sourceRefs: [], parameters: [], interactions: ['Play, pause, scrub and change the speed.'],
-  assumptions: ['dx/dt = 1.1 x - 0.4 x y and dy/dt = 0.1 x y - 0.4 y, from x = 10 and y = 2, in arbitrary population units.', 'Continuous populations, no carrying capacity, no chance events.'],
+  assumptions: ['$\\dfrac{dx}{dt} = 1.1x - 0.4xy$ and $\\dfrac{dy}{dt} = 0.1xy - 0.4y$, from $x = 10$ and $y = 2$, in arbitrary population units.', 'Continuous populations, no carrying capacity, no chance events.'],
   limitations: ['The rates are chosen to show the cycle; they are not fitted to any real species.'],
   learningGoal: 'Predator numbers peak after prey numbers, because predators grow only while prey are plentiful.', requiredCapabilities: ['loop', 'speed', 'seek', 'labels', 'readouts'], duration: ORBIT_YEARS,
 };
@@ -166,7 +166,7 @@ export const predatorPreyExample = {
   name: 'predator-prey-cycle',
   plan: predatorPreyPlan,
   artifact: {
-    ...base, artifactId: 'example-predator-prey', planHash: '59f57a89ada85d9269482b0851d96cf4e7e7629db0f2d5fd354d1638492a358a',
+    ...base, artifactId: 'example-predator-prey', planHash: 'e2bf6161410b5f8c927da72cc86f2b3047f0205d13fbe43346de28af8c53df1a',
     title: predatorPreyPlan.title, description: 'Two curves over one cycle, prey in green and predators in orange, with a playhead moving along them. Two bars on the right show the current population of each.',
     experience: 'watch', behavior: 'analytical', controlProfile: 'inspect',
     scene: {
@@ -200,7 +200,7 @@ export const predatorPreyExample = {
     timeline: { duration: ORBIT_YEARS, loop: true },
     program: program(predatorPreySource, '10129f5338c0122aa386b2fa6a7fb15b6a44fb6b9b0c2ec3cd9d724e5959bef5'),
     camera: { position: [5.6, 3, 15], target: [5.6, 2.1, 0], fov: 40 },
-    assumptions: ['Lotka-Volterra: dx/dt = 1.1 x - 0.4 x y, dy/dt = 0.1 x y - 0.4 y, from x = 10, y = 2, solved numerically. Bar and curve heights share one scale; population units are arbitrary.', 'Continuous populations with no carrying capacity and no chance events, so the cycle repeats exactly. Real populations do not.', 'The rates are chosen to show the cycle; they are not fitted to any real species.'],
+    assumptions: ['Lotka-Volterra: $\\dfrac{dx}{dt} = 1.1x - 0.4xy$ for prey $x$ and $\\dfrac{dy}{dt} = 0.1xy - 0.4y$ for predators $y$, from $x = 10$, $y = 2$, solved numerically. Bar and curve heights share one scale; population units are arbitrary.', 'Continuous populations with no carrying capacity and no chance events, so the cycle repeats exactly. Real populations do not.', 'The rates are chosen to show the cycle; they are not fitted to any real species.'],
   },
 };
 

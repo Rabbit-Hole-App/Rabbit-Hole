@@ -20,7 +20,8 @@ import { AnimationBoard } from './animation3d/board-context.js';
 import { EXPLAIN_BRIEF_EVENT } from './explain-client.js';
 import { createCardSession } from './animation3d/session.js';
 import { editableTarget, useSceneInteraction } from './animation3d/interaction.js';
-import { Actions, buttonClass, GamePanel, leadControls, PrimaryReadout, Readouts, ResetState, Settings, Toolbar } from './animation3d/Controls.jsx';
+import { Actions, buttonClass, GamePanel, leadControls, PlaybackBadge, PrimaryReadout, Readouts, ResetState, Settings, Toolbar } from './animation3d/Controls.jsx';
+import { MdInline } from './Md.jsx';
 
 // The Animation card (`animation3d` block; plan section 4, AN-03): a live 3D scene a learner can watch, inspect, adjust or
 // play, in the shared card shell. Header (Animation, title, experience, prompt), a working viewport that takes most of the card
@@ -339,6 +340,7 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
         <div ref={host} data-animation-host className="absolute inset-0" style={{ pointerEvents: interaction.active ? 'auto' : 'none' }} />
         {poster && !ready && <img data-animation-poster src={poster} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-contain" />}
         <PrimaryReadout item={primaryReadout} />
+        {show?.transport && runtimeReady && !state.failure && <PlaybackBadge playing={state.playing} />}
         {phase === 'loading' && <p role="status" className="pointer-events-none absolute inset-0 grid place-content-center p-4 text-center text-xs text-ink-2">{state.artifact && !slot && webglOk ? 'Click to show the 3D view' : 'Preparing the scene'}</p>}
         {phase === 'unavailable' && <p data-animation-webgl-unavailable role="status" className="absolute inset-x-0 bottom-0 border-t border-line bg-white p-2 text-xs text-ink-2">{WEBGL_UNAVAILABLE}</p>}
         {phase === 'recovery' && (
@@ -352,11 +354,11 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
         )}
         {interaction.active && <p data-animation-legend className="pointer-events-none absolute bottom-2 left-2 rounded bg-white/85 px-1.5 py-0.5 text-[11px] text-ink-2">{INTERACT_LEGEND}{keys && <span data-animation-keys-hint className="block">{KEYS_HINT}</span>}</p>}
       </div>
-      <p id={descriptionId} data-animation-description className={phase === 'unavailable' ? 'text-xs text-ink' : 'sr-only'}>{model?.description || ''}</p>
+      <p id={descriptionId} data-animation-description className={phase === 'unavailable' ? 'text-xs text-ink' : 'sr-only'}><MdInline text={model?.description || ''} mathOnly /></p>
       {/* The main toolbar, directly under the viewport and outside the scrolling region, so it is always in reach. */}
       {model && (
         <div onPointerDown={event => event.stopPropagation()}>
-          <Toolbar show={show} seekable={!!model.loop?.seekable} playing={state.playing} status={runtimeReady && !state.failure} speed={state.speed} speeds={model.loop?.speeds ?? []}
+          <Toolbar show={show} seekable={!!model.loop?.seekable} playing={state.playing} speed={state.speed} speeds={model.loop?.speeds ?? []}
             disabled={!runtimeReady} live={ready} interacting={interaction.active} optionalLabels={state.optionalLabels} labels={state.labels}
             onPlay={live.play} onPause={live.pause} onRestart={() => live.restart()} onSpeed={live.setSpeed} onResetView={live.resetView}
             onInteract={() => (interaction.active ? interaction.exit('exit') : interaction.enter())} onLabels={live.setLabels} />
@@ -375,7 +377,7 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
           {model.assumptions.length > 0 && (
             <details data-animation-assumptions className="text-xs text-ink-2">
               <summary className="cursor-pointer select-none">Assumptions</summary>
-              <ul className="mt-1 list-disc pl-4">{model.assumptions.map(item => <li key={item}>{item}</li>)}</ul>
+              <ul className="mt-1 list-disc pl-4">{model.assumptions.map(item => <li key={item}><MdInline text={item} mathOnly /></li>)}</ul>
             </details>
           )}
         </div>

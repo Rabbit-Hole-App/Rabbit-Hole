@@ -108,15 +108,15 @@ export const ANIMATION_OPTIONS = [
   animationOption('pendulum', 'Pendulum', 'Experiment', 'Physics', 'pendulum-length-period', 'Pendulum length and period',
     '/animation Let me change the length of a pendulum from 0.5 to 3 metres and see how its period changes, with the period shown as a number.',
     'A real scene made by /animation from this request, saved. Change the length to try it.',
-    'A pendulum whose length you change from 0.5 to 3 metres, with its period shown as a number.'),
+    'A pendulum whose length you change from 0.5 to 3 metres, with its small-swing period $T = 2\\pi\\sqrt{L/g}$ shown as a number.'),
   animationOption('projectile', 'Projectile', 'Game', 'Physics', 'projectile-target-game', 'Projectile: hit the target',
     '/animation A game: set the launch angle and speed of a projectile on flat ground and hit a target 30 m away within 5 launches, with the landing distance shown.',
     `${HAND_WRITTEN} Set the angle and speed, then Launch.`,
-    'A game on flat ground with no air resistance: set the angle and speed, launch, and land within 1.5 m of a target 30 m away in at most 5 launches.'),
+    'A game on flat ground with no air resistance, where the range is $R = v^2 \\sin 2\\theta / g$: set the angle and speed, launch, and land within 1.5 m of a target 30 m away in at most 5 launches.'),
   animationOption('predator-prey', 'Predator and prey', 'Watch', 'Biology', 'predator-prey-cycle', 'Predator and prey cycle',
     '/animation Show one Lotka-Volterra predator and prey cycle, with both populations over time and the predator peak following the prey peak.',
     `${HAND_WRITTEN} Press Play to watch it.`,
-    'One loop of the Lotka-Volterra equations, showing both populations over time and the predator peak following the prey peak.'),
+    'One loop of the Lotka-Volterra equations $\\dot{x} = 1.1x - 0.4xy$, $\\dot{y} = 0.1xy - 0.4y$, showing both populations over time and the predator peak following the prey peak.'),
 ];
 // A preview as it shows one of its options (option id; null: the first): that option's scene, note and brief. A preview without options is itself.
 export const optionOf = (preview, id) => preview?.options?.find(option => option.id === id) ?? preview?.options?.[0] ?? null;

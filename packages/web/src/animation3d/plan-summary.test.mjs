@@ -103,3 +103,13 @@ test('a plan made before the server sent its scene keeps the full card', () => {
   const old = { ...WATCH, input: { ...WATCH.input, scene: undefined } };
   assert.equal(B.planSummary(old), null);
 });
+
+test('the review card typesets delimited math in the description, summary and lists, and leaves plain formulas as written', () => {
+  const MATH = proposal('game', { parameters: [], interactions: ['Raise the angle by $5^\\circ$.'], notices: [] },
+    { title: 'Projectile', description: 'Land it where $R = \\dfrac{v^2 \\sin 2\\theta}{g}$ says.', assumptions: ['First caveat with $g = 9.81$.', 'No drag: $F_d = 0$.'], limitations: ['Plain v^2 sin(2 theta) / g stays plain.'] });
+  const html = draw(MATH);
+  assert.ok((html.match(/class="katex"/g) || []).length >= 4, 'description, interaction, caveat and assumption are typeset');
+  const shown = text(html.replace(/<span class="katex-mathml">[\s\S]*?<\/span><span class="katex-html"/g, '<span class="katex-html"'));
+  assert.doesNotMatch(shown.replace('Plain v^2 sin(2 theta) / g stays plain.', ''), /\\[a-z]|\$|\^|_/, shown);
+  assert.match(shown, /Plain v\^2 sin\(2 theta\) \/ g stays plain\./, 'a plain formula is left unchanged');
+});
