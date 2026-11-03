@@ -167,6 +167,11 @@ row in [spend.md](spend.md).
 - General limitation, recorded as the owner asked: limiting steps made this one plan simpler. It does not solve oversized plans in general: trails must be declared one node per point, and any plan with a long trail can reach this bound.
 - Status: open. FX-AN-025, FX-AN-026 and FX-AN-029 stay open.
 
+### FX-AN-035 — the author spends most of its output limit thinking (MVP blocker, fixed)
+- Proven by the reply diagnostics (FX-AN-029's gap closed): job aj_49544d6 on canvas-99bc896f, code 5e736e95a, the SGD plan after its owner-path size choice (draw a shorter trail). The author stopped at max_tokens with output_tokens_details.thinking_tokens 11,993 of 16,000, then 19 characters of tool input. FX-AN-029's job aj_51ec6a0 was the same shape, not then measurable.
+- Fix: author and repair run at effort low (learn-models.js). Medium is the model default, so it would not change anything; low does. Opus, the 16,000 and 12,000 limits, validation and review are unchanged. Quality risk: lower effort can make weaker scenes; review still decides acceptance.
+- Status: fixed in code; open until a real SGD build succeeds.
+
 ## Resolved
 
 ### FX-AN-032 — a stepped game never moved in the card (owner canvas 2026-11-02, "Projectile Challenge: Hit the Target")
