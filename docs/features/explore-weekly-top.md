@@ -11,7 +11,10 @@ deployed. Analytics events leave through `sendWeeklyEvent`: the `weekly-top:even
 (`client-telemetry.js` `reportClientEvent` -> `POST /api/telemetry/client`, registered in `telemetry-events/weekly.js`, namespace `weekly_top`, audit 2f92d101).
 Where no telemetry is bound the route answers 204 and keeps nothing, and where the client reporter is not installed nothing is sent. While the one request is
 in flight the section shows a skeleton (`data-weekly-skeleton`, not `data-weekly-top`) of the same measures, so what is below it does not jump; a failure still
-shows no section. Unit-tested only (`home/weekly-top.test.mjs`, `telemetry-contract.test.js`); the skeleton and the delivered rows are not browser- or deploy-verified.
+shows no section.
+Owner decision 2026-11-03 (both tabs): the section is the heading ("Top canvases this week" / "Top creators this week") and its rows, with no note line
+("Across all of Rabbit Hole, <week>.", the Filters/Sort/Size sentence and the stars-since sentence are gone), and an empty week renders nothing; the skeleton
+has no note row either. Unit-tested only (`home/weekly-top.test.mjs`, `telemetry-contract.test.js`); the skeleton and the delivered rows are not browser- or deploy-verified.
 
 ## Endpoint
 
@@ -86,9 +89,10 @@ cards, or the identity of any supporter (only counts).
   interval.
 - `star_history_since`: the first star transition ever recorded (`min(canvas_star_events.at)`) or `null`. Weekly stars before it
   were never collected (nothing is backfilled or fabricated), so if it falls inside the shown week the star counts cover only the
-  days after it. Forks have complete history from the fork feature's own timestamps.
+  days after it. Forks have complete history from the fork feature's own timestamps. The page no longer shows this (owner, 2026-11-03).
 - `empty_message`: `"No canvases have earned stars or forks yet this week."` / `"No creators have earned stars or forks yet this
-  week."` when that list is empty, else `null`. The UI shows it in place of rows; it never fabricates rows.
+  week."` when that list is empty, else `null`. The UI does not show it (owner, 2026-11-03): an empty list renders nothing at all on either tab
+  (no heading, no note, no message), and it never fabricates rows.
 
 Canvas entry (weekly field names, deliberately not `star_count` / `fork_count`):
 
@@ -138,7 +142,7 @@ Definitions owned here. No search text, tokens, handles or personal data in any 
 
 | Event | When | Fields |
 |---|---|---|
-| `weekly_top.viewed` | The section rendered with a successful answer (entries or the empty message) while its tab is active. Once per tab, per `week_start_local`, per page load; a rerender, a search that hides and restores the section, a Filter/Sort/Size change or a refetch never repeats it. | `tab` (`canvases` or `creators`), `week_start_local`, `ranking_version`, `entry_count` (0 to 5), `duration_ms` (request latency) |
+| `weekly_top.viewed` | The tab received a successful answer (entries, or an empty list that renders nothing) while it is active. Once per tab, per `week_start_local`, per page load; a rerender, a search that hides and restores the section, a Filter/Sort/Size change or a refetch never repeats it. | `tab` (`canvases` or `creators`), `week_start_local`, `ranking_version`, `entry_count` (0 to 5), `duration_ms` (request latency) |
 | `weekly_top.opened` | A link in a row was followed. | `tab`, `rank` (1 to 5), `target` (`canvas` or `profile`; a canvas row's @handle link is `profile`), `week_start_local`, `ranking_version` |
 | `weekly_top.request_failed` | The request failed or answered non-200. | `status` (HTTP status, `0` for a network failure), `code` (the error `code` or `network`), `duration_ms` |
 
@@ -170,7 +174,7 @@ All run in the `fork` tier of fast-e2e (check-map). The fixture-driven ones answ
 the real-endpoint ones seed through the star, fork, publish and archive routes and read the server's own answer.
 
 - `explore-creators-check.mjs`: fixture: heading, five ranked rows, order on the page, spacing, no collapse, visual spec, link targets, hover with no
-  layout shift, keyboard, analytics events, search hides and restores, Filters/Sort/Size leave the ranking alone, Creators rows, empty week, failed
+  layout shift, keyboard, analytics events, search hides and restores, Filters/Sort/Size leave the ranking alone, Creators rows, empty week (nothing on either tab), failed
   request, 390px touch, dark theme. Real endpoint: six fans' stars and forks, owner star not counted, repeated forks counted once, creators' distinct
   supporters, an archived canvas and its creator absent, no private data, then the same rows in the page (links, counts, viewed once, opened rank).
 - `card-size-check.mjs`: Search, Filters, Sort, Size adjacent on one row; Size does not reorder the weekly list and survives a reload.
