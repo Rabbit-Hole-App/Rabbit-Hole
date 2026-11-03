@@ -177,7 +177,7 @@ test('production Motion (R2b): public generation unpaused, the measured renderer
 // /animation (owner production GO 2026-11-02): ANIMATION_JOBS and animation-jobs-1 on the app Worker, generation on, the execution kill
 // switch present and off, diagnostics never. The rollback commits flip one pin below; the binding and the tag stay in every state.
 test('production /animation: bound, on, kill switch off, no diagnostics; each rollback flip stops its part and keeps the objects', async () => {
-  const { animationEnabled, animationExecution, animationRoute, ANIMATION_PROBE_PATH } = await import('../src/animation-job.js');
+  const { animationEnabled, animationExecution, animationRoute, ANIMATION_PROBE_PATH, ANIMATION_SEED_FIXTURE_PATH } = await import('../src/animation-job.js');
   const app = config(APP), cp = config(CP);
   assert.deepEqual(app.durable_objects.bindings.filter(b => b.class_name === 'AnimationJobs'), [{ name: 'ANIMATION_JOBS', class_name: 'AnimationJobs' }]);
   assert.deepEqual(app.migrations.at(-1), { tag: 'animation-jobs-1', new_sqlite_classes: ['AnimationJobs'] });
@@ -191,6 +191,7 @@ test('production /animation: bound, on, kill switch off, no diagnostics; each ro
   const on = { ...app.vars, ANIMATION_ENABLED: 'true', ANIMATION_EXECUTION_KILL: 'false' };
   assert.deepEqual([animationEnabled(on), animationExecution(on).allowed], [true, true]);
   assert.equal((await animationRoute(ANIMATION_PROBE_PATH, post(ANIMATION_PROBE_PATH), env(on))).status, 404, 'the render probes stay off');
+  assert.equal((await animationRoute(ANIMATION_SEED_FIXTURE_PATH, post(ANIMATION_SEED_FIXTURE_PATH), env(on))).status, 404, 'the offline fixture seeding stays off (owner 2026-11-02)');
   const off = { ...on, ANIMATION_ENABLED: 'false' };
   const refused = await animationRoute('/api/learn/animation/jobs', post('/api/learn/animation/jobs'), env(off));
   assert.deepEqual([refused.status, (await refused.json()).code], [404, 'animation_disabled'], 'rollback "off": no new plan or build starts');

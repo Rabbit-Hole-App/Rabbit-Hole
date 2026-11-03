@@ -128,3 +128,12 @@ const out = {
 };
 writeFileSync(new URL('./test/fixtures/animation-mvp1-correction-fixture.json', import.meta.url), JSON.stringify(out, null, 1) + '\n');
 console.log('wrote fixture', planHash.slice(0, 12), `${source.length} source bytes`, `${nodes.length} nodes`);
+
+// The same fixture as the real validateStage seals it, for the dev preview: the owner's launcher posts it to the dev-only seed-fixture route, which stores it as a
+// saved result (animation-job.js ANIMATION_SEED_FIXTURE_PATH). Nothing here is bundled into the app or the Workers.
+const { validateStage } = await import('./src/animation-author.js');
+const PROMPT = 'Show me how stochastic gradient descent works. Let me change the learning rate and batch size to see what happens.';
+const sealed = await validateStage({ prompt: PROMPT, evidence: [], context: null, plan, planHash, resultId: out.resultId, approval: { at: out.approvalAt }, draft, calls: [], features: ['curve_radius'] }, { env: {} });
+if (!sealed.artifact) throw new Error(`the fixture does not validate: ${JSON.stringify(sealed.problems)}`);
+writeFileSync(new URL('./test/fixtures/animation-mvp1-correction-artifact.json', import.meta.url), JSON.stringify(sealed.artifact) + String.fromCharCode(10));
+console.log('wrote the sealed artifact', sealed.artifactHash.slice(0, 12));
