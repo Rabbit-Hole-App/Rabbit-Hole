@@ -396,7 +396,7 @@ test('an author reply cut off at its output limit is output_limit, and its bille
   const { id, done } = await s.generated();
   const author = done.calls.find(c => c.role === 'author');
   // The diagnostics survive on the call, bounded, and say what was asked for and what came back.
-  assert.deepEqual([author.reply.requested, author.reply.served, author.reply.stopReason, author.reply.settings], [author.requested, author.served, 'max_tokens', { maxTokens: limit, effort: 'low', thinking: 'model default', toolChoice: 'auto' }]);
+  assert.deepEqual([author.reply.requested, author.reply.served, author.reply.stopReason, author.reply.settings], [author.requested, author.served, 'max_tokens', { maxTokens: limit, effort: 'medium', thinking: 'model default', toolChoice: 'auto' }]);
   assert.deepEqual(author.reply.usage, { input_tokens: 1307, output_tokens: limit });
   assert.deepEqual(author.reply.blocks.map(b => [b.type, b.name ?? null]), [['text', null], ['tool_use', 'animation_artifact']]);
   assert.equal(author.reply.blocks[1].chars > 9000, true);

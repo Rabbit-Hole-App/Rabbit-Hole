@@ -173,3 +173,13 @@ test('the author and repair are told the names the card keeps for itself and the
     assert.match(system, /an assumption at most 300 characters/);
   }
 });
+
+test('the author runs at medium effort with 24,000 output tokens, and the build worst case and credits follow the pricing registry', async () => {
+  const { LEARN_TASKS, MODEL_PRICES } = await import('../src/learn-models.js');
+  assert.deepEqual([LEARN_TASKS.animation_author.effort, LEARN_TASKS.animation_author.maxTokens], ['medium', 24000]);
+  assert.deepEqual([LEARN_TASKS.animation_repair.effort, LEARN_TASKS.animation_repair.maxTokens, LEARN_TASKS.animation_review.maxTokens], ['low', 12000, 6000]);
+  const [, output] = MODEL_PRICES['claude-opus-5-5'];
+  assert.equal(roleBoundMicros('author') - Math.ceil(60000 * MODEL_PRICES['claude-opus-5-5'][0] * 1.25 + 16000 * output), 8000 * output, '8,000 more output tokens at the registry price');
+  assert.equal(8000 * output, 160000, 'US$0.16');
+  assert.equal(Math.ceil(animationReservation().generationMicros / 10000), 325, 'displayed maximum: 309 + 16 credits');
+});
