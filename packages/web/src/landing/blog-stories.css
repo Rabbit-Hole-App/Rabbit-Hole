@@ -64,7 +64,6 @@
 /* The reading text of a post (owner 2026-11-02: a different font for the simple text). One variable, so a different face is a one-line change. */
 .blog-page{--blog-read:"Source Serif 4",Georgia,"Times New Roman",serif}
 .blog-post-body{max-width:660px;margin:48px auto;font:400 18px/1.8 var(--blog-read);color:var(--blog-ink)}
-.blog-post-body figcaption,.blog-post-body pre{font-family:var(--ui)}
 .blog-post-body p+p{margin-top:22px}
 .blog-page #below .blog-post-body h2{font:500 30px/1.2 var(--display);letter-spacing:-.035em;margin:38px 0 18px}
 .blog-post-body blockquote{border-left:2px solid var(--blog-ink);padding:8px 0 8px 24px;margin:32px 0;font:500 27px/1.35 var(--display);letter-spacing:-.03em}
