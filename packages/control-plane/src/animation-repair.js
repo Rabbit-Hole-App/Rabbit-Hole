@@ -91,29 +91,35 @@ export async function repairStage(job, ctx) {
   return { draft, progress: true, operation: 'artifact', reason, inputKeys: Object.keys(input), artifactKeys: Object.keys(input.artifact), forwarded };
 }
 
+const WORST_HASH = 'h'.repeat(64);
+// The captures this artifact's render really makes (captureManifest: their ids, views, labels, inputs, times, events and ticks, which the
+// request repeats as text), each with a trace filling the review's whole trace allowance: the worst case of the real request, not a stand-in.
+// A manifest the render would refuse leaves the old stand-in captures, at the image limit.
+export function worstReviewCaptures(artifact) {
+  let entries;
+  try { entries = captureManifest(artifact).entries; } catch { entries = []; }
+  if (!entries.length) entries = Array.from({ length: ANIMATION_ROLES.review.maxImages }, (_, i) => ({ id: `v${i}`, view: { name: 'default' } }));
+  const base = entries.map(e => ({ id: e.id, artifactHash: WORST_HASH, data: 'AAAA', mediaType: 'image/png', view: e.view?.name ?? e.view, label: e.label, inputs: e.inputs, time: e.time, events: e.events, ...(e.leadTicks ? { leadTicks: e.leadTicks } : {}), ticks: e.ticks,
+    trace: { inputs: e.inputs, time: e.time, events: e.events, ticks: e.ticks } }));
+  const used = new TextEncoder().encode(JSON.stringify(base.map(c => ({ id: c.id, ...c.trace })))).length;
+  const per = Math.max(0, Math.floor((ANIMATION_REVIEW_LIMITS.traceBytes - used) / base.length) - 16);
+  return base.map(c => ({ ...c, trace: { ...c.trace, pad: 'x'.repeat(per) } }));
+}
+// With the one correction a malformed report may need: the largest review request this candidate can cause.
+export function worstReviewContent(artifact, job, draft = null, captures = worstReviewCaptures(artifact)) {
+  const { content } = buildReviewContent({ request: job.prompt, plan: job.plan, artifact, artifactHash: WORST_HASH, captures, evidence: job.evidence || [], coverage: { sampled: [], omitted: ['x'.repeat(ANIMATION_REVIEW_LIMITS.coverageChars)] }, draft });
+  return [...content, correctionBlock(CORRECTION_WORST)];
+}
+
 // -> problems (one sentence each), [] when the real review and repair requests for this artifact fit their roles at worst-case
 // image, trace and finding sizes. tasks: the job's task table. draft: the candidate as written, which is what a repair is sent
 // (repairStage); without one, the artifact's own draft form.
 export function fitProblems(env, artifact, job, tasks, draft = null) {
   const out = [], size = new TextEncoder().encode(JSON.stringify(reviewArtifactView(artifact, draft))).length + new TextEncoder().encode(artifact.program?.source ?? '').length;
   const tooBig = role => out.push(`this artifact (${size} bytes with its program) is too large for the ${role === 'review' ? 'independent review' : 'repair'} request: use fewer nodes, shorter labels or a shorter program`);
-  // The captures this artifact's render really makes (captureManifest: their ids, views, labels, inputs, times, events and ticks, which the
-  // request repeats as text), each with a trace filling the review's whole trace allowance: the worst case of the real request, not a stand-in.
-  // A manifest the render would refuse leaves the old stand-in captures, at the image limit.
-  const hash = 'h'.repeat(64);
-  let entries;
-  try { entries = captureManifest(artifact).entries; } catch { entries = []; }
-  if (!entries.length) entries = Array.from({ length: ANIMATION_ROLES.review.maxImages }, (_, i) => ({ id: `v${i}`, view: { name: 'default' } }));
-  const base = entries.map(e => ({ id: e.id, artifactHash: hash, data: 'AAAA', mediaType: 'image/png', view: e.view?.name ?? e.view, label: e.label, inputs: e.inputs, time: e.time, events: e.events, ...(e.leadTicks ? { leadTicks: e.leadTicks } : {}), ticks: e.ticks,
-    trace: { inputs: e.inputs, time: e.time, events: e.events, ticks: e.ticks } }));
-  const used = new TextEncoder().encode(JSON.stringify(base.map(c => ({ id: c.id, ...c.trace })))).length;
-  const per = Math.max(0, Math.floor((ANIMATION_REVIEW_LIMITS.traceBytes - used) / base.length) - 16);
-  const fake = n => base.slice(0, n);
+  const captures = worstReviewCaptures(artifact), fake = n => captures.slice(0, n);
   try {
-    const captures = base.map(c => ({ ...c, trace: { ...c.trace, pad: 'x'.repeat(per) } }));
-    const { content } = buildReviewContent({ request: job.prompt, plan: job.plan, artifact, artifactHash: hash, captures, evidence: job.evidence || [], coverage: { sampled: [], omitted: ['x'.repeat(ANIMATION_REVIEW_LIMITS.coverageChars)] }, draft });
-    // With the one correction a malformed report may need: the largest review request this candidate can cause.
-    animationRequest(env, 'review', { system: ANIMATION_REVIEW_SYSTEM, tool: REVIEW_TOOL, content: [...content, correctionBlock(CORRECTION_WORST)] }, tasks);
+    animationRequest(env, 'review', { system: ANIMATION_REVIEW_SYSTEM, tool: REVIEW_TOOL, content: worstReviewContent(artifact, job, draft, captures) }, tasks);
   } catch (error) { if (error?.code === 'input_too_large') tooBig('review'); else throw error; }
   try {
     const failure = { problems: Array(REPAIR_FORWARD.problems).fill('p'.repeat(REPAIR_FORWARD.text)), findings: Array(REPAIR_FORWARD.findings).fill({ category: 'spec', severity: 'major', target: { capture: 'v0', object: 'o'.repeat(64) }, message: 'm'.repeat(REPAIR_FORWARD.text) }) };
