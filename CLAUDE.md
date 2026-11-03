@@ -63,7 +63,8 @@ meaning depends on its working directory.
 
 A successful build proves compilation and bundling only, not user interaction or real-provider behavior. Browser
 coverage and deployment go through the approved CI and release procedure ([Release requirements](#release-requirements),
-`docs/features/parallel-dev-deploys.md`); do not invent alternative commands.
+`docs/features/parallel-dev-deploys.md`) or, for MVP-labelled work, the [MVP fast path](#mvp-fast-path); do not invent
+alternative commands.
 
 ## Repository gotchas
 
@@ -95,6 +96,7 @@ Non-obvious traps that have caused mistakes. Remove an entry when its condition 
   deliverable.
 - Mark anything deliberately skipped with a `ponytail:` comment.
 - Before changing Coaching or its dev deployment, read and keep current `docs/features/coaching.md`.
+- MVP-labelled work follows the [MVP fast path](#mvp-fast-path) (owner, 2026-11-03).
 
 ## Ask or proceed
 
@@ -108,7 +110,8 @@ consequence. Continue independent work while a genuinely blocking decision is pe
   engineering choices.
 - Ask several blocking questions at once, each with lettered options and a recommendation.
 - Autonomy never bypasses tooling restrictions, release checks, or the approval boundaries in
-  [Release and deployment](#release-and-deployment).
+  [Release and deployment](#release-and-deployment). The one exception is the owner's own [MVP fast path](#mvp-fast-path)
+  for MVP-labelled work.
 
 ## How to execute a task
 
@@ -169,7 +172,7 @@ not leave executable work unassigned while suitable agent and execution capacity
   contracts keep their evidence) and name the specific changed files or contract that force any rerun. When
   integration or rebasing changes the candidate SHA, obtain the required evidence for the resulting SHA. Use the
   existing gate-reuse eligibility and batching rules; do not weaken a gate or alter workflow policy to shorten the
-  queue.
+  queue. The owner's [MVP fast path](#mvp-fast-path) is the sanctioned exception, for MVP-labelled work only.
 - **Background runs.** Every background run (harness, gate watcher, CI wait, capture, long test) has a named owner, a
   log location and an explicit completion result (exit code or `RESULT` line) that its owner reads from the run itself.
   An agent finishing its turn, or a completion notice, does not mean its background work finished: track the process
@@ -194,7 +197,7 @@ not leave executable work unassigned while suitable agent and execution capacity
   the harness. When an owner decision replaces asserted behavior, update the test and cite the decision.
 - Add regression coverage for an actual failure or meaningful risk, not tests that restate the implementation.
 - Keep these states distinct and report them precisely: registered, selected for a run, executed, passed, failed,
-  skipped, not covered by that tier. A green workflow that selected zero relevant checks is not evidence that the
+  skipped, not covered by that tier, bypassed (the [MVP fast path](#mvp-fast-path)). A green workflow that selected zero relevant checks is not evidence that the
   changed behavior passed.
 - For release-relevant behavior report: candidate SHA, check name, run/job ID or local receipt, executed result,
   skipped steps or cases, and what the check actually proves.
@@ -250,7 +253,7 @@ in feature docs whenever the owner has given a production GO for that feature.
    leave the approved feature disabled, and never activate unrelated capabilities with it.
 5. Preserve required checks, permissions, allowance enforcement, approved spending policies and rollback safeguards.
    Stop only for genuinely new authority (unapproved infrastructure, migrations, additional paid testing). Never bypass
-   a failing release gate.
+   a failing release gate, except as the [MVP fast path](#mvp-fast-path) provides for MVP-labelled work.
 6. Verify the actual user-facing production flow. Green CI, HTTP 200 and simulated responses alone are insufficient.
    Report the exact SHA/build, activation state, verification evidence and any remaining blocker.
 
@@ -258,14 +261,16 @@ This rule changes how a GO is carried out; it does not itself authorize any prod
 
 ### Release requirements
 
-- Release readiness on the exact candidate: `make test-unit`; the production build plus
+- Release readiness on the exact candidate (ordinary work; MVP-labelled work follows the
+  [MVP fast path](#mvp-fast-path)): `make test-unit`; the production build plus
   `packages/web/e2e/production-bundle-check.mjs`; the CI gate. `make test-integration` is not a requirement: it targets
   the retired CLI/BYOC deploy path and its conftest skips every test, so it produces no evidence. After changing the
   gate harness or a workflow, run the changed phase locally before pushing when that phase is not browser automation. A
   phase that drives a browser runs only in the approved CI or designated runner ([Browser verification](#browser-verification)),
   and pushing a workflow file needs the owner's `!` command.
-- Every deploy, dev or production, full gate or reused, needs the newest `fast-e2e` and `verify` runs of the exact
-  candidate SHA to be completed successes (OPS-04, owner 2026-10-21). A green ancestor never stands in for them.
+- Every ordinary deploy, dev or production, full gate or reused, needs the newest `fast-e2e` and `verify` runs of the
+  exact candidate SHA to be completed successes (OPS-04, owner 2026-10-21). A green ancestor never stands in for them.
+  MVP-labelled work is the exception: [MVP fast path](#mvp-fast-path).
 - **Full-gate reuse for eligible UI and copy changes** (owner, 2026-10-21). A candidate whose changes since the last
   fully gated main are eligible reuses that gate (gates note `reuse <gated main sha>`); exact-SHA unit CI, the web
   build, `fast-e2e` and `verify` still run. Eligibility is decided by `notReusableBetween` in `scripts/dev-deploy.mjs`,
@@ -291,10 +296,32 @@ This rule changes how a GO is carried out; it does not itself authorize any prod
   must be shown unable to mutate. Shell-local mocks, stub variables and typed confirmations are not sufficient
   protection (incident 2026-10-25: a test run of a production telemetry script created production resources).
   Anything such a script touches in production is reported to the owner at once, with evidence.
-- Merge to `main` often: once a candidate has passed its gate and dev deployment, propose its release. Base new work on
+- Merge to `main` often: once a candidate has passed its gate and dev deployment (for MVP-labelled work, its MVP
+  preview), propose its release. Base new work on
   current `main`. An owner-approved batch release is fine; what to avoid is unrelated work accumulating on integration
   branches without a decision.
 - Report implemented, locally verified, release-verified and production-activated separately.
+
+### MVP fast path
+
+Standing owner policy (owner decision, 2026-11-03). It applies to work the owner labels MVP. Non-MVP work keeps every
+rule in this file unchanged unless the owner says otherwise; an agent never decides on its own that work is MVP.
+
+- For MVP-labelled work, full CI (`verify`, `fast-e2e`, the exact-SHA unit and browser runs) and the broad release gate
+  are **optional and nonblocking**. They keep running independently. Do not wait for them, and do not refuse a preview
+  or a production prepare because they are pending, failing or absent. Record them as **bypassed, never passed**.
+- **Still required**: a successful build, the tests the change affects, a focused feature smoke check that exits 0, and
+  for production the commit and build identity binding, the secret and migration preflight, the production smoke and
+  rollback. A failed required check stops the work.
+- It is only ever explicit, through `--mvp`: `node scripts/mvp-fast-path.mjs preview --mvp ...` runs those checks, then
+  deploys the feature's isolated clone and records the exact commit, tree, build and the checks actually run;
+  `prod-release.mjs prepare --mvp` (which `deploy-prod.yml` selects only when that record is on the commit) takes the
+  record in place of the green dev deploy, the gate note and the `verify` and `fast-e2e` runs. The release prints
+  `MVP MODE: broad CI and release gate BYPASSED by owner policy` and its receipt carries it. Commands, record format and
+  limits: `docs/features/mvp-fast-path.md`.
+- Real acceptance happens on the isolated preview while broad CI runs. Report an MVP release as "broad CI bypassed (MVP
+  policy, 2026-11-03)" with any CI results as information, never as passed. Agents stop enforcing the waits this policy
+  supersedes (OPS-04 and the gate note) for MVP-labelled candidates, and never apply `--mvp` to unlabelled work.
 
 ### Development deployments
 
@@ -321,6 +348,7 @@ npx wrangler deploy --config wrangler.dev.jsonc --name rabbit-hole-web-dev-<work
   feature needing one shows its no-credential message on your clone. Confirm the running build matches the code under
   investigation. Deploy to the shared worker (no `--name`) only when explicitly told to promote.
 - The app is then at `https://rabbit-hole-web-dev-<worktree>.tryrabbithole.workers.dev`.
+- MVP-labelled work deploys this clone with `scripts/mvp-fast-path.mjs preview --mvp` ([MVP fast path](#mvp-fast-path)).
 
 ### Worktree closeout after merge
 

@@ -11,6 +11,11 @@ guidelines all live there. This file only adds where the history is.
 > policy and rollback; stop only for new authority (infrastructure, migrations, extra paid tests); never bypass a
 > failing gate. Report SHA/build, activation state and evidence, and say so when signed-in access blocks verification.
 
+> **MVP fast path** (owner decision, 2026-11-03; canonical text: [CLAUDE.md](CLAUDE.md#mvp-fast-path)). For
+> MVP-labelled work, full CI and the broad release gate are optional and nonblocking, recorded as bypassed and never as
+> passed, through the explicit `--mvp` options. Build, affected tests, a focused smoke check, the schema and identity
+> preflights and rollback stay required. Non-MVP work is unchanged.
+
 ## Confirm understanding before implementation
 
 Follow [Scope and autonomy](CLAUDE.md#scope-and-autonomy) in `CLAUDE.md`. When a
@@ -117,8 +122,9 @@ reuses the last passing gate: its gates note is `reuse <gated main sha>`. Reusab
 `packages/web/src/**`, `packages/web/test/**`, `packages/web/e2e/**` (not `production-bundle-check.mjs`),
 `packages/web/public/**`, `docs/**` and root `*.md`, minus every file a Worker bundles (the
 `workerGraph` of `scripts/dev-deploy.mjs`). A path naming credit, allowance, usage, motion, video, sign-in,
-auth, login, oauth, billing or payment keeps the gate. Unit CI and the web build still run on the exact SHA, and every deploy
-still needs the newest fast-e2e and verify runs of that exact SHA to have passed (OPS-04). Server
+auth, login, oauth, billing or payment keeps the gate. Unit CI and the web build still run on the exact SHA, and every ordinary deploy
+still needs the newest fast-e2e and verify runs of that exact SHA to have passed (OPS-04; MVP-labelled work is the
+exception, see the MVP fast path above). Server
 code, money, sign-in, schema or migrations, config, dependencies and workflows keep the gate. A mixed
 batch needs the gate. Check a diff with `notReusableBetween` in `scripts/dev-deploy.mjs`.
 

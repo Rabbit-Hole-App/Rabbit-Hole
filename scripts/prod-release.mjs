@@ -3,6 +3,8 @@
 //   node scripts/prod-release.mjs release --sha <sha> --build <hash> --approve "RELEASE <sha> <hash>"
 // prepare builds locally and makes no network call. release deploys rabbit-hole-cp, then rabbit-hole-app.
 // It never applies a migration: a pending one is a blocker.
+// MVP fast path (owner policy 2026-11-03, CLAUDE.md#mvp-fast-path): `prepare --mvp` takes the MVP preview record that
+// scripts/mvp-fast-path.mjs wrote in place of the dev deploy, the gate and the fast-e2e and verify runs. It is never implicit.
 import { execFileSync, execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync, appendFileSync } from 'node:fs';
@@ -11,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { SOURCES, MASTER_SQL, expectedSchema, schemaDiff, schemaOf, mainMigrationDiff } from './schema-check.mjs';
 import { notReusableBetween } from './dev-deploy.mjs';
 import { runBlockers } from './verify-evidence.mjs';
+import { MVP_BANNER, mvpSummary, mvpVerdict } from './mvp-fast-path.mjs';
 
 // Production hold (owner, 2026-10-07; lifted by the owner in Home's session 2026-10-09). While true, `release` exits
 // here before any remote call. Setting it again is a reviewed change to this line, never an environment variable or a flag.
@@ -60,6 +63,7 @@ export function parseArgs(argv) {
   const [command, ...rest] = argv;
   const opts = { command };
   for (let i = 0; i < rest.length; i += 2) {
+    if (rest[i] === '--mvp') { opts.mvp = true; i--; continue; } // the one flag without a value
     if (!rest[i]?.startsWith('--') || rest[i + 1] === undefined) throw new Error(`bad argument ${rest[i]}`);
     opts[rest[i].slice(2)] = rest[i + 1];
   }
@@ -88,11 +92,15 @@ export function greenDevDeploy(sha, recordText, { isAncestor = () => false, tree
 const dirty = changes => `refused: the tracked tree has changes${changes ? `:\n${changes}` : ''}`;
 
 // runs: verify-evidence.mjs runs output for this sha. OPS-04: a green dev deploy, gated or reused, is not enough on its own.
-export function checkPrepare({ sha, onMain, devRecord, runs, head, clean, changes, isAncestor, treeOf, uiOnly }) {
+// mvp (prepare --mvp, owner policy 2026-11-03): the MVP preview record stands in for the dev deployment, the gate and the runs.
+// Off by default. The commit, main, HEAD and clean-tree checks apply either way.
+export function checkPrepare({ sha, onMain, devRecord, runs, head, clean, changes, isAncestor, treeOf, uiOnly, mvp = false }) {
   if (!SHA.test(sha || '')) return 'refused: --sha must be a full 40-character commit sha';
   if (!onMain) return `refused: ${sha} is not on origin/main (git fetch origin main first)`;
-  if (!greenDevDeploy(sha, devRecord, { isAncestor, treeOf, uiOnly })) return `refused: no green dev deployment with provenance (tree, build, bundle, gate digest, run, version) is recorded for ${sha}`;
-  const ci = runBlockers(runs, sha);
+  const v = mvp && mvpVerdict(devRecord, sha, treeOf);
+  if (v?.error) return `refused: ${sha} has no acceptable MVP preview record: ${v.error}`;
+  if (!mvp && !greenDevDeploy(sha, devRecord, { isAncestor, treeOf, uiOnly })) return `refused: no green dev deployment with provenance (tree, build, bundle, gate digest, run, version) is recorded for ${sha}`;
+  const ci = mvp ? [] : runBlockers(runs, sha);
   if (ci.length) return `refused: ${sha} needs a successful fast-e2e and verify run of this exact commit; a gate, its own or reused, never stands in for them:\n- ${ci.join('\n- ')}`;
   if (head !== sha) return `refused: HEAD is ${head}, check out ${sha} first`;
   if (!clean) return dirty(changes);
@@ -106,6 +114,7 @@ export function checkRelease({ hold, sha, build, approve, prepared, head, clean,
   if (approve !== `RELEASE ${sha} ${build}`) return `refused: --approve must be exactly "RELEASE ${sha} ${build}"`;
   if (!prepared) return `refused: ${sha} was never prepared (run prepare first)`;
   if (prepared.sha !== sha || prepared.build !== build) return `refused: the prepared build for ${sha} is ${prepared.build}, not ${build}`;
+  if (prepared.mvp && (prepared.mvp.broad_ci !== 'bypassed' || prepared.mvp.release_gate !== 'bypassed')) return 'refused: the prepared MVP record does not say broad CI and the release gate were bypassed; prepare again';
   if (head !== sha) return `refused: HEAD is ${head}, not ${sha}`;
   if (!clean) return dirty(changes);
   return null;
@@ -229,8 +238,10 @@ function prepare(opts) {
   const { sha } = opts;
   const record = existsSync(devRecordPath(opts)) ? readFileSync(devRecordPath(opts), 'utf8') : '';
   const runs = (() => { try { return JSON.parse(readFileSync(opts.runs, 'utf8')); } catch { return null; } })();
-  const err = checkPrepare({ sha, onMain: SHA.test(sha || '') && tryGit('merge-base', '--is-ancestor', sha, 'origin/main'), devRecord: record, runs, isAncestor, treeOf, uiOnly, ...tree() });
+  const err = checkPrepare({ sha, onMain: SHA.test(sha || '') && tryGit('merge-base', '--is-ancestor', sha, 'origin/main'), devRecord: record, runs, isAncestor, treeOf, uiOnly, mvp: opts.mvp === true, ...tree() });
   if (err) return fail(err);
+  const mvp = opts.mvp === true ? mvpSummary(mvpVerdict(record, sha, treeOf).record) : null;
+  if (mvp) console.log(MVP_BANNER);
   const tldraw = process.env.VITE_TLDRAW_LICENSE_KEY
     || (existsSync(join(ROOT, '.env')) && readFileSync(join(ROOT, '.env'), 'utf8').match(/^VITE_TLDRAW_LICENSE_KEY=(.*)$/m)?.[1]?.trim());
   if (!tldraw) return fail('refused: VITE_TLDRAW_LICENSE_KEY is not in the environment or the repo-root .env');
@@ -242,7 +253,7 @@ function prepare(opts) {
   const build = bundleHash(sha);
   const learn = SOURCES.learn();
   mkdirSync(stateDir(sha), { recursive: true });
-  writeFileSync(join(stateDir(sha), 'prepared.json'), JSON.stringify({ sha, build, at: new Date().toISOString(), learn }, null, 1));
+  writeFileSync(join(stateDir(sha), 'prepared.json'), JSON.stringify({ sha, build, at: new Date().toISOString(), learn, ...(mvp && { mvp }) }, null, 1));
   console.log(`✓ prepared ${sha} build ${build}`);
   console.log(`  needs on production: main migrations through ${readdirSync(join(CP, 'migrations')).sort().at(-1)}, learn through ${learn.at(-1)}`);
   console.log(`  approval phrase: RELEASE ${sha} ${build}`);
@@ -255,6 +266,7 @@ async function release(opts) {
   const prepared = file && existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
   const err = checkRelease({ hold: HOLD, sha, build, approve, prepared, ...tree() });
   if (err) return fail(err);
+  if (prepared.mvp) console.log(`${MVP_BANNER} (MVP preview record ${prepared.mvp.digest})`);
   if (bundleHash(sha) !== build) return fail(`refused: the local bundle no longer hashes to ${build}; prepare again`);
   if (process.env.CLOUDFLARE_ACCOUNT_ID !== ACCOUNT) return fail('refused: CLOUDFLARE_ACCOUNT_ID is not the rabbit-hole account');
 
@@ -283,7 +295,7 @@ async function release(opts) {
   // The release receipt: what served before, the D1 Time Travel bookmarks to restore data to (a Worker rollback never
   // restores data), what was deployed, the smoke, and the outcome. Written whatever happens.
   const receipt = { sha, build, run: process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_RUN_ID}.${process.env.GITHUB_RUN_ATTEMPT ?? 1}` : 'local',
-    at: new Date().toISOString(), previous: { cp: before.cp.version, app: before.app.version, release: before.cp.sha12 }, bookmarks: {}, deployed: {}, smoke: [], outcome: 'started' };
+    at: new Date().toISOString(), previous: { cp: before.cp.version, app: before.app.version, release: before.cp.sha12 }, bookmarks: {}, deployed: {}, smoke: [], outcome: 'started', ...(prepared.mvp && { mvp: { notice: MVP_BANNER, ...prepared.mvp } }) };
   const save = () => {
     const line = `${JSON.stringify(receipt)}\n`;
     appendFileSync(join(COMMON(), 'rabbit-hole-prod-releases.jsonl'), line);
@@ -343,5 +355,5 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   try { opts = parseArgs(process.argv.slice(2)); } catch (e) { fail(e.message); }
   if (opts?.command === 'prepare') prepare(opts);
   else if (opts?.command === 'release') await release(opts);
-  else if (opts) fail('usage: prod-release.mjs prepare --sha <sha> --runs <file> | release --sha <sha> --build <hash> --approve "RELEASE <sha> <hash>" [--receipt <file>]');
+  else if (opts) fail('usage: prod-release.mjs prepare --sha <sha> --runs <file> [--mvp] | release --sha <sha> --build <hash> --approve "RELEASE <sha> <hash>" [--receipt <file>]');
 }

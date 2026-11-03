@@ -27,7 +27,7 @@ The owner chose B1 in Home's session: Rabbit-Hole-App/Rabbit-Hole `main` is the 
     - both records carry the same page build and Worker bundle;
     - G is an ancestor of the commit.
   - The workflow appends G's record for that check. The byte-identical build means G's full gate tested exactly what ships.
-- **Fast-e2e and verify of the exact commit (OPS-04, owner 2026-10-21):** UI-17 `14310051` reached production on batch F's reused gate while its own fast-e2e run 39719683140 had failed. Now every release, full gate or reused (script-only or UI-only), also needs the newest `fast-e2e.yml` run and the newest `verify.yml` run whose `head_sha` is exactly the commit to be completed successes.
+- **Fast-e2e and verify of the exact commit (OPS-04, owner 2026-10-21; not required with an MVP record, see [MVP fast path](#mvp-fast-path)):** UI-17 `14310051` reached production on batch F's reused gate while its own fast-e2e run 39719683140 had failed. Now every release, full gate or reused (script-only or UI-only), also needs the newest `fast-e2e.yml` run and the newest `verify.yml` run whose `head_sha` is exactly the commit to be completed successes.
   - Before any install, the workflow reads them from the Actions API with its own token (`actions: read`): `node scripts/verify-evidence.mjs runs --sha <sha> --out ci-runs.json`. `prepare --runs ci-runs.json` decides on that file.
   - Refused: a failed, cancelled or skipped run, a queued or running one, no run at all, or only runs of other commits. A green ancestor gate never stands in for them. Pull-request runs never count (they test a merge tree). The newest attempt wins: a rerun that passed clears a failed attempt, and a newer failure outvotes an older success.
   - A full gate of the exact commit also runs browser shards. Fast-e2e is required anyway: one rule with no exceptions, and it is cheap.
@@ -54,7 +54,7 @@ node scripts/prod-release.mjs prepare --sha <sha> --runs ci-runs.json
 Prepare refuses unless all of these hold:
 - `<sha>` is a full 40-character sha on `origin/main`;
 - the dev-deploy record has a line for it with `gates` and `smoke` both `pass` (or a valid reuse), carrying full provenance: the commit's own `tree`, `gate_digest`, `build`, `bundle`, `run` and `version` (r34 audit);
-- the newest fast-e2e and verify runs of exactly `<sha>` completed successfully (OPS-04, above);
+- the newest fast-e2e and verify runs of exactly `<sha>` completed successfully (OPS-04, above; not with `--mvp`);
 - `HEAD` is `<sha>` and no tracked file has changes;
 - `VITE_TLDRAW_LICENSE_KEY` is in the environment or the repo-root `.env`. It is read by key name and never printed.
 
@@ -126,7 +126,16 @@ The record is one JSON object per line, appended by `scripts/dev-deploy.mjs` aft
 ```
 
 - Default path: `$(git rev-parse --git-common-dir)/rabbit-hole-dev-deploys.jsonl`. Every worktree of the clone shares it, and it is never tracked. Override it with `--dev-record <path>`.
-- Prepare accepts only an exact sha whose `gates` and `smoke` are both `pass`.
+- Prepare accepts only an exact sha whose `gates` and `smoke` are both `pass`. With `--mvp` it takes an MVP preview record instead ([MVP fast path](#mvp-fast-path)).
+
+## MVP fast path
+
+Standing owner policy, 2026-11-03 (canonical text: [CLAUDE.md](../../CLAUDE.md#mvp-fast-path); commands and record format: [mvp-fast-path.md](mvp-fast-path.md)).
+
+- **Explicit.** `node scripts/prod-release.mjs prepare --mvp --sha <sha> [--dev-record <file>]`, or `deploy-prod.yml` when the commit's `refs/notes/dev-deploys` note holds a line with `"mvp":true`. Without the flag an MVP record is not a green dev deployment, and prepare refuses it with the usual text.
+- **What `--mvp` replaces:** the green dev deployment, the gate note behind it, and the fast-e2e and verify runs. It takes an MVP preview record whose build, affected tests, focused smoke and clone deploy all passed, for this exact commit and tree, naming a `rabbit-hole-web-dev-*` clone, with broad CI and the release gate recorded as `bypassed`. A failed required check, another commit or tree, a missing field or an edited record is refused.
+- **What it keeps, unchanged:** the full-sha, on-main, HEAD and clean-tree checks; the production build env and bundle check; the prepared build hash and the exact approval phrase; HOLD; the stale-candidate check; the secret-name and the main and learn schema preflight (a pending migration still blocks); the signed-out production smoke; the matched rollback; the D1 bookmarks.
+- **Loud and recorded.** `prepare` and `release` print `MVP MODE: broad CI and release gate BYPASSED by owner policy`; `prepared.json` and the release receipt carry an `mvp` object (record digest, clone, checks, `broad_ci: bypassed`, `release_gate: bypassed`).
 
 ## Verification 2026-10-07 (read-only, Cloudflare API GET and SELECT only)
 
