@@ -2,7 +2,7 @@
 .content-page.manifesto-page #below{padding:0}
 .manifesto-article{grid-area:1 / 1;position:relative;z-index:1;width:100%;min-width:0;max-width:1312px;margin:0 auto;padding:160px 36px 100px}
 .manifesto-heading{max-width:1100px;margin:0 auto 96px;text-align:center}
-.manifesto-eyebrow,.manifesto-number{font:500 12px/1.5 var(--ui);letter-spacing:.02em;color:#BDBDBD}
+.manifesto-eyebrow,.manifesto-number{font:500 12px/1.5 var(--ui);letter-spacing:.02em;color:#BDBDBD;text-transform:uppercase}
 .manifesto-heading .manifesto-eyebrow{margin-bottom:30px}
 .manifesto-page #below .manifesto-heading h1{font:500 clamp(76px,9.4vw,138px)/1.1 var(--display);letter-spacing:-.065em;margin-bottom:36px}
 .manifesto-deck{max-width:680px;margin:0 auto;font:500 22px/1.5 var(--ui);letter-spacing:-.025em}
@@ -24,11 +24,21 @@
 .manifesto-ending{margin:20px 0 0;text-align:center}
 .manifesto-ending .manifesto-final{font:500 clamp(64px,8.1vw,116px)/1.13 var(--display);letter-spacing:-.065em}
 .manifesto-ending .manifesto-last-question{margin:40px auto 0;font:500 clamp(22px,2.5vw,34px)/1.6 var(--display);letter-spacing:-.025em}
-.manifesto-statement{font:500 clamp(38px,5.2vw,72px)/1.35 var(--display);letter-spacing:-.05em;text-align:center;margin:0 auto 144px}
-.manifesto-prose .manifesto-statement-inline{font-size:clamp(34px,4vw,54px);text-align:left;margin:40px 0 24px}
-.manifesto-prose .manifesto-strong{margin-top:36px;font:500 26px/1.5 var(--display);letter-spacing:-.025em}
-.manifesto-next-step{margin-top:48px;scroll-margin-top:110px}
-.manifesto-page #below .manifesto-next-step h3{margin:0 0 16px;font:500 clamp(26px,2.5vw,34px)/1.25 var(--display);letter-spacing:-.035em}
+/* Portrait quotes use the landing page's quote type; notes link to the appendix and back. */
+.manifesto-portrait blockquote{margin-top:32px;font:italic 500 clamp(24px,2.5vw,34px)/1.5 var(--display);letter-spacing:-.025em;text-wrap:pretty}
+.manifesto-quote-source{margin-top:12px;font:500 13px/1.7 var(--ui);color:#BDBDBD}
+.manifesto-page sup{font-size:.6em;line-height:0}
+.manifesto-page sup a{padding:0 2px;color:#BDBDBD;text-decoration:none;scroll-margin-top:110px}
+.manifesto-page sup a:focus-visible,.manifesto-appendix a:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.manifesto-signature{margin-top:40px;font:500 14px/1.5 var(--ui);color:#BDBDBD}
+.content-page.manifesto-page #below .manifesto-appendix{max-width:720px;margin:132px auto 0;padding-top:40px;border-top:1px solid #616161}
+.manifesto-page #below .manifesto-appendix h2{margin-bottom:24px;font:500 12px/1.5 var(--ui);letter-spacing:.02em}
+.manifesto-appendix ol{padding-left:24px;font:500 15px/1.6 var(--ui);color:#BDBDBD;overflow-wrap:anywhere}
+.manifesto-appendix li{scroll-margin-top:110px}
+.manifesto-appendix li+li{margin-top:16px}
+.manifesto-appendix a{color:#fff;text-underline-offset:3px}
+.manifesto-appendix .manifesto-back{margin-left:6px;text-decoration:none}
+@media(hover:hover) and (pointer:fine){.manifesto-page sup a:hover{text-decoration:underline}}
 .manifesto-path{margin:36px 0;border-top:1px solid #616161}
 .manifesto-path>div{display:grid;grid-template-columns:1fr 1.2fr;gap:24px;padding:22px 0;border-bottom:1px solid #616161}
 .manifesto-path dt{font:500 17px/1.6 var(--ui);color:#BDBDBD}
@@ -80,8 +90,8 @@
   .manifesto-prose .manifesto-number{margin-bottom:24px}
   .manifesto-ending .manifesto-final{font-size:clamp(42px,10.2vw,70px)}
   .manifesto-ending .manifesto-last-question{font-size:23px;margin-top:28px}
-  .manifesto-statement{font-size:clamp(34px,9vw,58px);margin-bottom:88px}
-  .manifesto-prose .manifesto-strong{font-size:23px}
+  .manifesto-portrait blockquote{font-size:23px}
+  .content-page.manifesto-page #below .manifesto-appendix{margin-top:88px}
   .manifesto-path>div{grid-template-columns:.95fr 1.05fr;gap:16px;padding:20px 0}
   .manifesto-path dt{font-size:15px}
   .manifesto-path dd{font-size:20px}
