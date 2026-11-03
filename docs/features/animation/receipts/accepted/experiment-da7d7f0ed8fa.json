@@ -1,0 +1,349 @@
+{
+ "schema": "animation-scene/1",
+ "artifactId": "ar_4db8d25b412c4f59ab45afb1f3098a90",
+ "revision": 1,
+ "planHash": "d5ef317c6be5a0d7213856bf5f56e990a0406435dcb9b2b6029e9019f0e6596c",
+ "capabilityVersion": "animation-capabilities/1",
+ "title": "Pendulum length and period",
+ "description": "A support beam sits at the top of the scene. A thin string hangs from it with a small round bob on the end, and the bob swings left and right. A slider sets the string length from 0.2 to 3 m. The string and the swing change right away, and a readout shows the period. Other readouts show the length and the bob's current angle. You can also choose Earth, Moon or Mars gravity and set the release angle.",
+ "experience": "experiment",
+ "behavior": "analytical",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "scene": {
+  "materials": [
+   {
+    "id": "steel",
+    "color": "#555b66",
+    "opacity": 1
+   },
+   {
+    "id": "string",
+    "color": "#222222",
+    "opacity": 1
+   },
+   {
+    "id": "bob",
+    "color": "#d9822b",
+    "opacity": 1
+   }
+  ],
+  "geometries": [
+   {
+    "id": "beam",
+    "kind": "box",
+    "size": [
+     1.6,
+     0.12,
+     0.3
+    ]
+   },
+   {
+    "id": "rod",
+    "kind": "cylinder",
+    "radius": 0.015,
+    "height": 1,
+    "radialSegments": 8
+   },
+   {
+    "id": "ball",
+    "kind": "sphere",
+    "radius": 0.05,
+    "widthSegments": 24,
+    "heightSegments": 12
+   },
+   {
+    "id": "lblSupport",
+    "kind": "label",
+    "text": "Support",
+    "size": 0.3,
+    "placement": "above"
+   },
+   {
+    "id": "lblLength",
+    "kind": "label",
+    "text": "Length L",
+    "size": 0.3,
+    "placement": "right"
+   },
+   {
+    "id": "lblBob",
+    "kind": "label",
+    "text": "Bob",
+    "size": 0.3,
+    "placement": "below"
+   }
+  ],
+  "nodes": [
+   {
+    "id": "support",
+    "name": "Support",
+    "parent": null,
+    "geometry": "beam",
+    "material": "steel",
+    "position": [
+     0,
+     3.26,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "supportLabel",
+    "parent": "support",
+    "geometry": "lblSupport",
+    "position": [
+     0,
+     0.06,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "pend",
+    "name": "Pendulum",
+    "parent": null,
+    "position": [
+     0,
+     3.2,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "str",
+    "name": "String",
+    "parent": "pend",
+    "geometry": "rod",
+    "material": "string",
+    "position": [
+     0,
+     -0.5,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "lenLabel",
+    "parent": "pend",
+    "geometry": "lblLength",
+    "position": [
+     0.02,
+     -0.5,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "bobNode",
+    "name": "Bob",
+    "parent": "pend",
+    "geometry": "ball",
+    "material": "bob",
+    "position": [
+     0,
+     -1,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   },
+   {
+    "id": "bobLabel",
+    "parent": "bobNode",
+    "geometry": "lblBob",
+    "position": [
+     0,
+     -0.05,
+     0
+    ],
+    "quaternion": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "visible": true,
+    "selectable": false
+   }
+  ]
+ },
+ "parameters": [
+  {
+   "type": "number",
+   "id": "length",
+   "label": "String length",
+   "unit": "m",
+   "min": 0.2,
+   "max": 3,
+   "step": 0.1,
+   "default": 1
+  },
+  {
+   "type": "number",
+   "id": "amplitude",
+   "label": "Release angle",
+   "unit": "°",
+   "min": 2,
+   "max": 20,
+   "step": 1,
+   "default": 10
+  },
+  {
+   "type": "select",
+   "id": "gravity",
+   "label": "Gravity",
+   "options": [
+    {
+     "value": "earth",
+     "label": "Earth (9.81 m/s²)"
+    },
+    {
+     "value": "moon",
+     "label": "Moon (1.62 m/s²)"
+    },
+    {
+     "value": "mars",
+     "label": "Mars (3.71 m/s²)"
+    }
+   ],
+   "default": "earth"
+  }
+ ],
+ "actions": [],
+ "readouts": [
+  {
+   "id": "period",
+   "label": "Period",
+   "unit": "s",
+   "decimals": 2
+  },
+  {
+   "id": "len",
+   "label": "Length",
+   "unit": "m",
+   "decimals": 1
+  },
+  {
+   "id": "angle",
+   "label": "Current angle",
+   "unit": "°",
+   "decimals": 1
+  }
+ ],
+ "timeline": {
+  "duration": 120,
+  "loop": true
+ },
+ "stepped": false,
+ "program": {
+  "kind": "animation_program",
+  "schemaVersion": 1,
+  "runtimeVersion": "quickjs-release-sync@0.32.0",
+  "sdkVersion": "animation-sdk-1",
+  "rendererVersion": "animation-renderer-1",
+  "runtimePolicyVersion": "animation-policy-1",
+  "source": "const G={earth:9.81,moon:1.62,mars:3.71};\nexport function evaluate({inputs,time}){\nconst L=Number(inputs.length)||1;\nconst g=G[inputs.gravity]||9.81;\nconst T=2*Math.PI*Math.sqrt(L/g);\nconst a0=(Number(inputs.amplitude)||10)*Math.PI/180;\nconst th=a0*Math.cos(2*Math.PI*time/T);\nconst h=th/2;\nreturn{nodes:{pend:{quaternion:[0,0,Math.sin(h),Math.cos(h)]},str:{position:[0,-L/2,0],scale:[1,L,1]},lenLabel:{position:[0.02,-L/2,0]},bobNode:{position:[0,-L,0]}},readouts:{period:T,len:L,angle:th*180/Math.PI}};\n}",
+  "sourceHash": "e9f4a1b5b1d55c87eb8d3f6fc936cf7b677863964d69ea1be8c6cf84b540d450"
+ },
+ "seed": 0,
+ "camera": {
+  "position": [
+   0,
+   1.7,
+   6.5
+  ],
+  "target": [
+   0,
+   1.7,
+   0
+  ],
+  "fov": 50
+ },
+ "assumptions": [
+  "The period follows the small-swing formula: period = 2π × √(length ÷ gravity).",
+  "The string has no mass and does not stretch, and all the bob's mass sits at one point. There is no air resistance or friction.",
+  "The motion is worked out from the scene clock, so changing the length or gravity restarts the swing at the new rate from the current time. The bob may jump to a new spot when you do this."
+ ],
+ "provenance": {
+  "origin": "generated",
+  "model": "claude-opus-5-5",
+  "createdAt": "2026-10-30T22:56:28.388Z"
+ }
+}

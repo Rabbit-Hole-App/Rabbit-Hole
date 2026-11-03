@@ -1,0 +1,731 @@
+{
+ "source": "Job aj_ad936ec1d2564dc1a37346299ca7d0cd (dev, 2026-11-02, refined 40-step SGD request): the last draft from /api/learn/animation/jobs/<id>?detail=1 (diagnostics.draft), its plan and sealing inputs, and the coverage its first review was sampled with. Sealing the draft with these inputs gives artifactHash.",
+ "prompt": "Show me how stochastic gradient descent works. Let me change the learning rate and batch size to see what happens.",
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Stochastic Gradient Descent on a Loss Bowl: Learning Rate and Batch Size",
+  "description": "A colored, stretched bowl-shaped surface shows the loss (the error to minimize) over two model weights, with a marked lowest point. A ball starts on the slope. Each step, it moves against a slope estimated from a small random batch of data and leaves a trail. A run lasts up to 40 steps. Change the learning rate to see steps shrink, grow, zigzag or fly out of the bowl. Change the batch size to see the path go from jittery to smooth.",
+  "experience": "experiment",
+  "reason": "You asked to change the learning rate and batch size. Here you can set both, run a short descent step by step, and compare a saved path and the loss readouts with the current run.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate",
+    "min": 0.01,
+    "max": 0.6,
+    "step": 0.01,
+    "default": 0.1
+   },
+   {
+    "type": "select",
+    "id": "batchSize",
+    "label": "Batch size (out of 256 examples)",
+    "options": [
+     {
+      "value": "1",
+      "label": "1 (pure SGD)"
+     },
+     {
+      "value": "4",
+      "label": "4"
+     },
+     {
+      "value": "16",
+      "label": "16"
+     },
+     {
+      "value": "64",
+      "label": "64"
+     },
+     {
+      "value": "256",
+      "label": "256 (full batch)"
+     }
+    ],
+    "default": "4"
+   },
+   {
+    "type": "toggle",
+    "id": "showTrueGradient",
+    "label": "Show full-batch direction",
+    "default": true
+   }
+  ],
+  "interactions": [
+   "Play, pause or advance one step at a time. The ball descends and leaves a trail of up to 40 points, one for each step. The run ends after 40 steps or when the ball leaves the bowl.",
+   "Learning rate: small values give short, slow steps. Above 0.25 the ball zigzags across the steep direction. Above 0.5 the zigzag grows each step and the ball can leave the bowl (\"diverged\").",
+   "Batch size: at 1 the steps scatter in many directions and the ball keeps jittering near the bottom. Larger batches straighten the path. At 256 every step follows the exact slope.",
+   "Full-batch direction: when this is on, a faint arrow shows the direction the full dataset would give. A solid arrow shows the batch step the ball actually takes.",
+   "Keep path and restart: the current trail (up to 40 points) becomes a faded comparison line, replacing any earlier one. The ball restarts from the same point with current settings."
+  ],
+  "assumptions": [
+   "This is an illustration: the loss bowl is a made-up formula and the batch noise is simulated, not taken from a real dataset or model.",
+   "The loss is half of (first weight squared + 4 × second weight squared). Without noise, each step multiplies the distance along the steep direction by (1 − 4 × learning rate): the ball zigzags when this is negative (above 0.25) and swings wider when below −1 (above 0.5).",
+   "The batch slope is the exact slope plus simulated random noise. The noise shrinks as the batch grows, as it would when sampling without replacement from 256 examples, and is exactly zero at batch size 256.",
+   "The noise comes from a fixed seed, so after Reset the same settings give the same path.",
+   "The solid arrow is the step actually taken: the negative batch slope times the learning rate. The faint arrow is the negative full-batch slope. The ball moves along the solid arrow.",
+   "Readouts show the step count (0 to 40), the current loss, the distance from the lowest point and the batch noise level. A diverged state is shown when the ball passes the bowl's edge, and that run stops.",
+   "The trail draws one marker every 7 steps, at most 37 markers; every step still runs."
+  ],
+  "limitations": [
+   "Changed: the trail draws 37 markers, one every 7 steps, instead of 256; every step still runs.",
+   "Changed: the kept comparison path also draws at most 37 markers.",
+   "With small batches, a single step can raise the loss. The loss goes down only on average.",
+   "With noise, the stability values above describe the typical trend rather than every single run.",
+   "Just above 0.5 the zigzag grows slowly and may not leave the bowl within 40 steps.",
+   "Each run is limited to 40 steps, so very slow settings, such as a tiny learning rate, may not reach the bottom.",
+   "A real neural network's loss has many dimensions, flat areas and several valleys. This bowl has two weights and one lowest point.",
+   "The scene does not measure computing time, so it cannot show the extra cost of large batches."
+  ],
+  "learningGoal": "See that SGD steps downhill using a noisy estimate of the slope from a batch of data. The learning rate sets the step length and whether the process stays stable. A larger batch reduces the noise but uses more data per step.",
+  "requiredCapabilities": [
+   "step",
+   "parameters",
+   "actions",
+   "select",
+   "labels",
+   "readouts",
+   "speed"
+  ]
+ },
+ "planHash": "f8c8bc0b37bdad41a34c75d83cbb4d2ae8b789aa272b193d0290138fa302ec46",
+ "resultId": "ar_3bf332480a3f47888412d1a51c363a05",
+ "revision": 1,
+ "servedModel": "claude-opus-5-5",
+ "createdAt": "2026-11-03T04:19:18.352Z",
+ "artifactHash": "b85582c531394af59e1c1801264cae62db9d8b5f7caec2b0bfc60ddb92f42fff",
+ "recordedCoverage": {
+  "views": [
+   "default",
+   "side"
+  ],
+  "sampled": [
+   {
+    "label": "initial",
+    "time": 0,
+    "events": 0,
+    "ticks": 0
+   },
+   {
+    "label": "action keepPath",
+    "time": 0,
+    "events": 1,
+    "ticks": 30
+   },
+   {
+    "label": "sequence of 4 events",
+    "time": 0,
+    "events": 4,
+    "ticks": 90
+   }
+  ],
+  "omitted": [
+   "every parameter at its low end",
+   "every parameter at its high end"
+  ]
+ },
+ "draft": {
+  "title": "Stochastic Gradient Descent on a Loss Bowl",
+  "description": "A bowl drawn as stacked oval rings shows loss over two weights (left-right and front-back), with the minimum marked at the bottom. A red ball steps downhill from the upper left, leaving a trail of dots. A solid orange arrow from the ball's edge shows the batch step (drawn 4 times longer); a faint blue arrow shows the full-batch downhill direction. Readouts give loss, step count, distance to the minimum and batch noise level.",
+  "experience": "experiment",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "stepped": true,
+  "scene": {
+   "materials": [
+    {
+     "id": "ring",
+     "color": "#5b7fa8",
+     "opacity": 0.6
+    },
+    {
+     "id": "ball",
+     "color": "#d63c2f"
+    },
+    {
+     "id": "tr",
+     "color": "#e08a2c"
+    },
+    {
+     "id": "kp",
+     "color": "#888888",
+     "opacity": 0.5
+    },
+    {
+     "id": "min",
+     "color": "#2f8f4e"
+    },
+    {
+     "id": "st",
+     "color": "#e07b10"
+    },
+    {
+     "id": "fb",
+     "color": "#3d6fd6",
+     "opacity": 0.4
+    }
+   ],
+   "geometries": [
+    {
+     "id": "c",
+     "kind": "curve",
+     "closed": true,
+     "segments": 64,
+     "points": [
+      [
+       1,
+       0,
+       0
+      ],
+      [
+       0.866,
+       0,
+       0.5
+      ],
+      [
+       0.5,
+       0,
+       0.866
+      ],
+      [
+       0,
+       0,
+       1
+      ],
+      [
+       -0.5,
+       0,
+       0.866
+      ],
+      [
+       -0.866,
+       0,
+       0.5
+      ],
+      [
+       -1,
+       0,
+       0
+      ],
+      [
+       -0.866,
+       0,
+       -0.5
+      ],
+      [
+       -0.5,
+       0,
+       -0.866
+      ],
+      [
+       0,
+       0,
+       -1
+      ],
+      [
+       0.5,
+       0,
+       -0.866
+      ],
+      [
+       0.866,
+       0,
+       -0.5
+      ]
+     ]
+    },
+    {
+     "id": "b",
+     "kind": "sphere",
+     "radius": 0.18,
+     "widthSegments": 24,
+     "heightSegments": 24
+    },
+    {
+     "id": "m",
+     "kind": "sphere",
+     "radius": 0.06,
+     "widthSegments": 8,
+     "heightSegments": 6
+    },
+    {
+     "id": "mn",
+     "kind": "cylinder",
+     "radius": 0.12,
+     "height": 0.04,
+     "radialSegments": 32
+    },
+    {
+     "id": "a",
+     "kind": "arrow",
+     "length": 1
+    },
+    {
+     "id": "lb",
+     "kind": "label",
+     "text": "Lowest loss",
+     "placement": "below"
+    },
+    {
+     "id": "lball",
+     "kind": "label",
+     "text": "Weights",
+     "placement": "above"
+    }
+   ],
+   "nodes": [
+    {
+     "id": "r1",
+     "geometry": "c",
+     "material": "ring",
+     "position": [
+      0,
+      0.25,
+      0
+     ],
+     "scale": [
+      1.414,
+      1,
+      0.707
+     ]
+    },
+    {
+     "id": "r2",
+     "geometry": "c",
+     "material": "ring",
+     "position": [
+      0,
+      0.75,
+      0
+     ],
+     "scale": [
+      2.449,
+      1,
+      1.225
+     ]
+    },
+    {
+     "id": "r3",
+     "geometry": "c",
+     "material": "ring",
+     "position": [
+      0,
+      1.5,
+      0
+     ],
+     "scale": [
+      3.464,
+      1,
+      1.732
+     ]
+    },
+    {
+     "id": "r4",
+     "geometry": "c",
+     "material": "ring",
+     "position": [
+      0,
+      2.5,
+      0
+     ],
+     "scale": [
+      4.472,
+      1,
+      2.236
+     ]
+    },
+    {
+     "id": "mk",
+     "geometry": "mn",
+     "material": "min",
+     "position": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "id": "mkl",
+     "geometry": "lb",
+     "parent": "mk",
+     "position": [
+      0,
+      -0.05,
+      0
+     ]
+    },
+    {
+     "id": "ball",
+     "geometry": "b",
+     "material": "ball",
+     "position": [
+      -3.5,
+      2.2,
+      1
+     ]
+    },
+    {
+     "id": "bl",
+     "geometry": "lball",
+     "parent": "ball",
+     "position": [
+      0,
+      0.2,
+      0
+     ]
+    },
+    {
+     "id": "sa",
+     "geometry": "a",
+     "material": "st"
+    },
+    {
+     "id": "fa",
+     "geometry": "a",
+     "material": "fb"
+    },
+    {
+     "id": "t0",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t1",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t2",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t3",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t4",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t5",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t6",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t7",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t8",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t9",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t10",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t11",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t12",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t13",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t14",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t15",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t16",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t17",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t18",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "t19",
+     "geometry": "m",
+     "material": "tr",
+     "visible": false
+    },
+    {
+     "id": "k0",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k1",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k2",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k3",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k4",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k5",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k6",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k7",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k8",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k9",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k10",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k11",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k12",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k13",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k14",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k15",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k16",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k17",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k18",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    },
+    {
+     "id": "k19",
+     "geometry": "m",
+     "material": "kp",
+     "visible": false
+    }
+   ]
+  },
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate",
+    "min": 0.01,
+    "max": 0.6,
+    "step": 0.01,
+    "default": 0.1
+   },
+   {
+    "type": "select",
+    "id": "batchSize",
+    "label": "Batch size (out of 256 examples)",
+    "options": [
+     {
+      "value": "1",
+      "label": "1 (pure SGD)"
+     },
+     {
+      "value": "4",
+      "label": "4"
+     },
+     {
+      "value": "16",
+      "label": "16"
+     },
+     {
+      "value": "64",
+      "label": "64"
+     },
+     {
+      "value": "256",
+      "label": "256 (full batch)"
+     }
+    ],
+    "default": "4"
+   },
+   {
+    "type": "toggle",
+    "id": "showTrueGradient",
+    "label": "Show full-batch direction",
+    "default": true
+   }
+  ],
+  "actions": [
+   {
+    "id": "keepPath",
+    "label": "Keep path and restart"
+   }
+  ],
+  "readouts": [
+   {
+    "id": "loss",
+    "label": "Loss",
+    "decimals": 3
+   },
+   {
+    "id": "stepN",
+    "label": "Step (of 40)",
+    "decimals": 0
+   },
+   {
+    "id": "dist",
+    "label": "Distance to lowest point",
+    "decimals": 3
+   },
+   {
+    "id": "noise",
+    "label": "Batch noise level",
+    "decimals": 3
+   }
+  ],
+  "seed": 7,
+  "camera": {
+   "position": [
+    0,
+    7,
+    8.5
+   ],
+   "target": [
+    0,
+    1,
+    0
+   ],
+   "fov": 45
+  },
+  "assumptions": [
+   "Illustration: the loss bowl is a made-up formula and the batch noise is simulated, not from a real dataset or model.",
+   "Loss = 0.5 × (w1² + 4 × w2²). Without noise each step multiplies w2 by (1 − 4 × learning rate): zigzag above 0.25, growing swings above 0.5.",
+   "Batch slope = exact slope + simulated noise with spread (the noise readout) 3·sqrt((256−B)/(255·B)); zero at batch 256. Noise is seeded, so the same settings repeat the same path.",
+   "Solid orange arrow: the step taken (−learning rate × batch slope), drawn 4× longer from the ball's edge. Faint blue arrow: the negative full-batch slope direction. Loss falls only on average with small batches.",
+   "A run stops after 40 steps or when loss exceeds 10 (the outer ring); the ball's label then reads Diverged. Changing a setting restarts the run from the start point. The trail draws one dot every 2 steps (20 dots)."
+  ],
+  "program": {
+   "source": "const S=[-3.5,1];const L=(x,z)=>0.5*(x*x+4*z*z);\nfunction rn(s){s=Math.sin(s*12.9898+78.233)*43758.5453;return s-Math.floor(s)}\nfunction gs(s){const u=Math.max(rn(s),1e-6),v=rn(s+0.5);const r=Math.sqrt(-2*Math.log(u));return[r*Math.cos(6.2832*v),r*Math.sin(6.2832*v)]}\nfunction sig(i){const B=+i.batchSize;return 3*Math.sqrt((256-B)/(255*B))}\nfunction grad(st,i,seed){const n=gs(seed*1000+st.k*7.13+1);const s=sig(i);return[st.w[0]+s*n[0],4*st.w[1]+s*n[1]]}\nexport function initialState({inputs,seed}){return{w:S.slice(),k:0,c:0,tr:[],kp:[],div:false}}\nfunction fresh(st){return{w:S.slice(),k:0,c:0,tr:[],kp:st.kp,div:false}}\nexport function reduce({state,event,inputs,seed}){if(event.type==='parameter')return fresh(state);if(event.type==='action'&&event.id==='keepPath'){const n=fresh(state);n.kp=state.tr.slice();return n}\nif(event.type!=='step'||state.k>=40||state.div)return state;const c=state.c+1;if(c<6)return{...state,c};const g=grad(state,inputs,seed);const lr=inputs.learningRate;const w=[state.w[0]-lr*g[0],state.w[1]-lr*g[1]];const k=state.k+1;const tr=k%2===0?state.tr.concat([w]):state.tr;return{...state,w,k,c:0,tr,div:L(w[0],w[1])>10}}\nfunction q(dx,dz){const m=Math.hypot(dx,dz)||1;const x=dz/m,z=-dx/m;const n=Math.hypot(x,z,1);return[x/n,0,z/n,1/n]}\nconst P=(w,o)=>{const l=Math.min(L(w[0],w[1]),12);return[w[0],0.25*l+o,w[1]]};\nexport function evaluate({inputs,state,seed}){const st=state||initialState({inputs,seed});const N={};const w=st.w;const bp=P(w,0.18);N.ball={position:bp};N.bl={text:st.div?'Diverged':'Weights'};for(let j=0;j<20;j++){const a=st.tr[j],b=st.kp[j];N['t'+j]=a?{visible:true,position:P(a,0.05)}:{visible:false};N['k'+j]=b?{visible:true,position:P(b,0.05)}:{visible:false}}\nconst done=st.k>=40||st.div;const g=grad(st,inputs,seed);const lr=inputs.learningRate;const sx=-lr*g[0],sz=-lr*g[1];const sl=Math.hypot(sx,sz)||1;const ap=[bp[0]+0.2*sx/sl,bp[1]+0.05,bp[2]+0.2*sz/sl];N.sa={visible:!done,position:ap,quaternion:q(sx,sz),scale:[1,Math.max(4*sl,0.25),1]};N.fa={visible:!done&&inputs.showTrueGradient,position:[bp[0],bp[1]+0.05,bp[2]],quaternion:q(-w[0],-4*w[1]),scale:[1,1,1]};\nreturn{nodes:N,readouts:{loss:L(w[0],w[1]),stepN:st.k,dist:Math.hypot(w[0],w[1]),noise:sig(inputs)}}}"
+  }
+ }
+}

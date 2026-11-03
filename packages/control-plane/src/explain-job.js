@@ -571,7 +571,7 @@ export class ExplainJobs {
       if (current.counts[role] + 1 > limit) throw Object.assign(fail(`This explanation reached its ${role} limit.`, 429), { stopReason: 'budget' });
       if (Date.now() >= current.deadline) throw Object.assign(fail('This explanation reached its time limit.', 409), { stopReason: 'deadline' });
       current.counts[role]++; current.reservedMicros += boundMicros;
-      const callKey = `${current.id}-${role}-${current.counts[role]}`;
+      const callKey = `${current.id}-${role}-${current.calls.length + 1}`; // per record: a refused call gives its count back, so the count would repeat a key
       current.inFlight = { key: callKey, role, at: Date.now() };
       current.calls.push({ key: callKey, role, attempt: current.attempt, requested: null, served: null, status: 'running', boundMicros, images, costMicros: null, inputTokens: null, outputTokens: null, startedAt: Date.now(), endedAt: null });
       await this.save(current);

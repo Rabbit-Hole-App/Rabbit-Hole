@@ -33,6 +33,7 @@ import { escapeText, isReviewProposal, promptSegments, removeReference } from '.
 import { announcement, elapsedText } from './generation-proposal-status.js';
 import { useSeconds } from './use-seconds.js';
 import { Button, Tip, cn } from './ui.jsx';
+import { MdInline } from './Md.jsx';
 
 const ICONS = { doc: FileText, card: StickyNote, group: Group, code: FileCode2, image: ImageIcon, media: Film, web: Globe, progress: ChartColumnIncreasing, canvas: Shapes, file: FileText, excerpt: FileText, graph: ChartColumnIncreasing };
 const fmt = n => Number(n).toLocaleString('en-US');
@@ -62,15 +63,35 @@ const none = () => ({});
 
 function SelectField({ f, value, settings, disabled, onChange }) {
   const options = selectOptions(f, value, settings);
+  // An option may carry a plain-language hint (an animation experience): the chosen one's is said beside the select.
+  const hint = options.find(o => o.value === value)?.hint;
+  // A short set of choices described in plain words (an animation experience) is shown as a visible choice, the chosen one marked,
+  // not hidden in a menu (owner 2026-11-01: make the chosen experience visibly selected).
+  if (options.length > 1 && options.length <= 4 && options.every(o => o.hint)) return (
+    <div data-proposal-field={f.key} className="flex flex-wrap items-center gap-2 text-[13px] text-ink-2">
+      <span id={`proposal-${f.key}-label`}>{f.label}</span>
+      <div role="radiogroup" aria-labelledby={`proposal-${f.key}-label`} data-proposal-select={f.key} data-value={String(value ?? '')} className="inline-flex flex-wrap gap-1">
+        {options.map(o => {
+          const on = o.value === value;
+          return <button key={String(o.value)} type="button" role="radio" aria-checked={on} data-proposal-option={o.value} disabled={disabled} onClick={() => !on && onChange(o.value)}
+            className={`h-7 rounded-md border px-2.5 text-[13px] focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50 ${on ? 'border-accent bg-accent font-medium text-white' : 'border-line bg-surface text-ink hover:bg-hover'}`}>{o.label}</button>;
+        })}
+      </div>
+      {hint && <span data-proposal-hint={f.key} className="text-xs text-ink-3">{hint}</span>}
+    </div>
+  );
   return (
-    <label data-proposal-field={f.key} title={f.available === false ? f.unavailable_reason : undefined} className="flex items-center gap-2 text-[13px] text-ink-2">
-      {f.label}
-      <select {...(f.key === 'duration_seconds' ? { 'data-proposal-duration': true } : {})} disabled={disabled} data-proposal-select={f.key} value={value ?? ''}
-        onChange={event => onChange(options.find(o => String(o.value) === event.target.value)?.value)} className={control}>
-        {(value === undefined || value === null) && <option value="">Default</option>}
-        {options.map(o => <option key={String(o.value)} value={o.value}>{o.label}</option>)}
-      </select>
-    </label>
+    <>
+      <label data-proposal-field={f.key} title={f.available === false ? f.unavailable_reason : undefined} className="flex items-center gap-2 text-[13px] text-ink-2">
+        {f.label}
+        <select {...(f.key === 'duration_seconds' ? { 'data-proposal-duration': true } : {})} disabled={disabled} data-proposal-select={f.key} value={value ?? ''}
+          onChange={event => onChange(options.find(o => String(o.value) === event.target.value)?.value)} className={control}>
+          {(value === undefined || value === null) && <option value="">Default</option>}
+          {options.map(o => <option key={String(o.value)} value={o.value}>{o.label}</option>)}
+        </select>
+      </label>
+      {hint && <span data-proposal-hint={f.key} className="text-xs text-ink-3">{hint}</span>}
+    </>
   );
 }
 
@@ -210,10 +231,11 @@ function RefPill({ reference, state, onOpen }) {
 
 function Description({ text, tokenized, references, states, onOpen, extra }) {
   const segments = tokenized ? promptSegments(text, references) : null;
-  if (!segments) return <p data-proposal-description {...extra} className="text-sm leading-relaxed break-words text-ink">{text}</p>;
+  // Delimited math ($...$, \(...\)) is typeset (MdInline mathOnly); any other text, plain formulas included, is shown as written.
+  if (!segments) return <p data-proposal-description {...extra} className="text-sm leading-relaxed break-words text-ink"><MdInline text={text} mathOnly /></p>;
   return (
     <p data-proposal-description {...extra} className="text-sm leading-relaxed break-words text-ink">
-      {segments.map((s, i) => (s.type === 'text' ? s.text : s.reference ? <RefPill key={i} reference={s.reference} state={states?.find(x => x.id === s.id)} onOpen={onOpen} /> : null))}
+      {segments.map((s, i) => (s.type === 'text' ? <MdInline key={i} text={s.text} mathOnly /> : s.reference ? <RefPill key={i} reference={s.reference} state={states?.find(x => x.id === s.id)} onOpen={onOpen} /> : null))}
     </p>
   );
 }
@@ -284,7 +306,8 @@ function StopControl({ noun, onStop, onFailed }) {
 
 // made: this proposal already added its card (inactive, but not superseded).
 export default function GenerationProposalCard({ proposal = null, view: given = null, defaultEditing = false, settingsMode = 'live', active = true, onGenerate, onSave, onSettingsChange, onCancel, onOpenReference, busy = false, made = false, states = null, problem = null, groups = null,
-  groupProblem = null, onEdit = null, targeted = false, released = 0, status = null, startedAt = null, noun = 'video', onStop = null, onGoToCard = null, onStopFailed = null, Editor = DefaultEditor, eyebrow = null, requestLabel = null, note = null, extraSections = [], compact = false, isolate = false, attrs: attrsFn = none }) {
+  groupProblem = null, onEdit = null, targeted = false, released = 0, status = null, startedAt = null, noun = 'video', onStop = null, onGoToCard = null, onStopFailed = null, Editor = DefaultEditor, eyebrow = null, requestLabel = null, note = null, extraSections = [], compact = false, isolate = false, attrs: attrsFn = none,
+  summary = null, editLabel = 'Edit' }) {
   const view = given ?? proposalView(proposal, states ? { validation_errors: states.filter(s => s.state !== 'ok').map(s => ({ path: `references.${s.id}`, message: s.message })) } : {});
   const def = commandDefinition(view.command);
   const tokenized = proposal ? isReviewProposal(proposal) : false;
@@ -326,11 +349,18 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
   const set = (k, v) => setDraft(d => ({ ...d, [k]: v }));
   const dropReference = id => setDraft(d => { const next = removeReference({ prompt: d.description, references: d.references }, id); return { ...d, description: next.prompt, references: next.references }; });
   const shown = editing && draft ? { ...view, ...draft } : view;
-  const sections = SECTIONS.filter(s => (editing && DETAIL_LISTS.includes(s) && isEditable(view.command, s)) || visibleSections(shown).includes(s));
+  // summary (an adapter's short version of the plan, the /animation review): it replaces the request echo and the requirement,
+  // assumption and limitation lists, and the description comes before the settings.
+  const sections = SECTIONS.filter(s => (editing && DETAIL_LISTS.includes(s) && isEditable(view.command, s)) || visibleSections(shown).includes(s))
+    .filter(s => !(summary && !editing && ['requirements', 'assumptions', 'limitations'].includes(s)));
   // A reference's own words sit beside its pill when the references are drawn; the list below carries the rest.
   const errors = (view.validation_errors || []).filter(e => !(e.path.startsWith('references.') && sections.includes('references')));
   const message = problem?.message || saveError;
-  const request = view.original_request && view.original_request.replace(/^\/[a-z0-9-]+\s*/i, '');
+  const settingsBlock = (
+    <Settings command={view.command} settings={editing && form && draft?.settings ? draft.settings : view.settings} disabled={!active || working || (form && !editing)} mode={settingsMode} editing={editing} groups={groups} groupProblem={groupProblem} attrs={attrs}
+      onChange={settings => (form ? set('settings', settings) : change(settings))} />
+  );
+  const request = !summary && view.original_request && view.original_request.replace(/^\/[a-z0-9-]+\s*/i, '');
   return (
     <section data-generation-proposal={view.command} data-proposal-id={view.proposal_id} data-proposal-version={view.revision} data-proposal-targeted={targeted ? 'true' : undefined} data-proposal-active={active ? 'true' : 'false'} data-proposal-status={view.status} {...attrs('root')}
       aria-label={eyebrow || view.title} {...(isolate ? { role: 'group', onPointerDown: event => event.stopPropagation() } : {})}
@@ -348,11 +378,12 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
           </p>
         </div>
       )}
-      <Settings command={view.command} settings={editing && form && draft?.settings ? draft.settings : view.settings} disabled={!active || working || (form && !editing)} mode={settingsMode} editing={editing} groups={groups} groupProblem={groupProblem} attrs={attrs}
-        onChange={settings => (form ? set('settings', settings) : change(settings))} />
+      {!summary && settingsBlock}
       {editing && isEditable(view.command, 'description')
         ? <Editor value={draft.description} references={draft.references} onChange={value => set('description', value)} disabled={working} extra={attrs('field', 'description')} />
         : <Description text={view.description} tokenized={tokenized} references={view.references} states={states} onOpen={onOpenReference} extra={attrs('description')} />}
+      {summary && settingsBlock}
+      {summary}
       {sections.map(s => {
         if (s === 'usage') return null;
         if (s === 'references') {
@@ -375,7 +406,7 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
         return (
           <div key={s} data-proposal-section={s}>
             <p className="text-[11px] font-semibold tracking-wide text-ink-3 uppercase">{def?.section_titles?.[s] ?? SECTION_TITLES[s]}</p>
-            <ul className={cn('list-disc pl-4 text-xs text-ink', TONES[s])} {...attrs('list', s)}>{shown[s].map((item, i) => <li key={i}>{item}</li>)}</ul>
+            <ul className={cn('list-disc pl-4 text-xs text-ink', TONES[s])} {...attrs('list', s)}>{shown[s].map((item, i) => <li key={i}><MdInline text={item} mathOnly /></li>)}</ul>
           </div>
         );
       })}
@@ -405,7 +436,7 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
             <Button type="button" variant="secondary" size="sm" data-proposal-discard {...attrs('discard')} disabled={saving} onClick={close}>Discard</Button>
             <Button type="button" variant="secondary" size="sm" data-proposal-save {...attrs('save')} disabled={saving || !dirty || bad} onClick={save}>Save</Button>
           </>
-          : onEdit ? active && view.allowed_actions.includes('edit') && <Button type="button" variant="secondary" size="sm" data-proposal-edit {...attrs('edit')} disabled={working} onClick={() => onEdit(proposal ?? view)}>Edit</Button>
+          : onEdit ? active && view.allowed_actions.includes('edit') && <Button type="button" variant="secondary" size="sm" data-proposal-edit {...attrs('edit')} disabled={working} onClick={() => onEdit(proposal ?? view)}>{editLabel}</Button>
           : detailKeys.length > 0 && active && view.allowed_actions.includes('edit') && <Button type="button" variant="secondary" size="sm" data-proposal-edit {...attrs('edit')} disabled={working} onClick={open}>Edit details</Button>}
         <Button type="button" variant="action" data-proposal-generate {...attrs('generate')} disabled={!active || working || !canGenerate || sentKey === key || !!status}
           {...(status ? { 'data-proposal-phase': status.phase, 'aria-busy': status.spinner || undefined } : {})}

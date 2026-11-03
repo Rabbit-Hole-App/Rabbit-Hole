@@ -1,0 +1,1121 @@
+{
+ "source": "job aj_9c453b6158ee46b2956ec21554ab713f on canvas-99bc896f, code bf48ef7ce, 2026-11-02. The repaired draft as saved by the job. The original draft was not retained.",
+ "prompt": "Show me how stochastic gradient descent works. Let me change the learning rate and batch size to see what happens.",
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Stochastic Gradient Descent on a Loss Bowl: Learning Rate and Batch Size",
+  "description": "A ball moves one step at a time down a stretched bowl-shaped surface. The surface is the loss, and its lowest point is the best setting of two model weights. At each step, two arrows appear at the ball: one shows the true downhill direction and one shows the noisy estimate from a small batch. The ball moves along the noisy arrow by a distance set by the learning rate and leaves a short trail. Each run lasts at most 40 steps, so you can quickly see the path change from slow, to wobbly, to smooth, to zig-zag, to blowing up.",
+  "experience": "experiment",
+  "reason": "You change the two settings you named and watch a short 40-step descent play out differently. The arrows and trail at each step show how a noisy small batch or a large learning rate changes the path.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate",
+    "min": 0.01,
+    "max": 0.6,
+    "step": 0.01,
+    "default": 0.1
+   },
+   {
+    "type": "select",
+    "id": "batchSize",
+    "label": "Batch size",
+    "options": [
+     {
+      "value": "1",
+      "label": "1 example"
+     },
+     {
+      "value": "4",
+      "label": "4 examples"
+     },
+     {
+      "value": "16",
+      "label": "16 examples"
+     },
+     {
+      "value": "64",
+      "label": "64 examples"
+     },
+     {
+      "value": "full",
+      "label": "Full batch (no noise)"
+     }
+    ],
+    "default": "4"
+   }
+  ],
+  "interactions": [
+   "Play, pause or step one update at a time. The ball moves once per step and adds one trail point, up to 40 points.",
+   "Change the learning rate: tiny values stay far from the bottom after 40 steps; above 0.25 the path zig-zags on the steep side; above 0.5 bounces grow and can end as 'diverged'.",
+   "Change the batch size: with 1 example the noisy arrow swings widely and the path jitters near the bottom; bigger batches stay closer to the true arrow; the full batch matches it.",
+   "Changing either setting restarts the run from the same starting point.",
+   "'Keep this path and run again' turns the current trail (up to 40 points) into a faded comparison path, replacing any earlier one, then starts a new run from the same start.",
+   "Orbit the camera to see the bowl from above or from the side."
+  ],
+  "assumptions": [
+   "Illustration: a made-up loss bowl for two weights with simulated batch noise, not a real model trained on real data.",
+   "The loss is half of (x² + 4y²), so it is 4 times steeper along one weight than the other. Its single lowest point is at the centre.",
+   "The batch gradient is the true gradient plus random noise. The noise shrinks as one over the square root of the batch size and is zero for the full batch.",
+   "Each update is: new position = old position − learning rate × batch gradient. The ball follows the noisy arrow, not the true one.",
+   "Readouts: step number (out of 40), current loss, distance to the lowest point, and the size of the gradient noise at this step.",
+   "The noise comes from the scene's fixed seed, so Reset and every restart replay the same noise.",
+   "A run ends after 40 steps, or earlier as 'diverged' if the ball leaves the drawn surface. The current trail and the saved comparison path each hold at most 40 points."
+  ],
+  "limitations": [
+   "Real losses involve many weights, flat regions and multiple dips. This single smooth bowl only shows the basic effects of step size and noise.",
+   "Single steps don't always lower the loss. With small batches the loss often rises for a step or two and only falls on average.",
+   "With batch noise and a fixed learning rate, the ball keeps jittering around the lowest point instead of settling exactly on it.",
+   "With very small learning rates, 40 steps are not enough to reach the bottom. This is intentional: it shows that tiny steps are slow.",
+   "The two arrows show the directions to move in (downhill, which is the negative gradient). They are scaled so you can see them, not drawn to true length."
+  ],
+  "learningGoal": "SGD steps against a gradient estimated from a small batch. The learning rate sets the step size and stability, and the batch size sets how noisy each step's direction is.",
+  "requiredCapabilities": [
+   "parameters",
+   "select",
+   "actions",
+   "step",
+   "labels",
+   "readouts"
+  ]
+ },
+ "planHash": "50f36148dc3791169a56c4f087fd09cb183bf5c5a6a015955668f8050fbea468",
+ "resultId": "an_fixture",
+ "approvalAt": 0,
+ "servedModel": "claude-opus-5-5",
+ "repairedDraft": {
+  "title": "Stochastic Gradient Descent on a Loss Bowl: Learning Rate and Batch Size",
+  "description": "A stretched bowl drawn with grey contour rings shows the loss for two weights, with its lowest point at the centre. A red ball begins on the upper left of the bowl. It moves one update every third of a second and leaves red trail dots. At the ball, a teal arrow shows the true downhill direction and an orange arrow shows the noisy downhill estimate from the batch. The ball moves along the orange arrow. A faded grey dotted path can keep an earlier run for comparison. Readouts show the loss, the distance to the lowest point, the step number and the size of the noise.",
+  "experience": "experiment",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "stepped": true,
+  "scene": {
+   "materials": [
+    {
+     "id": "grid",
+     "color": "#7a8597",
+     "opacity": 0.7
+    },
+    {
+     "id": "ball",
+     "color": "#d9412b"
+    },
+    {
+     "id": "trueA",
+     "color": "#1f9e89"
+    },
+    {
+     "id": "noisyA",
+     "color": "#f08c1a"
+    },
+    {
+     "id": "trail",
+     "color": "#d9412b"
+    },
+    {
+     "id": "saved",
+     "color": "#6b7080",
+     "opacity": 0.5
+    },
+    {
+     "id": "minM",
+     "color": "#33415c"
+    }
+   ],
+   "geometries": [
+    {
+     "id": "ring",
+     "kind": "curve",
+     "closed": true,
+     "segments": 96,
+     "points": [
+      [
+       1,
+       0,
+       0
+      ],
+      [
+       0.924,
+       0,
+       0.383
+      ],
+      [
+       0.707,
+       0,
+       0.707
+      ],
+      [
+       0.383,
+       0,
+       0.924
+      ],
+      [
+       0,
+       0,
+       1
+      ],
+      [
+       -0.383,
+       0,
+       0.924
+      ],
+      [
+       -0.707,
+       0,
+       0.707
+      ],
+      [
+       -0.924,
+       0,
+       0.383
+      ],
+      [
+       -1,
+       0,
+       0
+      ],
+      [
+       -0.924,
+       0,
+       -0.383
+      ],
+      [
+       -0.707,
+       0,
+       -0.707
+      ],
+      [
+       -0.383,
+       0,
+       -0.924
+      ],
+      [
+       0,
+       0,
+       -1
+      ],
+      [
+       0.383,
+       0,
+       -0.924
+      ],
+      [
+       0.707,
+       0,
+       -0.707
+      ],
+      [
+       0.924,
+       0,
+       -0.383
+      ]
+     ]
+    },
+    {
+     "id": "para",
+     "kind": "curve",
+     "segments": 64,
+     "points": [
+      [
+       -3,
+       1.8,
+       0
+      ],
+      [
+       -2.25,
+       1.0125,
+       0
+      ],
+      [
+       -1.5,
+       0.45,
+       0
+      ],
+      [
+       -0.75,
+       0.1125,
+       0
+      ],
+      [
+       0,
+       0,
+       0
+      ],
+      [
+       0.75,
+       0.1125,
+       0
+      ],
+      [
+       1.5,
+       0.45,
+       0
+      ],
+      [
+       2.25,
+       1.0125,
+       0
+      ],
+      [
+       3,
+       1.8,
+       0
+      ]
+     ]
+    },
+    {
+     "id": "ballG",
+     "kind": "sphere",
+     "radius": 0.12,
+     "widthSegments": 32,
+     "heightSegments": 24
+    },
+    {
+     "id": "dot",
+     "kind": "sphere",
+     "radius": 0.045,
+     "widthSegments": 10,
+     "heightSegments": 8
+    },
+    {
+     "id": "minG",
+     "kind": "sphere",
+     "radius": 0.07,
+     "widthSegments": 24,
+     "heightSegments": 16
+    },
+    {
+     "id": "arr",
+     "kind": "arrow",
+     "length": 1
+    },
+    {
+     "id": "lblMin",
+     "kind": "label",
+     "text": "Lowest point",
+     "placement": "below"
+    },
+    {
+     "id": "lblTrue",
+     "kind": "label",
+     "text": "True downhill",
+     "placement": "right"
+    },
+    {
+     "id": "lblNoisy",
+     "kind": "label",
+     "text": "Batch estimate",
+     "placement": "left"
+    },
+    {
+     "id": "lblStatus",
+     "kind": "label",
+     "text": "40 steps done",
+     "placement": "above"
+    }
+   ],
+   "nodes": [
+    {
+     "id": "bowl",
+     "name": "Loss bowl"
+    },
+    {
+     "id": "r1",
+     "parent": "bowl",
+     "geometry": "ring",
+     "material": "grid",
+     "position": [
+      0,
+      0.2,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      0.5
+     ]
+    },
+    {
+     "id": "r2",
+     "parent": "bowl",
+     "geometry": "ring",
+     "material": "grid",
+     "position": [
+      0,
+      0.4,
+      0
+     ],
+     "scale": [
+      1.414,
+      1,
+      0.707
+     ]
+    },
+    {
+     "id": "r3",
+     "parent": "bowl",
+     "geometry": "ring",
+     "material": "grid",
+     "position": [
+      0,
+      0.8,
+      0
+     ],
+     "scale": [
+      2,
+      1,
+      1
+     ]
+    },
+    {
+     "id": "r4",
+     "parent": "bowl",
+     "geometry": "ring",
+     "material": "grid",
+     "position": [
+      0,
+      1.2,
+      0
+     ],
+     "scale": [
+      2.449,
+      1,
+      1.225
+     ]
+    },
+    {
+     "id": "r5",
+     "parent": "bowl",
+     "geometry": "ring",
+     "material": "grid",
+     "position": [
+      0,
+      1.8,
+      0
+     ],
+     "scale": [
+      3,
+      1,
+      1.5
+     ]
+    },
+    {
+     "id": "m1",
+     "parent": "bowl",
+     "geometry": "para",
+     "material": "grid"
+    },
+    {
+     "id": "m2",
+     "parent": "bowl",
+     "geometry": "para",
+     "material": "grid",
+     "quaternion": [
+      0,
+      0.7071068,
+      0,
+      0.7071068
+     ],
+     "scale": [
+      0.5,
+      1,
+      1
+     ]
+    },
+    {
+     "id": "minNode",
+     "name": "Lowest point",
+     "parent": "bowl",
+     "geometry": "minG",
+     "material": "minM",
+     "position": [
+      0,
+      0.07,
+      0
+     ]
+    },
+    {
+     "id": "minLbl",
+     "parent": "minNode",
+     "geometry": "lblMin",
+     "position": [
+      0,
+      -0.07,
+      0
+     ]
+    },
+    {
+     "id": "ballN",
+     "name": "Weights (ball)",
+     "geometry": "ballG",
+     "material": "ball",
+     "position": [
+      -2.6,
+      1.99,
+      0.7
+     ]
+    },
+    {
+     "id": "statusLbl",
+     "parent": "ballN",
+     "geometry": "lblStatus",
+     "position": [
+      0,
+      0.15,
+      0
+     ],
+     "visible": false
+    },
+    {
+     "id": "aTrue",
+     "name": "True downhill arrow",
+     "geometry": "arr",
+     "material": "trueA",
+     "position": [
+      -2.6,
+      1.99,
+      0.7
+     ]
+    },
+    {
+     "id": "aTrueL",
+     "parent": "aTrue",
+     "geometry": "lblTrue",
+     "position": [
+      0,
+      1,
+      0
+     ]
+    },
+    {
+     "id": "aNoisy",
+     "name": "Batch estimate arrow",
+     "geometry": "arr",
+     "material": "noisyA",
+     "position": [
+      -2.6,
+      1.99,
+      0.7
+     ]
+    },
+    {
+     "id": "aNoisyL",
+     "parent": "aNoisy",
+     "geometry": "lblNoisy",
+     "position": [
+      0,
+      1,
+      0
+     ]
+    },
+    {
+     "id": "t0",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t1",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t2",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t3",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t4",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t5",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t6",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t7",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t8",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t9",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t10",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t11",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t12",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t13",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t14",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t15",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t16",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t17",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t18",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t19",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t20",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t21",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t22",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t23",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t24",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t25",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t26",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t27",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t28",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t29",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t30",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t31",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t32",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t33",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t34",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t35",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t36",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t37",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t38",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t39",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "t40",
+     "geometry": "dot",
+     "material": "trail",
+     "visible": false
+    },
+    {
+     "id": "s0",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s1",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s2",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s3",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s4",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s5",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s6",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s7",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s8",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s9",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s10",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s11",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s12",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s13",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s14",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s15",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s16",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s17",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s18",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s19",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s20",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s21",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s22",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s23",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s24",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s25",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s26",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s27",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s28",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s29",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s30",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s31",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s32",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s33",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s34",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s35",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s36",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s37",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s38",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s39",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    },
+    {
+     "id": "s40",
+     "geometry": "dot",
+     "material": "saved",
+     "visible": false
+    }
+   ]
+  },
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate",
+    "min": 0.01,
+    "max": 0.6,
+    "step": 0.01,
+    "default": 0.1
+   },
+   {
+    "type": "select",
+    "id": "batchSize",
+    "label": "Batch size",
+    "options": [
+     {
+      "value": "1",
+      "label": "1 example"
+     },
+     {
+      "value": "4",
+      "label": "4 examples"
+     },
+     {
+      "value": "16",
+      "label": "16 examples"
+     },
+     {
+      "value": "64",
+      "label": "64 examples"
+     },
+     {
+      "value": "full",
+      "label": "Full batch (no noise)"
+     }
+    ],
+    "default": "4"
+   }
+  ],
+  "actions": [
+   {
+    "id": "keep",
+    "label": "Keep this path and run again"
+   }
+  ],
+  "readouts": [
+   {
+    "id": "loss",
+    "label": "Current loss",
+    "decimals": 3
+   },
+   {
+    "id": "dist",
+    "label": "Distance to lowest point",
+    "decimals": 3
+   },
+   {
+    "id": "stepN",
+    "label": "Step (of 40)",
+    "decimals": 0
+   },
+   {
+    "id": "noise",
+    "label": "Gradient noise size",
+    "decimals": 3
+   }
+  ],
+  "seed": 7,
+  "camera": {
+   "position": [
+    0.6,
+    5.2,
+    6.6
+   ],
+   "target": [
+    0,
+    0.6,
+    0
+   ],
+   "fov": 45
+  },
+  "assumptions": [
+   "Illustration: a made-up loss bowl for two weights with simulated batch noise, not a real model trained on real data.",
+   "The loss is half of (x² + 4y²), so it is 4 times steeper along one weight than the other. Its single lowest point is at the centre. Height is drawn as 0.4 × loss.",
+   "The batch gradient is the true gradient plus random Gaussian noise with spread 2/√(batch size), and zero noise for the full batch.",
+   "Each update: new position = old position − learning rate × batch gradient. The ball follows the orange batch-estimate arrow, not the teal true one.",
+   "The arrows show the directions to move in (minus the gradient), both at the same visible scale (0.35 × size, kept between 0.25 and 1.4), not at their true lengths. The noise readout is the size of the noise added at the step shown.",
+   "The noise comes from the scene's fixed seed, so Reset and every restart replay the same noise. Changing either setting restarts the run from the same start and keeps the saved comparison path. Reset also clears that saved path.",
+   "A run ends after 40 updates (one about every 1/3 s), or earlier as 'diverged' once the loss is above 4.5, which is the outer drawn ring. Single steps can raise the loss; it falls only on average."
+  ],
+  "program": {
+   "source": "const X0=-2.6,Y0=0.7,N=40,EV=10;\nfunction rnd(a){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}\nfunction noise(inp,seed,k){const s=inp.batchSize==='full'?0:2/Math.sqrt(+inp.batchSize);const u1=rnd(seed*1000+k*2+1)+1e-9,u2=rnd(seed*1000+k*2+2);const r=Math.sqrt(-2*Math.log(u1));return[s*r*Math.cos(6.283185*u2),s*r*Math.sin(6.283185*u2)];}\nconst L=(x,y)=>0.5*(x*x+4*y*y);\nfunction fresh(saved){return{x:X0,y:Y0,k:0,t:0,trail:[[X0,Y0]],saved:saved||[],st:0};}\nexport function initialState(){return fresh([]);}\nexport function reduce({state,event,inputs,seed}){\nif(event.type==='parameter')return fresh(state.saved);\nif(event.type==='action'){const id=event.id||event.action;if(id==='keep')return fresh(state.trail);return state;}\nif(event.type!=='step'||state.st)return state;\nconst t=state.t+1;if(t<EV)return{...state,t};\nconst lr=inputs.learningRate,n=noise(inputs,seed,state.k);\nconst x=state.x-lr*(state.x+n[0]),y=state.y-lr*(4*state.y+n[1]),k=state.k+1;\nconst st=L(x,y)>4.5?2:(k>=N?1:0);\nreturn{...state,x,y,k,t:0,st,trail:state.trail.concat([[x,y]])};}\nfunction pos(x,y,lift){return[x,Math.min(0.4*L(x,y),3)+lift,y];}\nfunction q(dx,dz){const m=Math.hypot(dx,dz)||1,s=0.7071068;return[dz/m*s,0,-dx/m*s,s];}\nfunction arrow(v,p){const m=Math.hypot(v[0],v[1]);const len=Math.min(1.4,Math.max(0.25,0.35*m));return{position:p,quaternion:q(v[0],v[1]),scale:[1,len,1],visible:true};}\nexport function evaluate({inputs,seed,state}){\nconst s=state||fresh([]),nodes={};\nconst bp=pos(s.x,s.y,0.12);nodes.ballN={position:bp};\nconst running=s.st===0;\nconst n=noise(inputs,seed,running?s.k:Math.max(0,s.k-1));\nconst gx=s.x,gy=4*s.y;\nif(running){nodes.aTrue=arrow([-gx,-gy],bp);nodes.aNoisy=arrow([-(gx+n[0]),-(gy+n[1])],bp);}\nelse{nodes.aTrue={visible:false};nodes.aNoisy={visible:false};}\nnodes.statusLbl={visible:!running,text:s.st===2?'Diverged':'40 steps done'};\nfor(let i=0;i<=N;i++){const a=s.trail[i],b=s.saved[i];nodes['t'+i]=a?{visible:true,position:pos(a[0],a[1],0.03)}:{visible:false};nodes['s'+i]=b?{visible:true,position:pos(b[0],b[1],0.03)}:{visible:false};}\nreturn{nodes,readouts:{loss:L(s.x,s.y),dist:Math.hypot(s.x,s.y),stepN:s.k,noise:Math.hypot(n[0],n[1])}};}\n"
+  }
+ },
+ "findings": [
+  {
+   "repairs": 0,
+   "stage": "validating",
+   "problems": [
+    "scene.geometries.9.text: Too small: expected string to have >=1 characters (invalid_value)"
+   ]
+  },
+  {
+   "repairs": 1,
+   "stage": "validating",
+   "problems": [
+    "this artifact (22571 bytes with its program) is too large for the independent review request: use fewer nodes, shorter labels or a shorter program",
+    "this artifact (22571 bytes with its program) is too large for the repair request: use fewer nodes, shorter labels or a shorter program"
+   ]
+  }
+ ]
+}

@@ -124,6 +124,31 @@ export const reviewBatches = (captures, maxImages = REVIEW_LIMITS.maxImages) => 
   return batches;
 };
 
+// The reviewer's answer against the report_review contract, as words the reviewer can act on ([] when valid). A provider does not hold
+// a reply to the schema: a finding with no severity reached the verdict in aj_54eec6a. Text lengths are not refused: parseReview bounds them.
+export function reviewProblems(output, captures) {
+  if (!Array.isArray(output?.captures)) return ['captures must be a list with one entry per capture'];
+  const schema = REVIEW_TOOL.input_schema.properties.captures.items.properties, finding = schema.findings.items.properties;
+  const want = new Set(captures.map(c => c.id)), seen = new Set(), problems = [];
+  for (const entry of output.captures) {
+    const at = `capture ${entry?.id}`;
+    if (!want.has(entry?.id)) { problems.push(`${at} was not one of the captures shown`); continue; }
+    if (seen.has(entry.id)) { problems.push(`${at} is reported twice`); continue; }
+    seen.add(entry.id);
+    for (const kind of ['semantic', 'visual']) if (!schema[kind].enum.includes(entry[kind])) problems.push(`${at}: ${kind} must be one of ${schema[kind].enum.join(', ')}`);
+    if (!Array.isArray(entry.findings)) { problems.push(`${at}: findings must be a list`); continue; }
+    entry.findings.forEach((f, i) => {
+      const name = `${at} finding ${i + 1}${typeof f?.message === 'string' ? ` ("${f.message.slice(0, 60)}")` : ''}`;
+      for (const field of ['verdict', 'category', 'severity']) if (!finding[field].enum.includes(f?.[field])) problems.push(`${name}: ${field} ${f?.[field] === undefined ? 'is missing' : 'is not allowed'}; it must be one of ${finding[field].enum.join(', ')}`);
+      if (typeof f?.message !== 'string' || !f.message.trim()) problems.push(`${name}: message is missing`);
+      if (typeof f?.repairable !== 'boolean') problems.push(`${name}: repairable must be true or false`);
+      if (f?.object !== undefined && typeof f.object !== 'string') problems.push(`${name}: object must be text`);
+    });
+  }
+  for (const id of want) if (!seen.has(id)) problems.push(`capture ${id} has no verdict`);
+  return problems;
+}
+
 // Check the reviewer's answer covers every capture exactly once with both verdicts; map findings to ReviewFinding.
 export function parseReview(output, captures) {
   const want = new Set(captures.map(c => c.id));

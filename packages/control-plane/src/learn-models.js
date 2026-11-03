@@ -90,6 +90,18 @@ export const LEARN_TASKS = Object.freeze({
   explain_author: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 10000 }),
   explain_review: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 3000 }),
   explain_repair: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 6000 }),
+  // /animation (AN-05, docs/superpowers/plans/2026-10-30-animation.md section 7): its own roles on /explain's model and token ceilings,
+  // never the picker, Auto or `artifact`. One tool on auto, exactly one call of it. Limits, prices and the build graph: animation-policy.js.
+  animation_brief: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', effort: 'medium', toolChoice: 'auto (exactly one tool call)', maxTokens: 4000 }),
+  // author and repair raised from /explain's 10,000 and 6,000 (accept-5, 2026-10-30: an author spent all 10,000 output tokens, thinking
+  // included, before its tool call). The build worst case (animation-policy.js animationReservation) follows these values.
+  // Owner A (2026-11-02): medium effort, stated, with 24,000 output tokens. Job aj_49544d6 spent 11,993 of 16,000 thinking and was cut
+  // off (FX-AN-035); at low effort the SGD scenes failed review (aj_ba11d5a, aj_ad936ec). 8,000 more output tokens at $20/M add
+  // $0.16 (16 credits) to the build's worst case. More tokens remedy truncation; they do not prove a scene good.
+  animation_author: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', effort: 'medium', toolChoice: 'auto (exactly one tool call)', maxTokens: 24000 }),
+  animation_review: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 6000 }),
+  // Repair stays at low effort for this attempt (owner A: other role settings unchanged).
+  animation_repair: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', effort: 'low', toolChoice: 'auto (exactly one tool call)', maxTokens: 12000 }),
   // Slash-command cards (/api/learn/artifact).
   artifact: Object.freeze({ provider: 'plan', model: ASK_MODELS.auto, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'any', maxTokens: 4000 }),
   // The whiteboard (/api/learn/board): one model for plan, draft and review.

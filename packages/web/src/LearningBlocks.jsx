@@ -28,6 +28,8 @@ import ProgramScene from './explain-program/ProgramScene.jsx';
 import { programCardSize } from './explain-program/frame.js';
 import { describeProgram } from './explain-program/program-card.js';
 const WhiteboardBlock = lazyFeature(() => import('./WhiteboardBlock.jsx'), 'The whiteboard');
+// The /animation 3D card (AN-03): its Three.js renderer and runtime load with it, only when an animation3d card is on the canvas.
+const Animation3DCard = lazyFeature(() => import('./Animation3DCard.jsx'), 'The 3D animation');
 import { fromTemplate, presentationMode } from './animation-scene.js';
 import { describeAnimation } from './scene-describe.js';
 import { sceneLegibility } from './scene-layout.js';
@@ -798,6 +800,10 @@ export const BLOCK_TYPES = {
     }),
   },
   cad: { label: 'CAD', width: 560, height: 480, autoMax: 900, sample: () => ({ id: crypto.randomUUID(), type: 'cad', title: 'CAD model', status: 'queued', dx: 0, dy: 0 }) },
+  // /animation (AN-03): a working 3D viewport, never the text card's natural-height clamp; a fixed size the learner resizes.
+  // The sample is a built-in example (fixtures.js), shown as one on the card. Until a scene is attached (a generation waiting, running,
+  // stopped or failed) the card is its content's height, not an empty viewport (owner, 2026-10-31).
+  animation3d: { label: 'Animation', width: 640, height: 640, autoMax: 900, sizeFor: block => (block.animation3d?.ref || block.fixtureId ? null : { width: 640, height: undefined }), sample: () => ({ id: crypto.randomUUID(), type: 'animation3d', title: 'Beam balance', fixtureId: 'beam-balance-experiment', dx: 0, dy: 0 }) },
   model3d: {
     label: '3D model',
     width: 560,
@@ -2219,6 +2225,8 @@ export function describeBlock(block) {
   // A PDF excerpt (text or region card) is its quotation and source, the learner's note kept apart (pdf-excerpt.js).
   if (isExcerpt(block)) return describeExcerpt(block);
   if (block.type === 'cad') return cadContext(block);
+  // ponytail: lane A's animation3d/context.js replaces this with the accepted revision and activity (AN-06/AN-13).
+  if (block.type === 'animation3d') return { kind: 'Animation', title: block.title, text: [`3D animation on the canvas: ${block.title}`, block.fixtureId ? 'A built-in example scene, not generated from a request.' : '', block.animation3dJob ? `Generation status: ${block.animation3dJob.stage}` : ''].filter(Boolean).join(NEWLINE) };
   if (block.type === 'notebook') return describeNotebook(block);
   if (block.type === 'code') return { kind: 'Code exercise', title: block.title, text: `Code exercise: ${block.title}\n${block.brief}\nGiven setup:\n${block.setup}\nLearner's current code:\n${block.draft ?? block.starter}\nChecks it must pass:\n${block.checks}` };
   if (block.type === 'audio') return { kind: 'Narration', title: block.title, text: [`Narration block: ${block.title}`, block.text].join(NEWLINE) };
@@ -2260,6 +2268,9 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'explanation') return <ExplanationBody block={block} onFile={onFile} />;
   if (block.type === 'table') return <TableBody block={block} onFile={onFile} />;
   if (block.type === 'cad') return <CadCard block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} appName={appName} selected={selected} readOnly={readOnly} onEdit={onCadEdit} account={cadAccount} />;
+  // Its own Suspense (as WhiteboardBlock): a lazy card inserted on a live canvas must not suspend the canvas, which unmounted the
+  // surface and threw in insertBlock's chromeTop (fast-e2e 41129301739, animation-mvp step 23).
+  if (block.type === 'animation3d') return <Suspense fallback={<p role="status" className="p-4 text-xs text-ink-2">Loading the 3D animation</p>}><Animation3DCard block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} selected={selected} readOnly={readOnly} /></Suspense>;
   if (block.type === 'model3d') return <ThreeDBody block={block} onChange={onChange} />;
   if (block.type === 'audio') return <AudioBody block={block} appName={appName} onChange={onChange} />;
   if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return <SceneActivityBody block={block} onChange={onChange} onAskScene={onAskScene} />;

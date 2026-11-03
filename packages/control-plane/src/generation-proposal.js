@@ -18,6 +18,7 @@ import { MotionRequestProvider, motionReservationMicros } from './motion-provide
 import { CHAT_CAPABILITIES, chatCapability } from '../../web/src/inline-ai-route.js';
 import { hmacHex } from './token.js';
 import { explainReservation } from './explain-policy.js';
+import { animationReservation } from './animation-policy.js';
 import { SCHEMA_VERSION, commandDefinition, firstReadOnly, settingsOf, validateSettings as validateCommandSettings } from '../../web/src/generation-confirmation-schema.js';
 import { MOTION_DEFAULT_RATIO, MOTION_RATIOS, motionBinding, motionMaxCredits, motionQuote, motionQuoteInputs, motionReadiness } from './motion-settings.js';
 import { REVIEW_LISTS, escapeText, plainPrompt, reviewHash, reviewOf, validateReview } from '../../web/src/generation-review.js';
@@ -39,7 +40,8 @@ export const WIRED = Object.freeze(Object.keys(CHAT_CAPABILITIES).filter(reviewR
 // IMG-01: /generate-image is signed (v3 only, chat-proposal-route.js) by the server from the person's own request: no chat model proposes it.
 // Owner spec 2026-10-29: the simple material briefs (web/src/material-brief.js) are signed by the server from the person's own explicit command,
 // with no model call (chat-proposal-route.js material-proposals); they are never offered to the chat model (WIRED).
-export const SIGNABLE = Object.freeze([...new Set([...WIRED, 'explain', 'generate-image', ...BRIEF_COMMANDS])]);
+// AN-05: /animation's plan is prepared and signed by the server (animation-job.js), as /explain's brief; it is not offered to the chat model.
+export const SIGNABLE = Object.freeze([...new Set([...WIRED, 'explain', 'animation', 'generate-image', ...BRIEF_COMMANDS])]);
 
 // Motion's settings (learn-render motion/duration.js DURATION). Audio On stays unavailable until narration works.
 // The bounds are the declaration's Duration field: one definition with the card.
@@ -164,6 +166,12 @@ export function proposalUsage(env, command, settings) {
   if (command === 'explain') {
     const estimate = Number(String(env.EXPLAIN_ESTIMATE_USD ?? '').trim() || NaN);
     return { estimate_credits: credits(estimate), reserve_credits: credits(explainReservation().generationMicros / 1e6) };
+  }
+  // /animation (AN-05): its estimate when configured (ANIMATION_ESTIMATE_USD), and the build's worst case (animation-policy.js) as the most it
+  // can cost. Nothing is held: the worst case is an admission check and every call is admitted on its own, so no reserve is shown.
+  if (command === 'animation') {
+    const estimate = Number(String(env.ANIMATION_ESTIMATE_USD ?? '').trim() || NaN);
+    return { estimate_credits: credits(estimate), max_credits: credits(animationReservation().generationMicros / 1e6), reserve_credits: null };
   }
   if (command !== 'motion') return { estimate_credits: null, reserve_credits: null };
   const hold = motionReservationMicros(env);
@@ -311,7 +319,7 @@ export const PROPOSAL_STALE = 'A newer version of this proposal exists. Use the 
 export const PROPOSAL_EDIT_STALE = 'This proposal changed since you chose Edit. Review the latest version, then press Edit on it.';
 export const PROPOSAL_USED = 'This proposal already made a video. Ask for a new version in chat to make another.';
 // The used text per capability (Motion's unchanged).
-export const proposalUsedText = command => (command === 'explain' ? 'This proposal already made an explanation. Ask for a new version in chat to make another.' : command === 'generate-image' ? 'This proposal already made an image. Ask for a new one to make another.'
+export const proposalUsedText = command => (command === 'explain' ? 'This proposal already made an explanation. Ask for a new version in chat to make another.' : command === 'animation' ? 'This proposal already made an animation. Ask for a new version in chat to make another.' : command === 'generate-image' ? 'This proposal already made an image. Ask for a new one to make another.'
   : isBriefCommand(command) ? 'This brief already made its card. Send the command again to make another.' : PROPOSAL_USED);
 export const proposalState = p => ({ version: p.version, sig: p.sig, used: null });
 // -> {rows, root, state, current}: current is the published revision's proposal (null while its answer is being written).

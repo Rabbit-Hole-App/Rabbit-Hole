@@ -150,13 +150,18 @@ export function servedRelease(deployments) {
 
 // Release only the newest main commit, only forward, and only over one consistent cp/app pair (r34 audit: a stale
 // candidate, a re-run of an old workflow, never overwrites a newer release). -> null | { noop } | refusal string.
-export function checkCandidate({ sha, mainTip, cp, app, isAncestor }) {
+// clientFeatures(sha) -> the Animation client features that tree declares (packages/web/src/animation3d/capabilities.js), or null when unreadable.
+export function checkCandidate({ sha, mainTip, cp, app, isAncestor, clientFeatures = () => null }) {
   if (sha !== mainTip) return `refused: ${sha.slice(0, 12)} is stale: origin/main is now ${mainTip.slice(0, 12)}, whose own run releases it`;
   for (const [name, s] of [['rabbit-hole-cp', cp], ['rabbit-hole-app', app]]) if (s.error) return `refused: ${name}: ${s.error}; restore one released version pair first`;
   if (cp.sha12 !== app.sha12) return `refused: production is split (rabbit-hole-cp serves ${cp.sha12 ?? 'an unnamed version'}, rabbit-hole-app ${app.sha12 ?? 'an unnamed version'}); restore one released pair first`;
   if (!cp.sha12) return 'refused: production serves a version no release named (a hand deploy?); this job cannot tell forward from backwards. Restore a released pair with wrangler rollback first';
   if (cp.sha12 && sha.startsWith(cp.sha12)) return { noop: `${sha.slice(0, 12)} is already released` };
   if (cp.sha12 && !isAncestor(cp.sha12, sha)) return `refused: production serves ${cp.sha12}, which is not an ancestor of ${sha.slice(0, 12)} (never release backwards)`;
+  // Animation tube scenes need the client and the server to agree (owner 2026-11-02): a release that stops declaring what production's build does would
+  // leave every stored tube scene unreadable (the server answers 409 version_unavailable), going forward as much as a rollback would.
+  const served = clientFeatures(cp.sha12), next = clientFeatures(sha), lost = (served ?? []).filter(f => !(next ?? []).includes(f));
+  if (lost.length) return `refused: production serves ${cp.sha12}, whose Animation client declares ${lost.join(', ')}, and ${sha.slice(0, 12)} does not: stored scenes that use it would stop opening. Roll forward with the feature, never without it`;
   return null;
 }
 
@@ -215,6 +220,7 @@ const git = (...a) => run('git', a);
 const tryGit = (...a) => { try { git(...a); return true; } catch { return false; } };
 const isAncestor = (a, b) => tryGit('merge-base', '--is-ancestor', a, b);
 const treeOf = s => { try { return git('rev-parse', `${s}^{tree}`); } catch { return null; } };
+const clientFeatures = s => { try { return [...git('show', `${s}:packages/web/src/animation3d/capabilities.js`).matchAll(/ANIMATION_CLIENT_FEATURES\s*=\s*Object\.freeze\(\[([^\]]*)\]/g)].flatMap(m => [...m[1].matchAll(/'([a-z_]+)'/g)].map(x => x[1])); } catch { return null; } };
 // An unreadable Worker graph (a non-literal dynamic import) is not UI-only.
 const uiOnly = (g, s) => { try { return notReusableBetween(g, s, ROOT).outside.length === 0; } catch { return false; } };
 // Shared by every worktree of this clone, never tracked or pushed.
@@ -273,7 +279,7 @@ async function release(opts) {
   // Stale candidate: only the tip of origin/main, only forward, only over one consistent version pair.
   git('fetch', '-q', 'origin', 'main');
   const before = { cp: servedRelease(await deployments('rabbit-hole-cp')), app: servedRelease(await deployments('rabbit-hole-app')) };
-  const stale = checkCandidate({ sha, mainTip: git('rev-parse', 'origin/main'), ...before, isAncestor });
+  const stale = checkCandidate({ sha, mainTip: git('rev-parse', 'origin/main'), ...before, isAncestor, clientFeatures });
   if (stale?.noop) return console.log(`✓ ${stale.noop}; nothing deployed`);
   if (stale) return fail(stale);
 
