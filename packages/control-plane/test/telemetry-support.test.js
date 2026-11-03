@@ -59,7 +59,7 @@ test('a reference leads from a user report to the browser failure, the server ev
   assert.equal(sent.status, 201);
   const { ref } = await sent.json();
   assert.match(ref, /^RH-/);
-  assert.equal([...stored.values()][0].ref, ref, 'the stored report carries the reference');
+  assert.equal([...stored].find(([key]) => key.startsWith('learn-feedback/'))[1].ref, ref, 'the stored report carries the reference');
   const event = sqlite.prepare("SELECT user_ref, body FROM telemetry_events WHERE event_name = 'support.report'").get();
   assert.equal(event.user_ref, LEARNER);
   assert.deepEqual(JSON.parse(event.body).payload, { ref, kind: 'bug', route: '/apps/:id', fingerprints: [FINGERPRINT], traces: [TRACE] });

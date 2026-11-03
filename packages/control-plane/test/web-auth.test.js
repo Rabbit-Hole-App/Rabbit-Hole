@@ -571,7 +571,7 @@ test('/test/session still works on test instances and makes a revocable user ses
 // ---------- Production origin: PUBLIC_ORIGIN=https://digrabbithole.com ----------
 
 const SITE = 'https://digrabbithole.com';
-const SITE_ENV = { ...PROD, PUBLIC_ORIGIN: SITE, RESEND_API_KEY: 're_fake', EMAIL_FROM: 'Rabbit Hole <signin@digrabbithole.com>' };
+const SITE_ENV = { ...PROD, PUBLIC_ORIGIN: SITE, RESEND_API_KEY: 're_fake', EMAIL_FROM: 'Rabbit Hole <hello@digrabbithole.com>' };
 const OTHER_HOSTS = ['https://small-cp.example.workers.dev', 'http://digrabbithole.com', 'https://www.digrabbithole.com'];
 
 test('production origin: Google and GitHub send digrabbithole.com callbacks, the code exchange repeats them, the session lands there host-only', async (t) => {

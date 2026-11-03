@@ -241,7 +241,7 @@ test('production repository import calls rabbit-hole-lesson-renderer-prod, never
   assert.equal(body(prod), body(dev));
 });
 
-test('production sign-in email goes out as Rabbit Hole <signin@digrabbithole.com>, from the control plane only', () => {
-  assert.equal(config(CP).vars.EMAIL_FROM, 'Rabbit Hole <signin@digrabbithole.com>');
+test('production email (sign-in, invitations, feedback) goes out as Rabbit Hole <hello@digrabbithole.com>, from the control plane only', () => {
+  assert.equal(config(CP).vars.EMAIL_FROM, 'Rabbit Hole <hello@digrabbithole.com>');
   assert.equal(config(APP).vars.EMAIL_FROM, undefined);
 });

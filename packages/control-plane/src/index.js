@@ -1,4 +1,5 @@
 import { readArxivPaper } from './arxiv.js';
+import { feedbackNotify } from './feedback-mail.js';
 import { cadBudgetAlert } from './cad-budget-alert.js';
 import { canvasSeed, threadTurns } from './canvas-conversation.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
@@ -52,13 +53,13 @@ const html = (body, status = 200, headers = {}) =>
   });
 
 // false when there is no provider or the send fails/throws. Never logs the body - it holds codes and links.
-async function sendEmail(env, to, subject, text, {idempotencyKey} = {}) {
+async function sendEmail(env, to, subject, text, {idempotencyKey, replyTo} = {}) {
   if (!env.RESEND_API_KEY) return false;
   try {
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json', ...(idempotencyKey ? {'Idempotency-Key':idempotencyKey} : {}) },
-      body: JSON.stringify({ from: env.EMAIL_FROM || 'Rabbit Hole <onboarding@resend.dev>', to: [to], subject, text }),
+      body: JSON.stringify({ from: env.EMAIL_FROM || 'Rabbit Hole <onboarding@resend.dev>', to: [to], subject, text, ...(replyTo ? { reply_to: replyTo } : {}) }),
     });
     if (!resp.ok) console.error(`email send failed: status ${resp.status}`);
     return resp.ok;
@@ -2524,6 +2525,8 @@ export default {
         // user_id is the session's users.id, the journey key (adaptive-learning-path-v1-architecture.md §10.2); null for a CLI token.
         // analytics_internal: an account the owner marked internal (product-analytics.js), so the browser tags its usage events.
         if (path === '/api/me' && req.method === 'GET') return json({ email: user.email, org: user.org, orgName: user.orgName || null, user_id: user.uid ?? null, ...(internalAccount(env, user.uid) ? { analytics_internal: true } : {}) });
+        // The owner's email for a feedback report the app Worker just stored (feedback-mail.js): session only, the report's own sender.
+        if (path === '/api/feedback/notify' && req.method === 'POST') return await feedbackNotify(req, env, user, { sendEmail });
         const learnCourse = path.match(/^\/api\/apps\/([a-z0-9-]+)\/learn-course$/);
         if (learnCourse) return await handleLearnCourse(req, env, user, learnCourse[1], { appForUser, sourceSection });
         if (path === '/api/workspaces' && req.method === 'GET') return await apiWorkspaces(env, user);

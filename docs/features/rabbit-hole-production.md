@@ -27,7 +27,7 @@ Dev is described in [rabbit-hole-dev.md](rabbit-hole-dev.md). Production `small-
 3. Production renderer: fresh `SCENE_WORKER_TOKEN`, image deployed to `rabbit-hole-lesson-renderer-prod`.
 4. Production Workers: `rabbit-hole-cp`, then `rabbit-hole-app`, with their secrets.
 5. Notebook builds and deploys: `rabbit-hole-notebook`, `rabbit-hole-canvas-notebook`.
-6. Resend: add and verify `digrabbithole.com` (its DKIM, SPF and DMARC records) and the sender `signin@digrabbithole.com`. Read-only check 2026-10-01: the key's Resend account holds only `apateo.ai`, and DNS has no Resend records yet.
+6. Resend: add and verify `digrabbithole.com` (its DKIM, SPF and DMARC records) and the sender `hello@digrabbithole.com` (first planned as signin@; hello@ by owner decision 2026-11-03). Read-only check 2026-10-01: the key's Resend account holds only `apateo.ai`, and DNS has no Resend records yet.
 7. `hello@digrabbithole.com` receiving or forwarding.
 8. DNS: the apex custom domain (attached by the app deploy), the `www` placeholder record and the 301 redirect rule.
 9. Final production smoke test, including one real Google and one real GitHub sign-in and one real repository import.
@@ -269,7 +269,7 @@ Canonical production domain, bought inside the Rabbit Hole Cloudflare account (o
 - Apex `https://digrabbithole.com` is canonical: a custom domain on `rabbit-hole-app`.
 - `https://www.digrabbithole.com/*` answers 301 to `https://digrabbithole.com/*`, path and query preserved.
 - OAuth callbacks: `https://digrabbithole.com/auth/google/callback` and `https://digrabbithole.com/auth/github/callback`.
-- Resend: target domain `digrabbithole.com`, suggested sender `Rabbit Hole <signin@digrabbithole.com>`. **Not configured**; it needs separate approval.
+- Resend: target domain `digrabbithole.com`, sender `Rabbit Hole <hello@digrabbithole.com>` (owner decision 2026-11-03; first suggested as signin@). **Not configured**; it needs separate approval.
 
 **Steps (each needs the owner's GO; the zone is already active):**
 1. **Apex.** The app config's `routes: [{ "pattern": "digrabbithole.com", "custom_domain": true }]` creates the DNS record and certificate on deploy. A custom domain cannot be added over an existing CNAME.
