@@ -22,7 +22,8 @@ const MARGIN = 200; // the changed plan's own new sentences take some of the roo
 
 const TRAIL = /\b(trails?|traces?|breadcrumbs?|dotted|(?:leaves?|leaving|draws?|drawing|records?|recording)\s+(?:a |an |its |the )?(?:\w+ )?(?:paths?|lines?|arcs?))\b/i;
 const RETAINED = /\b(?:keeps?|kept|keeping|retains?|retained|saves?|saved)\b[^.]{0,60}\b(?:paths?|trails?|arcs?|runs?)\b|\b(?:comparison|previous|old|earlier)\s+(?:paths?|trails?|arcs?)\b|\b(?:paths?|trails?|arcs?)\b[^.]{0,40}\b(?:stays?|remains?)\b/i;
-const STEPS = /\b(\d{1,5})(?:[- ]\w+)?[- ](?:steps?|updates?|iterations?)\b/gi;
+// A number of steps: "40 steps", "a 40-step run", "150 rule steps". Never "at 256 every step" (aj_ad936ec: a batch size read as 256 steps).
+const STEPS = /\b(\d{1,5})(?:-step\b|\s+(?:(?:rule|update|descent|training|gradient|time|simulation)\s+)?(?:steps|updates|iterations)\b)/gi;
 const POINTS = /\b(\d{1,5})\s+(?:\w+\s)?(?:points?|markers?|dots?)\b/gi;
 const OBJECTS = /\b(\d{2,4})\s+(?:\w+\s)?(?:objects?|balls?|particles?|spheres?|cubes?|bars?|beads?|planets?|stars?|bod(?:y|ies)|molecules?|atoms?|masses|blocks?|cells?|bricks?)\b/gi;
 const GRID = /\b(\d{1,3})\s*(?:by|x|×)\s*(\d{1,3})\b/gi;
@@ -73,16 +74,44 @@ export function draftLimit(env, job, tasks) {
 
 // How a server-written change line begins, so the review card keeps it in view with the "you asked for" lines (animation-job.js planScene).
 export const CHANGED = 'Changed: ';
+// A sentence about the drawn trail, and the words in it that say how many markers it draws or how often (FX-AN-031 follow-up, aj_ad936ec:
+// the shortened plan still said "adds one trail point" per step beside its own "one marker every 2 steps", and the review failed on it).
+const TRAILISH = /\b(?:trails?|traces?|paths?|markers?|breadcrumbs?|dotted|dots?)\b/i;
+const MARKER_NOUN = /\b(?:points?|markers?|dots?)\b/i;
+const SINGLE_ADD = /\b(adds|leaves|drops|draws|places) (?:one|a) (?:new )?(?:trail )?(?:point|marker|dot)\b(?! every \d+ steps)/gi;
+// A marker said to come with each step, within one clause ("one for each step", "adds a point per step"); "every point is used, so each step" is not.
+const PER_STEP_CLAIM = /\b(?:points?|markers?|dots?|one)\b[^.,;]{0,40}\b(?:for each|per|each|every) step\b|\b(?:for each|per|each|every) step\b[^.,;]{0,40}\b(?:points?|markers?|dots?)\b/i;
+const ruleSentence = (every, shown) => `The trail draws one marker every ${every} steps, at most ${shown} markers; every step still runs.`;
+const splitSentences = text => String(text).split(/(?<=[.!?])\s+/);
+// Every trail sentence restated for the new density and count, by rule; anything the rules cannot restate is left for trailConflicts to find.
+function rewriteTrail(text, from, every, shown) {
+  return splitSentences(text).map(sentence => {
+    if (!TRAILISH.test(sentence)) return sentence;
+    let out = sentence.replace(POINTS, (whole, n) => (Number(n) === from ? whole.replace(n, String(shown)) : whole));
+    if (every > 1) out = out
+      .replace(/\bone (?:(?:trail|new) )?(?:point|marker|dot) (?:for each|per|each|every) step\b/gi, `one marker every ${every} steps`)
+      .replace(/\bone (?:for each|per|each) step\b/gi, `one every ${every} steps`)
+      .replace(/\b(?:points?|markers?|dots?) (?:for each|per|each) step\b/gi, `markers, one every ${every} steps`)
+      .replace(SINGLE_ADD, (_whole, verb) => `${verb} a trail marker every ${every} steps`);
+    return out;
+  }).join(' ');
+}
+// Trail sentences of a changed plan that still state the old count or a per-step marker: a plan with any is not offered.
+export function trailConflicts(plan, from, every, shown) {
+  const rule = shown ? ruleSentence(every, shown) : null;
+  return sentencesOf(plan).filter(sentence => sentence !== rule && TRAILISH.test(sentence) && MARKER_NOUN.test(sentence)
+    && ([...sentence.matchAll(POINTS)].some(m => Number(m[1]) === from) || (every > 1 && (PER_STEP_CLAIM.test(sentence) || new RegExp(SINGLE_ADD.source, 'i').test(sentence)))));
+}
 const SENTENCE_OF_RETAINED = text => String(text).split(/(?<=[.!?])\s+/).filter(s => !RETAINED.test(s)).join(' ').trim();
-const clampPoints = (text, from, to) => String(text).replace(POINTS, (whole, n) => (Number(n) === from ? whole.replace(n, String(to)) : whole));
 // The learner's own words asked for the kept path: an alternative may not take it away.
 const ASKED_TO_KEEP = /\b(compar\w*|keep\w*|previous|side by side|last (?:run|path|shot))\b/i;
 
 function shrunk(plan, c, markers, dropRetained) {
   const every = Math.max(1, Math.ceil(c.stated / markers)), shown = c.stated ? Math.ceil(c.stated / every) : markers;
-  const steps = c.stated ? `The trail draws one marker every ${every} steps, at most ${shown} markers; every step still runs.` : `The trail draws at most ${shown} markers.`;
-  const edit = text => clampPoints(dropRetained ? SENTENCE_OF_RETAINED(text) : text, c.stated, shown);
-  const list = items => (items || []).map(edit).filter(Boolean);
+  const steps = c.stated ? ruleSentence(every, shown) : `The trail draws at most ${shown} markers.`;
+  const edit = text => (c.stated ? rewriteTrail(dropRetained ? SENTENCE_OF_RETAINED(text) : text, c.stated, every, shown) : dropRetained ? SENTENCE_OF_RETAINED(text) : text);
+  // A listed interaction or assumption about the kept path goes whole: what is left of it would describe an action that no longer exists.
+  const list = items => (items || []).filter(item => !(dropRetained && RETAINED.test(item))).map(edit).filter(Boolean);
   const notices = [c.stated ? `${CHANGED}the trail draws ${shown} markers, one every ${every} steps, instead of ${c.stated}; every step still runs.` : `${CHANGED}the trail draws at most ${shown} markers.`];
   if (dropRetained) notices.push(`${CHANGED}the kept comparison path is left out.`);
   if (c.retained && !dropRetained) notices.push(`${CHANGED}the kept comparison path also draws at most ${shown} markers.`);
@@ -100,7 +129,9 @@ export function planAlternatives(plan, request, limitOf) {
     const copies = c.retained && !dropRetained ? 2 : 1;
     const markers = Math.min(c.stated || DEFAULT_MARKERS, Math.floor((limitOf(plan) - MARGIN - fixed) / (BYTES.marker * copies)));
     if (markers < MIN_MARKERS) return null;
-    const { changed, notices } = shrunk(plan, c, markers, dropRetained);
+    const { changed, notices, every, shown } = shrunk(plan, c, markers, dropRetained);
+    // Every sentence must agree with the new trail; one the rules could not restate means the alternative is not offered.
+    if (c.stated && trailConflicts(changed, c.stated, every, shown).length) return null;
     // A description that was only about the kept path cannot lose it and still describe the scene: not offered (the contract refuses it too).
     if (!changed.description || !validateAnimationPlan(changed, enabledCapabilities()).ok || estimateDraftBytes(changed).bytes > limitOf(changed)) return null;
     return { id, title, changes: notices, plan: changed };

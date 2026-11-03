@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CHANGED, GAP_ALTERNATIVES, GAP_FALLBACK, clarificationFor, draftLimit, estimateDraftBytes, learnerReason, planAlternatives, sizeCheck } from '../src/animation-feasibility.js';
+import { CHANGED, GAP_ALTERNATIVES, GAP_FALLBACK, clarificationFor, draftLimit, estimateDraftBytes, learnerReason, planAlternatives, sizeCheck, trailConflicts } from '../src/animation-feasibility.js';
 import { ANIMATION_DRAFT_BYTES } from '../src/agents/animation-author.js';
 import { ANIMATION_SEED_PATH, animationRoute, failureClass, failureText, publicAnimationJob, recoveryOf } from '../src/animation-job.js';
 import { seededJobs } from '../src/animation-outcomes-fixture.js';
@@ -338,4 +338,40 @@ test('the dev fixtures seed every outcome through the real report and choice pat
     const off = await animationRoute(ANIMATION_SEED_PATH, new Request(`https://dev.test${ANIMATION_SEED_PATH}`, { method: 'POST', body: '{}' }), extra);
     assert.equal(off.status, 404);
   }
+});
+
+// Owner 2026-11-02 (aj_ad936ec, aj_ba11d5a): a shortened trail must be said the same way everywhere in the plan, and the step count is read
+// from the plan's words about steps, not from any number near the word "step".
+const SGD = JSON.parse(readFileSync(new URL('./fixtures/animation-sgd-trail.json', import.meta.url), 'utf8'));
+const ruleOf = plan => plan.limitations[0].match(/draws (\d+) markers, one every (\d+) steps, instead of (\d+)/).slice(1).map(Number);
+test('the shortened plan the build ran with contradicted itself; a shortened plan now restates every trail sentence or is not offered', () => {
+  const ran = SGD.find(x => x.job.startsWith('aj_ad936ec')).changed, [shown, every, from] = ruleOf(ran);
+  assert.deepEqual([shown, every, from], [37, 7, 256], 'the saved plan, as it was built: 256 was a batch size');
+  assert.ok(trailConflicts(ran, 40, every, shown).some(s => /one for each step/.test(s)), 'it still said one trail point for each step');
+  for (const x of SGD) {
+    for (const limit of [11500, 13000, 14992]) for (const a of planAlternatives(x.original, 'Show me how stochastic gradient descent works.', () => limit)) {
+      const [n, k, of] = ruleOf(a.plan);
+      assert.deepEqual(trailConflicts(a.plan, of, k, n), [], `${x.job} ${a.id} at ${limit}`);
+      const said = [a.plan.description, ...a.plan.interactions, ...a.plan.assumptions].join(' ');
+      assert.doesNotMatch(said, /one for each step|one per step|adds one trail point/, `${x.job} ${a.id}`);
+      assert.ok(!new RegExp(`\b${of} (?:points|markers)\b`).test(said), `${x.job} ${a.id}: the old count is gone`);
+      if (a.id === 'no_kept_path') assert.ok(a.plan.interactions.every(i => !/keep (?:old )?path|restarts from the same point/i.test(i)), 'the kept-path action goes whole, not a fragment of it');
+    }
+  }
+});
+test('calibration on the saved SGD jobs: the 40-step plan is read as 40 steps and not flagged; the 300-step plan with a kept path is; the drafts written from the shortened plans', () => {
+  const [ad, ba] = ['aj_ad936ec', 'aj_ba11d5a'].map(id => SGD.find(x => x.job.startsWith(id)));
+  const forty = estimateDraftBytes(ad.original);
+  assert.deepEqual([forty.stated, forty.retained, forty.drawn], [40, true, 80], 'was 256 steps: "at 256 every step follows the exact slope"');
+  assert.equal(sizeOf(ad.original).over, false, 'its shape fits the real check: aj_9c453b6 wrote 13,252 B for the same 40 steps with a kept path, and fitProblems accepts it');
+  assert.ok(Math.abs(forty.bytes - 13252) / 13252 < 0.15, `${forty.bytes}`);
+  const many = sizeOf(ba.original);
+  assert.equal(many.over, true, '300 steps with a kept path is 600 markers, past the 256 nodes a scene may declare');
+  assert.ok(many.alternatives.length > 0);
+  // Measured, both ways (the report quotes these): the estimate over-counts when the author draws fewer markers than the plan says
+  // (aj_ad936ec drew 20 for a cap of 37 with a kept path), and under-counts a larger program (aj_ba11d5a's 15,097 B draft was refused by the
+  // real review-size check while its plan was estimated under the limit: a false negative, caught by fitProblems before any review).
+  const over = (estimateDraftBytes(ad.changed).bytes - Math.max(...ad.drafts)) / Math.max(...ad.drafts), under = (estimateDraftBytes(ba.changed).bytes - Math.max(...ba.drafts)) / Math.max(...ba.drafts);
+  assert.ok(over > 0.5 && under < 0, `${over} ${under}`);
+  assert.equal(sizeOf(ba.changed).over, false);
 });
