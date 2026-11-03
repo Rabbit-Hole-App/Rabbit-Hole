@@ -1199,6 +1199,8 @@ await run('A7 card ghost: the card pale beside the selection, clear of everythin
   await page.locator('[data-ghost-kind="card"]').waitFor({ timeout: 5000 });
   await page.keyboard.press('Escape');
   await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+  // The ghost leaves in the render after the editor's: wait for it (bounded), then assert as before.
+  await page.locator('[data-inline-card-ghost], [data-inline-ghost]').first().waitFor({ state: 'detached', timeout: 2000 }).catch(() => {});
   check('A7: Esc removes the card ghost', (await page.locator('[data-inline-card-ghost], [data-inline-ghost]').count()) === 0);
   await context.close();
 });

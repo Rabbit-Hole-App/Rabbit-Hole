@@ -81,7 +81,8 @@ run_check() {
     esac
     [ $rc = 0 ] || case $s in *'checks passed'*) s="fail: exit $rc, the log's own count was ${s% checks passed}" ;; esac
     echo "${n%-check}$t exit $rc  $s  ($(( $(date +%s) - T0 ))s)$r" | tee -a "$OUT/fast.log"
-    [ $rc = 0 ] || { FAIL=1; echo "--- ${n%-check}$t log tail ---"; sed 's/\x1b\[[0-9;]*m//g' "$L" | tail -n 20; }
+    # A failure prints its failing lines with the trace around them (they can sit far above the tail), then the tail.
+    [ $rc = 0 ] || { FAIL=1; echo "--- ${n%-check}$t failing lines ---"; sed 's/\x1b\[[0-9;]*m//g' "$L" | grep -anE -B3 -A14 '^(FAIL [0-9]|not ok)|✗ |AssertionError|Error: ' | head -n 90; echo "--- ${n%-check}$t log tail ---"; sed 's/\x1b\[[0-9;]*m//g' "$L" | tail -n 20; }
   done
 }
 
