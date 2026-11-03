@@ -123,7 +123,8 @@ await run('the bar names its shortcuts: Ctrl on Windows and Linux, Cmd on a Mac,
   await clickAt(mac.page, shape('n23')(mac.page));
   await settle(mac.page);
   const addMac = mac.page.getByRole('button', { name: 'Add to chat' });
-  check('Mac: badges read Cmd+L and Cmd+K', (await addMac.innerText()).includes('Cmd+L') && (await mac.page.getByRole('button', { name: 'Quick Edit' }).innerText()).includes('Cmd+K') && (await addMac.getAttribute('title')) === 'Add to chat (Cmd+L)');
+  // Owner brief 2026-11-02: one Mac spelling everywhere (shortcuts.js), so the bar reads ⌘L and ⌘K and announces Meta+L.
+  check('Mac: badges read ⌘L and ⌘K', (await addMac.innerText()).includes('⌘L') && (await mac.page.getByRole('button', { name: 'Quick Edit' }).innerText()).includes('⌘K') && (await addMac.getAttribute('title')) === 'Add to chat (⌘L)' && (await addMac.getAttribute('aria-keyshortcuts')) === 'Meta+L');
   await mac.context.close();
 });
 

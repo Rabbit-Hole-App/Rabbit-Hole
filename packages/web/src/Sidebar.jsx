@@ -17,6 +17,7 @@ import RabbitHoleSettings from './RabbitHoleSettings.jsx';
 import { Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 import { isInternalPrincipal, personLabel, useShownIdentity } from './session-display.js';
 import { MODEL_CHOICES, MODEL_SCOPE } from './model-choices.js';
+import { keyLabel } from './shortcuts.js';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
 // left nav (Account / Workspace sections), right content per tab. This is the live and private BYOC build's;
@@ -1168,7 +1169,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
       {/* icons only - search + notifications share one line, tooltips carry the labels */}
       <div className="flex items-center gap-1 px-0.5">
         <button
-          title="Search (Ctrl + Shift + F)"
+          title={`Search (${keyLabel('Mod+Shift+F')})`}
           aria-label="Search"
           onClick={() => { setWatchOpen(false); window.dispatchEvent(new CustomEvent('small:search')); }}
           className={cn('flex h-7 cursor-pointer items-center rounded-full px-1.5 text-sm', searchOpen ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')}

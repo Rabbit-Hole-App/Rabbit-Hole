@@ -11,6 +11,7 @@ import { Button, toast } from './ui.jsx';
 import { api } from './api.js';
 import { DESCRIPTION_MAX, evidenceOf, outlineTree, proposalProblem } from './learn-outline-model.js';
 import { STATUS_LABEL, fetchProgress } from './learn-progress-client.js';
+import { keyLabel } from './shortcuts.js';
 
 const SECTION_LEVELS = [[1, 'Section', Heading1], [2, 'Sub-section', Heading2], [3, 'Sub-sub-section', Heading3]];
 const LEVEL_NAMES = { 1: 'section', 2: 'sub-section', 3: 'sub-sub-section' };
@@ -110,7 +111,7 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
             <button type="button" aria-label={`Edit ${entry.label}`} title="Edit title and description" onClick={() => setEditing(entry.id)}
               className="flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-ink"><Pencil size={14} /></button>
             {/* Removes the entry from the contents only; the canvas and any saved learning stay, and Ctrl+Z brings it back. */}
-            <button type="button" aria-label={`Remove heading ${entry.label}`} title="Remove from the contents (the canvas stays; Ctrl+Z undoes it)" onClick={() => canvasApi.current?.removeSection(entry.id)}
+            <button type="button" aria-label={`Remove heading ${entry.label}`} title={`Remove from the contents (the canvas stays; ${keyLabel('Mod+Z')} undoes it)`} onClick={() => canvasApi.current?.removeSection(entry.id)}
               className="flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-red-700"><Trash2 size={14} /></button>
           </div>
         )}

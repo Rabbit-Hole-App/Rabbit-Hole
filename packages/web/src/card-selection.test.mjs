@@ -8,6 +8,7 @@ import { openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { canvasTargetField, describeCanvasObject } from './learn-ask-target.js';
 import { COMMON_ACTIONS } from './canvas-actions.js';
 import { TYPE_ACTIONS } from './canvas-actions-types.js';
+import { hintFor } from './shortcuts.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const everything = { dive: true, readers: true };
@@ -183,10 +184,11 @@ test('the Ctrl+K menu rows read Quick Edit and open in Edit mode', () => {
   const canvas = read('./AdaptiveCanvas.jsx'), page = read('./LearnPage.jsx');
   // UI-25: the canvas menu's row is the registry's (canvas-actions.js), run through the canvas's own opener in Edit mode.
   const quick = COMMON_ACTIONS.find(entry => entry.id === 'quick-edit');
-  assert.deepEqual([quick.label, quick.hint, quick.data], ['Quick Edit', 'Ctrl K', 'data-menu-inline-ai']);
+  // Hints come from shortcuts.js (owner brief 2026-11-02): the same Quick Edit row, Ctrl+K on Windows, ⌘K on a Mac.
+  assert.deepEqual([quick.label, quick.keys, quick.data, hintFor('quick-edit', false), hintFor('quick-edit', true)], ['Quick Edit', 'quick-edit', 'data-menu-inline-ai', 'Ctrl+K', '⌘K']);
   assert.match(canvas, /quickEdit: inlineAi && !visiting \? \(\) => openInline\(performance\.now\(\), false, 'edit'\) : null,/);
   // The page's Edit menu names it Edit with AI (owner brief 2026-10-22 item 4); the same action, the same Ctrl K.
-  assert.ok(read('./canvas-menus.js').includes("{ label: 'Edit with AI', icon: Wand, hint: 'Ctrl K', disabled: !canvasState.selected || !inlineAi, onSelect: () => canvas()?.inlineAi?.('edit') }"));
+  assert.ok(read('./canvas-menus.js').includes("{ label: 'Edit with AI', icon: Wand, ...k('quick-edit'), disabled: !canvasState.selected || !inlineAi, onSelect: () => canvas()?.inlineAi?.('edit') }"));
   assert.match(page, /canvasEditMenus\(\{ canvas, canvasState, inlineAi, quickEdit: true,/);
   assert.doesNotMatch(canvas + page, /Edit or explain/);
 });

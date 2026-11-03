@@ -8,6 +8,7 @@ import { learnPreview } from './flags.js';
 import { sidebarEdge } from './home/pinned.js';
 import { immersiveAt } from './routes.js';
 import { readSidebar, saveSidebar } from './sidebar-nav.js';
+import { fieldKind, modalOpen } from './shortcut-owner.js';
 
 // flow.md §1: the sidebar is always present. One shell owns it everywhere -
 // the /api/apps fetch it needs, the persisted collapse, the » reopen button,
@@ -62,20 +63,26 @@ export default function Shell({ children }) {
     window.addEventListener('keydown', esc);
     return () => { window.removeEventListener('popstate', close); window.removeEventListener('keydown', esc); };
   }, [drawer]);
+  // Ctrl/⌘+J (open or focus Chat) and Ctrl/⌘+\ (the sidebar) are app-wide, but they never take the focus from a modal window, a
+  // dialog, a code editor or embedded page or a rich-text editor (shortcut-owner.js fieldKind), never during IME composition, and a
+  // held key acts once. Ctrl/⌘+\ is claimed only where there is a sidebar (not on an immersive canvas); elsewhere the browser
+  // keeps it (owner brief 2026-11-02 section 3).
   useEffect(() => {
     const on = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
-        e.preventDefault();
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.isComposing || e.keyCode === 229 || (e.key !== 'j' && e.key !== '\\')) return;
+      const field = modalOpen() ? 'dialog' : fieldKind(document.activeElement);
+      if (field === 'dialog' || field === 'code' || document.activeElement?.isContentEditable) return;
+      if (e.key === '\\' && learnPreview && immersiveAt(window.location.pathname, window.location.search)) return;
+      e.preventDefault();
+      if (e.repeat) return;
+      if (e.key === 'j') {
         window.dispatchEvent(new CustomEvent('small:ask-focus')); // ⌘J → nearest Ask box
         return;
       }
-      if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
-        e.preventDefault();
-        setCollapsed((c) => {
-          saveSidebar('small.sidebar', c ? 'open' : 'closed');
-          return !c;
-        });
-      }
+      setCollapsed((c) => {
+        saveSidebar('small.sidebar', c ? 'open' : 'closed');
+        return !c;
+      });
     };
     window.addEventListener('keydown', on);
     return () => window.removeEventListener('keydown', on);

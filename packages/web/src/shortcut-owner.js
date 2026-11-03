@@ -7,11 +7,15 @@
 //   search      Ctrl/Cmd+Shift+F    Search.jsx.
 // Inside text inputs, code editors and dialogs the claimant decides from `field` (fieldKind); by default it keeps the
 // browser's and the field's own behaviour. Pure where it can be, so it is tested without a browser.
+import { isMac, keyLabel } from './shortcuts.js';
+
 export const CHORDS = { 'quick-edit': { key: 'k', shift: false }, 'add-to-chat': { key: 'l', shift: false }, search: { key: 'f', shift: true } };
 
-export const isMac = () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/i.test([navigator.userAgentData?.platform, navigator.platform, navigator.userAgent].filter(Boolean).join(' '));
-// 'Ctrl+L' on Windows and Linux, 'Cmd+L' on a Mac.
-export const chordLabel = (chord, mac = isMac()) => `${mac ? 'Cmd' : 'Ctrl'}${CHORDS[chord].shift ? '+Shift' : ''}+${CHORDS[chord].key.toUpperCase()}`;
+export { isMac };
+// The chord as a binding (shortcuts.js): 'Ctrl+L' on Windows and Linux, '⌘L' on a Mac (owner brief 2026-11-02: one spelling
+// for the modal, menus and tooltips).
+export const chordBinding = chord => `Mod${CHORDS[chord].shift ? '+Shift' : ''}+${CHORDS[chord].key.toUpperCase()}`;
+export const chordLabel = (chord, mac = isMac()) => keyLabel(chordBinding(chord), mac);
 
 // The chord a keydown is, or null: Ctrl or Cmd held, never Alt, Shift exactly as the chord says, not during IME composition.
 export function chordOf(event) {
@@ -22,14 +26,30 @@ export function chordOf(event) {
   return null;
 }
 
-// Where the focus is, when it is somewhere a chord should keep its normal meaning: a dialog, a code editor or embedded page,
-// or a text field. null for the page itself (body) and for plain controls.
+// Where the focus is, when it is somewhere a chord should keep its normal meaning: a dialog, an open menu (its target is the
+// menu's, never an older selection: owner brief 2026-11-02), a code editor or embedded page, or a text field. null for the page
+// itself (body) and for plain controls.
 export function fieldKind(element) {
   if (!element || element.nodeType !== 1 || (typeof document !== 'undefined' && (element === document.body || element === document.documentElement))) return null;
   if (element.closest?.('[role="dialog"],[aria-modal="true"]')) return 'dialog';
+  if (element.closest?.('[role="menu"]')) return 'menu';
   if (element.tagName === 'IFRAME' || element.closest?.('.cm-editor,.monaco-editor,[data-code-editor]')) return 'code';
   if (element.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(element.tagName)) return 'text';
   return null;
+}
+
+export const modalOpen = (doc = typeof document !== 'undefined' ? document : null) => !!doc?.querySelector?.('[role="dialog"][aria-modal="true"]');
+
+// A plain or Shift key the page owns (Shift+S Slash Commands, Shift+P the right panel; owner brief 2026-11-02 section 3) is
+// taken only with the focus on the page, a canvas card or a plain control: never while typing, in a code editor, notebook,
+// embedded page, dialog, menu, the composer or a card's own widget or active viewer, never with a modal open, never during
+// IME composition and never from a held key's repeats. The caller adds its own conditions (presenting, the action's own rules).
+export function pageKeyAllowed(event, active = typeof document !== 'undefined' ? document.activeElement : null) {
+  if (!event || event.isComposing || event.keyCode === 229 || event.repeat || modalOpen()) return false;
+  if (!active || active.nodeType !== 1 || (typeof document !== 'undefined' && (active === document.body || active === document.documentElement))) return true;
+  if (fieldKind(active) || active.tagName === 'SELECT') return false;
+  if (active.closest?.('[data-block-id]') && !active.matches?.('[data-block-id]')) return false;
+  return !active.closest?.('[data-chat-composer],[data-toc-composer],[data-comments-panel],[data-study-pane],[data-study-work],[role="menu"],[data-canvas-doc],[data-viewer-active],[data-companion],[data-graph-card]');
 }
 
 // Ctrl/Cmd+L adds the canvas selection to the chat: only with a selection and the focus on the page, never in a field,
@@ -47,7 +67,8 @@ let installed = false;
 export function routeShortcut(event, field) {
   const chord = chordOf(event);
   if (!chord) return null;
-  const where = field === undefined && typeof document !== 'undefined' ? fieldKind(document.activeElement) : field ?? null;
+  // An open modal window (Shortcuts, Slash Commands, Settings) owns the keyboard: nothing behind it takes a chord.
+  const where = field === undefined && typeof document !== 'undefined' ? (modalOpen() ? 'dialog' : fieldKind(document.activeElement)) : field ?? null;
   for (const claim of claims[chord]) {
     if (!claim.run(event, where)) continue;
     event.preventDefault();

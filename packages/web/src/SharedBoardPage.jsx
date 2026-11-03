@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import CanvasMenubar from './CanvasMenubar.jsx';
-import ShortcutsSheet from './ShortcutsSheet.jsx';
+import ShortcutsSheet, { SHARED_OMIT } from './ShortcutsSheet.jsx';
 import { canvasEditMenus, localInsertItems } from './canvas-menus.js';
 import { typingIn } from './canvas-equation.js';
 import { can } from './canvas-permissions.js';
@@ -136,9 +136,9 @@ function SharedBoard({ token, embed = null }) {
   // ? opens the shortcuts (the menubar no longer lists them): not while typing, in a field, or with a modifier held.
   useEffect(() => {
     const key = event => {
-      if (event.key !== '?' || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key !== '?' || event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;
       const active = window.document.activeElement;
-      if (typingIn(active) || active?.tagName === 'SELECT') return;
+      if (typingIn(active) || active?.tagName === 'SELECT' || window.document.querySelector('[role="dialog"][aria-modal="true"]:not([data-shortcuts-sheet])')) return;
       event.preventDefault();
       setShortcutsOpen(open => !open);
     };
@@ -272,7 +272,7 @@ function SharedBoard({ token, embed = null }) {
   // editable here. No Files: a shared canvas's Materials are not shareable (panel.files).
   const menus = [
     ...(editable && can('canvas.local-edit', permissions).allowed ? [{ title: 'Insert', items: localInsertItems(canvas) }] : []),
-    ...canvasEditMenus({ canvas, canvasState, comments, docView, setDocView, drawing: editable })
+    ...canvasEditMenus({ canvas, canvasState, comments, docView, setDocView, drawing: editable, onShortcuts: () => setShortcutsOpen(true) })
       .filter(menu => editable || menu.title === 'View'),
   ];
   // An embed has no Start Rabbit Hole, no Next Steps (a model call) and no map; its Ask in Chat target is only used when Chat is on.
@@ -374,7 +374,7 @@ function SharedBoard({ token, embed = null }) {
       <SharedPanel panel={panel} permissions={permissions} search={search} onOpenAction={openSearchAction} comments={comments} commentsAttr="data-shared-comments"
         outline={canvasState.outline} activeSection={canvasState.activeSection ?? null} canvasApi={canvasApi}
         chat={<SharedChat token={token} viewer={shared.viewer} context={shared.context} draft={askBack?.draft ?? null} target={target} onClearTarget={() => { setTarget(null); canvasApi.current?.deselect(); }} onAllowance={setGuestRemaining} />} />
-      {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
+      {shortcutsOpen && <ShortcutsSheet omit={SHARED_OMIT} onClose={() => setShortcutsOpen(false)} />}
     </main>
   );
 }

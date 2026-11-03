@@ -89,7 +89,7 @@ function MenuPanel({ items, label, nested = false, focusFirst = false, onDone, o
         const kind = item.check !== undefined ? 'menuitemcheckbox' : item.radio !== undefined ? 'menuitemradio' : 'menuitem';
         const on = kind === 'menuitemcheckbox' ? item.check : kind === 'menuitemradio' ? item.radio : undefined;
         return (
-          <button key={item.label} type="button" role={kind} data-menu-item={item.label} disabled={item.disabled} aria-checked={on === undefined ? undefined : !!on}
+          <button key={item.label} type="button" role={kind} data-menu-item={item.label} disabled={item.disabled} aria-checked={on === undefined ? undefined : !!on} aria-keyshortcuts={item.keys || undefined}
             onPointerEnter={hover(item)}
             // A check row flips in place and the menu stays open, so the canvas reflows beside it; anything else closes the menu.
             onClick={() => { if (kind === 'menuitemcheckbox') { item.onToggle(!item.check); return; } onDone(); item.onSelect?.(); }}
@@ -98,7 +98,7 @@ function MenuPanel({ items, label, nested = false, focusFirst = false, onDone, o
                 or selection in the leading column. */}
             <Lead icon={item.icon} tick={on} />
             <span className="flex-1 whitespace-nowrap">{item.label}</span>
-            {item.hint && <span className="shrink-0 pl-3 text-xs text-ink-3">{item.hint}</span>}
+            {item.hint && <span data-menu-hint aria-hidden="true" className="shrink-0 pl-3 text-xs text-ink-3">{item.hint}</span>}
             {item.icon && on !== undefined && <span className="flex w-4 shrink-0 justify-center text-accent">{on ? <Check size={16} strokeWidth={2} aria-hidden="true" /> : null}</span>}
           </button>
         );
