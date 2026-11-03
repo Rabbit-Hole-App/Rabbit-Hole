@@ -210,6 +210,10 @@ test('the diagnosed SGD causes, as general rules: event shape, merged findings, 
   const sent = JSON.parse(content[0].text);
   assert.deepEqual(sent.findings.map(f => f.message), ['no batch-noise readout', 'arrow too small', 'bowl drawn as rings', 'trail dots too small']);
   assert.equal(sent.omitted, undefined, 'nothing cut');
+  // The same message about two different objects is two findings; repeats of each still merge across captures.
+  const about = (object, capture) => ({ category: 'spec', severity: 'major', target: { capture, object }, message: 'too small to see' });
+  const split = JSON.parse(repairContent(jobOf(fixture.repairedDraft), { findings: [about('arrow', 'v0-s0'), about('ball', 'v0-s0'), about('arrow', 'v1-s0')] }, fixture.repairedDraft)[0].text);
+  assert.deepEqual(split.findings.map(f => [f.target.object, f.target.captures]), [['arrow', ['v0-s0', 'v1-s0']], ['ball', ['v0-s0']]]);
   // 4d: serious findings all marked not repairable stop the repair; one repairable among them keeps it.
   assert.equal(repairableFindings([{ category: 'spec', severity: 'major', specRepairable: false }]), false);
   assert.equal(repairableFindings([{ category: 'spec', severity: 'major', specRepairable: false }, { category: 'spec', severity: 'major', specRepairable: true }]), true);
