@@ -165,8 +165,8 @@ test('rules: arrows keep their magnitudes with no minimum and no size demand a z
 
 test('sampler: an experiment varies its main control one setting at a time, comparison controls on: initial, middle after steps and every action, high end; the low end is listed as not sampled', () => {
   const { entries, coverage } = captureManifest(fixture.repairedArtifact);
-  assert.deepEqual(coverage.sampled.map(s => s.label), ['initial', 'learningRate at 0.16: 60 steps, then oneStep, keepPath, then 30 steps', 'learningRate at its high end (2.5), after 90 steps']);
-  assert.deepEqual(coverage.omitted.slice(0, 3), ['learningRate at its low end (0.01), after 90 steps', 'every parameter at its low end', 'every parameter at its high end']);
+  assert.deepEqual(coverage.sampled.map(s => s.label), ['initial', 'learningRate at 0.16: 60 steps, then oneStep, keepPath, then 30 steps', 'learningRate at its high end (2.5), after keepPath, then 90 steps']); // an older draft whose actions declare nothing: its last action starts the motion, so it is pressed before the ticks
+  assert.deepEqual(coverage.omitted.slice(0, 3), ['learningRate at its low end (0.01), after keepPath, then 90 steps', 'every parameter at its low end', 'every parameter at its high end']);
   const byLabel = l => entries.find(e => e.view.name === 'default' && e.label === l);
   assert.deepEqual(byLabel(coverage.sampled[1].label).inputs, { learningRate: 0.16, batchSize: '4', showTrueGradient: true }, 'the others held at their defaults, the comparison arrow on');
   assert.deepEqual(byLabel(coverage.sampled[2].label).inputs, { learningRate: 2.5, batchSize: '4', showTrueGradient: true });
