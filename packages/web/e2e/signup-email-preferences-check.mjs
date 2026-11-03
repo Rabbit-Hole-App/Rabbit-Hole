@@ -34,7 +34,7 @@ const api = async (who, path, init = {}) => { const r = await fetch(`${BASE}${pa
 const userId = async who => { const id = (await (await fetch(`${CP}/api/me`, { headers: cookieOf(who) })).json()).user_id; if (!/^[0-9a-f]{32}$/.test(id)) throw Error('no account id'); return id; };
 const stored = async who => rows(`SELECT category, enabled, source, method, affirmative, disclosure_version FROM user_email_preferences WHERE user_id = '${await userId(who)}' ORDER BY category`);
 
-const total = 38; // 7 per combination x 4, Settings 3, existing person 1, isolation 2, unrelated edit 1, unsubscribe 2, page errors 1
+const total = 45; // 7 per combination x 4, failed save and recovery 4, Settings 3 + 1 stale replay, existing person 2, isolation 2, unrelated edit 1, unsubscribe 2 + 1 stale replay, page errors 1
 const results = [];
 const check = (name, ok, detail = '') => { results.push(ok); console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${detail ? ` - ${detail}` : ''}`); };
 const browser = await chromium.launch();
@@ -55,6 +55,7 @@ const people = {};
 for (const [name] of COMBOS) people[name] = { session: await sessionFor(`prefs-${name}-${run}@example.com`, null) };
 people.existing = { session: await sessionFor(`prefs-existing-${run}@example.com`, `existing_${run}`) };
 const pages = {};
+const continueBodies = {}; // the exact PUT /api/profile body each real Continue sent, replayed later as a stale retry
 
 for (const [name, keepUpdates, keepNewsletter] of COMBOS) {
   const person = people[name], page = pages[name] = await pageFor(person);
@@ -62,6 +63,7 @@ for (const [name, keepUpdates, keepNewsletter] of COMBOS) {
   const setup = page.locator('[data-handle-setup]');
   await setup.waitFor({ timeout: 60000 });
   const box = category => page.locator(`[data-email-choice="${category}"]`);
+  page.on('request', request => { if (request.method() === 'PUT' && new URL(request.url()).pathname === '/api/profile') continueBodies[name] = request.postData(); });
   const states = async () => [await box('updates').isChecked(), await box('newsletter').isChecked()];
 
   check(`${name}: both boxes are shown checked, named, optional and described`, await page.locator('[data-email-choices]').isVisible()
@@ -94,6 +96,48 @@ for (const [name, keepUpdates, keepNewsletter] of COMBOS) {
     JSON.stringify(await stored(person)) === JSON.stringify([row('newsletter', keepNewsletter), row('updates', keepUpdates)]), JSON.stringify(await stored(person)));
 }
 
+// ---- a failed save claims nothing: reload asks again, the retry (with changed boxes) saves, a reload shows it ----
+// The failure is real: a trigger on this one test account's rows makes the database refuse the preference pair, so the real server answers 503.
+// It proves the server order (the pair is saved before the handle is claimed, so a failed pair leaves no handle) and that the gate and the form
+// recover in a browser. It does not prove a network drop in the middle of a request. The trigger is scoped to one account and is dropped in finally.
+{
+  people.retry = { session: await sessionFor(`prefs-retry-${run}@example.com`, null) };
+  const person = people.retry, uid = await userId(person), trigger = `inject_fail_${run}`;
+  const page = await pageFor(person);
+  try {
+    await page.goto(`${BASE}/library?type=canvases`);
+    const setup = page.locator('[data-handle-setup]');
+    await setup.waitFor({ timeout: 60000 });
+    rows(`CREATE TRIGGER ${trigger} BEFORE INSERT ON user_email_preferences WHEN NEW.user_id = '${uid}' BEGIN SELECT RAISE(ABORT, 'injected save failure'); END`);
+    let refused = false;
+    try { rows(`INSERT INTO user_email_preferences (user_id, category, enabled, source, method, affirmative, changed_at) VALUES ('${uid}', 'updates', 1, 'onboarding', 'signup_preselected', 0, 1)`); } catch { refused = true; }
+    if (!refused) { rows(`DELETE FROM user_email_preferences WHERE user_id = '${uid}'`); throw Error('the injected trigger is not active in the local D1'); }
+    await page.getByLabel('Handle', { exact: true }).fill(`retry_${run}`);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    const alert = page.locator('[data-handle-hint][role="alert"]');
+    await alert.waitFor({ timeout: 30000 });
+    check('failed save: the real server refuses, the step stays with the message, no handle is claimed and no choice is recorded', /could not be saved/.test(await alert.innerText()) && await setup.count() === 1
+      && (await api(person, '/api/profile')).body.handle === null && (await stored(person)).length === 0);
+    await shot(page, '04-failed-save');
+    await page.reload();
+    await setup.waitFor({ timeout: 60000 });
+    check('failed save then reload: Choose your handle shows again with both boxes checked and a usable form', await page.locator('[data-email-choice="updates"]').isChecked() && await page.locator('[data-email-choice="newsletter"]').isChecked()
+      && await page.getByLabel('Handle', { exact: true }).isEnabled() && await page.getByLabel('Handle', { exact: true }).inputValue() === '' && await page.getByRole('button', { name: 'Continue' }).isDisabled());
+    rows(`DROP TRIGGER IF EXISTS ${trigger}`);
+    await page.locator('[data-email-choice="newsletter"]').uncheck(); // a CHANGED choice on the retry
+    await page.getByLabel('Handle', { exact: true }).fill(`retry_${run}`);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await setup.waitFor({ state: 'detached', timeout: 30000 });
+    await page.getByRole('heading', { name: 'Library' }).waitFor({ timeout: 30000 });
+    const retryRow = (category, kept) => ({ category, enabled: kept ? 1 : 0, source: 'onboarding', method: kept ? 'signup_preselected' : 'signup_user_unchecked', affirmative: 0, disclosure_version: 'v2' });
+    check('retry after the failure, with a changed box: the handle is claimed and the choices stored are the retry\'s (Updates kept, Newsletter unchecked)', (await api(person, '/api/profile')).body.handle === `retry_${run}`
+      && JSON.stringify(await stored(person)) === JSON.stringify([retryRow('newsletter', false), retryRow('updates', true)]), JSON.stringify(await stored(person)));
+    await page.reload();
+    await page.getByRole('heading', { name: 'Library' }).waitFor({ timeout: 30000 });
+    check('reload after the successful retry: no step, and the saved state is there', await setup.count() === 0 && JSON.stringify((await api(person, '/api/profile')).body.emailPreferences) === JSON.stringify(view(true, false)));
+  } finally { try { rows(`DROP TRIGGER IF EXISTS ${trigger}`); } catch { /* best effort: the trigger names one test account */ } }
+}
+
 // ---- Settings: the preselected account changes one choice at a time and can confirm ----
 {
   const person = people.both, page = pages.both;
@@ -118,6 +162,11 @@ for (const [name, keepUpdates, keepNewsletter] of COMBOS) {
   await switchOf('Newsletter').click();
   const on = await settled('newsletter', true);
   const again = Object.fromEntries((await stored(person)).map(r => [r.category, r]));
+  const bothAfterSettings = JSON.stringify(await stored(person));
+  const staleBoth = await page.evaluate(body => fetch('/api/profile', { method: 'PUT', headers: { 'content-type': 'application/json' }, body }).then(r => r.status), continueBodies.both);
+  const bothAfterReplay = JSON.stringify(await stored(person));
+  check('settings: the browser replays its first Continue (same, already-claimed handle) after the Settings choices: it succeeds and changes neither choice', staleBoth === 200 && bothAfterReplay === bothAfterSettings,
+    `${staleBoth} ${bothAfterReplay}`);
   check('settings: turning it back on is the person\'s own act: settings_user_set and affirmative, with no Confirm left', on && again.newsletter.enabled === 1 && again.newsletter.method === 'settings_user_set'
     && again.newsletter.affirmative === 1 && await pane.locator('[data-email-pref="newsletter"]').getByRole('button', { name: 'Confirm' }).count() === 0 && again.updates.method === 'signup_preselected');
 }
@@ -130,6 +179,10 @@ for (const [name, keepUpdates, keepNewsletter] of COMBOS) {
   const profile = (await api(person, '/api/profile')).body;
   check('an existing person with a handle sees no email step, has no preference recorded and no row is created by opening the app', await page.locator('[data-handle-setup]').count() === 0
     && JSON.stringify(profile.emailPreferences) === JSON.stringify(view(null, null)) && (await stored(person)).length === 0);
+  await page.reload();
+  await page.locator('[data-account-menu]').waitFor({ timeout: 60000 });
+  check('an ordinary existing account (a handle, no preference rows) reloads straight into the app: never sent to Choose your handle, still nothing recorded', await page.locator('[data-handle-setup]').count() === 0
+    && JSON.stringify((await api(person, '/api/profile')).body.emailPreferences) === JSON.stringify(view(null, null)) && (await stored(person)).length === 0);
 }
 
 // ---- account isolation: the account is the session's, never the body's ----
@@ -160,6 +213,10 @@ for (const [name, keepUpdates, keepNewsletter] of COMBOS) {
   const after = Object.fromEntries((await stored(person)).map(r => [r.category, r]));
   check('unsubscribe: pressing it turns off Updates only; the Newsletter row is untouched', done.status === 200 && after.updates.enabled === 0 && after.updates.method === 'unsubscribe_link' && after.updates.source === 'unsubscribe'
     && after.updates.affirmative === 0 && after.updates.disclosure_version === null && JSON.stringify(after.newsletter) === JSON.stringify(before.find(r => r.category === 'newsletter')));
+  const afterUnsubscribe = JSON.stringify(await stored(person));
+  const staleUpdates = await pages.updates.evaluate(body => fetch('/api/profile', { method: 'PUT', headers: { 'content-type': 'application/json' }, body }).then(r => r.status), continueBodies.updates);
+  check('unsubscribe: the browser replays its first Continue (same, already-claimed handle) after the unsubscribe: it succeeds and the unsubscribe stands', staleUpdates === 200 && JSON.stringify(await stored(person)) === afterUnsubscribe,
+    `${staleUpdates} ${JSON.stringify(await stored(person))}`);
 }
 
 check('no page errors', errors.length === 0, errors.join(' | '));

@@ -39,13 +39,16 @@ function fixture(t, { people = {}, mainSql = mainSchema } = {}) {
   }
   // Failure injection: failures.prefs = N makes the next N preference writes reject before they reach the database (the connection
   // drops after the handle claim). trap(category) makes the database itself abort that category's row, so a pair statement fails midway.
-  const failures = { prefs: 0 };
+  const failures = { prefs: 0, handle: 0 };
   const flaky = db => ({ prepare: sql => { const stmt = db.prepare(sql); return { bind(...v) { stmt.bind(...v); return this; }, first: () => stmt.first(), all: () => stmt.all(),
     run: async () => { if (failures.prefs > 0 && /INSERT INTO user_email_preferences/.test(sql)) { failures.prefs--; throw new Error('connection lost'); } return stmt.run(); } }; } });
   const trap = category => { main.exec(`CREATE TABLE IF NOT EXISTS trap (category TEXT); DELETE FROM trap; INSERT INTO trap VALUES ('${category}');
     CREATE TRIGGER IF NOT EXISTS trap_row BEFORE INSERT ON user_email_preferences WHEN NEW.category = (SELECT category FROM trap LIMIT 1) BEGIN SELECT RAISE(ABORT, 'second category failed'); END;`); };
   const untrap = () => main.exec('DROP TRIGGER IF EXISTS trap_row');
-  const env = { LEARN_DB: d1(learn), DB: flaky(d1(main)), MASTER_KEY,
+  // failures.handle = N makes the next N handle writes (INSERT INTO user_handles) reject: the claim fails AFTER the pair was saved.
+  const flakyLearn = db => ({ prepare: sql => { const stmt = db.prepare(sql); return { bind(...v) { stmt.bind(...v); return this; }, first: () => stmt.first(), all: () => stmt.all?.(),
+    run: async () => { if (failures.handle > 0 && /INSERT INTO user_handles/.test(sql)) { failures.handle--; throw new Error('handle store down'); } return stmt.run(); } }; } });
+  const env = { LEARN_DB: flakyLearn(d1(learn)), DB: flaky(d1(main)), MASTER_KEY,
     CONTROL_PLANE: { fetch: async req => { const p = who[req.headers.get('x-user') || 'ada']; return Response.json({ org: 'team', email: p.email, orgName: 'Team', ...(p.uid ? { user_id: p.uid } : {}) }); } } };
   const send = async (method, body, user = 'ada') => {
     const res = await profileFetch(new Request('https://dev.test/api/profile', { method, headers: { 'x-user': user }, ...(body ? { body: JSON.stringify(body) } : {}) }), env);
@@ -152,14 +155,21 @@ test('a malformed or unknown submission is refused before anything is written (t
   assert.deepEqual(rows('uid-ada'), []);
 });
 
-test('a taken handle changes nothing, the email choices included; the retry stores them once', async t => {
+test('a taken handle saves the choices but not the handle; the next submit replaces the stored pair and claims a free handle', async t => {
   const { send, rows, count } = fixture(t);
   assert.equal((await send('PUT', { handle: 'taken_one' }, 'bob')).status, 200);
-  const refused = await send('PUT', gate(onboarding(unchanged, unchanged), 'taken_one'));
+  const refused = await send('PUT', gate(onboarding(unchanged, { enabled: false, touched: true }), 'taken_one'));
   assert.equal(refused.status, 409);
-  assert.equal(count(), 0);
-  assert.equal((await send('PUT', gate(onboarding(unchanged, unchanged), 'free_one'))).status, 200);
-  assert.equal(rows('uid-ada').length, 2);
+  assert.match(refused.body.error, /is taken/);
+  assert.equal((await send('GET')).body.handle, null, 'no handle claimed');
+  assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled, r.method, r.affirmative, r.source]), [['newsletter', 0, 'signup_user_unchecked', 0, 'onboarding'], ['updates', 1, 'signup_preselected', 0, 'onboarding']], 'the pair is what the person submitted at Continue');
+  assert.deepEqual(rows('uid-bob'), [], 'and only for their own account');
+  // The next submit: a free handle and changed boxes. The stored pair is replaced by what this request carries.
+  const retry = await send('PUT', gate(onboarding({ enabled: false, touched: true }, { enabled: true, touched: true }), 'free_one'));
+  assert.equal(retry.status, 200);
+  assert.equal(retry.body.handle, 'free_one');
+  assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled, r.method, r.affirmative]), [['newsletter', 1, 'signup_user_checked', 1], ['updates', 0, 'signup_user_unchecked', 0]]);
+  assert.equal(count(), 2);
 });
 
 // ---------- the account comes from the session, never the body ----------
@@ -236,20 +246,67 @@ test('a stale or repeated onboarding request never overwrites a Settings change 
 
 // ---------- the handle claim and the preference pair recover cleanly ----------
 
-test('(a, d) a failure after the handle claim and before the preferences are saved: the retry saves the submitted values, and a reload shows them', async t => {
+test('(a, d) a failed pair save claims no handle: a reload still meets Choose your handle, and the retry saves the submitted values', async t => {
   const { send, rows, failures } = fixture(t);
   failures.prefs = 1;
   const failed = await send('PUT', gate(onboarding(unchanged, { enabled: false, touched: true })));
   assert.equal(failed.status, 503);
   assert.deepEqual(rows('uid-ada'), [], 'nothing saved by the failed request');
   const reload = await send('GET');
-  assert.equal(reload.body.handle, 'ada_demo', 'the handle was claimed');
-  assert.deepEqual([reload.body.emailPreferences.updates.enabled, reload.body.emailPreferences.newsletter.enabled], [null, null], 'and no choice is recorded yet');
+  assert.equal(reload.body.handle, null, 'no handle was claimed, so the gate asks again (gateFor is unchanged: it asks exactly when there is no handle)');
+  assert.deepEqual([reload.body.emailPreferences.updates.enabled, reload.body.emailPreferences.newsletter.enabled], [null, null]);
   const retry = await send('PUT', gate(onboarding(unchanged, { enabled: false, touched: true })));
   assert.equal(retry.status, 200);
+  assert.equal(retry.body.handle, 'ada_demo');
   assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled, r.method]), [['newsletter', 0, 'signup_user_unchecked'], ['updates', 1, 'signup_preselected']]);
-  const after = (await send('GET')).body.emailPreferences;
-  assert.deepEqual([after.updates.enabled, after.newsletter.enabled], [true, false], 'after a reload');
+  const after = (await send('GET')).body;
+  assert.deepEqual([after.handle, after.emailPreferences.updates.enabled, after.emailPreferences.newsletter.enabled], ['ada_demo', true, false], 'after a reload');
+});
+
+test('(a) a failure writing the handle AFTER the pair was saved: a reload meets the gate again, and the changed retry replaces the pair and claims the handle', async t => {
+  const { send, rows, failures } = fixture(t);
+  failures.handle = 1;
+  await assert.rejects(send('PUT', gate(onboarding(unchanged, unchanged))), /handle store down/);
+  const reload = await send('GET');
+  assert.equal(reload.body.handle, null, 'the claim did not happen');
+  assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled, r.source]), [['newsletter', 1, 'onboarding'], ['updates', 1, 'onboarding']], 'the pair stayed, still replaceable');
+  const retry = await send('PUT', gate(onboarding({ enabled: false, touched: true }, unchanged)));
+  assert.equal(retry.status, 200);
+  assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled, r.method]), [['newsletter', 1, 'signup_preselected'], ['updates', 0, 'signup_user_unchecked']]);
+  assert.equal((await send('GET')).body.handle, 'ada_demo');
+});
+
+test('(e) the same account retrying with its own already-claimed handle still saves the pair; another account is refused; a later Settings change or unsubscribe survives a stale retry', async t => {
+  const { env, send, rows } = fixture(t);
+  const first = onboarding(unchanged, unchanged);
+  assert.equal((await send('PUT', gate(first, 'claimed_one'))).status, 200);
+  // Its own handle again, with changed boxes: no conflict with itself, and the pair carries the new values.
+  assert.equal((await send('PUT', gate(onboarding({ enabled: false, touched: true }, unchanged), 'claimed_one'))).status, 200);
+  assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled]), [['newsletter', 1], ['updates', 0]]);
+  // Another account claiming that handle is refused and claims nothing (its own pair is stored, replaceable).
+  const stranger = await send('PUT', gate(onboarding(unchanged, unchanged), 'claimed_one'), 'bob');
+  assert.equal(stranger.status, 409);
+  assert.equal((await send('GET', null, 'bob')).body.handle, null);
+  assert.equal((await send('GET')).body.handle, 'claimed_one', 'and the owner still has it');
+  // Later choices: Newsletter switched off in Settings, Updates unsubscribed by its link.
+  await send('PUT', { emailPreferences: { source: 'settings', disclosure: DISCLOSURE_VERSION, newsletter: { enabled: false } } });
+  await handleUnsubscribe(unsubReq(await unsubscribeUrl(env, BASE, 'uid-ada', 'updates'), { method: 'POST' }), env, '/unsubscribe', { baseUrl: BASE, html });
+  const snapshot = JSON.stringify(rows('uid-ada'));
+  // The browser replays its first Continue request (same handle, the original boxes): it succeeds and changes neither choice.
+  assert.equal((await send('PUT', gate(first, 'claimed_one'))).status, 200);
+  assert.equal(JSON.stringify(rows('uid-ada')), snapshot);
+  assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled, r.source]), [['newsletter', 0, 'settings'], ['updates', 0, 'unsubscribe']]);
+});
+
+test('an ordinary account with a handle and no preference rows is complete: the profile it gets leaves the gate closed, and nothing records or switches anything on', async t => {
+  const { send, rows, count } = fixture(t);
+  assert.equal((await send('PUT', { handle: 'plain_one' })).status, 200); // an existing account: a handle, never asked about email
+  const profile = (await send('GET')).body;
+  assert.equal(profile.handle, 'plain_one');
+  assert.deepEqual([profile.emailPreferences.updates.enabled, profile.emailPreferences.newsletter.enabled], [null, null]);
+  for (const edit of [{ name: 'Plain' }, { description: 'x' }, { handle: 'plain_two' }]) assert.equal((await send('PUT', edit)).status, 200);
+  assert.equal(count(), 0, 'no row is written for an account that never pressed Continue on the boxes');
+  assert.deepEqual(rows('uid-ada'), []);
 });
 
 test('(b, d) the pair is atomic: a failure on the second category leaves neither saved, and a reload shows none', async t => {
@@ -267,7 +324,7 @@ test('(b, d) the pair is atomic: a failure on the second category leaves neither
 test('(c, d) a retry with CHANGED checkbox values after a failure stores the changed values, not the first attempt\'s', async t => {
   const { send, rows, failures } = fixture(t);
   failures.prefs = 1;
-  assert.equal((await send('PUT', gate(onboarding(unchanged, unchanged)))).status, 503); // attempt 1: both left checked, nothing saved
+  assert.equal((await send('PUT', gate(onboarding(unchanged, unchanged)))).status, 503); // attempt 1: both left checked; nothing saved, no handle claimed
   const changed = onboarding({ enabled: false, touched: true }, { enabled: true, touched: true });
   assert.equal((await send('PUT', gate(changed))).status, 200); // attempt 2: Updates unchecked, Newsletter unchecked and checked again
   assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled, r.method, r.affirmative]), [['newsletter', 1, 'signup_user_checked', 1], ['updates', 0, 'signup_user_unchecked', 0]]);
@@ -288,20 +345,6 @@ test('(c, d) a retry with changed values after the pair statement itself failed 
   assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled, r.method]), [['newsletter', 0, 'signup_user_unchecked'], ['updates', 0, 'signup_user_unchecked']]);
   const after = (await send('GET')).body.emailPreferences;
   assert.deepEqual([after.updates.enabled, after.newsletter.enabled], [false, false], 'after a reload');
-});
-
-test('(e) the same account retrying with its own claimed handle still saves the pair; a different account claiming that handle is refused and saves nothing', async t => {
-  const { send, rows, count, failures } = fixture(t);
-  failures.prefs = 1;
-  assert.equal((await send('PUT', gate(onboarding(unchanged, unchanged), 'claimed_one'))).status, 503);
-  const stranger = await send('PUT', gate(onboarding(unchanged, unchanged), 'claimed_one'), 'bob');
-  assert.equal(stranger.status, 409);
-  assert.match(stranger.body.error, /is taken/);
-  assert.equal(count(), 0, 'the refused account saved nothing, and the failed one has not retried yet');
-  assert.equal((await send('PUT', gate(onboarding(unchanged, unchanged), 'claimed_one'))).status, 200, 'its own handle again: no conflict with itself');
-  assert.deepEqual(rows('uid-bob'), []);
-  assert.equal(rows('uid-ada').length, 2);
-  assert.equal((await send('GET', null, 'bob')).body.handle, null, 'the stranger never got the handle');
 });
 
 test('(g, h) after a failed attempt and a retry, an unrelated edit still leaves both rows alone, and a person who never chose is still "no preference recorded"', async t => {
@@ -488,6 +531,7 @@ test('before the migration is applied: the profile still loads, and Continue fai
   const refused = await send('PUT', gate(onboarding(unchanged, unchanged)));
   assert.equal(refused.status, 503);
   assert.match(refused.body.error, /could not be saved/);
+  assert.equal((await send('GET')).body.handle, null, 'and no handle was claimed, so the person is asked again after the migration');
   assert.equal((await send('PUT', { name: 'Ada' })).status, 200, 'unrelated edits keep working');
 });
 

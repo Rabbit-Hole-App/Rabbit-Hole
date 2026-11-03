@@ -78,10 +78,19 @@ export async function profileFetch(req, env) {
   if (input.value.emailPreferences && !user.userId) return json({ error: 'Email choices need a signed-in account.' }, 409); // before any write
   const current = await db.prepare(PROFILE).bind(user.email).first();
   const { handle, description, emailPreferences, ...fields } = input.value;
+  if (emailPreferences) {
+    // The email choices FIRST (docs/features/signup-email-preferences.md "Saving and recovery"). The account is the session's, never the
+    // body's, and the pair is one statement (whole or not at all). If it fails nothing else in the request has changed: no handle is claimed,
+    // so a reload meets Choose your handle again with the form it had (HandleGate gateFor is unchanged) and the person chooses again. If the
+    // handle then fails (taken), the stored pair is what the person submitted at Continue and the next submit replaces it, but only while
+    // its source is still onboarding: a Settings change or an unsubscribe made since is never overwritten by a stale or repeated request.
+    try { await saveEmailPreferences(env, user.userId, emailPreferences); }
+    catch { return json({ error: 'Your email choices could not be saved. Try again.' }, 503); }
+  }
   const next = { name: current?.name ?? null, avatar: current?.avatar ?? null, handle: current?.handle ?? null, description: current?.description ?? null, ...fields };
   if (handle !== undefined && handle !== next.handle) {
-    // The handle first, so a taken one changes nothing. One statement claims or changes it; the UNIQUE (NOCASE) index
-    // is the authority, so of two people claiming the same handle at once exactly one gets it.
+    // One statement claims or changes the handle; the UNIQUE (NOCASE) index is the authority, so of two people claiming the same
+    // handle at once exactly one gets it. A taken one claims nothing (the 409 below).
     await db.prepare('INSERT INTO user_profiles (email) VALUES (?) ON CONFLICT(email) DO NOTHING').bind(user.email).run();
     try { await db.prepare('INSERT INTO user_handles (email, handle) VALUES (?, ?) ON CONFLICT(email) DO UPDATE SET handle=excluded.handle').bind(user.email, handle).run(); }
     catch (error) {
@@ -100,14 +109,6 @@ export async function profileFetch(req, env) {
   if (Object.keys(fields).length) {
     await db.prepare("INSERT INTO user_profiles (email, name, avatar, updated_at) VALUES (?, ?, ?, datetime('now')) ON CONFLICT(email) DO UPDATE SET name=excluded.name, avatar=excluded.avatar, updated_at=excluded.updated_at")
       .bind(user.email, next.name, next.avatar).run();
-  }
-  if (emailPreferences) {
-    // Last, after the handle: a taken handle changed nothing. The account is the session's, never the body's. The pair is one
-    // statement (whole or not at all). A failure is loud (the choice is not silently dropped) and the retry recovers: the handle is
-    // already this account's, so the pair is saved again, with the values the retry carries; it replaces an earlier onboarding row
-    // and never a Settings change or an unsubscribe made since.
-    try { await saveEmailPreferences(env, user.userId, emailPreferences); }
-    catch { return json({ error: 'Your email choices could not be saved. Try again.' }, 503); }
   }
   return json({ ...next, ...(await emailView(env, user)) });
 }

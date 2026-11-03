@@ -74,16 +74,33 @@ it is resolved at send time. `email_suppressions` (address, reason) is the never
 
 ## Saving and recovery
 
-The pair is **one statement** (`saveEmailPreferences`: a multi-row `INSERT ... ON CONFLICT`), so both categories are saved or neither. The handle is
-claimed first (a taken handle changes nothing), then the pair, so a failure between them leaves a claimed handle and no choices; the answer is a 503
-("Your email choices could not be saved. Try again."), never a silent drop. The retry recovers because the handle is already the account's own (no
-conflict with itself; another account claiming it is still refused with 409) and the pair is written again with the values the retry carries.
+The pair is **one statement** (`saveEmailPreferences`: a multi-row `INSERT ... ON CONFLICT`), so both categories are saved or neither.
+
+**Order: the pair is saved BEFORE the handle is claimed** (`profile.js`; owner hold 2026-11-03). The learner is asked again exactly when the gate finds no
+handle (`gateFor` reads the handle only), so the failure window must leave no handle:
+
+- The pair save fails (database error): the answer is a 503 ("Your email choices could not be saved. Try again."), nothing is claimed, and a reload
+  meets Choose your handle again with the existing form (both boxes checked). The learner chooses again; nothing is lost silently.
+- The pair is saved and the handle is then refused (taken by another account, 409): no handle is claimed and the existing "taken" message shows. The
+  stored pair is what the person submitted at Continue, with the same method and affirmative flag as before (a preselected pair is never affirmative).
+  It stays replaceable by the next submit, so a changed retry stores the changed values.
+- The pair is saved and the handle write itself fails (a server error): no handle, the pair stays replaceable, a reload asks again.
+- The handle is claimed and the response is lost: the pair is already saved; a reload skips the step, correctly.
+- An ordinary account with a handle and no preference rows is never asked: `gateFor` is unchanged, and no code path writes a row for an account that
+  never pressed Continue on the boxes.
 
 The overwrite rule: an **onboarding** request replaces a stored row only while that row's `source` is `onboarding` (or there is no row). A Settings
-change or an unsubscribe made since is never overwritten by a stale or repeated onboarding request. Settings and the unsubscribe link always replace
-their own category. Tested: (a) failure after the claim, retry saves; (b) a failure on the second category leaves neither; (c) a retry with changed
-values stores the changed values; (d) a reload after each shows the stored values; (e) own handle again succeeds, another account is refused; (f) a later
-Settings change or unsubscribe survives a stale retry; (g) unrelated profile edits never reset either; (h) people with no row stay "no preference recorded".
+change or an unsubscribe made since is never overwritten by a stale or repeated onboarding request, including a replay of the first Continue with the
+account's own already-claimed handle (it succeeds and changes neither). Settings and the unsubscribe link always replace their own category.
+
+Tests (`test/email-preferences.test.js`, with fault injection): a failed pair save claims no handle, a reload still has none, and the retry stores the
+submitted values; an aborted statement leaves neither category; a handle-write failure after the pair, then a changed retry; a taken handle saves the
+choices but not the handle and the next submit replaces them; own claimed handle again, another account refused, a later Settings change or unsubscribe
+survives a stale replay; an ordinary account is untouched by profile edits; `src/signup-email-choices.test.mjs` pins `gateFor`. Browser proof in CI
+(`e2e/signup-email-preferences-check.mjs`): a real Continue against a database that refuses the pair (a trigger on one test account's rows) shows the
+message and claims no handle; a reload shows Choose your handle again with both boxes checked; the retry with a changed box saves; a reload shows the saved
+state; an ordinary existing account reloads straight into the app; the browser's own first Continue replayed after a Settings change and after an
+unsubscribe changes neither. The injection proves the server order and the gate recovery; it does not prove a network drop in the middle of a request.
 
 ## The deliverable address, per provider
 

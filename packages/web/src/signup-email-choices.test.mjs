@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { CATEGORIES, DISCLOSURE_VERSION, initialChoices, onboardingSubmission, toggleChoice, wording } from '../../control-plane/src/email-preferences.js';
 import { isPublicPageRequest } from './landing/support-routes.js';
+import { gateFor } from './session-display.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'signup-choices-')), outfile = join(dir, 'gate.cjs');
 await esbuild.build({
@@ -77,4 +78,18 @@ test('the wording has no ellipsis, and the unsubscribe page is not swallowed by 
   const page = path => isPublicPageRequest(new Request(`https://x.test${path}`, { headers: { accept: 'text/html' } }));
   assert.equal(page('/unsubscribe'), false);
   assert.equal(page('/no-such-page'), true);
+});
+
+// Owner hold 2026-11-03: the gate asks exactly when there is no handle. The pair is saved BEFORE the handle is claimed (profile.js), so a failed
+// save leaves no handle and a reload asks again, while an ordinary account (a handle, no email choice recorded) is never asked.
+test('gateFor asks only when there is no handle: an ordinary account with a handle and unset email choices is never sent back to Choose your handle', () => {
+  const unset = { disclosure: 'v2', deliverable: true, updates: { enabled: null, affirmative: false }, newsletter: { enabled: null, affirmative: false } };
+  assert.equal(gateFor({ name: null, avatar: null, handle: 'plain', description: null, emailPreferences: unset }), 'ok');
+  assert.equal(gateFor({ handle: 'plain', emailPreferences: unset }), 'ok');
+  assert.equal(gateFor({ handle: 'plain' }), 'ok', 'a profile service without email choices');
+  assert.equal(gateFor({ handle: null, emailPreferences: unset }), 'needed', 'no handle: asked again, whatever the choices are');
+  assert.equal(gateFor({ handle: null }), 'needed');
+  assert.equal(gateFor(null), 'ok', 'signed out');
+  const source = readFileSync(new URL('./session-display.js', import.meta.url), 'utf8');
+  assert.match(source, /export const gateFor = profile => \(profile && !profile\.handle \? 'needed' : 'ok'\);/, 'gateFor reads the handle only');
 });

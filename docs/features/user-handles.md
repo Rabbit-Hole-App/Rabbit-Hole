@@ -29,7 +29,7 @@ Owner requirement, 2026-10-06. Every Rabbit Hole user has a unique public handle
 - `PUT /api/profile { handle }` claims or changes the handle.
   - The server normalizes the input and checks the syntax and the reserved list.
   - One statement upserts the handle, and the UNIQUE (NOCASE) index is the authority: of two simultaneous claims, exactly one wins.
-  - The loser gets `409 { error: "@x is taken. Choose another.", taken: true }` and nothing else in that request changes.
+  - The loser gets `409 { error: "@x is taken. Choose another.", taken: true }` and no handle is claimed. The one exception: email choices sent with the claim are saved first (docs/features/signup-email-preferences.md "Saving and recovery"), so a failed save leaves no handle and the step is asked again.
   - The client's hints are advisory only.
 
 ## Where @handle shows
