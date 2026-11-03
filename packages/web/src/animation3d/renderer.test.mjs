@@ -197,6 +197,17 @@ test('a canvas zoom with no resize sharpens the next draw', async () => {
   renderer.dispose();
 });
 
+test('labelLayout reports the label plates of the last draw, inside the viewport', async () => {
+  const { renderer } = harness();
+  assert.deepEqual(renderer.labelLayout(), [], 'nothing drawn yet');
+  await renderer.load(watchFixture.artifact, {});
+  const [plate] = renderer.labelLayout();
+  assert.equal(plate.id, 'moonTag');
+  assert.equal(plate.shown, true);
+  assert.ok(plate.x >= 0 && plate.y >= 0 && plate.x + plate.w <= 400 && plate.y + plate.h <= 300, JSON.stringify(plate));
+  renderer.dispose();
+});
+
 test('the Labels choice is kept across loads and frames; hasOptionalLabels answers after a load', async () => {
   const { renderer, gl } = harness();
   assert.equal(renderer.hasOptionalLabels(), false, 'nothing loaded');

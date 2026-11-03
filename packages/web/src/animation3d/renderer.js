@@ -9,6 +9,7 @@
 //     applyFrame(frame) -> { ok, issues? }   an invalid frame changes nothing
 //     setCamera({ position, target, fov? }), getCamera() -> camera | null, interact(on), capturePoster() -> WebP data URL | null, dispose()
 //     setOptionalLabels(visible), hasOptionalLabels() -> boolean (after a load; false when every label is essential or there are none)
+//     labelLayout() -> the last draw's label plates [{ id, text, essential, shown, x, y, w, h }] in CSS pixels (scene.js layoutLabels), for tests and measurements
 //   The bitmap follows the card's on-screen size (effectiveRatio below), so it stays sharp at any canvas zoom.
 // Pointer: with interaction on, a click on a selectable node calls onSelect (empty space: null); a left drag on a draggable node
 // emits drag_start/drag_move/drag_end along its declared local axis, clamped to its range, and suspends orbit for that drag. The
@@ -69,7 +70,7 @@ export function createAnimationRenderer({
     pmrem.dispose();
   };
   light();
-  let shown = null, loads = 0, disposed = false, lost = false, frame = 0, drag = null, press = null, ratio = 0, size = '', optionalLabels = true;
+  let shown = null, loads = 0, disposed = false, lost = false, frame = 0, drag = null, press = null, ratio = 0, size = '', optionalLabels = true, plates = [];
   const raycaster = new THREE.Raycaster();
 
   // The bitmap for the container's layout size at its effective pixel ratio; true when that changed (the caller redraws).
@@ -86,7 +87,7 @@ export function createAnimationRenderer({
     return true;
   };
   // Labels follow the view (scene.js layoutLabels), so they are sized for this viewport, pixel ratio and camera before every draw.
-  const render = () => { fit(); shown?.layoutLabels({ width: container.clientWidth || 1, height: container.clientHeight || 1, camera, ratio }); renderer.render(view, camera); };
+  const render = () => { fit(); plates = shown?.layoutLabels({ width: container.clientWidth || 1, height: container.clientHeight || 1, camera, ratio }) ?? []; renderer.render(view, camera); };
   const draw = () => { frame = 0; if (!disposed && !lost) render(); };
   const schedule = () => { if (!disposed && !lost && !frame) frame = globalThis.requestAnimationFrame ? requestAnimationFrame(draw) : (draw(), 0); };
   const cameraState = () => ({ position: camera.position.toArray(), target: controls.target.toArray(), fov: camera.fov });
@@ -214,6 +215,7 @@ export function createAnimationRenderer({
     // The Labels toggle: object names on or off (scene.js keeps captions and live values); kept across frames and loads.
     setOptionalLabels(visible) { optionalLabels = !!visible; shown?.setOptionalLabels(optionalLabels); schedule(); },
     hasOptionalLabels: () => !!shown?.hasOptionalLabels(),
+    labelLayout: () => plates,
     // Off: end this renderer's own gesture first (cancel), then OrbitControls' held pointers (cancelHeld's synthetic pointercancel
     // then finds no drag to end).
     interact(on) { if (!on) { cancel(); cancelHeld(); } controls.enabled = !!on; },

@@ -157,10 +157,12 @@ test('label textures are painted at device pixels and repainted only when the si
   scene.layoutLabels({ width: 960, height: 540, camera: view });
   const owned = scene.owned();
   scene.layoutLabels({ width: 960, height: 540, camera: view });
-  assert.deepEqual(labels, [{ text: 'Moon', pixels: LABEL_PIXELS.max, ratio: 1 }], 'painted once');
+  // The texture is also asked for the widest plate the viewport allows (maxWidth), so a long label wraps instead of running off it.
+  const maxWidth = 960 - 2 * LABEL_PIXELS.inset;
+  assert.deepEqual(labels, [{ text: 'Moon', pixels: LABEL_PIXELS.max, ratio: 1, maxWidth }], 'painted once');
   const first = sprite.material.map;
   scene.layoutLabels({ width: 960, height: 540, camera: view, ratio: 2.25 });
-  assert.deepEqual(labels.at(-1), { text: 'Moon', pixels: LABEL_PIXELS.max, ratio: 2.25 });
+  assert.deepEqual(labels.at(-1), { text: 'Moon', pixels: LABEL_PIXELS.max, ratio: 2.25, maxWidth });
   assert.notEqual(sprite.material.map, first);
   assert.equal(scene.owned(), owned, 'the previous texture was freed');
   const plate = plateOf(sprite, view), whole = value => Math.abs(value * 2.25 - Math.round(value * 2.25)) < 1e-6;
