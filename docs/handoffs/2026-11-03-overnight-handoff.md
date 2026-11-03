@@ -1,7 +1,7 @@
 # Overnight handoff, 2026-11-03 (written for the owner and for ChatGPT's morning review)
 
 Author: Parallel (the integrator session). Times are Pacific. This file is updated through the night; the "Last updated" line says when.
-Last updated: 2026-11-03 03:05 PT (see "Update log" at the end).
+Last updated: 2026-11-03 03:15 PT (see "Update log" at the end).
 
 Rules this report follows: no secrets, no personal email addresses, no share-link tokens. The owner's personal account is never used for testing; production testing uses the dedicated account **@yuvish_demo**. Production commands are owner-run launchers; nothing here was pushed to `main` by an agent.
 
@@ -35,16 +35,36 @@ Not done by a browser on production (owner rule: no Claude browser on production
 - After it finishes: send "release 35-feedback done" so the deployed commit is verified. Then verify storage and delivery as **@yuvish_demo** (never the personal account) using `C:\s\spec\feedback-mail\OWNER-CHECKLIST.md`: one bug report and one feature suggestion from Home and one of each inside a canvas; expect the on-button reference each time; expect four emails to the owner's inbox with subjects `[Rabbit Hole] Bug report RH-...` / `[Rabbit Hole] Feature suggestion RH-...` from `Rabbit Hole <hello@digrabbithole.com>`; `C:\s\spec\feedback-mail\read-feedback.cmd` lists the stored objects. Optional limit proof: a sixth report within an hour gets the friendly limit message with the typed text kept.
 - Unverified until then: whether the email service sends from the hello@ address in production (the domain is the same one used for sign-in emails; a sign-in email arriving from hello@ confirms it), real delivery to the inbox, and the create-only storage write used for the limit.
 
-### Release 2: Email preferences (newsletter)  (gate pending)
-- Candidate: `feat/signup-email-preferences` at `02bdcd09d3fc02a33b7cf550baae861d0bc0ec55` (contains the feedback commit). CI running: verify https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41620836122 , fast-e2e https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41620836096 . Its gate starts automatically after CI is green and the feedback gate is done; commands will be listed here when it passes.
-- Order will be: Release 1 first; then the production migration `0028` launcher (`C:\s\spec\signup-prefs\apply-prod-migration.cmd`, typed `APPLY PROD`); then `C:\s\spec\release-queue\release.cmd 36-newsletter`. The release check refuses a schema that differs in either direction, so 0028 must be applied after Release 1 and before Release 2.
+### Release 2: Email preferences (newsletter)  (READY after Release 1; gate passed 03:04 PT)
+- Candidate: `feat/signup-email-preferences` at `02bdcd09d3fc02a33b7cf550baae861d0bc0ec55`; contains the feedback commit `bbb01a383` (so it fast-forwards main only AFTER Release 1 is live).
+- CI on that exact commit (attempt 1): verify https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41620836122 success; fast-e2e https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41620836096 success (signup-email-preferences 38/38, handle 34/34, feedback 8/8, creator-profile 19/19).
+- Release gate: https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41622854513 success, tested exactly this commit.
+- Local checks on this commit: control-plane 3252 tests, web unit 4792, scripts 151, web build: all exit 0. An independent diff review found no requirement defects; its two weak-test findings are fixed in this commit.
+- Needs production migration `0028-email-preferences` (additive: two new tables `user_email_preferences` and `email_suppressions`, `IF NOT EXISTS`, no DROP/ALTER/DELETE) on the production main database. The release preflight refuses a schema that differs in either direction, so the ORDER MATTERS: Release 1 first, then the migration, then this release.
+- Commands, in this order, each in a Windows terminal, after Release 1 is live:
+  1. Migration (typed phrase `APPLY PROD`; it pins the migration's SHA-256 `20433244cf257ee7c8d090527e9bf27931575cc320801b40a2d376c05cd16c54`, checks the production database name and that 0028 is the only pending migration):
+     ```
+     C:\s\spec\signup-prefs\apply-prod-migration.cmd
+     ```
+  2. Read-only release check (it must print CHECK COMPLETE; it refuses until Release 1 is live and the migration is applied):
+     ```
+     C:\s\spec\release-queue\release.cmd 36-newsletter --check
+     ```
+  3. Release:
+     ```
+     C:\s\spec\release-queue\release.cmd 36-newsletter
+     ```
+- Then verify as **@yuvish_demo** (the account already has a handle, so it never sees the "Choose your handle" step): Settings, Privacy & security, Email: first reads "Not set." for both; then set both on, only Updates, only Newsletter, both off, reloading after each; `C:\s\spec\signup-prefs\read-prod-email-prefs.cmd` (read-only) shows the stored rows. The four sign-up combinations on production need brand-new accounts and are covered in CI on test accounts. Full steps: `C:\s\spec\signup-prefs\OWNER-SEQUENCE.md`.
+- Dev preview (signed-in launcher, dev data only): `C:\s\spec\signup-prefs\open-signup-preview.cmd new privacy` (a fresh account at "Choose your handle"; run it four times for the four combinations) or `existing`. URL https://rabbit-hole-web-dev-signup-prefs.tryrabbithole.workers.dev .
+- Owner decisions on this release: confirm the Newsletter description ("The founder's newsletter about tech and AI."; disclosure version 2); the Privacy Policy effective date November 3, 2026 holds only if the release is live on Nov 3 (Pacific); a slip needs a new commit and a new gate; whether GitHub-only addresses should later request the email scope (they stay pending in this release).
+- Not covered / risks: no email is sent by this release and bounce handling is not built; the handle (Learn DB) and the choices (main DB) are saved by retry, not one transaction; deletion of these rows on account closure is manual as today; the production launchers are verified by syntax and pinned hashes but their mutating paths were not exercised against production (owner runs them).
 
 ## 3. Awaiting testing, approval or a gate (as of 02:40 PT)
 
 | Item | Branch | Commit | State | Blocker |
 |---|---|---|---|---|
 | Feedback email (stored report is mailed to the owner; app email sender changed to the hello@ address; per-account limit 5/hour and 20/day, typed text kept) | `feat/feedback-mail` | `f4af0b936` was green (verify 41615503932, fast-e2e 41615503900); a small follow-up commit (invitation emails no longer say "Replies to this email aren't read", now false with the new sender) is in CI as release candidate F2 | F2 CI, then the release gate (dispatched by the integrator) | none |
-| Newsletter / Rabbit Hole Updates preferences (two independent checkboxes, both checked by default, atomic save, affirmative-consent gate for both categories, founder's tech and AI newsletter description, privacy wording in the Privacy Policy) | `feat/signup-email-preferences` | `d7396868b` green (verify 41615737769, fast-e2e 41615737606); final candidate N = this branch merged with F2 | waits for F2, then CI on N, then the gate | feedback release goes first; production migration 0028 is owner-run |
+| Newsletter / Rabbit Hole Updates preferences (two independent checkboxes, both checked by default, atomic save, affirmative-consent gate for both categories, founder's tech and AI newsletter description, privacy wording in the Privacy Policy) | `feat/signup-email-preferences` | `d7396868b` green (verify 41615737769, fast-e2e 41615737606); final candidate N = this branch merged with F2 | ready: gate passed (see section 2, Release 2) | Release 1 first; production migration 0028 is owner-run |
 | Animation MVP1 correction (single-step fix + label legibility fix) | `fix/animation-sgd-rca` | `cad855a1e3ada884c4b75ec15c4929801c9224f2` (integrated; pushed 02:36 PT) | CI in progress: verify https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41620275081 , fast-e2e https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41620275028 | production merge/deploy and paid run paused |
 
 ## 4. Animation MVP1 correction
@@ -86,6 +106,7 @@ Scope: MVP1 only. Paid generation, Animation merge and Animation deployment are 
 
 ## Update log
 - 02:00 PT first version.
+- 03:15 PT section 2: Release 2 (newsletter preferences) gate passed; commands in order.
 - 03:05 PT section 4: Animation CI green on cad855a1e, preview verified, old-tab rerun 12/12; routine decision on New run applied (next commit).
 - 02:55 PT section 2: Release 1 (feedback email) ready with its gate; Release 2 (newsletter) candidate in CI.
 - 02:40 PT sections 3 and 4 updated: Animation integrated commit pushed (CI running), feedback F2 and newsletter N pending.
