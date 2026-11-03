@@ -128,7 +128,7 @@ test('budget stops: the build limit offers a revised plan; credits running out k
   assert.equal(failureClass(out.done), 'credits');
   const { job } = await c.job(out.id);
   assert.deepEqual(job.recovery, ['new_attempt', 'edit_request']);
-  assert.equal(job.failure.message, 'Not enough AI credits. Try again continues from where it stopped.');
+  assert.match(job.failure.message, /^Not enough AI credits\. Try again continues from where it stopped, using up to \d+ AI credits\.$/);
 });
 
 test('an interrupted call is never resent by itself: Try again within the ceiling, explained once', { skip }, async t => {
@@ -146,7 +146,7 @@ test('an interrupted call is never resent by itself: Try again within the ceilin
   const { job } = await s.job(body.job.id);
   // Uncertain settlement: the call's outcome was never recorded (status unknown), so its charge is not known and zero is not promised.
   assert.equal(s.stored(body.job.id).calls.at(-1).status, 'unknown');
-  assert.equal(job.failure.message, 'An AI step was interrupted. It may have used AI credits. Try again continues from where it stopped.');
+  assert.match(job.failure.message, /^An AI step was interrupted\. It may have used AI credits\. Try again continues from where it stopped, using up to \d+ AI credits\.$/);
   assert.deepEqual(failures(s).map(m => m.content), [`"${PLAN.title}" was not finished. ${job.failure.message} Your request and plan are kept.`]);
 });
 

@@ -84,9 +84,9 @@ function shrunk(plan, c, markers, dropRetained) {
   const edit = text => clampPoints(dropRetained ? SENTENCE_OF_RETAINED(text) : text, c.stated, shown);
   const list = items => (items || []).map(edit).filter(Boolean);
   const notices = [c.stated ? `${CHANGED}the trail draws ${shown} markers, one every ${every} steps, instead of ${c.stated}; every step still runs.` : `${CHANGED}the trail draws at most ${shown} markers.`];
-  if (dropRetained) notices.push(`${CHANGED}the kept comparison path is left out so the scene can be built.`);
+  if (dropRetained) notices.push(`${CHANGED}the kept comparison path is left out.`);
   if (c.retained && !dropRetained) notices.push(`${CHANGED}the kept comparison path also draws at most ${shown} markers.`);
-  const changed = { ...plan, description: edit(plan.description) || plan.description, interactions: list(plan.interactions), assumptions: [...list(plan.assumptions).slice(0, 7), steps], limitations: [...notices, ...list(plan.limitations)].slice(0, 8) };
+  const changed = { ...plan, title: edit(plan.title) || plan.title, reason: edit(plan.reason) || plan.reason, ...(plan.learningGoal ? { learningGoal: edit(plan.learningGoal) || plan.learningGoal } : {}), description: edit(plan.description), interactions: list(plan.interactions), assumptions: [...list(plan.assumptions).slice(0, 7), steps], limitations: [...notices, ...list(plan.limitations)].slice(0, 8) };
   return { changed, notices, shown, every };
 }
 
@@ -101,7 +101,8 @@ export function planAlternatives(plan, request, limitOf) {
     const markers = Math.min(c.stated || DEFAULT_MARKERS, Math.floor((limitOf(plan) - MARGIN - fixed) / (BYTES.marker * copies)));
     if (markers < MIN_MARKERS) return null;
     const { changed, notices } = shrunk(plan, c, markers, dropRetained);
-    if (!validateAnimationPlan(changed, enabledCapabilities()).ok || estimateDraftBytes(changed).bytes > limitOf(changed)) return null;
+    // A description that was only about the kept path cannot lose it and still describe the scene: not offered (the contract refuses it too).
+    if (!changed.description || !validateAnimationPlan(changed, enabledCapabilities()).ok || estimateDraftBytes(changed).bytes > limitOf(changed)) return null;
     return { id, title, changes: notices, plan: changed };
   };
   const out = [build('fewer_markers', 'Draw a shorter trail', false)];

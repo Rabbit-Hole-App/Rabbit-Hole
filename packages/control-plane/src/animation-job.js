@@ -132,7 +132,8 @@ export function failureClass(job) {
   if (job.stopReason === 'deadline') return 'deadline';
   if (['spend_refused', 'spend_limited'].includes(f.code)) return 'credits';
   if (job.stopReason === 'budget') return 'limit';
-  if (['provider_unavailable', 'transport', 'model_output', 'renderer'].includes(f.category)) return 'transient';
+  // model_http_*: any other provider failure keeps the provider's own reason in f.message, which stays private (TRANSIENT's fallback).
+  if (['provider_unavailable', 'transport', 'model_output', 'renderer'].includes(f.category) || /^model_http_/.test(f.code || '')) return 'transient';
   return 'error';
 }
 // What the failed step's AI calls cost, from the job's call ledger (paidCall) only, which follows the usage records' learner rule
@@ -158,16 +159,21 @@ function reviewWords(found) {
   const serious = (found?.findings || []).filter(f => f.severity !== 'minor'), areas = [...new Set(serious.map(f => AREAS[f.category]).filter(Boolean))];
   return serious.length ? `The visual review found ${serious.length} serious problem${serious.length === 1 ? '' : 's'} with ${areas.join(' and ') || 'the scene'}.` : 'The visual review did not accept the scene.';
 }
+// What Try again may use: its next paid step's worst case, when it has one (the plan call of a plan never approved, or what is left of the build's).
+function attemptCost(job) {
+  const r = job.reservation, most = !job.approval ? r?.preparationMicros : r?.generationMicros != null ? r.generationMicros - (job.bounds?.generation || 0) : 0;
+  return most > 0 ? `, using up to ${credits(most)} AI credits` : '';
+}
 export function failureText(job) {
   const kind = failureClass(job), f = job.failure || {}, action = recoveryOf(job).find(a => a !== 'edit_request');
   if (kind === 'clarification') return f.message;
   const what = { capability: f.gap?.shown ?? GAP_FALLBACK, output_limit: `${OUTPUT_WHO[f.stage] ?? 'An AI step'} reached its output limit before it finished. That does not prove your request is impossible; a smaller plan may fit.`, review_validation: 'The visual review returned an answer in the wrong form, and it could not be corrected within its limit, so this scene was neither accepted nor found faulty.', size_limit: 'The scene was too large to check.', deadline: 'The build ran out of time.', limit: 'The build reached its spending limit.',
     checks: f.stage === 'reviewing' ? reviewWords(job.findings?.filter(x => x.stage === 'reviewing').at(-1)) : CHECKS[f.stage] ?? 'The scene did not pass its checks.',
-    transient: TRANSIENT[f.category] }[kind] ?? f.message ?? 'The animation could not be made.';
+    transient: TRANSIENT[f.category] ?? TRANSIENT.transport }[kind] ?? f.message ?? 'The animation could not be made.';
   const candidate = kind === 'checks' || kind === 'size_limit';
   const tried = [job.stopReason === 'no_progress' ? 'An automatic correction changed nothing.' : job.stopReason === 'unsupported_repair' ? 'It needs a change the automatic correction cannot make.'
     : job.repairs ? `It was corrected automatically ${job.repairs === 1 ? 'once' : 'twice'}${candidate ? ', but it still did not pass' : ''}.` : '', job.autoRetried ? 'It was retried automatically.' : ''];
-  const next = { retry_render: 'Render again renders the built scene again.', new_attempt: 'Try again continues from where it stopped.',
+  const next = { retry_render: 'Render again renders the built scene again.', new_attempt: `Try again continues from where it stopped${attemptCost(job)}.`,
     revise_plan: `Revise plan prepares a simpler plan from your request for you to review, using up to ${credits(job.reservation?.preparationMicros)} AI credits; nothing is built until you press Generate.` }[action]
     ?? (plannerGap(job) ? 'Choose an alternative in Chat, or edit the request to start a new animation.' : candidate || ['capability', 'output_limit', 'deadline', 'limit', 'review_validation'].includes(kind) ? 'Edit the request to start a new animation.' : '');
   return [what, ['transient', 'output_limit', 'error', 'review_validation'].includes(kind) ? chargeWords(job) : '', ...tried, next].filter(Boolean).join(' ');
@@ -487,15 +493,17 @@ export class AnimationJobs {
   async retry(job, payload) {
     if (payload.expectedAttempt !== job.attempt) return json({ job: publicAnimationJob(job) });
     const actions = recoveryOf(job);
-    if (['revise_plan', 'plan_alternative'].includes(payload.action) && job.successor) return this.revise(job);
+    if (payload.action === 'revise_plan' && job.successor) return this.revise(job);
+    const alternative = payload.action === 'plan_alternative' ? GAP_ALTERNATIVES.find(a => a.id === payload.alternative) : null;
+    if (alternative && job.successor) return this.revise(job, alternative.note);
     if (payload.action != null && (payload.action === 'edit_request' || !actions.includes(payload.action))) throw fail('This choice is no longer available. The card shows what you can do now.', 409, 'recovery_stale');
     if (payload.action === 'revise_plan') return this.revise(job);
     // An alternative to a request the planner called a gap: a new plan the learner reviews, its cost said on the button. Nothing is built.
     if (payload.action === 'plan_alternative') {
-      const alternative = GAP_ALTERNATIVES.find(a => a.id === payload.alternative);
       if (!alternative) throw fail('This choice is no longer available. The card shows what you can do now.', 409, 'recovery_stale');
+      const made = await this.revise(job, alternative.note);
       await this.resolveChoice(job, reportKey(job), alternative.id);
-      return this.revise(job, alternative.note);
+      return made;
     }
     if (actions.includes('retry_render')) {
       Object.assign(job, { stage: 'rendering', failure: null, stopReason: null, attempt: job.attempt + 1, deadline: Date.now() + ANIMATION_LIMITS.deadlines.jobMs });
@@ -531,19 +539,19 @@ export class AnimationJobs {
     const alternative = open.alternatives.find(a => a.id === id);
     if (id === SIMPLER_ALTERNATIVE.id && !open.alternatives.length) {
       if (job.counts.brief >= briefLimit) throw fail('This plan reached its change limit. Start a new request.', 429);
-      await this.resolveChoice(job, open.key, id);
       endStage(job.timing, 'refined');
       Object.assign(job, { refinement: SIMPLER_ALTERNATIVE.note, approval: null, stage: 'preparing', sizeChoice: { open: false, chosen: id, key: open.key } });
       beginStage(job.timing, 'preparing');
       await this.save(job); await this.wake();
+      await this.resolveChoice(job, open.key, id);
       return json({ job: publicAnimationJob(job) }, 202);
     }
     if (!alternative && !(id === 'keep' && open.keep)) throw fail('This choice is no longer available. Review the latest plan.', 409, 'plan_stale');
     if (alternative) { job.plan = alternative.plan; job.planHash = await hashAnimationPlan(job.plan); }
-    await this.resolveChoice(job, open.key, id);
     job.sizeChoice = { open: false, chosen: id, key: open.key };
     await this.postPlan(job);
     await this.save(job);
+    await this.resolveChoice(job, open.key, id);
     return json({ job: publicAnimationJob(job) });
   }
   // The choice's buttons stay answered after a reload: the message itself records what was chosen.

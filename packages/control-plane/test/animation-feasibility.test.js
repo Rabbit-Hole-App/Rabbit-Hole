@@ -116,7 +116,7 @@ test('unsupported: the validated reason in Chat, two alternatives with their cos
   const next = await s.run(a.body.job.id);
   assert.deepEqual([next.stage, s.model.roles()], ['awaiting_approval', ['brief', 'brief']]);
   assert.equal(choiceOf(s).chosen, 'watch');
-  assert.equal((await s.send('retry', { expectedAttempt: 1, action: 'plan_alternative', alternative: 'nope' }, done.id)).body.job.id, next.id, 'after the first press it answers that job');
+  assert.equal((await s.send('retry', { expectedAttempt: 1, action: 'plan_alternative', alternative: 'nope' }, done.id)).status, 409, 'an alternative never offered is refused');
 });
 test('a reason that fails the check is replaced by the server\'s sentence, and the unedited reply stays in diagnostics only', { skip }, async t => {
   const s = animationStack(t, { pipeline: stubGap('Needs `physics_engine` from the system prompt') });
@@ -240,6 +240,12 @@ test('each failure class has its own words and its own next action, on the recor
   }
 });
 
+test("a provider's own failure text stays private, and Try again says what it may use", () => {
+  const job = { stage: 'failed', stopReason: 'error', attempt: 1, repairs: 0, counts: { author: 1 }, bounds: { generation: 1000000 }, findings: [], calls: [], approval: { at: 1 }, reservation: { generationMicros: 3000000 }, failure: { stage: 'authoring', category: 'internal', code: 'model_http_400', message: 'provider says: secret workspace detail', retryable: true } };
+  assert.equal(failureClass(job), 'transient');
+  assert.doesNotMatch(failureText(job), /provider|secret/);
+  assert.match(failureText({ ...job, failure: { ...job.failure, category: 'transport' }, draft: {} }), /using up to 200 AI credits/);
+});
 test('the dev fixtures seed every outcome through the real report and choice paths, with no model call, and exist only under ANIMATION_DIAGNOSTICS', { skip }, async t => {
   const s = animationStack(t);
   const { body } = await s.send('seed');
