@@ -34,7 +34,13 @@ const STAGES = {
   authoring: 'Building the scene', validating: 'Checking it', rendering: 'Rendering sample views', reviewing: 'Reviewing the render',
   repairing: 'Fixing what the review found', ready: 'Ready', cancelled: 'Stopped',
 };
-export const animationStage = job => (job?.stage === 'failed' ? job.failure?.message || 'The scene could not be made.' : STAGES[job?.stage] || 'Checking status');
+export const animationStage = job => (job?.stage === 'failed' ? job.failure?.message || 'The scene could not be made.' : job?.choiceOpen ? 'Choose a change to the plan in Chat' : STAGES[job?.stage] || 'Checking status');
+// A request the server asks one question about has not failed in the learner's terms: the card says it plainly, not as an error.
+export const animationAsks = job => job?.stopReason === 'needs_clarification';
+// What a change offered in Chat does when pressed and what it costs (AnimationChoices.jsx). credits: it needs a plan call, up to that many.
+export const choiceAction = alternative => (alternative.credits
+  ? { label: 'Plan this', cost: `Uses up to ${alternative.credits} AI credits to write the plan. Nothing is built until you press Generate.` }
+  : { label: alternative.id === 'keep' ? 'Keep my plan' : 'Use this plan', cost: 'Uses no AI credits. Nothing is built until you press Generate.' });
 // Polled while the server works on it; a plan awaiting review waits on the learner, not a timer.
 export const animationRunning = job => !!job && !job.terminal && !['awaiting_approval', 'ready', 'failed', 'cancelled'].includes(job.stage);
 // The bar a pending card shows once the plan is approved and the scene is being made: Generate is behind it, these four are ahead.

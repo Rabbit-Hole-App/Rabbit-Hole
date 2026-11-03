@@ -39,6 +39,8 @@ import { validateAnimationArtifact } from '../../web/src/animation3d/contract.js
 import { artifactHashOf } from './animation-author.js';
 import { reviewStage } from './animation-review.js';
 import { repairStage } from './animation-repair.js';
+import { CHANGED, GAP_ALTERNATIVES, GAP_FALLBACK, SIMPLER_ALTERNATIVE, clarificationFor, learnerReason, sizeCheck } from './animation-feasibility.js';
+import { seededJobs } from './animation-outcomes-fixture.js';
 import { ANIMATION_LIMITS, ANIMATION_POLICY_VERSION, AnimationPolicyError, animationModelConfigured, modelNotConfigured, animationRequest, animationReservation, callAnimationRole, checkAnimationRequest } from './animation-policy.js';
 
 export const ANIMATION_PREFIX = '/api/learn/animation/jobs';
@@ -72,7 +74,8 @@ export function publicAnimationJob(job) {
   const settled = job.calls.reduce((t, c) => t + (c.costMicros || 0), 0);
   return {
     id: job.id, version: 1, boardId: job.boardId, cardId: job.cardId, stage: job.stage, attempt: job.attempt, terminal: TERMINAL.has(job.stage),
-    repairs: job.repairs, stopReason: job.stopReason, failure: job.failure && { ...job.failure, message: failureText(job) }, recovery: recoveryOf(job),
+    repairs: job.repairs, stopReason: job.stopReason, failure: job.failure && (({ gap: _private, ...failure }) => ({ ...failure, message: failureText(job) }))(job.failure), recovery: recoveryOf(job),
+    outcome: outcomeOf(job), choiceOpen: !!job.sizeChoice?.open, ...(job.threadId ? { threadId: job.threadId } : {}), chatPending: reportPending(job),
     usage: { credits: credits(settled), unknown: job.calls.some(c => c.status === 'unknown') },
     // Revise plan's new job for the same card and request (revise): a card still bound to this one follows it (Animation3DCard reconcile).
     result: job.result, ...(job.plan ? { plan: job.plan, planHash: job.planHash } : {}), ...(job.successor ? { successor: job.successor } : {}),
@@ -80,18 +83,32 @@ export function publicAnimationJob(job) {
   };
 }
 const diagnostics = job => ({ plan: job.plan, draft: job.draft, artifactHash: job.artifactHash, artifact: job.artifact && { ...job.artifact, program: job.artifact.program ? { bytes: job.artifact.program.source.length, sourceHash: job.artifact.program.sourceHash } : undefined },
-  findings: job.findings, reviews: job.reviews ?? [], candidates: job.candidates, calls: job.calls, captures: (job.captures || []).map(({ data: _bytes, ...capture }) => capture), coverage: job.coverage ?? null, counts: job.counts, bounds: job.bounds, timing: job.timing });
+  findings: job.findings, reviews: job.reviews ?? [], candidates: job.candidates, calls: job.calls, captures: (job.captures || []).map(({ data: _bytes, ...capture }) => capture), coverage: job.coverage ?? null, gap: job.failure?.gap ?? null, estimate: job.estimate ?? null, counts: job.counts, bounds: job.bounds, timing: job.timing });
 
 // Only the actions that can run now. retry_render: the retained validated artifact, rendered again (no reauthoring). new_attempt:
 // a paid retry within this job's remaining ceiling (never a reset one). revise_plan: when this build cannot go on, a NEW job for the
 // same card and request whose planner revises the approved plan from the recorded failure; the learner reviews it in Chat and its
 // Generate is admitted again (its own ceiling). edit_request: always.
 const CANDIDATE_STOPS = new Set(['rounds', 'no_progress', 'unsupported_repair']);
-const REVISABLE = new Set(['size_limit', 'checks', 'deadline', 'limit', 'transient']);
+const REVISABLE = new Set(['size_limit', 'output_limit', 'checks', 'deadline', 'limit', 'transient']);
+// Which of the four outcomes before Generate this job is (FX-AN-031): null until it is known. "supported" is what the checks found, never a
+// promise that the scene will fit or pass.
+function outcomeOf(job) {
+  if (job.stopReason === 'capability_gap') return 'unsupported';
+  if (job.stopReason === 'needs_clarification') return 'clarify';
+  if (!job.plan) return null;
+  return job.sizeChoice?.open || planScene(job.plan).notices.length ? 'changes' : 'supported';
+}
+// A Chat explanation not written yet: the alarm tries it again, and the card waits to reload the thread (report).
+const REPORT_TRIES = 5;
+const reportPending = job => job.stage === 'failed' && !!job.reportTries && job.reported !== job.attempt && job.reportTries < REPORT_TRIES;
+const reportKey = job => `${job.id}:${job.attempt}`;
+const plannerGap = job => job.stopReason === 'capability_gap' && job.failure?.gap?.source === 'brief';
 const AUTO_RETRY = new Set(['provider_unavailable', 'render_failed', 'captures_missing']);
 export function recoveryOf(job) {
   if (job.stage !== 'failed') return [];
   if (job.inFlight) return ['reconcile'];
+  if (plannerGap(job)) return ['plan_alternative', 'edit_request'];
   const actions = [];
   if (job.failure?.stage === 'rendering' && job.artifact && !CANDIDATE_STOPS.has(job.stopReason)) actions.push('retry_render');
   else if (job.failure?.category === 'provider_unavailable' || job.failure?.retryable && withinCeiling(job)) actions.push('new_attempt');
@@ -107,6 +124,8 @@ const TOO_LARGE = /is too large for the (?:independent review|repair) request/;
 export function failureClass(job) {
   const f = job.failure || {}, last = job.findings?.at(-1);
   if (job.stopReason === 'capability_gap') return 'capability';
+  if (job.stopReason === 'needs_clarification') return 'clarification';
+  if (f.code === 'output_limit') return 'output_limit';
   if (f.category === 'review_validation') return 'review_validation';
   if (f.category === 'size_limit' || CANDIDATE_STOPS.has(job.stopReason) && last?.problems?.length && last.problems.every(p => TOO_LARGE.test(p))) return 'size_limit';
   if (CANDIDATE_STOPS.has(job.stopReason)) return 'checks';
@@ -133,6 +152,7 @@ const CHECKS = { validating: 'The scene did not pass its structure checks.', ren
 const AREAS = { spec: 'how the scene is drawn or computed', source: 'how it matches your sources', component: 'the shared 3D drawing', renderer: 'the shared 3D drawing', budget: 'its size' };
 // transport: the service did not give a usable answer (interrupted, refused before sending); model_output: the model answered, and
 // that answer could not be used (an invalid turn, its output limit, an incomplete review). Whether either was charged is chargeWords'.
+const OUTPUT_WHO = { preparing: 'The planner', authoring: 'The scene builder', reviewing: 'The visual review', repairing: 'The automatic correction' };
 const TRANSIENT = { provider_unavailable: 'The AI service was busy.', transport: 'An AI step was interrupted.', model_output: 'The AI answer could not be used.', renderer: 'The sample views could not be rendered.' };
 function reviewWords(found) {
   const serious = (found?.findings || []).filter(f => f.severity !== 'minor'), areas = [...new Set(serious.map(f => AREAS[f.category]).filter(Boolean))];
@@ -140,7 +160,8 @@ function reviewWords(found) {
 }
 export function failureText(job) {
   const kind = failureClass(job), f = job.failure || {}, action = recoveryOf(job).find(a => a !== 'edit_request');
-  const what = { review_validation: 'The visual review returned an answer in the wrong form, and it could not be corrected within its limit, so this scene was neither accepted nor found faulty.', size_limit: 'The scene was too large to check.', deadline: 'The build ran out of time.', limit: 'The build reached its spending limit.',
+  if (kind === 'clarification') return f.message;
+  const what = { capability: f.gap?.shown ?? GAP_FALLBACK, output_limit: `${OUTPUT_WHO[f.stage] ?? 'An AI step'} reached its output limit before it finished. That does not prove your request is impossible; a smaller plan may fit.`, review_validation: 'The visual review returned an answer in the wrong form, and it could not be corrected within its limit, so this scene was neither accepted nor found faulty.', size_limit: 'The scene was too large to check.', deadline: 'The build ran out of time.', limit: 'The build reached its spending limit.',
     checks: f.stage === 'reviewing' ? reviewWords(job.findings?.filter(x => x.stage === 'reviewing').at(-1)) : CHECKS[f.stage] ?? 'The scene did not pass its checks.',
     transient: TRANSIENT[f.category] }[kind] ?? f.message ?? 'The animation could not be made.';
   const candidate = kind === 'checks' || kind === 'size_limit';
@@ -148,11 +169,11 @@ export function failureText(job) {
     : job.repairs ? `It was corrected automatically ${job.repairs === 1 ? 'once' : 'twice'}${candidate ? ', but it still did not pass' : ''}.` : '', job.autoRetried ? 'It was retried automatically.' : ''];
   const next = { retry_render: 'Render again renders the built scene again.', new_attempt: 'Try again continues from where it stopped.',
     revise_plan: `Revise plan prepares a simpler plan from your request for you to review, using up to ${credits(job.reservation?.preparationMicros)} AI credits; nothing is built until you press Generate.` }[action]
-    ?? (candidate || ['deadline', 'limit', 'review_validation'].includes(kind) ? 'Edit the request to start a new animation.' : '');
-  return [what, ['transient', 'error', 'review_validation'].includes(kind) ? chargeWords(job) : '', ...tried, next].filter(Boolean).join(' ');
+    ?? (plannerGap(job) ? 'Choose an alternative in Chat, or edit the request to start a new animation.' : candidate || ['capability', 'output_limit', 'deadline', 'limit', 'review_validation'].includes(kind) ? 'Edit the request to start a new animation.' : '');
+  return [what, ['transient', 'output_limit', 'error', 'review_validation'].includes(kind) ? chargeWords(job) : '', ...tried, next].filter(Boolean).join(' ');
 }
 // The planner's instruction for a revised plan (prepareStage's refinement, with the approved plan as `previous`): server words only.
-const REVISE_WHY = { size_limit: 'was too large to check', checks: 'did not pass its checks', deadline: 'ran out of time', limit: 'reached its spending limit', transient: 'could not be finished' };
+const REVISE_WHY = { size_limit: 'was too large to check', output_limit: 'reached an output limit before it was finished', checks: 'did not pass its checks', deadline: 'ran out of time', limit: 'reached its spending limit', transient: 'could not be finished' };
 const reviseNote = job => `The previous plan was built and ${REVISE_WHY[failureClass(job)] || 'could not be finished'}. Revise it so the scene is smaller and simpler to build: fewer objects, shorter labels and simpler rules. Keep the learning goal and every parameter of the previous plan; leave one out only if the scene cannot work with it.`;
 // A revised plan says, in the review card's "you asked for" lines, each control of the approved plan it leaves out (never silent).
 function revisedPlan(before, plan) {
@@ -170,6 +191,12 @@ function validateCreate(p) {
   if (p.source != null && !SOURCES.includes(p.source)) throw fail('Unknown request source.');
 }
 
+// The words above a plan in Chat: what differs from the request, in the server's own lines, is said here as well as on the card.
+function planWords(job, previous) {
+  if (job.revisedFrom && !previous) return 'Here is a revised plan for your animation. Generate makes it.';
+  const notices = planScene(job.plan).notices;
+  return notices.length ? `Here is the plan for your animation. It differs from what you asked: ${notices.join(' ')} Generate makes it.` : 'Here is the plan for your animation. Generate makes it.';
+}
 // The plan as the proposal's review lines (generation-review.js lists, max 20 x 300): the recommendation and its reason, the
 // interactions, controls, behavior and parameters, so the learner reviews what will be built in the existing card (no new widget).
 export function planLines(plan) {
@@ -186,7 +213,7 @@ export function planScene(plan) {
   return {
     parameters: (plan.parameters || []).map(({ id: _id, ...p }) => p),
     interactions: (plan.interactions || []).map(i => clean(typeof i === 'string' ? i : i.label || i.description || '', 200)).filter(Boolean),
-    notices: (plan.limitations || []).filter(l => typeof l === 'string' && l.startsWith(ASKED_FOR)),
+    notices: (plan.limitations || []).filter(l => typeof l === 'string' && (l.startsWith(ASKED_FOR) || l.startsWith(CHANGED))),
   };
 }
 
@@ -244,6 +271,18 @@ async function candidateProbeRoute(req, env, deps) {
   const out = await renderProbe(env, checked.value, await artifactHashOf(checked.value), deps.render);
   return json({ jobId: body.jobId, artifact: checked.value, ...out }, out.ok ? 200 : 502);
 }
+// Dev-only fixtures for the owner's review of every outcome (the launcher): real job records and real Chat messages, no model call. Live
+// only with ANIMATION_DIAGNOSTICS, like the probes above; production never sets it.
+export const ANIMATION_SEED_PATH = '/api/learn/animation/diagnostics/seed-outcomes';
+async function seedRoute(req, env, deps) {
+  const { refused, user, body } = await probeGuard(req, env, deps);
+  if (refused) return refused;
+  if (!env.ANIMATION_JOBS || !env.LEARN_DB || typeof body?.boardId !== 'string') return json({ error: 'boardId is required' }, 400);
+  const board = await env.LEARN_DB.prepare('SELECT id, app, board FROM learn_boards WHERE id = ? AND org = ? AND owner_email = ?').bind(body.boardId, user.org, user.email).first();
+  if (!board) return json({ error: 'Not available' }, 404);
+  return env.ANIMATION_JOBS.get(env.ANIMATION_JOBS.idFromName(board.id)).fetch('https://animation/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'seed', payload: {}, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null }, origin: new URL(req.url).origin }) });
+}
 async function renderProbeRoute(req, env, deps) {
   const { refused, body } = await probeGuard(req, env, deps);
   if (refused) return refused;
@@ -261,6 +300,7 @@ export async function animationRoute(path, req, env, deps = {}) {
   if (path === ANIMATION_PROBE_PATH) return renderProbeRoute(req, env, deps);
   if (path === ANIMATION_RESULT_PROBE_PATH) return resultProbeRoute(req, env, deps);
   if (path === ANIMATION_CANDIDATE_PROBE_PATH) return candidateProbeRoute(req, env, deps);
+  if (path === ANIMATION_SEED_PATH) return seedRoute(req, env, deps);
   if (path !== ANIMATION_PREFIX && !path.startsWith(`${ANIMATION_PREFIX}/`)) return null;
   if (!animationEnabled(env)) return json({ error: ANIMATION_DISABLED, code: 'animation_disabled' }, 404);
   if (!env.ANIMATION_JOBS || !env.LEARN_DB) return json({ error: 'Animations are not configured on this preview.' }, 503);
@@ -279,7 +319,7 @@ export async function animationRoute(path, req, env, deps = {}) {
   const rest = path.slice(ANIMATION_PREFIX.length).split('/').filter(Boolean).map(decodeURIComponent);
   const results = req.method === 'GET' && rest[0] === 'results' && rest.length === 2;
   const action = results ? 'result' : req.method === 'GET' ? (rest[0] ? 'get' : 'list') : (rest[0] ? rest[1] : 'create');
-  if (!['get', 'list', 'create', 'cancel', 'retry', 'approve', 'refine', 'result'].includes(action) || (rest.length > 2 && !results)) return json({ error: 'Not found' }, 404);
+  if (!['get', 'list', 'create', 'cancel', 'retry', 'approve', 'refine', 'choose', 'result'].includes(action) || (rest.length > 2 && !results)) return json({ error: 'Not found' }, 404);
   // Sources are read here, on the server, under this learner's access (explain-context-refs.js), never from text the browser sent.
   delete body.evidence; delete body.approved_refs;
   if (body.context && typeof body.context === 'object' && !Array.isArray(body.context)) { const { refs: _refs, refText: _text, ...kept } = body.context; body.context = kept; }
@@ -334,6 +374,7 @@ export class AnimationJobs {
     }
     if (action === 'create') return this.create(payload, board, user, origin);
     if (action === 'result') return this.readResult(id, board, user);
+    if (action === 'seed') return this.seed(board, user, origin);
     const job = id && await this.get(id);
     if (!job || job.owner.email !== user.email || job.boardId !== board.id) throw fail('Not available', 404);
     if (action === 'get') {
@@ -344,6 +385,7 @@ export class AnimationJobs {
     if (action === 'retry') return this.retry(job, payload);
     if (action === 'approve') return this.approve(job, payload);
     if (action === 'refine') return this.refine(job, payload);
+    if (action === 'choose') return this.choose(job, payload);
     throw fail('Not found', 404);
   }
 
@@ -391,13 +433,13 @@ export class AnimationJobs {
   // Revise plan: one new job for the same card, request, sources and thread, whose planner revises the approved plan from this
   // job's recorded failure (a brief call, admitted on its own like any plan). It waits for the learner's Generate, admitted again.
   // Pressed again (or from another tab) it answers the same new job; the request fence now names it, and this job stays failed.
-  async revise(job) {
+  async revise(job, note = reviseNote(job)) {
     const made = job.successor && await this.get(job.successor);
     if (made) return json({ job: publicAnimationJob(made) });
     const jobs = [...(await this.state.storage.list({ prefix: 'job:' })).values()];
     if (jobs.some(j => j.cardId === job.cardId && !TERMINAL.has(j.stage))) throw fail('This card already has an animation in progress.', 409);
     const pick = ['boardId', 'app', 'board', 'owner', 'origin', 'cardId', 'requestId', 'prompt', 'context', 'evidence', 'source', 'threadId'];
-    const next = Object.assign(this.newJob(Object.fromEntries(pick.map(k => [k, job[k]]))), { plan: job.plan, approvedBefore: job.plan, refinement: reviseNote(job), revisedFrom: job.id });
+    const next = Object.assign(this.newJob(Object.fromEntries(pick.map(k => [k, job[k]]))), { plan: job.plan, approvedBefore: job.plan, refinement: note, revisedFrom: job.id });
     const fence = await this.state.storage.get(`request:${job.requestId}`);
     job.successor = next.id;
     await this.prune(jobs);
@@ -445,9 +487,16 @@ export class AnimationJobs {
   async retry(job, payload) {
     if (payload.expectedAttempt !== job.attempt) return json({ job: publicAnimationJob(job) });
     const actions = recoveryOf(job);
-    if (payload.action === 'revise_plan' && job.successor) return this.revise(job);
+    if (['revise_plan', 'plan_alternative'].includes(payload.action) && job.successor) return this.revise(job);
     if (payload.action != null && (payload.action === 'edit_request' || !actions.includes(payload.action))) throw fail('This choice is no longer available. The card shows what you can do now.', 409, 'recovery_stale');
     if (payload.action === 'revise_plan') return this.revise(job);
+    // An alternative to a request the planner called a gap: a new plan the learner reviews, its cost said on the button. Nothing is built.
+    if (payload.action === 'plan_alternative') {
+      const alternative = GAP_ALTERNATIVES.find(a => a.id === payload.alternative);
+      if (!alternative) throw fail('This choice is no longer available. The card shows what you can do now.', 409, 'recovery_stale');
+      await this.resolveChoice(job, reportKey(job), alternative.id);
+      return this.revise(job, alternative.note);
+    }
     if (actions.includes('retry_render')) {
       Object.assign(job, { stage: 'rendering', failure: null, stopReason: null, attempt: job.attempt + 1, deadline: Date.now() + ANIMATION_LIMITS.deadlines.jobMs });
     } else if (actions.includes('new_attempt')) {
@@ -462,6 +511,80 @@ export class AnimationJobs {
     return json({ job: publicAnimationJob(job) }, 202);
   }
 
+  // An oversized plan (FX-AN-031): what is too large and the changes on offer, in Chat, with no Generate until one is accepted. Written once
+  // per plan. Nothing is signed here: only the accepted plan becomes a proposal (postPlan).
+  async postChoice(job, size) {
+    const paid = !size.alternatives.length;
+    const alternatives = [...size.alternatives.map(a => ({ id: a.id, title: a.title, changes: a.changes })), ...(paid ? [{ id: SIMPLER_ALTERNATIVE.id, title: SIMPLER_ALTERNATIVE.title, changes: SIMPLER_ALTERNATIVE.changes, credits: credits(job.reservation.preparationMicros) }] : []),
+      ...(size.keep ? [{ id: 'keep', title: 'Keep my plan', changes: ['Nothing changes. The size is only an estimate, but this plan may stop at a size check after using AI credits.'] }] : [])];
+    const key = `${job.id}:choice:${job.planHash}`;
+    job.sizeChoice = { open: true, key, why: size.why, alternatives: size.alternatives, keep: size.keep };
+    await this.writeChat(job, key, `"${clean(job.plan.title, 120)}" needs a change before it can be made. ${size.why} Choose below: each option says exactly what changes, and nothing is built until you press Generate.`,
+      { animationChoice: { jobId: job.id, attempt: job.attempt, kind: 'size', alternatives, chosen: null } });
+  }
+  // Accepting a change. A server-made alternative or Keep my plan costs nothing: it posts the plan with its Generate. A simpler plan is a
+  // plan call, its cost said on the button. Pressed again it answers the same job; a choice that is gone is refused.
+  async choose(job, payload) {
+    const open = job.sizeChoice, id = payload.choice;
+    if (open?.chosen === id) return json({ job: publicAnimationJob(job) });
+    if (job.stage !== 'awaiting_approval' || !open?.open) throw fail('This choice is no longer available. Review the latest plan.', 409, 'plan_stale');
+    const alternative = open.alternatives.find(a => a.id === id);
+    if (id === SIMPLER_ALTERNATIVE.id && !open.alternatives.length) {
+      if (job.counts.brief >= briefLimit) throw fail('This plan reached its change limit. Start a new request.', 429);
+      await this.resolveChoice(job, open.key, id);
+      endStage(job.timing, 'refined');
+      Object.assign(job, { refinement: SIMPLER_ALTERNATIVE.note, approval: null, stage: 'preparing', sizeChoice: { open: false, chosen: id, key: open.key } });
+      beginStage(job.timing, 'preparing');
+      await this.save(job); await this.wake();
+      return json({ job: publicAnimationJob(job) }, 202);
+    }
+    if (!alternative && !(id === 'keep' && open.keep)) throw fail('This choice is no longer available. Review the latest plan.', 409, 'plan_stale');
+    if (alternative) { job.plan = alternative.plan; job.planHash = await hashAnimationPlan(job.plan); }
+    await this.resolveChoice(job, open.key, id);
+    job.sizeChoice = { open: false, chosen: id, key: open.key };
+    await this.postPlan(job);
+    await this.save(job);
+    return json({ job: publicAnimationJob(job) });
+  }
+  // The choice's buttons stay answered after a reload: the message itself records what was chosen.
+  async resolveChoice(job, key, id) {
+    if (!job.threadId) return;
+    await this.env.LEARN_DB.prepare("UPDATE chat_message_meta SET meta_json = json_set(meta_json, '$.animationChoice.chosen', ?) WHERE thread_id = ? AND json_extract(meta_json, '$.reportKey') = ?").bind(id, job.threadId, key).run();
+  }
+  // One assistant message with its meta row, in one batch, found again by its key: a retry after a lost answer never writes a second one.
+  async writeChat(job, key, content, meta = {}) {
+    const db = this.env.LEARN_DB;
+    job.threadId ??= await this.planThread(job);
+    if (await db.prepare("SELECT message_id FROM chat_message_meta WHERE thread_id = ? AND json_extract(meta_json, '$.reportKey') = ?").bind(job.threadId, key).first()) return;
+    await db.batch([
+      db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(job.threadId, 'assistant', content),
+      db.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, alternative_of, meta_json) SELECT max(id), ?, 'assistant', NULL, ? FROM messages WHERE thread_id = ?")
+        .bind(job.threadId, JSON.stringify({ version: 1, mode: 'ask', kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, reportKey: key, ...meta }), job.threadId),
+    ]);
+  }
+  // Dev fixtures (ANIMATION_SEED_PATH): one record per outcome, written and reported as a real job would be. Nothing is sent to a model.
+  async seed(board, user, origin) {
+    const made = [];
+    for (const [name, { plan = null, request, fields = {} }] of Object.entries(seededJobs())) {
+      const id = hex().slice(0, 12), job = this.newJob({ boardId: board.id, app: board.app, board: board.board, owner: { org: user.org, email: user.email, userId: user.userId || null }, origin, cardId: `seed-${name.replaceAll('_', '-')}-${id}`, requestId: `seed-${id}`, prompt: request, context: null, evidence: [], source: 'explicit', threadId: null });
+      Object.assign(job, { plan, planHash: plan ? await hashAnimationPlan(plan) : null, ...fields });
+      await this.state.storage.put(`request:${job.requestId}`, { id: job.id, fingerprint: await sha256Hex(JSON.stringify([job.cardId, job.prompt, null])) });
+      await this.settlePlan(job);
+      await this.report(job);
+      await this.save(job);
+      made.push({ name, id: job.id, cardId: job.cardId, requestId: job.requestId, prompt: job.prompt, stage: job.stage, threadId: job.threadId });
+    }
+    return json({ jobs: made });
+  }
+  // A checked plan's next step: the plan with its Generate, or, when it looks too large, the choice first.
+  async settlePlan(job) {
+    if (job.stage !== 'awaiting_approval') return;
+    job.threadId ??= await this.planThread(job);
+    const size = sizeCheck(this.env, job, job.plan, this.tasks);
+    job.estimate = size.estimate; // diagnostics only: bytes never reach the learner view
+    if (size.over) await this.postChoice(job, size); else { job.sizeChoice = null; await this.postPlan(job); }
+  }
+
   // The plan as the common signed proposal on the learner's chat thread. A refinement is the next version of the same proposal,
   // published by compare-and-swap on its one state (generation-proposal.js); a Generate or an edit that landed first wins.
   async postPlan(job) {
@@ -472,9 +595,9 @@ export class AnimationJobs {
     const p = await signProposal(this.env, { command: ANIMATION_COMMAND, title: plan.title, description: plan.description, settings: { experience: plan.experience }, source_refs: [],
       assumptions: (plan.assumptions || []).map(a => clean(a, 300)).filter(Boolean).slice(0, 20),
       limitations: [...notes, ...(plan.limitations || [])].map(a => clean(a, 300)).filter(Boolean).slice(0, 20), requirements: planLines(plan),
-      input: { org: job.owner.org, app: job.app, job: job.id, plan_hash: job.planHash, request: job.prompt.slice(0, 500), scene: planScene(plan) } }, job.owner.email,
+      input: { org: job.owner.org, app: job.app, job: job.id, plan_hash: job.planHash, request: job.prompt.slice(0, 500), scene: { ...planScene(plan), planCredits: credits(job.reservation?.preparationMicros) } } }, job.owner.email,
     { envelope: envelopeFor(this.env, { org: job.owner.org, app: job.app }), ...(previous ? { id: previous.id, version: (record?.current?.version ?? previous.version) + 1 } : {}) });
-    const row = await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?) RETURNING id').bind(job.threadId, 'assistant', job.revisedFrom && !previous ? 'Here is a revised plan for your animation. Generate makes it.' : 'Here is the plan for your animation. Generate makes it.').first();
+    const row = await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?) RETURNING id').bind(job.threadId, 'assistant', planWords(job, previous)).first();
     const meta = { version: 1, mode: 'ask', kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, proposal: p, ...(previous ? {} : { proposalState: proposalState(p) }) };
     await db.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, alternative_of, meta_json) VALUES (?, ?, 'assistant', NULL, ?)").bind(row.id, job.threadId, JSON.stringify(meta)).run();
     if (previous && !(record?.root && await publishRevision(db, record, p))) return;
@@ -520,7 +643,7 @@ export class AnimationJobs {
     const stale = () => fail('This plan changed. Review it again before generating.', 409, 'plan_stale');
     if (job.proposal && job.proposal.id === payload.proposal?.proposal_id && job.proposal.version === payload.proposal?.version) return json({ job: publicAnimationJob(job) });
     if (job.stage === 'cancelled') throw fail('This animation was stopped. Ask for it again to make one.', 409, 'plan_stale');
-    if (job.stage !== 'awaiting_approval') throw stale();
+    if (job.stage !== 'awaiting_approval' || job.sizeChoice?.open) throw stale();
     const p = payload.proposal, refused = await verifyProposal(this.env, p, job.owner.email);
     if (refused) throw fail(refused, 409, 'proposal_invalid');
     if (p.command !== ANIMATION_COMMAND || p.input?.job !== job.id || p.input?.plan_hash !== job.planHash) throw stale();
@@ -637,11 +760,14 @@ export class AnimationJobs {
     let active = false;
     for (const [, snapshot] of await this.state.storage.list({ prefix: 'job:' })) {
       const job = await this.get(snapshot.id);
+      if (job && reportPending(job) && !job.inFlight) { await this.locked(async () => { const current = await this.get(job.id); if (current) await this.report(current); }); continue; }
       if (!job || TERMINAL.has(job.stage) && !job.inFlight || job.stage === 'awaiting_approval') continue;
       active = true;
       try { await this.advance(job); } catch (error) { await this.failed(job, error); }
     }
-    if (active) await this.wake(1000); else await this.state.storage.deleteAlarm?.();
+    if (active) await this.wake(1000);
+    // A Chat explanation still to write keeps the 30 s alarm set above.
+    else if (![...(await this.state.storage.list({ prefix: 'job:' })).values()].some(reportPending)) await this.state.storage.deleteAlarm?.();
   }
   // An in-flight call this object is not running was interrupted: whether the provider accepted it is unknown. Never resent; it
   // counts against the ceiling, and the job fails retryably.
@@ -665,6 +791,9 @@ export class AnimationJobs {
     if (job.stage === 'queued') return this.move(job, job.approval ? 'authoring' : 'preparing');
     const ctx = { env: this.env, call: (role, spec) => this.paidCall(job, role, spec), noteReview: record => this.noteReview(job, record), limits: ANIMATION_LIMITS, tasks: this.tasks };
     const stage = job.stage, attempt = job.attempt;
+    // A request with no subject is asked about, before any paid plan call.
+    const clarify = stage === 'preparing' && !job.counts.brief ? clarificationFor(job) : null;
+    if (clarify) return this.locked(async () => { const current = await this.get(job.id); if (current?.stage === stage && current.attempt === attempt && !current.stopped) await this.stopWith(current, 'needs_clarification', 'clarification', clarify.question); });
     const run = { preparing: 'prepare', authoring: 'author', validating: 'validate', rendering: 'render', reviewing: 'review', repairing: 'repair' }[stage];
     const out = await this.pipeline[run](structuredClone(job), ctx);
     // A late result (after Stop, Retry or another stage) never overwrites what happened meanwhile.
@@ -687,14 +816,14 @@ export class AnimationJobs {
     // The planner's own replies, as given, with the issues of a refused one (diagnostics only: candidates never reach the learner view).
     if (stage === 'preparing' && Array.isArray(out.answers)) (job.candidates ??= []).push(...out.answers.map(a => ({ stage: 'preparing', input: a.input, issues: a.issues })));
     // A capability the enabled phase lacks ends the job with what is missing: no repair, no simpler substitute scene.
-    if (out.gap) { await this.stopWith(job, 'capability_gap', 'capability', out.gap.message); job.failure.gap = out.gap; return this.save(job); }
+    // The planner's reason is shown only as a checked sentence (learnerReason); the unedited reply stays in the diagnostics.
+    if (out.gap) return this.stopWith(job, 'capability_gap', 'capability', out.gap.message, false, { gap: { ...out.gap, shown: learnerReason(out.gap.reason) } });
     if (stage === 'preparing') {
       job.plan = job.revisedFrom ? revisedPlan(job.approvedBefore, out.plan) : out.plan; job.planHash = await hashAnimationPlan(job.plan); job.approval = null; job.refinement = null;
       await this.finishUsage({ ...job, actionKey: null }, 'completed');
       // A prepared plan always waits for the learner's Generate; only approve() moves it on.
       endStage(job.timing, 'done'); job.stage = 'awaiting_approval'; beginStage(job.timing, 'awaiting_approval'); markTiming(job.timing, 'proposalReady');
-      job.threadId ??= await this.planThread(job);
-      await this.postPlan(job);
+      await this.settlePlan(job);
     } else if (stage === 'authoring') {
       Object.assign(job, { draft: out.draft, artifact: null, artifactHash: null, captures: null, coverage: null });
       next('validating');
@@ -742,22 +871,29 @@ export class AnimationJobs {
     job.repairKinds.push(kind); job.repairs++; job.repairedFrom = job.artifactHash; endStage(job.timing, 'rejected'); job.stage = 'repairing'; beginStage(job.timing, 'repairing');
     await this.save(job);
   }
-  async stopWith(job, stopReason, category, message, retryable = false) {
+  async stopWith(job, stopReason, category, message, retryable = false, extra = {}) {
     endStage(job.timing, stopReason);
-    Object.assign(job, { stage: 'failed', stopReason, failure: { stage: job.stage, category, message, retryable } });
+    Object.assign(job, { stage: 'failed', stopReason, failure: { stage: job.stage, category, message, retryable, ...extra } });
     await this.save(job); await this.finishUsage(job, 'failed'); await this.report(job);
   }
-  // The failure, explained once in the canvas Chat (one message per job and attempt; reloads and polling never repeat it): the same
-  // words the card shows (failureText). Best effort: a Chat write that fails leaves the card's explanation and actions as they are.
+  // The failure, explained once in the canvas Chat (one message per job and attempt; reloads, polling and retries never repeat it, found
+  // again by its key): the same words the card shows (failureText). No model call. A Chat write that fails is tried again by the alarm,
+  // and the card reloads the thread once it lands (chatPending); the card's explanation and actions stand meanwhile.
   async report(job) {
     if (job.stage !== 'failed' || job.inFlight || job.reported === job.attempt || !this.env.LEARN_DB) return;
+    const clarifying = job.stopReason === 'needs_clarification', gap = plannerGap(job);
+    const head = clarifying ? '' : gap ? 'This animation cannot be made as asked.' : job.plan?.title ? `"${clean(job.plan.title, 120)}" was not finished.` : 'Your animation was not finished.';
+    const tail = clarifying ? '' : job.plan ? 'Your request and plan are kept.' : 'Your request is kept.';
+    const choice = gap ? { animationChoice: { jobId: job.id, attempt: job.attempt, kind: 'gap', alternatives: GAP_ALTERNATIVES.map(({ id, title, changes }) => ({ id, title, changes, credits: credits(job.reservation?.preparationMicros) })), chosen: null } } : {};
     try {
-      job.threadId ??= await this.planThread(job);
-      await this.env.LEARN_DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(job.threadId, 'assistant',
-        `${job.plan?.title ? `"${clean(job.plan.title, 120)}" was not finished.` : 'Your animation was not finished.'} ${failureText(job)} Your request and plan are kept.`).run();
-      job.reported = job.attempt;
+      await this.writeChat(job, reportKey(job), [head, failureText(job), tail].filter(Boolean).join(' '), choice);
+      job.reported = job.attempt; job.reportTries = 0;
       await this.save(job);
-    } catch { /* best effort, as finishUsage */ }
+    } catch {
+      job.reportTries = (job.reportTries || 0) + 1;
+      await this.save(job);
+      await this.state.storage.setAlarm?.(Date.now() + 30000);
+    }
   }
   // A transient failure (the provider busy, a sample render that failed) waits and runs the same stage again, once per attempt and
   // only before the deadline; a refused call cost nothing and gave its count back, and a render is platform compute. -> resumed?

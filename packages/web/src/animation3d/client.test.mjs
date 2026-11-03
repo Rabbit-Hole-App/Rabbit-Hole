@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { ANIMATION_ROUTES, animationClient, animationProgress, animationProposalStatus, animationRetry, animationRunning, animationStage, readyResult, requestRef } from './client.js';
+import { animationAsks, choiceAction, ANIMATION_ROUTES, animationClient, animationProgress, animationProposalStatus, animationRetry, animationRunning, animationStage, readyResult, requestRef } from './client.js';
 import { experimentFixture } from './fixtures.js';
 import { refProblem, settleAnimationJob, withJob } from './storage.js';
 
@@ -116,4 +116,15 @@ test('an approved plan shows its job and card in Chat, never "Added to the canva
   assert.deepEqual([animationProposalStatus({ job: { stage: 'reviewing' }, cardId: 'c' }).active, animationProposalStatus({ job: { stage: 'reviewing' }, cardId: 'c' }).detail], [true, 'Reviewing the render']);
   assert.equal(animationProposalStatus({ job: { stage: 'cancelled' }, cardId: 'c' }).phase, 'stopped');
   assert.equal(animationProposalStatus({ unread: true }).phase, 'unknown');
+});
+
+// FX-AN-031: what the card and Chat say before Generate and at a change offered in Chat.
+test('a plan waiting on a change says so; a change says what it costs; no words carry dollars or an ellipsis', () => {
+  assert.equal(animationStage({ stage: 'awaiting_approval', choiceOpen: true }), 'Choose a change to the plan in Chat');
+  assert.equal(animationStage({ stage: 'awaiting_approval', choiceOpen: false }), 'Review the scene plan above the chat box');
+  assert.equal(animationAsks({ stage: 'failed', stopReason: 'needs_clarification' }), true);
+  assert.equal(animationAsks({ stage: 'failed', stopReason: 'rounds' }), false);
+  assert.deepEqual(choiceAction({ id: 'watch', credits: 56 }), { label: 'Plan this', cost: 'Uses up to 56 AI credits to write the plan. Nothing is built until you press Generate.' });
+  assert.deepEqual(choiceAction({ id: 'fewer_markers' }), { label: 'Use this plan', cost: 'Uses no AI credits. Nothing is built until you press Generate.' });
+  assert.equal(choiceAction({ id: 'keep' }).label, 'Keep my plan');
 });

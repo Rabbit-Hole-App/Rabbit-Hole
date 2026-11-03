@@ -1,0 +1,257 @@
+// FX-AN-031: the checks before Generate and the Chat explanation after a failure. Deterministic, stub pipeline and fake provider only: no model
+// is reached. test/fixtures/animation-saved-plans.json holds the plans of real dev jobs with what the author really wrote for them.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { CHANGED, GAP_ALTERNATIVES, GAP_FALLBACK, clarificationFor, draftLimit, estimateDraftBytes, learnerReason, planAlternatives, sizeCheck } from '../src/animation-feasibility.js';
+import { ANIMATION_DRAFT_BYTES } from '../src/agents/animation-author.js';
+import { ANIMATION_SEED_PATH, animationRoute, failureClass, failureText, publicAnimationJob, recoveryOf } from '../src/animation-job.js';
+import { seededJobs } from '../src/animation-outcomes-fixture.js';
+import { newTiming } from '../src/explain-policy.js';
+import { validateAnimationPlan } from '../../web/src/animation3d/contract.js';
+import { ANIMATION_CAPABILITIES } from '../../web/src/animation3d/capabilities.js';
+import { NEEDS_PROPOSAL, PLAN, STUB_PIPELINE, TASKS, animationStack, postedProposal, rows } from './animation-fixture.js';
+
+const skip = NEEDS_PROPOSAL;
+const SAVED = JSON.parse(readFileSync(new URL('./fixtures/animation-saved-plans.json', import.meta.url), 'utf8'));
+const saved = id => SAVED.find(j => j.job === id);
+const env = { ANTHROPIC_API_KEY: 'offline' };
+const REQUEST = 'Show me how stochastic gradient descent works. Let me change the learning rate and batch size to see what happens.';
+const sizeOf = (plan, prompt = REQUEST) => sizeCheck(env, { prompt, evidence: [] }, plan, TASKS);
+const stubGap = (reason = 'A walkable world with real fluid physics needs a game engine these scenes do not have') => STUB_PIPELINE({ prepare: async (job, ctx) => { await ctx.call('brief', { system: 'brief', tool: { name: 'x', input_schema: { type: 'object' } }, content: job.prompt }); return job.refinement ? { plan: PLAN } : { gap: { capability: 'animation', needs: ['other'], source: 'brief', reason, message: 'This animation needs something that is not available yet, so edit the request.' } }; } });
+const oversized = over => STUB_PIPELINE({ prepare: async (job, ctx) => { await ctx.call('brief', { system: 'brief', tool: { name: 'x', input_schema: { type: 'object' } }, content: job.prompt }); return { plan: job.refinement ? PLAN : over }; } });
+const chat = s => rows(s.sqlite, 'messages');
+const choiceOf = s => rows(s.sqlite, 'chat_message_meta').map(r => JSON.parse(r.meta_json).animationChoice).filter(Boolean).at(-1);
+
+// Calibration, on every saved plan with a known outcome. These are the numbers the report quotes; a change to the estimate must face them.
+test('the estimate on saved jobs: its error on the plans with a saved draft, and which plans it flags', () => {
+  const known = SAVED.filter(j => j.draftBytes);
+  const errors = known.map(j => (estimateDraftBytes(j.plan).bytes - j.draftBytes) / j.draftBytes);
+  assert.ok(Math.max(...errors.map(Math.abs)) < 0.2, `worst error ${Math.max(...errors.map(Math.abs))}`);
+  assert.ok(errors.reduce((t, e) => t + Math.abs(e), 0) / errors.length < 0.13, 'mean absolute error');
+  // aj_9c453b6: 82 markers declared in its 13,252 B repaired draft; the words of its plan say 40 points, kept, so 80.
+  const sgd40 = estimateDraftBytes(saved('aj_9c453b6').plan);
+  assert.deepEqual([sgd40.stated, sgd40.retained, sgd40.drawn], [40, true, 80]);
+  assert.ok(Math.abs(sgd40.bytes - 13252) / 13252 < 0.1, `${sgd40.bytes}`);
+  // Flagged: only the 150-step plan with a kept path, whose author call used its whole output limit (aj_51ec6a0, no draft exists).
+  const flagged = SAVED.filter(j => sizeOf(j.plan).over).map(j => j.job);
+  assert.deepEqual(flagged, ['aj_51ec6a0'], 'no accepted or fitting plan is flagged');
+  assert.equal(sizeOf(saved('aj_51ec6a0').plan).keep, false, 'clearly over: not offered as planned');
+  // A plan's data set is not a trail: 64 data points never count as markers; its 150 steps do.
+  assert.equal(estimateDraftBytes(saved('aj_51ec6a0').plan).stated, 150);
+  assert.equal(estimateDraftBytes(saved('aj_78cc3d3').plan).drawn, 0, 'a pendulum draws no trail');
+});
+test('honest limits of the estimate: a false negative and a false alarm are possible, and neither is a guarantee', () => {
+  // False negative on record: aj_283c19f's author wrote 10,914 B against an estimate about 16% lower. Under the limit, this says nothing about passing.
+  const under = estimateDraftBytes(saved('aj_283c19f').plan);
+  assert.ok(under.bytes < saved('aj_283c19f').draftBytes);
+  // False alarm by construction: a plan's words can name many steps the scene never marks one by one. It is flagged, and the learner may keep it when not clearly over.
+  const near = { ...PLAN, behavior: 'rules', description: 'A ball leaves a trail over 170 steps.', interactions: [] };
+  const verdict = sizeOf(near);
+  assert.deepEqual([verdict.over, verdict.keep], [true, true]);
+  assert.match(verdict.why, /By our estimate/);
+  assert.match(verdict.why, /An estimate can be wrong/);
+});
+test('the limit is per plan, through the authoritative check and the shared constant', () => {
+  const short = draftLimit(env, { prompt: REQUEST, evidence: [], plan: PLAN }, TASKS);
+  assert.ok(short <= ANIMATION_DRAFT_BYTES && short > ANIMATION_DRAFT_BYTES - 100, `${short}`);
+  const long = { ...PLAN, assumptions: Array(8).fill('x'.repeat(2000)), limitations: Array(8).fill('y'.repeat(2000)) };
+  assert.ok(draftLimit(env, { prompt: REQUEST, evidence: [], plan: long }, TASKS) < short - 1000, 'a longer plan leaves less room');
+});
+
+test('an alternative keeps every control and the rule, says exactly what changes, and is estimated to fit', () => {
+  const plan = saved('aj_51ec6a0').plan, { alternatives, why } = sizeOf(plan);
+  assert.deepEqual(alternatives.map(a => a.id), ['fewer_markers', 'no_kept_path']);
+  assert.match(why, /a trail of 150 markers and a kept comparison path of the same length/);
+  for (const a of alternatives) {
+    assert.deepEqual(a.plan.parameters, plan.parameters, 'no control removed or changed');
+    assert.equal(a.plan.learningGoal, plan.learningGoal);
+    assert.ok(validateAnimationPlan(a.plan, ANIMATION_CAPABILITIES).ok);
+    assert.ok(!sizeOf(a.plan).over, 'fits by the estimate, checked again');
+    assert.ok(a.changes.every(l => l.startsWith(CHANGED)));
+    assert.ok(a.changes.every(l => a.plan.limitations.includes(l)), 'the change stays on the plan the author and the card read');
+    assert.match(a.plan.assumptions.at(-1), /every step still runs/, 'the process is unchanged; only what is drawn');
+  }
+  assert.match(alternatives[0].changes[0], /^Changed: the trail draws \d+ markers, one every \d+ steps, instead of 150; every step still runs\.$/);
+  assert.ok(alternatives[1].plan.interactions.every(i => !/keep old path/.test(i)));
+  // The learner's own words asked to compare: the kept path is not offered away.
+  assert.deepEqual(planAlternatives(plan, 'Let me compare two runs.', () => 15000).map(a => a.id), ['fewer_markers']);
+});
+
+test('one clarification only for a request naming no subject, and never with a source attached', () => {
+  for (const prompt of ['Make a game.', 'an animation', 'Show me something cool', '/animation build a 3D simulation']) assert.ok(clarificationFor({ prompt }), prompt);
+  for (const job of [{ prompt: 'Make a pendulum game' }, { prompt: 'Show this', context: { refs: [{ name: 'a' }] } }, { prompt: 'Show this', evidence: [{ id: 'e' }] }, { prompt: 'Make a game', refinement: 'x' }, { prompt: 'Make a game', plan: PLAN }]) assert.equal(clarificationFor(job), null, job.prompt);
+});
+test('the planner\'s reason reaches the learner only as a checked sentence', () => {
+  assert.equal(learnerReason('needs fluids in a tank'), 'Needs fluids in a tank.');
+  for (const raw of [null, 'short', 'x'.repeat(301), 'Needs `three_d_world` support.', 'See https://evil.example for why.', 'The system prompt forbids it.', 'Costs $5 to run.', '{"gap":1} is the answer here', 'Needs more...', 'Click [here](x) to fix this']) assert.equal(learnerReason(raw), null, String(raw));
+});
+
+test('a request with no subject asks one question, in Chat and on the card, before any model call', { skip }, async t => {
+  const s = animationStack(t);
+  const { body } = await s.create({ prompt: 'Make a game.' });
+  const done = await s.run(body.job.id);
+  assert.deepEqual([done.stage, done.stopReason, failureClass(done)], ['failed', 'needs_clarification', 'clarification']);
+  assert.deepEqual(s.model.roles(), [], 'no paid call');
+  const { job } = await s.job(done.id);
+  assert.deepEqual([job.outcome, job.recovery], ['clarify', ['edit_request']]);
+  assert.match(job.failure.message, /^What should this game show or teach\?/);
+  assert.deepEqual(chat(s).map(m => m.content), [job.failure.message]);
+});
+
+test('unsupported: the validated reason in Chat, two alternatives with their cost, raw reply private, and pressing one plans it without building', { skip }, async t => {
+  const s = animationStack(t, { pipeline: stubGap() });
+  const { body } = await s.create();
+  const done = await s.run(body.job.id);
+  const { job } = await s.job(done.id), max = Math.ceil(done.reservation.preparationMicros / 10000);
+  assert.deepEqual([job.outcome, job.recovery], ['unsupported', ['plan_alternative', 'edit_request']]);
+  assert.equal(job.failure.message, 'A walkable world with real fluid physics needs a game engine these scenes do not have. Choose an alternative in Chat, or edit the request to start a new animation.');
+  assert.equal(job.failure.gap, undefined, 'the raw reason stays out of the learner view');
+  assert.deepEqual(chat(s).map(m => m.content), [`This animation cannot be made as asked. ${job.failure.message} Your request is kept.`]);
+  const choice = choiceOf(s);
+  assert.deepEqual(choice.alternatives.map(a => [a.id, a.credits]), GAP_ALTERNATIVES.map(a => [a.id, max]));
+  // A press, twice: one new job, one plan call, nothing built before Generate; the message records the choice.
+  const [a, b] = [await s.send('retry', { expectedAttempt: 1, action: 'plan_alternative', alternative: 'watch' }, done.id), await s.send('retry', { expectedAttempt: 1, action: 'plan_alternative', alternative: 'watch' }, done.id)];
+  assert.equal(b.body.job.id, a.body.job.id);
+  const next = await s.run(a.body.job.id);
+  assert.deepEqual([next.stage, s.model.roles()], ['awaiting_approval', ['brief', 'brief']]);
+  assert.equal(choiceOf(s).chosen, 'watch');
+  assert.equal((await s.send('retry', { expectedAttempt: 1, action: 'plan_alternative', alternative: 'nope' }, done.id)).body.job.id, next.id, 'after the first press it answers that job');
+});
+test('a reason that fails the check is replaced by the server\'s sentence, and the unedited reply stays in diagnostics only', { skip }, async t => {
+  const s = animationStack(t, { pipeline: stubGap('Needs `physics_engine` from the system prompt') });
+  const { body } = await s.create();
+  const done = await s.run(body.job.id);
+  assert.match(failureText(done), new RegExp(`^${GAP_FALLBACK}`));
+  assert.doesNotMatch(chat(s)[0].content, /physics_engine|prompt/);
+  assert.match(s.stored(done.id).failure.gap.reason, /physics_engine/);
+});
+
+test('oversized: Chat explains it and offers changes, no Generate exists until one is accepted, and accepting costs nothing', { skip }, async t => {
+  const big = saved('aj_51ec6a0').plan, s = animationStack(t, { pipeline: oversized(big) });
+  const { body } = await s.create({ prompt: REQUEST });
+  const waiting = await s.run(body.job.id), id = body.job.id;
+  assert.equal(waiting.stage, 'awaiting_approval');
+  assert.equal(postedProposal(s.sqlite, id), null, 'nothing to Generate yet');
+  const view = (await s.job(id)).job;
+  assert.deepEqual([view.outcome, view.choiceOpen], ['changes', true]);
+  assert.equal(JSON.stringify(view).includes('"bytes"'), false, 'the estimate stays private');
+  assert.match(chat(s).at(-1).content, /needs a change before it can be made\. By our estimate/);
+  assert.doesNotMatch(chat(s).at(-1).content, /bytes|\$/);
+  assert.deepEqual(choiceOf(s).alternatives.map(a => a.id), ['fewer_markers', 'no_kept_path'], 'clearly over: the plan as written is not offered');
+  // An old approve cannot get around it; a choice not offered is refused.
+  assert.equal((await s.send('choose', { choice: 'keep' }, id)).status, 409);
+  const [a, b] = [await s.send('choose', { choice: 'fewer_markers' }, id), await s.send('choose', { choice: 'fewer_markers' }, id)];
+  assert.deepEqual([a.status, b.status, a.body.job.choiceOpen], [200, 200, false]);
+  assert.deepEqual(s.model.roles(), ['brief'], 'no model call for the change');
+  const proposal = postedProposal(s.sqlite, id);
+  assert.equal(rows(s.sqlite, 'chat_message_meta').filter(r => JSON.parse(r.meta_json).proposal).length, 1, 'one plan message for two presses');
+  assert.ok(proposal.input.scene.notices.some(n => n.startsWith(CHANGED)), 'the review card keeps the change in view');
+  assert.ok(proposal.input.scene.parameters.length === big.parameters.length);
+  assert.match(chat(s).at(-1).content, /It differs from what you asked: Changed: the trail draws/);
+  assert.equal(choiceOf(s).chosen, 'fewer_markers');
+  assert.equal((await s.send('choose', { choice: 'no_kept_path' }, id)).status, 409, 'the other choice is gone');
+  // Generate is then the existing action on the changed plan, and its cost is on the card (usage.max_credits).
+  assert.ok(proposal.usage.max_credits > 0);
+  assert.equal((await s.approve(id)).status, 202);
+  assert.equal(s.stored(id).stage, 'authoring');
+});
+test('near the limit the learner may keep the plan; with no change the server can make, a simpler plan is a paid plan call with its cost', { skip }, async t => {
+  const near = { ...PLAN, behavior: 'rules', description: 'A ball leaves a trail over 170 steps.', interactions: [] };
+  const s = animationStack(t, { pipeline: oversized(near) });
+  const { body } = await s.create();
+  await s.run(body.job.id);
+  assert.ok(choiceOf(s).alternatives.some(a => a.id === 'keep'));
+  assert.equal((await s.send('choose', { choice: 'keep' }, body.job.id)).status, 200);
+  assert.equal(postedProposal(s.sqlite, body.job.id).input.plan_hash, s.stored(body.job.id).planHash);
+  const crowd = { ...PLAN, description: 'A grid of 300 particles drifts.' };
+  const c = animationStack(t, { pipeline: oversized(crowd) });
+  const made = await c.create();
+  const id = made.body.job.id;
+  const before = await c.run(id);
+  const simpler = choiceOf(c).alternatives.find(a => a.id === 'simpler');
+  assert.equal(simpler.credits, Math.ceil(before.reservation.preparationMicros / 10000));
+  assert.equal((await c.send('choose', { choice: 'simpler' }, id)).status, 202);
+  const after = await c.run(id);
+  assert.deepEqual([after.stage, c.model.roles()], ['awaiting_approval', ['brief', 'brief']]);
+  assert.ok(postedProposal(c.sqlite, id));
+});
+
+test('supported: the usual plan message; the outcome says what the checks found, and no words promise a fit', { skip }, async t => {
+  const s = animationStack(t);
+  const { body } = await s.create();
+  await s.run(body.job.id);
+  assert.equal((await s.job(body.job.id)).job.outcome, 'supported');
+  assert.equal(chat(s).at(-1).content, 'Here is the plan for your animation. Generate makes it.');
+  assert.doesNotMatch(JSON.stringify(postedProposal(s.sqlite, body.job.id)), /guarante|will fit/i);
+});
+
+test('the Chat explanation arrives after a failed write, once, and a lost answer writes no second message', { skip }, async t => {
+  const s = animationStack(t, { pipeline: STUB_PIPELINE({ author: async () => { throw Object.assign(new Error('x'), { stopReason: 'deadline', status: 409 }); } }) });
+  const db = s.env.LEARN_DB, batch = db.batch.bind(db);
+  let broken = true;
+  db.batch = statements => (broken ? Promise.reject(new Error('D1 busy')) : batch(statements));
+  const { id, done } = await s.generated();
+  assert.equal(done.stage, 'failed');
+  const explained = () => chat(s).filter(m => /was not finished/.test(m.content));
+  assert.equal(explained().length, 0);
+  assert.equal((await s.job(id)).job.chatPending, true);
+  assert.ok(failureText(done), 'the card has the words meanwhile');
+  broken = false;
+  await s.actor.alarm();
+  assert.equal(explained().length, 1);
+  assert.equal((await s.job(id)).job.chatPending, false);
+  // Crash after the write, before the save: the next try finds its own message.
+  const stored = s.stored(id);
+  Object.assign(stored, { reported: undefined, reportTries: 1 });
+  await s.actor.alarm(); await s.object().alarm();
+  assert.equal(explained().length, 1);
+  assert.equal(s.stored(id).reported, stored.attempt);
+});
+test('a Chat write that keeps failing stops trying and leaves the job and its evidence as they were', { skip }, async t => {
+  const s = animationStack(t, { pipeline: STUB_PIPELINE({ author: async () => { throw Object.assign(new Error('x'), { stopReason: 'deadline', status: 409 }); } }) });
+  s.env.LEARN_DB.batch = () => Promise.reject(new Error('down'));
+  const { id, done } = await s.generated();
+  for (let i = 0; i < 8; i++) await s.actor.alarm();
+  assert.equal((await s.job(id)).job.chatPending, false);
+  assert.deepEqual([s.stored(id).stage, s.stored(id).failure.stage], ['failed', done.failure.stage]);
+});
+
+// The words every class shows and the action it offers. Literal on purpose: the report quotes this table.
+test('each failure class has its own words and its own next action, on the records the dev fixtures seed', () => {
+  const base = name => { const { plan = null, fields } = seededJobs()[name]; return { attempt: 1, repairs: 0, counts: { brief: 1, author: 1, review: 0, repair: 0 }, findings: [], calls: [], reservation: { preparationMicros: 254800 }, plan, ...fields }; };
+  const expected = {
+    clarify: ['clarification', ['edit_request'], /^What should this game show or teach\?/],
+    unsupported: ['capability', ['plan_alternative', 'edit_request'], /^A walkable world with real fluid physics needs a game engine these scenes do not have\. Choose an alternative in Chat/],
+    size_limit: ['size_limit', ['revise_plan', 'edit_request'], /^The scene was too large to check\. It was corrected automatically once, but it still did not pass\. Revise plan prepares a simpler plan .* using up to 26 AI credits/],
+    output_limit: ['output_limit', ['revise_plan', 'edit_request'], /^The scene builder reached its output limit before it finished\. That does not prove your request is impossible; a smaller plan may fit\. It used 36 AI credits\. Revise plan/],
+    scene_quality: ['checks', ['revise_plan', 'edit_request'], /^The visual review found 1 serious problem with how the scene is drawn or computed\. It was corrected automatically once, but it still did not pass\. Revise plan/],
+    invalid_review: ['review_validation', null, /^The visual review returned an answer in the wrong form/],
+    temporary: ['transient', ['new_attempt', 'edit_request'], /^The AI service was busy\. You are not charged for it\. It was retried automatically\. Try again continues/],
+    credits: ['credits', ['new_attempt', 'edit_request'], /^Not enough AI credits\. Try again continues/],
+  };
+  for (const [name, [kind, actions, words]] of Object.entries(expected)) {
+    const job = base(name);
+    assert.equal(failureClass(job), kind, name);
+    if (actions) assert.deepEqual(recoveryOf(job), actions, name);
+    assert.match(failureText(job), words, name);
+    assert.doesNotMatch(failureText(job), /\$|bytes|\.\.\.|…/, name);
+    assert.equal(publicAnimationJob({ ...job, id: 'aj', boardId: 'b', cardId: 'c', timing: newTiming('simple', 0), createdAt: 0, updatedAt: 0 }).failure.gap, undefined, name);
+  }
+});
+
+test('the dev fixtures seed every outcome through the real report and choice paths, with no model call, and exist only under ANIMATION_DIAGNOSTICS', { skip }, async t => {
+  const s = animationStack(t);
+  const { body } = await s.send('seed');
+  assert.deepEqual(body.jobs.map(j => j.name), Object.keys(seededJobs()));
+  assert.deepEqual(s.model.roles(), [], 'no model call');
+  const outcomes = Object.fromEntries(await Promise.all(body.jobs.map(async j => [j.name, (await s.job(j.id)).job.outcome])));
+  assert.deepEqual([outcomes.supported, outcomes.oversized, outcomes.unsupported, outcomes.clarify], ['supported', 'changes', 'unsupported', 'clarify']);
+  assert.equal(chat(s).length, body.jobs.length, 'one Chat message per fixture');
+  assert.ok(postedProposal(s.sqlite, body.jobs.find(j => j.name === 'supported').id));
+  assert.equal(postedProposal(s.sqlite, body.jobs.find(j => j.name === 'oversized').id), null);
+  for (const extra of [{}, { ANIMATION_ENABLED: 'true' }]) {
+    const off = await animationRoute(ANIMATION_SEED_PATH, new Request(`https://dev.test${ANIMATION_SEED_PATH}`, { method: 'POST', body: '{}' }), extra);
+    assert.equal(off.status, 404);
+  }
+});

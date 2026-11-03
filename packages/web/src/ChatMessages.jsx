@@ -26,12 +26,15 @@ import { useAnimationProposal } from './animation3d/use-proposal-status.js';
 import { responseKind, turnIndex } from './chat-response-kind.js';
 import { briefHeading, isBriefCommand } from './material-brief.js';
 import PlanSummary, { planSummary } from './animation3d/PlanSummary.jsx';
+import AnimationChoices from './animation3d/AnimationChoices.jsx';
 
 // An /animation plan with its scene (owner, 2026-10-31): the short summary in place of the plan lines, and Edit reads Edit plan.
 // A plan made before the server sent its scene keeps the full lists.
 const animationReview = p => {
   const summary = p.command === 'animation' ? planSummary(p) : null;
-  return summary ? { summary: <PlanSummary summary={summary} />, editLabel: 'Edit plan' } : {};
+  // A change asked for in Chat is a plan call: its cost is said here, Generate's on its own line.
+  const planCredits = p.input?.scene?.planCredits;
+  return summary ? { summary: <PlanSummary summary={summary} />, editLabel: 'Edit plan', ...(planCredits ? { note: `Edit plan uses up to ${planCredits} AI credits to rewrite the plan.` } : {}) } : {};
 };
 
 // UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its
@@ -392,6 +395,7 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
             {/* A Tutor syllabus (contract B6): an editable list under its answer; edits save to this message (chat-syllabus-route.js)
                 once it has its server id. */}
             {m.meta?.proposal?.proposal_id && <ProposalSlot m={m} i={i} msgs={msgs} setMsgs={setMsgs} ops={outputOps} />}
+            {m.meta?.animationChoice?.alternatives?.length > 0 && <AnimationChoices choice={m.meta.animationChoice} ops={outputOps} />}
             {m.kind === 'syllabus' && Array.isArray(m.meta?.syllabus?.topics) && <SyllabusMessage syllabus={m.meta.syllabus} toContents={toContents} saveSyllabus={/^\d+$/.test(String(m.messageId ?? '')) ? async topics => (await api(`/api/learn/chat/messages/${m.messageId}/syllabus`, { method: 'PUT', body: JSON.stringify({ topics }) })).syllabus : null} />}
             <AnswerFooter key={m.messageId ?? i} message={{ ...m, status: answerStatus(m, busy && i === msgs.length - 1) }} latest={!msgs.slice(i + 1).some(x => x.role === 'assistant')}
               onAddAsCard={kind.ordinary && onAddToCanvas && addAsCard} onLocateCard={kind.ordinary && onAddToCanvas && (id => addAsCard({ id, answer: m.content, sources: m.meta?.contextRefs ?? null }))} cardExists={() => !!m.added || !!hasCard?.(cardIdFor(m))}

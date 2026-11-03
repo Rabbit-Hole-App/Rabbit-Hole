@@ -151,6 +151,7 @@ test('an interrupted call is never resent by itself: Try again within the ceilin
 });
 
 // Owner 2026-11-02: a billed reply the job cannot use (output limit, invalid turn) is not an interruption, and its credits stay used.
+// FX-AN-031 (owner, same day): an output limit is its own class, and does not prove the request is impossible.
 test('a billed reply that cannot be used says so and names the credits its call settled, on the card and in Chat alike', { skip }, async t => {
   const s = animationStack(t);
   const inner = globalThis.fetch; // the fake provider; restored by its own t.after
@@ -160,14 +161,14 @@ test('a billed reply that cannot be used says so and names the credits its call 
   };
   const { id, done } = await s.generated();
   const call = done.calls.find(c => c.role === 'author');
-  assert.deepEqual([done.failure.category, done.failure.code, failureClass(done), call.status], ['model_output', 'output_limit', 'transient', 'failed']);
+  assert.deepEqual([done.failure.category, done.failure.code, failureClass(done), call.status], ['model_output', 'output_limit', 'output_limit', 'failed']);
   assert.ok(call.costMicros > 0, 'the reply was billed and its cost recorded');
   // The usage record agrees: the learner's attempt settled at that cost, nothing refunded.
   const attempt = rows(s.sqlite, 'usage_attempts').at(-1); // brief, then author
   assert.deepEqual([attempt.cost_state, attempt.cost_micros], ['settled', call.costMicros]);
   const used = Math.ceil(call.costMicros / 10000);
   const { job } = await s.job(id);
-  assert.match(job.failure.message, new RegExp(`^The AI answer could not be used\\. It used ${used} AI credits?\\. Revise plan`));
+  assert.match(job.failure.message, new RegExp(`^The scene builder reached its output limit before it finished\\. That does not prove your request is impossible; a smaller plan may fit\\. It used ${used} AI credits?\\. Revise plan`));
   assert.doesNotMatch(job.failure.message, /not charged|interrupted/);
   assert.deepEqual(failures(s).map(m => m.content), [`"${PLAN.title}" was not finished. ${job.failure.message} Your request and plan are kept.`]);
   // The same for a reply whose call settled and whose content the stage then refused (animation-author.js: no artifact).

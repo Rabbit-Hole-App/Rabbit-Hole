@@ -24,7 +24,7 @@ test('a request prepares one plan and waits: the signed proposal carries the rec
   assert.deepEqual(p.requirements, planLines(PLAN));
   assert.match(p.requirements[0], /^Recommended: experiment\. Changing the masses/);
   // The review card's short summary (owner 2026-10-31) is signed beside the full plan lines: parameters without ids, the actions.
-  assert.deepEqual(p.input.scene, planScene(PLAN));
+  assert.deepEqual(p.input.scene, { ...planScene(PLAN), planCredits: Math.ceil(waiting.reservation.preparationMicros / 10000) });
   assert.deepEqual(p.input.scene.parameters.map(x => x.label), PLAN.parameters.map(x => x.label));
   assert.ok(p.input.scene.parameters.every(x => !('id' in x)), 'no ids on the summary');
   // The most it can cost is the build's worst case; nothing is shown as held.

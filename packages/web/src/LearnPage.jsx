@@ -3,7 +3,7 @@ import {readRegionalOriginal,regionalMaskBlob} from './inline-regional-mask.js';
 import { createBackgroundRemovalController, createRegionalImageEditController } from './inline-background-removal.js';
 import { createImageJobClient } from './inline-image-job-client.js';
 import { cadClient, submitCadOnce } from './cad-client.js';
-import { EXPLAIN_JOB_EVENT, explainClient, explainDisabled, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock } from './explain-client.js';
+import { EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainDisabled, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock } from './explain-client.js';
 import { withCardSink } from './chat-output-refs.js';
 import { withPrompt } from './card-prompt.js';
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -535,6 +535,17 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const { job } = await client.action(proposal.input.job, 'approve', { proposal });
       window.dispatchEvent(new CustomEvent(event, { detail: { jobId: proposal.input.job } }));
       return job?.cardId || null;
+    },
+    // A change the server offered in Chat for this job (AnimationChoices.jsx): a press the server records, then the card reads the job and the
+    // Chat its thread again, so the plan with its Generate appears. A gap's alternative is a new job, which the failed card follows.
+    chooseAnimation: async (choice, id) => {
+      const boardId = commentBoardRef.current;
+      if (!boardId) throw new Error('This choice can be made only on its own canvas.');
+      const client = animationClient(api, boardId);
+      const { job } = choice.kind === 'gap' ? await client.action(choice.jobId, 'retry', { expectedAttempt: choice.attempt, action: 'plan_alternative', alternative: id }) : await client.action(choice.jobId, 'choose', { choice: id });
+      window.dispatchEvent(new CustomEvent(ANIMATION_JOB_EVENT, { detail: { jobId: choice.jobId } }));
+      if (job?.threadId) window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId: job.threadId, jobId: job.id } }));
+      return job;
     },
     // An approved /animation plan's status in Chat: its job, and whether this canvas still holds its card (false only when the canvas is loaded).
     readAnimationJob: async proposal => {
