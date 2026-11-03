@@ -23,7 +23,7 @@ test('the blog publishes one story and renders one card from the same array', ()
 test('a hero image fills the whole cover with no label; a post without one keeps the text cover', () => {
   const [post] = stories, plain = { ...post, hero: undefined };
   const html = cover(post);
-  assert.match(html, /<div class="hero-wash"><img src="\/landing\/blog\/rabbit-holes-not-courses-hero\.png" alt="The White Rabbit, Alice, the Mad Hatter/, 'the post carries its generated hero');
+  assert.match(html, /<div class="hero-wash"><img src="\/landing\/blog\/rabbit-holes-not-courses-hero\.jpg" alt="The White Rabbit, Alice, the Mad Hatter/, 'the post carries its generated hero');
   assert.doesNotMatch(html, /<small|Rabbit Hole \/ Notes|<i><\/i>|<span>/, 'a hero cover is only the image');
   assert.doesNotMatch(cover(plain), /<img/);
   assert.match(cover(plain), /aria-hidden="true"><i><\/i><i><\/i><span>Not courses\.<\/span>/);

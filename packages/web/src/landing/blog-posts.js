@@ -7,8 +7,8 @@ export const stories=[
     title:"We're building rabbit holes, not courses",
     excerpt:'For everyone who has twenty tabs open and a README half written.',
     mark:'Not courses.',motif:'courses',
-    // Hero: GPT Image 2.5 Flare, the guide's prompt, attempt 3 of 4 (owner GO 2026-11-02), richer Wonderland scene, fitted to 16:5.6 at 2x offline.
-    hero:'The White Rabbit, Alice, the Mad Hatter, the Caterpillar and the Cheshire Cat in a faded engraving of Wonderland, walking through a garden with a tea-party table, playing-card soldiers and a castle behind them.',
+    // Hero: GPT Image 2.5 Flare, the guide's prompt, attempt 4 of 4 (owner GO 2026-11-02), hand-tinted Wonderland scene, JPEG, fitted to 16:5.6 at 2x offline.
+    hero:'The White Rabbit, Alice, the Mad Hatter, the Caterpillar and the Cheshire Cat in a hand-tinted engraving of Wonderland, walking through a garden with a tea-party table, playing-card soldiers and a castle behind them.',
     body:`<p>Rabbit Hole started as a fix for how I learn. I was spending more time keeping track of what I had learned than learning it.</p>
       <h2>The README I kept writing</h2>
       <p>For years my way of learning anything was the same: start with a course on Coursera or Udemy, or with the slides from a class, then watch the hours of video with my iPad open and take notes. Pause to read blog posts and watch YouTube videos that explained the same thing a different way, and code along with the instructor or do the exercises afterwards. At the end, write a README on GitHub with everything I had learned.</p>
@@ -57,7 +57,7 @@ export const href=story=>`/blog?post=${story.slug}`;
 // story.hero is the hero image's alt text; the image itself is public/landing/blog/<slug>-hero.png (BLOG_IMAGE_GUIDE.md).
 // A hero image fills the whole cover (owner 2026-11-02): no side margins, no label, no decorative marks.
 export const cover=story=>story.hero
-  ?`<div class="blog-cover blog-cover-${story.motif}"><div class="hero-wash"><img src="/landing/blog/${story.slug}-hero.png" alt="${story.hero}"></div></div>`
+  ?`<div class="blog-cover blog-cover-${story.motif}"><div class="hero-wash"><img src="/landing/blog/${story.slug}-hero.jpg" alt="${story.hero}"></div></div>`
   :`<div class="blog-cover blog-cover-${story.motif}" aria-hidden="true"><i></i><i></i><span>${story.mark}</span><small>Rabbit Hole / Notes</small></div>`;
 export const metadata=story=>`<time datetime="${story.date}">${story.dateLabel}</time><span>${story.readTime??'1 min read'}</span>`;
 export const storyCountLabel=count=>`${count} ${count===1?'story':'stories'}`;
