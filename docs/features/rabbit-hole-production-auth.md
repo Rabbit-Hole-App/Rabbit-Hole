@@ -140,7 +140,7 @@ The production Worker sets `PUBLIC_ORIGIN = "https://digrabbithole.com"` as a va
 2. Add the DNS records Resend shows: DKIM TXT, the SPF TXT and MX for its return-path subdomain, and optionally DMARC. The digrabbithole.com zone must be live on Cloudflare first (its status was not checked here), so this waits for the Infra DNS step.
 3. Turn click tracking off for that domain; it would rewrite the sign-in link.
 4. Create an API key with Sending access, restricted to that domain. It becomes `RESEND_API_KEY`.
-5. Set `EMAIL_FROM` to an address on the verified domain, e.g. `Rabbit Hole <signin@digrabbithole.com>`.
+5. Set `EMAIL_FROM` to an address on the verified domain, e.g. `Rabbit Hole <hello@digrabbithole.com>` (production uses hello@ since the owner decision 2026-11-03; it was signin@).
 
 The CLI login code (`/api/cli/login`) uses the same sender. Subject `Rabbit Hole sign-in code: <code>`, body `Your Rabbit Hole sign-in code is <code>` and `It expires in 10 minutes.` (plain text only; pinned by `test/auth-fail-closed.test.js`).
 

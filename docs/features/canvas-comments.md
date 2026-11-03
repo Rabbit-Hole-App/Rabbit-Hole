@@ -160,7 +160,7 @@ otherwise.
 |---|---|
 | No canvas membership, invitation or accept flow exists | `control-plane/learn-migrations/0001…0010` |
 | The one sender, `sendEmail` (Resend, plain text), is in the control plane; the app Worker has no mail key by policy | `control-plane/src/index.js:42-56`; `web/wrangler.rabbit-hole-prod.jsonc:47` |
-| Production sender `Rabbit Hole <signin@digrabbithole.com>`; dev has no Resend key | `control-plane/wrangler.rabbit-hole-prod.jsonc:29, 36`; `wrangler.rabbit-hole-dev.jsonc:32-36` |
+| Production sender `Rabbit Hole <hello@digrabbithole.com>` (was signin@ until the owner decision 2026-11-03; replies reach the owner's Gmail through Cloudflare Email Routing); dev has no Resend key | `control-plane/wrangler.rabbit-hole-prod.jsonc:29, 36`; `wrangler.rabbit-hole-dev.jsonc:32-36` |
 | Dev/review Workers block control-plane POSTs outside an allow-list | `dev-forwarding.js:66-79` |
 | Email-code precedent: CLI login codes with per-address and per-domain limits. Test mode echoes links and codes only with `SMALL_ENV=test` plus the bypass secret | `index.js:195-208`; `auth.js:22, 374, 385` |
 | Atomic counted-insert rate limits | `control-plane/src/learn-shared-ask.js:130-160` |
@@ -718,7 +718,7 @@ real email send is authorized.
 |---|---|---|
 | H1 | The control plane serves the invitation family and the whole `members` subtree; `sendEmail` stays private behind `sendInviteEmail` | **agreed** (C4) |
 | H2 | A dev/review allow-list for the invitation POSTs | **rejected, not needed.** `productionAllows` is GET-only and fail-closed; one entry would weaken every dev Worker, and `rabbit-hole-cp-dev` has no Resend key and runs `SMALL_ENV=dev` (no echo), so a dev clone could never finish an acceptance. `dev-forwarding.js` is untouched. Invitation e2e runs on a local `SMALL_ENV=test` stack; owner UI states (People, "Email wasn't sent") can be shown on a dev clone through `/test/session` and seeded rows |
-| H3 | Sender | **suitable:** the existing `EMAIL_FROM` `Rabbit Hole <signin@digrabbithole.com>` (domain verified with DKIM and SPF; tracking off; receiving off, hence "Replies aren't read"; 10 requests/s). **Before the first production invitation, each at an owner GO:** check the Resend plan and quota (the account is shared with apateo.ai); add DMARC `p=none` (DNS); make a first production send; rotate a full-access key to sending-only if production holds it |
+| H3 | Sender | **suitable:** the existing `EMAIL_FROM` (then `Rabbit Hole <signin@digrabbithole.com>`, now `Rabbit Hole <hello@digrabbithole.com>`, owner 2026-11-03; the line "Replies to this email aren't read" in the invitation and code emails is now untrue, see learn-feedback.md) (domain verified with DKIM and SPF; tracking off; receiving off, hence "Replies aren't read"; 10 requests/s). **Before the first production invitation, each at an owner GO:** check the Resend plan and quota (the account is shared with apateo.ai); add DMARC `p=none` (DNS); make a first production send; rotate a full-access key to sending-only if production holds it |
 | H4 | Test echo | **agreed:** `echoesLogin(env)` only, with the negative tests |
 | H5 | Migration number | **none now:** no `0011` exists on any ref. Keep `00NN`; Parallel assigns the next free number at merge; Home reviews the file |
 | H6 | Remote migrations and deploy | separate GO after V1 approval |

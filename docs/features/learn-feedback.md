@@ -61,7 +61,7 @@ sends `POST /api/feedback/notify {key}` through the `CONTROL_PLANE` binding with
 (`feedback-mail.js`). The control plane checks that session, loads the report from storage by that key, and only if it is
 the caller's own report from the last 10 minutes sends it with the existing `sendEmail` (Resend, `EMAIL_FROM`). Nothing but
 the key comes from the request; the recipient is the plain var **`FEEDBACK_NOTIFY_TO`** in
-`packages/control-plane/wrangler.rabbit-hole-prod.jsonc` (`yudhisteer.chin@gmail.com`). Empty or absent means no email, and
+`packages/control-plane/wrangler.rabbit-hole-prod.jsonc` (`yudhisteer.chin@gmail.com`). The mail is sent from `EMAIL_FROM`, `Rabbit Hole <hello@digrabbithole.com>` (owner decision 2026-11-03, one sender for every app email; Cloudflare Email Routing forwards hello@ to the owner's Gmail, so a reply to the mail itself also reaches the owner). Empty or absent means no email, and
 there is no recipient in code. Dev and review set none, and a dev worker's control plane binding refuses the request anyway.
 
 - Subject `[Rabbit Hole] Bug report RH-XXXX-XXXX` or `[Rabbit Hole] Feature suggestion RH-XXXX-XXXX` (the reference is checked

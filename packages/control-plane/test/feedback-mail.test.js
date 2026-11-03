@@ -103,7 +103,7 @@ test('POST /api/feedback/notify through the worker: a session user mails their o
   const resend = [];
   t.mock.method(globalThis, 'fetch', async (url, init) => { resend.push({ url: String(url), headers: init.headers, body: JSON.parse(init.body) }); return new Response('{}', { status: 200 }); });
   const stored = { [KEY]: report({ userId: 'u1', contact: { email: 'real@gmail.com', verified: true, provider: 'google' } }) };
-  const env = { MASTER_KEY, DB, LEARN_MEDIA: media(stored), FEEDBACK_NOTIFY_TO: OWNER, RESEND_API_KEY: 'resend-fixture-key', EMAIL_FROM: 'Rabbit Hole <signin@digrabbithole.com>' };
+  const env = { MASTER_KEY, DB, LEARN_MEDIA: media(stored), FEEDBACK_NOTIFY_TO: OWNER, RESEND_API_KEY: 'resend-fixture-key', EMAIL_FROM: 'Rabbit Hole <hello@digrabbithole.com>' };
   const exp = Math.floor(Date.now() / 1000) + 3600;
   const asUser = async (uid, email) => ({ 'X-Small-Session': await sign({ t: 'sess', uid, email, ep: 0, prov: 'google', exp }, MASTER_KEY), 'content-type': 'application/json' });
   const call = async (headers, body) => worker.fetch(new Request('https://cp.example.test/api/feedback/notify', { method: 'POST', headers, body: JSON.stringify(body) }), env, {});
@@ -118,7 +118,7 @@ test('POST /api/feedback/notify through the worker: a session user mails their o
   assert.equal(resend.length, 1);
   assert.equal(resend[0].url, 'https://api.resend.com/emails');
   assert.deepEqual(resend[0].body.to, [OWNER]);
-  assert.equal(resend[0].body.from, 'Rabbit Hole <signin@digrabbithole.com>');
+  assert.equal(resend[0].body.from, 'Rabbit Hole <hello@digrabbithole.com>');
   assert.equal(resend[0].body.reply_to, 'real@gmail.com');
   assert.equal(resend[0].body.subject, '[Rabbit Hole] Bug report RH-7QK2-M9XD');
   assert.equal(resend[0].headers['Idempotency-Key'], 'feedback-0b1c');
