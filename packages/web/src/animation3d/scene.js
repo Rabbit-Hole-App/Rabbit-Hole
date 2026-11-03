@@ -219,6 +219,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
     else if (g?.kind === 'line' || (g?.kind === 'curve' && !g.radius)) drawable = new THREE.Line(shapeOf(g), stroke(node.material));
     else if (g?.kind === 'arrow') {
       drawable = new THREE.Group();
+      drawable.userData.arrow = g.length;
       for (const part of shapeOf(g)) drawable.add(new THREE.Mesh(part, surfaces.get(node.material) ?? fallback));
     } else if (g) drawable = new THREE.Mesh(shapeOf(g), surfaces.get(node.material) ?? fallback);
     if (drawable) {
