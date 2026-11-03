@@ -7,11 +7,17 @@ export const learnerKey = (kind, id) => sha256Hex(`publication-learner:${kind}:$
 export const accountKey = ({ userId, email }) => learnerKey(userId ? 'u' : 'e', userId || email);
 export const visitorKey = visitorId => learnerKey('v', visitorId);
 
-// 90 days: the MVP product default for records with a learner or session key. Reads ignore older rows, and each ingest and read purges them.
+// 90 days: the MVP product default for records with a learner or session key. Reads ignore older rows, a daily scheduled cleanup deletes them,
+// and each ingest and read purges them as a safeguard.
 export const RETENTION_DAYS = 90;
 export const retentionCutoff = now => new Date(Date.parse(now) - RETENTION_DAYS * 86400e3).toISOString();
-export const purgeExpired = (db, now) => {
+// The first UTC day a daily rollup may still hold: every moment of it is within 90 days, so a rollup never outlives the records it sums.
+export const firstRetainedDay = now => {
   const at = retentionCutoff(now), day = at.slice(0, 10);
+  return at.endsWith('T00:00:00.000Z') ? day : new Date(Date.parse(`${day}T00:00:00Z`) + 86400e3).toISOString().slice(0, 10);
+};
+export const purgeExpired = (db, now) => {
+  const at = retentionCutoff(now), day = firstRetainedDay(now);
   return [
     db.prepare('DELETE FROM publication_events WHERE received_at < ?').bind(at),
     db.prepare('DELETE FROM publication_sessions WHERE started_at < ?').bind(at),
@@ -20,6 +26,26 @@ export const purgeExpired = (db, now) => {
     db.prepare('DELETE FROM publication_learner_items WHERE day < ?').bind(day),
   ];
 };
+
+// The daily cron (app-worker.js, wrangler.rabbit-hole-prod.jsonc), independent of any visitor or read. Each run records its outcome, which the
+// owner's read reports; a failure is also logged and rethrown so the platform marks the invocation failed. The next good run clears it.
+export const CLEANUP_STALE_HOURS = 48;
+const meta = (db, key, now) => db.prepare('INSERT INTO analytics_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind(key, now);
+export async function runCleanup(db, now = new Date().toISOString()) {
+  try {
+    await db.batch([...purgeExpired(db, now), meta(db, 'last_cleanup_ok_at', now)]);
+  } catch (error) {
+    console.error('analytics cleanup failed', error?.message);
+    await meta(db, 'last_cleanup_error_at', now).run().catch(() => {});
+    throw error;
+  }
+}
+// healthy: true after a good run with no later failure and within two days; false when failed or overdue; null before the first run.
+export function cleanupHealth({ last_cleanup_ok_at: ok = null, last_cleanup_error_at: failed = null }, now) {
+  if (!ok && !failed) return { healthy: null, last_ok_at: null, last_error_at: null };
+  const fresh = !!ok && Date.parse(now) - Date.parse(ok) <= CLEANUP_STALE_HOURS * 3600e3;
+  return { healthy: fresh && !(failed && failed > ok), last_ok_at: ok, last_error_at: failed };
+}
 
 // Every table holding a learner's rows, for deletion by account or by visitor identifier. The counters in publication_board_days have no
 // per-person column, so they stay. key is a sha256 hex string; checked, because the tool writes it into SQL text.

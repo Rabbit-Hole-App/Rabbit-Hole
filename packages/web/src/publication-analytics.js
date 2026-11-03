@@ -4,12 +4,13 @@
 // Before the visitor accepts analytics (analytics-consent.js), and under Do Not Track or Global Privacy Control, nothing here runs: no
 // identifier is created or read and nothing is sent. Withdrawal, in this tab or another, discards what is queued and sends nothing.
 // Starts and forks are recorded by the server on their success paths, never from here. No text the visitor typed is sent.
-import { CONSENT_EVENT, CONSENT_KEY, clearAnalyticsStorage, consentOf, mirrorConsentCookie, optedOut } from './analytics-consent.js';
+import { CONSENT_EVENT, CONSENT_KEY, CONSENT_VERSION_KEY, clearAnalyticsStorage, consentCurrent, mirrorConsentCookie, optedOut } from './analytics-consent.js';
 import { approvedCampaign } from './analytics-campaigns.js';
 
 const IDLE_MS = 60_000, FLUSH_MS = 15_000, SESSION_IDLE_MS = 30 * 60_000, SEEN_MS = 2_000, BATCH = 50, QUEUE = 500;
 
-export const collectionAllowed = win => !optedOut(win.navigator) && consentOf(win) === 'accepted';
+// An acceptance of the current version only: one given for PostHog alone does not start this.
+export const collectionAllowed = win => !optedOut(win.navigator) && consentCurrent(win);
 
 // One source per visit, from the arrival only. The referrer is read here for its category and never leaves this function; a campaign is
 // sent only if it is an approved id (analytics-campaigns.js).
@@ -192,7 +193,7 @@ export function publicationAnalytics({ token, blocks = [], win = window, uuid = 
       clearAnalyticsStorage(win);
     }
   };
-  const fromOtherTab = event => { if (event.key === null || event.key === CONSENT_KEY) apply(); };
+  const fromOtherTab = event => { if (event.key === null || event.key === CONSENT_KEY || event.key === CONSENT_VERSION_KEY) apply(); };
   win.addEventListener(CONSENT_EVENT, apply);
   win.addEventListener('storage', fromOtherTab);
   apply();

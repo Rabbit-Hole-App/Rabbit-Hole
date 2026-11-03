@@ -14,6 +14,7 @@ active-time or identify event is sent or queued for later, and the server sends 
 
 - `src/analytics-consent.js` holds the choice per browser: `localStorage` `rh_analytics_consent` is `accepted` or `rejected`. Missing or
   unreadable means off. Its storage event reaches other tabs. Do Not Track or Global Privacy Control overrides it.
+- Version 2 of the choice also covers Creator Analytics (`rh_analytics_consent_version`, cookie `rh_analytics_consent_v=2`; creator-analytics-contract.md). An earlier acceptance keeps PostHog running and the banner asks again.
 - A cookie `rh_analytics_consent=accepted` exists only while accepted. It holds no identifier and is how a sign-in request tells the
   control plane; without it `captureSignIn` sends nothing. A sign-in in another browser, or before accepting, is therefore not recorded.
 - `src/analytics-banner.js` is plain DOM for the app and the public pages, bottom right, not modal, and takes focus only when opened from a

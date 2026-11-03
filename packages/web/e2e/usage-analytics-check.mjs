@@ -59,7 +59,7 @@ await context.clock.install({ time: T0 });
 await context.clock.pauseAt(T0 + 1000);
 context.on('page', page => page.on('pageerror', error => pageErrors.push(error.message)));
 
-const total = 21;
+const total = 22;
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
 const until = async (fn, label, ms = 15000) => { const end = Date.now() + ms; for (;;) { const value = await fn(); if (value) return value; if (Date.now() > end) throw Error(`timed out: ${label}; sent ${JSON.stringify(sent().map(e => [e.event, e.properties.distinct_id?.slice(0, 4), e.properties.active_seconds]))}`); await new Promise(resolve => setTimeout(resolve, 50)); } };
@@ -383,6 +383,29 @@ try {
       await after(tab);
     } finally { await other.close(); }
   };
+  await check('an acceptance from before Creator Analytics keeps PostHog working and is asked again; accepting now adds the new signal', async () => {
+    const other = await browser.newContext();
+    try {
+      await other.route('**/*', respond);
+      await other.addInitScript("try { localStorage.setItem('rh_analytics_consent', 'accepted'); } catch {}");
+      const tab = await other.newPage();
+      const before = requests.length;
+      me = { id: A, internal: true };
+      await tab.goto(`${ORIGIN}/apps`);
+      await tab.mouse.click(5, 300);
+      await until(() => requests.length > before, 'PostHog still sends on the earlier acceptance', 12000);
+      const cookies = () => tab.evaluate(() => document.cookie);
+      assert.match(await cookies(), /rh_analytics_consent=accepted/);
+      assert.doesNotMatch(await cookies(), /rh_analytics_consent_v=2/, 'not silently bridged');
+      await until(() => tab.locator(BANNER).count(), 'the banner asks again');
+      await choose(tab, 'accepted');
+      await until(async () => (await tab.locator(BANNER).count()) === 0, 'the answer closes it');
+      assert.match(await cookies(), /rh_analytics_consent_v=2/);
+      await tab.reload();
+      await tab.waitForTimeout(500);
+      assert.equal(await tab.locator(BANNER).count(), 0, 'remembered');
+    } finally { await other.close(); }
+  });
   await check('Global Privacy Control over a saved acceptance: off, and no banner to answer', () => signal(`Object.defineProperty(navigator, 'globalPrivacyControl', { get: () => true }); localStorage.setItem('rh_analytics_consent', 'accepted');`, 'GPC', async tab => assert.equal(await tab.locator(BANNER).count(), 0)));
   await check('Do Not Track over a saved acceptance: off, and no banner to answer', () => signal(`Object.defineProperty(navigator, 'doNotTrack', { get: () => '1' }); localStorage.setItem('rh_analytics_consent', 'accepted');`, 'DNT', async tab => assert.equal(await tab.locator(BANNER).count(), 0)));
   await check('unreadable consent stays off, and choosing with blocked storage collects nothing and does not throw', () => signal(`Storage.prototype.getItem = () => { throw new Error('blocked'); }; Storage.prototype.setItem = () => { throw new Error('blocked'); };`, 'blocked storage', async tab => {

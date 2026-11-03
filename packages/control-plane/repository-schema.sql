@@ -1198,8 +1198,8 @@ CREATE TABLE IF NOT EXISTS learn_explain_drafts (
 -- publications, keyed by the publication's canvas (org, canvas), never by its replaceable token. Written only by the ingest route and the
 -- Rabbit Hole start and fork success paths (publication-analytics.js), and only with the visitor's analytics consent. Learner keys are
 -- one-way hashes: pseudonymous, not anonymous. No users.id, visitor id, email, IP, user agent, referrer or free text is stored.
--- Every table with a learner_key or session_key expires after 90 days (a product default): reads ignore older rows and each ingest and
--- read purges them. publication_board_days and publication_revisions hold no per-person column and are kept for the life of the canvas.
+-- Every table with a learner_key or session_key expires after 90 days (a product default): reads ignore older rows, a daily scheduled
+-- cleanup deletes them, and each ingest and read purges them as a safeguard. publication_board_days and publication_revisions hold no per-person column and are kept for the life of the canvas.
 -- Additive and re-runnable; LEARN_DB only. Production: an owner command, applied immediately before the release that reads it.
 CREATE TABLE IF NOT EXISTS publication_events (
   event_id TEXT PRIMARY KEY,
@@ -1222,7 +1222,6 @@ CREATE TABLE IF NOT EXISTS publication_learners (
   learner_key TEXT NOT NULL,
   signed_in INTEGER NOT NULL DEFAULT 0,
   synthetic INTEGER NOT NULL DEFAULT 0,
-  first_seen_at TEXT NOT NULL,
   last_seen_at TEXT NOT NULL,
   credited_through TEXT,
   PRIMARY KEY (org, canvas, learner_key)
@@ -1298,7 +1297,7 @@ CREATE TABLE IF NOT EXISTS publication_revisions (
   first_seen_at TEXT NOT NULL,
   PRIMARY KEY (org, canvas, version)
 );
--- Collection metadata: collection_started_at, last_ingest_at, last_ingest_error_at.
+-- Collection metadata: collection_started_at, last_ingest_at, last_ingest_error_at, last_cleanup_ok_at, last_cleanup_error_at.
 CREATE TABLE IF NOT EXISTS analytics_meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL

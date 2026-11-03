@@ -8,10 +8,10 @@ import { handle } from './stars-helpers.js';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { analyticsRoute } from '../src/publication-analytics.js';
-import { accountKey, deleteLearnerSql, LEARNER_TABLES, RETENTION_DAYS, visitorKey } from '../src/publication-analytics-purge.js';
+import { accountKey, cleanupHealth, deleteLearnerSql, firstRetainedDay, LEARNER_TABLES, RETENTION_DAYS, retentionCutoff, runCleanup, visitorKey } from '../src/publication-analytics-purge.js';
 import { APPROVED_CAMPAIGNS } from '../../web/src/analytics-campaigns.js';
 
-const CONSENT = 'rh_analytics_consent=accepted';
+const CONSENT = 'rh_analytics_consent=accepted; rh_analytics_consent_v=2';
 const consentCookie = as => `${CONSENT}${as ? `; small_session=${as}` : ''}`;
 // The fixture, with a start or fork made as a consenting visitor unless a test says otherwise (consent: false).
 const setup = t => {
@@ -210,14 +210,18 @@ test('consent: without acceptance, after rejection, after withdrawal and under a
   await refused({ consent: false, as: 'ben' }, 'no signal, signed in');
   await refused({ consent: false, headers: { cookie: 'rh_analytics_consent=rejected' } }, 'rejected');
   await refused({ consent: false, headers: { cookie: 'rh_analytics_consent=' } }, 'withdrawn: the cookie is cleared');
-  await refused({ consent: false, headers: { cookie: 'x_rh_analytics_consent=accepted' } }, 'a look-alike cookie');
+  await refused({ consent: false, headers: { cookie: 'x_rh_analytics_consent=accepted; x_rh_analytics_consent_v=2' } }, 'a look-alike cookie');
+  await refused({ consent: false, headers: { cookie: 'rh_analytics_consent=accepted' } }, 'an acceptance from before this measurement covered PostHog only');
+  await refused({ consent: false, headers: { cookie: 'rh_analytics_consent=accepted; rh_analytics_consent_v=1' } }, 'an earlier version');
+  await refused({ consent: false, headers: { cookie: 'rh_analytics_consent_v=2' } }, 'a version without the acceptance');
   await refused({ headers: { 'Sec-GPC': '1' } }, 'Global Privacy Control overrides acceptance');
   await refused({ headers: { DNT: '1' } }, 'Do Not Track overrides acceptance');
   assert.equal((await send(f, token, { events: [ev('open')] })).body.accepted, 1, 'accepted: collected');
-  // A start and a fork still work without consent, and record nothing.
+  // A start and a fork still work without consent, or with only the old acceptance, and record nothing.
   const after = counts();
   assert.equal((await f.call('POST', `/api/learn/boards/shared/${token}/rabbit-hole`, { as: 'ben', consent: false, body: { origin: null } })).status, 201);
   assert.equal((await f.call('POST', '/api/learn/boards/fork', { as: 'cara', consent: false, body: { source: { token }, key: 'fork-key-0020' } })).status, 201);
+  assert.equal((await f.call('POST', '/api/learn/boards/fork', { consent: false, headers: { cookie: 'rh_analytics_consent=accepted; small_session=cara' }, body: { source: { token }, key: 'fork-key-0021' } })).status, 201);
   assert.deepEqual(counts(), after, 'the action succeeded, uncounted');
   const body = (await read(f, `/api/analytics/publications/${canvas}?range=7d`, 'ana')).body;
   assert.equal(body.coverage, 'consenting_visitors');
@@ -236,19 +240,109 @@ test('retention: visitor-level rows past 90 days are ignored by reads even befor
   t.mock.timers.tick(89 * 86400e3);
   assert.equal((await read(f, `/api/analytics/publications/${canvas}?range=all`, 'ana')).body.overview.unique_visitors.value, 10, 'day 89: still counted');
   t.mock.timers.tick(2 * 86400e3);
-  // No purge can run: the read's batch keeps only its first statement. The rows are there, and the read still ignores them.
+  // No purge can run: every batch fails. The rows are there, and the read still answers and still ignores them.
   const original = f.env.LEARN_DB.batch;
-  f.env.LEARN_DB.batch = list => original(list.slice(0, 1));
+  f.env.LEARN_DB.batch = async () => { throw new Error('D1 unavailable'); };
   const unpurged = (await read(f, `/api/analytics/publications/${canvas}?range=all`, 'ana')).body;
   f.env.LEARN_DB.batch = original;
   assert.ok(rowsOf().every(n => n > 0), 'not purged yet');
   assert.deepEqual(unpurged.overview.unique_visitors, { value: null, reason: 'insufficient_cohort' }, 'expired rows are never counted');
   assert.equal(unpurged.learning.cards.find(c => c.material_id === 'b1').seen.value, null);
   assert.deepEqual([unpurged.overview.total_opens.value, unpurged.stars.opens_from_stars.value], [10, 10], 'the counters outlive them');
-  assert.equal(unpurged.period.audience_from, '2026-08-02');
+  assert.equal(unpurged.period.audience_from, '2026-08-03');
   await read(f, `/api/analytics/publications/${canvas}?range=all`, 'ana');
   assert.deepEqual(rowsOf(), [0, 0, 0, 0, 0], 'a read purges');
   t.mock.timers.reset();
+});
+
+test('the daily cleanup expires records with no new visit and no report read, and records its run', async t => {
+  const f = setup(t);
+  const { token } = await board(f);
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-08-01T12:00:00Z') });
+  for (let i = 0; i < 3; i += 1) await send(f, token, { events: [ev('open', { source: 'stars' }), ev('seen', { material_id: 'b1' })] });
+  const rowsOf = () => LEARNER_TABLES.map(table => f.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n);
+  const statementsBefore = f.statements.length;
+  t.mock.timers.tick(91 * 86400e3);
+  await runCleanup(f.env.LEARN_DB); // the scheduled handler's whole body: no request, no read
+  assert.deepEqual(rowsOf(), [0, 0, 0, 0, 0]);
+  assert.equal(f.statements.slice(statementsBefore).filter(s => /^SELECT/i.test(s)).length, 0, 'it reads nothing');
+  assert.equal(f.sqlite.prepare("SELECT value FROM analytics_meta WHERE key = 'last_cleanup_ok_at'").get().value, new Date().toISOString());
+  assert.equal(f.sqlite.prepare('SELECT sum(opens) AS n FROM publication_board_days').get().n, 3, 'the person-free totals stay');
+  t.mock.timers.reset();
+});
+
+test('a visitor returning after 90 days keeps no history older than 90 days: no first-seen date, and the old day is gone', async t => {
+  const f = setup(t);
+  const { canvas, token } = await board(f);
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-08-01T12:00:00Z') });
+  const visitor = uuid();
+  await send(f, token, { visitor, events: [ev('open'), ev('seen', { material_id: 'b1' })] });
+  t.mock.timers.tick(100 * 86400e3);
+  await send(f, token, { visitor, events: [ev('open')] });
+  const key = await visitorKey(visitor);
+  assert.deepEqual(f.sqlite.prepare('SELECT DISTINCT day FROM publication_learner_days WHERE learner_key = ?').all(key).map(r => r.day), ['2026-11-09'], 'only the retained day');
+  const row = { ...f.sqlite.prepare('SELECT * FROM publication_learners WHERE learner_key = ?').get(key) };
+  assert.ok(!Object.keys(row).some(column => /first/.test(column)), 'no column keeps the first visit');
+  assert.equal(row.last_seen_at, new Date().toISOString());
+  assert.equal(f.sqlite.prepare("SELECT count(*) AS n FROM publication_learner_items WHERE kind = 'card_seen'").get().n, 0);
+  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM publication_sessions WHERE learner_key = ? AND started_at < ?').get(key, retentionCutoff(new Date().toISOString())).n, 0);
+  const body = (await read(f, `/api/analytics/publications/${canvas}?range=all`, 'ana')).body;
+  assert.equal(body.overview.returning_visitors.value, null, 'hidden below ten');
+  t.mock.timers.reset();
+});
+
+test('the exact boundary: timestamps at exactly 90 days stay and one millisecond more goes; a daily rollup goes before any of its day passes 90 days', async t => {
+  assert.equal(RETENTION_DAYS, 90);
+  assert.equal(retentionCutoff('2026-11-30T00:00:00.000Z'), '2026-09-01T00:00:00.000Z');
+  assert.equal(firstRetainedDay('2026-11-30T00:00:00.000Z'), '2026-09-01', 'at midnight, the whole of that day is exactly within 90 days');
+  assert.equal(firstRetainedDay('2026-11-30T00:00:00.001Z'), '2026-09-02', 'a millisecond later its first moment is past 90 days');
+  assert.equal(firstRetainedDay('2026-11-30T23:59:59.999Z'), '2026-09-02');
+  const f = setup(t);
+  const { canvas } = await board(f);
+  const seedAt = (name, at, day) => {
+    f.sqlite.prepare("INSERT INTO publication_events (event_id, org, canvas, session_key, learner_key, type, received_at) VALUES (?, 'ana-ws', ?, ?, ?, 'open', ?)").run(name, canvas, name, name, at);
+    f.sqlite.prepare("INSERT INTO publication_sessions (session_key, org, canvas, learner_key, started_at) VALUES (?, 'ana-ws', ?, ?, ?)").run(name, canvas, name, at);
+    f.sqlite.prepare("INSERT INTO publication_learners (org, canvas, learner_key, last_seen_at) VALUES ('ana-ws', ?, ?, ?)").run(canvas, name, at);
+    f.sqlite.prepare("INSERT INTO publication_learner_days (org, canvas, learner_key, day, segment) VALUES ('ana-ws', ?, ?, ?, 1)").run(canvas, name, day);
+    f.sqlite.prepare("INSERT INTO publication_learner_items (org, canvas, learner_key, day, segment, kind, item_id) VALUES ('ana-ws', ?, ?, ?, 1, 'card_seen', 'b1')").run(canvas, name, day);
+  };
+  seedAt('exactly', '2026-09-01T00:00:00.000Z', '2026-09-01');
+  seedAt('past', '2026-08-31T23:59:59.999Z', '2026-08-31');
+  await runCleanup(f.env.LEARN_DB, '2026-11-30T00:00:00.000Z');
+  const left = table => f.sqlite.prepare(`SELECT learner_key AS k FROM ${table} ORDER BY k`).all().map(r => r.k);
+  for (const table of LEARNER_TABLES) assert.deepEqual(left(table), ['exactly'], table);
+  await runCleanup(f.env.LEARN_DB, '2026-11-30T00:00:00.001Z');
+  for (const table of ['publication_learner_days', 'publication_learner_items', 'publication_events', 'publication_sessions', 'publication_learners']) assert.deepEqual(left(table), [], table);
+});
+
+test('a failed cleanup is recorded and surfaced, reads keep working and keep excluding, and the next good run recovers', async t => {
+  const f = setup(t);
+  const { canvas, token } = await board(f);
+  const at = iso => t.mock.timers.setTime(Date.parse(iso));
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-08-01T12:00:00Z') });
+  const cleanup = async () => (await read(f, `/api/analytics/publications/${canvas}?range=all`, 'ana')).body.collection.cleanup;
+  assert.deepEqual(await cleanup(), { healthy: null, last_ok_at: null, last_error_at: null }, 'before the first run: not yet known');
+  await runCleanup(f.env.LEARN_DB);
+  assert.equal((await cleanup()).healthy, true);
+  await send(f, token, { events: [ev('open')] });
+  at('2026-11-05T04:00:00Z');
+  const original = f.env.LEARN_DB.batch, logged = t.mock.method(console, 'error', () => {});
+  f.env.LEARN_DB.batch = async () => { throw new Error('D1 unavailable'); };
+  await assert.rejects(runCleanup(f.env.LEARN_DB), /D1 unavailable/, 'the platform sees the invocation fail');
+  const failed = await cleanup();
+  f.env.LEARN_DB.batch = original;
+  assert.equal(failed.healthy, false);
+  assert.equal(failed.last_error_at, new Date().toISOString());
+  assert.ok(logged.mock.callCount() >= 1, 'logged');
+  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM publication_learner_days').get().n, 1, 'still stored after the failure');
+  at('2026-11-05T04:30:00Z');
+  await runCleanup(f.env.LEARN_DB);
+  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM publication_learner_days').get().n, 0, 'recovered: the expired rows go');
+  assert.equal((await cleanup()).healthy, true, 'and the status clears');
+  t.mock.timers.reset();
+  // Overdue counts as failing too: no run for over two days.
+  assert.equal(cleanupHealth({ last_cleanup_ok_at: '2026-11-01T04:00:00.000Z' }, '2026-11-03T03:59:59.000Z').healthy, true);
+  assert.equal(cleanupHealth({ last_cleanup_ok_at: '2026-11-01T04:00:00.000Z' }, '2026-11-03T04:00:01.000Z').healthy, false);
 });
 
 test('the long-lived tables cannot identify a visitor: their columns hold no person, and every per-person table is under retention and deletion', () => {
