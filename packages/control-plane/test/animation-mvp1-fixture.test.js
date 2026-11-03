@@ -86,10 +86,10 @@ test('the fixture is labelled an offline fixture, passes the real validators, an
   assert.equal(validateAnimationArtifact(artifact).ok, true);
   assert.equal(await sha256Hex(canonicalJson(artifact)), hash);
   const tubes = artifact.scene.geometries.filter(g => g.kind === 'curve');
-  assert.ok(tubes.length >= 6 && tubes.every(g => g.radius === 0.04), 'a bowl wireframe of tube curves');
+  assert.ok(tubes.length === 5 && tubes.every(g => g.radius === 0.04), 'a bowl wireframe of tube curves: three rings and two cross-sections');
   assert.equal(artifact.scene.geometries.some(g => g.kind === 'cylinder' && /^c\d/.test(g.id)), false, 'no stacked filled discs');
   // The gate: a browser that did not say curve_radius is never given this scene (animation-job.js), and validation names the fix.
-  assert.ok(clientProblems(artifact, {}).length >= 6);
+  assert.equal(clientProblems(artifact, {}).length, tubes.length, 'each tube is named');
   assert.equal(clientProblems(artifact, { features: ['curve_radius'] }).length, 0);
 });
 
@@ -184,7 +184,7 @@ test('off plot: the marker is where the step crosses the edge, the readouts keep
   near(landing[0], 0.7); near(landing[1], -5.2); near(exit[0], -1.0231, 1e-4); near(exit[1], -2);
   const { readouts, nodes } = await run({ ...FULL_BATCH, learningRate: 2.5 }, { events: [oneStep] });
   near(nodes.exitM.position[0], exit[0]); near(nodes.exitM.position[2], exit[1]);
-  near(nodes.exitM.position[1], surfaceY(exit[0], exit[1]) + 0.06, 1e-9);
+  near(nodes.exitM.position[1], 0.1, 1e-9); // on the plot's floor outline
   assert.ok(Math.hypot(nodes.exitM.position[0] - 0.7, nodes.exitM.position[2] + 2) > 1, 'not the independently clamped (0.7, -2)');
   assert.equal(nodes.ball.visible, false, 'the ball is not drawn at a clamped position');
   near(readouts.loss, loss(...landing)); near(readouts.dist, norm(landing)); // the true landing, outside the plot
@@ -192,9 +192,11 @@ test('off plot: the marker is where the step crosses the edge, the readouts keep
   assert.equal(nodes.stepArrow.visible, false, 'a stopped run has no next step to draw');
   assert.match(nodes.status.text, /^Diverged at step 1: off plot, learning rate above 1\.0$/);
   assert.equal(LIMIT, 1);
-  // The edge it names is drawn: the rim curve passes through the marker's point on the surface (the b = -2 edge).
-  const rim = artifact.scene.geometries.find(g => g.id === 'gedge');
-  assert.ok(rim.points.some(p => p[2] === -2) && rim.points.some(p => p[0] === 4));
+  // The edge it names is drawn: a floor outline of the plot (the b = -2 and w = 4 sides are on it), at the marker's height less its radius.
+  const rim = artifact.scene.geometries.find(g => g.id === 'gedge'), floor = artifact.scene.nodes.find(n => n.id === 'edge');
+  assert.deepEqual([rim.kind, rim.width, rim.height], ['plane', 2 * WM, 2 * BM], 'a flat rectangle exactly the plot: |w| <= 4, |b| <= 2');
+  assert.deepEqual([floor.position[0], floor.position[2]], [0, 0]);
+  assert.ok(floor.position[1] <= 0, 'on the floor, below the bowl and everything that moves');
   // Off plot below the limit (batch 1 at learning rate 0.8, 9 steps): stopped, NOT called diverged; the marker is the segment's crossing.
   const before = await run({ batchSize: '1', learningRate: 0.8 }, { leadTicks: 8 * UPDATE_EVERY }), p = [before.nodes.ball.position[0], before.nodes.ball.position[2]];
   const d = arrowOf(before.nodes, 'stepArrow', K).vector, to = [p[0] + d[0], p[1] + d[1]], e = crossing(p, d);

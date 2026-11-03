@@ -114,7 +114,8 @@
     },
     {
      "id": "edge",
-     "color": "#5f5f5f"
+     "color": "#8f99a6",
+     "opacity": 0.25
     },
     {
      "id": "ball",
@@ -364,92 +365,9 @@
     },
     {
      "id": "gedge",
-     "kind": "curve",
-     "closed": true,
-     "segments": 96,
-     "radius": 0.04,
-     "points": [
-      [
-       -4,
-       3.2,
-       2
-      ],
-      [
-       -2,
-       2,
-       2
-      ],
-      [
-       0,
-       1.6,
-       2
-      ],
-      [
-       2,
-       2,
-       2
-      ],
-      [
-       4,
-       3.2,
-       2
-      ],
-      [
-       4,
-       2,
-       1
-      ],
-      [
-       4,
-       1.6,
-       0
-      ],
-      [
-       4,
-       2,
-       -1
-      ],
-      [
-       4,
-       3.2,
-       -2
-      ],
-      [
-       2,
-       2,
-       -2
-      ],
-      [
-       0,
-       1.6,
-       -2
-      ],
-      [
-       -2,
-       2,
-       -2
-      ],
-      [
-       -4,
-       3.2,
-       -2
-      ],
-      [
-       -4,
-       2,
-       -1
-      ],
-      [
-       -4,
-       1.6,
-       0
-      ],
-      [
-       -4,
-       2,
-       1
-      ]
-     ]
+     "kind": "plane",
+     "width": 8,
+     "height": 4
     },
     {
      "id": "ballG",
@@ -552,7 +470,7 @@
      "id": "lBar",
      "kind": "label",
      "text": "Scale bar: an update of 1.0 is this long",
-     "placement": "below"
+     "placement": "right"
     }
    ],
    "nodes": [
@@ -584,7 +502,18 @@
     {
      "id": "edge",
      "geometry": "gedge",
-     "material": "edge"
+     "material": "edge",
+     "position": [
+      0,
+      -0.01,
+      0
+     ],
+     "quaternion": [
+      -0.7071,
+      0,
+      0,
+      0.7071
+     ]
     },
     {
      "id": "lw",
@@ -724,9 +653,9 @@
      "geometry": "lBar",
      "parent": "bar",
      "position": [
+      1.1,
       0,
-      0,
-      0.12
+      0
      ]
     },
     {
@@ -1223,12 +1152,12 @@
    "Loss L = 0.5(0.5 w² + 2 b²), lowest at w=b=0, steeper along b. New = old − learning rate × noisy gradient. With the full batch, b zig-zags above learning rate 0.5 and grows every step above 1.0.",
    "Noise per component = 1.2 × N(0,1) × sqrt((64−B)/(63B)): 1.2 at B=1, exactly 0 at B=64. A noisy step can raise the full-data loss; it falls only on average.",
    "Orange arrow: noisy update (minus learning rate × noisy gradient). Grey: full-batch update (minus learning rate × exact gradient). One scale, 2 units of length per 1.0 of update (the scale bar), no minimum or maximum length. An update of 0 has no arrow; its label reads 0.",
-   "The grey rim is the plot edge (|w| ≤ 4, |b| ≤ 2). A step crossing it stops the run and is marked where it crosses; readouts keep true values. Diverged only if the learning rate is above 1.0, else Off plot.",
+   "The pale rectangle on the floor is the plot (|w| ≤ 4, |b| ≤ 2); its edge is the plot edge. A step crossing it stops the run and is marked where it crosses; readouts keep true values. Diverged only if the learning rate is above 1.0, else Off plot.",
    "Readouts: loss, distance, step (of 40), passes through the data (steps × batch size ÷ 64). One update per 8 host steps. Changing a parameter restarts the run (same noise) and keeps the grey path.",
    "Dragging the start moves it along w only (b stays 1.3) and restarts the run. Reset replays the same noise; New run, keep old path draws new noise."
   ],
   "program": {
-   "source": "const A=0.5,C=2,H=0.4,W0=-2.8,B0=1.3,K=2,T=2,S=1.2,WM=4,BM=2,LIM=2/C,Q=0.7071067811865476;\nconst Lf=(w,b)=>0.5*(A*w*w+C*b*b);\nconst Y=(w,b)=>H*Lf(w,b);\nconst cl=(v,m)=>Math.max(-m,Math.min(m,v));\nfunction rnd(n){const x=Math.sin(n)*43758.5453;return x-Math.floor(x);}\nfunction nz(seed,run,k){const u=Math.max(rnd(seed*1.37+run*91.3+k*7.77+0.5),1e-9),v=rnd(seed*2.71+run*53.1+k*3.91+1.3),r=Math.sqrt(-2*Math.log(u));return [r*Math.cos(6.2832*v),r*Math.sin(6.2832*v)];}\nfunction stepV(s,inp,seed){const B=+inp.batchSize,f=Math.sqrt((64-B)/(63*B)),n=nz(seed,s.run,s.k),lr=inp.learningRate;return [-lr*(A*s.w+S*f*n[0]),-lr*(C*s.b+S*f*n[1])];}\nfunction fresh(w0,run,old){return {w0,run,old,w:w0,b:B0,k:0,t:0,st:0,path:[],ex:null,dv:false};}\nexport function initialState(){return fresh(W0,0,[]);}\nfunction cross(w,b,d){let t=1;for(const [p,q,m] of [[w,d[0],WM],[b,d[1],BM]])if(Math.abs(p+q)>m)t=Math.min(t,((q>0?m:-m)-p)/q);return t;}\nfunction adv(s,inp,seed){if(s.st)return s;const d=stepV(s,inp,seed),w=s.w+d[0],b=s.b+d[1],k=s.k+1,path=s.path.concat([[w,b]]).slice(-40);\nif(Math.abs(w)>WM||Math.abs(b)>BM){const t=cross(s.w,s.b,d);return {...s,w,b,k,path,st:2,ex:[s.w+t*d[0],s.b+t*d[1]],dv:inp.learningRate>LIM};}\nreturn {...s,w,b,k,path,st:k>=40?1:0};}\nexport function reduce({state:s,event:e,inputs,seed}){\nif(e.type==='step'){if(s.st)return s;const t=s.t+1;return t%8?{...s,t}:adv({...s,t},inputs,seed);}\nif(e.type==='action'){if(e.action==='oneStep')return adv(s,inputs,seed);if(e.action==='keepPath')return fresh(s.w0,s.run+1,s.path);}\nif(e.type==='parameter'&&e.parameter!=='showTrueGradient')return fresh(s.w0,s.run,s.old);\nif((e.type==='drag_move'||e.type==='drag_end')&&e.node==='start')return fresh(cl(e.value,3.2),s.run,s.old);\nreturn s;}\nfunction pt(p){if(!p||Math.abs(p[0])>WM||Math.abs(p[1])>BM)return {visible:false};return {visible:true,position:[p[0],Y(p[0],p[1])+0.06,p[1]]};}\nfunction arr(x,y,z,d,on){const m=Math.hypot(d[0],d[1]);if(!on||m===0)return {visible:false};return {visible:true,position:[x,y,z],scale:[T,K*m,T],quaternion:[d[1]/m*Q,0,-d[0]/m*Q,Q]};}\nfunction num(m){return m===0?'0':String(+m.toPrecision(2));}\nexport function evaluate({inputs,seed,state:s}){const n={},lr=inputs.learningRate,B=+inputs.batchSize,run=s.st===0,off=s.st===2;\nfor(let i=0;i<40;i++){n['p'+i]=pt(s.path[i]);n['o'+i]=pt(s.old[i]);}\nn.start={position:[s.w0,Y(s.w0,B0)+0.04,B0]};\nn.ball=off?{visible:false}:{position:[s.w,Y(s.w,s.b)+0.18,s.b]};\nif(run){const y=Y(s.w,s.b)+0.18,u=stepV(s,inputs,seed),f=[-lr*A*s.w,-lr*C*s.b],mu=Math.hypot(u[0],u[1]),mf=Math.hypot(f[0],f[1]),show=inputs.showTrueGradient;\nn.stepArrow=arr(s.w,y+0.22,s.b,u,true);n.trueArrow=arr(s.w,y+0.4,s.b,f,show);\nn.lblStep={visible:true,text:'noisy update '+num(mu),position:[s.w+K*u[0]+0.05,y+0.1,s.b+K*u[1]]};\nn.lblTrue={visible:show,text:'full-batch update '+num(mf),position:[s.w+K*f[0]+0.05,y+0.52,s.b+K*f[1]]};}\nelse{n.stepArrow={visible:false};n.trueArrow={visible:false};n.lblStep={visible:false};n.lblTrue={visible:false};}\nn.exitM=off?{visible:true,position:[s.ex[0],Y(s.ex[0],s.ex[1])+0.06,s.ex[1]]}:{visible:false};\nn.status={text:off?(s.dv?'Diverged at step '+s.k+': off plot, learning rate above '+LIM.toFixed(1):'Off plot at step '+s.k+': stopped, not proven diverged'):s.st===1?'Done: 40 steps':s.k?'Running':'Ready'};\nreturn {nodes:n,readouts:{loss:Lf(s.w,s.b),dist:Math.hypot(s.w,s.b),stepNo:s.k,passes:s.k*B/64}};}"
+   "source": "const A=0.5,C=2,H=0.4,W0=-2.8,B0=1.3,K=2,T=2,S=1.2,WM=4,BM=2,LIM=2/C,Q=0.7071067811865476;\nconst Lf=(w,b)=>0.5*(A*w*w+C*b*b);\nconst Y=(w,b)=>H*Lf(w,b);\nconst cl=(v,m)=>Math.max(-m,Math.min(m,v));\nfunction rnd(n){const x=Math.sin(n)*43758.5453;return x-Math.floor(x);}\nfunction nz(seed,run,k){const u=Math.max(rnd(seed*1.37+run*91.3+k*7.77+0.5),1e-9),v=rnd(seed*2.71+run*53.1+k*3.91+1.3),r=Math.sqrt(-2*Math.log(u));return [r*Math.cos(6.2832*v),r*Math.sin(6.2832*v)];}\nfunction stepV(s,inp,seed){const B=+inp.batchSize,f=Math.sqrt((64-B)/(63*B)),n=nz(seed,s.run,s.k),lr=inp.learningRate;return [-lr*(A*s.w+S*f*n[0]),-lr*(C*s.b+S*f*n[1])];}\nfunction fresh(w0,run,old){return {w0,run,old,w:w0,b:B0,k:0,t:0,st:0,path:[],ex:null,dv:false};}\nexport function initialState(){return fresh(W0,0,[]);}\nfunction cross(w,b,d){let t=1;for(const [p,q,m] of [[w,d[0],WM],[b,d[1],BM]])if(Math.abs(p+q)>m)t=Math.min(t,((q>0?m:-m)-p)/q);return t;}\nfunction adv(s,inp,seed){if(s.st)return s;const d=stepV(s,inp,seed),w=s.w+d[0],b=s.b+d[1],k=s.k+1,path=s.path.concat([[w,b]]).slice(-40);\nif(Math.abs(w)>WM||Math.abs(b)>BM){const t=cross(s.w,s.b,d);return {...s,w,b,k,path,st:2,ex:[s.w+t*d[0],s.b+t*d[1]],dv:inp.learningRate>LIM};}\nreturn {...s,w,b,k,path,st:k>=40?1:0};}\nexport function reduce({state:s,event:e,inputs,seed}){\nif(e.type==='step'){if(s.st)return s;const t=s.t+1;return t%8?{...s,t}:adv({...s,t},inputs,seed);}\nif(e.type==='action'){if(e.action==='oneStep')return adv(s,inputs,seed);if(e.action==='keepPath')return fresh(s.w0,s.run+1,s.path);}\nif(e.type==='parameter'&&e.parameter!=='showTrueGradient')return fresh(s.w0,s.run,s.old);\nif((e.type==='drag_move'||e.type==='drag_end')&&e.node==='start')return fresh(cl(e.value,3.2),s.run,s.old);\nreturn s;}\nfunction pt(p){if(!p||Math.abs(p[0])>WM||Math.abs(p[1])>BM)return {visible:false};return {visible:true,position:[p[0],Y(p[0],p[1])+0.06,p[1]]};}\nfunction arr(x,y,z,d,on){const m=Math.hypot(d[0],d[1]);if(!on||m===0)return {visible:false};return {visible:true,position:[x,y,z],scale:[T,K*m,T],quaternion:[d[1]/m*Q,0,-d[0]/m*Q,Q]};}\nfunction num(m){return m===0?'0':String(+m.toPrecision(2));}\nexport function evaluate({inputs,seed,state:s}){const n={},lr=inputs.learningRate,B=+inputs.batchSize,run=s.st===0,off=s.st===2;\nfor(let i=0;i<40;i++){n['p'+i]=pt(s.path[i]);n['o'+i]=pt(s.old[i]);}\nn.start={position:[s.w0,Y(s.w0,B0)+0.04,B0]};\nn.ball=off?{visible:false}:{position:[s.w,Y(s.w,s.b)+0.18,s.b]};\nif(run){const y=Y(s.w,s.b)+0.18,u=stepV(s,inputs,seed),f=[-lr*A*s.w,-lr*C*s.b],mu=Math.hypot(u[0],u[1]),mf=Math.hypot(f[0],f[1]),show=inputs.showTrueGradient;\nn.stepArrow=arr(s.w,y+0.22,s.b,u,true);n.trueArrow=arr(s.w,y+0.4,s.b,f,show);\nn.lblStep={visible:true,text:'noisy update '+num(mu),position:[s.w+K*u[0]+0.05,y+0.1,s.b+K*u[1]]};\nn.lblTrue={visible:show,text:'full-batch update '+num(mf),position:[s.w+K*f[0]+0.05,y+0.52,s.b+K*f[1]]};}\nelse{n.stepArrow={visible:false};n.trueArrow={visible:false};n.lblStep={visible:false};n.lblTrue={visible:false};}\nn.exitM=off?{visible:true,position:[s.ex[0],0.1,s.ex[1]]}:{visible:false};\nn.status={text:off?(s.dv?'Diverged at step '+s.k+': off plot, learning rate above '+LIM.toFixed(1):'Off plot at step '+s.k+': stopped, not proven diverged'):s.st===1?'Done: 40 steps':s.k?'Running':'Ready'};\nreturn {nodes:n,readouts:{loss:Lf(s.w,s.b),dist:Math.hypot(s.w,s.b),stepNo:s.k,passes:s.k*B/64}};}"
   }
  }
 }
