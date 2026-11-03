@@ -243,6 +243,8 @@ test('the production build env is the Rabbit Hole build, never the dev tools', (
   // activation GO, 2026-10-21).
   for (const name of ['VITE_COACHING_DEV', 'VITE_BYOC_DEV', 'VITE_MOTION_DEV']) assert.ok(DEV_ONLY_ENV.includes(name) && !(name in BUILD_ENV), name);
   assert.equal(BUILD_ENV.VITE_MOTION, 'true');
+  // /animation has no build flag (owner GO 2026-11-02): the command ships in every build and the server's ANIMATION_ENABLED decides.
+  assert.deepEqual(Object.keys(BUILD_ENV).filter(k => /ANIMATION/.test(k)), []);
   assert.throws(() => parseArgs(['release', '--sha']), /bad argument/);
 });
 

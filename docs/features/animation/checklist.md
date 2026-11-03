@@ -11,8 +11,8 @@ Kickoff base: main `a3376817f003a9c41824fc5b76b644778bc9c6e3`; main `ff0fff36ad9
 (release 24-eb) merged in. Integration branch `feat/animation` (worktree `animation`), MVP candidate `c9d0c5509126b277603a778fbcdc2b376a08ab42`.
 Preview: https://rabbit-hole-web-dev-animation.tryrabbithole.workers.dev, built from `c9d0c5509126b277603a778fbcdc2b376a08ab42`, with
 `ANIMATION_ENABLED=true` and `ANIMATION_DIAGNOSTICS=true` set on this clone only (deploy flags; no config file sets
-them) and `ANTHROPIC_API_KEY` installed on this clone only. Production config is unchanged: /animation is not in
-production.
+them) and `ANTHROPIC_API_KEY` installed on this clone only. Production: see [Production activation](#production-activation)
+(config prepared on `release/animation-prod`; not released).
 
 ## Lanes
 
@@ -51,8 +51,38 @@ production.
 
 ## Owner approval record
 
-None yet. AN-08 onward stays `blocked: owner MVP approval` until the owner's explicit approval is recorded here
-verbatim with date, time and scope.
+- 2026-11-02 (as relayed in the production release brief): production GO for the Animation MVP once technical acceptance
+  and release checks pass, with the additive production config below. It does not authorize unrelated schema changes,
+  AN-08 onward, /whiteboard or Creator Analytics.
+
+AN-08 onward stays `blocked: owner MVP approval` until the owner's explicit approval of them is recorded here verbatim
+with date, time and scope.
+
+## Production activation
+
+Config (`packages/web/wrangler.rabbit-hole-prod.jsonc`, pinned by `control-plane/test/rabbit-hole-prod-config.test.js`):
+`ANIMATION_JOBS` -> `AnimationJobs`; migration `animation-jobs-1` (new_sqlite_classes `AnimationJobs`) after `file-jobs-1`,
+the last tag production has applied (release `2de55d520c46`, run 41560098167); `ANIMATION_ENABLED` "true";
+`ANIMATION_EXECUTION_KILL` "false". `ANIMATION_DIAGNOSTICS` is never set in production. No build flag: the command ships in
+every build and the server decides. No D1 migration.
+
+Already in production and used as is: `LEARN_DB` (job board and thread checks, proposals, usage ledger), `LEARN_MEDIA`
+(review captures), `BROWSER` (render), `ASSETS` (the `/render/animation3d.html` review page), secrets
+`ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID` and `USAGE_PLATFORM_DAY_USD` (required by `scripts/prod-release.mjs`).
+
+Rollback (each is one line in the prod config plus its pin in the test, released like any change; never remove the
+binding or the tag, which would delete saved results):
+- Off: `ANIMATION_ENABLED` "false". Every `/api/learn/animation` route answers 404, so no plan, Generate or retry starts.
+  Jobs already running finish in their object and settle in the usage ledger. Saved results stay; cards cannot load them
+  until it is on again.
+- Kill: `ANIMATION_EXECUTION_KILL` "true". Plans and builds continue; every card's results read says execution is off and
+  the card does not run its scene.
+
+Smoke after release (owner, signed in on https://digrabbithole.com): `/animation` with a request in Chat gives one plan
+card (title, experience, what can change and where it starts, Generate, Edit plan); Generate once gives one card that
+moves through its stages to a live scene within the 10-minute job limit; its controls (Play/Pause, Restart where it can
+rewind, Speed, Reset view, Labels, Interact, the parameter) change the scene; a reload restores the card and its state
+with no new job; Usage shows the credits used.
 
 ## Rulings (P)
 

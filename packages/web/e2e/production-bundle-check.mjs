@@ -6,7 +6,8 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 
 const dir = new URL(`../${process.env.DIST || 'dist-dev'}/static/`, import.meta.url);
 const names = readdirSync(dir);
-const REQUIRED_CHUNKS = ['CanvasPage', 'RepositoryPage', 'Home', 'AgentBar'];
+// Animation3DCard: the /animation card (owner production GO 2026-11-02); /animation has no build flag, so every build ships it.
+const REQUIRED_CHUNKS = ['CanvasPage', 'RepositoryPage', 'Home', 'AgentBar', 'Animation3DCard'];
 const DEV_CHUNKS = /^(review-fixtures-data|map-memory-data)-/;
 // Lesson-block workbench, coaching dev panel, dev-only palette items, review fixtures, review boards, and the
 // dev notebook origins a build falls back to without VITE_NOTEBOOK_ORIGIN / VITE_LESSON_NOTEBOOK_ORIGIN, and the
