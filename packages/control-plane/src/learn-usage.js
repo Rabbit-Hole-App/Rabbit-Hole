@@ -431,23 +431,6 @@ export async function refundActionByKey(db, userId, clientKey, reason) {
   return refunded;
 }
 
-// Takes back the refunds a reason made on the same action (an escrow that ends in success after an earlier failure charges the whole
-// build after all). The attempt keeps its cost; its refund goes to 0, stamped now so the telemetry projection reads the change again,
-// and a positive audit row cancels the negative one. Once each (the UPDATE names the refund it reverses). -> micros charged now.
-export async function chargeRefundedByKey(db, userId, clientKey, { refundReason, reason, now = nowSeconds() }) {
-  const { results } = await db.prepare(`SELECT d.attempt_id, d.refunded_micros AS micros, a.action_id FROM usage_actions a JOIN usage_attempts t ON t.action_id = a.action_id
-    JOIN usage_attempt_detail d ON d.attempt_id = t.attempt_id WHERE a.user_id = ? AND a.client_key = ? AND d.refund_reason = ? AND d.refunded_micros > 0`).bind(userId, clientKey, refundReason).all();
-  let charged = 0;
-  for (const row of results || []) {
-    const done = await db.prepare('UPDATE usage_attempt_detail SET refunded_micros = 0, refunded_at = ?, refund_reason = ? WHERE attempt_id = ? AND refunded_micros = ? AND refund_reason = ?')
-      .bind(now, reason, row.attempt_id, row.micros, refundReason).run();
-    if (done.meta?.changes !== 1) continue;
-    await recordAdjustment(db, { actionId: row.action_id, userId, micros: Number(row.micros), reason, now });
-    charged += Number(row.micros);
-  }
-  return charged;
-}
-
 // A refund or adjustment (Phase 1: the writer only, no UI flow). micros is signed: a refund is negative.
 export async function recordAdjustment(db, { actionId = null, userId = null, micros, reason, now = nowSeconds() }) {
   if (!Number.isSafeInteger(micros) || typeof reason !== 'string' || !reason) throw new Error('adjustment needs integer micros and a reason');

@@ -22,7 +22,7 @@ test('size limit after its one correction: the saved SGD failure explained once 
   assert.deepEqual(s.model.roles(), ['brief', 'author', 'repair'], 'the same unsuccessful repair is never sent again');
   const { job } = await s.job(id);
   assert.deepEqual(job.recovery, ['revise_plan', 'edit_request']);
-  assert.equal(job.failure.message, `The scene was too large to check. Credits refunded. It was corrected automatically once, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to ${Math.ceil(done.reservation.preparationMicros / 10000)} AI credits; nothing is built until you press Generate.`);
+  assert.equal(job.failure.message, `The scene was too large to check. You have not been charged. It was corrected automatically once, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to ${Math.ceil(done.reservation.preparationMicros / 10000)} AI credits; nothing is built until you press Generate.`);
   const posted = failures(s);
   assert.equal(posted.length, 1);
   assert.equal(posted[0].content, `"${PLAN.title}" was not finished. ${job.failure.message} Your request and plan are kept.`);
@@ -94,7 +94,7 @@ test('review rejections after both corrections: the review findings by area, nev
   const { id } = await s.generated();
   const { job } = await s.job(id);
   assert.deepEqual([job.stopReason, job.recovery], ['rounds', ['revise_plan', 'edit_request']]);
-  assert.match(job.failure.message, /^The visual review found 1 serious problem with how the scene is drawn or computed\. Credits refunded\. It was corrected automatically twice, but it still did not pass\. Revise plan/);
+  assert.match(job.failure.message, /^The visual review found 1 serious problem with how the scene is drawn or computed\. You have not been charged\. It was corrected automatically twice, but it still did not pass\. Revise plan/);
   assert.doesNotMatch(failures(s)[0].content, /wrong|nodes\.d0/);
 });
 
@@ -109,7 +109,7 @@ test('a sample render that fails is rendered once more by itself; failing again 
   assert.deepEqual([done.stage, done.failure.stage, failureClass(done)], ['failed', 'rendering', 'transient']);
   const { job } = await s.job(id);
   assert.deepEqual(job.recovery, ['retry_render', 'edit_request']);
-  assert.equal(job.failure.message, 'The sample views could not be rendered. Credits refunded. It was retried automatically. Render again renders the built scene again.');
+  assert.equal(job.failure.message, 'The sample views could not be rendered. You have not been charged. It was retried automatically. Render again renders the built scene again.');
   assert.equal((await s.send('retry', { expectedAttempt: 1, action: 'retry_render' }, id)).status, 202);
   const ready = await s.run(id);
   assert.equal(ready.stage, 'ready');
@@ -122,7 +122,7 @@ test('budget stops: the build limit offers a revised plan; credits running out k
   const { id, done } = await s.generated();
   assert.deepEqual([done.stopReason, failureClass(done)], ['budget', 'limit']);
   assert.deepEqual((await s.job(id)).job.recovery, ['revise_plan', 'edit_request']);
-  assert.match((await s.job(id)).job.failure.message, /^The build reached its spending limit\. Credits refunded\. Revise plan/);
+  assert.match((await s.job(id)).job.failure.message, /^The build reached its spending limit\. You have not been charged\. Revise plan/);
   const c = animationStack(t, { pipeline: STUB_PIPELINE({ author: async () => { throw Object.assign(new Error('Not enough AI credits.'), { status: 429, code: 'spend_refused' }); } }) });
   const out = await c.generated();
   assert.equal(failureClass(out.done), 'credits');
@@ -147,12 +147,12 @@ test('an interrupted call is never resent by itself: Try again within the ceilin
   // Uncertain settlement: the call's outcome was never recorded (status unknown) and nothing it may have cost is charged to the learner;
   // the author call before it had settled, and is refunded with the rest of the generation stage (owner 2026-11-03).
   assert.equal(s.stored(body.job.id).calls.at(-1).status, 'unknown');
-  assert.match(job.failure.message, /^An AI step was interrupted\. Credits refunded\. Try again continues from where it stopped, using up to \d+ AI credits\.$/);
+  assert.match(job.failure.message, /^An AI step was interrupted\. You have not been charged\. Try again continues from where it stopped, using up to \d+ AI credits\.$/);
   assert.deepEqual(failures(s).map(m => m.content), [`"${PLAN.title}" was not finished. ${job.failure.message} Your request and plan are kept.`]);
 });
 
 // Owner 2026-11-02: a billed reply the job cannot use (output limit, invalid turn) is not an interruption. Its credits no longer stay used:
-// owner 2026-11-03 (escrow) refunds the generation stage of any job that ends without a result, and the card says "Credits refunded."
+// owner 2026-11-03 (escrow) replaces that rule: an attempt that ends without a result is refunded, and the card says "You have not been charged."
 // FX-AN-031 (owner, same day): an output limit is its own class, and does not prove the request is impossible.
 test('a billed reply that cannot be used says so and is refunded, on the card and in Chat alike', { skip }, async t => {
   const s = animationStack(t);
@@ -170,7 +170,7 @@ test('a billed reply that cannot be used says so and is refunded, on the card an
   assert.deepEqual([attempt.cost_state, attempt.cost_micros], ['settled', call.costMicros]);
   assert.equal(rows(s.sqlite, 'usage_attempt_detail').find(d => d.attempt_id === attempt.attempt_id).refunded_micros, call.costMicros);
   const { job } = await s.job(id);
-  assert.match(job.failure.message, /^The scene builder reached its output limit before it finished\. That does not prove your request is impossible; a smaller plan may fit\. Credits refunded\. Revise plan/);
+  assert.match(job.failure.message, /^The scene builder reached its output limit before it finished\. That does not prove your request is impossible; a smaller plan may fit\. You have not been charged\. Revise plan/);
   assert.doesNotMatch(job.failure.message, /It used|not charged|interrupted/);
   assert.deepEqual(failures(s).map(m => m.content), [`"${PLAN.title}" was not finished. ${job.failure.message} Your request and plan are kept.`]);
   // The same for a reply whose call settled and whose content the stage then refused (animation-author.js: no artifact).
@@ -178,7 +178,7 @@ test('a billed reply that cannot be used says so and is refunded, on the card an
   const a = animationStack(t, { pipeline: STUB_PIPELINE({ author: async (j, ctx) => { await ctx.call('author', { system: 'author', tool, content: 'x' }); throw new AnimationPolicyError('invalid_turn', 'The author returned no artifact.'); } }) });
   const refused = (await a.generated()).done;
   assert.deepEqual([refused.failure.category, refused.calls.at(-1).status], ['model_output', 'settled']);
-  assert.match(failureText(refused), /^The AI answer could not be used\. Credits refunded\./);
+  assert.match(failureText(refused), /^The AI answer could not be used\. You have not been charged\./);
 });
 
 test('failureText on saved records maps every class without quoting stored findings', () => {

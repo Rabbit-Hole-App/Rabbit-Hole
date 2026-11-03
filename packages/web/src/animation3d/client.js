@@ -36,7 +36,7 @@ const STAGES = {
   authoring: 'Building the scene', validating: 'Checking it', rendering: 'Rendering sample views', reviewing: 'Reviewing the render',
   repairing: 'Fixing what the review found', ready: 'Ready', cancelled: 'Stopped',
 };
-// A stopped build says what became of its credits in the server's own few words (usage.note: "Credits refunded." / "You have not been charged.").
+// A stopped build says what became of its credits in the server's own few words (usage.note: "You have not been charged.").
 const stopped = job => `${STAGES.cancelled}${job?.usage?.note ? `. ${job.usage.note}` : ''}`;
 export const animationStage = job => (job?.stage === 'failed' ? job.failure?.message || 'The scene could not be made.' : job?.choiceOpen ? 'Choose a change to the plan in Chat' : job?.stage === 'cancelled' ? stopped(job) : STAGES[job?.stage] || 'Checking status');
 // A request the server asks one question about has not failed in the learner's terms: the card says it plainly, not as an error.

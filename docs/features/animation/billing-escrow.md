@@ -2,11 +2,13 @@
 
 Owner decision 2026-11-03 (verbatim): "a rejected generation is charged to the learner and the failure message doesn't state the
 charge. it should not be charged and should be refunded. so think of it like we put the credits in an escrow and if successful we
-charge, if not refunded." Message wording (owner, same day): short, credits only, either "Credits refunded." or "You have not been
-charged."
+charge, if not refunded." Follow-ups, same day: the failure message is short, credits only, and says **"You have not been charged."**
+everywhere (one phrase); a job that fails, is retried and then succeeds is charged **only its final attempt**; the plan phase stays
+charged; at most 5 refunded generations per learner per day.
 
-This replaces the 2026-11-02 rule in `fix.md` ("a billed reply the job cannot use ... its credits stay used", and the "It used N AI
-credits." sentence for a failed generation). It does not change the plan phase's charge words (below).
+**This replaces the 2026-11-02 rule in `fix.md`**: a billed reply the job cannot use (an output limit, an invalid turn, a review that
+rejected the scene) no longer "stays used". Any call of a generation attempt that ended without a result is refunded, and the card
+says "You have not been charged." instead of "It used N AI credits." The old sentences remain only for a failed plan (before Generate).
 
 ## What was true before (production caf7ee9bc)
 
@@ -32,61 +34,59 @@ request that made them, so none of that reached `/animation`.
 
 - **Generate** still requires the whole build's worst case to fit the learner's available allowance (`admitGeneration`, unchanged:
   `left - reserved >= generationMicros`). That is a check, not a hold (`animation-policy.js` header); each call then reserves its own
-  bound while it runs and settles at its actual cost, as before. The learner's meter therefore shows the build's cost climbing while
-  it runs.
-- **ready**: the generation stage stays charged at its actual settled cost, once. Nothing is refunded.
-- **failed or stopped with no result**: every settled call of the generation stage is refunded in full (`refundEscrow`). The learner's
-  net change for the job is the plan phase only. The attempt keeps its recorded provider cost, so the platform's ledger and the
-  owner telemetry still show what the model cost (the platform keeps that cost); only `usage_attempt_detail.refunded_micros` and an
-  audit row in `usage_adjustments` (reason `animation_failed_refund`, negative micros) change.
+  bound while it runs and settles at its actual cost, as before. The learner's meter therefore shows the current attempt's cost
+  climbing while it runs.
+- **An attempt that fails or is stopped with no result**: every settled call of its generation stage is refunded in full the moment
+  it ends (`refundEscrow`). The attempt keeps its recorded provider cost, so the platform's ledger and the owner telemetry still
+  show what the model cost (the platform keeps that cost); only `usage_attempt_detail.refunded_micros` and an audit row in
+  `usage_adjustments` (reason `animation_failed_refund:<attempt>`, negative micros) change.
+- **ready**: the generation calls of the **final attempt** stay charged at their actual settled cost, once.
+- **Final attempt, defined from the job record**: the job's `attempt` number when it was accepted (`accept`). A call record carries
+  the `attempt` it was made in (`paidCall`), so the final attempt's calls are the generation-phase calls with
+  `attempt === job.attempt`, its author, review and repair calls, including its own automatic stage retry and its repair rounds.
+  Try again and Render again (`retry`) are what start the next attempt; an automatic retry of a busy stage does not. The attempt
+  that failed was refunded when it failed, and `retry` refunds it again first (idempotent) in case that write was lost, so the
+  ledger holds exactly the final attempt's calls unrefunded when the job reaches ready. Nothing is ever taken back: the earlier
+  attempts of a job that reaches ready stay refunded, even when the final attempt reused their draft or artifact.
 - **Plan phase** (`ANIMATION_BILLING.planPhaseRefunded`, `animation-policy.js`): DEFAULT false. The plan calls stay charged, because
-  the learner received a plan. Flip it to true and the plan calls of a job that ends without a result come back too; the
-  failure words follow the same constant.
-- **Retried builds**: Try again and Render again keep the same job. A refund made when the build failed is taken back when the same
-  job later reaches ready (`chargeEscrow`: refund set to 0, a positive audit row `animation_ready_charge`), so a ready job is always
-  charged its whole generation once.
+  the learner received a plan. Flip it to true and the plan calls of a job that ends without a result come back too; the failure
+  words follow the same constant.
 - **Provider interruptions** stay free as before; they say it in the same words.
 
 ## Exactly once
 
 The unit is the usage attempt (one per call, an `animation-*` id). `refundAttempt` is one guarded UPDATE
-(`refunded_micros = 0` and cost settled), so a refund of an attempt happens once however often it is requested. `refundEscrow` runs:
+(`refunded_micros = 0` and cost settled), so a refund of a call happens once however often it is requested. `refundEscrow` runs:
 1. at every end without a result (`finishUsage`, from `stopWith`, `failed`, `reconcile`, `stop`);
 2. after a call that settles late, when the job is already failed or stopped (`paidCall`; a Stop does not cancel the request in flight);
-3. on every status read of a failed or stopped job (`get`), which makes a refund whose write failed. All three are idempotent, so a
-   replayed transition, a restarted object or a repeated read refunds nothing twice. `chargeEscrow` is guarded the same way (the
-   UPDATE names the refund it reverses).
+3. on every status read of a failed or stopped job (`get`), which makes a refund whose write failed;
+4. when a Try again or Render again starts the next attempt (`retry`), before that attempt makes a call.
 
-A write that fails is logged and left for the next of the three; the job's own state is never held for it.
+All four are idempotent and only ever run while the job is failed or stopped, so a replayed transition, a restarted object or a
+repeated read refunds nothing twice and never touches the calls of an attempt that is still running. A write that fails is logged and
+left for the next of the four; the job's own state is never held for it.
 
 Jobs made before this change (no `escrow` flag on the stored record) keep the rules they were made under: no refund and the old
 words. Without the flag the status read would have refunded every old failed job on the day it shipped.
 
 ## What the learner is told
 
-Credits only, in a few words, after the reason: "The scene did not pass its checks. Credits refunded." Which of the two phrases is
-decided by what the job's call ledger recorded for the generation stage: **Credits refunded.** when a call had a measured cost (it
-was charged, then refunded), **You have not been charged.** when none had (provider busy, an interrupted call, a refusal, Stop before
-any call settled). The plan phase is not mentioned. The same words appear on the card, in the Chat explanation and, for Stop, as
-"Stopped. Credits refunded." (the job view carries them as `usage.note`; `usage.credits` is the credits the job kept). The
-before-Generate wording ("It used N AI credits." for a failed plan) is unchanged, except that a free provider refusal now says "You
-have not been charged." instead of "You are not charged for it."
+Credits only, one phrase, after the reason: "The scene did not pass its checks. You have not been charged." It is on the card, in the
+Chat explanation, and for Stop as "Stopped. You have not been charged." (the job view carries it as `usage.note`; `usage.credits` is
+the credits the job kept: the plan, plus the current or final attempt's calls). It is true in every case, whether the attempt's calls
+were charged and then refunded, or never charged (provider busy, an interrupted call, a refusal, Stop before any call settled). The
+plan phase is not mentioned. A failed plan (before Generate) keeps "It used N AI credits." when it was charged; its zero-charge phrase
+is now the same "You have not been charged." (it was "You are not charged for it."). The Try again button text is unchanged: it says
+the most that attempt may use ("using up to N AI credits"), which is still what it is charged if it succeeds.
 
-## The cost guard (owner to confirm)
+## The cost guard (owner confirmed)
 
 A failed generation is free to the learner and costs the platform its model price (observed US$0.18 to 0.80, worst case about
-US$3.2 to 4.2). `ANIMATION_BILLING.freeFailuresPerDay` (DEFAULT 5) caps the generations refunded to one learner in a rolling 24
-hours: past it, Generate (and a paid Try again) is refused with "You have reached today's limit of free retries. Try again
-tomorrow." (429, code `spend_limited`, reason `free_retries_exhausted`, the shared refusal body and toast). It counts distinct
-refunded jobs from `usage_adjustments`, so a job that was refunded and later became ready nets to zero and does not count, and a
-job that never cost the learner anything (provider busy) does not count. The platform's own daily dollar cap is untouched.
-
-## Defaults for the owner to decide
-
-1. Plan-phase calls stay charged (`planPhaseRefunded: false`).
-2. 5 refunded generations per learner per 24 hours (`freeFailuresPerDay: 5`); the refusal wording.
-3. The two phrases and their choice rule above.
-4. A retried build is charged again when it reaches ready.
+US$3.2 to 4.2). `ANIMATION_BILLING.freeFailuresPerDay` (5) caps the failed attempts refunded to one learner in a rolling 24 hours:
+past it, Generate (and a paid Try again) is refused with "You have reached today's limit of free retries. Try again tomorrow."
+(429, code `spend_limited`, reason `free_retries_exhausted`, the shared refusal body and toast). It counts distinct (job, attempt)
+pairs from `usage_adjustments`, so a job that failed twice and then succeeded counts two, and an attempt that never cost the learner
+anything (provider busy) counts none. The platform's own daily dollar cap is untouched.
 
 ## Not changed, and not verified
 

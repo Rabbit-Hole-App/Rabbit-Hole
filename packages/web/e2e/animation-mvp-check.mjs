@@ -961,7 +961,7 @@ export function evaluate({ state }) {
   });
   // Owner 2026-11-01 (FX-AN-026): a failed job offers only what the server offers, in the server's words, and its action works.
   await step('a failed job shows the server explanation and only its offered action; Revise plan pressed twice asks once and the card waits on the new job', async () => {
-    const words = 'The scene was too large to check. Credits refunded. It was corrected automatically once, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate.';
+    const words = 'The scene was too large to check. You have not been charged. It was corrected automatically once, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate.';
     const { context: c, page: p } = await open({ canvas: fresh, first: null, extra: genRouter });
     const creates = flow.creates.length;
     flow.fail = { failure: { stage: 'validating', category: 'spec', message: words, retryable: false }, recovery: ['revise_plan', 'edit_request'] };
@@ -1045,7 +1045,7 @@ export function evaluate({ state }) {
   });
   await step("a failure's explanation arrives in Chat with no action, and a reload shows it once, asking for nothing", async () => {
     const { context: c, page: p } = await open({ canvas: fresh, first: null, extra: genRouter });
-    const creates = flow.creates.length, words = 'The scene builder reached its output limit before it finished. That does not prove your request is impossible; a smaller plan may fit. Credits refunded. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate.';
+    const creates = flow.creates.length, words = 'The scene builder reached its output limit before it finished. That does not prove your request is impossible; a smaller plan may fit. You have not been charged. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate.';
     flow.fail = { failure: { stage: 'authoring', category: 'model_output', code: 'output_limit', message: words, retryable: true }, recovery: ['revise_plan', 'edit_request'] };
     flow.say = { content: `"Beam balance" was not finished. ${words} Your request and plan are kept.` };
     await send(p);

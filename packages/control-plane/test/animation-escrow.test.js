@@ -1,8 +1,9 @@
 // Animation billing as an escrow (owner 2026-11-03): "a rejected generation is charged to the learner and the failure message doesn't
 // state the charge. it should not be charged and should be refunded ... we put the credits in an escrow and if successful we charge,
 // if not refunded." The real AnimationJobs object, ledger and refund writer on the animation-fixture stack; a stub pipeline and a
-// fake provider, so no model is reached. Plan-phase calls (prepKey) stay charged by default; generation-stage calls (actionKey) are
-// refunded at any end but ready (ANIMATION_BILLING, animation-policy.js).
+// fake provider, so no model is reached. Plan-phase calls (prepKey) stay charged by default; the generation-stage calls (actionKey) of
+// an attempt that fails or is stopped are refunded when it ends, and nothing is ever taken back: a job that reaches ready is charged
+// only its FINAL attempt (the calls whose record says attempt === the job's attempt at ready). One phrase everywhere (owner, same day).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as jobs from '../src/animation-job.js';
@@ -13,7 +14,7 @@ import { PERIOD } from './explain-fixture.js';
 import { NEEDS_PROPOSAL, OWNER, STUB_PIPELINE, TASKS, animationStack, rows, spent } from './animation-fixture.js';
 
 const skip = NEEDS_PROPOSAL;
-const REFUNDED = 'Credits refunded.', NOT_CHARGED = 'You have not been charged.';
+const NOT_CHARGED = 'You have not been charged.';
 const tool = { name: 'x', input_schema: { type: 'object' } };
 const TOO_LARGE = ['this artifact (18714 bytes with its program) is too large for the repair request: use fewer nodes, shorter labels or a shorter program'];
 const failures = s => rows(s.sqlite, 'messages').filter(m => /was not finished/.test(m.content));
@@ -43,10 +44,10 @@ for (const [name, { stop, opts }] of Object.entries(CASES)) {
     assert.ok(plan.cost > 0 && build.cost > 0 && build.calls >= 2, 'both phases were charged by the provider');
     assert.deepEqual([build.refunded, plan.refunded], [build.cost, 0], 'the generation stage comes back in full; the plan the learner received stays charged');
     assert.equal(await net(s), plan.cost, 'the learner\'s net use for the whole job is the plan phase');
-    assert.deepEqual([refunds(s).length, refunds(s).every(r => r.micros < 0 && r.reason === jobs.ANIMATION_REFUND)], [build.calls, true], 'one audit row per refunded call');
+    assert.deepEqual([refunds(s).length, refunds(s).every(r => r.micros < 0 && r.reason === `${jobs.ANIMATION_REFUND}:1`)], [build.calls, true], 'one audit row per refunded call, naming the attempt');
     const { job } = await s.job(id);
-    assert.match(job.failure.message, new RegExp(`\\. ${REFUNDED.replace('.', '\\.')}( |$)`), 'the failure states the outcome in a few words');
-    assert.doesNotMatch(job.failure.message, /[$]|US[$]|dollar|cents? |charged for it|It used/, 'credits only');
+    assert.match(job.failure.message, new RegExp(`\\. ${NOT_CHARGED.replace('.', '\\.')}( |$)`), 'the failure states the outcome in a few words');
+    assert.doesNotMatch(job.failure.message, /[$]|US[$]|dollar|cents? |charged for it|It used|refunded/, 'credits only, one phrase');
     assert.equal(job.usage.credits, Math.ceil(plan.cost / 10000), 'the job view counts the credits it kept');
     assert.deepEqual(failures(s).map(m => m.content), [`"${s.stored(id).plan.title}" was not finished. ${job.failure.message} Your request and plan are kept.`]);
   });
@@ -60,7 +61,7 @@ test('a ready job is charged the actual cost of its generation once, nothing ref
   assert.equal(build.cost, done.calls.filter(c => c.phase === 'generation').reduce((total, c) => total + c.costMicros, 0), 'the ledger holds exactly what the calls settled at');
   assert.deepEqual([build.refunded, refunds(s).length], [0, 0]);
   assert.equal(await net(s), plan.cost + build.cost);
-  assert.equal((await s.job(id)).job.usage.note, undefined, 'a ready card says nothing about refunds');
+  assert.equal((await s.job(id)).job.usage.note, undefined, 'a ready card says nothing about charges');
   // The end of the job again, and a restarted object: still charged once.
   await s.actor.finishUsage(done, 'completed'); await s.object().alarm();
   assert.equal(await net(s), plan.cost + build.cost);
@@ -95,7 +96,7 @@ test('a job from before the escrow keeps the rules it was made under: no refund,
   const build = phase(s, failed.actionKey);
   assert.ok(build.cost > 0);
   assert.deepEqual([build.refunded, refunds(s).length], [0, 0], 'charged as before, and a status read refunds nothing');
-  assert.doesNotMatch((await s.job(body.job.id)).job.failure.message, new RegExp(`${REFUNDED}|${NOT_CHARGED}`));
+  assert.doesNotMatch((await s.job(body.job.id)).job.failure.message, new RegExp(NOT_CHARGED.replace('.', '\\.')));
 });
 
 test('Stop with no result refunds the generation stage, including a call that settles after Stop', { skip }, async t => {
@@ -114,7 +115,7 @@ test('Stop with no result refunds the generation stage, including a call that se
   assert.equal(done.calls.at(-1).status, 'settled', 'the call finished and settled after Stop');
   assert.ok(build.cost > 0);
   assert.deepEqual([build.refunded, await net(s)], [build.cost, plan.cost]);
-  assert.equal((await s.job(body.job.id)).job.usage.note, REFUNDED, 'the stopped card says what happened to its credits');
+  assert.equal((await s.job(body.job.id)).job.usage.note, NOT_CHARGED, 'the stopped card says what happened to its credits');
   assert.equal(refunds(s).length, 1);
 });
 
@@ -146,21 +147,65 @@ test('a provider interruption stays free and says so in the same words; an inter
   assert.deepEqual([refunds(d).length, await net(d)], [0, phase(d, out.prepKey).cost]);
 });
 
-test('a build that fails, is rendered again and then succeeds is charged its whole generation once', { skip }, async t => {
+// FINAL ATTEMPT (owner 2026-11-03): attempt 1 builds and fails at the sample render, and is refunded when it fails; Render again starts attempt 2,
+// which reviews, repairs and reviews again and is accepted. The learner pays attempt 2's generation calls, not attempt 1's author call.
+const flaky = () => {
   let renders = 0;
-  const flaky = STUB_PIPELINE({ render: async (...a) => { if (renders++ < 2) throw Object.assign(new Error('The animation could not be rendered for review (render_failed). Retry rendering.'), { status: 503, code: 'render_failed', category: 'renderer' }); return STUB_PIPELINE().render(...a); } });
-  const s = animationStack(t, { pipeline: flaky, reply: role => (role === 'review' ? { accepted: true } : {}) });
+  return STUB_PIPELINE({ render: async (...a) => { if (renders++ < 2) throw Object.assign(new Error('The animation could not be rendered for review (render_failed). Retry rendering.'), { status: 503, code: 'render_failed', category: 'renderer' }); return STUB_PIPELINE().render(...a); } });
+};
+const attemptCost = (job, attempt) => job.calls.filter(c => c.phase === 'generation' && c.attempt === attempt).reduce((total, c) => total + c.costMicros, 0);
+test('a build that fails, is retried and then succeeds is charged only its final attempt; the earlier attempt stays refunded', { skip }, async t => {
+  const s = animationStack(t, { pipeline: flaky(), reply: (role, n) => (role === 'review' ? { accepted: n >= 2 } : {}) });
   const { id, done } = await s.generated();
-  assert.deepEqual([done.stage, done.failure.stage], ['failed', 'rendering']);
-  assert.equal(phase(s, done.actionKey).refunded, phase(s, done.actionKey).cost, 'refunded while it is failed');
-  assert.match((await s.job(id)).job.failure.message, new RegExp(REFUNDED.replace('.', '\\.')));
+  assert.deepEqual([done.stage, done.attempt, done.failure.stage], ['failed', 1, 'rendering']);
+  const first = phase(s, done.actionKey);
+  assert.deepEqual([first.calls, first.refunded], [1, first.cost], 'attempt 1 (the author call) is refunded the moment it fails');
+  assert.match((await s.job(id)).job.failure.message, new RegExp(NOT_CHARGED.replace('.', '\\.')));
   assert.equal((await s.send('retry', { expectedAttempt: 1, action: 'retry_render' }, id)).status, 202);
   const ready = await s.run(id), plan = phase(s, ready.prepKey), build = phase(s, ready.actionKey);
+  assert.deepEqual([ready.stage, ready.attempt, ready.calls.filter(c => c.phase === 'generation').map(c => [c.role, c.attempt])],
+    ['ready', 2, [['author', 1], ['review', 2], ['repair', 2], ['review', 2]]], 'the final attempt is the job\'s attempt at ready: its review, repair and review');
+  assert.equal(build.calls, 4);
+  assert.equal(build.refunded, attemptCost(ready, 1), 'only attempt 1 is refunded, and it stays refunded');
+  assert.equal(await net(s), plan.cost + attemptCost(ready, 2), 'the learner is charged the plan and attempt 2\'s generation calls, exactly');
+  assert.equal((await s.job(id)).job.usage.credits, Math.ceil((plan.cost + attemptCost(ready, 2)) / 10000), 'and the job view agrees');
+  assert.equal(refunds(s).length, 1, 'nothing was taken back: one refund row, no positive row');
+  assert.ok(refunds(s).every(r => r.micros < 0 && r.reason === `${jobs.ANIMATION_REFUND}:1`));
+  // Replays: the end of the job again, status reads and a restarted object change nothing.
+  const settled = [await net(s), refunds(s).length];
+  await s.actor.finishUsage(ready, 'completed'); await s.job(id); await s.job(id); await s.object().alarm();
+  assert.deepEqual([await net(s), refunds(s).length], settled, 'charged once, refunded once');
+});
+
+test('a refund that did not land when an attempt failed is made before the next attempt starts', { skip }, async t => {
+  const s = animationStack(t, { pipeline: flaky(), reply: (role, n) => (role === 'review' ? { accepted: n >= 2 } : {}) });
+  const { id, done } = await s.generated();
+  assert.equal(done.stage, 'failed');
+  s.sqlite.prepare('UPDATE usage_attempt_detail SET refunded_micros = 0, refunded_at = NULL, refund_reason = NULL').run(); // the write was lost
+  assert.equal((await s.send('retry', { expectedAttempt: 1, action: 'retry_render' }, id)).status, 202);
+  assert.equal(phase(s, done.actionKey).refunded, attemptCost(s.stored(id), 1), 'refunded as the retry began, before attempt 2 made a call');
+  const ready = await s.run(id);
   assert.equal(ready.stage, 'ready');
-  assert.deepEqual([build.refunded, await net(s)], [0, plan.cost + build.cost], 'ready: the credits are charged after all');
-  assert.equal(refunds(s).reduce((total, r) => total + r.micros, 0), 0, 'the audit rows cancel out');
-  await s.actor.finishUsage(ready, 'completed'); await s.job(id);
-  assert.equal(await net(s), plan.cost + build.cost, 'charged once');
+  assert.equal(await net(s), phase(s, ready.prepKey).cost + attemptCost(ready, 2));
+});
+
+test('every failed attempt is refunded and counts toward the daily limit; the attempt that succeeds is the only one charged', { skip }, async t => {
+  let reviews = 0;
+  const flakyReview = STUB_PIPELINE({ review: async (...a) => { const out = await STUB_PIPELINE().review(...a); if (reviews++ < 2) throw Object.assign(new Error('The review stopped.'), { status: 503, category: 'transport' }); return out; } });
+  const s = animationStack(t, { pipeline: flakyReview, reply: role => (role === 'review' ? { accepted: true } : {}) });
+  const { id, done } = await s.generated();
+  assert.deepEqual([done.stage, done.attempt], ['failed', 1]);
+  for (const attempt of [1, 2]) {
+    assert.equal((await s.send('retry', { expectedAttempt: attempt, action: 'new_attempt' }, id)).status, 202, `retry ${attempt}`);
+    const out = await s.run(id);
+    assert.deepEqual([out.stage, out.attempt], [attempt === 1 ? 'failed' : 'ready', attempt + 1]);
+  }
+  const ready = s.stored(id), plan = phase(s, ready.prepKey), build = phase(s, ready.actionKey);
+  assert.deepEqual(ready.calls.filter(c => c.phase === 'generation').map(c => [c.role, c.attempt]), [['author', 1], ['review', 1], ['review', 2], ['review', 3]]);
+  assert.equal(build.refunded, attemptCost(ready, 1) + attemptCost(ready, 2));
+  assert.equal(await net(s), plan.cost + attemptCost(ready, 3), 'only attempt 3 is charged');
+  assert.deepEqual([...new Set(refunds(s).map(r => r.reason))].sort(), [`${jobs.ANIMATION_REFUND}:1`, `${jobs.ANIMATION_REFUND}:2`]);
+  assert.equal(await s.actor.refundedToday(OWNER.userId), 2, 'two refunded attempts, though it is one job that reached ready');
 });
 
 test('at most freeFailuresPerDay refunded generations in 24 hours: the next Generate is refused in credits-only words, and the day resets it', { skip }, async t => {
@@ -182,7 +227,7 @@ test('at most freeFailuresPerDay refunded generations in 24 hours: the next Gene
   assert.equal((await s.approve(body.job.id)).status, 202);
 });
 
-test('jobs that cost the learner nothing, and ready jobs, do not use the daily allowance of free retries', { skip }, async t => {
+test('jobs that cost the learner nothing do not use the daily allowance of free retries', { skip }, async t => {
   const cap = policy.ANIMATION_BILLING.freeFailuresPerDay;
   const s = animationStack(t, { status: role => (role === 'author' ? 529 : 200) });
   for (let i = 0; i < cap + 1; i++) assert.equal((await s.generated({ requestId: `req-0000000${i}`, cardId: `card-000${i}` })).done.stage, 'failed');
