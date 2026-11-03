@@ -1108,7 +1108,8 @@
    },
    {
     "id": "keepPath",
-    "label": "New run, keep old path"
+    "label": "New run, keep old path",
+    "startsMotion": false
    }
   ],
   "readouts": [

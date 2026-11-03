@@ -90,11 +90,11 @@ test('the fixture is labelled an offline fixture, passes the real validators, an
   assert.ok(tubes.length === 5 && tubes.every(g => g.radius === 0.04), 'a bowl wireframe of tube curves: three rings and two cross-sections');
   assert.equal(artifact.scene.geometries.some(g => g.kind === 'cylinder' && /^c\d/.test(g.id)), false, 'no stacked filled discs');
   // The gate: a browser that did not say curve_radius and action_motion is never given this scene (animation-job.js); validation names each fix.
-  assert.equal(clientProblems(artifact, {}).length, tubes.length + 1, 'each tube is named, and the one-step action');
-  assert.equal(clientProblems(artifact, { features: ['curve_radius'] }).length, 1, 'a tube reader that cannot read startsMotion is told');
+  assert.equal(clientProblems(artifact, {}).length, tubes.length + 2, 'each tube is named, and each of the two state-only actions');
+  assert.equal(clientProblems(artifact, { features: ['curve_radius'] }).length, 2, 'a tube reader that cannot read startsMotion is told, once for each of the two state-only actions');
   assert.equal(clientProblems(artifact, { features: ['action_motion'] }).length, tubes.length);
   assert.equal(clientProblems(artifact, { features: ANIMATION_CLIENT_FEATURES }).length, 0);
-  assert.deepEqual(artifact.actions.map(a => [a.id, a.startsMotion]), [['oneStep', false], ['keepPath', undefined]], 'only the one-step action declares that it does not start the motion');
+  assert.deepEqual(artifact.actions.map(a => [a.id, a.startsMotion]), [['oneStep', false], ['keepPath', false]], 'both state-only actions (one step, a new run that keeps the old path) declare that they do not start the motion: the learner starts it with Play');
 });
 
 test('four readouts at the start, with correct values and truthful zeros', async () => {
@@ -298,8 +298,8 @@ test('qualification: the saved repaired draft of aj_086fd46 fails on the missing
     const bad = result.checks.filter(c => !c.ok);
     assert.ok(bad.some(c => /readout passes: declared with id passes/.test(c.name) && /loss, dist, stepNo/.test(c.detail)), `${name}: names the missing readout and the ones declared`);
     // The saved draft also lets the host play on after "Take one step" (no startsMotion false): the second thing the owner's review found.
-    assert.ok(bad.some(c => /action oneStep: declared with startsMotion false/.test(c.name) && /host plays on after every press/.test(c.detail)), `${name}: names the one-step action that would play on`);
-    assert.ok(bad.every(c => /passes|action oneStep/.test(`${c.name} ${c.detail}`)), `${name}: the other three readouts are correct, so only passes and the one-step declaration fail: ${failed(result)}`);
+    assert.ok(bad.some(c => /action oneStep: declared with startsMotion false/.test(c.name) && /host starts the clock after every press/.test(c.detail)), `${name}: names the one-step action that would play on`);
+    assert.ok(bad.every(c => /passes|action oneStep|action keepPath/.test(`${c.name} ${c.detail}`)), `${name}: the other three readouts are correct, so only passes and the two state-only action declarations fail: ${failed(result)}`);
     // step, loss and distance have correct values in the saved draft: those checks themselves still pass.
     assert.ok(result.checks.filter(c => /^readout (step|loss|dist)/.test(c.name)).every(c => c.ok));
   }
@@ -315,6 +315,7 @@ test('qualification: wrong values fail too (a wrong passes formula, a doubled lo
     ['renamed readout id', d => { d.readouts.find(r => r.id === 'passes').id = 'passesThroughData'; d.program.source = src.replace('passes:s.k', 'passesThroughData:s.k'); }, /readout passes: declared with id passes/],
     ['repair drops a readout', d => { d.readouts = d.readouts.filter(r => r.id !== 'passes'); }, /readout passes: declared with id passes/],
     ['one step does not declare startsMotion false (the host would play on after every press)', d => { delete d.actions.find(action => action.id === 'oneStep').startsMotion; }, /action oneStep: declared with startsMotion false/],
+    ['a new run does not declare startsMotion false (the host would start it by itself)', d => { delete d.actions.find(action => action.id === 'keepPath').startsMotion; }, /action keepPath: declared with startsMotion false/],
     ['keep path forgets to reset the step', d => { d.program.source = src.replace('return fresh(s.w0,s.run+1,s.path);', 'return {...fresh(s.w0,s.run+1,s.path),k:s.k};'); }, /after Keep Path/],
   ];
   for (const [name, change, pattern] of cases) {

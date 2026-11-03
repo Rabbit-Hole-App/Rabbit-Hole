@@ -110,7 +110,7 @@ const draft = {
   scene: { materials: [{ id: 'bowl', color: '#3f6fa8' }, { id: 'edge', color: '#8f99a6', opacity: 0.25 }, { id: 'ball', color: '#e8692a' }, { id: 't', color: '#f07a30' }, { id: 'g', color: '#8a8a8a' }, { id: 'puck', color: '#3a9a5b' },
     { id: 'min', color: '#333344' }, { id: 'stepA', color: '#d9481c' }, { id: 'trueA', color: '#555555' }, { id: 'exitMat', color: '#c01818' }, { id: 'barMat', color: '#222222' }], geometries, nodes },
   parameters: structuredClone(plan.parameters),
-  actions: [{ id: 'oneStep', label: 'Take one step', startsMotion: false }, { id: 'keepPath', label: 'New run, keep old path' }],
+  actions: [{ id: 'oneStep', label: 'Take one step', startsMotion: false }, { id: 'keepPath', label: 'New run, keep old path', startsMotion: false }],
   readouts: [{ id: 'loss', label: 'Full-data loss', decimals: 3 }, { id: 'dist', label: 'Distance from lowest point', decimals: 3 }, { id: 'stepNo', label: 'Step (of 40)', decimals: 0 }, { id: 'passes', label: 'Passes through the data', decimals: 3 }],
   seed: 7, camera: { position: [5.5, 6, 7.5], target: [0, 1, 0], fov: 42 },
   assumptions: [

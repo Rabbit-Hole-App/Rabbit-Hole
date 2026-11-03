@@ -326,7 +326,7 @@ test('a stepped scene (real runtime): a startsMotion false action advances exact
 
 // The same rule on the SGD correction fixture itself (its sealed artifact, the real session and the real runtime): the step count is the
 // number of accepted Take one step presses, never more, and the card stays paused (aj_086fd46 owner review: three clicks read step 11).
-test('the SGD correction fixture: Take one step is exactly one step per press, still paused seconds later; New run, keep old path starts the clock', async () => {
+test('the SGD correction fixture: Take one step is exactly one step per press, still paused seconds later; New run, keep old path waits for Play too', async () => {
   const artifact = JSON.parse(readFileSync(new URL('../../../control-plane/test/fixtures/animation-mvp1-correction-artifact.json', import.meta.url), 'utf8'));
   const runtimes = realRuntimes();
   const h = harness({ artifact, runtimes });
@@ -340,8 +340,13 @@ test('the SGD correction fixture: Take one step is exactly one step per press, s
     await frames(90); // three seconds of frames: with the old rule the clock ran on from the first press
     assert.deepEqual([stepNo(), h.state().playing], [clicks, false], `${clicks} accepted press(es): step ${clicks}, paused`);
   }
+  // A new run is state-only like a parameter change (routine decision 2026-11-03, one declaration to revert): it starts at step 0 and waits.
   assert.equal(await h.session.action('keepPath'), true);
-  assert.equal(h.state().playing, true, 'a new run declares nothing: it starts the clock');
+  await frames(90);
+  assert.deepEqual([stepNo(), h.state().playing], [0, false], 'a new run declares startsMotion false: step 0, paused three seconds later');
+  h.session.play();
+  await frames(40);
+  assert.ok(stepNo() > 0 && h.state().playing, `Play runs it: step ${stepNo()}`);
   h.session.dispose();
 });
 

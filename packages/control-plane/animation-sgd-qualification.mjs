@@ -50,8 +50,11 @@ export async function qualifySgd(artifact, { ids = DEFAULT_IDS, model = DEFAULT_
   const declared = new Set((artifact.readouts ?? []).map(r => r.id));
   for (const [quantity, id] of Object.entries(rid)) check(`readout ${quantity}: declared with id ${id}`, declared.has(id), declared.has(id) ? undefined : `readouts declared: ${[...declared].join(', ') || 'none'}`);
   // One press is one step (aj_086fd46 owner review): in a stepped scene the host starts the step clock after an action unless the action declares startsMotion false.
-  const stepAction = (artifact.actions ?? []).find(action => action.id === aid.step);
-  check(`action ${aid.step}: declared${artifact.stepped ? ' with startsMotion false, so one press is one step and the scene stays paused' : ''}`, stepAction && (!artifact.stepped || stepAction.startsMotion === false), stepAction ? (artifact.stepped && stepAction.startsMotion !== false ? 'startsMotion is not false: the host plays on after every press' : undefined) : `actions declared: ${(artifact.actions ?? []).map(action => action.id).join(', ') || 'none'}`);
+  // A new run is state-only too (a parameter change restarts the run and waits): it declares it, so the learner starts it with Play (routine decision 2026-11-03).
+  for (const [id, why] of [[aid.step, 'so one press is one step and the scene stays paused'], [aid.keep, 'so a new run waits for Play or Take one step']]) {
+    const action = (artifact.actions ?? []).find(candidate => candidate.id === id);
+    check(`action ${id}: declared${artifact.stepped ? ` with startsMotion false, ${why}` : ''}`, action && (!artifact.stepped || action.startsMotion === false), action ? (artifact.stepped && action.startsMotion !== false ? 'startsMotion is not false: the host starts the clock after every press' : undefined) : `actions declared: ${(artifact.actions ?? []).map(candidate => candidate.id).join(', ') || 'none'}`);
+  }
 
   const artifactHash = await sha256Hex(canonicalJson(artifact)), view = captureViews(artifact)[0];
   const defaults = Object.fromEntries((artifact.parameters ?? []).map(p => [p.id, p.default]));

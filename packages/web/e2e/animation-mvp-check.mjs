@@ -894,15 +894,17 @@ export function evaluate({ state }) {
     await fit(g);
     await live(study);
     const taken = async () => Number(await study.readout('taken').getAttribute('data-value')), ticks = async () => Number(await study.readout('ticks').getAttribute('data-value'));
-    assert.deepEqual([await taken(), await ticks(), await playing(study)], [0, 0, false], 'paused at step 0');
+    // The card's Play button and its Playing / Paused badge read the same state; both must say paused (the owner saw the badge in review).
+    const badge = () => study.card.locator('[data-animation-playback-status]').getAttribute('data-animation-playback-status');
+    assert.deepEqual([await taken(), await ticks(), await playing(study), await badge()], [0, 0, false, 'paused'], 'paused at step 0');
     await study.action('nudge').click();
     await until(async () => (await taken()) === 1, 'the first press took a step');
     await g.waitForTimeout(3000); // a runaway clock would add host ticks, and with them steps, in these seconds
-    assert.deepEqual([await taken(), await ticks(), await playing(study)], [1, 0, false], 'one click: step 1, no host tick, still paused three seconds later');
+    assert.deepEqual([await taken(), await ticks(), await playing(study), await badge()], [1, 0, false, 'paused'], 'one click: step 1, no host tick, the Play button and the badge still say paused three seconds later');
     await study.action('nudge').click(); await study.action('nudge').click();
     await until(async () => (await taken()) === 3, 'three presses took three steps');
     await g.waitForTimeout(3000);
-    assert.deepEqual([await taken(), await ticks(), await playing(study)], [3, 0, false], 'three clicks: step 3 (the number of accepted clicks), paused, unchanged three seconds later');
+    assert.deepEqual([await taken(), await ticks(), await playing(study), await badge()], [3, 0, false, 'paused'], 'three clicks: step 3 (the number of accepted clicks), paused (button and badge), unchanged three seconds later');
     await shot(g, 'K-study-three-steps');
   });
 
@@ -910,12 +912,12 @@ export function evaluate({ state }) {
     const ticks = async () => Number(await study.readout('ticks').getAttribute('data-value')), distance = async () => Number(await study.readout('distance').getAttribute('data-value'));
     await study.action('launch').click();
     await until(async () => (await ticks()) > 3 && (await distance()) > 0, `Launch never moved the robot: ticks ${await ticks().catch(() => '?')}`);
-    assert.equal(await playing(study), true, 'Launch started the clock');
+    assert.deepEqual([await playing(study), await study.card.locator('[data-animation-playback-status]').getAttribute('data-animation-playback-status')], [true, 'playing'], 'Launch started the clock: the button and the badge say playing');
     await study.action('nudge').click();
     await g.waitForTimeout(300);
     assert.equal(await playing(study), true, 'a one-step press does not stop what the learner started');
     await study.play.click();
-    assert.equal(await playing(study), false, 'Pause');
+    assert.deepEqual([await playing(study), await study.card.locator('[data-animation-playback-status]').getAttribute('data-animation-playback-status')], [false, 'paused'], 'Pause: the button and the badge say paused');
   });
 
   await genSession.context.close();
