@@ -45,13 +45,18 @@ const PLACEMENT = Object.freeze({ above: [0.5, -0.2], below: [0.5, 1.2], left: [
 // downhill one). A plate that meets one is moved to the free spot nearest its own point (its own spot, flipped, or pushed along a shaft-free
 // direction), never over its own point (a centered plate excepted); an essential plate with no such spot falls back to the spot the plates alone
 // allow (it overlaps an arrow rather than being dropped), an optional one is left out. No obstacles: exactly the behavior above.
+// A soft obstacle ({ ..., soft: true }, a small marker: a dot or ball drawn as a point x1 = x2, y1 = y2 with its radius as `half`) is kept off the
+// same way, but only as far as room allows: with none, any plate (optional too) falls back to avoiding the arrows alone, so a marker never costs a
+// label its place. A plate's own marker, the one its point sits on (within its radius + 2 px), is not an obstacle for it: the label stays beside what
+// it names, and the other markers (the trail, the saved path) stay uncovered.
 // Deterministic, O(n^2) for <= 24 labels. -> [{ dx, dy } | null] per plate, in order.
 export const DECLUTTER = Object.freeze({ gap: 4, steps: 4 });
+const MARKER_SHARE = 0.1; // a mesh is a small marker when its projected diameter is at most this share of the scene's span
 const LEADER_PIXELS = 6; // a moved plate this close to its point needs no leader
 const DIRECTIONS = Object.freeze({ above: [0, -1], below: [0, 1], left: [-1, 0], right: [1, 0], center: [0, -1] });
 export function declutterLabels(plates, { gap = DECLUTTER.gap, steps = DECLUTTER.steps, bounds = null, obstacles = [] } = {}) {
   const placed = [];
-  let avoid = obstacles.length > 0; // false: the arrows are ignored (the fallback of an essential plate)
+  let level = 0, mine = []; // level 0: every obstacle is avoided, 1: the arrows only, 2: none (an essential plate's last resort); mine: this plate's own markers
   const at = (plate, dx, dy) => ({ x: plate.x + dx, y: plate.y + dy, w: plate.w, h: plate.h });
   // Does the segment s, thickened by s.half + gap, meet the rect r? Liang-Barsky: clip s against r grown by that margin.
   const meets = (r, s) => {
@@ -65,7 +70,7 @@ export function declutterLabels(plates, { gap = DECLUTTER.gap, steps = DECLUTTER
     }
     return true;
   };
-  const blocker = r => placed.find(p => r.x < p.x + p.w + gap && p.x < r.x + r.w + gap && r.y < p.y + p.h + gap && p.y < r.y + r.h + gap) ?? (avoid ? obstacles.find(s => meets(r, s)) : undefined);
+  const blocker = r => placed.find(p => r.x < p.x + p.w + gap && p.x < r.x + r.w + gap && r.y < p.y + p.h + gap && p.y < r.y + r.h + gap) ?? (level < 2 ? obstacles.find(s => !(level && s.soft) && !mine.includes(s) && meets(r, s)) : undefined);
   // The push that takes r clear of the arrow s along (ux, uy): the first whole pixel (it cannot take longer than s and r are big).
   const leave = (r, ux, uy, s) => { let t = 1; for (const end = Math.hypot(s.x2 - s.x1, s.y2 - s.y1) + r.w + r.h + 2 * (s.half + gap); t < end && meets(at(r, ux * t, uy * t), s); t += 1); return t; };
   const inside = r => !bounds || (r.x >= bounds.x && r.y >= bounds.y && r.x + r.w <= bounds.x + bounds.w && r.y + r.h <= bounds.y + bounds.h);
@@ -92,10 +97,14 @@ export function declutterLabels(plates, { gap = DECLUTTER.gap, steps = DECLUTTER
     const [px, py] = DIRECTIONS[plate.placement] ?? DIRECTIONS.above;
     const done = (dx, dy) => { const offset = { dx: dx + 0, dy: dy + 0 }; placed.push(at(plate, offset.dx, offset.dy)); return offset; }; // + 0: no -0
     const spots = starts(plate);
-    // With arrows to avoid: of every free spot the one nearest the plate's own point (the point from its placement), not the first.
+    // With obstacles to avoid: of every free spot the one nearest the plate's own point (the point from its placement), not the first.
     const [cx, cy] = PLACEMENT[plate.placement] ?? PLACEMENT.above, ax = plate.x + cx * plate.w, ay = plate.y + (1 - cy) * plate.h;
     const away = (dx, dy) => { const r = at(plate, dx, dy); return Math.hypot(Math.max(r.x - ax, 0, ax - r.x - r.w), Math.max(r.y - ay, 0, ay - r.y - r.h)); };
-    for (avoid = obstacles.length > 0; ; avoid = false) {
+    mine = obstacles.filter(s => s.soft && Math.hypot(s.x1 - ax, s.y1 - ay) <= s.half + 2);
+    for (level = obstacles.length ? 0 : 2; level <= 2; level += 1) {
+      if (level === 1 && !obstacles.some(s => s.soft)) continue; // the same as level 0
+      if (level === 2 && obstacles.length && !plate.essential) break; // an optional plate with no arrow-free spot is left out; an essential one tries again, ignoring them
+      const avoid = level < 2;
       let best = null;
       for (const [bx, by] of spots) {
         const base = at(plate, bx, by);
@@ -107,7 +116,6 @@ export function declutterLabels(plates, { gap = DECLUTTER.gap, steps = DECLUTTER
         }
       }
       if (best) return done(...best);
-      if (!avoid || !plate.essential) break; // an optional plate with no arrow-free spot is left out; an essential one tries again, ignoring the arrows
     }
     // ponytail: an essential plate wider or taller than the bounds is left-/top-aligned and clipped; layoutLabels reflows long text first.
     return plate.essential && bounds ? done(...spots.at(-1)) : null;
@@ -344,6 +352,20 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
           if (depth <= 0 || Math.abs(tail.z) > 1 || Math.abs(head.z) > 1) return;
           obstacles.push({ x1: (tail.x + 1) / 2 * w0, y1: (1 - tail.y) / 2 * h0, x2: (head.x + 1) / 2 * w0, y2: (1 - head.y) / 2 * h0, half: radius * f * h0 / (2 * depth) });
         });
+        // Small markers (a dot, a ball, a puck): visible meshes that are not an arrow's parts and whose projected diameter is at most MARKER_SHARE of
+        // the scene's span (a bowl, a floor or a bar is far larger), as soft point obstacles of their projected radius. Skipped when the camera is inside.
+        if (Number.isFinite(across)) {
+          const ball = new THREE.Sphere();
+          root.traverseVisible(mesh => {
+            if (!mesh.isMesh || mesh.parent.userData.arrow !== undefined) return;
+            mesh.geometry.boundingSphere ?? mesh.geometry.computeBoundingSphere();
+            ball.copy(mesh.geometry.boundingSphere).applyMatrix4(mesh.matrixWorld);
+            const depth = -world.copy(ball.center).applyMatrix4(camera.matrixWorldInverse).z, half = ball.radius * f * h0 / (2 * depth);
+            if (depth <= 0 || 2 * half > MARKER_SHARE * across) return;
+            const at = ball.center.project(camera);
+            if (Math.abs(at.z) <= 1) obstacles.push({ x1: (at.x + 1) / 2 * w0, y1: (1 - at.y) / 2 * h0, x2: (at.x + 1) / 2 * w0, y2: (1 - at.y) / 2 * h0, half, soft: true });
+          });
+        }
         candidates.sort((a, b) => b.essential - a.essential || b.size - a.size); // stable: equal hints keep scene order
         let room = LABEL_PIXELS.room * across * across;
         const plates = [], boxes = [];
