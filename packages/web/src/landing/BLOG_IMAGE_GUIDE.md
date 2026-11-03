@@ -52,4 +52,4 @@ appears.
 
 | Post | Image | Alt text | Status |
 |---|---|---|---|
-| `rabbit-holes-not-courses` | `rabbit-holes-not-courses-hero.png` | The White Rabbit, Alice, the Cheshire Cat, the Mad Hatter and the Caterpillar as a faded engraving, walking in a line toward the edge of the page. | Not generated yet: generation is paid and waits for the owner's GO; the post shows its text cover until then. |
+| `rabbit-holes-not-courses` | `rabbit-holes-not-courses-hero.png` | The White Rabbit, Alice, the Cheshire Cat, the Mad Hatter and the Caterpillar as a faded engraving, walking in a line toward the edge of the page. | Generated 2026-11-02 with GPT Image 2.5 Flare at 2048x1152, quality medium, attempt 1 of 4 (US$0.0123); fitted offline to 2048x717 on its own paper tone with a feathered edge, highlights capped at #F4F3EF. Deviation: the Cat sits on a small branch. |

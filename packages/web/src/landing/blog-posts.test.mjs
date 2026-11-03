@@ -24,9 +24,10 @@ test('the blog publishes two stories and renders two cards from the same array',
 });
 
 test('a hero image renders washed from its slug path; a post without one keeps the text cover', () => {
-  const [post] = stories;
-  assert.doesNotMatch(cover(post), /<img/);
-  assert.match(cover(post), /aria-hidden="true"><i><\/i><i><\/i><span>Not courses\.<\/span>/);
+  const [post] = stories, plain = { ...post, hero: undefined };
+  assert.match(cover(post), /<div class="hero-wash"><img src="\/landing\/blog\/rabbit-holes-not-courses-hero\.png" alt="The White Rabbit, Alice/, 'the post carries its generated hero');
+  assert.doesNotMatch(cover(plain), /<img/);
+  assert.match(cover(plain), /aria-hidden="true"><i><\/i><i><\/i><span>Not courses\.<\/span>/);
   const html = cover({ ...post, hero: 'A faded engraving' });
   assert.match(html, /<div class="hero-wash"><img src="\/landing\/blog\/rabbit-holes-not-courses-hero\.png" alt="A faded engraving"><\/div>/);
   assert.match(html, /<small aria-hidden="true">Rabbit Hole \/ Notes<\/small>/);

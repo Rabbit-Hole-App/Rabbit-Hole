@@ -7,9 +7,8 @@ export const stories=[
     title:"We're building rabbit holes, not courses",
     excerpt:'For everyone who has twenty tabs open and a README half written.',
     mark:'Not courses.',motif:'courses',
-    // ponytail: no hero image yet (generation is paid and waits for the owner's GO). Once
-    // public/landing/blog/rabbit-holes-not-courses-hero.png exists, add the alt text from
-    // src/landing/BLOG_IMAGE_GUIDE.md here as hero:'...'.
+    // Hero: GPT Image 2.5 Flare, the guide's prompt, attempt 1 of 4 (owner GO 2026-11-02), fitted to 16:5.6 at 2x offline.
+    hero:'The White Rabbit, Alice, the Cheshire Cat, the Mad Hatter and the Caterpillar as a faded engraving, walking in a line toward the edge of the page.',
     body:`<p>Rabbit Hole started as a fix for how I learn. Not a product idea, a personal one. I was spending more time keeping track of what I had learned than learning it.</p>
       <h2>The README I kept writing</h2>
       <p>For years my way of learning anything was the same: start with a course on Coursera or Udemy, or with the slides from a class, then watch the hours of video with my iPad open and take notes. Pause to read blog posts and watch YouTube videos that explained the same thing a different way, and code along with the instructor or do the exercises afterwards. At the end, write a README on GitHub with everything I had learned.</p>
