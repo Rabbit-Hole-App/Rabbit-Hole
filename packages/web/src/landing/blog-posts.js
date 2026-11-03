@@ -14,7 +14,7 @@ export const stories=[
       <p>For years my way of learning anything was the same: start with a course on Coursera or Udemy, or with the slides from a class, then watch the hours of video with my iPad open and take notes. Pause to read blog posts and watch YouTube videos that explained the same thing a different way, and code along with the instructor or do the exercises afterwards. At the end, write a README on GitHub with everything I had learned.</p>
       <p>The README mattered for three reasons:</p>
       <blockquote>I would not forget the material, and I could go back to it, it was a portfolio, proof of what I knew, and other people could learn from it.</blockquote>
-      <p>This also took a long time. Getting the pictures, the links and the code into a .md file, structuring it, reviewing it: all of this was its own project. Soon enough I realized where the whole system broke.</p>
+      <p>This also took a long time. Writing the notes, getting the pictures, the links and the code into a .md file, structuring it, reviewing it: all of this was its own project. Soon enough I realized where the whole system broke.</p>
       <h2>Two problems I kept hitting</h2>
       <ol>
         <li><b>Everything was scattered.</b> The course lived on one website, the videos on YouTube, the blog posts in twenty tabs, the code on my laptop and then on GitHub. I put references in each README, but by the second post I could no longer trace which sources I had used for the first, or how they connected.</li>
