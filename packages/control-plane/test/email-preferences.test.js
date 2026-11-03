@@ -319,6 +319,11 @@ test('(g, h) after a failed attempt and a retry, an unrelated edit still leaves 
 test('essential email is never gated by these choices: the sign-in, invitation and budget-alert code does not read them', () => {
   const src = f => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8');
   for (const file of ['auth.js', 'cad-budget-alert.js', 'canvas-members.js']) assert.doesNotMatch(src(file), /email-preferences|marketingRecipient|sendDecision/, `${file} sends essential email`);
+  // index.js holds the other essential senders (invitations, the budget alert call sites): its only use of this feature is the unsubscribe route.
+  const index = src('index.js');
+  assert.equal((index.match(/from '\.\/email-preferences[^']*'/g) || []).length, 1, 'index.js imports only handleUnsubscribe');
+  assert.match(index, /import \{ handleUnsubscribe \} from '\.\/email-preferences-store\.js';/);
+  assert.doesNotMatch(index, /marketingRecipient|sendDecision|unsubscribeUrl/);
   assert.deepEqual([...CATEGORIES], ['updates', 'newsletter'], 'the gate names only the two optional categories');
   assert.equal(sendDecision({ category: 'signin', preference: { enabled: true, affirmative: true }, address: 'a@b.test' }).send, false, 'it is no gate for anything else, and nothing essential calls it');
 });

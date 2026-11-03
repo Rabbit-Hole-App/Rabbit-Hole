@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,7 +28,13 @@ const html = B.renderToStaticMarkup(B.createElement(B.ChooseHandle, { onDone() {
 const box = category => html.match(new RegExp(`<input[^>]*data-email-choice="${category}"[^>]*>`))?.[0] ?? '';
 
 test('both boxes are shown checked, each with its own label and plain description, and neither is required', () => {
-  assert.equal(calls.length, 0, 'displaying the form sends nothing');
+  assert.equal(calls.length, 0, 'rendering makes no request');
+  // A static render runs no effects, so the source is checked too: the only saveProfile call is inside the submit handler, never an effect.
+  const gate = readFileSync(new URL('./HandleGate.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const submit = gate.slice(gate.indexOf('const submit = async event'), gate.indexOf('const problem ='));
+  assert.equal((gate.match(/saveProfile\(/g) || []).length, 1, 'ChooseHandle saves in exactly one place');
+  assert.ok(submit.includes('saveProfile({ handle: checked.handle, emailPreferences: onboardingSubmission(choices) })'), 'and that place is the Continue handler');
+  assert.doesNotMatch(gate.slice(gate.indexOf('export function ChooseHandle')), /useEffect/, 'no effect in ChooseHandle can save the boxes');
   for (const category of CATEGORIES) {
     assert.match(box(category), /type="checkbox"/);
     assert.match(box(category), /checked=""/, `${category} starts checked`);
