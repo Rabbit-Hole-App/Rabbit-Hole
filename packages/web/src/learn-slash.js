@@ -59,7 +59,7 @@ export const EXAMPLES = {
   // The exact request that made the window's real Motion clip (job 8a2015a4, slash-sheet.js MOTION_CLIP).
   motion: '/motion 15s explain me softmax func',
   cad: '/cad a 60 x 40 x 5 mm plate with four 4 mm through holes and a centred 20 x 10 mm pocket, 3 mm deep',
-  // The window's /animation preview is the saved scene made from this line (animation3d/pendulum-demo.js).
+  // The window's first /animation example is the saved scene made from this line (animation3d/pendulum-demo.js); slash-sheet.js ANIMATION_OPTIONS has the others.
   animation: '/animation Let me change the length of a pendulum from 0.5 to 3 metres and see how its period changes, with the period shown as a number.', '3d': '/3d perspective projection: a camera frustum with a cube inside it and a ray',
   browser: '/browser https://jalammar.github.io/illustrated-transformer/',
   image: '/photos cat', youtube: '/youtube attention in transformers step by step 3blue1brown', arxiv: '/arxiv 1706.03762',

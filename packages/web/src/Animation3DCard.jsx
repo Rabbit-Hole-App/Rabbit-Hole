@@ -12,6 +12,7 @@ import {
 } from './animation3d/card.js';
 import { ANIMATION_FIXTURES } from './animation3d/fixtures.js';
 import { pendulumDemo } from './animation3d/pendulum-demo.js';
+import { LEARNING_EXAMPLES } from './animation3d/learning-examples.js';
 import { cancelAnimationJob, createAnimationSaver, hydrateAnimation, landHydration, nextView, resumeAnimationJob, settleAnimationJob } from './animation3d/storage.js';
 import { createAnimationRuntime } from './animation3d/runtime.js';
 import { createAnimationRenderer } from './animation3d/renderer.js';
@@ -44,7 +45,7 @@ export const sceneLoader = ({ context: contextOf, readArtifact, latest }) => asy
   const context = contextOf(); // read at load time: the canvas's board id can arrive after the card mounts
   const name = fixtureIdOf(block);
   if (name) {
-    const fixture = [...ANIMATION_FIXTURES, pendulumDemo].find(entry => entry.name === name);
+    const fixture = [...ANIMATION_FIXTURES, pendulumDemo, ...LEARNING_EXAMPLES].find(entry => entry.name === name);
     if (!fixture) throw Object.assign(new Error('This example is not available.'), { retry: false });
     return { artifact: structuredClone(fixture.artifact), sim: null, view: null };
   }
@@ -271,7 +272,7 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
   const primaryReadout = state.readouts.find(item => item.id === lead?.readout) ?? null;
   const moves = model && show.game && !lead.primary; // a game's moves lead: drawn before any setting
   const resetScene = () => { setHintOpen(false); live.reset(); };
-  const fixture = model?.fixture || !!fixtureIdOf(block), isDemo = fixtureIdOf(block) === pendulumDemo.name;
+  const fixture = model?.fixture || !!fixtureIdOf(block), isDemo = fixtureIdOf(block) === pendulumDemo.name, inPalette = ANIMATION_FIXTURES.some(entry => entry.name === fixtureIdOf(block));
   const poster = state.poster;
   const runtimeReady = state.runtime === 'ready';
   const values = state.pending ?? state.inputs;
@@ -315,7 +316,7 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
         <div data-animation-fixture-note className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-2" onPointerDown={event => event.stopPropagation()}>
           <span>{isDemo ? SAVED_DEMO_NOTE : FIXTURE_NOTE}</span>
           {/* An example card switches among the built-in examples (M1 try-it path); a saved generated card never shows this. */}
-          {fixtureIdOf(block) && !isDemo && (
+          {inPalette && (
             <label className="inline-flex items-center gap-1.5">
               <span>Example</span>
               <select data-animation3d-example value={fixtureIdOf(block)} disabled={readOnly}

@@ -98,6 +98,38 @@ const ATTENTION = {
 // Pexels, as on the canvas.
 const CAT = PHOTOS.photos.map(photo => ({ src: photo.src, alt: photo.alt, credit: { photographer: photo.photographer, url: photo.url } }));
 
+// /animation's examples in the window (owner 2026-11-02): what the command can make, by experience. The pendulum is the real scene /animation
+// made from its request (animation3d/pendulum-demo.js). The others are written by hand (animation3d/learning-examples.js), say so, and
+// each request describes its scene; Use example asks /animation to make its own from that line.
+const HAND_WRITTEN = 'Written by hand to show this kind of scene, not generated from this request.';
+const animationOption = (id, name, kind, subject, fixtureId, title, request, note, description) => ({ id, name, kind, subject, request, note,
+  block: { type: 'animation3d', title, fixtureId }, brief: { title, description, settings: { experience: kind.toLowerCase() } } });
+export const ANIMATION_OPTIONS = [
+  animationOption('pendulum', 'Pendulum', 'Experiment', 'Physics', 'pendulum-length-period', 'Pendulum length and period',
+    '/animation Let me change the length of a pendulum from 0.5 to 3 metres and see how its period changes, with the period shown as a number.',
+    'A real scene made by /animation from this request, saved. Change the length to try it.',
+    'A pendulum whose length you change from 0.5 to 3 metres, with its period shown as a number.'),
+  animationOption('temperature', 'Temperature', 'Experiment', 'LLMs', 'softmax-temperature', 'Softmax temperature and next words',
+    '/animation Let me change the softmax temperature over five next-word logits and see the probabilities, the top word and the entropy.',
+    `${HAND_WRITTEN} Change the temperature to try it.`,
+    'Bars for five next-word probabilities from fixed logits, with a temperature control and readouts of the top word\'s probability and the entropy.'),
+  animationOption('gradient', 'Gradient descent', 'Experiment', 'ML', 'gradient-descent-bowl', 'Gradient descent on a loss bowl',
+    '/animation Let me change the learning rate of gradient descent on a loss bowl and see slow, good and diverging steps, with the loss shown.',
+    `${HAND_WRITTEN} Try learning rates of 0.05, 0.2 and 0.55.`,
+    'Twelve gradient descent steps on a quadratic loss bowl, with a learning rate control that shows slow, good and diverging behaviour.'),
+  animationOption('perceptron', 'Teach a neuron', 'Game', 'Neural networks', 'perceptron-and-game', 'Teach a neuron AND',
+    '/animation A game: train one perceptron on the AND examples, choosing which example to train on, and get all four right within 7 updates.',
+    `${HAND_WRITTEN} Choose examples to train on, and win within 7 updates.`,
+    'A game with the perceptron rule: choose which example to train on until the neuron answers all four cases of AND, within 7 updates.'),
+  animationOption('predator-prey', 'Predator and prey', 'Watch', 'Biology', 'predator-prey-cycle', 'Predator and prey cycle',
+    '/animation Show one Lotka-Volterra predator and prey cycle, with both populations over time and the predator peak following the prey peak.',
+    `${HAND_WRITTEN} Press Play to watch it.`,
+    'One loop of the Lotka-Volterra equations, showing both populations over time and the predator peak following the prey peak.'),
+];
+// A preview as it shows one of its options (option id; null: the first): that option's scene, note and brief. A preview without options is itself.
+export const optionOf = (preview, id) => preview?.options?.find(option => option.id === id) ?? preview?.options?.[0] ?? null;
+export const withOption = (preview, option) => (option ? { ...preview, block: option.block, note: option.note, brief: option.brief } : preview);
+
 export const PREVIEWS = {
   // size: about 660 px wide (owner, 2026-10-29), the drawing fitted whole inside it (ProgramScene programExample).
   explain: { kind: 'card', card: 'animation', block: COOLING.block, program: COOLING.result, size: () => ({ width: 660, height: 620 }), note: 'A saved answer made by /explain for this request.' },
@@ -132,8 +164,8 @@ export const PREVIEWS = {
     alt: IMAGE_EXAMPLE.prompt, caption: '', credit: { photographer: 'generated illustration', url: '' } }, note: 'A real image made by /image from this prompt, saved.' },
   motion: { kind: 'card', card: 'videoGenerate', block: SAMPLES.motion.videoGenerate, note: 'A real Motion video, made from this example.' },
   cad: { kind: 'card', card: 'cad', block: CAD_PLATE.block, note: 'A real model made by /cad. Interact to orbit and zoom it.' },
-  // /animation: the saved pendulum scene /animation made from this request (animation3d/pendulum-demo.js; owner 2026-11-02).
-  animation: { kind: 'card', card: 'animation3d', block: { type: 'animation3d', title: 'Pendulum length and period', fixtureId: 'pendulum-length-period' }, note: 'A real scene made by /animation from this request, saved. Change the length to try it.' },
+  // /animation: a choice of examples, one per experience (ANIMATION_OPTIONS); the first is the saved pendulum.
+  animation: { kind: 'card', card: 'animation3d', block: ANIMATION_OPTIONS[0].block, note: ANIMATION_OPTIONS[0].note, options: ANIMATION_OPTIONS },
   '3d': { kind: 'card', card: 'scene', block: SAMPLES['3d'].scene, viewer: true },
   browser: { kind: 'webpage', block: { type: 'webpage', id: 'slash-help-browser', url: WEBPAGE.manifest.url, title: WEBPAGE.result.title, capture: WEBPAGE.result.capture, fileRef: WEBPAGE.result.fileRef, scrollTop: 1480 },
     // scrollTop: opens at the article's first section, "A High-Level Look", and its first diagram (capture px 1480); the title stays in
@@ -166,14 +198,13 @@ export const BRIEFS = {
   cad: { title: CAD_PLATE.brief.title, description: 'A 60 × 40 × 5 mm plate with four 4 mm through holes and a centred 20 × 10 mm pocket, 3 mm deep, cut from the top face.',
     settings: { units: CAD_PLATE.brief.units, parameters: CAD_PLATE.brief.parameters },
     groups: { parameters: { legend: 'Parameters', defs: Object.entries(CAD_PLATE.brief.parameters).map(([id, value]) => ({ id, label: id.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase()), unit: 'mm', display: `${value} mm`, tag: 'Requested' })) } } },
-  animation: { title: 'Pendulum length and period', description: 'A pendulum whose length you change from 0.5 to 3 metres, with its period shown as a number.', settings: { experience: 'experiment' } },
+  animation: ANIMATION_OPTIONS[0].brief,
   '3d': { title: 'Perspective projection', description: 'A camera frustum, a cube inside it and a ray showing their spatial relationship.' },
 };
 
 // The logical proposal the confirmation card draws for a brief (schema proposalView's shape), with no action allowed: Generate shows
 // disabled and there is no Edit, Save or Cancel. No price is stated (a help brief has no quote) and no validation runs.
-export function briefView(name, example) {
-  const brief = BRIEFS[name];
+export function briefView(name, example, brief = BRIEFS[name]) {
   if (!brief) return null;
   return {
     schema_version: 1, proposal_id: `slash-help-${name}`, revision: 1, command: name, original_request: example, title: brief.title, description: brief.description,

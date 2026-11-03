@@ -742,3 +742,50 @@ test('the Slash Commands demo: the saved pendulum runs, says it was made by /ani
   assert.equal($('[data-animation3d-example]'), null);
   assert.equal(card().querySelector('[data-animation-failure]'), null);
 });
+
+test('the Slash Commands hand-written examples: each runs, is labelled not generated, and is not in the examples picker', async () => {
+  const { LEARNING_EXAMPLES } = await import('./animation3d/learning-examples.js');
+  for (const { name, artifact } of LEARNING_EXAMPLES) {
+    await mount({ block: { id: name, type: 'animation3d', title: artifact.title, fixtureId: name } });
+    assert.equal($('[data-animation-fixture]').textContent, 'Example', name);
+    assert.match($('[data-animation-fixture-note]').textContent, /not generated from a request/, name);
+    assert.equal($('[data-animation3d-example]'), null, name);
+    assert.equal(card().querySelector('[data-animation-failure]'), null, name);
+    assert.ok(Object.keys(raw()).length > 0, `${name} shows its readouts`);
+    noEllipsis();
+  }
+});
+
+test('softmax temperature on the card: the temperature moves the readouts', async () => {
+  await mount({ block: { id: 't1', type: 'animation3d', fixtureId: 'softmax-temperature' } });
+  assert.equal($('[data-animation-badge]').textContent, 'Experiment');
+  assert.ok(Math.abs(raw().topProbability - 60.7) < 0.1, `T = 1: ${raw().topProbability}`);
+  await type($('[data-animation-number="temperature"]'), '0.1');
+  assert.ok(raw().topProbability > 99.9 && raw().entropy < 0.01, JSON.stringify(raw()));
+  await type($('[data-animation-number="temperature"]'), '5');
+  assert.ok(raw().topProbability < 35 && raw().entropy > 2.1, JSON.stringify(raw()));
+  await press($('[data-animation-reset]'));
+  assert.ok(Math.abs(raw().topProbability - 60.7) < 0.1, 'Reset experiment restores T = 1');
+});
+
+test('the neuron game on the card: hint, win by the hinted route, ignored moves, loss and reset', async () => {
+  await mount({ block: { id: 'p1', type: 'animation3d', fixtureId: 'perceptron-and-game' } });
+  assert.equal($('[data-animation-badge]').textContent, 'Mini-game');
+  assert.match($('[data-animation-goal]').textContent, /within 7 updates/);
+  assert.deepEqual($$('[data-animation-action]').map(node => node.textContent), ['Train (0,0)', 'Train (0,1)', 'Train (1,0)', 'Train (1,1)']);
+  assert.match($('[data-animation-outcome]').textContent, /1 of 4 answers wrong/);
+  await press($('[data-animation-hint]'));
+  assert.match($('[data-animation-hint-text]').textContent, /Begin with \(1,1\), then \(0,0\)/);
+  for (const move of [3, 0, 1, 3, 2]) await press($(`[data-animation-action="train${move}"]`));
+  assert.equal($('[data-animation-game]').getAttribute('data-animation-game'), 'won');
+  assert.match($('[data-animation-outcome]').textContent, /All four correct in 5 updates/);
+  assert.equal(raw().updatesLeft, 2);
+  await press($('[data-animation-action="train0"]'));
+  assert.equal(raw().updatesLeft, 2, 'a move after winning is ignored');
+  await press($('[data-animation-reset]'));
+  for (let i = 0; i < 7; i += 1) await press($('[data-animation-action="train0"]'));
+  assert.equal($('[data-animation-game]').getAttribute('data-animation-game'), 'lost');
+  assert.match($('[data-animation-outcome]').textContent, /Out of updates/);
+  await press($('[data-animation-reset]'));
+  assert.equal(raw().updatesLeft, 7);
+});

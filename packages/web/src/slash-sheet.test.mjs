@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { EXAMPLES, parseSlash, pickerSections } from './learn-slash.js';
-import { BRIEFS, BRIEF_COMMANDS, CAD_EXAMPLE, COOLING_EXAMPLE, IMAGE_EXAMPLE, MOTION_CLIP, NOTEBOOK_EXAMPLE, PREVIEWS, SAMPLES, SAMPLE_NOTE, WEBPAGE_EXAMPLE, WIKI_EXAMPLE, YOUTUBE_EXAMPLE, briefView, previewBlock, previewOf } from './slash-sheet.js';
+import { ANIMATION_OPTIONS, BRIEFS, BRIEF_COMMANDS, CAD_EXAMPLE, COOLING_EXAMPLE, IMAGE_EXAMPLE, MOTION_CLIP, NOTEBOOK_EXAMPLE, PREVIEWS, SAMPLES, SAMPLE_NOTE, WEBPAGE_EXAMPLE, WIKI_EXAMPLE, YOUTUBE_EXAMPLE, briefView, optionOf, previewBlock, previewOf, withOption } from './slash-sheet.js';
 import { resolveProgram } from './explain-program/program-card.js';
 import { cadArtifact } from './cad-client.js';
 import { inspectGlb as inspectModel } from './three-d-asset.js';
@@ -295,7 +295,7 @@ test('measured fit: the stage is measured and the card is capped by it, never dr
   assert.match(stage, /data-slash-stage/);
   assert.doesNotMatch(sheet + stage, /overflow-auto/, 'no outer scroller around the preview');
   // One example at a time: the brief and the result share the stage.
-  assert.match(sheet, /<SlashCommandPreview key=\{`\$\{name\}:\$\{showing\}`\}/);
+  assert.match(sheet, /<SlashCommandPreview key=\{`\$\{name\}:\$\{showing\}:\$\{option\?\.id \?\? ''\}`\}/);
   // Geometry targets (section 7.2): 16px margin and padding, at most 1120px wide, a 224px command column, a 16px gap, 12px pane padding.
   assert.match(sheet, /h-\[calc\(100dvh-32px\)\] w-\[min\(1120px,calc\(100vw-32px\)\)\]/);
   assert.match(sheet, /className="flex w-56 shrink-0 flex-col"/);
@@ -327,4 +327,49 @@ test('the window search filters by name and title, ignores a leading /, and can 
   assert.match(sheet, /if \(event\.key === 'Enter' && shown\.length\) \{ event\.preventDefault\(\); choose\(shown\[0\]\.items\[0\]\.name\); \}/);
   assert.match(sheet, /if \(latest\.current\.query\) setQuery\(''\); else latest\.current\.onClose\(\);/);
   assert.match(sheet, />No commands match</);
+});
+
+test('/animation offers a choice of examples: experiment, game and watch across physics, AI and biology, each with its own truthful request, scene and brief', async () => {
+  const { pendulumDemo, PENDULUM_DEMO_REQUEST } = await import('./animation3d/pendulum-demo.js');
+  const { LEARNING_EXAMPLES } = await import('./animation3d/learning-examples.js');
+  const { ANIMATION_FIXTURES } = await import('./animation3d/fixtures.js');
+  const options = PREVIEWS.animation.options, scenes = [pendulumDemo, ...LEARNING_EXAMPLES];
+  assert.equal(options, ANIMATION_OPTIONS);
+  assert.deepEqual(options.map(option => [option.id, option.kind, option.subject]), [['pendulum', 'Experiment', 'Physics'], ['temperature', 'Experiment', 'LLMs'], ['gradient', 'Experiment', 'ML'], ['perceptron', 'Game', 'Neural networks'], ['predator-prey', 'Watch', 'Biology']]);
+  assert.equal(new Set(options.map(option => option.request)).size, options.length);
+  options.forEach((option, index) => {
+    const scene = scenes[index], { artifact, plan } = scene;
+    assert.equal(option.block.fixtureId, scene.name);
+    assert.equal(option.block.title, artifact.title);
+    assert.equal(option.kind.toLowerCase(), artifact.experience);
+    assert.equal(option.brief.title, artifact.title);
+    assert.equal(option.brief.settings.experience, artifact.experience);
+    assert.ok(parseSlash(option.request).args.length > 20, option.id);
+    assert.equal(parseSlash(option.request).name ?? 'animation', 'animation');
+    const view = briefView('animation', option.request, option.brief);
+    assert.deepEqual([view.title, view.original_request, view.allowed_actions], [artifact.title, option.request, []]);
+    assert.doesNotMatch(JSON.stringify([option.name, option.request, option.note, option.brief, plan.title]), /…|\.\.\./);
+    assert.doesNotMatch(artifact.title + option.request, /\bball\b/i, 'no toy ball scene');
+  });
+  // The pendulum is the real saved scene from its real request; every other one says it was written by hand and claims no generation.
+  assert.equal(EXAMPLES.animation, options[0].request);
+  assert.equal(options[0].request, `/animation ${PENDULUM_DEMO_REQUEST}`);
+  assert.equal(pendulumDemo.artifact.provenance.origin, 'generated');
+  assert.match(options[0].note, /^A real scene made by \/animation from this request/);
+  for (const option of options.slice(1)) assert.match(option.note, /^Written by hand to show this kind of scene, not generated from this request\./, option.id);
+  for (const { artifact } of LEARNING_EXAMPLES) assert.equal(artifact.provenance.origin, 'fixture');
+  // The moon, beam and grid scenes stay out of the window and in the Insert palette's picker.
+  for (const fixture of ANIMATION_FIXTURES) assert.ok(!options.some(option => option.block.fixtureId === fixture.name), fixture.name);
+  assert.deepEqual(ANIMATION_FIXTURES.map(fixture => fixture.name), ['orbit-watch', 'beam-balance-experiment', 'grid-robot-game']);
+  // An option replaces the scene, the note and the brief, and leaves the rest of the preview; no option: the preview itself.
+  assert.equal(optionOf(PREVIEWS.animation, null), options[0]);
+  assert.equal(optionOf(PREVIEWS.animation, 'predator-prey'), options[4]);
+  assert.equal(optionOf(PREVIEWS.quiz, 'x'), null);
+  assert.equal(withOption(PREVIEWS.quiz, null), PREVIEWS.quiz);
+  const chosen = withOption(PREVIEWS.animation, options[3]);
+  assert.deepEqual([chosen.card, chosen.block, chosen.note, chosen.brief], ['animation3d', options[3].block, options[3].note, options[3].brief]);
+  // The window: the example line, Use example and the stage all follow the choice, and a different example draws a new card.
+  assert.match(sheet, /const example = option \? option\.request : name \? EXAMPLES\[name\] : '';/);
+  assert.match(sheet, /key=\{`\$\{name\}:\$\{showing\}:\$\{option\?\.id \?\? ''\}`\}/);
+  assert.match(sheet, /parseSlash\(example\)\?\.args/);
 });

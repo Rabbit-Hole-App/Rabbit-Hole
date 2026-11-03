@@ -6,7 +6,7 @@ import { CommandMark } from './CommandTone.jsx';
 import { filterSections } from './command-search.js';
 import { Button, Input } from './ui.jsx';
 import SlashCommandPreview from './SlashCommandPreview.jsx';
-import { BRIEF_COMMANDS, SAMPLE_NOTE, previewOf } from './slash-sheet.js';
+import { BRIEF_COMMANDS, SAMPLE_NOTE, optionOf, previewOf, withOption } from './slash-sheet.js';
 
 // View > Slash Commands (owner spec 2026-10-29 section 7): every command the picker offers, in the picker's own sections
 // (learn-slash.js pickerSections, so the window and the picker never disagree), with its title, one-sentence description, example
@@ -14,6 +14,7 @@ import { BRIEF_COMMANDS, SAMPLE_NOTE, previewOf } from './slash-sheet.js';
 // composer as an editable draft - its command pill and its words - and never sends; a draft already written is kept (chat-draft.js
 // prepare). A generator shows its finished result, and View brief switches the same stage to its brief. Below 900px the command
 // column becomes a search and a selector above the preview. Esc clears a typed search, then closes; focus returns to where it was.
+// A command with several examples (slash-sheet.js options) offers a choice among them: each has its own request, preview and brief.
 export const TITLE = 'Slash Commands';
 export const SUBTITLE = 'Choose a command to see what it does and try an example.';
 export const FIND = 'Find a command';
@@ -26,6 +27,28 @@ const Find = ({ className = '', ...props }) => (
     <Input type="search" autoFocus data-slash-search className="pl-8 text-sm max-sm:h-11" {...props} />
   </label>
 );
+// The choice among a command's examples: buttons naming each example and its experience, or a selector on a narrow window.
+function ExampleChoice({ options, value, narrow = false, onChoose }) {
+  if (narrow) {
+    return (
+      <select aria-label="Example" data-slash-option-select value={value} onChange={event => onChoose(event.target.value)}
+        className="mt-2 h-11 w-full shrink-0 cursor-pointer rounded-sm border border-line bg-surface px-2 text-sm text-ink">
+        {options.map(option => <option key={option.id} value={option.id}>{`${option.name} · ${option.kind}, ${option.subject}`}</option>)}
+      </select>
+    );
+  }
+  return (
+    <div role="group" aria-label="Example" data-slash-options className="ml-auto flex flex-wrap items-center gap-1.5">
+      {options.map(option => (
+        <button key={option.id} type="button" data-slash-option={option.id} aria-pressed={option.id === value} title={`${option.kind}, ${option.subject}`} onClick={() => onChoose(option.id)}
+          className="flex flex-col rounded-lg border border-line bg-surface px-2 py-0.5 text-left text-xs leading-4 text-ink hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent aria-pressed:border-ink aria-pressed:bg-hover aria-pressed:font-medium">
+          <span>{option.name}</span>
+          <span className="text-[11px] leading-[14px] font-normal text-ink-2">{option.kind}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 function useNarrow() {
   const query = () => { try { return window.matchMedia(NARROW).matches; } catch { return false; } };
   const [narrow, setNarrow] = useState(query);
@@ -46,10 +69,11 @@ export default function SlashCommandsSheet({ appName, onClose, onUseExample = nu
   const [name, setName] = useState(first);
   const [query, setQuery] = useState('');
   const [view, setView] = useState('result');
+  const [optionId, setOptionId] = useState(null);
   const narrow = useNarrow();
   const dialog = useRef(null);
   const shown = filterSections(sections, query);
-  const choose = next => { setName(next); setView('result'); };
+  const choose = next => { setName(next); setView('result'); setOptionId(null); };
   // Focus goes back where it was when the window closes.
   useLayoutEffect(() => {
     const opener = document.activeElement;
@@ -72,8 +96,9 @@ export default function SlashCommandsSheet({ appName, onClose, onUseExample = nu
     return () => window.removeEventListener('keydown', key);
   }, []);
   const command = name ? toolOf(name) : null;
-  const preview = name ? previewOf(name) : null;
-  const example = name ? EXAMPLES[name] : '';
+  const option = name ? optionOf(previewOf(name), optionId) : null;
+  const preview = name ? withOption(previewOf(name), option) : null;
+  const example = option ? option.request : name ? EXAMPLES[name] : '';
   const generator = BRIEF_COMMANDS.includes(name);
   // A generator with no matching saved result shows its brief, and says why.
   const resultless = generator && preview?.kind === 'none';
@@ -132,8 +157,10 @@ export default function SlashCommandsSheet({ appName, onClose, onUseExample = nu
               <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1">
                 <CommandMark name={name} className="text-[13px]" />
                 <h3 data-slash-label className="text-[18px] leading-6 font-semibold text-ink">{title}</h3>
+                {!narrow && option && <ExampleChoice options={preview.options} value={option.id} onChoose={setOptionId} />}
               </div>
               <p data-slash-about className="mt-1 shrink-0 text-sm text-ink-2">{command.about}</p>
+              {narrow && option && <ExampleChoice narrow options={preview.options} value={option.id} onChoose={setOptionId} />}
               <div className="mt-2 flex shrink-0 flex-wrap items-center gap-2">
                 {/* The example takes the row's free width beside its buttons (wrapping inside it), so the preview starts right below. */}
                 <code data-slash-example className="min-w-0 flex-[1_1_16rem] font-mono text-[13px] leading-[18px] break-words text-ink-2">{example}</code>
@@ -147,7 +174,7 @@ export default function SlashCommandsSheet({ appName, onClose, onUseExample = nu
                 )}
               </div>
               <div className="mt-3 flex min-h-0 flex-1 flex-col">
-                <SlashCommandPreview key={`${name}:${showing}`} name={name} preview={preview} view={showing} example={example} appName={appName} narrow={narrow} />
+                <SlashCommandPreview key={`${name}:${showing}:${option?.id ?? ''}`} name={name} preview={preview} view={showing} example={example} appName={appName} narrow={narrow} />
               </div>
               <p data-slash-sample className="mt-2 shrink-0 text-xs text-ink-3">{SAMPLE_NOTE}{resultless ? ` ${preview.reason}` : preview.note && showing === 'result' ? ` ${preview.note}` : ''}</p>
             </section>
