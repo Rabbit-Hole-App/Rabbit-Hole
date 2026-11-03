@@ -27,7 +27,8 @@ export const ANIMATION_ROLES = Object.freeze({
   brief: Object.freeze({ task: 'animation_brief', maxInputTokens: 40000, maxImages: 0 }),
   author: Object.freeze({ task: 'animation_author', maxInputTokens: 60000, maxImages: 0 }),
   review: Object.freeze({ task: 'animation_review', maxInputTokens: 40000, maxImages: 6 }),
-  repair: Object.freeze({ task: 'animation_repair', maxInputTokens: 40000, maxImages: 2 }),
+  // 50,000: measured on aj_9c453b6 (FX-AN-030), whose repair request counts 44,245 at its worst-case findings; the role's price follows it.
+  repair: Object.freeze({ task: 'animation_repair', maxInputTokens: 50000, maxImages: 2 }),
 });
 
 export const ANIMATION_LIMITS = Object.freeze({

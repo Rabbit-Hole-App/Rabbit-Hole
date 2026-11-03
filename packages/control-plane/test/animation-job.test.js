@@ -90,6 +90,7 @@ test('a rejected review gets exactly one repair, and the repaired artifact is ac
   const { done } = await s.generated();
   assert.equal(done.stage, 'ready');
   assert.deepEqual(s.model.roles(), ['brief', 'author', 'review', 'repair', 'review']);
+  assert.deepEqual(done.candidates.find(c => c.operation === 'artifact').previousDraft.scene, 'beam', 'the draft a repair replaced is kept');
   const reviews = done.findings.filter(f => f.stage === 'reviewing');
   assert.deepEqual(reviews.map(f => f.accepted), [false, true]);
   assert.ok(done.artifact.draft.repaired, 'the accepted artifact is the repaired one');

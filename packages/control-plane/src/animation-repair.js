@@ -6,7 +6,7 @@ import { canonicalJson } from '../../web/src/explain-program/contract.js';
 import { ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM, planNeedsProgram, repairTool } from './agents/animation-author.js';
 import { REVIEW_TOOL } from './explain-review.js';
 import { ANIMATION_ROLES, animationRequest } from './animation-policy.js';
-import { ANIMATION_REVIEW_LIMITS, artifactView, buildReviewContent, loadCaptures, repairableFindings } from './animation-review.js';
+import { ANIMATION_REVIEW_LIMITS, CORRECTION_WORST, buildReviewContent, correctionBlock, loadCaptures, repairableFindings, reviewArtifactView } from './animation-review.js';
 import { enabledCapabilities } from './animation-brief.js';
 import { modelEvidence } from './explain-evidence.js';
 
@@ -67,14 +67,15 @@ export async function repairStage(job, ctx) {
 // image, trace and finding sizes. tasks: the job's task table. draft: the candidate as written, which is what a repair is sent
 // (repairStage); without one, the artifact's own draft form.
 export function fitProblems(env, artifact, job, tasks, draft = null) {
-  const out = [], size = new TextEncoder().encode(JSON.stringify(artifactView(artifact))).length + new TextEncoder().encode(artifact.program?.source ?? '').length;
+  const out = [], size = new TextEncoder().encode(JSON.stringify(reviewArtifactView(artifact, draft))).length + new TextEncoder().encode(artifact.program?.source ?? '').length;
   const tooBig = role => out.push(`this artifact (${size} bytes with its program) is too large for the ${role === 'review' ? 'independent review' : 'repair'} request: use fewer nodes, shorter labels or a shorter program`);
   const fake = n => Array.from({ length: n }, (_, i) => ({ id: `v${i}`, artifactHash: 'h', data: 'AAAA', mediaType: 'image/png' }));
   const per = Math.floor(ANIMATION_REVIEW_LIMITS.traceBytes / ANIMATION_ROLES.review.maxImages) - 32;
   try {
     const captures = fake(ANIMATION_ROLES.review.maxImages).map(c => ({ ...c, trace: { pad: 'x'.repeat(per) } }));
-    const { content } = buildReviewContent({ request: job.prompt, plan: job.plan, artifact, artifactHash: 'h', captures, evidence: job.evidence || [], coverage: { sampled: [], omitted: ['x'.repeat(ANIMATION_REVIEW_LIMITS.coverageChars)] } });
-    animationRequest(env, 'review', { system: ANIMATION_REVIEW_SYSTEM, tool: REVIEW_TOOL, content }, tasks);
+    const { content } = buildReviewContent({ request: job.prompt, plan: job.plan, artifact, artifactHash: 'h', captures, evidence: job.evidence || [], coverage: { sampled: [], omitted: ['x'.repeat(ANIMATION_REVIEW_LIMITS.coverageChars)] }, draft });
+    // With the one correction a malformed report may need: the largest review request this candidate can cause.
+    animationRequest(env, 'review', { system: ANIMATION_REVIEW_SYSTEM, tool: REVIEW_TOOL, content: [...content, correctionBlock(CORRECTION_WORST)] }, tasks);
   } catch (error) { if (error?.code === 'input_too_large') tooBig('review'); else throw error; }
   try {
     const failure = { problems: Array(REPAIR_FORWARD.problems).fill('p'.repeat(REPAIR_FORWARD.text)), findings: Array(REPAIR_FORWARD.findings).fill({ category: 'spec', severity: 'major', target: { capture: 'v0', object: 'o'.repeat(64) }, message: 'm'.repeat(REPAIR_FORWARD.text) }) };

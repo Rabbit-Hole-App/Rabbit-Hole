@@ -536,8 +536,8 @@ test('the saved FX-AN-025 game candidate fits its repair request as drafted; the
   const out = await validateStage(job, { env: {} });
   assert.ok(!(out.problems || []).some(p => /too large/.test(p)), JSON.stringify(out.problems));
   assert.ok(out.artifact, 'the candidate validates');
-  // Before: measured from the parsed artifact, the same candidate was refused.
-  assert.match(fitProblems({}, out.artifact, job).join(' '), /too large for the repair request/);
+  // Measured from the parsed artifact it is much larger: why the repair is sent the draft (FX-AN-030 checks the bound itself).
+  assert.ok(JSON.stringify(out.artifact).length > JSON.stringify(job.draft).length + 3000);
   // The repair stage sends the draft as written, with its program source unchanged.
   let sent = null;
   const ctx = { env: {}, call: async (role, request) => { sent = request; return { input: { operation: 'none', reason: 'test' } }; } };

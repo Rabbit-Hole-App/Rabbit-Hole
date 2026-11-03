@@ -725,7 +725,8 @@ export class AnimationJobs {
       if (out.accepted === true) return this.accept(job);
       return this.repairOrStop(job, out, 'review');
     } else if (stage === 'repairing') {
-      job.candidates.push({ repairs: job.repairs, operation: out.operation || null, progress: out.progress !== false, ...(out.draft ? { draftHash: await hash16(out.draft), hasProgram: !!out.draft.program } : {}), ...(out.inputKeys ? { inputKeys: out.inputKeys } : {}), ...(out.artifactKeys ? { artifactKeys: out.artifactKeys } : {}), ...(out.rejected ? { rejected: out.rejected } : {}) });
+      // The draft this repair replaced (diagnostics only): FX-AN-030's first draft was lost when its repair overwrote it.
+      job.candidates.push({ repairs: job.repairs, ...(job.draft ? { previousDraft: job.draft } : {}), operation: out.operation || null, progress: out.progress !== false, ...(out.draft ? { draftHash: await hash16(out.draft), hasProgram: !!out.draft.program } : {}), ...(out.inputKeys ? { inputKeys: out.inputKeys } : {}), ...(out.artifactKeys ? { artifactKeys: out.artifactKeys } : {}), ...(out.rejected ? { rejected: out.rejected } : {}) });
       if (out.rejected) return this.stopWith(job, 'unsupported_repair', 'spec', 'This animation needs a change the repair step cannot make. Edit the request and try again.');
       if (out.progress === false || !out.draft) return this.stopWith(job, 'no_progress', 'spec', 'The animation could not be repaired. Edit the request and try again.');
       Object.assign(job, { draft: out.draft, artifact: null, artifactHash: null, captures: null, coverage: null });

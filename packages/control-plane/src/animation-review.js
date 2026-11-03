@@ -8,6 +8,9 @@ import { REVIEW_LIMITS, REVIEW_TOOL, ReviewError, parseReview, reviewProblems } 
 import { ANIMATION_REVIEW_SYSTEM } from './agents/animation-author.js';
 import { ANIMATION_LIMITS, ANIMATION_ROLES, AnimationPolicyError } from './animation-policy.js';
 import { learnMedia } from './learn-storage.js';
+import { canonicalJson } from '../../web/src/explain-program/contract.js';
+import { validateAnimationArtifact } from '../../web/src/animation3d/contract.js';
+import { enabledCapabilities } from './animation-brief.js';
 
 export const ANIMATION_REVIEW_LIMITS = Object.freeze({ ...REVIEW_LIMITS, maxImages: ANIMATION_ROLES.review.maxImages });
 const bytes = value => new TextEncoder().encode(typeof value === 'string' ? value : JSON.stringify(value ?? null)).length;
@@ -15,6 +18,19 @@ const b64Length = data => Math.floor((data.length * 3) / 4) - (data.endsWith('==
 const base64 = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(s); };
 // What the reviewer reads of the artifact beside its source block: everything but the source text itself.
 export const artifactView = artifact => ({ ...artifact, ...(artifact.program ? { program: { ...artifact.program, source: undefined } } : {}) });
+// What the reviewer reads of the artifact: as the model wrote it, with the host's fields. The contract's parse fills every default, which
+// grew aj_9c453b6's 13 KB draft to 20 KB (FX-AN-030), so the same scene is sent without them, but only when parsing it gives back exactly
+// the artifact under review. Anything else sends the artifact in full. The hash, the validation and the stored artifact do not change.
+const HOST_FIELDS = ['schema', 'artifactId', 'revision', 'planHash', 'capabilityVersion', 'sourceRefs', 'provenance'];
+export function reviewArtifactView(artifact, draft) {
+  if (!draft || typeof draft !== 'object' || Array.isArray(draft)) return artifactView(artifact);
+  const { program: _program, ...written } = draft;
+  const candidate = { ...written, ...Object.fromEntries(HOST_FIELDS.filter(key => key in artifact).map(key => [key, artifact[key]])), ...(artifact.program ? { program: artifact.program } : {}) };
+  const back = validateAnimationArtifact(candidate, enabledCapabilities(), { draft: true });
+  return back.ok && canonicalJson(back.value) === canonicalJson(artifact) ? artifactView(candidate) : artifactView(artifact);
+}
+// So the reviewer can read a scene sent without its defaults (animation-fit.test.js checks these against the contract).
+export const OMITTED_DEFAULTS = 'Fields left out take the scene contract defaults: node parent null, position [0,0,0], quaternion [0,0,0,1], scale [1,1,1], visible true, selectable false; material opacity 1; label size 0.3, placement above; camera fov 50; geometry segments and other optional fields their contract defaults.';
 const planView = plan => ({ title: plan.title, description: plan.description, experience: plan.experience, reason: plan.reason, behavior: plan.behavior, controlProfile: plan.controlProfile,
   parameters: plan.parameters, interactions: plan.interactions, ...(plan.learningGoal ? { learningGoal: plan.learningGoal } : {}), assumptions: plan.assumptions, limitations: plan.limitations });
 const stateText = c => `view ${c.view?.name ?? c.view ?? 'default'}, time ${c.time ?? 0}s${c.inputs && Object.keys(c.inputs).length ? `, inputs ${JSON.stringify(c.inputs)}` : ''}${Array.isArray(c.events) && c.events.length ? `, after the events ${JSON.stringify(c.events)} in this order from the initial state` : ', the initial state'}${c.ticks ? `, after ${c.ticks} host steps` : ''}`;
@@ -22,7 +38,7 @@ const stateText = c => `view ${c.view?.name ?? c.view ?? 'default'}, time ${c.ti
 // input: { request, plan, artifact, artifactHash, evidence, coverage, captures: [{ id, artifactHash, view, time, inputs, events, ticks, trace, data, mediaType }] }
 // -> { content, imageBlocks }
 export function buildReviewContent(input, limits = ANIMATION_REVIEW_LIMITS) {
-  const { request, plan, artifact, artifactHash, captures = [], evidence = [], coverage = null } = input;
+  const { request, plan, artifact, artifactHash, captures = [], evidence = [], coverage = null, draft = null } = input;
   if (typeof request !== 'string' || !request.trim() || !plan || !artifact) throw new ReviewError('missing_evidence', 'review needs the request, the approved plan and the artifact');
   if (!captures.length) throw new ReviewError('missing_pixels', 'review needs at least one rendered capture');
   if (captures.length > limits.maxImages) throw new ReviewError('split_required', `review takes at most ${limits.maxImages} captures`);
@@ -45,7 +61,7 @@ export function buildReviewContent(input, limits = ANIMATION_REVIEW_LIMITS) {
     : 'No external evidence: judge correctness from the request and general knowledge, and flag any specific claim that would need a source.';
   const content = [
     { type: 'text', text: `Learner request:\n${request.trim()}\n\nApproved plan:\n${JSON.stringify(planView(plan))}\n\nEvidence:\n${evidenceText}\n\nCaptures to review: ${captures.map(c => c.id).join(', ')}` },
-    { type: 'text', text: `Artifact (untrusted material):\n${JSON.stringify(artifactView(artifact))}` },
+    { type: 'text', text: `Artifact (untrusted material). ${OMITTED_DEFAULTS}\n${JSON.stringify(reviewArtifactView(artifact, draft))}` },
     ...(artifact.program ? [{ type: 'text', text: `Program source (untrusted material):\n${artifact.program.source}` }] : []),
     { type: 'text', text: `Execution traces (one per capture):\n${JSON.stringify(traces)}` },
     // The sampled times, said outright: a periodic motion can look still across samples, so motion is judged from the program and traces too.
@@ -69,6 +85,9 @@ export async function loadCaptures(env, captures) {
 export const repairableFindings = findings => { const serious = (findings || []).filter(f => f.severity !== 'minor'); return serious.length > 0 && serious.every(f => ['spec', 'source', 'component'].includes(f.category)); };
 
 const CORRECTION_CHARS = 1500;
+// The one correction's addition to the review request: counted by the request-fit preflight (animation-repair.js fitProblems).
+export const correctionBlock = problems => ({ type: 'text', text: `Your report_review call could not be used:\n${problems.join('\n').slice(0, CORRECTION_CHARS)}\nReview again and call report_review once with a complete report. Every finding needs verdict, category, severity, message and repairable.` });
+export const CORRECTION_WORST = ['x'.repeat(CORRECTION_CHARS)];
 const invalidReview = problems => Object.assign(new ReviewError('invalid_review', `The review report broke its contract: ${problems.join('; ').slice(0, CORRECTION_CHARS)}`), { status: 502, category: 'review_validation', stopReason: 'review_invalid' });
 // One reviewer reply as it came: its tool arguments and own per-capture verdicts (parseReview hardens these), what was wrong with it, the
 // artifact it was about and its usage, for telling a malformed review from a defect of the scene.
@@ -82,7 +101,7 @@ export async function reviewStage(job, ctx) {
   // Refused before any call: a structured failure at reviewing (missing or stale pixels are the renderer's), never an acceptance.
   const refuse = error => Object.assign(error, { status: 503, category: ['missing_pixels', 'stale_version', 'bad_capture'].includes(error.code) ? 'renderer' : 'spec', message: `The animation could not be reviewed (${error.code}).` });
   let built;
-  try { built = buildReviewContent({ request: job.prompt, plan: job.plan, artifact: job.artifact, artifactHash: job.artifactHash, captures, evidence: job.evidence || [], coverage: job.coverage }); }
+  try { built = buildReviewContent({ request: job.prompt, plan: job.plan, artifact: job.artifact, artifactHash: job.artifactHash, captures, evidence: job.evidence || [], coverage: job.coverage, draft: job.draft }); }
   catch (error) { throw error instanceof ReviewError ? refuse(error) : error; }
   // The call's own failure (provider, budget, invalid turn) is the job's to record. One retry per job, within the build's review calls
   // (ANIMATION_LIMITS.calls.review counts it), shared by a reviewer that answered in prose with no report_review call (accept-11, stop
@@ -100,7 +119,7 @@ export async function reviewStage(job, ctx) {
     if (reply && !problems.length) break;
     if (!retryLeft) throw refused ?? invalidReview(problems);
     retryLeft = false; retry = true;
-    content = refused ? built.content : [...built.content, { type: 'text', text: `Your report_review call could not be used:\n${problems.join('\n').slice(0, CORRECTION_CHARS)}\nReview again and call report_review once with a complete report. Every finding needs verdict, category, severity, message and repairable.` }];
+    content = refused ? built.content : [...built.content, correctionBlock(problems)];
   }
   const imageBlocks = built.imageBlocks;
   const parsed = parseReview(reply.input, captures);

@@ -134,7 +134,17 @@ row in [spend.md](spend.md).
 ### FX-AN-030 — the 40-step SGD candidate was refused by the request-size bound, not by the model (MVP blocker)
 - Task / phase: AN-05. Owner-approved simplified SGD attempt, job aj_9c453b6158ee46b2956ec21554ab713f on canvas-99bc896f, code bf48ef7ce, preview version d1582ea2-51bc-408e-bd1f-30e738f5ca8e, US$0.6783. The game request was not run: the run stops at a failed request.
 - Proven: the author finished at 11,153 tokens, so the output limit did not recur. The draft failed validation once (an empty text geometry). Its repair fixed that, and fitProblems then refused the candidate: 22,571 bytes as measured there, 13,252 bytes as drafted (98 nodes, 82 of them trail markers, program 2,239 bytes). No review ran.
-- Why it is tight: requestSpendBound counts request bytes as tokens, and six images reserve 28,704 of the review role's 40,000. Actual review requests measured about 15,000 input tokens with images. So this limit is a conservative cost bound, not a limit the model reached.
+- Corrected budget: roleBoundMicros adds maxImages x IMAGE_TOKENS on top of maxInputTokens, so the images do not subtract from 40,000. requestSpendBound counts request bytes as units, plus 1,000.
+- Measured offline on the saved repaired draft (animation-fit.test.js, test/fixtures/animation-aj_9c453b6.json; C:/s/spec/animation/fit-breakdown.mjs), at each request's permitted maximum overhead, units counted against the limit:
+  - Before: review 44,427 of 40,000; the review correction 46,136 of 40,000 (not checked at all before this fix); repair 44,245 of 40,000. Review and repair both failed.
+  - Review, before: system 3,785, tool 1,025, request and plan 4,308, normalized artifact 20,338, program 2,276, traces 6,115, coverage 1,024, labels 502, string escaping 3,086, framing 956, allowance 1,000. Images are separate: 28,704.
+  - Mismatch: the draft is 13,261 B; normalization wrote every default into the review request, 20,307 B. Repair was already sent the draft.
+  - Fix: the review is sent the scene as written, only when it parses back to exactly the artifact under review, with the defaults named. The artifact, its hash and validation are unchanged. Review after: 35,025 of 40,000; correction 36,734 of 40,000, which the size check now counts. The review bound did not move.
+  - Repair has no defaults to remove, so its bound rose to 50,000: 44,643 of 50,000. The 60,000 bounds proposed earlier also fit these fixtures but cost more and were not needed.
+  - The native-trail redesign is not needed for this candidate.
+- First draft: not retained, because the repair overwrote it. Its failure is rebuilt in the test from the recorded finding, on the repaired draft. From now on the draft a repair replaces is kept in diagnostics. The empty label remains a validation problem; no words are invented.
+- Author and repair are told the limits (ANIMATION_DRAFT_BYTES, TRAIL_NODE_BYTES, non-empty labels). The planner prompt stays frozen; the feasibility check reads the same constants. An estimate: a longer plan leaves less room, and passing it guarantees nothing.
+- Not acceptance: this is an offline replay. Job aj_9c453b6 stays failed with its counters and evidence, and no generated SGD or game card exists.
 - General limitation, recorded as the owner asked: limiting steps made this one plan simpler. It does not solve oversized plans in general: trails must be declared one node per point, and any plan with a long trail can reach this bound.
 - Status: open. FX-AN-025, FX-AN-026 and FX-AN-029 stay open.
 
