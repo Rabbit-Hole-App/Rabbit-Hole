@@ -1,0 +1,169 @@
+// Signup email preferences (docs/features/signup-email-preferences.md, owner 2026-11-03) end to end, against the LOCAL stack only - local D1
+// and fresh browser profiles; never a deployed worker. All four combinations of the two boxes go through the real "Choose your handle" step
+// (Rabbit Hole Updates, Newsletter: both checked by default, independent, optional), then reload, Settings, an unsubscribe link, account
+// isolation and an existing person. Stored rows are read from the stack's local main D1 (D1_CONFIG, PERSIST). No model calls; prints no secrets.
+// Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 D1_CONFIG=<stack>/integ-local-cp.jsonc PERSIST=<stack>/local node e2e/signup-email-preferences-check.mjs [shotsDir]
+import { chromium } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { sign } from '../../control-plane/src/token.js';
+
+const BASE = process.env.BASE || 'http://127.0.0.1:8848';
+const CP = process.env.SMALL_CP || 'http://127.0.0.1:8849';
+for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('signup-email-preferences-check runs against the local stack only');
+const D1_CONFIG = process.env.D1_CONFIG, PERSIST = process.env.PERSIST;
+if (!D1_CONFIG || !PERSIST) throw Error('D1_CONFIG and PERSIST name the local stack config and persist directory');
+const SHOTS = process.argv[2] || null;
+if (SHOTS) mkdirSync(SHOTS, { recursive: true });
+const vars = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8');
+const secret = vars.match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim(), masterKey = vars.match(/^MASTER_KEY=(.*)$/m)[1].trim();
+const WRANGLER = fileURLToPath(new URL('../../../node_modules/wrangler/bin/wrangler.js', import.meta.url));
+const logs = mkdtempSync(join(tmpdir(), 'signup-prefs-'));
+const rows = sql => JSON.parse(execFileSync(process.execPath, [WRANGLER, 'd1', 'execute', 'rabbit-hole-dev', '--local', '--config', D1_CONFIG, '--persist-to', PERSIST, '--json', '--command', sql],
+  { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env: { ...process.env, CI: '1', WRANGLER_LOG_PATH: logs } }).toString())[0].results;
+
+const run = Date.now().toString(36);
+// handle: undefined = a random test handle, null = none (the step itself), a string = that one.
+const sessionFor = async (email, handle) => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ email, secret, ...(handle !== undefined ? { handle } : {}) }) })).json()).session;
+const cookieOf = who => ({ cookie: `small_session=${who.session}` });
+const api = async (who, path, init = {}) => { const r = await fetch(`${BASE}${path}`, { ...init, headers: { ...cookieOf(who), 'content-type': 'application/json', ...(init.headers || {}) } }); return { status: r.status, body: await r.json().catch(() => ({})) }; };
+const userId = async who => { const id = (await (await fetch(`${CP}/api/me`, { headers: cookieOf(who) })).json()).user_id; if (!/^[0-9a-f]{32}$/.test(id)) throw Error('no account id'); return id; };
+const stored = async who => rows(`SELECT category, enabled, source, method, affirmative, disclosure_version FROM user_email_preferences WHERE user_id = '${await userId(who)}' ORDER BY category`);
+
+const total = 38; // 7 per combination x 4, Settings 3, existing person 1, isolation 2, unrelated edit 1, unsubscribe 2, page errors 1
+const results = [];
+const check = (name, ok, detail = '') => { results.push(ok); console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${detail ? ` - ${detail}` : ''}`); };
+const browser = await chromium.launch();
+const errors = [];
+const pageFor = async who => {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
+  const page = await context.newPage();
+  page.on('pageerror', error => errors.push(error.message));
+  return page;
+};
+const shot = async (page, name) => { if (!SHOTS) return; await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
+const view = (updates, newsletter) => ({ disclosure: 'v1', deliverable: true, updates: { enabled: updates, affirmative: false }, newsletter: { enabled: newsletter, affirmative: false } });
+
+// [name, keep Updates checked, keep Newsletter checked]: the four combinations. Unchecked is an act (signup_user_unchecked); a box left alone is signup_preselected.
+const COMBOS = [['both', true, true], ['updates', true, false], ['newsletter', false, true], ['neither', false, false]];
+const people = {};
+for (const [name] of COMBOS) people[name] = { session: await sessionFor(`prefs-${name}-${run}@example.com`, null) };
+people.existing = { session: await sessionFor(`prefs-existing-${run}@example.com`, `existing_${run}`) };
+const pages = {};
+
+for (const [name, keepUpdates, keepNewsletter] of COMBOS) {
+  const person = people[name], page = pages[name] = await pageFor(person);
+  await page.goto(`${BASE}/library?type=canvases`);
+  const setup = page.locator('[data-handle-setup]');
+  await setup.waitFor({ timeout: 60000 });
+  const box = category => page.locator(`[data-email-choice="${category}"]`);
+  const states = async () => [await box('updates').isChecked(), await box('newsletter').isChecked()];
+
+  check(`${name}: both boxes are shown checked, named, optional and described`, await page.locator('[data-email-choices]').isVisible()
+    && JSON.stringify(await states()) === '[true,true]' && await page.getByRole('checkbox', { name: /Rabbit Hole Updates/ }).count() === 1 && await page.getByRole('checkbox', { name: /Newsletter/ }).count() === 1
+    && await page.locator('[data-email-choice][required]').count() === 0 && await page.getByText('Optional. Change or unsubscribe any time in Settings.').isVisible());
+  if (name === 'both') await shot(page, '01-defaults-both-checked');
+  const before = await api(person, '/api/profile');
+  check(`${name}: showing the boxes saved nothing (no preference in the profile, no row)`, before.status === 200 && JSON.stringify(before.body.emailPreferences) === JSON.stringify(view(null, null)) && (await stored(person)).length === 0);
+
+  if (!keepUpdates) await box('updates').uncheck();
+  if (!keepNewsletter) await box('newsletter').uncheck();
+  check(`${name}: each box changes on its own (Updates ${keepUpdates ? 'on' : 'off'}, Newsletter ${keepNewsletter ? 'on' : 'off'}) and Continue is still waiting for a handle`,
+    JSON.stringify(await states()) === JSON.stringify([keepUpdates, keepNewsletter]) && await page.getByRole('button', { name: 'Continue' }).isDisabled());
+  if (name === 'neither') await shot(page, '02-both-unchecked');
+
+  await page.getByLabel('Handle', { exact: true }).fill(`${name}_${run}`);
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await setup.waitFor({ state: 'detached', timeout: 30000 });
+  await page.getByRole('heading', { name: 'Library' }).waitFor({ timeout: 30000 });
+  check(`${name}: unchecking never blocks the account: the handle is claimed and the page it asked for renders`, new URL(page.url()).pathname === '/library' && (await api(person, '/api/profile')).body.handle === `${name}_${run}`);
+
+  const expected = view(keepUpdates, keepNewsletter);
+  check(`${name}: the API shows exactly what was submitted, and none of it is an active opt-in`, JSON.stringify((await api(person, '/api/profile')).body.emailPreferences) === JSON.stringify(expected));
+  await page.reload();
+  await page.getByRole('heading', { name: 'Library' }).waitFor({ timeout: 30000 });
+  check(`${name}: after a reload the same choices come back and the step does not return`, await setup.count() === 0 && JSON.stringify((await api(person, '/api/profile')).body.emailPreferences) === JSON.stringify(expected));
+  const row = (category, kept) => ({ category, enabled: kept ? 1 : 0, source: 'onboarding', method: kept ? 'signup_preselected' : 'signup_user_unchecked', affirmative: 0, disclosure_version: 'v1' });
+  check(`${name}: stored with its source, method (${keepUpdates ? 'preselected' : 'unchecked'} / ${keepNewsletter ? 'preselected' : 'unchecked'}), affirmative flag and wording version`,
+    JSON.stringify(await stored(person)) === JSON.stringify([row('newsletter', keepNewsletter), row('updates', keepUpdates)]), JSON.stringify(await stored(person)));
+}
+
+// ---- Settings: the preselected account changes one choice at a time and can confirm ----
+{
+  const person = people.both, page = pages.both;
+  await page.goto(`${BASE}/apps`);
+  await page.locator('[data-account-menu]').waitFor({ timeout: 60000 });
+  await page.evaluate(detail => window.dispatchEvent(new CustomEvent('small:settings', { detail })), { tab: 'privacy' });
+  const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
+  await dialog.waitFor({ timeout: 10000 });
+  const pane = dialog.locator('[data-settings-pane="privacy"]');
+  const switchOf = label => pane.getByRole('switch', { name: label, exact: true });
+  await switchOf('Newsletter').waitFor({ timeout: 15000 });
+  check('settings: both switches are on, and only the Newsletter (a preselected yes) offers Confirm', await switchOf('Rabbit Hole Updates').getAttribute('aria-checked') === 'true'
+    && await switchOf('Newsletter').getAttribute('aria-checked') === 'true' && await pane.locator('[data-email-pref="newsletter"]').getByRole('button', { name: 'Confirm' }).count() === 1
+    && await pane.locator('[data-email-pref="updates"]').getByRole('button', { name: 'Confirm' }).count() === 0);
+  await shot(page, '03-settings-email');
+  const settled = async (category, enabled) => { for (let i = 0; i < 50; i++) { if ((await api(person, '/api/profile')).body.emailPreferences?.[category]?.enabled === enabled) return true; await page.waitForTimeout(200); } return false; };
+  await switchOf('Newsletter').click();
+  const off = await settled('newsletter', false);
+  const after = Object.fromEntries((await stored(person)).map(r => [r.category, r]));
+  check('settings: turning the Newsletter off leaves Updates exactly as onboarding stored it', off && (await api(person, '/api/profile')).body.emailPreferences.updates.enabled === true
+    && after.updates.method === 'signup_preselected' && after.updates.source === 'onboarding' && after.newsletter.enabled === 0 && after.newsletter.method === 'settings_user_set' && after.newsletter.source === 'settings' && after.newsletter.affirmative === 0);
+  await switchOf('Newsletter').click();
+  const on = await settled('newsletter', true);
+  const again = Object.fromEntries((await stored(person)).map(r => [r.category, r]));
+  check('settings: turning it back on is the person\'s own act: settings_user_set and affirmative, with no Confirm left', on && again.newsletter.enabled === 1 && again.newsletter.method === 'settings_user_set'
+    && again.newsletter.affirmative === 1 && await pane.locator('[data-email-pref="newsletter"]').getByRole('button', { name: 'Confirm' }).count() === 0 && again.updates.method === 'signup_preselected');
+}
+
+// ---- an existing person who never saw the step: nothing is recorded or switched on ----
+{
+  const person = people.existing, page = await pageFor(person);
+  await page.goto(`${BASE}/apps`);
+  await page.locator('[data-account-menu]').waitFor({ timeout: 60000 });
+  const profile = (await api(person, '/api/profile')).body;
+  check('an existing person with a handle sees no email step, has no preference recorded and no row is created by opening the app', await page.locator('[data-handle-setup]').count() === 0
+    && JSON.stringify(profile.emailPreferences) === JSON.stringify(view(null, null)) && (await stored(person)).length === 0);
+}
+
+// ---- account isolation: the account is the session's, never the body's ----
+{
+  const bothBefore = JSON.stringify(await stored(people.both));
+  const attack = await api(people.existing, '/api/profile', { method: 'PUT', body: JSON.stringify({ userId: await userId(people.both), emailPreferences: { source: 'settings', disclosure: 'v1',
+    updates: { enabled: false }, newsletter: { enabled: false }, userId: await userId(people.both), user_id: await userId(people.both) } }) });
+  check('isolation: a request naming another account writes only the signed-in one', attack.status === 200 && JSON.stringify(await stored(people.both)) === bothBefore
+    && (await stored(people.existing)).length === 2 && attack.body.emailPreferences.updates.enabled === false);
+  check('isolation: each person reads only their own choices', (await api(people.both, '/api/profile')).body.emailPreferences.updates.enabled === true
+    && (await api(people.existing, '/api/profile')).body.emailPreferences.updates.enabled === false);
+}
+
+// ---- an unrelated profile edit never resets a choice ----
+{
+  const person = people.neither, snapshot = JSON.stringify(await stored(person));
+  const edit = await api(person, '/api/profile', { method: 'PUT', body: JSON.stringify({ name: 'No Email Person' }) });
+  check('an unrelated profile edit leaves both preferences byte for byte', edit.status === 200 && JSON.stringify(await stored(person)) === snapshot && edit.body.emailPreferences.updates.enabled === false);
+}
+
+// ---- the unsubscribe link (served by the control plane, which holds the signing key) ----
+{
+  const person = people.updates, uid = await userId(person), before = await stored(person);
+  const token = encodeURIComponent(await sign({ t: 'unsub', uid, cat: 'updates' }, masterKey));
+  const seen = await fetch(`${CP}/unsubscribe?token=${token}`);
+  check('unsubscribe: opening the link shows a button and changes nothing (a mail scanner is harmless)', seen.status === 200 && (await seen.text()).includes('Unsubscribe from Rabbit Hole Updates?') && JSON.stringify(await stored(person)) === JSON.stringify(before));
+  const done = await fetch(`${CP}/unsubscribe`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: `token=${token}` });
+  const after = Object.fromEntries((await stored(person)).map(r => [r.category, r]));
+  check('unsubscribe: pressing it turns off Updates only; the Newsletter row is untouched', done.status === 200 && after.updates.enabled === 0 && after.updates.method === 'unsubscribe_link' && after.updates.source === 'unsubscribe'
+    && after.updates.affirmative === 0 && after.updates.disclosure_version === null && JSON.stringify(after.newsletter) === JSON.stringify(before.find(r => r.category === 'newsletter')));
+}
+
+check('no page errors', errors.length === 0, errors.join(' | '));
+await browser.close();
+const failed = results.filter(ok => !ok).length;
+console.log(`${results.length - failed}/${results.length} checks passed`);
+if (results.length !== total) { console.log(`FAIL expected ${total} checks, ran ${results.length}`); process.exit(1); }
+process.exit(failed ? 1 : 0);

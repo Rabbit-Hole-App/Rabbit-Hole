@@ -12,6 +12,7 @@ import { UsageSettings } from './UsageGauge.jsx';
 import { Avatar, Button, cn, IconBtn, Input, SettingsRow, toast } from './ui.jsx';
 import { saveProfile, useProfile, useSessionDisplay, useShownIdentity } from './session-display.js';
 import { fieldHandle } from '../../control-plane/src/handle.js';
+import { AFFIRMATIVE_REQUIRED, CATEGORIES, DISCLOSURE_VERSION, wording } from '../../control-plane/src/email-preferences.js';
 
 // Rabbit Hole Settings (owner brief L11, 2026-10-20): only controls that work, in the panes settings-model.js lists. Tutor
 // On/Off stays in the chat composer, Progress in its panel, and visibility, sharing and comments in each canvas's Share
@@ -212,6 +213,38 @@ function AnalyticsPreferences() {
   );
 }
 
+// The person's two optional email choices (docs/features/signup-email-preferences.md), saved to their account through /api/profile. Each
+// switch changes only its own category. A choice that was only pre-selected at sign-up and needs an active yes shows Confirm.
+function EmailPreferences() {
+  const profile = useProfile();
+  const [error, setError] = useState('');
+  const view = profile?.emailPreferences;
+  if (!view) return null;
+  const words = wording();
+  const save = async (category, enabled) => {
+    try { await saveProfile({ emailPreferences: { source: 'settings', disclosure: DISCLOSURE_VERSION, [category]: { enabled } } }); setError(''); toast(`${words[category].label} ${enabled ? 'on' : 'off'}`); }
+    catch (e) { setError(`Not saved: ${e.message}`); }
+  };
+  return (
+    <>
+      <Heading>Email</Heading>
+      <SaveError text={error} />
+      {CATEGORIES.map(category => {
+        const choice = view[category], on = choice.enabled === true, confirm = on && !choice.affirmative && AFFIRMATIVE_REQUIRED[category];
+        const state = choice.enabled === null ? 'Not set.' : !on ? 'Off.' : confirm ? 'Pre-selected when you joined. Confirm that you want it.' : !view.deliverable ? 'On, but there is no verified email address on your account, so nothing is sent yet.' : 'On.';
+        return (
+          <SettingsRow key={category} title={words[category].label} desc={`${words[category].description} ${state}`}>
+            <span data-email-pref={category} className="flex items-center gap-3">
+              {confirm && <Button variant="secondary" size="sm" onClick={() => save(category, true)}>Confirm</Button>}
+              <Switch label={words[category].label} on={on} onChange={next => save(category, next)} />
+            </span>
+          </SettingsRow>
+        );
+      })}
+    </>
+  );
+}
+
 // Privacy & security: the real sign-in method (GET /auth/session) and logout, which ends every session of the account
 // (auth.js bumps users.session_epoch). Session lists, account deletion and remembered learning information have no backend
 // yet (L11-report.md); no button pretends otherwise.
@@ -219,7 +252,7 @@ function PrivacyPane({ session }) {
   const provider = PROVIDER_LABELS[session?.provider];
   return (
     <>
-      <PaneTitle title="Privacy & security" intro="How you sign in, signing out, and what learning analytics record" />
+      <PaneTitle title="Privacy & security" intro="How you sign in, signing out, your email choices and what learning analytics record" />
       <Heading>Sign-in</Heading>
       {provider && <SettingsRow title="Signed in with" desc={session.provider === 'email' ? 'A one-time link or code sent to your email. No password is stored.' : `Your ${provider} account. ${PRODUCT} stores no password.`}>
         <span data-signin-provider className="text-sm text-ink-2">{provider}</span>
@@ -228,6 +261,7 @@ function PrivacyPane({ session }) {
         <Button variant="secondary" size="sm" onClick={() => { window.location.href = '/logout'; }}>Log out</Button>
       </SettingsRow>
       <AnalyticsPreferences />
+      <EmailPreferences />
       <Heading>Learning analytics</Heading>
       <div data-learning-analytics-notice className="space-y-2 pt-3 text-sm text-ink-2">
         <p>To improve the Tutor and find problems, {PRODUCT} records analytics events about how learning activity goes. They use internal account and canvas identifiers and contain: the kind of Tutor action taken and its reason code, the type of help it offered, which suggestions were shown and which one you chose, how many of the topic&apos;s claims were in each state, whether an assessed answer was met, partly met or not met and whether help was involved, how it was assessed (a rubric match, or an AI evaluator and its version), the AI model and prompt version, timings, error types and AI credit usage.</p>

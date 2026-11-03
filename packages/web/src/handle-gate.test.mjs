@@ -27,8 +27,9 @@ test('the step sits in front of every Rabbit Hole page, in place, and resumes th
   assert.doesNotMatch(gate, /location\.|navigate\(|history\./);
   // The server decides; the browser's hint uses the same rules module, and sends only the canonical handle.
   assert.match(gate, /import \{ HANDLE_MAX, fieldHandle, normalizeHandle \} from '\.\.\/\.\.\/control-plane\/src\/handle\.js';/);
-  assert.match(gate, /await saveProfile\(\{ handle: checked\.handle \}\)/);
-  assert.doesNotMatch(gate, /email/i, 'nothing here is made from an email');
+  // Owner 2026-11-03: Continue sends the two email boxes with the handle (docs/features/signup-email-preferences.md); showing them sends nothing.
+  assert.match(gate, /await saveProfile\(\{ handle: checked\.handle, emailPreferences: onboardingSubmission\(choices\) \}\)/);
+  assert.doesNotMatch(gate, /\.email\b|split\(['"]@/, 'no handle is made from an email address');
 });
 
 test('Settings > Profile can change the handle; the server is the authority', () => {

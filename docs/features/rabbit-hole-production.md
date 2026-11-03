@@ -223,6 +223,7 @@ npx wrangler d1 migrations list rabbit-hole-prod --remote --config wrangler.rabb
 - `0025-cli-login-challenges`;
 - `0026-users`;
 - `0027-learn-moments`.
+- `0028-email-preferences` (owner-run before the release that carries it; docs/features/signup-email-preferences.md).
 
 Prefix 0001–0003 each have two files. Wrangler and the test both sort by full filename, so the order is fixed.
 

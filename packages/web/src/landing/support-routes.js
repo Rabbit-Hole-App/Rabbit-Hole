@@ -8,6 +8,6 @@ export function isPublicPageRequest(request) {
   const path = new URL(request.url).pathname;
   return ['GET', 'HEAD'].includes(request.method)
     && request.headers.get('accept')?.includes('text/html')
-    && !/^\/(?:api|a|auth|login|logout|test|slack|static|landing|audio|lesson-assets|mascot)(?:\/|$)/.test(path)
+    && !/^\/(?:api|a|auth|login|logout|unsubscribe|test|slack|static|landing|audio|lesson-assets|mascot)(?:\/|$)/.test(path)
     && !/\.[a-z0-9]{1,8}$/i.test(path);
 }

@@ -357,3 +357,21 @@ CREATE TABLE IF NOT EXISTS login_links (
   used_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_login_links_email ON login_links(email, created_at);
+
+-- 0028: email preferences (Rabbit Hole Updates, Newsletter) by account, and the never-mail list.
+CREATE TABLE IF NOT EXISTS user_email_preferences (
+  user_id TEXT NOT NULL REFERENCES users(id),
+  category TEXT NOT NULL CHECK (category IN ('updates', 'newsletter')),
+  enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+  source TEXT NOT NULL CHECK (source IN ('onboarding', 'settings', 'unsubscribe')),
+  method TEXT NOT NULL CHECK (method IN ('signup_preselected', 'signup_user_checked', 'signup_user_unchecked', 'settings_user_set', 'unsubscribe_link')),
+  affirmative INTEGER NOT NULL CHECK (affirmative IN (0, 1)),
+  disclosure_version TEXT,
+  changed_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, category)
+);
+CREATE TABLE IF NOT EXISTS email_suppressions (
+  address TEXT PRIMARY KEY,
+  reason TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);

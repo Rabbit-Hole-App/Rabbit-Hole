@@ -44,6 +44,7 @@ Owner requirement, 2026-10-06. Every Rabbit Hole user has a unique public handle
 ## Choosing a handle
 
 - `HandleGate` (web) sits in front of every Rabbit Hole page. A signed-in person with no handle sees "Choose your handle" in place, before anything else. The screen (owner brief 2026-10-23) is one solid-background column: logo and wordmark, "Choose your handle", "Your public name on Rabbit Hole.", a labelled Handle field with a fixed @ prefix, the persistent helper "3–30 letters, numbers, or underscores.", a feedback line for format and server errors (never "Available"), Continue (Saving while it saves) and a note that it can be changed in Settings. This covers new accounts (first-time setup) and existing ones (next signed-in entry).
+  Owner decision 2026-11-03 adds two optional email checkboxes, both checked, between the field and Continue (Rabbit Hole Updates, Newsletter); Continue saves them with the handle and showing them saves nothing: docs/features/signup-email-preferences.md.
 - The URL is untouched. Once the handle is claimed, the same page renders, so a deep link resumes: share, sign in, choose a handle, then the share; or Fork, Start Rabbit Hole and Publish the same way.
 - Signed-out visitors, or a build with no profile service, see no change.
 - Settings > Profile > Handle changes the handle, with the same server rules.

@@ -23,6 +23,7 @@ import { handleLearnCourse } from './learn-course.js';
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, hmacHex, randomHex } from './token.js';
 import { echoesLogin, handleWebAuth, loginEmail, sessionOf, testMode } from './auth.js';
+import { handleUnsubscribe } from './email-preferences-store.js';
 import { internalAccount } from './product-analytics.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
 import { aiCacheDrop, ASK_TOOLS, askOnce, askStream, capJoin, CAP_CHARS, DIAGNOSIS_PROMPT, diffBundles, getBundle, parseBundle } from './ask.js';
@@ -2622,6 +2623,8 @@ export default {
       }
       const webAuth = await handleWebAuth(req, env, path, { baseUrl, html, sendEmail, waitUntil: promise => ctx?.waitUntil?.(promise) });
       if (webAuth) return webAuth;
+      const unsubscribe = await handleUnsubscribe(req, env, path, { baseUrl, html }); // a signed email-preference link (email-preferences-store.js)
+      if (unsubscribe) return unsubscribe;
       if (path === '/test/openai/chat/completions' && req.method === 'POST') {
         // OpenAI-compatible mock (testMode + a bypass secret only): lets the
         // "openai" provider path be exercised end to end without a real LLM
