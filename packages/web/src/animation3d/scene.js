@@ -97,21 +97,21 @@ export function declutterLabels(plates, { gap = DECLUTTER.gap, steps = DECLUTTER
     const [px, py] = DIRECTIONS[plate.placement] ?? DIRECTIONS.above;
     const done = (dx, dy) => { const offset = { dx: dx + 0, dy: dy + 0 }; placed.push(at(plate, offset.dx, offset.dy)); return offset; }; // + 0: no -0
     const spots = starts(plate);
-    // With obstacles to avoid: of every free spot the one nearest the plate's own point (the point from its placement), not the first.
+    // With arrows to avoid: of every free spot the one nearest the plate's own point (the point from its placement), not the first.
     const [cx, cy] = PLACEMENT[plate.placement] ?? PLACEMENT.above, ax = plate.x + cx * plate.w, ay = plate.y + (1 - cy) * plate.h;
     const away = (dx, dy) => { const r = at(plate, dx, dy); return Math.hypot(Math.max(r.x - ax, 0, ax - r.x - r.w), Math.max(r.y - ay, 0, ay - r.y - r.h)); };
     mine = obstacles.filter(s => s.soft && Math.hypot(s.x1 - ax, s.y1 - ay) <= s.half + 2);
     for (level = obstacles.length ? 0 : 2; level <= 2; level += 1) {
       if (level === 1 && !obstacles.some(s => s.soft)) continue; // the same as level 0
       if (level === 2 && obstacles.length && !plate.essential) break; // an optional plate with no arrow-free spot is left out; an essential one tries again, ignoring them
-      const avoid = level < 2;
+      const nearest = level < 2 && obstacles.some(s => !s.soft); // arrows: the free spot nearest the point; markers alone: the first free spot, as ever
       let best = null;
       for (const [bx, by] of spots) {
         const base = at(plate, bx, by);
         for (const [ux, uy] of [[px, py], [py, px], [-py, -px], [-px, -py]]) {
           const t = clearAlong(base, [ux, uy]), dx = bx + ux * t, dy = by + uy * t;
-          if (t === null || (avoid && plate.placement !== 'center' && away(dx, dy) <= 0)) continue; // never over its own point
-          if (!avoid || !(dx || dy)) return done(dx, dy);
+          if (t === null || (nearest && plate.placement !== 'center' && away(dx, dy) <= 0)) continue; // never over its own point
+          if (!nearest || !(dx || dy)) return done(dx, dy);
           if (!best || away(dx, dy) < away(...best)) best = [dx, dy];
         }
       }
