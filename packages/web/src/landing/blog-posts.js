@@ -40,7 +40,7 @@ export const stories=[
       <h2>What we built instead</h2>
       <p>I tried ChatGPT and Claude first. They are great at answering questions, but the answer stays in the chat. There was nowhere to write my own notes next to it, the way I did in a README, nowhere to put a video beside a paper, nowhere to keep the code. Their interfaces were built for asking, not for learning. I had to rethink what an interface for learning would look like, and the answer was an infinite canvas.</p>
       <p>So I built Rabbit Hole for myself. One place where I can learn a topic, write about it, decide how deep to go into each branch, and share the result. The course, the paper, the video and the code sit on one canvas, a single page that holds all of it, and an AI tutor asks me questions about them, so the next thing I learn depends on what I actually understood. That stereo vision write-up keeps its shape here. Every heading in the outline above becomes its own rabbit hole, nested the way it was, with a path back to the question it came from, and nothing has to be cut to keep a file short.</p>
-      <blockquote>It is not a course. There is no syllabus and no finish line; you stop when you stop being curious.</blockquote>
+      <blockquote><strong>It is not a course.</strong> There is no syllabus and no finish line; you stop when you stop being curious.</blockquote>
       <p>I built it first to learn about AI and ML topics, because that is what I was studying at the time, from Andrew Ng's course on Coursera. Then I noticed the same problem everywhere I had ever learned anything.</p>
       <ul>
         <li><b>A LinkedIn post.</b> Someone posts a clear explanation of KV cache. You read it, like it, maybe comment "Great breakdown, thanks for sharing 🙌", and by the next day it is gone from your feed and from your memory. The person who wrote it never finds out what their readers wanted to understand next, or whether they understood it in the first place.</li>
@@ -54,7 +54,7 @@ export const stories=[
 ];
 
 export const href=story=>`/blog?post=${story.slug}`;
-// story.hero is the hero image's alt text; the image itself is public/landing/blog/<slug>-hero.png (BLOG_IMAGE_GUIDE.md).
+// story.hero is the hero image's alt text; the image itself is public/landing/blog/<slug>-hero.jpg (BLOG_IMAGE_GUIDE.md).
 // A hero image fills the whole cover (owner 2026-11-02): no side margins, no label, no decorative marks.
 export const cover=story=>story.hero
   ?`<div class="blog-cover blog-cover-${story.motif}"><div class="hero-wash"><img src="/landing/blog/${story.slug}-hero.jpg" alt="${story.hero}"></div></div>`
