@@ -1,7 +1,7 @@
 # Overnight handoff, 2026-11-03 (written for the owner and for ChatGPT's morning review)
 
 Author: Parallel (the integrator session). Times are Pacific. This file is updated through the night; the "Last updated" line says when.
-Last updated: 2026-11-03 02:40 PT (see "Update log" at the end).
+Last updated: 2026-11-03 02:55 PT (see "Update log" at the end).
 
 Rules this report follows: no secrets, no personal email addresses, no share-link tokens. The owner's personal account is never used for testing; production testing uses the dedicated account **@yuvish_demo**. Production commands are owner-run launchers; nothing here was pushed to `main` by an agent.
 
@@ -22,7 +22,22 @@ Not done by a browser on production (owner rule: no Claude browser on production
 - Isolated local control-plane failures (different single test each run under CPU load; the same suite passes in CI on Linux): cause UNESTABLISHED, recorded in the Creator Analytics readiness notes. Not expanded into test cleanup.
 
 ## 2. Ready releases (copy and paste in order)
-_None ready yet. Feedback email and newsletter preferences are in qualification; this section is filled in as each passes its gate._
+
+### Release 1: Feedback email  (READY, gate passed 02:49 PT)
+- Candidate: `feat/feedback-mail` at `bbb01a38399f2a55ef9c7d79faf31d44e874c250` (contains main `3fa5badcd`, fast-forwards main).
+- CI on that exact commit: verify https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41618285141 success; fast-e2e https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41618285093 success (attempt 1).
+- Release gate: https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41620486063 success, tested exactly this commit. Read-only release check: passed (main `3fa5badcd`, gate and CI verified).
+- No migration and no new secret. The recipient is the plain config variable `FEEDBACK_NOTIFY_TO` shipped with the release; the app email sender becomes `hello@digrabbithole.com`.
+- Command (run it in a Windows terminal):
+  ```
+  C:\s\specelease-queueelease.cmd 35-feedback
+  ```
+- After it finishes: send "release 35-feedback done" so the deployed commit is verified. Then verify storage and delivery as **@yuvish_demo** (never the personal account) using `C:\s\speceedback-mail\OWNER-CHECKLIST.md`: one bug report and one feature suggestion from Home and one of each inside a canvas; expect the on-button reference each time; expect four emails to the owner's inbox with subjects `[Rabbit Hole] Bug report RH-...` / `[Rabbit Hole] Feature suggestion RH-...` from `Rabbit Hole <hello@digrabbithole.com>`; `C:\s\speceedback-mailead-feedback.cmd` lists the stored objects. Optional limit proof: a sixth report within an hour gets the friendly limit message with the typed text kept.
+- Unverified until then: whether the email service sends from the hello@ address in production (the domain is the same one used for sign-in emails; a sign-in email arriving from hello@ confirms it), real delivery to the inbox, and the create-only storage write used for the limit.
+
+### Release 2: Email preferences (newsletter)  (gate pending)
+- Candidate: `feat/signup-email-preferences` at `02bdcd09d3fc02a33b7cf550baae861d0bc0ec55` (contains the feedback commit). CI running: verify https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41620836122 , fast-e2e https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41620836096 . Its gate starts automatically after CI is green and the feedback gate is done; commands will be listed here when it passes.
+- Order will be: Release 1 first; then the production migration `0028` launcher (`C:\s\spec\signup-prefspply-prod-migration.cmd`, typed `APPLY PROD`); then `C:\s\specelease-queueelease.cmd 36-newsletter`. The release check refuses a schema that differs in either direction, so 0028 must be applied after Release 1 and before Release 2.
 
 ## 3. Awaiting testing, approval or a gate (as of 02:40 PT)
 
@@ -64,5 +79,6 @@ Scope: MVP1 only. Paid generation, Animation merge and Animation deployment are 
 
 ## Update log
 - 02:00 PT first version.
+- 02:55 PT section 2: Release 1 (feedback email) ready with its gate; Release 2 (newsletter) candidate in CI.
 - 02:40 PT sections 3 and 4 updated: Animation integrated commit pushed (CI running), feedback F2 and newsletter N pending.
 - 02:10 PT section 6 clarified: both cleanup launchers ran with the owner's explicit approval; no recovery needed (owner confirmed).
