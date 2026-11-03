@@ -730,3 +730,15 @@ test('the canvas places an /animation job\'s card once under its own id, never o
   assert.equal(place(true)({ ...pending, id: 'a2' }), null);
   assert.equal(place()({ ...pending, type: 'animation', id: 'a3' }), null);
 });
+
+test('the Slash Commands demo: the saved pendulum runs, says it was made by /animation, and is not in the examples picker', async () => {
+  const { pendulumDemo } = await import('./animation3d/pendulum-demo.js');
+  const { validateAnimationArtifact } = await import('./animation3d/contract.js');
+  const { ANIMATION_CAPABILITIES } = await import('./animation3d/capabilities.js');
+  assert.equal(validateAnimationArtifact(pendulumDemo.artifact, ANIMATION_CAPABILITIES).ok, true);
+  assert.equal(pendulumDemo.artifact.provenance.origin, 'generated');
+  await mount({ runtimes: stubRuntimes(), block: { id: 'd1', type: 'animation3d', title: 'Pendulum length and period', fixtureId: pendulumDemo.name } });
+  assert.match($('[data-animation-fixture-note]').textContent, /made by \/animation and saved/);
+  assert.equal($('[data-animation3d-example]'), null);
+  assert.equal(card().querySelector('[data-animation-failure]'), null);
+});

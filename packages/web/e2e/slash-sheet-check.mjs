@@ -115,9 +115,9 @@ for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
       await pane.locator('img[src^="https://images.pexels.com/"]').count() === 1 && await pane.getByText(/Photo by .+ on Pexels/).count() === 1
       && !(await pane.locator('[data-image-generate]').isVisible()) && await pane.locator('[data-image-generate-unavailable]').filter({ visible: true }).count() === 0);
     if (name === 'cad') ok(`${tag}: /cad shows the real model in the CAD viewer with its Interact tools`, await pane.locator('[data-cad-viewer]').count() === 1 && await pane.locator('[data-cad-interact]').count() === 1);
-    if (name === 'animation') ok(`${tag}: /animation shows the built-in beam-balance example card, labelled as an example, with its four parameters`,
+    if (name === 'animation') ok(`${tag}: /animation shows the saved pendulum scene, labelled as an example, with its length control`,
       await pane.locator('[data-animation3d-card][data-animation-experience="experiment"]').count() === 1 && await pane.locator('[data-animation-fixture-note]').isVisible()
-      && await pane.locator('input[data-animation-number]').count() === 4);
+      && await pane.locator('input[data-animation-number]').count() === 1 && await pane.locator('[data-animation3d-example]').count() === 0);
     if (name === 'notebook') ok(`${tag}: /notebook opens the notebook card's JupyterLab frame`, await pane.locator('iframe[data-notebook-frame][data-notebook-preview]').count() === 1);
     if (name === 'youtube') ok(`${tag}: /youtube shows the 3Blue1Brown video in YouTube's player`, await pane.locator('iframe[src^="https://www.youtube-nocookie.com/embed/eMlx5fFNoYc"]').count() === 1 && await pane.getByText('Sourced · YouTube · 3Blue1Brown').count() === 1);
     if (name === 'wikipedia') ok(`${tag}: /wikipedia shows the Transformer article's opening and its source`, await pane.getByRole('heading', { name: 'Transformer (deep learning architecture)' }).count() === 1 && await pane.getByRole('link', { name: 'Open on Wikipedia' }).count() === 1);

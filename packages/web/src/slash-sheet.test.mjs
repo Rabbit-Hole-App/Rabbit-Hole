@@ -67,7 +67,7 @@ test('the 12 generators each have a brief on the example\'s subject; the brief c
   // Owner, 2026-10-29 (C:/s/spec/slash-window/BRIEF-EXAMPLES.md): /explain and /cad briefs match their saved results.
   assert.deepEqual(titles, { explain: 'How a hot coffee cools in a room', practice: 'Explain why the sky is blue', quiz: "Newton's second law", flashcards: 'Spanish verbs for travel',
     code: 'Reverse a linked list', graph: 'Sine and cosine', diagram: 'A request and response', 'generate-image': 'A red lighthouse at dusk',
-    motion: 'How softmax turns scores into weights', cad: 'Plate with four through holes and a top pocket', animation: 'Beam balance', '3d': 'Perspective projection' });
+    motion: 'How softmax turns scores into weights', cad: 'Plate with four through holes and a top pocket', animation: 'Pendulum length and period', '3d': 'Perspective projection' });
   assert.equal(BRIEFS.quiz.description, 'One multiple-choice question about force, mass and acceleration, with feedback after you answer.');
   assert.equal(BRIEFS.cad.description, 'A 60 × 40 × 5 mm plate with four 4 mm through holes and a centred 20 × 10 mm pocket, 3 mm deep, cut from the top face.');
   for (const name of BRIEF_COMMANDS) {

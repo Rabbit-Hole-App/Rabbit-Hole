@@ -7,10 +7,11 @@ import { claimViewer, releaseViewer } from './viewer-slots.js';
 import { watchSeen } from './explain-program/playback.js';
 import { ANIMATION_JOB_EVENT, animationClient, animationProgress, animationRetry, animationRunning, animationStage, readyResult, RETRY_LABELS, pollRetryDelay } from './animation3d/client.js';
 import {
-  artifactRefOf, cardPhase, detectWebGL, EXPERIENCE_LABELS, failureText, FIXTURE_LABEL, FIXTURE_NOTE, fixtureIdOf, INTERACT_LEGEND,
+  artifactRefOf, cardPhase, detectWebGL, EXPERIENCE_LABELS, failureText, FIXTURE_LABEL, FIXTURE_NOTE, fixtureIdOf, SAVED_DEMO_NOTE, INTERACT_LEGEND,
   jobOf, keyAction, KEYS_HINT, retryLabel, visibleControls, WEBGL_UNAVAILABLE,
 } from './animation3d/card.js';
 import { ANIMATION_FIXTURES } from './animation3d/fixtures.js';
+import { pendulumDemo } from './animation3d/pendulum-demo.js';
 import { cancelAnimationJob, createAnimationSaver, hydrateAnimation, landHydration, nextView, resumeAnimationJob, settleAnimationJob } from './animation3d/storage.js';
 import { createAnimationRuntime } from './animation3d/runtime.js';
 import { createAnimationRenderer } from './animation3d/renderer.js';
@@ -43,7 +44,7 @@ export const sceneLoader = ({ context: contextOf, readArtifact, latest }) => asy
   const context = contextOf(); // read at load time: the canvas's board id can arrive after the card mounts
   const name = fixtureIdOf(block);
   if (name) {
-    const fixture = ANIMATION_FIXTURES.find(entry => entry.name === name);
+    const fixture = [...ANIMATION_FIXTURES, pendulumDemo].find(entry => entry.name === name);
     if (!fixture) throw Object.assign(new Error('This example is not available.'), { retry: false });
     return { artifact: structuredClone(fixture.artifact), sim: null, view: null };
   }
@@ -270,7 +271,7 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
   const primaryReadout = state.readouts.find(item => item.id === lead?.readout) ?? null;
   const moves = model && show.game && !lead.primary; // a game's moves lead: drawn before any setting
   const resetScene = () => { setHintOpen(false); live.reset(); };
-  const fixture = model?.fixture || !!fixtureIdOf(block);
+  const fixture = model?.fixture || !!fixtureIdOf(block), isDemo = fixtureIdOf(block) === pendulumDemo.name;
   const poster = state.poster;
   const runtimeReady = state.runtime === 'ready';
   const values = state.pending ?? state.inputs;
@@ -312,9 +313,9 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
       <Header title={title} experience={model?.experience} fixture={fixture} />
       {fixture && (
         <div data-animation-fixture-note className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-2" onPointerDown={event => event.stopPropagation()}>
-          <span>{FIXTURE_NOTE}</span>
+          <span>{isDemo ? SAVED_DEMO_NOTE : FIXTURE_NOTE}</span>
           {/* An example card switches among the built-in examples (M1 try-it path); a saved generated card never shows this. */}
-          {fixtureIdOf(block) && (
+          {fixtureIdOf(block) && !isDemo && (
             <label className="inline-flex items-center gap-1.5">
               <span>Example</span>
               <select data-animation3d-example value={fixtureIdOf(block)} disabled={readOnly}

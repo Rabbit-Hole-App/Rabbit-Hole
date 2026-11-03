@@ -59,8 +59,8 @@ export const EXAMPLES = {
   // The exact request that made the window's real Motion clip (job 8a2015a4, slash-sheet.js MOTION_CLIP).
   motion: '/motion 15s explain me softmax func',
   cad: '/cad a 60 x 40 x 5 mm plate with four 4 mm through holes and a centred 20 x 10 mm pocket, 3 mm deep',
-  // The window's /animation preview is the beam-balance example scene (animation3d/fixtures.js), the subject of this line.
-  animation: '/animation a beam balance where I can change each mass and its distance and see the moments', '3d': '/3d perspective projection: a camera frustum with a cube inside it and a ray',
+  // The window's /animation preview is the saved scene made from this line (animation3d/pendulum-demo.js).
+  animation: '/animation Let me change the length of a pendulum from 0.5 to 3 metres and see how its period changes, with the period shown as a number.', '3d': '/3d perspective projection: a camera frustum with a cube inside it and a ray',
   browser: '/browser https://jalammar.github.io/illustrated-transformer/',
   image: '/photos cat', youtube: '/youtube attention in transformers step by step 3blue1brown', arxiv: '/arxiv 1706.03762',
   wikipedia: '/wikipedia https://en.wikipedia.org/wiki/Transformer_(deep_learning_architecture)',

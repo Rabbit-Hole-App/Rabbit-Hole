@@ -10,6 +10,7 @@ export const EXPERIENCE_LABELS = Object.freeze({ inspect: 'Inspect', watch: 'Wat
 // A fixture card is a built-in example, never presented as a generated result (AN-03 acceptance).
 export const FIXTURE_LABEL = 'Example';
 export const FIXTURE_NOTE = 'Built-in example scene for trying the controls. It was not generated from a request.';
+export const SAVED_DEMO_NOTE = 'A real scene made by /animation and saved, for trying the controls.';
 export const INTERACT_LEGEND = 'Drag to orbit · Scroll to zoom · Right-drag to pan · Esc to finish';
 export const KEYS_HINT = 'Move: WASD / arrow keys · Esc to exit';
 
