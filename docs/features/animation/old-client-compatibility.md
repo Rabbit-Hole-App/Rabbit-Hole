@@ -63,3 +63,34 @@ code can, and an open old tab does not get new code until it reloads.
   fallback for any refusal is the same generic text.
 - A "new version available" prompt in the current bundle: reaches tabs that reload onto it, so it helps the next generation of open tabs, not
   the ones open today.
+
+## A production tab open before the first Animation release (owner question, 2026-11-02)
+
+The client of `rabbit-hole/main` (`b58d74876`) has no Animation card, no card chunk and no animation routes (`git grep learn/animation` there: 0 matches; the
+block type string `animation3d`: 0 matches; `main`'s own `animation` block type is Explain's, a different card). Read from that code, and run where it is pure
+(`C:/s/spec/animation/sgd-mvp1-correction-v2/scripts/prerelease-prod-tab.test.mjs` imports its real `canvas-persist.js`); not executed in a browser.
+
+- **Can such a tab receive an Animation card?** Yes, in two ways: it loads a board that holds one (an in-app switch to the canvas; a page load runs the new bundle),
+  or it saves and the server refuses it as stale (409), after which its own merge brings the server's copy in. It calls no animation route for it.
+- **What it shows:** an empty card frame. `LearningBlockBody` falls through to `return null` for a type it does not know, inside `CanvasNode` (width 380, the
+  content's height); every `BLOCK_TYPES[type]` lookup uses `?.`; `describeBlock` ends in `return null`, so selecting it does not throw. Its Chat reads an
+  `animation` plan proposal safely (`proposalBlock` returns null) but cannot Generate it. It cannot make an Animation at all. No crash path was found.
+- **What happens to the board when it saves: nothing is dropped.** The server stores the board as one JSON text under a version lock with no block-type list
+  (`learn-boards.js` `saveOwn`: a stale save is a 409, never an overwrite). The client passes blocks through unchanged (`canvas-persist.js` blanks only a
+  `data:` `src` over 120,000 characters; moving a card spreads the block, `AdaptiveCanvas.jsx:2719`). A tab that mounted before the card existed applies only
+  its own changes, by object id, onto the server's copy (`pendingWork`, `withPendingWork`), so a card it never saw stays. The only way the card leaves is the
+  learner deleting the empty frame, as for any card. The three cases are run with `main`'s real code in the script above.
+- **A reload** loads the new bundle: the card chunk loads on demand and the card opens normally.
+- **Remedy: none needed for data.** The limitation to accept: such a tab shows an empty frame, with no words, until it reloads. A words-bearing placeholder would need
+  a change to `main`'s client in an earlier release; tabs open across the first Animation deploy would still not have it, so it is not recommended.
+
+## What protects a release from leaving tube scenes unreadable
+
+- **First release:** `packages/web/e2e/production-bundle-check.mjs` fails a build that has no chunk declaring `curve_radius` (an older Animation client). Run against a
+  `51b6560cf` bundle it fails with that line; against the v2 build it does not.
+- **Later releases:** `scripts/prod-release.mjs` `checkCandidate` refuses a candidate whose tree no longer declares a client feature the served release's tree does
+  (it reads `ANIMATION_CLIENT_FEATURES` from `animation3d/capabilities.js` at each sha). Together with what was already there, which `scripts/prod-release.test.mjs`
+  pins: it never releases backwards, never over a split cp/app pair, and a failed deploy rolls back the pair, never one Worker.
+- **Not enforceable by code:** a hand `wrangler rollback` of `rabbit-hole-app` or `rabbit-hole-cp` alone. After it the next release refuses (split pair) until a
+  released pair is restored, and meanwhile the previous server answers `409 version_unavailable` for a tube scene ("This animation could not be opened. Your saved
+  version is kept."): nothing is lost. **Never roll back one of the two Workers alone while tube scenes exist: roll the pair back, or roll forward.**

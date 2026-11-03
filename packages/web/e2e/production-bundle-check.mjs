@@ -29,7 +29,7 @@ const LEGACY_MARKERS = ['ships the first one', 'Get the CLI', 'CLI for hosted Sm
 const releaseEnv = () => readFileSync(new URL('../../../scripts/prod-release.mjs', import.meta.url), 'utf8');
 const ANALYTICS = process.env.EXPECT_ANALYTICS === '1'
   ? [releaseEnv().match(/VITE_POSTHOG_TOKEN: '(phc_[A-Za-z0-9]+)'/)?.[1], releaseEnv().match(/VITE_POSTHOG_HOST: '(https:\/\/[a-z0-9.-]+)'/)?.[1]] : null;
-let analyticsChunk = null;
+let analyticsChunk = null, declaresTubes = false;
 const failures = [];
 if (ANALYTICS && !ANALYTICS.every(Boolean)) failures.push('scripts/prod-release.mjs BUILD_ENV names no PostHog project token and host');
 for (const chunk of REQUIRED_CHUNKS) if (!names.some(n => n.startsWith(`${chunk}-`))) failures.push(`missing Learn chunk ${chunk}`);
@@ -39,9 +39,13 @@ for (const name of names) {
   const text = readFileSync(new URL(name, dir), 'utf8');
   if (/phx_[A-Za-z0-9]{8,}/.test(text)) failures.push(`${name}: contains a personal PostHog API key`);
   if (ANALYTICS?.every(value => value && text.includes(value))) analyticsChunk = name;
+  if (text.includes('curve_radius')) declaresTubes = true;
   for (const marker of DEV_MARKERS) if (text.includes(marker)) failures.push(`${name}: contains dev-only "${marker}"`);
   for (const marker of LEGACY_MARKERS) if (text.includes(marker)) failures.push(`${name}: contains retired CLI/BYOC copy "${marker}"`);
 }
+// The Animation client declares what it can draw (animation3d/capabilities.js ANIMATION_CLIENT_FEATURES, owner 2026-11-02): a production build with the
+// card but without curve_radius would be an older Animation client, which cannot be told to update when it meets a tube scene.
+if (!declaresTubes) failures.push('no chunk declares the Animation client feature curve_radius: this build is an older Animation client');
 if (ANALYTICS && !analyticsChunk) failures.push('no chunk carries the PostHog project token and host: the release build is not configured for usage analytics');
 // The /explain render entry (EXP-T18) and the /animation one (AN-05): explain-render.js / animation-render.js load them from this
 // build's assets and their interception serves only the entry and /static/<file>.(js|css|woff2?|ttf), so each must exist and reference nothing else.
