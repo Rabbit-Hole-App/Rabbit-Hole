@@ -61,6 +61,7 @@ import { canvasRefsFetch, canvasRefsRoute } from '../control-plane/src/canvas-re
 import { creatorsRoute } from '../control-plane/src/creators.js';
 import { starsRoute } from '../control-plane/src/canvas-stars.js';
 import { analyticsRoute } from '../control-plane/src/publication-analytics.js';
+import { runCleanup } from '../control-plane/src/publication-analytics-purge.js';
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { chatRouteFetch } from '../control-plane/src/chat-capability-route.js';
 import { inlineDecideFetch, inlineEvidenceFetch, inlineGenerateFetch, inlineRouteFetch, inlineTelemetryFetch } from '../control-plane/src/learn-inline.js';
@@ -92,6 +93,8 @@ export default {
     const { consumeIndexQueue } = await import('../control-plane/src/learn-moment-index.js');
     await consumeIndexQueue(batch, env);
   },
+  // The daily expiry of creator analytics records (publication-analytics-purge.js). Its cron is in wrangler.rabbit-hole-prod.jsonc.
+  scheduled: (event, env) => runCleanup(env.LEARN_DB),
   // Every response passes the framing wrapper (framing-headers.js), whatever route or early return made it.
   fetch: async (req, env, ctx) => withFraming(req, await respond(req, env, ctx)),
 };

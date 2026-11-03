@@ -6,8 +6,9 @@
 // Starts and forks are recorded by learn-boards.js in the same db.batch as the hole or fork (conversionStatements), so a
 // failure records nothing and a replay (existing hole, replayed fork) never reaches the batch.
 //
-// Consent: nothing is written without the visitor's acceptance (the rh_analytics_consent cookie, web analytics-consent.js), and Do Not
-// Track or Global Privacy Control overrides it. A missing signal means no collection.
+// Consent: nothing is written without the visitor's acceptance of this version of the choice (the rh_analytics_consent and
+// rh_analytics_consent_v cookies, web analytics-consent.js), and Do Not Track or Global Privacy Control overrides it. A missing signal means
+// no collection. An acceptance from before this measurement existed covered PostHog only and does not count here.
 // Identity: a learner is a one-way key, sha256 of 'publication-learner:u:<users.id>' signed in, else 'publication-learner:v:<visitor id>'
 // (a random UUID this browser keeps): pseudonymous, not anonymous. A browser is never linked to an account: its signed-out visits stay its
 // own, so a shared browser cannot count as the wrong person, and someone who visits signed out and then signs in counts as two. The owner's
@@ -22,7 +23,7 @@ import { STAR_COUNT } from './canvas-stars.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { starFigures } from './canvas-star-analytics.js';
 import { cardName } from './learn-boards.js';
-import { RETENTION_DAYS, accountKey, purgeExpired, retentionCutoff, visitorKey } from './publication-analytics-purge.js';
+import { RETENTION_DAYS, accountKey, cleanupHealth, firstRetainedDay, purgeExpired, retentionCutoff, visitorKey } from './publication-analytics-purge.js';
 import { APPROVED_CAMPAIGNS, approvedCampaign } from '../../web/src/analytics-campaigns.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -35,7 +36,8 @@ const isStep = id => typeof id === 'string' && /^ns_[0-9a-f]{8}\.[1-9]$/.test(id
 const RANGES = { '7d': 7, '30d': 30, all: null };
 
 // The server's side of the visitor's choice (web analytics-consent.js): the acceptance cookie, and neither privacy signal on the request.
-export const consented = req => !!req && req.headers.get('Sec-GPC') !== '1' && req.headers.get('DNT') !== '1' && /(?:^|;\s*)rh_analytics_consent=accepted(?:;|$)/.test(req.headers.get('Cookie') || '');
+export const consented = req => !!req && req.headers.get('Sec-GPC') !== '1' && req.headers.get('DNT') !== '1'
+  && /(?:^|;\s*)rh_analytics_consent=accepted(?:;|$)/.test(req.headers.get('Cookie') || '') && /(?:^|;\s*)rh_analytics_consent_v=2(?:;|$)/.test(req.headers.get('Cookie') || '');
 const short = (value, max = 200) => (typeof value === 'string' && value.length > 0 && value.length <= max ? value : null);
 
 // A card's concepts, as resolveTarget (web learn-target.js) reads them: its scene objects' conceptId and its spec's conceptIds.
@@ -65,8 +67,8 @@ const metaStatements = (db, now) => [
   db.prepare("INSERT OR IGNORE INTO analytics_meta (key, value) VALUES ('collection_started_at', ?)").bind(now),
   db.prepare("INSERT INTO analytics_meta (key, value) VALUES ('last_ingest_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(now),
 ];
-const learnerStatement = (db, org, canvas, learner, signed, synthetic, now) => db.prepare(`INSERT INTO publication_learners (org, canvas, learner_key, signed_in, synthetic, first_seen_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?)
-  ON CONFLICT(org, canvas, learner_key) DO UPDATE SET signed_in = max(signed_in, excluded.signed_in), last_seen_at = excluded.last_seen_at`).bind(org, canvas, learner, signed, synthetic, now, now);
+const learnerStatement = (db, org, canvas, learner, signed, synthetic, now) => db.prepare(`INSERT INTO publication_learners (org, canvas, learner_key, signed_in, synthetic, last_seen_at) VALUES (?, ?, ?, ?, ?, ?)
+  ON CONFLICT(org, canvas, learner_key) DO UPDATE SET signed_in = max(signed_in, excluded.signed_in), last_seen_at = excluded.last_seen_at`).bind(org, canvas, learner, signed, synthetic, now);
 // The long-lived counters: sums per publication and day, no person.
 const boardDayStatement = (db, at, { opens = 0, stars = 0, starts = 0, forks = 0 }) => db.prepare(`INSERT INTO publication_board_days (org, canvas, day, opens, opens_from_stars, rabbit_holes_started, audience_forks) VALUES (?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(org, canvas, day) DO UPDATE SET opens = opens + excluded.opens, opens_from_stars = opens_from_stars + excluded.opens_from_stars, rabbit_holes_started = rabbit_holes_started + excluded.rabbit_holes_started, audience_forks = audience_forks + excluded.audience_forks`).bind(at.org, at.canvas, at.day, opens, stars, starts, forks);
@@ -97,6 +99,9 @@ export async function conversionStatements(db, { req, found, user, kind, item, m
     return [];
   }
 }
+
+// A safeguard beside the daily cleanup: a failure here never costs a batch or a read, which ignore expired rows anyway.
+const safeguardPurge = (db, now) => db.batch(purgeExpired(db, now)).catch(error => console.error('analytics purge failed', error?.message));
 
 // POST /api/learn/boards/shared/<token>/events. found: sharedRow's answer for the token (null when the link is dead).
 export async function ingestEvents(req, env, found) {
@@ -203,13 +208,14 @@ export async function ingestEvents(req, env, found) {
   if (!accepted) { await db.batch(metaStatements(db, now)); return json({ accepted: 0, ignored: events.length }); }
   const credited = creditedThrough !== (person?.credited_through ?? null) ? [db.prepare('UPDATE publication_learners SET credited_through = ? WHERE org = ? AND canvas = ? AND learner_key = ?').bind(creditedThrough, org, canvas, learner)] : [];
   try {
-    await db.batch([...metaStatements(db, now), ...purgeExpired(db, now), learnerStatement(db, org, canvas, learner, viewer ? 1 : 0, synthetic, now), ...out, ...credited]);
+    await db.batch([...metaStatements(db, now), learnerStatement(db, org, canvas, learner, viewer ? 1 : 0, synthetic, now), ...out, ...credited]);
   } catch {
     // A concurrent copy of the same batch won an event id, or storage failed: nothing of this one was written; the browser retries.
     // Recorded for the owner's status when it can be; the next good batch clears it.
     await db.prepare("INSERT INTO analytics_meta (key, value) VALUES ('last_ingest_error_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(now).run().catch(() => {});
     return json({ error: 'Not recorded; retry.' }, 503);
   }
+  await safeguardPurge(db, now);
   return json({ accepted, ignored: events.length - accepted });
 }
 
@@ -274,7 +280,8 @@ export async function analyticsRoute(path, req, env) {
 
 export async function readAnalytics(db, viewer, { range, canvas = null, synthetic = 0 }) {
   const now = new Date().toISOString(), today = now.slice(0, 10);
-  await db.batch([db.prepare("INSERT OR IGNORE INTO analytics_meta (key, value) VALUES ('collection_started_at', ?)").bind(now), ...purgeExpired(db, now)]);
+  await db.prepare("INSERT OR IGNORE INTO analytics_meta (key, value) VALUES ('collection_started_at', ?)").bind(now).run();
+  await safeguardPurge(db, now);
   const meta = Object.fromEntries((await db.prepare('SELECT key, value FROM analytics_meta').all()).results.map(r => [r.key, r.value]));
   const started = meta.collection_started_at, startDay = started.slice(0, 10);
   const scopeSql = canvas ? 'AND c.name = ?3' : '';
@@ -290,7 +297,7 @@ export async function readAnalytics(db, viewer, { range, canvas = null, syntheti
     ORDER BY c.title`).bind(...binds).all()).results;
   const names = new Set(boards.map(b => b.canvas));
   // Expiry is enforced here as well as purged: a row past retention is never counted, whether or not a purge has run.
-  const cutoffDay = retentionCutoff(now).slice(0, 10);
+  const cutoffDay = firstRetainedDay(now);
   // Per-learner rows of the scope within retention; the range is applied below.
   // shortcut: rows are aggregated in the Worker, fine for thousands of learner-days a read; move the counts into SQL when a
   // creator's audience reaches tens of thousands of learner-days.
@@ -422,7 +429,7 @@ export async function readAnalytics(db, viewer, { range, canvas = null, syntheti
     scope: { kind: canvas ? 'publication' : 'creator', canvas, title: canvas ? boards[0]?.title ?? null : null },
     range, period: { from, to: today, timezone: 'UTC', partial: from < startDay, audience_from: from < cutoffDay ? cutoffDay : from }, threshold: THRESHOLD, retention_days: RETENTION_DAYS, coverage: 'consenting_visitors',
     // Active only when this read succeeded and the newest ingest did not fail after the newest success.
-    collection: { status: meta.last_ingest_error_at && !(meta.last_ingest_at > meta.last_ingest_error_at) ? 'degraded' : 'active', started_at: started, last_ingest_at: meta.last_ingest_at ?? null, checked_at: now, own_visits_excluded: true, synthetic_excluded: syntheticCount },
+    collection: { status: meta.last_ingest_error_at && !(meta.last_ingest_at > meta.last_ingest_error_at) ? 'degraded' : 'active', started_at: started, last_ingest_at: meta.last_ingest_at ?? null, checked_at: now, own_visits_excluded: true, synthetic_excluded: syntheticCount, cleanup: cleanupHealth(meta, now) },
     producers: {
       visits: live(null), active_time: live(null), cards: live(null), concepts: live('Only cards that carry concept ids report concepts.'), resources: live(null),
       next_steps: live('Suggestions are shown only when a signed-in visitor asks for them.'), conversions: live(null), revisions: live(null), sources: live(null),

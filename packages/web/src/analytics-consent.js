@@ -4,6 +4,11 @@
 // request tells the server (product-analytics.js), which sends nothing without it. It holds no identifier.
 export const CONSENT_KEY = 'rh_analytics_consent';
 export const CONSENT_COOKIE = 'rh_analytics_consent';
+// The version of what acceptance covers. Version 2 added Creator Analytics; an acceptance stored without it was given for PostHog alone, which it
+// keeps enabling, and the banner asks again. Its own key and cookie, so a saved acceptance is never bridged silently.
+export const CONSENT_VERSION = '2';
+export const CONSENT_VERSION_KEY = 'rh_analytics_consent_version';
+export const CONSENT_VERSION_COOKIE = 'rh_analytics_consent_v';
 export const CONSENT_EVENT = 'rh:analytics-consent';        // this tab's choice changed
 export const PREFERENCES_EVENT = 'rh:analytics-preferences'; // someone asked to see the choice again
 const ANALYTICS_PREFIXES = ['rh_ph_', 'rh-visitor-id', 'rh-own-board:']; // usage-analytics.js's and publication-analytics.js's localStorage
@@ -19,6 +24,12 @@ export function consentOf(target) {
     return value === 'accepted' || value === 'rejected' ? value : null;
   } catch { return null; }
 }
+// This version of the choice was accepted: what Creator Analytics needs (publication-analytics.js), on top of the privacy signals.
+export function consentCurrent(target) {
+  try { return consentOf(target) === 'accepted' && target.localStorage?.getItem(CONSENT_VERSION_KEY) === CONSENT_VERSION; } catch { return false; }
+}
+// No choice yet, or an acceptance of an earlier version: the banner asks.
+export const needsConsentAnswer = target => !consentOf(target) || (consentOf(target) === 'accepted' && !consentCurrent(target));
 export const allowed = (target, config) => configured(config) && !optedOut(target.navigator) && consentOf(target) === 'accepted';
 
 export function mirrorConsentCookie(target) {
@@ -26,6 +37,8 @@ export function mirrorConsentCookie(target) {
     if (!target.document) return;
     const secure = target.location?.protocol === 'https:' ? '; Secure' : '';
     const keep = consentOf(target) === 'accepted' && !optedOut(target.navigator);
+    const current = keep && consentCurrent(target);
+    target.document.cookie = `${CONSENT_VERSION_COOKIE}=${current ? CONSENT_VERSION : ''}; Path=/; SameSite=Lax; Max-Age=${current ? 31536000 : 0}${secure}`;
     target.document.cookie = `${CONSENT_COOKIE}=${keep ? 'accepted' : ''}; Path=/; SameSite=Lax; Max-Age=${keep ? 31536000 : 0}${secure}`;
   } catch { /* the server then sends nothing */ }
 }
@@ -49,7 +62,10 @@ export function clearAnalyticsStorage(target) {
   } catch { /* nothing to clear */ }
 }
 export function setConsent(target, choice) {
-  try { target.localStorage?.setItem(CONSENT_KEY, choice); } catch { /* unreadable stays off */ }
+  try {
+    if (choice === 'accepted') target.localStorage?.setItem(CONSENT_VERSION_KEY, CONSENT_VERSION); else target.localStorage?.removeItem(CONSENT_VERSION_KEY);
+    target.localStorage?.setItem(CONSENT_KEY, choice);
+  } catch { /* unreadable stays off */ }
   mirrorConsentCookie(target);
   if (consentOf(target) !== 'accepted') clearAnalyticsStorage(target);
   try { target.dispatchEvent?.(new Event(CONSENT_EVENT)); } catch { /* no listeners to tell */ }

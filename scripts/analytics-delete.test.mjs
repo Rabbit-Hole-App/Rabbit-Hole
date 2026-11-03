@@ -12,7 +12,7 @@ const VISITOR = '11111111-2222-4333-8444-555555555555';
 const seed = (db, key) => {
   db.prepare("INSERT INTO publication_events VALUES (?, 'o', 'c', ?, ?, 'open', 'now')").run(`e-${key}`, `s-${key}`, key);
   db.prepare("INSERT INTO publication_sessions (session_key, org, canvas, learner_key, started_at) VALUES (?, 'o', 'c', ?, 'now')").run(`s-${key}`, key);
-  db.prepare("INSERT INTO publication_learners (org, canvas, learner_key, first_seen_at, last_seen_at) VALUES ('o', 'c', ?, 'now', 'now')").run(key);
+  db.prepare("INSERT INTO publication_learners (org, canvas, learner_key, last_seen_at) VALUES ('o', 'c', ?, 'now')").run(key);
   db.prepare("INSERT INTO publication_learner_days (org, canvas, learner_key, day, segment) VALUES ('o', 'c', ?, '2026-11-02', 1)").run(key);
   db.prepare("INSERT INTO publication_learner_items (org, canvas, learner_key, day, segment, kind, item_id) VALUES ('o', 'c', ?, '2026-11-02', 1, 'card_seen', 'b1')").run(key);
 };

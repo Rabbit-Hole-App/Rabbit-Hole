@@ -431,6 +431,7 @@ export function CreatorAnalyticsDialog({ canvas = null, opener: givenOpener = nu
                 <ul className="mt-1 list-disc pl-4">{Object.entries(data.producers || {}).map(([k, p]) => <li key={k}>{k.replaceAll('_', ' ')}: {p.readiness === 'unavailable' ? 'unavailable' : `${p.readiness} since ${dateText(p.started_at) || 'its first event'}`}{p.note ? `. ${p.note}` : ''}</li>)}</ul></div>}
             </div>
           </details>
+          {data?.collection?.cleanup?.healthy === false && <span data-analytics-cleanup className="text-danger">Daily cleanup needs attention. Expired records stay out of these numbers.</span>}
           <span data-analytics-freshness>
             {data ? `Read ${dateText(data.collection.checked_at)}${data.collection.started_at ? ` · collecting since ${dateText(data.collection.started_at)}` : ''}${data.collection.synthetic_excluded > 0 ? ` · ${data.collection.synthetic_excluded} synthetic ${data.collection.synthetic_excluded === 1 ? 'check' : 'checks'} excluded` : ''}` : error ? 'Freshness unavailable' : 'Freshness pending'}
           </span>

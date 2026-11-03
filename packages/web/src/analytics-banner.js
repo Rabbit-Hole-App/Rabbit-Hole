@@ -2,7 +2,7 @@
 // from "Analytics preferences". It takes no focus unless asked for, blocks nothing behind it, and sits bottom right. Not shown where the
 // choice means nothing: a build without analytics, or a browser sending Do Not Track or Global Privacy Control.
 import './analytics-banner.css';
-import { CONSENT_EVENT, CONSENT_KEY, PREFERENCES_EVENT, configured, consentOf, optedOut, setConsent } from './analytics-consent.js';
+import { CONSENT_EVENT, CONSENT_KEY, CONSENT_VERSION_KEY, PREFERENCES_EVENT, configured, consentOf, needsConsentAnswer, optedOut, setConsent } from './analytics-consent.js';
 
 const TEXT = 'We use analytics to understand how Rabbit Hole is used and improve it.';
 let mounted = false;
@@ -43,10 +43,10 @@ export function mountConsentBanner(target, config) {
     for (const button of banner.querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.analyticsChoose === current));
     if (focus) banner.querySelector('button').focus();
   };
-  const refresh = () => { if (consentOf(target)) close(); else if (!dismissed) open(false); };
+  const refresh = () => { if (!needsConsentAnswer(target)) close(); else if (!dismissed) open(false); };
   refresh();
   target.addEventListener(CONSENT_EVENT, refresh);
-  target.addEventListener('storage', event => { if (event.key === CONSENT_KEY || event.key === null) { dismissed = false; refresh(); } });
+  target.addEventListener('storage', event => { if (event.key === CONSENT_KEY || event.key === CONSENT_VERSION_KEY || event.key === null) { dismissed = false; refresh(); } });
   target.addEventListener(PREFERENCES_EVENT, () => open(true));
   doc.addEventListener('click', event => {
     if (!event.target?.closest?.('[data-analytics-preferences]')) return;

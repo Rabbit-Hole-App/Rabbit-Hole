@@ -35,13 +35,13 @@ const publish = async (who, c) => { await post(who, `/api/apps/${c.name}/publish
 // One batch through the real ingest route. who null is an anonymous browser.
 const uuid = () => crypto.randomUUID();
 // As a visitor who accepted analytics: the cookie is the server's consent signal (analytics-consent.js).
-const CONSENT_COOKIE = 'rh_analytics_consent=accepted';
+const CONSENT_COOKIE = 'rh_analytics_consent=accepted; rh_analytics_consent_v=2';
 const ingest = async (who, token, visitor, session, events, extra = {}, consent = true) => {
   const r = await fetch(`${BASE}/api/learn/boards/shared/${token}/events`, { method: 'POST', headers: { 'content-type': 'application/json', cookie: [...(consent ? [CONSENT_COOKIE] : []), ...(who ? [`small_session=${who.session}`] : [])].join('; ') }, body: JSON.stringify({ visitor_id: visitor, session_id: session, ...extra, events }) });
   return { status: r.status, body: await r.json().catch(() => null) };
 };
 // Saved acceptance, as the banner leaves it; the page mirrors the cookie.
-const ACCEPTED = () => { try { localStorage.setItem('rh_analytics_consent', 'accepted'); } catch { /* the check then fails */ } };
+const ACCEPTED = () => { try { localStorage.setItem('rh_analytics_consent_version', '2'); localStorage.setItem('rh_analytics_consent', 'accepted'); } catch { /* the check then fails */ } };
 const read = (who, canvasName, range = '30d', more = '') => api(who, `${canvasName ? `/api/analytics/publications/${canvasName}` : '/api/analytics/creator'}?range=${range}${more}`);
 
 // Each run's owner is new, so plain titles are unique in their Library; Explore is matched by this run's @handle too.
@@ -472,8 +472,9 @@ const visitPage = async (init = null) => {
 };
 await check('21 before accepting, after rejecting and under Do Not Track or Global Privacy Control: no identifier and no request', async () => {
   const cases = { 'no choice': null, rejected: () => { try { localStorage.setItem('rh_analytics_consent', 'rejected'); } catch { /* about:blank */ } },
-    'Global Privacy Control': () => { Object.defineProperty(navigator, 'globalPrivacyControl', { get: () => true }); try { localStorage.setItem('rh_analytics_consent', 'accepted'); } catch { /* about:blank */ } },
-    'Do Not Track': () => { Object.defineProperty(navigator, 'doNotTrack', { get: () => '1' }); try { localStorage.setItem('rh_analytics_consent', 'accepted'); } catch { /* about:blank */ } } };
+    'an acceptance given for PostHog alone': () => { try { localStorage.setItem('rh_analytics_consent', 'accepted'); } catch { /* about:blank */ } },
+    'Global Privacy Control': () => { Object.defineProperty(navigator, 'globalPrivacyControl', { get: () => true }); try { localStorage.setItem('rh_analytics_consent_version', '2'); localStorage.setItem('rh_analytics_consent', 'accepted'); } catch { /* about:blank */ } },
+    'Do Not Track': () => { Object.defineProperty(navigator, 'doNotTrack', { get: () => '1' }); try { localStorage.setItem('rh_analytics_consent_version', '2'); localStorage.setItem('rh_analytics_consent', 'accepted'); } catch { /* about:blank */ } } };
   for (const [label, init] of Object.entries(cases)) {
     const { context, target, requests } = await visitPage(init);
     await target.locator('[data-block-id]').first().click();
@@ -485,13 +486,13 @@ await check('21 before accepting, after rejecting and under Do Not Track or Glob
 });
 await check('22 accepting on the page starts collection; withdrawing here or from another tab sends nothing more and clears only analytics storage', async () => {
   const { context, target, requests } = await visitPage();
-  await target.evaluate(() => { localStorage.setItem('kept-by-the-app', '1'); localStorage.setItem('rh_analytics_consent', 'accepted'); window.dispatchEvent(new Event('rh:analytics-consent')); });
+  await target.evaluate(() => { localStorage.setItem('kept-by-the-app', '1'); localStorage.setItem('rh_analytics_consent_version', '2'); localStorage.setItem('rh_analytics_consent', 'accepted'); window.dispatchEvent(new Event('rh:analytics-consent')); });
   for (let i = 0; i < 80 && (await consentOpens()) === 0; i += 1) await target.waitForTimeout(250);
   assert.equal(await consentOpens(), 1, 'accepted: the visit reached the owner');
   assert.ok((await analyticsStorage(target)).length >= 2, 'the identifier and the visit');
   const other = await context.newPage();
   await other.goto(`${BASE}/explore`);
-  await other.evaluate(() => { localStorage.removeItem('rh_analytics_consent'); document.cookie = 'rh_analytics_consent=; Path=/; Max-Age=0'; });
+  await other.evaluate(() => { localStorage.removeItem('rh_analytics_consent'); localStorage.removeItem('rh_analytics_consent_version'); document.cookie = 'rh_analytics_consent=; Path=/; Max-Age=0'; document.cookie = 'rh_analytics_consent_v=; Path=/; Max-Age=0'; });
   await target.waitForTimeout(500);
   assert.deepEqual(await analyticsStorage(target), [], 'the other tab withdrew: this tab cleared its identifier and visit');
   assert.equal(await target.evaluate(() => localStorage.getItem('kept-by-the-app')), '1');

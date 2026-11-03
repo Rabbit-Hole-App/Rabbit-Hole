@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { classifySource, isActive, publicationAnalytics, resourceOf } from './publication-analytics.js';
-import { CONSENT_KEY, setConsent } from './analytics-consent.js';
+import { allowed, CONSENT_KEY, CONSENT_VERSION, CONSENT_VERSION_KEY, needsConsentAnswer, setConsent } from './analytics-consent.js';
 
 const origin = 'https://digrabbithole.com';
 test('the source comes from the arrival; a referrer never leaves, and only an approved campaign is sent', () => {
@@ -58,8 +58,9 @@ const settle = () => new Promise(done => setTimeout(done, 5));
 for (const [label, make] of [
   ['before any choice', () => fakeWindow()],
   ['after rejecting', () => fakeWindow({ local: storage([[CONSENT_KEY, 'rejected']]) })],
-  ['under Global Privacy Control, even with a saved acceptance', () => fakeWindow({ local: storage([[CONSENT_KEY, 'accepted']]), navigator: { globalPrivacyControl: true } })],
-  ['under Do Not Track, even with a saved acceptance', () => fakeWindow({ local: storage([[CONSENT_KEY, 'accepted']]), navigator: { doNotTrack: '1' } })],
+  ['with an acceptance from before this measurement, given for PostHog alone', () => fakeWindow({ local: storage([[CONSENT_KEY, 'accepted']]) })],
+  ['under Global Privacy Control, even with a saved acceptance', () => fakeWindow({ local: storage([[CONSENT_VERSION_KEY, CONSENT_VERSION], [CONSENT_KEY, 'accepted']]), navigator: { globalPrivacyControl: true } })],
+  ['under Do Not Track, even with a saved acceptance', () => fakeWindow({ local: storage([[CONSENT_VERSION_KEY, CONSENT_VERSION], [CONSENT_KEY, 'accepted']]), navigator: { doNotTrack: '1' } })],
 ]) test(`${label}: no identifier, no storage, nothing sent`, async t => {
   const win = make();
   const handle = open(win, t);
@@ -88,7 +89,7 @@ test('accepting on this page starts it; rejecting right after discards it and se
 });
 
 test('withdrawal from another tab: queued events are discarded, the in-flight request is aborted, no retry and no beacon; other storage stays', async t => {
-  const local = storage([[CONSENT_KEY, 'accepted'], ['rh_session_draft', 'keep me']]);
+  const local = storage([[CONSENT_VERSION_KEY, CONSENT_VERSION], [CONSENT_KEY, 'accepted'], ['rh_session_draft', 'keep me']]);
   let release;
   const calls = [];
   const win = fakeWindow({ local, fetch: (url, init) => { calls.push(init); return new Promise((_, reject) => { release = reject; init.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' }))); }); } });
@@ -113,7 +114,7 @@ test('withdrawal from another tab: queued events are discarded, the in-flight re
 });
 
 test('a withdrawal whose storage event has not arrived yet still sends nothing: consent is read again before each send', async t => {
-  const local = storage([[CONSENT_KEY, 'accepted']]);
+  const local = storage([[CONSENT_VERSION_KEY, CONSENT_VERSION], [CONSENT_KEY, 'accepted']]);
   const win = fakeWindow({ local });
   open(win, t);
   await settle();
@@ -124,7 +125,7 @@ test('a withdrawal whose storage event has not arrived yet still sends nothing: 
 });
 
 test('leaving with consent sends the last batch as a beacon once; the server dropping an own visit ends collection for this board on this browser', async t => {
-  const win = fakeWindow({ local: storage([[CONSENT_KEY, 'accepted']]) });
+  const win = fakeWindow({ local: storage([[CONSENT_VERSION_KEY, CONSENT_VERSION], [CONSENT_KEY, 'accepted']]) });
   const handle = publicationAnalytics({ token: 'token-1', blocks: [], win });
   await settle();
   handle.stepsShown('s', [{ id: 'ns_00000000.1' }]);
@@ -132,7 +133,7 @@ test('leaving with consent sends the last batch as a beacon once; the server dro
   assert.equal(win.sent.beacons.length, 1);
   handle.stop();
   assert.equal(win.sent.beacons.length, 1);
-  const mine = fakeWindow({ local: storage([[CONSENT_KEY, 'accepted']]), fetch: async () => new Response('{"accepted":0,"dropped":"own_visit"}', { status: 200 }) });
+  const mine = fakeWindow({ local: storage([[CONSENT_VERSION_KEY, CONSENT_VERSION], [CONSENT_KEY, 'accepted']]), fetch: async () => new Response('{"accepted":0,"dropped":"own_visit"}', { status: 200 }) });
   open(mine, t);
   await settle();
   assert.equal(mine.localStorage.getItem('rh-own-board:token-1'), '1');
@@ -140,4 +141,31 @@ test('leaving with consent sends the last batch as a beacon once; the server dro
   open(again, t);
   await settle();
   assert.deepEqual([again.sent.fetches, again.localStorage.getItem('rh-visitor-id') === mine.localStorage.getItem('rh-visitor-id')], [[], true]);
+});
+
+test('an old acceptance keeps PostHog working, starts nothing here, and the banner asks again; accepting now starts collection, rejecting turns both off', async t => {
+  const config = { token: 'phc_test', host: 'https://ph.example.com' };
+  const win = fakeWindow({ local: storage([[CONSENT_KEY, 'accepted']]) });
+  open(win, t);
+  await settle();
+  assert.equal(allowed(win, config), true, 'PostHog keeps its earlier acceptance');
+  assert.equal(needsConsentAnswer(win), true, 'the visitor is asked again');
+  assert.deepEqual([analyticsKeys(win), win.sent.fetches], [[], []]);
+  setConsent(win, 'accepted');
+  await settle();
+  assert.deepEqual(typesOf(win.sent.fetches), ['open']);
+  assert.equal(needsConsentAnswer(win), false);
+  const again = fakeWindow({ local: storage([[CONSENT_KEY, 'accepted']]) });
+  setConsent(again, 'rejected');
+  assert.equal(allowed(again, config), false);
+  assert.equal(again.localStorage.getItem(CONSENT_VERSION_KEY), null);
+  assert.equal(needsConsentAnswer(again), false, 'a rejection is an answer');
+});
+
+test('withdrawing removes the own-board flag, on a page with no collector too', () => {
+  const win = fakeWindow({ local: storage([[CONSENT_VERSION_KEY, CONSENT_VERSION], [CONSENT_KEY, 'accepted'], ['rh-own-board:token-1', '1'], ['rh-visitor-id', 'x'], ['rh_session_draft', 'keep']]) });
+  win.sessionStorage.setItem('rh-pub:token-1', '{}');
+  setConsent(win, 'rejected');
+  assert.deepEqual(analyticsKeys(win), []);
+  assert.equal(win.localStorage.getItem('rh_session_draft'), 'keep');
 });
