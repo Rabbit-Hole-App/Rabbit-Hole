@@ -79,7 +79,7 @@ const RATE_RULES = 'When a parameter changes a rate (a period, frequency or spee
 // accept-5: an author used its whole output limit and never made its tool call. Plan briefly, then write a compact reply.
 // What the later stages can read, measured on aj_9c453b6 (FX-AN-030, animation-fit.test.js): an estimate that depends on the plan's own
 // length, so passing it promises nothing. Shared with the feasibility check.
-export const ANIMATION_DRAFT_BYTES = 15000;
+export const ANIMATION_DRAFT_BYTES = 14500; // 15,000 until the review and repair prompts grew (2026-11-02): this plan's largest fitting draft is then 14,817 B
 export const TRAIL_NODE_BYTES = 65;
 // aj_ba11d5a (2026-11-02): the plan stated a stability limit of about 0.92 (half mean squared error) while the program computed the full
 // mean squared error, whose limit is about 0.46; the review rejected the mismatch and the repair could not change the plan.
