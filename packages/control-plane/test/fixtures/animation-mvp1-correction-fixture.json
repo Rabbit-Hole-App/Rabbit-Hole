@@ -469,7 +469,7 @@
     {
      "id": "lBar",
      "kind": "label",
-     "text": "Scale bar: an update of 1.0 is this long",
+     "text": "Arrow this long = update of 1.0",
      "placement": "right"
     }
    ],
@@ -651,11 +651,10 @@
     {
      "id": "lbar",
      "geometry": "lBar",
-     "parent": "bar",
      "position": [
       1.1,
-      0,
-      0
+      0.03,
+      2.8
      ]
     },
     {

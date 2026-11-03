@@ -178,7 +178,8 @@ test('a zero update: the arrow is hidden, its label and quantity read 0, nothing
   // The scale bar is a fixed labelled rod: no arrowhead (not an arrow geometry), and its length is the scale x 1.0.
   const bar = artifact.scene.nodes.find(n => n.id === 'bar'), geometry = artifact.scene.geometries.find(g => g.id === bar.geometry);
   assert.equal(geometry.kind, 'box'); assert.equal(geometry.size[0], K * 1.0);
-  assert.match(artifact.scene.geometries.find(g => g.id === 'lBar').text, /^Scale bar: an update of 1\.0 is this long$/);
+  // The legend's wording changed with owner issue 2 (2026-11-03, label legibility): shorter, and a caption with no parent (see animation-mvp1-fixture-legibility.test.js).
+  assert.match(artifact.scene.geometries.find(g => g.id === 'lBar').text, /^Arrow this long = update of 1\.0$/);
 });
 
 test('off plot: the marker is where the step crosses the edge, the readouts keep the true values, and the status is Diverged only above the learning-rate limit', async () => {

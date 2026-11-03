@@ -48,7 +48,10 @@ geometries.push(
   { id: 'lW', kind: 'label', text: 'slope w', placement: 'right' }, { id: 'lB', kind: 'label', text: 'intercept b', placement: 'below' },
   { id: 'lStatus', kind: 'label', text: 'Ready', placement: 'center' }, { id: 'lExit', kind: 'label', text: 'Left the plot here', placement: 'above' },
   { id: 'lStepG', kind: 'label', text: 'noisy update', placement: 'right' }, { id: 'lTrueG', kind: 'label', text: 'full-batch update', placement: 'right' },
-  { id: 'lBar', kind: 'label', text: 'Scale bar: an update of 1.0 is this long', placement: 'right' });
+  // Legibility (owner review, issue 2): the scale legend states what the bar means, so it must never be dropped for object names. A label with no parent is essential
+  // (always shown, also with Labels off): its node below is a root node placed at the bar's right end. 'Arrow this long = update of 1.0': an arrow as long as the bar
+  // (2 units) is an update of 1.0, the one disclosed scale (K = 2), in half the width of the old wording.
+  { id: 'lBar', kind: 'label', text: 'Arrow this long = update of 1.0', placement: 'right' });
 nodes.push(
   { id: 'lw', geometry: 'lW', parent: 'axisW', position: [4.05, 1.6, 0] }, { id: 'lb', geometry: 'lB', parent: 'axisB', position: [0, 1.6, 2.05] },
   { id: 'minM', geometry: 'minG', material: 'min', position: [0, 0.05, 0] }, { id: 'lmin', geometry: 'lMin', parent: 'minM', position: [0.12, 0, 0] },
@@ -61,7 +64,7 @@ nodes.push(
   { id: 'lexit', geometry: 'lExit', parent: 'exitM', position: [0, 0.16, 0] },
   { id: 'status', geometry: 'lStatus', position: [0, 3.6, 0] },
   { id: 'bar', geometry: 'barG', material: 'barMat', position: [0, 0.03, 2.8] },
-  { id: 'lbar', geometry: 'lBar', parent: 'bar', position: [1.1, 0, 0] });
+  { id: 'lbar', geometry: 'lBar', position: [1.1, 0.03, 2.8] }); // root node (essential label), at the bar's right end: the bar is at [0, 0.03, 2.8], 2 long
 for (let i = 0; i < 40; i++) nodes.push({ id: `p${i}`, geometry: 'd', material: 't' });
 for (let i = 0; i < 40; i++) nodes.push({ id: `o${i}`, geometry: 'd', material: 'g' });
 
