@@ -313,6 +313,10 @@ await check('15 the profile entry opens all public boards; choosing a board show
   await page.locator('[data-analytics-tab="learning"]').click();
   assert.match(await page.locator('[data-analytics-cards]').innerText(), /Card reach and interaction[\s\S]*fixed reading order[\s\S]*12/);
   assert.equal(await page.locator('[data-insight="interest"]').count(), 1);
+  // Owner 2026-11-02: the main action is the primary blue; the others read as buttons, with a border.
+  const look = (target, selector) => target.locator(selector).first().evaluate(el => { const c = getComputedStyle(el); return { fill: c.backgroundColor, ink: c.color, border: c.borderTopWidth }; });
+  assert.deepEqual([(await look(page, '[data-draft-follow-up]')).fill, (await look(page, '[data-draft-follow-up]')).ink], ['rgb(27, 111, 194)', 'rgb(255, 255, 255)'], 'light: Draft a follow-up board is primary');
+  assert.equal((await look(page, '[data-analytics-export]')).border, '1px', 'light: Export CSV has its border');
   await shot(page, 'F-board-learning', dialog);
   await page.locator('[data-analytics-tab="sources"]').click();
   assert.match(await page.locator('[data-analytics-sources]').innerText(), /LinkedIn[\s\S]*12/);
@@ -366,6 +370,10 @@ await check('18 dark: the dialog follows the theme', async () => {
   await dark.locator('[data-creator-analytics-open]').click();
   await settled(dark);
   assert.equal(await dark.evaluate(() => document.documentElement.classList.contains('dark')), true);
+  const dialogButton = selector => dark.locator(selector).first().evaluate(el => { const c = getComputedStyle(el); return { fill: c.backgroundColor, ink: c.color, border: c.borderTopWidth }; });
+  const [draftLook, detailsLook, exportLook] = [await dialogButton('[data-draft-follow-up]'), await dialogButton('[data-analytics-details]'), await dialogButton('[data-analytics-export]')];
+  assert.deepEqual([draftLook.fill, draftLook.ink], ['rgb(27, 111, 194)', 'rgb(255, 255, 255)'], 'dark: Draft a follow-up board is primary');
+  assert.deepEqual([detailsLook.border, exportLook.border], ['1px', '1px'], 'dark: the other buttons keep their border');
   assert.notEqual(await dialogOf(dark).evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 255, 255)');
   await shot(dark, 'J-dark', dialogOf(dark));
   await dark.locator('[data-analytics-close]').click();
