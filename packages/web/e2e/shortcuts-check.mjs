@@ -154,10 +154,13 @@ const panelOn = async page => (await rowState(page, 'View', 'Right panel', 'Show
   ok('Tab and Shift+Tab stay inside the window', inside);
   // Background canvas keys from a control in the window (not a text field): none of them may act on the canvas.
   await sheet(page).locator('[data-shortcuts-platform="win"]').focus();
-  const tool = await pressedTool(page), transform = await world(page);
-  for (const key of ['Delete', 'Backspace', 'Control+d', 'Control+z', 'r', 'Shift+Digit2', 'Control+Minus']) await page.keyboard.press(key);
-  ok('Delete, Backspace, Ctrl+D, Ctrl+Z, a tool key, Shift+2 and zoom do nothing behind the window', await objects(page) === count && await pressedTool(page) === tool && await world(page) === transform, `${await objects(page)} objects, tool ${await pressedTool(page)}`);
+  await page.waitForTimeout(300);
   await page.screenshot({ path: `${SHOTS}/win-sheet.png` });
+  const tool = await pressedTool(page), transform = await world(page);
+  // Ctrl+Z goes last: from a control, the browser's own undo moves the focus back into the search it edits.
+  const fromControl = [];
+  for (const key of ['Delete', 'Backspace', 'Control+d', 'r', 'Shift+Digit2', 'Control+Minus', 'Control+z']) { if (key === 'Control+z') fromControl.push(await sheet(page).locator('[data-shortcuts-search]').inputValue()); await page.keyboard.press(key); }
+  ok('Delete, Backspace, Ctrl+D, a tool key, Shift+2, zoom and Ctrl+Z from a control do nothing behind the window', fromControl[0] === '' && await objects(page) === count && await pressedTool(page) === tool && await world(page) === transform, `search "${fromControl[0]}", ${await objects(page)} objects, tool ${await pressedTool(page)}`);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(200);
   ok('one Esc closes the window', await sheet(page).count() === 0);
@@ -269,6 +272,7 @@ const panelOn = async page => (await rowState(page, 'View', 'Right panel', 'Show
   for (const title of SECTIONS) { await tabTo(page, title); macKeys.push(...await sheet(page).locator('[data-shortcut-key]').allInnerTexts()); }
   ok('Mac: no Ctrl on any tab', macKeys.length > 60 && !macKeys.some(text => /Ctrl/.test(text)), `${macKeys.length} keys`);
   await tabTo(page, 'Essentials');
+  await page.waitForTimeout(300);
   await page.screenshot({ path: `${SHOTS}/mac-dark-sheet.png` });
   await page.keyboard.press('Escape');
   const undo = await rowState(page, 'Edit', 'Undo');
