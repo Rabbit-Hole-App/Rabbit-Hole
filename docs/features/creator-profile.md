@@ -48,7 +48,7 @@ Public explainers                    [Search projects and canvases]  Sort: Newes
 
 - It shows the same public page and content everyone sees. It adds two subtle buttons:
   - **Edit profile** opens Settings > Profile (name, picture, handle, description) through the existing `small:settings` event.
-  - **Analytics** opens your private creator analytics as a side panel. The panel is beside the page and never mixed into it (creator-analytics-contract.md "Analytics UI").
+  - **Analytics** opens your private creator analytics in a centered modal over the page, scoped to all your public boards (creator-analytics-contract.md "As built").
 - If you change your handle while on your profile, the page follows to the new `/@handle`.
 
 ## Links to the profile

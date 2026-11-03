@@ -21,6 +21,7 @@ import { BLANK, rabbitOrigin, requestRabbitHole, resumeHref, takeResume } from '
 import RabbitHoleChoice from './RabbitHoleChoice.jsx';
 import { carryStep, keepPendingStep, takePendingStep } from './learn-next-steps.js';
 import { markGuidedEntry } from './learn-opening.js';
+import { publicationAnalytics } from './publication-analytics.js';
 import { useSharedNextSteps } from './LearnNextSteps.jsx';
 import { describeBlock } from './LearningBlocks.jsx';
 import { creatorLabel } from './home/provenance.js';
@@ -186,6 +187,17 @@ function SharedBoard({ token, embed = null }) {
   const guest = useGuestDraft(token, shared?.version, { enabled: localCopy });
   const guestRef = useRef(guest);
   guestRef.current = guest;
+  // Creator analytics (publication-analytics.js): a public /e publication only, never a share link or an embed on another site, and only
+  // while the visitor's analytics choice allows it. The handle follows that choice for as long as the page is open.
+  const analytics = useRef(null);
+  const published = !embed && !!shared?.published;
+  useEffect(() => {
+    if (!published) return undefined;
+    const collector = publicationAnalytics({ token, blocks: shared.state?.blocks || [] });
+    analytics.current = collector;
+    return () => { collector.stop(); analytics.current = null; };
+  }, [token, published]); // eslint-disable-line react-hooks/exhaustive-deps
+  const saveGuest = useCallback(state => { guestRef.current.save(state); analytics.current?.observe(state); }, []);
   // The embed answers only the tab it opened for Fork or Open Chat in Rabbit Hole, with the local copy and the unsent draft, and
   // keeps both until that tab acknowledges (embed-api.js handoffHost). The window keeps its opener; the URL carries only flags.
   useEffect(() => { if (!embed) return undefined; host.current = handoffHost(window, token); return () => host.current.stop(); }, [embed, token]);
@@ -279,9 +291,9 @@ function SharedBoard({ token, embed = null }) {
   const canvasEl = (
     <Suspense fallback={<CanvasChromeLoading tools={localCopy} />}><SearchContentProvider key={search.scopeKey} registry={search.registry}><CardSourceScope.Provider value={cardScope}><DivePortals.Provider value={holes ? { portals: holes.portals, enter: goTo } : null}>
       <AdaptiveCanvas {...commentProps} permissions={permissions} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} docView={hasDoc ? docView : 'canvas'} onState={onCanvasState} onStartRabbitHole={embed ? undefined : startFromCard}
-        {...(localCopy ? { localCopy: true, boardState: guest.state || board, onSave: guest.save } : { readOnly: true, boardState: board })}
+        {...(localCopy ? { localCopy: true, boardState: guest.state || board, onSave: saveGuest } : { readOnly: true, boardState: board })}
         gutterTop={holes ? <DiveNavigator tree={holes.tree} climb={index => goTo(holes.tree.path[index].href)} enter={goTo} /> : null}
-        hooks={embed ? undefined : <SharedNextSteps token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} />}
+        hooks={embed ? undefined : <SharedNextSteps token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} analytics={analytics} />}
         onAskTarget={setTarget} askTargetId={target?.id ?? null} />
     </DivePortals.Provider></CardSourceScope.Provider></SearchContentProvider></Suspense>
   );
@@ -433,12 +445,14 @@ const describedCard = (state, cardId) => {
 
 // Professor Next Steps on a shared canvas (contract §1.3, §1.7): the hooks for the selected card (null: the canvas itself), in
 // the canvas's lower-left stack. A click starts the viewer's own private hole from that card through Start Rabbit Hole's run.
-function SharedNextSteps({ token, card, version, signedIn, startRef }) {
+function SharedNextSteps({ token, card, version, signedIn, startRef, analytics }) {
   // Curious hidden on this device (View menu, ui-prefs.js; owner brief 2026-10-21 message 25 item 2): nothing is asked. This page
   // has no View menu, so the choice is read once per page load.
   const [curious] = useState(() => uiPrefs().curious);
   const steps = useSharedNextSteps({ token: curious ? token : null, card, version, signedIn });
-  return <NextStepsCard steps={steps} onPick={(step, hook) => startRef.current?.(card, step, hook.id)} />;
+  // Impressions are the sets actually on screen; analytics never asks for one.
+  useEffect(() => { if (steps.status === 'ready' && steps.options.length === 3) analytics.current?.stepsShown(steps.set_id, steps.options); }, [steps.status, steps.set_id]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <NextStepsCard steps={steps} onPick={(step, hook) => { analytics.current?.stepSelected(steps.options, hook); return startRef.current?.(card, step, hook.id); }} />;
 }
 
 // A project's link (visibility-menu.md "Projects", owner 2026-10-09) is its Main canvas's: beside it, the project's canvases

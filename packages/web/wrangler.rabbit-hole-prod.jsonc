@@ -10,6 +10,9 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "preview_urls": false,
+  // The daily expiry of creator analytics records (dev-worker.js scheduled, publication-analytics-purge.js runCleanup). The only cron on any
+  // Rabbit Hole Worker. The release applies it: prod-release.mjs runs wrangler deploy --config, which sets a config's triggers.
+  "triggers": { "crons": ["0 4 * * *"] },
   // The digrabbithole.com zone is ACTIVE in the Rabbit Hole account (checked 2026-10-01). www redirects to the
   // apex with a proxied placeholder record plus a Single Redirect rule, not a second custom domain.
   "routes": [{ "pattern": "digrabbithole.com", "custom_domain": true }],

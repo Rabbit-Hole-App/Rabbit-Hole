@@ -44,7 +44,9 @@ test('both production configs pin the rabbit-hole account and name no dev, legac
     const want = expected(c, path);
     assert.deepEqual(d1(c), want.d1, path);
     assert.deepEqual(r2(c), want.r2, path);
-    assert.equal(c.triggers, undefined, `${path}: the legacy crons start Fly machines and send email`);
+    // The control plane's legacy crons start Fly machines and send email. The app Worker has one cron, the analytics cleanup, whose handler does nothing else.
+    if (c.name === 'rabbit-hole-app') assert.deepEqual(c.triggers, { crons: ['0 4 * * *'] }, path);
+    else assert.equal(c.triggers, undefined, `${path}: the legacy crons start Fly machines and send email`);
     assert.equal(c.preview_urls, false, path);
     assert.equal(c.ai, undefined, path); assert.equal(c.vectorize, undefined, path); assert.equal(c.queues, undefined, path);
     for (const key of Object.keys(c.vars || {})) assert.doesNotMatch(key, /TEST|OAUTH_MOCK|^FLY_|SUBSCRIPTION/, `${path} var ${key}`);

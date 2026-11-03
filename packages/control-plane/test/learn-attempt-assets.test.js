@@ -48,11 +48,11 @@ async function route(env, actor, method, path, { query = {}, raw, json: body, he
 const upload = (env, actor, bytes, kind = 'audio', extra = {}) => route(env, actor, 'PUT', '/api/learn/tutor/attempts/assets', { raw: bytes, query: { kind, sha256: sha(bytes), ...(kind === 'audio' ? { durationMs: '4200' } : {}), ...extra } });
 const read = (env, actor, id, headers) => route(env, actor, 'GET', `/api/learn/tutor/attempts/assets/${id}`, { headers });
 
-test('learn 0034 is CREATE-only, re-runnable and mirrored verbatim at the end of repository-schema.sql', () => {
+test('learn 0034 is CREATE-only, re-runnable and mirrored verbatim in repository-schema.sql', () => {
   const migration = readFileSync(new URL('../learn-migrations/0034-explain-back.sql', import.meta.url), 'utf8').replace(/\r/g, '');
   const schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8').replace(/\r/g, '');
   for (const s of migration.replace(/--.*$/gm, '').split(';').map(x => x.trim()).filter(Boolean)) assert.match(s, /^CREATE (TABLE|(UNIQUE )?INDEX) IF NOT EXISTS /);
-  assert.ok(schema.trimEnd().endsWith(migration.trim()));
+  assert.ok(schema.includes(migration.trim()));
   const db = new DatabaseSync(':memory:');
   db.exec(migration); db.exec(migration);
   assert.deepEqual(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all().map(r => r.name), ['learn_attempt_assets', 'learn_attempt_transcripts', 'learn_explain_drafts']);
