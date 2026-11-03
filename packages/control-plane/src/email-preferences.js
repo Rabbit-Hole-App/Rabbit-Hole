@@ -1,25 +1,33 @@
 // Email preferences, the pure part (docs/features/signup-email-preferences.md, owner 2026-11-03): "Rabbit Hole Updates" and
 // "Newsletter", two independent optional choices. The server (profile.js, email-preferences-store.js) is the authority; the
 // browser (HandleGate, Settings) imports the same wording, defaults and view. No imports: web and the Workers both bundle it.
+// These two categories are the OPTIONAL messages only. Essential account and security email (sign-in emails, invitations, budget
+// alerts) is separate: it never reads these choices and is never gated by sendDecision.
 export const CATEGORIES = Object.freeze(['updates', 'newsletter']);
 export const SOURCES = Object.freeze(['onboarding', 'settings', 'unsubscribe']);
 // How a value was obtained. A box shown checked and submitted unchanged is signup_preselected: stored as submitted, never an opt-in.
 export const METHODS = Object.freeze(['signup_preselected', 'signup_user_checked', 'signup_user_unchecked', 'settings_user_set', 'unsubscribe_link']);
 
-// The wording shown next to the boxes, by version. Changing a word means a new version here, never an edit in place: each stored
-// preference names the version the person saw. Owner to confirm the descriptions (the product had none before this).
-export const DISCLOSURE_VERSION = 'v1';
+// The wording shown next to the boxes, by version. Changing a word means a NEW version here (and DISCLOSURE_VERSION), never an edit
+// in place: each stored preference names the version the person saw. v1 was never released (its Newsletter text described the wrong
+// newsletter); it stays only so a row that names it (CI, dev) remains readable. Owner to confirm the v2 wording.
+export const DISCLOSURE_VERSION = 'v2';
 export const DISCLOSURES = Object.freeze({
   v1: Object.freeze({
     updates: Object.freeze({ label: 'Rabbit Hole Updates', description: 'Product news: new features and changes to Rabbit Hole.' }),
     newsletter: Object.freeze({ label: 'Newsletter', description: 'Our newsletter: articles and ideas about learning with Rabbit Hole.' }),
   }),
+  v2: Object.freeze({
+    updates: Object.freeze({ label: 'Rabbit Hole Updates', description: 'Product news: new features and changes to Rabbit Hole.' }),
+    newsletter: Object.freeze({ label: 'Newsletter', description: 'The founder’s newsletter about tech and AI.' }),
+  }),
 });
 export const wording = (version = DISCLOSURE_VERSION) => DISCLOSURES[version] || DISCLOSURES[DISCLOSURE_VERSION];
 
-// Which categories may be sent only on an AFFIRMATIVE opt-in (a box the person actively ticked, or switched on in Settings),
-// not on a preselected default. OWNER DECISION PENDING: newsletter is marketing; updates is treated as product news.
-export const AFFIRMATIVE_REQUIRED = Object.freeze({ updates: false, newsletter: true });
+// Which categories may be sent only on an AFFIRMATIVE opt-in (a box the person actively ticked, or switched on or confirmed in
+// Settings), never on a preselected default. Owner decision 2026-11-03: BOTH, for now. Rabbit Hole Updates is not exempt because it is
+// product news. Loosening either value is a new owner decision.
+export const AFFIRMATIVE_REQUIRED = Object.freeze({ updates: true, newsletter: true });
 
 // Providers whose stored provider_email auth.js has verified: Google (kept only when email_verified is true) and the emailed
 // link (the address itself, proven by the single-use link). GitHub is absent on purpose: auth.js keeps the public profile

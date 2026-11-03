@@ -47,7 +47,7 @@ const pageFor = async who => {
   return page;
 };
 const shot = async (page, name) => { if (!SHOTS) return; await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
-const view = (updates, newsletter) => ({ disclosure: 'v1', deliverable: true, updates: { enabled: updates, affirmative: false }, newsletter: { enabled: newsletter, affirmative: false } });
+const view = (updates, newsletter) => ({ disclosure: 'v2', deliverable: true, updates: { enabled: updates, affirmative: false }, newsletter: { enabled: newsletter, affirmative: false } });
 
 // [name, keep Updates checked, keep Newsletter checked]: the four combinations. Unchecked is an act (signup_user_unchecked); a box left alone is signup_preselected.
 const COMBOS = [['both', true, true], ['updates', true, false], ['newsletter', false, true], ['neither', false, false]];
@@ -66,7 +66,8 @@ for (const [name, keepUpdates, keepNewsletter] of COMBOS) {
 
   check(`${name}: both boxes are shown checked, named, optional and described`, await page.locator('[data-email-choices]').isVisible()
     && JSON.stringify(await states()) === '[true,true]' && await page.getByRole('checkbox', { name: /Rabbit Hole Updates/ }).count() === 1 && await page.getByRole('checkbox', { name: /Newsletter/ }).count() === 1
-    && await page.locator('[data-email-choice][required]').count() === 0 && await page.getByText('Optional. Change or unsubscribe any time in Settings.').isVisible());
+    && await page.locator('[data-email-choice][required]').count() === 0 && await page.getByText('Optional. Change or unsubscribe any time in Settings.').isVisible()
+    && await page.getByText('Product news: new features and changes to Rabbit Hole.').isVisible() && await page.getByText('The founder’s newsletter about tech and AI.').isVisible());
   if (name === 'both') await shot(page, '01-defaults-both-checked');
   const before = await api(person, '/api/profile');
   check(`${name}: showing the boxes saved nothing (no preference in the profile, no row)`, before.status === 200 && JSON.stringify(before.body.emailPreferences) === JSON.stringify(view(null, null)) && (await stored(person)).length === 0);
@@ -88,7 +89,7 @@ for (const [name, keepUpdates, keepNewsletter] of COMBOS) {
   await page.reload();
   await page.getByRole('heading', { name: 'Library' }).waitFor({ timeout: 30000 });
   check(`${name}: after a reload the same choices come back and the step does not return`, await setup.count() === 0 && JSON.stringify((await api(person, '/api/profile')).body.emailPreferences) === JSON.stringify(expected));
-  const row = (category, kept) => ({ category, enabled: kept ? 1 : 0, source: 'onboarding', method: kept ? 'signup_preselected' : 'signup_user_unchecked', affirmative: 0, disclosure_version: 'v1' });
+  const row = (category, kept) => ({ category, enabled: kept ? 1 : 0, source: 'onboarding', method: kept ? 'signup_preselected' : 'signup_user_unchecked', affirmative: 0, disclosure_version: 'v2' });
   check(`${name}: stored with its source, method (${keepUpdates ? 'preselected' : 'unchecked'} / ${keepNewsletter ? 'preselected' : 'unchecked'}), affirmative flag and wording version`,
     JSON.stringify(await stored(person)) === JSON.stringify([row('newsletter', keepNewsletter), row('updates', keepUpdates)]), JSON.stringify(await stored(person)));
 }
@@ -104,9 +105,9 @@ for (const [name, keepUpdates, keepNewsletter] of COMBOS) {
   const pane = dialog.locator('[data-settings-pane="privacy"]');
   const switchOf = label => pane.getByRole('switch', { name: label, exact: true });
   await switchOf('Newsletter').waitFor({ timeout: 15000 });
-  check('settings: both switches are on, and only the Newsletter (a preselected yes) offers Confirm', await switchOf('Rabbit Hole Updates').getAttribute('aria-checked') === 'true'
+  check('settings: both switches are on, and both preselected yeses offer Confirm (an active yes is required for both)', await switchOf('Rabbit Hole Updates').getAttribute('aria-checked') === 'true'
     && await switchOf('Newsletter').getAttribute('aria-checked') === 'true' && await pane.locator('[data-email-pref="newsletter"]').getByRole('button', { name: 'Confirm' }).count() === 1
-    && await pane.locator('[data-email-pref="updates"]').getByRole('button', { name: 'Confirm' }).count() === 0);
+    && await pane.locator('[data-email-pref="updates"]').getByRole('button', { name: 'Confirm' }).count() === 1);
   await shot(page, '03-settings-email');
   const settled = async (category, enabled) => { for (let i = 0; i < 50; i++) { if ((await api(person, '/api/profile')).body.emailPreferences?.[category]?.enabled === enabled) return true; await page.waitForTimeout(200); } return false; };
   await switchOf('Newsletter').click();

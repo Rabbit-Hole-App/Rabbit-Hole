@@ -102,8 +102,10 @@ export async function profileFetch(req, env) {
       .bind(user.email, next.name, next.avatar).run();
   }
   if (emailPreferences) {
-    // Last, after the handle: a taken handle changed nothing. The account is the session's, never the body's. A failure is loud (the
-    // choice is not silently dropped) and safe to repeat: onboarding never overwrites a choice already recorded.
+    // Last, after the handle: a taken handle changed nothing. The account is the session's, never the body's. The pair is one
+    // statement (whole or not at all). A failure is loud (the choice is not silently dropped) and the retry recovers: the handle is
+    // already this account's, so the pair is saved again, with the values the retry carries; it replaces an earlier onboarding row
+    // and never a Settings change or an unsubscribe made since.
     try { await saveEmailPreferences(env, user.userId, emailPreferences); }
     catch { return json({ error: 'Your email choices could not be saved. Try again.' }, 503); }
   }

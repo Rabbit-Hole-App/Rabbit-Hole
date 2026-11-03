@@ -57,6 +57,8 @@ them (read 2026-10-29):
   applies. Voice input is paused in the UI (`LISTENING_PAUSED = true`, `LearnVoice.jsx:19`), though the token route
   still answers while `ELEVENLABS_API_KEY` is installed.
 
+Email choices (owner, 2026-11-03): the Privacy Policy has an "Email choices" section (`packages/web/src/landing/support.js`) stating what is stored for the two optional email choices (value, time, where chosen, pre-selected or actively chosen, wording version, a reference to the account), who can see it, how to change or unsubscribe, and that no email is sent yet. Each statement and its source are in `C:/s/spec/signup-prefs/policy-wording.md` and docs/features/signup-email-preferences.md. No frequency or sending date is promised.
+
 Not claimed, because the source does not settle it:
 
 - Google Gemini API (https://ai.google.dev/gemini-api/terms, modified 2026-04-28): Paid Services are not used to

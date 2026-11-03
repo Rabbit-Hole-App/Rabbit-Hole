@@ -1,4 +1,5 @@
-// Email preferences in the main D1 (user_email_preferences, migration 0028; docs/features/signup-email-preferences.md). The
+// Email preferences in the main D1 (user_email_preferences, migration 0028; docs/features/signup-email-preferences.md). Only the optional
+// Updates and Newsletter messages: essential account and security email never reads this table. The
 // account is always the session's users.id, passed in by the caller: nothing here reads an identity from a request body. The mailing
 // address is never stored with a preference; it is resolved from user_identities when it is needed.
 import { sign, verify } from './token.js';
@@ -15,15 +16,16 @@ export const emailPreferenceView = async (env, userId) => {
 };
 
 // Writes the validated choices (email-preferences.js validateEmailPreferences) for one account, only the categories named, so
-// changing one never touches the other. Onboarding is insert-only: a choice already recorded (Settings, an unsubscribe, an earlier
-// Continue) is never overwritten by a default shown again. Settings replaces its own category.
+// changing one never touches the other. ONE statement writes every category sent, so the pair is saved whole or not at all.
+// Settings replaces its own categories. Onboarding applies only while the stored row is itself an onboarding row (or there is
+// none): a Settings change or an unsubscribe made later is never overwritten by a stale or repeated onboarding request, while a
+// retry after a failed Continue stores the values it carries, not the first attempt's.
 export async function saveEmailPreferences(env, userId, { source, disclosure, choices }, at = now()) {
-  const conflict = source === 'onboarding' ? 'DO NOTHING'
-    : 'DO UPDATE SET enabled = excluded.enabled, source = excluded.source, method = excluded.method, affirmative = excluded.affirmative, disclosure_version = excluded.disclosure_version, changed_at = excluded.changed_at';
-  for (const [category, choice] of Object.entries(choices)) {
-    await env.DB.prepare(`INSERT INTO user_email_preferences (user_id, category, enabled, source, method, affirmative, disclosure_version, changed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(user_id, category) ${conflict}`)
-      .bind(userId, category, choice.enabled ? 1 : 0, source, choice.method, choice.affirmative ? 1 : 0, disclosure, at).run();
-  }
+  const entries = Object.entries(choices);
+  const overwrite = 'DO UPDATE SET enabled = excluded.enabled, source = excluded.source, method = excluded.method, affirmative = excluded.affirmative, disclosure_version = excluded.disclosure_version, changed_at = excluded.changed_at';
+  const conflict = source === 'onboarding' ? `${overwrite} WHERE user_email_preferences.source = 'onboarding'` : overwrite;
+  await env.DB.prepare(`INSERT INTO user_email_preferences (user_id, category, enabled, source, method, affirmative, disclosure_version, changed_at) VALUES ${entries.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(', ')} ON CONFLICT(user_id, category) ${conflict}`)
+    .bind(...entries.flatMap(([category, choice]) => [userId, category, choice.enabled ? 1 : 0, source, choice.method, choice.affirmative ? 1 : 0, disclosure, at])).run();
 }
 
 // The unsubscribe link's write: this category off, no disclosure shown. A person with no row gets an off row, so it is on record.
@@ -32,8 +34,10 @@ export const unsubscribeCategory = (env, userId, category, at = now()) => env.DB
    ON CONFLICT(user_id, category) DO UPDATE SET enabled = 0, source = 'unsubscribe', method = 'unsubscribe_link', affirmative = 0, disclosure_version = NULL, changed_at = excluded.changed_at`
 ).bind(userId, category, at).run();
 
-// THE gate for any marketing-style email: { send: true, address } or { send: false, reason }. It reads the person's current
-// preference, applies the owner's affirmative-consent rule, resolves a verified address server-side and checks suppression.
+// THE gate for any OPTIONAL email (Rabbit Hole Updates or Newsletter): { send: true, address } or { send: false, reason }. Essential
+// email (sign-in emails, invitations, budget alerts) is not optional: it never calls this and is never gated by these choices.
+// It reads the person's current preference, applies the owner's affirmative-consent rule (a preselected, unchanged box is refused
+// for both categories), resolves a verified address server-side and checks suppression.
 // Nothing sends mail yet; the future sender must call this and send to no other address.
 export async function marketingRecipient(env, userId, category) {
   if (typeof userId !== 'string' || !userId || !CATEGORIES.includes(category)) return { send: false, reason: 'unknown_category' };

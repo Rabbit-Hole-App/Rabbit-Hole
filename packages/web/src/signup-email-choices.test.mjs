@@ -37,6 +37,7 @@ test('both boxes are shown checked, each with its own label and plain descriptio
   }
   assert.deepEqual(CATEGORIES.map(c => wording()[c].label), ['Rabbit Hole Updates', 'Newsletter']);
   assert.match(html, /Optional\. Change or unsubscribe any time in Settings\./);
+  assert.ok(html.includes('The founder’s newsletter about tech and AI.'), "the Newsletter is the founder's tech and AI newsletter");
 });
 
 test('the boxes are two separate inputs inside the form, before Continue, and Continue still needs only a valid handle', () => {
@@ -62,7 +63,7 @@ test('unchecking one box leaves the other as it was; both can be unchecked; chec
 test('what Continue sends: the shown wording version and, per box, its value and whether the person touched it', () => {
   assert.deepEqual(onboardingSubmission(initialChoices()), { source: 'onboarding', disclosure: DISCLOSURE_VERSION, updates: { enabled: true, touched: false }, newsletter: { enabled: true, touched: false } });
   assert.deepEqual(onboardingSubmission(toggleChoice(initialChoices(), 'updates')).updates, { enabled: false, touched: true });
-  assert.equal(DISCLOSURE_VERSION, 'v1');
+  assert.equal(DISCLOSURE_VERSION, 'v2');
 });
 
 test('the wording has no ellipsis, and the unsubscribe page is not swallowed by the public-page 404', () => {

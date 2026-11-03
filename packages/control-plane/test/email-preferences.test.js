@@ -37,7 +37,15 @@ function fixture(t, { people = {}, mainSql = mainSchema } = {}) {
     main.prepare('INSERT INTO users (id, email, created_at) VALUES (?, ?, 1)').run(uid, principal);
     main.prepare('INSERT INTO user_identities (provider, provider_user_id, user_id, provider_email, created_at, last_login_at) VALUES (?, ?, ?, ?, 1, 1)').run(p.provider, `pid-${key}`, uid, p.providerEmail ?? null);
   }
-  const env = { LEARN_DB: d1(learn), DB: d1(main), MASTER_KEY,
+  // Failure injection: failures.prefs = N makes the next N preference writes reject before they reach the database (the connection
+  // drops after the handle claim). trap(category) makes the database itself abort that category's row, so a pair statement fails midway.
+  const failures = { prefs: 0 };
+  const flaky = db => ({ prepare: sql => { const stmt = db.prepare(sql); return { bind(...v) { stmt.bind(...v); return this; }, first: () => stmt.first(), all: () => stmt.all(),
+    run: async () => { if (failures.prefs > 0 && /INSERT INTO user_email_preferences/.test(sql)) { failures.prefs--; throw new Error('connection lost'); } return stmt.run(); } }; } });
+  const trap = category => { main.exec(`CREATE TABLE IF NOT EXISTS trap (category TEXT); DELETE FROM trap; INSERT INTO trap VALUES ('${category}');
+    CREATE TRIGGER IF NOT EXISTS trap_row BEFORE INSERT ON user_email_preferences WHEN NEW.category = (SELECT category FROM trap LIMIT 1) BEGIN SELECT RAISE(ABORT, 'second category failed'); END;`); };
+  const untrap = () => main.exec('DROP TRIGGER IF EXISTS trap_row');
+  const env = { LEARN_DB: d1(learn), DB: flaky(d1(main)), MASTER_KEY,
     CONTROL_PLANE: { fetch: async req => { const p = who[req.headers.get('x-user') || 'ada']; return Response.json({ org: 'team', email: p.email, orgName: 'Team', ...(p.uid ? { user_id: p.uid } : {}) }); } } };
   const send = async (method, body, user = 'ada') => {
     const res = await profileFetch(new Request('https://dev.test/api/profile', { method, headers: { 'x-user': user }, ...(body ? { body: JSON.stringify(body) } : {}) }), env);
@@ -45,7 +53,7 @@ function fixture(t, { people = {}, mainSql = mainSchema } = {}) {
   };
   const rows = (uid) => main.prepare('SELECT category, enabled, source, method, affirmative, disclosure_version, changed_at FROM user_email_preferences WHERE user_id = ? ORDER BY category').all(uid).map(r => ({ ...r }));
   const count = () => main.prepare('SELECT count(*) AS n FROM user_email_preferences').get().n;
-  return { env, send, rows, count, main, who };
+  return { env, send, rows, count, main, who, failures, trap, untrap };
 }
 const onboarding = (updates, newsletter) => ({ source: 'onboarding', disclosure: DISCLOSURE_VERSION, updates, newsletter });
 const unchanged = { enabled: true, touched: false };
@@ -60,11 +68,11 @@ test('both boxes left checked: both stored on, as signup_preselected, not affirm
   const saved = await send('PUT', gate(onboarding(unchanged, unchanged)));
   assert.equal(saved.status, 200);
   assert.deepEqual(brief(rows('uid-ada')), [
-    { category: 'newsletter', enabled: 1, source: 'onboarding', method: 'signup_preselected', affirmative: 0, disclosure_version: 'v1' },
-    { category: 'updates', enabled: 1, source: 'onboarding', method: 'signup_preselected', affirmative: 0, disclosure_version: 'v1' },
+    { category: 'newsletter', enabled: 1, source: 'onboarding', method: 'signup_preselected', affirmative: 0, disclosure_version: DISCLOSURE_VERSION },
+    { category: 'updates', enabled: 1, source: 'onboarding', method: 'signup_preselected', affirmative: 0, disclosure_version: DISCLOSURE_VERSION },
   ]);
   for (const r of rows('uid-ada')) assert.ok(r.changed_at >= before && r.changed_at <= Math.floor(Date.now() / 1000) + 1, 'the time of the choice is stored per preference');
-  assert.deepEqual(saved.body.emailPreferences, { disclosure: 'v1', deliverable: true, updates: { enabled: true, affirmative: false }, newsletter: { enabled: true, affirmative: false } });
+  assert.deepEqual(saved.body.emailPreferences, { disclosure: DISCLOSURE_VERSION, deliverable: true, updates: { enabled: true, affirmative: false }, newsletter: { enabled: true, affirmative: false } });
 });
 
 test('only Updates kept: Newsletter unchecked by the person is stored off as signup_user_unchecked', async t => {
@@ -116,7 +124,7 @@ test('every combination of the two boxes is stored exactly as submitted', async 
 test('displaying the form creates no row; no account preference exists until Continue', async t => {
   const { send, rows, count } = fixture(t);
   const read = await send('GET');
-  assert.deepEqual(read.body.emailPreferences, { disclosure: 'v1', deliverable: true, updates: { enabled: null, affirmative: false }, newsletter: { enabled: null, affirmative: false } });
+  assert.deepEqual(read.body.emailPreferences, { disclosure: DISCLOSURE_VERSION, deliverable: true, updates: { enabled: null, affirmative: false }, newsletter: { enabled: null, affirmative: false } });
   await send('GET'); await send('PUT', { name: 'Ada' });
   assert.equal(count(), 0);
   assert.deepEqual(rows('uid-ada'), []);
@@ -126,7 +134,7 @@ test('the choices persist: a second read returns what was saved, and the address
   const { send } = fixture(t);
   await send('PUT', gate(onboarding({ enabled: false, touched: true }, unchanged)));
   const again = await send('GET');
-  assert.deepEqual(again.body.emailPreferences, { disclosure: 'v1', deliverable: true, updates: { enabled: false, affirmative: false }, newsletter: { enabled: true, affirmative: false } });
+  assert.deepEqual(again.body.emailPreferences, { disclosure: DISCLOSURE_VERSION, deliverable: true, updates: { enabled: false, affirmative: false }, newsletter: { enabled: true, affirmative: false } });
   assert.ok(!JSON.stringify(again.body).includes('gmail.test'), 'no address in the profile');
 });
 
@@ -134,7 +142,7 @@ test('a malformed or unknown submission is refused before anything is written (t
   const { send, rows, count } = fixture(t);
   for (const bad of [
     { ...onboarding(unchanged, unchanged), source: 'unsubscribe' }, { ...onboarding(unchanged, unchanged), source: 'admin' }, { ...onboarding(unchanged, unchanged), disclosure: 'v99' },
-    onboarding({ enabled: 'yes', touched: false }, unchanged), onboarding({ enabled: true }, unchanged), onboarding({ enabled: false, touched: false }, unchanged), { source: 'onboarding', disclosure: 'v1' }, 'newsletter', [],
+    onboarding({ enabled: 'yes', touched: false }, unchanged), onboarding({ enabled: true }, unchanged), onboarding({ enabled: false, touched: false }, unchanged), { source: 'onboarding', disclosure: DISCLOSURE_VERSION }, 'newsletter', [],
   ]) {
     const res = await send('PUT', gate(bad));
     assert.equal(res.status, 400, JSON.stringify(bad));
@@ -163,7 +171,7 @@ test('account isolation: a body naming another account changes only the signed-i
   assert.deepEqual(rows('uid-bob'), [], 'bob has no row: the identity came from the session');
   assert.equal(rows('uid-ada').length, 2);
   assert.deepEqual((await send('GET', null, 'bob')).body.emailPreferences.newsletter, { enabled: null, affirmative: false }, 'bob sees his own, not ada\'s');
-  assert.equal((await send('PUT', { emailPreferences: { source: 'settings', disclosure: 'v1', updates: { enabled: false }, userId: 'uid-ada' } }, 'bob')).status, 200);
+  assert.equal((await send('PUT', { emailPreferences: { source: 'settings', disclosure: DISCLOSURE_VERSION, updates: { enabled: false }, userId: 'uid-ada' } }, 'bob')).status, 200);
   assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled]), [['newsletter', 0], ['updates', 1]], 'bob\'s Settings write left ada\'s rows alone');
   assert.deepEqual(brief(rows('uid-bob')).map(r => [r.category, r.enabled, r.method]), [['updates', 0, 'settings_user_set']]);
 });
@@ -182,22 +190,25 @@ test('Settings changes one category and leaves the other; turning on is affirmat
   const { send, rows } = fixture(t);
   await send('PUT', gate(onboarding(unchanged, unchanged)));
   const fixed = Object.fromEntries(rows('uid-ada').map(r => [r.category, r]));
-  const off = await send('PUT', { emailPreferences: { source: 'settings', disclosure: 'v1', newsletter: { enabled: false } } });
+  const off = await send('PUT', { emailPreferences: { source: 'settings', disclosure: DISCLOSURE_VERSION, newsletter: { enabled: false } } });
   assert.deepEqual([off.body.emailPreferences.newsletter.enabled, off.body.emailPreferences.updates.enabled], [false, true]);
   const now = Object.fromEntries(rows('uid-ada').map(r => [r.category, r]));
   assert.deepEqual(now.updates, fixed.updates, 'Updates is byte-for-byte what onboarding stored');
   assert.deepEqual([now.newsletter.enabled, now.newsletter.source, now.newsletter.method, now.newsletter.affirmative], [0, 'settings', 'settings_user_set', 0]);
-  await send('PUT', { emailPreferences: { source: 'settings', disclosure: 'v1', newsletter: { enabled: true } } });
+  await send('PUT', { emailPreferences: { source: 'settings', disclosure: DISCLOSURE_VERSION, newsletter: { enabled: true } } });
   assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled, r.method, r.affirmative]), [['newsletter', 1, 'settings_user_set', 1], ['updates', 1, 'signup_preselected', 0]]);
 });
 
-test('Confirm in Settings turns a preselected yes into an affirmative one', async t => {
+test('Confirm in Settings turns a preselected yes into an affirmative one, for either category', async t => {
   const { send, rows } = fixture(t);
   await send('PUT', gate(onboarding(unchanged, unchanged)));
-  assert.equal((await send('GET')).body.emailPreferences.newsletter.affirmative, false);
-  await send('PUT', { emailPreferences: { source: 'settings', disclosure: 'v1', newsletter: { enabled: true } } });
+  assert.deepEqual(['updates', 'newsletter'].map(c => rows('uid-ada').find(r => r.category === c).affirmative), [0, 0]);
+  await send('PUT', { emailPreferences: { source: 'settings', disclosure: DISCLOSURE_VERSION, newsletter: { enabled: true } } });
   assert.equal((await send('GET')).body.emailPreferences.newsletter.affirmative, true);
+  assert.equal((await send('GET')).body.emailPreferences.updates.affirmative, false, 'confirming one does not confirm the other');
   assert.equal(rows('uid-ada').find(r => r.category === 'newsletter').method, 'settings_user_set');
+  await send('PUT', { emailPreferences: { source: 'settings', disclosure: DISCLOSURE_VERSION, updates: { enabled: true } } });
+  assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled, r.method, r.affirmative]), [['newsletter', 1, 'settings_user_set', 1], ['updates', 1, 'settings_user_set', 1]]);
 });
 
 test('unrelated profile edits never reset either preference', async t => {
@@ -210,13 +221,118 @@ test('unrelated profile edits never reset either preference', async t => {
   }
 });
 
-test('re-submitting the onboarding defaults never overrides a choice already recorded', async t => {
+test('a stale or repeated onboarding request never overwrites a Settings change or an unsubscribe made later', async t => {
+  const { env, send, rows } = fixture(t);
+  await send('PUT', gate(onboarding(unchanged, unchanged)));
+  await send('PUT', { emailPreferences: { source: 'settings', disclosure: DISCLOSURE_VERSION, newsletter: { enabled: false } } });
+  await handleUnsubscribe(unsubReq(await unsubscribeUrl(env, BASE, 'uid-ada', 'updates'), { method: 'POST' }), env, '/unsubscribe', { baseUrl: BASE, html });
+  const snapshot = JSON.stringify(rows('uid-ada'));
+  for (const stale of [onboarding(unchanged, unchanged), onboarding({ enabled: true, touched: true }, { enabled: true, touched: true })]) {
+    assert.equal((await send('PUT', gate(stale, 'ada_demo'))).status, 200, 'the retry itself succeeds');
+    assert.equal(JSON.stringify(rows('uid-ada')), snapshot, 'Newsletter (Settings) and Updates (unsubscribe link) stay as the person left them');
+  }
+  assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled, r.source]), [['newsletter', 0, 'settings'], ['updates', 0, 'unsubscribe']]);
+});
+
+// ---------- the handle claim and the preference pair recover cleanly ----------
+
+test('(a, d) a failure after the handle claim and before the preferences are saved: the retry saves the submitted values, and a reload shows them', async t => {
+  const { send, rows, failures } = fixture(t);
+  failures.prefs = 1;
+  const failed = await send('PUT', gate(onboarding(unchanged, { enabled: false, touched: true })));
+  assert.equal(failed.status, 503);
+  assert.deepEqual(rows('uid-ada'), [], 'nothing saved by the failed request');
+  const reload = await send('GET');
+  assert.equal(reload.body.handle, 'ada_demo', 'the handle was claimed');
+  assert.deepEqual([reload.body.emailPreferences.updates.enabled, reload.body.emailPreferences.newsletter.enabled], [null, null], 'and no choice is recorded yet');
+  const retry = await send('PUT', gate(onboarding(unchanged, { enabled: false, touched: true })));
+  assert.equal(retry.status, 200);
+  assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled, r.method]), [['newsletter', 0, 'signup_user_unchecked'], ['updates', 1, 'signup_preselected']]);
+  const after = (await send('GET')).body.emailPreferences;
+  assert.deepEqual([after.updates.enabled, after.newsletter.enabled], [true, false], 'after a reload');
+});
+
+test('(b, d) the pair is atomic: a failure on the second category leaves neither saved, and a reload shows none', async t => {
+  const { send, rows, count, trap, untrap } = fixture(t);
+  trap('newsletter'); // the database aborts the Newsletter row, the second of the pair
+  const failed = await send('PUT', gate(onboarding(unchanged, unchanged)));
+  assert.equal(failed.status, 503);
+  assert.equal(count(), 0, 'Updates, written in the same statement, was not left behind');
+  assert.deepEqual((await send('GET')).body.emailPreferences, { disclosure: DISCLOSURE_VERSION, deliverable: true, updates: { enabled: null, affirmative: false }, newsletter: { enabled: null, affirmative: false } });
+  untrap();
+  assert.equal((await send('PUT', gate(onboarding(unchanged, unchanged)))).status, 200);
+  assert.equal(rows('uid-ada').length, 2);
+});
+
+test('(c, d) a retry with CHANGED checkbox values after a failure stores the changed values, not the first attempt\'s', async t => {
+  const { send, rows, failures } = fixture(t);
+  failures.prefs = 1;
+  assert.equal((await send('PUT', gate(onboarding(unchanged, unchanged)))).status, 503); // attempt 1: both left checked, nothing saved
+  const changed = onboarding({ enabled: false, touched: true }, { enabled: true, touched: true });
+  assert.equal((await send('PUT', gate(changed))).status, 200); // attempt 2: Updates unchecked, Newsletter unchecked and checked again
+  assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled, r.method, r.affirmative]), [['newsletter', 1, 'signup_user_checked', 1], ['updates', 0, 'signup_user_unchecked', 0]]);
+  // The same when an earlier attempt did save (its response was lost) and the later request carries other values: the later onboarding request wins.
+  assert.equal((await send('PUT', gate(onboarding(unchanged, { enabled: false, touched: true }), 'ada_demo'))).status, 200);
+  assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled, r.method]), [['newsletter', 0, 'signup_user_unchecked'], ['updates', 1, 'signup_preselected']]);
+  const after = (await send('GET')).body.emailPreferences;
+  assert.deepEqual([after.updates.enabled, after.newsletter.enabled], [true, false], 'after a reload');
+});
+
+test('(c, d) a retry with changed values after the pair statement itself failed stores the changed values', async t => {
+  const { send, rows, count, trap, untrap } = fixture(t);
+  trap('newsletter');
+  assert.equal((await send('PUT', gate(onboarding(unchanged, unchanged)))).status, 503);
+  assert.equal(count(), 0);
+  untrap();
+  assert.equal((await send('PUT', gate(onboarding({ enabled: false, touched: true }, { enabled: false, touched: true })))).status, 200);
+  assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled, r.method]), [['newsletter', 0, 'signup_user_unchecked'], ['updates', 0, 'signup_user_unchecked']]);
+  const after = (await send('GET')).body.emailPreferences;
+  assert.deepEqual([after.updates.enabled, after.newsletter.enabled], [false, false], 'after a reload');
+});
+
+test('(e) the same account retrying with its own claimed handle still saves the pair; a different account claiming that handle is refused and saves nothing', async t => {
+  const { send, rows, count, failures } = fixture(t);
+  failures.prefs = 1;
+  assert.equal((await send('PUT', gate(onboarding(unchanged, unchanged), 'claimed_one'))).status, 503);
+  const stranger = await send('PUT', gate(onboarding(unchanged, unchanged), 'claimed_one'), 'bob');
+  assert.equal(stranger.status, 409);
+  assert.match(stranger.body.error, /is taken/);
+  assert.equal(count(), 0, 'the refused account saved nothing, and the failed one has not retried yet');
+  assert.equal((await send('PUT', gate(onboarding(unchanged, unchanged), 'claimed_one'))).status, 200, 'its own handle again: no conflict with itself');
+  assert.deepEqual(rows('uid-bob'), []);
+  assert.equal(rows('uid-ada').length, 2);
+  assert.equal((await send('GET', null, 'bob')).body.handle, null, 'the stranger never got the handle');
+});
+
+test('(g, h) after a failed attempt and a retry, an unrelated edit still leaves both rows alone, and a person who never chose is still "no preference recorded"', async t => {
+  const { send, rows, failures } = fixture(t);
+  failures.prefs = 1;
+  await send('PUT', gate(onboarding(unchanged, unchanged)));
+  await send('PUT', gate(onboarding(unchanged, { enabled: false, touched: true })));
+  const snapshot = JSON.stringify(rows('uid-ada'));
+  for (const edit of [{ name: 'Ada' }, { description: 'x' }]) { await send('PUT', edit); assert.equal(JSON.stringify(rows('uid-ada')), snapshot); }
+  const bob = (await send('GET', null, 'bob')).body.emailPreferences;
+  assert.deepEqual([bob.updates.enabled, bob.newsletter.enabled], [null, null]);
+  assert.deepEqual(rows('uid-bob'), []);
+});
+
+test('essential email is never gated by these choices: the sign-in, invitation and budget-alert code does not read them', () => {
+  const src = f => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8');
+  for (const file of ['auth.js', 'cad-budget-alert.js', 'canvas-members.js']) assert.doesNotMatch(src(file), /email-preferences|marketingRecipient|sendDecision/, `${file} sends essential email`);
+  assert.deepEqual([...CATEGORIES], ['updates', 'newsletter'], 'the gate names only the two optional categories');
+  assert.equal(sendDecision({ category: 'signin', preference: { enabled: true, affirmative: true }, address: 'a@b.test' }).send, false, 'it is no gate for anything else, and nothing essential calls it');
+});
+
+test('the disclosure is versioned: v2 is current, the Newsletter is the founder\'s tech and AI newsletter, and every stored preference names its version', async t => {
+  assert.equal(DISCLOSURE_VERSION, 'v2');
+  assert.equal(wording().newsletter.description, 'The founder’s newsletter about tech and AI.');
+  assert.equal(wording().updates.description, 'Product news: new features and changes to Rabbit Hole.');
+  assert.match(wording('v1').newsletter.description, /learning with Rabbit Hole/, 'v1 was never released and is kept only to read old rows');
+  assert.notEqual(wording('v1').newsletter.description, wording('v2').newsletter.description, 'a text change is a new version');
   const { send, rows } = fixture(t);
   await send('PUT', gate(onboarding(unchanged, unchanged)));
-  await send('PUT', { emailPreferences: { source: 'settings', disclosure: 'v1', newsletter: { enabled: false } } });
-  const snapshot = JSON.stringify(rows('uid-ada').filter(r => r.category === 'newsletter'));
-  assert.equal((await send('PUT', gate(onboarding(unchanged, unchanged), 'ada_demo'))).status, 200);
-  assert.equal(JSON.stringify(rows('uid-ada').filter(r => r.category === 'newsletter')), snapshot, 'Newsletter stays off');
+  assert.deepEqual(rows('uid-ada').map(r => r.disclosure_version), ['v2', 'v2']);
+  assert.equal(validateEmailPreferences({ source: 'settings', disclosure: 'v1', updates: { enabled: true } }).value.disclosure, 'v1', 'a stale page that showed v1 is recorded as v1');
 });
 
 // ---------- existing people: nothing is switched on or reset ----------
@@ -331,14 +447,15 @@ test('marketingRecipient: current preference, affirmative consent where required
   const ask = category => marketingRecipient(env, 'uid-ada', category);
   assert.equal((await ask('newsletter')).reason, 'no_preference');
   await send('PUT', gate(onboarding(unchanged, unchanged)));
-  assert.deepEqual(await ask('updates'), { send: true, address: 'ada@gmail.test' }, 'Updates may go on a preselected yes (owner decision pending)');
+  assert.equal((await ask('updates')).reason, 'needs_affirmative_consent', 'Updates is not exempt because it is product news (owner 2026-11-03)');
   assert.equal((await ask('newsletter')).reason, 'needs_affirmative_consent', 'a preselected Newsletter is not an opt-in');
-  await send('PUT', { emailPreferences: { source: 'settings', disclosure: 'v1', newsletter: { enabled: true } } });
+  await send('PUT', { emailPreferences: { source: 'settings', disclosure: DISCLOSURE_VERSION, updates: { enabled: true }, newsletter: { enabled: true } } });
+  assert.deepEqual(await ask('updates'), { send: true, address: 'ada@gmail.test' });
   assert.deepEqual(await ask('newsletter'), { send: true, address: 'ada@gmail.test' });
   main.prepare("INSERT INTO email_suppressions VALUES ('ada@gmail.test', 'bounce', 1)").run();
   assert.equal((await ask('newsletter')).reason, 'suppressed');
   main.prepare('DELETE FROM email_suppressions').run();
-  await send('PUT', { emailPreferences: { source: 'settings', disclosure: 'v1', newsletter: { enabled: false } } });
+  await send('PUT', { emailPreferences: { source: 'settings', disclosure: DISCLOSURE_VERSION, newsletter: { enabled: false } } });
   assert.equal((await ask('newsletter')).reason, 'opted_out');
   assert.equal((await marketingRecipient(env, 'uid-ada', 'billing')).reason, 'unknown_category');
   assert.equal((await marketingRecipient(env, '', 'updates')).send, false);
@@ -347,8 +464,9 @@ test('marketingRecipient: current preference, affirmative consent where required
 
 test('sendDecision applies the affirmative rule from AFFIRMATIVE_REQUIRED only', () => {
   const on = { enabled: true, affirmative: false }, address = 'a@b.test';
-  assert.deepEqual(AFFIRMATIVE_REQUIRED, { updates: false, newsletter: true });
-  assert.equal(sendDecision({ category: 'updates', preference: on, address }).send, true);
+  assert.deepEqual(AFFIRMATIVE_REQUIRED, { updates: true, newsletter: true }, 'owner 2026-11-03: both, for now');
+  assert.equal(sendDecision({ category: 'updates', preference: on, address }).reason, 'needs_affirmative_consent');
+  assert.equal(sendDecision({ category: 'updates', preference: { ...on, affirmative: true }, address }).send, true);
   assert.equal(sendDecision({ category: 'newsletter', preference: on, address }).reason, 'needs_affirmative_consent');
   assert.equal(sendDecision({ category: 'newsletter', preference: { ...on, affirmative: true }, address }).send, true);
   assert.equal(sendDecision({ category: 'newsletter', preference: { enabled: false, affirmative: true }, address }).reason, 'opted_out');
@@ -381,13 +499,13 @@ test('methods, defaults and the wording', () => {
   assert.equal(isAffirmative('signup_user_checked', false), false);
   assert.deepEqual(wording().updates.label, 'Rabbit Hole Updates');
   assert.deepEqual(wording().newsletter.label, 'Newsletter');
-  assert.deepEqual(validateEmailPreferences({ source: 'settings', disclosure: 'v1', updates: { enabled: false } }).value.choices, { updates: { enabled: false, method: 'settings_user_set', affirmative: false } });
-  assert.deepEqual(preferenceView([], null), { disclosure: 'v1', deliverable: false, updates: { enabled: null, affirmative: false }, newsletter: { enabled: null, affirmative: false } });
+  assert.deepEqual(validateEmailPreferences({ source: 'settings', disclosure: DISCLOSURE_VERSION, updates: { enabled: false } }).value.choices, { updates: { enabled: false, method: 'settings_user_set', affirmative: false } });
+  assert.deepEqual(preferenceView([], null), { disclosure: DISCLOSURE_VERSION, deliverable: false, updates: { enabled: null, affirmative: false }, newsletter: { enabled: null, affirmative: false } });
 });
 
 test('saveEmailPreferences writes only the categories named', async t => {
   const { env, rows } = fixture(t);
-  await saveEmailPreferences(env, 'uid-ada', validateEmailPreferences({ source: 'settings', disclosure: 'v1', updates: { enabled: true } }).value, 5);
+  await saveEmailPreferences(env, 'uid-ada', validateEmailPreferences({ source: 'settings', disclosure: DISCLOSURE_VERSION, updates: { enabled: true } }).value, 5);
   assert.deepEqual(brief(rows('uid-ada')).map(r => [r.category, r.enabled]), [['updates', 1]]);
   assert.equal(rows('uid-ada')[0].changed_at, 5);
 });

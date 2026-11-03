@@ -5,7 +5,7 @@ const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 const mail = '<a href="mailto:hello@digrabbithole.com">hello@digrabbithole.com</a>';
 // Owner facts (2026-10-29): the operator is an individual; no company name or incorporation is claimed.
 const operator = 'Yudhisteer Chintaram, an individual, at 16595 Redmond Way, Redmond, WA 98052, United States';
-// Per document: the Privacy Policy changed on 2026-11-03 (Creator Analytics), the Terms did not. Move the date again if the release slips past that day.
+// Per document: the Privacy Policy changed on 2026-11-03 (Creator Analytics; email choices), the Terms did not. Move the date again if the release slips past that day (Pacific time).
 const effective = { '/privacy': 'Effective date: November 3, 2026', '/terms': 'Effective date: November 1, 2026' };
 
 // Each section is [id, heading, ...blocks]; a block is a paragraph, or an array of list items.
@@ -21,6 +21,14 @@ const documents = {
         '<strong>GitHub</strong>: your GitHub account number, your name or username, and your email address if GitHub provides it.',
         '<strong>Email link</strong>: your email address and a record of each link we send (when it was sent, when it expires and when it was used). A link works once and expires after 15 minutes.',
       ], 'You can also add a display name, a profile picture, a public @handle and a short description. We do not copy a profile picture from Google or GitHub.'],
+      ['email', 'Email choices', 'When you create your account you can choose to receive two kinds of email. Both choices are optional, both start checked, and you can create an account with either or both unchecked:', [
+        '<strong>Rabbit Hole Updates</strong>: product news, such as new features and changes to Rabbit Hole.',
+        '<strong>Newsletter</strong>: the founder’s newsletter about tech and AI.',
+      ], 'For each choice we store whether it is on or off; when it was set; where it was set (when you created your account, in Settings or through an unsubscribe link); whether the box was shown already checked and left as it was, or you checked or unchecked it yourself; the version of the wording you saw; and a reference to your account, from which we look up your verified email address when we need it. A box left checked as it was shown is recorded as pre-selected, not as an active opt-in.',
+        'Only you and the Rabbit Hole operator can see these choices. Other people on Rabbit Hole cannot.',
+        'You can change either choice at any time in Settings, under Privacy & security, or unsubscribe from one without affecting the other.',
+        'Rabbit Hole does not send these emails yet. Your choices are recorded and will be used for future messages. We have not set how often or when. Emails you need to use Rabbit Hole, such as sign-in links and invitations, do not depend on these choices.',
+        'We use an address only if we have verified it: for Google, the verified address Google gives us; for an email link, the address you sign in with. We do not use an address that GitHub shows publicly for these choices.'],
       ['content', 'Chats, uploads and saved canvases', 'To keep your work available on every device, we store what you create and add:', [
         'Canvases: their cards, notes, drawings and the chat exchanges shown on them.',
         'Files you upload, and media Rabbit Hole generates for you, such as images and videos.',
