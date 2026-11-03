@@ -63,15 +63,21 @@ export function middleOf(p) {
 // Anything else keeps the initial state, action and sequence first, so a game's action and win paths stay covered.
 // A stepped scene whose motion an action starts (an action that declares nothing or startsMotion true, contract.js) is sampled after it:
 // the host's steps alone move nothing in such a scene, so a state at the high end of a parameter would show no divergence and no trail
-// (aj_0b6ca2b, review: "Run was never pressed in the high-rate sample"). That action (the last such one, so a scene whose actions all declare nothing keeps its order) is pressed once, last among the events (the others
+// (aj_0b6ca2b, review: "Run was never pressed in the high-rate sample"). That action (the first such one in declared order) is pressed once (before the ticks; in the comparison state first, see below; the others
 // may stop the motion), and before the ticks; with none, nothing changes. Still at most maxEvents events and maxTicks ticks a capture.
+// The comparison state of a stepped scene that has a start-motion action AND other actions (a save, a clear, a single step): a paused scene gains nothing
+// from lead ticks before any action, so the sequence follows the contract's own order: press the start-motion action and let it run (the state the other
+// actions act on), then the other actions in declared order (as many as the limits leave room for), then resume the motion (the start-motion action is
+// pressed again only if the scene is idle after them: an action that toggles must not pause a running scene), then more steps. At most maxEvents actions
+// and maxTicks steps in all: the first run gets what the probe and the final steps leave (owner 2026-11-03, aj_0b6ca2b: Save path saved one point).
+const PROBE_TICKS = 12;
 export function captureStates(artifact) {
   const inputs = resolveAnimationInputs(artifact, {}), d = artifact.timeline?.duration ?? 0, mid = Number((d * LOOP_FRACTIONS[0]).toFixed(3));
   const at = (label, extra = {}) => ({ label, inputs, time: 0, events: [], leadTicks: 0, ticks: 0, ...extra });
   const actions = artifact.actions || [], nodes = artifact.scene.nodes, pick = nodes.find(n => n.selectable), drag = nodes.find(n => n.drag);
   const events = [...actions.map(a => ({ type: 'action', action: a.id })), ...(pick ? [{ type: 'select', node: pick.id }] : []), ...(drag ? [{ type: 'drag_start', node: drag.id, value: drag.drag.min }, { type: 'drag_move', node: drag.id, value: drag.drag.max }, { type: 'drag_end', node: drag.id, value: drag.drag.max }] : [])];
   const ticks = artifact.stepped ? 30 : 0, acted = [], swept = [];
-  const starter = artifact.stepped ? actions.findLast(a => a.startsMotion !== false) : undefined, go = starter ? [{ type: 'action', action: starter.id }] : [];
+  const starter = artifact.stepped ? actions.find(a => a.startsMotion !== false) : undefined, go = starter ? [{ type: 'action', action: starter.id }] : [];
   if (events.length) {
     const first = `${events[0].type} ${events[0].action ?? events[0].node}`;
     acted.push(at(ticks ? `${ticks * 2} steps, then ${first}, then ${ticks} steps` : first, { events: events.slice(0, 1), leadTicks: ticks * 2, ticks }));
@@ -89,9 +95,13 @@ export function captureStates(artifact) {
     const [main] = artifact.parameters, only = value => ({ ...inputs, [main.id]: value }), run = artifact.stepped ? ANIMATION_CAPTURE.maxTicks : 0, after = run ? `, after ${starter ? `${starter.action ?? starter.id}, then ` : ''}${run} steps` : '';
     // Every declared action and the selectable node, once each; a drag sets the scene up again, so it stays in the omitted sequence.
     const others = events.filter(e => (e.type === 'action' || e.type === 'select') && !(starter && e.action === starter.id)), acts = [...others.slice(0, ANIMATION_CAPTURE.maxEvents - go.length), ...go], middle = middleOf(main), names = acts.map(e => e.action ?? `select ${e.node}`).join(', ');
+    const between = others.slice(0, ANIMATION_CAPTURE.maxEvents - 2), firstRun = ANIMATION_CAPTURE.maxTicks - PROBE_TICKS - ticks;
+    const compare = starter && between.length && ticks ? { events: [...go, { type: 'advance', ticks: firstRun }, ...between, { type: 'resume', action: starter.id, probe: PROBE_TICKS }],
+      label: `${main.id} at ${middle}: ${starter.id}, ${firstRun} steps, then ${between.map(e => e.action ?? `select ${e.node}`).join(', ')}, then ${starter.id} if idle, then ${ticks} steps` } : null;
     first = [at('initial'),
-      at(`${main.id} at ${middle}${acts.length && ticks ? `: ${ticks * 2} steps, then ${names}, then ${ticks} steps` : acts.length ? `, then ${names}` : after}`,
-        { inputs: only(middle), time: mid, events: acts, leadTicks: acts.length ? ticks * 2 : 0, ticks: acts.length ? ticks : run }),
+      compare ? at(compare.label, { inputs: only(middle), time: mid, events: compare.events, leadTicks: 0, ticks })
+        : at(`${main.id} at ${middle}${acts.length && ticks ? `: ${ticks * 2} steps, then ${names}, then ${ticks} steps` : acts.length ? `, then ${names}` : after}`,
+          { inputs: only(middle), time: mid, events: acts, leadTicks: acts.length ? ticks * 2 : 0, ticks: acts.length ? ticks : run }),
       at(`${main.id} at its high end (${highOf(main)})${after}`, { inputs: only(highOf(main)), time: mid, events: go, ticks: run }),
       at(`${main.id} at its low end (${lowOf(main)})${after}`, { inputs: only(lowOf(main)), time: mid, events: go, ticks: run })];
   }
@@ -106,7 +116,7 @@ export function captureManifest(artifact) {
   const entries = views.flatMap((view, v) => sampled.map((state, s) => ({ id: `v${v}-s${s}`, view, label: state.label, inputs: state.inputs, time: state.time, events: state.events, leadTicks: state.leadTicks, ticks: state.ticks,
     seed: artifact.seed, theme: ANIMATION_CAPTURE.theme, width: ANIMATION_CAPTURE.width, height: ANIMATION_CAPTURE.height, dpr: ANIMATION_CAPTURE.dpr })));
   if (entries.length > ANIMATION_LIMITS.render.capturesPerRound) throw new RenderError('over_budget', `${entries.length} captures, over ${ANIMATION_LIMITS.render.capturesPerRound}`);
-  return { entries, coverage: { views: views.map(v => v.name), sampled: sampled.map(s => ({ label: s.label, time: s.time, events: s.events.length, ...(s.leadTicks ? { leadTicks: s.leadTicks } : {}), ticks: s.ticks })), omitted } };
+  return { entries, coverage: { views: views.map(v => v.name), sampled: sampled.map(s => ({ label: s.label, time: s.time, events: s.events.filter(e => e.type !== 'advance').length, ...(s.leadTicks ? { leadTicks: s.leadTicks } : {}), ticks: s.ticks })), omitted } };
 }
 
 // Only the entry, its hashed build assets and the page's own blob: worker; nothing else may load.

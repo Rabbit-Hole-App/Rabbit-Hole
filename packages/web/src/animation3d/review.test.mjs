@@ -107,3 +107,63 @@ run('a failing program is a programError with its phase, never a pass', async ()
   assert.deepEqual({ code: done.programError.code, phase: done.programError.phase }, { code: 'runtime_error', phase: 'reduce' });
   assert.match(done.programError.diagnostic, /boom/);
 });
+
+// Round 4 (2026-11-03): a capture may spread its host steps over phases. { type: 'advance', ticks } runs steps at that point; { type: 'resume', action, probe }
+// runs its probe steps and presses the action only if the state did not change over them, so a toggling action restarts a stopped scene and never pauses
+// a running one. A scene that starts paused gains nothing from lead ticks before any action.
+const TOGGLE = `export function initialState() { return { on: false, n: 0, saved: 0 }; }
+export function reduce({ state, event }) {
+  if (event.type === 'action' && event.action === 'run') return { ...state, on: !state.on };
+  if (event.type === 'action' && event.action === 'save') return { ...state, saved: state.n, n: 0, on: false };
+  if (event.type === 'step' && state.on) return { ...state, n: state.n + 1 };
+  return state;
+}
+export function evaluate({ state }) {
+  const s = state || initialState();
+  return { nodes: { robot: { position: [s.n / 10, 0.3, 0] } }, readouts: { n: s.n, saved: s.saved, on: s.on ? 1 : 0 }, goal: { status: 'playing', message: 'x' } };
+}
+`;
+const toggling = async () => {
+  const { steppedGameArtifact } = await import('./testdata/stepped-game.mjs');
+  const game = await steppedGameArtifact();
+  return withSource(game, TOGGLE, copy => { copy.actions = [{ id: 'run', label: 'Run' }, { id: 'save', label: 'Save', startsMotion: false }]; copy.readouts = [{ id: 'n', label: 'N', decimals: 0 }, { id: 'saved', label: 'Saved', decimals: 0 }, { id: 'on', label: 'On', decimals: 0 }]; });
+};
+const act = action => ({ type: 'action', action }), advance = ticks => ({ type: 'advance', ticks }), resume = (action, probe) => ({ type: 'resume', action, probe });
+
+run('a capture with an advance entry runs host steps at that point: a paused scene gains nothing from lead ticks, a started one does', async () => {
+  const artifact = await toggling();
+  const lead = await runReviewProgram(await requestFor(artifact, { events: [act('run')], leadTicks: 20, ticks: 0 }), { workerFactory });
+  assert.deepEqual([lead.ok, lead.trace.readouts.n], [true, 0], 'lead ticks before Run: the scene was paused');
+  const started = await runReviewProgram(await requestFor(artifact, { events: [act('run'), advance(20)], ticks: 0 }), { workerFactory });
+  assert.equal(started.ok, true, JSON.stringify(started));
+  assert.deepEqual([started.trace.readouts.n, started.trace.ticks], [20, 20], 'Run, then 20 steps: the scene moved');
+  assert.deepEqual(started.trace.events, [act('run'), advance(20)], 'the trace echoes the sequence in order');
+});
+
+run('a resume presses its action only when the scene is idle: a stopped scene restarts, a running one is not paused by a second press', async () => {
+  const artifact = await toggling();
+  // Run, 10 steps, Save (stops the scene), resume Run after a 5-step probe (idle: pressed), 10 more steps.
+  const stopped = await runReviewProgram(await requestFor(artifact, { events: [act('run'), advance(10), act('save'), resume('run', 5)], ticks: 10 }), { workerFactory });
+  assert.equal(stopped.ok, true, JSON.stringify(stopped));
+  assert.deepEqual([stopped.trace.readouts.saved, stopped.trace.readouts.n, stopped.trace.readouts.on, stopped.trace.ticks], [10, 10, 1, 25], 'ten points saved, the run restarted and drew ten more; 10 + 5 probe + 10 steps');
+  // Run, 10 steps, resume Run after a 5-step probe: the scene is running, so Run is NOT pressed again (it would pause it).
+  const running = await runReviewProgram(await requestFor(artifact, { events: [act('run'), advance(10), resume('run', 5)], ticks: 10 }), { workerFactory });
+  assert.deepEqual([running.trace.readouts.n, running.trace.readouts.on, running.trace.ticks], [25, 1, 25], 'still running: the probe steps and the final steps all counted');
+});
+
+test('the limits hold across every phase: four actions, ninety host steps in all, and whole numbers', async () => {
+  const ok = await requestFor(gameFixture.artifact, { events: [act('a'), advance(30), act('b'), advance(30), act('c'), act('d')], ticks: 30 });
+  assert.equal(reviewRequestProblem(ok), null, 'four actions and 90 steps in all');
+  assert.match(reviewRequestProblem({ ...ok, events: [...ok.events, act('e')] }), /events must be a list of at most 4/, 'a fifth action');
+  assert.match(reviewRequestProblem({ ...ok, ticks: 31 }), /at most 90 in all/, 'ninety steps across lead, advance and final');
+  assert.match(reviewRequestProblem({ ...ok, events: [act('a'), resume('a', 61)], ticks: 30 }), /at most 90 in all/, 'a resume probe counts');
+  assert.match(reviewRequestProblem({ ...ok, events: [{ type: 'advance', ticks: 1.5 }] }), /advance is/);
+  assert.match(reviewRequestProblem({ ...ok, events: [{ type: 'resume', action: 'a' }] }), /resume is/);
+});
+
+run('an advance or resume needs a stepped scene, and a resume must name a declared action', async () => {
+  const unstepped = await runReviewProgram(await requestFor(experimentFixture.artifact, { inputs: { leftMass: 1, leftDistance: 0.5, rightMass: 1, rightDistance: 0.5 }, events: [advance(3)] }), { workerFactory });
+  assert.deepEqual([unstepped.ok, unstepped.error], [false, 'ticks need a stepped scene']);
+  const unknown = await runReviewProgram(await requestFor(await toggling(), { events: [resume('nope', 3)] }), { workerFactory });
+  assert.deepEqual([unknown.ok, unknown.error], [false, 'events must be declared, non-step contract events']);
+});
