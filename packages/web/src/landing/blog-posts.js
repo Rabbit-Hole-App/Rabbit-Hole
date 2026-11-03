@@ -34,7 +34,7 @@ export const stories=[
 └── 4. Application of Simple Stereo</pre>
         <figcaption>The README's outline. Four parts, three levels deep, and I still cut branches.</figcaption>
       </figure>
-      <p>A course could not fix either problem. The course was where I started; the problems came after it ended, when I tried to keep what I knew, go deeper into one part of it, and connect it to the next thing.</p>
+      <p>The course was where I started; the problems came after it ended, when I tried to keep what I knew, go deeper into one part of it, and connect it to the next thing.</p>
       <blockquote>Go deeper, and the file gets too long. Split it, and the knowledge scatters.</blockquote>
       <h2>What we built instead</h2>
       <p>I tried ChatGPT and Claude first. They are great at answering questions, but the answer stays in the chat. There was nowhere to write my own notes next to it, the way I did in a README, nowhere to put a video beside a paper, nowhere to keep the code. Their interfaces were built for asking, not for learning. I had to rethink what an interface for learning would look like, and the answer was an infinite canvas.</p>
