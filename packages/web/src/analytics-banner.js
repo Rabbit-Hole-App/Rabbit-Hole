@@ -4,7 +4,7 @@
 import './analytics-banner.css';
 import { CONSENT_EVENT, CONSENT_KEY, PREFERENCES_EVENT, configured, consentOf, optedOut, setConsent } from './analytics-consent.js';
 
-const TEXT = 'With your permission, we use PostHog analytics to understand how Rabbit Hole is used and improve it. This stores an identifier in your browser and links usage to your account when you\'re signed in.';
+const TEXT = 'We use analytics to understand how Rabbit Hole is used and improve it.';
 let mounted = false;
 export function mountConsentBanner(target, config) {
   const doc = target.document;
