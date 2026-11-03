@@ -9,6 +9,7 @@ import { sealArtifact } from '../src/animation-author.js';
 import { enabledCapabilities } from '../src/animation-brief.js';
 import { captureManifest } from '../src/animation-render.js';
 import { candidatesOf } from '../animation-sgd-qualification.mjs';
+import { reviewTicksOf } from '../../web/src/animation3d/review.js';
 import { fitProblems } from '../src/animation-repair.js';
 import { validateAnimationArtifact } from '../../web/src/animation3d/contract.js';
 import { canonicalJson, sha256Hex } from '../../web/src/explain-program/contract.js';
@@ -116,11 +117,12 @@ test('a stepped experiment with a Run action is sampled after Run: the middle st
   assert.deepEqual(artifact.actions.map(a => [a.id, a.startsMotion]), [['stepOnce', false], ['run', undefined], ['savePath', false], ['clearTrail', false]]);
   const [initial, middle, high] = manifest.coverage.sampled;
   assert.equal(initial.label, 'initial');
-  assert.deepEqual(byLabel(manifest, middle.label).events.map(e => e.action), ['stepOnce', 'savePath', 'clearTrail', 'run'], 'Run last: the actions that stop the motion come first');
+  // The comparison state: Run, let it run, the other actions in declared order (room for two), resume the motion if idle, run again (see the real-engine test below).
+  assert.deepEqual(byLabel(manifest, middle.label).events.map(e => (e.type === 'action' ? e.action : e.type)), ['run', 'advance', 'stepOnce', 'savePath', 'resume']);
   const top = byLabel(manifest, high.label);
   assert.deepEqual([top.events.map(e => e.action), top.leadTicks, top.ticks], [['run'], 0, 90], `the high end presses Run, then 90 steps: ${high.label}`);
   assert.equal(manifest.entries.length, 6);
-  assert.ok(manifest.entries.every(e => e.events.length <= 4 && e.leadTicks + e.ticks <= 90), 'the capture limits hold');
+  assert.ok(manifest.entries.every(e => e.events.filter(x => x.type !== 'advance').length <= 4 && reviewTicksOf(e) <= 90), 'the capture limits hold across every phase');
 });
 
 run('on the real engine: the high-rate state now shows a run (steps taken, diverged) and the middle state ends in a run in progress with a trail', async () => {
@@ -139,4 +141,21 @@ test('a stepped scene whose actions all declare startsMotion false, and a steppe
   assert.deepEqual([high.label, high.events], ['learningRate at its high end (2.5), after 90 steps', 0], 'no action is added to the ticks');
   const manifest = captureManifest(await steppedGameArtifact());
   assert.deepEqual(manifest.coverage.sampled.map(s => s.label), ['initial', '60 steps, then action launch, then 30 steps', 'sequence of 4 events']);
+});
+
+// Owner finding 2026-11-03 on ca45900a2: the comparison capture gave a paused scene 60 lead ticks BEFORE any action (they accomplish nothing: the scene
+// starts paused), then Step, Save path, Clear trail, Run, 30 ticks: the saved path was 1 point (the Step) and the current path 5. A comparison needs motion
+// BEFORE the save: Run, let it run, Save path, restart the motion, let it run again. Replayed here on the committed generated program (animation-aj_0b6ca2b.json)
+// through captureManifest and the real engine: motion occurs before the save, several points are saved, the next run draws beside them and leaves them alone.
+run('on the real engine: the comparison capture runs before it saves, saves a multi-point path, restarts the motion and keeps the saved path while the new run draws', async () => {
+  const artifact = await generatedArtifact(), manifest = captureManifest(artifact), [, middle] = manifest.coverage.sampled;
+  const entry = byLabel(manifest, middle.label), end = await capture(artifact, entry);
+  const save = entry.events.findIndex(e => e.action === 'savePath');
+  assert.ok(save > 0, 'Save path is not the first thing pressed');
+  const before = await capture(artifact, { ...entry, events: entry.events.slice(0, save), leadTicks: 0, ticks: 0 }); // the state just before Save path
+  assert.ok(before.state.trail.length >= 5, `motion occurred before the save: ${before.state.trail.length} points drawn`);
+  assert.ok(end.state.saved.length >= 5, `several points are saved, not one dot: ${end.state.saved.length}`);
+  assert.deepEqual(end.state.saved, before.state.trail, 'the saved path is exactly what the first run drew');
+  assert.ok(end.state.trail.length >= 3 && end.state.on, `the motion restarted and the new run draws beside it: ${end.state.trail.length} points, running ${end.state.on}`);
+  assert.ok(entry.events.filter(e => e.type !== 'advance').length <= 4 && reviewTicksOf(entry) <= 90, 'four actions and 90 ticks in all, across every phase');
 });
