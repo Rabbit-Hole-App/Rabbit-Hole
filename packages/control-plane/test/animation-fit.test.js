@@ -183,3 +183,10 @@ test('the author runs at medium effort with 24,000 output tokens, and the build 
   assert.equal(8000 * output, 160000, 'US$0.16');
   assert.equal(Math.ceil(animationReservation().generationMicros / 10000), 325, 'displayed maximum: 309 + 16 credits');
 });
+
+test("the author and repair follow the plan's formula and convention, and the review reports every serious problem at once (aj_ba11d5a, aj_ad936ec)", async () => {
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM } = await import('../src/agents/animation-author.js');
+  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /the 1\/2 in a half mean squared error/);
+  assert.match(ANIMATION_REVIEW_SYSTEM, /a problem left out now is never fixed/);
+  assert.match(ANIMATION_REVIEW_SYSTEM, /judge the scene against the formula/);
+});

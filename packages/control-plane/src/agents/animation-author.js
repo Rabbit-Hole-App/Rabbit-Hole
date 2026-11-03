@@ -81,6 +81,9 @@ const RATE_RULES = 'When a parameter changes a rate (a period, frequency or spee
 // length, so passing it promises nothing. Shared with the feasibility check.
 export const ANIMATION_DRAFT_BYTES = 15000;
 export const TRAIL_NODE_BYTES = 65;
+// aj_ba11d5a (2026-11-02): the plan stated a stability limit of about 0.92 (half mean squared error) while the program computed the full
+// mean squared error, whose limit is about 0.46; the review rejected the mismatch and the repair could not change the plan.
+const MATH_RULES = 'Formulas: implement exactly the loss, update and rule the plan states, with its constants and convention (for example the 1/2 in a half mean squared error). Every number the plan states (a limit, a threshold, a period) must be what that formula gives for the scene\'s own values; if the plan\'s number does not follow from its own formula, keep the formula, show the number it gives, and say in one assumption which number the plan stated and why it differs.';
 const COMPACT_RULES = `The finished artifact with its program should stay under about ${ANIMATION_DRAFT_BYTES} bytes as you write it, or the review and repair cannot read it and the build stops; every node is declared, and a trail marker costs about ${TRAIL_NODE_BYTES} bytes, so use as few trail points as show the idea. Every label's text must be non-empty: a label whose words the program sets still starts with real words and stays hidden until needed. The card draws its own Reset and Reset view, so no action may have the id or label reset, restart, start over, reset game, reset scene, reset experiment or reset view: give a scene's own action its own name, such as keepPath with the label Keep this path and run again. Each assumption, limitation and description stays within the contract's length limits (an assumption at most 300 characters). ` + 'Your whole reply, including any reasoning, has a fixed output limit: decide briefly, then make the tool call. Keep the scene and program compact: reuse geometries and materials, only the nodes the idea needs, a short program with small helper functions and no comments or unused code.';
 // What the review looks at (animation-render.js captureViews), so the scene is laid out to read from both.
 const VIEW_RULES = 'The review renders two views: your camera, and the same target seen from about 55 degrees to the side and slightly higher. Lay the scene out so its idea reads from both: a flat arrangement should face your camera, and nothing important should hide behind another object from a nearby angle.';
@@ -97,6 +100,7 @@ ${LABEL_RULES}
 ${MOTION_RULES}
 ${HONESTY_RULES} Compute every position, drawn marker, trail and readout from the same state in one evaluate, so the picture and the numbers always agree.
 ${RATE_RULES}
+${MATH_RULES}
 ${COMPACT_RULES}
 ${VIEW_RULES}
 - watch: a timeline {duration, loop}; evaluate draws the moment at time.
@@ -125,6 +129,7 @@ Return the COMPLETE artifact every time: every field, and the program (with its 
 ${COMPACT_RULES}
 ${VIEW_RULES}
 ${RATE_RULES}
+${MATH_RULES}
 This is the only correction: the result is checked, rendered and reviewed again before the learner sees it.
 Call repair_animation exactly once.`;
 
@@ -138,4 +143,6 @@ Calibration: the side capture is a nearby cross-check angle the learner does not
 Honesty: check the description, labels and readouts against the program: a claim the computation does not make (every step improves, an arrow named for the wrong quantity or direction), a promised control effect that does not happen within its range, or a picture that disagrees with the readouts is major; a meaningful simplification missing from the first assumption is major.
 Severity: blocker when the idea cannot be seen at all; major for anything that stops a learner seeing or reading the idea, including a correct computation drawn poorly (subject too small, label over the subject, wrong control order, a changed request value); minor only for polish that does not hinder reading. Only a scene with no blocker or major finding is shown.
 Use category spec for anything the artifact or program draws or computes (repairable by changing it), source for a claim the evidence contradicts, renderer only for a fault in the host's drawing that no change to the artifact could fix. Judge only what the captures and traces show; the samples are not exhaustive, so say in a finding when a promised behaviour was not sampled.
+Report every serious problem these captures show in this one review, including the drawn form of the main object (a surface drawn as a few thin rings, an arrow too small to see) and framing: the build gets at most one repair for review findings, so a problem left out now is never fixed.
+Plan numbers: when the plan states a number that its own stated formula contradicts for the scene's values, judge the scene against the formula; if the artifact's assumptions name the plan's number and the corrected one, that is a minor finding, not a major one.
 Call report_review exactly once.`;
