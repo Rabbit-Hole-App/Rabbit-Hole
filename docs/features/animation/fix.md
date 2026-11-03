@@ -169,6 +169,34 @@ row in [spend.md](spend.md).
 
 ## Resolved
 
+### FX-AN-032 — a stepped game never moved in the card (owner canvas 2026-11-02, "Projectile Challenge: Hit the Target")
+- Cause: a stepped scene moves only by the host's steps, which run only while playing (`runtime.js` displayFrame), and the
+  card offered Play only for a timeline, so nothing ever started them: Launch counted a shot and stayed "Ball in flight".
+  Review accepted it because the capture advances steps itself (`advance(ticks)`).
+- Fix: a stepped scene shows Play and Pause (`card.js` visibleControls; no Restart or Speed: steps cannot rewind), and an
+  accepted action starts its steps when they are paused (`session.js` action). Reset stops them until the next action or Play.
+- Checks: `session.test.mjs` stepped game (fails on the old code); animation-mvp step 33 launches a stepped game and lands it.
+
+### FX-AN-033 — a ready card fell into "The scene stopped responding" on a busy board (owner canvas 2026-11-02)
+- Seen: "Ceiling fan" (watch) right after a reload with ten cards; reproduced on the same canvas in headless Chromium at 4x
+  CPU after a reload, on "Grid robot": console `animation runtime: runtime_limit / engine boot deadline`.
+- Cause: idle Workers stop (idleMs) and are evicted for other cards (2 live), so any later call boots an engine cold; a boot
+  over 2 s on a busy page failed the call, and only a start retried. Playwright routes disable the HTTP cache, so every boot in
+  a browser check refetches and recompiles QuickJS: the harness sees it far more often than a learner, who can still see it on
+  a slow device or first load.
+- Fix: `runtime.js` boots again after a missed boot deadline for every call of a card's runtime (START_RETRY_MS pauses; never
+  for a background sampler or a program's own failure). Check: `runtime.test.mjs` cold boot after idle (fails on the old code).
+
+### FX-AN-034 — animation-mvp check flakes (fast-e2e 41559196907 steps 30-32; 41559906404, 41510588122 step 17)
+- Steps 30-32 (reproduced locally, 1 of 3 runs): the check pressed Generate on the last plan in the thread before the bead's
+  plan had arrived, so it pressed the beam balance plan's (restored with Generate enabled after the reload) and approved job 1
+  twice; the bead job was never approved. Fix: the check presses the plan with the bead's title and waits for its approve.
+- Step 17 ("Interact did not start" on the game card): not reproduced (0 local failures). The check's `live()` clicked the
+  click surface of a scene that was still preparing; a click on a scene that is ready enters Interact, so a scene becoming
+  ready within the click leaves the card interacting and the next Interact press ends it. `live()` now clicks only a card
+  waiting for a slot. Cause not confirmed: every Interact press now reports, on failure, the card's live/active/disabled/
+  selected/focus state and the last 40 transitions (an init-script trace), so a repeat names it.
+
 ### FX-AN-024 — the camera-fit sampler starved learner runtimes (fast-e2e 41272196685: 16 of 34 animation steps failed)
 - Cause: each card's fit sampler took a slot of the 2-Worker animation pool and evicted idle cards' Workers, so calls re-booted
   Workers (the check's route handler disables the HTTP cache, so each boot re-fetched and recompiled QuickJS) and cards missed

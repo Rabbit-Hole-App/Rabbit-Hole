@@ -5,6 +5,8 @@
 import test, { before } from 'node:test';
 import assert from 'node:assert/strict';
 import { REFIT_MS, createCardSession } from './session.js';
+import { visibleControls } from './card.js';
+import { steppedGameArtifact } from './testdata/stepped-game.mjs';
 import { deferred, experimentArtifact, gameArtifact, loadEngine, realRuntimes, stubRenderers, stubRuntimes, validated, watchArtifact } from './testdata/ui-stubs.mjs';
 
 before(loadEngine);
@@ -253,6 +255,39 @@ test('the grid game (real runtime): moves and outcome come from the program; res
   await settle();
   assert.deepEqual(h.state().goal, { status: 'playing', message: 'Reach the target.' }, 'progress resets with the world');
   assert.deepEqual(values(h.state()), { moves: 0 });
+  h.session.dispose();
+});
+
+// Owner canvas 2026-11-02: a stepped game's Launch said "In flight" forever, because only Play starts the host's steps and the card
+// showed none. A stepped scene offers Play and Pause, and an accepted action starts its steps when they are paused.
+test('a stepped game (real runtime): Play and Pause are offered; Launch starts the host steps and the motion lands; Pause holds it', async () => {
+  const runtimes = realRuntimes();
+  const h = harness({ artifact: await steppedGameArtifact(), runtimes });
+  h.block = { id: 's', type: 'animation3d' };
+  await started(h);
+  const show = visibleControls(h.state().model);
+  assert.equal(show.transport, true, 'Play and Pause');
+  assert.equal(show.speed, false, 'no speed: the host step is fixed');
+  assert.equal(h.state().model.loop, null, 'no rewind (Restart needs a seekable loop)');
+  assert.equal(h.state().playing, false, 'nothing moves before it is asked');
+  const frames = async n => { for (let i = 0; i < n; i += 1) { runtimes.clock.frame(34); await settle(5); } };
+  await frames(5);
+  assert.deepEqual(values(h.state()), { distance: 0 }, 'no steps before Launch');
+  assert.equal(await h.session.action('launch'), true);
+  assert.equal(h.state().playing, true, 'Launch started the step clock');
+  await frames(4);
+  const moving = values(h.state()).distance;
+  assert.ok(moving > 0 && moving < 3, `in flight: ${moving}`);
+  h.session.pause();
+  await frames(4);
+  assert.equal(values(h.state()).distance, moving, 'Pause holds it');
+  h.session.play();
+  await frames(40);
+  assert.deepEqual(values(h.state()), { distance: 3 });
+  assert.deepEqual(h.state().goal, { status: 'won', message: 'Landed on the target.' });
+  await h.session.reset();
+  await settle();
+  assert.deepEqual([values(h.state()), h.state().playing], [{ distance: 0 }, false], 'Reset: back home, the clock stopped until the next Launch');
   h.session.dispose();
 });
 

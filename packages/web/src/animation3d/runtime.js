@@ -123,6 +123,19 @@ function createChannel({ workerFactory, limits, source, background = false }) {
     };
     target.postMessage({ id, operation, source, request });
   });
+  // A cold boot that missed its deadline is the busy page's, never the program's (nothing ran yet): a card's call boots again after
+  // the start's pauses before it fails. Idle engines are stopped (idleMs) and evicted, so any call may boot cold, not only a start
+  // (owner canvas 2026-11-02, ten cards at 4x CPU after a reload: Grid robot fell into "The scene stopped responding", engine boot deadline).
+  async function bootOrRetry() {
+    for (let attempt = 0; ; attempt += 1) {
+      try { return await boot(); } catch (error) {
+        if (background || dead || attempt >= START_RETRY_MS.length || error?.diagnostic !== 'engine boot deadline') throw error;
+        await new Promise(resolve => setTimeout(resolve, START_RETRY_MS[attempt]));
+        if (dead) throw new AnimationRuntimeError('disposed');
+        await acquire(); // the missed boot gave its engine back
+      }
+    }
+  }
   return {
     async call(operation, request) {
       if (dead) throw new AnimationRuntimeError('disposed');
@@ -130,7 +143,7 @@ function createChannel({ workerFactory, limits, source, background = false }) {
       clearTimeout(idleTimer);
       try {
         await acquire();
-        return await send(await boot(), operation, request);
+        return await send(await bootOrRetry(), operation, request);
       } finally {
         busy = false;
         wake();
