@@ -1,4 +1,6 @@
 .blog-page{--blog-ink:#482953;--blog-muted:#705378;--blog-line:#48295330;--blog-paper:#fff}
+/* Hero image palette (BLOG_IMAGE_GUIDE.md): every post hero image is drawn in these five colours. */
+.blog-page{--hero-paper:#F4F3EF;--hero-ink:#3D2A5C;--hero-plum:#8A7AA6;--hero-rose:#D9B8C4;--hero-sage:#B7C2B0}
 .blog-page [hidden]{display:none!important}
 .blog-page .blog-articles{position:relative;z-index:1;max-width:1120px;padding:40px 0 80px;scroll-margin-top:112px}
 .blog-stories-heading{display:flex;align-items:baseline;justify-content:space-between;gap:24px;padding-bottom:24px;border-bottom:1px solid var(--blog-line)}
@@ -63,6 +65,12 @@
 .blog-post-body p+p{margin-top:22px}
 .blog-page #below .blog-post-body h2{font:500 30px/1.2 var(--display);letter-spacing:-.035em;margin:38px 0 18px}
 .blog-post-body blockquote{border-left:2px solid var(--blog-ink);padding:8px 0 8px 24px;margin:32px 0;font:500 27px/1.35 var(--display);letter-spacing:-.03em}
+.blog-post-body ol,.blog-post-body ul{display:grid;gap:14px;margin:22px 0;padding-left:26px}
+.blog-post-body li{padding-left:6px}
+.blog-post-body a{color:inherit;text-underline-offset:4px}
+.blog-post-body figure{margin:32px 0;border:1px solid var(--blog-line);border-radius:14px;background:#f1f1ee;overflow:hidden}
+.blog-post-body pre{padding:18px 20px;overflow-x:auto;font:400 13.5px/1.55 ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.blog-post-body figcaption{padding:10px 16px 12px;border-top:1px solid var(--blog-line);font:400 13px/1.5 var(--ui);color:var(--blog-muted)}
 .blog-post-end{max-width:660px;margin:0 auto;border-top:1px solid var(--blog-line);padding-top:28px;display:flex;align-items:center;justify-content:space-between;gap:24px;font:400 14px/1.5 var(--ui)}
 @media(max-width:1000px){.blog-page .blog-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.blog-cover>span{font-size:76px}}
 @media(max-width:600px){
@@ -86,3 +94,10 @@
   .blog-page .blog-card:hover{transform:none}
   .blog-page .blog-card:hover .blog-cover>i,.blog-page .blog-card:hover .blog-cover>i:nth-child(2){transform:var(--cover-pose)}
 }
+/* A twelve-character mark: sized to the cover's width so it stays on one line on every card and reader width. */
+.blog-cover-courses{container-type:inline-size}
+.blog-cover.blog-cover-courses>span{font-size:13cqi}
+/* The one wash every hero image gets (BLOG_IMAGE_GUIDE.md): about 25% less saturation, 10% less contrast and the
+   paper colour over it at about 15%. Centred with margins so the dotted paper shows around it; never on text-only covers. */
+.hero-wash{width:76%;background:var(--hero-paper)}
+.hero-wash img{display:block;width:100%;height:auto;aspect-ratio:16/5.6;object-fit:cover;filter:saturate(.75) contrast(.9);opacity:.85}

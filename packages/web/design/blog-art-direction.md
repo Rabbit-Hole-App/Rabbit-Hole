@@ -41,10 +41,13 @@ the card, cover layers or arrow. Pricing shares the arrow presentation.
 
 Published posts live in the `stories` array in `src/landing/blog-posts.js`; the
 cards and the story count above them ("1 story", "2 stories") both render from
-it (owner, 2026-10-29: only `a-page-that-teaches` is published). A removed or
-unknown slug shows the story-not-found view.
+it, newest first (owner, 2026-10-29: `a-page-that-teaches`; 2026-11-02:
+`rabbit-holes-not-courses`, owner-written). A removed or unknown slug shows the
+story-not-found view.
 Each full card is a keyboard-accessible link to `/blog?post=<slug>`.
-The reader keeps its sample label and top/bottom links to `/blog#stories`.
+The reader shows a post's own `tag`, `author` and `readTime` when it has them
+(otherwise the sample label, "Rabbit Hole editorial" and "1 min read") and
+top/bottom links to `/blog#stories`. Hero images: `src/landing/BLOG_IMAGE_GUIDE.md`.
 Direct links, refresh, browser back and unknown-slug recovery remain.
 No CMS, API/model calls or persistence were introduced.
 

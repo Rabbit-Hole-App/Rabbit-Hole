@@ -14,9 +14,9 @@ if(slug!==null){
   if(story){
     document.title=`${story.title} | Rabbit Hole`;
     reader.innerHTML=`${back}<header class="blog-post-heading">
-      <p class="blog-post-kicker">${story.category} <span>Sample article</span></p>
+      <p class="blog-post-kicker">${story.category} <span>${story.tag??'Sample article'}</span></p>
       <h1>${story.title}</h1><p class="blog-post-deck">${story.excerpt}</p>
-      <div class="blog-post-meta"><span>Rabbit Hole editorial</span>${metadata(story)}</div>
+      <div class="blog-post-meta"><span>${story.author??'Rabbit Hole editorial'}</span>${metadata(story)}</div>
       </header>${cover(story)}<div class="blog-post-body">${story.body}</div>
       <div class="blog-post-end"><p>There is always another question.</p>${back}</div>`;
   }else{
