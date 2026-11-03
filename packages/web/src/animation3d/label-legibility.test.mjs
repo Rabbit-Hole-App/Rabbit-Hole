@@ -232,3 +232,51 @@ test('layout: a status label placed on an arrow keeps off its whole shaft and he
     }
   }
 });
+
+// Round 4b (the paid review of the repaired draft still rejected): "the trail and saved-path dots are small, bunched, and covered by the ball and the
+// Running label". Small markers (dots, balls) are soft obstacles for plates: kept off as far as room allows, never at the price of a label.
+const dot = (x, y, half = 3) => ({ x1: x, y1: y, x2: x, y2: y, half, soft: true });
+const covers = (plate, m) => Math.hypot(Math.max(plate.x - m.x1, 0, m.x1 - plate.x - plate.w), Math.max(plate.y - m.y1, 0, m.y1 - plate.y - plate.h)) < m.half;
+
+test('declutter: a plate over a small marker moves off it; its own marker is not an obstacle for it, the others stay uncovered', () => {
+  const plate = { x: 270, y: 100, w: 60, h: 18, placement: 'above' }; // its point (300, 121.6) is on the dot at (300, 124); a bunch of dots lies around it
+  const bunch = [dot(300, 124), dot(285, 110), dot(310, 108), dot(322, 112), dot(292, 126)]; // the first is the plate's own marker
+  const [offset] = declutterLabels([plate], { bounds: BOUNDS, obstacles: bunch });
+  const moved = { ...plate, x: plate.x + offset.dx, y: plate.y + offset.dy };
+  assert.deepEqual(bunch.slice(1).filter(m => covers(moved, m)), [], 'no other marker is covered');
+  assert.ok(offset.dx || offset.dy, 'the plate sat on three of them and moved');
+  assert.deepEqual(declutterLabels([plate], { bounds: BOUNDS, obstacles: [bunch[0]] }), [{ dx: 0, dy: 0 }], 'with only its own marker it stays beside it');
+  assert.ok(bunch.slice(1).filter(m => covers(plate, m)).length >= 2, 'before: the plate covers two or more of the others');
+});
+
+test('declutter: with no marker-free spot a marker never costs a label its place; an arrow still does for an optional one', () => {
+  const bounds = { x: 4, y: 4, w: 200, h: 40 }, field = Array.from({ length: 23 }, (_, i) => dot(10 + i * 9, 24, 4)); // dots in a row across the whole bounds
+  const plates = [{ x: 30, y: 15, w: 50, h: 18, placement: 'right', essential: true }, { x: 40, y: 15, w: 50, h: 18, placement: 'right' }];
+  const out = declutterLabels(plates, { bounds, obstacles: field });
+  assert.deepEqual(out.map(Boolean), [true, true], 'markers only: both placed, overlapping if they must');
+  const wall = Array.from({ length: 5 }, (_, i) => ({ x1: 0, y1: 8 + i * 9, x2: 260, y2: 8 + i * 9, half: 3 })); // arrows across the whole bounds
+  assert.deepEqual(declutterLabels(plates, { bounds, obstacles: [...field, ...wall] }).map(Boolean), [true, false], 'an arrow wall: the essential plate placed, the optional one left out');
+});
+
+test('layout: a status label over bunched dots keeps off every dot but its own ball, at every card size, drawn and inside the viewport', () => {
+  // The SGD case: a ball with a Ready label above it, dots (the trail and the saved path) bunched round it.
+  const at = [[0.3, 1.1, 0], [0.55, 1.2, 0.1], [-0.3, 1.2, 0], [0.1, 1.3, 0.1], [0.4, 1.3, -0.1], [-0.2, 1.35, 0]];
+  for (const [W, H] of SIZES) {
+    const artifact = structuredClone(watchFixture.artifact);
+    artifact.scene.geometries.push({ id: 'ballG', kind: 'sphere', radius: 0.18, widthSegments: 12, heightSegments: 8 }, { id: 'dotG', kind: 'sphere', radius: 0.07, widthSegments: 8, heightSegments: 6 }, { id: 'readyG', kind: 'label', text: 'Running', placement: 'above' });
+    artifact.scene.materials.push({ id: 'dotM', color: '#f07a30' });
+    artifact.scene.nodes.push({ id: 'ball', geometry: 'ballG', material: 'dotM', position: [0, 1, 0] }, { id: 'ready', parent: 'ball', geometry: 'readyG', position: [0, 0.22, 0] });
+    at.forEach((position, i) => artifact.scene.nodes.push({ id: `dot${i}`, geometry: 'dotG', material: 'dotM', position }));
+    const { scene } = buildAnimationScene(artifact, { labelTexture }), view = viewOf(W, H);
+    scene.apply({ nodes: { ready: { text: 'Running' } } }); // a live value: essential
+    const plate = scene.layoutLabels({ width: W, height: H, camera: view }).find(b => b.id === 'ready');
+    const f = 1 / Math.tan(view.fov * Math.PI / 360), markers = at.map((position, i) => {
+      const c = new THREE.Vector3(...position), depth = -c.clone().applyMatrix4(view.matrixWorldInverse).z, p = c.clone().project(view);
+      return { x1: (p.x + 1) / 2 * W, y1: (1 - p.y) / 2 * H, half: 0.07 * f * H / (2 * depth), id: i };
+    });
+    assert.equal(plate.shown, true, `${W}x${H}: drawn`);
+    assert.ok(inside(plate, W, H), `${W}x${H}: inside the viewport`);
+    assert.deepEqual(markers.filter(m => covers(plate, m)).map(m => m.id), [], `${W}x${H}: [${plate.x.toFixed(0)}, ${plate.y.toFixed(0)}, ${(plate.x + plate.w).toFixed(0)}, ${(plate.y + plate.h).toFixed(0)}] covers a dot`);
+    scene.dispose();
+  }
+});

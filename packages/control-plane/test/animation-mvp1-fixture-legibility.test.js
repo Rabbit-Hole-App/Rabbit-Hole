@@ -111,6 +111,7 @@ test('every label the learner needs is drawn, inside the card viewport, in every
 // Round 4 (owner review of the SGD cards, acceptance job aj_0b6ca2b5): a label plate sat on the arrows and hid the grey downhill one. In every
 // state at every card size no drawn plate may meet an arrow's shaft or head (the arrow's segment on screen, thickened by its head's half width),
 // and every label the learner needs is still drawn, inside the viewport, on the offline fixture and on the real repaired draft of that job.
+// Round 4b: nor may a plate cover a small marker (a ball, a trail or saved-path dot, the lowest-point dot) other than the one it names.
 const arrowsOnScreen = (scene, artifact, camera, W, H) => {
   const kinds = new Map(artifact.scene.geometries.map(g => [g.id, g])), f = 1 / Math.tan(camera.fov * Math.PI / 360), out = [];
   const px = v => { const p = v.clone().project(camera); return [(p.x + 1) / 2 * W, (1 - p.y) / 2 * H]; };
@@ -125,6 +126,19 @@ const arrowsOnScreen = (scene, artifact, camera, W, H) => {
   }
   return out;
 };
+const markersOnScreen = (scene, artifact, camera, W, H) => { // spheres of radius <= 0.2: centre and projected radius in px
+  const kinds = new Map(artifact.scene.geometries.map(g => [g.id, g])), f = 1 / Math.tan(camera.fov * Math.PI / 360), out = [];
+  for (const node of artifact.scene.nodes) {
+    const g = kinds.get(node.geometry), holder = scene.objects.get(node.id);
+    let shown = g?.kind === 'sphere' && g.radius <= 0.2 && holder.visible;
+    holder.traverseAncestors(ancestor => { if (!ancestor.visible) shown = false; });
+    if (!shown) continue;
+    const c = holder.getWorldPosition(new THREE.Vector3()), depth = -c.clone().applyMatrix4(camera.matrixWorldInverse).z, p = c.clone().project(camera);
+    if (depth > 0 && Math.abs(p.z) <= 1) out.push({ id: node.id, x: (p.x + 1) / 2 * W, y: (1 - p.y) / 2 * H, r: g.radius * holder.getWorldScale(new THREE.Vector3()).x * f * H / (2 * depth) });
+  }
+  return out;
+};
+const coversMarker = (plate, m) => Math.hypot(Math.max(plate.x - m.x, 0, m.x - plate.x - plate.w), Math.max(plate.y - m.y, 0, m.y - plate.y - plate.h)) < m.r;
 const meetsArrow = (plate, seg) => { // the segment sampled every 0.5 px: independent of the layout's own test
   const n = Math.ceil(Math.hypot(seg.x2 - seg.x1, seg.y2 - seg.y1) * 2) + 1;
   return Array.from({ length: n + 1 }, (_, i) => [seg.x1 + (seg.x2 - seg.x1) * i / n, seg.y1 + (seg.y2 - seg.y1) * i / n])
@@ -132,7 +146,8 @@ const meetsArrow = (plate, seg) => { // the segment sampled every 0.5 px: indepe
 };
 const noPlateOnAnArrow = async ({ artifact, artifactHash, states, base, need }) => {
   engine ??= await loadEngine();
-  let arrowsSeen = 0;
+  let arrowsSeen = 0, markersSeen = 0;
+  const parentOf = new Map(artifact.scene.nodes.map(node => [node.id, node.parent]));
   for (const [state, inputs, options] of states) {
     const run = await runReviewProgram({ artifact, artifactHash, view: captureViews(artifact)[0], inputs: { ...base, ...inputs }, time: 0, events: options.events ?? [], leadTicks: 0, ticks: options.ticks ?? 0, seed: artifact.seed, theme: 'light', width: 960, height: 540 }, { workerFactory });
     assert.ok(run.ok, JSON.stringify(run));
@@ -142,29 +157,33 @@ const noPlateOnAnArrow = async ({ artifact, artifactHash, states, base, need }) 
       const { scene } = buildAnimationScene(artifact, { labelTexture });
       scene.apply(run.frame);
       const plates = scene.layoutLabels({ width: W, height: H, camera }), arrows = arrowsOnScreen(scene, artifact, camera, W, H), where = `${state}, ${size} ${W}x${H}`;
+      const markers = markersOnScreen(scene, artifact, camera, W, H);
       arrowsSeen += arrows.length;
+      markersSeen += markers.length;
       for (const plate of plates.filter(p => p.shown)) {
         for (const seg of arrows) assert.equal(meetsArrow(plate, seg), false, `${where}: "${plate.text}" [${plate.x.toFixed(0)}, ${plate.y.toFixed(0)}, ${(plate.x + plate.w).toFixed(0)}, ${(plate.y + plate.h).toFixed(0)}] is on arrow ${seg.id} (${seg.x1.toFixed(0)},${seg.y1.toFixed(0)})-(${seg.x2.toFixed(0)},${seg.y2.toFixed(0)})`);
+        assert.deepEqual(markers.filter(m => m.id !== parentOf.get(plate.id) && coversMarker(plate, m)).map(m => m.id), [], `${where}: "${plate.text}" [${plate.x.toFixed(0)}, ${plate.y.toFixed(0)}, ${(plate.x + plate.w).toFixed(0)}, ${(plate.y + plate.h).toFixed(0)}] covers a marker`);
         assert.ok(plate.x >= LABEL_PIXELS.inset - 1e-6 && plate.y >= LABEL_PIXELS.inset - 1e-6 && plate.x + plate.w <= W - LABEL_PIXELS.inset + 1e-6 && plate.y + plate.h <= H - LABEL_PIXELS.inset + 1e-6, `${where}: "${plate.text}" is outside the viewport`);
       }
       for (const id of need(run.frame, state)) assert.equal(plates.find(p => p.id === id)?.shown, true, `${where}: ${id} is drawn`);
       scene.dispose();
     }
   }
-  assert.ok(arrowsSeen > 0, 'the states drew arrows');
+  assert.ok(arrowsSeen > 0 && markersSeen > 0, 'the states drew arrows and markers');
 };
 
-test('no label plate meets an arrow shaft or head in the fixture states (initial, middle after steps, off plot, zero update) at every card size', async () => {
+test('no label plate meets an arrow shaft or head, or covers a small marker, in the fixture states (initial, middle after steps, off plot, zero update) at every card size', async () => {
   const { artifact, artifactHash } = await sgd();
   await noPlateOnAnArrow({ artifact, artifactHash, states: await STATES(artifact), base: DEFAULTS, need: frame => ['status', 'lbar', ...['lblStep', 'lblTrue'].filter(id => frame.nodes[id]?.visible)] });
 });
 
-test('no label plate meets an arrow in the real repaired draft of job aj_0b6ca2b (arrows at 3x, a Ready label on them): initial, after steps, at the high rate', async () => {
+test('no label plate meets an arrow or covers a dot in the real repaired draft of job aj_0b6ca2b (arrows at 3x, a Ready label on them, bunched trail and saved-path dots): initial, after steps, a saved path, at the high rate', async () => {
   const data = JSON.parse(readFileSync(new URL('./fixtures/animation-aj_0b6ca2b.json', import.meta.url), 'utf8'));
   const [{ artifact }] = await candidatesOf(data);
   engine ??= await loadEngine();
   const artifactHash = await artifactHashOf(artifact), step = act('stepOnce');
   await noPlateOnAnArrow({ artifact, artifactHash, base: { learningRate: 0.1, batchSize: '4', showTrueGradient: true },
-    states: [['initial', {}, {}], ['learning rate 0.1, three steps', { learningRate: 0.1 }, { events: [step, step, step] }], ['learning rate 1, one step', { learningRate: 1 }, { events: [step] }]],
+    states: [['initial', {}, {}], ['learning rate 0.1, three steps', { learningRate: 0.1 }, { events: [step, step, step] }], ['learning rate 1, one step', { learningRate: 1 }, { events: [step] }],
+      ['learning rate 0.1, run, save the path, run on', { learningRate: 0.1 }, { events: [act('run'), act('savePath'), act('run')], ticks: 40 }]],
     need: (frame, state) => state === 'learning rate 1, one step' ? [] : ['st'] }); // at rate 1 the ball is at y 5.6, above the framed view, and its Diverged label with it (a framing matter, not a layout one)
 });
