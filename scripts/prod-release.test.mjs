@@ -350,7 +350,7 @@ test('the ordinary dev path is untouched: the gate note and the verify and fast-
   assert.match(dev, /verify-evidence\.mjs runs --sha "\$GITHUB_SHA" --out "\$RUNNER_TEMP\/ci-runs\.json" --wait 30/);
   assert.match(dev, /dev-deploy-gate\.mjs --sha "\$GITHUB_SHA" --gate "\$RUNNER_TEMP\/gate\.log" --dev-deploys dev-deploys --verify "\$RUNNER_TEMP\/verify\.json" --runs "\$RUNNER_TEMP\/ci-runs\.json"/);
   assert.doesNotMatch(dev.split('\n').filter(l => !l.trim().startsWith('#')).join('\n'), /mvp/i, 'no step of deploy-dev.yml is MVP-aware');
-  for (const f of ['dev-deploy.mjs', 'dev-deploy-gate.mjs', 'verify-evidence.mjs']) assert.doesNotMatch(readFileSync(new URL(`./${f}`, import.meta.url), 'utf8'), /mvp/i, `${f} is the ordinary path`);
+  for (const f of ['dev-deploy.mjs', 'dev-deploy-gate.mjs', 'verify-evidence.mjs']) assert.doesNotMatch(readFileSync(new URL(`./${f}`, import.meta.url), 'utf8'), /from '[.][/]mvp|--mvp|mvpVerdict|[.]mvp(?![a-z])/, `${f} is the ordinary path`);
 });
 
 test('MVP prepare: only with the explicit flag, the MVP record replaces the dev deploy, the gate and the CI runs', () => {

@@ -29,7 +29,8 @@ export function checkEvidence(evidence, { sha, tree, locks }) {
 // OPS-04 (owner, 2026-10-21; UI-17 14310051 shipped with its own fast-e2e run 39719683140 failed): every deploy, dev or
 // production, fully gated or reusing a gate, needs a successful fast-e2e (early browser checks) and verify run of exactly
 // the candidate sha. A green ancestor gate never stands in for them, and a full gate's browser shards do not either:
-// one rule, no exceptions, and fast-e2e is cheap.
+// one rule for every ordinary release, and fast-e2e is cheap. The one exception is the owner's explicit MVP fast path
+// (CLAUDE.md#mvp-fast-path), which never reaches this check.
 export const RELEASE_RUNS = ['.github/workflows/fast-e2e.yml', '.github/workflows/verify.yml'];
 const workflowName = path => path.split('/').pop().replace(/\.ya?ml$/, '');
 // The newest attempt of `path` at exactly `sha`; a pull_request run tests a merge tree, so it never counts.
