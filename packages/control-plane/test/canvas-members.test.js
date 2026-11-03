@@ -71,7 +71,7 @@ test('the owner invites by email: delivery to the address as typed (normalized),
   assert.equal(f.mail[0].to, 'b+canvas@lab.org', 'the +tag is kept for delivery');
   assert.equal(f.mail[0].subject, "Ada Lovelace (@ada) invited you to comment on 'Why attention scales'");
   assert.match(f.mail[0].text, new RegExp(`${ORIGIN}/i#[A-Za-z0-9_-]{20,}`));
-  assert.match(f.mail[0].text, /Replies to this email aren't read\.\n$/);
+  assert.match(f.mail[0].text, /Questions\? Reply to this email\.\n$/);
   assert.equal(sent.body.invited[0].test_invite_url, undefined, 'no echo outside a test instance');
   assert.equal((await invite(f, ['b+canvas@lab.org'])).body.skipped[0].reason, 'already_invited');
   const list = await f.call('GET', `${f.base}/members`, { as: 'ana' });

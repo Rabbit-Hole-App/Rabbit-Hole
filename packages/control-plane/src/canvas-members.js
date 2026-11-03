@@ -96,13 +96,13 @@ export function inviteEmail({ inviter, title, link, enabled }) {
   const who = nameOf(inviter, 'A Rabbit Hole user');
   return {
     subject: `${who} invited you to ${enabled ? 'comment on' : 'view'} '${clean(title)}'`,
-    text: `${who} invited you to ${verbs(enabled)} '${clean(title)}' in Rabbit Hole.\n\nOpen the invitation:\n${link}\n\nYou'll confirm this email address with a code before you join. The invitation lasts 14 days.\n\nReplies to this email aren't read.\n`,
+    text: `${who} invited you to ${verbs(enabled)} '${clean(title)}' in Rabbit Hole.\n\nOpen the invitation:\n${link}\n\nYou'll confirm this email address with a code before you join. The invitation lasts 14 days.\n\nQuestions? Reply to this email.\n`,
   };
 }
 export function codeEmail({ code, inviter, account, title }) {
   return {
     subject: 'Your Rabbit Hole invitation code',
-    text: `Your code: ${code}\n\nSomeone signed in to Rabbit Hole as ${nameOf(account, `a ${account?.provider_label || 'Rabbit Hole'} user`)} asked to accept ${nameOf(inviter, 'a Rabbit Hole user')}'s invitation to '${clean(title)}'. The code expires in 10 minutes. If this wasn't you, ignore this email.\n\nReplies to this email aren't read.\n`,
+    text: `Your code: ${code}\n\nSomeone signed in to Rabbit Hole as ${nameOf(account, `a ${account?.provider_label || 'Rabbit Hole'} user`)} asked to accept ${nameOf(inviter, 'a Rabbit Hole user')}'s invitation to '${clean(title)}'. The code expires in 10 minutes. If this wasn't you, ignore this email.\n\nQuestions? Reply to this email.\n`,
   };
 }
 
