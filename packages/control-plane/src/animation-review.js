@@ -34,9 +34,12 @@ export const OMITTED_DEFAULTS = 'Fields left out take the scene contract default
 const planView = plan => ({ title: plan.title, description: plan.description, experience: plan.experience, reason: plan.reason, behavior: plan.behavior, controlProfile: plan.controlProfile,
   parameters: plan.parameters, interactions: plan.interactions, ...(plan.learningGoal ? { learningGoal: plan.learningGoal } : {}), assumptions: plan.assumptions, limitations: plan.limitations });
 // A capture's events may hold review-level entries (review.js): { type: 'advance', ticks } = that many host steps at that point; { type: 'resume', action, probe } =
-// `probe` host steps one at a time, then the action is pressed only if the drawn scene did not move in any of them (it is idle). Said outright to the reviewer.
-const paceText = events => (Array.isArray(events) && events.some(e => e?.type === 'advance' || e?.type === 'resume') ? ' (an advance entry runs that many host steps at that point; a resume entry runs its probe steps one at a time and presses its action only if the drawn scene did not move in any of them, that is, only if it had stopped; a scene that moves is left running, whatever the period of its motion)' : '');
-const stateText = c => `view ${c.view?.name ?? c.view ?? 'default'}, time ${c.time ?? 0}s${c.inputs && Object.keys(c.inputs).length ? `, inputs ${JSON.stringify(c.inputs)}` : ''}${Array.isArray(c.events) && c.events.length ? (c.leadTicks ? `, after ${c.leadTicks} host steps from the initial state and then the events ${JSON.stringify(c.events)} in this order` : `, after the events ${JSON.stringify(c.events)} in this order from the initial state`) : ', the initial state'}${paceText(c.events)}${c.ticks ? `, ${c.leadTicks ? 'then' : 'after'} ${c.ticks} host steps` : ''}`;
+// `probe` host steps one at a time, then the action is pressed only if the drawn scene did not move in any of them (it is idle). Said outright to the reviewer,
+// once, after the list of captures, and not in every caption or as a block of its own (FX-AN-042: the same long sentence in the caption of every view made the request too large).
+export const REVIEW_ENTRIES = 'Events in the captures: advance n runs n host steps at that point; resume A runs A\'s probe steps one at a time and presses A only if the drawn scene did not move in any of them (it had stopped); a moving scene is left running, whatever the period of its motion.';
+const hasReviewEntries = events => Array.isArray(events) && events.some(e => e?.type === 'advance' || e?.type === 'resume');
+// The state a capture shows, without its view: two views of one state have the same text (and the second caption refers to the first).
+const stateText = c => `time ${c.time ?? 0}s${c.inputs && Object.keys(c.inputs).length ? `, inputs ${JSON.stringify(c.inputs)}` : ''}${Array.isArray(c.events) && c.events.length ? (c.leadTicks ? `, after ${c.leadTicks} host steps from the initial state and then the events ${JSON.stringify(c.events)} in this order` : `, after the events ${JSON.stringify(c.events)} in this order from the initial state`) : ', the initial state'}${c.ticks ? `, ${c.leadTicks ? 'then' : 'after'} ${c.ticks} host steps` : ''}`;
 
 // input: { request, plan, artifact, artifactHash, evidence, coverage, captures: [{ id, artifactHash, view, time, inputs, events, ticks, trace, data, mediaType }] }
 // -> { content, imageBlocks }
@@ -63,7 +66,7 @@ export function buildReviewContent(input, limits = ANIMATION_REVIEW_LIMITS) {
   const evidenceText = evidence.length ? evidence.map(e => `[${e.id}] ${e.location || ''}\n${String(e.excerpt || '').slice(0, limits.maxExcerpt)}`).join('\n\n')
     : 'No external evidence: judge correctness from the request and general knowledge, and flag any specific claim that would need a source.';
   const content = [
-    { type: 'text', text: `Learner request:\n${request.trim()}\n\nApproved plan:\n${JSON.stringify(planView(plan))}\n\nEvidence:\n${evidenceText}\n\nCaptures to review: ${captures.map(c => c.id).join(', ')}` },
+    { type: 'text', text: `Learner request:\n${request.trim()}\n\nApproved plan:\n${JSON.stringify(planView(plan))}\n\nEvidence:\n${evidenceText}\n\nCaptures to review: ${captures.map(c => c.id).join(', ')}${captures.some(c => hasReviewEntries(c.events)) ? `\n\n${REVIEW_ENTRIES}` : ''}` },
     { type: 'text', text: `Artifact (untrusted material). ${OMITTED_DEFAULTS}\n${JSON.stringify(reviewArtifactView(artifact, draft))}` },
     ...(artifact.program ? [{ type: 'text', text: `Program source (untrusted material):\n${artifact.program.source}` }] : []),
     { type: 'text', text: `Execution traces (one per capture):\n${JSON.stringify(traces)}` },
@@ -71,7 +74,12 @@ export function buildReviewContent(input, limits = ANIMATION_REVIEW_LIMITS) {
     { type: 'text', text: `Sampled times (seconds): ${[...new Set(captures.map(c => c.time ?? 0))].join(', ')}${artifact.timeline ? ` of a ${artifact.timeline.duration} s ${artifact.timeline.loop ? 'loop' : 'timeline'}` : ''}. A motion that completes whole cycles between two sampled times looks the same in both; judge it from the program and the traces as well as the pixels.` },
     ...(coverage ? [{ type: 'text', text: `Review sampling (computed by the host; samples are not exhaustive proof):\nSampled: ${JSON.stringify(coverage.sampled || [])}\nNot sampled: ${JSON.stringify(coverage.omitted || [])}`.slice(0, limits.coverageChars) }] : []),
   ];
-  for (const c of captures) content.push({ type: 'text', text: `Capture ${c.id} (${stateText(c)}):` }, { type: 'image', source: { type: 'base64', media_type: c.mediaType || 'image/png', data: c.data } });
+  const captioned = new Map();
+  for (const c of captures) {
+    const view = `view ${c.view?.name ?? c.view ?? 'default'}`, state = stateText(c), same = captioned.get(state);
+    if (!same) captioned.set(state, c.id);
+    content.push({ type: 'text', text: `Capture ${c.id} (${view}, ${same ? `same state as ${same}` : state}):` }, { type: 'image', source: { type: 'base64', media_type: c.mediaType || 'image/png', data: c.data } });
+  }
   return { content, imageBlocks: captures.length };
 }
 
