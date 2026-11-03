@@ -11,7 +11,7 @@ const canvas = () => api;
 const labels = items => items.filter(item => item.label).map(item => item.label);
 const find = (items, label) => items.find(item => item.label === label);
 const groups = items => items.reduce((all, item) => { if (item.divider) all.push([]); else all[all.length - 1].push(item.label); return all; }, [[]]);
-const build = (state = {}, extra = {}) => canvasEditMenus({ canvas, canvasState: state, docView: 'canvas', setDocView() {}, ...extra });
+const build = (state = {}, extra = {}) => canvasEditMenus({ canvas, canvasState: state, docView: 'canvas', setDocView() {}, mac: false, ...extra });
 const owner = (state, extra) => build(state, { inlineAi: {}, quickEdit: true, panel: { open: true, setOpen() {} }, ...extra });
 const walk = items => items.flatMap(item => (item.items ? [item, ...walk(item.items)] : [item]));
 const allMenus = () => [
@@ -52,7 +52,7 @@ test('Edit: Undo Redo, Cut Copy Paste, Duplicate Delete, Copy style Paste style,
   assert.deepEqual(groups(edit.items), [['Undo', 'Redo'], ['Cut', 'Copy', 'Paste'], ['Duplicate', 'Delete'], ['Copy style', 'Paste style'], ['Select all'], ['Edit with AI']]);
   const names = labels(edit.items);
   for (const moved of ['Group', 'Ungroup', 'Lock', 'Unlock', 'Quick Edit', 'Delete selection']) assert.ok(!names.includes(moved), `${moved} is not in Edit`);
-  assert.equal(find(edit.items, 'Edit with AI').hint, 'Ctrl K');
+  assert.equal(find(edit.items, 'Edit with AI').hint, 'Ctrl+K');
   assert.equal(find(edit.items, 'Edit with AI').disabled, false);
   assert.equal(find(owner({ selected: 0 })[0].items, 'Edit with AI').disabled, true, 'needs a selection');
   assert.equal(find(owner({ selected: 1 }, { inlineAi: null })[0].items, 'Edit with AI').disabled, true, 'needs the inline editor');
@@ -65,7 +65,7 @@ test('Edit rows keep their shortcuts and selection requirements; disabled rows s
   const [some] = owner({ selected: 1, canPaste: true, canPasteStyle: true });
   assert.ok(some.items.filter(item => item.label && item.label !== 'Edit with AI').every(item => !item.disabled));
   assert.deepEqual(['Undo', 'Redo', 'Cut', 'Copy', 'Paste', 'Duplicate', 'Delete', 'Copy style', 'Paste style', 'Select all'].map(label => find(some.items, label).hint),
-    ['Ctrl Z', 'Ctrl Y', 'Ctrl X', 'Ctrl C', 'Ctrl V', 'Ctrl D', 'Del', 'Ctrl Alt C', 'Ctrl Alt V', 'Ctrl A']);
+    ['Ctrl+Z', 'Ctrl+Shift+Z', 'Ctrl+X', 'Ctrl+C', 'Ctrl+V', 'Ctrl+D', 'Delete', 'Ctrl+Alt+C', 'Ctrl+Alt+V', 'Ctrl+A']);
 });
 
 test('Arrange: Align, Distribute and Layer order are submenus, then Group Ungroup, then Lock and Snap to grid', () => {
@@ -74,7 +74,7 @@ test('Arrange: Align, Distribute and Layer order are submenus, then Group Ungrou
   assert.deepEqual(labels(find(arrange.items, 'Align').items), ['Left', 'Center', 'Right', 'Top', 'Middle', 'Bottom']);
   assert.deepEqual(labels(find(arrange.items, 'Distribute').items), ['Horizontally', 'Vertically']);
   assert.deepEqual(labels(find(arrange.items, 'Layer order').items), ['Bring to front', 'Bring forward', 'Send backward', 'Send to back']);
-  assert.deepEqual(find(arrange.items, 'Layer order').items.map(item => item.hint), ['Ctrl Shift ]', 'Ctrl ]', 'Ctrl [', 'Ctrl Shift [']);
+  assert.deepEqual(find(arrange.items, 'Layer order').items.map(item => item.hint), ['Ctrl+Shift+]', 'Ctrl+]', 'Ctrl+[', 'Ctrl+Shift+[']);
   assert.ok(arrange.items.filter(item => item.items).every(item => item.items.every(choice => !choice.icon)), 'submenu choices are text only');
 });
 
@@ -116,7 +116,7 @@ test('View: zooms, Workspace, Show / hide, Page guides; the old Mode, Keep tool 
   // Without onSlashCommands (a canvas with no Chat composer) there is no Slash Commands row (owner spec 2026-10-29 section 10.4).
   assert.doesNotMatch(labels(walk(view.items)).join('|'), /Curious|Comments|Keep tool active|Keyboard shortcuts|Slash [Cc]ommands|Mode|Zoom to fit/);
   assert.deepEqual(find(view.items, 'Page guides').choice.options.map(option => option[0]), ['off', 'portrait', 'landscape'], 'the page-guide formats are kept');
-  assert.deepEqual(['Zoom in', 'Zoom out', 'Zoom to 100%', 'Fit canvas'].map(label => find(view.items, label).hint), ['Ctrl +', 'Ctrl -', 'Shift 0', 'Shift 1']);
+  assert.deepEqual(['Zoom in', 'Zoom out', 'Zoom to 100%', 'Fit canvas'].map(label => find(view.items, label).hint), ['Ctrl+Plus', 'Ctrl+Minus', 'Shift+0', 'Shift+1']);
 });
 
 // Owner spec 2026-10-29 section 7.1: Slash Commands under View opens the window through the page's own callback (LearnPage's
@@ -214,4 +214,27 @@ test('View: Canvas and Study radio rows above Workspace only where the page pass
   assert.deepEqual(labels(find(view.items, 'Workspace').items), ['Canvas', 'Editor'], 'the document Canvas / Editor choice is untouched');
   assert.ok(!labels(build({})[2].items).includes('Study'), 'no study given (a shared canvas): no rows');
   assert.doesNotMatch(labels(walk(view.items)).join('|'), /layout|Save|\.\.\.|…/i, 'no Release 2 layout rows');
+});
+
+// Owner brief 2026-11-02 (View > Shortcuts; message 2 section 1): Shortcuts sits directly below Slash Commands on any page that
+// passes onShortcuts; every hint is spelled for the platform from shortcuts.js and carries the same aria-keyshortcuts; the new
+// keys show beside their rows (Shift+2 Fit selection, Shift+G Snap to grid, Shift+P Right panel, Shift+S Slash Commands).
+test('View: Shortcuts directly below Slash Commands; platform hints and aria keys from shortcuts.js; the new keys on their rows', () => {
+  const opened = [];
+  const menus = mac => owner({ selected: 1 }, { mac, onSlashCommands: () => opened.push('slash'), onShortcuts: () => opened.push('shortcuts') });
+  const [edit, arrange, view] = menus(false);
+  assert.deepEqual(groups(view.items).at(-1), ['Slash Commands', 'Shortcuts']);
+  const row = find(view.items, 'Shortcuts');
+  assert.deepEqual([row.hint, row.keys, menuIcon(row.icon).props['aria-hidden']], ['?', '?', 'true']);
+  row.onSelect();
+  assert.deepEqual(opened, ['shortcuts']);
+  assert.deepEqual([find(view.items, 'Slash Commands').hint, find(view.items, 'Fit selection').hint, find(arrange.items, 'Snap to grid').hint, find(find(view.items, 'Show / hide').items, 'Right panel').hint],
+    ['Shift+S', 'Shift+2', 'Shift+G', 'Shift+P']);
+  assert.deepEqual([find(edit.items, 'Edit with AI').keys, find(edit.items, 'Delete').keys, find(edit.items, 'Redo').keys], ['Control+K', 'Delete Backspace', 'Control+Shift+Z Control+Y']);
+  const [macEdit, macArrange] = menus(true);
+  assert.deepEqual(['Undo', 'Redo', 'Copy style', 'Edit with AI', 'Delete'].map(label => find(macEdit.items, label).hint), ['⌘Z', '⌘Shift+Z', '⌘Option+C', '⌘K', 'Delete ⌫']);
+  assert.deepEqual([find(macEdit.items, 'Edit with AI').keys, find(find(macArrange.items, 'Layer order').items, 'Bring to front').hint], ['Meta+K', '⌘Shift+]']);
+  assert.ok(allMenus().flatMap(menu => menu.items).every(item => !item.hint || !/Ctrl/.test(item.hint) || !item.keys || /Control/.test(item.keys)), 'each hint and its aria keys agree');
+  assert.equal(find(build({})[2].items, 'Shortcuts'), undefined, 'no callback, no row');
+  assert.deepEqual(groups(build({}, { onShortcuts() {} })[2].items).at(-1), ['Shortcuts'], 'without Slash Commands it still ends the View menu');
 });

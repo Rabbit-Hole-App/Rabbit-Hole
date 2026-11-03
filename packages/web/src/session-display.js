@@ -26,13 +26,13 @@ export function useSessionDisplay() {
   return display;
 }
 
-// The person's own Profile (GET /api/profile, served by the app's origin): { name, avatar, handle, description } or null.
+// The person's own Profile (GET /api/profile, served by the app's origin): { name, avatar, handle, description[, emailPreferences] } or null.
 let profile = null;
 // HandleGate (docs/features/user-handles.md): a signed-in profile without a public handle chooses one first.
 export const gateFor = profile => (profile && !profile.handle ? 'needed' : 'ok');
 export const loadProfile = () => (profile ||= fetch('/api/profile', { credentials: 'same-origin' })
   .then(response => (response.ok ? response.json() : null)).catch(() => null));
-// Saves a { name } or { avatar } change and tells every mounted identity to re-read it.
+// Saves a { name }, { avatar }, { handle }, { description } or { emailPreferences } change and tells every mounted identity to re-read it.
 export async function saveProfile(patch) {
   const response = await fetch('/api/profile', { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
   const body = await response.json().catch(() => ({}));

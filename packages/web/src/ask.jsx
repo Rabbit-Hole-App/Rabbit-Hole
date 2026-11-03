@@ -1,4 +1,5 @@
 import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, COMPOSER_TOOL } from './ChatComposer.jsx';
+import { takePrefill } from './creator-analytics.js';
 import ModeSelector from './ModeSelector.jsx';
 import ContextChips from './ContextChips.jsx';
 import { selectionRefs, turnRefs } from './repo-context.js';
@@ -434,6 +435,12 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     window.addEventListener('small:ask-focus', focus);
     return () => window.removeEventListener('small:ask-focus', focus);
   }, []);
+  // "Draft a follow-up board" (CreatorAnalytics.jsx) leaves its prompt for this new canvas's composer: filled once, never sent.
+  useEffect(() => {
+    if (canvasSeed || !chat) return;
+    const text = takePrefill(appName);
+    if (text) { prefilled.current = text; setInput(text); inputRef.current?.focus(); }
+  }, [appName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Resume the latest saved thread for this scope on mount.
   const loadThread = async (id, toChat = true, request = ++historyRequest.current) => {

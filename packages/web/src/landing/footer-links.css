@@ -19,8 +19,6 @@ footer .footer-links-row a:focus-visible{outline:2px solid currentColor;outline-
 /* Only where the choice exists (analytics-banner.js marks the page). */
 [data-analytics-preferences]{display:none}
 html[data-analytics-choice] [data-analytics-preferences]{display:inline-flex}
-footer .footer-links-row a.footer-preferences{width:32px;justify-content:center}
-.footer-preferences svg{width:18px;height:18px}
 /* Book a call: the footer's one button (owner 2026-11-02), outlined so it reads as one in both themes. */
 footer .footer-links-row a.footer-call{padding:6px 14px;min-height:34px;border:1px solid currentColor;border-radius:999px;font-weight:500;transition:transform .1s}
 footer .footer-links-row a.footer-call:active{transform:scale(.97)}

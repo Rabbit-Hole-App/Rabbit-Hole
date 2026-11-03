@@ -107,7 +107,7 @@ test('every Start Rabbit Hole on someone else\'s canvas opens the choice first: 
   assert.match(page, /const startFromCard = useCallback\(cardId => rabbitAsk\.current\?\.\(cardId\), \[\]\);/, 'the card menu asks');
   assert.match(page, /onPick=\{\(origin\) => \{ setAsking\(null\); run\(origin\); \}\}/);
   assert.match(page, /useEffect\(\(\) => \{ if \(resume !== undefined\) run\(resume\.origin/, 'back from sign-in, the choice already made starts');
-  assert.match(page, /onPick=\{\(step, hook\) => startRef\.current\?\.\(card, step, hook\.id\)\}/, 'a Next Steps hook starts its own step, no popup');
+  assert.match(page, /onPick=\{\(step, hook\) => \{ analytics\.current\?\.stepSelected\(steps\.options, hook\); return startRef\.current\?\.\(card, step, hook\.id\); \}\}/, 'a Next Steps hook starts its own step, no popup');
   assert.match(cards, /data-card-start-rabbit-hole onClick=\{stop\(\(\) => setStarting\(card\)\)\}/);
   assert.match(cards, /onPick=\{\(origin\) => \{ setStarting\(null\); go\(startHref\(starting\.url, origin\)\); \}\}/);
 });

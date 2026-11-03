@@ -10,6 +10,7 @@ export { RepositoryImports, LearnScenes, LearnVideos, CadJobs, ExplainJobs, Anim
 
 export default {
   queue: (batch, env) => worker.queue(batch, ownControlPlane(env)),
+  scheduled: (event, env, ctx) => worker.scheduled(event, env, ctx),
   // Every response, these early ones too, passes the framing wrapper (framing-headers.js): the dev worker applies it to what it routes.
   fetch: async (req, env, ctx) => withFraming(req, await respond(req, env, ctx)),
 };

@@ -217,8 +217,8 @@ menus, Star, Fork, panel toggle (`e2e/shared-header-check.mjs` updated to assert
 - **Personal Stars.** `/library?view=stars` (the sidebar keeps Library lit; no new route or navigation row). Search over the whole collection, the
   total "N stars, M unavailable", cards with Star and (others' canvases) Fork but no card options, an unavailable star as one generic row
   "Canvas unavailable" with Remove, Show more by the server's cursor, loading, empty and retry states.
-- **Not built.** The Stars analytics
-  fields are not folded into the creator dashboard (the server route is live, increment 4); the Home Continue card has no Star when its canvas row is not in the catalog.
+- **Creator analytics** reads these figures through `starFigures` (creator-analytics-contract.md); there is no second Stars system.
+- **Not built.** The Home Continue card has no Star when its canvas row is not in the catalog.
 - **Not covered by a browser check:** `stars-surfaces-check.mjs` passed 33/33 in CI on the released SHA (above). Still not asserted: layout at every small card size and width,
   light and dark appearance (the control is the shared `Button` with theme tokens; no dark-specific assertion), and the touch target on a real device.
 

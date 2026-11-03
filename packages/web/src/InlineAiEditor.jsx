@@ -37,6 +37,7 @@ import CommandPill from './CommandPill.jsx';
 import { CommandMark } from './CommandTone.jsx';
 import { FILE_EDIT_LOCKED, fileEditLocked } from './file-chat-ref.js';
 import { withPrompt } from './card-prompt.js';
+import { keyLabel } from './shortcuts.js';
 
 // The inline AI editor (docs/features/inline-ai-editor.md): a compact popover by the frozen selection, with Edit and
 // Explain pills, the prompt, a context indicator, the streamed preview and Accept / Reject. Everything it shows before
@@ -928,7 +929,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         {(preview && status !== 'proposal') && (
           <div className="mt-2 flex items-center justify-end gap-1.5">
             <button type="button" data-inline-reject onClick={reject} className="h-6 rounded-md border border-line bg-white px-2 text-xs text-ink outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ai">Reject</button>
-            <button type="button" data-inline-accept onClick={accept} disabled={!acceptable || readOnly} title={busy(status) ? 'Waiting for the new version' : 'Accept (Ctrl Enter)'}
+            <button type="button" data-inline-accept onClick={accept} disabled={!acceptable || readOnly} title={busy(status) ? 'Waiting for the new version' : `Accept (${keyLabel('Mod+Enter')})`}
               className="flex h-6 items-center gap-1 rounded-md bg-ink px-2 text-xs font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-ai disabled:opacity-40"><Check size={12} />{preview.kind==='tool_action'?'Review action':preview.kind==='image_action'?'Review image action':'Accept'}</button>
           </div>
         )}

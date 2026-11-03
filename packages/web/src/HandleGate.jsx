@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { HANDLE_MAX, fieldHandle, normalizeHandle } from '../../control-plane/src/handle.js';
+import { CATEGORIES, initialChoices, onboardingSubmission, toggleChoice, wording } from '../../control-plane/src/email-preferences.js';
 import { gateFor, loadProfile, saveProfile } from './session-display.js';
 import { PRODUCT } from './flags.js';
 import logoBlack from './assets/rabbit-hole-black.png';
@@ -25,12 +26,15 @@ export function ChooseHandle({ onDone }) {
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // Both email boxes start checked and untouched (owner 2026-11-03). Showing them saves nothing: Continue sends what they are then.
+  const [choices, setChoices] = useState(initialChoices);
+  const words = wording();
   const checked = value ? normalizeHandle(value) : null;
   const submit = async event => {
     event.preventDefault();
     if (!checked?.handle || busy) return;
     setBusy(true); setError('');
-    try { await saveProfile({ handle: checked.handle }); onDone(); }
+    try { await saveProfile({ handle: checked.handle, emailPreferences: onboardingSubmission(choices) }); onDone(); }
     catch (problem) { setError(problem.message); setBusy(false); }
   };
   const problem = error || checked?.error || '';
@@ -54,8 +58,19 @@ export function ChooseHandle({ onDone }) {
         </div>
         <p id="handle-help" className="mt-2 text-[13px] leading-5 text-ink-3">3–30 letters, numbers, or underscores.</p>
         <p id="handle-feedback" data-handle-hint role={problem ? 'alert' : undefined} className="min-h-5 text-[13px] leading-5 text-fail">{problem}</p>
+        <fieldset data-email-choices disabled={busy} className="mt-3 min-w-0 border-0 p-0">
+          <legend className="p-0 text-sm font-medium text-ink">Email from {PRODUCT}</legend>
+          {CATEGORIES.map(category => (
+            <label key={category} className="mt-3 flex cursor-pointer items-start gap-3">
+              <input type="checkbox" data-email-choice={category} checked={choices[category].enabled} onChange={() => setChoices(current => toggleChoice(current, category))}
+                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent/60" />
+              <span><span className="block text-sm font-medium text-ink">{words[category].label}</span><span className="block text-[13px] leading-5 text-ink-3">{words[category].description}</span></span>
+            </label>
+          ))}
+          <p className="mt-3 text-[13px] leading-5 text-ink-3">Optional. Change or unsubscribe any time in Settings.</p>
+        </fieldset>
         <button type="submit" disabled={!checked?.handle || busy}
-          className="mt-3 inline-flex h-12 w-full items-center justify-center rounded-lg border-0 bg-primary-fill text-[15px] font-medium text-white transition-colors duration-100 select-none hover:bg-primary-fill-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent/60 disabled:cursor-default disabled:bg-active disabled:text-ink-2 disabled:hover:bg-active">{busy ? 'Saving' : 'Continue'}</button>
+          className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-lg border-0 bg-primary-fill text-[15px] font-medium text-white transition-colors duration-100 select-none hover:bg-primary-fill-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent/60 disabled:cursor-default disabled:bg-active disabled:text-ink-2 disabled:hover:bg-active">{busy ? 'Saving' : 'Continue'}</button>
         <p className="mt-3 text-[13px] leading-5 text-ink-3">You can change this later in Settings.</p>
       </form>
     </main>

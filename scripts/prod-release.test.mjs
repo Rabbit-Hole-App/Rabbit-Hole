@@ -157,7 +157,7 @@ test('the schema preflight needs the complete schema and the exact migration lis
   const b = schemaBlockers({ ...ready, learnLive: half });
   assert.deepEqual(b.slice(0, -1), ['rabbit-hole-learn-prod schema: missing index:canvas_comments_thread']);
   assert.match(b.at(-1), /owner's GO; this job never applies one/);
-  assert.match(schemaBlockers({ ...ready, mainApplied: mainFiles.slice(0, -1) })[0], /rabbit-hole-prod migrations: not applied 0027/);
+  assert.match(schemaBlockers({ ...ready, mainApplied: mainFiles.slice(0, -1) })[0], new RegExp(`rabbit-hole-prod migrations: not applied ${mainFiles.at(-1)}`));
   assert.match(schemaBlockers({ ...ready, mainLive: { ...expected.main, 'index:by_hand': 'x' } })[0], /unexpected index:by_hand/);
 });
 

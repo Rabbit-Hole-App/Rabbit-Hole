@@ -307,7 +307,8 @@ export function installUsageAnalytics(target, config, { signedOut = false, accou
       if (configured(config)) mirrorConsentCookie(target);
       if (allowed(target, config)) { if (!stopRunning) start(); return; }
       stopRunning?.();
-      clearAnalyticsStorage(target);
+      // By the visitor's choice, not by whether PostHog is configured: other analytics share this storage (publication-analytics.js).
+      if (consentOf(target) !== 'accepted' || optedOut(target.navigator)) clearAnalyticsStorage(target);
     } catch { /* never blocks */ }
   };
   const listening = new AbortController();

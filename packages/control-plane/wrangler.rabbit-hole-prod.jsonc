@@ -28,8 +28,12 @@
     "BASE_URL": "https://digrabbithole.com",
     // Sign-in happens only on this origin (auth.js, feature/rabbit-hole-production-auth).
     "PUBLIC_ORIGIN": "https://digrabbithole.com",
-    // Passwordless sign-in sender; digrabbithole.com must be verified in Resend first (RESEND_API_KEY is a secret).
-    "EMAIL_FROM": "Rabbit Hole <signin@digrabbithole.com>",
+    // Sender of every app email (sign-in, invitations, CAD alert, feedback); digrabbithole.com must be verified in Resend first (RESEND_API_KEY is a secret).
+    // hello@ since the owner decision 2026-11-03: replies reach the owner's Gmail through Cloudflare Email Routing, which already forwards hello@.
+    "EMAIL_FROM": "Rabbit Hole <hello@digrabbithole.com>",
+    // In-app Send feedback: each stored report is also mailed here, from EMAIL_FROM through the same Resend key (feedback-mail.js,
+    // docs/features/learn-feedback.md). The owner's product address (never the chin01 one). Empty or absent = no email; the report is kept either way.
+    "FEEDBACK_NOTIFY_TO": "yudhisteer.chin@gmail.com",
     // Usage analytics (docs/features/usage-analytics.md): the verified sign-in event (product-analytics.js). The project token is
     // public and ingestion-only. ANALYTICS_INTERNAL_USER_IDS: users.id values, marked internal so the customer view leaves them
     // out: the owner's two accounts, both confirmed by him (docs/features/usage-analytics.md).

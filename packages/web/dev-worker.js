@@ -62,6 +62,8 @@ import { canvasCommentsRoute } from '../control-plane/src/canvas-comments.js';
 import { canvasRefsFetch, canvasRefsRoute } from '../control-plane/src/canvas-refs.js';
 import { creatorsRoute } from '../control-plane/src/creators.js';
 import { starsRoute } from '../control-plane/src/canvas-stars.js';
+import { analyticsRoute } from '../control-plane/src/publication-analytics.js';
+import { runCleanup } from '../control-plane/src/publication-analytics-purge.js';
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { chatRouteFetch } from '../control-plane/src/chat-capability-route.js';
 import { inlineDecideFetch, inlineEvidenceFetch, inlineGenerateFetch, inlineRouteFetch, inlineTelemetryFetch } from '../control-plane/src/learn-inline.js';
@@ -93,6 +95,8 @@ export default {
     const { consumeIndexQueue } = await import('../control-plane/src/learn-moment-index.js');
     await consumeIndexQueue(batch, env);
   },
+  // The daily expiry of creator analytics records (publication-analytics-purge.js). Its cron is in wrangler.rabbit-hole-prod.jsonc.
+  scheduled: (event, env) => runCleanup(env.LEARN_DB),
   // Every response passes the framing wrapper (framing-headers.js), whatever route or early return made it.
   fetch: async (req, env, ctx) => withFraming(req, await respond(req, env, ctx)),
 };
@@ -186,6 +190,8 @@ const routes = {
     if (path === '/api/telemetry/tutor') { const accepted = await tutorTelemetryRoute(path, req, env); if (accepted) return accepted; }
     // The owner's telemetry API (docs/features/telemetry.md): 404 to anyone but SUBSCRIPTION_OWNER_EMAIL's session, whatever the mode.
     if (path.startsWith('/api/owner/telemetry')) { const owned = await ownerTelemetryRoute(path, req, env); if (owned) return owned; }
+    // Creator analytics reads (docs/features/creator-analytics-contract.md): the signed-in creator's own boards only.
+    if (path.startsWith('/api/analytics/')) return analyticsRoute(path, req, env);
     // The signed-in user's AI usage this month (credits Phase 1: accounting, not enforcement).
     if (path === '/api/learn/usage') return usageFetch(req, env);
     if (path === '/api/learn/graph-config' && req.method === 'GET') {

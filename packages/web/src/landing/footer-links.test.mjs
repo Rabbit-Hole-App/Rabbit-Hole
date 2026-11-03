@@ -1,4 +1,4 @@
-// The footer's links (owner 2026-11-02): Analytics preferences is an icon with its name kept for screen readers and hover; Book a call
+// The footer's links (owner 2026-11-02): no Analytics preferences link (changed in Settings); Book a call
 // opens the onboarding calendar in a new tab. footer-links.js imports its CSS, so its markup function is run from its source here.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,13 +10,9 @@ const { footerLinks, BOOK_CALL_URL } = new Function(`${source}
 return { footerLinks, BOOK_CALL_URL };`)();
 const row = () => parseHTML(`<!doctype html><html><body><div>${footerLinks()}</div></body></html>`).document;
 
-test('Analytics preferences is an icon link that keeps its name', () => {
-  const link = row().querySelector('[data-analytics-preferences]');
-  assert.equal(link.textContent.trim(), '', 'no visible text');
-  assert.equal(link.getAttribute('aria-label'), 'Analytics preferences');
-  assert.equal(link.getAttribute('title'), 'Analytics preferences');
-  assert.ok(link.querySelector('svg[aria-hidden="true"]'));
-  assert.equal(link.getAttribute('href'), '/privacy#technical');
+test('the footer has no Analytics preferences link (owner 2026-11-02): the choice is changed in Settings', () => {
+  assert.equal(row().querySelector('[data-analytics-preferences]'), null);
+  assert.equal(footerLinks().includes('Analytics preferences'), false);
 });
 
 test('Book a call opens the onboarding calendar in a new tab, once, in the footer', () => {

@@ -3,7 +3,7 @@
 // behaviour is e2e/canvas-shell-check.mjs (Search) and e2e/canvas-editing-check.mjs (the bar and its keys).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addToChatAllowed, chordLabel, chordOf, claimChord, fieldKind, quickEditAllowed, routeShortcut } from './shortcut-owner.js';
+import { addToChatAllowed, chordLabel, chordOf, claimChord, fieldKind, pageKeyAllowed, quickEditAllowed, routeShortcut } from './shortcut-owner.js';
 
 const press = (key, extra = {}) => { const event = { key, ctrlKey: true, metaKey: false, altKey: false, shiftKey: false, defaultPrevented: false, stopped: false, ...extra }; event.preventDefault = () => { event.defaultPrevented = true; }; event.stopImmediatePropagation = () => { event.stopped = true; }; return event; };
 const field = (tagName, extra = {}) => ({ nodeType: 1, tagName, isContentEditable: false, closest: selector => (extra.inside || []).some(part => selector.includes(part)) ? {} : null, ...extra });
@@ -23,11 +23,12 @@ test('the chords: Ctrl or Cmd with K, L, or Shift+F - and nothing else', () => {
   assert.equal(chordOf(press('k', { keyCode: 229 })), null);
 });
 
-test('the shortcut labels: Ctrl on Windows and Linux, Cmd on a Mac', () => {
+// Owner brief 2026-11-02: one spelling everywhere (shortcuts.js keyLabel): Ctrl+K on Windows and Linux, ⌘K on a Mac.
+test('the shortcut labels: Ctrl on Windows and Linux, ⌘ on a Mac', () => {
   assert.equal(chordLabel('add-to-chat', false), 'Ctrl+L');
-  assert.equal(chordLabel('quick-edit', true), 'Cmd+K');
+  assert.equal(chordLabel('quick-edit', true), '⌘K');
   assert.equal(chordLabel('search', false), 'Ctrl+Shift+F');
-  assert.equal(chordLabel('search', true), 'Cmd+Shift+F');
+  assert.equal(chordLabel('search', true), '⌘Shift+F');
 });
 
 test('where the focus is: a dialog, a code editor or embedded page, a text field, or the page itself', () => {
@@ -39,6 +40,8 @@ test('where the focus is: a dialog, a code editor or embedded page, a text field
   assert.equal(fieldKind(field('IFRAME')), 'code');
   assert.equal(fieldKind(field('DIV', { inside: ['.cm-editor'] })), 'code');
   assert.equal(fieldKind(field('INPUT', { inside: ['[role="dialog"]'] })), 'dialog', 'a dialog outranks the field in it');
+  // Owner brief 2026-11-02: with a menu open its row has the focus, and no chord acts on an older selection behind it.
+  assert.equal(fieldKind(field('BUTTON', { inside: ['[role="menu"]'] })), 'menu');
 });
 
 test('Ctrl/Cmd+L adds to chat only with a selection and the focus on the page: it fires, and it does not while typing', () => {
@@ -94,4 +97,19 @@ test('an unclaimed or foreign chord is left alone: the event is not touched', ()
   const shifted = press('L', { shiftKey: true });
   assert.equal(routeShortcut(shifted, null), null, 'Ctrl+Shift+L stays the lock command');
   assert.ok(!shifted.defaultPrevented);
+});
+
+// Owner brief 2026-11-02 section 3: the page's plain and Shift keys (Shift+S, Shift+P) stand down in fields, editors, embedded
+// pages, a card's own widgets, menus and the composer, during IME composition and for a held key's repeats.
+test('a page key is taken only where the page owns the keyboard, once per press, never mid-composition', () => {
+  const key = (extra = {}) => ({ key: 'S', shiftKey: true, repeat: false, isComposing: false, keyCode: 83, ...extra });
+  const node = (tagName, inside = [], extra = {}) => ({ ...field(tagName, { inside, ...extra }), matches: () => false });
+  assert.equal(pageKeyAllowed(key(), null), true, 'the page itself');
+  assert.equal(pageKeyAllowed(key(), node('BUTTON')), true, 'a plain control, a toolbar button');
+  assert.equal(pageKeyAllowed(key({ repeat: true }), null), false, 'a held key acts once');
+  assert.equal(pageKeyAllowed(key({ isComposing: true }), null), false);
+  assert.equal(pageKeyAllowed(key({ keyCode: 229 }), null), false);
+  for (const [tag, inside, extra] of [['INPUT', []], ['TEXTAREA', []], ['DIV', [], { isContentEditable: true }], ['IFRAME', []], ['DIV', ['.cm-editor']], ['BUTTON', ['[role="dialog"]']],
+    ['BUTTON', ['[data-block-id]']], ['BUTTON', ['[role="menu"]']], ['BUTTON', ['[data-chat-composer]']], ['DIV', ['[data-viewer-active]']], ['SELECT', []]])
+    assert.equal(pageKeyAllowed(key(), node(tag, inside, extra)), false, `${tag} in ${inside.join() || 'itself'}`);
 });
