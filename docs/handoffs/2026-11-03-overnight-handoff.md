@@ -1,7 +1,7 @@
 # Overnight handoff, 2026-11-03 (written for the owner and for ChatGPT's morning review)
 
 Author: Parallel (the integrator session). Times are Pacific. This file is updated through the night; the "Last updated" line says when.
-Last updated: 2026-11-03 02:10 PT (see "Update log" at the end).
+Last updated: 2026-11-03 02:40 PT (see "Update log" at the end).
 
 Rules this report follows: no secrets, no personal email addresses, no share-link tokens. The owner's personal account is never used for testing; production testing uses the dedicated account **@yuvish_demo**. Production commands are owner-run launchers; nothing here was pushed to `main` by an agent.
 
@@ -24,13 +24,13 @@ Not done by a browser on production (owner rule: no Claude browser on production
 ## 2. Ready releases (copy and paste in order)
 _None ready yet. Feedback email and newsletter preferences are in qualification; this section is filled in as each passes its gate._
 
-## 3. Awaiting testing, approval or a gate
+## 3. Awaiting testing, approval or a gate (as of 02:40 PT)
 
 | Item | Branch | Commit | State | Blocker |
 |---|---|---|---|---|
-| Feedback email (stored report is mailed to the owner; sender changed to the hello@ address; per-account limit 5/hour and 20/day) | `feat/feedback-mail` | pending (merging main `3fa5badcd`) | CI to run on the final commit, then the release gate | none known |
-| Newsletter / Rabbit Hole Updates preferences (two independent checkboxes, both checked by default, atomic save, affirmative-consent gate) | `feat/signup-email-preferences` | pending (stacks on the feedback release commit) | decisions applied by the agent; dev migration 0028 go given | feedback release goes first |
-| Animation MVP1 correction (two focused fixes) | `fix/animation-sgd-rca` | `9f92ad49e` is the last pushed commit; corrections in progress | see section 4 | merge/deploy/paid run paused |
+| Feedback email (stored report is mailed to the owner; app email sender changed to the hello@ address; per-account limit 5/hour and 20/day, typed text kept) | `feat/feedback-mail` | `f4af0b936` was green (verify 41615503932, fast-e2e 41615503900); a small follow-up commit (invitation emails no longer say "Replies to this email aren't read", now false with the new sender) is in CI as release candidate F2 | F2 CI, then the release gate (dispatched by the integrator) | none |
+| Newsletter / Rabbit Hole Updates preferences (two independent checkboxes, both checked by default, atomic save, affirmative-consent gate for both categories, founder's tech and AI newsletter description, privacy wording in the Privacy Policy) | `feat/signup-email-preferences` | `d7396868b` green (verify 41615737769, fast-e2e 41615737606); final candidate N = this branch merged with F2 | waits for F2, then CI on N, then the gate | feedback release goes first; production migration 0028 is owner-run |
+| Animation MVP1 correction (single-step fix + label legibility fix) | `fix/animation-sgd-rca` | `cad855a1e3ada884c4b75ec15c4929801c9224f2` (integrated; pushed 02:36 PT) | CI in progress: verify https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41620275081 , fast-e2e https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41620275028 | production merge/deploy and paid run paused |
 
 ## 4. Animation MVP1 correction
 
@@ -39,10 +39,10 @@ Scope: MVP1 only. Paid generation, Animation merge and Animation deployment are 
 - Frozen candidate: `51b6560cf` (SGD generation failed review; root cause report and correction evidence exist).
 - Last pushed correction: `9f92ad49e` on `fix/animation-sgd-rca`. CI on it: verify https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41607592513 success; fast-e2e https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41607592456 success (88 of 88 checks, including shared-header 39/39 and animation-mvp 40/40).
 - Dev preview deployed at `9f92ad49e` (offline fixture on a labelled canvas, "not model-generated"); launcher is owner-local.
-- Two issues found by the owner's evidence review, being fixed now in parallel:
-  1. Single-step: "Take one step" free-ran (3 clicks gave 11 steps). Root cause: `session.js` starts the step clock after every accepted action on a stepped artifact. Fix: an optional `startsMotion` action field (absent keeps old behavior), gated as a second client feature; host dispatches once.
-  2. Label legibility: labels clip at the frame edge and the scale explanation is dropped. Root cause: `layoutLabels` never clamps to the viewport and its budget drops essential labels at the first miss. Fix in the shared renderer plus the fixture's scale-bar label.
-- ETAs (lead's estimate at 02:00): integrated commit about 04:15, green CI about 05:00, usable preview about 05:15, evidence ZIP about 06:00 (preview is delivered before packaging).
+- Two issues found by the owner's evidence review, both fixed and integrated at `cad855a1e` (CI pending, see above):
+  1. Single-step: "Take one step" free-ran (3 clicks gave 11 steps). Root cause: `session.js` started the step clock after every accepted action on a stepped artifact (one press gave step 12 and a running clock). Fix: an optional `startsMotion` action field (absent keeps the old behavior), gated as a second client feature (`action_motion`, 409 for older builds); the author and repair rules state it; the one-step fixture action declares `startsMotion:false`; the SGD qualification checker fails a one-step action without it. Tests: session test on the real runtime reads 1, 2, 3 steps paused after 1, 2, 3 presses; Launch (no declaration) still plays; shipped game/watch/experiment fixtures unchanged; two new browser steps in animation-mvp-check (42 steps).
+  2. Label legibility: labels clipped at the frame edge and the scale explanation was dropped. Root cause (measured): `layoutLabels` never clamped plates to the viewport, `declutterLabels` had no frame bounds, and the label-area budget broke at the first label that did not fit, dropping it and every later label (full-batch update, status text, scale bar), while the "essential" flag only exempted labels from the Labels toggle. Fix in the shared renderer (essential labels admitted first and never dropped; plates flipped or pushed inside the frame; long text wraps; arrows untouched, no minimum length) plus the fixture's scale-bar label ("Arrow this long = update of 1.0", parentless). Real-browser measurement of the real card at 4 sizes x 5 states: essential labels drawn and inside 20/20 after vs 4/20 before; plates outside the viewport 0 after vs 12 of 20 states before. Fixture byte headroom to the review size limit about 106 B (net +2 B).
+- Local results on the integrated tree: control-plane 3345/3346 pass (1 skipped), web unit 4955 pass, scripts 231/232 pass (1 skipped). Local `animation-mvp-check` run twice on a busy machine: 40/42 then 41/42 with DIFFERENT failing steps each time (steps 33 and 42, then step 17), both new single-step steps passing both times; the earlier run on the lead's tree alone was 42/42 and CI ran the check 40/40 on the previous commit. Machine load is a hypothesis, unproven. These local results are recorded as UNRESOLVED; the exact-SHA CI run is the authority.
 - Fixture versus real generation: the fixture is hand-built and offline. It lets the owner inspect rendering, controls, persistence, arrows, readouts, off-plot behaviour, Keep Path and Reset. It does NOT prove the corrected generation pipeline. Generated acceptance (one paid SGD run with the frozen 40-step refinement, the checker on the generated artifact, three model-review states, browser acceptance) has NOT been run.
 - Spend: Animation testing spend about 18.80 USD of the 100 USD shared budget (including the failed SGD run, 1.11 USD). Paid-sequence upper bound from the real policy code is stated in the correction report (planning up to 0.56 USD, generation up to 3.25 USD, correction reserve included).
 - Compatibility: no thin-line fallback; first production Animation build must be the v2 correction (release check added); never roll back one worker alone once tube scenes exist. An already-open pre-release production tab shows an empty frame until reload; data is preserved (12 of 12 old-tab browser checks on the dev clone). **Awaiting the owner's acceptance of that limitation.**
@@ -64,4 +64,5 @@ Scope: MVP1 only. Paid generation, Animation merge and Animation deployment are 
 
 ## Update log
 - 02:00 PT first version.
+- 02:40 PT sections 3 and 4 updated: Animation integrated commit pushed (CI running), feedback F2 and newsletter N pending.
 - 02:10 PT section 6 clarified: both cleanup launchers ran with the owner's explicit approval; no recovery needed (owner confirmed).
