@@ -5,8 +5,12 @@
 // `leadTicks` (stepped scenes, default 0) host steps run before the events, so an action on accumulated state has some to act on.
 // Two review-level entries may stand among the events (they are not contract events): { type: 'advance', ticks } runs that many host steps at that
 // point, so a capture can press an action, let the scene run, act on what it drew, and run again (a paused scene's lead ticks accomplish nothing);
-// { type: 'resume', action, probe } runs `probe` host steps and presses the action only if the state did not change over them, so an action that
-// toggles motion restarts a stopped scene and never pauses one that is running. Limits across every phase: REVIEW_LIMITS.events actions (a resume
+// { type: 'resume', action, probe } runs `probe` host steps ONE AT A TIME and presses the action only if the drawn scene did not move in any of them, so an
+// action that toggles motion restarts a stopped scene and never pauses one that is running. "Moved" = the frame's drawn nodes differ between two consecutive
+// steps of the probe. Not whole-state equality over the probe: a periodic motion whose period divides the probe returns to the same state (it is still
+// running), and a paused scene's hidden clock changes its state at every step (it is still stopped). The contract exposes no running flag, so this is the
+// observable rule; a scene whose drawn nodes change only less often than every `probe` steps reads as stopped, and one whose drawn nodes move by host
+// time alone reads as running (FX-AN-039). Limits across every phase: REVIEW_LIMITS.events actions (a resume
 // counts as one), REVIEW_LIMITS.ticks host steps (lead, advance, probe and final ticks together).
 // The artifact must hash to request.artifactHash (sha256 of its canonical JSON, as the server's artifactHashOf), so the echoed hash
 // is proof of what ran, not a copy of the request.
@@ -83,12 +87,22 @@ export async function runReviewProgram(request, { workerFactory, createRuntime =
       if (!result.accepted) return failed(result, 'reduce');
     }
     for (const event of request.events) {
-      if (isAdvance(event) || isResume(event)) {
-        const before = isResume(event) ? await sha256Hex(canonicalJson(runtime.snapshot().state)) : null;
-        const stepped = await runtime.advance(isAdvance(event) ? event.ticks : event.probe);
+      if (isAdvance(event)) {
+        const stepped = await runtime.advance(event.ticks);
         if (!stepped.accepted) return failed(stepped, 'reduce');
-        // A resume: the state did not change over the probe, so the scene is not running: press the action (a running scene is left alone).
-        if (isResume(event) && before === await sha256Hex(canonicalJson(runtime.snapshot().state))) {
+        continue;
+      }
+      if (isResume(event)) {
+        // The probe, one host step at a time: did the drawn scene move in any step? If not it is stopped: press the action (a running scene is left alone).
+        let last = canonicalJson(frame?.nodes ?? null), moved = false;
+        for (let step = 0; step < event.probe; step += 1) {
+          const stepped = await runtime.advance(1);
+          if (!stepped.accepted) return failed(stepped, 'reduce');
+          const now = canonicalJson(frame?.nodes ?? null);
+          if (now !== last) moved = true;
+          last = now;
+        }
+        if (!moved) {
           const pressed = await runtime.dispatch({ type: 'action', action: event.action });
           if (!pressed.accepted) return failed(pressed, 'reduce');
         }

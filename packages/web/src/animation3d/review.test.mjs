@@ -167,3 +167,51 @@ run('an advance or resume needs a stepped scene, and a resume must name a declar
   const unknown = await runReviewProgram(await requestFor(await toggling(), { events: [resume('nope', 3)] }), { workerFactory });
   assert.deepEqual([unknown.ok, unknown.error], [false, 'events must be declared, non-step contract events']);
 });
+
+// Round 4b (2026-11-03, FX-AN-039): whether a scene is running cannot be read from whole-state hash equality over the probe. A periodic motion whose period divides the
+// probe returns to the same state (equal hashes: it was taken for stopped, and a second press paused it); a paused scene whose hidden clock advances with every host step
+// changes its state (unequal hashes: it was taken for running and never restarted). The drawn scene is what moves: the guard steps the probe one step at a time and the scene
+// is running when its drawn nodes change between two consecutive steps, whatever the period; hidden state alone is not motion.
+const PERIODIC = `export function initialState() { return { on: false, n: 0 }; }
+export function reduce({ state, event }) {
+  if (event.type === 'action' && event.action === 'run') return { ...state, on: !state.on };
+  if (event.type === 'step' && state.on) return { ...state, n: (state.n + 1) % 6 };
+  return state;
+}
+export function evaluate({ state }) {
+  const s = state || initialState();
+  return { nodes: { robot: { position: [s.n / 10, 0.3, 0] } }, readouts: { n: s.n, saved: 0, on: s.on ? 1 : 0 }, goal: { status: 'playing', message: 'x' } };
+}
+`;
+const CLOCKED = `export function initialState() { return { on: false, n: 0, saved: 0, clock: 0 }; }
+export function reduce({ state, event }) {
+  if (event.type === 'action' && event.action === 'run') return { ...state, on: !state.on };
+  if (event.type === 'action' && event.action === 'save') return { ...state, saved: state.n, n: 0, on: false };
+  if (event.type === 'step') return { ...state, clock: state.clock + 1, n: state.on ? state.n + 1 : state.n };
+  return state;
+}
+export function evaluate({ state }) {
+  const s = state || initialState();
+  return { nodes: { robot: { position: [s.n / 10, 0.3, 0] } }, readouts: { n: s.n, saved: s.saved, on: s.on ? 1 : 0 }, goal: { status: 'playing', message: 'x' } };
+}
+`;
+const withProgram = async source => {
+  const { steppedGameArtifact } = await import('./testdata/stepped-game.mjs');
+  return withSource(await steppedGameArtifact(), source, copy => { copy.actions = [{ id: 'run', label: 'Run' }, { id: 'save', label: 'Save', startsMotion: false }]; copy.readouts = [{ id: 'n', label: 'N', decimals: 0 }, { id: 'saved', label: 'Saved', decimals: 0 }, { id: 'on', label: 'On', decimals: 0 }]; });
+};
+
+run('a periodic motion whose period divides the probe is still running: the resume does not press the toggle and pause it', async () => {
+  const artifact = await withProgram(PERIODIC);
+  // Run, 10 steps (n = 4), a 12-step probe: n returns to 4 (equal state hashes), but the scene moved at every step. Not pressed: still on.
+  const done = await runReviewProgram(await requestFor(artifact, { events: [act('run'), advance(10), resume('run', 12)], ticks: 6 }), { workerFactory });
+  assert.equal(done.ok, true, JSON.stringify(done));
+  assert.deepEqual([done.trace.readouts.on, done.trace.ticks], [1, 28], 'running after the resume: 10 + 12 probe + 6 steps, never paused');
+});
+
+run('a paused scene whose clock advances with every host step is idle: the resume presses the action and the scene restarts', async () => {
+  const artifact = await withProgram(CLOCKED);
+  // Run, 10 steps, Save (stops it; the clock still ticks), resume Run after a 5-step probe: the state changes every step but nothing is drawn moving. Pressed.
+  const done = await runReviewProgram(await requestFor(artifact, { events: [act('run'), advance(10), act('save'), resume('run', 5)], ticks: 10 }), { workerFactory });
+  assert.equal(done.ok, true, JSON.stringify(done));
+  assert.deepEqual([done.trace.readouts.saved, done.trace.readouts.n, done.trace.readouts.on], [10, 10, 1], 'ten saved, the run restarted and drew ten more');
+});
