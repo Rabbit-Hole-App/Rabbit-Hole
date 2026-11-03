@@ -266,6 +266,11 @@ This rule changes how a GO is carried out; it does not itself authorize any prod
   and pushing a workflow file needs the owner's `!` command.
 - Every deploy, dev or production, full gate or reused, needs the newest `fast-e2e` and `verify` runs of the exact
   candidate SHA to be completed successes (OPS-04, owner 2026-10-21). A green ancestor never stands in for them.
+- **Content-only dev previews do not wait for CI** (owner, 2026-11-03). A deploy to your own dev clone, for the owner's
+  review, of a change that is only copy, images, fonts or styles for the blog, FAQ or other landing pages deploys
+  immediately from the worktree, without waiting for `fast-e2e` and `verify`. This is only for the dev clone: the
+  production release of the same change still needs exact-SHA `fast-e2e`, `verify` and the release gate (or a reused
+  gate where eligible). Anything that touches server code, the app, money or an API is not content-only.
 - **Full-gate reuse for eligible UI and copy changes** (owner, 2026-10-21). A candidate whose changes since the last
   fully gated main are eligible reuses that gate (gates note `reuse <gated main sha>`); exact-SHA unit CI, the web
   build, `fast-e2e` and `verify` still run. Eligibility is decided by `notReusableBetween` in `scripts/dev-deploy.mjs`,
