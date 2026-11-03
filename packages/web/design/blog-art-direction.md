@@ -41,8 +41,8 @@ the card, cover layers or arrow. Pricing shares the arrow presentation.
 
 Published posts live in the `stories` array in `src/landing/blog-posts.js`; the
 cards and the story count above them ("1 story", "2 stories") both render from
-it, newest first (owner, 2026-10-29: `a-page-that-teaches`; 2026-11-02:
-`rabbit-holes-not-courses`, owner-written). A removed or unknown slug shows the
+it, newest first (owner, 2026-11-02: `rabbit-holes-not-courses`, owner-written, is the only published story; the earlier
+`a-page-that-teaches` sample was removed). A removed or unknown slug shows the
 story-not-found view.
 Each full card is a keyboard-accessible link to `/blog?post=<slug>`.
 The reader shows a post's own `tag`, `author` and `readTime` when it has them

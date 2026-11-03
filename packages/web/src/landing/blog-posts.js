@@ -7,9 +7,9 @@ export const stories=[
     title:"We're building rabbit holes, not courses",
     excerpt:'For everyone who has twenty tabs open and a README half written.',
     mark:'Not courses.',motif:'courses',
-    // Hero: GPT Image 2.5 Flare, the guide's prompt, attempt 1 of 4 (owner GO 2026-11-02), fitted to 16:5.6 at 2x offline.
-    hero:'The White Rabbit, Alice, the Cheshire Cat, the Mad Hatter and the Caterpillar as a faded engraving, walking in a line toward the edge of the page.',
-    body:`<p>Rabbit Hole started as a fix for how I learn. Not a product idea, a personal one. I was spending more time keeping track of what I had learned than learning it.</p>
+    // Hero: GPT Image 2.5 Flare, the guide's prompt, attempt 3 of 4 (owner GO 2026-11-02), richer Wonderland scene, fitted to 16:5.6 at 2x offline.
+    hero:'The White Rabbit, Alice, the Mad Hatter, the Caterpillar and the Cheshire Cat in a faded engraving of Wonderland, walking through a garden with a tea-party table, playing-card soldiers and a castle behind them.',
+    body:`<p>Rabbit Hole started as a fix for how I learn. I was spending more time keeping track of what I had learned than learning it.</p>
       <h2>The README I kept writing</h2>
       <p>For years my way of learning anything was the same: start with a course on Coursera or Udemy, or with the slides from a class, then watch the hours of video with my iPad open and take notes. Pause to read blog posts and watch YouTube videos that explained the same thing a different way, and code along with the instructor or do the exercises afterwards. At the end, write a README on GitHub with everything I had learned.</p>
       <p>The README mattered for three reasons: I would not forget the material, and I could go back to it. It was a portfolio, proof of what I knew. And other people could learn from it.</p>
@@ -49,24 +49,14 @@ export const stories=[
       <p>In each case the knowledge existed. What was missing was a place where it could be opened, questioned, taken deeper, and handed to the next person. Now each of them can be the start of a rabbit hole. The post becomes a canvas; whoever forks it can add to it and share it again. The repository gets a tutor that helps you get it working, understand the science behind it, or add to it, depending on your goal. The slides stay with you after the course, and you keep learning in them.</p>
       <p>Looking back, I have always wanted to know how things work: why a dead star collapses once it weighs more than 1.4 Suns, why a crowd will do what no one in it would do alone, why interest rates move the price of everything, why our bodies have an appendix at all. There is too much to learn and too little time, and most of what I know I learned from other people. Now you can also see how they learned it, and following someone else's path through a subject is often the fastest way to understand it yourself. Rabbit Hole is for every weirdo like me who wants to know about everything and never knew how.</p>
       <p><a href="https://digrabbithole.com">Rabbit Hole is in early access and free.</a></p>`
-  },
-  {
-    slug:'a-page-that-teaches',category:'Behind the scenes',date:'2026-09-28',dateLabel:'28 Sep 2026',
-    title:'Why a landing page should teach you something',
-    excerpt:'A first impression can be the beginning of a question. Here is the thought behind ours.',
-    mark:'Why?',motif:'question',
-    body:`<p>A good first encounter leaves you with something to think about. For an adaptive learning platform, that might be a question you had not considered, or a new connection between two familiar ideas.</p>
-      <p>Imagine arriving with a small curiosity: why does a shadow change shape? One useful explanation leads to light, perspective, and the way we make sense of space. The page becomes an invitation to keep looking.</p>
-      <h2>Leave room for curiosity</h2>
-      <p>That is the idea behind Rabbit Hole's unfolding pages and open-ended paths. The design should give a visitor room to explore while keeping the next step clear.</p>
-      <blockquote>A little understanding can be the start of a much bigger question.</blockquote>`
   }
 ];
 
 export const href=story=>`/blog?post=${story.slug}`;
 // story.hero is the hero image's alt text; the image itself is public/landing/blog/<slug>-hero.png (BLOG_IMAGE_GUIDE.md).
+// A hero image fills the whole cover (owner 2026-11-02): no side margins, no label, no decorative marks.
 export const cover=story=>story.hero
-  ?`<div class="blog-cover blog-cover-${story.motif}"><i></i><i></i><div class="hero-wash"><img src="/landing/blog/${story.slug}-hero.png" alt="${story.hero}"></div><small aria-hidden="true">Rabbit Hole / Notes</small></div>`
+  ?`<div class="blog-cover blog-cover-${story.motif}"><div class="hero-wash"><img src="/landing/blog/${story.slug}-hero.png" alt="${story.hero}"></div></div>`
   :`<div class="blog-cover blog-cover-${story.motif}" aria-hidden="true"><i></i><i></i><span>${story.mark}</span><small>Rabbit Hole / Notes</small></div>`;
 export const metadata=story=>`<time datetime="${story.date}">${story.dateLabel}</time><span>${story.readTime??'1 min read'}</span>`;
 export const storyCountLabel=count=>`${count} ${count===1?'story':'stories'}`;

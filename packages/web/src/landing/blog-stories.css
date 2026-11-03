@@ -98,6 +98,6 @@
 .blog-cover-courses{container-type:inline-size}
 .blog-cover.blog-cover-courses>span{font-size:13cqi}
 /* The one wash every hero image gets (BLOG_IMAGE_GUIDE.md): about 25% less saturation, 10% less contrast and the
-   paper colour over it at about 15%. Centred with margins so the dotted paper shows around it; never on text-only covers. */
-.hero-wash{width:76%;background:var(--hero-paper)}
-.hero-wash img{display:block;width:100%;height:auto;aspect-ratio:16/5.6;object-fit:cover;filter:saturate(.75) contrast(.9);opacity:.85}
+   paper colour over it at about 15%. The image fills the whole cover; never on text-only covers. */
+.hero-wash{position:absolute;inset:0;background:var(--hero-paper)}
+.hero-wash img{display:block;width:100%;height:100%;object-fit:cover;filter:saturate(.75) contrast(.9);opacity:.85}
