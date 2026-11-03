@@ -82,7 +82,8 @@
     // ANIMATION_JOBS. The execution kill switch stays off: "true" stops every saved card from running its scene (results are kept).
     // ANIMATION_DIAGNOSTICS (job detail and the render probes) is never set here.
     "ANIMATION_ENABLED": "true",
-    "ANIMATION_EXECUTION_KILL": "false",
+    // FORWARD RECOVERY: execution kill on. Plans and builds continue; saved cards do not run their scene. Revert this line to turn it off.
+    "ANIMATION_EXECUTION_KILL": "true",
     // IMG-01 image generation (docs/features/image-jobs.md): PUBLIC generation is ON (owner GO). Only "true" accepts new jobs from everyone.
     // The controlled owner-only acceptance path below (owner 2026-10-25) stays for the operator surfaces: a caller whose verified sign-in identity
     // is listed in IMAGE_ACCEPTANCE_EMAILS may use it under the ordinary admission, hold, settlement and readiness rules, so the
