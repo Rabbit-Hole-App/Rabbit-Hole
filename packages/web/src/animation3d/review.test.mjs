@@ -75,6 +75,8 @@ run('the page refuses a request it cannot honour before running anything', async
     [{ events: Array(5).fill({ type: 'action', action: 'east' }) }, 'events must be a list'],
     [{ ticks: 3 }, 'ticks need a stepped scene'],
     [{ ticks: 91 }, 'ticks must be'],
+    [{ leadTicks: 3 }, 'ticks need a stepped scene'],
+    [{ leadTicks: 61, ticks: 30 }, 'leadTicks must be'],
     [{ seed: 2 }, 'seed_mismatch'],
     [{ events: [{ type: 'action', action: 'jump' }] }, 'events must be declared'],
     [{ view: { name: 'x', position: [0, 0], target: [0, 0, 0] } }, 'view must be'],

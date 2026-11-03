@@ -177,6 +177,18 @@ row in [spend.md](spend.md).
 - Fix: a repair refused before it ran (provider busy, spend cap) gives back its turn (animation-job.js failed()). Test in animation-job.test.js.
 - Also: the dev platform cap (USAGE_PLATFORM_DAY_USD 10, shared by every dev clone) was raised to 40 on the animation clone only, at deploy, within the owner's US$100 closeout budget.
 
+### FX-AN-037 — review captures never varied an experiment's parameters or kept a nonempty path (owner, aj_ad936ec1)
+- Found: aj_ad936ec1 (refined 40-step SGD) sampled initial, Keep Path and four Keep Paths; both parameter extremes were always
+  omitted once an action existed, and the capture page ran events before steps, so Keep Path fired on an empty trail and the draft's
+  no-op (DIAGNOSIS 1f, `event.id`) looked the same as a working one.
+- Fix (`captureStates`, `review.js`): the capture request takes `leadTicks`, host steps run before the events (leadTicks + ticks at
+  most 90). A stepped scene's one-action state is 60 steps, the action, 30 steps. An experiment with parameters samples its one action
+  (or the initial state) and both extremes first; a stepped scene's extremes run 90 steps. Other experiences keep initial, action and
+  sequence first (a game's action and win paths). `coverage.omitted` lists what is left out (aj_ad936ec1: initial, sequence of 4 events).
+- Checks: `animation-sampling.test.js` on the saved last draft, real engine: both extremes (learning rate 0.01/0.6, batch 1/256),
+  the draft's no-op visible (no saved path, run not restarted), the same draft reading `event.action` saves a nonempty path, the
+  stepped Launch game still reaches `won`; `fitProblems` still fits with this manifest. Not yet checked by a real review (paid).
+
 ## Resolved
 
 ### FX-AN-032 — a stepped game never moved in the card (owner canvas 2026-11-02, "Projectile Challenge: Hit the Target")

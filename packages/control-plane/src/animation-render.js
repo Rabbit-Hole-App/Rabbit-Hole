@@ -43,37 +43,44 @@ const lowOf = p => (p.type === 'number' ? p.min : p.type === 'toggle' ? !p.defau
 const highOf = p => (p.type === 'number' ? p.max : p.type === 'toggle' ? !p.default : p.options.at(-1).value);
 // The states sampled, in priority order, at most ANIMATION_LIMITS.render.states; the rest are listed as omitted (never claimed).
 //   timeline: the start, a third and two thirds of the loop at the defaults;
-//   parameters: the defaults, every parameter at its low end, every parameter at its high end (mid-loop when there is a timeline);
+//   parameters: the defaults, every parameter at its low end, every parameter at its high end (mid-loop when there is a timeline; after
+//     the longest step run when stepped, so the parameters have acted);
 //   actions, selectable or draggable nodes: the initial state, one action, then a short sequence (bounded events);
-//   stepped: the same with the host's steps advanced (bounded ticks).
+//   stepped: the same with the host's steps advanced (bounded ticks); the one action runs after steps too, so an action on accumulated
+//     state (keep a path, compare, reset) acts on some, then shows its effect.
+// An experiment with parameters samples its one action (or its initial state) and both extremes first: varying them is the experiment
+// (aj_ad936ec1: with an action, the extremes were always omitted). Anything else keeps the initial state, action and sequence first, so
+// a game's action and win paths stay covered.
 export function captureStates(artifact) {
   const inputs = resolveAnimationInputs(artifact, {}), d = artifact.timeline?.duration ?? 0, mid = Number((d * LOOP_FRACTIONS[0]).toFixed(3));
-  const at = (label, extra = {}) => ({ label, inputs, time: 0, events: [], ticks: 0, ...extra });
-  const out = [at('initial')];
+  const at = (label, extra = {}) => ({ label, inputs, time: 0, events: [], leadTicks: 0, ticks: 0, ...extra });
   const actions = artifact.actions || [], nodes = artifact.scene.nodes, pick = nodes.find(n => n.selectable), drag = nodes.find(n => n.drag);
   const events = [...actions.map(a => ({ type: 'action', action: a.id })), ...(pick ? [{ type: 'select', node: pick.id }] : []), ...(drag ? [{ type: 'drag_start', node: drag.id, value: drag.drag.min }, { type: 'drag_move', node: drag.id, value: drag.drag.max }, { type: 'drag_end', node: drag.id, value: drag.drag.max }] : [])];
-  const ticks = artifact.stepped ? 30 : 0;
+  const ticks = artifact.stepped ? 30 : 0, acted = [], swept = [];
   if (events.length) {
-    out.push(at(`${events[0].type} ${events[0].action ?? events[0].node}`, { events: events.slice(0, 1), ticks }));
+    const first = `${events[0].type} ${events[0].action ?? events[0].node}`;
+    acted.push(at(ticks ? `${ticks * 2} steps, then ${first}, then ${ticks} steps` : first, { events: events.slice(0, 1), leadTicks: ticks * 2, ticks }));
     const run = Array.from({ length: ANIMATION_CAPTURE.maxEvents }, (_, i) => events[i % events.length]);
-    out.push(at(`sequence of ${run.length} events`, { events: run, ticks: Math.min(ANIMATION_CAPTURE.maxTicks, ticks * 3) }));
+    acted.push(at(`sequence of ${run.length} events`, { events: run, ticks: Math.min(ANIMATION_CAPTURE.maxTicks, ticks * 3) }));
   }
   if (artifact.parameters.length) {
     const low = Object.fromEntries(artifact.parameters.map(p => [p.id, lowOf(p)])), high = Object.fromEntries(artifact.parameters.map(p => [p.id, highOf(p)]));
-    out.push(at('every parameter at its low end', { inputs: { ...inputs, ...low }, time: mid }), at('every parameter at its high end', { inputs: { ...inputs, ...high }, time: mid }));
+    const run = artifact.stepped ? ANIMATION_CAPTURE.maxTicks : 0;
+    swept.push(at('every parameter at its low end', { inputs: { ...inputs, ...low }, time: mid, ticks: run }), at('every parameter at its high end', { inputs: { ...inputs, ...high }, time: mid, ticks: run }));
   }
-  if (d) out.push(...LOOP_FRACTIONS.map(f => at(`${Math.round(f * 100)}% of the loop`, { time: Number((d * f).toFixed(3)) })));
-  const seen = new Set(), unique = out.filter(s => { const k = canonicalJson([s.inputs, s.time, s.events, s.ticks]); if (seen.has(k)) return false; seen.add(k); return true; });
+  const looped = d ? LOOP_FRACTIONS.map(f => at(`${Math.round(f * 100)}% of the loop`, { time: Number((d * f).toFixed(3)) })) : [];
+  const out = artifact.experience === 'experiment' && swept.length ? [acted[0] ?? at('initial'), ...swept, at('initial'), ...acted.slice(1), ...looped] : [at('initial'), ...acted, ...swept, ...looped];
+  const seen = new Set(), unique = out.filter(s => { const k = canonicalJson([s.inputs, s.time, s.events, s.leadTicks, s.ticks]); if (seen.has(k)) return false; seen.add(k); return true; });
   return { sampled: unique.slice(0, ANIMATION_LIMITS.render.states), omitted: unique.slice(ANIMATION_LIMITS.render.states).map(s => s.label) };
 }
 
 // The round's manifest: every view x every sampled state, light theme, one fixed size. -> { entries, coverage }
 export function captureManifest(artifact) {
   const views = captureViews(artifact), { sampled, omitted } = captureStates(artifact);
-  const entries = views.flatMap((view, v) => sampled.map((state, s) => ({ id: `v${v}-s${s}`, view, label: state.label, inputs: state.inputs, time: state.time, events: state.events, ticks: state.ticks,
+  const entries = views.flatMap((view, v) => sampled.map((state, s) => ({ id: `v${v}-s${s}`, view, label: state.label, inputs: state.inputs, time: state.time, events: state.events, leadTicks: state.leadTicks, ticks: state.ticks,
     seed: artifact.seed, theme: ANIMATION_CAPTURE.theme, width: ANIMATION_CAPTURE.width, height: ANIMATION_CAPTURE.height, dpr: ANIMATION_CAPTURE.dpr })));
   if (entries.length > ANIMATION_LIMITS.render.capturesPerRound) throw new RenderError('over_budget', `${entries.length} captures, over ${ANIMATION_LIMITS.render.capturesPerRound}`);
-  return { entries, coverage: { views: views.map(v => v.name), sampled: sampled.map(s => ({ label: s.label, time: s.time, events: s.events.length, ticks: s.ticks })), omitted } };
+  return { entries, coverage: { views: views.map(v => v.name), sampled: sampled.map(s => ({ label: s.label, time: s.time, events: s.events.length, ...(s.leadTicks ? { leadTicks: s.leadTicks } : {}), ticks: s.ticks })), omitted } };
 }
 
 // Only the entry, its hashed build assets and the page's own blob: worker; nothing else may load.
@@ -117,7 +124,7 @@ export async function renderAnimation(env, candidate, manifest, deps = {}) {
         const captures = [];
         for (const entry of manifest.entries) {
           await page.setViewport({ width: entry.width, height: entry.height, deviceScaleFactor: entry.dpr });
-          const request = { artifact: candidate.artifact, artifactHash: candidate.artifactHash, view: entry.view, inputs: entry.inputs, time: entry.time, events: entry.events, ticks: entry.ticks, seed: entry.seed, theme: entry.theme, width: entry.width, height: entry.height };
+          const request = { artifact: candidate.artifact, artifactHash: candidate.artifactHash, view: entry.view, inputs: entry.inputs, time: entry.time, events: entry.events, leadTicks: entry.leadTicks ?? 0, ticks: entry.ticks, seed: entry.seed, theme: entry.theme, width: entry.width, height: entry.height };
           const done = await within(limits.captureMs, page.evaluate(r => window.__renderAnimation3d(r), request), 'capture_timeout');
           if (done?.programError) throw Object.assign(new RenderError('program_error', `the program failed on capture ${entry.id}`), { program: done.programError });
           if (!done?.ok) throw new RenderError('scene_invalid', `the review page refused capture ${entry.id}: ${String(done?.error || 'unknown').slice(0, 200)}`);
@@ -125,7 +132,7 @@ export async function renderAnimation(env, candidate, manifest, deps = {}) {
           const element = await page.$('[data-animation3d-frame]');
           if (!element) throw new RenderError('scene_invalid', `capture target missing for ${entry.id}`);
           const png = new Uint8Array(await element.screenshot({ type: 'png' }));
-          const capture = { id: entry.id, artifactHash: candidate.artifactHash, view: entry.view.name, label: entry.label, inputs: entry.inputs, time: entry.time, events: entry.events, ticks: entry.ticks, seed: entry.seed, trace: traceOf(done.trace), png, sha256: await sha256Hex(png), mediaType: 'image/png' };
+          const capture = { id: entry.id, artifactHash: candidate.artifactHash, view: entry.view.name, label: entry.label, inputs: entry.inputs, time: entry.time, events: entry.events, ...(entry.leadTicks ? { leadTicks: entry.leadTicks } : {}), ticks: entry.ticks, seed: entry.seed, trace: traceOf(done.trace), png, sha256: await sha256Hex(png), mediaType: 'image/png' };
           if (deps.jobId || deps.store) {
             capture.key = `animation/${deps.jobId || 'adhoc'}/${candidate.artifactHash.slice(0, 16)}-${entry.id}.png`;
             await (deps.store ? deps.store(capture.key, png) : learnMedia(env).put(capture.key, png, { httpMetadata: { contentType: 'image/png' } }));
@@ -161,7 +168,7 @@ export async function renderProbe(env, artifact, artifactHash, deps = {}, states
   try {
     const out = await renderAnimation(env, { artifact, artifactHash }, manifest, deps);
     return { ok: true, artifactHash, coverage: manifest.coverage, requests: out.requests,
-      captures: out.captures.map(c => ({ id: c.id, label: c.label, view: c.view, time: c.time, events: c.events, ticks: c.ticks, bytes: c.png.length, sha256: c.sha256, pngBase64: pngBase64(c.png), trace: c.trace })) };
+      captures: out.captures.map(c => ({ id: c.id, label: c.label, view: c.view, time: c.time, events: c.events, ...(c.leadTicks ? { leadTicks: c.leadTicks } : {}), ticks: c.ticks, bytes: c.png.length, sha256: c.sha256, pngBase64: pngBase64(c.png), trace: c.trace })) };
   } catch (error) {
     return { ok: false, artifactHash, coverage: manifest.coverage, error: `${error.code || 'render_failed'}: ${String(error.message).slice(0, 500)}`, ...(error.program ? { program: error.program } : {}) };
   }
