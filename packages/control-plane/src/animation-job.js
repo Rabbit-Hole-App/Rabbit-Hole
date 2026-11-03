@@ -31,7 +31,7 @@ import { isReviewProposal } from '../../web/src/generation-review.js';
 import { canonicalJson } from './explain-render.js';
 import { beginStage, countStage, endStage, markTiming, newTiming, timingSummary } from './explain-policy.js';
 import { hashAnimationPlan } from '../../web/src/animation3d/contract.js';
-import { ASKED_FOR, approvedPlan, prepareStage } from './animation-brief.js';
+import { ASKED_FOR, approvedPlan, clientFeatures, prepareStage } from './animation-brief.js';
 import { artifactIntact, authorStage, sealArtifact, validateStage } from './animation-author.js';
 import { renderProbe, renderStage } from './animation-render.js';
 import { ANIMATION_FIXTURES } from '../../web/src/animation3d/fixtures.js';
@@ -57,6 +57,10 @@ export const animationPipeline = Object.freeze({ prepare: prepareStage, approved
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const fail = (message, status = 400, code = null) => Object.assign(new Error(message), { status, ...(code ? { code } : {}) });
+// A scene that uses what an older browser build cannot draw (capabilities.js ANIMATION_CLIENT_FEATURES) is not sent to a reader that does
+// not declare it: that build would refuse it with a generic message (storage.js 'mismatch'); a current build shows this one (owner 2026-11-02).
+export const CLIENT_UPDATE = 'This scene needs the newest version of Rabbit Hole. Reload the page to update it.';
+export const needsFeatures = artifact => ((artifact?.scene?.geometries || []).some(g => g?.kind === 'curve' && g.radius !== undefined) ? ['curve_radius'] : []);
 const KEY = /^[A-Za-z0-9_-]{8,128}$/;
 const TERMINAL = new Set(['ready', 'failed', 'cancelled']);
 const SOURCES = ['explicit', 'picker', 'command', 'suggestion', 'classified', 'tutor'];
@@ -199,6 +203,7 @@ function validateCreate(p) {
   if (p.context != null && JSON.stringify(p.context).length > 60000) throw fail('The attached context is too large.', 413);
   if (p.threadId != null && (typeof p.threadId !== 'string' || !p.threadId || p.threadId.length > 64)) throw fail('Invalid chat thread.');
   if (p.source != null && !SOURCES.includes(p.source)) throw fail('Unknown request source.');
+  if (p.features != null && (!Array.isArray(p.features) || p.features.length > 16 || p.features.some(f => typeof f !== 'string' || f.length > 40))) throw fail('Invalid client features.');
 }
 
 // The words above a plan in Chat: what differs from the request, in the server's own lines, is said here as well as on the card.
@@ -350,7 +355,7 @@ export async function animationRoute(path, req, env, deps = {}) {
   }
   const stub = env.ANIMATION_JOBS.get(env.ANIMATION_JOBS.idFromName(board.id));
   return stub.fetch('https://animation/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, id: results ? rest[1] : rest[0] || null, payload: body, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null }, origin: url.origin,
+    body: JSON.stringify({ action, id: results ? rest[1] : rest[0] || null, payload: results ? { features: (url.searchParams.get('features') || '').split(',').filter(Boolean) } : body, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null }, origin: url.origin,
       detail: req.method === 'GET' && url.searchParams.get('detail') === '1' && env.ANIMATION_DIAGNOSTICS === 'true' }) });
 }
 
@@ -384,7 +389,7 @@ export class AnimationJobs {
       return json({ jobs: jobs.sort((a, b) => a.createdAt - b.createdAt).map(publicAnimationJob) });
     }
     if (action === 'create') return this.create(payload, board, user, origin);
-    if (action === 'result') return this.readResult(id, board, user);
+    if (action === 'result') return this.readResult(id, board, user, payload.features);
     if (action === 'seed') return this.seed(board, user, origin);
     const job = id && await this.get(id);
     if (!job || job.owner.email !== user.email || job.boardId !== board.id) throw fail('Not available', 404);
@@ -404,10 +409,11 @@ export class AnimationJobs {
 
   // The accepted artifact of a card on this canvas, for its owner only, checked against its host-computed hash: the player's only
   // source of the scene and its program. Never served by hash alone, by another canvas or by another learner.
-  async readResult(resultId, board, user) {
+  async readResult(resultId, board, user, features) {
     const saved = typeof resultId === 'string' && await this.state.storage.get(`result:${resultId}`);
     if (!saved || saved.owner?.email !== user.email || saved.boardId !== board.id) throw fail('Not available', 404);
     if (!await this.pipeline.intact(saved.artifact, saved.identity?.artifactHash)) throw fail('This animation could not be opened. Your saved version is kept.', 409, 'version_unavailable');
+    if (needsFeatures(saved.artifact).some(f => !clientFeatures(features).includes(f))) throw fail(CLIENT_UPDATE, 409, 'client_update_required');
     return json({ artifact: saved.artifact, identity: saved.identity, execution: animationExecution(this.env) });
   }
 
@@ -423,7 +429,7 @@ export class AnimationJobs {
     if (jobs.some(j => j.cardId === payload.cardId && !TERMINAL.has(j.stage))) throw fail('This card already has an animation in progress.', 409);
     const job = this.newJob({ boardId: board.id, app: board.app, board: board.board, owner: { org: user.org, email: user.email, userId: user.userId || null }, origin,
       cardId: payload.cardId, requestId: payload.requestId, prompt: payload.prompt.trim(), context: payload.context ?? null, evidence: payload.evidence ?? [],
-      source: payload.source ?? 'explicit', threadId: payload.threadId ?? null });
+      source: payload.source ?? 'explicit', threadId: payload.threadId ?? null, features: clientFeatures(payload.features) }); // none: an older browser build
     if (job.threadId && !await this.env.LEARN_DB.prepare('SELECT id FROM threads WHERE id = ? AND org = ? AND user = ? AND scope_ref = ?').bind(job.threadId, user.org, user.email, board.app).first()) throw fail('Not available', 404);
     await this.prune(jobs);
     await this.wake();
@@ -451,7 +457,7 @@ export class AnimationJobs {
     if (made) return json({ job: publicAnimationJob(made) });
     const jobs = [...(await this.state.storage.list({ prefix: 'job:' })).values()];
     if (jobs.some(j => j.cardId === job.cardId && !TERMINAL.has(j.stage))) throw fail('This card already has an animation in progress.', 409);
-    const pick = ['boardId', 'app', 'board', 'owner', 'origin', 'cardId', 'requestId', 'prompt', 'context', 'evidence', 'source', 'threadId'];
+    const pick = ['boardId', 'app', 'board', 'owner', 'origin', 'cardId', 'requestId', 'prompt', 'context', 'evidence', 'source', 'threadId', 'features'];
     const next = Object.assign(this.newJob(Object.fromEntries(pick.map(k => [k, job[k]]))), { plan: job.plan, approvedBefore: job.plan, refinement: note, revisedFrom: job.id });
     const fence = await this.state.storage.get(`request:${job.requestId}`);
     job.successor = next.id;
@@ -897,7 +903,7 @@ export class AnimationJobs {
       return this.repairOrStop(job, out, 'review');
     } else if (stage === 'repairing') {
       // The draft this repair replaced (diagnostics only): FX-AN-030's first draft was lost when its repair overwrote it.
-      job.candidates.push({ repairs: job.repairs, ...(job.draft ? { previousDraft: job.draft } : {}), operation: out.operation || null, progress: out.progress !== false, ...(out.draft ? { draftHash: await hash16(out.draft), hasProgram: !!out.draft.program } : {}), ...(out.inputKeys ? { inputKeys: out.inputKeys } : {}), ...(out.artifactKeys ? { artifactKeys: out.artifactKeys } : {}), ...(out.rejected ? { rejected: out.rejected } : {}) });
+      job.candidates.push({ repairs: job.repairs, ...(job.draft ? { previousDraft: job.draft } : {}), operation: out.operation || null, progress: out.progress !== false, ...(out.draft ? { draftHash: await hash16(out.draft), hasProgram: !!out.draft.program } : {}), ...(out.inputKeys ? { inputKeys: out.inputKeys } : {}), ...(out.artifactKeys ? { artifactKeys: out.artifactKeys } : {}), ...(out.rejected ? { rejected: out.rejected } : {}), ...(out.forwarded ? { forwarded: out.forwarded } : {}) });
       if (out.rejected) return this.stopWith(job, 'unsupported_repair', 'spec', 'This animation needs a change the repair step cannot make. Edit the request and try again.');
       if (out.progress === false || !out.draft) return this.stopWith(job, 'no_progress', 'spec', 'The animation could not be repaired. Edit the request and try again.');
       Object.assign(job, { draft: out.draft, artifact: null, artifactHash: null, captures: null, coverage: null });

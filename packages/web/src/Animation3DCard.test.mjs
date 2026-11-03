@@ -691,7 +691,7 @@ test('a ready job lands on its card once (the artifact read and mapped to the bo
   assert.equal(landed.length, 1, 'one undo step: the new scene');
   assert.equal(landed[0].animation3d.ref.artifactId, 'fixture-beam-balance');
   assert.equal(landed[0].animation3dJob, undefined);
-  assert.deepEqual(calls, ['/api/learn/animation/jobs/j3?board=b1', '/api/learn/animation/jobs/results/fixture-beam-balance?board=b1']);
+  assert.deepEqual(calls, ['/api/learn/animation/jobs/j3?board=b1', '/api/learn/animation/jobs/results/fixture-beam-balance?board=b1&features=curve_radius']);
   // The owner's canvas provides its board (LearnPage, AnimationBoard): the saved card reads its scene and runs it.
   root && await B.act(async () => root.unmount());
   B.resetViewers();

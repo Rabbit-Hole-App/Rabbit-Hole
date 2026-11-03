@@ -41,6 +41,14 @@ export function captureViews(artifact) {
 }
 const lowOf = p => (p.type === 'number' ? p.min : p.type === 'toggle' ? !p.default : p.options[0].value);
 const highOf = p => (p.type === 'number' ? p.max : p.type === 'toggle' ? !p.default : p.options.at(-1).value);
+// The middle of a parameter: a number at the middle of its range, the geometric middle when its positive range spans a factor of 10 or
+// more (a rate, a size), on its step; a select's middle option; a toggle's default.
+export function middleOf(p) {
+  if (p.type === 'select') return p.options[Math.floor((p.options.length - 1) / 2)].value;
+  if (p.type !== 'number') return p.default;
+  const raw = p.min > 0 && p.max >= 10 * p.min ? Math.sqrt(p.min * p.max) : (p.min + p.max) / 2, on = p.step ? p.min + Math.round((raw - p.min) / p.step) * p.step : raw;
+  return Number(Math.min(p.max, Math.max(p.min, on)).toFixed(10));
+}
 // The states sampled, in priority order, at most ANIMATION_LIMITS.render.states; the rest are listed as omitted (never claimed).
 //   timeline: the start, a third and two thirds of the loop at the defaults;
 //   parameters: the defaults, every parameter at its low end, every parameter at its high end (mid-loop when there is a timeline; after
@@ -48,9 +56,11 @@ const highOf = p => (p.type === 'number' ? p.max : p.type === 'toggle' ? !p.defa
 //   actions, selectable or draggable nodes: the initial state, one action, then a short sequence (bounded events);
 //   stepped: the same with the host's steps advanced (bounded ticks); the one action runs after steps too, so an action on accumulated
 //     state (keep a path, compare, reset) acts on some, then shows its effect.
-// An experiment with parameters samples its one action (or its initial state) and both extremes first: varying them is the experiment
-// (aj_ad936ec1: with an action, the extremes were always omitted). Anything else keeps the initial state, action and sequence first, so
-// a game's action and win paths stay covered.
+// An experiment with parameters varies its main control (the first parameter) one setting at a time, the others at their defaults
+// (owner 2026-11-02; aj_086fd46's joint extremes changed every parameter at once and switched its comparison arrow off): the initial
+// state, the middle setting with every declared action pressed once after some steps (an action that acts on a path, a tally or a score
+// has one) and then more steps, and the high end after steps; the low end, the joint extremes and the rest follow as not sampled.
+// Anything else keeps the initial state, action and sequence first, so a game's action and win paths stay covered.
 export function captureStates(artifact) {
   const inputs = resolveAnimationInputs(artifact, {}), d = artifact.timeline?.duration ?? 0, mid = Number((d * LOOP_FRACTIONS[0]).toFixed(3));
   const at = (label, extra = {}) => ({ label, inputs, time: 0, events: [], leadTicks: 0, ticks: 0, ...extra });
@@ -69,7 +79,18 @@ export function captureStates(artifact) {
     swept.push(at('every parameter at its low end', { inputs: { ...inputs, ...low }, time: mid, ticks: run }), at('every parameter at its high end', { inputs: { ...inputs, ...high }, time: mid, ticks: run }));
   }
   const looped = d ? LOOP_FRACTIONS.map(f => at(`${Math.round(f * 100)}% of the loop`, { time: Number((d * f).toFixed(3)) })) : [];
-  const out = artifact.experience === 'experiment' && swept.length ? [acted[0] ?? at('initial'), ...swept, at('initial'), ...acted.slice(1), ...looped] : [at('initial'), ...acted, ...swept, ...looped];
+  let first = [];
+  if (artifact.experience === 'experiment' && artifact.parameters.length) {
+    const [main] = artifact.parameters, only = value => ({ ...inputs, [main.id]: value }), run = artifact.stepped ? ANIMATION_CAPTURE.maxTicks : 0;
+    // Every declared action and the selectable node, once each; a drag sets the scene up again, so it stays in the omitted sequence.
+    const acts = events.filter(e => e.type === 'action' || e.type === 'select').slice(0, ANIMATION_CAPTURE.maxEvents), middle = middleOf(main), names = acts.map(e => e.action ?? `select ${e.node}`).join(', ');
+    first = [at('initial'),
+      at(`${main.id} at ${middle}${acts.length && ticks ? `: ${ticks * 2} steps, then ${names}, then ${ticks} steps` : acts.length ? `, then ${names}` : run ? `, after ${run} steps` : ''}`,
+        { inputs: only(middle), time: mid, events: acts, leadTicks: acts.length ? ticks * 2 : 0, ticks: acts.length ? ticks : run }),
+      at(`${main.id} at its high end (${highOf(main)})${run ? `, after ${run} steps` : ''}`, { inputs: only(highOf(main)), time: mid, ticks: run }),
+      at(`${main.id} at its low end (${lowOf(main)})${run ? `, after ${run} steps` : ''}`, { inputs: only(lowOf(main)), time: mid, ticks: run })];
+  }
+  const out = first.length ? [...first, ...swept, ...acted, ...looped] : [at('initial'), ...acted, ...swept, ...looped];
   const seen = new Set(), unique = out.filter(s => { const k = canonicalJson([s.inputs, s.time, s.events, s.leadTicks, s.ticks]); if (seen.has(k)) return false; seen.add(k); return true; });
   return { sampled: unique.slice(0, ANIMATION_LIMITS.render.states), omitted: unique.slice(ANIMATION_LIMITS.render.states).map(s => s.label) };
 }

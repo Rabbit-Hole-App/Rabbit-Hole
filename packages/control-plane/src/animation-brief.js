@@ -3,7 +3,7 @@
 // validateAnimationPlan) against the phase the SERVER chose. Every capability the learner explicitly asked for that the phase does
 // not enable gets the server's own limitation line before the plan is shown, so a downgrade is never silent; a plan that uses a
 // capability the phase lacks is an invalid turn, never trimmed into something else.
-import { ANIMATION_CAPABILITIES } from '../../web/src/animation3d/capabilities.js';
+import { ANIMATION_CAPABILITIES, ANIMATION_CLIENT_FEATURES } from '../../web/src/animation3d/capabilities.js';
 import { PLAN_SCHEMA, validateAnimationPlan } from '../../web/src/animation3d/contract.js';
 import { ANIMATION_BRIEF_SYSTEM, PLAN_TOOL } from './agents/animation-brief.js';
 import { AnimationPolicyError } from './animation-policy.js';
@@ -12,6 +12,16 @@ import { plainPrompt } from '../../web/src/generation-review.js';
 
 // The phase this server builds in. The browser cannot choose another: the validators accept only registry objects.
 export const enabledCapabilities = () => ANIMATION_CAPABILITIES;
+// The features a browser declared (capabilities.js ANIMATION_CLIENT_FEATURES), only those this server knows; none means an older build.
+export const clientFeatures = value => (Array.isArray(value) ? ANIMATION_CLIENT_FEATURES.filter(f => value.includes(f)) : []);
+// How a curved surface is drawn, said the same way to the planner (input data), the author, the repair and the review (owner
+// 2026-11-02: tube wireframes for MVP1). aj_086fd46: the plan promised a bowl surface no shape could draw, the author's filled discs hid
+// the moving parts and the repair's curves were 1 px lines; each stage judged a different representation.
+export const SURFACES = Object.freeze({
+  tubes: 'No shape draws a filled curved surface. A curved surface (a bowl, a hill, a saddle) is drawn as a wireframe of tube curves (curves with a radius): a few level lines and cross-sections placed exactly on its equation, so the parts that move on or inside it stay visible. Describe it to the learner as a wireframe.',
+  legacy: 'No shape draws a filled curved surface, and the browser that asked for this scene cannot draw tube curves (a curve is a 1 px line there): do not plan or draw a scene that depends on a curved surface; say so in limitations.',
+});
+export const surfaceCapability = job => ({ surfaces: clientFeatures(job?.features).includes('curve_radius') ? SURFACES.tubes : SURFACES.legacy });
 const issuesText = issues => issues.slice(0, 6).map(i => `${i.path || 'plan'}: ${i.message}`).join('; ');
 // What the plan uses instead, in the learner's words (no enum on the review card, owner 2026-10-31).
 const INSTEAD = {
@@ -48,7 +58,8 @@ export async function prepareStage(job, ctx) {
   const content = JSON.stringify({ request: job.prompt, refinement: job.refinement ?? null, previous: job.plan ?? null,
     context: job.context ? { refText: job.context.refText ?? null, refs: (job.context.refs || []).map(({ name, kind, status, note }) => ({ name, kind, status, ...(note ? { note } : {}) })) } : null,
     evidence: modelEvidence(job.evidence),
-    capabilities: { phase: caps.phase, experiences: caps.experiences, behaviors: caps.behaviors, controlProfiles: caps.controlProfiles, features: caps.features, limits: { parameters: caps.limits.parameters, actions: caps.limits.actions, nodes: caps.limits.nodes } } });
+    capabilities: { phase: caps.phase, experiences: caps.experiences, behaviors: caps.behaviors, controlProfiles: caps.controlProfiles, features: caps.features, limits: { parameters: caps.limits.parameters, actions: caps.limits.actions, nodes: caps.limits.nodes },
+      geometry: caps.geometry, ...surfaceCapability(job) } }); // owner 2026-11-02: the capability description, not the frozen prompt or schema
   const system = ANIMATION_BRIEF_SYSTEM;
   const answers = [];
   const answer = reply => { const out = planFrom(reply, caps); answers.push({ input: reply?.input ?? null, issues: (out.issues || []).map(i => `${i.path || 'plan'}: ${i.message} (${i.code})`) }); return out; };

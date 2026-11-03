@@ -205,6 +205,17 @@ test('missing artifact: an honest placeholder, the saved card untouched', async 
   assert.equal(JSON.stringify(block), before);
 });
 
+test("a scene this build cannot draw: the server's client_update_required is a reload message, not a retry; any other refusal stays an error", async () => {
+  const block = card(), before = JSON.stringify(block);
+  const update = await hydrateAnimation(block, { context: OWNER, readArtifact: async () => { throw Object.assign(new Error('x'), { status: 409, data: { error: 'This scene needs the newest version of Rabbit Hole. Reload the page to update it.', code: 'client_update_required' } }); } });
+  assert.deepEqual([update.status, update.message, update.retry], ['update', MESSAGES.update, false]);
+  assert.match(MESSAGES.update, /Reload the page to update it\.$/);
+  assert.doesNotMatch(MESSAGES.update, /\.\.\.|…/);
+  const other = await hydrateAnimation(block, { context: OWNER, readArtifact: async () => { throw Object.assign(new Error('x'), { status: 409, data: { code: 'version_unavailable' } }); } });
+  assert.deepEqual([other.status, other.retry], ['error', true]);
+  assert.equal(JSON.stringify(block), before);
+});
+
 test('artifact, hash or runtime-stamp mismatch is refused with a recoverable state', async () => {
   const edit = change => { const copy = structuredClone(ARTIFACT); change(copy); return copy; };
   const cases = {

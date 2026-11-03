@@ -7,7 +7,7 @@ import { ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM, planNeedsProgram, rep
 import { REVIEW_TOOL } from './explain-review.js';
 import { ANIMATION_ROLES, animationRequest } from './animation-policy.js';
 import { ANIMATION_REVIEW_LIMITS, CORRECTION_WORST, buildReviewContent, correctionBlock, loadCaptures, repairableFindings, reviewArtifactView } from './animation-review.js';
-import { enabledCapabilities } from './animation-brief.js';
+import { enabledCapabilities, surfaceCapability } from './animation-brief.js';
 import { modelEvidence } from './explain-evidence.js';
 import { captureManifest } from './animation-render.js';
 
@@ -26,32 +26,47 @@ export function draftOf(artifact) {
   if (artifact.program) draft.program = { source: artifact.program.source };
   return draft;
 }
-// The most the repair is sent about a failure, so the artifact it must fix still fits its request.
+// The worst case the request-fit check reserves room for (fitProblems): 8 validation problems and 8 review findings of 300 characters.
+// What a real repair is sent is decided by repairContent's fits, against the repair request's own limit.
 export const REPAIR_FORWARD = Object.freeze({ findings: 8, problems: 8, text: 300 });
-const clip = text => String(text ?? '').slice(0, REPAIR_FORWARD.text);
 const rank = f => (f.severity === 'blocker' ? 0 : f.severity === 'major' ? 1 : 2);
 
-export function repairContent(job, failure, current, images = []) {
-  const problems = (failure.problems || []).slice(0, REPAIR_FORWARD.problems).map(clip);
-  // Findings on one object (or with one message) are one entry, their distinct messages joined (aj_ad936ec1 round 2: six of eight slots
-  // were one message; aj_086fd46 review 1: 12 findings on 6 objects, 4 cut, among them the missing readout review 2 then raised six times).
-  // The bound is unchanged: at most REPAIR_FORWARD.findings entries, each its first REPAIR_FORWARD.text characters, and characters the
-  // others leave unused go to the longer merged entries, never past REPAIR_FORWARD.findings x REPAIR_FORWARD.text in all.
-  const groups = new Map();
-  for (const f of failure.findings || []) { const key = `${f.severity}|${f.category}|${f.target?.object ?? f.message}`; groups.set(key, [...(groups.get(key) || []), f]); }
-  const merged = [...groups.values()].map(g => ({ ...g[0], message: [...new Set(g.map(f => String(f.message ?? '')))].join(' / '), target: { ...(g[0].target || {}), captures: [...new Set(g.map(f => f.target?.capture).filter(Boolean))] } }));
-  const picked = merged.sort((a, b) => rank(a) - rank(b)).slice(0, REPAIR_FORWARD.findings);
-  let spare = REPAIR_FORWARD.findings * REPAIR_FORWARD.text - picked.reduce((n, f) => n + clip(f.message).length, 0);
-  const findings = picked.map(({ category, severity, target, message }) => { const extra = Math.min(spare, message.length - clip(message).length); spare -= extra; return { category, severity, target, message: message.slice(0, REPAIR_FORWARD.text + extra) }; });
-  const omitted = Math.max(0, (failure.problems || []).length - problems.length) + Math.max(0, merged.length - findings.length);
+// One entry per distinct issue: its severity, category and whole message, with every capture and object it was reported on
+// (aj_ad936ec1: one message on six captures took six of eight slots; aj_086fd46 review 1: 12 distinct findings, 4 cut, among them the
+// only word on a missing readout). Never truncated, never merged with another message. -> ranked: blocker, major, minor, as reported.
+export function distinctFindings(findings) {
+  const issues = new Map();
+  for (const f of findings || []) {
+    const key = JSON.stringify([f.severity, f.category, String(f.message ?? '')]), target = { capture: f.target?.capture ?? null, object: f.target?.object ?? null };
+    const issue = issues.get(key) ?? issues.set(key, { category: f.category, severity: f.severity, message: String(f.message ?? ''), targets: [] }).get(key);
+    if (!issue.targets.some(t => t.capture === target.capture && t.object === target.object)) issue.targets.push(target);
+  }
+  return [...issues.values()].sort((a, b) => rank(a) - rank(b));
+}
+
+// fits(content) -> whether the whole repair request with this content is within its limit (repairStage: the real request check). Every
+// validation problem (at most REPAIR_FORWARD.problems) and every distinct finding goes whole while it fits; when it does not, the lowest
+// ranked go, last first, and are named in omitted with their targets (or, if even that does not fit, counted), so the repair is never
+// told the list is complete when it is not. -> content blocks, with content.forwarded = { findings, problems, omitted } for diagnostics.
+export function repairContent(job, failure, current, images = [], fits = () => true) {
+  const items = [...(failure.problems || []).slice(0, REPAIR_FORWARD.problems).map(problem => ({ problem: String(problem) })), ...distinctFindings(failure.findings).map(finding => ({ finding }))];
+  const cutProblems = Math.max(0, (failure.problems || []).length - REPAIR_FORWARD.problems);
   const { program, ...rest } = current;
   const caps = enabledCapabilities();
-  return [
-    { type: 'text', text: JSON.stringify({ request: job.prompt, plan: job.plan, problems, findings, ...(omitted ? { omitted } : {}), capabilities: { phase: caps.phase, geometry: caps.geometry, features: caps.features, limits: caps.limits }, ...(job.evidence?.length ? { evidence: modelEvidence(job.evidence) } : {}) }) },
-    { type: 'text', text: `Current artifact (JSON, untrusted; its program is shown in the next block, return it as artifact.program.source):\n${JSON.stringify(rest)}` },
-    ...(program ? [{ type: 'text', text: `Current artifact.program.source (untrusted text):\n${program.source}` }] : []),
-    ...images.flatMap(c => [{ type: 'text', text: `capture ${c.id}` }, { type: 'image', source: { type: 'base64', media_type: c.mediaType || 'image/png', data: c.data } }]),
-  ];
+  const build = (sent, left, named = true) => {
+    const omittedFindings = left.filter(i => i.finding).map(({ finding: { severity, category, targets } }) => ({ severity, category, targets }));
+    const omittedProblems = cutProblems + left.filter(i => i.problem).length;
+    const omitted = omittedFindings.length || omittedProblems ? { ...(omittedFindings.length ? { findings: named ? omittedFindings : omittedFindings.length } : {}), ...(omittedProblems ? { problems: omittedProblems } : {}), note: 'not sent: these were reported but did not fit this request' } : null;
+    const content = [
+      { type: 'text', text: JSON.stringify({ request: job.prompt, plan: job.plan, problems: sent.filter(i => i.problem).map(i => i.problem), findings: sent.filter(i => i.finding).map(i => i.finding), ...(omitted ? { omitted } : {}), capabilities: { phase: caps.phase, geometry: caps.geometry, features: caps.features, limits: caps.limits, ...surfaceCapability(job) }, ...(job.evidence?.length ? { evidence: modelEvidence(job.evidence) } : {}) }) },
+      { type: 'text', text: `Current artifact (JSON, untrusted; its program is shown in the next block, return it as artifact.program.source):\n${JSON.stringify(rest)}` },
+      ...(program ? [{ type: 'text', text: `Current artifact.program.source (untrusted text):\n${program.source}` }] : []),
+      ...images.flatMap(c => [{ type: 'text', text: `capture ${c.id}` }, { type: 'image', source: { type: 'base64', media_type: c.mediaType || 'image/png', data: c.data } }]),
+    ];
+    return Object.assign(content, { forwarded: { findings: sent.filter(i => i.finding).length, problems: sent.filter(i => i.problem).length, ...(omitted ? { omitted } : {}) } });
+  };
+  for (let n = items.length; n >= 0; n--) { const content = build(items.slice(0, n), items.slice(n)); if (fits(content)) return content; }
+  return build([], items, false); // nothing fits but the counts: still never claims completeness (the request check then refuses it)
 }
 
 // The repair stage. -> { draft, progress: true, operation } | { progress: false, rejected?, reason? }
@@ -64,13 +79,16 @@ export async function repairStage(job, ctx) {
   if (!plain(current)) return { progress: false, rejected: 'There is no artifact to repair.' };
   const named = new Set((failure.findings || []).map(f => f.target?.capture).filter(Boolean));
   const images = (await loadCaptures(ctx.env, (job.captures || []).filter(c => named.has(c.id)))).filter(c => typeof c.data === 'string').slice(0, ANIMATION_ROLES.repair.maxImages);
-  const { input } = await ctx.call('repair', { system: ANIMATION_REPAIR_SYSTEM, tool: repairTool({ program: !!current.program || planNeedsProgram(job.plan) }), content: repairContent(job, failure, current, images) });
+  const system = ANIMATION_REPAIR_SYSTEM, tool = repairTool({ program: !!current.program || planNeedsProgram(job.plan) });
+  const fits = content => { try { animationRequest(ctx.env ?? {}, 'repair', { system, tool, content }, ctx.tasks); return true; } catch (error) { if (error?.code === 'input_too_large') return false; throw error; } };
+  const content = repairContent(job, failure, current, images, fits), { forwarded } = content;
+  const { input } = await ctx.call('repair', { system, tool, content: [...content] });
   const reason = typeof input.reason === 'string' ? input.reason.slice(0, 300) : null;
-  if (input.operation === 'none') return { progress: false, reason };
-  if (input.operation !== 'artifact' || !plain(input.artifact)) return { progress: false, rejected: 'The repair returned no artifact.', inputKeys: Object.keys(input) };
+  if (input.operation === 'none') return { progress: false, reason, forwarded };
+  if (input.operation !== 'artifact' || !plain(input.artifact)) return { progress: false, rejected: 'The repair returned no artifact.', inputKeys: Object.keys(input), forwarded };
   const draft = withProgram(input);
-  if (canonicalJson(draft) === canonicalJson(current)) return { progress: false, reason: 'The repair changed nothing.' };
-  return { draft, progress: true, operation: 'artifact', reason, inputKeys: Object.keys(input), artifactKeys: Object.keys(input.artifact) };
+  if (canonicalJson(draft) === canonicalJson(current)) return { progress: false, reason: 'The repair changed nothing.', forwarded };
+  return { draft, progress: true, operation: 'artifact', reason, inputKeys: Object.keys(input), artifactKeys: Object.keys(input.artifact), forwarded };
 }
 
 // -> problems (one sentence each), [] when the real review and repair requests for this artifact fit their roles at worst-case
@@ -99,6 +117,8 @@ export function fitProblems(env, artifact, job, tasks, draft = null) {
   } catch (error) { if (error?.code === 'input_too_large') tooBig('review'); else throw error; }
   try {
     const failure = { problems: Array(REPAIR_FORWARD.problems).fill('p'.repeat(REPAIR_FORWARD.text)), findings: Array(REPAIR_FORWARD.findings).fill({ category: 'spec', severity: 'major', target: { capture: 'v0', object: 'o'.repeat(64) }, message: 'm'.repeat(REPAIR_FORWARD.text) }) };
+    // shortcut: identical, so one issue: the room reserved is 51b6560cf's (8 problems, one finding); a real repair sends every finding that
+    // fits and names the rest (repairContent). Reserving 8 distinct findings would refuse drafts and plans that pass today; owner call.
     animationRequest(env, 'repair', { system: ANIMATION_REPAIR_SYSTEM, tool: repairTool({ program: true }), content: repairContent(job, failure, plain(draft) ? draft : draftOf(artifact), fake(ANIMATION_ROLES.repair.maxImages)) }, tasks);
   } catch (error) { if (error?.code === 'input_too_large') tooBig('repair'); else throw error; }
   return out;

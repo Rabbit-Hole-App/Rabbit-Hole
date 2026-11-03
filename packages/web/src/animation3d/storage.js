@@ -189,6 +189,8 @@ export const MESSAGES = Object.freeze({
   missing: 'This animation\'s saved scene is no longer available.',
   mismatch: 'This animation\'s saved version could not be verified. Your saved settings are kept. Try again.',
   error: 'The animation could not be loaded. Try again.',
+  // The server's answer for a scene this build cannot draw (animation-job.js CLIENT_UPDATE, code client_update_required).
+  update: 'This scene needs the newest version of Rabbit Hole. Reload the page to update it.',
 });
 // The audiences the MVP serves: the owner on their own canvas. A share link, a publication, an embed or a fork gets the honest
 // placeholder (AN-14 enables them) and never reaches an owner route.
@@ -239,6 +241,7 @@ export async function hydrateAnimation(block, { context, readArtifact, signal } 
   let raw;
   try { raw = await readArtifact(ref, { signal }); } catch (problem) {
     if (signal?.aborted || problem?.name === 'AbortError') return out('aborted');
+    if (problem?.data?.code === 'client_update_required') return out('update');
     return out(problem?.status === 404 || problem?.status === 410 ? 'missing' : 'error');
   }
   if (signal?.aborted) return out('aborted');

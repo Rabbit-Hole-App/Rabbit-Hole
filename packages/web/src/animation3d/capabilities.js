@@ -34,3 +34,8 @@ export const ANIMATION_CAPABILITIES = deepFreeze({
 
 // Every registry a validator accepts. A later phase is a new entry here, chosen by the server.
 export const CAPABILITY_REGISTRIES = Object.freeze([ANIMATION_CAPABILITIES]);
+
+// What this browser build can draw beyond what every deployed build can (owner 2026-11-02): it says so when it asks for a scene and when
+// it reads one (client.js), and the server gates on it (animation-job.js). A request that names none is from an older build: it is
+// never given a scene that uses these, and reading one answers client_update_required. curve_radius: a curve with a radius is a tube.
+export const ANIMATION_CLIENT_FEATURES = Object.freeze(['curve_radius']);

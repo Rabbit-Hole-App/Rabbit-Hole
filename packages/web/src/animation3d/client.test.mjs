@@ -21,12 +21,14 @@ test('request shapes (lane G routes): create, get, action and result, scoped to 
   await client.result('res 1', { signal });
   await client.result('res2');
   assert.deepEqual(calls, [
-    { path: ANIMATION_ROUTES.jobs, method: 'POST', body: { boardId: 'board 1', requestId: 'req-1', cardId: 'card-1', prompt: 'a lever', context: 'selected text' } },
+    { path: ANIMATION_ROUTES.jobs, method: 'POST', body: { boardId: 'board 1', requestId: 'req-1', cardId: 'card-1', prompt: 'a lever', context: 'selected text', features: ['curve_radius'] } },
     { path: `${ANIMATION_ROUTES.jobs}/job%2F1?board=board%201`, body: undefined },
     { path: `${ANIMATION_ROUTES.jobs}/job%2F1/retry`, method: 'POST', body: { boardId: 'board 1', expectedAttempt: 2 } },
     { path: `${ANIMATION_ROUTES.jobs}/job%2F1/cancel`, method: 'POST', body: { boardId: 'board 1' } },
-    { path: `${ANIMATION_ROUTES.results}/res%201?board=board%201`, signal, body: undefined },
-    { path: `${ANIMATION_ROUTES.results}/res2?board=board%201`, body: undefined },
+    // What this build can draw (capabilities.js ANIMATION_CLIENT_FEATURES, owner 2026-11-02): asked for and read with, so the server never
+    // gives it a scene it cannot draw.
+    { path: `${ANIMATION_ROUTES.results}/res%201?board=board%201&features=curve_radius`, signal, body: undefined },
+    { path: `${ANIMATION_ROUTES.results}/res2?board=board%201&features=curve_radius`, body: undefined },
   ]);
 });
 

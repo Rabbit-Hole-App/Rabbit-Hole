@@ -47,27 +47,29 @@ const capture = async (artifact, entry) => {
 };
 const byLabel = (manifest, label) => manifest.entries.find(e => e.view.name === 'default' && e.label === label);
 
-test('the saved SGD draft seals to the reviewed artifact, and its sampling now includes both parameter extremes and Keep Path after steps', async () => {
+// Owner 2026-11-02 (MVP1 correction): the main control one setting at a time, the others at their defaults: the initial state, the middle
+// setting with Keep Path after steps, the high end; the low end and the joint extremes are listed as not sampled (checked offline).
+test('the saved SGD draft seals to the reviewed artifact, and its sampling has the initial state, Keep Path after steps at the middle setting and the high end', async () => {
   const artifact = await sealed();
   assert.equal(await sha256Hex(canonicalJson(artifact)), fixture.artifactHash);
   assert.deepEqual(fixture.recordedCoverage.omitted, ['every parameter at its low end', 'every parameter at its high end'], 'the recorded first review omitted both extremes');
   const manifest = captureManifest(artifact);
   assert.deepEqual(manifest.coverage.sampled, [
-    { label: '60 steps, then action keepPath, then 30 steps', time: 0, events: 1, leadTicks: 60, ticks: 30 },
-    { label: 'every parameter at its low end', time: 0, events: 0, ticks: 90 },
-    { label: 'every parameter at its high end', time: 0, events: 0, ticks: 90 },
+    { label: 'initial', time: 0, events: 0, ticks: 0 },
+    { label: 'learningRate at 0.08: 60 steps, then keepPath, then 30 steps', time: 0, events: 1, leadTicks: 60, ticks: 30 },
+    { label: 'learningRate at its high end (0.6), after 90 steps', time: 0, events: 0, ticks: 90 },
   ]);
-  assert.deepEqual(manifest.coverage.omitted, ['initial', 'sequence of 4 events'], 'what is left out is listed, never claimed');
+  assert.deepEqual(manifest.coverage.omitted, ['learningRate at its low end (0.01), after 90 steps', 'every parameter at its low end', 'every parameter at its high end', '60 steps, then action keepPath, then 30 steps', 'sequence of 4 events'], 'what is left out is listed, never claimed');
   assert.equal(manifest.entries.length, 6, 'the per-round budget is unchanged: 2 views x 3 states');
   assert.ok(manifest.entries.every(e => e.events.length <= 4 && e.leadTicks + e.ticks <= 90));
-  const low = byLabel(manifest, 'every parameter at its low end').inputs, high = byLabel(manifest, 'every parameter at its high end').inputs;
-  assert.deepEqual([low.learningRate, low.batchSize, high.learningRate, high.batchSize], [0.01, '1', 0.6, '256'], 'learning rate and batch size both vary');
+  const middle = byLabel(manifest, 'learningRate at 0.08: 60 steps, then keepPath, then 30 steps').inputs, high = byLabel(manifest, 'learningRate at its high end (0.6), after 90 steps').inputs;
+  assert.deepEqual([middle, high], [{ ...high, learningRate: 0.08 }, { learningRate: 0.6, batchSize: '4', showTrueGradient: true }], 'only the learning rate varies; the comparison arrow stays on');
   // The review and repair requests still fit with this manifest's real ids, labels, inputs, events and ticks.
   assert.deepEqual(fitProblems({ ANTHROPIC_API_KEY: 'offline' }, artifact, { prompt: fixture.prompt, plan: fixture.plan, evidence: [] }, undefined, fixture.draft), []);
 });
 
 run('on the real engine: Keep Path acts on a nonempty trail, so the draft\'s no-op shows and a working one saves a path', async () => {
-  const artifact = await sealed(), manifest = captureManifest(artifact), entry = byLabel(manifest, '60 steps, then action keepPath, then 30 steps');
+  const artifact = await sealed(), manifest = captureManifest(artifact), entry = byLabel(manifest, 'learningRate at 0.08: 60 steps, then keepPath, then 30 steps');
   const before = await capture(artifact, { ...entry, events: [], leadTicks: 0, ticks: entry.leadTicks });
   assert.ok(before.state.tr.length > 0, 'the trail Keep Path is pressed on is not empty');
   // The draft reads event.id; the host sends { type: 'action', action } (DIAGNOSIS 1f), so Keep Path does nothing. The capture now shows
@@ -84,7 +86,8 @@ run('on the real engine: Keep Path acts on a nonempty trail, so the draft\'s no-
   assert.equal(kept.trace.readouts.stepN, 5);
   const old = await capture(working, { ...entry, leadTicks: 0 });
   assert.equal(old.state.kp.length, 0);
-  const low = await capture(artifact, byLabel(manifest, 'every parameter at its low end')), high = await capture(artifact, byLabel(manifest, 'every parameter at its high end'));
+  const highEntry = byLabel(manifest, 'learningRate at its high end (0.6), after 90 steps'), high = await capture(artifact, highEntry);
+  const low = await capture(artifact, { ...highEntry, inputs: { ...highEntry.inputs, learningRate: 0.01 } }); // the low end, checked offline (not model-reviewed)
   assert.ok(low.state.k > 0 && high.state.k > 0, 'both extremes took steps');
   assert.notEqual(low.trace.stateHash, high.trace.stateHash);
   assert.deepEqual([low.state.div, high.state.div], [false, true], 'the high learning rate reaches the diverged state the plan promises');

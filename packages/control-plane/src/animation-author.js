@@ -7,7 +7,7 @@
 import { ANIMATION_PROGRAM_VERSIONS, SCENE_SCHEMA, hashProgramSource, validateAnimationArtifact } from '../../web/src/animation3d/contract.js';
 import { canonicalJson, sha256Hex } from '../../web/src/explain-program/contract.js';
 import { ANIMATION_AUTHOR_SYSTEM, authorTool } from './agents/animation-author.js';
-import { enabledCapabilities } from './animation-brief.js';
+import { clientFeatures, enabledCapabilities, surfaceCapability } from './animation-brief.js';
 import { AnimationPolicyError } from './animation-policy.js';
 import { fitProblems, withProgram } from './animation-repair.js';
 import { modelEvidence } from './explain-evidence.js';
@@ -18,7 +18,7 @@ export const authorCapabilities = (caps = enabledCapabilities()) => ({ phase: ca
 
 // The author stage. -> { draft } | { gap }
 export async function authorStage(job, ctx) {
-  const content = JSON.stringify({ request: job.prompt, plan: job.plan, context: job.context?.refText ? { refText: job.context.refText } : null, evidence: modelEvidence(job.evidence), capabilities: authorCapabilities() });
+  const content = JSON.stringify({ request: job.prompt, plan: job.plan, context: job.context?.refText ? { refText: job.context.refText } : null, evidence: modelEvidence(job.evidence), capabilities: { ...authorCapabilities(), ...surfaceCapability(job) } });
   const { input } = await ctx.call('author', { system: ANIMATION_AUTHOR_SYSTEM, tool: authorTool(job.plan), content });
   if (input.kind === 'capability_gap') {
     if (!input.gap?.reason) throw new AnimationPolicyError('invalid_turn', 'The author reported a gap without saying what is needed.');
@@ -90,6 +90,12 @@ export function planProblems(artifact, plan) {
   return out;
 }
 
+// A scene the browser that asked for it cannot draw (capabilities.js ANIMATION_CLIENT_FEATURES; none declared is an older build).
+export function clientProblems(artifact, job) {
+  if (clientFeatures(job?.features).includes('curve_radius')) return [];
+  return (artifact.scene?.geometries || []).flatMap((g, i) => (g?.kind === 'curve' && g.radius !== undefined ? [`scene.geometries.${i}.radius: the browser that asked for this scene cannot draw tube curves; remove radius`] : []));
+}
+
 // The validate stage. -> { artifact, artifactHash } | { problems, category, repairable }
 export async function validateStage(job, ctx = {}) {
   const caps = enabledCapabilities();
@@ -97,7 +103,7 @@ export async function validateStage(job, ctx = {}) {
   const made = job.calls?.filter(c => ['author', 'repair'].includes(c.role) && c.status === 'settled').at(-1);
   // createdAt is the approval time, so the same draft always seals to the same artifact (and hash).
   const artifact = await sealArtifact(job.draft, { artifactId: job.resultId, revision: 1, planHash: job.planHash, model: made?.served ?? made?.requested ?? null, createdAt: new Date(job.approval?.at ?? 0).toISOString(), caps });
-  const problems = [...programProblems(artifact), ...planProblems(artifact, job.plan)];
+  const problems = [...programProblems(artifact), ...planProblems(artifact, job.plan), ...clientProblems(artifact, job)];
   const checked = validateAnimationArtifact(artifact, caps, { draft: true });
   if (!checked.ok) problems.push(...checked.issues.map(i => `${i.path || 'artifact'}: ${i.message} (${i.code})`));
   if (problems.length) return { problems: [...new Set(problems)].slice(0, 20).map(p => p.slice(0, 400)), category: 'spec', repairable: true };

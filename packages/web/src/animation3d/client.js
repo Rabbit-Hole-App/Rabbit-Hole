@@ -6,6 +6,7 @@
 // As with /explain (explain-client.js): the card is placed before the job runs and polling only observes the job.
 import { sha256Hex } from '../explain-program/contract.js';
 import { artifactIdentity } from './storage.js';
+import { ANIMATION_CLIENT_FEATURES } from './capabilities.js';
 
 // Lane G's route table (control-plane animation-job.js): jobs, their actions, and results under the jobs root.
 export const ANIMATION_ROUTES = Object.freeze({
@@ -19,12 +20,13 @@ export function animationClient(fetchJson, boardId) {
   return {
     // One /animation request starts one job (its plan is then reviewed): { requestId, cardId, prompt, context?, context_refs?,
     // threadId?, source? }; requestId makes a repeat return that same job.
-    create: body => post(ANIMATION_ROUTES.jobs, body),
+    // features: what this build can draw (capabilities.js), so the scene it is given is one it can draw.
+    create: body => post(ANIMATION_ROUTES.jobs, { ...body, features: ANIMATION_CLIENT_FEATURES }),
     get: jobId => fetchJson(`${ANIMATION_ROUTES.jobs}/${q(jobId)}?board=${q(boardId)}`),
     // approve | refine | cancel | retry: one targeted action on this job; expectedAttempt makes a double press one Retry.
     action: (jobId, name, body = {}) => post(`${ANIMATION_ROUTES.jobs}/${q(jobId)}/${q(name)}`, body),
     // An accepted artifact by its immutable id, read independently of the job record (kept when the job is pruned).
-    result: (artifactId, { signal } = {}) => fetchJson(`${ANIMATION_ROUTES.results}/${q(artifactId)}?board=${q(boardId)}`, signal ? { signal } : {}),
+    result: (artifactId, { signal } = {}) => fetchJson(`${ANIMATION_ROUTES.results}/${q(artifactId)}?board=${q(boardId)}&features=${q(ANIMATION_CLIENT_FEATURES.join(','))}`, signal ? { signal } : {}),
   };
 }
 

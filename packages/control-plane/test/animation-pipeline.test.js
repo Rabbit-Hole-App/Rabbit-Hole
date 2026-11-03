@@ -116,7 +116,9 @@ test('the capture manifest samples at most 2 views x 3 states and says what it l
     assert.ok(Math.abs(cycles - Math.round(cycles)) > 0.07, `k=${k}: ${a}s and ${b}s alias`);
   }
   const experiment = captureManifest(experimentFixture.artifact);
-  assert.deepEqual(experiment.coverage.sampled.map(s => s.label), ['initial', 'every parameter at its low end', 'every parameter at its high end']);
+  // Owner 2026-11-02: an experiment's main control one setting at a time (the others at their defaults), the joint extremes not sampled.
+  assert.deepEqual(experiment.coverage.sampled.map(s => s.label), ['initial', 'leftMass at 3', 'leftMass at its high end (10)']);
+  assert.deepEqual(experiment.coverage.omitted, ['leftMass at its low end (1)', 'every parameter at its low end', 'every parameter at its high end']);
   // Interception admits only the entry and hashed build files; a generated URL is refused.
   for (const url of ['https://render.invalid/render/animation3d.html', 'https://render.invalid/static/app-1.js']) assert.equal(allowedAsset(new URL(url)), true);
   for (const url of ['https://render.invalid/render/scene.html', 'https://evil.test/x.js', 'https://render.invalid/static/a.js?x=1', 'https://render.invalid/api/learn/boards']) assert.equal(allowedAsset(new URL(url)), false);
