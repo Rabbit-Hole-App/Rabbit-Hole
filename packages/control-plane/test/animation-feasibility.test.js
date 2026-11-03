@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CHANGED, GAP_ALTERNATIVES, GAP_FALLBACK, clarificationFor, draftLimit, estimateDraftBytes, learnerReason, planAlternatives, sizeCheck } from '../src/animation-feasibility.js';
+import { CHANGED, GAP_ALTERNATIVES, GAP_FALLBACK, clarificationFor, draftLimit, estimateDraftBytes, learnerReason, planAlternatives, sizeCheck, trailConflicts } from '../src/animation-feasibility.js';
 import { ANIMATION_DRAFT_BYTES } from '../src/agents/animation-author.js';
 import { ANIMATION_SEED_PATH, animationRoute, failureClass, failureText, publicAnimationJob, recoveryOf } from '../src/animation-job.js';
 import { seededJobs } from '../src/animation-outcomes-fixture.js';
@@ -338,4 +338,76 @@ test('the dev fixtures seed every outcome through the real report and choice pat
     const off = await animationRoute(ANIMATION_SEED_PATH, new Request(`https://dev.test${ANIMATION_SEED_PATH}`, { method: 'POST', body: '{}' }), extra);
     assert.equal(off.status, 404);
   }
+});
+
+// Owner 2026-11-02 (aj_ad936ec, aj_ba11d5a): a shortened trail must be said the same way everywhere in the plan, and the step count is read
+// from the plan's words about steps, not from any number near the word "step".
+const SGD = JSON.parse(readFileSync(new URL('./fixtures/animation-sgd-trail.json', import.meta.url), 'utf8'));
+const ruleOf = plan => plan.limitations[0].match(/draws (\d+) markers, one every (\d+) steps, instead of (\d+)/).slice(1).map(Number);
+test('the shortened plan the build ran with contradicted itself; a shortened plan now restates every trail sentence or is not offered', () => {
+  const ran = SGD.find(x => x.job.startsWith('aj_ad936ec')).changed, [shown, every, from] = ruleOf(ran);
+  assert.deepEqual([shown, every, from], [37, 7, 256], 'the saved plan, as it was built: 256 was a batch size');
+  assert.ok(trailConflicts(ran, 40, every, shown).some(s => /one for each step/.test(s)), 'it still said one trail point for each step');
+  for (const x of SGD) {
+    for (const limit of [11500, 13000, 14992]) for (const a of planAlternatives(x.original, 'Show me how stochastic gradient descent works.', () => limit)) {
+      const [n, k, of] = ruleOf(a.plan);
+      assert.deepEqual(trailConflicts(a.plan, of, k, n), [], `${x.job} ${a.id} at ${limit}`);
+      const said = [a.plan.description, ...a.plan.interactions, ...a.plan.assumptions].join(' ');
+      assert.doesNotMatch(said, /one for each step|one per step|adds one trail point/, `${x.job} ${a.id}`);
+      assert.ok(!new RegExp(`\b${of} (?:points|markers)\b`).test(said), `${x.job} ${a.id}: the old count is gone`);
+      if (a.id === 'no_kept_path') assert.ok(a.plan.interactions.every(i => !/keep (?:old )?path|restarts from the same point/i.test(i)), 'the kept-path action goes whole, not a fragment of it');
+    }
+  }
+});
+// The two sentences of aj_ad936ec's saved plan that were read as counts: together they took its estimate from 12,370 B to 42,700 B.
+test('a parameter value or a decimal is never a count: "At 256 every step" is no 256 steps, "0.25 the ball" no 25 balls', () => {
+  const plan = sentence => ({ ...PLAN, behavior: 'rules', description: `A ball moves and leaves a trail. ${sentence}`, interactions: [] });
+  for (const sentence of ['At 256 every step follows the exact slope.', 'Above 0.25 the ball zigzags across the steep direction.']) {
+    assert.ok(SGD[0].original.interactions.some(i => i.includes(sentence)), `the saved plan has: ${sentence}`);
+    const e = estimateDraftBytes(plan(sentence));
+    assert.deepEqual([e.stated, e.objects], [0, 0], sentence);
+  }
+  // A count still reads as one when the words state it.
+  for (const [sentence, stated, objects] of [['A run lasts up to 40 steps.', 40, 0], ['It leaves a trail of up to 40 points, one for each step.', 40, 0], ['A 150-step run.', 150, 0], ['A grid of 300 particles drifts.', 0, 300]]) {
+    const e = estimateDraftBytes(plan(sentence));
+    assert.deepEqual([e.stated, e.objects], [stated, objects], sentence);
+  }
+});
+test('calibration on the saved SGD jobs: the 40-step plan is read as 40 steps and not flagged; the 300-step plan with a kept path is; the drafts written from the shortened plans', () => {
+  const [ad, ba] = ['aj_ad936ec', 'aj_ba11d5a'].map(id => SGD.find(x => x.job.startsWith(id)));
+  const forty = estimateDraftBytes(ad.original);
+  assert.deepEqual([forty.stated, forty.retained, forty.drawn], [40, true, 80], 'was 256 steps: "at 256 every step follows the exact slope"');
+  assert.equal(sizeOf(ad.original).over, false, 'its shape fits the real check: aj_9c453b6 wrote 13,252 B for the same 40 steps with a kept path, and fitProblems accepts it');
+  assert.ok(Math.abs(forty.bytes - 13252) / 13252 < 0.15, `${forty.bytes}`);
+  const many = sizeOf(ba.original);
+  assert.equal(many.over, true, '300 steps with a kept path is 600 markers, past the 256 nodes a scene may declare');
+  assert.ok(many.alternatives.length > 0);
+  // Measured, both ways (the report quotes these): the estimate over-counts when the author draws fewer markers than the plan says
+  // (aj_ad936ec drew 20 for a cap of 37 with a kept path), and under-counts a larger program (aj_ba11d5a's 15,097 B draft was refused by the
+  // real review-size check while its plan was estimated under the limit: a false negative, caught by fitProblems before any review).
+  const over = (estimateDraftBytes(ad.changed).bytes - Math.max(...ad.drafts)) / Math.max(...ad.drafts), under = (estimateDraftBytes(ba.changed).bytes - Math.max(...ba.drafts)) / Math.max(...ba.drafts);
+  assert.ok(over > 0.3 && under < 0, `${over} ${under}`);
+  assert.equal(sizeOf(ba.changed).over, false);
+});
+// The same rules on other subjects (owner 2026-11-02: general to the pipeline, SGD only the regression case). No string here is special-cased.
+test('other subjects: values beside a per-step phrase and decimals are no counts; frames are a step unit; a shortened trail is restated in its own unit', () => {
+  const plan = (description, interactions = []) => ({ ...PLAN, behavior: 'rules', description, interactions });
+  for (const [sentence, stated, objects] of [['At 0.5 the pendulum swings wide.', 0, 0], ['With 100 every frame the cells divide.', 0, 0], ['A box holds 40 particles.', 0, 40], ['It leaves a trail over 600 frames.', 600, 0], ['A 90-tick run leaves a trail.', 90, 0]]) {
+    const e = estimateDraftBytes(plan(`A bob moves and leaves a dotted trail. ${sentence}`));
+    assert.deepEqual([e.stated, e.objects], [stated, objects], sentence);
+  }
+  const swing = plan('A pendulum bob swings and leaves a dotted trail of 600 points, one for each frame. The swing runs for 600 frames.',
+    ['Watch the bob add one trail point per frame.', 'Keep the old trail and swing again: the previous trail stays faded.']);
+  const alternatives = planAlternatives(swing, 'Show a pendulum swinging.', () => 9000);
+  assert.deepEqual(alternatives.map(a => a.id), ['fewer_markers', 'no_kept_path']);
+  for (const a of alternatives) {
+    const [shown, every] = a.plan.limitations[0].match(/draws (\d+) markers, one every (\d+) frames/).slice(1).map(Number);
+    assert.deepEqual(trailConflicts(a.plan, 600, every, shown, 'frame'), []);
+    assert.match(a.plan.description, new RegExp(`trail of ${shown} points, one every ${every} frames\. The swing runs for 600 frames\.`), 'the count and density change; the run does not');
+    assert.ok(a.plan.interactions.some(i => i === `Watch the bob add one marker every ${every} frames.`));
+    assert.equal(a.plan.assumptions.at(-1), `The trail draws one marker every ${every} frames, at most ${shown} markers; every frame still runs.`);
+  }
+  // A sentence the rules cannot restate keeps the alternative from being offered at all.
+  const stubborn = plan('A bob leaves a dotted trail of 600 points. Every frame without exception gets its own dot on the trail.');
+  assert.deepEqual(planAlternatives(stubborn, 'Show a pendulum swinging.', () => 9000), []);
 });
