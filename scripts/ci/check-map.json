@@ -691,6 +691,7 @@
   },
   "none": [
     "packages/control-plane/telemetry-migrations/**",
+    "packages/control-plane/animation-sgd-qualification.mjs", "packages/control-plane/build-animation-mvp1-correction-fixture.mjs",
     "packages/**/test/**",
     "packages/**/*.test.mjs",
     "packages/web/src/fake-react-hooks.mjs","packages/web/src/explain-back-contract.fixtures.mjs","packages/web/src/animation3d/testdata/ui-stubs.mjs",
@@ -776,6 +777,8 @@
     "packages/web/src/fonts/*.txt"
   ],
   "noneReasons": {
+    "packages/control-plane/animation-sgd-qualification.mjs": "Offline SGD qualification check, run by hand and imported only by the control-plane unit tests; never by the app or a worker",
+    "packages/control-plane/build-animation-mvp1-correction-fixture.mjs": "Generator of the offline MVP1 correction fixture (test/fixtures); run by hand, never by the app or a worker",
     "packages/control-plane/telemetry-migrations/**": "TELEMETRY_DB schema; applied only to the telemetry database, which the local fork stack does not bind; proven by node:sqlite unit tests",
     "packages/web/src/fonts/*.txt": "font licence text (SIL OFL) shipped beside the bundled face; never loaded by the app",
     "packages/web/render/**": "/explain render entry built by verify.yml; explain-render.js (unit-tested) and viz-benchmark-capture.mjs load it; the program capture path (render-scene.jsx, program-render.jsx, scene.html) is mapped to explain-program-render-check.mjs, the rest of this folder (deploy and re-render scripts) has no browser check","packages/control-plane/chat-route-corpus/**": "CR-1 real-JEV chat routing corpus: data and a runner run by hand from Node (no bundle or gate stage)", 
