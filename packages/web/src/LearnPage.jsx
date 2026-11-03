@@ -534,6 +534,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const [client, event] = jobRoute(proposal, boardId);
       const { job } = await client.action(proposal.input.job, 'approve', { proposal });
       window.dispatchEvent(new CustomEvent(event, { detail: { jobId: proposal.input.job } }));
+      // /animation: Generate found the edited plan needs a change first (FX-AN-031); its choices were posted, so the Chat reads its thread again.
+      if (job?.choiceOpen && job.threadId) window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId: job.threadId, jobId: job.id } }));
       return job?.cardId || null;
     },
     // A change the server offered in Chat for this job (AnimationChoices.jsx): a press the server records, then the card reads the job and the
@@ -542,7 +544,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const boardId = commentBoardRef.current;
       if (!boardId) throw new Error('This choice can be made only on its own canvas.');
       const client = animationClient(api, boardId);
-      const { job } = choice.kind === 'gap' ? await client.action(choice.jobId, 'retry', { expectedAttempt: choice.attempt, action: 'plan_alternative', alternative: id }) : await client.action(choice.jobId, 'choose', { choice: id });
+      const { job } = choice.kind === 'gap' ? await client.action(choice.jobId, 'retry', { expectedAttempt: choice.attempt, action: 'plan_alternative', alternative: id }) : await client.action(choice.jobId, 'choose', { choice: id, key: choice.key });
       window.dispatchEvent(new CustomEvent(ANIMATION_JOB_EVENT, { detail: { jobId: choice.jobId } }));
       if (job?.threadId) window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId: job.threadId, jobId: job.id } }));
       return job;

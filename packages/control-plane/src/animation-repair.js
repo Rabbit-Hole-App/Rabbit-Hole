@@ -9,6 +9,7 @@ import { ANIMATION_ROLES, animationRequest } from './animation-policy.js';
 import { ANIMATION_REVIEW_LIMITS, CORRECTION_WORST, buildReviewContent, correctionBlock, loadCaptures, repairableFindings, reviewArtifactView } from './animation-review.js';
 import { enabledCapabilities } from './animation-brief.js';
 import { modelEvidence } from './explain-evidence.js';
+import { captureManifest } from './animation-render.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 // The artifact with its program wherever the reply put it (accept-5: the repair, shown the program in its own block, returned it beside the
@@ -69,11 +70,21 @@ export async function repairStage(job, ctx) {
 export function fitProblems(env, artifact, job, tasks, draft = null) {
   const out = [], size = new TextEncoder().encode(JSON.stringify(reviewArtifactView(artifact, draft))).length + new TextEncoder().encode(artifact.program?.source ?? '').length;
   const tooBig = role => out.push(`this artifact (${size} bytes with its program) is too large for the ${role === 'review' ? 'independent review' : 'repair'} request: use fewer nodes, shorter labels or a shorter program`);
-  const fake = n => Array.from({ length: n }, (_, i) => ({ id: `v${i}`, artifactHash: 'h', data: 'AAAA', mediaType: 'image/png' }));
-  const per = Math.floor(ANIMATION_REVIEW_LIMITS.traceBytes / ANIMATION_ROLES.review.maxImages) - 32;
+  // The captures this artifact's render really makes (captureManifest: their ids, views, labels, inputs, times, events and ticks, which the
+  // request repeats as text), each with a trace filling the review's whole trace allowance: the worst case of the real request, not a stand-in.
+  // A manifest the render would refuse leaves the old stand-in captures, at the image limit.
+  const hash = 'h'.repeat(64);
+  let entries;
+  try { entries = captureManifest(artifact).entries; } catch { entries = []; }
+  if (!entries.length) entries = Array.from({ length: ANIMATION_ROLES.review.maxImages }, (_, i) => ({ id: `v${i}`, view: { name: 'default' } }));
+  const base = entries.map(e => ({ id: e.id, artifactHash: hash, data: 'AAAA', mediaType: 'image/png', view: e.view?.name ?? e.view, label: e.label, inputs: e.inputs, time: e.time, events: e.events, ticks: e.ticks,
+    trace: { inputs: e.inputs, time: e.time, events: e.events, ticks: e.ticks } }));
+  const used = new TextEncoder().encode(JSON.stringify(base.map(c => ({ id: c.id, ...c.trace })))).length;
+  const per = Math.max(0, Math.floor((ANIMATION_REVIEW_LIMITS.traceBytes - used) / base.length) - 16);
+  const fake = n => base.slice(0, n);
   try {
-    const captures = fake(ANIMATION_ROLES.review.maxImages).map(c => ({ ...c, trace: { pad: 'x'.repeat(per) } }));
-    const { content } = buildReviewContent({ request: job.prompt, plan: job.plan, artifact, artifactHash: 'h', captures, evidence: job.evidence || [], coverage: { sampled: [], omitted: ['x'.repeat(ANIMATION_REVIEW_LIMITS.coverageChars)] }, draft });
+    const captures = base.map(c => ({ ...c, trace: { ...c.trace, pad: 'x'.repeat(per) } }));
+    const { content } = buildReviewContent({ request: job.prompt, plan: job.plan, artifact, artifactHash: hash, captures, evidence: job.evidence || [], coverage: { sampled: [], omitted: ['x'.repeat(ANIMATION_REVIEW_LIMITS.coverageChars)] }, draft });
     // With the one correction a malformed report may need: the largest review request this candidate can cause.
     animationRequest(env, 'review', { system: ANIMATION_REVIEW_SYSTEM, tool: REVIEW_TOOL, content: [...content, correctionBlock(CORRECTION_WORST)] }, tasks);
   } catch (error) { if (error?.code === 'input_too_large') tooBig('review'); else throw error; }

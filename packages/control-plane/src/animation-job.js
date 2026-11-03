@@ -99,9 +99,12 @@ function outcomeOf(job) {
   if (!job.plan) return null;
   return job.sizeChoice?.open || planScene(job.plan).notices.length ? 'changes' : 'supported';
 }
-// A Chat explanation not written yet: the alarm tries it again, and the card waits to reload the thread (report).
-const REPORT_TRIES = 5;
-const reportPending = job => job.stage === 'failed' && !!job.reportTries && job.reported !== job.attempt && job.reportTries < REPORT_TRIES;
+// A Chat explanation not written yet stays pending until it is written: the alarm tries it every 30 s for the first REPORT_RAPID tries, then
+// with a backoff capped at REPORT_BACKOFF_MAX_MS; a status read (the card's poll, a reopen) tries it at once and starts the backoff again.
+const REPORT_RAPID = 5, REPORT_RETRY_MS = 30000, REPORT_BACKOFF_MAX_MS = 30 * 60000;
+const reportPending = job => job.stage === 'failed' && !!job.reportTries && job.reported !== job.attempt;
+const reportDue = (job, now = Date.now()) => reportPending(job) && !(job.reportAt > now);
+const reportDelay = tries => (tries < REPORT_RAPID ? REPORT_RETRY_MS : Math.min(REPORT_BACKOFF_MAX_MS, REPORT_RETRY_MS * 2 ** (tries - REPORT_RAPID + 1)));
 const reportKey = job => `${job.id}:${job.attempt}`;
 const plannerGap = job => job.stopReason === 'capability_gap' && job.failure?.gap?.source === 'brief';
 const AUTO_RETRY = new Set(['provider_unavailable', 'render_failed', 'captures_missing']);
@@ -384,6 +387,8 @@ export class AnimationJobs {
     const job = id && await this.get(id);
     if (!job || job.owner.email !== user.email || job.boardId !== board.id) throw fail('Not available', 404);
     if (action === 'get') {
+      // A pending Chat explanation is tried again by any status read, and its backoff starts over.
+      if (reportPending(job) && !job.inFlight) { job.reportTries = 1; job.reportAt = 0; await this.report(job); }
       const block = job.stage === 'ready' ? await this.block(job) : null;
       return json({ job: publicAnimationJob(job), ...(block ? { block } : {}), ...(detail ? { diagnostics: diagnostics(job) } : {}) });
     }
@@ -494,13 +499,15 @@ export class AnimationJobs {
     if (payload.expectedAttempt !== job.attempt) return json({ job: publicAnimationJob(job) });
     const actions = recoveryOf(job);
     if (payload.action === 'revise_plan' && job.successor) return this.revise(job);
-    const alternative = payload.action === 'plan_alternative' ? GAP_ALTERNATIVES.find(a => a.id === payload.alternative) : null;
-    if (alternative && job.successor) return this.revise(job, alternative.note);
     if (payload.action != null && (payload.action === 'edit_request' || !actions.includes(payload.action))) throw fail('This choice is no longer available. The card shows what you can do now.', 409, 'recovery_stale');
     if (payload.action === 'revise_plan') return this.revise(job);
     // An alternative to a request the planner called a gap: a new plan the learner reviews, its cost said on the button. Nothing is built.
+    // The first press is the job's choice: kept with the new job it made, so a press from another tab answers that job and never relabels it,
+    // and a press again repairs the Chat message's answer if writing it failed.
     if (payload.action === 'plan_alternative') {
+      const alternative = GAP_ALTERNATIVES.find(a => a.id === (job.chosenAlternative ?? payload.alternative));
       if (!alternative) throw fail('This choice is no longer available. The card shows what you can do now.', 409, 'recovery_stale');
+      if (!job.chosenAlternative) { job.chosenAlternative = alternative.id; await this.save(job); }
       const made = await this.revise(job, alternative.note);
       await this.resolveChoice(job, reportKey(job), alternative.id);
       return made;
@@ -528,19 +535,22 @@ export class AnimationJobs {
     const key = `${job.id}:choice:${job.planHash}`;
     job.sizeChoice = { open: true, key, why: size.why, alternatives: size.alternatives, keep: size.keep };
     await this.writeChat(job, key, `"${clean(job.plan.title, 120)}" needs a change before it can be made. ${size.why} Choose below: each option says exactly what changes, and nothing is built until you press Generate.`,
-      { animationChoice: { jobId: job.id, attempt: job.attempt, kind: 'size', alternatives, chosen: null } });
+      { animationChoice: { jobId: job.id, attempt: job.attempt, kind: 'size', key, alternatives, chosen: null } });
   }
   // Accepting a change. A server-made alternative or Keep my plan costs nothing: it posts the plan with its Generate. A simpler plan is a
   // plan call, its cost said on the button. Pressed again it answers the same job; a choice that is gone is refused.
   async choose(job, payload) {
     const open = job.sizeChoice, id = payload.choice;
-    if (open?.chosen === id) return json({ job: publicAnimationJob(job) });
-    if (job.stage !== 'awaiting_approval' || !open?.open) throw fail('This choice is no longer available. Review the latest plan.', 409, 'plan_stale');
+    // A button answers only the plan it was offered for (its key names the job and the plan hash): one from an earlier plan never picks on a newer one.
+    if (!open || payload.key !== open.key) throw fail('This choice belongs to an earlier version of the plan. Review the latest plan.', 409, 'plan_stale');
+    // The same press again: the choice already took effect; only the Chat message's answer is written again, never another plan.
+    if (open.chosen === id) { await this.resolveChoice(job, open.key, id); return json({ job: publicAnimationJob(job) }); }
+    if (job.stage !== 'awaiting_approval' || !open.open) throw fail('This choice is no longer available. Review the latest plan.', 409, 'plan_stale');
     const alternative = open.alternatives.find(a => a.id === id);
     if (id === SIMPLER_ALTERNATIVE.id && !open.alternatives.length) {
       if (job.counts.brief >= briefLimit) throw fail('This plan reached its change limit. Start a new request.', 429);
       endStage(job.timing, 'refined');
-      Object.assign(job, { refinement: SIMPLER_ALTERNATIVE.note, approval: null, stage: 'preparing', sizeChoice: { open: false, chosen: id, key: open.key } });
+      Object.assign(job, { refinement: SIMPLER_ALTERNATIVE.note, approval: null, stage: 'preparing', sizeChoice: { open: false, chosen: id, key: open.key, planHash: null } });
       beginStage(job.timing, 'preparing');
       await this.save(job); await this.wake();
       await this.resolveChoice(job, open.key, id);
@@ -548,7 +558,8 @@ export class AnimationJobs {
     }
     if (!alternative && !(id === 'keep' && open.keep)) throw fail('This choice is no longer available. Review the latest plan.', 409, 'plan_stale');
     if (alternative) { job.plan = alternative.plan; job.planHash = await hashAnimationPlan(job.plan); }
-    job.sizeChoice = { open: false, chosen: id, key: open.key };
+    // The accepted decision belongs to this exact plan: Generate on it is not asked again (approve), an edited plan is.
+    job.sizeChoice = { open: false, chosen: id, key: open.key, planHash: job.planHash };
     await this.postPlan(job);
     await this.save(job);
     await this.resolveChoice(job, open.key, id);
@@ -659,18 +670,29 @@ export class AnimationJobs {
     // checked again against the enabled capabilities (an unsupported choice is refused here, before anything is consumed).
     let executed;
     try { executed = this.pipeline.approvedPlan(job.plan, p); } catch (error) { throw fail(error.message || 'This plan cannot be generated as edited.', 409, 'plan_invalid'); }
+    // The executed plan, with the sources it will be built from, is checked for size again before anything is admitted or consumed, unless
+    // the learner already accepted the size decision for exactly this plan. Needing a change, the edited plan is kept and its choices are
+    // posted; the job keeps waiting, and the proposal it was pressed on is spent by nothing.
+    const decided = job.sizeChoice && !job.sizeChoice.open && job.sizeChoice.planHash === job.planHash && canonicalJson(executed) === canonicalJson(job.plan);
+    if (!decided) {
+      const sources = isReviewProposal(p) && p.references?.length && payload.approved_refs ? this.withApprovedRefs(job, payload.approved_refs) : {};
+      const size = sizeCheck(this.env, { ...job, ...sources, plan: executed }, executed, this.tasks);
+      job.estimate = size.estimate;
+      if (size.over) {
+        job.plan = executed; job.planHash = await hashAnimationPlan(executed);
+        job.threadId ??= await this.planThread(job);
+        await this.postChoice(job, size);
+        await this.save(job);
+        return json({ job: publicAnimationJob(job) });
+      }
+    }
     await this.admitGeneration(job);
     if (isReviewProposal(p) && p.references?.length && payload.approved_refs?.key !== referencesKey(p.references)) throw fail('The attached references were not checked. Review the plan again.', 409, 'reference_blocked');
     const used = await consumeProposal(this.env.LEARN_DB, p, job.owner.email, { org: job.owner.org, app: job.app }, job.id);
     if (used) throw fail(used.error, 409, used.code);
     job.proposal = { id: p.proposal_id, version: p.version };
     job.settings = p.settings;
-    if (isReviewProposal(p) && p.references?.length) {
-      const refs = mergeRefs(job.context?.refs || [], payload.approved_refs.refs), ids = new Set(refs.map(r => r.evidence));
-      const bounded = boundEvidence(refs, [...(payload.approved_refs.evidence || []), ...(job.evidence || [])].filter(r => ids.has(r.id)));
-      job.context = { ...(job.context && typeof job.context === 'object' ? job.context : {}), refs: bounded.refs, refText: [job.context?.refText, payload.approved_refs.text].filter(Boolean).join('\n\n').slice(0, 24000) };
-      job.evidence = bounded.evidence;
-    }
+    if (isReviewProposal(p) && p.references?.length) Object.assign(job, this.withApprovedRefs(job, payload.approved_refs));
     job.plan = executed; job.planHash = await hashAnimationPlan(executed);
     markTiming(job.timing, 'generate');
     Object.assign(job, { approval: { planHash: job.planHash, proposal: job.proposal, ...(isReviewProposal(p) ? { reviewHash: p.review_hash } : {}), sources: await this.sourcesKey(job), at: Date.now() },
@@ -678,6 +700,12 @@ export class AnimationJobs {
     beginStage(job.timing, 'authoring');
     await this.save(job); await this.wake();
     return json({ job: publicAnimationJob(job) }, 202);
+  }
+  // The job's context and evidence with the references Generate approved, bounded as the build reads them. -> { context, evidence }
+  withApprovedRefs(job, approved) {
+    const refs = mergeRefs(job.context?.refs || [], approved.refs), ids = new Set(refs.map(r => r.evidence));
+    const bounded = boundEvidence(refs, [...(approved.evidence || []), ...(job.evidence || [])].filter(r => ids.has(r.id)));
+    return { context: { ...(job.context && typeof job.context === 'object' ? job.context : {}), refs: bounded.refs, refText: [job.context?.refText, approved.text].filter(Boolean).join('\n\n').slice(0, 24000) }, evidence: bounded.evidence };
   }
   // The source set a result is bound to: the evidence records' ids and content hashes and the refs' identities (never their text).
   sourcesKey(job) { return hash16([(job.evidence || []).map(r => [r.id, r.contentHash ?? r.revision ?? null]), (job.context?.refs || []).map(r => [r.sourceId, r.version ?? null, r.status ?? null])]); }
@@ -768,14 +796,18 @@ export class AnimationJobs {
     let active = false;
     for (const [, snapshot] of await this.state.storage.list({ prefix: 'job:' })) {
       const job = await this.get(snapshot.id);
-      if (job && reportPending(job) && !job.inFlight) { await this.locked(async () => { const current = await this.get(job.id); if (current) await this.report(current); }); continue; }
+      if (job && reportPending(job) && !job.inFlight) { if (reportDue(job)) await this.locked(async () => { const current = await this.get(job.id); if (current && reportDue(current)) await this.report(current); }); continue; }
       if (!job || TERMINAL.has(job.stage) && !job.inFlight || job.stage === 'awaiting_approval') continue;
       active = true;
       try { await this.advance(job); } catch (error) { await this.failed(job, error); }
     }
     if (active) await this.wake(1000);
-    // A Chat explanation still to write keeps the 30 s alarm set above.
-    else if (![...(await this.state.storage.list({ prefix: 'job:' })).values()].some(reportPending)) await this.state.storage.deleteAlarm?.();
+    else {
+      // A Chat explanation still to write keeps an alarm for the soonest one due; none left, no alarm.
+      const pending = [...(await this.state.storage.list({ prefix: 'job:' })).values()].filter(reportPending);
+      if (pending.length) await this.state.storage.setAlarm(Math.max(Date.now() + 1000, Math.min(...pending.map(j => j.reportAt || 0))));
+      else await this.state.storage.deleteAlarm?.();
+    }
   }
   // An in-flight call this object is not running was interrupted: whether the provider accepted it is unknown. Never resent; it
   // counts against the ceiling, and the job fails retryably.
@@ -892,15 +924,17 @@ export class AnimationJobs {
     const clarifying = job.stopReason === 'needs_clarification', gap = plannerGap(job);
     const head = clarifying ? '' : gap ? 'This animation cannot be made as asked.' : job.plan?.title ? `"${clean(job.plan.title, 120)}" was not finished.` : 'Your animation was not finished.';
     const tail = clarifying ? '' : job.plan ? 'Your request and plan are kept.' : 'Your request is kept.';
-    const choice = gap ? { animationChoice: { jobId: job.id, attempt: job.attempt, kind: 'gap', alternatives: GAP_ALTERNATIVES.map(({ id, title, changes }) => ({ id, title, changes, credits: credits(job.reservation?.preparationMicros) })), chosen: null } } : {};
+    const choice = gap ? { animationChoice: { jobId: job.id, attempt: job.attempt, kind: 'gap', key: reportKey(job), alternatives: GAP_ALTERNATIVES.map(({ id, title, changes }) => ({ id, title, changes, credits: credits(job.reservation?.preparationMicros) })), chosen: null } } : {};
     try {
       await this.writeChat(job, reportKey(job), [head, failureText(job), tail].filter(Boolean).join(' '), choice);
       job.reported = job.attempt; job.reportTries = 0;
       await this.save(job);
     } catch {
       job.reportTries = (job.reportTries || 0) + 1;
+      job.reportAt = Date.now() + reportDelay(job.reportTries);
       await this.save(job);
-      await this.state.storage.setAlarm?.(Date.now() + 30000);
+      const current = await this.state.storage.getAlarm?.();
+      if (!current || current > job.reportAt) await this.state.storage.setAlarm?.(job.reportAt);
     }
   }
   // A transient failure (the provider busy, a sample render that failed) waits and runs the same stage again, once per attempt and

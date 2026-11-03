@@ -879,7 +879,7 @@ export function evaluate({ state }) {
   await step('a plan that looks too large: Chat says why and what each change does, nothing to Generate; Use this plan pressed twice is one choice, and only then its plan has a Generate, with the change in view', async () => {
     const { context: c, page: p } = await open({ canvas: fresh, first: null, extra: genRouter });
     const creates = flow.creates.length, words = '"Beam balance" needs a change before it can be made. By our estimate this plan is too large to build and check: it draws a trail of 150 markers. An estimate can be wrong.';
-    flow.say = { open: true, content: words, notices: [NOTICE], choice: { jobId: null, attempt: 1, kind: 'size', chosen: null, alternatives: [{ id: 'fewer_markers', title: 'Draw a shorter trail', changes: [NOTICE] }] } };
+    flow.say = { open: true, content: words, notices: [NOTICE], choice: { jobId: null, attempt: 1, kind: 'size', key: 'size-key-1', chosen: null, alternatives: [{ id: 'fewer_markers', title: 'Draw a shorter trail', changes: [NOTICE] }] } };
     await send(p);
     await until(async () => flow.creates.length === creates + 1, 'one job', 20000);
     const waiting = [...flow.jobs.values()].at(-1), dock = p.locator('[data-chat-pane]');
@@ -895,7 +895,7 @@ export function evaluate({ state }) {
     await offered.locator('[data-animation-choose="fewer_markers"]').dblclick();
     await until(async () => flow.chooses.length >= 1, 'a choose request');
     await p.waitForTimeout(800);
-    assert.deepEqual(flow.chooses.at(-1), { jobId: waiting.id, body: { boardId: waiting.boardId, choice: 'fewer_markers' } }, 'two presses, one request');
+    assert.deepEqual(flow.chooses.at(-1), { jobId: waiting.id, body: { boardId: waiting.boardId, choice: 'fewer_markers', key: 'size-key-1' } }, 'two presses, one request naming the plan it was offered for');
     assert.equal(flow.chooses.length, 1);
     const accepted = dock.locator(`[data-generation-proposal="animation"][data-proposal-id="${sha16(waiting.id)}"]`);
     await accepted.waitFor({ timeout: 20000 });

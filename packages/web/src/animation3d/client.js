@@ -74,6 +74,8 @@ export function animationProposalStatus({ job, unread = false, onCanvas = true, 
   const go = onCanvas ? cardId : null, missing = onCanvas ? '' : ' Its card is not on this canvas. Send the request again to make a new one.';
   if (job.stage === 'ready') return { phase: onCanvas ? 'done' : 'unknown', label: onCanvas ? 'Added to the canvas' : null, active: false, spinner: false, detail: onCanvas ? 'Added to the canvas.' : `The scene was made.${missing}`, canStop: false, cardId: go };
   if (job.stage === 'failed') return { phase: 'failed', label: null, active: false, spinner: false, detail: `${animationStage(job)}${missing}`, canStop: false, cardId: go };
+  // Generate found that the edited plan needs a change first (FX-AN-031): nothing is being made, and the choice is in Chat.
+  if (job.stage === 'awaiting_approval' && job.choiceOpen) return { phase: 'unknown', label: null, active: false, spinner: false, detail: 'This plan needs a change before it can be made. Choose one in Chat.', canStop: false, cardId: go };
   if (job.stage === 'cancelled') return { phase: 'stopped', label: null, active: false, spinner: false, detail: `Stopped.${missing}`, canStop: false, cardId: go };
   return { phase: 'running', label: 'Making the scene', active: true, spinner: true, detail: animationStage(job), canStop: false, cardId: go };
 }

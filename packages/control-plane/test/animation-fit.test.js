@@ -139,3 +139,28 @@ test('the raised bound is in the hard spending limits: every role call is still 
   assert.equal(r.generationMicros, roleBoundMicros('author') + ANIMATION_LIMITS.calls.review * roleBoundMicros('review') + ANIMATION_LIMITS.calls.repair * roleBoundMicros('repair'));
   assert.deepEqual([ANIMATION_LIMITS.calls.review, ANIMATION_LIMITS.calls.repair], [3, 2]);
 });
+
+// FX-AN-031 follow-up (owner 2026-11-02): the size check used stand-in captures with none of the real ids, views, inputs, events and
+// ticks the review request repeats as text, so a candidate near the limit passed it and was then refused by the real request's guard.
+test('near the limit: the old stand-in captures passed a candidate that the real review request refuses; the size check now refuses it too', async () => {
+  const draft = fixture.repairedDraft;
+  const padded = n => ({ ...draft, program: { source: `${draft.program.source}\n//${'x'.repeat(n)}` } });
+  const stand = n => Array.from({ length: n }, (_, i) => ({ id: `v${i}`, artifactHash: 'h', data: 'AAAA', mediaType: 'image/png' }));
+  const oldReviewFits = (a, d) => { // the stand-in request fitProblems built before this fix
+    const per = Math.floor(ANIMATION_REVIEW_LIMITS.traceBytes / ANIMATION_ROLES.review.maxImages) - 32;
+    const { content } = buildReviewContent({ request: fixture.prompt, plan: fixture.plan, artifact: a, artifactHash: 'h', captures: stand(ANIMATION_ROLES.review.maxImages).map(c => ({ ...c, trace: { pad: 'x'.repeat(per) } })), evidence: [], coverage: { sampled: [], omitted: ['x'.repeat(ANIMATION_REVIEW_LIMITS.coverageChars)] }, draft: d });
+    try { reviewBody([...content, correctionBlock(CORRECTION_WORST)]); return true; } catch (error) { if (error.code === 'input_too_large') return false; throw error; }
+  };
+  const realReviewFits = (a, d) => { // the request the review stage would send: the manifest's captures, each trace filling the allowance
+    const entries = captureManifest(a).entries, base = entries.map(e => ({ id: e.id, artifactHash: 'h', data: 'AAAA', mediaType: 'image/png', view: e.view.name, label: e.label, inputs: e.inputs, time: e.time, events: e.events, ticks: e.ticks, trace: { inputs: e.inputs, time: e.time, events: e.events, ticks: e.ticks } }));
+    const used = JSON.stringify(base.map(c => ({ id: c.id, ...c.trace }))).length, per = Math.floor((ANIMATION_REVIEW_LIMITS.traceBytes - used) / base.length) - 16;
+    const { content } = buildReviewContent({ request: fixture.prompt, plan: fixture.plan, artifact: a, artifactHash: 'h', captures: base.map(c => ({ ...c, trace: { ...c.trace, pad: 'x'.repeat(per) } })), evidence: [], coverage: { sampled: [], omitted: ['x'.repeat(ANIMATION_REVIEW_LIMITS.coverageChars)] }, draft: d });
+    try { reviewBody([...content, correctionBlock(CORRECTION_WORST)]); return true; } catch (error) { if (error.code === 'input_too_large') return false; throw error; }
+  };
+  let low = 0, high = 12000;
+  while (high - low > 1) { const mid = Math.floor((low + high) / 2); const d = padded(mid); if (oldReviewFits(await sealedOf(d), d)) low = mid; else high = mid; }
+  const near = padded(low), a = await sealedOf(near);
+  assert.equal(oldReviewFits(a, near), true, 'the old estimate passed it');
+  assert.equal(realReviewFits(a, near), false, 'the real request refuses it');
+  assert.match(fitProblems(env, a, jobOf(near), undefined, near)[0], /too large for the independent review request/, 'and the size check now says so before any review is spent');
+});

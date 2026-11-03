@@ -22,6 +22,9 @@ const stubGap = (reason = 'A walkable world with real fluid physics needs a game
 const oversized = over => STUB_PIPELINE({ prepare: async (job, ctx) => { await ctx.call('brief', { system: 'brief', tool: { name: 'x', input_schema: { type: 'object' } }, content: job.prompt }); return { plan: job.refinement ? PLAN : over }; } });
 const chat = s => rows(s.sqlite, 'messages');
 const choiceOf = s => rows(s.sqlite, 'chat_message_meta').map(r => JSON.parse(r.meta_json).animationChoice).filter(Boolean).at(-1);
+const pick = (s, id, choice) => s.send('choose', { choice, key: choiceOf(s).key }, id);
+const explained = s => chat(s).filter(m => /was not finished/.test(m.content));
+const NEAR = { ...PLAN, behavior: 'rules', description: 'A ball leaves a trail over 170 steps.', interactions: [] };
 
 // Calibration, on every saved plan with a known outcome. These are the numbers the report quotes; a change to the estimate must face them.
 test('the estimate on saved jobs: its error on the plans with a saved draft, and which plans it flags', () => {
@@ -46,8 +49,7 @@ test('honest limits of the estimate: a false negative and a false alarm are poss
   const under = estimateDraftBytes(saved('aj_283c19f').plan);
   assert.ok(under.bytes < saved('aj_283c19f').draftBytes);
   // False alarm by construction: a plan's words can name many steps the scene never marks one by one. It is flagged, and the learner may keep it when not clearly over.
-  const near = { ...PLAN, behavior: 'rules', description: 'A ball leaves a trail over 170 steps.', interactions: [] };
-  const verdict = sizeOf(near);
+  const verdict = sizeOf(NEAR);
   assert.deepEqual([verdict.over, verdict.keep], [true, true]);
   assert.match(verdict.why, /By our estimate/);
   assert.match(verdict.why, /An estimate can be wrong/);
@@ -116,8 +118,27 @@ test('unsupported: the validated reason in Chat, two alternatives with their cos
   const next = await s.run(a.body.job.id);
   assert.deepEqual([next.stage, s.model.roles()], ['awaiting_approval', ['brief', 'brief']]);
   assert.equal(choiceOf(s).chosen, 'watch');
-  assert.equal((await s.send('retry', { expectedAttempt: 1, action: 'plan_alternative', alternative: 'nope' }, done.id)).status, 409, 'an alternative never offered is refused');
+  // Another tab pressing the other alternative answers the same new job and never relabels the choice.
+  const other = await s.send('retry', { expectedAttempt: 1, action: 'plan_alternative', alternative: 'experiment' }, done.id);
+  assert.deepEqual([other.body.job.id, choiceOf(s).chosen, s.stored(done.id).chosenAlternative, s.model.roles().length], [next.id, 'watch', 'watch', 2]);
 });
+test('an alternative whose Chat answer failed to save is repaired by pressing again, with no second plan', { skip }, async t => {
+  const s = animationStack(t, { pipeline: stubGap() });
+  const { body } = await s.create();
+  const done = await s.run(body.job.id);
+  const db = s.env.LEARN_DB, prepare = db.prepare.bind(db);
+  let broken = true;
+  db.prepare = sql => (broken && /^UPDATE chat_message_meta/.test(sql) ? { bind: () => ({ run: () => Promise.reject(new Error('D1 busy')) }) } : prepare(sql));
+  const first = await s.send('retry', { expectedAttempt: 1, action: 'plan_alternative', alternative: 'watch' }, done.id);
+  assert.equal(first.status, 503, 'the answer was lost');
+  assert.equal(choiceOf(s).chosen, null);
+  broken = false;
+  const again = await s.send('retry', { expectedAttempt: 1, action: 'plan_alternative', alternative: 'watch' }, done.id);
+  assert.equal(again.body.job.id, s.stored(done.id).successor, 'the job the first press made');
+  assert.equal(choiceOf(s).chosen, 'watch');
+  assert.equal([...s.state.data.keys()].filter(k => k.startsWith('job:')).length, 2, 'one new job');
+});
+
 test('a reason that fails the check is replaced by the server\'s sentence, and the unedited reply stays in diagnostics only', { skip }, async t => {
   const s = animationStack(t, { pipeline: stubGap('Needs `physics_engine` from the system prompt') });
   const { body } = await s.create();
@@ -139,9 +160,10 @@ test('oversized: Chat explains it and offers changes, no Generate exists until o
   assert.match(chat(s).at(-1).content, /needs a change before it can be made\. By our estimate/);
   assert.doesNotMatch(chat(s).at(-1).content, /bytes|\$/);
   assert.deepEqual(choiceOf(s).alternatives.map(a => a.id), ['fewer_markers', 'no_kept_path'], 'clearly over: the plan as written is not offered');
-  // An old approve cannot get around it; a choice not offered is refused.
-  assert.equal((await s.send('choose', { choice: 'keep' }, id)).status, 409);
-  const [a, b] = [await s.send('choose', { choice: 'fewer_markers' }, id), await s.send('choose', { choice: 'fewer_markers' }, id)];
+  // A choice not offered is refused, and so is one without this plan's key.
+  assert.equal((await pick(s, id, 'keep')).status, 409);
+  assert.equal((await s.send('choose', { choice: 'fewer_markers' }, id)).status, 409, 'no key: refused');
+  const [a, b] = [await pick(s, id, 'fewer_markers'), await pick(s, id, 'fewer_markers')];
   assert.deepEqual([a.status, b.status, a.body.job.choiceOpen], [200, 200, false]);
   assert.deepEqual(s.model.roles(), ['brief'], 'no model call for the change');
   const proposal = postedProposal(s.sqlite, id);
@@ -150,19 +172,18 @@ test('oversized: Chat explains it and offers changes, no Generate exists until o
   assert.ok(proposal.input.scene.parameters.length === big.parameters.length);
   assert.match(chat(s).at(-1).content, /It differs from what you asked: Changed: the trail draws/);
   assert.equal(choiceOf(s).chosen, 'fewer_markers');
-  assert.equal((await s.send('choose', { choice: 'no_kept_path' }, id)).status, 409, 'the other choice is gone');
+  assert.equal((await pick(s, id, 'no_kept_path')).status, 409, 'the other choice is gone');
   // Generate is then the existing action on the changed plan, and its cost is on the card (usage.max_credits).
   assert.ok(proposal.usage.max_credits > 0);
   assert.equal((await s.approve(id)).status, 202);
   assert.equal(s.stored(id).stage, 'authoring');
 });
 test('near the limit the learner may keep the plan; with no change the server can make, a simpler plan is a paid plan call with its cost', { skip }, async t => {
-  const near = { ...PLAN, behavior: 'rules', description: 'A ball leaves a trail over 170 steps.', interactions: [] };
-  const s = animationStack(t, { pipeline: oversized(near) });
+  const s = animationStack(t, { pipeline: oversized(NEAR) });
   const { body } = await s.create();
   await s.run(body.job.id);
   assert.ok(choiceOf(s).alternatives.some(a => a.id === 'keep'));
-  assert.equal((await s.send('choose', { choice: 'keep' }, body.job.id)).status, 200);
+  assert.equal((await pick(s, body.job.id, 'keep')).status, 200);
   assert.equal(postedProposal(s.sqlite, body.job.id).input.plan_hash, s.stored(body.job.id).planHash);
   const crowd = { ...PLAN, description: 'A grid of 300 particles drifts.' };
   const c = animationStack(t, { pipeline: oversized(crowd) });
@@ -171,10 +192,52 @@ test('near the limit the learner may keep the plan; with no change the server ca
   const before = await c.run(id);
   const simpler = choiceOf(c).alternatives.find(a => a.id === 'simpler');
   assert.equal(simpler.credits, Math.ceil(before.reservation.preparationMicros / 10000));
-  assert.equal((await c.send('choose', { choice: 'simpler' }, id)).status, 202);
+  assert.equal((await pick(c, id, 'simpler')).status, 202);
   const after = await c.run(id);
   assert.deepEqual([after.stage, c.model.roles()], ['awaiting_approval', ['brief', 'brief']]);
   assert.ok(postedProposal(c.sqlite, id));
+});
+// Owner 2026-11-02: an edit made in the review card is checked again at Generate; the accepted decision is bound to one plan.
+test('Generate on an edited plan that is now too large: the edit is kept, its choices are posted, nothing is admitted or consumed; a stale button cannot pick; an accepted Keep is not asked again', { skip }, async t => {
+  const EDIT = 'A ball leaves a trail over 190 steps.';
+  const s = animationStack(t, { pipeline: { ...oversized(NEAR), approvedPlan: plan => ({ ...plan, description: EDIT }) } });
+  const { body } = await s.create(), id = body.job.id;
+  await s.run(id);
+  const keyA = choiceOf(s).key;
+  assert.equal((await pick(s, id, 'keep')).status, 200);
+  const first = postedProposal(s.sqlite, id);
+  const pressed = await s.approve(id, first);
+  assert.deepEqual([pressed.status, pressed.body.job.stage, pressed.body.job.choiceOpen], [200, 'awaiting_approval', true], 'the edited plan needs a change first');
+  const stored = s.stored(id);
+  assert.deepEqual([stored.plan.description, stored.approval, stored.proposal], [EDIT, null, null], 'the edit is kept; nothing approved');
+  assert.equal(rows(s.sqlite, 'chat_message_meta').filter(r => JSON.parse(r.meta_json).proposalState?.used).length, 0, 'the proposal was not consumed');
+  const keyB = choiceOf(s).key;
+  assert.notEqual(keyB, keyA);
+  assert.equal((await s.approve(id, first)).status, 409, 'the earlier proposal is stale now');
+  assert.equal((await s.send('choose', { choice: 'keep', key: keyA }, id)).status, 409, 'a button from the earlier plan does not pick on this one');
+  assert.equal(s.stored(id).sizeChoice.open, true);
+  assert.equal((await pick(s, id, 'keep')).status, 200);
+  const second = postedProposal(s.sqlite, id);
+  assert.match(second.description, /190 steps/);
+  const go = await s.approve(id, second);
+  assert.deepEqual([go.status, s.stored(id).stage], [202, 'authoring'], 'the accepted Keep is not asked again');
+  assert.deepEqual(s.model.roles(), ['brief'], 'no plan call and no build before this Generate');
+  assert.equal(chat(s).filter(m => /needs a change before it can be made/.test(m.content)).length, 2, 'one choice message per plan');
+});
+test('a choice whose Chat answer failed to save: the plan stands, and the same press repairs the answer without another plan', { skip }, async t => {
+  const s = animationStack(t, { pipeline: oversized(NEAR) });
+  const { body } = await s.create(), id = body.job.id;
+  await s.run(id);
+  const db = s.env.LEARN_DB, prepare = db.prepare.bind(db);
+  let broken = true;
+  db.prepare = sql => (broken && /^UPDATE chat_message_meta/.test(sql) ? { bind: () => ({ run: () => Promise.reject(new Error('D1 busy')) }) } : prepare(sql));
+  assert.equal((await pick(s, id, 'keep')).status, 503);
+  assert.deepEqual([s.stored(id).sizeChoice.chosen, choiceOf(s).chosen], ['keep', null], 'the choice took effect; its answer was lost');
+  broken = false;
+  assert.equal((await pick(s, id, 'keep')).status, 200);
+  assert.equal(choiceOf(s).chosen, 'keep');
+  assert.equal(rows(s.sqlite, 'chat_message_meta').filter(r => JSON.parse(r.meta_json).proposal).length, 1, 'one plan message');
+  assert.deepEqual(s.model.roles(), ['brief']);
 });
 
 test('supported: the usual plan message; the outcome says what the checks found, and no words promise a fit', { skip }, async t => {
@@ -193,29 +256,44 @@ test('the Chat explanation arrives after a failed write, once, and a lost answer
   db.batch = statements => (broken ? Promise.reject(new Error('D1 busy')) : batch(statements));
   const { id, done } = await s.generated();
   assert.equal(done.stage, 'failed');
-  const explained = () => chat(s).filter(m => /was not finished/.test(m.content));
-  assert.equal(explained().length, 0);
+  assert.equal(explained(s).length, 0);
   assert.equal((await s.job(id)).job.chatPending, true);
   assert.ok(failureText(done), 'the card has the words meanwhile');
   broken = false;
+  s.stored(id).reportAt = 0; // its retry is due
   await s.actor.alarm();
-  assert.equal(explained().length, 1);
+  assert.equal(explained(s).length, 1);
   assert.equal((await s.job(id)).job.chatPending, false);
   // Crash after the write, before the save: the next try finds its own message.
   const stored = s.stored(id);
-  Object.assign(stored, { reported: undefined, reportTries: 1 });
+  Object.assign(stored, { reported: undefined, reportTries: 1, reportAt: 0 });
   await s.actor.alarm(); await s.object().alarm();
-  assert.equal(explained().length, 1);
+  assert.equal(explained(s).length, 1);
   assert.equal(s.stored(id).reported, stored.attempt);
 });
-test('a Chat write that keeps failing stops trying and leaves the job and its evidence as they were', { skip }, async t => {
+test('more than five failed Chat writes: delivery stays pending with a capped backoff, a status read recovers it, and exactly one message lands with no paid work', { skip }, async t => {
   const s = animationStack(t, { pipeline: STUB_PIPELINE({ author: async () => { throw Object.assign(new Error('x'), { stopReason: 'deadline', status: 409 }); } }) });
-  s.env.LEARN_DB.batch = () => Promise.reject(new Error('down'));
+  const db = s.env.LEARN_DB, batch = db.batch.bind(db);
+  let broken = true;
+  db.batch = statements => (broken ? Promise.reject(new Error('down')) : batch(statements));
   const { id, done } = await s.generated();
-  for (let i = 0; i < 8; i++) await s.actor.alarm();
+  const paid = s.model.roles().length;
+  for (let i = 0; i < 9; i++) { s.stored(id).reportAt = 0; await s.actor.alarm(); }
+  assert.ok(s.stored(id).reportTries > 5, `${s.stored(id).reportTries} tries`);
+  assert.equal(s.stored(id).reported, undefined, 'still undelivered');
+  const wait = s.stored(id).reportAt - Date.now();
+  assert.ok(wait > 30000 && wait <= 30 * 60000, `capped backoff ${wait}`);
+  // Due later: an alarm now does not write.
+  broken = false;
+  await s.actor.alarm();
+  assert.equal(explained(s).length, 0, 'not due yet');
+  // A status read (the card's poll, a reopen) tries at once.
   assert.equal((await s.job(id)).job.chatPending, false);
-  assert.deepEqual([s.stored(id).stage, s.stored(id).failure.stage], ['failed', done.failure.stage]);
+  await s.job(id); await s.actor.alarm(); await s.object().alarm();
+  assert.equal(explained(s).length, 1, 'exactly one message');
+  assert.deepEqual([s.stored(id).stage, s.stored(id).failure.stage, s.model.roles().length], ['failed', done.failure.stage, paid], 'the job and its evidence as they were; no paid work');
 });
+
 
 // The words every class shows and the action it offers. Literal on purpose: the report quotes this table.
 test('each failure class has its own words and its own next action, on the records the dev fixtures seed', () => {
