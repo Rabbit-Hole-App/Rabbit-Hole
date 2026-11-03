@@ -1,4 +1,4 @@
-/* The analytics choice banner (analytics-banner.js): both buttons look the same, and it blocks nothing behind it. Bottom right, above the toasts. */
+/* The analytics choice banner (analytics-banner.js): both buttons are the same size, Accept is the primary blue (owner 2026-11-02), and it blocks nothing behind it. Bottom right, above the toasts. */
 .rh-consent { position: fixed; right: 16px; bottom: max(calc(var(--agent-bar-h, 0px) + 16px), calc(16px + env(safe-area-inset-bottom))); z-index: 60; box-sizing: border-box; width: min(24rem, calc(100vw - 32px)); padding: 14px; border: 1px solid #d3d1cb; border-radius: 8px; background: #fff; color: #37352f; font: 13px/1.45 Inter, system-ui, sans-serif; box-shadow: 0 4px 16px rgba(0, 0, 0, .12); }
 .rh-consent p { margin: 0 0 10px; }
 .rh-consent a { color: inherit; text-decoration: underline; }
@@ -13,4 +13,8 @@
 .dark .rh-consent button { border-color: #e6e5e3; background: #252525; color: #e6e5e3; }
 .dark .rh-consent button:hover { background: #333; }
 .dark .rh-consent button[aria-pressed="true"] { background: #e6e5e3; color: #252525; }
+/* index.css --color-primary-fill and its hover, written out: the public pages do not load index.css. After the dark rules, in both themes. */
+.rh-consent button[data-analytics-choose="accepted"] { border-color: #1b6fc2; background: #1b6fc2; color: #fff; }
+.rh-consent button[data-analytics-choose="accepted"]:hover { border-color: #165ca3; background: #165ca3; }
+.rh-consent button[data-analytics-choose="accepted"][aria-pressed="true"] { border-color: #165ca3; background: #165ca3; color: #fff; box-shadow: inset 0 0 0 2px #fff; }
 @media (prefers-reduced-motion: reduce) { .rh-consent button { transition: none; } .rh-consent button:active { transform: none; } }
