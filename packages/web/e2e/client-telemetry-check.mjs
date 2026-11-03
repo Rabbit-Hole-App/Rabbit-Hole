@@ -17,7 +17,7 @@ const secret = readFileSync(vars, 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1]
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `clienttel-${Date.now().toString(36)}@example.com`, secret }) })).json();
 
 const MESSAGE = 'synthetic-private-message-731';
-const batches = [], traceHeaders = [], pageErrors = [];
+const batches = [], traceHeaders = [], pageErrors = [], analyticsRequests = [];
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
@@ -30,10 +30,12 @@ await context.route('**/api/learn/coaching**', route => route.fulfill({ status: 
 const page = await context.newPage();
 page.on('request', request => { const trace = request.headers()['x-rh-trace']; if (trace) traceHeaders.push({ url: new URL(request.url()).pathname, trace }); });
 page.on('pageerror', error => pageErrors.push(error.message));
+// Usage analytics (usage-analytics.js): this build, like every CI and dev build, has no PostHog configuration.
+context.on('request', request => { if (/posthog/i.test(new URL(request.url()).hostname)) analyticsRequests.push(request.url()); });
 await page.goto(`${BASE}/apps`);
 await page.waitForFunction(() => window.fetch.clientTelemetryHook === true, null, { timeout: 60000 });
 
-const total = 8;
+const total = 9;
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
 // Waits for a condition the step asserts (polled, bounded), never a fixed pause.
@@ -111,6 +113,13 @@ await check('the browser endpoint answers an empty batch where telemetry is not 
   const response = await fetch(`${BASE}/api/telemetry/client`, { method: 'POST', headers: { 'content-type': 'application/json', cookie: `small_session=${session}` }, body: '{"events":[]}' });
   assert.ok([202, 204].includes(response.status), `status ${response.status}`);
   assert.equal((await fetch(`${BASE}/api/telemetry/client`)).status, 405);
+});
+
+await check('an unconfigured build (CI, dev) sends no usage analytics and keeps no analytics identity', async () => {
+  await page.goto(`${BASE}/apps`);
+  await page.evaluate(() => { history.pushState(null, '', '/library'); dispatchEvent(new PopStateEvent('popstate')); dispatchEvent(new Event('pagehide')); });
+  assert.deepEqual(analyticsRequests, []);
+  assert.deepEqual(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('rh_ph_'))), []);
 });
 
 assert.deepEqual(pageErrors.filter(message => !message.includes('synthetic')), [], 'no page errors besides the synthetic ones');

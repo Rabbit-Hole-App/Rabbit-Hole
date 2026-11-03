@@ -1,6 +1,7 @@
 // Fork (docs/features/canvas-forking.md): every surface - the shared header, another person's Explore card - forks
 // through this one call. Pure, so the retry rule is tested.
 import { wsHeaders } from './api.js';
+import { track } from './usage-analytics.js';
 
 // POST /api/learn/boards/fork. `source` is { canvas } (your own) or { token } (a share link); `state` is
 // your browser's copy of your own canvas, where its content lives; `title` is the name typed in the Fork dialog (blank: the
@@ -24,7 +25,7 @@ export function forkAction(send = postFork, newKey = () => crypto.randomUUID()) 
     if (flight) return flight;
     key ||= newKey();
     flight = send({ source, key, ...(state ? { state } : {}), ...(title ? { title } : {}), ...(draft ? { draft } : {}) })
-      .then(data => { key = null; return data; })
+      .then(data => { key = null; if (!data?.replayed) track('rh_canvas_forked'); return data; }) // a replayed reply is the same fork
       .finally(() => { flight = null; });
     return flight;
   };

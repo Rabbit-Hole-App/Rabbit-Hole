@@ -15,3 +15,14 @@ footer .footer-links-row a:focus-visible{outline:2px solid currentColor;outline-
 @media(hover:hover){footer .footer-links-row a:hover{text-decoration:underline;text-underline-offset:4px}}
 @media(max-width:900px){.footer-links-row{flex-wrap:wrap}.footer-socials{gap:10px}}
 @media(max-width:600px){.footer-links-row{align-items:flex-start;gap:10px}.footer-socials{flex-wrap:wrap;gap:4px 10px}footer .footer-links-row .footer-secondary-nav{gap:4px 21px}.footer-social-icon{width:30px}footer .footer-links-row .footer-email{font-size:11px;gap:8px}}
+
+/* Only where the choice exists (analytics-banner.js marks the page). */
+[data-analytics-preferences]{display:none}
+html[data-analytics-choice] [data-analytics-preferences]{display:inline-flex}
+footer .footer-links-row a.footer-preferences{width:32px;justify-content:center}
+.footer-preferences svg{width:18px;height:18px}
+/* Book a call: the footer's one button (owner 2026-11-02), outlined so it reads as one in both themes. */
+footer .footer-links-row a.footer-call{padding:6px 14px;min-height:34px;border:1px solid currentColor;border-radius:999px;font-weight:500;transition:transform .1s}
+footer .footer-links-row a.footer-call:active{transform:scale(.97)}
+@media(hover:hover){footer .footer-links-row a.footer-call:hover{text-decoration:none;background:color-mix(in srgb,currentColor 10%,transparent)}}
+@media(prefers-reduced-motion:reduce){footer .footer-links-row a.footer-call{transition:none}footer .footer-links-row a.footer-call:active{transform:none}}

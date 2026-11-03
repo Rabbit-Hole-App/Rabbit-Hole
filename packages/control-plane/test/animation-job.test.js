@@ -24,7 +24,7 @@ test('a request prepares one plan and waits: the signed proposal carries the rec
   assert.deepEqual(p.requirements, planLines(PLAN));
   assert.match(p.requirements[0], /^Recommended: experiment\. Changing the masses/);
   // The review card's short summary (owner 2026-10-31) is signed beside the full plan lines: parameters without ids, the actions.
-  assert.deepEqual(p.input.scene, planScene(PLAN));
+  assert.deepEqual(p.input.scene, { ...planScene(PLAN), planCredits: Math.ceil(waiting.reservation.preparationMicros / 10000) });
   assert.deepEqual(p.input.scene.parameters.map(x => x.label), PLAN.parameters.map(x => x.label));
   assert.ok(p.input.scene.parameters.every(x => !('id' in x)), 'no ids on the summary');
   // The most it can cost is the build's worst case; nothing is shown as held.
@@ -228,7 +228,7 @@ test('provider overload pauses at its stage; Retry resumes there within the same
   assert.deepEqual([done.stage, done.failure.stage, done.failure.category, done.counts.review, done.waited, done.autoRetried], ['failed', 'reviewing', 'provider_unavailable', 0, 1, 1]);
   assert.deepEqual((await s.job(id)).job.recovery, ['new_attempt', 'edit_request']);
   // A zero-charge provider refusal: the call ledger records it refused at 0, so the card and Chat may say it was not charged.
-  const busy = 'The AI service was busy. You are not charged for it. It was retried automatically. Try again continues from where it stopped.';
+  const busy = `The AI service was busy. You are not charged for it. It was retried automatically. Try again continues from where it stopped, using up to ${Math.ceil((done.reservation.generationMicros - done.bounds.generation) / 10000)} AI credits.`;
   assert.equal((await s.job(id)).job.failure.message, busy);
   assert.deepEqual(rows(s.sqlite, 'messages').filter(m => /was not finished/.test(m.content)).map(m => m.content), [`"${PLAN.title}" was not finished. ${busy} Your request and plan are kept.`]);
   down = false;

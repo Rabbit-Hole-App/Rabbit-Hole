@@ -87,10 +87,11 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   // ExplainJobs (EXP-T12) is bound everywhere; in prod its tag follows the already-applied cad-jobs-1, since a migration tag
   // placed before an applied one would never run.
   // ImageJobs (IMG-01) likewise: bound everywhere, its image-jobs-1 tag last in prod, after the applied explain-jobs-1.
-  // AnimationJobs (AN-05) is dev-only until /animation has a production GO: it is left out of the production parity.
-  const devOnly = { bindings: [...dev.durable_objects.bindings.filter(b => !['FileJobs','CadJobs','ExplainJobs','ImageJobs','AnimationJobs'].includes(b.class_name)), {name:'CAD_JOBS',class_name:'CadJobs'}, {name:'EXPLAIN_JOBS',class_name:'ExplainJobs'}, {name:'IMAGE_JOBS',class_name:'ImageJobs'}, {name:'FILE_JOBS',class_name:'FileJobs'}] };
+  // AnimationJobs (AN-05, owner production GO 2026-11-02): the dev binding and dev tag, its animation-jobs-1 last in prod, after the applied file-jobs-1.
+  const devOnly = { bindings: [...dev.durable_objects.bindings.filter(b => !['FileJobs','CadJobs','ExplainJobs','ImageJobs','AnimationJobs'].includes(b.class_name)), {name:'CAD_JOBS',class_name:'CadJobs'}, {name:'EXPLAIN_JOBS',class_name:'ExplainJobs'}, {name:'IMAGE_JOBS',class_name:'ImageJobs'}, {name:'FILE_JOBS',class_name:'FileJobs'}, {name:'ANIMATION_JOBS',class_name:'AnimationJobs'}] };
   assert.deepEqual(app.durable_objects, devOnly);
-  assert.deepEqual(app.migrations, [...dev.migrations.filter(m => !['file-jobs-1','cad-jobs-1','explain-jobs-1','image-jobs-1','animation-jobs-1'].includes(m.tag)), {tag:'cad-jobs-1',new_sqlite_classes:['CadJobs']}, {tag:'explain-jobs-1',new_sqlite_classes:['ExplainJobs']}, {tag:'image-jobs-1',new_sqlite_classes:['ImageJobs']}, {tag:'file-jobs-1',new_sqlite_classes:['FileJobs']}]);
+  assert.deepEqual(app.migrations, [...dev.migrations.filter(m => !['file-jobs-1','cad-jobs-1','explain-jobs-1','image-jobs-1','animation-jobs-1'].includes(m.tag)), {tag:'cad-jobs-1',new_sqlite_classes:['CadJobs']}, {tag:'explain-jobs-1',new_sqlite_classes:['ExplainJobs']}, {tag:'image-jobs-1',new_sqlite_classes:['ImageJobs']}, {tag:'file-jobs-1',new_sqlite_classes:['FileJobs']}, {tag:'animation-jobs-1',new_sqlite_classes:['AnimationJobs']}]);
+  assert.deepEqual(dev.migrations.find(m => m.tag === 'animation-jobs-1'), { tag: 'animation-jobs-1', new_sqlite_classes: ['AnimationJobs'] }, 'the same tag as dev');
   // A migration tag is applied once per worker: every config's tags are unique, and image-jobs-1 adds only ImageJobs.
   for (const c of [app, dev]) assert.equal(new Set(c.migrations.map(m => m.tag)).size, c.migrations.length);
   // IMG-01 is public in production only (owner GO); the dev configs stay off; only the string 'true' accepts new jobs (image-jobs.js imageJobsEnabled).
@@ -146,7 +147,7 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
 test('production binds FILE_JOBS and enables file conversion and Ctrl+K image edit, not JavaScript runs', () => {
   const app = config(APP);
   assert.deepEqual(app.durable_objects.bindings.filter(b => b.name === 'FILE_JOBS'), [{ name: 'FILE_JOBS', class_name: 'FileJobs' }]);
-  assert.deepEqual(app.migrations.at(-1), { tag: 'file-jobs-1', new_sqlite_classes: ['FileJobs'] }, 'a new tag goes after every applied one');
+  assert.deepEqual(app.migrations.at(-2), { tag: 'file-jobs-1', new_sqlite_classes: ['FileJobs'] }, 'a new tag goes after every applied one');
   for (const name of ['FILE_JOB_CONCURRENCY',
     'INLINE_CODE_ENABLED', 'INLINE_CODE_MAX_RUNS', 'INLINE_CODE_MAX_MICROS', 'INLINE_CODE_RESERVE_MICROS']) assert.equal(app.vars[name], undefined, name);
   // Ctrl+K image edit is the one feature activated here (ctrlk-completion.md): its flag and hold are set; its OPENAI_API_KEY secret is never in the config.
@@ -171,6 +172,30 @@ test('production Motion (R2b): public generation unpaused, the measured renderer
   assert.equal(cp.vars?.MOTION_RENDERER_CONFIG, undefined, 'MOTION_RENDERER_CONFIG on the control plane Worker');
   assert.equal(app.vars.MOTION_MAX_CHARGE_USD, '5.00');
   assert.equal(cp.vars?.MOTION_MAX_CHARGE_USD, undefined, 'the control plane Worker has no maximum');
+});
+
+// /animation (owner production GO 2026-11-02): ANIMATION_JOBS and animation-jobs-1 on the app Worker, generation on, the execution kill
+// switch present and off, diagnostics never. The rollback commits flip one pin below; the binding and the tag stay in every state.
+test('production /animation: bound, on, kill switch off, no diagnostics; each rollback flip stops its part and keeps the objects', async () => {
+  const { animationEnabled, animationExecution, animationRoute, ANIMATION_PROBE_PATH } = await import('../src/animation-job.js');
+  const app = config(APP), cp = config(CP);
+  assert.deepEqual(app.durable_objects.bindings.filter(b => b.class_name === 'AnimationJobs'), [{ name: 'ANIMATION_JOBS', class_name: 'AnimationJobs' }]);
+  assert.deepEqual(app.migrations.at(-1), { tag: 'animation-jobs-1', new_sqlite_classes: ['AnimationJobs'] });
+  assert.equal(app.vars.ANIMATION_ENABLED, 'true');
+  assert.equal(app.vars.ANIMATION_EXECUTION_KILL, 'false');
+  assert.deepEqual(Object.keys(app.vars).filter(k => k.startsWith('ANIMATION_')).sort(), ['ANIMATION_ENABLED', 'ANIMATION_EXECUTION_KILL'], 'no ANIMATION_DIAGNOSTICS or other Animation var');
+  assert.deepEqual(Object.keys(cp.vars).filter(k => k.startsWith('ANIMATION_')), [], 'the control plane Worker runs no /animation');
+  // What each state does, read by the server's own switches. Fixture bindings stand in for the real ones (never reached on a refusal).
+  const env = vars => ({ ...vars, ANIMATION_JOBS: { get: () => assert.fail('a refused request reached the job object') }, LEARN_DB: {} });
+  const post = path => new Request(`https://digrabbithole.com${path}`, { method: 'POST', body: '{}' });
+  const on = { ...app.vars, ANIMATION_ENABLED: 'true', ANIMATION_EXECUTION_KILL: 'false' };
+  assert.deepEqual([animationEnabled(on), animationExecution(on).allowed], [true, true]);
+  assert.equal((await animationRoute(ANIMATION_PROBE_PATH, post(ANIMATION_PROBE_PATH), env(on))).status, 404, 'the render probes stay off');
+  const off = { ...on, ANIMATION_ENABLED: 'false' };
+  const refused = await animationRoute('/api/learn/animation/jobs', post('/api/learn/animation/jobs'), env(off));
+  assert.deepEqual([refused.status, (await refused.json()).code], [404, 'animation_disabled'], 'rollback "off": no new plan or build starts');
+  assert.equal(animationExecution(off).allowed, true, 'rollback "off" leaves the execution switch alone');
+  assert.equal(animationExecution({ ...on, ANIMATION_EXECUTION_KILL: 'true' }).allowed, false, 'rollback "kill": saved cards stop running');
 });
 
 test('the control plane is private: no route, no workers.dev, SMALL_ENV production, BASE_URL and PUBLIC_ORIGIN the public origin', () => {

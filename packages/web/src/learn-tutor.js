@@ -8,6 +8,7 @@
 // `domain`, the nanoGPT one (NANOGPT, learn-tutor-claims.js) by default, so nanoGPT callers are unchanged; a journey
 // canvas passes journeyDomain (learn-journey-domain.js) to the same functions.
 import { resolveTarget } from './learn-target.js';
+import { track } from './usage-analytics.js';
 import { cardBlock } from './nanogpt/board.js';
 import { partIndex } from './nanogpt/depth/board.js';
 import { describeAnimation } from './scene-describe.js';
@@ -544,6 +545,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   try { response = await tracer.step('planner', () => (onSpeakable ? post('/api/learn/tutor/plan', { ...planBody, stream: true }, { onSentence }) : post('/api/learn/tutor/plan', planBody)), out => out.telemetry?.outcome ?? 'ok'); }
   catch (error) { throw Object.assign(error, { trace: tracer.trace }); } // the failed turn's trace travels with its error
   const ready = now();
+  track('rh_tutor_used'); // usage analytics: a Tutor turn the planner answered
   let { actions, log, decisions, reading } = tracer.step('action_validation', () => enforce(response, routed, turn, domain),
     out => `${out.decisions.filter(decision => decision.accepted).length} accepted, ${out.decisions.filter(decision => !decision.accepted).length} rejected`);
   const enforced = now();

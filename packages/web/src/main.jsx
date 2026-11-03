@@ -33,6 +33,7 @@ import { baseSurfaceFor, canonicalPath, pageFor, takeWs } from './routes.js';
 import { editorOpen, reloadForNewBuild } from './chunk-reload.js';
 import { installAiRefusalHook } from './ai-refusal.js';
 import { installClientTelemetry, reportClientError } from './client-telemetry.js';
+import { startAppAnalytics } from './analytics-config.js';
 import { embedRoute, fullHref, installEmbedFetch } from './embed-api.js';
 import { EmbedCanvasLoading, MemberCanvasLoading, SharedCanvasLoading } from './CanvasLoading.jsx';
 
@@ -45,6 +46,8 @@ const embedded = embedRoute(window.location.pathname, window.location.search);
 if (embedded) installEmbedFetch();
 // Centralized browser errors (client-telemetry.js, docs/features/telemetry.md): Rabbit Hole builds, never inside an embedding site.
 if (learnPreview && !embedded) installClientTelemetry(window, { release: /^[0-9a-f]{7,40}$/.test(import.meta.env.VITE_RELEASE_SHA || '') ? import.meta.env.VITE_RELEASE_SHA : null });
+// Usage analytics (usage-analytics.js, docs/features/usage-analytics.md): the same pages, off unless the build is configured.
+if (learnPreview && !embedded) startAppAnalytics();
 applyTheme(embedded ? embedded.theme || 'system' : getTheme()); // before first paint - no light flash for dark users
 applyUiPrefs(); // text size and reduced motion (Settings > Appearance & input), also before first paint
 // The live build keeps index.html's title and icons; Rabbit Hole uses the website's mark in the tab, as v3: the same

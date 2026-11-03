@@ -1,0 +1,20 @@
+/* The analytics choice banner (analytics-banner.js): both buttons are the same size, Accept is the primary blue (owner 2026-11-02), and it blocks nothing behind it. Bottom right, above the toasts. */
+.rh-consent { position: fixed; right: 16px; bottom: max(calc(var(--agent-bar-h, 0px) + 16px), calc(16px + env(safe-area-inset-bottom))); z-index: 60; box-sizing: border-box; width: min(24rem, calc(100vw - 32px)); padding: 14px; border: 1px solid #d3d1cb; border-radius: 8px; background: #fff; color: #37352f; font: 13px/1.45 Inter, system-ui, sans-serif; box-shadow: 0 4px 16px rgba(0, 0, 0, .12); }
+.rh-consent p { margin: 0 0 10px; }
+.rh-consent a { color: inherit; text-decoration: underline; }
+.rh-consent-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.rh-consent button { flex: 1 1 8rem; min-height: 36px; padding: 6px 10px; border: 1px solid #37352f; border-radius: 6px; background: #fff; color: #37352f; font: inherit; font-weight: 500; cursor: pointer; transition: transform 80ms ease-out, background-color 80ms ease-out; }
+.rh-consent button:hover { background: #f1f1ef; }
+.rh-consent button:active { transform: scale(.98); }
+.rh-consent button[aria-pressed="true"] { background: #37352f; color: #fff; }
+.rh-consent a:focus-visible, .rh-consent button:focus-visible { outline: 2px solid #2383e2; outline-offset: 2px; }
+@media (max-width: 600px) { .rh-consent { right: 12px; width: calc(100vw - 24px); } .rh-consent button { min-height: 44px; } }
+.dark .rh-consent { border-color: #4b4a47; background: #252525; color: #e6e5e3; }
+.dark .rh-consent button { border-color: #e6e5e3; background: #252525; color: #e6e5e3; }
+.dark .rh-consent button:hover { background: #333; }
+.dark .rh-consent button[aria-pressed="true"] { background: #e6e5e3; color: #252525; }
+/* index.css --color-primary-fill and its hover, written out: the public pages do not load index.css. After the dark rules, in both themes. */
+.rh-consent button[data-analytics-choose="accepted"] { border-color: #1b6fc2; background: #1b6fc2; color: #fff; }
+.rh-consent button[data-analytics-choose="accepted"]:hover { border-color: #165ca3; background: #165ca3; }
+.rh-consent button[data-analytics-choose="accepted"][aria-pressed="true"] { border-color: #165ca3; background: #165ca3; color: #fff; box-shadow: inset 0 0 0 2px #fff; }
+@media (prefers-reduced-motion: reduce) { .rh-consent button { transition: none; } .rh-consent button:active { transform: none; } }

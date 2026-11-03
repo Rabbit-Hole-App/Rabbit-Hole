@@ -6,7 +6,8 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 
 const dir = new URL(`../${process.env.DIST || 'dist-dev'}/static/`, import.meta.url);
 const names = readdirSync(dir);
-const REQUIRED_CHUNKS = ['CanvasPage', 'RepositoryPage', 'Home', 'AgentBar'];
+// Animation3DCard: the /animation card (owner production GO 2026-11-02); /animation has no build flag, so every build ships it.
+const REQUIRED_CHUNKS = ['CanvasPage', 'RepositoryPage', 'Home', 'AgentBar', 'Animation3DCard'];
 const DEV_CHUNKS = /^(review-fixtures-data|map-memory-data)-/;
 // Lesson-block workbench, coaching dev panel, dev-only palette items, review fixtures, review boards, and the
 // dev notebook origins a build falls back to without VITE_NOTEBOOK_ORIGIN / VITE_LESSON_NOTEBOOK_ORIGIN, and the
@@ -22,15 +23,26 @@ const DEV_MARKERS = ['Insert a sample lesson block', 'Agent workspace', 'Maths a
 // ponytail: the Sidebar Developer tab / New app dialog and run.jsx copy stay in the bundle behind a runtime flag; e2e/legacy-copy-check.mjs
 // covers them in a browser.
 const LEGACY_MARKERS = ['ships the first one', 'Get the CLI', 'CLI for hosted Small', 'Use the private CLI to sign into this installation'];
+// Usage analytics (docs/features/usage-analytics.md): no build ever carries a personal PostHog API key (phx_). The release build
+// (scripts/prod-release.mjs prepare sets EXPECT_ANALYTICS=1) carries the project token and host from its BUILD_ENV, so the
+// configuration reaches production through the release workflow itself.
+const releaseEnv = () => readFileSync(new URL('../../../scripts/prod-release.mjs', import.meta.url), 'utf8');
+const ANALYTICS = process.env.EXPECT_ANALYTICS === '1'
+  ? [releaseEnv().match(/VITE_POSTHOG_TOKEN: '(phc_[A-Za-z0-9]+)'/)?.[1], releaseEnv().match(/VITE_POSTHOG_HOST: '(https:\/\/[a-z0-9.-]+)'/)?.[1]] : null;
+let analyticsChunk = null;
 const failures = [];
+if (ANALYTICS && !ANALYTICS.every(Boolean)) failures.push('scripts/prod-release.mjs BUILD_ENV names no PostHog project token and host');
 for (const chunk of REQUIRED_CHUNKS) if (!names.some(n => n.startsWith(`${chunk}-`))) failures.push(`missing Learn chunk ${chunk}`);
 for (const name of names) {
   if (DEV_CHUNKS.test(name)) failures.push(`${name}: a dev-only chunk`);
   if (!name.endsWith('.js')) continue;
   const text = readFileSync(new URL(name, dir), 'utf8');
+  if (/phx_[A-Za-z0-9]{8,}/.test(text)) failures.push(`${name}: contains a personal PostHog API key`);
+  if (ANALYTICS?.every(value => value && text.includes(value))) analyticsChunk = name;
   for (const marker of DEV_MARKERS) if (text.includes(marker)) failures.push(`${name}: contains dev-only "${marker}"`);
   for (const marker of LEGACY_MARKERS) if (text.includes(marker)) failures.push(`${name}: contains retired CLI/BYOC copy "${marker}"`);
 }
+if (ANALYTICS && !analyticsChunk) failures.push('no chunk carries the PostHog project token and host: the release build is not configured for usage analytics');
 // The /explain render entry (EXP-T18) and the /animation one (AN-05): explain-render.js / animation-render.js load them from this
 // build's assets and their interception serves only the entry and /static/<file>.(js|css|woff2?|ttf), so each must exist and reference nothing else.
 for (const entry of ['render/scene.html', 'render/animation3d.html']) {
@@ -54,4 +66,4 @@ if (existsSync(new URL('design/rabbit-hole-docs.html', built))) failures.push('d
 // The public Team page is removed (owner 2026-10-29): /team is the 404 page, so its entry must not ship either.
 if (existsSync(new URL('design/rabbit-hole-team.html', built))) failures.push('design/rabbit-hole-team.html ships, but the public Team page is removed');
 if (failures.length) { console.log(failures.join('\n')); process.exit(1); }
-console.log('ok: the production build ships the Learn app and no dev-only tools');
+console.log(`ok: the production build ships the Learn app and no dev-only tools${analyticsChunk ? `; usage analytics configured (${analyticsChunk})` : ''}`);

@@ -14,7 +14,8 @@
 // the real request path with a fake job server in the page: /animation in Chat, its plan (title, experience, reason), an experience
 // change saving version 2, Generate pressed twice making one approve and one card from the served artifact, a working control, and a
 // reload restoring it with no job or model request; a browser without WebGL keeps the description and says so; no page or console
-// error, no model request.
+// error, no model request; before Generate a plan that looks too large offers its changes in Chat and only an accepted one gets a Generate, an unsupported
+// request explains itself and offers alternatives with their cost, and a failure's explanation arrives in Chat once and stays once after a reload (fake job server: wiring only).
 // Hooks: the card's data-animation-* / data-animation3d-* attributes (Animation3DCard.jsx, animation3d/Controls.jsx; lane U hand-back).
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/animation-mvp-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
@@ -31,7 +32,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('animation-mvp-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'animation-mvp-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 36; // bump with the steps below; the printed line is what CI reads
+const TOTAL = 39; // bump with the steps below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `anim-${run}@example.com`, secret, handle: `anim_${run}` }) })).json();
@@ -560,10 +561,10 @@ export function evaluate({ state }) {
     program: { ...ARTIFACT.program, source: DRAG_SOURCE, sourceHash: await hashProgramSource(DRAG_SOURCE) }, seed: 1, camera: { position: [0, 0, 6], target: [0, 0, 0] }, assumptions: [] };
   const SERVED = new Map([[ARTIFACT.artifactId, ARTIFACT], [DRAG_ARTIFACT.artifactId, DRAG_ARTIFACT]]);
   const sha16 = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
-  const flow = { jobs: new Map(), creates: [], approves: [], retries: [], puts: [], reads: [], writes: [], proposals: new Map(), briefs: [], fail: null };
+  const flow = { jobs: new Map(), creates: [], approves: [], retries: [], puts: [], reads: [], writes: [], proposals: new Map(), briefs: [], fail: null, chooses: [], say: null };
   const viewOf = job => ({ id: job.id, version: 1, boardId: job.boardId, cardId: job.cardId, stage: job.stage, attempt: 1, terminal: ['ready', 'failed', 'cancelled'].includes(job.stage),
-    repairs: 0, stopReason: null, failure: job.failure ?? null, recovery: job.recovery ?? [], usage: { credits: 0, unknown: false }, createdAt: 0, updatedAt: 0,
-    result: job.stage === 'ready' ? { jobId: job.id, resultId: job.artifact.artifactId, cardId: job.cardId, canvas: { boardId: job.boardId }, requestRef: sha16(`${job.requestId}|${job.prompt}`), revision: 1, planHash: job.artifact.planHash } : null });
+    repairs: 0, stopReason: null, choiceOpen: !!job.choiceOpen, threadId: job.threadId ?? null, chatPending: false, failure: job.failure ?? null, recovery: job.recovery ?? [], usage: { credits: 0, unknown: false }, createdAt: 0, updatedAt: 0,
+    ...(job.successor ? { successor: job.successor } : {}), result: job.stage === 'ready' ? { jobId: job.id, resultId: job.artifact.artifactId, cardId: job.cardId, canvas: { boardId: job.boardId }, requestRef: sha16(`${job.requestId}|${job.prompt}`), revision: 1, planHash: job.artifact.planHash } : null });
   const planOf = job => ({ proposal_id: sha16(job.id), version: 1, command: 'animation', title: job.artifact.title,
     description: 'A beam on a pivot with one weight on each side; change masses and distances and watch it tilt.', settings: { experience: 'watch' }, source_refs: [], references: [],
     assumptions: ['Rigid, massless beam.', 'The pivot has no friction.'], limitations: ['The tilt is illustrative.'], requirements: [`Recommended: watch. ${REASON}`, 'Behavior: analytical', 'Controls: manipulate'],
@@ -584,12 +585,16 @@ export function evaluate({ state }) {
       let job = [...flow.jobs.values()].find(entry => entry.requestId === body.requestId);
       if (!job) {
         flow.creates.push(body);
-        job = { id: `aj_${run}${flow.jobs.size + 1}`, requestId: body.requestId, boardId: body.boardId, cardId: body.cardId, prompt: body.prompt, stage: 'preparing', artifact: flow.next || ARTIFACT };
+        job = { id: `aj_${run}${flow.jobs.size + 1}`, requestId: body.requestId, boardId: body.boardId, cardId: body.cardId, prompt: body.prompt, stage: 'preparing', artifact: flow.next || ARTIFACT, threadId: body.threadId };
         flow.next = null;
         flow.jobs.set(job.id, job);
         const messageId = String(800001 + flow.briefs.length);
-        flow.proposals.set(messageId, planOf(job));
-        flow.briefs.push({ messageId, threadId: body.threadId, jobId: job.id });
+        // flow.say: the server's own Chat message for this job in place of a plan (a choice of changes, or a failure's explanation).
+        if (!flow.say) flow.proposals.set(messageId, planOf(job));
+        flow.briefs.push({ messageId, threadId: body.threadId, jobId: job.id, ...(flow.say ? { say: flow.say } : {}) });
+        job.choiceOpen = !!flow.say?.open;
+        if (flow.say?.choice) flow.say.choice.jobId = job.id;
+        flow.say = null;
         const answer = viewOf(job);
         job.stage = 'awaiting_approval'; // the card's first read sees the plan waiting, so its thread is shown again
         // A failure the server explained (flow.fail): the card's next read finds the job failed with the server's words and actions.
@@ -605,9 +610,24 @@ export function evaluate({ state }) {
       // Revise plan: the server answers the new job for the same card and request; its next read finds the revised plan waiting.
       if (one[2] === 'retry') {
         flow.retries.push({ jobId: job.id, body: request.postDataJSON() });
+        const asked = flow.briefs.find(b => b.jobId === job.id && b.say?.choice);
+        if (asked) asked.say.choice.chosen = request.postDataJSON().alternative;
         const next = { ...job, id: `${job.id}r`, stage: 'awaiting_approval', failure: null, recovery: [] };
+        job.successor = next.id;
         flow.jobs.set(next.id, next);
         return route.fulfill({ status: 202, json: { job: { ...viewOf(next), stage: 'queued' } } });
+      }
+      // Accepting a change: no model call; the plan with its Generate is posted on the thread, and the choice message records the answer.
+      if (one[2] === 'choose') {
+        const sent = request.postDataJSON();
+        flow.chooses.push({ jobId: job.id, body: sent });
+        const asked = flow.briefs.find(b => b.jobId === job.id && b.say);
+        asked.say.choice.chosen = sent.choice;
+        job.choiceOpen = false;
+        const messageId = String(800001 + flow.briefs.length), base = planOf(job);
+        flow.proposals.set(messageId, { ...base, input: { ...base.input, scene: { ...base.input.scene, notices: asked.say.notices } } });
+        flow.briefs.push({ messageId, threadId: job.threadId, jobId: job.id });
+        return route.fulfill({ json: { job: viewOf(job) } });
       }
       if (one[2] === 'approve') {
         flow.approves.push({ jobId: job.id, body: request.postDataJSON() });
@@ -623,8 +643,8 @@ export function evaluate({ state }) {
       if (!mine.length) return route.fallback();
       const real = await route.fetch().catch(() => null);
       const base = real?.ok ? await real.json() : { id, title: 'Animation request', mode: 'auto', contextRefs: [], draft: null, messages: [] };
-      const message = b => ({ role: 'assistant', content: 'Here is the plan for your animation. Generate makes it.', messageId: b.messageId, kind: 'answer', status: 'done',
-        meta: { version: 1, mode: 'ask', kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, proposal: flow.proposals.get(b.messageId), alternatives: [b.messageId] } });
+      const message = b => ({ role: 'assistant', content: b.say?.content ?? 'Here is the plan for your animation. Generate makes it.', messageId: b.messageId, kind: 'answer', status: 'done',
+        meta: { version: 1, mode: 'ask', kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, ...(b.say ? { ...(b.say.choice ? { animationChoice: b.say.choice } : {}) } : { proposal: flow.proposals.get(b.messageId) }), alternatives: [b.messageId] } });
       return route.fulfill({ json: { ...base, messages: [...(base.messages || []), ...mine.map(message)] } });
     }
     const saved = path.match(/^\/api\/learn\/chat\/messages\/(\d+)\/proposal$/);
@@ -848,6 +868,85 @@ export function evaluate({ state }) {
     await root.locator('[data-animation-pending="awaiting_approval"]').waitFor({ timeout: 20000 });
     assert.equal(await root.locator('[data-animation-job-retry]').count(), 0, 'no retry while the new job waits');
     await shot(p, 'M-revised-waiting');
+    await c.close();
+  });
+  // FX-AN-031 (owner 2026-11-02): before Generate. A fake job server here, so these prove the card, Chat and press wiring; the server's own words and rules are in animation-feasibility.test.js.
+  const NOTICE = 'Changed: the trail draws 50 markers, one every 3 steps, instead of 150; every step still runs.';
+  const send = async p => {
+    await p.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 20000 });
+    await composer(p).click(); await composer(p).fill(`/animation ${REQUEST}`); await p.waitForTimeout(150); await composer(p).press('Enter');
+  };
+  await step('a plan that looks too large: Chat says why and what each change does, nothing to Generate; Use this plan pressed twice is one choice, and only then its plan has a Generate, with the change in view', async () => {
+    const { context: c, page: p } = await open({ canvas: fresh, first: null, extra: genRouter });
+    const creates = flow.creates.length, words = '"Beam balance" needs a change before it can be made. By our estimate this plan is too large to build and check: it draws a trail of 150 markers. An estimate can be wrong.';
+    flow.say = { open: true, content: words, notices: [NOTICE], choice: { jobId: null, attempt: 1, kind: 'size', key: 'size-key-1', chosen: null, alternatives: [{ id: 'fewer_markers', title: 'Draw a shorter trail', changes: [NOTICE] }] } };
+    await send(p);
+    await until(async () => flow.creates.length === creates + 1, 'one job', 20000);
+    const waiting = [...flow.jobs.values()].at(-1), dock = p.locator('[data-chat-pane]');
+    const offered = dock.locator('[data-animation-choice="size"]');
+    await offered.waitFor({ timeout: 20000 });
+    assert.ok((await dock.innerText()).includes('By our estimate'), 'the reason is in Chat');
+    assert.equal((await offered.locator('li').first().innerText()).trim(), NOTICE, 'exactly what changes');
+    assert.match(await offered.locator('[data-animation-alternative-cost]').innerText(), /^Uses no AI credits\. Nothing is built until you press Generate\.$/);
+    assert.equal(await dock.locator(`[data-generation-proposal="animation"][data-proposal-id="${sha16(waiting.id)}"]`).count(), 0, 'nothing to Generate before a change is accepted');
+    await p.locator(`[data-block-id="${waiting.cardId}"] [data-animation-stage]`).waitFor({ timeout: 20000 });
+    await until(async () => (await p.locator(`[data-block-id="${waiting.cardId}"] [data-animation-stage]`).innerText()).trim() === 'Choose a change to the plan in Chat', 'the card sends the learner to Chat');
+    await shot(p, 'N-oversized-choice');
+    await offered.locator('[data-animation-choose="fewer_markers"]').dblclick();
+    await until(async () => flow.chooses.length >= 1, 'a choose request');
+    await p.waitForTimeout(800);
+    assert.deepEqual(flow.chooses.at(-1), { jobId: waiting.id, body: { boardId: waiting.boardId, choice: 'fewer_markers', key: 'size-key-1' } }, 'two presses, one request naming the plan it was offered for');
+    assert.equal(flow.chooses.length, 1);
+    const accepted = dock.locator(`[data-generation-proposal="animation"][data-proposal-id="${sha16(waiting.id)}"]`);
+    await accepted.waitFor({ timeout: 20000 });
+    assert.deepEqual(await accepted.locator('[data-plan-notices] li').allInnerTexts(), [NOTICE], 'the change stays in view on the plan');
+    await accepted.locator('[data-proposal-generate]:not([disabled])').waitFor({ timeout: 10000 });
+    assert.ok(await dock.locator('[data-animation-chosen]').isVisible(), 'the choice says Chosen');
+    await shot(p, 'N-oversized-accepted');
+    await c.close();
+  });
+  await step('an unsupported request: its reason in Chat, alternatives with their cost, no retry on the card; pressing one asks for that alternative once and the card waits on the new job', async () => {
+    const { context: c, page: p } = await open({ canvas: fresh, first: null, extra: genRouter });
+    const creates = flow.creates.length, reason = 'A walkable world with real fluid physics needs a game engine these scenes do not have. Choose an alternative in Chat, or edit the request to start a new animation.';
+    flow.fail = { failure: { stage: 'preparing', category: 'capability', message: reason, retryable: false }, recovery: ['plan_alternative', 'edit_request'] };
+    flow.say = { content: `This animation cannot be made as asked. ${reason} Your request is kept.`, choice: { jobId: null, attempt: 1, kind: 'gap', chosen: null, alternatives: [{ id: 'watch', title: 'A scene to watch', changes: ['A looping illustration of the idea.'], credits: 56 }, { id: 'experiment', title: 'A small experiment', changes: ['A simplified model.'], credits: 56 }] } };
+    await send(p);
+    await until(async () => flow.creates.length === creates + 1, 'one job', 20000);
+    const failed = [...flow.jobs.values()].at(-1), root = p.locator(`[data-block-id="${failed.cardId}"]`), dock = p.locator('[data-chat-pane]');
+    await root.locator('[data-animation-pending="failed"]').waitFor({ timeout: 20000 });
+    assert.equal((await root.locator('[data-animation-stage]').innerText()).trim(), reason);
+    assert.equal(await root.locator('[data-animation-job-retry]').count(), 0, 'the alternatives are in Chat, not a second button here');
+    const offered = dock.locator('[data-animation-choice="gap"]');
+    await offered.waitFor({ timeout: 20000 });
+    assert.equal(await offered.locator('[data-animation-alternative]').count(), 2);
+    assert.equal((await offered.locator('[data-animation-alternative-cost]').first().innerText()).trim(), 'Uses up to 56 AI credits to write the plan. Nothing is built until you press Generate.');
+    await shot(p, 'N-unsupported');
+    const retries = flow.retries.length;
+    await offered.locator('[data-animation-choose="watch"]').dblclick();
+    await until(async () => flow.retries.length > retries, 'a retry request');
+    await p.waitForTimeout(800);
+    assert.deepEqual(flow.retries.slice(retries), [{ jobId: failed.id, body: { boardId: failed.boardId, expectedAttempt: 1, action: 'plan_alternative', alternative: 'watch' } }], 'two presses, one request naming the alternative');
+    await root.locator('[data-animation-pending="awaiting_approval"]').waitFor({ timeout: 20000 });
+    await c.close();
+  });
+  await step("a failure's explanation arrives in Chat with no action, and a reload shows it once, asking for nothing", async () => {
+    const { context: c, page: p } = await open({ canvas: fresh, first: null, extra: genRouter });
+    const creates = flow.creates.length, words = 'The scene builder reached its output limit before it finished. That does not prove your request is impossible; a smaller plan may fit. It used 36 AI credits. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate.';
+    flow.fail = { failure: { stage: 'authoring', category: 'model_output', code: 'output_limit', message: words, retryable: true }, recovery: ['revise_plan', 'edit_request'] };
+    flow.say = { content: `"Beam balance" was not finished. ${words} Your request and plan are kept.` };
+    await send(p);
+    await until(async () => flow.creates.length === creates + 1, 'one job', 20000);
+    const dock = p.locator('[data-chat-pane]'), said = dock.locator('[data-answer-body]').filter({ hasText: 'reached its output limit' });
+    await said.first().waitFor({ timeout: 20000 });
+    assert.equal(await said.count(), 1, 'one message');
+    await shot(p, 'N-explained');
+    const writes = flow.writes.length;
+    await p.reload();
+    await p.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 20000 });
+    await said.first().waitFor({ timeout: 20000 });
+    await p.waitForTimeout(800);
+    assert.equal(await said.count(), 1, 'still one after a reload');
+    assert.deepEqual(flow.writes.slice(writes), [], 'a reload writes nothing to the job');
     await c.close();
   });
 

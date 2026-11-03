@@ -30,3 +30,12 @@ test('no component renders an address as text or a tooltip without personLabel',
     .filter(([, , line]) => raw.test(line)).map(([f, n]) => `${f}:${n}`);
   assert.deepEqual(hits, []);
 });
+
+// Usage analytics (usage-analytics.js) leaves this display contract alone: its identity is users.id from GET /api/me, never the
+// /auth/session display, a profile name or handle, or an address.
+test('usage analytics never derives identity from the display, the profile or an address', () => {
+  const source = readFileSync(new URL('./usage-analytics.js', import.meta.url), 'utf8');
+  assert.ok(!/\/auth\/session|session-display|loadProfile|\.handle\b|display\.(label|email)/.test(source));
+  assert.match(source, /fetcher\('\/api\/me'/);
+  assert.match(source, /identify\(me\.user_id/);
+});

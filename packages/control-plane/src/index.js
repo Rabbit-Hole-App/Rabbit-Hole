@@ -23,6 +23,7 @@ import { handleLearnCourse } from './learn-course.js';
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, hmacHex, randomHex } from './token.js';
 import { echoesLogin, handleWebAuth, loginEmail, sessionOf, testMode } from './auth.js';
+import { internalAccount } from './product-analytics.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
 import { aiCacheDrop, ASK_TOOLS, askOnce, askStream, capJoin, CAP_CHARS, DIAGNOSIS_PROMPT, diffBundles, getBundle, parseBundle } from './ask.js';
 import { assumeRole, iamRolePolicies, s3Buckets, s3Get, s3List } from './aws.js';
@@ -2520,7 +2521,8 @@ export default {
         // Who is signed in, for the dev and review workers (dev-forwarding.js devIdentity). Reads only:
         // GET /api/apps also answers it, but its sweepStaleRuns writes (docs/features/dev-prod-write-barrier.md).
         // user_id is the session's users.id, the journey key (adaptive-learning-path-v1-architecture.md §10.2); null for a CLI token.
-        if (path === '/api/me' && req.method === 'GET') return json({ email: user.email, org: user.org, orgName: user.orgName || null, user_id: user.uid ?? null });
+        // analytics_internal: an account the owner marked internal (product-analytics.js), so the browser tags its usage events.
+        if (path === '/api/me' && req.method === 'GET') return json({ email: user.email, org: user.org, orgName: user.orgName || null, user_id: user.uid ?? null, ...(internalAccount(env, user.uid) ? { analytics_internal: true } : {}) });
         const learnCourse = path.match(/^\/api\/apps\/([a-z0-9-]+)\/learn-course$/);
         if (learnCourse) return await handleLearnCourse(req, env, user, learnCourse[1], { appForUser, sourceSection });
         if (path === '/api/workspaces' && req.method === 'GET') return await apiWorkspaces(env, user);
@@ -2618,7 +2620,7 @@ export default {
         if (path === '/api/review/run' && req.method === 'POST') return await apiReviewRun(req, env, ctx, user);
         return json({ error: 'no such endpoint' }, 404);
       }
-      const webAuth = await handleWebAuth(req, env, path, { baseUrl, html, sendEmail });
+      const webAuth = await handleWebAuth(req, env, path, { baseUrl, html, sendEmail, waitUntil: promise => ctx?.waitUntil?.(promise) });
       if (webAuth) return webAuth;
       if (path === '/test/openai/chat/completions' && req.method === 'POST') {
         // OpenAI-compatible mock (testMode + a bypass secret only): lets the

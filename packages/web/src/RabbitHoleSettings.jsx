@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CircleUser, ExternalLink, Gauge, GraduationCap, Shield, SlidersHorizontal, X } from 'lucide-react';
 import { applyTheme, getTheme, setTheme } from './api.js';
+import { ANALYTICS_CONFIG } from './analytics-config.js';
+import { CONSENT_EVENT, CONSENT_KEY, configured, consentOf, optedOut, setConsent } from './analytics-consent.js';
 import { PRODUCT } from './flags.js';
 import { getSpeed, setSpeed, SPEEDS } from './learn-audio.js';
 import { resolveSettingsTab, SETTINGS_PANES } from './settings-model.js';
@@ -184,6 +186,32 @@ function LearningPane() {
   );
 }
 
+// The product analytics choice (analytics-consent.js), for this browser. A build without analytics has no such choice.
+function AnalyticsPreferences() {
+  const [choice, setChoice] = useState(() => consentOf(window));
+  useEffect(() => {
+    const read = () => setChoice(consentOf(window));
+    const storage = event => { if (event.key === CONSENT_KEY || event.key === null) read(); };
+    window.addEventListener(CONSENT_EVENT, read);
+    window.addEventListener('storage', storage);
+    return () => { window.removeEventListener(CONSENT_EVENT, read); window.removeEventListener('storage', storage); };
+  }, []);
+  if (!configured(ANALYTICS_CONFIG)) return null;
+  const blocked = optedOut(window.navigator);
+  const desc = blocked ? 'Off: your browser asks sites not to track you, so nothing is collected' : choice === 'accepted' ? 'On in this browser. Rejecting stops collection and removes the identifier here; events already sent are not deleted' : choice === 'rejected' ? 'Off in this browser' : 'Off in this browser until you choose';
+  return (
+    <>
+      <Heading>Product analytics</Heading>
+      <SettingsRow title="Analytics preferences" desc={desc}>
+        <span data-analytics-settings className="flex gap-2">
+          <Button variant="secondary" size="sm" disabled={blocked} aria-pressed={choice === 'accepted'} onClick={() => setConsent(window, 'accepted')}>Accept analytics</Button>
+          <Button variant="secondary" size="sm" disabled={blocked} aria-pressed={choice === 'rejected'} onClick={() => setConsent(window, 'rejected')}>Reject optional</Button>
+        </span>
+      </SettingsRow>
+    </>
+  );
+}
+
 // Privacy & security: the real sign-in method (GET /auth/session) and logout, which ends every session of the account
 // (auth.js bumps users.session_epoch). Session lists, account deletion and remembered learning information have no backend
 // yet (L11-report.md); no button pretends otherwise.
@@ -199,6 +227,7 @@ function PrivacyPane({ session }) {
       <SettingsRow title="Log out" desc={`Ends your ${PRODUCT} sessions on every device, including this one`}>
         <Button variant="secondary" size="sm" onClick={() => { window.location.href = '/logout'; }}>Log out</Button>
       </SettingsRow>
+      <AnalyticsPreferences />
       <Heading>Learning analytics</Heading>
       <div data-learning-analytics-notice className="space-y-2 pt-3 text-sm text-ink-2">
         <p>To improve the Tutor and find problems, {PRODUCT} records analytics events about how learning activity goes. They use internal account and canvas identifiers and contain: the kind of Tutor action taken and its reason code, the type of help it offered, which suggestions were shown and which one you chose, how many of the topic&apos;s claims were in each state, whether an assessed answer was met, partly met or not met and whether help was involved, how it was assessed (a rubric match, or an AI evaluator and its version), the AI model and prompt version, timings, error types and AI credit usage.</p>

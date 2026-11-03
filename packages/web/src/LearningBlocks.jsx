@@ -1,4 +1,5 @@
 import CadCard from './CadCard.jsx';
+import { track } from './usage-analytics.js';
 import ExplainPending from './ExplainPending.jsx';
 import ExplainEditBar from './ExplainEditBar.jsx';
 import { explainProposedBlock } from './explain-client.js';
@@ -1840,6 +1841,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
       if (!mine) return;
       const current = latest.current;
       if (mine.status === 'ready') {
+        if (current.status !== 'ready') track('rh_generation_completed', { feature: 'motion', action_id: placementId }, { once: `done:${placementId}:${mine.startedAt ?? ''}` }); // usage analytics: once per attempt (a retry starts again)
         const src = videoAssetUrl(appName, mine.key);
         const existing = current.variants?.length ? current.variants : (current.src ? [{ src: current.src }] : []);
         const kept = existing.some(clip => clip.src === src) ? existing : [...existing, { src, prompt: current.operation?.prompt }];
@@ -1854,6 +1856,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
         // The card records HOW it ended, for the Chat's proposal card and the generation indicator (generation-state.js): stopped by the
         // learner, or an outcome the server could not confirm (retryable false). Written only when it differs from what the card holds.
         const stopped = /^Stopped\./.test(mine.error || ''), unknown = mine.retryable === false;
+        if (current.status !== 'failed') track('rh_generation_failed', { feature: 'motion', action_id: placementId, reason: stopped ? 'stopped' : unknown ? 'unknown' : 'failed' }, { once: `done:${placementId}:${mine.startedAt ?? ''}` });
         if (current.status !== 'failed' || !!current.stopped !== stopped || !!current.outcomeUnknown !== unknown) onChange({ ...withoutEnd(current), status: 'failed', ...(stopped ? { stopped: true } : {}), ...(unknown ? { outcomeUnknown: true } : {}) });
         // Its final cost is not confirmed yet (a stopped job settling, or reconciliation pending): keep reading until it is (bounded).
         if (readsAgain(mine, settleReads.current)) { settleReads.current += 1; polling.current = setTimeout(() => follow(placementId), 5000); }
@@ -1894,7 +1897,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
     current = { ...withoutEnd(current), operation };
     setSince(Date.now());
     onChange({ ...current, status: 'generating' });
-    try { const { placementId } = await startVideo(appName, operation, { confirmed: true, retry }); follow(placementId); }
+    try { const { placementId } = await startVideo(appName, operation, { confirmed: true, retry }); track('rh_generation_requested', { feature: 'motion', action_id: placementId }); follow(placementId); }
     catch (problem) {
       // MOT-22: refused for its proposal: the card says why and stops counting as the card the proposal made.
       const { block: failed, reason: refused } = failedStart(current, problem);

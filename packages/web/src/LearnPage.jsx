@@ -1,9 +1,10 @@
 import {createInlineCodeClient,inlineCodeTicketKey} from './inline-code-client.js';
+import { shareAccess, track } from './usage-analytics.js';
 import {readRegionalOriginal,regionalMaskBlob} from './inline-regional-mask.js';
 import { createBackgroundRemovalController, createRegionalImageEditController } from './inline-background-removal.js';
 import { createImageJobClient } from './inline-image-job-client.js';
 import { cadClient, submitCadOnce } from './cad-client.js';
-import { EXPLAIN_JOB_EVENT, explainClient, explainDisabled, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock } from './explain-client.js';
+import { EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainDisabled, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock } from './explain-client.js';
 import { withCardSink } from './chat-output-refs.js';
 import { withPrompt } from './card-prompt.js';
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -533,8 +534,22 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       if (!boardId || typeof proposal?.input?.job !== 'string') throw new Error('This explanation can be generated only on its own canvas.');
       const [client, event] = jobRoute(proposal, boardId);
       const { job } = await client.action(proposal.input.job, 'approve', { proposal });
+      track('rh_generation_requested', { feature: proposal.command === 'animation' ? 'animation' : 'explain', action_id: proposal.input.job }, { once: `gen:${proposal.input.job}` });
       window.dispatchEvent(new CustomEvent(event, { detail: { jobId: proposal.input.job } }));
+      // /animation: Generate found the edited plan needs a change first (FX-AN-031); its choices were posted, so the Chat reads its thread again.
+      if (job?.choiceOpen && job.threadId) window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId: job.threadId, jobId: job.id } }));
       return job?.cardId || null;
+    },
+    // A change the server offered in Chat for this job (AnimationChoices.jsx): a press the server records, then the card reads the job and the
+    // Chat its thread again, so the plan with its Generate appears. A gap's alternative is a new job, which the failed card follows.
+    chooseAnimation: async (choice, id) => {
+      const boardId = commentBoardRef.current;
+      if (!boardId) throw new Error('This choice can be made only on its own canvas.');
+      const client = animationClient(api, boardId);
+      const { job } = choice.kind === 'gap' ? await client.action(choice.jobId, 'retry', { expectedAttempt: choice.attempt, action: 'plan_alternative', alternative: id }) : await client.action(choice.jobId, 'choose', { choice: id, key: choice.key });
+      window.dispatchEvent(new CustomEvent(ANIMATION_JOB_EVENT, { detail: { jobId: choice.jobId } }));
+      if (job?.threadId) window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId: job.threadId, jobId: job.id } }));
+      return job;
     },
     // An approved /animation plan's status in Chat: its job, and whether this canvas still holds its card (false only when the canvas is loaded).
     readAnimationJob: async proposal => {
@@ -1094,6 +1109,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     let result;
     try { result = await submitCadOnce(explainRequests.current, JSON.stringify({ board: commentBoard, ...payload }), explainClient(api, commentBoard).create, payload); }
     catch (error) { if (explainDisabled(error)) { explainOff.current = true; return null; } throw error; }
+    // usage analytics: a new /explain request makes a brief first (a paid plan), never a generated result
+    track('rh_planning_requested', { feature: 'explain', action_id: result.job.id }, { once: `plan:${result.job.id}` });
     const blockId = canvasApi.current?.placeExplain({ ...withPrompt(explainPendingBlock({ job: result.job, prompt, threadId }), promptUsed), ...(stamp || {}) });
     return { blockId: blockId || result.job.cardId };
   };
@@ -1149,6 +1166,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     let result;
     try { result = await submitCadOnce(explainRequests.current, JSON.stringify({ board: commentBoard, ...payload }), explainClient(api, commentBoard).create, payload); }
     catch (error) { if (explainDisabled(error)) { explainOff.current = true; throw new Error(off); } throw error; }
+    track('rh_generation_requested', { feature: 'explain', action_id: result.job.id }, { once: `gen:${result.job.id}` }); // an edit has no brief
     canvasApi.current?.updateBlock(block.id, current => (explainEditProblem(current) ? null : explainEditing(current, result.job, instruction)));
     return result.job;
   };
@@ -1161,6 +1179,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     const payload={prompt,cardId,context:context || destination?.cadContext(prompt,askTarget?.id) || null,...(baseRevisionId?{baseRevisionId}:{})};
     const key=JSON.stringify({app:app.name,board:boardName,...payload});
     const result=await submitCadOnce(cadRequests.current,key,cadClient(api,app.name,boardName).start,payload);
+    // usage analytics: with the brief step on, this call only plans (awaiting_approval); otherwise it builds
+    const planned=result.job?.state==='awaiting_approval';
+    track(planned?'rh_planning_requested':'rh_generation_requested',{feature:'cad',action_id:result.block?.jobId},{once:`${planned?'plan':'gen'}:${result.block?.jobId}`});
     destination?.reconcileCad(cardId ? result.block : withPrompt(result.block, promptUsed));
     return result;
   };
@@ -1497,6 +1518,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       setSharing(data.sharing);
       setCommentBoard(data.board_id || null); commentBoardRef.current = data.board_id || null;
       boardLoaded.current = true;
+      track('rh_canvas_opened'); // usage analytics: once per canvas load
       // Empty keys are not a copy: the canvas writes them on mount, before a slow reply lands.
       const hasLocal = hasLocalContent(storage, { ink: boardStorageKey, chat: chatKey });
       if (!storage || blockedStorage.includes('localStorage')) toast(UNKEPT, { tone: 'error' });
@@ -1755,6 +1777,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     try {
       const data = await api(`${path}/share`, { method: 'POST', body: JSON.stringify({ ...next, state: boardSnapshot() }) });
       if (shareFor.current !== path) return;
+      track('rh_share_changed', { access: shareAccess(data.sharing) });
       boardVersion.current = data.version; setCanvasVersion(data.version);
       setSharing(data.sharing);
       // Sharing on: the server gets this browser's board as it is now, through the board push queue (review round 2), so

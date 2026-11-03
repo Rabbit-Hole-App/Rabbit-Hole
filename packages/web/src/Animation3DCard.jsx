@@ -5,7 +5,7 @@ import { Pill } from './ui.jsx';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { claimViewer, releaseViewer } from './viewer-slots.js';
 import { watchSeen } from './explain-program/playback.js';
-import { ANIMATION_JOB_EVENT, animationClient, animationProgress, animationRetry, animationRunning, animationStage, readyResult, RETRY_LABELS, pollRetryDelay } from './animation3d/client.js';
+import { ANIMATION_JOB_EVENT, animationAsks, animationClient, animationProgress, animationRetry, animationRunning, animationStage, readyResult, RETRY_LABELS, pollRetryDelay } from './animation3d/client.js';
 import {
   artifactRefOf, cardPhase, detectWebGL, EXPERIENCE_LABELS, failureText, FIXTURE_LABEL, FIXTURE_NOTE, fixtureIdOf, SAVED_DEMO_NOTE, INTERACT_LEGEND,
   jobOf, keyAction, KEYS_HINT, retryLabel, visibleControls, WEBGL_UNAVAILABLE,
@@ -90,13 +90,15 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
   const [job, setJob] = useState(null), [problem, setProblem] = useState(''), [busy, setBusy] = useState(false);
   const latest = useRef(block); latest.current = block;
   const client = useMemo(() => animationClient(fetchJson, waiting.boardId), [fetchJson, waiting.boardId]);
+  // The thread the server wrote on (a job may have made one) is the one the Chat reads again.
+  const showThread = polled => { const threadId = polled?.threadId ?? waiting.threadId; if (threadId) window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId, jobId: waiting.id } })); };
   // A ready job's result is read once and mapped onto the board's reference (client.js readyResult) before it may land.
   const apply = async data => {
     const polled = data?.job ?? null;
     setJob(polled);
     // A plan ready for review, or the job's failure explained: the chat showing its thread reloads it, so the plan and its Generate,
     // or the server's one failure message, appear (as /explain's brief).
-    if (['awaiting_approval', 'failed'].includes(polled?.stage) && latest.current.animation3dJob?.stage !== polled.stage && waiting.threadId) window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId: waiting.threadId, jobId: waiting.id } }));
+    if (['awaiting_approval', 'failed'].includes(polled?.stage) && latest.current.animation3dJob?.stage !== polled.stage) showThread(polled);
     const settled = polled?.stage === 'ready' ? await readyResult(polled, id => client.result(id)) : polled;
     if (!settled) { setProblem('The finished scene could not be read. Try again in a moment.'); return; }
     const out = settleAnimationJob(latest.current, settled, { boardId: waiting.boardId });
@@ -111,19 +113,32 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
   const reconcile = async (live = () => true) => {
     let polled = (await client.get(waiting.id))?.job ?? null;
     for (let hop = 0; polled?.successor && hop < 20; hop++) polled = (await client.get(polled.successor))?.job ?? null; // bounded: a chain is one per Revise plan
-    if (!live()) return;
+    if (!live()) return polled;
     setJob(polled);
     const next = resumeAnimationJob(latest.current, polled);
     if (next !== latest.current) { latest.current = next; (onChangeQuiet || onChange)(next); }
+    return polled;
   };
   const ended = ['failed', 'cancelled'].includes(waiting.stage);
   useEffect(() => {
     if (readOnly || waiting.stage === 'cancelled') return undefined;
     let live = true, timer, failures = 0;
     // A failed card (also after a reload) is reconciled once; it is not polled.
-    if (ended) { reconcile(() => live).catch(error => { if (live) setProblem(error.message); }); return () => { live = false; }; }
+    // Its Chat explanation not written yet (the server retries it): read until it is, then the Chat reads the thread again. An alternative
+    // pressed in Chat is observed the same way.
+    if (ended) {
+      let pending = false;
+      const check = () => reconcile(() => live).then(polled => {
+        if (!live) return;
+        if (polled?.chatPending) { pending = true; timer = setTimeout(check, 5000); } else if (pending) { pending = false; showThread(polled); }
+      }).catch(error => { if (live) setProblem(error.message); });
+      check();
+      const again = event => { if (event.detail?.jobId === waiting.id) { clearTimeout(timer); check(); } };
+      window.addEventListener(ANIMATION_JOB_EVENT, again);
+      return () => { live = false; clearTimeout(timer); window.removeEventListener(ANIMATION_JOB_EVENT, again); };
+    }
     const poll = async () => {
-      try { const data = await client.get(waiting.id); if (!live) return; failures = 0; setProblem(''); await apply(data); if (animationRunning(data?.job)) timer = setTimeout(poll, 2000); }
+      try { const data = await client.get(waiting.id); if (!live) return; failures = 0; setProblem(''); await apply(data); if (animationRunning(data?.job) || data?.job?.chatPending) timer = setTimeout(poll, 2000); }
       catch (error) {
         if (!live) return;
         setProblem(error.message);
@@ -161,7 +176,7 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
     <div data-animation-pending={shown.stage} className="flex min-h-[125px] flex-col items-start gap-3 pt-2">
       <div className="flex items-center gap-2">
         {running && !progress && <Loader2 aria-hidden size={16} className="shrink-0 text-ink-3 motion-safe:animate-spin" />}
-        <p data-animation-stage aria-live="polite" className={`text-sm ${failed ? 'text-fail' : running ? 'shimmer' : 'text-ink-2'}`}>{animationStage(shown)}</p>
+        <p data-animation-stage aria-live="polite" className={`text-sm ${animationAsks(shown) ? 'text-ink' : failed ? 'text-fail' : running ? 'shimmer' : 'text-ink-2'}`}>{animationStage(shown)}</p>
       </div>
       {progress && <StageProgress progress={progress} stage={animationStage(shown)} />}
       {request && failed && <p className="text-xs text-ink-2">Your request: {request}</p>}
