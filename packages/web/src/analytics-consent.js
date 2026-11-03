@@ -6,7 +6,8 @@ export const CONSENT_KEY = 'rh_analytics_consent';
 export const CONSENT_COOKIE = 'rh_analytics_consent';
 export const CONSENT_EVENT = 'rh:analytics-consent';        // this tab's choice changed
 export const PREFERENCES_EVENT = 'rh:analytics-preferences'; // someone asked to see the choice again
-const ANALYTICS_PREFIX = 'rh_ph_';                          // usage-analytics.js's storage; nothing else is ever cleared
+const ANALYTICS_PREFIXES = ['rh_ph_', 'rh-visitor-id', 'rh-own-board:']; // usage-analytics.js's and publication-analytics.js's localStorage
+const SESSION_PREFIX = 'rh-pub:';                            // publication-analytics.js's visit, in sessionStorage; nothing else is ever cleared
 
 // Do Not Track and Global Privacy Control turn collection off for that browser, whatever was chosen.
 export const optedOut = navigator => navigator?.globalPrivacyControl === true || navigator?.doNotTrack === '1' || navigator?.doNotTrack === 'yes';
@@ -32,10 +33,19 @@ export function mirrorConsentCookie(target) {
 export function clearAnalyticsStorage(target) {
   try {
     const storage = target.localStorage;
-    if (!storage) return;
-    const keys = [];
-    for (let i = 0; i < storage.length; i++) { const key = storage.key(i); if (key?.startsWith(ANALYTICS_PREFIX)) keys.push(key); }
-    for (const key of keys) storage.removeItem(key);
+    if (storage) {
+      const keys = [];
+      for (let i = 0; i < storage.length; i++) { const key = storage.key(i); if (ANALYTICS_PREFIXES.some(prefix => key?.startsWith(prefix))) keys.push(key); }
+      for (const key of keys) storage.removeItem(key);
+    }
+  } catch { /* nothing to clear */ }
+  try {
+    const visits = target.sessionStorage;
+    if (visits) {
+      const keys = [];
+      for (let i = 0; i < visits.length; i++) { const key = visits.key(i); if (key?.startsWith(SESSION_PREFIX)) keys.push(key); }
+      for (const key of keys) visits.removeItem(key);
+    }
   } catch { /* nothing to clear */ }
 }
 export function setConsent(target, choice) {

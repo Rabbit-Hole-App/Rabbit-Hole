@@ -3,11 +3,22 @@
 // cara visit signed in; anonymous browsers visit with only a visitor id. No model is called.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { setup, BOARD } from './shared-canvas-fixture.js';
+import { setup as fixture, BOARD } from './shared-canvas-fixture.js';
 import { handle } from './stars-helpers.js';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { analyticsRoute } from '../src/publication-analytics.js';
+import { accountKey, deleteLearnerSql, LEARNER_TABLES, RETENTION_DAYS, visitorKey } from '../src/publication-analytics-purge.js';
+import { APPROVED_CAMPAIGNS } from '../../web/src/analytics-campaigns.js';
+
+const CONSENT = 'rh_analytics_consent=accepted';
+const consentCookie = as => `${CONSENT}${as ? `; small_session=${as}` : ''}`;
+// The fixture, with a start or fork made as a consenting visitor unless a test says otherwise (consent: false).
+const setup = t => {
+  const f = fixture(t), call = f.call;
+  f.call = (method, path, options = {}) => (/\/rabbit-hole$|\/boards\/fork$/.test(path) && options.consent !== false ? call(method, path, { ...options, as: undefined, headers: { cookie: consentCookie(options.as) } }) : call(method, path, options));
+  return f;
+};
 
 const STATE = { ...BOARD, blocks: [...BOARD.blocks,
   { id: 'z1', type: 'quiz', question: 'Which way is downhill?', options: [{ key: 'a', text: 'Against the gradient', correct: true }, { key: 'b', text: 'Along it' }], why: 'The gradient points uphill.' },
@@ -22,8 +33,8 @@ async function board(f, { title = 'Gradient descent', publish = true, state = ST
   const token = publish ? (await f.call('POST', `/api/apps/${canvas.name}/publish`, { as: 'ana' })).body.publication_token : null;
   return { canvas: canvas.name, token };
 }
-const send = (f, token, { as, visitor = uuid(), session = uuid(), synthetic, events }) =>
-  f.call('POST', `/api/learn/boards/shared/${token}/events`, { as, body: { visitor_id: visitor, session_id: session, ...(synthetic ? { synthetic: true } : {}), events } });
+const send = (f, token, { as, visitor = uuid(), session = uuid(), synthetic, events, consent = true, headers = {} }) =>
+  f.call('POST', `/api/learn/boards/shared/${token}/events`, { ...(consent ? { headers: { cookie: consentCookie(as), ...headers } } : { as, headers }), body: { visitor_id: visitor, session_id: session, ...(synthetic ? { synthetic: true } : {}), events } });
 async function read(f, path, as) {
   const req = new Request(`https://app.test${path}`, { headers: as ? { cookie: `small_session=${as}` } : {} });
   const res = await analyticsRoute(new URL(req.url).pathname, req, f.env);
@@ -31,13 +42,13 @@ async function read(f, path, as) {
 }
 // n anonymous visits, each its own browser, opening the board and seeing card b1.
 async function crowd(f, token, n, extra = () => []) {
-  for (let i = 0; i < n; i += 1) assert.equal((await send(f, token, { events: [ev('open', { source: 'linkedin', campaign: 'Launch-Post' }), ev('seen', { material_id: 'b1' }), ...extra(i)] })).body.accepted >= 2, true);
+  for (let i = 0; i < n; i += 1) assert.equal((await send(f, token, { events: [ev('open', { source: 'linkedin', campaign: 'LinkedIn-Launch' }), ev('seen', { material_id: 'b1' }), ...extra(i)] })).body.accepted >= 2, true);
 }
 
 test('an anonymous visit is collected, counted as an open, and shown to the owner without exposing a small audience', async t => {
   const f = setup(t);
   const { canvas, token } = await board(f);
-  const visit = await send(f, token, { events: [ev('open', { source: 'other_referrer', referrer_host: 'News.Example.com', campaign: 'Spring_2026' }), ev('seen', { material_id: 'b1' }), ev('acted', { material_id: 'c1' }), ev('resource', { resource_id: 'video:kCc8FmEb1nY' })] });
+  const visit = await send(f, token, { events: [ev('open', { source: 'other_referrer', referrer_host: 'News.Example.com', campaign: 'jane.doe' }), ev('seen', { material_id: 'b1' }), ev('acted', { material_id: 'c1' }), ev('resource', { resource_id: 'video:kCc8FmEb1nY' })] });
   assert.deepEqual(visit.body, { accepted: 4, ignored: 0 });
   const one = await read(f, `/api/analytics/publications/${canvas}?range=7d`, 'ana');
   assert.equal(one.status, 200);
@@ -48,11 +59,10 @@ test('an anonymous visit is collected, counted as an open, and shown to the owne
   assert.deepEqual(one.body.learning.cards.find(c => c.material_id === 'b1').seen, { value: null, reason: 'insufficient_cohort' });
   assert.deepEqual(one.body.trend.at(-1).opens.value, 1);
   // Nothing personal is stored: no email, users.id, visitor id, host path or raw token in any analytics table.
-  const dump = JSON.stringify(['publication_events', 'publication_learners', 'publication_sessions', 'publication_learner_days', 'publication_learner_items', 'publication_visitor_links'].map(tb => f.sqlite.prepare(`SELECT * FROM ${tb}`).all()));
-  assert.doesNotMatch(dump, /@test|u-ana|u-ben|news\.example\.com\/|Spring_2026/);
+  const dump = JSON.stringify(['publication_events', 'publication_learners', 'publication_sessions', 'publication_learner_days', 'publication_learner_items'].map(tb => f.sqlite.prepare(`SELECT * FROM ${tb}`).all()));
+  assert.doesNotMatch(dump, /@test|u-ana|u-ben|example\.com|jane\.doe/, 'no referrer host, and an unapproved campaign value is ignored');
   assert.ok(!dump.includes(token), 'the token is never stored');
-  assert.match(dump, /news\.example\.com/, 'the hostname alone is kept for other referrers');
-  assert.match(dump, /spring_2026/, 'a campaign tag is lowercased');
+  assert.match(dump, /other_referrer/, 'only the category is kept');
 });
 
 test('only live public /e publications collect: a share link, an unpublished board and a dead token answer 404', async t => {
@@ -71,23 +81,19 @@ test('bounds: batch size, body size, ids and fields are validated; unknown cards
   const { token } = await board(f);
   assert.equal((await send(f, token, { events: [] })).status, 400);
   assert.equal((await send(f, token, { events: Array.from({ length: 51 }, () => ev('open')) })).status, 400);
-  assert.equal((await f.call('POST', `/api/learn/boards/shared/${token}/events`, { body: { visitor_id: 'not-a-uuid', session_id: uuid(), events: [ev('open')] } })).status, 400);
+  assert.equal((await f.call('POST', `/api/learn/boards/shared/${token}/events`, { headers: { cookie: CONSENT }, body: { visitor_id: 'not-a-uuid', session_id: uuid(), events: [ev('open')] } })).status, 400);
   assert.equal((await f.call('POST', `/api/learn/boards/shared/${token}/events`, { raw: 'x'.repeat(70 * 1024) })).status, 413);
   const mixed = await send(f, token, { events: [ev('open'), ev('seen', { material_id: 'nope' }), ev('resource', { resource_id: 'paper:9999' }), ev('steps_shown', { suggestions: [{ id: 'bad id!', position: 1 }] }),
     ev('step_selected', { suggestion_id: 's1', position: 9 }), ev('quiz', { material_id: 'b1', choice: 'a' }), ev('mystery'), { type: 'open' }] });
   assert.deepEqual(mixed.body, { accepted: 1, ignored: 7 });
 });
 
-test('the creator\'s own visits never count: signed in, and later anonymously on a browser they signed in on', async t => {
+test('the creator\'s own signed-in visit is dropped and writes no audience row', async t => {
   const f = setup(t);
   const { canvas, token } = await board(f);
-  const browser = uuid();
-  const own = await send(f, token, { as: 'ana', visitor: browser, events: [ev('open'), ev('active', { active_seconds: 30 })] });
+  const own = await send(f, token, { as: 'ana', events: [ev('open'), ev('active', { active_seconds: 30 })] });
   assert.deepEqual(own.body, { accepted: 0, ignored: 2, dropped: 'own_visit' });
-  const after = await send(f, token, { visitor: browser, events: [ev('open')] });
-  assert.equal(after.body.dropped, 'own_visit', 'the same browser signed out is still the creator');
-  const read7 = (await read(f, `/api/analytics/publications/${canvas}?range=7d`, 'ana')).body;
-  assert.equal(read7.overview.total_opens.value, 0);
+  assert.equal((await read(f, `/api/analytics/publications/${canvas}?range=7d`, 'ana')).body.overview.total_opens.value, 0);
   assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM publication_learner_days').get().n, 0);
 });
 
@@ -147,7 +153,7 @@ test('ten visitors make protected metrics visible; segments under ten stay hidde
   const sources = Object.fromEntries(body.sources.visitors.map(s => [s.source, s.visitors]));
   assert.deepEqual(sources.linkedin, { value: null, reason: 'complementary' }, '14 - 12 would reveal the two from Explore');
   assert.deepEqual(sources.explore, { value: null, reason: 'insufficient_cohort' });
-  assert.deepEqual(body.sources.campaigns, [{ campaign: 'launch-post', visitors: { value: 12, reason: null }, start_rate: { value: 0, reason: null } }]);
+  assert.deepEqual(body.sources.campaigns, [{ campaign: 'linkedin-launch', visitors: { value: 12, reason: null }, start_rate: { value: 0, reason: null } }]);
   // No one signed in: nothing small to recover, and the zero itself stays hidden.
   assert.deepEqual([body.overview.signed_in_visitors, body.overview.anonymous_visitors], [{ value: null, reason: 'insufficient_cohort' }, { value: 14, reason: null }]);
   await send(f, token, { as: 'ben', events: [ev('open', { source: 'direct' })] });
@@ -155,45 +161,140 @@ test('ten visitors make protected metrics visible; segments under ten stay hidde
   assert.deepEqual([one.signed_in_visitors.reason, one.anonymous_visitors.reason], ['insufficient_cohort', 'complementary'], 'one signed-in visitor cannot be worked out from 15 - 14');
 });
 
-test('a browser that signs in counts once, as the account; signed-in visits are deduplicated across boards and days', async t => {
+test('a shared browser never counts as the wrong person: sign-out and account switching stay apart, and signed-in visits dedupe across boards and days', async t => {
   const f = setup(t);
   const a = await board(f, { title: 'One' }), b = await board(f, { title: 'Two' });
-  const browser = uuid();
+  const browser = uuid(), tab = uuid();
   t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-11-01T23:59:00Z') });
-  await send(f, a.token, { visitor: browser, events: [ev('open')] });
-  t.mock.timers.tick(120_000); // across the UTC midnight
-  await send(f, a.token, { as: 'ben', visitor: browser, events: [ev('open')] });
-  await send(f, b.token, { as: 'ben', visitor: uuid(), events: [ev('open')] });
-  const raw = (await read(f, '/api/analytics/creator?range=7d', 'ana'));
-  t.mock.timers.reset();
-  assert.equal(raw.status, 200);
-  const rows = f.sqlite.prepare('SELECT DISTINCT day FROM publication_learner_days ORDER BY day').all().map(r => r.day);
-  assert.deepEqual(rows, ['2026-11-01', '2026-11-02'], 'each UTC day is its own row');
-  // Nine other browsers bring the cohort to exactly ten only if ben's browser, his two boards and his two days count once.
-  for (let i = 0; i < 9; i += 1) await send(f, a.token, { events: [ev('open')] });
+  await send(f, a.token, { as: 'ben', visitor: browser, session: tab, events: [ev('open')] });
+  t.mock.timers.tick(60_000);
+  await send(f, a.token, { as: 'ben', visitor: browser, session: tab, events: [ev('active', { active_seconds: 60 })] });
+  // ben signs out in the same tab, then cara signs in on it: each is a new visit, and none of ben's time or history moves.
+  t.mock.timers.tick(60_000);
+  await send(f, a.token, { visitor: browser, session: tab, events: [ev('open')] });
+  await send(f, a.token, { as: 'cara', visitor: browser, session: tab, events: [ev('open'), ev('active', { active_seconds: 120 })] });
+  await send(f, b.token, { as: 'ben', visitor: uuid(), events: [ev('open')] }); // ben again: another board, another browser, the next UTC day
+  const keys = { ben: await accountKey({ userId: 'u-ben-9a2b' }), cara: await accountKey({ userId: 'u-cara-71f0' }), anon: await visitorKey(browser) };
+  const opens = key => f.sqlite.prepare('SELECT sum(opens) AS n FROM publication_learner_days WHERE learner_key = ?').get(key).n;
+  assert.deepEqual([opens(keys.ben), opens(keys.anon), opens(keys.cara)], [2, 1, 1], 'each identity keeps its own visits');
+  assert.equal(f.sqlite.prepare('SELECT sum(active_seconds) AS s FROM publication_learner_days WHERE learner_key = ?').get(keys.ben).s, 60);
+  assert.equal(f.sqlite.prepare('SELECT sum(active_seconds) AS s FROM publication_learner_days WHERE learner_key = ?').get(keys.anon).s, 0, 'the signed-out visit took none of his time');
+  assert.equal(f.sqlite.prepare('SELECT sum(active_seconds) AS s FROM publication_learner_days WHERE learner_key = ?').get(keys.cara).s, 0, 'nor did the next account, at the same instant');
+  assert.equal(f.sqlite.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name LIKE '%link%' AND name LIKE 'publication%'").get().n, 0, 'no browser-to-account link exists');
+  for (let i = 0; i < 7; i += 1) await send(f, a.token, { events: [ev('open')] });
   const all = (await read(f, '/api/analytics/creator?range=all', 'ana')).body;
-  assert.deepEqual(all.overview.unique_visitors, { value: 10, reason: null }, 'never a sum of boards or days');
-  assert.equal(all.overview.total_opens.value, 12);
-  assert.equal(all.overview.returning_visitors.value, 1, 'ben: two distinct days, across the linked browser');
-  assert.equal(all.boards.find(x => x.canvas === a.canvas).visitors.value, 10);
+  t.mock.timers.reset();
+  assert.deepEqual(all.overview.unique_visitors, { value: 10, reason: null }, 'ben once, cara, the browser and seven more: never a sum of boards or days');
+  assert.equal(all.overview.returning_visitors.value, 1);
 });
 
-test('rate limits and retention: a session over its cap is refused; raw event ids older than 90 days are pruned, rollups stay', async t => {
+test('rate limits: a session over its cap is refused', async t => {
   const f = setup(t);
   const { canvas, token } = await board(f);
   const { sha256Hex } = await import('../src/learn-grade-jev.js');
-  const visitor = uuid(), session = uuid();
-  const key = await sha256Hex(`${await sha256Hex(`publication-learner:v:${visitor}`)}:${session}`);
-  const add = f.sqlite.prepare('INSERT INTO publication_events (event_id, org, canvas, session_key, type, received_at) VALUES (?, ?, ?, ?, ?, ?)');
-  for (let i = 0; i < 3000; i += 1) add.run(`e${i}`, 'ana-ws', canvas, key, 'seen', new Date().toISOString());
+  const visitor = uuid(), session = uuid(), learner = await visitorKey(visitor);
+  const key = await sha256Hex(`${learner}:${session}`);
+  const add = f.sqlite.prepare('INSERT INTO publication_events (event_id, org, canvas, session_key, learner_key, type, received_at) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  for (let i = 0; i < 3000; i += 1) add.run(`e${i}`, 'ana-ws', canvas, key, learner, 'seen', new Date().toISOString());
   const limited = await send(f, token, { visitor, session, events: [ev('open')] });
   assert.deepEqual([limited.status, limited.body.limited], [429, true]);
-  f.sqlite.exec('DELETE FROM publication_events');
-  add.run('old', 'ana-ws', canvas, 'k', 'seen', new Date(Date.now() - 91 * 86400e3).toISOString());
-  add.run('kept', 'ana-ws', canvas, 'k', 'seen', new Date(Date.now() - 89 * 86400e3).toISOString());
-  assert.equal((await send(f, token, { events: [ev('open')] })).body.accepted, 1);
-  assert.deepEqual(f.sqlite.prepare("SELECT event_id FROM publication_events WHERE event_id IN ('old', 'kept')").all().map(r => r.event_id), ['kept']);
-  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM publication_learner_days').get().n, 1);
+});
+
+test('consent: without acceptance, after rejection, after withdrawal and under a privacy signal nothing is written, and no identifier is linked', async t => {
+  const f = setup(t);
+  const { canvas, token } = await board(f);
+  const counts = () => [...LEARNER_TABLES, 'publication_board_days', 'publication_revisions', 'analytics_meta'].map(table => f.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n);
+  const before = counts();
+  const refused = async (options, label) => { const r = await send(f, token, { events: [ev('open')], ...options }); assert.deepEqual([r.status, r.body.accepted, r.body.dropped], [200, 0, 'no_consent'], label); assert.deepEqual(counts(), before, label); };
+  await refused({ consent: false }, 'no signal, signed out');
+  await refused({ consent: false, as: 'ben' }, 'no signal, signed in');
+  await refused({ consent: false, headers: { cookie: 'rh_analytics_consent=rejected' } }, 'rejected');
+  await refused({ consent: false, headers: { cookie: 'rh_analytics_consent=' } }, 'withdrawn: the cookie is cleared');
+  await refused({ consent: false, headers: { cookie: 'x_rh_analytics_consent=accepted' } }, 'a look-alike cookie');
+  await refused({ headers: { 'Sec-GPC': '1' } }, 'Global Privacy Control overrides acceptance');
+  await refused({ headers: { DNT: '1' } }, 'Do Not Track overrides acceptance');
+  assert.equal((await send(f, token, { events: [ev('open')] })).body.accepted, 1, 'accepted: collected');
+  // A start and a fork still work without consent, and record nothing.
+  const after = counts();
+  assert.equal((await f.call('POST', `/api/learn/boards/shared/${token}/rabbit-hole`, { as: 'ben', consent: false, body: { origin: null } })).status, 201);
+  assert.equal((await f.call('POST', '/api/learn/boards/fork', { as: 'cara', consent: false, body: { source: { token }, key: 'fork-key-0020' } })).status, 201);
+  assert.deepEqual(counts(), after, 'the action succeeded, uncounted');
+  const body = (await read(f, `/api/analytics/publications/${canvas}?range=7d`, 'ana')).body;
+  assert.equal(body.coverage, 'consenting_visitors');
+  assert.match(body.definitions.coverage, /accepted analytics/);
+  assert.deepEqual([body.overview.rabbit_holes_started.value, body.overview.audience_forks.value], [0, 0]);
+});
+
+test('retention: visitor-level rows past 90 days are ignored by reads even before a purge, then purged; the person-free counters stay', async t => {
+  const f = setup(t);
+  const { canvas, token } = await board(f);
+  assert.equal(RETENTION_DAYS, 90);
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-08-01T12:00:00Z') });
+  for (let i = 0; i < 10; i += 1) await send(f, token, { events: [ev('open', { source: 'stars' }), ev('seen', { material_id: 'b1' })] });
+  const rowsOf = () => LEARNER_TABLES.map(table => f.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n);
+  assert.ok(rowsOf().every(n => n > 0));
+  t.mock.timers.tick(89 * 86400e3);
+  assert.equal((await read(f, `/api/analytics/publications/${canvas}?range=all`, 'ana')).body.overview.unique_visitors.value, 10, 'day 89: still counted');
+  t.mock.timers.tick(2 * 86400e3);
+  // No purge can run: the read's batch keeps only its first statement. The rows are there, and the read still ignores them.
+  const original = f.env.LEARN_DB.batch;
+  f.env.LEARN_DB.batch = list => original(list.slice(0, 1));
+  const unpurged = (await read(f, `/api/analytics/publications/${canvas}?range=all`, 'ana')).body;
+  f.env.LEARN_DB.batch = original;
+  assert.ok(rowsOf().every(n => n > 0), 'not purged yet');
+  assert.deepEqual(unpurged.overview.unique_visitors, { value: null, reason: 'insufficient_cohort' }, 'expired rows are never counted');
+  assert.equal(unpurged.learning.cards.find(c => c.material_id === 'b1').seen.value, null);
+  assert.deepEqual([unpurged.overview.total_opens.value, unpurged.stars.opens_from_stars.value], [10, 10], 'the counters outlive them');
+  assert.equal(unpurged.period.audience_from, '2026-08-02');
+  await read(f, `/api/analytics/publications/${canvas}?range=all`, 'ana');
+  assert.deepEqual(rowsOf(), [0, 0, 0, 0, 0], 'a read purges');
+  t.mock.timers.reset();
+});
+
+test('the long-lived tables cannot identify a visitor: their columns hold no person, and every per-person table is under retention and deletion', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(readFileSync(new URL('../learn-migrations/0035-publication-analytics.sql', import.meta.url), 'utf8'));
+  const columns = table => db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
+  assert.deepEqual(columns('publication_board_days'), ['org', 'canvas', 'day', 'opens', 'opens_from_stars', 'rabbit_holes_started', 'audience_forks']);
+  assert.deepEqual(columns('publication_revisions'), ['org', 'canvas', 'version', 'card_set_key', 'segment', 'first_seen_at']);
+  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name != 'analytics_meta'").all().map(r => r.name);
+  const personal = tables.filter(table => columns(table).some(c => /learner|session|visitor|user|email|event/.test(c)));
+  assert.deepEqual(personal.sort(), [...LEARNER_TABLES].sort(), 'each is deleted by learner key and expired by purgeExpired');
+  for (const table of LEARNER_TABLES) assert.ok(columns(table).includes('learner_key'), table);
+  assert.ok(!tables.some(table => columns(table).some(c => /referrer|host|ip|agent|query|url/.test(c))), 'no free-form address column');
+  db.close();
+});
+
+test('deletion by account and by visitor identifier removes exactly that person, across boards; other people and the counters stay', async t => {
+  const f = setup(t);
+  const a = await board(f, { title: 'One' }), b = await board(f, { title: 'Two' });
+  const browser = uuid();
+  await send(f, a.token, { visitor: browser, events: [ev('open'), ev('seen', { material_id: 'b1' })] });
+  await send(f, b.token, { visitor: browser, events: [ev('open')] });
+  await send(f, a.token, { as: 'ben', events: [ev('open'), ev('seen', { material_id: 'b1' })] });
+  await f.call('POST', `/api/learn/boards/shared/${a.token}/rabbit-hole`, { as: 'ben', body: { origin: null } });
+  await send(f, a.token, { as: 'cara', events: [ev('open')] });
+  const ben = await accountKey({ userId: 'u-ben-9a2b' }), anon = await visitorKey(browser), cara = await accountKey({ userId: 'u-cara-71f0' });
+  const rowsFor = key => LEARNER_TABLES.reduce((n, table) => n + f.sqlite.prepare(`SELECT count(*) AS n FROM ${table} WHERE learner_key = ?`).get(key).n, 0);
+  assert.ok(rowsFor(ben) > 0 && rowsFor(anon) > 0 && rowsFor(cara) > 0);
+  f.sqlite.exec(deleteLearnerSql(ben).join('\n'));
+  assert.deepEqual([rowsFor(ben) === 0, rowsFor(anon) > 0, rowsFor(cara) > 0], [true, true, true], 'by account');
+  f.sqlite.exec(deleteLearnerSql(anon).join('\n'));
+  assert.deepEqual([rowsFor(anon) === 0, rowsFor(cara) > 0], [true, true], 'by visitor identifier, on both boards');
+  assert.equal(f.sqlite.prepare('SELECT sum(opens) AS n FROM publication_board_days').get().n, 4, 'the counters hold no person and stay');
+  assert.throws(() => deleteLearnerSql("x'; DROP TABLE canvases; --"), /not a learner key/);
+});
+
+test('campaigns: only an approved id is stored and shown, whatever the case; an unknown value or a person is ignored', async t => {
+  const f = setup(t);
+  const { canvas, token } = await board(f);
+  assert.ok(APPROVED_CAMPAIGNS.includes('linkedin-launch'));
+  for (const campaign of ['LinkedIn-Launch', 'jane.doe', 'jane@example.com', 'launch?x=1', 42, null]) await send(f, token, { events: [ev('open', { source: 'linkedin', campaign })] });
+  assert.deepEqual(f.sqlite.prepare('SELECT DISTINCT campaign FROM publication_learner_days ORDER BY campaign').all().map(r => r.campaign), [null, 'linkedin-launch']);
+  f.sqlite.exec("UPDATE publication_learner_days SET campaign = 'retired-tag' WHERE campaign IS NULL");
+  for (let i = 0; i < 10; i += 1) await send(f, token, { events: [ev('open', { campaign: 'LinkedIn-Launch' })] });
+  const { campaigns } = (await read(f, `/api/analytics/publications/${canvas}?range=7d`, 'ana')).body.sources;
+  assert.deepEqual(campaigns.map(c => c.campaign), ['linkedin-launch'], 'a stored tag no longer approved is not shown');
 });
 
 test('starts and forks are recorded on their success paths only: once each, never on a replay, never for the owner', async t => {
@@ -235,8 +336,8 @@ test('learning producers: quiz outcomes are decided on the server from the first
   const { canvas, token } = await board(f);
   await crowd(f, token, 10, i => [ev('quiz', { material_id: 'z1', choice: i < 4 ? 'b' : 'a' }), ev('quiz', { material_id: 'z1', choice: 'a' }),
     ev('seen', { material_id: 'c1' }), ...(i < 3 ? [ev('acted', { material_id: 'c1' })] : []),
-    ev('steps_shown', { suggestions: [{ id: 'step-a', position: 1 }, { id: 'step-b', position: 2 }, { id: 'step-c', position: 3 }] }),
-    ...(i < 5 ? [ev('step_selected', { suggestion_id: 'step-a', position: 1, concept_ids: ['learning-rate', 'not-on-this-board'] })] : [])]);
+    ev('steps_shown', { suggestions: [{ id: 'ns_0000000a.1', position: 1 }, { id: 'ns_0000000a.2', position: 2 }, { id: 'ns_0000000a.3', position: 3 }] }),
+    ...(i < 5 ? [ev('step_selected', { suggestion_id: 'ns_0000000a.1', position: 1, concept_ids: ['learning-rate', 'not-on-this-board'] })] : [])]);
   const body = (await read(f, `/api/analytics/publications/${canvas}?range=7d`, 'ana')).body;
   const quiz = body.learning.friction.find(q => q.material_id === 'z1');
   assert.deepEqual([quiz.assessed.value, quiz.incorrect.value, quiz.incorrect_rate.value], [10, 4, 0.4], 'a later right answer does not erase a first wrong one');
@@ -309,7 +410,7 @@ test('history is the canvas\'s: a republish keeps it under a new token; a perman
   await send(f, again, { events: [ev('open')] });
   assert.equal((await read(f, `/api/analytics/publications/${canvas}?range=all`, 'ana')).body.overview.total_opens.value, 2);
   assert.equal((await f.call('DELETE', `/api/apps/${canvas}`, { as: 'ana' })).status, 200);
-  for (const table of ['publication_events', 'publication_learners', 'publication_sessions', 'publication_learner_days', 'publication_revisions']) assert.equal(f.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n, 0, table);
+  for (const table of [...LEARNER_TABLES, 'publication_board_days', 'publication_revisions']) assert.equal(f.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n, 0, table);
 });
 
 test('collection status is verified: a failed ingest batch turns it degraded until a later batch succeeds', async t => {
@@ -376,17 +477,6 @@ test('analytics never costs a start or a fork: if preparing its row fails, the a
   assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM publication_learner_items').get().n, 0);
 });
 
-test('referrer hosts leave no small remainder of the other-referrer total', async t => {
-  const f = setup(t);
-  const { canvas, token } = await board(f);
-  for (let i = 0; i < 12; i += 1) await send(f, token, { events: [ev('open', { source: 'other_referrer', referrer_host: 'news.example.com' })] });
-  const exact = (await read(f, `/api/analytics/publications/${canvas}?range=7d`, 'ana')).body;
-  assert.deepEqual(exact.sources.referrers, [{ host: 'news.example.com', visitors: { value: 12, reason: null } }]);
-  await send(f, token, { events: [ev('open', { source: 'other_referrer', referrer_host: 'small.example.org' })] });
-  const small = (await read(f, `/api/analytics/publications/${canvas}?range=7d`, 'ana')).body;
-  assert.deepEqual(small.sources.referrers, [], 'naming the big host would reveal the one visitor left over');
-});
-
 test('revisions: a change of the card set starts a new segment; a text edit does not', async t => {
   const f = setup(t);
   const { canvas, token } = await board(f);
@@ -411,6 +501,6 @@ test('learn 0035 is CREATE-only, re-runnable and mirrored verbatim at the end of
   assert.ok(schema.trimEnd().endsWith(migration.trim()));
   const db = new DatabaseSync(':memory:');
   db.exec(migration); db.exec(migration);
-  assert.deepEqual(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all().map(r => r.name), ['analytics_meta', 'publication_events', 'publication_learner_days', 'publication_learner_items', 'publication_learners', 'publication_revisions', 'publication_sessions', 'publication_visitor_links']);
+  assert.deepEqual(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all().map(r => r.name), ['analytics_meta', 'publication_board_days', 'publication_events', 'publication_learner_days', 'publication_learner_items', 'publication_learners', 'publication_revisions', 'publication_sessions']);
   db.close();
 });

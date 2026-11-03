@@ -626,7 +626,7 @@ async function fork(req, env, body, { duplicate = false } = {}) {
   // Copy first, then publish the canvas, board and lineage atomically. A failed copy cannot become a replayable fork.
   // A fork through a public board by someone other than its owner is that board's audience conversion (creator analytics),
   // written in the same batch as canvas_forks: a failed fork records nothing, and a replay returned above never gets here.
-  const converted = duplicate || !source.found ? [] : await (await import('./publication-analytics.js')).conversionStatements(db, { found: source.found, user, kind: 'fork', item: name });
+  const converted = duplicate || !source.found ? [] : await (await import('./publication-analytics.js')).conversionStatements(db, { req, found: source.found, user, kind: 'fork', item: name });
   const bucket = learnMedia(env), copiedKeys = [];
   let files = 0, publishing = false;
   try {
@@ -776,7 +776,7 @@ async function startRabbitHole(req, env, token, body) {
   const now = new Date().toISOString();
   // A start through a public board by someone other than its owner (creator analytics), in the hole's own batch: a failure
   // records nothing, and entering an existing hole (200 above) never counts again.
-  const converted = await (await import('./publication-analytics.js')).conversionStatements(db, { found, user, kind: 'start', item: name, materialId: origin.root || blank ? null : origin.id });
+  const converted = await (await import('./publication-analytics.js')).conversionStatements(db, { req, found, user, kind: 'start', item: name, materialId: origin.root || blank ? null : origin.id });
   try {
     await db.batch([
       db.prepare('INSERT INTO canvases(org,name,owner_email,title,project,device_id) VALUES(?,?,?,?,NULL,NULL)').bind(user.org, name, user.email, title),

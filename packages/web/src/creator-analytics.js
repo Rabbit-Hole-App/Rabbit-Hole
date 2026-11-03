@@ -5,7 +5,8 @@
 export const RANGES = [{ id: '7d', label: '7 days' }, { id: '30d', label: '30 days' }, { id: 'all', label: 'All time' }];
 export const TABS = [{ id: 'overview', label: 'Overview' }, { id: 'boards', label: 'Boards' }, { id: 'learning', label: 'Learning' }, { id: 'sources', label: 'Sources' }];
 export const THRESHOLD = 10;
-export const SOURCES = { linkedin: 'LinkedIn', explore: 'Explore', creator_profile: 'Creator profile', stars: 'Stars', direct: 'Direct / unknown', other_referrer: 'Other referrers' };
+export const SOURCES = { linkedin: 'LinkedIn', explore: 'Explore', creator_profile: 'Creator profile', stars: 'Stars', direct: 'Direct / unknown', other_referrer: 'Other sites' };
+export const COVERAGE_COPY = 'Only visitors who accepted analytics are measured, and nothing is collected from browsers sending Do Not Track or Global Privacy Control. Other visitors are not counted, so a low number does not mean no activity.';
 export const LAUNCH_COPY = 'Ready for your first audience. Collection is active. Your own visits do not count. Share a public learning board to begin collecting audience activity.';
 
 // The read route for a scope: null is every public board of the session's own, a canvas id that one board.
@@ -66,6 +67,8 @@ export function analyticsCsv(data) {
   rows.push(['Scope', data.scope?.title || 'All public learning boards', data.scope?.canvas || '', '', '']);
   rows.push(['Range', data.range, `${data.period?.from || 'collection start'} to ${data.period?.to}`, data.period?.timezone || 'UTC', data.period?.partial ? 'Partial coverage: earlier days were not collected' : '']);
   rows.push(['Privacy', '', 'Minimum cohort', data.threshold ?? THRESHOLD, '']);
+  rows.push(['Coverage', 'Audience', 'Consenting visitors only; other visitors are not counted', '', '']);
+  rows.push(['Coverage', 'Visitor-level measures', `From ${data.period?.audience_from || data.period?.from || ''}; visitor-level records expire after ${data.retention_days ?? 90} days`, '', '']);
   for (const [key, m] of Object.entries(data.overview || {})) add('Overview', '', key, m);
   for (const [key, m] of Object.entries(data.stars || {})) add('Stars', '', key, m);
   for (const b of data.boards || []) for (const [key, m] of Object.entries(b)) if (m && typeof m === 'object') add('Boards', b.title, key, m);
@@ -85,7 +88,6 @@ export function analyticsCsv(data) {
   }
   for (const s of data.sources?.visitors || []) add('Sources', SOURCES[s.source] || s.source, 'visitors', s.visitors);
   for (const c of data.sources?.campaigns || []) { add('Campaigns', c.campaign, 'visitors', c.visitors); add('Campaigns', c.campaign, 'start_rate', c.start_rate); }
-  for (const r of data.sources?.referrers || []) add('Referrers', r.host, 'visitors', r.visitors);
   for (const [key, p] of Object.entries(data.producers || {})) rows.push(['Coverage', key, p.readiness, p.started_at || '', p.note || '']);
   for (const [key, text] of Object.entries(data.definitions || {})) rows.push(['Definition', key, text, '', '']);
   return rows.map(r => r.map(cell).join(',')).join('\r\n');
