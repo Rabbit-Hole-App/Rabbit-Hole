@@ -1,6 +1,6 @@
 # Animation MVP1 correction: evidence summary (v3, 2026-11-03)
 
-Branch `fix/animation-sgd-rca`, final SHA `cad855a1e3ada884c4b75ec15c4929801c9224f2`. Offline fixture and dev preview only: no model call was made, nothing is merged to main, nothing is released, nothing runs in production. Paid generation is paused until the owner approves it.
+Branch `fix/animation-sgd-rca`. Final code commit `5e6711917b236fc64d85ada65175a956a4960631` (verified, deployed to the dev preview; a docs-only commit with this record follows it). The earlier verified commit is `cad855a1e3ada884c4b75ec15c4929801c9224f2`. Offline fixture and dev preview only: no model call was made, nothing is merged to main, nothing is released, nothing runs in production. Paid generation is paused until the owner approves it.
 
 This page is the short, GitHub-readable summary. The full report, captures and the evidence ZIP stay in the local evidence folder (not in the repository).
 
@@ -31,6 +31,14 @@ This page is the short, GitHub-readable summary. The full report, captures and t
 - fast-e2e: [run 41620275028](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41620275028): success, 88 checks selected in 6 parts, all 88 exit 0, including `animation-mvp-check` 42/42 (the two new single-step steps among them) and `motion-command-check` 50/50. No rerun was needed.
 - Header check (`shared-header-check`): 39/39 in the same fast-e2e run.
 
+## Final commit record
+
+- Code commit `5e6711917b236fc64d85ada65175a956a4960631` (final; changes since `cad855a1e` are listed above: a new run waits for Play, the badge assertion, this file).
+- verify: [run 41624177710](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41624177710): success.
+- fast-e2e: [run 41624177719](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41624177719): success; the selection was `animation-mvp-check` only, 42/42 (exit 0, 222 s), including the badge assertions; no rerun was needed.
+- Dev preview: version eb9a47fa-cc91-4ce1-b6fc-c73d94a29555, launcher `--check`: RESULT CHECK OK on the first attempt (session, canvas, re-seeded fixture result, card and page all work); old-tab browser check: ALL 13 CHECKS OK on the second run: three clicks on Take one step read exactly Step 3 with the card paused, saved and restored counts 3 and 3 (it was 11 and 11), a second old tab shows the empty frame (380 by 26 px), the old tab's save keeps the card and its data, and a new run starts at step 0 and waits (Paused, step 0, four seconds later). The first run had the same 12 checks pass and failed only the new probe's own step reading (it read the card text, which is empty after a reload); that attempt is kept as `browser-check-r3b/`, the fixed probe is `browser-check-r3c/`.
+- What the owner sees now compared with `cad855a1e`: "New run, keep old path" starts a new run at step 0 and waits (Paused) until Play or Take one step; nothing else differs.
+
 ## Compatibility decision
 
 - `startsMotion` is a second client feature, `action_motion` (`ANIMATION_CLIENT_FEATURES` is now `curve_radius`, `action_motion`). A browser build that does not know the field refuses the artifact (strict action object), so it is gated exactly like tube curves: the author and repair are told, a draft that uses it for a browser without it is refused for repair, and a saved artifact that declares it answers `409 client_update_required` to such a browser (its card says to reload).
@@ -39,7 +47,7 @@ This page is the short, GitHub-readable summary. The full report, captures and t
 
 ## Tests
 
-Final tree (code SHA above), local, exit 0 each (outputs in the evidence folder):
+Final tree (`5e6711917`; the same counts held on `cad855a1e`), local, exit 0 each (outputs in the evidence folder):
 
 - control-plane `npm test`: 3346 tests, 3345 pass, 0 fail (1 skipped).
 - web `npm run test:unit`: 4982 tests, 4955 pass, 0 fail (the rest skipped).
@@ -90,10 +98,10 @@ Role bound = (max input tokens + images x 4,784) x $4/Mtok x 1.25 (cache write) 
 
 ## State of every path (at the end of this round)
 
-- Branch `fix/animation-sgd-rca`: local and remote `rabbit-hole` both at `cad855a1e3ada884c4b75ec15c4929801c9224f2` (CI-verified code SHA); a docs-and-check commit on top follows this preview. Nothing is on main; no PR; nothing in production.
+- Branch `fix/animation-sgd-rca`: local and remote `rabbit-hole`: the code commit `5e6711917` (CI-verified, deployed) and on top of it one docs-only commit (the next commit on the branch) that wrote the final record into this file. Nothing is on main; no PR; nothing in production.
 - Branch `fix/animation-rca-legibility` (helper, worktree `animation-rca-legibility`): local only, at `cad855a1e` (fast-forwarded into the branch above; no commits of its own beyond it); never pushed.
-- Dev clone `rabbit-hole-web-dev-animation` (never the shared worker): serves `cad855a1e` (version 08ccc689-92ab-4732-8994-24502157911f, deployed 2026-11-03 at about 02:55 PT after verify and fast-e2e were green on the exact SHA), deployed after verify and fast-e2e were green on that exact SHA, with `ANIMATION_ENABLED`, `ANIMATION_DIAGNOSTICS` and a $40 platform day cap; it holds no model credential, so no paid call is possible from it.
-- Local test stack: stopped, its data removed. Worktree `animation` (the integration worktree) untouched.
+- Dev clone `rabbit-hole-web-dev-animation` (never the shared worker): serves `5e6711917` (version eb9a47fa-cc91-4ce1-b6fc-c73d94a29555, deployed 2026-11-03 at about 03:13 PT after verify and fast-e2e were green on the exact SHA; the earlier deployment of `cad855a1e` was version 08ccc689-92ab-4732-8994-24502157911f), deployed after verify and fast-e2e were green on that exact SHA, with `ANIMATION_ENABLED`, `ANIMATION_DIAGNOSTICS` and a $40 platform day cap; it holds no model credential, so no paid call is possible from it.
+- Local test stack: stopped. Worktree `animation` (the integration worktree) untouched.
 - The frozen candidate `51b6560cf` and the pre-release production client `b58d74876` are only read (checkouts `rca-base`, `rca-main` for the old-client tests and the old-tab check).
 - Local only, not in the repository: the evidence folder `C:/s/spec/animation/sgd-mvp1-correction-v2/`, the evidence ZIP `C:/s/spec/animation/sgd-mvp1-correction-v2.zip`, the launcher `C:/s/spec/animation/open-correction-fixture.cmd`.
 
@@ -101,7 +109,7 @@ Role bound = (max input tokens + images x 4,784) x $4/Mtok x 1.25 (cache write) 
 
 The dev preview of the offline fixture is the dev clone `rabbit-hole-web-dev-animation` (never the shared worker, never production). Dev clones refuse sign-in, so use the local launcher on the owner's machine, which opens the canvas already signed in as the fixed dev test user: run `C:\s\spec\animation\open-correction-fixture.cmd` (it finds or creates the canvas titled "MVP1 correction - OFFLINE FIXTURE, not model-generated", re-seeds the fixture as a saved result through the dev-only `seed-fixture` route, places one card and opens the browser). `--check` does the same without opening the browser and reads the saved result back the way the card does. The route exists only where `ANIMATION_DIAGNOSTICS` is set (the dev clone); production config pins it off. A tab that was open before the redeploy declares only `curve_radius` and is told to reload for this fixture.
 
-Preview version: 08ccc689-92ab-4732-8994-24502157911f, deployed 2026-11-03 at about 02:55 PT after verify and fast-e2e were green on the exact SHA
+Preview version: eb9a47fa-cc91-4ce1-b6fc-c73d94a29555, deployed 2026-11-03 at about 03:13 PT after verify and fast-e2e were green on the exact SHA (earlier verified deployment of cad855a1e: 08ccc689-92ab-4732-8994-24502157911f)
 
 ## Files changed this round
 
