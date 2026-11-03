@@ -117,6 +117,11 @@ test('an approved plan shows its job and card in Chat, never "Added to the canva
   assert.equal(animationProposalStatus({ job: { stage: 'ready' }, onCanvas: false, cardId: 'c' }).label, null, 'a made scene with no card is not "added"');
   assert.deepEqual([animationProposalStatus({ job: { stage: 'reviewing' }, cardId: 'c' }).active, animationProposalStatus({ job: { stage: 'reviewing' }, cardId: 'c' }).detail], [true, 'Reviewing the render']);
   assert.equal(animationProposalStatus({ job: { stage: 'cancelled' }, cardId: 'c' }).phase, 'stopped');
+  // Owner 2026-11-03 (escrow): a build stopped after Generate says what became of its credits, in the server's words; a plan stopped before it says nothing.
+  assert.equal(animationStage({ stage: 'cancelled' }), 'Stopped');
+  assert.equal(animationStage({ stage: 'cancelled', usage: { credits: 3, note: 'Credits refunded.' } }), 'Stopped. Credits refunded.');
+  assert.equal(animationProposalStatus({ job: { stage: 'cancelled', usage: { note: 'You have not been charged.' } }, cardId: 'c' }).detail, 'Stopped. You have not been charged.');
+  assert.equal(animationProposalStatus({ job: { stage: 'cancelled' }, cardId: 'c' }).detail, 'Stopped.');
   assert.equal(animationProposalStatus({ unread: true }).phase, 'unknown');
 });
 

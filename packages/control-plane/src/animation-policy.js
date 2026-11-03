@@ -52,6 +52,13 @@ export const ANIMATION_LIMITS = Object.freeze({
   autoRetry: Object.freeze({ delayMs: 15000 }),
 });
 
+// Billing is an escrow (owner 2026-11-03: "if successful we charge, if not refunded"; docs/features/animation/billing-escrow.md). The
+// generation stage's calls settle as they run and are refunded in full when the job ends without a result (failed, stopped); a ready job
+// keeps them charged. planPhaseRefunded: DEFAULT false, the plan the learner received stays charged; true refunds the plan calls of such a
+// job too. freeFailuresPerDay: DEFAULT 5, how many generations a learner may have refunded in a rolling 24 hours before Generate is
+// refused (each costs the platform its model price). Both are owner decisions, flagged in the doc.
+export const ANIMATION_BILLING = Object.freeze({ planPhaseRefunded: false, freeFailuresPerDay: 5 });
+
 export const PROVIDER_UNAVAILABLE = 'Animations are temporarily unavailable. Your request is saved. Try again in a few minutes.';
 
 export class AnimationPolicyError extends Error {

@@ -79,7 +79,9 @@ row in [spend.md](spend.md).
   resume, poll and result paths, with GETs only; a card stopped on itself is never resumed. (3) A billed reply the job
   cannot use is "The AI answer could not be used.", no longer an interruption, and every charge sentence comes from the
   failed stage run's call ledger: refused or no measured cost "You are not charged for it.", a measured cost "It used N AI
-  credits.", an unrecorded outcome "It may have used AI credits."
+  credits.", an unrecorded outcome "It may have used AI credits." Superseded for a generation that ends without a result by the
+  owner's escrow decision of 2026-11-03: its credits are refunded and the card says "Credits refunded." or "You have not been
+  charged." (billing-escrow.md); the plan phase keeps the sentences above.
 - Status: implemented and fixture-tested; not live. Needs the integrator's measurement fix for this request to build, then a
   preview deploy for owner review.
 

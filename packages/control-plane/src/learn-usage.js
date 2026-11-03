@@ -418,6 +418,36 @@ export async function refundAttempt(db, attemptId, { reason, micros = null, now 
   return Number(row.refunded);
 }
 
+// Refunds every settled, not yet refunded charge of the payer-funded action a client key names (a Durable Object job's phase: its
+// action is found by its owner and key, as animation-job.js finishUsage finds it). Each attempt goes through refundAttempt's one
+// guarded UPDATE, so a replayed call, a restarted object or a status read refunds nothing twice. -> micros refunded now. Throws on a
+// write failure; the caller decides what that means.
+export async function refundActionByKey(db, userId, clientKey, reason) {
+  const { results } = await db.prepare(`SELECT t.attempt_id FROM usage_actions a JOIN usage_attempts t ON t.action_id = a.action_id
+    LEFT JOIN usage_attempt_detail d ON d.attempt_id = t.attempt_id
+    WHERE a.user_id = ? AND a.client_key = ? AND a.charge_class = 'would_charge' AND t.cost_state = 'settled' AND t.cost_micros > 0 AND COALESCE(d.refunded_micros, 0) = 0`).bind(userId, clientKey).all();
+  let refunded = 0;
+  for (const { attempt_id: attemptId } of results || []) refunded += await refundAttempt(db, attemptId, { reason });
+  return refunded;
+}
+
+// Takes back the refunds a reason made on the same action (an escrow that ends in success after an earlier failure charges the whole
+// build after all). The attempt keeps its cost; its refund goes to 0, stamped now so the telemetry projection reads the change again,
+// and a positive audit row cancels the negative one. Once each (the UPDATE names the refund it reverses). -> micros charged now.
+export async function chargeRefundedByKey(db, userId, clientKey, { refundReason, reason, now = nowSeconds() }) {
+  const { results } = await db.prepare(`SELECT d.attempt_id, d.refunded_micros AS micros, a.action_id FROM usage_actions a JOIN usage_attempts t ON t.action_id = a.action_id
+    JOIN usage_attempt_detail d ON d.attempt_id = t.attempt_id WHERE a.user_id = ? AND a.client_key = ? AND d.refund_reason = ? AND d.refunded_micros > 0`).bind(userId, clientKey, refundReason).all();
+  let charged = 0;
+  for (const row of results || []) {
+    const done = await db.prepare('UPDATE usage_attempt_detail SET refunded_micros = 0, refunded_at = ?, refund_reason = ? WHERE attempt_id = ? AND refunded_micros = ? AND refund_reason = ?')
+      .bind(now, reason, row.attempt_id, row.micros, refundReason).run();
+    if (done.meta?.changes !== 1) continue;
+    await recordAdjustment(db, { actionId: row.action_id, userId, micros: Number(row.micros), reason, now });
+    charged += Number(row.micros);
+  }
+  return charged;
+}
+
 // A refund or adjustment (Phase 1: the writer only, no UI flow). micros is signed: a refund is negative.
 export async function recordAdjustment(db, { actionId = null, userId = null, micros, reason, now = nowSeconds() }) {
   if (!Number.isSafeInteger(micros) || typeof reason !== 'string' || !reason) throw new Error('adjustment needs integer micros and a reason');

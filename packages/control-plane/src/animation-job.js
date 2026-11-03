@@ -10,7 +10,10 @@
 // ANIMATION_ENABLED is 'true'.
 //
 // Money: every model call is admitted on its own by spendTransport under one usage action per phase (preparation, generation); a
-// review is kind evaluation. Before generation starts (Generate, and each paid Retry) the build's full worst case
+// review is kind evaluation. The build is an ESCROW (owner 2026-11-03; docs/features/animation/billing-escrow.md): its calls settle as
+// they run, a ready job keeps them charged, and a job that ends without a result (failed, stopped) has every one of them refunded,
+// once, by refundEscrow (the plan phase stays charged unless ANIMATION_BILLING.planPhaseRefunded).
+// Before generation starts (Generate, and each paid Retry) the build's full worst case
 // (animationReservation) must fit the learner's available allowance. That is a check, not a hold (see animation-policy.js): the job
 // itself never sends more calls than ANIMATION_LIMITS.calls, nor more than the worst case in summed per-call bounds.
 //
@@ -22,7 +25,7 @@ import { anthropic } from './ask.js';
 import { LEARN_TASKS, MESSAGE_LIMIT, costUsd } from './learn-models.js';
 import { platformCaps, spendEnforced, spendTransport } from './learn-spend.js';
 import { refusalBody } from './learn-spend-ledger.js';
-import { finishAction, noteUsageIdentity, recordMedia, toMicros, usagePayer, usageTotals, withUsage } from './learn-usage.js';
+import { chargeRefundedByKey, finishAction, noteUsageIdentity, recordMedia, refundActionByKey, toMicros, usagePayer, usageTotals, withUsage } from './learn-usage.js';
 import { allowanceFor } from './learn-entitlement.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { consumeProposal, envelopeFor, proposalRecord, proposalState, publishRevision, signProposal, verifyProposal } from './generation-proposal.js';
@@ -43,7 +46,7 @@ import { reviewStage } from './animation-review.js';
 import { repairStage } from './animation-repair.js';
 import { CHANGED, GAP_ALTERNATIVES, GAP_FALLBACK, SIMPLER_ALTERNATIVE, clarificationFor, learnerReason, sizeCheck } from './animation-feasibility.js';
 import { seededJobs } from './animation-outcomes-fixture.js';
-import { ANIMATION_LIMITS, ANIMATION_POLICY_VERSION, AnimationPolicyError, animationModelConfigured, modelNotConfigured, animationRequest, animationReservation, callAnimationRole, checkAnimationRequest } from './animation-policy.js';
+import { ANIMATION_BILLING, ANIMATION_LIMITS, ANIMATION_POLICY_VERSION, AnimationPolicyError, animationModelConfigured, modelNotConfigured, animationRequest, animationReservation, callAnimationRole, checkAnimationRequest } from './animation-policy.js';
 
 export const ANIMATION_PREFIX = '/api/learn/animation/jobs';
 export const ANIMATION_COMMAND = 'animation';
@@ -67,6 +70,9 @@ const TERMINAL = new Set(['ready', 'failed', 'cancelled']);
 const SOURCES = ['explicit', 'picker', 'command', 'suggestion', 'classified', 'tutor'];
 const KIND = { brief: 'generation', author: 'generation', review: 'evaluation', repair: 'repair' };
 const JOBS_KEPT = 50;
+// The ledger's reasons for what the escrow gave back and took back, and the learner's words for the outcome (credits only).
+export const ANIMATION_REFUND = 'animation_failed_refund', ANIMATION_CHARGE = 'animation_ready_charge';
+export const CREDITS_REFUNDED = 'Credits refunded.', NOT_CHARGED = 'You have not been charged.';
 const jobKey = id => `job:${id}`;
 // Plan calls: one per preparation plus its one correction, for the first plan and each refinement.
 const briefLimit = ANIMATION_LIMITS.calls.brief * (1 + ANIMATION_LIMITS.planCorrections) * (1 + ANIMATION_LIMITS.refinements);
@@ -76,13 +82,25 @@ const clean = (value, max) => String(value ?? '').replace(/\s+/g, ' ').trim().sl
 
 // Learner-facing view: credits, never dollars; no prompt, findings, draft, artifact source or private diagnostics.
 const credits = micros => Math.ceil((micros || 0) / 10000);
+// The phases whose calls come back when a job ends without a result, and whether this job is billed that way: made after the escrow
+// (job.escrow), and past Generate (or the policy refunds the plan too). A job made before it keeps the rules it was made under.
+const refundedPhases = () => (ANIMATION_BILLING.planPhaseRefunded ? ['preparation', 'generation'] : ['generation']);
+const escrowed = job => job.escrow === true && (!!job.approval || ANIMATION_BILLING.planPhaseRefunded);
+const refundKeys = job => [job.actionKey, ...(ANIMATION_BILLING.planPhaseRefunded ? [job.prepKey] : [])].filter(Boolean);
+// The outcome of a generation that ended without a result, in a few words: Credits refunded when a call had settled (the job's call
+// ledger and the usage ledger agree on what settled), else nothing was ever charged for it.
+function escrowWords(job) {
+  const given = (job.calls || []).filter(c => refundedPhases().includes(c.phase)).reduce((t, c) => t + (c.costMicros || 0), 0);
+  return given ? CREDITS_REFUNDED : NOT_CHARGED;
+}
 export function publicAnimationJob(job) {
-  const settled = job.calls.reduce((t, c) => t + (c.costMicros || 0), 0);
+  const ended = escrowed(job) && TERMINAL.has(job.stage) && job.stage !== 'ready';
+  const settled = job.calls.filter(c => !ended || !refundedPhases().includes(c.phase)).reduce((t, c) => t + (c.costMicros || 0), 0);
   return {
     id: job.id, version: 1, boardId: job.boardId, cardId: job.cardId, stage: job.stage, attempt: job.attempt, terminal: TERMINAL.has(job.stage),
     repairs: job.repairs, stopReason: job.stopReason, failure: job.failure && (({ gap: _private, ...failure }) => ({ ...failure, message: failureText(job) }))(job.failure), recovery: recoveryOf(job),
     outcome: outcomeOf(job), choiceOpen: !!job.sizeChoice?.open, ...(job.threadId ? { threadId: job.threadId } : {}), chatPending: reportPending(job),
-    usage: { credits: credits(settled), unknown: job.calls.some(c => c.status === 'unknown') },
+    usage: { credits: credits(settled), unknown: job.calls.some(c => c.status === 'unknown'), ...(ended ? { note: escrowWords(job) } : {}) },
     // Revise plan's new job for the same card and request (revise): a card still bound to this one follows it (Animation3DCard reconcile).
     result: job.result, ...(job.plan ? { plan: job.plan, planHash: job.planHash } : {}), ...(job.successor ? { successor: job.successor } : {}),
     timing: timingSummary(job.timing), createdAt: job.createdAt, updatedAt: job.updatedAt,
@@ -154,7 +172,7 @@ function chargeWords(job) {
   if (!ran.length) return '';
   if (ran.some(c => !['settled', 'failed', 'refused'].includes(c.status))) return 'It may have used AI credits.';
   const used = credits(ran.reduce((t, c) => t + (c.costMicros || 0), 0));
-  return used ? `It used ${used} AI credit${used === 1 ? '' : 's'}.` : 'You are not charged for it.';
+  return used ? `It used ${used} AI credit${used === 1 ? '' : 's'}.` : NOT_CHARGED;
 }
 // The learner's words for a failure (card and Chat alike): what could not be done, what was tried, and the action offered now.
 // Mapped from the recorded class, stage and finding categories; raw findings, model text and logs are never quoted.
@@ -185,7 +203,9 @@ export function failureText(job) {
   const next = { retry_render: 'Render again renders the built scene again.', new_attempt: `Try again continues from where it stopped${attemptCost(job)}.`,
     revise_plan: `Revise plan prepares a simpler plan from your request for you to review, using up to ${credits(job.reservation?.preparationMicros)} AI credits; nothing is built until you press Generate.` }[action]
     ?? (plannerGap(job) ? 'Choose an alternative in Chat, or edit the request to start a new animation.' : candidate || ['capability', 'output_limit', 'deadline', 'limit', 'review_validation'].includes(kind) ? 'Edit the request to start a new animation.' : '');
-  return [what, ['transient', 'output_limit', 'error', 'review_validation'].includes(kind) ? chargeWords(job) : '', ...tried, next].filter(Boolean).join(' ');
+  // A generation that ended without a result states what became of its credits; before Generate (the plan phase) the charge words stand.
+  const charge = escrowed(job) ? escrowWords(job) : ['transient', 'output_limit', 'error', 'review_validation'].includes(kind) ? chargeWords(job) : '';
+  return [what, charge, ...tried, next].filter(Boolean).join(' ');
 }
 // The planner's instruction for a revised plan (prepareStage's refinement, with the approved plan as `previous`): server words only.
 const REVISE_WHY = { size_limit: 'was too large to check', output_limit: 'reached an output limit before it was finished', checks: 'did not pass its checks', deadline: 'ran out of time', limit: 'reached its spending limit', transient: 'could not be finished' };
@@ -414,6 +434,8 @@ export class AnimationJobs {
     if (action === 'get') {
       // A pending Chat explanation is tried again by any status read, and its backoff starts over.
       if (reportPending(job) && !job.inFlight) { job.reportTries = 1; job.reportAt = 0; await this.report(job); }
+      // A refund that did not land when the job ended is made now (idempotent: nothing is refunded twice).
+      if (['failed', 'cancelled'].includes(job.stage) && !job.inFlight) await this.refundEscrow(job);
       const block = job.stage === 'ready' ? await this.block(job) : null;
       return json({ job: publicAnimationJob(job), ...(block ? { block } : {}), ...(detail ? { diagnostics: diagnostics(job) } : {}) });
     }
@@ -458,7 +480,7 @@ export class AnimationJobs {
   newJob(request) {
     const now = Date.now();
     return {
-      id: `aj_${hex()}`, version: 1, policyVersion: ANIMATION_POLICY_VERSION, ...request, refinement: null, pendingProposal: null, proposal: null, settings: null,
+      id: `aj_${hex()}`, version: 1, policyVersion: ANIMATION_POLICY_VERSION, escrow: true, ...request, refinement: null, pendingProposal: null, proposal: null, settings: null,
       stage: 'queued', attempt: 1, repairs: 0, stopped: false, stopReason: null, failure: null, inFlight: null,
       counts: { brief: 0, author: 0, review: 0, repair: 0 }, bounds: { preparation: 0, generation: 0 }, calls: [], renders: 0,
       prepKey: `ap${hex()}`, actionKey: `ag${hex()}`, resultId: `ar_${hex()}`, revision: `av_${hex()}`,
@@ -505,8 +527,17 @@ export class AnimationJobs {
       if (allowance == null) reason = 'allowance_unavailable';
       else if (left <= 0) reason = 'allowance_exhausted';
       else if (left - reserved < need) reason = reserved > 0 && left >= need ? 'allowance_reserved' : 'allowance_insufficient';
+      // A failed generation is free to the learner and costs the platform its model price, so only so many a day: the generations
+      // refunded in the last 24 hours (a ready job that took its refund back nets to zero and does not count).
+      else if (await this.refundedToday(payer.userId) >= ANIMATION_BILLING.freeFailuresPerDay) reason = 'free_retries_exhausted';
     } catch { reason = 'allowance_unavailable'; }
     if (reason) throw Object.assign(fail('Not enough AI credits.', reason === 'allowance_unavailable' ? 503 : 429), { refusal: { reason, period: payer.period } });
+  }
+
+  async refundedToday(userId) {
+    const row = await this.env.LEARN_DB.prepare('SELECT COUNT(*) AS n FROM (SELECT action_id FROM usage_adjustments WHERE user_id = ? AND reason IN (?, ?) AND created_at >= ? GROUP BY action_id HAVING SUM(micros) < 0)')
+      .bind(userId, ANIMATION_REFUND, ANIMATION_CHARGE, Math.floor(Date.now() / 1000) - 86400).first();
+    return Number(row?.n || 0);
   }
 
   // Stop: durable at once. A call already sent finishes and settles; its result is dropped. No paid step starts after this.
@@ -770,6 +801,24 @@ export class AnimationJobs {
       try { await db.prepare("UPDATE usage_actions SET status = ?, result = ?, ended_at = ? WHERE user_id = ? AND client_key = ? AND status = 'running'")
         .bind(status, status === 'completed' ? 'full' : 'none', Math.floor(Date.now() / 1000), user, key).run(); } catch { /* best effort, as finishAction */ }
     }
+    if (status !== 'completed') await this.refundEscrow(job);
+  }
+  // The escrow's two moves on the usage ledger, each safe to repeat. A job that ends without a result gets its settled calls back
+  // (refundEscrow: at the end, again by a late settlement and by a status read); a job that is ready after an earlier failure takes
+  // them back again (chargeEscrow). A write that fails is logged and left for the next move: the job's own state is never held for it.
+  async refundEscrow(job) {
+    const db = this.env.LEARN_DB, user = job.owner.userId || job.owner.email;
+    if (!db || job.escrow !== true) return;
+    for (const key of refundKeys(job)) {
+      try { await refundActionByKey(db, user, key, ANIMATION_REFUND); } catch (error) { console.warn('animation refund not made:', error?.message); }
+    }
+  }
+  async chargeEscrow(job) {
+    const db = this.env.LEARN_DB, user = job.owner.userId || job.owner.email;
+    if (!db || job.escrow !== true) return;
+    for (const key of refundKeys(job)) {
+      try { await chargeRefundedByKey(db, user, key, { refundReason: ANIMATION_REFUND, reason: ANIMATION_CHARGE }); } catch (error) { console.warn('animation charge not made:', error?.message); }
+    }
   }
 
   // One paid role call. Under the lock: the job is still this stage and attempt, not stopped, nothing else in flight, within the
@@ -811,6 +860,8 @@ export class AnimationJobs {
       if (current.inFlight?.key === key) current.inFlight = null;
       countStage(current.timing, { calls: 1, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens, images });
       await this.save(current);
+      // A call that settles after Stop belongs to a job that already ended without a result: its charge goes back with the rest.
+      if (TERMINAL.has(current.stage) && current.stage !== 'ready') await this.refundEscrow(current);
     });
     if (error) throw error;
     return out;
@@ -996,7 +1047,7 @@ export class AnimationJobs {
       provenance: { evidence: (job.evidence || []).map(r => r.id).slice(0, 64), sources: (job.context?.refs || []).map(({ sourceId, kind, name, version, status, evidence }) => ({ sourceId, kind, name, version: version ?? '', ...(status ? { status } : {}), ...(evidence ? { evidence } : {}) })) } });
     endStage(job.timing, 'accepted'); markTiming(job.timing, 'result');
     Object.assign(job, { stage: 'ready', stopReason: 'accepted' });
-    await this.save(job); await this.finishUsage(job, 'completed');
+    await this.save(job); await this.finishUsage(job, 'completed'); await this.chargeEscrow(job);
   }
   // Review renders are platform compute (feature render, free to the learner), recorded once per capture.
   async recordRenders(job, renders) {

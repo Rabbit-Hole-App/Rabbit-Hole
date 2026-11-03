@@ -36,7 +36,9 @@ const STAGES = {
   authoring: 'Building the scene', validating: 'Checking it', rendering: 'Rendering sample views', reviewing: 'Reviewing the render',
   repairing: 'Fixing what the review found', ready: 'Ready', cancelled: 'Stopped',
 };
-export const animationStage = job => (job?.stage === 'failed' ? job.failure?.message || 'The scene could not be made.' : job?.choiceOpen ? 'Choose a change to the plan in Chat' : STAGES[job?.stage] || 'Checking status');
+// A stopped build says what became of its credits in the server's own few words (usage.note: "Credits refunded." / "You have not been charged.").
+const stopped = job => `${STAGES.cancelled}${job?.usage?.note ? `. ${job.usage.note}` : ''}`;
+export const animationStage = job => (job?.stage === 'failed' ? job.failure?.message || 'The scene could not be made.' : job?.choiceOpen ? 'Choose a change to the plan in Chat' : job?.stage === 'cancelled' ? stopped(job) : STAGES[job?.stage] || 'Checking status');
 // A request the server asks one question about has not failed in the learner's terms: the card says it plainly, not as an error.
 export const animationAsks = job => job?.stopReason === 'needs_clarification';
 // What a change offered in Chat does when pressed and what it costs (AnimationChoices.jsx). credits: it needs a plan call, up to that many.
@@ -78,7 +80,7 @@ export function animationProposalStatus({ job, unread = false, onCanvas = true, 
   if (job.stage === 'failed') return { phase: 'failed', label: null, active: false, spinner: false, detail: `${animationStage(job)}${missing}`, canStop: false, cardId: go };
   // Generate found that the edited plan needs a change first (FX-AN-031): nothing is being made, and the choice is in Chat.
   if (job.stage === 'awaiting_approval' && job.choiceOpen) return { phase: 'unknown', label: null, active: false, spinner: false, detail: 'This plan needs a change before it can be made. Choose one in Chat.', canStop: false, cardId: go };
-  if (job.stage === 'cancelled') return { phase: 'stopped', label: null, active: false, spinner: false, detail: `Stopped.${missing}`, canStop: false, cardId: go };
+  if (job.stage === 'cancelled') return { phase: 'stopped', label: null, active: false, spinner: false, detail: `${stopped(job)}${job.usage?.note ? '' : '.'}${missing}`, canStop: false, cardId: go };
   return { phase: 'running', label: 'Making the scene', active: true, spinner: true, detail: animationStage(job), canStop: false, cardId: go };
 }
 // A job's result lands through storage.js (withJob, settleAnimationJob): bound to its card, board, request, source set and base revision.
