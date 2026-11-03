@@ -28,6 +28,8 @@ by them (`sendDecision` and `marketingRecipient` are for the two optional catego
   Nothing travels through the OAuth or emailed-link redirect, so no personal data is in a URL, a cookie or `state`.
 - **Settings.** Settings > Privacy & security > Email: one switch per category, each saving only its own category. A choice that was only
   pre-selected shows **Confirm** (both categories need an active yes), which records it as `settings_user_set`, affirmative.
+  A note under the heading says plainly that these emails are not sent yet and the choices are saved for future messages. Every string a person sees is listed
+  in `C:/s/spec/signup-prefs/user-visible-strings.md`.
 - **Unsubscribe.** `GET/POST /unsubscribe?token=` (control plane, `email-preferences-store.js`): a signed link for one person and one
   category. GET shows a button and changes nothing (a mail scanner opening it is harmless); POST (the button, or a mail client's one-click)
   turns that category off. The route is served by the control plane because only it holds `MASTER_KEY`.

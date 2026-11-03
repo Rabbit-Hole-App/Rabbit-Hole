@@ -230,10 +230,11 @@ function EmailPreferences() {
   return (
     <>
       <Heading>Email</Heading>
+      <p data-email-notice className="pt-3 text-sm text-ink-2">Rabbit Hole does not send these emails yet. Your choices are saved and will be used for future messages.</p>
       <SaveError text={error} />
       {CATEGORIES.map(category => {
         const choice = view[category], on = choice.enabled === true, confirm = on && !choice.affirmative && AFFIRMATIVE_REQUIRED[category];
-        const state = choice.enabled === null ? 'Not set.' : !on ? 'Off.' : confirm ? 'Pre-selected when you joined. Confirm that you want it.' : !view.deliverable ? 'On, but there is no verified email address on your account, so nothing is sent yet.' : 'On.';
+        const state = choice.enabled === null ? 'Not set.' : !on ? 'Off.' : confirm ? 'Pre-selected when you joined. Confirm that you want it.' : !view.deliverable ? 'On. There is no verified email address on your account yet.' : 'On.';
         return (
           <SettingsRow key={category} title={words[category].label} desc={`${words[category].description} ${state}`}>
             <span data-email-pref={category} className="flex items-center gap-3">
