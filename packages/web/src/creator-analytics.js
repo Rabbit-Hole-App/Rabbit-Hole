@@ -68,7 +68,7 @@ export function analyticsCsv(data) {
   rows.push(['Range', data.range, `${data.period?.from || 'collection start'} to ${data.period?.to}`, data.period?.timezone || 'UTC', data.period?.partial ? 'Partial coverage: earlier days were not collected' : '']);
   rows.push(['Privacy', '', 'Minimum cohort', data.threshold ?? THRESHOLD, '']);
   rows.push(['Coverage', 'Audience', 'Consenting visitors only; other visitors are not counted', '', '']);
-  rows.push(['Coverage', 'Visitor-level measures', `From ${data.period?.audience_from || data.period?.from || ''}; visitor-level records expire after ${data.retention_days ?? 90} days`, '', '']);
+  rows.push(['Coverage', 'Visitor-level measures', `From ${data.period?.audience_from || data.period?.from || ''}; visitor-level records older than ${data.retention_days ?? 90} days are excluded from reports`, '', '']);
   for (const [key, m] of Object.entries(data.overview || {})) add('Overview', '', key, m);
   for (const [key, m] of Object.entries(data.stars || {})) add('Stars', '', key, m);
   for (const b of data.boards || []) for (const [key, m] of Object.entries(b)) if (m && typeof m === 'object') add('Boards', b.title, key, m);

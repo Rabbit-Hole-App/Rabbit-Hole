@@ -7,8 +7,8 @@ export const learnerKey = (kind, id) => sha256Hex(`publication-learner:${kind}:$
 export const accountKey = ({ userId, email }) => learnerKey(userId ? 'u' : 'e', userId || email);
 export const visitorKey = visitorId => learnerKey('v', visitorId);
 
-// 90 days: the MVP product default for records with a learner or session key. Reads ignore older rows, a daily scheduled cleanup deletes them,
-// and each ingest and read purges them as a safeguard.
+// 90 days: the MVP product default for records with a learner or session key. Reads ignore older rows, a scheduled cleanup (cron, wrangler.rabbit-hole-prod.jsonc)
+// deletes them, and each ingest and read purges them as a safeguard.
 export const RETENTION_DAYS = 90;
 export const retentionCutoff = now => new Date(Date.parse(now) - RETENTION_DAYS * 86400e3).toISOString();
 // The first UTC day a daily rollup may still hold: every moment of it is within 90 days, so a rollup never outlives the records it sums.
@@ -16,24 +16,31 @@ export const firstRetainedDay = now => {
   const at = retentionCutoff(now), day = at.slice(0, 10);
   return at.endsWith('T00:00:00.000Z') ? day : new Date(Date.parse(`${day}T00:00:00Z`) + 86400e3).toISOString().slice(0, 10);
 };
+// [table, column, which bound value]: 1 is the cutoff time, 2 the first retained day.
+const EXPIRY = [['publication_events', 'received_at', 1], ['publication_sessions', 'started_at', 1], ['publication_learners', 'last_seen_at', 1], ['publication_learner_days', 'day', 2], ['publication_learner_items', 'day', 2]];
 export const purgeExpired = (db, now) => {
-  const at = retentionCutoff(now), day = firstRetainedDay(now);
-  return [
-    db.prepare('DELETE FROM publication_events WHERE received_at < ?').bind(at),
-    db.prepare('DELETE FROM publication_sessions WHERE started_at < ?').bind(at),
-    db.prepare('DELETE FROM publication_learners WHERE last_seen_at < ?').bind(at),
-    db.prepare('DELETE FROM publication_learner_days WHERE day < ?').bind(day),
-    db.prepare('DELETE FROM publication_learner_items WHERE day < ?').bind(day),
-  ];
+  const bound = [null, retentionCutoff(now), firstRetainedDay(now)];
+  return EXPIRY.map(([table, column, i]) => db.prepare(`DELETE FROM ${table} WHERE ${column} < ?`).bind(bound[i]));
 };
 
-// The daily cron (app-worker.js, wrangler.rabbit-hole-prod.jsonc), independent of any visitor or read. Each run records its outcome, which the
+// The scheduled cleanup (app-worker.js, wrangler.rabbit-hole-prod.jsonc), independent of any visitor or read. Each run records its outcome, which the
 // owner's read reports; a failure is also logged and rethrown so the platform marks the invocation failed. The next good run clears it.
+// "Ran and succeeded" and "deleted something" are separate facts: last_cleanup_ok_at is every good run; last_cleanup_deleted_rows is that run's
+// count (0 is a good run with nothing eligible); last_cleanup_deleted_at is the last run that deleted at least one row.
 export const CLEANUP_STALE_HOURS = 48;
 const meta = (db, key, now) => db.prepare('INSERT INTO analytics_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind(key, now);
+// Counted inside the same batch, just before the deletes, with the same predicates, so the count and the deletion see the same rows.
+const ELIGIBLE = EXPIRY.map(([table, column, i]) => `(SELECT count(*) FROM ${table} WHERE ${column} < ?${i})`).join(' + ');
+const deletedMeta = (db, now) => {
+  const bind = [retentionCutoff(now), firstRetainedDay(now)];
+  return [
+    db.prepare(`INSERT INTO analytics_meta (key, value) SELECT 'last_cleanup_deleted_rows', CAST(${ELIGIBLE} AS TEXT) WHERE 1 ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(...bind),
+    db.prepare(`INSERT INTO analytics_meta (key, value) SELECT 'last_cleanup_deleted_at', ?3 WHERE ${ELIGIBLE} > 0 ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(...bind, now),
+  ];
+};
 export async function runCleanup(db, now = new Date().toISOString()) {
   try {
-    await db.batch([...purgeExpired(db, now), meta(db, 'last_cleanup_ok_at', now)]);
+    await db.batch([...deletedMeta(db, now), ...purgeExpired(db, now), meta(db, 'last_cleanup_ok_at', now)]);
   } catch (error) {
     console.error('analytics cleanup failed', error?.message);
     await meta(db, 'last_cleanup_error_at', now).run().catch(() => {});

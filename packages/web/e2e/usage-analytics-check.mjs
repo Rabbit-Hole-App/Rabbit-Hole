@@ -93,7 +93,9 @@ try {
     await page.goto(`${ORIGIN}/pricing`);
     await until(() => page.locator(BANNER).count(), 'the banner');
     assert.equal(await page.locator(BANNER).getAttribute('aria-label'), 'Analytics choice');
-    assert.match(await page.locator(BANNER).innerText(), /We use analytics to understand how Rabbit Hole is used and improve it./);
+    const words = await page.locator(BANNER).innerText();
+    assert.match(words, /We use analytics to understand how Rabbit Hole is used and improve it, and to show creators how their public learning boards are used\./, 'both purposes, in the plain first-visit sentence');
+    assert.doesNotMatch(words, /accepted analytics before/, 'the update wording is only for an earlier acceptance');
     assert.equal(await page.getByRole('button', { name: 'Accept analytics' }).count(), 1);
     assert.equal(await page.getByRole('button', { name: 'Reject optional' }).count(), 1);
     assert.equal(await page.locator(`${BANNER} a`).getAttribute('href'), '/privacy#technical');
@@ -398,6 +400,11 @@ try {
       assert.match(await cookies(), /rh_analytics_consent=accepted/);
       assert.doesNotMatch(await cookies(), /rh_analytics_consent_v=2/, 'not silently bridged');
       await until(() => tab.locator(BANNER).count(), 'the banner asks again');
+      const update = await tab.locator(BANNER).innerText();
+      assert.match(update, /You accepted analytics before\. We now also measure how public learning boards are used, so their creators can see it\. That stays off until you accept this update\./, 'it says what is added and that it is off until accepted');
+      assert.equal(await tab.getByRole('button', { name: 'Accept analytics' }).getAttribute('aria-pressed'), 'false', 'the earlier acceptance is not the current choice');
+      assert.equal(await tab.getByRole('button', { name: 'Reject optional' }).getAttribute('aria-pressed'), 'false');
+      assert.doesNotMatch(await cookies(), /rh_analytics_consent_v=2/, 'public-board measurement is still off while the banner is open');
       await choose(tab, 'accepted');
       await until(async () => (await tab.locator(BANNER).count()) === 0, 'the answer closes it');
       assert.match(await cookies(), /rh_analytics_consent_v=2/);

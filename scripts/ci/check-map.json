@@ -243,6 +243,7 @@
     "packages/web/src/landing/analytics.js": ["client-telemetry-check.mjs","usage-analytics-check.mjs"],
     "packages/web/src/analytics-consent.js": ["client-telemetry-check.mjs","usage-analytics-check.mjs","analytics-ui-check.mjs"],
     "packages/web/src/analytics-banner.js": ["usage-analytics-check.mjs"],
+    "packages/web/src/analytics-copy.js": ["usage-analytics-check.mjs","analytics-ui-check.mjs"],
     "packages/web/src/analytics-banner.css": ["usage-analytics-check.mjs"],
     "packages/web/src/OwnerTelemetry.jsx": ["client-telemetry-check.mjs","owner-telemetry-check.mjs"],
     "packages/control-plane/src/telemetry-events/*.js": ["client-telemetry-check.mjs","tutor-telemetry-check.mjs"],

@@ -2,16 +2,16 @@
 // from "Analytics preferences". It takes no focus unless asked for, blocks nothing behind it, and sits bottom right. Not shown where the
 // choice means nothing: a build without analytics, or a browser sending Do Not Track or Global Privacy Control.
 import './analytics-banner.css';
-import { CONSENT_EVENT, CONSENT_KEY, CONSENT_VERSION_KEY, PREFERENCES_EVENT, configured, consentOf, needsConsentAnswer, optedOut, setConsent } from './analytics-consent.js';
+import { BANNER_TEXT, BANNER_UPDATE_TEXT } from './analytics-copy.js';
+import { CONSENT_EVENT, CONSENT_KEY, CONSENT_VERSION_KEY, PREFERENCES_EVENT, configured, consentState, needsConsentAnswer, optedOut, setConsent } from './analytics-consent.js';
 
-const TEXT = 'We use analytics to understand how Rabbit Hole is used and improve it.';
 let mounted = false;
 export function mountConsentBanner(target, config) {
   const doc = target.document;
   if (mounted || !doc || !configured(config) || optedOut(target.navigator)) return;
   mounted = true;
   doc.documentElement.dataset.analyticsChoice = 'available'; // shows the public pages' link (footer-links.css)
-  let banner = null, dismissed = false;
+  let banner = null, words = null, dismissed = false;
   const close = () => { banner?.remove(); banner = null; };
   const choose = choice => { dismissed = true; setConsent(target, choice); close(); };
   const open = focus => {
@@ -21,11 +21,11 @@ export function mountConsentBanner(target, config) {
       banner.dataset.analyticsBanner = '';
       banner.setAttribute('aria-label', 'Analytics choice');
       const text = doc.createElement('p');
-      text.textContent = `${TEXT} `;
+      words = doc.createTextNode('');
       const link = doc.createElement('a');
       link.href = '/privacy#technical';
       link.textContent = 'Privacy Policy';
-      text.append(link);
+      text.append(words, ' ', link);
       const actions = doc.createElement('div');
       actions.className = 'rh-consent-actions';
       for (const [choice, label] of [['accepted', 'Accept analytics'], ['rejected', 'Reject optional']]) {
@@ -39,8 +39,10 @@ export function mountConsentBanner(target, config) {
       banner.append(text, actions);
       doc.body.append(banner);
     }
-    const current = consentOf(target);
-    for (const button of banner.querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.analyticsChoose === current));
+    // An acceptance from before version 2 is not the current choice: neither button is pressed, and the words say what is new.
+    const state = consentState(target);
+    words.data = state === 'outdated' ? BANNER_UPDATE_TEXT : BANNER_TEXT;
+    for (const button of banner.querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.analyticsChoose === state));
     if (focus) banner.querySelector('button').focus();
   };
   const refresh = () => { if (!needsConsentAnswer(target)) close(); else if (!dismissed) open(false); };

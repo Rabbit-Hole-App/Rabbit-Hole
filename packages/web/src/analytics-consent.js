@@ -30,6 +30,9 @@ export function consentCurrent(target) {
 }
 // No choice yet, or an acceptance of an earlier version: the banner asks.
 export const needsConsentAnswer = target => !consentOf(target) || (consentOf(target) === 'accepted' && !consentCurrent(target));
+// 'none' (no choice yet), 'rejected', 'accepted' (this version), or 'outdated': accepted before version 2, so product analytics runs as before and
+// public-board measurement stays off until the visitor accepts again.
+export const consentState = target => { const choice = consentOf(target); return choice === 'accepted' ? (consentCurrent(target) ? 'accepted' : 'outdated') : (choice || 'none'); };
 export const allowed = (target, config) => configured(config) && !optedOut(target.navigator) && consentOf(target) === 'accepted';
 
 export function mirrorConsentCookie(target) {

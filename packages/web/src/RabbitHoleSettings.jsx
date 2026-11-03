@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { CircleUser, ExternalLink, Gauge, GraduationCap, Shield, SlidersHorizontal, X } from 'lucide-react';
 import { applyTheme, getTheme, setTheme } from './api.js';
 import { ANALYTICS_CONFIG } from './analytics-config.js';
-import { CONSENT_EVENT, CONSENT_KEY, configured, consentOf, optedOut, setConsent } from './analytics-consent.js';
+import { ACCEPT_LABEL, ACCEPT_UPDATE_LABEL, SETTINGS_ON, SETTINGS_OUTDATED } from './analytics-copy.js';
+import { CONSENT_EVENT, CONSENT_KEY, CONSENT_VERSION_KEY, configured, consentState, optedOut, setConsent } from './analytics-consent.js';
 import { PRODUCT } from './flags.js';
 import { getSpeed, setSpeed, SPEEDS } from './learn-audio.js';
 import { resolveSettingsTab, SETTINGS_PANES } from './settings-model.js';
@@ -188,23 +189,24 @@ function LearningPane() {
 
 // The product analytics choice (analytics-consent.js), for this browser. A build without analytics has no such choice.
 function AnalyticsPreferences() {
-  const [choice, setChoice] = useState(() => consentOf(window));
+  // 'none' | 'rejected' | 'accepted' | 'outdated' (accepted before public-board measurement existed; analytics-consent.js consentState).
+  const [choice, setChoice] = useState(() => consentState(window));
   useEffect(() => {
-    const read = () => setChoice(consentOf(window));
-    const storage = event => { if (event.key === CONSENT_KEY || event.key === null) read(); };
+    const read = () => setChoice(consentState(window));
+    const storage = event => { if (event.key === CONSENT_KEY || event.key === CONSENT_VERSION_KEY || event.key === null) read(); };
     window.addEventListener(CONSENT_EVENT, read);
     window.addEventListener('storage', storage);
     return () => { window.removeEventListener(CONSENT_EVENT, read); window.removeEventListener('storage', storage); };
   }, []);
   if (!configured(ANALYTICS_CONFIG)) return null;
   const blocked = optedOut(window.navigator);
-  const desc = blocked ? 'Off: your browser asks sites not to track you, so nothing is collected' : choice === 'accepted' ? 'On in this browser. Rejecting stops collection and removes the identifier here; events already sent are not deleted' : choice === 'rejected' ? 'Off in this browser' : 'Off in this browser until you choose';
+  const desc = blocked ? 'Off: your browser asks sites not to track you, so nothing is collected' : choice === 'accepted' ? SETTINGS_ON : choice === 'outdated' ? SETTINGS_OUTDATED : choice === 'rejected' ? 'Off in this browser' : 'Off in this browser until you choose';
   return (
     <>
       <Heading>Product analytics</Heading>
       <SettingsRow title="Analytics preferences" desc={desc}>
         <span data-analytics-settings className="flex gap-2">
-          <Button variant="secondary" size="sm" disabled={blocked} aria-pressed={choice === 'accepted'} onClick={() => setConsent(window, 'accepted')}>Accept analytics</Button>
+          <Button variant="secondary" size="sm" disabled={blocked} aria-pressed={choice === 'accepted'} onClick={() => setConsent(window, 'accepted')}>{choice === 'outdated' ? ACCEPT_UPDATE_LABEL : ACCEPT_LABEL}</Button>
           <Button variant="secondary" size="sm" disabled={blocked} aria-pressed={choice === 'rejected'} onClick={() => setConsent(window, 'rejected')}>Reject optional</Button>
         </span>
       </SettingsRow>
@@ -233,7 +235,7 @@ function PrivacyPane({ session }) {
         <p>To improve the Tutor and find problems, {PRODUCT} records analytics events about how learning activity goes. They use internal account and canvas identifiers and contain: the kind of Tutor action taken and its reason code, the type of help it offered, which suggestions were shown and which one you chose, how many of the topic&apos;s claims were in each state, whether an assessed answer was met, partly met or not met and whether help was involved, how it was assessed (a rubric match, or an AI evaluator and its version), the AI model and prompt version, timings, error types and AI credit usage.</p>
         <p>Browser error reports hold the kind of error and the page area, never the error message or page content. The support reference you receive after sending feedback links your report to those technical records.</p>
         <p>These analytics events do not include the text of your messages, questions or answers, your goal or suggestion wording, your files or what you draw. That statement is about analytics only: your canvases, chats and submitted answers are still stored in your account so {PRODUCT} works.</p>
-        <p>Only the {PRODUCT} owner can view analytics. People who made a canvas you open never see your individual records.</p>
+        <p>Only the {PRODUCT} owner can view analytics, with one exception: if you accept public-board measurement, a creator sees aggregate reports for their own public learning boards only, never who you are or what you did individually. People who made a canvas you open never see your individual records.</p>
       </div>
       <p className="pt-6 text-xs text-ink-3">Canvas visibility, sharing and comments are set in each canvas&apos;s Share panel.</p>
     </>

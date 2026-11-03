@@ -272,7 +272,7 @@ const FOOTER_COPY = [
   ['Coverage of your audience', COVERAGE_COPY],
   ['Visitors', 'Consenting signed-in accounts and consenting signed-out browsers. Not an exact count of people: a signed-out browser is never joined to an account, so someone who visits both ways counts as two. Deduplicated across your boards and days.'],
   ['Opens', 'Distinct visits to a public board by consenting visitors. Reloads and returns within the visit add nothing. Your own signed-in visits are excluded.'],
-  ['Retention', 'Visitor-level records expire after 90 days, so visitor counts, rates and segments cover at most the last 90 days. Daily totals of opens, starts and forks hold no visitor key and stay with the board.'],
+  ['Retention', 'Visitor-level records older than 90 days are excluded from reports, so visitor counts, rates and segments cover at most the last 90 days. Daily totals of opens, starts and forks hold no visitor key and stay with the board.'],
   ['Average active time', 'Visible, recently active time per visitor and board, with a 60-second inactivity threshold. It estimates engagement, not learning.'],
   ['Privacy', 'Audience counts, rates and detailed segments need at least 10 visitors in that exact range and filter. Hidden values are never zero. Exports apply the same rule.'],
   ['Coverage', 'All time begins when each measure\'s collection starts. Earlier periods are not collected, never backfilled as zero.'],
@@ -414,7 +414,7 @@ export function CreatorAnalyticsDialog({ canvas = null, opener: givenOpener = nu
             {noAudience(data) && <Notice data-analytics-launch icon={Sprout} title="Ready for your first audience">{LAUNCH_COPY.replace('Ready for your first audience. ', '')}</Notice>}
             {!noAudience(data) && data.overview.unique_visitors?.reason === 'insufficient_cohort' && <Notice data-analytics-small icon={ShieldCheck} title="Activity is arriving. Detailed insights need a larger audience.">Visitor metrics and each detailed segment appear after at least 10 visitors. Public counters remain visible.</Notice>}
             {data.period.partial && <Notice data-analytics-partial title="Partial coverage">Coverage starts {data.collection.started_at ? dateText(data.collection.started_at) : 'with the first visit'}; earlier days in this range were not collected.</Notice>}
-            {data.period.audience_from > data.period.from && <Notice data-analytics-retention title="Visitor-level measures cover the last 90 days">Visitor counts, rates and segments start on {data.period.audience_from}, because visitor-level records expire after 90 days. Daily totals cover the whole range.</Notice>}
+            {data.period.audience_from > data.period.from && <Notice data-analytics-retention title="Visitor-level measures cover the last 90 days">Visitor counts, rates and segments start on {data.period.audience_from}, because visitor-level records older than 90 days are excluded. Daily totals cover the whole range.</Notice>}
             {tab === 'overview' && <Overview data={data} onPick={pick} onTab={setTab} onDraft={draft} onReview={review} />}
             {tab === 'boards' && <Boards data={data} onPick={pick} />}
             {tab === 'learning' && <Learning data={data} onDraft={draft} onReview={review} />}
@@ -431,7 +431,7 @@ export function CreatorAnalyticsDialog({ canvas = null, opener: givenOpener = nu
                 <ul className="mt-1 list-disc pl-4">{Object.entries(data.producers || {}).map(([k, p]) => <li key={k}>{k.replaceAll('_', ' ')}: {p.readiness === 'unavailable' ? 'unavailable' : `${p.readiness} since ${dateText(p.started_at) || 'its first event'}`}{p.note ? `. ${p.note}` : ''}</li>)}</ul></div>}
             </div>
           </details>
-          {data?.collection?.cleanup?.healthy === false && <span data-analytics-cleanup className="text-danger">Daily cleanup needs attention. Expired records stay out of these numbers.</span>}
+          {data?.collection?.cleanup?.healthy === false && <span data-analytics-cleanup className="text-danger">Cleanup needs attention. Expired records stay out of these numbers.</span>}
           <span data-analytics-freshness>
             {data ? `Read ${dateText(data.collection.checked_at)}${data.collection.started_at ? ` · collecting since ${dateText(data.collection.started_at)}` : ''}${data.collection.synthetic_excluded > 0 ? ` · ${data.collection.synthetic_excluded} synthetic ${data.collection.synthetic_excluded === 1 ? 'check' : 'checks'} excluded` : ''}` : error ? 'Freshness unavailable' : 'Freshness pending'}
           </span>

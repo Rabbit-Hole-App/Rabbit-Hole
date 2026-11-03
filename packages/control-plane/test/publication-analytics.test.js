@@ -271,6 +271,31 @@ test('the daily cleanup expires records with no new visit and no report read, an
   t.mock.timers.reset();
 });
 
+test('the cleanup records whether it deleted anything: a good run with nothing eligible says 0 and keeps the last deletion time', async t => {
+  const f = setup(t);
+  const { token } = await board(f);
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-08-01T12:00:00Z') });
+  const metaOf = key => f.sqlite.prepare('SELECT value FROM analytics_meta WHERE key = ?').get(key)?.value ?? null;
+  await send(f, token, { events: [ev('open', { source: 'stars' }), ev('seen', { material_id: 'b1' })] });
+  const held = LEARNER_TABLES.map(table => f.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n).reduce((a, b) => a + b, 0);
+  assert.ok(held > 0);
+  await runCleanup(f.env.LEARN_DB);
+  assert.equal(metaOf('last_cleanup_ok_at'), new Date().toISOString(), 'it ran and succeeded');
+  assert.equal(metaOf('last_cleanup_deleted_rows'), '0', 'with nothing eligible');
+  assert.equal(metaOf('last_cleanup_deleted_at'), null, 'and has never deleted');
+  t.mock.timers.tick(91 * 86400e3);
+  const deletedAt = new Date().toISOString();
+  await runCleanup(f.env.LEARN_DB);
+  assert.equal(metaOf('last_cleanup_deleted_rows'), String(held), 'it counts exactly the rows it removed');
+  assert.equal(metaOf('last_cleanup_deleted_at'), deletedAt);
+  t.mock.timers.tick(86400e3);
+  await runCleanup(f.env.LEARN_DB);
+  assert.equal(metaOf('last_cleanup_ok_at'), new Date().toISOString(), 'the next run succeeds');
+  assert.equal(metaOf('last_cleanup_deleted_rows'), '0', 'and had nothing left to delete');
+  assert.equal(metaOf('last_cleanup_deleted_at'), deletedAt, 'the last deletion time is kept');
+  t.mock.timers.reset();
+});
+
 test('a visitor returning after 90 days keeps no history older than 90 days: no first-seen date, and the old day is gone', async t => {
   const f = setup(t);
   const { canvas, token } = await board(f);
