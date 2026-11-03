@@ -12,7 +12,7 @@ const FLAT = [-Math.SQRT1_2, 0, 0, Math.SQRT1_2]; // -90 degrees about X: a plan
 const round = value => Number(value.toFixed(3));
 
 // ---- experiment, LLM: softmax temperature --------------------------------------------------------------------------------
-// p_i = exp(logit_i / T) / sum_j exp(logit_j / T); H = -sum_i p_i log2 p_i. A bar's height is 4 x p_i.
+// p_i = exp(logit_i / T) / sum_j exp(logit_j / T); H = -sum_i p_i log2 p_i. A bar's height is 5 x p_i.
 
 const WORDS = [['mat', 4], ['floor', 3], ['sofa', 2.5], ['roof', 1], ['moon', -1]];
 const temperatureSource = `const LOGITS = [4, 3, 2.5, 1, -1];
@@ -24,9 +24,9 @@ export function evaluate({ inputs }) {
   const entropy = -p.reduce((sum, value) => sum + (value > 0 ? value * Math.log2(value) : 0), 0);
   const nodes = { entropyNote: { text: 'Entropy ' + entropy.toFixed(2) + ' bits (at most 2.32)' } };
   BARS.forEach((word, i) => {
-    const height = Math.max(0.02, 4 * p[i]);
-    nodes[word] = { position: [i * 1.5 - 3, height / 2, 0], scale: [1, height, 1] };
-    nodes[word + 'Value'] = { position: [i * 1.5 - 3, height, 0], text: (100 * p[i]).toFixed(1) + '%' };
+    const height = Math.max(0.02, 5 * p[i]);
+    nodes[word] = { position: [i * 2 - 4, height / 2, 0], scale: [1, height, 1] };
+    nodes[word + 'Value'] = { position: [i * 2 - 4, height, 0], text: (100 * p[i]).toFixed(1) + '%' };
   });
   return { nodes, readouts: { topProbability: 100 * Math.max(...p), entropy } };
 }
@@ -50,30 +50,30 @@ export const temperatureExample = {
     scene: {
       materials: [{ id: 'top', color: '#2f6fe0' }, { id: 'rest', color: '#7f97bd' }, { id: 'axis', color: '#8a8f98' }],
       geometries: [
-        { id: 'bar', kind: 'box', size: [0.9, 1, 0.3] },
-        { id: 'baseline', kind: 'line', points: [[-5, 0, 0], [5, 0, 0]] },
-        { id: 'full', kind: 'line', points: [[-5, 4, 0], [5, 4, 0]] },
-        { id: 'uniform', kind: 'line', points: [[-5, 0.8, 0], [5, 0.8, 0]] },
+        { id: 'bar', kind: 'box', size: [1.1, 1, 0.3] },
+        { id: 'baseline', kind: 'line', points: [[-6.2, 0, 0], [5.2, 0, 0]] },
+        { id: 'full', kind: 'line', points: [[-6.2, 5, 0], [5.2, 5, 0]] },
+        { id: 'uniform', kind: 'line', points: [[-6.2, 1, 0], [5.2, 1, 0]] },
         { id: 'fullText', kind: 'label', text: '100%', placement: 'above' },
         { id: 'uniformText', kind: 'label', text: 'Uniform 20%', placement: 'above' },
         { id: 'entropyText', kind: 'label', text: 'Entropy', placement: 'above' },
-        ...WORDS.flatMap(([word, logit]) => [{ id: `${word}Word`, kind: 'label', text: `${word} (${logit.toFixed(1)})`, placement: 'below' }, { id: `${word}Percent`, kind: 'label', text: '0%', placement: 'above' }]),
+        ...WORDS.flatMap(([word, logit]) => [{ id: `${word}Word`, kind: 'label', text: `${word} ${logit.toFixed(1)}`, placement: 'below' }, { id: `${word}Percent`, kind: 'label', text: '0%', placement: 'above' }]),
       ],
       nodes: [
         { id: 'baseN', geometry: 'baseline', material: 'axis' }, { id: 'fullN', geometry: 'full', material: 'axis' }, { id: 'uniformN', geometry: 'uniform', material: 'axis' },
-        { id: 'fullNote', geometry: 'fullText', position: [4.3, 4, 0] }, { id: 'uniformNote', geometry: 'uniformText', position: [4.3, 0.8, 0] },
-        { id: 'entropyNote', geometry: 'entropyText', position: [0, 4.3, 0] },
+        { id: 'fullNote', geometry: 'fullText', position: [4.4, 5, 0] }, { id: 'uniformNote', geometry: 'uniformText', position: [-5.4, 1, 0] },
+        { id: 'entropyNote', geometry: 'entropyText', position: [0, 5.3, 0] },
         ...WORDS.flatMap(([word], i) => [
-          { id: word, geometry: 'bar', material: i ? 'rest' : 'top', position: [i * 1.5 - 3, 0.5, 0], name: word },
-          { id: `${word}Tag`, geometry: `${word}Word`, position: [i * 1.5 - 3, 0, 0] },
-          { id: `${word}Value`, geometry: `${word}Percent`, position: [i * 1.5 - 3, 1, 0] },
+          { id: word, geometry: 'bar', material: i ? 'rest' : 'top', position: [i * 2 - 4, 0.5, 0], name: word },
+          { id: `${word}Tag`, geometry: `${word}Word`, position: [i * 2 - 4, 0, 0] },
+          { id: `${word}Value`, geometry: `${word}Percent`, position: [i * 2 - 4, 1, 0] },
         ]),
       ],
     },
     parameters: temperatureParameters, actions: [],
     readouts: [{ id: 'topProbability', label: 'Top word (mat)', unit: '%', decimals: 1 }, { id: 'entropy', label: 'Entropy', unit: 'bits', decimals: 2 }],
-    program: program(temperatureSource, '14d3c1a219cbbee076a9258b344023e50c9727c12b253ba0cc9afa945543eb80'),
-    camera: { position: [0, 3, 12], target: [0, 2, 0], fov: 40 },
+    program: program(temperatureSource, '080804ac40107c3021741b3fc362dd95c16660e905307ab1ff57b3fdaaca2e61'),
+    camera: { position: [-0.5, 3.5, 14], target: [-0.5, 2.5, 0], fov: 40 },
     assumptions: ['p = softmax(logits / T), written beside each word as its logit; entropy H = -sum p log2 p, at most log2 5 = 2.32 bits.', 'The five logits are written by hand to illustrate the formula, for "The cat sat on the". No model produced them.', 'Real models score tens of thousands of tokens, not five words.'],
   },
 };

@@ -125,7 +125,7 @@ for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
       ok(`${tag}: /animation offers every example, one choice per scene`, offered.join() === ANIMATION_OPTIONS.map(option => option.id).join(), offered.join());
       const pick = async id => { if (narrow) await pane.locator('[data-slash-option-select]').selectOption(id); else await pane.locator(`[data-slash-option="${id}"]`).click(); };
       const value = id => pane.locator(`[data-animation-readout="${id}"]`).first().getAttribute('data-value').then(Number);
-      const set = async (id, to) => { await pane.locator(`[data-animation-number="${id}"]`).fill(String(to)); await page.waitForFunction(([key, want]) => document.querySelector(`[data-animation-number="${key}"]`)?.value === want, [id, String(to)]); await page.waitForTimeout(400); };
+      const set = async (id, to) => { await pane.locator(`[data-animation-number="${id}"]`).fill(String(to)); await page.waitForFunction(([key, want]) => Number(document.querySelector(`[data-animation-number="${key}"]`)?.value) === want, [id, to]); await page.waitForTimeout(400); };
       const settled = () => pane.locator('[data-animation3d-card][data-animation-phase="ready"]').waitFor({ timeout: 20000 });
       for (const option of ANIMATION_OPTIONS) {
         await pick(option.id);

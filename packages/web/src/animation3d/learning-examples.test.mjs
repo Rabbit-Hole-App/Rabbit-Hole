@@ -49,9 +49,9 @@ function checkTemperature(example, source) {
     eq(frame.readouts.topProbability, 100 * want.top, `${at} top`);
     eq(frame.readouts.entropy, want.entropy, `${at} entropy`);
     BARS.forEach((word, i) => {
-      const height = Math.max(0.02, 4 * want.p[i]);
+      const height = Math.max(0.02, 5 * want.p[i]);
       eq(frame.nodes[word].scale, [1, height, 1], `${at} ${word} height`);
-      eq(frame.nodes[word].position, [i * 1.5 - 3, height / 2, 0], `${at} ${word} position`);
+      eq(frame.nodes[word].position, [i * 2 - 4, height / 2, 0], `${at} ${word} position`);
       assert.equal(frame.nodes[`${word}Value`].text, `${(100 * want.p[i]).toFixed(1)}%`, `${at} ${word} text`);
     });
     assert.ok(frame.nodes.entropyNote.text.includes(want.entropy.toFixed(2)), `${at} entropy note`);
@@ -174,7 +174,7 @@ test('plausible wrong programs disagree with the oracle', () => {
   const mutants = [
     [checkTemperature, temperatureExample, '/ inputs.temperature', '* inputs.temperature', 'multiplying by temperature'],
     [checkTemperature, temperatureExample, 'Math.log2(value)', 'Math.log(value)', 'entropy in nats'],
-    [checkTemperature, temperatureExample, '4 * p[i]', '3 * p[i]', 'bars on another scale'],
+    [checkTemperature, temperatureExample, '5 * p[i]', '3 * p[i]', 'bars on another scale'],
     [checkGradient, gradientExample, '1.5 * Math.pow(1 - 4 * lr, k)', '1.5 * Math.pow(1 - lr, k)', 'a round bowl'],
     [checkGradient, gradientExample, '4 * w2 * w2', 'w2 * w2', 'the wrong loss'],
     [checkGradient, gradientExample, 'last <= 0.09', 'last <= 0.9', 'a lax verdict'],
