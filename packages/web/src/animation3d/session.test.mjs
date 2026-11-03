@@ -3,6 +3,7 @@
 // Checked: late answers never replace newer state, retry repeats only the failed stage, a refused change returns the control to
 // the accepted value, Reset keeps the camera and Reset view keeps the scene, settled snapshots and the presentation reach persist.
 import test, { before } from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { REFIT_MS, createCardSession } from './session.js';
 import { visibleControls } from './card.js';
@@ -320,6 +321,27 @@ test('a stepped scene (real runtime): a startsMotion false action advances exact
   h.session.play();
   assert.equal(await h.session.action('nudge'), true);
   assert.equal(h.state().playing, true, 'a startsMotion false press does not pause a running scene');
+  h.session.dispose();
+});
+
+// The same rule on the SGD correction fixture itself (its sealed artifact, the real session and the real runtime): the step count is the
+// number of accepted Take one step presses, never more, and the card stays paused (aj_086fd46 owner review: three clicks read step 11).
+test('the SGD correction fixture: Take one step is exactly one step per press, still paused seconds later; New run, keep old path starts the clock', async () => {
+  const artifact = JSON.parse(readFileSync(new URL('../../../control-plane/test/fixtures/animation-mvp1-correction-artifact.json', import.meta.url), 'utf8'));
+  const runtimes = realRuntimes();
+  const h = harness({ artifact, runtimes });
+  h.block = { id: 's', type: 'animation3d' };
+  await started(h);
+  const frames = async n => { for (let i = 0; i < n; i += 1) { runtimes.clock.frame(34); await settle(5); } };
+  const stepNo = () => values(h.state()).stepNo;
+  assert.equal(stepNo(), 0);
+  for (let clicks = 1; clicks <= 3; clicks += 1) {
+    assert.equal(await h.session.action('oneStep'), true);
+    await frames(90); // three seconds of frames: with the old rule the clock ran on from the first press
+    assert.deepEqual([stepNo(), h.state().playing], [clicks, false], `${clicks} accepted press(es): step ${clicks}, paused`);
+  }
+  assert.equal(await h.session.action('keepPath'), true);
+  assert.equal(h.state().playing, true, 'a new run declares nothing: it starts the clock');
   h.session.dispose();
 });
 
