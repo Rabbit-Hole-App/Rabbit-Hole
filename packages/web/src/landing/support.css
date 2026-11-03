@@ -55,3 +55,5 @@
 }
 @media(max-width:350px){#support-main{padding-left:20px;padding-right:20px}.support-title{font-size:44px}.not-found-page .support-title{font-size:34px}.lost-number{font-size:105px}.lost-zero{height:96px;width:96px}.legal-contents ol{gap:0 12px}}
 @media(prefers-reduced-motion:reduce){.support-page *{transition:none!important;scroll-behavior:auto!important}}
+/* The Privacy page's Analytics preferences button (owner 2026-11-02); shown only where the choice can be made (footer-links.css). */
+.legal-copy .legal-preferences{min-height:44px;padding:10px 20px;font-size:15px}
