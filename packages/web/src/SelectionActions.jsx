@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check, Maximize, MessageSquarePlus, Wand } from 'lucide-react';
-import { chordLabel, isMac } from './shortcut-owner.js';
+import { chordBinding, chordLabel, isMac } from './shortcut-owner.js';
+import { ariaKey } from './shortcuts.js';
 import { placeBar, usesHost } from './selection-bar-place.js';
 
 // The selection action bar (owner brief 2026-10-13: "rename Ask in chat to Add to chat (ctrl + L) or Quick Edit (ctrl + k )"):
@@ -31,7 +32,7 @@ export function SelectionActionsProvider({ sole, hidden = false, narrow = false,
 function Action({ label, chord, Icon, onClick, mac, ...rest }) {
   const hint = chordLabel(chord, mac);
   return (
-    <button type="button" aria-label={label} aria-keyshortcuts={hint.replace('Cmd', 'Meta').replace('Ctrl', 'Control')} title={`${label} (${hint})`} onClick={onClick} {...rest}
+    <button type="button" aria-label={label} aria-keyshortcuts={ariaKey(chordBinding(chord), mac)} title={`${label} (${hint})`} onClick={onClick} {...rest}
       className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-xs font-medium whitespace-nowrap text-ink hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none">
       <Icon size={13} strokeWidth={1.8} aria-hidden="true" />{label}
       <kbd aria-hidden="true" className="rounded border border-line bg-hover px-1 font-sans text-[10px] font-normal text-ink-3">{hint}</kbd>

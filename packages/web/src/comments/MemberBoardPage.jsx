@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Eye } from 'lucide-react';
 import CanvasMenubar from '../CanvasMenubar.jsx';
-import ShortcutsSheet from '../ShortcutsSheet.jsx';
+import ShortcutsSheet, { SHARED_OMIT } from '../ShortcutsSheet.jsx';
 import { canvasEditMenus } from '../canvas-menus.js';
 import { typingIn } from '../canvas-equation.js';
 import { CommentsToggle, PanelToggle, SharedPanel, useSharedPanel } from '../SharedCanvasShell.jsx';
@@ -41,9 +41,9 @@ export default function MemberBoardPage({ boardId }) {
   // ? opens the shortcuts (the menubar no longer lists them): not while typing, in a field, or with a modifier held.
   useEffect(() => {
     const key = event => {
-      if (event.key !== '?' || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key !== '?' || event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;
       const active = window.document.activeElement;
-      if (typingIn(active) || active?.tagName === 'SELECT') return;
+      if (typingIn(active) || active?.tagName === 'SELECT' || window.document.querySelector('[role="dialog"][aria-modal="true"]:not([data-shortcuts-sheet])')) return;
       event.preventDefault();
       setShortcutsOpen(open => !open);
     };
@@ -109,7 +109,7 @@ export default function MemberBoardPage({ boardId }) {
   const owner = board.owner;
   // A member's role in the one permission model (canvas-permissions.js): commenter, view-only.
   const permissions = { role: 'commenter', shared: true, comments: about ? { read: true, post: !!about.can?.post } : null };
-  const menus = canvasEditMenus({ canvas: () => canvasApi.current, canvasState, comments, docView: state.doc && !docIsEmpty(state.doc) ? docView : 'canvas', setDocView, drawing: false }).filter(menu => menu.title === 'View');
+  const menus = canvasEditMenus({ canvas: () => canvasApi.current, canvasState, comments, docView: state.doc && !docIsEmpty(state.doc) ? docView : 'canvas', setDocView, drawing: false, onShortcuts: () => setShortcutsOpen(true) }).filter(menu => menu.title === 'View');
   return (
     <main data-member-board className={MEMBER_MAIN}>
       <header data-canvas-header className={MEMBER_HEADER}>
@@ -136,7 +136,7 @@ export default function MemberBoardPage({ boardId }) {
         <SharedPanel panel={panel} permissions={permissions} search={search} onOpenAction={openSearchAction} comments={comments} commentsAttr="data-member-comments"
           outline={canvasState.outline} activeSection={canvasState.activeSection ?? null} canvasApi={canvasApi} />
       </div>
-      {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
+      {shortcutsOpen && <ShortcutsSheet omit={SHARED_OMIT} onClose={() => setShortcutsOpen(false)} />}
     </main>
   );
 }

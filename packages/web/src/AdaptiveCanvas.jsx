@@ -3687,6 +3687,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // undoes the last canvas gesture — both stand down while typing.
   useEffect(() => {
     const key = event => {
+      // An open modal window (Shortcuts, Slash Commands, Settings, a confirmation) owns the keyboard: no canvas key acts behind
+      // it, Esc included, which closes that window and leaves the selection (owner brief 2026-11-02 section 4).
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      // An open menu (the right-click menu, a card's own menu, a menubar menu) owns the keys until it closes: Enter and Space pick
+      // its focused row, and no canvas shortcut acts behind it on an older selection (owner brief 2026-11-02, message 2 section
+      // 5). Esc is handled below, the menu's first.
+      if (event.key !== 'Escape' && (menuOpenRef.current || document.activeElement?.closest?.('[role="menu"]'))) return;
       // The inline editor owns its keys while it has the focus: Esc closes it first, never the selection.
       if (document.activeElement?.closest?.('[data-inline-ai]')) return;
       // An open text editor (RichText) owns every key while it is open: Enter, Esc, undo, clipboard and the arrows.
@@ -3765,6 +3772,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       if (event.key === 'Escape' && (held?.closest?.('[role="dialog"],[role="menu"],[data-comment-draft]') || document.querySelector('[role="dialog"][aria-modal="true"]'))) return;
       // An unclaimed Esc leaves Focus first, on any board: a view-only viewer can leave it too.
       if (shouldExitOnEscape(event, { focusing: !!focusRef.current, menuOpen: menuOpenRef.current, gesture: gestureLive })) { event.preventDefault(); commandsRef.current.exitFocus(); return; }
+      // The View menu's keys work on any board, a view-only one too, as its rows do (owner brief 2026-11-02): zoom, Zoom to 100%,
+      // Fit canvas and Fit selection. Not while presenting or typing; Fit selection (Shift+2, new) needs a selection, as its row
+      // does, and stands down wherever the canvas does not own the keyboard (busy).
+      if (presentingRef.current === null && !typingIn(held)) {
+        const viewMod = event.ctrlKey || event.metaKey;
+        if (viewMod && ['=', '+', '-', '_'].includes(event.key)) { event.preventDefault(); (event.key === '-' || event.key === '_' ? commandsRef.current.zoomOut : commandsRef.current.zoomIn)(); return; }
+        if (!viewMod && event.shiftKey && (event.code === 'Digit1' || event.code === 'Digit0')) { event.preventDefault(); (event.code === 'Digit1' ? commandsRef.current.zoomFit : commandsRef.current.zoomReset)(); return; }
+        if (!viewMod && !event.altKey && event.shiftKey && event.code === 'Digit2' && !busy && selectedRef.current.length) { event.preventDefault(); commandsRef.current.zoomToSelection(); return; }
+      }
       // A view-only board: Esc puts the hand back, and lets go of the selected card
       // (and its pill above the shared composer, owner 2026-10-08) unless it is pressed in the composer, as below.
       if (readOnlyRef.current) {
@@ -3840,8 +3856,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // handler and one permission check for the menu, the menubar's commands and the keyboard.
       if (mod && !event.shiftKey && event.key.toLowerCase() === 'd') { if (typing || !selectedRef.current.length) return; event.preventDefault(); keyActionRef.current('duplicate'); return; }
       if (mod && event.key.toLowerCase() === 'g') { if (typing) return; event.preventDefault(); keyActionRef.current(event.shiftKey ? 'ungroup' : 'group'); return; }
-      if (mod && ['=', '+', '-', '_'].includes(event.key)) { if (typing) return; event.preventDefault(); (event.key === '-' || event.key === '_' ? commands.zoomOut : commands.zoomIn)(); return; }
-      if (!mod && event.shiftKey && (event.code === 'Digit1' || event.code === 'Digit0')) { if (typing) return; event.preventDefault(); (event.code === 'Digit1' ? commands.zoomFit : commands.zoomReset)(); return; }
+      // Shift+G turns Snap to grid on or off, the Arrange menu's row (owner brief 2026-11-02, new): only where the canvas owns the
+      // keyboard, and once per press, never again from a held key's repeats.
+      if (!mod && !event.altKey && event.shiftKey && event.key.toLowerCase() === 'g') { if (busy || event.repeat) return; event.preventDefault(); commands.toggleGrid(); return; }
       // Lock (Ctrl+Shift+L), layers (Ctrl+[ / ], with Shift all the way) and copy / paste style (Ctrl+Alt+C / V).
       if (mod && event.shiftKey && event.code === 'KeyL') { if (typing) return; event.preventDefault(); keyActionRef.current('lock'); return; }
       if (mod && (event.code === 'BracketLeft' || event.code === 'BracketRight')) {

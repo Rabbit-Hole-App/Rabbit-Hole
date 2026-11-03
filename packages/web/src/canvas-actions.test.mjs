@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { COMMON_ACTIONS, GROUPS, actionForKey, actionsFor, allActions, legacyCan, registerActions, resolveTarget, runAction, selectionTarget } from './canvas-actions.js';
 import { TYPE_ACTIONS } from './canvas-actions-types.js';
+import { keyLabel } from './shortcuts.js';
 
 // ---- a tiny DOM: enough for closest() with tag, [attr] and [attr="v"] selectors, dataset and contains().
 const camel = name => name.replace(/^data-/, '').replace(/-([a-z])/g, (_, c) => c.toUpperCase());
@@ -229,7 +230,9 @@ test('states: locked rows are disabled with a reason (Unlock stays); a running j
   const row = name => rows.find(entry => entry.label === name);
   assert.deepEqual([row('Delete').disabled, row('Delete').reason], [true, 'Locked']);
   assert.equal(row('Unlock').disabled, false);
-  assert.deepEqual([row('Paste').disabled, row('Paste').reason], [true, 'Nothing copied']);
+  // Owner brief 2026-11-02 (message 2 section 1): the menu's Paste reads the canvas's own copied items, and the reason says the
+  // keyboard still pastes from the clipboard.
+  assert.deepEqual([row('Paste').disabled, row('Paste').reason], [true, `No canvas items copied; ${keyLabel('Mod+V')} pastes from the clipboard`]);
   const running = actionsFor(selectionTarget(model(['c2'])), fakeCtx().ctx).find(entry => entry.label === 'Quick Edit');
   assert.deepEqual([running.disabled, running.reason], [true, 'Still generating']);
 });
@@ -345,4 +348,31 @@ test("S1's can() for every role: opening any menu calls no handler, guests and v
     const start = actionsFor(selectionTarget(model(['c1'])), ctx).find(row => row.id === 'start-rabbit-hole');
     assert.equal(start.signIn, role === 'guest', `${role}: a guest's Start Rabbit Hole goes through sign-in`);
   }
+});
+
+// Owner brief 2026-11-02 (message 2): every hint and its aria-keyshortcuts come from shortcuts.js, spelled for the platform; a row
+// shows a key only when that key runs that exact action on that target.
+test('hints: platform spelling, aria keys from the same row, and only where the key does that exact action', () => {
+  const rowsOf = (target, mac = false) => Object.fromEntries(actionsFor(target, { ...fakeCtx().ctx, mac }).filter(row => !row.separator).map(row => [row.label, row]));
+  const card = rowsOf(selectionTarget(model(['c1'])));
+  assert.deepEqual(['Add to chat', 'Quick Edit', 'Duplicate', 'Copy card', 'Fit selection', 'Delete', 'Add comment'].map(label => [label, card[label]?.hint]),
+    [['Add to chat', 'Ctrl+L'], ['Quick Edit', 'Ctrl+K'], ['Duplicate', 'Ctrl+D'], ['Copy card', 'Ctrl+C'], ['Fit selection', 'Shift+2'], ['Delete', 'Delete'], ['Add comment', 'C']]);
+  assert.deepEqual([card['Quick Edit'].keyshortcuts, card.Delete.keyshortcuts, card['Fit selection'].keyshortcuts], ['Control+K', 'Delete Backspace', 'Shift+2']);
+  assert.equal(card['Zoom to selection'], undefined, 'the View menu\'s name, Fit selection');
+  const mac = rowsOf(selectionTarget(model(['c1'])), true);
+  assert.deepEqual(['Add to chat', 'Quick Edit', 'Copy card', 'Delete'].map(label => mac[label].hint), ['⌘L', '⌘K', '⌘C', 'Delete ⌫']);
+  assert.equal(mac['Quick Edit'].keyshortcuts, 'Meta+K');
+  // Text selected in the card: Ctrl/Cmd+C copies that text, so the key moves to Copy selected text and Copy card has none.
+  const quoted = rowsOf({ ...selectionTarget(model(['c1'])), part: { kind: 'text', text: 'softmax' } });
+  assert.deepEqual([quoted['Copy selected text'].hint, quoted['Copy card'].hint, quoted.Cut.hint], ['Ctrl+C', null, null]);
+  // Enter edits the one selected note, shape or line label (the same editSelected); Edit LaTeX has no key.
+  assert.equal(rowsOf(selectionTarget(model(['n1'])))['Edit text'].hint, 'Enter');
+  assert.equal(rowsOf(selectionTarget(model(['l1'])))['Edit label'].hint, 'Enter');
+  assert.equal(rowsOf(selectionTarget(model(['eq'])))['Edit LaTeX'].hint, null);
+  assert.equal(rowsOf(selectionTarget(model(['eq'])), true)['Edit LaTeX'].keyshortcuts, null);
+  // Similar names never borrow a key: Focus, Delete Rabbit Hole, Rename, the canvas's Add text and Add sticky note.
+  const keyed = Object.fromEntries(allActions().map(entry => [entry.id, entry.keys]));
+  for (const id of ['card.focus', 'delete-rabbit-hole', 'rename', 'canvas.add-text', 'canvas.add-sticky', 'selection.add-to-chat', 'study.pin', 'notebook.run-all', 'notebook.restart', 'equation.edit', 'cad.reset-view'])
+    assert.equal(keyed[id], undefined, `${id} has no key`);
+  assert.equal(keyed['card.open'], 'open-card');
 });

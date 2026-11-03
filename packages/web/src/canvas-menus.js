@@ -5,7 +5,8 @@
 // There is no Files menu (the right panel's Context and Search do that work) and no Share, Publish or Embed here (the Share button).
 // Row kinds, drawn by CanvasMenubar: an action (label, icon, hint, disabled, onSelect), a submenu (items), a radio or check row
 // (radio / check, a check row stays open), a choice (the Page guides selector) and a divider. Disabled rows stay, greyed, never explained.
-import { AlignHorizontalDistributeCenter, AlignHorizontalJustifyCenter, ArrowUpToLine, Clipboard, Copy, CopyPlus, Eye, Focus, Globe, Grid2X2, Group, Heading1, Layers, Link, LockKeyhole, LockKeyholeOpen, Maximize2, Minus, NotebookPen, Paintbrush, PanelsTopLeft, Pipette, Redo2, Scan, Scissors, Search, Sigma, SquareSlash, StickyNote, Trash2, Type, Undo2, Ungroup, Upload, Wand, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlignHorizontalDistributeCenter, AlignHorizontalJustifyCenter, ArrowUpToLine, Clipboard, Copy, CopyPlus, Eye, Focus, Globe, Grid2X2, Group, Heading1, Keyboard, Layers, Link, LockKeyhole, LockKeyholeOpen, Maximize2, Minus, NotebookPen, Paintbrush, PanelsTopLeft, Pipette, Redo2, Scan, Scissors, Search, Sigma, SquareSlash, StickyNote, Trash2, Type, Undo2, Ungroup, Upload, Wand, ZoomIn, ZoomOut } from 'lucide-react';
+import { ariaFor, hintFor, isMac } from './shortcuts.js';
 
 // Section, sub-sections, text box, sticky note, divider and equation: inserted on this canvas only, no request, no model call.
 export const localInsertItems = canvas => [
@@ -39,31 +40,33 @@ const arrangeRows = (canvas, rows, least, state) => rows.map(([label, how]) => (
 // panel: the right panel's { open, setOpen } where the page has one; drawing: false where the canvas has no toolbar (a viewer).
 // study: the owner's Pinned Study (StudyPane.jsx useStudy, UI-27); a shared canvas passes none, so it has no Canvas / Study rows.
 // onSlashCommands: opens the Slash Commands window (owner spec 2026-10-29 section 7.1); a canvas without a Chat composer passes none,
-// so it has no row that does nothing.
-export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdit = false, comments = {}, docView, setDocView, panel = null, drawing = true, study = null, onSlashCommands = null }) => {
+// so it has no row that does nothing. onShortcuts: opens View > Shortcuts (ShortcutsSheet.jsx, owner brief 2026-11-02), directly below
+// Slash Commands. Hints and aria-keyshortcuts come from shortcuts.js, spelled for this platform (mac).
+export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdit = false, comments = {}, docView, setDocView, panel = null, drawing = true, study = null, onSlashCommands = null, onShortcuts = null, mac = isMac() }) => {
   const locked = canvasState.selectionLocked;
+  const k = id => ({ hint: hintFor(id, mac), keys: ariaFor(id, mac) });
   const checkRow = (label, on, set) => ({ label, check: !!on, onToggle: set });
   const widget = name => on => canvas()?.showWidget(name, on);
   return [
     {
       title: 'Edit',
       items: [
-        { label: 'Undo', icon: Undo2, hint: 'Ctrl Z', onSelect: () => canvas()?.undo() },
-        { label: 'Redo', icon: Redo2, hint: 'Ctrl Y', onSelect: () => canvas()?.redo() },
+        { label: 'Undo', icon: Undo2, ...k('undo'), onSelect: () => canvas()?.undo() },
+        { label: 'Redo', icon: Redo2, ...k('redo'), onSelect: () => canvas()?.redo() },
         { divider: true },
-        { label: 'Cut', icon: Scissors, hint: 'Ctrl X', disabled: !canvasState.selected, onSelect: () => canvas()?.cut() },
-        { label: 'Copy', icon: Copy, hint: 'Ctrl C', disabled: !canvasState.selected, onSelect: () => canvas()?.copy() },
-        { label: 'Paste', icon: Clipboard, hint: 'Ctrl V', disabled: !canvasState.canPaste, onSelect: () => canvas()?.paste() },
+        { label: 'Cut', icon: Scissors, ...k('cut'), disabled: !canvasState.selected, onSelect: () => canvas()?.cut() },
+        { label: 'Copy', icon: Copy, ...k('copy'), disabled: !canvasState.selected, onSelect: () => canvas()?.copy() },
+        { label: 'Paste', icon: Clipboard, ...k('paste'), disabled: !canvasState.canPaste, onSelect: () => canvas()?.paste() },
         { divider: true },
-        { label: 'Duplicate', icon: CopyPlus, hint: 'Ctrl D', disabled: !canvasState.selected, onSelect: () => canvas()?.duplicate() },
-        { label: 'Delete', icon: Trash2, hint: 'Del', disabled: !canvasState.selected, onSelect: () => canvas()?.deleteSelection() },
+        { label: 'Duplicate', icon: CopyPlus, ...k('duplicate'), disabled: !canvasState.selected, onSelect: () => canvas()?.duplicate() },
+        { label: 'Delete', icon: Trash2, ...k('delete'), disabled: !canvasState.selected, onSelect: () => canvas()?.deleteSelection() },
         { divider: true },
-        { label: 'Copy style', icon: Pipette, hint: 'Ctrl Alt C', disabled: !canvasState.selected, onSelect: () => canvas()?.copyStyle() },
-        { label: 'Paste style', icon: Paintbrush, hint: 'Ctrl Alt V', disabled: !canvasState.selected || !canvasState.canPasteStyle, onSelect: () => canvas()?.pasteStyle() },
+        { label: 'Copy style', icon: Pipette, ...k('copy-style'), disabled: !canvasState.selected, onSelect: () => canvas()?.copyStyle() },
+        { label: 'Paste style', icon: Paintbrush, ...k('paste-style'), disabled: !canvasState.selected || !canvasState.canPasteStyle, onSelect: () => canvas()?.pasteStyle() },
         { divider: true },
-        { label: 'Select all', icon: Scan, hint: 'Ctrl A', onSelect: () => canvas()?.selectAll() },
+        { label: 'Select all', icon: Scan, ...k('select-all'), onSelect: () => canvas()?.selectAll() },
         // Quick Edit under its new name (owner brief 2026-10-22 item 4): the same safe editing; Explain stays its own operation.
-        ...(quickEdit ? [{ divider: true }, { label: 'Edit with AI', icon: Wand, hint: 'Ctrl K', disabled: !canvasState.selected || !inlineAi, onSelect: () => canvas()?.inlineAi?.('edit') }] : []),
+        ...(quickEdit ? [{ divider: true }, { label: 'Edit with AI', icon: Wand, ...k('quick-edit'), disabled: !canvasState.selected || !inlineAi, onSelect: () => canvas()?.inlineAi?.('edit') }] : []),
       ],
     },
     {
@@ -73,27 +76,27 @@ export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdi
         { label: 'Align', icon: AlignHorizontalJustifyCenter, items: arrangeRows(canvas, [['Left', 'left'], ['Center', 'center'], ['Right', 'right'], ['Top', 'top'], ['Middle', 'middle'], ['Bottom', 'bottom']], 2, canvasState) },
         { label: 'Distribute', icon: AlignHorizontalDistributeCenter, items: arrangeRows(canvas, [['Horizontally', 'spread-x'], ['Vertically', 'spread-y']], 3, canvasState) },
         { label: 'Layer order', icon: Layers, items: [
-          { label: 'Bring to front', hint: 'Ctrl Shift ]', disabled: !canvasState.selected, onSelect: () => canvas()?.order('front') },
-          { label: 'Bring forward', hint: 'Ctrl ]', disabled: !canvasState.selected, onSelect: () => canvas()?.order('forward') },
-          { label: 'Send backward', hint: 'Ctrl [', disabled: !canvasState.selected, onSelect: () => canvas()?.order('backward') },
-          { label: 'Send to back', hint: 'Ctrl Shift [', disabled: !canvasState.selected, onSelect: () => canvas()?.order('back') },
+          { label: 'Bring to front', ...k('order-front'), disabled: !canvasState.selected, onSelect: () => canvas()?.order('front') },
+          { label: 'Bring forward', ...k('order-forward'), disabled: !canvasState.selected, onSelect: () => canvas()?.order('forward') },
+          { label: 'Send backward', ...k('order-backward'), disabled: !canvasState.selected, onSelect: () => canvas()?.order('backward') },
+          { label: 'Send to back', ...k('order-back'), disabled: !canvasState.selected, onSelect: () => canvas()?.order('back') },
         ] },
         { divider: true },
-        { label: 'Group', icon: Group, hint: 'Ctrl G', disabled: !(canvasState.selected >= 2), onSelect: () => canvas()?.group() },
-        { label: 'Ungroup', icon: Ungroup, hint: 'Ctrl Shift G', disabled: !canvasState.grouped, onSelect: () => canvas()?.ungroup() },
+        { label: 'Group', icon: Group, ...k('group'), disabled: !(canvasState.selected >= 2), onSelect: () => canvas()?.group() },
+        { label: 'Ungroup', icon: Ungroup, ...k('ungroup'), disabled: !canvasState.grouped, onSelect: () => canvas()?.ungroup() },
         { divider: true },
-        { label: locked ? 'Unlock' : 'Lock', icon: locked ? LockKeyholeOpen : LockKeyhole, hint: 'Ctrl Shift L', disabled: !canvasState.selected, onSelect: () => canvas()?.lockSelection() },
-        { label: 'Snap to grid', icon: Grid2X2, check: !!canvasState.grid, onToggle: () => canvas()?.toggleGrid() },
+        { label: locked ? 'Unlock' : 'Lock', icon: locked ? LockKeyholeOpen : LockKeyhole, ...k('lock'), disabled: !canvasState.selected, onSelect: () => canvas()?.lockSelection() },
+        { label: 'Snap to grid', icon: Grid2X2, check: !!canvasState.grid, ...k('grid'), onToggle: () => canvas()?.toggleGrid() },
       ],
     },
     {
       title: 'View',
       items: [
-        { label: 'Zoom in', icon: ZoomIn, hint: 'Ctrl +', onSelect: () => canvas()?.zoomIn() },
-        { label: 'Zoom out', icon: ZoomOut, hint: 'Ctrl -', onSelect: () => canvas()?.zoomOut() },
-        { label: 'Zoom to 100%', icon: Scan, hint: 'Shift 0', onSelect: () => canvas()?.zoomReset() },
-        { label: 'Fit canvas', icon: Maximize2, hint: 'Shift 1', onSelect: () => canvas()?.zoomFit() },
-        { label: 'Fit selection', icon: Focus, disabled: !canvasState.selected, onSelect: () => canvas()?.zoomToSelection() },
+        { label: 'Zoom in', icon: ZoomIn, ...k('zoom-in'), onSelect: () => canvas()?.zoomIn() },
+        { label: 'Zoom out', icon: ZoomOut, ...k('zoom-out'), onSelect: () => canvas()?.zoomOut() },
+        { label: 'Zoom to 100%', icon: Scan, ...k('zoom-reset'), onSelect: () => canvas()?.zoomReset() },
+        { label: 'Fit canvas', icon: Maximize2, ...k('fit-canvas'), onSelect: () => canvas()?.zoomFit() },
+        { label: 'Fit selection', icon: Focus, ...k('fit-selection'), disabled: !canvasState.selected, onSelect: () => canvas()?.zoomToSelection() },
         { divider: true },
         // The workspace layout (Pinned Study): Canvas shows the full canvas, Study the pinned reference beside the work. Neither
         // moves a card, saves the board or asks a model; this browser remembers the choice for this canvas.
@@ -112,7 +115,7 @@ export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdi
         // (ui-prefs.js), never the shared canvas or another viewer's.
         { label: 'Show / hide', icon: Eye, items: [
           ...(drawing ? [checkRow('Toolbar', canvasState.toolbar !== false, widget('toolbar'))] : []),
-          ...(panel ? [checkRow('Right panel', panel.open, panel.setOpen)] : []),
+          ...(panel ? [{ ...checkRow('Right panel', panel.open, panel.setOpen), ...k('right-panel') }] : []),
           checkRow('Minimap', canvasState.minimap, widget('minimap')),
           checkRow('Rabbit Hole Map', canvasState.holeMap, widget('holeMap')),
           // Comment pins are marker visibility only; who may comment stays in Share.
@@ -123,7 +126,9 @@ export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdi
         { divider: true },
         // Shows the document and frames its top.
         { label: 'Go to document start', icon: ArrowUpToLine, onSelect: () => { setDocView('editor'); requestAnimationFrame(() => requestAnimationFrame(() => canvas()?.goToDoc())); } },
-        ...(onSlashCommands ? [{ divider: true }, { label: 'Slash Commands', icon: SquareSlash, onSelect: onSlashCommands }] : []),
+        ...(onSlashCommands || onShortcuts ? [{ divider: true }] : []),
+        ...(onSlashCommands ? [{ label: 'Slash Commands', icon: SquareSlash, ...k('slash-commands'), onSelect: onSlashCommands }] : []),
+        ...(onShortcuts ? [{ label: 'Shortcuts', icon: Keyboard, ...k('shortcuts'), onSelect: onShortcuts }] : []),
       ],
     },
   ];

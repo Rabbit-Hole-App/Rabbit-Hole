@@ -9,6 +9,7 @@ import { displayName, failureText, freshDraft, loadDraft, saveDraft, sendDraft, 
 import { badgeText, openCount } from './useCanvasComments.js';
 import { SYNC_OVERLAP_MS, applySync, changesFrom, mergeMessages, newFromOthers } from './comment-sync.js';
 import { allActions } from '../canvas-actions.js';
+import { hintFor, shortcutRows } from '../shortcuts.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -162,7 +163,8 @@ test('seams: the canvas menu offers Add comment on an object only (owner, 2026-1
   assert.match(read('./CommentPins.jsx'), /pinTopCentre\(box, index, SIZE, GAP\)/, 'every object pin goes through pinTopCentre');
   // UI-25: the menu's rows are the action registry's; Add comment comes right after Start Rabbit Hole, with its C hint.
   const entries = allActions(), start = entries.find(entry => entry.id === 'start-rabbit-hole'), comment = entries.find(entry => entry.id === 'add-comment');
-  assert.deepEqual([comment.label, comment.icon, comment.hint, comment.group], ['Add comment', 'MessageCircle', 'C', start.group]);
+  // Its C hint comes from shortcuts.js (owner brief 2026-11-02).
+  assert.deepEqual([comment.label, comment.icon, comment.keys, hintFor(comment.keys), comment.group], ['Add comment', 'MessageCircle', 'comment', 'C', start.group]);
   assert.ok(start.order < comment.order && !entries.some(entry => entry.group === start.group && entry.order > start.order && entry.order < comment.order), 'a card: right after Start Rabbit Hole');
   assert.match(canvas, /\{commentPins && presenting === null && <CommentPins /, 'no pins while presenting');
   assert.match(page, /<AdaptiveCanvas key=\{canvasEpoch\} \{\.\.\.comments\.canvasProps\} /);
@@ -249,7 +251,9 @@ test('entry points: the Comment tool in the rail, C with its guards, the shortcu
   assert.match(key, /isContentEditable \|\| \['INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'\]\.includes/, 'never while typing');
   assert.match(key, /held\.closest\?\.\('\[data-block-id\]'\) && !held\.matches\('\[data-block-id\]'\)/, 'never inside a card\'s own editor or widget');
   assert.ok(canvas.indexOf("if ((event.key === 'c' || event.key === 'C')") < canvas.indexOf("if (readOnlyRef.current) {\n        if (event.key === 'Escape')"), 'C works on view-only boards too');
-  assert.match(sheet, /\['Comment on the selection \(a card, a shape or a group\)', \['C'\]\]/);
+  // View > Shortcuts lists C from shortcuts.js (owner brief 2026-11-02), and the sheet draws that list.
+  assert.deepEqual(shortcutRows().find(row => row.id === 'comment').keys, ['C']);
+  assert.match(sheet, /shortcutSections\(/);
   assert.match(page, /\{comments\.active && <button type="button" data-comments-header/);
   assert.match(header, /\{id === 'comments' && commentsOn && commentsUnread > 0 && <span data-unread-dot/);
 });

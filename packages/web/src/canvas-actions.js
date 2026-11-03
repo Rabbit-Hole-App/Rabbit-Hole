@@ -9,6 +9,7 @@
 //
 // Opening or dismissing a menu runs none of this file's handlers: only runAction calls `run`.
 import { TYPE_ACTIONS } from './canvas-actions-types.js';
+import { ariaFor, hintFor, isMac, keyLabel } from './shortcuts.js';
 
 // The order groups render in; a separator goes between two groups that both show something.
 export const GROUPS = ['primary', 'chat', 'type', 'content', 'clipboard', 'lock', 'arrange', 'group', 'canvas', 'delete'];
@@ -126,7 +127,7 @@ export const COMMON_ACTIONS = [
     data: t => ({ 'data-menu-start-rabbit-hole': '', 'data-origin': t.id }), run: (t, ctx) => ctx.canvas.startRabbitHole(t.id) },
   // Add comment (canvas-comments.md section 5): the pin goes on the object or group under the pointer.
   { id: 'add-comment', label: 'Add comment', icon: 'MessageCircle', group: 'primary', order: 20, targets: ['card', 'object', 'group', 'multi'],
-    applies: (t, ctx) => !!ctx.canvas.addComment && !!(t.id || t.group), requires: 'comment.draft', hint: 'C', keyshortcuts: 'C',
+    applies: (t, ctx) => !!ctx.canvas.addComment && !!(t.id || t.group), requires: 'comment.draft', keys: 'comment',
     data: 'data-menu-add-comment', run: (t, ctx) => ctx.canvas.addComment(canvasPoint(t), t.id || t.group) },
   { id: 'link-canvas', label: 'Link to canvas', icon: 'Link2', group: 'primary', order: 30, targets: ['card', 'canvas'],
     applies: (t, ctx) => !!ctx.canvas.linkCanvas && (t.kind === 'canvas' || (t.family === 'block' && t.type !== 'canvas-ref')), requires: 'source.write',
@@ -136,64 +137,64 @@ export const COMMON_ACTIONS = [
 
   // Add to chat attaches the context and opens the composer; it never sends. Quick Edit is the AI editor (a model call
   // only once its own Send is pressed); a local Edit is a per-type row.
-  { id: 'add-to-chat', label: 'Add to chat', icon: 'MessageSquarePlus', group: 'chat', order: 10, targets: SELECTION_KINDS, hint: 'Ctrl L',
+  { id: 'add-to-chat', label: 'Add to chat', icon: 'MessageSquarePlus', group: 'chat', order: 10, targets: SELECTION_KINDS, keys: 'add-to-chat',
     applies: (t, ctx) => !!ctx.canvas.describable?.(t), requires: 'chat.ask', data: 'data-menu-add-to-chat',
     attrs: t => (t.type === 'equation' ? { 'data-menu-ask-equation': '' } : {}), run: (t, ctx) => ctx.canvas.addToChat() },
-  { id: 'quick-edit', label: 'Quick Edit', icon: 'Wand', group: 'chat', order: 20, targets: SELECTION_KINDS, hint: 'Ctrl K',
+  { id: 'quick-edit', label: 'Quick Edit', icon: 'Wand', group: 'chat', order: 20, targets: SELECTION_KINDS, keys: 'quick-edit',
     applies: (t, ctx) => !!ctx.canvas.quickEdit, requires: 'generate.paid', data: 'data-menu-inline-ai',
     state: t => (t.kind === 'card' && jobOf(t.object) === 'running' ? { disabled: 'Still generating' } : null), run: (t, ctx) => ctx.canvas.quickEdit() },
 
   // The text or code lines selected inside the card, never the whole card (brief section 3).
   { id: 'copy-selection', label: t => (t.part?.kind === 'code-lines' ? 'Copy selected lines' : 'Copy selected text'), icon: 'Copy', group: 'content', order: 5,
-    targets: ['card', 'object', 'multi', 'group'], applies: t => !!t.part?.text, requires: 'content.copy', data: 'data-menu-copy-selection',
+    targets: ['card', 'object', 'multi', 'group'], applies: t => !!t.part?.text, requires: 'content.copy', data: 'data-menu-copy-selection', keys: 'copy',
     run: (t, ctx) => ctx.canvas.copyText(t.part.text) },
 
   // Duplicate, Copy card, Lock, Arrange, Group, Delete: one order everywhere (brief section 3).
-  { id: 'duplicate', label: 'Duplicate', icon: 'CopyPlus', group: 'clipboard', order: 10, targets: SELECTION_KINDS, hint: 'Ctrl D',
+  { id: 'duplicate', label: 'Duplicate', icon: 'CopyPlus', group: 'clipboard', order: 10, targets: SELECTION_KINDS, keys: 'duplicate',
     shortcut: { key: 'd', mod: true }, applies: t => t.ids.length > 0, requires: 'canvas.local-edit', data: 'data-menu-duplicate', run: (t, ctx) => ctx.commands.duplicate() },
   { id: 'copy', label: t => (t.kind === 'card' ? 'Copy card' : 'Copy'),
-    icon: 'Copy', group: 'clipboard', order: 20, targets: SELECTION_KINDS, hint: 'Ctrl C', applies: (t, ctx) => !!ctx.canvas.copyable?.(t.ids), requires: 'content.copy',
+    icon: 'Copy', group: 'clipboard', order: 20, targets: SELECTION_KINDS, keys: t => (t.part?.text ? null : 'copy'), applies: (t, ctx) => !!ctx.canvas.copyable?.(t.ids), requires: 'content.copy',
     data: 'data-menu-copy', run: (t, ctx) => ctx.commands.copy() },
-  { id: 'cut', label: 'Cut', icon: 'Scissors', group: 'clipboard', order: 30, targets: SELECTION_KINDS, hint: 'Ctrl X', mutates: true,
+  { id: 'cut', label: 'Cut', icon: 'Scissors', group: 'clipboard', order: 30, targets: SELECTION_KINDS, keys: t => (t.part?.text ? null : 'cut'), mutates: true,
     applies: (t, ctx) => !!ctx.canvas.copyable?.(t.ids), requires: 'canvas.local-edit', data: 'data-menu-cut', run: (t, ctx) => ctx.commands.cut() },
-  { id: 'paste', label: 'Paste', icon: 'ClipboardPaste', group: 'clipboard', order: 40, targets: EVERY_KIND, hint: 'Ctrl V', requires: 'canvas.local-edit',
-    state: (t, ctx) => (ctx.canvas.canPaste ? null : { disabled: 'Nothing copied' }), data: 'data-menu-paste', run: (t, ctx) => ctx.commands.paste() },
-  { id: 'copy-style', label: 'Copy style', icon: 'Pipette', group: 'clipboard', order: 50, targets: ['object', 'connector', 'multi', 'group'], hint: 'Ctrl Alt C',
+  { id: 'paste', label: 'Paste', icon: 'ClipboardPaste', group: 'clipboard', order: 40, targets: EVERY_KIND, keys: 'paste', requires: 'canvas.local-edit',
+    state: (t, ctx) => (ctx.canvas.canPaste ? null : { disabled: `No canvas items copied; ${keyLabel('Mod+V', ctx.mac ?? isMac())} pastes from the clipboard` }), data: 'data-menu-paste', run: (t, ctx) => ctx.commands.paste() },
+  { id: 'copy-style', label: 'Copy style', icon: 'Pipette', group: 'clipboard', order: 50, targets: ['object', 'connector', 'multi', 'group'], keys: 'copy-style',
     applies: (t, ctx) => !!ctx.canvas.styleable?.(t.ids), requires: 'canvas.local-edit', data: 'data-menu-copy-style', run: (t, ctx) => ctx.commands.copyStyle() },
-  { id: 'paste-style', label: 'Paste style', icon: 'PaintRoller', group: 'clipboard', order: 60, targets: ['object', 'connector', 'multi', 'group'], hint: 'Ctrl Alt V', mutates: true,
+  { id: 'paste-style', label: 'Paste style', icon: 'PaintRoller', group: 'clipboard', order: 60, targets: ['object', 'connector', 'multi', 'group'], keys: 'paste-style', mutates: true,
     applies: (t, ctx) => !!ctx.canvas.styleable?.(t.ids), state: (t, ctx) => (ctx.canvas.canPasteStyle ? null : { disabled: 'No style copied' }),
     requires: 'canvas.local-edit', data: 'data-menu-paste-style', run: (t, ctx) => ctx.commands.pasteStyle() },
 
   { id: 'lock', label: (t, ctx) => (allLocked(t, ctx) ? 'Unlock' : 'Lock'), icon: (t, ctx) => (allLocked(t, ctx) ? 'LockOpen' : 'Lock'), group: 'lock', order: 10,
-    targets: SELECTION_KINDS, hint: 'Ctrl Shift L', shortcut: { key: 'l', mod: true, shift: true }, applies: lockable, requires: 'canvas.local-edit',
+    targets: SELECTION_KINDS, keys: 'lock', shortcut: { key: 'l', mod: true, shift: true }, applies: lockable, requires: 'canvas.local-edit',
     data: 'data-menu-lock', run: (t, ctx) => ctx.commands.lockSelection() },
   // Full content (owner, 2026-10-21): one checkable row on a card that supports it; checked is full, unchecked scrolls.
   { id: 'full-content', label: 'Full content', icon: (t, ctx) => (ctx.canvas.fullContent?.(t.object) ? 'UnfoldVertical' : 'ScrollText'), group: 'lock', order: 20,
     targets: ['card'], applies: (t, ctx) => !!ctx.canvas.supportsCardLayout?.(t.object), checked: (t, ctx) => !!ctx.canvas.fullContent?.(t.object), mutates: true,
     requires: 'canvas.local-edit', data: 'data-card-layout-toggle', run: (t, ctx) => ctx.canvas.setCardLayout(t.id, ctx.canvas.fullContent(t.object) ? 'scrollable' : 'full') },
 
-  ...[['front', 'Bring to front', 'BringToFront', 'Ctrl Shift ]', { key: ']', mod: true, shift: true }],
-    ['forward', 'Bring forward', 'ArrowUp', 'Ctrl ]', { key: ']', mod: true }],
-    ['backward', 'Send backward', 'ArrowDown', 'Ctrl [', { key: '[', mod: true }],
-    ['back', 'Send to back', 'SendToBack', 'Ctrl Shift [', { key: '[', mod: true, shift: true }]].map(([how, label, icon, hint, shortcut], n) => ({
-    id: `order-${how}`, label, icon, group: 'arrange', order: 10 + n, targets: SELECTION_KINDS, hint, shortcut, mutates: true, requires: 'canvas.local-edit',
+  ...[['front', 'Bring to front', 'BringToFront', { key: ']', mod: true, shift: true }],
+    ['forward', 'Bring forward', 'ArrowUp', { key: ']', mod: true }],
+    ['backward', 'Send backward', 'ArrowDown', { key: '[', mod: true }],
+    ['back', 'Send to back', 'SendToBack', { key: '[', mod: true, shift: true }]].map(([how, label, icon, shortcut], n) => ({
+    id: `order-${how}`, label, icon, group: 'arrange', order: 10 + n, targets: SELECTION_KINDS, keys: `order-${how}`, shortcut, mutates: true, requires: 'canvas.local-edit',
     applies: t => t.ids.length > 0, data: `data-menu-order-${how}`, run: (t, ctx) => ctx.commands.order(how) })),
-  { id: 'zoom-to-selection', label: 'Zoom to selection', icon: 'ZoomIn', group: 'arrange', order: 50, targets: [...SELECTION_KINDS, 'connector'],
+  { id: 'zoom-to-selection', label: 'Fit selection', icon: 'ZoomIn', group: 'arrange', order: 50, targets: [...SELECTION_KINDS, 'connector'], keys: 'fit-selection',
     applies: t => t.ids.length > 0, requires: 'canvas.view', data: 'data-menu-zoom-selection', run: (t, ctx) => ctx.canvas.zoomToSelection() },
 
-  { id: 'group', label: 'Group', icon: 'Group', group: 'group', order: 10, targets: ['multi'], hint: 'Ctrl G', shortcut: { key: 'g', mod: true },
+  { id: 'group', label: 'Group', icon: 'Group', group: 'group', order: 10, targets: ['multi'], keys: 'group', shortcut: { key: 'g', mod: true },
     applies: t => t.ids.length > 1, mutates: true, requires: 'canvas.local-edit', data: 'data-menu-group', run: (t, ctx) => ctx.commands.group() },
   // Ungroup keeps every member where it is (brief section 3).
-  { id: 'ungroup', label: 'Ungroup', icon: 'Ungroup', group: 'group', order: 20, targets: SELECTION_KINDS, hint: 'Ctrl Shift G', shortcut: { key: 'g', mod: true, shift: true },
+  { id: 'ungroup', label: 'Ungroup', icon: 'Ungroup', group: 'group', order: 20, targets: SELECTION_KINDS, keys: 'ungroup', shortcut: { key: 'g', mod: true, shift: true },
     applies: (t, ctx) => t.ids.some(id => ctx.groupOf(id)), requires: 'canvas.local-edit', data: 'data-menu-ungroup', run: (t, ctx) => ctx.commands.ungroup() },
   { id: 'rename-group', label: 'Rename group', icon: 'Pencil', group: 'group', order: 30, targets: SELECTION_KINDS,
     applies: (t, ctx) => !!(t.group || t.ids.map(id => ctx.groupOf(id)).find(Boolean)), requires: 'canvas.local-edit', data: 'data-menu-rename-group',
     run: (t, ctx) => ctx.canvas.renameGroup(t.group || t.ids.map(id => ctx.groupOf(id)).find(Boolean)) },
 
-  { id: 'select-all', label: 'Select all', icon: 'BoxSelect', group: 'canvas', order: 10, targets: ['canvas'], hint: 'Ctrl A', requires: 'canvas.local-edit',
+  { id: 'select-all', label: 'Select all', icon: 'BoxSelect', group: 'canvas', order: 10, targets: ['canvas'], keys: 'select-all', requires: 'canvas.local-edit',
     data: 'data-menu-select-all', run: (t, ctx) => ctx.commands.selectAll() },
 
-  { id: 'fit-canvas', label: 'Fit canvas', icon: 'Scan', group: 'canvas', order: 40, targets: ['canvas'], hint: 'Shift 1', requires: 'canvas.view',
+  { id: 'fit-canvas', label: 'Fit canvas', icon: 'Scan', group: 'canvas', order: 40, targets: ['canvas'], keys: 'fit-canvas', requires: 'canvas.view',
     data: 'data-menu-fit-canvas', run: (t, ctx) => ctx.commands.zoomFit() },
 
   // Delete Rabbit Hole (owner, 2026-10-27): the right-clicked card's kept hole, or on the empty canvas the hole open now. It only
@@ -204,7 +205,7 @@ export const COMMON_ACTIONS = [
     run: (t, ctx) => ctx.canvas.deleteHole((t.kind === 'canvas' ? ctx.canvas.currentHole() : ctx.canvas.holeOf(t.id)).name) },
   // A group's Delete removes its members too, so it says so (brief section 3).
   { id: 'delete', label: t => (t.kind === 'group' ? 'Delete group and contents' : 'Delete'), icon: 'Trash2', group: 'delete', order: 10,
-    targets: [...SELECTION_KINDS, 'connector'], hint: 'Del', shortcut: { key: 'Delete' }, danger: true, mutates: true, requires: 'canvas.local-edit',
+    targets: [...SELECTION_KINDS, 'connector'], keys: 'delete', shortcut: { key: 'Delete' }, danger: true, mutates: true, requires: 'canvas.local-edit',
     applies: t => t.ids.length > 0, data: 'data-menu-delete', run: (t, ctx) => ctx.commands.deleteSelection() },
 ];
 
@@ -258,9 +259,11 @@ const attributes = (entry, target, ctx) => {
   return { ...(typeof data === 'string' ? { [data]: '' } : data || {}), ...(entry.attrs ? entry.attrs(target, ctx) : {}) };
 };
 
-// The rows for `target`: entries in group order, then their own order; a separator between groups.
+// The rows for `target`: entries in group order, then their own order; a separator between groups. A row's hint and its
+// aria-keyshortcuts come from its `keys` (a shortcuts.js id, or (target, ctx) -> id or null), spelled for ctx.mac or this platform.
 export function actionsFor(target, ctx, extra = []) {
   const rows = [];
+  const mac = ctx.mac ?? isMac();
   let last = null;
   const entries = allActions(extra).slice().sort((a, b) => GROUPS.indexOf(a.group) - GROUPS.indexOf(b.group) || (a.order || 0) - (b.order || 0));
   for (const entry of entries) {
@@ -269,13 +272,14 @@ export function actionsFor(target, ctx, extra = []) {
     if (last !== null && entry.group !== last) rows.push({ separator: true, key: `sep-${entry.group}` });
     last = entry.group;
     rows.push({
-      id: entry.id, label: value(entry.label, target, ctx), icon: value(entry.icon, target, ctx), hint: entry.hint || null,
-      keyshortcuts: entry.keyshortcuts || null, attrs: attributes(entry, target, ctx), danger: !!entry.danger,
+      id: entry.id, label: value(entry.label, target, ctx), icon: value(entry.icon, target, ctx), ...keysOf(value(entry.keys, target, ctx), mac), attrs: attributes(entry, target, ctx), danger: !!entry.danger,
       checked: entry.checked ? !!entry.checked(target, ctx) : null, disabled: v.disabled, reason: v.reason, signIn: !!v.signIn,
     });
   }
   return rows;
 }
+
+const keysOf = (id, mac) => ({ hint: id ? hintFor(id, mac) : null, keyshortcuts: id ? ariaFor(id, mac) : null });
 
 // The one way an action runs. Re-checks everything at the moment of the click or key, then makes the target the selection
 // (so a handler that reads the selection acts on what was clicked) and runs it. A sign-in answer hands over to sign-in

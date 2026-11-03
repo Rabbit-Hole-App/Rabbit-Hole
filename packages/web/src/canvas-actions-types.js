@@ -81,7 +81,8 @@ export const TYPE_ACTIONS = [
   // Open: the card's reader at its own page (wiki, arXiv paper, PDF card or page) or a YouTube moment at its time (card-open.js).
   {
     id: 'card.open', label: (t, ctx) => reader(t, ctx)?.label || 'Open', icon: (t, ctx) => (reader(t, ctx)?.kind === 'external' ? 'ExternalLink' : 'BookOpen'), group: 'type', order: 10,
-    targets: ['card'], requires: 'open', data: 'data-menu-open',
+    // Enter (Return) opens the focused or selected card the same way (AdaptiveCanvas openCard): the same openTarget, reader first.
+    targets: ['card'], requires: 'open', data: 'data-menu-open', keys: 'open-card',
     applies: (t, ctx) => ['reader', 'external'].includes(reader(t, ctx)?.kind),
     run: (t, ctx) => { const open = reader(t, ctx); return open.kind === 'reader' ? ctx.canvas.cardAction(open.action, open.payload) : ctx.canvas.openUrl(open.url); },
   },
@@ -162,7 +163,7 @@ export const TYPE_ACTIONS = [
   },
   {
     id: 'code.edit', label: 'Edit code', icon: 'Pencil', group: 'type', order: 20,
-    targets: ['object'], types: ['text'], requires: 'edit', mutates: true, data: 'data-menu-edit',
+    targets: ['object'], types: ['text'], requires: 'edit', mutates: true, data: 'data-menu-edit', keys: 'edit-text',
     applies: t => isCodeBox(t.object), run: (t, ctx) => ctx.canvas.edit(t.id),
   },
   {
@@ -195,12 +196,13 @@ export const TYPE_ACTIONS = [
   // text formatting), never a second set of style controls.
   {
     id: 'text.edit', label: 'Edit text', icon: 'Pencil', group: 'type', order: 20,
-    targets: ['object'], types: ['text', 'sticky', ...CLOSED_SHAPES], requires: 'edit', mutates: true, data: 'data-menu-edit',
+    // Enter on the one selected object runs the same editSelected (AdaptiveCanvas); Edit LaTeX has no key.
+    targets: ['object'], types: ['text', 'sticky', ...CLOSED_SHAPES], requires: 'edit', mutates: true, data: 'data-menu-edit', keys: 'edit-text',
     applies: t => !isCodeBox(t.object), run: (t, ctx) => ctx.canvas.edit(t.id),
   },
   {
     id: 'connector.edit-label', label: 'Edit label', icon: 'Pencil', group: 'type', order: 20,
-    targets: ['object', 'connector'], types: ['connector', ...LINE_SHAPES], requires: 'edit', mutates: true, data: 'data-menu-edit-label',
+    targets: ['object', 'connector'], types: ['connector', ...LINE_SHAPES], requires: 'edit', mutates: true, data: 'data-menu-edit-label', keys: 'edit-text',
     run: (t, ctx) => ctx.canvas.edit(t.id),
   },
   {

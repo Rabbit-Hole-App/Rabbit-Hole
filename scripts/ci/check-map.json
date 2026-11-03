@@ -580,6 +580,7 @@
     "packages/web/src/SearchBar.jsx": ["source-finder-check.mjs","slash-core-check.mjs","search-files-check.mjs","video-check.mjs","wiki-check.mjs","learn-handoff-check.mjs"],
     "packages/web/src/CanvasMenubar.jsx": ["menu-shortcuts-check.mjs","view-menu-check.mjs","canvas-search-viewers-check.mjs","canvas-doc-persist-check.mjs","canvas-doc-check.mjs","canvas-refs-check.mjs","canvas-clipping-check.mjs","comments-check.mjs","search-files-check.mjs","source-finder-check.mjs","drop-ui-check.mjs","video-check.mjs","wiki-check.mjs","learn-handoff-check.mjs","canvas-skeleton-check.mjs","composer-plus-check.mjs","slash-sheet-check.mjs","slash-3d-check.mjs","slash-cleanup-check.mjs","explain-entry-check.mjs","explain-scene-check.mjs","motion-command-check.mjs"],
     "packages/web/src/ShortcutsSheet.jsx": ["menu-shortcuts-check.mjs","search-files-check.mjs","drop-ui-check.mjs","slash-sheet-check.mjs"],
+    "packages/web/src/shortcuts.js": ["menu-shortcuts-check.mjs","card-context-menu-check.mjs","slash-sheet-check.mjs","selection-bar-check.mjs","view-menu-check.mjs"],
     "packages/web/src/Sidebar.jsx": ["sidebar-check.mjs","workspace-check.mjs","panel-header-check.mjs","rabbit-hole-check.mjs","feedback-check.mjs","settings-check.mjs","legacy-copy-check.mjs"],
     "packages/web/src/settings-model.js": ["settings-check.mjs","rabbit-hole-check.mjs"],
     "packages/web/src/ui-prefs.js": ["settings-check.mjs","view-menu-check.mjs","study-maps-check.mjs"],

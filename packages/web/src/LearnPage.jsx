@@ -129,6 +129,7 @@ import { canvasThumbnail } from './card-thumbnail.js';
 import { boardFromText, boardPending, boardText, conflictBaseKey, conflictDoc, serial, sharingOf, withPendingWork } from './canvas-persist.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { typingIn } from './canvas-equation.js';
+import { pageKeyAllowed } from './shortcut-owner.js';
 import { codeRef, paperRef, wikiRef } from './chat-sources.js';
 import { draftChatRef, materialize, placeExcerpts } from './pdf-excerpt.js';
 import { EXCERPT_EVENT, get as excerptDraft } from './pdf-excerpt-drafts.js';
@@ -291,13 +292,25 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // / focuses the right panel's canvas Find (owner decision 5A, Release B; it opened Search before) and ? the shortcuts
   // sheet - the keys the page owns; the canvas owns the rest. Neither fires while typing or presenting: "/" keeps its typing
   // or slash-picker meaning in Chat, Ctrl+K, fields, BlockNote and code editors (slashOpensFind).
+  // Shift+S opens Slash Commands and Shift+P shows or hides the right panel (owner brief 2026-11-02, the View menu's rows), only
+  // where the page owns the key (shortcut-owner.js pageKeyAllowed: never typing, in an editor, a card's widget, a menu or a
+  // modal) and never while presenting. A held key opens or toggles once; ? never opens over another window.
   useEffect(() => {
     const key = event => {
-      if (event.ctrlKey || event.metaKey || event.altKey || (event.key !== '/' && event.key !== '?')) return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      const letter = event.shiftKey && event.key?.length === 1 ? event.key.toLowerCase() : '';
+      if (letter === 's' || letter === 'p') {
+        if (canvasStateRef.current.presenting || !pageKeyAllowed(event)) return;
+        event.preventDefault();
+        if (letter === 's') setSlashHelpOpen(true); else setPanelOpen(open => !open);
+        return;
+      }
+      if (event.key !== '/' && event.key !== '?') return;
       const active = window.document.activeElement;
       if (typingIn(active) || active?.tagName === 'SELECT') return;
       if (event.key === '/' && !slashOpensFind(active)) return;
       if (canvasStateRef.current.presenting) return;
+      if (event.key === '?' && (event.repeat || window.document.querySelector('[role="dialog"][aria-modal="true"]:not([data-shortcuts-sheet])'))) return;
       event.preventDefault();
       if (event.key === '/') { setPanelOpen(true); setPanelTab('find'); setFindFocus(n => n + 1); } else setShortcutsOpen(open => !open);
     };
@@ -2253,7 +2266,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   };
   const canvasMenus = [
     { title: 'Insert', items: ownerInsertItems({ canvas, onUpload: () => filePicker.current?.click(), onSearchSources: () => openSourceFinder({}), onLinkToCanvas: () => setRefPick({}) }) },
-    ...canvasEditMenus({ canvas, canvasState, inlineAi, quickEdit: true, comments, docView, setDocView, panel: { open: panelOpen, setOpen: setPanelOpen }, study, onSlashCommands: () => setSlashHelpOpen(true) }),
+    ...canvasEditMenus({ canvas, canvasState, inlineAi, quickEdit: true, comments, docView, setDocView, panel: { open: panelOpen, setOpen: setPanelOpen }, study, onShortcuts: () => setShortcutsOpen(true), onSlashCommands: () => setSlashHelpOpen(true) }),
   ];
   const canvasOutline = canvasState.outline || [];
   const outlineDisabled = !editor || answering || !!noteEditing;
