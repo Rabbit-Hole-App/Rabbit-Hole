@@ -93,7 +93,7 @@ try {
     await page.goto(`${ORIGIN}/pricing`);
     await until(() => page.locator(BANNER).count(), 'the banner');
     assert.equal(await page.locator(BANNER).getAttribute('aria-label'), 'Analytics choice');
-    assert.match(await page.locator(BANNER).innerText(), /PostHog analytics/);
+    assert.match(await page.locator(BANNER).innerText(), /We use analytics to understand how Rabbit Hole is used and improve it./);
     assert.equal(await page.getByRole('button', { name: 'Accept analytics' }).count(), 1);
     assert.equal(await page.getByRole('button', { name: 'Reject optional' }).count(), 1);
     assert.equal(await page.locator(`${BANNER} a`).getAttribute('href'), '/privacy#technical');
