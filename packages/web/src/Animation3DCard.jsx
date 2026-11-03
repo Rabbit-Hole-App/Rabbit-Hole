@@ -5,7 +5,7 @@ import { Pill } from './ui.jsx';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { claimViewer, releaseViewer } from './viewer-slots.js';
 import { watchSeen } from './explain-program/playback.js';
-import { ANIMATION_JOB_EVENT, animationClient, animationProgress, animationRetry, animationRunning, animationStage, readyResult, RETRY_LABELS } from './animation3d/client.js';
+import { ANIMATION_JOB_EVENT, animationClient, animationProgress, animationRetry, animationRunning, animationStage, readyResult, RETRY_LABELS, pollRetryDelay } from './animation3d/client.js';
 import {
   artifactRefOf, cardPhase, detectWebGL, EXPERIENCE_LABELS, failureText, FIXTURE_LABEL, FIXTURE_NOTE, fixtureIdOf, INTERACT_LEGEND,
   jobOf, keyAction, KEYS_HINT, retryLabel, visibleControls, WEBGL_UNAVAILABLE,
@@ -118,12 +118,17 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
   const ended = ['failed', 'cancelled'].includes(waiting.stage);
   useEffect(() => {
     if (readOnly || waiting.stage === 'cancelled') return undefined;
-    let live = true, timer;
+    let live = true, timer, failures = 0;
     // A failed card (also after a reload) is reconciled once; it is not polled.
     if (ended) { reconcile(() => live).catch(error => { if (live) setProblem(error.message); }); return () => { live = false; }; }
     const poll = async () => {
-      try { const data = await client.get(waiting.id); if (!live) return; setProblem(''); await apply(data); if (animationRunning(data?.job)) timer = setTimeout(poll, 2000); }
-      catch (error) { if (live) setProblem(error.message); }
+      try { const data = await client.get(waiting.id); if (!live) return; failures = 0; setProblem(''); await apply(data); if (animationRunning(data?.job)) timer = setTimeout(poll, 2000); }
+      catch (error) {
+        if (!live) return;
+        setProblem(error.message);
+        const delay = pollRetryDelay(error, ++failures);
+        if (delay !== null) timer = setTimeout(poll, delay);
+      }
     };
     poll();
     // Generate, a refinement or Stop moved the job on from the chat: observe it again (a GET; it never advances the job).

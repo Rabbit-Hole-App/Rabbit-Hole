@@ -389,10 +389,25 @@ test('an author reply cut off at its output limit is output_limit, and its bille
   globalThis.fetch = async (url, options = {}) => {
     const body = JSON.parse(options.body);
     if (body.tools[0].name !== 'animation_artifact') return inner(url, options);
-    return Response.json({ model: body.model, content: [{ type: 'text', text: 'Planning the scene' }], stop_reason: 'max_tokens', usage: { input_tokens: 1307, output_tokens: body.max_tokens } });
+    limit = body.max_tokens;
+    return Response.json({ model: body.model, content: [{ type: 'text', text: 'Planning the scene' }, { type: 'tool_use', id: 't1', name: 'animation_artifact', input: { title: 'half a scene', big: 'x'.repeat(9000) } }], stop_reason: 'max_tokens', usage: { input_tokens: 1307, output_tokens: body.max_tokens } });
   };
+  let limit = 0;
   const { id, done } = await s.generated();
   const author = done.calls.find(c => c.role === 'author');
+  // The diagnostics survive on the call, bounded, and say what was asked for and what came back.
+  assert.deepEqual([author.reply.requested, author.reply.served, author.reply.stopReason, author.reply.settings], [author.requested, author.served, 'max_tokens', { maxTokens: limit, effort: 'model default', thinking: 'model default', toolChoice: 'auto' }]);
+  assert.deepEqual(author.reply.usage, { input_tokens: 1307, output_tokens: limit });
+  assert.deepEqual(author.reply.blocks.map(b => [b.type, b.name ?? null]), [['text', null], ['tool_use', 'animation_artifact']]);
+  assert.equal(author.reply.blocks[1].chars > 9000, true);
+  assert.equal(author.reply.partialTool.length, 8000, 'partial tool output is bounded');
+  assert.match(author.reply.partialTool, /half a scene/);
+  // Billed usage is the provider's, and nothing incomplete becomes a scene.
+  assert.deepEqual([author.inputTokens, author.outputTokens], [1307, limit]);
+  const { costUsd } = await import('../src/learn-models.js');
+  assert.equal(author.costMicros, Math.round(costUsd({ model: author.served, input_tokens: 1307, output_tokens: limit }) * 1e6));
+  assert.deepEqual([done.draft ?? null, done.artifact ?? null, done.artifactHash ?? null, done.result ?? null, done.calls.filter(c => ['review', 'repair'].includes(c.role)).length], [null, null, null, null, 0]);
+  assert.equal(JSON.stringify((await s.job(id)).job).includes('half a scene'), false, 'diagnostics never reach the learner view');
   assert.deepEqual([done.stage, done.failure.stage, done.findings.at(-1).error], ['failed', 'authoring', 'output_limit']);
   assert.match(done.findings.at(-1).message, /reached its output limit \(\d+ tokens\) before finishing its animation_artifact call/);
   assert.deepEqual([author.status, author.stopReason, author.outputTokens > 0, author.costMicros > 0], ['failed', 'max_tokens', true, true]);

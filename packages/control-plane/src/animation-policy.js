@@ -161,6 +161,20 @@ async function roleFailure(role, response, tasks) {
   return Object.assign(await modelFailure(response, `/animation ${role} is unavailable`), { code: `model_http_${response.status}` });
 }
 
+// A reply that was refused after the provider answered, as it came and bounded (diagnostics only): what was asked for, what answered, why
+// it stopped, its usage as billed, the blocks it returned and whatever tool input arrived. Effort omitted is the model's default: the
+// provider does not report the effective value.
+const PARTIAL_TOOL_CHARS = 8000;
+const toolText = input => (typeof input === 'string' ? input : JSON.stringify(input ?? null));
+function replyDiagnostics(role, body, result, tasks) {
+  const r = animationRole(role, tasks), content = Array.isArray(result?.content) ? result.content : [], tool = content.find(block => block?.type === 'tool_use');
+  return { requested: animationModel(role, undefined, tasks), served: typeof result?.model === 'string' ? result.model : null,
+    settings: { maxTokens: body.max_tokens, effort: body.output_config?.effort ?? 'model default', thinking: r.thinking ?? null, toolChoice: body.tool_choice?.type ?? null },
+    stopReason: result?.stop_reason ?? null, usage: result?.usage ?? null,
+    blocks: content.map(block => ({ type: block?.type ?? null, ...(block?.name ? { name: block.name } : {}), ...(block?.type === 'text' ? { chars: String(block.text ?? '').length } : {}), ...(block?.type === 'tool_use' ? { chars: toolText(block.input).length } : {}) })),
+    partialTool: tool ? toolText(tool.input).slice(0, PARTIAL_TOOL_CHARS) : null };
+}
+
 // One role call: build and check the request, send it through the injected (admitted) callModel, check the served model and the
 // single tool call. There is no default transport: only the job's admitted one makes this a paid path.
 export async function callAnimationRole(env, role, { system, tool, content }, { callModel, tasks = LEARN_TASKS }) {
@@ -176,5 +190,5 @@ export async function callAnimationRole(env, role, { system, tool, content }, { 
     // accept-5: the author spent all 10,000 output tokens and never finished its tool call. That is the output limit, not a malformed turn.
     if (result?.stop_reason === 'max_tokens') throw new AnimationPolicyError('output_limit', `/animation ${role} reached its output limit (${animationRole(role, tasks).maxTokens} tokens) before finishing its ${tool.name} call.`);
     return { input: animationToolInput(role, result, tool), identity, ...billed };
-  } catch (error) { throw Object.assign(error, { billed }); }
+  } catch (error) { throw Object.assign(error, { billed, reply: replyDiagnostics(role, body, result, tasks) }); }
 }

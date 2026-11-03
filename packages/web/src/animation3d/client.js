@@ -54,6 +54,11 @@ export function animationProgress(job) {
 const RECOVERIES = ['retry_render', 'new_attempt', 'revise_plan'];
 export const animationRetry = job => job?.recovery?.find(action => RECOVERIES.includes(action)) ?? null;
 export const RETRY_LABELS = Object.freeze({ retry_render: 'Render again', new_attempt: 'Try again', revise_plan: 'Revise plan' });
+// A read of a running job failed. -> milliseconds until the next read (a temporary failure: the network, the service busy; backing off
+// from the usual 2 s to 30 s), or null when the answer is final (not signed in, not this person's, gone).
+const FINAL_READ = new Set([401, 403, 404, 410]);
+export const pollRetryDelay = (error, failures) => (FINAL_READ.has(error?.status) ? null : Math.min(30000, 2000 * 2 ** Math.max(0, failures - 1)));
+
 // The status an approved /animation plan shows in Chat: its job's and its card's, never the press's ("Added to the canvas" under a job
 // that failed, or a card that is not there, was untrue; owner 2026-11-02). job null: not read yet (null, nothing claimed); unread: the
 // read failed. onCanvas false: this canvas has no card for it, so there is nothing to go to, and the words say so.

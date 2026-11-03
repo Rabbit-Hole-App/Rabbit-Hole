@@ -479,6 +479,7 @@ test('a saved card on a share link: the honest placeholder, no owner read and no
   assert.equal($('[data-animation-retry]'), null);
 });
 
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const job = (over = {}) => ({ id: 'j1', boardId: 'b1', cardId: 'p1', requestId: 'r1', sourceKey: 'k', baseRevision: null, stage: 'queued', ...over });
 test('a pending job: the server\'s stage and Stop; Stop asks the server and stops waiting at once; another card\'s result is ignored', async () => {
   const calls = [];
@@ -501,6 +502,48 @@ test('a pending job: the server\'s stage and Stop; Stop asks the server and stop
   assert.deepEqual(calls.at(-1), ['POST', '/api/learn/animation/jobs/j1/cancel']);
   assert.equal(changes.at(-1)[1].animation3dJob.stage, 'cancelled');
   assert.ok(!changes.some(([, next]) => next.animation3d), 'another card\'s result never lands here');
+});
+
+test('a temporary failure reading a running job: polling recovers and clears the problem; a final refusal stops it', async () => {
+  let reads = 0, down = true;
+  const fetchJson = async () => { reads += 1; if (down) throw Object.assign(new Error('Could not reach the server.'), { status: 503 }); return { job: job({ id: 'j3', cardId: 'p3', stage: 'authoring' }) }; };
+  await mount({ fetchJson, block: { id: 'p3', type: 'animation3d', title: 'X', animation3dJob: job({ id: 'j3', cardId: 'p3' }) } });
+  assert.match($('[data-animation-pending] [role="alert"]').textContent, /Could not reach the server/);
+  assert.deepEqual(buttons(), ['Stop'], 'still waiting: Stop stays');
+  down = false;
+  await wait(2300);
+  assert.equal($('[data-animation-pending] [role="alert"]'), null, 'the problem clears');
+  assert.equal($('[data-animation-pending]').getAttribute('data-animation-pending'), 'authoring');
+  assert.equal(reads >= 2, true);
+});
+
+test('Stop while reads are failing cancels the retry: no read after it', async () => {
+  let reads = 0;
+  const fetchJson = async (path, options = {}) => { if (options.method === 'POST') return { job: job({ id: 'j4', cardId: 'p4', stage: 'cancelled' }) }; reads += 1; throw Object.assign(new Error('Could not reach the server.'), { status: 503 }); };
+  // As on the canvas: the saved card comes back as this card's block, which ends the wait.
+  const changes = [], runtimes = stubRuntimes(), renderers = stubRenderers();
+  const save = kind => next => { changes.push([kind, next]); draw(next); };
+  const draw = next => root.render(B.createElement(B.Card, { block: next, fetchJson, webgl: true, createRuntime: runtimes.factory, createRenderer: renderers.factory, onChange: save('change'), onChangeQuiet: save('quiet') }));
+  await mount({ fetchJson, runtimes, renderers, onChange: save('change'), onChangeQuiet: save('quiet'), block: { id: 'p4', type: 'animation3d', title: 'X', animation3dJob: job({ id: 'j4', cardId: 'p4' }) } });
+  await press($('[data-animation-stop]'));
+  assert.equal(changes.at(-1)[1].animation3dJob.stage, 'cancelled');
+  const after = reads;
+  await wait(2300);
+  assert.equal(reads, after, 'the pending retry was cancelled');
+});
+
+test('a final refusal reading a job stops polling; the retry delay backs off and is capped', async () => {
+  let reads = 0;
+  const fetchJson = async () => { reads += 1; throw Object.assign(new Error('Not available'), { status: 404 }); };
+  await mount({ fetchJson, block: { id: 'p5', type: 'animation3d', title: 'X', animation3dJob: job({ id: 'j5', cardId: 'p5' }) } });
+  const after = reads;
+  await wait(2300);
+  assert.equal(reads, after);
+  assert.match($('[data-animation-pending] [role="alert"]').textContent, /Not available/);
+  const { pollRetryDelay } = await import('./animation3d/client.js');
+  assert.deepEqual([1, 2, 3, 9].map(n => pollRetryDelay(new Error('x'), n)), [2000, 4000, 8000, 30000]);
+  assert.deepEqual([401, 403, 404, 410].map(status => pollRetryDelay({ status }, 1)), [null, null, null, null]);
+  assert.deepEqual([429, 500, 503].map(status => pollRetryDelay({ status }, 1)), [2000, 2000, 2000]);
 });
 
 test('a failed job: its message and the job\'s own retry', async () => {

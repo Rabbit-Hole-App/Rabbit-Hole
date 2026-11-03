@@ -22,7 +22,7 @@ import { imageGenerationId, imageGenerationOn, imageStatus, retryImageSave, runI
 import { sameFileCard } from './file-to-canvas.js';
 import { mergeOutputs, openOutput, outputSink } from './chat-output-refs.js';
 import { cardStatus, imageProposalStatus, madeFromVersion, outputForProposal } from './generation-proposal-status.js';
-import { animationProposalStatus, animationRunning } from './animation3d/client.js';
+import { animationProposalStatus, animationRunning, pollRetryDelay } from './animation3d/client.js';
 import { responseKind, turnIndex } from './chat-response-kind.js';
 import { briefHeading, isBriefCommand } from './material-brief.js';
 import PlanSummary, { planSummary } from './animation3d/PlanSummary.jsx';
@@ -35,10 +35,15 @@ function useAnimationProposal(p, made, ops) {
   const id = p.command === 'animation' && made && ops?.readAnimationJob ? p.input?.job : null;
   useEffect(() => {
     if (!id) return undefined;
-    let live = true, timer;
+    let live = true, timer, failures = 0;
     const poll = async () => {
-      try { const job = await ops.readAnimationJob(p); if (!live) return; setRead({ job, unread: false }); if (animationRunning(job)) timer = setTimeout(poll, 4000); }
-      catch { if (live) setRead(current => ({ ...current, unread: !current.job })); }
+      try { const job = await ops.readAnimationJob(p); if (!live) return; failures = 0; setRead({ job, unread: false }); if (animationRunning(job)) timer = setTimeout(poll, 4000); }
+      catch (error) {
+        if (!live) return;
+        setRead(current => ({ ...current, unread: !current.job }));
+        const delay = pollRetryDelay(error, ++failures);
+        if (delay !== null) timer = setTimeout(poll, delay);
+      }
     };
     poll();
     return () => { live = false; clearTimeout(timer); };
