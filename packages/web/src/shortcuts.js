@@ -31,8 +31,11 @@ export function ariaKey(binding, mac = isMac()) {
 }
 
 // Rows: id, section, label, keys (bindings, or { win, mac } where the platforms differ), and optionally note (when it
-// applies), text (a row that names no key) and sub (a sub-heading inside its section).
-export const SECTIONS = ['Essentials', 'Canvas navigation', 'Selection, editing and arrangement', 'Drawing tools', 'Chat and text editing', 'Presenting and interactive cards', 'Mouse and trackpad'];
+// applies) and text (a row that names no key).
+// The window's tabs, in order (owner 2026-11-02: the sections as tabs, like Creator Analytics): each section's full title and
+// its short tab label. Menus is its own tab, after the editing keys it was a sub-section of.
+export const SECTIONS = ['Essentials', 'Canvas navigation', 'Selection, editing and arrangement', 'Menus', 'Drawing tools', 'Chat and text editing', 'Presenting and interactive cards', 'Mouse and trackpad'];
+export const TAB_LABELS = { Essentials: 'Essentials', 'Canvas navigation': 'Navigation', 'Selection, editing and arrangement': 'Editing', Menus: 'Menus', 'Drawing tools': 'Drawing', 'Chat and text editing': 'Chat and text', 'Presenting and interactive cards': 'Presenting', 'Mouse and trackpad': 'Mouse and trackpad' };
 // A line under a section's heading: where its keys apply.
 export const SECTION_NOTES = { 'Drawing tools': 'Same keys on Windows and Mac, while the canvas has the keyboard', 'Mouse and trackpad': 'On the canvas or the object under the pointer; links and viewers keep their own gestures' };
 const TOOLS = [['tool-select', 'Select', 'V'], ['tool-hand', 'Hand (pan)', 'H'], ['tool-rect', 'Rectangle', 'R'], ['tool-ellipse', 'Ellipse', 'O'], ['tool-arrow', 'Arrow', 'A'],
@@ -86,12 +89,12 @@ export function shortcutRows({ sendKey = 'enter' } = {}) {
     { id: 'select-card', section: 'Selection, editing and arrangement', label: 'Select the keyboard-focused card', keys: [' '] },
     // The canvas menu (CanvasMenu.jsx, WAI-ARIA menu). Shift+F10 and the Menu key are not verified on a Mac, so a Mac shows
     // the pointer ways in (owner brief, message 2 section 3).
-    { id: 'menu-open', section: 'Selection, editing and arrangement', sub: 'Menus', label: 'Open the context menu', keys: { win: ['Shift+F10', 'ContextMenu'], mac: ['Right-click', 'Two-finger click'] } },
-    { id: 'menu-move', section: 'Selection, editing and arrangement', sub: 'Menus', label: 'Move between actions', keys: ['ArrowUp', 'ArrowDown'] },
-    { id: 'menu-ends', section: 'Selection, editing and arrangement', sub: 'Menus', label: 'First or last action', keys: ['Home', 'End'] },
-    { id: 'menu-activate', section: 'Selection, editing and arrangement', sub: 'Menus', label: 'Choose the focused action', keys: ['Enter', ' '] },
-    { id: 'menu-close', section: 'Selection, editing and arrangement', sub: 'Menus', label: 'Close the menu', keys: ['Escape'] },
-    { id: 'menu-leave', section: 'Selection, editing and arrangement', sub: 'Menus', label: 'Leave the menu', keys: ['Tab'] },
+    { id: 'menu-open', section: 'Menus', label: 'Open the context menu', keys: { win: ['Shift+F10', 'ContextMenu'], mac: ['Right-click', 'Two-finger click'] } },
+    { id: 'menu-move', section: 'Menus', label: 'Move between actions', keys: ['ArrowUp', 'ArrowDown'] },
+    { id: 'menu-ends', section: 'Menus', label: 'First or last action', keys: ['Home', 'End'] },
+    { id: 'menu-activate', section: 'Menus', label: 'Choose the focused action', keys: ['Enter', ' '] },
+    { id: 'menu-close', section: 'Menus', label: 'Close the menu', keys: ['Escape'] },
+    { id: 'menu-leave', section: 'Menus', label: 'Leave the menu', keys: ['Tab'] },
 
     ...TOOLS.map(([id, label, key]) => ({ id, section: 'Drawing tools', label, keys: [key] })),
 
@@ -135,13 +138,13 @@ export const hintFor = (id, mac = isMac()) => { const first = keysOf(ROW[id], ma
 export const ariaFor = (id, mac = isMac()) => keysOf(ROW[id], mac).map(binding => ariaKey(binding, mac)).filter(Boolean).join(' ') || null;
 
 // The rows to show for a search, grouped by section in order. Every word of the query must appear in the row's label,
-// section, sub-heading, note, text or its keys as this platform spells them.
+// section, note, text or its keys as this platform spells them.
 export function shortcutSections({ query = '', mac = isMac(), sendKey = 'enter', omit = [] } = {}) {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   const rows = shortcutRows({ sendKey }).filter(row => !omit.includes(row.id)).map(row => ({ ...row, labels: keysOf(row, mac).map(binding => keyLabel(binding, mac)) }));
   const shown = rows.filter(row => {
-    const hay = [row.label, row.section, row.sub, row.note, row.text, ...row.labels].filter(Boolean).join(' ').toLowerCase();
+    const hay = [row.label, row.section, TAB_LABELS[row.section], row.note, row.text, ...row.labels].filter(Boolean).join(' ').toLowerCase();
     return words.every(word => hay.includes(word));
   });
-  return SECTIONS.map(title => ({ title, note: SECTION_NOTES[title] || null, rows: shown.filter(row => row.section === title) })).filter(section => section.rows.length);
+  return SECTIONS.map(title => ({ title, tab: TAB_LABELS[title], note: SECTION_NOTES[title] || null, rows: shown.filter(row => row.section === title) })).filter(section => section.rows.length);
 }

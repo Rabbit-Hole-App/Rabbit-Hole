@@ -2,11 +2,12 @@ import { chromium, firefox, webkit } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { DEV_CP } from './dev-cp.mjs';
 import { menubar, openMenu } from './canvas-menu-helpers.mjs';
+import { SECTIONS, shortcutRows } from '../src/shortcuts.js';
 
 // View > Shortcuts and the shortcut inventory (owner brief 2026-11-02, C:/s/spec/shortcuts/owner-brief-2026-11-02.md; src/shortcuts.js,
 // ShortcutsSheet.jsx, canvas-menus.js, canvas-actions.js, AdaptiveCanvas.jsx, LearnPage.jsx, Shell.jsx). Real keys through the browser's
 // input pipeline (Playwright keyboard), never a synthetic dispatchEvent: View > Shortcuts directly below Slash Commands, and ?; the
-// window's title, seven sections, Quick Edit first, search, the Windows / Mac choice, Tab kept inside, background canvas keys
+// window's title, its sections as tabs (seven plus Menus), Quick Edit first, search across tabs, the Windows / Mac choice, Tab kept inside, background canvas keys
 // suspended (Delete, Undo, Duplicate, a tool key, Shift+G), Esc closing it once with the selection kept, focus returned; each new key
 // (Shift+S, Shift+P, Shift+G, Shift+2) acting once, a held key once, and standing down in a field; the right-click menu's platform
 // hints and aria-keyshortcuts, Delete doing nothing while the menu is open and Enter choosing the row, never editing the object
@@ -38,7 +39,7 @@ if (!session) throw Error('no test session');
 const made = await (await fetch(`${BASE}/api/canvases`, { method: 'POST', headers: { ...UA, 'Content-Type': 'application/json', origin: BASE, cookie: `small_session=${session}` }, body: JSON.stringify({ title: 'Shortcuts check' }) })).json();
 if (!made?.name) throw Error('no canvas');
 
-const total = 47;
+const total = 61;
 let passed = 0, failed = 0;
 const ok = (name, condition, extra = '') => { if (condition) passed += 1; else failed += 1; console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${extra ? `  (${extra})` : ''}`); };
 const browser = await ENGINE.launch();
@@ -63,7 +64,13 @@ async function open(tag, { viewport = { width: 1440, height: 900 }, scheme = 'li
   return { context, page };
 }
 const sheet = page => page.getByRole('dialog', { name: 'Shortcuts', exact: true });
-const keysOf = (page, id) => sheet(page).locator(`[data-shortcut="${id}"] [data-shortcut-key]`).allInnerTexts();
+// One section shows at a time: a row's keys are read on its own tab, which is opened only when the row is not already shown.
+const tabTo = (page, title) => sheet(page).locator(`[data-shortcuts-tab="${title}"]`).click();
+async function keysOf(page, id) {
+  const row = sheet(page).locator(`[data-shortcut="${id}"]`);
+  if (!await row.count()) await tabTo(page, shortcutRows().find(entry => entry.id === id).section);
+  return row.locator('[data-shortcut-key]').allInnerTexts();
+}
 const blur = page => page.evaluate(() => document.activeElement?.blur?.());
 const objects = page => page.locator('[data-item-id]').count();
 const world = page => page.locator('[data-canvas-world]').evaluate(node => node.style.transform);
@@ -100,20 +107,42 @@ const panelOn = async page => (await rowState(page, 'View', 'Right panel', 'Show
   await view.locator('[data-menu-item="Shortcuts"]').click();
   await sheet(page).waitFor({ timeout: 5000 });
   ok('View > Shortcuts opens the window titled Shortcuts, search focused', (await sheet(page).locator('h2').innerText()) === 'Shortcuts' && await sheet(page).locator('[data-shortcuts-search]').evaluate(node => node === document.activeElement));
-  const sections = await sheet(page).locator('[data-shortcuts-section]').evaluateAll(nodes => nodes.map(node => node.dataset.shortcutsSection));
-  ok('seven sections in the owner\'s order', sections.join('|') === 'Essentials|Canvas navigation|Selection, editing and arrangement|Drawing tools|Chat and text editing|Presenting and interactive cards|Mouse and trackpad', sections.join('|'));
+  // Owner 2026-11-02 (second pass): the sections are tabs (the house Radix Tabs, as in Creator Analytics), Essentials open.
+  const tabs = await sheet(page).locator('[role="tab"]').evaluateAll(nodes => nodes.map(node => `${node.textContent}${node.getAttribute('aria-selected') === 'true' ? '*' : ''}`));
+  ok('the seven sections plus Menus are tabs in order, Essentials selected', tabs.join('|') === 'Essentials*|Navigation|Editing|Menus|Drawing|Chat and text|Presenting|Mouse and trackpad', tabs.join('|'));
+  const panels = await sheet(page).locator('[data-shortcuts-section]').evaluateAll(nodes => nodes.map(node => node.dataset.shortcutsSection));
+  ok('one section shows at a time, in a tab panel', panels.join() === 'Essentials' && (await sheet(page).locator('[data-shortcuts-list]').getAttribute('role')) === 'tabpanel', panels.join());
   const first = await sheet(page).locator('[data-shortcut]').first().getAttribute('data-shortcut');
   ok('Quick Edit is the first shortcut, Ctrl+K', first === 'quick-edit' && (await keysOf(page, 'quick-edit')).join() === 'Ctrl+K', `${first} ${(await keysOf(page, 'quick-edit')).join()}`);
   ok('Windows is chosen on this platform', (await sheet(page).locator('[data-shortcuts-platform="win"]').getAttribute('aria-checked')) === 'true');
   ok('the four new keys are listed', (await keysOf(page, 'slash-commands')).join() === 'Shift+S' && (await keysOf(page, 'right-panel')).join() === 'Shift+P'
     && (await keysOf(page, 'grid')).join() === 'Shift+G' && (await keysOf(page, 'fit-selection')).join() === 'Shift+2');
+  await sheet(page).locator('[data-shortcuts-search]').focus();
   await page.keyboard.type('snap grid');
   ok('search filters to the matching row', (await sheet(page).locator('[data-shortcut]').evaluateAll(nodes => nodes.map(node => node.dataset.shortcut))).join() === 'grid');
+  await sheet(page).locator('[data-shortcuts-search]').fill('esc');
+  const found = await sheet(page).locator('[data-shortcuts-section]').evaluateAll(nodes => nodes.map(node => node.dataset.shortcutsSection));
+  ok('a search shows matches from every section under its name, with no tab selected', found.length >= 3 && found.includes('Essentials') && found.includes('Menus') && await sheet(page).locator('[role="tab"][aria-selected="true"]').count() === 0, found.join());
   await sheet(page).locator('[data-shortcuts-search]').fill('zzzz');
   ok('no match says so', await sheet(page).getByText('No shortcuts match').count() === 1);
   await sheet(page).locator('[data-shortcuts-search]').fill('');
+  ok('clearing the search returns to the selected tab', (await sheet(page).locator('[data-shortcuts-section]').evaluateAll(nodes => nodes.map(node => node.dataset.shortcutsSection))).join() === 'Essentials'
+    && (await sheet(page).locator('[role="tab"][aria-selected="true"]').innerText()) === 'Essentials');
+  // Tab order: search, platform choice, the tab row (its selected tab), the list; the arrows move between tabs.
+  await sheet(page).locator('[data-shortcuts-search]').focus();
+  const order = [];
+  for (let n = 0; n < 3; n += 1) { await page.keyboard.press('Tab'); order.push(await page.evaluate(() => document.activeElement?.dataset.shortcutsPlatform || document.activeElement?.getAttribute('role') || document.activeElement?.tagName)); }
+  ok('Tab goes search, platform choice, the selected tab, then the list', order.join() === 'win,tab,tabpanel', order.join());
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(150);
+  ok('ArrowRight moves to the next tab and shows it', (await sheet(page).locator('[role="tab"][aria-selected="true"]').innerText()) === 'Navigation'
+    && (await sheet(page).locator('[data-shortcuts-section]').evaluateAll(nodes => nodes.map(node => node.dataset.shortcutsSection))).join() === 'Canvas navigation'
+    && await page.evaluate(() => document.activeElement?.textContent === 'Navigation'));
   await sheet(page).locator('[data-shortcuts-platform="mac"]').click();
   ok('Mac shows ⌘K and Delete ⌫', (await keysOf(page, 'quick-edit')).join() === '⌘K' && (await keysOf(page, 'delete')).join() === 'Delete ⌫' && (await sheet(page).locator('[data-shortcuts-platform="mac"]').getAttribute('aria-checked')) === 'true');
+  await tabTo(page, 'Essentials');
+  await sheet(page).locator('[data-shortcuts-platform="mac"]').focus();
   await page.keyboard.press('ArrowLeft');
   ok('the arrows move the platform choice back to Windows', (await keysOf(page, 'quick-edit')).join() === 'Ctrl+K' && await sheet(page).locator('[data-shortcuts-platform="win"]').evaluate(node => node === document.activeElement));
   let inside = true;
@@ -233,7 +262,10 @@ const panelOn = async page => (await rowState(page, 'View', 'Right panel', 'Show
   ok('Mac: the context menu is the pointer ways, never an unverified Shift+F10', (await keysOf(page, 'menu-open')).join() === 'Right-click,Two-finger click');
   ok('Chat set to send on ⌘Return: the window says so, and that Return adds a line', (await keysOf(page, 'chat-send')).join() === '⌘Return' && (await keysOf(page, 'chat-newline')).join() === 'Return'
     && (await sheet(page).locator('[data-shortcut="chat-send"]').innerText()).includes('Enter adds a new line'));
-  ok('Mac: no Ctrl anywhere in the window', !(await sheet(page).locator('[data-shortcut-key]').allInnerTexts()).some(text => /Ctrl/.test(text)));
+  const macKeys = [];
+  for (const title of SECTIONS) { await tabTo(page, title); macKeys.push(...await sheet(page).locator('[data-shortcut-key]').allInnerTexts()); }
+  ok('Mac: no Ctrl on any tab', macKeys.length > 60 && !macKeys.some(text => /Ctrl/.test(text)), `${macKeys.length} keys`);
+  await tabTo(page, 'Essentials');
   await page.screenshot({ path: `${SHOTS}/mac-dark-sheet.png` });
   await page.keyboard.press('Escape');
   const undo = await rowState(page, 'Edit', 'Undo');
@@ -243,20 +275,29 @@ const panelOn = async page => (await rowState(page, 'View', 'Right panel', 'Show
   await context.close();
 }
 
-// ---- 390x844, dark: the window fills the screen, its header and search stay put while the list scrolls, keycaps are readable.
-{
-  const { context, page } = await open('narrow', { viewport: { width: 390, height: 844 }, scheme: 'dark' });
+// ---- 390x844, dark and light: the window fills the screen, the tab row scrolls sideways inside it (never the page), the header,
+// search and tabs stay put while the list scrolls, and keycaps are readable.
+for (const scheme of ['dark', 'light']) {
+  const { context, page } = await open(`narrow-${scheme}`, { viewport: { width: 390, height: 844 }, scheme });
   await blur(page);
   await page.keyboard.press('?');
   await sheet(page).waitFor({ timeout: 5000 });
   const box = await sheet(page).boundingBox();
-  ok('narrow: the window fills the screen width', box && box.width >= 380 && box.x <= 5, JSON.stringify(box));
+  ok(`narrow ${scheme}: the window fills the screen width`, box && box.width >= 380 && box.x <= 5, JSON.stringify(box));
+  const row = await sheet(page).locator('[data-shortcuts-tabs]').evaluate(node => ({ scroll: node.scrollWidth, client: node.clientWidth, right: node.getBoundingClientRect().right }));
+  ok(`narrow ${scheme}: the tab row scrolls sideways inside the window`, row.scroll > row.client && row.right <= 391, JSON.stringify(row));
+  await page.screenshot({ path: `${SHOTS}/narrow-${scheme}-essentials.png` });
+  await tabTo(page, 'Mouse and trackpad');
+  const last = await sheet(page).locator('[data-shortcuts-tab="Mouse and trackpad"]').boundingBox();
+  ok(`narrow ${scheme}: the last tab scrolls into view and opens`, last && last.x >= 0 && last.x + last.width <= 391 && (await sheet(page).locator('[data-shortcuts-section]').getAttribute('data-shortcuts-section')) === 'Mouse and trackpad', JSON.stringify(last));
+  await tabTo(page, 'Selection, editing and arrangement');
   await sheet(page).locator('[data-shortcuts-list]').evaluate(node => { node.scrollTop = node.scrollHeight; });
   await page.waitForTimeout(200);
   const search = await sheet(page).locator('[data-shortcuts-search]').boundingBox();
   const scrolled = await sheet(page).locator('[data-shortcuts-list]').evaluate(node => node.scrollTop > 0);
-  ok('narrow: scrolled to the end, the search and platform choice are still on screen', scrolled && search && search.y >= 0 && search.y + search.height <= 844 && await sheet(page).locator('[data-shortcuts-platform="mac"]').isVisible(), JSON.stringify(search));
-  ok('narrow: no sideways scroll', await page.evaluate(() => document.scrollingElement.scrollWidth <= innerWidth + 1) && await sheet(page).locator('[data-shortcuts-list]').evaluate(node => node.scrollWidth <= node.clientWidth + 1));
+  ok(`narrow ${scheme}: scrolled to the end of Editing, the search, platform choice and tabs are still on screen`, scrolled && search && search.y >= 0 && search.y + search.height <= 844
+    && await sheet(page).locator('[data-shortcuts-platform="mac"]').isVisible() && await sheet(page).locator('[data-shortcuts-tab="Selection, editing and arrangement"]').isVisible(), JSON.stringify(search));
+  ok(`narrow ${scheme}: no sideways page scroll`, await page.evaluate(() => document.scrollingElement.scrollWidth <= innerWidth + 1) && await sheet(page).locator('[data-shortcuts-list]').evaluate(node => node.scrollWidth <= node.clientWidth + 1));
   const contrast = await sheet(page).locator('[data-shortcut-key]').first().evaluate(node => {
     const rgb = value => (value.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
     const lum = ([r, g, b]) => { const c = [r, g, b].map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
@@ -265,10 +306,10 @@ const panelOn = async page => (await rowState(page, 'View', 'Right panel', 'Show
     const [a, b] = [lum(rgb(getComputedStyle(node).color)), lum(rgb(bg))];
     return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
   });
-  ok('dark: keycap text is 4.5:1 or more on its background', contrast >= 4.5, contrast.toFixed(2));
-  await page.screenshot({ path: `${SHOTS}/narrow-dark-scrolled.png` });
+  ok(`narrow ${scheme}: keycap text is 4.5:1 or more on its background`, contrast >= 4.5, contrast.toFixed(2));
+  await page.screenshot({ path: `${SHOTS}/narrow-${scheme}-scrolled.png` });
   await page.keyboard.press('Escape');
-  ok('narrow: Esc closes it', await sheet(page).count() === 0);
+  ok(`narrow ${scheme}: Esc closes it`, await sheet(page).count() === 0);
   await context.close();
 }
 

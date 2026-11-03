@@ -4,13 +4,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { SECTIONS, ariaFor, ariaKey, hintFor, keyLabel, keysOf, shortcutRows, shortcutSections } from './shortcuts.js';
+import { SECTIONS, TAB_LABELS, ariaFor, ariaKey, hintFor, keyLabel, keysOf, shortcutRows, shortcutSections } from './shortcuts.js';
 
 const sheet = readFileSync(new URL('./ShortcutsSheet.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const all = (options = {}) => shortcutSections(options).flatMap(section => section.rows);
 
-test('seven sections in order, Quick Edit first (Ctrl+K on Windows, ⌘K on a Mac)', () => {
-  assert.deepEqual(SECTIONS, ['Essentials', 'Canvas navigation', 'Selection, editing and arrangement', 'Drawing tools', 'Chat and text editing', 'Presenting and interactive cards', 'Mouse and trackpad']);
+// Owner 2026-11-02 (second pass): the seven sections plus Menus are tabs in this order, Essentials first.
+test('seven sections plus Menus in order, each with a short tab label; Quick Edit first (Ctrl+K on Windows, ⌘K on a Mac)', () => {
+  assert.deepEqual(SECTIONS, ['Essentials', 'Canvas navigation', 'Selection, editing and arrangement', 'Menus', 'Drawing tools', 'Chat and text editing', 'Presenting and interactive cards', 'Mouse and trackpad']);
+  assert.deepEqual(SECTIONS.map(title => TAB_LABELS[title]), ['Essentials', 'Navigation', 'Editing', 'Menus', 'Drawing', 'Chat and text', 'Presenting', 'Mouse and trackpad']);
+  assert.deepEqual(shortcutSections().find(section => section.title === 'Menus').rows.map(row => row.id), ['menu-open', 'menu-move', 'menu-ends', 'menu-activate', 'menu-close', 'menu-leave']);
   assert.deepEqual(shortcutSections({ mac: false }).map(section => section.title), SECTIONS);
   for (const mac of [false, true]) {
     const first = all({ mac })[0];
@@ -75,6 +78,13 @@ test('the window: titled Shortcuts, modal, search focused, Tab kept inside, Esc 
   assert.match(sheet, /if \(event\.key === 'Escape'\) \{ event\.preventDefault\(\); event\.stopImmediatePropagation\(\); latest\.current\(\); return; \}/);
   assert.match(sheet, /window\.addEventListener\('keydown', key, true\)/, 'capture: nothing behind it sees the key first');
   assert.match(sheet, /if \(opener\?\.isConnected && opener !== document\.body\) opener\.focus/);
-  assert.match(sheet, /shrink-0 border-b[^\n]*\n/, 'the header and controls stay put while the list scrolls');
+  assert.match(sheet, /<header className="shrink-0 /, 'the header, controls and tabs stay put while the list scrolls');
+  // Owner 2026-11-02 (second pass): the tabs are the house Tabs (ui.jsx, Radix), as in Creator Analytics; Essentials opens; a search
+  // selects no tab and shows every section's matches under its name; picking a tab clears the search; the row scrolls on a phone.
+  assert.match(sheet, /import \{ Input, Tabs, TabsList, TabsTrigger \} from '\.\/ui\.jsx';/);
+  assert.match(sheet, /useState\(SECTIONS\[0\]\)/);
+  assert.match(sheet, /<Tabs value=\{searching \? '' : tab\} onValueChange=\{next => \{ setQuery\(''\); setTab\(next\); \}\}/);
+  assert.match(sheet, /const shown = searching \? sections : sections\.filter\(section => section\.title === tab\);/);
+  assert.match(sheet, /data-shortcuts-tabs className="[^"]*overflow-x-auto/);
   assert.doesNotMatch(sheet, /\.\.\.'|…/, 'no ellipsis');
 });
