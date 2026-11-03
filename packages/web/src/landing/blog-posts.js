@@ -12,7 +12,7 @@ export const stories=[
     body:`<p>Rabbit Hole started as a fix for how I learn. I was spending more time keeping track of what I had learned than learning it.</p>
       <h2>The README I kept writing</h2>
       <p>For years my way of learning anything was the same: start with a course on Coursera or Udemy, or with the slides from a class, then watch the hours of video with my iPad open and take notes. Pause to read blog posts and watch YouTube videos that explained the same thing a different way, and code along with the instructor or do the exercises afterwards. At the end, write a README on GitHub with everything I had learned.</p>
-      <p>The README mattered for three reasons: I would not forget the material, and I could go back to it. It was a portfolio, proof of what I knew. And other people could learn from it.</p>
+      <p>The README mattered for three reasons: I would not forget the material, and I could go back to it, it was a portfolio, proof of what I knew, and other people could learn from it.</p>
       <p>This also took a long time. Getting the pictures, the links and the code into a .md file, structuring it, reviewing it: all of this was its own project. Soon enough I realized where the whole system broke.</p>
       <h2>Two problems I kept hitting</h2>
       <ol>
