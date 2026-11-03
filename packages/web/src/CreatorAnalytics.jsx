@@ -15,7 +15,7 @@ const ICON = { size: 16, strokeWidth: 1.75 };
 const COARSE = '[@media(pointer:coarse)]:min-h-11';
 // Button's secondary variant asks for a border, but its base border-0 wins in the built CSS (clsx does not merge them), so it draws none.
 // shortcut: forced here only, as the owner asked for no app-wide change; remove this once Button itself is fixed.
-const SECONDARY = `border! ${COARSE}`;
+const SECONDARY = `border-[1px]! ${COARSE}`;
 
 // A hidden value: the dash, with its reason for a screen reader and as a tooltip.
 function Value({ metric, kind }) {
