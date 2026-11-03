@@ -32,7 +32,7 @@ export function reduce({ state, event }) {
 }
 export function evaluate({ state }) {
   const s = state || initialState(), turn = (s.angle - 90) * Math.PI / 360, shot = s.shot, nodes = {};
-  nodes.aim = { quaternion: [0, 0, Math.sin(turn), Math.cos(turn)], scale: [1, s.speed / 4, 1] };
+  nodes.aim = { quaternion: [0, 0, Math.sin(turn), Math.cos(turn)], scale: [1, s.speed / 2, 1] };
   for (let k = 0; k <= 14; k += 1) {
     if (!shot) { nodes['arc' + k] = { visible: false }; continue; }
     const b = shot.angle * Math.PI / 180, t = k / 14 * 2 * shot.speed * Math.sin(b) / G;
@@ -56,37 +56,35 @@ const projectilePlan = {
   sourceRefs: [], parameters: [], interactions: ['Raise or lower the angle by $5^\\circ$ (Up and Down keys).', 'Change the speed by $1\\ \\mathrm{m/s}$ (Left and Right keys).', 'Launch.'],
   assumptions: ['$R = \\dfrac{v^2 \\sin 2\\theta}{g}$ with $g = 9.81\\ \\mathrm{m/s^2}$, launched from ground level on flat ground.', 'No air resistance; the projectile is a point.'],
   limitations: ['Real projectiles lose speed to drag and land shorter.', 'The angle and speed move in steps; holding a key does not change them continuously.'],
-  learningGoal: 'For a given speed $45^\\circ$ goes farthest, $\\theta$ and $90^\\circ - \\theta$ land at the same place, and the range grows as $v^2$.', requiredCapabilities: ['actions', 'readouts', 'labels'],
+  learningGoal: 'For a given speed $\\theta = 45^\\circ$ goes farthest, $\\theta$ and $\\theta^\\prime = 90^\\circ - \\theta$ land at the same place, and the range grows as $v^2$.', requiredCapabilities: ['actions', 'readouts', 'labels'],
 };
 export const projectileExample = {
   name: 'projectile-target-game',
   plan: projectilePlan,
   artifact: {
-    ...base, artifactId: 'example-projectile-target', planHash: 'adfff8e8293c81ac77550ac2ff0ccad3937ee06fdd9ac0fe91dca701f0e44c7d',
-    title: projectilePlan.title, description: 'Side view of flat ground marked to 50 m, a launcher at 0 m with an arrow showing the aim (longer is faster), and a target pad at 30 m. After a launch, dots trace the arc and a marker shows where it landed.',
+    ...base, artifactId: 'example-projectile-target', planHash: '141fa79483462a5437b9fbb33e676c1fc6edab0b93b17c6e80f9ae1cb3186d7b',
+    title: projectilePlan.title, description: 'Side view of flat ground marked to 50 m with a 25 m height mark, a launcher at 0 m with an arrow showing the aim (longer is faster), and a target pad at 30 m. After a launch, dots trace the arc and a marker shows where it landed.',
     experience: 'game', behavior: 'rules', controlProfile: 'manipulate',
     scene: {
       materials: [{ id: 'ground', color: '#8a8f98' }, { id: 'launcherGrey', color: '#5b6470' }, { id: 'aimBlue', color: '#2f6fe0' }, { id: 'targetRed', color: '#d64545' }, { id: 'arcOrange', color: '#e0912f' }, { id: 'landedDark', color: '#2f9e5b' }],
       geometries: [
         { id: 'groundLine', kind: 'line', points: [[0, 0, 0], [50, 0, 0]] },
-        { id: 'heightLine', kind: 'line', points: [[-2, 0, 0], [-2, 25, 0]] },
+        { id: 'heightLine', kind: 'line', points: [[52, 0, 0], [52, 25, 0]] },
         { id: 'launcherBox', kind: 'box', size: [1.4, 0.8, 1] },
         { id: 'aimArrow', kind: 'arrow', length: 1 },
         { id: 'pad', kind: 'cylinder', radius: 1.5, height: 0.2 },
         { id: 'dot', kind: 'sphere', radius: 0.45, widthSegments: 12, heightSegments: 8 },
         { id: 'mark', kind: 'cylinder', radius: 0.6, height: 0.4 },
         { id: 'targetText', kind: 'label', text: 'Target 30 m', placement: 'below' },
-        { id: 'launcherText', kind: 'label', text: 'Launcher', placement: 'below' },
         { id: 'heightText', kind: 'label', text: '25 m', placement: 'left' },
-        { id: 'groundText', kind: 'label', text: '50 m', placement: 'below' },
+        { id: 'groundText', kind: 'label', text: '50 m', placement: 'above' },
         { id: 'landedText', kind: 'label', text: 'Landed', placement: 'above' },
       ],
       nodes: [
         { id: 'groundN', geometry: 'groundLine', material: 'ground' }, { id: 'heightN', geometry: 'heightLine', material: 'ground' },
-        { id: 'heightTag', geometry: 'heightText', position: [-2, 25, 0] }, { id: 'groundTag', geometry: 'groundText', position: [50, 0, 0] },
+        { id: 'heightTag', geometry: 'heightText', position: [52, 25, 0] }, { id: 'groundTag', geometry: 'groundText', position: [48, 0, 0] },
         { id: 'launcher', geometry: 'launcherBox', material: 'launcherGrey', position: [-0.8, 0.4, 0], name: 'Launcher' },
-        { id: 'launcherTag', parent: 'launcher', geometry: 'launcherText', position: [0, -0.4, 0] },
-        { id: 'aim', geometry: 'aimArrow', material: 'aimBlue', quaternion: [0, 0, -0.5, 0.8660254], scale: [1, 3.5, 1], name: 'Aim' },
+        { id: 'aim', geometry: 'aimArrow', material: 'aimBlue', quaternion: [0, 0, -0.5, 0.8660254], scale: [1, 7, 1], name: 'Aim' },
         { id: 'target', geometry: 'pad', material: 'targetRed', position: [30, 0.1, 0], name: 'Target' },
         { id: 'targetTag', parent: 'target', geometry: 'targetText', position: [0, -0.1, 0] },
         ...Array.from({ length: 15 }, (_, k) => ({ id: `arc${k}`, geometry: 'dot', material: 'arcOrange', visible: false })),
@@ -100,8 +98,8 @@ export const projectileExample = {
     keys: { up: 'angleUp', down: 'angleDown', left: 'slower', right: 'faster' },
     readouts: [{ id: 'launchesLeft', label: 'Launches left', decimals: 0 }, { id: 'angle', label: 'Angle', unit: 'deg', decimals: 0 }, { id: 'speed', label: 'Speed', unit: 'm/s', decimals: 0 },
       { id: 'landing', label: 'Landing distance', unit: 'm', decimals: 1 }, { id: 'miss', label: 'Miss (+ long, - short)', unit: 'm', decimals: 1 }],
-    game: { objective: 'Land within 1.5 m of the target at 30 m, in at most 5 launches.', hint: 'The range is $R = \\dfrac{v^2 \\sin 2\\theta}{g}$: for one speed, $45^\\circ$ goes farthest and $30^\\circ$ and $60^\\circ$ land together. The range grows as $v^2$, so scale the speed from your last landing.' },
-    program: program(projectileSource, '41a22719d02168f2fbef75083352947c4c48dde424827df855e6c2895ce91605'),
+    game: { objective: 'Land within 1.5 m of the target at 30 m, in at most 5 launches.', hint: 'The range is $R = \\dfrac{v^2 \\sin 2\\theta}{g}$: for one speed, $\\theta = 45^\\circ$ goes farthest and $\\theta = 30^\\circ$ and $\\theta = 60^\\circ$ land together. The range grows as $v^2$, so scale the speed from your last landing.' },
+    program: program(projectileSource, 'cb9b033823175d34d9930ff984575eac35d527739578c2b62999a05465960451'),
     camera: { position: [24, 12, 62], target: [24, 10, 0], fov: 40 },
     assumptions: ['Range $R = \\dfrac{v^2 \\sin 2\\theta}{g}$ with $g = 9.81\\ \\mathrm{m/s^2}$, launched from ground level on flat ground; the dots are the path $x = v t\\cos\\theta$, $y = v t\\sin\\theta - \\tfrac{1}{2} g t^2$.', 'No air resistance and a point projectile: real projectiles lose speed to drag and land shorter.', 'Angle steps of $5^\\circ$ and speed steps of $1\\ \\mathrm{m/s}$, one per press: holding a key or button does not charge the speed.'],
   },

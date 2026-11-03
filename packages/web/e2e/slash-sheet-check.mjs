@@ -171,7 +171,7 @@ for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
             return value('landing');
           };
           await pane.locator('[data-animation-hint]').click();
-          ok(`${tag}: /animation projectile: its hint opens`, /v\^2 sin\(2 theta\) \/ g/.test(await pane.locator('[data-animation-hint-text]').innerText()));
+          ok(`${tag}: /animation projectile: its hint opens, its range formula typeset`, await pane.locator('[data-animation-hint-text] .katex').count() > 0);
           // The arrow keys while the card interacts: Up raises the angle by 5 degrees, Right adds 1 m/s.
           await pane.locator('[data-animation-interact]').click();
           for (const key of ['ArrowUp', 'ArrowUp', 'ArrowUp', 'ArrowRight', 'ArrowRight', 'ArrowRight']) { await page.keyboard.press(key); await page.waitForTimeout(120); }

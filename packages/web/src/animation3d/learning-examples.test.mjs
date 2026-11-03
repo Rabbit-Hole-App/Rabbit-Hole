@@ -55,7 +55,7 @@ function checkProjectile(example, source) {
     eq(frame.readouts.speed, want.speed, `${at} speed`);
     // The aim arrow points along (cos theta, sin theta) and grows with the speed.
     eq(rotate([0, 1, 0], frame.nodes.aim.quaternion), [Math.cos(want.angle * Math.PI / 180), Math.sin(want.angle * Math.PI / 180), 0], `${at} aim`);
-    eq(frame.nodes.aim.scale, [1, want.speed / 4, 1], `${at} aim length`);
+    eq(frame.nodes.aim.scale, [1, want.speed / 2, 1], `${at} aim length`);
     if (want.landed === null) {
       assert.ok(!('landing' in frame.readouts) && !('miss' in frame.readouts), `${at}: nothing landed yet`);
       assert.equal(frame.nodes.arc0.visible, false, `${at}: no arc yet`);
