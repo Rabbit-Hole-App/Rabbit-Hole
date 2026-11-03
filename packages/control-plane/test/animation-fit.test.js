@@ -200,7 +200,7 @@ test('the diagnosed SGD causes, as general rules: event shape, merged findings, 
   const base = 'export function evaluate(){return {}}\nexport function initialState(){return {}}\nexport function reduce({state,event}){';
   assert.ok(programProblems(withSource(`${base}if(event.id==='keepPath')return state;return state}`)).some(p => /read event\.action/.test(p)));
   assert.equal(programProblems(withSource(`${base}if(event.action==='keepPath')return state;return state}`)).some(p => /event\.action/.test(p)), false);
-  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) { assert.match(system, /An action is named by event\.action, never event\.id/); assert.match(system, /moving a camera closer does not enlarge anything/); assert.match(system, /stacked, translucent filled discs/); }
+  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) { assert.match(system, /An action is named by event\.action, never event\.id/); assert.match(system, /moving a camera closer does not enlarge anything/); assert.match(system, /a wireframe of curves with a radius/); } // aj_086fd46: filled discs hid what moved inside a bowl
   assert.equal(ANIMATION_REPAIR_SYSTEM.includes('move the camera closer'), false);
   // 4b: a finding repeated across captures goes to the repair once, with its captures, so distinct ones are not cut.
   const same = c => ({ category: 'spec', severity: 'major', target: { capture: c }, message: 'no batch-noise readout' });

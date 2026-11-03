@@ -33,9 +33,16 @@ const rank = f => (f.severity === 'blocker' ? 0 : f.severity === 'major' ? 1 : 2
 
 export function repairContent(job, failure, current, images = []) {
   const problems = (failure.problems || []).slice(0, REPAIR_FORWARD.problems).map(clip);
-  // The same finding reported for several captures is one finding (aj_ad936ec1 round 2: six of eight slots were one message).
-  const merged = [...new Map((failure.findings || []).map(f => [`${f.severity}|${f.category}|${f.message}`, f])).values()].map(f => ({ ...f, target: { ...(f.target || {}), captures: (failure.findings || []).filter(g => g.severity === f.severity && g.category === f.category && g.message === f.message).map(g => g.target?.capture).filter(Boolean) } }));
-  const findings = merged.sort((a, b) => rank(a) - rank(b)).slice(0, REPAIR_FORWARD.findings).map(({ category, severity, target, message }) => ({ category, severity, target, message: clip(message) }));
+  // Findings on one object (or with one message) are one entry, their distinct messages joined (aj_ad936ec1 round 2: six of eight slots
+  // were one message; aj_086fd46 review 1: 12 findings on 6 objects, 4 cut, among them the missing readout review 2 then raised six times).
+  // The bound is unchanged: at most REPAIR_FORWARD.findings entries, each its first REPAIR_FORWARD.text characters, and characters the
+  // others leave unused go to the longer merged entries, never past REPAIR_FORWARD.findings x REPAIR_FORWARD.text in all.
+  const groups = new Map();
+  for (const f of failure.findings || []) { const key = `${f.severity}|${f.category}|${f.target?.object ?? f.message}`; groups.set(key, [...(groups.get(key) || []), f]); }
+  const merged = [...groups.values()].map(g => ({ ...g[0], message: [...new Set(g.map(f => String(f.message ?? '')))].join(' / '), target: { ...(g[0].target || {}), captures: [...new Set(g.map(f => f.target?.capture).filter(Boolean))] } }));
+  const picked = merged.sort((a, b) => rank(a) - rank(b)).slice(0, REPAIR_FORWARD.findings);
+  let spare = REPAIR_FORWARD.findings * REPAIR_FORWARD.text - picked.reduce((n, f) => n + clip(f.message).length, 0);
+  const findings = picked.map(({ category, severity, target, message }) => { const extra = Math.min(spare, message.length - clip(message).length); spare -= extra; return { category, severity, target, message: message.slice(0, REPAIR_FORWARD.text + extra) }; });
   const omitted = Math.max(0, (failure.problems || []).length - problems.length) + Math.max(0, merged.length - findings.length);
   const { program, ...rest } = current;
   const caps = enabledCapabilities();

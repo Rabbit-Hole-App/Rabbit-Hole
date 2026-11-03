@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { validateAnimationArtifact, validateAnimationFrame } from './contract.js';
 
 const ARROW_RADIAL = 8; // contract.js triangleCost: an arrow is 4 x 8 (shaft) + 2 x 8 (head) triangles
+const TUBE_RADIAL = 8; // contract.js triangleCost: a curve with a radius is 2 x 8 triangles per segment
 
 // Labels face the camera and draw over the scene, sized in CSS pixels on screen (review 2026-10-30: world-sized labels were
 // unreadably small in one view and covered objects in another), but they follow the scene's apparent size (owner 2026-10-31: zoomed
@@ -100,7 +101,10 @@ function meshGeometry(g) {
     case 'cone': return new THREE.ConeGeometry(g.radius, g.height, g.radialSegments, 1);
     case 'plane': return new THREE.PlaneGeometry(g.width, g.height);
     case 'line': return new THREE.BufferGeometry().setFromPoints(g.points.map(point => new THREE.Vector3(...point)));
-    case 'curve': return new THREE.BufferGeometry().setFromPoints(new THREE.CatmullRomCurve3(g.points.map(point => new THREE.Vector3(...point)), g.closed).getPoints(g.segments));
+    case 'curve': {
+      const path = new THREE.CatmullRomCurve3(g.points.map(point => new THREE.Vector3(...point)), g.closed);
+      return g.radius ? new THREE.TubeGeometry(path, g.segments, g.radius, TUBE_RADIAL, g.closed) : new THREE.BufferGeometry().setFromPoints(path.getPoints(g.segments));
+    }
     default: return null; // arrow and label are composed below
   }
 }
@@ -178,7 +182,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
     const g = node.geometry === undefined ? null : byGeometry.get(node.geometry);
     let drawable = null;
     if (g?.kind === 'label') { drawable = label(node, g, g.text); labels.set(node.id, drawable); }
-    else if (g?.kind === 'line' || g?.kind === 'curve') drawable = new THREE.Line(shapeOf(g), stroke(node.material));
+    else if (g?.kind === 'line' || (g?.kind === 'curve' && !g.radius)) drawable = new THREE.Line(shapeOf(g), stroke(node.material));
     else if (g?.kind === 'arrow') {
       drawable = new THREE.Group();
       for (const part of shapeOf(g)) drawable.add(new THREE.Mesh(part, surfaces.get(node.material) ?? fallback));

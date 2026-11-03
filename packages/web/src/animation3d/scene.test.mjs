@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { triangleCost, validateAnimationArtifact } from './contract.js';
 import { ANIMATION_FIXTURES, INVALID_ANIMATION_FIXTURES, watchFixture } from './fixtures.js';
@@ -255,4 +256,27 @@ test('the Labels toggle hides object names with their leaders; captions and live
   const bare = buildAnimationScene({ ...structuredClone(watchFixture.artifact), scene: { ...watchFixture.artifact.scene, nodes: watchFixture.artifact.scene.nodes.filter(node => node.id !== 'moonTag') } }, { labelTexture }).scene;
   assert.equal(bare.hasOptionalLabels(), false, 'nothing optional without object labels');
   bare.dispose();
+});
+
+// aj_086fd46 (2026-11-02): no kind drew a curved surface a learner can see into. Filled discs at the contour heights covered the ball,
+// trail and arrows (review 1); the repair's wireframe of curves was 1 px lines (review 2). A curve with a radius is a shaded tube, charged
+// exactly as drawn; a curve without one stays a 1 px line, so saved artifacts draw as before.
+test('a curve with a radius is a shaded tube the contract charges exactly: the saved SGD wireframe and a non-SGD orbit', () => {
+  const saved = JSON.parse(readFileSync(new URL('../../../control-plane/test/fixtures/animation-aj_086fd46.json', import.meta.url), 'utf8')).repairedArtifact;
+  const tubed = artifact => ({ ...artifact, scene: { ...artifact.scene, geometries: artifact.scene.geometries.map(g => (g.kind === 'curve' ? { ...g, radius: 0.04 } : g)) } });
+  const drawnAs = (built, id) => { let found = null; built.scene.objects.get(id).traverse(o => { if (o.userData.nodeId === id && (o.isMesh || o.isLine)) found = o; }); return found; };
+  for (const [name, artifact, curveNodes] of [['saved SGD wireframe', saved, ['c1', 'c2', 'c3', 'c4', 'axisW', 'axisB']], ['orbit', watchFixture.artifact, ['orbit']]]) {
+    const plain = buildAnimationScene(artifact, { labelTexture });
+    assert.equal(plain.ok, true, name);
+    for (const id of curveNodes) assert.equal(drawnAs(plain, id).isLine, true, `${name} ${id}: without a radius, a line`);
+    plain.scene.dispose();
+    const checked = validateAnimationArtifact(tubed(artifact));
+    assert.equal(checked.ok, true, `${name}: ${JSON.stringify(checked.issues?.slice(0, 2))}`);
+    const built = buildAnimationScene(tubed(artifact), { labelTexture });
+    for (const id of curveNodes) assert.equal(drawnAs(built, id).isMesh, true, `${name} ${id}: with a radius, a shaded tube`);
+    const geometries = new Map(checked.value.scene.geometries.map(g => [g.id, g]));
+    const charged = checked.value.scene.nodes.reduce((sum, node) => sum + (node.geometry ? triangleCost(geometries.get(node.geometry)) : 0), 0);
+    assert.equal(trianglesOf(built.scene.root), charged, `${name} triangles`);
+    built.scene.dispose();
+  }
 });

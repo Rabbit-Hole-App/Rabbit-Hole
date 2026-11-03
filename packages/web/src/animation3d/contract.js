@@ -61,6 +61,7 @@ export const ANIMATION_PROGRAM_CONTRACT = Object.freeze({
 export const CONTRACT_LIMITS = Object.freeze({ planBytes: 32 * 1024, artifactBytes: 512 * 1024, frameBytes: 256 * 1024, eventBytes: 1024, snapshotBytes: 40 * 1024, coordinate: 10000, size: 1000 });
 const QUATERNION_TOLERANCE = 1e-3;
 const ARROW_RADIAL = 8; // an arrow is a shaft cylinder plus a head cone at this many radial segments
+const TUBE_RADIAL = 8; // a curve with a radius is a tube of this many sides
 
 // ---- shapes -------------------------------------------------------------------------------------------------------------
 
@@ -102,7 +103,7 @@ const geometry = z.discriminatedUnion('kind', [
   z.object({ id, kind: z.literal('cone'), radius: size, height: size, radialSegments: segments(3, 64, 24) }).strict(),
   z.object({ id, kind: z.literal('plane'), width: size, height: size }).strict(),
   z.object({ id, kind: z.literal('line'), points: z.array(vec3).min(2) }).strict(),
-  z.object({ id, kind: z.literal('curve'), points: z.array(vec3).min(2).max(64), segments: segments(2, 512, 64), closed: z.boolean().default(false) }).strict(), // Catmull-Rom through points
+  z.object({ id, kind: z.literal('curve'), points: z.array(vec3).min(2).max(64), segments: segments(2, 512, 64), closed: z.boolean().default(false), radius: size.optional() }).strict(), // Catmull-Rom through points; with a radius a shaded tube, else a 1 px line (aj_086fd46)
   z.object({ id, kind: z.literal('arrow'), length: size }).strict(), // along local +Y from the node origin
   // Camera-facing text drawn over the scene, sized by the scene's on-screen size within a legible range (scene.js): size is a relative
   // hint (0.3 normal), placement puts the plate beside its node's origin (added after AN-01; optional, so older artifacts still validate).
@@ -181,7 +182,8 @@ export function triangleCost(g) {
     case 'cone': return 2 * g.radialSegments; // one triangle per side segment (three skips the degenerate apex half) plus the base cap
     case 'plane': case 'label': return 2;
     case 'arrow': return 4 * ARROW_RADIAL + 2 * ARROW_RADIAL; // shaft cylinder plus head cone
-    default: return 0; // line, curve: no triangles; their points count against linePoints
+    case 'curve': return g.radius ? 2 * TUBE_RADIAL * g.segments : 0; // its points still count against linePoints
+    default: return 0; // line: no triangles; its points count against linePoints
   }
 }
 const linePoints = g => (g.kind === 'line' ? g.points.length : g.kind === 'curve' ? g.segments + 1 : 0);
