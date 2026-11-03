@@ -13,6 +13,7 @@ import { distinctFindings, repairContent, repairStage } from '../src/animation-r
 import { SURFACES, prepareStage } from '../src/animation-brief.js';
 import { authorStage, clientProblems, validateStage } from '../src/animation-author.js';
 import { captureManifest, middleOf } from '../src/animation-render.js';
+import { reviewTicksOf } from '../../web/src/animation3d/review.js';
 import { animationRequest, checkAnimationRequest } from '../src/animation-policy.js';
 import { animationRoute } from '../src/animation-job.js';
 import { BOARD, OWNER, TASKS, animationStack } from './animation-fixture.js';
@@ -165,14 +166,14 @@ test('rules: arrows keep their magnitudes with no minimum and no size demand a z
 
 test('sampler: an experiment varies its main control one setting at a time, comparison controls on: initial, middle after steps and every action, high end; the low end is listed as not sampled', () => {
   const { entries, coverage } = captureManifest(fixture.repairedArtifact);
-  assert.deepEqual(coverage.sampled.map(s => s.label), ['initial', 'learningRate at 0.16: 60 steps, then oneStep, keepPath, then 30 steps', 'learningRate at its high end (2.5), after keepPath, then 90 steps']); // an older draft whose actions declare nothing: its last action starts the motion, so it is pressed before the ticks
-  assert.deepEqual(coverage.omitted.slice(0, 3), ['learningRate at its low end (0.01), after keepPath, then 90 steps', 'every parameter at its low end', 'every parameter at its high end']);
+  assert.deepEqual(coverage.sampled.map(s => s.label), ['initial', 'learningRate at 0.16: oneStep, 48 steps, then keepPath, then oneStep if idle, then 30 steps', 'learningRate at its high end (2.5), after oneStep, then 90 steps']); // an older draft whose actions declare nothing: its first action starts the motion (the host starts the clock after any), so it is pressed first, runs, then the others act on what it drew
+  assert.deepEqual(coverage.omitted.slice(0, 3), ['learningRate at its low end (0.01), after oneStep, then 90 steps', 'every parameter at its low end', 'every parameter at its high end']);
   const byLabel = l => entries.find(e => e.view.name === 'default' && e.label === l);
   assert.deepEqual(byLabel(coverage.sampled[1].label).inputs, { learningRate: 0.16, batchSize: '4', showTrueGradient: true }, 'the others held at their defaults, the comparison arrow on');
   assert.deepEqual(byLabel(coverage.sampled[2].label).inputs, { learningRate: 2.5, batchSize: '4', showTrueGradient: true });
-  assert.deepEqual(byLabel(coverage.sampled[1].label).events, [{ type: 'action', action: 'oneStep' }, { type: 'action', action: 'keepPath' }]);
+  assert.deepEqual(byLabel(coverage.sampled[1].label).events, [{ type: 'action', action: 'oneStep' }, { type: 'advance', ticks: 48 }, { type: 'action', action: 'keepPath' }, { type: 'resume', action: 'oneStep', probe: 12 }]);
   assert.equal(entries.length, 6, 'the budget is unchanged: 2 views x 3 states');
-  assert.ok(entries.every(e => e.events.length <= 4 && e.leadTicks + e.ticks <= 90));
+  assert.ok(entries.every(e => e.events.filter(x => x.type !== 'advance').length <= 4 && reviewTicksOf(e) <= 90));
   assert.deepEqual([middleOf({ type: 'number', min: 0.01, max: 2.5, step: 0.01 }), middleOf({ type: 'number', min: 0, max: 10, step: 0.5 }), middleOf({ type: 'select', options: [{ value: 'a' }, { value: 'b' }, { value: 'c' }] }), middleOf({ type: 'toggle', default: true })], [0.16, 5, 'b', true]);
   // Not SGD: the lever experiment varies its first parameter the same way; a game keeps its action and sequence order.
   const [lever] = experimentFixture.artifact.parameters;
