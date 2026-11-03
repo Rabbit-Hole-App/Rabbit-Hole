@@ -9,9 +9,9 @@ Rules this report follows: no secrets, no personal email addresses, no share-lin
 
 1. Release 1, feedback email: `C:\s\spec\release-queue\release.cmd 35-feedback` (section 2). Tell the integrator "release 35-feedback done" for deployed-commit verification.
 2. Test the feedback email as **@yuvish_demo** with `C:\s\spec\feedback-mail\OWNER-CHECKLIST.md` (four reports, four emails, stored objects).
-3. Newsletter migration (only after step 1): `C:\s\spec\signup-prefs\apply-prod-migration.cmd`, type `APPLY PROD`.
-4. Release 2, newsletter preferences: `C:\s\spec\release-queue\release.cmd 36-newsletter --check` (must print CHECK COMPLETE), then `C:\s\spec\release-queue\release.cmd 36-newsletter`. Both releases should be live on Nov 3 Pacific because the Privacy Policy effective date says November 3, 2026.
-5. Test the email preferences as @yuvish_demo (section 2, Release 2).
+3. **HELD by the owner: newsletter migration and release.** Do NOT run `C:\s\spec\signup-prefs\apply-prod-migration.cmd` or `release.cmd 36-newsletter` until a corrected commit and a refreshed gate are listed in section 2 (a handle-claim recovery fix is in progress).
+4. (held with step 3)
+5. (held with step 3) Test the email preferences as @yuvish_demo once Release 2 is live.
 6. Animation: open the dev preview with `C:\s\spec\animation\open-correction-fixture.cmd` and review it (section 4); decisions (section 4, "Open owner decisions"); approve or hold ONE controlled paid SGD qualification run (nothing paid has been run).
 7. After 8:00 PM PT today (04:00 UTC Nov 4): `C:\s\spec\creator-analytics\prod-cleanup-check.cmd outcome` (first scheduled cleanup outcome; scheduling is verified, deletion of expired rows is not provable until records are 90 days old).
 8. Optional decisions: queue the `CLAUDE.md` rule branch `docs/claude-md-preview-rule`; confirm the Newsletter description wording.
