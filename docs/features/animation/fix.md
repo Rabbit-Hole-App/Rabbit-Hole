@@ -192,6 +192,16 @@ row in [spend.md](spend.md).
   the draft's no-op visible (no saved path, run not restarted), the same draft reading `event.action` saves a nonempty path, the
   stepped Launch game still reaches `won`; `fitProblems` still fits with this manifest. Not yet checked by a real review (paid).
 
+### FX-AN-038 — the comparison capture ran the scene before it saved (owner finding on ca45900a2, job aj_0b6ca2b; fixed)
+- Symptom: the review's comparison state gave a paused scene 60 `leadTicks` before any action (they accomplish nothing: the scene starts paused), then Step, Save path, Clear trail, Run, 30 steps. The saved path was one point and the current path five, so the reviewer could not judge a comparison.
+- Evidence: the committed generated program (`test/fixtures/animation-aj_0b6ca2b.json`) replayed through `captureManifest` and the real engine: 5 current-path points and 1 saved-path point; Run, 60 steps, Save path, Run, 30 steps gives 5 and 10. Failing regression first in `animation-sampling.test.js` ("motion occurred before the save: 1 points drawn").
+- Fix (`db9e4603a`): a capture may spread its host steps over phases (`advance` and `resume` entries in `review.js`); for a stepped scene with a start-motion action and other actions the sampler presses the first start-motion action, lets it run, applies the other actions in declared order within the limits (4 actions, 90 host steps, 6 captures), resumes the motion and runs again. Offline on the failed artifact: 9 saved-path points and 5 current-path points. Status: verified offline; not yet by a real review.
+
+### FX-AN-039 — the resume guard read whole-state hash equality as proof of stopped motion (owner finding on db9e4603a)
+- Symptom: a periodic motion whose period divides the 12-step probe returns to the same state, was taken for stopped, and the second press of a toggling action paused a running scene; a paused scene whose hidden clock advances with every host step changes its state, was taken for running, and was never restarted.
+- Evidence: two tests in `review.test.mjs` that failed on the guard of `db9e4603a` (periodic motion: still running after the resume; clocked pause: restarted by the resume).
+- Fix (fixed in the commit that adds this entry): the probe runs one host step at a time and the scene is running when its drawn nodes differ between two consecutive steps, whatever the period; hidden state alone is not motion. The contract exposes no running flag, so this is the observable rule; limits: a scene whose drawn nodes change less often than every probe steps reads as stopped, and one whose drawn nodes move by host time alone reads as running. Documented in `review.js` and in the text the reviewer gets. Status: verified offline.
+
 ## Resolved
 
 ### FX-AN-032 — a stepped game never moved in the card (owner canvas 2026-11-02, "Projectile Challenge: Hit the Target")

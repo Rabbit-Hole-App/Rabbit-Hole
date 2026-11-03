@@ -155,6 +155,7 @@ run('on the real engine: the comparison capture runs before it saves, saves a mu
   const before = await capture(artifact, { ...entry, events: entry.events.slice(0, save), leadTicks: 0, ticks: 0 }); // the state just before Save path
   assert.ok(before.state.trail.length >= 5, `motion occurred before the save: ${before.state.trail.length} points drawn`);
   assert.ok(end.state.saved.length >= 5, `several points are saved, not one dot: ${end.state.saved.length}`);
+  assert.deepEqual([end.state.trail.length, end.state.saved.length], [5, 9], 'the comparison capture of the generated program: 5 current-path points beside 9 saved-path points');
   assert.deepEqual(end.state.saved, before.state.trail, 'the saved path is exactly what the first run drew');
   assert.ok(end.state.trail.length >= 3 && end.state.on, `the motion restarted and the new run draws beside it: ${end.state.trail.length} points, running ${end.state.on}`);
   assert.ok(entry.events.filter(e => e.type !== 'advance').length <= 4 && reviewTicksOf(entry) <= 90, 'four actions and 90 ticks in all, across every phase');
