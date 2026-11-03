@@ -1,7 +1,7 @@
 # Overnight handoff, 2026-11-03 (written for the owner and for ChatGPT's morning review)
 
 Author: Parallel (the integrator session). Times are Pacific. This file is updated through the night; the "Last updated" line says when.
-Last updated: 2026-11-03 02:00 PT (first version; see "Update log" at the end).
+Last updated: 2026-11-03 02:10 PT (see "Update log" at the end).
 
 Rules this report follows: no secrets, no personal email addresses, no share-link tokens. The owner's personal account is never used for testing; production testing uses the dedicated account **@yuvish_demo**. Production commands are owner-run launchers; nothing here was pushed to `main` by an agent.
 
@@ -55,9 +55,13 @@ Scope: MVP1 only. Paid generation, Animation merge and Animation deployment are 
 - Optional: queue the `CLAUDE.md` rule branch `docs/claude-md-preview-rule` (content-only dev previews deploy without waiting for CI).
 - Production testing: use @yuvish_demo only.
 
-## 6. Production hygiene done tonight
-- Two test canvases and the owner's other top-level canvases were moved to Trash through owner-run launchers (restorable); no public link for them still works.
-- Four finished dev preview clones (FAQ, Blog, Manifesto, Shortcuts) deleted.
+## 6. Production hygiene done tonight (with the approvals relied on)
+- **Canvas cleanup, approved by the owner in chat and confirmed by the owner's own typed phrase in each launcher.** Two owner-run launchers moved canvases to Trash (the product's own "Move to Trash": restorable, nothing permanently deleted):
+  1. `trash-canvases.cmd` (2026-11-03 08:38 UTC): exactly the two test canvases the owner named (a public "prod-check ... composer" canvas and the public "PUBLIC TEST - code cards" canvas). Verified: both public links now answer 404; 32 other canvases unchanged.
+  2. `trash-other-canvases.cmd` (2026-11-03 08:40 UTC): 27 other top-level canvases of the owner's main account (all private test and acceptance canvases from earlier work), after the owner chose option A in chat ("A") and typed the count-bound confirmation `TRASH 27 CANVASES`. Projects (1), project canvases (3) and folders were not touched.
+  - Authorization relied on: the owner's chat messages "also delete all canvas from my account", "correction also delete my account's other canvases", then answer "A" to the question offering a separate second launcher. A later automated review warned that only the first two were authorized; the owner confirmed in chat that both were approved and that no recovery is needed. Everything remains in Trash (restorable from the app); nothing was permanently deleted. Canvas ids and titles are in the owner-local launcher logs and are intentionally not published in this public repository.
+- Four finished dev preview clones (FAQ, Blog, Manifesto, Shortcuts) were deleted.
 
 ## Update log
 - 02:00 PT first version.
+- 02:10 PT section 6 clarified: both cleanup launchers ran with the owner's explicit approval; no recovery needed (owner confirmed).
