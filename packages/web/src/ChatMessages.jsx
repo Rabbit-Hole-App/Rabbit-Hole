@@ -14,7 +14,7 @@ import AnswerSuggestions from './AnswerSuggestions.jsx';
 import SyllabusMessage from './SyllabusMessage.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
 import GenerationProposalCard from './GenerationProposalCard.jsx';
-import { EXPLAIN_COST_NOTE, EXPLAIN_REVIEW_HEADING, EXPLAIN_STOPPED, PROPOSAL_REFUSED_EVENT, approvesJob, editPath, editTarget, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
+import { EXPLAIN_STOPPED, jobReviewCopy, PROPOSAL_REFUSED_EVENT, approvesJob, editPath, editTarget, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
 import { confirmProposal, fetchProposal, problemOf, saveProposal } from './generation-review-client.js';
 import { withPrompt } from './card-prompt.js';
 import { reportClientError } from './client-telemetry.js';
@@ -22,8 +22,20 @@ import { imageGenerationId, imageGenerationOn, imageStatus, retryImageSave, runI
 import { sameFileCard } from './file-to-canvas.js';
 import { mergeOutputs, openOutput, outputSink } from './chat-output-refs.js';
 import { cardStatus, imageProposalStatus, madeFromVersion, outputForProposal } from './generation-proposal-status.js';
+import { useAnimationProposal } from './animation3d/use-proposal-status.js';
 import { responseKind, turnIndex } from './chat-response-kind.js';
 import { briefHeading, isBriefCommand } from './material-brief.js';
+import PlanSummary, { planSummary } from './animation3d/PlanSummary.jsx';
+import AnimationChoices from './animation3d/AnimationChoices.jsx';
+
+// An /animation plan with its scene (owner, 2026-10-31): the short summary in place of the plan lines, and Edit reads Edit plan.
+// A plan made before the server sent its scene keeps the full lists.
+const animationReview = p => {
+  const summary = p.command === 'animation' ? planSummary(p) : null;
+  // A change asked for in Chat is a plan call: its cost is said here, Generate's on its own line.
+  const planCredits = p.input?.scene?.planCredits;
+  return summary ? { summary: <PlanSummary summary={summary} />, editLabel: 'Edit plan', ...(planCredits ? { note: `Edit plan uses up to ${planCredits} AI credits to rewrite the plan.` } : {}) } : {};
+};
 
 // UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its
 // proposal that has not made its card yet. A settings change saves the next version over this message (chat-proposal-route.js);
@@ -170,11 +182,12 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
     outputSink({ messageId: Promise.resolve(/^\d+$/.test(String(turn.messageId ?? '')) ? turn.messageId : null), ops,
       onOutput: kept => setMsgs(ms => ms.map((x, j) => (j === here && x.role === 'user' ? { ...x, outputs: mergeOutputs(x.outputs, [kept]) } : x))) })(id);
   };
+  const animationStatus = useAnimationProposal(p, made, ops);
   // The status the card draws (bug 2): the job's, never the press's. A superseded version of the proposal draws none.
   const own = madeFromVersion(card || output, p);
   const status = cardKind === 'card' ? (own ? cardStatus({ card, output: refusedCard ? null : output, pressed, loaded: ops?.workspace?.().loaded !== false, noun: 'video' }) : null)
     : cardKind === 'image' ? imageProposalStatus({ image, pressed, cardId: imageCard })
-      : stopped ? { phase: 'stopped', label: null, active: false, spinner: false, detail: EXPLAIN_STOPPED, canStop: false, cardId: null } : null;
+      : stopped ? { phase: 'stopped', label: null, active: false, spinner: false, detail: EXPLAIN_STOPPED, canStop: false, cardId: null } : animationStatus;
   // Cancel on an Explain brief: the waiting job's existing cancel action; the canvas card observes it again.
   const explainJob = approvesJob(p);
   const onCancel = explainJob && ops?.cancelExplain ? async () => {
@@ -191,7 +204,7 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
     <div className="mt-2">
       {/* A motion or image proposal draws its job's status on the card itself (status), so it no longer reads Added to the canvas. */}
       <GenerationProposalCard proposal={p} active={active} made={cardKind ? false : made} released={released} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
-        {...(explainJob ? { eyebrow: EXPLAIN_REVIEW_HEADING, note: EXPLAIN_COST_NOTE, onCancel } : isBriefCommand(p.command) ? { eyebrow: briefHeading(p.command) } : {})}
+        {...(explainJob ? { ...jobReviewCopy(p), onCancel, ...animationReview(p) } : isBriefCommand(p.command) ? { eyebrow: briefHeading(p.command) } : {})}
         status={status} startedAt={output?.startedAt || pressedAt} noun={cardKind === 'image' ? 'image' : 'video'} onGoToCard={goToCard}
         onStop={status?.canStop && ops?.stopGeneration ? () => ops.stopGeneration(status.cardId) : null} onStopFailed={setError}
         onEdit={onEdit} targeted={targeted} onGenerate={onGenerate} onSave={onSave} onOpenReference={ref => chat?.openSource?.({ sourceId: ref.sourceId, kind: ref.kind, name: ref.label, version: ref.revision, range: ref.range })} />
@@ -382,6 +395,7 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
             {/* A Tutor syllabus (contract B6): an editable list under its answer; edits save to this message (chat-syllabus-route.js)
                 once it has its server id. */}
             {m.meta?.proposal?.proposal_id && <ProposalSlot m={m} i={i} msgs={msgs} setMsgs={setMsgs} ops={outputOps} />}
+            {m.meta?.animationChoice?.alternatives?.length > 0 && <AnimationChoices choice={m.meta.animationChoice} ops={outputOps} />}
             {m.kind === 'syllabus' && Array.isArray(m.meta?.syllabus?.topics) && <SyllabusMessage syllabus={m.meta.syllabus} toContents={toContents} saveSyllabus={/^\d+$/.test(String(m.messageId ?? '')) ? async topics => (await api(`/api/learn/chat/messages/${m.messageId}/syllabus`, { method: 'PUT', body: JSON.stringify({ topics }) })).syllabus : null} />}
             <AnswerFooter key={m.messageId ?? i} message={{ ...m, status: answerStatus(m, busy && i === msgs.length - 1) }} latest={!msgs.slice(i + 1).some(x => x.role === 'assistant')}
               onAddAsCard={kind.ordinary && onAddToCanvas && addAsCard} onLocateCard={kind.ordinary && onAddToCanvas && (id => addAsCard({ id, answer: m.content, sources: m.meta?.contextRefs ?? null }))} cardExists={() => !!m.added || !!hasCard?.(cardIdFor(m))}

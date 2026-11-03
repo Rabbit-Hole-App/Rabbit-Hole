@@ -4,7 +4,7 @@ import {readRegionalOriginal,regionalMaskBlob} from './inline-regional-mask.js';
 import { createBackgroundRemovalController, createRegionalImageEditController } from './inline-background-removal.js';
 import { createImageJobClient } from './inline-image-job-client.js';
 import { cadClient, submitCadOnce } from './cad-client.js';
-import { EXPLAIN_JOB_EVENT, explainClient, explainDisabled, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock } from './explain-client.js';
+import { EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainDisabled, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock } from './explain-client.js';
 import { withCardSink } from './chat-output-refs.js';
 import { withPrompt } from './card-prompt.js';
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -133,6 +133,12 @@ import { codeRef, paperRef, wikiRef } from './chat-sources.js';
 import { draftChatRef, materialize, placeExcerpts } from './pdf-excerpt.js';
 import { EXCERPT_EVENT, get as excerptDraft } from './pdf-excerpt-drafts.js';
 import { rekeyed } from './chat-threads.js';
+import { ANIMATION_JOB_EVENT, animationClient, requestRef } from './animation3d/client.js';
+import { withJob } from './animation3d/storage.js';
+import { AnimationBoard } from './animation3d/board-context.js';
+
+// A reviewed plan's job route (/explain's or /animation's) and the event its waiting card listens for.
+const jobRoute = (proposal, boardId) => (proposal?.command === 'animation' ? [animationClient(api, boardId), ANIMATION_JOB_EVENT] : [explainClient(api, boardId), EXPLAIN_JOB_EVENT]);
 
 const LearnNotes = lazyFeature(() => import('./LearnNotes.jsx'), 'Notes');
 // Follow-up R3 item 3: this browser's copy of a board cannot be read (blocked storage, a value that is not a board), so a save
@@ -522,31 +528,56 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // `at` (a drop point): the card lands there in one undo step (insertImported); without it, where the learner is looking.
     // Generate on an /explain brief (EXP-T20, Lane C approve): the job on this canvas whose card already waits. A brief made on
     // another canvas is not found here and is refused by the server, never attached to this one. -> the card id.
+    // /animation's plan (AN-05) is the same kind of job proposal: its own job route and card event (jobRoute).
     approveExplain: async proposal => {
       const boardId = commentBoardRef.current;
       if (!boardId || typeof proposal?.input?.job !== 'string') throw new Error('This explanation can be generated only on its own canvas.');
-      const { job } = await explainClient(api, boardId).action(proposal.input.job, 'approve', { proposal });
-      track('rh_generation_requested', { feature: 'explain', action_id: proposal.input.job }, { once: `gen:${proposal.input.job}` });
-      window.dispatchEvent(new CustomEvent(EXPLAIN_JOB_EVENT, { detail: { jobId: proposal.input.job } }));
+      const [client, event] = jobRoute(proposal, boardId);
+      const { job } = await client.action(proposal.input.job, 'approve', { proposal });
+      track('rh_generation_requested', { feature: proposal.command === 'animation' ? 'animation' : 'explain', action_id: proposal.input.job }, { once: `gen:${proposal.input.job}` });
+      window.dispatchEvent(new CustomEvent(event, { detail: { jobId: proposal.input.job } }));
+      // /animation: Generate found the edited plan needs a change first (FX-AN-031); its choices were posted, so the Chat reads its thread again.
+      if (job?.choiceOpen && job.threadId) window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId: job.threadId, jobId: job.id } }));
       return job?.cardId || null;
     },
+    // A change the server offered in Chat for this job (AnimationChoices.jsx): a press the server records, then the card reads the job and the
+    // Chat its thread again, so the plan with its Generate appears. A gap's alternative is a new job, which the failed card follows.
+    chooseAnimation: async (choice, id) => {
+      const boardId = commentBoardRef.current;
+      if (!boardId) throw new Error('This choice can be made only on its own canvas.');
+      const client = animationClient(api, boardId);
+      const { job } = choice.kind === 'gap' ? await client.action(choice.jobId, 'retry', { expectedAttempt: choice.attempt, action: 'plan_alternative', alternative: id }) : await client.action(choice.jobId, 'choose', { choice: id, key: choice.key });
+      window.dispatchEvent(new CustomEvent(ANIMATION_JOB_EVENT, { detail: { jobId: choice.jobId } }));
+      if (job?.threadId) window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId: job.threadId, jobId: job.id } }));
+      return job;
+    },
+    // An approved /animation plan's status in Chat: its job, and whether this canvas still holds its card (false only when the canvas is loaded).
+    readAnimationJob: async proposal => {
+      const boardId = commentBoardRef.current;
+      if (!boardId || typeof proposal?.input?.job !== 'string') throw new Error('Not on this canvas.');
+      const [client] = jobRoute(proposal, boardId);
+      return (await client.get(proposal.input.job))?.job ?? null;
+    },
+    hasCard: id => { const blocks = canvasApi.current?.blocks?.(); return blocks ? blocks.some(block => block.id === id) : undefined; },
     // Cancel on that brief: the job's own cancel action (Lane C stop); its waiting card observes the job again and says Stopped.
     cancelExplain: async proposal => {
       const boardId = commentBoardRef.current;
       if (!boardId || typeof proposal?.input?.job !== 'string') throw new Error('This explanation can be stopped only on its own canvas.');
-      const { job } = await explainClient(api, boardId).action(proposal.input.job, 'cancel');
-      window.dispatchEvent(new CustomEvent(EXPLAIN_JOB_EVENT, { detail: { jobId: proposal.input.job } }));
+      const [client, event] = jobRoute(proposal, boardId);
+      const { job } = await client.action(proposal.input.job, 'cancel');
+      window.dispatchEvent(new CustomEvent(event, { detail: { jobId: proposal.input.job } }));
       return job;
     },
     // A Chat turn while that brief waits (EXP-T20 slice 3, ask.jsx): the job prepares its next version (Lane C refine); the
     // previous approval no longer counts, and the card observes the job again.
-    explainWaiting: jobId => !!canvasApi.current?.blocks?.().some(block => block.explainJob?.id === jobId && block.explainJob.stage === 'awaiting_approval'),
+    explainWaiting: jobId => !!canvasApi.current?.blocks?.().some(block => [block.explainJob, block.animation3dJob].some(waiting => waiting?.id === jobId && waiting.stage === 'awaiting_approval')),
     // expected (the card's Edit): { proposal_id, version } the instruction was written for; the job refines only that revision.
     refineExplain: async (proposal, message, expected) => {
       const boardId = commentBoardRef.current;
       if (!boardId || typeof proposal?.input?.job !== 'string') throw new Error('This explanation can be changed only on its own canvas.');
-      const { job } = await explainClient(api, boardId).action(proposal.input.job, 'refine', { message, ...(expected ? { proposal: expected } : {}) });
-      window.dispatchEvent(new CustomEvent(EXPLAIN_JOB_EVENT, { detail: { jobId: proposal.input.job } }));
+      const [client, event] = jobRoute(proposal, boardId);
+      const { job } = await client.action(proposal.input.job, 'refine', { message, ...(expected ? { proposal: expected } : {}) });
+      window.dispatchEvent(new CustomEvent(event, { detail: { jobId: proposal.input.job } }));
       return job;
     },
     insertCard: (block, { same = null, at = null } = {}) => {
@@ -971,6 +1002,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           // turn (ask.jsx recordCommand): the thread its line was saved in (a reviewed brief is posted there) and the Chat's
           // pinned and temporary refs, which the server resolves under this canvas's authorization.
           startExplain: async (prompt, options) => { const result = await startExplain(prompt, { ...options, thread: turn?.thread ?? null, refs: turn?.refs ?? null }); if (result?.blockId) sink?.(result.blockId); return result; },
+          startAnimation: async (prompt, options) => { const result = await startAnimation(prompt, { ...options, thread: turn?.thread ?? null, refs: turn?.refs ?? null }); if (result?.blockId) sink?.(result.blockId); return result; },
           insertNotebook: () => canvasApi.current?.insertNotebook(),
           insertBlock: (block, options) => canvasApi.current?.insertBlock(block, options),
           // A paid Generate whose job a card here already shows reveals that card (learn-slash.js existingGeneration).
@@ -1081,6 +1113,44 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     track('rh_planning_requested', { feature: 'explain', action_id: result.job.id }, { once: `plan:${result.job.id}` });
     const blockId = canvasApi.current?.placeExplain({ ...withPrompt(explainPendingBlock({ job: result.job, prompt, threadId }), promptUsed), ...(stamp || {}) });
     return { blockId: blockId || result.job.cardId };
+  };
+  // /animation (AN-05; control-plane animation-job.js): as /explain v2, one job per press (a repeat of the same line while it is
+  // being sent is that request: submitCadOnce) and its card placed at once, bound by storage.js withJob to this canvas, card,
+  // request and its words; the server posts the scene plan on the thread for review, and nothing is built before its Generate.
+  // null where the server has /animation off (404).
+  const animationRequests = useRef(new Map());
+  const startAnimation = async (prompt, { context = null, promptUsed = prompt, thread = null, refs = null } = {}) => {
+    const words = String(prompt || '').trim();
+    if (!words) return null;
+    // A canvas still loading has no board id yet, nor one the server never saved: wait for its board GET, then save it
+    // through the board push queue (pushBoard, with its loading and conflict guards) so it is never a second PUT racing autosave.
+    let board = commentBoardRef.current;
+    if (!board) {
+      await Promise.race([boardReady.current, new Promise(done => setTimeout(done, 10000))]);
+      board = commentBoardRef.current;
+    }
+    if (!board) {
+      saveError.current = null;
+      await pushBoard(null, { now: true });
+      board = commentBoardRef.current;
+    }
+    if (!board) {
+      const error = saveError.current;
+      return { failed: error ? `this canvas could not be saved: ${error.message}${error.status ? ` (${error.status})` : ''}` : boardStopped.current ? 'this canvas changed elsewhere; reload it, then try again' : 'this canvas has not finished loading' };
+    }
+    // shortcut: as startExplain, a line save slower than 5 s goes on without its thread.
+    const threadId = (await Promise.race([Promise.resolve(thread).catch(() => null), new Promise(done => setTimeout(done, 5000, null))])) || chat?.thread?.id || null;
+    const payload = { prompt: words, ...(context ? { context: { text: context } } : {}), ...(threadId ? { threadId } : {}), ...(refs?.length ? { context_refs: refs } : {}) };
+    const client = animationClient(api, board);
+    let result;
+    try { result = await submitCadOnce(animationRequests.current, JSON.stringify({ board, ...payload }), async body => ({ ...(await client.create(body)), body }), payload); }
+    // The server's own reason, so a refusal is never a bare "could not be started" (owner report 2026-10-30).
+    catch (error) { return { failed: `${error?.data?.error || error?.message || 'the request was refused'}${error?.status ? ` (${error.status})` : ''}` }; }
+    const { job, body } = result;
+    // Titled by its kind until the scene's own title arrives: the request is already the Chat line above it (owner, 2026-10-31).
+    const card = withJob(withPrompt({ id: job.cardId, type: 'animation3d', title: '3D animation' }, promptUsed), { job, boardId: board, requestId: body.requestId, sourceKey: await requestRef(body.requestId, words) });
+    const blockId = canvasApi.current?.placeAnimation(threadId ? { ...card, animation3dJob: { ...card.animation3dJob, threadId } } : card);
+    return { blockId: blockId || job.cardId };
   };
   // EXP-T21: the Tutor (a turn's create_material, a coaching activity's material) opens the same job and card, read through a ref
   // so its long-lived callbacks see this render's canvas.
@@ -1248,6 +1318,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const [commentBoard, setCommentBoard] = useState(null);
   const commentBoardRef = useRef(null);
   commentBoardRef.current = commentBoard;
+  // The owner's own canvas, for its animation3d cards (animation3d/board-context.js): only then do they read and save their scene.
+  const animationBoard = useMemo(() => (commentBoard && canEditCanvas ? { kind: 'owner', boardId: commentBoard } : null), [commentBoard, canEditCanvas]);
   const openComments = useCallback(() => { setPanelOpen(true); setPanelTab('comments'); }, []);
   const commentsShown = panelOpen && panelTab === 'comments';
   const comments = useCanvasComments({ base: commentBoard && memberBase(commentBoard), enabled: (isCanvas || isRepository) && !hole && boardName === 'main', openPanel: openComments, canvasApi, link: commentBoard && `/c/${commentBoard}`, editor: true, shown: panelOpen && panelTab === 'comments' });
@@ -1341,6 +1413,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const boardLoaded = useRef(false), boardSynced = useRef(null), boardUnsynced = useRef(false), boardStopped = useRef(false), boardRefused = useRef(null);
   // After a 409: the board text the server held before it (conflictBaseKey), and the recoveries since the last save (refused).
   const conflictBase = useRef(null), recoveries = useRef(0);
+  // Settles once this canvas's board GET has answered (or failed); the last PUT refusal, so a caller can say why it failed.
+  const boardReady = useRef(null), saveError = useRef(null);
   // The canvas's document (docs/features/blocknote-canvas.md). Canvas or Editor, this browser's choice for this person and
   // canvas (owner decision B1); the save status of the board that holds it (Saving / Saved / Couldn't save, the server's
   // answer, never assumed); its size against the server's 1.9 MB; a 409 (this canvas changed elsewhere) and a document a
@@ -1437,10 +1511,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // an unreadable copy or version is never proof this browser's copy is current, so the server's copy decides.
     const storage = browserStorage();
     const unreadable = readBoardCopy(storage, boardStorageKey) === null || readBoardVersion(storage, versionKey) === null;
+    let ready;
+    boardReady.current = new Promise(done => { ready = done; });
     api(boardPath).then(data => {
       if (!live) return;
       setSharing(data.sharing);
-      setCommentBoard(data.board_id || null);
+      setCommentBoard(data.board_id || null); commentBoardRef.current = data.board_id || null;
       boardLoaded.current = true;
       track('rh_canvas_opened'); // usage analytics: once per canvas load
       // Empty keys are not a copy: the canvas writes them on mount, before a slow reply lands.
@@ -1513,7 +1589,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const startedFromShare = data.version === 1 && data.state?.blocks?.[0]?.anchor?.source === 'shared';
       toast(base ? CONFLICT_MERGED : data.forked ? 'Your fork is ready. It is yours to edit.' : startedFromShare ? 'Your Rabbit Hole is ready. It is private to you.' : 'You are seeing the latest saved version of this board.');
     }).catch(error => { if (live) setSharing(error.status === 404 ? (error.data?.sharing || { shared: false }) : { unavailable: error.message }); })
-      .finally(() => { if (live) setRestoredBoard(boardPath); });
+      .finally(() => { ready(); if (live) setRestoredBoard(boardPath); });
     return () => { live = false; };
   }, [boardPath, boardLoad]);
   // The journey's section materializer reads the canvas for a section an earlier visit drew (ruling C-3): only once the
@@ -1579,7 +1655,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     if (text !== boardSynced.current) {
       const saved = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state, version: boardVersion.current ?? 0 }) });
       boardVersion.current = saved.version; setCanvasVersion(saved.version);
-      if (saved.board_id) setCommentBoard(saved.board_id);
+      if (saved.board_id) { setCommentBoard(saved.board_id); commentBoardRef.current = saved.board_id; }
       boardSynced.current = text;
       // The comments follow the saved board (owner decision 2026-10-23): useCanvasComments knows the server now has it.
       window.dispatchEvent(new Event('rh:board-saved'));
@@ -1641,7 +1717,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     setSaveState(previous => (previous?.status === 409 ? previous : { state: 'saving' }));
     const put = () => pushQueue(async () => {
       if (boardStopped.current) return 'failed';
-      try { await saveBoard(); } catch (error) { refused(error); return 'failed'; }
+      try { await saveBoard(); } catch (error) { saveError.current = error; refused(error); return 'failed'; }
       if (now) return await syncAssets() ? 'ok' : 'failed';
       syncAssets();
       return 'ok';
@@ -2415,8 +2491,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         {/* Study's reference pane: a sibling placed beside the frame (the frame only gets a margin), so the canvas and its notebook
             iframe never move to another parent. */}
         {study.open && <StudyPane study={study} canvasApi={canvasApi} canvasFrame={canvasFrame} canvasState={canvasState} ready={restoredBoard === boardPath} />}
-        <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className={OWNER_CANVAS} style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={<CanvasChromeLoading feedback top={48} study={study} />}><SearchContentProvider key={searchScope} registry={canvasSearch.registry}><DivePortals.Provider value={dive.portals}><NextStepsHost on={nextStepsHere} coaching={hooksCoaching} tutor={tutor} journey={journey} canvasApi={canvasApi} canvasState={canvasState} record={dive.tree?.dive || null} access={askScope} title={app.title || ''} graded={graded} canvasVersion={canvasVersion} board={boardName} describe={describeBlock} repositoryCommit={repository?.commit || null} shown={canvasState.curious !== false}>{steps => <ExplainBackService.Provider value={explainBack}><AdaptiveCanvas key={canvasEpoch} {...comments.canvasProps} leftRail={voiceOn ? <TutorCaption caption={voice.caption} state={voice.state} extras={tutor.extras} /> : null}
-          hooks={steps ? <NextStepsCard steps={steps} onPick={(step, hook) => (step.section ? journey?.nextSection?.() : (chatRef.current?.panels.openChat(), nextStepSend.current?.(step, hook.hook)))} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} refLinks={refLinks} onLinkCanvas={setRefPick} onPinForStudy={study.pinCard} study={study} docView={docView} docReady={restoredBoard === boardPath} docError={restoredBoard === boardPath && sharing?.unavailable ? sharing.unavailable : null} onDocRetry={() => setBoardLoad(load => load + 1)} onDocDirty={() => setSaveState(previous => (previous?.state === 'error' ? previous : { state: 'saving' }))} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => openSourceFinder({ source })} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={journey.path ? 52 : (!panelOpen && canvasOutline.length ? 52 : 0)} storageKey={boardStorageKey} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} tutor={tutor.active ? tutor : null} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block" autoFocus /> : null} /></ExplainBackService.Provider>}</NextStepsHost></DivePortals.Provider></SearchContentProvider></Suspense>{/* The journey's Adaptive Contents Rail (§8, D5): inside the canvas frame, so it stays beside the Learn agent chat panel; pinned open while the path is reviewed. A materialized section frames its heading, any other entry opens its purpose. */}{journey.path && <ContentsRail placement="canvas" entries={pathEntries(journey.path, journey.prevPath).map(entry => ({ ...entry, open: entry.id === openEntry }))} pinned={journey.journey?.state === 'path_review'} empty={canvasEmpty(canvasState, exchanges)} onOpen={entry => (entry.heading_block_id ? canvasApi.current?.showSection(entry.heading_block_id) : setOpenEntry(id => (id === entry.id ? null : entry.id)))} />}{dive.emptyHint}{dive.suggestionCard && !tutor.active && <div className="pointer-events-none absolute inset-x-0 bottom-28 z-30 flex justify-center px-4"><div className="pointer-events-auto">{dive.suggestionCard}</div></div>}{dive.confirmDialog}{refPick && <CanvasRefPicker exclude={commentBoard} onClose={() => setRefPick(null)}
+        <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className={OWNER_CANVAS} style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={<CanvasChromeLoading feedback top={48} study={study} />}><SearchContentProvider key={searchScope} registry={canvasSearch.registry}><DivePortals.Provider value={dive.portals}><NextStepsHost on={nextStepsHere} coaching={hooksCoaching} tutor={tutor} journey={journey} canvasApi={canvasApi} canvasState={canvasState} record={dive.tree?.dive || null} access={askScope} title={app.title || ''} graded={graded} canvasVersion={canvasVersion} board={boardName} describe={describeBlock} repositoryCommit={repository?.commit || null} shown={canvasState.curious !== false}>{steps => <ExplainBackService.Provider value={explainBack}><AnimationBoard.Provider value={animationBoard}><AdaptiveCanvas key={canvasEpoch} {...comments.canvasProps} leftRail={voiceOn ? <TutorCaption caption={voice.caption} state={voice.state} extras={tutor.extras} /> : null}
+          hooks={steps ? <NextStepsCard steps={steps} onPick={(step, hook) => (step.section ? journey?.nextSection?.() : (chatRef.current?.panels.openChat(), nextStepSend.current?.(step, hook.hook)))} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} refLinks={refLinks} onLinkCanvas={setRefPick} onPinForStudy={study.pinCard} study={study} docView={docView} docReady={restoredBoard === boardPath} docError={restoredBoard === boardPath && sharing?.unavailable ? sharing.unavailable : null} onDocRetry={() => setBoardLoad(load => load + 1)} onDocDirty={() => setSaveState(previous => (previous?.state === 'error' ? previous : { state: 'saving' }))} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => openSourceFinder({ source })} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={journey.path ? 52 : (!panelOpen && canvasOutline.length ? 52 : 0)} storageKey={boardStorageKey} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} tutor={tutor.active ? tutor : null} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block" autoFocus /> : null} /></AnimationBoard.Provider></ExplainBackService.Provider>}</NextStepsHost></DivePortals.Provider></SearchContentProvider></Suspense>{/* The journey's Adaptive Contents Rail (§8, D5): inside the canvas frame, so it stays beside the Learn agent chat panel; pinned open while the path is reviewed. A materialized section frames its heading, any other entry opens its purpose. */}{journey.path && <ContentsRail placement="canvas" entries={pathEntries(journey.path, journey.prevPath).map(entry => ({ ...entry, open: entry.id === openEntry }))} pinned={journey.journey?.state === 'path_review'} empty={canvasEmpty(canvasState, exchanges)} onOpen={entry => (entry.heading_block_id ? canvasApi.current?.showSection(entry.heading_block_id) : setOpenEntry(id => (id === entry.id ? null : entry.id)))} />}{dive.emptyHint}{dive.suggestionCard && !tutor.active && <div className="pointer-events-none absolute inset-x-0 bottom-28 z-30 flex justify-center px-4"><div className="pointer-events-auto">{dive.suggestionCard}</div></div>}{dive.confirmDialog}{refPick && <CanvasRefPicker exclude={commentBoard} onClose={() => setRefPick(null)}
             linked={refPick.blockId ? ((canvasApi.current?.liveRefs?.() || []).find(entry => entry.blockId === refPick.blockId)?.refs || []).map(ref => ref.target) : []}
             returnFocus={() => (refPick.blockId ? document.querySelector(`[data-block-id="${CSS.escape(refPick.blockId)}"]`) : null)}
             onPick={async canvas => {

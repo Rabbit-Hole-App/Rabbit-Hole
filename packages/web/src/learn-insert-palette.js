@@ -18,12 +18,12 @@ export const INSERT_GROUPS = [
 // Behind More...: advanced and specialized, still production-ready.
 export const MORE_ITEMS = ['mermaid', 'knowledge', 'vector', 'whiteboard', 'model3d'];
 // Dev builds only, until stable (paid ones need the confirmation step first).
-export const DEV_ONLY_ITEMS = ['imageGenerate', 'videoGenerate', 'mathAnimation', 'scene', 'audio'];
+export const DEV_ONLY_ITEMS = ['imageGenerate', 'videoGenerate', 'mathAnimation', 'scene', 'audio', 'animation3d'];
 
 // Learner-facing names where the block's own label is an internal one.
 // animation: its card says Explanation, but the text 'explanation' block already
 // has that name here, and two identical items would insert different cards.
-const NAMES = { animation: 'Visual explanation', knowledge: 'Knowledge graph', notebook: 'Notebook', youtube: 'YouTube moment', mathAnimation: 'Maths animation (paid)', imageGenerate: 'Image generate (paid)', videoGenerate: 'Video generate (paid)', scene: 'Blender scene (paid)' };
+const NAMES = { animation: 'Visual explanation', knowledge: 'Knowledge graph', notebook: 'Notebook', youtube: 'YouTube moment', mathAnimation: 'Maths animation (paid)', imageGenerate: 'Image generate (paid)', videoGenerate: 'Video generate (paid)', scene: 'Blender scene (paid)', animation3d: '3D animation example' };
 export const insertName = (id, types) => NAMES[id] || types[id]?.label || id;
 
 // What the palette shows: the groups, then More... (plus dev-only tools in a

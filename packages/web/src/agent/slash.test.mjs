@@ -8,15 +8,16 @@ const names = (list) => list.map((c) => c.name);
 // Owner spec 2026-10-29 (slash commands cleanup): exactly 18 public commands, the same in Chat and Ctrl+K, in the shared section
 // order. /dive, /whiteboard and /video are removed, /browser is added. /motion needs a Motion build and /image (id generate-image)
 // the server's image offer.
-const PUBLIC = ['explain', 'practice', 'quiz', 'flashcards', 'goal', 'code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', '3d', 'browser', 'image', 'youtube', 'arxiv', 'wikipedia'];
+// Owner, 2026-10-30 (docs/superpowers/plans/2026-10-30-animation.md sections 3 and 17): /animation is added, so 19.
+const PUBLIC = ['explain', 'practice', 'quiz', 'flashcards', 'goal', 'code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', 'animation', '3d', 'browser', 'image', 'youtube', 'arxiv', 'wikipedia'];
 const LEARN = PUBLIC.filter((n) => n !== 'motion' && n !== 'generate-image');
 
-test('exactly 18 public commands in the shared sections; the removed three are gone and /browser is one entry', () => {
-  assert.equal(SLASH.length, 18);
+test('exactly 19 public commands in the shared sections; the removed three are gone and /browser is one entry', () => {
+  assert.equal(SLASH.length, 19);
   assert.deepEqual(names(SLASH), PUBLIC);
   assert.deepEqual([...LEARN_MENU.learn, ...LEARN_MENU.create, ...LEARN_MENU.search], PUBLIC, 'every command in exactly one section, in order');
   assert.deepEqual(LEARN_MENU.learn, ['explain', 'practice', 'quiz', 'flashcards', 'goal']);
-  assert.deepEqual(LEARN_MENU.create, ['code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', '3d', 'browser']);
+  assert.deepEqual(LEARN_MENU.create, ['code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', 'animation', '3d', 'browser']);
   assert.deepEqual(LEARN_MENU.search, ['image', 'youtube', 'arxiv', 'wikipedia']);
   for (const name of ['dive', 'whiteboard', 'video']) assert.ok(!names(SLASH).includes(name) && REMOVED_COMMANDS.includes(name), name);
   assert.deepEqual(names(commandsFor('learn', { motionDev: true, imageGeneration: true })), PUBLIC);

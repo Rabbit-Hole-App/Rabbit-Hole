@@ -21,6 +21,8 @@ export { FileJobs } from '../control-plane/src/file-jobs.js';
 export { CadJobs } from '../control-plane/src/cad-jobs.js';
 import { cadRoute } from '../control-plane/src/cad-jobs.js';
 export { ExplainJobs } from '../control-plane/src/explain-job.js';
+export { AnimationJobs } from '../control-plane/src/animation-job.js';
+import { animationRoute } from '../control-plane/src/animation-job.js';
 export { ImageJobs } from '../control-plane/src/image-jobs.js';
 import { imageJobsRoute } from '../control-plane/src/image-jobs.js';
 import { explainRoute } from '../control-plane/src/explain-job.js';
@@ -325,6 +327,8 @@ const routes = {
     if (path.startsWith('/api/learn/cad/')) return cadRoute(path, req, env);
     // /explain v2 jobs (explain-job.js): 404 unless EXPLAIN_V2_ENABLED is 'true'.
     if (path.startsWith('/api/learn/explain/')) { const explained = await explainRoute(path, req, env); if (explained) return explained; }
+    // /animation jobs (animation-job.js, AN-05): 404 unless ANIMATION_ENABLED is 'true'.
+    if (path.startsWith('/api/learn/animation/')) { const animated = await animationRoute(path, req, env); if (animated) return animated; }
     if (path.startsWith('/api/learn/code-runs')) { const codeRun = await inlineCodeRoute(path, req, env); if (codeRun) return codeRun; }
     // IMG-01 durable image generation jobs (image-jobs.js): no new job unless IMAGE_GENERATE_ENABLED is 'true'.
     if (path.startsWith('/api/learn/image-jobs')) { const imageGen = await imageJobsRoute(path, req, env); if (imageGen) return imageGen; }

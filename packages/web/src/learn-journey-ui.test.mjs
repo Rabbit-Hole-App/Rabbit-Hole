@@ -626,7 +626,7 @@ test('LearnPage.jsx: the journey rail sits inside the canvas frame whatever the 
 test('LearnPage.jsx: the materializer may read the canvas only once its board is restored (server copy, canvasEpoch) and it has reported', () => {
   const page = read('LearnPage.jsx');
   assert.match(page, /const \[restoredBoard, setRestoredBoard\] = useState\(null\);/);
-  assert.match(page, /\.finally\(\(\) => \{ if \(live\) setRestoredBoard\(boardPath\); \}\);/);
+  assert.match(page, /\.finally\(\(\) => \{ ready\(\); if \(live\) setRestoredBoard\(boardPath\); \}\);/);
   assert.match(page, /useEffect\(\(\) => \{ if \(restoredBoard === boardPath\) journey\.canvasReady\?\.\(\); \}, \[restoredBoard, boardPath, canvasState, journey\.canvasReady\]\);/);
 });
 

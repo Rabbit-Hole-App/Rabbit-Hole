@@ -25,7 +25,7 @@ import WEBPAGE from './slash-examples/webpage-transformer.json' with { type: 'js
 
 // The generators (spec section 6): their preview shows the finished result, and View brief shows their brief in the shared
 // confirmation card (GenerationProposalCard.jsx) with nothing it can generate or save.
-export const BRIEF_COMMANDS = ['explain', 'practice', 'quiz', 'flashcards', 'code', 'graph', 'diagram', 'generate-image', 'motion', 'cad', '3d'];
+export const BRIEF_COMMANDS = ['explain', 'practice', 'quiz', 'flashcards', 'code', 'graph', 'diagram', 'generate-image', 'motion', 'cad', 'animation', '3d'];
 export const SAMPLE_NOTE = 'Example preview. Nothing is generated or saved here.';
 
 // /motion's example is a real Motion video, committed so it never expires and opening the window generates nothing: the
@@ -132,6 +132,8 @@ export const PREVIEWS = {
     alt: IMAGE_EXAMPLE.prompt, caption: '', credit: { photographer: 'generated illustration', url: '' } }, note: 'A real image made by /image from this prompt, saved.' },
   motion: { kind: 'card', card: 'videoGenerate', block: SAMPLES.motion.videoGenerate, note: 'A real Motion video, made from this example.' },
   cad: { kind: 'card', card: 'cad', block: CAD_PLATE.block, note: 'A real model made by /cad. Interact to orbit and zoom it.' },
+  // /animation: the saved pendulum scene /animation made from this request (animation3d/pendulum-demo.js; owner 2026-11-02).
+  animation: { kind: 'card', card: 'animation3d', block: { type: 'animation3d', title: 'Pendulum length and period', fixtureId: 'pendulum-length-period' }, note: 'A real scene made by /animation from this request, saved. Change the length to try it.' },
   '3d': { kind: 'card', card: 'scene', block: SAMPLES['3d'].scene, viewer: true },
   browser: { kind: 'webpage', block: { type: 'webpage', id: 'slash-help-browser', url: WEBPAGE.manifest.url, title: WEBPAGE.result.title, capture: WEBPAGE.result.capture, fileRef: WEBPAGE.result.fileRef, scrollTop: 1480 },
     // scrollTop: opens at the article's first section, "A High-Level Look", and its first diagram (capture px 1480); the title stays in
@@ -164,6 +166,7 @@ export const BRIEFS = {
   cad: { title: CAD_PLATE.brief.title, description: 'A 60 × 40 × 5 mm plate with four 4 mm through holes and a centred 20 × 10 mm pocket, 3 mm deep, cut from the top face.',
     settings: { units: CAD_PLATE.brief.units, parameters: CAD_PLATE.brief.parameters },
     groups: { parameters: { legend: 'Parameters', defs: Object.entries(CAD_PLATE.brief.parameters).map(([id, value]) => ({ id, label: id.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase()), unit: 'mm', display: `${value} mm`, tag: 'Requested' })) } } },
+  animation: { title: 'Pendulum length and period', description: 'A pendulum whose length you change from 0.5 to 3 metres, with its period shown as a number.', settings: { experience: 'experiment' } },
   '3d': { title: 'Perspective projection', description: 'A camera frustum, a cube inside it and a ray showing their spatial relationship.' },
 };
 

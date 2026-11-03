@@ -22,10 +22,11 @@ test('/ opens the grouped picker: LEARN, CREATE and SEARCH hold every offered co
   const sections = pickerSections('/');
   assert.deepEqual(sections.map(section => section.title), ['Learn', 'Create', 'Search']);
   assert.deepEqual(sections[0].items.map(item => item.name), ['explain', 'practice', 'quiz', 'flashcards', 'goal']);
-  assert.deepEqual(sections[1].items.map(item => item.name), ['code', 'graph', 'diagram', 'notebook', 'cad', '3d', 'browser']);
+  assert.deepEqual(sections[1].items.map(item => item.name), ['code', 'graph', 'diagram', 'notebook', 'cad', 'animation', '3d', 'browser']);
   // A Motion build and an account offered image generation add /motion and /image (id generate-image) in their places.
-  assert.deepEqual(pickerSections('/', { motionDev: true, imageGeneration: true })[1].items.map(item => item.name), ['code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', '3d', 'browser']);
-  assert.deepEqual(pickerSections('/anim', { motionDev: true }), [], '/animate is not offered');
+  assert.deepEqual(pickerSections('/', { motionDev: true, imageGeneration: true })[1].items.map(item => item.name), ['code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', 'animation', '3d', 'browser']);
+  // Owner, 2026-10-30: /animation (the 3D scene command) is offered; the removed /animate is not.
+  assert.deepEqual(pickerSections('/anim', { motionDev: true }).flatMap(section => section.items.map(item => item.name)), ['animation'], '/animate is not offered');
   // The photo search (typed /photos, id image) leads the searches; each row carries its title and its one-sentence description.
   assert.deepEqual(sections[2].items.map(item => [item.name, item.desc]), [['image', 'Photo search'], ['youtube', 'YouTube search'], ['arxiv', 'arXiv search'], ['wikipedia', 'Wikipedia search']]);
   assert.ok(sections.flatMap(section => section.items).every(item => item.about?.length > 20));

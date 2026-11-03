@@ -11,7 +11,7 @@ import { PromptControl } from './CardPrompt.jsx';
 import { useSeconds } from './use-seconds.js';
 import { CAD_LINE } from './card-prompt.js';
 
-const KIND = { cad: 'CAD model', video: 'Video', image: 'Image', notebook: 'Notebook', whiteboard: 'Whiteboard', paper: 'Paper', wiki: 'Article', explanation: 'Explanation', quiz: 'Quiz', flashcards: 'Flashcards', table: 'Table', flow: 'Diagram', mermaid: 'Diagram', graph: 'Graph', plot: 'Plot', snippet: 'Code', walkthrough: 'Walkthrough', scene: '3D scene' };
+const KIND = { cad: 'CAD model', video: 'Video', image: 'Image', notebook: 'Notebook', whiteboard: 'Whiteboard', paper: 'Paper', wiki: 'Article', explanation: 'Explanation', quiz: 'Quiz', flashcards: 'Flashcards', table: 'Table', flow: 'Diagram', mermaid: 'Diagram', graph: 'Graph', plot: 'Plot', snippet: 'Code', walkthrough: 'Walkthrough', scene: '3D scene', animation3d: '3D animation' };
 const kindName = kind => KIND[kind] || String(kind).replace(/^./, c => c.toUpperCase());
 
 // A stable preview's picture: same-origin and cookie-scoped (never an expiring URL), read as the CAD card reads its poster.
