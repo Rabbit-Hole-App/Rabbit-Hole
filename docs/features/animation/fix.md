@@ -172,6 +172,11 @@ row in [spend.md](spend.md).
 - Fix: author and repair run at effort low (learn-models.js). Medium is the model default, so it would not change anything; low does. Opus, the 16,000 and 12,000 limits, validation and review are unchanged. Quality risk: lower effort can make weaker scenes; review still decides acceptance.
 - Status: fixed in code; open until a real SGD build succeeds.
 
+### FX-AN-036 — a repair refused before it ran still used the build's repair (fixed)
+- Found on the dev preview at aa4fb15ea, job aj_0bb9a9d (SGD, low effort): the author finished at 8,811 tokens (FX-AN-035's fix in effect), validation found one unknown field, and the repair was refused by the platform daily limit before reaching the provider. Try again then re-validated and stopped as "corrected automatically once" without any repair having run.
+- Fix: a repair refused before it ran (provider busy, spend cap) gives back its turn (animation-job.js failed()). Test in animation-job.test.js.
+- Also: the dev platform cap (USAGE_PLATFORM_DAY_USD 10, shared by every dev clone) was raised to 40 on the animation clone only, at deploy, within the owner's US$100 closeout budget.
+
 ## Resolved
 
 ### FX-AN-032 — a stepped game never moved in the card (owner canvas 2026-11-02, "Projectile Challenge: Hit the Target")

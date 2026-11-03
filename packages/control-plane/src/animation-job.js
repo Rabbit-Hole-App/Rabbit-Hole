@@ -980,6 +980,12 @@ export class AnimationJobs {
       if (Array.isArray(error.answers)) (current.candidates ??= []).push(...error.answers.map(a => ({ stage: 'preparing', input: a.input, issues: a.issues })));
       if (await this.resumeLater(current, error)) return;
       endStage(current.timing, 'failed');
+      // A repair refused by a spending cap before it ran made nothing: Try again resumes at validation (retry), which counts the repair
+      // again, so its turn comes back instead of the build stopping as "corrected once" (FX-AN-036: aj_0bb9a9d, platform daily limit).
+      // A busy provider is not this: its Try again resumes at the repair itself, still counted.
+      if (current.stage === 'repairing' && error.code !== 'provider_unavailable' && (['spend_limited', 'spend_refused'].includes(error.code) || error.status === 429)) {
+        current.repairs = Math.max(0, current.repairs - 1); current.repairKinds?.pop();
+      }
       // The calls this stage run made (job is the snapshot it started from): what its explanation may say about charges (chargeWords).
       const callsFrom = job.calls.length;
       if (error.code === 'provider_unavailable') {

@@ -387,3 +387,20 @@ test('an invalid review report fails as review validation in the learner words, 
   assert.deepEqual([done.reviews.length, done.reviews[0].raw, done.reviews[0].call.status, done.reviews[0].problems], [1, raw, 'settled', ['severity is missing']]);
   assert.equal(JSON.stringify(view).includes('severity is missing'), false, 'diagnostics never reach the learner view');
 });
+
+test('a repair refused before it ran gives its turn back, so Try again repairs instead of stopping as corrected once (FX-AN-036)', { skip }, async t => {
+  let down = true;
+  const s = animationStack(t, {
+    reply: role => (role === 'review' ? { accepted: true } : {}),
+    pipeline: STUB_PIPELINE({
+      validate: async (job, ...a) => (job.draft?.repaired === undefined ? { problems: ['nodes.8.placement: unknown field'], repairable: true } : STUB_PIPELINE().validate(job, ...a)),
+      repair: async (job, ctx) => { if (down) throw Object.assign(new Error('AI is paused for now because the platform daily limit has been reached.'), { code: 'spend_refused', status: 429 }); return STUB_PIPELINE().repair(job, ctx); },
+    }),
+  });
+  const { id, done } = await s.generated();
+  assert.deepEqual([done.stage, done.failure.category, done.repairs, done.repairKinds], ['failed', 'budget', 0, []]);
+  down = false;
+  assert.equal((await s.send('retry', { expectedAttempt: done.attempt }, id)).status, 202);
+  const end = await s.run(id);
+  assert.deepEqual([end.stage, end.repairs, end.repairKinds], ['ready', 1, ['run']]);
+});
