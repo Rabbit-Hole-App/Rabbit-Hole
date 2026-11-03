@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { watchFixture } from './fixtures.js';
+import { experimentFixture, gameFixture, watchFixture } from './fixtures.js';
+import { pendulumDemo } from './pendulum-demo.js';
 import { buildAnimationScene, declutterLabels, LABEL_LINE, LABEL_PIXELS, wrapLabel } from './scene.js';
 
 // Owner review of the Animation MVP1 correction (2026-11-03, issue 2): a card's label was clipped at the viewport edge and the scale
@@ -139,4 +140,95 @@ test('layout: arrows stay proportional to the update they draw: no minimum lengt
   const geometry = scene.objects.get('arrow').children[0];
   assert.equal(geometry.children.length, 2, 'drawn as shaft and head only');
   scene.dispose();
+});
+
+// Owner review of the SGD cards (2026-11-03, acceptance job aj_0b6ca2b5, round 4): the "Ready" status label sat on the arrows and hid the grey
+// downhill one. Arrows are obstacles for label plates: the whole shaft with its head's thickness, not only the ends.
+const touches = (plate, seg, margin) => { // independent of the layout: the segment sampled every 0.5 px, the plate grown by the margin
+  const n = Math.ceil(Math.hypot(seg.x2 - seg.x1, seg.y2 - seg.y1) * 2) + 1;
+  return Array.from({ length: n + 1 }, (_, i) => [seg.x1 + (seg.x2 - seg.x1) * i / n, seg.y1 + (seg.y2 - seg.y1) * i / n])
+    .some(([x, y]) => x > plate.x - margin && x < plate.x + plate.w + margin && y > plate.y - margin && y < plate.y + plate.h + margin);
+};
+const BOUNDS = { x: 4, y: 4, w: 598, h: 232 };
+const shaft = { x1: 100, y1: 120, x2: 500, y2: 120, half: 3 }; // a long, horizontal arrow, 400 px
+
+test('declutter: a plate centred on the middle of a long shaft is moved off it, to the side of its point that is free', () => {
+  const plate = { x: 250, y: 111, w: 100, h: 18, placement: 'above' }; // its point is at (300, 132.6): the plate lies on the shaft
+  const [offset] = declutterLabels([plate], { bounds: BOUNDS, obstacles: [shaft] });
+  const moved = { ...plate, x: plate.x + offset.dx, y: plate.y + offset.dy };
+  assert.ok(offset.dx || offset.dy, 'moved');
+  assert.equal(touches(moved, shaft, shaft.half), false, `clear of the shaft (plate y ${moved.y})`);
+  assert.ok(moved.y > 120 && moved.y < 150, `flipped below its point, still beside it, not pushed along the shaft (y ${moved.y}, x ${moved.x})`);
+  assert.deepEqual(declutterLabels([plate], { bounds: BOUNDS }), [{ dx: 0, dy: 0 }], 'without the obstacle the same plate stays');
+});
+
+test('declutter: a plate that overlaps only the arrow head, or touches the shaft only within the margin, is moved; one outside the margin is not', () => {
+  const tip = { x: 290, y: 111, w: 100, h: 18, placement: 'right' }; // covers the tip at (300, 120) and nothing of the shaft before it
+  const short = { x1: 100, y1: 120, x2: 300, y2: 120, half: 8 };
+  const [head] = declutterLabels([tip], { bounds: BOUNDS, obstacles: [short] });
+  assert.ok(head.dx || head.dy, 'the head-only plate is moved');
+  assert.equal(touches({ ...tip, x: tip.x + head.dx, y: tip.y + head.dy }, short, short.half), false);
+  // A plate whose top edge is `d` px below the shaft's centre line: margin = half 3 + gap 4 = 7 px.
+  const below = d => ({ x: 250, y: 120 + d, w: 100, h: 18, placement: 'below' });
+  const edge = declutterLabels([below(5)], { bounds: BOUNDS, obstacles: [shaft] })[0], far = declutterLabels([below(8)], { bounds: BOUNDS, obstacles: [shaft] })[0];
+  assert.ok(edge.dx || edge.dy, 'a plate 5 px from the shaft (inside its 7 px margin) is moved');
+  assert.deepEqual(far, { dx: 0, dy: 0 }, 'a plate 8 px from the shaft (outside the margin) stays');
+  // A slanted shaft: a plate clear of its line stays (though inside its bounding box), one on the line is moved.
+  const slant = { x1: 100, y1: 40, x2: 400, y2: 200, half: 3 };
+  assert.deepEqual(declutterLabels([{ x: 250, y: 40, w: 60, h: 18, placement: 'above' }], { bounds: BOUNDS, obstacles: [slant] }), [{ dx: 0, dy: 0 }]);
+  const [on] = declutterLabels([{ x: 220, y: 100, w: 60, h: 18, placement: 'above' }], { bounds: BOUNDS, obstacles: [slant] });
+  assert.ok(on.dx || on.dy);
+});
+
+test('declutter: an essential plate with no free spot is still placed (overlapping rather than dropped), an optional one is left out', () => {
+  // Arrows every 9 px across a small viewport leave no spot a plate could keep clear of them.
+  const bounds = { x: 4, y: 4, w: 120, h: 60 }, grid = Array.from({ length: 8 }, (_, i) => ({ x1: 0, y1: 4 + i * 9, x2: 130, y2: 4 + i * 9, half: 3 }));
+  const plates = [{ x: 30, y: 20, w: 50, h: 18, placement: 'right', essential: true }, { x: 40, y: 25, w: 50, h: 18, placement: 'right' }, { x: 50, y: 30, w: 50, h: 18, placement: 'right', essential: true }];
+  const out = declutterLabels(plates, { bounds, obstacles: grid });
+  assert.deepEqual(out.map(Boolean), [true, false, true], 'both essential plates placed, the optional one not');
+  for (const [i, offset] of [[0, out[0]], [2, out[2]]]) {
+    const x = plates[i].x + offset.dx, y = plates[i].y + offset.dy;
+    assert.ok(x >= bounds.x && y >= bounds.y && x + plates[i].w <= bounds.x + bounds.w && y + plates[i].h <= bounds.y + bounds.h, `essential plate ${i} inside the bounds`);
+  }
+  assert.deepEqual(declutterLabels(plates, { bounds }).map(Boolean), [true, true, true], 'without arrows all three fit');
+});
+
+test('declutter: no obstacles, no change: the layouts of the saved arrowless fixtures are those of 5427f0db4', () => {
+  const GOLDEN = { watch: { '606x240': [['moonTag', 363, 86, 40, 18]], '320x240': [['moonTag', 220, 86, 40, 18]] }, experiment: { '606x240': [['leftTag', 228, 70, 40, 18], ['rightTag', 353, 70, 46, 18]], '320x240': [['leftTag', 85, 70, 40, 18], ['rightTag', 210, 70, 46, 18]] }, game: { '606x240': [['compassTag', 216, 37, 21, 18]], '320x240': [['compassTag', 73, 37, 21, 18]] }, pendulum: { '606x240': [['bobLabel', 311, 84, 34, 18]], '320x240': [['bobLabel', 168, 84, 34, 18]] } };
+  const artifacts = { watch: watchFixture.artifact, experiment: experimentFixture.artifact, game: gameFixture.artifact, pendulum: pendulumDemo.artifact };
+  for (const [name, artifact] of Object.entries(artifacts)) {
+    for (const [size, golden] of Object.entries(GOLDEN[name])) {
+      const [W, H] = size.split('x').map(Number), built = buildAnimationScene(structuredClone(artifact), { labelTexture });
+      const view = new THREE.PerspectiveCamera(artifact.camera.fov, W / H, 0.05, 2000);
+      view.position.set(...artifact.camera.position);
+      view.lookAt(...artifact.camera.target);
+      view.updateMatrixWorld();
+      const boxes = built.scene.layoutLabels({ width: W, height: H, camera: view }).map(b => [b.id, ...[b.x, b.y, b.w, b.h].map(n => Math.round(n * 10) / 10)]);
+      assert.deepEqual(boxes, golden, `${name} ${size}`);
+      built.scene.dispose();
+    }
+  }
+});
+
+test('layout: a status label placed on an arrow keeps off its whole shaft and head, at every card size, and stays a drawn essential label inside the viewport', () => {
+  // An arrow 4 units long along +x at y = 1, its base at x = -2 (the node's scale.y is its length); a parentless status label (essential) at its
+  // base, one at its middle and one at its tip: each would lie on the shaft without the arrow as an obstacle.
+  for (const [at, placement] of [[-2, 'above'], [0, 'center'], [2, 'right']]) {
+    for (const [W, H] of SIZES) {
+      const artifact = structuredClone(watchFixture.artifact);
+      artifact.scene.geometries.push({ id: 'arrowG', kind: 'arrow', length: 1 }, { id: 'readyG', kind: 'label', text: 'Ready', placement });
+      artifact.scene.materials.push({ id: 'arrowM', color: '#d9481c' });
+      artifact.scene.nodes.push({ id: 'arrow', geometry: 'arrowG', material: 'arrowM', position: [-2, 1, 0], scale: [2, 4, 2], quaternion: [0, 0, -0.7071067811865476, 0.7071067811865476] }, { id: 'ready', geometry: 'readyG', position: [at, 1, 0] });
+      const { scene } = buildAnimationScene(artifact, { labelTexture }), view = viewOf(W, H);
+      const boxes = scene.layoutLabels({ width: W, height: H, camera: view });
+      const f = 1 / Math.tan(view.fov * Math.PI / 360), px = v => { const p = v.clone().project(view); return [(p.x + 1) / 2 * W, (1 - p.y) / 2 * H]; };
+      const [x1, y1] = px(new THREE.Vector3(-2, 1, 0)), [x2, y2] = px(new THREE.Vector3(2, 1, 0)), depth = -new THREE.Vector3(-2, 1, 0).applyMatrix4(view.matrixWorldInverse).z;
+      const seg = { x1, y1, x2, y2, half: 0.075 * 2 * f * H / (2 * depth) }; // the head's radius: 0.075 of the length, times scale x 2
+      const plate = boxes.find(b => b.id === 'ready');
+      assert.equal(plate.shown, true, `${W}x${H} ${placement}: drawn`);
+      assert.ok(inside(plate, W, H), `${W}x${H} ${placement}: inside the viewport`);
+      assert.equal(touches(plateBox(spriteOf(scene, 'ready'), view, W, H), seg, seg.half), false, `${W}x${H} ${placement}: [${plate.x.toFixed(1)}, ${plate.y.toFixed(1)}] is on the arrow (${x1.toFixed(0)},${y1.toFixed(0)})-(${x2.toFixed(0)},${y2.toFixed(0)})`);
+      scene.dispose();
+    }
+  }
 });
