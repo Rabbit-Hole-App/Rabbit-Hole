@@ -164,3 +164,12 @@ test('near the limit: the old stand-in captures passed a candidate that the real
   assert.equal(realReviewFits(a, near), false, 'the real request refuses it');
   assert.match(fitProblems(env, a, jobOf(near), undefined, near)[0], /too large for the independent review request/, 'and the size check now says so before any review is spent');
 });
+
+test('the author and repair are told the names the card keeps for itself and the length limit, so a planned action is not refused for its name', async () => {
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js');
+  const { HOST_CONTROLS } = await import('../../web/src/animation3d/contract.js');
+  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) {
+    for (const name of HOST_CONTROLS.filter(n => n !== 'restart game')) assert.ok(system.includes(name), name);
+    assert.match(system, /an assumption at most 300 characters/);
+  }
+});
