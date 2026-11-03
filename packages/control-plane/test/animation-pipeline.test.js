@@ -101,7 +101,7 @@ test('the capture manifest samples at most 2 views x 3 states and says what it l
     const { entries, coverage } = captureManifest(fixture.artifact);
     assert.ok(entries.length <= 6, fixture.name);
     assert.deepEqual(coverage.views, ['default', 'side']);
-    assert.ok(entries.every(e => e.events.length <= 4 && e.ticks <= 90));
+    assert.ok(entries.every(e => e.events.length <= 4 && e.leadTicks + e.ticks <= 90));
   }
   const game = captureManifest(gameFixture.artifact);
   assert.deepEqual(game.coverage.sampled.map(s => s.events), [0, 1, 4]);

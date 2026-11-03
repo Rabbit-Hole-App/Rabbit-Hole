@@ -79,7 +79,7 @@ export function fitProblems(env, artifact, job, tasks, draft = null) {
   let entries;
   try { entries = captureManifest(artifact).entries; } catch { entries = []; }
   if (!entries.length) entries = Array.from({ length: ANIMATION_ROLES.review.maxImages }, (_, i) => ({ id: `v${i}`, view: { name: 'default' } }));
-  const base = entries.map(e => ({ id: e.id, artifactHash: hash, data: 'AAAA', mediaType: 'image/png', view: e.view?.name ?? e.view, label: e.label, inputs: e.inputs, time: e.time, events: e.events, ticks: e.ticks,
+  const base = entries.map(e => ({ id: e.id, artifactHash: hash, data: 'AAAA', mediaType: 'image/png', view: e.view?.name ?? e.view, label: e.label, inputs: e.inputs, time: e.time, events: e.events, ...(e.leadTicks ? { leadTicks: e.leadTicks } : {}), ticks: e.ticks,
     trace: { inputs: e.inputs, time: e.time, events: e.events, ticks: e.ticks } }));
   const used = new TextEncoder().encode(JSON.stringify(base.map(c => ({ id: c.id, ...c.trace })))).length;
   const per = Math.max(0, Math.floor((ANIMATION_REVIEW_LIMITS.traceBytes - used) / base.length) - 16);
