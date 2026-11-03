@@ -18,4 +18,9 @@ footer .footer-links-row a:focus-visible{outline:2px solid currentColor;outline-
 
 /* Only where the choice exists (analytics-banner.js marks the page). */
 [data-analytics-preferences]{display:none}
-html[data-analytics-choice] [data-analytics-preferences]{display:inline}
+html[data-analytics-choice] [data-analytics-preferences]{display:inline-flex}
+/* Book a call: the footer's one button (owner 2026-11-02), outlined so it reads as one in both themes. */
+footer .footer-links-row a.footer-call{padding:6px 14px;min-height:34px;border:1px solid currentColor;border-radius:999px;font-weight:500;transition:transform .1s}
+footer .footer-links-row a.footer-call:active{transform:scale(.97)}
+@media(hover:hover){footer .footer-links-row a.footer-call:hover{text-decoration:none;background:color-mix(in srgb,currentColor 10%,transparent)}}
+@media(prefers-reduced-motion:reduce){footer .footer-links-row a.footer-call{transition:none}footer .footer-links-row a.footer-call:active{transform:none}}
