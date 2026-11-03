@@ -190,3 +190,37 @@ test("the author and repair follow the plan's formula and convention, and the re
   assert.match(ANIMATION_REVIEW_SYSTEM, /a problem left out now is never fixed/);
   assert.match(ANIMATION_REVIEW_SYSTEM, /judge the scene against the formula/);
 });
+
+test('the diagnosed SGD causes, as general rules: event shape, merged findings, unrepairable plan findings, sizes and surfaces', async () => {
+  const { programProblems } = await import('../src/animation-author.js');
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM } = await import('../src/agents/animation-author.js');
+  const { repairableFindings } = await import('../src/animation-review.js');
+  // 4a: a program that names actions by event.id is caught before any review; event.action passes.
+  const withSource = source => ({ actions: [{ id: 'keepPath', label: 'Keep this path' }], program: { source } });
+  const base = 'export function evaluate(){return {}}\nexport function initialState(){return {}}\nexport function reduce({state,event}){';
+  assert.ok(programProblems(withSource(`${base}if(event.id==='keepPath')return state;return state}`)).some(p => /read event\.action/.test(p)));
+  assert.equal(programProblems(withSource(`${base}if(event.action==='keepPath')return state;return state}`)).some(p => /event\.action/.test(p)), false);
+  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) { assert.match(system, /An action is named by event\.action, never event\.id/); assert.match(system, /moving a camera closer does not enlarge anything/); assert.match(system, /stacked, translucent filled discs/); }
+  assert.equal(ANIMATION_REPAIR_SYSTEM.includes('move the camera closer'), false);
+  // 4b: a finding repeated across captures goes to the repair once, with its captures, so distinct ones are not cut.
+  const same = c => ({ category: 'spec', severity: 'major', target: { capture: c }, message: 'no batch-noise readout' });
+  const others = ['arrow too small', 'bowl drawn as rings', 'trail dots too small'].map((message, i) => ({ category: 'spec', severity: i < 2 ? 'major' : 'minor', target: { capture: 'v0-s0' }, message }));
+  const failure = { findings: [...['v0-s0', 'v0-s1', 'v0-s2', 'v1-s0', 'v1-s1', 'v1-s2'].map(same), ...others] };
+  const content = repairContent(jobOf(fixture.repairedDraft), failure, fixture.repairedDraft);
+  const sent = JSON.parse(content[0].text);
+  assert.deepEqual(sent.findings.map(f => f.message), ['no batch-noise readout', 'arrow too small', 'bowl drawn as rings', 'trail dots too small']);
+  assert.equal(sent.omitted, undefined, 'nothing cut');
+  // 4d: serious findings all marked not repairable stop the repair; one repairable among them keeps it.
+  assert.equal(repairableFindings([{ category: 'spec', severity: 'major', specRepairable: false }]), false);
+  assert.equal(repairableFindings([{ category: 'spec', severity: 'major', specRepairable: false }, { category: 'spec', severity: 'major', specRepairable: true }]), true);
+  assert.match(ANIMATION_REVIEW_SYSTEM, /repairable false only when no change to the artifact or program can fix it/);
+});
+
+test('a non-SGD scene keeps the shared changes: a game reading event.action passes, and its findings merge the same way', async () => {
+  const { programProblems } = await import('../src/animation-author.js');
+  const { gameFixture } = await import('../../web/src/animation3d/fixtures.js');
+  assert.deepEqual(programProblems(gameFixture.artifact), []);
+  const f = c => ({ category: 'spec', severity: 'major', target: { capture: c }, message: 'robot label overlaps the goal' });
+  const sent = JSON.parse(repairContent(jobOf(fixture.repairedDraft), { findings: [f('v0-s0'), f('v1-s0')] }, fixture.repairedDraft)[0].text);
+  assert.deepEqual([sent.findings.length, sent.findings[0].target.captures], [1, ['v0-s0', 'v1-s0']]);
+});

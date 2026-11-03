@@ -33,8 +33,10 @@ const rank = f => (f.severity === 'blocker' ? 0 : f.severity === 'major' ? 1 : 2
 
 export function repairContent(job, failure, current, images = []) {
   const problems = (failure.problems || []).slice(0, REPAIR_FORWARD.problems).map(clip);
-  const findings = [...(failure.findings || [])].sort((a, b) => rank(a) - rank(b)).slice(0, REPAIR_FORWARD.findings).map(({ category, severity, target, message }) => ({ category, severity, target, message: clip(message) }));
-  const omitted = Math.max(0, (failure.problems || []).length - problems.length) + Math.max(0, (failure.findings || []).length - findings.length);
+  // The same finding reported for several captures is one finding (aj_ad936ec1 round 2: six of eight slots were one message).
+  const merged = [...new Map((failure.findings || []).map(f => [`${f.severity}|${f.category}|${f.message}`, f])).values()].map(f => ({ ...f, target: { ...(f.target || {}), captures: (failure.findings || []).filter(g => g.severity === f.severity && g.category === f.category && g.message === f.message).map(g => g.target?.capture).filter(Boolean) } }));
+  const findings = merged.sort((a, b) => rank(a) - rank(b)).slice(0, REPAIR_FORWARD.findings).map(({ category, severity, target, message }) => ({ category, severity, target, message: clip(message) }));
+  const omitted = Math.max(0, (failure.problems || []).length - problems.length) + Math.max(0, merged.length - findings.length);
   const { program, ...rest } = current;
   const caps = enabledCapabilities();
   return [

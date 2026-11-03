@@ -58,6 +58,8 @@ export function programProblems(artifact) {
   // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(source)) out.push('program.source: contains a control character');
   if (/^\s*import\b/m.test(source)) out.push('program.source: no import is available; remove the import statement');
+  // The host names an action by event.action (ANIMATION_PROGRAM_CONTRACT.events); a program that only reads event.id ignores every press.
+  if ((artifact.actions || []).length && /\bevent\s*\.\s*id\b/.test(source) && !/\bevent\s*\.\s*action\b/.test(source)) out.push('program.source: reduce reads event.id, but an action event is { type: "action", action: <action id> }; read event.action');
   const needs = interactiveArtifact(artifact) ? ['evaluate', 'initialState', 'reduce'] : ['evaluate'];
   for (const name of needs) if (!exportsName(name).test(source)) out.push(`program.source: the module must export ${name} (${ANIMATION_PROGRAM_VERSIONS.kind}: ${name === 'evaluate' ? 'evaluate({ inputs, time, seed, state }) returning a frame' : name === 'initialState' ? 'initialState({ inputs, seed }) returning the first state' : 'reduce({ state, event, inputs, time, seed }) returning the next state'})`);
   return out;

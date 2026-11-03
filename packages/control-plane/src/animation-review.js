@@ -82,7 +82,9 @@ export async function loadCaptures(env, captures) {
 }
 
 // A finding the one repair can act on: anything the artifact draws or computes. A renderer fault, or a failure with no finding, is not.
-export const repairableFindings = findings => { const serious = (findings || []).filter(f => f.severity !== 'minor'); return serious.length > 0 && serious.every(f => ['spec', 'source', 'component'].includes(f.category)); };
+// A serious finding the reviewer marked not repairable (only a plan change can fix it, aj_ba11d5ac) is not, so the job offers Revise plan
+// instead of spending repairs on it; when some serious findings are repairable, the repair takes those.
+export const repairableFindings = findings => { const serious = (findings || []).filter(f => f.severity !== 'minor'); return serious.length > 0 && serious.every(f => ['spec', 'source', 'component'].includes(f.category)) && serious.some(f => f.specRepairable !== false); };
 
 const CORRECTION_CHARS = 1500;
 // The one correction's addition to the review request: counted by the request-fit preflight (animation-repair.js fitProblems).
