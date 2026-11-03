@@ -359,6 +359,20 @@ test('the shortened plan the build ran with contradicted itself; a shortened pla
     }
   }
 });
+// The two sentences of aj_ad936ec's saved plan that were read as counts: together they took its estimate from 12,370 B to 42,700 B.
+test('a parameter value or a decimal is never a count: "At 256 every step" is no 256 steps, "0.25 the ball" no 25 balls', () => {
+  const plan = sentence => ({ ...PLAN, behavior: 'rules', description: `A ball moves and leaves a trail. ${sentence}`, interactions: [] });
+  for (const sentence of ['At 256 every step follows the exact slope.', 'Above 0.25 the ball zigzags across the steep direction.']) {
+    assert.ok(SGD[0].original.interactions.some(i => i.includes(sentence)), `the saved plan has: ${sentence}`);
+    const e = estimateDraftBytes(plan(sentence));
+    assert.deepEqual([e.stated, e.objects], [0, 0], sentence);
+  }
+  // A count still reads as one when the words state it.
+  for (const [sentence, stated, objects] of [['A run lasts up to 40 steps.', 40, 0], ['It leaves a trail of up to 40 points, one for each step.', 40, 0], ['A 150-step run.', 150, 0], ['A grid of 300 particles drifts.', 0, 300]]) {
+    const e = estimateDraftBytes(plan(sentence));
+    assert.deepEqual([e.stated, e.objects], [stated, objects], sentence);
+  }
+});
 test('calibration on the saved SGD jobs: the 40-step plan is read as 40 steps and not flagged; the 300-step plan with a kept path is; the drafts written from the shortened plans', () => {
   const [ad, ba] = ['aj_ad936ec', 'aj_ba11d5a'].map(id => SGD.find(x => x.job.startsWith(id)));
   const forty = estimateDraftBytes(ad.original);
@@ -372,6 +386,28 @@ test('calibration on the saved SGD jobs: the 40-step plan is read as 40 steps an
   // (aj_ad936ec drew 20 for a cap of 37 with a kept path), and under-counts a larger program (aj_ba11d5a's 15,097 B draft was refused by the
   // real review-size check while its plan was estimated under the limit: a false negative, caught by fitProblems before any review).
   const over = (estimateDraftBytes(ad.changed).bytes - Math.max(...ad.drafts)) / Math.max(...ad.drafts), under = (estimateDraftBytes(ba.changed).bytes - Math.max(...ba.drafts)) / Math.max(...ba.drafts);
-  assert.ok(over > 0.5 && under < 0, `${over} ${under}`);
+  assert.ok(over > 0.3 && under < 0, `${over} ${under}`);
   assert.equal(sizeOf(ba.changed).over, false);
+});
+// The same rules on other subjects (owner 2026-11-02: general to the pipeline, SGD only the regression case). No string here is special-cased.
+test('other subjects: values beside a per-step phrase and decimals are no counts; frames are a step unit; a shortened trail is restated in its own unit', () => {
+  const plan = (description, interactions = []) => ({ ...PLAN, behavior: 'rules', description, interactions });
+  for (const [sentence, stated, objects] of [['At 0.5 the pendulum swings wide.', 0, 0], ['With 100 every frame the cells divide.', 0, 0], ['A box holds 40 particles.', 0, 40], ['It leaves a trail over 600 frames.', 600, 0], ['A 90-tick run leaves a trail.', 90, 0]]) {
+    const e = estimateDraftBytes(plan(`A bob moves and leaves a dotted trail. ${sentence}`));
+    assert.deepEqual([e.stated, e.objects], [stated, objects], sentence);
+  }
+  const swing = plan('A pendulum bob swings and leaves a dotted trail of 600 points, one for each frame. The swing runs for 600 frames.',
+    ['Watch the bob add one trail point per frame.', 'Keep the old trail and swing again: the previous trail stays faded.']);
+  const alternatives = planAlternatives(swing, 'Show a pendulum swinging.', () => 9000);
+  assert.deepEqual(alternatives.map(a => a.id), ['fewer_markers', 'no_kept_path']);
+  for (const a of alternatives) {
+    const [shown, every] = a.plan.limitations[0].match(/draws (\d+) markers, one every (\d+) frames/).slice(1).map(Number);
+    assert.deepEqual(trailConflicts(a.plan, 600, every, shown, 'frame'), []);
+    assert.match(a.plan.description, new RegExp(`trail of ${shown} points, one every ${every} frames\. The swing runs for 600 frames\.`), 'the count and density change; the run does not');
+    assert.ok(a.plan.interactions.some(i => i === `Watch the bob add one marker every ${every} frames.`));
+    assert.equal(a.plan.assumptions.at(-1), `The trail draws one marker every ${every} frames, at most ${shown} markers; every frame still runs.`);
+  }
+  // A sentence the rules cannot restate keeps the alternative from being offered at all.
+  const stubborn = plan('A bob leaves a dotted trail of 600 points. Every frame without exception gets its own dot on the trail.');
+  assert.deepEqual(planAlternatives(stubborn, 'Show a pendulum swinging.', () => 9000), []);
 });
