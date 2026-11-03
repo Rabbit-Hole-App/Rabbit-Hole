@@ -40,14 +40,34 @@ const PLACEMENT = Object.freeze({ above: [0.5, -0.2], below: [0.5, 1.2], left: [
 // bounds ({ x, y, w, h }, the viewport less its inset; none: unbounded): a plate must also lie inside it, never clipped. One that
 // would not is tried flipped to the other side of its point (the placement mirrored), then clamped in; an essential plate with no
 // clear spot is still placed (clamped, overlapping) rather than dropped (the scene shows live values and captions always).
+// obstacles ([{ x1, y1, x2, y2, half }]: arrow shafts, base to tip, in the same pixels, thickened by `half`): a plate must also keep `gap`
+// clear of every one, the whole shaft and its head, not only the ends (review of the SGD cards: the status label sat on the arrows and hid the
+// downhill one). A plate that meets one is moved to the free spot nearest its own point (its own spot, flipped, or pushed along a shaft-free
+// direction), never over its own point (a centered plate excepted); an essential plate with no such spot falls back to the spot the plates alone
+// allow (it overlaps an arrow rather than being dropped), an optional one is left out. No obstacles: exactly the behavior above.
 // Deterministic, O(n^2) for <= 24 labels. -> [{ dx, dy } | null] per plate, in order.
 export const DECLUTTER = Object.freeze({ gap: 4, steps: 4 });
 const LEADER_PIXELS = 6; // a moved plate this close to its point needs no leader
 const DIRECTIONS = Object.freeze({ above: [0, -1], below: [0, 1], left: [-1, 0], right: [1, 0], center: [0, -1] });
-export function declutterLabels(plates, { gap = DECLUTTER.gap, steps = DECLUTTER.steps, bounds = null } = {}) {
+export function declutterLabels(plates, { gap = DECLUTTER.gap, steps = DECLUTTER.steps, bounds = null, obstacles = [] } = {}) {
   const placed = [];
+  let avoid = obstacles.length > 0; // false: the arrows are ignored (the fallback of an essential plate)
   const at = (plate, dx, dy) => ({ x: plate.x + dx, y: plate.y + dy, w: plate.w, h: plate.h });
-  const blocker = r => placed.find(p => r.x < p.x + p.w + gap && p.x < r.x + r.w + gap && r.y < p.y + p.h + gap && p.y < r.y + r.h + gap);
+  // Does the segment s, thickened by s.half + gap, meet the rect r? Liang-Barsky: clip s against r grown by that margin.
+  const meets = (r, s) => {
+    const m = s.half + gap, dx = s.x2 - s.x1, dy = s.y2 - s.y1;
+    let t0 = 0, t1 = 1;
+    for (const [d, q] of [[-dx, s.x1 - r.x + m], [dx, r.x + r.w + m - s.x1], [-dy, s.y1 - r.y + m], [dy, r.y + r.h + m - s.y1]]) {
+      if (d === 0) { if (q < 0) return false; continue; }
+      const t = q / d;
+      if (d < 0) t0 = Math.max(t0, t); else t1 = Math.min(t1, t);
+      if (t0 > t1) return false;
+    }
+    return true;
+  };
+  const blocker = r => placed.find(p => r.x < p.x + p.w + gap && p.x < r.x + r.w + gap && r.y < p.y + p.h + gap && p.y < r.y + r.h + gap) ?? (avoid ? obstacles.find(s => meets(r, s)) : undefined);
+  // The push that takes r clear of the arrow s along (ux, uy): the first whole pixel (it cannot take longer than s and r are big).
+  const leave = (r, ux, uy, s) => { let t = 1; for (const end = Math.hypot(s.x2 - s.x1, s.y2 - s.y1) + r.w + r.h + 2 * (s.half + gap); t < end && meets(at(r, ux * t, uy * t), s); t += 1); return t; };
   const inside = r => !bounds || (r.x >= bounds.x && r.y >= bounds.y && r.x + r.w <= bounds.x + bounds.w && r.y + r.h <= bounds.y + bounds.h);
   const clearAlong = (plate, [ux, uy]) => {
     let t = 0;
@@ -55,7 +75,7 @@ export function declutterLabels(plates, { gap = DECLUTTER.gap, steps = DECLUTTER
       const r = at(plate, ux * t, uy * t), p = blocker(r);
       if (!inside(r)) return null;
       if (!p) return t;
-      t += ux > 0 ? p.x + p.w + gap - r.x : ux < 0 ? r.x + r.w + gap - p.x : uy > 0 ? p.y + p.h + gap - r.y : r.y + r.h + gap - p.y;
+      t += p.half !== undefined ? leave(r, ux, uy, p) : ux > 0 ? p.x + p.w + gap - r.x : ux < 0 ? r.x + r.w + gap - p.x : uy > 0 ? p.y + p.h + gap - r.y : r.y + r.h + gap - p.y;
     }
     const last = at(plate, ux * t, uy * t);
     return inside(last) && !blocker(last) ? t : null;
@@ -72,12 +92,22 @@ export function declutterLabels(plates, { gap = DECLUTTER.gap, steps = DECLUTTER
     const [px, py] = DIRECTIONS[plate.placement] ?? DIRECTIONS.above;
     const done = (dx, dy) => { const offset = { dx: dx + 0, dy: dy + 0 }; placed.push(at(plate, offset.dx, offset.dy)); return offset; }; // + 0: no -0
     const spots = starts(plate);
-    for (const [bx, by] of spots) {
-      const base = at(plate, bx, by);
-      for (const [ux, uy] of [[px, py], [py, px], [-py, -px], [-px, -py]]) {
-        const t = clearAlong(base, [ux, uy]);
-        if (t !== null) return done(bx + ux * t, by + uy * t);
+    // With arrows to avoid: of every free spot the one nearest the plate's own point (the point from its placement), not the first.
+    const [cx, cy] = PLACEMENT[plate.placement] ?? PLACEMENT.above, ax = plate.x + cx * plate.w, ay = plate.y + (1 - cy) * plate.h;
+    const away = (dx, dy) => { const r = at(plate, dx, dy); return Math.hypot(Math.max(r.x - ax, 0, ax - r.x - r.w), Math.max(r.y - ay, 0, ay - r.y - r.h)); };
+    for (avoid = obstacles.length > 0; ; avoid = false) {
+      let best = null;
+      for (const [bx, by] of spots) {
+        const base = at(plate, bx, by);
+        for (const [ux, uy] of [[px, py], [py, px], [-py, -px], [-px, -py]]) {
+          const t = clearAlong(base, [ux, uy]), dx = bx + ux * t, dy = by + uy * t;
+          if (t === null || (avoid && plate.placement !== 'center' && away(dx, dy) <= 0)) continue; // never over its own point
+          if (!avoid || !(dx || dy)) return done(dx, dy);
+          if (!best || away(dx, dy) < away(...best)) best = [dx, dy];
+        }
       }
+      if (best) return done(...best);
+      if (!avoid || !plate.essential) break; // an optional plate with no arrow-free spot is left out; an essential one tries again, ignoring the arrows
     }
     // ponytail: an essential plate wider or taller than the bounds is left-/top-aligned and clipped; layoutLabels reflows long text first.
     return plate.essential && bounds ? done(...spots.at(-1)) : null;
@@ -303,13 +333,24 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
           const sx = (point.x + 1) / 2 * w0, sy = (1 - point.y) / 2 * h0;
           candidates.push({ id, drawable, x: sx - cx * w, y: sy - (1 - cy) * h, w, h, sx, sy, z: point.z, placement: tag.placement, size: tag.size, essential: tag.essential });
         }
+        // Arrow shafts, base to tip on screen (userData.arrow is the arrow's length), thickened by the head's half width: plates keep off them.
+        const obstacles = [], head = new THREE.Vector3(), tail = new THREE.Vector3();
+        root.traverseVisible(arrow => {
+          if (arrow.userData.arrow === undefined) return;
+          arrow.getWorldPosition(tail);
+          const depth = -world.copy(tail).applyMatrix4(camera.matrixWorldInverse).z, radius = arrow.children[1].geometry.parameters.radius * arrow.getWorldScale(world).x;
+          arrow.localToWorld(head.set(0, arrow.userData.arrow, 0));
+          tail.project(camera); head.project(camera);
+          if (depth <= 0 || Math.abs(tail.z) > 1 || Math.abs(head.z) > 1) return;
+          obstacles.push({ x1: (tail.x + 1) / 2 * w0, y1: (1 - tail.y) / 2 * h0, x2: (head.x + 1) / 2 * w0, y2: (1 - head.y) / 2 * h0, half: radius * f * h0 / (2 * depth) });
+        });
         candidates.sort((a, b) => b.essential - a.essential || b.size - a.size); // stable: equal hints keep scene order
         let room = LABEL_PIXELS.room * across * across;
         const plates = [], boxes = [];
         for (const plate of candidates) { room -= plate.w * plate.h; if (room < 0 && !plate.essential) break; plates.push(plate); } // an essential one never falls to the budget
         const left = new Set(candidates.filter(plate => !plates.includes(plate)));
         left.forEach(({ id, drawable, x, y, w, h, essential }) => boxes.push({ id, text: drawable.userData.label.text, essential, shown: false, x, y, w, h }));
-        declutterLabels(plates, { bounds }).forEach((offset, index) => {
+        declutterLabels(plates, { bounds, obstacles }).forEach((offset, index) => {
           const { id, drawable, x, y, w, h, sx, sy, z, essential } = plates[index], { leader } = drawable.userData.label;
           if (!offset) { boxes.push({ id, text: drawable.userData.label.text, essential, shown: false, x, y, w, h }); return; }
           const at = Math.round((x + offset.dx) * ratio) / ratio, top = Math.round((y + offset.dy) * ratio) / ratio;
