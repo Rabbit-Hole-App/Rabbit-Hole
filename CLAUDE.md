@@ -315,10 +315,15 @@ rule in this file unchanged unless the owner says otherwise; an agent never deci
   rollback. A failed required check stops the work.
 - It is only ever explicit, through `--mvp`: `node scripts/mvp-fast-path.mjs preview --mvp ...` runs those checks, then
   deploys the feature's isolated clone and records the exact commit, tree, build and the checks actually run;
-  `prod-release.mjs prepare --mvp` (which `deploy-prod.yml` selects only when that record is on the commit) takes the
-  record in place of the green dev deploy, the gate note and the `verify` and `fast-e2e` runs. The release prints
+  `prod-release.mjs prepare --mvp` (which `deploy-prod.yml` selects only when that record is on the commit and the owner's
+  variable below allows it) takes the record in place of the green dev deploy, the gate note and the `verify` and `fast-e2e` runs. The release prints
   `MVP MODE: broad CI and release gate BYPASSED by owner policy` and its receipt carries it. Commands, record format and
   limits: `docs/features/mvp-fast-path.md`.
+- **The owner allows each MVP release.** Before the push to `main` the owner runs
+  `gh variable set MVP_ALLOWED_SHA --body <sha> -R Rabbit-Hole-App/Rabbit-Hole` for that exact commit, and afterwards
+  `gh variable delete MVP_ALLOWED_SHA -R Rabbit-Hole-App/Rabbit-Hole`. A record without a matching variable is ignored:
+  `deploy-prod.yml` says so in its log and the ordinary rules apply, and `prepare --mvp` refuses. Agents never set the
+  variable. The owner's launcher is `C:\s\spec\release-queue\release-mvp.cmd <name> [--check]`.
 - Real acceptance happens on the isolated preview while broad CI runs. Report an MVP release as "broad CI bypassed (MVP
   policy, 2026-11-03)" with any CI results as information, never as passed. Agents stop enforcing the waits this policy
   supersedes (OPS-04 and the gate note) for MVP-labelled candidates, and never apply `--mvp` to unlabelled work.

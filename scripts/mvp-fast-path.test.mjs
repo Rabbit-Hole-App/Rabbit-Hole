@@ -4,9 +4,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ACCOUNT } from './prod-release.mjs';
-import { MVP_BANNER, REQUIRED, SUITES, affectedTests, makeRecord, mvpSummary, mvpVerdict, previewArgs, recordDigest, runPreview } from './mvp-fast-path.mjs';
+import { MVP_BANNER, REQUIRED, SUITES, affectedTests, makeRecord, mvpSummary, mvpVerdict, previewArgs, recordDigest, runPreview, verifyArgs } from './mvp-fast-path.mjs';
 
 const SHA = '42f5a4f065d4a1df1b47e2f150893b83d7befe3b', OTHER = 'b0ee85f3' + '0'.repeat(32), TREE = 'e'.repeat(40);
 const treeOf = s => (s === SHA ? TREE : null);
@@ -176,4 +179,30 @@ test('the launcher without --mvp refuses before touching git, the network or a b
   const r = (() => { try { execFileSync(process.execPath, [script, 'preview', '--sha', SHA, '--smoke', 'true'], { env: {}, encoding: 'utf8', stdio: 'pipe' }); return { status: 0 }; } catch (e) { return e; } })();
   assert.equal(r.status, 1);
   assert.match(r.stderr, /--mvp is required/);
+});
+
+// ---- verify: the read-only check the owner's release launcher uses ----
+test('verify: the arguments, and exit 0 only for a record production would accept (run against this checkout\'s own HEAD)', () => {
+  assert.deepEqual(verifyArgs(['--sha', SHA, '--json', '--record', 'x.jsonl']), { sha: SHA, json: true, record: 'x.jsonl' });
+  assert.throws(() => verifyArgs(['--json']), /full 40-character/);
+  assert.throws(() => verifyArgs(['--sha', SHA, '--nope']), /unknown argument/);
+  const git = (...a) => execFileSync('git', a, { encoding: 'utf8', cwd: fileURLToPath(new URL('..', import.meta.url)) }).trim();
+  const head = git('rev-parse', 'HEAD'), tree = git('rev-parse', 'HEAD^{tree}');
+  const dir = mkdtempSync(join(tmpdir(), 'mvp-verify-'));
+  const script = fileURLToPath(new URL('./mvp-fast-path.mjs', import.meta.url));
+  const verify = (record, ...more) => {
+    const file = join(dir, 'record.jsonl'); writeFileSync(file, record);
+    try { return { status: 0, stdout: execFileSync(process.execPath, [script, 'verify', '--sha', head, '--record', file, ...more], { encoding: 'utf8', stdio: 'pipe' }) }; } catch (e) { return e; }
+  };
+  const good = makeRecord(parts({ sha: head, tree }));
+  const ok = verify(line(good));
+  assert.equal(ok.status, 0);
+  assert.match(ok.stdout, /^✓ MVP record [0-9a-f]{16} for [0-9a-f]{8}: build pass, affected-tests pass, smoke pass, preview pass; rabbit-hole-web-dev-mvp-fast-path; broad CI and the release gate bypassed/);
+  assert.equal(JSON.parse(verify(line(good), '--json').stdout).digest, good.digest, '--json prints the record line');
+  const failed = verify(line(makeRecord(parts({ sha: head, tree, checks: REQUIRED.map(n => (n === 'smoke' ? { ...pass(n), exit: 1, result: 'fail' } : pass(n))) }))));
+  assert.equal(failed.status, 1);
+  assert.match(failed.stderr, /required check smoke did not pass \(exit 1\)/);
+  assert.equal(verify(line(makeRecord(parts({ sha: head, tree: 'f'.repeat(40) })))).status, 1, 'another tree');
+  assert.equal(verify(line({ ...good, build: 'c2c2c2c2c2c2' })).status, 1, 'edited');
+  assert.equal(verify('').status, 1, 'no record');
 });

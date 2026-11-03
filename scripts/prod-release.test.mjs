@@ -2,10 +2,12 @@
 //   node --test scripts/prod-release.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { HOLD, NEVER_ON_PRODUCTION, checkPrepare, checkRelease, greenDevDeploy, schemaBlockers, servedRelease, checkCandidate, smoke, smokeOnce, SMOKE_ORIGIN, parseArgs, hashDirs, BUILD_ENV, DEV_ONLY_ENV } from './prod-release.mjs';
+import { HOLD, NEVER_ON_PRODUCTION, allowedMvpSha, checkPrepare, checkRelease, greenDevDeploy, schemaBlockers, servedRelease, checkCandidate, smoke, smokeOnce, SMOKE_ORIGIN, parseArgs, hashDirs, BUILD_ENV, DEV_ONLY_ENV } from './prod-release.mjs';
 import { expectedSchema, SOURCES } from './schema-check.mjs';
 import { greenDev } from './dev-deploy-gate.mjs';
 import { REQUIRED, makeRecord, mvpSummary } from './mvp-fast-path.mjs';
@@ -332,7 +334,7 @@ const mvpParts = (over = {}) => ({ sha: SHA, tree: treeOf(SHA), base: 'a'.repeat
   checks: REQUIRED.map(name => ({ name, cmd: name, exit: 0, result: 'pass' })), version: 'c9c9cf3d', run: 'local', at: '2026-11-03T10:00:00.000Z', ...over });
 const MVP = makeRecord(mvpParts());
 const mvpLine = r => `${JSON.stringify(r)}\n`;
-const mvpOk = { ...ok, devRecord: mvpLine(MVP), runs: null, mvp: true }; // no gate, no dev deploy, no CI runs: only the MVP record
+const mvpOk = { ...ok, devRecord: mvpLine(MVP), runs: null, mvp: true, mvpAllowedSha: SHA }; // no gate, no dev deploy, no CI runs: the MVP record and the owner's allowance
 
 test('MVP is off by default: ordinary prepare keeps its rules and refusal text, and an MVP record never stands in for them', () => {
   const noGreen = `refused: no green dev deployment with provenance (tree, build, bundle, gate digest, run, version) is recorded for ${SHA}`;
@@ -390,6 +392,24 @@ test('MVP prepare still rejects a failed required check, another commit, a missi
   assert.match(refused(makeRecord(mvpParts({ targets: { ...MVP.targets, worker: 'rabbit-hole-app' } }))), /not a rabbit-hole-web-dev-\* clone/, 'environment targeting');
 });
 
+test('MVP prepare needs the owner\'s allowance for this exact commit; without it nothing else is looked at', () => {
+  const refusal = `refused: --mvp needs the owner's allowance for this exact commit: MVP_ALLOWED_SHA must equal ${SHA} (the repository variable in the workflow; by hand pass --mvp-allowed-sha ${SHA})`;
+  for (const mvpAllowedSha of [undefined, '', OTHER, SHA.slice(0, 12), SHA.toUpperCase()]) assert.equal(checkPrepare({ ...mvpOk, mvpAllowedSha }), refusal, String(mvpAllowedSha));
+  assert.equal(checkPrepare({ ...mvpOk, mvpAllowedSha: SHA }), null);
+  assert.equal(checkPrepare({ ...mvpOk, mvpAllowedSha: undefined, devRecord: '' }), refusal, 'the allowance is asked for before the record');
+  assert.match(checkPrepare({ ...mvpOk, mvpAllowedSha: undefined, onMain: false }), /not on origin\/main/, 'the identity checks come first');
+  // An allowance changes nothing for ordinary prepare: the same inputs are judged on the ordinary rules.
+  assert.equal(checkPrepare({ ...ok, mvpAllowedSha: SHA }), null);
+  assert.match(checkPrepare({ ...ok, mvpAllowedSha: SHA, devRecord: mvpLine(MVP) }), /no green dev deployment/);
+  // In the workflow only the repository variable counts; by hand the explicit argument does too.
+  assert.equal(allowedMvpSha({}, { GITHUB_ACTIONS: 'true', MVP_ALLOWED_SHA: SHA }), SHA);
+  assert.equal(allowedMvpSha({ 'mvp-allowed-sha': SHA }, { GITHUB_ACTIONS: 'true' }), undefined, 'in the workflow an argument is not an allowance');
+  assert.equal(allowedMvpSha({ 'mvp-allowed-sha': SHA }, {}), SHA);
+  assert.equal(allowedMvpSha({}, { MVP_ALLOWED_SHA: SHA }), SHA);
+  assert.equal(allowedMvpSha({}, {}), undefined);
+  assert.equal(parseArgs(['prepare', '--mvp', '--mvp-allowed-sha', SHA, '--sha', SHA])['mvp-allowed-sha'], SHA);
+});
+
 test('MVP prepare keeps the identity checks: full sha, on main, HEAD at the sha, a clean tree', () => {
   assert.match(checkPrepare({ ...mvpOk, sha: '42f5a4f0' }), /full 40-character/);
   assert.match(checkPrepare({ ...mvpOk, onMain: false }), /not on origin\/main/);
@@ -436,11 +456,41 @@ test('MVP release prints the banner and its receipt carries it; the secret and s
 test('the production workflow selects MVP mode only from an explicit MVP record, and then skips only the CI runs step', () => {
   const wf = readFileSync(new URL('../.github/workflows/deploy-prod.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const steps = wf.split('\n      - ').slice(1), step = name => steps.find(s => s.startsWith(`name: ${name}`));
-  assert.match(step('MVP preview record'), /id: mvp\n[\s\S]*grep -q '"mvp":true' "\$RUNNER_TEMP\/dev-deploys\.jsonl"[\s\S]*echo "flag=--mvp" >> "\$GITHUB_OUTPUT"[\s\S]*MVP MODE: broad CI and release gate BYPASSED by owner policy/);
+  assert.match(step('MVP preview record'), /id: mvp\n        env:\n          MVP_ALLOWED_SHA: \$\{\{ vars\.MVP_ALLOWED_SHA \}\}\n[\s\S]*grep -q '"mvp":true' "\$RUNNER_TEMP\/dev-deploys\.jsonl"[\s\S]*\[ "\$MVP_ALLOWED_SHA" = "\$GITHUB_SHA" \][\s\S]*echo "flag=--mvp" >> "\$GITHUB_OUTPUT"[\s\S]*MVP MODE: broad CI and release gate BYPASSED by owner policy/);
+  assert.match(step('Prepare'), /MVP_ALLOWED_SHA: \$\{\{ vars\.MVP_ALLOWED_SHA \}\}/, 'prepare is told the allowance too and checks it again');
   assert.match(step('Fast-e2e and verify runs'), /^name: Fast-e2e and verify runs of this commit\n        if: steps\.mvp\.outputs\.flag != '--mvp'\n/);
   assert.match(step('Prepare'), /prepare --sha "\$GITHUB_SHA" --dev-record "\$RUNNER_TEMP\/dev-deploys\.jsonl" --runs "\$RUNNER_TEMP\/ci-runs\.json" \$MVP_FLAG\n/);
   assert.match(step('Prepare'), /MVP_FLAG: \$\{\{ steps\.mvp\.outputs\.flag \}\}/);
   assert.doesNotMatch(step('Release'), /mvp/i, 'release reads the prepared build, which carries the MVP record');
   assert.deepEqual(steps.filter(s => /\n        if: steps\.mvp/.test(s)).map(s => s.split('\n')[0]), ['name: Fast-e2e and verify runs of this commit'], 'no other step is conditional on MVP mode');
   assert.match(wf, /notes --ref=dev-deploys show "\$GITHUB_SHA"[^\n]*\n[^\n]*\|\| \{[^}]*exit 1; \}/, 'a commit with no dev-deploys note is still never released');
+});
+
+// The workflow's own MVP step, run for real with bash: the note alone never enters MVP mode, the owner's variable must name the commit.
+test('MVP mode needs the note AND vars.MVP_ALLOWED_SHA equal to the commit; a note without the variable is ignored loudly and the ordinary rules apply', t => {
+  if (spawnSync('bash', ['-c', 'true']).error) return t.skip('bash is not on PATH');
+  const wf = readFileSync(new URL('../.github/workflows/deploy-prod.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const stepText = wf.split('\n      - ').slice(1).find(s => s.startsWith('name: MVP preview record'));
+  const script = stepText.split('        run: |\n')[1].split('\n').map(l => l.replace(/^ {10}/, '')).join('\n');
+  const run = (note, allowed) => {
+    const dir = mkdtempSync(join(tmpdir(), 'mvp-wf-')).replaceAll('\\', '/'), out = `${dir}/output`;
+    writeFileSync(`${dir}/dev-deploys.jsonl`, note); writeFileSync(out, '');
+    const r = spawnSync('bash', ['-e', '-c', script], { encoding: 'utf8', env: { PATH: process.env.PATH, RUNNER_TEMP: dir, GITHUB_SHA: SHA, GITHUB_OUTPUT: out, ...(allowed !== undefined && { MVP_ALLOWED_SHA: allowed }) } });
+    return { status: r.status, flag: readFileSync(out, 'utf8'), log: r.stdout };
+  };
+  const banner = 'MVP MODE: broad CI and release gate BYPASSED by owner policy';
+  const entered = run(mvpLine(MVP), SHA);
+  assert.deepEqual([entered.status, entered.flag], [0, 'flag=--mvp\n']);
+  assert.match(entered.log, new RegExp(banner));
+  for (const [why, allowed, shown] of [['variable missing', undefined, 'unset'], ['variable empty', '', 'unset'], ['variable names another commit', OTHER, OTHER], ['variable is a prefix', SHA.slice(0, 12), SHA.slice(0, 12)]]) {
+    const r = run(mvpLine(MVP), allowed);
+    assert.deepEqual([r.status, r.flag], [0, ''], `${why}: no MVP flag, the step still succeeds`);
+    assert.doesNotMatch(r.log, new RegExp(banner), why);
+    assert.match(r.log, new RegExp(`::warning title=MVP record ignored::vars\\.MVP_ALLOWED_SHA is '${shown}', not ${SHA}`), why);
+    assert.match(r.log, /MVP record IGNORED: .* The ordinary rules apply: verify, fast-e2e and the gate\./, why);
+  }
+  for (const allowed of [SHA, undefined]) { // an ordinary dev deploy: nothing to say, whatever the variable
+    const r = run(GREEN, allowed);
+    assert.deepEqual([r.status, r.flag, r.log], [0, '', ''], `an ordinary note with ${allowed ? 'the variable set' : 'no variable'}`);
+  }
 });

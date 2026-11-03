@@ -13,8 +13,8 @@ guidelines all live there. This file only adds where the history is.
 
 > **MVP fast path** (owner decision, 2026-11-03; canonical text: [CLAUDE.md](CLAUDE.md#mvp-fast-path)). For
 > MVP-labelled work, full CI and the broad release gate are optional and nonblocking, recorded as bypassed and never as
-> passed, through the explicit `--mvp` options. Build, affected tests, a focused smoke check, the schema and identity
-> preflights and rollback stay required. Non-MVP work is unchanged.
+> passed, through the explicit `--mvp` options and the owner's per-release `MVP_ALLOWED_SHA` variable. Build, affected
+> tests, a focused smoke check, the schema and identity preflights and rollback stay required. Non-MVP work is unchanged.
 
 ## Confirm understanding before implementation
 

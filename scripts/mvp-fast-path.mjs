@@ -1,6 +1,9 @@
 // The MVP fast path: the owner's standing policy of 2026-11-03 (CLAUDE.md#mvp-fast-path, docs/features/mvp-fast-path.md).
 //   node scripts/mvp-fast-path.mjs preview --mvp --sha <40-hex> --smoke "<command>" [--smoke "<command>" ...]
 //        [--worker rabbit-hole-web-dev-<name>] [--base <ref>] [--no-deploy]
+//   node scripts/mvp-fast-path.mjs verify --sha <40-hex> [--record <file>] [--json]
+// verify is read-only: it reads the newest MVP record of the sha (default: the common dir record file) and exits 0 only when
+// production would accept it; --json prints that record's line. The owner's release launcher uses it.
 // For MVP-labelled work only, and only when asked for: preview refuses to run without --mvp, and production takes the
 // record it writes only through `prod-release.mjs prepare --mvp`. It runs the build, the tests the change affects and the
 // focused smoke command(s) (each must exit 0), then deploys the isolated clone and checks that it serves the new build.
@@ -11,7 +14,7 @@
 // Needs CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID (rabbit-hole) and VITE_TLDRAW_LICENSE_KEY in the environment.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { appendFileSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, join, posix } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { entryScript } from './dev-deploy.mjs';
@@ -121,6 +124,18 @@ export function previewArgs(argv, dir = 'worktree') {
   return o;
 }
 
+export function verifyArgs(argv) {
+  const o = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--json') o.json = true;
+    else if (a === '--sha' || a === '--record') o[a.slice(2)] = argv[++i];
+    else throw new Error(`unknown argument ${a}`);
+  }
+  if (!SHA.test(o.sha || '')) throw new Error('--sha must be a full 40-character commit sha');
+  return o;
+}
+
 // ---- CLI ----
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const WEB = join(ROOT, 'packages/web');
@@ -143,6 +158,13 @@ async function serves(url, entry) { // the new version serves some seconds after
     await new Promise(res => setTimeout(res, 3000));
   }
   return false;
+}
+
+function verify(o) {
+  const file = o.record ?? join(git('rev-parse', '--path-format=absolute', '--git-common-dir'), 'rabbit-hole-dev-deploys.jsonl');
+  const v = mvpVerdict(existsSync(file) ? readFileSync(file, 'utf8') : '', o.sha, s => { try { return git('rev-parse', `${s}^{tree}`); } catch { return null; } });
+  if (v.error) throw new Error(`${o.sha.slice(0, 8)}: ${v.error}`);
+  say(o.json ? JSON.stringify(v.record) : `✓ MVP record ${v.record.digest} for ${o.sha.slice(0, 8)}: ${v.record.checks.map(c => `${c.name} ${c.result}`).join(', ')}; ${v.record.targets.worker}; broad CI and the release gate bypassed`);
 }
 
 async function preview(o) {
@@ -201,7 +223,9 @@ async function preview(o) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
-    if (process.argv[2] !== 'preview') throw new Error('usage: mvp-fast-path.mjs preview --mvp --sha <sha> --smoke "<command>" [--smoke ...] [--worker <clone>] [--base <ref>] [--no-deploy]');
-    await preview(previewArgs(process.argv.slice(3), basename(ROOT).toLowerCase().replace(/[^a-z0-9]+/g, '-')));
+    const [, , cmd, ...rest] = process.argv;
+    if (cmd === 'verify') verify(verifyArgs(rest));
+    else if (cmd === 'preview') await preview(previewArgs(rest, basename(ROOT).toLowerCase().replace(/[^a-z0-9]+/g, '-')));
+    else throw new Error('usage: mvp-fast-path.mjs preview --mvp --sha <sha> --smoke "<command>" [--smoke ...] [--worker <clone>] [--base <ref>] [--no-deploy] | verify --sha <sha> [--record <file>] [--json]');
   } catch (e) { console.error(`✗ ${e.message}`); process.exitCode = 1; }
 }

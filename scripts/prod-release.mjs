@@ -93,10 +93,12 @@ const dirty = changes => `refused: the tracked tree has changes${changes ? `:\n$
 
 // runs: verify-evidence.mjs runs output for this sha. OPS-04: a green dev deploy, gated or reused, is not enough on its own.
 // mvp (prepare --mvp, owner policy 2026-11-03): the MVP preview record stands in for the dev deployment, the gate and the runs.
-// Off by default. The commit, main, HEAD and clean-tree checks apply either way.
-export function checkPrepare({ sha, onMain, devRecord, runs, head, clean, changes, isAncestor, treeOf, uiOnly, mvp = false }) {
+// Off by default. The commit, main, HEAD and clean-tree checks apply either way, and the owner must have allowed this exact
+// commit (mvpAllowedSha: the repository variable MVP_ALLOWED_SHA in the workflow, set by the owner per release).
+export function checkPrepare({ sha, onMain, devRecord, runs, head, clean, changes, isAncestor, treeOf, uiOnly, mvp = false, mvpAllowedSha }) {
   if (!SHA.test(sha || '')) return 'refused: --sha must be a full 40-character commit sha';
   if (!onMain) return `refused: ${sha} is not on origin/main (git fetch origin main first)`;
+  if (mvp && mvpAllowedSha !== sha) return `refused: --mvp needs the owner's allowance for this exact commit: MVP_ALLOWED_SHA must equal ${sha} (the repository variable in the workflow; by hand pass --mvp-allowed-sha ${sha})`;
   const v = mvp && mvpVerdict(devRecord, sha, treeOf);
   if (v?.error) return `refused: ${sha} has no acceptable MVP preview record: ${v.error}`;
   if (!mvp && !greenDevDeploy(sha, devRecord, { isAncestor, treeOf, uiOnly })) return `refused: no green dev deployment with provenance (tree, build, bundle, gate digest, run, version) is recorded for ${sha}`;
@@ -223,6 +225,9 @@ const treeOf = s => { try { return git('rev-parse', `${s}^{tree}`); } catch { re
 const clientFeatures = s => { try { return [...git('show', `${s}:packages/web/src/animation3d/capabilities.js`).matchAll(/ANIMATION_CLIENT_FEATURES\s*=\s*Object\.freeze\(\[([^\]]*)\]/g)].flatMap(m => [...m[1].matchAll(/'([a-z_]+)'/g)].map(x => x[1])); } catch { return null; } };
 // An unreadable Worker graph (a non-literal dynamic import) is not UI-only.
 const uiOnly = (g, s) => { try { return notReusableBetween(g, s, ROOT).outside.length === 0; } catch { return false; } };
+// The owner's allowance for an MVP prepare. In the workflow only the repository variable counts (env MVP_ALLOWED_SHA); by hand
+// the explicit --mvp-allowed-sha <sha> does too.
+export const allowedMvpSha = (opts, env = process.env) => env.GITHUB_ACTIONS === 'true' ? env.MVP_ALLOWED_SHA : (opts['mvp-allowed-sha'] ?? env.MVP_ALLOWED_SHA);
 // Shared by every worktree of this clone, never tracked or pushed.
 const COMMON = () => resolve(ROOT, git('rev-parse', '--git-common-dir'));
 const devRecordPath = opts => opts['dev-record'] || join(COMMON(), 'rabbit-hole-dev-deploys.jsonl');
@@ -244,7 +249,7 @@ function prepare(opts) {
   const { sha } = opts;
   const record = existsSync(devRecordPath(opts)) ? readFileSync(devRecordPath(opts), 'utf8') : '';
   const runs = (() => { try { return JSON.parse(readFileSync(opts.runs, 'utf8')); } catch { return null; } })();
-  const err = checkPrepare({ sha, onMain: SHA.test(sha || '') && tryGit('merge-base', '--is-ancestor', sha, 'origin/main'), devRecord: record, runs, isAncestor, treeOf, uiOnly, mvp: opts.mvp === true, ...tree() });
+  const err = checkPrepare({ sha, onMain: SHA.test(sha || '') && tryGit('merge-base', '--is-ancestor', sha, 'origin/main'), devRecord: record, runs, isAncestor, treeOf, uiOnly, mvp: opts.mvp === true, mvpAllowedSha: allowedMvpSha(opts), ...tree() });
   if (err) return fail(err);
   const mvp = opts.mvp === true ? mvpSummary(mvpVerdict(record, sha, treeOf).record) : null;
   if (mvp) console.log(MVP_BANNER);
@@ -361,5 +366,5 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   try { opts = parseArgs(process.argv.slice(2)); } catch (e) { fail(e.message); }
   if (opts?.command === 'prepare') prepare(opts);
   else if (opts?.command === 'release') await release(opts);
-  else if (opts) fail('usage: prod-release.mjs prepare --sha <sha> --runs <file> [--mvp] | release --sha <sha> --build <hash> --approve "RELEASE <sha> <hash>" [--receipt <file>]');
+  else if (opts) fail('usage: prod-release.mjs prepare --sha <sha> --runs <file> [--mvp [--mvp-allowed-sha <sha>]] | release --sha <sha> --build <hash> --approve "RELEASE <sha> <hash>" [--receipt <file>]');
 }

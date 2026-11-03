@@ -3,8 +3,9 @@
 # the production preflight finds no missing or forbidden secret and no pending migration, and HOLD is lifted.
 # OPS-04 (owner 2026-10-21): and the newest fast-e2e and verify runs of the exact commit completed successfully, gate reused or not.
 # Exception, the MVP fast path (owner policy 2026-11-03, CLAUDE.md#mvp-fast-path): a commit with an explicit MVP preview record in
-# refs/notes/dev-deploys is prepared with --mvp, which takes that record instead of the dev deploy, the gate and those runs. The
-# secret and migration preflight, the identity checks, the production smoke and the rollback below still apply.
+# refs/notes/dev-deploys AND the owner's repository variable MVP_ALLOWED_SHA equal to the commit is prepared with --mvp, which takes
+# that record instead of the dev deploy, the gate and those runs. A note without the variable is ignored: the ordinary rules apply.
+# The secret and migration preflight, the identity checks, the production smoke and the rollback below still apply.
 # It never applies a migration. While HOLD is true the release step stops before any remote call.
 name: release production
 on:
@@ -39,10 +40,17 @@ jobs:
           if [ -n "$g" ]; then git notes --ref=dev-deploys show "$g" >> "$RUNNER_TEMP/dev-deploys.jsonl" 2>/dev/null || { echo "its base $g has no dev deploy record: not released"; exit 1; }; fi
       - name: MVP preview record of this commit
         id: mvp
+        env:
+          MVP_ALLOWED_SHA: ${{ vars.MVP_ALLOWED_SHA }}
         run: |
           if grep -q '"mvp":true' "$RUNNER_TEMP/dev-deploys.jsonl"; then
-            echo "flag=--mvp" >> "$GITHUB_OUTPUT"
-            echo "MVP MODE: broad CI and release gate BYPASSED by owner policy"
+            if [ "$MVP_ALLOWED_SHA" = "$GITHUB_SHA" ]; then
+              echo "flag=--mvp" >> "$GITHUB_OUTPUT"
+              echo "MVP MODE: broad CI and release gate BYPASSED by owner policy"
+            else
+              echo "::warning title=MVP record ignored::vars.MVP_ALLOWED_SHA is '${MVP_ALLOWED_SHA:-unset}', not $GITHUB_SHA"
+              echo "MVP record IGNORED: the owner has not allowed $GITHUB_SHA (vars.MVP_ALLOWED_SHA is '${MVP_ALLOWED_SHA:-unset}'). The ordinary rules apply: verify, fast-e2e and the gate."
+            fi
           fi
       # Before any install: the Actions API read (GET only), so no npm script ever holds the token. prepare decides on it.
       - name: Fast-e2e and verify runs of this commit
@@ -58,6 +66,7 @@ jobs:
         env:
           VITE_TLDRAW_LICENSE_KEY: ${{ secrets.VITE_TLDRAW_LICENSE_KEY }}
           MVP_FLAG: ${{ steps.mvp.outputs.flag }}
+          MVP_ALLOWED_SHA: ${{ vars.MVP_ALLOWED_SHA }}
         run: node scripts/prod-release.mjs prepare --sha "$GITHUB_SHA" --dev-record "$RUNNER_TEMP/dev-deploys.jsonl" --runs "$RUNNER_TEMP/ci-runs.json" $MVP_FLAG
       # Release rebuilds nothing: it re-hashes the prepared bundles, checks production, deploys, smokes and recovers.
       - name: Release

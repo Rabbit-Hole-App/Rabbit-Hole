@@ -41,12 +41,26 @@ The record (`mvp: true`): `sha`, `tree`, `base`, `build` (hash of `dist-dev`), `
 The released commit must be the previewed commit (fast-forward the feature branch to `main`; a merge or squash changes the SHA and the record no longer matches).
 
 - By hand: `node scripts/prod-release.mjs prepare --mvp --sha <sha>`, then `release` with the printed approval phrase, as in [prod-release.md](prod-release.md).
-- By push: `deploy-prod.yml` reads the commit's `refs/notes/dev-deploys` note. A line with `"mvp":true` selects `prepare --mvp` and skips the CI-runs step; the note is still required. Nothing else in the workflow is conditional.
+- By push: `deploy-prod.yml` reads the commit's `refs/notes/dev-deploys` note. MVP mode needs **both** a line with `"mvp":true` **and** the repository variable `MVP_ALLOWED_SHA` equal to the commit being released. Then it runs `prepare --mvp` and skips the CI-runs step. A note without the matching variable is ignored: the log says `MVP record IGNORED` (and a warning annotation), and the ordinary rules apply. The note is still required either way. Nothing else in the workflow is conditional.
+- The allowance is checked again inside `prepare --mvp`: in the workflow only the variable's value (env `MVP_ALLOWED_SHA`) counts; by hand pass the explicit `--mvp-allowed-sha <sha>` (or set the env), which must equal `--sha`. Without it `prepare --mvp` refuses before it looks at the record.
 - `prepare --mvp` refuses unless the newest MVP record of the SHA has every required check passing (exit 0), the commit's own tree, `bypassed` for broad CI and the gate, a `rabbit-hole-web-dev-*` target and an intact digest. It then prints `MVP MODE: broad CI and release gate BYPASSED by owner policy` and writes the record summary into `prepared.json`. `release` prints the same line and the receipt carries `mvp: { notice, digest, worker, checks, broad_ci, release_gate }`.
+
+## The owner's steps for an MVP release
+
+The owner allows the commit, releases it, and removes the allowance. Agents never set the variable.
+
+```
+gh variable set MVP_ALLOWED_SHA --body <sha> -R Rabbit-Hole-App/Rabbit-Hole
+C:\s\spec\release-queue\release-mvp.cmd <name> --check     (reads only; pushes nothing)
+C:\s\spec\release-queue\release-mvp.cmd <name>             (publishes the record note, pushes main, watches the release run)
+gh variable delete MVP_ALLOWED_SHA -R Rabbit-Hole-App/Rabbit-Hole
+```
+
+`release-mvp.sh` is owner tooling outside the repo (next to `release.sh`, which it does not replace). It has the same pins and guards: the worktree at the pinned SHA and clean, main equal to a pinned predecessor and an ancestor of the SHA (fast-forward only, never forced), dev an ancestor. It asks for no gate run and no verify or fast-e2e success. It requires that `node scripts/mvp-fast-path.mjs verify --sha <sha>` (read-only, the repository's own check) accepts the MVP record and that `gh variable get MVP_ALLOWED_SHA` equals the SHA. It then publishes the record as the `refs/notes/dev-deploys` note, pushes `main`, confirms the release log shows `MVP MODE` and stops loudly if the workflow ignored the record. It does not push `dev`: the MVP flow deploys the isolated clone, and a push to `dev` would only start `deploy-dev.yml`, which wants a gate note.
 
 ## Limits
 
-- The record is written by whoever runs the preview and travels as a git note. In MVP mode no unforgeable CI evidence (the Actions API runs) stands behind a release; the trust is in the person who pushed the note and the main commit.
+- The record is written by whoever runs the preview and travels as a git note, which anyone who can push can write. A note alone releases nothing: the repository variable, which only a repository admin can set, must also name the commit. In MVP mode no CI evidence (the Actions API runs) stands behind a release; the trust is in the owner who set the variable and the person who pushed the note and the main commit.
 - "Affected" is a path and import heuristic, one hop deep; it can miss a test that reaches the change through a re-export. The smoke command is only as good as the command given.
 - The clone shares the dev D1 and has no true secrets; a feature needing one shows its no-credential path there.
 - Tests: `scripts/mvp-fast-path.test.mjs` and the MVP block of `scripts/prod-release.test.mjs`. The launcher's deploy step and the workflow change cannot run offline.
