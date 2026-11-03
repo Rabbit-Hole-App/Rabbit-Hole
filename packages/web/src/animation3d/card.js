@@ -33,6 +33,7 @@ export function cardModel(artifact, capabilities = ANIMATION_CAPABILITIES) {
     description: artifact.description,
     experience: artifact.experience,
     loop: timeline ? { duration: timeline.duration, repeat: !!timeline.loop, seekable, speeds: seekable ? [...capabilities.speeds] : [] } : null,
+    stepped: !!artifact.stepped, // the host's step clock moves it (runtime.js play/pause): Play and Pause, never a rewind
     goal: artifact.experience === 'game' && artifact.game ? { objective: artifact.game.objective, hint: artifact.game.hint ?? '' } : null,
     parameters: artifact.parameters,
     actions,
@@ -51,7 +52,7 @@ export const defaultInputs = artifact => resolveAnimationInputs(artifact, {});
 export function visibleControls(model, { webgl = true, readOnly = false } = {}) {
   const game = model.experience === 'game' && !!model.goal;
   return {
-    transport: !!model.loop,
+    transport: !!model.loop || !!model.stepped,
     speed: !!model.loop && model.loop.speeds.length > 1,
     resetView: webgl,
     parameters: model.parameters.length > 0,

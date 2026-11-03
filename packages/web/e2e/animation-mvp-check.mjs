@@ -23,6 +23,7 @@ import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { openSlashHelp } from './canvas-menu-helpers.mjs';
 import { experimentFixture } from '../src/animation3d/fixtures.js';
+import { steppedGameArtifact } from '../src/animation3d/testdata/stepped-game.mjs';
 import { hashProgramSource } from '../src/animation3d/contract.js';
 import { FIXTURES, expectedReadouts, expectedNodes, expectedGame, close, within, WATCH_ALLOWANCE as WATCH } from './animation-oracle.mjs';
 
@@ -31,7 +32,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('animation-mvp-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'animation-mvp-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 36; // bump with the steps below; the printed line is what CI reads
+const TOTAL = 37; // bump with the steps below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `anim-${run}@example.com`, secret, handle: `anim_${run}` }) })).json();
@@ -84,6 +85,21 @@ const open = async ({ theme = 'light', canvas = main, first = 'a-watch', webgl =
     try { localStorage.setItem('small.theme', mode); for (const [key, value] of seeds) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); } catch { /* the defaults then */ }
   }, [SEEDS, theme]);
   // A browser with no WebGL: every WebGL context request fails, as on a blocklisted GPU.
+  // Interact diagnostics (bounded, the last 40 events): each card's live and active state, its Interact button's disabled state, its
+  // selection, every press on an Interact button and every focus move, so an Interact that did not start names what happened.
+  await context.addInitScript(() => {
+    const log = window.__interactTrace = [], t0 = performance.now();
+    const push = text => { log.push(`${Math.round(performance.now() - t0)}ms ${text}`); if (log.length > 40) log.shift(); };
+    const who = node => node?.closest?.('[data-block-id]')?.dataset.blockId ?? '-';
+    const name = node => (node?.tagName ? `${node.tagName.toLowerCase()}${[...node.attributes].filter(a => a.name.startsWith('data-')).slice(0, 2).map(a => `[${a.name}]`).join('')}` : String(node));
+    const watch = () => new MutationObserver(records => { for (const { target: n, attributeName: a } of records) {
+      if ((a === 'disabled' && !n.matches('[data-animation-interact]')) || (a === 'aria-current' && !n.matches('[data-block]'))) continue;
+      if (a === 'disabled' || a === 'aria-current' || n.matches('[data-animation-viewport]')) push(`${who(n)} ${a}=${n.getAttribute(a) ?? 'off'}`);
+    } }).observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['data-viewer-live', 'data-viewer-active', 'disabled', 'aria-current'] });
+    if (document.documentElement) watch(); else document.addEventListener('DOMContentLoaded', watch);
+    document.addEventListener('pointerdown', event => { const b = event.target?.closest?.('[data-animation-interact]'); if (b) push(`${who(b)} press Interact disabled=${b.disabled}`); }, true);
+    document.addEventListener('focusin', event => push(`focus ${name(event.target)} in ${who(event.target)}`), true);
+  });
   if (!webgl) await context.addInitScript(() => { const get = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (kind, ...rest) { return /webgl/i.test(kind) ? null : get.call(this, kind, ...rest); }; });
   await context.route('**/*', route => {
     const request = route.request(), url = new URL(request.url());
@@ -122,10 +138,23 @@ const playing = async p => (await p.play.getAttribute('aria-pressed')) === 'true
 // The last applied frame (needed from lane U): { nodes, readouts, goal? }, current whenever the scene is paused or settled.
 const frame = async p => JSON.parse(await p.viewport.getAttribute('data-animation-frame'));
 const active = p => p.viewport.evaluate(node => node.hasAttribute('data-viewer-active'));
+// Press Interact and wait for the scene to interact; on failure, the card's state now and the trace from open()'s init script.
+const startInteract = async p => {
+  await p.interact.click();
+  await until(() => active(p), 'Interact did not start').catch(async error => {
+    const state = await p.card.evaluate(card => { const v = card.querySelector('[data-animation-viewport]'), b = card.querySelector('[data-animation-interact]'), a = document.activeElement;
+      return `disabled=${b?.disabled} pressed=${b?.getAttribute('aria-pressed')} live=${!!v?.hasAttribute('data-viewer-live')} active=${!!v?.hasAttribute('data-viewer-active')} click=${!!card.querySelector('[data-animation-click-surface]')} selected=${card.closest('[data-block]')?.getAttribute('aria-current') === 'true'} focus=${a?.tagName}${a?.closest?.('[data-block-id]') ? ` in ${a.closest('[data-block-id]').dataset.blockId}` : ''}`; }).catch(e => `unreadable: ${e.message}`);
+    const trace = await p.root.page().evaluate(() => (window.__interactTrace || []).join(' | ')).catch(() => 'none');
+    throw Error(`${error.message}; card: ${state}; trace: ${trace}; runtime notes: ${runtimeNotes()}`);
+  });
+};
 // Live: the scene drew. A card beyond the visible-viewer budget waits for a click on its scene ("Click to show the 3D view").
 const live = async p => {
   const isLive = () => p.viewport.evaluate(node => node.hasAttribute('data-viewer-live'));
-  if (!(await isLive()) && await p.card.locator('[data-animation-click-surface]').count()) { await p.root.scrollIntoViewIfNeeded(); await p.card.locator('[data-animation-click-surface]').click(); }
+  // Only a card that waits for a slot is clicked. A click on a scene still preparing enters Interact the moment it is ready (the click
+  // surface's own rule, Animation3DCard.jsx click), which can leave the card interacting, so the next Interact press ends it instead.
+  const waits = p.card.locator('[data-animation-viewport] [role="status"]', { hasText: 'Click to show the 3D view' });
+  if (!(await isLive()) && await waits.count()) { await p.root.scrollIntoViewIfNeeded(); await p.card.locator('[data-animation-click-surface]').click(); }
   // On failure, every card's state on the page: which hold a live scene, which wait for a click, which failed (a viewer budget or a
   // lost context reads differently from a renderer that never drew).
   await until(isLive, 'the scene never drew its first frame', 30000).catch(async error => {
@@ -354,8 +383,7 @@ try {
     // As every gesture step: start from a live scene (two cards hold the live slots at a time; fast-e2e 41510588122 found the game
     // card waiting for its slot here and Interact never started).
     await live(G);
-    await G.interact.click();
-    await until(() => active(G), 'Interact did not start');
+    await startInteract(G);
     assert.equal((await G.card.locator('[data-animation-keys-hint]').innerText()).trim(), 'Move: WASD / arrow keys · Esc to exit');
     const from = await box(G.viewport);
     await page.keyboard.down('ArrowRight'); await page.keyboard.down('ArrowRight'); await page.keyboard.up('ArrowRight'); // the second is a repeat
@@ -375,7 +403,7 @@ try {
   // ---- Focus and gestures (AN-03; plan section 4 "Stable control profiles", interaction.js) ----
   // Each gesture step starts from the same place: nothing interacting, the canvas fitted (a failed step must not move the next).
   const settle = async () => { if (await active(X)) { await page.keyboard.press('Escape'); await until(async () => !(await active(X)), 'Escape did not end the interaction'); } await live(X); await fit(page); await live(X); };
-  const enter = async () => { await X.interact.click(); await until(() => active(X), 'Interact did not start'); assert.equal(await X.interact.getAttribute('aria-pressed'), 'true'); };
+  const enter = async () => { await startInteract(X); assert.equal(await X.interact.getAttribute('aria-pressed'), 'true'); };
   await step('before Interact the wheel and a drag over the scene go to the canvas and leave the scene; a middle-button drag on the bare canvas pans it', async () => {
     await settle();
     const [start, at] = [await pixels(X), await box(X.viewport)];
@@ -558,7 +586,10 @@ export function evaluate({ state }) {
       nodes: [{ id: 'rail', geometry: 'bar', material: 'grey' }, { id: 'bead', geometry: 'ball', material: 'red', selectable: true, drag: { axis: 'x', min: -2, max: 2 } }] },
     parameters: [], actions: [], readouts: [{ id: 'x', label: 'Position', unit: 'm', decimals: 2 }],
     program: { ...ARTIFACT.program, source: DRAG_SOURCE, sourceHash: await hashProgramSource(DRAG_SOURCE) }, seed: 1, camera: { position: [0, 0, 6], target: [0, 0, 0] }, assumptions: [] };
-  const SERVED = new Map([[ARTIFACT.artifactId, ARTIFACT], [DRAG_ARTIFACT.artifactId, DRAG_ARTIFACT]]);
+  // Test-only (owner canvas 2026-11-02, a stepped Launch game that never moved in the card): a stepped game, the third job's artifact.
+  const STEP_REQUEST = 'a robot I launch onto a target';
+  const STEP_ARTIFACT = { ...(await steppedGameArtifact()), artifactId: `art_step_${run}` };
+  const SERVED = new Map([[ARTIFACT.artifactId, ARTIFACT], [DRAG_ARTIFACT.artifactId, DRAG_ARTIFACT], [STEP_ARTIFACT.artifactId, STEP_ARTIFACT]]);
   const sha16 = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
   const flow = { jobs: new Map(), creates: [], approves: [], retries: [], puts: [], reads: [], writes: [], proposals: new Map(), briefs: [], fail: null };
   const viewOf = job => ({ id: job.id, version: 1, boardId: job.boardId, cardId: job.cardId, stage: job.stage, attempt: 1, terminal: ['ready', 'failed', 'cancelled'].includes(job.stage),
@@ -722,7 +753,7 @@ export function evaluate({ state }) {
   let D = null;
   const bead = async () => (await frame(D)).nodes?.bead?.position?.[0];
   const selection = async () => (await frame(D)).selection ?? null;
-  const enterD = async () => { if (!(await active(D))) { await D.interact.click(); await until(() => active(D), 'Interact did not start'); } };
+  const enterD = async () => { if (!(await active(D))) await startInteract(D); };
   // Back to x = 0 (the bead under the viewport's centre) and out of Interact, then in again.
   const homeD = async () => {
     if (await active(D)) { await g.keyboard.press('Escape'); await until(async () => !(await active(D)), 'Escape did not end the interaction'); }
@@ -755,10 +786,19 @@ export function evaluate({ state }) {
     await composer(g).click(); await composer(g).fill(`/animation ${DRAG_REQUEST}`); await g.waitForTimeout(150); await composer(g).press('Enter');
     await until(async () => flow.creates.length === 2, 'a second job for the second /animation line');
     const second = [...flow.jobs.values()][1];
-    await plan().locator('[data-proposal-generate]:not([disabled])').waitFor({ timeout: 20000 });
-    await plan().locator('[data-proposal-generate]').click();
+    // The bead's own plan, by its title: until its message lands, the last plan in the thread is the beam balance's, which the
+    // reload above restored with Generate enabled (local run before/run-3: that plan's Generate was pressed, job 1 approved twice,
+    // and the bead job never; CI fast-e2e 41559196907 step 30 left the same picture).
+    const beadPlan = gDock.locator('[data-generation-proposal="animation"]').filter({ has: g.locator('h3', { hasText: DRAG_ARTIFACT.title }) });
+    await beadPlan.locator('[data-proposal-generate]:not([disabled])').waitFor({ timeout: 20000 });
+    await beadPlan.locator('[data-proposal-generate]').click();
+    await until(async () => flow.approves.some(a => a.jobId === second.id), 'Generate on the bead plan approved its job');
     D = parts(g, second.cardId);
-    await until(async () => (await D.card.getAttribute('data-animation-experience')) === 'experiment', 'the bead card', 30000);
+    await until(async () => (await D.card.getAttribute('data-animation-experience')) === 'experiment', 'the bead card', 30000).catch(async error => {
+      const plans = await gDock.locator('[data-generation-proposal="animation"]').evaluateAll(nodes => nodes.map(n => { const b = n.querySelector('[data-proposal-generate]');
+        return `${n.querySelector('h3')?.textContent.trim()} generate=${b ? (b.disabled ? 'disabled' : 'enabled') : 'none'} status=${!!n.querySelector('[data-proposal-job-status]')}`; })).catch(() => []);
+      throw Error(`${error.message}; approves: ${flow.approves.map(a => a.jobId).join(', ')} (second job ${second.id}); plans: ${plans.join(' | ')}; card phase ${await D.card.getAttribute('data-animation-phase').catch(() => '?')}`);
+    });
     await fit(g);
     await live(D);
     await homeD();
@@ -784,6 +824,34 @@ export function evaluate({ state }) {
     assert.ok(close(Number(await D.readout('x').getAttribute('data-value')), x), 'the readout is the bead\'s position');
     await g.keyboard.press('Escape');
     await shot(g, 'K-drag');
+  });
+  // A stepped game moves only by the host's steps: Launch must start them (before the fix the robot stayed "In flight" at x = 0).
+  await step('a stepped game shows Play and Pause; Launch starts its steps and the robot lands on the target; Pause holds the clock', async () => {
+    flow.next = STEP_ARTIFACT;
+    await composer(g).click(); await composer(g).fill(`/animation ${STEP_REQUEST}`); await g.waitForTimeout(150); await composer(g).press('Enter');
+    await until(async () => flow.creates.length === 3, 'a third job for the third /animation line');
+    const third = [...flow.jobs.values()][2];
+    const stepPlan = gDock.locator('[data-generation-proposal="animation"]').filter({ has: g.locator('h3', { hasText: STEP_ARTIFACT.title }) });
+    await stepPlan.locator('[data-proposal-generate]:not([disabled])').waitFor({ timeout: 20000 });
+    await stepPlan.locator('[data-proposal-generate]').click();
+    await until(async () => flow.approves.some(a => a.jobId === third.id), 'Generate on the stepped plan approved its job');
+    const S = parts(g, third.cardId);
+    await until(async () => (await S.card.getAttribute('data-animation-experience')) === 'game', 'the stepped game card', 30000);
+    await fit(g);
+    await live(S);
+    const goal = () => S.card.locator('[data-animation-game]').getAttribute('data-animation-game');
+    assert.equal(await S.play.count(), 1, 'Play is offered');
+    assert.equal(await S.restart.count(), 0, 'no Restart: steps cannot rewind');
+    assert.equal(await playing(S), false, 'nothing moves before it is asked');
+    assert.equal(Number(await S.readout('distance').getAttribute('data-value')), 0);
+    await S.action('launch').click();
+    await until(async () => (await goal()) === 'won', `the robot never landed: distance ${await S.readout('distance').getAttribute('data-value').catch(() => '?')}, playing ${await playing(S).catch(() => '?')}`);
+    assert.equal(Number(await S.readout('distance').getAttribute('data-value')), 3, 'on the target');
+    assert.ok(close((await frame(S)).nodes.robot.position[0], 3), 'the drawn robot is on the target');
+    assert.equal(await playing(S), true, 'Launch started the clock');
+    await S.play.click();
+    assert.equal(await playing(S), false, 'Pause');
+    await shot(g, 'K-stepped-landed');
   });
 
   await genSession.context.close();

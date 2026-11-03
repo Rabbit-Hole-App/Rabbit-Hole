@@ -299,6 +299,23 @@ run('a start that misses a deadline is tried again after a pause; a saved state 
   assert.equal(liveAnimationWorkers(), 0);
 });
 
+// Owner canvas 2026-11-02 (ten cards, 4x CPU, after a reload): a ready card whose idle engine had stopped booted cold on its next call,
+// missed the boot deadline, and fell into "The scene stopped responding". A missed boot is tried again for every call, not only a start.
+run('a ready card\'s call that boots cold and misses the deadline boots again and answers; nothing is reported', async () => {
+  const good = workers();
+  let made = 0;
+  const factory = () => (++made === 2 ? silent() : good.factory()); // the second boot (after the idle stop) never says ready
+  const { runtime, errors } = start(gameFixture.artifact, { workerFactory: factory, limits: { ...LIMITS, bootMs: 20, idleMs: 5 } });
+  await runtime.ready;
+  await new Promise(resolve => setTimeout(resolve, 30)); // idle: the engine stops
+  assert.equal(liveAnimationWorkers(), 0, 'the idle engine stopped');
+  const moved = await runtime.dispatch({ type: 'action', action: 'south' });
+  assert.equal(moved.accepted, true, 'answered after booting again');
+  assert.equal(made, 3, 'one missed boot, one more');
+  assert.deepEqual(errors, []);
+  runtime.dispose();
+});
+
 // CI fast-e2e 5c79023f7: framing.js's view samplers took engines from the cards (and from each other), so engines rebooted for nearly
 // every call and cards missed their boot deadline. A background runtime only takes a free engine; a card takes one back from it.
 run('a background runtime takes only a free engine, never a card\'s; a card that needs one takes it back mid-call', async () => {

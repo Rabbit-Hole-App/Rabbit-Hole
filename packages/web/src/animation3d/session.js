@@ -223,7 +223,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
     return true;
   }
 
-  return {
+  const api = {
     state: () => state,
     // A new or changed saved scene: everything restarts from its saved state.
     start(next) {
@@ -260,7 +260,14 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
       set({ pending: { ...(state.pending ?? state.inputs), [id]: value } });
       return dispatch(eventFor.parameter(id, value), { input: id });
     },
-    action: async id => { await settleView(); return dispatch(eventFor.action(id)); },
+    // In a stepped scene the host's steps move what an action starts (a launch, a drop: contract.js stepped), so an accepted action
+    // starts the step clock when it is paused; otherwise the motion would wait, unseen, for a Play nobody knew to press.
+    action: async id => {
+      await settleView();
+      const ok = await dispatch(eventFor.action(id));
+      if (ok && state.artifact?.stepped && !state.playing) api.play();
+      return ok;
+    },
     select,
     play() { if (runtime && state.runtime === 'ready' && accepted(runtime.play())) set({ playing: true }); },
     pause() { if (runtime && state.playing) { runtime.pause(); set({ playing: false }); const snap = snapshot(); if (snap) saveSimulation(snap); } },
@@ -299,4 +306,5 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
       cancelRefit(); abortScene?.abort(); dropRuntime(); dropRenderer();
     },
   };
+  return api;
 }
