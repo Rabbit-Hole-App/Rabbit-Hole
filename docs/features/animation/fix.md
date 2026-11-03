@@ -131,6 +131,13 @@ row in [spend.md](spend.md).
 - Plan inspection, offline: the plan's 150-step run needs trail nodes declared ahead. The earlier SGD draft declared one trail node for each of 40 steps at about 65 bytes each (2,591 B). At that rate 150 steps is about 9.7 KB, and the plan's kept old path doubles it to about 19.5 KB, against a 9.4 KB whole draft and an earlier 20,532 B candidate refused as too large. Proposed change, not applied: a 40-step run. The learning goal and both requested controls stay. Unmeasured: whether it reduces the author's tokens.
 - Status: open. FX-AN-025 and FX-AN-026 stay open.
 
+### FX-AN-030 — the 40-step SGD candidate was refused by the request-size bound, not by the model (MVP blocker)
+- Task / phase: AN-05. Owner-approved simplified SGD attempt, job aj_9c453b6158ee46b2956ec21554ab713f on canvas-99bc896f, code bf48ef7ce, preview version d1582ea2-51bc-408e-bd1f-30e738f5ca8e, US$0.6783. The game request was not run: the run stops at a failed request.
+- Proven: the author finished at 11,153 tokens, so the output limit did not recur. The draft failed validation once (an empty text geometry). Its repair fixed that, and fitProblems then refused the candidate: 22,571 bytes as measured there, 13,252 bytes as drafted (98 nodes, 82 of them trail markers, program 2,239 bytes). No review ran.
+- Why it is tight: requestSpendBound counts request bytes as tokens, and six images reserve 28,704 of the review role's 40,000. Actual review requests measured about 15,000 input tokens with images. So this limit is a conservative cost bound, not a limit the model reached.
+- General limitation, recorded as the owner asked: limiting steps made this one plan simpler. It does not solve oversized plans in general: trails must be declared one node per point, and any plan with a long trail can reach this bound.
+- Status: open. FX-AN-025, FX-AN-026 and FX-AN-029 stay open.
+
 ## Resolved
 
 ### FX-AN-024 — the camera-fit sampler starved learner runtimes (fast-e2e 41272196685: 16 of 34 animation steps failed)
