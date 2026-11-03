@@ -178,12 +178,12 @@ test('production Motion (R2b): public generation unpaused, the measured renderer
 
 // /animation (owner production GO 2026-11-02): ANIMATION_JOBS and animation-jobs-1 on the app Worker, generation on, the execution kill
 // switch present and off, diagnostics never. The rollback commits flip one pin below; the binding and the tag stay in every state.
-test('production /animation: bound, on, kill switch off, no diagnostics; each rollback flip stops its part and keeps the objects', async () => {
+test('production /animation (generation OFF, forward recovery): bound, no diagnostics; each rollback flip stops its part and keeps the objects', async () => {
   const { animationEnabled, animationExecution, animationRoute, ANIMATION_PROBE_PATH, ANIMATION_SEED_FIXTURE_PATH } = await import('../src/animation-job.js');
   const app = config(APP), cp = config(CP);
   assert.deepEqual(app.durable_objects.bindings.filter(b => b.class_name === 'AnimationJobs'), [{ name: 'ANIMATION_JOBS', class_name: 'AnimationJobs' }]);
   assert.deepEqual(app.migrations.at(-1), { tag: 'animation-jobs-1', new_sqlite_classes: ['AnimationJobs'] });
-  assert.equal(app.vars.ANIMATION_ENABLED, 'true');
+  assert.equal(app.vars.ANIMATION_ENABLED, 'false'); // forward recovery: generation off, objects kept
   assert.equal(app.vars.ANIMATION_EXECUTION_KILL, 'false');
   assert.deepEqual(Object.keys(app.vars).filter(k => k.startsWith('ANIMATION_')).sort(), ['ANIMATION_ENABLED', 'ANIMATION_EXECUTION_KILL'], 'no ANIMATION_DIAGNOSTICS or other Animation var');
   assert.deepEqual(Object.keys(cp.vars).filter(k => k.startsWith('ANIMATION_')), [], 'the control plane Worker runs no /animation');

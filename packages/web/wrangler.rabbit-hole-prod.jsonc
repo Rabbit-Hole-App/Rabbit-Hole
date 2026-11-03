@@ -81,7 +81,8 @@
     // route 404, so no new plan, build or retry starts; jobs already running finish and settle in the ledger, and saved results stay in
     // ANIMATION_JOBS. The execution kill switch stays off: "true" stops every saved card from running its scene (results are kept).
     // ANIMATION_DIAGNOSTICS (job detail and the render probes) is never set here.
-    "ANIMATION_ENABLED": "true",
+    // FORWARD RECOVERY: generation off. Every /api/learn/animation route answers 404; the binding and animation-jobs-1 stay. Revert this line to turn it on.
+    "ANIMATION_ENABLED": "false",
     "ANIMATION_EXECUTION_KILL": "false",
     // IMG-01 image generation (docs/features/image-jobs.md): PUBLIC generation is ON (owner GO). Only "true" accepts new jobs from everyone.
     // The controlled owner-only acceptance path below (owner 2026-10-25) stays for the operator surfaces: a caller whose verified sign-in identity
