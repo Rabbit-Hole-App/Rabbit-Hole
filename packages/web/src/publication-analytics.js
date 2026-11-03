@@ -1,16 +1,22 @@
-// The browser side of creator analytics (docs/features/creator-analytics-contract.md): what a visitor does on a public /e
-// publication, sent in bounded batches to POST /api/learn/boards/shared/<token>/events. The server decides who is viewing,
-// drops the owner's visits, validates every id against the published board and credits active time; nothing here is trusted.
+// The browser side of creator analytics (docs/features/creator-analytics-contract.md): what a consenting visitor does on a public /e
+// publication, sent in bounded batches to POST /api/learn/boards/shared/<token>/events. The server decides who is viewing, refuses anything
+// without the consent signal, drops the owner's visits, validates every id against the published board and credits active time.
+// Before the visitor accepts analytics (analytics-consent.js), and under Do Not Track or Global Privacy Control, nothing here runs: no
+// identifier is created or read and nothing is sent. Withdrawal, in this tab or another, discards what is queued and sends nothing.
 // Starts and forks are recorded by the server on their success paths, never from here. No text the visitor typed is sent.
-const IDLE_MS = 60_000, FLUSH_MS = 15_000, SESSION_IDLE_MS = 30 * 60_000, SEEN_MS = 2_000, BATCH = 50, QUEUE = 500;
-const TAG = /^[a-z0-9._-]{1,40}$/;
+import { CONSENT_EVENT, CONSENT_KEY, clearAnalyticsStorage, consentOf, mirrorConsentCookie, optedOut } from './analytics-consent.js';
+import { approvedCampaign } from './analytics-campaigns.js';
 
-// One source per visit, from the arrival only: the referrer's hostname and path, and utm_source / utm_campaign. Nothing else
-// of the query is read, and a referrer's path or query never leaves this function.
+const IDLE_MS = 60_000, FLUSH_MS = 15_000, SESSION_IDLE_MS = 30 * 60_000, SEEN_MS = 2_000, BATCH = 50, QUEUE = 500;
+
+export const collectionAllowed = win => !optedOut(win.navigator) && consentOf(win) === 'accepted';
+
+// One source per visit, from the arrival only. The referrer is read here for its category and never leaves this function; a campaign is
+// sent only if it is an approved id (analytics-campaigns.js).
 export function classifySource({ referrer = '', origin = '', search = '' }) {
   const query = new URLSearchParams(search);
-  const tag = query.get('utm_campaign')?.toLowerCase();
-  const campaign = tag && TAG.test(tag) ? { campaign: tag } : {};
+  const tag = approvedCampaign(query.get('utm_campaign'));
+  const campaign = tag ? { campaign: tag } : {};
   let from = null;
   try { from = referrer ? new URL(referrer) : null; } catch { /* an unreadable referrer is no referrer */ }
   const host = from?.hostname.toLowerCase();
@@ -21,7 +27,7 @@ export function classifySource({ referrer = '', origin = '', search = '' }) {
     if (from.pathname.startsWith('/@')) return { source: from.searchParams.get('tab') === 'stars' ? 'stars' : 'creator_profile', ...campaign };
     return { source: 'direct', ...campaign };
   }
-  return from ? { source: 'other_referrer', referrer_host: host, ...campaign } : { source: 'direct', ...campaign };
+  return from ? { source: 'other_referrer', ...campaign } : { source: 'direct', ...campaign };
 }
 
 // The published resource a card stands for, in the server's boardSources key; null for any other card.
@@ -36,9 +42,13 @@ export function resourceOf(block) {
 export const isActive = ({ visible, now, lastActivity }) => visible && now - lastActivity < IDLE_MS;
 
 const safe = read => { try { return read(); } catch { return null; } };
+const NOOP = { observe() {}, stepsShown() {}, stepSelected() {}, stop() {}, discard() {} };
 
-export function startCollector({ token, blocks = [], win = window, uuid = () => crypto.randomUUID(), now = () => Date.now() }) {
+function startCollector({ token, blocks, win, uuid, now }) {
   const doc = win.document, url = `/api/learn/boards/shared/${encodeURIComponent(token)}/events`;
+  // This browser's own board, as the server said once: its later visits send nothing. It can only leave a visit out, never count it wrongly.
+  const ownKey = `rh-own-board:${token}`;
+  if (safe(() => win.localStorage.getItem(ownKey))) return NOOP;
   const key = `rh-pub:${token}`;
   const kept = safe(() => JSON.parse(win.sessionStorage.getItem(key)));
   const resumed = kept && now() - kept.last < SESSION_IDLE_MS;
@@ -54,23 +64,29 @@ export function startCollector({ token, blocks = [], win = window, uuid = () => 
   }) || session.id;
   const byId = new Map(blocks.filter(b => b?.id).map(b => [b.id, b]));
   const queue = [], seen = new Set(session.seen), acted = new Set(session.acted), timers = new Map(), watched = new WeakSet();
+  const inFlight = new AbortController();
   let lastActivity = now(), reported = session.active, stopped = false;
-  const push = (type, fields = {}) => { if (queue.length < QUEUE) queue.push({ id: uuid(), type, ...fields }); };
+  const push = (type, fields = {}) => { if (!stopped && queue.length < QUEUE) queue.push({ id: uuid(), type, ...fields }); };
   const bodyOf = events => JSON.stringify({ visitor_id: visitor, session_id: session.id, ...(session.synthetic ? { synthetic: true } : {}), events });
   const take = () => {
     if (session.active !== reported) { push('active', { active_seconds: session.active }); reported = session.active; }
     return queue.splice(0, BATCH);
   };
-  // Failed events go back with the same ids, so a retry cannot count twice.
+  // Failed events go back with the same ids, so a retry cannot count twice. Consent is read again before anything leaves.
   const flush = async () => {
+    if (stopped || !collectionAllowed(win)) return;
     const events = take();
     if (!events.length) return;
     try {
-      const response = await win.fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: bodyOf(events), keepalive: true });
-      if (response.status >= 500 || response.status === 429) queue.unshift(...events);
-    } catch { queue.unshift(...events); }
+      const response = await win.fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: bodyOf(events), keepalive: true, signal: inFlight.signal });
+      if (stopped) return;
+      if (response.status >= 500 || response.status === 429) { queue.unshift(...events); return; }
+      const answer = await response.clone?.().json().catch(() => null);
+      if (answer?.dropped === 'own_visit') { safe(() => win.localStorage.setItem(ownKey, '1')); end(); }
+    } catch { if (!stopped) queue.unshift(...events); }
   };
   const beacon = () => {
+    if (stopped || !collectionAllowed(win)) return;
     remember();
     const events = take();
     if (!events.length) return;
@@ -96,13 +112,14 @@ export function startCollector({ token, blocks = [], win = window, uuid = () => 
       if (!id || seen.has(id)) continue;
       clearTimeout(timers.get(id));
       if (entry.isIntersecting) timers.set(id, setTimeout(() => {
-        if (doc.visibilityState !== 'visible' || seen.has(id)) return;
+        if (stopped || doc.visibilityState !== 'visible' || seen.has(id)) return;
         seen.add(id); session.seen = [...seen]; push('seen', { material_id: id });
       }, SEEN_MS));
     }
   }, { threshold: 0.5 }) : null;
   const watch = () => { if (observer) for (const card of doc.querySelectorAll('[data-block-id]')) if (!watched.has(card)) { watched.add(card); observer.observe(card); } };
   const tick = setInterval(() => {
+    if (!collectionAllowed(win)) return; // another tab withdrew and its storage event has not arrived yet: count and keep nothing
     if (isActive({ visible: doc.visibilityState === 'visible', now: now(), lastActivity })) { session.active += 1; session.last = now(); }
     watch();
     remember();
@@ -115,6 +132,18 @@ export function startCollector({ token, blocks = [], win = window, uuid = () => 
   win.addEventListener('click', clicked, true);
   doc.addEventListener('visibilitychange', hidden);
   win.addEventListener('pagehide', beacon);
+  // Everything off and nothing more sent; what is queued is dropped.
+  function end() {
+    stopped = true;
+    queue.length = 0;
+    clearInterval(tick); clearInterval(flusher);
+    timers.forEach(clearTimeout); observer?.disconnect();
+    for (const name of SIGNALS) win.removeEventListener(name, name === 'pointerdown' ? pressed : activity, { capture: true });
+    win.removeEventListener('scroll', activity, { capture: true });
+    win.removeEventListener('click', clicked, true);
+    doc.removeEventListener('visibilitychange', hidden);
+    win.removeEventListener('pagehide', beacon);
+  }
   // A reload or a return inside the visit sends this too, with the visit's first source; the server adds no second open.
   push('open', session.arrival);
   remember();
@@ -141,17 +170,41 @@ export function startCollector({ token, blocks = [], win = window, uuid = () => 
         push('quiz', { material_id: block.id, choice: block.choice });
       }
     },
+    // Leaving the page with consent in place: the last batch goes as a beacon.
+    stop() { if (!stopped) { beacon(); end(); } },
+    // Withdrawal: nothing more leaves. A request already on its way is aborted, and no retry follows.
+    discard() { end(); inFlight.abort(); },
+  };
+}
+
+// The page's handle: follows the visitor's choice for as long as the page is open. It starts when they accept (the banner can be answered on
+// this page), and on a rejection, a withdrawal here or in another tab, or a new privacy signal it discards and clears analytics storage only.
+export function publicationAnalytics({ token, blocks = [], win = window, uuid = () => crypto.randomUUID(), now = () => Date.now() }) {
+  let collector = null;
+  const apply = () => {
+    if (collectionAllowed(win)) {
+      if (collector) return;
+      mirrorConsentCookie(win); // the server's signal, restored if it expired or was cleared
+      collector = startCollector({ token, blocks, win, uuid, now });
+    } else if (collector) {
+      collector.discard();
+      collector = null;
+      clearAnalyticsStorage(win);
+    }
+  };
+  const fromOtherTab = event => { if (event.key === null || event.key === CONSENT_KEY) apply(); };
+  win.addEventListener(CONSENT_EVENT, apply);
+  win.addEventListener('storage', fromOtherTab);
+  apply();
+  return {
+    stepsShown: (...args) => collector?.stepsShown(...args),
+    stepSelected: (...args) => collector?.stepSelected(...args),
+    observe: state => collector?.observe(state),
     stop() {
-      if (stopped) return;
-      stopped = true;
-      clearInterval(tick); clearInterval(flusher);
-      timers.forEach(clearTimeout); observer?.disconnect();
-      for (const name of SIGNALS) win.removeEventListener(name, name === 'pointerdown' ? pressed : activity, { capture: true });
-      win.removeEventListener('scroll', activity, { capture: true });
-      win.removeEventListener('click', clicked, true);
-      doc.removeEventListener('visibilitychange', hidden);
-      win.removeEventListener('pagehide', beacon);
-      beacon();
+      win.removeEventListener(CONSENT_EVENT, apply);
+      win.removeEventListener('storage', fromOtherTab);
+      collector?.stop();
+      collector = null;
     },
   };
 }

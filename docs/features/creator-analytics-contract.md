@@ -4,34 +4,41 @@ Owner briefs, 2026-10-06 (#62: analytics, creator profile, analytics UI, feedbac
 2026-11-02, which replaces the right-side panel with a centered modal and activates collection. **Collection, storage, the
 read routes and the modal are built ("As built" below); that section wins where an older section below differs.** The
 owner's visual reference is [creator-analytics-reference.html](creator-analytics-reference.html); its sample data and preview
-controls are not product.
+controls are not product. Owner decisions of 2026-11-02 (consent, retention, deletion, no browser links, approved campaigns, policy text) are recorded in "Consent, retention and deletion" and take precedence over the older sections below.
+
+## Consent, retention and deletion (owner decisions, 2026-11-02)
+
+- **Consent.** The same optional-analytics choice as PostHog (`web/src/analytics-consent.js`, usage-analytics.md "Consent"). Before acceptance, after rejection or withdrawal, and under Do Not Track or Global Privacy Control: no `rh-visitor-id`, no `rh-pub:*`, no optional event. The server enforces it too: the ingest route writes nothing, and a start or fork records nothing, without the `rh_analytics_consent=accepted` cookie or with `DNT: 1` or `Sec-GPC: 1`. A missing signal means no collection. The hole or fork itself still succeeds.
+- **Withdrawal.** `publicationAnalytics` follows the choice in this tab (`rh:analytics-consent`) and others (`storage`). It discards the queue, aborts a request in flight, cancels retries, removes every listener and sends no final beacon. `clearAnalyticsStorage` removes `rh-visitor-id`, `rh-own-board:*`, `rh-pub:*` and `rh_ph_*` and nothing else. Consent is read again before each send, for a storage event that has not arrived. It does not delete records already stored.
+- **Retention.** 90 days is the MVP product default for every record with a learner or session key; it is a product choice, not a stated legal requirement. Reads ignore older rows whether or not they were purged, and each accepted ingest and each read purges them (`purgeExpired`). No cron is involved: production has no cron triggers (`wrangler.rabbit-hole-prod.jsonc`), and cron delivery has been unreliable here. A row can stay stored past 90 days if nothing is ingested or read, but it is never counted, and the next ingest or read removes it.
+- **What outlives 90 days.** `publication_board_days` (opens, opens from Stars, starts and forks per board and day) and `publication_revisions`. A test pins their columns: no learner, session, visitor, user, email or event column exists there. On a very small board a day's total could still be one visit; it names nobody.
+- **Deletion.** By account or visitor identifier, with no UI: `scripts/analytics-delete.mjs` prints the SQL for the keys, and the owner's launcher runs it after a typed confirmation (`delete-analytics.sh dev|prod`, `delete-analytics-prod.cmd`). The daily totals stay; they hold no person. Permanent canvas delete removes all of a board's rows, totals included.
+- **No browser-to-account link.** "First account wins" and `publication_visitor_links` are gone. Each request is who it is now: signed in, the account's key; signed out, the browser's. The visit key comes from that identity, so signing out or switching account mid-tab starts a new visit and carries no time or history across. A shared browser's signed-out visits count as that browser, never as a person who once signed in on it. Cost, accepted: someone who visits signed out and then signs in counts as two visitors. The creator's own signed-out visit is left out only on a browser where the server already dropped their signed-in visit to that board (`rh-own-board:<token>`); on any other browser it counts.
+- **Free-form values.** Campaigns are a fixed list of approved ids (`web/src/analytics-campaigns.js`; add one there); the browser sends only those and the server stores only those, and a stored tag no longer on the list is not shown. Referrer hostnames are dropped: a hostname can name a person (`jane.example.com`), and "another site" is enough to compare sources. Every other stored id is an enum, checked against the published board, or server-minted (`ns_<8 hex>.<n>`).
+- **In the UI.** The modal says that only consenting visitors are measured and that a low number does not mean no activity. Small-group suppression is unchanged. Stars and canonical forks are not consent-based: they are the public counters they always were.
 
 ## As built (2026-11-02)
 
 - **Ingest:** `POST /api/learn/boards/shared/<token>/events`, body `{ visitor_id, session_id, synthetic?, events: [{ id, type, ... }] }`,
   answering `{ accepted, ignored, dropped? }`. Types: `open`, `active`, `seen`, `acted`, `resource`, `steps_shown`, `step_selected`,
   `quiz`. Limits: 64 KB, 50 events a batch, 3000 events a visit, 20000 events a board per hour (429). Live public `/e` tokens only;
-  anything else is 404. Server: `packages/control-plane/src/publication-analytics.js`. Browser: `packages/web/src/publication-analytics.js`.
+  anything else is 404. Without consent: 200 `{ accepted: 0, dropped: 'no_consent' }`, nothing written. Server: `packages/control-plane/src/publication-analytics.js`. Browser: `packages/web/src/publication-analytics.js`.
 - **Conversions:** `startRabbitHole` (201) and `fork()` (201) write their row in the same `db.batch` as the hole or fork, through
   `conversionStatements`; a 200 existing hole, a replayed fork, a failure, the owner, a share link or a Duplicate writes none.
 - **Reads:** `GET /api/analytics/creator` and `GET /api/analytics/publications/<canvas>`, `?range=7d|30d|all`. 401 signed out; 404 to anyone
   who does not own the canvas; 503 `analytics_unavailable` on a storage failure, never zeros. A metric is `{ value, reason, public? }`; a hidden
   value is null with `insufficient_cohort`, `complementary` or `not_collected`. Ranges are UTC days including today; `all` starts at
   `collection.started_at`; `period.partial` marks a range that begins before collection did.
-- **Identity decisions.** Unique visitors dedupe across boards and days and are never a sum of daily counts. A browser later seen signed in is
-  linked once (first account wins): its anonymous rows count as that account at read time, and no row is rewritten. A browser the creator was seen
-  signed in on never counts on their boards, including rows it wrote before that sign-in. Known limit: when the control plane cannot be reached,
-  a signed-in visitor reads as signed out (`devIdentity` answers 401 for both), so such a visit by the creator on a browser not yet linked would count.
+- **Identity decisions.** Unique visitors dedupe across boards and days and are never a sum of daily counts. See "No browser-to-account link" above. Known limit: when the control plane cannot be reached, a signed-in visitor reads as signed out (`devIdentity` answers 401 for both).
 - **Analytics never costs a start or fork:** if preparing the row fails, the action succeeds uncounted and the failure is logged.
 - **Rate limits are per client-chosen ids** (the contract never reads an IP), so a scripted client can inflate anonymous counts or use up a board's hourly cap; this is a known limit.
-- **Allowlisted campaign values** are read as a character allowlist (`[a-z0-9._-]`, 40 characters), not a fixed list of campaign names; a tag is shown only at 10 visitors or more.
 - **Synthetic checks:** a batch with `synthetic: true` (the page's `?rh_synthetic=1`) is stored apart, excluded from every reported number, counted
   as `collection.synthetic_excluded`, and readable by the owner alone with `&synthetic=only`. Marking a visit synthetic can only remove it from reports.
 - **Active time:** the browser sends cumulative visible, recently active seconds (60-second threshold). The server credits the increase over what that
   visit already credited, at most the wall-clock time since this learner's last credited second on this board, so overlapping tabs cannot double a second,
   and at most 4 h a visit. A report settles its total: seconds the clock refused are gone, never carried to a later report. A report with nothing new writes no activity.
 - **Privacy:** at least 10 visitors in the exact range and filter; in a partition (sources; signed-in and anonymous) the smallest shown cell is also hidden (`complementary`) while the hidden
-  cells sum to 1 to 9; a referrer host is named only if it leaves no remainder of 1 to 9; concept and friction rows are absent until their cohort is shown. Known limit: board
+  cells sum to 1 to 9; concept and friction rows are absent until their cohort is shown. Known limit: board
   rows are not a partition (a visitor can open several boards), so a board's hidden count is not complemented against the creator total. Opens, successful starts, audience
   forks, canonical forks, current Stars and star additions and removals are counters shown at any count, as the Stars route already does.
 - **Freshness:** numbers are computed from storage at read time, so `collection.checked_at` is their freshness. `status: 'active'` is returned only when that
@@ -41,24 +48,24 @@ controls are not product.
 
 ### Metric inventory
 
-Coverage for every collected metric starts at `collection.started_at` (`analytics_meta`, the first ingest or read after deployment), except Stars.
+Coverage for every collected metric starts at `collection.started_at` (`analytics_meta`, the first ingest or read after deployment), except Stars, and covers consenting visitors only. Visitor-level metrics cover at most the last 90 days (`period.audience_from`).
 
 | Metric | Producer | Denominator | Aggregation | Readiness |
 |---|---|---|---|---|
-| Total opens | `open`, first in a visit | none | sum of `opens` | live, counter |
-| Unique visitors | any accepted event; a conversion | none | distinct linked learner | live, protected |
-| Signed-in / anonymous | session at ingest; visitor link | unique visitors | distinct, hidden together | live, protected |
+| Total opens | `open`, first in a visit | none | `publication_board_days` sum; consenting visitors | live, counter |
+| Unique visitors | any accepted event; a conversion | none | distinct learner; last 90 days at most | live, protected |
+| Signed-in / signed-out | session at ingest | unique visitors | distinct, complementary | live, protected |
 | Average active time | `active`, credited | visitor and board pairs | mean of pair totals | live, protected |
 | Engaged over 2 min | `active`, credited | unique visitors | visitors with 120 s or more | live, protected |
 | Returning visitors | `open`, first in a visit | unique visitors | visitors who opened on 2+ days in range; one visit past midnight is not a return | live, protected |
-| Rabbit Holes started | `startRabbitHole` 201 | none | distinct holes | live, counter |
+| Rabbit Holes started | `startRabbitHole` 201 with consent | none | `publication_board_days` sum | live, counter |
 | Start rate | same | unique visitors | distinct starters ÷ visitors | live, protected |
 | Canonical forks | `FORK_COUNT` | none | sum, all time | live, counter |
-| Forks by this audience | `fork()` 201 through `/e` | none | distinct forks | live, counter |
+| Forks by this audience | `fork()` 201 through `/e` with consent | none | `publication_board_days` sum | live, counter |
 | Audience fork rate | same | unique visitors | distinct forkers ÷ visitors | live, protected |
 | Stars now, owner / audience | `canvas_stars` | none | current rows | live, counter |
 | Star additions, removals, net | `canvas_star_events` | none | gross actions in range; net = additions − voluntary removals | live from the first star event; null before |
-| Opens from Stars | `open`, first in a visit, with source `stars` | none | count of those visits (`open_source` rows) | live, counter |
+| Opens from Stars | `open`, first in a visit, with source `stars` | none | `publication_board_days` sum | live, counter |
 | Public boards | `canvas_publications` | none | current count | live, counter |
 | Card reach, interaction | `seen`, `acted` | none | distinct visitors per card | live, protected, one board |
 | Concepts explored, went deeper | `seen`/`acted` on a card carrying the concept; hole start; `step_selected` | visitors who saw the concept | rate | live for cards with concept ids; many generated boards carry none |
@@ -68,7 +75,7 @@ Coverage for every collected metric starts at `collection.started_at` (`analytic
 | Tutor-graded outcomes | none | none | none | **unavailable:** a public viewer has no graded Tutor evaluation (`tutorRoute` needs an owned app); nothing private is bridged |
 | Revision before / after | `publication_revisions` | visitors in each period | two equal periods meeting at the change of card set, each suppressed alone | live, one board; descriptive only |
 | Sources | `open` | none | each visitor's first source in scope and range | live, protected, complementary |
-| Campaigns, referrer hosts | `open` | none | distinct visitors | live, protected; allowlisted tag and hostname only |
+| Campaigns | `open` | none | distinct visitors | live, protected; approved ids only |
 
 ## Scope
 
@@ -404,7 +411,7 @@ card shows its evidence number. At most one card per type; none fires means "No 
 
 ## Storage
 
-`learn-migrations/0035-publication-analytics.sql`, mirrored in `repository-schema.sql`, on LEARN_DB: `publication_events` (hashed event ids, the replay guard and rate count, pruned after 90 days), `publication_sessions` (pruned after 90 days), `publication_learners`, `publication_learner_days`, `publication_learner_items` and `publication_revisions` (kept for the life of the canvas), `publication_visitor_links` and `analytics_meta`. The migration must reach a database before the code that writes to it: starts and forks carry analytics statements in their own batch, and the release preflight refuses a production schema that differs.
+`learn-migrations/0035-publication-analytics.sql`, mirrored in `repository-schema.sql`, on LEARN_DB. Revised in place on 2026-11-02 before any production apply. Per-person, 90 days: `publication_events`, `publication_sessions`, `publication_learners`, `publication_learner_days`, `publication_learner_items`. Person-free, life of the canvas: `publication_board_days`, `publication_revisions`. Metadata: `analytics_meta`. The migration must reach a database before the code that writes to it, and immediately before its release, because the release preflight refuses a production schema that differs in either direction.
 
 ## Owner decisions taken from the 2026-11-02 brief
 

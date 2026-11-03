@@ -4,7 +4,7 @@ import { ArrowRight, ArrowUpRight, CircleAlert, Download, GitFork, Info, Lock, P
 import { Button, Tabs, TabsList, TabsTrigger, toast } from './ui.jsx';
 import { api, apiFetch } from './api.js';
 import { deviceId } from './home/canvas-local.js';
-import { LAUNCH_COPY, PREFILL_KEY, RANGES, SOURCES, TABS, analyticsCsv, analyticsUrl, dateText, followUpPrompt, hidden, hiddenReason, metricText, noAudience, periodText } from './creator-analytics.js';
+import { COVERAGE_COPY, LAUNCH_COPY, PREFILL_KEY, RANGES, SOURCES, TABS, analyticsCsv, analyticsUrl, dateText, followUpPrompt, hidden, hiddenReason, metricText, noAudience, periodText } from './creator-analytics.js';
 
 // Private creator analytics (docs/features/creator-analytics-contract.md "Analytics UI"; owner brief 2026-11-02, visual reference
 // docs/features/creator-analytics-reference.html). One centered dialog for both entry points: the creator profile opens every
@@ -144,10 +144,10 @@ function Overview({ data, onPick, onTab, onDraft, onReview }) {
   return (
     <>
       <div data-analytics-metrics className="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[420px]:gap-2">
-        <Tile data-metric="total_opens" label="Total opens" metric={o.total_opens} note="Visits to public boards" />
-        <Tile data-metric="unique_visitors" label="Unique visitors" metric={o.unique_visitors} note={hidden(signed) ? 'Accounts and anonymous browsers, not people' : `${metricText(signed)} signed in`} />
+        <Tile data-metric="total_opens" label="Total opens" metric={o.total_opens} note="Visits by consenting visitors" />
+        <Tile data-metric="unique_visitors" label="Unique visitors" metric={o.unique_visitors} note={hidden(signed) ? 'Consenting accounts and browsers, not people' : `${metricText(signed)} signed in`} />
         <Tile data-metric="avg_active_seconds" label="Avg active time" metric={o.avg_active_seconds} kind="seconds" note="Per visitor · per board" />
-        <Tile data-metric="rabbit_holes_started" label="Rabbit Holes started" metric={o.rabbit_holes_started} note={hidden(o.start_rate) ? 'Successful starts only' : `${metricText(o.start_rate, 'rate')} of visitors started one`} />
+        <Tile data-metric="rabbit_holes_started" label="Rabbit Holes started" metric={o.rabbit_holes_started} note={hidden(o.start_rate) ? 'Successful starts by consenting visitors' : `${metricText(o.start_rate, 'rate')} of visitors started one`} />
       </div>
       <div data-analytics-summary className="mt-4 mb-6 flex flex-wrap items-center gap-x-4.5 gap-y-2 text-xs text-ink-2">
         <span className={strip}><Star {...ICON} aria-hidden="true" /><strong className={strong}><Value metric={o.stars_now} /></strong> Stars now</span>
@@ -156,8 +156,8 @@ function Overview({ data, onPick, onTab, onDraft, onReview }) {
         <span className={strip}><strong className={strong}><Value metric={o.returning_visitors} /></strong> returning visitors</span>
       </div>
       {(data.trend || []).some(t => t.opens?.value > 0)
-        ? <div className="mb-6 rounded-[10px] border border-line p-4.5"><div className="mb-3 flex items-center justify-between gap-3"><h3 className="text-sm font-semibold">Audience visits over time</h3><span className="text-[11px] text-ink-2">Total opens · daily</span></div><Trend trend={data.trend} /><p className="mt-1.5 text-[11px] text-ink-2">Opens are visits, not people. Visitor counts are deduplicated separately.</p></div>
-        : <div data-trend-empty className="mb-6 rounded-[10px] border border-line bg-code px-4 py-8 text-center"><h3 className="text-sm font-semibold">No audience visits yet</h3><p className="mx-auto mt-2 max-w-[420px] text-xs text-ink-2">Your first public-board visits will appear here. Your own visits are excluded.</p></div>}
+        ? <div className="mb-6 rounded-[10px] border border-line p-4.5"><div className="mb-3 flex items-center justify-between gap-3"><h3 className="text-sm font-semibold">Audience visits over time</h3><span className="text-[11px] text-ink-2">Total opens · daily</span></div><Trend trend={data.trend} /><p className="mt-1.5 text-[11px] text-ink-2">Opens are visits by consenting visitors, not people. Visitor counts are deduplicated separately.</p></div>
+        : <div data-trend-empty className="mb-6 rounded-[10px] border border-line bg-code px-4 py-8 text-center"><h3 className="text-sm font-semibold">No measured visits yet</h3><p className="mx-auto mt-2 max-w-[420px] text-xs text-ink-2">Visits from people who accept analytics will appear here. Others are not counted, so this does not mean nobody visited. Your own signed-in visits are excluded.</p></div>}
       <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-6 max-[900px]:grid-cols-1">
         <Section title={data.scope.canvas ? 'This learning board' : 'Your learning boards'} action={<Button size="sm" variant="ghost" className={COARSE} data-analytics-details onClick={() => onTab('boards')}>View details<ArrowRight {...ICON} aria-hidden="true" /></Button>}>
           <BoardsTable data={data} onPick={onPick} />
@@ -254,23 +254,22 @@ function Sources({ data }) {
   const s = data.sources || {}, total = data.overview.unique_visitors;
   return (
     <>
-      <Section title="Where your audience finds you" note="First observed source per visitor in the selected scope and range. Unknown referrers remain unknown." data-analytics-sources>
+      <Section title="Where your audience finds you" note="First observed source per consenting visitor in the selected scope and range. Other sites are never named." data-analytics-sources>
         {(s.visitors || []).map(r => <Bar key={r.source} label={SOURCES[r.source] || r.source} metric={r.visitors} share={hidden(r.visitors) || hidden(total) ? 0 : r.visitors.value / total.value} />)}
         <Explain>Each source needs at least 10 visitors. Another category may be hidden so a small group cannot be worked out by subtraction. Counts exclude your own visits.</Explain>
       </Section>
-      <Section title="Links and campaigns" note="Tagged links compared by recorded arrivals and later actions. This does not measure impressions or click-through on other sites.">
-        {s.campaigns?.length ? <Table head={[['Campaign'], ['Visitors', true], ['Started RH', true]]} rows={s.campaigns.map(c => [c.campaign, <Value metric={c.visitors} />, <Value metric={c.start_rate} kind="rate" />])} /> : <p className="text-xs text-ink-2">No tagged arrivals in this range. Add utm_source and utm_campaign to a board link to compare campaigns.</p>}
+      <Section title="Links and campaigns" note="Links carrying an approved campaign name, compared by recorded arrivals and later actions. This does not measure impressions or click-through on other sites.">
+        {s.campaigns?.length ? <Table head={[['Campaign'], ['Visitors', true], ['Started RH', true]]} rows={s.campaigns.map(c => [c.campaign, <Value metric={c.visitors} />, <Value metric={c.start_rate} kind="rate" />])} /> : <p className="text-xs text-ink-2">No campaign has at least 10 visitors in this range.</p>}
       </Section>
-      {s.referrers?.length > 0 && <Section title="Other referrers" note="Hostname only, never the full address.">
-        <Table head={[['Site'], ['Visitors', true]]} rows={s.referrers.map(r => [r.host, <Value metric={r.visitors} />])} />
-      </Section>}
     </>
   );
 }
 
 const FOOTER_COPY = [
-  ['Visitors', 'Signed-in accounts and anonymous browsers. Not an exact count of people. Deduplicated across your boards and days.'],
-  ['Opens', 'Distinct visits to a public board. Reloads and returns within the visit add nothing. Your own signed-in visits are excluded.'],
+  ['Coverage of your audience', COVERAGE_COPY],
+  ['Visitors', 'Consenting signed-in accounts and consenting signed-out browsers. Not an exact count of people: a signed-out browser is never joined to an account, so someone who visits both ways counts as two. Deduplicated across your boards and days.'],
+  ['Opens', 'Distinct visits to a public board by consenting visitors. Reloads and returns within the visit add nothing. Your own signed-in visits are excluded.'],
+  ['Retention', 'Visitor-level records expire after 90 days, so visitor counts, rates and segments cover at most the last 90 days. Daily totals of opens, starts and forks hold no visitor key and stay with the board.'],
   ['Average active time', 'Visible, recently active time per visitor and board, with a 60-second inactivity threshold. It estimates engagement, not learning.'],
   ['Privacy', 'Audience counts, rates and detailed segments need at least 10 visitors in that exact range and filter. Hidden values are never zero. Exports apply the same rule.'],
   ['Coverage', 'All time begins when each measure\'s collection starts. Earlier periods are not collected, never backfilled as zero.'],
@@ -394,7 +393,7 @@ export function CreatorAnalyticsDialog({ canvas = null, opener: givenOpener = nu
             <span data-analytics-period>{data ? periodText(data.period) : 'Dates pending'}</span>
             <span data-analytics-status={status} className={`inline-flex items-center gap-1.5 ${status === 'failure' ? 'text-danger' : status === 'active' ? 'text-success' : ''}`}>
               <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
-              {status === 'failure' ? (data?.collection?.status === 'degraded' ? 'Collection needs attention: recent events were not recorded' : 'Collection status unavailable') : status === 'checking' ? 'Checking collection' : 'Collection active · own visits excluded'}
+              {status === 'failure' ? (data?.collection?.status === 'degraded' ? 'Collection needs attention: recent events were not recorded' : 'Collection status unavailable') : status === 'checking' ? 'Checking collection' : 'Collection active · consenting visitors · own visits excluded'}
             </span>
           </div>
           <Tabs value={tab} onValueChange={setTab}>
@@ -408,9 +407,11 @@ export function CreatorAnalyticsDialog({ canvas = null, opener: givenOpener = nu
           {error && data && <Notice data-analytics-stale error icon={CircleAlert} title="Showing the last good read" action={retryButton}>The latest read failed{staleAt ? `; these numbers are from ${dateText(staleAt)}` : ''}. They may be out of date.</Notice>}
           {loading && !data && !error && <><p role="status" className="sr-only">Loading analytics</p><div data-analytics-loading aria-hidden="true" className="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2">{[0, 1, 2, 3].map(i => <div key={i} className="h-[120px] animate-pulse rounded-[10px] bg-code" />)}</div></>}
           {data && <>
+            <p data-analytics-consent-coverage className="mb-4 text-[11px] leading-relaxed text-ink-2">{COVERAGE_COPY}</p>
             {noAudience(data) && <Notice data-analytics-launch icon={Sprout} title="Ready for your first audience">{LAUNCH_COPY.replace('Ready for your first audience. ', '')}</Notice>}
             {!noAudience(data) && data.overview.unique_visitors?.reason === 'insufficient_cohort' && <Notice data-analytics-small icon={ShieldCheck} title="Activity is arriving. Detailed insights need a larger audience.">Visitor metrics and each detailed segment appear after at least 10 visitors. Public counters remain visible.</Notice>}
             {data.period.partial && <Notice data-analytics-partial title="Partial coverage">Coverage starts {data.collection.started_at ? dateText(data.collection.started_at) : 'with the first visit'}; earlier days in this range were not collected.</Notice>}
+            {data.period.audience_from > data.period.from && <Notice data-analytics-retention title="Visitor-level measures cover the last 90 days">Visitor counts, rates and segments start on {data.period.audience_from}, because visitor-level records expire after 90 days. Daily totals cover the whole range.</Notice>}
             {tab === 'overview' && <Overview data={data} onPick={pick} onTab={setTab} onDraft={draft} onReview={review} />}
             {tab === 'boards' && <Boards data={data} onPick={pick} />}
             {tab === 'learning' && <Learning data={data} onDraft={draft} onReview={review} />}

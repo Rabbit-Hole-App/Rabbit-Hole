@@ -34,7 +34,14 @@ const canvas = async (who, title, block) => {
 const publish = async (who, c) => { await post(who, `/api/apps/${c.name}/publish`); return (await api(who, `/api/apps/${c.name}`)).body.publication_token; };
 // One batch through the real ingest route. who null is an anonymous browser.
 const uuid = () => crypto.randomUUID();
-const ingest = (who, token, visitor, session, events, extra = {}) => post(who, `/api/learn/boards/shared/${token}/events`, { visitor_id: visitor, session_id: session, ...extra, events });
+// As a visitor who accepted analytics: the cookie is the server's consent signal (analytics-consent.js).
+const CONSENT_COOKIE = 'rh_analytics_consent=accepted';
+const ingest = async (who, token, visitor, session, events, extra = {}, consent = true) => {
+  const r = await fetch(`${BASE}/api/learn/boards/shared/${token}/events`, { method: 'POST', headers: { 'content-type': 'application/json', cookie: [...(consent ? [CONSENT_COOKIE] : []), ...(who ? [`small_session=${who.session}`] : [])].join('; ') }, body: JSON.stringify({ visitor_id: visitor, session_id: session, ...extra, events }) });
+  return { status: r.status, body: await r.json().catch(() => null) };
+};
+// Saved acceptance, as the banner leaves it; the page mirrors the cookie.
+const ACCEPTED = () => { try { localStorage.setItem('rh_analytics_consent', 'accepted'); } catch { /* the check then fails */ } };
 const read = (who, canvasName, range = '30d', more = '') => api(who, `${canvasName ? `/api/analytics/publications/${canvasName}` : '/api/analytics/creator'}?range=${range}${more}`);
 
 // Each run's owner is new, so plain titles are unique in their Library; Explore is matched by this run's @handle too.
@@ -83,7 +90,7 @@ await check('1 launch: a public board with no audience reads as zero opens, hidd
 });
 
 const anon = { visitor: uuid(), session: uuid() };
-const firstVisit = [{ id: uuid(), type: 'open', source: 'linkedin', campaign: 'launch' }, { id: uuid(), type: 'seen', material_id: 'c1' }, { id: uuid(), type: 'acted', material_id: 'c1' }];
+const firstVisit = [{ id: uuid(), type: 'open', source: 'linkedin', campaign: 'linkedin-launch' }, { id: uuid(), type: 'seen', material_id: 'c1' }, { id: uuid(), type: 'acted', material_id: 'c1' }];
 await check('2 an anonymous and a signed-in visit are accepted and reach the owner\'s read: opens public, visitors hidden', async () => {
   const a = await ingest(null, token, anon.visitor, anon.session, firstVisit);
   assert.equal(a.status, 200);
@@ -117,11 +124,13 @@ await check('5 nobody else reads it: a viewer 404, signed out 401, the viewer\'s
   assert.equal(theirs.status, 200);
   assert.ok(!theirs.body.boards.some(row => row.canvas === kv.name), 'no owner board');
   assert.equal((await ingest(null, shareToken, uuid(), uuid(), [{ id: uuid(), type: 'open', source: 'direct' }])).status, 404);
+  const refused = await ingest(null, token, uuid(), uuid(), [{ id: uuid(), type: 'open', source: 'direct' }], {}, false);
+  assert.deepEqual([refused.body.accepted, refused.body.dropped], [0, 'no_consent'], 'no consent signal: nothing is collected');
 });
 await check('6 at 10 visitors the protected metrics appear, a small source stays hidden, and instant active time is not credited', async () => {
   for (let i = 0; i < 12; i++) {
-    const events = [{ id: uuid(), type: 'open', source: 'linkedin', campaign: 'launch' }, { id: uuid(), type: 'seen', material_id: 'c1' }, { id: uuid(), type: 'acted', material_id: 'c1' }, { id: uuid(), type: 'active', active_seconds: 30 }];
-    if (i < 4) events.push({ id: uuid(), type: 'step_selected', suggestion_id: 'step-1', position: 1, concept_ids: ['rate'] });
+    const events = [{ id: uuid(), type: 'open', source: 'linkedin', campaign: 'linkedin-launch' }, { id: uuid(), type: 'seen', material_id: 'c1' }, { id: uuid(), type: 'acted', material_id: 'c1' }, { id: uuid(), type: 'active', active_seconds: 30 }];
+    if (i < 4) events.push({ id: uuid(), type: 'step_selected', suggestion_id: 'ns_0000000a.1', position: 1, concept_ids: ['rate'] });
     assert.equal((await ingest(null, cohortToken, uuid(), uuid(), events)).status, 200);
   }
   const { overview, sources, learning, insights, boards } = (await read(owner, cohort.name)).body;
@@ -130,7 +139,7 @@ await check('6 at 10 visitors the protected metrics appear, a small source stays
   assert.equal(learning.cards.find(c => c.material_id === 'c1').seen.value, 12);
   assert.equal(sources.visitors.find(s => s.source === 'linkedin').visitors.value, 12);
   assert.equal(sources.visitors.find(s => s.source === 'direct').visitors.value, null, 'hidden, never 0');
-  assert.equal(sources.campaigns.find(c => c.campaign === 'launch').visitors.value, 12);
+  assert.equal(sources.campaigns.find(c => c.campaign === 'linkedin-launch').visitors.value, 12);
   assert.ok(insights.some(i => i.type === 'interest' && i.subject_id === 'rate'), 'an evidence-backed interest insight');
   assert.equal(boards.length, 1);
   const text = JSON.stringify(await read(owner, null));
@@ -180,6 +189,8 @@ await check('9 the board entry opens that board in a centered dialog: the number
   assert.match(await tile(page, 'unique_visitors').innerText(), /^—/);
   assert.equal(await page.locator('[data-analytics-small]').count(), 1, 'the small-audience notice');
   assert.match(await page.locator('[data-analytics-freshness]').innerText(), /synthetic check/, 'identifiable, excluded');
+  assert.match(await page.locator('[data-analytics-consent-coverage]').innerText(), /Only visitors who accepted analytics are measured.*a low number does not mean no activity/);
+  assert.match(await page.locator('[data-analytics-status]').innerText(), /consenting visitors/);
   assert.deepEqual(await page.evaluate(() => [document.activeElement.getAttribute('aria-label'), document.getElementById('root').inert]), ['Close analytics', true]);
   const box = await dialog.boundingBox();
   assert.ok(box.width <= 1120 && box.height <= 900, 'viewport-bounded, up to 1120px wide');
@@ -385,6 +396,7 @@ await check('20 a real visit: the signed-out page itself sends the open, its sou
   const visitedToken = await publish(owner, visited);
   const opens = async () => (await read(owner, visited.name, '7d')).body.overview.total_opens.value;
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await context.addInitScript(ACCEPTED);
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   // Keepalive fetches can lack a page-level response, so what was sent comes from the request and what it did from the owner's read.
@@ -402,10 +414,10 @@ await check('20 a real visit: the signed-out page itself sends the open, its sou
       await page.waitForTimeout(250);
     }
   };
-  await page.goto(`${BASE}/e/${visitedToken}?utm_source=linkedin&utm_campaign=Browser-Check&private=dropped`);
+  await page.goto(`${BASE}/e/${visitedToken}?utm_source=linkedin&utm_campaign=LinkedIn-Launch&private=dropped`);
   await until(async () => (await opens()) === 1, 'the visit reaching the owner\'s read');
   const open = sent.flatMap(batch => batch.events).find(event => event.type === 'open');
-  assert.deepEqual([open?.source, open?.campaign], ['linkedin', 'browser-check'], 'the source from the arrival, the tag sanitized');
+  assert.deepEqual([open?.source, open?.campaign], ['linkedin', 'linkedin-launch'], 'the source from the arrival, an approved campaign');
   assert.ok(!JSON.stringify(sent).includes('private=dropped'), 'no other query is sent');
   assert.match(sent[0].visitor_id, /^[0-9a-f-]{36}$/);
   const card = page.locator('[data-block-id]').first();
@@ -418,7 +430,7 @@ await check('20 a real visit: the signed-out page itself sends the open, its sou
   await page.waitForTimeout(1000);
   assert.equal(await opens(), 1, 'a reload inside the visit adds no open');
   await context.close();
-  const mine = await contextFor(owner), ownSent = [];
+  const mine = await contextFor(owner, {}, ACCEPTED), ownSent = [];
   watch(mine, ownSent);
   await mine.goto(`${BASE}/e/${visitedToken}`);
   for (let i = 0; i < 120 && !ownSent.length; i += 1) await mine.waitForTimeout(250);
@@ -434,11 +446,61 @@ await check('20 a real visit: the signed-out page itself sends the open, its sou
   assert.deepEqual(sharedSent, [], 'an unlisted link collects nothing');
   await shared.close();
 });
-await check('21 no email shown, no page errors', async () => {
+// Storage a page holds for analytics, and every request it makes to the ingest route.
+const analyticsStorage = target => target.evaluate(() => [...Object.keys(localStorage).filter(k => /^(rh-visitor-id|rh-own-board:|rh_ph_)/.test(k)), ...Object.keys(sessionStorage).filter(k => k.startsWith('rh-pub:'))]);
+const consentBoard = await canvas(owner, 'Consent visit');
+const consentToken = await publish(owner, consentBoard);
+const consentOpens = async () => (await read(owner, consentBoard.name, '7d')).body.overview.total_opens.value;
+const visitPage = async (init = null) => {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  if (init) await context.addInitScript(init);
+  const target = await context.newPage(), requests = [];
+  target.on('pageerror', error => errors.push(error.message));
+  target.on('request', request => { if (request.url().endsWith(`/shared/${consentToken}/events`)) requests.push(request.postDataJSON()); });
+  await target.goto(`${BASE}/e/${consentToken}`);
+  await target.locator('[data-block-id]').first().waitFor({ timeout: 60000 });
+  await target.waitForTimeout(1500);
+  return { context, target, requests };
+};
+await check('21 before accepting, after rejecting and under Do Not Track or Global Privacy Control: no identifier and no request', async () => {
+  const cases = { 'no choice': null, rejected: () => { try { localStorage.setItem('rh_analytics_consent', 'rejected'); } catch { /* about:blank */ } },
+    'Global Privacy Control': () => { Object.defineProperty(navigator, 'globalPrivacyControl', { get: () => true }); try { localStorage.setItem('rh_analytics_consent', 'accepted'); } catch { /* about:blank */ } },
+    'Do Not Track': () => { Object.defineProperty(navigator, 'doNotTrack', { get: () => '1' }); try { localStorage.setItem('rh_analytics_consent', 'accepted'); } catch { /* about:blank */ } } };
+  for (const [label, init] of Object.entries(cases)) {
+    const { context, target, requests } = await visitPage(init);
+    await target.locator('[data-block-id]').first().click();
+    assert.deepEqual(await analyticsStorage(target), [], `${label}: no analytics storage`);
+    assert.deepEqual(requests, [], `${label}: nothing sent`);
+    await context.close();
+  }
+  assert.equal(await consentOpens(), 0);
+});
+await check('22 accepting on the page starts collection; withdrawing here or from another tab sends nothing more and clears only analytics storage', async () => {
+  const { context, target, requests } = await visitPage();
+  await target.evaluate(() => { localStorage.setItem('kept-by-the-app', '1'); localStorage.setItem('rh_analytics_consent', 'accepted'); window.dispatchEvent(new Event('rh:analytics-consent')); });
+  for (let i = 0; i < 80 && (await consentOpens()) === 0; i += 1) await target.waitForTimeout(250);
+  assert.equal(await consentOpens(), 1, 'accepted: the visit reached the owner');
+  assert.ok((await analyticsStorage(target)).length >= 2, 'the identifier and the visit');
+  const other = await context.newPage();
+  await other.goto(`${BASE}/explore`);
+  await other.evaluate(() => { localStorage.removeItem('rh_analytics_consent'); document.cookie = 'rh_analytics_consent=; Path=/; Max-Age=0'; });
+  await target.waitForTimeout(500);
+  assert.deepEqual(await analyticsStorage(target), [], 'the other tab withdrew: this tab cleared its identifier and visit');
+  assert.equal(await target.evaluate(() => localStorage.getItem('kept-by-the-app')), '1');
+  const count = requests.length;
+  await target.locator('[data-block-id]').first().click();
+  await target.waitForTimeout(16000); // past one flush interval
+  await target.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  await target.waitForTimeout(300);
+  assert.equal(requests.length, count, 'no flush, retry or final beacon after withdrawal');
+  assert.equal(await consentOpens(), 1);
+  await context.close();
+});
+await check('23 no email shown, no page errors', async () => {
   assert.ok(!(await other.content()).includes(EMAIL.owner));
   assert.deepEqual(errors, []);
 });
 await browser.close();
-const TOTAL = 21;
+const TOTAL = 23;
 console.log(`${results.length}/${TOTAL} checks passed`);
 process.exit(results.length === TOTAL ? 0 : 1);

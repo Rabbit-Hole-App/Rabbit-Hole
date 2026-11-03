@@ -21,7 +21,7 @@ import { BLANK, rabbitOrigin, requestRabbitHole, resumeHref, takeResume } from '
 import RabbitHoleChoice from './RabbitHoleChoice.jsx';
 import { carryStep, keepPendingStep, takePendingStep } from './learn-next-steps.js';
 import { markGuidedEntry } from './learn-opening.js';
-import { startCollector } from './publication-analytics.js';
+import { publicationAnalytics } from './publication-analytics.js';
 import { useSharedNextSteps } from './LearnNextSteps.jsx';
 import { describeBlock } from './LearningBlocks.jsx';
 import { creatorLabel } from './home/provenance.js';
@@ -187,12 +187,13 @@ function SharedBoard({ token, embed = null }) {
   const guest = useGuestDraft(token, shared?.version, { enabled: localCopy });
   const guestRef = useRef(guest);
   guestRef.current = guest;
-  // Creator analytics (publication-analytics.js): a public /e publication only, never a share link or an embed on another site.
+  // Creator analytics (publication-analytics.js): a public /e publication only, never a share link or an embed on another site, and only
+  // while the visitor's analytics choice allows it. The handle follows that choice for as long as the page is open.
   const analytics = useRef(null);
   const published = !embed && !!shared?.published;
   useEffect(() => {
     if (!published) return undefined;
-    const collector = startCollector({ token, blocks: shared.state?.blocks || [] });
+    const collector = publicationAnalytics({ token, blocks: shared.state?.blocks || [] });
     analytics.current = collector;
     return () => { collector.stop(); analytics.current = null; };
   }, [token, published]); // eslint-disable-line react-hooks/exhaustive-deps

@@ -6,12 +6,13 @@
 // Starts and forks are recorded by learn-boards.js in the same db.batch as the hole or fork (conversionStatements), so a
 // failure records nothing and a replay (existing hole, replayed fork) never reaches the batch.
 //
-// Identity: a learner is a one-way key, sha256 of 'publication-learner:u:<users.id>' signed in, else
-// 'publication-learner:v:<visitor id>' (a random UUID this browser keeps). A browser later seen signed in is linked
-// (publication_visitor_links) and its anonymous rows count as that account at read time. The owner's own visits are dropped
-// at ingest, and so are a browser's once the owner was seen signed in on it. Synthetic checks are stored apart and never
-// reported as audience. Nothing personal is stored or returned: no email, users.id, visitor id, IP, user agent, referrer
-// path or query, token, answer or typed text.
+// Consent: nothing is written without the visitor's acceptance (the rh_analytics_consent cookie, web analytics-consent.js), and Do Not
+// Track or Global Privacy Control overrides it. A missing signal means no collection.
+// Identity: a learner is a one-way key, sha256 of 'publication-learner:u:<users.id>' signed in, else 'publication-learner:v:<visitor id>'
+// (a random UUID this browser keeps): pseudonymous, not anonymous. A browser is never linked to an account: its signed-out visits stay its
+// own, so a shared browser cannot count as the wrong person, and someone who visits signed out and then signs in counts as two. The owner's
+// own signed-in visits are dropped at ingest. Synthetic checks are stored apart and never reported as audience. Nothing else personal is
+// stored or returned: no email, users.id, visitor id, IP, user agent, referrer, token, answer or typed text.
 import { repositoryIdentity } from './repositories.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { sharedState } from './shared-privacy.js';
@@ -21,20 +22,20 @@ import { STAR_COUNT } from './canvas-stars.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { starFigures } from './canvas-star-analytics.js';
 import { cardName } from './learn-boards.js';
+import { RETENTION_DAYS, accountKey, purgeExpired, retentionCutoff, visitorKey } from './publication-analytics-purge.js';
+import { APPROVED_CAMPAIGNS, approvedCampaign } from '../../web/src/analytics-campaigns.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 export const THRESHOLD = 10;
-export const LIMITS = { body: 64 * 1024, events: 50, session_events: 3000, canvas_hour_events: 20000, session_active: 4 * 3600, raw_days: 90 };
+export const LIMITS = { body: 64 * 1024, events: 50, session_events: 3000, canvas_hour_events: 20000, session_active: 4 * 3600 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CANVAS = /^canvas-[a-f0-9]{8}$/;
 export const SOURCES = ['linkedin', 'explore', 'creator_profile', 'stars', 'direct', 'other_referrer'];
-const TAG = /^[a-z0-9._-]{1,40}$/, HOST = /^(?=.{1,100}$)[a-z0-9-]+(\.[a-z0-9-]+)+$/, STEP = /^[A-Za-z0-9:_.-]{1,120}$/;
-const isStep = id => typeof id === 'string' && STEP.test(id);
+const isStep = id => typeof id === 'string' && /^ns_[0-9a-f]{8}\.[1-9]$/.test(id); // a Next Steps suggestion id as the server mints it (mintSet)
 const RANGES = { '7d': 7, '30d': 30, all: null };
 
-const learnerKey = (kind, id) => sha256Hex(`publication-learner:${kind}:${id}`);
-const principalKey = email => sha256Hex(`publication-creator:${email}`);
-const userKey = viewer => learnerKey(viewer.userId ? 'u' : 'e', viewer.userId || viewer.email);
+// The server's side of the visitor's choice (web analytics-consent.js): the acceptance cookie, and neither privacy signal on the request.
+export const consented = req => !!req && req.headers.get('Sec-GPC') !== '1' && req.headers.get('DNT') !== '1' && /(?:^|;\s*)rh_analytics_consent=accepted(?:;|$)/.test(req.headers.get('Cookie') || '');
 const short = (value, max = 200) => (typeof value === 'string' && value.length > 0 && value.length <= max ? value : null);
 
 // A card's concepts, as resolveTarget (web learn-target.js) reads them: its scene objects' conceptId and its spec's conceptIds.
@@ -64,29 +65,32 @@ const metaStatements = (db, now) => [
   db.prepare("INSERT OR IGNORE INTO analytics_meta (key, value) VALUES ('collection_started_at', ?)").bind(now),
   db.prepare("INSERT INTO analytics_meta (key, value) VALUES ('last_ingest_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(now),
 ];
-const learnerStatement = (db, org, canvas, learner, signed, synthetic, now) => db.prepare(`INSERT INTO publication_learners (org, canvas, learner_key, signed_in, synthetic, first_seen_at) VALUES (?, ?, ?, ?, ?, ?)
-  ON CONFLICT(org, canvas, learner_key) DO UPDATE SET signed_in = max(signed_in, excluded.signed_in)`).bind(org, canvas, learner, signed, synthetic, now);
-const dayStatement = (db, at, { opens = 0, active = 0, source = null, campaign = null, host = null } = {}) => db.prepare(`INSERT INTO publication_learner_days (org, canvas, learner_key, day, segment, opens, active_seconds, source, campaign, referrer_host)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(org, canvas, learner_key, day, segment) DO UPDATE SET opens = opens + excluded.opens, active_seconds = active_seconds + excluded.active_seconds,
-  source = COALESCE(source, excluded.source), campaign = COALESCE(campaign, excluded.campaign), referrer_host = COALESCE(referrer_host, excluded.referrer_host)`)
-  .bind(at.org, at.canvas, at.learner, at.day, at.segment, opens, active, source, campaign, host);
+const learnerStatement = (db, org, canvas, learner, signed, synthetic, now) => db.prepare(`INSERT INTO publication_learners (org, canvas, learner_key, signed_in, synthetic, first_seen_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(org, canvas, learner_key) DO UPDATE SET signed_in = max(signed_in, excluded.signed_in), last_seen_at = excluded.last_seen_at`).bind(org, canvas, learner, signed, synthetic, now, now);
+// The long-lived counters: sums per publication and day, no person.
+const boardDayStatement = (db, at, { opens = 0, stars = 0, starts = 0, forks = 0 }) => db.prepare(`INSERT INTO publication_board_days (org, canvas, day, opens, opens_from_stars, rabbit_holes_started, audience_forks) VALUES (?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(org, canvas, day) DO UPDATE SET opens = opens + excluded.opens, opens_from_stars = opens_from_stars + excluded.opens_from_stars, rabbit_holes_started = rabbit_holes_started + excluded.rabbit_holes_started, audience_forks = audience_forks + excluded.audience_forks`).bind(at.org, at.canvas, at.day, opens, stars, starts, forks);
+const dayStatement = (db, at, { opens = 0, active = 0, source = null, campaign = null } = {}) => db.prepare(`INSERT INTO publication_learner_days (org, canvas, learner_key, day, segment, opens, active_seconds, source, campaign)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(org, canvas, learner_key, day, segment) DO UPDATE SET opens = opens + excluded.opens, active_seconds = active_seconds + excluded.active_seconds,
+  source = COALESCE(source, excluded.source), campaign = COALESCE(campaign, excluded.campaign)`)
+  .bind(at.org, at.canvas, at.learner, at.day, at.segment, opens, active, source, campaign);
 // once: the first value of the day wins (a quiz's first try, a conversion that already exists); else repeats count in n.
 const itemStatement = (db, at, kind, id, extra = null, once = false) => db.prepare(`INSERT INTO publication_learner_items (org, canvas, learner_key, day, segment, kind, item_id, n, extra)
   VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?) ON CONFLICT(org, canvas, learner_key, day, segment, kind, item_id) DO ${once ? 'NOTHING' : 'UPDATE SET n = n + 1'}`)
   .bind(at.org, at.canvas, at.learner, at.day, at.segment, kind, id, extra);
 
-// The Rabbit Hole start and fork success paths (learn-boards.js): statements for their own db.batch, [] when the action did
-// not come through a live publication or was the owner's. item is the new hole's or fork's canvas name, unique per action.
-export async function conversionStatements(db, { found, user, kind, item, materialId = null }) {
+// The Rabbit Hole start and fork success paths (learn-boards.js): statements for their own db.batch, [] when the action did not come through
+// a live publication, was the owner's, or the visitor has not accepted analytics. item is the new hole's or fork's canvas name, unique per action.
+export async function conversionStatements(db, { req, found, user, kind, item, materialId = null }) {
   const row = found?.row;
-  if (!found?.publication || !row || row.board !== 'main' || !CANVAS.test(row.app) || !user?.email || user.email === row.owner_email) return [];
+  if (!consented(req) || !found?.publication || !row || row.board !== 'main' || !CANVAS.test(row.app) || !user?.email || user.email === row.owner_email) return [];
   // Analytics never costs a visitor their hole or fork: if preparing the row fails (storage, or the tables are missing) the action
   // goes ahead uncounted, and the failure is logged.
   try {
     const now = new Date().toISOString(), state = sharedState(JSON.parse(row.state_json));
-    const at = { org: row.org, canvas: row.app, learner: await userKey(user), day: now.slice(0, 10), segment: await segmentOf(db, row.org, row.app, row.version, state, now) };
+    const at = { org: row.org, canvas: row.app, learner: await accountKey(user), day: now.slice(0, 10), segment: await segmentOf(db, row.org, row.app, row.version, state, now) };
     const entry = materialId ? cardsOf(state).get(materialId) : null;
-    return [learnerStatement(db, at.org, at.canvas, at.learner, 1, 0, now), dayStatement(db, at), itemStatement(db, at, kind, item, null, true),
+    return [learnerStatement(db, at.org, at.canvas, at.learner, 1, 0, now), dayStatement(db, at), itemStatement(db, at, kind, item, null, true), boardDayStatement(db, at, kind === 'start' ? { starts: 1 } : { forks: 1 }),
       ...(entry ? cardConcepts(entry).map(c => itemStatement(db, at, 'concept_deeper', c)) : [])];
   } catch (error) {
     console.error('analytics conversion not recorded', error?.message);
@@ -105,28 +109,28 @@ export async function ingestEvents(req, env, found) {
   let body; try { body = JSON.parse(raw); } catch { return json({ error: 'Invalid JSON' }, 400); }
   const events = body?.events;
   if (!UUID.test(body?.visitor_id) || !UUID.test(body?.session_id) || !Array.isArray(events) || !events.length || events.length > LIMITS.events) return json({ error: `Send visitor_id, session_id and 1-${LIMITS.events} events.` }, 400);
+  // Before anything is read or written: no acceptance, or a privacy signal, means no collection.
+  if (!consented(req)) return json({ accepted: 0, ignored: events.length, dropped: 'no_consent' });
   if (isEmbed(req)) return json({ accepted: 0, ignored: events.length, dropped: 'embed' }); // an embed on another site is not a /e visit
   const db = env.LEARN_DB, now = new Date().toISOString(), org = row.org, canvas = row.app;
   const identity = req.headers.get('cookie') ? await repositoryIdentity(req, env) : null;
   const viewer = identity instanceof Response ? null : identity;
-  const visitor = await learnerKey('v', body.visitor_id);
-  const ownerPrincipal = await principalKey(row.owner_email);
-  const link = viewer ? db.prepare('INSERT OR IGNORE INTO publication_visitor_links (visitor_key, learner_key, principal_key, linked_at) VALUES (?, ?, ?, ?)').bind(visitor, await userKey(viewer), await principalKey(viewer.email), now) : null;
-  // The creator's own visit, signed in or on a browser they were seen signed in on: dropped, but it proves the collector runs.
-  const own = viewer ? viewer.email === row.owner_email : (await db.prepare('SELECT principal_key FROM publication_visitor_links WHERE visitor_key = ?').bind(visitor).first())?.principal_key === ownerPrincipal;
-  if (own) { await db.batch([...metaStatements(db, now), ...(link ? [link] : [])]); return json({ accepted: 0, ignored: events.length, dropped: 'own_visit' }); }
-  const sessionKey = await sha256Hex(`${visitor}:${body.session_id}`);
+  // The creator's own signed-in visit: dropped, but it proves the collector runs.
+  if (viewer?.email === row.owner_email) { await db.batch(metaStatements(db, now)); return json({ accepted: 0, ignored: events.length, dropped: 'own_visit' }); }
+  // Who this request is, now: never remembered from an earlier sign-in on this browser. The visit's key comes from that identity, so signing
+  // out or switching account mid-tab starts a new visit and carries nothing of the old one across.
+  const learner = viewer ? await accountKey(viewer) : await visitorKey(body.visitor_id), synthetic = body.synthetic === true ? 1 : 0;
+  const sessionKey = await sha256Hex(`${learner}:${body.session_id}`);
   const [inSession, inHour] = await Promise.all([
     db.prepare('SELECT count(*) AS n FROM publication_events WHERE session_key = ?').bind(sessionKey).first(),
     db.prepare('SELECT count(*) AS n FROM publication_events WHERE org = ? AND canvas = ? AND received_at > ?').bind(org, canvas, new Date(Date.parse(now) - 3600e3).toISOString()).first(),
   ]);
   if (inSession.n + events.length > LIMITS.session_events || inHour.n + events.length > LIMITS.canvas_hour_events) return json({ error: 'Too many events for now.', limited: true }, 429);
-  const learner = viewer ? await userKey(viewer) : visitor, synthetic = body.synthetic === true ? 1 : 0;
   const state = sharedState(JSON.parse(row.state_json)), cards = cardsOf(state), sources = new Set(boardSources(state).map(sourceKey));
   const allConcepts = new Set([...cards.values()].flatMap(cardConcepts));
   const at = { org, canvas, learner, day: now.slice(0, 10), segment: await segmentOf(db, org, canvas, row.version, state, now) };
   // Replays: an event id already stored (a retried batch, a resent beacon) is ignored, so nothing it counted counts twice.
-  const ids = await Promise.all(events.map(e => (UUID.test(e?.id) ? sha256Hex(`${visitor}:${e.id}`) : null)));
+  const ids = await Promise.all(events.map(e => (UUID.test(e?.id) ? sha256Hex(`${learner}:${e.id}`) : null)));
   const stored = new Set();
   for (let i = 0; i < ids.length; i += 90) {
     const chunk = ids.slice(i, i + 90).filter(Boolean);
@@ -137,7 +141,7 @@ export async function ingestEvents(req, env, found) {
   let creditedThrough = person?.credited_through ?? null;
   const out = [], seenIds = new Set();
   let accepted = 0;
-  const accept = (index, type, statements) => { out.push(db.prepare('INSERT INTO publication_events (event_id, org, canvas, session_key, type, received_at) VALUES (?, ?, ?, ?, ?, ?)').bind(ids[index], org, canvas, sessionKey, type, now), ...statements); accepted += 1; };
+  const accept = (index, type, statements) => { out.push(db.prepare('INSERT INTO publication_events (event_id, org, canvas, session_key, learner_key, type, received_at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(ids[index], org, canvas, sessionKey, learner, type, now), ...statements); accepted += 1; };
   events.forEach((e, index) => {
     if (!ids[index] || stored.has(ids[index]) || seenIds.has(ids[index])) return;
     seenIds.add(ids[index]);
@@ -145,15 +149,14 @@ export async function ingestEvents(req, env, found) {
     switch (e.type) {
       case 'open': {
         const source = SOURCES.includes(e.source) ? e.source : 'direct';
-        const campaign = typeof e.campaign === 'string' && TAG.test(e.campaign.toLowerCase()) ? e.campaign.toLowerCase() : null;
-        const host = source === 'other_referrer' && typeof e.referrer_host === 'string' && HOST.test(e.referrer_host.toLowerCase()) ? e.referrer_host.toLowerCase() : null;
+        const campaign = approvedCampaign(e.campaign); // an unknown value is ignored
         const fresh = !session;
         if (fresh) {
           session = { started_at: now, reported_active: 0, credited_active: 0 };
           out.push(db.prepare('INSERT INTO publication_sessions (session_key, org, canvas, learner_key, started_at) VALUES (?, ?, ?, ?, ?)').bind(sessionKey, org, canvas, learner, now));
         }
         // Total opens are sessions: a reload or a return inside the visit adds no open.
-        return accept(index, 'open', [dayStatement(db, at, { opens: fresh ? 1 : 0, source, campaign, host }), ...(fresh ? [itemStatement(db, at, 'open_source', source)] : [])]);
+        return accept(index, 'open', [dayStatement(db, at, { opens: fresh ? 1 : 0, source, campaign }), ...(fresh && !synthetic ? [boardDayStatement(db, at, { opens: 1, stars: source === 'stars' ? 1 : 0 })] : [])]);
       }
       case 'active': {
         // Cumulative visible, recently active seconds from the browser. Credited: the increase over what this visit already
@@ -198,11 +201,9 @@ export async function ingestEvents(req, env, found) {
     }
   });
   if (!accepted) { await db.batch(metaStatements(db, now)); return json({ accepted: 0, ignored: events.length }); }
-  const oldest = new Date(Date.parse(now) - LIMITS.raw_days * 86400e3).toISOString();
-  const prune = [db.prepare('DELETE FROM publication_events WHERE received_at < ?').bind(oldest), db.prepare('DELETE FROM publication_sessions WHERE started_at < ?').bind(oldest)];
   const credited = creditedThrough !== (person?.credited_through ?? null) ? [db.prepare('UPDATE publication_learners SET credited_through = ? WHERE org = ? AND canvas = ? AND learner_key = ?').bind(creditedThrough, org, canvas, learner)] : [];
   try {
-    await db.batch([...metaStatements(db, now), ...prune, ...(link ? [link] : []), learnerStatement(db, org, canvas, learner, viewer ? 1 : 0, synthetic, now), ...out, ...credited]);
+    await db.batch([...metaStatements(db, now), ...purgeExpired(db, now), learnerStatement(db, org, canvas, learner, viewer ? 1 : 0, synthetic, now), ...out, ...credited]);
   } catch {
     // A concurrent copy of the same batch won an event id, or storage failed: nothing of this one was written; the browser retries.
     // Recorded for the owner's status when it can be; the next good batch clears it.
@@ -232,8 +233,9 @@ function complement(cells) {
 }
 
 export const DEFINITIONS = Object.freeze({
-  unique_visitors: 'Signed-in accounts and anonymous browsers, each counted once across your boards and days in the range. An anonymous browser is not an exact count of people. A browser later seen signed in counts as that account.',
-  total_opens: 'Distinct visits (sessions) to a public board. A reload or a return within the visit adds nothing. Your own visits are excluded.',
+  coverage: 'Only visitors who accepted analytics are measured, and nothing is collected from a browser sending Do Not Track or Global Privacy Control. Other visitors are simply not counted, so these numbers can be lower than your real audience; a low number does not mean no activity.',
+  unique_visitors: 'Consenting signed-in accounts and consenting signed-out browsers, each counted once across your boards and days in the range. A signed-out browser is not an exact count of people, and someone who visits signed out and then signs in counts as two. Visitor-level measures cover at most the last 90 days.',
+  total_opens: 'Distinct visits (sessions) to a public board by consenting visitors. A reload or a return within the visit adds nothing. Your own signed-in visits are excluded.',
   avg_active_seconds: 'Average credited active time per visitor and board: visible, recently active time with a 60-second inactivity threshold, never more than the wall-clock time, so overlapping tabs do not add up. It estimates engagement, not learning.',
   returning_visitors: 'Visitors seen on two or more distinct days in the range.',
   rabbit_holes_started: 'Rabbit Holes started successfully from a public board (recorded on the server when the hole is created; reopening one never counts).',
@@ -245,7 +247,7 @@ export const DEFINITIONS = Object.freeze({
   concepts: 'Of the visitors who saw a card carrying a concept, the share who interacted with it (explored) and who started a Rabbit Hole or chose a Next Step about it (went deeper).',
   next_steps: 'Suggestions actually shown and chosen, by position. Nothing is generated to measure it.',
   friction: 'Quiz cards only: visitors whose first answer was incorrect, decided on the server from the card\'s own answer key. Incomplete evidence is not an incorrect answer; Tutor-graded answers are not collected on public boards.',
-  sources: 'The first observed source of each visitor in this scope and range: LinkedIn, Explore, your profile, Stars, other referrers (hostname only), or direct / unknown. Only allowlisted campaign tags are kept.',
+  sources: 'The first observed source of each visitor in this scope and range: LinkedIn, Explore, your profile, Stars, another site (never named), or direct / unknown. Only approved campaign ids are kept.',
   privacy: `Audience counts, rates and segments need at least ${THRESHOLD} visitors in that exact range and filter; a value that could be recovered by subtraction is hidden too. Hidden values are never zero. Exports apply the same rule.`,
   revisions: 'Before / after compares two revision periods of equal length around a change of the board\'s cards. It is descriptive: different audiences and dates, not proof that the edit caused a change.',
 });
@@ -272,7 +274,7 @@ export async function analyticsRoute(path, req, env) {
 
 export async function readAnalytics(db, viewer, { range, canvas = null, synthetic = 0 }) {
   const now = new Date().toISOString(), today = now.slice(0, 10);
-  await db.prepare("INSERT OR IGNORE INTO analytics_meta (key, value) VALUES ('collection_started_at', ?)").bind(now).run();
+  await db.batch([db.prepare("INSERT OR IGNORE INTO analytics_meta (key, value) VALUES ('collection_started_at', ?)").bind(now), ...purgeExpired(db, now)]);
   const meta = Object.fromEntries((await db.prepare('SELECT key, value FROM analytics_meta').all()).results.map(r => [r.key, r.value]));
   const started = meta.collection_started_at, startDay = started.slice(0, 10);
   const scopeSql = canvas ? 'AND c.name = ?3' : '';
@@ -287,19 +289,24 @@ export async function readAnalytics(db, viewer, { range, canvas = null, syntheti
     WHERE c.org = ?1 AND c.owner_email = ?2 ${scopeSql} AND (p.token IS NOT NULL OR EXISTS (SELECT 1 FROM publication_learners l WHERE l.org = c.org AND l.canvas = c.name))
     ORDER BY c.title`).bind(...binds).all()).results;
   const names = new Set(boards.map(b => b.canvas));
-  const creator = await principalKey(viewer.email);
-  // Per-learner rows of the scope since collection began, the creator's own browsers excluded; the range is applied below.
+  // Expiry is enforced here as well as purged: a row past retention is never counted, whether or not a purge has run.
+  const cutoffDay = retentionCutoff(now).slice(0, 10);
+  // Per-learner rows of the scope within retention; the range is applied below.
   // shortcut: rows are aggregated in the Worker, fine for thousands of learner-days a read; move the counts into SQL when a
   // creator's audience reaches tens of thousands of learner-days.
-  const rows = async table => (await db.prepare(`SELECT d.*, COALESCE(k.learner_key, d.learner_key) AS who, (p.signed_in OR k.learner_key IS NOT NULL) AS signed
+  const rows = async table => (await db.prepare(`SELECT d.*, d.learner_key AS who, p.signed_in AS signed
     FROM ${table} d JOIN publication_learners p ON p.org = d.org AND p.canvas = d.canvas AND p.learner_key = d.learner_key
-    LEFT JOIN publication_visitor_links k ON k.visitor_key = d.learner_key
     WHERE d.org = ?1 AND d.canvas IN (SELECT c.name FROM canvases c WHERE c.org = ?1 AND c.owner_email = ?2 ${scopeSql}) AND p.synthetic = ?${binds.length + 1}
-      AND (k.principal_key IS NULL OR k.principal_key != ?${binds.length + 2})`).bind(...binds, synthetic, creator).all()).results.filter(r => names.has(r.canvas));
+      AND d.day >= ?${binds.length + 2}`).bind(...binds, synthetic, cutoffDay).all()).results.filter(r => names.has(r.canvas));
   const [allDays, allItems] = [await rows('publication_learner_days'), await rows('publication_learner_items')];
-  const syntheticCount = (await db.prepare(`SELECT count(*) AS n FROM publication_learners l WHERE l.org = ?1 AND l.synthetic = 1 AND l.canvas IN (SELECT c.name FROM canvases c WHERE c.org = ?1 AND c.owner_email = ?2 ${scopeSql})`).bind(...binds).first()).n;
+  const syntheticCount = (await db.prepare(`SELECT count(*) AS n FROM publication_learners l WHERE l.org = ?1 AND l.synthetic = 1 AND l.last_seen_at >= ?${binds.length + 1} AND l.canvas IN (SELECT c.name FROM canvases c WHERE c.org = ?1 AND c.owner_email = ?2 ${scopeSql})`).bind(...binds, retentionCutoff(now)).first()).n;
+  // The counters for the whole range come from the person-free rollup; a synthetic read has only its own rows.
+  const counted = synthetic ? [] : (await db.prepare(`SELECT b.* FROM publication_board_days b WHERE b.org = ?1 AND b.canvas IN (SELECT c.name FROM canvases c WHERE c.org = ?1 AND c.owner_email = ?2 ${scopeSql})`).bind(...binds).all()).results.filter(r => names.has(r.canvas));
   const from = RANGES[range] ? dayPlus(today, 1 - RANGES[range]) : startDay;
   const days = allDays.filter(r => r.day >= from), items = allItems.filter(r => r.day >= from);
+  const counters = synthetic ? [] : counted.filter(r => r.day >= from);
+  const sumOf = (list, key) => list.reduce((n, r) => n + r[key], 0);
+  const openSum = canvasName => { const d = canvasName ? days.filter(r => r.canvas === canvasName) : days, c = canvasName ? counters.filter(r => r.canvas === canvasName) : counters; return synthetic ? sumOf(d, 'opens') : sumOf(c, 'opens'); };
   const whoOf = list => new Set(list.map(r => r.who));
   const itemsOf = (kind, id = null) => items.filter(r => r.kind === kind && (id === null || r.item_id === id));
 
@@ -325,13 +332,13 @@ export async function readAnalytics(db, viewer, { range, canvas = null, syntheti
   const starOf = name => stars.canvases.find(c => c.canvas === name);
   const inScope = list => list.filter(c => names.has(c.canvas));
   const periodSum = key => (stars.period?.value === null ? hidden('not_collected') : pub(inScope(stars.canvases).reduce((n, c) => n + (c[key] || 0), 0)));
-  const opensFromStars = itemsOf('open_source', 'stars').reduce((n, r) => n + r.n, 0);
+  const opensFromStars = sumOf(counters, 'opens_from_stars');
 
   // Boards
   const boardRows = boards.map(b => {
     const d = days.filter(r => r.canvas === b.canvas), seen = whoOf(d), s = starOf(b.canvas);
     return { canvas: b.canvas, title: b.title, url: b.token && b.published ? `/e/${b.token}` : null, published: !!b.published,
-      visitors: protect(seen.size, seen.size), opens: pub(d.reduce((n, r) => n + r.opens, 0)), avg_active_seconds: avgActive(d, seen.size),
+      visitors: protect(seen.size, seen.size), opens: pub(openSum(b.canvas)), avg_active_seconds: avgActive(d, seen.size),
       start_rate: rate(within(whoOf(starts.filter(r => r.canvas === b.canvas)), seen), seen.size),
       audience_fork_rate: rate(within(whoOf(forks.filter(r => r.canvas === b.canvas)), seen), seen.size),
       stars_now: pub(b.stars), forks_all: pub(b.forks),
@@ -392,25 +399,13 @@ export async function readAnalytics(db, viewer, { range, canvas = null, syntheti
   }
 
   // Sources: each visitor's first observed source in scope and range.
-  const firstSource = new Map(), campaignsOf = new Map(), hostsOf = new Map();
+  const firstSource = new Map(), campaignsOf = new Map();
   for (const r of [...days].sort((a, b) => a.day.localeCompare(b.day))) {
-    if (r.source && !firstSource.has(r.who)) { firstSource.set(r.who, r.source); if (r.referrer_host) hostsOf.set(r.who, r.referrer_host); }
-    if (r.campaign) (campaignsOf.get(r.campaign) || campaignsOf.set(r.campaign, new Set()).get(r.campaign)).add(r.who);
+    if (r.source && !firstSource.has(r.who)) firstSource.set(r.who, r.source);
+    if (APPROVED_CAMPAIGNS.includes(r.campaign)) (campaignsOf.get(r.campaign) || campaignsOf.set(r.campaign, new Set()).get(r.campaign)).add(r.who);
   }
   const bySource = SOURCES.map(source => { const n = [...firstSource.values()].filter(s => s === source).length; return { source, n, metric: protect(n, n) }; });
   if (visitors.size >= THRESHOLD) complement(bySource);
-  const hostCounts = new Map();
-  for (const h of hostsOf.values()) hostCounts.set(h, (hostCounts.get(h) || 0) + 1);
-  // A host needs ten visitors of its own. The named hosts must also leave no small remainder of the other-referrer total, which
-  // subtraction would reveal: the smallest named host is withheld until the remainder is 0 or at least ten.
-  const named = [...hostCounts].filter(([, n]) => n >= THRESHOLD).sort((a, b) => b[1] - a[1]);
-  const otherTotal = [...firstSource.values()].filter(s => s === 'other_referrer').length;
-  while (named.length) {
-    const left = otherTotal - named.reduce((n, [, c]) => n + c, 0);
-    if (left === 0 || left >= THRESHOLD) break;
-    named.pop();
-  }
-  const referrers = named.map(([host, n]) => ({ host, visitors: { value: n, reason: null } }));
   const campaigns = [...campaignsOf].map(([campaign, who]) => ({ campaign, visitors: protect(who.size, who.size), start_rate: rate(within(starters, who), who.size) }))
     .filter(c => c.visitors.value !== null).sort((a, b) => b.visitors.value - a.visitors.value);
 
@@ -425,7 +420,7 @@ export async function readAnalytics(db, viewer, { range, canvas = null, syntheti
   const metric = (value, cohort) => protect(value, cohort);
   return {
     scope: { kind: canvas ? 'publication' : 'creator', canvas, title: canvas ? boards[0]?.title ?? null : null },
-    range, period: { from, to: today, timezone: 'UTC', partial: from < startDay }, threshold: THRESHOLD,
+    range, period: { from, to: today, timezone: 'UTC', partial: from < startDay, audience_from: from < cutoffDay ? cutoffDay : from }, threshold: THRESHOLD, retention_days: RETENTION_DAYS, coverage: 'consenting_visitors',
     // Active only when this read succeeded and the newest ingest did not fail after the newest success.
     collection: { status: meta.last_ingest_error_at && !(meta.last_ingest_at > meta.last_ingest_error_at) ? 'degraded' : 'active', started_at: started, last_ingest_at: meta.last_ingest_at ?? null, checked_at: now, own_visits_excluded: true, synthetic_excluded: syntheticCount },
     producers: {
@@ -435,21 +430,21 @@ export async function readAnalytics(db, viewer, { range, canvas = null, syntheti
       outcomes: { readiness: 'partial', started_at: started, note: 'Quiz cards only. Tutor-graded answers are not collected on public boards.' },
     },
     overview: {
-      total_opens: pub(days.reduce((n, r) => n + r.opens, 0)), unique_visitors: metric(visitors.size, visitors.size),
+      total_opens: pub(openSum()), unique_visitors: metric(visitors.size, visitors.size),
       signed_in_visitors: visitors.size >= THRESHOLD ? split[0].metric : hidden('insufficient_cohort'), anonymous_visitors: visitors.size >= THRESHOLD ? split[1].metric : hidden('insufficient_cohort'),
       avg_active_seconds: avgActive(days, visitors.size), engaged_visitors: metric([...perWho.values()].filter(s => s >= 120).length, visitors.size),
       returning_visitors: metric([...daysOf.values()].filter(s => s.size >= 2).length, visitors.size),
-      rabbit_holes_started: pub(new Set(starts.map(r => r.item_id)).size), start_rate: rate(within(starters, visitors), visitors.size),
+      rabbit_holes_started: pub(synthetic ? new Set(starts.map(r => r.item_id)).size : sumOf(counters, 'rabbit_holes_started')), start_rate: rate(within(starters, visitors), visitors.size),
       stars_now: pub(boards.reduce((n, b) => n + b.stars, 0)), stars_from_owner: pub(boards.reduce((n, b) => n + b.owner_stars, 0)), stars_from_audience: pub(boards.reduce((n, b) => n + b.stars - b.owner_stars, 0)),
-      canonical_forks: pub(boards.reduce((n, b) => n + b.forks, 0)), audience_forks: pub(new Set(forks.map(r => r.item_id)).size), audience_fork_rate: rate(within(forkers, visitors), visitors.size),
+      canonical_forks: pub(boards.reduce((n, b) => n + b.forks, 0)), audience_forks: pub(synthetic ? new Set(forks.map(r => r.item_id)).size : sumOf(counters, 'audience_forks')), audience_fork_rate: rate(within(forkers, visitors), visitors.size),
       public_boards: pub(boards.filter(b => b.published).length),
     },
     stars: { additions: periodSum('additions'), removals: periodSum('voluntary_removals'), net: periodSum('net_change'), opens_from_stars: pub(opensFromStars) },
     trend: Array.from({ length: Math.max(1, Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400e3) + 1) }, (_, i) => dayPlus(from, i))
-      .map(day => ({ day, opens: pub(days.filter(r => r.day === day).reduce((n, r) => n + r.opens, 0)) })),
+      .map(day => ({ day, opens: pub(synthetic ? sumOf(days.filter(r => r.day === day), 'opens') : sumOf(counters.filter(r => r.day === day), 'opens')) })),
     boards: boardRows,
     learning: { cards, concepts, next_steps: nextSteps, resources, friction, revisions },
-    sources: { visitors: bySource.map(s => ({ source: s.source, visitors: s.metric })), campaigns, referrers },
+    sources: { visitors: bySource.map(s => ({ source: s.source, visitors: s.metric })), campaigns },
     insights, definitions: DEFINITIONS,
   };
 }
