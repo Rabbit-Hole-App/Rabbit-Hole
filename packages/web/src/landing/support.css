@@ -57,3 +57,4 @@
 @media(prefers-reduced-motion:reduce){.support-page *{transition:none!important;scroll-behavior:auto!important}}
 /* The Privacy page's Analytics preferences button (owner 2026-11-02); shown only where the choice can be made (footer-links.css). */
 .legal-copy .legal-preferences{min-height:44px;padding:10px 20px;font-size:15px}
+html:not([data-analytics-choice]) .legal-copy .legal-preferences{display:none}
