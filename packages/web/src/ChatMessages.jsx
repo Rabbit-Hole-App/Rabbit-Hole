@@ -22,34 +22,13 @@ import { imageGenerationId, imageGenerationOn, imageStatus, retryImageSave, runI
 import { sameFileCard } from './file-to-canvas.js';
 import { mergeOutputs, openOutput, outputSink } from './chat-output-refs.js';
 import { cardStatus, imageProposalStatus, madeFromVersion, outputForProposal } from './generation-proposal-status.js';
-import { animationProposalStatus, animationRunning, pollRetryDelay } from './animation3d/client.js';
+import { useAnimationProposal } from './animation3d/use-proposal-status.js';
 import { responseKind, turnIndex } from './chat-response-kind.js';
 import { briefHeading, isBriefCommand } from './material-brief.js';
 import PlanSummary, { planSummary } from './animation3d/PlanSummary.jsx';
 
 // An /animation plan with its scene (owner, 2026-10-31): the short summary in place of the plan lines, and Edit reads Edit plan.
 // A plan made before the server sent its scene keeps the full lists.
-// The job behind an approved /animation plan, read for its status line (polled while it runs; a Chat message may outlive its card).
-function useAnimationProposal(p, made, ops) {
-  const [read, setRead] = useState({ job: null, unread: false });
-  const id = p.command === 'animation' && made && ops?.readAnimationJob ? p.input?.job : null;
-  useEffect(() => {
-    if (!id) return undefined;
-    let live = true, timer, failures = 0;
-    const poll = async () => {
-      try { const job = await ops.readAnimationJob(p); if (!live) return; failures = 0; setRead({ job, unread: false }); if (animationRunning(job)) timer = setTimeout(poll, 4000); }
-      catch (error) {
-        if (!live) return;
-        setRead(current => ({ ...current, unread: !current.job }));
-        const delay = pollRetryDelay(error, ++failures);
-        if (delay !== null) timer = setTimeout(poll, delay);
-      }
-    };
-    poll();
-    return () => { live = false; clearTimeout(timer); };
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
-  return id ? animationProposalStatus({ ...read, cardId: read.job?.cardId ?? null, onCanvas: !read.job?.cardId || ops.hasCard?.(read.job.cardId) !== false }) : null;
-}
 const animationReview = p => {
   const summary = p.command === 'animation' ? planSummary(p) : null;
   return summary ? { summary: <PlanSummary summary={summary} />, editLabel: 'Edit plan' } : {};
