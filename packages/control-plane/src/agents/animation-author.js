@@ -31,7 +31,7 @@ export const ARTIFACT_DRAFT = {
       materials: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'color'], properties: { id: ID, color: { type: 'string', description: '#rrggbb' }, opacity: { type: 'number' } } } },
       geometries: { type: 'array', items: GEOMETRY }, nodes: { type: 'array', items: NODE } } },
     parameters: { type: 'array', maxItems: 8, items: PLAN_PARAMETER },
-    actions: { type: 'array', maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: ID, label: { type: 'string', maxLength: 60 } } } },
+    actions: { type: 'array', maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: ID, label: { type: 'string', maxLength: 60 }, startsMotion: { type: 'boolean', description: 'stepped scenes: false when the action only changes the state once (one step, keep a path); absent or true starts the host steps.' } } } },
     keys: { type: 'object', additionalProperties: false, properties: { up: ID, down: ID, left: ID, right: ID }, description: 'Optional: for moves that go up, down, left or right as seen from the camera, the id of the declared action each direction presses; the learner then plays them with the arrow keys or WASD, one action per key press.' },
     readouts: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: ID, label: { type: 'string', maxLength: 60 }, unit: { type: 'string', maxLength: 16 }, decimals: { type: 'integer', minimum: 0, maximum: 6 } } } },
     timeline: { type: 'object', additionalProperties: false, required: ['duration', 'loop'], properties: { duration: { type: 'number' }, loop: { type: 'boolean' } }, description: 'Required for watch.' },
@@ -92,6 +92,8 @@ const MATH_RULES = 'Formulas: implement exactly the loss, update and rule the pl
 // 0 (no minimum, so no size rule for a quantity that starts at zero); an update is never called the gradient; an off-plot marker sits where
 // the step crosses the edge (aj_086fd46 drew (0.7, -2) for a step that crossed b = -2 at about (-1.02, -2)).
 const SIZE_RULES = 'Sizes: the host frames the camera on the whole scene, so moving a camera closer does not enlarge anything. Size every moving or important part against the whole scene: a moving marker at least 4% of the scene\'s width. A magnitude arrow is its true length times one constant scale factor, the same for every arrow compared with it, chosen from a typical nonzero magnitude of the default run so typical arrows read clearly, and said in an assumption; never a minimum or maximum length, which draws different magnitudes the same. An arrow whose magnitude is zero is hidden and its quantity is shown as 0 (in its label or a readout); a fixed, labelled scale bar may show the common scale, but it must not look like a vector (no arrowhead). Name a drawn vector for exactly what it is: an update or step (a rate times a gradient) is never called the gradient. Draw every value where the state puts it: never clamp a drawn position or length coordinate by coordinate while a readout shows the true value; a value outside the drawn area is drawn where it is (the card fits its view to the motion), or marked at the point where its path actually crosses the edge of the drawn area (computed from the segment) and labelled as off the plot, with the readouts kept true. Leaving the drawn area is not divergence: say diverged only when the stated rule proves it. A curved surface is drawn as capabilities.surfaces says: tubes about 1% of the scene\'s width (a node\'s scale also scales a tube\'s thickness, so place each tube\'s points at full size), never filled discs or boxes over a moving part, and never 1 px lines alone.';
+// Owner 2026-11-02 (aj_086fd46 review: Take one step ran on by itself): the host starts the step clock after any action of a stepped scene, as a launch needs.
+const ACTION_RULES = "Actions in a stepped scene: an action that starts a motion over time (a launch, a drop) declares nothing; the host then starts the steps. An action that only changes the state once, so the learner can study it (one step of a process, keep a path, switch a view), declares startsMotion false: the host leaves the step clock as it is, a paused scene stays paused, and each press changes the state exactly once.";
 const COMPACT_RULES = `The finished artifact with its program should stay under about ${ANIMATION_DRAFT_BYTES} bytes as you write it, or the review and repair cannot read it and the build stops; every node is declared, and a trail marker costs about ${TRAIL_NODE_BYTES} bytes, so use as few trail points as show the idea. Every label's text must be non-empty: a label whose words the program sets still starts with real words and stays hidden until needed. The card draws its own Reset and Reset view, so no action may have the id or label reset, restart, start over, reset game, reset scene, reset experiment or reset view: give a scene's own action its own name, such as keepPath with the label Keep this path and run again. Each assumption, limitation and description stays within the contract's length limits (an assumption at most 300 characters). ` + 'Your whole reply, including any reasoning, has a fixed output limit: decide briefly, then make the tool call. Keep the scene and program compact: reuse geometries and materials, only the nodes the idea needs, a short program with small helper functions and no comments or unused code.';
 // What the review looks at (animation-render.js captureViews), so the scene is laid out to read from both.
 const VIEW_RULES = 'The review renders two views: your camera, and the same target seen from about 55 degrees to the side and slightly higher. Lay the scene out so its idea reads from both: a flat arrangement should face your camera, and nothing important should hide behind another object from a nearby angle.';
@@ -105,7 +107,7 @@ ${HOST_CONTROL_RULES}
 ${WORK_RULES}
 ${ACCURACY_RULES}
 ${LABEL_RULES}
-${MOTION_RULES}
+${MOTION_RULES} ${ACTION_RULES}
 ${HONESTY_RULES} Compute every position, drawn marker, trail and readout from the same state in one evaluate, so the picture and the numbers always agree.
 ${RATE_RULES}
 ${MATH_RULES}
@@ -132,7 +134,7 @@ ${HOST_CONTROL_RULES}
 ${WORK_RULES}
 ${ACCURACY_RULES}
 ${LABEL_RULES}
-${MOTION_RULES}
+${MOTION_RULES} ${ACTION_RULES}
 ${HONESTY_RULES} Compute every position, drawn marker, trail and readout from the same state in one evaluate, so the picture and the numbers always agree.
 Return the COMPLETE artifact every time: every field, and the program (with its whole source) whenever the current artifact has one or the scene needs one; an artifact without its program is refused.
 ${COMPACT_RULES}

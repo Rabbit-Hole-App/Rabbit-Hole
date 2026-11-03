@@ -94,3 +94,17 @@ block type string `animation3d`: 0 matches; `main`'s own `animation` block type 
 - **Not enforceable by code:** a hand `wrangler rollback` of `rabbit-hole-app` or `rabbit-hole-cp` alone. After it the next release refuses (split pair) until a
   released pair is restored, and meanwhile the previous server answers `409 version_unavailable` for a tube scene ("This animation could not be opened. Your saved
   version is kept."): nothing is lost. **Never roll back one of the two Workers alone while tube scenes exist: roll the pair back, or roll forward.**
+
+## Second feature: `action_motion` (single-step actions, 2026-11-03)
+
+- An action may declare `startsMotion` (boolean, optional). In a stepped scene the host starts the step clock after an accepted action, as a launch or a
+  drop needs; an action that declares `startsMotion: false` only changes the state once (one step, keep a path), so a paused scene stays paused and each press
+  changes the state exactly once. Absent or `true` is the old behavior, so every artifact made before the field behaves as it did (the shipped watch,
+  experiment and game fixtures and the stepped Launch test game declare nothing; `session.test.mjs` pins it).
+- A build that does not know the field refuses the artifact (the action object is strict), so the field is a client feature like `curve_radius`: the browser
+  declares `action_motion` (`ANIMATION_CLIENT_FEATURES` is now `curve_radius`, `action_motion`), the author and repair are told not to declare `startsMotion`
+  for a browser without it, the validate stage refuses a draft that does (repairable), and `readResult` answers `409 client_update_required` for a saved
+  artifact that declares it to a browser that does not. `needsFeatures` returns every feature a saved artifact needs, so a tube scene with a one-step action needs both.
+- The pre-change dev tab (declares `curve_radius` only) therefore gets the update message, not a blank or wrong card, for the corrected SGD fixture; a reload
+  loads the new client.
+- The bundle check now fails a production build whose chunks do not declare every feature in the list.

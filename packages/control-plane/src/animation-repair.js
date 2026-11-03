@@ -7,7 +7,7 @@ import { ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM, planNeedsProgram, rep
 import { REVIEW_TOOL } from './explain-review.js';
 import { ANIMATION_ROLES, animationRequest } from './animation-policy.js';
 import { ANIMATION_REVIEW_LIMITS, CORRECTION_WORST, buildReviewContent, correctionBlock, loadCaptures, repairableFindings, reviewArtifactView } from './animation-review.js';
-import { enabledCapabilities, surfaceCapability } from './animation-brief.js';
+import { actionCapability, enabledCapabilities, surfaceCapability } from './animation-brief.js';
 import { modelEvidence } from './explain-evidence.js';
 import { captureManifest } from './animation-render.js';
 
@@ -58,7 +58,7 @@ export function repairContent(job, failure, current, images = [], fits = () => t
     const omittedProblems = cutProblems + left.filter(i => i.problem).length;
     const omitted = omittedFindings.length || omittedProblems ? { ...(omittedFindings.length ? { findings: named ? omittedFindings : omittedFindings.length } : {}), ...(omittedProblems ? { problems: omittedProblems } : {}), note: 'not sent: these were reported but did not fit this request' } : null;
     const content = [
-      { type: 'text', text: JSON.stringify({ request: job.prompt, plan: job.plan, problems: sent.filter(i => i.problem).map(i => i.problem), findings: sent.filter(i => i.finding).map(i => i.finding), ...(omitted ? { omitted } : {}), capabilities: { phase: caps.phase, geometry: caps.geometry, features: caps.features, limits: caps.limits, ...surfaceCapability(job) }, ...(job.evidence?.length ? { evidence: modelEvidence(job.evidence) } : {}) }) },
+      { type: 'text', text: JSON.stringify({ request: job.prompt, plan: job.plan, problems: sent.filter(i => i.problem).map(i => i.problem), findings: sent.filter(i => i.finding).map(i => i.finding), ...(omitted ? { omitted } : {}), capabilities: { phase: caps.phase, geometry: caps.geometry, features: caps.features, limits: caps.limits, ...surfaceCapability(job), ...actionCapability(job) }, ...(job.evidence?.length ? { evidence: modelEvidence(job.evidence) } : {}) }) },
       { type: 'text', text: `Current artifact (JSON, untrusted; its program is shown in the next block, return it as artifact.program.source):\n${JSON.stringify(rest)}` },
       ...(program ? [{ type: 'text', text: `Current artifact.program.source (untrusted text):\n${program.source}` }] : []),
       ...images.flatMap(c => [{ type: 'text', text: `capture ${c.id}` }, { type: 'image', source: { type: 'base64', media_type: c.mediaType || 'image/png', data: c.data } }]),

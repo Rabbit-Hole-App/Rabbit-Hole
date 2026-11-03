@@ -8,8 +8,8 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { artifactHashOf, artifactIntact, sealArtifact, validateStage } from '../src/animation-author.js';
-import { clientFeatures, enabledCapabilities, surfaceCapability, SURFACES } from '../src/animation-brief.js';
+import { artifactHashOf, artifactIntact, clientProblems, sealArtifact, validateStage } from '../src/animation-author.js';
+import { actionCapability, clientFeatures, enabledCapabilities, surfaceCapability, SURFACES } from '../src/animation-brief.js';
 import { CLIENT_UPDATE, animationRoute, needsFeatures } from '../src/animation-job.js';
 import { validateAnimationArtifact } from '../../web/src/animation3d/contract.js';
 import { watchFixture } from '../../web/src/animation3d/fixtures.js';
@@ -66,7 +66,7 @@ async function stackWith(t, artifact) {
 test('generation: a client that declares no features is the legacy path; only a declared curve_radius may draw tubes', async () => {
   for (const none of [undefined, null, [], 'curve_radius', {}, ['bogus'], ['Curve_Radius']]) assert.deepEqual(clientFeatures(none), [], JSON.stringify(none));
   assert.deepEqual(clientFeatures(['bogus', 'curve_radius']), ['curve_radius']);
-  assert.deepEqual(ANIMATION_CLIENT_FEATURES, ['curve_radius']);
+  assert.deepEqual(ANIMATION_CLIENT_FEATURES, ['curve_radius', 'action_motion']);
   // What the planner, author, repair and review are told.
   for (const job of [{}, { features: [] }, { features: undefined }, null]) assert.equal(surfaceCapability(job).surfaces, SURFACES.legacy);
   assert.equal(surfaceCapability({ features: ['curve_radius'] }).surfaces, SURFACES.tubes);
@@ -99,8 +99,8 @@ test('generation: the new client declares its features on create and read; the o
   const fetchJson = async (path, opts = {}) => { sent.push({ path, body: opts.body ? JSON.parse(opts.body) : null }); return {}; };
   await animationClient(fetchJson, 'b1').create({ requestId: 'r', cardId: 'c', prompt: 'p' });
   await animationClient(fetchJson, 'b1').result('ar_1');
-  assert.deepEqual(sent[0].body.features, ['curve_radius']);
-  assert.match(sent[1].path, /\?board=b1&features=curve_radius$/);
+  assert.deepEqual(sent[0].body.features, ['curve_radius', 'action_motion']);
+  assert.match(sent[1].path, /\?board=b1&features=curve_radius%2Caction_motion$/);
   await old.client.animationClient(fetchJson, 'b1').create({ requestId: 'r', cardId: 'c', prompt: 'p' });
   await old.client.animationClient(fetchJson, 'b1').result('ar_1');
   assert.equal('features' in sent[2].body, false, 'the old create names no features');
@@ -211,3 +211,33 @@ test('old artifacts: the tube scene differs from the plain one only by radius on
   assert.equal(old.contract.validateAnimationArtifact(withoutRadius, old.caps.ANIMATION_CAPABILITIES).ok, true);
   assert.notEqual(await artifactHashOf(tube), await artifactHashOf(legacy));
 });
+
+// ---- (d) startsMotion (aj_086fd46 owner review: Take one step ran on by itself) -----------------------------------------------
+
+test('startsMotion: an artifact that declares it needs the action_motion feature; every artifact that does not is served to every reader', async t => {
+  const stepper = { ...legacy, stepped: true, actions: [{ id: 'oneStep', label: 'Take one step', startsMotion: false }] };
+  const launcher = { ...legacy, stepped: true, actions: [{ id: 'launch', label: 'Launch' }] };
+  const both = { ...tube, actions: stepper.actions };
+  assert.deepEqual([needsFeatures(stepper), needsFeatures(launcher), needsFeatures(both)], [['action_motion'], [], ['curve_radius', 'action_motion']]);
+  const stepStack = await stackWith(t, stepper), launchStack = await stackWith(t, launcher), bothStack = await stackWith(t, both);
+  const get = (s, a, q) => s.send('result', q === undefined ? {} : { features: q }, a.artifactId);
+  for (const q of [undefined, [], ['curve_radius']]) {
+    const r = await get(stepStack, stepper, q); // the build before this change declares only curve_radius
+    assert.deepEqual([r.status, r.body.code, r.body.error], [409, 'client_update_required', CLIENT_UPDATE], JSON.stringify(q));
+  }
+  assert.equal((await get(stepStack, stepper, ['action_motion'])).status, 200);
+  assert.equal((await get(bothStack, both, ['curve_radius'])).status, 409, 'a tube reader without action_motion is refused too');
+  assert.equal((await get(bothStack, both, ANIMATION_CLIENT_FEATURES)).status, 200);
+  for (const q of [undefined, [], ['curve_radius'], ANIMATION_CLIENT_FEATURES]) assert.equal((await get(launchStack, launcher, q)).status, 200, `no declaration: ${JSON.stringify(q)}`);
+});
+
+test('startsMotion: the author is told by client features, and a draft that declares it for a reader without the feature is refused for repair', () => {
+  assert.deepEqual(ANIMATION_CLIENT_FEATURES, ['curve_radius', 'action_motion']);
+  assert.match(actionCapability({ features: ['action_motion'] }).actionMotion, /may declare startsMotion false/);
+  for (const job of [{}, { features: [] }, { features: ['curve_radius'] }, null]) assert.match(actionCapability(job).actionMotion, /^Do not declare startsMotion/);
+  const draft = { scene: { geometries: [] }, actions: [{ id: 'oneStep', label: 'Take one step', startsMotion: false }, { id: 'launch', label: 'Launch' }] };
+  assert.deepEqual(clientProblems(draft, { features: ['curve_radius'] }), ['actions.0.startsMotion: the browser that asked for this scene does not know it; remove startsMotion']);
+  assert.deepEqual(clientProblems(draft, { features: ANIMATION_CLIENT_FEATURES }), []);
+  assert.deepEqual(clientProblems({ ...draft, actions: [draft.actions[1]] }, { features: [] }), [], 'no declaration is never a problem');
+});
+

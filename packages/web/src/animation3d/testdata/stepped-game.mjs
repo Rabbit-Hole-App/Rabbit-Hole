@@ -23,3 +23,26 @@ export async function steppedGameArtifact() {
     game: { objective: 'Launch the robot onto the target.' },
     program: { ...game.program, source: SOURCE, sourceHash: await hashProgramSource(SOURCE) } };
 }
+
+// A stepped scene whose actions are of the two kinds (contract.js startsMotion): nudge only changes the state once and declares
+// startsMotion false; launch starts a motion and declares nothing. The step event counts host ticks, so a runaway shows as ticks.
+const STUDY_SOURCE = `export function initialState() { return { taken: 0, ticks: 0, flying: false, x: 0 }; }
+export function reduce({ state, event }) {
+  if (event.type === 'action' && event.action === 'nudge') return { ...state, taken: state.taken + 1 };
+  if (event.type === 'action' && event.action === 'launch' && !state.flying) return { ...state, flying: true };
+  if (event.type === 'step') return { ...state, ticks: state.ticks + 1, x: state.flying ? Math.min(3, Math.round((state.x + 0.1) * 10) / 10) : state.x, flying: state.flying && state.x < 2.9 };
+  return state;
+}
+export function evaluate({ state }) {
+  const s = state || initialState();
+  return { nodes: { robot: { position: [s.x, 0.3, 0] } }, readouts: { taken: s.taken, ticks: s.ticks, distance: s.x }, goal: { status: 'playing', message: 'Study the steps.' } };
+}
+`;
+
+export async function steppedStudyArtifact() {
+  const game = await steppedGameArtifact();
+  return { ...game, artifactId: 'stepped-study-stub', title: 'Nudge or launch',
+    actions: [{ id: 'nudge', label: 'Take one step', startsMotion: false }, { id: 'launch', label: 'Launch' }],
+    readouts: [{ id: 'taken', label: 'Steps taken', decimals: 0 }, { id: 'ticks', label: 'Host ticks', decimals: 0 }, { id: 'distance', label: 'Distance', unit: 'm', decimals: 1 }],
+    program: { ...game.program, source: STUDY_SOURCE, sourceHash: await hashProgramSource(STUDY_SOURCE) } };
+}

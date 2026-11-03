@@ -149,3 +149,19 @@ test('the legacy 2D animation and explain_program contracts stay separate and un
   assert.ok(issueAt(validateAnimationArtifact({ kind: 'explain_program', schemaVersion: 1 }), 'unsupported_schema', 'schema'));
   assert.ok(issueAt(validateAnimationArtifact({ id: 'legacy', title: 'Old 2D scene', timeline: [] }), 'unsupported_schema', 'schema'));
 });
+
+// startsMotion (aj_086fd46 owner review): an optional boolean on an action; absent is every artifact made before it (hashes unchanged).
+test('an action may declare startsMotion as a boolean; absent is allowed and the field is strict', () => {
+  const declared = structuredClone(gameFixture.artifact);
+  assert.ok(declared.actions.length > 0 && declared.actions.every(action => !('startsMotion' in action)), 'the shipped game declares nothing');
+  assert.equal(validateAnimationArtifact(declared).ok, true);
+  declared.actions[0].startsMotion = false;
+  const ok = validateAnimationArtifact(declared);
+  assert.equal(ok.ok, true, JSON.stringify(ok.issues));
+  assert.equal(ok.value.actions[0].startsMotion, false);
+  for (const bad of ['false', 0, null]) {
+    const wrong = structuredClone(declared);
+    wrong.actions[0].startsMotion = bad;
+    assert.equal(validateAnimationArtifact(wrong).ok, false, JSON.stringify(bad));
+  }
+});

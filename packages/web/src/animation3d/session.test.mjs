@@ -6,7 +6,7 @@ import test, { before } from 'node:test';
 import assert from 'node:assert/strict';
 import { REFIT_MS, createCardSession } from './session.js';
 import { visibleControls } from './card.js';
-import { steppedGameArtifact } from './testdata/stepped-game.mjs';
+import { steppedGameArtifact, steppedStudyArtifact } from './testdata/stepped-game.mjs';
 import { deferred, experimentArtifact, gameArtifact, loadEngine, realRuntimes, stubRenderers, stubRuntimes, validated, watchArtifact } from './testdata/ui-stubs.mjs';
 
 before(loadEngine);
@@ -289,6 +289,48 @@ test('a stepped game (real runtime): Play and Pause are offered; Launch starts t
   await settle();
   assert.deepEqual([values(h.state()), h.state().playing], [{ distance: 0 }, false], 'Reset: back home, the clock stopped until the next Launch');
   h.session.dispose();
+});
+
+// aj_086fd46 owner review: "Take one step" clicked three times recorded step 11, because every accepted action of a stepped scene
+// started the step clock. An action that declares startsMotion false changes the state once and a paused scene stays paused; one that
+// declares nothing (Launch) still starts the steps. The same scene holds both, so the difference is the declaration and nothing else.
+test('a stepped scene (real runtime): a startsMotion false action advances exactly once per press and stays paused; Launch still plays', async () => {
+  const runtimes = realRuntimes();
+  const h = harness({ artifact: await steppedStudyArtifact(), runtimes });
+  h.block = { id: 's', type: 'animation3d' };
+  await started(h);
+  const frames = async n => { for (let i = 0; i < n; i += 1) { runtimes.clock.frame(34); await settle(5); } };
+  assert.deepEqual(values(h.state()), { taken: 0, ticks: 0, distance: 0 });
+  assert.equal(await h.session.action('nudge'), true);
+  await frames(60); // two seconds of frames: a runaway would add ticks
+  assert.deepEqual([values(h.state()), h.state().playing], [{ taken: 1, ticks: 0, distance: 0 }, false], 'one press: one step, still paused, no host ticks');
+  for (let i = 0; i < 2; i += 1) assert.equal(await h.session.action('nudge'), true);
+  await frames(60);
+  assert.deepEqual([values(h.state()), h.state().playing], [{ taken: 3, ticks: 0, distance: 0 }, false], 'three presses: three steps, still paused');
+  assert.equal(await h.session.action('launch'), true);
+  assert.equal(h.state().playing, true, 'an action that declares nothing starts the step clock, as before');
+  await frames(6);
+  const moved = values(h.state());
+  assert.ok(moved.ticks > 0 && moved.distance > 0 && moved.taken === 3, `Launch plays: ${JSON.stringify(moved)}`);
+  h.session.pause();
+  const held = values(h.state());
+  await frames(10);
+  assert.deepEqual(values(h.state()), held, 'Pause holds it');
+  // A single-step press while playing leaves the clock running (it never stops what the learner started).
+  h.session.play();
+  assert.equal(await h.session.action('nudge'), true);
+  assert.equal(h.state().playing, true, 'a startsMotion false press does not pause a running scene');
+  h.session.dispose();
+});
+
+// The rule changes nothing for what already exists: no shipped fixture declares startsMotion and no shipped fixture is a stepped scene
+// with an action, except the stepped Launch game, which keeps starting its steps (the test above this one's neighbour).
+test('startsMotion: no shipped fixture or test scene other than the study scene declares it', async () => {
+  const { ANIMATION_FIXTURES } = await import('./fixtures.js');
+  const artifacts = ANIMATION_FIXTURES.map(fixture => fixture.artifact);
+  assert.equal(artifacts.length, 3, 'the shipped watch, experiment and game fixtures');
+  for (const artifact of artifacts) assert.ok(artifact.actions.every(action => !('startsMotion' in action)), `${artifact.title}: declares nothing, so its actions behave as before`);
+  assert.ok((await steppedGameArtifact()).actions.every(action => !('startsMotion' in action)), 'the stepped Launch game declares nothing: Launch starts its steps');
 });
 
 // The fitted view (framing.js, lane R2): asked once per scene when no camera was saved, with the viewport's aspect, the shown frame

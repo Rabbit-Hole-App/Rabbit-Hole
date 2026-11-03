@@ -38,4 +38,5 @@ export const CAPABILITY_REGISTRIES = Object.freeze([ANIMATION_CAPABILITIES]);
 // What this browser build can draw beyond what every deployed build can (owner 2026-11-02): it says so when it asks for a scene and when
 // it reads one (client.js), and the server gates on it (animation-job.js). A request that names none is from an older build: it is
 // never given a scene that uses these, and reading one answers client_update_required. curve_radius: a curve with a radius is a tube.
-export const ANIMATION_CLIENT_FEATURES = Object.freeze(['curve_radius']);
+// action_motion: an action may declare startsMotion (contract.js), which an older build's contract would refuse as an unknown field.
+export const ANIMATION_CLIENT_FEATURES = Object.freeze(['curve_radius', 'action_motion']);

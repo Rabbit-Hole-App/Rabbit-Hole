@@ -1104,7 +1104,8 @@
   "actions": [
    {
     "id": "oneStep",
-    "label": "Take one step"
+    "label": "Take one step",
+    "startsMotion": false
    },
    {
     "id": "keepPath",

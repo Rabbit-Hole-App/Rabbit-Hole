@@ -6,7 +6,7 @@
 //   node build-animation-mvp1-correction-fixture.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
 import { hashAnimationPlan, validateAnimationPlan } from '../web/src/animation3d/contract.js';
-import { ANIMATION_CAPABILITIES } from '../web/src/animation3d/capabilities.js';
+import { ANIMATION_CAPABILITIES, ANIMATION_CLIENT_FEATURES } from '../web/src/animation3d/capabilities.js';
 
 const saved = JSON.parse(readFileSync(new URL('./test/fixtures/animation-aj_086fd46.json', import.meta.url), 'utf8'));
 const K = 2, TUBE = 0.04, ARROW_T = 2;
@@ -107,7 +107,7 @@ const draft = {
   scene: { materials: [{ id: 'bowl', color: '#3f6fa8' }, { id: 'edge', color: '#8f99a6', opacity: 0.25 }, { id: 'ball', color: '#e8692a' }, { id: 't', color: '#f07a30' }, { id: 'g', color: '#8a8a8a' }, { id: 'puck', color: '#3a9a5b' },
     { id: 'min', color: '#333344' }, { id: 'stepA', color: '#d9481c' }, { id: 'trueA', color: '#555555' }, { id: 'exitMat', color: '#c01818' }, { id: 'barMat', color: '#222222' }], geometries, nodes },
   parameters: structuredClone(plan.parameters),
-  actions: [{ id: 'oneStep', label: 'Take one step' }, { id: 'keepPath', label: 'New run, keep old path' }],
+  actions: [{ id: 'oneStep', label: 'Take one step', startsMotion: false }, { id: 'keepPath', label: 'New run, keep old path' }],
   readouts: [{ id: 'loss', label: 'Full-data loss', decimals: 3 }, { id: 'dist', label: 'Distance from lowest point', decimals: 3 }, { id: 'stepNo', label: 'Step (of 40)', decimals: 0 }, { id: 'passes', label: 'Passes through the data', decimals: 3 }],
   seed: 7, camera: { position: [5.5, 6, 7.5], target: [0, 1, 0], fov: 42 },
   assumptions: [
@@ -133,7 +133,7 @@ console.log('wrote fixture', planHash.slice(0, 12), `${source.length} source byt
 // saved result (animation-job.js ANIMATION_SEED_FIXTURE_PATH). Nothing here is bundled into the app or the Workers.
 const { validateStage } = await import('./src/animation-author.js');
 const PROMPT = 'Show me how stochastic gradient descent works. Let me change the learning rate and batch size to see what happens.';
-const sealed = await validateStage({ prompt: PROMPT, evidence: [], context: null, plan, planHash, resultId: out.resultId, approval: { at: out.approvalAt }, draft, calls: [], features: ['curve_radius'] }, { env: {} });
+const sealed = await validateStage({ prompt: PROMPT, evidence: [], context: null, plan, planHash, resultId: out.resultId, approval: { at: out.approvalAt }, draft, calls: [], features: ANIMATION_CLIENT_FEATURES }, { env: {} });
 if (!sealed.artifact) throw new Error(`the fixture does not validate: ${JSON.stringify(sealed.problems)}`);
 writeFileSync(new URL('./test/fixtures/animation-mvp1-correction-artifact.json', import.meta.url), JSON.stringify(sealed.artifact) + String.fromCharCode(10));
 console.log('wrote the sealed artifact', sealed.artifactHash.slice(0, 12));

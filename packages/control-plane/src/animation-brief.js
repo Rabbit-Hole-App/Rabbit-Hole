@@ -21,6 +21,8 @@ export const SURFACES = Object.freeze({
   tubes: 'No shape draws a filled curved surface. A curved surface (a bowl, a hill, a saddle) is drawn as a wireframe of tube curves (curves with a radius): a few level lines and cross-sections placed exactly on its equation, so the parts that move on or inside it stay visible. Describe it to the learner as a wireframe.',
   legacy: 'No shape draws a filled curved surface, and the browser that asked for this scene cannot draw tube curves (a curve is a 1 px line there): do not plan or draw a scene that depends on a curved surface; say so in limitations.',
 });
+// An action's startsMotion (contract.js): the author is told whether this scene's browser can read it (owner 2026-11-02, the single-step review).
+export const actionCapability = job => ({ actionMotion: clientFeatures(job?.features).includes('action_motion') ? 'An action in a stepped scene may declare startsMotion false (see the rules); absent, it starts the step clock.' : 'Do not declare startsMotion: the browser that asked for this scene does not know it.' });
 export const surfaceCapability = job => ({ surfaces: clientFeatures(job?.features).includes('curve_radius') ? SURFACES.tubes : SURFACES.legacy });
 const issuesText = issues => issues.slice(0, 6).map(i => `${i.path || 'plan'}: ${i.message}`).join('; ');
 // What the plan uses instead, in the learner's words (no enum on the review card, owner 2026-10-31).

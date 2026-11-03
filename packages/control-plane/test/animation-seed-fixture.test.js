@@ -41,13 +41,15 @@ test('seeded, it is an ordinary saved result: the normal read serves it to its o
   assert.equal(first.status, 200);
   assert.deepEqual(again.body, first.body, 'seeding twice is the same result');
   assert.deepEqual([first.body.resultId, first.body.cardId], [artifact.artifactId, `fixture-${artifact.artifactId.slice(3, 15)}`]);
-  const ok = await s.read(artifact.artifactId, '&features=curve_radius');
+  const ok = await s.read(artifact.artifactId, '&features=curve_radius%2Caction_motion');
   assert.equal(ok.status, 200);
   assert.deepEqual(ok.body.artifact, artifact, 'exactly the artifact that was seeded');
   assert.equal(ok.body.execution.allowed, true);
   const older = await s.read(artifact.artifactId);
   assert.deepEqual([older.status, older.body.code], [409, 'client_update_required'], 'the fixture uses tube curves: a browser that did not declare them is told to update');
-  assert.equal((await s.read(artifact.artifactId, '&features=curve_radius', { ...OWNER, email: 'someone-else@dev.test' })).status, 404);
+  const tubesOnly = await s.read(artifact.artifactId, '&features=curve_radius');
+  assert.deepEqual([tubesOnly.status, tubesOnly.body.code], [409, 'client_update_required'], 'and a build before the one-step declaration (tubes only) is told too');
+  assert.equal((await s.read(artifact.artifactId, '&features=curve_radius%2Caction_motion', { ...OWNER, email: 'someone-else@dev.test' })).status, 404);
   const record = s.state.data.get(`result:${artifact.artifactId}`);
   assert.equal(record.fixture, true, 'marked as a fixture in storage');
   assert.deepEqual(record.owner, { org: OWNER.org, email: OWNER.email });

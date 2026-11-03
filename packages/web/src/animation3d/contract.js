@@ -124,7 +124,7 @@ const ArtifactSchema = z.object({
   title: text(120), description: text(600), // description: the accessible scene description
   experience: z.enum(EXPERIENCES), behavior: z.enum(BEHAVIORS), controlProfile: z.enum(CONTROL_PROFILES), sourceRefs: z.array(sourceRef),
   scene: z.object({ materials: z.array(material), geometries: z.array(geometry), nodes: z.array(node) }).strict(),
-  parameters: z.array(parameter), actions: z.array(z.object({ id, label: text(60) }).strict()),
+  parameters: z.array(parameter), actions: z.array(z.object({ id, label: text(60), startsMotion: z.boolean().optional() }).strict()), // startsMotion: in a stepped scene, whether the action starts the host's step clock (absent or true: it does, as a launch or a drop needs); false: it only changes the state once (one step, keep a path) and the clock is left as it is (aj_086fd46 owner review: Take one step ran away)
   // Directional keys (owner 2026-11-01): the declared action each direction's keys press (up: W or ArrowUp, down: S or ArrowDown, left: A
   // or ArrowLeft, right: D or ArrowRight), as seen from the scene's camera. Discrete only: one action per key press, a held key never
   // repeats it. Continuous movement would need its own declared capability; this field never grants it. Optional, so older artifacts validate.

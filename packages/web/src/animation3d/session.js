@@ -261,11 +261,12 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
       return dispatch(eventFor.parameter(id, value), { input: id });
     },
     // In a stepped scene the host's steps move what an action starts (a launch, a drop: contract.js stepped), so an accepted action
-    // starts the step clock when it is paused; otherwise the motion would wait, unseen, for a Play nobody knew to press.
+    // starts the step clock when it is paused; otherwise the motion would wait, unseen, for a Play nobody knew to press. Unless the action
+    // declares startsMotion false (contract.js): it then only changes the state once, as Take one step does, and a paused scene stays paused.
     action: async id => {
       await settleView();
       const ok = await dispatch(eventFor.action(id));
-      if (ok && state.artifact?.stepped && !state.playing) api.play();
+      if (ok && state.artifact?.stepped && !state.playing && state.artifact.actions.find(action => action.id === id)?.startsMotion !== false) api.play();
       return ok;
     },
     select,

@@ -13,6 +13,7 @@ import { pendulumDemo } from '../../web/src/animation3d/pendulum-demo.js';
 import { loadEngine, runProgram } from '../../web/src/explain-program/runtime.js';
 import { canonicalJson, sha256Hex } from '../../web/src/explain-program/contract.js';
 import { clientProblems, sealArtifact, validateStage } from '../src/animation-author.js';
+import { ANIMATION_CLIENT_FEATURES } from '../../web/src/animation3d/capabilities.js';
 import { ANIMATION_CAPTURE, captureManifest, captureViews, chosenManifest, middleOf } from '../src/animation-render.js';
 import { DEFAULT_IDS, candidatesOf, fullBatchAfter, qualifySgd } from '../animation-sgd-qualification.mjs';
 
@@ -46,7 +47,7 @@ let sealed;
 const sgd = async () => {
   engine ??= await loadEngine();
   if (!sealed) {
-    const v = await validateStage({ prompt: PROMPT, evidence: [], context: null, plan: fixture.plan, planHash: fixture.planHash, resultId: fixture.resultId, approval: { at: fixture.approvalAt }, draft: fixture.draft, calls: [], features: ['curve_radius'] }, { env: {} });
+    const v = await validateStage({ prompt: PROMPT, evidence: [], context: null, plan: fixture.plan, planHash: fixture.planHash, resultId: fixture.resultId, approval: { at: fixture.approvalAt }, draft: fixture.draft, calls: [], features: ANIMATION_CLIENT_FEATURES }, { env: {} });
     assert.equal(v.problems, undefined, JSON.stringify(v.problems));
     sealed = { ...v, hash: v.artifactHash };
   }
@@ -88,9 +89,12 @@ test('the fixture is labelled an offline fixture, passes the real validators, an
   const tubes = artifact.scene.geometries.filter(g => g.kind === 'curve');
   assert.ok(tubes.length === 5 && tubes.every(g => g.radius === 0.04), 'a bowl wireframe of tube curves: three rings and two cross-sections');
   assert.equal(artifact.scene.geometries.some(g => g.kind === 'cylinder' && /^c\d/.test(g.id)), false, 'no stacked filled discs');
-  // The gate: a browser that did not say curve_radius is never given this scene (animation-job.js), and validation names the fix.
-  assert.equal(clientProblems(artifact, {}).length, tubes.length, 'each tube is named');
-  assert.equal(clientProblems(artifact, { features: ['curve_radius'] }).length, 0);
+  // The gate: a browser that did not say curve_radius and action_motion is never given this scene (animation-job.js); validation names each fix.
+  assert.equal(clientProblems(artifact, {}).length, tubes.length + 1, 'each tube is named, and the one-step action');
+  assert.equal(clientProblems(artifact, { features: ['curve_radius'] }).length, 1, 'a tube reader that cannot read startsMotion is told');
+  assert.equal(clientProblems(artifact, { features: ['action_motion'] }).length, tubes.length);
+  assert.equal(clientProblems(artifact, { features: ANIMATION_CLIENT_FEATURES }).length, 0);
+  assert.deepEqual(artifact.actions.map(a => [a.id, a.startsMotion]), [['oneStep', false], ['keepPath', undefined]], 'only the one-step action declares that it does not start the motion');
 });
 
 test('four readouts at the start, with correct values and truthful zeros', async () => {
@@ -292,7 +296,9 @@ test('qualification: the saved repaired draft of aj_086fd46 fails on the missing
     assert.equal(result.ok, false, name);
     const bad = result.checks.filter(c => !c.ok);
     assert.ok(bad.some(c => /readout passes: declared with id passes/.test(c.name) && /loss, dist, stepNo/.test(c.detail)), `${name}: names the missing readout and the ones declared`);
-    assert.ok(bad.every(c => /passes/.test(`${c.name} ${c.detail}`)), `${name}: the other three readouts are correct, so only passes fails: ${failed(result)}`);
+    // The saved draft also lets the host play on after "Take one step" (no startsMotion false): the second thing the owner's review found.
+    assert.ok(bad.some(c => /action oneStep: declared with startsMotion false/.test(c.name) && /host plays on after every press/.test(c.detail)), `${name}: names the one-step action that would play on`);
+    assert.ok(bad.every(c => /passes|action oneStep/.test(`${c.name} ${c.detail}`)), `${name}: the other three readouts are correct, so only passes and the one-step declaration fail: ${failed(result)}`);
     // step, loss and distance have correct values in the saved draft: those checks themselves still pass.
     assert.ok(result.checks.filter(c => /^readout (step|loss|dist)/.test(c.name)).every(c => c.ok));
   }
@@ -307,6 +313,7 @@ test('qualification: wrong values fail too (a wrong passes formula, a doubled lo
     ['wrong distance', d => { d.program.source = src.replace('dist:Math.hypot(s.w,s.b)', 'dist:Math.abs(s.w)+Math.abs(s.b)'); }, /dist \(dist\): got/],
     ['renamed readout id', d => { d.readouts.find(r => r.id === 'passes').id = 'passesThroughData'; d.program.source = src.replace('passes:s.k', 'passesThroughData:s.k'); }, /readout passes: declared with id passes/],
     ['repair drops a readout', d => { d.readouts = d.readouts.filter(r => r.id !== 'passes'); }, /readout passes: declared with id passes/],
+    ['one step does not declare startsMotion false (the host would play on after every press)', d => { delete d.actions.find(action => action.id === 'oneStep').startsMotion; }, /action oneStep: declared with startsMotion false/],
     ['keep path forgets to reset the step', d => { d.program.source = src.replace('return fresh(s.w0,s.run+1,s.path);', 'return {...fresh(s.w0,s.run+1,s.path),k:s.k};'); }, /after Keep Path/],
   ];
   for (const [name, change, pattern] of cases) {

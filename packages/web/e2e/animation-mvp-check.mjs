@@ -24,7 +24,7 @@ import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { openSlashHelp } from './canvas-menu-helpers.mjs';
 import { experimentFixture } from '../src/animation3d/fixtures.js';
-import { steppedGameArtifact } from '../src/animation3d/testdata/stepped-game.mjs';
+import { steppedGameArtifact, steppedStudyArtifact } from '../src/animation3d/testdata/stepped-game.mjs';
 import { hashProgramSource } from '../src/animation3d/contract.js';
 import { FIXTURES, expectedReadouts, expectedNodes, expectedGame, close, within, WATCH_ALLOWANCE as WATCH } from './animation-oracle.mjs';
 
@@ -33,7 +33,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('animation-mvp-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'animation-mvp-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 40; // bump with the steps below; the printed line is what CI reads
+const TOTAL = 42; // bump with the steps below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `anim-${run}@example.com`, secret, handle: `anim_${run}` }) })).json();
@@ -590,7 +590,11 @@ export function evaluate({ state }) {
   // Test-only (owner canvas 2026-11-02, a stepped Launch game that never moved in the card): a stepped game, the third job's artifact.
   const STEP_REQUEST = 'a robot I launch onto a target';
   const STEP_ARTIFACT = { ...(await steppedGameArtifact()), artifactId: `art_step_${run}` };
-  const SERVED = new Map([[ARTIFACT.artifactId, ARTIFACT], [DRAG_ARTIFACT.artifactId, DRAG_ARTIFACT], [STEP_ARTIFACT.artifactId, STEP_ARTIFACT]]);
+  // Test-only (aj_086fd46 owner review): a stepped scene with a startsMotion false action beside Launch, the fourth job's artifact.
+  const STUDY_REQUEST = 'a process I can step through one step at a time';
+  const STUDY_ARTIFACT = { ...(await steppedStudyArtifact()), artifactId: `art_study_${run}` };
+  let study = null;
+  const SERVED = new Map([[ARTIFACT.artifactId, ARTIFACT], [DRAG_ARTIFACT.artifactId, DRAG_ARTIFACT], [STEP_ARTIFACT.artifactId, STEP_ARTIFACT], [STUDY_ARTIFACT.artifactId, STUDY_ARTIFACT]]);
   const sha16 = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
   const flow = { jobs: new Map(), creates: [], approves: [], retries: [], puts: [], reads: [], writes: [], proposals: new Map(), briefs: [], fail: null, chooses: [], say: null };
   const viewOf = job => ({ id: job.id, version: 1, boardId: job.boardId, cardId: job.cardId, stage: job.stage, attempt: 1, terminal: ['ready', 'failed', 'cancelled'].includes(job.stage),
@@ -872,6 +876,46 @@ export function evaluate({ state }) {
     await S.play.click();
     assert.equal(await playing(S), false, 'Pause');
     await shot(g, 'K-stepped-landed');
+  });
+
+  // aj_086fd46 owner review (Take one step clicked three times recorded step 11): a stepped scene's action that declares startsMotion false
+  // advances exactly once per press and leaves a paused scene paused; an action that declares nothing (Launch) still starts the steps.
+  await step('a stepped scene: Take one step (startsMotion false) advances exactly once per press and stays paused; the count is the accepted clicks, unchanged seconds later', async () => {
+    flow.next = STUDY_ARTIFACT;
+    await composer(g).click(); await composer(g).fill(`/animation ${STUDY_REQUEST}`); await g.waitForTimeout(150); await composer(g).press('Enter');
+    await until(async () => flow.creates.length === 4, 'a fourth job for the fourth /animation line');
+    const fourth = [...flow.jobs.values()][3];
+    const studyPlan = gDock.locator('[data-generation-proposal="animation"]').filter({ has: g.locator('h3', { hasText: STUDY_ARTIFACT.title }) });
+    await studyPlan.locator('[data-proposal-generate]:not([disabled])').waitFor({ timeout: 20000 });
+    await studyPlan.locator('[data-proposal-generate]').click();
+    await until(async () => flow.approves.some(a => a.jobId === fourth.id), 'Generate on the study plan approved its job');
+    study = parts(g, fourth.cardId);
+    await until(async () => (await study.card.getAttribute('data-animation-experience')) === 'game', 'the stepped study card', 30000);
+    await fit(g);
+    await live(study);
+    const taken = async () => Number(await study.readout('taken').getAttribute('data-value')), ticks = async () => Number(await study.readout('ticks').getAttribute('data-value'));
+    assert.deepEqual([await taken(), await ticks(), await playing(study)], [0, 0, false], 'paused at step 0');
+    await study.action('nudge').click();
+    await until(async () => (await taken()) === 1, 'the first press took a step');
+    await g.waitForTimeout(3000); // a runaway clock would add host ticks, and with them steps, in these seconds
+    assert.deepEqual([await taken(), await ticks(), await playing(study)], [1, 0, false], 'one click: step 1, no host tick, still paused three seconds later');
+    await study.action('nudge').click(); await study.action('nudge').click();
+    await until(async () => (await taken()) === 3, 'three presses took three steps');
+    await g.waitForTimeout(3000);
+    assert.deepEqual([await taken(), await ticks(), await playing(study)], [3, 0, false], 'three clicks: step 3 (the number of accepted clicks), paused, unchanged three seconds later');
+    await shot(g, 'K-study-three-steps');
+  });
+
+  await step('a stepped scene: Launch (no startsMotion) still starts the step clock and a Take one step press while it plays leaves it playing', async () => {
+    const ticks = async () => Number(await study.readout('ticks').getAttribute('data-value')), distance = async () => Number(await study.readout('distance').getAttribute('data-value'));
+    await study.action('launch').click();
+    await until(async () => (await ticks()) > 3 && (await distance()) > 0, `Launch never moved the robot: ticks ${await ticks().catch(() => '?')}`);
+    assert.equal(await playing(study), true, 'Launch started the clock');
+    await study.action('nudge').click();
+    await g.waitForTimeout(300);
+    assert.equal(await playing(study), true, 'a one-step press does not stop what the learner started');
+    await study.play.click();
+    assert.equal(await playing(study), false, 'Pause');
   });
 
   await genSession.context.close();
