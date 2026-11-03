@@ -213,3 +213,67 @@ run('the grid robot game: the target, the board and the robot\'s moves stay on s
   for (const [id, r] of Object.entries(check)) assert.ok(r <= 1, `${id} reaches ${r.toFixed(2)} of the view`);
   assert.ok(check.target <= 1, 'the target at [3, 0.03, 2]');
 });
+
+// Arrows (Animation MVP1 round 4, aj_0b6ca2b5: at learning rate 1 the arrows, drawn at 3x their update, reached far beyond the bowl and the
+// camera fitted to them, leaving the bowl a small part of the view). An arrow is drawn proportional to its quantity, with no cap; the fit
+// keeps one that stays within FRAMING.caption of the rest of the scene and leaves a longer one to run past the edge of the view.
+const ALONG_X = [0, 0, -Math.SQRT1_2, Math.SQRT1_2];
+const plate = [{ id: 'plateGeo', kind: 'box', size: [3, 1, 3] }, { id: 'ballGeo', kind: 'sphere', radius: 0.7 }, { id: 'arrowGeo', kind: 'arrow', length: 1 }];
+const objects = [{ id: 'plate', geometry: 'plateGeo' }, { id: 'ball', geometry: 'ballGeo', position: [0, 1.2, 0] }];
+const push = [{ id: 'push', geometry: 'arrowGeo' }];
+const arrowFrame = length => ({ nodes: { push: { position: [1, 1.2, 0], scale: [1, length, 1], quaternion: ALONG_X } } }); // from x = 1, 'length' long
+const authored = { position: [0, 0, 40], target: [0, 0, 0], fov: 50 };
+const withArrow = length => fitOf(sceneArtifact(plate, [...objects, ...push], authored), [arrowFrame(length)]);
+const lengthPx = (length, { camera }) => { // the arrow lies across the view: its drawn length in pixels of a 1000 px wide view
+  const [a, b] = onScreen(camera, [new THREE.Vector3(1, 1.2, 0), new THREE.Vector3(1 + length, 1.2, 0)]);
+  return Math.abs(b.x - a.x) / 2 * 1000;
+};
+
+test('an arrow far longer than its object is not subject: the object keeps its share of the view, the arrow stays proportional', () => {
+  const alone = fitOf(sceneArtifact(plate, objects, authored), [{}]);
+  const [long, longer] = [withArrow(6), withArrow(12)]; // 6 is under three times the rest of the scene (so not a backdrop), 12 over
+  assert.deepEqual(long.camera, alone.camera, 'the view is the one the object alone needs');
+  assert.deepEqual(longer.camera, alone.camera);
+  assert.ok(!long.points.some(point => point.x > 2), 'no point of the arrow past the object is framed');
+  assert.ok(Math.abs(lengthPx(12, longer) / lengthPx(6, long) - 2) < 1e-9, 'twice the vector, twice the pixels: no cap');
+  assert.ok(onScreen(long.camera, [new THREE.Vector3(7, 1.2, 0)])[0].x > 1, 'and its tip runs past the edge of the view');
+});
+
+test('a short arrow has no minimum length and does not move the view; one that stays near its object is kept in view', () => {
+  const alone = fitOf(sceneArtifact(plate, objects, authored), [{}]);
+  const tiny = withArrow(0.001);
+  assert.deepEqual(tiny.camera, alone.camera);
+  assert.ok(Math.abs(lengthPx(0.001, tiny) / lengthPx(0.002, withArrow(0.002)) - 0.5) < 1e-9, 'half the vector, half the pixels, however small');
+  const near = withArrow(1.2); // its tip 0.7 past the plate's edge, within a quarter of the object's size
+  assert.ok(near.points.some(point => point.x > 2.1), 'the tip is framed');
+  assert.ok(reach(onScreen(near.camera, near.points)) <= FRAMING.fill + 1e-9);
+});
+
+test('a scene of only arrows is framed by them', () => {
+  const { points, camera } = fitOf(sceneArtifact([{ id: 'arrowGeo', kind: 'arrow', length: 1 }], push, authored), [arrowFrame(3)]);
+  assert.ok(points.some(point => point.x > 3.9), 'the tip counts');
+  assert.ok(reach(onScreen(camera, points)) <= FRAMING.fill + 1e-9);
+});
+
+// The fits the saved scenes had before the arrow rule (pinned from 5427f0db4): scenes with no arrow, and the two with a modest one (the grid
+// robot's compass, the projectile's aim arrow), are framed exactly as before.
+run('the saved scenes keep their fit: none of them has an arrow that dwarfs its object', async () => {
+  const { pendulumDemo } = await import('./pendulum-demo.js');
+  const { projectileExample, predatorPreyExample } = await import('./learning-examples.js');
+  const { gameFixture: grid } = await import('./fixtures.js');
+  const max = (artifact, id) => ({ [id]: artifact.parameters.find(p => p.id === id).max });
+  const game = await loadSavedGame();
+  const cases = [
+    [watchFixture.artifact, undefined, [[0, 5.046604051, 6.728805401], [0, 0, 0]]],
+    [experimentFixture.artifact, max(experimentFixture.artifact, 'leftDistance'), [[-0.068404008, 1.577277373, 4.912589675], [-0.068404008, 0.173680323, 0]]],
+    [grid.artifact, undefined, [[1.712499999, 5.539229749, 5.619092675], [1.712499999, 0.262500004, 1.85]]],
+    [pendulumDemo.artifact, max(pendulumDemo.artifact, 'length'), [[1.940965605, 2.386778948, 5.767789492], [-0.270020367, 1.809999999, 0]]],
+    [projectileExample.artifact, undefined, [[22.954983897, 12.969047775, 47.374652063], [22.954983897, 11.440833192, 0]]],
+    [predatorPreyExample.artifact, undefined, [[5.590000097, 2.974356102, 11.239268768], [5.590000097, 2.299999976, 0]]],
+    [game, max(game, 'speed'), [[20.677123145, 21.103651607, 30.678056373], [20.677123145, 5.764623421, 0]]],
+  ];
+  for (const [artifact, inputs, [position, target]] of cases) {
+    const fit = await fitAnimationView({ artifact, aspect: ASPECT, inputs, workerFactory });
+    for (const [got, want] of [[fit.position, position], [fit.target, target]]) assert.ok(got.every((v, i) => Math.abs(v - want[i]) < 1e-6), `${artifact.title}: ${got} is not ${want}`);
+  }
+});

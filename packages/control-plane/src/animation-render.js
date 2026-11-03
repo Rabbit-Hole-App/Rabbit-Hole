@@ -61,12 +61,17 @@ export function middleOf(p) {
 // state, the middle setting with every declared action pressed once after some steps (an action that acts on a path, a tally or a score
 // has one) and then more steps, and the high end after steps; the low end, the joint extremes and the rest follow as not sampled.
 // Anything else keeps the initial state, action and sequence first, so a game's action and win paths stay covered.
+// A stepped scene whose motion an action starts (an action that declares nothing or startsMotion true, contract.js) is sampled after it:
+// the host's steps alone move nothing in such a scene, so a state at the high end of a parameter would show no divergence and no trail
+// (aj_0b6ca2b, review: "Run was never pressed in the high-rate sample"). That action (the last such one, so a scene whose actions all declare nothing keeps its order) is pressed once, last among the events (the others
+// may stop the motion), and before the ticks; with none, nothing changes. Still at most maxEvents events and maxTicks ticks a capture.
 export function captureStates(artifact) {
   const inputs = resolveAnimationInputs(artifact, {}), d = artifact.timeline?.duration ?? 0, mid = Number((d * LOOP_FRACTIONS[0]).toFixed(3));
   const at = (label, extra = {}) => ({ label, inputs, time: 0, events: [], leadTicks: 0, ticks: 0, ...extra });
   const actions = artifact.actions || [], nodes = artifact.scene.nodes, pick = nodes.find(n => n.selectable), drag = nodes.find(n => n.drag);
   const events = [...actions.map(a => ({ type: 'action', action: a.id })), ...(pick ? [{ type: 'select', node: pick.id }] : []), ...(drag ? [{ type: 'drag_start', node: drag.id, value: drag.drag.min }, { type: 'drag_move', node: drag.id, value: drag.drag.max }, { type: 'drag_end', node: drag.id, value: drag.drag.max }] : [])];
   const ticks = artifact.stepped ? 30 : 0, acted = [], swept = [];
+  const starter = artifact.stepped ? actions.findLast(a => a.startsMotion !== false) : undefined, go = starter ? [{ type: 'action', action: starter.id }] : [];
   if (events.length) {
     const first = `${events[0].type} ${events[0].action ?? events[0].node}`;
     acted.push(at(ticks ? `${ticks * 2} steps, then ${first}, then ${ticks} steps` : first, { events: events.slice(0, 1), leadTicks: ticks * 2, ticks }));
@@ -76,19 +81,19 @@ export function captureStates(artifact) {
   if (artifact.parameters.length) {
     const low = Object.fromEntries(artifact.parameters.map(p => [p.id, lowOf(p)])), high = Object.fromEntries(artifact.parameters.map(p => [p.id, highOf(p)]));
     const run = artifact.stepped ? ANIMATION_CAPTURE.maxTicks : 0;
-    swept.push(at('every parameter at its low end', { inputs: { ...inputs, ...low }, time: mid, ticks: run }), at('every parameter at its high end', { inputs: { ...inputs, ...high }, time: mid, ticks: run }));
+    swept.push(at('every parameter at its low end', { inputs: { ...inputs, ...low }, time: mid, events: go, ticks: run }), at('every parameter at its high end', { inputs: { ...inputs, ...high }, time: mid, events: go, ticks: run }));
   }
   const looped = d ? LOOP_FRACTIONS.map(f => at(`${Math.round(f * 100)}% of the loop`, { time: Number((d * f).toFixed(3)) })) : [];
   let first = [];
   if (artifact.experience === 'experiment' && artifact.parameters.length) {
-    const [main] = artifact.parameters, only = value => ({ ...inputs, [main.id]: value }), run = artifact.stepped ? ANIMATION_CAPTURE.maxTicks : 0;
+    const [main] = artifact.parameters, only = value => ({ ...inputs, [main.id]: value }), run = artifact.stepped ? ANIMATION_CAPTURE.maxTicks : 0, after = run ? `, after ${starter ? `${starter.action ?? starter.id}, then ` : ''}${run} steps` : '';
     // Every declared action and the selectable node, once each; a drag sets the scene up again, so it stays in the omitted sequence.
-    const acts = events.filter(e => e.type === 'action' || e.type === 'select').slice(0, ANIMATION_CAPTURE.maxEvents), middle = middleOf(main), names = acts.map(e => e.action ?? `select ${e.node}`).join(', ');
+    const others = events.filter(e => (e.type === 'action' || e.type === 'select') && !(starter && e.action === starter.id)), acts = [...others.slice(0, ANIMATION_CAPTURE.maxEvents - go.length), ...go], middle = middleOf(main), names = acts.map(e => e.action ?? `select ${e.node}`).join(', ');
     first = [at('initial'),
-      at(`${main.id} at ${middle}${acts.length && ticks ? `: ${ticks * 2} steps, then ${names}, then ${ticks} steps` : acts.length ? `, then ${names}` : run ? `, after ${run} steps` : ''}`,
+      at(`${main.id} at ${middle}${acts.length && ticks ? `: ${ticks * 2} steps, then ${names}, then ${ticks} steps` : acts.length ? `, then ${names}` : after}`,
         { inputs: only(middle), time: mid, events: acts, leadTicks: acts.length ? ticks * 2 : 0, ticks: acts.length ? ticks : run }),
-      at(`${main.id} at its high end (${highOf(main)})${run ? `, after ${run} steps` : ''}`, { inputs: only(highOf(main)), time: mid, ticks: run }),
-      at(`${main.id} at its low end (${lowOf(main)})${run ? `, after ${run} steps` : ''}`, { inputs: only(lowOf(main)), time: mid, ticks: run })];
+      at(`${main.id} at its high end (${highOf(main)})${after}`, { inputs: only(highOf(main)), time: mid, events: go, ticks: run }),
+      at(`${main.id} at its low end (${lowOf(main)})${after}`, { inputs: only(lowOf(main)), time: mid, events: go, ticks: run })];
   }
   const out = first.length ? [...first, ...swept, ...acted, ...looped] : [at('initial'), ...acted, ...swept, ...looped];
   const seen = new Set(), unique = out.filter(s => { const k = canonicalJson([s.inputs, s.time, s.events, s.leadTicks, s.ticks]); if (seen.has(k)) return false; seen.add(k); return true; });

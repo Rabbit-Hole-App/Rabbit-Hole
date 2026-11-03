@@ -22,8 +22,8 @@ import { buildAnimationScene } from './scene.js';
 // fill: the subject spans this share of the view's height or width (a 10% margin each side, room for a label plate beside an
 // edge). sheet / dwarf: a backdrop is a flat mesh larger than sheet x, or any mesh larger than dwarf x, the rest of the scene.
 // samples / budgetMs: the card waits for the fit before it first draws (session.js), so the sample is short. caption: a label anchor
-// counts only within this share of the subject's size beyond its box (aj_283c19f: result and hint text 20 m above a ground-level game
-// framed the field into a thin strip under empty sky).
+// or an arrow counts only within this share of the subject's size beyond its box (aj_283c19f: result and hint text 20 m above a
+// ground-level game framed the field into a thin strip under empty sky; aj_0b6ca2b5: arrows 3x the bowl framed the bowl small).
 // refit: a new fit moves the camera only when its distance changes by more than this factor or its aim moves by more than this
 // share of the distance (a small change keeps the view still). focus / near: when the scene's static parts span more than focus x
 // what moves (aj_fac3ca4b: a 42 m floor and marks to 35 m around a 16 m flight), the subject is what moves at these inputs, what the
@@ -118,6 +118,7 @@ export function subjectPoints(scene, frames) {
     return a < 0.1 * b && b >= 0.5 * c;
   };
   const boxes = new Map(); // id -> the box in each frame (null: hidden), to tell what moved
+  const arrows = new Set(); // the arrow nodes (scene.js marks their drawable)
   const measure = (record = true) => {
     scene.root.updateWorldMatrix(true, true);
     const seen = new Map();
@@ -128,7 +129,7 @@ export function subjectPoints(scene, frames) {
       const corners = cornersOf(drawable);
       seen.set(id, new THREE.Box3().setFromPoints(corners));
       if (!record) continue;
-      if (!swept.has(id)) { swept.set(id, { box: new THREE.Box3(), points: [] }); if (drawable.isMesh && flat(drawable)) sheets.add(id); }
+      if (!swept.has(id)) { swept.set(id, { box: new THREE.Box3(), points: [] }); if (drawable.isMesh && flat(drawable)) sheets.add(id); if (drawable.userData.arrow) arrows.add(id); }
       const node = swept.get(id);
       for (const corner of corners) { node.box.expandByPoint(corner); node.points.push(corner); }
     }
@@ -147,9 +148,15 @@ export function subjectPoints(scene, frames) {
   }));
   const onContext = id => { for (let node = scene.nodes.get(id); node; node = scene.nodes.get(node.parent)) if (context.has(node.id)) return true; return false; };
   const same = (a, b) => (!a && !b) || (!!a && !!b && a.min.distanceTo(b.min) + a.max.distanceTo(b.max) < 1e-6 * (1 + extent(a)));
-  const subject = ids.filter(id => !context.has(id));
-  const moved = new Set(subject.filter(id => shots.some(shot => !same(shot.get(id), shots[0].get(id))) || (reference && !same(reference.get(id), shots[0].get(id)))));
   const boxOf = list => list.reduce((box, id) => box.union(swept.get(id).box), new THREE.Box3());
+  // An arrow is an annotation drawn proportional to its quantity, with no cap, so at a high rate it dwarfs the object it points from.
+  // It is subject only within FRAMING.caption of what is not an arrow (a compass, an aim arrow: the view keeps them); one reaching
+  // farther is not (aj_0b6ca2b5: arrows 3x the bowl at learning rate 1 left the bowl a small part of the view) and may run past the
+  // edge. With nothing but arrows drawn they are the subject. ponytail: a tiny object with a long arrow is framed as the object.
+  const solid = ids.filter(id => !context.has(id) && !arrows.has(id)), reach = solid.length ? boxOf(solid) : null;
+  reach?.expandByScalar(FRAMING.caption * extent(reach));
+  const subject = ids.filter(id => !context.has(id) && (!reach || !arrows.has(id) || reach.containsBox(swept.get(id).box)));
+  const moved = new Set(subject.filter(id => shots.some(shot => !same(shot.get(id), shots[0].get(id))) || (reference && !same(reference.get(id), shots[0].get(id)))));
   let kept = subject;
   if (moved.size && moved.size < subject.length) {
     const focus = boxOf([...moved]), span = extent(focus);
