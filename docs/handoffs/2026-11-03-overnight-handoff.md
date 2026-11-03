@@ -1,9 +1,23 @@
 # Overnight handoff, 2026-11-03 (written for the owner and for ChatGPT's morning review)
 
 Author: Parallel (the integrator session). Times are Pacific. This file is updated through the night; the "Last updated" line says when.
-Last updated: 2026-11-03 03:45 PT (see "Update log" at the end).
+Last updated: 2026-11-03 03:50 PT (see "Update log" at the end).
 
 Rules this report follows: no secrets, no personal email addresses, no share-link tokens. The owner's personal account is never used for testing; production testing uses the dedicated account **@yuvish_demo**. Production commands are owner-run launchers; nothing here was pushed to `main` by an agent.
+
+## 0. Morning checklist (owner actions, in order)
+
+1. Release 1, feedback email: `C:\s\spec\release-queue\release.cmd 35-feedback` (section 2). Tell the integrator "release 35-feedback done" for deployed-commit verification.
+2. Test the feedback email as **@yuvish_demo** with `C:\s\spec\feedback-mail\OWNER-CHECKLIST.md` (four reports, four emails, stored objects).
+3. Newsletter migration (only after step 1): `C:\s\spec\signup-prefs\apply-prod-migration.cmd`, type `APPLY PROD`.
+4. Release 2, newsletter preferences: `C:\s\spec\release-queue\release.cmd 36-newsletter --check` (must print CHECK COMPLETE), then `C:\s\spec\release-queue\release.cmd 36-newsletter`. Both releases should be live on Nov 3 Pacific because the Privacy Policy effective date says November 3, 2026.
+5. Test the email preferences as @yuvish_demo (section 2, Release 2).
+6. Animation: open the dev preview with `C:\s\spec\animation\open-correction-fixture.cmd` and review it (section 4); decisions (section 4, "Open owner decisions"); approve or hold ONE controlled paid SGD qualification run (nothing paid has been run).
+7. After 8:00 PM PT today (04:00 UTC Nov 4): `C:\s\spec\creator-analytics\prod-cleanup-check.cmd outcome` (first scheduled cleanup outcome; scheduling is verified, deletion of expired rows is not provable until records are 90 days old).
+8. Optional decisions: queue the `CLAUDE.md` rule branch `docs/claude-md-preview-rule`; confirm the Newsletter description wording.
+9. After the releases are verified, ask the integrator for housekeeping: remove merged worktrees and dev preview clones (feedback, newsletter, Creator Analytics worktree, Animation preview and helper worktrees after the owner's review).
+
+If a command stops, copy its last `RELEASE STOP` line (or error line) to the integrator; re-running resumes safely.
 
 ## 1. Released tonight, live and verified
 
@@ -113,6 +127,7 @@ Scope: MVP1 only. Paid generation, Animation merge and Animation deployment are 
 
 ## Update log
 - 02:00 PT first version.
+- 03:50 PT section 0 added (morning checklist).
 - 03:45 PT section 4: Animation round delivered (final code 5e6711917, docs 5427f0db4, evidence ZIP, paid budget arithmetic, open decisions).
 - 03:30 PT section 4: final Animation commit 5e6711917 CI green, preview redeployed and verified (version eb9a47fa).
 - 03:15 PT section 2: Release 2 (newsletter preferences) gate passed; commands in order.
