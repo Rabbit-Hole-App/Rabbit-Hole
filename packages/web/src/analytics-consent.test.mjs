@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID, getRandomValues } from 'node:crypto';
-import { CONSENT_EVENT, CONSENT_KEY, allowed, clearAnalyticsStorage, consentOf, configured, setConsent } from './analytics-consent.js';
+import { BANNER_TEXT, BANNER_UPDATE_TEXT, SETTINGS_ON, SETTINGS_OUTDATED } from './analytics-copy.js';
+import { CONSENT_EVENT, CONSENT_KEY, allowed, clearAnalyticsStorage, consentCurrent, consentOf, consentState, configured, setConsent } from './analytics-consent.js';
 import { createAnalytics, currentAnalytics, installUsageAnalytics, resetUsageAnalyticsForTests, track } from './usage-analytics.js';
 
 const CONFIG = { token: 'phc_testtoken0000000000000000000000000000000000', host: 'https://us.i.posthog.com', env: 'production' };
@@ -159,4 +160,26 @@ test('sign-out while accepted keeps the choice and clears only the account', asy
   assert.notEqual(a.stats().distinct, ME);
   t.target.dispatchEvent(new Event(CONSENT_EVENT));
   assert.equal(currentAnalytics(), a, 'an event without a change does not restart it');
+});
+
+test('the choice has four states, and an acceptance from before version 2 is "outdated": product analytics as before, public-board measurement off', () => {
+  const state = seed => { const b = browser(seed); return consentState(b.tab().target); };
+  assert.equal(state({}), 'none');
+  assert.equal(state({ rh_analytics_consent: 'rejected' }), 'rejected');
+  assert.equal(state({ rh_analytics_consent: 'accepted' }), 'outdated', 'no version recorded: accepted for PostHog alone');
+  assert.equal(state({ rh_analytics_consent: 'accepted', rh_analytics_consent_version: '1' }), 'outdated');
+  assert.equal(state({ rh_analytics_consent: 'accepted', rh_analytics_consent_version: '2' }), 'accepted');
+  const old = browser({ rh_analytics_consent: 'accepted' }).tab().target;
+  assert.equal(allowed(old, CONFIG), true, 'PostHog keeps working');
+  assert.equal(consentCurrent(old), false, 'public-board measurement stays off');
+});
+
+test('the banner and Settings words: both purposes for a first visit; "adds", "asks again" and "off until you accept" for an earlier acceptance; no deletion-time or schedule promise', () => {
+  assert.match(BANNER_TEXT, /improve it, and to show creators how their public learning boards are used\.$/);
+  assert.match(BANNER_UPDATE_TEXT, /accepted analytics before/);
+  assert.match(BANNER_UPDATE_TEXT, /now also measure how public learning boards are used/);
+  assert.match(BANNER_UPDATE_TEXT, /stays off until you accept this update/);
+  assert.match(SETTINGS_OUTDATED, /^Existing product analytics accepted\. Public-board measurement is awaiting your acceptance/);
+  assert.match(SETTINGS_OUTDATED, /never who you are or what you did individually/);
+  for (const text of [BANNER_TEXT, BANNER_UPDATE_TEXT, SETTINGS_ON, SETTINGS_OUTDATED]) assert.doesNotMatch(text, /24 hours|daily|\bnormally\b|\.\.\.|…/, text);
 });

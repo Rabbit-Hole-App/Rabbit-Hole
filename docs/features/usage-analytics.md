@@ -14,8 +14,11 @@ active-time or identify event is sent or queued for later, and the server sends 
 
 - `src/analytics-consent.js` holds the choice per browser: `localStorage` `rh_analytics_consent` is `accepted` or `rejected`. Missing or
   unreadable means off. Its storage event reaches other tabs. Do Not Track or Global Privacy Control overrides it.
+- Version 2 of the choice also covers Creator Analytics (`rh_analytics_consent_version`, cookie `rh_analytics_consent_v=2`; creator-analytics-contract.md). An earlier acceptance keeps PostHog running and the banner asks again.
+  The words live in `src/analytics-copy.js` (owner decision 2026-11-03). First visit: "We use analytics to understand how Rabbit Hole is used and improve it, and to show creators how their public learning boards are used." An earlier acceptance (`consentState` is `outdated`): "You accepted analytics before. We now also measure how public learning boards are used, so their creators can see it. That stays off until you accept this update. Rejecting turns all optional analytics off." Buttons ("Accept analytics", "Reject optional") and the Privacy Policy link are unchanged; in the update state neither button is pressed.
+  Settings, Privacy & security, shows the same four states (none, rejected, accepted, outdated). Outdated reads "Existing product analytics accepted. Public-board measurement is awaiting your acceptance..." and its accept button is "Accept update".
 - A cookie `rh_analytics_consent=accepted` exists only while accepted. It holds no identifier and is how a sign-in request tells the
-  control plane; without it `captureSignIn` sends nothing. A sign-in in another browser, or before accepting, is therefore not recorded.
+  control plane (the Privacy Policy lists it with `rh_analytics_consent_v`, which public-board measurement also requires); without it `captureSignIn` sends nothing. A sign-in in another browser, or before accepting, is therefore not recorded.
 - `src/analytics-banner.js` is plain DOM for the app and the public pages, bottom right, not modal, and takes focus only when opened from a
   preferences link. It does not appear in a build without analytics, or for a browser sending DNT or GPC.
 - Change it with "Analytics preferences" in the public footer (`landing/footer-links.js`) or Settings > Privacy & security.

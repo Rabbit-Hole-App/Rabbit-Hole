@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BarChart3, Compass, FolderGit2, Search, Star, UserRound, UserPen } from 'lucide-react';
-import { CreatorDashboard } from './CreatorAnalytics.jsx';
+import { CreatorAnalyticsDialog } from './CreatorAnalytics.jsx';
 import { PRODUCT } from './flags.js';
 import { SortMenu } from './home/LearningCard.jsx';
 import PublicCards, { CopyProfileLink, CreatorAvatar } from './home/PublicCards.jsx';
@@ -12,7 +12,7 @@ import { Button, EmptyState, Input, SkeletonRows, Tabs, TabsList, TabsTrigger, T
 
 // /@handle: a creator's public profile (owner 2026-10-06 #63, docs/features/creator-profile.md) - identity, public
 // explainers and the public-safe counters, for discovery and reputation; not a social network. Everyone sees the same
-// page; the owner also gets Edit profile and their private Analytics, opened beside it, never mixed in. Signed in, it
+// page; the owner also gets Edit profile and their private Analytics, opened over it in a dialog, never mixed in. Signed in, it
 // sits in the app's Shell; signed out, it stands alone, as /e/<token> does.
 const SORTS = [{ id: 'newest', label: 'Newest' }, { id: 'forks', label: 'Most forked' }];
 // The profile's two tabs (docs/features/stars.md, Task 8): ?tab=stars is the Stars collection, anything else the canvases they published.
@@ -153,7 +153,7 @@ function Profile({ handle }) {
           : <div data-profile-empty><EmptyState icon={Compass}>{own ? 'You have no public learning boards yet. Publish a canvas to Explore from its Share panel.' : `@${p.handle} has no public learning boards yet.`}</EmptyState></div>}
         </>}
       </div>
-      {own && analytics && <CreatorDashboard profile={p} onClose={() => setAnalytics(false)} />}
+      {own && analytics && <CreatorAnalyticsDialog onClose={() => setAnalytics(false)} />}
     </main>
   );
 }

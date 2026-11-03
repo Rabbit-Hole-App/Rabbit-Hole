@@ -1,9 +1,82 @@
 # Creator analytics: event contract and Analytics UI
 
-Owner briefs, 2026-10-06 (#62: analytics, creator profile, analytics UI, feedback loop). **The events, routes and storage
-are a contract only.** No event is emitted, no route exists, no table is created. Storage is a separate proposal at the end
-and needs the owner's GO. The Analytics UI is built (#70, "UI as built" below), and until storage it shows its typed "not
-collected" state and never derives numbers from anything else.
+Owner briefs, 2026-10-06 (#62: analytics, creator profile, analytics UI, feedback loop), and the owner's production brief of
+2026-11-02, which replaces the right-side panel with a centered modal and activates collection. **Collection, storage, the
+read routes and the modal are built ("As built" below); that section wins where an older section below differs.** The
+owner's visual reference is [creator-analytics-reference.html](creator-analytics-reference.html); its sample data and preview
+controls are not product. Owner decisions of 2026-11-02 (consent, retention, deletion, no browser links, approved campaigns, policy text) are recorded in "Consent, retention and deletion" and take precedence over the older sections below.
+
+## Consent, retention and deletion (owner decisions, 2026-11-02)
+
+- **Consent.** The same optional-analytics choice as PostHog (`web/src/analytics-consent.js`, usage-analytics.md "Consent"). Before acceptance, after rejection or withdrawal, and under Do Not Track or Global Privacy Control: no `rh-visitor-id`, no `rh-pub:*`, no optional event. The server enforces it too: the ingest route writes nothing, and a start or fork records nothing, without both `rh_analytics_consent=accepted` and `rh_analytics_consent_v=2`, or with `DNT: 1` or `Sec-GPC: 1`. A missing signal means no collection. The hole or fork itself still succeeds.
+- **Consent version.** The banner and policy released at 2de55d520 described PostHog only, so an acceptance from then does not count here. Accepting now stores version 2 (`rh_analytics_consent_version`) and its cookie. A browser holding the old acceptance keeps PostHog as before and is asked again by the banner, with wording that says this adds public-board measurement and that it stays off until the visitor accepts (owner decision 2026-11-03; words in usage-analytics.md and `analytics-copy.js`); Settings shows the same state with an "Accept update" button. Creator Analytics stays off until it answers. Accepting enables both, and rejecting turns both off, since it is one choice.
+- **Withdrawal.** `publicationAnalytics` follows the choice in this tab (`rh:analytics-consent`) and others (`storage`). It discards the queue, aborts a request in flight, cancels retries, removes every listener and sends no final beacon. `clearAnalyticsStorage` removes `rh-visitor-id`, `rh-own-board:*`, `rh-pub:*` and `rh_ph_*` and nothing else. Consent is read again before each send, for a storage event that has not arrived. It does not delete records already stored.
+- **Retention.** 90 days is the MVP product default for every record with a learner or session key; it is a product choice, not a stated legal requirement. Reads ignore older rows whether or not they were purged. Wording rule (owner, 2026-11-03): nothing user-visible promises a deletion time or a daily schedule while production scheduling is unverified; the Privacy Policy says older records are excluded from reports, that cleanup runs when analytics is collected or viewed, and that expired records may remain stored until a cleanup succeeds. A cron on the app Worker (`0 4 * * *`, `wrangler.rabbit-hole-prod.jsonc`, the only cron on a Rabbit Hole Worker; `runCleanup`) deletes them with no visitor or read involved, and each accepted ingest and each read purge as a safeguard that can never fail the request. A daily rollup goes as soon as any moment of its day would pass 90 days (`firstRetainedDay`). Each run records `last_cleanup_ok_at` or `last_cleanup_error_at`, and, separately, `last_cleanup_deleted_rows` (that run's count; 0 is a good run with nothing eligible) and `last_cleanup_deleted_at` (the last run that deleted at least one row), all in `analytics_meta` (no schema change); a failure also logs and fails the invocation, and a failed or overdue run (over 48 hours) shows in the read (`collection.cleanup`) and the modal's footer. Cron delivery has failed on another account before (2026-09), so it is checked after release; see the release notes.
+- **What outlives 90 days.** `publication_board_days` (opens, opens from Stars, starts and forks per board and day) and `publication_revisions`. A test pins their columns: no learner, session, visitor, user, email or event column exists there. On a very small board a day's total could still be one visit; it names nobody.
+- **Deletion.** By account or visitor identifier, with no UI: `scripts/analytics-delete.mjs` prints the SQL for the keys, and the owner's launcher runs it after a typed confirmation (`delete-analytics.sh dev|prod`, `delete-analytics-prod.cmd`). The daily totals stay; they hold no person. Permanent canvas delete removes all of a board's rows, totals included.
+- **No browser-to-account link.** "First account wins" and `publication_visitor_links` are gone. Each request is who it is now: signed in, the account's key; signed out, the browser's. The visit key comes from that identity, so signing out or switching account mid-tab starts a new visit and carries no time or history across. A shared browser's signed-out visits count as that browser, never as a person who once signed in on it. Cost, accepted: someone who visits signed out and then signs in counts as two visitors. The creator's own signed-out visit is left out only on a browser where the server already dropped their signed-in visit to that board (`rh-own-board:<token>`); on any other browser it counts.
+- **Free-form values.** Campaigns are a fixed list of approved ids (`web/src/analytics-campaigns.js`; add one there); the browser sends only those and the server stores only those, and a stored tag no longer on the list is not shown. Referrer hostnames are dropped: a hostname can name a person (`jane.example.com`), and "another site" is enough to compare sources. Every other stored id is an enum, checked against the published board, or server-minted (`ns_<8 hex>.<n>`).
+- **In the UI.** The modal says that only consenting visitors are measured and that a low number does not mean no activity. Small-group suppression is unchanged. Stars and canonical forks are not consent-based: they are the public counters they always were.
+
+## As built (2026-11-02)
+
+- **Ingest:** `POST /api/learn/boards/shared/<token>/events`, body `{ visitor_id, session_id, synthetic?, events: [{ id, type, ... }] }`,
+  answering `{ accepted, ignored, dropped? }`. Types: `open`, `active`, `seen`, `acted`, `resource`, `steps_shown`, `step_selected`,
+  `quiz`. Limits: 64 KB, 50 events a batch, 3000 events a visit, 20000 events a board per hour (429). Live public `/e` tokens only;
+  anything else is 404. Without consent: 200 `{ accepted: 0, dropped: 'no_consent' }`, nothing written. Server: `packages/control-plane/src/publication-analytics.js`. Browser: `packages/web/src/publication-analytics.js`.
+- **Conversions:** `startRabbitHole` (201) and `fork()` (201) write their row in the same `db.batch` as the hole or fork, through
+  `conversionStatements`; a 200 existing hole, a replayed fork, a failure, the owner, a share link or a Duplicate writes none.
+- **Reads:** `GET /api/analytics/creator` and `GET /api/analytics/publications/<canvas>`, `?range=7d|30d|all`. 401 signed out; 404 to anyone
+  who does not own the canvas; 503 `analytics_unavailable` on a storage failure, never zeros. A metric is `{ value, reason, public? }`; a hidden
+  value is null with `insufficient_cohort`, `complementary` or `not_collected`. Ranges are UTC days including today; `all` starts at
+  `collection.started_at`; `period.partial` marks a range that begins before collection did.
+- **Identity decisions.** Unique visitors dedupe across boards and days and are never a sum of daily counts. See "No browser-to-account link" above. Known limit: when the control plane cannot be reached, a signed-in visitor reads as signed out (`devIdentity` answers 401 for both).
+- **Analytics never costs a start or fork:** if preparing the row fails, the action succeeds uncounted and the failure is logged.
+- **Rate limits are per client-chosen ids** (the contract never reads an IP), so a scripted client can inflate anonymous counts or use up a board's hourly cap; this is a known limit.
+- **Synthetic checks:** a batch with `synthetic: true` (the page's `?rh_synthetic=1`) is stored apart, excluded from every reported number, counted
+  as `collection.synthetic_excluded`, and readable by the owner alone with `&synthetic=only`. Marking a visit synthetic can only remove it from reports.
+- **Active time:** the browser sends cumulative visible, recently active seconds (60-second threshold). The server credits the increase over what that
+  visit already credited, at most the wall-clock time since this learner's last credited second on this board, so overlapping tabs cannot double a second,
+  and at most 4 h a visit. A report settles its total: seconds the clock refused are gone, never carried to a later report. A report with nothing new writes no activity.
+- **Privacy:** at least 10 visitors in the exact range and filter; in a partition (sources; signed-in and anonymous) the smallest shown cell is also hidden (`complementary`) while the hidden
+  cells sum to 1 to 9; concept and friction rows are absent until their cohort is shown. Known limit: board
+  rows are not a partition (a visitor can open several boards), so a board's hidden count is not complemented against the creator total. Opens, successful starts, audience
+  forks, canonical forks, current Stars and star additions and removals are counters shown at any count, as the Stars route already does.
+- **Freshness:** numbers are computed from storage at read time, so `collection.checked_at` is their freshness. `status: 'active'` is returned only when that
+  read succeeded; it says nothing about learning outcomes, which have their own readiness. "Stale" is the modal keeping its last good read after a failed refetch.
+- **Departures from "Events" below:** `publication_session_started`, `rabbit_hole_returned` and `creator_profile_opened` are not emitted (no metric needs them;
+  profile arrivals are a source on `open`). Embeds collect nothing. Drop-off is replaced by card reach and interaction: a free canvas has no reading order.
+
+### Metric inventory
+
+Coverage for every collected metric starts at `collection.started_at` (`analytics_meta`, the first ingest or read after deployment), except Stars, and covers consenting visitors only. Visitor-level metrics cover at most the last 90 days (`period.audience_from`).
+
+| Metric | Producer | Denominator | Aggregation | Readiness |
+|---|---|---|---|---|
+| Total opens | `open`, first in a visit | none | `publication_board_days` sum; consenting visitors | live, counter |
+| Unique visitors | any accepted event; a conversion | none | distinct learner; last 90 days at most | live, protected |
+| Signed-in / signed-out | session at ingest | unique visitors | distinct, complementary | live, protected |
+| Average active time | `active`, credited | visitor and board pairs | mean of pair totals | live, protected |
+| Engaged over 2 min | `active`, credited | unique visitors | visitors with 120 s or more | live, protected |
+| Returning visitors | `open`, first in a visit | unique visitors | visitors who opened on 2+ days in range; one visit past midnight is not a return | live, protected |
+| Rabbit Holes started | `startRabbitHole` 201 with consent | none | `publication_board_days` sum | live, counter |
+| Start rate | same | unique visitors | distinct starters ÷ visitors | live, protected |
+| Canonical forks | `FORK_COUNT` | none | sum, all time | live, counter |
+| Forks by this audience | `fork()` 201 through `/e` with consent | none | `publication_board_days` sum | live, counter |
+| Audience fork rate | same | unique visitors | distinct forkers ÷ visitors | live, protected |
+| Stars now, owner / audience | `canvas_stars` | none | current rows | live, counter |
+| Star additions, removals, net | `canvas_star_events` | none | gross actions in range; net = additions − voluntary removals | live from the first star event; null before |
+| Opens from Stars | `open`, first in a visit, with source `stars` | none | `publication_board_days` sum | live, counter |
+| Public boards | `canvas_publications` | none | current count | live, counter |
+| Card reach, interaction | `seen`, `acted` | none | distinct visitors per card | live, protected, one board |
+| Concepts explored, went deeper | `seen`/`acted` on a card carrying the concept; hole start; `step_selected` | visitors who saw the concept | rate | live for cards with concept ids; many generated boards carry none |
+| Next Steps impressions, selections, position | `steps_shown`, `step_selected` | visitors shown a set | sums; selections ÷ impressions per position | live, protected; a set shows only when a signed-in visitor asks |
+| Outbound resource opens | `resource`, a link inside a video, paper or wiki card | none | distinct visitors per resource | live, protected, one board; a click inside an embedded player is not visible to the page |
+| Assessment-backed friction | `quiz`, outcome decided on the server from the card's answer key, first answer only | visitors with an answer | incorrect ÷ assessed per card | partial: quiz cards only |
+| Tutor-graded outcomes | none | none | none | **unavailable:** a public viewer has no graded Tutor evaluation (`tutorRoute` needs an owned app); nothing private is bridged |
+| Revision before / after | `publication_revisions` | visitors in each period | two equal periods meeting at the change of card set, each suppressed alone | live, one board; descriptive only |
+| Sources | `open` | none | each visitor's first source in scope and range | live, protected, complementary |
+| Campaigns | `open` | none | distinct visitors | live, protected; approved ids only |
 
 ## Scope
 
@@ -206,7 +279,7 @@ unique learners.
 | `rabbit_hole_start_rate` | distinct starters ÷ eligible | same | rate | suppressed | 7d / 30d / all |
 | `fork_count` | `FORK_COUNT` (all) or its rows by `forked_at` | canvas_forks (no event) | count | public | 7d / 30d / all |
 | `fork_rate` | distinct forkers ÷ eligible | fork_completed | rate | suppressed | 7d / 30d / all |
-| `highest_friction_concept` | concept with the highest failed or uncertain outcome rate among ≥ 10 attempting learners | none yet (open question B) | concept id | suppressed; `not_collected` today | — |
+| `highest_friction_concept` | concept with the highest failed or uncertain outcome rate among ≥ 10 attempting learners | `quiz` (As built: per quiz card, not per concept) | card id | suppressed | 7d / 30d / all |
 | `next_step_impressions` | count of shown suggestions | next_steps_shown | count | suppressed | TBD-by-Learning |
 | `next_step_selections` | count of selections | next_step_selected | count | suppressed | TBD-by-Learning |
 | `most_selected_next_step` | `suggestion_id` with the most selections ÷ impressions | both | suggestion id | suppressed | TBD-by-Learning |
@@ -218,8 +291,7 @@ unique learners.
 
 ## Analytics UI (read contract)
 
-The read API is not built; the UI is, in its typed empty states ("UI as built" below). The UI reuses the existing card
-menu and panels (CLAUDE.md: no separate pages).
+The UI reuses the existing card menu and profile (no separate pages) and opens one centered modal: Overview, Boards, Learning and Sources.
 
 ### Entry point
 
@@ -239,8 +311,7 @@ menu and panels (CLAUDE.md: no separate pages).
   until one can.
 - Nobody but the owner ever sees the item. The read route answers 401 when signed out and **404 to every signed-in
   non-owner** (not 403, so existence is not revealed).
-- It opens the per-explainer view as a panel on the canvas page: `/apps/<canvas>?analytics=1`, read once and dropped,
-  as `?share=1` is.
+- It opens the centered modal, scoped to that board. The creator profile's Analytics opens it on all public boards.
 - The card face stays as it is. Later it may show only `learners` and `forks`, under the same suppression rules.
 
 ### Two levels
@@ -270,7 +341,7 @@ card shows its evidence number. At most one card per type; none fires means "No 
 | Insight | Rule | Threshold | Action |
 |---|---|---|---|
 | High curiosity | the concept with the highest `deeper_rate[X]`; ties go to the larger cohort | cohort ≥ 10 and rate ≥ 0.20 | [Create explainer]: Create next with X |
-| Highest friction | `highest_friction_concept` | ≥ 10 attempting and rate ≥ 0.30; `not_collected` today | [Improve this section]: opens the canvas at the first card carrying X |
+| Highest friction | `highest_friction_concept` | ≥ 10 assessed and rate ≥ 0.30 | [Improve this section]: opens the canvas at the first card carrying X |
 | Repeated comparison | the comparison target most selected by learners | ≥ 10 distinct learners; needs a canonical comparison signal from Learning (TBD-by-Learning), never learner text | [Create comparison]: Create next with "X vs Y" |
 | Drop-off | the card M with the largest step drop (seen(prev) − seen(M)) ÷ seen(first), in the current segment | cohort ≥ 10 and step drop ≥ 0.25 | [Review section]: opens the canvas at M. Copy: "N% leave before <card name>" (`cardName`) |
 
@@ -293,7 +364,7 @@ card shows its evidence number. At most one card per type; none fires means "No 
 | Rabbit Hole starts | the sum, a public counter |
 | Forks | Σ `FORK_COUNT`, a public counter |
 | Top explainers | by unique visitors in range; explainers with fewer than 10 are listed without a number |
-| Highest-friction concepts | `not_collected` today |
+| Highest-friction cards | quiz cards with a first-answer incorrect rate, each suppressed below 10 |
 | Audience wants next | concepts ranked by `deeper_rate` across explainers, plus Next Step targets (TBD-by-Learning) |
 | Traffic sources | `traffic[S]` summed over explainers, each cell suppressed |
 | Recent trend | daily `total_opens` (public) and daily unique visitors (each day suppressed below 10) |
@@ -319,92 +390,6 @@ card shows its evidence number. At most one card per type; none fires means "No 
   only the explainer count and forks.
 - **Private:** everything else, including friction, insights and recommendations. Never shown publicly by default.
 
-### Read API
-
-Not built. Until #62 storage has a GO, these routes do not exist. The client calls nothing and renders
-`state: 'not_collected'` from a constant.
-
-```ts
-type Range = '7d' | '30d' | 'all';
-type Metric<T> = { value: T | null; suppressed: boolean; reason?: 'insufficient_cohort' | 'not_collected' };
-type ViewState = 'loading' | 'not_collected' | 'ready'; // 'loading' is the client's own; the server returns the other two
-
-// GET /api/analytics/publications/<canvas>?range=7d|30d|all[&segment=<first version>]
-type PublicationAnalytics = {
-  state: 'not_collected' | 'ready';
-  range: Range; collected_since: string | null; threshold: 10; idle_threshold_version: number;
-  segments: { first_version: number; started_at: string }[];
-  metrics: {
-    total_opens: Metric<number>; unique_visitors: Metric<number>; signed_in_learners: Metric<number>;
-    avg_active_seconds: Metric<number>; engaged_learners_2m: Metric<number>;
-    concepts: { concept_id: string; label: string | null; exploration: Metric<number>; deeper: Metric<number> }[];
-    deeper_branch_rate: Metric<number>;
-    rabbit_holes_started: Metric<number>; rabbit_hole_start_rate: Metric<number>;
-    fork_count: Metric<number>; fork_rate: Metric<number>;
-    highest_friction_concept: Metric<{ concept_id: string; label: string | null }>;
-    next_step_impressions: Metric<number>; next_step_selections: Metric<number>;        // TBD-by-Learning
-    most_selected_next_step: Metric<{ suggestion_id: string; label: string | null }>;  // TBD-by-Learning
-    next_step_position_bias: Metric<{ position: number; rate: number }[]>;             // TBD-by-Learning
-    resources: { resource_id: string; opens: Metric<number> }[];
-    traffic: { source: 'linkedin' | 'explore' | 'creator_profile' | 'direct' | 'other_referrer'; learners: Metric<number> }[];
-    drop_off: { material_id: string; label: string; rate: Metric<number> }[];
-  };
-  insights: { type: 'high_curiosity' | 'highest_friction' | 'repeated_comparison' | 'drop_off'; subject: string; evidence: number; action: string }[];
-};
-
-// GET /api/analytics/creator?range=7d|30d|all  (the session's own canvases; no handle parameter)
-type CreatorAnalytics = {
-  state: 'not_collected' | 'ready'; range: Range;
-  totals: { unique_learners: Metric<number>; avg_active_seconds: Metric<number>; rabbit_holes_started: Metric<number>; fork_count: Metric<number> };
-  explainers: { canvas: string; title: string; learners: Metric<number>; avg_active_seconds: Metric<number>; rabbit_hole_start_rate: Metric<number>; fork_count: Metric<number> }[];
-  wants_next: { concept_id: string; label: string | null; deeper: Metric<number> }[];
-  friction: Metric<{ concept_id: string; label: string | null }[]>;
-  traffic: PublicationAnalytics['metrics']['traffic'];
-  trend: { day: string; opens: Metric<number>; visitors: Metric<number> }[];
-};
-```
-
-- Suppression is per metric, per range, per filter (concept, source, resource, segment, day).
-- A suppressed or not-collected metric has `value: null`.
-- Neither route ever returns a learner key, an id of a person, a hole name or any free text.
-
-### UI as built (#70, typed empty states)
-
-The UI exists. The data does not, so every view renders `not_collected` from constants in `web/src/creator-analytics.js`. The components are in `web/src/CreatorAnalytics.jsx`. The views call no route, and `e2e/analytics-ui-check.mjs` checks that no `/api/analytics` request is made.
-
-- **Entry points:**
-  - **Per explainer:** ⋮ → **Analytics** on your own public canvas in the Library, after Share / Manage link (`LibraryViews.jsx`; `data-menu-analytics`). It is never shown on a private or unlisted canvas or a project, nor on anyone else's card in Explore or a profile.
-  - **Creator:** **Analytics** on your own `/@handle` (creator-profile.md).
-  - Both open as a side panel (`SlidePanel`) beside the page, never mixed into it.
-- **Departure from the entry point proposed above:** the panel opens over the Library, not at `/apps/<canvas>?analytics=1` on the canvas page. The canvas page (`LearnPage.jsx`, `CanvasPage.jsx`) belongs to the persistence lane. The panel component can be mounted there later unchanged.
-- **Both views:**
-  - "Private · only you see this.";
-  - the 7 days / 30 days / All time control (it changes nothing while nothing is collected);
-  - the banner "Not collected yet. Rabbit Hole does not record what learners do on public explainers yet, so nothing here is counted or estimated."
-- **Per explainer (A):** every metric of the table above, under Audience, Concepts, Rabbit Holes and forks, Professor Next Steps and Outbound resources. Then come:
-  - **Insights (B):** "What your audience is telling you". Its empty state is "No insights yet", and it explains that insights come only from what learners do.
-  - **Create next explainer (C):** a disabled button, "Available once learners show what they want next".
-  - **Traffic sources (F):** the five categories.
-  - **Revision comparison (G):** Before / after, descriptive only.
-- **Creator (D, E):**
-  - **Totals:** unique learners, average active time and Rabbit Holes started; canonical forks; public explainers.
-  - Audience wants next, highest-friction concepts, the explainer comparison table, traffic sources and the recent trend.
-  - **Comparison:** one row per public explainer. Its learners, average active time and started-RH cells read "Not collected"; forks show the canonical count.
-- **Numbers shown:** only the public counters that already exist canonically, `FORK_COUNT` (labelled "· all time", since it is not range-filtered) and the public explainer count. Learner counts do not exist and are not shown.
-- **Suppressed state (H):** every view ends with "How to read this". It renders both typed states as they will appear: "Not collected yet", and "Not enough learners yet (fewer than 10)" for `insufficient_cohort`. Neither is ever shown as 0 or an estimate.
-
-### UI checkpoint: required Figma panels
-
-Owner section 14, for when the UI work begins. Non-blocking unless a new product ambiguity appears.
-- A. Per-explainer analytics
-- B. Insights, "What your audience is telling you"
-- C. Create next explainer action
-- D. Creator-level analytics
-- E. Explainer-by-explainer comparison
-- F. Traffic source breakdown
-- G. Revision comparison
-- H. Suppressed metric state (< 10 learners)
-
 ## What the creator profile will read
 
 - The public explainer count and the explainer cards come from canonical rows: `canvas_publications` joined as
@@ -416,119 +401,25 @@ Owner section 14, for when the UI work begins. Non-blocking unless a new product
 
 ## Retention
 
-- **Raw events:** 90 days. Pruned on the next ingest or analytics read, as `learn_grades` is pruned (repository-schema.sql),
-  not by cron.
+- **Visitor-level records** (events, sessions, learners, learner days and items): 90 days. Reads ignore older rows. They are
+  deleted by the scheduled cleanup (`runCleanup`, cron `0 4 * * *` on `rabbit-hole-app`) and, as a safeguard, on every accepted
+  ingest and every analytics read. Production cron delivery is verified after release (`prod-cleanup-check`), so no user-visible
+  text promises a time.
 - **Daily rollups and revision segments:** kept for the life of the canvas.
   - Unpublish, Archive and Trash keep them, and no new events arrive because the token is dead.
-  - Permanent delete is not built; when it is, it deletes these too (library-trash.md lists analytics retention as part
-    of that decision).
+  - A permanent delete of an untouched canvas deletes them with it (`purgeAnalytics`).
 - **Account deletion,** when it exists, deletes the rows under that person's learner key, which can be computed from
   their id.
 - **`visitor_id`** stays in the browser until the browser clears it.
 
-## Storage proposal (NOT implemented; needs owner GO)
+## Storage
 
-No migration file exists. The tables below are a proposal for review only.
+`learn-migrations/0035-publication-analytics.sql`, mirrored in `repository-schema.sql`, on LEARN_DB. Revised in place on 2026-11-02 before any production apply. Per-person, 90 days: `publication_events`, `publication_sessions`, `publication_learners`, `publication_learner_days`, `publication_learner_items`. Person-free, life of the canvas: `publication_board_days`, `publication_revisions`. Metadata: `analytics_meta`. The migration must reach a database before the code that writes to it, and immediately before its release, because the release preflight refuses a production schema that differs in either direction.
 
-- **Where:** LEARN_DB, beside `canvas_publications` and `learn_boards`. Learn routes never read the main D1
-  (user-handles.md).
-- **Migration:** the next free learn migration number at merge time (`0011` after `0010-library-trash` on this branch).
-  It is additive and re-runnable, `CREATE TABLE/INDEX IF NOT EXISTS`, and runs on local test databases only until a
-  deploy GO.
+## Owner decisions taken from the 2026-11-02 brief
 
-```sql
--- Raw events, 90 days. event_id is the replay guard. org/canvas are NULL only for creator_profile_opened.
-CREATE TABLE IF NOT EXISTS publication_events (
-  event_id TEXT PRIMARY KEY, type TEXT NOT NULL, received_at TEXT NOT NULL,
-  org TEXT, canvas TEXT, creator_key TEXT, board_version INTEGER,
-  session_id TEXT NOT NULL, learner_key TEXT NOT NULL, signed_in INTEGER NOT NULL DEFAULT 0,
-  source TEXT, utm_source TEXT, utm_campaign TEXT, referrer_host TEXT,
-  material_id TEXT, concept_ids TEXT, claim_ids TEXT, learning_goal TEXT, suggestion_id TEXT, resource_id TEXT,
-  elapsed_seconds INTEGER, active_seconds INTEGER, idle_seconds INTEGER, idle_threshold_version INTEGER
-);
-CREATE INDEX IF NOT EXISTS publication_events_canvas ON publication_events (org, canvas, received_at);
-CREATE INDEX IF NOT EXISTS publication_events_session ON publication_events (session_id, type);
-
--- One row per learner, publication, UTC day and revision segment; upserted in the ingest batch.
-CREATE TABLE IF NOT EXISTS publication_learner_days (
-  org TEXT NOT NULL, canvas TEXT NOT NULL, learner_key TEXT NOT NULL, day TEXT NOT NULL, segment INTEGER NOT NULL,
-  signed_in INTEGER NOT NULL DEFAULT 0, source TEXT, opens INTEGER NOT NULL DEFAULT 0,
-  active_seconds INTEGER NOT NULL DEFAULT 0, idle_seconds INTEGER NOT NULL DEFAULT 0, elapsed_seconds INTEGER NOT NULL DEFAULT 0,
-  idle_threshold_version INTEGER, holes_started INTEGER NOT NULL DEFAULT 0, forks INTEGER NOT NULL DEFAULT 0,
-  PRIMARY KEY (org, canvas, learner_key, day, segment)
-);
-
--- Per learner and item: kind 'concept' (seen, explored, deeper) or 'resource' (opened). Next Step items wait for Learning.
-CREATE TABLE IF NOT EXISTS publication_learner_items (
-  org TEXT NOT NULL, canvas TEXT NOT NULL, learner_key TEXT NOT NULL, day TEXT NOT NULL, segment INTEGER NOT NULL,
-  kind TEXT NOT NULL, item_id TEXT NOT NULL,
-  seen INTEGER NOT NULL DEFAULT 0, acted INTEGER NOT NULL DEFAULT 0, deeper INTEGER NOT NULL DEFAULT 0,
-  PRIMARY KEY (org, canvas, learner_key, day, segment, kind, item_id)
-);
-
--- Revision segments: one row per board version first seen by ingest.
-CREATE TABLE IF NOT EXISTS publication_revisions (
-  org TEXT NOT NULL, canvas TEXT NOT NULL, version INTEGER NOT NULL,
-  card_set_key TEXT NOT NULL, segment INTEGER NOT NULL, first_seen_at TEXT NOT NULL,
-  PRIMARY KEY (org, canvas, version)
-);
-```
-
-### Ingest route (proposed)
-
-`POST /api/learn/boards/shared/<token>/events`, with the body `{ visitor_id, session_id, board_version,
-idle_threshold_version, events: [...] }`.
-- It accepts publication tokens only (`sharedRow` `publication: true`) and answers 404 otherwise.
-- Limits: ≤ 50 events and ≤ 64 KB per request, plus a per-session cap. It sends with `navigator.sendBeacon` on
-  `pagehide`, and answers 204.
-- It drops owner self-views and validates every id against the published board.
-- It inserts raw rows with `INSERT OR IGNORE` and upserts the rollups in one batch.
-- The two server events are written by `startRabbitHole` and `fork()`, inside their existing batches.
-
-### Volume
-
-| Item | Estimate |
-|---|---|
-| Raw events | About 25 per session: 1 open, 1 start, about 2 ends, about 15 seen, about 5 interacted, about 3 concepts |
-| At 1k sessions/day | About 25k raw rows/day, so about 2.3M rows at the 90-day steady state (about 0.6 GB at about 250 B/row) |
-| Rollups | About 800 learner-days and about 8k item rows per day, so about 3.2M rows/year (about 0.3 GB) |
-| Writes | About 1M rows/month, inside the 50M rows written/month that Workers Paid includes (Cloudflare D1 pricing) |
-| Above about 50k sessions/day | Revisit: a dedicated analytics D1 or sharding |
-
-Workers Analytics Engine is not proposed. It downsamples at high volume (Cloudflare docs, "Sampling"), so its counts
-become estimates, which the owner ruled out.
-
-## Open questions for the owner
-
-A. **Republish.** Removing from Explore and publishing again mints a new token (explore-publish.md). Analytics:
-   1. accumulate per canvas `(org, canvas)` across publish periods; or
-   2. reset with each new token.
-
-   **Recommend 1:** the explainer is the canvas, and the token is only its read capability.
-
-B. **Friction source.** The evaluate route needs an owned app (`tutorRoute` → `authorizedBoardApp`), so a public viewer
-   produces no evaluation today. Options:
-   1. keep `highest_friction_concept` `not_collected` until Learning defines a publication-safe outcome event keyed by
-      `claim_ids` / `concept_ids`; or
-   2. add an outcome-only event (`correct | incorrect`, no answer text) from deterministic card checks such as quiz
-      `correct` options.
-
-   **Recommend 1:** Learning owns evidence, and #46 already waits on its contract.
-
-C. **Revision boundary.** Options:
-   1. card-set change only (above);
-   2. card-set change plus a creator-marked "new period from now" in the Analytics panel; or
-   3. every content save.
-
-   **Recommend 2:** "Improve this section" edits text inside a card. Under 1 that edit is no boundary, so the
-   before/after the owner described could not be shown.
-
-D. **Raw retention.** Options: 90 days, 180 days, or the life of the canvas. Ranges are served from rollups in every
-   case. **Recommend 90 days:** it is the shortest window that covers 7d and 30d, re-keying and debugging.
-
-E. **The word "learners" for the mixed count.** It counts anonymous browsers too, and the brief asks for accurate
-   terms. Options:
-   1. label it "Unique visitors", with "N signed in" beside it, and use "learners" only for signed-in counts; or
-   2. keep "learners" for the mixed count, with a footnote.
-
-   **Recommend 1.** It changes the profile mock's "18k learners" to "18k visitors".
+A. **Republish:** history accumulates per `(org, canvas)`; the token is only the read capability.
+B. **Friction:** a validated publication-scoped outcome for deterministic quiz cards; the server decides the outcome and stores no choice. Tutor evidence is not bridged, because public viewers produce none.
+C. **Revision boundary:** a change of the card set. A creator-marked period was not requested and is not built.
+D. **Raw retention:** 90 days; ranges read the rollups.
+E. **Wording:** "Unique visitors", with signed-in and anonymous beside it.
