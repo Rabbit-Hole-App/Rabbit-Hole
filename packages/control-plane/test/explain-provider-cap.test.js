@@ -81,6 +81,10 @@ test('cap reached before generation: the job pauses with nothing charged or held
   const done = await s.run(body.job.id);
   assert.equal(done.stage, 'ready');
   assert.deepEqual([s.model.answered('author'), s.model.answered('review')], [1, 1]);
+  // The refused call's record stays refused and the retried call has its own record (old code: one shared key, so the retry's
+  // settlement overwrote the refused record and left the new one running).
+  assert.deepEqual(done.calls.map(c => [c.role, c.status]), [['author', 'refused'], ['author', 'settled'], ['review', 'settled']]);
+  assert.equal(new Set(done.calls.map(c => c.key)).size, done.calls.length);
   assert.equal([...s.state.data.keys()].filter(k => k.startsWith('job:')).length, 1, 'one job');
   const paid = rows(s.sqlite, 'usage_attempts').filter(a => a.provider === 'anthropic');
   assert.deepEqual(paid.map(a => [a.kind, a.cost_state, a.cost_micros]), [['generation', 'settled', 0], ['generation', 'settled', 14000], ['evaluation', 'settled', 14000]]);

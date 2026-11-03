@@ -482,7 +482,7 @@ await run('Ctrl+K / commands: the registry list, keys, typed = picked, pill remo
   await page.locator('[data-inline-picker]').waitFor();
   const all = await options();
   // Owner spec 2026-10-29: Chat's 18 commands in its order (image generation is off on this canvas).
-  check('"/" opens the list: exactly Chat\'s commands, in its order', JSON.stringify(all) === JSON.stringify(['explain', 'practice', 'quiz', 'flashcards', 'goal', 'code', 'graph', 'diagram', 'notebook', 'motion', 'cad', '3d', 'browser', 'image', 'youtube', 'arxiv', 'wikipedia']), JSON.stringify(all));
+  check('"/" opens the list: exactly Chat\'s commands, in its order', JSON.stringify(all) === JSON.stringify(['explain', 'practice', 'quiz', 'flashcards', 'goal', 'code', 'graph', 'diagram', 'notebook', 'motion', 'cad', 'animation', '3d', 'browser', 'image', 'youtube', 'arxiv', 'wikipedia']), JSON.stringify(all)); // owner 2026-10-30: /animation added
   await page.keyboard.type('gr');
   check('typing filters the list; the first match is highlighted', JSON.stringify(await options()) === '["graph","diagram"]' && await chosen() === 'graph');
   await page.keyboard.press('ArrowDown');
@@ -1199,6 +1199,8 @@ await run('A7 card ghost: the card pale beside the selection, clear of everythin
   await page.locator('[data-ghost-kind="card"]').waitFor({ timeout: 5000 });
   await page.keyboard.press('Escape');
   await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
+  // The ghost leaves in the render after the editor's: wait for it (bounded), then assert as before.
+  await page.locator('[data-inline-card-ghost], [data-inline-ghost]').first().waitFor({ state: 'detached', timeout: 2000 }).catch(() => {});
   check('A7: Esc removes the card ghost', (await page.locator('[data-inline-card-ghost], [data-inline-ghost]').count()) === 0);
   await context.close();
 });

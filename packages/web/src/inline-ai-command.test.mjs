@@ -108,12 +108,12 @@ test('Ctrl+K: a typed leading command replaces the selected one; aliases and upp
   assert.deepEqual(submission({ mode: 'explain', command: 'quiz', text: '/photo cat' }), { handoff: { command: 'image', line: '/photos cat' } });
 });
 
-test('Ctrl+K: each of the 18 picked, typed, uppercase or replacing a selected command submits its id and typed line', () => {
+test('Ctrl+K: each of the 19 picked, typed, uppercase or replacing a selected command submits its id and typed line', () => {
   setImageGeneration(true);
   try {
     const typedNames = { 'generate-image': 'image', image: 'photos' };
     const all = ctrlkCommands({ motionDev: true });
-    assert.equal(all.length, 18);
+    assert.equal(all.length, 19, 'owner, 2026-10-30: /animation added');
     for (const command of all) {
       const typed = typedNames[command.name] || command.name;
       const want = command.kind === 'source' ? { source: { source: command.source, query: 'a b' } } : { handoff: { command: command.name, line: `/${typed} a b` } };

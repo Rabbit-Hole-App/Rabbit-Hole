@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { EXAMPLES, parseSlash, pickerSections } from './learn-slash.js';
-import { BRIEFS, BRIEF_COMMANDS, CAD_EXAMPLE, COOLING_EXAMPLE, IMAGE_EXAMPLE, MOTION_CLIP, NOTEBOOK_EXAMPLE, PREVIEWS, SAMPLES, SAMPLE_NOTE, WEBPAGE_EXAMPLE, WIKI_EXAMPLE, YOUTUBE_EXAMPLE, briefView, previewBlock, previewOf } from './slash-sheet.js';
+import { ANIMATION_OPTIONS, BRIEFS, BRIEF_COMMANDS, CAD_EXAMPLE, COOLING_EXAMPLE, IMAGE_EXAMPLE, MOTION_CLIP, NOTEBOOK_EXAMPLE, PREVIEWS, SAMPLES, SAMPLE_NOTE, WEBPAGE_EXAMPLE, WIKI_EXAMPLE, YOUTUBE_EXAMPLE, briefView, optionOf, previewBlock, previewOf, withOption } from './slash-sheet.js';
 import { resolveProgram } from './explain-program/program-card.js';
 import { cadArtifact } from './cad-client.js';
 import { inspectGlb as inspectModel } from './three-d-asset.js';
@@ -25,10 +25,10 @@ const asset = path => existsSync(new URL(`../public${path}`, import.meta.url));
 const sheet = read('./SlashCommandsSheet.jsx'), stage = read('./SlashCommandPreview.jsx');
 const argsOf = name => parseSlash(EXAMPLES[name]).args;
 
-test('the window reads the picker sections: 18 commands, each with an example and exactly one preview of its own', () => {
+test('the window reads the picker sections: 19 commands, each with an example and exactly one preview of its own', () => {
   assert.deepEqual(all.map(section => section.title), ['Learn', 'Create', 'Search']);
   const listed = names(all);
-  assert.equal(listed.length, 18);
+  assert.equal(listed.length, 19, 'owner, 2026-10-30: /animation added');
   assert.deepEqual(Object.keys(PREVIEWS).sort(), [...listed].sort(), 'one preview per listed command, and none for anything else');
   assert.deepEqual(SLASH.map(command => command.name).sort(), [...listed].sort(), 'the registry, the picker and the window agree');
   for (const name of listed) {
@@ -60,14 +60,14 @@ test('copy: title, subtitle, search, Use example, View brief / View result and t
   assert.doesNotMatch(sheet + stage, /…|\.\.\.['"`<]/, 'no ellipsis in the window\'s words');
 });
 
-test('the 11 generators each have a brief on the example\'s subject; the brief card can neither generate nor save', () => {
-  assert.deepEqual(BRIEF_COMMANDS, ['explain', 'practice', 'quiz', 'flashcards', 'code', 'graph', 'diagram', 'generate-image', 'motion', 'cad', '3d']);
+test('the 12 generators each have a brief on the example\'s subject; the brief card can neither generate nor save', () => {
+  assert.deepEqual(BRIEF_COMMANDS, ['explain', 'practice', 'quiz', 'flashcards', 'code', 'graph', 'diagram', 'generate-image', 'motion', 'cad', 'animation', '3d']);
   assert.deepEqual(Object.keys(BRIEFS).sort(), [...BRIEF_COMMANDS].sort());
   const titles = Object.fromEntries(BRIEF_COMMANDS.map(name => [name, BRIEFS[name].title]));
   // Owner, 2026-10-29 (C:/s/spec/slash-window/BRIEF-EXAMPLES.md): /explain and /cad briefs match their saved results.
   assert.deepEqual(titles, { explain: 'How a hot coffee cools in a room', practice: 'Explain why the sky is blue', quiz: "Newton's second law", flashcards: 'Spanish verbs for travel',
     code: 'Reverse a linked list', graph: 'Sine and cosine', diagram: 'A request and response', 'generate-image': 'A red lighthouse at dusk',
-    motion: 'How softmax turns scores into weights', cad: 'Plate with four through holes and a top pocket', '3d': 'Perspective projection' });
+    motion: 'How softmax turns scores into weights', cad: 'Plate with four through holes and a top pocket', animation: 'Pendulum length and period', '3d': 'Perspective projection' });
   assert.equal(BRIEFS.quiz.description, 'One multiple-choice question about force, mass and acceleration, with feedback after you answer.');
   assert.equal(BRIEFS.cad.description, 'A 60 × 40 × 5 mm plate with four 4 mm through holes and a centred 20 × 10 mm pocket, 3 mm deep, cut from the top face.');
   for (const name of BRIEF_COMMANDS) {
@@ -295,7 +295,7 @@ test('measured fit: the stage is measured and the card is capped by it, never dr
   assert.match(stage, /data-slash-stage/);
   assert.doesNotMatch(sheet + stage, /overflow-auto/, 'no outer scroller around the preview');
   // One example at a time: the brief and the result share the stage.
-  assert.match(sheet, /<SlashCommandPreview key=\{`\$\{name\}:\$\{showing\}`\}/);
+  assert.match(sheet, /<SlashCommandPreview key=\{`\$\{name\}:\$\{showing\}:\$\{option\?\.id \?\? ''\}`\}/);
   // Geometry targets (section 7.2): 16px margin and padding, at most 1120px wide, a 224px command column, a 16px gap, 12px pane padding.
   assert.match(sheet, /h-\[calc\(100dvh-32px\)\] w-\[min\(1120px,calc\(100vw-32px\)\)\]/);
   assert.match(sheet, /className="flex w-56 shrink-0 flex-col"/);
@@ -327,4 +327,51 @@ test('the window search filters by name and title, ignores a leading /, and can 
   assert.match(sheet, /if \(event\.key === 'Enter' && shown\.length\) \{ event\.preventDefault\(\); choose\(shown\[0\]\.items\[0\]\.name\); \}/);
   assert.match(sheet, /if \(latest\.current\.query\) setQuery\(''\); else latest\.current\.onClose\(\);/);
   assert.match(sheet, />No commands match</);
+});
+
+test('/animation offers a choice of examples: experiment, game and watch across physics and biology, each with its own truthful request, scene and brief', async () => {
+  const { pendulumDemo, PENDULUM_DEMO_REQUEST } = await import('./animation3d/pendulum-demo.js');
+  const { LEARNING_EXAMPLES } = await import('./animation3d/learning-examples.js');
+  const { ANIMATION_FIXTURES } = await import('./animation3d/fixtures.js');
+  const options = PREVIEWS.animation.options, scenes = [pendulumDemo, ...LEARNING_EXAMPLES];
+  assert.equal(options, ANIMATION_OPTIONS);
+  assert.deepEqual(options.map(option => [option.id, option.kind, option.subject]), [['pendulum', 'Experiment', 'Physics'], ['projectile', 'Game', 'Physics'], ['predator-prey', 'Watch', 'Biology']]);
+  assert.equal(new Set(options.map(option => option.request)).size, options.length);
+  options.forEach((option, index) => {
+    const scene = scenes[index], { artifact, plan } = scene;
+    assert.equal(option.block.fixtureId, scene.name);
+    assert.equal(option.block.title, artifact.title);
+    assert.equal(option.kind.toLowerCase(), artifact.experience);
+    assert.equal(option.brief.title, artifact.title);
+    assert.equal(option.brief.settings.experience, artifact.experience);
+    assert.ok(parseSlash(option.request).args.length > 20, option.id);
+    assert.equal(parseSlash(option.request).name ?? 'animation', 'animation');
+    const view = briefView('animation', option.request, option.brief);
+    assert.deepEqual([view.title, view.original_request, view.allowed_actions], [artifact.title, option.request, []]);
+    assert.doesNotMatch(JSON.stringify([option.name, option.request, option.note, option.brief, plan.title]), /…|\.\.\./);
+    assert.doesNotMatch(artifact.title + option.request, /\bball\b/i, 'no toy ball scene');
+  });
+  // The pendulum is the real saved scene from its real request; every other one says it was written by hand and claims no generation.
+  assert.equal(EXAMPLES.animation, options[0].request);
+  assert.equal(options[0].request, `/animation ${PENDULUM_DEMO_REQUEST}`);
+  assert.equal(pendulumDemo.artifact.provenance.origin, 'generated');
+  assert.match(options[0].note, /^A real scene made by \/animation from this request/);
+  for (const option of options.slice(1)) assert.match(option.note, /^Written by hand to show this kind of scene, not generated from this request\./, option.id);
+  for (const { artifact } of LEARNING_EXAMPLES) assert.equal(artifact.provenance.origin, 'fixture');
+  // The moon, beam and grid scenes stay out of the window and in the Insert palette's picker.
+  for (const fixture of ANIMATION_FIXTURES) assert.ok(!options.some(option => option.block.fixtureId === fixture.name), fixture.name);
+  assert.deepEqual(ANIMATION_FIXTURES.map(fixture => fixture.name), ['orbit-watch', 'beam-balance-experiment', 'grid-robot-game']);
+  // An option replaces the scene, the note and the brief, and leaves the rest of the preview; no option: the preview itself.
+  assert.equal(optionOf(PREVIEWS.animation, null), options[0]);
+  assert.equal(optionOf(PREVIEWS.animation, 'predator-prey'), options[2]);
+  assert.equal(optionOf(PREVIEWS.quiz, 'x'), null);
+  assert.equal(withOption(PREVIEWS.quiz, null), PREVIEWS.quiz);
+  const chosen = withOption(PREVIEWS.animation, options[1]);
+  assert.deepEqual([chosen.card, chosen.block, chosen.note, chosen.brief], ['animation3d', options[1].block, options[1].note, options[1].brief]);
+  // Owner 2026-11-02: the choice sits just above the card, as buttons or (narrow) a selector, never in the title row.
+  assert.match(sheet, /\{option && <ExampleChoice narrow=\{narrow\} options=\{preview\.options\} value=\{option\.id\} onChoose=\{setOptionId\} \/>\}\s*<div className=\{`\$\{option \? 'mt-2' : 'mt-3'\} flex min-h-0 flex-1 flex-col`\}>\s*<SlashCommandPreview/);
+  // The window: the example line, Use example and the stage all follow the choice, and a different example draws a new card.
+  assert.match(sheet, /const example = option \? option\.request : name \? EXAMPLES\[name\] : '';/);
+  assert.match(sheet, /key=\{`\$\{name\}:\$\{showing\}:\$\{option\?\.id \?\? ''\}`\}/);
+  assert.match(sheet, /parseSlash\(example\)\?\.args/);
 });

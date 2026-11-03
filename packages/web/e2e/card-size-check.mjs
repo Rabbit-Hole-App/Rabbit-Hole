@@ -397,7 +397,8 @@ await check('light: Library cards are separated before any hover (page grey, opa
   await expect(card).toHaveCSS('border-top-width', '1px');
   await card.focus();
   await expect(card).toHaveCSS('border-top-color', LIGHT.focus);
-  assert.ok((await card.evaluate((n) => getComputedStyle(n).boxShadow)).includes(LIGHT.focus), 'the focused card shows the accent ring');
+  // box-shadow has its own 150 ms transition (index.css): the ring is read once it settles, not mid-transition.
+  await expect.poll(() => card.evaluate((n) => getComputedStyle(n).boxShadow), { timeout: 2000, message: 'the focused card shows the accent ring' }).toContain(LIGHT.focus);
   await page.screenshot({ path: `${SHOTS}/contrast-library-light.png` });
   await page.context().close();
 });

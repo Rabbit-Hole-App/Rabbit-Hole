@@ -8,7 +8,7 @@ import { blockedReferences, referenceStates, revisionOfContextRef } from '../../
 // The reference kinds each executor reads the content of. Motion's Director takes a prompt and the card's own context, not a
 // reference's content yet, so a reference on a Motion proposal is unsupported rather than ignored. /explain reads files and code
 // through the same reader its job-create uses (explain-context-refs.js), under the asker's access.
-export const CONSUMES = Object.freeze({ motion: [], explain: ['file', 'code'] });
+export const CONSUMES = Object.freeze({ motion: [], explain: ['file', 'code'], animation: ['file', 'code'] }); // /animation reads them as /explain does (animation-job.js)
 const IMAGE_FILE = /^fs_[a-f0-9]{24}$/, IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'], IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 // /generate-image reads the stored image itself (image-jobs.js loads the authorized bytes), so its states come from the file source:
 // the id is a stored file the requester may read, an image the provider takes, and its sha256 is the revision the person attached.

@@ -78,7 +78,12 @@ const parts = page => ({ header: page.locator('[data-canvas-header]'), brand: pa
   fork: page.locator('[data-canvas-header] [data-fork-button]'), toggle: page.locator('[data-panel-toggle]'), note: page.locator('[data-guest-draft-notice]') });
 const noOverlaps = async page => {
   const boxes = await page.locator('[data-canvas-header] button, [data-canvas-header] a, [data-canvas-header] [data-shared-title]').evaluateAll(nodes => nodes
-    .filter(node => node.getClientRects().length).map(node => { const r = node.getBoundingClientRect(); return { name: node.getAttribute('aria-label') || node.textContent.trim().slice(0, 24), x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom }; }).filter(r => r.w > 0 && r.h > 0));
+    .filter(node => node.getClientRects().length).map(node => {
+      // What is drawn, not the unclipped box: a handle cut by its truncating span (CSS truncate, by design) is only visible inside that span; its overflow is not an overlap.
+      let r = node.getBoundingClientRect(), left = r.left, right = r.right;
+      for (let p = node.parentElement; p && p !== document.body; p = p.parentElement) if (getComputedStyle(p).overflowX !== 'visible') { const c = p.getBoundingClientRect(); left = Math.max(left, c.left); right = Math.min(right, c.right); }
+      return { name: node.getAttribute('aria-label') || node.textContent.trim().slice(0, 24), x: left, y: r.y, w: right - left, h: r.height, right, bottom: r.bottom };
+    }).filter(r => r.w > 0 && r.h > 0));
   const bad = [];
   for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) if (overlap(boxes[i], boxes[j])) bad.push(`${boxes[i].name} / ${boxes[j].name}`);
   return bad;

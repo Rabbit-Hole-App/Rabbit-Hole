@@ -71,6 +71,10 @@ export const SLASH = [
   // call before Generate. Offered where Motion is (needs motion_dev, below).
   { name: 'motion', kind: 'generate', group: 'create', places: CTRLK, label: 'Animated explainer', desc: 'Animated explainer', about: 'Turn a topic into an animated explainer video after reviewing its plan.', placeholder: 'What should the video explain?', action: 'motion', deterministic: true, needs: 'motion_dev' },
   { name: 'cad', kind: 'generate', group: 'create', places: CTRLK, label: 'CAD model', desc: 'CAD model', about: 'Describe a dimensioned part, review its brief, then generate a CAD model.', placeholder: 'What part should be made, and what are its dimensions?', action: 'cad', deterministic: true },
+  // /animation (owner, 2026-10-30; docs/superpowers/plans/2026-10-30-animation.md section 3): a live 3D scene to watch, adjust or
+  // play (the animation3d card). A reviewed proposal like /motion: no model call before the plan, nothing generated before Generate.
+  // Not /animate (removed) and not /explain's 2D `animation` primitive.
+  { name: 'animation', kind: 'generate', group: 'create', places: CTRLK, label: '3D animation', desc: '3D animation', about: 'Describe an idea to see as a live 3D scene you can watch, adjust or play; review its plan, then generate it.', placeholder: 'What should the 3D scene show or let you try?', action: 'animation', deterministic: true },
   { name: '3d', kind: 'generate', group: 'create', places: CTRLK, label: '3D scene', desc: '3D scene', about: 'Create a 3D scene to explore a spatial idea.', placeholder: 'What objects and relationships should the scene show?', family: ['3d_model', 'blender_scene'] },
   // /browser (owner spec 2026-10-29): the existing saved webpage capture (AdaptiveCanvas insertWebpage), not a web browser. A URL is
   // captured as a webpage card; none opens the address dialog. No model.
@@ -137,7 +141,7 @@ export function unavailableCommand(name, { listed = true, imageGeneration = imag
 // exactly one (slash.test.mjs), so no surface keeps a list of its own.
 export const LEARN_MENU = {
   learn: ['explain', 'practice', 'quiz', 'flashcards', 'goal'],
-  create: ['code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', '3d', 'browser'],
+  create: ['code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', 'animation', '3d', 'browser'],
   search: ['image', 'youtube', 'arxiv', 'wikipedia'],
 };
 export const MENU_TITLES = { learn: 'Learn', create: 'Create', search: 'Search' };

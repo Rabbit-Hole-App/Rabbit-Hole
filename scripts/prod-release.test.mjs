@@ -181,6 +181,14 @@ test('r34 audit: a stale or backwards candidate, or a split production, is refus
   assert.match(checkCandidate({ sha: SHA, mainTip: SHA, cp: { version: 'c', sha12: OTHER.slice(0, 12) }, app: { version: 'a', sha12: 'ffffffffffff' }, isAncestor: anc }), /production is split/);
   assert.match(checkCandidate({ sha: SHA, mainTip: SHA, cp: { error: 'a split rollout' }, app: { version: 'a', sha12: null }, isAncestor: anc }), /rabbit-hole-cp: a split rollout/);
   assert.deepEqual(checkCandidate({ sha: SHA, mainTip: SHA, ...pair(SHA.slice(0, 12)), isAncestor: anc }), { noop: '42f5a4f065d4 is already released' });
+  // Animation tube scenes (owner 2026-11-02): a release that stops declaring a client feature production's build declares is refused, so a stored
+  // tube scene is never left to a server or client that cannot read it. The features each tree declares are read per sha (clientFeatures).
+  const tubes = { [OTHER.slice(0, 12)]: ['curve_radius'], [SHA]: ['curve_radius'] };
+  assert.equal(checkCandidate({ sha: SHA, mainTip: SHA, ...pair(OTHER.slice(0, 12)), isAncestor: anc, clientFeatures: s => tubes[s] ?? null }), null, 'keeping the feature releases');
+  assert.equal(checkCandidate({ sha: SHA, mainTip: SHA, ...pair(OTHER.slice(0, 12)), isAncestor: anc, clientFeatures: s => (s === SHA ? [] : ['curve_radius']) }) !== null, true);
+  assert.match(checkCandidate({ sha: SHA, mainTip: SHA, ...pair(OTHER.slice(0, 12)), isAncestor: anc, clientFeatures: s => (s === SHA ? [] : ['curve_radius']) }), /declares curve_radius, and 42f5a4f065d4 does not: stored scenes that use it would stop opening/);
+  assert.equal(checkCandidate({ sha: SHA, mainTip: SHA, ...pair(OTHER.slice(0, 12)), isAncestor: anc, clientFeatures: s => (s === SHA ? ['curve_radius'] : []) }), null, 'the first release that adds the feature is fine');
+  assert.equal(checkCandidate({ sha: SHA, mainTip: SHA, ...pair(OTHER.slice(0, 12)), isAncestor: anc, clientFeatures: () => null }), null, 'a tree whose features cannot be read does not block a release (the bundle check is the first-release assertion)');
 });
 
 test('the production smoke: GET only, the new build\'s entry must be serving, bounded retries, then a verdict', async () => {
@@ -243,6 +251,8 @@ test('the production build env is the Rabbit Hole build, never the dev tools', (
   // activation GO, 2026-10-21).
   for (const name of ['VITE_COACHING_DEV', 'VITE_BYOC_DEV', 'VITE_MOTION_DEV']) assert.ok(DEV_ONLY_ENV.includes(name) && !(name in BUILD_ENV), name);
   assert.equal(BUILD_ENV.VITE_MOTION, 'true');
+  // /animation has no build flag (owner GO 2026-11-02): the command ships in every build and the server's ANIMATION_ENABLED decides.
+  assert.deepEqual(Object.keys(BUILD_ENV).filter(k => /ANIMATION/.test(k)), []);
   assert.throws(() => parseArgs(['release', '--sha']), /bad argument/);
 });
 

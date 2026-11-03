@@ -267,7 +267,7 @@ test('Edit: the target is the clicked revision with its routing fields, which co
 test('the source pins it: an Edit target takes precedence over the implicit latest proposal, per command, and is never routed or sent to the Tutor', async () => {
   const { readFileSync } = await import('node:fs');
   const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
-  assert.ok(ask.includes("const brief = edit ? (edit.command === 'explain' && workspace?.canvasOps?.refineExplain ? edit.proposal : null)"), 'Explain: the target brief, never the latest one');
+  assert.ok(ask.includes("const brief = edit ? ((edit.command === 'explain' || edit.command === 'animation') && workspace?.canvasOps?.refineExplain ? edit.proposal : null)"), 'Explain and Animation (AN-03): the target brief, never the latest one');
   assert.ok(ask.includes('refineExplain(brief, message, edit ? { proposal_id: edit.proposalId, version: edit.version } : undefined)'), 'Explain: the refine names the revision');
   assert.ok(ask.includes("edit?.command === 'motion' ? edit.proposal : currentProposal(msgs, canvasOps.proposalMade), about?.concept, edit?.command === 'motion')"), 'Motion: the target revision, marked as an Edit');
   assert.ok(ask.includes('const fileTurn = !!edit || ['), 'never a Tutor turn');
@@ -287,4 +287,18 @@ test('simple material briefs: their start adapter, their conversational Edit and
   assert.equal(madeFrom('gp-q')({ id: 'c1', type: 'quiz', proposalId: 'gp-q' }), true);
   assert.equal(madeFrom('gp-q')({ id: 'c2', type: 'quiz', proposalId: 'gp-other' }), false);
   assert.equal(startAdapter(p('gp-c', 1, { command: 'cad' }), { generateMaterial: async () => ({}), insertCard: () => {} }), null, 'CAD keeps its own job flow');
+});
+
+// AN-05 (/animation): its plan is a job proposal like /explain's brief. Generate approves the waiting job (no card is added), Edit
+// refines it through the same path, and the review card says it is a 3D animation, never an explanation.
+test('an /animation plan approves its job like an /explain brief, with its own heading and no cost note', async () => {
+  const { approvesJob, startAdapter, jobReviewCopy, EXPLAIN_REVIEW_HEADING } = await import('./generation-proposal-chat.js');
+  const plan = { command: 'animation', proposal_id: 'gp-1', version: 1, input: { job: 'aj_1', plan_hash: 'h' } };
+  assert.equal(approvesJob(plan), true);
+  assert.equal(startAdapter(plan, { approveExplain: () => {} }), 'job');
+  assert.equal(startAdapter(plan, {}), null, 'no approve here, no Generate');
+  assert.equal(editPath(plan, { refineExplain: () => {} }), 'explain', 'Edit refines the job (LearnPage routes it to the animation job)');
+  assert.equal(approvesJob({ command: 'animation', input: {} }), false, 'no job, nothing to approve');
+  assert.deepEqual(jobReviewCopy(plan), { eyebrow: 'Review your scene' });
+  assert.equal(jobReviewCopy({ command: 'explain' }).eyebrow, EXPLAIN_REVIEW_HEADING);
 });

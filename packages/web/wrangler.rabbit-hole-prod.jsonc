@@ -30,7 +30,10 @@
       { "name": "IMAGE_JOBS", "class_name": "ImageJobs" },
       // Shared plumbing for file conversion, Ctrl+K image edits and Ctrl+K JavaScript runs (control-plane/src/file-jobs.js,
       // docs/features/file-jobs-production.md). Binding it enables NOTHING: each feature stays off until its own vars and secrets exist.
-      { "name": "FILE_JOBS", "class_name": "FileJobs" }
+      { "name": "FILE_JOBS", "class_name": "FileJobs" },
+      // /animation jobs, one object per canvas (control-plane/src/animation-job.js, AN-05; owner production GO 2026-11-02); routes off
+      // unless ANIMATION_ENABLED. Stays bound when Animation is switched off: saved results and in-flight jobs live in these objects.
+      { "name": "ANIMATION_JOBS", "class_name": "AnimationJobs" }
     ]
   },
   "migrations": [
@@ -40,7 +43,9 @@
     { "tag": "cad-jobs-1", "new_sqlite_classes": ["CadJobs"] },
     { "tag": "explain-jobs-1", "new_sqlite_classes": ["ExplainJobs"] },
     { "tag": "image-jobs-1", "new_sqlite_classes": ["ImageJobs"] },
-    { "tag": "file-jobs-1", "new_sqlite_classes": ["FileJobs"] }
+    { "tag": "file-jobs-1", "new_sqlite_classes": ["FileJobs"] },
+    // After file-jobs-1, the last tag production has applied (served release 2de55d520c46, run 41560098167). Additive; never removed.
+    { "tag": "animation-jobs-1", "new_sqlite_classes": ["AnimationJobs"] }
   ],
   // dev-worker.js bundles its pages from ./dist-dev; build with the production VITE_* env into that directory.
   "assets": { "directory": "./dist-dev", "binding": "ASSETS", "run_worker_first": true },
@@ -72,6 +77,12 @@
     "EXPLAIN_PROGRAM_EXECUTION_KILL": "false",
     // Stateful programs (buttons, selections and remembered state; Task 8.3, explain-program.js statefulEnabled): on with R3 (owner decision 2026-10-29, "C: turn it on in production with R3").
     "EXPLAIN_PROGRAM_STATEFUL": "true",
+    // /animation (owner production GO 2026-11-02, docs/features/animation/checklist.md). Rollback: "false" answers every /api/learn/animation
+    // route 404, so no new plan, build or retry starts; jobs already running finish and settle in the ledger, and saved results stay in
+    // ANIMATION_JOBS. The execution kill switch stays off: "true" stops every saved card from running its scene (results are kept).
+    // ANIMATION_DIAGNOSTICS (job detail and the render probes) is never set here.
+    "ANIMATION_ENABLED": "true",
+    "ANIMATION_EXECUTION_KILL": "false",
     // IMG-01 image generation (docs/features/image-jobs.md): PUBLIC generation is ON (owner GO). Only "true" accepts new jobs from everyone.
     // The controlled owner-only acceptance path below (owner 2026-10-25) stays for the operator surfaces: a caller whose verified sign-in identity
     // is listed in IMAGE_ACCEPTANCE_EMAILS may use it under the ordinary admission, hold, settlement and readiness rules, so the

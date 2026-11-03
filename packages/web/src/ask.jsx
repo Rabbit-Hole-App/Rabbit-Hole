@@ -505,10 +505,20 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // turn is streaming (the thread is read again with the next one).
   useEffect(() => {
     if (!chatThread) return undefined;
-    const show = event => { if (event.detail?.threadId && event.detail.threadId === chatThread.id && !answerFlight.current) chatThread.open(event.detail.threadId); };
+    const show = event => {
+      if (!event.detail?.threadId || event.detail.threadId !== chatThread.id) return;
+      if (answerFlight.current) heldBrief.current = event.detail.threadId; else chatThread.open(event.detail.threadId);
+    };
     window.addEventListener(EXPLAIN_BRIEF_EVENT, show);
     return () => window.removeEventListener(EXPLAIN_BRIEF_EVENT, show);
   }, [chatThread]); // eslint-disable-line react-hooks/exhaustive-deps
+  // One that arrived while an answer was streaming is shown when that answer ends, not lost.
+  const heldBrief = useRef(null);
+  useEffect(() => {
+    if (busy || !heldBrief.current || heldBrief.current !== chatThread?.id) return;
+    heldBrief.current = null;
+    chatThread.open(chatThread.id);
+  }, [busy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Learn / commands (LearnSlash.jsx): a line starting with / runs as a
   // command, never as a chat message. held: a /command Enter while busy (learn-slash.js holdsLine), sent when busy clears.
@@ -601,7 +611,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     // words kept when it is refused; never another command, never a file, never Generate.
     const editRefused = edit ? editRefusal(edit, { command: commandName, file }) : null;
     if (editRefused) { setRouteShown({ kind: 'unsupported', message: editRefused, raw }); return false; }
-    const brief = edit ? (edit.command === 'explain' && workspace?.canvasOps?.refineExplain ? edit.proposal : null)
+    const brief = edit ? ((edit.command === 'explain' || edit.command === 'animation') && workspace?.canvasOps?.refineExplain ? edit.proposal : null)
       : chat && !tocView && !regenerate && !prompted && !commandName && !file && workspace?.canvasOps?.refineExplain ? currentProposal(msgs, outputOps?.proposalMade) : null;
     if (edit && approvesJob(brief) && !workspace.canvasOps.explainWaiting?.(brief.input.job)) { setRouteShown({ kind: 'unsupported', message: 'This plan is not waiting for review now. Edit its latest version when it appears.', raw }); return false; }
     if (approvesJob(brief) && workspace.canvasOps.explainWaiting?.(brief.input.job)) {
