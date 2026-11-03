@@ -45,10 +45,10 @@ export default function ShortcutsSheet({ onClose, omit = [] }) {
       // Backspace outside the search must not do anything behind the window (an engine that goes Back on it leaves the canvas).
       if (event.key === 'Backspace' && !event.target?.closest?.('input')) { event.preventDefault(); return; }
       if (event.key !== 'Tab' || !dialog.current) return;
-      // The tab row is one stop, its selected tab; the arrows move inside it (Radix Tabs). While a search shows every section no tab
+      // The platform choice and the tab row are one stop each (their checked or selected item); the arrows move inside them. While a search shows every section no tab
       // is selected and the row is skipped (focusing a tab would select it and clear the search).
       const list = dialog.current.querySelector('[role="tablist"]');
-      const stops = [...dialog.current.querySelectorAll(STOPS)].filter(node => node.offsetParent !== null && !list?.contains(node));
+      const stops = [...dialog.current.querySelectorAll(STOPS)].filter(node => node.offsetParent !== null && node.getAttribute('tabindex') !== '-1' && !list?.contains(node));
       const tabStop = searchingNow.current ? null : list?.querySelector('[role="tab"][aria-selected="true"]');
       if (tabStop) stops.splice(stops.findIndex(node => node.matches('[data-shortcuts-list]')), 0, tabStop);
       if (!stops.length) return;

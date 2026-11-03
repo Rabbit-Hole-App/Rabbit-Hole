@@ -117,6 +117,8 @@ const panelOn = async page => (await rowState(page, 'View', 'Right panel', 'Show
   ok('Windows is chosen on this platform', (await sheet(page).locator('[data-shortcuts-platform="win"]').getAttribute('aria-checked')) === 'true');
   ok('the four new keys are listed', (await keysOf(page, 'slash-commands')).join() === 'Shift+S' && (await keysOf(page, 'right-panel')).join() === 'Shift+P'
     && (await keysOf(page, 'grid')).join() === 'Shift+G' && (await keysOf(page, 'fit-selection')).join() === 'Shift+2');
+  // The four new keys sent us to Navigation: the search is made from there, and clearing it must come back to it.
+  const before = await sheet(page).locator('[role="tab"][aria-selected="true"]').innerText();
   await sheet(page).locator('[data-shortcuts-search]').focus();
   await page.keyboard.type('snap grid');
   ok('search filters to the matching row', (await sheet(page).locator('[data-shortcut]').evaluateAll(nodes => nodes.map(node => node.dataset.shortcut))).join() === 'grid');
@@ -126,9 +128,10 @@ const panelOn = async page => (await rowState(page, 'View', 'Right panel', 'Show
   await sheet(page).locator('[data-shortcuts-search]').fill('zzzz');
   ok('no match says so', await sheet(page).getByText('No shortcuts match').count() === 1);
   await sheet(page).locator('[data-shortcuts-search]').fill('');
-  ok('clearing the search returns to the selected tab', (await sheet(page).locator('[data-shortcuts-section]').evaluateAll(nodes => nodes.map(node => node.dataset.shortcutsSection))).join() === 'Essentials'
-    && (await sheet(page).locator('[role="tab"][aria-selected="true"]').innerText()) === 'Essentials');
+  ok('clearing the search returns to the selected tab', before === 'Navigation' && (await sheet(page).locator('[data-shortcuts-section]').evaluateAll(nodes => nodes.map(node => node.dataset.shortcutsSection))).join() === 'Canvas navigation'
+    && (await sheet(page).locator('[role="tab"][aria-selected="true"]').innerText()) === 'Navigation', before);
   // Tab order: search, platform choice, the tab row (its selected tab), the list; the arrows move between tabs.
+  await tabTo(page, 'Essentials');
   await sheet(page).locator('[data-shortcuts-search]').focus();
   const order = [];
   for (let n = 0; n < 3; n += 1) { await page.keyboard.press('Tab'); order.push(await page.evaluate(() => document.activeElement?.dataset.shortcutsPlatform || document.activeElement?.getAttribute('role') || document.activeElement?.tagName)); }
