@@ -36,12 +36,15 @@ export default function ShortcutsSheet({ onClose, omit = [] }) {
   useEffect(() => {
     const key = event => {
       if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); latest.current(); return; }
+      // Backspace outside the search must not do anything behind the window (an engine that goes Back on it leaves the canvas).
+      if (event.key === 'Backspace' && !event.target?.closest?.('input')) { event.preventDefault(); return; }
       if (event.key !== 'Tab' || !dialog.current) return;
       const stops = [...dialog.current.querySelectorAll(STOPS)].filter(node => node.offsetParent !== null);
       if (!stops.length) return;
+      // Every Tab is moved here, so the order is the same in every browser (Safari's default Tab skips buttons and would leave).
+      event.preventDefault();
       const at = stops.indexOf(document.activeElement);
-      if (event.shiftKey && at <= 0) { event.preventDefault(); stops.at(-1).focus(); }
-      else if (!event.shiftKey && (at === -1 || at === stops.length - 1)) { event.preventDefault(); stops[0].focus(); }
+      stops[(at + (event.shiftKey ? -1 : 1) + stops.length + (at === -1 && event.shiftKey ? 1 : 0)) % stops.length].focus();
     };
     window.addEventListener('keydown', key, true);
     return () => window.removeEventListener('keydown', key, true);
