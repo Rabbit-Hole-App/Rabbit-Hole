@@ -30,14 +30,14 @@ Not done by a browser on production (owner rule: no Claude browser on production
 - No migration and no new secret. The recipient is the plain config variable `FEEDBACK_NOTIFY_TO` shipped with the release; the app email sender becomes `hello@digrabbithole.com`.
 - Command (run it in a Windows terminal):
   ```
-  C:\s\specelease-queueelease.cmd 35-feedback
+  C:\s\spec\release-queue\release.cmd 35-feedback
   ```
-- After it finishes: send "release 35-feedback done" so the deployed commit is verified. Then verify storage and delivery as **@yuvish_demo** (never the personal account) using `C:\s\speceedback-mail\OWNER-CHECKLIST.md`: one bug report and one feature suggestion from Home and one of each inside a canvas; expect the on-button reference each time; expect four emails to the owner's inbox with subjects `[Rabbit Hole] Bug report RH-...` / `[Rabbit Hole] Feature suggestion RH-...` from `Rabbit Hole <hello@digrabbithole.com>`; `C:\s\speceedback-mailead-feedback.cmd` lists the stored objects. Optional limit proof: a sixth report within an hour gets the friendly limit message with the typed text kept.
+- After it finishes: send "release 35-feedback done" so the deployed commit is verified. Then verify storage and delivery as **@yuvish_demo** (never the personal account) using `C:\s\spec\feedback-mail\OWNER-CHECKLIST.md`: one bug report and one feature suggestion from Home and one of each inside a canvas; expect the on-button reference each time; expect four emails to the owner's inbox with subjects `[Rabbit Hole] Bug report RH-...` / `[Rabbit Hole] Feature suggestion RH-...` from `Rabbit Hole <hello@digrabbithole.com>`; `C:\s\spec\feedback-mail\read-feedback.cmd` lists the stored objects. Optional limit proof: a sixth report within an hour gets the friendly limit message with the typed text kept.
 - Unverified until then: whether the email service sends from the hello@ address in production (the domain is the same one used for sign-in emails; a sign-in email arriving from hello@ confirms it), real delivery to the inbox, and the create-only storage write used for the limit.
 
 ### Release 2: Email preferences (newsletter)  (gate pending)
 - Candidate: `feat/signup-email-preferences` at `02bdcd09d3fc02a33b7cf550baae861d0bc0ec55` (contains the feedback commit). CI running: verify https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41620836122 , fast-e2e https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/41620836096 . Its gate starts automatically after CI is green and the feedback gate is done; commands will be listed here when it passes.
-- Order will be: Release 1 first; then the production migration `0028` launcher (`C:\s\spec\signup-prefspply-prod-migration.cmd`, typed `APPLY PROD`); then `C:\s\specelease-queueelease.cmd 36-newsletter`. The release check refuses a schema that differs in either direction, so 0028 must be applied after Release 1 and before Release 2.
+- Order will be: Release 1 first; then the production migration `0028` launcher (`C:\s\spec\signup-prefs\apply-prod-migration.cmd`, typed `APPLY PROD`); then `C:\s\spec\release-queue\release.cmd 36-newsletter`. The release check refuses a schema that differs in either direction, so 0028 must be applied after Release 1 and before Release 2.
 
 ## 3. Awaiting testing, approval or a gate (as of 02:40 PT)
 
