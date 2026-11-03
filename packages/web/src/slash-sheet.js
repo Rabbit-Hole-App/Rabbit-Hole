@@ -98,7 +98,7 @@ const ATTENTION = {
 // Pexels, as on the canvas.
 const CAT = PHOTOS.photos.map(photo => ({ src: photo.src, alt: photo.alt, credit: { photographer: photo.photographer, url: photo.url } }));
 
-// /animation's examples in the window (owner 2026-11-02): what the command can make, by experience. The pendulum is the real scene /animation
+// /animation's examples in the window (owner 2026-11-02): what the command can make, one per experience: experiment, game, watch. The pendulum is the real scene /animation
 // made from its request (animation3d/pendulum-demo.js). The others are written by hand (animation3d/learning-examples.js), say so, and
 // each request describes its scene; Use example asks /animation to make its own from that line.
 const HAND_WRITTEN = 'Written by hand to show this kind of scene, not generated from this request.';
@@ -109,18 +109,10 @@ export const ANIMATION_OPTIONS = [
     '/animation Let me change the length of a pendulum from 0.5 to 3 metres and see how its period changes, with the period shown as a number.',
     'A real scene made by /animation from this request, saved. Change the length to try it.',
     'A pendulum whose length you change from 0.5 to 3 metres, with its period shown as a number.'),
-  animationOption('temperature', 'Temperature', 'Experiment', 'LLMs', 'softmax-temperature', 'Softmax temperature and next words',
-    '/animation Let me change the softmax temperature over five next-word logits and see the probabilities, the top word and the entropy.',
-    `${HAND_WRITTEN} Change the temperature to try it.`,
-    'Bars for five next-word probabilities from fixed logits, with a temperature control and readouts of the top word\'s probability and the entropy.'),
-  animationOption('gradient', 'Gradient descent', 'Experiment', 'ML', 'gradient-descent-bowl', 'Gradient descent on a loss bowl',
-    '/animation Let me change the learning rate of gradient descent on a loss bowl and see slow, good and diverging steps, with the loss shown.',
-    `${HAND_WRITTEN} Try learning rates of 0.05, 0.2 and 0.55.`,
-    'Twelve gradient descent steps on a quadratic loss bowl, with a learning rate control that shows slow, good and diverging behaviour.'),
-  animationOption('perceptron', 'Teach a neuron', 'Game', 'Neural networks', 'perceptron-and-game', 'Teach a neuron AND',
-    '/animation A game: train one perceptron on the AND examples, choosing which example to train on, and get all four right within 7 updates.',
-    `${HAND_WRITTEN} Choose examples to train on, and win within 7 updates.`,
-    'A game with the perceptron rule: choose which example to train on until the neuron answers all four cases of AND, within 7 updates.'),
+  animationOption('projectile', 'Projectile', 'Game', 'Physics', 'projectile-target-game', 'Projectile: hit the target',
+    '/animation A game: set the launch angle and speed of a projectile on flat ground and hit a target 30 m away within 5 launches, with the landing distance shown.',
+    `${HAND_WRITTEN} Set the angle and speed, then Launch.`,
+    'A game on flat ground with no air resistance: set the angle and speed, launch, and land within 1.5 m of a target 30 m away in at most 5 launches.'),
   animationOption('predator-prey', 'Predator and prey', 'Watch', 'Biology', 'predator-prey-cycle', 'Predator and prey cycle',
     '/animation Show one Lotka-Volterra predator and prey cycle, with both populations over time and the predator peak following the prey peak.',
     `${HAND_WRITTEN} Press Play to watch it.`,

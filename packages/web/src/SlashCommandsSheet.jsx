@@ -32,13 +32,13 @@ function ExampleChoice({ options, value, narrow = false, onChoose }) {
   if (narrow) {
     return (
       <select aria-label="Example" data-slash-option-select value={value} onChange={event => onChoose(event.target.value)}
-        className="mt-2 h-11 w-full shrink-0 cursor-pointer rounded-sm border border-line bg-surface px-2 text-sm text-ink">
+        className="mt-3 h-11 w-full shrink-0 cursor-pointer rounded-sm border border-line bg-surface px-2 text-sm text-ink">
         {options.map(option => <option key={option.id} value={option.id}>{`${option.name} · ${option.kind}, ${option.subject}`}</option>)}
       </select>
     );
   }
   return (
-    <div role="group" aria-label="Example" data-slash-options className="ml-auto flex flex-wrap items-center gap-1.5">
+    <div role="group" aria-label="Example" data-slash-options className="mt-3 flex shrink-0 flex-wrap items-center gap-1.5">
       {options.map(option => (
         <button key={option.id} type="button" data-slash-option={option.id} aria-pressed={option.id === value} title={`${option.kind}, ${option.subject}`} onClick={() => onChoose(option.id)}
           className="flex flex-col rounded-lg border border-line bg-surface px-2 py-0.5 text-left text-xs leading-4 text-ink hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent aria-pressed:border-ink aria-pressed:bg-hover aria-pressed:font-medium">
@@ -157,10 +157,8 @@ export default function SlashCommandsSheet({ appName, onClose, onUseExample = nu
               <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1">
                 <CommandMark name={name} className="text-[13px]" />
                 <h3 data-slash-label className="text-[18px] leading-6 font-semibold text-ink">{title}</h3>
-                {!narrow && option && <ExampleChoice options={preview.options} value={option.id} onChoose={setOptionId} />}
               </div>
               <p data-slash-about className="mt-1 shrink-0 text-sm text-ink-2">{command.about}</p>
-              {narrow && option && <ExampleChoice narrow options={preview.options} value={option.id} onChoose={setOptionId} />}
               <div className="mt-2 flex shrink-0 flex-wrap items-center gap-2">
                 {/* The example takes the row's free width beside its buttons (wrapping inside it), so the preview starts right below. */}
                 <code data-slash-example className="min-w-0 flex-[1_1_16rem] font-mono text-[13px] leading-[18px] break-words text-ink-2">{example}</code>
@@ -173,7 +171,8 @@ export default function SlashCommandsSheet({ appName, onClose, onUseExample = nu
                     onClick={() => onUseExample({ command: name, text: parseSlash(example)?.args || '' })} className="max-sm:h-11">Use example</Button>
                 )}
               </div>
-              <div className="mt-3 flex min-h-0 flex-1 flex-col">
+              {option && <ExampleChoice narrow={narrow} options={preview.options} value={option.id} onChoose={setOptionId} />}
+              <div className={`${option ? 'mt-2' : 'mt-3'} flex min-h-0 flex-1 flex-col`}>
                 <SlashCommandPreview key={`${name}:${showing}:${option?.id ?? ''}`} name={name} preview={preview} view={showing} example={example} appName={appName} narrow={narrow} />
               </div>
               <p data-slash-sample className="mt-2 shrink-0 text-xs text-ink-3">{SAMPLE_NOTE}{resultless ? ` ${preview.reason}` : preview.note && showing === 'result' ? ` ${preview.note}` : ''}</p>

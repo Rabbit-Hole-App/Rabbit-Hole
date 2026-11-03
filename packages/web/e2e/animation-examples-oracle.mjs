@@ -2,47 +2,36 @@
 // animation-oracle.mjs: every number here comes from the formula each example states in words, written by hand. Nothing here imports,
 // runs or copies a scene's program. Used by src/animation3d/learning-examples.test.mjs.
 
-// ---- softmax: p_i = exp(l_i / T) / sum exp(l_j / T); H = -sum p log2 p, in bits. Logits for mat, floor, sofa, roof, moon.
-export const LOGITS = { mat: 4, floor: 3, sofa: 2.5, roof: 1, moon: -1 };
-export function softmax(temperature) {
-  const scores = Object.values(LOGITS).map(logit => Math.exp(logit / temperature));
-  const total = scores.reduce((a, b) => a + b);
-  const p = scores.map(score => score / total);
-  let entropy = 0;
-  for (const value of p) if (value > 0) entropy -= value * (Math.log(value) / Math.LN2);
-  return { p, top: Math.max(...p), entropy };
+// ---- projectile on flat ground, no air: range R = v^2 sin(2 theta) / g; path y = x tan(theta) - g x^2 / (2 v^2 cos^2 theta).
+export const GRAVITY = 9.81;
+const rad = degrees => degrees * Math.PI / 180;
+export const projectileRange = (angle, speed) => speed * speed * Math.sin(rad(2 * angle)) / GRAVITY;
+export const projectileHeightAt = (angle, speed, x) => x * Math.tan(rad(angle)) - GRAVITY * x * x / (2 * speed * speed * Math.cos(rad(angle)) ** 2);
+// The same flight stepped in time (semi-implicit Euler, 0.1 ms): where it comes back to the ground, independent of the closed form.
+export function projectileStepped(angle, speed, dt = 1e-4) {
+  let x = 0, y = 0, vy = speed * Math.sin(rad(angle));
+  const vx = speed * Math.cos(rad(angle));
+  do { vy -= GRAVITY * dt; x += vx * dt; y += vy * dt; } while (y > 0);
+  return x;
 }
-
-// ---- gradient descent on L = (w1^2 + 4 w2^2) / 2 from (-3, 1.5), by repeated steps w -= lr * grad L (grad L = (w1, 4 w2)).
-export const gradientLoss = ([w1, w2]) => 0.5 * w1 * w1 + 2 * w2 * w2;
-export function gradientPath(lr, steps = 12) {
-  const path = [[-3, 1.5]];
-  for (let k = 0; k < steps; k += 1) { const [w1, w2] = path[k]; path.push([w1 - lr * w1, w2 - lr * 4 * w2]); }
-  return path;
-}
-// The behaviour by its definition: stable only when |1 - 4 lr| < 1 (the steepest curvature is 4); else whether 12 steps reach 1% of the start.
-export function gradientBehaviour(lr) {
-  const factor = Math.abs(1 - 4 * lr), last = gradientLoss(gradientPath(lr).at(-1));
-  if (factor > 1 + 1e-9) return 'diverging';
-  if (factor > 1 - 1e-9) return 'edge';
-  if (last <= 0.01 * gradientLoss([-3, 1.5])) return 'good';
-  return lr < 0.4 ? 'slow' : 'oscillating';
-}
-
-// ---- perceptron on AND: answers 1 when w1 x1 + w2 x2 + b > 0; training adds (target - answer) (x1, x2, 1); starts at zero. 7 updates at most.
-export const AND = [{ x: [0, 0], target: 0 }, { x: [0, 1], target: 0 }, { x: [1, 0], target: 0 }, { x: [1, 1], target: 1 }];
-const says = ({ w, b }, x) => (w[0] * x[0] + w[1] * x[1] + b > 0 ? 1 : 0);
-export function perceptron(picks, budget = 7) {
-  let neuron = { w: [0, 0], b: 0 }, used = 0, status = 'playing';
-  for (const pick of picks) {
-    if (status !== 'playing') break;
-    const { x, target } = AND[pick], error = target - says(neuron, x);
-    neuron = { w: [neuron.w[0] + error * x[0], neuron.w[1] + error * x[1]], b: neuron.b + error };
-    used += 1;
-    if (AND.every(example => says(neuron, example.x) === example.target)) status = 'won';
-    else if (used >= budget) status = 'lost';
+// The game: start at 30 degrees, 14 m/s; angle +-5 within 10..80, speed +-1 within 5..22; a launch inside 30 +- 1.5 m wins; 5 launches
+// without one loses; after either, nothing changes.
+export function projectileGame(actions) {
+  let angle = 30, speed = 14, launches = 0, landed = null, status = 'playing';
+  for (const action of actions) {
+    if (status !== 'playing') continue;
+    if (action === 'angleUp') angle = Math.min(80, angle + 5);
+    else if (action === 'angleDown') angle = Math.max(10, angle - 5);
+    else if (action === 'faster') speed = Math.min(22, speed + 1);
+    else if (action === 'slower') speed = Math.max(5, speed - 1);
+    else {
+      landed = projectileRange(angle, speed);
+      launches += 1;
+      if (Math.abs(landed - 30) <= 1.5) status = 'won';
+      else if (launches === 5) status = 'lost';
+    }
   }
-  return { ...neuron, used, status, answers: AND.map(example => says(neuron, example.x)), wrong: AND.filter(example => says(neuron, example.x) !== example.target).length };
+  return { angle, speed, launches, landed, status };
 }
 
 // ---- Lotka-Volterra: dx/dt = 1.1 x - 0.4 x y, dy/dt = 0.1 x y - 0.4 y, x(0) = 10, y(0) = 2. A much finer step than the scene's (Heun's

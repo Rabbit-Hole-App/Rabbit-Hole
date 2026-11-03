@@ -329,13 +329,13 @@ test('the window search filters by name and title, ignores a leading /, and can 
   assert.match(sheet, />No commands match</);
 });
 
-test('/animation offers a choice of examples: experiment, game and watch across physics, AI and biology, each with its own truthful request, scene and brief', async () => {
+test('/animation offers a choice of examples: experiment, game and watch across physics and biology, each with its own truthful request, scene and brief', async () => {
   const { pendulumDemo, PENDULUM_DEMO_REQUEST } = await import('./animation3d/pendulum-demo.js');
   const { LEARNING_EXAMPLES } = await import('./animation3d/learning-examples.js');
   const { ANIMATION_FIXTURES } = await import('./animation3d/fixtures.js');
   const options = PREVIEWS.animation.options, scenes = [pendulumDemo, ...LEARNING_EXAMPLES];
   assert.equal(options, ANIMATION_OPTIONS);
-  assert.deepEqual(options.map(option => [option.id, option.kind, option.subject]), [['pendulum', 'Experiment', 'Physics'], ['temperature', 'Experiment', 'LLMs'], ['gradient', 'Experiment', 'ML'], ['perceptron', 'Game', 'Neural networks'], ['predator-prey', 'Watch', 'Biology']]);
+  assert.deepEqual(options.map(option => [option.id, option.kind, option.subject]), [['pendulum', 'Experiment', 'Physics'], ['projectile', 'Game', 'Physics'], ['predator-prey', 'Watch', 'Biology']]);
   assert.equal(new Set(options.map(option => option.request)).size, options.length);
   options.forEach((option, index) => {
     const scene = scenes[index], { artifact, plan } = scene;
@@ -363,11 +363,13 @@ test('/animation offers a choice of examples: experiment, game and watch across 
   assert.deepEqual(ANIMATION_FIXTURES.map(fixture => fixture.name), ['orbit-watch', 'beam-balance-experiment', 'grid-robot-game']);
   // An option replaces the scene, the note and the brief, and leaves the rest of the preview; no option: the preview itself.
   assert.equal(optionOf(PREVIEWS.animation, null), options[0]);
-  assert.equal(optionOf(PREVIEWS.animation, 'predator-prey'), options[4]);
+  assert.equal(optionOf(PREVIEWS.animation, 'predator-prey'), options[2]);
   assert.equal(optionOf(PREVIEWS.quiz, 'x'), null);
   assert.equal(withOption(PREVIEWS.quiz, null), PREVIEWS.quiz);
-  const chosen = withOption(PREVIEWS.animation, options[3]);
-  assert.deepEqual([chosen.card, chosen.block, chosen.note, chosen.brief], ['animation3d', options[3].block, options[3].note, options[3].brief]);
+  const chosen = withOption(PREVIEWS.animation, options[1]);
+  assert.deepEqual([chosen.card, chosen.block, chosen.note, chosen.brief], ['animation3d', options[1].block, options[1].note, options[1].brief]);
+  // Owner 2026-11-02: the choice sits just above the card, as buttons or (narrow) a selector, never in the title row.
+  assert.match(sheet, /\{option && <ExampleChoice narrow=\{narrow\} options=\{preview\.options\} value=\{option\.id\} onChoose=\{setOptionId\} \/>\}\s*<div className=\{`\$\{option \? 'mt-2' : 'mt-3'\} flex min-h-0 flex-1 flex-col`\}>\s*<SlashCommandPreview/);
   // The window: the example line, Use example and the stage all follow the choice, and a different example draws a new card.
   assert.match(sheet, /const example = option \? option\.request : name \? EXAMPLES\[name\] : '';/);
   assert.match(sheet, /key=\{`\$\{name\}:\$\{showing\}:\$\{option\?\.id \?\? ''\}`\}/);

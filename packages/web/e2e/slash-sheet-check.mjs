@@ -12,8 +12,9 @@ import { REMOVED_COMMANDS, SLASH, descFor } from '../src/agent/slash.js';
 // whole card inside it, no outer scroller) just under its example; the owner's 2026-10-29 examples (C:/s/spec/slash-window/BRIEF-EXAMPLES.md)
 // show their real results in the real cards; a generator's View brief switches the same stage to its brief; Use example closes the
 // window and prepares the draft, never sending; at 1440x900, 1280x720 and 390x844, light and dark. No model call, search, capture
-// or paid request is made. /animation offers a choice of examples (owner 2026-11-02): each option's experience, controls, request and
-// brief, the experiments changing their readouts, the game won and lost, all on the local engine with no animation route called.
+// or paid request is made. /animation offers a choice of examples just above its card (owner 2026-11-02): each option's experience,
+// controls, request and brief, the projectile game aimed by keys and buttons at its default and extremes, won and lost, all on the local
+// engine with no animation route called (walked at one viewport per theme).
 // usage: node e2e/slash-sheet-check.mjs [screenshot dir]
 // A local stack instead: BASE=http://127.0.0.1:<app> SMALL_CP=http://127.0.0.1:<cp> node e2e/slash-sheet-check.mjs [dir] - a fresh
 // canvas and a session minted with packages/control-plane/.dev.vars.
@@ -123,11 +124,20 @@ for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
         && await pane.locator('input[data-animation-number]').count() === 1 && await pane.locator('[data-animation3d-example]').count() === 0);
       const offered = narrow ? await pane.locator('[data-slash-option-select] option').evaluateAll(nodes => nodes.map(node => node.value)) : await pane.locator('[data-slash-option]').evaluateAll(nodes => nodes.map(node => node.dataset.slashOption));
       ok(`${tag}: /animation offers every example, one choice per scene`, offered.join() === ANIMATION_OPTIONS.map(option => option.id).join(), offered.join());
+      // Owner 2026-11-02: the choice sits just above the card, under the example line, never in the title row.
+      const placed = await pane.evaluate(node => {
+        const choice = node.querySelector('[data-slash-options], [data-slash-option-select]').getBoundingClientRect();
+        const example = node.querySelector('[data-slash-example]').getBoundingClientRect(), stage = node.querySelector('[data-slash-stage]').getBoundingClientRect();
+        return { below: Math.round(choice.top - example.bottom), above: Math.round(stage.top - choice.bottom) };
+      });
+      ok(`${tag}: /animation's choice sits between the example line and the card`, placed.below >= 0 && placed.above >= 0 && placed.above <= 12, JSON.stringify(placed));
+      ok(`${tag}: the moon, beam and grid scenes stay out of the choice`, !offered.some(id => /orbit|beam|grid/.test(id)));
+      // Each example is walked at one viewport per theme (the check's run time): wide light, narrow dark.
+      const walk = (scheme === 'light' && viewport.width === 1440) || (scheme === 'dark' && viewport.width === 390);
       const pick = async id => { if (narrow) await pane.locator('[data-slash-option-select]').selectOption(id); else await pane.locator(`[data-slash-option="${id}"]`).click(); };
       const value = id => pane.locator(`[data-animation-readout="${id}"]`).first().getAttribute('data-value').then(Number);
-      const set = async (id, to) => { await pane.locator(`[data-animation-number="${id}"]`).fill(String(to)); await page.waitForFunction(([key, want]) => Number(document.querySelector(`[data-animation-number="${key}"]`)?.value) === want, [id, to]); await page.waitForTimeout(400); };
       const settled = () => pane.locator('[data-animation3d-card][data-animation-phase="ready"]').waitFor({ timeout: 20000 });
-      for (const option of ANIMATION_OPTIONS) {
+      for (const option of walk ? ANIMATION_OPTIONS : []) {
         await pick(option.id);
         await pane.locator(`[data-slash-card] [data-animation-badge="${option.kind.toLowerCase()}"]`).waitFor({ timeout: 20000 });
         await settled();
@@ -139,36 +149,40 @@ for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
         ok(`${tag}: /animation ${option.id}: the choice shows which is selected`, narrow ? (await pane.locator('[data-slash-option-select]').inputValue()) === option.id
           : await pane.locator('[data-slash-option][aria-pressed="true"]').evaluateAll(nodes => nodes.map(node => node.dataset.slashOption).join()) === option.id);
         await page.screenshot({ path: `${SHOTS}/${tag}-animation-${option.id}.png` });
-        if (option.id === 'temperature') {
-          const start = [await value('topProbability')];
-          await set('temperature', 0.1);
-          const cold = await value('topProbability');
-          await set('temperature', 5);
-          const hot = await value('topProbability');
-          ok(`${tag}: /animation temperature: low temperature sharpens and high flattens, by the formula`, Math.abs(start[0] - 60.70) < 0.05 && cold > 99.9 && Math.abs(hot - 28.77) < 0.05, `${start} ${cold} ${hot}`);
-          await page.screenshot({ path: `${SHOTS}/${tag}-animation-temperature-hot.png` });
-        }
-        if (option.id === 'gradient') {
-          const verdict = () => pane.locator('[data-animation-viewport]').getAttribute('data-animation-frame').then(frame => JSON.parse(frame).nodes.verdict.text);
-          const seen = [await verdict()];
-          for (const rate of [0.05, 0.55]) { await set('learningRate', rate); seen.push(await verdict()); await page.screenshot({ path: `${SHOTS}/${tag}-animation-gradient-${rate}.png` }); }
-          ok(`${tag}: /animation gradient descent: good, slow and diverging`, /^Good/.test(seen[0]) && /^Too slow/.test(seen[1]) && /^Diverging/.test(seen[2]), seen.join(' | '));
-          ok(`${tag}: /animation gradient descent: plays its steps`, await pane.locator('[data-animation3d-play]').isVisible());
-        }
-        if (option.id === 'perceptron') {
-          const status = () => pane.locator('[data-animation-game]').getAttribute('data-animation-game');
-          const train = async i => { await pane.locator(`[data-animation-action="train${i}"]`).click(); await page.waitForTimeout(150); };
+        if (option.id === 'projectile') {
+          const game = () => pane.locator('[data-animation-game]').getAttribute('data-animation-game');
+          const act = async (id, times = 1) => { for (let i = 0; i < times; i += 1) { await pane.locator(`[data-animation-action="${id}"]`).click(); await page.waitForTimeout(120); } };
+          const aim = async () => [await value('angle'), await value('speed')];
+          const shoot = async label => {
+            await act('launch');
+            await page.waitForFunction(() => document.querySelector('[data-animation-readout="landing"]'), null, { timeout: 5000 });
+            await page.waitForTimeout(400);
+            await pane.locator('[data-animation-viewport]').scrollIntoViewIfNeeded();
+            await page.screenshot({ path: `${SHOTS}/${tag}-animation-projectile-${label}.png` });
+            return value('landing');
+          };
           await pane.locator('[data-animation-hint]').click();
-          ok(`${tag}: /animation neuron game: its hint opens`, /Begin with \(1,1\)/.test(await pane.locator('[data-animation-hint-text]').innerText()));
-          for (const i of [3, 0, 1, 3, 2]) await train(i);
-          await pane.locator('[data-animation-game="won"]').waitFor({ timeout: 5000 });
-          ok(`${tag}: /animation neuron game: the five-update route wins`, /All four correct in 5 updates/.test(await pane.locator('[data-animation-outcome]').innerText()));
-          await page.screenshot({ path: `${SHOTS}/${tag}-animation-perceptron-won.png` });
+          ok(`${tag}: /animation projectile: its hint opens`, /v\^2 sin\(2 theta\) \/ g/.test(await pane.locator('[data-animation-hint-text]').innerText()));
+          // The arrow keys while the card interacts: Up raises the angle by 5 degrees, Right adds 1 m/s.
+          await pane.locator('[data-animation-interact]').click();
+          for (const key of ['ArrowUp', 'ArrowUp', 'ArrowUp', 'ArrowRight', 'ArrowRight', 'ArrowRight']) { await page.keyboard.press(key); await page.waitForTimeout(120); }
+          ok(`${tag}: /animation projectile: Up and Right set 45 degrees and 17 m/s`, (await aim()).join() === '45,17', (await aim()).join());
+          await pane.locator('[data-animation-interact]').click();
+          const hit = await shoot('hit');
+          ok(`${tag}: /animation projectile: 17 m/s at 45 degrees lands at v^2/g and hits`, Math.abs(hit - 289 / 9.81) < 1e-6 && await game() === 'won', String(hit));
           await pane.locator('[data-animation-reset]').click();
           await pane.locator('[data-animation-game="playing"]').waitFor({ timeout: 5000 });
-          for (let i = 0; i < 7; i += 1) await train(0);
+          await act('angleUp', 12); await act('faster', 10);
+          const steep = await shoot('80deg-22ms');
+          ok(`${tag}: /animation projectile: the steepest, fastest launch stops at 80 degrees and 22 m/s and lands where the formula says`, (await aim()).join() === '80,22' && Math.abs(steep - 484 * Math.sin(160 * Math.PI / 180) / 9.81) < 1e-6, String(steep));
+          await act('angleDown', 14); await act('slower', 20);
+          const flat = await shoot('10deg-5ms');
+          ok(`${tag}: /animation projectile: the flattest, slowest launch stops at 10 degrees and 5 m/s`, (await aim()).join() === '10,5' && Math.abs(flat - 25 * Math.sin(20 * Math.PI / 180) / 9.81) < 1e-6, String(flat));
+          await act('angleUp', 7); await act('faster', 17);
+          await shoot('45deg-22ms');
+          await act('launch', 2);
           await pane.locator('[data-animation-game="lost"]').waitFor({ timeout: 5000 });
-          ok(`${tag}: /animation neuron game: seven wasted updates lose`, await status() === 'lost' && /Out of updates/.test(await pane.locator('[data-animation-outcome]').innerText()));
+          ok(`${tag}: /animation projectile: five misses lose`, /Out of launches/.test(await pane.locator('[data-animation-outcome]').innerText()) && await value('launchesLeft') === 0);
         }
         if (option.id === 'predator-prey') {
           ok(`${tag}: /animation predator and prey: a watch card with Play and no settings`, await pane.locator('[data-animation3d-play]').isVisible() && await pane.locator('[data-animation-parameters]').count() === 0 && Math.abs(await value('prey') - 10) < 1e-6);
@@ -185,9 +199,7 @@ for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
           await settled();
         }
       }
-      await pick('pendulum');
-      await settled();
-      ok(`${tag}: the moon, beam and grid scenes stay out of the choice`, !offered.some(id => /orbit|beam|grid/.test(id)));
+      if (walk) { await pick('pendulum'); await settled(); }
     }
     if (name === 'notebook') ok(`${tag}: /notebook opens the notebook card's JupyterLab frame`, await pane.locator('iframe[data-notebook-frame][data-notebook-preview]').count() === 1);
     if (name === 'youtube') ok(`${tag}: /youtube shows the 3Blue1Brown video in YouTube's player`, await pane.locator('iframe[src^="https://www.youtube-nocookie.com/embed/eMlx5fFNoYc"]').count() === 1 && await pane.getByText('Sourced · YouTube · 3Blue1Brown').count() === 1);

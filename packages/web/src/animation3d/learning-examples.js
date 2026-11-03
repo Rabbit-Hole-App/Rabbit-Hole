@@ -1,5 +1,5 @@
-// Hand-written /animation examples for the Slash Commands window (owner 2026-11-02): one per experience across LLMs, ML and biology, beside
-// the saved pendulum (pendulum-demo.js). Written by hand against the contract with no model call, and labelled so on the card
+// Hand-written /animation examples for the Slash Commands window (owner 2026-11-02): a physics game and a biology watch, beside the saved
+// pendulum experiment (pendulum-demo.js). Written by hand against the contract with no model call, and labelled so on the card
 // (provenance 'fixture'). Read by name only (block.fixtureId): they are not in the Insert palette's example picker. Each is
 // { name, plan, artifact }. planHash and sourceHash are literals, pinned by learning-examples.test.mjs, which also runs each program
 // on the real engine against independent formulas (e2e/animation-examples-oracle.mjs).
@@ -8,227 +8,102 @@ import { ANIMATION_PROGRAM_VERSIONS, PLAN_SCHEMA, SCENE_SCHEMA } from './contrac
 
 const program = (source, sourceHash) => ({ ...ANIMATION_PROGRAM_VERSIONS, source, sourceHash });
 const base = { schema: SCENE_SCHEMA, revision: 1, capabilityVersion: ANIMATION_CAPABILITIES.version, sourceRefs: [], seed: 1, provenance: { origin: 'fixture' } };
-const FLAT = [-Math.SQRT1_2, 0, 0, Math.SQRT1_2]; // -90 degrees about X: a plane lies flat
 const round = value => Number(value.toFixed(3));
 
-// ---- experiment, LLM: softmax temperature --------------------------------------------------------------------------------
-// p_i = exp(logit_i / T) / sum_j exp(logit_j / T); H = -sum_i p_i log2 p_i. A bar's height is 5 x p_i.
+// ---- game, physics: hit a target with a projectile -----------------------------------------------------------------------
+// Range R = v^2 sin(2 theta) / g on flat ground, g = 9.81, from ground level, no air. The angle moves by 5 degrees (10 to 80), the
+// speed by 1 m/s (5 to 22); Launch fires once. Landing within 1.5 m of 30 m wins; 5 launches without that loses; after either, actions
+// do nothing. The arc drawn is the last launch: 15 points at equal times over its flight.
 
-const WORDS = [['mat', 4], ['floor', 3], ['sofa', 2.5], ['roof', 1], ['moon', -1]];
-const temperatureSource = `const LOGITS = [4, 3, 2.5, 1, -1];
-const BARS = ['mat', 'floor', 'sofa', 'roof', 'moon'];
-export function evaluate({ inputs }) {
-  const raw = LOGITS.map(logit => Math.exp((logit - 4) / inputs.temperature));
-  const total = raw.reduce((sum, value) => sum + value, 0);
-  const p = raw.map(value => value / total);
-  const entropy = -p.reduce((sum, value) => sum + (value > 0 ? value * Math.log2(value) : 0), 0);
-  const nodes = { entropyNote: { text: 'Entropy ' + entropy.toFixed(2) + ' bits (at most 2.32)' } };
-  BARS.forEach((word, i) => {
-    const height = Math.max(0.02, 5 * p[i]);
-    nodes[word] = { position: [i * 2 - 4, height / 2, 0], scale: [1, height, 1] };
-    nodes[word + 'Value'] = { position: [i * 2 - 4, height, 0], text: (100 * p[i]).toFixed(1) + '%' };
-  });
-  return { nodes, readouts: { topProbability: 100 * Math.max(...p), entropy } };
-}
-`;
-const temperatureParameters = [{ type: 'number', id: 'temperature', label: 'Temperature', min: 0.1, max: 5, step: 0.1, default: 1 }];
-const temperaturePlan = {
-  schema: PLAN_SCHEMA, title: 'Softmax temperature and next words', description: 'Five candidate next words after "The cat sat on the", each with a fixed logit. Temperature divides the logits before softmax, and the bars show the resulting probabilities.',
-  experience: 'experiment', reason: 'Moving one control shows how temperature sharpens or flattens the same logits.', behavior: 'analytical', controlProfile: 'manipulate',
-  sourceRefs: [], parameters: temperatureParameters, interactions: ['Change the temperature from 0.1 to 5.'],
-  assumptions: ['p = softmax(logits / T); entropy is in bits.', 'The logits are written by hand to illustrate the formula; no model produced them.'],
-  limitations: ['Real models score tens of thousands of tokens, not five words.'],
-  learningGoal: 'Low temperature concentrates probability on the top word; high temperature approaches uniform and raises entropy.', requiredCapabilities: ['parameters', 'readouts', 'labels'],
-};
-export const temperatureExample = {
-  name: 'softmax-temperature',
-  plan: temperaturePlan,
-  artifact: {
-    ...base, artifactId: 'example-softmax-temperature', planHash: 'a56fde23aab5228d6ce5ea1c7c9e25b7c69bc9d07a594698348bb16b04e6accb',
-    title: temperaturePlan.title, description: 'Five bars, one per candidate next word, whose heights are their probabilities. A line marks 100 percent and another marks the uniform 20 percent.',
-    experience: 'experiment', behavior: 'analytical', controlProfile: 'manipulate',
-    scene: {
-      materials: [{ id: 'top', color: '#2f6fe0' }, { id: 'rest', color: '#7f97bd' }, { id: 'axis', color: '#8a8f98' }],
-      geometries: [
-        { id: 'bar', kind: 'box', size: [1.1, 1, 0.3] },
-        { id: 'baseline', kind: 'line', points: [[-6.2, 0, 0], [5.2, 0, 0]] },
-        { id: 'full', kind: 'line', points: [[-6.2, 5, 0], [5.2, 5, 0]] },
-        { id: 'uniform', kind: 'line', points: [[-6.2, 1, 0], [5.2, 1, 0]] },
-        { id: 'fullText', kind: 'label', text: '100%', placement: 'above' },
-        { id: 'uniformText', kind: 'label', text: 'Uniform 20%', placement: 'above' },
-        { id: 'entropyText', kind: 'label', text: 'Entropy', placement: 'above' },
-        ...WORDS.flatMap(([word, logit]) => [{ id: `${word}Word`, kind: 'label', text: `${word} ${logit.toFixed(1)}`, placement: 'below' }, { id: `${word}Percent`, kind: 'label', text: '0%', placement: 'above' }]),
-      ],
-      nodes: [
-        { id: 'baseN', geometry: 'baseline', material: 'axis' }, { id: 'fullN', geometry: 'full', material: 'axis' }, { id: 'uniformN', geometry: 'uniform', material: 'axis' },
-        { id: 'fullNote', geometry: 'fullText', position: [4.4, 5, 0] }, { id: 'uniformNote', geometry: 'uniformText', position: [-5.4, 1, 0] },
-        { id: 'entropyNote', geometry: 'entropyText', position: [0, 5.3, 0] },
-        ...WORDS.flatMap(([word], i) => [
-          { id: word, geometry: 'bar', material: i ? 'rest' : 'top', position: [i * 2 - 4, 0.5, 0], name: word },
-          { id: `${word}Tag`, geometry: `${word}Word`, position: [i * 2 - 4, 0, 0] },
-          { id: `${word}Value`, geometry: `${word}Percent`, position: [i * 2 - 4, 1, 0] },
-        ]),
-      ],
-    },
-    parameters: temperatureParameters, actions: [],
-    readouts: [{ id: 'topProbability', label: 'Top word (mat)', unit: '%', decimals: 1 }, { id: 'entropy', label: 'Entropy', unit: 'bits', decimals: 2 }],
-    program: program(temperatureSource, '080804ac40107c3021741b3fc362dd95c16660e905307ab1ff57b3fdaaca2e61'),
-    camera: { position: [-0.5, 3.5, 14], target: [-0.5, 2.5, 0], fov: 40 },
-    assumptions: ['p = softmax(logits / T), written beside each word as its logit; entropy H = -sum p log2 p, at most log2 5 = 2.32 bits.', 'The five logits are written by hand to illustrate the formula, for "The cat sat on the". No model produced them.', 'Real models score tens of thousands of tokens, not five words.'],
-  },
-};
-
-// ---- experiment, ML: gradient descent on a loss bowl ----------------------------------------------------------------------
-// L(w1, w2) = (w1^2 + 4 w2^2) / 2 from (-3, 1.5); a step is w1 *= 1 - lr, w2 *= 1 - 4 lr. Drawn at (w1, 0.35 L, w2), clipped at L = 12.
-
-const LOSS_RINGS = [1, 3, 6, 9, 12];
-const RING = Array.from({ length: 16 }, (_, i) => [round(Math.cos(i * Math.PI / 8)), 0, round(Math.sin(i * Math.PI / 8))]);
-const gradientSource = `const LOSS = (w1, w2) => (w1 * w1 + 4 * w2 * w2) / 2;
-const at = (lr, k) => [-3 * Math.pow(1 - lr, k), 1.5 * Math.pow(1 - 4 * lr, k)];
-const spot = ([w1, w2]) => ({ position: [w1, 0.35 * LOSS(w1, w2), w2], visible: LOSS(w1, w2) <= 12 });
-function verdict(lr, last) {
-  const edge = Math.abs(1 - 4 * lr);
-  if (edge > 1 + 1e-9) return 'Diverging: the steep direction overshoots further every step';
-  if (edge > 1 - 1e-9) return 'On the edge: it bounces across the steep direction forever';
-  if (last <= 0.09) return 'Good: under 1% of the starting loss in 12 steps';
-  return lr < 0.4 ? 'Too slow: over 1% of the starting loss after 12 steps' : 'Oscillating: still bouncing after 12 steps';
-}
-export function evaluate({ inputs, time }) {
-  const lr = inputs.learningRate, k = Math.min(12, Math.floor(time / 0.5));
-  const nodes = { current: spot(at(lr, k)), verdict: { text: verdict(lr, LOSS(...at(lr, 12))) } };
-  for (let i = 0; i <= 12; i += 1) nodes['trail' + i] = spot(at(lr, i));
-  return { nodes, readouts: { loss: LOSS(...at(lr, k)), step: k, lastLoss: LOSS(...at(lr, 12)) } };
-}
-`;
-const gradientParameters = [{ type: 'number', id: 'learningRate', label: 'Learning rate', min: 0.02, max: 0.6, step: 0.01, default: 0.2 }];
-const gradientPlan = {
-  schema: PLAN_SCHEMA, title: 'Gradient descent on a loss bowl', description: 'Twelve gradient descent steps on a loss bowl that is four times steeper in one direction. The learning rate decides whether the weights crawl, settle or fly out of the bowl.',
-  experience: 'experiment', reason: 'One control shows slow, good and diverging training on the same loss.', behavior: 'analytical', controlProfile: 'manipulate',
-  sourceRefs: [], parameters: gradientParameters, interactions: ['Change the learning rate from 0.02 to 0.6.', 'Play or scrub through the twelve steps.'],
-  assumptions: ['L(w1, w2) = (w1^2 + 4 w2^2) / 2, so each weight shrinks by its own factor per step.', 'Exact gradients: no minibatch noise.'],
-  limitations: ['A real network\'s loss is not a quadratic bowl, and has far more than two weights.'],
-  learningGoal: 'A step stays stable only below 2 / the steepest curvature: here a learning rate of 0.5.', requiredCapabilities: ['parameters', 'readouts', 'labels', 'loop', 'speed', 'seek'],
-};
-export const gradientExample = {
-  name: 'gradient-descent-bowl',
-  plan: gradientPlan,
-  artifact: {
-    ...base, artifactId: 'example-gradient-descent', planHash: '0d53ae6c986e44caeba8d2b89efdbf1095735d78980eb7119f897808313dee45',
-    title: gradientPlan.title, description: 'A wireframe bowl of constant-loss rings and two parabolas. Small dots mark the twelve steps, a large dot marks the current step, and a note names the behaviour.',
-    experience: 'experiment', behavior: 'analytical', controlProfile: 'manipulate',
-    scene: {
-      materials: [{ id: 'wire', color: '#8a8f98' }, { id: 'trailDot', color: '#e0912f' }, { id: 'now', color: '#2f6fe0' }, { id: 'lowest', color: '#2f9e5b' }],
-      geometries: [
-        { id: 'ring', kind: 'curve', points: RING, segments: 48, closed: true },
-        { id: 'shallowCut', kind: 'curve', points: [-4.9, -3.5, -2, -1, 0, 1, 2, 3.5, 4.9].map(w => [w, round(0.175 * w * w), 0]), segments: 32 },
-        { id: 'steepCut', kind: 'curve', points: [-2.45, -1.75, -1, -0.5, 0, 0.5, 1, 1.75, 2.45].map(w => [0, round(0.7 * w * w), w]), segments: 32 },
-        { id: 'dot', kind: 'sphere', radius: 0.09, widthSegments: 10, heightSegments: 6 },
-        { id: 'ball', kind: 'sphere', radius: 0.2, widthSegments: 20, heightSegments: 12 },
-        { id: 'lowestDisc', kind: 'cylinder', radius: 0.14, height: 0.03 },
-        { id: 'lowestText', kind: 'label', text: 'Minimum', placement: 'below' },
-        { id: 'shallowText', kind: 'label', text: 'Shallow weight w1', placement: 'left' },
-        { id: 'steepText', kind: 'label', text: 'Steep weight w2', placement: 'above' },
-        { id: 'verdictText', kind: 'label', text: 'Good', placement: 'above' },
-      ],
-      nodes: [
-        ...LOSS_RINGS.map(c => ({ id: `ring${c}`, geometry: 'ring', material: 'wire', position: [0, round(0.35 * c), 0], scale: [round(Math.sqrt(2 * c)), 1, round(Math.sqrt(c / 2))] })),
-        { id: 'shallowN', geometry: 'shallowCut', material: 'wire' }, { id: 'steepN', geometry: 'steepCut', material: 'wire' },
-        { id: 'lowestN', geometry: 'lowestDisc', material: 'lowest', name: 'Minimum' }, { id: 'lowestTag', parent: 'lowestN', geometry: 'lowestText' },
-        { id: 'shallowTag', geometry: 'shallowText', position: [3.5, 2.14, 0] }, { id: 'steepTag', geometry: 'steepText', position: [0, 4.2, -2.45] },
-        { id: 'verdict', geometry: 'verdictText', position: [0, 5, 0] },
-        ...Array.from({ length: 13 }, (_, i) => ({ id: `trail${i}`, geometry: 'dot', material: 'trailDot', position: [-3, 3.15, 1.5] })),
-        { id: 'current', geometry: 'ball', material: 'now', position: [-3, 3.15, 1.5], name: 'Current weights' },
-      ],
-    },
-    parameters: gradientParameters, actions: [],
-    readouts: [{ id: 'loss', label: 'Loss now', decimals: 3 }, { id: 'step', label: 'Step', decimals: 0 }, { id: 'lastLoss', label: 'Loss after 12 steps', decimals: 3 }],
-    timeline: { duration: 7, loop: true },
-    program: program(gradientSource, '5672de07293bafc5db15d4875f7fada19d267f860330b3d71fa23d2e544440f8'),
-    camera: { position: [7, 7, 10], target: [0, 1.8, 0], fov: 40 },
-    assumptions: ['L(w1, w2) = (w1^2 + 4 w2^2) / 2, starting at w = (-3, 1.5) with loss 9. A step multiplies w1 by 1 - lr and w2 by 1 - 4 lr, so it is stable only below lr = 0.5.', 'Exact gradients: no minibatch noise. Steps past loss 12 are not drawn, but the readouts keep their true values.', 'A real network\'s loss is not a quadratic bowl and has far more than two weights.'],
-  },
-};
-
-// ---- game, ML: teach one neuron AND ---------------------------------------------------------------------------------------
-// Answers 1 when w1 x1 + w2 x2 + bias > 0. Training on an example adds (target - answer) x (x1, x2, 1) to (w1, w2, bias). All four
-// correct wins; 7 updates without that loses; after either, actions do nothing. The shortest win takes 5 updates.
-
-const EXAMPLES = [[0, 0], [0, 1], [1, 0], [1, 1]];
-const perceptronSource = `const EXAMPLES = [[0, 0, 0], [0, 1, 0], [1, 0, 0], [1, 1, 1]];
-const answer = (s, e) => (s.w1 * e[0] + s.w2 * e[1] + s.bias > 0 ? 1 : 0);
-const wrong = s => EXAMPLES.filter(e => answer(s, e) !== e[2]).length;
-export function initialState() { return { w1: 0, w2: 0, bias: 0, used: 0, status: 'playing' }; }
+const projectileSource = `const G = 9.81, TARGET = 30, HALF = 1.5, LAUNCHES = 5;
+const AIM = { angleUp: [5, 0], angleDown: [-5, 0], faster: [0, 1], slower: [0, -1] };
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const range = (angle, speed) => speed * speed * Math.sin(2 * angle * Math.PI / 180) / G;
+export function initialState() { return { angle: 30, speed: 14, launches: 0, shot: null, status: 'playing' }; }
 export function reduce({ state, event }) {
   if (state.status !== 'playing' || event.type !== 'action') return state;
-  const e = EXAMPLES[Number(event.action.slice(5))], error = e[2] - answer(state, e);
-  const next = { w1: state.w1 + error * e[0], w2: state.w2 + error * e[1], bias: state.bias + error, used: state.used + 1 };
-  return { ...next, status: wrong(next) === 0 ? 'won' : next.used >= 7 ? 'lost' : 'playing' };
+  if (event.action !== 'launch') {
+    const [da, dv] = AIM[event.action];
+    return { ...state, angle: clamp(state.angle + da, 10, 80), speed: clamp(state.speed + dv, 5, 22) };
+  }
+  const landed = range(state.angle, state.speed), launches = state.launches + 1;
+  const status = Math.abs(landed - TARGET) <= HALF ? 'won' : launches >= LAUNCHES ? 'lost' : 'playing';
+  return { ...state, launches, shot: { angle: state.angle, speed: state.speed, landed }, status };
 }
 export function evaluate({ state }) {
-  const s = state || initialState(), bad = wrong(s), nodes = {}, materials = {};
-  EXAMPLES.forEach((e, i) => {
-    const got = answer(s, e);
-    nodes['note' + i] = { text: '(' + e[0] + ',' + e[1] + ') want ' + e[2] + ', says ' + got };
-    materials['point' + i] = { color: got === e[2] ? '#2f9e5b' : '#d64545' };
-  });
-  nodes.weights = { text: 'w1 ' + s.w1 + ', w2 ' + s.w2 + ', bias ' + s.bias };
-  const size = Math.hypot(s.w1, s.w2), off = size ? (1.5 * s.w1 + 1.5 * s.w2 + 3 * s.bias) / size : 0;
-  if (size && Math.abs(off) <= 3.5) {
-    const turn = Math.atan2(s.w1, s.w2) / 2;
-    nodes.line = { visible: true, position: [1.5 - off * s.w1 / size, 0.06, 1.5 - off * s.w2 / size], quaternion: [0, Math.sin(turn), 0, Math.cos(turn)] };
-  } else nodes.line = { visible: false };
-  const message = s.status === 'won' ? 'All four correct in ' + s.used + ' updates: this neuron now computes AND.'
-    : s.status === 'lost' ? 'Out of updates. Only training on a wrong answer changes the weights, and the order matters.'
-      : bad + ' of 4 answers wrong. Choose an example to train on.';
-  return { nodes, materials, readouts: { updatesLeft: 7 - s.used, wrong: bad }, goal: { status: s.status, message } };
+  const s = state || initialState(), turn = (s.angle - 90) * Math.PI / 360, shot = s.shot, nodes = {};
+  nodes.aim = { quaternion: [0, 0, Math.sin(turn), Math.cos(turn)], scale: [1, s.speed / 4, 1] };
+  for (let k = 0; k <= 14; k += 1) {
+    if (!shot) { nodes['arc' + k] = { visible: false }; continue; }
+    const b = shot.angle * Math.PI / 180, t = k / 14 * 2 * shot.speed * Math.sin(b) / G;
+    nodes['arc' + k] = { visible: true, position: [shot.speed * Math.cos(b) * t, Math.max(0, shot.speed * Math.sin(b) * t - G * t * t / 2), 0] };
+  }
+  nodes.landing = shot ? { visible: true, position: [shot.landed, 0.1, 0] } : { visible: false };
+  nodes.landingNote = shot ? { visible: true, position: [shot.landed, 0, 0], text: 'Landed ' + shot.landed.toFixed(1) + ' m' } : { visible: false };
+  const left = LAUNCHES - s.launches, miss = shot ? shot.landed - TARGET : 0;
+  const message = s.status === 'won' ? 'Hit: landed ' + shot.landed.toFixed(1) + ' m, ' + Math.abs(miss).toFixed(1) + ' m from the centre.'
+    : s.status === 'lost' ? 'Out of launches: the last one landed ' + shot.landed.toFixed(1) + ' m. Reset game to try again.'
+      : shot ? (miss > 0 ? 'Long' : 'Short') + ' by ' + Math.abs(miss).toFixed(1) + ' m. ' + left + ' launches left.'
+        : 'Set the angle and speed, then Launch. ' + left + ' launches left.';
+  const readouts = { launchesLeft: left, angle: s.angle, speed: s.speed };
+  if (shot) { readouts.landing = shot.landed; readouts.miss = miss; }
+  return { nodes, readouts, goal: { status: s.status, message } };
 }
 `;
-const perceptronPlan = {
-  schema: PLAN_SCHEMA, title: 'Teach a neuron AND', description: 'One neuron starts with all weights at zero. Choose which example to train on with the perceptron rule until its line separates the single 1 from the three 0s.',
-  experience: 'game', reason: 'Choosing each update shows that learning is driven by errors, and that the order of examples changes how fast it converges.', behavior: 'rules', controlProfile: 'manipulate',
-  sourceRefs: [], parameters: [], interactions: ['Train the neuron on one of the four examples.'],
-  assumptions: ['Perceptron rule with learning rate 1 and a hard threshold.', 'A point exactly on the line counts as 0.'],
-  limitations: ['Real training visits examples automatically; here the learner picks the order.', 'One straight line cannot compute XOR.'],
-  learningGoal: 'A perceptron only changes when it is wrong, and AND is linearly separable.', requiredCapabilities: ['actions', 'readouts', 'labels'],
+const projectilePlan = {
+  schema: PLAN_SCHEMA, title: 'Projectile: hit the target', description: 'A launcher on flat ground and a target 30 m away. Set the launch angle and speed, launch, and use where each shot lands to correct the next one.',
+  experience: 'game', reason: 'Correcting each shot from where the last one landed shows how angle and speed set the range.', behavior: 'rules', controlProfile: 'manipulate',
+  sourceRefs: [], parameters: [], interactions: ['Raise or lower the angle by 5 degrees (Up and Down keys).', 'Change the speed by 1 m/s (Left and Right keys).', 'Launch.'],
+  assumptions: ['R = v^2 sin(2 theta) / g with g = 9.81 m/s^2, launched from ground level on flat ground.', 'No air resistance; the projectile is a point.'],
+  limitations: ['Real projectiles lose speed to drag and land shorter.', 'The angle and speed move in steps; holding a key does not change them continuously.'],
+  learningGoal: 'For a given speed 45 degrees goes farthest, complementary angles land at the same place, and range grows with the square of the speed.', requiredCapabilities: ['actions', 'readouts', 'labels'],
 };
-export const perceptronExample = {
-  name: 'perceptron-and-game',
-  plan: perceptronPlan,
+export const projectileExample = {
+  name: 'projectile-target-game',
+  plan: projectilePlan,
   artifact: {
-    ...base, artifactId: 'example-perceptron-and', planHash: '946ba7112a76febcd975b5864e8626760fbfee2af35cf57e34962f817dc958a2',
-    title: perceptronPlan.title, description: 'Four points on a square, one per input pair, green when the neuron answers correctly and red when it does not. A blue bar is the neuron\'s decision line, shown while it is near the square, and an arrow points to the side it answers 1.',
+    ...base, artifactId: 'example-projectile-target', planHash: 'fa242f0b5554bf095ecc2e021b49fdd9abd8f0a36aef82f72cecbb942567b141',
+    title: projectilePlan.title, description: 'Side view of flat ground marked to 50 m, a launcher at 0 m with an arrow showing the aim (longer is faster), and a target pad at 30 m. After a launch, dots trace the arc and a marker shows where it landed.',
     experience: 'game', behavior: 'rules', controlProfile: 'manipulate',
     scene: {
-      materials: [{ id: 'board', color: '#9aa3ae', opacity: 0.3 }, { id: 'lineBlue', color: '#2f6fe0' }, ...EXAMPLES.map((_, i) => ({ id: `point${i}`, color: i === 3 ? '#d64545' : '#2f9e5b' }))],
+      materials: [{ id: 'ground', color: '#8a8f98' }, { id: 'launcherGrey', color: '#5b6470' }, { id: 'aimBlue', color: '#2f6fe0' }, { id: 'targetRed', color: '#d64545' }, { id: 'arcOrange', color: '#e0912f' }, { id: 'landedDark', color: '#2f9e5b' }],
       geometries: [
-        { id: 'boardPlane', kind: 'plane', width: 4.4, height: 4.4 },
-        { id: 'pointBall', kind: 'sphere', radius: 0.28, widthSegments: 24, heightSegments: 12 },
-        { id: 'lineBar', kind: 'box', size: [7, 0.06, 0.1] },
-        { id: 'sideArrow', kind: 'arrow', length: 0.9 },
-        { id: 'sideText', kind: 'label', text: 'Says 1', placement: 'right' },
-        { id: 'weightText', kind: 'label', text: 'w1 0, w2 0, bias 0', placement: 'above' },
-        ...EXAMPLES.map((_, i) => ({ id: `noteText${i}`, kind: 'label', text: 'Answer', placement: 'above' })),
+        { id: 'groundLine', kind: 'line', points: [[0, 0, 0], [50, 0, 0]] },
+        { id: 'heightLine', kind: 'line', points: [[-2, 0, 0], [-2, 25, 0]] },
+        { id: 'launcherBox', kind: 'box', size: [1.4, 0.8, 1] },
+        { id: 'aimArrow', kind: 'arrow', length: 1 },
+        { id: 'pad', kind: 'cylinder', radius: 1.5, height: 0.2 },
+        { id: 'dot', kind: 'sphere', radius: 0.45, widthSegments: 12, heightSegments: 8 },
+        { id: 'mark', kind: 'cylinder', radius: 0.6, height: 0.4 },
+        { id: 'targetText', kind: 'label', text: 'Target 30 m', placement: 'below' },
+        { id: 'launcherText', kind: 'label', text: 'Launcher', placement: 'below' },
+        { id: 'heightText', kind: 'label', text: '25 m', placement: 'left' },
+        { id: 'groundText', kind: 'label', text: '50 m', placement: 'below' },
+        { id: 'landedText', kind: 'label', text: 'Landed', placement: 'above' },
       ],
       nodes: [
-        { id: 'boardN', geometry: 'boardPlane', material: 'board', position: [1.5, 0, 1.5], quaternion: FLAT },
-        ...EXAMPLES.flatMap(([a, b], i) => [
-          { id: `point${i}N`, geometry: 'pointBall', material: `point${i}`, position: [3 * a, 0.28, 3 * b], name: `Example (${a},${b})` },
-          { id: `note${i}`, geometry: `noteText${i}`, position: [3 * a, 0.6, 3 * b] },
-        ]),
-        { id: 'line', visible: false, position: [1.5, 0.06, 1.5] },
-        { id: 'lineShape', parent: 'line', geometry: 'lineBar', material: 'lineBlue', name: 'Decision line' },
-        { id: 'side', parent: 'line', geometry: 'sideArrow', material: 'lineBlue', quaternion: [Math.SQRT1_2, 0, 0, Math.SQRT1_2] },
-        { id: 'sideTag', parent: 'side', geometry: 'sideText', position: [0, 1, 0] },
-        { id: 'weights', geometry: 'weightText', position: [1.5, 0, -1] },
+        { id: 'groundN', geometry: 'groundLine', material: 'ground' }, { id: 'heightN', geometry: 'heightLine', material: 'ground' },
+        { id: 'heightTag', geometry: 'heightText', position: [-2, 25, 0] }, { id: 'groundTag', geometry: 'groundText', position: [50, 0, 0] },
+        { id: 'launcher', geometry: 'launcherBox', material: 'launcherGrey', position: [-0.8, 0.4, 0], name: 'Launcher' },
+        { id: 'launcherTag', parent: 'launcher', geometry: 'launcherText', position: [0, -0.4, 0] },
+        { id: 'aim', geometry: 'aimArrow', material: 'aimBlue', quaternion: [0, 0, -0.5, 0.8660254], scale: [1, 3.5, 1], name: 'Aim' },
+        { id: 'target', geometry: 'pad', material: 'targetRed', position: [30, 0.1, 0], name: 'Target' },
+        { id: 'targetTag', parent: 'target', geometry: 'targetText', position: [0, -0.1, 0] },
+        ...Array.from({ length: 15 }, (_, k) => ({ id: `arc${k}`, geometry: 'dot', material: 'arcOrange', visible: false })),
+        { id: 'landing', geometry: 'mark', material: 'landedDark', visible: false, name: 'Landing' },
+        { id: 'landingNote', geometry: 'landedText', visible: false },
       ],
     },
     parameters: [],
-    actions: EXAMPLES.map(([a, b], i) => ({ id: `train${i}`, label: `Train (${a},${b})` })),
-    readouts: [{ id: 'updatesLeft', label: 'Updates left', decimals: 0 }, { id: 'wrong', label: 'Wrong answers', decimals: 0 }],
-    game: { objective: 'Train the neuron until all four answers of AND are correct, within 7 updates.', hint: 'Training on a correct answer changes nothing and still costs an update. Begin with (1,1), then (0,0). The shortest win takes 5 updates.' },
-    program: program(perceptronSource, '5fdfc4eb406034058c1a421dcac90751f3ad69c15e11097265f57f51ed4f3b1b'),
-    camera: { position: [1.5, 8, 7.5], target: [1.5, 0, 1.5], fov: 40 },
-    assumptions: ['One neuron answers 1 when w1 x1 + w2 x2 + bias > 0, so a point exactly on the line counts as 0. Perceptron rule, learning rate 1.', 'Real training visits examples automatically; here you choose the order.', 'One straight line cannot compute XOR: that needs more neurons.'],
+    actions: [{ id: 'angleUp', label: 'Angle up' }, { id: 'angleDown', label: 'Angle down' }, { id: 'slower', label: 'Slower' }, { id: 'faster', label: 'Faster' }, { id: 'launch', label: 'Launch' }],
+    // The camera looks along -z with +x (downrange) to the right: Up raises the aim, Right speeds it up.
+    keys: { up: 'angleUp', down: 'angleDown', left: 'slower', right: 'faster' },
+    readouts: [{ id: 'launchesLeft', label: 'Launches left', decimals: 0 }, { id: 'angle', label: 'Angle', unit: 'deg', decimals: 0 }, { id: 'speed', label: 'Speed', unit: 'm/s', decimals: 0 },
+      { id: 'landing', label: 'Landing distance', unit: 'm', decimals: 1 }, { id: 'miss', label: 'Miss (+ long, - short)', unit: 'm', decimals: 1 }],
+    game: { objective: 'Land within 1.5 m of the target at 30 m, in at most 5 launches.', hint: 'Range is v^2 sin(2 theta) / g: for one speed, 45 degrees goes farthest and 30 and 60 degrees land together. Range grows with the square of the speed, so scale it from your last landing.' },
+    program: program(projectileSource, '41a22719d02168f2fbef75083352947c4c48dde424827df855e6c2895ce91605'),
+    camera: { position: [24, 12, 62], target: [24, 10, 0], fov: 40 },
+    assumptions: ['R = v^2 sin(2 theta) / g with g = 9.81 m/s^2, launched from ground level on flat ground; the dots are the path x = v cos(theta) t, y = v sin(theta) t - g t^2 / 2.', 'No air resistance and a point projectile: real projectiles lose speed to drag and land shorter.', 'Angle steps of 5 degrees and speed steps of 1 m/s, one per press: holding a key or button does not charge the speed.'],
   },
 };
 
@@ -329,4 +204,4 @@ export const predatorPreyExample = {
   },
 };
 
-export const LEARNING_EXAMPLES = Object.freeze([temperatureExample, gradientExample, perceptronExample, predatorPreyExample]);
+export const LEARNING_EXAMPLES = Object.freeze([projectileExample, predatorPreyExample]);

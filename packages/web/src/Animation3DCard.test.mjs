@@ -756,36 +756,29 @@ test('the Slash Commands hand-written examples: each runs, is labelled not gener
   }
 });
 
-test('softmax temperature on the card: the temperature moves the readouts', async () => {
-  await mount({ block: { id: 't1', type: 'animation3d', fixtureId: 'softmax-temperature' } });
-  assert.equal($('[data-animation-badge]').textContent, 'Experiment');
-  assert.ok(Math.abs(raw().topProbability - 60.7) < 0.1, `T = 1: ${raw().topProbability}`);
-  await type($('[data-animation-number="temperature"]'), '0.1');
-  assert.ok(raw().topProbability > 99.9 && raw().entropy < 0.01, JSON.stringify(raw()));
-  await type($('[data-animation-number="temperature"]'), '5');
-  assert.ok(raw().topProbability < 35 && raw().entropy > 2.1, JSON.stringify(raw()));
-  await press($('[data-animation-reset]'));
-  assert.ok(Math.abs(raw().topProbability - 60.7) < 0.1, 'Reset experiment restores T = 1');
-});
 
-test('the neuron game on the card: hint, win by the hinted route, ignored moves, loss and reset', async () => {
-  await mount({ block: { id: 'p1', type: 'animation3d', fixtureId: 'perceptron-and-game' } });
+test('the projectile game on the card: keys and buttons aim, Launch fires, the hint opens; win, ignored moves, loss and reset', async () => {
+  await mount({ block: { id: 'j1', type: 'animation3d', fixtureId: 'projectile-target-game' } });
   assert.equal($('[data-animation-badge]').textContent, 'Mini-game');
-  assert.match($('[data-animation-goal]').textContent, /within 7 updates/);
-  assert.deepEqual($$('[data-animation-action]').map(node => node.textContent), ['Train (0,0)', 'Train (0,1)', 'Train (1,0)', 'Train (1,1)']);
-  assert.match($('[data-animation-outcome]').textContent, /1 of 4 answers wrong/);
+  assert.match($('[data-animation-goal]').textContent, /within 1\.5 m of the target at 30 m, in at most 5 launches/);
+  assert.deepEqual($$('[data-animation-action]').map(node => node.textContent), ['Angle up', 'Angle down', 'Slower', 'Faster', 'Launch']);
+  assert.deepEqual([raw().launchesLeft, raw().angle, raw().speed, 'landing' in raw()], [5, 30, 14, false]);
   await press($('[data-animation-hint]'));
-  assert.match($('[data-animation-hint-text]').textContent, /Begin with \(1,1\), then \(0,0\)/);
-  for (const move of [3, 0, 1, 3, 2]) await press($(`[data-animation-action="train${move}"]`));
+  assert.match($('[data-animation-hint-text]').textContent, /v\^2 sin\(2 theta\) \/ g/);
+  // The arrow keys while the card interacts: Up raises the angle, Right adds speed (contract keys: one press, one step).
+  await press($('[data-animation-interact]'));
+  for (const key of ['ArrowUp', 'ArrowUp', 'ArrowUp', 'ArrowRight', 'ArrowRight', 'ArrowRight']) await keydown($('[data-animation-viewport]'), key);
+  assert.deepEqual([raw().angle, raw().speed], [45, 17]);
+  await press($('[data-animation-action="launch"]'));
   assert.equal($('[data-animation-game]').getAttribute('data-animation-game'), 'won');
-  assert.match($('[data-animation-outcome]').textContent, /All four correct in 5 updates/);
-  assert.equal(raw().updatesLeft, 2);
-  await press($('[data-animation-action="train0"]'));
-  assert.equal(raw().updatesLeft, 2, 'a move after winning is ignored');
+  assert.ok(Math.abs(raw().landing - 289 / 9.81) < 1e-9 && Math.abs(raw().miss - (289 / 9.81 - 30)) < 1e-9, JSON.stringify(raw()));
+  assert.match($('[data-animation-outcome]').textContent, /Hit: landed 29\.5 m, 0\.5 m from the centre/);
+  await press($('[data-animation-action="launch"]'));
+  assert.equal(raw().launchesLeft, 4, 'a launch after winning is ignored');
   await press($('[data-animation-reset]'));
-  for (let i = 0; i < 7; i += 1) await press($('[data-animation-action="train0"]'));
+  for (let i = 0; i < 5; i += 1) await press($('[data-animation-action="launch"]'));
   assert.equal($('[data-animation-game]').getAttribute('data-animation-game'), 'lost');
-  assert.match($('[data-animation-outcome]').textContent, /Out of updates/);
+  assert.match($('[data-animation-outcome]').textContent, /Out of launches/);
   await press($('[data-animation-reset]'));
-  assert.equal(raw().updatesLeft, 7);
+  assert.deepEqual([raw().launchesLeft, raw().angle, raw().speed], [5, 30, 14]);
 });
