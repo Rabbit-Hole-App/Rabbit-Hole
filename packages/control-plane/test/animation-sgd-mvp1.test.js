@@ -7,6 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { ANIMATION_CLIENT_FEATURES } from '../../web/src/animation3d/capabilities.js';
 import { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM, repairTool } from '../src/agents/animation-author.js';
 import { ANIMATION_BRIEF_SYSTEM, PLAN_TOOL } from '../src/agents/animation-brief.js';
 import { distinctFindings, repairContent, repairStage } from '../src/animation-repair.js';
@@ -85,7 +86,7 @@ test('forwarding: the real repair request limit decides, end to end through repa
   assert.equal(fitsReal(onemore), false, 'one more whole finding (with the rest named) would not have fitted');
 });
 
-test('representation: the planner (input data only), author, repair and review describe curved surfaces as tube wireframes; an older browser gets the legacy line', async () => {
+test('representation: the planner (input data only), author, repair and review describe a curved surface the same way: a surface geometry for a browser that declares surface_grid, tube wireframes for one with tubes only, the legacy line for an older one', async () => {
   const sha = s => createHash('sha256').update(s).digest('hex');
   assert.equal(sha(ANIMATION_BRIEF_SYSTEM), '90e8ab906a62c72e931e917b0de182e380f25029e569e92b96a93b8fa5b3f22a', 'the planner prompt is 51b6560cf\'s');
   assert.equal(sha(JSON.stringify(PLAN_TOOL)), 'a98018efadf0eb09f738be9a593d94fc4e909729f471ea5fb057cdaddb827a56', 'the plan schema is 51b6560cf\'s');
@@ -96,11 +97,15 @@ test('representation: the planner (input data only), author, repair and review d
     seen.repair = sentOf(repairContent(jobOf(fixture.authorDraft, features), { findings: [] }, fixture.authorDraft)).capabilities;
     return seen;
   };
-  const tubes = await told(TUBES), legacy = await told(null);
+  const tubes = await told(TUBES), legacy = await told(null), surface = await told(ANIMATION_CLIENT_FEATURES);
   for (const stage of ['brief', 'author', 'repair']) { assert.equal(tubes[stage].surfaces, SURFACES.tubes, stage); assert.equal(legacy[stage].surfaces, SURFACES.legacy, stage); }
   // AN-18 (owner decisions 11, 12): the capability list now names surface and trail; the planner and author prompts are unchanged until AN-20.
   assert.deepEqual(tubes.brief.geometry, ['box', 'sphere', 'cylinder', 'cone', 'plane', 'line', 'curve', 'arrow', 'label', 'surface', 'trail']);
   assert.match(SURFACES.tubes, /wireframe of tube curves/);
+  // FX-AN-053 (owner decision 12): a browser that declares surface_grid is told a surface is a surface geometry, never a wireframe, so the capability text and the system prompt agree.
+  for (const stage of ['brief', 'author', 'repair']) assert.equal(surface[stage].surfaces, SURFACES.surface, stage);
+  assert.match(SURFACES.surface, /is a surface geometry: a grid of heights/);
+  assert.doesNotMatch(SURFACES.surface, /tube|wireframe/);
   // AN-20 (owner decisions 11, 12): the reviewer no longer judges a surface by its tube wireframe; a host-drawn surface, trail or clamp is category renderer; polish is minor.
   assert.doesNotMatch(ANIMATION_REVIEW_SYSTEM, /tube-curve wireframes|a few thin rings/);
   assert.match(ANIMATION_REVIEW_SYSTEM, /minor only for polish that does not hinder reading \(a dot size, a label slightly off, a contour count\)/);
@@ -163,7 +168,9 @@ test('rules: arrows keep their magnitudes with no minimum and no size demand a z
     // AN-20 (owner decisions 11, 13): the clamp, off-plot and divergence sentences left the universal prompt; the renderer clamps a bound sphere.
     for (const cut of ['never clamp a drawn position', 'marked at the point where its path actually crosses', 'Leaving the drawn area is not divergence']) assert.equal(system.includes(cut), false, cut);
   }
-  assert.match(ANIMATION_REVIEW_SYSTEM, /fail a minimum length, mixed scales, an update called the gradient, or an off-plot marker off the edge crossing/);
+  assert.match(ANIMATION_REVIEW_SYSTEM, /fail a minimum length, mixed scales or an update called the gradient\./);
+  assert.doesNotMatch(ANIMATION_REVIEW_SYSTEM, /off-plot/, 'FX-AN-053, owner decision 11: the renderer clamps, so no author draws an off-plot marker for the reviewer to fail');
+  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.equal(system.includes('trail marker costs'), false, 'FX-AN-053: a native trail makes the per-marker byte sentence stale');
   const rules = ANIMATION_AUTHOR_SYSTEM.slice(ANIMATION_AUTHOR_SYSTEM.indexOf('Sizes:'), ANIMATION_AUTHOR_SYSTEM.indexOf('The finished artifact'));
   assert.doesNotMatch(rules, /learning rate|bowl|loss|SGD|batch/i, 'general: no subject named');
 });

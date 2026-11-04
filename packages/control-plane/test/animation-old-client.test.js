@@ -70,6 +70,7 @@ test('generation: a client that declares no features is the legacy path; only a 
   // What the planner, author, repair and review are told.
   for (const job of [{}, { features: [] }, { features: undefined }, null]) assert.equal(surfaceCapability(job).surfaces, SURFACES.legacy);
   assert.equal(surfaceCapability({ features: ['curve_radius'] }).surfaces, SURFACES.tubes);
+  assert.equal(surfaceCapability({ features: ['curve_radius', 'surface_grid'] }).surfaces, SURFACES.surface, 'AN-20: a browser that draws a surface is told so, whatever else it declares');
   assert.match(SURFACES.legacy, /do not plan or draw a scene that depends on a curved surface/);
   // The validate stage: a draft with a tube is refused (and repairable) for a job with no features, accepted with the feature.
   const job = features => ({ prompt: sgd.prompt, plan: sgd.plan, planHash: sgd.planHash, resultId: sgd.resultId, approval: { at: sgd.approvalAt }, draft: tubed(sgd.repairedDraft), evidence: [], attempt: 1, repairs: 0,
