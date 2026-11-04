@@ -2,9 +2,9 @@
 // idFromName(boardId)), with the same request fence, short locked mutations, alarm-driven stages, call ledger, Stop and Retry as
 // /explain's ExplainJobs (explain-job.js), and animation's own policy (animation-policy.js) and artifacts.
 //
-// Stages: queued -> preparing -> awaiting_approval -> authoring -> validating -> rendering -> reviewing -> ready, with at most ONE
-// repairing -> validating per confirmed build for a candidate that fails to validate or run, and one for a review rejection
-// (ANIMATION_LIMITS.repairs); failed and cancelled are terminal. A
+// Stages: queued -> preparing -> awaiting_approval -> authoring -> validating -> rendering -> reviewing -> ready, with at most TWO
+// repairing -> validating per confirmed build for a candidate that fails to validate or run, and two for a review rejection, each kind
+// counted on its own (ANIMATION_LIMITS.repairs, decision 35); failed and cancelled are terminal. A
 // repaired artifact reaches ready only through validating, rendering and a final review of exactly that artifact (its hash).
 // The stage work (plan, author, validate, render, review, repair) is a pipeline injected at construction; the route is off unless
 // ANIMATION_ENABLED is 'true'.
@@ -34,7 +34,7 @@ import { blockedBody, referencesKey, resolveReferences } from './generation-revi
 import { isReviewProposal } from '../../web/src/generation-review.js';
 import { canonicalJson } from './explain-render.js';
 import { beginStage, countStage, endStage, markTiming, newTiming, timingSummary } from './explain-policy.js';
-import { hashAnimationPlan } from '../../web/src/animation3d/contract.js';
+import { clientFeatureUses, hashAnimationPlan } from '../../web/src/animation3d/contract.js';
 import { ANIMATION_CLIENT_FEATURES } from '../../web/src/animation3d/capabilities.js';
 import { ASKED_FOR, approvedPlan, clientFeatures, prepareStage } from './animation-brief.js';
 import { artifactIntact, authorStage, sealArtifact, validateStage } from './animation-author.js';
@@ -47,7 +47,7 @@ import { reviewStage } from './animation-review.js';
 import { repairStage } from './animation-repair.js';
 import { CHANGED, GAP_ALTERNATIVES, GAP_FALLBACK, SIMPLER_ALTERNATIVE, clarificationFor, learnerReason, sizeCheck } from './animation-feasibility.js';
 import { seededJobs } from './animation-outcomes-fixture.js';
-import { ANIMATION_BILLING, ANIMATION_LIMITS, ANIMATION_POLICY_VERSION, AnimationPolicyError, animationModelConfigured, modelNotConfigured, animationRequest, animationReservation, callAnimationRole, checkAnimationRequest } from './animation-policy.js';
+import { ANIMATION_BILLING, ANIMATION_LIMITS, ANIMATION_POLICY_VERSION, AnimationPolicyError, animationModelConfigured, modelNotConfigured, animationRequest, animationReservation, animationStreaming, callAnimationRole, checkAnimationRequest } from './animation-policy.js';
 
 export const ANIMATION_PREFIX = '/api/learn/animation/jobs';
 export const ANIMATION_COMMAND = 'animation';
@@ -65,7 +65,7 @@ const fail = (message, status = 400, code = null) => Object.assign(new Error(mes
 // A scene that uses what an older browser build cannot draw (capabilities.js ANIMATION_CLIENT_FEATURES) is not sent to a reader that does
 // not declare it: that build would refuse it with a generic message (storage.js 'mismatch'); a current build shows this one (owner 2026-11-02).
 export const CLIENT_UPDATE = 'This scene needs the newest version of Rabbit Hole. Reload the page to update it.';
-export const needsFeatures = artifact => [...((artifact?.scene?.geometries || []).some(g => g?.kind === 'curve' && g.radius !== undefined) ? ['curve_radius'] : []), ...((artifact?.actions || []).some(a => a?.startsMotion !== undefined) ? ['action_motion'] : [])];
+export const needsFeatures = artifact => [...((artifact?.scene?.geometries || []).some(g => g?.kind === 'curve' && g.radius !== undefined) ? ['curve_radius'] : []), ...((artifact?.actions || []).some(a => a?.startsMotion !== undefined) ? ['action_motion'] : []), ...new Set(clientFeatureUses(artifact).map(use => use.feature))];
 const KEY = /^[A-Za-z0-9_-]{8,128}$/;
 const TERMINAL = new Set(['ready', 'failed', 'cancelled']);
 const SOURCES = ['explicit', 'picker', 'command', 'suggestion', 'classified', 'tutor'];
@@ -141,7 +141,8 @@ export function recoveryOf(job) {
   else if (job.approval && job.plan && REVISABLE.has(failureClass(job))) actions.push('revise_plan');
   return [...actions, 'edit_request'];
 }
-const withinCeiling = job => job.counts.author < ANIMATION_LIMITS.calls.author || (!!(job.draft || job.artifact) && job.repairs < ANIMATION_LIMITS.repairs);
+const REPAIR_SLOTS = Object.values(ANIMATION_LIMITS.repairs).reduce((total, n) => total + n, 0);
+const withinCeiling = job => job.counts.author < ANIMATION_LIMITS.calls.author || (!!(job.draft || job.artifact) && job.repairs < REPAIR_SLOTS);
 
 // What kind of failure ended the job, from what it recorded (stop reason, failure stage, category and code, the last findings),
 // never from model text. size_limit: the candidate's only problems were that the review or repair request could not carry it.
@@ -193,12 +194,12 @@ function attemptCost(job) {
 export function failureText(job) {
   const kind = failureClass(job), f = job.failure || {}, action = recoveryOf(job).find(a => a !== 'edit_request');
   if (kind === 'clarification') return f.message;
-  const what = { capability: f.gap?.shown ?? GAP_FALLBACK, output_limit: `${OUTPUT_WHO[f.stage] ?? 'An AI step'} reached its output limit before it finished. That does not prove your request is impossible; a smaller plan may fit.`, review_validation: 'The visual review returned an answer in the wrong form, and it could not be corrected within its limit, so this scene was neither accepted nor found faulty.', size_limit: 'The scene was too large to check.', deadline: 'The build ran out of time.', limit: 'The build reached its spending limit.',
+  const what = { capability: f.gap?.shown ?? GAP_FALLBACK, output_limit: `${OUTPUT_WHO[f.stage] ?? 'An AI step'} reached its output limit before it finished. That does not prove your request is impossible; a smaller plan may fit.`, review_validation: 'The visual review returned an answer in the wrong form, and it could not be corrected within its limit, so this scene was neither accepted nor found faulty.', size_limit: 'The scene was too large to check.', deadline: 'The build ran out of time.', limit: f.code === 'count_limit' ? f.message.replace(/^This animation/, 'The build') : 'The build reached its spending limit.',
     checks: f.stage === 'reviewing' ? reviewWords(job.findings?.filter(x => x.stage === 'reviewing').at(-1)) : CHECKS[f.stage] ?? 'The scene did not pass its checks.',
     transient: TRANSIENT[f.category] ?? TRANSIENT.transport }[kind] ?? f.message ?? 'The animation could not be made.';
   const candidate = kind === 'checks' || kind === 'size_limit';
   const tried = [job.stopReason === 'no_progress' ? 'An automatic correction changed nothing.' : job.stopReason === 'unsupported_repair' ? 'It needs a change the automatic correction cannot make.'
-    : job.repairs ? `It was corrected automatically ${job.repairs === 1 ? 'once' : 'twice'}${candidate ? ', but it still did not pass' : ''}.` : '', job.autoRetried ? 'It was retried automatically.' : ''];
+    : job.repairs ? `It was corrected automatically ${['', 'once', 'twice', 'three times', 'four times'][job.repairs] ?? `${job.repairs} times`}${candidate ? ', but it still did not pass' : ''}.` : '', job.autoRetried ? 'It was retried automatically.' : ''];
   const next = { retry_render: 'Render again renders the built scene again.', new_attempt: `Try again continues from where it stopped${attemptCost(job)}.`,
     revise_plan: `Revise plan prepares a simpler plan from your request for you to review, using up to ${credits(job.reservation?.preparationMicros)} AI credits; nothing is built until you press Generate.` }[action]
     ?? (plannerGap(job) ? 'Choose an alternative in Chat, or edit the request to start a new animation.' : candidate || ['capability', 'output_limit', 'deadline', 'limit', 'review_validation'].includes(kind) ? 'Edit the request to start a new animation.' : '');
@@ -793,8 +794,9 @@ export class AnimationJobs {
     return scoped;
   }
   transport(job, role) {
+    const stream = animationStreaming(this.env, role); // AN-17: the author and repair stream, every role has a deadline; null when ANIMATION_STREAMING=false
     return (env, body, model) => spendTransport(this.usageEnv(job, role === 'brief' ? job.prepKey : job.actionKey), body, model, null,
-      admitted => anthropic(admitted, body, model, null), { userId: job.owner.userId || job.owner.email, category: 'animation', provider: 'anthropic', kind: KIND[role] });
+      admitted => anthropic(stream ? { ...admitted, MODEL_STREAM: stream } : admitted, body, model, null), { userId: job.owner.userId || job.owner.email, category: 'animation', provider: 'anthropic', kind: KIND[role] });
   }
   async finishUsage(job, status) {
     const db = this.env.LEARN_DB, user = job.owner.userId || job.owner.email;
@@ -827,16 +829,21 @@ export class AnimationJobs {
     const key = await this.locked(async () => {
       const current = await this.get(job.id);
       if (!current || current.stopped || current.attempt !== job.attempt || current.stage !== job.stage || current.inFlight) return null;
+      // spec.again: the author's or repair's one more ask when its reply lacked what it must carry (the artifact, FX-AN-056; the program, FX-AN-043). A call of its own: recorded,
+      // billed and bounded by the spending ceiling below like any other, but it takes no slot of the role's ceiling (a correction ask took the second repair, FX-AN-060), and a
+      // role gets one per build. The ceiling's other readers (recovery, the displayed reservation) are unchanged.
+      const again = spec.again === true && (role === 'author' || role === 'repair');
       const limit = role === 'brief' ? briefLimit : ANIMATION_LIMITS.calls[role];
-      if (current.counts[role] + 1 > limit) throw Object.assign(fail(`This animation reached its ${role} limit.`, 429), { stopReason: 'budget' });
+      if (again ? current.calls.some(c => c.role === role && c.again && c.status !== 'refused') : current.counts[role] + 1 > limit) throw Object.assign(fail(`This animation reached its ${role} limit.`, 429, 'count_limit'), { stopReason: 'budget' });
       const ceiling = phase === 'generation' ? current.reservation.generationMicros : current.reservation.preparationMicros * (1 + ANIMATION_LIMITS.refinements);
       if (current.bounds[phase] + boundMicros > ceiling) throw Object.assign(fail('This animation reached its spending limit.', 429), { stopReason: 'budget' });
       if (Date.now() >= current.deadline) throw Object.assign(fail('This animation reached its time limit.', 409), { stopReason: 'deadline' });
-      current.counts[role]++; current.bounds[phase] += boundMicros;
+      if (!again) current.counts[role]++;
+      current.bounds[phase] += boundMicros;
       // Unique per call record: a refused call gives its count back, so the count alone would name the retried call like the refused one.
       const callKey = `${current.id}-${role}-${current.calls.length + 1}`;
       current.inFlight = { key: callKey, role, at: Date.now() };
-      current.calls.push({ key: callKey, role, phase, attempt: current.attempt, requested: null, served: null, status: 'running', boundMicros, images, costMicros: null, inputTokens: null, outputTokens: null, startedAt: Date.now(), endedAt: null });
+      current.calls.push({ key: callKey, role, phase, ...(again ? { again: true } : {}), attempt: current.attempt, streamed: animationStreaming(this.env, role)?.stream === true, requested: null, served: null, status: 'running', boundMicros, images, costMicros: null, inputTokens: null, outputTokens: null, startedAt: Date.now(), endedAt: null });
       await this.save(current);
       return callKey;
     });
@@ -850,9 +857,9 @@ export class AnimationJobs {
       const usage = out?.usage ?? error?.billed?.usage, cost = usage ? costUsd({ model: out?.identity.served || error?.billed?.served || out?.identity.requested || 'claude-opus-5-5', ...usage }) : null;
       // A refusal (provider cap or overload, our own admission) ran nothing and cost nothing: it does not use the ceiling.
       const refused = ['provider_unavailable', 'spend_refused'].includes(error?.code);
-      if (refused) { current.counts[role]--; current.bounds[phase] -= call.boundMicros; }
+      if (refused) { if (!call.again) current.counts[role]--; current.bounds[phase] -= call.boundMicros; }
       Object.assign(call, { requested: out?.identity.requested ?? error?.reply?.requested ?? null, served: out?.identity.served ?? error?.served ?? error?.billed?.served ?? null, status: refused ? 'refused' : error ? 'failed' : 'settled', stopReason: out?.stopReason ?? error?.billed?.stopReason ?? null,
-        costMicros: refused ? 0 : toMicros(cost), inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: error?.code || (error ? 'failed' : null), ...(error?.reply ? { reply: error.reply } : {}) });
+        costMicros: refused ? 0 : toMicros(cost), inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: error?.code || (error ? 'failed' : null), ...(error?.reply ? { reply: error.reply } : {}), ...(out?.stripped?.length ? { stripped: out.stripped } : {}), ...(out?.blocks ? { blocks: out.blocks } : {}) });
       if (current.inFlight?.key === key) current.inFlight = null;
       countStage(current.timing, { calls: 1, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens, images });
       await this.save(current);
@@ -979,7 +986,7 @@ export class AnimationJobs {
       return this.repairOrStop(job, out, 'review');
     } else if (stage === 'repairing') {
       // The draft this repair replaced (diagnostics only): FX-AN-030's first draft was lost when its repair overwrote it.
-      job.candidates.push({ repairs: job.repairs, ...(job.draft ? { previousDraft: job.draft } : {}), operation: out.operation || null, progress: out.progress !== false, ...(out.draft ? { draftHash: await hash16(out.draft), hasProgram: !!out.draft.program } : {}), ...(out.inputKeys ? { inputKeys: out.inputKeys } : {}), ...(out.artifactKeys ? { artifactKeys: out.artifactKeys } : {}), ...(out.rejected ? { rejected: out.rejected } : {}), ...(out.forwarded ? { forwarded: out.forwarded } : {}) });
+      job.candidates.push({ repairs: job.repairs, ...(job.draft ? { previousDraft: job.draft } : {}), operation: out.operation || null, progress: out.progress !== false, ...(out.draft ? { draftHash: await hash16(out.draft), hasProgram: !!out.draft.program } : {}), ...(out.inputKeys ? { inputKeys: out.inputKeys } : {}), ...(out.artifactKeys ? { artifactKeys: out.artifactKeys } : {}), ...(out.rejected ? { rejected: out.rejected } : {}), ...(out.forwarded ? { forwarded: out.forwarded } : {}), ...(out.reason ? { reason: out.reason } : {}), ...(out.programRetried ? { programRetried: true } : {}), ...(out.rawReplies ? { rawReplies: out.rawReplies } : {}) });
       if (out.rejected) return this.stopWith(job, 'unsupported_repair', 'spec', 'This animation needs a change the repair step cannot make. Edit the request and try again.');
       if (out.progress === false || !out.draft) return this.stopWith(job, 'no_progress', 'spec', 'The animation could not be repaired. Edit the request and try again.');
       Object.assign(job, { draft: out.draft, artifact: null, artifactHash: null, captures: null, coverage: null });
@@ -987,10 +994,11 @@ export class AnimationJobs {
     }
     await this.save(job);
   }
-  // kind: 'run' (the candidate failed to validate or run) or 'review' (the review rejected it); each is repaired at most once.
+  // kind: 'run' (the candidate failed to validate or run) or 'review' (the review rejected it); each kind is repaired at most ANIMATION_LIMITS.repairs[kind]
+  // times, counted from repairKinds (a validation or render problem takes no slot the review needs). repairs stays the total, for display and diagnostics.
   async repairOrStop(job, out, kind) {
     job.repairKinds ??= [];
-    if (job.repairs >= ANIMATION_LIMITS.repairs || job.repairKinds.includes(kind)) return this.stopWith(job, 'rounds', out.category || 'spec', 'The animation did not pass its checks, even after a correction. Edit the request and try again.');
+    if (job.repairKinds.filter(k => k === kind).length >= (ANIMATION_LIMITS.repairs[kind] ?? 0)) return this.stopWith(job, 'rounds', out.category || 'spec', 'The animation did not pass its checks, even after a correction. Edit the request and try again.');
     if (out.repairable === false) return this.stopWith(job, 'unsupported_repair', out.category || 'spec', out.message || 'This animation needs a change the repair step cannot make. Edit the request.');
     job.repairKinds.push(kind); job.repairs++; job.repairedFrom = job.artifactHash; endStage(job.timing, 'rejected'); job.stage = 'repairing'; beginStage(job.timing, 'repairing');
     await this.save(job);
@@ -1067,6 +1075,8 @@ export class AnimationJobs {
       // A busy provider is not this: its Try again resumes at the repair itself, still counted.
       if (current.stage === 'repairing' && error.code !== 'provider_unavailable' && (['spend_limited', 'spend_refused'].includes(error.code) || error.status === 429)) {
         current.repairs = Math.max(0, current.repairs - 1); current.repairKinds?.pop();
+        // The refused repair never ran, so the candidate Try again validates is the one it was to fix: not a repair that changed nothing (no_progress).
+        current.repairedFrom = null;
       }
       // The calls this stage run made (job is the snapshot it started from): what its explanation may say about charges (chargeWords).
       const callsFrom = job.calls.length;

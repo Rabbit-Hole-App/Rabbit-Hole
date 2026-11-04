@@ -1,0 +1,428 @@
+{
+  "_doc": [
+    "Data for scripts/animation/ladder-smoke.mjs: the focused smoke of each SGD-ladder MVP slice. Lanes edit THIS file, not the script.",
+    "Item kinds:",
+    "  exists  {paths[]}  every path exists in the checkout (a stale pin fails at once).",
+    "  route   {path, expect[], cookie?}  one GET against --origin; the status must be in expect (cookie: send --cookie-file).",
+    "  tests   {cwd, files[], optional?, env?}  node --test over the named files (cwd is relative to the repo root; a file entry may be an object {file, optional} or a basename glob such as test/animation-*stream*.test.js).",
+    "          A required file that is missing is a FAIL before anything runs (a stale list fails at once); an optional entry that matches nothing is a loud SKIP (ladder-smoke --strict turns it into a FAIL).",
+    "          A run that executes 0 tests is a FAIL (node --test over a bad path exits 0).",
+    "  script  {cmd, args[], optional?, needs?[]}  a command that must exit 0. optional: a missing script file is a SKIP. needs: variables from the command line (origin, sha, cookie) the item cannot run without: SKIP when absent.",
+    "          args may use ${origin}, ${sha}, ${cookie}.",
+    "  bundle  {dir | origin:true, features[], expect?}  the built (dist-dev) or served (--origin) web bundle declares the client features (bundle-probe.mjs); expect 'absent' proves a recovery.",
+    "  copy    {dir | origin:true, absent[], present[]}  regular expressions that must NOT / must match some chunk of the bundle (request-box copy).",
+    "  browser {cmd}  a browser check: printed always, run only with --browser when the local stack answers; otherwise a loud SKIP that is NOT a pass (Claude does not run browser checks; CI fast-e2e or the owner does).",
+    "  note    {text}  printed, never executed (paid commands).",
+    "  gate2   {frozen[]}  reads the recorded Gate 2 result (sgd-qualify.mjs result-<sha7>-<stamp>.json via --gate2-result, a file or its folder): verdict PASS, 8 of the first 9 recounted, control not SGD, the tested sha is this checkout or an ancestor with no change since to a frozen path. Never creates a job. Absent: a loud SKIP that --strict fails. --gate2-pending (while Gate 2 is still running) reports the item as PENDING instead: the run ends \"PENDING GATE 2 (not a release pass)\" with exit 3, never 0, so it cannot stand in for the fast path's --smoke.",
+    "combined (owner decision 23): ONE release carries mvp2b + mvp3 + mvp4 + mvp5. A slice with includes[] is the union of those slices (ids prefixed mvp3:..., a tests file already run by an earlier included item is not run again) followed by its own items, so the old-client 409 path, the golden-fixture browser check and the Gate 2 result are always in it. Use: ladder-smoke.mjs combined --strict --sha <C4> --gate2-result <dir>; while Gate 2 runs, --gate2-pending instead (exit 3).",
+    "flags: the five MVP3 client features. golden: packages/web/src/animation3d/testdata/sgd-golden.json (AN-19; its artifact is under .artifact). An optional item whose file is not in the candidate is a loud SKIP; ladder-smoke --strict turns it into a FAIL (use --strict for the release smoke).",
+    "landsWith: required files that are not on main yet and the lane branch that brings them. The shipped-config test accepts a missing required file only if it is listed here, and fails a listed file that already exists (remove the entry when the lane has merged)."
+  ],
+  "flags": [
+    "surface_grid",
+    "trail_points",
+    "text_readout",
+    "arrow_anchor",
+    "clamp"
+  ],
+  "golden": "packages/web/src/animation3d/testdata/sgd-golden.json",
+  "landsWith": {},
+  "mvp2b": {
+    "title": "streaming, deadline, same-job retry, escrow billing",
+    "items": [
+      {
+        "id": "cp-core",
+        "label": "control-plane job, policy, recovery, races, pipeline, model and usage tests",
+        "kind": "tests",
+        "cwd": "packages/control-plane",
+        "files": [
+          "test/animation-policy.test.js",
+          "test/animation-job.test.js",
+          "test/animation-recovery.test.js",
+          "test/animation-races.test.js",
+          "test/animation-pipeline.test.js",
+          "test/learn-models.test.js",
+          "test/usage-operations.test.js",
+          "test/rabbit-hole-prod-config.test.js"
+        ]
+      },
+      {
+        "id": "cp-transport",
+        "label": "streaming, deadline, escrow, strict-output and repair-program unit sets (animation-transport also pins ANIMATION_STREAMING=false as the single non-streaming request)",
+        "kind": "tests",
+        "cwd": "packages/control-plane",
+        "optional": true,
+        "files": [
+          "test/animation-transport.test.js",
+          "test/animation-escrow.test.js",
+          "test/animation-repair-program.test.js",
+          "test/animation-strict.test.js"
+        ]
+      },
+      {
+        "id": "web-client",
+        "label": "web client and storage (failure message, charge wording)",
+        "kind": "tests",
+        "cwd": "packages/web",
+        "files": [
+          "src/animation3d/client.test.mjs",
+          "src/animation3d/storage.test.mjs"
+        ]
+      },
+      {
+        "id": "paid-grid-game",
+        "label": "OPTIONAL paid grid-game job (printed, NOT executed)",
+        "kind": "note",
+        "text": "Paid, owner-authorized under decision 14, about 25 credits, only on the isolated preview clone: PREVIEW_VERSION=<preview version> PREVIEW_SHA=<sha> node C:/s/spec/animation/sgd-mvp1-acceptance/scripts/choose-generate-features6.mjs <canvas-name> <job id | new:...> <alternative id>  (usage and the PREVIEW_* refusal are in that script's header; it targets the dev preview clone named in the script, edit BASE for yours). Record a spend.md row with the candidate SHA."
+      }
+    ]
+  },
+  "mvp3": {
+    "title": "five client features, renderer, framing, golden SGD fixture",
+    "items": [
+      {
+        "id": "golden-present",
+        "label": "the golden SGD fixture is in the candidate",
+        "kind": "exists",
+        "paths": [
+          "${golden}"
+        ]
+      },
+      {
+        "id": "web-unit",
+        "label": "contract, capabilities, client, storage, scene, framing, renderer, review, session, card, legibility and the sgd-golden validation test",
+        "kind": "tests",
+        "cwd": "packages/web",
+        "files": [
+          "src/animation3d/contract.test.mjs",
+          "src/animation3d/capabilities.test.mjs",
+          "src/animation3d/client.test.mjs",
+          "src/animation3d/storage.test.mjs",
+          "src/animation3d/scene.test.mjs",
+          "src/animation3d/framing.test.mjs",
+          "src/animation3d/renderer.test.mjs",
+          "src/animation3d/review.test.mjs",
+          "src/animation3d/session.test.mjs",
+          "src/animation3d/card.test.mjs",
+          "src/animation3d/label-legibility.test.mjs",
+          "src/animation3d/sgd-golden.test.mjs",
+          "src/animation-scene.test.mjs",
+          "src/Animation3DCard.test.mjs"
+        ]
+      },
+      {
+        "id": "cp-unit",
+        "label": "control-plane client-features gate, golden through the real routes, old-client, SGD framing, fixtures, fit and pipeline tests",
+        "kind": "tests",
+        "cwd": "packages/control-plane",
+        "files": [
+          "test/animation-client-features.test.js",
+          "test/animation-golden-sgd.test.js",
+          "test/animation-old-client.test.js",
+          "test/animation-sgd-framing.test.js",
+          "test/animation-sgd-mvp1.test.js",
+          "test/animation-mvp1-fixture.test.js",
+          "test/animation-mvp1-fixture-legibility.test.js",
+          "test/animation-seed-fixture.test.js",
+          "test/animation-fit.test.js",
+          "test/animation-pipeline.test.js",
+          "test/animation-sampling.test.js",
+          "test/animation-review-size.test.js"
+        ]
+      },
+      {
+        "id": "old-client-409",
+        "label": "OLD-CLIENT 409 path for the five flags through the real route and Durable Object (fake DO harness)",
+        "kind": "tests",
+        "cwd": ".",
+        "files": [
+          "scripts/animation/ladder-old-client-409.test.mjs"
+        ],
+        "env": {
+          "LADDER_FLAGS": "${flags}",
+          "LADDER_GOLDEN": "${golden}"
+        }
+      },
+      {
+        "id": "route-signed-out",
+        "label": "preview clone: signed-out GET of the jobs route is 401 (route enabled, not 404, not 5xx)",
+        "kind": "route",
+        "path": "/api/learn/animation/jobs?board=x",
+        "expect": [
+          401
+        ]
+      },
+      {
+        "id": "route-signed-in",
+        "label": "preview clone: signed-in GET of the jobs route for a board that does not exist is 404 Not available (route and session wired; --cookie-file)",
+        "kind": "route",
+        "cookie": true,
+        "path": "/api/learn/animation/jobs?board=ladder-smoke-none",
+        "expect": [
+          404
+        ]
+      },
+      {
+        "id": "bundle-local",
+        "label": "the built dist-dev declares the five client features (what the preview will serve)",
+        "kind": "bundle",
+        "dir": "packages/web/dist-dev",
+        "features": "${flags}"
+      },
+      {
+        "id": "bundle-live",
+        "label": "the preview clone's served bundle declares the five client features (--origin; run after the preview deploy)",
+        "kind": "bundle",
+        "origin": true,
+        "features": "${flags}"
+      },
+      {
+        "id": "live-409",
+        "label": "live 409 for an old client",
+        "kind": "note",
+        "text": "Not possible without a stored artifact that needs a flag (the golden is a fixture, never served) or a paid plan call: the proof is the fake-DO harness above plus the bundle checks. After a real SGD card exists, GET /api/learn/animation/jobs/results/<artifactId>?board=<board> with a session cookie and NO features parameter must answer 409 client_update_required."
+      },
+      {
+        "id": "browser-primitives",
+        "label": "animation-primitives-check.mjs: surface and trail draw, status word, clamped ball inside the frame, old-client 409 (browser, local stack)",
+        "kind": "browser",
+        "cmd": "BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node packages/web/e2e/animation-primitives-check.mjs ${stack}/shots",
+        "file": "packages/web/e2e/animation-primitives-check.mjs"
+      }
+    ]
+  },
+  "mvp4": {
+    "title": "shorter prompts, loss_surface archetype, plan assertions, offline harness",
+    "items": [
+      {
+        "id": "cp-unit",
+        "label": "prompt and draft budget, authoring, pipeline, sampling, review-size, SGD and old-client tests",
+        "kind": "tests",
+        "cwd": "packages/control-plane",
+        "files": [
+          "test/animation-fit.test.js",
+          "test/animation-pipeline.test.js",
+          "test/animation-policy.test.js",
+          "test/animation-sampling.test.js",
+          "test/animation-review-size.test.js",
+          "test/animation-sgd-mvp1.test.js",
+          "test/animation-sgd-framing.test.js",
+          "test/animation-old-client.test.js"
+        ]
+      },
+      {
+        "id": "cp-author",
+        "label": "archetype table test (lands with AN-19/AN-20)",
+        "kind": "tests",
+        "cwd": "packages/control-plane",
+        "optional": true,
+        "files": [
+          "test/animation-archetypes.test.js"
+        ]
+      },
+      {
+        "id": "web-contract",
+        "label": "contract and capabilities (plan archetype and assertions fields)",
+        "kind": "tests",
+        "cwd": "packages/web",
+        "files": [
+          "src/animation3d/contract.test.mjs",
+          "src/animation3d/capabilities.test.mjs"
+        ]
+      },
+      {
+        "id": "harness-tests",
+        "label": "AN-20 harness unit tests (author-sample and its report)",
+        "kind": "tests",
+        "cwd": ".",
+        "optional": true,
+        "files": [
+          "scripts/animation-author-sample.test.mjs",
+          "scripts/animation-author-sample-report.test.mjs"
+        ]
+      },
+      {
+        "id": "harness-dry",
+        "label": "harness preflight on the pinned SGD plan (--dry-run: builds the request, prints identities, sizes and the cost bound; nothing sent)",
+        "kind": "script",
+        "optional": true,
+        "file": "scripts/animation/author-sample.mjs",
+        "cmd": "node",
+        "args": [
+          "scripts/animation/author-sample.mjs",
+          "scripts/animation/plans/sgd-run5.json",
+          "-n",
+          "1",
+          "--dry-run"
+        ]
+      },
+      {
+        "id": "regression-dry",
+        "label": "harness preflight on the three pinned known-good plans (grid game, pendulum, projectile); a --fake-transport run needs a stored draft per plan",
+        "kind": "script",
+        "optional": true,
+        "file": "scripts/animation/author-sample.mjs",
+        "cmd": "node",
+        "args": [
+          "scripts/animation/author-sample.mjs",
+          "scripts/animation/plans/grid-game-run6.json",
+          "scripts/animation/plans/pendulum-aj_78cc3d3.json",
+          "scripts/animation/plans/projectile-aj_54eec6a.json",
+          "-n",
+          "1",
+          "--dry-run"
+        ]
+      },
+      {
+        "id": "verify-candidate",
+        "label": "Gate 1 pre-run identity check (read-only)",
+        "kind": "note",
+        "text": "node scripts/animation/author-sample.mjs verify-candidate --mvp3-sha <sha> --prompts <hash> --golden <hash> --worktree <path>  (PASS or FAIL before any paid sample; hashes from the printed identities)"
+      },
+      {
+        "id": "no-paid",
+        "label": "no paid call",
+        "kind": "note",
+        "text": "Gate 1 itself (20 author-only samples) is paid and is NOT part of this smoke; a fast-path MVP4 release rides on a Gate 1 table recorded in spend.md for the same candidate SHA."
+      }
+    ]
+  },
+  "mvp5": {
+    "title": "Gate 2 passed, SGD claimed, copy line removed, canary",
+    "items": [
+      {
+        "id": "gate2-result",
+        "label": "the RECORDED Gate 2 table of the frozen candidate: PASS, recounts to 8 of the first 9 accepted with a control that did not become SGD, and this checkout is the tested candidate or adds nothing Gate 2 measured (read-only; pass --gate2-result <result-*.json or its folder>)",
+        "kind": "gate2",
+        "frozen": [
+          "packages/web/src/animation3d/contract.js",
+          "packages/web/src/animation3d/scene.js",
+          "packages/web/src/animation3d/framing.js",
+          "packages/web/src/animation3d/capabilities.js",
+          "packages/web/src/animation3d/review.js",
+          "packages/web/src/animation3d/renderer.js",
+          "packages/web/src/animation3d/session.js",
+          "packages/web/src/animation3d/testdata/sgd-golden.json",
+          "packages/control-plane/src/agents/**",
+          "packages/control-plane/src/animation-brief.js",
+          "packages/control-plane/src/animation-author.js",
+          "packages/control-plane/src/animation-review.js",
+          "packages/control-plane/src/animation-render.js"
+        ]
+      },
+      {
+        "id": "gate2-tests",
+        "label": "Gate 2 script unit tests (qualify, gate, dev test session)",
+        "kind": "tests",
+        "cwd": ".",
+        "optional": true,
+        "files": [
+          "scripts/animation/sgd-qualify.test.mjs",
+          "scripts/animation/sgd-qualify-gate.test.mjs",
+          "scripts/animation/dev-test-session.test.mjs"
+        ]
+      },
+      {
+        "id": "gate2-dry",
+        "label": "Gate 2 whole script against its fake server (--dry-run: no network, nothing spent)",
+        "kind": "script",
+        "optional": true,
+        "file": "scripts/animation/sgd-qualify.mjs",
+        "cmd": "node",
+        "args": [
+          "scripts/animation/sgd-qualify.mjs",
+          "--dry-run"
+        ]
+      },
+      {
+        "id": "gate2-check",
+        "label": "Gate 2 configuration and candidate identity (--check, read-only, no job); pass the flags with --gate2-args \"--base <preview origin> --candidate-worktree <dir> --mvp3-sha <sha> --prompts-hash <hex> --golden-hash <hex> --cap <credits> --prior <credits>\" and PREVIEW_VERSION/PREVIEW_SHA in the environment",
+        "kind": "script",
+        "optional": true,
+        "file": "scripts/animation/sgd-qualify.mjs",
+        "cmd": "node",
+        "args": [
+          "scripts/animation/sgd-qualify.mjs",
+          "--check",
+          "${gate2args}"
+        ]
+      },
+      {
+        "id": "copy-local",
+        "label": "the built dist-dev carries the final /animation line and neither old sentence: no \"not supported yet\" line and no \"Also draws gradient descent on a loss surface\" (owner decision 38)",
+        "kind": "copy",
+        "dir": "packages/web/dist-dev",
+        "absent": [
+          "loss surfaces?[^\"'`]{0,80}not (yet )?supported",
+          "not (yet )?supported[^\"'`]{0,80}loss surfaces?",
+          "optimizers are not supported yet",
+          "Also draws gradient descent on a loss surface"
+        ],
+        "present": [
+          "Describe an idea to see as a live 3D scene you can watch, adjust or play; review its plan, then generate it\\. Works best for mechanisms, loops and small games\\."
+        ]
+      },
+      {
+        "id": "copy-live",
+        "label": "the preview clone serves the same: the final /animation line, neither old sentence (--origin; run after the preview deploy; owner decision 38)",
+        "kind": "copy",
+        "origin": true,
+        "absent": [
+          "loss surfaces?[^\"'`]{0,80}not (yet )?supported",
+          "not (yet )?supported[^\"'`]{0,80}loss surfaces?",
+          "optimizers are not supported yet",
+          "Also draws gradient descent on a loss surface"
+        ],
+        "present": [
+          "Describe an idea to see as a live 3D scene you can watch, adjust or play; review its plan, then generate it\\. Works best for mechanisms, loops and small games\\."
+        ]
+      },
+      {
+        "id": "web-copy",
+        "label": "slash sheet, learning examples and card tests",
+        "kind": "tests",
+        "cwd": "packages/web",
+        "files": [
+          "src/slash-sheet.test.mjs",
+          "src/animation3d/learning-examples.test.mjs",
+          "src/Animation3DCard.test.mjs"
+        ]
+      },
+      {
+        "id": "cp-sgd",
+        "label": "control-plane SGD, fit and old-client tests",
+        "kind": "tests",
+        "cwd": "packages/control-plane",
+        "files": [
+          "test/animation-sgd-mvp1.test.js",
+          "test/animation-sgd-framing.test.js",
+          "test/animation-fit.test.js",
+          "test/animation-old-client.test.js"
+        ]
+      },
+      {
+        "id": "post-release",
+        "label": "after the release",
+        "kind": "note",
+        "text": "node scripts/animation/post-release-verify-ladder.mjs --slice mvp5 --sha <full sha> [--canary-file <path>] through C:/s/spec/day-1021/with-cf.mjs (see docs/features/animation/ladder-release-checklist.md); then one real SGD request as the signed-in user."
+      }
+    ]
+  },
+  "combined": {
+    "title": "ONE release: MVP2b + MVP3 + MVP4 + MVP5 (owner decision 23), ONE final tree C4 (the Gate 2 tested tree plus only the copy/claim commit, scripts and docs)",
+    "includes": [
+      "mvp2b",
+      "mvp3",
+      "mvp4",
+      "mvp5"
+    ],
+    "items": [
+      {
+        "id": "combined-shape",
+        "label": "what this release is",
+        "kind": "note",
+        "text": "One tree: C4 = the prompt base P + the AN-20 prompts and harness + the copy/claim commit + scripts and docs. Derive P with: node scripts/animation/prompts-base.mjs <C4>. During the gates: --gate2-pending (exit 3, \"PENDING GATE 2 (not a release pass)\"); live items: --live-only --origin <clone>. At release time: --gate2-result <dir>, no --gate2-pending. Recovery: bash scripts/animation/cut-recovery.sh combined <C4> --prev <main> --prompts-from <P> --push, cut as soon as the sha exists."
+      }
+    ]
+  }
+}

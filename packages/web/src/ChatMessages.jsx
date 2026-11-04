@@ -32,9 +32,8 @@ import AnimationChoices from './animation3d/AnimationChoices.jsx';
 // A plan made before the server sent its scene keeps the full lists.
 const animationReview = p => {
   const summary = p.command === 'animation' ? planSummary(p) : null;
-  // A change asked for in Chat is a plan call: its cost is said here, Generate's on its own line.
-  const planCredits = p.input?.scene?.planCredits;
-  return summary ? { summary: <PlanSummary summary={summary} />, editLabel: 'Edit plan', ...(planCredits ? { note: `Edit plan uses up to ${planCredits} AI credits to rewrite the plan.` } : {}) } : {};
+  // A change asked for in Chat is a plan call: its cost is said in the card's cost line with Generate's (animationCostNote, via jobReviewCopy).
+  return summary ? { summary: <PlanSummary summary={summary} />, editLabel: 'Edit plan' } : {};
 };
 
 // UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its

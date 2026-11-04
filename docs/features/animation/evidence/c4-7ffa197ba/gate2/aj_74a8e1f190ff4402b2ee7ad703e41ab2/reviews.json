@@ -1,0 +1,334 @@
+[
+ {
+  "at": 1793763730268,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "28720579214fec10b787addb3f1534706a8e43e756055be35dcc63b7e6e1c557",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "bottom",
+       "message": "In the default view the near rim of the bowl hides the valley floor. The 'Bottom' label shows, but the dark minimum dot it names is hidden behind the front wall. From camera [4.5,6.5,6.5], the line of sight to (0,0,0) passes under the surface near z=1.5. Lower or swing the camera (or raise the target) so the floor and the minimum can be seen.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "status",
+       "message": "The 'Status' text readout (paused/running/converged/diverged/stopped) is missing from the readout line, which shows only the factor, tipping point, loss and steps. The plan promises the run ends labelled 'converged' or 'diverged', but the learner never sees that label.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ball",
+       "message": "At lr 0.14, after 14 steps (loss 0.050), the red ball is hidden in the default view: the front wall of the bowl blocks it. Only the 'Next step' and 'Bottom' labels show, floating over the rim with nothing visible under them. A converging descent ends out of sight. Fix the camera framing so the bowl floor is visible.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "status",
+       "message": "The Status readout ('running' here) is not shown in the readout line.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: a learning rate just above the tipping point (e.g. 0.52–0.6 at steepness 4), where the zigzag visibly grows step by step. That is the core behaviour the request asks for. The ghost path and steepness changes were also not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "status",
+       "message": "The ball has left the surface, but the 'diverged' status is not displayed anywhere. The readout line leaves out the Status readout, so the outcome is not labelled as the plan promises.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "object": "ball",
+       "message": "The host clamps the ball at y 3.75 (true 4.758), so its drawn height understates the loss of 11.52. The trail end is capped at 3.65 to match.",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13067,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4133,
+   "output_tokens_details": {
+    "thinking_tokens": 3077
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_74a8e1f190ff4402b2ee7ad703e41ab2-review-5",
+   "status": "settled",
+   "costMicros": 135349,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793763856028,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "bcb923ac840649addacf1b7877e3a22816cd9d3d9bb52251488e6829c6149e9a",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The step arrow is drawn flat at the ball's height (2.01), so its tip floats about 1 unit above where the ball will land, at (−1.56, −0.48) with drawn height 0.82. From the high default camera the arrow seems to point up the far slope, not to where the ball goes next. A fix: draw the arrow from the ball to the ball's next drawn position on the surface, or say in the assumptions that the arrow is the step in the flat (x, z) plane.",
+       "object": "stepArrow",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: learning rates just above the tipping point (for example 0.51 to 0.6), where the growing zigzag should show; steepness at either end; and the ghost path. The start z = 0.8 is more than half the drawn half-width of 1.5, so at learning rates such as 0.6 the ball leaves the surface within 2 steps and the growing zigzag is barely visible.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "Near the bottom the next step is only about 0.044 units long, so the arrow almost disappears. The full-size 'Next step' label still sits on the ball, much bigger than the arrow it names, and it crowds the 'Bottom' label. Hide the arrow label, or fade it out, once the step is shorter than about the ball's radius.",
+       "object": "stepTag",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The 'Status' readout ('running') never appears in the readout strip. The strip shows only the factor, tipping point, loss and steps, so the promised 'converged' and 'diverged' labels never reach the learner. Show the status in a place that is drawn, for example as a label in the scene or as a numeric or coded readout.",
+       "object": "status",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The status readout reads 'diverged' in the trace but is not shown anywhere in the capture. This is the key label for the request ('why a high learning rate diverges'), and the plan promises it. Show it, for example as a label in the scene near the ball.",
+       "object": "status",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "At learning rate 1 the ball leaves the surface after one step (x goes to exactly 0, z goes from 0.8 to −2.4). The trail is one straight line, so 'each jump overshoots by more than the last' cannot be seen at this end of the range. The numbers are correct (loss 11.52, factor −3).",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "The host draws the ball clamped at 3.75 (its true height is 4.758), while the trail end is lifted only to 3.65, so the ball sits slightly off the end of its trail.",
+       "object": "ball",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "In the side view the 'Next step' label for the almost invisible arrow again sits next to the 'Bottom' label. This is the same issue as in v0-s1.",
+       "object": "stepTag",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13097,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 5219,
+   "output_tokens_details": {
+    "thinking_tokens": 3894
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_74a8e1f190ff4402b2ee7ad703e41ab2-review-7",
+   "status": "settled",
+   "costMicros": 157189,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 import { failureClass, failureText } from '../src/animation-job.js';
 import { sha256Hex } from '../src/learn-grade-jev.js';
 import { AnimationPolicyError } from '../src/animation-policy.js';
-import { NEEDS_PROPOSAL, PLAN, STUB_PIPELINE, animationStack, postedProposal, rows } from './animation-fixture.js';
+import { messageFromStream } from '../src/anthropic-stream.js';
+import { NEEDS_PROPOSAL, PLAN, STUB_PIPELINE, animationStack, chunked, postedProposal, rows, sseOf } from './animation-fixture.js';
 
 const skip = NEEDS_PROPOSAL;
 // aj_41cfeac (the owner's SGD request): both candidates failed only validateStage's request-fit preflight.
@@ -15,14 +16,14 @@ const SGD_PROBLEMS = ['this artifact (18714 bytes with its program) is too large
 const tooLarge = () => STUB_PIPELINE({ validate: async () => ({ problems: SGD_PROBLEMS, category: 'spec', repairable: true }) });
 const failures = s => rows(s.sqlite, 'messages').filter(m => /was not finished/.test(m.content));
 
-test('size limit after its one correction: the saved SGD failure explained once in Chat and on the card, with Revise plan', { skip }, async t => {
+test('size limit after its two run corrections: the saved SGD failure explained once in Chat and on the card, with Revise plan', { skip }, async t => {
   const s = animationStack(t, { pipeline: tooLarge() });
   const { id, done } = await s.generated();
-  assert.deepEqual([done.stage, done.stopReason, done.repairs, failureClass(done)], ['failed', 'rounds', 1, 'size_limit']);
-  assert.deepEqual(s.model.roles(), ['brief', 'author', 'repair'], 'the same unsuccessful repair is never sent again');
+  assert.deepEqual([done.stage, done.stopReason, done.repairs, failureClass(done)], ['failed', 'rounds', 2, 'size_limit']);
+  assert.deepEqual(s.model.roles(), ['brief', 'author', 'repair', 'repair'], 'two run corrections (decision 35), never a third');
   const { job } = await s.job(id);
   assert.deepEqual(job.recovery, ['revise_plan', 'edit_request']);
-  assert.equal(job.failure.message, `The scene was too large to check. You have not been charged. It was corrected automatically once, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to ${Math.ceil(done.reservation.preparationMicros / 10000)} AI credits; nothing is built until you press Generate.`);
+  assert.equal(job.failure.message, `The scene was too large to check. You have not been charged. It was corrected automatically twice, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to ${Math.ceil(done.reservation.preparationMicros / 10000)} AI credits; nothing is built until you press Generate.`);
   const posted = failures(s);
   assert.equal(posted.length, 1);
   assert.equal(posted[0].content, `"${PLAN.title}" was not finished. ${job.failure.message} Your request and plan are kept.`);
@@ -55,7 +56,7 @@ test('Revise plan: one new job for the same card and request, its revised plan r
   const proposal = postedProposal(s.sqlite, next);
   assert.ok(proposal.input.scene.notices.includes(waiting.plan.limitations[0]), 'the dropped control stays in view on the review card');
   assert.ok(rows(s.sqlite, 'messages').some(m => m.content === 'Here is a revised plan for your animation. Generate makes it.'));
-  assert.deepEqual(s.model.roles(), ['brief', 'author', 'repair', 'brief'], 'nothing is built before Generate');
+  assert.deepEqual(s.model.roles(), ['brief', 'author', 'repair', 'repair', 'brief'], 'nothing is built before Generate');
   const pressed = await s.approve(next);
   assert.equal(pressed.status, 202);
   const ready = await s.run(next);
@@ -87,14 +88,14 @@ test('an action the job no longer offers is refused, never swapped for another; 
   assert.equal(failures(g).length, 1);
 });
 
-test('review rejections after both corrections: the review findings by area, never their text', { skip }, async t => {
+test('review rejections after the corrections (one run, two review): the review findings by area, never their text', { skip }, async t => {
   let validations = 0;
   const s = animationStack(t, { reply: role => (role === 'review' ? { accepted: false } : {}),
     pipeline: STUB_PIPELINE({ validate: async (...a) => (validations++ === 0 ? { problems: ['nodes.d0 is not a node of this artifact'], repairable: true } : STUB_PIPELINE().validate(...a)) }) });
   const { id } = await s.generated();
   const { job } = await s.job(id);
   assert.deepEqual([job.stopReason, job.recovery], ['rounds', ['revise_plan', 'edit_request']]);
-  assert.match(job.failure.message, /^The visual review found 1 serious problem with how the scene is drawn or computed\. You have not been charged\. It was corrected automatically twice, but it still did not pass\. Revise plan/);
+  assert.match(job.failure.message, /^The visual review found 1 serious problem with how the scene is drawn or computed\. You have not been charged\. It was corrected automatically three times, but it still did not pass\. Revise plan/);
   assert.doesNotMatch(failures(s)[0].content, /wrong|nodes\.d0/);
 });
 
@@ -118,11 +119,11 @@ test('a sample render that fails is rendered once more by itself; failing again 
 });
 
 test('budget stops: the build limit offers a revised plan; credits running out keeps the server\'s own words', { skip }, async t => {
-  const s = animationStack(t, { pipeline: STUB_PIPELINE({ review: async (job, ctx) => { for (let i = 0; i < 4; i++) await ctx.call('review', { system: 'review', tool: { name: 'x', input_schema: { type: 'object' } }, content: 'x' }); return { accepted: true, artifactHash: job.artifactHash }; } }) });
+  const s = animationStack(t, { pipeline: STUB_PIPELINE({ review: async (job, ctx) => { for (let i = 0; i < 5; i++) await ctx.call('review', { system: 'review', tool: { name: 'x', input_schema: { type: 'object' } }, content: 'x' }); return { accepted: true, artifactHash: job.artifactHash }; } }) });
   const { id, done } = await s.generated();
   assert.deepEqual([done.stopReason, failureClass(done)], ['budget', 'limit']);
   assert.deepEqual((await s.job(id)).job.recovery, ['revise_plan', 'edit_request']);
-  assert.match((await s.job(id)).job.failure.message, /^The build reached its spending limit\. You have not been charged\. Revise plan/);
+  assert.match((await s.job(id)).job.failure.message, /^The build reached its review limit\. You have not been charged\. Revise plan/); // FX-AN-060: a refused COUNT says which count; it said spending limit
   const c = animationStack(t, { pipeline: STUB_PIPELINE({ author: async () => { throw Object.assign(new Error('Not enough AI credits.'), { status: 429, code: 'spend_refused' }); } }) });
   const out = await c.generated();
   assert.equal(failureClass(out.done), 'credits');
@@ -159,7 +160,10 @@ test('a billed reply that cannot be used says so and is refunded, on the card an
   const inner = globalThis.fetch; // the fake provider; restored by its own t.after
   globalThis.fetch = async (url, options) => {
     const response = await inner(url, options), body = JSON.parse(options.body);
-    return (body.system[0]?.text ?? body.system) === 'author' ? Response.json({ ...(await response.json()), stop_reason: 'max_tokens' }) : response;
+    if ((body.system[0]?.text ?? body.system) !== 'author') return response;
+    // The author streams (AN-17): its cut-off answer is a stream whose message_delta says max_tokens.
+    const cut = { ...(body.stream ? await messageFromStream(response.body) : await response.json()), stop_reason: 'max_tokens' };
+    return body.stream ? new Response(chunked(sseOf(cut), 16), { headers: { 'Content-Type': 'text/event-stream' } }) : Response.json(cut);
   };
   const { id, done } = await s.generated();
   const call = done.calls.find(c => c.role === 'author');

@@ -1,0 +1,310 @@
+[
+ {
+  "at": 1793765619005,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "a2c079e226b21467f6ded05dc5a7cc702380240f913f1bcef2b43ad69c4de7bf",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The subject is small in the default view. The bowl fills only about half the frame width and under half its height, leaving large empty bands above and below. The ball and its two step arrows are tiny: the arrows are about 0.7 units long and nearly on top of each other, so you can't tell the 'Noisy step' arrow from the 'Downhill step' arrow. Move the camera closer to the bowl (for example aim lower and nearer to its centre) so the ball and arrows are readable.",
+       "object": "camera",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The 'Noisy step' and 'Downhill step' labels are much bigger than the short arrows they name and sit right on the ball. You can't see which label belongs to which arrow. Use a smaller label size, or offset the labels to opposite sides so each one clearly points to its own arrow.",
+       "object": "stepTag",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "Near the minimum the arrows are only about 0.1 units long, so they look like hairlines next to the ball. The 'Noisy step', 'Downhill step' and 'Minimum' labels crowd one small spot, and 'Noisy step' covers the end of the trail next to the ball. You can't read the noisy step against the true downhill step, which is the main idea of the scene.",
+       "object": "stepTag",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The 'Status' text readout (running / paused / converged / diverged) doesn't appear in the rendered readout line, so the 'diverged' label the plan promises can't be seen. The diverged case (learning rate above 2 ÷ steepness) was not sampled.",
+       "object": "status",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "At learning rate 0.6 the zig-zag trail tangles into a knot around the minimum. The ball, both arrows and three labels all overlap in a small area of a frame that is otherwise mostly empty, so the zig-zag pattern the plan promises is hard to follow. Frame the camera tighter on the bowl and keep the labels away from the cluster.",
+       "object": "trail",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Dragging moves the ball only along x, keeping the start's y fixed. The plan promises dragging the ball to any new starting point on the surface. The limit is disclosed in the assumptions.",
+       "object": "ball",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13679,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3365,
+   "output_tokens_details": {
+    "thinking_tokens": 2262
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_ae120e6add1b43578b831f3b7cc1a741-review-4",
+   "status": "settled",
+   "costMicros": 122437,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793765748064,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "7b2da5796a7708d974d6eac54328b50ea6a341d3f54d226e278f6f650ebf7d9d",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan says a run ends when the ball leaves the square from −4 to 4. The artifact instead calls it diverged when √steepness·|y| > 4, i.e. when the ball leaves the narrowed surface. This is disclosed in the assumptions and matches the drawn surface. Divergence (learning rate past 2/steepness) was not sampled.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The Status text readout (paused/running/diverged/converged) does not appear in the readout bar of any capture. Only loss, distance and steps are shown.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Restart run keeps the earlier path as a faint ghost, and dragging only moves the start along x. Both are disclosed and fit the plan. Dragging was not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "camera",
+       "message": "At learning rate 0.6 the key behaviour is a zig-zag across the steep (y/depth) direction. The default camera at (5.5,6.5,8.5) looks almost along that axis, so the zig-zag trail collapses into a small tangled clump around the ball and cannot be read. Choose a default view that looks down onto the bowl more steeply, or one where the y direction lies across the screen.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepArrow",
+       "message": "The arrows are drawn flat at ball height and at 3× their true length. Large cross-valley steps therefore run into the far wall of the bowl: the arrow tips are hidden, and the 'Noisy step' label floats far right of the ball, away from any visible arrow. Use a smaller common scale, or tilt or lift the arrows so they stay visible above the surface.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepArrow",
+       "message": "The noisy-step arrow passes through the bowl wall. Only its tail at the ball and its head outside the bowl, far to the right, are visible, and the 'Noisy step' label sits off the surface, away from the ball. The 3× flat arrow scale makes the arrows cut through the surface whenever steps are large.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13760,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3784,
+   "output_tokens_details": {
+    "thinking_tokens": 2753
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_ae120e6add1b43578b831f3b7cc1a741-review-6",
+   "status": "settled",
+   "costMicros": 131141,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

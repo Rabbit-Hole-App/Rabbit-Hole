@@ -1,0 +1,312 @@
+[
+ {
+  "at": 1793764048249,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "bbdaca646e37369fc2300c1b20d7cb5c4f8559539be9a40b90c7d05cc107797d",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ball",
+       "message": "In the default view at the default state, the high front wall of the bowl (z = +1.5) hides the red ball at (2.6, 0.3). Only part of the grey arrow and a floating 'Downhill' label show, so the learner starts without seeing the current guess. Move the camera higher and closer to top-down (as in the side view) so the bowl floor and the ball are in clear sight.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "camera",
+       "message": "The default camera looks along the steep (front-to-back) axis from a low angle. The overshoot zigzag, which the scene exists to show, runs exactly along that axis, so it is foreshortened and partly hidden behind the front wall. The bowl floor, where the zigzag happens, also sits low in the frame with a large empty band underneath. Reframe from above, angled so the steep axis runs across the screen.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "status",
+       "message": "The plan says leaving the surface is shown as 'left the surface', but the program prints 'diverged'. Also, at learning rates just above 0.5 (for example 0.51, multiplier −1.04) the run hits the 40-step limit before y passes 1.5, so 'flies off the bowl above 0.5' is not always true. Not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "trail",
+       "message": "After 14 steps at learning rate 0.17, none of the orange path shows in the default view. The front wall hides it, so the smooth glide meant to contrast with the zigzag cannot be seen from the starting camera. The same camera problem as v0-s0.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "slopeTag",
+       "message": "Near the minimum the arrow is almost zero length, but the 'Downhill' label stays full size and crowds the ball together with the 'Lowest point' label. Hide the arrow label when the arrow is very short, or move it to the side.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "camera",
+       "message": "The diverging zigzag at learning rate 0.6 runs front to back, so from the default angle it is foreshortened, and the front wall cuts off its first segments. The growing swings read far more clearly from above, as the side capture shows. The text 'diverged' status also does not appear in the readout strip, so the learner is not told that the run ended.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "labels",
+       "message": "The 'Downhill' and 'Lowest point' labels crowd around the ball near the minimum.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The default learning rate of 0.4 (the settling zigzag) and the low end, 0.05, were not sampled after running. Their behaviour is inferred only from the program, which is correct: y×(1−4lr), x×(1−lr). The readouts match the formulas at 0.17 and 0.6.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13321,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3630,
+   "output_tokens_details": {
+    "thinking_tokens": 2323
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_111d6daa534e4b7d8d456f9c5bab7a83-review-4",
+   "status": "settled",
+   "costMicros": 126305,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793764147345,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "ec170b1cc29634af4d99ecee86ea139058b75f0aeae0ed6c6b045f6edcdd4c63",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The zigzag run at the default learning rate (0.4, multiplier −0.6) was not sampled after Play, so the main overshoot path was not checked in pixels. The program's update y←y(1−4lr), x←x(1−lr) means it should zigzag across y and settle.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "status",
+       "message": "The Status readout is listed first but does not appear in the readout strip. 'Height (loss)' shows first, and outcomes such as 'left the surface' never appear on screen. Check that the text readout is shown.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "slopeArrow",
+       "message": "Near the minimum, the downhill arrow is drawn at its true length (0.3×|slope| ≈ 0.06), which is shorter than the ball radius (0.13). The arrow is hidden inside the ball, so it looks as if the arrow is off. This is acceptable as true length, but a note would help learners.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "status",
+       "message": "The run stopped because the ball left the surface (y=−1.613 at step 5, which matches 0.3·(−1.4)^5). The status explaining this is not visible in the readout strip, so the learner only sees the ball past the edge.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13365,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 2451,
+   "output_tokens_details": {
+    "thinking_tokens": 1725
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_111d6daa534e4b7d8d456f9c5bab7a83-review-6",
+   "status": "settled",
+   "costMicros": 102901,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

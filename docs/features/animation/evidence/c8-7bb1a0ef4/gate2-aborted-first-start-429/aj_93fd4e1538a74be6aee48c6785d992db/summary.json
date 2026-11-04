@@ -1,0 +1,17 @@
+{
+ "n": 2,
+ "phrasing": "SGD on a bowl-shaped loss",
+ "session": "gate2-2@example.com",
+ "sha": "7bb1a0ef4211ea45ecd3a53ccd6770d76080e8d3",
+ "version": "7c545e95-ecef-4418-a070-0709ef1ddec7",
+ "jobId": "aj_93fd4e1538a74be6aee48c6785d992db",
+ "outcome": "failed",
+ "repairs": 0,
+ "credits": 4.6911,
+ "charged": 5,
+ "artifactHash": null,
+ "note": "script error: approve HTTP 429 You have reached today's limit of free retries. Try again tomorrow.",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 9:06 PM"
+}

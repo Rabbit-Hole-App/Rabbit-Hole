@@ -10,6 +10,7 @@
 import { pageWorkerFactory } from '../src/explain-program/page-worker.js';
 import { animationSubject, fitCameraToPoints } from '../src/animation3d/framing.js';
 import { createAnimationRenderer } from '../src/animation3d/renderer.js';
+import { readoutLines } from '../src/animation3d/card.js';
 import { runReviewProgram } from '../src/animation3d/review.js';
 
 const frameElement = document.querySelector('[data-animation3d-frame]');
@@ -31,8 +32,7 @@ frameElement.appendChild(overlay);
 
 // The readouts (with their declared decimals and units) and a game's goal, as plain text: never parsed as HTML.
 function showOverlay(artifact, frame, theme) {
-  const lines = artifact.readouts.filter(readout => Number.isFinite(frame.readouts?.[readout.id]))
-    .map(readout => `${readout.label}: ${frame.readouts[readout.id].toFixed(readout.decimals)}${readout.unit ? ` ${readout.unit}` : ''}`);
+  const lines = readoutLines(artifact, frame); // the card's own formatter: a text readout's word is in the strip too (FX-AN-098)
   if (frame.goal) lines.push(`${frame.goal.status === 'won' ? 'Won' : frame.goal.status === 'lost' ? 'Lost' : 'Playing'}${frame.goal.message ? `: ${frame.goal.message}` : ''}`);
   overlay.textContent = lines.join('  ·  ');
   Object.assign(overlay.style, { display: lines.length ? 'block' : 'none', background: THEMES[theme].panel, color: THEMES[theme].ink });

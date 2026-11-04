@@ -1,0 +1,200 @@
+[
+ {
+  "at": 1793765831548,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "592c2ada4192f3523dad295eb46a9dc5fdb09995a35e18726db76c1b3eaba1be",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "At the initial state both balls sit at exactly the same point, so the orange ball completely hides the blue one. The learner sees one ball, but the description promises two. Make both visible at the start, for example by drawing the blue ball slightly larger as a ring or halo, adding a shared start marker with a 'Blue 0.1 / Orange 1.5' tag, or offsetting the two balls a little.",
+       "object": "ballA",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Nothing in the scene says which ball has which learning rate. Only the slider labels make the link. A small legend or a tag on each ball (e.g. 'lr 0.1', 'lr 1.5') would make the comparison readable at a glance.",
+       "object": "ballB",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The readout strip shows loss and steps but not statusA or statusB ('going down', 'settled', 'left the surface'), although the plan promises a status reading for each ball. Make sure the text status readouts are visible.",
+       "object": "statusA",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The 'Minimum' label sits just below the minimum dot, which is exactly where the blue ball settles and the orange zig-zag segments cross. It covers path segments and crowds the blue ball. Move the label off to the side or the back of the bowl (or put it on a leader line), so the convergence region stays clear.",
+       "object": "minTag",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The assumptions say a ball that leaves the square is 'drawn at the surface edge height'. The program does not do this. pos() places the ball at its true off-square position (here y≈4.66, beyond the edge) at height K·L+R, so orange floats outside the bowl, away from the edge. Either clamp the drawn position to the square's boundary at the edge height, or correct the text.",
+       "object": "ballB",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "The orange trail mixes thick and hairline segments, which makes the zig-zag look inconsistent.",
+       "object": "pathB",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "At lrA=2 the blue ball diverges to (−3, 8), twice the square's half-width. It is drawn far off the bowl and floats in the air (height clamped by the host). This contradicts the stated 'drawn at the surface edge height', and it pulls the fitted camera out so the bowl shrinks. Clamp the drawn position of an off-square ball to the boundary.",
+       "object": "ballA",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "Because of the far-off blue ball, the bowl and both zig-zags occupy a smaller part of the frame. The 'Minimum' label again sits over the crossing paths near the centre.",
+       "object": "minTag",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The side view confirms that only the orange ball is visible at the start. The blue ball is hidden inside it.",
+       "object": "ballA",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The orange ball floats beyond the bowl's edge after it leaves the square. It is not placed at the edge as the assumptions claim.",
+       "object": "ballB",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The diverged blue ball and its last path segment hang in mid-air well outside the surface, and the long blue segment passes over the bowl. This reads as a part floating in 3D. Placing off-square balls at the boundary would fix it.",
+       "object": "ballA",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13661,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4573,
+   "output_tokens_details": {
+    "thinking_tokens": 3034
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_aeb96465d2e142938de8d7b5f3235bc9-review-4",
+   "status": "settled",
+   "costMicros": 146525,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

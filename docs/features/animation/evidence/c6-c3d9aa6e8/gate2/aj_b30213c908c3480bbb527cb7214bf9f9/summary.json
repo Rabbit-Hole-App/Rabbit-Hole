@@ -1,0 +1,18 @@
+{
+ "n": 1,
+ "phrasing": "stochastic gradient descent",
+ "session": "gate2-1@example.com",
+ "sha": "c3d9aa6e815dca7596c5ff0570dfa2ae878ddc09",
+ "version": "c894e9e7-c528-40d0-aeba-0c250f6402b9",
+ "jobId": "aj_b30213c908c3480bbb527cb7214bf9f9",
+ "outcome": "accepted",
+ "repairs": 2,
+ "credits": 94.2904,
+ "charged": 95,
+ "artifactHash": "a4736384cc3c64ccf7e95d8932e2a04509e591d9c6110c547db3860ef6cec9b7",
+ "note": "",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 8:15 PM",
+ "fileSha256": "cbc6b3c9c500f4f23dee2dab4fc60ac9ed8dad3d00402bd0889001340ce7f1a3"
+}

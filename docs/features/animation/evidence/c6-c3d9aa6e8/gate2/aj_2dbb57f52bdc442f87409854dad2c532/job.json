@@ -1,0 +1,244 @@
+{
+ "id": "aj_2dbb57f52bdc442f87409854dad2c532",
+ "version": 1,
+ "boardId": "fb6c0a9f-a263-4741-b025-10a0b3bfee94",
+ "cardId": "bb8bbde6-0c9a-4679-818e-e5d076ad252a",
+ "stage": "ready",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 1,
+ "stopReason": "accepted",
+ "failure": null,
+ "recovery": [],
+ "outcome": "changes",
+ "choiceOpen": false,
+ "threadId": "canvaschat-9f102b85-3d9e-45db-a371-d99028e0e0ce",
+ "chatPending": false,
+ "usage": {
+  "credits": 73,
+  "unknown": false
+ },
+ "result": {
+  "jobId": "aj_2dbb57f52bdc442f87409854dad2c532",
+  "resultId": "ar_22a05784f14e47b5bbdc737c38c704ea",
+  "cardId": "bb8bbde6-0c9a-4679-818e-e5d076ad252a",
+  "canvas": {
+   "boardId": "fb6c0a9f-a263-4741-b025-10a0b3bfee94"
+  },
+  "requestRef": "842750ee518d1213",
+  "revision": "av_1b5e7000c2774204b1508cafa69d367a",
+  "planHash": "5d4b8efbfaeb22979fdb1bfa5307480cd87cc6f9866f1c9b902901d3ccbc0644",
+  "sources": "643d5437104296e2",
+  "artifactHash": "54c582082f4b109f58064531542db6d6d2516f1b4c4cc60beb943131c6ee341b",
+  "experience": "experiment",
+  "capabilityVersion": "animation-capabilities/1",
+  "policyVersion": 1
+ },
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Stochastic gradient descent on a loss surface, with kept paths to compare runs",
+  "description": "A ball moves down a stretched bowl-shaped loss surface, one stochastic gradient descent (SGD) step at a time, leaving a coloured trail behind it. Each step goes against a noisy estimate of the slope, so the path wobbles instead of heading straight downhill. When a run is done, you can keep its trail as a faded path and start a new run from the same point with different settings. Old and new paths stay side by side so you can see how step size and noise change the route and where it ends.",
+  "experience": "experiment",
+  "reason": "Comparing runs is the point here, so this lets you change one setting, rerun from the same start, and see the new path next to the kept ones.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate (step size)",
+    "min": 0.02,
+    "max": 0.38,
+    "step": 0.01,
+    "default": 0.1
+   },
+   {
+    "type": "number",
+    "id": "noise",
+    "label": "Gradient noise (small-batch randomness)",
+    "min": 0,
+    "max": 1,
+    "step": 0.05,
+    "default": 0.5
+   },
+   {
+    "type": "number",
+    "id": "maxSteps",
+    "label": "Steps per run",
+    "min": 20,
+    "max": 200,
+    "step": 10,
+    "default": 100
+   }
+  ],
+  "interactions": [
+   "Play, pause or change speed to watch the ball take steps. Its trail grows one marker every 4 steps.",
+   "Learning rate: small values give short, careful steps that may stop before the bottom. Values near the top make the path zig-zag across the steep narrow direction of the bowl.",
+   "Gradient noise: at 0 the path is smooth and the same every run. Higher values make it wobble more, and near the bottom the ball jitters around the lowest point instead of settling.",
+   "Keep path and start new run: the current trail fades and stays on screen (up to 3 kept paths), and a new ball starts from the same starting point using the current settings.",
+   "Clear kept paths: removes only the faded paths and keeps the current run and your settings.",
+   "Readouts show the step number, the current loss (the surface's height under the ball) and the final loss of each kept path."
+  ],
+  "assumptions": [
+   "Illustration: a made-up bowl-shaped loss surface with simulated noise, not a real model trained on data.",
+   "The loss is an elongated bowl, 0.5·(x² + 5·y²): steep across its narrow direction and gentle along its long one, so it has one lowest point at the centre.",
+   "Each step subtracts the learning rate times the true slope plus random noise. The noise size is set by the gradient-noise setting and stands in for the randomness of small mini-batches.",
+   "A single step can go uphill because of noise. Loss tends to fall over a run but is not promised to fall at every step.",
+   "Every run starts at the same fixed point. Noise comes from the scene's fixed random seed, so each new run gets fresh noise, and Reset brings back the first run's noise exactly.",
+   "A run ends after the chosen number of steps, or earlier if the ball reaches the edge of the drawn surface.",
+   "The trail draws one marker every 4 steps, at most 50 markers; every step still runs."
+  ],
+  "limitations": [
+   "Changed: the trail draws 50 markers, one every 4 steps, instead of 200; every step still runs.",
+   "Changed: the kept comparison path also draws at most 50 markers.",
+   "With one simple bowl, the scene can't show local minima, saddle points or plateaus found on real loss surfaces.",
+   "The learning rate stops just below the value where this bowl's steep direction makes steps blow up. You can see heavy zig-zagging, but not full runaway steps.",
+   "Only 3 kept paths are shown at once so the paths stay readable. Keeping another one removes the oldest.",
+   "Reset clears all trails and kept paths and puts every setting back to its default."
+  ],
+  "learningGoal": "See how step size and gradient noise shape the path SGD takes and where it ends up, by comparing runs from the same start side by side.",
+  "requiredCapabilities": [
+   "parameters",
+   "actions",
+   "step",
+   "speed",
+   "labels",
+   "readouts"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "learningRate",
+    "values": [
+     0.02,
+     0.38
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 20
+   }
+  ]
+ },
+ "planHash": "5d4b8efbfaeb22979fdb1bfa5307480cd87cc6f9866f1c9b902901d3ccbc0644",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 37402,
+  "generateToResultMs": 261940,
+  "processingMs": 299292,
+  "approvalWaitMs": 2431,
+  "calls": 6,
+  "repairs": 1,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 37352,
+    "calls": 2,
+    "inputTokens": 2155,
+    "outputTokens": 4100,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 2431,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 87736,
+    "calls": 1,
+    "inputTokens": 7804,
+    "outputTokens": 10436,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 45,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 40708,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 25919,
+    "calls": 1,
+    "inputTokens": 13148,
+    "outputTokens": 2495,
+    "images": 6,
+    "captures": 0,
+    "outcome": "rejected"
+   },
+   {
+    "stage": "repairing",
+    "ms": 47734,
+    "calls": 1,
+    "inputTokens": 9137,
+    "outputTokens": 6186,
+    "images": 2,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 38,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 20238,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 39522,
+    "calls": 1,
+    "inputTokens": 13180,
+    "outputTokens": 3645,
+    "images": 6,
+    "captures": 0,
+    "outcome": "accepted"
+   }
+  ]
+ },
+ "createdAt": 1793765742274,
+ "updatedAt": 1793766044047
+}

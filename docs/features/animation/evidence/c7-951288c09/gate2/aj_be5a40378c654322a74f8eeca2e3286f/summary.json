@@ -1,0 +1,17 @@
+{
+ "n": 5,
+ "phrasing": "a ball rolling down a loss surface, step by step",
+ "session": "gate2-5@example.com",
+ "sha": "951288c09c321d8dbaaa22d539a2b7d4e51cb0b6",
+ "version": "c7b3d363-0305-40c6-a42b-9f009548e4f5",
+ "jobId": "aj_be5a40378c654322a74f8eeca2e3286f",
+ "outcome": "rejected",
+ "repairs": 2,
+ "credits": 127.1137,
+ "charged": 12,
+ "artifactHash": null,
+ "note": "rounds: The visual review found 6 serious problems with how the scene is drawn or computed. You have not been charged. It was corrected automatically twice, but it stil",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 8:46 PM"
+}

@@ -1,0 +1,18 @@
+{
+ "n": 8,
+ "phrasing": "gradient descent that overshoots the minimum",
+ "session": "g2-202611040645-3@example.com",
+ "sha": "28294cce9904138dcbb9c1ddec7176045f87690f",
+ "version": "1fc859c6-00a2-4697-b298-a399b7e4ba98",
+ "reviewIdentity": "c42f81edae10cfb3e4aa66c5eafd51d297661d0f5e9201fd29c9ce6c89e16dc4",
+ "jobId": "aj_1644ce60253c4d1e9fb5662ae1a52f11",
+ "outcome": "failed",
+ "repairs": 0,
+ "credits": 0,
+ "charged": 0,
+ "artifactHash": null,
+ "note": "provider_unavailable: The AI service was busy. You have not been charged. It was retried automatically. Try again continues from where it stopped, using up to 56 AI credits.",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 10:52 PM"
+}

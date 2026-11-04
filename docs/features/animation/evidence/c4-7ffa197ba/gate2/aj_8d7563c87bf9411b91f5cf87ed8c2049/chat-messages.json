@@ -1,0 +1,119 @@
+[
+ {
+  "messageId": "201",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-7c5f314b2c070bed",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient descent with two learning rates, side by side",
+    "description": "A stretched bowl-shaped loss surface (shaped like a long valley) holds two balls that start at the same point. Each ball takes gradient descent steps with its own learning rate: each step moves it against the slope, by the learning rate times the slope. Each ball leaves a coloured trail. You can watch the small learning rate creep along slowly while the larger one zig-zags across the valley. At high enough learning rates, a run overshoots and flies off the surface.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-f0946914",
+     "job": "aj_8d7563c87bf9411b91f5cf87ed8c2049",
+     "plan_hash": "6c418328e6b6ab2b0b20f64d8d461ab26eaf1bf04a2136100ed0397c27a49368",
+     "request": "gradient descent with two learning rates",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate A (blue ball)",
+        "min": 0.01,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.05
+       },
+       {
+        "type": "number",
+        "label": "Learning rate B (orange ball)",
+        "min": 0.01,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.4
+       }
+      ],
+      "interactions": [
+       "Step once, or play and pause, to move both balls one gradient descent step at a time",
+       "Change either learning rate to restart both runs from the shared start point with the new values",
+       "Orbit the camera to see the trails from above or along the valley",
+       "Read each ball's step count, current loss and position"
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793849830,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "gradient descent with two learning rates",
+    "prompt": "A stretched bowl-shaped loss surface (shaped like a long valley) holds two balls that start at the same point. Each ball takes gradient descent steps with its own learning rate: each step moves it against the slope, by the learning rate times the slope. Each ball leaves a coloured trail. You can watch the small learning rate creep along slowly while the larger one zig-zags across the valley. At high enough learning rates, a run overshoots and flies off the surface.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Running two learning rates on the same surface from the same start lets you compare them directly. Stepping through the runs shows how step size alone decides between slow progress, zig-zagging and blowing up.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Step once, or play and pause, to move both balls one gradient descent step at a time",
+     "Interaction: Change either learning rate to restart both runs from the shared start point with the new values",
+     "Interaction: Orbit the camera to see the trails from above or along the valley",
+     "Interaction: Read each ball's step count, current loss and position",
+     "Parameter: Learning rate A (blue ball), 0.01 to 0.6, default 0.05",
+     "Parameter: Learning rate B (orange ball), 0.01 to 0.6, default 0.4",
+     "Goal: The learning rate sets the step size. Too small is slow, larger can zig-zag across steep directions, and too large makes descent diverge."
+    ],
+    "assumptions": [
+     "This is an illustration: a made-up bowl-shaped loss, not a real trained model.",
+     "The loss is half of (x² + 4y²). It is four times steeper across the valley (y) than along it (x), so each step shrinks x by a factor of (1 − rate) and y by a factor of (1 − 4 × rate).",
+     "Plain gradient descent with a fixed learning rate. There is no momentum, no noise and no mini-batches. Every step uses the exact slope.",
+     "Both balls start at x = −4, y = 2. A run stops after 60 steps, when its loss falls below 0.001, or when it leaves the drawn surface (shown as diverged).",
+     "Exact for this model: rates up to 0.25 head straight into the valley without zig-zagging. Rates between 0.25 and 0.5 zig-zag across it but still settle. Rates above 0.5 grow without limit and diverge."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Only one fixed surface is shown. Real loss surfaces have many dimensions, and their safe learning rates differ from the numbers here.",
+     "A diverging ball is stopped at the edge of the surface rather than followed as it flies off to infinity."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-f0946914"
+    },
+    "quote": null,
+    "review_hash": "b7f4162be65e9f028471328847871932dd6eb53dad0f35c5848ac6ea387f39de",
+    "sig": "v3.ac9a2e26ac884858512139268142a90a68e4e0b443b804cc6498b760d594f27e",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 373,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.ac9a2e26ac884858512139268142a90a68e4e0b443b804cc6498b760d594f27e",
+    "used": {
+     "version": 1,
+     "key": "aj_8d7563c87bf9411b91f5cf87ed8c2049"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "201"
+   ],
+   "feedback": null
+  }
+ }
+]

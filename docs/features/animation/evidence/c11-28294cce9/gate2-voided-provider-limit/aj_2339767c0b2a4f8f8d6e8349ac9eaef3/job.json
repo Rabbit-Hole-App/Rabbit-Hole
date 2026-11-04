@@ -1,0 +1,237 @@
+{
+ "id": "aj_2339767c0b2a4f8f8d6e8349ac9eaef3",
+ "version": 1,
+ "boardId": "3b5d1b93-bed5-4f9d-ba6c-0b3f0bc6f04d",
+ "cardId": "b616a670-2af1-4bfd-8d92-4c039859fd40",
+ "stage": "failed",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 1,
+ "stopReason": "provider_unavailable",
+ "failure": {
+  "stage": "reviewing",
+  "category": "provider_unavailable",
+  "message": "The AI service was busy. You have not been charged. It was corrected automatically once. It was retried automatically. Try again continues from where it stopped, using up to 200 AI credits.",
+  "retryable": true,
+  "callsFrom": 6
+ },
+ "recovery": [
+  "new_attempt",
+  "edit_request"
+ ],
+ "outcome": "changes",
+ "choiceOpen": false,
+ "threadId": "canvaschat-a864a8e6-80a5-4d5c-8b64-b99bce20bcc2",
+ "chatPending": false,
+ "usage": {
+  "credits": 10,
+  "unknown": false,
+  "note": "You have not been charged."
+ },
+ "result": null,
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Stochastic gradient descent on a bowl-shaped loss",
+  "description": "A smooth bowl-shaped loss surface with contour lines, and a ball sitting on it that marks the current weights. Each step, the ball moves against a noisy estimate of the slope and leaves a trail. One arrow shows the true downhill direction, which is the negative gradient. A second arrow shows the noisy step actually taken. Change the learning rate, the noise and how stretched the bowl is, and watch the path go straight, zigzag, jitter around the bottom or fly off the bowl.",
+  "experience": "experiment",
+  "reason": "SGD makes sense once you see how step size and noise shape the path. Changing them yourself and watching the trail and the loss readout respond shows this better than a fixed animation.",
+  "behavior": "rules",
+  "controlProfile": "manipulate",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate (step size)",
+    "min": 0.01,
+    "max": 0.5,
+    "step": 0.01,
+    "default": 0.1
+   },
+   {
+    "type": "number",
+    "id": "noise",
+    "label": "Gradient noise (mini-batch randomness)",
+    "min": 0,
+    "max": 2,
+    "step": 0.1,
+    "default": 0.5
+   },
+   {
+    "type": "number",
+    "id": "stretch",
+    "label": "Bowl stretch (steepness ratio across vs along)",
+    "min": 1,
+    "max": 5,
+    "step": 0.5,
+    "default": 3
+   }
+  ],
+  "interactions": [
+   "Press play, or step once at a time, to move the ball one SGD step per tick. The trail grows, and the step count, loss and slope size readouts update.",
+   "Raise the learning rate: steps get longer and zigzag on a stretched bowl. Above 2 divided by the stretch (reachable at stretch 4.5 or more), the ball bounces outward off the surface.",
+   "Set noise to 0 to see plain gradient descent, which follows a smooth path. Raise the noise to see a wandering path that keeps jittering around the bottom instead of settling.",
+   "Set the stretch to 1 for a round bowl, where noiseless steps head straight for the bottom. Higher values make a narrow valley.",
+   "Before running, drag the ball to choose where the run starts.",
+   "Clear the trail: this erases only the drawn path and keeps the ball's position, the step count and your settings."
+  ],
+  "assumptions": [
+   "Illustration: a made-up bowl-shaped loss over two weights, with simulated gradient noise rather than a real model trained on real data.",
+   "The loss is half of (x squared plus stretch times y squared), and its lowest point, a loss of 0, is at the centre.",
+   "Each step moves the weights by learning rate times (true gradient plus random noise). The noise is drawn from a bell curve with the chosen strength, using a fixed seed, so Reset replays the same noise sequence.",
+   "Learning rate, noise and stretch stay fixed during a run. There is no momentum and no learning-rate decay.",
+   "A run ends after 200 steps, or when the ball leaves the edge of the drawn surface.",
+   "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+  ],
+  "limitations": [
+   "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+   "With noise turned on, a single step can raise the loss. The loss only goes down on average, and with a fixed learning rate the ball never fully settles at the bottom.",
+   "A real loss surface has many dimensions and is rarely a perfect bowl. Here there are only two weights, so the path can be drawn.",
+   "The noise here is a stand-in for the randomness of mini-batches. It does not come from sampling actual data."
+  ],
+  "learningGoal": "SGD steps against a noisy gradient. The learning rate sets how big each step is and whether the run stays stable, the noise makes the path wander and jitter near the minimum, and a stretched bowl makes the path zigzag.",
+  "requiredCapabilities": [
+   "parameters",
+   "step",
+   "actions",
+   "drag",
+   "labels",
+   "readouts",
+   "speed"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "learningRate",
+    "values": [
+     0.01,
+     0.5
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 100
+   }
+  ]
+ },
+ "planHash": "df02a358d3c7f3653bb4ae1e17d693aea47513db7b79f4cc6d922c756ed158dc",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 42545,
+  "generateToResultMs": null,
+  "processingMs": 315874,
+  "approvalWaitMs": 5289,
+  "calls": 7,
+  "repairs": 1,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 42495,
+    "calls": 2,
+    "inputTokens": 2143,
+    "outputTokens": 4438,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 5289,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 110502,
+    "calls": 1,
+    "inputTokens": 8203,
+    "outputTokens": 12945,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 50,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 25045,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 42840,
+    "calls": 1,
+    "inputTokens": 13309,
+    "outputTokens": 3944,
+    "images": 6,
+    "captures": 0,
+    "outcome": "rejected"
+   },
+   {
+    "stage": "repairing",
+    "ms": 45498,
+    "calls": 1,
+    "inputTokens": 9334,
+    "outputTokens": 6215,
+    "images": 2,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 43,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 32501,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 16900,
+    "calls": 2,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 12,
+    "captures": 0,
+    "outcome": "failed"
+   }
+  ]
+ },
+ "createdAt": 1793774808432,
+ "updatedAt": 1793775130630
+}

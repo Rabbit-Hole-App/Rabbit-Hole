@@ -32,7 +32,7 @@ import { buildAnimationScene } from './scene.js';
 // keep: every essential part (the whole subject: targets, play areas, reference marks; never a backdrop) stays inside this share of
 // the view even when the focus is narrower (owner 2026-11-02: a 10° / 5 m/s shot cropped the target out of aj_fac3ca4b, and the grid
 // robot's first move framed the robot without its target); the focus then fills as much of the view as that allows.
-export const FRAMING = Object.freeze({ fill: 0.8, keep: 0.96, samples: 12, budgetMs: 2000, ticks: 30, sheet: 1.25, dwarf: 3, caption: 0.25, focus: 2, near: 0.25, refit: Object.freeze({ distance: 1.2, aim: 0.15 }) });
+export const FRAMING = Object.freeze({ surfaceElevation: 35, fill: 0.8, keep: 0.96, samples: 12, budgetMs: 2000, ticks: 30, sheet: 1.25, dwarf: 3, caption: 0.25, focus: 2, near: 0.25, refit: Object.freeze({ distance: 1.2, aim: 0.15 }) });
 
 const extent = box => { const size = box.getSize(new THREE.Vector3()); return Math.max(size.x, size.y, size.z); };
 
@@ -124,9 +124,13 @@ export function subjectPoints(scene, frames) {
     const seen = new Map();
     for (const [id, holder] of scene.objects) {
       const drawable = drawableOf(holder);
-      if (!drawable || !shown(drawable)) continue;
+      if (!drawable || !shown(drawable) || drawable.userData.empty) continue; // an empty trail has nothing to frame
       if (drawable.isSprite) { if (record) anchors.push({ id, point: drawable.getWorldPosition(new THREE.Vector3()) }); continue; }
       const corners = cornersOf(drawable);
+      // A trail above the height a clamp holds the marker to is the diverged path (FX-AN-074): it is drawn where the program put it but the fit follows the clamped marker.
+      const ceiling = drawable.userData.trail ? scene.clampCeiling?.() : null, rim = drawable.userData.trail ? scene.clampFootprint?.() : null; // decision 30: and not beyond the rim in x and z
+      if (ceiling != null) for (const corner of corners) corner.y = Math.min(corner.y, ceiling);
+      if (rim) for (const corner of corners) { corner.x = Math.min(rim.maxX, Math.max(rim.minX, corner.x)); corner.z = Math.min(rim.maxZ, Math.max(rim.minZ, corner.z)); }
       seen.set(id, new THREE.Box3().setFromPoints(corners));
       if (!record) continue;
       if (!swept.has(id)) { swept.set(id, { box: new THREE.Box3(), points: [] }); if (drawable.isMesh && flat(drawable)) sheets.add(id); if (drawable.userData.arrow) arrows.add(id); }
@@ -172,13 +176,26 @@ export function subjectPoints(scene, frames) {
   const points = withAnchors(kept);
   if (!points.length || !(extent(new THREE.Box3().setFromPoints(points)) > 0)) return null;
   points.keep = kept === subject ? points : withAnchors(subject);
+  points.surface = scene.hasSurface?.() === true; // a scene with a surface is never viewed from lower than FRAMING.surfaceElevation (raiseElevation)
   return points;
+}
+
+// FX-AN-097 (Gate 2 on C6 and C4: an authored camera at 15 to 25 degrees hid the trail and collapsed the zig-zag behind the bowl): the camera lifted to at least `degrees` above the
+// horizon by rotating its position about the target: the azimuth, the distance, the target and the fov are kept. One already at or above it is returned as it is.
+export function raiseElevation(camera, degrees) {
+  const { position, target } = camera, offset = position.map((value, axis) => value - target[axis]), length = Math.hypot(...offset), flat = Math.hypot(offset[0], offset[2]);
+  const minimum = degrees * Math.PI / 180;
+  if (!(length > 0) || Math.atan2(offset[1], flat) >= minimum) return camera;
+  const [x, z] = flat > 1e-9 ? [offset[0] / flat, offset[2] / flat] : [0, 1]; // straight above or below has no azimuth: look from +z
+  const raised = [x * length * Math.cos(minimum), length * Math.sin(minimum), z * length * Math.cos(minimum)];
+  return { ...camera, position: raised.map((value, axis) => target[axis] + value) };
 }
 
 // The camera on the authored direction (position - target) that frames every point at FRAMING.fill of both the vertical and the
 // horizontal field of view, never inside their bounding sphere, and every points.keep point inside FRAMING.keep of it: aimed along
 // the line from the points' box center to the keep box center where that needs the shortest distance (11 steps).
-export function fitCameraToPoints(points, { position, target, fov = 50 }, aspect) {
+export function fitCameraToPoints(points, camera, aspect) {
+  const { position, target, fov = 50 } = points.surface ? raiseElevation(camera, FRAMING.surfaceElevation) : camera;
   const back = new THREE.Vector3().fromArray(position).sub(new THREE.Vector3().fromArray(target));
   if (back.lengthSq() === 0) back.set(0, 0, 1);
   const right = new THREE.Vector3(), up = new THREE.Vector3(), toward = new THREE.Vector3(), offset = new THREE.Vector3();

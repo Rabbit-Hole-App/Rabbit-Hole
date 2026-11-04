@@ -1,0 +1,73 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Gradient descent: a ball stepping down a loss surface",
+ "description": "A curved bowl-shaped surface stands for a loss surface, with its lowest point marked. A ball sits on the surface. With each step it jumps downhill and leaves a trail of its path. An arrow on the ball points in the steepest downhill direction, and its length shows how far the next step will go. You can take one step at a time or let it run. You can also change the step size (the learning rate) to see the ball creep, zigzag across the valley or fly off the surface.",
+ "experience": "experiment",
+ "reason": "Stepping one jump at a time shows that gradient descent is a series of separate moves, not a smooth roll. Changing the step size shows why the learning rate matters so much.",
+ "behavior": "rules",
+ "controlProfile": "manipulate",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Step size (learning rate)",
+   "min": 0.05,
+   "max": 0.8,
+   "step": 0.05,
+   "default": 0.15
+  },
+  {
+   "type": "toggle",
+   "id": "showArrow",
+   "label": "Show downhill arrow",
+   "default": true
+  }
+ ],
+ "interactions": [
+  "Take one step: the ball moves once by the step size times the downhill slope, and the trail grows by one point",
+  "Press play to let steps repeat automatically. Pause at any time",
+  "Drag the ball to pick a new starting point. This clears the trail and the step count",
+  "Change the step size. Small values make short, slow steps. Values above about 0.67 make the ball overshoot across the narrow valley farther each time, until it leaves the surface",
+  "Readouts show the step count, the loss at the ball and the steepness of the slope there"
+ ],
+ "assumptions": [
+  "Illustration: the surface is an example formula, not a trained model's real loss.",
+  "The loss is 0.5·x² + 1.5·y². This makes a valley that is steeper across one direction than along the other. Its lowest point is at the centre, where the loss is 0.",
+  "Each step moves the ball by the learning rate times the negative gradient (the steepest-downhill direction), computed exactly from the formula. There is no momentum or noise.",
+  "The ball is drawn on the surface at its current loss. The height is scaled down so the whole bowl fits on screen.",
+  "A run stops when the slope is almost flat (the ball has settled), after 100 steps, or when the ball leaves the edge of the surface. A readout then says it diverged."
+ ],
+ "limitations": [
+  "The ball does not really roll. It has no speed or momentum and jumps straight from point to point, as plain gradient descent does.",
+  "This surface has only one lowest point, so it cannot show the ball getting stuck in a local minimum (a dip that is not the lowest point).",
+  "The surface has only two adjustable values, so you can see it. Real models have millions."
+ ],
+ "learningGoal": "See that gradient descent moves step by step against the slope, and that the learning rate decides whether it settles slowly, zigzags or diverges.",
+ "requiredCapabilities": [
+  "step",
+  "actions",
+  "parameters",
+  "drag",
+  "readouts",
+  "labels"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.15,
+    0.8
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 2
+  }
+ ]
+}

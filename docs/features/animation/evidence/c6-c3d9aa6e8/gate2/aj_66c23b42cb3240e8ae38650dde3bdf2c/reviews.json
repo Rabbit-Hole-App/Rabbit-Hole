@@ -1,0 +1,289 @@
+[
+ {
+  "at": 1793765576257,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "6dfc4187d755fd378b54cda596dae7fcf0a6d865d6c9cc983dd2838ef83be2c4",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "Contour line pieces are drawn outside the bowl's edge at the left and right rims and look like stray lines.",
+       "repairable": false
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The 'Status' readout (paused/running/converged/diverged) never appears in the readout strip, so the run's outcome is never stated in words. Show it in the strip or as a scene label.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The artifact also stops a run when loss < 0.01 ('converged'). The plan does not have this rule, though the assumptions disclose it. At 0.19 the run correctly ends at step 14 with loss 0.009. The low end (0.05) and the zigzag range 0.4–0.5 were not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "At rate 0.7 the run diverges after only 2 steps (z: 0.5 → −0.9 → 1.62). From the default view the ball, which is past the near rim, projects onto the inside of the bowl, closer to the Bottom marker than the start. The picture reads as progress even though the loss went up to 5.276. No 'diverged' status is visible, and the growing jumps from wall to wall cannot be seen. Fix: make the bowl wider across (larger depth) so several growing jumps stay on the surface, and show a clear 'diverged / left the surface' marker plus the status readout.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The assumptions say the ball 'is held at the edge', but the program places it at its true position z = 1.62, which is beyond the edge at 1.5, so it floats off the surface.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "After diverging, the ball hangs in the air just past the rim, not at the edge as the assumptions state.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 12904,
+   "cache_creation_input_tokens": 2103,
+   "cache_read_input_tokens": 0,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 2103,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3907,
+   "output_tokens_details": {
+    "thinking_tokens": 2987
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_66c23b42cb3240e8ae38650dde3bdf2c-review-4",
+   "status": "settled",
+   "costMicros": 140271,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793765679366,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "bdb4516b51e7c60b7da2bc8973e6486b1bb065eecb95dd89229cc00c830dac85",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "The program returns a 'Status' text readout, which is first in the list, but the readout strip in the captures never shows it. Only the numeric readouts appear.",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "stepTag",
+       "message": "Near convergence the next-step arrow is only a few hundredths of a unit long, yet its 'Next step' label stays full size. The label crowds the ball and the 'Bottom' label. Hide the tag, or fade it out, when the step is shorter than about 0.1.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The 'previous run' ghost path, the low end of the rate (0.05) and the arrow toggle were not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "stepTag",
+       "message": "The 'Next step' label is larger than the nearly zero-length arrow it names, and it sits right against the ball.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 11264,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 2773,
+   "output_tokens_details": {
+    "thinking_tokens": 2172
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_66c23b42cb3240e8ae38650dde3bdf2c-review-6",
+   "status": "settled",
+   "costMicros": 100937,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

@@ -1,0 +1,119 @@
+[
+ {
+  "messageId": "202",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-e21ac53e5c314f2e",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient descent: a ball stepping down a loss surface",
+    "description": "A curved bowl-shaped surface stands for a loss surface, with its lowest point marked. A ball sits on the surface. With each step it jumps downhill and leaves a trail of its path. An arrow on the ball points in the steepest downhill direction, and its length shows how far the next step will go. You can take one step at a time or let it run. You can also change the step size (the learning rate) to see the ball creep, zigzag across the valley or fly off the surface.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-a9d46c48",
+     "job": "aj_a5198bdc01ef446cabcf37333fbdbfc2",
+     "plan_hash": "9bceb57746b0864684d33152d013f533d4162f111a5345ef26fe46931282ba62",
+     "request": "a ball rolling down a loss surface, step by step",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Step size (learning rate)",
+        "min": 0.05,
+        "max": 0.8,
+        "step": 0.05,
+        "default": 0.15
+       },
+       {
+        "type": "toggle",
+        "label": "Show downhill arrow",
+        "default": true
+       }
+      ],
+      "interactions": [
+       "Take one step: the ball moves once by the step size times the downhill slope, and the trail grows by one point",
+       "Press play to let steps repeat automatically. Pause at any time",
+       "Drag the ball to pick a new starting point. This clears the trail and the step count",
+       "Change the step size. Small values make short, slow steps. Values above about 0.67 make the ball overshoot across the narrow valley farther each time, until it leaves the surface",
+       "Readouts show the step count, the loss at the ball and the steepness of the slope there"
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793849832,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "a ball rolling down a loss surface, step by step",
+    "prompt": "A curved bowl-shaped surface stands for a loss surface, with its lowest point marked. A ball sits on the surface. With each step it jumps downhill and leaves a trail of its path. An arrow on the ball points in the steepest downhill direction, and its length shows how far the next step will go. You can take one step at a time or let it run. You can also change the step size (the learning rate) to see the ball creep, zigzag across the valley or fly off the surface.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Stepping one jump at a time shows that gradient descent is a series of separate moves, not a smooth roll. Changing the step size shows why the learning rate matters so much.",
+     "Behavior: rules",
+     "Controls: manipulate",
+     "Interaction: Take one step: the ball moves once by the step size times the downhill slope, and the trail grows by one point",
+     "Interaction: Press play to let steps repeat automatically. Pause at any time",
+     "Interaction: Drag the ball to pick a new starting point. This clears the trail and the step count",
+     "Interaction: Change the step size. Small values make short, slow steps. Values above about 0.67 make the ball overshoot across the narrow valley farther each time, until it leaves the surface",
+     "Interaction: Readouts show the step count, the loss at the ball and the steepness of the slope there",
+     "Parameter: Step size (learning rate), 0.05 to 0.8, default 0.15",
+     "Parameter: Show downhill arrow",
+     "Goal: See that gradient descent moves step by step against the slope, and that the learning rate decides whether it settles slowly, zigzags or diverges."
+    ],
+    "assumptions": [
+     "Illustration: the surface is an example formula, not a trained model's real loss.",
+     "The loss is 0.5·x² + 1.5·y². This makes a valley that is steeper across one direction than along the other. Its lowest point is at the centre, where the loss is 0.",
+     "Each step moves the ball by the learning rate times the negative gradient (the steepest-downhill direction), computed exactly from the formula. There is no momentum or noise.",
+     "The ball is drawn on the surface at its current loss. The height is scaled down so the whole bowl fits on screen.",
+     "A run stops when the slope is almost flat (the ball has settled), after 100 steps, or when the ball leaves the edge of the surface. A readout then says it diverged."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "The ball does not really roll. It has no speed or momentum and jumps straight from point to point, as plain gradient descent does.",
+     "This surface has only one lowest point, so it cannot show the ball getting stuck in a local minimum (a dip that is not the lowest point).",
+     "The surface has only two adjustable values, so you can see it. Real models have millions."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-a9d46c48"
+    },
+    "quote": null,
+    "review_hash": "2ba9a3725e750235ccd67175c7882aeea040810293f3b0f043403b207346c71e",
+    "sig": "v3.54af82bc9896e4825a3c5be2f36e5d26a5d4fcb1b5208298e83dd76bcbf234bd",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 373,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.54af82bc9896e4825a3c5be2f36e5d26a5d4fcb1b5208298e83dd76bcbf234bd",
+    "used": {
+     "version": 1,
+     "key": "aj_a5198bdc01ef446cabcf37333fbdbfc2"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "202"
+   ],
+   "feedback": null
+  }
+ }
+]

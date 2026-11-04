@@ -1,0 +1,24 @@
+candidate 4a920b1f7433523b4e8c92afb813694090407aff   prompt-files 9ed30cbe8b760cabeb309ba546394ec5cc2d242fa13c55fc2edf361982dc428c   golden 1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc
+transport dev-key   concurrency 5   cap 900 credits   plans sgd-loss-surface
+run                   session  bytes  tokens in/out  validator  assertions  credits  seconds  status
+sgd-loss-surface-r01  -        8943   7984/8513      PASS       PASS        24.26    68.6     valid 
+sgd-loss-surface-r02  -        9308   7984/8801      PASS       PASS        24.84    71.8     valid 
+sgd-loss-surface-r03  -        9072   7984/11552     PASS       PASS        30.34    98.8     valid 
+sgd-loss-surface-r04  -        9418   7984/9854      PASS       PASS        26.94    79       valid 
+sgd-loss-surface-r05  -        9331   7984/8561      PASS       PASS        24.36    70       valid 
+sgd-loss-surface-r06  -        9456   7984/11361     PASS       PASS        26.08    95.6     valid 
+sgd-loss-surface-r07  -        9242   7984/8495      PASS       PASS        20.35    67.7     valid 
+sgd-loss-surface-r08  -        9391   7984/9709      PASS       PASS        22.77    81.2     valid 
+sgd-loss-surface-r09  -        8946   7984/10852     PASS       PASS        25.06    87.1     valid 
+sgd-loss-surface-r10  -        8780   7984/9899      PASS       PASS        23.15    80       valid 
+sgd-loss-surface-r11  -        9322   7984/9444      PASS       PASS        22.24    77.6     valid 
+sgd-loss-surface-r12  -        9324   7984/10202     PASS       PASS        23.76    83.9     valid 
+sgd-loss-surface-r13  -        9616   7984/10922     PASS       PASS        25.20    89.3     valid 
+sgd-loss-surface-r14  -        9254   7984/10081     PASS       PASS        23.52    80.9     valid 
+sgd-loss-surface-r15  -        9648   7984/11560     PASS       PASS        26.48    93.5     valid 
+sgd-loss-surface-r16  -        9441   7984/8102      PASS       PASS        19.56    63.4     valid 
+sgd-loss-surface-r17  -        9319   7984/8991      PASS       PASS        21.34    73.2     valid 
+sgd-loss-surface-r18  -        9315   7984/9172      PASS       PASS        21.70    74.6     valid 
+sgd-loss-surface-r19  -        9593   7984/10312     PASS       PASS        23.98    83.3     valid 
+sgd-loss-surface-r20  -        9182   7984/8492      PASS       PASS        20.34    69.6     valid 
+settled 476.25 credits (computed from provider usage at registry rates, US$4.76); valid 20 of 20

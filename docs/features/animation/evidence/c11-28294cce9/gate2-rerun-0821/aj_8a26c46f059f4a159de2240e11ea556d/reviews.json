@@ -1,0 +1,156 @@
+[
+ {
+  "at": 1793809588557,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "96964c6503ddb905ac84dbd026f76c1fc9c0116b0dfd59a3ca2c6726b32728ea",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "These captures never sample the default learning rate of 0.55. That run has a multiplier of -1.2 and should leave the surface after about 9 steps of zigzag. Restarting while keeping the old path, a learning rate exactly at the threshold, and steepness values other than 4 are not sampled either.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "stepArrow",
+       "message": "Near convergence the next-step arrow is drawn at half its true length, so it shrinks to a stub hidden inside the ball and its 'Next step' label is not readable. That is honest to the scale, but a learner cannot see the arrow here.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "major",
+       "object": "ball",
+       "message": "At learning rate 1 the host pins the diverged ball at height 2.7, but the bowl's edge there is at 2.16 and the trail ends at the edge. In the default view the ball floats in the air, apart from the end of its trail. The scene could fix this by clamping the ball's drawn position the same way it clamps the trail points, so the ball sits where the trail ends.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "trail",
+       "message": "The first trail segment looks much thinner than the second, close to a hairline, in the default view.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "At the high end the run diverges in only 2 steps, so the 'landing higher each time' zigzag is barely shown. The default of 0.55, which should show it clearly, is not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "object": "ball",
+       "message": "In the side view the host-clamped ball sits just past the end of the trail, which stops at the bowl's edge. It is less noticeable from this angle.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13436,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4261,
+   "output_tokens_details": {
+    "thinking_tokens": 3051
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_8a26c46f059f4a159de2240e11ea556d-review-4",
+   "status": "settled",
+   "costMicros": 139385,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

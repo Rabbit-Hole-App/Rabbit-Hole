@@ -1,0 +1,176 @@
+{
+  "_doc": [
+    "Recovery recipes for scripts/animation/cut-recovery.sh (engine: recovery-steps.mjs). One entry per ladder slice. Lanes edit THIS file when their code moves.",
+    "Recovery is always a FORWARD commit on top of the candidate (never a revert of history, never a force push): it undoes only what the slice added, and the diff against the candidate may touch nothing outside `allow`.",
+    "steps: replace | restore | restoreMatching (see recovery-steps.mjs). PREV is the release before the candidate (default: merge-base of the candidate and rabbit-hole/main).",
+    "verify: node --test sets run on the recovery branch itself at cut time, so a cut that breaks an import or a pinned test fails when it is cut, not when it is needed.",
+    "switch: the one-line statement of what flips, kept here so the doc and the script cannot drift.",
+    "release-check: after verify, the real scripts/prod-release.mjs checkCandidate (loaded from the recovery branch itself) is asked whether it would release the recovery tip over the served candidate; it REFUSES a tree that no longer declares a client feature the served release declares (so mvp3 must not touch capabilities.js)."
+  ],
+  "mvp2b": {
+    "title": "ANIMATION_STREAMING \"false\" in the production app config: the author and repair calls are one non-streaming request again",
+    "switch": "packages/web/wrangler.rabbit-hole-prod.jsonc gains the var \"ANIMATION_STREAMING\": \"false\" next to ANIMATION_EXECUTION_KILL, and rabbit-hole-prod-config.test.js lists the third Animation var. animation-policy.js animationStreaming() then returns null: no stream, no deadline, exactly as before MVP2b (animation-transport.test.js pins it). Billing escrow, the same-job retry and the repair settings are untouched. Read: the flag is a Worker var, so the recovery is a forward release of the config, like rollback/animation-disable.",
+    "message": "Animation forward recovery (MVP2b): ANIMATION_STREAMING false in production, so the author and repair calls are one non-streaming request again; billing, retry and repair settings are untouched",
+    "steps": [
+      {
+        "op": "replace",
+        "file": "packages/web/wrangler.rabbit-hole-prod.jsonc",
+        "pattern": "(\"ANIMATION_EXECUTION_KILL\":\\s*\"false\",)",
+        "with": "$1\n    // FORWARD RECOVERY (MVP2b): the author and repair calls are one non-streaming request with no deadline, as before streaming. Remove this line to stream again.\n    \"ANIMATION_STREAMING\": \"false\","
+      },
+      {
+        "op": "replace",
+        "file": "packages/control-plane/test/rabbit-hole-prod-config.test.js",
+        "pattern": "\\['ANIMATION_ENABLED', 'ANIMATION_EXECUTION_KILL'\\], 'no ANIMATION_DIAGNOSTICS or other Animation var'",
+        "with": "['ANIMATION_ENABLED', 'ANIMATION_EXECUTION_KILL', 'ANIMATION_STREAMING'], 'no ANIMATION_DIAGNOSTICS or other Animation var'"
+      }
+    ],
+    "allow": [
+      "packages/web/wrangler.rabbit-hole-prod.jsonc",
+      "packages/control-plane/test/rabbit-hole-prod-config.test.js"
+    ],
+    "verify": [
+      {
+        "cwd": "packages/control-plane",
+        "files": [
+          "test/rabbit-hole-prod-config.test.js",
+          "test/animation-transport.test.js",
+          "test/animation-policy.test.js",
+          "test/animation-job.test.js"
+        ]
+      }
+    ]
+  },
+  "mvp3": {
+    "title": "the server stops recognising the five client features: clientFeatures() filters them out; the browser, the contract and the renderer stay",
+    "switch": "packages/control-plane/src/animation-brief.js clientFeatures() drops surface_grid, trail_points, text_readout, arrow_anchor and clamp from any declared list. Every job then counts as not declaring them, so clientProblems() refuses a new draft that uses one (repairable) and readResult answers 409 client_update_required for a stored scene that uses one (the text says reload, which does not help: the cost of a switch-off without a new message). capabilities.js is NOT touched: prod-release.mjs checkCandidate refuses a release whose tree no longer declares a feature the served release declares, and the bundle check wants every listed feature in the build (old-client-compatibility.md, AN-18). Nothing stored changes; a read never writes.",
+    "message": "Animation forward recovery (MVP3): the server stops recognising surface_grid, trail_points, text_readout, arrow_anchor and clamp, so new drafts that use them are refused and stored scenes that need them answer client_update_required; the browser still declares them, the contract and renderer stay",
+    "steps": [
+      {
+        "op": "replace",
+        "file": "packages/control-plane/src/animation-brief.js",
+        "pattern": "(clientFeatures = value => \\(Array\\.isArray\\(value\\) \\? ANIMATION_CLIENT_FEATURES\\.filter\\(f => )value\\.includes\\(f\\)(\\) : \\[\\]\\);)",
+        "with": "$1value.includes(f) && !['surface_grid', 'trail_points', 'text_readout', 'arrow_anchor', 'clamp'].includes(f)$2"
+      },
+      {
+        "op": "replace",
+        "optional": true,
+        "file": "packages/control-plane/test/animation-old-client.test.js",
+        "pattern": "\\r?\\n  assert\\.equal\\(surfaceCapability\\(\\{ features: \\['curve_radius', 'surface_grid'\\] \\}\\)\\.surfaces, SURFACES\\.surface, 'AN-20: [^\\n]*\\r?\\n",
+        "with": "\n"
+      },
+      {
+        "op": "restoreMatching",
+        "under": [
+          "packages/control-plane/test"
+        ],
+        "suffix": [
+          ".test.js"
+        ],
+        "added": true,
+        "candMatches": "ANIMATION_CLIENT_FEATURES|surface_grid|trail_points|text_readout|arrow_anchor|clientFeatures"
+      }
+    ],
+    "allow": [
+      "packages/control-plane/src/animation-brief.js",
+      "packages/control-plane/test/*.test.js"
+    ],
+    "verify": [
+      {
+        "cwd": "packages/control-plane",
+        "files": [
+          "test/animation-old-client.test.js",
+          "test/animation-pipeline.test.js",
+          "test/animation-sgd-mvp1.test.js",
+          "test/animation-sgd-framing.test.js",
+          "test/animation-fit.test.js"
+        ]
+      }
+    ]
+  },
+  "mvp4": {
+    "title": "prompts restored to the previous release's text",
+    "switch": "the planner, author, repair and review prompt files (agents/animation-author.js, agents/animation-brief.js) and the fit test that pins their size go back to PREV. If a file that is NOT restored imports something the restored prompt files no longer export (an archetype table, say), the verify step fails at cut time: add that file to the restore list.",
+    "message": "Animation forward recovery (MVP4): the planner, author, repair and review prompts are back to the previous release's text",
+    "steps": [
+      {
+        "op": "restore",
+        "paths": [
+          "packages/control-plane/src/agents/animation-author.js",
+          "packages/control-plane/src/agents/animation-brief.js",
+          "packages/control-plane/test/animation-fit.test.js"
+        ],
+        "from": "prompts"
+      },
+      {
+        "op": "restoreMatching",
+        "under": [
+          "packages/control-plane/test"
+        ],
+        "suffix": [
+          ".test.js"
+        ],
+        "candMatches": "wireframe|SIZE_RULES|ANIMATION_AUTHOR_SYSTEM|ANIMATION_REPAIR_SYSTEM|ANIMATION_REVIEW_SYSTEM|ANIMATION_BRIEF_SYSTEM|COMPACT_RULES|ARCHETYPES",
+        "from": "prompts"
+      }
+    ],
+    "allow": [
+      "packages/control-plane/src/agents/animation-author.js",
+      "packages/control-plane/src/agents/animation-brief.js",
+      "packages/control-plane/test/*.test.js"
+    ],
+    "verify": [
+      {
+        "cwd": "packages/control-plane",
+        "files": [
+          "test/animation-fit.test.js",
+          "test/animation-pipeline.test.js",
+          "test/animation-policy.test.js",
+          "test/animation-sgd-mvp1.test.js"
+        ]
+      }
+    ]
+  },
+  "mvp5": {
+    "title": "copy-line restore: loss surfaces are 'not supported yet' again and SGD leaves the claimed list",
+    "switch": "every UI, test or browser-check file the candidate changed whose PREVIOUS text carried the 'loss surfaces ... not supported yet' line goes back to PREV (the request-box copy and the claimed-capabilities line are one string in the UI). Docs are not touched. required: if no file matches, the cut stops (wrong --prev, or the copy moved).",
+    "message": "Animation forward recovery (MVP5): the request-box copy says loss surfaces and optimizers are not supported yet again, and SGD is out of the claimed capabilities",
+    "steps": [
+      {
+        "op": "restoreMatching",
+        "under": [
+          "packages/web/src",
+          "packages/web/e2e"
+        ],
+        "prevMatches": "loss surfaces?[^\"'`]{0,120}not (yet )?supported|not (yet )?supported[^\"'`]{0,120}loss surfaces?",
+        "required": true
+      }
+    ],
+    "allow": [
+      "packages/web/src/**",
+      "packages/web/e2e/**"
+    ],
+    "verify": [
+      {
+        "cwd": "packages/web",
+        "files": [
+          "src/agent/slash.test.mjs",
+          "src/slash-sheet.test.mjs",
+          "src/animation3d/learning-examples.test.mjs",
+          "src/Animation3DCard.test.mjs"
+        ]
+      }
+    ]
+  },
+  "combined": {
+    "title": "ONE release carries MVP2b + MVP3 + MVP4 + MVP5: one forward branch with all four switches",
+    "switch": "streaming: ANIMATION_STREAMING \"false\" in the production app config (MVP2b); the five client features: the server filters them in animation-brief.js clientFeatures(), capabilities.js untouched so prod-release checkCandidate still passes (MVP3); prompts: agents/animation-author.js, agents/animation-brief.js and the tests that pin their text go back to --prompts-from (the Gate 1 tested C3; default: the previous release) (MVP4); copy: the \"Loss surfaces and optimizers are not supported yet\" line and the claim list go back to the previous release in the UI, its test and its e2e step (MVP5). Billing escrow, the same-job retry, the golden fixture, the contract and the renderer stay. Cut it with the candidate and pass --prompts-from <C3 sha>.",
+    "message": "Animation forward recovery (combined release): ANIMATION_STREAMING false, the server stops recognising the five SGD client features, the prompts are back to the tested earlier text, and loss surfaces are \"not supported yet\" again; billing, retry, contract and renderer are untouched",
+    "compose": [
+      "mvp2b",
+      "mvp3",
+      "mvp4",
+      "mvp5"
+    ]
+  }
+}

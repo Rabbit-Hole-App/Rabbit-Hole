@@ -1,0 +1,174 @@
+[
+ {
+  "at": 1793809855331,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "bf5ea0098adcc24c1126c7ecbe31b4bcf86cf8861b7c51f0e4a91199d3f1444c",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan said to drag the ball to any new starting point on the surface. The artifact only lets the learner drag along the steep y direction, and x is kept from the earlier start. The assumptions disclose this. Dragging was not sampled.",
+       "repairable": true,
+       "object": "ball"
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan's trail drew one marker every 2 steps, up to 100. The artifact marks every step, up to 201 points, and explains why in its assumptions: the zig-zag flips side every step. Every number the plan promises still holds.",
+       "repairable": true,
+       "object": "trail"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "At k=4 the bowl is narrow and fills only about 28% of the frame's width, leaving wide empty bands on both sides. It is still readable, but the camera could be moved closer.",
+       "repairable": true,
+       "object": "bowl"
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Near the minimum the downhill arrow is 0.059 long and mostly hidden behind the ball. Its label does not appear, even though showGradient is on and the arrow counts as visible.",
+       "repairable": true,
+       "object": "arrowTag"
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: learningRate at its low end (0.01), curvature at 1 and 10, and turning the downhill arrow on and off.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The trail's last point is clamped sideways to the rim but drawn at the true loss height (about 1.9) instead of the rim's surface height (about 1.0). The final segment rises into the air to meet the ball, which the host draws clamped at the rim. This reads as flying off the bowl, which matches the plan.",
+       "repairable": true,
+       "object": "trail"
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Near convergence the downhill arrow is a small purple stub and its label is missing.",
+       "repairable": true,
+       "object": "arrow"
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "The host clamps the ball to the rim at x=-1, short of its true position at -1.372. The readouts keep the true values.",
+       "repairable": false,
+       "object": "ball"
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13481,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4392,
+   "output_tokens_details": {
+    "thinking_tokens": 3347
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_9d29453f06914cf1a6fcb5d9fc8cb6ab-review-3",
+   "status": "settled",
+   "costMicros": 142185,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

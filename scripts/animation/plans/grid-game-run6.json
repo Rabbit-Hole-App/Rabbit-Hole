@@ -1,0 +1,42 @@
+{
+  "schema": "animation-pinned-plan/1",
+  "name": "grid-game-run6",
+  "kind": "regression",
+  "request": "Make a small game where I move a token across a 3 by 3 grid with buttons to reach a marked goal square, with a hint and a reset.",
+  "plan": {
+    "schema": "animation-plan/1",
+    "title": "Token to Goal: 3 by 3 Grid Puzzle",
+    "description": "A flat 3 by 3 board of tiles with a sphere token on the bottom-left square and a raised, coloured marker on the goal square at the top-right. Up, Down, Left and Right buttons move the token one square at a time. A Hint button lights up an arrow showing a move that brings the token one step closer to the goal. Readouts show the number of moves made and how many steps away the goal still is. When the token reaches the goal, a win message appears with your move count compared with the shortest possible route, which is 4 moves.",
+    "experience": "game",
+    "reason": "You asked for a small challenge you play with buttons, and a game gives you exactly that: a clear goal, moves you choose, a hint when you're stuck, and a result when you get there.",
+    "behavior": "rules",
+    "controlProfile": "inspect",
+    "sourceRefs": [],
+    "parameters": [],
+    "interactions": [
+      "Press Up, Down, Left or Right to move the token one square in that direction. A move that would leave the board does nothing, and a short message says so.",
+      "Press Hint to light up an arrow on a move that brings the token one step closer to the goal.",
+      "Watch the move counter and the 'steps to goal' readout change after each move.",
+      "Use the card's Reset to put the token back on its starting square and clear the move count.",
+      "Turn the camera around the board to see it from any angle."
+    ],
+    "assumptions": [
+      "This is a simple made-up puzzle, not a model of anything real.",
+      "The token moves only up, down, left or right, never diagonally, so 'steps to goal' counts the up/down steps plus the left/right steps (taxicab distance).",
+      "The token starts on the bottom-left square and the goal is the top-right square, so the shortest route takes 4 moves.",
+      "Once the token reaches the goal, the game is won and the move buttons stop working until you press Reset."
+    ],
+    "limitations": [
+      "The start and goal squares are always the same, so every round is the same puzzle. Reset puts the token back on the same starting square; it does not choose a new start or goal.",
+      "The board has no walls or obstacles, so the hint simply points toward the goal."
+    ],
+    "learningGoal": "See how moves on a grid add up: the shortest route is the number of rows plus the number of columns between the token and the goal.",
+    "requiredCapabilities": [
+      "actions",
+      "labels",
+      "readouts"
+    ]
+  },
+  "source": "C:/s/spec/animation/sgd-mvp1-acceptance/logs/run6-accepted-plan.json (run 6, job aj_1f8eed916ce34942a086deb5654c2ea5, accepted at the first review, 0 repairs, 24.76 credits)",
+  "why": "Known good: the grid game the limited MVP run accepted at caf7ee9bc."
+}

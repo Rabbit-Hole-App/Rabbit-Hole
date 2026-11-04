@@ -1,0 +1,287 @@
+[
+ {
+  "at": 1793765936515,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "74c09e73136d56d074b91ff7f0316c2757e5e5ff88a2234582f84e246516f560",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "No capture creates a kept path. In every sampled sequence, keepPath is pressed when k = 0, so nothing is kept. That means the faded blue, purple and green comparison trails, the kept-path final-loss readouts, the limit of 3 kept paths and Clear kept paths are all unverified. This is the core of the request, so it needs a check after a run has taken steps.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "Short stray contour line segments appear outside the surface edges on the left and right.",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Near the end of the run, the ball sits almost on top of the Lowest point dot and partly hides it.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "At learning rate 0.38, each step multiplies the steep-direction (z) coordinate by 1 − 0.38·5 = −0.9, so the ball flips sides every step. The trail records only every 4th step, though, and (−0.9)^4 > 0 keeps the same sign. The zig-zag is lost to aliasing: the trail is an almost straight line from Start to the centre, which contradicts the promise that values near the top make the path zig-zag across the steep direction. Fix: record trail points at an odd step interval (e.g. every 3 or 5 steps) or record every step for the recent part of the trail, so the zig-zag shows.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Same aliasing problem seen from the side view. With learning rate 0.38, the trail goes in a straight line from Start toward the centre with no back-and-forth across the narrow direction, because points every 4 steps hide the sign flip on each step.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13148,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 2495,
+   "output_tokens_details": {
+    "thinking_tokens": 1622
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_2dbb57f52bdc442f87409854dad2c532-review-4",
+   "status": "settled",
+   "costMicros": 102913,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793766044047,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "54c582082f4b109f58064531542db6d6d2516f1b4c4cc60beb943131c6ee341b",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The kept-path comparison is the core request but was never sampled: keepPath was pressed only at step 0 (nothing kept) and the resume did not fire. The program logic (keep up to 3, ghost trails g0-g2, final-loss readouts) looks correct but no capture shows a faded path or a kept final loss.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan promises one trail marker every 4 steps, at most 50. The artifact records every step. This is disclosed in the assumptions with a reason, but the plan's limitations still say 50 markers.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "A few contour-line fragments extend past the surface edges at the left and right.",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The Status text readout (running) is computed but not visible in the readout line, which shows only loss and step.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The status word 'diverged' is used when noise pushes the ball off the drawn surface, although the learning-rate range never truly diverges. 'Left the surface' would be more honest.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13180,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3645,
+   "output_tokens_details": {
+    "thinking_tokens": 2163
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_2dbb57f52bdc442f87409854dad2c532-review-6",
+   "status": "settled",
+   "costMicros": 126041,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

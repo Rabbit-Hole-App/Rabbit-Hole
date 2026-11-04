@@ -4,9 +4,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   cardModel, cardPhase, defaultInputs, detectWebGL, eventFor, failureOf, failureText, formatValue, frameView, invalidArtifact, outcomeText, parameterInput,
-  readoutText, retryLabel, visibleControls, WEBGL_UNAVAILABLE, FIXTURE_NOTE, INTERACT_LEGEND, jobOf, artifactRefOf,
+  readoutLines, readoutText, retryLabel, visibleControls, WEBGL_UNAVAILABLE, FIXTURE_NOTE, INTERACT_LEGEND, jobOf, artifactRefOf,
 } from './card.js';
 import { validateAnimationEvent } from './contract.js';
+import { primitivesFixture } from './fixtures.js';
 import { experimentArtifact, gameArtifact, inspectArtifact, validated, watchArtifact } from './testdata/ui-stubs.mjs';
 
 const noEllipsis = value => assert.doesNotMatch(String(value), /\.\.\.|…/);
@@ -121,6 +122,10 @@ test('frame text: declared readouts in order with their units and decimals; the 
   assert.equal(frameView({ readouts: { tilt: 1 } }, m).readouts.length, 1, 'a readout the frame does not carry is not shown');
   const game = frameView({ readouts: { moves: 5 }, goal: { status: 'won', message: 'On target.' } }, model(gameArtifact()));
   assert.deepEqual(game.readouts.map(readoutText), ['5']);
+  // text_readout (AN-18): the word of a text readout is shown as it is; a number where a word is declared, or a word where a number is, is not shown.
+  const worded = model(primitivesFixture.artifact);
+  assert.deepEqual(frameView({ readouts: { loss: 0.25, status: 'running' } }, worded).readouts.map(readoutText), ['0.25', 'running']);
+  assert.deepEqual(frameView({ readouts: { loss: 'x', status: 3 } }, worded).readouts, []);
   assert.equal(outcomeText(game.goal), 'On target.');
   assert.equal(outcomeText({ status: 'lost' }), 'Not solved');
   assert.equal(outcomeText(null), 'In progress');
@@ -145,4 +150,18 @@ test('a saved card\'s own words stand alone, and only retryable ones offer Retry
   assert.equal(detectWebGL({ createElement: () => ({ getContext: () => null }) }), false);
   assert.equal(detectWebGL({ createElement: () => { throw new Error('blocked'); } }), false);
   assert.equal(detectWebGL(undefined), false);
+});
+
+// FX-AN-098 (Gate 2 on C4, C6 and C7: the reviewer reported the Status word missing from the readout strip in 7 of 8, 5 of 9 and 7 of 7 jobs, and it was the main major finding of
+// aj_be5a40378c654322a74f8eeca2e3286f and aj_3497b72a27c64f129e82ed27cefc8f95): the review page draws its own readout strip. It kept only finite numbers, so a text readout's word was
+// never in the picture the reviewer saw. The strip now takes the card's lines.
+test('the review page\'s readout strip carries a text readout\'s word, in declaration order, formatted as the card formats it', () => {
+  const artifact = primitivesFixture.artifact;
+  assert.deepEqual(readoutLines(artifact, { readouts: { loss: 0.25, status: 'running' } }), ['Loss: 0.25', 'Status: running']);
+  assert.deepEqual(readoutLines(artifact, { readouts: { status: 'diverged', loss: 20.338437 } }), ['Loss: 20.34', 'Status: diverged'], 'declaration order, and the declared decimals');
+  assert.deepEqual(readoutLines(artifact, { readouts: { status: 'converged' } }), ['Status: converged'], 'a readout the frame does not carry is not shown');
+  assert.deepEqual(readoutLines(artifact, { readouts: { loss: 'x', status: 3 } }), [], 'a word where a number is declared, or a number where a word is, is not shown');
+  assert.deepEqual(readoutLines(artifact, {}), []);
+  const lever = validated(experimentArtifact());
+  assert.deepEqual(readoutLines(lever, { readouts: { tilt: 10, leftMoment: 6, rightMoment: 4 } }), ['Left moment: 6.00 kg m', 'Right moment: 4.00 kg m', 'Tilt: 10.0 deg'], 'numbers with their units, as before');
 });

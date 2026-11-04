@@ -1,0 +1,161 @@
+[
+ {
+  "messageId": "224",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-5e5cefc1aa1c30c3",
+    "version": 1,
+    "command": "animation",
+    "title": "Learning rate 0.1 vs 1.5: gradient descent on the same bowl",
+    "description": "A stretched bowl-shaped loss surface with contour lines holds two marker balls that start from the same point. The blue ball uses learning rate 0.1 and the orange ball uses 1.5. On each step, both balls jump in the downhill direction. The jump is the learning rate times the slope (the gradient), and each ball leaves a path. Blue creeps smoothly toward the bottom, while orange overshoots and zig-zags across the narrow valley in wider and wider swings until it leaves the surface.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-bd1e5157",
+     "job": "aj_aeb96465d2e142938de8d7b5f3235bc9",
+     "plan_hash": "0f965b7d0de0b3366e8c802acfc708fd5970a1a924f90460e2cc1f51f3b3bcb3",
+     "request": "compare learning rate 0.1 and 1.5 on the same surface",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate, blue ball",
+        "min": 0.01,
+        "max": 2,
+        "step": 0.01,
+        "default": 0.1
+       },
+       {
+        "type": "number",
+        "label": "Learning rate, orange ball",
+        "min": 0.01,
+        "max": 2,
+        "step": 0.01,
+        "default": 1.5
+       },
+       {
+        "type": "number",
+        "label": "Start position, long direction",
+        "min": -3.5,
+        "max": 3.5,
+        "step": 0.1,
+        "default": -3
+       },
+       {
+        "type": "number",
+        "label": "Start position, narrow direction",
+        "min": -3.5,
+        "max": 3.5,
+        "step": 0.1,
+        "default": 0.5
+       }
+      ],
+      "interactions": [
+       "Play, pause or step: each step moves both balls once, and the paths grow behind them.",
+       "Change either learning rate. Both balls go back to the start point and their paths clear, so you can see the new behavior from the beginning.",
+       "Move the shared start point to see whether the comparison still holds from another place on the surface.",
+       "Clear both paths and send both balls back to the start point, keeping your current settings.",
+       "Read each ball's step count, current loss and status (going down, settled, or left the surface)."
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793852072,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "compare learning rate 0.1 and 1.5 on the same surface",
+    "prompt": "A stretched bowl-shaped loss surface with contour lines holds two marker balls that start from the same point. The blue ball uses learning rate 0.1 and the orange ball uses 1.5. On each step, both balls jump in the downhill direction. The jump is the learning rate times the slope (the gradient), and each ball leaves a path. Blue creeps smoothly toward the bottom, while orange overshoots and zig-zags across the narrow valley in wider and wider swings until it leaves the surface.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. With both learning rates on one surface and one starting point, any difference in their paths comes only from the learning rate. You can play, pause or step to watch it happen, then change either rate to find where steady progress turns into overshooting.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Play, pause or step: each step moves both balls once, and the paths grow behind them.",
+     "Interaction: Change either learning rate. Both balls go back to the start point and their paths clear, so you can see the new behavior from the beginning.",
+     "Interaction: Move the shared start point to see whether the comparison still holds from another place on the surface.",
+     "Interaction: Clear both paths and send both balls back to the start point, keeping your current settings.",
+     "Interaction: Read each ball's step count, current loss and status (going down, settled, or left the surface).",
+     "Parameter: Learning rate, blue ball, 0.01 to 2, default 0.1",
+     "Parameter: Learning rate, orange ball, 0.01 to 2, default 1.5",
+     "Parameter: Start position, long direction, -3.5 to 3.5, default -3",
+     "Parameter: Start position, narrow direction, -3.5 to 3.5, default 0.5",
+     "Goal: See that a small learning rate makes slow, steady progress downhill, while a learning rate too large for the surface's steepest curve overshoots the bottom and can swing farther away each step."
+    ],
+    "assumptions": [
+     "Illustration: a made-up bowl formula, not the loss of a real trained model.",
+     "The loss is 0.5·x² + 0.75·y² on a square from −4 to 4. Its curvature is 1 along the long direction and 1.5 along the narrow one, and the surface is drawn with its height scaled down so it fits the view.",
+     "Each step is plain gradient descent with no momentum or noise: new position = old position − learning rate × slope. The exact slope from the formula is used.",
+     "Each ball stops when its loss drops below 0.001 (settled), when it moves off the square (shown as left the surface, meaning it diverged), or after 60 steps."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Along each direction, a step multiplies the distance to the bottom by 1 − learning rate × curvature. In the narrow direction, rates from 0.67 to 1.33 swing back and forth but still shrink. Above 1.33 the swings grow.",
+     "In the long direction, swings grow only above 2, so that never happens within the slider range. These thresholds belong to this bowl only. Other surfaces have different safe ranges.",
+     "At 1.5 the orange ball still closes in along the long direction, swinging past the bottom each step. Its distance in the narrow direction grows by 1.25 times per step, so it leaves the surface after roughly 10 steps from the default start.",
+     "A real loss surface is bumpier and has more than two directions. This bowl shows the core effect of step size, not every behavior of real training."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-bd1e5157"
+    },
+    "quote": null,
+    "review_hash": "c0863a82b509fde2dedcc90929d34b2da64fe7c3f71416ba280d581286853bb3",
+    "sig": "v3.9734be1228791aead0769e13405130f554f510a8e32c7fc2a011d9b178fae213",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 373,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.9734be1228791aead0769e13405130f554f510a8e32c7fc2a011d9b178fae213",
+    "used": {
+     "version": 1,
+     "key": "aj_aeb96465d2e142938de8d7b5f3235bc9"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "224"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "229",
+  "role": "assistant",
+  "content": "\"Learning rate 0.1 vs 1.5: gradient descent on the same bowl\" was not finished. The build reached its spending limit. You have not been charged. It was corrected automatically once. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate. Your request and plan are kept.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_aeb96465d2e142938de8d7b5f3235bc9:1",
+   "alternativeOf": null,
+   "alternatives": [
+    "229"
+   ],
+   "feedback": null
+  }
+ }
+]

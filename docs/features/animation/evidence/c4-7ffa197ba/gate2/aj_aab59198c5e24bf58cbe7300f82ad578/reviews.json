@@ -1,0 +1,216 @@
+[
+ {
+  "at": 1793763967291,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "1ae4f655aba499369208d061a94c4e7940b5e7e5ac7b55ca8f7c421cdaa22ddf",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ball",
+       "message": "In the default view the red ball (start x=1.8, y=0.5) sits behind the near rim of the bowl, so only a sliver shows. The front edge at that x is at height ≈1.81 and the ball is at ≈1.20. Choose a camera that looks down into the bowl (higher, or from the +x side), or a start point the near wall does not hide.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "lowest",
+       "message": "The minimum dot is hidden behind the front wall, and its 'Minimum' label floats over the wall's outside face, away from the point it names.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "status",
+       "message": "The plan promises a readout that says when the run diverged or converged, but the drawn readout bar shows only loss, step number and gradient size. The 'status' text readout never appears.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "yHandle",
+       "message": "The grey y-handle cube floats unlabelled in empty space below the bowl, and nothing tells the learner what it is for.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "ball",
+       "message": "The plan says the learner can drag the ball to any start point on the surface. The ball only drags along x, and y needs the separate handle. The low and high ends of learning rate and steepness were not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ball",
+       "message": "After 14 steps the ball, the arrow and the orange trail cannot be seen at all in the default view: the bowl's near wall hides them. Only the 'Downhill (−gradient)' label shows, floating over the wall with no visible arrow. The learner cannot watch the descent from the starting camera.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "status",
+       "message": "The status readout ('running') is computed but not shown.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "status",
+       "message": "The run diverged (status 'diverged' in the trace), but the visible readouts don't say so. A learner sees only a loss of 3.77 and the ball hanging in the air.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "trail",
+       "message": "The trail joins steps with straight segments that cut through the air above the surface, and the last segment leaves the bowl to a floating ball. This is acceptable for divergence, but it is hard to read without a label.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "object": "ball",
+       "message": "The host clamps the ball's height (true 2.0257, drawn at 2).",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "status",
+       "message": "The status readout is not displayed (same fault as the default view).",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "status",
+       "message": "The status readout is not displayed. The ball, arrow and trail are correct here, which confirms they are hidden only in the default view.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "status",
+       "message": "The 'diverged' status is not shown in the readouts.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13380,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 2976,
+   "output_tokens_details": {
+    "thinking_tokens": 1581
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_aab59198c5e24bf58cbe7300f82ad578-review-4",
+   "status": "settled",
+   "costMicros": 113461,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

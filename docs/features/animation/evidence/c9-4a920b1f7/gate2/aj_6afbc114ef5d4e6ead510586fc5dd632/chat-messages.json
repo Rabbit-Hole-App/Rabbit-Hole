@@ -1,0 +1,208 @@
+[
+ {
+  "messageId": "279",
+  "role": "assistant",
+  "content": "\"Stochastic gradient descent on a loss surface, with kept paths to compare runs\" needs a change before it can be made. By our estimate this plan is too large to build and check: it draws a trail of 150 markers and a kept comparison path of the same length. An estimate can be wrong. Nothing has been built, and no AI credits have been used on building. Choose below: each option says exactly what changes, and nothing is built until you press Generate.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_6afbc114ef5d4e6ead510586fc5dd632:choice:d1b538b86266a9eb107e21b419086e2276e5afa65c04f4fcf8d9328e09d2b0c4",
+   "animationChoice": {
+    "jobId": "aj_6afbc114ef5d4e6ead510586fc5dd632",
+    "attempt": 1,
+    "kind": "size",
+    "key": "aj_6afbc114ef5d4e6ead510586fc5dd632:choice:d1b538b86266a9eb107e21b419086e2276e5afa65c04f4fcf8d9328e09d2b0c4",
+    "alternatives": [
+     {
+      "id": "fewer_markers",
+      "title": "Draw a shorter trail",
+      "changes": [
+       "Changed: the trail draws 50 markers, one every 3 steps, instead of 150; every step still runs.",
+       "Changed: the kept comparison path also draws at most 50 markers."
+      ]
+     }
+    ],
+    "chosen": "fewer_markers"
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "279"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "280",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. It differs from what you asked: Changed: the trail draws 50 markers, one every 3 steps, instead of 150; every step still runs. Changed: the kept comparison path also draws at most 50 markers. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-07c392e0f21a14ec",
+    "version": 1,
+    "command": "animation",
+    "title": "Stochastic gradient descent on a loss surface, with kept paths to compare runs",
+    "description": "A ball sits on a long, narrow bowl-shaped loss surface and leaves a trail as it takes one stochastic gradient descent step each tick: it moves downhill against a noisy estimate of the slope. An arrow at the ball points along the step it is about to take, which is the negative of the noisy gradient. When a run is done, you can keep its path as a faded trail and start a new run from the same starting point with different settings. Readouts show the step count, the current loss and the final loss of each kept run.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-04aae911",
+     "job": "aj_6afbc114ef5d4e6ead510586fc5dd632",
+     "plan_hash": "09bdb80b8e149a3ed5a11bde6d5ea1425a022f48126a93faed0dfd19fb8ad0e6",
+     "request": "SGD with a kept path to compare runs",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate (step size)",
+        "min": 0.01,
+        "max": 0.55,
+        "step": 0.01,
+        "default": 0.1
+       },
+       {
+        "type": "number",
+        "label": "Gradient noise (stands in for mini-batch sampling)",
+        "min": 0,
+        "max": 2,
+        "step": 0.05,
+        "default": 0.5
+       },
+       {
+        "type": "select",
+        "label": "Starting point",
+        "options": [
+         {
+          "value": "left",
+          "label": "Far left, up the long side"
+         },
+         {
+          "value": "wall",
+          "label": "High on the steep wall"
+         },
+         {
+          "value": "corner",
+          "label": "Corner"
+         }
+        ],
+        "default": "left"
+       }
+      ],
+      "interactions": [
+       "Play, pause or step the run one update at a time; a run stops by itself after 150 steps or if it is thrown off the surface",
+       "Keep this path and restart: the trail stays as a faded line with its final loss, and the ball returns to the start with the current settings (up to 3 kept; the oldest is dropped)",
+       "Clear kept paths: removes only the faded trails and their loss readouts, without changing your settings or the current run",
+       "Change the learning rate: small values give short, slow steps, values near 0.5 zigzag across the narrow valley, and values above 0.5 make the zigzag grow until the run is thrown off",
+       "Change the noise: at 0 the path is smooth (plain gradient descent), higher values make it wander and keep jittering around the bottom instead of settling",
+       "Orbit the camera to compare the trails from above or from the side"
+      ],
+      "notices": [
+       "Changed: the trail draws 50 markers, one every 3 steps, instead of 150; every step still runs.",
+       "Changed: the kept comparison path also draws at most 50 markers."
+      ],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793857262,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "SGD with a kept path to compare runs",
+    "prompt": "A ball sits on a long, narrow bowl-shaped loss surface and leaves a trail as it takes one stochastic gradient descent step each tick: it moves downhill against a noisy estimate of the slope. An arrow at the ball points along the step it is about to take, which is the negative of the noisy gradient. When a run is done, you can keep its path as a faded trail and start a new run from the same starting point with different settings. Readouts show the step count, the current loss and the final loss of each kept run.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Comparing runs side by side is how you see what the step size and noise actually do. Kept trails let you put a jittery path next to a smooth one, or a cautious path next to one that bounces across the valley.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Play, pause or step the run one update at a time; a run stops by itself after 150 steps or if it is thrown off the surface",
+     "Interaction: Keep this path and restart: the trail stays as a faded line with its final loss, and the ball returns to the start with the current settings (up to 3 kept; the oldest is dropped)",
+     "Interaction: Clear kept paths: removes only the faded trails and their loss readouts, without changing your settings or the current run",
+     "Interaction: Change the learning rate: small values give short, slow steps, values near 0.5 zigzag across the narrow valley, and values above 0.5 make the zigzag grow until the run is thrown off",
+     "Interaction: Change the noise: at 0 the path is smooth (plain gradient descent), higher values make it wander and keep jittering around the bottom instead of settling",
+     "Interaction: Orbit the camera to compare the trails from above or from the side",
+     "Parameter: Learning rate (step size), 0.01 to 0.55, default 0.1",
+     "Parameter: Gradient noise (stands in for mini-batch sampling), 0 to 2, default 0.5",
+     "Parameter: Starting point, one of Far left, up the long side, High on the steep wall, Corner",
+     "Goal: See how the learning rate and gradient noise shape the path SGD takes: slow progress, zigzagging, or running away, and smooth settling versus endless jitter near the minimum."
+    ],
+    "assumptions": [
+     "Illustration: a made-up two-variable loss surface with simulated gradient noise, not a real model trained on data.",
+     "The loss is an elongated bowl, half of (x² + 4y²), so it is four times steeper across the valley than along it, and its lowest point is at the center.",
+     "Each step subtracts the learning rate times (true gradient plus random noise). The noise is drawn from a fixed seed, so it differs from step to step and from run to run but is the same after Reset.",
+     "Gradient noise imitates estimating the slope from a small random batch of data. Its size is set directly rather than coming from a batch size.",
+     "The trail draws one marker every 3 steps, at most 50 markers; every step still runs."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Changed: the trail draws 50 markers, one every 3 steps, instead of 150; every step still runs.",
+     "Changed: the kept comparison path also draws at most 50 markers.",
+     "Because of the noise, a single step can go uphill; the loss falls on average, not on every step.",
+     "A bowl with one minimum cannot show local minima or saddle points getting runs stuck.",
+     "Kept paths are cleared by Reset, along with everything else; only Clear kept paths removes them on their own."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-04aae911"
+    },
+    "quote": null,
+    "review_hash": "38d5a0d9f04fc7f6138ca79ff04b03efd70fe0d5f3af48bf49ec044c08abce90",
+    "sig": "v3.474000bdf26c4bb24c8e53d539837a11230fae3fdf5738e45629d8735c376fa4",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 385,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.474000bdf26c4bb24c8e53d539837a11230fae3fdf5738e45629d8735c376fa4",
+    "used": {
+     "version": 1,
+     "key": "aj_6afbc114ef5d4e6ead510586fc5dd632"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "280"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "281",
+  "role": "assistant",
+  "content": "\"Stochastic gradient descent on a loss surface, with kept paths to compare runs\" was not finished. AI is paused for now because the platform daily limit has been reached. You have not been charged. Try again continues from where it stopped, using up to 385 AI credits. Your request and plan are kept.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_6afbc114ef5d4e6ead510586fc5dd632:1",
+   "alternativeOf": null,
+   "alternatives": [
+    "281"
+   ],
+   "feedback": null
+  }
+ }
+]

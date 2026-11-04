@@ -27,12 +27,12 @@ const phase = (s, key) => s.sqlite.prepare(`SELECT COUNT(t.attempt_id) AS calls,
 const net = async s => (await usageTotals(s.env.LEARN_DB, OWNER.userId, PERIOD)).used;
 const refunds = s => rows(s.sqlite, 'usage_adjustments');
 
-// The ways a generation ends rejected: the review twice, a candidate that never validates, one too large to check, the call ceiling.
+// The ways a generation ends rejected: the review three times, a candidate that never validates, one too large to check, the call ceiling.
 const CASES = {
   rounds: { stop: 'rounds', opts: { reply: role => (role === 'review' ? { accepted: false } : {}) } },
   validation: { stop: 'rounds', opts: { pipeline: STUB_PIPELINE({ validate: async () => ({ problems: ['node n1 is not declared'], repairable: true }) }) } },
   size_limit: { stop: 'rounds', opts: { pipeline: STUB_PIPELINE({ validate: async () => ({ problems: TOO_LARGE, category: 'spec', repairable: true }) }) } },
-  budget: { stop: 'budget', opts: { pipeline: STUB_PIPELINE({ review: async (job, ctx) => { for (let i = 0; i < 4; i++) await ctx.call('review', { system: 'review', tool, content: 'x' }); return { accepted: true, artifactHash: job.artifactHash }; } }) } },
+  budget: { stop: 'budget', opts: { pipeline: STUB_PIPELINE({ review: async (job, ctx) => { for (let i = 0; i < 5; i++) await ctx.call('review', { system: 'review', tool, content: 'x' }); return { accepted: true, artifactHash: job.artifactHash }; } }) } },
 };
 
 for (const [name, { stop, opts }] of Object.entries(CASES)) {

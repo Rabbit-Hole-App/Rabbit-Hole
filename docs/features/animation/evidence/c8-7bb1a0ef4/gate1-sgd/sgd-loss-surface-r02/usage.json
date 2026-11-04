@@ -1,0 +1,21 @@
+{
+  "usage": {
+    "input_tokens": 7950,
+    "cache_creation_input_tokens": 8082,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 8082,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 10094,
+    "output_tokens_details": {
+      "thinking_tokens": 4737
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+  },
+  "credits": 27.409,
+  "stopReason": "tool_use",
+  "served": "claude-opus-5-5"
+}

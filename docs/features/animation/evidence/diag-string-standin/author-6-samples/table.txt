@@ -1,0 +1,10 @@
+candidate d5c5e8183a0fd88f6634dc3ab63937298b2407ef   prompt-files 0a9a7975b81f67369452e7141b44c63884eafd114a409627d530be1150095bdd   golden 1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc
+transport dev-key   concurrency 5   cap 700 credits   plans sgd-loss-surface
+run                   session  bytes  tokens in/out  validator  assertions  credits  seconds  status
+sgd-loss-surface-r01  -        9279   7879/9664      PASS       PASS        26.52    82.1     valid 
+sgd-loss-surface-r02  -        9631   7879/10020     PASS       PASS        27.23    83.9     valid 
+sgd-loss-surface-r03  -        8591   7879/9595      PASS       PASS        26.38    79.4     valid 
+sgd-loss-surface-r04  -        9483   7879/10391     PASS       PASS        27.97    85.7     valid 
+sgd-loss-surface-r05  -        9570   7879/9871      PASS       PASS        26.93    79.3     valid 
+sgd-loss-surface-r06  -        8832   7879/9744      PASS       PASS        22.80    80.1     valid 
+settled 157.85 credits (computed from provider usage at registry rates, US$1.58); valid 6 of 6

@@ -1,0 +1,292 @@
+[
+ {
+  "at": 1793764009387,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "5cac203adbebac098b11889052910b51d364341cd728d768bf0f592fa72c2745",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ballA",
+       "message": "In the default view at the initial state, the blue ball (rate A) is fully hidden inside the orange ball because both use the same 0.15 sphere at the same position. The learner sees one orange ball and nothing for rate A, even though the scene is meant to compare two balls. Make the shared start readable: for example, draw blue slightly larger or as a ring around orange, nudge the two apart visually, or add a 'both start here' marker.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "The readout bar shows only the two losses and the step count. The Blue status and Orange status text readouts do not appear.",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Checked by hand: rate 0.14 for 14 steps gives (0.037, 0.905) and loss 0.206. Rate 1.5 shrinks y by ×0.25 and flips x by ×(−1.25) each step, leaving the edge at x≈−3 on step 5 with loss 6.75. Both match the readouts. Rate A at its low end (0.01), the 'far' start and the end of a full 40-step run were not sampled.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "lowest",
+       "message": "The minimum marker (radius 0.06) is tiny, and in this view the orange trail almost covers it.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Rate 2 goes (1, 2.5) → (−2, 0), then leaves at (3, 0), with loss 6.75 and 'Left the surface' on blue. This matches the trace and the drawn path.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ballA",
+       "message": "The side view confirms that the blue ball sits exactly inside the orange ball at the start, so rate A cannot be seen at all before the run.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "From this angle, the older part of the orange trail fades into near-hairline segments because the host tapers its trails.",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13147,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 2848,
+   "output_tokens_details": {
+    "thinking_tokens": 1852
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_462b979918d4439989b40eed018420db-review-3",
+   "status": "settled",
+   "costMicros": 109969,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793764104233,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "3d0e2115db908e76ede02160b1bf76aaa752ccb6b225122bf5f10933016c81d8",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan says the run ends early once a ball leaves the surface; the program ends early only when both have left. This is disclosed in the assumptions. Not sampled: the default 0.1 vs 1.5 run carried to completion, and the far starting point.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "statusA",
+       "message": "The statusA and statusB text readouts never appear in the readout strip. Only the two losses and the step count show.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "tagA",
+       "message": "In the side view, blue's 'Left the surface' label slightly overlaps the orange trail near the edge.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13324,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3046,
+   "output_tokens_details": {
+    "thinking_tokens": 1870
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_462b979918d4439989b40eed018420db-review-5",
+   "status": "settled",
+   "costMicros": 114637,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

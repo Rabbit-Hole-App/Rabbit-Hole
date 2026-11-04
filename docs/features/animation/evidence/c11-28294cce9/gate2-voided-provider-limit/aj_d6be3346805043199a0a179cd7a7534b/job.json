@@ -1,0 +1,187 @@
+{
+ "id": "aj_d6be3346805043199a0a179cd7a7534b",
+ "version": 1,
+ "boardId": "6f43b416-01a2-4235-887b-99e98208bccf",
+ "cardId": "a67bfe2e-c200-4605-b13f-998702d9ec3c",
+ "stage": "ready",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 0,
+ "stopReason": "accepted",
+ "failure": null,
+ "recovery": [],
+ "outcome": "supported",
+ "choiceOpen": false,
+ "threadId": "canvaschat-b7727d05-65f2-46f1-813f-58a91ae52ed9",
+ "chatPending": false,
+ "usage": {
+  "credits": 46,
+  "unknown": false
+ },
+ "result": {
+  "jobId": "aj_d6be3346805043199a0a179cd7a7534b",
+  "resultId": "ar_f91a8941dd5d467f84416dc93812c78e",
+  "cardId": "a67bfe2e-c200-4605-b13f-998702d9ec3c",
+  "canvas": {
+   "boardId": "6f43b416-01a2-4235-887b-99e98208bccf"
+  },
+  "requestRef": "04129a3b0526c364",
+  "revision": "av_d0d246d97b264d849fa0f48a011bcf35",
+  "planHash": "0269b2b786359001cfd1ed70765248f1c347598725f4f6868d83fd3c6f17b575",
+  "sources": "643d5437104296e2",
+  "artifactHash": "5d4b066cb737e149bcca4b6002bb2167a55aac901d961d3576ea7781f0e6979a",
+  "experience": "experiment",
+  "capabilityVersion": "animation-capabilities/1",
+  "policyVersion": 1
+ },
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Gradient descent with two learning rates on the same bowl",
+  "description": "A stretched bowl-shaped surface stands for a loss: low in the middle, rising steeply across the short way and gently along the long way. Two balls, blue and orange, start at the same point. Each step, each ball moves downhill by its own learning rate times the slope, and leaves a trail. You set the two learning rates and compare them: a small rate creeps along in a smooth curve, a larger one zigzags across the steep walls, and above a limit it bounces outward and diverges (moves away from the minimum).",
+  "experience": "experiment",
+  "reason": "Running two learning rates side by side on the same surface, from the same start, shows directly how step size alone decides between slow, fast, zigzagging and diverging descent.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "lrA",
+    "label": "Learning rate, blue ball",
+    "min": 0.01,
+    "max": 0.6,
+    "step": 0.01,
+    "default": 0.05
+   },
+   {
+    "type": "number",
+    "id": "lrB",
+    "label": "Learning rate, orange ball",
+    "min": 0.01,
+    "max": 0.6,
+    "step": 0.01,
+    "default": 0.4
+   }
+  ],
+  "interactions": [
+   "Play, pause, or step one update at a time; on each step both balls move once and their trails grow.",
+   "Change either learning rate; the run starts again from the shared start point, so the two trails stay comparable.",
+   "Watch the readouts: step number, and each ball's current loss (its height on the surface).",
+   "Orbit the camera to look at the trails from above (zigzags across contour lines) or from the side (loss going down)."
+  ],
+  "assumptions": [
+   "Illustration: a simple made-up bowl stands in for a real model's loss.",
+   "The loss is 0.5·(x² + 4y²), so it is 4 times steeper across the short way (y) than along the long way (x). The minimum is at the centre, where the loss is 0.",
+   "Each step is plain gradient descent with no momentum or noise: new position = old position − learning rate × slope, using the exact slope.",
+   "On this bowl the rule is exact: the short-way motion shrinks for rates below 0.25, zigzags but still settles between 0.25 and 0.5, and grows (diverges) above 0.5. The long-way motion settles for every rate in the range.",
+   "Each ball has an arrow showing the downhill direction (the negative slope), which is the way its next step goes. The step length is the learning rate times the slope.",
+   "A run lasts at most 60 steps. A ball that leaves the drawn surface stops at the edge and is marked as diverged."
+  ],
+  "limitations": [
+   "Real loss surfaces have many dimensions, flat regions and several valleys. This single smooth bowl only shows how step size behaves near one minimum.",
+   "The exact thresholds (0.25 and 0.5) belong to this bowl. On other surfaces they depend on how steep the steepest direction is."
+  ],
+  "learningGoal": "The learning rate sets the step size. Too small is slow, larger is faster but zigzags on steep directions, and beyond a limit set by the steepest direction the descent diverges.",
+  "requiredCapabilities": [
+   "parameters",
+   "step",
+   "readouts",
+   "labels",
+   "loop"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "lrB",
+    "values": [
+     0.4,
+     0.55
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 30
+   }
+  ]
+ },
+ "planHash": "0269b2b786359001cfd1ed70765248f1c347598725f4f6868d83fd3c6f17b575",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 23275,
+  "generateToResultMs": 164306,
+  "processingMs": 187531,
+  "approvalWaitMs": 3926,
+  "calls": 3,
+  "repairs": 0,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 23225,
+    "calls": 1,
+    "inputTokens": 372,
+    "outputTokens": 2089,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 3926,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 102579,
+    "calls": 1,
+    "inputTokens": 7942,
+    "outputTokens": 12128,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 39,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 28737,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 32951,
+    "calls": 1,
+    "inputTokens": 13077,
+    "outputTokens": 2948,
+    "images": 6,
+    "captures": 0,
+    "outcome": "accepted"
+   }
+  ]
+ },
+ "createdAt": 1793774807918,
+ "updatedAt": 1793774999425
+}

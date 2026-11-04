@@ -1,0 +1,576 @@
+[
+ {
+  "at": 1793763685527,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "478c836ea87980e90b44183a664bb6267b5359d448006cf72d1bb75d0dda4c0c",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "Default view: the tall bowl fills the frame, but the ball, arrows and path sit in a small patch at the bottom with lots of empty white space around them. The arrows are tiny (about 20 px). Frame the camera on the basin where the descent happens, or flatten the drawn bowl so the ball and its route are large.",
+       "repairable": true,
+       "object": "camera"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The dark 'Lowest point' dot cannot be seen in the default view. Its label floats over the outer grey face of the bowl, so the learner cannot see the target the ball is heading for.",
+       "repairable": true,
+       "object": "low"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The ball looks half sunk into or clipped by the front lip of the surface.",
+       "repairable": true,
+       "object": "ball"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The Status readout does not appear in the readout line.",
+       "repairable": true,
+       "object": "status"
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The path only records every 2nd step. Across x a step flips sign whenever lr·3 > 1 (lr > 0.33), so sampling every other step always lands on the same side. That hides the zig-zag that the plan and assumptions say large learning rates show. The path must record every step, or at least both sides of each oscillation (for example, cap markers by dropping the oldest ones instead of skipping steps).",
+       "repairable": true,
+       "object": "trail"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "After 27 steps the path is a few pixels long, the arrows are almost invisible stubs, and the 'Noisy slope' and 'True slope' labels crowd over the ball and path. The learner cannot read the noisy route.",
+       "repairable": true,
+       "object": "camera"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The lowest-point dot is still hidden in the default view.",
+       "repairable": true,
+       "object": "low"
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "At lr = 0.6 the x factor is 1 − 1.8 = −0.8, so the ball should alternate sides every step. The trail records only even steps, so the drawn route hides this. With noise spread 1 at batch 4 times lr 0.6, the path shown is mostly noise jumps, not the promised zig-zag across the narrow direction.",
+       "repairable": true,
+       "object": "trail"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The 'True slope' and 'Noisy slope' labels sit on top of the path, and the ball is almost hidden behind the 'True slope' label and the bowl lip. The current guess cannot be found.",
+       "repairable": true,
+       "object": "ball"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Long straight path segments between sparse markers cut chords across the curved surface.",
+       "repairable": true,
+       "object": "trail"
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The low end of the learning rate (0.02) and the full-batch comparison through the ghost path were not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Same every-2nd-step path aliasing as in v0-s1: the oscillation within each pair of steps is never drawn.",
+       "repairable": true,
+       "object": "trail"
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Same aliasing as in v0-s2: the zig-zag at high learning rate is hidden by marking only every 2nd step.",
+       "repairable": true,
+       "object": "trail"
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13541,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3381,
+   "output_tokens_details": {
+    "thinking_tokens": 1882
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_b4a74470acdb443fa48a1ddc1b654ace-review-4",
+   "status": "settled",
+   "costMicros": 122205,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793763826055,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "0252b6bf6d4e8d263f6532b05eb9a595014b01d2fb0400afea53df0b03c6caff",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "noisyArrow",
+       "message": "In the default view the grey true-slope arrow is drawn on top of the blue noisy-estimate arrow, which uses the same thickness and scale. Only a blue fleck at the cone base is visible, so the learner cannot see the noisy estimate, which is the main idea. Make the grey arrow thinner or semi-transparent, or offset it, so the blue arrow can be read."
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "status",
+       "message": "The Status readout (paused/running/converged/diverged) does not appear in the readout line, so the learner cannot see why a run stopped."
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "program",
+       "message": "Run stops with 'converged' as soon as the true loss falls below 0.002. With noisy batches (for example batch 4 at rate 0.11, where the stationary spread is about 0.07 in x and 0.12 in z), a lucky step near the bottom drops the loss under 0.002 quickly. This ends the run and hides the 'jittering near the minimum' that the plan promises for small batches, and it wrongly labels a chance low reading as convergence. Apply the threshold only for full batch, or stop only at 200 steps or at the edge. The sampled states had not reached this stop yet."
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "lowTag",
+       "message": "The 'Lowest point' label sits on the path next to the ball and covers part of the orange route near the minimum, which is the region being studied. Place the label away from the descent region, or make it smaller or offset."
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "noisyArrow",
+       "message": "Near the minimum the noisy and true arrows are tiny and overlap the ball, so the noisy estimate is hard to read here."
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "lowTag",
+       "message": "At learning rate 0.6 the 'Lowest point' label covers the zig-zag trail and the minimum dot in the middle of the oscillation. The zig-zag is also packed into a small patch of the frame, so the overshoot across x is hard to follow. Move the label off the descent area and frame the bowl's centre larger."
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "trail",
+       "message": "The plan says the trail draws one marker every 2 steps, up to 100. The artifact draws every step, up to 200 (201 points). This is harmless but differs from the plan."
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "program",
+       "message": "This is the same program issue as in v0-s1: the 'converged' stop at loss < 0.002 can end a noisy run on a lucky sample, which hides the jitter near the minimum that the plan promises."
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [
+   "capture v0-s0 finding 1 (\"In the default view the grey true-slope arrow is drawn on to\"): repairable must be true or false",
+   "capture v0-s0 finding 2 (\"The Status readout (paused/running/converged/diverged) does \"): repairable must be true or false",
+   "capture v0-s1 finding 1 (\"Run stops with 'converged' as soon as the true loss falls be\"): repairable must be true or false",
+   "capture v0-s1 finding 2 (\"The 'Lowest point' label sits on the path next to the ball a\"): repairable must be true or false",
+   "capture v0-s1 finding 3 (\"Near the minimum the noisy and true arrows are tiny and over\"): repairable must be true or false",
+   "capture v0-s2 finding 1 (\"At learning rate 0.6 the 'Lowest point' label covers the zig\"): repairable must be true or false",
+   "capture v0-s2 finding 2 (\"The plan says the trail draws one marker every 2 steps, up t\"): repairable must be true or false",
+   "capture v1-s1 finding 1 (\"This is the same program issue as in v0-s1: the 'converged' \"): repairable must be true or false"
+  ],
+  "usage": {
+   "input_tokens": 12301,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3545,
+   "output_tokens_details": {
+    "thinking_tokens": 2342
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_b4a74470acdb443fa48a1ddc1b654ace-review-6",
+   "status": "settled",
+   "costMicros": 120525,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793763856490,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "0252b6bf6d4e8d263f6532b05eb9a595014b01d2fb0400afea53df0b03c6caff",
+  "retry": true,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "noisyArrow",
+       "message": "In the default view, the grey true-slope arrow sits almost exactly on top of the blue noisy-estimate arrow. Only a blue dot shows at the shaft. The noisy estimate is the core idea, and the learner cannot see it or compare it with the true slope. Offset the arrows, thin or lighten the grey one, or draw it as an outline so both can be read.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "status",
+       "message": "The Status readout (paused/running/converged/diverged) is defined but does not appear in the readout line that was captured.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "program",
+       "message": "Run stops and shows 'converged' as soon as the true loss falls below 0.002. With noisy batches (1 or 4) the ball jitters near the minimum. A lucky visit to the minimum stops the run, which hides the jittering the learning goal promises and contradicts the plan's 'run up to 200 steps'. Only stop on convergence for full batch, or not at all. This case was not triggered in the samples.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "lowTag",
+       "message": "The 'Lowest point' label sits on the orange path right next to the ball, where the path ends near the minimum. That is exactly where the learner needs to look. Move the label off the surface centre or make it smaller and offset.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "noisyArrow",
+       "message": "Near the minimum the noisy and true arrows are tiny and overlap, so the two are hard to tell apart.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "lowTag",
+       "message": "At learning rate 0.6, the 'Lowest point' label covers the middle of the zig-zag path, which is the behaviour this setting is meant to show.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "trail",
+       "message": "The plan says the trail draws one marker every 2 steps, at most 100 markers. The artifact draws every step, up to 200, and its assumptions disclose this. The two documents disagree.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "noisyArrow",
+       "message": "The arrow length is the 3D tangent length along the surface, so it is slightly longer than the disclosed 0.4 × slope size.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "trueArrow",
+       "message": "The grey arrowhead overlaps the blue arrow's head because the two arrows are almost collinear, which is the same problem as in the default view.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "program",
+       "message": "This is the same program issue as in v0-s1: the 'converged' stop at loss below 0.002 can end a noisy run early and hide the jittering near the minimum.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 12727,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 2891,
+   "output_tokens_details": {
+    "thinking_tokens": 1599
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_b4a74470acdb443fa48a1ddc1b654ace-review-7",
+   "status": "settled",
+   "costMicros": 109149,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

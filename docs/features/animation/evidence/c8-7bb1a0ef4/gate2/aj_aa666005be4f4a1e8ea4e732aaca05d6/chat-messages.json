@@ -1,0 +1,142 @@
+[
+ {
+  "messageId": "263",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-b262f02370142f48",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient descent: learning rate 0.1 vs 1.5 on the same bowl",
+    "description": "A bowl-shaped surface with contour lines holds two markers that start at the same point. Blue uses learning rate 0.1 and orange uses 1.5. Each host step moves both markers one gradient descent step, and each leaves a trail. Blue creeps steadily down to the bottom. Orange zigzags: along the gentle direction it overshoots but still closes in, and along the steep direction each jump lands farther up the other side, until it leaves the surface.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-97974743",
+     "job": "aj_aa666005be4f4a1e8ea4e732aaca05d6",
+     "plan_hash": "b589a32687a04aedf07d3269fc89e19cdbe160fa84dbda8b0da5e3aaff8007b7",
+     "request": "compare learning rate 0.1 and 1.5 on the same surface",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate, blue marker",
+        "min": 0.01,
+        "max": 2,
+        "step": 0.01,
+        "default": 0.1
+       },
+       {
+        "type": "number",
+        "label": "Learning rate, orange marker",
+        "min": 0.01,
+        "max": 2,
+        "step": 0.01,
+        "default": 1.5
+       }
+      ],
+      "interactions": [
+       "Play, pause or step to move both markers one gradient descent step at a time",
+       "Change either learning rate: both markers restart from the shared start point so the comparison stays fair",
+       "Orbit the camera to see the trails from above (zigzags) or from the side (height changes)",
+       "Select a marker to see its step count, position, loss and status (going down, zigzagging, bouncing or left the surface)"
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793855532,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "compare learning rate 0.1 and 1.5 on the same surface",
+    "prompt": "A bowl-shaped surface with contour lines holds two markers that start at the same point. Blue uses learning rate 0.1 and orange uses 1.5. Each host step moves both markers one gradient descent step, and each leaves a trail. Blue creeps steadily down to the bottom. Orange zigzags: along the gentle direction it overshoots but still closes in, and along the steep direction each jump lands farther up the other side, until it leaves the surface.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Both runs share one surface and one start, so any difference you see comes only from the learning rate. You can step through slowly or let it play, and change either rate to find where steady descent turns into zigzagging and then into running away.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Play, pause or step to move both markers one gradient descent step at a time",
+     "Interaction: Change either learning rate: both markers restart from the shared start point so the comparison stays fair",
+     "Interaction: Orbit the camera to see the trails from above (zigzags) or from the side (height changes)",
+     "Interaction: Select a marker to see its step count, position, loss and status (going down, zigzagging, bouncing or left the surface)",
+     "Parameter: Learning rate, blue marker, 0.01 to 2, default 0.1",
+     "Parameter: Learning rate, orange marker, 0.01 to 2, default 1.5",
+     "Goal: A small learning rate goes down steadily but slowly. A large one overshoots, zigzags across the bowl and can run away entirely, especially along the steepest direction."
+    ],
+    "assumptions": [
+     "Illustration: a simple made-up bowl, not the loss of a real trained model.",
+     "The surface is loss = 0.5·x² + y². It is twice as steep across y as along x, and its lowest point is at the centre.",
+     "Each step is plain gradient descent: the new position is the old one minus the learning rate times the slope (the gradient). There is no momentum and no noise, so every run repeats exactly.",
+     "Both markers start at x = 3, y = 0.5. The surface covers x and y from −4 to 4, and heights are drawn scaled down so the whole bowl fits in view.",
+     "A marker stops when it leaves the surface, when its loss drops below 0.000001, or after 60 steps."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "On this bowl a run settles only when the learning rate is below 1, because the steep direction (steepness 2) allows at most 2 ÷ 2 = 1. Above 1 the y position grows each step; at exactly 1 it bounces between two points forever.",
+     "At exactly 2 the x position also bounces between two points forever. These limits come from this bowl's shape, so other surfaces have other limits.",
+     "Once a marker leaves the surface it is stopped rather than followed, so the scene shows that it runs away, not how far it would go.",
+     "On a real, curvier loss surface the safe learning rate changes from place to place. A bowl with a fixed shape cannot show that."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-97974743"
+    },
+    "quote": null,
+    "review_hash": "54e48292140e847154f82228751d3d058fbc359d06e38d3fcbaa7aa2ced00a11",
+    "sig": "v3.b5f58a15142667ca7a73c1ec007a677772479b564545eb288815998993c49dcd",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 373,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.b5f58a15142667ca7a73c1ec007a677772479b564545eb288815998993c49dcd",
+    "used": {
+     "version": 1,
+     "key": "aj_aa666005be4f4a1e8ea4e732aaca05d6"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "263"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "265",
+  "role": "assistant",
+  "content": "\"Gradient descent: learning rate 0.1 vs 1.5 on the same bowl\" was not finished. The visual review found 3 serious problems with how the scene is drawn or computed. You have not been charged. It was corrected automatically once, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate. Your request and plan are kept.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_aa666005be4f4a1e8ea4e732aaca05d6:1",
+   "alternativeOf": null,
+   "alternatives": [
+    "265"
+   ],
+   "feedback": null
+  }
+ }
+]

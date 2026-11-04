@@ -99,9 +99,10 @@ export const LEARN_TASKS = Object.freeze({
   // off (FX-AN-035); at low effort the SGD scenes failed review (aj_ba11d5a, aj_ad936ec). 8,000 more output tokens at $20/M add
   // $0.16 (16 credits) to the build's worst case. More tokens remedy truncation; they do not prove a scene good.
   animation_author: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', effort: 'medium', toolChoice: 'auto (exactly one tool call)', maxTokens: 24000 }),
-  animation_review: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 6000 }),
-  // Repair stays at low effort for this attempt (owner A: other role settings unchanged).
-  animation_repair: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', effort: 'low', toolChoice: 'auto (exactly one tool call)', maxTokens: 12000 }),
+  animation_review: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 8000 }), // 6,000 until C9: a review at 3,818 thinking tokens plus a prose answer was cut off mid tool call (aj_4f08e1b367964e4aa0c3124c26dfc33f, FX-AN-102); +$0.04 per call, +$0.12 and +12 credits on the build's worst case
+  // Repair: medium effort with 24,000 output tokens (owner decision 16, 3 Nov 2026; was low with 12,000). 12,000 more output tokens at $20/M add
+  // $0.24 per repair call, $0.48 for the two a build allows: 48 credits on the displayed worst case (325 to 373). A patch-style repair is AN-22.
+  animation_repair: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', effort: 'medium', toolChoice: 'auto (exactly one tool call)', maxTokens: 24000 }),
   // Slash-command cards (/api/learn/artifact).
   artifact: Object.freeze({ provider: 'plan', model: ASK_MODELS.auto, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'any', maxTokens: 4000 }),
   // The whiteboard (/api/learn/board): one model for plan, draft and review.

@@ -1,0 +1,26 @@
+{
+  "calls": [
+    {
+      "again": false,
+      "kind": "artifact",
+      "keys": [
+        "kind",
+        "artifact"
+      ],
+      "artifactType": "object",
+      "chars": 8090,
+      "head": "{\"kind\":\"artifact\",\"artifact\":{\"title\":\"Projectile Target Challenge: Pick Angle and Speed\",\"description\":\"A launcher sits at the left end of a flat 70 m field with marks every 10 m. A red target zone 3 m wide with a flag sits down the field. Set the launch angle (the barrel tilts) and speed, then press Launch: an orange ball flies its arc, leaving a trail. Your previous arc stays as a faded grey dashed line. Readouts give landing distance, miss and side, flight time, peak height, launches used and targets hit. Hit targets at 30 m, 45 m and 18 m within 10 launches.\",\"experience\":\"game\",\"behavior\":\"rules\",\"controlProfile\":\"inspect\",\"stepped\":true,\"game\":{\"objective\":\"Hit three targets in turn (30 m, 45 m, then 18 m), landing within 1.5 m of each centre, using no more than 10 launches.\",\"hint\":\"With the same speed, angles that add up to 90° (like 30° and 60°) land at the same distance, and 45° goes farthest. Doubling the speed makes the shot go four times as far.\"},\"parameters\":[{\"type\":\"number\",\"id\":\"angle\",\"label\":\"Launch angle\",\"unit\":\"°\",\"min\":10,\"max\":80,\"step\":1,\"default\":45},{\"type\":\"number\",\"id\":\"speed\",\"label\":\"Launch speed\",\"unit\":\"m/s\",\"min\":5,\"max\":25,\"step\":0.5,\"default\":15}],\"actions\":[{\"id\":\"launch\",\"label\":\"Launch\"}],\"readouts\":[{\"id\":\"range\",\"label\":\"Landing distance\",\"unit\":\"m\",\"decimals\":1},{\"id\":\"miss\",\"label\":\"Missed by\",\"unit\":\"m\",\"decimals\":1},{\"id\":\"side\",\"label\":\"Result\",\"kind\":\"text\"},{\"id\":\"ftime\",\"label\":\"Flight time\",\"unit\":\"s\",\"decimals\":2},{\"id\":\"peak\",\"label\":\"Highest point\",\"unit\":\"m\",\"decimals\":1},{\"id\":\"used\",\"label\":\"Launches used (of 10)\",\"decimals\":0},{\"id\":\"hitsR\",\"label\":\"Targets hit (of 3)\",\"decimals\":0}],\"seed\":1,\"camera\":{\"position\":[30,50,78],\"target\":[35,10,0],\"fov\":45},\"assumptions\":[\"Simplified simulation: no air resistance, ball starts at ground level on flat ground.\",\"Gravity is 9.8 m/s² straight down; horizontal speed stays constant and only vertical speed changes.\",\"Positions come exactly from the projectile formulas, so landing distance = speed² × sin(2 × angle) ÷ 9.8. The ball is a point (drawn 1 m in radius) and the flight ends when it returns to ground height.\",\"A hit is a landing within 1.5 m of the target centre, both edges counted; the red zone is exactly that 3 m wide. Targets come in a fixed order, so Reset starts the same challenge and clears score and trails.\",\"Each flight is shown over about two seconds, so screen time does not match the flight-time readout. Real balls slowed by air land shorter; 45° is best only without air resistance. Longest shot is about 64 m.\"],\"scene\":{\"materials\":[{\"id\":\"floor\",\"color\":\"#c9d3c0\"},{\"id\":\"tick\",\"color\":\"#6b6b6b\"},{\"id\":\"base\",\"color\":\"#5a6270\"},{\"id\":\"metal\",\"color\":\"#b8bcc2\"},{\"id\":\"ball\",\"color\":\"#e0662a\"},{\"id\":\"ghost\",\"color\":\"#7a7a7a\",\"opacity\":0.5},{\"id\":\"zone\",\"color\":\"#d94b5a\"},{\"id\":\"pole\",\"color\":\"#555555\"}],\"geometries\":[{\"id\":\"gFloor\",\"kind\":\"box\",\"size\":[77,0.2,8]},{\"id\":\"gTick\",\"kind\":\"box\",\"size\":[0.25,0.04,8]},{\"id\":\"gBase\",\"kind\":\"b",
+      "stopReason": "tool_use",
+      "blocks": [
+        {
+          "type": "thinking"
+        },
+        {
+          "type": "tool_use",
+          "name": "animation_artifact",
+          "chars": 8090
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,149 @@
+{
+ "job": {
+  "id": "aj_1644ce60253c4d1e9fb5662ae1a52f11",
+  "version": 1,
+  "boardId": "1aff160c-1ae4-466e-813e-207795cb914e",
+  "cardId": "6b68f381-74ce-4be6-91c3-bd43d35f46d2",
+  "stage": "failed",
+  "attempt": 1,
+  "terminal": true,
+  "repairs": 0,
+  "stopReason": "provider_unavailable",
+  "failure": {
+   "stage": "preparing",
+   "category": "provider_unavailable",
+   "message": "The AI service was busy. You have not been charged. It was retried automatically. Try again continues from where it stopped, using up to 56 AI credits.",
+   "retryable": true,
+   "callsFrom": 1
+  },
+  "recovery": [
+   "new_attempt",
+   "edit_request"
+  ],
+  "outcome": null,
+  "choiceOpen": false,
+  "threadId": "canvaschat-ce433350-dc05-4558-8b60-31e93e4ea256",
+  "chatPending": false,
+  "usage": {
+   "credits": 0,
+   "unknown": false
+  },
+  "result": null,
+  "timing": {
+   "requestClass": "simple",
+   "cache": null,
+   "firstFeedbackMs": 98,
+   "proposalMs": null,
+   "generateToResultMs": null,
+   "processingMs": 17394,
+   "approvalWaitMs": 0,
+   "calls": 2,
+   "repairs": 0,
+   "stages": [
+    {
+     "stage": "preparing",
+     "ms": 17394,
+     "calls": 2,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": "failed"
+    }
+   ]
+  },
+  "createdAt": 1793775118647,
+  "updatedAt": 1793775136467
+ },
+ "diagnostics": {
+  "plan": null,
+  "draft": null,
+  "artifactHash": null,
+  "artifact": null,
+  "findings": [
+   {
+    "repairs": 0,
+    "stage": "preparing",
+    "error": "provider_unavailable",
+    "autoRetry": true
+   }
+  ],
+  "reviews": [],
+  "candidates": [],
+  "calls": [
+   {
+    "key": "aj_1644ce60253c4d1e9fb5662ae1a52f11-brief-1",
+    "role": "brief",
+    "phase": "preparation",
+    "attempt": 1,
+    "streamed": false,
+    "requested": null,
+    "served": null,
+    "status": "refused",
+    "boundMicros": 156230,
+    "images": 0,
+    "costMicros": 0,
+    "inputTokens": null,
+    "outputTokens": null,
+    "startedAt": 1793775119745,
+    "endedAt": 1793775120401,
+    "stopReason": null,
+    "error": "provider_unavailable"
+   },
+   {
+    "key": "aj_1644ce60253c4d1e9fb5662ae1a52f11-brief-2",
+    "role": "brief",
+    "phase": "preparation",
+    "attempt": 1,
+    "streamed": false,
+    "requested": null,
+    "served": null,
+    "status": "refused",
+    "boundMicros": 156230,
+    "images": 0,
+    "costMicros": 0,
+    "inputTokens": null,
+    "outputTokens": null,
+    "startedAt": 1793775135407,
+    "endedAt": 1793775136139,
+    "stopReason": null,
+    "error": "provider_unavailable"
+   }
+  ],
+  "captures": [],
+  "coverage": null,
+  "gap": null,
+  "estimate": null,
+  "counts": {
+   "brief": 0,
+   "author": 0,
+   "review": 0,
+   "repair": 0
+  },
+  "bounds": {
+   "preparation": 0,
+   "generation": 0
+  },
+  "timing": {
+   "requestClass": "simple",
+   "cache": null,
+   "marks": {
+    "submitted": 1793775118647,
+    "firstFeedback": 1793775118745
+   },
+   "stages": [
+    {
+     "stage": "preparing",
+     "startedAt": 1793775118745,
+     "endedAt": 1793775136139,
+     "calls": 2,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": "failed"
+    }
+   ]
+  }
+ }
+}

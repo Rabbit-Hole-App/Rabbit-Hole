@@ -1,0 +1,18 @@
+{
+ "n": 2,
+ "phrasing": "SGD on a bowl-shaped loss",
+ "session": "gate4-2@example.com",
+ "sha": "7bb1a0ef4211ea45ecd3a53ccd6770d76080e8d3",
+ "version": "7c545e95-ecef-4418-a070-0709ef1ddec7",
+ "jobId": "aj_6cce0f19be914f429990370e3f5a0a07",
+ "outcome": "accepted",
+ "repairs": 1,
+ "credits": 90.975,
+ "charged": 91,
+ "artifactHash": "08eafbc5fae472e7feced1c18804676a5a75982af1e76559e3ec8e6c23394620",
+ "note": "",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 9:14 PM",
+ "fileSha256": "67f9b4ce235e64bf1fa8a33332b2af951b830b0d4716f13661f49b7d19b3f974"
+}

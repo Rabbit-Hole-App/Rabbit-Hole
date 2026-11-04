@@ -1,0 +1,329 @@
+[
+ {
+  "at": 1793809586481,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "d7a58a5e5535d97a17553578de9fbcbab1613189efc1c3caa141f8c6b859aca0",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Dragging moves the ball only left-right (drag axis x). The plan says the learner can drag the ball to any new starting point on the surface. This is disclosed in the assumptions but still narrows the promised interaction. Dragging and the ghost-ball toggle were not sampled.",
+       "object": "ball",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The 'Exact step' label sits just above the 'Minimum' label near the centre, so the two crowd each other. Placing it beside the dark arrow's tip would read more clearly.",
+       "object": "trueTag",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The trail marks every step instead of the planned one marker every 2 steps (at most 100). The assumptions disclose this and it shows more detail, so it is only noted.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The plan promises that above a learning rate of about 0.5, steps across the steep direction overshoot and grow, so the ball bounces outward. Because the start is at x=1.6 and the surface edge is at |x|=2, a rate of 0.6 throws the ball off the surface in one step (Step: 1, diverged). The growing zig-zag never appears. Start nearer the centre in the steep direction (e.g. x≈0.5) or widen the steep extent so several growing bounces stay visible before divergence.",
+       "object": "ball",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "After divergence the ball is drawn floating in the air, off the left of the bowl and away from the end of the trail, which the program clamps to the rim at x=-2. The picture shows the ball detached from both its path and the surface. When the ball is out of bounds, place it at the same clamped, lifted point as the trail end (or mark it clearly as off-surface).",
+       "object": "ball",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Same state as v0-s2: at a learning rate of 0.6 the ball leaves the surface in a single step, so the promised overshoot-and-grow bouncing is never shown.",
+       "object": "ball",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "From the side, the diverged ball clearly floats above and beyond the bowl rim, separate from the trail end. It looks detached from the surface.",
+       "object": "ball",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 14363,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3354,
+   "output_tokens_details": {
+    "thinking_tokens": 2257
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_c7ac89583146483c95cb200dd069c77e-review-4",
+   "status": "settled",
+   "costMicros": 124953,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793809702563,
+  "attempt": 1,
+  "repairs": 2,
+  "artifactHash": "d68ec5f93c6e2fb8b316465f8d2129253e71558d2a11cbda27b110f5c560d2fd",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepArrow",
+       "message": "In the default view the arrows are tiny next to their labels. The purple noisy-step arrow and the thinner exact-step arrow are each about 0.3–0.4 units long, while the 'Noisy step' and 'Exact step' tags are two-line boxes larger than the arrows they name, and they crowd the ball. The direction difference is the main idea, so make it readable: raise the single arrow scale (SC, still one disclosed scale) or the arrow width, and use smaller one-line tags placed so they don't cover the ball or each other.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "ball",
+       "message": "The plan says the learner can drag the ball to a new starting point on the surface. The artifact only allows dragging left-right along x. This limit is disclosed, but it narrows the promised interaction. Allowing a 2D drag would match the plan.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "These captures never sample the exact-gradient ghost toggle, drag, Clear path, the low learning rate or large batch sizes, so this review does not confirm those behaviours.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "ball",
+       "message": "Near the minimum, both step arrows shrink to a few pixels and the ball covers the minimum dot. A learner can still read the jitter from the trail and the 160° angle readout.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "angle",
+       "message": "After the run has diverged and the arrows are hidden, the 'Noisy vs true direction' readout still shows 1°, the angle for a step that will never be taken. Blank this readout, or mark it as not applicable, once the run is over.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "object": "trail",
+       "message": "Some segments of the long divergent trail render much thinner than others, close to hairlines.",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "stepTag",
+       "message": "In the side view the 'Noisy step' label does not appear; only the 'Exact step' tag shows. Both arrows are small here too.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 14093,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3029,
+   "output_tokens_details": {
+    "thinking_tokens": 2003
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_c7ac89583146483c95cb200dd069c77e-review-6",
+   "status": "settled",
+   "costMicros": 117373,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

@@ -59,7 +59,8 @@ export function repairContent(job, failure, current, images = [], fits = () => t
     const omitted = omittedFindings.length || omittedProblems ? { ...(omittedFindings.length ? { findings: named ? omittedFindings : omittedFindings.length } : {}), ...(omittedProblems ? { problems: omittedProblems } : {}), note: 'not sent: these were reported but did not fit this request' } : null;
     const content = [
       { type: 'text', text: JSON.stringify({ request: job.prompt, plan: job.plan, problems: sent.filter(i => i.problem).map(i => i.problem), findings: sent.filter(i => i.finding).map(i => i.finding), ...(omitted ? { omitted } : {}), capabilities: { phase: caps.phase, geometry: caps.geometry, features: caps.features, limits: caps.limits, ...surfaceCapability(job), ...actionCapability(job) }, ...(job.evidence?.length ? { evidence: modelEvidence(job.evidence) } : {}) }) },
-      { type: 'text', text: `Current artifact (JSON, untrusted; its program is shown in the next block, return it as artifact.program.source):\n${JSON.stringify(rest)}` },
+      // FX-AN-043: only a program that is shown is announced (a repair after a lost program was told of a block that did not exist).
+      { type: 'text', text: `Current artifact (JSON, untrusted; ${program ? 'its program is shown in the next block, return it as artifact.program.source' : 'it has NO program: write the whole program as artifact.program.source'}):\n${JSON.stringify(rest)}` },
       ...(program ? [{ type: 'text', text: `Current artifact.program.source (untrusted text):\n${program.source}` }] : []),
       ...images.flatMap(c => [{ type: 'text', text: `capture ${c.id}` }, { type: 'image', source: { type: 'base64', media_type: c.mediaType || 'image/png', data: c.data } }]),
     ];
@@ -69,6 +70,7 @@ export function repairContent(job, failure, current, images = [], fits = () => t
   return build([], items, false); // nothing fits but the counts: still never claims completeness (the request check then refuses it)
 }
 
+export const PROGRAM_CORRECTION = 'Your previous reply had no artifact.program. Return the whole corrected artifact again, with artifact.program.source: the complete corrected program, whatever it changes.';
 // The repair stage. -> { draft, progress: true, operation } | { progress: false, rejected?, reason? }
 export async function repairStage(job, ctx) {
   const failure = job.findings.at(-1) || {};
@@ -79,16 +81,32 @@ export async function repairStage(job, ctx) {
   if (!plain(current)) return { progress: false, rejected: 'There is no artifact to repair.' };
   const named = new Set((failure.findings || []).map(f => f.target?.capture).filter(Boolean));
   const images = (await loadCaptures(ctx.env, (job.captures || []).filter(c => named.has(c.id)))).filter(c => typeof c.data === 'string').slice(0, ANIMATION_ROLES.repair.maxImages);
-  const system = ANIMATION_REPAIR_SYSTEM, tool = repairTool({ program: !!current.program || planNeedsProgram(job.plan) });
+  const programNeeded = !!current.program || planNeedsProgram(job.plan);
+  const system = ANIMATION_REPAIR_SYSTEM, tool = repairTool({ program: programNeeded });
   const fits = content => { try { animationRequest(ctx.env ?? {}, 'repair', { system, tool, content }, ctx.tasks); return true; } catch (error) { if (error?.code === 'input_too_large') return false; throw error; } };
   const content = repairContent(job, failure, current, images, fits), { forwarded } = content;
-  const { input } = await ctx.call('repair', { system, tool, content: [...content] });
+  let reply = await ctx.call('repair', { system, tool, content: [...content] }), programRetried = false;
+  // FX-AN-043 (run 5, aj_77ff45ba repair 1): a complete artifact with no program, though the schema requires it (a non-strict schema is not
+  // enforced) and the request showed one. That is an output-shape slip, not a change, and it spent the build's second repair on a program
+  // written again from the scene alone. One more ask, inside the repair's own call allowance, says so. Never the old program carried over:
+  // the findings asked the program itself to change.
+  const lacksProgram = r => programNeeded && r.input.operation === 'artifact' && plain(r.input.artifact) && withProgram(r.input).program === undefined;
+  const again = [...content, { type: 'text', text: PROGRAM_CORRECTION }], rawReplies = []; // rawReplies: every answer that lacked the program, as it came (blocks, text, tool input)
+  if (lacksProgram(reply)) {
+    if (reply.reply) rawReplies.push(reply.reply);
+    if (fits(again)) {
+      programRetried = true;
+      // ponytail: a refused or failed second ask keeps the first reply (validation then reports missing_program as before); only a stopped job aborts.
+      try { reply = await ctx.call('repair', { system, tool, content: again, again: true }); if (lacksProgram(reply) && reply.reply) rawReplies.push(reply.reply); } catch (error) { if (error?.abandoned) throw error; }
+    }
+  }
+  const { input } = reply;
   const reason = typeof input.reason === 'string' ? input.reason.slice(0, 300) : null;
   if (input.operation === 'none') return { progress: false, reason, forwarded };
   if (input.operation !== 'artifact' || !plain(input.artifact)) return { progress: false, rejected: 'The repair returned no artifact.', inputKeys: Object.keys(input), forwarded };
   const draft = withProgram(input);
   if (canonicalJson(draft) === canonicalJson(current)) return { progress: false, reason: 'The repair changed nothing.', forwarded };
-  return { draft, progress: true, operation: 'artifact', reason, inputKeys: Object.keys(input), artifactKeys: Object.keys(input.artifact), forwarded };
+  return { draft, progress: true, operation: 'artifact', reason, inputKeys: Object.keys(input), artifactKeys: Object.keys(input.artifact), forwarded, ...(programRetried ? { programRetried } : {}), ...(rawReplies.length ? { rawReplies } : {}) };
 }
 
 const WORST_HASH = 'h'.repeat(64);

@@ -1,0 +1,19 @@
+{
+ "n": 3,
+ "phrasing": "gradient descent with two learning rates",
+ "session": "g2-202611040645-3@example.com",
+ "sha": "28294cce9904138dcbb9c1ddec7176045f87690f",
+ "version": "1fc859c6-00a2-4697-b298-a399b7e4ba98",
+ "reviewIdentity": "c42f81edae10cfb3e4aa66c5eafd51d297661d0f5e9201fd29c9ce6c89e16dc4",
+ "jobId": "aj_d6be3346805043199a0a179cd7a7534b",
+ "outcome": "accepted",
+ "repairs": 0,
+ "credits": 45.4667,
+ "charged": 46,
+ "artifactHash": "5d4b066cb737e149bcca4b6002bb2167a55aac901d961d3576ea7781f0e6979a",
+ "note": "",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 10:50 PM",
+ "fileSha256": "a932af9796ccb58257743c4fa322f48f0bbae3557a03c98d57aa702a407366cd"
+}

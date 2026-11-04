@@ -1,0 +1,11 @@
+| # | Time (PT) | Candidate SHA | Preview version | Phrasing | Job id | Outcome | Repairs | Settled credits | Charged credits | Artifact hash | Run total credits |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| c0 | 11/3, 10:46 PM | 28294cce9904138dcbb9c1ddec7176045f87690f | 1fc859c6-00a2-4697-b298-a399b7e4ba98 | CONTROL: golden SGD artifact (job 0) (direct review call, outside the ledger) | - | accepted | 0 | 14.72 | - | 5f6da260582995c7 | 14.72 |
+| 3 | 11/3, 10:50 PM | 28294cce9904138dcbb9c1ddec7176045f87690f | 1fc859c6-00a2-4697-b298-a399b7e4ba98 | gradient descent with two learning rates | aj_d6be3346805043199a0a179cd7a7534b | accepted | 0 | 45.47 | 46 | 5d4b066cb737e149 | 60.19 |
+| 5 | 11/3, 10:50 PM | 28294cce9904138dcbb9c1ddec7176045f87690f | 1fc859c6-00a2-4697-b298-a399b7e4ba98 | a ball rolling down a loss surface, step by step | aj_f4161bb627c148b8bb565cfacf79dbe3 | accepted | 0 | 48.18 | 49 | 192d7268e0e97e18 | 108.37 |
+| 4 | 11/3, 10:51 PM | 28294cce9904138dcbb9c1ddec7176045f87690f | 1fc859c6-00a2-4697-b298-a399b7e4ba98 | show me why a high learning rate diverges | aj_f99c28c1ce97437f890a7f3284b40085 | failed | 1 | 70.95 | 13 | - | 179.32 |
+| 2 | 11/3, 10:52 PM | 28294cce9904138dcbb9c1ddec7176045f87690f | 1fc859c6-00a2-4697-b298-a399b7e4ba98 | SGD on a bowl-shaped loss | aj_2339767c0b2a4f8f8d6e8349ac9eaef3 | failed | 1 | 68.83 | 10 | - | 248.15 |
+| 8 | 11/3, 10:52 PM | 28294cce9904138dcbb9c1ddec7176045f87690f | 1fc859c6-00a2-4697-b298-a399b7e4ba98 | gradient descent that overshoots the minimum | aj_1644ce60253c4d1e9fb5662ae1a52f11 | failed | 0 | 0.00 | 0 | - | 248.15 |
+| 1 | 11/3, 10:52 PM | 28294cce9904138dcbb9c1ddec7176045f87690f | 1fc859c6-00a2-4697-b298-a399b7e4ba98 | stochastic gradient descent | aj_401b2088b010404f82ff03b3a10e81b7 | failed | 1 | 75.55 | 7 | - | 323.70 |
+| 7 | 11/3, 10:52 PM | 28294cce9904138dcbb9c1ddec7176045f87690f | 1fc859c6-00a2-4697-b298-a399b7e4ba98 | compare learning rate 0.1 and 1.5 on the same surface | aj_5371b9b3ab8143098d432a0e814ee3ef | stopped | 0 | 31.23 | 6 | - | 354.94 |
+| 6 | 11/3, 10:53 PM | 28294cce9904138dcbb9c1ddec7176045f87690f | 1fc859c6-00a2-4697-b298-a399b7e4ba98 | minimize a quadratic loss with gradient steps | aj_b15ba718efe9431a83880e9e7c7bceca | stopped | 0 | 41.09 | 5 | - | 396.03 |

@@ -1,0 +1,183 @@
+[
+ {
+  "at": 1793769069973,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "692b401ca03ebced03443451a1494af9923ac0e56db22551f9b63d8af0b1681e",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The run stops with status 'converged' as soon as the loss falls below 0.001. With noisy batches (1, 8, 32) the ball jitters around the bottom, and over 200 steps it is very likely to dip below 0.001 by chance (about 2% per step at lr 0.1, batch 8). The run then halts and reports 'converged'. That is false and breaks the plan's promise that small batches keep jittering instead of settling. Only use the tolerance stop for full-batch runs, or report a noise floor instead.",
+       "object": "status",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "At the start, the two arrows (noisy step and true downhill) are a few pixels long. They point straight away from the camera, so they are heavily foreshortened, and their labels sit on top of them next to the ball. A learner cannot compare the two directions in the default view. Put the default camera more to the side of the motion (looking across the long z axis) so the arrows and path are seen side-on, and offset the labels away from the ball.",
+       "object": "stepArrow",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "In the default view the bowl fills only about 45% of the frame width, with large empty margins. The ball and arrows are small near the front lip. Frame the camera tighter on the bowl.",
+       "object": "camera",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Batch size, the true-arrow toggle, Keep path and the low learning rate were not sampled. The program allows divergence (batch 1 at lr 0.45 has a stationary x spread of about 2.25, larger than the surface half-width of 2). The plan says divergence is not shown. The artifact discloses this, but it differs from the plan.",
+       "object": "learningRate",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Near the bottom (loss 0.078, batch 8), the 'converged' stop at loss < 0.001 can trigger on a random noisy dip. The run would halt and be labelled converged even though SGD is still jittering. This is misleading.",
+       "object": "status",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The 'Noisy step', 'Lowest point' and 'True downhill' labels are crowded around the ball. They cover the end of the path and the arrows, and the arrows cannot be seen at all. Spread the labels out, or anchor them away from the ball and the minimum.",
+       "object": "stepTag",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The 'True downhill', 'Lowest point' and 'Noisy step' labels cover the zig-zag path and the minimum marker. Both arrows are barely visible next to the ball, so the overshoot idea at a high learning rate is hard to read.",
+       "object": "slopeTag",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Same state as v0-s0: the spurious 'converged' stop at loss < 0.001 under noise (see v0-s0).",
+       "object": "status",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Same state as v0-s1: the spurious 'converged' stop under noise (see v0-s0).",
+       "object": "status",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13648,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4813,
+   "output_tokens_details": {
+    "thinking_tokens": 3428
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_a43c70b6269e4e04976d882faaa986b3-review-4",
+   "status": "settled",
+   "costMicros": 151273,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

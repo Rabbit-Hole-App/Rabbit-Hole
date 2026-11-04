@@ -1,0 +1,9 @@
+| # | Time (PT) | Candidate SHA | Preview version | Phrasing | Job id | Outcome | Repairs | Settled credits | Charged credits | Artifact hash | Run total credits |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 3 | 11/3, 9:10 PM | 7bb1a0ef4211ea45ecd3a53ccd6770d76080e8d3 | 7c545e95-ecef-4418-a070-0709ef1ddec7 | gradient descent with two learning rates | aj_3c82103c7ee04763930a2093ca120c5f | accepted | 0 | 42.30 | 43 | 01a32965a4b4ba89 | 42.30 |
+| 4 | 11/3, 9:11 PM | 7bb1a0ef4211ea45ecd3a53ccd6770d76080e8d3 | 7c545e95-ecef-4418-a070-0709ef1ddec7 | show me why a high learning rate diverges | aj_4f08e1b367964e4aa0c3124c26dfc33f | failed | 0 | 50.26 | 5 | - | 92.56 |
+| 1 | 11/3, 9:12 PM | 7bb1a0ef4211ea45ecd3a53ccd6770d76080e8d3 | 7c545e95-ecef-4418-a070-0709ef1ddec7 | stochastic gradient descent | aj_a43c70b6269e4e04976d882faaa986b3 | rejected | 1 | 68.97 | 10 | - | 161.54 |
+| 5 | 11/3, 9:13 PM | 7bb1a0ef4211ea45ecd3a53ccd6770d76080e8d3 | 7c545e95-ecef-4418-a070-0709ef1ddec7 | a ball rolling down a loss surface, step by step | aj_312c170b24fb4d8c85ddf11650310467 | rejected | 1 | 83.40 | 5 | - | 244.94 |
+| 2 | 11/3, 9:14 PM | 7bb1a0ef4211ea45ecd3a53ccd6770d76080e8d3 | 7c545e95-ecef-4418-a070-0709ef1ddec7 | SGD on a bowl-shaped loss | aj_6cce0f19be914f429990370e3f5a0a07 | accepted | 1 | 90.97 | 91 | 08eafbc5fae472e7 | 335.92 |
+| 7 | 11/3, 9:16 PM | 7bb1a0ef4211ea45ecd3a53ccd6770d76080e8d3 | 7c545e95-ecef-4418-a070-0709ef1ddec7 | compare learning rate 0.1 and 1.5 on the same surface | aj_aa666005be4f4a1e8ea4e732aaca05d6 | rejected | 1 | 69.86 | 10 | - | 405.77 |
+| 6 | 11/3, 9:16 PM | 7bb1a0ef4211ea45ecd3a53ccd6770d76080e8d3 | 7c545e95-ecef-4418-a070-0709ef1ddec7 | minimize a quadratic loss with gradient steps | aj_1a6967880529492c81db26f7a16d72c3 | accepted | 1 | 73.03 | 74 | 425d2e0868c6c2ee | 478.80 |

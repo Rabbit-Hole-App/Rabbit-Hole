@@ -1,0 +1,11 @@
+| # | Time (PT) | Candidate SHA | Preview version | Phrasing | Job id | Outcome | Repairs | Settled credits | Charged credits | Artifact hash | Run total credits |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 3 | 11/3, 9:37 PM | 4a920b1f7433523b4e8c92afb813694090407aff | 10947e93-08ab-45eb-b20c-d4dd7572a3f3 | gradient descent with two learning rates | aj_eab093a232ea4df1b57596e9c6fba9ba | accepted | 0 | 43.33 | 44 | 67e0121309c8fac7 | 43.33 |
+| 4 | 11/3, 9:38 PM | 4a920b1f7433523b4e8c92afb813694090407aff | 10947e93-08ab-45eb-b20c-d4dd7572a3f3 | show me why a high learning rate diverges | aj_4c6bd089a0c24b77b0ebed42465930c2 | accepted | 0 | 49.47 | 50 | d69d237e22d0e182 | 92.80 |
+| 5 | 11/3, 9:39 PM | 4a920b1f7433523b4e8c92afb813694090407aff | 10947e93-08ab-45eb-b20c-d4dd7572a3f3 | a ball rolling down a loss surface, step by step | aj_bb9d5a51812c4f4b9f02f9a701b91006 | accepted | 0 | 66.67 | 67 | 150d105a8ff3dcc0 | 159.47 |
+| 1 | 11/3, 9:40 PM | 4a920b1f7433523b4e8c92afb813694090407aff | 10947e93-08ab-45eb-b20c-d4dd7572a3f3 | stochastic gradient descent | aj_4c561e74c65444bda3466b601aa5fb04 | rejected | 1 | 88.67 | 12 | - | 248.15 |
+| 2 | 11/3, 9:40 PM | 4a920b1f7433523b4e8c92afb813694090407aff | 10947e93-08ab-45eb-b20c-d4dd7572a3f3 | SGD on a bowl-shaped loss | aj_378790fcdbc9470faf728015b67e251e | rejected | 1 | 83.93 | 12 | - | 332.07 |
+| 9 | 11/3, 9:41 PM | 4a920b1f7433523b4e8c92afb813694090407aff | 10947e93-08ab-45eb-b20c-d4dd7572a3f3 | SGD with a kept path to compare runs | aj_6afbc114ef5d4e6ead510586fc5dd632 | failed | 0 | 9.53 | 10 | - | 341.60 |
+| 6 | 11/3, 9:41 PM | 4a920b1f7433523b4e8c92afb813694090407aff | 10947e93-08ab-45eb-b20c-d4dd7572a3f3 | minimize a quadratic loss with gradient steps | aj_88a0f3fce91d464e9fe46fbbf787297f | accepted | 0 | 53.22 | 54 | db4e18cfb6558157 | 394.82 |
+| 7 | 11/3, 9:42 PM | 4a920b1f7433523b4e8c92afb813694090407aff | 10947e93-08ab-45eb-b20c-d4dd7572a3f3 | compare learning rate 0.1 and 1.5 on the same surface | aj_ec5d7bfb0ea246e3bbae5de351f273ff | rejected | 1 | 65.32 | 6 | - | 460.14 |
+| 8 | 11/3, 9:43 PM | 4a920b1f7433523b4e8c92afb813694090407aff | 10947e93-08ab-45eb-b20c-d4dd7572a3f3 | gradient descent that overshoots the minimum | aj_e456447a546f44688e3e7e7ed2099336 | accepted | 1 | 65.79 | 66 | 6d699d0f1f7eb093 | 525.93 |

@@ -1,0 +1,36 @@
+[
+ {
+  "at": 1793769088771,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "974d807db10b1ef99c717caac1da6f5cf27a72c9ba8aa393818a29d044b3362c",
+  "retry": false,
+  "raw": null,
+  "verdicts": [],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13572,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 6000,
+   "output_tokens_details": {
+    "thinking_tokens": 3818
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "max_tokens",
+  "error": "output_limit",
+  "call": {
+   "key": "aj_4f08e1b367964e4aa0c3124c26dfc33f-review-3",
+   "status": "failed",
+   "costMicros": 174709,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

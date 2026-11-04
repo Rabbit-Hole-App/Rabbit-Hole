@@ -1,0 +1,188 @@
+{
+ "id": "aj_88a0f3fce91d464e9fe46fbbf787297f",
+ "version": 1,
+ "boardId": "a9fb9d8b-7d26-4700-bc4b-de5a588ab63e",
+ "cardId": "cbb142ac-46bd-4cad-947a-f26883dcaeec",
+ "stage": "ready",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 0,
+ "stopReason": "accepted",
+ "failure": null,
+ "recovery": [],
+ "outcome": "supported",
+ "choiceOpen": false,
+ "threadId": "canvaschat-d6b87e40-1a98-446b-8d47-5dda0c094f98",
+ "chatPending": false,
+ "usage": {
+  "credits": 54,
+  "unknown": false
+ },
+ "result": {
+  "jobId": "aj_88a0f3fce91d464e9fe46fbbf787297f",
+  "resultId": "ar_35618b4416bf41128ade356039a36f58",
+  "cardId": "cbb142ac-46bd-4cad-947a-f26883dcaeec",
+  "canvas": {
+   "boardId": "a9fb9d8b-7d26-4700-bc4b-de5a588ab63e"
+  },
+  "requestRef": "d4fa60df0db77154",
+  "revision": "av_202716fc9a7b422492484e455d86c6b6",
+  "planHash": "75212a5ad683479aa2a9b3c5eb1ab1d7288ad2185e1261f3da1be26cbd8fc373",
+  "sources": "643d5437104296e2",
+  "artifactHash": "db4e18cfb6558157ea6de7d31c0e5371cb40e7d6b6bd4473a8eef72d23972ee1",
+  "experience": "experiment",
+  "capabilityVersion": "animation-capabilities/1",
+  "policyVersion": 1
+ },
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Gradient descent on a quadratic bowl",
+  "description": "A bowl-shaped surface shows the loss L(x, y) = ½(x² + c·y²), with contour lines and its lowest point marked at the centre. A ball sits at a starting point. With each step it moves against the gradient (the direction in which the loss rises fastest), and a trail records its path. An arrow on the ball shows the next step: its direction, and a length equal to learning rate × gradient size. Readouts show the step number, the current loss and the gradient size, so you can watch the loss shrink, zig-zag or blow up depending on the settings.",
+  "experience": "experiment",
+  "reason": "Changing the learning rate and the bowl's steepness, then watching the path, shows directly why a small step creeps along, a medium one converges quickly, and a step that is too large overshoots and diverges.",
+  "behavior": "rules",
+  "controlProfile": "manipulate",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate (step size)",
+    "min": 0.02,
+    "max": 0.8,
+    "step": 0.02,
+    "default": 0.1
+   },
+   {
+    "type": "number",
+    "id": "steepness",
+    "label": "Steepness along y (c)",
+    "min": 1,
+    "max": 4,
+    "step": 0.5,
+    "default": 3
+   }
+  ],
+  "interactions": [
+   "Press play or step to move the ball one gradient step at a time; the trail grows and the readouts update.",
+   "Change the learning rate: small values give a slow, smooth path; values near 1/c make the path zig-zag across the narrow direction; values above 2/c make it bounce outward and diverge.",
+   "Change the steepness: c = 1 gives a round bowl and a straight path to the centre; larger c gives a narrow valley and a curved or zig-zag path.",
+   "Drag the ball to a new starting point on the surface.",
+   "Use 'Restart from start point' to clear the trail and step count but keep your current settings and starting point."
+  ],
+  "assumptions": [
+   "Illustration: a simple two-variable quadratic bowl, not the loss of a trained model.",
+   "Each step is exactly: x ← x − η·x and y ← y − η·c·y, where η is the learning rate. That is plain gradient descent with no momentum and no noise.",
+   "Because the loss is quadratic, each coordinate shrinks by a fixed factor every step: (1 − η) along x and (1 − η·c) along y. It converges exactly when both factors lie strictly between −1 and 1.",
+   "The run stops when the gradient size falls below 0.01, after 100 steps, or when the ball leaves the drawn surface. The last case is reported as 'diverged'.",
+   "Default start is x = −2.5, y = 1.5."
+  ],
+  "limitations": [
+   "Real loss surfaces have many dimensions and are not perfect bowls. This shows only the two-variable quadratic case, where gradient descent always succeeds or always fails in a predictable way.",
+   "Once a diverging path leaves the drawn area it is no longer shown. Only the 'diverged' outcome is reported."
+  ],
+  "learningGoal": "Understand that gradient descent repeatedly steps opposite the gradient, and that the learning rate relative to the bowl's steepness decides whether the path converges smoothly, oscillates or diverges.",
+  "requiredCapabilities": [
+   "parameters",
+   "actions",
+   "drag",
+   "step",
+   "labels",
+   "readouts"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "pathLength",
+    "min": 20
+   },
+   {
+    "kind": "compare",
+    "parameter": "learningRate",
+    "values": [
+     0.1,
+     0.7
+    ]
+   }
+  ]
+ },
+ "planHash": "75212a5ad683479aa2a9b3c5eb1ab1d7288ad2185e1261f3da1be26cbd8fc373",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 23237,
+  "generateToResultMs": 217150,
+  "processingMs": 240337,
+  "approvalWaitMs": 2917,
+  "calls": 3,
+  "repairs": 0,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 23187,
+    "calls": 1,
+    "inputTokens": 377,
+    "outputTokens": 2084,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 2917,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 133057,
+    "calls": 1,
+    "inputTokens": 7661,
+    "outputTokens": 15388,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 19,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 36158,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 47916,
+    "calls": 1,
+    "inputTokens": 13481,
+    "outputTokens": 4683,
+    "images": 6,
+    "captures": 0,
+    "outcome": "accepted"
+   }
+  ]
+ },
+ "createdAt": 1793770658407,
+ "updatedAt": 1793770901711
+}

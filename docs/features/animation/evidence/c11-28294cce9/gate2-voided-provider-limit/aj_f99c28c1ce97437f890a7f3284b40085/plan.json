@@ -1,0 +1,74 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Why a too-large learning rate makes gradient descent blow up",
+ "description": "A ball sits on a bowl-shaped loss surface. The bowl is steep in one direction and gentle in the other. On each step the ball jumps against the slope by an amount equal to the learning rate times the slope, and it leaves a trail. An arrow shows the slope (the gradient), which points uphill, and the ball always moves the other way. With a small learning rate the ball slides down into the bottom. As you raise it, the ball starts overshooting the valley floor and zigzagging. Past a threshold, each zigzag lands higher than the one before, and the ball flies off the bowl.",
+ "experience": "experiment",
+ "reason": "Divergence makes the most sense when you can push the learning rate past the threshold yourself and watch each step overshoot more than the last. The readouts show the number that causes it.",
+ "behavior": "rules",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate",
+   "min": 0.01,
+   "max": 0.7,
+   "step": 0.01,
+   "default": 0.3
+  },
+  {
+   "type": "number",
+   "id": "steepCurvature",
+   "label": "Steepness of the steep direction",
+   "min": 1,
+   "max": 8,
+   "step": 0.5,
+   "default": 4
+  }
+ ],
+ "interactions": [
+  "Change the learning rate. Below 1 ÷ steepness the ball slides straight in; between that and 2 ÷ steepness it zigzags but settles; above 2 ÷ steepness the zigzags grow and it leaves the bowl.",
+  "Change the steepness of the bowl. A steeper bowl lowers the learning rate at which descent blows up. The surface, the trail and the threshold readout all update.",
+  "Play, pause or single-step the descent and watch the trail, the slope arrow and the loss readout after each step.",
+  "Restart the descent from the same starting point, keeping your current settings and clearing the trail."
+ ],
+ "assumptions": [
+  "This is an illustration: a simple made-up bowl, not a real model being trained.",
+  "The loss is 0.5 × (x² + steepness × y²). So the slope is x in the gentle direction and steepness × y in the steep direction.",
+  "Each step multiplies the distance from the bottom by (1 − learning rate) in the gentle direction and by (1 − learning rate × steepness) in the steep one. In this model, a negative multiplier means overshoot; a size above 1 means divergence. With steepness 4, that is learning rates above 0.5.",
+  "The ball starts at the same fixed point every time, off-center in both directions.",
+  "A run stops after 40 steps, or as soon as the ball leaves the drawn part of the surface. When it leaves, the card marks the run as diverged."
+ ],
+ "limitations": [
+  "Real loss surfaces are not perfect bowls. In a real model the safe learning rate depends on the local curvature, which can change during training, so the threshold here is exact only for this bowl.",
+  "A diverging ball leaves the drawn area within a few steps. After that the card reports that the run diverged instead of following the ball off-screen.",
+  "There is no noise or momentum: every step uses the exact slope."
+ ],
+ "learningGoal": "Gradient descent diverges when the learning rate is so large that each step overshoots the valley floor by more than the starting distance. That happens once the learning rate passes 2 divided by the curvature of the steepest direction.",
+ "requiredCapabilities": [
+  "parameters",
+  "step",
+  "actions",
+  "readouts",
+  "labels"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.3,
+    0.6
+   ]
+  },
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "pathLength",
+   "min": 20
+  }
+ ]
+}

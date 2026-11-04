@@ -71,11 +71,13 @@ Role bound = (max input tokens + images x 4,784) x $4/Mtok x 1.25 (cache write) 
 | plan (brief), 1 | 40,000 x 4 x 1.25 + 4,000 x 20 = 200,000 + 80,000 | 280,000 |
 | plan correction reserve, 1 | same bound again | 280,000 |
 | author, 1 | 60,000 x 4 x 1.25 + 24,000 x 20 = 300,000 + 480,000 | 780,000 |
-| review, up to 3 | (40,000 + 6 x 4,784) x 5 + 6,000 x 20 = 343,520 + 120,000 = 463,520 each | 1,390,560 |
+| review, up to 3 | (40,000 + 6 x 4,784) x 5 + 6,000 x 20 = 343,520 + 120,000 = 463,520 each (503,520 each with the C9 review limit of 8,000 output tokens, FX-AN-102: 1,510,560, generation 3,366,240, 337 credits shown on Generate) | 1,390,560 |
 | repair, up to 2 (the correction/repair reserve) | (50,000 + 2 x 4,784) x 5 + 12,000 x 20 = 297,840 + 240,000 = 537,840 each | 1,075,680 |
 
 - One preparation (plan + its one correction) reserves 560,000 micros = **56 credits** shown on the plan ("using up to 56 AI credits"); the refinement of the owner's sequence (the frozen 40-step refinement) is another preparation: another 560,000 = 56 credits.
 - Generation reserves 780,000 + 1,390,560 + 1,075,680 = 3,246,240 micros = **325 credits** shown on Generate.
+  Superseded 3 Nov 2026 (owner decision 16, FX-AN-045): the repair is 24,000 output tokens at medium effort, so a repair is 297,840 + 480,000 = 777,840 micros, two are 1,555,680, and Generation reserves 3,726,240 micros = **373 credits** (total with plan and refinement 4,846,240 = 485 credits). The table above is the record of the MVP1 round.
+  Superseded again 4 Nov 2026 (owner decision 28, FX-AN-102: the review at 8,000 output tokens, 503,520 each; then owner decision 35, FX-AN-123: up to 4 reviews and 4 repairs, two repairs of each kind): author 780,000 + 4 x 503,520 (2,014,080) + 4 x 777,840 (3,111,360) = **5,905,440 micros = 591 credits** shown on Generate (385 with 3 reviews and 2 repairs). Planning is unchanged at 560,000 = 56 credits. The figures are derived by `animationReservation()`, not typed anywhere.
 - Planning + refinement + generation = 560,000 + 560,000 + 3,246,240 = **4,366,240 micros = $4.37 = 437 credits** as the displayed maximum (the earlier "about $4.40"). It is a ceiling, not a forecast: the failed run aj_086fd46 settled at $1.1084 (111 credits) in total. The policy would allow up to 5 refinements (ceiling 6 x 560,000 + 3,246,240 = $6.61); the owner's sequence uses one.
 
 ## Owner decisions and known limits this round leaves open

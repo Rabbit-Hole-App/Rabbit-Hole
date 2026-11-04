@@ -1,0 +1,181 @@
+{
+ "id": "aj_1b4cdb8db88446e48bbf9219945d64eb",
+ "version": 1,
+ "boardId": "5dc95735-2eb6-41e4-b8ed-4513259b9f14",
+ "cardId": "c51d1686-2d19-426c-8355-a76996947321",
+ "stage": "cancelled",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 0,
+ "stopReason": "stopped",
+ "failure": null,
+ "recovery": [],
+ "outcome": "supported",
+ "choiceOpen": false,
+ "threadId": "canvaschat-45874260-0ebf-42e5-afae-a203009f0ffd",
+ "chatPending": false,
+ "usage": {
+  "credits": 8,
+  "unknown": false,
+  "note": "You have not been charged."
+ },
+ "result": null,
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Gradient descent: a ball stepping down a loss surface",
+  "description": "A colored loss surface with contour lines has a ball on it. An arrow under the ball points downhill, along the negative gradient (the direction the loss falls fastest). Each step moves the ball that way by the learning rate times the slope, and a trail records its path. Readouts show the step count, the current loss and the slope's steepness. You can step once at a time or let it run, then change the learning rate, the starting point or the surface and compare paths.",
+  "experience": "experiment",
+  "reason": "Stepping the ball yourself shows that gradient descent is a series of separate jumps, each set by the local slope. Changing the learning rate shows when those jumps settle smoothly, zig-zag or fly apart.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate (step size)",
+    "min": 0.01,
+    "max": 0.6,
+    "step": 0.01,
+    "default": 0.1
+   },
+   {
+    "type": "select",
+    "id": "surface",
+    "label": "Loss surface",
+    "options": [
+     {
+      "value": "bowl",
+      "label": "Round bowl"
+     },
+     {
+      "value": "valley",
+      "label": "Long narrow valley"
+     },
+     {
+      "value": "twoMinima",
+      "label": "Two valleys"
+     }
+    ],
+    "default": "valley"
+   },
+   {
+    "type": "number",
+    "id": "startX",
+    "label": "Start position (left–right)",
+    "min": -2,
+    "max": 2,
+    "step": 0.1,
+    "default": -1.8
+   },
+   {
+    "type": "number",
+    "id": "startY",
+    "label": "Start position (front–back)",
+    "min": -2,
+    "max": 2,
+    "step": 0.1,
+    "default": 1.5
+   },
+   {
+    "type": "toggle",
+    "id": "showArrow",
+    "label": "Show downhill arrow",
+    "default": true
+   }
+  ],
+  "interactions": [
+   "Take one step: the ball moves once along the downhill arrow, and the trail and readouts update",
+   "Use the card's play and pause to run steps on their own; the run stops at 100 steps, when the slope is almost flat, or when the ball leaves the surface",
+   "Change the learning rate: small values give short, slow steps; on the narrow valley, values above 0.25 zig-zag across it and values above 0.5 make each jump bigger until the ball leaves the surface",
+   "Switch surfaces: the round bowl leads straight to its bottom, and on the two-valley surface the starting point decides which valley the ball ends in",
+   "Move the start position to begin a new path from that point",
+   "Click the ball or the arrow to see the loss and slope values at that point"
+  ],
+  "assumptions": [
+   "Illustration: these are made-up surfaces, not the loss of a real trained model.",
+   "The rule is plain gradient descent: next position = position − learning rate × slope. There is no momentum, so the ball jumps from point to point instead of really rolling.",
+   "The slope is calculated exactly from each surface's formula, without the noise you would get from small batches of data.",
+   "Round bowl: loss = ½(x² + y²). Narrow valley: loss = ½(x² + 4y²). Two valleys: loss = (x² − 1)² + ½y² + 0.2x, which makes the left valley a little deeper.",
+   "Changing a setting starts a new path from the start position and clears the trail and step count."
+  ],
+  "limitations": [
+   "Real loss surfaces have thousands or millions of dimensions. This one has two, so you can see it.",
+   "When the ball leaves the drawn surface, it stops there, and a readout says the run went off the surface (diverged). The scene doesn't follow it any farther.",
+   "Each step lowers the loss only when the learning rate is small enough for that surface. With larger rates, the loss can go up from one step to the next."
+  ],
+  "learningGoal": "Gradient descent repeatedly steps against the slope, and the learning rate decides whether those steps settle, zig-zag or overshoot. Where you start can decide which valley you end in.",
+  "requiredCapabilities": [
+   "step",
+   "parameters",
+   "actions",
+   "readouts",
+   "labels",
+   "select"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "learningRate",
+    "values": [
+     0.05,
+     0.55
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 100
+   }
+  ]
+ },
+ "planHash": "478921d4381ff5e27b190a62d39151799c8c98f4f83e4d405babf59496c0f8c8",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 23565,
+  "generateToResultMs": null,
+  "processingMs": 48556,
+  "approvalWaitMs": 3332,
+  "calls": 1,
+  "repairs": 0,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 23515,
+    "calls": 1,
+    "inputTokens": 377,
+    "outputTokens": 2246,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 3332,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 25041,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "stopped"
+   }
+  ]
+ },
+ "createdAt": 1793768741967,
+ "updatedAt": 1793768960893
+}

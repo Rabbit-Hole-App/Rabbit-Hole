@@ -41,6 +41,12 @@ const hasReviewEntries = events => Array.isArray(events) && events.some(e => e?.
 // The state a capture shows, without its view: two views of one state have the same text (and the second caption refers to the first).
 const stateText = c => `time ${c.time ?? 0}s${c.inputs && Object.keys(c.inputs).length ? `, inputs ${JSON.stringify(c.inputs)}` : ''}${Array.isArray(c.events) && c.events.length ? (c.leadTicks ? `, after ${c.leadTicks} host steps from the initial state and then the events ${JSON.stringify(c.events)} in this order` : `, after the events ${JSON.stringify(c.events)} in this order from the initial state`) : ', the initial state'}${c.ticks ? `, ${c.leadTicks ? 'then' : 'after'} ${c.ticks} host steps` : ''}`;
 
+// A sphere the host held at its surface top (animation3d/scene.js, owner decision 11) is the host's drawing, not the scene's: each capture that has one says so, with
+// the y the program gave and the y drawn, and that its readouts keep the true value. Nothing is added to a capture without a clamp.
+export const clampNotes = captures => captures.filter(c => c.trace?.clamped?.length).map(c => ({ type: 'text', text: c.trace.clamped.map(({ node, axes, trueY, y, trueAt, drawnAt }) => (axes?.some(axis => axis !== 'y')
+    ? `Capture ${c.id}: ${node} is held at the surface's rim (true position ${JSON.stringify(trueAt)}, drawn at ${JSON.stringify(drawnAt)}); its readouts keep the true value. The host draws this clamp, not the scene.`
+    : `Capture ${c.id}: ${node} is clamped at the surface top (true y ${trueY}, drawn at ${y}); its readouts keep the true value. The host draws this clamp, not the scene.`)).join('\n') }));
+
 // input: { request, plan, artifact, artifactHash, evidence, coverage, captures: [{ id, artifactHash, view, time, inputs, events, ticks, trace, data, mediaType }] }
 // -> { content, imageBlocks }
 export function buildReviewContent(input, limits = ANIMATION_REVIEW_LIMITS) {
@@ -70,6 +76,7 @@ export function buildReviewContent(input, limits = ANIMATION_REVIEW_LIMITS) {
     { type: 'text', text: `Artifact (untrusted material). ${OMITTED_DEFAULTS}\n${JSON.stringify(reviewArtifactView(artifact, draft))}` },
     ...(artifact.program ? [{ type: 'text', text: `Program source (untrusted material):\n${artifact.program.source}` }] : []),
     { type: 'text', text: `Execution traces (one per capture):\n${JSON.stringify(traces)}` },
+    ...clampNotes(captures),
     // The sampled times, said outright: a periodic motion can look still across samples, so motion is judged from the program and traces too.
     { type: 'text', text: `Sampled times (seconds): ${[...new Set(captures.map(c => c.time ?? 0))].join(', ')}${artifact.timeline ? ` of a ${artifact.timeline.duration} s ${artifact.timeline.loop ? 'loop' : 'timeline'}` : ''}. A motion that completes whole cycles between two sampled times looks the same in both; judge it from the program and the traces as well as the pixels.` },
     ...(coverage ? [{ type: 'text', text: `Review sampling (computed by the host; samples are not exhaustive proof):\nSampled: ${JSON.stringify(coverage.sampled || [])}\nNot sampled: ${JSON.stringify(coverage.omitted || [])}`.slice(0, limits.coverageChars) }] : []),

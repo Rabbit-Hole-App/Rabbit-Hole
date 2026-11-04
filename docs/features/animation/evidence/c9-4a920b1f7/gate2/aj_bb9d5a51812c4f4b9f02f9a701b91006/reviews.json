@@ -1,0 +1,149 @@
+[
+ {
+  "at": 1793770745123,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "150d105a8ff3dcc07161d1f36a4e901235003eb33ff32982b42255b72b729c43",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Plan says the trail draws one marker every 2 steps (max 100); the artifact draws every step (trail max 256). Disclosed in the artifact assumptions but differs from the approved plan.",
+       "object": "trail",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: the two-valley surface, dragging the start, the low learning rate (0.02) and the 0.25–0.4 zigzag range. The two-valley formula, its slope and its low points (−1.48, 1.33) were checked in the source only.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "When diverged, the program caps trail heights at 3, but the host caps the ball at 2.5 (true y 3.467). So the ball floats below and beside the end of the trail instead of sitting on it. Use the same cap for the trail and the ball, e.g. the surface top 2.5.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Dragging moves only the left–right start (x); z is fixed at 1.5. The plan promises dragging the ball to a new starting point. This is disclosed and is enough for the two-valley lesson, but it is narrower than the plan.",
+       "object": "ballB",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Side view shows the same mismatch: the last trail segment rises to height 3 while the ball is drawn at the host's 2.5 clamp, so the ball is not at the end of the trail.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 15917,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 5202,
+   "output_tokens_details": {
+    "thinking_tokens": 3599
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_bb9d5a51812c4f4b9f02f9a701b91006-review-4",
+   "status": "settled",
+   "costMicros": 168129,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

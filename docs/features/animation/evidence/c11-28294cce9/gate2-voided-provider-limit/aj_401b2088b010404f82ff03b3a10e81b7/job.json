@@ -1,0 +1,233 @@
+{
+ "id": "aj_401b2088b010404f82ff03b3a10e81b7",
+ "version": 1,
+ "boardId": "f9dd1c8b-2c3f-4e08-8422-dfdb28c316ff",
+ "cardId": "5100ef37-f767-4a5d-be84-29118b308f4c",
+ "stage": "failed",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 1,
+ "stopReason": "provider_unavailable",
+ "failure": {
+  "stage": "reviewing",
+  "category": "provider_unavailable",
+  "message": "The AI service was busy. You have not been charged. It was corrected automatically once. It was retried automatically. Try again continues from where it stopped, using up to 199 AI credits.",
+  "retryable": true,
+  "callsFrom": 5
+ },
+ "recovery": [
+  "new_attempt",
+  "edit_request"
+ ],
+ "outcome": "changes",
+ "choiceOpen": false,
+ "threadId": "canvaschat-872b84b1-8876-4970-b41a-c06ceef273ef",
+ "chatPending": false,
+ "usage": {
+  "credits": 7,
+  "unknown": false,
+  "note": "You have not been charged."
+ },
+ "result": null,
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Stochastic gradient descent on a noisy bowl",
+  "description": "A stretched bowl-shaped loss surface shows the average loss over 20 made-up training examples, with its lowest point marked. A ball starts on the slope and moves one step at a time. Each step it picks a small random batch of examples and moves against that batch's slope, leaving a trail. A faint second ball can follow plain gradient descent, which uses all 20 examples every step, so you can compare the jittery path with the smooth one. Two arrows show the step direction from the batch (bright) and from the full data (faint).",
+  "experience": "experiment",
+  "reason": "Stochastic gradient descent is easiest to understand by watching how batch size and step size shape the path. Changing them and stepping the ball shows noise and stability directly.",
+  "behavior": "rules",
+  "controlProfile": "manipulate",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learning_rate",
+    "label": "Learning rate (step size)",
+    "min": 0.05,
+    "max": 1.1,
+    "step": 0.05,
+    "default": 0.3
+   },
+   {
+    "type": "number",
+    "id": "batch_size",
+    "label": "Batch size (examples per step)",
+    "min": 1,
+    "max": 20,
+    "step": 1,
+    "default": 2
+   },
+   {
+    "type": "toggle",
+    "id": "show_full_gd",
+    "label": "Show plain gradient descent for comparison",
+    "default": true
+   }
+  ],
+  "interactions": [
+   "Press play or step to move the ball one update at a time. A run stops after 200 steps.",
+   "Drag the ball on the surface before a run to choose where it starts.",
+   "Learning rate: small values make short, slow steps. Near 1 the ball zigzags across the steep direction of the bowl. Above 1 it bounces outward until it hits the edge of the surface and stops there.",
+   "Batch size: at 1 the path is very jittery. Larger batches smooth it, and at 20 it matches plain gradient descent exactly.",
+   "Clear trail: erases the drawn paths but keeps the ball where it is, the step count and your settings.",
+   "Readouts show the step number, the full average loss at the ball, and the loss on the current batch."
+  ],
+  "assumptions": [
+   "Illustration: a made-up two-weight loss surface, not a real trained model.",
+   "Each example's loss is a stretched bowl centred at a slightly different point (fixed seed). The surface shown is their exact average.",
+   "Each step draws a fresh random batch without repeats inside the batch. The batch slope is computed exactly for those examples.",
+   "Batch noise makes single steps sometimes go uphill on the full loss. The loss tends to drop on average, not on every step.",
+   "Each ball's height is always the full average loss at its position.",
+   "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+  ],
+  "limitations": [
+   "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+   "A real loss surface has millions of dimensions and many bumps. This one is a smooth 2-weight bowl with a single minimum, so local minima and saddle points are not shown.",
+   "There are no learning-rate schedules, no momentum and no other optimizers.",
+   "If the learning rate makes the ball diverge, it is held at the edge of the surface instead of flying away."
+  ],
+  "learningGoal": "See that stochastic gradient descent follows a noisy estimate of the slope. Smaller batches add more jitter, and too large a learning rate makes the path unstable.",
+  "requiredCapabilities": [
+   "step",
+   "parameters",
+   "actions",
+   "drag",
+   "labels",
+   "readouts"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "learning_rate",
+    "values": [
+     0.05,
+     1.1
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 100
+   }
+  ]
+ },
+ "planHash": "ad30fc258ffe579fb8fee5b9e9d00a3421acee686a58ed1cc6de98dcd56402ba",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 24343,
+  "generateToResultMs": null,
+  "processingMs": 338696,
+  "approvalWaitMs": 2262,
+  "calls": 6,
+  "repairs": 1,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 24293,
+    "calls": 1,
+    "inputTokens": 370,
+    "outputTokens": 2152,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 2262,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 136464,
+    "calls": 1,
+    "inputTokens": 8031,
+    "outputTokens": 16078,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 37,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 25541,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 44019,
+    "calls": 1,
+    "inputTokens": 14358,
+    "outputTokens": 4004,
+    "images": 6,
+    "captures": 0,
+    "outcome": "rejected"
+   },
+   {
+    "stage": "repairing",
+    "ms": 54141,
+    "calls": 1,
+    "inputTokens": 10320,
+    "outputTokens": 7556,
+    "images": 2,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 34,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 37475,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 16692,
+    "calls": 2,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 12,
+    "captures": 0,
+    "outcome": "failed"
+   }
+  ]
+ },
+ "createdAt": 1793774807821,
+ "updatedAt": 1793775149617
+}

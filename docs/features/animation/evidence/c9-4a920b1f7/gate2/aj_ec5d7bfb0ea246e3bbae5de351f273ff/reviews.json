@@ -1,0 +1,394 @@
+[
+ {
+  "at": 1793770852040,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "8e184d348b13966a73b0710f2a1a3497352ab8a980d9c49a0ee57edf9cc0e2c7",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The description says the orange ball (rate 1.5) lands 'higher each time', but the program does not do this. From the start (loss 3.0), its first step goes to x=−0.75, y=−1.25, where the loss is 1.31, so it goes down. The loss only rises from step 2 on (1.84, 2.86, 4.47, 6.98). Reword it, e.g. 'after one step down, each landing is higher as the zigzag across the bowl grows'.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "ballA",
+       "message": "At the start both balls sit at exactly the same point, so the blue ball is completely hidden behind the orange one. The learner sees only one ball. A tiny visual offset, or a note that they overlap, would help.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The default rate pair (0.1 vs 1.5) was never run. Only lrA=0.14 and lrA=2 were sampled, so the claim that blue creeps close to the bottom within 80 steps at 0.1 was not checked.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "camera",
+       "message": "The default camera looks along the depth (y) axis, which is exactly the direction of the orange ball's growing zigzag. The zigzag that should show divergence collapses into one near-vertical orange line through the centre. The key comparison can't be read in the starting view. Look from above, or along the x axis, so the side-to-side jumps across the bowl are visible.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "ballB",
+       "message": "The assumptions say a diverged ball is 'drawn at the surface edge height', but evaluate() places it at 0.4·loss of its true off-surface position (about 2.97 high at y=−3.05). It floats in mid-air well past the far edge of the surface (edge height about 1.9). Either clamp it to the edge as stated or fix the assumption.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The description says the orange ball lands 'higher each time', but its first step lowers the loss from 3.0 to 1.31. The loss only rises after that.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The first readout is 'Steps taken', not the result being compared (each ball's loss). Putting the two losses first would put the comparison up front.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "camera",
+       "message": "Both divergent runs zigzag along the camera's line of sight, so in the default view they appear as overlapping vertical lines through the centre. The overshoot across the bowl can't be read. Change the default camera angle.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "ballB",
+       "message": "The diverged orange ball is drawn floating above and beyond the surface edge, not at the edge height the assumptions claim.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The description wrongly says the orange ball lands 'higher each time' (its first step lowers the loss from 3.0 to 1.31).",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The description wrongly says the orange ball lands 'higher each time' (its first step lowers the loss from 3.0 to 1.31).",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "ballA",
+       "message": "At the start the blue ball is hidden inside the orange ball.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ballB",
+       "message": "The diverged orange ball floats in mid-air beyond the surface boundary, with nothing under it. This is a 3D placement error that contradicts the stated 'drawn at the surface edge height'.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The description wrongly says the orange ball lands 'higher each time' (its first step lowers the loss from 3.0 to 1.31).",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ballB",
+       "message": "The orange ball floats off the surface past its edge, not at the edge height. (The blue ball's clamp at height 3.6 is drawn by the host.)",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The description wrongly says the orange ball lands 'higher each time' (its first step lowers the loss from 3.0 to 1.31).",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 12886,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3773,
+   "output_tokens_details": {
+    "thinking_tokens": 1929
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_ec5d7bfb0ea246e3bbae5de351f273ff-review-3",
+   "status": "settled",
+   "costMicros": 127425,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793770944271,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "aa86bbf80f927697a46b55d46c2b3d34142824e4f394df9b309002d9dd570211",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "In the default view the bowl fills only about 43% of the frame width and half its height, with wide empty margins. The zigzag paths that carry the comparison end up small. Move the camera closer or tighten its fit around the surface.",
+       "repairable": true,
+       "object": "camera"
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: lrA at its low end (0.01), the 80-step stop, and the converged status. The program logic for these looks correct, but no capture checks it.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The 'Lowest point' label sits about 100 px right of its dot, on the orange trail's turning point. Learners will read that turn as the minimum. Anchor the label directly next to the dot, or place it away from where the paths run.",
+       "repairable": true,
+       "object": "lowTag"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The subject is small in frame with large empty margins, so the orange zigzag and the short blue path are hard to follow.",
+       "repairable": true,
+       "object": "camera"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The straight trail chords between surface points dip below the curved bowl. Some orange segments look thinner or partly hidden.",
+       "repairable": true,
+       "object": "trailB"
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The diverged blue ball (loss 12) sits at the bowl's edge right next to the 'Lowest point' label, while the real minimum dot is far to the left. The picture suggests the blue ball reached the bottom. The label needs to stay at its dot.",
+       "repairable": true,
+       "object": "lowTag"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The subject is small in frame with large empty margins.",
+       "repairable": true,
+       "object": "camera"
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 12876,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 2368,
+   "output_tokens_details": {
+    "thinking_tokens": 1481
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_ec5d7bfb0ea246e3bbae5de351f273ff-review-5",
+   "status": "settled",
+   "costMicros": 99285,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

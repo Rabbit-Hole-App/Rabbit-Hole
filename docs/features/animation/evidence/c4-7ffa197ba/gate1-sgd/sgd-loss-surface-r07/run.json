@@ -1,0 +1,44 @@
+{
+  "id": "sgd-loss-surface-r07",
+  "plan": "sgd-loss-surface",
+  "session": null,
+  "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+  "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+  "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+  "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+  "status": "error",
+  "stopReason": "tool_use",
+  "served": "claude-opus-5-5",
+  "usage": {
+    "input_tokens": 15799,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 16164,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 19001,
+    "output_tokens_details": {
+      "thinking_tokens": 7932
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+  },
+  "credits": 44.6449,
+  "bytes": null,
+  "validator": null,
+  "assertions": null,
+  "problems": [],
+  "category": null,
+  "error": "invalid_turn: The author returned no artifact.",
+  "calls": 2,
+  "askedAgain": true,
+  "kind": "artifact",
+  "inputKeys": [
+    "kind",
+    "artifact"
+  ],
+  "seconds": 155.2,
+  "transport": "dev-key"
+}

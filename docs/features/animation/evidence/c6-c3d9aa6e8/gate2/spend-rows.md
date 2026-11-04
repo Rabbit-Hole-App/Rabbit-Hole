@@ -1,0 +1,11 @@
+| # | Time (PT) | Candidate SHA | Preview version | Phrasing | Job id | Outcome | Repairs | Settled credits | Charged credits | Artifact hash | Run total credits |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 3 | 11/3, 8:12 PM | c3d9aa6e815dca7596c5ff0570dfa2ae878ddc09 | c894e9e7-c528-40d0-aeba-0c250f6402b9 | gradient descent with two learning rates | aj_1755c359ab0f42c7814d3e2f613f9829 | accepted | 0 | 48.10 | 49 | dd860e903a11cc8c | 48.10 |
+| 5 | 11/3, 8:13 PM | c3d9aa6e815dca7596c5ff0570dfa2ae878ddc09 | c894e9e7-c528-40d0-aeba-0c250f6402b9 | a ball rolling down a loss surface, step by step | aj_721a4a0d216c4efabb212e9e57848132 | cost-stop | 1 | 70.96 | 7 | - | 119.06 |
+| 4 | 11/3, 8:14 PM | c3d9aa6e815dca7596c5ff0570dfa2ae878ddc09 | c894e9e7-c528-40d0-aeba-0c250f6402b9 | show me why a high learning rate diverges | aj_66c23b42cb3240e8ae38650dde3bdf2c | accepted | 1 | 75.85 | 76 | bdb4516b51e7c60b | 194.91 |
+| 1 | 11/3, 8:15 PM | c3d9aa6e815dca7596c5ff0570dfa2ae878ddc09 | c894e9e7-c528-40d0-aeba-0c250f6402b9 | stochastic gradient descent | aj_b30213c908c3480bbb527cb7214bf9f9 | accepted | 2 | 94.29 | 95 | a4736384cc3c64cc | 289.20 |
+| 2 | 11/3, 8:15 PM | c3d9aa6e815dca7596c5ff0570dfa2ae878ddc09 | c894e9e7-c528-40d0-aeba-0c250f6402b9 | SGD on a bowl-shaped loss | aj_ae120e6add1b43578b831f3b7cc1a741 | rejected | 1 | 86.50 | 11 | - | 375.71 |
+| 6 | 11/3, 8:16 PM | c3d9aa6e815dca7596c5ff0570dfa2ae878ddc09 | c894e9e7-c528-40d0-aeba-0c250f6402b9 | minimize a quadratic loss with gradient steps | aj_ea6dbe727c2646bc851aaade41135cf1 | accepted | 0 | 50.41 | 51 | e120969cb3c1b6ac | 426.12 |
+| 7 | 11/3, 8:18 PM | c3d9aa6e815dca7596c5ff0570dfa2ae878ddc09 | c894e9e7-c528-40d0-aeba-0c250f6402b9 | compare learning rate 0.1 and 1.5 on the same surface | aj_aeb96465d2e142938de8d7b5f3235bc9 | failed | 1 | 81.68 | 12 | - | 507.80 |
+| 8 | 11/3, 8:19 PM | c3d9aa6e815dca7596c5ff0570dfa2ae878ddc09 | c894e9e7-c528-40d0-aeba-0c250f6402b9 | gradient descent that overshoots the minimum | aj_0d92668dcb1c46fd8e6bed8aa16cd737 | accepted | 1 | 75.19 | 76 | 219ed357fdd03418 | 582.98 |
+| 9 | 11/3, 8:20 PM | c3d9aa6e815dca7596c5ff0570dfa2ae878ddc09 | c894e9e7-c528-40d0-aeba-0c250f6402b9 | SGD with a kept path to compare runs | aj_2dbb57f52bdc442f87409854dad2c532 | accepted | 1 | 72.49 | 73 | 54c582082f4b109f | 655.48 |

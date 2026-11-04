@@ -18,7 +18,7 @@ test('each role is its own task on /explain\'s pinned model and token ceilings; 
     assert.ok(r.maxTokens >= LEARN_TASKS[explain].maxTokens);
   }
   const body = animationRequest({}, 'review', { system: 's', tool, content: 'x' }, TASKS);
-  assert.deepEqual([body.max_tokens, body.tool_choice, 'model' in body, 'thinking' in body], [6000, { type: 'auto' }, false, false]);
+  assert.deepEqual([body.max_tokens, body.tool_choice, 'model' in body, 'thinking' in body], [8000, { type: 'auto' }, false, false]);
 });
 
 test('a role with no configured task is refused before anything is sent: no default model', async () => {
@@ -29,11 +29,13 @@ test('a role with no configured task is refused before anything is sent: no defa
   assert.throws(() => animationRole('physics', TASKS), { code: 'unknown_role' });
 });
 
-test('the admission check is the bounded build graph: one author, three reviews, two repairs (one per kind); preparation apart', () => {
-  assert.deepEqual(ANIMATION_LIMITS.calls, { brief: 1, author: 1, review: 3, repair: 2 });
-  assert.equal(ANIMATION_LIMITS.repairs, 2);
+test('the admission check is the bounded build graph: one author, four reviews, four repairs (two per kind, decision 35); preparation apart', () => {
+  assert.deepEqual(ANIMATION_LIMITS.calls, { brief: 1, author: 1, review: 4, repair: 4 });
+  assert.deepEqual(ANIMATION_LIMITS.repairs, { run: 2, review: 2 });
+  assert.equal(ANIMATION_LIMITS.calls.repair, ANIMATION_LIMITS.repairs.run + ANIMATION_LIMITS.repairs.review, 'a repair call per repair slot');
+  assert.equal(ANIMATION_LIMITS.render.rounds, 1 + ANIMATION_LIMITS.calls.repair, 'a render round per candidate: the first and every repair');
   const r = animationReservation(TASKS);
-  assert.equal(r.generationMicros, roleBoundMicros('author', TASKS) + 3 * roleBoundMicros('review', TASKS) + 2 * roleBoundMicros('repair', TASKS));
+  assert.equal(r.generationMicros, roleBoundMicros('author', TASKS) + 4 * roleBoundMicros('review', TASKS) + 4 * roleBoundMicros('repair', TASKS));
   assert.equal(r.preparationMicros, 2 * roleBoundMicros('brief', TASKS), 'a plan call and its one correction');
   // A review round's images are its captures: at most 2 views x 3 states.
   assert.equal(ANIMATION_ROLES.review.maxImages, ANIMATION_LIMITS.render.views * ANIMATION_LIMITS.render.states);
@@ -63,4 +65,16 @@ test('provider failures are named: overload pauses, an unknown model is explicit
   await assert.rejects(call(async () => Response.json({ error: { type: 'not_found_error' } }, { status: 404 })), { code: 'model_unavailable' });
   await assert.rejects(call(async () => Response.json({ code: 'allowance_limited', error: 'Not enough AI credits.' }, { status: 429 })), { code: 'spend_refused' });
   await assert.rejects(callAnimationRole({}, 'author', { system: 's', tool, content: 'x' }, { tasks: TASKS }), { code: 'no_transport' });
+});
+
+// FX-AN-043: the raw reply of a settled call (every block, the text, the tool input as it came) is returned for the stage to keep when it matters.
+test('a settled call returns its reply as diagnostics: blocks, text and tool input, bounded', async () => {
+  const text = 'I will return the artifact.', input = { operation: 'artifact', artifact: { title: 't' } };
+  const ok = await call(reply([{ type: 'text', text }, { type: 'tool_use', name: tool.name, input }]), 'repair');
+  assert.deepEqual(ok.reply.blocks, [{ type: 'text', chars: text.length, text }, { type: 'tool_use', name: tool.name, chars: JSON.stringify(input).length }]);
+  assert.equal(ok.reply.partialTool, JSON.stringify(input));
+  assert.deepEqual([ok.reply.stopReason, ok.reply.usage], ['tool_use', { input_tokens: 10, output_tokens: 5 }]);
+  const big = await call(reply([{ type: 'text', text: 'x'.repeat(5000) }, { type: 'tool_use', name: tool.name, input: { s: 'y'.repeat(40000) } }]), 'repair');
+  assert.equal(big.reply.blocks[0].text.length, 2000, 'text is bounded');
+  assert.equal(big.reply.partialTool.length, 16000, 'the repair tool input is kept to 16,000 characters');
 });

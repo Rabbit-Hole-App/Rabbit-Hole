@@ -1,0 +1,33 @@
+{
+  "calls": [
+    {
+      "again": false,
+      "kind": "artifact",
+      "keys": [
+        "kind",
+        "artifact"
+      ],
+      "artifactType": "object",
+      "chars": 8066,
+      "head": "{\"kind\":\"artifact\",\"artifact\":{\"title\":\"Projectile Target Challenge: Pick Angle and Speed\",\"description\":\"A launcher sits at the left end of a flat 70 m field with distance marks every 10 m. A red target disc with a flag sits down the field at 30 m, then 45 m, then 18 m. Set the launch angle and speed, then press Launch: the ball flies its arc, leaving a trail, and the previous shot's arc stays as a faded line. Readouts give landing distance, miss, flight time and peak height. Hit 3 targets within 10 launches.\",\"experience\":\"game\",\"behavior\":\"rules\",\"controlProfile\":\"inspect\",\"stepped\":true,\"game\":{\"objective\":\"Land the ball within 1.5 m of each target's centre (30 m, 45 m, then 18 m), hitting all 3 in no more than 10 launches.\",\"hint\":\"With the same speed, angles that add up to 90° (like 30° and 60°) land at the same distance, and 45° goes farthest. Doubling the speed makes the shot go four times as far.\"},\"scene\":{\"materials\":[{\"id\":\"field\",\"color\":\"#b9c7a8\"},{\"id\":\"mark\",\"color\":\"#4a4f45\"},{\"id\":\"metal\",\"color\":\"#b8bcc2\"},{\"id\":\"dark\",\"color\":\"#3d4450\"},{\"id\":\"ball\",\"color\":\"#f08a1c\"},{\"id\":\"target\",\"color\":\"#d63a3a\"},{\"id\":\"trail\",\"color\":\"#e0701a\"},{\"id\":\"ghost\",\"color\":\"#5a7fa8\",\"opacity\":0.45}],\"geometries\":[{\"id\":\"gField\",\"kind\":\"box\",\"size\":[76,0.4,10]},{\"id\":\"gTick\",\"kind\":\"box\",\"size\":[0.3,0.06,4]},{\"id\":\"gBase\",\"kind\":\"box\",\"size\":[3,1.2,3]},{\"id\":\"gBarrel\",\"kind\":\"cylinder\",\"radius\":0.55,\"height\":3.5,\"radialSegments\":32},{\"id\":\"gBall\",\"kind\":\"sphere\",\"radius\":1,\"widthSegments\":32,\"heightSegments\":24},{\"id\":\"gDisc\",\"kind\":\"cylinder\",\"radius\":1.5,\"height\":0.12,\"radialSegments\":32},{\"id\":\"gPole\",\"kind\":\"cylinder\",\"radius\":0.12,\"height\":6,\"radialSegments\":16},{\"id\":\"gFlag\",\"kind\":\"box\",\"size\":[1.8,1.1,0.08]},{\"id\":\"gTrail\",\"kind\":\"trail\",\"max\":64,\"radius\":0.25,\"style\":\"trail\"},{\"id\":\"gGhost\",\"kind\":\"trail\",\"max\":64,\"radius\":0.2,\"style\":\"ghost\"},{\"id\":\"lT\",\"kind\":\"label\",\"text\":\"Target\"},{\"id\":\"lL\",\"kind\":\"label\",\"text\":\"Launcher\"},{\"id\":\"l0\",\"kind\":\"label\",\"text\":\"0 m\"},{\"id\":\"l1\",\"kind\":\"label\",\"text\":\"10 m\"},{\"id\":\"l2\",\"kind\":\"label\",\"text\":\"20 m\"},{\"id\":\"l3\",\"kind\":\"label\",\"text\":\"30 m\"},{\"id\":\"l4\",\"kind\":\"label\",\"text\":\"40 m\"},{\"id\":\"l5\",\"kind\":\"label\",\"text\":\"50 m\"},{\"id\":\"l6\",\"kind\":\"label\",\"text\":\"60 m\"},{\"id\":\"l7\",\"kind\":\"label\",\"text\":\"70 m\"}],\"nodes\":[{\"id\":\"field\",\"geometry\":\"gField\",\"material\":\"field\",\"position\":[35,-0.2,0]},{\"id\":\"t0\",\"geometry\":\"gTick\",\"material\":\"mark\",\"position\":[0,0.03,0]},{\"id\":\"t1\",\"geometry\":\"gTick\",\"material\":\"mark\",\"position\":[10,0.03,0]},{\"id\":\"t2\",\"geometry\":\"gTick\",\"material\":\"mark\",\"position\":[20,0.03,0]},{\"id\":\"t3\",\"geometry\":\"gTick\",\"material\":\"mark\",\"position\":[30,0.03,0]},{\"id\":\"t4\",\"geometry\":\"gTick\",\"material\":\"mark\",\"position\":[40,0.03,0]},{\"id\":\"t5\",\"geometry\":\"gTick\",\"material\":\"mark\",\"position\":[50,0.03,0]},{\"id\":\"t6\",\"geometry\":\"gTick\",\"material\":\"mark\",\"position\":[60,0.03,0]},{\"id\":\"t7\",\"geometry\":\"gTick\",\"material\":\"mark\",\"position\":[70,0.03,0]},{\"id\":\"n0\",\"geometry\":\"l0\",\"parent\":\"",
+      "stopReason": "tool_use",
+      "blocks": [
+        {
+          "type": "thinking"
+        },
+        {
+          "type": "tool_use",
+          "name": "animation_artifact",
+          "chars": 8086
+        }
+      ],
+      "stripped": [
+        {
+          "path": "artifact.scene.nodes.9",
+          "key": "placement",
+          "why": "a label geometry field on a node"
+        }
+      ]
+    }
+  ]
+}

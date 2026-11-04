@@ -1,0 +1,294 @@
+[
+ {
+  "at": 1793809544157,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "dd22f9265ddb57e665ef5e0096842fa3ba80afa158112ab774f1b5eac932aaab",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ballA",
+       "message": "At the default start both balls have the same position and the same radius, so the orange ball completely hides the blue one and the two arrows lie on top of each other. The learner sees one orange ball with the label 'A (blue)' beside it and cannot tell that two runs exist. Keep them distinguishable at the shared start: for example draw A as a ring or a slightly larger translucent shell, offset the two markers a little, or add a 'both start here' tag.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "statusA",
+       "message": "Before the first run the status reads 'paused', as if a run had started and then stopped. 'ready' or 'not started' would be more honest.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "arrA",
+       "message": "The description says the dark arrows sit 'under the balls', but the program draws them level with the ball centre, flat, pointing out of the ball. The wording should match the drawing.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Checked against the formulas: at rate 0.08 after 14 steps, loss A = 0.593. B at rate 0.4 converges at step 10 with loss 3.9e-4. B's zig-zag across y (factor −0.6 per step) and A's smooth curve both match the update rule. The default lrA = 0.05 run to the 60-step cap was not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "ballA",
+       "message": "For the diverged ball, the program computes the height from its true off-surface y (−2.1), but the host clamps only the depth to −2. The blue ball therefore floats about 0.15 above the rim, and the end of its trail also floats (it uses K·L at the true y). Compute the drawn height from the clamped position.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "At 0.6 the ball leaves in one step, because the start y = 1.5 is close to the rim at 2. The plan's 'bounces higher and higher' only shows between about 0.51 and 0.58, and that range was not sampled. Consider saying so in the description or limitations.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ballA",
+       "message": "From the side view too, only the orange ball and one arrow can be seen at the start, because the blue ball sits exactly inside it (the same defect as in the default view).",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "ballA",
+       "message": "From the side, the diverged blue ball sits slightly above the rim instead of on it, because its height comes from the unclamped y.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13782,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3976,
+   "output_tokens_details": {
+    "thinking_tokens": 2787
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_a515aa51114a4c8bb72fdf0643f67793-review-4",
+   "status": "settled",
+   "costMicros": 135069,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793809707265,
+  "attempt": 1,
+  "repairs": 2,
+  "artifactHash": "3f3eb13744ecfe42eb773a09f4e2ce81a4b847649090c61980b97ff12c1e55fc",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Growing-oscillation regime (rates ~0.51–0.58), low-end rates, the 60-step cap and the arrow toggle off were not sampled; program logic for them looks correct but is unverified in captures.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "tagA",
+       "message": "In the side view with the balls stacked, the 'A (blue)' tag sits beside the orange ball and 'B (orange)' beside the blue ball, so the labels read as swapped. Placing the tags on opposite sides (or offsetting them vertically) would avoid this.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13663,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3146,
+   "output_tokens_details": {
+    "thinking_tokens": 2023
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_a515aa51114a4c8bb72fdf0643f67793-review-7",
+   "status": "settled",
+   "costMicros": 117993,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

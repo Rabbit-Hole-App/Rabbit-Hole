@@ -1,0 +1,202 @@
+{
+ "id": "aj_5371b9b3ab8143098d432a0e814ee3ef",
+ "version": 1,
+ "boardId": "d58d2ca4-665e-4cdb-ad1c-db4439f2f402",
+ "cardId": "265c9322-15be-4636-9ded-cfd806ff92e6",
+ "stage": "cancelled",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 0,
+ "stopReason": "stopped",
+ "failure": null,
+ "recovery": [],
+ "outcome": "supported",
+ "choiceOpen": false,
+ "threadId": "canvaschat-53080787-05da-4c6d-9f3f-4d226f8422b9",
+ "chatPending": false,
+ "usage": {
+  "credits": 6,
+  "unknown": false,
+  "note": "You have not been charged."
+ },
+ "result": null,
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Gradient descent: learning rate 0.1 vs 1.5 on the same bowl",
+  "description": "A stretched bowl-shaped loss surface, with its lowest point marked, holds two balls. Both start at the same point: a blue ball uses learning rate 0.1 and an orange ball uses learning rate 1.5. Each step, both balls move against the slope under them (downhill), and each leaves a trail. The blue ball creeps smoothly toward the bottom. The orange ball overshoots and zigzags across the steep direction, getting farther from the bottom each time, until it leaves the surface and is marked as diverged. Readouts show each ball's step count and loss.",
+  "experience": "experiment",
+  "reason": "Running both learning rates side by side from one starting point on one surface makes the difference easy to see: a small rate makes slow, steady progress, and a large rate overshoots. You can then change either rate to find where the switch from steady to unstable happens.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "lrA",
+    "label": "Learning rate, blue ball",
+    "min": 0.01,
+    "max": 2,
+    "step": 0.01,
+    "default": 0.1
+   },
+   {
+    "type": "number",
+    "id": "lrB",
+    "label": "Learning rate, orange ball",
+    "min": 0.01,
+    "max": 2,
+    "step": 0.01,
+    "default": 1.5
+   },
+   {
+    "type": "select",
+    "id": "start",
+    "label": "Shared starting point",
+    "options": [
+     {
+      "value": "corner",
+      "label": "Far corner (x 2.5, y 0.3)"
+     },
+     {
+      "value": "steep",
+      "label": "Steep side (x 0.5, y 1.5)"
+     },
+     {
+      "value": "shallow",
+      "label": "Shallow side (x 2.8, y 0.05)"
+     }
+    ],
+    "default": "corner"
+   }
+  ],
+  "interactions": [
+   "Play, pause or advance one step at a time to see both balls take the same number of steps",
+   "Change either learning rate: the ball's next steps and trail follow the new rate, and its loss readout changes with them",
+   "Choose a different shared starting point to see that the large rate fails mainly along the steep direction",
+   "Orbit the camera to compare the trails from above or from the side"
+  ],
+  "assumptions": [
+   "Illustration: a simple made-up loss surface, not a trained model.",
+   "The surface is loss = 0.5·x² + y². It curves twice as sharply along y as along x, and its lowest point is at (0, 0).",
+   "Each step uses the exact rule: new position = position − learning rate × slope (gradient). There is no noise and no momentum.",
+   "Along x, each step multiplies the distance to the bottom by (1 − rate). Along y, it multiplies it by (1 − 2 × rate). So in this model, a ball zigzags along y when the rate is above 0.5 and diverges along y when the rate is above 1.",
+   "A ball stops and is marked diverged once it leaves the drawn square (x and y from −3 to 3). Each run stops after at most 60 steps."
+  ],
+  "limitations": [
+   "The limits of 0.5 and 1 hold exactly for this surface only. On real models, the rate where training becomes unstable depends on the shape of the loss landscape.",
+   "Heights are shrunk vertically so the whole bowl fits on screen, so the slopes look gentler than the numbers suggest.",
+   "At a rate of exactly 1 along y (or 2 along x), the ball bounces back and forth between two points forever. It neither settles nor runs away."
+  ],
+  "learningGoal": "See that the learning rate sets how far each step goes. A small rate moves steadily but slowly. A rate that is too large for the steepest direction overshoots the bottom, and the overshoot grows until the ball runs away.",
+  "requiredCapabilities": [
+   "parameters",
+   "step",
+   "readouts",
+   "labels",
+   "select",
+   "speed"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "compare",
+    "parameter": "lrA",
+    "values": [
+     0.1,
+     1.5
+    ]
+   },
+   {
+    "kind": "compare",
+    "parameter": "lrB",
+    "values": [
+     0.1,
+     1.5
+    ]
+   },
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "pathLength",
+    "min": 2
+   }
+  ]
+ },
+ "planHash": "b2c5ddc69c9771ca1493351fdfcb3d2965c8a87489b511d826fe1f9d73673571",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 25965,
+  "generateToResultMs": null,
+  "processingMs": 140371,
+  "approvalWaitMs": 4189,
+  "calls": 3,
+  "repairs": 0,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 25915,
+    "calls": 1,
+    "inputTokens": 383,
+    "outputTokens": 2459,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 4189,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 89583,
+    "calls": 1,
+    "inputTokens": 8157,
+    "outputTokens": 11322,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 19,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 19156,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 5698,
+    "calls": 1,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 6,
+    "captures": 0,
+    "outcome": "stopped"
+   }
+  ]
+ },
+ "createdAt": 1793775020635,
+ "updatedAt": 1793775165245
+}

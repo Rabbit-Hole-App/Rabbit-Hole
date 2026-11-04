@@ -1,0 +1,98 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Stochastic gradient descent on a loss surface, with kept paths to compare runs",
+ "description": "A ball sits on a long, narrow bowl-shaped loss surface and leaves a trail as it takes one stochastic gradient descent step each tick: it moves downhill against a noisy estimate of the slope. An arrow at the ball points along the step it is about to take, which is the negative of the noisy gradient. When a run is done, you can keep its path as a faded trail and start a new run from the same starting point with different settings. Readouts show the step count, the current loss and the final loss of each kept run.",
+ "experience": "experiment",
+ "reason": "Comparing runs side by side is how you see what the step size and noise actually do. Kept trails let you put a jittery path next to a smooth one, or a cautious path next to one that bounces across the valley.",
+ "behavior": "rules",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate (step size)",
+   "min": 0.01,
+   "max": 0.55,
+   "step": 0.01,
+   "default": 0.1
+  },
+  {
+   "type": "number",
+   "id": "noise",
+   "label": "Gradient noise (stands in for mini-batch sampling)",
+   "min": 0,
+   "max": 2,
+   "step": 0.05,
+   "default": 0.5
+  },
+  {
+   "type": "select",
+   "id": "start",
+   "label": "Starting point",
+   "options": [
+    {
+     "value": "left",
+     "label": "Far left, up the long side"
+    },
+    {
+     "value": "wall",
+     "label": "High on the steep wall"
+    },
+    {
+     "value": "corner",
+     "label": "Corner"
+    }
+   ],
+   "default": "left"
+  }
+ ],
+ "interactions": [
+  "Play, pause or step the run one update at a time; a run stops by itself after 150 steps or if it is thrown off the surface",
+  "Keep this path and restart: the trail stays as a faded line with its final loss, and the ball returns to the start with the current settings (up to 3 kept; the oldest is dropped)",
+  "Clear kept paths: removes only the faded trails and their loss readouts, without changing your settings or the current run",
+  "Change the learning rate: small values give short, slow steps, values near 0.5 zigzag across the narrow valley, and values above 0.5 make the zigzag grow until the run is thrown off",
+  "Change the noise: at 0 the path is smooth (plain gradient descent), higher values make it wander and keep jittering around the bottom instead of settling",
+  "Orbit the camera to compare the trails from above or from the side"
+ ],
+ "assumptions": [
+  "Illustration: a made-up two-variable loss surface with simulated gradient noise, not a real model trained on data.",
+  "The loss is an elongated bowl, half of (x² + 4y²), so it is four times steeper across the valley than along it, and its lowest point is at the center.",
+  "Each step subtracts the learning rate times (true gradient plus random noise). The noise is drawn from a fixed seed, so it differs from step to step and from run to run but is the same after Reset.",
+  "Gradient noise imitates estimating the slope from a small random batch of data. Its size is set directly rather than coming from a batch size.",
+  "The trail draws one marker every 3 steps, at most 50 markers; every step still runs."
+ ],
+ "limitations": [
+  "Changed: the trail draws 50 markers, one every 3 steps, instead of 150; every step still runs.",
+  "Changed: the kept comparison path also draws at most 50 markers.",
+  "Because of the noise, a single step can go uphill; the loss falls on average, not on every step.",
+  "A bowl with one minimum cannot show local minima or saddle points getting runs stuck.",
+  "Kept paths are cleared by Reset, along with everything else; only Clear kept paths removes them on their own."
+ ],
+ "learningGoal": "See how the learning rate and gradient noise shape the path SGD takes: slow progress, zigzagging, or running away, and smooth settling versus endless jitter near the minimum.",
+ "requiredCapabilities": [
+  "step",
+  "parameters",
+  "actions",
+  "readouts",
+  "labels"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "pathLength",
+   "min": 2
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.05,
+    0.52
+   ]
+  }
+ ]
+}

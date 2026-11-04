@@ -1,0 +1,188 @@
+{
+ "id": "aj_f4161bb627c148b8bb565cfacf79dbe3",
+ "version": 1,
+ "boardId": "c1b4e35e-b3f9-4522-903d-109defabc885",
+ "cardId": "45381447-ae73-4484-9098-b6bf3bffaef8",
+ "stage": "ready",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 0,
+ "stopReason": "accepted",
+ "failure": null,
+ "recovery": [],
+ "outcome": "changes",
+ "choiceOpen": false,
+ "threadId": "canvaschat-9a208b12-fea1-4573-bb65-c3889146d3c2",
+ "chatPending": false,
+ "usage": {
+  "credits": 49,
+  "unknown": false
+ },
+ "result": {
+  "jobId": "aj_f4161bb627c148b8bb565cfacf79dbe3",
+  "resultId": "ar_6ee7b8b2bfa4499280b041a763a9a63f",
+  "cardId": "45381447-ae73-4484-9098-b6bf3bffaef8",
+  "canvas": {
+   "boardId": "c1b4e35e-b3f9-4522-903d-109defabc885"
+  },
+  "requestRef": "aa9dc3113c30ccb0",
+  "revision": "av_0cf4798b8de24274bb971b1528a64aaf",
+  "planHash": "95bfd4daf3634d42c3aaa136c7e7814f378dde91c073ab728eaaf5b7a5fec811",
+  "sources": "643d5437104296e2",
+  "artifactHash": "192d7268e0e97e18f227b0cb4ae9d6e79ab05f9e3853944428c4654d28e9cf05",
+  "experience": "experiment",
+  "capabilityVersion": "animation-capabilities/1",
+  "policyVersion": 1
+ },
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Gradient descent: a ball stepping down a loss surface",
+  "description": "A ball sits on a long, narrow bowl-shaped loss surface drawn with contour lines. A small marker shows the lowest point. Each step, the ball jumps in the downhill direction by an amount set by the learning rate and leaves a trail of points. An arrow at the ball points downhill, opposite to the gradient. With a small learning rate the ball creeps steadily toward the bottom. With a larger one it zigzags across the narrow valley. Above 0.5 it overshoots more each step and flies off the surface.",
+  "experience": "experiment",
+  "reason": "Watching each step on its own, and changing the step size, shows how gradient descent uses only the local slope. It also shows why the learning rate decides between slow progress, zigzagging and blowing up.",
+  "behavior": "rules",
+  "controlProfile": "manipulate",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate (step size)",
+    "min": 0.02,
+    "max": 0.6,
+    "step": 0.01,
+    "default": 0.1
+   },
+   {
+    "type": "toggle",
+    "id": "showGradientArrow",
+    "label": "Show downhill arrow",
+    "default": true
+   }
+  ],
+  "interactions": [
+   "Play or pause, or advance one step at a time, and watch the ball move and its trail grow",
+   "Drag the ball to a new starting point on the surface before or between runs",
+   "Change the learning rate and watch the step lengths, the zigzag and the readouts change",
+   "Clear only the trail, keeping the ball where it is, so you can compare a new run",
+   "Read the step count, the current loss and the slope steepness (gradient size)"
+  ],
+  "assumptions": [
+   "Illustration: a made-up bowl-shaped surface, not a loss from a real trained model.",
+   "The loss is half of (x² + 4·y²), so the valley is 4 times steeper across y than along x, with its lowest point at the centre.",
+   "Each step uses the exact slope: new position = old position − learning rate × gradient. There is no noise and no momentum.",
+   "The run starts at (−2.5, 1.5). It stops when the slope is nearly flat (gradient size below 0.001), after 150 steps, or when the ball leaves the drawn square from −3 to 3 on each side.",
+   "The ball is shown resting on the surface at each step's position. It jumps between positions; it does not physically roll.",
+   "The trail draws one marker every 3 steps, at most 50 markers; every step still runs."
+  ],
+  "limitations": [
+   "Changed: the trail draws 50 markers, one every 3 steps, instead of 150; every step still runs.",
+   "Changed: the kept comparison path also draws at most 50 markers.",
+   "On this bowl each step lowers the loss only for learning rates below 0.5. Above that, the steep direction overshoots more each time, and the run ends when the ball leaves the drawn area.",
+   "There is only one valley, so it cannot show getting stuck in a local minimum. The ball does not really roll and has no momentum."
+  ],
+  "learningGoal": "Gradient descent moves downhill by the learning rate times the local slope. Too small is slow, larger zigzags in steep directions, and too large diverges.",
+  "requiredCapabilities": [
+   "step",
+   "parameters",
+   "actions",
+   "drag",
+   "readouts",
+   "labels"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "learningRate",
+    "values": [
+     0.05,
+     0.55
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 2
+   }
+  ]
+ },
+ "planHash": "95bfd4daf3634d42c3aaa136c7e7814f378dde91c073ab728eaaf5b7a5fec811",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 21353,
+  "generateToResultMs": 181110,
+  "processingMs": 202413,
+  "approvalWaitMs": 5855,
+  "calls": 3,
+  "repairs": 0,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 21303,
+    "calls": 1,
+    "inputTokens": 377,
+    "outputTokens": 2006,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 5855,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 96810,
+    "calls": 1,
+    "inputTokens": 7961,
+    "outputTokens": 11501,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 54,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 32170,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 52076,
+    "calls": 1,
+    "inputTokens": 13363,
+    "outputTokens": 4954,
+    "images": 6,
+    "captures": 0,
+    "outcome": "accepted"
+   }
+  ]
+ },
+ "createdAt": 1793774807956,
+ "updatedAt": 1793775016274
+}

@@ -103,3 +103,22 @@ test('a second view of the same state refers to the first caption; a different s
   const single = reviewOf([entry('v0-s0', 'default', { time: 1, events: [] })]);
   assert.equal(captionOf(single, 'v0-s0'), 'Capture v0-s0 (view default, time 1s, inputs {"a":1}, the initial state):', 'a plain capture keeps its caption exactly');
 });
+
+// AN-19 (owner decision 11): a capture whose trace reports a clamp says so in the review request, as the host's drawing; others add nothing.
+test('the review request names a clamped marker as the host\'s clamp, with its true and drawn y, and adds nothing for a capture without one', async () => {
+  const { clampNotes } = await import('../src/animation-review.js');
+  const captures = [{ id: 'a', trace: { readouts: {}, clamped: [{ node: 'ball', trueY: 5.6, y: 2 }] } }, { id: 'b', trace: { readouts: {} } }, { id: 'c' }];
+  const notes = clampNotes(captures);
+  assert.equal(notes.length, 1);
+  assert.equal(notes[0].text, 'Capture a: ball is clamped at the surface top (true y 5.6, drawn at 2); its readouts keep the true value. The host draws this clamp, not the scene.');
+  assert.deepEqual(clampNotes([]), []);
+});
+
+// Owner decision 30 (C10): a marker held at the bowl's rim in x or z says so in the review request, with its true and drawn position.
+test('the review request names a marker held at the rim with both positions; a y-only hold keeps its words', async () => {
+  const { clampNotes } = await import('../src/animation-review.js');
+  const notes = clampNotes([{ id: 'a', trace: { readouts: {}, clamped: [{ node: 'ball', axes: ['x', 'y'], trueY: 10.84, y: 4, trueAt: [3.675, 10.84, 0.4], drawnAt: [2, 4, 0.4] }] } },
+    { id: 'b', trace: { readouts: {}, clamped: [{ node: 'ball', axes: ['y'], trueY: 5.6, y: 2, trueAt: [0, 5.6, 0], drawnAt: [0, 2, 0] }] } }]);
+  assert.equal(notes[0].text, 'Capture a: ball is held at the surface\'s rim (true position [3.675,10.84,0.4], drawn at [2,4,0.4]); its readouts keep the true value. The host draws this clamp, not the scene.');
+  assert.equal(notes[1].text, 'Capture b: ball is clamped at the surface top (true y 5.6, drawn at 2); its readouts keep the true value. The host draws this clamp, not the scene.');
+});

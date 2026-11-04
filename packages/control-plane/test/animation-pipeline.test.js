@@ -348,9 +348,15 @@ test('a repair must return the program: the tool requires it and the prompt says
   const call = s.model.calls.find(c => c.role === 'repair');
   assert.ok(call.tool.input_schema.properties.artifact.required.includes('program'), 'the repair tool requires the program');
   assert.match(call.system, /Return the COMPLETE artifact every time[^.]*the program/);
-  // The review's repair dropped the program; the run failure's own repair returned the same program-less artifact: no progress.
-  assert.deepEqual([done.stage, done.stopReason], ['failed', 'no_progress']);
-  assert.match(done.findings.at(-1).problems.join(' '), /missing_program/);
+  // The review's repair dropped the program and was asked once more (FX-AN-043), which dropped it again. FX-AN-060: that ask took no slot of the repair ceiling, so the run failure's repair
+  // gets its call (a third repair call, recorded) instead of the build stopping on a count it had not used up; it answers without a program too and nothing is invented, so the build
+  // ends on its own result (no progress), not on a limit. It was 'budget' before, with 2.56M of the 3.73M micro-USD ceiling used.
+  assert.deepEqual([done.stage, done.stopReason, done.counts.repair, done.candidates.find(c => c.stage !== 'preparing').programRetried], ['failed', 'no_progress', 2, true]);
+  assert.equal(done.calls.filter(c => c.role === 'repair').length, 3);
+  assert.match(done.findings.find(f => f.problems)?.problems.join(' '), /missing_program/);
+  // FX-AN-043: both program-less answers are kept as they came, with the candidate (diagnostics only).
+  const kept = done.candidates.find(c => c.stage !== 'preparing').rawReplies;
+  assert.deepEqual([kept.length, kept.every(r => r.stopReason === 'tool_use' && r.blocks.some(b => b.type === 'tool_use') && JSON.parse(r.partialTool).operation === 'artifact' && !JSON.parse(r.partialTool).artifact.program)], [2, true]);
   // The author's tool requires it too for a scene that needs one; a static inspect plan does not.
   assert.ok(s.model.calls.find(c => c.role === 'author').tool.input_schema.properties.artifact.required.includes('program'));
   const { authorTool } = await import('../src/agents/animation-author.js');
@@ -377,7 +383,7 @@ test('a repair that returns the program beside the artifact, or as a bare source
     assert.equal(done.artifact.program.source, program.source);
     assert.deepEqual([done.candidates.find(c => c.stage !== 'preparing').hasProgram, done.candidates.find(c => c.stage !== 'preparing').inputKeys.includes('program'), done.candidates.find(c => c.stage !== 'preparing').artifactKeys.includes('program')], [true, true, false]);
   }
-  // Nowhere at all: still refused at validation (no program is invented).
+  // Nowhere at all: asked once more (FX-AN-043), then still refused at validation (no program is invented); the run failure's repair has its call (FX-AN-060) and ends the build on no progress.
   const none = stack(t, { reviews: [false, true], repair: () => ({ operation: 'artifact', artifact: { ...rest, title: 'Fixed' } }) });
   assert.deepEqual([(await none.generated()).done.stopReason], ['no_progress']);
 });
@@ -669,9 +675,9 @@ test('a report still invalid after its correction fails as a review-validation f
   assert.deepEqual(notes.map(n => [n.retry, n.raw === bad.input, n.artifactHash === job.artifactHash, n.usage.output_tokens, n.problems.length, n.verdicts[0].visual]), [[false, true, true, 7, 1, 'pass'], [true, true, true, 7, 1, 'pass']]);
 });
 
-test('the review retry is shared per job and within the three review calls: a used or exhausted allowance fails without another call', async () => {
+test('the review retry is shared per job and within the four review calls (decision 35): a used or exhausted allowance fails without another call', async () => {
   const bad = reviewReport(noSeverity());
-  for (const over of [{ reviews: [{ retry: true }] }, { counts: { review: 2 } }]) {
+  for (const over of [{ reviews: [{ retry: true }] }, { counts: { review: 3 } }]) {
     const { error, sent } = await runReview({ ...await reviewFixture(), ...over }, [bad, reviewReport(reviewFinding())]);
     assert.deepEqual([error.code, sent.length], ['invalid_review', 1]);
   }

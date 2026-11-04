@@ -2,7 +2,8 @@ import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { experimentFixture, gameFixture, watchFixture } from './fixtures.js';
-import { FRAMING, fitAnimationView, fitCameraToPoints, sampleAnimationFrames, subjectPoints, substantialRefit } from './framing.js';
+import { FRAMING, fitAnimationView, fitCameraToPoints, raiseElevation, sampleAnimationFrames, subjectPoints, substantialRefit } from './framing.js';
+import { readFileSync } from 'node:fs';
 import { buildAnimationScene } from './scene.js';
 
 // Real Three.js scenes built in Node (labels get a plain Texture), measured over hand-written frames; the sampler half runs on the
@@ -276,4 +277,121 @@ run('the saved scenes keep their fit: none of them has an arrow that dwarfs its 
     const fit = await fitAnimationView({ artifact, aspect: ASPECT, inputs, workerFactory });
     for (const [got, want] of [[fit.position, position], [fit.target, target]]) assert.ok(got.every((v, i) => Math.abs(v - want[i]) < 1e-6), `${artifact.title}: ${got} is not ${want}`);
   }
+});
+
+// AN-19 (owner decision 11): a sphere bound to a surface is clamped by the renderer after the program's frame, so the camera fits the clamped box.
+const BOWL = [{ id: 'bowlGeo', kind: 'surface', heights: [[2, 1, 1, 2], [1, 0, 0, 1], [1, 0, 0, 1], [2, 1, 1, 2]], width: 4, depth: 4 }, { id: 'ballGeo', kind: 'sphere', radius: 0.2 }];
+const bowlNodes = clampTo => [{ id: 'bowl', geometry: 'bowlGeo' }, { id: 'ball', geometry: 'ballGeo', ...(clampTo ? { clampTo } : {}) }];
+const ballAt = y => ({ nodes: { ball: { position: [0, y, 0] } } });
+const topOf = points => Math.max(...points.map(point => point.y));
+
+test('a clamped marker contributes its clamped box: a ball at 5.6 against a rim at 2 does not widen the fit', () => {
+  const clamped = sceneArtifact(BOWL, bowlNodes({ node: 'bowl' }));
+  const high = fitOf(clamped, [ballAt(5.6)]), atRim = fitOf(clamped, [ballAt(0)]); // held on the surface under it (0 at the middle of this bowl), not at the box's top
+  assert.ok(Math.abs(topOf(high.points) - 0.2) < 1e-6, `the subject reaches the surface plus the ball radius, not 5.8 (${topOf(high.points)})`);
+  assert.deepEqual(high.camera, atRim.camera, 'the view is the one with the ball on the surface');
+  // Without the clamp the same frame is drawn where it is and the view follows it: this is what the clamp changes.
+  const free = fitOf(sceneArtifact(BOWL, bowlNodes(null)), [ballAt(5.6)]);
+  assert.ok(Math.abs(topOf(free.points) - 5.8) < 1e-6);
+  assert.notDeepEqual(free.camera, atRim.camera);
+  // max overrides the surface top; the ball is held at it.
+  assert.ok(topOf(fitOf(sceneArtifact(BOWL, bowlNodes({ node: 'bowl', max: 1 })), [ballAt(5.6)]).points) < 2.1, 'held at max 1 (the surface itself reaches 2), never at 5.6');
+});
+
+test('an empty trail is not framed: it has no points to fit, and the zero-filled buffer is not a point at the origin', () => {
+  const trail = [{ id: 'pathGeo', kind: 'trail', max: 10, style: 'trail', radius: 0.05 }, ...BOWL.slice(1)];
+  const artifact = sceneArtifact(trail, [{ id: 'path', geometry: 'pathGeo' }, { id: 'ball', geometry: 'ballGeo' }]);
+  const empty = fitOf(artifact, [{ nodes: { ball: { position: [8, 8, 0] } } }]);
+  assert.ok(empty.points.every(point => point.x > 7), 'only the ball');
+  const drawn = fitOf(artifact, [{ nodes: { ball: { position: [8, 8, 0] }, path: { points: [[6, 6, 0], [8, 8, 0]] } } }]);
+  assert.ok(drawn.points.every(point => point.x > 5.9), 'the trail adds its own points and nothing at the origin');
+});
+
+// FX-AN-074: a trail above the height a clamp holds the marker to is the diverged path; the fit follows the clamped marker, not the program's trail vertices.
+test('a trail above the clamp ceiling is not framed above it; a trail below it is framed as it is', () => {
+  const geometries = [...BOWL, { id: 'pathGeo', kind: 'trail', max: 10, style: 'trail' }];
+  const artifact = sceneArtifact(geometries, [...bowlNodes({ node: 'bowl' }), { id: 'path', geometry: 'pathGeo' }]);
+  const frame = (ballY, pathY) => ({ nodes: { ball: { position: [0, ballY, 0] }, path: { points: [[0, 0.5, 0], [0, pathY, 0]] } } });
+  const diverged = fitOf(artifact, [frame(5.6, 5.6)]), atRim = fitOf(artifact, [frame(0, 2)]); // the ball held on the surface under it (0), the path's corner held to the ceiling (2)
+  assert.ok(topOf(diverged.points) <= 2.2 + 1e-6, `nothing is framed above the rim plus the ball radius (${topOf(diverged.points)})`);
+  assert.deepEqual(diverged.camera, atRim.camera, 'the view is the one with the path at the rim');
+  const below = fitOf(artifact, [frame(1, 1.5)]);
+  assert.ok(Math.abs(topOf(below.points) - 1.5) < 1e-6, 'a path under the ceiling is framed where it is');
+  const free = fitOf(sceneArtifact(geometries, [...bowlNodes(null), { id: 'path', geometry: 'pathGeo' }]), [frame(5.6, 5.6)]);
+  assert.ok(topOf(free.points) > 5.5, 'with no clamp nothing is held');
+});
+
+// FX-AN-097 (owner order for C7; Gate 2 on C6 job 2 and C4 jobs 1, 2 and 4: authored cameras at 15 to 25 degrees (the minimum was 25 and is now 35, C9) hid the trail and collapsed the zig-zag): a scene with a surface node is
+// never viewed from lower than FRAMING.surfaceElevation degrees above the horizon. Only the elevation is raised; the azimuth, the distance and the target are kept.
+const elevationOf = ({ position, target }) => { const [x, y, z] = position.map((v, i) => v - target[i]); return Math.atan2(y, Math.hypot(x, z)) * 180 / Math.PI; };
+const azimuthOf = ({ position, target }) => { const [x, , z] = position.map((v, i) => v - target[i]); return Math.atan2(z, x) * 180 / Math.PI; };
+const distanceOf = ({ position, target }) => Math.hypot(...position.map((v, i) => v - target[i]));
+const around = (azimuth, elevation, distance, target = [0, 1, 0]) => {
+  const a = azimuth * Math.PI / 180, e = elevation * Math.PI / 180;
+  return { position: [target[0] + distance * Math.cos(e) * Math.cos(a), target[1] + distance * Math.sin(e), target[2] + distance * Math.cos(e) * Math.sin(a)], target, fov: 50 };
+};
+
+test('raiseElevation lifts a camera below the minimum to it, keeping its azimuth, distance, target and fov; one at or above it is returned as it is', () => {
+  assert.equal(FRAMING.surfaceElevation, 35);
+  const low = around(30, 10, 40), raised = raiseElevation(low, 35);
+  assert.ok(Math.abs(elevationOf(raised) - 35) < 1e-9, `elevation ${elevationOf(raised)}`);
+  assert.ok(Math.abs(azimuthOf(raised) - 30) < 1e-9 && Math.abs(distanceOf(raised) - 40) < 1e-9, 'same azimuth and distance');
+  assert.deepEqual([raised.target, raised.fov], [low.target, 50]);
+  for (const azimuth of [-170, -90, 0, 90, 135]) assert.ok(Math.abs(azimuthOf(raiseElevation(around(azimuth, 3, 20), 35)) - azimuth) < 1e-9, `azimuth ${azimuth}`);
+  assert.ok(Math.abs(elevationOf(raiseElevation(around(30, -20, 40), 35)) - 35) < 1e-9, 'a camera below the horizon is lifted too');
+  for (const high of [around(30, 35, 40), around(30, 40, 40), around(0, 62, 12), around(0, 90, 12)]) assert.deepEqual(raiseElevation(high, 35), high, `${elevationOf(high)} degrees is untouched`);
+  assert.deepEqual(elevationOf(raiseElevation({ position: [0, -5, 0], target: [0, 0, 0], fov: 50 }, 35)) > 34.9, true, 'straight below: lifted, with a defined azimuth');
+});
+
+test('a scene with a surface is fitted from at least 35 degrees above, on its authored azimuth; a scene without one keeps its camera direction', () => {
+  const surface = sceneArtifact(BOWL, bowlNodes({ node: 'bowl' }), around(30, 10, 40)), plain = sceneArtifact([BOWL[1]], [{ id: 'ball', geometry: 'ballGeo' }], around(30, 10, 40));
+  const frames = [{ nodes: { ball: { position: [0, 1, 0] } } }, { nodes: { ball: { position: [1, 0.5, 1] } } }];
+  const high = fitOf(surface, frames).camera, flat = fitOf(plain, frames).camera, centre = camera => ({ position: camera.position, target: camera.target });
+  assert.ok(Math.abs(elevationOf(centre(high)) - 35) < 1e-6, `the surface scene is viewed from ${elevationOf(centre(high))} degrees`);
+  assert.ok(Math.abs(azimuthOf(centre(high)) - 30) < 1e-6, 'on the authored azimuth');
+  assert.ok(Math.abs(elevationOf(centre(flat)) - 10) < 1e-6, `a scene with no surface keeps its 10 degrees (${elevationOf(centre(flat))})`);
+  const steep = fitOf(sceneArtifact(BOWL, bowlNodes({ node: 'bowl' }), around(30, 40, 40)), frames).camera;
+  assert.ok(Math.abs(elevationOf(centre(steep)) - 40) < 1e-6, 'a camera already above the minimum is untouched');
+});
+
+test('after the raise the fit still contains the marker and the path, and a tilted low camera sees the whole subject', () => {
+  const geometries = [...BOWL, { id: 'pathGeo', kind: 'trail', max: 10, style: 'trail', radius: 0.05 }];
+  const artifact = sceneArtifact(geometries, [...bowlNodes({ node: 'bowl' }), { id: 'path', geometry: 'pathGeo' }], around(30, 10, 40));
+  const frames = [{ nodes: { ball: { position: [1.5, 1, 1] }, path: { points: [[1.5, 1, 1], [-1, 0.6, 0.4], [0.3, 0.2, -1]] } } }, { nodes: { ball: { position: [-1, 0.5, 0.4] }, path: { points: [[1.5, 1, 1], [-1, 0.6, 0.4]] } } }];
+  const { points, camera } = fitOf(artifact, frames);
+  assert.ok(Math.abs(elevationOf(camera) - 35) < 1e-6);
+  for (const p of onScreen(camera, points)) assert.ok(Math.abs(p.x) <= 1.0001 && Math.abs(p.y) <= 1.0001, `a subject point is off screen at ${p.x}, ${p.y}`);
+});
+
+test('the golden SGD camera, already at about 62 degrees, is untouched by the minimum', () => {
+  const golden = JSON.parse(readFileSync(new URL('./testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
+  assert.ok(elevationOf(golden.camera) > 60);
+  assert.deepEqual(raiseElevation(golden.camera, 35), golden.camera);
+  const scene = buildAnimationScene(golden, { labelTexture });
+  assert.equal(scene.ok, true);
+  const points = subjectPoints(scene.scene, [{ nodes: {} }]);
+  assert.equal(points.surface, true, 'the subject knows it has a surface');
+  const fitted = fitCameraToPoints(points, golden.camera, ASPECT);
+  assert.ok(Math.abs(elevationOf(fitted) - elevationOf(golden.camera)) < 1e-6, 'the fit keeps its authored direction');
+  scene.scene.dispose();
+});
+
+// C9 (owner): the minimum is 35 degrees. A camera authored between the old minimum and the new one is lifted too, on the same azimuth.
+test('a surface scene authored at 30 degrees is now fitted from 35, on its authored azimuth', () => {
+  const artifact = sceneArtifact(BOWL, bowlNodes({ node: 'bowl' }), around(30, 30, 40));
+  const { camera } = fitOf(artifact, [{ nodes: { ball: { position: [0, 1, 0] } } }, { nodes: { ball: { position: [1, 0.5, 1] } } }]);
+  assert.ok(Math.abs(elevationOf(camera) - 35) < 1e-6 && Math.abs(azimuthOf(camera) - 30) < 1e-6, `${elevationOf(camera)} degrees, azimuth ${azimuthOf(camera)}`);
+  assert.deepEqual(raiseElevation(around(30, 35, 40), FRAMING.surfaceElevation), around(30, 35, 40), 'exactly at the minimum is untouched');
+});
+
+// Owner decision 30 (FX-AN-093): the fit follows the marker held at the rim, and a path beyond the rim is not framed beyond it either: the surface is 4 wide (x in -2 to 2).
+test('decision 30: a diverged marker and its path beyond the rim do not widen the fit in x or z', () => {
+  const geometries = [...BOWL, { id: 'pathGeo', kind: 'trail', max: 10, style: 'trail' }];
+  const artifact = sceneArtifact(geometries, [...bowlNodes({ node: 'bowl' }), { id: 'path', geometry: 'pathGeo' }]);
+  const frame = (x, y, z) => ({ nodes: { ball: { position: [x, y, z] }, path: { points: [[0, 0.5, 0], [x, y, z]] } } });
+  const far = fitOf(artifact, [frame(9, 5.6, 7)]), atRim = fitOf(artifact, [frame(2, 2, 2)]);
+  assert.ok(Math.max(...far.points.map(p => p.x)) <= 2.2 + 1e-6 && Math.max(...far.points.map(p => p.z)) <= 2.2 + 1e-6, 'nothing is framed beyond the rim plus the ball radius');
+  assert.deepEqual(far.camera, atRim.camera, 'the view is the one with the marker at the rim');
+  const free = fitOf(sceneArtifact(geometries, [...bowlNodes(null), { id: 'path', geometry: 'pathGeo' }]), [frame(9, 5.6, 7)]);
+  assert.ok(Math.max(...free.points.map(p => p.x)) > 8, 'with no clamp nothing is held');
 });

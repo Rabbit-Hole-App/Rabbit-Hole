@@ -1,0 +1,123 @@
+[
+ {
+  "messageId": "271",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-987280c5ee210891",
+    "version": 1,
+    "command": "animation",
+    "title": "Why a too-large learning rate makes gradient descent diverge",
+    "description": "A ball sits on a long, bowl-shaped loss surface that is steep in one direction and gentle in the other. Each step, the ball moves downhill by the learning rate times the slope and leaves a trail. At small learning rates the trail curves into the bottom of the bowl. Above a threshold, each step overshoots the valley floor by more than the last, so the ball zig-zags higher up the steep walls until it leaves the surface.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-6e7baa2a",
+     "job": "aj_4c6bd089a0c24b77b0ebed42465930c2",
+     "plan_hash": "b187e889e15aab1614cf3a6248e0ebfaf810572ee717b49bc597061297f96072",
+     "request": "show me why a high learning rate diverges",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate",
+        "min": 0.05,
+        "max": 0.7,
+        "step": 0.01,
+        "default": 0.45
+       },
+       {
+        "type": "number",
+        "label": "Steepness of the steep direction",
+        "min": 2,
+        "max": 6,
+        "step": 0.5,
+        "default": 4
+       }
+      ],
+      "interactions": [
+       "Drag the learning rate slider. The ball starts again from the same point and the new path shows whether it settles, zig-zags in, or flies apart.",
+       "Change the steepness of the bowl's steep walls. The tipping-point learning rate shown on the card moves with it.",
+       "Play, pause, or take one step at a time to watch each overshoot.",
+       "Keep the current path and start again, so you can compare two learning rates side by side.",
+       "Orbit the camera to see the zig-zag from above or from the side."
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793856919,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "show me why a high learning rate diverges",
+    "prompt": "A ball sits on a long, bowl-shaped loss surface that is steep in one direction and gentle in the other. Each step, the ball moves downhill by the learning rate times the slope and leaves a trail. At small learning rates the trail curves into the bottom of the bowl. Above a threshold, each step overshoots the valley floor by more than the last, so the ball zig-zags higher up the steep walls until it leaves the surface.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Move the learning rate slider across the threshold and watch the same start switch from settling to blowing up. This shows the cause directly: each step overshoots the valley floor and lands higher than it started.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Drag the learning rate slider. The ball starts again from the same point and the new path shows whether it settles, zig-zags in, or flies apart.",
+     "Interaction: Change the steepness of the bowl's steep walls. The tipping-point learning rate shown on the card moves with it.",
+     "Interaction: Play, pause, or take one step at a time to watch each overshoot.",
+     "Interaction: Keep the current path and start again, so you can compare two learning rates side by side.",
+     "Interaction: Orbit the camera to see the zig-zag from above or from the side.",
+     "Parameter: Learning rate, 0.05 to 0.7, default 0.45",
+     "Parameter: Steepness of the steep direction, 2 to 6, default 4",
+     "Goal: Gradient descent diverges when the learning rate is so large that each step overshoots the minimum and lands farther away than it started. On a bowl, this happens once the learning rate goes past 2 divided by the steepest curvature."
+    ],
+    "assumptions": [
+     "This is a made-up surface for illustration, not a real model being trained.",
+     "The loss is an exact bowl: half of (gentle curvature × x² + steepness × y²), with gentle curvature 1. The slope is computed exactly and there is no noise.",
+     "Each step moves the ball by the learning rate times the downhill direction (the negative slope). The arrow on the ball shows that next step, so the ball moves along the arrow.",
+     "Along each direction, a step multiplies the distance to the bottom by (1 − learning rate × curvature), exactly for this bowl. The ball settles only if that number is between −1 and 1 in both directions, so it diverges once the learning rate passes 2 ÷ steepness (0.5 by default).",
+     "Exactly at the threshold, the ball bounces back and forth forever without settling or growing.",
+     "Readouts: step count, current loss, the multiplier in the steep direction, and the threshold learning rate 2 ÷ steepness.",
+     "Heights are drawn compressed so the steep walls fit on screen. The loss readout shows the true value."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "A run stops after 40 steps, or as soon as the ball leaves the drawn square (more than 3 units from the center in either direction), and is then marked as diverged. Real divergence keeps growing without limit.",
+     "Real loss surfaces are not perfect bowls. There, the threshold depends on the local steepness and changes as training goes on. This scene only shows the core mechanism."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-6e7baa2a"
+    },
+    "quote": null,
+    "review_hash": "02677056a72144af1b50e8394962d17fb7bc87aff401efdb426412284aa81f1a",
+    "sig": "v3.3798ae0c1288a1365bbd96bef951e8f8cb19508c3b125432e40192549176cccc",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 385,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.3798ae0c1288a1365bbd96bef951e8f8cb19508c3b125432e40192549176cccc",
+    "used": {
+     "version": 1,
+     "key": "aj_4c6bd089a0c24b77b0ebed42465930c2"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "271"
+   ],
+   "feedback": null
+  }
+ }
+]

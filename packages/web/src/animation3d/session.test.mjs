@@ -614,3 +614,62 @@ test('detach clears the viewport at once, so a slot given back and taken again r
   assert.deepEqual(h.renderers.made.at(-1).options.container, { tag: 'host-2' });
   assert.ok(h.state().poster);
 });
+
+// ---- FX-AN-107: a frame the renderer already shows is not drawn again ---------------------------------------------------------
+// A stepped scene's host clock ticks at 30 Hz and sends a frame every tick, but the scene changes a few times a second. Every applyFrame is a
+// layoutLabels plus a render, so on software GL (CI) the redundant ones used up the 33 ms a tick has and the run stopped as overloaded
+// (C9, fast-e2e 41779710894). Skip only a frame deep-equal to the one drawn, and draw again after anything else that may change what is shown.
+const tickFrame = n => ({ nodes: { ball: { position: [n, 0, 0] } }, readouts: { leftMoment: n } });
+const drawnCount = h => h.renderers.made.at(-1).frames.length;
+
+test('an identical frame is not applied again; a different one is', async () => {
+  const runtimes = stubRuntimes(), h = harness({ runtimes });
+  await started(h);
+  const feed = runtimes.made[0].options.onFrame, base = drawnCount(h);
+  for (let i = 0; i < 5; i += 1) feed(tickFrame(1), { time: 0 });
+  assert.equal(drawnCount(h) - base, 1, 'five identical frames draw once');
+  feed(tickFrame(2), { time: 0 });
+  assert.equal(drawnCount(h) - base, 2, 'a changed frame draws');
+  assert.equal(h.state().readouts.find(item => item.id === 'leftMoment').value, 2, 'the readouts still follow every frame');
+  h.session.dispose();
+});
+
+test('a stepped run whose frame changes every 6th tick draws one tick in six', async () => {
+  const runtimes = stubRuntimes(), h = harness({ runtimes });
+  await started(h);
+  const feed = runtimes.made[0].options.onFrame, base = drawnCount(h);
+  for (let tick = 1; tick <= 60; tick += 1) feed(tickFrame(Math.floor(tick / 6) + 100), { time: tick / 30 });
+  assert.equal(drawnCount(h) - base, 11, 'ten changes in 60 ticks plus the first frame, not 60 draws');
+  h.session.dispose();
+});
+
+test('an identical frame is drawn again after a camera move, Reset view, a label toggle, a learner event, a reset or an error recovery', async () => {
+  const runtimes = stubRuntimes(), h = harness({ runtimes });
+  await started(h);
+  const feed = () => runtimes.made.at(-1).options.onFrame(tickFrame(7), { time: 0 });
+  const again = async (what, act) => { feed(); const before = drawnCount(h); feed(); assert.equal(drawnCount(h), before, `${what}: a repeat is skipped first`); await act(); await settle(); const mid = drawnCount(h); feed(); assert.ok(drawnCount(h) > before || mid > before, `${what}: it draws again`); };
+  await again('a camera move', async () => h.renderers.made[0].options.onCameraChange({ position: [4, 4, 4], target: [0, 0, 0], fov: 50 }));
+  await again('Reset view', async () => h.session.resetView());
+  await again('a label toggle', async () => h.session.setLabels(false));
+  await again('a learner event', async () => h.session.setParameter('leftMass', 3));
+  await again('Reset', async () => h.session.reset());
+  runtimes.made.at(-1).fail(Object.assign(new Error('stopped'), { code: 'overloaded' }));
+  await again('an error recovery', async () => h.session.retry());
+  h.session.dispose();
+});
+
+test('a renderer made after a slot was given back draws the current frame at once, and its repeats are skipped', async () => {
+  const runtimes = stubRuntimes(), h = harness({ runtimes });
+  await started(h);
+  runtimes.made[0].options.onFrame(tickFrame(5), { time: 0 });
+  h.session.detach();
+  h.session.attach({ tag: 'host' });
+  await settle();
+  const fresh = h.renderers.made.at(-1);
+  assert.notEqual(fresh, h.renderers.made[0], 'a new renderer');
+  assert.ok(fresh.frames.length >= 1 && fresh.frames.at(-1).readouts.leftMoment === 5, 'it is given the frame the card holds');
+  const base = fresh.frames.length;
+  runtimes.made[0].options.onFrame(tickFrame(5), { time: 0 });
+  assert.equal(fresh.frames.length, base, 'an identical repeat is skipped');
+  h.session.dispose();
+});

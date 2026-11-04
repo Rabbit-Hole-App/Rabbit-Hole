@@ -691,7 +691,7 @@ test('a ready job lands on its card once (the artifact read and mapped to the bo
   assert.equal(landed.length, 1, 'one undo step: the new scene');
   assert.equal(landed[0].animation3d.ref.artifactId, 'fixture-beam-balance');
   assert.equal(landed[0].animation3dJob, undefined);
-  assert.deepEqual(calls, ['/api/learn/animation/jobs/j3?board=b1', '/api/learn/animation/jobs/results/fixture-beam-balance?board=b1&features=curve_radius%2Caction_motion']);
+  assert.deepEqual(calls, ['/api/learn/animation/jobs/j3?board=b1', '/api/learn/animation/jobs/results/fixture-beam-balance?board=b1&features=curve_radius%2Caction_motion%2Csurface_grid%2Ctrail_points%2Ctext_readout%2Carrow_anchor%2Cclamp']);
   // The owner's canvas provides its board (LearnPage, AnimationBoard): the saved card reads its scene and runs it.
   root && await B.act(async () => root.unmount());
   B.resetViewers();
@@ -815,4 +815,20 @@ test('the playback badge sits in the viewport\'s top-right corner, follows the r
   assert.ok(badge().querySelector('.bg-pass'), 'a green dot');
   await mount({ block: { id: 'b2', type: 'animation3d', fixtureId: 'projectile-target-game' } });
   assert.equal(badge(), null, 'a game with no timeline has no playback badge');
+});
+
+// FX-AN-071 (AN-19, owner decisions 11 and 12): a text readout's word reaches the card, as the same element a number readout uses, with the word as its data-value; the golden
+// SGD fixture (a card whose fixtureId is sgd-golden, docs/features/animation/golden-fixture-card.patch) leads with its status word and keeps its number readouts numbers.
+test('the golden SGD fixture shows its status word as the leading readout, beside its numbers', async () => {
+  await mount({ block: { id: 'g1', type: 'animation3d', fixtureId: 'sgd-golden' } });
+  assert.equal(card().getAttribute('data-animation-phase'), 'ready');
+  assert.equal($('[data-animation-fixture]').textContent, 'Example', 'visibly a fixture');
+  const status = $('[data-animation-primary-readout] [data-animation-readout="status"]');
+  assert.ok(status, 'the first readout of an experiment is the prominent one, and it is the status');
+  assert.match(status.textContent, /^(running|paused|converged|diverged)$/);
+  assert.equal(status.getAttribute('data-value'), status.textContent, 'the word is the value');
+  assert.match($('[data-animation-primary-readout] dt').textContent, /Status/);
+  const others = Object.fromEntries($$('[data-animation-readout]').map(node => [node.getAttribute('data-animation-readout'), node.textContent]));
+  assert.match(others.loss, /^\d+\.\d{3}$/, 'a number readout keeps its decimals');
+  assert.match(others.steps, /^\d+$/);
 });

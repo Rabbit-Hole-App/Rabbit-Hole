@@ -1,0 +1,139 @@
+[
+ {
+  "messageId": "213",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-b41a064e6220ea83",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient descent overshooting the bottom of a narrow bowl",
+    "description": "A ball sits on an oval bowl-shaped surface that is steep in one direction and gentle in the other, with the lowest point marked. Each step, the ball jumps downhill by the learning rate times the slope, leaving a path behind it. At the default setting the ball overshoots across the steep direction and zigzags from side to side as it closes in. Raise the learning rate and the zigzag gets wider until the ball flies off the bowl. Lower it and the ball creeps smoothly to the bottom.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-1758c1fc",
+     "job": "aj_111d6daa534e4b7d8d456f9c5bab7a83",
+     "plan_hash": "7579cff7ebf4da57e26aef1b5da63897ff9b538379f13c32184d14dfe5e024d8",
+     "request": "gradient descent that overshoots the minimum",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate (step size)",
+        "min": 0.05,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.4
+       },
+       {
+        "type": "select",
+        "label": "Starting point",
+        "options": [
+         {
+          "value": "farSide",
+          "label": "Far end, a little off-centre"
+         },
+         {
+          "value": "steepSide",
+          "label": "High on the steep wall"
+         },
+         {
+          "value": "corner",
+          "label": "Near a corner"
+         }
+        ],
+        "default": "farSide"
+       },
+       {
+        "type": "toggle",
+        "label": "Show downhill arrow",
+        "default": true
+       }
+      ],
+      "interactions": [
+       "Change the learning rate: smooth curve below 0.25, zigzag across the steep direction that still settles from 0.25 to 0.5, swings that grow until the ball leaves the bowl above 0.5",
+       "Pick a starting point to see the same overshooting from a different place",
+       "Turn the downhill arrow on or off. It points opposite to the slope, along the direction of the next step, and its length shows how steep the surface is under the ball",
+       "Press 'Start again, keep old path' to rerun from the start point with the previous path faded, for comparing two learning rates",
+       "Pause, play or step the descent one jump at a time, and read the step number, height (loss), position and the 'steep-direction multiplier'"
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793850297,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "gradient descent that overshoots the minimum",
+    "prompt": "A ball sits on an oval bowl-shaped surface that is steep in one direction and gentle in the other, with the lowest point marked. Each step, the ball jumps downhill by the learning rate times the slope, leaving a path behind it. At the default setting the ball overshoots across the steep direction and zigzags from side to side as it closes in. Raise the learning rate and the zigzag gets wider until the ball flies off the bowl. Lower it and the ball creeps smoothly to the bottom.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Overshooting depends on how big each step is, so trying different learning rates and watching the path change from a smooth glide to a zigzag to flying off the bowl is the quickest way to see why.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Change the learning rate: smooth curve below 0.25, zigzag across the steep direction that still settles from 0.25 to 0.5, swings that grow until the ball leaves the bowl above 0.5",
+     "Interaction: Pick a starting point to see the same overshooting from a different place",
+     "Interaction: Turn the downhill arrow on or off. It points opposite to the slope, along the direction of the next step, and its length shows how steep the surface is under the ball",
+     "Interaction: Press 'Start again, keep old path' to rerun from the start point with the previous path faded, for comparing two learning rates",
+     "Interaction: Pause, play or step the descent one jump at a time, and read the step number, height (loss), position and the 'steep-direction multiplier'",
+     "Parameter: Learning rate (step size), 0.05 to 0.6, default 0.4",
+     "Parameter: Starting point, one of Far end, a little off-centre, High on the steep wall, Near a corner",
+     "Parameter: Show downhill arrow",
+     "Goal: Understand that a learning rate that is too large makes gradient descent jump past the minimum, that this happens first along the steepest direction, and that past a certain step size the jumps grow instead of shrinking."
+    ],
+    "assumptions": [
+     "Illustration: a made-up bowl-shaped surface, not a loss from a real trained model.",
+     "The surface height is 0.5·(x² + 4y²), so it is 4 times as curved across (y) as along (x), with the minimum at the centre.",
+     "Each step is plain gradient descent: new position = old position − learning rate × slope. There is no momentum and no noise.",
+     "Each step multiplies y by (1 − 4 × learning rate) and x by (1 − learning rate). A negative multiplier means landing on the other side of the bottom (overshoot); a size above 1 means each swing grows (divergence). Exact for this bowl.",
+     "A run stops after 40 steps, when the height drops below 0.001, or when the ball leaves the edge of the drawn surface (shown as 'left the surface').",
+     "The surface height is scaled down vertically so the whole bowl fits on screen."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Real loss surfaces have many dimensions and uneven curvature, so the exact overshoot thresholds of 0.25 and 0.5 only hold for this bowl. What carries over is the idea: too large a step overshoots in the steepest direction first.",
+     "Within this range the gentle direction never overshoots. That would need a learning rate above 1."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-1758c1fc"
+    },
+    "quote": null,
+    "review_hash": "6fa62d05fc445c2c292b68d9ce1bd7d0019f944bbf8914833cfc100480187be7",
+    "sig": "v3.0b3dfb1c536c431d0a2359faceeb50e8ca33c2710b6da8b234bba9650117461b",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 373,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.0b3dfb1c536c431d0a2359faceeb50e8ca33c2710b6da8b234bba9650117461b",
+    "used": {
+     "version": 1,
+     "key": "aj_111d6daa534e4b7d8d456f9c5bab7a83"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "213"
+   ],
+   "feedback": null
+  }
+ }
+]
