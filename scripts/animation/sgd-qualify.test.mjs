@@ -9,7 +9,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONTROL, PHRASINGS, TYPICAL, classify, decide, latestPerJob, machineResult, main, parse, parseTypical, resultTable, runQualify, sgdMarkers, verdictOf } from './sgd-qualify.mjs';
-import { DRY_RUN, SCENARIOS, createFake } from './sgd-qualify-fake.mjs';
+import { DRY_RUN, FAKE_GOLDEN, SCENARIOS, createFake, fakeReviewer } from './sgd-qualify-fake.mjs';
+import { loadProduct, providerReview, readManifest, relabel } from './gate2-controls.mjs';
+
+const PRODUCT = await loadProduct(fileURLToPath(new URL('../..', import.meta.url))); // the product's own review code, from this repository's tree
 
 const REPO = fileURLToPath(new URL('../..', import.meta.url));
 const SHA = 'a'.repeat(40), VERSION = '0fd062bf-f9e4-4099-8894-2d2924e94d6b';
@@ -248,8 +251,10 @@ test('command line: usage errors refuse before anything; the dry run passes agai
 // A fetch that serves the fake preview: the cookie decides the user, so the real makeCall, sessions file and headers are exercised.
 // A sessions file as `dev-test-session.mjs --mint --fresh` writes it; the cookie value n is the fake preview's user n.
 const sessionsFileOf = (file, emails) => writeFileSync(file, JSON.stringify({ cookie: 'small_session', sessions: emails.map((email, i) => ({ email, value: `cookie-${i + 1}` })) }));
-function world({ mismatch = false, extraFlags = [], env = { PREVIEW_VERSION: VERSION, PREVIEW_SHA: SHA }, files = {}, emails = Array.from({ length: 5 }, (_, i) => `gate2-${i + 1}@example.com`) } = {}) {
-  const fake = createFake({ scenarioFor: DRY_RUN }), dir = tmp(), seen = [];
+function world({ mismatch = false, extraFlags = [], env = { PREVIEW_VERSION: VERSION, PREVIEW_SHA: SHA }, files = {}, emails = Array.from({ length: 5 }, (_, i) => `gate2-${i + 1}@example.com`), verdict, diagnostics = true } = {}) {
+  const fake = createFake({ scenarioFor: DRY_RUN, diagnostics }), dir = tmp(), seen = [];
+  const creds = join(dir, 'creds.env'), reviewed = [], reviewer = fakeReviewer(verdict);
+  writeFileSync(creds, 'ANTHROPIC_API_KEY=fake-reviewer-key-not-real\n');
   const sessionsFile = join(dir, 'sessions.json');
   sessionsFileOf(sessionsFile, emails);
   for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
@@ -264,6 +269,8 @@ function world({ mismatch = false, extraFlags = [], env = { PREVIEW_VERSION: VER
   mkdirSync(join(cand, 'scripts', 'animation'), { recursive: true });
   mkdirSync(join(cand, 'packages', 'web', 'src', 'animation3d'), { recursive: true });
   writeFileSync(join(cand, 'scripts', 'animation', 'author-sample.mjs'), '');
+  mkdirSync(join(cand, 'packages', 'web', 'src', 'animation3d', 'testdata'), { recursive: true });
+  writeFileSync(join(cand, 'packages', 'web', 'src', 'animation3d', 'testdata', 'sgd-golden.json'), JSON.stringify(FAKE_GOLDEN));
   writeFileSync(join(cand, 'packages', 'web', 'src', 'animation3d', 'capabilities.js'), "export const ANIMATION_CLIENT_FEATURES = Object.freeze(['curve_radius', 'action_motion', 'surface_grid']);\n");
   const spawn = (cmd, args) => {
     if (cmd === 'git') { const rest = args.slice(2); return { status: 0, stdout: rest[0] === 'rev-parse' && rest[1] === 'HEAD' ? `${SHA}\n` : '' }; }
@@ -276,9 +283,9 @@ function world({ mismatch = false, extraFlags = [], env = { PREVIEW_VERSION: VER
       gOk ? `PASS golden-artifact: ${computedGolden}` : `FAIL golden-artifact: expected ${flag('--golden')}, computed ${computedGolden}`, `RESULT ${pOk && gOk ? 'PASS' : 'FAIL'} (worktree ${flag('--worktree')})`].join('\n') + '\n' };
   };
   const argv = ['--base', 'https://preview.test', '--cap', '2000', '--prior', '100', '--candidate-worktree', cand, '--mvp3-sha', 'b'.repeat(40), '--prompts-hash', 'ab'.repeat(16), '--golden-hash', 'cd'.repeat(16),
-    '--sessions-file', sessionsFile, '--out', join(dir, 'out'), '--concurrency', '5', ...extraFlags];
+    '--sessions-file', sessionsFile, '--out', join(dir, 'out'), '--credentials', creds, '--concurrency', '5', ...extraFlags];
   const lines = [];
-  return { fake, seen, argv, lines, dir, cand, harness, run: (flags = argv) => main(flags, { env, out: line => lines.push(line), deps: { spawn, fetchImpl, sleep: async () => { await new Promise(resolve => setImmediate(resolve)); } } }) };
+  return { fake, seen, argv, lines, dir, cand, harness, reviewed, run: (flags = argv) => main(flags, { env, out: line => lines.push(line), deps: { spawn, fetchImpl, product: PRODUCT, review: async (role, spec) => { reviewed.push(spec); return reviewer(role, spec); }, sleep: async () => { await new Promise(resolve => setImmediate(resolve)); } } }) };
 }
 const noNetwork = async fn => { const real = globalThis.fetch; globalThis.fetch = () => { throw new Error('unexpected real network'); }; try { return await fn(); } finally { globalThis.fetch = real; } };
 
@@ -305,7 +312,7 @@ test('main end to end over a fake fetch: sessions file, cookies per user, origin
   assert.deepEqual(machine.control, { outcome: 'gap', silentSgd: false, markers: [] });
   assert.equal(machine.rows.length, 10);
   assert.deepEqual(Object.keys(machine.rows[0]), ['n', 'phrasing', 'jobId', 'outcome', 'repairs', 'settledCredits', 'chargedCredits', 'artifactHash', 'session', 'note']);
-  assert.deepEqual([machine.rows[3].repairs, machine.rows[6].outcome, machine.settledCredits, machine.cap, machine.prior], [1, 'rejected', 459, 2000, 100]);
+  assert.deepEqual([machine.rows[3].repairs, machine.rows[6].outcome, machine.settledCredits, machine.cap, machine.prior], [1, 'rejected', 473.6, 2000, 100]);
   assert.ok(readdirSync(join(w.dir, 'out')).some(f => /^result-aaaaaaa-\d+\.json$/.test(f)), 'a stamped copy stays');
   const state = JSON.parse(readFileSync(join(w.dir, 'out', `state-aaaaaaa-0fd062bf.json`), 'utf8'));
   assert.equal(state.rows.length, 10);
@@ -411,4 +418,163 @@ test('--check validates the identity and the configuration and creates no job; t
   assert.match(lines.join('\n'), /Ctrl\+C: cancelling every running job/);
   assert.match(lines.join('\n'), /HALT \(signal\): Ctrl\+C/);
   assert.equal(process.listenerCount('SIGINT'), 0, 'the handler is removed when the run ends');
+});
+
+// ---- controls: job 0 (the golden) and the reviewer calibration set ----
+const FX025 = JSON.parse(readFileSync(new URL('../../packages/web/src/animation3d/testdata/fx025-game-candidate.json', import.meta.url), 'utf8')); // a real retained draft with its plan
+function calibrationDir(extra = {}) {
+  const dir = tmp(), second = { ...FX025.draft, title: 'Second retained draft' };
+  writeFileSync(join(dir, 'plan.json'), JSON.stringify(FX025.plan));
+  writeFileSync(join(dir, 'draft-a.json'), JSON.stringify(FX025.draft));
+  writeFileSync(join(dir, 'diagnostics-b.json'), JSON.stringify({ job: { planHash: FX025.planHash }, diagnostics: { plan: FX025.plan, draft: FX025.draft, candidates: [{ repairs: 1, previousDraft: second }] } }));
+  const manifest = { schema: 'gate2-calibration/1', items: [
+    { name: 'floating ball (draft a)', expect: 'fail', request: FX025.prompt, artifact: 'draft-a.json', plan: 'plan.json', knownFindings: ['floats above the bowl', 'frame'] },
+    { name: 'second draft before its repair', expect: 'fail', diagnostics: 'diagnostics-b.json', draft: 'before-repair-1', knownFindings: ['trail markers'] }], ...extra };
+  writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest));
+  return { dir, file: join(dir, 'manifest.json') };
+}
+// The reviewer the calibration expects: the golden passes, draft a floats and is out of frame, the second draft has trail markers piled up.
+const CALIBRATED = title => {
+  if (title.includes(FX025.draft.title.slice(0, 20))) return { accepted: false, findings: [{ message: 'The ball floats above the bowl and the bowl shrinks in the frame.', category: 'renderer' }] };
+  if (title.includes('Second retained draft')) return { accepted: false, findings: [{ message: 'Trail markers pile up and the current path cannot be told from the kept one.' }] };
+  return { accepted: true, findings: [] };
+};
+const controlsOf = dir => JSON.parse(readFileSync(join(dir, 'out', 'controls-result.json'), 'utf8'));
+
+test('readManifest: both item forms, the draft selectors, and every refusal before any spend', () => {
+  const { dir, file } = calibrationDir();
+  const items = readManifest(file);
+  assert.deepEqual(items.map(i => [i.name, i.expect, i.knownFindings.length, i.kind]), [['floating ball (draft a)', 'fail', 2, 'draft'], ['second draft before its repair', 'fail', 1, 'draft']]);
+  assert.equal(items[0].draft.title, FX025.draft.title);
+  assert.equal(items[1].draft.title, 'Second retained draft', 'before-repair-1 is the draft the repair replaced');
+  assert.equal(items[1].planHash, FX025.planHash);
+  const bad = manifest => { const f = join(dir, 'bad.json'); writeFileSync(f, JSON.stringify(manifest)); return () => readManifest(f); };
+  const ok = { name: 'x', artifact: 'draft-a.json', plan: 'plan.json', knownFindings: ['a'] };
+  assert.throws(bad({ schema: 'nope', items: [ok] }), /is not a gate2-calibration\/1 manifest/);
+  assert.throws(bad({ schema: 'gate2-calibration/1', items: [] }), /with items/);
+  assert.throws(bad({ schema: 'gate2-calibration/1', items: [{ ...ok, knownFindings: [] }] }), /needs knownFindings/);
+  assert.throws(bad({ schema: 'gate2-calibration/1', items: [{ ...ok, knownFindings: ['('] }] }), /Invalid regular expression/);
+  assert.throws(bad({ schema: 'gate2-calibration/1', items: [ok, ok] }), /a distinct name is required/);
+  assert.throws(bad({ schema: 'gate2-calibration/1', items: [{ ...ok, expect: 'maybe' }] }), /expect is pass or fail/);
+  assert.throws(bad({ schema: 'gate2-calibration/1', items: [{ name: 'x', knownFindings: ['a'] }] }), /give diagnostics \+ draft, or artifact \+ plan/);
+  assert.throws(bad({ schema: 'gate2-calibration/1', items: [{ name: 'x', diagnostics: 'diagnostics-b.json', draft: 'before-repair-9', knownFindings: ['a'] }] }), /has no draft "before-repair-9"/);
+  assert.deepEqual(relabel({ title: 'T', description: 'D' }), { title: 'Offline fixture: T', description: 'OFFLINE FIXTURE, not generated by a model. D' });
+  const labelled = relabel({ title: 'Offline fixture: T', description: 'OFFLINE FIXTURE, not generated by a model. D' });
+  assert.deepEqual(relabel(labelled), labelled, 'a fixture already labelled is left alone');
+  assert.equal(relabel({ title: 'x'.repeat(300), description: 'y'.repeat(900) }).title.length, 120);
+});
+
+test('job 0: the golden goes through the preview\'s seed-fixture and render-result and the product\'s own review; accepted means the run goes on', async () => {
+  const w = world();
+  assert.equal(await noNetwork(() => w.run()), 0, w.lines.join('\n'));
+  assert.equal(w.reviewed.length, 1, 'one review call: the golden');
+  const text = w.reviewed[0].content.filter(b => b.type === 'text').map(b => b.text).join('\n');
+  assert.match(text, /Learner request:\nstochastic gradient descent/);
+  assert.match(text, /Captures to review: v0-s0, v0-s1, v0-s2/);
+  assert.equal(w.reviewed[0].content.filter(b => b.type === 'image').length, 3, 'the preview\'s own captures reach the reviewer as images');
+  assert.equal(w.fake.seeded.size, 1);
+  assert.ok(w.fake.requests.some(r => /POST \/api\/learn\/animation\/diagnostics\/seed-fixture$/.test(r)) && w.fake.requests.some(r => /POST \/api\/learn\/animation\/diagnostics\/render-result$/.test(r)));
+  const c = controlsOf(w.dir);
+  assert.deepEqual([c.schema, c.candidateSha, c.verdict, c.goldenAccepted, c.items.length, c.items[0].outcome, c.items[0].accepted], ['gate2-controls/1', SHA, 'PASS', true, 1, 'accepted', true]);
+  assert.equal(c.items[0].credits, 14.6, 'priced by the product\'s own costUsd');
+  assert.equal(readFileSync(join(w.dir, 'out', 'controls-result.json'), 'utf8').trim().split('\n').length, 1, 'one compact line, next to gate2-result.json');
+  assert.match(readFileSync(join(w.dir, 'out', 'spend-rows.md'), 'utf8'), /\| c0 \| .* \| CONTROL: golden SGD artifact \(job 0\) \(direct review call, outside the ledger\) \| - \| accepted \| 0 \| 14\.60 \|/);
+  assert.equal(w.fake.jobs.size, 10, 'the ten phrasings ran after the control');
+  assert.match(w.lines.join('\n'), /Settled by this run: 459\.00 credits/);
+  assert.match(w.lines.join('\n'), /cumulative 573\.60 of cap 2000/, 'the control\'s spend counts against the cap');
+});
+
+test('a rejected golden is a harness bug: exit 5, the findings printed, no author job and no test user marked as used', async () => {
+  const w = world({ verdict: () => ({ accepted: false, findings: [{ message: 'The ball floats above the bowl.', category: 'renderer' }] }) });
+  assert.equal(await noNetwork(() => w.run()), 5);
+  const text = w.lines.join('\n');
+  assert.match(text, /FAIL golden SGD artifact \(job 0\): rejected \(expected pass\); DRIFT: rejected, but this must pass: major\/renderer The ball floats above the bowl\./);
+  assert.match(text, /    major\/renderer The ball floats above the bowl\./);
+  assert.match(text, /CONTROLS FAILED \(the golden was rejected or could not be reviewed: a harness bug/);
+  assert.equal(w.fake.jobs.size, 0, 'no author job, no plan job');
+  assert.equal(creates(w.fake).length, 0);
+  assert.equal(existsSync(join(w.dir, 'out', 'used-prefixes.json')), false, 'the test users were not spent');
+  const c = controlsOf(w.dir);
+  assert.deepEqual([c.verdict, c.goldenAccepted, c.items[0].outcome, c.items[0].findings.length], ['FAIL', false, 'rejected', 1]);
+  assert.equal(existsSync(join(w.dir, 'out', 'gate2-result.json')), false, 'no Gate 2 result');
+  // the same candidate again is reviewed again (only a PASS is remembered)
+  assert.equal(await noNetwork(() => w.run()), 5);
+  assert.equal(w.reviewed.length, 2);
+});
+
+test('--calibrate: the golden passes and the retained drafts fail with their known findings; drift either way is named, and a PASS is remembered for the candidate', async () => {
+  const { file } = calibrationDir();
+  const good = world({ verdict: CALIBRATED, extraFlags: ['--calibrate', file, '--controls'] });
+  assert.equal(await noNetwork(() => good.run()), 0, good.lines.join('\n'));
+  assert.equal(good.reviewed.length, 3, 'golden and two drafts');
+  assert.equal(good.fake.jobs.size, 0, '--controls stops before any job');
+  assert.match(good.lines.join('\n'), /--controls: stopping here, no author job was started/);
+  const c = controlsOf(good.dir);
+  assert.deepEqual(c.items.map(i => [i.kind, i.expect, i.outcome, i.drift]), [['golden', 'pass', 'accepted', null], ['draft', 'fail', 'rejected', null], ['draft', 'fail', 'rejected', null]]);
+  assert.match(c.manifest.hash, /^[0-9a-f]{64}$/);
+  assert.deepEqual([...good.fake.seeded.values()].map(f => f.artifact.title.startsWith('Offline fixture') && /^OFFLINE FIXTURE, not generated by a model/.test(f.artifact.description)), [true, true, true], 'every seeded draft says it is a fixture');
+  // reviewed once per candidate: the same candidate and manifest is not reviewed again, and the run goes on
+  const again = await noNetwork(() => good.run([...good.argv.filter(a => a !== '--controls')]));
+  assert.equal(again, 0, good.lines.join('\n'));
+  assert.equal(good.reviewed.length, 3, 'no review call the second time');
+  assert.match(good.lines.join('\n'), /controls: already PASS for this candidate/);
+  assert.equal(good.fake.jobs.size, 10);
+  // drift 1: a retained draft that now PASSES (the reviewer became lenient)
+  const lenient = world({ verdict: title => (title.includes('Second retained draft') ? { accepted: true, findings: [] } : CALIBRATED(title)), extraFlags: ['--calibrate', file] });
+  assert.equal(await noNetwork(() => lenient.run()), 5);
+  assert.match(lenient.lines.join('\n'), /FAIL second draft before its repair: accepted \(expected fail\); DRIFT: accepted, but this retained draft must fail review \(the reviewer has become more lenient\)/);
+  assert.equal(lenient.fake.jobs.size, 0);
+  // drift 2: it still fails but no longer for its known finding
+  const changed = world({ verdict: title => (title.includes('Second retained draft') ? { accepted: false, findings: [{ message: 'The legend is hard to read.' }] } : CALIBRATED(title)), extraFlags: ['--calibrate', file] });
+  assert.equal(await noNetwork(() => changed.run()), 5);
+  assert.match(changed.lines.join('\n'), /FAIL second draft before its repair: rejected \(expected fail\); DRIFT: rejected, but the known finding\(s\) \/trail markers\/ were not reported/);
+  assert.match(changed.lines.join('\n'), /PASS floating ball \(draft a\)/);
+  assert.equal(controlsOf(changed.dir).items[2].drift.includes('/trail markers/'), true);
+  // a different manifest is a different control set: it is reviewed again
+  const other = calibrationDir({ note: 'a different set' });
+  const before = good.reviewed.length;
+  assert.equal(await noNetwork(() => good.run(good.argv.map((arg, i) => (good.argv[i - 1] === '--calibrate' ? other.file : arg)))), 0, good.lines.slice(-6).join('\n'));
+  assert.equal(good.reviewed.length, before + 3, 'a different manifest is reviewed again');
+});
+
+test('controls errors are not passes: a preview without diagnostics, a failed review call, and bad configuration all stop before any author job', async () => {
+  const nodiag = world({ diagnostics: false });
+  assert.equal(await noNetwork(() => nodiag.run()), 5);
+  assert.match(nodiag.lines.join('\n'), /seed-fixture answered HTTP 404 \(Not found\): the preview has no ANIMATION_DIAGNOSTICS/);
+  assert.equal(nodiag.reviewed.length, 0);
+  const broken = world({ verdict: () => { throw new Error('the review call answered HTTP 529 (overloaded_error)'); } });
+  assert.equal(await noNetwork(() => broken.run()), 5);
+  assert.match(broken.lines.join('\n'), /error - the review call answered HTTP 529 \(overloaded_error\)/);
+  assert.equal(broken.fake.jobs.size, 0);
+  const nokey = world();
+  writeFileSync(join(nokey.dir, 'creds.env'), 'OTHER=1\n');
+  assert.equal(await noNetwork(() => nokey.run()), 2);
+  assert.match(nokey.lines.join('\n'), /USAGE: ANTHROPIC_API_KEY is missing from .*creds\.env \(key name only\)/);
+  const nogolden = world({ extraFlags: ['--golden', join(tmp(), 'missing.json')] });
+  assert.equal(await noNetwork(() => nogolden.run()), 2);
+  assert.match(nogolden.lines.join('\n'), /USAGE: controls: /);
+  const tight = world();
+  assert.equal(await noNetwork(() => tight.run(tight.argv.map((arg, i) => (tight.argv[i - 1] === '--cap' ? '110' : arg)))), 2);
+  assert.match(tight.lines.join('\n'), /leaves no room for the controls \(about 20 credits\)/);
+  const checked = world({ extraFlags: ['--calibrate', calibrationDir().file, '--check'] });
+  assert.equal(await noNetwork(() => checked.run()), 0, checked.lines.join('\n'));
+  assert.match(checked.lines.join('\n'), /controls: job 0 is the golden SGD artifact, with 2 calibration draft\(s\) from .*manifest\.json; about 60 credits/);
+  assert.equal(checked.seen.length, 0, 'a check makes no request');
+  const badManifest = world({ extraFlags: ['--calibrate', join(tmp(), 'nope.json'), '--check'] });
+  assert.equal(await noNetwork(() => badManifest.run()), 2);
+});
+
+test('providerReview sends the product\'s request body to the provider with the key in the header only, and reads the report_review tool call', async () => {
+  const sent = [];
+  const fetchImpl = async (url, init) => { sent.push({ url, init, body: JSON.parse(init.body) }); return Response.json({ model: 'm', content: [{ type: 'text', text: 'ok' }, { type: 'tool_use', name: 'report_review', input: { captures: [] } }], usage: { input_tokens: 5, output_tokens: 2 }, stop_reason: 'tool_use' }); };
+  const reply = await providerReview({ product: PRODUCT, apiKey: 'SECRET-KEY-VALUE', fetchImpl })('review', { system: 'sys', tool: { name: 'report_review', input_schema: { type: 'object', properties: {} } }, content: [{ type: 'text', text: 'hello' }] });
+  assert.deepEqual([reply.input, reply.usage, reply.stopReason], [{ captures: [] }, { input_tokens: 5, output_tokens: 2 }, 'tool_use']);
+  assert.equal(sent[0].url, 'https://api.anthropic.com/v1/messages');
+  assert.equal(sent[0].init.headers['x-api-key'], 'SECRET-KEY-VALUE');
+  assert.ok(!sent[0].init.body.includes('SECRET-KEY-VALUE'), 'the key is never in the body');
+  assert.equal(sent[0].body.model, PRODUCT.animationModel('review'));
+  assert.deepEqual([sent[0].body.tool_choice, sent[0].body.tools.length], [{ type: 'auto' }, 1]);
+  const prose = await providerReview({ product: PRODUCT, apiKey: 'k', fetchImpl: async () => Response.json({ content: [{ type: 'text', text: 'prose only' }], usage: {} }) })('review', { system: 's', tool: { name: 't', input_schema: { type: 'object' } }, content: 'x' });
+  assert.equal(prose.input, null, 'a reply with no tool call is passed on as such (the stage retries once)');
+  await assert.rejects(providerReview({ product: PRODUCT, apiKey: 'k', fetchImpl: async () => Response.json({ error: { type: 'overloaded_error' } }, { status: 529 }) })('review', { system: 's', tool: { name: 't', input_schema: { type: 'object' } }, content: 'x' }), /HTTP 529 \(overloaded_error\)/);
 });

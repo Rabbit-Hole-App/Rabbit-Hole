@@ -17,12 +17,13 @@ import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, write
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { spawnSync } from 'node:child_process';
 import { CREDENTIALS, PACING, RUN_OUT, insideRepo, makeCall, markUsed, prefixOf, readKey, readSessions, readUsage, readUsed, usable } from './dev-test-session.mjs';
 import { MUST_RERUN, inputProblem, realDeps, runGate } from './sgd-qualify-gate.mjs';
-import { DRY_RUN, createFake } from './sgd-qualify-fake.mjs';
+import { DRY_RUN, FAKE_GOLDEN, createFake, fakeReviewer } from './sgd-qualify-fake.mjs';
+import { REVIEW_CREDITS_EXPECTED, appendSpend, loadProduct, manifestInfo, passedBefore, providerReview, readGolden, readManifest, runControls, spendLine, writeControls } from './gate2-controls.mjs';
 
 // Plan section 8, "Gate 2 phrasings", exactly. The tenth is the wrong-subject control.
 export const PHRASINGS = Object.freeze([
@@ -128,7 +129,7 @@ class Stopped extends Error { constructor(outcome, note) { super(note); this.out
 export async function runQualify(cfg, deps) {
   const { sleep, now, log } = deps, expected = cfg.expected ?? expectedOf(cfg.typical), rows = [...(cfg.rows ?? [])];
   const live = new Map(), inflight = new Map(cfg.sessions.map(s => [s.email, 0])), skipped = new Map(), startUsed = new Map();
-  const ctx = { halt: null, finished: rows.reduce((t, r) => t + r.credits, 0), noMore: null };
+  const ctx = { halt: null, finished: rows.reduce((t, r) => t + r.credits, 0) + (cfg.extraSpent ?? 0), noMore: null };
   mkdirSync(cfg.out, { recursive: true });
   if (!existsSync(join(cfg.out, 'spend-rows.md'))) writeFileSync(join(cfg.out, 'spend-rows.md'), SPEND_HEAD);
   const say = (n, text) => log(`[job ${n}] ${text}`);
@@ -314,7 +315,7 @@ export const parseTypical = text => {
 };
 export function parse(argv, env = process.env) {
   const { values: v } = parseArgs({ args: argv, strict: true, options: {
-    'dry-run': { type: 'boolean' }, check: { type: 'boolean' }, 'run-all': { type: 'boolean' },
+    'dry-run': { type: 'boolean' }, check: { type: 'boolean' }, 'run-all': { type: 'boolean' }, controls: { type: 'boolean' }, calibrate: { type: 'string' }, golden: { type: 'string' },
     base: { type: 'string' }, 'sessions-file': { type: 'string' }, concurrency: { type: 'string', default: '1' }, cap: { type: 'string' }, prior: { type: 'string' },
     'candidate-worktree': { type: 'string' }, 'mvp3-sha': { type: 'string' }, 'prompts-hash': { type: 'string' }, 'golden-hash': { type: 'string' }, worker: { type: 'string' },
     out: { type: 'string' }, 'stop-file': { type: 'string' }, typical: { type: 'string' }, choice: { type: 'string' }, credentials: { type: 'string', default: CREDENTIALS },
@@ -377,7 +378,7 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
   if (existsSync(stopFile)) { out(`USAGE: the stop file ${stopFile} exists; remove it first`); return 2; }
   // Fresh test users per run: a prefix that has run before is never reused (the escrow lets a learner fail 5 generations free per day; a reused user hits HTTP 429).
   const prefix = dry ? null : prefixOf(sessions.map(s => s.email));
-  if (!dry) {
+  if (!dry && !o.controls) { // the controls alone (seed, render, a direct review) spend none of the test users' free failures
     if (!prefix) { out('USAGE: the sessions must share one prefix (<prefix>-1..N@example.com, from one `dev-test-session.mjs --mint --fresh` run)'); return 2; }
     let ran;
     try { ran = readUsed(outDir).prefixes[prefix]?.ranAt; } catch (error) { out(`USAGE: ${join(outDir, 'used-prefixes.json')} cannot be read (${error.message}); a used prefix could be reused`); return 2; }
@@ -387,16 +388,46 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
   const state = existsSync(statePath) ? JSON.parse(readFileSync(statePath, 'utf8')) : { sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, rows: [] };
   out(`candidate ${pin.PREVIEW_SHA.slice(0, 9)} preview ${pin.PREVIEW_VERSION}; ${sessions.length} session(s) ${sessions.map(s => s.email).join(', ')}; concurrency ${o.concurrency}; cap ${o.cap}, prior ${o.prior}; features ${features.join(',')}`);
   out(`output ${outDir}; stop file ${stopFile}; ${state.rows.length ? `resuming: ${state.rows.length} earlier row(s), ${verdictOf(state.rows).why}` : 'a fresh run for this candidate'}`);
+  // Controls (owner standing rules): job 0, the golden, and with --calibrate the retained drafts that must fail. Free configuration checks here, the review below.
+  let golden, calibration;
+  try {
+    golden = dry ? { ...readGolden(null, FAKE_GOLDEN) } : readGolden(o.golden ?? join(gateOpts.worktree, 'packages', 'web', 'src', 'animation3d', 'testdata', 'sgd-golden.json'));
+    calibration = o.calibrate ? readManifest(o.calibrate) : [];
+  } catch (error) { out(`USAGE: controls: ${error.message}`); return 2; }
+  const manifest = o.calibrate ? manifestInfo(o.calibrate) : null, controlsCredits = (1 + calibration.length) * REVIEW_CREDITS_EXPECTED;
+  out(`controls: job 0 is the golden SGD artifact${calibration.length ? `, with ${calibration.length} calibration draft(s) from ${manifest.path}` : ''}; about ${controlsCredits} credits as direct review calls outside the ledger`);
+  if (!dry && o.cap - o.prior < controlsCredits) { out(`USAGE: --cap ${o.cap} minus --prior ${o.prior} leaves no room for the controls (about ${controlsCredits} credits)`); return 2; }
   if (o.check) { out('CHECK OK: configuration and candidate identity are valid; no job was created'); return 0; }
 
-  // 3. run
+  // 3. controls, then the run. A rejected golden is a harness bug: nothing paid is started (exit 5).
+  const before = passedBefore(outDir, pin.PREVIEW_SHA, pin.PREVIEW_VERSION, manifest?.hash);
+  let controlsSpent = before?.spentCredits ?? 0;
+  if (before) out(`controls: already PASS for this candidate (${before.finishedAt}); not reviewed again`);
+  else {
+    const apiKey = dry ? 'dry-run' : readKey(o.credentials, 'ANTHROPIC_API_KEY');
+    if (!apiKey) { out(`USAGE: ANTHROPIC_API_KEY is missing from ${o.credentials} (key name only); the controls call the reviewer`); return 2; }
+    const product = injected.product ?? await loadProduct(dry ? fileURLToPath(new URL('../..', import.meta.url)) : gateOpts.worktree);
+    mkdirSync(outDir, { recursive: true });
+    if (!existsSync(join(outDir, 'spend-rows.md'))) writeFileSync(join(outDir, 'spend-rows.md'), SPEND_HEAD);
+    const result = await runControls({ golden, items: calibration, session: sessions[0], product, sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, concurrency: o.concurrency }, { review: injected.review ?? (dry ? fakeReviewer() : providerReview({ product, apiKey })), log: out });
+    controlsSpent = result.spentCredits;
+    writeControls(outDir, { sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, manifest, result, at: new Date() });
+    appendSpend(outDir, result.items.map((item, i) => spendLine(item, i, pin.PREVIEW_SHA, pin.PREVIEW_VERSION, o.prior + controlsSpent, ptClock())));
+    for (const item of result.items) out(`${item.drift || item.outcome === 'error' ? 'FAIL' : 'PASS'} ${item.name}: ${item.outcome} (expected ${item.expect})${item.drift ? `; DRIFT: ${item.drift}` : ''}${item.note ? `; ${item.note}` : ''}${item.findings.length ? `\n${item.findings.map(f => `    ${f.severity}/${f.category} ${f.message}`).join('\n')}` : ''}`);
+    if (result.verdict !== 'PASS') {
+      out(`CONTROLS FAILED (${result.goldenAccepted ? 'the golden passed, a calibration item drifted or errored' : 'the golden was rejected or could not be reviewed: a harness bug, not a candidate to qualify'}); no author job was started. Fix the review harness or the calibration set, then run again.`);
+      return 5;
+    }
+    out(`CONTROLS OK: ${result.items.length} item(s) behaved as expected; ${result.spentCredits.toFixed(2)} credits spent on direct review calls`);
+  }
+  if (o.controls) { out('--controls: stopping here, no author job was started'); return 0; }
   if (!dry) markUsed(outDir, prefix, { ranAt: new Date().toISOString(), sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION });
   let signals = 0;
   const onSigint = () => { signals += 1; if (signals > 1) process.exit(130); out('Ctrl+C: cancelling every running job through the product\'s cancel route (press again to quit at once)'); };
   process.on('SIGINT', onSigint);
   const deps = { sleep: injected.sleep ?? (ms => new Promise(r => setTimeout(r, ms))), now: injected.now ?? (() => Date.now()), log: out,
     shouldStop: () => (signals ? { kind: 'signal', reason: 'Ctrl+C' } : existsSync(stopFile) ? { kind: 'file', reason: `stop file ${stopFile}` } : null) };
-  const cfg = { phrasings: PHRASINGS, sessions, concurrency: o.concurrency, cap: o.cap, prior: o.prior, typical: o.typical, features, sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, out: outDir,
+  const cfg = { extraSpent: controlsSpent, phrasings: PHRASINGS, sessions, concurrency: o.concurrency, cap: o.cap, prior: o.prior, typical: o.typical, features, sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, out: outDir,
     pollMs: dry ? 0 : o.pollMs, planTimeoutMs: o.planTimeoutMs, jobTimeoutMs: o.jobTimeoutMs, settleWaitMs: o.settleWaitMs, jobWorstCase: o.jobWorstCase, runAll: !!o['run-all'], choice: o.choice, rows: state.rows,
     onRow: (_row, rows) => writeFileSync(statePath, JSON.stringify({ sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, rows }, null, 1)) };
   let result;

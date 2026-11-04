@@ -161,6 +161,48 @@ worker is 10; the gate prints the clone's own value only when `versions view` sh
   the dev cap. A refusal by the platform cap surfaces as a failed job (stop reason budget) and counts as lost: do not start Gate 2 close to the cap.
 - The script prints the run's own settled credits and the cumulative total after every job and at the end, and each session's allowance before and after.
 
+## Controls: job 0 and the reviewer calibration set (owner standing rules, from C10)
+
+**Job 0.** The golden SGD artifact (`packages/web/src/animation3d/testdata/sgd-golden.json`, read from the candidate worktree) is reviewed first in
+every Gate 2. It must be **accepted**. If the reviewer rejects it, the candidate is a harness bug by definition: `sgd-qualify.mjs` prints the findings,
+writes the result and **exits 5 before any paid author job** and without marking the test users as used.
+
+**Calibration set** (`--calibrate <manifest.json>`, once per candidate, when the review prompt or the review page changes): the golden must pass and
+each listed retained draft must **fail with its known findings**. A draft that passes (the reviewer became lenient) or that fails without a known finding
+(the reviewer sees something else now) is a *drift*, named in the output, and also exits 5. A PASS is remembered per candidate and manifest
+(`<out>/controls-<sha7>-<version8>.json`): a later run of the same candidate does not review again (a changed manifest does).
+
+Manifest (lane (d) picks the drafts from the retained evidence; paths are relative to the manifest):
+
+    { "schema": "gate2-calibration/1", "items": [
+      { "name": "floating diverged ball", "expect": "fail", "request": "show me why a high learning rate diverges",
+        "diagnostics": "evidence/c6/aj_0123/diagnostics-detail1.json", "draft": "last",
+        "knownFindings": ["floats above", "frame"] },
+      { "name": "...", "artifact": "draft.json", "plan": "plan.json", "knownFindings": ["trail markers"] } ] }
+
+`diagnostics` takes a job export's plan and one retained draft (`last`, or `before-repair-N`, the draft repair N replaced). `knownFindings` are case-insensitive
+patterns; each must match some message of the reviewer's findings. `request` is what the reviewer is told the learner asked (default: "stochastic gradient descent").
+
+**How an artifact gets reviewed (read from the code, not assumed).** No dev route runs the product's render, review and repair stages on a *given*
+artifact: `seed-outcomes` writes canned failed jobs; `seed-fixture` stores the artifact as a **saved result** for the canvas owner (no job, no stage, no
+model call, and the title and description must say "Offline fixture"); `render-fixture` draws only the bundled fixtures; `render-result` draws a saved
+result through the review's own capture path and returns the PNGs and traces; `render-candidate` replays a real job's last draft. So each control item is:
+seed-fixture, then render-result (both free; the preview's own deployed render page), then the candidate's own `reviewStage` from the candidate worktree
+(its prompt, tool, request builder, one-retry rule and acceptance rule) with its single model call sent straight to the provider using the dev key
+(`ANTHROPIC_API_KEY`, read by name from the credentials file, held in memory, never printed). Consequences: a draft is shown with an "Offline fixture"
+title and description prefix; the capture inputs come from the trace; and these calls are **outside the product's ledger** (not in a test user's
+allowance, not in the platform day cap), recorded in `spend-rows.md` as `c0`, `c1`, ... rows and in the cap arithmetic. A job-shaped path (a real job record
+reviewed and repaired by the Durable Object, billed through the ledger) would need a dev route in the candidate tree; there is none.
+
+**Cost.** One review is 12 to 16 credits (US$0.12 to 0.16) typical; the product's worst-case bound for one review call is about US$0.46, and the stage
+retries once on a malformed reply. The golden alone: about US$0.15 (worst US$0.93). Golden plus three drafts: about US$0.6 (worst about US$3.7, practically
+never). The script needs `--cap` minus `--prior` to cover 20 credits per item before it starts. It uses no test-user allowance.
+
+`--controls` runs only the controls (exit 0, or 5) and stops before any job; do it first, on the fresh sessions file, then run Gate 2. `--check` validates
+the golden, the manifest and the cap without any request. The result is `<out>/controls-result.json`, one compact line next to `gate2-result.json`:
+`{ schema: "gate2-controls/1", candidateSha, previewVersion, manifest: { path, hash } | null, verdict, goldenAccepted, spentCredits, items: [{ name, kind,
+expect, outcome, accepted, drift, findings: [{ severity, category, verdict, message }], credits, resultId, artifactHash }], finishedAt }`.
+
 ## Running Gate 2
 
 0. **Before anything.** Gate 1 has run on C3's preview. Record from its table the three identities: the C3 SHA, the prompt-files hash and the
@@ -169,6 +211,7 @@ worker is 10; the gate prints the clone's own value only when `versions view` sh
    the release, not of starting Gate 2; if Gate 1 fails, the whole candidate is held and a running Gate 2 is stopped (stop file).
 1. **Sessions (fresh for this run).** `dev-test-session.mjs --check --fresh --count 5`, then `--mint --fresh --count 5` (it prints the announce line for the
    dev D1 rows, then the per-run file), then `--allowance --base <preview> --file <that file>`.
+1b. **Controls.** `sgd-qualify.mjs ... --controls [--calibrate <manifest>]` (same flags as the run): job 0, and the calibration drafts. Exit 5 means stop.
 2. **Dry run (free, offline).** `node scripts/animation/sgd-qualify.mjs --dry-run` runs the whole script against an in-memory fake preview with canned
    job states (8 of 9 accepted, one repaired, one rejected, the control reports a gap): no network, no credential, a temp output folder.
 3. **Check (read-only).** Same flags as the run plus `--check`: validates the arguments, the sessions file, the candidate's client features, the
@@ -202,9 +245,11 @@ worker is 10; the gate prints the clone's own value only when `versions view` sh
 | `--job-worst-case` | credits a session must have free for one more job (default 140) |
 | `--poll-ms`, `--plan-timeout-min`, `--job-timeout-min`, `--settle-wait-min` | 4000, 6, 20, 3 |
 | `--worker`, `--credentials`, `--verify-script` | wrangler Worker name (default from `--base`), credentials file, optional preview verifier |
-| `--check`, `--dry-run` | read-only validation; offline fake run |
+| `--controls`, `--calibrate <manifest.json>`, `--golden <file>` | only the controls (job 0 and the calibration drafts) and stop; the calibration manifest; the golden (default: the candidate worktree's `testdata/sgd-golden.json`) |
+| `--check`, `--dry-run` | read-only validation; offline fake run (a scripted reviewer, never the network) |
 
-Exit codes: 0 PASS, 1 FAIL, 2 usage or configuration, 3 halted or incomplete, 4 refused before any spend (identity or preview-pin gate), 130 second Ctrl+C.
+Exit codes: 0 PASS, 1 FAIL, 2 usage or configuration, 3 halted or incomplete, 4 refused before any spend (identity or preview-pin gate), 5 the controls
+failed (the golden was rejected or could not be reviewed, or a calibration item drifted: no author job was started), 130 second Ctrl+C.
 
 ### The spend guard
 
@@ -248,7 +293,7 @@ only cancels), generalised to every running job at once. At every poll of every 
   | `control` | `{ outcome, silentSgd, markers }` for job 10, or `null` if it has no result |
   | `halt`, `notRun` | why the run was halted (`{ kind, reason }` or `null`) and the job numbers without a final result |
   | `rows` | one per job: `n`, `phrasing`, `jobId`, `outcome`, `repairs`, `settledCredits`, `chargedCredits`, `artifactHash`, `session`, `note` |
-  | `settledCredits`, `cap`, `prior`, `finishedAt` | the candidate's cumulative settled credits across every invocation, the cap and prior arguments, an ISO time |
+  | `settledCredits`, `cap`, `prior`, `finishedAt` | the candidate's cumulative settled credits across every invocation (the controls' direct review calls included), the cap and prior arguments, an ISO time |
 
 - Artifact hash column: the host's `artifactHash` (first 16 hex in the tables, full value in `summary.json`). The earlier receipts used the SHA-256 of the
   fetched `artifact.json`; that value is `fileSha256` in `summary.json`.
