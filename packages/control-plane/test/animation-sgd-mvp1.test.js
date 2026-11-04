@@ -100,9 +100,12 @@ test('representation: the planner (input data only), author, repair and review d
   for (const stage of ['brief', 'author', 'repair']) { assert.equal(tubes[stage].surfaces, SURFACES.tubes, stage); assert.equal(legacy[stage].surfaces, SURFACES.legacy, stage); }
   assert.deepEqual(tubes.brief.geometry, ['box', 'sphere', 'cylinder', 'cone', 'plane', 'line', 'curve', 'arrow', 'label']);
   assert.match(SURFACES.tubes, /wireframe of tube curves/);
-  assert.match(ANIMATION_REVIEW_SYSTEM, /Surfaces are tube-curve wireframes on level lines and cross-sections: pass one only if it follows the plan's function with paths, moving parts and arrows visible/);
+  // AN-20 (owner decisions 11, 12): the reviewer no longer judges a surface by its tube wireframe; a host-drawn surface, trail or clamp is category renderer; polish is minor.
+  assert.doesNotMatch(ANIMATION_REVIEW_SYSTEM, /tube-curve wireframes|a few thin rings/);
+  assert.match(ANIMATION_REVIEW_SYSTEM, /minor only for polish that does not hinder reading \(a dot size, a label slightly off, a contour count\)/);
+  assert.match(ANIMATION_REVIEW_SYSTEM, /a surface, trail or clamp the host draws is the host's, category renderer/);
   assert.match(ANIMATION_REVIEW_SYSTEM, /a physical part drawn as a hairline/, 'the reviewer still fails hairlines');
-  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /A curved surface is drawn as capabilities\.surfaces says/);
+  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) { assert.match(system, /A curved surface is a `surface` geometry; a path is a `trail`; a changing word is a text readout\./); assert.doesNotMatch(system, /capabilities\.surfaces|tubes about 1%/); }
 });
 
 test('client gating: tube curves validate only for a browser that declared them; a scene without tubes validates either way', async () => {
@@ -146,7 +149,7 @@ test('rules: the approved plan\'s readouts bind the author and the repair (the p
   }
 });
 
-test('rules: arrows keep their magnitudes with no minimum and no size demand a zero cannot meet; updates are not called the gradient; off-plot markers sit at the edge crossing', () => {
+test('rules: arrows keep their magnitudes with no minimum and no size demand a zero cannot meet; updates are not called the gradient; the clamp and off-plot sentences are gone from the universal prompt', () => {
   // The saved programs: arrows floored at 0.3 (author) and 0.5 (repair); positions clamped coordinate by coordinate to |b| <= 2.
   assert.match(fixture.authorDraft.program.source, /Math\.max\(m,0\.3\)/);
   assert.match(fixture.repairedDraft.program.source, /b=cl\(s\.b,2\)/);
@@ -156,8 +159,8 @@ test('rules: arrows keep their magnitudes with no minimum and no size demand a z
     assert.match(system, /An arrow whose magnitude is zero is hidden and its quantity is shown as 0/);
     assert.match(system, /must not look like a vector \(no arrowhead\)/);
     assert.match(system, /an update or step \(a rate times a gradient\) is never called the gradient/);
-    assert.match(system, /marked at the point where its path actually crosses the edge of the drawn area \(computed from the segment\)/);
-    assert.match(system, /Leaving the drawn area is not divergence/);
+    // AN-20 (owner decisions 11, 13): the clamp, off-plot and divergence sentences left the universal prompt; the renderer clamps a bound sphere.
+    for (const cut of ['never clamp a drawn position', 'marked at the point where its path actually crosses', 'Leaving the drawn area is not divergence']) assert.equal(system.includes(cut), false, cut);
   }
   assert.match(ANIMATION_REVIEW_SYSTEM, /fail a minimum length, mixed scales, an update called the gradient, or an off-plot marker off the edge crossing/);
   const rules = ANIMATION_AUTHOR_SYSTEM.slice(ANIMATION_AUTHOR_SYSTEM.indexOf('Sizes:'), ANIMATION_AUTHOR_SYSTEM.indexOf('The finished artifact'));
