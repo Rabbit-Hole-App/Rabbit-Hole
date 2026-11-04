@@ -1,0 +1,68 @@
+{
+  "schema": "animation-pinned-plan/1",
+  "name": "projectile-aj_54eec6a",
+  "kind": "regression",
+  "request": "Make a short game where I launch a ball to hit a target by choosing the angle and speed.",
+  "plan": {
+    "schema": "animation-plan/1",
+    "title": "Projectile Target Challenge: Pick Angle and Speed",
+    "description": "A small launcher sits at the left end of a flat 70 m field with distance marks every 10 m, and a flagged target zone sits somewhere down the field. You set the launch angle and speed, then press Launch: the ball flies along its arc while a trail is drawn, and when it lands the card shows how far it went and how far it missed by. Hit three targets, placed at 30 m, 45 m and 18 m in turn, using no more than 10 launches.",
+    "experience": "game",
+    "reason": "This is a game because you asked for one. Aiming, missing and adjusting shows you how angle and speed together decide where the ball lands.",
+    "behavior": "rules",
+    "controlProfile": "inspect",
+    "sourceRefs": [],
+    "parameters": [
+      {
+        "type": "number",
+        "id": "angle",
+        "label": "Launch angle",
+        "unit": "°",
+        "min": 10,
+        "max": 80,
+        "step": 1,
+        "default": 45
+      },
+      {
+        "type": "number",
+        "id": "speed",
+        "label": "Launch speed",
+        "unit": "m/s",
+        "min": 5,
+        "max": 25,
+        "step": 0.5,
+        "default": 15
+      }
+    ],
+    "interactions": [
+      "Set the launch angle: the launcher barrel tilts to match, and the new angle is used on the next launch.",
+      "Set the launch speed: the new speed is used on the next launch.",
+      "Press Launch: the ball flies its arc over about two seconds, with a trail behind it. The arc from your last shot stays as a faded dashed line so you can compare.",
+      "Readouts show the landing distance, how far the shot missed and to which side (short or long), the flight time, the highest point, launches used out of 10, and targets hit out of 3.",
+      "A hit is a landing within 1.5 m of the target's centre, counting both edges. After a hit, the target moves to its next position. The game is won after 3 hits and lost if 10 launches are used up first.",
+      "Hint: with the same speed, angles that add up to 90° (for example 30° and 60°) land at the same distance, and 45° goes farthest."
+    ],
+    "assumptions": [
+      "This is a simplified simulation: no air resistance, and the ball starts at ground level on flat ground.",
+      "Gravity is 9.8 m/s² straight down. The ball keeps the same sideways speed and only its vertical speed changes.",
+      "Each step of the flight is computed exactly from the projectile formulas, so the landing distance equals speed² × sin(2 × angle) ÷ 9.8.",
+      "The ball is treated as a point, and the flight ends the moment it returns to ground height.",
+      "The targets come in a fixed order (30 m, 45 m, 18 m), so Reset starts the same challenge again and clears the score and the trails."
+    ],
+    "limitations": [
+      "Real balls are slowed by air, so in real life they land shorter than shown, especially at high speeds. The 45° best angle holds exactly only when there is no air resistance.",
+      "The longest possible shot is about 64 m (25 m/s at 45°), so every target can be reached, but a slow shot at a very steep or very flat angle lands only a few metres away.",
+      "Flight is shown sped up or slowed down to take about two seconds, so the time on screen does not match the flight-time readout."
+    ],
+    "learningGoal": "See how launch angle and speed together set how far a projectile travels: 45° gives the longest shot, two angles that add to 90° land at the same spot, and doubling the speed makes the shot go four times as far.",
+    "requiredCapabilities": [
+      "parameters",
+      "actions",
+      "step",
+      "labels",
+      "readouts"
+    ]
+  },
+  "source": "packages/control-plane/test/fixtures/animation-saved-plans.json, job aj_54eec6a (failed at rounds on 2 Nov; the owner game acceptance request)",
+  "why": "NOT strictly known good. The accepted projectile game (ar_a7b04cc5..., planHash e11ef0f25d17, job aj_a7b04cc55fca495b96ed265ce312f08a) has no stored plan in the fixtures or the acceptance suite, and ACCEPTANCE-RESULT-6.md records that case ready in 1 of 5 runs. This is the saved projectile plan with the same controls as that accepted artifact (angle 10 to 80 default 45, speed 5 to 25 default 15). Replace it with the accepted job plan when it is read from the dev preview."
+}
