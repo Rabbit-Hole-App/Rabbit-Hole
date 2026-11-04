@@ -71,7 +71,7 @@ Role bound = (max input tokens + images x 4,784) x $4/Mtok x 1.25 (cache write) 
 | plan (brief), 1 | 40,000 x 4 x 1.25 + 4,000 x 20 = 200,000 + 80,000 | 280,000 |
 | plan correction reserve, 1 | same bound again | 280,000 |
 | author, 1 | 60,000 x 4 x 1.25 + 24,000 x 20 = 300,000 + 480,000 | 780,000 |
-| review, up to 3 | (40,000 + 6 x 4,784) x 5 + 6,000 x 20 = 343,520 + 120,000 = 463,520 each | 1,390,560 |
+| review, up to 3 | (40,000 + 6 x 4,784) x 5 + 6,000 x 20 = 343,520 + 120,000 = 463,520 each (503,520 each with the C9 review limit of 8,000 output tokens, FX-AN-102: 1,510,560, generation 3,366,240, 337 credits shown on Generate) | 1,390,560 |
 | repair, up to 2 (the correction/repair reserve) | (50,000 + 2 x 4,784) x 5 + 12,000 x 20 = 297,840 + 240,000 = 537,840 each | 1,075,680 |
 
 - One preparation (plan + its one correction) reserves 560,000 micros = **56 credits** shown on the plan ("using up to 56 AI credits"); the refinement of the owner's sequence (the frozen 40-step refinement) is another preparation: another 560,000 = 56 credits.

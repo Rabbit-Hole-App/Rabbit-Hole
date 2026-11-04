@@ -16,6 +16,7 @@
 // is proof of what ran, not a copy of the request.
 //   runReviewProgram(request, { workerFactory, createRuntime? }) ->
 //     { ok: true, artifact, artifactHash, frame, trace: { inputs, time, events, ticks, readouts, goal?, selection?, stateHash?, clamped? } }
+//   buried (C9, owner): [{ node, y, surfaceY }] for each marker or path drawn below the surface it sits on (scene.js buried), the worst point of a path.
 //   clamped (AN-19, owner decision 11): [{ node, trueY, y }] for each sphere the host held at its surface's top in this frame, the y the program gave and the y drawn;
 //   the readouts above keep the true value.
 //     | { ok: false, programError: { code, phase, diagnostic, ms? } }   the candidate's program failed (setup/engine: a renderer fault)
@@ -33,13 +34,18 @@ const wholeTicks = value => Number.isInteger(value) && value >= 1 && value <= RE
 export const reviewTicksOf = request => (request.leadTicks ?? 0) + (request.ticks ?? 0) + (request.events ?? []).reduce((total, event) => total + (isAdvance(event) ? event.ticks : isResume(event) ? event.probe : 0), 0);
 const PHASES = ['load', 'setup', 'initialize', 'reduce', 'evaluate', 'engine'];
 const finite3 = value => Array.isArray(value) && value.length === 3 && value.every(Number.isFinite);
-// The clamps the card applies to this frame (scene.js apply), measured on a scene built from the artifact. A scene with no clampTo builds nothing.
+// The clamps the card applies to this frame (scene.js apply) and the markers it draws below their surface (scene.js buried), measured on a scene built from the artifact.
+// A scene with no surface builds nothing.
 const round = value => Math.round(value * 1e4) / 1e4;
-function clampedIn(artifact, frame) {
-  if (!artifact.scene.nodes.some(node => node.clampTo)) return [];
+function measuredIn(artifact, frame) {
+  const none = { clamped: [], buried: [] };
+  if (!artifact.scene.geometries.some(g => g.kind === 'surface')) return none;
   const built = buildAnimationScene(artifact, { labelTexture: () => ({ texture: new THREE.Texture(), aspect: 1 }) }); // measured, never drawn
-  if (!built.ok) return [];
-  try { return (built.scene.apply(frame).clamped ?? []).map(({ node, trueY, y }) => ({ node, trueY: round(trueY), y: round(y) })); } finally { built.scene.dispose(); }
+  if (!built.ok) return none;
+  try {
+    const applied = built.scene.apply(frame);
+    return { clamped: (applied.clamped ?? []).map(({ node, trueY, y }) => ({ node, trueY: round(trueY), y: round(y) })), buried: built.scene.buried() };
+  } finally { built.scene.dispose(); }
 }
 
 // The request's own shape, checked before anything runs. -> null | the refusal text
@@ -132,10 +138,10 @@ export async function runReviewProgram(request, { workerFactory, createRuntime =
       if (!result.accepted && result.reason !== 'unsupported') return failed(result, 'evaluate');
     }
     const snapshot = runtime.snapshot();
-    const clamped = clampedIn(artifact, frame);
+    const { clamped, buried } = measuredIn(artifact, frame);
     const trace = {
       inputs: snapshot.inputs, time: snapshot.time, events: request.events, ticks: snapshot.tick, readouts: frame.readouts,
-      ...(frame.goal ? { goal: frame.goal } : {}), ...(frame.selection !== undefined ? { selection: frame.selection } : {}), ...(clamped.length ? { clamped } : {}),
+      ...(frame.goal ? { goal: frame.goal } : {}), ...(frame.selection !== undefined ? { selection: frame.selection } : {}), ...(clamped.length ? { clamped } : {}), ...(buried.length ? { buried } : {}),
       ...(snapshot.state !== null ? { stateHash: await sha256Hex(canonicalJson(snapshot.state)) } : {}),
     };
     return { ok: true, artifact, artifactHash: request.artifactHash, frame, trace };

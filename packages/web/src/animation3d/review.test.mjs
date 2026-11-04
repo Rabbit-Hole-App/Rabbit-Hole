@@ -2,6 +2,7 @@ import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { canonicalJson, sha256Hex } from '../explain-program/contract.js';
 import { hashProgramSource } from './contract.js';
+import { readFileSync } from 'node:fs';
 import { experimentFixture, gameFixture, primitivesFixture, watchFixture } from './fixtures.js';
 import { reviewRequestProblem, runReviewProgram } from './review.js';
 
@@ -229,4 +230,22 @@ run('a clamped marker is reported in the trace with its true and drawn y; a scen
   assert.equal(lowest.ok, true, JSON.stringify(lowest));
   assert.equal('clamped' in lowest.trace, false, 'a ball inside the bowl is not clamped');
   assert.equal('clamped' in (await runReviewProgram(await requestFor(watchFixture.artifact), { workerFactory })).trace, false);
+});
+
+// C9 (owner): the capture's trace names a marker or path drawn below its surface (C7 job 3 shape); the golden's own runs name none.
+run('a surface drawn at twice the program\'s height buries the ball and the path in the trace; the golden\'s runs bury nothing', async () => {
+  const twice = structuredClone(primitivesFixture.artifact);
+  twice.scene.geometries[0].heights = twice.scene.geometries[0].heights.map(row => row.map(h => 2 * h));
+  const done = await runReviewProgram(await requestFor(twice), { workerFactory }); // time 0: the ball at x = 2
+  assert.equal(done.ok, true, JSON.stringify(done));
+  assert.deepEqual(done.trace.buried.map(b => b.node), ['trail', 'ball']);
+  assert.equal(done.trace.buried[1].y, 1.1);
+  assert.equal('buried' in (await runReviewProgram(await requestFor(primitivesFixture.artifact), { workerFactory })).trace, false);
+  const golden = JSON.parse(readFileSync(new URL('./testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
+  for (const [learningRate, steps] of [[0.1, 3], [0.1, 4], [1.5, 2], [1.5, 3]]) {
+    const request = await requestFor(golden, { inputs: { learningRate, batchSize: '256' }, events: Array.from({ length: steps }, () => ({ type: 'action', action: 'step' })) });
+    const ran = await runReviewProgram(request, { workerFactory });
+    assert.equal(ran.ok, true, JSON.stringify(ran));
+    assert.equal('buried' in ran.trace, false, `the golden at learning rate ${learningRate} after ${steps} steps: ${JSON.stringify(ran.trace.buried)}`);
+  }
 });

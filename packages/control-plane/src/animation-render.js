@@ -21,7 +21,7 @@ export const ANIMATION_RENDER_ENTRY = '/render/animation3d.html';
 // every k x fraction (and k x their difference) is at least 0.076 of a cycle from a whole number. Simple fractions (1/2, 1/3) alias:
 // a 12 s loop with 3 turns sampled at 0, 4 and 8 s looked still (accept-2, 2026-10-30).
 export const LOOP_FRACTIONS = Object.freeze([0.538, 0.769]);
-export const ANIMATION_CAPTURE = Object.freeze({ width: 960, height: 540, dpr: 1, theme: 'light', maxEvents: 4, maxTicks: 90, traceKeys: ['inputs', 'time', 'events', 'ticks', 'readouts', 'goal', 'selection', 'stateHash', 'clamped'] });
+export const ANIMATION_CAPTURE = Object.freeze({ width: 960, height: 540, dpr: 1, theme: 'light', maxEvents: 4, maxTicks: 90, traceKeys: ['inputs', 'time', 'events', 'ticks', 'readouts', 'goal', 'selection', 'stateHash', 'clamped', 'buried'] });
 
 const blocker = (code, message) => Object.assign(new Error(message), { status: 503, code, category: 'renderer' });
 
@@ -228,5 +228,17 @@ export const renderStage = (deps = {}) => async (job, ctx) => {
   // The review reads every trace whole; traces over its limit are this candidate's size, told to the repair before any review is spent.
   const size = new TextEncoder().encode(JSON.stringify(out.captures.map(c => ({ id: c.id, ...c.trace })))).length;
   if (size > ANIMATION_REVIEW_LIMITS.traceBytes) return { problems: [`the execution traces of the ${out.captures.length} captures are ${size} bytes, over the review limit of ${ANIMATION_REVIEW_LIMITS.traceBytes}: report fewer or shorter readouts`], category: 'spec', repairable: true, renders };
+  // A marker or path drawn below the surface it sits on (C9, owner; C7 job 3: a surface drawn at twice the height the program uses): the candidate's own disagreement, found in the traces and
+  // told to the repair before any review is spent, one line for each node with the captures it shows in and its worst case.
+  const buried = new Map();
+  for (const capture of out.captures) {
+    for (const { node, y, surfaceY } of capture.trace?.buried ?? []) {
+      const seen = buried.get(node) ?? { ids: [], depth: -Infinity, y, surfaceY };
+      seen.ids.push(capture.id);
+      if (surfaceY - y > seen.depth) Object.assign(seen, { depth: surfaceY - y, y, surfaceY });
+      buried.set(node, seen);
+    }
+  }
+  if (buried.size) return { problems: [...buried].slice(0, 6).map(([node, seen]) => `${node} is drawn below the surface it sits on in capture${seen.ids.length > 1 ? 's' : ''} ${seen.ids.slice(0, 4).join(', ')} (${seen.depth.toFixed(2)} under it: its y is ${seen.y} where the surface is ${seen.surfaceY}): make the program's heights and the surface's heights follow the same heights, so the marker and the path are drawn on the surface`), category: 'spec', repairable: true, renders };
   return { captures: out.captures.map(({ png: _bytes, ...capture }) => capture), renders, coverage: manifest.coverage };
 };
