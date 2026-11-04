@@ -51,7 +51,7 @@ Observed plan calls in the dev ledger (settled, 5 calls): US$0.0169 to US$0.0457
 Plan section 8, AN-20; owner decisions 14 (paid attempts approved, each batch a `spend.md` row with the candidate SHA) and 22 (the carry-over rule). The harness measures the
 author role alone, from a pinned plan, with the prompts of the working tree. It never drives a browser and never calls a model unless `--send` is given.
 
-**Scripts** (`scripts/animation/`): `author-sample.mjs` (the sampler, and `verify-candidate`), `author-sample-report.mjs` (the owner's list of drafts and captures), `plans/*.json`
+**Scripts** (`scripts/animation/`): `author-sample.mjs` (the sampler, `verify-candidate` and `review-identity`), `author-sample-report.mjs` (the owner's list of drafts and captures), `plans/*.json`
 (pinned plans, schema `animation-pinned-plan/1`: name, the learner's request, the approved plan, where it came from and why it was chosen). Tests: `scripts/animation-author-sample.test.mjs`,
 `scripts/animation-author-sample-report.test.mjs` (run by `make test-unit`).
 
@@ -75,6 +75,12 @@ author role alone, from a pinned plan, with the prompts of the working tree. It 
 
 `node scripts/animation/author-sample.mjs verify-candidate --mvp3-sha SHA --prompts HASH --golden HASH --worktree PATH` is the read-only check Parallel runs before Gate 2: PASS or FAIL for the MVP3 ancestor,
 the prompt-files hash and the golden hash, exit 1 on any FAIL (a mismatch means Gate 1 reruns on the real candidate).
+
+**The review's identity is separate (FX-AN-113, C11).** The review prompt lives in `agents/animation-review.js`, not in the author's prompt file, and none of the review's files is in `PROMPT_FILES` or `CANDIDATE_FILES`: a review-text change re-runs the
+controls and Gate 2, never Gate 1. `REVIEW_IDENTITY_FILES` (exported from `author-sample.mjs`) is: `packages/control-plane/src/agents/animation-review.js` (the prompt), `packages/control-plane/src/animation-review.js` (the request builder),
+`packages/control-plane/src/animation-render.js` (what is captured and the trace each capture carries), `packages/web/render/animation3d-render.js` and `animation3d.html` (the review page) and `packages/web/src/animation3d/review.js`
+(the page's program runner). `node scripts/animation/author-sample.mjs review-identity [--worktree DIR]` prints `review-identity <sha256>` and a short hash per file (`absent` for a missing one); the controls' key and Gate 2's identity check read it.
+`animation-policy.js` and `tool-input.js` are shared with the review but stay in `PROMPT_FILES` (they shape the author's request and reply too).
 
 **Running** (from the repository root; `--dry-run` first: it builds each request, prints the identities, the request sizes and the cost bound, and sends nothing):
 
