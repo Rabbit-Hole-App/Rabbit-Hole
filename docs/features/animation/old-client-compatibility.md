@@ -108,3 +108,33 @@ block type string `animation3d`: 0 matches; `main`'s own `animation` block type 
 - The pre-change dev tab (declares `curve_radius` only) therefore gets the update message, not a blank or wrong card, for the corrected SGD fixture; a reload
   loads the new client.
 - The bundle check now fails a production build whose chunks do not declare every feature in the list.
+
+## Five more features: `surface_grid`, `trail_points`, `text_readout`, `arrow_anchor`, `clamp` (AN-18, 3 November 2026)
+
+Owner decisions 11 and 12 add five contract additions for loss surfaces and similar scenes. Each is a field or geometry kind that the previous build's strict contract
+refuses, so each is a client feature exactly as `curve_radius` and `action_motion` are: `ANIMATION_CLIENT_FEATURES` is now `curve_radius`, `action_motion`,
+`surface_grid`, `trail_points`, `text_readout`, `arrow_anchor`, `clamp`; the browser sends all of them on a create and in the query of a result read.
+
+| Flag | What a scene must contain to need it (`clientFeatureUses` in `animation3d/contract.js`) |
+|---|---|
+| `surface_grid` | a geometry of kind `surface` |
+| `trail_points` | a geometry of kind `trail` (the frame's node `points` only exist on its node) |
+| `text_readout` | a readout that names a `kind` (text, or number stated) |
+| `arrow_anchor` | an arrow geometry with an `offset`, or a label geometry with an `anchor` |
+| `clamp` | a node with `clampTo` |
+
+- Generation: the validate stage refuses a draft that uses a flag the job's client did not declare, one repairable line per field, for example
+  `scene.geometries.0.kind: the browser that asked for this scene cannot draw surface geometry; remove it` (`clientProblems`, `animation-author.js`). A job that declares
+  none, or only the earlier two, is held to the old scenes.
+- Loading: `readResult` answers `409 client_update_required` for a stored scene that uses a flag the reader did not declare (`needsFeatures`, `animation-job.js`, now
+  also every flag in `clientFeatureUses`); a reader that declares just the flags its scene uses is served. A scene that uses none is served to every reader, as before.
+- Older clients: a build before this change sends only `curve_radius` and `action_motion` (or less), so it is told to reload for any scene using a new field. Its own
+  contract would otherwise refuse the scene as an unknown field or kind. A readout that names no `kind` gains none when validated, so a scene that uses no new
+  feature is byte-compatible with what an older client expects (the number readout's `decimals` default is unchanged).
+- Switching the five off after release (forward, not a revert): do not remove them from `ANIMATION_CLIENT_FEATURES`. `scripts/prod-release.mjs` `checkCandidate`
+  refuses a candidate whose tree no longer declares a feature the served release declares (stored scenes that use it would stop opening). Instead make the server
+  stop recognising them: in `animation-brief.js` `clientFeatures`, filter the five out of the declared list. Every job then counts as not declaring them, so
+  `clientProblems` refuses any new draft that uses one (repairable) and `readResult` answers `409 client_update_required` for a stored scene that uses one. Nothing is
+  lost (a read never changes the stored result) and the bundle still declares the features, so the release check passes. The 409 text says to reload, which would not
+  help; that is the cost of a switch-off without a new message.
+- Pinned by `packages/control-plane/test/animation-client-features.test.js` and `packages/web/src/animation3d/contract.test.mjs`. Not verified in a browser.

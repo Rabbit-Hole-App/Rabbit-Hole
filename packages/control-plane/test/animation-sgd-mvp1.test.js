@@ -98,7 +98,8 @@ test('representation: the planner (input data only), author, repair and review d
   };
   const tubes = await told(TUBES), legacy = await told(null);
   for (const stage of ['brief', 'author', 'repair']) { assert.equal(tubes[stage].surfaces, SURFACES.tubes, stage); assert.equal(legacy[stage].surfaces, SURFACES.legacy, stage); }
-  assert.deepEqual(tubes.brief.geometry, ['box', 'sphere', 'cylinder', 'cone', 'plane', 'line', 'curve', 'arrow', 'label']);
+  // AN-18 (owner decisions 11, 12): the capability list now names surface and trail; the planner and author prompts are unchanged until AN-20.
+  assert.deepEqual(tubes.brief.geometry, ['box', 'sphere', 'cylinder', 'cone', 'plane', 'line', 'curve', 'arrow', 'label', 'surface', 'trail']);
   assert.match(SURFACES.tubes, /wireframe of tube curves/);
   assert.match(ANIMATION_REVIEW_SYSTEM, /Surfaces are tube-curve wireframes on level lines and cross-sections: pass one only if it follows the plan's function with paths, moving parts and arrows visible/);
   assert.match(ANIMATION_REVIEW_SYSTEM, /a physical part drawn as a hairline/, 'the reviewer still fails hairlines');

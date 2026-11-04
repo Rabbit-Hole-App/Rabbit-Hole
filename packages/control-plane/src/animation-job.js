@@ -34,7 +34,7 @@ import { blockedBody, referencesKey, resolveReferences } from './generation-revi
 import { isReviewProposal } from '../../web/src/generation-review.js';
 import { canonicalJson } from './explain-render.js';
 import { beginStage, countStage, endStage, markTiming, newTiming, timingSummary } from './explain-policy.js';
-import { hashAnimationPlan } from '../../web/src/animation3d/contract.js';
+import { clientFeatureUses, hashAnimationPlan } from '../../web/src/animation3d/contract.js';
 import { ANIMATION_CLIENT_FEATURES } from '../../web/src/animation3d/capabilities.js';
 import { ASKED_FOR, approvedPlan, clientFeatures, prepareStage } from './animation-brief.js';
 import { artifactIntact, authorStage, sealArtifact, validateStage } from './animation-author.js';
@@ -65,7 +65,7 @@ const fail = (message, status = 400, code = null) => Object.assign(new Error(mes
 // A scene that uses what an older browser build cannot draw (capabilities.js ANIMATION_CLIENT_FEATURES) is not sent to a reader that does
 // not declare it: that build would refuse it with a generic message (storage.js 'mismatch'); a current build shows this one (owner 2026-11-02).
 export const CLIENT_UPDATE = 'This scene needs the newest version of Rabbit Hole. Reload the page to update it.';
-export const needsFeatures = artifact => [...((artifact?.scene?.geometries || []).some(g => g?.kind === 'curve' && g.radius !== undefined) ? ['curve_radius'] : []), ...((artifact?.actions || []).some(a => a?.startsMotion !== undefined) ? ['action_motion'] : [])];
+export const needsFeatures = artifact => [...((artifact?.scene?.geometries || []).some(g => g?.kind === 'curve' && g.radius !== undefined) ? ['curve_radius'] : []), ...((artifact?.actions || []).some(a => a?.startsMotion !== undefined) ? ['action_motion'] : []), ...new Set(clientFeatureUses(artifact).map(use => use.feature))];
 const KEY = /^[A-Za-z0-9_-]{8,128}$/;
 const TERMINAL = new Set(['ready', 'failed', 'cancelled']);
 const SOURCES = ['explicit', 'picker', 'command', 'suggestion', 'classified', 'tutor'];
