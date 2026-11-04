@@ -507,6 +507,7 @@ Critical path: AN-18 → AN-19 (golden artifact) → AN-20 (Gate 1) → AN-21 (G
 - [ ] A repair tool that returns bounded edits (replace a node, a geometry, a readout, or the program source by exact-match quote) bound to the base artifact's hash; the host applies them deterministically, rejects a stale or ambiguous edit, and then validates, renders and reviews the whole resulting candidate as today.
 - [ ] Omitted fields keep their values by contract; a repair can no longer drop the program. The repair's output budget falls back toward 12,000 tokens and the displayed credit ceiling with it.
 - [ ] Measured against the full-rewrite repair on the retained SGD drafts before it replaces it.
+- [ ] Schema restructure for strict tool output (FX-AN-046, parked 4 Nov 2026): the author and repair tools have 55 optional parameters against the provider's limit of 24 for strict tool use; a patch-style repair schema is small enough to fit, and the author's artifact schema would need per-kind objects with no optional members. Until then the lenient parse and the one correction ask are the fix.
 
 **Accept:** the same repairs as today at a lower bound, with no field ever silently lost.
 
