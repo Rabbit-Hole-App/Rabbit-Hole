@@ -66,7 +66,7 @@ async function stackWith(t, artifact) {
 test('generation: a client that declares no features is the legacy path; only a declared curve_radius may draw tubes', async () => {
   for (const none of [undefined, null, [], 'curve_radius', {}, ['bogus'], ['Curve_Radius']]) assert.deepEqual(clientFeatures(none), [], JSON.stringify(none));
   assert.deepEqual(clientFeatures(['bogus', 'curve_radius']), ['curve_radius']);
-  assert.deepEqual(ANIMATION_CLIENT_FEATURES, ['curve_radius', 'action_motion']);
+  assert.deepEqual(ANIMATION_CLIENT_FEATURES, ['curve_radius', 'action_motion', 'surface_grid', 'trail_points', 'text_readout', 'arrow_anchor', 'clamp']);
   // What the planner, author, repair and review are told.
   for (const job of [{}, { features: [] }, { features: undefined }, null]) assert.equal(surfaceCapability(job).surfaces, SURFACES.legacy);
   assert.equal(surfaceCapability({ features: ['curve_radius'] }).surfaces, SURFACES.tubes);
@@ -99,8 +99,8 @@ test('generation: the new client declares its features on create and read; the o
   const fetchJson = async (path, opts = {}) => { sent.push({ path, body: opts.body ? JSON.parse(opts.body) : null }); return {}; };
   await animationClient(fetchJson, 'b1').create({ requestId: 'r', cardId: 'c', prompt: 'p' });
   await animationClient(fetchJson, 'b1').result('ar_1');
-  assert.deepEqual(sent[0].body.features, ['curve_radius', 'action_motion']);
-  assert.match(sent[1].path, /\?board=b1&features=curve_radius%2Caction_motion$/);
+  assert.deepEqual(sent[0].body.features, ['curve_radius', 'action_motion', 'surface_grid', 'trail_points', 'text_readout', 'arrow_anchor', 'clamp']);
+  assert.match(sent[1].path, /\?board=b1&features=curve_radius%2Caction_motion%2Csurface_grid%2Ctrail_points%2Ctext_readout%2Carrow_anchor%2Cclamp$/);
   await old.client.animationClient(fetchJson, 'b1').create({ requestId: 'r', cardId: 'c', prompt: 'p' });
   await old.client.animationClient(fetchJson, 'b1').result('ar_1');
   assert.equal('features' in sent[2].body, false, 'the old create names no features');
@@ -232,7 +232,7 @@ test('startsMotion: an artifact that declares it needs the action_motion feature
 });
 
 test('startsMotion: the author is told by client features, and a draft that declares it for a reader without the feature is refused for repair', () => {
-  assert.deepEqual(ANIMATION_CLIENT_FEATURES, ['curve_radius', 'action_motion']);
+  assert.deepEqual(ANIMATION_CLIENT_FEATURES, ['curve_radius', 'action_motion', 'surface_grid', 'trail_points', 'text_readout', 'arrow_anchor', 'clamp']);
   assert.match(actionCapability({ features: ['action_motion'] }).actionMotion, /may declare startsMotion false/);
   for (const job of [{}, { features: [] }, { features: ['curve_radius'] }, null]) assert.match(actionCapability(job).actionMotion, /^Do not declare startsMotion/);
   const draft = { scene: { geometries: [] }, actions: [{ id: 'oneStep', label: 'Take one step', startsMotion: false }, { id: 'launch', label: 'Launch' }] };

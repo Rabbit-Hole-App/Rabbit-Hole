@@ -9,7 +9,7 @@
 // frame's position/quaternion/scale never rebuilds geometry. apply validates the frame against the artifact first; a frame that
 // fails changes nothing.
 import * as THREE from 'three';
-import { validateAnimationArtifact, validateAnimationFrame } from './contract.js';
+import { contourPoints, validateAnimationArtifact, validateAnimationFrame } from './contract.js';
 
 const ARROW_RADIAL = 8; // contract.js triangleCost: an arrow is 4 x 8 (shaft) + 2 x 8 (head) triangles
 const TUBE_RADIAL = 8; // contract.js triangleCost: a curve with a radius is 2 x 8 triangles per segment
@@ -181,6 +181,88 @@ function meshGeometry(g) {
   }
 }
 
+// surface_grid: the height field as an indexed mesh of exactly the contract's 2(rows - 1)(cols - 1) triangles. Vertex (r, c) is at
+// x = (c / (cols - 1) - 1/2) width, y = heights[r][c], z = (r / (rows - 1) - 1/2) depth (contract.js), wound so the front faces +Y.
+function surfaceGeometry(g) {
+  const rows = g.heights.length, cols = g.heights[0].length, position = new Float32Array(rows * cols * 3), index = [];
+  for (let r = 0; r < rows; r += 1) for (let c = 0; c < cols; c += 1) position.set([(c / (cols - 1) - 0.5) * g.width, g.heights[r][c], (r / (rows - 1) - 0.5) * g.depth], (r * cols + c) * 3);
+  for (let r = 0; r < rows - 1; r += 1) for (let c = 0; c < cols - 1; c += 1) { const a = r * cols + c, d = a + cols; index.push(a, d, a + 1, a + 1, d, d + 1); }
+  const geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(position, 3)).setIndex(index);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+// The contour lines: marching squares at `contours` levels evenly spaced strictly between the lowest and highest height, as segment endpoints
+// (two points per segment), at most contract.js contourPoints(g) points per level so the contract's line-point charge holds. Lifted a hair so the
+// lines do not z-fight the surface. -> Float32Array
+function contourPositions(g) {
+  const rows = g.heights.length, cols = g.heights[0].length, flat = g.heights.flat(), lo = Math.min(...flat), hi = Math.max(...flat), out = [];
+  if (!g.contours || !(hi > lo)) return new Float32Array(0);
+  const at = (r, c) => [(c / (cols - 1) - 0.5) * g.width, (r / (rows - 1) - 0.5) * g.depth];
+  for (let k = 1; k <= g.contours; k += 1) {
+    const level = lo + (k / (g.contours + 1)) * (hi - lo), y = level + (hi - lo) * 0.003;
+    let left = contourPoints(g) / 2;
+    const cross = (r1, c1, r2, c2) => { // the point on a cell edge where the height is `level`, or null
+      const h1 = g.heights[r1][c1], h2 = g.heights[r2][c2];
+      if ((h1 < level) === (h2 < level)) return null;
+      const t = (level - h1) / (h2 - h1), [x1, z1] = at(r1, c1), [x2, z2] = at(r2, c2);
+      return [x1 + (x2 - x1) * t, y, z1 + (z2 - z1) * t];
+    };
+    for (let r = 0; r < rows - 1 && left > 0; r += 1) {
+      for (let c = 0; c < cols - 1 && left > 0; c += 1) {
+        const top = cross(r, c, r, c + 1), right = cross(r, c + 1, r + 1, c + 1), bottom = cross(r + 1, c, r + 1, c + 1), side = cross(r, c, r + 1, c);
+        const found = [top, right, bottom, side].filter(Boolean);
+        let pairs = [];
+        if (found.length === 2) pairs = [found];
+        else if (found.length === 4) { // a saddle: corner (r, c) joins the middle when it is on the middle's side of the level
+          const middle = (g.heights[r][c] + g.heights[r][c + 1] + g.heights[r + 1][c] + g.heights[r + 1][c + 1]) / 4;
+          pairs = (g.heights[r][c] < level) === (middle < level) ? [[top, right], [bottom, side]] : [[top, side], [right, bottom]];
+        }
+        for (const [from, to] of pairs) if (left > 0) { out.push(...from, ...to); left -= 1; }
+      }
+    }
+  }
+  return Float32Array.from(out);
+}
+// trail_points: a buffer allocated once for `max` points (a line of max points, or a tube of TUBE_RADIAL sides with the contract's 2 x 8 x (max - 1)
+// triangles) that each frame's points fill from the start; the draw range shows only those. -> { geometry, set(points) }
+function trailBuffers(g, radius) {
+  const tube = radius > 0, sides = TUBE_RADIAL, per = tube ? sides : 1, position = new Float32Array(g.max * per * 3);
+  const geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(position, 3));
+  if (tube) {
+    const index = [];
+    for (let i = 0; i < g.max - 1; i += 1) for (let s = 0; s < sides; s += 1) { const a = i * sides + s, b = i * sides + ((s + 1) % sides), c = a + sides, d = b + sides; index.push(a, c, b, b, c, d); }
+    geometry.setIndex(index);
+  }
+  geometry.setDrawRange(0, 0);
+  const tangent = new THREE.Vector3(), u = new THREE.Vector3(), v = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), side = new THREE.Vector3(1, 0, 0);
+  return {
+    geometry,
+    set(points) {
+      const n = Math.min(points.length, g.max), box = new THREE.Box3();
+      for (let i = 0; i < n; i += 1) {
+        const [x, y, z] = points[i];
+        box.expandByPoint(u.set(x, y, z));
+        if (!tube) { position.set([x, y, z], i * 3); continue; }
+        const before = points[Math.max(0, i - 1)], after = points[Math.min(n - 1, i + 1)];
+        tangent.set(after[0] - before[0], after[1] - before[1], after[2] - before[2]);
+        if (tangent.lengthSq() === 0) tangent.copy(up); else tangent.normalize();
+        u.crossVectors(tangent, Math.abs(tangent.y) > 0.99 ? side : up).normalize();
+        v.crossVectors(tangent, u);
+        for (let s = 0; s < sides; s += 1) {
+          const angle = (s / sides) * 2 * Math.PI, cos = Math.cos(angle) * radius, sin = Math.sin(angle) * radius;
+          position.set([x + u.x * cos + v.x * sin, y + u.y * cos + v.y * sin, z + u.z * cos + v.z * sin], (i * sides + s) * 3);
+        }
+      }
+      geometry.attributes.position.needsUpdate = true;
+      geometry.setDrawRange(0, tube ? (n >= 2 ? (n - 1) * sides * 6 : 0) : n);
+      if (n) box.expandByScalar(radius);
+      geometry.boundingBox = box; // the zero-filled tail of the buffer must not widen it
+      geometry.boundingSphere = n ? box.getBoundingSphere(new THREE.Sphere()) : new THREE.Sphere();
+      return n;
+    },
+  };
+}
+
 // Every surface is a matte, non-metal physical material (lit by the renderer's soft environment and key light): roughness 1 (three's
 // default) read as flat chalk, 0.55 gives soft highlights that show shape.
 const SURFACE = Object.freeze({ roughness: 0.55, metalness: 0 });
@@ -208,9 +290,9 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
   const shapeOf = g => {
     if (!geometries.has(g.id)) {
       if (g.kind === 'arrow') {
-        const head = g.length * 0.25, radius = g.length * 0.03;
-        const shaft = own(new THREE.CylinderGeometry(radius, radius, g.length - head, ARROW_RADIAL, 1).translate(0, (g.length - head) / 2, 0));
-        const tip = own(new THREE.ConeGeometry(radius * 2.5, head, ARROW_RADIAL, 1).translate(0, g.length - head / 2, 0));
+        const head = g.length * 0.25, radius = g.length * 0.03, offset = g.offset ?? 0; // arrow_anchor: the whole arrow starts `offset` up +Y, its length unchanged
+        const shaft = own(new THREE.CylinderGeometry(radius, radius, g.length - head, ARROW_RADIAL, 1).translate(0, offset + (g.length - head) / 2, 0));
+        const tip = own(new THREE.ConeGeometry(radius * 2.5, head, ARROW_RADIAL, 1).translate(0, offset + g.length - head / 2, 0));
         geometries.set(g.id, [shaft, tip]);
       } else if (g.kind !== 'label') geometries.set(g.id, own(meshGeometry(g)));
     }
@@ -218,6 +300,9 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
   };
   const byGeometry = new Map(scene.geometries.map(g => [g.id, g]));
   const objects = new Map(), labels = new Map(), pickables = []; // labels: node id -> its sprite
+  const nodeById = new Map(scene.nodes.map(node => [node.id, node]));
+  const trails = new Map(), tops = new Map(), shifts = new Map(), truth = new Map(); // trail node -> set(points); surface node -> its mesh; tip-anchored label -> shift; clamped node -> the position the program gave
+  const clamps = scene.nodes.filter(node => node.clampTo).map(node => ({ id: node.id, target: node.clampTo.node, max: node.clampTo.max }));
 
   // A label's texture is painted by layoutLabels (its plate size depends on the view) and repainted only when its text, size bucket
   // or pixel ratio changes. Its leader: a thin line from the node's point to the plate, shown only when declutter moved the plate away.
@@ -248,6 +333,12 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
     holder.name = node.id;
     holder.userData.nodeId = node.id;
     holder.position.fromArray(node.position);
+    const g0 = node.geometry === undefined ? null : byGeometry.get(node.geometry), above = byGeometry.get(nodeById.get(node.parent)?.geometry);
+    if (g0?.kind === 'label' && g0.anchor === 'tip' && above?.kind === 'arrow') { // arrow_anchor: the label sits at the arrow's tip, offset + length up +Y in the arrow's own frame
+      shifts.set(node.id, new THREE.Vector3(0, (above.offset ?? 0) + above.length, 0));
+      holder.position.add(shifts.get(node.id));
+    }
+    if (node.clampTo) truth.set(node.id, node.position);
     holder.quaternion.fromArray(node.quaternion);
     holder.scale.fromArray(node.scale);
     holder.visible = node.visible;
@@ -258,7 +349,30 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
     else if (g?.kind === 'arrow') {
       drawable = new THREE.Group();
       drawable.userData.arrow = g.length;
+      drawable.userData.arrowOffset = g.offset ?? 0;
       for (const part of shapeOf(g)) drawable.add(new THREE.Mesh(part, surfaces.get(node.material) ?? fallback));
+    } else if (g?.kind === 'surface') {
+      // The surface mesh, and its contour lines in the surface colour darkened so they read against it (own material: a frame's colour change reaches the mesh only).
+      drawable = new THREE.Group();
+      const mesh = new THREE.Mesh(own(surfaceGeometry(g)), surfaces.get(node.material) ?? fallback), lines = contourPositions(g);
+      drawable.add(mesh);
+      tops.set(node.id, mesh);
+      if (lines.length) {
+        const base = surfaces.get(node.material) ?? fallback;
+        drawable.add(new THREE.LineSegments(own(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(lines, 3))), own(new THREE.LineBasicMaterial({ color: base.color.clone().multiplyScalar(0.5), toneMapped: false }))));
+      }
+    } else if (g?.kind === 'trail') {
+      // The node's material for a trail; a ghost is the same at 40% opacity and half the radius (own material, so a frame's material update does not reach it).
+      const ghost = g.style === 'ghost', radius = g.radius ? g.radius * (ghost ? 0.5 : 1) : 0, base = surfaces.get(node.material) ?? fallback;
+      const buffers = trailBuffers(g, radius);
+      const material = radius
+        ? (ghost ? own(Object.assign(base.clone(), { transparent: true, opacity: base.opacity * 0.4 })) : base)
+        : (ghost ? own(new THREE.LineBasicMaterial({ color: base.color, transparent: true, opacity: base.opacity * 0.4, toneMapped: false })) : stroke(node.material));
+      drawable = radius ? new THREE.Mesh(own(buffers.geometry), material) : new THREE.Line(own(buffers.geometry), material);
+      drawable.frustumCulled = false; // its bounds follow its points
+      drawable.visible = false; // nothing to draw until a frame carries points
+      drawable.userData.empty = true;
+      trails.set(node.id, points => { const n = buffers.set(points); drawable.visible = n >= (radius ? 2 : 1); drawable.userData.empty = !drawable.visible; });
     } else if (g) drawable = new THREE.Mesh(shapeOf(g), surfaces.get(node.material) ?? fallback);
     if (drawable) {
       drawable.traverse(child => { child.userData.nodeId = node.id; });
@@ -291,13 +405,14 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
         if (!checked.ok) return checked;
         for (const [id, update] of Object.entries(checked.value.nodes)) {
           const holder = objects.get(id);
-          if (update.position) holder.position.fromArray(update.position);
+          if (update.position) { holder.position.fromArray(update.position); if (shifts.has(id)) holder.position.add(shifts.get(id)); if (truth.has(id)) truth.set(id, update.position); }
           if (update.quaternion) holder.quaternion.fromArray(update.quaternion);
           if (update.scale) holder.scale.fromArray(update.scale);
           if (update.visible !== undefined) holder.visible = update.visible;
           const tag = labels.get(id)?.userData.label;
           if (update.text !== undefined && tag) tag.essential = true; // a live value
           if (update.text !== undefined && tag && tag.text !== update.text) Object.assign(tag, { text: update.text, painted: null }); // repainted at the next layout
+          if (update.points !== undefined) trails.get(id)?.(update.points);
         }
         for (const [id, update] of Object.entries(checked.value.materials)) {
           for (const material of [surfaces.get(id), strokes.get(id)].filter(Boolean)) {
@@ -305,7 +420,29 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
             if (update.opacity !== undefined) { material.opacity = update.opacity; material.transparent = update.opacity < 1; }
           }
         }
-        return checked;
+        // clamp: after the program's frame, a sphere bound to a surface is held at the surface's top (or at `max`), in world y. The node keeps the position the
+        // program gave (truth), so a frame that does not move it is clamped again; clamped lists what was held: the true and the clamped world y.
+        const clamped = [];
+        if (clamps.length) {
+          root.updateWorldMatrix(true, true);
+          for (const { id, target, max } of clamps) {
+            const holder = objects.get(id), mesh = tops.get(target), world = new THREE.Vector3();
+            holder.position.fromArray(truth.get(id));
+            holder.userData.diverged = false;
+            if (!mesh) continue;
+            holder.parent.updateWorldMatrix(true, false);
+            holder.updateWorldMatrix(false, false);
+            holder.getWorldPosition(world);
+            const ceiling = max ?? new THREE.Box3().setFromObject(mesh).max.y;
+            if (world.y <= ceiling) continue;
+            clamped.push({ node: id, trueY: world.y, y: ceiling });
+            world.y = ceiling;
+            holder.position.copy(holder.parent.worldToLocal(world));
+            holder.userData.diverged = true;
+            holder.updateWorldMatrix(false, false);
+          }
+        }
+        return { ...checked, clamped };
       },
       // Size every label for a viewport of width x height CSS pixels at `ratio` device pixels per CSS pixel and this camera
       // (LABEL_PIXELS), cancelling its parents' world scale (without size attenuation a sprite's scale is a fraction of the view:
@@ -345,9 +482,10 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
         const obstacles = [], head = new THREE.Vector3(), tail = new THREE.Vector3();
         root.traverseVisible(arrow => {
           if (arrow.userData.arrow === undefined) return;
-          arrow.getWorldPosition(tail);
+          const offset = arrow.userData.arrowOffset ?? 0;
+          arrow.localToWorld(tail.set(0, offset, 0));
           const depth = -world.copy(tail).applyMatrix4(camera.matrixWorldInverse).z, radius = arrow.children[1].geometry.parameters.radius * arrow.getWorldScale(world).x;
-          arrow.localToWorld(head.set(0, arrow.userData.arrow, 0));
+          arrow.localToWorld(head.set(0, offset + arrow.userData.arrow, 0));
           tail.project(camera); head.project(camera);
           if (depth <= 0 || Math.abs(tail.z) > 1 || Math.abs(head.z) > 1) return;
           obstacles.push({ x1: (tail.x + 1) / 2 * w0, y1: (1 - tail.y) / 2 * h0, x2: (head.x + 1) / 2 * w0, y2: (1 - head.y) / 2 * h0, half: radius * f * h0 / (2 * depth) });

@@ -2,7 +2,7 @@ import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { canonicalJson, sha256Hex } from '../explain-program/contract.js';
 import { hashProgramSource } from './contract.js';
-import { experimentFixture, gameFixture, watchFixture } from './fixtures.js';
+import { experimentFixture, gameFixture, primitivesFixture, watchFixture } from './fixtures.js';
 import { reviewRequestProblem, runReviewProgram } from './review.js';
 
 // The review capture's program half against the REAL pinned engine (an in-process stand-in for the page's blob: Worker, same
@@ -214,4 +214,19 @@ run('a paused scene whose clock advances with every host step is idle: the resum
   const done = await runReviewProgram(await requestFor(artifact, { events: [act('run'), advance(10), act('save'), resume('run', 5)], ticks: 10 }), { workerFactory });
   assert.equal(done.ok, true, JSON.stringify(done));
   assert.deepEqual([done.trace.readouts.saved, done.trace.readouts.n, done.trace.readouts.on], [10, 10, 1], 'ten saved, the run restarted and drew ten more');
+});
+
+// AN-19 (owner decision 11): the trace records the true and the clamped y of a sphere the host holds at its surface's top; the readouts keep the true value.
+run('a clamped marker is reported in the trace with its true and drawn y; a scene that clamps nothing has no clamped entry', async () => {
+  const source = primitivesFixture.artifact.program.source.replace('nodes: { ball: { position: [x, y + 0.1, 0] }', 'nodes: { ball: { position: [x, time === 0 ? 5.6 : y + 0.1, 0] }');
+  assert.notEqual(source, primitivesFixture.artifact.program.source);
+  const artifact = await withSource(primitivesFixture.artifact, source);
+  const done = await runReviewProgram(await requestFor(artifact), { workerFactory });
+  assert.equal(done.ok, true, JSON.stringify(done));
+  assert.deepEqual(done.trace.clamped, [{ node: 'ball', trueY: 5.6, y: 2 }], 'the fixture clamps at max 2');
+  assert.equal(done.trace.readouts.loss, 1, 'readouts are the program\'s');
+  const lowest = await runReviewProgram(await requestFor(primitivesFixture.artifact, { time: 2 }), { workerFactory });
+  assert.equal(lowest.ok, true, JSON.stringify(lowest));
+  assert.equal('clamped' in lowest.trace, false, 'a ball inside the bowl is not clamped');
+  assert.equal('clamped' in (await runReviewProgram(await requestFor(watchFixture.artifact), { workerFactory })).trace, false);
 });

@@ -38,7 +38,9 @@ const saved = async () => {
 
 // The fit the review and the card make at these inputs, over the frames the sampler takes; hide: node ids drawn hidden, to compare with a scene without them.
 async function fit({ artifact, defaults }, learningRate, hide = []) {
-  const frames = await sampleAnimationFrames({ artifact, inputs: { ...defaults, learningRate }, workerFactory });
+  // The deadline is not the test's business (FRAMING.budgetMs cut the sample under load): a fixed clock, and what is asserted is the sampled frames.
+  const frames = await sampleAnimationFrames({ artifact, inputs: { ...defaults, learningRate }, workerFactory, now: () => 0 });
+  assert.ok(frames.length > 1, `the motion was sampled (${frames.length} frames), not only its initial state`);
   const hidden = Object.assign(frames.map(frame => ({ ...frame, nodes: { ...frame.nodes, ...Object.fromEntries(hide.map(id => [id, { ...frame.nodes[id], visible: false }])) } })), frames.reference ? { reference: frames.reference } : {});
   const built = buildAnimationScene(artifact, { labelTexture: () => ({ texture: new THREE.Texture(), aspect: 1 }) });
   try { return { camera: fitCameraToPoints(subjectPoints(built.scene, hidden), artifact.camera, W / H) }; } finally { built.scene.dispose(); }
