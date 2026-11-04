@@ -1,0 +1,55 @@
+{
+  "schema": "animation-pinned-plan/1",
+  "name": "pendulum-aj_78cc3d3",
+  "kind": "regression",
+  "request": "Let me change the length of a pendulum from 0.5 to 3 metres and see how its period changes, with the period shown as a number.",
+  "plan": {
+    "schema": "animation-plan/1",
+    "title": "Pendulum length and period",
+    "description": "A bob hangs from a fixed pivot on a string and swings back and forth. As you drag the length slider from 0.5 to 3 metres, the string grows or shrinks and the swing slows down or speeds up. A readout shows the period in seconds, worked out from the length, next to the current length.",
+    "experience": "experiment",
+    "reason": "You want to change the length and watch the period respond. With one slider, you can see the swing and the period number change together, so you can tell that the period grows with the square root of the length.",
+    "behavior": "analytical",
+    "controlProfile": "inspect",
+    "sourceRefs": [],
+    "parameters": [
+      {
+        "type": "number",
+        "id": "length",
+        "label": "Pendulum length",
+        "unit": "m",
+        "min": 0.5,
+        "max": 3,
+        "step": 0.1,
+        "default": 1
+      }
+    ],
+    "interactions": [
+      "Drag the length slider between 0.5 and 3 metres",
+      "Read the period, in seconds, as the length changes",
+      "Speed the swing up or slow it down, or pause and scrub through it",
+      "Turn the view to see the swing from any side"
+    ],
+    "assumptions": [
+      "Small swings: the period is 2π times the square root of length divided by g, with g = 9.81 m/s²",
+      "The string is light and doesn't stretch, and the bob is treated as a single point",
+      "There is no air resistance or friction, so the swing never dies down",
+      "The starting angle stays small and fixed"
+    ],
+    "limitations": [
+      "Large swing angles, where the real period gets a little longer, are not shown",
+      "Damping and energy loss are not shown"
+    ],
+    "learningGoal": "See that a pendulum's period depends only on its length: making it four times longer doubles the period.",
+    "requiredCapabilities": [
+      "parameters",
+      "readouts",
+      "labels",
+      "loop",
+      "speed",
+      "seek"
+    ]
+  },
+  "source": "packages/control-plane/test/fixtures/animation-saved-plans.json, job aj_78cc3d3 (ready, accepted)",
+  "why": "Known good: this plan hashes to the planHash (eb6b498f0301) of the accepted owner pendulum artifact C:/s/spec/animation/accepted/ownerpendulum-18a064c972c4.json. The request is the acceptance suite ownerpendulum case."
+}
