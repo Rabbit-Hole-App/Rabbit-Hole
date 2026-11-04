@@ -74,7 +74,7 @@ export const SLASH = [
   // /animation (owner, 2026-10-30; docs/superpowers/plans/2026-10-30-animation.md section 3): a live 3D scene to watch, adjust or
   // play (the animation3d card). A reviewed proposal like /motion: no model call before the plan, nothing generated before Generate.
   // Not /animate (removed) and not /explain's 2D `animation` primitive.
-  { name: 'animation', kind: 'generate', group: 'create', places: CTRLK, label: '3D animation', desc: '3D animation', about: 'Describe an idea to see as a live 3D scene you can watch, adjust or play; review its plan, then generate it. Works best for mechanisms, loops and small games. Also draws gradient descent on a loss surface, with a marker and its path.', placeholder: 'What should the 3D scene show or let you try?', action: 'animation', deterministic: true },
+  { name: 'animation', kind: 'generate', group: 'create', places: CTRLK, label: '3D animation', desc: '3D animation', about: 'Describe an idea to see as a live 3D scene you can watch, adjust or play; review its plan, then generate it. Works best for mechanisms, loops and small games.', placeholder: 'What should the 3D scene show or let you try?', action: 'animation', deterministic: true },
   { name: '3d', kind: 'generate', group: 'create', places: CTRLK, label: '3D scene', desc: '3D scene', about: 'Create a 3D scene to explore a spatial idea.', placeholder: 'What objects and relationships should the scene show?', family: ['3d_model', 'blender_scene'] },
   // /browser (owner spec 2026-10-29): the existing saved webpage capture (AdaptiveCanvas insertWebpage), not a web browser. A URL is
   // captured as a webpage card; none opens the address dialog. No model.

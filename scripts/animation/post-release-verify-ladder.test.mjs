@@ -8,7 +8,8 @@ const SHA = 'c'.repeat(40);
 const FIVE = '["curve_radius","action_motion","surface_grid","trail_points","text_readout","arrow_anchor","clamp"]';
 const TWO = '["curve_radius","action_motion"]';
 // A fake production site: /explore names an entry chunk that reaches the Animation card chunk and the capabilities chunk.
-function site({ features = FIVE, copy = 'Works best for mechanisms, loops, small games and loss surfaces.', jobs = 401, results = 401, open = [] } = {}) {
+const FINAL = 'Describe an idea to see as a live 3D scene you can watch, adjust or play; review its plan, then generate it. Works best for mechanisms, loops and small games.';
+function site({ features = FIVE, copy = FINAL, jobs = 401, results = 401, open = [] } = {}) {
   const files = {
     '/explore': '<script type="module" src="/static/index-1.js"></script>',
     '/static/index-1.js': 'import("./Animation3DCard-2.js");import("./caps-3.js");',
@@ -78,15 +79,21 @@ test('the base "2 app flags" failure that is only about ANIMATION_STREAMING is l
   assert.equal(reclassifyBase(other)[0].status, 'FAIL', 'only item 2 is reclassified');
 });
 
-test('mvp5: the stale copy anywhere fails, a clean bundle that names loss surfaces passes, --recovered wants the line back', async () => {
+test('mvp5: either old sentence anywhere fails, the final line alone passes, --recovered wants the not-supported line back', async () => {
   const canary = 'Weekly canary: one full SGD job on production; two failures in a row reopen the ladder.';
   const stale = 'Works best for mechanisms; loss surfaces and optimizers are not supported yet.';
   let r = await run('mvp5', site({ copy: stale }), { canaryText: canary });
   assert.equal(find(r, 'request-box copy').status, 'FAIL'); assert.match(find(r, 'request-box copy').detail, /still says it/);
   r = await run('mvp5', site(), { canaryText: canary });
   assert.equal(find(r, 'request-box copy').status, 'PASS'); assert.equal(exitCode(r), 0, summary(r));
+  r = await run('mvp5', site({ copy: `${FINAL} Also draws gradient descent on a loss surface, with a marker and its path.` }), { canaryText: canary });
+  assert.equal(find(r, 'request-box copy').status, 'FAIL'); assert.match(find(r, 'request-box copy').detail, /still says it: \/Also draws gradient descent/);
   r = await run('mvp5', site({ copy: 'Works best for mechanisms and small games.' }), { canaryText: canary });
-  assert.match(find(r, 'request-box copy').detail, /no chunk names loss surfaces as supported/); assert.equal(find(r, 'request-box copy').status, 'FAIL');
+  assert.match(find(r, 'request-box copy').detail, /no chunk carries the final \/animation line/); assert.equal(find(r, 'request-box copy').status, 'FAIL');
+  r = await run('mvp5', site(), { canaryText: canary });
+  assert.match(find(r, 'request-box copy').detail, /the final \/animation line in \/static\/Animation3DCard-2\.js; neither "not supported yet" nor "Also draws gradient descent"/);
+  r = await run('mvp5', site({ copy: `${FINAL} Also draws gradient descent on a loss surface, with a marker and its path.` }), { recovered: true });
+  assert.equal(find(r, 'request-box copy').status, 'FAIL', 'a recovery that left the Also-draws sentence in is not recovered');
   r = await run('mvp5', site({ copy: stale }), { recovered: true });
   assert.equal(find(r, 'request-box copy').status, 'PASS');
   r = await run('mvp5', site(), { recovered: true });

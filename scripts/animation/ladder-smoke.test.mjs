@@ -178,13 +178,13 @@ test('bundle probe: walks a built directory, finds the card chunk and the declar
     mkdirSync(join(dir, 'static'));
     writeFileSync(join(dir, 'index.html'), '<script type="module" src="/static/index-1.js"></script>');
     writeFileSync(join(dir, 'static/index-1.js'), 'import("./Animation3DCard-2.js");import("./caps-3.js");const t="works best for mechanisms";');
-    writeFileSync(join(dir, 'static/Animation3DCard-2.js'), 'export default 1;const copy="loss surfaces and optimizers are not supported yet";');
+    writeFileSync(join(dir, 'static/Animation3DCard-2.js'), 'export default 1;const copy="Also draws gradient descent on a loss surface, with a marker and its path.";');
     writeFileSync(join(dir, 'static/caps-3.js'), 'export const F=["curve_radius","action_motion","surface_grid","trail_points","text_readout","arrow_anchor","clamp"];');
     const read = dirReader(dir);
     const p = await probeBundle({ read, entry: 'index.html' });
     assert.deepEqual([p.chunks, p.card, p.declaredIn], [3, ['/static/Animation3DCard-2.js'], ['/static/caps-3.js']]);
-    const s = await scanBundle({ read, entry: 'index.html', patterns: ['loss surfaces?[^"\'`]{0,80}not (yet )?supported', 'works best for'] });
-    assert.deepEqual(s.hits['loss surfaces?[^"\'`]{0,80}not (yet )?supported'], ['/static/Animation3DCard-2.js']);
+    const s = await scanBundle({ read, entry: 'index.html', patterns: ['Also draws gradient descent on a loss surface', 'works best for'] });
+    assert.deepEqual(s.hits['Also draws gradient descent on a loss surface'], ['/static/Animation3DCard-2.js']);
     assert.deepEqual(s.hits['works best for'], ['/static/index-1.js']);
     const none = await probeBundle({ read: dirReader(join(dir, 'missing')), entry: 'index.html' });
     assert.equal(none.noEntry, true);
@@ -257,6 +257,22 @@ test('combined: the union of the four slices with prefixed ids, a file run once,
   assert.ok(items.length < ['mvp2b', 'mvp3', 'mvp4', 'mvp5'].reduce((n, s) => n + config[s].items.length, 0) + 1, 'duplicates were dropped');
   const small = { a: { title: 'a', items: [{ id: 't', kind: 'tests', cwd: 'p', files: ['x.js', 'y.js'] }] }, b: { title: 'b', items: [{ id: 't', kind: 'tests', cwd: 'p', files: ['x.js'] }, { id: 'n', kind: 'note', text: 'n' }] }, c: { title: 'c', includes: ['a', 'b'], items: [{ id: 'own', kind: 'note', text: 'o' }] } };
   assert.deepEqual(itemsFor(small, 'c').map(i => `${i.id}:${i.files ?? ''}`), ['a:t:x.js,y.js', 'b:n:', 'own:']);
+});
+
+test('mvp5 copy items: the final /animation line is the one the source carries, present, and neither old sentence is (owner decision 38)', () => {
+  const config = JSON.parse(readFileSync(join(HERE, 'ladder-smoke.json'), 'utf8'));
+  const source = readFileSync(join(HERE, '../../packages/web/src/agent/slash.js'), 'utf8').split('\n').find(l => l.includes("name: 'animation'"));
+  const about = /about: '([^']*)'/.exec(source)[1];
+  const copy = config.mvp5.items.filter(i => i.kind === 'copy');
+  assert.deepEqual(copy.map(i => i.id), ['copy-local', 'copy-live']);
+  for (const item of copy) {
+    assert.equal(item.present.length, 1, 'one phrase: the final line');
+    assert.ok(new RegExp(item.present[0], 'i').test(about), `${item.id}: the final line is in the source (${about})`);
+    assert.ok(item.absent.every(p => !new RegExp(p, 'i').test(about)), `${item.id}: neither old sentence is`);
+    const old = ['Loss surfaces and optimizers are not supported yet.', 'Works best for mechanisms, loops and small games. Also draws gradient descent on a loss surface, with a marker and its path.'];
+    for (const text of old) assert.ok(item.absent.some(p => new RegExp(p, 'i').test(text)), `${item.id}: ${text.slice(0, 40)}... is caught`);
+    assert.ok(!new RegExp(item.present[0], 'i').test('Works best for mechanisms, loops and small games.'), 'the final line is the whole line, not its tail');
+  }
 });
 
 test('--gate2-pending: Gate 2 not finished is reported PENDING with exit 3, never PASS; --strict does not turn it into a FAIL; a given table still wins', async () => {

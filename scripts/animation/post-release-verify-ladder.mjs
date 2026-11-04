@@ -13,8 +13,9 @@
 //   combined  (owner decision 23: ONE release carries mvp2b + mvp3 + mvp4 + mvp5) all of the items of mvp2b, mvp3 and mvp5. The prompts are server code: they are verified by the served commit, not by a GET
 //   mvp3+     the served bundle declares the five client features (surface_grid trail_points text_readout arrow_anchor clamp). Also after a mvp3 recovery:
 //             the recovery filters the five in the SERVER (animation-brief.js clientFeatures), so the browser still declares them
-//   mvp5      the request-box copy no longer says loss surfaces are not supported yet and the bundle names loss surfaces as supported; the canary description
-//             file names weekly, SGD and two failures in a row (--canary-file). --recovered: the "not supported yet" line is back
+//   mvp5      the request-box copy is the final /animation line (owner decision 38: no sentence about loss surfaces) and neither old sentence, "not supported yet" or "Also draws
+//             gradient descent on a loss surface", is in any chunk; the canary description file names weekly, SGD and two failures in a row (--canary-file). --recovered: the
+//             "not supported yet" line is back
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -25,8 +26,9 @@ const UA = { 'User-Agent': 'rabbit-hole-prod-release-readonly' };
 export const DIAGNOSTIC_PATHS = ['render-fixture', 'render-result', 'render-candidate', 'seed-outcomes', 'seed-fixture'].map(n => `/api/learn/animation/diagnostics/${n}`);
 export const JOBS = '/api/learn/animation/jobs?board=x';
 export const RESULTS = '/api/learn/animation/jobs/results/ar_post_release_probe?board=x&features=';
-export const STALE_COPY = ['loss surfaces?[^"\'`]{0,120}not (yet )?supported', 'not (yet )?supported[^"\'`]{0,120}loss surfaces?', 'optimizers are not supported yet'];
-export const CLAIM = 'loss[ -]surfaces?';
+export const NOT_SUPPORTED_COPY = ['loss surfaces?[^"\'`]{0,120}not (yet )?supported', 'not (yet )?supported[^"\'`]{0,120}loss surfaces?', 'optimizers are not supported yet'];
+export const STALE_COPY = [...NOT_SUPPORTED_COPY, 'Also draws gradient descent on a loss surface']; // either old sentence
+export const FINAL_COPY = 'Describe an idea to see as a live 3D scene you can watch, adjust or play; review its plan, then generate it\\. Works best for mechanisms, loops and small games\\.';
 export const SLICES = ['mvp2b', 'mvp3', 'mvp4', 'mvp5', 'combined'];
 
 // The base item 2 knows ANIMATION_ENABLED / ANIMATION_EXECUTION_KILL only and calls any other ANIMATION_* name a failure. ANIMATION_STREAMING is a
@@ -77,11 +79,11 @@ export async function verifyLadder(deps) {
   }
 
   if (slice === 'mvp5' || slice === 'combined') {
-    const s = await scanBundle({ read, entry: '/explore', patterns: [...STALE_COPY, CLAIM] });
-    const stale = STALE_COPY.filter(p => s.hits[p].length), claim = s.hits[CLAIM].length > 0;
+    const s = await scanBundle({ read, entry: '/explore', patterns: [...STALE_COPY, FINAL_COPY] });
+    const stale = STALE_COPY.filter(p => s.hits[p].length), notSupported = NOT_SUPPORTED_COPY.filter(p => s.hits[p].length), final = s.hits[FINAL_COPY].length > 0;
     if (!(s.chunks > 0 && s.card.length > 0)) add('request-box copy', 'FAIL', 'the walk did not reach an Animation3DCard chunk (blind)');
-    else if (recovered) add('request-box copy', stale.length ? 'PASS' : 'FAIL', stale.length ? `the "not supported yet" line is back (${s.hits[stale[0]][0]})` : 'recovery wanted the "loss surfaces ... not supported yet" line back, and it is in no chunk');
-    else add('request-box copy', !stale.length && claim ? 'PASS' : 'FAIL', stale.length ? `still says it: /${stale[0]}/ in ${s.hits[stale[0]][0]}` : claim ? `${s.chunks} chunks; no "not supported yet" line; loss surfaces named in ${s.hits[CLAIM][0]}` : 'no stale line, but no chunk names loss surfaces as supported');
+    else if (recovered) add('request-box copy', notSupported.length ? 'PASS' : 'FAIL', notSupported.length ? `the "not supported yet" line is back (${s.hits[notSupported[0]][0]})` : 'recovery wanted the "loss surfaces ... not supported yet" line back, and it is in no chunk');
+    else add('request-box copy', !stale.length && final ? 'PASS' : 'FAIL', stale.length ? `still says it: /${stale[0]}/ in ${s.hits[stale[0]][0]}` : final ? `${s.chunks} chunks; the final /animation line in ${s.hits[FINAL_COPY][0]}; neither "not supported yet" nor "Also draws gradient descent"` : 'no old sentence, but no chunk carries the final /animation line');
     if (recovered) add('canary description', 'PASS', 'not judged for a recovery');
     else if (canaryText == null) add('canary description', 'UNKNOWN', 'pass --canary-file <the scheduled task description> (AN-21 closeout)');
     else {

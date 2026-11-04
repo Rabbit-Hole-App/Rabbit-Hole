@@ -349,30 +349,32 @@
       },
       {
         "id": "copy-local",
-        "label": "the built dist-dev no longer says loss surfaces are not supported, and claims them",
+        "label": "the built dist-dev carries the final /animation line and neither old sentence: no \"not supported yet\" line and no \"Also draws gradient descent on a loss surface\" (owner decision 38)",
         "kind": "copy",
         "dir": "packages/web/dist-dev",
         "absent": [
           "loss surfaces?[^\"'`]{0,80}not (yet )?supported",
           "not (yet )?supported[^\"'`]{0,80}loss surfaces?",
-          "optimizers are not supported yet"
+          "optimizers are not supported yet",
+          "Also draws gradient descent on a loss surface"
         ],
         "present": [
-          "loss[ -]surfaces?"
+          "Describe an idea to see as a live 3D scene you can watch, adjust or play; review its plan, then generate it\\. Works best for mechanisms, loops and small games\\."
         ]
       },
       {
         "id": "copy-live",
-        "label": "the preview clone serves the same copy: no \"not supported yet\" line and loss surfaces named as supported (--origin; run after the preview deploy)",
+        "label": "the preview clone serves the same: the final /animation line, neither old sentence (--origin; run after the preview deploy; owner decision 38)",
         "kind": "copy",
         "origin": true,
         "absent": [
           "loss surfaces?[^\"'`]{0,80}not (yet )?supported",
           "not (yet )?supported[^\"'`]{0,80}loss surfaces?",
-          "optimizers are not supported yet"
+          "optimizers are not supported yet",
+          "Also draws gradient descent on a loss surface"
         ],
         "present": [
-          "loss[ -]surfaces?"
+          "Describe an idea to see as a live 3D scene you can watch, adjust or play; review its plan, then generate it\\. Works best for mechanisms, loops and small games\\."
         ]
       },
       {

@@ -39,13 +39,13 @@ test('every title scans in one short line; each command says what it does and hi
   for (const c of SLASH) assert.ok(c.placeholder?.length > 10 && !/\.\.\.|…/.test(c.placeholder), `${c.name} placeholder`);
 });
 
-// AN-17 (owner plan v3.1, owner decisions 11 to 17 and 20, 3 Nov 2026) said in the command's own description (the picker row and the Slash
-// Commands window) what /animation does not support yet. AN-21 replaces that sentence with the loss-surface claim, which ships only if
-// Gate 1 and Gate 2 pass (plan section 8, owner decision 23). The claim is gradient descent on a loss surface, not optimizers.
-test('/animation says what it works best for and that it also draws gradient descent on a loss surface', () => {
+// AN-17 (owner plan v3.1, owner decisions 11 to 17 and 20, 3 Nov 2026) said in the command's own description (the picker row and the Slash Commands window) what /animation does not support
+// yet; AN-21 replaced that sentence with a loss-surface claim; owner decision 38 removed both. The line says what it works best for and carries no sentence about loss surfaces or optimizers.
+test('/animation says what it works best for and nothing about loss surfaces or optimizers', () => {
   const about = SLASH.find(c => c.name === 'animation').about;
-  assert.ok(about.endsWith('Works best for mechanisms, loops and small games. Also draws gradient descent on a loss surface, with a marker and its path.'), about);
+  assert.equal(about, 'Describe an idea to see as a live 3D scene you can watch, adjust or play; review its plan, then generate it. Works best for mechanisms, loops and small games.');
   assert.doesNotMatch(about, /not supported yet/);
+  assert.doesNotMatch(about, /Also draws gradient descent on a loss surface/);
   assert.doesNotMatch(about, /\.\.\.|…/);
 });
 

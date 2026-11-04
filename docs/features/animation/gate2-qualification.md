@@ -64,9 +64,11 @@ repairs, accepted or not. **No retry beyond the product's own automatic one**: t
 - **C5 = C4 (owner).** MVP5's product slice is in the tree **before** the gates, because it ships only if both gates pass, so carrying it costs
   nothing. It is one plain commit on branch `feat/an21-copy` (three files: `packages/web/src/agent/slash.js`, its test `slash.test.mjs`, and the
   step that pins the line in `packages/web/e2e/animation-mvp-check.mjs`): it removes "Loss surfaces and optimizers are not supported yet." from the
-  `/animation` description and puts in its place the single sentence "Also draws gradient descent on a loss surface, with a marker and its path."
-  The claim is deliberately gradient descent on a loss surface, not optimizers in general: Gate 2's control (the 2 sigma problem of optimizers) must
-  not become SGD. After the gates only scripts and docs (this lane's files, the checklist, the spend rows) may be added. If C5 touches `contract.js`,
+  `/animation` description. It first put in its place the single sentence "Also draws gradient descent on a loss surface, with a marker and its path.",
+  which owner decision 38 then removed: **the `/animation` line carries no sentence about loss surfaces or optimizers.** It reads exactly "Describe an
+  idea to see as a live 3D scene you can watch, adjust or play; review its plan, then generate it. Works best for mechanisms, loops and small games."
+  and the unit test, the e2e step, the ladder smoke items (`copy-local`, `copy-live`) and the post-release verify assert that line present and both old
+  sentences absent. Gate 2's control (the 2 sigma problem of optimizers) must not become SGD. After the gates only scripts and docs (this lane's files, the checklist, the spend rows) may be added. If C5 touches `contract.js`,
   `scene.js`, `framing.js`, `capabilities.js`, `review.js`, `renderer.js`, `session.js`, the golden artifact, `agents/**`, the animation brief, author,
   review or render modules, or any file the identity check hashes, it is not C5: the gate it was in restarts. (Explore Top is not part of AN-21; it
   rides in MVP2a.)

@@ -235,14 +235,17 @@ try {
     await page.evaluate(() => document.activeElement?.blur());
   });
 
-  // AN-17 copy line (owner plan v3.1), replaced by the AN-21 loss-surface claim: the request says what /animation works best for and what it also draws.
-  await step('typing /animation shows what it works best for and that it also draws gradient descent on a loss surface, in the picker row and in the Slash Commands description', async () => {
-    const LINE = 'Works best for mechanisms, loops and small games. Also draws gradient descent on a loss surface, with a marker and its path.', before = stray.length;
+  // AN-17 copy line (owner plan v3.1), replaced by the AN-21 loss-surface claim, which owner decision 38 removed: the request says what /animation works best for and nothing about loss surfaces.
+  await step('typing /animation shows what it works best for and carries no sentence about loss surfaces or optimizers, in the picker row and in the Slash Commands description', async () => {
+    const LINE = 'Works best for mechanisms, loops and small games.', FINAL = 'Describe an idea to see as a live 3D scene you can watch, adjust or play; review its plan, then generate it. ' + LINE;
+    const OLD = [/Also draws gradient descent on a loss surface/i, /not supported yet/i], before = stray.length; // neither old sentence
     await composer(page).click();
     await composer(page).fill('/anim');
     const row = page.locator('[data-slash-picker] [data-slash-command="animation"]');
     await row.waitFor();
-    assert.ok((await row.textContent()).includes(LINE), 'the picker row carries the line');
+    const rowText = await row.textContent();
+    assert.ok(rowText.includes(LINE), 'the picker row carries the line');
+    for (const old of OLD) assert.doesNotMatch(rowText, old, 'the picker row carries neither old sentence');
     await composer(page).fill('');
     await page.evaluate(() => document.activeElement?.blur());
     await openSlashHelp(page);
@@ -251,7 +254,9 @@ try {
     const about = sheet.locator('[data-slash-pane="animation"] [data-slash-about]');
     await about.waitFor();
     assert.ok(await about.isVisible(), 'the description is visible');
-    assert.ok((await about.innerText()).includes(LINE), 'the window shows the whole line');
+    const shown = await about.innerText();
+    assert.ok(shown.includes(FINAL), 'the window shows the whole line');
+    for (const old of OLD) assert.doesNotMatch(shown, old, 'the window carries neither old sentence');
     await shot(page, 'A-slash-copy');
     await sheet.getByRole('button', { name: 'Close Slash Commands' }).click();
     assert.equal(stray.length, before, 'no generation request from the copy');
