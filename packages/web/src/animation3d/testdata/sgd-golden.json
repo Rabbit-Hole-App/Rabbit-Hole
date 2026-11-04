@@ -146,14 +146,14 @@
      "id": "runPath",
      "kind": "trail",
      "max": 64,
-     "radius": 0.05,
+     "radius": 0.08,
      "style": "trail"
     },
     {
      "id": "keptPath",
      "kind": "trail",
      "max": 64,
-     "radius": 0.05,
+     "radius": 0.08,
      "style": "ghost"
     },
     {
@@ -350,7 +350,7 @@
   },
   "seed": 7,
   "camera": {
-   "position": [7, 4, 0.5],
+   "position": [0, 10.03, 4.69],
    "target": [0, 1.2, 0],
    "fov": 45
   },

@@ -1,6 +1,6 @@
 // The five /animation primitives in the real app (AN-19, MVP3; owner decisions 11 to 13 of 3 Nov 2026), against the LOCAL stack only: local D1, a
 // fresh browser profile, no model call. A canvas is seeded with ONE card naming the golden SGD artifact as a built-in example (block.fixtureId
-// 'sgd-golden', registered by docs/features/animation/golden-fixture-card.patch; test data, not generation evidence), the way animation-mvp-check
+// 'sgd-golden', which Animation3DCard.jsx sceneLoader resolves (goldenFixture, from docs/features/animation/golden-fixture-card.patch); test data, not generation evidence), the way animation-mvp-check
 // seeds its fixtures. Expected numbers are hand-written below from the bowl's own formula, never read from the program.
 // Covers: the card loads labelled as an example and draws; the surface draws (a share of the view differs from the background); the status
 // readout shows a WORD (paused, then running, then converged), not a code; Step once five times makes a six-point path whose true loss equals the
@@ -9,9 +9,13 @@
 // (far above the bowl) while the clamped ball stays inside the frame and the bowl keeps its share of the view; an older client's result request (no flags, or only the two it had) gets 409 client_update_required from
 // the same gate the server uses (control-plane animation-job.js needsFeatures, clientFeatures), and the current client declares all seven flags;
 // no model request, no other origin, no page or console error.
-// Calibration (2026-11-03): the fractions and areas below come from sgd-golden.test.mjs, which projects the golden through the real scene builder, clamp
-// and fit in Node for a 700 x 450 view (bowl 40% of the view and the trail about 500 px2 at rate 0.1; at 1.5 the ball at x = 3.7 held at y = 4, inside the
-// view, the bowl 17%); each threshold is under half of that. Nothing here has run in a browser.
+// Calibration: the card's viewport is 725 x 240 once More settings is open (CI run 41762152651), 725 x 314 before it. sgd-golden.test.mjs projects the golden through
+// the real scene builder, clamp and fit in Node for that view and ray-casts every path point and the ball against the surface (a path behind the bowl's own near wall is
+// drawn and invisible: that, with a tube that had no normals and rendered black, is what failed steps 4 and 6). Expected at 725 x 240: the bowl 22% of the view at rate
+// 0.1 and 15% at 1.5, the finished path 41 px long and 5.8 px thick (about 250 px2), the ball 8 to 10 px across, the kept path half as thick. Each threshold is about
+// half of that. Each pixel step prints its measured numbers ("measured ...") so a CI log can recalibrate it. The numbers from a local software-GL run under the owner's
+// decision 25 (calibration only, the golden fixture only, ended when C4's CI is green) are INPUTS to these thresholds, NOT evidence; the CI run on the candidate is
+// the only acceptance record.
 // Not covered here: the real result route (ANIMATION_ENABLED is off in the CI stack; control-plane/test/animation-golden-sgd.test.js runs it), the
 // look of the scene (a person judges it), and a person's eyes on the clamped ball (the pixel probes find a red blob inside the frame, no more).
 // Hooks: the card's data-animation-* attributes (Animation3DCard.jsx, animation3d/Controls.jsx).
@@ -25,6 +29,7 @@ import { animationClient } from '../src/animation3d/client.js';
 import { CLIENT_UPDATE, needsFeatures } from '../../control-plane/src/animation-job.js';
 import { clientFeatures } from '../../control-plane/src/animation-brief.js';
 
+const NOTEBOOK_ORIGIN = 'https://small-learn-canvas-notebook-dev.tryrabbithole.workers.dev'; // the app page's own notebook frame (animation-mvp-check allows it the same way)
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('animation-primitives-check runs against the local stack only');
@@ -32,7 +37,7 @@ const SHOTS = process.argv[2] || 'animation-primitives-shots';
 mkdirSync(SHOTS, { recursive: true });
 const TOTAL = 9; // bump with the steps below; the printed line is what CI reads
 const GOLDEN = JSON.parse(readFileSync(new URL('../src/animation3d/testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
-const FIXTURE_ID = 'sgd-golden'; // the name docs/features/animation/golden-fixture-card.patch gives the example
+const FIXTURE_ID = 'sgd-golden'; // Animation3DCard.jsx goldenFixture: the one name that loads testdata/sgd-golden.json
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `prim-${run}@example.com`, secret, handle: `prim_${run}` }) })).json();
@@ -65,7 +70,7 @@ await context.addCookies([{ name: 'small_session', value: session, url: BASE }])
 await context.addInitScript(([[key, value], mode]) => { try { localStorage.setItem('small.theme', mode); if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); } catch { /* the defaults then */ } }, [SEED, 'light']);
 await context.route('**/*', route => {
   const request = route.request(), url = new URL(request.url());
-  if (url.origin !== BASE && !['data:', 'blob:'].includes(url.protocol)) { offOrigin.push(url.href); return route.abort(); }
+  if (url.origin !== BASE && !url.href.startsWith(`${NOTEBOOK_ORIGIN}/`) && !['data:', 'blob:'].includes(url.protocol)) { offOrigin.push(url.href); return route.abort(); }
   if (['/api/learn/tutor/next-steps', '/api/learn/next-steps'].includes(url.pathname)) return route.fulfill({ json: { options: [], suggestions: [], fingerprint: null } });
   if (MODEL.test(url.pathname) && request.method() !== 'GET') { stray.push(`${request.method()} ${url.pathname}`); return route.abort(); }
   return route.fallback();
@@ -84,7 +89,7 @@ const frame = async () => JSON.parse(await viewport.getAttribute('data-animation
 const word = async () => ((await readout('status').textContent()) || '').trim().toLowerCase();
 const more = () => card.locator('details[data-animation-more]:not([open]) > summary').evaluateAll(nodes => nodes.forEach(node => node.click()));
 const shot = async name => { await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
-const setRate = async value => { await card.locator('input[data-animation-number="learningRate"]').fill(String(value)); await card.locator('input[data-animation-number="learningRate"]').press('Enter'); await page.waitForTimeout(2600); }; // the camera refits once the controls settle
+const setRate = async value => { await card.locator('input[data-animation-number="learningRate"]').fill(String(value)); await card.locator('input[data-animation-number="learningRate"]').press('Enter'); await page.waitForTimeout(3500); }; // the camera refits once the controls settle (REFIT_MS 300 ms, then the sampler's budget of up to 2 s)
 
 // What the scene looks like, by colour, in the host's screenshot (the primary readout laid over it is masked). The corner pixel is the background.
 // covered: the share of pixels that differ from it. orange / blue / red: saturated pixels by hue (the path, the kept path, the ball); box: the red blob's bounds.
@@ -96,10 +101,11 @@ const look = async () => {
     const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
     const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0);
     const { data, width, height } = g.getImageData(0, 0, c.width, c.height);
-    let covered = 0, orange = 0, blue = 0, red = 0, box = null;
+    let covered = 0, orange = 0, blue = 0, red = 0, black = 0, box = null;
     for (let i = 0; i < data.length; i += 4) {
       const r = data[i], gr = data[i + 1], b = data[i + 2], max = Math.max(r, gr, b), min = Math.min(r, gr, b), d = max - min;
       if (r > 240 && gr < 10 && b > 240) continue; // the mask over the primary readout
+      if (r < 12 && gr < 12 && b < 12) black += 1; // an unlit mesh (a tube with no normals) renders (0, 0, 0)
       if (Math.abs(r - data[0]) + Math.abs(gr - data[1]) + Math.abs(b - data[2]) > 36) covered += 1;
       if (!d || d / max < 0.55 || max < 100) continue;
       const hue = 60 * (max === r ? ((gr - b) / d + 6) % 6 : max === gr ? (b - r) / d + 2 : (r - gr) / d + 4);
@@ -107,7 +113,7 @@ const look = async () => {
       else if (hue >= 205 && hue <= 235) blue += 1;
       else if (hue < 14 || hue > 350) { red += 1; const p = i / 4, x = p % width, y = (p - x) / width; box = box ? [Math.min(box[0], x), Math.min(box[1], y), Math.max(box[2], x), Math.max(box[3], y)] : [x, y, x, y]; }
     }
-    return { width, height, covered: covered / (width * height), orange, blue, red, box };
+    return { width, height, covered: covered / (width * height), orange, blue, red, black, box };
   }, png.toString('base64'));
 };
 
@@ -119,6 +125,7 @@ const differ = async (a, b) => scratch.evaluate(async ([x, y]) => {
   for (let i = 0; n !== Infinity && i < p.length; i += 4) if (Math.abs(p[i] - q[i]) + Math.abs(p[i + 1] - q[i + 1]) + Math.abs(p[i + 2] - q[i + 2]) > 36) n += 1;
   return n;
 }, [a.toString('base64'), b.toString('base64')]);
+const measured = (label, values) => console.log(`   measured ${label} ${JSON.stringify(values)}`);
 const sceneShot = () => host.screenshot({ mask: [card.locator('[data-animation-primary-readout]')] });
 
 // The bowl's rule, worked out by hand and written down here, not read from the program: loss = (3 x^2 + z^2) / 2, start (0.3, 1.6), and with all
@@ -143,14 +150,16 @@ try {
   await step('the surface draws: a large share of the view differs from the background, and the status is the word paused', async () => {
     await more();
     const seen = await look();
-    assert.ok(seen.covered >= 0.15, `the bowl covers ${(seen.covered * 100).toFixed(1)}% of the view (about 40% expected; a scene with no surface covers under 2%)`);
+    measured('start', { covered: +seen.covered.toFixed(3), size: `${seen.width}x${seen.height}` });
+    assert.ok(seen.covered >= 0.11, `the bowl covers ${(seen.covered * 100).toFixed(1)}% of the view (about 22% expected at 725 x 240; a scene with no surface covers under 2%)`);
     assert.equal(await word(), 'paused');
     assert.equal((await frame()).readouts.status, 'paused');
     assert.equal((await frame()).nodes.trail.points.length, 1, 'a path of one point, before any step');
   });
   await step('Step once five times: a six-point path, and the true loss is the closed form', async () => {
+    await more(); // Batch size is a secondary setting, under More settings
     await card.locator('[data-animation-parameter="batchSize"] select').selectOption('256');
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(3000); // the camera refits once the controls settle (REFIT_MS and the sampler's budget)
     for (let i = 0; i < 5; i += 1) await action('step').click();
     await until(async () => (await frame()).readouts.steps === 5, 'five steps');
     const f = await frame();
@@ -164,13 +173,15 @@ try {
     await until(async () => (await word()) === 'converged', 'the word converged', 40000);
     const f = await frame();
     assert.ok(f.readouts.loss < 0.02 && f.readouts.loss >= 0, `loss ${f.readouts.loss}`);
-    assert.equal(f.readouts.steps, 20, 'twenty steps from (0.5, 1.6) at rate 0.1');
+    assert.equal(f.readouts.steps, 20, 'twenty steps from (0.3, 1.6) at rate 0.1');
     assert.ok(Math.abs(f.readouts.loss - bowl(0.1, 20)) < 1e-9);
     assert.equal(f.nodes.trail.points.length, 21);
     assert.equal(f.nodes.stepArrow.visible, false, 'a finished run shows no arrows');
     await page.waitForTimeout(500);
     const seen = await look();
-    assert.ok(seen.orange >= 200, `the finished run's path draws: ${seen.orange} orange pixels (about 500 expected; the ball alone is under 100 and no arrow is shown)`);
+    measured('converged', { orange: seen.orange, black: seen.black, red: seen.red, covered: +seen.covered.toFixed(3) });
+    assert.ok(seen.black < 30, `${seen.black} pure black pixels: the path is drawn unlit (a tube with no normals renders black)`);
+    assert.ok(seen.orange >= 100, `the finished run's path draws: ${seen.orange} orange pixels (about 250 expected at 725 x 240: 41 px long, 5.8 px thick; the ball is under 80 px2 and no arrow is shown)`);
     await shot('B-converged');
   });
   await step('New run keeps the old path as the ghost: 21 ghost points, a one-point path, and the picture differs from the same scene with the ghost cleared', async () => {
@@ -180,15 +191,24 @@ try {
     assert.equal(f.nodes.trail.points.length, 1);
     assert.equal(f.readouts.steps, 0);
     assert.equal(await word(), 'paused');
-    await page.waitForTimeout(500);
+    // The same camera for the frames: Reset view returns to the fitted camera, which a Reset does not change. A control frame of the same scene says what two identical shots differ by.
+    await card.locator('[data-animation-reset-view]').click();
+    await page.waitForTimeout(800);
     const withGhost = await sceneShot();
+    await page.waitForTimeout(400);
+    const control = await sceneShot();
     await card.locator('[data-animation-reset]').click(); // clears the ghost; the camera stays, the settings return to their defaults
     await until(async () => (await frame()).nodes.ghost.points.length === 0, 'the kept path cleared');
+    await more();
     await card.locator('[data-animation-parameter="batchSize"] select').selectOption('256');
-    await page.waitForTimeout(2600); // the same settings as before, so the arrows are the same; the camera refits only on a substantial change
+    await page.waitForTimeout(3500); // the same settings as before, so the arrows are the same
+    await card.locator('[data-animation-reset-view]').click();
+    await page.waitForTimeout(800);
     const without = await sceneShot();
-    const changed = await differ(withGhost, without);
-    assert.ok(changed >= 60, `the kept path draws: ${changed} pixels differ with and without it (about 250 expected)`);
+    const noise = await differ(withGhost, control), changed = await differ(withGhost, without);
+    measured('ghost', { control: noise, withVsWithout: changed });
+    assert.ok(noise <= 2, `two shots of the same scene differ by ${noise} pixels`);
+    assert.ok(changed >= noise + 25, `the kept path draws: ${changed} pixels differ with and without it, against ${noise} between two shots of one scene (about 100 expected: 41 px long, 2.9 px thick)`);
     await shot('B-ghost');
   });
   await step('learning rate 1.5: diverged, the Loss readout keeps the true value, and the clamped ball stays inside the frame', async () => {
@@ -200,10 +220,11 @@ try {
     assert.ok(f.nodes.ball.position[1] > 10, `the program's ball height is the true one (${f.nodes.ball.position[1]}); the renderer draws it clamped`);
     await page.waitForTimeout(800);
     const seen = await look();
-    assert.ok(seen.red >= 8, `the ball is drawn: ${seen.red} red pixels (about 40 expected at this zoom)`);
+    measured('diverged', { red: seen.red, black: seen.black, box: seen.box, covered: +seen.covered.toFixed(3) });
+    assert.ok(seen.red >= 20, `the ball is drawn: ${seen.red} red pixels (about 80 expected: 10 px across)`);
     const [x0, y0, x1, y1] = seen.box;
     assert.ok(x0 >= 2 && y0 >= 2 && x1 <= seen.width - 3 && y1 <= seen.height - 3, `the ball is inside the frame: ${JSON.stringify(seen.box)} of ${seen.width} x ${seen.height}`);
-    assert.ok(seen.covered >= 0.08, `the bowl keeps ${(seen.covered * 100).toFixed(1)}% of the view`);
+    assert.ok(seen.covered >= 0.08, `the bowl keeps ${(seen.covered * 100).toFixed(1)}% of the view (about 15% expected at 725 x 240)`);
     assert.equal(f.nodes.slopeArrow.visible, false);
     await shot('C-diverged');
   });
