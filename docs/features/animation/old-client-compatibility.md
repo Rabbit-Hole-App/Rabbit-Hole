@@ -137,5 +137,4 @@ refuses, so each is a client feature exactly as `curve_radius` and `action_motio
   `clientProblems` refuses any new draft that uses one (repairable) and `readResult` answers `409 client_update_required` for a stored scene that uses one. Nothing is
   lost (a read never changes the stored result) and the bundle still declares the features, so the release check passes. The 409 text says to reload, which would not
   help; that is the cost of a switch-off without a new message.
-- Pinned by `packages/control-plane/test/animation-client-features.test.js` and `packages/web/src/animation3d/contract.test.mjs`. Not verified in a browser; the
-  renderer does not draw `surface` or `trail` until AN-19.
+- Pinned by `packages/control-plane/test/animation-client-features.test.js` and `packages/web/src/animation3d/contract.test.mjs`. Not verified in a browser.
