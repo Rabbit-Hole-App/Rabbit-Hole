@@ -3,6 +3,7 @@
 // for pdf:upload:<id> - so a fork viewer, another account or a removed file gets the one 404 on every call; a known
 // highlight id or hash never stands in for that read. No model call here.
 //   GET    /api/learn/pdf-source?app=&key=&home=                         -> { key, sha256, name, bytes }
+//   (keys: doc:ctx:<id>, pdf:upload:<id>, web:<lineage> with manifest=, file:<fs id> a stored Markdown file card)
 //   GET    /api/learn/pdf-highlights?app=&key=&home=                     -> { sha256, highlights, changed }
 //   PUT    /api/learn/pdf-highlights/<pdfh id>                           { app, key, home, sha256, kind, page, rects, rotate, view, quote }
 //   DELETE /api/learn/pdf-highlights/<pdfh id>?app=&key=&home=
@@ -20,7 +21,8 @@ export const CHANGED = 'This document changed since you selected this.';
 export const CROP_LIMITS = Object.freeze({ bytes: 4 * 1024 * 1024, side: 4096 });
 export const HIGHLIGHT_LIMITS = Object.freeze({ rects: 64, quote: 8000, context: 500, label: 40 });
 // web:<lineage> is a webpage card's capture lineage (webpage-capture.js); its version is the manifest the card shows.
-const KEY = /^((doc:ctx|pdf:upload):[0-9a-f]{12}|web:wc_[0-9a-f]{24})$/;
+// file:<fs id> is a stored Markdown file card's source (its owner only; its version is the file source's sha256).
+const KEY = /^((doc:ctx|pdf:upload):[0-9a-f]{12}|web:wc_[0-9a-f]{24}|file:fs_[0-9a-f]{24})$/;
 const FS_ID = /^fs_[0-9a-f]{24}$/;
 const HIGHLIGHT_ID = /^pdfh_[0-9a-f]{24}$/, EXCERPT_ID = /^pdfx_[0-9a-f]{24}$/, SHA = /^[0-9a-f]{64}$/;
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
@@ -51,6 +53,11 @@ async function readSource(req, env, { app: appName, key, home, manifest }, deps)
         found = row ? await authorizeFileSource(req, env, manifest, { row }) : found;
       }
       if (found instanceof Response || found.source.family !== 'webpage' || found.source.declared_type !== 'webpage-manifest') return null;
+      return { app, name: found.source.name, sha: found.source.sha256 };
+    }
+    if (key.startsWith('file:')) {
+      const found = await authorizeFileSource(req, env, key.slice(5));
+      if (found instanceof Response || found.via !== 'owner' || found.source.family !== 'markdown') return null;
       return { app, name: found.source.name, sha: found.source.sha256 };
     }
     if (key.startsWith('doc:')) {

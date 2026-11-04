@@ -181,3 +181,25 @@ test('crops: stored as an image file source, idempotent, limits enforced; the fi
   assert.equal((await fileContext(req, f.env, [ref], { user: PEOPLE.owner, app: MINE, limits: { perRef: 4000, perTurn: 12000, imageBytes: 100 } })).coverage.get(`${ref.sourceId}|null`), 'omitted');
   assert.equal(pngSize(new Uint8Array(8)), null);
 });
+
+test('highlights under file:<fs id>: a stored Markdown file card, owner only, tied to the source sha256; the file is untouched', async t => {
+  const f = await setup(t);
+  const source = (id, family, owner = 'owner@test') => f.sqlite.prepare("INSERT INTO file_sources (id, org, owner_email, app, family, name, media_type, bytes, sha256, r2_key, status, created_at) VALUES (?, 'team', ?, ?, ?, ?, 'text/markdown', 10, ?, 'k', 'stored', 1)").run(id, owner, MINE, family, `${id}.md`, sha(id));
+  const MD = `fs_${'1'.repeat(24)}`, THEIR_MD = `fs_${'2'.repeat(24)}`, TABLE = `fs_${'3'.repeat(24)}`;
+  source(MD, 'markdown'); source(THEIR_MD, 'markdown', 'friend@test'); source(TABLE, 'table');
+  const key = `file:${MD}`, quote = { exact: 'The loss is the mean squared error.', prefix: 'Notes\n', suffix: 'Summary' };
+  const body = { ...textHighlight(key, sha(MD), { page: { index: 1, label: null }, rects: [[0, 0, 0, 0]], view: [0, 0, 0, 0], quote }), home: undefined };
+  assert.equal((await f.call('PUT', `/api/learn/pdf-highlights/${HID(7)}`, { body })).status, 200);
+  const listed = await f.call('GET', `/api/learn/pdf-highlights?${q({ app: MINE, key })}`);
+  assert.equal(listed.body.sha256, sha(MD));
+  assert.deepEqual(listed.body.highlights.map(h => h.quote), [quote], 'the quote (exact, prefix, suffix) is what is stored');
+  assert.equal((await f.call('PUT', `/api/learn/pdf-highlights/${HID(8)}`, { body: { ...body, sha256: sha('another revision') } })).status, 409, 'a changed file');
+  assert.equal((await f.call('GET', `/api/learn/pdf-highlights?${q({ app: MINE, key })}`, { as: 'friend' })).status, 404, 'another account');
+  assert.equal((await f.call('GET', `/api/learn/pdf-highlights?${q({ app: MINE, key: `file:${THEIR_MD}` })}`)).status, 404, 'someone else\'s file');
+  assert.equal((await f.call('GET', `/api/learn/pdf-highlights?${q({ app: MINE, key: `file:${TABLE}` })}`)).status, 404, 'only Markdown');
+  assert.equal((await f.call('GET', `/api/learn/pdf-highlights?${q({ app: MINE, key: `file:${'fs_zz'}` })}`)).status, 404, 'a malformed key');
+  assert.equal((await f.call('GET', `/api/learn/pdf-source?${q({ app: MINE, key })}`)).status, 404, 'no PDF bytes');
+  assert.equal((await f.call('DELETE', `/api/learn/pdf-highlights/${HID(7)}?${q({ app: MINE, key })}`)).status, 200);
+  assert.equal((await f.call('GET', `/api/learn/pdf-highlights?${q({ app: MINE, key })}`)).body.highlights.length, 0);
+  assert.equal(f.sqlite.prepare('SELECT sha256 FROM file_sources WHERE id = ?').get(MD).sha256, sha(MD), 'the file source is untouched');
+});

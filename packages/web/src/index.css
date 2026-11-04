@@ -860,6 +860,8 @@ tr.cursor-pointer:active > td {
 .textLayer ::selection { background: rgb(0 0 255 / 0.25); color: transparent; }
 /* The page image already shows the words - a highlight only tints them. */
 .textLayer ::highlight(wiki-highlight) { background-color: rgb(250 204 21 / 0.45); color: transparent; }
+/* A Markdown file card's saved highlights: the webpage card's highlight tint (bg-yellow-300/40) over the text, which stays readable. */
+[data-file-doc-text] ::highlight(wiki-highlight) { background-color: rgb(253 224 71 / 0.4); color: inherit; }
 @keyframes wiki-arrive {
   from { background: rgba(125, 195, 255, 0.3); }
   to { background: transparent; }

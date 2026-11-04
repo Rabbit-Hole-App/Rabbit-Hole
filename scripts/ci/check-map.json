@@ -263,6 +263,8 @@
     "packages/web/e2e/pointer-diagnostics.mjs": ["project-menu-check.mjs","workspace-check.mjs"],
     "packages/web/src/DocImport.jsx": ["file-import-check.mjs","file-doc-cards-check.mjs"],
     "packages/web/src/FileDocCard.jsx": ["file-doc-cards-check.mjs","file-shared-slides-check.mjs","file-converter-ui-check.mjs","markdown-fences-check.mjs"],
+    "packages/web/src/FileDocMarkdown.jsx": ["markdown-fences-check.mjs","file-doc-cards-check.mjs"],
+    "packages/web/src/file-doc-highlights.js": ["file-doc-cards-check.mjs"],
     "packages/web/src/file-text.js": ["file-import-check.mjs","file-doc-cards-check.mjs","markdown-fences-check.mjs"],
     "packages/web/src/MediaCard.jsx": ["file-import-check.mjs","canvas-file-drop-check.mjs","file-edge-check.mjs","file-converter-ui-check.mjs","image-first-load-check.mjs"],
     "packages/web/src/ModelCard.jsx": ["model-viewer-check.mjs","model-fixture-cards-check.mjs","file-shared-bundle-check.mjs","file-converter-ui-check.mjs"],

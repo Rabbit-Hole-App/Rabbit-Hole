@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ChevronLeft, ChevronRight, CloudUpload, Download, FileSpreadsheet, FileText, Loader2, MessageSquarePlus, Presentation, RotateCw, Sheet, Table2 } from 'lucide-react';
 import { useChatWorkspace } from './chat-workspace.jsx';
-import { Md } from './Md.jsx';
+import { MarkdownText } from './FileDocMarkdown.jsx';
 import { parse } from './file-parse.js';
 import { TEXT_ENCODINGS, decodeText, textChunks, textExcerpt } from './file-text.js';
 import { DELIMITERS, DELIMITER_NAMES, columnName, tableExcerpt } from './file-table.js';
@@ -224,14 +224,15 @@ function TextBody({ block, blob, onChange, setMeta, onUnits, onStatus }) {
   if (decoded.status === 'failed') return <div onPointerDown={stop}><Failed>{decoded.error}</Failed>{decoded.code === 'encoding' && <EncodingChoice value={block.encoding} onPick={encoding => onChange?.({ ...block, encoding })} />}</div>;
   const chunks = view.chunks.slice(0, shown), drawn = chunks.reduce((n, chunk) => n + chunk.length, 0);
   const more = shown < view.chunks.length;
+  const moreButton = more && <button type="button" data-file-doc-more className={cn(BUTTON, 'mt-2')} onClick={() => setShown(n => n + 1)}>Show more</button>;
   const images = block.kind === 'markdown' && /!\[[^\]]*\]\([^)]+\)/.test(decoded.text);
   return <>
-    <div data-scroll data-file-doc-text className="pointer-events-auto min-h-0 flex-1 overflow-auto px-3 py-2" onPointerDown={stop}>
-      {block.kind === 'markdown'
-        ? <div data-file-doc-md className="text-sm text-ink"><Md text={chunks.join('')} doc fences /></div>
-        : chunks.map((chunk, i) => <pre key={i} className="font-mono text-[12px] leading-5 break-words whitespace-pre-wrap text-ink">{chunk}</pre>)}
-      {more && <button type="button" data-file-doc-more className={cn(BUTTON, 'mt-2')} onClick={() => setShown(n => n + 1)}>Show more</button>}
-    </div>
+    {block.kind === 'markdown'
+      ? <MarkdownText block={block} text={chunks.join('')}>{moreButton}</MarkdownText>
+      : <div data-scroll data-file-doc-text className="pointer-events-auto min-h-0 flex-1 overflow-auto px-3 py-2" onPointerDown={stop}>
+        {chunks.map((chunk, i) => <pre key={i} className="font-mono text-[12px] leading-5 break-words whitespace-pre-wrap text-ink">{chunk}</pre>)}
+        {moreButton}
+      </div>}
     {(more || view.truncated) && <Note data-file-doc-bound>Showing {count(drawn)} of {count(view.total)} characters.{view.truncated && !more ? ' The rest is in the original file (Download).' : ''}</Note>}
     {images && <Note data-file-doc-images>Images this Markdown file links to are not shown: only the file itself was imported.</Note>}
   </>;

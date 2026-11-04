@@ -76,6 +76,24 @@ source is not available. Highlights are never shared with the canvas.
 Learn migration `0024-pdf-highlights.sql`: `pdf_source_hashes` and `pdf_highlights` (additive). Applied locally,
 to `rabbit-hole-learn-dev` (2026-10-19 16:58 PT) and to production (2026-10-20). Region crops reuse `file_sources` (0023).
 
+## Markdown cards (saved text highlights)
+
+On a dropped `.md` file card (`FileDocCard` -> `FileDocMarkdown.jsx`), selecting rendered text shows the same small toolbar
+(Highlight); clicking a highlight offers Remove highlight, as on a webpage card. Highlights are painted over the rendered
+text (Custom Highlight API, the webpage card's yellow tint) and saved apart from the file: the Markdown itself is never
+changed.
+
+- Storage: the same `pdf_highlights` rows and routes under key `file:<file source id>`, version = the file source's sha256
+  (`fileRef.source.rev`; 409 if the stored file differs). No schema change. Owner only: another account, a share or fork
+  viewer and a non-Markdown source get the one 404, so they see no Highlight.
+- Anchor: a text quote (`exact` plus 32 characters of `prefix` and `suffix`), located in the rendered text at paint time
+  (`learn-wiki-highlights.js locateQuote`), never a DOM position. The surrounding text picks the right occurrence of repeated
+  text; Show more, Full content, resize, scroll and reload do not move it. The route's required rects/view carry one empty
+  rectangle that nothing reads.
+- Limits: only a stored `fileRef` card (an older board-file card or one still uploading has no Highlight); two identical
+  sentences with identical 32 characters either side cannot be told apart (the first is taken); a quote whose text was
+  edited out of the file is not drawn.
+
 ## Known limitations
 
 - One page per selection. A selection that leaves the page is refused with a message.
