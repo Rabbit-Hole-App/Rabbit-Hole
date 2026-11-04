@@ -162,7 +162,7 @@ run('learning rate 1.5: the first step overshoots across the bowl, the second le
   const inputs = { learningRate: 1.5, batchSize: FULL };
   const start = press(call('initialize', { inputs }), 'run', inputs);
   const arrow = shown(start, inputs).nodes.stepArrow; // the next step, 1:1 in the bowl's units: (-1.35, -2.4)
-  near(arrow.scale[1], Math.hypot(1.5 * 3 * 0.3, 1.5 * 1.6), 'next step length: |(-1.35, -2.4)| = 2.7536');
+  near(arrow.scale[1], 2, 'next step |(-1.35, -2.4)| = 2.7536 drawn at 4.5 times is 12.4 long: held at the longest, 2');
   const { state, steps } = runUntilOver(inputs);
   assert.equal(steps, 2);
   const one = shown(press(call('initialize', { inputs }), 'step', inputs), inputs);
@@ -175,8 +175,12 @@ run('learning rate 1.5: the first step overshoots across the bowl, the second le
   near(end.readouts.loss, 20.3384375, 'true loss, by hand: (3 x 3.675^2 + 0.4^2) / 2');
   assert.ok(end.nodes.ball.position[1] > 10.5 && end.nodes.ball.position[1] < 11.2, 'the program draws the ball at its true height (about 10.8), the renderer clamps it');
   assert.equal(end.nodes.trail.points.length, 3);
+  const [rx, ry, rz] = end.nodes.trail.points.at(-1);
+  assert.equal(rx, 2, 'the path ends at the rim, where the renderer holds the ball (x 3.675 held to 2), not outside the bowl');
+  near(rz, 0.4, 'its z is the ball z');
+  assert.ok(Math.abs(ry - 4.06) < 1e-9, 'at the surface top plus the path lift');
   assert.ok(end.nodes.trail.points.every(p => p[1] <= 4.0601), 'the trail, which the renderer does not clamp, stays at the bowl top');
-  assert.equal(end.nodes.slopeArrow.visible, false);
+  assert.equal(end.nodes.fullArrow.visible, false);
 });
 
 run('batch noise: the same run and step give the same path, a smaller batch leaves the true path, all 256 examples add none', () => {
@@ -271,7 +275,8 @@ async function drawn(learningRate, aspect, play) {
   const visible = id => { let shown = false; scene.objects.get(id).traverse(o => { if ((o.isMesh || o.isLine) && o.visible) shown = true; }); return shown; };
   let lit = null; scene.objects.get('trail').traverse(o => { if (o.isMesh) lit = o.geometry.attributes.normal ?? false; }); // a lit tube needs vertex normals: without them it renders (0, 0, 0)
   const normalsUnit = n => lit && Array.from({ length: n * 8 }, (_, i) => Math.abs(Math.hypot(lit.getX(i), lit.getY(i), lit.getZ(i)) - 1) < 1e-6).every(Boolean);
-  const out = { frame, clamped: result.clamped, lit: normalsUnit(path.length), ballY: world.y, ballSeen: seen(world), ballInside: inside(screen(world)), pathSeen: path.filter(seen).length, pathPoints: path.length,
+  const plates = scene.layoutLabels({ width, height: HEIGHT, camera, ratio: 1 });
+  const out = { frame, plates, clamped: result.clamped, lit: normalsUnit(path.length), ballY: world.y, ballSeen: seen(world), ballInside: inside(screen(world)), pathSeen: path.filter(seen).length, pathPoints: path.length,
     bowlWidth: (Math.max(...bowl.map(p => p[0])) - Math.min(...bowl.map(p => p[0]))) / width, bowlShare: hullShare(bowl, width * HEIGHT), trail: visible('trail'), ghost: visible('ghost') };
   built.scene.dispose();
   return out;
@@ -311,5 +316,62 @@ run('rendered at learning rate 1.5: the ball is held at the surface top while th
     assert.ok(far.frame.readouts.loss > 20, 'the readout keeps the true value');
     assert.deepEqual([far.ballSeen, far.ballInside, far.pathSeen, far.trail], [true, true, 3, true], `at aspect ${aspect.toFixed(2)}`);
     assert.ok(far.bowlShare >= 0.12 && far.bowlWidth >= 0.2, `the bowl keeps ${(far.bowlShare * 100).toFixed(0)}% of the view, ${(far.bowlWidth * 100).toFixed(0)}% of its width, at aspect ${aspect.toFixed(2)}`);
+  }
+});
+
+// ---- the arrows (decision 34, C10 Gate 2 control: the review of this golden returned majors) -----------------------------------
+// Both arrows are STEPS at one disclosed scale: Next step is the step this batch gives, Full-batch step the step all 256 examples would give. Near the lowest point an
+// arrow is hidden rather than left as an unlabelled speck. At the default rate the largest typical step, drawn, is under a quarter of the surface width (the archetype rule).
+const SCALE = Number(artifact.program.source.match(/SCALE = ([\d.]+)/)[1]);
+const arrowsAt = (inputs, upTo) => { let state = call('initialize', { inputs }); state = press(state, 'run', inputs); const frames = [shown(state, inputs)]; for (let t = 1; frames.length <= upTo && t <= 6 * 80; t += 1) { const after = tick(state, t, inputs); if (after.step !== state.step) frames.push(shown(after, inputs)); state = after; } return frames; };
+
+test('structure: the arrows are steps, labelled as steps, in colours that are neither the path nor each other', () => {
+  const materialOf = id => artifact.scene.materials.find(m => m.id === node(id).material).color, rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+  const apart = (a, b) => Math.hypot(...rgb(a).map((v, i) => v - rgb(b)[i]));
+  const [step, full, trail, kept, ball] = ['stepArrow', 'fullArrow', 'trail', 'ghost', 'ball'].map(materialOf);
+  for (const [name, a, b] of [['Next step against the path', step, trail], ['Full-batch step against the path', full, trail], ['the two arrows', step, full], ['Next step against the kept path', step, kept], ['Next step against the ball', step, ball]]) assert.ok(apart(a, b) > 100, `${name} are too alike`);
+  const labels = ['stepTag', 'fullTag'].map(id => geometry(node(id).geometry).text);
+  assert.deepEqual(labels, ['Next step', 'Full-batch step']);
+  assert.ok(!/slope|downhill/i.test(labels.join(' ')), 'the second arrow is a step, so it is not called the slope');
+  assert.ok(artifact.assumptions.some(a => a.includes(`${SCALE} times`) && a.includes('one scale')), 'the scale is disclosed');
+  assert.ok(artifact.assumptions.some(a => /rim/.test(a)), 'a path point outside the bowl is said to be drawn at the rim');
+});
+
+run('one scale: both arrows are SCALE times their step; the longest is held, a speck is hidden', () => {
+  const full = arrowsAt({ learningRate: 0.1, batchSize: FULL }, 0)[0];
+  near(full.nodes.stepArrow.scale[1], SCALE * 0.1 * Math.hypot(3 * 0.3, 1.6), 'Next step with all examples is the full-batch step');
+  full.nodes.stepArrow.quaternion.forEach((v, i) => near(v, full.nodes.fullArrow.quaternion[i], 'with all 256 examples the two arrows point the same way'));
+  near(full.nodes.stepArrow.scale[1], full.nodes.fullArrow.scale[1], 'and are the same length');
+  const noisy = arrowsAt({ learningRate: 0.1, batchSize: '16' }, 0)[0];
+  assert.notDeepEqual(noisy.nodes.stepArrow.quaternion, noisy.nodes.fullArrow.quaternion, 'with a batch of 16 the noisy step points a little differently');
+  near(noisy.nodes.fullArrow.scale[1], SCALE * 0.1 * Math.hypot(3 * 0.3, 1.6), 'the full-batch step is the same whatever the batch');
+  const late = arrowsAt({ learningRate: 0.1, batchSize: FULL }, 15);
+  assert.equal(late[15].readouts.status, 'running');
+  assert.equal(late[15].nodes.stepArrow.visible, false, 'a step of 0.033 drawn at 4.5 is 0.15 long: hidden, not an unlabelled speck');
+  const big = arrowsAt({ learningRate: 1.5, batchSize: FULL }, 0)[0];
+  near(big.nodes.stepArrow.scale[1], 2, 'a step far above the default is held at the longest arrow');
+});
+
+run('the default rate: the first arrows are 0.75 units or more, and the largest typical step drawn is under a quarter of the surface width', () => {
+  const width = geometries.find(g => g.kind === 'surface').width, inputs = { learningRate: 0.1, batchSize: '16' };
+  const start = arrowsAt(inputs, 0)[0];
+  assert.ok(start.nodes.stepArrow.scale[1] >= 0.75 && start.nodes.fullArrow.scale[1] >= 0.75, `${start.nodes.stepArrow.scale[1]} and ${start.nodes.fullArrow.scale[1]}`);
+  // The largest arrow of each of 12 runs (a New run changes the noise), by the median: a typical largest step, not the worst of many.
+  let state = call('initialize', { inputs }); const largest = [];
+  for (let run = 0; run < 12; run += 1) {
+    state = press(state, 'run', inputs); let top = 0;
+    for (let t = 1; t <= 6 * 70; t += 1) { const f = shown(state, inputs); top = Math.max(top, f.nodes.stepArrow.scale?.[1] ?? 0, f.nodes.fullArrow.scale?.[1] ?? 0); if (['converged', 'diverged'].includes(f.readouts.status)) break; state = tick(state, t, inputs); }
+    largest.push(top); state = press(state, 'newRun', inputs);
+  }
+  const median = largest.slice().sort((a, b) => a - b).filter((_, i, all) => i === Math.floor(all.length / 2) - 1 || i === Math.floor(all.length / 2)).reduce((a, b) => a + b) / 2;
+  assert.ok(median < width / 4, `the median largest arrow is ${median.toFixed(3)}, a quarter of the surface width is ${width / 4}`);
+});
+
+run('rendered: at the default rate both arrow labels show at the start, at every card size, so a reader can tell the noisy step from the full-batch step', async () => {
+  for (const aspect of ASPECTS) for (const batch of ['16', FULL]) {
+    const inputs = { learningRate: 0.1, batchSize: batch };
+    const got = await drawn(0.1, aspect, () => {});
+    for (const id of ['stepTag', 'fullTag']) assert.ok(got.plates.some(plate => plate.id === id && plate.shown), `${id} is not shown at aspect ${aspect.toFixed(2)} (the renderer hides an arrow's label under 24 px)`);
+    assert.ok(inputs.batchSize === batch);
   }
 });
