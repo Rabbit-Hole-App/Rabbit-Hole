@@ -111,15 +111,21 @@ test('boundary: the size check still refuses, one byte past the largest candidat
   assert.match(out.problems[0], /too large for the independent review request/);
 });
 
-test('the shared estimate holds on this plan: a draft near it fits, and it is an estimate, not a promise', async () => {
-  const draft = fixture.repairedDraft, size = JSON.stringify(draft).length;
+// AN-20 (FX-AN-052): the representative is now the golden SGD draft with the pinned 4.3 KB Gate 1 plan (the aj_9c453b6 marker-node draft fits only 14,906 B, below the estimate:
+// the estimate is the told hint, fitProblems the authority, and the feasibility check applies both).
+test('the shared estimate holds on the representative plan: a draft near it fits, and it is an estimate, not a promise', async () => {
+  const golden = JSON.parse(readFileSync(new URL('../../web/src/animation3d/testdata/sgd-golden.json', import.meta.url), 'utf8'));
+  const plan = JSON.parse(readFileSync(new URL('./fixtures/animation-sgd-loss-surface-plan.json', import.meta.url), 'utf8'));
+  const draft = draftOf(golden.artifact), size = JSON.stringify(draft).length;
   const near = { ...draft, program: { source: `${draft.program.source}\n//${'x'.repeat(ANIMATION_DRAFT_BYTES - size - 200)}` } };
   assert.ok(JSON.stringify(near).length <= ANIMATION_DRAFT_BYTES);
   const a = await sealedOf(near);
-  assert.deepEqual(fitProblems(env, a, jobOf(near), undefined, near), []);
-  const longPlan = { ...fixture.plan, limitations: [...fixture.plan.limitations, 'y'.repeat(8000)] };
-  const job = { ...jobOf(near), plan: longPlan };
-  assert.ok(fitProblems(env, a, job, undefined, near).length > 0, 'a longer plan leaves less room: passing the estimate guarantees nothing');
+  assert.deepEqual(fitProblems(env, a, { ...jobOf(near), plan }, undefined, near), []);
+  const longPlan = { ...plan, limitations: [...plan.limitations, 'y'.repeat(8000)] };
+  assert.ok(fitProblems(env, a, { ...jobOf(near), plan: longPlan }, undefined, near).length > 0, 'a longer plan leaves less room: passing the estimate guarantees nothing');
+  // The older marker-node draft of aj_9c453b6 does not reach the estimate on its own plan: the per-plan check, not this number, decides for it.
+  const old = fixture.repairedDraft, oldNear = { ...old, program: { source: `${old.program.source}\n//${'x'.repeat(ANIMATION_DRAFT_BYTES - JSON.stringify(old).length - 200)}` } };
+  assert.ok(fitProblems(env, await sealedOf(oldNear), jobOf(oldNear), undefined, oldNear).length > 0);
 });
 
 test('the empty-label failure stays a validation problem: nothing invents the words, and the approved plan is unchanged', async () => {
@@ -247,7 +253,7 @@ test('AN-20 measurement: the system prompts are shorter than at caf7ee9bc and th
   const largest = bytes(JSON.stringify(padded(low)));
   t.diagnostic(`system B before -> after: author ${BEFORE.author} -> ${after.author}; repair ${BEFORE.repair} -> ${after.repair}; review ${BEFORE.review} -> ${after.review}; largest reviewable draft ${BEFORE.reviewableDraft} -> ${largest}; ANIMATION_DRAFT_BYTES ${ANIMATION_DRAFT_BYTES}`);
   assert.ok(largest >= BEFORE.reviewableDraft, `the largest reviewable draft ${largest} B must not fall below ${BEFORE.reviewableDraft} B`);
-  assert.ok(ANIMATION_DRAFT_BYTES <= largest, 'the shared estimate stays at or under what the real requests fit on this plan');
+  // The shared estimate is held against the golden, not this marker-node fixture (FX-AN-052): see the golden measurement below.
 });
 
 // AN-20 (FX-AN-052): the golden SGD artifact is the representative draft of the loss_surface shape (native surface and trail, no marker nodes), with the longest plan that shape
