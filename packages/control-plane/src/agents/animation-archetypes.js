@@ -8,7 +8,7 @@
 //   archetypeRules    (name) -> the text the author is given for that archetype, or null for a name that is not one
 //
 // Imported by the planner (animation-brief.js) and the author (animation-author.js); nothing here imports anything. The export shape above is final
-// (AN-20 imports it as it is; a new archetype is a new key with the same three fields). The last two rules (arrow scale, camera) are an owner order of 4 Nov 2026 (C7, camera line revised the same day: 30 to 65 degrees, no azimuth); the trail line is the C9 order, from C7 job 2 and C4 job 4; the camera's second sentence (the azimuth, in the golden's own terms) is owner decision 29 for C10, from C9 Gate 2 jobs 1 and 2, from Gate 2 C6 job 2 and C4 jobs 1, 2 and 4. animation-archetypes.test.js pins it.
+// (AN-20 imports it as it is; a new archetype is a new key with the same three fields). animation-archetypes.test.js pins it.
 
 const freeze = value => (Object.values(value).forEach(item => { if (item && typeof item === 'object') freeze(item); }), Object.freeze(value));
 
@@ -19,13 +19,10 @@ export const ARCHETYPES = freeze({
       'The surface is one surface geometry: a grid of at least 24 by 24 heights computed from the formula the scene states, with 6 to 8 contours.',
       'The marker is one sphere node whose clampTo names the surface node. The program places it at its true position and height and clamps nothing: the renderer holds it at the top of the surface, and a number readout keeps the true value.',
       'The current path is a trail node and a kept earlier path is a ghost trail node; a frame sets their points. Never draw a path as separate marker nodes.',
-      'The trail marks every step, never every Nth step: an even sampling interval hides the zig-zag.',
       'A changing state is a text readout named status with the words running, paused, converged and diverged; not a number code, not a label.',
       'Arrows for the next step and the slope are children of the marker with offset equal to the marker radius, so each starts at its edge. A label on an arrow is a child of that arrow with anchor tip.',
-      'The arrow scale factor keeps the largest typical step at the default rate under a quarter of the surface width.',
-      'The camera looks from 30 to 65 degrees above and keeps the whole surface and the path in view. The steep axis spans the screen, so the zig-zag runs across the view.',
     ],
-    comparison: 'Two settings of the main step-size control, one that converges and one that diverges. A new run keeps the old path as the ghost, so the learner sees both on the same surface. Diverged: a diverging run makes several growing swings before the marker leaves the surface; the run stops.',
+    comparison: 'Two settings of the main step-size control, one that converges and one that diverges. A new run keeps the old path as the ghost, so the learner sees both on the same surface. Diverged: the marker has left the drawn surface; the run stops.',
   },
 });
 

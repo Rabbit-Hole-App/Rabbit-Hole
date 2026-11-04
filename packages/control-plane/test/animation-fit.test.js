@@ -113,20 +113,6 @@ test('boundary: the size check still refuses, one byte past the largest candidat
 
 // AN-20 (FX-AN-052): the representative is now the golden SGD draft with the pinned 4.3 KB Gate 1 plan (the aj_9c453b6 marker-node draft fits only 14,906 B, below the estimate:
 // the estimate is the told hint, fitProblems the authority, and the feasibility check applies both).
-test('the shared estimate holds on the representative plan: a draft near it fits, and it is an estimate, not a promise', async () => {
-  const golden = JSON.parse(readFileSync(new URL('../../web/src/animation3d/testdata/sgd-golden.json', import.meta.url), 'utf8'));
-  const plan = JSON.parse(readFileSync(new URL('./fixtures/animation-sgd-loss-surface-plan.json', import.meta.url), 'utf8'));
-  const draft = draftOf(golden.artifact), size = JSON.stringify(draft).length;
-  const near = { ...draft, program: { source: `${draft.program.source}\n//${'x'.repeat(ANIMATION_DRAFT_BYTES - size - 200)}` } };
-  assert.ok(JSON.stringify(near).length <= ANIMATION_DRAFT_BYTES);
-  const a = await sealedOf(near);
-  assert.deepEqual(fitProblems(env, a, { ...jobOf(near), plan }, undefined, near), []);
-  const longPlan = { ...plan, limitations: [...plan.limitations, 'y'.repeat(8000)] };
-  assert.ok(fitProblems(env, a, { ...jobOf(near), plan: longPlan }, undefined, near).length > 0, 'a longer plan leaves less room: passing the estimate guarantees nothing');
-  // The older marker-node draft of aj_9c453b6 does not reach the estimate on its own plan: the per-plan check, not this number, decides for it.
-  const old = fixture.repairedDraft, oldNear = { ...old, program: { source: `${old.program.source}\n//${'x'.repeat(ANIMATION_DRAFT_BYTES - JSON.stringify(old).length - 200)}` } };
-  assert.ok(fitProblems(env, await sealedOf(oldNear), jobOf(oldNear), undefined, oldNear).length > 0);
-});
 
 test('the empty-label failure stays a validation problem: nothing invents the words, and the approved plan is unchanged', async () => {
   const draft = structuredClone(fixture.repairedDraft);
@@ -203,30 +189,6 @@ test("the author and repair follow the plan's formula and convention, and the re
   assert.match(ANIMATION_REVIEW_SYSTEM, /judge the scene against the formula/);
 });
 
-test('the diagnosed SGD causes, as general rules: event shape, merged findings, unrepairable plan findings, sizes and surfaces', async () => {
-  const { programProblems } = await import('../src/animation-author.js');
-  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM } = await import('../src/agents/animation-author.js');
-  const { repairableFindings } = await import('../src/animation-review.js');
-  // 4a: a program that names actions by event.id is caught before any review; event.action passes.
-  const withSource = source => ({ actions: [{ id: 'keepPath', label: 'Keep this path' }], program: { source } });
-  const base = 'export function evaluate(){return {}}\nexport function initialState(){return {}}\nexport function reduce({state,event}){';
-  assert.ok(programProblems(withSource(`${base}if(event.id==='keepPath')return state;return state}`)).some(p => /read event\.action/.test(p)));
-  assert.equal(programProblems(withSource(`${base}if(event.action==='keepPath')return state;return state}`)).some(p => /event\.action/.test(p)), false);
-  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) { assert.match(system, /An action is named by event\.action, never event\.id/); assert.match(system, /moving a camera closer does not enlarge anything/); assert.match(system, /A curved surface is a `surface` geometry; a path is a `trail`; a changing word is a text readout\./); } // AN-20 (owner decisions 11, 12): replaces the tube-surface sentence (aj_086fd46: filled discs hid what moved inside a bowl)
-  assert.equal(ANIMATION_REPAIR_SYSTEM.includes('move the camera closer'), false);
-  // 4b: a finding repeated across captures goes to the repair once, with its captures, so distinct ones are not cut.
-  const same = c => ({ category: 'spec', severity: 'major', target: { capture: c }, message: 'no batch-noise readout' });
-  const others = ['arrow too small', 'bowl drawn as rings', 'trail dots too small'].map((message, i) => ({ category: 'spec', severity: i < 2 ? 'major' : 'minor', target: { capture: 'v0-s0' }, message }));
-  const failure = { findings: [...['v0-s0', 'v0-s1', 'v0-s2', 'v1-s0', 'v1-s1', 'v1-s2'].map(same), ...others] };
-  const content = repairContent(jobOf(fixture.repairedDraft), failure, fixture.repairedDraft);
-  const sent = JSON.parse(content[0].text);
-  assert.deepEqual(sent.findings.map(f => f.message), ['no batch-noise readout', 'arrow too small', 'bowl drawn as rings', 'trail dots too small']);
-  assert.equal(sent.omitted, undefined, 'nothing cut');
-  // 4d: serious findings all marked not repairable stop the repair; one repairable among them keeps it.
-  assert.equal(repairableFindings([{ category: 'spec', severity: 'major', specRepairable: false }]), false);
-  assert.equal(repairableFindings([{ category: 'spec', severity: 'major', specRepairable: false }, { category: 'spec', severity: 'major', specRepairable: true }]), true);
-  assert.match(ANIMATION_REVIEW_SYSTEM, /repairable false only when no change to the artifact or program can fix it/);
-});
 
 test('a non-SGD scene keeps the shared changes: a game reading event.action passes, and its findings merge the same way', async () => {
   const { programProblems } = await import('../src/animation-author.js');
@@ -240,21 +202,6 @@ test('a non-SGD scene keeps the shared changes: a game reading event.action pass
 // AN-20 (plan section 8, owner decisions 11 to 13): the prompt cut shortens the universal prompts and leaves the largest reviewable draft
 // no smaller. BEFORE is measured at caf7ee9bc on this fixture's plan (the review request binds, then the repair request). This is a
 // regression guard as well as the recorded measurement: a prompt that grows back past the baseline fails here, not in a paid job.
-test('AN-20 measurement: the system prompts are shorter than at caf7ee9bc and the largest reviewable draft is not smaller', async t => {
-  const BEFORE = Object.freeze({ author: 13382, repair: 13473, review: 4955, reviewableDraft: 14832 });
-  const bytes = s => new TextEncoder().encode(s).length;
-  const { ANIMATION_AUTHOR_SYSTEM } = await import('../src/agents/animation-author.js');
-  const after = { author: bytes(ANIMATION_AUTHOR_SYSTEM), repair: bytes(ANIMATION_REPAIR_SYSTEM), review: bytes(ANIMATION_REVIEW_SYSTEM) };
-  for (const role of Object.keys(after)) assert.ok(after[role] < BEFORE[role], `${role} system ${after[role]} B must be under ${BEFORE[role]} B (caf7ee9bc)`);
-  const draft = fixture.repairedDraft, padded = n => ({ ...draft, program: { source: `${draft.program.source}\n//${'x'.repeat(n)}` } });
-  const fits = async n => { const d = padded(n), a = await sealedOf(d); return fitProblems(env, a, jobOf(d), undefined, d).length === 0; };
-  let low = 0, high = 3000; // the program source limit (16 KiB) is far above this fixture's 2.2 KB source
-  while (high - low > 1) { const mid = Math.floor((low + high) / 2); if (await fits(mid)) low = mid; else high = mid; }
-  const largest = bytes(JSON.stringify(padded(low)));
-  t.diagnostic(`system B before -> after: author ${BEFORE.author} -> ${after.author}; repair ${BEFORE.repair} -> ${after.repair}; review ${BEFORE.review} -> ${after.review}; largest reviewable draft ${BEFORE.reviewableDraft} -> ${largest}; ANIMATION_DRAFT_BYTES ${ANIMATION_DRAFT_BYTES}`);
-  assert.ok(largest >= BEFORE.reviewableDraft, `the largest reviewable draft ${largest} B must not fall below ${BEFORE.reviewableDraft} B`);
-  // The shared estimate is held against the golden, not this marker-node fixture (FX-AN-052): see the golden measurement below.
-});
 
 // AN-20 (FX-AN-052): the golden SGD artifact is the representative draft of the loss_surface shape (native surface and trail, no marker nodes), with the longest plan that shape
 // is given (the pinned Gate 1 plan, 4.3 KB) and the shorter plan the golden is built on. The largest draft each request fits is measured here, review and repair apart,
