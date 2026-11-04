@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CONTROL, PHRASINGS, TYPICAL, classify, decide, latestPerJob, main, parse, parseTypical, resultTable, runQualify, sgdMarkers, verdictOf } from './sgd-qualify.mjs';
+import { CONTROL, PHRASINGS, TYPICAL, classify, decide, latestPerJob, machineResult, main, parse, parseTypical, resultTable, runQualify, sgdMarkers, verdictOf } from './sgd-qualify.mjs';
 import { DRY_RUN, SCENARIOS, createFake } from './sgd-qualify-fake.mjs';
 
 const REPO = fileURLToPath(new URL('../..', import.meta.url));
@@ -232,7 +232,8 @@ test('command line: usage errors refuse before anything; the dry run passes agai
     ['--dry-run', '--typical', 'author=0'], ['--dry-run', '--typical', 'nonsense=3'], ['--dry-run', '--bogus'], ['--cap', '100', '--prior', '0', '--base', 'https://x.test/path']]) {
     assert.throws(() => parse(argv, {}), undefined, JSON.stringify(argv));
   }
-  assert.equal(parse(['--cap', '100', '--base', 'https://x.test'], { PRIOR_CREDITS: '5' }).prior, 5, 'PRIOR_CREDITS stands in for --prior');
+  assert.equal(parse(['--cap', '100', '--base', 'https://x.test', '--sessions-file', 'f.json'], { PRIOR_CREDITS: '5' }).prior, 5, 'PRIOR_CREDITS stands in for --prior');
+  assert.throws(() => parse(['--cap', '100', '--prior', '0', '--base', 'https://x.test'], {}), /--sessions-file is required: the file printed by `dev-test-session\.mjs --mint --fresh/);
   assert.deepEqual(parseTypical('author=40,repair=30'), { author: 40, review: 15, repair: 30 });
   const lines = [], realFetch = globalThis.fetch;
   globalThis.fetch = () => { throw new Error('the dry run touched the network'); };
@@ -245,10 +246,12 @@ test('command line: usage errors refuse before anything; the dry run passes agai
 });
 
 // A fetch that serves the fake preview: the cookie decides the user, so the real makeCall, sessions file and headers are exercised.
-function world({ mismatch = false, extraFlags = [], env = { PREVIEW_VERSION: VERSION, PREVIEW_SHA: SHA }, files = {} } = {}) {
+// A sessions file as `dev-test-session.mjs --mint --fresh` writes it; the cookie value n is the fake preview's user n.
+const sessionsFileOf = (file, emails) => writeFileSync(file, JSON.stringify({ cookie: 'small_session', sessions: emails.map((email, i) => ({ email, value: `cookie-${i + 1}` })) }));
+function world({ mismatch = false, extraFlags = [], env = { PREVIEW_VERSION: VERSION, PREVIEW_SHA: SHA }, files = {}, emails = Array.from({ length: 5 }, (_, i) => `gate2-${i + 1}@example.com`) } = {}) {
   const fake = createFake({ scenarioFor: DRY_RUN }), dir = tmp(), seen = [];
   const sessionsFile = join(dir, 'sessions.json');
-  writeFileSync(sessionsFile, JSON.stringify({ cookie: 'small_session', sessions: Array.from({ length: 5 }, (_, i) => ({ email: `gate2-${i + 1}@example.com`, value: `cookie-${i + 1}` })) }));
+  sessionsFileOf(sessionsFile, emails);
   for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
   const fetchImpl = async (url, init = {}) => {
     const u = new URL(url), value = /small_session=([^;]+)/.exec(init.headers.cookie)[1], email = `gate2-${value.split('-')[1]}@example.com`;
@@ -306,11 +309,68 @@ test('main end to end over a fake fetch: sessions file, cookies per user, origin
   assert.ok(readdirSync(join(w.dir, 'out')).some(f => /^result-aaaaaaa-\d+\.json$/.test(f)), 'a stamped copy stays');
   const state = JSON.parse(readFileSync(join(w.dir, 'out', `state-aaaaaaa-0fd062bf.json`), 'utf8'));
   assert.equal(state.rows.length, 10);
-  // a second invocation for the same candidate runs nothing: one job per phrasing, no retry
+  // the test users are marked as having run, when the run started
+  const used = JSON.parse(readFileSync(join(w.dir, 'out', 'used-prefixes.json'), 'utf8')).prefixes.gate2;
+  assert.deepEqual([used.sha, used.version, typeof used.ranAt], [SHA, VERSION, 'string']);
+  // the same users again are refused (the escrow's free-failure cap is per learner per day), before anything is spent
   const before = w.fake.jobs.size;
-  assert.equal(await noNetwork(() => w.run()), 0);
+  assert.equal(await noNetwork(() => w.run()), 2);
+  assert.match(w.lines.join('\n'), /REFUSED: the test users gate2-1\.\.N already ran Gate 2 at .*; mint fresh ones \(node scripts\/animation\/dev-test-session\.mjs --mint --fresh --count 5\)/);
+  assert.equal(w.fake.jobs.size, before);
+  // a fresh set for the same candidate runs nothing more: one job per phrasing, no retry
+  const fresh = join(w.dir, 'fresh-sessions.json');
+  sessionsFileOf(fresh, Array.from({ length: 5 }, (_, i) => `g2-202611031801-${i + 1}@example.com`));
+  assert.equal(await noNetwork(() => w.run(w.argv.map((a, i) => (w.argv[i - 1] === '--sessions-file' ? fresh : a)))), 0);
   assert.equal(w.fake.jobs.size, before, 'no job was created the second time');
   assert.match(w.lines.join('\n'), /resuming: 10 earlier row/);
+});
+
+test('fresh users: --check never marks a prefix, sessions of mixed prefixes and an unreadable record refuse, a prefix is marked only when a run starts', async () => {
+  const w = world();
+  assert.equal(await noNetwork(() => w.run([...w.argv, '--check'])), 0);
+  assert.equal(existsSync(join(w.dir, 'out')), false, 'a check marks and writes nothing');
+  const mixed = world({ emails: ['a-1@example.com', 'a-2@example.com', 'b-3@example.com', 'a-4@example.com', 'a-5@example.com'] });
+  assert.equal(await noNetwork(() => mixed.run()), 2);
+  assert.match(mixed.lines.join('\n'), /USAGE: the sessions must share one prefix/);
+  const broken = world();
+  mkdirSync(join(broken.dir, 'out'), { recursive: true });
+  writeFileSync(join(broken.dir, 'out', 'used-prefixes.json'), '{ not json');
+  assert.equal(await noNetwork(() => broken.run()), 2);
+  assert.match(broken.lines.join('\n'), /used-prefixes\.json cannot be read .* a used prefix could be reused/);
+  assert.equal(broken.fake.jobs.size, 0);
+});
+
+test('HTTP 429 on Generate or on create is "not run: test user exhausted", never a lost job: no further job starts, the verdict is not FAIL, and the machine result says so', async () => {
+  const exhaust = (...ns) => p => (ns.some(n => p === PHRASINGS[n - 1]) ? 'exhausted' : DRY_RUN(p));
+  const s = setup({ scenarioFor: exhaust(3) }), result = await s.run();
+  const row3 = result.rows.find(r => r.n === 3);
+  assert.equal(row3.outcome, 'exhausted');
+  assert.match(row3.note, /^not run: test user exhausted \(approve HTTP 429: You have used today's limit of free retries\.\)$/);
+  assert.deepEqual(result.rows.map(r => r.n), [1, 2, 3]);
+  assert.equal(s.fake.jobs.size, 3, 'nothing started after it');
+  assert.ok(s.fake.cancelled.includes(row3.jobId), 'its plan job is cancelled, not left waiting');
+  assert.match(result.noMore, /test user gate2-3@example\.com is exhausted .*--mint --fresh --count 5.*--sessions-file/);
+  assert.deepEqual([result.verdict.verdict, result.verdict.lost], ['INCOMPLETE', 0]);
+  assert.ok(result.notRun.includes(3));
+  assert.match(s.logs.join('\n'), /test user gate2-3@example\.com is exhausted/);
+  const machine = machineResult({ candidateSha: SHA, version: VERSION, identities: {}, result, cap: 5000, prior: 0, at: new Date(0) });
+  assert.deepEqual([machine.verdict, machine.notRun.includes(3), machine.rows.find(r => r.n === 3).outcome], ['INCOMPLETE', true, 'exhausted']);
+  // two exhausted users while others are running: those finish normally, no new job starts, neither exhausted job is lost
+  const par = setup({ scenarioFor: exhaust(2, 3), concurrency: 5 }), r2 = await par.run();
+  assert.deepEqual(r2.rows.filter(r => r.outcome === 'exhausted').map(r => r.n).sort(), [2, 3]);
+  assert.deepEqual(r2.rows.filter(r => r.outcome === 'accepted').map(r => r.n).sort(), [1, 4, 5]);
+  assert.equal(par.fake.jobs.size, 5);
+  assert.deepEqual([r2.verdict.verdict, r2.verdict.lost], ['INCOMPLETE', 0]);
+  // a 429 when the job is created
+  const c = setup({ scenarioFor: p => (p === PHRASINGS[0] ? 'create-exhausted' : DRY_RUN(p)) }), r3 = await c.run();
+  assert.equal(r3.rows.length, 1);
+  assert.equal(r3.rows[0].outcome, 'exhausted');
+  assert.match(r3.rows[0].note, /^not run: test user exhausted \(create HTTP 429: /);
+  assert.equal(c.fake.jobs.size, 0);
+  // a rerun with fresh users runs the exhausted phrasings again and counts what was already spent
+  const rerun = setup({ rows: result.rows }), r4 = await rerun.run();
+  assert.equal(creates(rerun.fake).length, 8, 'jobs 1 and 2 were final; 3 to 10 run');
+  assert.equal(r4.verdict.verdict, 'PASS', r4.verdict.why);
 });
 
 test('main refuses before any spend: a Gate 1 mismatch prints GATE 1 MUST RERUN ON THE REAL CANDIDATE (exit 4); missing pins, a stale stop file or a repository output path are usage errors', async () => {

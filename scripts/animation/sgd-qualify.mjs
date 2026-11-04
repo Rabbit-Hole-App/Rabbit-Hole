@@ -20,7 +20,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { spawnSync } from 'node:child_process';
-import { CREDENTIALS, PACING, SESSIONS_FILE, insideRepo, makeCall, readKey, readSessions, readUsage, usable } from './dev-test-session.mjs';
+import { CREDENTIALS, PACING, RUN_OUT, insideRepo, makeCall, markUsed, prefixOf, readKey, readSessions, readUsage, readUsed, usable } from './dev-test-session.mjs';
 import { MUST_RERUN, inputProblem, realDeps, runGate } from './sgd-qualify-gate.mjs';
 import { DRY_RUN, createFake } from './sgd-qualify-fake.mjs';
 
@@ -38,7 +38,7 @@ export const PHRASINGS = Object.freeze([
   'the 2 sigma problem of optimizers',
 ]);
 export const CONTROL = 10;
-export const DEFAULT_OUT = 'C:/s/spec/animation/sgd-mvp1-acceptance/release-2';
+export const DEFAULT_OUT = RUN_OUT;
 const ROOT = '/api/learn/animation/jobs';
 const EMPTY_BOARD = { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [] };
 
@@ -86,8 +86,9 @@ export function classify(job) {
   if (job.stopReason === 'needs_clarification') return { outcome: 'clarify', note: why };
   return { outcome: REJECTING.has(job.stopReason) ? 'rejected' : 'failed', note: `${job.stopReason}: ${why}` };
 }
-// stopped = the operator, the cap or the preview stopped it: not a result, and a rerun of this candidate runs the phrasing again.
-export const isFinal = row => row.outcome !== 'stopped';
+// stopped = the operator, the cap or the preview stopped it; exhausted = the test user could not start it (HTTP 429: the escrow's free-failure cap or its
+// allowance). Neither is a result, neither is a lost job, and a rerun of this candidate (with fresh users) runs the phrasing again.
+export const isFinal = row => !['stopped', 'exhausted'].includes(row.outcome);
 export const latestPerJob = rows => [...new Map(rows.map(r => [r.n, r])).values()].sort((a, b) => a.n - b.n);
 // -> { verdict: 'PASS' | 'FAIL' | 'INCOMPLETE', why, accepted, lost }. Pass: 8 of the first 9 accepted AND the tenth did not silently become SGD.
 export function verdictOf(rows) {
@@ -190,6 +191,7 @@ export async function runQualify(cfg, deps) {
       L.boardId = board.data?.board_id; if (!L.boardId) throw new Error(`board save HTTP ${board.status}`);
       const made = await L.call('POST', ROOT, { boardId: L.boardId, requestId: `an-${crypto.randomUUID().replaceAll('-', '').slice(0, 20)}`, cardId: crypto.randomUUID(), prompt: row.phrasing, source: 'explicit', features: cfg.features });
       L.jobId = made.data?.job?.id; row.jobId = L.jobId;
+      if (made.status === 429) throw new Stopped('exhausted', `not run: test user exhausted (create HTTP 429: ${String(made.data?.error ?? '').slice(0, 120)})`);
       if (!L.jobId) throw new Error(`create HTTP ${made.status} ${made.data?.error ?? ''}`);
       say(n, `created ${L.jobId} on ${L.app} as ${session.email}: ${row.phrasing}`);
       let job = await poll(L, j => j.terminal || j.stage === 'awaiting_approval', cfg.planTimeoutMs);
@@ -220,6 +222,7 @@ export async function runQualify(cfg, deps) {
           if (g.stopAll) { halt('cap', g.stopAll); throw new Stopped('stopped', `cap: ${g.stopAll}`); }
           say(n, `approving; ${g.line}`);
           const approved = await L.call('POST', `${ROOT}/${L.jobId}/approve`, { boardId: L.boardId, proposal });
+          if (approved.status === 429) throw new Stopped('exhausted', `not run: test user exhausted (approve HTTP 429: ${String(approved.data?.error ?? '').slice(0, 120)})`);
           if (![200, 202].includes(approved.status)) throw new Error(`approve HTTP ${approved.status} ${approved.data?.error ?? ''}`);
           job = await poll(L, j => j.terminal, cfg.jobTimeoutMs);
         }
@@ -232,7 +235,13 @@ export async function runQualify(cfg, deps) {
       }
     } catch (error) {
       if (!(error instanceof Stopped)) { row.outcome = 'failed'; row.note = `script error: ${error.message}`.slice(0, 200); await settleAfterCancel(L); }
-      else if (row.outcome !== 'plan-sgd') { Object.assign(row, { outcome: error.outcome, note: error.note }); await settleAfterCancel(L); }
+      else if (row.outcome !== 'plan-sgd') {
+        Object.assign(row, { outcome: error.outcome, note: error.note }); await settleAfterCancel(L);
+        if (error.outcome === 'exhausted') { // stop starting jobs; the ones already running finish. Never a lost job: fresh users start over.
+          ctx.noMore ??= `test user ${session.email} is exhausted (${error.note}); no new job is started. Mint fresh users (node scripts/animation/dev-test-session.mjs --mint --fresh --count 5) and rerun with the new --sessions-file`;
+          log(ctx.noMore);
+        }
+      }
     }
     if (n === CONTROL && row.silentSgd === null) { // a reported gap or a question is not SGD; anything planned or accepted is read for markers
       row.markers = ['gap', 'clarify'].includes(row.outcome) ? [] : sgdMarkers(L.job?.plan, artifact?.title, artifact?.description, artifact?.archetype);
@@ -306,7 +315,7 @@ export const parseTypical = text => {
 export function parse(argv, env = process.env) {
   const { values: v } = parseArgs({ args: argv, strict: true, options: {
     'dry-run': { type: 'boolean' }, check: { type: 'boolean' }, 'run-all': { type: 'boolean' },
-    base: { type: 'string' }, 'sessions-file': { type: 'string', default: SESSIONS_FILE }, concurrency: { type: 'string', default: '1' }, cap: { type: 'string' }, prior: { type: 'string' },
+    base: { type: 'string' }, 'sessions-file': { type: 'string' }, concurrency: { type: 'string', default: '1' }, cap: { type: 'string' }, prior: { type: 'string' },
     'candidate-worktree': { type: 'string' }, 'mvp3-sha': { type: 'string' }, 'prompts-hash': { type: 'string' }, 'golden-hash': { type: 'string' }, worker: { type: 'string' },
     out: { type: 'string' }, 'stop-file': { type: 'string' }, typical: { type: 'string' }, choice: { type: 'string' }, credentials: { type: 'string', default: CREDENTIALS },
     'verify-script': { type: 'string' }, 'poll-ms': { type: 'string', default: '4000' }, 'plan-timeout-min': { type: 'string', default: '6' }, 'job-timeout-min': { type: 'string', default: '20' },
@@ -320,6 +329,7 @@ export function parse(argv, env = process.env) {
   o.cap = num('cap', v.cap, 1); o.prior = num('prior', v.prior ?? env.PRIOR_CREDITS, 0);
   if (o.prior >= o.cap) throw new Error(`--prior ${o.prior} leaves no room under --cap ${o.cap}`);
   if (!/^https:\/\/[^/\s]+$/.test(v.base || '')) throw new Error('--base <https://preview origin, no path> is required');
+  if (!v['sessions-file']) throw new Error('--sessions-file is required: the file printed by `dev-test-session.mjs --mint --fresh --count 5` (fresh test users for this one run)');
   return o;
 }
 
@@ -365,6 +375,14 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
     } catch (error) { out(`USAGE: ${error.message}`); return 2; }
   }
   if (existsSync(stopFile)) { out(`USAGE: the stop file ${stopFile} exists; remove it first`); return 2; }
+  // Fresh test users per run: a prefix that has run before is never reused (the escrow lets a learner fail 5 generations free per day; a reused user hits HTTP 429).
+  const prefix = dry ? null : prefixOf(sessions.map(s => s.email));
+  if (!dry) {
+    if (!prefix) { out('USAGE: the sessions must share one prefix (<prefix>-1..N@example.com, from one `dev-test-session.mjs --mint --fresh` run)'); return 2; }
+    let ran;
+    try { ran = readUsed(outDir).prefixes[prefix]?.ranAt; } catch (error) { out(`USAGE: ${join(outDir, 'used-prefixes.json')} cannot be read (${error.message}); a used prefix could be reused`); return 2; }
+    if (ran) { out(`REFUSED: the test users ${prefix}-1..N already ran Gate 2 at ${ran}; mint fresh ones (node scripts/animation/dev-test-session.mjs --mint --fresh --count 5) and pass the new --sessions-file`); return 2; }
+  }
   const statePath = join(outDir, `state-${pin.PREVIEW_SHA.slice(0, 7)}-${pin.PREVIEW_VERSION.slice(0, 8)}.json`);
   const state = existsSync(statePath) ? JSON.parse(readFileSync(statePath, 'utf8')) : { sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, rows: [] };
   out(`candidate ${pin.PREVIEW_SHA.slice(0, 9)} preview ${pin.PREVIEW_VERSION}; ${sessions.length} session(s) ${sessions.map(s => s.email).join(', ')}; concurrency ${o.concurrency}; cap ${o.cap}, prior ${o.prior}; features ${features.join(',')}`);
@@ -372,6 +390,7 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
   if (o.check) { out('CHECK OK: configuration and candidate identity are valid; no job was created'); return 0; }
 
   // 3. run
+  if (!dry) markUsed(outDir, prefix, { ranAt: new Date().toISOString(), sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION });
   let signals = 0;
   const onSigint = () => { signals += 1; if (signals > 1) process.exit(130); out('Ctrl+C: cancelling every running job through the product\'s cancel route (press again to quit at once)'); };
   process.on('SIGINT', onSigint);

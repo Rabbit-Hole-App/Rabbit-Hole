@@ -37,7 +37,9 @@ repairs, accepted or not. **No retry beyond the product's own automatic one**: t
   finish; `--run-all` keeps starting them).
 - **INCOMPLETE**: fewer than nine of the first nine have a result, or the control has none. Nothing is decided; the usual reasons are a stop, the cap
   or the allowances. A job cancelled by the operator, the cap or a stop file (`stopped`) is not a result, and a rerun for the same candidate runs that
-  phrasing again.
+  phrasing again. So is **`exhausted`**: an HTTP 429 when a test user creates a job or presses Generate ("today's limit of free retries" from the
+  billing escrow, which lets a learner fail 5 generations free per day, or the user's allowance). It is "not run: test user exhausted", never a lost
+  job: no further job is started (running ones finish), the plan job is cancelled, the verdict is INCOMPLETE, and the run says to mint fresh users.
 - **The control** (job 10) *silently became SGD* when the planned or the accepted scene carries any SGD marker. Deterministic check
   (`sgdMarkers`): the plan's whole JSON, and the accepted artifact's title, description and archetype, matched case-insensitively against
   `sgd`, `gradient`, `loss surface` or `loss landscape`, `loss function` or `loss curve`, `learning rate`, `descent`, and the archetype `loss_surface`.
@@ -118,16 +120,22 @@ Gate 2 runs up to five jobs at once, each on its own canvas, round-robin over up
 allowance. Sessions are minted through the dev control plane's test bypass (`rabbit-hole-cp-dev` `/test/session`, secret `RABBIT_HOLE_DEV_TEST_BYPASS`
 read by name from `C:/Users/cyudhist/Desktop/workspace/small-deploy/.env`, never printed; production has no such route).
 
-    node scripts/animation/dev-test-session.mjs --check --count 5
-    node scripts/animation/dev-test-session.mjs --mint --count 5
-    node scripts/animation/dev-test-session.mjs --allowance --base https://rabbit-hole-web-dev-<name>.tryrabbithole.workers.dev
+    node scripts/animation/dev-test-session.mjs --check --fresh --count 5
+    node scripts/animation/dev-test-session.mjs --mint --fresh --count 5
+    node scripts/animation/dev-test-session.mjs --allowance --base https://rabbit-hole-web-dev-<name>.tryrabbithole.workers.dev --file <the per-run sessions file>
 
-- Identities are dev test people at the reserved example.com domain: `gate2-1@example.com` to `gate2-5@example.com` (`--prefix` changes `gate2`).
-  They are not real people and are not used anywhere else.
-- `--mint` writes **dev D1 user rows** (and test handles) in the D1 that every clone shares: announce it first, as for any dev write.
-- The sessions file is `C:/s/spec/animation/sgd-mvp1-acceptance/gate2-sessions.json` (`{ cookie, devCp, mintedAt, sessions: [{ email, value }] }`),
-  written owner-only (the script refuses a path inside the repository). The screen shows the cookie name `small_session` and `<redacted>`, never a value.
-  It refuses to overwrite an existing file without `--replace`, and writes nothing if any one mint fails.
+- **Fresh test users for every Gate 2 run (owner).** The billing escrow gives a learner 5 free failed generations per day (MVP2a, working as designed),
+  so a reused test user can hit HTTP 429 on Generate. `--mint --fresh` mints `g2-<UTC yyyymmddhhmm>-1` to `-N@example.com` (for example
+  `g2-202611031730-1@example.com`) into a per-run file `C:/s/spec/animation/sgd-mvp1-acceptance/gate2-sessions-<prefix>.json`, prints the file to pass to
+  `sgd-qualify.mjs --sessions-file` (which has **no default**), and records the prefix in `<out>/used-prefixes.json` (`--out`, default
+  `C:/s/spec/animation/sgd-mvp1-acceptance/release-2`). **A prefix is never reused**: `--mint --fresh` refuses one already minted or run (and an
+  existing file, and an unreadable record), and `sgd-qualify.mjs` refuses sessions whose prefix already ran Gate 2 (exit 2, "mint fresh ones"), and marks
+  the prefix `ranAt` when a run starts (`--check` and refusals mark nothing). After a halt or a Ctrl+C, mint fresh users again before resuming.
+- Without `--fresh`, `--mint` still makes fixed identities `<prefix>-1..N@example.com` (`--prefix`, default `gate2`) into one file; not for Gate 2.
+- Identities are dev test people at the reserved example.com domain. They are not real people and are not used anywhere else.
+- `--mint` prints `announce: this writes N dev user rows (...)` **before** it writes anything: the rows go into the dev D1 that every clone shares.
+- The sessions file (`{ cookie, devCp, mintedAt, sessions: [{ email, value }] }`) is written owner-only (the script refuses a path inside the
+  repository). The screen shows the cookie name `small_session` and `<redacted>`, never a value. It writes nothing if any one mint fails.
 - `--check` makes no network request and writes nothing: it validates the credentials key name (not its value), the file path and write access.
 - **Per-user allowance on dev.** `GET /api/learn/usage` is the signed-in user's own month. The allowance is `AI_MONTHLY_ALLOWANCE_USD` 25, which is
   2,500 credits at 100 credits to the dollar (`wrangler.dev.jsonc`). `AI_LEGACY_ALLOWANCE_USD` 50 (5,000 credits) is kept only for an account **with
@@ -159,7 +167,8 @@ worker is 10; the gate prints the clone's own value only when `versions view` sh
    golden-artifact hash. Gate 2 starts the moment **C4's preview** is up: Parallel deploys it through the normal dev deployment with C4's SHA in
    the version's tag or message and gives `PREVIEW_VERSION` (the Cloudflare version id) and `PREVIEW_SHA` (C4). Gate 1's result is a condition of
    the release, not of starting Gate 2; if Gate 1 fails, the whole candidate is held and a running Gate 2 is stopped (stop file).
-1. **Sessions.** `dev-test-session.mjs --check --count 5`, then `--mint --count 5` (announce the dev D1 rows), then `--allowance --base <preview>`.
+1. **Sessions (fresh for this run).** `dev-test-session.mjs --check --fresh --count 5`, then `--mint --fresh --count 5` (it prints the announce line for the
+   dev D1 rows, then the per-run file), then `--allowance --base <preview> --file <that file>`.
 2. **Dry run (free, offline).** `node scripts/animation/sgd-qualify.mjs --dry-run` runs the whole script against an in-memory fake preview with canned
    job states (8 of 9 accepted, one repaired, one rejected, the control reports a gap): no network, no credential, a temp output folder.
 3. **Check (read-only).** Same flags as the run plus `--check`: validates the arguments, the sessions file, the candidate's client features, the
@@ -183,7 +192,7 @@ worker is 10; the gate prints the clone's own value only when `versions view` sh
 | `--base` | the preview origin (required; no default, so a spend never goes to a guessed Worker) |
 | `--candidate-worktree` (the C4 checkout), `--mvp3-sha` (the C3 SHA), `--prompts-hash`, `--golden-hash` (the Gate 1 table's values) | the identity check; all required |
 | `--cap`, `--prior` / `PRIOR_CREDITS` | the **cumulative** cap in credits and the credits already spent against it before this batch; both required, no default, `prior` must be under `cap` |
-| `--sessions-file` | default `C:/s/spec/animation/sgd-mvp1-acceptance/gate2-sessions.json` |
+| `--sessions-file` | required (no default): the per-run file of `dev-test-session.mjs --mint --fresh`; refused if its prefix already ran |
 | `--concurrency` | 1 to 5, default 1 |
 | `--out` | default `C:/s/spec/animation/sgd-mvp1-acceptance/release-2` (refused inside the repository; a dry run uses a temp folder) |
 | `--stop-file` | default `<out>/STOP` |

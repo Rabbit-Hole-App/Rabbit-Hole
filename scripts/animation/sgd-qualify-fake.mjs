@@ -16,6 +16,8 @@ export const SCENARIOS = {
   hang: { events: [], hang: true, end: 'ready' }, // authoring never finishes: a timeout, a stop or a cancel ends it
   choice: { events: [ev('author'), ev('review')], end: 'ready', choice: true },
   gap: { gap: true },
+  exhausted: { events: [ev('author'), ev('review')], end: 'ready', approve429: true }, // the escrow's free-failure cap: Generate answers 429
+  'create-exhausted': { create429: true },
   control: { events: [ev('author'), ev('review')], end: 'ready', title: 'Why one-to-one tutoring beats a classroom', plan: 'a plan about tutoring and a bell curve' },
   'control-sgd': { events: [ev('author'), ev('review')], end: 'ready', plan: 'a plan that follows gradient descent on a loss surface with two learning rates' },
 };
@@ -81,7 +83,9 @@ export function createFake({ scenarios = SCENARIOS, scenarioFor = () => 'accept'
     const canvas = [...canvases.values()].find(c => c.boardId === boardId);
     if (!canvas || canvas.owner !== email) return ok({ error: 'Not available' }, 404);
     if (method === 'POST' && !rest.length) {
-      const scenarioName = scenarioFor(body.prompt), id = `aj_${(seq += 1).toString(16).padStart(8, '0')}${'0'.repeat(24)}`;
+      const scenarioName = scenarioFor(body.prompt);
+      if (scenarios[scenarioName].create429) return ok({ error: 'Not enough AI credits.' }, 429);
+      const id = `aj_${(seq += 1).toString(16).padStart(8, '0')}${'0'.repeat(24)}`;
       const j = { id, owner: email, boardId, cardId: body.cardId, prompt: body.prompt, features: body.features, stage: 'preparing', repairs: 0, calls: [], step: 0, scenario: scenarios[scenarioName], scenarioName, proposals: new Map(), threadId: `th-${[...canvases].find(([, c]) => c.boardId === boardId)[0]}` };
       jobs.set(id, j); maxActive = Math.max(maxActive, active());
       return ok({ job: publicJob(j) }, 202);
@@ -100,6 +104,7 @@ export function createFake({ scenarios = SCENARIOS, scenarioFor = () => 'accept'
     }
     if (rest[1] === 'approve') {
       if (j.stage !== 'awaiting_approval' || j.choiceOpen || body.proposal?.input?.job !== j.id) return ok({ error: 'plan_stale' }, 409);
+      if (j.scenario.approve429) return ok({ error: "You have used today's limit of free retries." }, 429);
       j.stage = 'authoring'; return ok({ job: publicJob(j) }, 202);
     }
     return ok({ error: 'Not found' }, 404);

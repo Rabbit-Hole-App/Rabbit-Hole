@@ -7,7 +7,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { COOKIE, SECRET_NAME, emailsFor, insideRepo, main, makeCall, mint, parse, readSessions, usageLine, writeSessions } from './dev-test-session.mjs';
+import { COOKIE, SECRET_NAME, emailsFor, insideRepo, main, makeCall, markUsed, mint, parse, prefixOf, readSessions, readUsed, usageLine, utcStamp, writeSessions } from './dev-test-session.mjs';
 
 const FAKE_SECRET = 'fake-bypass-secret-not-real';
 function sandbox() {
@@ -141,4 +141,59 @@ test('makeCall retries a network error for GET only, never for a POST', async ()
   n = 0;
   await assert.rejects(call('POST', '/a', { x: 1 }), /ECONNRESET/);
   assert.equal(n, 1, 'a POST is sent once');
+});
+
+test('--mint --fresh: g2-<UTC yyyymmddhhmm> users, the announce line before the first write, a per-run sessions file, the prefix recorded, never reused', async () => {
+  const s = sandbox(), out = join(s.dir, 'out'), at = new Date('2026-11-03T17:30:42Z');
+  try {
+    assert.equal(utcStamp(at), '202611031730');
+    const events = [], { fetchImpl: inner } = fakeFetch();
+    const fetchImpl = async (...args) => { events.push('write'); return inner(...args); };
+    const lines = [], argv = ['--mint', '--fresh', '--count', '5', '--credentials', s.credentials, '--out', out, '--file', s.file];
+    const code = await main(argv, { out: line => { lines.push(line); events.push('line'); }, fetchImpl, now: () => at });
+    assert.equal(code, 0, lines.join('\n'));
+    assert.match(lines[0], /^announce: this writes 5 dev user rows \(g2-202611031730-1@example\.com, .*, g2-202611031730-5@example\.com\) to the shared dev D1/);
+    assert.deepEqual(events.slice(0, 2), ['line', 'write'], 'the announce comes before the first write');
+    assert.deepEqual(readSessions(s.file).map(x => x.email), emailsFor('g2-202611031730', 5));
+    assert.deepEqual(Object.keys(readUsed(out).prefixes), ['g2-202611031730']);
+    assert.match(lines.join('\n'), /use it for ONE run: sgd-qualify\.mjs --sessions-file/);
+    // the same minute again: the prefix is used, nothing is minted (even into another file); --replace does not apply to --fresh
+    const writes = events.filter(e => e === 'write').length;
+    const again = await run(['--mint', '--fresh', '--count', '5', '--credentials', s.credentials, '--out', out, '--file', join(s.dir, 'other.json')], { fetchImpl, now: () => at });
+    assert.equal(again.code, 2);
+    assert.match(again.text, /REFUSED: the prefix g2-202611031730 was already minted or has run/);
+    assert.equal(events.filter(e => e === 'write').length, writes, 'no write for a used prefix');
+    // a prefix that RAN is refused too, and the next minute is a new prefix
+    markUsed(out, 'g2-202611031731', { ranAt: 'x' });
+    const ran = await run(['--mint', '--fresh', '--count', '2', '--credentials', s.credentials, '--out', out, '--file', join(s.dir, 'b.json')], { fetchImpl, now: () => new Date('2026-11-03T17:31:05Z') });
+    assert.equal(ran.code, 2);
+    const next = await run(['--mint', '--fresh', '--count', '2', '--credentials', s.credentials, '--out', out, '--file', join(s.dir, 'c.json')], { fetchImpl, now: () => new Date('2026-11-03T17:32:00Z') });
+    assert.equal(next.code, 0, next.text);
+    assert.deepEqual(readSessions(join(s.dir, 'c.json')).map(x => x.email), ['g2-202611031732-1@example.com', 'g2-202611031732-2@example.com']);
+    // an unreadable record never means "nothing used"
+    writeFileSync(join(out, 'used-prefixes.json'), '{ not json');
+    const broken = await run(['--mint', '--fresh', '--count', '1', '--credentials', s.credentials, '--out', out, '--file', join(s.dir, 'd.json')], { fetchImpl, now: () => new Date('2026-11-03T17:40:00Z') });
+    assert.equal(broken.code, 2);
+    assert.match(broken.text, /cannot be read .* a used prefix could be reused/);
+  } finally { s.done(); }
+});
+
+test('--fresh: the default file is per run, --check says so without a network request, and it cannot be combined with a fixed prefix, --replace or --allowance', async () => {
+  const s = sandbox(), at = new Date('2026-11-03T17:30:42Z');
+  try {
+    const { fetchImpl, seen } = fakeFetch();
+    const r = await run(['--check', '--fresh', '--count', '3', '--credentials', s.credentials, '--out', join(s.dir, 'out')], { fetchImpl, now: () => at });
+    assert.equal(r.code, 0, r.text);
+    assert.match(r.text, /would mint g2-202611031730-1@example\.com, g2-202611031730-2@example\.com, g2-202611031730-3@example\.com/);
+    assert.match(r.text, /gate2-sessions-g2-202611031730\.json absent/);
+    assert.deepEqual(seen, []);
+    markUsed(join(s.dir, 'out'), 'g2-202611031730', { ranAt: 'earlier' });
+    assert.match((await run(['--check', '--fresh', '--count', '1', '--credentials', s.credentials, '--out', join(s.dir, 'out')], { now: () => at })).text, /CHECK FAILED: the prefix g2-202611031730 was already used/);
+    for (const bad of [['--mint', '--fresh', '--count', '1', '--prefix', 'x'], ['--mint', '--fresh', '--count', '1', '--replace'], ['--allowance', '--fresh', '--base', 'https://x.test']]) assert.throws(() => parse(bad), /--fresh picks its own prefix/, JSON.stringify(bad));
+    assert.equal(prefixOf(['g2-202611031730-1@example.com', 'g2-202611031730-2@example.com']), 'g2-202611031730');
+    assert.equal(prefixOf(['gate2-1@example.com', 'gate2-2@example.com']), 'gate2');
+    assert.equal(prefixOf(['a-1@example.com', 'b-2@example.com']), null, 'one mint, one prefix');
+    assert.equal(prefixOf(['someone@example.com']), null);
+    assert.deepEqual(readUsed(join(s.dir, 'nowhere')), { prefixes: {} });
+  } finally { s.done(); }
 });
