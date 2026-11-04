@@ -1,0 +1,252 @@
+{
+ "schema": "animation-calibration/1",
+ "golden": {
+  "path": "packages/web/src/animation3d/testdata/sgd-golden.json",
+  "sha256": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+  "mustPass": true,
+  "use": "the file holds { plan, artifact }; send its artifact as a draft with its plan: the review must accept it"
+ },
+ "mustFail": [
+  {
+   "id": "height-mismatch",
+   "kind": "geometry: the drawn surface is at twice the height the program uses",
+   "artifact": "scripts/animation/calibration/height-mismatch.json",
+   "candidate": "c7-951288c09",
+   "job": "aj_2f17bed198df4482b5e2e7e170dcdd31",
+   "reviewArtifactHash": "03d667024f6e39261cd272e8e05bf0916a7818eae750563dca69bfccee818d95",
+   "request": "gradient descent with two learning rates",
+   "knownFindings": [
+    {
+     "capture": "v0-s0",
+     "object": "bowlG",
+     "severity": "major",
+     "category": "spec",
+     "message": "The bowl's heights grid is 0.25×loss, not the disclosed 0.125×loss. For example, x=±3, z≈0 is drawn at 1.13, where 0.125×4.5 is 0.56; z=±2 is drawn at 2.0, where 0.125×8 is 1.0. The program lifts balls and trails with K=0.125, so they sit b",
+     "c9Renderer": "persists"
+    },
+    {
+     "capture": "v0-s0",
+     "object": "ballA",
+     "severity": "major",
+     "category": "spec",
+     "message": "At the start, both balls are at the same point. The orange ball fully covers the blue one, and the orange arrow covers the blue arrow, so the learner sees one ball carrying two labels. Offset or outline the shared start (for example, a ring",
+     "c9Renderer": "persists"
+    },
+    {
+     "capture": "v0-s1",
+     "object": "trailA",
+     "severity": "major",
+     "category": "spec",
+     "message": "Because the surface is drawn at twice the height the program uses, the trails and early path segments float off the bowl, below or in front of it. The first long orange and blue segments run outside the surface outline, so the paths do not ",
+     "c9Renderer": "persists"
+    },
+    {
+     "capture": "v0-s2",
+     "object": "ballA",
+     "severity": "major",
+     "category": "spec",
+     "message": "The diverged blue ball cannot be seen. Its 'Rate A' label floats in mid-bowl with no ball. The ball is clamped to the back edge at 0.125×loss, which is below the surface drawn at 0.25×loss, so the surface hides it. The diverged state needs ",
+     "c9Renderer": "persists"
+    },
+    {
+     "capture": "v1-s0",
+     "object": "ballB",
+     "severity": "major",
+     "category": "spec",
+     "message": "In the side view, neither ball can be seen at the start. Only the labels and an arrow tip show, because the balls sit below the surface, which is drawn at twice the height the program uses. This confirms the scale mismatch.",
+     "c9Renderer": "persists"
+    },
+    {
+     "capture": "v1-s1",
+     "object": "trailB",
+     "severity": "major",
+     "category": "spec",
+     "message": "The trails are partly buried in the surface and broken up: segments disappear where the path runs under the drawn bowl. This comes from the same height mismatch.",
+     "c9Renderer": "persists"
+    },
+    {
+     "capture": "v1-s2",
+     "object": "ballA",
+     "severity": "major",
+     "category": "spec",
+     "message": "In the side view, the diverged blue ball is still missing: its label floats with no ball under it, and its trail end is hidden under the surface.",
+     "c9Renderer": "persists"
+    }
+   ],
+   "mustMention": [
+    "0\\.25",
+    "0\\.125",
+    "twice",
+    "height"
+   ]
+  },
+  {
+   "id": "mixed-arrow-scales",
+   "kind": "arrows: the step arrow and the slope arrow use different scales",
+   "artifact": "scripts/animation/calibration/mixed-arrow-scales.json",
+   "candidate": "c7-951288c09",
+   "job": "aj_7b5712ec2988484b911750613839aaff",
+   "reviewArtifactHash": "710808cad8e32ef9099533dff280a4c92a835f44af6b8be9ab05bf2a6d154975",
+   "request": "SGD on a bowl-shaped loss",
+   "knownFindings": [
+    {
+     "capture": "v0-s0",
+     "object": "stepArrow",
+     "severity": "major",
+     "category": "spec",
+     "message": "The two arrows use different scales. The step arrow is drawn at 2× the step length and the slope arrow at 0.2× the gradient. This only looks consistent at learning rate 0.1. At any other rate the two lengths can't be compared. Draw both arr",
+     "c9Renderer": "persists"
+    },
+    {
+     "capture": "v0-s1",
+     "object": "stepArrow",
+     "severity": "major",
+     "category": "spec",
+     "message": "The arrows use mixed scales: the step arrow is 2× the step and the slope arrow is 0.2× the gradient. At learning rate 0.05 the step arrow shows a misleading half of the slope arrow, because of the scale choice rather than the step itself. U",
+     "c9Renderer": "persists"
+    },
+    {
+     "capture": "v0-s1",
+     "object": "slopeTag",
+     "severity": "major",
+     "category": "spec",
+     "message": "Near the bottom, both arrows shrink to stubs that are mostly hidden by the ball (radius 0.16). The labels 'Slope (uphill)' and 'Step taken' then float near the ball, and 'Slope (uphill)' sits on top of the orange trail. The learner can't se",
+     "c9Renderer": "persists unless the program sets an arrow offset"
+    },
+    {
+     "capture": "v0-s2",
+     "object": "stepArrow",
+     "severity": "major",
+     "category": "spec",
+     "message": "The arrows use mixed scales: at learning rate 0.3 the step arrow is drawn at 0.6× the gradient but the slope arrow at 0.2×. Use one disclosed scale for both arrows.",
+     "c9Renderer": "persists"
+    },
+    {
+     "capture": "v0-s2",
+     "object": "slopeArrow",
+     "severity": "major",
+     "category": "spec",
+     "message": "The arrows are tiny and covered by the ball. 'Slope (uphill)' points at an arrow you can't see, and 'Step taken' sits over the trail. The zig-zag across the steep direction at rate 0.3 is barely readable, because the trail draws only one po",
+     "c9Renderer": "persists unless the program sets an arrow offset"
+    },
+    {
+     "capture": "v1-s0",
+     "object": "stepArrow",
+     "severity": "major",
+     "category": "spec",
+     "message": "Same arrow-scale mismatch as in the default view (step arrow at 2×, slope arrow at 0.2×).",
+     "c9Renderer": "persists"
+    },
+    {
+     "capture": "v1-s1",
+     "object": "stepArrow",
+     "severity": "major",
+     "category": "spec",
+     "message": "The arrows use mixed scales (step arrow at 2×, slope arrow at 0.2×).",
+     "c9Renderer": "persists"
+    },
+    {
+     "capture": "v1-s1",
+     "object": "slopeArrow",
+     "severity": "major",
+     "category": "spec",
+     "message": "From this angle too, the arrows are hidden under the ball and only the labels show, crowded around it.",
+     "c9Renderer": "persists unless the program sets an arrow offset"
+    },
+    {
+     "capture": "v1-s2",
+     "object": "slopeArrow",
+     "severity": "major",
+     "category": "spec",
+     "message": "The slope arrow can't be seen under the ball, and the 'Step taken' label overlaps the trail.",
+     "c9Renderer": "persists unless the program sets an arrow offset"
+    }
+   ],
+   "mustMention": [
+    "scale"
+   ]
+  },
+  {
+   "id": "twin-balls-and-edge-claim",
+   "kind": "state and honesty: two balls start at one point, and the assumptions promise what the program does not do",
+   "artifact": "scripts/animation/calibration/twin-balls-and-edge-claim.json",
+   "candidate": "c6-c3d9aa6e8",
+   "job": "aj_aeb96465d2e142938de8d7b5f3235bc9",
+   "reviewArtifactHash": "592c2ada4192f3523dad295eb46a9dc5fdb09995a35e18726db76c1b3eaba1be",
+   "request": "compare learning rate 0.1 and 1.5 on the same surface",
+   "knownFindings": [
+    {
+     "capture": "v0-s0",
+     "object": "ballA",
+     "severity": "major",
+     "category": "spec",
+     "message": "At the initial state both balls sit at exactly the same point, so the orange ball completely hides the blue one. The learner sees one ball, but the description promises two. Make both visible at the start, for example by drawing the blue ba",
+     "c9Renderer": "persists"
+    },
+    {
+     "capture": "v0-s1",
+     "object": "minTag",
+     "severity": "major",
+     "category": "spec",
+     "message": "The 'Minimum' label sits just below the minimum dot, which is exactly where the blue ball settles and the orange zig-zag segments cross. It covers path segments and crowds the blue ball. Move the label off to the side or the back of the bow",
+     "c9Renderer": "may be eased by the C9 renderer"
+    },
+    {
+     "capture": "v0-s1",
+     "object": "ballB",
+     "severity": "major",
+     "category": "spec",
+     "message": "The assumptions say a ball that leaves the square is 'drawn at the surface edge height'. The program does not do this. pos() places the ball at its true off-square position (here y≈4.66, beyond the edge) at height K·L+R, so orange floats ou",
+     "c9Renderer": "persists"
+    },
+    {
+     "capture": "v0-s2",
+     "object": "ballA",
+     "severity": "major",
+     "category": "spec",
+     "message": "At lrA=2 the blue ball diverges to (−3, 8), twice the square's half-width. It is drawn far off the bowl and floats in the air (height clamped by the host). This contradicts the stated 'drawn at the surface edge height', and it pulls the fit",
+     "c9Renderer": "persists"
+    },
+    {
+     "capture": "v0-s2",
+     "object": "minTag",
+     "severity": "major",
+     "category": "spec",
+     "message": "Because of the far-off blue ball, the bowl and both zig-zags occupy a smaller part of the frame. The 'Minimum' label again sits over the crossing paths near the centre.",
+     "c9Renderer": "may be eased by the C9 renderer"
+    },
+    {
+     "capture": "v1-s0",
+     "object": "ballA",
+     "severity": "major",
+     "category": "spec",
+     "message": "The side view confirms that only the orange ball is visible at the start. The blue ball is hidden inside it.",
+     "c9Renderer": "persists"
+    },
+    {
+     "capture": "v1-s1",
+     "object": "ballB",
+     "severity": "major",
+     "category": "spec",
+     "message": "The orange ball floats beyond the bowl's edge after it leaves the square. It is not placed at the edge as the assumptions claim.",
+     "c9Renderer": "persists"
+    },
+    {
+     "capture": "v1-s2",
+     "object": "ballA",
+     "severity": "major",
+     "category": "spec",
+     "message": "The diverged blue ball and its last path segment hang in mid-air well outside the surface, and the long blue segment passes over the bowl. This reads as a part floating in 3D. Placing off-square balls at the boundary would fix it.",
+     "c9Renderer": "persists"
+    }
+   ],
+   "mustMention": [
+    "same point",
+    "hides",
+    "edge",
+    "floats"
+   ]
+  }
+ ],
+ "matching": "A case passes calibration when the review REJECTS the draft (a blocker or major finding on some capture) AND at least one such finding matches at least one regular expression of mustMention (case-insensitive, anyOf). knownFindings are the evidence, advisory; c9Renderer says whether the C9 renderer could legitimately fix that finding."
+}
