@@ -46,6 +46,55 @@ The batch worst case fits.
 
 Observed plan calls in the dev ledger (settled, 5 calls): US$0.0169 to US$0.0457 each; at that rate ten plans would cost about US$0.17 to US$0.46, or up to about twice that if every plan needed its correction. The bound above, not this estimate, is what the runner enforces.
 
+## Author-only sampling harness (AN-20)
+
+Plan section 8, AN-20; owner decisions 14 (paid attempts approved, each batch a `spend.md` row with the candidate SHA) and 22 (the carry-over rule). The harness measures the
+author role alone, from a pinned plan, with the prompts of the working tree. It never drives a browser and never calls a model unless `--send` is given.
+
+**Scripts** (`scripts/animation/`): `author-sample.mjs` (the sampler, and `verify-candidate`), `author-sample-report.mjs` (the owner's list of drafts and captures), `plans/*.json`
+(pinned plans, schema `animation-pinned-plan/1`: name, the learner's request, the approved plan, where it came from and why it was chosen). Tests: `scripts/animation-author-sample.test.mjs`,
+`scripts/animation-author-sample-report.test.mjs` (run by `make test-unit`).
+
+**Pinned plans**
+
+| File | Plan | Request | Why |
+|---|---|---|---|
+| `sgd-run5.json` | acceptance run 5, job aj_77ff45ba (caf7ee9bc) | "Show me how stochastic gradient descent works. Let me change the learning rate and batch size to see what happens." | The plan the production planner makes at the ladder baseline; learning rate 0.01 to 1 reaches divergence and the plan promises a cap on very large losses. Run 4 (89d9718bf, range 0.01 to 0.6) is the earlier candidate. |
+| `grid-game-run6.json` | run 6, job aj_1f8eed91 | "Make a small game where I move a token across a 3 by 3 grid ..." | Known good: accepted at the first review, 0 repairs, 24.76 credits. |
+| `pendulum-aj_78cc3d3.json` | saved plan aj_78cc3d3 | "Let me change the length of a pendulum from 0.5 to 3 metres ..." | Known good: the plan hashes to the planHash of the accepted owner pendulum artifact (`accepted/ownerpendulum-18a064c972c4.json`). |
+| `projectile-aj_54eec6a.json` | saved plan aj_54eec6a | "Make a short game where I launch a ball to hit a target by choosing the angle and speed." | **Not strictly known good.** The accepted projectile game (job aj_a7b04cc55fca495b96ed265ce312f08a, planHash e11ef0f25d17) has no stored plan, and the acceptance record has that case ready in 1 of 5 runs. This is the saved plan with the same controls (angle 10 to 80 default 45, speed 5 to 25 default 15). Replace it with the accepted job's plan (a free diagnostics read of that job on the dev preview) when available. |
+
+**Identities (owner decision 22).** Every table and every run folder records three identities, and a run is refused (exit 2, nothing spent) when a recorded freeze differs:
+
+1. the candidate SHA (`--candidate-sha`): an ancestor of, or equal to, the tree's HEAD, with the contract and renderer source (`CANDIDATE_FILES` in the script) unchanged since it;
+2. the prompt-files hash: sha256 over `PROMPT_FILES` (agents/animation-author.js, agents/animation-brief.js, agents/animation-archetypes.js when it exists, animation-brief.js, contract.js,
+   capabilities.js), CRLF normalised; the command prints the list with each file's hash. `--freeze-prompts HASH` refuses a mismatch. Each run also records `requestHash`, the hash of the exact system,
+   tool and content it sent, so a change that reaches the model through a file outside the list still shows;
+3. the golden artifact hash (`packages/web/src/animation3d/testdata/sgd-golden.json`, `absent` until it lands). `--freeze-golden HASH` refuses a mismatch.
+
+`node scripts/animation/author-sample.mjs verify-candidate --mvp3-sha SHA --prompts HASH --golden HASH --worktree PATH` is the read-only check Parallel runs before Gate 2: PASS or FAIL for the MVP3 ancestor,
+the prompt-files hash and the golden hash, exit 1 on any FAIL (a mismatch means Gate 1 reruns on the real candidate).
+
+**Running** (from the repository root; `--dry-run` first: it builds each request, prints the identities, the request sizes and the cost bound, and sends nothing):
+
+```
+node scripts/animation/author-sample.mjs scripts/animation/plans/grid-game-run6.json scripts/animation/plans/pendulum-aj_78cc3d3.json scripts/animation/plans/projectile-aj_54eec6a.json -n 3 --dry-run
+node scripts/animation/author-sample.mjs <the same plans> -n 3 --send --concurrency 3 --max-credits 250 --candidate-sha <sha> --freeze-prompts <hash> --freeze-golden <hash> --label regression-1
+node scripts/animation/author-sample.mjs <the same plans> -n 3 --fake-transport <stored draft.json>      # offline: the stored draft is the reply
+node scripts/animation/author-sample-report.mjs <the printed output folder> [--captures DIR]
+```
+
+- Output: `C:/s/spec/animation/author-samples/<UTC stamp>-<label>/` (or `--out`): `summary.json`, `table.txt`, and per run `run.json` (identities, status, usage, credits, problems), `draft.json`, `problems.json`, `usage.json`.
+  The table prints: run, session, bytes of the draft, tokens in/out, validator, assertions, credits, seconds, status. Assertions print `n/a` until `assertionProblems(artifact, plan)` is exported by `animation-author.js`
+  (the plan assertions step) and the plan has `assertions`.
+- Cost: credits are computed from provider usage at the registry rates (1 credit = US$0.01), not settled in the product ledger. The bound printed per call (about 60 credits) is the request's own `requestSpendBound`.
+  `--max-credits` is a cumulative cap: a run is admitted only while settled credits plus the bound of every call in flight plus its own bound fit; an overrun cancels the calls in flight and starts nothing else (exit 3).
+- `--concurrency` 1 to 5 (default 1). `--sessions FILE` (a JSON array or one cookie file path per line) assigns each run a session round-robin by run order and records it; the cookie is never read by the sampler.
+- Transport: `--send` makes a direct Messages API call with the request `callAnimationRole` builds from the working-tree prompts, the key read BY NAME (`ANTHROPIC_API_KEY`, and `ANTHROPIC_WORKSPACE_ID` if present) from
+  `small-deploy/.env` at the first call and never printed. **No product route runs the author alone from a pinned plan**, so this is outside the product ledger and does not use any user's allowance (precedent: the single
+  review call recorded in the SGD acceptance ledger, row 3). A session-bound transport would need a dev diagnostics route in `animation-job.js` (AN-17b's file) and a deployment of the candidate.
+- Not run against the model by this change. Every paid batch is a `spend.md` row with the candidate SHA, the prompt-files hash and the output folder.
+
 <!-- Sections below are generated by report.mjs. The Baseline is never overwritten; later tuned runs append their own section. -->
 
 <!-- section:Baseline status:complete -->
