@@ -104,8 +104,8 @@ export async function buildGolden() {
         materials: [{ id: 'bowlBlue', color: '#8aa4c8' }, { id: 'ballRed', color: '#d23c2a' }, { id: 'pathOrange', color: '#e8731a' }, { id: 'keptBlue', color: '#1f3a7a' }, { id: 'slopeGrey', color: '#6b6b6b' }, { id: 'markDark', color: '#333a44' }],
         geometries: [
           { id: 'bowlGrid', kind: 'surface', heights: heights(), width: 2 * half, depth: 2 * half, contours },
-          { id: 'runPath', kind: 'trail', max: 64, radius: 0.05, style: 'trail' },
-          { id: 'keptPath', kind: 'trail', max: 64, radius: 0.05, style: 'ghost' },
+          { id: 'runPath', kind: 'trail', max: 64, radius: 0.08, style: 'trail' },
+          { id: 'keptPath', kind: 'trail', max: 64, radius: 0.08, style: 'ghost' },
           { id: 'ballBall', kind: 'sphere', radius: ball, widthSegments: 24, heightSegments: 12 },
           { id: 'lowestDot', kind: 'sphere', radius: 0.05, widthSegments: 12, heightSegments: 8 },
           { id: 'unitArrow', kind: 'arrow', length: 1, offset: ball },
@@ -132,7 +132,7 @@ export async function buildGolden() {
       readouts: [{ id: 'status', label: 'Status', kind: 'text' }, { id: 'loss', label: 'Loss (true value)', decimals: 3 }, { id: 'steps', label: 'Steps taken', decimals: 0 }],
       stepped: true,
       program: { ...ANIMATION_PROGRAM_VERSIONS, source: PROGRAM, sourceHash: await hashProgramSource(PROGRAM) },
-      seed: 7, camera: { position: [7, 4, 0.5], target: [0, 1.2, 0], fov: 45 },
+      seed: 7, camera: { position: [0, 10.03, 4.69], target: [0, 1.2, 0], fov: 45 },
       assumptions: [
         'Illustration: the bowl is the formula loss = (3 x^2 + z^2) / 2, drawn at 0.5 times the loss. No real data or model is used.',
         'Each step moves the ball by the learning rate times the slope plus batch noise; with all 256 examples there is no noise. The noise is fixed by the run and the step.',
