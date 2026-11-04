@@ -100,8 +100,9 @@ export const LEARN_TASKS = Object.freeze({
   // $0.16 (16 credits) to the build's worst case. More tokens remedy truncation; they do not prove a scene good.
   animation_author: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', effort: 'medium', toolChoice: 'auto (exactly one tool call)', maxTokens: 24000 }),
   animation_review: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 6000 }),
-  // Repair stays at low effort for this attempt (owner A: other role settings unchanged).
-  animation_repair: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', effort: 'low', toolChoice: 'auto (exactly one tool call)', maxTokens: 12000 }),
+  // Repair: medium effort with 24,000 output tokens (owner decision 16, 3 Nov 2026; was low with 12,000). 12,000 more output tokens at $20/M add
+  // $0.24 per repair call, $0.48 for the two a build allows: 48 credits on the displayed worst case (325 to 373). A patch-style repair is AN-22.
+  animation_repair: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', effort: 'medium', toolChoice: 'auto (exactly one tool call)', maxTokens: 24000 }),
   // Slash-command cards (/api/learn/artifact).
   artifact: Object.freeze({ provider: 'plan', model: ASK_MODELS.auto, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'any', maxTokens: 4000 }),
   // The whiteboard (/api/learn/board): one model for plan, draft and review.
