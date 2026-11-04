@@ -236,7 +236,7 @@ try {
     const [x0, y0, x1, y1] = seen.box;
     assert.ok(x0 >= 2 && y0 >= 2 && x1 <= seen.width - 3 && y1 <= seen.height - 3, `the ball is inside the frame: ${JSON.stringify(seen.box)} of ${seen.width} x ${seen.height}`);
     assert.ok(seen.covered >= 0.08, `the bowl keeps ${(seen.covered * 100).toFixed(1)}% of the view (about 15% expected at 725 x 240)`);
-    assert.equal(f.nodes.slopeArrow.visible, false);
+    assert.equal(f.nodes.fullArrow.visible, false);
     await shot('C-diverged');
   });
 

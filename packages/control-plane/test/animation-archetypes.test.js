@@ -82,6 +82,9 @@ test('the golden artifact is an instance of it', () => {
   const source = artifact.program.source;
   assert.match(source, /path: s\.path\.concat\(\[\[x, z\]\]\)\.slice\(-MAX\)/);
   assert.ok(!/step\s*%|s\.step\s*%/.test(source), 'no sampling of the path by step number');
+  // The arrow scale rule: the golden draws both arrows at one scale (SCALE in its program); the median largest default-rate step, 0.22 (sgd-golden.test.mjs measures it over 12 runs), drawn stays under a quarter of the surface width.
+  const scale = Number(source.match(/SCALE = ([\d.]+)/)[1]), width = artifact.scene.geometries.find(g => g.kind === 'surface').width;
+  assert.ok(scale * 0.22 < width / 4, `scale ${scale} draws a 0.22 step ${scale * 0.22} long, a quarter of the surface width is ${width / 4}`);
   const radius = geometry(balls[0].geometry).radius;
   for (const arrow of nodes.filter(n => geometry(n.geometry)?.kind === 'arrow')) {
     assert.equal(geometry(arrow.geometry).offset, radius);
