@@ -7,7 +7,8 @@
 //   ARCHETYPE_NAMES   the names, for the planner tool's optional `archetype` enum
 //   archetypeRules    (name) -> the text the author is given for that archetype, or null for a name that is not one
 //
-// Imported by the planner (animation-brief.js) and the author (animation-author.js); nothing here imports anything.
+// Imported by the planner (animation-brief.js) and the author (animation-author.js); nothing here imports anything. The export shape above is final
+// (AN-20 imports it as it is; a new archetype is a new key with the same three fields). animation-archetypes.test.js pins it.
 
 const freeze = value => (Object.values(value).forEach(item => { if (item && typeof item === 'object') freeze(item); }), Object.freeze(value));
 

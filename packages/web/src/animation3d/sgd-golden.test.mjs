@@ -1,8 +1,11 @@
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import * as THREE from 'three';
 import * as contract from './contract.js';
 import { ANIMATION_CAPABILITIES, ANIMATION_CLIENT_FEATURES } from './capabilities.js';
+import { fitAnimationView } from './framing.js';
+import { buildAnimationScene } from './scene.js';
 import { buildGolden, goldenText } from './testdata/build-sgd-golden.mjs';
 
 // The golden SGD artifact (AN-19, owner decisions 11 to 13 of 3 Nov 2026): testdata/sgd-golden.json, built by testdata/build-sgd-golden.mjs.
@@ -130,8 +133,8 @@ const runUntilOver = (inputs, from = 'run') => {
   }
   return { state, steps };
 };
-// Closed form with all 256 examples (no noise): x_n = 0.5 (1 - 3 r)^n, z_n = 1.6 (1 - r)^n, loss = (3 x^2 + z^2) / 2.
-const closed = (rate, n) => { const x = 0.5 * (1 - 3 * rate) ** n, z = 1.6 * (1 - rate) ** n; return { x, z, loss: 0.5 * (3 * x * x + z * z) }; };
+// Closed form with all 256 examples (no noise), from the start (0.3, 1.6): x_n = 0.3 (1 - 3 r)^n, z_n = 1.6 (1 - r)^n, loss = (3 x^2 + z^2) / 2.
+const closed = (rate, n) => { const x = 0.3 * (1 - 3 * rate) ** n, z = 1.6 * (1 - rate) ** n; return { x, z, loss: 0.5 * (3 * x * x + z * z) }; };
 const FULL = '256';
 
 run('learning rate 0.1: paused until Run, then converges in 20 steps along the closed form; the true loss and the path agree', () => {
@@ -158,19 +161,19 @@ run('learning rate 0.1: paused until Run, then converges in 20 steps along the c
 run('learning rate 1.5: the first step overshoots across the bowl, the second leaves it; the ball keeps its true height and the loss its true value', () => {
   const inputs = { learningRate: 1.5, batchSize: FULL };
   const start = press(call('initialize', { inputs }), 'run', inputs);
-  const arrow = shown(start, inputs).nodes.stepArrow; // the next step, 1:1 in the bowl's units: (-2.25, -2.4)
-  near(arrow.scale[1], Math.hypot(1.5 * 3 * 0.5, 1.5 * 1.6), 'next step length: |(-2.25, -2.4)| = 3.2898');
+  const arrow = shown(start, inputs).nodes.stepArrow; // the next step, 1:1 in the bowl's units: (-1.35, -2.4)
+  near(arrow.scale[1], Math.hypot(1.5 * 3 * 0.3, 1.5 * 1.6), 'next step length: |(-1.35, -2.4)| = 2.7536');
   const { state, steps } = runUntilOver(inputs);
   assert.equal(steps, 2);
   const one = shown(press(call('initialize', { inputs }), 'step', inputs), inputs);
   near(one.readouts.loss, closed(1.5, 1).loss, 'loss after one step');
   assert.equal(one.readouts.status, 'paused', 'a single Step leaves the run paused, still on the bowl');
-  assert.deepEqual([one.nodes.ball.position[0], one.nodes.ball.position[2]].map(v => Math.round(v * 1e9) / 1e9), [-1.75, -0.8]);
+  assert.deepEqual([one.nodes.ball.position[0], one.nodes.ball.position[2]].map(v => Math.round(v * 1e9) / 1e9), [-1.05, -0.8]);
   const end = shown(state, inputs);
   assert.equal(end.readouts.status, 'diverged');
-  near(end.readouts.loss, closed(1.5, 2).loss, 'true loss 56.35');
-  near(end.readouts.loss, 56.3534375, 'true loss, by hand: (3 x 6.125^2 + 0.4^2) / 2');
-  assert.ok(end.nodes.ball.position[1] > 28 && end.nodes.ball.position[1] < 29.5, 'the program draws the ball at its true height (about 29), the renderer clamps it');
+  near(end.readouts.loss, closed(1.5, 2).loss, 'true loss 20.34');
+  near(end.readouts.loss, 20.3384375, 'true loss, by hand: (3 x 3.675^2 + 0.4^2) / 2');
+  assert.ok(end.nodes.ball.position[1] > 10.5 && end.nodes.ball.position[1] < 11.2, 'the program draws the ball at its true height (about 10.8), the renderer clamps it');
   assert.equal(end.nodes.trail.points.length, 3);
   assert.ok(end.nodes.trail.points.every(p => p[1] <= 4.0601), 'the trail, which the renderer does not clamp, stays at the bowl top');
   assert.equal(end.nodes.slopeArrow.visible, false);
@@ -228,4 +231,55 @@ run('every frame of both comparison runs validates against the contract, and the
     }
     assert.ok(new TextEncoder().encode(JSON.stringify(state)).length < 32 * 1024);
   }
+});
+
+// The renderer's side, on the real scene builder and framing in Node (no GL): what animation-primitives-check.mjs looks for in a browser, worked out here by projection.
+// A 700 x 450 view. The workerFactory is the one framing.test.mjs uses.
+const workerFactory = () => {
+  const worker = {
+    terminated: false, terminate() { worker.terminated = true; },
+    postMessage: message => queueMicrotask(() => { if (!worker.terminated) worker.onmessage?.({ data: { id: message.id, ...runtime.runProgram(engine, message) } }); }),
+  };
+  queueMicrotask(() => worker.onmessage?.({ data: { ready: true } }));
+  return worker;
+};
+const VIEW = { width: 700, height: 450 };
+async function drawn(learningRate, play) {
+  const inputs = { learningRate, batchSize: FULL }, fit = await fitAnimationView({ artifact, aspect: VIEW.width / VIEW.height, inputs, workerFactory });
+  const camera = new THREE.PerspectiveCamera(fit.fov, VIEW.width / VIEW.height, 0.1, 2000);
+  camera.position.fromArray(fit.position); camera.lookAt(...fit.target); camera.updateMatrixWorld(); camera.updateProjectionMatrix();
+  const built = buildAnimationScene(artifact, { labelTexture: () => ({ texture: new THREE.Texture(), aspect: 1 }) }), { scene } = built;
+  const screen = point => { const p = point.clone().project(camera); return [(p.x + 1) / 2 * VIEW.width, (1 - p.y) / 2 * VIEW.height]; };
+  let state = call('initialize', { inputs }), result = null;
+  const frameNow = () => { const frame = call('evaluate', { inputs, state }); result = scene.apply(frame); scene.root.updateWorldMatrix(true, true); return frame; };
+  play({ press: action => { state = press(state, action, inputs); }, tick: n => { state = tick(state, n, inputs); }, state: () => state });
+  const frame = frameNow(), world = scene.objects.get('ball').getWorldPosition(new THREE.Vector3());
+  const bowl = []; scene.objects.get('bowl').traverse(o => { if (o.isMesh) { const at = o.geometry.attributes.position; for (let i = 0; i < at.count; i += 1) bowl.push(screen(new THREE.Vector3().fromBufferAttribute(at, i).applyMatrix4(o.matrixWorld))); } });
+  const visible = id => { let shown = false; scene.objects.get(id).traverse(o => { if ((o.isMesh || o.isLine) && o.visible) shown = true; }); return shown; };
+  const out = { frame, clamped: result.clamped, ball: screen(world), ballY: world.y, bowlWidth: (Math.max(...bowl.map(p => p[0])) - Math.min(...bowl.map(p => p[0]))) / VIEW.width, trail: visible('trail'), ghost: visible('ghost') };
+  built.scene.dispose();
+  return out;
+}
+
+run('rendered by the real scene builder: nothing is drawn as a path until a step, the path and the kept path appear, and the bowl is a large share of a fitted view', async () => {
+  const start = await drawn(0.1, () => {});
+  assert.deepEqual([start.trail, start.ghost, start.clamped], [false, false, []], 'one path point draws nothing; no clamp inside the bowl');
+  assert.ok(start.bowlWidth >= 0.5, `the bowl spans ${(start.bowlWidth * 100).toFixed(0)}% of the view width`);
+  const done = await drawn(0.1, p => { p.press('run'); for (let t = 1; t <= 6 * 25; t += 1) p.tick(t); });
+  assert.equal(done.frame.readouts.status, 'converged');
+  assert.deepEqual([done.trail, done.ghost], [true, false]);
+  const kept = await drawn(0.1, p => { p.press('run'); for (let t = 1; t <= 6 * 25; t += 1) p.tick(t); p.press('newRun'); });
+  assert.deepEqual([kept.trail, kept.ghost], [false, true], 'New run: the old path is the ghost, the new one has one point');
+});
+
+run('rendered at learning rate 1.5: the ball is held at the surface top while the Loss keeps its true value, and the fitted camera keeps the ball and most of the bowl in view', async () => {
+  const far = await drawn(1.5, p => { p.press('run'); for (let t = 1; t <= 12; t += 1) p.tick(t); });
+  assert.equal(far.frame.readouts.status, 'diverged');
+  assert.equal(far.clamped.length, 1);
+  assert.ok(far.clamped[0].trueY > 10 && far.clamped[0].y === 4 && Math.abs(far.ballY - 4) < 1e-9, `true ${far.clamped[0].trueY}, drawn ${far.ballY}`);
+  assert.ok(far.frame.readouts.loss > 20, 'the readout keeps the true value');
+  const [x, y] = far.ball;
+  assert.ok(x > 12 && x < VIEW.width - 12 && y > 12 && y < VIEW.height - 12, `the ball is inside the view at ${x.toFixed(0)}, ${y.toFixed(0)}`);
+  assert.ok(far.bowlWidth >= 0.3, `the bowl keeps ${(far.bowlWidth * 100).toFixed(0)}% of the view width (the ball flung to x = 3.7 would leave it far less if the fit followed the true height)`);
+  assert.equal(far.trail, true, 'the path to the divergence is drawn');
 });
