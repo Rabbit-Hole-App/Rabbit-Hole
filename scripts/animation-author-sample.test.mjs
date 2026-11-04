@@ -14,6 +14,9 @@ import {
 import * as authoringModule from '../packages/control-plane/src/animation-author.js';
 
 const HAS_ASK_AGAIN = typeof authoringModule.ARTIFACT_CORRECTION === 'string';
+import * as policyModule from '../packages/control-plane/src/animation-policy.js';
+
+const HAS_STRIP = typeof policyModule.stripMisplaced === 'function';
 
 const log = console.log; console.log = (...args) => { if (!(typeof args[0] === 'string' && args[0].startsWith('{"event":"learn_model"'))) log(...args); }; // callAnimationRole logs one line per fake call
 const fixture = JSON.parse(readFileSync(new URL('../packages/control-plane/test/fixtures/animation-aj_9c453b6.json', import.meta.url), 'utf8'));
@@ -247,6 +250,19 @@ test('a run that asked the author again is billed for both calls and says so', {
   const flat = await sampleOnce(run, { transport: fakeTransport(null, { sequence: [{ kind: 'artifact', ...fixture.repairedDraft }] }), signal: undefined, ids });
   assert.deepEqual([flat.record.status, flat.record.calls, flat.record.askedAgain], ['valid', 1, false]);
   assert.deepEqual([flat.input.calls[0].artifactType, flat.record.kind], ['undefined', 'artifact']);
+});
+
+test('a field the reader stripped (FX-AN-110) is disclosed in run.json and input.json, and the run is judged on what was kept', { skip: !HAS_STRIP && 'needs the strip of feat/an20-c9' }, async () => {
+  const run = planRuns([pin], 1)[0], ids = { candidate: 'c', prompts: 'p', golden: 'g' };
+  const strays = { ...fixture.repairedDraft, readouts_note: 'The readouts are listed in order.' };
+  const out = await sampleOnce(run, { transport: fakeTransport(null, { sequence: [{ kind: 'artifact', artifact: strays }] }), signal: undefined, ids });
+  assert.equal(out.record.status, 'valid', out.record.problems.join('; '));
+  assert.deepEqual(out.record.stripped.map(x => [x.path, x.key]), [['artifact', 'readouts_note']]);
+  assert.deepEqual(out.input.calls[0].stripped.map(x => x.key), ['readouts_note']);
+  assert.equal('readouts_note' in out.draft, false);
+  const clean = await sampleOnce(run, { transport: fakeTransport(fixture.repairedDraft), signal: undefined, ids });
+  assert.equal(clean.record.stripped, undefined);
+  assert.equal('stripped' in clean.input.calls[0], false);
 });
 
 test('a run is admitted against the bound of both its possible calls', async () => {

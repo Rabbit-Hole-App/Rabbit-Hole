@@ -169,10 +169,11 @@ export const INPUT_HEAD = 3000;
 export const STRING_KEEP = 120000;
 const parseErrorOf = text => { try { JSON.parse(text); return null; } catch (error) { return String(error.message).slice(0, 300); } };
 const typeOf = value => (value === undefined ? 'undefined' : value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value);
-export function inputInfo({ input, reply } = {}, again = false) {
+export function inputInfo({ input, reply, stripped } = {}, again = false) {
   const text = input !== undefined ? JSON.stringify(input) : reply?.partialTool ?? null, object = input && typeof input === 'object' && !Array.isArray(input);
   return { again, kind: object ? input.kind ?? null : null, keys: object ? Object.keys(input) : null, artifactType: object ? typeOf(input.artifact) : typeOf(input), chars: text?.length ?? null,
     head: text === null ? null : text.slice(0, INPUT_HEAD), stopReason: reply?.stopReason ?? null, blocks: reply?.blocks ?? null,
+    ...(stripped?.length ? { stripped } : {}),
     ...(object && typeof input.artifact === 'string' ? { stringArtifact: { chars: input.artifact.length, parseError: parseErrorOf(input.artifact), text: input.artifact.slice(0, STRING_KEEP) } } : {}) };
 }
 // Usage of every call of a run, added field by field (numbers sum; the first non-number stays): a run that asked again was billed for both.
@@ -193,6 +194,7 @@ export async function sampleOnce(run, { transport, signal, ids }) {
       const r = await callAnimationRole(OFFLINE_ENV, role, spec, { callModel: transport.callModel({ run, signal }) });
       infos.push(inputInfo(r, spec.again === true));
       record.usage = addUsage(record.usage, r.usage); record.stopReason = r.stopReason; record.served = r.served;
+      if (r.stripped?.length) record.stripped = [...(record.stripped ?? []), ...r.stripped]; // FX-AN-110: fields the reader dropped, disclosed
       return r;
     } catch (error) {
       if (error.billed) { infos.push(inputInfo({ reply: error.reply }, spec.again === true)); record.usage = addUsage(record.usage, error.billed.usage); record.stopReason = error.billed.stopReason ?? record.stopReason; }
