@@ -852,7 +852,7 @@ export class AnimationJobs {
       const refused = ['provider_unavailable', 'spend_refused'].includes(error?.code);
       if (refused) { current.counts[role]--; current.bounds[phase] -= call.boundMicros; }
       Object.assign(call, { requested: out?.identity.requested ?? error?.reply?.requested ?? null, served: out?.identity.served ?? error?.served ?? error?.billed?.served ?? null, status: refused ? 'refused' : error ? 'failed' : 'settled', stopReason: out?.stopReason ?? error?.billed?.stopReason ?? null,
-        costMicros: refused ? 0 : toMicros(cost), inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: error?.code || (error ? 'failed' : null), ...(error?.reply ? { reply: error.reply } : {}) });
+        costMicros: refused ? 0 : toMicros(cost), inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: error?.code || (error ? 'failed' : null), ...(error?.reply ? { reply: error.reply } : {}), ...(out?.blocks ? { blocks: out.blocks } : {}) });
       if (current.inFlight?.key === key) current.inFlight = null;
       countStage(current.timing, { calls: 1, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens, images });
       await this.save(current);
@@ -979,7 +979,7 @@ export class AnimationJobs {
       return this.repairOrStop(job, out, 'review');
     } else if (stage === 'repairing') {
       // The draft this repair replaced (diagnostics only): FX-AN-030's first draft was lost when its repair overwrote it.
-      job.candidates.push({ repairs: job.repairs, ...(job.draft ? { previousDraft: job.draft } : {}), operation: out.operation || null, progress: out.progress !== false, ...(out.draft ? { draftHash: await hash16(out.draft), hasProgram: !!out.draft.program } : {}), ...(out.inputKeys ? { inputKeys: out.inputKeys } : {}), ...(out.artifactKeys ? { artifactKeys: out.artifactKeys } : {}), ...(out.rejected ? { rejected: out.rejected } : {}), ...(out.forwarded ? { forwarded: out.forwarded } : {}) });
+      job.candidates.push({ repairs: job.repairs, ...(job.draft ? { previousDraft: job.draft } : {}), operation: out.operation || null, progress: out.progress !== false, ...(out.draft ? { draftHash: await hash16(out.draft), hasProgram: !!out.draft.program } : {}), ...(out.inputKeys ? { inputKeys: out.inputKeys } : {}), ...(out.artifactKeys ? { artifactKeys: out.artifactKeys } : {}), ...(out.rejected ? { rejected: out.rejected } : {}), ...(out.forwarded ? { forwarded: out.forwarded } : {}), ...(out.reason ? { reason: out.reason } : {}), ...(out.programRetried ? { programRetried: true } : {}), ...(out.rawReplies ? { rawReplies: out.rawReplies } : {}) });
       if (out.rejected) return this.stopWith(job, 'unsupported_repair', 'spec', 'This animation needs a change the repair step cannot make. Edit the request and try again.');
       if (out.progress === false || !out.draft) return this.stopWith(job, 'no_progress', 'spec', 'The animation could not be repaired. Edit the request and try again.');
       Object.assign(job, { draft: out.draft, artifact: null, artifactHash: null, captures: null, coverage: null });

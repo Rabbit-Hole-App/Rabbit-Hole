@@ -348,9 +348,12 @@ test('a repair must return the program: the tool requires it and the prompt says
   const call = s.model.calls.find(c => c.role === 'repair');
   assert.ok(call.tool.input_schema.properties.artifact.required.includes('program'), 'the repair tool requires the program');
   assert.match(call.system, /Return the COMPLETE artifact every time[^.]*the program/);
-  // The review's repair dropped the program; the run failure's own repair returned the same program-less artifact: no progress.
-  assert.deepEqual([done.stage, done.stopReason], ['failed', 'no_progress']);
-  assert.match(done.findings.at(-1).problems.join(' '), /missing_program/);
+  // The review's repair dropped the program and was asked once more (FX-AN-043: two repair calls), which dropped it again; the run failure's repair has no call left.
+  assert.deepEqual([done.stage, done.stopReason, done.counts.repair, done.candidates.find(c => c.stage !== 'preparing').programRetried], ['failed', 'budget', 2, true]);
+  assert.match(done.findings.find(f => f.problems)?.problems.join(' '), /missing_program/);
+  // FX-AN-043: both program-less answers are kept as they came, with the candidate (diagnostics only).
+  const kept = done.candidates.find(c => c.stage !== 'preparing').rawReplies;
+  assert.deepEqual([kept.length, kept.every(r => r.stopReason === 'tool_use' && r.blocks.some(b => b.type === 'tool_use') && JSON.parse(r.partialTool).operation === 'artifact' && !JSON.parse(r.partialTool).artifact.program)], [2, true]);
   // The author's tool requires it too for a scene that needs one; a static inspect plan does not.
   assert.ok(s.model.calls.find(c => c.role === 'author').tool.input_schema.properties.artifact.required.includes('program'));
   const { authorTool } = await import('../src/agents/animation-author.js');
@@ -377,9 +380,9 @@ test('a repair that returns the program beside the artifact, or as a bare source
     assert.equal(done.artifact.program.source, program.source);
     assert.deepEqual([done.candidates.find(c => c.stage !== 'preparing').hasProgram, done.candidates.find(c => c.stage !== 'preparing').inputKeys.includes('program'), done.candidates.find(c => c.stage !== 'preparing').artifactKeys.includes('program')], [true, true, false]);
   }
-  // Nowhere at all: still refused at validation (no program is invented).
+  // Nowhere at all: asked once more (FX-AN-043), then still refused at validation (no program is invented), with no repair call left.
   const none = stack(t, { reviews: [false, true], repair: () => ({ operation: 'artifact', artifact: { ...rest, title: 'Fixed' } }) });
-  assert.deepEqual([(await none.generated()).done.stopReason], ['no_progress']);
+  assert.deepEqual([(await none.generated()).done.stopReason], ['budget']);
 });
 
 // accept-5 fresh: the author spent all 10,000 output tokens (dev ledger: output_tokens 10000) and made no tool call.

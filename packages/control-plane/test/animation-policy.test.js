@@ -64,3 +64,15 @@ test('provider failures are named: overload pauses, an unknown model is explicit
   await assert.rejects(call(async () => Response.json({ code: 'allowance_limited', error: 'Not enough AI credits.' }, { status: 429 })), { code: 'spend_refused' });
   await assert.rejects(callAnimationRole({}, 'author', { system: 's', tool, content: 'x' }, { tasks: TASKS }), { code: 'no_transport' });
 });
+
+// FX-AN-043: the raw reply of a settled call (every block, the text, the tool input as it came) is returned for the stage to keep when it matters.
+test('a settled call returns its reply as diagnostics: blocks, text and tool input, bounded', async () => {
+  const text = 'I will return the artifact.', input = { operation: 'artifact', artifact: { title: 't' } };
+  const ok = await call(reply([{ type: 'text', text }, { type: 'tool_use', name: tool.name, input }]), 'repair');
+  assert.deepEqual(ok.reply.blocks, [{ type: 'text', chars: text.length, text }, { type: 'tool_use', name: tool.name, chars: JSON.stringify(input).length }]);
+  assert.equal(ok.reply.partialTool, JSON.stringify(input));
+  assert.deepEqual([ok.reply.stopReason, ok.reply.usage], ['tool_use', { input_tokens: 10, output_tokens: 5 }]);
+  const big = await call(reply([{ type: 'text', text: 'x'.repeat(5000) }, { type: 'tool_use', name: tool.name, input: { s: 'y'.repeat(40000) } }]), 'repair');
+  assert.equal(big.reply.blocks[0].text.length, 2000, 'text is bounded');
+  assert.equal(big.reply.partialTool.length, 16000, 'the repair tool input is kept to 16,000 characters');
+});
