@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { linePoints, triangleCost, validateAnimationArtifact } from './contract.js';
 import { ANIMATION_FIXTURES, INVALID_ANIMATION_FIXTURES, primitivesFixture, watchFixture } from './fixtures.js';
-import { ARROW_LABELS, buildAnimationScene, declutterLabels, LABEL_PIXELS, labelPixels } from './scene.js';
+import { ARROW_LABELS, TRAIL_OBSTACLE_SEGMENTS, buildAnimationScene, declutterLabels, LABEL_PIXELS, labelPixels, sampleIndices } from './scene.js';
 
 // Real Three.js objects, no WebGL: labels get a plain Texture in place of the browser's canvas texture.
 const labels = [];
@@ -680,4 +680,37 @@ test('buried: nothing is reported for a ball off the surface, in the air, or cla
   loose.apply({ nodes: { ball: { position: [1.5, -3, 0] } } });
   assert.deepEqual(loose.buried().map(b => b.node), [], 'a ball with no clampTo has no surface it sits on');
   loose.dispose();
+});
+
+// C10 (CI diagnosis, run 41779710894: animation-primitives stopped at "The scene stopped responding" on a slow runner, 80 s against 30 s): the per-draw work the C9 label rules added is
+// bounded and does not churn. A long trail is sampled to at most TRAIL_OBSTACLE_SEGMENTS obstacle segments, and an arrow label is repainted only when its cap moves by a quarter.
+test('a long trail is sampled to a bounded number of obstacle segments, keeping its first and last points', () => {
+  assert.equal(TRAIL_OBSTACLE_SEGMENTS, 48);
+  assert.deepEqual(sampleIndices(21, 48), Array.from({ length: 21 }, (_, i) => i), 'a short path keeps every point');
+  for (const length of [49, 64, 100, 256, 512]) {
+    const picked = sampleIndices(length, TRAIL_OBSTACLE_SEGMENTS);
+    assert.ok(picked.length - 1 <= TRAIL_OBSTACLE_SEGMENTS, `${length} points give ${picked.length - 1} segments`);
+    assert.deepEqual([picked[0], picked.at(-1)], [0, length - 1]);
+    assert.ok(picked.every((p, i) => i === 0 || p > picked[i - 1]), 'in order, once each');
+  }
+});
+
+test('a golden run lays out in bounded time and repaints its arrow labels a few times, not at every step', () => {
+  const golden = JSON.parse(readFileSync(new URL('./testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
+  let paints = 0;
+  const counting = (text, { pixels = 20, maxWidth = 400 } = {}) => { paints += 1; return { texture: new THREE.Texture(), aspect: Math.min(text.length * 0.5, maxWidth / pixels), rows: 1 }; };
+  const scene = buildAnimationScene(golden, { labelTexture: counting }).scene;
+  const view = new THREE.PerspectiveCamera(golden.camera.fov ?? 45, 725 / 240, 0.1, 2000);
+  view.position.set(...golden.camera.position); view.lookAt(...golden.camera.target); view.updateMatrixWorld();
+  const arrows = golden.scene.nodes.filter(n => golden.scene.geometries.find(g => g.id === n.geometry)?.kind === 'arrow').map(n => n.id);
+  const frames = 60, started = performance.now();
+  for (let i = 0; i < frames; i += 1) {
+    const f = Math.exp(-i / 14), points = Array.from({ length: Math.min(i + 1, 64) }, (_, k) => [0.3 * Math.exp(-k / 14), 0.2 + 0.1 * Math.exp(-k / 14), 1.6 * Math.exp(-k / 14)]);
+    scene.apply({ nodes: { ball: { position: [0.3 * f, 0.3 + 0.8 * f, 1.6 * f] }, trail: { points }, ghost: { points }, ...Object.fromEntries(arrows.map(id => [id, { scale: [1, Math.max(0.001, 2.2 * f), 1] }])) } });
+    scene.layoutLabels({ width: 725, height: 240, camera: view });
+  }
+  const perFrame = (performance.now() - started) / frames;
+  assert.ok(perFrame < 20, `apply + layout took ${perFrame.toFixed(2)} ms a frame (0.5 ms measured in Node; the budget is generous for a slow runner)`);
+  assert.ok(paints <= 5, `${paints} label paints over ${frames} steps of a shrinking arrow (7 before the hysteresis)`);
+  scene.dispose();
 });

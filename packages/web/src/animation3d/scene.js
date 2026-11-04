@@ -28,6 +28,15 @@ export const LABEL_PIXELS = Object.freeze({ min: 18, max: 22, step: 2, share: 0.
 // A label that names an arrow (its node is a child of an arrow node) is kept in proportion to it, by the renderer, not the author (C9, owner; C7 job 2: a plate five times longer
 // than a short arrow): hidden when the arrow is shorter than `hide` CSS pixels on screen, else wrapped to at most `cap` times the arrow's on-screen length (never narrower than `minWidth`).
 export const ARROW_LABELS = Object.freeze({ hide: 24, cap: 3, minWidth: 72 });
+// The work a draw does for the paths is bounded (C10; the primitives check stopped responding on a slow CI runner): a trail is an obstacle through at most this many segments.
+export const TRAIL_OBSTACLE_SEGMENTS = 48;
+// The indices of at most `max` + 1 points along a path of `length` points, evenly spaced, always including the first and the last.
+export const sampleIndices = (length, max) => {
+  const stride = Math.max(1, Math.ceil((length - 1) / max)), picked = [];
+  for (let i = 0; i < length; i += stride) picked.push(i);
+  if (picked.at(-1) !== length - 1) picked.push(length - 1);
+  return picked;
+};
 export const labelPixels = (size, span) => {
   const { min, max, step, share } = LABEL_PIXELS;
   return Math.min(max, Math.max(min, Math.round(share * span * Math.min(1.5, Math.max(0.75, size / 0.3)) / step) * step));
@@ -501,10 +510,11 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
           if (arrow) {
             const length = arrowPixels(arrow);
             if (length < ARROW_LABELS.hide) { drawable.visible = tag.leader.visible = false; continue; } // no arrow to name: no label, and no room taken
-            cap = Math.min(bounds.w, Math.max(ARROW_LABELS.minWidth, Math.round(ARROW_LABELS.cap * length / 8) * 8)); // buckets of 8 px: it repaints only when the cap moves
+            const want = Math.min(bounds.w, Math.max(ARROW_LABELS.minWidth, Math.round(ARROW_LABELS.cap * length / 8) * 8)); // buckets of 8 px
+            cap = tag.cap !== undefined && Math.abs(want - tag.cap) < 0.25 * tag.cap ? tag.cap : want; // repainted (a new canvas texture) only when the cap moves by a quarter
           }
           const painted = `${pixels}@${ratio}@${cap}`;
-          if (tag.painted !== painted) paint(drawable, pixels, cap, painted);
+          if (tag.painted !== painted) { paint(drawable, pixels, cap, painted); if (arrow) tag.cap = cap; }
           const h = Math.round(Math.round(pixels * ratio) * tag.rows) / ratio, w = h * tag.aspect, tall = 2 * h / (f * h0); // the painted height, exactly
           drawable.parent.getWorldScale(world);
           drawable.scale.set(tall * tag.aspect / (world.x || 1), tall / (world.y || 1), 1);
@@ -530,15 +540,12 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
           obstacles.push({ x1: (tail.x + 1) / 2 * w0, y1: (1 - tail.y) / 2 * h0, x2: (head.x + 1) / 2 * w0, y2: (1 - head.y) / 2 * h0, half: radius * f * h0 / (2 * depth) });
         });
         // Trail polylines (C9, owner): a label keeps off the path where there is room. Soft obstacles like markers, so a plate with no clear spot keeps its place instead of vanishing,
-        // and the path that ends at a label's own point does not count against it (declutterLabels `mine`). At most 256 segments per trail.
+        // and the path that ends at a label's own point does not count against it (declutterLabels `mine`). At most TRAIL_OBSTACLE_SEGMENTS segments per trail.
         root.traverseVisible(trail => {
           const points = trail.userData.points;
           if (!trail.userData.trail || !points || points.length < 2) return;
-          const stride = Math.max(1, Math.ceil((points.length - 1) / 256)), picked = [];
-          for (let i = 0; i < points.length; i += stride) picked.push(i);
-          if (picked.at(-1) !== points.length - 1) picked.push(points.length - 1);
           let before = null;
-          for (const i of picked) {
+          for (const i of sampleIndices(points.length, TRAIL_OBSTACLE_SEGMENTS)) {
             trail.localToWorld(world.set(points[i][0], points[i][1], points[i][2])).project(camera);
             const here = Math.abs(world.z) <= 1 ? { x: (world.x + 1) / 2 * w0, y: (1 - world.y) / 2 * h0 } : null;
             if (before && here) obstacles.push({ x1: before.x, y1: before.y, x2: here.x, y2: here.y, half: 2, soft: true });
