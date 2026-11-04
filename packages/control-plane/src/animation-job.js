@@ -47,7 +47,7 @@ import { reviewStage } from './animation-review.js';
 import { repairStage } from './animation-repair.js';
 import { CHANGED, GAP_ALTERNATIVES, GAP_FALLBACK, SIMPLER_ALTERNATIVE, clarificationFor, learnerReason, sizeCheck } from './animation-feasibility.js';
 import { seededJobs } from './animation-outcomes-fixture.js';
-import { ANIMATION_BILLING, ANIMATION_LIMITS, ANIMATION_POLICY_VERSION, AnimationPolicyError, animationModelConfigured, modelNotConfigured, animationRequest, animationReservation, callAnimationRole, checkAnimationRequest } from './animation-policy.js';
+import { ANIMATION_BILLING, ANIMATION_LIMITS, ANIMATION_POLICY_VERSION, AnimationPolicyError, animationModelConfigured, modelNotConfigured, animationRequest, animationReservation, animationStreaming, callAnimationRole, checkAnimationRequest } from './animation-policy.js';
 
 export const ANIMATION_PREFIX = '/api/learn/animation/jobs';
 export const ANIMATION_COMMAND = 'animation';
@@ -793,8 +793,9 @@ export class AnimationJobs {
     return scoped;
   }
   transport(job, role) {
+    const stream = animationStreaming(this.env, role); // AN-17: the author and repair stream, every role has a deadline; null when ANIMATION_STREAMING=false
     return (env, body, model) => spendTransport(this.usageEnv(job, role === 'brief' ? job.prepKey : job.actionKey), body, model, null,
-      admitted => anthropic(admitted, body, model, null), { userId: job.owner.userId || job.owner.email, category: 'animation', provider: 'anthropic', kind: KIND[role] });
+      admitted => anthropic(stream ? { ...admitted, MODEL_STREAM: stream } : admitted, body, model, null), { userId: job.owner.userId || job.owner.email, category: 'animation', provider: 'anthropic', kind: KIND[role] });
   }
   async finishUsage(job, status) {
     const db = this.env.LEARN_DB, user = job.owner.userId || job.owner.email;

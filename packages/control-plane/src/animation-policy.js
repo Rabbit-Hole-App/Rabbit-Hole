@@ -46,7 +46,9 @@ export const ANIMATION_LIMITS = Object.freeze({
   // Review captures: up to 2 declared views at up to 3 parameter/time states per round, one browser per job, platform-paid; a round
   // per candidate (the first and both repairs).
   render: Object.freeze({ views: 2, states: 3, capturesPerRound: 6, rounds: 3 }),
-  deadlines: Object.freeze({ callMs: 120000, preparationMs: 180000, jobMs: 600000 }),
+  // callMs: the longest one brief or review call may take; authorCallMs: the author's and the repair's (they write the whole artifact; measured author calls
+  // ran 87 to 126 s and a repair may use 24,000 tokens, about 210 s). Enforced by the streaming transport (animationStreaming); FX-AN-041 found callMs read nowhere.
+  deadlines: Object.freeze({ callMs: 120000, authorCallMs: 300000, preparationMs: 180000, jobMs: 600000 }),
   // A transient failure (provider busy, a sample render failed) runs its stage once more after a pause, once per attempt, before the
   // deadline. It adds no call to the ceiling: a refused call gave its count back, and renders are platform compute.
   autoRetry: Object.freeze({ delayMs: 15000 }),
@@ -58,6 +60,16 @@ export const ANIMATION_LIMITS = Object.freeze({
 // job too. freeFailuresPerDay: DEFAULT 5, how many generations a learner may have refunded in a rolling 24 hours before Generate is
 // refused (each costs the platform its model price). Both are owner decisions, flagged in the doc.
 export const ANIMATION_BILLING = Object.freeze({ planPhaseRefunded: false, freeFailuresPerDay: 5 });
+
+// How a role's call is sent (owner decision 20.5, AN-17, FX-AN-044): the author and repair answer as a stream, put back together as the one message the
+// call returns (anthropic-stream.js), so no gateway waits on a silent connection; every animation role is aborted at its deadline. The flag
+// ANIMATION_STREAMING=false returns null: the single non-streaming request with no deadline, exactly as before this existed (the recovery lever).
+// Read by the job's transport and handed to ask.js as env.MODEL_STREAM; no other feature sets it.
+export function animationStreaming(env, role) {
+  if (env.ANIMATION_STREAMING === 'false') return null;
+  const stream = role === 'author' || role === 'repair';
+  return { stream, deadlineMs: stream ? ANIMATION_LIMITS.deadlines.authorCallMs : ANIMATION_LIMITS.deadlines.callMs };
+}
 
 export const PROVIDER_UNAVAILABLE = 'Animations are temporarily unavailable. Your request is saved. Try again in a few minutes.';
 
@@ -154,13 +166,16 @@ export function animationToolInput(role, result, tool) {
 export const animationModelConfigured = env => env.SUBSCRIPTION_ONLY === 'true' || !!env.ANTHROPIC_API_KEY;
 export const modelNotConfigured = () => new AnimationPolicyError('model_not_configured', MODEL_NOT_CONFIGURED, { status: 503 });
 
+// The provider, or the gateway in front of it, did not answer (FX-AN-041: the author's 524 after 126 s was a failure with no name and no way on): the same as
+// an overload. The call is refused, gives its count back and the job runs the stage once more. 504 is our own deadline (anthropic-stream.js).
+const NOT_ANSWERING = new Set([502, 503, 504, 524]);
 async function roleFailure(role, response, tasks) {
   if (await notConfiguredMessage(response)) return modelNotConfigured();
   if ([429, 503].includes(response.status)) {
     const body = await response.clone().json().catch(() => null);
     if (['allowance_limited', 'spend_limited'].includes(body?.code)) return new AnimationPolicyError('spend_refused', body.error || 'AI is not available right now.', { status: response.status, reason: body.reason ?? null });
   }
-  if (await providerUnavailable(response)) return new AnimationPolicyError('provider_unavailable', PROVIDER_UNAVAILABLE, { providerStatus: response.status });
+  if (await providerUnavailable(response) || NOT_ANSWERING.has(response.status)) return new AnimationPolicyError('provider_unavailable', PROVIDER_UNAVAILABLE, { providerStatus: response.status });
   if (response.status === 404) {
     const body = await response.clone().json().catch(() => null);
     if (body?.error?.type === 'not_found_error') return new AnimationPolicyError('model_unavailable', `${animationModel(role, undefined, tasks)} is not available for /animation right now. Nothing else was used.`);

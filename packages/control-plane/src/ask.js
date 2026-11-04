@@ -6,6 +6,7 @@ import { researchAnswer } from './learn-research.js';
 import { learnMomentsDb } from './learn-storage.js';
 import { base64 } from './token.js';
 import { MODEL, autoModel, planUsesOpenAI, loggedModel, notConfiguredReply } from './learn-models.js';
+import { streamedMessage } from './anthropic-stream.js';
 // Ask (phase 1 - read only): one agent function, scoped per question. This module
 // holds the model call + prompt; index.js owns auth, scope resolution, and context
 // assembly so permissions are enforced by queries, never by the prompt.
@@ -341,9 +342,10 @@ async function anthropicTransport(env, body, model, org, ai) {
   // body.betas (the Tutor planner's fast mode, Decision 5B) goes in the anthropic-beta header, not the body.
   const { betas = [], ...payload } = body;
   const beta = [...(chosen ? [] : ['server-side-fallback-2026-07-01']), ...betas].join(',');
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+  const request = chosen ? { ...payload, model: chosen } : { model: MODEL, fallbacks: 'default', ...payload };
+  const send = (signal, streaming = false) => fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    signal: env.CAD_MODEL_ABORT_SIGNAL,
+    signal,
     headers: {
       'x-api-key': env.ANTHROPIC_API_KEY,
       'anthropic-version': '2023-06-01',
@@ -351,8 +353,11 @@ async function anthropicTransport(env, body, model, org, ai) {
       'Content-Type': 'application/json',
       ...(env.ANTHROPIC_WORKSPACE_ID ? { 'anthropic-workspace-id': env.ANTHROPIC_WORKSPACE_ID } : {}),
     },
-    body: JSON.stringify(chosen ? { ...payload, model: chosen } : { model: MODEL, fallbacks: 'default', ...payload }),
+    body: JSON.stringify(streaming ? { ...request, stream: true } : request),
   });
+  // env.MODEL_STREAM is set only by the animation job's transport (animation-policy.js animationStreaming): the answer is read as a stream and
+  // returned as the one message below, under an abort deadline. Every other caller sends the same single request it always did.
+  const resp = env.MODEL_STREAM ? await streamedMessage(send, env.MODEL_STREAM) : await send(env.CAD_MODEL_ABORT_SIGNAL);
   // Surface the API's own reason in logs; callers only relay the status code.
   // The fingerprint (shapes and sizes only, never content) identifies which
   // payload construction produced an invalid_request_error.
