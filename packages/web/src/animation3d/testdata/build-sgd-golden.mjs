@@ -9,24 +9,28 @@ import { writeFileSync } from 'node:fs';
 import { ANIMATION_CAPABILITIES } from '../capabilities.js';
 import { ANIMATION_PROGRAM_VERSIONS, PLAN_SCHEMA, SCENE_SCHEMA, hashAnimationPlan, hashProgramSource } from '../contract.js';
 
-// The bowl is loss(x, z) = (3 x^2 + z^2) / 2 on x, z in [-2, 2], drawn at height 0.5 x loss (top 4 at the corners). Plain gradient
-// descent diverges above learning rate 2/3, so 0.1 converges and 1.5 leaves the bowl on its first step.
-export const BOWL = Object.freeze({ a: 3, c: 1, height: 0.5, half: 2, grid: 24, contours: 8, ball: 0.12, start: [0.3, 1.6] });
+// The bowl is loss(x, z) = (1.4 x^2 + 0.9 z^2) / 2 on x, z in [-2, 2], drawn at height 0.8 x loss (top 3.68 at the corners). Plain gradient descent turns x by 1 - 1.4 r
+// and z by 1 - 0.9 r each step: it converges below r = 2 / 1.4 = 1.43 and diverges above it, one growing swing at a time (x grows by 1.1 at r = 1.5 and by 1.8 at the top of the
+// range, 2, where the marker makes four swings before it leaves). The curvature, not the rate range, sets that: the control's slider still runs 0.01 to 2.
+export const BOWL = Object.freeze({ a: 1.4, c: 0.9, height: 0.8, half: 2, grid: 24, contours: 8, ball: 0.12, start: [0.15, 1.95] });
 
 // ponytail: the program clamps nothing. The ball is placed at its true height and the renderer clamps it (clampTo); only the trail, which
 // the renderer does not clamp, keeps its vertices at the surface top (lift). Divergence ends the run, so a trail holds at most one point off the bowl.
-export const PROGRAM = `// Gradient descent on the loss bowl L(x, z) = (3 x^2 + z^2) / 2, drawn at height 0.5 L over the square x, z in [-2, 2].
-const A = 3, C = 1, K = 0.5, R = 0.12, HALF = 2, TOP = 4, TOL = 0.02, MAX = 64, START = [0.3, 1.6], SCALE = 4.5, LONGEST = 2, SHORTEST = 0.4;
+export const PROGRAM = `// Gradient descent on the loss bowl L(x, z) = (1.4 x^2 + 0.9 z^2) / 2, drawn at height 0.8 L over the square x, z in [-2, 2]. Plain descent turns every x step by 1 - 1.4 r.
+const A = 1.4, C = 0.9, K = 0.8, R = 0.12, HALF = 2, FLAT = 0.12, MAX = 64, START = [0.15, 1.95], SCALE = 4.5, LONGEST = 2, SHORTEST = 0.4;
 const loss = (x, z) => 0.5 * (A * x * x + C * z * z);
+const TOP = K * loss(HALF, HALF); // the surface top: the highest the drawn path is lifted
 const rand = n => { const s = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return s - Math.floor(s); };
 const gauss = n => Math.sqrt(-2 * Math.log(Math.max(1e-9, rand(n)))) * Math.cos(2 * Math.PI * rand(n + 0.5));
-// The status word: the ball has left the drawn bowl, its loss is below 0.02, it is stepping, or it is waiting.
-const word = s => (Math.abs(s.x) > HALF || Math.abs(s.z) > HALF ? 'diverged' : loss(s.x, s.z) < TOL ? 'converged' : s.on ? 'running' : 'paused');
+// The status word: the ball has left the drawn bowl, the slope under it is below 0.12 (flat: the lowest point), it is stepping, or it is waiting. The slope, not the loss, so a
+// run whose swings are still small and growing is never called converged.
+const word = s => (Math.abs(s.x) > HALF || Math.abs(s.z) > HALF ? 'diverged' : Math.hypot(A * s.x, C * s.z) < FLAT ? 'converged' : s.on ? 'running' : 'paused');
 const over = s => word(s) === 'diverged' || word(s) === 'converged';
-// The next step: minus the learning rate times (the slope plus batch noise); no noise with all 256 examples. The noise is fixed by the run and the step.
+// The next step: minus the learning rate times the slope, plus a small random jolt (0.1 / sqrt(batch) a component, the same at every rate: 0.025 at batch 16); no jolt with all
+// 256 examples. The jolt is fixed by the run and the step. It is the same size at a high rate, so a diverging run keeps its shape (growing swings) rather than being thrown out.
 function next(s, inputs) {
-  const batch = Number(inputs.batchSize), sd = batch >= 256 ? 0 : 2 / Math.sqrt(batch), k = s.run * 1009 + s.step * 2 + 1;
-  return [-inputs.learningRate * (A * s.x + sd * gauss(k)), -inputs.learningRate * (C * s.z + sd * gauss(k + 0.25))];
+  const batch = Number(inputs.batchSize), sd = batch >= 256 ? 0 : 0.1 / Math.sqrt(batch), k = s.run * 1009 + s.step * 2 + 1;
+  return [-inputs.learningRate * A * s.x + sd * gauss(k), -inputs.learningRate * C * s.z + sd * gauss(k + 0.25)];
 }
 function advance(s, inputs) {
   if (over(s)) return s;
@@ -136,10 +140,10 @@ export async function buildGolden() {
       program: { ...ANIMATION_PROGRAM_VERSIONS, source: PROGRAM, sourceHash: await hashProgramSource(PROGRAM) },
       seed: 7, camera: { position: [0, 10.03, 4.69], target: [0, 1.2, 0], fov: 45 },
       assumptions: [
-        'Illustration: the bowl is the formula loss = (3 x^2 + z^2) / 2, drawn at 0.5 times the loss. No real data or model is used.',
-        'Each step moves the ball by the learning rate times the slope plus batch noise; with all 256 examples there is no noise. The noise is fixed by the run and the step.',
+        'Illustration: the bowl is the formula loss = (1.4 x^2 + 0.9 z^2) / 2, drawn at 0.8 times the loss. No real data or model is used.',
+        'Each step moves the ball by the learning rate times the slope plus a small random jolt, larger the smaller the batch and the same at every rate; with all 256 examples there is no jolt. The jolt is fixed by the run and the step.',
         'Diverged means the ball has left the drawn bowl. The ball is then drawn at the top of the bowl, and the Loss readout keeps its true value.',
-        'Converged means the loss is below 0.02.',
+        'Converged means the slope under the ball is below 0.12, which is flat enough to call it the lowest point.',
         'Both arrows are steps drawn at 4.5 times their real length, one scale for both, at most 2 long. Next step is the step this batch gives; Full-batch step is the step all 256 examples would give. An arrow shorter than 0.4 is hidden.',
         'A point of the path outside the bowl is drawn at the rim, where the ball is held.',
       ],

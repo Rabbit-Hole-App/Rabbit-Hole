@@ -25,7 +25,7 @@ export const ARCHETYPES = freeze({
       'The arrow scale factor keeps the largest typical step at the default rate under a quarter of the surface width.',
       'The camera looks from 30 to 65 degrees above and keeps the whole surface and the path in view. The steep axis spans the screen, so the zig-zag runs across the view.',
     ],
-    comparison: 'Two settings of the main step-size control, one that converges and one that diverges. A new run keeps the old path as the ghost, so the learner sees both on the same surface. Diverged: the marker has left the drawn surface; the run stops.',
+    comparison: 'Two settings of the main step-size control, one that converges and one that diverges. A new run keeps the old path as the ghost, so the learner sees both on the same surface. Diverged: a diverging run makes several growing swings before the marker leaves the surface; the run stops.',
   },
 });
 

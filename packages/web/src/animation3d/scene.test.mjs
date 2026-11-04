@@ -713,11 +713,12 @@ test('decision 30: a marker inside the footprint is untouched; one beyond the ri
   loose.dispose();
 });
 
-test('decision 30: the golden\'s diverged ball (x 3.675 at learning rate 1.5) is drawn at the rim of its 4 by 4 bowl', () => {
+test('decision 30: a ball far outside the golden\'s 4 by 4 bowl (x 3.675, as if it had left it) is drawn at the rim and the top of the bowl', () => {
   const golden = JSON.parse(readFileSync(new URL('./testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
   const scene = built(golden), ball = golden.scene.nodes.find(node => node.clampTo);
   const result = scene.apply({ nodes: { [ball.id]: { position: [3.675, 10.8419, 0.4] } } });
-  assert.deepEqual(result.clamped.map(c => [c.axes, c.trueAt, c.drawnAt]), [[['x', 'y'], [3.675, 10.8419, 0.4], [2, 4, 0.4]]]);
+  const top = Math.fround(Math.max(...golden.scene.geometries.find(g => g.kind === 'surface').heights.flat())); // the surface mesh's highest vertex (a float32)
+  assert.deepEqual(result.clamped.map(c => [c.axes, c.trueAt, c.drawnAt]), [[['x', 'y'], [3.675, 10.8419, 0.4], [2, top, 0.4]]]);
   scene.dispose();
 });
 
